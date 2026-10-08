@@ -117,6 +117,6 @@ I did not run the pnpm 11.28 fallback. It is a quick follow-up if you want the e
 
 ### Smaller observations
 
-- **Turbo writes an `AGENTS.md` into the repo.** The first `turbo run` call from this session created a root `AGENTS.md` with a block that tells AI agents to read Turborepo's bundled docs. By the block's own text, turbo adds it again on later runs when it detects an agent and the block is missing. I deleted it and did not commit it, because adding a root `AGENTS.md` is your call. To stop it, set `"agentGuidance": false` in `turbo.json` (the key is in the `schema.json` that ships with turbo 2.11.7; I did not test it). To keep it, commit the file.
+- **Turbo writes an `AGENTS.md` into the repo, and it is kept.** The first `turbo run` call during T01 created a root `AGENTS.md` with a block that tells AI agents to read Turborepo's bundled docs. By the block's own text, turbo adds it again on later runs when it detects an agent and the block is missing. T01 deleted it uncommitted; the owner then decided to keep it, so it is committed (decided 2026-10-08). Turbo owns the block between its `BEGIN`/`END` markers and may rewrite it when turbo is upgraded; commit that diff when it happens. The alternative, not taken, was `"agentGuidance": false` in `turbo.json`.
 - pnpm 12 put its content-addressable store at `E:\.pnpm-store\v11`, outside the repo and on the same drive as the repo, so hard links work.
 - `prettier --check` accepts `package.json`, `turbo.json` and `pnpm-workspace.yaml` as written, with prettier's defaults.
