@@ -7,8 +7,7 @@ T01 passed on 2026-10-08 (see [SETUP.md](SETUP.md#workspace-config-t01)). T02 ad
 1. **Turn Corepack off.** This is now required, not optional. In a terminal, run `where pnpm`. The first line must be under `%APPDATA%\npm`. If it's under `C:\Program Files\nodejs`, run `corepack disable` from an **administrator** terminal. The repo now pins pnpm 12.10.1, so with Corepack on, plain `pnpm -v` crashes inside it (`Cannot find module '...\pnpm.cjs'`), as T01 confirmed. Until you do, Claude has to put `%APPDATA%\npm` first on PATH in every command.
 2. **Check the tools:** `node -v` prints 22.22 or newer, and `pnpm -v` prints `12.10.1` from inside `E:\shopblok-starter`.
 3. **Open Claude Code on your computer**, in `E:\shopblok-starter`: the Code tab of the Claude desktop app, or `claude` in a terminal. To follow it from the Claude app on another device, start it with `claude remote-control` instead.
-4. **Decide on turbo's `AGENTS.md`** (optional, not blocking). Turbo writes a root `AGENTS.md` when it detects an AI agent, and T01 deleted it instead of committing it. Either add `"agentGuidance": false` to `turbo.json`, or commit the file. Details in [SETUP.md](SETUP.md#smaller-observations-1).
-5. **Install the Medusa plugins** if you haven't. T02 doesn't need them, but T05 onwards does:
+4. **Install the Medusa plugins** if you haven't. T02 doesn't need them, but T05 onwards does:
    ```text
    /plugin marketplace add medusajs/medusa-agent-skills
    /plugin install medusa-dev@medusa
