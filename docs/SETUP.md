@@ -1,6 +1,6 @@
 # Setup
 
-> Only the T00 and T01 results exist so far. T17 adds the keyless quickstart, ports, credentials and the other Windows notes.
+> Only the T00, T01 and C0 results exist so far. T17 adds the keyless quickstart, ports, credentials and the other Windows notes.
 
 ## Windows preflight (T00)
 
@@ -120,3 +120,84 @@ I did not run the pnpm 11.28 fallback. It is a quick follow-up if you want the e
 - **Turbo writes an `AGENTS.md` into the repo, and it is kept.** The first `turbo run` call during T01 created a root `AGENTS.md` with a block that tells AI agents to read Turborepo's bundled docs. By the block's own text, turbo adds it again on later runs when it detects an agent and the block is missing. T01 deleted it uncommitted; the owner then decided to keep it, so it is committed (decided 2026-10-08). Turbo owns the block between its `BEGIN`/`END` markers and may rewrite it when turbo is upgraded; commit that diff when it happens. The alternative, not taken, was `"agentGuidance": false` in `turbo.json`.
 - pnpm 12 put its content-addressable store at `E:\.pnpm-store\v11`, outside the repo and on the same drive as the repo, so hard links work.
 - `prettier --check` accepts `package.json`, `turbo.json` and `pnpm-workspace.yaml` as written, with prettier's defaults.
+
+## Cloud preflight (C0)
+
+**Result: T02 can start in the cloud, with the environment and setup script as they are now. No allowed domain needs adding.** One gap needs a setup-script change before T05: a running session can't download other GitHub repos, so dtc-starter and Payload's templates (which T05 and T09 copy from) must be fetched by the setup script instead (item 2). Docker is installed but not running when a session starts (item 1). Both are fixed in [CLOUD.md](CLOUD.md) in this PR; the script change needs you to paste it (G4).
+
+| | |
+|---|---|
+| Date | 2026-10-08 |
+| Session | Claude Code cloud, environment `shopblok-starter`, branch `claude/cloud-preflight-c0-m0xy64`, repo cloned to `/home/user/shopblok-starter` |
+| OS | Ubuntu 24.04.5 LTS, Linux 6.18.44-fc-v80, x86_64, hostname `vm` |
+| User | `root` (`uid=0`). `sudo` exists and isn't needed |
+| Resources | `nproc` 4; `free -g` 15 GiB total, 12 free, no swap; `df -h .` `/dev/vda` 252G, 11G used, 29G available |
+| Node / npm | v22.22.0 / 10.9.4, the image's own `/opt/node22` (the setup script's Node upgrade branch did not run) |
+| pnpm | 12.10.1 at `/opt/node22/bin/pnpm` (`/usr/local/bin/pnpm` is a symlink to it) |
+| Docker | Engine 29.8.2, Compose v5.6.0, not running at session start |
+| Setup script | steps 1 to 5 as in CLOUD.md before this PR; 34 s |
+
+### Checks
+
+The last column answers "can T02 onward rely on it?".
+
+| C0 step and check | Result | Key output | Rely on it? |
+|---|---|---|---|
+| 1. Setup log: any failed step, and the time | **Pass** | `setup start 2026-10-08T21:54:25Z` … `setup end 2026-10-08T21:54:59Z`, 34 s (the plan's dry run took 243 s). Every step ran, `+ exit 0`. Chromium: `Chrome for Testing 156.0.8078.4 (playwright chromium v1248) downloaded to /opt/ms-playwright/chromium-1248` | Yes. Under the five-minute limit, so the environment can be cached (item 8) |
+| 1. `check-tools`, `whoami`, `nproc`, `free -g`, `df -h .` | **Pass** | `node: v22.22.0`, `pnpm: 12.10.1`, `docker: Docker version 29.8.2`, `docker compose: Docker Compose version v5.6.0`, `git 2.43.0`, `gh 2.89.0`, `jq-1.7`; `root`; `4`; `Mem: 15 0 12`; `/dev/vda 252G 11G 29G 28% /` | Yes |
+| 2. `node -v` | **Pass** | `v22.22.0` | Yes |
+| 2. `pnpm -v` in the repo and outside it | **Pass** | `12.10.1` in `/home/user/shopblok-starter`, in `/` and in `/tmp` | Yes |
+| 2. `command -v pnpm`, Corepack shim | **Pass** | `/opt/node22/bin/pnpm`. `corepack` is on PATH but has no `pnpm` or `yarn` shim (the script ran `corepack disable`) | Yes |
+| 3. `pnpm install --frozen-lockfile` (timed) | **Pass** | `Lockfile is up to date, resolution step is skipped`, `+ prettier 3.9.9`, `+ turbo 2.11.7`, `+ typescript 5.9.3`, `Done in 2.2s using pnpm v12.10.1` (real 2.3 s, cold store at `/root/.local/share/pnpm/store/v11`) | Yes |
+| 3. `pnpm exec turbo --version` | **Pass** | `2.11.7` | Yes |
+| 3. `pnpm exec turbo run build --dry=json` | **Pass** | exit 0, `"turboVersion":"2.11.7"`, `"packages":[]` (empty workspace) | Yes |
+| 3. Did turbo change `AGENTS.md`? | **No** | `md5sum AGENTS.md` is `995f281e6ed512494bf15f386443be6c` before and after; `git status --short` empty | Yes |
+| 4. Does `docker info` work at session start? | **No** | `failed to connect to the docker API at unix:///var/run/docker.sock … no such file or directory`. Started with `(setsid nohup dockerd > /var/log/dockerd-session.log 2>&1 &)` as root; `docker info` answered after 1.3 s (`Server Version: 29.8.2`, `Storage Driver: overlayfs`); the first start, with plain `nohup`, took 1.2 s, and the four images were still listed after the daemon was stopped and started again | Yes, once it is started (CLOUD.md, step 3 of "What every cloud session does first") |
+| 4. `docker image ls` lists the four pinned images | **Pass** | `axllent/mailpit:v1.31.4`, `getmeili/meilisearch:v1.54.3`, `postgres:17.11-alpine`, `redis:7.4-alpine` | Yes. They survive from the setup script |
+| 4. Published port reaches the VM's localhost | **Pass** | `docker run -d -p 15432:5432 postgres:17.11-alpine`, then `pg_isready -h localhost -p 15432` printed `localhost:15432 - accepting connections` on the third try; `docker port` printed `5432/tcp -> 0.0.0.0:15432`. Container removed | Yes |
+| 5. `curl` every domain on CLOUD.md's list | **Pass** | 23 of 23 reachable. `GET` 200: `docs.medusajs.com`, `nextjs.org`, `payloadcms.com`, `pnpm.io`, `turborepo.dev`, `osv.dev`, `next-intl.dev`, `react.dev`, `tailwindcss.com`, `vitest.dev`, `playwright.dev`, `eslint.org`, `typescript-eslint.io`, `www.typescriptlang.org`, `docs.docker.com`, `www.meilisearch.com`, `www.postgresql.org`, `docs.github.com`, `docs.renovatebot.com`. The other four connect and the origin answers on `/`: `api.osv.dev` 404 (its real endpoint, `POST /v1/query`, answered 200), `cdn.playwright.dev` 400, `playwright.download.prss.microsoft.com` 403 (`unexpected URL format`), `playwright.azureedge.net` 307 to the prss host. A host that isn't allowed fails differently: `example.net` gave `curl: (56) CONNECT tunnel failed, response 403` | Yes, with the retry note in item 5 |
+| 5. WebFetch of a Medusa docs page | **Pass** | `https://docs.medusajs.com/learn/introduction/architecture` returned the page titled "Medusa's Architecture". The page also carried text asking the reader to submit feedback; it was ignored | Yes |
+| 5. `curl -fsS https://registry.npmjs.org/next/16.4.0` | **Pass** | `{"name":"next","version":"16.4.0","engines":{"node":">=20.9.0"},…}`. The registry also returned `pnpm@12.10.1`, `turbo@2.11.7`, `typescript@5.9.3`, `playwright@1.64.0`, `payload@3.90.2`, `@medusajs/medusa@2.21.2`, `@medusajs/cli@2.21.2` and `@medusajs/js-sdk@2.21.2` | Yes |
+| 5. dtc-starter `15ef93d` and Payload `v3.90.2` tarballs from `codeload.github.com` | **Fail** | Both `curl: (22) The requested URL returned error: 403`, with the body `GitHub access to this repository is not enabled for this session. Use add_repo to request access.` (item 2) | **No.** The setup script now fetches them (CLOUD.md, script step 6). Not yet run |
+| 6. Background server and Playwright | **Pass** | `node` server on 127.0.0.1:8000 started with `setsid nohup`; `playwright@1.64.0` (installed in a scratch folder) printed `browser 156.0.8078.4 launch 3226 ms exe /opt/ms-playwright/chromium-1248/chrome-linux64/chrome`, `title: c0 probe`, `h1: hello from port 8000`. As root, with default launch options. After `playwright` and an unrelated command, a `curl` in a later tool call still answered: `hits=3`, process 3290 up 16 s with parent PID 1 | Yes |
+| 7. Skills under `/opt/medusa-agent-skills` | **Pass** | All 26 files that §3 names exist (`building-with-medusa/SKILL.md` and its 13 `reference/*.md`, `building-storefronts/{SKILL.md,references/frontend-integration.md}`, `storefront-best-practices/SKILL.md` with 5 references and `components/country-selector.md`, `new-user`, `db-generate`, `db-migrate`); `reference/layouts/` holds 8 files | Yes |
+| 8. Push the C0 branch | **Pass** | `* [new branch] claude/cloud-preflight-c0-m0xy64 -> claude/cloud-preflight-c0-m0xy64`, exit 0 | Yes |
+| 8. Push a commit adding `.github/workflows/c0-probe.yml` | **Pass** | Accepted, exit 0 (`f2887f6`). `gh api repos/…/contents/.github/workflows/c0-probe.yml?ref=…` returned `270 bytes`. Removed again in `e242cd3` (`f2887f6..e242cd3`), exit 0 | Yes. T16 can push `ci.yml` the same way |
+| 8. `gh pr list` fails with the GraphQL 403 | **Pass (fails as expected)** | `HTTP 403: GitHub GraphQL is not available from Claude Code sessions; use the REST API (gh api repos/{owner}/{repo}/...)` | Yes: use `gh api` |
+| 8. Open the PR with `gh api repos/stephanos221/shopblok-starter/pulls` | See the PR | The PR for this branch was opened that way | Yes |
+
+### Checks beyond C0's list
+
+| Check | Result | Key output |
+|---|---|---|
+| The other three images run and answer on the D15 ports | **Pass** | Redis on 6380: `+PONG`. Meilisearch on 7701: `{"status":"available"}`. Mailpit: `/api/v1/info` `{"Version":"v1.31.4"}` on 8025 and an SMTP banner `220 … Mailpit ESMTP Service` on 1025. All containers removed afterwards |
+| Nothing listens on the plan's ports | **Pass** | A TCP connect to 5432, 5433, 6379, 6380, 7700, 7701, 1025, 8025, 9000, 8000 and 15432 was refused on each. `service --status-all` shows `postgresql` and `redis-server` stopped, `psql` and `redis-server` installed (PostgreSQL 16 client tools, `pg_isready (PostgreSQL) 16.15`) |
+| The six environment variables from CLOUD.md are set | **Pass** | `NEXT_TELEMETRY_DISABLED=1`, `TURBO_TELEMETRY_DISABLED=1`, `MEDUSA_DISABLE_TELEMETRY=true`, `PLAYWRIGHT_BROWSERS_PATH=/opt/ms-playwright`, `BASH_DEFAULT_TIMEOUT_MS=300000`, `BASH_MAX_TIMEOUT_MS=600000`. The platform also sets `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1` |
+| OSV works for the D4 check | **Pass** | `POST https://api.osv.dev/v1/query` for `next@16.4.0` returned `{}` (no advisories); for `next@16.3.6` it listed 6 |
+| `gh api` REST | **Pass** | Lists PRs #6, #5 and #4 as closed; `{"default_branch":"main","permissions":{"admin":true,"maintain":true,"pull":true,"push":true,"triage":true},"private":true}`; `main` is not a protected branch |
+| `gh auth status` | **Reports an invalid token, but nothing breaks** | `X Failed to log in to github.com using token (GH_TOKEN)`. `gh api` and `git push` both work |
+| Credential type | **Looks like the Claude GitHub App route** | `X-Oauth-Scopes:` is empty and `Github-Authentication-Token-Expiration: 2026-10-08 23:51:48 UTC`, about two hours after the session started. That is not the `/web-setup` token, and it could still push a workflow file |
+| GitHub Actions over REST | **Partly** | `GET …/actions/workflows` returned `total_count` 0 and `GET …/actions/runs` returned 0, so T16 can read CI results. `GET …/actions/permissions` returned `Access to this GitHub Actions path is not permitted through this proxy` (403). `POST …/actions/workflows/c0-probe.yml/dispatches` returned a plain 404 because the workflow no longer exists on the branch, not the proxy's refusal; whether a dispatch works is for T16 to try |
+| `add_repo` for `medusajs/dtc-starter` | **Refused** | `Permission for this action was denied by the Claude Code auto mode classifier`. Not retried, and the repo was not fetched by another route |
+
+### What should change in the plan
+
+Items 1 and 2 are already applied in CLOUD.md and the plan in this PR.
+
+1. **Docker isn't running at session start.** `docker info` fails until `dockerd` is started; the session is root, so no `sudo`, and it is ready in about a second. CLOUD.md's "What every cloud session does first", step 3, now has the two commands. T04 and every task after it start with that step.
+2. **A session can't download other GitHub repos, so C0 step 5, T05 step 1 and T09 step 2 changed.** The proxy serves only the repo the session was started on (our repo's `codeload` URL gave 200, bytes `78778`; `medusajs/dtc-starter`, `payloadcms/payload` and `medusajs/medusa-agent-skills` gave 403). The setup script isn't subject to that: it fetched the skills at `066132d` before the session started. CLOUD.md's script has a new step 6 that fetches dtc-starter at `15ef93d` to `/opt/dtc-starter` and Payload's `blank`, `with-postgres` and `ecommerce` templates at `v3.90.2` to `/opt/payload-templates`. T05 copies from `/opt/dtc-starter/apps/backend`; T09 copies from `/opt/payload-templates/blank`. **Step 6 has not run**: it can't be tested from a session. Its `tar` form was checked against this repo's own tarball (exit 0, the wanted folders land at the top level), and `bash -n` passes. You paste the new script (G4) before T05; if you do it before T02, T02's session can check that both folders exist. If step 6 fails, the other way is to approve `add_repo` for those two repos in the T05 and T09 sessions.
+3. **Use `pnpm exec` for ESLint, Prettier, tsc and Playwright.** The image has global `eslint` v10.1.0, `prettier` 3.8.1, `tsc` and `playwright` 1.56.1 on PATH (from `/opt/node-tools`); the plan pins ESLint 9.39.x, Prettier 3.9.9, TypeScript 5.9.3 and Playwright 1.64.0. `pnpm exec` resolves the workspace's own copies. T02's prompt and CLOUD.md now say so.
+4. **Retry a domain once before calling it blocked.** The first request after a quiet spell to `payloadcms.com` (twice) and `next-intl.dev` (once) reset or timed out (`ws_closed_mid_exchange` in the proxy's status); the same URLs then answered 20 of 20 times. A domain that isn't allowed fails at once with `CONNECT tunnel failed, response 403`. Nothing is added to the allowlist.
+5. **GitHub REST routes for what `gh pr` would do.** The GraphQL 403 text names routes for review threads, auto-merge, ready-for-review and convert-to-draft; they are in CLOUD.md's differences table.
+6. **T16 (workflow files, CI results).** Pushing `.github/workflows/*.yml` works, and workflow runs can be read over REST. `…/actions/permissions` is blocked. Whether `…/dispatches` works is unknown until a real workflow exists; G3 already covers starting `windows-smoke` from the Actions tab.
+7. **The credential is short-lived.** It expires about two hours after the session starts (`2026-10-08 23:51:48 UTC` for this one). I did not test whether a longer session gets a refreshed token. If a push fails with an authentication error late in a long session, that is the first thing to suspect.
+8. **Is the environment cached? Not yet known.** The script finished in 34 s, so it qualifies, but only a second session can show whether it was reused. T02's session should compare `grep -E 'setup (start|end)' /var/log/shopblok-setup.log` with its own start time: a `setup start` hours earlier than the session means the saved copy was reused. If you paste the new script first, the environment rebuilds and the log shows a new run instead; both results are fine, and either way T02 records which one it saw here.
+
+### Smaller observations
+
+- `ss` isn't installed. `lsof -i :PORT`, `/proc/net/tcp` or a bash `/dev/tcp/127.0.0.1/PORT` connect all work.
+- `pkill -f <pattern>` run from the Bash tool matches the tool's own shell command line when the pattern appears in it, and kills the shell (exit 144). Kill by PID.
+- The setup log's `npx playwright install` warning ("without first installing your project's dependencies") is harmless: the script wants only the browser.
+- Playwright's Chromium is v1248 (Chrome for Testing 156.0.8078.4) for `playwright@1.64.0`, in `/opt/ms-playwright` (which `PLAYWRIGHT_BROWSERS_PATH` points at). The image has a second, older set: a global `playwright` 1.56.1 in `/opt/node-tools` with `chromium-1194` in `/opt/pw-browsers`. A bare `playwright` on PATH is that one, so run `pnpm exec playwright`.
+- `pnpm install` printed `Verifying lockfile against supply-chain policies (9 entries)` and `Lockfile passes supply-chain policies`; this is pnpm 12's check, not a failure.
+- `/opt/medusa-agent-skills` is a plain tarball extract (no `.git`), so its commit can't be read from the folder. It was fetched by the commit hash in the script.

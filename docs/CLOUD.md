@@ -2,13 +2,13 @@
 
 From C0 on, the M0 plan runs in a Claude Code cloud session (decision D16 in [plans/M0.md](plans/M0.md)). This page says how to set up the cloud environment once, what every cloud session does first, and how the cloud differs from your PC. The work that still has to happen on your PC is in the plan, §4a.
 
-The facts about cloud environments come from the Claude Code docs, checked on 2026-10-08 (sources at the end). Where the docs say nothing (whether Docker is running when a session starts, whether the session runs as root, the exact Node 22 patch version, whether the cloud can push workflow files), task C0 checks and records the answer in [SETUP.md](SETUP.md).
+The facts about cloud environments come from the Claude Code docs, checked on 2026-10-08 (sources at the end). Where the docs say nothing (whether Docker is running when a session starts, whether the session runs as root, the exact Node 22 patch version, whether the cloud can push workflow files), task C0 checked on 2026-10-08 and recorded the answers in [SETUP.md](SETUP.md#cloud-preflight-c0): Docker is **not** running at session start (step 3 below says how to start it), the session is root, Node is 22.22.0, and workflow files push fine. C0 also found that a running session can't download other GitHub repos, which is why the setup script fetches dtc-starter and Payload's templates (script step 6).
 
 ## Set up once (you)
 
 1. **Give the cloud access to the repo.** `stephanos221/shopblok-starter` is private, so a cloud session can only clone it if one of these is done:
    - the Claude GitHub App is installed on the repo (claude.ai/code asks for it the first time you pick the repo), or
-   - you run `/web-setup` once in a local `claude` terminal. It hands your local `gh` token to the cloud. That token has the `workflow` scope, which T16 needs to push `.github/workflows/ci.yml` (C0 checks whether the GitHub App route can do the same).
+   - you run `/web-setup` once in a local `claude` terminal. It hands your local `gh` token to the cloud. That token has the `workflow` scope, which T16 needs to push `.github/workflows/ci.yml`. C0 checked the route this environment uses (a token with no OAuth scopes that expires about two hours after the session starts) and a push of `.github/workflows/c0-probe.yml` was accepted, so `/web-setup` is only a fallback if a later push of a workflow file is refused.
 2. **Create the environment.** On claude.ai/code, click the cloud icon with the environment name, in the row above the message box, then **Add cloud environment**. In the desktop app's Code tab, use the environment dropdown in the prompt box. Fill in the four fields as below.
 3. **Start each session** in that environment, on the repo `stephanos221/shopblok-starter` and the branch `main`, and paste the prompt from [NEXT-SESSION.md](NEXT-SESSION.md).
 
@@ -67,7 +67,7 @@ BASH_MAX_TIMEOUT_MS=600000
 
 ### Setup script
 
-The setup script runs as root on Ubuntu 24.04, before Claude starts, the first time a session starts in the environment. If it finishes in about five minutes, the filesystem is saved, and later sessions start from that copy and skip the script. It runs again when you change the script or the allowed domains, and after about seven days. If it exits with an error, the session doesn't start. That's why every step below is allowed to fail: C0, and the first checks of each session, catch anything that didn't work. The log is `/var/log/shopblok-setup.log`.
+The setup script runs as root on Ubuntu 24.04, before Claude starts, the first time a session starts in the environment. If it finishes in about five minutes, the filesystem is saved, and later sessions start from that copy and skip the script. It runs again when you change the script or the allowed domains, and after about seven days. If it exits with an error, the session doesn't start. That's why every step below is allowed to fail: C0, and the first checks of each session, catch anything that didn't work. The log is `/var/log/shopblok-setup.log`. C0 measured the script (steps 1 to 5) at 34 seconds, because the image already has Node 22.22.0 and Playwright's system libraries.
 
 Paste this into **Setup script**:
 
@@ -117,6 +117,19 @@ done
      | tar -xz -C /opt/medusa-agent-skills --strip-components=1 \
   && chmod -R a+rX /opt/medusa-agent-skills ) & pids+=($!)
 
+# 6. dtc-starter and Payload's templates at the commits the plan cites (T05, T09).
+#    A running session can't download other repos from GitHub: its proxy serves only the
+#    session's own repo (C0). This script runs before that limit applies, so it fetches them now.
+( mkdir -p /opt/dtc-starter \
+  && curl -fsSL https://codeload.github.com/medusajs/dtc-starter/tar.gz/15ef93da7d155ad990d8cc6db0296446fecbdfe6 \
+     | tar -xz -C /opt/dtc-starter --strip-components=1 ; \
+  chmod -R a+rX /opt/dtc-starter ) & pids+=($!)
+( mkdir -p /opt/payload-templates \
+  && curl -fsSL https://codeload.github.com/payloadcms/payload/tar.gz/refs/tags/v3.90.2 \
+     | tar -xz -C /opt/payload-templates --strip-components=2 --wildcards \
+         '*/templates/blank' '*/templates/with-postgres' '*/templates/ecommerce' ; \
+  chmod -R a+rX /opt/payload-templates ) & pids+=($!)
+
 wait "${pids[@]}"
 if [ -n "$dockerd_pid" ]; then kill "$dockerd_pid"; wait "$dockerd_pid"; fi
 echo "setup end $(date -u +%FT%TZ)"
@@ -125,15 +138,23 @@ exit 0
 
 When C0 or a later task changes this script, it updates this page in its PR, and you paste the new version into the environment (gear icon on the environment, then **Setup script**).
 
+**Step 6 was added by C0 and has not run yet.** The version that C0 ran had steps 1 to 5 only. Step 6 can't be tested from inside a session, because the session can't download the two repos; only the form of its `tar` command was checked, against this repo's own tarball. Paste it before T05 (T05 needs `/opt/dtc-starter`; T09 needs `/opt/payload-templates`). Pasting it before T02 lets T02's session check that both folders exist.
+
 ## What every cloud session does first
 
 Each prompt in NEXT-SESSION.md says this, and C0 checks that it works.
 
-1. `node -v` prints 22.22 or newer, and `pnpm -v` prints `12.10.1`. If pnpm is wrong, run `npm install -g pnpm@12.10.1`.
+1. `node -v` prints 22.22 or newer, and `pnpm -v` prints `12.10.1`. If pnpm is wrong, run `npm install -g pnpm@12.10.1`. Run project tools as `pnpm exec eslint`, `pnpm exec prettier`, `pnpm exec tsc` and `pnpm exec playwright`: the image has its own global `eslint` 10.1.0, `prettier` 3.8.1, `tsc` and `playwright` 1.56.1 on PATH, which are not the plan's pins.
 2. `pnpm install --frozen-lockfile`.
-3. **From T04 on:** run `docker info`. If it fails, start `dockerd` in the background (with `sudo` if the session isn't root; C0 records which). Then `pnpm infra:up`.
+3. **From T04 on:** run `docker info`. At session start it fails (`failed to connect to the docker API at unix:///var/run/docker.sock`), because the daemon isn't running. The session is root, so no `sudo`. Start it and wait for it (C0 measured about 1 s):
+   ```bash
+   (setsid nohup dockerd > /var/log/dockerd-session.log 2>&1 &)
+   for _ in $(seq 30); do docker info >/dev/null 2>&1 && break; sleep 1; done
+   ```
+   The four pinned images are already there from the setup script (`docker image ls`). Then `pnpm infra:up`.
 4. **From T13 on:** `pnpm bootstrap`. It's idempotent, so it's safe to run every time.
 5. **Skills:** the plan's BWM, BS, SBP and CMD references are files under `/opt/medusa-agent-skills/plugins/` (`medusa-dev/skills/…` and `ecommerce-storefront/skills/…`). Read them from there.
+6. **Upstream sources (T05, T09):** dtc-starter at `15ef93d` is in `/opt/dtc-starter`, and Payload's `blank`, `with-postgres` and `ecommerce` templates at `v3.90.2` are in `/opt/payload-templates/<name>`. If they are missing, the environment still has the old setup script (see the note under "Setup script"); report it, don't try to download them.
 
 A paused session's VM can be reclaimed. The conversation comes back, but running processes don't: containers, database contents, dev servers. After a pause, repeat steps 3 and 4.
 
@@ -143,10 +164,13 @@ A paused session's VM can be reclaimed. The conversation comes back, but running
 |---|---|---|
 | OS and path | Windows 11, `E:\shopblok-starter` | Ubuntu 24.04 (x86_64), wherever the session clones the repo. The plan's paths are relative to the repo root |
 | pnpm | Needs `corepack disable` or a PATH fix (T00) | The setup script installs 12.10.1 and turns Corepack off |
-| Ports | 5432, 5433, 6379 and 7700 are taken by other services, hence D15 | Nothing listens on them. The image's PostgreSQL 16 and Redis 7.0 are installed but stopped; leave them stopped, except for T04's port-clash test. The D15 ports work the same |
+| Ports | 5432, 5433, 6379 and 7700 are taken by other services, hence D15 | Nothing listens on them (C0 probed 5432, 5433, 6379, 6380, 7700, 7701, 1025, 8025, 8000, 9000 and 15432). The image's PostgreSQL 16 and Redis 7.0 are installed but stopped; leave them stopped, except for T04's port-clash test. The D15 ports work the same, and ports published by containers answer on the VM's `localhost`. `ss` isn't installed: use `lsof -i :PORT` |
+| Docker | Docker Desktop is always running | The daemon is off at session start; start it as in "What every cloud session does first", step 3. Containers can't reach the proxy at `127.0.0.1` or trust its CA, which matters only for a container that must call out |
 | Claude's memory | Auto memory in your user folder | Doesn't carry over in either direction. Anything a later session needs goes into SETUP.md, the plan or the PR |
 | Medusa plugins and docs server | Installed with `/plugin install` | Not installed. Skills come from `/opt/medusa-agent-skills`; Medusa docs come from `docs.medusajs.com` pages |
-| GitHub CLI | `gh pr create` works | `gh pr …` and `gh issue …` fail, because the GitHub proxy blocks GraphQL. Use REST: `gh api repos/stephanos221/shopblok-starter/pulls -f title=… -f head=… -f base=main -f body=…`, or the **Create PR** button |
+| GitHub CLI | `gh pr create` works | `gh pr …` and `gh issue …` fail with `HTTP 403: GitHub GraphQL is not available from Claude Code sessions`. Use REST: `gh api repos/stephanos221/shopblok-starter/pulls -f title=… -f head=… -f base=main -f body=…`, or the **Create PR** button. The 403 message also names routes for what GraphQL would do: review threads (`GET /repos/{owner}/{repo}/pulls/{n}/ccr/review_threads`, `POST …/ccr/comments/{id}/resolve`), auto-merge (`PUT`/`DELETE …/ccr/auto_merge`), `…/ccr/ready_for_review` and `…/ccr/convert_to_draft`. `gh auth status` says the token is invalid, but `gh api` and `git push` work; ignore that line. Actions: listing workflows and runs works, `…/actions/permissions` is blocked, and whether a workflow can be started with `…/dispatches` is left to T16 |
+| Other GitHub repos | You can clone or download anything public | A session can reach only the repo it was started on. `codeload.github.com` for any other repo answers `403 GitHub access to this repository is not enabled for this session`. The `add_repo` tool is the official way to attach one, but the permission check refused it in C0's session, so plan on it being unavailable. Anything from another repo that a task needs is fetched by the setup script (step 6 and step 5) |
+| Network | Your own connection | Every domain on the allowlist answered in C0. A domain that isn't allowed fails at once with `CONNECT tunnel failed, response 403`. The first request to a host after a quiet spell sometimes resets or times out (`payloadcms.com` and `next-intl.dev` did, then answered 20 of 20 times); retry once before calling a domain blocked. `https://api.osv.dev/` itself returns 404; query `/v1/query` |
 | Dev servers | You open them in your browser | They run inside the VM. Claude checks them with `curl` and Playwright. Looking at them yourself happens in W2 |
 | Long commands | No limit | 2 minutes by default, 10 at most (the environment variables above set 5 and 10). Longer runs go to the background |
 
