@@ -2,7 +2,7 @@
 
 From C0 on, the M0 plan runs in a Claude Code cloud session (decision D16 in [plans/M0.md](plans/M0.md)). This page says how to set up the cloud environment once, what every cloud session does first, and how the cloud differs from your PC. The work that still has to happen on your PC is in the plan, §4a.
 
-The facts about cloud environments come from the Claude Code docs, checked on 2026-10-08 (sources at the end). Where the docs say nothing (whether Docker is running when a session starts, whether the session runs as root, the exact Node 22 patch version, whether the cloud can push workflow files), task C0 checked on 2026-10-08 and recorded the answers in [SETUP.md](SETUP.md#cloud-preflight-c0): Docker is **not** running at session start (step 3 of "What every cloud session does first", below, says how to start it), the session is root, Node is 22.22.0, and workflow files push fine. C0 also found that a running session can't download other GitHub repos, which is why the setup script fetches dtc-starter and Payload's templates (script step 6).
+The facts about cloud environments come from the Claude Code docs, checked on 2026-10-08 (sources at the end). Where the docs say nothing (whether Docker is running when a session starts, whether the session runs as root, the exact Node 22 patch version, whether the cloud can push workflow files), task C0 checked on 2026-10-08 and recorded the answers in [SETUP.md](SETUP.md#cloud-preflight-c0): Docker is **not** running at session start (start it as in "What every cloud session does first", step 3), the session is root, Node is 22.22.0, and workflow files push fine. C0 also found that a running session can't download other GitHub repos, which is why the setup script fetches dtc-starter and Payload's templates (script step 6).
 
 ## Set up once (you)
 
@@ -120,7 +120,7 @@ done
 # 6. dtc-starter at the commit the plan cites, and Payload's templates at its v3.90.2 tag (T05, T09).
 #    A running session can't download other repos from GitHub: its proxy serves only the
 #    session's own repo (C0). This script runs before that limit applies, so it fetches them now.
-#    A failure removes the folder and logs "step 6 FAILED", so a missing folder is never an empty one.
+#    A failed fetch logs "step 6 FAILED" and removes the folder, so a folder is complete or absent.
 fetch_tar() {  # fetch_tar <dir> <url> [tar options and patterns]
   local dir=$1 url=$2; shift 2
   ( set -o pipefail
@@ -147,13 +147,13 @@ exit 0
 
 When C0 or a later task changes this script, it updates this page in its PR, and you paste the new version into the environment (gear icon on the environment, then **Setup script**).
 
-**Step 6 was added by C0 and has not run yet.** The version that C0 ran had steps 1 to 5 only. Step 6 can't be tested from inside a session, because the session can't download the two repos; only its pieces were checked locally: the `tar` patterns against this repo's own tarball and a synthetic one with nested `templates/` folders, and the failure path (bad URL, truncated archive) with `file://` archives. Paste it after T02 is merged and before T03 starts (T05 needs `/opt/dtc-starter`; T09 needs `/opt/payload-templates`). Not before T02: changing the script rebuilds the saved copy of the environment, which would hide whether T02's session reuses it (T02's cache check). T03's session checks that both folders exist, and records how long the script took (`setup start` to `setup end` in the log): the Payload download is the whole monorepo, and the script is saved only if it finishes in about five minutes.
+**Step 6 was added by C0 and has not run yet.** The version that C0 ran had steps 1 to 5 only. Step 6 can't be tested from inside a session, because the session can't download the two repos; only its pieces were checked locally (SETUP.md, C0 item 2). Paste it after T02 is merged and before T03 starts (T05 needs `/opt/dtc-starter`; T09 needs `/opt/payload-templates`). Not before T02: a changed script reruns, which would hide whether T02's session reuses the saved copy (SETUP.md, C0 item 8). T03's session checks that both folders exist and times the script (`setup start` to `setup end` in the log): the Payload download is the whole monorepo, and the script is saved only if it finishes in about five minutes.
 
 ## What every cloud session does first
 
 Each prompt in NEXT-SESSION.md says this, and C0 checks that it works.
 
-1. `node -v` prints 22.22 or newer, and `pnpm -v` prints `12.10.1`. If pnpm is wrong, run `npm install -g pnpm@12.10.1`. Run project tools through `pnpm exec`, never as a bare command: the image has its own global `eslint` 10.1.0, `prettier` 3.8.1, `tsc` and `playwright` 1.56.1 on PATH, which are not the plan's pins. `pnpm exec` finds a tool only if the package you run it from depends on it; otherwise it falls through to the global copy. The repo root depends on `prettier` and `typescript` (so `pnpm exec prettier` and `pnpm exec tsc` are the pinned ones there), but not on `eslint` or `playwright`: run those with `pnpm --filter <package> exec …` from a package that depends on them, and check `--version` against the plan's pin the first time.
+1. `node -v` prints 22.22 or newer, and `pnpm -v` prints `12.10.1`. If pnpm is wrong, run `npm install -g pnpm@12.10.1`. Run project tools through `pnpm exec`, never as a bare command: the image has its own global `eslint` 10.1.0, `prettier` 3.8.1, `tsc` and `playwright` 1.56.1 on PATH, which are not the plan's pins. But `pnpm exec` falls through to the global copy of a tool that the package you run it from doesn't depend on. The root depends on `prettier` and `typescript`, so `pnpm exec prettier` and `pnpm exec tsc` are the pinned ones there; it doesn't depend on `eslint` or `playwright`, so run those as `pnpm --filter <package> exec …` from a package that does. Check `--version` against the plan's pin the first time.
 2. `pnpm install --frozen-lockfile`.
 3. **From T04 on:** run `docker info`. At session start it fails (`failed to connect to the docker API at unix:///var/run/docker.sock`), because the daemon isn't running. The session is root, so no `sudo`. Start it and wait for it (C0 measured about 1 s):
    ```bash
@@ -161,12 +161,11 @@ Each prompt in NEXT-SESSION.md says this, and C0 checks that it works.
    for _ in $(seq 30); do docker info >/dev/null 2>&1 && break; sleep 1; done
    docker info >/dev/null 2>&1 || { echo "dockerd did not start:"; tail -n 20 /var/log/dockerd-session.log; }
    ```
-   It does nothing if the daemon is already up, so it is safe to repeat. If it prints "dockerd did not start", stop and report the log lines; don't go on to `pnpm infra:up`.
+   It does nothing if the daemon is already up, so it is safe to repeat. If it prints "dockerd did not start", stop and report the log lines.
    The four pinned images are already there from the setup script (`docker image ls`). Then `pnpm infra:up`.
 4. **From T13 on:** `pnpm bootstrap`. It's idempotent, so it's safe to run every time.
 5. **Skills:** the plan's BWM, BS, SBP and CMD references are files under `/opt/medusa-agent-skills/plugins/` (`medusa-dev/skills/…` and `ecommerce-storefront/skills/…`). Read them from there.
 6. **Upstream sources (T05, T09):** dtc-starter at `15ef93d` is in `/opt/dtc-starter`, and Payload's `blank`, `with-postgres` and `ecommerce` templates at `v3.90.2` are in `/opt/payload-templates/<name>`. If a folder is missing, run `grep 'step 6' /var/log/shopblok-setup.log`: no output means the environment still has the old setup script (see the note under "Setup script"), and `step 6 FAILED: <dir>` means the download failed. Report which; don't try to download them.
-
 7. **Push early.** The GitHub credential a session pushes with expires about two hours after the session starts, and C0 didn't test whether it is refreshed (SETUP.md, C0 item 7). Commit and push the branch after each finished step of the task, not only at the end. If a push is refused with an authentication error, stop and tell the owner: unpushed work is lost when the VM is reclaimed.
 
 A paused session's VM can be reclaimed. The conversation comes back, but running processes don't: containers, database contents, dev servers. After a pause, repeat steps 3 and 4.
