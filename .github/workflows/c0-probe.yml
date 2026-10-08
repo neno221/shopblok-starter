@@ -1,0 +1,10 @@
+# C0 probe: checks whether the cloud session can push workflow files. Never runs
+# (workflow_dispatch only) and is removed again in the next commit.
+name: c0-probe
+on:
+  workflow_dispatch:
+jobs:
+  noop:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "c0 probe"
