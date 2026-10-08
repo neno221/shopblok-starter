@@ -1,0 +1,2 @@
+# Placeholder until T04, which adds `include: [infra/docker-compose.yml]` (D11)
+# and the services themselves. `docker compose` has nothing to run before then.

@@ -1,0 +1,24 @@
+# Dependencies
+node_modules
+
+# Build output
+.next
+.medusa
+.turbo
+dist
+*.tsbuildinfo
+coverage
+
+# Environment files (the examples are committed)
+.env
+.env.*
+!.env.example
+
+# Local Payload uploads
+apps/storefront/media/
+
+# Playwright output
+playwright-report/
+test-results/
+blob-report/
+playwright/.cache/
