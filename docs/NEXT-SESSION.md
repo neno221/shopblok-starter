@@ -1,38 +1,50 @@
-# Next session: run T02 (`packages/config` presets)
+# Next session: run C0 (cloud preflight), in the cloud
 
-T01 passed on 2026-10-08 (see [SETUP.md](SETUP.md#workspace-config-t01)). T02 adds `packages/config`: the TypeScript, ESLint and Prettier presets the apps and packages extend. The steps are in [plans/M0.md](plans/M0.md), task T02.
+From now on, the M0 plan runs in a Claude Code cloud environment (decision D16 in [plans/M0.md](plans/M0.md)). The tasks that still happen on your PC or on GitHub are in the plan's §4a. C0 is the first cloud session: it checks the cloud environment the way T00 checked Windows. T02 comes after it.
 
 ## Before you start
 
-1. **Turn Corepack off.** This is now required, not optional. In a terminal, run `where pnpm`. The first line must be under `%APPDATA%\npm`. If it's under `C:\Program Files\nodejs`, run `corepack disable` from an **administrator** terminal. The repo now pins pnpm 12.10.1, so with Corepack on, plain `pnpm -v` crashes inside it (`Cannot find module '...\pnpm.cjs'`), as T01 confirmed. Until you do, Claude has to put `%APPDATA%\npm` first on PATH in every command.
-2. **Check the tools:** `node -v` prints 22.22 or newer, and `pnpm -v` prints `12.10.1` from inside `E:\shopblok-starter`.
-3. **Open Claude Code on your computer**, in `E:\shopblok-starter`: the Code tab of the Claude desktop app, or `claude` in a terminal. To follow it from the Claude app on another device, start it with `claude remote-control` instead.
-4. **Install the Medusa plugins** if you haven't. T02 doesn't need them, but T05 onwards does:
-   ```text
-   /plugin marketplace add medusajs/medusa-agent-skills
-   /plugin install medusa-dev@medusa
-   /plugin install ecommerce-storefront@medusa
-   ```
+1. **Merge the PR that added this text**, so the cloud session's `main` has the new plan. A cloud session clones the repo from GitHub, so it only sees what's merged or pushed.
+2. **Set up the cloud once**, as in [CLOUD.md](CLOUD.md), "Set up once": give the cloud access to the repo, then create the environment `shopblok-starter` with the network access, environment variables and setup script given there.
+3. **Start a cloud session** in that environment, on `stephanos221/shopblok-starter` and the branch `main`: on claude.ai/code, or in the desktop app's Code tab with the environment picked in the prompt box.
+4. **Nothing to install on your PC for C0.** W0 (turning Corepack off) is only needed before W1, which comes after T05.
 
 ## Prompt
 
-Paste this into the session:
+Paste this into the cloud session:
+
+```text
+Run task C0 (cloud preflight) from docs/plans/M0.md. Don't start T02.
+
+This is a Claude Code cloud session. Read docs/CLOUD.md first. Then read docs/plans/M0.md: §1 (decisions D1, D15 and D16), §2, §3, §4a and the C0 section; and the "Workspace config (T01)" section of docs/SETUP.md. Your auto memory doesn't carry over to my PC or to the next session, so put everything a later session needs into SETUP.md, the plan or the PR.
+
+Work on a new branch. Run every step of C0 and keep each command's key output. If a setup-script step or an allowed domain needs fixing, change docs/CLOUD.md on the same branch. Update docs/NEXT-SESSION.md with the T02 prompt below, changed if C0's results call for it.
+
+Commit, push, and open the PR with `gh api` (REST; `gh pr` doesn't work here). In the PR description, give each check's key output line.
+
+Stop there. Tell me in plain language whether T02 can start in the cloud, whether I have to paste a new setup script or add a domain to the environment, and what changed in the plan if anything did.
+```
+
+## The T02 prompt, for after C0
+
+C0's PR moves this into the "Prompt" section above, changed if C0 calls for it.
 
 ```text
 Run task T02 (`packages/config`: TypeScript, ESLint and Prettier presets) from docs/plans/M0.md. Don't start T03.
 
-Read docs/plans/M0.md first: §1 (decisions D3, D5 and D6), §2 (verified versions) and the T02 section. Read the "Workspace config (T01)" section of docs/SETUP.md too. Run the doctor script as `pnpm run doctor`, never `pnpm doctor`.
+This is a Claude Code cloud session. Do the steps in docs/CLOUD.md, "What every cloud session does first". Read docs/plans/M0.md: §1 (decisions D3, D5, D6 and D16), §2, §4a and the T02 section; and the "Workspace config (T01)" and "Cloud preflight (C0)" sections of docs/SETUP.md. Run the doctor script as `pnpm run doctor`, never `pnpm doctor`. Your auto memory doesn't carry over, so put everything a later session needs into SETUP.md, the plan or the PR.
 
 Work on a new branch. Create the files T02 lists, with every version pinned exactly. Check each ESLint, typescript-eslint, eslint-config-next and Prettier version against the npm registry before pinning it, and decide any new `allowBuilds` entry that `pnpm install` asks for.
 
-Run every check in T02's Verify list and keep each command's key output.
+Run every check in T02's Verify list and keep each command's key output. Update docs/NEXT-SESSION.md with the prompt for T03.
 
-Commit on the branch and open a PR. In the PR description, give each check's key output line.
+Commit, push, and open the PR with `gh api` (REST). In the PR description, give each check's key output line.
 
 Stop there. Tell me in plain language whether T03 can start, and what changed in the plan if anything did.
 ```
 
 ## Notes
 
-- Medusa's docs MCP server is at `https://docs.medusajs.com/mcp`.
 - The plan's decisions are in [plans/M0.md](plans/M0.md) §1. Change a decision there first if a task shows it doesn't hold.
+- Your own tasks (W0–W2 on your PC, G1–G4 on GitHub) are in the plan's §4a.
+- To continue a cloud session on your PC, run `claude --teleport` in `E:\shopblok-starter` (see CLOUD.md).
