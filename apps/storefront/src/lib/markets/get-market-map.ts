@@ -1,9 +1,10 @@
 import { markets as seededMarkets } from "@shopblok/fixtures";
+import "server-only";
 import { loadMarketsGlobal } from "./payload-loader";
 import { createMarketSource, defaultAllowFallback } from "./source";
 
-// No `import "server-only"` here: T11's proxy imports this too. A client bundle that pulled it in
-// would fail on `payload` anyway.
+// The proxy doesn't import this (it would load Payload there, 550 ms on the first request): it
+// reads the map from `/next/markets` through `proxy-market-map.ts`.
 const source = createMarketSource({
   load: loadMarketsGlobal,
   fallback: seededMarkets,
@@ -12,7 +13,8 @@ const source = createMarketSource({
 
 /**
  * The market map (D10): Payload's `markets` global, kept in memory for 30 s. Server code only:
- * the proxy, layouts and metadata. An empty or incomplete global falls back to the seeded
- * fixtures in development only (`source.ts` has the full rules).
+ * layouts, metadata and the map route (`app/next/markets/route.ts`) that the proxy reads. An empty
+ * or incomplete global falls back to the seeded fixtures in development and while `next build`
+ * runs, never in production (`source.ts` has the full rules).
  */
 export const getMarketMap = source.get;

@@ -1,0 +1,182 @@
+import { expect, test, type APIResponse } from "@playwright/test";
+
+// T11: the proxy turns public market URLs into the internal `/{key}/…` routes (SPEC §8.1, §8.5).
+// Run against `next start` with the seeded map in the `markets` global (playwright.config.ts).
+
+test.beforeAll(async ({ request }) => {
+  const response = await request.get("/").catch((error: unknown) => {
+    throw new Error(
+      `No storefront at ${process.env["E2E_BASE_URL"] ?? "http://localhost:8000"}. Build and start it ` +
+        `(pnpm --filter @shopblok/storefront build && … start) with the markets global filled. ${String(error)}`,
+    );
+  });
+  expect(response.status(), "the storefront answers / (is the markets global filled?)").toBe(200);
+});
+
+/** The `Location` header as a path and query, whatever the host. */
+function locationOf(response: APIResponse): string {
+  const location = response.headers()["location"];
+  if (location === undefined) throw new Error(`no Location header on ${response.status()}`);
+  const url = new URL(location, response.url());
+  return url.pathname + url.search;
+}
+
+test.describe("market homes: the public URL stays, the market's language is served", () => {
+  const homes = [
+    { request: "/", shown: "/", lang: "el-CY", key: "el-cy" },
+    { request: "/us/", shown: "/us", lang: "en-US", key: "en-us" },
+    { request: "/gb/", shown: "/gb", lang: "en-GB", key: "en-gb" },
+    { request: "/de/", shown: "/de", lang: "de-DE", key: "de-de" },
+    { request: "/fr/", shown: "/fr", lang: "fr-FR", key: "fr-fr" },
+    { request: "/ch/", shown: "/ch", lang: "de-CH", key: "de-ch" },
+    { request: "/ch/fr/", shown: "/ch/fr", lang: "fr-CH", key: "fr-ch" },
+  ];
+
+  for (const home of homes) {
+    test(`${home.request} is <html lang="${home.lang}">`, async ({ page }) => {
+      const response = await page.goto(home.request);
+      expect(response?.status()).toBe(200);
+      // The browser ends on the public URL (Next drops the trailing slash), never on the key.
+      expect(new URL(page.url()).pathname).toBe(home.shown);
+      await expect(page.locator("html")).toHaveAttribute("lang", home.lang);
+      await expect(page.getByTestId("market")).toHaveText(home.key);
+      await expect(page.getByTestId("language")).toHaveText(home.lang);
+    });
+  }
+
+  test("keeps the query string through the rewrite", async ({ request }) => {
+    const response = await request.get("/ch/fr?page=2&sort=asc", { maxRedirects: 0 });
+    expect(response.status()).toBe(200);
+    expect(response.headers()["x-middleware-rewrite"]).toMatch(/\/fr-ch\?page=2&sort=asc$/);
+  });
+});
+
+test.describe("redirects", () => {
+  test("/cy goes to / with 301", async ({ request }) => {
+    const response = await request.get("/cy", { maxRedirects: 0 });
+    expect(response.status()).toBe(301);
+    expect(locationOf(response)).toBe("/");
+  });
+
+  // Next removes a trailing slash with a 308 before the proxy runs, so the table's `/cy/` is two
+  // hops. `skipTrailingSlashRedirect` would make it one but also stops Next normalising /admin/
+  // and /api/…/ (SETUP.md, T11).
+  test("/cy/ goes to / in two hops: 308 to /cy (Next), then 301 to / (proxy)", async ({
+    request,
+  }) => {
+    const first = await request.get("/cy/", { maxRedirects: 0 });
+    expect(first.status()).toBe(308);
+    expect(locationOf(first)).toBe("/cy");
+    const second = await request.get("/cy", { maxRedirects: 0 });
+    expect(second.status()).toBe(301);
+    expect(locationOf(second)).toBe("/");
+    const followed = await request.get("/cy/");
+    expect(new URL(followed.url()).pathname).toBe("/");
+    expect(followed.status()).toBe(200);
+  });
+
+  test("keeps the path and the query string", async ({ request }) => {
+    const response = await request.get("/cy/store?page=2&sort=asc", { maxRedirects: 0 });
+    expect(response.status()).toBe(301);
+    expect(locationOf(response)).toBe("/store?page=2&sort=asc");
+  });
+
+  test("a default language segment is redundant: /ch/de goes to /ch", async ({ request }) => {
+    const response = await request.get("/ch/de", { maxRedirects: 0 });
+    expect(response.status()).toBe(301);
+    expect(locationOf(response)).toBe("/ch");
+  });
+
+  // Next collapses `//` with a 308 of its own first. Every hop, Next's and the proxy's, stays on
+  // this host and ends on a path of it. (A name with a dot is a file to the matcher: no proxy.)
+  for (const [path, last] of [
+    ["/cy//evilhost/x", "/evilhost/x"],
+    ["/cy/%5Cevilhost", "/%5Cevilhost"],
+    ["/cy///evilhost", "/evilhost"],
+  ] as const) {
+    test(`${path} cannot leave the host`, async ({ request, baseURL }) => {
+      let target = path;
+      const hops: string[] = [];
+      for (let hop = 0; hop < 4; hop++) {
+        const response = await request.get(target, { maxRedirects: 0 });
+        if (response.status() < 300 || response.status() >= 400) break;
+        const next = new URL(response.headers()["location"] ?? "", new URL(target, baseURL));
+        expect(next.host, `hop ${hop} from ${target}`).toBe(new URL(baseURL ?? "").host);
+        target = next.pathname + next.search;
+        hops.push(target);
+      }
+      expect(hops.at(-1)).toBe(last);
+    });
+  }
+
+  test("a POST keeps its method: 308", async ({ request }) => {
+    const response = await request.post("/cy/store", { maxRedirects: 0 });
+    expect(response.status()).toBe(308);
+    expect(locationOf(response)).toBe("/store");
+  });
+});
+
+test.describe("the internal key is not public: 404 from global-not-found", () => {
+  for (const path of ["/el-cy", "/el-cy/", "/en-us/store", "/de-ch/products/x", "/fr-ch?x=1"]) {
+    test(`${path} is a 404 in English`, async ({ page }) => {
+      const response = await page.goto(path);
+      expect(response?.status()).toBe(404);
+      await expect(page.locator("html")).toHaveAttribute("lang", "en");
+      await expect(page.getByRole("heading", { level: 1 })).toHaveText("Page not found");
+      await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", "noindex");
+      // Not Next's built-in 404 page, which has no lang.
+      await expect(page.locator("html#__next_error__")).toHaveCount(0);
+    });
+  }
+
+  test("its link goes to the primary market's public URL", async ({ page }) => {
+    await page.goto("/el-cy");
+    await expect(page.getByRole("link", { name: /home/i })).toHaveAttribute("href", "/");
+  });
+
+  test("a path that is no page of the market is the same 404", async ({ page }) => {
+    const response = await page.goto("/does-not-exist");
+    expect(response?.status()).toBe(404);
+    await expect(page.locator("html")).toHaveAttribute("lang", "en");
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Page not found");
+  });
+});
+
+test.describe("the map route the proxy reads", () => {
+  test("GET /next/markets is the market map as JSON, and is not rewritten", async ({ request }) => {
+    const response = await request.get("/next/markets", { maxRedirects: 0 });
+    expect(response.status()).toBe(200);
+    expect(response.headers()["x-middleware-rewrite"]).toBeUndefined();
+    const map = (await response.json()) as { countries: { code: string; enabled: boolean }[] };
+    expect(
+      map.countries.filter((country) => country.enabled).map((country) => country.code),
+    ).toEqual(["cy", "us", "gb", "de", "fr", "ch"]);
+  });
+});
+
+test.describe("Payload is not rewritten", () => {
+  test("GET /api/pages answers 200 from Payload", async ({ request }) => {
+    const response = await request.get("/api/pages", { maxRedirects: 0 });
+    expect(response.status()).toBe(200);
+    expect(response.headers()["x-middleware-rewrite"]).toBeUndefined();
+    expect(response.headers()["content-type"]).toContain("application/json");
+    expect(await response.json()).toMatchObject({ docs: expect.any(Array) as unknown });
+  });
+
+  test("Payload's REST API answers its own 403 (the markets global is staff-only)", async ({
+    request,
+  }) => {
+    const response = await request.get("/api/globals/markets", { maxRedirects: 0 });
+    expect(response.status()).toBe(403);
+    expect(response.headers()["x-middleware-rewrite"]).toBeUndefined();
+  });
+
+  test("/admin is Payload's panel, not a market page", async ({ page }) => {
+    const response = await page.goto("/admin");
+    expect(response?.headers()["x-middleware-rewrite"]).toBeUndefined();
+    // First visit: create-first-user. Later: login. Both are forms on /admin/….
+    await page.waitForURL(/\/admin\/(login|create-first-user)/);
+    await expect(page.locator('input[name="email"]')).toBeVisible();
+    await expect(page.getByTestId("market")).toHaveCount(0);
+  });
+});
