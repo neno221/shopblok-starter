@@ -3,7 +3,7 @@ import "server-only";
 import { medusaEnv, type MedusaEnv } from "../env";
 import { withTimeout } from "../with-timeout";
 
-/** How long a call waits for Medusa's answer. A backend that takes the connection and then stalls would otherwise hold the page's streamed part for minutes. */
+/** Give up on a call Medusa has not answered after this long. */
 export const MEDUSA_REQUEST_TIMEOUT_MS = 10_000;
 
 /** The Medusa Store API could not give an answer: it is down, unreachable, or it refused the call. */
@@ -71,8 +71,7 @@ let sdk: Promise<SdkState> | undefined;
  * until then, so `next build` works with no `.env`. The shared instance must hold no per-request
  * state: `setLocale` is for the browser (on a server it only logs a warning) and a JWT would
  * belong to one shopper, so the locale goes in each call's headers (`localeHeaders`). A settings
- * problem is not kept, whether `medusaEnv` rejects or the SDK refuses the values: the next call
- * checks again.
+ * problem is not kept: the next call checks again.
  */
 function getSdk(): Promise<SdkState> {
   sdk ??= medusaEnv()

@@ -89,45 +89,23 @@ describe("listRegions and getRegionForCountry, through the SDK", () => {
     expect(calls[0]!.headers.get("x-publishable-api-key")).toBe(PUBLISHABLE_KEY);
   });
 
-  it("reads every page, however many regions there are", async () => {
-    const all = Array.from({ length: 230 }, (_, i) => ({
-      ...wire(europe),
-      id: `reg_${i}`,
-      name: `Region ${i}`,
-    }));
+  it.each([
+    { cap: 100, offsets: ["0", "100", "200"] },
+    // A proxy or a backend setting that caps `limit` below the 100 asked for loses no region.
+    { cap: 50, offsets: ["0", "50", "100", "150", "200"] },
+  ])("reads every page, however many regions there are (server cap $cap)", async (server) => {
+    const all = Array.from({ length: 230 }, (_, i) => ({ ...wire(europe), id: `reg_${i}` }));
     const calls = stubMedusaFetch(({ url }) => {
       const offset = Number(url.searchParams.get("offset") ?? 0);
-      const limit = Number(url.searchParams.get("limit"));
+      const limit = Math.min(Number(url.searchParams.get("limit")), server.cap);
       return {
         body: { regions: all.slice(offset, offset + limit), count: all.length, offset, limit },
       };
     });
     const { listRegions } = await import("./regions");
     const regions = await listRegions();
-    expect(regions).toHaveLength(230);
-    expect(regions.at(-1)?.id).toBe("reg_229");
-    expect(calls.map((call) => call.url.searchParams.get("offset"))).toEqual(["0", "100", "200"]);
-  });
-
-  it("loses no region when the server returns fewer rows than it was asked for", async () => {
-    const all = Array.from({ length: 230 }, (_, i) => ({ ...wire(europe), id: `reg_${i}` }));
-    const calls = stubMedusaFetch(({ url }) => {
-      const offset = Number(url.searchParams.get("offset") ?? 0);
-      // A proxy or a backend setting that caps `limit` at 50.
-      return {
-        body: { regions: all.slice(offset, offset + 50), count: all.length, offset, limit: 50 },
-      };
-    });
-    const { listRegions } = await import("./regions");
-    const regions = await listRegions();
     expect(regions.map((region) => region.id)).toEqual(all.map((region) => region.id));
-    expect(calls.map((call) => call.url.searchParams.get("offset"))).toEqual([
-      "0",
-      "50",
-      "100",
-      "150",
-      "200",
-    ]);
+    expect(calls.map((call) => call.url.searchParams.get("offset"))).toEqual(server.offsets);
   });
 
   it("stops on an empty page even if the count is wrong", async () => {
