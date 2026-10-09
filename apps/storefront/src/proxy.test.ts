@@ -48,6 +48,8 @@ describe("the proxy matcher", () => {
     "/_next/image",
     "/_next/data/build/index.json",
     "/_vercel/insights/script.js",
+    "/_vercel/insights/view", // no dot: only the /_vercel/ rule leaves it alone
+    "/_vercel/speed-insights/vitals",
     "/favicon.ico",
     "/robots.txt",
     "/sitemap.xml",
