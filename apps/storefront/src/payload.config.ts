@@ -45,7 +45,13 @@ export default buildConfig({
     filterAvailableLocales,
   },
   db: postgresAdapter({
-    pool: { connectionString: process.env.PAYLOAD_DATABASE_URL ?? DEFAULT_DATABASE_URL },
+    pool: {
+      connectionString: process.env.PAYLOAD_DATABASE_URL ?? DEFAULT_DATABASE_URL,
+      // pg waits for ever by default, so a database host that has gone silent would hang everything
+      // that needs Payload, and `getPayload` would keep awaiting the same attempt. With a limit the
+      // attempt fails and the next call starts a new one.
+      connectionTimeoutMillis: 10_000,
+    },
     // D9: schema changes are saved migrations. Dev push is for experiments only.
     push: process.env.PAYLOAD_DB_PUSH === "true",
     disableCreateDatabase: process.env.NODE_ENV === "production",

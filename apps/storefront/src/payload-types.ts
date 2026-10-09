@@ -663,11 +663,11 @@ export interface Market {
           | 'ka'
           | 'mn';
         /**
-         * The Medusa locale this language uses, for example el-GR (D8).
+         * The Medusa locale this language uses (D8), one of Medusa's 51: el-GR for Greek, pt-BR or pt-PT for Portuguese.
          */
         medusaLocale: string;
         /**
-         * Overrides the lang attribute, for example pt-BR.
+         * Overrides the lang attribute of every country that uses this language, for example pt-BR.
          */
         htmlLang?: string | null;
         id?: string | null;

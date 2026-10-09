@@ -1,5 +1,7 @@
-// The seeded market map (SPEC §8.5): the editable part of Payload's `markets` global as T10 shapes
-// it. Tests use it directly, and T10's `getMarketMap()` falls back to it in development only.
+// The seeded market map (SPEC §8.5): the editable part of Payload's `markets` global. Tests use it
+// directly; `getMarketMap()` (apps/storefront/src/lib/markets/source.ts) uses it when the global is
+// empty or incomplete, in development and while `next build` runs, never in production; and T13's
+// `bootstrap` seeds the global from it.
 // A market is a country plus a language, and its key is `{language}-{country}` (SPEC §8.1), so
 // these seven exist: el-cy, en-us, en-gb, de-de, fr-fr, de-ch and fr-ch.
 

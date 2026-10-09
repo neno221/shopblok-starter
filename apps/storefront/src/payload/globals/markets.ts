@@ -1,5 +1,6 @@
 import type { GlobalConfig, TextFieldSingleValidation } from "payload";
 import { text } from "payload/shared";
+import { MEDUSA_LOCALES, isMedusaLocale, medusaLocalesOf } from "../../lib/markets/medusa-locales";
 import { isAdmin, isStaff } from "../access/roles";
 import { LOCALES } from "../locales";
 
@@ -22,9 +23,29 @@ export const countryCode: TextFieldSingleValidation = (value, options) => {
 };
 
 /**
+ * D17: a language's `medusaLocale` is one of Medusa's 51 locale codes, and the owner picks which
+ * (D8: `pt` is `pt-BR` for a Brazilian shop and `pt-PT` for a Portuguese one). It runs Payload's
+ * own text check first, which enforces `required` (T09, item 3), then lets an empty optional value
+ * through. The message names the choices for the row's language when Medusa has any.
+ */
+export const medusaLocale: TextFieldSingleValidation = (value, options) => {
+  const base = text(value, options);
+  if (base !== true) return base;
+  if (value === undefined || value === null || value === "") return true;
+  if (isMedusaLocale(value)) return true;
+  const language = (options.siblingData as { code?: unknown } | undefined)?.code;
+  const choices = typeof language === "string" ? medusaLocalesOf(language) : [];
+  const hint =
+    choices.length > 0
+      ? `For ${language}, use ${choices.join(" or ")}.`
+      : "Use one of Medusa's locales, for example en-US, el-GR or pt-BR.";
+  return `"${value}" is not a Medusa locale. ${hint}`;
+};
+
+/**
  * The market map (D10), the editable part (D12): which countries are open, in which languages,
- * and how each language maps to a Medusa locale (D8). T10 reads it (`getMarketMap()`) and checks
- * the Medusa locale codes; M4's sync fills `synced`. `filterAvailableLocales` reads it too: the
+ * and how each language maps to a Medusa locale (D8). `getMarketMap()` reads it (T10) and the
+ * validator above checks the Medusa locale codes; M4's sync fills `synced`. `filterAvailableLocales` reads it too: the
  * admin offers the languages of the enabled countries, and English.
  */
 export const Markets: GlobalConfig = {
@@ -68,12 +89,18 @@ export const Markets: GlobalConfig = {
           name: "medusaLocale",
           type: "text",
           required: true,
-          admin: { description: "The Medusa locale this language uses, for example el-GR (D8)." },
+          validate: medusaLocale,
+          admin: {
+            description: `The Medusa locale this language uses (D8), one of Medusa's ${MEDUSA_LOCALES.length}: el-GR for Greek, pt-BR or pt-PT for Portuguese.`,
+          },
         },
         {
           name: "htmlLang",
           type: "text",
-          admin: { description: "Overrides the lang attribute, for example pt-BR." },
+          admin: {
+            description:
+              "Overrides the lang attribute of every country that uses this language, for example pt-BR.",
+          },
         },
       ],
     },

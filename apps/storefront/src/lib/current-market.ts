@@ -1,7 +1,9 @@
 import "server-only";
 import { notFound } from "next/navigation";
 import { market } from "next/root-params";
-import { findShellMarket, type ShellMarket } from "./shell-markets";
+import { withLocale, type CurrentMarket } from "./market-locale";
+import { getRenderMarketMap } from "./markets/cached-market-map";
+import { findMarket } from "./markets/market";
 
 /**
  * The market of the current request, from the `[market]` root param. An unknown key is a 404:
@@ -9,8 +11,9 @@ import { findShellMarket, type ShellMarket } from "./shell-markets";
  * `global-not-found`, because the URL matches `/[market]`; T11's proxy removes the case (SETUP.md,
  * T08 item 2).
  */
-export async function getCurrentMarket(): Promise<ShellMarket> {
-  const current = findShellMarket(await market());
+export async function getCurrentMarket(): Promise<CurrentMarket> {
+  const key = await market();
+  const current = findMarket(await getRenderMarketMap(), key);
   if (current === undefined) notFound();
-  return current;
+  return withLocale(current);
 }
