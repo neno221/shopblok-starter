@@ -1,0 +1,19 @@
+{
+  "name": "@shopblok/emails",
+  "version": "0.0.0",
+  "private": true,
+  "description": "React Email layouts; the copy comes from Payload. Exports TypeScript source: no build step (D3). A placeholder in M0.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc",
+    "lint": "eslint ."
+  },
+  "devDependencies": {
+    "@shopblok/config": "workspace:*",
+    "eslint": "9.39.5",
+    "typescript": "5.9.3"
+  }
+}
