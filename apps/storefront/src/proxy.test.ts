@@ -1,19 +1,14 @@
-import { readFileSync } from "node:fs";
-import { unstable_doesMiddlewareMatch } from "next/experimental/testing/server";
-import { describe, expect, it } from "vitest";
+import { markets as seeded } from "@shopblok/fixtures";
+import { NextRequest } from "next/server";
+import { getRewrittenUrl, unstable_doesMiddlewareMatch } from "next/experimental/testing/server";
+import { describe, expect, it, vi } from "vitest";
+import { config, proxy } from "./proxy";
 
-// `proxy.ts` can't be imported here (it loads Payload, and Vitest has no `@payload-config` alias),
-// and Next reads `config.matcher` from the file's source as a literal. So the test reads the same
-// literal, and fails if the file stops having one. (The docs call the helper `unstable_doesProxyMatch`;
-// 16.4.0 still exports it as `unstable_doesMiddlewareMatch`.)
-function matcherOfProxyFile(): string {
-  const source = readFileSync(new URL("./proxy.ts", import.meta.url), "utf8");
-  const found = /matcher:\s*\[\s*("(?:[^"\\]|\\.)*")\s*\]/.exec(source);
-  if (found?.[1] === undefined) throw new Error('proxy.ts has no literal matcher: ["…"]');
-  return JSON.parse(found[1]) as string;
-}
+// The map comes from `/next/markets` (a fetch); the glue test below gives it directly.
+vi.mock("./lib/markets/proxy-market-map", () => ({ getProxyMarketMap: async () => seeded }));
 
-const config = { matcher: [matcherOfProxyFile()] };
+// (The docs call the helper `unstable_doesProxyMatch`; 16.4.0 still exports it as
+// `unstable_doesMiddlewareMatch`.)
 const runsOn = (url: string) => unstable_doesMiddlewareMatch({ config, url });
 
 describe("the proxy matcher", () => {
@@ -30,6 +25,10 @@ describe("the proxy matcher", () => {
     "/nextstep",
     "/_not-found",
     "/cy/store?page=2",
+    "/products/1.5l-bottle", // a dot in a slug is not a file
+    "/ch/fr/store/size-8.5",
+    "/store/2024.05",
+    "/cy/evil.example/x", // the dot is not in the last segment
   ])("runs on the storefront path %s", (url) => {
     expect(runsOn(url)).toBe(true);
   });
@@ -54,8 +53,18 @@ describe("the proxy matcher", () => {
     "/robots.txt",
     "/sitemap.xml",
     "/images/logo.png",
+    "/images/logo.min.js",
     "/.well-known/security.txt",
+    "/.well-known/apple-app-site-association", // no extension: only the /.well-known/ rule
+    "/cy/evil.example", // the last segment is a file name to the matcher
   ])("leaves %s alone", (url) => {
     expect(runsOn(url)).toBe(false);
+  });
+});
+
+describe("the proxy", () => {
+  it("answers a request from the map it reads", async () => {
+    const response = await proxy(new NextRequest("https://example.com/ch/fr?page=2"));
+    expect(getRewrittenUrl(response)).toBe("https://example.com/fr-ch?page=2");
   });
 });

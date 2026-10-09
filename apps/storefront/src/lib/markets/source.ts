@@ -10,6 +10,13 @@ export type MarketSourceOptions = {
   /** The map to use instead, where `allowFallback` says so (the seeded fixtures). */
   fallback: MarketMap;
   allowFallback: (reason: FallbackReason) => boolean;
+  /**
+   * Past the TTL, answer with the map held and read the new one in the background, so no caller
+   * waits for a slow read. For a caller on every request's path (the proxy); only the first read
+   * blocks then. In a serverless function the background read may pause with the instance; the
+   * next call joins it or starts another.
+   */
+  staleWhileRevalidate?: boolean;
   /** A monotonic clock in ms; `performance.now()` by default, which Cache Components allows. */
   now?: () => number;
   warn?: (message: string) => void;
@@ -107,9 +114,11 @@ export function createMarketSource(options: MarketSourceOptions) {
   }
 
   async function read(): Promise<MarketMap> {
-    let doc: MarketsGlobal | null | undefined;
+    let map: MarketMap;
     try {
-      doc = await withTimeout(loadOnce(), MARKET_LOAD_TIMEOUT_MS);
+      // Mapped inside the guard: a source that answers something of the wrong shape (the proxy's
+      // HTTP read) is a read that failed, so the last good map keeps serving.
+      map = mapFromGlobal((await withTimeout(loadOnce(), MARKET_LOAD_TIMEOUT_MS)) ?? {});
     } catch (error) {
       return otherwise(
         "unreachable",
@@ -117,7 +126,6 @@ export function createMarketSource(options: MarketSourceOptions) {
         error,
       );
     }
-    const map = mapFromGlobal(doc ?? {});
     const problems = marketMapProblems(map);
     if (problems.length === 0) return keep(map);
     const state = map.countries.length === 0 ? "empty" : "incomplete";
@@ -135,6 +143,8 @@ export function createMarketSource(options: MarketSourceOptions) {
       reading ??= read().finally(() => {
         reading = undefined;
       });
+      // `read` can't reject once there is a map to keep, so the background read leaves no rejection behind.
+      if (current !== undefined && options.staleWhileRevalidate) return current.map;
       return reading;
     },
   };

@@ -88,8 +88,9 @@ test.describe("redirects", () => {
   });
 
   // Next collapses `//` with a 308 of its own first. Every hop, Next's and the proxy's, stays on
-  // this host and ends on a path of it. (A name with a dot is a file to the matcher: no proxy.)
+  // this host and ends on a path of it. (A last segment with a dot is a file to the matcher.)
   for (const [path, last] of [
+    ["/cy/evil.example/x", "/evil.example/x"],
     ["/cy//evilhost/x", "/evilhost/x"],
     ["/cy/%5Cevilhost", "/%5Cevilhost"],
     ["/cy///evilhost", "/evilhost"],

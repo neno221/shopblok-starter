@@ -12,8 +12,12 @@ export const metadata: Metadata = { title: catalogs.en.notFound.title };
 // and styles, and has no market to read: the default language, and a link to the primary market.
 export default async function GlobalNotFound() {
   const { notFound } = catalogs.en;
-  const map = await getRenderMarketMap();
-  const primary = primaryMarket(map);
+  // A missing page stays a 404 when the map can't be read (an empty global, a database that is
+  // down): the page is then shown without its link. The failure is logged where it happens.
+  const map = await getRenderMarketMap().catch(() => undefined);
+  const primary = map === undefined ? undefined : primaryMarket(map);
+  const home =
+    map === undefined || primary === undefined ? undefined : buildPublicUrl(primary, "/", map);
   return (
     <html lang="en">
       <body>
@@ -21,8 +25,8 @@ export default async function GlobalNotFound() {
           <h1 className="text-2xl font-semibold">{notFound.title}</h1>
           <p className="mt-2">{notFound.body}</p>
           {/* A usable map always has a primary market; without one there is nowhere to link. */}
-          {primary !== undefined && (
-            <Link className="mt-4 inline-block underline" href={buildPublicUrl(primary, "/", map)}>
+          {home !== undefined && (
+            <Link className="mt-4 inline-block underline" href={home}>
               {notFound.home}
             </Link>
           )}

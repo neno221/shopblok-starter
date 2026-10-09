@@ -22,6 +22,11 @@ export function enabledCountries(map: MarketMap): MarketCountry[] {
   return map.countries.filter((country) => country.enabled);
 }
 
+/** The map without its closed countries: all that may be published (hreflang prints the open ones). */
+export function withoutClosedCountries(map: MarketMap): MarketMap {
+  return { ...map, countries: enabledCountries(map) };
+}
+
 /**
  * Every market of the enabled countries, one per language, in the map's order (so the hreflang
  * list follows the order the owner chose). A language with no row in `map.languages` gets an empty
