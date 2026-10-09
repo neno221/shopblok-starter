@@ -8,7 +8,7 @@ pnpm infra:down    # stops and removes the containers; the data stays in the nam
 pnpm infra:reset   # docker compose down -v, then up: deletes all data and recreates everything
 ```
 
-Plain `docker compose up -d --wait` does the same as `pnpm infra:up`. Docker has to be running first, with Docker Compose v2.20 or newer (the root file uses `include`). Run it from the repo root: from inside `infra/`, Compose uses that folder as its project (name `infra`, its own volumes) and ignores the root `.env`. In a Claude Code cloud session it is off at the start; see [docs/CLOUD.md](../docs/CLOUD.md), "What every cloud session does first", step 3.
+Plain `docker compose up -d --wait` does the same as `pnpm infra:up`. Docker has to be running first, with Docker Compose v2.20 or newer (the root file uses `include`). From inside `infra/`, Compose uses that folder as its project (name `infra`, its own volumes) and ignores the root `.env`. In a Claude Code cloud session it is off at the start; see [docs/CLOUD.md](../docs/CLOUD.md), "What every cloud session does first", step 3.
 
 ## Services
 
@@ -37,7 +37,7 @@ To change one, set it in the shell or in a root `.env` (gitignored; Compose read
 | `MAILPIT_SMTP_PORT` | 1025 | 1025 |
 | `MAILPIT_UI_PORT` | 8025 | 8025 |
 
-The apps' env files hold full URLs (and the SMTP host and port), so an override means changing those too. Mailpit keeps the usual 1025 and 8025 by default; set the last two if MailHog, MailCatcher or another local mail catcher already uses them.
+The apps' env files hold full URLs (and the SMTP host and port), so an override means changing those too. Change the two Mailpit ports only if another local mail catcher, such as MailHog or MailCatcher, already uses them.
 
 ## Connection details
 

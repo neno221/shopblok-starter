@@ -27,10 +27,9 @@ services:
     healthcheck:
       # Over TCP, not the unix socket: while the entrypoint runs the init scripts,
       # a temporary server listens on the socket only, and a socket check would
-      # report healthy before the databases exist. It also counts the two
-      # databases: if an init script failed on an earlier start, the volume is no
-      # longer empty, the script is skipped, and the server would otherwise come
-      # up healthy without them.
+      # report healthy before the databases exist. Counting them also catches a
+      # volume whose init script failed earlier: the script is skipped on a
+      # non-empty volume.
       test:
         - CMD-SHELL
         - >-
@@ -94,8 +93,8 @@ services:
       retries: 12
       start_period: 5s
 
-# Named volumes, not folders in the repo: they stay out of the checkout.
-# `pnpm infra:down` keeps them; `pnpm infra:reset` removes them.
+# Named volumes, not folders in the repo. `pnpm infra:down` keeps them;
+# `pnpm infra:reset` removes them.
 volumes:
   postgres-data:
   redis-data:
