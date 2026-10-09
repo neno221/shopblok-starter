@@ -1,15 +1,23 @@
 import type { SearchTypes } from "@medusajs/framework/types";
 import { QueryContext, search } from "@medusajs/framework/utils";
 
-/**
- * The currencies the index holds prices in. Each gets its own set of price
- * fields, so filtering and sorting work per currency. Adding one is a schema
- * change: the module reindexes on the next boot. Keep in sync with the
- * storefront's `SEARCH_PRICE_CURRENCIES`.
- */
-export const PRICE_CURRENCIES = ["eur", "usd"] as const;
+import {
+  SUPPORTED_CURRENCIES,
+  type SupportedCurrency,
+} from "../../config/markets";
 
-export type PriceCurrency = (typeof PRICE_CURRENCIES)[number];
+/**
+ * The currencies the index holds prices in: every currency the store sells in
+ * (`src/config/markets.ts`), so a shop that opens a market can filter and sort
+ * its products by price there without touching the index. Each currency gets
+ * its own set of price fields. Adding one is a schema change: the module
+ * reindexes on the next boot. Keep in sync with the storefront's
+ * `SEARCH_PRICE_CURRENCIES`.
+ */
+export const PRICE_CURRENCIES: readonly SupportedCurrency[] =
+  SUPPORTED_CURRENCIES.map((currency) => currency.currency_code);
+
+export type PriceCurrency = SupportedCurrency;
 
 // Read once per currency, since the Pricing Module calculates for a single
 // currency per query.

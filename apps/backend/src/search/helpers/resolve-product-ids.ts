@@ -32,9 +32,16 @@ async function relatedProductIds(
     withDeleted,
   });
 
-  return (data as Record<string, any>[])
-    .flatMap(pick)
+  return (data as (Record<string, any> | null | undefined)[])
+    .flatMap((row) => (row ? pick(row) : []))
     .filter((id): id is string => Boolean(id));
+}
+
+/** The ids of the products behind a to-many relation read as `[{ id }, …]`. */
+function relationIds(
+  relation: ({ id?: string | null } | null)[] | null | undefined,
+) {
+  return (relation ?? []).map((product) => product?.id);
 }
 
 /**
@@ -97,22 +104,24 @@ export async function resolveProductIds(
         (row) => [row.product_id],
         deleted,
       );
+    // Since 2.16 an option can be shared by many products, so it has `products`
+    // and no `product_id`.
     case "product-option":
       return relatedProductIds(
         query,
         "product_option",
-        ["product_id"],
+        ["id", "products.id"],
         ids,
-        (row) => [row.product_id],
+        (row) => relationIds(row.products),
         deleted,
       );
     case "product-option-value":
       return relatedProductIds(
         query,
         "product_option_value",
-        ["option.product_id"],
+        ["id", "option.products.id"],
         ids,
-        (row) => [row.option?.product_id],
+        (row) => relationIds(row.option?.products),
         deleted,
       );
     case "product-tag":

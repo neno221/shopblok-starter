@@ -1,5 +1,7 @@
 import {
   MARKET_REGIONS,
+  MEDUSA_DEFAULT_STORE_NAME,
+  STORE_NAME,
   SUPPORTED_CURRENCIES,
   SUPPORTED_LOCALES,
   TRANSLATED_LOCALES,
@@ -36,5 +38,17 @@ describe("market data", () => {
   it("has one locale per language (D8), and translates all but English", () => {
     expect([...SUPPORTED_LOCALES]).toEqual(["en-US", "el-GR", "de-DE", "fr-FR"]);
     expect([...TRANSLATED_LOCALES]).toEqual(["el-GR", "de-DE", "fr-FR"]);
+  });
+
+  it("names the store for the shop, not Medusa", () => {
+    expect(STORE_NAME).toBe("Shopbloks Starter");
+    expect(MEDUSA_DEFAULT_STORE_NAME).toBe("Medusa Store");
+    expect(STORE_NAME).not.toBe(MEDUSA_DEFAULT_STORE_NAME);
+  });
+
+  it("uses lower-case ISO 4217 codes and BCP 47 locales that Medusa ships", () => {
+    expect(SUPPORTED_CURRENCIES.every((c) => /^[a-z]{3}$/.test(c.currency_code))).toBe(true);
+    expect(SUPPORTED_LOCALES.every((l) => /^[a-z]{2}-[A-Z]{2}$/.test(l))).toBe(true);
+    expect(SUPPORTED_LOCALES).toEqual(expect.arrayContaining([...TRANSLATED_LOCALES, "en-US"]));
   });
 });

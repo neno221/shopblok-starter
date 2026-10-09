@@ -1,7 +1,10 @@
 /**
  * What `seed-markets.ts` sets up. Plain data, no Medusa imports, so the plan
- * (M0 §1, D8) can be read and tested without a database.
+ * (M0 §1, D8) can be read and tested without a database. The lists a shop
+ * edits (currencies, regions, locales) live in `src/config/markets.ts`, which
+ * the search index reads too; they are re-exported here.
  */
+export * from "../../config/markets";
 
 /**
  * Medusa creates the store, this sales channel and the key below on every boot
@@ -34,63 +37,6 @@ export const SHIPPING_OPTION_TYPE_CODE = "standard";
  * admin added from being picked just because it comes first.
  */
 export const DEFAULT_SHIPPING_PROFILE_TYPE = "default";
-
-/** `eur` is the store's default currency. */
-export const SUPPORTED_CURRENCIES = [
-  { currency_code: "eur", is_default: true },
-  { currency_code: "usd", is_default: false },
-  { currency_code: "gbp", is_default: false },
-  { currency_code: "chf", is_default: false },
-] as const;
-
-/**
- * One Medusa locale per language (D8). `de-CH` and `fr-CH` shoppers see the
- * German and French translations, so there is no locale for them.
- */
-export const SUPPORTED_LOCALES = ["en-US", "el-GR", "de-DE", "fr-FR"] as const;
-
-/** The locales that carry translations; `en-US` is the language the data is written in. */
-export const TRANSLATED_LOCALES = ["el-GR", "de-DE", "fr-FR"] as const;
-
-export type SupportedLocale = (typeof SUPPORTED_LOCALES)[number];
-export type TranslatedLocale = (typeof TRANSLATED_LOCALES)[number];
-export type SupportedCurrency = (typeof SUPPORTED_CURRENCIES)[number]["currency_code"];
-
-export type MarketRegion = {
-  name: string;
-  currency_code: SupportedCurrency;
-  /** Lower-case ISO 3166-1 alpha-2 codes. A country belongs to one region only. */
-  countries: string[];
-  /** The "Standard" shipping option's price, in the region's currency. */
-  standard_shipping: number;
-};
-
-export const MARKET_REGIONS: MarketRegion[] = [
-  {
-    name: "Europe",
-    currency_code: "eur",
-    countries: ["cy", "de", "fr"],
-    standard_shipping: 6,
-  },
-  {
-    name: "United States",
-    currency_code: "usd",
-    countries: ["us"],
-    standard_shipping: 8,
-  },
-  {
-    name: "United Kingdom",
-    currency_code: "gbp",
-    countries: ["gb"],
-    standard_shipping: 5,
-  },
-  {
-    name: "Switzerland",
-    currency_code: "chf",
-    countries: ["ch"],
-    standard_shipping: 7,
-  },
-];
 
 export const STOCK_LOCATION_ADDRESS = {
   address_1: "Shopblok warehouse",
