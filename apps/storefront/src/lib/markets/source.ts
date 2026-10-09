@@ -10,6 +10,13 @@ export type MarketSourceOptions = {
   /** The map to use instead, where `allowFallback` says so (the seeded fixtures). */
   fallback: MarketMap;
   allowFallback: (reason: FallbackReason) => boolean;
+  /**
+   * Past the TTL, answer with the map held and read the new one in the background, so no caller
+   * waits for a slow read. For a caller on every request's path (the proxy); only the first read
+   * blocks then. In a serverless function the background read may pause with the instance; the
+   * next call joins it or starts another.
+   */
+  staleWhileRevalidate?: boolean;
   /** A monotonic clock in ms; `performance.now()` by default, which Cache Components allows. */
   now?: () => number;
   warn?: (message: string) => void;
@@ -52,7 +59,7 @@ export function defaultAllowFallback(env: {
   };
 }
 
-function describe(error: unknown): string {
+export function describeError(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
@@ -73,7 +80,7 @@ function withTimeout<T>(work: Promise<T>, ms: number): Promise<T> {
  * error. Nothing here imports Payload, so a test can feed it a fake `load`.
  */
 export function createMarketSource(options: MarketSourceOptions) {
-  const { load, fallback, allowFallback } = options;
+  const { load, fallback, allowFallback, staleWhileRevalidate } = options;
   const now = options.now ?? (() => performance.now());
   const warn = options.warn ?? ((message: string) => console.warn(message));
 
@@ -113,7 +120,7 @@ export function createMarketSource(options: MarketSourceOptions) {
     } catch (error) {
       return otherwise(
         "unreachable",
-        `the markets global could not be read (${describe(error)})`,
+        `the markets global could not be read (${describeError(error)})`,
         error,
       );
     }
@@ -135,7 +142,8 @@ export function createMarketSource(options: MarketSourceOptions) {
       reading ??= read().finally(() => {
         reading = undefined;
       });
-      return reading;
+      // With a map to serve, the caller doesn't wait: the read runs on and renews the map.
+      return staleWhileRevalidate && current !== undefined ? current.map : reading;
     },
   };
 }

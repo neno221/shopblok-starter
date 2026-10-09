@@ -8,6 +8,7 @@ import {
   primaryCountryCode,
   primaryMarket,
   toInternalKey,
+  withoutClosedCountries,
 } from "./market";
 import { brazil, germanyClosed, seeded, withDomains } from "./test-maps";
 
@@ -109,5 +110,15 @@ describe("findMarket, primaryMarket, fallbackMarketOf", () => {
   it("points x-default at the fallback market, or at the primary when that is stale", () => {
     expect(fallbackMarketOf(seeded)?.key).toBe("en-us");
     expect(fallbackMarketOf({ ...seeded, fallbackMarket: "en-xx" })?.key).toBe("el-cy");
+  });
+});
+
+describe("withoutClosedCountries", () => {
+  it("drops a closed country and leaves the markets, the primary and the languages as they were", () => {
+    const published = withoutClosedCountries(germanyClosed);
+    expect(published.countries.map((country) => country.code)).not.toContain("de");
+    expect(listMarkets(published)).toEqual(listMarkets(germanyClosed));
+    expect(primaryMarket(published)).toEqual(primaryMarket(germanyClosed));
+    expect(published.languages).toEqual(germanyClosed.languages);
   });
 });

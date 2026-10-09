@@ -6,7 +6,8 @@ import type { MarketMap } from "./types";
  * The market map for rendering: layouts, pages and metadata. A prerendered page can't wait on
  * uncached I/O, so with Cache Components its read of the map goes through `use cache`, where the
  * map is filled into the static shell at build and refreshed on request. The proxy has no render
- * to prerender and calls `getMarketMap()` itself.
+ * to prerender and imports no Payload: it reads this map through `/next/markets`, which returns it
+ * (`proxy-market-map.ts`).
  *
  * - `revalidate: 30` keeps the shell about as fresh as the 30 s in-process cache under it (D10).
  *   `expire` is 5 minutes or more and `stale` is 5 minutes, or Next would leave this read out of
