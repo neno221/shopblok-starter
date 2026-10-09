@@ -1,8 +1,6 @@
-import { readFileSync, readdirSync } from "node:fs";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { DEFAULT_LOCALE as STORE_DEFAULT_LOCALE, LOCALES as STORE_LOCALES } from "@shopblok/i18n";
 import { describe, expect, it } from "vitest";
+import { medusaLocaleCodes } from "../test-support/medusa-locale-codes";
 import {
   DEFAULT_LOCALE,
   EU_LANGUAGES,
@@ -12,24 +10,6 @@ import {
   MEDUSA_LANGUAGES,
   languageLabel,
 } from "./locales";
-
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..");
-
-/** The codes in `defaultLocales` of the `@medusajs/translation` that the backend installs. */
-function medusaLocaleCodes(): string[] {
-  const store = path.join(repoRoot, "node_modules/.pnpm");
-  const folders = readdirSync(store).filter((entry) => entry.startsWith("@medusajs+translation@"));
-  // Exactly one: with two installed, which one Medusa loads is not for a test to guess.
-  if (folders.length !== 1) {
-    throw new Error(`expected one @medusajs/translation in ${store}, found ${folders.length}`);
-  }
-  const file = path.join(
-    store,
-    folders[0]!,
-    "node_modules/@medusajs/translation/dist/loaders/defaults.js",
-  );
-  return [...readFileSync(file, "utf8").matchAll(/code: "([^"]+)"/g)].map((match) => match[1]!);
-}
 
 describe("LANGUAGES", () => {
   it("has the 42 languages of the plan (D17), the default first, with no duplicate", () => {
