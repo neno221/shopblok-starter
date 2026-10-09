@@ -12,6 +12,7 @@ A brand-neutral storefront starter: **Medusa v2** (commerce) + **Next.js 16** wi
 - Cloud preflight (C0): passed, see [docs/SETUP.md](docs/SETUP.md#cloud-preflight-c0)
 - Config presets (T02): passed, see [docs/SETUP.md](docs/SETUP.md#config-presets-t02)
 - Package stubs and workspace checks (T03): passed, see [docs/SETUP.md](docs/SETUP.md#package-stubs-and-workspace-checks-t03)
-- Next step: [docs/NEXT-SESSION.md](docs/NEXT-SESSION.md) (run T04, in the cloud)
+- Local infrastructure (T04): passed, see [docs/SETUP.md](docs/SETUP.md#local-infrastructure-t04); start it with `pnpm infra:up` ([infra/README.md](infra/README.md))
+- Next step: [docs/NEXT-SESSION.md](docs/NEXT-SESSION.md) (run T05, in the cloud)
 
 Design tokens are based on the "shadcn/ui – Design System by ReUI" Figma community file, licensed CC BY 4.0.
