@@ -4,6 +4,7 @@
     "build": {
       "dependsOn": ["^build"],
       "inputs": ["$TURBO_DEFAULT$", ".env*"],
+      "env": ["MEDUSA_BACKEND_URL", "STOREFRONT_URL"],
       "outputs": [".next/**", "!.next/cache/**", ".medusa/server/**", "dist/**"]
     },
     "dev": {
