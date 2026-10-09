@@ -16,8 +16,12 @@ module.exports = defineConfig({
       storeCors: process.env.STORE_CORS!,
       adminCors: process.env.ADMIN_CORS!,
       authCors: process.env.AUTH_CORS!,
-      jwtSecret: process.env.JWT_SECRET,
-      cookieSecret: process.env.COOKIE_SECRET,
+      // `|| undefined`: .env.example leaves both blank on purpose. defineConfig hands a blank
+      // string to the User module as its jwt_secret (it only falls back on undefined), and the
+      // module then refuses to start. Undefined falls back to Medusa's default in development
+      // and still fails in production.
+      jwtSecret: process.env.JWT_SECRET || undefined,
+      cookieSecret: process.env.COOKIE_SECRET || undefined,
     }
   },
   admin: {
