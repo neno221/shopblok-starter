@@ -67,7 +67,7 @@ BASH_MAX_TIMEOUT_MS=600000
 
 ### Setup script
 
-The setup script runs as root on Ubuntu 24.04, before Claude starts, the first time a session starts in the environment. If it finishes in about five minutes, the filesystem is saved, and later sessions start from that copy and skip the script. It runs again when you change the script or the allowed domains, and after about seven days. If it exits with an error, the session doesn't start. That's why every step below is allowed to fail: C0, and the first checks of each session, catch anything that didn't work. The log is `/var/log/shopblok-setup.log`. T02's session saw it run again at the start of the session although the script took 25 s, so don't count on the saved copy (SETUP.md, "Follow-up checks (T02)"). C0 measured the script (steps 1 to 5) at 34 seconds, because the image already has Node 22.22.0 and Playwright's system libraries.
+The setup script runs as root on Ubuntu 24.04, before Claude starts, the first time a session starts in the environment. If it finishes in about five minutes, the filesystem is saved, and later sessions start from that copy and skip the script. It runs again when you change the script or the allowed domains, and after about seven days. If it exits with an error, the session doesn't start. That's why every step below is allowed to fail: C0, and the first checks of each session, catch anything that didn't work. The log is `/var/log/shopblok-setup.log`. T02's session saw it run again at the start of the session although the script took 25 s, so don't count on the saved copy (SETUP.md, "Follow-up checks (T02)"). T03's session ran the script with step 6 in 40 s; whether the saved copy is reused is the first thing T04's session checks. C0 measured the script (steps 1 to 5) at 34 seconds, because the image already has Node 22.22.0 and Playwright's system libraries.
 
 Paste this into **Setup script**:
 
@@ -147,7 +147,7 @@ exit 0
 
 When C0 or a later task changes this script, it updates this page in its PR, and you paste the new version into the environment (gear icon on the environment, then **Setup script**).
 
-**Step 6 was added by C0 and has not run yet.** The version that C0 ran had steps 1 to 5 only. Step 6 can't be tested from inside a session, because the session can't download the two repos; only its pieces were checked locally (SETUP.md, C0 item 2). Paste it now that T02 is merged and before T03 starts (T05 needs `/opt/dtc-starter`; T09 needs `/opt/payload-templates`). T03's session checks that both folders exist and times the script (`setup start` to `setup end` in the log): the Payload download is the whole monorepo.
+**Step 6 was added by C0 and first ran in T03's session (2026-10-09).** Both folders were there, `/opt/payload-templates` held exactly `blank`, `ecommerce` and `with-postgres`, the log had no `step 6 FAILED`, and the whole script took 40 s (SETUP.md, "Follow-up checks (T03)"). Step 6 can't be tested from inside a session, because a session can't download the two repos; it was only ever checked by running the setup script. T05 needs `/opt/dtc-starter`; T09 needs `/opt/payload-templates`.
 
 ## What every cloud session does first
 
