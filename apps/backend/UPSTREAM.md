@@ -1,0 +1,55 @@
+# Upstream: medusajs/dtc-starter
+
+This folder is a copy of `apps/backend` from [medusajs/dtc-starter](https://github.com/medusajs/dtc-starter), not a submodule. This file records where it came from and every change made since, so a later diff against upstream stays cheap.
+
+| | |
+|---|---|
+| Upstream | `https://github.com/medusajs/dtc-starter`, folder `apps/backend` |
+| Commit | `15ef93da7d155ad990d8cc6db0296446fecbdfe6` (2026-10-02) |
+| Copied | 2026-10-09, task T05 of the M0 plan |
+| License | MIT, copyright Medusa. The notice is in [LICENSE](LICENSE) (dtc-starter's root `LICENSE`, copied as is) |
+| Source of the copy | `/opt/dtc-starter/apps/backend` in the cloud environment: the `codeload.github.com` tarball of that commit, fetched by the setup script (docs/CLOUD.md, script step 6). The tarball has no `.git`, so the commit is the one in the script's URL |
+
+## Local changes
+
+Every difference from upstream's `apps/backend` at that commit. Anything not listed here is unchanged.
+
+| File | Change | Why |
+|---|---|---|
+| `package.json` | `name` `@dtc/backend` → `@shopblok/backend`; `private: true` added; `description` rewritten | Workspace naming (`@shopblok/*`); never publish it |
+| `package.json` | `typescript` `^5.6.2` → `5.9.3` | D5. Medusa's CLI uses `ts-node`, and `medusa build` calls `ts.createProgram`, so TypeScript 7 is out |
+| `package.json` | The three `test:*` scripts start with `cross-env` (`cross-env TEST_TYPE=… NODE_OPTIONS=… jest …`) | The `VAR=value command` form doesn't work in Windows shells (W1, W2). `cross-env` 10.1.0 is added to `devDependencies` |
+| `package.json` | `devDependencies` gained `@medusajs/eslint-plugin` 2.21.2, `eslint` 9.39.5 and `jiti` 2.7.0 | `eslint.config.ts` imports the plugin and `eslint/config`, and ESLint 9 needs `jiti` to read a `.ts` config. dtc-starter declares all three in its **root** `package.json`, which this repo doesn't have, so the backend has to declare them itself. Without them `medusa lint` (and `medusa build` and `medusa develop`, which lint first) can't load the config, and `pnpm --filter @shopblok/backend exec eslint` would reach the image's global ESLint 10.1.0 |
+| `.env.template` | Renamed to `.env.example`, and rewritten: D15 host ports in every URL (Postgres 15432, Redis 6380, Meilisearch 7701), `MEILISEARCH_HOST` and `MEILISEARCH_API_KEY` (the dev master key from `infra/docker-compose.yml`), CORS for this repo's origins (storefront 8000, admin 9000; the `docs.medusajs.com` and `:5173` entries are gone), `MEDUSA_BACKEND_URL`, `MEDUSA_FF_TRANSLATION=true`, `STOREFRONT_URL` and the `PAYLOAD_*` / `REVALIDATE_SECRET` link variables (SPEC §15). `DB_NAME` is dropped | The root `.gitignore` ignores `.env.*` except `.env.example`, so a `.env.template` could never be committed. `DB_NAME` is read only by `medusa db:create`, which this repo doesn't use (compose's init script creates the databases); the app uses `DATABASE_URL` |
+| `src/migration-scripts/initial-data-seed.ts` | Removed | D7: it seeds inside `medusa db:migrate`, which runs in production's predeploy step too, and it hard-wires one EUR region. T07's `medusa exec` scripts replace it |
+| `src/api/store/custom/route.ts`, `src/api/admin/custom/route.ts` | Removed | Upstream's example routes |
+| `src/scripts/seed-demo-products.ts` | Removed | Replaced by T07's `seed-demo-catalog.ts`. Upstream has no `seed` script in `package.json` either, so dtc-starter's `backend:seed` root script is stale |
+| `LICENSE` | Added | The MIT notice, because this is a copy of MIT-licensed code |
+| `UPSTREAM.md` | Added | This file |
+
+Kept on purpose, so a diff against upstream shows nothing for them: `medusa-config.ts` (T06 rewrites it, and then lists the change here), `tsconfig.json`, `eslint.config.ts`, `jest.config.js`, `instrumentation.ts`, `integration-tests/setup.js`, `.gitignore`, `README.md` (the generic Medusa one), `src/admin/**`, `src/search/**` (the product index and its helpers), `src/api/middlewares.ts` (the `configureStoreSearch` middleware for `POST /store/search`) and the placeholder `README.md` files under `src/`.
+
+Dependencies the plan pins are already exact upstream: every `@medusajs/*` at 2.21.2, `@medusajs/ui` 4.2.6 (what `@medusajs/dashboard@2.21.2` itself pins), `@tanstack/react-query` 5.64.2, `react-i18next` 13.5.0, `react-router-dom` 7.18.2 and `zod` 4.2.0. `react` and `react-dom` stay `^18.3.1` (the admin's React, D6). The remaining ranges (`jest`, `@swc/*`, `vite`, `ts-node`, `@types/*`, …) are upstream's, and the lockfile pins what they resolve to. `@types/node` is still upstream's `^20.12.11`, not the repo's 22.20.5.
+
+## What lives in dtc-starter's root and is not copied
+
+- `package.json`: `@medusajs/eslint-plugin`, `eslint`, `jiti`, `react` 18.3.1 and `react-dom` 18.3.1 as root devDependencies (the first three are now declared in this package, see above), and `pnpm.overrides` for `@types/react` and `@types/react-dom` (19.0.5) and `tsconfig-paths` (`^4.2.0`). The overrides serve upstream's storefront. Here the backend resolves `@types/react` 18.3.x, which matches its React, and nothing needed `tsconfig-paths`.
+- `.npmrc` (`auto-install-peers=true`, which is pnpm's default since 10), `pnpm-workspace.yaml`, `turbo.json`, `eslint.config.ts` (the same content as the backend's), `AGENTS.md`, `CLAUDE.md`, `.github/` and `apps/storefront`.
+
+## Comparing with upstream later
+
+What upstream changed since our commit:
+
+```bash
+git clone https://github.com/medusajs/dtc-starter /tmp/dtc-starter
+git -C /tmp/dtc-starter diff 15ef93da7d155ad990d8cc6db0296446fecbdfe6 origin/main -- apps/backend
+```
+
+What we changed (should match the table above; `node_modules`, `.medusa` and `.env` are ignored by git, so exclude them):
+
+```bash
+git -C /tmp/dtc-starter checkout 15ef93da7d155ad990d8cc6db0296446fecbdfe6
+git diff --no-index --stat /tmp/dtc-starter/apps/backend apps/backend
+```
+
+Don't merge upstream's `package.json` or `medusa-config.ts` blindly: both are ours to change from T06 on. A new upstream release of Medusa means bumping every `@medusajs/*` together, as the plan's §2 does.
