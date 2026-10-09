@@ -1,0 +1,417 @@
+/**
+ * Seeds a demo catalog (M0 plan, T07 and D7): 8 products with variants priced in
+ * EUR, USD, GBP and CHF, 3 categories, 2 collections, and Greek, German and
+ * French translations. Development only: `seed-markets.ts` runs everywhere,
+ * this one never does.
+ *
+ *   pnpm --filter @shopblok/backend exec medusa exec ./src/scripts/seed-demo-catalog.ts
+ *
+ * Skip it with `SEED_DEMO=false` in the environment, or by passing `skip` as
+ * the script's argument (`medusa exec ./src/scripts/seed-demo-catalog.ts skip`).
+ * It runs only when `NODE_ENV` is unset, `development` or `test` (the values
+ * where `getSecret` in `src/config/config.ts` accepts a default secret); with
+ * `production`, `staging` or anything else it refuses.
+ *
+ * Idempotent: categories, collections and products are found by their
+ * deterministic handles, options by title, translations by
+ * (reference_id, locale_code); only what is missing is created, so a second run
+ * makes no change. It writes through core-flows workflows only, and needs
+ * `seed-markets.ts` to have run first (sales channel, currencies).
+ *
+ * Search: the script makes sure the product index is active before it creates
+ * anything, and its last step awaits `ingest` for every demo product. Leaving
+ * indexing to the event bus is not enough in a short-lived `medusa exec`: with
+ * the local bus the handlers run in the background and the script can exit
+ * first, and with `REDIS_URL` set the events of a workflow that finished just
+ * before the exit stay staged in Redis and are never queued (T07's SETUP.md
+ * section has the measurements). `ingest` upserts, so repeating it is safe. It
+ * throws while an index has no active version, which is the state after
+ * `db:migrate` until a server has booted once (`medusa exec` does not seed),
+ * so a never-filled index is filled with `reindex` first.
+ */
+import type { ExecArgs } from "@medusajs/framework/types";
+import {
+  ContainerRegistrationKeys,
+  MedusaError,
+  Modules,
+  ProductStatus,
+} from "@medusajs/framework/utils";
+import {
+  batchTranslationsWorkflow,
+  createCollectionsWorkflow,
+  createProductCategoriesWorkflow,
+  createProductOptionsWorkflow,
+  createProductsWorkflow,
+} from "@medusajs/medusa/core-flows";
+
+import {
+  buildVariants,
+  DEMO_CATEGORIES,
+  DEMO_COLLECTIONS,
+  DEMO_OPTIONS,
+  DEMO_PRODUCTS,
+  PRODUCT_INDEX,
+} from "./lib/demo-catalog";
+import {
+  DEFAULT_SHIPPING_PROFILE_TYPE,
+  SUPPORTED_CURRENCIES,
+  TRANSLATED_LOCALES,
+} from "./lib/markets";
+import {
+  type DesiredTranslation,
+  type ExistingTranslation,
+  isDemoSkipped,
+  isDevelopmentEnv,
+  missingBy,
+  planTranslations,
+  required,
+} from "./lib/plan";
+
+/** Products per awaited `ingest` call. */
+const INGEST_CHUNK_SIZE = 50;
+
+type OptionRow = { title: string; values?: ({ id: string; value: string } | null)[] | null };
+
+// The three lookups below follow a create or a "found by handle / title", so a
+// miss means somebody changed the rows in between: `required` names what is gone.
+
+function byHandle<R extends { handle?: string | null }>(
+  rows: readonly R[],
+  handle: string,
+  what: string,
+): R {
+  return required(
+    rows.find((row) => row.handle === handle),
+    `${what} "${handle}"`,
+  );
+}
+
+function optionTitled<O extends OptionRow>(options: readonly O[], title: string): O {
+  return required(
+    options.find((option) => option.title === title),
+    `The shared option "${title}"`,
+  );
+}
+
+function valueOf(option: OptionRow, value: string) {
+  return required(
+    (option.values ?? []).find((v) => v?.value === value),
+    `The value "${value}" of the shared option "${option.title}"`,
+  );
+}
+
+export default async function seedDemoCatalog({ container, args }: ExecArgs) {
+  const logger = container.resolve(ContainerRegistrationKeys.LOGGER);
+  const query = container.resolve(ContainerRegistrationKeys.QUERY);
+
+  if (isDemoSkipped(args, process.env)) {
+    logger.info("Demo catalog skipped (SEED_DEMO=false or the skip argument).");
+    return;
+  }
+
+  if (!isDevelopmentEnv(process.env.NODE_ENV)) {
+    throw new MedusaError(
+      MedusaError.Types.NOT_ALLOWED,
+      `seed-demo-catalog is for development only (D7) and won't run with NODE_ENV=${process.env.NODE_ENV}.`,
+    );
+  }
+
+  // ---- What seed-markets leaves behind ---------------------------------------
+
+  const { data: stores } = await query.graph({
+    entity: "store",
+    fields: ["default_sales_channel_id", "supported_currencies.currency_code"],
+    pagination: { take: 1 },
+  });
+  const store = stores[0];
+  const storeCurrencies = new Set(
+    (store?.supported_currencies ?? []).flatMap((c) => (c?.currency_code ? [c.currency_code] : [])),
+  );
+  const absent = SUPPORTED_CURRENCIES.map((c) => c.currency_code).filter(
+    (c) => !storeCurrencies.has(c),
+  );
+  const { data: profiles } = await query.graph({
+    entity: "shipping_profile",
+    fields: ["id"],
+    filters: { type: DEFAULT_SHIPPING_PROFILE_TYPE },
+  });
+
+  if (!store?.default_sales_channel_id || absent.length || !profiles[0]) {
+    throw new MedusaError(
+      MedusaError.Types.NOT_FOUND,
+      `The store isn't ready for the demo catalog (default sales channel: ${store?.default_sales_channel_id ?? "none"}, ` +
+        `missing currencies: [${absent}], shipping profile: ${profiles[0]?.id ?? "none"}). ` +
+        `Run seed-markets.ts first.`,
+    );
+  }
+
+  const salesChannelId = store.default_sales_channel_id;
+  const shippingProfileId = profiles[0].id;
+
+  logger.info(`Seeding the demo catalog into the sales channel ${salesChannelId}`);
+
+  // ---- Search index: active before products exist ---------------------------
+
+  const search = container.resolve(Modules.SEARCH);
+  const index = (await search.listIndexes()).find((i) => i.name === PRODUCT_INDEX);
+
+  if (!index) {
+    throw new MedusaError(
+      MedusaError.Types.NOT_FOUND,
+      `The "${PRODUCT_INDEX}" search index isn't registered (src/search/product.ts).`,
+    );
+  }
+
+  if (index.status !== "ready") {
+    // Without an active version the handlers of the events the workflows below
+    // emit would fail, and so would `ingest`.
+    await search.reindex({ index: PRODUCT_INDEX });
+    logger.info(
+      `Filled the "${PRODUCT_INDEX}" search index from the database (it was ${index.status}).`,
+    );
+  }
+
+  // ---- Categories and collections --------------------------------------------
+
+  const loadCategories = async () => {
+    const { data } = await query.graph({
+      entity: "product_category",
+      fields: ["id", "handle"],
+      filters: { handle: DEMO_CATEGORIES.map((c) => c.handle) },
+    });
+
+    return data;
+  };
+  let categories = await loadCategories();
+  const newCategories = missingBy(
+    DEMO_CATEGORIES,
+    categories.map((c) => c.handle),
+    (c) => c.handle,
+  );
+
+  if (newCategories.length) {
+    await createProductCategoriesWorkflow(container).run({
+      input: {
+        product_categories: newCategories.map((c) => ({
+          name: c.name,
+          handle: c.handle,
+          is_active: true,
+        })),
+      },
+    });
+    categories = await loadCategories();
+    logger.info(`Created categories: ${newCategories.map((c) => c.handle).join(", ")}`);
+  } else {
+    logger.info(`All ${DEMO_CATEGORIES.length} categories exist`);
+  }
+
+  const loadCollections = async () => {
+    const { data } = await query.graph({
+      entity: "product_collection",
+      fields: ["id", "handle"],
+      filters: { handle: DEMO_COLLECTIONS.map((c) => c.handle) },
+    });
+
+    return data;
+  };
+  let collections = await loadCollections();
+  const newCollections = missingBy(
+    DEMO_COLLECTIONS,
+    collections.map((c) => c.handle),
+    (c) => c.handle,
+  );
+
+  if (newCollections.length) {
+    await createCollectionsWorkflow(container).run({
+      input: {
+        collections: newCollections.map((c) => ({
+          title: c.title,
+          handle: c.handle,
+        })),
+      },
+    });
+    collections = await loadCollections();
+    logger.info(`Created collections: ${newCollections.map((c) => c.handle).join(", ")}`);
+  } else {
+    logger.info(`All ${DEMO_COLLECTIONS.length} collections exist`);
+  }
+
+  // ---- Shared options (Size, Color) ------------------------------------------
+
+  const loadOptions = async () => {
+    const { data } = await query.graph({
+      entity: "product_option",
+      fields: ["id", "title", "values.id", "values.value"],
+      filters: { title: DEMO_OPTIONS.map((o) => o.title), is_exclusive: false },
+    });
+
+    return data;
+  };
+  let options = await loadOptions();
+  const newOptions = missingBy(
+    DEMO_OPTIONS,
+    options.map((o) => o.title),
+    (o) => o.title,
+  );
+
+  if (newOptions.length) {
+    await createProductOptionsWorkflow(container).run({
+      input: {
+        product_options: newOptions.map((o) => ({
+          title: o.title,
+          values: o.values,
+        })),
+      },
+    });
+    options = await loadOptions();
+    logger.info(`Created options: ${newOptions.map((o) => o.title).join(", ")}`);
+  } else {
+    logger.info(`All ${DEMO_OPTIONS.length} options exist`);
+  }
+
+  // ---- Products --------------------------------------------------------------
+
+  const loadProducts = async () => {
+    const { data } = await query.graph({
+      entity: "product",
+      fields: ["id", "handle"],
+      filters: { handle: DEMO_PRODUCTS.map((p) => p.handle) },
+    });
+
+    return data;
+  };
+  let products = await loadProducts();
+  const newProducts = missingBy(
+    DEMO_PRODUCTS,
+    products.map((p) => p.handle ?? ""),
+    (p) => p.handle,
+  );
+
+  if (newProducts.length) {
+    await createProductsWorkflow(container).run({
+      input: {
+        products: newProducts.map((product) => ({
+          title: product.title,
+          handle: product.handle,
+          description: product.description,
+          status: ProductStatus.PUBLISHED,
+          shipping_profile_id: shippingProfileId,
+          category_ids: [byHandle(categories, product.category, "Category").id],
+          collection_id: byHandle(collections, product.collection, "Collection").id,
+          sales_channels: [{ id: salesChannelId }],
+          // Link only the values this product is sold in. Without `value_ids`
+          // Medusa links every value of a shared option, so the tee would list
+          // "Navy" (and the search index would hold it) with no variant to buy.
+          options: Object.entries(product.options).map(([title, values]) => {
+            const option = optionTitled(options, title);
+
+            return {
+              id: option.id,
+              value_ids: values.map((value) => valueOf(option, value).id),
+            };
+          }),
+          variants: buildVariants(product),
+        })),
+      },
+    });
+    products = await loadProducts();
+    logger.info(`Created products: ${newProducts.map((p) => p.handle).join(", ")}`);
+  } else {
+    logger.info(`All ${DEMO_PRODUCTS.length} products exist`);
+  }
+
+  // ---- Translations (el-GR, de-DE, fr-FR) ------------------------------------
+
+  const desired: DesiredTranslation[] = [];
+  const addTranslations = (
+    reference: string,
+    reference_id: string,
+    byLocale: Record<string, Record<string, string>>,
+  ) => {
+    for (const locale_code of TRANSLATED_LOCALES) {
+      desired.push({
+        reference,
+        reference_id,
+        locale_code,
+        translations: byLocale[locale_code],
+      });
+    }
+  };
+
+  for (const product of DEMO_PRODUCTS) {
+    addTranslations(
+      "product",
+      byHandle(products, product.handle, "Product").id,
+      product.translations,
+    );
+  }
+
+  for (const category of DEMO_CATEGORIES) {
+    addTranslations(
+      "product_category",
+      byHandle(categories, category.handle, "Category").id,
+      Object.fromEntries(TRANSLATED_LOCALES.map((l) => [l, { name: category.translations[l] }])),
+    );
+  }
+
+  for (const collection of DEMO_COLLECTIONS) {
+    addTranslations(
+      "product_collection",
+      byHandle(collections, collection.handle, "Collection").id,
+      Object.fromEntries(TRANSLATED_LOCALES.map((l) => [l, { title: collection.translations[l] }])),
+    );
+  }
+
+  for (const option of DEMO_OPTIONS) {
+    const row = optionTitled(options, option.title);
+
+    addTranslations(
+      "product_option",
+      row.id,
+      Object.fromEntries(TRANSLATED_LOCALES.map((l) => [l, { title: option.translations[l] }])),
+    );
+
+    for (const [value, byLocale] of Object.entries(option.valueTranslations)) {
+      addTranslations(
+        "product_option_value",
+        valueOf(row, value).id,
+        Object.fromEntries(TRANSLATED_LOCALES.map((l) => [l, { value: byLocale[l] }])),
+      );
+    }
+  }
+
+  const translationModule = container.resolve(Modules.TRANSLATION);
+  const existing = (await translationModule.listTranslations(
+    {
+      reference_id: desired.map((t) => t.reference_id),
+      locale_code: [...TRANSLATED_LOCALES],
+    },
+    { take: null },
+  )) as unknown as ExistingTranslation[];
+  const plan = planTranslations(existing, desired);
+
+  if (plan.create.length || plan.update.length) {
+    await batchTranslationsWorkflow(container).run({
+      input: { create: plan.create, update: plan.update, delete: [] },
+    });
+    logger.info(
+      `Translations: created ${plan.create.length}, updated ${plan.update.length}, unchanged ${desired.length - plan.create.length - plan.update.length}`,
+    );
+  } else {
+    logger.info(`All ${desired.length} translations exist`);
+  }
+
+  // ---- Search ----------------------------------------------------------------
+
+  const productIds = products.map((p) => p.id);
+
+  for (let start = 0; start < productIds.length; start += INGEST_CHUNK_SIZE) {
+    await search.ingest({
+      name: "product.created",
+      data: productIds.slice(start, start + INGEST_CHUNK_SIZE).map((id) => ({ id })),
+    });
+  }
+
+  logger.info(`Indexed ${productIds.length} demo products for search (ingest).`);
+  logger.info("Demo catalog is seeded.");
+}

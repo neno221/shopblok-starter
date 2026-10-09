@@ -15,6 +15,7 @@ A brand-neutral storefront starter: **Medusa v2** (commerce) + **Next.js 16** wi
 - Local infrastructure (T04): passed, see [docs/SETUP.md](docs/SETUP.md#local-infrastructure-t04); start it with `pnpm infra:up` ([infra/README.md](infra/README.md))
 - Backend from dtc-starter (T05): passed, see [docs/SETUP.md](docs/SETUP.md#backend-from-dtc-starter-t05); `apps/backend` is a copy, and [apps/backend/UPSTREAM.md](apps/backend/UPSTREAM.md) lists every change
 - Backend config (T06): passed, see [docs/SETUP.md](docs/SETUP.md#backend-config-modules-switched-on-by-env-t06); the backend registers translation and the local notification provider always, and Redis (event bus, workflow engine, locking, sessions) when `REDIS_URL` is set
-- Next step: [docs/NEXT-SESSION.md](docs/NEXT-SESSION.md) (run T07, in the cloud)
+- Seeds (T07): passed, see [docs/SETUP.md](docs/SETUP.md#seeds-markets-and-demo-catalog-t07); `seed-markets.ts` (regions, currencies, locales, fulfilment) and `seed-demo-catalog.ts` (8 products with el/de/fr translations, development only) run through `medusa exec`, and `print-publishable-key.ts` prints the storefront's key
+- Next step: [docs/NEXT-SESSION.md](docs/NEXT-SESSION.md) (run T08, in the cloud)
 
 Design tokens are based on the "shadcn/ui – Design System by ReUI" Figma community file, licensed CC BY 4.0.
