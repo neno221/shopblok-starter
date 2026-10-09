@@ -6,7 +6,7 @@ import { keepOneAdmin, keepOneAdminOnDelete } from "./users";
 function request(otherAdmins: number, existing: { role: string } = { role: "admin" }) {
   const count = vi.fn().mockResolvedValue({ totalDocs: otherAdmins });
   const findByID = vi.fn().mockResolvedValue(existing);
-  return { req: { payload: { count, findByID } }, count, findByID };
+  return { req: { payload: { count, findByID } }, count };
 }
 
 const change = (
@@ -25,11 +25,8 @@ const remove = (id: number, req: object) =>
   } as unknown as Parameters<CollectionBeforeDeleteHook>[0]);
 
 describe("keepOneAdmin", () => {
-  const demote = {
-    operation: "update",
-    originalDoc: { id: 1, role: "admin" },
-    data: { role: "editor" },
-  } as const;
+  const admin = { id: 1, role: "admin" };
+  const demote = { operation: "update", originalDoc: admin, data: { role: "editor" } } as const;
 
   it("refuses to demote the last admin", async () => {
     const { req, count } = request(0);
@@ -53,15 +50,8 @@ describe("keepOneAdmin", () => {
     const { req, count } = request(0);
     const data = { role: "editor" };
     await change({ operation: "update", originalDoc: { id: 2, role: "editor" }, data }, req);
-    await change({ operation: "update", originalDoc: { id: 1, role: "admin" }, data: {} }, req);
-    await change(
-      {
-        operation: "update",
-        originalDoc: { id: 1, role: "admin" },
-        data: { role: "admin" },
-      },
-      req,
-    );
+    await change({ operation: "update", originalDoc: admin, data: {} }, req);
+    await change({ operation: "update", originalDoc: admin, data: { role: "admin" } }, req);
     await change({ operation: "create", data }, req);
     expect(count).not.toHaveBeenCalled();
   });

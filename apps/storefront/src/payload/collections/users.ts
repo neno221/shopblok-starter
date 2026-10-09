@@ -19,23 +19,22 @@ const firstUserIsAdmin: CollectionBeforeChangeHook = async ({ data, operation, r
   return totalDocs === 0 ? { ...data, role: "admin" } : data;
 };
 
-async function hasOtherAdmin(req: PayloadRequest, id: number | string): Promise<boolean> {
+/**
+ * Throws unless an admin other than `id` exists. Without an admin nobody can manage users or
+ * markets, and an empty `users` table lets the next visitor to /admin/create-first-user become one.
+ */
+async function requireAnotherAdmin(req: PayloadRequest, id: number | string): Promise<void> {
   const { totalDocs } = await req.payload.count({
     collection: "users",
     where: { role: { equals: "admin" }, id: { not_equals: id } },
     overrideAccess: true,
     req,
   });
-  return totalDocs > 0;
+  if (totalDocs > 0) return;
+  // Without `data`, a production build shows "An unknown error occurred.": `formatErrors` then
+  // needs the error's class name, and minification empties it.
+  throw new APIError("This is the last admin. Make another user an admin first.", 400, {});
 }
-
-// Without `data`, a production build shows "An unknown error occurred.": `formatErrors` then needs
-// the error's class name, and minification empties it.
-const lastAdminError = () =>
-  new APIError("This is the last admin. Make another user an admin first.", 400, {});
-
-// Without an admin nobody can manage users or markets, and an empty `users` table lets the next
-// visitor to /admin/create-first-user become one.
 
 /** The last admin cannot be demoted. */
 export const keepOneAdmin: CollectionBeforeChangeHook = async ({
@@ -45,7 +44,7 @@ export const keepOneAdmin: CollectionBeforeChangeHook = async ({
   req,
 }) => {
   if (operation === "update" && originalDoc?.role === "admin" && data.role === "editor") {
-    if (!(await hasOtherAdmin(req, originalDoc.id))) throw lastAdminError();
+    await requireAnotherAdmin(req, originalDoc.id);
   }
   return data;
 };
@@ -59,9 +58,7 @@ export const keepOneAdminOnDelete: CollectionBeforeDeleteHook = async ({ id, req
     overrideAccess: true,
     req,
   });
-  if (user.role === "admin" && !(await hasOtherAdmin(req, id))) {
-    throw lastAdminError();
-  }
+  if (user.role === "admin") await requireAnotherAdmin(req, id);
 };
 
 export const Users: CollectionConfig = {

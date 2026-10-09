@@ -56,6 +56,12 @@ describe("pickAvailableLocales", () => {
   });
 });
 
+/** What drizzle throws for a query on a missing table: its own error, the driver's on `cause`. */
+function missingTable() {
+  const driver = Object.assign(new Error('relation "markets" does not exist'), { code: "42P01" });
+  return new Error("Failed query", { cause: driver });
+}
+
 function fakeRequest(findGlobal: ReturnType<typeof vi.fn>) {
   return {
     context: {},
@@ -116,12 +122,6 @@ describe("filterAvailableLocales", () => {
     await expect(filterAvailableLocales({ locales, req })).rejects.toThrow("Failed query");
   });
 });
-
-/** What drizzle throws for a query on a missing table: its own error, the driver's on `cause`. */
-function missingTable() {
-  const driver = Object.assign(new Error('relation "markets" does not exist'), { code: "42P01" });
-  return new Error("Failed query", { cause: driver });
-}
 
 describe("isMissingTable", () => {
   it("finds Postgres undefined_table on the error or anywhere down its causes", () => {
