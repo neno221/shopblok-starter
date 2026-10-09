@@ -259,6 +259,72 @@ The checks that T02's session left for T03: what the new setup script (with step
 
    `setup start` (`2026-10-09T03:03:13Z`) is 51 seconds before. T04's session is the first that can show whether the saved copy is reused; its prompt carries the comparison.
 
+### Follow-up checks (T04)
+
+The checks that T03's session left for T04: whether the saved copy of the setup run is reused, whether step 6's folders survive, and what state Docker is in at session start. T04's session ran them first, before any T04 work and before starting Docker, and fixed nothing. Nothing was pasted into the environment between T03's session and this one, as far as the log shows (item 1).
+
+1. **Setup cache: reused. Passed.** Taken at the start of the session, before anything else:
+
+   ```text
+   $ date -u
+   Fri Oct  9 04:30:28 UTC 2026
+   $ grep -E 'setup (start|end)' /var/log/shopblok-setup.log
+   setup start 2026-10-09T03:03:14Z
+   + echo 'setup end 2026-10-09T03:03:51Z'
+   setup end 2026-10-09T03:03:51Z
+   $ grep -c 'setup start' /var/log/shopblok-setup.log
+   1
+   ```
+
+   Of the three outcomes the prompt listed, this is the first: the saved copy was reused. `setup start` is **5234 s (1 h 27 min 14 s)** before `date -u`, not the minute or so of a run for this session (T02: 42 s; T03: 51 s), and the log still holds one run only, from T03's time. Three more facts point the same way (taken right after, none of them needed a change to the VM):
+
+   ```text
+   $ uptime -s
+   2026-10-09 04:30:10
+   $ stat -c '%n  mtime=%y  birth=%w' /var/log/shopblok-setup.log /home/user/shopblok-starter/.git/HEAD
+   /var/log/shopblok-setup.log  mtime=2026-10-09 03:03:51.253129671 +0000  birth=2026-10-09 03:03:14.173130519 +0000
+   /home/user/shopblok-starter/.git/HEAD  mtime=2026-10-09 04:30:15.156853808 +0000  birth=2026-10-09 04:30:15.153048679 +0000
+   ```
+
+   The VM booted at 04:30:10, the repo was cloned five seconds later, and the setup log had been created at 03:03:14 and last written at 03:03:51: it was already in the filesystem when this VM booted. The "rebuilt" outcome (the owner changed the script or the allowed domains since T03's session) does not apply: a rebuild would show a run from after the change, not from 03:03.
+
+   **One discrepancy.** The numbers are not T03's, character for character. T03's session recorded `setup start 2026-10-09T03:03:13Z` and `setup end … 03:03:53Z` (40 s); this log says `03:03:14Z` and `03:03:51Z` (37 s). Same minute, 1 s and 2 s apart. I did not look for a cause and cannot tell from inside the VM. If both runs are real, a guess is that the platform built the saved copy with its own run of the script at the same time as T03's session was starting its own. Either way the log in the saved copy is older than this VM, which is what the check asks.
+
+   **What it means.** One session (this one) reused the copy; T02's session did not (its first check, above, "Setup cache: not reused"). Don't count on it yet, but it is no longer "never": the difference between the two cases is unknown. T02's session ran the old script (steps 1 to 5, 25 s), while this saved copy comes from the new one (with step 6, 37 s); both are under the five-minute limit. If a later session shows a fresh `setup start` again, it costs under a minute and breaks nothing.
+2. **Step 6's folders: present. Passed.**
+
+   ```text
+   $ ls /opt/dtc-starter/apps/backend/package.json
+   /opt/dtc-starter/apps/backend/package.json
+   $ ls /opt/payload-templates
+   blank
+   ecommerce
+   with-postgres
+   $ grep 'step 6' /var/log/shopblok-setup.log
+   + echo 'step 6 ok: /opt/dtc-starter'
+   step 6 ok: /opt/dtc-starter
+   + echo 'step 6 ok: /opt/payload-templates'
+   step 6 ok: /opt/payload-templates
+   ```
+
+   No `step 6 FAILED` line. With the saved copy reused, these are the folders from T03's session's script run, so T05 can copy from `/opt/dtc-starter` as CLOUD.md says.
+3. **Docker at session start: off, started in 1.3 s. Passed.** Before starting the daemon:
+
+   ```text
+   $ docker info
+   Server:
+   failed to connect to the docker API at unix:///var/run/docker.sock; check if the path is correct and if the daemon is running: dial unix /var/run/docker.sock: connect: no such file or directory
+   ```
+
+   Then CLOUD.md's step 3 (`setsid nohup dockerd`, wait for `docker info`): `dockerd ready after 1.271677169 s`, `Server Version: 29.8.2`, `Storage Driver: overlayfs`, `Docker Compose version v5.6.0`. `docker ps -a` and `docker volume ls` were empty. `docker image ls` lists the four pinned images, so the saved copy keeps the images the setup script pulled:
+
+   ```text
+   axllent/mailpit:v1.31.4        b68349e3a014   59.5MB
+   getmeili/meilisearch:v1.54.3   e68913ab7d6f   482MB
+   postgres:17.11-alpine          b0f9560a2de0   424MB
+   redis:7.4-alpine               858f009f9709   57.8MB
+   ```
+
 ## Config presets (T02)
 
 **Result: `@shopblok/config` exists and every check in T02's Verify list passes. T03 can start.** The shared presets load through real workspace packages, not only inside their own folder (checked with throwaway packages, since deleted). Three things differ from the plan's text: ESLint 9 is end-of-life (item 1), `pnpm install` needed one more `allowBuilds` entry (item 2), and the T02 file list gained two files (item 3). Items 4 to 6 are notes for later tasks, and item 7 lists what changed while this PR was reviewed.
