@@ -7,8 +7,8 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../
 
 /**
  * The codes in `defaultLocales` of the `@medusajs/translation` that the backend installs
- * (`dist/loaders/defaults.js`). The storefront can't import that package, so `locales.test.ts` and
- * `medusa-locales.test.ts` compare their own copies with it.
+ * (`dist/loaders/defaults.js`). The storefront can't import that package, so
+ * `medusa-locales.test.ts` compares its own copy with it.
  */
 export function medusaLocaleCodes(): string[] {
   const store = path.join(repoRoot, "node_modules/.pnpm");

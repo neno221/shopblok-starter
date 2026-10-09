@@ -81,16 +81,6 @@ describe("listMarkets", () => {
   });
 });
 
-describe("listMarkets: derived once per map", () => {
-  it("gives the same list for the same map object, and a fresh one for a new object", () => {
-    const first = listMarkets(seeded);
-    expect(listMarkets(seeded)).toBe(first);
-    const copy: MarketMap = { ...seeded };
-    expect(listMarkets(copy)).not.toBe(first);
-    expect(listMarkets(copy)).toEqual(first);
-  });
-});
-
 describe("findMarket, primaryMarket, fallbackMarketOf", () => {
   it("finds a market by its key", () => {
     expect(findMarket(seeded, "fr-ch")?.country).toBe("ch");

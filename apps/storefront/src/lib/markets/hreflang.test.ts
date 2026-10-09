@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { hreflangAlternates } from "./hreflang";
 import {
   brazil,
+  brazilAndPortugal,
   cyprusGainsEnglish,
   germanyClosed,
   greeceOnly,
@@ -93,17 +94,7 @@ describe("hreflangAlternates: other maps", () => {
   });
 
   it("lists a lang value once when two markets share it, for the first in the map's order", () => {
-    // Brazil and Portugal both in Portuguese, with the one `pt-BR` override of the `pt` language.
-    const map: MarketMap = {
-      countries: [
-        { code: "br", enabled: true, languages: ["pt"] },
-        { code: "pt", enabled: true, languages: ["pt"] },
-      ],
-      languages: [{ code: "pt", medusaLocale: "pt-BR", htmlLang: "pt-BR" }],
-      primaryCountry: "br",
-      fallbackMarket: "pt-br",
-    };
-    expect(hreflangAlternates("/store", map)).toEqual({
+    expect(hreflangAlternates("/store", brazilAndPortugal)).toEqual({
       "pt-BR": "/store",
       "x-default": "/store",
     });

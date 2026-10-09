@@ -21,9 +21,13 @@ export class MarketMapError extends Error {
 }
 
 /** How long a map is kept (D10). */
-export const MARKET_MAP_TTL_MS = 30_000;
+const MARKET_MAP_TTL_MS = 30_000;
 
-/** How long one read of the global may take before it counts as failed. */
+/**
+ * How long a caller waits for one read of the global before it counts as failed. The pool's own
+ * connect timeout (`payload.config.ts`) covers an unreachable host; this covers a connection that
+ * goes silent after it was made, and anything else that never settles.
+ */
 export const MARKET_LOAD_TIMEOUT_MS = 10_000;
 
 /**
@@ -75,6 +79,13 @@ export function createMarketSource(options: MarketSourceOptions) {
 
   let current: { map: MarketMap; expires: number } | undefined;
   let reading: Promise<MarketMap> | undefined;
+  let loading: Promise<MarketsGlobal | null | undefined> | undefined;
+
+  /** The read in flight. One that timed out is still running, so the next caller joins it. */
+  const loadOnce = () =>
+    (loading ??= load().finally(() => {
+      loading = undefined;
+    }));
 
   const keep = (map: MarketMap): MarketMap => {
     current = { map, expires: now() + MARKET_MAP_TTL_MS };
@@ -98,7 +109,7 @@ export function createMarketSource(options: MarketSourceOptions) {
   async function read(): Promise<MarketMap> {
     let doc: MarketsGlobal | null | undefined;
     try {
-      doc = await withTimeout(load(), MARKET_LOAD_TIMEOUT_MS);
+      doc = await withTimeout(loadOnce(), MARKET_LOAD_TIMEOUT_MS);
     } catch (error) {
       return otherwise(
         "unreachable",

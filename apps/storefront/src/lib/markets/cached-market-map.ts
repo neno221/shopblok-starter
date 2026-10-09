@@ -15,11 +15,9 @@ import type { MarketMap } from "./types";
  *   under `[market]` is regenerated at most every 30 s while traffic arrives, however long its own
  *   content could last.
  * - The tag `global:markets` is for the Payload hook that revalidates it when the global is saved
- *   (M4); until it exists, the 30 s is how an edit gets here. Two things to do with the hook:
- *   `revalidateTag` alone re-runs this function, which reads `getMarketMap()` and gets the
- *   in-process map for the rest of its 30 s, so the hook must also drop that map in each server
- *   process (give `createMarketSource` a way to do it then; nothing needs one now); and only once
- *   it does can `revalidate` here become hours, so a page's shell lives as long as its content.
+ *   (M4); until it exists, the 30 s is how an edit gets here. `revalidateTag` alone would re-read
+ *   the in-process map, so the hook must also drop that map in each server process; only then can
+ *   `revalidate` here become hours (SETUP.md, "Changes from the review of this PR").
  */
 export async function getRenderMarketMap(): Promise<MarketMap> {
   "use cache";

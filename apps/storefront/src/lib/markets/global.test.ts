@@ -1,7 +1,14 @@
 import type { MarketMap } from "@shopblok/fixtures";
 import { describe, expect, it } from "vitest";
 import { mapFromGlobal, marketMapProblems, type MarketsGlobal } from "./global";
-import { brazil, greeceTwoLanguages, mongolia, seeded, withDomains } from "./test-maps";
+import {
+  brazil,
+  brazilAndPortugal,
+  greeceTwoLanguages,
+  mongolia,
+  seeded,
+  withDomains,
+} from "./test-maps";
 
 /** The seeded map as the global stores it: nulls where Payload has them, and no domain key. */
 const seededGlobal: MarketsGlobal = {
@@ -76,6 +83,8 @@ describe("marketMapProblems", () => {
     ["Mongolia", mongolia],
     ["Greece, two languages", greeceTwoLanguages],
     ["domains", withDomains],
+    // Two markets share one lang value, because a language override applies to every country.
+    ["Brazil and Portugal", brazilAndPortugal],
   ])("finds nothing wrong with %s", (_name, map) => {
     expect(marketMapProblems(map)).toEqual([]);
   });
@@ -140,18 +149,5 @@ describe("marketMapProblems", () => {
       c.code === "cy" || c.code === "ch" ? { ...c, domain: "shop.com" } : c,
     );
     expect(broken({ countries: shared })).toEqual(["the domain shop.com belongs to two countries"]);
-  });
-
-  it("lets two markets share a lang value: one language override applies to every country", () => {
-    const portugal = [
-      ...seeded.countries,
-      { code: "br", enabled: true, languages: ["pt"] },
-      { code: "pt", enabled: true, languages: ["pt"] },
-    ];
-    const override = [
-      ...seeded.languages,
-      { code: "pt", medusaLocale: "pt-BR", htmlLang: "pt-BR" },
-    ];
-    expect(broken({ countries: portugal, languages: override })).toEqual([]);
   });
 });

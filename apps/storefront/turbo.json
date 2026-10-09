@@ -11,9 +11,9 @@
       "env": ["$TURBO_EXTENDS$", "PAYLOAD_*"]
     },
     "test": {
-      // `src/payload/locales.test.ts` reads Medusa's locale list from the backend's installed
-      // `@medusajs/translation`. That package is not in this app's own dependencies, so a bump in
-      // the backend changes only the lockfile, and the cached pass must not be replayed.
+      // `src/lib/markets/medusa-locales.test.ts` reads Medusa's locale list from the backend's
+      // installed `@medusajs/translation`. That package is not in this app's own dependencies, so a
+      // bump in the backend changes only the lockfile, and the cached pass must not be replayed.
       "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/pnpm-lock.yaml"]
     }
   }

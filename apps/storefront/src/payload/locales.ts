@@ -38,7 +38,7 @@ export const EU_LANGUAGES = [
  * if Payload has it, so a language that Medusa can sell in must be here. `medusa-locales.test.ts`
  * reads Medusa's file and fails when a new release changes the codes.
  */
-export const MEDUSA_LANGUAGES: readonly string[] = [
+const MEDUSA_LANGUAGES: readonly string[] = [
   ...new Set(MEDUSA_LOCALES.map((code) => code.slice(0, code.indexOf("-")))),
 ];
 

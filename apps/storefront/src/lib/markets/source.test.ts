@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { MarketsGlobal } from "./global";
 import {
   createMarketSource,
@@ -30,14 +30,15 @@ const incompleteGlobal: MarketsGlobal = {
   fallbackMarket: seeded.fallbackMarket,
 };
 
+/** An answer for a read that never settles (a database host gone silent). */
+const NEVER = new Promise<never>(() => {});
+type Answer = MarketsGlobal | Error | null | typeof NEVER;
+
 /** A source over a fake loader and a clock the test moves. */
-function setup(
-  first: MarketsGlobal | Error | null,
-  allow: (reason: FallbackReason) => boolean = () => false,
-) {
+function setup(first: Answer, allow: (reason: FallbackReason) => boolean = () => false) {
   const clock = { time: 1_000_000 };
   // What the next reads return, in order; the last answer repeats.
-  let answers: (MarketsGlobal | Error | null)[] = [first];
+  let answers: Answer[] = [first];
   const load = vi.fn(async () => {
     const answer = answers[0];
     if (answers.length > 1) answers = answers.slice(1);
@@ -59,7 +60,7 @@ function setup(
     warn,
     allowFallback,
     advance: (ms: number) => (clock.time += ms),
-    next: (...more: (MarketsGlobal | Error | null)[]) => {
+    next: (...more: Answer[]) => {
       answers = more;
     },
   };
@@ -200,39 +201,22 @@ describe("getMarketMap: a global that can't be read", () => {
 });
 
 describe("getMarketMap: a read that never answers", () => {
+  beforeEach(() => vi.useFakeTimers());
   afterEach(() => vi.useRealTimers());
 
-  /** A source whose first read is `first`, then whatever `load` answers next. */
-  function hung(first: MarketsGlobal | null) {
-    vi.useFakeTimers();
-    const clock = { time: 1_000_000 };
-    let silent = false;
-    const load = vi.fn(async () => (silent ? new Promise<never>(() => {}) : first));
-    const warn = vi.fn();
-    const source = createMarketSource({
-      load,
-      fallback: seeded,
-      allowFallback: () => false,
-      now: () => clock.time,
-      warn,
-    });
-    return {
-      source,
-      load,
-      warn,
-      goSilent: () => (silent = true),
-      advance: (ms: number) => (clock.time += ms),
-    };
+  /** One `get()` while the loader stays silent: it settles when the timeout fires. */
+  async function getAfterTimeout(source: ReturnType<typeof setup>["source"]) {
+    const attempt = source.get();
+    await vi.advanceTimersByTimeAsync(MARKET_LOAD_TIMEOUT_MS);
+    return attempt;
   }
 
   it("gives up after the timeout and keeps serving the last good map", async () => {
-    const { source, load, warn, goSilent, advance } = hung(brazilGlobal);
+    const { source, load, warn, advance, next } = setup(brazilGlobal);
     await source.get();
-    goSilent();
+    next(NEVER);
     advance(30_000);
-    const attempt = source.get();
-    await vi.advanceTimersByTimeAsync(MARKET_LOAD_TIMEOUT_MS);
-    expect(await attempt).toEqual(brazil);
+    expect(await getAfterTimeout(source)).toEqual(brazil);
     expect(warn.mock.calls[0]?.[0]).toMatch(
       /no answer after 10 s.*still serving the map read earlier/,
     );
@@ -242,37 +226,38 @@ describe("getMarketMap: a read that never answers", () => {
     expect(load).toHaveBeenCalledTimes(2);
   });
 
-  it("does not leave the read pending: the next TTL tries again", async () => {
-    const { source, load, goSilent, advance } = hung(brazilGlobal);
+  it("joins the read still running at the next TTL instead of starting another", async () => {
+    const { source, load, advance, next } = setup(brazilGlobal);
     await source.get();
-    goSilent();
+    next(NEVER);
     advance(30_000);
-    const first = source.get();
-    await vi.advanceTimersByTimeAsync(MARKET_LOAD_TIMEOUT_MS);
-    await first;
+    await getAfterTimeout(source);
     advance(30_000);
-    const second = source.get();
-    await vi.advanceTimersByTimeAsync(MARKET_LOAD_TIMEOUT_MS);
-    await second;
+    expect(await getAfterTimeout(source)).toEqual(brazil);
+    expect(load).toHaveBeenCalledTimes(2);
+  });
+
+  it("reads again once the silent read has ended", async () => {
+    const { source, load, advance, next } = setup(brazilGlobal);
+    await source.get();
+    next(new Promise<never>((_, fail) => setTimeout(() => fail(new Error("reset")), 20_000)));
+    advance(30_000);
+    await getAfterTimeout(source);
+    await vi.advanceTimersByTimeAsync(20_000);
+    next(seededGlobal);
+    advance(30_000);
+    expect(await source.get()).toEqual(seeded);
     expect(load).toHaveBeenCalledTimes(3);
   });
 
   it("is an error for a first read, with nothing to keep and no fallback allowed", async () => {
-    vi.useFakeTimers();
-    const source = createMarketSource({
-      load: () => new Promise<never>(() => {}),
-      fallback: seeded,
-      allowFallback: () => false,
-      warn: () => {},
-    });
-    const attempt = source.get();
-    const failure = expect(attempt).rejects.toThrow(/no answer after 10 s/);
+    const { source } = setup(NEVER);
+    const failure = expect(source.get()).rejects.toThrow(/no answer after 10 s/);
     await vi.advanceTimersByTimeAsync(MARKET_LOAD_TIMEOUT_MS);
     await failure;
   });
 
   it("clears its timer when the read answers in time", async () => {
-    vi.useFakeTimers();
     const { source } = setup(seededGlobal);
     await source.get();
     expect(vi.getTimerCount()).toBe(0);
@@ -280,11 +265,7 @@ describe("getMarketMap: a read that never answers", () => {
 });
 
 describe("defaultAllowFallback", () => {
-  const allow = (env: {
-    NODE_ENV?: string;
-    NEXT_PHASE?: string;
-    PAYLOAD_DATABASE_URL?: string;
-  }) => {
+  const allow = (env: Parameters<typeof defaultAllowFallback>[0]) => {
     const rule = defaultAllowFallback(env);
     return { unusable: rule("unusable"), unreachable: rule("unreachable") };
   };

@@ -82,7 +82,7 @@ export function resolve(url: RequestUrl, host: string, map: MarketMap): Resoluti
 
   const country = open.find((candidate) => candidate.code === head);
   if (country === undefined) {
-    const home = primaryMarket(map);
+    const home = primaryMarket(map, markets);
     return home === undefined
       ? NOT_FOUND
       : { kind: "rewrite", market: home, internalPath: pathOf(segments) };

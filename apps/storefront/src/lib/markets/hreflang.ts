@@ -17,7 +17,7 @@ export function hreflangAlternates(path: string, map: MarketMap): Record<string,
   // Two markets can share a lang value (a language override applies to every country using it);
   // hreflang values are unique, so the first market in the map's order keeps it.
   for (const market of markets) alternates[market.htmlLang] ??= buildPublicUrl(market, path, map);
-  const fallback = fallbackMarketOf(map);
+  const fallback = fallbackMarketOf(map, markets);
   if (fallback !== undefined) alternates["x-default"] = buildPublicUrl(fallback, path, map);
   return alternates;
 }

@@ -22,26 +22,12 @@ export function enabledCountries(map: MarketMap): MarketCountry[] {
   return map.countries.filter((country) => country.enabled);
 }
 
-const marketsOfMap = new WeakMap<MarketMap, Market[]>();
-
 /**
  * Every market of the enabled countries, one per language, in the map's order (so the hreflang
  * list follows the order the owner chose). A language with no row in `map.languages` gets an empty
  * Medusa locale: `marketMapProblems` reports it, and `getMarketMap()` never returns such a map.
- *
- * The list is derived once per map object: `getMarketMap()` hands out the same object for 30 s, and
- * `resolve`, `buildPublicUrl` and `hreflangAlternates` ask for it on every request and render. A
- * map is read-only; build a new object to change it.
  */
 export function listMarkets(map: MarketMap): Market[] {
-  const known = marketsOfMap.get(map);
-  if (known !== undefined) return known;
-  const markets = buildMarkets(map);
-  marketsOfMap.set(map, markets);
-  return markets;
-}
-
-function buildMarkets(map: MarketMap): Market[] {
   return enabledCountries(map).flatMap((country) =>
     country.languages.map((language, index): Market => {
       const entry = map.languages.find((candidate) => candidate.code === language);
@@ -69,13 +55,25 @@ export function primaryCountryCode(map: MarketMap): string | undefined {
   return open.find((country) => country.code === map.primaryCountry)?.code ?? open[0]?.code;
 }
 
-/** The primary country in its default language: what `/` shows. */
-export function primaryMarket(map: MarketMap): Market | undefined {
+/**
+ * The primary country in its default language: what `/` shows. `markets` is `listMarkets(map)`, for
+ * a caller that has it already.
+ */
+export function primaryMarket(
+  map: MarketMap,
+  markets: Market[] = listMarkets(map),
+): Market | undefined {
   const code = primaryCountryCode(map);
-  return listMarkets(map).find((market) => market.country === code && market.isDefaultLanguage);
+  return markets.find((market) => market.country === code && market.isDefaultLanguage);
 }
 
-/** The market hreflang `x-default` points to; the primary market when the setting is stale. */
-export function fallbackMarketOf(map: MarketMap): Market | undefined {
-  return findMarket(map, map.fallbackMarket) ?? primaryMarket(map);
+/**
+ * The market hreflang `x-default` points to; the primary market when the setting is stale.
+ * `markets` is `listMarkets(map)`, for a caller that has it already.
+ */
+export function fallbackMarketOf(
+  map: MarketMap,
+  markets: Market[] = listMarkets(map),
+): Market | undefined {
+  return markets.find((market) => market.key === map.fallbackMarket) ?? primaryMarket(map, markets);
 }

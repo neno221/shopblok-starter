@@ -51,6 +51,20 @@ export const withDomains = withCountry(withCountry(seeded, "cy", { domain: "shop
 /** The seeded map with Germany closed. */
 export const germanyClosed = withCountry(seeded, "de", { enabled: false });
 
+/**
+ * Brazil and Portugal, both in Portuguese: the one `pt-BR` override of the `pt` language gives two
+ * markets the same lang value. Not in `allMaps`, whose checks expect one value per market.
+ */
+export const brazilAndPortugal: MarketMap = {
+  countries: [
+    { code: "br", enabled: true, languages: ["pt"] },
+    { code: "pt", enabled: true, languages: ["pt"] },
+  ],
+  languages: [{ code: "pt", medusaLocale: "pt-BR", htmlLang: "pt-BR" }],
+  primaryCountry: "br",
+  fallbackMarket: "pt-br",
+};
+
 /** Every map above, for the checks that must hold on all of them. */
 export const allMaps: [name: string, map: MarketMap][] = [
   ["seeded", seeded],

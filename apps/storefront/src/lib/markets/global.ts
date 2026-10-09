@@ -25,8 +25,8 @@ export type MarketsGlobal = {
 /**
  * The `markets` global as a `MarketMap`: nulls become absences, a country is open unless it says
  * `enabled: false` (as `filterAvailableLocales` reads it), and a missing primary country or
- * fallback market becomes an empty string. `MarketMap` requires both, so an empty global gives a
- * map that `marketMapProblems` rejects.
+ * fallback market becomes an empty string, which `primaryCountryCode` and `fallbackMarketOf` cope
+ * with. An empty global gives a map that `marketMapProblems` rejects for having no open country.
  */
 export function mapFromGlobal(doc: MarketsGlobal): MarketMap {
   return {
