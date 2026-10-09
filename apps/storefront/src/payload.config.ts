@@ -15,7 +15,8 @@ import { DEFAULT_LOCALE, LOCALES } from "./payload/locales";
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // D15: the compose stack's Postgres on its host port. Payload creates a missing database on
-// connect, so a wrong URL creates one on whichever server answers.
+// connect, so in development a wrong URL creates one on whichever server answers. Production
+// doesn't: a deploy that forgot the URL fails on connect instead.
 const DEFAULT_DATABASE_URL = "postgres://postgres:postgres@localhost:15432/payload";
 
 // The site's own origin. Setting `serverURL` turns on Payload's CSRF check, and `cors` and `csrf`
@@ -47,6 +48,7 @@ export default buildConfig({
     pool: { connectionString: process.env.PAYLOAD_DATABASE_URL ?? DEFAULT_DATABASE_URL },
     // D9: schema changes are saved migrations. Dev push is for experiments only.
     push: process.env.PAYLOAD_DB_PUSH === "true",
+    disableCreateDatabase: process.env.NODE_ENV === "production",
     migrationDir: path.resolve(dirname, "migrations"),
   }),
   sharp,

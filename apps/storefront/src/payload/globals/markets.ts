@@ -1,10 +1,10 @@
 import type { GlobalConfig, TextFieldSingleValidation } from "payload";
 import { text } from "payload/shared";
 import { isAdmin, isStaff } from "../access/roles";
-import { LANGUAGES, languageLabel } from "../locales";
+import { LOCALES } from "../locales";
 
-const languageOptions = LANGUAGES.map((code) => ({
-  label: `${languageLabel(code)} (${code})`,
+const languageOptions = LOCALES.map(({ code, label }) => ({
+  label: `${label} (${code})`,
   value: code,
 }));
 

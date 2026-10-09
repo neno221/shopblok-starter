@@ -1,6 +1,7 @@
 // Workspace checks (T03). Run with plain `node scripts/check-workspace.ts [repo-root]`.
 // pnpm's isolated layout (D6) and source-only shared packages (D3) rely on three things:
-//   1. each app resolves its own React: 19.3.0 for the storefront, 18.3.1 for the backend;
+//   1. each app resolves its own React: 19.3.0 for the storefront, 18.3.1 for the backend, and the
+//      storefront's Payload packages resolve its `@types/react` (19) too;
 //   2. exactly one installed version of `payload` and of each `@payloadcms/*` package;
 //   3. every `@shopblok/*` dependency links to its folder under `packages/`, so edits are live.
 // A check with nothing to look at yet (no storefront, no Payload) is skipped. Exit code 1 if any fails.
@@ -32,11 +33,11 @@ function isInside(parent: string, child: string): boolean {
   return relative !== "" && !relative.startsWith("..") && !path.isAbsolute(relative);
 }
 
-/** The version of the `react` that code in `fromDir` resolves, or undefined if it finds none. */
-function resolveReactVersion(fromDir: string): string | undefined {
+/** The version of the package `name` that code in `fromDir` resolves, or undefined if it finds none. */
+function resolveVersion(fromDir: string, name: string): string | undefined {
   try {
-    const file = createRequire(path.join(fromDir, "package.json")).resolve("react/package.json");
-    // Only count a React that sits in this repo's node_modules, not one from a global folder.
+    const file = createRequire(path.join(fromDir, "package.json")).resolve(`${name}/package.json`);
+    // Only count a copy that sits in this repo's node_modules, not one from a global folder.
     if (!isInside(path.join(realpathSync(root), "node_modules"), realpathSync(file)))
       return undefined;
     return readJson(file).version;
@@ -47,14 +48,27 @@ function resolveReactVersion(fromDir: string): string | undefined {
 
 // Which React each app must see, and the dependencies (besides the app itself) whose own
 // React must match: pnpm gives `next` and Payload's packages the React that the app installs.
-// `@payloadcms/next` declares no `react` peer, so it only gets the app's React through the
-// `packageExtensions` entry in pnpm-workspace.yaml (T09); without it, pnpm resolves it from its
-// shared hoist folder, which holds the backend's React 18.3.1.
-const reactTargets = [
+// `@payloadcms/next` declares no `react` peer, and it and the two other Payload packages declare
+// no `@types/react`, so they only get the app's through the `packageExtensions` entries in
+// pnpm-workspace.yaml (T09); without them, pnpm resolves both from its shared hoist folder, which
+// holds the backend's React 18.3.1 and `@types/react` 18. `types` is the `@types/react` major
+// that the app and the dependencies marked `types` must see (`next` takes no types from there).
+const reactTargets: {
+  app: string;
+  version: string;
+  types?: string;
+  via: { name: string; types?: boolean }[];
+}[] = [
   {
     app: "apps/storefront",
     version: "19.3.0",
-    via: ["next", "@payloadcms/next", "@payloadcms/ui", "@payloadcms/richtext-lexical"],
+    types: "19",
+    via: [
+      { name: "next" },
+      { name: "@payloadcms/next", types: true },
+      { name: "@payloadcms/ui", types: true },
+      { name: "@payloadcms/richtext-lexical", types: true },
+    ],
   },
   { app: "apps/backend", version: "18.3.1", via: [] },
 ];
@@ -63,7 +77,7 @@ function checkReact(): Result {
   const lines: string[] = [];
   let failed = false;
   let checked = 0;
-  for (const { app, version, via } of reactTargets) {
+  for (const { app, version, types, via } of reactTargets) {
     const appDir = path.join(root, app);
     if (!existsSync(path.join(appDir, "package.json"))) {
       lines.push(`skip  ${app}: does not exist yet`);
@@ -74,8 +88,8 @@ function checkReact(): Result {
       [declared.dependencies, declared.devDependencies, declared.optionalDependencies].some(
         (group) => group !== undefined && name in group,
       );
-    const starts = [{ label: app, dir: appDir }];
-    for (const name of via) {
+    const starts = [{ label: app, dir: appDir, types }];
+    for (const { name, types: typed } of via) {
       if (!declares(name)) {
         lines.push(`skip  ${app} → ${name}: not a dependency yet`);
         continue;
@@ -84,20 +98,32 @@ function checkReact(): Result {
         starts.push({
           label: `${app} → ${name}`,
           dir: realpathSync(path.join(appDir, "node_modules", ...name.split("/"))),
+          types: typed ? types : undefined,
         });
       } catch {
         failed = true;
         lines.push(`FAIL  ${app} → ${name}: declared but not installed (run pnpm install)`);
       }
     }
-    for (const { label, dir } of starts) {
+    for (const { label, dir, types: typesMajor } of starts) {
       checked++;
-      const found = resolveReactVersion(dir);
+      const found = resolveVersion(dir, "react");
       if (found === version) {
         lines.push(`ok    ${label}: react ${found}`);
       } else {
         failed = true;
         lines.push(`FAIL  ${label}: react ${found ?? "not found"}, expected ${version}`);
+      }
+      if (typesMajor === undefined) continue;
+      checked++;
+      const foundTypes = resolveVersion(dir, "@types/react");
+      if (foundTypes?.split(".")[0] === typesMajor) {
+        lines.push(`ok    ${label}: @types/react ${foundTypes}`);
+      } else {
+        failed = true;
+        lines.push(
+          `FAIL  ${label}: @types/react ${foundTypes ?? "not found"}, expected ${typesMajor}.x`,
+        );
       }
     }
   }

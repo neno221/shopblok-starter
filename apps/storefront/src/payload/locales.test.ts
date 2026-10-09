@@ -1,6 +1,7 @@
 import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { DEFAULT_LOCALE as STORE_DEFAULT_LOCALE, LOCALES as STORE_LOCALES } from "@shopblok/i18n";
 import { describe, expect, it } from "vitest";
 import {
   DEFAULT_LOCALE,
@@ -17,11 +18,14 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../
 /** The codes in `defaultLocales` of the `@medusajs/translation` that the backend installs. */
 function medusaLocaleCodes(): string[] {
   const store = path.join(repoRoot, "node_modules/.pnpm");
-  const folder = readdirSync(store).find((entry) => entry.startsWith("@medusajs+translation@"));
-  if (folder === undefined) throw new Error("@medusajs/translation is not installed");
+  const folders = readdirSync(store).filter((entry) => entry.startsWith("@medusajs+translation@"));
+  // Exactly one: with two installed, which one Medusa loads is not for a test to guess.
+  if (folders.length !== 1) {
+    throw new Error(`expected one @medusajs/translation in ${store}, found ${folders.length}`);
+  }
   const file = path.join(
     store,
-    folder,
+    folders[0]!,
     "node_modules/@medusajs/translation/dist/loaders/defaults.js",
   );
   return [...readFileSync(file, "utf8").matchAll(/code: "([^"]+)"/g)].map((match) => match[1]!);
@@ -39,13 +43,20 @@ describe("LANGUAGES", () => {
     for (const code of [...EU_LANGUAGES, ...EXTRA_LANGUAGES]) expect(LANGUAGES).toContain(code);
   });
 
+  it("agrees with the storefront's own language list on the default and the languages", () => {
+    // Two lists in two packages (the storefront's UI catalogs, Payload's content locales).
+    expect(DEFAULT_LOCALE).toBe(STORE_DEFAULT_LOCALE);
+    for (const code of STORE_LOCALES) expect(LANGUAGES).toContain(code);
+  });
+
   it("holds a plain ISO 639-1 code each, so no country variant needs a migration", () => {
     for (const code of LANGUAGES) expect(code).toMatch(/^[a-z]{2}$/);
   });
 
   it("covers the language of every locale Medusa ships (D17)", () => {
     const codes = medusaLocaleCodes();
-    expect(codes).toHaveLength(51);
+    // 51 in 2.21.2; a floor that catches a pattern that stopped matching, not a new locale.
+    expect(codes.length).toBeGreaterThanOrEqual(51);
     const languages = [...new Set(codes.map((code) => code.split("-")[0]!))];
     expect(languages.sort()).toEqual([...MEDUSA_LANGUAGES].sort());
     for (const language of languages) expect(LANGUAGES).toContain(language);

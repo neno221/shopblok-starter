@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   enabledLanguages,
   filterAvailableLocales,
+  isMissingTable,
   pickAvailableLocales,
 } from "./filter-available-locales";
 
@@ -101,9 +102,37 @@ describe("filterAvailableLocales", () => {
     );
   });
 
-  it("falls back to English when markets cannot be read (before migrate)", async () => {
-    const findGlobal = vi.fn().mockRejectedValue(new Error('relation "markets" does not exist'));
+  it("falls back to English when the markets table does not exist (before migrate)", async () => {
+    const findGlobal = vi.fn().mockRejectedValue(missingTable());
     const req = fakeRequest(findGlobal);
     expect(codes(await filterAvailableLocales({ locales, req }))).toEqual(["en"]);
+  });
+
+  it("lets any other error fail the request instead of hiding the markets", async () => {
+    const outage = Object.assign(new Error("connection terminated"), { code: "ECONNRESET" });
+    const req = fakeRequest(
+      vi.fn().mockRejectedValue(new Error("Failed query", { cause: outage })),
+    );
+    await expect(filterAvailableLocales({ locales, req })).rejects.toThrow("Failed query");
+  });
+});
+
+/** What drizzle throws for a query on a missing table: its own error, the driver's on `cause`. */
+function missingTable() {
+  const driver = Object.assign(new Error('relation "markets" does not exist'), { code: "42P01" });
+  return new Error("Failed query", { cause: driver });
+}
+
+describe("isMissingTable", () => {
+  it("finds Postgres undefined_table on the error or anywhere down its causes", () => {
+    expect(isMissingTable(missingTable())).toBe(true);
+    expect(isMissingTable(Object.assign(new Error("x"), { code: "42P01" }))).toBe(true);
+  });
+
+  it("is false for other errors and for things that are not errors", () => {
+    expect(isMissingTable(new Error("x", { cause: { code: "42P01" } }))).toBe(false);
+    expect(isMissingTable(Object.assign(new Error("x"), { code: "28P01" }))).toBe(false);
+    expect(isMissingTable("42P01")).toBe(false);
+    expect(isMissingTable(undefined)).toBe(false);
   });
 });

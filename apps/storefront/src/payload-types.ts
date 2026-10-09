@@ -284,7 +284,7 @@ export interface IntegrationAuthOperations {
 export interface User {
   id: number;
   /**
-   * The first account created is always an admin, whatever is chosen here.
+   * Admins manage users, integrations and markets; editors manage content. The first account is always an admin, whatever is chosen here.
    */
   role: 'admin' | 'editor';
   updatedAt: string;

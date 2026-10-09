@@ -8,6 +8,9 @@ export const Pages: CollectionConfig = {
   access: {
     // A visitor sees published pages only; staff see drafts as well.
     read: staffOrPublished,
+    // Unset, Payload lets any signed-in user through, an integration's API key included, and the
+    // versions hold every draft.
+    readVersions: isStaff,
     create: isStaff,
     update: isStaff,
     delete: isStaff,

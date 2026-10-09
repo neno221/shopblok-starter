@@ -1,4 +1,10 @@
-import type { CollectionBeforeChangeHook, CollectionConfig } from "payload";
+import type {
+  CollectionBeforeChangeHook,
+  CollectionBeforeDeleteHook,
+  CollectionConfig,
+  PayloadRequest,
+} from "payload";
+import { APIError } from "payload";
 import { adminOrSelf, isAdmin, isAdminField } from "../access/roles";
 
 /** The very first user (create-first-user) becomes an admin, whatever the form said. */
@@ -11,6 +17,51 @@ const firstUserIsAdmin: CollectionBeforeChangeHook = async ({ data, operation, r
     req,
   });
   return totalDocs === 0 ? { ...data, role: "admin" } : data;
+};
+
+async function hasOtherAdmin(req: PayloadRequest, id: number | string): Promise<boolean> {
+  const { totalDocs } = await req.payload.count({
+    collection: "users",
+    where: { role: { equals: "admin" }, id: { not_equals: id } },
+    overrideAccess: true,
+    req,
+  });
+  return totalDocs > 0;
+}
+
+// Without `data`, a production build shows "An unknown error occurred.": `formatErrors` then needs
+// the error's class name, and minification empties it.
+const lastAdminError = () =>
+  new APIError("This is the last admin. Make another user an admin first.", 400, {});
+
+// Without an admin nobody can manage users or markets, and an empty `users` table lets the next
+// visitor to /admin/create-first-user become one.
+
+/** The last admin cannot be demoted. */
+export const keepOneAdmin: CollectionBeforeChangeHook = async ({
+  data,
+  operation,
+  originalDoc,
+  req,
+}) => {
+  if (operation === "update" && originalDoc?.role === "admin" && data.role === "editor") {
+    if (!(await hasOtherAdmin(req, originalDoc.id))) throw lastAdminError();
+  }
+  return data;
+};
+
+/** Nor can the last admin be deleted. */
+export const keepOneAdminOnDelete: CollectionBeforeDeleteHook = async ({ id, req }) => {
+  const user = await req.payload.findByID({
+    collection: "users",
+    id,
+    depth: 0,
+    overrideAccess: true,
+    req,
+  });
+  if (user.role === "admin" && !(await hasOtherAdmin(req, id))) {
+    throw lastAdminError();
+  }
 };
 
 export const Users: CollectionConfig = {
@@ -31,7 +82,10 @@ export const Users: CollectionConfig = {
     // The admin panel is for staff. An integration's API key is not a way in.
     admin: ({ req }) => req.user?.collection === "users",
   },
-  hooks: { beforeChange: [firstUserIsAdmin] },
+  hooks: {
+    beforeChange: [firstUserIsAdmin, keepOneAdmin],
+    beforeDelete: [keepOneAdminOnDelete],
+  },
   fields: [
     {
       name: "role",
@@ -48,7 +102,8 @@ export const Users: CollectionConfig = {
       // overrides it. A condition that hid it there would make the column nullable (Payload skips
       // validation for a hidden field), and a function default would drop the database default.
       admin: {
-        description: "The first account created is always an admin, whatever is chosen here.",
+        description:
+          "Admins manage users, integrations and markets; editors manage content. The first account is always an admin, whatever is chosen here.",
       },
       saveToJWT: true,
     },

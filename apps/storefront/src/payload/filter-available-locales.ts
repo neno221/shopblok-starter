@@ -29,6 +29,16 @@ export function pickAvailableLocales(locales: Locale[], enabled: ReadonlySet<str
 
 const CONTEXT_KEY = "shopblok.enabledLanguages";
 
+/** Postgres `undefined_table`; drizzle puts the driver's error on `cause`. */
+const UNDEFINED_TABLE = "42P01";
+
+export function isMissingTable(error: unknown): boolean {
+  for (let current = error; current instanceof Error; current = current.cause) {
+    if ((current as { code?: unknown }).code === UNDEFINED_TABLE) return true;
+  }
+  return false;
+}
+
 async function readEnabledLanguages(payload: Payload, req: PayloadRequest) {
   try {
     // Not on behalf of the signed-in user: which languages exist is the shop's setting, so an
@@ -41,8 +51,10 @@ async function readEnabledLanguages(payload: Payload, req: PayloadRequest) {
     });
     return enabledLanguages(markets);
   } catch (error) {
-    // A missing table (before `payload migrate`) must not take the admin down.
-    payload.logger.warn({ err: error }, "markets: could not read the enabled languages");
+    // A missing table (before `payload migrate`) must not take the admin down. Any other error is
+    // not "no markets enabled": it is left to fail the request rather than shrink the selector.
+    if (!isMissingTable(error)) throw error;
+    payload.logger.warn({ err: error }, "markets: the table is missing, run `payload migrate`");
     return new Set<string>();
   }
 }
