@@ -263,7 +263,7 @@ The checks that T02's session left for T03: what the new setup script (with step
 
 The checks that T03's session left for T04: whether the saved copy of the setup run is reused, whether step 6's folders survive, and what state Docker is in at session start. T04's session ran them first, before any T04 work and before starting Docker, and fixed nothing. Nothing was pasted into the environment between T03's session and this one, as far as the log shows (item 1).
 
-1. **Setup cache: reused. Passed.** Taken at the start of the session, before anything else:
+1. **Setup cache: reused. Passed.** Taken first, before any T04 work and before Docker was started:
 
    ```text
    $ date -u
