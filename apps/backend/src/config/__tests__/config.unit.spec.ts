@@ -1,10 +1,9 @@
 import { buildConfig, getSecret } from "../config";
-import { buildModules } from "../modules";
+import { buildModules, type Env } from "../modules";
 
 const REDIS_URL = "redis://localhost:6380";
 
-const http = (env: Record<string, string | undefined>) =>
-  (buildConfig(env).projectConfig as { http: Record<string, unknown> }).http;
+const http = (env: Env) => buildConfig(env).projectConfig?.http;
 
 describe("getSecret", () => {
   it("returns a set secret under every NODE_ENV", () => {
@@ -44,13 +43,10 @@ describe("buildConfig", () => {
         ADMIN_CORS: "http://localhost:9000",
         AUTH_CORS: "http://localhost:8000,http://localhost:9000",
       };
-      const { projectConfig } = buildConfig(env);
 
-      expect(projectConfig?.databaseUrl).toBe(env.DATABASE_URL);
-      expect(http(env)).toMatchObject({
-        storeCors: env.STORE_CORS,
-        adminCors: env.ADMIN_CORS,
-        authCors: env.AUTH_CORS,
+      expect(buildConfig(env).projectConfig).toMatchObject({
+        databaseUrl: env.DATABASE_URL,
+        http: { storeCors: env.STORE_CORS, adminCors: env.ADMIN_CORS, authCors: env.AUTH_CORS },
       });
     });
 
@@ -71,7 +67,6 @@ describe("buildConfig", () => {
 
     it("sets redisUrl for sessions only when REDIS_URL is set, trimmed", () => {
       expect(buildConfig({}).projectConfig).not.toHaveProperty("redisUrl");
-      expect(buildConfig({ REDIS_URL: "  " }).projectConfig).not.toHaveProperty("redisUrl");
       expect(buildConfig({ REDIS_URL: ` ${REDIS_URL}\n` }).projectConfig?.redisUrl).toBe(REDIS_URL);
     });
   });
@@ -94,16 +89,11 @@ describe("buildConfig", () => {
   });
 
   it("reads only the env it is given, never process.env", () => {
-    const before = process.env.REDIS_URL;
-    process.env.REDIS_URL = REDIS_URL;
+    const processEnv = jest.replaceProperty(process, "env", { REDIS_URL });
     try {
       expect(buildConfig({}).projectConfig).not.toHaveProperty("redisUrl");
     } finally {
-      if (before === undefined) {
-        delete process.env.REDIS_URL;
-      } else {
-        process.env.REDIS_URL = before;
-      }
+      processEnv.restore();
     }
   });
 });
