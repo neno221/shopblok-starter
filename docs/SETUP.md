@@ -354,6 +354,35 @@ The checks that T04's session left for T05: whether the saved copy of the setup 
    **What it means.** The copy was reused in the last two sessions (T04, T05); T02's session did not (its item 1; T04's session guessed the difference was the old script against the new one, which nothing here confirms or rules out), and T03's session ran right after the owner pasted the script, so it says nothing. Two in a row is more than T04's one, but it is still two data points, and CLOUD.md says the copy is rebuilt after about seven days or when the script or domains change. If a later session shows a fresh `setup start`, it costs about 40 s and breaks nothing. Nothing was changed.
 2. **`/opt/dtc-starter`: present and complete. Passed.** `ls /opt/dtc-starter/apps/backend/package.json` exists, its `name` is `@dtc/backend`, `@medusajs/medusa` is `2.21.2`, and the seven paths T05's steps name all exist: `src/migration-scripts/initial-data-seed.ts`, `src/api/store/custom`, `src/api/admin/custom`, `src/scripts/seed-demo-products.ts`, `src/search/product.ts`, `src/api/middlewares.ts` and `.env.template`. The setup log has `step 6 ok: /opt/dtc-starter` and `step 6 ok: /opt/payload-templates` and no `FAILED` line; `/opt/payload-templates` holds `blank`, `ecommerce` and `with-postgres`.
 
+### Follow-up checks (T06)
+
+The same two checks as for T05, taken a third time: whether the saved copy of the setup run is reused, and whether the folders are there. T06's session ran them first, before any T06 work and before Docker was started, and fixed nothing. The prompt did not say the owner had rebuilt the environment, so the comparison counts.
+
+1. **Setup cache: reused a third time. Passed.** Taken first, before any T06 work:
+
+   ```text
+   $ date -u
+   Fri Oct  9 06:23:54 UTC 2026
+   $ uptime -s
+   2026-10-09 06:23:35
+   $ grep -E 'setup (start|end)' /var/log/shopblok-setup.log
+   setup start 2026-10-09T03:03:14Z
+   + echo 'setup end 2026-10-09T03:03:51Z'
+   setup end 2026-10-09T03:03:51Z
+   $ grep -c 'setup start' /var/log/shopblok-setup.log
+   1
+   $ stat -c '%n  mtime=%y  birth=%w' /var/log/shopblok-setup.log /home/user/shopblok-starter/.git/HEAD
+   /var/log/shopblok-setup.log  mtime=2026-10-09 03:03:51.253129671 +0000  birth=2026-10-09 03:03:14.173130519 +0000
+   /home/user/shopblok-starter/.git/HEAD  mtime=2026-10-09 06:23:41.306140192 +0000  birth=2026-10-09 06:23:41.301296344 +0000
+   ```
+
+   Of the three outcomes the prompt listed, this is the first. The `setup start` is the one T04's and T05's sessions found (`03:03:14Z`, with `setup end` `03:03:51Z`), now **12040 s (3 h 20 min 40 s)** before `date -u`, and the log still holds one run. It was last written 12003 s before `date -u`. The VM booted at 06:23:35, 19 s before `date -u` and 11984 s (3 h 19 min 44 s) after the log was last written, and the repo was cloned 6 s later (06:23:41). So the log was in the filesystem when this VM booted, as in the two sessions before.
+
+   **It is the same file, not a fourth run with the same times.** Birth (`03:03:14.173130519`) and last-write (`03:03:51.253129671`) are identical to the nanosecond to what T04's and T05's sessions recorded, on other VMs (booted 04:30:10, 05:25:59, and now 06:23:35). T05's `date -u` was 05:26:15, so this check is 3459 s (57 min 39 s) after that one. No later run is in the log, so the "rebuilt" outcome doesn't apply.
+
+   **What it means.** The copy was reused in the last three sessions (T04, T05, T06); only T02's session saw a fresh run, and T03's ran right after the owner pasted the script, so it says nothing. Three in a row, at 1 h 27 min, 2 h 23 min and 3 h 20 min after the run, is a stronger pattern than T05 had. It is still the same single run seen from later and later VMs, not three independent tries, and CLOUD.md says the copy is rebuilt after about seven days or when the script or domains change. Nothing was changed.
+2. **`/opt/dtc-starter` and `/opt/payload-templates`: present. Passed.** `ls /opt/dtc-starter/apps/backend/package.json` exists; `ls /opt/payload-templates` lists `blank`, `ecommerce` and `with-postgres`; the setup log has `step 6 ok: /opt/dtc-starter` and `step 6 ok: /opt/payload-templates`. T06 copies nothing from them.
+
 ## Config presets (T02)
 
 **Result: `@shopblok/config` exists and every check in T02's Verify list passes. T03 can start.** The shared presets load through real workspace packages, not only inside their own folder (checked with throwaway packages, since deleted). Three things differ from the plan's text: ESLint 9 is end-of-life (item 1), `pnpm install` needed one more `allowBuilds` entry (item 2), and the T02 file list gained two files (item 3). Items 4 to 6 are notes for later tasks, and item 7 lists what changed while this PR was reviewed.
