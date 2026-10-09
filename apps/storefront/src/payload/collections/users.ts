@@ -44,6 +44,12 @@ export const Users: CollectionConfig = {
       ],
       // Only an admin may change roles, so an editor cannot promote themselves.
       access: { create: isAdminField, update: isAdminField },
+      // The create-first-user form shows this field with "Editor" selected, and `firstUserIsAdmin`
+      // overrides it. A condition that hid it there would make the column nullable (Payload skips
+      // validation for a hidden field), and a function default would drop the database default.
+      admin: {
+        description: "The first account created is always an admin, whatever is chosen here.",
+      },
       saveToJWT: true,
     },
   ],

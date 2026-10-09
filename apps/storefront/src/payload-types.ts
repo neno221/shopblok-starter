@@ -283,6 +283,9 @@ export interface IntegrationAuthOperations {
  */
 export interface User {
   id: number;
+  /**
+   * The first account created is always an admin, whatever is chosen here.
+   */
   role: 'admin' | 'editor';
   updatedAt: string;
   createdAt: string;
