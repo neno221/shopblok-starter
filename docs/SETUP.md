@@ -1,6 +1,6 @@
 # Setup
 
-> Only the T00, T01, C0 and T02 results exist so far. T17 adds the keyless quickstart, ports, credentials and the other Windows notes.
+> Only the results of T00 to T05 and C0 exist so far. T17 adds the keyless quickstart, ports, credentials and the other Windows notes.
 
 ## Windows preflight (T00)
 
@@ -325,6 +325,35 @@ The checks that T03's session left for T04: whether the saved copy of the setup 
    redis:7.4-alpine               858f009f9709   57.8MB
    ```
 
+### Follow-up checks (T05)
+
+The checks that T04's session left for T05: whether the saved copy of the setup run is reused again, and whether the folder T05 copies from is there. T05's session ran them first, before any T05 work and before Docker was started, and fixed nothing. The prompt did not say the owner had rebuilt the environment, so the comparison counts.
+
+1. **Setup cache: reused again. Passed.** Taken first, before any T05 work:
+
+   ```text
+   $ date -u
+   Fri Oct  9 05:26:15 UTC 2026
+   $ uptime -s
+   2026-10-09 05:25:59
+   $ grep -E 'setup (start|end)' /var/log/shopblok-setup.log
+   setup start 2026-10-09T03:03:14Z
+   + echo 'setup end 2026-10-09T03:03:51Z'
+   setup end 2026-10-09T03:03:51Z
+   $ grep -c 'setup start' /var/log/shopblok-setup.log
+   1
+   $ stat -c '%n  mtime=%y  birth=%w' /var/log/shopblok-setup.log /home/user/shopblok-starter/.git/HEAD
+   /var/log/shopblok-setup.log  mtime=2026-10-09 03:03:51.253129671 +0000  birth=2026-10-09 03:03:14.173130519 +0000
+   /home/user/shopblok-starter/.git/HEAD  mtime=2026-10-09 05:26:04.649868571 +0000  birth=2026-10-09 05:26:04.646770358 +0000
+   ```
+
+   Of the three outcomes the prompt listed, this is the first. The `setup start` is the same one T04's session found (`03:03:14Z`, with `setup end` `03:03:51Z`), now **8581 s (2 h 23 min 1 s)** before `date -u`, and the log still holds one run. It was last written 8544 s before `date -u`. The VM booted at 05:25:59, 16 s before `date -u` and 2 h 22 min after the log was last written, and the repo was cloned 5 s later (05:26:04). So the log was already in the filesystem when this VM booted, as in T04's session.
+
+   **It is the same file, not a second run with the same times.** The log's birth and last-write times (`03:03:14.173130519`, `03:03:51.253129671`) are identical to the nanosecond to what T04's session recorded 55 min 47 s earlier, on another VM (that one booted at 04:30:10). A platform rebuild or a fresh script run would give a new file with new times. The "rebuilt" outcome doesn't apply either: no later run is in the log.
+
+   **What it means.** The copy was reused in the last two sessions (T04, T05); T02's session did not (its item 1; T04's session guessed the difference was the old script against the new one, which nothing here confirms or rules out), and T03's session ran right after the owner pasted the script, so it says nothing. Two in a row is more than T04's one, but it is still two data points, and CLOUD.md says the copy is rebuilt after about seven days or when the script or domains change. If a later session shows a fresh `setup start`, it costs about 40 s and breaks nothing. Nothing was changed.
+2. **`/opt/dtc-starter`: present and complete. Passed.** `ls /opt/dtc-starter/apps/backend/package.json` exists, its `name` is `@dtc/backend`, `@medusajs/medusa` is `2.21.2`, and the seven paths T05's steps name all exist: `src/migration-scripts/initial-data-seed.ts`, `src/api/store/custom`, `src/api/admin/custom`, `src/scripts/seed-demo-products.ts`, `src/search/product.ts`, `src/api/middlewares.ts` and `.env.template`. The setup log has `step 6 ok: /opt/dtc-starter` and `step 6 ok: /opt/payload-templates` and no `FAILED` line; `/opt/payload-templates` holds `blank`, `ecommerce` and `with-postgres`.
+
 ## Config presets (T02)
 
 **Result: `@shopblok/config` exists and every check in T02's Verify list passes. T03 can start.** The shared presets load through real workspace packages, not only inside their own folder (checked with throwaway packages, since deleted). Three things differ from the plan's text: ESLint 9 is end-of-life (item 1), `pnpm install` needed one more `allowBuilds` entry (item 2), and the T02 file list gained two files (item 3). Items 4 to 6 are notes for later tasks, and item 7 lists what changed while this PR was reviewed.
@@ -537,3 +566,73 @@ Items 1 to 4 are already applied in this PR; 5 and 6 are yours.
 - `docker compose ps` shows only IPv4 (`0.0.0.0`) bindings.
 - The `\dx` output lists `plpgsql` too; T04's check says "lists `pg_trgm` and `unaccent`", which it does.
 - First start of the stack, images present: 11.6 s. Reuse of existing volumes: about 5 s. Nothing was pulled in this session; the four images came from the saved copy.
+
+## Backend from dtc-starter (T05)
+
+**Result: `apps/backend` is a copy of dtc-starter's backend at `15ef93d`, and every check in T05's Verify list passes except the Windows run, which is W1. T06 can start.** `pnpm install` needed no new `allowBuilds` entry. Two things in the plan's T05 text were wrong or loose (items 1 and 2 under "What should change in the plan"); both are applied. `UPSTREAM.md` in the backend folder records the commit and every local change.
+
+| | |
+|---|---|
+| Date | 2026-10-09 |
+| Branch | `claude/admiring-ramanujan-65hq3c` |
+| Session start | `node -v` v22.22.0, `pnpm -v` 12.10.1, `pnpm install --frozen-lockfile` 3.7 s; CLOUD.md's step 3 ran and `docker info` then worked (I didn't check beforehand whether the daemon was off), then `pnpm infra:up`: 4 healthy |
+| Files | `apps/backend/**` (28 files, among them `UPSTREAM.md`), `pnpm-lock.yaml`, this section, the plan, CLOUD.md and NEXT-SESSION.md |
+
+### Checks (T05 "Verify")
+
+| Check | Result | Key output |
+|---|---|---|
+| `pnpm --filter @shopblok/backend build` | **Pass** | exit 0: `Linting project...`, `Backend build completed successfully (5.76s)`, `Frontend build completed successfully (28.69s)`. Through turbo (`pnpm build`): `Tasks: 1 successful, 1 total`, 28.9 s; a second run `Cached: 1 cached, 1 total`, `85ms >>> FULL TURBO` (the `.medusa/server/**` output restores) |
+| `pnpm --filter @shopblok/backend lint` (`medusa lint`) | **Pass** | exit 0, `No lint issues found.` |
+| `pnpm --filter @shopblok/backend exec medusa db:migrate` | **Pass** | exit 0 against Postgres on 15432: all module migrations, then `Migration scripts completed`. 148 tables in `medusa`, including `search_pg_product_v1` (the product index from `src/search/product.ts`) and `store_locale`; extensions `pg_trgm`, `plpgsql`, `unaccent`. A second run exits 0 and runs no module migration (no `● Migrating` line; the log's one `Migrating` is `Migrating search indexes...`) |
+| `pnpm --filter @shopblok/backend dev`: `/health` | **Pass** | `Server is ready on port: 9000 – 3811ms`; `curl localhost:9000/health` → `HTTP 200`, body `OK` |
+| `/app` shows the admin login | **Pass** | `curl` → `HTTP 200 text/html`. In Playwright 1.64.0's Chromium: `title: Welcome to Medusa - Medusa`, heading `Welcome to Medusa`, one email and one password input, buttons `Show password` and `Continue with Email`, `page errors: none` (a screenshot was looked at, not committed) |
+| `pnpm check:workspace` confirms React 18.3.1 for the backend | **Pass** | exit 0: `ok    apps/backend: react 18.3.1`; `apps/storefront` and Payload are skipped until T08 and T09. `react` and `react-dom` also resolve to 18.3.1 from `@medusajs/dashboard` |
+| `.medusa/client` contains React 18 after the build | **Pass, but the wording was loose** (item 2) | `.medusa/client` holds only the generated `entry.jsx` (it imports `react` and `react-dom/client`), `index.html` and `index.css`. The React code is in the built admin, `.medusa/server/public/admin/assets/index-*.js`: it contains `"18.3.1"` twice (React and ReactDOM) and no `react.transitional.element`, which every React 19 build has |
+| `medusa build` and `medusa develop` on Windows (E:) | **Not run here** | W1, on your machine, as the plan says |
+
+### Checks beyond T05's list
+
+| Check | Result | Key output |
+|---|---|---|
+| `pnpm install` (first install with Medusa) needs no new `allowBuilds` entry | **Pass** | exit 0, `Packages: +1052 -19`, `Done in 17.4s`. The only install scripts that ran are the three T01 allowed: `esbuild`, `@swc/core` and `@medusajs/telemetry`. No `ERR_PNPM_IGNORED_BUILDS`, so `pnpm-workspace.yaml` is unchanged |
+| The other workspaces' resolved versions did not move | **Pass** | Compared the lockfile's importers before and after: `apps/backend` is new; the others differ only in peer-set suffixes (`eslint@9.39.5` is now `9.39.5(jiti@2.7.0)`, and `i18n`'s `vite@8.3.3` and `vitest@5.0.3` got `esbuild`, `jiti` and `yaml` peers), because `jiti` and `esbuild` are now in the tree. That is why the lockfile diff shows about 2,300 deleted lines |
+| `pnpm install --frozen-lockfile` on the committed lockfile | **Pass** | `Lockfile is up to date, resolution step is skipped`, exit 0 |
+| Tool pins | **Pass** | `pnpm --filter @shopblok/backend exec eslint --version` `v9.39.5` (the global on PATH prints `v10.1.0`); `exec tsc --version` `Version 5.9.3`; root `prettier` 3.9.9, `tsc` 5.9.3, `turbo` 2.11.7 |
+| Root `pnpm typecheck`, `lint`, `test`, `build` (turbo) | **Pass** | all exit 0. `typecheck` `Tasks: 7 successful, 7 total` (the backend has no `typecheck` script, so it is not among them); `lint` `8 successful, 8 total` (T04 had 7: the new one is the backend's `medusa lint`); `test` `1 successful` (i18n); `build` `1 successful` (the backend) |
+| `medusa build` fails on a type error | **Pass** | A temporary `src/api/zz-type-error-probe.ts` with `export const typeErrorProbe: number = "not a number"` gave `error TS2322: Type 'string' is not assignable to type 'number'`, `Backend build completed with errors`, exit 1. The file was removed and the build passed again. So the backend's type check is its build, which matters for T15 and T16 (item 3) |
+| The removed files are gone | **Pass** | `.medusa/server/src/api` holds only `middlewares.js`; no `scripts` or `migration-scripts` folder is built. (A request to `/store/custom` or `/admin/custom` can't show this: it answers 400 `Publishable API key required` and 401 before routing, so I used the build output.) |
+| `cross-env` works in the test scripts | **Pass** | `pnpm --filter @shopblok/backend test:unit` runs `cross-env TEST_TYPE=unit NODE_OPTIONS=--experimental-vm-modules jest …`, and jest prints `testMatch: **/src/**/__tests__/**/*.unit.spec.[jt]s - 0 matches` (the `TEST_TYPE=unit` pattern from `jest.config.js`), then `No tests found, exiting with code 1`. It exits 1 until T06 adds the first test |
+| The search index loads | **Pass** | At dev start: `[Search] Seeding 1 index(es): product (schema_changed)`, `Making "product" version 1 active`, `Seeded "product": 0 documents`. The Search module is registered by default and needs no config |
+| `.env` stays out of git | **Pass** | `apps/backend/.env` (a copy of `.env.example`) is ignored (`git check-ignore -v`: `apps/backend/.gitignore:2:.env`), and `.env.example` is not (`.gitignore:15:!.env.example`); `git status` stayed clean |
+| The dev server stops cleanly | **Pass** | Stopped by the PID `lsof -nP -iTCP:9000 -sTCP:LISTEN -t` gave (8947); nothing listens on 9000 afterwards. `medusa develop` runs a watcher above the server (`pnpm` → `sh` → `node …/@medusajs/cli`) that stays alive after its server child is killed, and it would restart the server on a file change, so I stopped those three by their PIDs too (8864, 8883, 8885) and checked that no `medusa` or `pnpm --filter` process was left |
+| OSV advisories for what T05 added | **Pass** | `cross-env@10.1.0`, `jiti@2.7.0`, `@medusajs/eslint-plugin@2.21.2`, `@medusajs/medusa@2.21.2`, `@medusajs/ui@4.2.6` and `eslint@9.39.5`: 0 advisories each (`api.osv.dev/v1/query`) |
+| The versions the plan keeps are what the dashboard expects | **Pass** | `npm view @medusajs/dashboard@2.21.2 dependencies`: `@medusajs/ui` `4.2.6`, `react-i18next` `13.5.0`, `react-router-dom` `7.18.2`, `@tanstack/react-query` `5.64.2`, `react` and `react-dom` `^18.3.1`. dtc-starter already had exactly these |
+| `pnpm run doctor` | **Fails, as it must** | `Cannot find module '/home/user/shopblok-starter/scripts/doctor.ts'` (T14's file) |
+| Turbo left `AGENTS.md` alone | **Pass** | `md5sum` `995f281e6ed512494bf15f386443be6c`, unchanged |
+
+### What should change in the plan
+
+Items 1 to 4 are applied in this PR.
+
+1. **The backend has to declare its own ESLint packages (T05 step 5, SETUP.md T02 item 5).** The plan said the backend "keeps dtc-starter's own `tsconfig.json` and ESLint setup (`@medusajs/eslint-plugin`, `eslint` `9.39.5`)", as if the packages came with the copy. They don't: dtc-starter declares `@medusajs/eslint-plugin`, `eslint` and `jiti` in its **root** `package.json`, and the backend's `eslint.config.ts` only works there because Node resolves them upward. This repo's root has none of them (T02), so the backend declares `@medusajs/eslint-plugin` 2.21.2, `eslint` 9.39.5 and `jiti` 2.7.0 (ESLint 9 needs `jiti` to read an `eslint.config.ts`). Without them `medusa lint`, and `medusa build` and `medusa develop`, which lint first, can't load the config.
+2. **T05's Verify: ".medusa/client contains React 18".** `.medusa/client` holds the generated entry files, not React. The check that means something is the built admin's bundle (see the table). The plan's text now says so.
+3. **The backend has no `typecheck` and no `test` script, so the root scripts skip it.** Upstream has none, and T05 doesn't add them. What covers it: `medusa build` fails on type errors (proved above), and `medusa lint` is the backend's `lint`. For T06, which adds the first unit test: `pnpm --filter @shopblok/backend test:unit` works, but root `pnpm test` runs only packages with a `test` script, so the backend's tests stay out of it unless T06 (or T15) adds `"test"` to the backend. I did not add it: it is a decision for the task that has a test to run. For T15 and T16: the backend's type check is `pnpm build`, not `pnpm typecheck`.
+4. **Notes for the tasks that read `.env.example`.**
+   - **T13:** `JWT_SECRET` and `COOKIE_SECRET` are empty (upstream had `supersecret`). A plain copy of the file still boots in development (W1 step 3 copies it by hand): Medusa logs `http.jwtSecret not found. Using default 'supersecret'` (likewise for the cookie secret) and carries on. In production it throws `http.jwtSecret not found`, which is what we want; a `supersecret` placeholder would be accepted there, and it is publicly known. (Checked against `ConfigManager` in `@medusajs/framework` 2.21.2: development and production, blank and `supersecret`.) T13's "generate if missing" fills the two secrets, and also the empty `PAYLOAD_API_KEY` and `REVALIDATE_SECRET`.
+   - **T13 and T14:** read the ports from the URLs: `DATABASE_URL=postgres://postgres:postgres@localhost:15432/medusa`, `REDIS_URL=redis://localhost:6380`, `MEILISEARCH_HOST=http://localhost:7701`.
+   - **T06:** upstream's `medusa-config.ts` ignores `REDIS_URL`. With `.env` copied from `.env.example`, the backend still logs `redisUrl not found. A fake redis instance will be used`, `Local Event Bus installed` and `Locking module: Using "in-memory" as default`. T06 wires Redis in. `MEDUSA_FF_TRANSLATION=true` is read (`Using flag MEDUSA_FF_TRANSLATION from environment with value true`), but no translation module is registered yet: the database has `store_locale` and no `translation` or `locale` table. T06 registers the module.
+   - **`DB_NAME` is dropped** from the example. Only `medusa db:create` reads it (it writes it into `.env`), and this repo never runs that: compose's init script creates the databases.
+5. **Decision for you, small: the backend's other dependency ranges.** T01 says every dependency is an exact version, and the plan's T05 lists which ones to pin. I pinned those (all already exact upstream, plus `typescript`) and the four packages I added, and left upstream's carets (`jest`, `@swc/*`, `vite`, `ts-node`, `@types/*`, `react` `^18.3.1`, …) so a diff against upstream stays small. The lockfile fixes what they resolve to, so installs are reproducible either way. Pinning them is a one-time edit if you prefer it. I would leave them.
+
+### Smaller observations
+
+- **Added beyond the plan: `apps/backend/LICENSE`.** The MIT notice from dtc-starter's root, because the folder is a copy of MIT-licensed code. Also `"private": true` in the backend's `package.json`, so it can't be published by accident.
+- **`@types/node` is upstream's `^20.12.11`** (resolves to 20.19.43), not the repo's 22.20.5 (§2). Left alone: the backend's code is compiled by Medusa's CLI against its own settings, and nothing failed. T06 can align it if a Node 22 type is ever needed.
+- **dtc-starter's root `pnpm.overrides` are not carried** (`@types/react` and `@types/react-dom` 19.0.5, `tsconfig-paths` `^4.2.0`); they serve its storefront. Here the backend resolves `@types/react` 18.3.31, matching its React, and build, lint and dev all work without them.
+- **Medusa's own pnpm page** (`docs.medusajs.com/learn/configurations/pnpm`) still says to put `public-hoist-pattern[]=*@medusajs/*`, `@tanstack/react-query`, `react-i18next` and `react-router-dom` in `.npmrc`. This repo does it the plan's way: those packages are direct, pinned dependencies of the backend (also what dtc-starter does), and pnpm 12 reads only registry and auth settings from `.npmrc` anyway. The page also says packages whose compiled output imports `@medusajs/framework` (plugins, shared packages) must declare it as a **peer** dependency (`"@medusajs/framework": "*"`), because a `devDependencies` entry gives `Cannot find module '@medusajs/framework/utils'` in production. Nothing in M0 does that; it matters if M4 or later adds such a package.
+- **Warnings that `pnpm install` prints** and that are not ours: `deprecated eslint@9.39.5` (known, T02 item 1); five deprecated subdependencies (`cron-parser@4.9.0`, `glob@7.2.3`, `inflight@1.0.6`, `lodash.isequal@4.5.0`, `uuid@9.0.1`); and `pnpm peers check` lists one unmet peer: `fdir@6.1.1` (inside `@medusajs/admin-vite-plugin`) wants `picomatch` 3.x and gets 4.0.7. It comes from Medusa's own admin bundler, and build and dev work.
+- **`create-super-admin-role.js` is listed as a pending migration script on every `db:migrate`** (first and second run) but is never run or recorded in `script_migrations` (the table holds the other five). It is Medusa 2.21.2's own script in `@medusajs/medusa/dist/migration-scripts`, which assigns a super-admin role to existing admin users, and nothing here touches it. `db:migrate` exits 0 either way. Worth a second look when T07 creates the admin user.
+- **Timings:** `pnpm install` with Medusa 17.4 s (store mostly cold: 1,039 packages downloaded); backend build 28.9 s; `medusa develop` ready in 3.8 s.
+- **Playwright:** no workspace depends on it yet, so the login-page look used a throwaway folder in the session's scratch directory with `playwright@1.64.0` and `/opt/ms-playwright`'s Chromium. Nothing of it is in the repo.
+- **For T06: the module names its text uses resolve.** From `apps/backend`, `@medusajs/medusa/{translation, notification, event-bus-redis, workflow-engine-redis, locking, locking-redis, caching, caching-redis, search, file-local, analytics-local}` all resolve. The providers (`notification-local`, `search-postgres`, …) were not checked. `@medusajs/caching` is a direct dependency of the backend (upstream has it); `@medusajs/caching-redis` is not installed as a package, and `@medusajs/medusa/caching-redis` is the entry point that resolves.
