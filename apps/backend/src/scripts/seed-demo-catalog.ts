@@ -50,6 +50,7 @@ import {
   DEMO_COLLECTIONS,
   DEMO_OPTIONS,
   DEMO_PRODUCTS,
+  demoPrices,
   PRODUCT_INDEX,
 } from "./lib/demo-catalog";
 import {
@@ -143,6 +144,12 @@ export default async function seedDemoCatalog({ container, args }: ExecArgs) {
         `missing currencies: [${absent}], shipping profile: ${profiles[0]?.id ?? "none"}). ` +
         `Run seed-markets.ts first.`,
     );
+  }
+
+  // A supported currency with neither a listed price nor a rate throws here, before the first
+  // write, rather than after the categories, collections and options exist.
+  for (const product of DEMO_PRODUCTS) {
+    demoPrices(product);
   }
 
   const salesChannelId = store.default_sales_channel_id;

@@ -3,7 +3,7 @@ import Link from "next/link";
 import { getCurrentMarket } from "../../../lib/current-market";
 
 // Shown inside the market's layout when a page calls `notFound()` (a product that doesn't
-// exist, later). A URL that matches no route, or an unknown market, gets `global-not-found`.
+// exist, later). A URL that matches no route gets `global-not-found`.
 export default async function MarketNotFound() {
   const market = await getCurrentMarket();
   const { notFound } = catalogs[market.locale];

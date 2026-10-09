@@ -48,9 +48,13 @@ describe("demo catalog data", () => {
     }
   });
 
-  it("lists a price in every seeded currency on every product, all above zero", () => {
+  it("lists EUR and the four committed currencies on every product, all above zero", () => {
+    // A market a shop opens later is not listed: `demoPrices` derives it from EUR.
     for (const product of DEMO_PRODUCTS) {
-      expect(Object.keys(product.prices).sort()).toEqual([...currencies].sort());
+      const listed = Object.keys(product.prices);
+
+      expect(listed).toEqual(expect.arrayContaining(["eur", "usd", "gbp", "chf"]));
+      expect(listed.every((c) => /^[a-z]{3}$/.test(c))).toBe(true);
       expect(Object.values(product.prices).every((p) => (p ?? 0) > 0)).toBe(true);
     }
   });
@@ -105,15 +109,18 @@ describe("buildVariants", () => {
     expect(buildVariants(cap).map((v) => v.title)).toEqual(["Black", "White", "Navy"]);
   });
 
-  it("prices each variant in every currency, as is (no cents), and tracks no stock", () => {
+  it("prices each variant as the product lists it, as is (no cents), and tracks no stock", () => {
     const [variant] = buildVariants(DEMO_PRODUCTS[0]);
 
-    expect(variant.prices).toEqual([
-      { currency_code: "eur", amount: 25 },
-      { currency_code: "usd", amount: 28 },
-      { currency_code: "gbp", amount: 22 },
-      { currency_code: "chf", amount: 26 },
-    ]);
+    // The tee's listed prices; a currency added to the store later comes after them, from EUR.
+    expect(variant.prices).toEqual(
+      expect.arrayContaining([
+        { currency_code: "eur", amount: 25 },
+        { currency_code: "usd", amount: 28 },
+        { currency_code: "gbp", amount: 22 },
+        { currency_code: "chf", amount: 26 },
+      ]),
+    );
     expect(variant.manage_inventory).toBe(false);
   });
 
@@ -140,8 +147,13 @@ describe("demoPrices", () => {
     expect(demoPrices(tee, ["brl"])[0]!.amount).toBe(155);
   });
 
-  it("follows the store's currencies by default, in their order", () => {
-    expect(demoPrices(tee).map((p) => p.currency_code)).toEqual(currencies);
+  it("prices every product in the store's currencies by default, in their order", () => {
+    for (const product of DEMO_PRODUCTS) {
+      const prices = demoPrices(product);
+
+      expect(prices.map((p) => p.currency_code)).toEqual(currencies);
+      expect(prices.every((p) => p.amount > 0)).toBe(true);
+    }
   });
 
   it("never prices below 1, and prices whole units (no cents)", () => {
@@ -160,7 +172,10 @@ describe("demoPrices", () => {
   it("builds variant prices for a currency the product does not list", () => {
     const [variant] = buildVariants({ ...tee, prices: { eur: 10 } });
 
+    const amounts = Object.fromEntries(variant!.prices.map((p) => [p.currency_code, p.amount]));
+
     expect(variant!.prices.map((p) => p.currency_code)).toEqual(currencies);
-    expect(variant!.prices.map((p) => p.amount)).toEqual([10, 11, 9, 10]);
+    // EUR as written; the rest from EUR 10 times the rate, rounded: 11, 8.5 up to 9, 9.5 up to 10.
+    expect(amounts).toMatchObject({ eur: 10, usd: 11, gbp: 9, chf: 10 });
   });
 });

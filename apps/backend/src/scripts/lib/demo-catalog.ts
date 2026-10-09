@@ -1,7 +1,8 @@
 /**
  * The demo catalog `seed-demo-catalog.ts` creates (development only, D7).
- * Plain data, no Medusa imports. Everything is identified by a deterministic
- * handle or title, which is how a second run recognises its own rows.
+ * Plain data and pure functions (the one Medusa import is `MedusaError`, for
+ * `demoPrices`' throw, as in `plan.ts`). Everything is identified by a
+ * deterministic handle or title, which is how a second run recognises its own rows.
  *
  * Prices are in major units (Medusa stores 25 as 25, never as cents).
  */
@@ -360,7 +361,7 @@ export function demoPrices(
 
     if (rate === undefined) {
       throw new MedusaError(
-        MedusaError.Types.NOT_FOUND,
+        MedusaError.Types.INVALID_DATA,
         `The demo catalog has no price for "${product.handle}" in "${currency_code}" and no rate to derive one. ` +
           "Add the currency to DEMO_RATES_PER_EUR in lib/demo-catalog.ts, or list a price on the product.",
       );

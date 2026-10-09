@@ -130,7 +130,7 @@ export async function resolveProductIds(
         "product_tag",
         ["products.id"],
         ids,
-        (row) => (row.products ?? []).map((product: any) => product?.id),
+        (row) => relationIds(row.products),
         deleted,
       );
     case "product-category":
@@ -139,7 +139,7 @@ export async function resolveProductIds(
         "product_category",
         ["products.id"],
         ids,
-        (row) => (row.products ?? []).map((product: any) => product?.id),
+        (row) => relationIds(row.products),
         deleted,
       );
     case "sales-channel":

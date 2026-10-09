@@ -8,13 +8,17 @@ import {
 } from "../markets";
 
 describe("market data", () => {
+  // A shop opens a market by editing config/markets.ts, so these tests check that the committed
+  // markets are there and the lists hold together, not that they are the only ones.
   it("has the four regions of the plan, with the currencies and countries it lists", () => {
-    expect(MARKET_REGIONS.map((r) => [r.name, r.currency_code, [...r.countries].sort()])).toEqual([
-      ["Europe", "eur", ["cy", "de", "fr"]],
-      ["United States", "usd", ["us"]],
-      ["United Kingdom", "gbp", ["gb"]],
-      ["Switzerland", "chf", ["ch"]],
-    ]);
+    expect(MARKET_REGIONS.map((r) => [r.name, r.currency_code, [...r.countries].sort()])).toEqual(
+      expect.arrayContaining([
+        ["Europe", "eur", ["cy", "de", "fr"]],
+        ["United States", "usd", ["us"]],
+        ["United Kingdom", "gbp", ["gb"]],
+        ["Switzerland", "chf", ["ch"]],
+      ]),
+    );
   });
 
   it("puts a country in one region only (Medusa refuses a second)", () => {
@@ -27,7 +31,7 @@ describe("market data", () => {
   it("sells every region in a currency the store supports, with EUR as the one default", () => {
     const supported = SUPPORTED_CURRENCIES.map((c) => c.currency_code);
 
-    expect(supported).toEqual(["eur", "usd", "gbp", "chf"]);
+    expect(new Set(supported).size).toBe(supported.length);
     expect(SUPPORTED_CURRENCIES.filter((c) => c.is_default).map((c) => c.currency_code)).toEqual([
       "eur",
     ]);
@@ -36,7 +40,9 @@ describe("market data", () => {
   });
 
   it("has one locale per language (D8), and translates all but English", () => {
-    expect([...SUPPORTED_LOCALES]).toEqual(["en-US", "el-GR", "de-DE", "fr-FR"]);
+    const languages = SUPPORTED_LOCALES.map((locale) => locale.split("-")[0]);
+
+    expect(new Set(languages).size).toBe(languages.length);
     expect([...TRANSLATED_LOCALES]).toEqual(["el-GR", "de-DE", "fr-FR"]);
   });
 

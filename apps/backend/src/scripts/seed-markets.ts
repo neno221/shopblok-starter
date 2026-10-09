@@ -16,12 +16,11 @@
  * key linked to it each time the app boots, so a script always finds them.
  * This seed completes them: the store is named "Shopbloks Starter" (only while
  * it still has Medusa's default name, so an admin's rename survives), and gets
- * EUR as default plus USD, GBP and CHF, and the four locales of D8. It then
- * adds four regions with a tax region per country, and fulfilment: a stock
- * location with one fulfilment set, one service zone per region and a
- * "Standard" shipping option in each, priced in the region's currency. The
- * currencies, regions and locales come from `src/config/markets.ts`, which
- * explains how to open another market.
+ * its currencies and the locales of D8. It then adds the regions with a tax
+ * region per country, and fulfilment: a stock location with one fulfilment set,
+ * one service zone per region and a "Standard" shipping option in each, priced
+ * in the region's currency. The currencies, regions and locales come from
+ * `src/config/markets.ts`, which explains how to open another market.
  */
 import type { ExecArgs } from "@medusajs/framework/types";
 import {

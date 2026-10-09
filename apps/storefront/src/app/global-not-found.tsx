@@ -5,8 +5,8 @@ import "../styles/globals.css";
 
 export const metadata: Metadata = { title: catalogs.en.notFound.title };
 
-// Renders for every URL no route handles, and for an unknown market key. It bypasses the layouts,
-// so it brings its own `<html>` and styles, and has no market to read: the default language.
+// Renders for every URL no route handles. It bypasses the layouts, so it brings its own `<html>`
+// and styles, and has no market to read: the default language.
 export default function GlobalNotFound() {
   const { notFound } = catalogs.en;
   return (
