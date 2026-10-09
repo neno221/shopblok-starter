@@ -1,10 +1,17 @@
 import { loadEnv, defineConfig } from '@medusajs/framework/utils'
+import { buildModules, getRedisUrl } from './src/config/modules'
 
 loadEnv(process.env.NODE_ENV || 'development', process.cwd())
+
+// Which modules are registered depends on the environment (src/config/modules.ts).
+// Translation is always registered; MEDUSA_FF_TRANSLATION, when set, overrides the flag below.
+const redisUrl = getRedisUrl(process.env)
 
 module.exports = defineConfig({
   projectConfig: {
     databaseUrl: process.env.DATABASE_URL,
+    // Sessions use Redis when REDIS_URL is set, otherwise Medusa's in-memory store.
+    ...(redisUrl ? { redisUrl } : {}),
     http: {
       storeCors: process.env.STORE_CORS!,
       adminCors: process.env.ADMIN_CORS!,
@@ -12,5 +19,12 @@ module.exports = defineConfig({
       jwtSecret: process.env.JWT_SECRET,
       cookieSecret: process.env.COOKIE_SECRET,
     }
-  }
+  },
+  admin: {
+    storefrontUrl: process.env.STOREFRONT_URL,
+  },
+  featureFlags: {
+    translation: true,
+  },
+  modules: buildModules(process.env),
 })
