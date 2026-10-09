@@ -1,6 +1,7 @@
+// Lives here, not next to the helper: Medusa requires every file under src/search at boot.
 import type { SearchTypes } from "@medusajs/framework/types";
 
-import { resolveProductIds } from "../resolve-product-ids";
+import { resolveProductIds } from "../../search/helpers/resolve-product-ids";
 
 /** A context whose `query.graph` answers with the given rows and records its calls. */
 function contextWith(rows: unknown[]) {

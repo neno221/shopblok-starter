@@ -10,8 +10,9 @@ import {
  * The currencies the index holds prices in: every currency the store sells in
  * (`src/config/markets.ts`), so a shop that opens a market can filter and sort
  * its products by price there without touching the index. Each currency gets
- * its own set of price fields. Adding one is a schema change: the module
- * reindexes on the next boot. Keep in sync with the storefront's
+ * its own set of price fields. Adding one is a schema change: `medusa
+ * db:migrate` plans a new index version, and the next server start fills it
+ * and makes it live. Keep in sync with the storefront's
  * `SEARCH_PRICE_CURRENCIES`.
  */
 export const PRICE_CURRENCIES: readonly SupportedCurrency[] =

@@ -1,5 +1,6 @@
-import { SUPPORTED_CURRENCIES } from "../../../config/markets";
-import { PRICE_CURRENCIES, priceFields, toProductPricing } from "../pricing";
+// Lives here, not next to the helper: Medusa requires every file under src/search at boot.
+import { SUPPORTED_CURRENCIES } from "../markets";
+import { PRICE_CURRENCIES, priceFields, toProductPricing } from "../../search/helpers/pricing";
 
 const storeCurrencies = SUPPORTED_CURRENCIES.map((c) => c.currency_code);
 

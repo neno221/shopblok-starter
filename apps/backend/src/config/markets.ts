@@ -3,20 +3,27 @@
  * backend sells in. Plain data with no Medusa imports, so the seed (`scripts/seed-markets.ts`),
  * the search index (`search/helpers/pricing.ts`) and the unit tests all read the same lists.
  *
- * To open a market (a Brazilian shop, say), edit this file and run the seeds again:
+ * To open a market (a Brazilian shop, say), edit this file, best before the first
+ * `pnpm bootstrap`:
  *
  * 1. `SUPPORTED_CURRENCIES`: add `{ currency_code: "brl", is_default: false }`. The store, the
  *    regions and the search index all take their currencies from this list, so price filtering
  *    and sorting in `/store/search` cover it (`min_price_brl`, `max_price_brl`, `on_sale_brl`).
- *    Adding a currency changes the index schema, so the Search Module reindexes on the next boot.
  * 2. `MARKET_REGIONS`: add `{ name: "Brazil", currency_code: "brl", countries: ["br"],
  *    standard_shipping: 20 }`. A country belongs to one region only.
  * 3. `SUPPORTED_LOCALES`: add `"pt-BR"`. It must be one of the 51 BCP 47 codes Medusa ships
  *    (it includes `el-GR`, `pt-BR` and `mn-MN`); one locale per language (D8).
  *
- * Nothing else needs a code change: the demo catalog prices itself in every supported currency
- * (`lib/demo-catalog.ts`). A language without translations shows the English text until
- * translations are added in the admin.
+ * On a database that already exists, apply the edit with `medusa db:migrate` (a new currency
+ * changes the search index schema, so it plans a new index version), then `seed-markets.ts`
+ * (store currencies and locales, regions, tax regions, shipping), then restart the server, which
+ * fills the new index version and makes it live. A fresh database gets all of it from
+ * `pnpm bootstrap`.
+ *
+ * The demo catalog prices itself in every supported currency when it creates its products
+ * (`lib/demo-catalog.ts`); products that exist already keep the prices they have, so on a
+ * development database reset it or add the prices in the admin. A language without translations
+ * shows the English text until translations are added.
  */
 
 /** What Medusa calls the store it creates on every boot, and what the seed names it instead. */
