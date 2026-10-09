@@ -218,6 +218,47 @@ Two checks that C0 couldn't run. T02's session ran them before any T02 work and 
    `setup start` is **42 seconds** before `date -u`, so the script ran for this session and the saved copy from C0's session was **not reused**. The log holds a single run, not C0's earlier one (`2026-10-08T21:54:25Z`). The script took 25 s (C0: 34 s). No change had been pasted into the environment in between, as far as I know. I did not look for a cause. What this means for later sessions: expect the setup script (and the four image pulls in it) to run at the start of each session until a session shows otherwise. The cost is under a minute with steps 1 to 5; step 6 adds a download of the whole Payload repository, which T03's session times. Result: **did not pass** (the expected outcome was "reused"), and nothing is broken by it.
 2. **Setup script step 6: not checked here, by design.** The new script is pasted after T02 is merged (G4), so this session did not check step 6 and I did not look at which version of the script ran. The check moved to the T03 prompt in [NEXT-SESSION.md](NEXT-SESSION.md): `grep 'step 6' /var/log/shopblok-setup.log`, `ls /opt/dtc-starter/apps/backend/package.json`, `ls /opt/payload-templates` (exactly `blank`, `ecommerce` and `with-postgres`), and the `setup start` to `setup end` time. Result: **not run**.
 
+### Follow-up checks (T03)
+
+The checks that T02's session left for T03: what the new setup script (with step 6) did. T03's session ran them before any T03 work and fixed nothing. The owner pasted the script just before this session, so a recent `setup start` is expected here and says nothing about caching.
+
+1. **Step 6: passed.** Both folders exist and `/opt/payload-templates` holds exactly `blank`, `ecommerce` and `with-postgres`. The log has no `FAILED` line, and a single `setup start` (this session's run):
+
+   ```text
+   $ grep 'step 6' /var/log/shopblok-setup.log
+   + echo 'step 6 ok: /opt/dtc-starter'
+   step 6 ok: /opt/dtc-starter
+   + echo 'step 6 ok: /opt/payload-templates'
+   step 6 ok: /opt/payload-templates
+   $ ls /opt/dtc-starter/apps/backend/package.json
+   /opt/dtc-starter/apps/backend/package.json
+   $ ls /opt/payload-templates
+   blank
+   ecommerce
+   with-postgres
+   ```
+
+   Facts about what landed, for T05 and T09: `/opt/dtc-starter` is 3.9 MB and its backend is `@dtc/backend` on `@medusajs/medusa` 2.21.2; the three templates total 5.2 MB. The templates' own `package.json` files don't say 3.90.2 for `payload`: `blank` and `ecommerce` say `workspace:*` (they live inside Payload's monorepo) and `with-postgres` says `3.90.0`, all on `next` 16.3.3. T09 copies only route files from `blank` and pins the packages itself, so this doesn't bite, but never copy a template's `package.json`.
+2. **Script time: passed, 40 s.** Under the five-minute limit, so the saved copy qualifies. That is not proof it is kept; item 4.
+
+   ```text
+   $ grep -E 'setup (start|end)' /var/log/shopblok-setup.log
+   setup start 2026-10-09T03:03:13Z
+   + echo 'setup end 2026-10-09T03:03:53Z'
+   setup end 2026-10-09T03:03:53Z
+   ```
+
+   Steps 1 to 5 alone took 25 s in T02's session and 34 s in C0's. Step 6 (the download of the whole Payload repository, to keep three folders) runs in the background next to them, and the whole script took 40 s with it.
+3. **Missing folders: none.** Nothing to diagnose: the log has `step 6` lines (so the environment has the new script) and no `step 6 FAILED`.
+4. **`date -u` against `setup start`: 51 s, as expected, so nothing learned about caching.**
+
+   ```text
+   $ date -u
+   Fri Oct  9 03:04:04 UTC 2026
+   ```
+
+   `setup start` (`2026-10-09T03:03:13Z`) is 51 seconds before. T04's session is the first that can show whether the saved copy is reused; its prompt carries the comparison.
+
 ## Config presets (T02)
 
 **Result: `@shopblok/config` exists and every check in T02's Verify list passes. T03 can start.** The shared presets load through real workspace packages, not only inside their own folder (checked with throwaway packages, since deleted). Three things differ from the plan's text: ESLint 9 is end-of-life (item 1), `pnpm install` needed one more `allowBuilds` entry (item 2), and the T02 file list gained two files (item 3). Items 4 to 6 are notes for later tasks, and item 7 lists what changed while this PR was reviewed.
