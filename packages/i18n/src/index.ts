@@ -52,6 +52,7 @@ const en = {
     backendHint: "Start the backend with pnpm dev and reload; the server log has the details.",
     region: "Region",
     noRegion: "Medusa has no region for this market's country, so there are no prices to show.",
+    priceCurrencies: "Price filter currencies",
     noProducts: "This region has no products.",
   },
   notFound: {
@@ -78,6 +79,7 @@ const el: Messages = {
     region: "Περιοχή",
     noRegion:
       "Το Medusa δεν έχει περιοχή για τη χώρα αυτής της αγοράς, γι' αυτό δεν υπάρχουν τιμές.",
+    priceCurrencies: "Νομίσματα φίλτρου τιμής",
     noProducts: "Αυτή η περιοχή δεν έχει προϊόντα.",
   },
   notFound: {
@@ -100,6 +102,7 @@ const de: Messages = {
       "Starten Sie das Backend mit pnpm dev und laden Sie die Seite neu; das Server-Log enthält die Details.",
     region: "Region",
     noRegion: "Medusa hat keine Region für das Land dieses Marktes, daher gibt es keine Preise.",
+    priceCurrencies: "Währungen des Preisfilters",
     noProducts: "Diese Region hat keine Produkte.",
   },
   notFound: {
@@ -123,6 +126,7 @@ const fr: Messages = {
     region: "Région",
     noRegion:
       "Medusa n'a pas de région pour le pays de ce marché, il n'y a donc aucun prix à afficher.",
+    priceCurrencies: "Devises du filtre de prix",
     noProducts: "Cette région n'a aucun produit.",
   },
   notFound: {

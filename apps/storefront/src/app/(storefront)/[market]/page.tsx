@@ -5,7 +5,7 @@ import { getCurrentMarket } from "../../../lib/current-market";
 import type { CurrentMarket } from "../../../lib/market-locale";
 import { countPublishedPages } from "../../../lib/cms/site";
 import { listProducts } from "../../../lib/medusa/products";
-import { getRegionForCountry } from "../../../lib/medusa/regions";
+import { getRegionForCountry, getSearchPriceCurrencies } from "../../../lib/medusa/regions";
 
 const PRODUCT_COUNT = 4;
 
@@ -31,9 +31,10 @@ export default async function MarketHome() {
 async function MarketData({ market }: { market: CurrentMarket }) {
   await connection();
   const { wiring } = catalogs[market.locale];
-  const [region, pages] = await Promise.all([
+  const [region, pages, priceCurrencies] = await Promise.all([
     getRegionForCountry(market.country),
     countPublishedPages(),
+    getSearchPriceCurrencies(),
   ]);
   const products =
     region === undefined
@@ -50,6 +51,10 @@ async function MarketData({ market }: { market: CurrentMarket }) {
         <dd data-testid="region">{region?.name ?? "–"}</dd>
         <dt>{wiring.currency}</dt>
         <dd data-testid="currency">{region?.currencyCode.toUpperCase() ?? "–"}</dd>
+        <dt>{wiring.priceCurrencies}</dt>
+        <dd data-testid="price-currencies">
+          {priceCurrencies.map((currency) => currency.toUpperCase()).join(", ")}
+        </dd>
         <dt>{wiring.pages}</dt>
         <dd data-testid="pages">{pages}</dd>
       </dl>

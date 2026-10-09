@@ -43,8 +43,8 @@ type ProxyMarketMapOptions = {
  * function). `staleWhileRevalidate`: this is on every request's path, and none may wait for a read.
  */
 export function createProxyMarketMap(options: ProxyMarketMapOptions = {}) {
-  // `lib/env.ts` reads each name as the literal `process.env.NAME`, which is what `next build`
-  // replaces with a NEXT_PUBLIC_* value; `{ ...process.env }` would find nothing in this bundle.
+  // `lib/env.ts` reads each variable by its own name, which is what `next build` replaces with a
+  // NEXT_PUBLIC_* value; a spread of the whole environment would find nothing in this bundle.
   const env: Env = options.env ?? processEnv;
   const fetcher = options.fetcher ?? fetch;
   return createMarketSource({

@@ -1,8 +1,8 @@
 // The one module that reads `process.env` (T12), besides `payload.config.ts` and `src/scripts/`.
 // Nothing here is `server-only`: the proxy imports `env` and has no Payload, and a client module
 // must not import it for a secret. Nothing is parsed when this file is imported, so `next build`
-// works with no `.env` (CI has none); a value is checked where it is first needed.
-import { z } from "zod";
+// works with no `.env` (CI has none); a value is checked where it is first needed. zod is loaded
+// by the check, not by this file (see `medusaEnv`).
 
 /** The variables the app reads. All optional here; `medusaEnv()` says which ones a caller needs. */
 export type RawEnv = {
@@ -65,33 +65,41 @@ export class EnvError extends Error {
 const blankIsUnset = (value: unknown) =>
   typeof value === "string" && value.trim() === "" ? undefined : value;
 
-const medusaSchema = z.object({
-  MEDUSA_BACKEND_URL: z.preprocess(
-    blankIsUnset,
-    z
-      .url({ protocol: /^https?$/, error: "must be an http(s) URL such as http://localhost:9000" })
-      .optional(),
-  ),
-  NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY: z.preprocess(
-    blankIsUnset,
-    z
-      .string({
-        error:
-          "is empty. Run `pnpm bootstrap`, or copy the key that apps/backend/src/scripts/print-publishable-key.ts prints",
-      })
-      .trim()
-      .startsWith("pk_", {
-        error: "must be the publishable key's token (pk_…), not its id (apk_…)",
-      }),
-  ),
-});
-
 /**
  * The Medusa settings, checked. The backend URL defaults to the local one outside production and is
  * required in production, where a missing value would otherwise send the shop to a localhost.
+ *
+ * Async because zod is imported here, not at the top of the file: `env` is imported by the proxy,
+ * which has no use for zod, and a static import would put its 100 KB (and about 45 ms of start-up
+ * in Node) into the proxy's bundle on every cold start. A function that never runs there keeps it
+ * out (T12 measured the bundle: 247 KB without, 353 KB with).
  */
-export function medusaEnv(source: RawEnv = env): MedusaEnv {
-  const parsed = medusaSchema.safeParse({
+export async function medusaEnv(source: RawEnv = env): Promise<MedusaEnv> {
+  const { z } = await import("zod");
+  const schema = z.object({
+    MEDUSA_BACKEND_URL: z.preprocess(
+      blankIsUnset,
+      z
+        .url({
+          protocol: /^https?$/,
+          error: "must be an http(s) URL such as http://localhost:9000",
+        })
+        .optional(),
+    ),
+    NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY: z.preprocess(
+      blankIsUnset,
+      z
+        .string({
+          error:
+            "is empty. Run `pnpm bootstrap`, or copy the key that apps/backend/src/scripts/print-publishable-key.ts prints",
+        })
+        .trim()
+        .startsWith("pk_", {
+          error: "must be the publishable key's token (pk_…), not its id (apk_…)",
+        }),
+    ),
+  });
+  const parsed = schema.safeParse({
     MEDUSA_BACKEND_URL: source.MEDUSA_BACKEND_URL,
     NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY: source.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY,
   });

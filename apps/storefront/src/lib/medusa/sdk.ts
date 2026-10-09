@@ -46,19 +46,25 @@ export function createSdk({ backendUrl, publishableKey }: MedusaEnv): Medusa {
   return new Medusa({ baseUrl: backendUrl, publishableKey });
 }
 
-let sdk: { client: Medusa; backendUrl: string } | undefined;
+type SdkState = { client: Medusa; backendUrl: string };
+
+let sdk: Promise<SdkState> | undefined;
 
 /**
  * The SDK, created on first use and shared by every request. Nothing is read from the environment
  * until then, so `next build` works with no `.env`. The shared instance must hold no per-request
  * state: `setLocale` is for the browser (on a server it only logs a warning) and a JWT would
- * belong to one shopper, so the locale goes in each call's headers (`localeHeaders`).
+ * belong to one shopper, so the locale goes in each call's headers (`localeHeaders`). A settings
+ * problem is not kept: the next call checks again.
  */
-function getSdk() {
-  if (sdk === undefined) {
-    const settings = medusaEnv();
-    sdk = { client: createSdk(settings), backendUrl: settings.backendUrl };
-  }
+function getSdk(): Promise<SdkState> {
+  sdk ??= medusaEnv().then(
+    (settings) => ({ client: createSdk(settings), backendUrl: settings.backendUrl }),
+    (error: unknown) => {
+      sdk = undefined;
+      throw error;
+    },
+  );
   return sdk;
 }
 
@@ -72,7 +78,7 @@ export function localeHeaders(locale: string): { "x-medusa-locale": string } {
 
 /** Runs one call against the Store API and turns a failure into a `MedusaRequestError`. */
 export async function medusaRequest<T>(call: (client: Medusa) => Promise<T>): Promise<T> {
-  const { client, backendUrl } = getSdk();
+  const { client, backendUrl } = await getSdk();
   try {
     return await call(client);
   } catch (error) {

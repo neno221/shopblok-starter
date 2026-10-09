@@ -56,6 +56,17 @@ describe("medusaRequest", () => {
     expect(calls).toHaveLength(0);
   });
 
+  it("does not keep a settings problem: once the key is there, the next call works", async () => {
+    vi.stubEnv("NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY", "");
+    stubMedusaFetch(() => ({ body: { regions: [] } }));
+    const { medusaRequest } = await loadSdk();
+    await expect(medusaRequest((sdk) => sdk.store.region.list())).rejects.toMatchObject({
+      name: "EnvError",
+    });
+    vi.stubEnv("NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY", PUBLISHABLE_KEY);
+    await expect(medusaRequest((sdk) => sdk.store.region.list())).resolves.toBeDefined();
+  });
+
   it("turns a refused connection into an error that names the URL and the reason", async () => {
     stubMedusaFetch(() => connectionRefused());
     const { medusaRequest, MedusaRequestError } = await loadSdk();
