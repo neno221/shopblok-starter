@@ -9,7 +9,11 @@
     },
     "dev": {
       "cache": false,
-      "persistent": true
+      "persistent": true,
+      // Strict mode drops variables the task doesn't list, so `PAYLOAD_DB_PUSH=true pnpm dev` or a
+      // `PAYLOAD_SECRET` from the shell would never reach `next dev`. (`NEXT_PUBLIC_*` is listed
+      // by Turborepo's Next.js inference.) A `.env` file worked already: Next loads it itself.
+      "passThroughEnv": ["PAYLOAD_*"]
     },
     "transit": {
       "dependsOn": ["^transit"]

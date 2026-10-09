@@ -2,7 +2,7 @@
   "name": "@shopblok/storefront",
   "version": "0.0.0",
   "private": true,
-  "description": "Next 16.4 storefront. Payload embeds here in T09 (D6).",
+  "description": "Next 16.4 storefront with Payload 3.90 embedded (D6).",
   "type": "module",
   "scripts": {
     "dev": "next dev -p 8000",
@@ -10,16 +10,26 @@
     "start": "next start -p 8000",
     "typecheck": "next typegen && tsc --noEmit",
     "lint": "eslint .",
-    "test": "vitest run"
+    "test": "vitest run",
+    "payload": "payload",
+    "generate:types": "payload generate:types",
+    "generate:importmap": "payload generate:importmap"
   },
   "dependencies": {
+    "@payloadcms/db-postgres": "3.90.2",
+    "@payloadcms/next": "3.90.2",
+    "@payloadcms/richtext-lexical": "3.90.2",
+    "@payloadcms/ui": "3.90.2",
     "@shopblok/fixtures": "workspace:*",
     "@shopblok/i18n": "workspace:*",
     "@tailwindcss/postcss": "4.3.3",
+    "graphql": "16.14.2",
     "next": "16.4.0",
+    "payload": "3.90.2",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "server-only": "0.0.1",
+    "sharp": "0.35.5",
     "tailwindcss": "4.3.3",
     "zod": "4.6.5"
   },
