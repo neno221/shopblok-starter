@@ -204,7 +204,16 @@ const checks: [string, () => Result][] = [
 
 let failures = 0;
 for (const [title, run] of checks) {
-  const { status, lines } = run();
+  // A thrown error (an unreadable manifest, an incomplete store folder) is a failed check with
+  // a reason, not a stack trace that hides the checks after it.
+  let result: Result;
+  try {
+    result = run();
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    result = { status: "fail", lines: [`FAIL  could not run: ${reason}`] };
+  }
+  const { status, lines } = result;
   console.log(`${title}: ${status}`);
   for (const line of lines) console.log(`  ${line}`);
   if (status === "fail") failures++;

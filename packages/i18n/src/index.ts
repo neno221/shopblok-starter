@@ -13,13 +13,23 @@ export function isLocale(value: string): value is Locale {
   return (LOCALES as readonly string[]).includes(value);
 }
 
+const currencyFormats = new Map<string, Intl.NumberFormat>();
+
 /**
  * Formats an amount in major units: Medusa v2 returns 12.5 for €12.50, so the amount is never
  * divided or multiplied by 100. `locale` is a BCP 47 tag such as `el-CY` or `de-CH`, and
  * `currency` an ISO 4217 code in either case (Medusa's are lowercase).
  */
 export function formatMoney(amount: number, currency: string, locale: string): string {
-  return new Intl.NumberFormat(locale, { style: "currency", currency }).format(amount);
+  // Building an Intl.NumberFormat costs far more than a format() call, and a listing page
+  // formats dozens of prices, so keep one per locale and currency.
+  const key = `${locale}|${currency.toUpperCase()}`;
+  let format = currencyFormats.get(key);
+  if (format === undefined) {
+    format = new Intl.NumberFormat(locale, { style: "currency", currency });
+    currencyFormats.set(key, format);
+  }
+  return format.format(amount);
 }
 
 export function formatDate(
