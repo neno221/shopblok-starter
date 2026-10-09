@@ -16,6 +16,7 @@ A brand-neutral storefront starter: **Medusa v2** (commerce) + **Next.js 16** wi
 - Backend from dtc-starter (T05): passed, see [docs/SETUP.md](docs/SETUP.md#backend-from-dtc-starter-t05); `apps/backend` is a copy, and [apps/backend/UPSTREAM.md](apps/backend/UPSTREAM.md) lists every change
 - Backend config (T06): passed, see [docs/SETUP.md](docs/SETUP.md#backend-config-modules-switched-on-by-env-t06); the backend registers translation and the local notification provider always, and Redis (event bus, workflow engine, locking, sessions) when `REDIS_URL` is set
 - Seeds (T07): passed, see [docs/SETUP.md](docs/SETUP.md#seeds-markets-and-demo-catalog-t07); `seed-markets.ts` (regions, currencies, locales, fulfilment) and `seed-demo-catalog.ts` (8 products with el/de/fr translations, development only) run through `medusa exec`, and `print-publishable-key.ts` prints the storefront's key
-- Next step: [docs/NEXT-SESSION.md](docs/NEXT-SESSION.md) (run T08, in the cloud)
+- Storefront shell (T08): passed, see [docs/SETUP.md](docs/SETUP.md#storefront-shell-t08); `apps/storefront` is a Next 16.4 app (Tailwind 4, Cache Components) whose root layout is `[market]`, and an edit of `packages/i18n` reaches the open page in about 150 ms. The same PR did Stephanos's three decisions on T07's questions: the store is named `Shopbloks Starter`, the search consumer for shared options works, and the search index prices every currency the store sells in; currencies, regions and locales are set in [apps/backend/src/config/markets.ts](apps/backend/src/config/markets.ts) (D17)
+- Next step: [docs/NEXT-SESSION.md](docs/NEXT-SESSION.md) (run T09, in the cloud)
 
 Design tokens are based on the "shadcn/ui – Design System by ReUI" Figma community file, licensed CC BY 4.0.

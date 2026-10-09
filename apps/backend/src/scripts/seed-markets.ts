@@ -6,19 +6,21 @@
  *
  * Idempotent: each entity is looked up first and only created when it is
  * missing, so a second run makes no change. The exception is the store's
- * currencies and locales, which are set to exactly the lists in `lib/markets.ts`
- * (anything else on the store is removed). A renamed region is still found by
- * the countries it holds, and the stock location by its fulfilment set. It
- * writes through core-flows workflows only. Needs the database up, and Redis
- * when `REDIS_URL` is set.
+ * currencies and locales, which are set to exactly the lists in
+ * `src/config/markets.ts` (anything else on the store is removed). A renamed
+ * region is still found by the countries it holds, and the stock location by
+ * its fulfilment set. It writes through core-flows workflows only. Needs the
+ * database up, and Redis when `REDIS_URL` is set.
  *
  * Medusa itself creates the store, the default sales channel and a publishable
  * key linked to it each time the app boots, so a script always finds them.
- * This seed completes them: the store gets EUR as default plus USD, GBP and
- * CHF, and the four locales of D8. It then adds four regions with a tax region
- * per country, and fulfilment: a stock location with one fulfilment set, one
- * service zone per region and a "Standard" shipping option in each, priced in
- * the region's currency.
+ * This seed completes them: the store is named "Shopbloks Starter" (only while
+ * it still has Medusa's default name, so an admin's rename survives), and gets
+ * its currencies and the locales of D8. It then adds the regions with a tax
+ * region per country, and fulfilment: a stock location with one fulfilment set,
+ * one service zone per region and a "Standard" shipping option in each, priced
+ * in the region's currency. The currencies, regions and locales come from
+ * `src/config/markets.ts`, which explains how to open another market.
  */
 import type { ExecArgs } from "@medusajs/framework/types";
 import {
@@ -47,6 +49,7 @@ import {
   FULFILLMENT_PROVIDER_ID,
   FULFILLMENT_SET_NAME,
   MARKET_REGIONS,
+  MEDUSA_DEFAULT_STORE_NAME,
   type MarketRegion,
   PAYMENT_PROVIDER_ID,
   PUBLISHABLE_KEY_TITLE,
@@ -55,11 +58,12 @@ import {
   SHIPPING_OPTION_TYPE_CODE,
   STOCK_LOCATION_ADDRESS,
   STOCK_LOCATION_NAME,
+  STORE_NAME,
   SUPPORTED_CURRENCIES,
   SUPPORTED_LOCALES,
   TAX_PROVIDER_ID,
 } from "./lib/markets";
-import { countryDrift, findRegion, missingBy, required, storeDrift } from "./lib/plan";
+import { countryDrift, findRegion, missingBy, required, storeDrift, storeName } from "./lib/plan";
 
 /** The parts of a publishable key this script reads. */
 type KeyRow = { id: string; sales_channels?: ({ id: string } | null)[] | null };
@@ -84,6 +88,7 @@ export default async function seedMarkets({ container }: ExecArgs) {
     entity: "store",
     fields: [
       "id",
+      "name",
       "default_sales_channel_id",
       "supported_currencies.currency_code",
       "supported_currencies.is_default",
@@ -130,6 +135,7 @@ export default async function seedMarkets({ container }: ExecArgs) {
   }
 
   const storeTarget = {
+    name: storeName(store.name, STORE_NAME, MEDUSA_DEFAULT_STORE_NAME),
     default_sales_channel_id: channel.id,
     supported_currencies: SUPPORTED_CURRENCIES.map((c) => ({ ...c })),
     supported_locales: SUPPORTED_LOCALES.map((locale_code) => ({

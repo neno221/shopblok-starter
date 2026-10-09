@@ -1,11 +1,14 @@
 /**
  * The demo catalog `seed-demo-catalog.ts` creates (development only, D7).
- * Plain data, no Medusa imports. Everything is identified by a deterministic
- * handle or title, which is how a second run recognises its own rows.
+ * Plain data and pure functions (the one Medusa import is `MedusaError`, for
+ * `demoPrices`' throw, as in `plan.ts`). Everything is identified by a
+ * deterministic handle or title, which is how a second run recognises its own rows.
  *
  * Prices are in major units (Medusa stores 25 as 25, never as cents).
  */
-import type { SupportedCurrency, TranslatedLocale } from "./markets";
+import { MedusaError } from "@medusajs/framework/utils";
+
+import { SUPPORTED_CURRENCIES, type TranslatedLocale } from "./markets";
 
 /** The search index `src/search/product.ts` defines. */
 export const PRODUCT_INDEX = "product";
@@ -96,8 +99,12 @@ export type DemoProduct = {
   collection: string;
   /** Option title to the values this product is sold in; variants are their product. */
   options: Record<string, string[]>;
-  /** One price per supported currency, the same for every variant. */
-  prices: Record<SupportedCurrency, number>;
+  /**
+   * Prices by currency, the same for every variant: EUR is the base, and the ones listed beside
+   * it are used as written. A supported currency that is not listed is priced from EUR (see
+   * `demoPrices`), so a shop that opens a market gets demo prices in it without editing this file.
+   */
+  prices: { eur: number } & Partial<Record<string, number>>;
   translations: Record<TranslatedLocale, { title: string; description: string }>;
 };
 
@@ -293,8 +300,76 @@ export type DemoVariant = {
   sku: string;
   options: Record<string, string>;
   manage_inventory: false;
-  prices: { currency_code: SupportedCurrency; amount: number }[];
+  prices: { currency_code: string; amount: number }[];
 };
+
+/**
+ * Rough units of each currency per euro (autumn 2026), for demo prices only. A real shop sets its
+ * own prices. It covers the common currencies; for another one `demoPrices` asks for a rate.
+ */
+export const DEMO_RATES_PER_EUR: Record<string, number> = {
+  eur: 1,
+  usd: 1.1,
+  gbp: 0.85,
+  chf: 0.95,
+  aed: 4,
+  aud: 1.65,
+  brl: 6.2,
+  cad: 1.5,
+  cny: 7.8,
+  czk: 25,
+  dkk: 7.46,
+  egp: 52,
+  huf: 395,
+  idr: 17500,
+  ils: 4,
+  inr: 92,
+  jpy: 163,
+  krw: 1480,
+  mnt: 3700,
+  mxn: 21,
+  nok: 11.7,
+  nzd: 1.8,
+  pln: 4.3,
+  ron: 4.97,
+  sar: 4.1,
+  sek: 11.5,
+  sgd: 1.45,
+  thb: 38,
+  try: 37,
+  uah: 44,
+  zar: 20,
+};
+
+/**
+ * The product's price in each of the given currencies (the store's supported ones by default), in
+ * major units. A price listed on the product is used as written; any other currency is the EUR
+ * price times `DEMO_RATES_PER_EUR`, rounded to a whole unit (at least 1).
+ */
+export function demoPrices(
+  product: DemoProduct,
+  currencies: readonly string[] = SUPPORTED_CURRENCIES.map((c) => c.currency_code),
+): { currency_code: string; amount: number }[] {
+  return currencies.map((currency_code) => {
+    const listed = product.prices[currency_code];
+
+    if (listed !== undefined) {
+      return { currency_code, amount: listed };
+    }
+
+    const rate = DEMO_RATES_PER_EUR[currency_code];
+
+    if (rate === undefined) {
+      throw new MedusaError(
+        MedusaError.Types.INVALID_DATA,
+        `The demo catalog has no price for "${product.handle}" in "${currency_code}" and no rate to derive one. ` +
+          "Add the currency to DEMO_RATES_PER_EUR in lib/demo-catalog.ts, or list a price on the product.",
+      );
+    }
+
+    return { currency_code, amount: Math.max(1, Math.round(product.prices.eur * rate)) };
+  });
+}
 
 /**
  * One variant per combination of the product's option values. The title is the
@@ -313,7 +388,7 @@ export function buildVariants(product: DemoProduct): DemoVariant[] {
     );
   }
 
-  const currencies = Object.keys(product.prices) as SupportedCurrency[];
+  const prices = demoPrices(product);
 
   return combinations.map((options) => {
     const values = Object.values(options);
@@ -323,10 +398,7 @@ export function buildVariants(product: DemoProduct): DemoVariant[] {
       sku: [product.handle, ...values].join("-").toUpperCase(),
       options,
       manage_inventory: false,
-      prices: currencies.map((currency_code) => ({
-        currency_code,
-        amount: product.prices[currency_code],
-      })),
+      prices: prices.map((price) => ({ ...price })),
     };
   });
 }

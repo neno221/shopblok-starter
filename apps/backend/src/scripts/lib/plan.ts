@@ -20,12 +20,15 @@ export function missingBy<T>(
 export type StoreCurrency = { currency_code: string; is_default?: boolean };
 
 export type StoreSnapshot = {
+  name?: string | null;
   default_sales_channel_id?: string | null;
   supported_currencies?: (StoreCurrency | null)[] | null;
   supported_locales?: ({ locale_code: string } | null)[] | null;
 };
 
 export type StoreTarget = {
+  /** Leave out to leave the name alone; see `storeName`. */
+  name?: string;
   default_sales_channel_id: string;
   supported_currencies: StoreCurrency[];
   supported_locales: { locale_code: string }[];
@@ -39,6 +42,19 @@ function sameSet(a: Iterable<string>, b: Iterable<string>): boolean {
 }
 
 /**
+ * The name the store should have. Medusa creates it as `Medusa Store` on every
+ * boot, and the seed gives it the shop's name only while it still has that
+ * default (or none), so a name an admin typed survives the next run.
+ */
+export function storeName(
+  current: string | null | undefined,
+  wanted: string,
+  medusaDefault: string,
+): string {
+  return !current || current === medusaDefault ? wanted : current;
+}
+
+/**
  * Which parts of the store differ from the target. An empty list means the
  * store needs no update, and the seed doesn't call `updateStoresWorkflow`: it
  * replaces the store's currency and locale rows, so a no-op update would still
@@ -47,8 +63,12 @@ function sameSet(a: Iterable<string>, b: Iterable<string>): boolean {
 export function storeDrift(
   current: StoreSnapshot,
   target: StoreTarget,
-): ("default_sales_channel" | "currencies" | "locales")[] {
+): ("name" | "default_sales_channel" | "currencies" | "locales")[] {
   const drift: ReturnType<typeof storeDrift> = [];
+
+  if (target.name !== undefined && current.name !== target.name) {
+    drift.push("name");
+  }
 
   if (current.default_sales_channel_id !== target.default_sales_channel_id) {
     drift.push("default_sales_channel");

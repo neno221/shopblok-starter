@@ -7,6 +7,7 @@ import {
   planTranslations,
   required,
   storeDrift,
+  storeName,
   type DesiredTranslation,
   type ExistingTranslation,
   type StoreTarget,
@@ -19,6 +20,23 @@ describe("missingBy", () => {
     expect(missingBy(items, ["b"], (i) => i.id)).toEqual([{ id: "a" }, { id: "c" }]);
     expect(missingBy(items, [], (i) => i.id)).toEqual(items);
     expect(missingBy(items, new Set(["a", "b", "c", "d"]), (i) => i.id)).toEqual([]);
+  });
+});
+
+describe("storeName", () => {
+  const wanted = "Shopbloks Starter";
+  const medusaDefault = "Medusa Store";
+
+  it("renames the store Medusa created, and one with no name", () => {
+    expect(storeName("Medusa Store", wanted, medusaDefault)).toBe(wanted);
+    expect(storeName("", wanted, medusaDefault)).toBe(wanted);
+    expect(storeName(null, wanted, medusaDefault)).toBe(wanted);
+    expect(storeName(undefined, wanted, medusaDefault)).toBe(wanted);
+  });
+
+  it("keeps a name somebody chose, so a re-run does not undo an admin's rename", () => {
+    expect(storeName("Acme Shop", wanted, medusaDefault)).toBe("Acme Shop");
+    expect(storeName(wanted, wanted, medusaDefault)).toBe(wanted);
   });
 });
 
@@ -88,6 +106,21 @@ describe("storeDrift", () => {
         target,
       ),
     ).toEqual(["locales"]);
+  });
+
+  it("reports a name that is still Medusa's, and nothing once the store has the target name", () => {
+    const named: StoreTarget = { ...target, name: "Shopbloks Starter" };
+    const store = {
+      name: "Medusa Store",
+      default_sales_channel_id: "sc_1",
+      supported_currencies: target.supported_currencies,
+      supported_locales: target.supported_locales,
+    };
+
+    expect(storeDrift(store, named)).toEqual(["name"]);
+    expect(storeDrift({ ...store, name: "Shopbloks Starter" }, named)).toEqual([]);
+    // A target without a name leaves the name alone.
+    expect(storeDrift(store, target)).toEqual([]);
   });
 
   it("ignores empty relation slots and missing lists", () => {

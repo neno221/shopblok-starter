@@ -13,6 +13,10 @@ describe("formatMoney", () => {
     ["en-GB", "GBP", "£1,234.50"],
     ["de-CH", "CHF", "CHF 1’234.50"],
     ["fr-CH", "CHF", "1 234.50 CHF"],
+    // Any currency Medusa sells in formats the same way: a shop that opens Brazil or Mongolia
+    // needs no change here.
+    ["pt-BR", "BRL", "R$ 1.234,50"],
+    ["mn-MN", "MNT", "₮ 1,234.50"],
   ])("formats 1234.5 for %s in %s", (locale, currency, expected) => {
     expect(plain(formatMoney(1234.5, currency, locale))).toBe(expected);
   });

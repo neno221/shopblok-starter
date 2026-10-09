@@ -50,6 +50,11 @@ const en = {
     pages: "Payload pages",
     backendUnavailable: "The Medusa backend is not reachable.",
   },
+  notFound: {
+    title: "Page not found",
+    body: "The page you are looking for does not exist.",
+    home: "Back to the home page",
+  },
 };
 
 /** The shape every catalog must have: English defines it. */
@@ -65,6 +70,11 @@ const el: Messages = {
     pages: "Σελίδες Payload",
     backendUnavailable: "Το backend του Medusa δεν είναι προσβάσιμο.",
   },
+  notFound: {
+    title: "Η σελίδα δεν βρέθηκε",
+    body: "Η σελίδα που ψάχνετε δεν υπάρχει.",
+    home: "Επιστροφή στην αρχική σελίδα",
+  },
 };
 
 const de: Messages = {
@@ -77,6 +87,11 @@ const de: Messages = {
     pages: "Payload-Seiten",
     backendUnavailable: "Das Medusa-Backend ist nicht erreichbar.",
   },
+  notFound: {
+    title: "Seite nicht gefunden",
+    body: "Die gesuchte Seite existiert nicht.",
+    home: "Zurück zur Startseite",
+  },
 };
 
 const fr: Messages = {
@@ -88,6 +103,11 @@ const fr: Messages = {
     products: "Produits",
     pages: "Pages Payload",
     backendUnavailable: "Le backend Medusa est injoignable.",
+  },
+  notFound: {
+    title: "Page introuvable",
+    body: "La page que vous recherchez n'existe pas.",
+    home: "Retour à l'accueil",
   },
 };
 
