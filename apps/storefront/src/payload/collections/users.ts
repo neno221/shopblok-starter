@@ -5,6 +5,7 @@ import type {
   PayloadRequest,
 } from "payload";
 import { APIError } from "payload";
+import { isProduction } from "../../lib/env";
 import { adminOrSelf, isAdmin, isAdminField } from "../access/roles";
 
 /** The very first user (create-first-user) becomes an admin, whatever the form said. */
@@ -67,7 +68,7 @@ export const Users: CollectionConfig = {
   auth: {
     maxLoginAttempts: 5,
     lockTime: 10 * 60 * 1000,
-    cookies: { secure: process.env.NODE_ENV === "production", sameSite: "Lax" },
+    cookies: { secure: isProduction(), sameSite: "Lax" },
   },
   access: {
     // Create-first-user does not go through `create`; every later account is made by an admin.

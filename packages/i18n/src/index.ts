@@ -49,6 +49,10 @@ const en = {
     products: "Products",
     pages: "Payload pages",
     backendUnavailable: "The Medusa backend is not reachable.",
+    backendHint: "Start the backend with pnpm dev and reload; the server log has the details.",
+    region: "Region",
+    noRegion: "Medusa has no region for this market's country, so there are no prices to show.",
+    noProducts: "This region has no products.",
   },
   notFound: {
     title: "Page not found",
@@ -69,6 +73,12 @@ const el: Messages = {
     products: "Προϊόντα",
     pages: "Σελίδες Payload",
     backendUnavailable: "Το backend του Medusa δεν είναι προσβάσιμο.",
+    backendHint:
+      "Ξεκινήστε το backend με pnpm dev και φορτώστε ξανά τη σελίδα· το αρχείο καταγραφής του διακομιστή έχει τις λεπτομέρειες.",
+    region: "Περιοχή",
+    noRegion:
+      "Το Medusa δεν έχει περιοχή για τη χώρα αυτής της αγοράς, γι' αυτό δεν υπάρχουν τιμές.",
+    noProducts: "Αυτή η περιοχή δεν έχει προϊόντα.",
   },
   notFound: {
     title: "Η σελίδα δεν βρέθηκε",
@@ -86,6 +96,11 @@ const de: Messages = {
     products: "Produkte",
     pages: "Payload-Seiten",
     backendUnavailable: "Das Medusa-Backend ist nicht erreichbar.",
+    backendHint:
+      "Starten Sie das Backend mit pnpm dev und laden Sie die Seite neu; das Server-Log enthält die Details.",
+    region: "Region",
+    noRegion: "Medusa hat keine Region für das Land dieses Marktes, daher gibt es keine Preise.",
+    noProducts: "Diese Region hat keine Produkte.",
   },
   notFound: {
     title: "Seite nicht gefunden",
@@ -103,6 +118,12 @@ const fr: Messages = {
     products: "Produits",
     pages: "Pages Payload",
     backendUnavailable: "Le backend Medusa est injoignable.",
+    backendHint:
+      "Démarrez le backend avec pnpm dev puis rechargez la page ; le journal du serveur donne les détails.",
+    region: "Région",
+    noRegion:
+      "Medusa n'a pas de région pour le pays de ce marché, il n'y a donc aucun prix à afficher.",
+    noProducts: "Cette région n'a aucun produit.",
   },
   notFound: {
     title: "Page introuvable",
