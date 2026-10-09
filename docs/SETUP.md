@@ -259,6 +259,72 @@ The checks that T02's session left for T03: what the new setup script (with step
 
    `setup start` (`2026-10-09T03:03:13Z`) is 51 seconds before. T04's session is the first that can show whether the saved copy is reused; its prompt carries the comparison.
 
+### Follow-up checks (T04)
+
+The checks that T03's session left for T04: whether the saved copy of the setup run is reused, whether step 6's folders survive, and what state Docker is in at session start. T04's session ran them first, before any T04 work and before starting Docker, and fixed nothing. Nothing was pasted into the environment between T03's session and this one, as far as the log shows (item 1).
+
+1. **Setup cache: reused. Passed.** Taken first, before any T04 work and before Docker was started:
+
+   ```text
+   $ date -u
+   Fri Oct  9 04:30:28 UTC 2026
+   $ grep -E 'setup (start|end)' /var/log/shopblok-setup.log
+   setup start 2026-10-09T03:03:14Z
+   + echo 'setup end 2026-10-09T03:03:51Z'
+   setup end 2026-10-09T03:03:51Z
+   $ grep -c 'setup start' /var/log/shopblok-setup.log
+   1
+   ```
+
+   Of the three outcomes the prompt listed, this is the first: the saved copy was reused. `setup start` is **5234 s (1 h 27 min 14 s)** before `date -u`, not the minute or so of a run for this session (T02: 42 s; T03: 51 s), and the log still holds one run only, from T03's time. Three more facts point the same way (taken right after, none of them needed a change to the VM):
+
+   ```text
+   $ uptime -s
+   2026-10-09 04:30:10
+   $ stat -c '%n  mtime=%y  birth=%w' /var/log/shopblok-setup.log /home/user/shopblok-starter/.git/HEAD
+   /var/log/shopblok-setup.log  mtime=2026-10-09 03:03:51.253129671 +0000  birth=2026-10-09 03:03:14.173130519 +0000
+   /home/user/shopblok-starter/.git/HEAD  mtime=2026-10-09 04:30:15.156853808 +0000  birth=2026-10-09 04:30:15.153048679 +0000
+   ```
+
+   The VM booted at 04:30:10, the repo was cloned five seconds later, and the setup log had been created at 03:03:14 and last written at 03:03:51: it was already in the filesystem when this VM booted. The "rebuilt" outcome (the owner changed the script or the allowed domains since T03's session) does not apply: a rebuild would show a run from after the change, not from 03:03.
+
+   **One discrepancy.** The numbers are not T03's, character for character. T03's session recorded `setup start 2026-10-09T03:03:13Z` and `setup end … 03:03:53Z` (40 s); this log says `03:03:14Z` and `03:03:51Z` (37 s). Same minute, 1 s and 2 s apart. I did not look for a cause and cannot tell from inside the VM. If both runs are real, a guess is that the platform built the saved copy with its own run of the script at the same time as T03's session was starting its own. Either way the log in the saved copy is older than this VM, which is what the check asks.
+
+   **What it means.** One session (this one) reused the copy; T02's session did not (its first check, above, "Setup cache: not reused"). Don't count on it yet, but it is no longer "never": the difference between the two cases is unknown. T02's session ran the old script (steps 1 to 5, 25 s), while this saved copy comes from the new one (with step 6, 37 s); both are under the five-minute limit. If a later session shows a fresh `setup start` again, it costs under a minute and breaks nothing.
+2. **Step 6's folders: present. Passed.**
+
+   ```text
+   $ ls /opt/dtc-starter/apps/backend/package.json
+   /opt/dtc-starter/apps/backend/package.json
+   $ ls /opt/payload-templates
+   blank
+   ecommerce
+   with-postgres
+   $ grep 'step 6' /var/log/shopblok-setup.log
+   + echo 'step 6 ok: /opt/dtc-starter'
+   step 6 ok: /opt/dtc-starter
+   + echo 'step 6 ok: /opt/payload-templates'
+   step 6 ok: /opt/payload-templates
+   ```
+
+   No `step 6 FAILED` line. With the saved copy reused, these are the folders from T03's session's script run, so T05 can copy from `/opt/dtc-starter` as CLOUD.md says.
+3. **Docker at session start: off, started in 1.3 s. Passed.** Before starting the daemon:
+
+   ```text
+   $ docker info
+   Server:
+   failed to connect to the docker API at unix:///var/run/docker.sock; check if the path is correct and if the daemon is running: dial unix /var/run/docker.sock: connect: no such file or directory
+   ```
+
+   Then CLOUD.md's step 3 (`setsid nohup dockerd`, wait for `docker info`): `dockerd ready after 1.271677169 s`, `Server Version: 29.8.2`, `Storage Driver: overlayfs`, `Docker Compose version v5.6.0`. `docker ps -a` and `docker volume ls` were empty. `docker image ls` lists the four pinned images, so the saved copy keeps the images the setup script pulled:
+
+   ```text
+   axllent/mailpit:v1.31.4        b68349e3a014   59.5MB
+   getmeili/meilisearch:v1.54.3   e68913ab7d6f   482MB
+   postgres:17.11-alpine          b0f9560a2de0   424MB
+   redis:7.4-alpine               858f009f9709   57.8MB
+   ```
+
 ## Config presets (T02)
 
 **Result: `@shopblok/config` exists and every check in T02's Verify list passes. T03 can start.** The shared presets load through real workspace packages, not only inside their own folder (checked with throwaway packages, since deleted). Three things differ from the plan's text: ESLint 9 is end-of-life (item 1), `pnpm install` needed one more `allowBuilds` entry (item 2), and the T02 file list gained two files (item 3). Items 4 to 6 are notes for later tasks, and item 7 lists what changed while this PR was reviewed.
@@ -410,3 +476,64 @@ OSV (`POST /v1/query`) returned `{}` for `vite@8.3.3`, `vitest@5.0.3` and `@type
 - `node scripts/check-workspace.ts` printed no experimental warning on Node 22.22.0.
 - `pnpm install` still prints `[WARN] deprecated eslint@9.39.5` (T02 item 1; decided).
 - Vitest's `engines` exclude Node 23 and 25. Our range `>=22.22.0 <25` includes 23, which has been end-of-life for a long time; nothing here enforces it.
+
+## Local infrastructure (T04)
+
+**Result: every check in T04's Verify list passes. T05 can start.** `docker compose up -d --wait` at the repo root starts Postgres, Redis, Meilisearch and Mailpit and waits until all four are healthy; the stack still starts with something else on 5432, 6379 and 7700; and `down -v` followed by `up` recreates everything. Nothing in the plan's text turned out wrong. The differences are small additions (item 1) and two things for you to decide (items 5 and 6).
+
+| | |
+|---|---|
+| Date | 2026-10-09 |
+| Branch | `claude/happy-meitner-kvxz6u` |
+| Session start | `node -v` v22.22.0, `pnpm -v` 12.10.1, `pnpm install --frozen-lockfile` 5.4 s on a cold store; `pnpm --filter @shopblok/config exec eslint --version` `v9.39.5` (the global one prints `v10.1.0`); root `pnpm exec prettier --version` 3.9.9, `pnpm exec tsc --version` 5.9.3 |
+| Docker | `dockerd` started with CLOUD.md's step 3 in 1.27 s; Engine 29.8.2, Compose v5.6.0 |
+| Files | `compose.yaml`, `infra/docker-compose.yml`, `infra/postgres/init/01-databases.sql`, `infra/README.md` (T04's list, nothing else) |
+
+### Checks (T04 "Verify")
+
+| Check | Result | Key output |
+|---|---|---|
+| `docker compose up -d --wait` at the repo root | **Pass** | exit 0, 11.6 s on empty volumes with the images already there: `Container shopblok-starter-{meilisearch,mailpit,redis,postgres}-1 Healthy`. `docker compose ps`: `postgres Up 10 seconds (healthy) 0.0.0.0:15432->5432/tcp`, `redis … 0.0.0.0:6380->6379/tcp`, `meilisearch … 0.0.0.0:7701->7700/tcp`, `mailpit … 0.0.0.0:1025->1025/tcp, 0.0.0.0:8025->8025/tcp` |
+| `docker compose exec postgres psql -U postgres -d medusa -c "\dx"` | **Pass** | `pg_trgm \| 1.6 \| public` and `unaccent \| 1.1 \| public` (plus `plpgsql`). `payload` has only `plpgsql`, as the plan wants. Databases: `medusa`, `payload` |
+| `curl -fsS localhost:7701/health`; Mailpit UI | **Pass** | `HTTP 200` and `{"status":"available"}`; `GET http://localhost:8025/` `HTTP 200`, `<title>Mailpit</title>`, `/api/v1/info` `{'Version': 'v1.31.4', 'Database': '/data/mailpit.db', …}` |
+| Port clash: `docker compose up -d --wait` with something on 5432, 6379 and 7700 | **Pass** | Clash made as T04 says: `service postgresql start` (`postgres on 5432: 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)`, listening on `127.0.0.1:5432`), `service redis-server start` (`redis_version:7.0.15`, `127.0.0.1:6379`), `python3 -m http.server 7700` (`*:7700`, `HTTP 200`). Then `EXIT=0`, all four `(healthy)`, `docker compose port postgres 5432` `0.0.0.0:15432`, `redis 6379` `0.0.0.0:6380`, `meilisearch 7700` `0.0.0.0:7701`. Each side kept its own server: `:5432` PostgreSQL 16.15 and `:15432` 17.11; `:6379` Redis 7.0.15 and `:6380` 7.4.11; `:7700` the Python listener and `:7701` Meilisearch. Afterwards I stopped all three (`service postgresql stop`, `service redis-server stop`, killed the listener by the PID `lsof` showed) and a TCP connect to 5432, 6379 and 7700 was refused on each |
+| `docker compose down -v`, then `up -d --wait` | **Pass** | `down -v` removed the four volumes (`volumes left: 0`); `up -d --wait` exit 0. A table, a Redis key and a Mailpit message written before were gone (`marker table exists: false`, empty `get`, `Messages: 0`), and the init script had run again: `databases: medusa, payload, postgres`, `extensions: pg_trgm, plpgsql, unaccent` |
+
+### Checks beyond T04's list
+
+| Check | Result | Key output |
+|---|---|---|
+| `down` without `-v` keeps the data (what `pnpm infra:down` promises) | **Pass** | After `docker compose down`, 0 containers and 4 volumes were left; after `up -d --wait`: `medusa marker rows: 1`, `redis marker: before-down`, `mailpit messages: 1` |
+| `pnpm infra:up`, `pnpm infra:down`, `pnpm infra:reset` (T01's root scripts) | **Pass** | `up` exit 0 on a running stack (idempotent); `down` left 4 volumes; `reset` printed four `Volume … Removed`, four `Created`, four `Healthy`, exit 0 |
+| Port overrides | **Pass** | `POSTGRES_PORT=25432 docker compose config` publishes `"25432"`; a root `.env` with `MEILI_PORT=27701` and `REDIS_PORT=26380` publishes those (Compose v5.6.0 applies the root `.env` to the included file). The file was removed again. `docker compose -f infra/docker-compose.yml config` also resolves (init mount `…/infra/postgres/init`, default ports) |
+| Postgres's healthcheck goes over TCP for a reason | **Pass** | Throwaway container with a 4 s `pg_sleep` in a second init script: `pg_isready` over the unix socket answered **1.0 s** after `docker run`, while init was still running; over TCP (`-h 127.0.0.1`) only **5.5 s**, after `PostgreSQL init process complete` and the real server's `listening on IPv4 address "0.0.0.0"`. So a socket check lets `--wait` return before the init script has finished. Container removed |
+| Meilisearch settings | **Pass** | Banner: `Environment: "development"`, `Anonymous telemetry: "Disabled"`. `GET /version` without a key `HTTP 401`; with `Authorization: Bearer shopblok-local-dev-master-key` `HTTP 200`, `"pkgVersion":"1.54.3"`. `/health` is open |
+| Mail reaches Mailpit | **Pass** | `smtplib` to `localhost:1025` with no authentication; `/api/v1/messages` `total` 1, subject `T04 marker`. The inbox is in `/data/mailpit.db` on the `mailpit-data` volume |
+| Redis through the host port | **Pass** | `redis-cli -p 6380 ping` `PONG`; `redis_version:7.4.11` |
+| Postgres through the apps' URL form | **Pass** | `psql "postgres://postgres:postgres@localhost:15432/medusa"` and `…/payload` both connect; `pg_isready -h localhost -p 15432` `accepting connections` |
+| Nothing else changed | **Pass** | `pnpm typecheck` and `pnpm lint` `Tasks: 7 successful, 7 total`; `pnpm test` 16 tests passed; `pnpm check:workspace` exit 0; `pnpm run doctor` still fails with `Cannot find module '/home/user/shopblok-starter/scripts/doctor.ts'` (T14's file), as it must; `md5sum AGENTS.md` `995f281e6ed512494bf15f386443be6c`, unchanged |
+| Prettier (T02's preset) | **Pass, with one note** | `compose.yaml` and `infra/docker-compose.yml` pass. `infra/README.md` would only get its two tables padded; I kept the compact tables the other docs use (they fail Prettier the same way, `HEAD` included, so this adds no new failure; Prettier isn't wired to the repo yet, T15's open question) |
+
+### What should change in the plan
+
+Items 1 to 4 are already applied in this PR; 5 and 6 are yours.
+
+1. **Small additions to T04's text (the plan's T04 section now says them).**
+   - Meilisearch: `MEILI_NO_ANALYTICS=true` (the other tools' telemetry is off for the same reason) and a volume on `/meili_data`, where the image keeps its data; it declares none. The master key is `shopblok-local-dev-master-key`. **T05's `.env.example` takes it as `MEILISEARCH_API_KEY`**; it's also in `infra/README.md`.
+   - Mailpit: `MP_DATABASE=/data/mailpit.db` with a volume on `/data` (the pattern its Docker Hub page shows), and `MP_DISABLE_VERSION_CHECK=true` (the check calls out to GitHub). The image already has a healthcheck, `/mailpit readyz` every 15 s; compose overrides it with 5 s so `--wait` returns sooner.
+   - Postgres: the healthcheck is a `psql -h 127.0.0.1` query that counts the `medusa` and `payload` databases, over TCP (checks above; the review of this PR added the count, after showing that `pg_isready` alone passes on a volume whose init script failed earlier). Credentials `postgres`/`postgres`.
+   - No `container_name` and no `name:`. Names come from the Compose project, which is the repo folder's name (`shopblok-starter-postgres-1`). That keeps a second checkout, and other projects' containers, from clashing by name, and it gives T13 something to check: "the service on each port belongs to this project's stack" can be read from `docker compose port <service> <container port>` or the `com.docker.compose.project` label.
+2. **The setup-cache comparison is done, so the environment can be changed now.** It found the copy reused ("Follow-up checks (T04)"). CLOUD.md says so. If you want `mailpit.axllent.org` on the allowed domains, or any other change, do it now; a changed script or domain list rebuilds the copy, and the next session's log will then show a fresh run, which says nothing about reuse. T05's prompt carries a short repeat of the measurement for that reason; skip it if you change the environment first.
+3. **T05 must check `/opt/dtc-starter` first.** It is the saved copy's folder from T03's script run; item 2 of "Follow-up checks (T04)" shows it present. T05 also needs Docker and the stack running (`db:migrate`, `dev`): CLOUD.md step 3, then `pnpm infra:up`.
+4. **The simulated clash is weaker than the real one, and W1 stays as it is.** On the cloud VM the image's PostgreSQL rejects `postgres:postgres` (`FATAL: password authentication failed for user "postgres"`), where the other project's Postgres on your machine accepts it. So the test proves that the stack starts and that each side answers its own server, not that a connection to 5432 is refused. W1 tests the real clash.
+5. **Decision for you: the ports are published on all interfaces.** `docker compose port postgres 5432` prints `0.0.0.0:15432`, as W1's Verify expects. With the password `postgres` that means anyone on the same network can reach the databases while the stack is up; `127.0.0.1:15432:5432` would stop that, at the price of changing W1's expected output to `127.0.0.1:15432`. I followed the plan and said so in `infra/README.md`. Mailpit also logs a warning that its UI has no authentication or allowed-hosts list. Say if you want the change; it is a one-line edit per port.
+6. **Decision still open from T03:** Prettier isn't wired to the repo root (T15 carries the question, "Config presets (T02)", item 6).
+
+### Smaller observations
+
+- `service redis-server start` prints `ulimit: error setting limit (Operation not permitted)` in the VM and then starts fine (`PONG`).
+- `echo $!` after `( setsid nohup python3 … & )` gave PID 8073 while the listener was 8074. Find the PID of a listener with `lsof -nP -iTCP:<port> -sTCP:LISTEN -t` and kill that one (the same lesson as `pkill -f`, C0's smaller observations).
+- Mailpit's image exposes 1110 (POP3), which `docker compose ps` shows as `1110/tcp`. It isn't published.
+- `docker compose ps` shows only IPv4 (`0.0.0.0`) bindings.
+- The `\dx` output lists `plpgsql` too; T04's check says "lists `pg_trgm` and `unaccent`", which it does.
+- First start of the stack, images present: 11.6 s. Reuse of existing volumes: about 5 s. Nothing was pulled in this session; the four images came from the saved copy.

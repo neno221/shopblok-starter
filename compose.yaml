@@ -1,2 +1,4 @@
-# Placeholder until T04, which adds `include: [infra/docker-compose.yml]` (D11)
-# and the services themselves. `docker compose` has nothing to run before then.
+# Plain `docker compose up` works from the repo root (D11). The services live in
+# infra/docker-compose.yml (SPEC §4); see infra/README.md.
+include:
+  - infra/docker-compose.yml

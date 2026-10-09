@@ -1,0 +1,102 @@
+# Local infrastructure for development (SPEC §5). Run it from the repo root:
+# `pnpm infra:up` (root compose.yaml includes this file, D11).
+#
+# Host ports are non-standard on purpose (D15): the containers keep 5432, 6379
+# and 7700 inside, and a machine that already runs other local services on those
+# ports can still start the stack. Override them (and Mailpit's 1025 and 8025)
+# with POSTGRES_PORT, REDIS_PORT, MEILI_PORT, MAILPIT_SMTP_PORT and
+# MAILPIT_UI_PORT, in the shell or in a root `.env`; the apps' env files hold
+# full URLs, so change those to match. Healthchecks run inside the containers,
+# so they keep the standard ports.
+#
+# Image tags are pinned exactly (plan §2). The same four are pulled by the cloud
+# setup script (docs/CLOUD.md, step 3): change both together.
+
+services:
+  postgres:
+    image: postgres:17.11-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "${POSTGRES_PORT:-15432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      # Runs once, on an empty volume only (see postgres/init/01-databases.sql).
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      # Over TCP, not the unix socket: while the entrypoint runs the init scripts,
+      # a temporary server listens on the socket only, and a socket check would
+      # report healthy before the databases exist. Counting them also catches a
+      # volume whose init script failed earlier: the script is skipped on a
+      # non-empty volume.
+      test:
+        - CMD-SHELL
+        - >-
+          psql -h 127.0.0.1 -U postgres -d postgres -tAc
+          "select count(*) from pg_database where datname in ('medusa', 'payload')"
+          | grep -qx 2
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
+
+  redis:
+    image: redis:7.4-alpine
+    ports:
+      - "${REDIS_PORT:-6380}:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      # `redis-cli ping` exits 0 on a LOADING error too; require the PONG.
+      test: ["CMD-SHELL", "redis-cli ping | grep -q PONG"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 5s
+
+  meilisearch:
+    image: getmeili/meilisearch:v1.54.3
+    environment:
+      MEILI_ENV: development
+      # Fixed local dev key: no account needed, and not a secret. Production uses
+      # its own (SPEC §10.5). Apps read it as MEILISEARCH_API_KEY.
+      MEILI_MASTER_KEY: shopblok-local-dev-master-key
+      MEILI_NO_ANALYTICS: "true"
+    ports:
+      - "${MEILI_PORT:-7701}:7700"
+    volumes:
+      - meili-data:/meili_data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS localhost:7700/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 5s
+
+  mailpit:
+    image: axllent/mailpit:v1.31.4
+    environment:
+      MP_DATABASE: /data/mailpit.db
+      # The version check calls out to GitHub; skip it (offline machines, CI).
+      MP_DISABLE_VERSION_CHECK: "true"
+    ports:
+      - "${MAILPIT_SMTP_PORT:-1025}:1025" # SMTP
+      - "${MAILPIT_UI_PORT:-8025}:8025" # web UI
+    volumes:
+      - mailpit-data:/data
+    healthcheck:
+      # The image is built from scratch: no shell, so the exec form is required.
+      test: ["CMD", "/mailpit", "readyz"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 5s
+
+# Named volumes, not folders in the repo. `pnpm infra:down` keeps them;
+# `pnpm infra:reset` removes them.
+volumes:
+  postgres-data:
+  redis-data:
+  meili-data:
+  mailpit-data:
