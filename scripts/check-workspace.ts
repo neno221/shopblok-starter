@@ -46,9 +46,16 @@ function resolveReactVersion(fromDir: string): string | undefined {
 }
 
 // Which React each app must see, and the dependencies (besides the app itself) whose own
-// React must match: pnpm gives `next` and `@payloadcms/ui` the React that the app installs.
+// React must match: pnpm gives `next` and Payload's packages the React that the app installs.
+// `@payloadcms/next` declares no `react` peer, so it only gets the app's React through the
+// `packageExtensions` entry in pnpm-workspace.yaml (T09); without it, pnpm resolves it from its
+// shared hoist folder, which holds the backend's React 18.3.1.
 const reactTargets = [
-  { app: "apps/storefront", version: "19.3.0", via: ["next", "@payloadcms/ui"] },
+  {
+    app: "apps/storefront",
+    version: "19.3.0",
+    via: ["next", "@payloadcms/next", "@payloadcms/ui", "@payloadcms/richtext-lexical"],
+  },
   { app: "apps/backend", version: "18.3.1", via: [] },
 ];
 

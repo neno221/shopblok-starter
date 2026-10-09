@@ -1,4 +1,5 @@
 import { fileURLToPath } from "node:url";
+import { withPayload } from "@payloadcms/next/withPayload";
 import type { NextConfig } from "next";
 import { PHASE_DEVELOPMENT_SERVER } from "next/constants";
 
@@ -7,7 +8,7 @@ import { PHASE_DEVELOPMENT_SERVER } from "next/constants";
 // `turbopack.root` at the app, which is wrong for a monorepo.
 const repoRoot = fileURLToPath(new URL("../..", import.meta.url));
 
-export default function config(phase: string): NextConfig {
+function buildConfig(phase: string): NextConfig {
   return {
     // S1 may change these two (Cache Components x Payload admin).
     cacheComponents: true,
@@ -23,4 +24,9 @@ export default function config(phase: string): NextConfig {
     // Medusa's image URLs point at localhost in development, which next/image refuses by default.
     images: { dangerouslyAllowLocalIP: phase === PHASE_DEVELOPMENT_SERVER },
   };
+}
+
+// `withPayload` takes the config object, so it wraps what the function returns for each phase.
+export default function config(phase: string): NextConfig {
+  return withPayload(buildConfig(phase), { devBundleServerPackages: false });
 }

@@ -7,3 +7,40 @@ allowBuilds:
   msgpackr-extract: false
   protobufjs: false
   unrs-resolver: false
+
+# Payload's packages import `react` (and its types) without declaring them: @payloadcms/next
+# declares neither, and @payloadcms/ui and @payloadcms/richtext-lexical declare `react` but not
+# `@types/react`. pnpm then resolves them from its shared hoist folder (node_modules/.pnpm/node_modules),
+# which holds the Medusa admin's React 18.3.1 and @types/react 18.3.31, so `RootLayout`'s children
+# were typed with React 18 (TS2322 in (payload)/layout.tsx) and @payloadcms/next would load React 18
+# outside Next's own alias. Declared as peers, they come from the app that uses them (T09).
+packageExtensions:
+  "@payloadcms/next":
+    peerDependencies:
+      react: "^19.0.1 || ^19.1.2 || ^19.2.1"
+      react-dom: "^19.0.1 || ^19.1.2 || ^19.2.1"
+      "@types/react": "^19.0.0"
+      "@types/react-dom": "^19.0.0"
+    peerDependenciesMeta:
+      "@types/react":
+        optional: true
+      "@types/react-dom":
+        optional: true
+  "@payloadcms/ui":
+    peerDependencies:
+      "@types/react": "^19.0.0"
+      "@types/react-dom": "^19.0.0"
+    peerDependenciesMeta:
+      "@types/react":
+        optional: true
+      "@types/react-dom":
+        optional: true
+  "@payloadcms/richtext-lexical":
+    peerDependencies:
+      "@types/react": "^19.0.0"
+      "@types/react-dom": "^19.0.0"
+    peerDependenciesMeta:
+      "@types/react":
+        optional: true
+      "@types/react-dom":
+        optional: true
