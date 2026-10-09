@@ -6,3 +6,4 @@ allowBuilds:
   sharp: true
   msgpackr-extract: false
   protobufjs: false
+  unrs-resolver: false

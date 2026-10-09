@@ -1,6 +1,6 @@
 # Setup
 
-> Only the T00, T01 and C0 results exist so far. T17 adds the keyless quickstart, ports, credentials and the other Windows notes.
+> Only the T00, T01, C0 and T02 results exist so far. T17 adds the keyless quickstart, ports, credentials and the other Windows notes.
 
 ## Windows preflight (T00)
 
@@ -191,7 +191,7 @@ Items 1 and 2 are already applied in CLOUD.md and the plan in this PR.
 5. **GitHub REST routes for what `gh pr` would do.** The GraphQL 403 text names routes for review threads, auto-merge, ready-for-review and convert-to-draft; they are in CLOUD.md's differences table.
 6. **T16 (workflow files, CI results).** Pushing `.github/workflows/*.yml` works, and workflow runs can be read over REST. `…/actions/permissions` is blocked. Whether `…/dispatches` works is unknown until a real workflow exists; G3 already covers starting `windows-smoke` from the Actions tab.
 7. **The credential is short-lived.** It expires about two hours after the session starts (`2026-10-08 23:51:48 UTC` for this one). I did not test whether a longer session gets a refreshed token. If a push fails with an authentication error late in a long session, that is the first thing to suspect.
-8. **Is the environment cached? Not yet known.** The script finished in 34 s, so it qualifies, but only a second session can show whether it was reused. T02's session should compare `grep -E 'setup (start|end)' /var/log/shopblok-setup.log` with its own start time: a `setup start` hours earlier than the session means the saved copy was reused. Pasting a changed script rebuilds the environment, and the log would then show a new run whether or not caching works. So the new script is pasted after T02 (item 2), and T02's check answers the question. T02 records what it saw here.
+8. **Is the environment cached? No, T02's session found the saved copy was not reused** ("Follow-up checks (T02)" below). The script finished in 34 s, so it should have qualified; C0 could only guess, because a second session was needed to compare `grep -E 'setup (start|end)' /var/log/shopblok-setup.log` with its own start time (a `setup start` hours earlier than the session means the copy was reused). Pasting a changed script rebuilds the environment and would have hidden the answer, so the new script waited until T02 had looked.
 
 ### Smaller observations
 
@@ -201,3 +201,98 @@ Items 1 and 2 are already applied in CLOUD.md and the plan in this PR.
 - Playwright's Chromium is v1248 (Chrome for Testing 156.0.8078.4) for `playwright@1.64.0`, in `/opt/ms-playwright` (which `PLAYWRIGHT_BROWSERS_PATH` points at). The image has a second, older set: a global `playwright` 1.56.1 in `/opt/node-tools` with `chromium-1194` in `/opt/pw-browsers`. A bare `playwright` on PATH is that one, so run Playwright with `pnpm exec` from a package that depends on it (item 3 of "What should change in the plan").
 - `pnpm install` printed `Verifying lockfile against supply-chain policies (9 entries)` and `Lockfile passes supply-chain policies`; this is pnpm 12's check, not a failure.
 - `/opt/medusa-agent-skills` is a plain tarball extract (no `.git`), so its commit can't be read from the folder. It was fetched by the commit hash in the script.
+
+### Follow-up checks (T02)
+
+Two checks that C0 couldn't run. T02's session ran them before any T02 work and fixed nothing.
+
+1. **Setup cache: not reused.** Output of `date -u` and `grep -E 'setup (start|end)' /var/log/shopblok-setup.log`, taken at the start of the session:
+
+   ```text
+   Thu Oct  8 23:12:36 UTC 2026
+   setup start 2026-10-08T23:11:54Z
+   + echo 'setup end 2026-10-08T23:12:19Z'
+   setup end 2026-10-08T23:12:19Z
+   ```
+
+   `setup start` is **42 seconds** before `date -u`, so the script ran for this session and the saved copy from C0's session was **not reused**. The log holds a single run, not C0's earlier one (`2026-10-08T21:54:25Z`). The script took 25 s (C0: 34 s). No change had been pasted into the environment in between, as far as I know. I did not look for a cause. What this means for later sessions: expect the setup script (and the four image pulls in it) to run at the start of each session until a session shows otherwise. The cost is under a minute with steps 1 to 5; step 6 adds a download of the whole Payload repository, which T03's session times. Result: **did not pass** (the expected outcome was "reused"), and nothing is broken by it.
+2. **Setup script step 6: not checked here, by design.** The new script is pasted after T02 is merged (G4), so this session did not check step 6 and I did not look at which version of the script ran. The check moved to the T03 prompt in [NEXT-SESSION.md](NEXT-SESSION.md): `grep 'step 6' /var/log/shopblok-setup.log`, `ls /opt/dtc-starter/apps/backend/package.json`, `ls /opt/payload-templates` (exactly `blank`, `ecommerce` and `with-postgres`), and the `setup start` to `setup end` time. Result: **not run**.
+
+## Config presets (T02)
+
+**Result: `@shopblok/config` exists and every check in T02's Verify list passes. T03 can start.** The shared presets load through real workspace packages, not only inside their own folder (checked with throwaway packages, since deleted). Three things differ from the plan's text: ESLint 9 is end-of-life (item 1), `pnpm install` needed one more `allowBuilds` entry (item 2), and the T02 file list gained two files (item 3). Items 4 to 6 are notes for later tasks, and item 7 lists what changed while this PR was reviewed.
+
+| | |
+|---|---|
+| Date | 2026-10-08 |
+| Branch | `claude/brave-maxwell-9xr94v` |
+| Files | `packages/config/{package.json, tsconfig.{base,nextjs,node,library}.json, eslint/{base,next,library}.mjs, prettier.config.mjs, eslint.config.mjs, fixtures/valid.ts}`, `pnpm-workspace.yaml`, `pnpm-lock.yaml` |
+
+### Versions pinned (checked against the npm registry on 2026-10-08)
+
+| Package | Pin | What the registry says |
+|---|---|---|
+| `eslint` | **9.39.5** | npm's `maintenance` tag; `latest` is 10.12.0. Published 2026-07-10. **Deprecated** ("no longer supported"), as is every 9.x; eslint.org: "reached end-of-life on 2026-08-06". See item 1 for why not 10 |
+| `@eslint/js` | 9.39.5 | Same release train as `eslint` (`maintenance` tag) |
+| `typescript-eslint` | **8.71.1** | `latest`, published 2026-10-05. Peers: `eslint ^8.57.0 \|\| ^9.0.0 \|\| ^10.0.0`, `typescript >=4.8.4 <6.1.0`, which covers 9.39.5 and 5.9.3 (D5) |
+| `eslint-config-next` | **16.4.0** | `latest`, published 2026-10-06, the same release as `next@16.4.0` (D4). Peers: `eslint >=9.0.0`, `typescript >=3.3.1` (optional) |
+| `prettier` | **3.9.9** | Unchanged since T01: `latest`, published 2026-09-23, not deprecated. `@shopblok/config` doesn't depend on it; the root does |
+| `globals` | 16.4.0 | The exact version `eslint-config-next@16.4.0` depends on, so the lockfile holds one copy of its own (ESLint brings `globals@14.0.0` separately). `latest` is 17.13.0 |
+| `typescript` | 5.9.3 | D5. Declared in the package, because `pnpm --filter @shopblok/config exec tsc` would otherwise reach the image's global one |
+
+OSV lists no advisories for any of these versions or for `unrs-resolver@1.12.2`. None of the versions is younger than pnpm's one-day `minimumReleaseAge`.
+
+### Checks
+
+| Check (T02 "Verify") | Result | Key output |
+|---|---|---|
+| `pnpm --filter @shopblok/config exec tsc -p tsconfig.base.json --noEmit` passes against a fixture | **Pass** | exit 0, no output. `tsc --listFilesOnly` shows `fixtures/valid.ts` was compiled; `tsc --version` through the same filter prints `Version 5.9.3` |
+| `pnpm --filter @shopblok/config exec eslint .` exits 0 | **Pass** | exit 0. `eslint --format json` lists 6 linted files: `eslint.config.mjs`, `eslint/{base,library,next}.mjs`, `fixtures/valid.ts`, `prettier.config.mjs` |
+| `pnpm --filter @shopblok/config exec eslint --version` prints the pinned 9.39.x, not 10.1.0 | **Pass** | `v9.39.5` (the global on PATH prints `v10.1.0`) |
+
+### Checks beyond T02's list
+
+| Check | Result | Key output |
+|---|---|---|
+| `pnpm --filter @shopblok/config typecheck` (tsc over the fixture with all four tsconfigs) | **Pass** | exit 0 (after one fix: item 4) |
+| The base tsconfig rejects what it should | **Pass** | A scratch file that extends it gave `TS1484` (type imported without `type`, from `verbatimModuleSyntax`), `TS2322` (`number \| undefined`, from `noUncheckedIndexedAccess`) and `TS7006` (implicit `any`, from `strict`) |
+| `tsc --showConfig` shows no `baseUrl` in any of the four presets (`has("baseUrl")` is `false` for each), and `moduleResolution` is `bundler` (`nodenext` for the node preset) | **Pass** | base: `{"target":"es2022","lib":["es2023"],"module":"esnext","moduleResolution":"bundler","strict":true,"noUncheckedIndexedAccess":true,"verbatimModuleSyntax":true,"isolatedModules":true,"skipLibCheck":true,…,"noEmit":true}` |
+| Node preset rejects syntax Node can't strip | **Pass** | `enum` and a constructor parameter property each gave `TS1294: This syntax is not allowed when 'erasableSyntaxOnly' is enabled` |
+| Node preset takes `./b.ts` imports, bundler presets don't | **Pass** | Node preset (package with `"type": "module"`): exit 0. Base: `TS5097: An import path can only end with a '.ts' extension when 'allowImportingTsExtensions' is enabled` |
+| Library preset flags bad TypeScript | **Pass** | On a scratch file: `consistent-type-imports`, `no-unused-vars` (`'unused' is assigned a value but never used. Allowed unused vars must match /^_/u`), `no-explicit-any` (3 errors). No `no-console` warning any more: the library preset is the base (item 7) |
+| JavaScript gets Node globals but `no-undef` still works | **Pass** | `process` accepted, `'undefinedThing' is not defined  no-undef` reported |
+| Next preset, in a throwaway app that had `next@16.4.0`, `react@19.3.0`, `eslint@9.39.5` | **Pass** | Loaded with one `@typescript-eslint` plugin and 156 rules; `@next/next/no-img-element` warned on `<img>`, `@next/next/no-html-link-for-pages` is `[2]`, our `consistent-type-imports` is active. Without `next` in the dependency graph it crashes (item 6) |
+| Library preset, same throwaway route: `"extends": "@shopblok/config/tsconfig.library.json"` and `import library from "@shopblok/config/eslint/library"` | **Pass** | `tsc --showConfig` shows `"jsx":"react-jsx"` and `"lib":["dom","dom.iterable","es2023"]`; `eslint --version` `v9.39.5`; lint exit 0. TypeScript resolves `extends` through the `exports` map |
+| Prettier preset, both ways a package can take it | **Pass** | A `prettier.config.mjs` with `export { default } from "@shopblok/config/prettier"`, and `"prettier": "@shopblok/config/prettier"` in `package.json`, both resolved to `{"printWidth":100,"semi":true,"singleQuote":false,"trailingComma":"all","endOfLine":"lf"}` |
+| `prettier --check packages/config` | **Pass** | `All matched files use Prettier code style!` (`prettier --version` 3.9.9). With `--no-config`, `fixtures/valid.ts` fails, so the 100-column width is what makes it pass |
+| Root `pnpm typecheck` and `pnpm lint` (turbo) | **Pass** | `Packages in scope: @shopblok/config`, `Tasks: 1 successful, 1 total` each. `pnpm exec turbo run build --dry=json` reports `"packages":["@shopblok/config"]` |
+| `pnpm install --frozen-lockfile` on the committed lockfile | **Pass** | `Lockfile is up to date, resolution step is skipped`, exit 0 |
+| `unrs-resolver` works with its postinstall off (item 2) | **Pass** | Its native binding loaded (`require('./index.js')` exports `ResolverFactory`) and resolved `./package.json` |
+| Turbo left `AGENTS.md` alone | **Pass** | `md5sum` `995f281e6ed512494bf15f386443be6c`, the same as C0; `git status` clean |
+
+### What should change in the plan
+
+1. **ESLint 9 is end-of-life, and ESLint 10 isn't possible yet.** ESLint 9.39.5 is the last 9.x release (2026-07-10), the registry flags all of 9.x as deprecated, and `pnpm install` prints `[WARN] deprecated eslint@9.39.5. 10.12.0 is not deprecated.` every time. The plan's pin (§2: "9.39.x") stays, because 10 doesn't fit the tree: `@medusajs/eslint-plugin@2.21.2` allows `eslint ^8.57.0 || ^9.0.0`, and three plugins that `eslint-config-next@16.4.0` brings stop at 9 as well (`eslint-plugin-react` `^9.7`, `eslint-plugin-jsx-a11y` `^9`, `eslint-plugin-import` `^9`; the Next docs say 10 "may show peer dependency warnings"). **Decided by Stephanos (2026-10-09): stay on 9.39.5** until Medusa's plugin allows 10. Nothing breaks, there are just no more ESLint 9 fixes; Renovate may propose 10, so ignore that update until then. The alternative was to take the peer warnings and move everything except the backend to 10. §2 says 9.39.5 and why.
+2. **`allowBuilds`: `unrs-resolver: false`.** `eslint-config-next` → `eslint-import-resolver-typescript` → `unrs-resolver@1.12.2` has a postinstall (`napi-postinstall`), so `pnpm install` stopped with `ERR_PNPM_IGNORED_BUILDS`. The script only checks that the platform's prebuilt binding package is there, and downloads it if not. pnpm already installs that binding as an optional dependency (`@unrs/resolver-binding-linux-x64-gnu` here; the Windows one for W1 and W2), so there is nothing to build. Same reasoning as `msgpackr-extract` in T01. The native binding loaded with the script off (see the checks).
+3. **Two files beyond T02's list.** `eslint.config.mjs` (T02's own verify runs `eslint .`, which needs a config) and `fixtures/valid.ts` (the file `tsc` compiles). The package also has `typecheck` and `lint` scripts, so the root `pnpm typecheck` and `pnpm lint` now run something. Each preset is reachable by name through the package's `exports`: `@shopblok/config/tsconfig.{base,nextjs,node,library}.json`, `@shopblok/config/eslint/{base,next,library}` and `@shopblok/config/prettier`.
+4. **The node preset resolves like Node does, so the shared fixture can't import a sibling file.** My first fixture had `import … from "./locale"`. The base, Next and library presets accepted it. The node preset (`module: NodeNext`) gave `TS2835` (relative imports need an extension), which then cascaded into `TS7053` and `TS7006`. That is the intended difference: code run by plain `node` needs `./locale.ts`, and the bundler presets reject that. The fixture is one self-contained file now. The node preset also needs `"type": "module"` in the package that uses it (without it `TS1295`/`TS1287`: ESM syntax in a CommonJS file under `verbatimModuleSyntax`); T03 already makes every package `"type": "module"`.
+5. **Notes for the tasks that use the presets** (also in the plan's T03, T05, T08 and T09):
+   - **Every package that lints declares its own `eslint`** (`9.39.5`) and `@shopblok/config` (`workspace:*`). Without `eslint` in the package, `pnpm --filter <pkg> exec eslint` reaches the image's global 10.1.0.
+   - **A package's tsconfig** is `{ "extends": "@shopblok/config/tsconfig.library.json", "include": ["src"] }` (or `nextjs` / `node`). The presets have no `include`, so each package sets its own. The base has `"noEmit": true`: nothing in this repo emits with `tsc`, so the backend (T05), whose `medusa build` does emit, must not extend it without overriding that.
+   - **`@types/react` and `@types/react-dom`** must be declared by the storefront (T08) and by any package with `.tsx` (`jsx` is `react-jsx`). The throwaway Next app got `TS7016` for `react/jsx-runtime` without them.
+   - **`next` must be in the workspace's dependency graph** for the Next ESLint preset to load: `eslint-config-next` requires `next/dist/compiled/babel/eslint-parser` and doesn't declare `next`, so it finds it through pnpm's default private hoisting. The storefront depends on `next`, so this holds from T08; a workspace with no `next` at all crashes with `Cannot find module 'next/dist/compiled/babel/eslint-parser'`.
+   - **Generated files** (`next-env.d.ts` is already ignored by the Next preset; `payload-types.ts` and `admin/importMap.js` from T09 are not) need `globalIgnores` in the storefront's `eslint.config.mjs`. The Next preset sets `allowJs: true`, as the Payload templates do; T09 confirms whether its `importMap.js` import needs it.
+6. **Prettier isn't wired to anything yet.** The root has no `prettier.config.mjs` and no `format` script, and T15 and T16 don't mention Prettier, so the preset is only used by files inside `packages/config` (Prettier finds `prettier.config.mjs` by walking up from each file, and the root has none). Wiring it means a root `prettier.config.mjs` that re-exports `@shopblok/config/prettier` (with `@shopblok/config` as a root dependency), a `format:check` script, and probably a CI step. I did not add them: they change root files T02 doesn't list, and running Prettier over the existing Markdown would reformat its tables. Your call; T15 now carries a note.
+7. **Changes made while this PR was reviewed.**
+   - **The library preset is the base preset** (Stephanos's decision). `eslint/library` re-exports the base; an earlier version added a `no-console` warning.
+   - **The Next preset keeps the base's errors.** `eslint-config-next/typescript` sets `no-unused-vars` and `no-unused-expressions` to warnings, so with the base spread first the storefront would have passed lint with unused variables. The base is spread last now. Checked with a throwaway package that has `next` (since deleted): `eslint --print-config` gives the same value for every rule the base sets, an unused variable is an error, and `.next/`, `out/` and `next-env.d.ts` are still ignored (so the preset no longer lists those again).
+   - **`require()` is allowed in plain JavaScript** (`@typescript-eslint/no-require-imports` is off for `.js`, `.mjs` and `.cjs`), because those files get Node globals. A `jest.config.cjs` with `require` lints clean in the throwaway package.
+   - **The fixture tests two flags.** `firstLocale` destructured a tuple, so `noUncheckedIndexedAccess` never applied to it. It now reads `locales[0]` from a `Locale[]` under `@ts-expect-error`, and `identity` has an untyped parameter under another. `tsc` fails with `TS2578` when `noUncheckedIndexedAccess` or `strict` is removed from the base (checked by removing each). `verbatimModuleSyntax` has no such check yet.
+   - **`turbo.json` has a `transit` task** that `typecheck` and `lint` depend on (Turborepo's transit node: it runs nothing, but links a package's task hash to its dependencies' files). Without it, editing a preset left the lint and typecheck of the packages that use it as cache hits. Checked with the throwaway package: a second `turbo run lint` was a cache hit, and after editing `eslint/base.mjs` both packages missed. A package picks this up by declaring `@shopblok/config` as a dependency (item 5).
+
+### Smaller observations
+
+- `tsconfig.nextjs.json` sets `incremental`, so `tsc --noEmit` writes `tsconfig.nextjs.tsbuildinfo` next to the config. `.gitignore` already covers `*.tsbuildinfo`.
+- The Next preset prints `Pages directory cannot be found at … or …/src/pages` in a package that has neither an `app` nor a `pages` folder (the throwaway app had neither). The storefront has `src/app`; T08 should confirm the message is gone.
+- I used ESLint's `defineConfig` and `globalIgnores` (from `eslint/config`, in 9.22 and newer), as the Next 16.4 ESLint docs do.
+- Type-aware linting (`parserOptions.projectService`) is not enabled. It is slower and needs per-package tsconfig wiring; M0 doesn't need it.
