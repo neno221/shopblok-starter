@@ -35,7 +35,7 @@ Every difference from upstream's `apps/backend` at that commit. Anything not lis
 | `src/scripts/seed-demo-catalog.ts` | Added: 8 products with variants in EUR, USD, GBP and CHF, 3 categories, 2 collections, 54 Greek/German/French translations (`batchTranslationsWorkflow`), then the search index. Development only; skipped by `SEED_DEMO=false` or a `skip` argument; refuses `NODE_ENV=production` | T07, D7. Replaces `seed-demo-products.ts` (removed above) |
 | `src/scripts/print-publishable-key.ts` | Added: prints `{"publishableKey":"pk_…"}` for T13's bootstrap, and exits 1 if the key is missing or has no sales channel | T07 |
 | `src/scripts/lib/{markets,demo-catalog,plan,publishable-key}.ts` | Added: the data both seeds use, the pure functions that decide what is missing or has drifted, and the output line's format and parser | T07. No Medusa imports in the data files, so they have unit tests |
-| `src/scripts/lib/__tests__/*.unit.spec.ts` | Added: 41 Jest tests (`pnpm --filter @shopblok/backend test:unit`) | T07 |
+| `src/scripts/lib/__tests__/*.unit.spec.ts` | Added: 31 Jest tests (`pnpm --filter @shopblok/backend test:unit`) | T07 |
 | `LICENSE` | Added | The MIT notice, because this is a copy of MIT-licensed code |
 | `UPSTREAM.md` | Added | This file |
 

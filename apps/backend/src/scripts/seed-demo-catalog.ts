@@ -16,14 +16,16 @@
  * makes no change. It writes through core-flows workflows only, and needs
  * `seed-markets.ts` to have run first (sales channel, currencies).
  *
- * The last step indexes the demo products for search, and awaits it. The
- * `product.*` events the workflows emit are handled by the event bus in the
- * background, and `medusa exec` exits when the script returns, so without this
- * the index could be empty. With `REDIS_URL` set the events wait in Redis until
- * a server runs. The Search Module's `ingest` upserts the products and is safe
- * to repeat, but it throws while the index has no active version, which is the
- * state after `db:migrate` until a server has booted once (`medusa exec` does
- * not seed). In that state the script fills the whole index with `reindex`.
+ * Search: the script makes sure the product index is active before it creates
+ * anything, and its last step awaits `ingest` for every demo product. Leaving
+ * indexing to the event bus is not enough in a short-lived `medusa exec`: with
+ * the local bus the handlers run in the background and the script can exit
+ * first, and with `REDIS_URL` set the events of a workflow that finished just
+ * before the exit stay staged in Redis and are never queued (T07's SETUP.md
+ * section has the measurements). `ingest` upserts, so repeating it is safe. It
+ * throws while an index has no active version, which is the state after
+ * `db:migrate` until a server has booted once (`medusa exec` does not seed),
+ * so a never-filled index is filled with `reindex` first.
  */
 import type { ExecArgs } from "@medusajs/framework/types";
 import {
@@ -109,6 +111,27 @@ export default async function seedDemoCatalog({ container, args }: ExecArgs) {
   logger.info(
     `Seeding the demo catalog into the sales channel ${salesChannelId} (${SALES_CHANNEL_NAME})`,
   );
+
+  // ---- Search index: active before products exist ---------------------------
+
+  const search = container.resolve(Modules.SEARCH);
+  const index = (await search.listIndexes()).find((i) => i.name === PRODUCT_INDEX);
+
+  if (!index) {
+    throw new MedusaError(
+      MedusaError.Types.NOT_FOUND,
+      `The "${PRODUCT_INDEX}" search index isn't registered (src/search/product.ts).`,
+    );
+  }
+
+  if (index.status !== "ready") {
+    // Without an active version the handlers of the events the workflows below
+    // emit would fail, and so would `ingest`.
+    await search.reindex({ index: PRODUCT_INDEX });
+    logger.info(
+      `Filled the "${PRODUCT_INDEX}" search index from the database (it was ${index.status}).`,
+    );
+  }
 
   // ---- Categories and collections --------------------------------------------
 
@@ -238,9 +261,19 @@ export default async function seedDemoCatalog({ container, args }: ExecArgs) {
           category_ids: [categories.find((c) => c.handle === product.category)!.id],
           collection_id: collections.find((c) => c.handle === product.collection)!.id,
           sales_channels: [{ id: salesChannelId }],
-          options: Object.keys(product.options).map((title) => ({
-            id: options.find((o) => o.title === title)!.id,
-          })),
+          // Link only the values this product is sold in. Without `value_ids`
+          // Medusa links every value of a shared option, so the tee would list
+          // "Navy" (and the search index would hold it) with no variant to buy.
+          options: Object.entries(product.options).map(([title, values]) => {
+            const option = options.find((o) => o.title === title)!;
+
+            return {
+              id: option.id,
+              value_ids: values.map(
+                (value) => (option.values ?? []).find((v) => v?.value === value)!.id,
+              ),
+            };
+          }),
           variants: buildVariants(product),
         })),
       },
@@ -334,32 +367,15 @@ export default async function seedDemoCatalog({ container, args }: ExecArgs) {
 
   // ---- Search ----------------------------------------------------------------
 
-  const search = container.resolve(Modules.SEARCH);
   const productIds = products.map((p) => p.id);
-  const index = (await search.listIndexes()).find((i) => i.name === PRODUCT_INDEX);
 
-  if (!index) {
-    throw new MedusaError(
-      MedusaError.Types.NOT_FOUND,
-      `The "${PRODUCT_INDEX}" search index isn't registered (src/search/product.ts).`,
-    );
+  for (let start = 0; start < productIds.length; start += INGEST_CHUNK_SIZE) {
+    await search.ingest({
+      name: "product.created",
+      data: productIds.slice(start, start + INGEST_CHUNK_SIZE).map((id) => ({ id })),
+    });
   }
 
-  if (index.status === "ready") {
-    for (let start = 0; start < productIds.length; start += INGEST_CHUNK_SIZE) {
-      await search.ingest({
-        name: "product.created",
-        data: productIds.slice(start, start + INGEST_CHUNK_SIZE).map((id) => ({ id })),
-      });
-    }
-    logger.info(`Indexed ${productIds.length} demo products for search (ingest).`);
-  } else {
-    // Never filled (`${index.status}`): no active version to ingest into yet.
-    await search.reindex({ index: PRODUCT_INDEX });
-    logger.info(
-      `Filled the "${PRODUCT_INDEX}" search index from the database (reindex; it was ${index.status}).`,
-    );
-  }
-
+  logger.info(`Indexed ${productIds.length} demo products for search (ingest).`);
   logger.info("Demo catalog is seeded.");
 }
