@@ -92,6 +92,23 @@ describe("hreflangAlternates: other maps", () => {
     });
   });
 
+  it("lists a lang value once when two markets share it, for the first in the map's order", () => {
+    // Brazil and Portugal both in Portuguese, with the one `pt-BR` override of the `pt` language.
+    const map: MarketMap = {
+      countries: [
+        { code: "br", enabled: true, languages: ["pt"] },
+        { code: "pt", enabled: true, languages: ["pt"] },
+      ],
+      languages: [{ code: "pt", medusaLocale: "pt-BR", htmlLang: "pt-BR" }],
+      primaryCountry: "br",
+      fallbackMarket: "pt-br",
+    };
+    expect(hreflangAlternates("/store", map)).toEqual({
+      "pt-BR": "/store",
+      "x-default": "/store",
+    });
+  });
+
   it("lists the languages of a store with one country", () => {
     expect(hreflangAlternates("/store", greeceTwoLanguages)).toEqual({
       "el-GR": "/store",

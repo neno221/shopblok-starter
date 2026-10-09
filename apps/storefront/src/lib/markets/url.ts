@@ -36,8 +36,9 @@ export function buildPublicUrl(market: Market, path: string, map: MarketMap): Ro
   const cut = path.search(/[?#]/);
   const head = cut === -1 ? path : path.slice(0, cut);
   const tail = cut === -1 ? "" : path.slice(cut);
-  // Always rooted at one slash, so a path like `//host` can't turn the result into another origin.
-  const pathname = head.replace(/^\/+/, "");
+  // Always rooted at one slash, so a path like `//host` or `/\host` (a backslash is a slash to
+  // browsers, and they drop leading whitespace) can't turn the result into another origin.
+  const pathname = head.replace(/^[\s/\\]+/, "");
   const joined = marketPrefix(market, map) + (pathname === "" ? "" : `/${pathname}`);
   const local = (joined === "" ? "/" : joined) + tail;
   return (market.domain === undefined ? local : `https://${market.domain}${local}`) as Route;

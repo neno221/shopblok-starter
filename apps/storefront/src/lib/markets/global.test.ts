@@ -80,25 +80,25 @@ describe("marketMapProblems", () => {
     expect(marketMapProblems(map)).toEqual([]);
   });
 
-  it("says why an empty global can't serve a shop, and what it is missing", () => {
-    expect(marketMapProblems(mapFromGlobal({}))).toEqual([
-      "no country is enabled",
-      "the primary country is not set",
-      "the fallback market is not set",
-    ]);
+  it("says why an empty global can't serve a shop", () => {
+    expect(marketMapProblems(mapFromGlobal({}))).toEqual(["no country is enabled"]);
   });
 
   const broken = (change: Partial<MarketMap>): string[] =>
     marketMapProblems({ ...seeded, ...change });
 
-  it("flags a primary country that isn't open, and a fallback market that isn't a market", () => {
-    expect(broken({ primaryCountry: "xx" })).toEqual([
-      "the primary country xx is not an enabled country",
-    ]);
-    expect(broken({ fallbackMarket: "en-xx" })).toEqual([
-      "the fallback market en-xx is not a market",
-    ]);
-    expect(broken({ primaryCountry: "" })).toEqual(["the primary country is not set"]);
+  it("lets an unset or stale primary country and fallback market through: both have a fallback", () => {
+    // Optional in the admin, and a closed country can leave either pointing at nothing; the shop
+    // keeps selling (`primaryCountryCode`, `fallbackMarketOf`), it must not go down for them.
+    for (const change of [
+      { primaryCountry: "" },
+      { primaryCountry: "xx" },
+      { fallbackMarket: "" },
+      { fallbackMarket: "en-xx" },
+      { fallbackMarket: "EN-US" },
+    ]) {
+      expect(broken(change)).toEqual([]);
+    }
   });
 
   it("flags a country with no language, and a language with no Medusa locale", () => {
@@ -130,20 +130,28 @@ describe("marketMapProblems", () => {
     expect(problems.filter((problem) => problem.includes("Medusa locale"))).toEqual([]);
   });
 
-  it("flags a country, a language, a lang value or a domain that appears twice", () => {
+  it("flags a country, a language or a domain that appears twice", () => {
     const twice = [...seeded.countries, { code: "us", enabled: true, languages: ["en"] }];
     expect(broken({ countries: twice })).toContain("country us is listed twice");
     const rows = [...seeded.languages, { code: "en", medusaLocale: "en-GB" }];
     expect(broken({ languages: rows })).toContain("language en is listed twice under Languages");
 
-    const override = seeded.languages.map((l) =>
-      l.code === "de" ? { ...l, htmlLang: "en-US" } : l,
-    );
-    expect(broken({ languages: override })).toContain("two markets use the lang value en-US");
-
     const shared = seeded.countries.map((c) =>
       c.code === "cy" || c.code === "ch" ? { ...c, domain: "shop.com" } : c,
     );
     expect(broken({ countries: shared })).toEqual(["the domain shop.com belongs to two countries"]);
+  });
+
+  it("lets two markets share a lang value: one language override applies to every country", () => {
+    const portugal = [
+      ...seeded.countries,
+      { code: "br", enabled: true, languages: ["pt"] },
+      { code: "pt", enabled: true, languages: ["pt"] },
+    ];
+    const override = [
+      ...seeded.languages,
+      { code: "pt", medusaLocale: "pt-BR", htmlLang: "pt-BR" },
+    ];
+    expect(broken({ countries: portugal, languages: override })).toEqual([]);
   });
 });

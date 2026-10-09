@@ -59,6 +59,16 @@ describe("buildPublicUrl: SPEC §8.5 URL table, on the seeded map", () => {
     expect(url(seeded, "el-cy", "//evil.example")).toBe("/evil.example");
     expect(url(seeded, "en-us", "//evil.example/x")).toBe("/us/evil.example/x");
   });
+
+  it("treats a backslash or leading whitespace like a slash: `/\\host` is no other origin either", () => {
+    expect(url(seeded, "el-cy", "/\\evil.example")).toBe("/evil.example");
+    expect(url(seeded, "el-cy", "\\\\evil.example")).toBe("/evil.example");
+    expect(url(seeded, "el-cy", "/\t/evil.example")).toBe("/evil.example");
+    expect(url(seeded, "el-cy", " \n//evil.example/x?y=1")).toBe("/evil.example/x?y=1");
+    expect(url(seeded, "en-us", "/\\evil.example")).toBe("/us/evil.example");
+    // Only the start decides the origin; a backslash further in is left as it is.
+    expect(url(seeded, "el-cy", "/a\\b")).toBe("/a\\b");
+  });
 });
 
 describe("buildPublicUrl: Cyprus gains English (SPEC §8.5: /cy/en/)", () => {

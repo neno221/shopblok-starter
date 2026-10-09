@@ -1,6 +1,6 @@
 import type { GlobalConfig, TextFieldSingleValidation } from "payload";
 import { text } from "payload/shared";
-import { isMedusaLocale, medusaLocalesOf } from "../../lib/markets/medusa-locales";
+import { MEDUSA_LOCALES, isMedusaLocale, medusaLocalesOf } from "../../lib/markets/medusa-locales";
 import { isAdmin, isStaff } from "../access/roles";
 import { LOCALES } from "../locales";
 
@@ -91,14 +91,16 @@ export const Markets: GlobalConfig = {
           required: true,
           validate: medusaLocale,
           admin: {
-            description:
-              "The Medusa locale this language uses (D8), one of Medusa's 51: el-GR for Greek, pt-BR or pt-PT for Portuguese.",
+            description: `The Medusa locale this language uses (D8), one of Medusa's ${MEDUSA_LOCALES.length}: el-GR for Greek, pt-BR or pt-PT for Portuguese.`,
           },
         },
         {
           name: "htmlLang",
           type: "text",
-          admin: { description: "Overrides the lang attribute, for example pt-BR." },
+          admin: {
+            description:
+              "Overrides the lang attribute of every country that uses this language, for example pt-BR.",
+          },
         },
       ],
     },

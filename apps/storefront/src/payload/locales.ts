@@ -1,4 +1,5 @@
 import type { Locale } from "payload";
+import { MEDUSA_LOCALES } from "../lib/markets/medusa-locales";
 
 /** Payload's default locale, and the one the admin never hides (see `filterAvailableLocales`). */
 export const DEFAULT_LOCALE = "en";
@@ -32,49 +33,14 @@ export const EU_LANGUAGES = [
 ] as const;
 
 /**
- * The language of every locale Medusa ships (D17): the 51 BCP 47 codes in `defaultLocales` of
- * `@medusajs/translation` (`dist/loaders/defaults.js`, 2.21.2) give these 36 languages. A shop can
- * enable a language in `markets` only if Payload has it, so a language that Medusa can sell in
- * must be here. `locales.test.ts` reads Medusa's file and fails when a new release adds one.
+ * The language of every locale Medusa ships (D17): the 51 BCP 47 codes in `MEDUSA_LOCALES` give
+ * these 36 languages, in order of first appearance. A shop can enable a language in `markets` only
+ * if Payload has it, so a language that Medusa can sell in must be here. `medusa-locales.test.ts`
+ * reads Medusa's file and fails when a new release changes the codes.
  */
-export const MEDUSA_LANGUAGES = [
-  "en",
-  "es",
-  "fr",
-  "de",
-  "it",
-  "pt",
-  "nl",
-  "da",
-  "sv",
-  "nb",
-  "fi",
-  "pl",
-  "lt",
-  "cs",
-  "sk",
-  "hu",
-  "ro",
-  "bg",
-  "el",
-  "tr",
-  "ru",
-  "uk",
-  "ar",
-  "he",
-  "hi",
-  "bn",
-  "th",
-  "vi",
-  "id",
-  "ms",
-  "tl",
-  "zh",
-  "ja",
-  "ko",
-  "ka",
-  "mn",
-] as const;
+export const MEDUSA_LANGUAGES: readonly string[] = [
+  ...new Set(MEDUSA_LOCALES.map((code) => code.slice(0, code.indexOf("-")))),
+];
 
 /** Languages the plan lists beyond the two sets above. Medusa already covers all seven today. */
 export const EXTRA_LANGUAGES = ["ar", "ja", "nb", "ru", "tr", "uk", "zh"] as const;

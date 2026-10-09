@@ -16,6 +16,3 @@ const source = createMarketSource({
  * fixtures in development only (`source.ts` has the full rules).
  */
 export const getMarketMap = source.get;
-
-/** Forget the cached map, so the next `getMarketMap()` reads the global. */
-export const clearMarketMapCache = source.clear;

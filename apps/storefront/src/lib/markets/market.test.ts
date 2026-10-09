@@ -81,11 +81,27 @@ describe("listMarkets", () => {
   });
 });
 
+describe("listMarkets: derived once per map", () => {
+  it("gives the same list for the same map object, and a fresh one for a new object", () => {
+    const first = listMarkets(seeded);
+    expect(listMarkets(seeded)).toBe(first);
+    const copy: MarketMap = { ...seeded };
+    expect(listMarkets(copy)).not.toBe(first);
+    expect(listMarkets(copy)).toEqual(first);
+  });
+});
+
 describe("findMarket, primaryMarket, fallbackMarketOf", () => {
   it("finds a market by its key", () => {
     expect(findMarket(seeded, "fr-ch")?.country).toBe("ch");
     expect(findMarket(seeded, "fr-cy")).toBeUndefined();
     expect(findMarket(germanyClosed, "de-de")).toBeUndefined();
+  });
+
+  it("finds nothing for a country alone or a key in another case (the key is exact)", () => {
+    expect(findMarket(seeded, "cy")).toBeUndefined();
+    expect(findMarket(seeded, "EL-CY")).toBeUndefined();
+    expect(findMarket(seeded, "")).toBeUndefined();
   });
 
   it("serves the primary country in its default language at /", () => {

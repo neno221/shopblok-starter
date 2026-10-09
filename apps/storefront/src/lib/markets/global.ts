@@ -1,4 +1,4 @@
-import { enabledCountries, listMarkets, normalizeHost } from "./market";
+import { enabledCountries, normalizeHost } from "./market";
 import { isMedusaLocale } from "./medusa-locales";
 import type { MarketMap } from "./types";
 
@@ -65,11 +65,15 @@ function duplicates(values: string[]): string[] {
  * Why a map can't serve a shop, as sentences for a log or an error. Empty means it can. These are
  * the cross-references that the admin's field checks don't make (SETUP.md, T09): the admin lets an
  * owner save a half-filled global, and `getMarketMap()` decides what a half-filled one means.
+ *
+ * Only what breaks URLs or Medusa calls is a problem. A primary country or fallback market that is
+ * unset or no longer open is not: `primaryCountryCode` and `fallbackMarketOf` fall back to the
+ * first open country and the primary market, and two markets sharing a `<html lang>` value only
+ * share one hreflang entry (`hreflangAlternates` keeps the first). A shop must not go down for those.
  */
 export function marketMapProblems(map: MarketMap): string[] {
   const problems: string[] = [];
   const open = enabledCountries(map);
-  const markets = listMarkets(map);
 
   if (open.length === 0) problems.push("no country is enabled");
   for (const code of duplicates(map.countries.map((country) => country.code))) {
@@ -92,18 +96,6 @@ export function marketMapProblems(map: MarketMap): string[] {
     }
   }
 
-  if (map.primaryCountry === "") problems.push("the primary country is not set");
-  else if (!open.some((country) => country.code === map.primaryCountry)) {
-    problems.push(`the primary country ${map.primaryCountry} is not an enabled country`);
-  }
-  if (map.fallbackMarket === "") problems.push("the fallback market is not set");
-  else if (!markets.some((market) => market.key === map.fallbackMarket)) {
-    problems.push(`the fallback market ${map.fallbackMarket} is not a market`);
-  }
-
-  for (const lang of duplicates(markets.map((market) => market.htmlLang))) {
-    problems.push(`two markets use the lang value ${lang}`);
-  }
   for (const domain of duplicates(open.flatMap((country) => normalizeHost(country.domain) ?? []))) {
     problems.push(`the domain ${domain} belongs to two countries`);
   }

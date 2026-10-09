@@ -1,8 +1,9 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { MarketsGlobal } from "./global";
 import {
   createMarketSource,
   defaultAllowFallback,
+  MARKET_LOAD_TIMEOUT_MS,
   MarketMapError,
   type FallbackReason,
 } from "./source";
@@ -21,10 +22,12 @@ const brazilGlobal: MarketsGlobal = {
   primaryCountry: brazil.primaryCountry,
   fallbackMarket: brazil.fallbackMarket,
 };
-// Half-filled: countries are there, the primary country and the fallback market are not.
+// Half-filled: the countries are there, but no language has a Medusa locale yet.
 const incompleteGlobal: MarketsGlobal = {
   countries: seeded.countries,
-  languages: seeded.languages,
+  languages: [],
+  primaryCountry: seeded.primaryCountry,
+  fallbackMarket: seeded.fallbackMarket,
 };
 
 /** A source over a fake loader and a clock the test moves. */
@@ -93,14 +96,6 @@ describe("getMarketMap: the 30 s cache (D10)", () => {
     expect(maps[1]).toBe(maps[2]);
   });
 
-  it("reads again after clear()", async () => {
-    const { source, load } = setup(seededGlobal);
-    await source.get();
-    source.clear();
-    await source.get();
-    expect(load).toHaveBeenCalledTimes(2);
-  });
-
   it("keeps a fallback map for the TTL too, so a bare database isn't read on every request", async () => {
     const { source, load, advance } = setup(null, () => true);
     await source.get();
@@ -136,8 +131,13 @@ describe("getMarketMap: an empty or incomplete global", () => {
     expect(await source.get()).toBe(seeded);
     const message = String(warn.mock.calls[0]?.[0]);
     expect(message).toContain("incomplete");
-    expect(message).toContain("the primary country is not set");
-    expect(message).toContain("the fallback market is not set");
+    expect(message).toContain("language el has no Medusa locale under Languages");
+  });
+
+  it("serves a global with no primary country or fallback market: both have a fallback", async () => {
+    const { source, warn } = setup({ countries: seeded.countries, languages: seeded.languages });
+    expect(await source.get()).toEqual({ ...seeded, primaryCountry: "", fallbackMarket: "" });
+    expect(warn).not.toHaveBeenCalled();
   });
 
   it("is an error where the fallback is not allowed (production), and says what to do", async () => {
@@ -199,8 +199,92 @@ describe("getMarketMap: a global that can't be read", () => {
   });
 });
 
+describe("getMarketMap: a read that never answers", () => {
+  afterEach(() => vi.useRealTimers());
+
+  /** A source whose first read is `first`, then whatever `load` answers next. */
+  function hung(first: MarketsGlobal | null) {
+    vi.useFakeTimers();
+    const clock = { time: 1_000_000 };
+    let silent = false;
+    const load = vi.fn(async () => (silent ? new Promise<never>(() => {}) : first));
+    const warn = vi.fn();
+    const source = createMarketSource({
+      load,
+      fallback: seeded,
+      allowFallback: () => false,
+      now: () => clock.time,
+      warn,
+    });
+    return {
+      source,
+      load,
+      warn,
+      goSilent: () => (silent = true),
+      advance: (ms: number) => (clock.time += ms),
+    };
+  }
+
+  it("gives up after the timeout and keeps serving the last good map", async () => {
+    const { source, load, warn, goSilent, advance } = hung(brazilGlobal);
+    await source.get();
+    goSilent();
+    advance(30_000);
+    const attempt = source.get();
+    await vi.advanceTimersByTimeAsync(MARKET_LOAD_TIMEOUT_MS);
+    expect(await attempt).toEqual(brazil);
+    expect(warn.mock.calls[0]?.[0]).toMatch(
+      /no answer after 10 s.*still serving the map read earlier/,
+    );
+    // The stale map is kept for a further TTL, so callers after it don't wait for a read either.
+    advance(1_000);
+    expect(await source.get()).toEqual(brazil);
+    expect(load).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not leave the read pending: the next TTL tries again", async () => {
+    const { source, load, goSilent, advance } = hung(brazilGlobal);
+    await source.get();
+    goSilent();
+    advance(30_000);
+    const first = source.get();
+    await vi.advanceTimersByTimeAsync(MARKET_LOAD_TIMEOUT_MS);
+    await first;
+    advance(30_000);
+    const second = source.get();
+    await vi.advanceTimersByTimeAsync(MARKET_LOAD_TIMEOUT_MS);
+    await second;
+    expect(load).toHaveBeenCalledTimes(3);
+  });
+
+  it("is an error for a first read, with nothing to keep and no fallback allowed", async () => {
+    vi.useFakeTimers();
+    const source = createMarketSource({
+      load: () => new Promise<never>(() => {}),
+      fallback: seeded,
+      allowFallback: () => false,
+      warn: () => {},
+    });
+    const attempt = source.get();
+    const failure = expect(attempt).rejects.toThrow(/no answer after 10 s/);
+    await vi.advanceTimersByTimeAsync(MARKET_LOAD_TIMEOUT_MS);
+    await failure;
+  });
+
+  it("clears its timer when the read answers in time", async () => {
+    vi.useFakeTimers();
+    const { source } = setup(seededGlobal);
+    await source.get();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+});
+
 describe("defaultAllowFallback", () => {
-  const allow = (env: { NODE_ENV?: string; NEXT_PHASE?: string }) => {
+  const allow = (env: {
+    NODE_ENV?: string;
+    NEXT_PHASE?: string;
+    PAYLOAD_DATABASE_URL?: string;
+  }) => {
     const rule = defaultAllowFallback(env);
     return { unusable: rule("unusable"), unreachable: rule("unreachable") };
   };
@@ -215,11 +299,28 @@ describe("defaultAllowFallback", () => {
     });
   });
 
-  it("allows both while `next build` runs, which is production with no database in CI", () => {
+  it("allows both while `next build` runs with no database configured (CI has no .env)", () => {
     expect(allow({ NODE_ENV: "production", NEXT_PHASE: "phase-production-build" })).toEqual({
       unusable: true,
       unreachable: true,
     });
+    expect(
+      allow({
+        NODE_ENV: "production",
+        NEXT_PHASE: "phase-production-build",
+        PAYLOAD_DATABASE_URL: "",
+      }),
+    ).toEqual({ unusable: true, unreachable: true });
+  });
+
+  it("does not hide an unreadable global from a build that has a database configured", () => {
+    // A wrong password, a missing table or a bad secret must fail the build, not ship fixtures.
+    const env = {
+      NODE_ENV: "production",
+      NEXT_PHASE: "phase-production-build",
+      PAYLOAD_DATABASE_URL: "postgres://shop:secret@db.example/payload",
+    };
+    expect(allow(env)).toEqual({ unusable: true, unreachable: false });
   });
 
   it("reads the environment when asked, not when it is made", () => {

@@ -667,7 +667,7 @@ export interface Market {
          */
         medusaLocale: string;
         /**
-         * Overrides the lang attribute, for example pt-BR.
+         * Overrides the lang attribute of every country that uses this language, for example pt-BR.
          */
         htmlLang?: string | null;
         id?: string | null;

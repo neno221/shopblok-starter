@@ -2,6 +2,14 @@
   "$schema": "https://turborepo.dev/schema.json",
   "extends": ["//"],
   "tasks": {
+    "build": {
+      // `next build` reads the `markets` global from Payload's database (the root layout needs the
+      // map to prerender), so the build needs PAYLOAD_DATABASE_URL and PAYLOAD_SECRET, which strict
+      // mode would drop, and a build against another database must not replay this one's cache.
+      // What the database holds can't be hashed: a cached build replays the map it was built with
+      // until a request revalidates it (the layout's `cacheLife` is 30 s).
+      "env": ["$TURBO_EXTENDS$", "PAYLOAD_*"]
+    },
     "test": {
       // `src/payload/locales.test.ts` reads Medusa's locale list from the backend's installed
       // `@medusajs/translation`. That package is not in this app's own dependencies, so a bump in

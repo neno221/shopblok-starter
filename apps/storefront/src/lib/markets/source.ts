@@ -10,8 +10,6 @@ export type MarketSourceOptions = {
   /** The map to use instead, where `allowFallback` says so (the seeded fixtures). */
   fallback: MarketMap;
   allowFallback: (reason: FallbackReason) => boolean;
-  /** How long a map is kept: 30 s (D10). */
-  ttlMs?: number;
   /** A monotonic clock in ms; `performance.now()` by default, which Cache Components allows. */
   now?: () => number;
   warn?: (message: string) => void;
@@ -22,39 +20,56 @@ export class MarketMapError extends Error {
   override name = "MarketMapError";
 }
 
+/** How long a map is kept (D10). */
 export const MARKET_MAP_TTL_MS = 30_000;
+
+/** How long one read of the global may take before it counts as failed. */
+export const MARKET_LOAD_TIMEOUT_MS = 10_000;
 
 /**
  * When the seeded fixtures may stand in for the global (D10, T10 step 4):
  * - an empty or incomplete global: in development, and while `next build` runs, never in
  *   production, where the shop would silently sell in the wrong markets;
- * - a global that can't be read: only while `next build` runs, because CI builds with no database.
- *   The prerendered pages for the seeded keys then say so in the build log, and a running server
- *   reads the real map.
+ * - a global that can't be read: only while `next build` runs and no database is configured
+ *   (`PAYLOAD_DATABASE_URL` is unset), because CI builds with no `.env` and no database. A build
+ *   that has a database configured and can't read it fails, rather than ship the fixtures in place
+ *   of the real markets. The prerendered pages for the seeded keys say so in the build log, and a
+ *   running server reads the real map.
  */
 export function defaultAllowFallback(env: {
   NODE_ENV?: string;
   NEXT_PHASE?: string;
+  PAYLOAD_DATABASE_URL?: string;
 }): (reason: FallbackReason) => boolean {
-  return (reason) =>
-    env.NEXT_PHASE === "phase-production-build" ||
-    (reason === "unusable" && env.NODE_ENV !== "production");
+  return (reason) => {
+    const building = env.NEXT_PHASE === "phase-production-build";
+    if (reason === "unusable") return building || env.NODE_ENV !== "production";
+    return building && !env.PAYLOAD_DATABASE_URL;
+  };
 }
 
 function describe(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+/** A read that never answers (a database host gone silent) must not hold every caller forever. */
+function withTimeout<T>(work: Promise<T>, ms: number): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const expired = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`no answer after ${ms / 1000} s`)), ms);
+  });
+  return Promise.race([work, expired]).finally(() => clearTimeout(timer));
+}
+
 /**
- * The market map with an in-process cache (D10). A map is kept for `ttlMs`; callers that arrive
- * while it is being read share that read. When a read fails or gives an unusable global, the last
- * good map keeps serving (with a warning) rather than taking the shop down; only a first read has
- * nothing to keep, and then it is the fallback, where allowed, or an error. Nothing here imports
- * Payload, so a test can feed it a fake `load`.
+ * The market map with an in-process cache (D10). A map is kept for `MARKET_MAP_TTL_MS`; callers
+ * that arrive while it is being read share that read. When a read fails, times out or gives an
+ * unusable global, the last good map keeps serving (with a warning) rather than taking the shop
+ * down; only a first read has nothing to keep, and then it is the fallback, where allowed, or an
+ * error. Nothing here imports Payload, so a test can feed it a fake `load`.
  */
 export function createMarketSource(options: MarketSourceOptions) {
   const { load, fallback, allowFallback } = options;
-  const ttlMs = options.ttlMs ?? MARKET_MAP_TTL_MS;
   const now = options.now ?? (() => performance.now());
   const warn = options.warn ?? ((message: string) => console.warn(message));
 
@@ -62,7 +77,7 @@ export function createMarketSource(options: MarketSourceOptions) {
   let reading: Promise<MarketMap> | undefined;
 
   const keep = (map: MarketMap): MarketMap => {
-    current = { map, expires: now() + ttlMs };
+    current = { map, expires: now() + MARKET_MAP_TTL_MS };
     return map;
   };
 
@@ -83,7 +98,7 @@ export function createMarketSource(options: MarketSourceOptions) {
   async function read(): Promise<MarketMap> {
     let doc: MarketsGlobal | null | undefined;
     try {
-      doc = await load();
+      doc = await withTimeout(load(), MARKET_LOAD_TIMEOUT_MS);
     } catch (error) {
       return otherwise(
         "unreachable",
@@ -110,10 +125,6 @@ export function createMarketSource(options: MarketSourceOptions) {
         reading = undefined;
       });
       return reading;
-    },
-    /** Forget the map, so the next `get` reads the global again. */
-    clear(): void {
-      current = undefined;
     },
   };
 }
