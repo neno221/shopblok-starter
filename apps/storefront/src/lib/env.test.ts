@@ -23,6 +23,8 @@ describe("medusaEnv", () => {
           MEDUSA_BACKEND_URL,
           NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY: KEY,
         });
+        // The literal, not the constant: `pnpm dev` and `.env.example` run the backend on 9000.
+        expect(settings.backendUrl).toBe("http://localhost:9000");
         expect(settings.backendUrl).toBe(DEFAULT_MEDUSA_BACKEND_URL);
       }
     }

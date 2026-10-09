@@ -1,5 +1,5 @@
 import type { CollectionBeforeChangeHook, CollectionBeforeDeleteHook } from "payload";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { keepOneAdmin, keepOneAdminOnDelete } from "./users";
 
 /** A request whose `users` has `otherAdmins` admins besides the one acted on. */
@@ -70,5 +70,26 @@ describe("keepOneAdminOnDelete", () => {
     const { req, count } = request(0, { role: "editor" });
     await expect(remove(2, req)).resolves.toBeUndefined();
     expect(count).not.toHaveBeenCalled();
+  });
+});
+
+describe("the session cookie", () => {
+  afterEach(() => vi.unstubAllEnvs());
+
+  // `Users` is built when the module loads, from the environment of that moment.
+  async function cookieSecure() {
+    vi.resetModules();
+    const { Users } = await import("./users");
+    const auth = Users.auth;
+    return typeof auth === "object" ? auth.cookies?.secure : undefined;
+  }
+
+  it("is Secure in production and not elsewhere (an http://localhost admin needs it off)", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    expect(await cookieSecure()).toBe(true);
+    vi.stubEnv("NODE_ENV", "development");
+    expect(await cookieSecure()).toBe(false);
+    vi.stubEnv("NODE_ENV", "test");
+    expect(await cookieSecure()).toBe(false);
   });
 });
