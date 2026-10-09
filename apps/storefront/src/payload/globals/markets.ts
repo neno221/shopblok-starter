@@ -1,4 +1,5 @@
 import type { GlobalConfig, TextFieldSingleValidation } from "payload";
+import { text } from "payload/shared";
 import { isAdmin, isStaff } from "../access/roles";
 import { LANGUAGES, languageLabel } from "../locales";
 
@@ -7,10 +8,18 @@ const languageOptions = LANGUAGES.map((code) => ({
   value: code,
 }));
 
-const countryCode: TextFieldSingleValidation = (value) =>
-  typeof value === "string" && /^[a-z]{2}$/.test(value)
+/**
+ * A custom `validate` replaces Payload's own text check, so this runs that first (it enforces
+ * `required`), then lets an empty optional field through and checks the shape of a value.
+ */
+export const countryCode: TextFieldSingleValidation = (value, options) => {
+  const base = text(value, options);
+  if (base !== true) return base;
+  if (value === undefined || value === null || value === "") return true;
+  return /^[a-z]{2}$/.test(value)
     ? true
     : "Use the two-letter ISO 3166-1 code in lowercase, for example cy";
+};
 
 /**
  * The market map (D10), the editable part (D12): which countries are open, in which languages,
