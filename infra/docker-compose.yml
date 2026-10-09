@@ -3,10 +3,11 @@
 #
 # Host ports are non-standard on purpose (D15): the containers keep 5432, 6379
 # and 7700 inside, and a machine that already runs other local services on those
-# ports (this project's own developer machine does) can still start the stack.
-# Override them with POSTGRES_PORT, REDIS_PORT and MEILI_PORT, in the shell or in
-# a root `.env`; the apps' env files hold full URLs, so change those to match.
-# Healthchecks run inside the containers, so they keep the standard ports.
+# ports can still start the stack. Override them (and Mailpit's 1025 and 8025)
+# with POSTGRES_PORT, REDIS_PORT, MEILI_PORT, MAILPIT_SMTP_PORT and
+# MAILPIT_UI_PORT, in the shell or in a root `.env`; the apps' env files hold
+# full URLs, so change those to match. Healthchecks run inside the containers,
+# so they keep the standard ports.
 #
 # Image tags are pinned exactly (plan §2). The same four are pulled by the cloud
 # setup script (docs/CLOUD.md, step 3): change both together.
@@ -26,8 +27,16 @@ services:
     healthcheck:
       # Over TCP, not the unix socket: while the entrypoint runs the init scripts,
       # a temporary server listens on the socket only, and a socket check would
-      # report healthy before the databases exist.
-      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U postgres -d medusa"]
+      # report healthy before the databases exist. It also counts the two
+      # databases: if an init script failed on an earlier start, the volume is no
+      # longer empty, the script is skipped, and the server would otherwise come
+      # up healthy without them.
+      test:
+        - CMD-SHELL
+        - >-
+          psql -h 127.0.0.1 -U postgres -d postgres -tAc
+          "select count(*) from pg_database where datname in ('medusa', 'payload')"
+          | grep -qx 2
       interval: 5s
       timeout: 3s
       retries: 12
@@ -40,7 +49,8 @@ services:
     volumes:
       - redis-data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      # `redis-cli ping` exits 0 on a LOADING error too; require the PONG.
+      test: ["CMD-SHELL", "redis-cli ping | grep -q PONG"]
       interval: 5s
       timeout: 3s
       retries: 12
@@ -72,8 +82,8 @@ services:
       # The version check calls out to GitHub; skip it (offline machines, CI).
       MP_DISABLE_VERSION_CHECK: "true"
     ports:
-      - "1025:1025" # SMTP
-      - "8025:8025" # web UI
+      - "${MAILPIT_SMTP_PORT:-1025}:1025" # SMTP
+      - "${MAILPIT_UI_PORT:-8025}:8025" # web UI
     volumes:
       - mailpit-data:/data
     healthcheck:
@@ -84,9 +94,8 @@ services:
       retries: 12
       start_period: 5s
 
-# Named volumes, not folders in the repo: they stay out of the checkout (and off
-# E: on the Windows machine). `pnpm infra:down` keeps them; `pnpm infra:reset`
-# removes them.
+# Named volumes, not folders in the repo: they stay out of the checkout.
+# `pnpm infra:down` keeps them; `pnpm infra:reset` removes them.
 volumes:
   postgres-data:
   redis-data:

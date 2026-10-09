@@ -8,7 +8,7 @@ pnpm infra:down    # stops and removes the containers; the data stays in the nam
 pnpm infra:reset   # docker compose down -v, then up: deletes all data and recreates everything
 ```
 
-Plain `docker compose up -d --wait` does the same as `pnpm infra:up`. Docker has to be running first. In a Claude Code cloud session it is off at the start; see [docs/CLOUD.md](../docs/CLOUD.md), "What every cloud session does first", step 3.
+Plain `docker compose up -d --wait` does the same as `pnpm infra:up`. Docker has to be running first, with Docker Compose v2.20 or newer (the root file uses `include`). Run it from the repo root: from inside `infra/`, Compose uses that folder as its project (name `infra`, its own volumes) and ignores the root `.env`. In a Claude Code cloud session it is off at the start; see [docs/CLOUD.md](../docs/CLOUD.md), "What every cloud session does first", step 3.
 
 ## Services
 
@@ -19,9 +19,9 @@ Plain `docker compose up -d --wait` does the same as `pnpm infra:up`. Docker has
 | `meilisearch` | `getmeili/meilisearch:v1.54.3` | **7701** → 7700 | `meili-data` | Medusa's Search provider (M6) |
 | `mailpit` | `axllent/mailpit:v1.31.4` | 1025 (SMTP) and 8025 (web UI), the same inside | `mailpit-data` | Local inbox for Payload's email |
 
-Every service has a healthcheck, which is what `--wait` waits for: `pg_isready`, `redis-cli ping`, `curl -fsS localhost:7700/health` and `/mailpit readyz`. The checks run inside the containers, so they use the standard ports. Postgres's check goes over TCP on purpose: while the entrypoint runs the init scripts, a temporary server listens on the unix socket only, and a socket check would report healthy before the databases exist.
+Every service has a healthcheck, which is what `--wait` waits for: a `psql` query for Postgres, `redis-cli ping` (it has to answer `PONG`), `curl -fsS localhost:7700/health` and `/mailpit readyz`. The checks run inside the containers, so they use the standard ports. Postgres's check goes over TCP on purpose: while the entrypoint runs the init scripts, a temporary server listens on the unix socket only, and a socket check would report healthy before the databases exist. It also counts the `medusa` and `payload` databases, so a start on a volume whose init script failed earlier (the script is then skipped) stays unhealthy instead of looking ready.
 
-The images are pinned to exact tags. The cloud setup script pulls the same four ([docs/CLOUD.md](../docs/CLOUD.md), script step 3), so change a tag in both places.
+The images are pinned to exact tags. The cloud setup script pulls the same four ([docs/CLOUD.md](../docs/CLOUD.md), script step 3), so change a tag in both places. Existing volumes may not survive a bump: a new Postgres major version can't read the data directory of the old one, and Meilisearch can't open data written by another version without a dump. After changing either tag, run `pnpm infra:reset` (which deletes the data), or dump and re-import first.
 
 ## Why the host ports are not the standard ones
 
@@ -34,8 +34,10 @@ To change one, set it in the shell or in a root `.env` (gitignored; Compose read
 | `POSTGRES_PORT` | 15432 | 5432 |
 | `REDIS_PORT` | 6380 | 6379 |
 | `MEILI_PORT` | 7701 | 7700 |
+| `MAILPIT_SMTP_PORT` | 1025 | 1025 |
+| `MAILPIT_UI_PORT` | 8025 | 8025 |
 
-The apps' env files hold full URLs, so an override means changing the URL too. Mailpit's ports are fixed.
+The apps' env files hold full URLs (and the SMTP host and port), so an override means changing those too. Mailpit keeps the usual 1025 and 8025 by default; set the last two if MailHog, MailCatcher or another local mail catcher already uses them.
 
 ## Connection details
 
@@ -59,4 +61,4 @@ These are local development values, not secrets: the Meilisearch master key is f
 - **Meilisearch** runs with `MEILI_ENV=development` and its anonymous telemetry off. Without the master key every request except `/health` is refused (401).
 - **Mailpit** keeps its inbox in a database on its volume (`MP_DATABASE=/data/mailpit.db`) and skips its version check, which calls out to GitHub. It logs a warning that its UI has no authentication; that is fine on a development machine.
 - There is no object-storage container (SPEC §5): files stay on local disk until `S3_*` keys are set.
-- Volumes are named volumes, not folders in the checkout, so nothing lands on `E:` and `git status` stays clean. They belong to the Compose project, which is named after the repo folder; a second checkout in a folder with another name gets its own containers and volumes, and the two can't run together because they publish the same ports.
+- Volumes are named volumes, not folders in the checkout, so `git status` stays clean. They belong to the Compose project, which is named after the repo folder; a second checkout in a folder with another name gets its own containers and volumes, and the two can't run together because they publish the same ports.
