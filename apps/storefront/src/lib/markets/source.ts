@@ -12,6 +12,7 @@ export type MarketSourceOptions = {
   allowFallback: (reason: FallbackReason) => boolean;
   /** How long a map is kept: 30 s (D10). */
   ttlMs?: number;
+  /** A monotonic clock in ms; `performance.now()` by default, which Cache Components allows. */
   now?: () => number;
   warn?: (message: string) => void;
 };
@@ -54,7 +55,7 @@ function describe(error: unknown): string {
 export function createMarketSource(options: MarketSourceOptions) {
   const { load, fallback, allowFallback } = options;
   const ttlMs = options.ttlMs ?? MARKET_MAP_TTL_MS;
-  const now = options.now ?? Date.now;
+  const now = options.now ?? (() => performance.now());
   const warn = options.warn ?? ((message: string) => console.warn(message));
 
   let current: { map: MarketMap; expires: number } | undefined;
