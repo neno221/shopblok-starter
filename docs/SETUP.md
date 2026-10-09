@@ -325,6 +325,35 @@ The checks that T03's session left for T04: whether the saved copy of the setup 
    redis:7.4-alpine               858f009f9709   57.8MB
    ```
 
+### Follow-up checks (T05)
+
+The checks that T04's session left for T05: whether the saved copy of the setup run is reused again, and whether the folder T05 copies from is there. T05's session ran them first, before any T05 work and before Docker was started, and fixed nothing. The prompt did not say the owner had rebuilt the environment, so the comparison counts.
+
+1. **Setup cache: reused again. Passed.** Taken first, before any T05 work:
+
+   ```text
+   $ date -u
+   Fri Oct  9 05:26:15 UTC 2026
+   $ uptime -s
+   2026-10-09 05:25:59
+   $ grep -E 'setup (start|end)' /var/log/shopblok-setup.log
+   setup start 2026-10-09T03:03:14Z
+   + echo 'setup end 2026-10-09T03:03:51Z'
+   setup end 2026-10-09T03:03:51Z
+   $ grep -c 'setup start' /var/log/shopblok-setup.log
+   1
+   $ stat -c '%n  mtime=%y  birth=%w' /var/log/shopblok-setup.log /home/user/shopblok-starter/.git/HEAD
+   /var/log/shopblok-setup.log  mtime=2026-10-09 03:03:51.253129671 +0000  birth=2026-10-09 03:03:14.173130519 +0000
+   /home/user/shopblok-starter/.git/HEAD  mtime=2026-10-09 05:26:04.649868571 +0000  birth=2026-10-09 05:26:04.646770358 +0000
+   ```
+
+   Of the three outcomes the prompt listed, this is the first. The `setup start` is the same one T04's session found (`03:03:14Z`, with `setup end` `03:03:51Z`), now **8581 s (2 h 23 min 1 s)** before `date -u`, and the log still holds one run. It was last written 8544 s before `date -u`. The VM booted at 05:25:59, 16 s before `date -u` and 2 h 22 min after the log was last written, and the repo was cloned 5 s later (05:26:04). So the log was already in the filesystem when this VM booted, as in T04's session.
+
+   **It is the same file, not a second run with the same times.** The log's birth and last-write times (`03:03:14.173130519`, `03:03:51.253129671`) are identical to the nanosecond to what T04's session recorded 55 min 47 s earlier, on another VM (that one booted at 04:30:10). A platform rebuild or a fresh script run would give a new file with new times. The "rebuilt" outcome doesn't apply either: no later run is in the log.
+
+   **What it means.** The copy was reused in the last two sessions (T04, T05); T02's session did not (its item 1; T04's session guessed the difference was the old script against the new one, which nothing here confirms or rules out), and T03's session ran right after the owner pasted the script, so it says nothing. Two in a row is more than T04's one, but it is still two data points, and CLOUD.md says the copy is rebuilt after about seven days or when the script or domains change. If a later session shows a fresh `setup start`, it costs about 40 s and breaks nothing. Nothing was changed.
+2. **`/opt/dtc-starter`: present and complete. Passed.** `ls /opt/dtc-starter/apps/backend/package.json` exists, its `name` is `@dtc/backend`, `@medusajs/medusa` is `2.21.2`, and the seven paths T05's steps name all exist: `src/migration-scripts/initial-data-seed.ts`, `src/api/store/custom`, `src/api/admin/custom`, `src/scripts/seed-demo-products.ts`, `src/search/product.ts`, `src/api/middlewares.ts` and `.env.template`. The setup log has `step 6 ok: /opt/dtc-starter` and `step 6 ok: /opt/payload-templates` and no `FAILED` line; `/opt/payload-templates` holds `blank`, `ecommerce` and `with-postgres`.
+
 ## Config presets (T02)
 
 **Result: `@shopblok/config` exists and every check in T02's Verify list passes. T03 can start.** The shared presets load through real workspace packages, not only inside their own folder (checked with throwaway packages, since deleted). Three things differ from the plan's text: ESLint 9 is end-of-life (item 1), `pnpm install` needed one more `allowBuilds` entry (item 2), and the T02 file list gained two files (item 3). Items 4 to 6 are notes for later tasks, and item 7 lists what changed while this PR was reviewed.
