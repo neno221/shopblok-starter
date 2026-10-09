@@ -5,7 +5,7 @@ import { MARKET_LOAD_TIMEOUT_MS, MarketMapError } from "./source";
 import { brazil } from "./test-maps";
 
 /** A fake `fetch` that answers from a queue and records what it was asked. */
-function fakeFetch(answers: (() => Response)[]) {
+function fakeFetch(answers: (() => Response | Promise<Response>)[]) {
   const calls: { url: string; init: RequestInit | undefined }[] = [];
   const fetcher = (async (input: URL | RequestInfo, init?: RequestInit) => {
     calls.push({ url: String(input), init });
@@ -25,6 +25,11 @@ function clock(start = 0) {
   let t = start;
   return { now: () => t, advance: (ms: number) => (t += ms) };
 }
+
+/** An answer that is a refused connection. */
+const refused = () => {
+  throw new TypeError("fetch failed");
+};
 
 const production = { NODE_ENV: "production" };
 const development = { NODE_ENV: "development" };
@@ -99,18 +104,13 @@ describe("the map from the route", () => {
 
   it("never makes callers wait for a refresh: the old map answers while the new one is read", async () => {
     const fresh = Promise.withResolvers<Response>();
-    let reads = 0;
-    const fetcher = (async () => {
-      reads += 1;
-      return reads === 1 ? json(seeded)() : fresh.promise;
-    }) as unknown as typeof fetch;
+    const { fetcher, calls } = fakeFetch([json(seeded), () => fresh.promise]);
     const time = clock();
     const source = createProxyMarketMap({ env: production, fetcher, now: time.now });
     await source.get();
     time.advance(30_000);
     expect(await source.get()).toEqual(seeded);
-    expect(await source.get()).toEqual(seeded);
-    expect(reads).toBe(2);
+    expect(calls).toHaveLength(2);
     fresh.resolve(json(brazil)());
     await vi.waitFor(async () => expect(await source.get()).toEqual(brazil));
   });
@@ -136,37 +136,41 @@ describe("when the route cannot answer", () => {
   });
 
   it("names the URL when it cannot be reached (a wrong NEXT_PUBLIC_BASE_URL)", async () => {
-    const fetcher = (async () => {
-      throw new TypeError("fetch failed");
-    }) as unknown as typeof fetch;
+    const { fetcher } = fakeFetch([refused]);
     const source = createProxyMarketMap({ env: production, fetcher });
     await expect(source.get()).rejects.toThrow(
       "http://localhost:8000/next/markets could not be fetched (fetch failed)",
     );
   });
 
-  it("refuses an answer that is not a market map (another app on that address)", async () => {
-    for (const body of ["<html>", null, [], 42]) {
-      const { fetcher } = fakeFetch([json(body)]);
-      const source = createProxyMarketMap({ env: production, fetcher });
-      await expect(source.get()).rejects.toThrow(
-        "did not answer a market map; is NEXT_PUBLIC_BASE_URL this app?",
-      );
-    }
+  it.each([
+    ["a page", () => new Response("<html>")],
+    ["null", json(null)],
+    ["an error object", json({ error: "x" })],
+    ["countries that are not a list", json({ countries: "x", languages: [] })],
+  ])("refuses %s as the map (another app on that address)", async (_name, answer) => {
+    const { fetcher } = fakeFetch([answer]);
+    const source = createProxyMarketMap({ env: production, fetcher });
+    await expect(source.get()).rejects.toThrow(
+      "did not answer a market map; is NEXT_PUBLIC_BASE_URL this app?",
+    );
   });
 
-  it("keeps serving the last good map when a later answer has the wrong shape", async () => {
-    const { fetcher } = fakeFetch([json(seeded), json({ countries: "x" })]);
+  it("keeps serving the last good map when a later answer is not a map, with a warning", async () => {
+    const { fetcher } = fakeFetch([json(seeded), json({ error: "x" })]);
     const time = clock();
+    const warnings: string[] = [];
     const source = createProxyMarketMap({
       env: production,
       fetcher,
       now: time.now,
-      warn: () => {},
+      warn: (message) => warnings.push(message),
     });
     await source.get();
     time.advance(30_000);
     expect(await source.get()).toEqual(seeded);
+    await vi.waitFor(() => expect(warnings).toHaveLength(1));
+    expect(warnings[0]).toContain("did not answer a market map");
   });
 
   it("keeps serving the last good map through a failed refresh, with a warning", async () => {
@@ -207,9 +211,7 @@ describe("when the route cannot answer", () => {
   });
 
   it("does not hide an unreachable route in development: the developer should hear it", async () => {
-    const fetcher = (async () => {
-      throw new TypeError("fetch failed");
-    }) as unknown as typeof fetch;
+    const { fetcher } = fakeFetch([refused]);
     const source = createProxyMarketMap({ env: development, fetcher });
     await expect(source.get()).rejects.toThrow("fetch failed");
   });

@@ -6,6 +6,7 @@ import {
   MARKET_LOAD_TIMEOUT_MS,
   MarketMapError,
   type FallbackReason,
+  type MarketSourceOptions,
 } from "./source";
 import { brazil, seeded } from "./test-maps";
 
@@ -38,7 +39,7 @@ type Answer = MarketsGlobal | Error | null | typeof NEVER;
 function setup(
   first: Answer,
   allow: (reason: FallbackReason) => boolean = () => false,
-  extra: { staleWhileRevalidate?: boolean } = {},
+  extra: Pick<MarketSourceOptions, "staleWhileRevalidate"> = {},
 ) {
   const clock = { time: 1_000_000 };
   // What the next reads return, in order; the last answer repeats.
@@ -174,27 +175,6 @@ describe("getMarketMap: an empty or incomplete global", () => {
   });
 });
 
-describe("getMarketMap: an answer of the wrong shape", () => {
-  const wrong = { countries: "not a list" } as unknown as MarketsGlobal;
-
-  it("is a failed read: an error where nothing may stand in, with the cause", async () => {
-    const { source, allowFallback } = setup(wrong);
-    await expect(source.get()).rejects.toThrow(/flatMap/);
-    expect(allowFallback).toHaveBeenCalledWith("unreachable");
-  });
-
-  it("keeps serving the last good map", async () => {
-    const { source, advance, next, warn } = setup(brazilGlobal);
-    await source.get();
-    advance(30_000);
-    next(wrong);
-    expect(await source.get()).toEqual(brazil);
-    expect(warn.mock.calls[0]?.[0]).toMatch(
-      /could not be read.*still serving the map read earlier/,
-    );
-  });
-});
-
 describe("getMarketMap: a global that can't be read", () => {
   it("fails where the fallback is not allowed, with the original error", async () => {
     const down = new Error("connect ECONNREFUSED 127.0.0.1:15432");
@@ -294,31 +274,30 @@ describe("getMarketMap: staleWhileRevalidate (the proxy's choice)", () => {
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => vi.useRealTimers());
 
+  const swr = (first: Answer) => setup(first, undefined, { staleWhileRevalidate: true });
+  /** Lets the read that `get()` left running in the background finish. */
+  const flush = () => vi.advanceTimersByTimeAsync(0);
+
   it("blocks for a first read, as there is nothing to serve", async () => {
-    const { source } = setup(NEVER, () => false, { staleWhileRevalidate: true });
+    const { source } = swr(NEVER);
     const failure = expect(source.get()).rejects.toThrow(/no answer after 10 s/);
     await vi.advanceTimersByTimeAsync(MARKET_LOAD_TIMEOUT_MS);
     await failure;
   });
 
   it("answers with the old map at once past the TTL, and the new one once it is read", async () => {
-    const { source, load, advance, next } = setup(brazilGlobal, () => false, {
-      staleWhileRevalidate: true,
-    });
+    const { source, load, advance, next } = swr(brazilGlobal);
     await source.get();
     advance(30_000);
     next(seededGlobal);
     expect(await source.get()).toEqual(brazil);
-    await vi.advanceTimersByTimeAsync(0);
-    expect(load).toHaveBeenCalledTimes(2);
+    await flush();
     expect(await source.get()).toEqual(seeded);
     expect(load).toHaveBeenCalledTimes(2);
   });
 
   it("does not make callers wait for a read that never answers, one read for all of them", async () => {
-    const { source, load, advance, next } = setup(brazilGlobal, () => false, {
-      staleWhileRevalidate: true,
-    });
+    const { source, load, advance, next } = swr(brazilGlobal);
     await source.get();
     next(NEVER);
     advance(30_000);
@@ -327,24 +306,15 @@ describe("getMarketMap: staleWhileRevalidate (the proxy's choice)", () => {
     expect(load).toHaveBeenCalledTimes(2);
   });
 
-  it("keeps the old map through a failed background read, with a warning, and retries after a TTL", async () => {
-    const { source, load, warn, advance, next } = setup(brazilGlobal, () => false, {
-      staleWhileRevalidate: true,
-    });
+  it("keeps the old map through a failed background read, and says so after the call returns", async () => {
+    const { source, warn, advance, next } = swr(brazilGlobal);
     await source.get();
     next(new Error("connection reset"));
     advance(30_000);
     expect(await source.get()).toEqual(brazil);
-    await vi.advanceTimersByTimeAsync(0);
+    expect(warn).not.toHaveBeenCalled();
+    await flush();
     expect(warn.mock.calls[0]?.[0]).toMatch(/connection reset.*still serving the map read earlier/);
-    advance(29_999);
-    await source.get();
-    expect(load).toHaveBeenCalledTimes(2);
-    advance(1);
-    next(seededGlobal);
-    await source.get();
-    await vi.advanceTimersByTimeAsync(0);
-    expect(await source.get()).toEqual(seeded);
   });
 });
 

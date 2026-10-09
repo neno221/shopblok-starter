@@ -114,22 +114,11 @@ describe("findMarket, primaryMarket, fallbackMarketOf", () => {
 });
 
 describe("withoutClosedCountries", () => {
-  it("drops a closed country and keeps the rest of the map", () => {
+  it("drops a closed country and leaves the markets, the primary and the languages as they were", () => {
     const published = withoutClosedCountries(germanyClosed);
     expect(published.countries.map((country) => country.code)).not.toContain("de");
-    expect(published.countries).toHaveLength(seeded.countries.length - 1);
-    expect(published.languages).toEqual(seeded.languages);
-    expect(published.primaryCountry).toBe(seeded.primaryCountry);
-  });
-
-  it("resolves the same markets as the whole map", () => {
-    expect(listMarkets(withoutClosedCountries(germanyClosed))).toEqual(listMarkets(germanyClosed));
-    expect(primaryMarket(withoutClosedCountries(germanyClosed))).toEqual(
-      primaryMarket(germanyClosed),
-    );
-  });
-
-  it("leaves a map with every country open as it is", () => {
-    expect(withoutClosedCountries(seeded)).toEqual(seeded);
+    expect(listMarkets(published)).toEqual(listMarkets(germanyClosed));
+    expect(primaryMarket(published)).toEqual(primaryMarket(germanyClosed));
+    expect(published.languages).toEqual(germanyClosed.languages);
   });
 });

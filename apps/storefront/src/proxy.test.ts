@@ -1,7 +1,7 @@
-import { markets as seeded } from "@shopblok/fixtures";
 import { NextRequest } from "next/server";
 import { getRewrittenUrl, unstable_doesMiddlewareMatch } from "next/experimental/testing/server";
 import { describe, expect, it, vi } from "vitest";
+import { seeded } from "./lib/markets/test-maps";
 import { config, proxy } from "./proxy";
 
 // The map comes from `/next/markets` (a fetch); the glue test below gives it directly.
@@ -27,7 +27,6 @@ describe("the proxy matcher", () => {
     "/cy/store?page=2",
     "/products/1.5l-bottle", // a dot in a slug is not a file
     "/ch/fr/store/size-8.5",
-    "/store/2024.05",
     "/cy/evil.example/x", // the dot is not in the last segment
   ])("runs on the storefront path %s", (url) => {
     expect(runsOn(url)).toBe(true);

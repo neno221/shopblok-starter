@@ -59,7 +59,7 @@ export function defaultAllowFallback(env: {
   };
 }
 
-function describe(error: unknown): string {
+export function describeError(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
@@ -80,7 +80,7 @@ function withTimeout<T>(work: Promise<T>, ms: number): Promise<T> {
  * error. Nothing here imports Payload, so a test can feed it a fake `load`.
  */
 export function createMarketSource(options: MarketSourceOptions) {
-  const { load, fallback, allowFallback } = options;
+  const { load, fallback, allowFallback, staleWhileRevalidate } = options;
   const now = options.now ?? (() => performance.now());
   const warn = options.warn ?? ((message: string) => console.warn(message));
 
@@ -114,18 +114,17 @@ export function createMarketSource(options: MarketSourceOptions) {
   }
 
   async function read(): Promise<MarketMap> {
-    let map: MarketMap;
+    let doc: MarketsGlobal | null | undefined;
     try {
-      // Mapped inside the guard: a source that answers something of the wrong shape (the proxy's
-      // HTTP read) is a read that failed, so the last good map keeps serving.
-      map = mapFromGlobal((await withTimeout(loadOnce(), MARKET_LOAD_TIMEOUT_MS)) ?? {});
+      doc = await withTimeout(loadOnce(), MARKET_LOAD_TIMEOUT_MS);
     } catch (error) {
       return otherwise(
         "unreachable",
-        `the markets global could not be read (${describe(error)})`,
+        `the markets global could not be read (${describeError(error)})`,
         error,
       );
     }
+    const map = mapFromGlobal(doc ?? {});
     const problems = marketMapProblems(map);
     if (problems.length === 0) return keep(map);
     const state = map.countries.length === 0 ? "empty" : "incomplete";
@@ -143,9 +142,8 @@ export function createMarketSource(options: MarketSourceOptions) {
       reading ??= read().finally(() => {
         reading = undefined;
       });
-      // `read` can't reject once there is a map to keep, so the background read leaves no rejection behind.
-      if (current !== undefined && options.staleWhileRevalidate) return current.map;
-      return reading;
+      // With a map to serve, the caller doesn't wait: the read runs on and renews the map.
+      return staleWhileRevalidate && current !== undefined ? current.map : reading;
     },
   };
 }

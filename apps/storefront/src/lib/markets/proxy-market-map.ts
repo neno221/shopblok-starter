@@ -3,37 +3,15 @@ import type { MarketsGlobal } from "./global";
 import {
   createMarketSource,
   defaultAllowFallback,
+  describeError,
   MARKET_LOAD_TIMEOUT_MS,
   type MarketSourceOptions,
 } from "./source";
 
-function describe(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
-
 /** Where the proxy reads the map: `app/next/markets/route.ts`, which the proxy's matcher skips. */
 export const MARKETS_ROUTE = "/next/markets";
 
-type Env = {
-  NEXT_PUBLIC_BASE_URL?: string | undefined;
-  NODE_ENV?: string | undefined;
-  NEXT_PHASE?: string | undefined;
-  PAYLOAD_DATABASE_URL?: string | undefined;
-};
-
-/**
- * `process.env`, read name by name: `next build` only writes a `NEXT_PUBLIC_*` value into the
- * bundle where it sees the literal `process.env.NEXT_PUBLIC_…` (as `payload.config.ts` reads it),
- * and `.env.example` promises that the build carries it.
- */
-function processEnv(): Env {
-  return {
-    NEXT_PUBLIC_BASE_URL: process.env.NEXT_PUBLIC_BASE_URL,
-    NODE_ENV: process.env.NODE_ENV,
-    NEXT_PHASE: process.env.NEXT_PHASE,
-    PAYLOAD_DATABASE_URL: process.env.PAYLOAD_DATABASE_URL,
-  };
-}
+type Env = Parameters<typeof defaultAllowFallback>[0] & { NEXT_PUBLIC_BASE_URL?: string };
 
 /**
  * The URL of the map route. It comes from the environment and never from the request: a proxy that
@@ -60,34 +38,38 @@ type ProxyMarketMapOptions = {
  * The market map for the proxy (D10, T11's fallback): the map route's JSON, kept in process for
  * 30 s, with the same last-good-map, timeout and fallback rules as `getMarketMap()` (`source.ts`).
  * The route returns a `MarketMap`, which has the shape `mapFromGlobal` reads, so the same source
- * checks it again. Imports no Payload: that is the point (the cold start of a proxy function).
+ * maps and checks it again. Imports no Payload: that is the point (the cold start of a proxy
+ * function). `staleWhileRevalidate`: this is on every request's path, and none may wait for a read.
  */
 export function createProxyMarketMap(options: ProxyMarketMapOptions = {}) {
-  const env: Env = options.env ?? processEnv();
+  // `next build` writes a NEXT_PUBLIC_* value into the bundle only where it sees the literal
+  // `process.env.NEXT_PUBLIC_…` (as `payload.config.ts` reads it), so the key is listed by name.
+  const env: Env = options.env ?? {
+    ...process.env,
+    NEXT_PUBLIC_BASE_URL: process.env.NEXT_PUBLIC_BASE_URL,
+  };
   const fetcher = options.fetcher ?? fetch;
   return createMarketSource({
     load: async (): Promise<MarketsGlobal> => {
       const url = marketsRouteUrl(env);
+      // The URL in every message: a wrong NEXT_PUBLIC_BASE_URL is otherwise a bare "fetch failed".
+      const fail = (what: string) => new Error(`${url.href} ${what}`);
       const response = await fetcher(url, {
         cache: "no-store",
         signal: AbortSignal.timeout(MARKET_LOAD_TIMEOUT_MS),
       }).catch((error: unknown) => {
-        // The URL in the message: a wrong NEXT_PUBLIC_BASE_URL otherwise shows as a bare "fetch failed".
-        throw new Error(`${url.href} could not be fetched (${describe(error)})`);
+        throw fail(`could not be fetched (${describeError(error)})`);
       });
       if (!response.ok) {
-        throw new Error(
-          `${url.href} answered ${response.status}; the reason is in the server log of that route`,
-        );
+        throw fail(`answered ${response.status}; the reason is in the server log of that route`);
       }
-      const body: unknown = await response.json();
-      // Another app on the address (or a gateway's error page) answers 200 with something else.
-      if (typeof body !== "object" || body === null || Array.isArray(body)) {
-        throw new Error(
-          `${url.href} did not answer a market map; is NEXT_PUBLIC_BASE_URL this app?`,
-        );
+      const body = (await response.json().catch(() => null)) as Partial<MarketsGlobal> | null;
+      // The one place the shape is untrusted: another app on the address answers 200 with its own
+      // page or JSON. The route always sends both lists.
+      if (!Array.isArray(body?.countries) || !Array.isArray(body.languages)) {
+        throw fail("did not answer a market map; is NEXT_PUBLIC_BASE_URL this app?");
       }
-      return body as MarketsGlobal;
+      return body;
     },
     fallback: seededMarkets,
     allowFallback: defaultAllowFallback(env),

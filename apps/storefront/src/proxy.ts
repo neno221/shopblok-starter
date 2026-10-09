@@ -14,11 +14,10 @@ export async function proxy(req: NextRequest) {
 
 export const config = {
   // Not for Payload (`/admin`, `/api`), the draft-mode routes and the map route (`/next`), Next's
-  // own paths, Vercel's, `/.well-known/`, or a file: a last segment that ends in `.` and a letter
-  // and then letters and digits (`logo.png`, `robots.txt`). A dot before a digit is a slug
-  // (`size-8.5`, `1.5l-bottle`) and stays a storefront path. The segment must end after a name, so
-  // `/administrator` is still a storefront path. A path the matcher skips also skips server
-  // function calls: Payload's routes don't use any. The value has to be a literal.
+  // and Vercel's paths, `/.well-known/`, or a file: a last segment ending in `.` and a letter
+  // (`logo.png`). A dot before a digit is a slug (`size-8.5`) and stays a storefront path, and
+  // `/administrator` is not `/admin`. A skipped path also skips server function calls: Payload's
+  // routes use none. The value has to be a literal.
   matcher: [
     "/((?!(?:admin|api|next)(?:/|$)|_next/|_vercel/|\\.well-known/|.*\\.[A-Za-z][A-Za-z0-9]*$).*)",
   ],
