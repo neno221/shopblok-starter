@@ -1,8 +1,11 @@
 import {
   countryDrift,
+  findRegion,
   isDemoSkipped,
+  isDevelopmentEnv,
   missingBy,
   planTranslations,
+  required,
   storeDrift,
   type DesiredTranslation,
   type ExistingTranslation,
@@ -113,6 +116,63 @@ describe("countryDrift", () => {
     });
     expect(countryDrift(["cy"], ["cy", "de"])).toEqual({ missing: ["de"], extra: [] });
     expect(countryDrift(["cy", "gr"], ["cy"])).toEqual({ missing: [], extra: ["gr"] });
+  });
+});
+
+describe("findRegion", () => {
+  const europe = {
+    name: "Europe",
+    countries: [{ iso_2: "cy" }, { iso_2: "DE" }, null, { iso_2: null }],
+  };
+  const us = { name: "United States", countries: [{ iso_2: "us" }] };
+  const wantedEurope = { name: "Europe", countries: ["cy", "de", "fr"] };
+
+  it("finds a region by its name", () => {
+    expect(findRegion([us, europe], wantedEurope)).toBe(europe);
+    expect(findRegion([{ name: "Europe" }], wantedEurope)).toEqual({ name: "Europe" });
+  });
+
+  it("finds a renamed region by a country it holds, whatever the case", () => {
+    const renamed = { ...europe, name: "EU" };
+
+    expect(findRegion([us, renamed], wantedEurope)).toBe(renamed);
+    expect(findRegion([us, renamed], { name: "Germany", countries: ["de"] })).toBe(renamed);
+  });
+
+  it("finds nothing when neither the name nor a country matches", () => {
+    expect(findRegion([us], wantedEurope)).toBeUndefined();
+    expect(findRegion([], wantedEurope)).toBeUndefined();
+    expect(findRegion([{ name: "Empty", countries: null }], wantedEurope)).toBeUndefined();
+  });
+});
+
+describe("required", () => {
+  it("returns a value that is there, including falsy ones", () => {
+    expect(required("a", "x")).toBe("a");
+    expect(required(0, "x")).toBe(0);
+    expect(required("", "x")).toBe("");
+  });
+
+  it("names what is missing instead of a bare TypeError", () => {
+    expect(() => required(undefined, 'The value "Navy" of "Color"')).toThrow(
+      /The value "Navy" of "Color" is missing/,
+    );
+    expect(() => required(null, "Category")).toThrow(/Category is missing/);
+  });
+});
+
+describe("isDevelopmentEnv", () => {
+  it("accepts an unset NODE_ENV, development and test", () => {
+    expect(isDevelopmentEnv(undefined)).toBe(true);
+    expect(isDevelopmentEnv("")).toBe(true);
+    expect(isDevelopmentEnv("development")).toBe(true);
+    expect(isDevelopmentEnv("test")).toBe(true);
+  });
+
+  it("refuses production, staging and anything else", () => {
+    expect(isDevelopmentEnv("production")).toBe(false);
+    expect(isDevelopmentEnv("staging")).toBe(false);
+    expect(isDevelopmentEnv("Development")).toBe(false);
   });
 });
 

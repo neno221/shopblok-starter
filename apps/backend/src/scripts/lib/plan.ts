@@ -153,6 +153,65 @@ export function planTranslations(
   return plan;
 }
 
+/** A region as `findRegion` reads it. */
+export type RegionRow = {
+  name: string;
+  countries?: ({ iso_2?: string | null } | null)[] | null;
+};
+
+/**
+ * The existing region that stands for a wanted one: the region with its name,
+ * else the region that already holds one of its countries. A country belongs
+ * to one region only, so when an admin renamed a seeded region, creating the
+ * wanted one again would fail with "Countries … are already assigned to a
+ * region" (and every step after it would not run).
+ */
+export function findRegion<R extends RegionRow>(
+  existing: readonly R[],
+  wanted: { name: string; countries: readonly string[] },
+): R | undefined {
+  const byName = existing.find((region) => region.name === wanted.name);
+
+  if (byName) {
+    return byName;
+  }
+
+  const want = new Set(wanted.countries.map((country) => country.toLowerCase()));
+
+  return existing.find((region) =>
+    (region.countries ?? []).some(
+      (country) => country?.iso_2 && want.has(country.iso_2.toLowerCase()),
+    ),
+  );
+}
+
+/**
+ * `value`, or a `MedusaError` that says what the seed expected to find. For the
+ * lookups that follow a create (or a "found by handle") where a bare `!` would
+ * surface as "Cannot read properties of undefined".
+ */
+export function required<T>(value: T | null | undefined, what: string): T {
+  if (value === null || value === undefined) {
+    throw new MedusaError(
+      MedusaError.Types.NOT_FOUND,
+      `${what} is missing, so the seed can't continue. Add it back (or remove what refers to it) and run the seed again.`,
+    );
+  }
+
+  return value;
+}
+
+/**
+ * `NODE_ENV` values the demo catalog may run in. Anything else (`production`,
+ * `staging`, …) is a real deployment, the same rule as `getSecret` in
+ * `src/config/config.ts`, which only lets these three fall back to a default.
+ */
+const DEVELOPMENT_ENVS = ["", "development", "test"];
+
+export function isDevelopmentEnv(nodeEnv: string | undefined): boolean {
+  return DEVELOPMENT_ENVS.includes(nodeEnv ?? "");
+}
+
 /**
  * `SEED_DEMO=false` or a `skip` / `--skip` argument turns the demo catalog off.
  * (`medusa exec` hands a script only its positional arguments, so a bare `--skip`

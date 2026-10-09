@@ -5,8 +5,12 @@
  *   pnpm --filter @shopblok/backend exec medusa exec ./src/scripts/seed-markets.ts
  *
  * Idempotent: each entity is looked up first and only created when it is
- * missing, so a second run makes no change. It writes through core-flows
- * workflows only. Needs the database up, and Redis when `REDIS_URL` is set.
+ * missing, so a second run makes no change. The exception is the store's
+ * currencies and locales, which are set to exactly the lists in `lib/markets.ts`
+ * (anything else on the store is removed). A renamed region is still found by
+ * the countries it holds, and the stock location by its fulfilment set. It
+ * writes through core-flows workflows only. Needs the database up, and Redis
+ * when `REDIS_URL` is set.
  *
  * Medusa itself creates the store, the default sales channel and a publishable
  * key linked to it each time the app boots, so a script always finds them.
@@ -39,20 +43,23 @@ import {
 } from "@medusajs/medusa/core-flows";
 
 import {
+  DEFAULT_SHIPPING_PROFILE_TYPE,
   FULFILLMENT_PROVIDER_ID,
   FULFILLMENT_SET_NAME,
   MARKET_REGIONS,
+  type MarketRegion,
   PAYMENT_PROVIDER_ID,
   PUBLISHABLE_KEY_TITLE,
   SALES_CHANNEL_NAME,
   SHIPPING_OPTION_NAME,
+  SHIPPING_OPTION_TYPE_CODE,
   STOCK_LOCATION_ADDRESS,
   STOCK_LOCATION_NAME,
   SUPPORTED_CURRENCIES,
   SUPPORTED_LOCALES,
   TAX_PROVIDER_ID,
 } from "./lib/markets";
-import { countryDrift, missingBy, storeDrift } from "./lib/plan";
+import { countryDrift, findRegion, missingBy, required, storeDrift } from "./lib/plan";
 
 /** The parts of a publishable key this script reads. */
 type KeyRow = { id: string; sales_channels?: ({ id: string } | null)[] | null };
@@ -182,10 +189,15 @@ export default async function seedMarkets({ container }: ExecArgs) {
     fields: ["id", "name", "currency_code", "countries.iso_2"],
   });
 
+  const newRegions: MarketRegion[] = [];
+
   for (const wanted of MARKET_REGIONS) {
-    const found = regions.find((r) => r.name === wanted.name);
+    // Found by its name, or by a country it holds (an admin may have renamed
+    // it, and a country can't be in two regions).
+    const found = findRegion(regions, wanted);
 
     if (!found) {
+      newRegions.push(wanted);
       continue;
     }
 
@@ -195,22 +207,17 @@ export default async function seedMarkets({ container }: ExecArgs) {
     );
 
     if (
+      found.name !== wanted.name ||
       found.currency_code !== wanted.currency_code ||
       drift.missing.length ||
       drift.extra.length
     ) {
       logger.warn(
-        `Region "${wanted.name}" differs from the seed (currency ${found.currency_code}, ` +
+        `Region "${wanted.name}" differs from the seed (found as "${found.name}", currency ${found.currency_code}, ` +
           `missing countries [${drift.missing}], extra [${drift.extra}]). Left as it is.`,
       );
     }
   }
-
-  const newRegions = missingBy(
-    MARKET_REGIONS,
-    regions.map((r) => r.name),
-    (r) => r.name,
-  );
 
   if (newRegions.length) {
     await createRegionsWorkflow(container).run({
@@ -256,13 +263,14 @@ export default async function seedMarkets({ container }: ExecArgs) {
   const { data: profiles } = await query.graph({
     entity: "shipping_profile",
     fields: ["id"],
+    filters: { type: DEFAULT_SHIPPING_PROFILE_TYPE },
   });
 
   if (!profiles[0]) {
     // Created by one of Medusa's own migration scripts (`db:migrate`).
     throw new MedusaError(
       MedusaError.Types.NOT_FOUND,
-      "No shipping profile found. Run `medusa db:migrate` first.",
+      "No default shipping profile found. Run `medusa db:migrate` first.",
     );
   }
 
@@ -276,15 +284,29 @@ export default async function seedMarkets({ container }: ExecArgs) {
     "fulfillment_sets.service_zones.id",
     "fulfillment_sets.service_zones.name",
   ];
+  // The location that holds the seed's fulfilment set (its name is unique), else
+  // the one with the seed's name, so renaming the warehouse in the admin doesn't
+  // make the next run create a second one and then fail on the set's name.
+  const isSeedSet = (set?: { name?: string } | null) => set?.name === FULFILLMENT_SET_NAME;
   const loadLocation = async () => {
     const { data } = await query.graph({
       entity: "stock_location",
       fields: locationFields,
-      filters: { name: STOCK_LOCATION_NAME },
     });
 
-    return data[0];
+    return (
+      data.find((l) => (l.fulfillment_sets ?? []).some(isSeedSet)) ??
+      data.find((l) => l.name === STOCK_LOCATION_NAME)
+    );
   };
+  // The same lookup after a write, when the location must be there.
+  const reloadLocation = async () =>
+    required(await loadLocation(), `The stock location "${STOCK_LOCATION_NAME}"`);
+  const reloadFulfillmentSet = async () =>
+    required(
+      ((await reloadLocation()).fulfillment_sets ?? []).find(isSeedSet),
+      `The fulfilment set "${FULFILLMENT_SET_NAME}"`,
+    );
   let location = await loadLocation();
 
   if (!location) {
@@ -293,10 +315,10 @@ export default async function seedMarkets({ container }: ExecArgs) {
         locations: [{ name: STOCK_LOCATION_NAME, address: STOCK_LOCATION_ADDRESS }],
       },
     });
-    location = await loadLocation();
+    location = await reloadLocation();
     logger.info(`Created stock location "${STOCK_LOCATION_NAME}" (${location.id})`);
   } else {
-    logger.info(`Stock location "${STOCK_LOCATION_NAME}" exists (${location.id})`);
+    logger.info(`Stock location "${location.name}" exists (${location.id})`);
   }
 
   if (!(location.fulfillment_providers ?? []).some((p) => p?.id === FULFILLMENT_PROVIDER_ID)) {
@@ -320,9 +342,7 @@ export default async function seedMarkets({ container }: ExecArgs) {
     logger.info(`Linked the stock location to "${channel.name}"`);
   }
 
-  let fulfillmentSet = (location.fulfillment_sets ?? []).find(
-    (set) => set?.name === FULFILLMENT_SET_NAME,
-  );
+  let fulfillmentSet = (location.fulfillment_sets ?? []).find(isSeedSet);
 
   if (!fulfillmentSet) {
     await createLocationFulfillmentSetWorkflow(container).run({
@@ -331,17 +351,14 @@ export default async function seedMarkets({ container }: ExecArgs) {
         fulfillment_set_data: { name: FULFILLMENT_SET_NAME, type: "shipping" },
       },
     });
-    location = await loadLocation();
-    fulfillmentSet = (location.fulfillment_sets ?? []).find(
-      (set) => set?.name === FULFILLMENT_SET_NAME,
-    );
+    fulfillmentSet = await reloadFulfillmentSet();
     logger.info(`Created fulfilment set "${FULFILLMENT_SET_NAME}"`);
   }
 
-  const fulfillmentSetId = fulfillmentSet!.id;
+  const fulfillmentSetId = fulfillmentSet.id;
   const newZones = missingBy(
     MARKET_REGIONS,
-    (fulfillmentSet!.service_zones ?? []).flatMap((z) => (z?.name ? [z.name] : [])),
+    (fulfillmentSet.service_zones ?? []).flatMap((z) => (z?.name ? [z.name] : [])),
     (r) => r.name,
   );
 
@@ -359,18 +376,21 @@ export default async function seedMarkets({ container }: ExecArgs) {
       },
     });
     logger.info(`Created service zones: ${newZones.map((r) => r.name).join(", ")}`);
-    location = await loadLocation();
-    fulfillmentSet = (location.fulfillment_sets ?? []).find((set) => set?.id === fulfillmentSetId);
+    fulfillmentSet = await reloadFulfillmentSet();
   }
 
-  const zones = fulfillmentSet!.service_zones ?? [];
+  const zones = fulfillmentSet.service_zones ?? [];
   const { data: options } = await query.graph({
     entity: "shipping_option",
-    fields: ["id", "name", "service_zone_id"],
+    fields: ["id", "name", "service_zone_id", "type.code"],
     filters: { service_zone_id: zones.flatMap((z) => (z ? [z.id] : [])) },
   });
+  // The seed's option is found by its name or by its type code, so an admin
+  // renaming it doesn't make the next run add a second "Standard" to the zone.
   const zoneHasOption = new Set(
-    options.filter((o) => o.name === SHIPPING_OPTION_NAME).map((o) => o.service_zone_id),
+    options
+      .filter((o) => o.name === SHIPPING_OPTION_NAME || o.type?.code === SHIPPING_OPTION_TYPE_CODE)
+      .map((o) => o.service_zone_id),
   );
   const newOptions = MARKET_REGIONS.flatMap((region) => {
     const zone = zones.find((z) => z?.name === region.name);
@@ -389,7 +409,7 @@ export default async function seedMarkets({ container }: ExecArgs) {
         type: {
           label: "Standard",
           description: "Ships in 3 to 5 working days.",
-          code: "standard",
+          code: SHIPPING_OPTION_TYPE_CODE,
         },
         prices: [{ currency_code: region.currency_code, amount: region.standard_shipping }],
         rules: [

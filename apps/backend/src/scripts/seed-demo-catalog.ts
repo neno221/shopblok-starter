@@ -8,7 +8,9 @@
  *
  * Skip it with `SEED_DEMO=false` in the environment, or by passing `skip` as
  * the script's argument (`medusa exec ./src/scripts/seed-demo-catalog.ts skip`).
- * It refuses to run with `NODE_ENV=production`.
+ * It runs only when `NODE_ENV` is unset, `development` or `test` (the values
+ * where `getSecret` in `src/config/config.ts` accepts a default secret); with
+ * `production`, `staging` or anything else it refuses.
  *
  * Idempotent: categories, collections and products are found by their
  * deterministic handles, options by title, translations by
@@ -50,17 +52,53 @@ import {
   DEMO_PRODUCTS,
   PRODUCT_INDEX,
 } from "./lib/demo-catalog";
-import { SALES_CHANNEL_NAME, TRANSLATED_LOCALES } from "./lib/markets";
+import {
+  DEFAULT_SHIPPING_PROFILE_TYPE,
+  SUPPORTED_CURRENCIES,
+  TRANSLATED_LOCALES,
+} from "./lib/markets";
 import {
   type DesiredTranslation,
   type ExistingTranslation,
   isDemoSkipped,
+  isDevelopmentEnv,
   missingBy,
   planTranslations,
+  required,
 } from "./lib/plan";
 
 /** Products per awaited `ingest` call. */
 const INGEST_CHUNK_SIZE = 50;
+
+type OptionRow = { title: string; values?: ({ id: string; value: string } | null)[] | null };
+
+// The three lookups below follow a create or a "found by handle / title", so a
+// miss means somebody changed the rows in between: `required` names what is gone.
+
+function byHandle<R extends { handle?: string | null }>(
+  rows: readonly R[],
+  handle: string,
+  what: string,
+): R {
+  return required(
+    rows.find((row) => row.handle === handle),
+    `${what} "${handle}"`,
+  );
+}
+
+function optionTitled<O extends OptionRow>(options: readonly O[], title: string): O {
+  return required(
+    options.find((option) => option.title === title),
+    `The shared option "${title}"`,
+  );
+}
+
+function valueOf(option: OptionRow, value: string) {
+  return required(
+    (option.values ?? []).find((v) => v?.value === value),
+    `The value "${value}" of the shared option "${option.title}"`,
+  );
+}
 
 export default async function seedDemoCatalog({ container, args }: ExecArgs) {
   const logger = container.resolve(ContainerRegistrationKeys.LOGGER);
@@ -71,10 +109,10 @@ export default async function seedDemoCatalog({ container, args }: ExecArgs) {
     return;
   }
 
-  if (process.env.NODE_ENV === "production") {
+  if (!isDevelopmentEnv(process.env.NODE_ENV)) {
     throw new MedusaError(
       MedusaError.Types.NOT_ALLOWED,
-      "seed-demo-catalog is for development only (D7) and won't run with NODE_ENV=production.",
+      `seed-demo-catalog is for development only (D7) and won't run with NODE_ENV=${process.env.NODE_ENV}.`,
     );
   }
 
@@ -89,11 +127,13 @@ export default async function seedDemoCatalog({ container, args }: ExecArgs) {
   const storeCurrencies = new Set(
     (store?.supported_currencies ?? []).flatMap((c) => (c?.currency_code ? [c.currency_code] : [])),
   );
-  const wantedCurrencies = Object.keys(DEMO_PRODUCTS[0].prices);
-  const absent = wantedCurrencies.filter((c) => !storeCurrencies.has(c));
+  const absent = SUPPORTED_CURRENCIES.map((c) => c.currency_code).filter(
+    (c) => !storeCurrencies.has(c),
+  );
   const { data: profiles } = await query.graph({
     entity: "shipping_profile",
     fields: ["id"],
+    filters: { type: DEFAULT_SHIPPING_PROFILE_TYPE },
   });
 
   if (!store?.default_sales_channel_id || absent.length || !profiles[0]) {
@@ -108,9 +148,7 @@ export default async function seedDemoCatalog({ container, args }: ExecArgs) {
   const salesChannelId = store.default_sales_channel_id;
   const shippingProfileId = profiles[0].id;
 
-  logger.info(
-    `Seeding the demo catalog into the sales channel ${salesChannelId} (${SALES_CHANNEL_NAME})`,
-  );
+  logger.info(`Seeding the demo catalog into the sales channel ${salesChannelId}`);
 
   // ---- Search index: active before products exist ---------------------------
 
@@ -258,20 +296,18 @@ export default async function seedDemoCatalog({ container, args }: ExecArgs) {
           description: product.description,
           status: ProductStatus.PUBLISHED,
           shipping_profile_id: shippingProfileId,
-          category_ids: [categories.find((c) => c.handle === product.category)!.id],
-          collection_id: collections.find((c) => c.handle === product.collection)!.id,
+          category_ids: [byHandle(categories, product.category, "Category").id],
+          collection_id: byHandle(collections, product.collection, "Collection").id,
           sales_channels: [{ id: salesChannelId }],
           // Link only the values this product is sold in. Without `value_ids`
           // Medusa links every value of a shared option, so the tee would list
           // "Navy" (and the search index would hold it) with no variant to buy.
           options: Object.entries(product.options).map(([title, values]) => {
-            const option = options.find((o) => o.title === title)!;
+            const option = optionTitled(options, title);
 
             return {
               id: option.id,
-              value_ids: values.map(
-                (value) => (option.values ?? []).find((v) => v?.value === value)!.id,
-              ),
+              value_ids: values.map((value) => valueOf(option, value).id),
             };
           }),
           variants: buildVariants(product),
@@ -305,7 +341,7 @@ export default async function seedDemoCatalog({ container, args }: ExecArgs) {
   for (const product of DEMO_PRODUCTS) {
     addTranslations(
       "product",
-      products.find((p) => p.handle === product.handle)!.id,
+      byHandle(products, product.handle, "Product").id,
       product.translations,
     );
   }
@@ -313,7 +349,7 @@ export default async function seedDemoCatalog({ container, args }: ExecArgs) {
   for (const category of DEMO_CATEGORIES) {
     addTranslations(
       "product_category",
-      categories.find((c) => c.handle === category.handle)!.id,
+      byHandle(categories, category.handle, "Category").id,
       Object.fromEntries(TRANSLATED_LOCALES.map((l) => [l, { name: category.translations[l] }])),
     );
   }
@@ -321,13 +357,13 @@ export default async function seedDemoCatalog({ container, args }: ExecArgs) {
   for (const collection of DEMO_COLLECTIONS) {
     addTranslations(
       "product_collection",
-      collections.find((c) => c.handle === collection.handle)!.id,
+      byHandle(collections, collection.handle, "Collection").id,
       Object.fromEntries(TRANSLATED_LOCALES.map((l) => [l, { title: collection.translations[l] }])),
     );
   }
 
   for (const option of DEMO_OPTIONS) {
-    const row = options.find((o) => o.title === option.title)!;
+    const row = optionTitled(options, option.title);
 
     addTranslations(
       "product_option",
@@ -338,7 +374,7 @@ export default async function seedDemoCatalog({ container, args }: ExecArgs) {
     for (const [value, byLocale] of Object.entries(option.valueTranslations)) {
       addTranslations(
         "product_option_value",
-        (row.values ?? []).find((v) => v?.value === value)!.id,
+        valueOf(row, value).id,
         Object.fromEntries(TRANSLATED_LOCALES.map((l) => [l, { value: byLocale[l] }])),
       );
     }

@@ -25,6 +25,16 @@ export const TAX_PROVIDER_ID = "tp_system";
 
 export const SHIPPING_OPTION_NAME = "Standard";
 
+/** The `code` of the "Standard" option's type, which survives an admin renaming the option. */
+export const SHIPPING_OPTION_TYPE_CODE = "standard";
+
+/**
+ * The shipping profile products and options go in: the one `db:migrate` creates
+ * (`Default Shipping Profile`). Filtering on the type keeps an extra profile an
+ * admin added from being picked just because it comes first.
+ */
+export const DEFAULT_SHIPPING_PROFILE_TYPE = "default";
+
 /** `eur` is the store's default currency. */
 export const SUPPORTED_CURRENCIES = [
   { currency_code: "eur", is_default: true },
