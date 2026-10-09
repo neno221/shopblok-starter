@@ -39,8 +39,7 @@ Stop there. Tell me in plain language whether T04 can start, and what changed in
 
 - The plan's decisions are in [plans/M0.md](plans/M0.md) §1. Change a decision there first if a task shows it doesn't hold.
 - Your own tasks (W0–W2 on your PC, G1–G4 on GitHub) are in the plan's §4a.
-- Two decisions are waiting for you, and neither blocks T03:
-  - **ESLint 9 is end-of-life** (since 2026-08-06). The plan keeps 9.39.5 because the Medusa ESLint plugin and three plugins inside `eslint-config-next` don't allow 10 yet. Stay on 9, or move everything except the backend to 10? ([SETUP.md](SETUP.md#config-presets-t02), item 1.)
+- One decision is waiting for you, and it doesn't block T03:
   - **Prettier isn't wired to the repo root yet.** Do you want a root config, a `format:check` script and a CI step? T15 carries the question ([SETUP.md](SETUP.md#config-presets-t02), item 6).
 - To continue a cloud session on your PC, run `claude --teleport` in `E:\shopblok-starter` (see CLOUD.md).
 - Every cloud session starts with Docker off. Tasks from T04 on start it as CLOUD.md says; T03 doesn't need it.

@@ -10,8 +10,15 @@
       "cache": false,
       "persistent": true
     },
-    "typecheck": {},
-    "lint": {},
+    "transit": {
+      "dependsOn": ["^transit"]
+    },
+    "typecheck": {
+      "dependsOn": ["transit"]
+    },
+    "lint": {
+      "dependsOn": ["transit"]
+    },
     "test": {},
     "db:migrate": {
       "cache": false

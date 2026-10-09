@@ -1,14 +1,14 @@
-// ESLint preset for the Next.js storefront: base plus eslint-config-next (core-web-vitals and
-// typescript), as in the Next ESLint docs.
-import { defineConfig, globalIgnores } from "eslint/config";
+// ESLint preset for the Next.js storefront: eslint-config-next (core-web-vitals and typescript),
+// as in the Next ESLint docs, with the base preset on top.
+import { defineConfig } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
 import base from "./base.mjs";
 
 export default defineConfig([
-  ...base,
   ...nextVitals,
   ...nextTs,
-  // eslint-config-next's own default ignores. Listing them again keeps them in force.
-  globalIgnores([".next/**", "out/**", "build/**", "next-env.d.ts"]),
+  // Last, because eslint-config-next/typescript sets some typescript-eslint rules to warnings
+  // (no-unused-vars, no-unused-expressions). The base keeps them errors, so the presets agree.
+  ...base,
 ]);

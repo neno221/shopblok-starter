@@ -6,6 +6,7 @@ import globals from "globals";
 import tseslint from "typescript-eslint";
 
 export default defineConfig([
+  // Build output; keep in step with the root .gitignore.
   globalIgnores([
     "**/.next/**",
     "**/.medusa/**",
@@ -20,9 +21,10 @@ export default defineConfig([
   js.configs.recommended,
   tseslint.configs.recommended,
   {
-    // Plain JavaScript here is config and tooling that runs in Node.
+    // Plain JavaScript here is config and tooling that runs in Node, so `require` is fine too.
     files: ["**/*.{js,mjs,cjs}"],
     languageOptions: { globals: globals.node },
+    rules: { "@typescript-eslint/no-require-imports": "off" },
   },
   {
     rules: {

@@ -1,14 +1,5 @@
-// ESLint preset for the shared packages under packages/. They export TypeScript source that
-// apps compile for both Node and the browser (D3), so console output has to be deliberate.
-import { defineConfig } from "eslint/config";
+// ESLint preset for the shared packages under packages/: the base preset as it is, under the
+// same name scheme as the tsconfigs, so a package points at the preset for its kind.
 import base from "./base.mjs";
 
-export default defineConfig([
-  ...base,
-  {
-    files: ["**/*.{ts,tsx,mts,cts}"],
-    rules: {
-      "no-console": ["warn", { allow: ["warn", "error"] }],
-    },
-  },
-]);
+export default base;
