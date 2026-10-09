@@ -19,7 +19,9 @@
     "lint": {
       "dependsOn": ["transit"]
     },
-    "test": {},
+    "test": {
+      "dependsOn": ["transit"]
+    },
     "db:migrate": {
       "cache": false
     },
