@@ -89,8 +89,9 @@ export function buildModules(env: Env): InputConfigModules {
       },
     },
 
-    // Medusa reads MEDUSA_FF_CACHING with isTruthy too (only the string "true" counts), so the
-    // module and its flag can't disagree.
+    // Medusa reads MEDUSA_FF_CACHING with isTruthy too ("true" in any case), so the module and
+    // its flag agree for every plain value. They differ only for a comma list such as
+    // `true,x`, which Medusa turns into a flag object (on) and isTruthy reads as off.
     redisUrl !== undefined &&
       isTruthy(env.MEDUSA_FF_CACHING) && {
         resolve: "@medusajs/medusa/caching",
