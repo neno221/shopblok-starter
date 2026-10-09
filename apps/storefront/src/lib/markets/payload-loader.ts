@@ -1,3 +1,4 @@
+import { getPayloadClient } from "../cms/payload";
 import type { MarketsGlobal } from "./global";
 
 /**
@@ -9,10 +10,6 @@ import type { MarketsGlobal } from "./global";
  * Only `get-market-map.ts` imports this. Tests don't: Vitest has no `@payload-config` alias.
  */
 export async function loadMarketsGlobal(): Promise<MarketsGlobal> {
-  const [{ getPayload }, { default: config }] = await Promise.all([
-    import("payload"),
-    import("@payload-config"),
-  ]);
-  const payload = await getPayload({ config });
+  const payload = await getPayloadClient();
   return payload.findGlobal({ slug: "markets", depth: 0 });
 }

@@ -43,17 +43,6 @@ describe("cached", () => {
     expect([await a("x"), await b("x")]).toEqual(["a:x", "b:x"]);
   });
 
-  it("hands Next the name first, so it is part of the cache key", async () => {
-    // The key is built from the arguments of the one `"use cache"` function (`run`). Reading them
-    // back needs the real directive, so this pins the observable part: a name per function.
-    const names = new Set<string>();
-    for (const name of ["t:n1", "t:n2"]) {
-      cached(async () => name, { name, tags: [], life: "hours" });
-      names.add(name);
-    }
-    expect(names.size).toBe(2);
-  });
-
   it("lets a later function with the same name replace the earlier (a hot reload)", async () => {
     cached(async () => "old", { name: "t:reload", tags: [], life: "hours" });
     const next = cached(async () => "new", { name: "t:reload", tags: [], life: "hours" });

@@ -16,6 +16,7 @@ beforeEach(() => {
   vi.stubEnv("NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY", PUBLISHABLE_KEY);
 });
 afterEach(() => {
+  vi.useRealTimers();
   vi.unstubAllEnvs();
   vi.unstubAllGlobals();
 });
@@ -65,6 +66,53 @@ describe("medusaRequest", () => {
     });
     vi.stubEnv("NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY", PUBLISHABLE_KEY);
     await expect(medusaRequest((sdk) => sdk.store.region.list())).resolves.toBeDefined();
+  });
+
+  it("does not keep a key the SDK refuses to send: fixing it needs no restart", async () => {
+    // U+2026, a truncated key pasted from a page: it starts with `pk_`, so the settings check
+    // passes, and `new Medusa()` then throws because a header value must be Latin-1.
+    vi.stubEnv("NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY", "pk_0123456789…");
+    stubMedusaFetch(() => ({ body: { regions: [] } }));
+    const { medusaRequest } = await loadSdk();
+    await expect(medusaRequest((sdk) => sdk.store.region.list())).rejects.toThrow(TypeError);
+    vi.stubEnv("NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY", PUBLISHABLE_KEY);
+    await expect(medusaRequest((sdk) => sdk.store.region.list())).resolves.toBeDefined();
+  });
+
+  it("gives up on a backend that takes the connection and never answers", async () => {
+    stubMedusaFetch(() => ({ body: { regions: [] } }));
+    const { medusaRequest, MedusaRequestError, MEDUSA_REQUEST_TIMEOUT_MS } = await loadSdk();
+    await medusaRequest((sdk) => sdk.store.region.list()); // creates the SDK before the clock stops
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => new Promise<Response>(() => {})),
+    );
+    vi.useFakeTimers();
+    const pending = medusaRequest((sdk) => sdk.store.region.list()).catch((e: unknown) => e);
+    await vi.advanceTimersByTimeAsync(MEDUSA_REQUEST_TIMEOUT_MS);
+    const error = await pending;
+    expect(error).toBeInstanceOf(MedusaRequestError);
+    expect(error).toMatchObject({ kind: "unreachable" });
+    expect((error as Error).message).toContain("no answer after 10 s");
+  });
+
+  it("says so when the address answers with something that is not Medusa's JSON", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response("<html>Hello</html>", {
+            status: 200,
+            headers: { "content-type": "text/html" },
+          }),
+      ),
+    );
+    const { medusaRequest, MedusaRequestError } = await loadSdk();
+    const error = await medusaRequest((sdk) => sdk.store.region.list()).catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(MedusaRequestError);
+    expect(error).toMatchObject({ kind: "rejected", status: undefined });
+    expect((error as Error).message).toContain("not with JSON");
+    expect((error as Error).message).not.toContain("is the backend running");
   });
 
   it("turns a refused connection into an error that names the URL and the reason", async () => {

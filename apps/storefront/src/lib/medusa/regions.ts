@@ -15,10 +15,14 @@ export type Region = {
 const REGION_FIELDS = "id,name,currency_code,*countries";
 const PAGE_SIZE = 100;
 
-/** Every region, a page at a time: a shop with a region per country can have more than a page. */
+/**
+ * Every region, a page at a time: a shop with a region per country can have more than a page. The
+ * next page starts after the rows received, not after `PAGE_SIZE`, so a server that caps `limit`
+ * below it loses no region.
+ */
 async function fetchRegions(): Promise<Region[]> {
   const regions: Region[] = [];
-  for (let offset = 0; ; offset += PAGE_SIZE) {
+  for (let offset = 0; ;) {
     const page = await medusaRequest((sdk) =>
       sdk.store.region.list({ fields: REGION_FIELDS, limit: PAGE_SIZE, offset }),
     );
@@ -32,20 +36,23 @@ async function fetchRegions(): Promise<Region[]> {
         ),
       });
     }
-    if (page.regions.length === 0 || offset + page.regions.length >= page.count) return regions;
+    offset += page.regions.length;
+    if (page.regions.length === 0 || offset >= page.count) return regions;
   }
 }
 
 /**
  * Every region of the store: one call for the whole list, whatever the number of markets, so
  * opening a country is a change in Medusa and nothing here (D17). Regions are the same in every
- * language, so the call takes no locale. Tag `medusa:regions` is for the hook that revalidates them
- * when an admin edits one (M4/M6).
+ * language, so the call takes no locale. `minutes` (revalidated after a minute), like the market
+ * map's 30 s: a market opened in the `markets` global must not show "no region" for an hour while
+ * its region is already in Medusa. Tag `medusa:regions` is for the hook that revalidates them when
+ * an admin edits one (M4/M6).
  */
 export const listRegions = cached(fetchRegions, {
   name: "medusa:regions",
   tags: ["medusa:regions"],
-  life: "hours",
+  life: "minutes",
 });
 
 /** The region that sells in `country` (ISO 3166-1 alpha-2, any case), or `undefined` if none does. */

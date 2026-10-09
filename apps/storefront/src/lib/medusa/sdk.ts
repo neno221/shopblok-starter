@@ -1,11 +1,18 @@
 import Medusa from "@medusajs/js-sdk";
 import "server-only";
 import { medusaEnv, type MedusaEnv } from "../env";
+import { withTimeout } from "../with-timeout";
+
+/** How long a call waits for Medusa's answer. A backend that takes the connection and then stalls would otherwise hold the page's streamed part for minutes. */
+export const MEDUSA_REQUEST_TIMEOUT_MS = 10_000;
 
 /** The Medusa Store API could not give an answer: it is down, unreachable, or it refused the call. */
 export class MedusaRequestError extends Error {
   override name = "MedusaRequestError";
-  /** `unreachable`: no HTTP answer (the backend is stopped, a wrong URL). `rejected`: an HTTP error. */
+  /**
+   * `unreachable`: no answer (the backend is stopped, a wrong URL, no reply in time). `rejected`: an
+   * answer that is an HTTP error, or is not Medusa's (another app on the address).
+   */
   readonly kind: "unreachable" | "rejected";
   readonly status: number | undefined;
 
@@ -34,6 +41,15 @@ function toRequestError(error: unknown, backendUrl: string): MedusaRequestError 
       error,
     );
   }
+  // The SDK parses the body with `resp.json()` and lets its `SyntaxError` through as it is.
+  if (error instanceof SyntaxError) {
+    return new MedusaRequestError(
+      `Medusa at ${backendUrl} answered, but not with JSON (${detail}); is MEDUSA_BACKEND_URL the backend and not another app?`,
+      "rejected",
+      undefined,
+      error,
+    );
+  }
   return new MedusaRequestError(
     `Medusa at ${backendUrl} did not answer (${typeof reason === "string" ? `${reason}: ` : ""}${detail}); is the backend running (pnpm dev) and MEDUSA_BACKEND_URL right?`,
     "unreachable",
@@ -55,16 +71,16 @@ let sdk: Promise<SdkState> | undefined;
  * until then, so `next build` works with no `.env`. The shared instance must hold no per-request
  * state: `setLocale` is for the browser (on a server it only logs a warning) and a JWT would
  * belong to one shopper, so the locale goes in each call's headers (`localeHeaders`). A settings
- * problem is not kept: the next call checks again.
+ * problem is not kept, whether `medusaEnv` rejects or the SDK refuses the values: the next call
+ * checks again.
  */
 function getSdk(): Promise<SdkState> {
-  sdk ??= medusaEnv().then(
-    (settings) => ({ client: createSdk(settings), backendUrl: settings.backendUrl }),
-    (error: unknown) => {
+  sdk ??= medusaEnv()
+    .then((settings) => ({ client: createSdk(settings), backendUrl: settings.backendUrl }))
+    .catch((error: unknown) => {
       sdk = undefined;
       throw error;
-    },
-  );
+    });
   return sdk;
 }
 
@@ -76,11 +92,15 @@ export function localeHeaders(locale: string): { "x-medusa-locale": string } {
   return { "x-medusa-locale": locale };
 }
 
-/** Runs one call against the Store API and turns a failure into a `MedusaRequestError`. */
+/**
+ * Runs one call against the Store API and turns a failure into a `MedusaRequestError`. The SDK's
+ * methods take no abort signal, so a call that is not answered in `MEDUSA_REQUEST_TIMEOUT_MS` is
+ * given up on (the request itself runs on until the socket closes).
+ */
 export async function medusaRequest<T>(call: (client: Medusa) => Promise<T>): Promise<T> {
   const { client, backendUrl } = await getSdk();
   try {
-    return await call(client);
+    return await withTimeout(call(client), MEDUSA_REQUEST_TIMEOUT_MS);
   } catch (error) {
     throw toRequestError(error, backendUrl);
   }

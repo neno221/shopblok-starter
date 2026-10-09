@@ -109,6 +109,27 @@ describe("listRegions and getRegionForCountry, through the SDK", () => {
     expect(calls.map((call) => call.url.searchParams.get("offset"))).toEqual(["0", "100", "200"]);
   });
 
+  it("loses no region when the server returns fewer rows than it was asked for", async () => {
+    const all = Array.from({ length: 230 }, (_, i) => ({ ...wire(europe), id: `reg_${i}` }));
+    const calls = stubMedusaFetch(({ url }) => {
+      const offset = Number(url.searchParams.get("offset") ?? 0);
+      // A proxy or a backend setting that caps `limit` at 50.
+      return {
+        body: { regions: all.slice(offset, offset + 50), count: all.length, offset, limit: 50 },
+      };
+    });
+    const { listRegions } = await import("./regions");
+    const regions = await listRegions();
+    expect(regions.map((region) => region.id)).toEqual(all.map((region) => region.id));
+    expect(calls.map((call) => call.url.searchParams.get("offset"))).toEqual([
+      "0",
+      "50",
+      "100",
+      "150",
+      "200",
+    ]);
+  });
+
   it("stops on an empty page even if the count is wrong", async () => {
     const calls = stubMedusaFetch(({ url }) => ({
       body: { regions: [], count: 999, offset: Number(url.searchParams.get("offset")), limit: 100 },
