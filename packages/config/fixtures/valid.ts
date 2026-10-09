@@ -16,14 +16,12 @@ export function greet(locale: Locale): string {
 }
 
 // The two @ts-expect-error lines fail `tsc` when the flag behind them is dropped from the presets.
-// noUncheckedIndexedAccess: an indexed read is `T | undefined`, which `Locale` doesn't accept.
 export function firstLocale(locales: Locale[]): Locale {
-  // @ts-expect-error noUncheckedIndexedAccess makes this `Locale | undefined`
+  // @ts-expect-error noUncheckedIndexedAccess: an indexed read is `Locale | undefined`
   return locales[0];
 }
 
-// strict (noImplicitAny): a parameter without a type is an error.
-// @ts-expect-error strict makes the implicit `any` an error
+// @ts-expect-error strict (noImplicitAny): a parameter without a type is an error
 export const identity = (value) => value;
 
 // ES2023 library method

@@ -147,7 +147,7 @@ exit 0
 
 When C0 or a later task changes this script, it updates this page in its PR, and you paste the new version into the environment (gear icon on the environment, then **Setup script**).
 
-**Step 6 was added by C0 and has not run yet.** The version that C0 ran had steps 1 to 5 only. Step 6 can't be tested from inside a session, because the session can't download the two repos; only its pieces were checked locally (SETUP.md, C0 item 2). Paste it now that T02 is merged and before T03 starts (T05 needs `/opt/dtc-starter`; T09 needs `/opt/payload-templates`). T02's session found that the saved copy was not reused, although the script took only 25 s (SETUP.md, "Follow-up checks (T02)"), so expect the script to run at the start of each session for now. T03's session checks that both folders exist and times the script (`setup start` to `setup end` in the log): the Payload download is the whole monorepo.
+**Step 6 was added by C0 and has not run yet.** The version that C0 ran had steps 1 to 5 only. Step 6 can't be tested from inside a session, because the session can't download the two repos; only its pieces were checked locally (SETUP.md, C0 item 2). Paste it now that T02 is merged and before T03 starts (T05 needs `/opt/dtc-starter`; T09 needs `/opt/payload-templates`). T03's session checks that both folders exist and times the script (`setup start` to `setup end` in the log): the Payload download is the whole monorepo.
 
 ## What every cloud session does first
 

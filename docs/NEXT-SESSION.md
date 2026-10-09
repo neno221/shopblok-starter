@@ -39,7 +39,6 @@ Stop there. Tell me in plain language whether T04 can start, and what changed in
 
 - The plan's decisions are in [plans/M0.md](plans/M0.md) §1. Change a decision there first if a task shows it doesn't hold.
 - Your own tasks (W0–W2 on your PC, G1–G4 on GitHub) are in the plan's §4a.
-- One decision is waiting for you, and it doesn't block T03:
-  - **Prettier isn't wired to the repo root yet.** Do you want a root config, a `format:check` script and a CI step? T15 carries the question ([SETUP.md](SETUP.md#config-presets-t02), item 6).
+- One decision is waiting for you, and it doesn't block T03: **Prettier isn't wired to the repo root yet.** Do you want a root config, a `format:check` script and a CI step? T15 carries the question ([SETUP.md](SETUP.md#config-presets-t02), item 6).
 - To continue a cloud session on your PC, run `claude --teleport` in `E:\shopblok-starter` (see CLOUD.md).
 - Every cloud session starts with Docker off. Tasks from T04 on start it as CLOUD.md says; T03 doesn't need it.
