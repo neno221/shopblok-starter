@@ -1,0 +1,17 @@
+{
+  "name": "@shopblok/scripts",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Root scripts (check-workspace, and later bootstrap and doctor). Run with plain node, which strips the types (Node 22.18 and newer).",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc",
+    "lint": "eslint ."
+  },
+  "devDependencies": {
+    "@shopblok/config": "workspace:*",
+    "@types/node": "22.20.5",
+    "eslint": "9.39.5",
+    "typescript": "5.9.3"
+  }
+}

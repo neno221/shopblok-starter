@@ -218,6 +218,47 @@ Two checks that C0 couldn't run. T02's session ran them before any T02 work and 
    `setup start` is **42 seconds** before `date -u`, so the script ran for this session and the saved copy from C0's session was **not reused**. The log holds a single run, not C0's earlier one (`2026-10-08T21:54:25Z`). The script took 25 s (C0: 34 s). No change had been pasted into the environment in between, as far as I know. I did not look for a cause. What this means for later sessions: expect the setup script (and the four image pulls in it) to run at the start of each session until a session shows otherwise. The cost is under a minute with steps 1 to 5; step 6 adds a download of the whole Payload repository, which T03's session times. Result: **did not pass** (the expected outcome was "reused"), and nothing is broken by it.
 2. **Setup script step 6: not checked here, by design.** The new script is pasted after T02 is merged (G4), so this session did not check step 6 and I did not look at which version of the script ran. The check moved to the T03 prompt in [NEXT-SESSION.md](NEXT-SESSION.md): `grep 'step 6' /var/log/shopblok-setup.log`, `ls /opt/dtc-starter/apps/backend/package.json`, `ls /opt/payload-templates` (exactly `blank`, `ecommerce` and `with-postgres`), and the `setup start` to `setup end` time. Result: **not run**.
 
+### Follow-up checks (T03)
+
+The checks that T02's session left for T03: what the new setup script (with step 6) did. T03's session ran them before any T03 work and fixed nothing. The owner pasted the script just before this session, so a recent `setup start` is expected here and says nothing about caching.
+
+1. **Step 6: passed.** Both folders exist and `/opt/payload-templates` holds exactly `blank`, `ecommerce` and `with-postgres`. The log has no `FAILED` line, and a single `setup start` (this session's run):
+
+   ```text
+   $ grep 'step 6' /var/log/shopblok-setup.log
+   + echo 'step 6 ok: /opt/dtc-starter'
+   step 6 ok: /opt/dtc-starter
+   + echo 'step 6 ok: /opt/payload-templates'
+   step 6 ok: /opt/payload-templates
+   $ ls /opt/dtc-starter/apps/backend/package.json
+   /opt/dtc-starter/apps/backend/package.json
+   $ ls /opt/payload-templates
+   blank
+   ecommerce
+   with-postgres
+   ```
+
+   Facts about what landed, for T05 and T09: `/opt/dtc-starter` is 3.9 MB and its backend is `@dtc/backend` on `@medusajs/medusa` 2.21.2; the three templates total 5.2 MB. The templates' own `package.json` files don't say 3.90.2 for `payload`: `blank` and `ecommerce` say `workspace:*` (they live inside Payload's monorepo) and `with-postgres` says `3.90.0`, all on `next` 16.3.3. T09 copies only route files from `blank` and pins the packages itself, so this doesn't bite, but never copy a template's `package.json`.
+2. **Script time: passed, 40 s.** Under the five-minute limit, so the saved copy qualifies. That is not proof it is kept; item 4.
+
+   ```text
+   $ grep -E 'setup (start|end)' /var/log/shopblok-setup.log
+   setup start 2026-10-09T03:03:13Z
+   + echo 'setup end 2026-10-09T03:03:53Z'
+   setup end 2026-10-09T03:03:53Z
+   ```
+
+   Steps 1 to 5 alone took 25 s in T02's session and 34 s in C0's. Step 6 (the download of the whole Payload repository, to keep three folders) runs in the background next to them, and the whole script took 40 s with it.
+3. **Missing folders: none.** Nothing to diagnose: the log has `step 6` lines (so the environment has the new script) and no `step 6 FAILED`.
+4. **`date -u` against `setup start`: 51 s, as expected, so nothing learned about caching.**
+
+   ```text
+   $ date -u
+   Fri Oct  9 03:04:04 UTC 2026
+   ```
+
+   `setup start` (`2026-10-09T03:03:13Z`) is 51 seconds before. T04's session is the first that can show whether the saved copy is reused; its prompt carries the comparison.
+
 ## Config presets (T02)
 
 **Result: `@shopblok/config` exists and every check in T02's Verify list passes. T03 can start.** The shared presets load through real workspace packages, not only inside their own folder (checked with throwaway packages, since deleted). Three things differ from the plan's text: ESLint 9 is end-of-life (item 1), `pnpm install` needed one more `allowBuilds` entry (item 2), and the T02 file list gained two files (item 3). Items 4 to 6 are notes for later tasks, and item 7 lists what changed while this PR was reviewed.
@@ -296,3 +337,76 @@ OSV lists no advisories for any of these versions or for `unrs-resolver@1.12.2`.
 - The Next preset prints `Pages directory cannot be found at … or …/src/pages` in a package that has neither an `app` nor a `pages` folder (the throwaway app had neither). The storefront has `src/app`; T08 should confirm the message is gone.
 - I used ESLint's `defineConfig` and `globalIgnores` (from `eslint/config`, in 9.22 and newer), as the Next 16.4 ESLint docs do.
 - Type-aware linting (`parserOptions.projectService`) is not enabled. It is slower and needs per-package tsconfig wiring; M0 doesn't need it.
+
+## Package stubs and workspace checks (T03)
+
+**Result: every check in T03's Verify list passes. T04 can start.** The five packages and `@shopblok/scripts` exist, `@shopblok/i18n` has its formatters and tests, and `pnpm check:workspace` runs. In the repo itself its React and Payload checks are skipped, because `apps/` and Payload don't exist yet (T05, T08, T09); I made every check fail on purpose against throwaway trees, and passed them on a real install of Next, Payload and two Reacts (items below). Three things differ from the plan's text: Vitest needs `vite` declared beside it (item 1), `turbo.json` gained one line (item 4), and a few files were added beyond T03's list (item 2).
+
+| | |
+|---|---|
+| Date | 2026-10-09 |
+| Branch | `claude/gifted-johnson-0xe9ny` |
+| Session start | `node -v` v22.22.0, `pnpm -v` 12.10.1, `pnpm install --frozen-lockfile` 3.5 s on a cold store |
+| Files | `packages/{ui,registry,emails,i18n,fixtures}/{package.json, tsconfig.json, eslint.config.mjs, src/index.ts}`, `packages/i18n/src/index.test.ts`, `packages/fixtures/src/markets.ts`, `scripts/{package.json, tsconfig.json, eslint.config.mjs, check-workspace.ts}`, `turbo.json`, `pnpm-lock.yaml` |
+
+### Versions pinned (checked against the npm registry on 2026-10-09)
+
+| Package | Pin | What the registry says |
+|---|---|---|
+| `vitest` (`@shopblok/i18n`) | **5.0.3** | `latest`, published 2026-09-30, not deprecated. Engines `^22.12.0 \|\| ^24.0.0 \|\| >=26.0.0`: Node 23 and 25, which our `>=22.22.0 <25` also allows, are outside what Vitest supports. Peers: `vite ^6.4.0 \|\| ^7.0.0 \|\| ^8.0.0`, required |
+| `vite` (`@shopblok/i18n`) | **8.3.3** | Published 2026-10-06; engines `^20.19.0 \|\| >=22.12.0`. `latest` is 8.3.4 (2026-10-08, about 15 hours before this session); I did not try it, to stay clear of pnpm's one-day minimum release age. Declared because Vitest lists `vite` as a required peer and doesn't ship it: without the line, pnpm installs the newest match and `package.json` doesn't pin it |
+| `@types/node` (`@shopblok/scripts`) | **22.20.5** | The last 22.x (2026-10-01), for the Node line this repo runs on (`.nvmrc` 22, Node 22.22.0). `latest` is 26.6.4 and would type APIs that Node 22 lacks |
+| `eslint` / `typescript` | 9.39.5 / 5.9.3 | Declared in every package that lints or type-checks (T02 item 5), as `devDependencies` next to `@shopblok/config` (`workspace:*`) |
+
+OSV (`POST /v1/query`) returned `{}` for `vite@8.3.3`, `vitest@5.0.3` and `@types/node@22.20.5`. `pnpm install` added 29 packages and printed no `ERR_PNPM_IGNORED_BUILDS`: nothing in the new tree has a build script, so **no `allowBuilds` entry was added**.
+
+### Checks (T03 "Verify")
+
+| Check | Result | Key output |
+|---|---|---|
+| `pnpm -r typecheck` | **Pass** | exit 0; `Done` for `packages/{config,emails,fixtures,i18n,registry,ui}` and `scripts` |
+| `pnpm --filter @shopblok/i18n test` (`formatMoney` for `el-CY`/EUR, `en-US`/USD, `en-GB`/GBP, `de-CH`/CHF, `fr-CH`/CHF) | **Pass** | `RUN v5.0.3`, `Test Files 1 passed (1)`, `Tests 16 passed (16)`. The five cases expect `1.234,50 €`, `$1,234.50`, `£1,234.50`, `CHF 1’234.50`, `1 234.50 CHF` for 1234.5 |
+| `pnpm check:workspace` | **Pass** | exit 0: `React per app: skip` (no `apps/storefront`, no `apps/backend`), `Payload versions: skip` (no payload packages installed), `Workspace packages: ok` with six lines `ok    <package> → @shopblok/config` |
+
+### Checks beyond T03's list
+
+| Check | Result | Key output |
+|---|---|---|
+| ESLint is the pin in every package | **Pass** | `pnpm --filter @shopblok/<name> exec eslint --version` prints `v9.39.5` for config, ui, registry, i18n, fixtures, emails and scripts; the global on PATH prints `v10.1.0` |
+| `eslint .` in each of the seven | **Pass** | exit 0 each, after one fix (smaller observations, first item) |
+| Prettier, with T02's preset, over every new file | **Pass** | `pnpm exec prettier --config packages/config/prettier.config.mjs --check …` printed `All matched files use Prettier code style!` (3.9.9); it reflowed `check-workspace.ts` |
+| Root `pnpm typecheck`, `pnpm lint`, `pnpm test` (turbo) | **Pass** | `Tasks: 7 successful, 7 total` for the first two (`Packages in scope` lists all seven); `pnpm test` ran one task, 16 tests |
+| `pnpm install --frozen-lockfile` on the final lockfile | **Pass** | `Lockfile is up to date, resolution step is skipped`, exit 0 |
+| The Vitest cases can fail | **Pass** | Dividing the amount by 100 failed 6 of 16; formatting `de-CH` as `de-DE` failed 1. Source restored (`diff` identical) |
+| `check-workspace.ts` fails when it should (13 throwaway trees shaped like pnpm's, outside the repo) | **Pass** | A healthy tree exits 0. Exit 1, with a line naming the cause, for: `next` seeing React 18.3.1 (`apps/storefront → next: react 18.3.1, expected 19.3.0`), `@payloadcms/ui` seeing no React, the backend resolving 19.3.0, `next` declared but not installed, two versions of `payload`, two versions of `@payloadcms/ui`, a copy of `@shopblok/i18n` instead of a link, a missing link, a non-`workspace:` spec, a dependency with no folder under `packages/`, and no `node_modules/.pnpm`. Two copies of the same version with different peer sets pass |
+| `check-workspace.ts` on a real pnpm 12 install | **Pass** | In a scratch copy of the repo with `apps/storefront` (`next` 16.4.0, `react` and `react-dom` 19.3.0, `payload` and `@payloadcms/ui` 3.90.2) and `apps/backend` (`react` 18.3.1), installed with `--ignore-scripts` (+518 packages): `ok    apps/storefront: react 19.3.0`, `apps/storefront → next: react 19.3.0`, `apps/storefront → @payloadcms/ui: react 19.3.0`, `apps/backend: react 18.3.1`, `ok    3 packages, one version each: @payloadcms/translations, @payloadcms/ui, payload`, and the workspace links `ok`; exit 0 |
+| `pnpm run doctor` | **Fails, as it must** | `Error: Cannot find module '/home/user/shopblok-starter/scripts/doctor.ts'`, exit 1. The root script exists (T01); the file is T14's |
+| Hosts T04 reads | **Mixed** | `hub.docker.com` 200 for postgres, redis, getmeili/meilisearch and axllent/mailpit; `docs.docker.com/compose/` 200; `www.meilisearch.com/docs` 308 (redirects); `mailpit.axllent.org` fails twice with `CONNECT tunnel failed, response 403` (not on the allowlist). The image's own help stands in for it: `docker run --rm axllent/mailpit:v1.31.4 --help` prints the usage, and `… readyz --help` shows the `readyz` command that T04's healthcheck uses. All four images were still there from the setup script. I started `dockerd` for this and stopped it again |
+| Turbo left `AGENTS.md` alone | **Pass** | `md5sum` `995f281e6ed512494bf15f386443be6c`, the same as C0 and T02 |
+
+### What should change in the plan
+
+1. **Vitest needs `vite` declared next to it.** §2's Vitest row now says so, with the pins above. The storefront (T08, for T10 and T12's tests) must declare `vitest` 5.0.3 and `vite` 8.3.3 and a `test` script of `vitest run`; T08 says so now. When Renovate (T16) proposes one, it should propose both together.
+2. **Files beyond T03's list.** `scripts/tsconfig.json` (extends the node preset, `include: ["**/*.ts"]`) and `scripts/eslint.config.mjs` (the base preset, since these are Node scripts; the library preset is the base anyway), `packages/i18n/src/index.test.ts` (Verify needs a test), `packages/fixtures/src/markets.ts` (T10 lists this path; T03 step 2 asks for the map, so it starts here and T10 reshapes it if it needs to), and `turbo.json` (item 4).
+3. **What is in the packages.**
+   - `i18n` is one file, `src/index.ts`, on purpose: T08's hot-reload check edits that file, so the catalog strings the wiring page shows live there. It exports `LOCALES`, `Locale`, `DEFAULT_LOCALE`, `isLocale`, `formatMoney(amount, currency, locale)`, `formatDate(date, locale, options?)`, `catalogs` and `Messages`. The amount is in major units (Medusa v2), the currency code works in either case (Medusa's are lowercase; tested). The catalogs hold `wiring.{title, market, language, currency, products, pages, backendUnavailable}` for en, el, de and fr; English defines the shape (`Messages = typeof en`) and the other three must match it. The Greek, German and French copy is mine and has not been checked by a native speaker. T12 may add keys.
+   - The tests compare after turning the no-break spaces (U+00A0, U+202F) into plain ones, because ICU picks different ones between versions; the other characters (`’` in de-CH) are exact. A newer Node with newer CLDR data could change one, and the failing test would say which. CI uses Node 22.
+   - `fixtures` has the editable part of the `markets` global as T10 describes it: `countries[]` (`code`, `enabled`, `languages[]`, optional `domain`), `languages[]` (`code`, `medusaLocale`, optional `htmlLang`), `primaryCountry` `"cy"` and `fallbackMarket` `"en-us"`, a market key written `{language}-{country}` (SPEC §8.1). The seven markets (el-cy, en-us, en-gb, de-de, fr-fr, de-ch, fr-ch) are derived, not listed. It has no tests yet; T10's table tests will use it.
+   - `ui`, `registry` and `emails` export `VERSION = "0.0.0"`. The plan says an "empty" `VERSION` constant; I read that as "a placeholder with nothing else in it".
+4. **`turbo.json`: the `test` task now depends on `transit`.** With `"test": {}`, a package's tests stayed a cache hit after the source of a package it depends on changed. Checked with a throwaway consumer of `@shopblok/i18n` in a scratch copy: first run miss, second hit, then after editing `@shopblok/i18n` it was still a hit. With `"dependsOn": ["transit"]` (T02's fix for `typecheck` and `lint`): editing `i18n` gave a miss, a repeat run a hit, and editing an unrelated package (`ui`) a hit. Without it, the storefront's tests (T10, T12), which import `@shopblok/i18n` and `@shopblok/fixtures`, could show a green cached result for code that changed. It is outside T03's file list; revert it if you disagree, and T08 should then add the line itself.
+5. **What `check-workspace.ts` does and doesn't do.**
+   - It takes an optional first argument, the repo root (default: the folder above `scripts/`). That is how it was tested against throwaway trees.
+   - React: from `apps/storefront`, from `next` and from `@payloadcms/ui` (as installed in the storefront) it must find 19.3.0, and from `apps/backend` 18.3.1. A React that isn't inside the repo's `node_modules` doesn't count. An app that doesn't exist, or a dependency the app doesn't declare yet, is skipped. One that is declared but not installed fails.
+   - Payload: it reads pnpm's virtual store, `node_modules/.pnpm`. In pnpm 12 a scoped package's folder is `@scope+name@version_peers` (seen on `@eslint+js@9.39.5` and `@vitest+mocker@5.0.3_vite@8.3.3_@types+node@22.20.5_`), and the check relies on that. It counts distinct versions per package; two copies of one version with different peer sets count as one. It doesn't compare `@payloadcms/*` versions with Payload's (§2 says they match, but I am not sure that every `@payloadcms/*` package, `@payloadcms/eslint-config` for one, follows Payload's version, so a rule could fail wrongly).
+   - Links: every `@shopblok/*` dependency of `apps/*`, `packages/*` and `scripts` must have a `workspace:` spec, a folder `packages/<name>` with that package name, and a link that resolves to that folder. A copy made by pnpm fails. The folder list in the script (`apps`, `packages`, `scripts`) is written out, with a comment to keep it in step with `pnpm-workspace.yaml`.
+   - The first time the React and Payload checks run on the real apps is T08/T09 (T09's Verify already includes `pnpm check:workspace`). On Windows it is untested: the links there are junctions, which `realpathSync` follows, but only W2 will show it.
+6. **`pnpm run doctor` can't run before T14.** The prompt told me to run it as `pnpm run doctor`; it exits 1 because `scripts/doctor.ts` doesn't exist. Not a T03 failure.
+7. **T04's docs.** Docker Hub pages are reachable; the Mailpit docs site is not. T04's Docs line now says to use the Docker Hub page and the image's own help. I did not add `mailpit.axllent.org` to the allowlist, and I advise leaving the environment alone until T04's session has taken the setup-cache comparison: changing the allowed domains or the script runs the setup script again, which would hide whether the saved copy is reused.
+
+### Smaller observations
+
+- **My first test file lint-failed on invisible characters.** I wrote `  ` in a regular expression, and the file ended up holding the literal no-break space characters. ESLint's `no-irregular-whitespace` caught it, and I put the escapes back (`od -c` shows the backslashes). If a later session writes escapes through a file-writing tool, check with `LC_ALL=C.UTF-8 grep -nP '[\x{00A0}\x{202F}]' <file>`.
+- **`tsc` with no input files is an error** (`TS18003: No inputs were found in config file`). `scripts` failed `pnpm -r typecheck` that way until `check-workspace.ts` existed, and pnpm then killed the packages still running (`SIGKILL`), which looks worse than it is. Any new package needs a `.ts` file under its `include` before its `typecheck` can pass.
+- `node scripts/check-workspace.ts` printed no experimental warning on Node 22.22.0.
+- `pnpm install` still prints `[WARN] deprecated eslint@9.39.5` (T02 item 1; decided).
+- Vitest's `engines` exclude Node 23 and 25. Our range `>=22.22.0 <25` includes 23, which has been end-of-life for a long time; nothing here enforces it.

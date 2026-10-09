@@ -1,0 +1,4 @@
+{
+  "extends": "@shopblok/config/tsconfig.node.json",
+  "include": ["**/*.ts"]
+}
