@@ -1,4 +1,5 @@
 import { markets as seededMarkets } from "@shopblok/fixtures";
+import { env as processEnv } from "../env";
 import type { MarketsGlobal } from "./global";
 import {
   createMarketSource,
@@ -42,12 +43,9 @@ type ProxyMarketMapOptions = {
  * function). `staleWhileRevalidate`: this is on every request's path, and none may wait for a read.
  */
 export function createProxyMarketMap(options: ProxyMarketMapOptions = {}) {
-  // `next build` writes a NEXT_PUBLIC_* value into the bundle only where it sees the literal
-  // `process.env.NEXT_PUBLIC_…` (as `payload.config.ts` reads it), so the key is listed by name.
-  const env: Env = options.env ?? {
-    ...process.env,
-    NEXT_PUBLIC_BASE_URL: process.env.NEXT_PUBLIC_BASE_URL,
-  };
+  // `lib/env.ts` reads each variable by its own name, which is what `next build` replaces with a
+  // NEXT_PUBLIC_* value; a spread of the whole environment would find nothing in this bundle.
+  const env: Env = options.env ?? processEnv;
   const fetcher = options.fetcher ?? fetch;
   return createMarketSource({
     load: async (): Promise<MarketsGlobal> => {

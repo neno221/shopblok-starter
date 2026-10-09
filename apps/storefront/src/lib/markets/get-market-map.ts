@@ -1,5 +1,6 @@
 import { markets as seededMarkets } from "@shopblok/fixtures";
 import "server-only";
+import { env } from "../env";
 import { loadMarketsGlobal } from "./payload-loader";
 import { createMarketSource, defaultAllowFallback } from "./source";
 
@@ -8,7 +9,7 @@ import { createMarketSource, defaultAllowFallback } from "./source";
 const source = createMarketSource({
   load: loadMarketsGlobal,
   fallback: seededMarkets,
-  allowFallback: defaultAllowFallback(process.env),
+  allowFallback: defaultAllowFallback(env),
 });
 
 /**

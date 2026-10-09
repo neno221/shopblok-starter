@@ -34,6 +34,33 @@ const refused = () => {
 const production = { NODE_ENV: "production" };
 const development = { NODE_ENV: "development" };
 
+describe("the environment the proxy reads by default", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.restoreAllMocks();
+  });
+
+  it("is the process environment, read when the map is read", async () => {
+    vi.stubEnv("NEXT_PUBLIC_BASE_URL", "https://shop.example");
+    const { fetcher, calls } = fakeFetch([json(seeded)]);
+    await createProxyMarketMap({ fetcher }).get();
+    expect(calls.map((call) => call.url)).toEqual(["https://shop.example/next/markets"]);
+  });
+
+  it("decides the fallback by the real NODE_ENV: an empty map is an error in production only", async () => {
+    const empty = json({ countries: [], languages: [] });
+    vi.stubEnv("NEXT_PHASE", "");
+    vi.stubEnv("NODE_ENV", "production");
+    await expect(
+      createProxyMarketMap({ fetcher: fakeFetch([empty]).fetcher }).get(),
+    ).rejects.toThrow(MarketMapError);
+    vi.stubEnv("NODE_ENV", "development");
+    vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const map = await createProxyMarketMap({ fetcher: fakeFetch([empty]).fetcher }).get();
+    expect(map).toEqual(seeded);
+  });
+});
+
 describe("where the proxy reads the map", () => {
   it("is /next/markets on the configured base URL, or on localhost:8000", () => {
     expect(marketsRouteUrl({}).href).toBe("http://localhost:8000/next/markets");

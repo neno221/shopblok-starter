@@ -1,3 +1,4 @@
+import { withTimeout } from "../with-timeout";
 import { mapFromGlobal, marketMapProblems, type MarketsGlobal } from "./global";
 import type { MarketMap } from "./types";
 
@@ -61,15 +62,6 @@ export function defaultAllowFallback(env: {
 
 export function describeError(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
-}
-
-/** A read that never answers (a database host gone silent) must not hold every caller forever. */
-function withTimeout<T>(work: Promise<T>, ms: number): Promise<T> {
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const expired = new Promise<never>((_, reject) => {
-    timer = setTimeout(() => reject(new Error(`no answer after ${ms / 1000} s`)), ms);
-  });
-  return Promise.race([work, expired]).finally(() => clearTimeout(timer));
 }
 
 /**
