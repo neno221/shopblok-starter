@@ -1893,3 +1893,92 @@ Items 1 and 2 are recorded in the plan (§4, §4a, §6) and in the ADR; **the PA
 - **Sorting by title in the locale was not tested.** B's `title` is the locale's own text in its index, A has `title_<locale>` (sortable), and A' keeps only the default-language `title`.
 - The `medusa` database and the Payload database were not touched by the specs; the specs use the runner's temporary databases (`medusa-<id>-integration-1` and `-template`), which a killed run leaves behind (dropped by hand once). The Meilisearch indexes of killed runs (97 of them once) carry a random `r<hex>_` prefix and were deleted by hand.
 - The Greek, German, French, Portuguese, Mongolian and Italian texts of the test products are mine and have not been checked by a native speaker (as with the other catalogs, T03 item 3).
+
+## Payload locale preloading (S3)
+
+**Result: S3 passes as the plan defines it.** Payload keeps preloading 42 languages: they cost nothing measurable (every one of 18 request and query measures within 0.91 to 1.06 times the 4-language config, a control that differs by up to 10 percent), the admin's selector follows the `markets` global with no restart (L2 to L6), and a language outside the list is one line and a 4 ms migration (L10). Two things came out worse than the plan expected, and both are fixed or recorded in code. **L7** failed on T09's implementation: Payload calls the filter three times per admin page, each time with a copy of the request, so the `req.context` memo read `markets` three times; a 2-second memo on `globalThis`, cleared by the `markets` save, reads it at most once. **L11**: removing a language is worse than "the migration fails": a Payload that no longer lists a language **deletes its content the next time an ordinary page is saved**, so the list only grows and a language is switched off in `markets`. Six readings of the plan's rules are yours to confirm (ADR 0003, "Decision"); none changed a rule. [ADR 0003](adr/0003-payload-locale-preloading.md) has the tables and the mutations. It is *Proposed*: merging puts it on `main` as *Proposed*, and T17 sets it to *Accepted* unless your message changes one of R1 to R6 (silence means the defaults stand).
+
+| | |
+|---|---|
+| Date | 2026-10-10 |
+| Branch | `claude/sweet-brown-e07eio`. The plan names `spike/s3-…` (D13); the platform fixed the session's branch, so I used it. The prototype is one commit, **`caf63e7`**, and the next commit removes it from the tree. Cut `spike/s3-locale-preloading` from it if you want the plan's branch |
+| Session start | `node -v` v22.22.0, `pnpm -v` 12.10.1, `pnpm install --frozen-lockfile` 15.1 s. CLOUD.md's step 3: `dockerd` started, `pnpm infra:up` 17.2 s with 4 healthy, `docker compose port postgres 5432` printed `0.0.0.0:15432`. Step 4: `pnpm bootstrap` 43.4 s (8 done, 2 unchanged, 2 skipped; doctor's warnings: Medusa and the storefront not running, no Resend key). Turborepo docs (2.11.7, `docs/README.md`: a pointer page, no deprecation notice) read; no turbo config changed. `pnpm --filter @shopblok/storefront exec eslint --version` v9.39.5, `exec playwright --version` 1.64.0. **The worker was restarted once, mid-session:** the Docker daemon was gone, the containers `Exited (255)`, and the volumes and every database survived; `dockerd` and `pnpm infra:up` brought it back |
+| Files in the merged tree | `docs/adr/0003-payload-locale-preloading.md`, this section, the plan, NEXT-SESSION, the S3 line in `README.md`, and in `apps/storefront`: `src/payload/filter-available-locales.ts` (the 2-second memo) and its test, `src/payload/globals/markets.ts` (the save clears it) and its test, `src/payload/locales.ts` (a comment: the list only grows) and `locales.test.ts` (the list equals the newest migration's `_locales` enum), `e2e/payload-locales.spec.ts` (7 tests), `e2e/support/admin-credentials.ts` (the admin lookup, shared with `payload-admin.spec.ts`) and `playwright.config.ts` (the `locales` project). **No other code differs from `main`**: `git diff 394bfa8 --stat -- . ':!docs' ':!README.md'` lists those files |
+| Prototype (`caf63e7`, not for main) | `src/payload/locales.ts` (`S3_LOCALES=four`, `S3_PLUS`, `S3_MINUS` choose the language list from the environment), `src/payload.config.ts` (`S3_RICH=1` adds a collection with 32 localized fields, `src/payload/collections/s3-rich.ts`; `S3_MIGRATION_DIR`), `src/payload/filter-available-locales.ts` (per-request counters and five ways to share the read, `S3_MEMO`), `src/app/next/spike/s3/counters/route.ts`, `tsconfig.json` (`spike` excluded) and `apps/storefront/spike/s3/`: `lib.ts` (throwaway databases `payload_s3_*` and the Payload CLI runner that repeats a silent exit and checks the database), `cli.ts`, `fresh.ts`, `l1.ts`, `s3-admin.spec.ts` (L2 to L8 with the counters), `seed.ts`, `content.ts`, `bench-local.ts`, `bench-http.mjs`, `bench-browser.mjs`, `l9.sh`, `l9-summary.mjs`, `prep.sh`, `server.sh`, `setup-admin.mjs`, `l10-seed.ts`, `l10-admin.mjs` |
+| Runs | The L9 benchmark ran once in full (three rounds of three configs, about 9 minutes) after two smaller trial rounds; the admin suite about 15 times while the counters were being understood; L1, L10 and L11 once each, with the L11 data-loss check twice on fresh copies. About 45 runs of the Payload CLI, **none exited in silence** (the helper would have repeated it) |
+| Reproduce | CLOUD.md steps 1 to 4, then `git switch --detach caf63e7`. From `apps/storefront`, with `S3_RUN_DIR=<a folder>`: **L1** `node spike/s3/l1.ts <folder>`. **L2 to L8** (needs a build: `S3_RICH=1 PAYLOAD_DATABASE_URL=postgres://postgres:postgres@localhost:15432/payload_s3_full pnpm exec next build`) `node spike/s3/fresh.ts full`, then `S3_MEMO=ttl spike/s3/server.sh start full` and `pnpm exec playwright test -c spike/s3/playwright.config.ts` (`S3_MEMO=context\|headers\|cache\|cache-global\|ttl` picks the way the read is shared; the L7 numbers need the counters route, which is in the prototype only). **L9** `spike/s3/prep.sh full`, `spike/s3/prep.sh four four`, `spike/s3/prep.sh full2`, then `spike/s3/l9.sh <out> 3` and `node spike/s3/l9-summary.mjs <out>`. **L10 and L11** `node spike/s3/cli.ts create payload_s3_l10`, `migrate`, `S3_PAGES=20 node spike/s3/run-payload.ts l10 spike/s3/l10-seed.ts plain`, then the steps below. The helpers refuse any database that is not called `payload_s3_*`. `server.sh` and every stop in this session were by PID |
+
+### Checks (S3's tests)
+
+| # | Test | Result |
+|---|---|---|
+| L1 | `migrate:create` on the full list; `migrate` on an empty database | **Pass.** 42 languages: 2.9 s to create, 16,473 B (T09's file, byte for byte), 129 ms to run, 19 tables; 4 languages: 15,561 B, 130 ms. With the 32-field test collection: 24,592 B and 161 ms (42), 23,452 B and 124 ms (4) |
+| L2 | `el` and `en` enabled: exactly those | **Pass:** `en, el` |
+| L3 | enable `de`, reload | **Pass:** `en, de, el`; same PID before and after |
+| L4 | only `el` | **Pass:** `en, el` |
+| L5 | `markets` empty | **Pass:** `en`; the admin loads |
+| L6 | `?locale=fr` while `fr` is off | **Pass:** 4 URLs redirect to `?locale=en`, status 200; a plain load afterwards works; with `fr` on it stays |
+| L7 | one `markets` read per admin request | **Fail on T09's code (3 reads per page load), pass after the fix (at most 1).** ADR 0003 has the five ways tried |
+| L8 | `GET /api/pages?locale=fr` while `fr` is off | **Pass:** 200 (and 200 for `zz` and `all`: the API does not look at the locale) |
+| L9 | full-list p50 at most 1.2 times the 4-language p50 | **Pass:** 0.91 to 1.06 over 18 measures; a full-vs-full control differs by up to 10 percent |
+| L10 | a language outside the list, on a database with content | **Pass:** `is`, 4 ms, data unchanged, in the admin. Runbook below |
+| L11 | remove a language that has content | **Fails:** the migration fails with `invalid input value for enum _locales: "is"` (rolled back), and a normal save drops the language's rows when the code no longer lists it |
+
+### A language outside the list
+
+The runbook, as run in L10 with Icelandic (`is`). The plan's example `ga` is already one of the 42; check a code against `LANGUAGES` first (`apps/storefront/src/payload/locales.ts`).
+
+1. **Edit one line.** Add the two-letter ISO 639-1 code to `EXTRA_LANGUAGES` in `apps/storefront/src/payload/locales.ts`. Right-to-left languages also go in `RTL_LANGUAGES`. Do nothing else in Payload's config: the `markets` global's selects and every other list are built from it.
+2. **Create the migration.** `pnpm --filter @shopblok/storefront exec payload migrate:create add-<language>` (with the compose Postgres up; a run that prints nothing did nothing, run it again). Read the file: the `up` must be four `ALTER TYPE … ADD VALUE '<code>'` statements (`_locales`, `enum__pages_v_published_locale`, `enum_markets_countries_languages`, `enum_markets_languages_code`) and nothing else. A collection added since the list may add more enums with the same values; they all take the new one.
+3. **Regenerate the types.** `pnpm --filter @shopblok/storefront generate:types` adds the code to three unions in `payload-types.ts`; `generate:importmap` changes nothing. Commit the migration (`.ts`, `.json` and the new lines in `index.ts`) and `payload-types.ts` with the list.
+4. **Run the checks.** `pnpm --filter @shopblok/storefront test` (`locales.test.ts` compares the list with the newest migration, so it fails until step 2 is done) and `payload migrate:create sync-check --skip-empty`, which must create no file.
+5. **Deploy the migration before the code.** `payload migrate` is additive and takes milliseconds (4 ms in L10, on a database with 20 pages in four languages). The code first would answer HTTP 500 the moment someone saves `markets` or a page in the new language, and nothing else would break; the old code on the migrated database works.
+6. **Open the market.** In the admin's `markets` global add the country with the language and a Medusa locale for it (D8: one of Medusa's 51; if Medusa has none, as for Icelandic, pick the closest, for example `en-US`). The selector offers the language on the next page. For the Medusa side, the storefront's map and the search index follow SETUP.md's list for opening a market (T08, T10; D17).
+7. **Never go back.** Do not remove the language from the list, even if the market closes: switch it off in `markets`. See "Removing a language" below.
+
+### Removing a language (do not)
+
+L11, on a copy of the L10 database. If a language is removed from `locales.ts` while a database still holds its content:
+
+- `payload migrate:create` writes the removal without complaint (it is the `down` of the migration above: each enum is recreated without the value), and `payload migrate` fails with `invalid input value for enum _locales: "is"`. The transaction rolls back and nothing changes.
+- A Payload that does not list the language but runs on that database **deletes the content on the next save**: an English save of a page took the page's Icelandic row with it (`pages_locales` rows for `is`: 21 and 22 before, 22 after). `?locale=all` still returned the text until then, an unknown `?locale=is` was answered in English, and saving `markets` failed with "invalid selection" while the language was still in it.
+- What worked, and is deleting the language's content: remove it from `markets`, delete its rows (`pages_locales`, `_pages_v_locales`, `_pages_v.published_locale`, `media_locales`, plus any other `*_locales` table), then `migrate:create` and `migrate` (65 ms).
+
+### Checks beyond S3's list
+
+| Check | Result | Key output |
+|---|---|---|
+| The tests can fail | **Pass** | Unit tests, 9 mutations, each caught: memo in a module variable instead of `globalThis` (1 test failed), no time to share a read (4), the read never expires (1), memo shared by every Payload instance (1), a failed read kept (1), the save does not clear the read (1), a language added without its migration (1), a language dropped (3). End to end, 6 runs: the filter offers every language (L5 failed), English not forced (L4), the save does not clear the read (the dedicated test, alone, and L5 in the full run, which is the first to meet the stale read), the read never expires (**not caught**: every save in the spec clears the memo; the unit test catches it), and with the time at 0 the read count goes from 1 to 3 per page |
+| `payload-locales.spec.ts` in the CI job's shape | **Pass** | The `e2e-smoke` steps in the VM: root `pnpm build` (65.8 s), Medusa and the storefront up, `pnpm --filter @shopblok/storefront test:e2e`: **48 passed** (41 existing + 7), 31.3 s; `pnpm run doctor --online`: 15 checks ok, 1 warning (Resend), 0 errors; the `markets` global afterwards had the same six countries with the same row ids |
+| `next dev` | **Pass, once warm** | 7 of 7 twice; the first run on a dev server that had never compiled the admin failed in the spec's setup hook within a second (not captured) |
+| Storefront unit tests | **Pass** | 381 passed in 25 files (the 49 `src/payload` tests became 55); `typecheck`, `eslint .` and Prettier on the touched files clean |
+| `AGENTS.md` | untouched | S3 changes no turbo configuration; `next dev` left `apps/storefront/AGENTS.md` as it was |
+| Servers and databases | **Stopped, dropped** | Every `next start`/`next dev`, Medusa and the storefront were stopped by PID (descendants by parent PID); `payload_s3_*` databases dropped at the end |
+
+### What should change in the plan
+
+Items 1 and 2 are recorded in the plan (§4, §6) and in the ADR; **the PASS list's own text is unchanged**. The rest are notes.
+
+1. **S3 passes.** The plan's rule is applied as written. Six readings are listed in the ADR (R1 to R6); the main one is L7 (T09's memo failed; it is replaced).
+2. **L10's example `ga` is already preloaded** (it is one of the EU's 24). The runbook used `is`.
+3. **D17 stays as it is.** L9 is within budget with room, so the plan's "preload only each brand's languages" fallback is not taken and D17's "no migration to add a language" holds for the 42; outside them it is the runbook.
+4. **For T17:** SPEC's lines are under "Spec changes" in ADR 0003 (§7 Localization and its "about 35 languages", the line about languages outside the list, G7, the risk row, §14). `e2e/payload-locales.spec.ts` already runs in the `e2e-smoke` job (a `locales` project after the others); T17 step 4 decides whether to keep it there. The SETUP quickstart should link the runbook above.
+5. **For M4:** the filter is the admin's selector only (L8). Content reads take their locale from the market map, never from the request, and "switched off in `markets`" does not hide a page from `/api/pages?locale=…`. A localized field costs a row per language that has content.
+6. **For anyone who writes module state in code Payload loads** (config, hooks, access): the admin's layout and its page load their own instance of a module, so a module variable is per instance and `globalThis` is the shared place. T10's market-map cache (`src/lib/markets/source.ts`) is a module variable; its callers (the proxy's route and the storefront layout) were not checked for this.
+7. **For load tests of the admin:** a plain HTTP client gets only the static shell of an admin page; it renders the dynamic part when it sends the browser's `Sec-Fetch-Dest: document` and the other fetch-metadata headers.
+8. **Harness lessons (S1 and S2's list held, plus):**
+   - The admin's locale popup shows the current locale as a disabled `div`, not a button, and Payload remembers the last locale per user: a test that clicks a language must start from a locale it names in the URL.
+   - Playwright's click on a dashboard nav link was blocked by an overlay again; click in the page (`evaluate`).
+   - `payload migrate:create` writes `import { MigrateUpArgs … }` as before (T09 item 2); `src/migrations` stays outside `tsc` and ESLint, and a new migration needs no edit.
+   - A foreground `sleep` is refused; the benchmark and the CI rehearsal ran in the background with `until` loops.
+   - Counters in a server must be attributed to a request with something the calls share: the first version keyed them by `req.headers` and mixed the requests of two module instances.
+
+### Smaller observations
+
+- **An update costs more as versions accumulate.** The same `update` of one field took 53 ms in the first trial and 104 ms in the full run (same in both configs): every update writes a version, and the benchmark made 50 per run on the same document.
+- **The 42-option selects add 3.7 KB to every admin page** (the client config carries the `markets` global's fields). Nothing else grows with the list.
+- **Admin timings in a production build** (50 documents, local Postgres): the edit view about 50 ms server-side and about 310 ms in a browser to the last field; the list view 64 ms; a REST read 7.6 ms. `getPayload` initialises in about 37 ms, and importing the config takes about a second either way.
+- **The generated `down` of an enum change** recreates the enums and fails if any row has a removed value; the `up` that adds a value does not rewrite anything.
+- **Icelandic's name in the selector** is *íslenska (is)*, from the runtime's ICU data (`languageLabel`), and `Intl.DisplayNames` had it.
+- **Throwaway databases** in the compose volume: `payload_s3_full`, `_four`, `_full2`, `_l1_*`, `_l10`, `_l10b`, `_l11`, `_l11b`, `_l11c` and `_e2e`; they were dropped at the end of the session.
+- The Greek, German, French and Icelandic test text is mine and has not been checked by a native speaker.
