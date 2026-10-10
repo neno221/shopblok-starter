@@ -144,12 +144,18 @@ export function tail(output: string, count = 25): string {
   return lines.slice(-count).join("\n");
 }
 
-/** Hides anything that looks like a secret from text about to be shown: the apps' result lines and keys. */
+/** Hides anything that looks like a secret from text about to be shown: result lines, keys and URL passwords. */
 export function redact(text: string): string {
-  return text
-    .replace(
-      /("(?:publishableKey|apiKey|password|generatedAdminPassword)"\s*:\s*")[^"]+(")/g,
-      "$1…$2",
-    )
-    .replace(/\bpk_[0-9a-f]{12,}/g, "pk_…");
+  return (
+    text
+      .replace(
+        /("(?:publishableKey|apiKey|password|generatedAdminPassword)"\s*:\s*")[^"]+(")/g,
+        "$1…$2",
+      )
+      .replace(/\bpk_[0-9a-f]{12,}/g, "pk_…")
+      // The password of a connection string: `postgres://user:secret@host` -> `postgres://user:…@host`.
+      // It runs to the last `@` of the word, so a password with an `@` or a `/` in it (not percent-
+      // encoded, as people write them) is hidden whole; a `?` or `#` ends the authority.
+      .replace(/(\b[a-z][a-z0-9+.-]*:\/\/[^\s:/@]*:)[^\s?#]*@/gi, "$1…@")
+  );
 }

@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { invocation, quoteForCmd, run } from "./exec.ts";
+import {
+  exitedInSilence,
+  invocation,
+  quoteForCmd,
+  retryWhileSilent,
+  run,
+  type RunResult,
+} from "./exec.ts";
 
 describe("invocation", () => {
   it("starts a program directly on Linux and macOS", () => {
@@ -190,5 +197,60 @@ describe("run", () => {
     const result = await run("bootstrap-test-no-such-program", []);
     expect(result.code).toBeNull();
     expect(result.error).toMatch(/ENOENT/);
+  });
+});
+
+describe("exitedInSilence and retryWhileSilent", () => {
+  const result = (over: Partial<RunResult>): RunResult => ({
+    code: 0,
+    output: "",
+    timedOut: false,
+    ...over,
+  });
+
+  it("only a clean exit with no output at all is silence", () => {
+    expect(exitedInSilence(result({}))).toBe(true);
+    expect(exitedInSilence(result({ output: " \n\t" }))).toBe(true);
+    expect(exitedInSilence(result({ output: "No email adapter provided" }))).toBe(false);
+    expect(exitedInSilence(result({ code: 1 }))).toBe(false);
+    expect(exitedInSilence(result({ code: null }))).toBe(false);
+    expect(exitedInSilence(result({ timedOut: true }))).toBe(false);
+    expect(exitedInSilence(result({ prompt: "Proceed? (y/N)" }))).toBe(false);
+    expect(exitedInSilence(result({ error: "spawn pnpm ENOENT" }))).toBe(false);
+  });
+
+  /** An attempt that gives the listed results in turn and counts its calls. */
+  function script(...results: RunResult[]) {
+    let calls = 0;
+    return {
+      attempt: async () => results[Math.min(calls++, results.length - 1)]!,
+      calls: () => calls,
+    };
+  }
+
+  it("runs again after silence, and stops at the first answer", async () => {
+    const s = script(result({}), result({}), result({ output: "ok" }));
+    expect((await retryWhileSilent(s.attempt)).output).toBe("ok");
+    expect(s.calls()).toBe(3);
+  });
+
+  it("gives up after the attempts it was given and returns the silent result", async () => {
+    const s = script(result({}));
+    expect(exitedInSilence(await retryWhileSilent(s.attempt, 2))).toBe(true);
+    expect(s.calls()).toBe(2);
+  });
+
+  it("never repeats a real failure, a prompt or a timeout", async () => {
+    for (const failure of [
+      result({ code: 1, output: "boom" }),
+      result({ code: 1 }),
+      result({ prompt: "Proceed? (y/N)" }),
+      result({ timedOut: true, code: null }),
+      result({ output: "fine" }),
+    ]) {
+      const s = script(failure);
+      expect(await retryWhileSilent(s.attempt)).toBe(failure);
+      expect(s.calls()).toBe(1);
+    }
   });
 });

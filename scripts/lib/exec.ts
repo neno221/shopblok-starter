@@ -206,3 +206,48 @@ export function run(
     child.on("close", (code) => finish({ code }));
   });
 }
+
+/**
+ * Whether a finished command did nothing at all: it exited 0, was not stopped, and printed nothing.
+ * Payload's CLI does this now and then. `payload run` and `payload migrate` start through tsx, and in
+ * about 1 run in 20 the process leaves by itself with exit code 0 before the script has printed a
+ * thing: the module load never finishes, and nothing keeps Node's event loop alive (measured on
+ * Node 22.22.0: 2 of 60 runs in development mode and 3 of 60 with `NODE_ENV=production`, with
+ * output sent to a file, with and without pnpm in between; `beforeExit` fired after 2.5 s and no
+ * error was raised). Every real run prints at least a log line (`No email adapter provided…`), so
+ * silence is the signature.
+ */
+export function exitedInSilence(result: RunResult): boolean {
+  return (
+    result.code === 0 &&
+    !result.timedOut &&
+    result.prompt === undefined &&
+    result.error === undefined &&
+    result.output.trim() === ""
+  );
+}
+
+/**
+ * Runs `attempt` again while it exits in silence, up to `attempts` times in all, and returns the last
+ * result. A command that fails, prints something or is stopped is returned at once: only the
+ * flake above is repeated, never a real failure.
+ */
+export async function retryWhileSilent(
+  attempt: () => Promise<RunResult>,
+  attempts = 3,
+): Promise<RunResult> {
+  let result = await attempt();
+  for (let n = 1; n < attempts && exitedInSilence(result); n++) result = await attempt();
+  return result;
+}
+
+/**
+ * Runs Payload's CLI (`payload migrate`, `payload run <script>`) through pnpm in the storefront
+ * workspace. The one way to start it: every command given to it must be safe to run again, because a
+ * silent exit is repeated (see `exitedInSilence`) rather than believed.
+ */
+export function runPayload(args: readonly string[], options: RunOptions): Promise<RunResult> {
+  return retryWhileSilent(() =>
+    run("pnpm", ["--filter", "@shopblok/storefront", "exec", "payload", ...args], options),
+  );
+}

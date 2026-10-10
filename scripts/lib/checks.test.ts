@@ -5,6 +5,7 @@ import {
   addressOf,
   canConnect,
   dockerUnavailableWarning,
+  inspectTargets,
   isLocalHost,
   judge,
   meilisearchAnswers,
@@ -13,7 +14,9 @@ import {
   redisAnswers,
   satisfies,
   targetsFrom,
+  type ComposeObservation,
   type Observation,
+  type Probes,
   type Target,
 } from "./checks.ts";
 
@@ -71,6 +74,18 @@ describe("targetsFrom", () => {
     expect(targets[0]?.label).toBe("Postgres (medusa and payload databases)");
   });
 
+  it("says which database each Postgres holds, so nobody has to read the label", () => {
+    const databases = (e: typeof env) =>
+      targetsFrom(e)
+        .filter((t) => t.kind === "postgres")
+        .map((t) => t.databases);
+    expect(databases(env)).toEqual([["medusa", "payload"]]);
+    expect(databases({ ...env, PAYLOAD_DATABASE_URL: "postgres://u:p@localhost:5433/p" })).toEqual([
+      ["medusa"],
+      ["payload"],
+    ]);
+  });
+
   it("checks both when the databases are on different servers", () => {
     const targets = targetsFrom({
       ...env,
@@ -103,6 +118,17 @@ describe("targetsFrom", () => {
       host: "localhost",
       port: 7701,
     });
+  });
+
+  it("marks a rediss:// URL as TLS, so the probe speaks TLS to it", () => {
+    const redis = (url: string) =>
+      targetsFrom({ ...env, REDIS_URL: url }).find((t) => t.kind === "redis");
+    expect(redis("rediss://default:pw@managed.example.com:6380")).toMatchObject({
+      host: "managed.example.com",
+      port: 6380,
+      tls: true,
+    });
+    expect(redis("redis://localhost:6380")?.tls).toBeUndefined();
   });
 
   it("has no Redis to check when REDIS_URL is blank (the in-memory modules, T06)", () => {
@@ -303,6 +329,25 @@ describe("probes", () => {
     expect(await redisAnswers("127.0.0.1", await closedPort(), 300)).toBe(false);
   });
 
+  it("redisAnswers accepts a Redis that wants a password: NOAUTH is a Redis too", async () => {
+    const secured = await listen((socket) => {
+      socket.on("data", () => socket.write("-NOAUTH Authentication required.\r\n"));
+    });
+    const notRedis = await listen((socket) => {
+      socket.on("data", () => socket.write("HTTP/1.1 400 Bad Request\r\n\r\n"));
+    });
+    expect(await redisAnswers("127.0.0.1", secured)).toBe(true);
+    expect(await redisAnswers("127.0.0.1", notRedis)).toBe(false);
+  });
+
+  it("redisAnswers over TLS does not take a plain server for a Redis", async () => {
+    // A `rediss://` probe starts with a TLS handshake; a server that answers in plain text fails it.
+    const plain = await listen((socket) => {
+      socket.on("data", () => socket.write("+PONG\r\n"));
+    });
+    expect(await redisAnswers("127.0.0.1", plain, 500, true)).toBe(false);
+  });
+
   it("postgresAnswers sends an SSLRequest and wants S or N back", async () => {
     let received: Buffer | undefined;
     const postgres = await listen((socket) => {
@@ -334,5 +379,113 @@ describe("probes", () => {
     expect(await meilisearchAnswers("127.0.0.1", await serve('{"status":"booting"}'))).toBe(false);
     expect(await meilisearchAnswers("127.0.0.1", await serve("{}", 503))).toBe(false);
     expect(await meilisearchAnswers("127.0.0.1", await closedPort(), 300)).toBe(false);
+  });
+});
+
+describe("inspectTargets", () => {
+  const target = (over: Partial<Target>): Target => ({
+    label: "Postgres",
+    kind: "postgres",
+    service: "postgres",
+    containerPort: 5432,
+    host: "localhost",
+    port: 15432,
+    ...over,
+  });
+
+  /** Probes that look at nothing real; `asked` counts the `docker compose port` questions. */
+  function probes(options: {
+    reachable?: boolean;
+    speaks?: boolean;
+    compose?: ComposeObservation;
+  }): { probes: Probes; asked: string[]; dockerAsked: { count: number } } {
+    const asked: string[] = [];
+    const dockerAsked = { count: 0 };
+    const compose = options.compose ?? { status: "published", ports: [15432] };
+    return {
+      asked,
+      dockerAsked,
+      probes: {
+        canConnect: async () => options.reachable ?? true,
+        answers: async () => options.speaks ?? true,
+        observeDocker: async () => {
+          dockerAsked.count++;
+          return compose.status === "docker-unavailable"
+            ? { ok: false, reason: compose.reason }
+            : { ok: true };
+        },
+        observeCompose: async (t) => {
+          asked.push(`${t.service}:${t.containerPort}`);
+          return compose;
+        },
+      },
+    };
+  }
+
+  it("asks Docker once per service and container port, whatever the number of targets", async () => {
+    const { probes: p, asked, dockerAsked } = probes({});
+    const findings = await inspectTargets(
+      [
+        target({ label: "Postgres (medusa database)" }),
+        target({ label: "Postgres (payload database)" }),
+        target({
+          label: "Redis",
+          kind: "redis",
+          service: "redis",
+          containerPort: 6379,
+          port: 6380,
+        }),
+      ],
+      "/repo",
+      {
+        ...p,
+        observeCompose: async (t, cwd) => {
+          expect(cwd).toBe("/repo");
+          const observed = await p.observeCompose(t, cwd);
+          return t.service === "redis" ? { status: "published" as const, ports: [6380] } : observed;
+        },
+      },
+    );
+    expect(findings.map((f) => f.level)).toEqual(["ok", "ok", "ok"]);
+    expect(asked.sort()).toEqual(["postgres:5432", "redis:6379"]);
+    // `docker info` is asked once for the three services, not once for each.
+    expect(dockerAsked.count).toBe(1);
+  });
+
+  it("is an error when the port is not published by this project's stack (D15)", async () => {
+    const { probes: p } = probes({ compose: { status: "published", ports: [15432] } });
+    const [finding] = await inspectTargets([target({ port: 5432 })], "/repo", p);
+    expect(finding?.level).toBe("error");
+    expect(finding?.message).toContain("belongs to something else (D15)");
+  });
+
+  it("never asks Docker about a remote host, or about a service that does not answer", async () => {
+    const remote = probes({});
+    const [ok] = await inspectTargets([target({ host: "db.example.com" })], "/repo", remote.probes);
+    expect(ok?.level).toBe("ok");
+    expect(ok?.message).toContain("a remote server");
+    expect(remote.asked).toEqual([]);
+
+    const down = probes({ reachable: false });
+    const [bad] = await inspectTargets([target({})], "/repo", down.probes);
+    expect(bad?.level).toBe("error");
+    expect(bad?.message).toContain("is not reachable");
+    expect(down.asked).toEqual([]);
+  });
+
+  it("an answer that is not the service's protocol is an error", async () => {
+    const { probes: p } = probes({ speaks: false });
+    const [finding] = await inspectTargets([target({})], "/repo", p);
+    expect(finding?.level).toBe("error");
+    expect(finding?.message).toContain("does not behave like Postgres");
+  });
+
+  it("a Docker that cannot be asked is a warning with the reason", async () => {
+    const { probes: p } = probes({
+      compose: { status: "docker-unavailable", reason: "no daemon" },
+    });
+    const [finding] = await inspectTargets([target({})], "/repo", p);
+    expect(finding?.level).toBe("warn");
+    expect(finding?.dockerReason).toBe("no daemon");
   });
 });

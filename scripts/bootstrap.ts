@@ -11,27 +11,23 @@ import { randomUUID } from "node:crypto";
 import { chmodSync, existsSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import {
-  answers,
-  canConnect,
   dockerUnavailableWarning,
+  inspectTargets,
   isLocalHost,
-  judge,
-  observeCompose,
   satisfies,
   targetsFrom,
-  type ComposeObservation,
   type Finding,
-  type Target,
 } from "./lib/checks.ts";
 import {
   changedAnything,
   generatePassword,
   generateSecret,
+  envValue,
   getEnvValue,
   mergeEnv,
   type EnvChange,
 } from "./lib/env-file.ts";
-import { run, type RunResult } from "./lib/exec.ts";
+import { run, runPayload, type RunResult } from "./lib/exec.ts";
 import {
   classifyMigrate,
   classifyPayloadMigrate,
@@ -140,20 +136,20 @@ function describeChanges(changes: readonly EnvChange[]): string {
     .join(", ");
 }
 
-/** Runs a Medusa or Payload command through pnpm, from the repo root. */
-function pnpm(args: string[], ctx: Context, extraEnv: Record<string, string | undefined> = {}) {
-  return run("pnpm", args, {
+/** How a Medusa or Payload command is run: from the repo root, with the options of this run. */
+function commandOptions(ctx: Context, extraEnv: Record<string, string | undefined> = {}) {
+  return {
     cwd: root,
     env: { ...(ctx.options.ci ? { CI: "true" } : {}), NO_COLOR: "1", ...extraEnv },
     stream: ctx.options.verbose,
-  });
+  };
 }
 
 const medusa = (args: string[], ctx: Context) =>
-  pnpm(["--filter", "@shopblok/backend", "exec", "medusa", ...args], ctx);
+  run("pnpm", ["--filter", "@shopblok/backend", "exec", "medusa", ...args], commandOptions(ctx));
 
 const payload = (args: string[], ctx: Context, extraEnv: Record<string, string | undefined> = {}) =>
-  pnpm(["--filter", "@shopblok/storefront", "exec", "payload", ...args], ctx, extraEnv);
+  runPayload(args, commandOptions(ctx, extraEnv));
 
 function failed(what: string, result: RunResult, hint?: string): StepError {
   const why = result.prompt
@@ -198,7 +194,7 @@ async function preflight(): Promise<StepResult> {
   // Mailpit's ports are Docker Compose's variables (infra/docker-compose.yml): the shell or the
   // root `.env`, which Compose reads, set them.
   const composeText = readText(path.join(root, ".env")) ?? "";
-  const pick = (name: string, text: string) => process.env[name] ?? getEnvValue(text, name);
+  const pick = (name: string, text: string) => envValue(process.env, text, name);
   const targets = targetsFrom({
     DATABASE_URL: pick("DATABASE_URL", backendText),
     PAYLOAD_DATABASE_URL: pick("PAYLOAD_DATABASE_URL", storefrontText),
@@ -208,28 +204,7 @@ async function preflight(): Promise<StepResult> {
     MAILPIT_UI_PORT: pick("MAILPIT_UI_PORT", composeText),
   });
 
-  // `docker compose port` once per service and container port.
-  const composeCache = new Map<string, Promise<ComposeObservation>>();
-  const compose = (target: Target) => {
-    const key = `${target.service}:${target.containerPort}`;
-    let observation = composeCache.get(key);
-    if (!observation) {
-      observation = observeCompose(target, root);
-      composeCache.set(key, observation);
-    }
-    return observation;
-  };
-
-  const findings: Finding[] = await Promise.all(
-    targets.map(async (target) => {
-      const reachable = await canConnect(target.host, target.port);
-      const speaksProtocol = reachable && (await answers(target));
-      // A remote host can't be a container of ours, so don't ask Docker about it.
-      const observation: ComposeObservation =
-        reachable && isLocalHost(target.host) ? await compose(target) : { status: "not-published" };
-      return judge({ target, reachable, speaksProtocol, compose: observation });
-    }),
-  );
+  const findings: Finding[] = await inspectTargets(targets, root);
 
   for (const finding of findings) {
     if (finding.level === "error") problems.push(finding.message);
@@ -574,10 +549,8 @@ function payloadKey(ctx: Context): StepResult {
 // ---- 11. Doctor -----------------------------------------------------------------------------
 
 async function doctor(ctx: Context): Promise<StepResult> {
-  // T14 adds scripts/doctor.ts. Until then there is nothing to run, and that is not a failure.
-  if (!existsSync(path.join(root, "scripts", "doctor.ts"))) {
-    return { status: "skipped", detail: "arrives in T14" };
-  }
+  // Doctor writes nothing, and a server that is not running yet is only a warning for it, so a
+  // fresh bootstrap passes; a doctor error (Redis down, a wrong key) fails the run.
   const result = await run("pnpm", ["run", "doctor"], {
     cwd: root,
     env: ctx.options.ci ? { CI: "true" } : {},
@@ -633,6 +606,9 @@ const LABEL: Record<Status, string> = {
   skipped: "↷ skipped",
 };
 const TOTAL = 11;
+
+const KEY_CHANGED_NOTE =
+  "The publishable key changed: rebuild the storefront (`pnpm build`) or restart `pnpm dev`.";
 
 function line(step: Step, result: StepResult, seconds: number): string {
   const detail = result.detail ? ` (${result.detail})` : "";
@@ -695,6 +671,9 @@ async function main(): Promise<number> {
           ? "\nbootstrap stopped before it changed anything. Run `pnpm bootstrap` again after fixing this."
           : `\nbootstrap stopped at step ${step.number}. The steps before it are done; run \`pnpm bootstrap\` again after fixing this.`,
       );
+      // The key is already in the database and the env file, whatever step failed after it: a
+      // second run finds it unchanged and would not say so.
+      if (ctx.state.publishableKeyChanged) console.error(KEY_CHANGED_NOTE);
       return 1;
     }
   }
@@ -703,11 +682,7 @@ async function main(): Promise<number> {
   console.log(
     `\nbootstrap finished in ${seconds} s: ${counts.done} done, ${counts.unchanged} unchanged, ${counts.skipped} skipped.`,
   );
-  if (ctx.state.publishableKeyChanged) {
-    console.log(
-      `The publishable key changed: rebuild the storefront (\`pnpm build\`) or restart \`pnpm dev\`.`,
-    );
-  }
+  if (ctx.state.publishableKeyChanged) console.log(KEY_CHANGED_NOTE);
   // With no stored password (the Medusa admin existed before bootstrap wrote one) there is none to
   // point to: step 5 and step 8 said what happened.
   const passwordNote =

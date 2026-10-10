@@ -8,7 +8,9 @@
 // else answers there. The decisions are pure functions over what was observed, so tests need no
 // Docker; `observe*` functions do the looking.
 import net from "node:net";
+import tls from "node:tls";
 import { run } from "./exec.ts";
+import { jsonOf, request } from "./http.ts";
 
 // ---------------------------------------------------------------------------------------------
 // Versions
@@ -75,6 +77,10 @@ export type Target = {
   containerPort: number;
   host: string;
   port: number;
+  /** For Postgres: which of the apps' databases this server holds (one server holds both in compose). */
+  databases?: ("medusa" | "payload")[];
+  /** `rediss://`: the server speaks TLS, so a probe has to as well. */
+  tls?: boolean;
   /** Why the check is needed or what to do when it fails, in a few words. */
   hint?: string;
 };
@@ -84,6 +90,18 @@ const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "::1", "[::1]", "0.0.0.0"
 /** True for a host on this machine: only those can be one of this project's compose containers. */
 export function isLocalHost(host: string): boolean {
   return LOCAL_HOSTS.has(host.toLowerCase());
+}
+
+/** `new URL("redis://[::1]:6380").hostname` is `[::1]`; a socket needs the bare address. */
+const bareHost = (hostname: string): string => hostname.replace(/^\[(.*)\]$/, "$1");
+
+/** The host of a URL as a socket wants it, or `undefined` when it is not a URL. */
+export function hostOf(url: string): string | undefined {
+  try {
+    return bareHost(new URL(url).hostname);
+  } catch {
+    return undefined;
+  }
 }
 
 /** `host:port` as a person (or a URL) would write it: a bare IPv6 address goes in brackets. */
@@ -102,9 +120,9 @@ function urlTarget(
     const url = new URL(value.trim());
     return {
       ...base,
-      // `new URL("redis://[::1]:6380").hostname` is `[::1]`; a socket needs the bare address.
-      host: url.hostname.replace(/^\[(.*)\]$/, "$1"),
+      host: bareHost(url.hostname),
       port: url.port === "" ? fallbackPort : Number(url.port),
+      ...(url.protocol === "rediss:" ? { tls: true } : {}),
     };
   } catch {
     return undefined;
@@ -134,34 +152,31 @@ export const COMPOSE_DEFAULTS = {
  * `REDIS_URL` means the backend runs on its in-memory modules (T06), so there is no Redis to check.
  */
 export function targetsFrom(env: ConfiguredEnv): Target[] {
-  const postgres = {
+  const database = (name: "medusa" | "payload"): Omit<Target, "host" | "port"> => ({
     kind: "postgres",
     service: "postgres",
     containerPort: 5432,
-  } as const;
+    label: `Postgres (${name} database)`,
+    databases: [name],
+  });
+  const onCompose = { host: "localhost", port: COMPOSE_DEFAULTS.postgresPort };
   const list: Target[] = [];
 
-  const medusaDb = urlTarget(env.DATABASE_URL, 5432, {
-    ...postgres,
-    label: "Postgres (medusa database)",
-  }) ?? {
-    ...postgres,
-    label: "Postgres (medusa database)",
-    host: "localhost",
-    port: COMPOSE_DEFAULTS.postgresPort,
+  const medusaDb = urlTarget(env.DATABASE_URL, 5432, database("medusa")) ?? {
+    ...database("medusa"),
+    ...onCompose,
   };
-  const payloadDb = urlTarget(env.PAYLOAD_DATABASE_URL, 5432, {
-    ...postgres,
-    label: "Postgres (payload database)",
-  }) ?? {
-    ...postgres,
-    label: "Postgres (payload database)",
-    host: "localhost",
-    port: COMPOSE_DEFAULTS.postgresPort,
+  const payloadDb = urlTarget(env.PAYLOAD_DATABASE_URL, 5432, database("payload")) ?? {
+    ...database("payload"),
+    ...onCompose,
   };
   // One server holds both databases in the compose stack: check it once, not twice.
   if (medusaDb.host === payloadDb.host && medusaDb.port === payloadDb.port) {
-    list.push({ ...medusaDb, label: "Postgres (medusa and payload databases)" });
+    list.push({
+      ...medusaDb,
+      label: "Postgres (medusa and payload databases)",
+      databases: ["medusa", "payload"],
+    });
   } else {
     list.push(medusaDb, payloadDb);
   }
@@ -221,15 +236,21 @@ function portOf(value: string | undefined, fallback: number): number {
 // ---------------------------------------------------------------------------------------------
 // Looking at the machine
 
-/** Opens a TCP connection and runs `onConnect` on it; resolves with what it returns, or `false`. */
+/**
+ * Opens a TCP connection (a TLS one when `secure`) and runs `onConnect` on it; resolves with what it
+ * returns, or `false`.
+ */
 function withSocket<T>(
   host: string,
   port: number,
   timeoutMs: number,
   onConnect: (socket: net.Socket, done: (value: T | false) => void) => void,
+  secure = false,
 ): Promise<T | false> {
   return new Promise((resolve) => {
-    const socket = net.connect({ host, port });
+    const socket = secure
+      ? tls.connect({ host, port, servername: net.isIP(host) === 0 ? host : undefined })
+      : net.connect({ host, port });
     let finished = false;
     const done = (value: T | false) => {
       if (finished) return;
@@ -240,7 +261,7 @@ function withSocket<T>(
     socket.setTimeout(timeoutMs, () => done(false));
     socket.on("error", () => done(false));
     socket.on("close", () => done(false));
-    socket.on("connect", () => onConnect(socket, done));
+    socket.on(secure ? "secureConnect" : "connect", () => onConnect(socket, done));
   });
 }
 
@@ -249,13 +270,31 @@ export async function canConnect(host: string, port: number, timeoutMs = 2000): 
   return (await withSocket<true>(host, port, timeoutMs, (_socket, done) => done(true))) === true;
 }
 
-/** True when a Redis answers `PING` with `PONG`: "established" log lines prove nothing (T06 item 5). */
-export async function redisAnswers(host: string, port: number, timeoutMs = 2000): Promise<boolean> {
-  const reply = await withSocket<string>(host, port, timeoutMs, (socket, done) => {
-    socket.on("data", (data) => done(data.toString("utf8")));
-    socket.write("*1\r\n$4\r\nPING\r\n");
-  });
-  return typeof reply === "string" && reply.startsWith("+PONG");
+// A Redis that needs a password answers an unauthenticated PING with `-NOAUTH`: it is up and speaks
+// the protocol, which is all this probe asks. `-LOADING` is not: it is still reading its data.
+const REDIS_ALIVE = /^(\+PONG|-NOAUTH\b)/;
+
+/**
+ * True when a Redis answers `PING` with `PONG` (or `NOAUTH`, when it wants a password): "established"
+ * log lines prove nothing (T06 item 5). `secure` is for `rediss://`, which speaks TLS.
+ */
+export async function redisAnswers(
+  host: string,
+  port: number,
+  timeoutMs = 2000,
+  secure = false,
+): Promise<boolean> {
+  const reply = await withSocket<string>(
+    host,
+    port,
+    timeoutMs,
+    (socket, done) => {
+      socket.on("data", (data) => done(data.toString("utf8")));
+      socket.write("*1\r\n$4\r\nPING\r\n");
+    },
+    secure,
+  );
+  return typeof reply === "string" && REDIS_ALIVE.test(reply);
 }
 
 /**
@@ -281,16 +320,13 @@ export async function meilisearchAnswers(
   port: number,
   timeoutMs = 2000,
 ): Promise<boolean> {
-  try {
-    const response = await fetch(`http://${addressOf({ host, port })}/health`, {
-      signal: AbortSignal.timeout(timeoutMs),
-    });
-    if (!response.ok) return false;
-    const body = (await response.json()) as { status?: unknown };
-    return body.status === "available";
-  } catch {
-    return false;
-  }
+  const result = await request(`http://${addressOf({ host, port })}/health`, { timeoutMs });
+  return (
+    result.kind === "response" &&
+    result.status >= 200 &&
+    result.status < 300 &&
+    (jsonOf(result) as { status?: unknown } | undefined)?.status === "available"
+  );
 }
 
 /** Whether the service on `target`'s port answers the way that kind of service does. */
@@ -299,7 +335,7 @@ export function answers(target: Target, timeoutMs = 2000): Promise<boolean> {
     case "postgres":
       return postgresAnswers(target.host, target.port, timeoutMs);
     case "redis":
-      return redisAnswers(target.host, target.port, timeoutMs);
+      return redisAnswers(target.host, target.port, timeoutMs, target.tls);
     case "meilisearch":
       return meilisearchAnswers(target.host, target.port, timeoutMs);
     default:
@@ -327,18 +363,26 @@ export function parseComposePorts(output: string): number[] {
   return [...ports];
 }
 
-export async function observeCompose(
-  target: Pick<Target, "service" | "containerPort">,
-  cwd: string,
-): Promise<ComposeObservation> {
+/** Whether Docker answers: `docker info` is the cheapest call that needs the daemon. */
+export type DockerState = { ok: true } | { ok: false; reason: string };
+
+async function observeDocker(cwd: string): Promise<DockerState> {
   const info = await run("docker", ["info", "--format", "{{.ServerVersion}}"], {
     cwd,
     timeoutMs: 20_000,
   });
-  if (info.code !== 0) {
-    const reason = info.error ?? (info.output.trim().split(/\r?\n/).at(-1) || "docker info failed");
-    return { status: "docker-unavailable", reason };
-  }
+  if (info.code === 0) return { ok: true };
+  return {
+    ok: false,
+    reason: info.error ?? (info.output.trim().split(/\r?\n/).at(-1) || "docker info failed"),
+  };
+}
+
+/** The host ports the compose stack publishes for a service's container port. Docker must be up. */
+async function observeCompose(
+  target: Pick<Target, "service" | "containerPort">,
+  cwd: string,
+): Promise<ComposeObservation> {
   const result = await run(
     "docker",
     ["compose", "port", target.service, String(target.containerPort)],
@@ -447,4 +491,66 @@ export function dockerUnavailableWarning(findings: readonly Finding[]): string |
     .map((finding) => `${finding.target.label.split(" (")[0]} ${where(finding)}`)
     .join(", ");
   return `Docker is not available (${first.dockerReason}), so I can't check that these are this project's services: ${list}. ${writes}.`;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Looking at all of them
+
+/** How `inspectTargets` looks at the machine; the tests replace these. */
+export type Probes = {
+  canConnect: (host: string, port: number) => Promise<boolean>;
+  answers: (target: Target) => Promise<boolean>;
+  observeDocker: (cwd: string) => Promise<DockerState>;
+  observeCompose: (
+    target: Pick<Target, "service" | "containerPort">,
+    cwd: string,
+  ) => Promise<ComposeObservation>;
+};
+
+const REAL_PROBES: Probes = {
+  canConnect: (host, port) => canConnect(host, port),
+  answers: (target) => answers(target),
+  observeDocker,
+  observeCompose,
+};
+
+/**
+ * The D15 verdict for each target: is it reachable, does it speak the protocol, and does it belong
+ * to this project's compose stack. Shared by bootstrap's preflight and doctor, so both say the same
+ * thing about the same port. `docker compose port` is asked once per service and container port, and
+ * never for a remote host, which cannot be one of our containers.
+ */
+export async function inspectTargets(
+  targets: readonly Target[],
+  cwd: string,
+  probes: Probes = REAL_PROBES,
+): Promise<Finding[]> {
+  // `docker info` once for all the services, and only if one of them is local and answering.
+  let docker: Promise<DockerState> | undefined;
+  const observe = async (target: Target): Promise<ComposeObservation> => {
+    const state = await (docker ??= probes.observeDocker(cwd));
+    return state.ok
+      ? probes.observeCompose(target, cwd)
+      : { status: "docker-unavailable", reason: state.reason };
+  };
+  const asked = new Map<string, Promise<ComposeObservation>>();
+  const compose = (target: Target) => {
+    const key = `${target.service}:${target.containerPort}`;
+    let observation = asked.get(key);
+    if (!observation) {
+      observation = observe(target);
+      asked.set(key, observation);
+    }
+    return observation;
+  };
+
+  return Promise.all(
+    targets.map(async (target) => {
+      const reachable = await probes.canConnect(target.host, target.port);
+      const speaksProtocol = reachable && (await probes.answers(target));
+      const observation: ComposeObservation =
+        reachable && isLocalHost(target.host) ? await compose(target) : { status: "not-published" };
+      return judge({ target, reachable, speaksProtocol, compose: observation });
+    }),
+  );
 }
