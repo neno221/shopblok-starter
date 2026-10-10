@@ -2,7 +2,7 @@ import type { GlobalConfig, TextFieldSingleValidation } from "payload";
 import { text } from "payload/shared";
 import { MEDUSA_LOCALES, isMedusaLocale, medusaLocalesOf } from "../../lib/markets/medusa-locales";
 import { isAdmin, isStaff } from "../access/roles";
-import { clearEnabledLanguages } from "../filter-available-locales";
+import { clearEnabledLanguagesAfterSave } from "../filter-available-locales";
 import { LOCALES } from "../locales";
 
 const languageOptions = LOCALES.map(({ code, label }) => ({
@@ -60,7 +60,7 @@ export const Markets: GlobalConfig = {
     // read for a moment. Forget it, so the page the save refreshes already offers the new list.
     afterChange: [
       () => {
-        clearEnabledLanguages();
+        clearEnabledLanguagesAfterSave();
       },
     ],
   },

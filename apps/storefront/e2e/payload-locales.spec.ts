@@ -8,7 +8,8 @@ import { adminCredentials } from "./support/admin-credentials";
 //
 // This suite saves the `markets` global, which changes the map the proxy serves for up to a minute,
 // so playwright.config.ts runs it as its own project after every other suite, and `afterAll` puts
-// the global back as it found it. Run on its own: `playwright test --project=locales --no-deps`.
+// the global, and the admin's remembered locale, back as it found them (and fails the run if it
+// cannot). Run on its own: `playwright test --project=locales --no-deps`.
 
 test.describe.configure({ mode: "serial" });
 test.setTimeout(90_000);
@@ -26,9 +27,12 @@ type Selector = { current: string | null; codes: string[]; url: string };
 
 let page: Page;
 let token = "";
+let appOrigin = "";
 let originalMarkets: Record<string, unknown> | undefined;
+// The admin's remembered locale (Payload's `locale` preference): null is "none stored".
+let originalLocale: string | null | undefined;
 
-const origin = (): string => new URL(page.url()).origin;
+const LOCALE_PREFERENCE = "/api/payload-preferences/locale";
 
 async function readMarkets(request: APIRequestContext): Promise<Record<string, unknown>> {
   const response = await request.get("/api/globals/markets", {
@@ -40,9 +44,29 @@ async function readMarkets(request: APIRequestContext): Promise<Record<string, u
 
 async function postMarkets(request: APIRequestContext, body: unknown): Promise<void> {
   const response = await request.post("/api/globals/markets", {
-    headers: { Authorization: `JWT ${token}`, Origin: origin() },
+    headers: { Authorization: `JWT ${token}`, Origin: appOrigin },
     data: body,
   });
+  expect(response.status(), await response.text()).toBe(200);
+}
+
+async function readLocalePreference(request: APIRequestContext): Promise<string | null> {
+  const response = await request.get(LOCALE_PREFERENCE, {
+    headers: { Authorization: `JWT ${token}` },
+  });
+  expect(response.status(), "an admin may read their own preferences").toBe(200);
+  return ((await response.json()) as { value: string | null }).value;
+}
+
+async function writeLocalePreference(
+  request: APIRequestContext,
+  value: string | null,
+): Promise<void> {
+  const headers = { Authorization: `JWT ${token}`, Origin: appOrigin };
+  const response =
+    value === null
+      ? await request.delete(LOCALE_PREFERENCE, { headers })
+      : await request.post(LOCALE_PREFERENCE, { headers, data: { value } });
   expect(response.status(), await response.text()).toBe(200);
 }
 
@@ -75,15 +99,18 @@ async function selector(url: string): Promise<Selector> {
 
 test.beforeAll(async ({ browser, request, baseURL }) => {
   const { email, password } = adminCredentials();
+  const base = baseURL ?? "http://localhost:8000";
+  appOrigin = new URL(base).origin;
   const login = await request.post("/api/users/login", {
-    headers: { Origin: baseURL ?? "http://localhost:8000" },
+    headers: { Origin: appOrigin },
     data: { email, password },
   });
   expect(login.status(), "bootstrap's admin logs in").toBe(200);
   token = ((await login.json()) as { token: string }).token;
   originalMarkets = await readMarkets(request);
+  originalLocale = await readLocalePreference(request);
 
-  page = await browser.newPage({ baseURL: baseURL ?? "http://localhost:8000" });
+  page = await browser.newPage({ baseURL: base });
   await page.goto("/admin/login");
   await page.fill('input[name="email"]', email);
   await page.fill('input[name="password"]', password);
@@ -92,21 +119,25 @@ test.beforeAll(async ({ browser, request, baseURL }) => {
 });
 
 test.afterAll(async ({ request }) => {
-  // Not a test: leave the global as found, whatever failed above. The REST body is the document
-  // the form would send back, minus what Payload sets itself.
-  if (originalMarkets !== undefined) {
-    const {
-      id: _id,
-      createdAt: _created,
-      updatedAt: _updated,
-      globalType: _type,
-      ...body
-    } = originalMarkets as Record<string, unknown>;
-    await postMarkets(request, body).catch(() => undefined);
+  // Not a test: leave the shared server as found, whatever failed above, and fail the run if that
+  // cannot be done (a swallowed error would leave the next step with the last test's markets).
+  // The REST body is the document the form would send back, minus what Payload sets itself.
+  try {
+    if (originalMarkets !== undefined) {
+      const {
+        id: _id,
+        createdAt: _created,
+        updatedAt: _updated,
+        globalType: _type,
+        ...body
+      } = originalMarkets;
+      await postMarkets(request, body);
+    }
+    // Payload remembers the admin's last language per user; the tests changed it.
+    if (originalLocale !== undefined) await writeLocalePreference(request, originalLocale);
+  } finally {
+    await page?.close();
   }
-  // Payload remembers the admin's last language per user (`?locale=` is what it stores).
-  await page?.goto("/admin/collections/pages?locale=en").catch(() => undefined);
-  await page?.close();
 });
 
 test("L5: with no market open the selector offers English and the admin still loads", async ({

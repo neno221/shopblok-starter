@@ -126,7 +126,7 @@ On a copy of the L10 database, with Icelandic content in 2 pages, 2 version rows
 
 Each mutation was applied to the real file, only the tests that should notice it were run, and the file was restored. The end-to-end rows rebuilt the app (`next build`) for each.
 
-| Mutation | Unit tests (`src/payload`, 55) | `payload-locales.spec.ts` (production build) |
+| Mutation | Unit tests (`src/payload`, 55; 58 after the review fixes) | `payload-locales.spec.ts` (production build) |
 |---|---|---|
 | the memo is a module variable, not on `globalThis` | 1 failed (a second copy of the module reads again) | not run |
 | no time to share a read (0 ms) | 4 failed | the read count per page load went from 0, 1, 1, 1 to 1, 3, 3, 3 (the probe; the spec cannot see a read count) |
@@ -137,6 +137,9 @@ Each mutation was applied to the real file, only the tests that should notice it
 | the filter offers every language | not a unit mutation | L5 failed |
 | English is not forced | not run | L4 failed; L5, L2 and L3 passed |
 | a language is added to `locales.ts` without its migration | 1 failed (the list is not the newest migration's enum) | not run |
+| a language beyond the 42 is dropped from `locales.ts` with a regenerated migration | 1 failed (a saved migration had it) | not run |
+| a save clears the memo only once, before the commit | 1 failed | not run (the window is milliseconds) |
+| the filter reads through the shared memo inside a transaction | 1 failed | not run |
 | a language is dropped from `locales.ts` (`ga`) | 3 failed (at least 42; the EU's 24; the enum) | not run |
 
 ## Decision
@@ -144,8 +147,8 @@ Each mutation was applied to the real file, only the tests that should notice it
 **Verdict: PASS**, applying the plan's rule: L1 to L8 and L10 pass and L9 is within budget. L7 passes only after a change to T09's implementation, which is a reading of the rule (R1). No fallback applies, so D17 is **not** amended: Payload keeps preloading 42 languages, and a language outside the list costs one line and one 4 ms migration.
 
 1. **Keep option A**: preload the full list and filter the admin by `markets`. No custom selector (C) and no per-brand list (B).
-2. **The filter shares one read of `markets` for 2 seconds, on `globalThis`**, and the `markets` global clears it after a save (`hooks.afterChange`), so the page that follows a save already shows the new languages. T09's `req.context` memo is replaced (it shared nothing); the read no longer takes the caller's `req`. Another server process is up to two seconds behind a save.
-3. **Locales are add-only.** A language is switched off in `markets`, never taken out of `locales.ts`. `locales.ts` says so, and `locales.test.ts` now (a) requires at least the 42 and (b) requires the list to equal the `_locales` enum of the newest saved migration, so a language added without its migration fails `pnpm test`.
+2. **The filter shares one read of `markets` for 2 seconds, on `globalThis`**, and the `markets` global clears it after a save (`hooks.afterChange`), so the page that follows a save already shows the new languages. T09's `req.context` memo is replaced (it shared nothing); the shared read does not take the caller's `req`. A save clears the memo in the hook and again 250 ms later, because Payload commits the save's transaction after its `afterChange` hooks and a page that read in between would otherwise keep the old list. Called from a write (the transaction is open, once `localizeStatus` is on), the filter reads with that request and shares nothing, so a write does not wait for a second connection while it holds the first. Another server process is up to two seconds (of its own running time) behind a save.
+3. **Locales are add-only.** A language is switched off in `markets`, never taken out of `locales.ts`. `locales.ts` says so, and `locales.test.ts` now (a) requires at least the 42, (b) requires the list to have the same languages as the `_locales` enum of the newest saved migration, so a language added without its migration fails `pnpm test`, and (c) requires every language in any saved migration's enum to still be in the list, so a language cannot be dropped together with a regenerated migration.
 4. **The storefront enforces its markets; the API does not.** The filter touches the admin selector only (L8): the REST and Local API serve any preloaded locale, whatever `markets` says, and do not even reject an unknown one. A page of a language that is switched off is still readable at `/api/pages?locale=…`. M4's content reads must take their locales from the market map, and nothing may treat "switched off in `markets`" as "hidden".
 5. **The runbook** is in SETUP.md, "A language outside the list".
 
@@ -165,7 +168,8 @@ Each mutation was applied to the real file, only the tests that should notice it
 - **`payload migrate:create` writes the removal of a language without complaint.** The only guard is the comment and the tests; whoever removes a language from `locales.ts` gets a migration that fails or, worse, a Payload that deletes content on the next save (L11).
 - **The admin's `markets` global carries 42-option selects**, which add 3.7 KB to every admin page. Nothing else grows with the list.
 - **Any code that wants the enabled languages in the admin's process** should read them through `filterAvailableLocales`'s memo, not with a second `findGlobal` per request.
-- **The 2-second memo is one server process.** On Vercel each instance has its own; a save clears the one that handled it, and the others catch up within two seconds.
+- **The 2-second memo is one server process.** On Vercel each instance has its own; a save clears the one that handled it, and the others catch up within two seconds of their own running time (the clock is `performance.now()`, the one Cache Components allow in a render; `Date.now()` is not).
+- **A write that calls the filter reads `markets` inside its transaction.** Nothing calls it from a write today (Pages has no `localizeStatus`); M4's content model will, and its writes then read the one-row global each time.
 - **Not tested:** Vercel; a separate worker process; the `markets` form driven by clicking its fields; the version view and the experimental `localizeStatus` publish menu; Windows; more than one admin editing at once.
 - The prototype's scripts are the model for any later benchmark of the admin: `git show caf63e7:apps/storefront/spike/s3/<file>`.
 

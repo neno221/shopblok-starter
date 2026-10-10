@@ -55,7 +55,7 @@ export const EXTRA_LANGUAGES = ["ar", "ja", "nb", "ru", "tr", "uk", "zh"] as con
  * **The list only grows.** A Payload that no longer lists a language deletes that language's
  * content the next time a document is saved, and the migration that removes it fails while any
  * content exists (ADR 0003, L11). Switch a language off in `markets`, never here.
- * `locales.test.ts` compares this list with the newest migration, so a language added without its
+ * `locales.test.ts` compares this list with the saved migrations, so a language added without its
  * migration fails `pnpm test`. The default locale comes first, then the rest in order of first
  * appearance.
  */

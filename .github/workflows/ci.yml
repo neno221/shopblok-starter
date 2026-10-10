@@ -1,7 +1,7 @@
 # CI for M0 (plan T16). Four jobs:
 #   check          the root checks, the same ones a contributor runs: no .env, no database.
 #   e2e-smoke      the compose stack, `pnpm bootstrap --ci`, a production build, both servers,
-#                  the three Playwright suites and `pnpm run doctor`.
+#                  the four Playwright suites and `pnpm run doctor`.
 #   windows-gate   decides whether windows-smoke runs.
 #   windows-smoke  install and build on NTFS, weekly and when dependencies change.
 # Each job sets up pnpm and Node with .github/actions/setup.
@@ -112,7 +112,8 @@ jobs:
           done
           echo "::error::Medusa (:9000/health) and the storefront (:8000/) did not both answer within 120 s."
           exit 1
-      # markets (T11), wiring (T12) and payload-admin run against the storefront that is up.
+      # markets (T11), wiring (T12), payload-admin and payload-locales (S3, last: it saves the
+      # `markets` global and puts it back) run against the storefront that is up.
       # `--reporter` adds the HTML report that is uploaded below; the config stays as it is.
       - name: Playwright suites
         run: pnpm --filter @shopblok/storefront test:e2e --reporter=list,html

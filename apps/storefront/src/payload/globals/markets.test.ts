@@ -1,5 +1,4 @@
-import type { TextFieldSingleValidation } from "payload";
-import type { Payload, PayloadRequest } from "payload";
+import type { Payload, PayloadRequest, TextFieldSingleValidation } from "payload";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { clearEnabledLanguages, filterAvailableLocales } from "../filter-available-locales";
 import { Markets, countryCode, medusaLocale } from "./markets";
@@ -81,12 +80,21 @@ describe("medusaLocale (D17)", () => {
 });
 
 describe("saving the markets global", () => {
-  beforeEach(() => clearEnabledLanguages());
-  afterEach(() => vi.restoreAllMocks());
+  beforeEach(() => {
+    clearEnabledLanguages();
+    // A frozen clock, so a slow CI machine cannot let the filter's memo expire between two calls.
+    vi.spyOn(performance, "now").mockReturnValue(1_000);
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+    // The memo lives on `globalThis`: leave none behind for the next test file in this worker.
+    clearEnabledLanguages();
+  });
 
   it("makes the admin's locale selector read the new languages at once (S3)", async () => {
     // The filter keeps one read of `markets` for a moment; a save must not leave a page that
-    // follows it with the old list.
+    // follows it with the old list. Which hooks the global has, and in what order, is not the
+    // point (M4 adds one that revalidates the market map): all of them run, as Payload runs them.
     const findGlobal = vi
       .fn()
       .mockResolvedValueOnce({ countries: [] })
@@ -102,8 +110,10 @@ describe("saving the markets global", () => {
     expect(findGlobal).toHaveBeenCalledTimes(1);
 
     const hooks = Markets.hooks?.afterChange ?? [];
-    expect(hooks).toHaveLength(1);
-    await hooks[0]?.({ doc: {}, global: Markets, previousDoc: {}, req } as never);
+    expect(hooks.length).toBeGreaterThan(0);
+    for (const hook of hooks) {
+      await hook({ doc: {}, global: Markets, previousDoc: {}, req } as never);
+    }
 
     expect(await codes()).toEqual(["en", "de"]);
   });

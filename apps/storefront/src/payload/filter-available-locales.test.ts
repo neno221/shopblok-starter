@@ -1,8 +1,10 @@
 import type { Locale, Payload, PayloadRequest } from "payload";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  COMMIT_GRACE_MS,
   ENABLED_LANGUAGES_TTL_MS,
   clearEnabledLanguages,
+  clearEnabledLanguagesAfterSave,
   enabledLanguages,
   filterAvailableLocales,
   isMissingTable,
@@ -142,6 +144,30 @@ describe("filterAvailableLocales", () => {
     ]);
   });
 
+  it("clears again after a save has committed, for a read that started in between", async () => {
+    // Payload commits the save's transaction after the global's `afterChange` hooks: a page that
+    // reads in that gap gets the old `markets`, and must not keep it for the memo's whole time.
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    try {
+      const findGlobal = vi
+        .fn()
+        .mockResolvedValueOnce({ countries: [] })
+        .mockResolvedValueOnce({ countries: [{ enabled: true, languages: ["de"] }] });
+      const payload = fakePayload(findGlobal);
+      clearEnabledLanguagesAfterSave();
+      expect(codes(await filterAvailableLocales({ locales, req: requestOf(payload) }))).toEqual([
+        "en",
+      ]);
+      await vi.advanceTimersByTimeAsync(COMMIT_GRACE_MS);
+      expect(codes(await filterAvailableLocales({ locales, req: requestOf(payload) }))).toEqual([
+        "en",
+        "de",
+      ]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("keeps its memo where every copy of the module sees it (the layout and the page load their own)", async () => {
     const findGlobal = vi.fn().mockResolvedValue({ countries: [] });
     const payload = fakePayload(findGlobal);
@@ -187,6 +213,27 @@ describe("filterAvailableLocales", () => {
     const findGlobal = vi.fn().mockResolvedValue({});
     await filterAvailableLocales({ locales, req: requestOf(fakePayload(findGlobal)) });
     expect(findGlobal).toHaveBeenCalledWith({ slug: "markets", depth: 0, overrideAccess: true });
+  });
+
+  it("inside a write's transaction it reads with that request and shares nothing", async () => {
+    // Payload calls the filter from a create or update once `localizeStatus` is on, with the
+    // transaction open. A read that left it would need a second connection while the write holds
+    // the first, and it would not see what the write itself changed.
+    const findGlobal = vi.fn().mockResolvedValue({ countries: [] });
+    const payload = fakePayload(findGlobal);
+    const inTransaction = { ...requestOf(payload), transactionID: "tx-1" } as PayloadRequest;
+    await filterAvailableLocales({ locales, req: inTransaction });
+    await filterAvailableLocales({ locales, req: inTransaction });
+    expect(findGlobal).toHaveBeenCalledTimes(2);
+    expect(findGlobal).toHaveBeenNthCalledWith(1, {
+      slug: "markets",
+      depth: 0,
+      overrideAccess: true,
+      req: inTransaction,
+    });
+    // ... and it did not fill the memo that page loads share.
+    await filterAvailableLocales({ locales, req: requestOf(payload) });
+    expect(findGlobal).toHaveBeenCalledTimes(3);
   });
 
   it("falls back to English when the markets table does not exist (before migrate)", async () => {

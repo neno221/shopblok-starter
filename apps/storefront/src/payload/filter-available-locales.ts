@@ -37,12 +37,18 @@ export function isMissingTable(error: unknown): boolean {
   return false;
 }
 
-async function readEnabledLanguages(payload: Payload) {
+async function readEnabledLanguages(payload: Payload, req?: PayloadRequest) {
   try {
     // Not on behalf of the signed-in user: which languages exist is the shop's setting, so an
-    // editor who may not read `markets` still gets the same selector. And not with the caller's
-    // `req`: the result is shared between requests (below), so it must not depend on one.
-    const markets = await payload.findGlobal({ slug: "markets", depth: 0, overrideAccess: true });
+    // editor who may not read `markets` still gets the same selector. And with the caller's `req`
+    // only inside a write's transaction (`filterAvailableLocales`): a result that is shared between
+    // requests (below) must not depend on one.
+    const markets = await payload.findGlobal({
+      slug: "markets",
+      depth: 0,
+      overrideAccess: true,
+      ...(req && { req }),
+    });
     return enabledLanguages(markets);
   } catch (error) {
     // A missing table (before `payload migrate`) must not take the admin down. Any other error is
@@ -64,18 +70,32 @@ async function readEnabledLanguages(payload: Payload) {
  * by time: nothing in the calls says which HTTP request they belong to (`req.headers` is a new
  * Proxy per `headers()` call, and React's `cache()` scope was shared by only two of the three).
  * Two seconds is long enough for one page and short enough that a person who saved `markets`
- * reads the new list on the next page; the save clears it at once (`clearEnabledLanguages`).
- * Another server process is up to this much behind.
+ * reads the new list on the next page; a save clears it at once (`clearEnabledLanguagesAfterSave`).
+ * Another server process is up to this much behind, counted in that process's own running time.
  */
 export const ENABLED_LANGUAGES_TTL_MS = 2_000;
+
+/**
+ * How long after a save the memo is cleared a second time. Payload runs a global's `afterChange`
+ * hooks and only then commits the save's transaction, so a read that starts between the two still
+ * sees the old `markets` and would be kept for `ENABLED_LANGUAGES_TTL_MS`. A commit is one round
+ * trip to the database; a quarter of a second is far more than it takes.
+ */
+export const COMMIT_GRACE_MS = 250;
 
 type Memo = { payload: Payload; at: number; enabled: Promise<Set<string>> };
 const MEMO = Symbol.for("shopblok.enabledLanguages");
 const shared = globalThis as typeof globalThis & { [MEMO]?: Memo };
 
-/** Forgets the read, so the next call reads `markets` again. The `markets` global calls it after a save. */
+/** Forgets the read, so the next call reads `markets` again. */
 export function clearEnabledLanguages(): void {
   delete shared[MEMO];
+}
+
+/** The `markets` global calls it from `afterChange`: now, and again once the save has committed. */
+export function clearEnabledLanguagesAfterSave(): void {
+  clearEnabledLanguages();
+  setTimeout(clearEnabledLanguages, COMMIT_GRACE_MS).unref();
 }
 
 function sharedRead(payload: Payload): Promise<Set<string>> {
@@ -97,7 +117,10 @@ function sharedRead(payload: Payload): Promise<Set<string>> {
  * Payload's `localization.filterAvailableLocales`. It only filters the admin's locale selector,
  * the version view and (experimental) the publish menu; the REST and Local API still accept every
  * preloaded locale, so the storefront enforces markets itself (S3, L8). The read of `markets` is
- * shared between the calls Payload makes for one page (`ENABLED_LANGUAGES_TTL_MS`).
+ * shared between the calls Payload makes for one page (`ENABLED_LANGUAGES_TTL_MS`). A write calls
+ * it too (to choose the locales that get a publication status, once `localizeStatus` is on), with
+ * its transaction open and holding a connection: that read joins the transaction and is not
+ * shared, or each write would wait for a second connection while it holds the first.
  */
 export async function filterAvailableLocales({
   locales,
@@ -106,5 +129,8 @@ export async function filterAvailableLocales({
   locales: Locale[];
   req: PayloadRequest;
 }): Promise<Locale[]> {
-  return pickAvailableLocales(locales, await sharedRead(req.payload));
+  const enabled = req.transactionID
+    ? await readEnabledLanguages(req.payload, req)
+    : await sharedRead(req.payload);
+  return pickAvailableLocales(locales, enabled);
 }
