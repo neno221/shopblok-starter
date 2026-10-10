@@ -46,26 +46,22 @@ const MEDUSA_LANGUAGES: readonly string[] = [
 export const EXTRA_LANGUAGES = ["ar", "ja", "nb", "ru", "tr", "uk", "zh"] as const;
 
 /**
- * Every language Payload preloads: 42. They share one `_locales` enum in Postgres, so enabling a
- * language in `markets` needs no migration. Country variants such as `de-CH` are not needed,
- * because a market's country comes from the URL. A language outside this list is a migration
- * (S3's runbook). The default locale comes first, then the rest in order of first appearance.
+ * Every language Payload preloads: 42 today. They share one `_locales` enum in Postgres (and three
+ * more with the same values), so enabling a language in `markets` needs no migration. Country
+ * variants such as `de-CH` are not needed, because a market's country comes from the URL.
+ *
+ * A language outside this list is one line here plus a saved migration (`payload migrate:create`,
+ * four `ALTER TYPE … ADD VALUE`, a few milliseconds): SETUP.md, "A language outside the list".
+ * **The list only grows.** A Payload that no longer lists a language deletes that language's
+ * content the next time a document is saved, and the migration that removes it fails while any
+ * content exists (ADR 0003, L11). Switch a language off in `markets`, never here.
+ * `locales.test.ts` compares this list with the newest migration, so a language added without its
+ * migration fails `pnpm test`. The default locale comes first, then the rest in order of first
+ * appearance.
  */
-const FULL_LANGUAGES: readonly string[] = [
+export const LANGUAGES: readonly string[] = [
   ...new Set<string>([DEFAULT_LOCALE, ...EU_LANGUAGES, ...MEDUSA_LANGUAGES, ...EXTRA_LANGUAGES]),
 ];
-
-// S3 PROTOTYPE (not for main): the same code serves the 42-language config and a 4-language one,
-// chosen by the environment, so both databases are built and read by identical code.
-//   S3_LOCALES=four       en, el, de, fr only
-//   S3_PLUS=is,sq         added to the list (L10 without editing this file)
-//   S3_MINUS=ga           taken out of the list (L11)
-const s3Base = process.env["S3_LOCALES"] === "four" ? ["en", "el", "de", "fr"] : FULL_LANGUAGES;
-const s3Plus = process.env["S3_PLUS"]?.split(",").filter(Boolean) ?? [];
-const s3Minus = new Set(process.env["S3_MINUS"]?.split(",").filter(Boolean) ?? []);
-export const LANGUAGES: readonly string[] = [...new Set([...s3Base, ...s3Plus])].filter(
-  (code) => !s3Minus.has(code),
-);
 
 /** Right-to-left languages among `LANGUAGES`. */
 const RTL_LANGUAGES: ReadonlySet<string> = new Set(["ar", "he"]);

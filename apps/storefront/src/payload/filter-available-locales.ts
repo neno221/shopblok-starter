@@ -1,4 +1,3 @@
-import { cache } from "react";
 import type { Locale, Payload, PayloadRequest } from "payload";
 import { DEFAULT_LOCALE } from "./locales";
 
@@ -28,8 +27,6 @@ export function pickAvailableLocales(locales: Locale[], enabled: ReadonlySet<str
   return picked.length > 0 ? picked : locales.slice(0, 1);
 }
 
-const CONTEXT_KEY = "shopblok.enabledLanguages";
-
 /** Postgres `undefined_table`; drizzle puts the driver's error on `cause`. */
 const UNDEFINED_TABLE = "42P01";
 
@@ -40,50 +37,12 @@ export function isMissingTable(error: unknown): boolean {
   return false;
 }
 
-// ---- S3 PROTOTYPE (not for main) -------------------------------------------------------------
-// Counters per HTTP request (the identity of `req.headers`, which the layout and the page of one
-// admin request share), and a switch between three ways to share the read:
-//   S3_MEMO=context  T09's: a promise in `req.context` (the baseline)
-//   S3_MEMO=headers  a WeakMap keyed by `req.headers` (or `req`)
-//   S3_MEMO=cache    React.cache
-type S3Counters = {
-  calls: number;
-  reads: number;
-  byRequest: Record<string, { calls: number; reads: number; url?: string }>;
-};
-export const s3Counters = ((globalThis as { __s3?: S3Counters }).__s3 ??= {
-  calls: 0,
-  reads: 0,
-  byRequest: {},
-});
-// The tag is written through the headers object (a Proxy per `headers()` call whose target is the
-// request's one Headers), so it names the HTTP request whichever module instance asks.
-const requestId = (req: PayloadRequest): string => {
-  const holder = (req.headers ?? req) as { __s3tag?: string };
-  return (holder.__s3tag ??= Math.random().toString(36).slice(2, 8));
-};
-const s3Entry = (req: PayloadRequest) => (s3Counters.byRequest[requestId(req)] ??= { calls: 0, reads: 0 });
-const s3ByHeaders = new WeakMap<object, Promise<Set<string>>>();
-type Slot = { promise: Promise<Set<string>> | undefined };
-const s3PerRender = cache((): Slot => ({ promise: undefined }));
-// The same, but ONE function for the whole process: the layout and the page load their own
-// instance of this module (S3 found two), and React.cache keys by function identity.
-const s3Global = globalThis as { __s3PerRender?: () => Slot; __s3Ttl?: { at: number; promise: Promise<Set<string>> } };
-s3Global.__s3PerRender ??= cache((): Slot => ({ promise: undefined }));
-// -----------------------------------------------------------------------------------------------
-
-async function readEnabledLanguages(payload: Payload, req: PayloadRequest) {
-  s3Counters.reads++;
-  s3Entry(req).reads++;
+async function readEnabledLanguages(payload: Payload) {
   try {
     // Not on behalf of the signed-in user: which languages exist is the shop's setting, so an
-    // editor who may not read `markets` still gets the same selector.
-    const markets = await payload.findGlobal({
-      slug: "markets",
-      depth: 0,
-      overrideAccess: true,
-      req,
-    });
+    // editor who may not read `markets` still gets the same selector. And not with the caller's
+    // `req`: the result is shared between requests (below), so it must not depend on one.
+    const markets = await payload.findGlobal({ slug: "markets", depth: 0, overrideAccess: true });
     return enabledLanguages(markets);
   } catch (error) {
     // A missing table (before `payload migrate`) must not take the admin down. Any other error is
@@ -95,10 +54,50 @@ async function readEnabledLanguages(payload: Payload, req: PayloadRequest) {
 }
 
 /**
+ * How long one read of `markets` serves every call, in milliseconds.
+ *
+ * Payload calls the filter three times for one admin page load (the root layout twice and the page
+ * once, S3 L7), and each call gets a `req` of its own: `initReq` hands out a copy of the request,
+ * and its `context` with it. What the first call keeps in `req.context` is not there for the
+ * others, and a variable in this module is no better, because the layout and the page each load
+ * their own instance of it. A memo that works has to live on `globalThis`, and it has to be keyed
+ * by time: nothing in the calls says which HTTP request they belong to (`req.headers` is a new
+ * Proxy per `headers()` call, and React's `cache()` scope was shared by only two of the three).
+ * Two seconds is long enough for one page and short enough that a person who saved `markets`
+ * reads the new list on the next page; the save clears it at once (`clearEnabledLanguages`).
+ * Another server process is up to this much behind.
+ */
+export const ENABLED_LANGUAGES_TTL_MS = 2_000;
+
+type Memo = { payload: Payload; at: number; enabled: Promise<Set<string>> };
+const MEMO = Symbol.for("shopblok.enabledLanguages");
+const shared = globalThis as typeof globalThis & { [MEMO]?: Memo };
+
+/** Forgets the read, so the next call reads `markets` again. The `markets` global calls it after a save. */
+export function clearEnabledLanguages(): void {
+  delete shared[MEMO];
+}
+
+function sharedRead(payload: Payload): Promise<Set<string>> {
+  // `performance.now()` and not `Date.now()`: the same monotonic clock `lib/markets` uses, because
+  // Cache Components refuse `Date.now()` in a render (SETUP.md, T10 item 1).
+  const now = performance.now();
+  const memo = shared[MEMO];
+  if (memo?.payload === payload && now - memo.at < ENABLED_LANGUAGES_TTL_MS) return memo.enabled;
+  const entry: Memo = { payload, at: now, enabled: readEnabledLanguages(payload) };
+  shared[MEMO] = entry;
+  // A read that failed is not kept: the next call tries again.
+  entry.enabled.catch(() => {
+    if (shared[MEMO] === entry) delete shared[MEMO];
+  });
+  return entry.enabled;
+}
+
+/**
  * Payload's `localization.filterAvailableLocales`. It only filters the admin's locale selector,
  * the version view and (experimental) the publish menu; the REST and Local API still accept every
- * preloaded locale, so the storefront enforces markets itself (S3, L8). Payload calls it at least
- * twice per admin page, so the read of `markets` is shared through `req.context`.
+ * preloaded locale, so the storefront enforces markets itself (S3, L8). The read of `markets` is
+ * shared between the calls Payload makes for one page (`ENABLED_LANGUAGES_TTL_MS`).
  */
 export async function filterAvailableLocales({
   locales,
@@ -107,36 +106,5 @@ export async function filterAvailableLocales({
   locales: Locale[];
   req: PayloadRequest;
 }): Promise<Locale[]> {
-  s3Counters.calls++;
-  const entry = s3Entry(req);
-  entry.calls++;
-  const mode = process.env["S3_MEMO"] ?? "context";
-  let enabled: Promise<Set<string>>;
-  if (mode === "headers") {
-    const key = (req.headers ?? req) as object;
-    enabled = s3ByHeaders.get(key) ?? readEnabledLanguages(req.payload, req);
-    s3ByHeaders.set(key, enabled);
-  } else if (mode === "cache") {
-    const slot = s3PerRender();
-    enabled = slot.promise ?? readEnabledLanguages(req.payload, req);
-    slot.promise = enabled;
-  } else if (mode === "cache-global") {
-    const slot = (s3Global.__s3PerRender as () => Slot)();
-    enabled = slot.promise ?? readEnabledLanguages(req.payload, req);
-    slot.promise = enabled;
-  } else if (mode === "ttl") {
-    const now = performance.now();
-    const memo = s3Global.__s3Ttl;
-    if (memo && now - memo.at < 2000) {
-      enabled = memo.promise;
-    } else {
-      enabled = readEnabledLanguages(req.payload, req);
-      s3Global.__s3Ttl = { at: now, promise: enabled };
-    }
-  } else {
-    const cached = req.context[CONTEXT_KEY] as Promise<Set<string>> | undefined;
-    enabled = cached ?? readEnabledLanguages(req.payload, req);
-    req.context[CONTEXT_KEY] = enabled;
-  }
-  return pickAvailableLocales(locales, await enabled);
+  return pickAvailableLocales(locales, await sharedRead(req.payload));
 }

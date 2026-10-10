@@ -1,6 +1,8 @@
 import type { TextFieldSingleValidation } from "payload";
-import { describe, expect, it } from "vitest";
-import { countryCode, medusaLocale } from "./markets";
+import type { Payload, PayloadRequest } from "payload";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { clearEnabledLanguages, filterAvailableLocales } from "../filter-available-locales";
+import { Markets, countryCode, medusaLocale } from "./markets";
 
 type Options = Parameters<TextFieldSingleValidation>[1];
 // What Payload's own `text` validator reads from the request.
@@ -75,5 +77,34 @@ describe("medusaLocale (D17)", () => {
     for (const value of [undefined, null, ""]) {
       expect(medusaLocale(value, withLanguage("pt", false))).toBe(true);
     }
+  });
+});
+
+describe("saving the markets global", () => {
+  beforeEach(() => clearEnabledLanguages());
+  afterEach(() => vi.restoreAllMocks());
+
+  it("makes the admin's locale selector read the new languages at once (S3)", async () => {
+    // The filter keeps one read of `markets` for a moment; a save must not leave a page that
+    // follows it with the old list.
+    const findGlobal = vi
+      .fn()
+      .mockResolvedValueOnce({ countries: [] })
+      .mockResolvedValueOnce({ countries: [{ enabled: true, languages: ["de"] }] });
+    const payload = { findGlobal, logger: { warn: vi.fn() } } as unknown as Payload;
+    const req = { context: {}, payload } as unknown as PayloadRequest;
+    const locales = ["en", "de", "el"].map((code) => ({ code, label: code }));
+    const codes = async () =>
+      (await filterAvailableLocales({ locales, req })).map((locale) => locale.code);
+
+    expect(await codes()).toEqual(["en"]);
+    expect(await codes()).toEqual(["en"]);
+    expect(findGlobal).toHaveBeenCalledTimes(1);
+
+    const hooks = Markets.hooks?.afterChange ?? [];
+    expect(hooks).toHaveLength(1);
+    await hooks[0]?.({ doc: {}, global: Markets, previousDoc: {}, req } as never);
+
+    expect(await codes()).toEqual(["en", "de"]);
   });
 });

@@ -2,6 +2,7 @@ import type { GlobalConfig, TextFieldSingleValidation } from "payload";
 import { text } from "payload/shared";
 import { MEDUSA_LOCALES, isMedusaLocale, medusaLocalesOf } from "../../lib/markets/medusa-locales";
 import { isAdmin, isStaff } from "../access/roles";
+import { clearEnabledLanguages } from "../filter-available-locales";
 import { LOCALES } from "../locales";
 
 const languageOptions = LOCALES.map(({ code, label }) => ({
@@ -54,6 +55,15 @@ export const Markets: GlobalConfig = {
   // The storefront reads it through the Local API, which is not subject to access; this is the
   // REST and admin side.
   access: { read: isStaff, update: isAdmin },
+  hooks: {
+    // The admin's locale selector follows this global (`filterAvailableLocales`), which keeps its
+    // read for a moment. Forget it, so the page the save refreshes already offers the new list.
+    afterChange: [
+      () => {
+        clearEnabledLanguages();
+      },
+    ],
+  },
   fields: [
     {
       name: "countries",
