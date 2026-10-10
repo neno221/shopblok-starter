@@ -2,17 +2,20 @@ import { describe, expect, it } from "vitest";
 
 import { catalogs, DEFAULT_LOCALE, formatDate, formatMoney, isLocale, LOCALES } from "./index";
 
-// Intl puts no-break spaces (U+00A0, U+202F) between a number and its symbol or digit groups, and
-// which one it picks differs between ICU versions. Compare with plain spaces.
-const plain = (text: string) => text.replace(/[\u00a0\u202f]/g, " ");
+// Intl's no-break spaces (U+00A0, U+202F) and the Swiss digit-group mark (’ U+2019 in de-CH and
+// U+202F in fr-CH with CLDR 47 / Node 22.22.0, ASCII ' with CLDR 48 / Node 22.23, GitHub's runners)
+// belong to the runtime, not to this package. A group mark between digits reads as ', a no-break
+// space elsewhere as a plain one; a grouping that is lost, or written as a plain space, still fails.
+const plain = (text: string) =>
+  text.replace(/(?<=\d)[\u202f\u2019'](?=\d)/g, "'").replace(/[\u00a0\u202f]/g, " ");
 
 describe("formatMoney", () => {
   it.each([
     ["el-CY", "EUR", "1.234,50 €"],
     ["en-US", "USD", "$1,234.50"],
     ["en-GB", "GBP", "£1,234.50"],
-    ["de-CH", "CHF", "CHF 1’234.50"],
-    ["fr-CH", "CHF", "1 234.50 CHF"],
+    ["de-CH", "CHF", "CHF 1'234.50"],
+    ["fr-CH", "CHF", "1'234.50 CHF"],
     // Any currency Medusa sells in formats the same way: a shop that opens Brazil or Mongolia
     // needs no change here.
     ["pt-BR", "BRL", "R$ 1.234,50"],

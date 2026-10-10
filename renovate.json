@@ -1,0 +1,67 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "Plan T16, step 4. Takes effect once the Renovate GitHub app is installed on the repo (G3).",
+  "extends": ["config:recommended", ":pinAllExceptPeerDependencies"],
+  "packageRules": [
+    {
+      "description": "Medusa's packages move together; the backend and the JS SDK must be the same version.",
+      "matchPackageNames": ["@medusajs/*"],
+      "groupName": "medusa",
+      "labels": ["medusa"]
+    },
+    {
+      "description": "Payload and its adapters must all be one version (check:workspace guards it). e2e-smoke, with the payload-admin suite, runs on every PR, this one included.",
+      "matchPackageNames": ["payload", "@payloadcms/*"],
+      "groupName": "payload",
+      "labels": ["payload"]
+    },
+    {
+      "description": "D4: Next.js is pinned exactly and each release is tested before it merges. eslint-config-next is released with Next and moves with it. e2e-smoke runs on every PR, so the admin suite runs on these.",
+      "matchPackageNames": ["next", "eslint-config-next"],
+      "groupName": "next",
+      "labels": ["next"]
+    },
+    {
+      "description": "D5: TypeScript 5.9.3. TS 7 has no JS API until 7.1; Medusa's CLI and typescript-eslint need one.",
+      "matchPackageNames": ["typescript"],
+      "matchUpdateTypes": ["major"],
+      "enabled": false
+    },
+    {
+      "description": "ESLint stays on 9.39.5 until the Medusa plugin allows 10 (SETUP.md, T02 item 1).",
+      "matchPackageNames": ["eslint", "@eslint/js"],
+      "matchUpdateTypes": ["major"],
+      "enabled": false
+    },
+    {
+      "description": "@types/node follows the Node line the repo runs on (22), not the latest.",
+      "matchPackageNames": ["@types/node"],
+      "matchUpdateTypes": ["major"],
+      "enabled": false
+    },
+    {
+      "description": "Payload 3 allows GraphQL 16 only.",
+      "matchPackageNames": ["graphql"],
+      "matchUpdateTypes": ["major"],
+      "enabled": false
+    },
+    {
+      "description": "engines.pnpm is below 13 and pnpm/action-setup@v6 supports pnpm 12 and earlier: a pnpm major is a change of its own, made by hand together with both.",
+      "matchPackageNames": ["pnpm"],
+      "matchUpdateTypes": ["major"],
+      "enabled": false
+    },
+    {
+      "description": "Node's line is chosen in .nvmrc and engines (a major is a decision of its own, Medusa and Payload both state which they support).",
+      "matchPackageNames": ["node"],
+      "matchUpdateTypes": ["major"],
+      "enabled": false
+    },
+    {
+      "description": "A new major of Postgres, Redis, Meilisearch or Mailpit is a data migration for everyone who has a volume; do that by hand.",
+      "matchManagers": ["docker-compose"],
+      "matchUpdateTypes": ["major"],
+      "enabled": false
+    }
+  ]
+}

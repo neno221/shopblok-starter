@@ -1,0 +1,25 @@
+# Run after `actions/checkout`.
+name: Set up pnpm and Node
+description: pnpm from `packageManager`, Node from a version or .nvmrc, the pnpm store cached.
+inputs:
+  node-version:
+    description: A Node version. Leave empty to read .nvmrc.
+    default: ""
+runs:
+  using: composite
+  steps:
+    # Before setup-node: `cache: pnpm` runs pnpm, which reads `packageManager`.
+    - uses: pnpm/action-setup@v6
+    - uses: actions/setup-node@v7
+      with:
+        node-version: ${{ inputs.node-version }}
+        # setup-node warns when it gets both.
+        node-version-file: ${{ inputs.node-version == '' && '.nvmrc' || '' }}
+        cache: pnpm
+    # Node's ICU/CLDR data decides how Intl writes prices, and it differs between Node 22 patch
+    # releases (the first run of this workflow found that).
+    - name: Versions
+      shell: bash
+      run: |
+        node -p "process.version + ' (ICU ' + process.versions.icu + ', CLDR ' + process.versions.cldr + ')'"
+        pnpm --version
