@@ -1858,7 +1858,7 @@ Items 1 to 3 are recorded in the plan (§4, §4a, §6) and in ADR 0001; **the PA
 | Check | Result | Key output |
 |---|---|---|
 | T10: the request's locale reaches the search | **Pass** | `x-medusa-locale` alone, no `search_options`: hits on all five, isolation follows the header |
-| The assumptions spec on the unmodified backend | **Pass** | `search-locale-assumptions.spec.ts`, 5 tests, `Tests: 5 passed`, 34 to 36 s in three runs after the review fixes (each product waits 1 s for its second index handler), with no `An error occurred while processing` lines; the version reviewed logged two |
+| The assumptions spec on the unmodified backend | **Pass** | `search-locale-assumptions.spec.ts`, 5 tests, `Tests: 5 passed`, about 27 s in four runs after the review fixes (each created product waits for its index handlers through test-utils' `waitSubscribersExecution`), with no `An error occurred while processing` lines; the version reviewed logged two |
 | The tests can fail | **Pass, after one fix** | Ten mutations, ADR 0002 lists them. One was not caught (the provider's own restriction to a locale's attributes, because Meilisearch isolates by language hint alone); a check on `mn-MN` closed it |
 | T4 and T7 over the Redis event bus | **Pass** | same times as the in-memory bus, `event-bus-redis` in the log |
 | Postgres with the `greek` configuration | **Pass** | T1, T2, T9 on `s2_pg_a` and `s2_pg_ap`; needs `CREATE TEXT SEARCH CONFIGURATION medusa_search_greek` (copy of `greek`, `unaccent` first) |
