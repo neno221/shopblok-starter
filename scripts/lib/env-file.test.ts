@@ -2,6 +2,7 @@ import { parseEnv } from "node:util";
 import { describe, expect, it } from "vitest";
 import {
   changedAnything,
+  envValue,
   formatEnvValue,
   generatePassword,
   generateSecret,
@@ -193,5 +194,20 @@ describe("formatEnvValue and generators", () => {
     const password = generatePassword();
     expect(password).toMatch(/^[A-Za-z0-9_-]{20}$/);
     expect(formatEnvValue(password)).toBe(password);
+  });
+});
+
+describe("envValue", () => {
+  const text = "A=from-file\nB=from-file\nC=\n";
+
+  it("takes the shell's variable over the file's, as dotenv does", () => {
+    expect(envValue({ A: "from-shell" }, text, "A")).toBe("from-shell");
+    expect(envValue({}, text, "A")).toBe("from-file");
+  });
+
+  it("lets a blank shell variable win too, and gives undefined for a key nobody has", () => {
+    expect(envValue({ B: "" }, text, "B")).toBe("");
+    expect(envValue({}, text, "C")).toBe("");
+    expect(envValue({}, text, "D")).toBeUndefined();
   });
 });

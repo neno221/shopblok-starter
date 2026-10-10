@@ -240,3 +240,14 @@ export async function retryWhileSilent(
   for (let n = 1; n < attempts && exitedInSilence(result); n++) result = await attempt();
   return result;
 }
+
+/**
+ * Runs Payload's CLI (`payload migrate`, `payload run <script>`) through pnpm in the storefront
+ * workspace. The one way to start it: every command given to it must be safe to run again, because a
+ * silent exit is repeated (see `exitedInSilence`) rather than believed.
+ */
+export function runPayload(args: readonly string[], options: RunOptions): Promise<RunResult> {
+  return retryWhileSilent(() =>
+    run("pnpm", ["--filter", "@shopblok/storefront", "exec", "payload", ...args], options),
+  );
+}

@@ -16,14 +16,20 @@ export type HttpOptions = {
   timeoutMs?: number;
 };
 
-/** The system error code under a failed `fetch`, e.g. `ECONNREFUSED`. */
+/**
+ * The system error code under a failed `fetch`, e.g. `ECONNREFUSED`. `localhost` resolves to two
+ * addresses and Node tries both; when both fail, the cause is an AggregateError whose own `code` is
+ * the first address's. That one can be an IPv6 error (`EAFNOSUPPORT` in a container without IPv6)
+ * that hides the refusal on `127.0.0.1`, so a refusal on any address wins.
+ */
 export function codeOf(error: unknown): string | undefined {
   // fetch wraps the socket error: `TypeError: fetch failed` with the system error as `cause`.
-  const cause = (error as { cause?: { code?: unknown; errors?: { code?: unknown }[] } })?.cause;
-  if (typeof cause?.code === "string") return cause.code;
-  // `localhost` resolves to two addresses; a refusal on both arrives as an AggregateError.
-  const inner = cause?.errors?.find((e) => typeof e?.code === "string");
-  return typeof inner?.code === "string" ? inner.code : undefined;
+  const cause = (error as { cause?: { code?: unknown; errors?: unknown } } | null)?.cause;
+  const inner = Array.isArray(cause?.errors) ? (cause.errors as { code?: unknown }[]) : [];
+  const codes = [cause?.code, ...inner.map((e) => e?.code)].filter(
+    (code): code is string => typeof code === "string",
+  );
+  return codes.includes("ECONNREFUSED") ? "ECONNREFUSED" : codes[0];
 }
 
 /** Sends a request and never rejects. The response body is read as text (a JSON body parses from it). */

@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   compareMarkets,
+  MARKETS_FIX,
+  marketsGlobalCheck,
+  marketsSyncCheck,
   readBackendMarkets,
   readMarketMap,
   type BackendMarkets,
@@ -187,5 +190,151 @@ describe("readMarketMap", () => {
     expect(readMarketMap(null)).toBe("the market map is not an object");
     expect(readMarketMap({ countries: [{ code: "cy" }], languages: [] })).toContain("countries");
     expect(readMarketMap({ countries: [], languages: [{ code: "el" }] })).toContain("languages");
+  });
+});
+
+describe("marketsGlobalCheck", () => {
+  it("does not read a global when the Postgres check failed", () => {
+    const { check, map: read } = marketsGlobalCheck({ skipped: true });
+    expect(check).toMatchObject({ id: "markets-global", level: "warn" });
+    expect(check.message).toContain("Payload was not started");
+    expect(read).toBeUndefined();
+  });
+
+  it("is an error, with the cause and the fix, when Payload could not be read", () => {
+    const { check, map: read } = marketsGlobalCheck({
+      ok: false,
+      cause: "the payload database does not exist",
+      fix: "Run `pnpm bootstrap`.",
+    });
+    expect(check).toMatchObject({
+      level: "error",
+      message: "could not read it: the payload database does not exist.",
+      fix: "Run `pnpm bootstrap`.",
+    });
+    expect(read).toBeUndefined();
+  });
+
+  it("warns that an empty global means the fixtures, and gives no map", () => {
+    const { check, map: read } = marketsGlobalCheck({
+      ok: true,
+      map: { countries: [], languages: [] },
+      problems: [],
+    });
+    expect(check.level).toBe("warn");
+    expect(check.message).toContain("seeded fixtures");
+    expect(read).toBeUndefined();
+  });
+
+  it("is ok for a filled global and hands its map on", () => {
+    const { check, map: read } = marketsGlobalCheck({
+      ok: true,
+      map,
+      problems: [],
+    });
+    expect(check).toMatchObject({
+      level: "ok",
+      message: "6 open countries, 4 languages.",
+    });
+    expect(read).toBe(map);
+  });
+
+  it("warns with the reasons when the map cannot serve a shop, and still hands it on", () => {
+    const { check, map: read } = marketsGlobalCheck({
+      ok: true,
+      map,
+      problems: ["country de has no language"],
+    });
+    expect(check).toMatchObject({
+      level: "warn",
+      details: ["country de has no language"],
+    });
+    expect(read).toBe(map);
+  });
+});
+
+describe("marketsSyncCheck", () => {
+  const backendFile = {
+    exports: {
+      SUPPORTED_CURRENCIES: backend.currencies.map((currency_code) => ({
+        currency_code,
+      })),
+      MARKET_REGIONS: backend.regions.map((r) => ({
+        name: r.name,
+        currency_code: r.currency,
+        countries: r.countries,
+      })),
+      SUPPORTED_LOCALES: backend.locales,
+    },
+  };
+
+  it("is ok when the backend and the global agree", () => {
+    const result = marketsSyncCheck({
+      backendFile,
+      fixtures: map,
+      global: map,
+    });
+    expect(result.check).toMatchObject({ id: "markets-sync", level: "ok" });
+    expect(result.check?.message).toContain("the markets global");
+    expect(result.backend).toEqual(backend);
+    expect(result.map).toBe(map);
+  });
+
+  it("compares with the seeded fixtures when the global is empty or unread", () => {
+    const result = marketsSyncCheck({
+      backendFile,
+      fixtures: map,
+      global: undefined,
+    });
+    expect(result.check?.level).toBe("ok");
+    expect(result.check?.message).toContain("the seeded fixtures");
+    expect(result.map).toBe(map);
+  });
+
+  it("warns with every difference and the fix when they disagree (D17)", () => {
+    const open = {
+      ...map,
+      countries: [...map.countries, { code: "br", enabled: true, languages: ["en"] }],
+    };
+    const result = marketsSyncCheck({
+      backendFile,
+      fixtures: map,
+      global: open,
+    });
+    expect(result.check).toMatchObject({ level: "warn", fix: MARKETS_FIX });
+    expect(result.check?.message).toContain("disagree (D17)");
+    expect(result.check?.details?.length).toBeGreaterThan(0);
+  });
+
+  it("warns when the backend's file cannot be read, and still hands on the map for --online", () => {
+    const result = marketsSyncCheck({
+      backendFile: { error: "boom" },
+      fixtures: map,
+      global: undefined,
+    });
+    expect(result.check?.message).toBe("could not read apps/backend/src/config/markets.ts (boom).");
+    expect(result.backend).toBeUndefined();
+    expect(result.map).toBe(map);
+  });
+
+  it("warns when the file is not what doctor expects", () => {
+    const result = marketsSyncCheck({
+      backendFile: { exports: {} },
+      fixtures: map,
+      global: map,
+    });
+    expect(result.check?.message).toContain("is not what doctor expects");
+    expect(result.backend).toBeUndefined();
+  });
+
+  it("warns with the reason when there is no global and the fixtures cannot be read", () => {
+    const result = marketsSyncCheck({
+      backendFile,
+      fixtures: "could not read packages/fixtures/src/markets.ts (boom)",
+      global: undefined,
+    });
+    expect(result.check?.message).toBe("could not read packages/fixtures/src/markets.ts (boom)");
+    expect(result.map).toBeUndefined();
+    expect(result.backend).toEqual(backend);
   });
 });

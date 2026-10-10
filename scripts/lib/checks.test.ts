@@ -108,6 +108,17 @@ describe("targetsFrom", () => {
     });
   });
 
+  it("marks a rediss:// URL as TLS, so the probe speaks TLS to it", () => {
+    const redis = (url: string) =>
+      targetsFrom({ ...env, REDIS_URL: url }).find((t) => t.kind === "redis");
+    expect(redis("rediss://default:pw@managed.example.com:6380")).toMatchObject({
+      host: "managed.example.com",
+      port: 6380,
+      tls: true,
+    });
+    expect(redis("redis://localhost:6380")?.tls).toBeUndefined();
+  });
+
   it("has no Redis to check when REDIS_URL is blank (the in-memory modules, T06)", () => {
     expect(targetsFrom({ ...env, REDIS_URL: "" }).some((t) => t.kind === "redis")).toBe(false);
     expect(targetsFrom({ ...env, REDIS_URL: undefined }).some((t) => t.kind === "redis")).toBe(
@@ -306,6 +317,25 @@ describe("probes", () => {
     expect(await redisAnswers("127.0.0.1", await closedPort(), 300)).toBe(false);
   });
 
+  it("redisAnswers accepts a Redis that wants a password: NOAUTH is a Redis too", async () => {
+    const secured = await listen((socket) => {
+      socket.on("data", () => socket.write("-NOAUTH Authentication required.\r\n"));
+    });
+    const notRedis = await listen((socket) => {
+      socket.on("data", () => socket.write("HTTP/1.1 400 Bad Request\r\n\r\n"));
+    });
+    expect(await redisAnswers("127.0.0.1", secured)).toBe(true);
+    expect(await redisAnswers("127.0.0.1", notRedis)).toBe(false);
+  });
+
+  it("redisAnswers over TLS does not take a plain server for a Redis", async () => {
+    // A `rediss://` probe starts with a TLS handshake; a server that answers in plain text fails it.
+    const plain = await listen((socket) => {
+      socket.on("data", () => socket.write("+PONG\r\n"));
+    });
+    expect(await redisAnswers("127.0.0.1", plain, 500, true)).toBe(false);
+  });
+
   it("postgresAnswers sends an SSLRequest and wants S or N back", async () => {
     let received: Buffer | undefined;
     const postgres = await listen((socket) => {
@@ -388,10 +418,10 @@ describe("inspectTargets", () => {
       "/repo",
       {
         ...p,
-        observeCompose: async (t, cwd) => {
+        observeCompose: async (t, cwd, docker) => {
           expect(cwd).toBe("/repo");
           return p
-            .observeCompose(t, cwd)
+            .observeCompose(t, cwd, docker)
             .then((o) =>
               t.service === "redis" ? { status: "published" as const, ports: [6380] } : o,
             );

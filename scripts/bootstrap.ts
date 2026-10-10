@@ -22,11 +22,12 @@ import {
   changedAnything,
   generatePassword,
   generateSecret,
+  envValue,
   getEnvValue,
   mergeEnv,
   type EnvChange,
 } from "./lib/env-file.ts";
-import { retryWhileSilent, run, type RunResult } from "./lib/exec.ts";
+import { run, runPayload, type RunResult } from "./lib/exec.ts";
 import {
   classifyMigrate,
   classifyPayloadMigrate,
@@ -135,24 +136,20 @@ function describeChanges(changes: readonly EnvChange[]): string {
     .join(", ");
 }
 
-/** Runs a Medusa or Payload command through pnpm, from the repo root. */
-function pnpm(args: string[], ctx: Context, extraEnv: Record<string, string | undefined> = {}) {
-  return run("pnpm", args, {
+/** How a Medusa or Payload command is run: from the repo root, with the options of this run. */
+function commandOptions(ctx: Context, extraEnv: Record<string, string | undefined> = {}) {
+  return {
     cwd: root,
     env: { ...(ctx.options.ci ? { CI: "true" } : {}), NO_COLOR: "1", ...extraEnv },
     stream: ctx.options.verbose,
-  });
+  };
 }
 
 const medusa = (args: string[], ctx: Context) =>
-  pnpm(["--filter", "@shopblok/backend", "exec", "medusa", ...args], ctx);
+  run("pnpm", ["--filter", "@shopblok/backend", "exec", "medusa", ...args], commandOptions(ctx));
 
-// Payload's CLI now and then exits 0 without running anything (see `exitedInSilence`); both of its
-// commands here are safe to run again, so a silent exit is repeated rather than believed.
 const payload = (args: string[], ctx: Context, extraEnv: Record<string, string | undefined> = {}) =>
-  retryWhileSilent(() =>
-    pnpm(["--filter", "@shopblok/storefront", "exec", "payload", ...args], ctx, extraEnv),
-  );
+  runPayload(args, commandOptions(ctx, extraEnv));
 
 function failed(what: string, result: RunResult, hint?: string): StepError {
   const why = result.prompt
@@ -197,7 +194,7 @@ async function preflight(): Promise<StepResult> {
   // Mailpit's ports are Docker Compose's variables (infra/docker-compose.yml): the shell or the
   // root `.env`, which Compose reads, set them.
   const composeText = readText(path.join(root, ".env")) ?? "";
-  const pick = (name: string, text: string) => process.env[name] ?? getEnvValue(text, name);
+  const pick = (name: string, text: string) => envValue(process.env, text, name);
   const targets = targetsFrom({
     DATABASE_URL: pick("DATABASE_URL", backendText),
     PAYLOAD_DATABASE_URL: pick("PAYLOAD_DATABASE_URL", storefrontText),
@@ -610,6 +607,9 @@ const LABEL: Record<Status, string> = {
 };
 const TOTAL = 11;
 
+const KEY_CHANGED_NOTE =
+  "The publishable key changed: rebuild the storefront (`pnpm build`) or restart `pnpm dev`.";
+
 function line(step: Step, result: StepResult, seconds: number): string {
   const detail = result.detail ? ` (${result.detail})` : "";
   const time = seconds >= 1 ? ` [${seconds.toFixed(1)} s]` : "";
@@ -671,6 +671,9 @@ async function main(): Promise<number> {
           ? "\nbootstrap stopped before it changed anything. Run `pnpm bootstrap` again after fixing this."
           : `\nbootstrap stopped at step ${step.number}. The steps before it are done; run \`pnpm bootstrap\` again after fixing this.`,
       );
+      // The key is already in the database and the env file, whatever step failed after it: a
+      // second run finds it unchanged and would not say so.
+      if (ctx.state.publishableKeyChanged) console.error(KEY_CHANGED_NOTE);
       return 1;
     }
   }
@@ -679,11 +682,7 @@ async function main(): Promise<number> {
   console.log(
     `\nbootstrap finished in ${seconds} s: ${counts.done} done, ${counts.unchanged} unchanged, ${counts.skipped} skipped.`,
   );
-  if (ctx.state.publishableKeyChanged) {
-    console.log(
-      `The publishable key changed: rebuild the storefront (\`pnpm build\`) or restart \`pnpm dev\`.`,
-    );
-  }
+  if (ctx.state.publishableKeyChanged) console.log(KEY_CHANGED_NOTE);
   // With no stored password (the Medusa admin existed before bootstrap wrote one) there is none to
   // point to: step 5 and step 8 said what happened.
   const passwordNote =

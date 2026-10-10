@@ -204,7 +204,8 @@ export type IntegrationStatus = {
   parts: PartStatus[];
 };
 
-const isSet = (env: EnvLike, key: string): boolean => (env[key] ?? "").trim() !== "";
+/** Whether `key` is set to something other than blank: the rule `has()` in the backend's `modules.ts` uses. */
+export const isSet = (env: EnvLike, key: string): boolean => (env[key] ?? "").trim() !== "";
 
 function statusOf(spec: Spec, envs: AppEnvs): IntegrationStatus {
   const parts = spec.parts.map((part): PartStatus => {

@@ -132,4 +132,21 @@ describe("codeOf", () => {
     expect(codeOf(new Error("plain"))).toBeUndefined();
     expect(codeOf(undefined)).toBeUndefined();
   });
+
+  it("sees the refusal behind an IPv6 error, as Node reports it for a dual-address `localhost`", () => {
+    // Measured in a container without IPv6: the AggregateError's own code is the first address's.
+    const aggregate = Object.assign(new AggregateError([]), {
+      code: "EAFNOSUPPORT",
+      errors: [{ code: "EAFNOSUPPORT" }, { code: "ECONNREFUSED" }],
+    });
+    expect(codeOf(new TypeError("fetch failed", { cause: aggregate }))).toBe("ECONNREFUSED");
+  });
+
+  it("keeps the first code when no address refused", () => {
+    const aggregate = Object.assign(new AggregateError([]), {
+      code: "ETIMEDOUT",
+      errors: [{ code: "ETIMEDOUT" }, { code: "EHOSTUNREACH" }],
+    });
+    expect(codeOf(new TypeError("fetch failed", { cause: aggregate }))).toBe("ETIMEDOUT");
+  });
 });

@@ -65,6 +65,15 @@ export function getEnvValue(text: string, key: string): string | undefined {
   return findAssignment(text.split(/\r?\n/), key)?.value;
 }
 
+/** The value an app sees for `key`: a variable in the shell wins over the `.env` file's, as in dotenv. */
+export function envValue(
+  shell: Readonly<Record<string, string | undefined>>,
+  text: string,
+  key: string,
+): string | undefined {
+  return shell[key] ?? getEnvValue(text, key);
+}
+
 /** True when the key is absent or has no value: `KEY=`, `KEY=""` and `KEY= # note` all count. */
 export function isUnset(text: string, key: string): boolean {
   return (getEnvValue(text, key) ?? "") === "";

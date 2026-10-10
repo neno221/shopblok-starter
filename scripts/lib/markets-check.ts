@@ -4,6 +4,7 @@
 // `@shopblok/fixtures`). The shapes are declared here because `scripts/` cannot import either app
 // (T10 item 8, T13 item 6); `readBackendMarkets` and `readMarketMap` check the real data against them,
 // so a change to either file shows up as an error from doctor, not as a wrong answer.
+import type { Check } from "./report.ts";
 
 export type BackendMarkets = {
   /** `SUPPORTED_CURRENCIES`, as currency codes. */
@@ -172,3 +173,136 @@ export function compareMarkets(backend: BackendMarkets, map: MarketMapData): str
 /** The hint every mismatch shares: which file to edit, and what applies the edit. */
 export const MARKETS_FIX =
   "Edit apps/backend/src/config/markets.ts and the markets global (Payload admin, or packages/fixtures for the seed) so they list the same countries and languages (D19); then run `pnpm bootstrap`, which applies the backend side.";
+
+// ---------------------------------------------------------------------------------------------
+// The checks
+
+const MARKETS_GLOBAL = { id: "markets-global", title: "Markets global" } as const;
+const MARKETS_SYNC = { id: "markets-sync", title: "Markets: backend and storefront" } as const;
+
+/** What reading the `markets` global gave. */
+export type MarketsGlobalRead =
+  /** Not attempted: the Postgres check failed, so Payload was not started. */
+  | { skipped: true }
+  | { ok: true; map: MarketMapData; problems: string[] }
+  | { ok: false; cause: string; fix: string };
+
+/** The check on the `markets` global, and the map to compare when it is filled in. */
+export function marketsGlobalCheck(read: MarketsGlobalRead): {
+  check: Check;
+  map: MarketMapData | undefined;
+} {
+  if ("skipped" in read) {
+    return {
+      map: undefined,
+      check: {
+        ...MARKETS_GLOBAL,
+        level: "warn",
+        message: "not read: the Postgres check above failed, so Payload was not started.",
+      },
+    };
+  }
+  if (!read.ok) {
+    return {
+      map: undefined,
+      check: {
+        ...MARKETS_GLOBAL,
+        level: "error",
+        message: `could not read it: ${read.cause}.`,
+        fix: read.fix,
+      },
+    };
+  }
+  if (read.map.countries.length === 0) {
+    return {
+      map: undefined,
+      check: {
+        ...MARKETS_GLOBAL,
+        level: "warn",
+        message:
+          "the `markets` global is empty, so development and `next build` use the seeded fixtures (and say so); a production server answers 500 on every page.",
+        fix: "Run `pnpm bootstrap`, which fills it, or add the countries in the Payload admin.",
+      },
+    };
+  }
+  return {
+    map: read.map,
+    check:
+      read.problems.length === 0
+        ? {
+            ...MARKETS_GLOBAL,
+            level: "ok",
+            message: `${read.map.countries.filter((c) => c.enabled).length} open countries, ${read.map.languages.length} languages.`,
+          }
+        : {
+            ...MARKETS_GLOBAL,
+            level: "warn",
+            message:
+              "the global is filled in but cannot serve a shop as it is (the storefront keeps the last good map, or the fixtures in development).",
+            details: read.problems,
+            fix: "Fix it in the Payload admin under Globals → Markets.",
+          },
+  };
+}
+
+/**
+ * D17 and D19: the backend's list against the storefront's map. The map is the global's when it is
+ * filled in, else the seeded fixtures (what development and `next build` use then). Also hands back
+ * what it read, for the `--online` comparison with the running Medusa.
+ */
+export function marketsSyncCheck(input: {
+  backendFile: { exports: Record<string, unknown> } | { error: string };
+  /** The fixtures' map, or why it could not be read. */
+  fixtures: MarketMapData | string;
+  /** The `markets` global's map, when it was read and is filled in. */
+  global: MarketMapData | undefined;
+}): {
+  check: Check | undefined;
+  backend: BackendMarkets | undefined;
+  map: MarketMapData | undefined;
+} {
+  const { backendFile, fixtures, global } = input;
+  const map = global ?? (typeof fixtures === "string" ? undefined : fixtures);
+  const warn = (message: string): Check => ({ ...MARKETS_SYNC, level: "warn", message });
+
+  if ("error" in backendFile) {
+    return {
+      map,
+      backend: undefined,
+      check: warn(`could not read apps/backend/src/config/markets.ts (${backendFile.error}).`),
+    };
+  }
+  const backend = readBackendMarkets(backendFile.exports);
+  if (typeof backend === "string") {
+    return {
+      map,
+      backend: undefined,
+      check: warn(`apps/backend/src/config/markets.ts is not what doctor expects: ${backend}.`),
+    };
+  }
+  if (map === undefined) {
+    // No global, and the fixtures could not be read: `fixtures` is the reason.
+    return { map, backend, check: warn(typeof fixtures === "string" ? fixtures : "no map") };
+  }
+
+  const problems = compareMarkets(backend, map);
+  const where = global === undefined ? "the seeded fixtures" : "the markets global";
+  return {
+    map,
+    backend,
+    check:
+      problems.length === 0
+        ? {
+            ...MARKETS_SYNC,
+            level: "ok",
+            message: `apps/backend/src/config/markets.ts and ${where} list the same countries and languages.`,
+          }
+        : {
+            ...MARKETS_SYNC,
+            level: "warn",
+            message: `apps/backend/src/config/markets.ts and ${where} disagree (D17).`,
+            details: problems,
+            fix: MARKETS_FIX,
+          },
+  };
+}

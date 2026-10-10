@@ -1,11 +1,20 @@
 // What `pnpm run doctor` concludes (T14), as pure functions: the env of both apps and the answers
 // of the servers come in, `Check`s come out. `doctor.ts` does the looking (reads the files, opens the
 // sockets, calls the servers); every decision that can be wrong lives here, with a test.
-import type { AppEnvs, IntegrationStatus } from "./integrations.ts";
-import type { BackendMarkets } from "./markets-check.ts";
+import type { RunResult } from "./exec.ts";
+import { jsonOf, type HttpResult } from "./http.ts";
+import { isSet, type AppEnvs, type IntegrationStatus } from "./integrations.ts";
+import type { BackendMarkets, MarketMapData } from "./markets-check.ts";
 import type { Check } from "./report.ts";
 
-const isSet = (value: string | undefined): boolean => (value ?? "").trim() !== "";
+// What each check is called, once: the table, `--json` and CI key on these.
+const PAYLOAD_AUTH = { id: "payload-auth", title: "Payload accepts the integrations key" } as const;
+const MEDUSA_MARKETS = {
+  id: "medusa-markets",
+  title: "Medusa matches the storefront's map",
+} as const;
+const MEDUSA_ORPHANS = { id: "medusa-orphans", title: "Medusa regions left over" } as const;
+const SEARCH_INDEX = { id: "search-index", title: "Search index currencies" } as const;
 
 // ---------------------------------------------------------------------------------------------
 // From the environment alone
@@ -145,7 +154,7 @@ function publishableKey(envs: AppEnvs): Check {
 /** What the Medusa → Payload sync (M4) signs in with. */
 function payloadKey(envs: AppEnvs): Check {
   const missing = ["PAYLOAD_API_KEY", "PAYLOAD_SERVER_URL"].filter(
-    (name) => !isSet(envs.backend[name]),
+    (name) => !isSet(envs.backend, name),
   );
   if (missing.length === 0) {
     return {
@@ -165,16 +174,24 @@ function payloadKey(envs: AppEnvs): Check {
 }
 
 /**
- * The signing secrets. Production refuses to start without them; in development bootstrap fills
- * them in, and Medusa falls back to a public default (with a warning) when they are blank.
+ * The `NODE_ENV` values where the backend takes a blank secret and falls back to Medusa's public
+ * default (`DEFAULT_SECRET_ENVS` in apps/backend/src/config/config.ts, which also allows none).
+ * Anywhere else, production and staging alike, it refuses to start.
+ */
+const BLANK_SECRET_ENVS = ["development", "test"];
+
+/**
+ * The signing secrets. Outside development and test the backend refuses to start without them; in
+ * development bootstrap fills them in, and Medusa falls back to a public default (with a warning)
+ * when they are blank.
  */
 function secrets(envs: AppEnvs, context: Context): Check {
   const missing = [
     ...["JWT_SECRET", "COOKIE_SECRET"]
-      .filter((name) => !isSet(envs.backend[name]))
+      .filter((name) => !isSet(envs.backend, name))
       .map((name) => `${name} (apps/backend)`),
     ...["PAYLOAD_SECRET"]
-      .filter((name) => !isSet(envs.storefront[name]))
+      .filter((name) => !isSet(envs.storefront, name))
       .map((name) => `${name} (apps/storefront)`),
   ];
   if (missing.length === 0) {
@@ -185,16 +202,16 @@ function secrets(envs: AppEnvs, context: Context): Check {
       message: "JWT_SECRET, COOKIE_SECRET and PAYLOAD_SECRET are set.",
     };
   }
-  const production = context.nodeEnv === "production";
+  const refuses = context.nodeEnv !== undefined && !BLANK_SECRET_ENVS.includes(context.nodeEnv);
   return {
     id: "secrets",
     title: "Signing secrets",
-    level: production ? "error" : "warn",
-    message: production
-      ? "NODE_ENV is production and these secrets are blank; the apps refuse to start."
+    level: refuses ? "error" : "warn",
+    message: refuses
+      ? `NODE_ENV is ${context.nodeEnv} and these secrets are blank; the apps refuse to start.`
       : "These secrets are blank: Medusa falls back to a public default, and Payload refuses to start without its own.",
     details: missing.map((name) => `not set: ${name}`),
-    fix: production
+    fix: refuses
       ? "Set a fresh random value for each (SPEC §16, item 6)."
       : "Run `pnpm bootstrap`, which generates them.",
   };
@@ -311,7 +328,7 @@ export function readLocales(answer: { status: number; body: unknown }): string[]
  * edits the file and forgets `pnpm bootstrap`.
  */
 export function compareWithMedusa(
-  live: { regions: readonly LiveRegion[]; locales: readonly string[] },
+  live: { regions: readonly LiveRegion[]; locales?: readonly string[] | undefined },
   map: {
     countries: readonly { code: string; enabled: boolean; languages: readonly string[] }[];
     languages: readonly { code: string; medusaLocale: string }[];
@@ -324,11 +341,15 @@ export function compareWithMedusa(
       problems.push(`Medusa has no region for the open country "${country.code}"`);
     }
   }
-  const used = new Set(map.countries.filter((c) => c.enabled).flatMap((c) => c.languages));
-  for (const code of used) {
-    const locale = map.languages.find((language) => language.code === code)?.medusaLocale;
-    if (locale && !live.locales.includes(locale)) {
-      problems.push(`Medusa's store has no locale "${locale}" (language "${code}")`);
+  // Locales that could not be read are not compared (the caller says so), not reported as missing.
+  const { locales } = live;
+  if (locales !== undefined) {
+    const used = new Set(map.countries.filter((c) => c.enabled).flatMap((c) => c.languages));
+    for (const code of used) {
+      const locale = map.languages.find((language) => language.code === code)?.medusaLocale;
+      if (locale && !locales.includes(locale)) {
+        problems.push(`Medusa's store has no locale "${locale}" (language "${code}")`);
+      }
     }
   }
   return problems;
@@ -353,19 +374,292 @@ export function classifyPayloadAuth(answer: {
   status: number;
   body: unknown;
 }): "ok" | "rejected" | "unknown" {
-  const user = (answer.body as { user?: { collection?: unknown } | null } | undefined)?.user;
+  const user = (answer.body as { user?: { collection?: unknown } | null } | null | undefined)?.user;
   if (answer.status === 200 && user?.collection === "integrations") return "ok";
   if (answer.status === 401 || answer.status === 403) return "rejected";
-  // Payload answers 200 with `"user": null` for a key it does not know.
-  if (answer.status === 200 && (user === null || user === undefined)) return "rejected";
+  // Payload answers 200 with `"user": null` for a key it does not know. A 200 that is not that JSON
+  // (a proxy's HTML page, another app on the port) says nothing about the key.
+  if (answer.status === 200 && user === null) return "rejected";
   return "unknown";
+}
+
+// ---------------------------------------------------------------------------------------------
+// --online: the checks, from the answers
+
+/** How a server that gave no answer is described: "is not running" or "does not answer (reason)". */
+export function describeUnreachable(result: Exclude<HttpResult, { kind: "response" }>): string {
+  return result.kind === "refused" ? "is not running" : `does not answer (${result.reason})`;
+}
+
+/** The backend → Payload link. `answer` is `undefined` when there was no URL or key to ask with. */
+export function payloadAuthCheck(payloadUrl: string, answer: HttpResult | undefined): Check {
+  if (answer === undefined) {
+    return {
+      ...PAYLOAD_AUTH,
+      level: "warn",
+      message: "not checked: PAYLOAD_SERVER_URL or PAYLOAD_API_KEY is not set in the backend.",
+      fix: "Run `pnpm bootstrap`.",
+    };
+  }
+  if (answer.kind !== "response") {
+    return {
+      ...PAYLOAD_AUTH,
+      level: "warn",
+      message: `not checked: ${payloadUrl} ${describeUnreachable(answer)}.`,
+      fix: "Start the storefront (Payload is embedded in it) with `pnpm dev`.",
+    };
+  }
+  const verdict = classifyPayloadAuth({ status: answer.status, body: jsonOf(answer) });
+  if (verdict === "ok") {
+    return {
+      ...PAYLOAD_AUTH,
+      level: "ok",
+      message: `GET ${payloadUrl}/api/integrations/me answers as the integrations user.`,
+    };
+  }
+  return verdict === "rejected"
+    ? {
+        ...PAYLOAD_AUTH,
+        level: "error",
+        message: `Payload at ${payloadUrl} does not accept PAYLOAD_API_KEY.`,
+        fix: "Run `pnpm bootstrap`: it sets the key again on the `integrations` user (a wiped database or a new PAYLOAD_SECRET invalidates it).",
+      }
+    : {
+        ...PAYLOAD_AUTH,
+        level: "error",
+        message: `GET ${payloadUrl}/api/integrations/me answered HTTP ${answer.status}, not a user.`,
+        fix: "Check that PAYLOAD_SERVER_URL is the storefront's own address (not a proxy or another app on that port); `pnpm bootstrap` sets it.",
+      };
+}
+
+function localesOf(answer: HttpResult): string[] | string {
+  return answer.kind === "response"
+    ? readLocales({ status: answer.status, body: jsonOf(answer) })
+    : `Medusa ${describeUnreachable(answer)}`;
+}
+
+/**
+ * Medusa's regions and locales against the storefront's map. `answers` is `undefined` when the
+ * storefront has no publishable key to ask with. The regions come back when the later checks (the
+ * leftover regions, the search index) can go on.
+ */
+export function medusaMarketsChecks(
+  medusaUrl: string,
+  answers: { regions: HttpResult; locales: HttpResult } | undefined,
+  map: MarketMapData | undefined,
+): { checks: Check[]; regions: LiveRegion[] | undefined } {
+  if (answers === undefined) {
+    return {
+      regions: undefined,
+      checks: [
+        {
+          ...MEDUSA_MARKETS,
+          level: "warn",
+          message: "not checked: the storefront has no publishable key.",
+          fix: "Run `pnpm bootstrap`.",
+        },
+      ],
+    };
+  }
+  if (answers.regions.kind !== "response") {
+    return {
+      regions: undefined,
+      checks: [
+        {
+          ...MEDUSA_MARKETS,
+          level: "warn",
+          message: `not checked: Medusa at ${medusaUrl} ${describeUnreachable(answers.regions)}.`,
+          fix: "Start it with `pnpm dev`.",
+        },
+      ],
+    };
+  }
+  const regions = readRegions({
+    status: answers.regions.status,
+    body: jsonOf(answers.regions),
+  });
+  if (typeof regions === "string") {
+    return {
+      regions: undefined,
+      checks: [
+        {
+          ...MEDUSA_MARKETS,
+          level: "error",
+          message: `GET /store/regions with the storefront's key failed: ${regions}.`,
+          fix: "The key belongs to the database. Run `pnpm bootstrap` (it writes the current key), then build the storefront again.",
+        },
+      ],
+    };
+  }
+
+  if (map === undefined) {
+    return {
+      regions,
+      checks: [
+        {
+          ...MEDUSA_MARKETS,
+          level: "warn",
+          message:
+            "not compared: no market map could be read (the Markets checks above say why), so there is nothing to compare Medusa's regions and locales with.",
+        },
+      ],
+    };
+  }
+  const locales = localesOf(answers.locales);
+  const problems = compareWithMedusa(
+    { regions, ...(typeof locales === "string" ? {} : { locales }) },
+    map,
+  );
+  const details = [
+    ...problems,
+    ...(typeof locales === "string"
+      ? [
+          `could not read Medusa's locales (${locales}), so the languages were not compared; /store/locales is served by the translation feature (MEDUSA_FF_TRANSLATION must not be false)`,
+        ]
+      : []),
+  ];
+  return {
+    regions,
+    checks: [
+      details.length === 0
+        ? {
+            ...MEDUSA_MARKETS,
+            level: "ok",
+            message: `${regions.length} regions and ${(locales as string[]).length} locales cover every open country and language.`,
+          }
+        : {
+            ...MEDUSA_MARKETS,
+            level: "warn",
+            message:
+              problems.length > 0
+                ? "the running Medusa does not have what the storefront's map expects (D17)."
+                : "Medusa's regions match the storefront's map, but its locales could not be compared.",
+            details,
+            fix: "Run `pnpm bootstrap`: it seeds the regions and locales from apps/backend/src/config/markets.ts.",
+          },
+    ],
+  };
+}
+
+/** The leftover regions as one warning, or `undefined` when there are none. */
+export function orphanRegionsCheck(orphans: readonly LiveRegion[]): Check | undefined {
+  if (orphans.length === 0) return undefined;
+  return {
+    ...MEDUSA_ORPHANS,
+    level: "warn",
+    message: `Medusa has ${orphans.length === 1 ? "a region" : "regions"} that apps/backend/src/config/markets.ts does not list: the seed adds regions and never removes one.`,
+    details: orphans.map(
+      (region) => `"${region.name}" (${region.currency}): ${region.countries.join(", ")}`,
+    ),
+    fix: "Delete them in the Medusa admin (Settings → Regions), or add the market back to the file.",
+  };
+}
+
+/**
+ * The currencies whose price fields the search index must have (T08, D17): those of the regions that
+ * are in the file. A leftover region's currency is not in the file, so the index does not have it
+ * and should not; but a currency that a region in the file also uses still counts.
+ */
+export function searchCurrencies(
+  regions: readonly LiveRegion[],
+  orphans: readonly LiveRegion[],
+): string[] {
+  return [
+    ...new Set(
+      regions
+        .filter((region) => !orphans.includes(region))
+        .map((region) => region.currency)
+        .filter((currency) => currency !== ""),
+    ),
+  ];
+}
+
+/** What `POST /store/search` with a `min_price_<currency>` facet says about `currency`. */
+export function searchFieldOf(currency: string, answer: HttpResult): SearchFieldState {
+  return answer.kind === "response"
+    ? classifySearchField(`min_price_${currency}`, {
+        status: answer.status,
+        body: jsonOf(answer),
+      })
+    : { state: "unknown", detail: "Medusa did not answer" };
+}
+
+/** Whether the search index has a price field for every currency that was asked about. */
+export function searchIndexCheck(
+  entries: readonly { currency: string; state: SearchFieldState }[],
+): Check {
+  const missing = entries.filter((e) => e.state.state === "missing").map((e) => e.currency);
+  const unknown = entries.flatMap((e) =>
+    e.state.state === "unknown" ? [`${e.currency}: ${e.state.detail}`] : [],
+  );
+  if (missing.length > 0) {
+    const one = missing.length === 1;
+    return {
+      ...SEARCH_INDEX,
+      level: "warn",
+      message: `Medusa has regions in ${missing.join(", ")}, but the search index has no price fields for ${one ? "it" : "them"}, so price filtering and sorting in ${one ? "that currency" : "those currencies"} fail.`,
+      fix: "Run `medusa db:migrate` (or `pnpm bootstrap`, which does) and restart the backend: a new currency only reaches the index through a migration (D17, T08).",
+    };
+  }
+  if (entries.length === 0) {
+    // "ok" for nothing would vouch for what was never asked.
+    return {
+      ...SEARCH_INDEX,
+      level: "warn",
+      message:
+        "not checked: Medusa has no region with a currency of the market list, so there is no price field to look for.",
+      fix: "Run `pnpm bootstrap`: it seeds the regions from apps/backend/src/config/markets.ts.",
+    };
+  }
+  if (unknown.length > 0) {
+    return {
+      ...SEARCH_INDEX,
+      level: "warn",
+      message:
+        "could not tell whether the search index has a price field for every region's currency.",
+      details: unknown,
+    };
+  }
+  return {
+    ...SEARCH_INDEX,
+    level: "ok",
+    message: `min_price_<currency> exists for ${entries.map((e) => e.currency).join(", ")}.`,
+  };
 }
 
 // ---------------------------------------------------------------------------------------------
 // From `payload run`
 
+/** How long doctor lets `payload run src/scripts/doctor-payload.ts` take. */
+export const PAYLOAD_RUN_TIMEOUT_MS = 60_000;
+
+/** Why `payload run src/scripts/doctor-payload.ts` did not give its result: the run itself, then its log. */
+export function explainPayloadRun(
+  result: Pick<RunResult, "code" | "output" | "prompt" | "timedOut" | "error">,
+): { cause: string; fix: string } {
+  if (result.error !== undefined) {
+    return {
+      cause: `pnpm could not be started (${result.error})`,
+      fix: "Check that pnpm is installed and on the PATH (`corepack enable`).",
+    };
+  }
+  if (result.prompt !== undefined) {
+    return { cause: `Payload asked "${result.prompt}"`, fix: "Run `pnpm bootstrap`." };
+  }
+  if (result.timedOut) {
+    return {
+      cause: `Payload did not start within ${PAYLOAD_RUN_TIMEOUT_MS / 1000} s`,
+      fix: "Check that the database answers (`pnpm infra:up`).",
+    };
+  }
+  return explainPayloadFailure(result.output, result.code);
+}
+
 /** Why `payload run src/scripts/doctor-payload.ts` failed, from its log: the known causes, else its last line. */
-export function explainPayloadFailure(output: string): { cause: string; fix: string } {
+export function explainPayloadFailure(
+  output: string,
+  code?: number | null,
+): { cause: string; fix: string } {
   const text = output;
   if (/database "[^"]*" does not exist/.test(text)) {
     return {
@@ -396,8 +690,12 @@ export function explainPayloadFailure(output: string): { cause: string; fix: str
     .map((line) => line.trim())
     .filter((line) => line !== "" && !line.startsWith("at "))
     .at(-1);
+  const exit =
+    code === undefined ? "" : code === null ? " (stopped by a signal)" : ` (exit code ${code})`;
   return {
-    cause: last ? `Payload failed: ${last.slice(0, 200)}` : "Payload failed without a message",
+    cause: last
+      ? `Payload failed: ${last.slice(0, 200)}`
+      : `Payload failed without a message${exit}`,
     fix: "Run `pnpm --filter @shopblok/storefront exec payload run src/scripts/doctor-payload.ts` to see the full log.",
   };
 }

@@ -154,6 +154,8 @@ export function redact(text: string): string {
       )
       .replace(/\bpk_[0-9a-f]{12,}/g, "pk_…")
       // The password of a connection string: `postgres://user:secret@host` -> `postgres://user:…@host`.
-      .replace(/(\b[a-z][a-z0-9+.-]*:\/\/[^\s:/@]*:)[^\s@/]+@/gi, "$1…@")
+      // It runs to the last `@` of the word, so a password with an `@` or a `/` in it (not percent-
+      // encoded, as people write them) is hidden whole; a `?` or `#` ends the authority.
+      .replace(/(\b[a-z][a-z0-9+.-]*:\/\/[^\s:/@]*:)[^\s?#]*@/gi, "$1…@")
   );
 }

@@ -225,5 +225,17 @@ describe("redact: connection strings", () => {
     expect(redact("http://localhost:9000/health redis://localhost:6380")).toBe(
       "http://localhost:9000/health redis://localhost:6380",
     );
+    // The port is not a password, and an `@` after the path or in a query is not its end.
+    expect(redact("http://localhost:9000/store/search?email=a@b.example")).toBe(
+      "http://localhost:9000/store/search?email=a@b.example",
+    );
+  });
+
+  it("hides a password that has an @ or a / in it, as people write them", () => {
+    expect(redact("postgres://u:pa/ss@host:5432/db")).toBe("postgres://u:…@host:5432/db");
+    expect(redact("postgres://u:p@ss@host")).toBe("postgres://u:…@host");
+    expect(redact("a postgres://u:one@h1/db and redis://:two@h2")).toBe(
+      "a postgres://u:…@h1/db and redis://:…@h2",
+    );
   });
 });

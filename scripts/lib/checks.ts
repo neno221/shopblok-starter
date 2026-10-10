@@ -8,7 +8,9 @@
 // else answers there. The decisions are pure functions over what was observed, so tests need no
 // Docker; `observe*` functions do the looking.
 import net from "node:net";
+import tls from "node:tls";
 import { run } from "./exec.ts";
+import { jsonOf, request } from "./http.ts";
 
 // ---------------------------------------------------------------------------------------------
 // Versions
@@ -75,6 +77,8 @@ export type Target = {
   containerPort: number;
   host: string;
   port: number;
+  /** `rediss://`: the server speaks TLS, so a probe has to as well. */
+  tls?: boolean;
   /** Why the check is needed or what to do when it fails, in a few words. */
   hint?: string;
 };
@@ -84,6 +88,18 @@ const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "::1", "[::1]", "0.0.0.0"
 /** True for a host on this machine: only those can be one of this project's compose containers. */
 export function isLocalHost(host: string): boolean {
   return LOCAL_HOSTS.has(host.toLowerCase());
+}
+
+/** `new URL("redis://[::1]:6380").hostname` is `[::1]`; a socket needs the bare address. */
+const bareHost = (hostname: string): string => hostname.replace(/^\[(.*)\]$/, "$1");
+
+/** The host of a URL as a socket wants it, or `undefined` when it is not a URL. */
+export function hostOf(url: string): string | undefined {
+  try {
+    return bareHost(new URL(url).hostname);
+  } catch {
+    return undefined;
+  }
 }
 
 /** `host:port` as a person (or a URL) would write it: a bare IPv6 address goes in brackets. */
@@ -102,9 +118,9 @@ function urlTarget(
     const url = new URL(value.trim());
     return {
       ...base,
-      // `new URL("redis://[::1]:6380").hostname` is `[::1]`; a socket needs the bare address.
-      host: url.hostname.replace(/^\[(.*)\]$/, "$1"),
+      host: bareHost(url.hostname),
       port: url.port === "" ? fallbackPort : Number(url.port),
+      ...(url.protocol === "rediss:" ? { tls: true } : {}),
     };
   } catch {
     return undefined;
@@ -221,15 +237,21 @@ function portOf(value: string | undefined, fallback: number): number {
 // ---------------------------------------------------------------------------------------------
 // Looking at the machine
 
-/** Opens a TCP connection and runs `onConnect` on it; resolves with what it returns, or `false`. */
+/**
+ * Opens a TCP connection (a TLS one when `secure`) and runs `onConnect` on it; resolves with what it
+ * returns, or `false`.
+ */
 function withSocket<T>(
   host: string,
   port: number,
   timeoutMs: number,
   onConnect: (socket: net.Socket, done: (value: T | false) => void) => void,
+  secure = false,
 ): Promise<T | false> {
   return new Promise((resolve) => {
-    const socket = net.connect({ host, port });
+    const socket = secure
+      ? tls.connect({ host, port, servername: net.isIP(host) === 0 ? host : undefined })
+      : net.connect({ host, port });
     let finished = false;
     const done = (value: T | false) => {
       if (finished) return;
@@ -240,7 +262,7 @@ function withSocket<T>(
     socket.setTimeout(timeoutMs, () => done(false));
     socket.on("error", () => done(false));
     socket.on("close", () => done(false));
-    socket.on("connect", () => onConnect(socket, done));
+    socket.on(secure ? "secureConnect" : "connect", () => onConnect(socket, done));
   });
 }
 
@@ -249,13 +271,31 @@ export async function canConnect(host: string, port: number, timeoutMs = 2000): 
   return (await withSocket<true>(host, port, timeoutMs, (_socket, done) => done(true))) === true;
 }
 
-/** True when a Redis answers `PING` with `PONG`: "established" log lines prove nothing (T06 item 5). */
-export async function redisAnswers(host: string, port: number, timeoutMs = 2000): Promise<boolean> {
-  const reply = await withSocket<string>(host, port, timeoutMs, (socket, done) => {
-    socket.on("data", (data) => done(data.toString("utf8")));
-    socket.write("*1\r\n$4\r\nPING\r\n");
-  });
-  return typeof reply === "string" && reply.startsWith("+PONG");
+// A Redis that needs a password answers an unauthenticated PING with `-NOAUTH`: it is up and speaks
+// the protocol, which is all this probe asks. `-LOADING` is not: it is still reading its data.
+const REDIS_ALIVE = /^(\+PONG|-NOAUTH\b)/;
+
+/**
+ * True when a Redis answers `PING` with `PONG` (or `NOAUTH`, when it wants a password): "established"
+ * log lines prove nothing (T06 item 5). `secure` is for `rediss://`, which speaks TLS.
+ */
+export async function redisAnswers(
+  host: string,
+  port: number,
+  timeoutMs = 2000,
+  secure = false,
+): Promise<boolean> {
+  const reply = await withSocket<string>(
+    host,
+    port,
+    timeoutMs,
+    (socket, done) => {
+      socket.on("data", (data) => done(data.toString("utf8")));
+      socket.write("*1\r\n$4\r\nPING\r\n");
+    },
+    secure,
+  );
+  return typeof reply === "string" && REDIS_ALIVE.test(reply);
 }
 
 /**
@@ -281,16 +321,13 @@ export async function meilisearchAnswers(
   port: number,
   timeoutMs = 2000,
 ): Promise<boolean> {
-  try {
-    const response = await fetch(`http://${addressOf({ host, port })}/health`, {
-      signal: AbortSignal.timeout(timeoutMs),
-    });
-    if (!response.ok) return false;
-    const body = (await response.json()) as { status?: unknown };
-    return body.status === "available";
-  } catch {
-    return false;
-  }
+  const result = await request(`http://${addressOf({ host, port })}/health`, { timeoutMs });
+  return (
+    result.kind === "response" &&
+    result.status >= 200 &&
+    result.status < 300 &&
+    (jsonOf(result) as { status?: unknown } | undefined)?.status === "available"
+  );
 }
 
 /** Whether the service on `target`'s port answers the way that kind of service does. */
@@ -299,7 +336,7 @@ export function answers(target: Target, timeoutMs = 2000): Promise<boolean> {
     case "postgres":
       return postgresAnswers(target.host, target.port, timeoutMs);
     case "redis":
-      return redisAnswers(target.host, target.port, timeoutMs);
+      return redisAnswers(target.host, target.port, timeoutMs, target.tls === true);
     case "meilisearch":
       return meilisearchAnswers(target.host, target.port, timeoutMs);
     default:
@@ -327,18 +364,29 @@ export function parseComposePorts(output: string): number[] {
   return [...ports];
 }
 
-export async function observeCompose(
-  target: Pick<Target, "service" | "containerPort">,
-  cwd: string,
-): Promise<ComposeObservation> {
+/** Whether Docker answers: `docker info` is the cheapest call that needs the daemon. */
+export type DockerState = { ok: true } | { ok: false; reason: string };
+
+export async function observeDocker(cwd: string): Promise<DockerState> {
   const info = await run("docker", ["info", "--format", "{{.ServerVersion}}"], {
     cwd,
     timeoutMs: 20_000,
   });
-  if (info.code !== 0) {
-    const reason = info.error ?? (info.output.trim().split(/\r?\n/).at(-1) || "docker info failed");
-    return { status: "docker-unavailable", reason };
-  }
+  if (info.code === 0) return { ok: true };
+  return {
+    ok: false,
+    reason: info.error ?? (info.output.trim().split(/\r?\n/).at(-1) || "docker info failed"),
+  };
+}
+
+/** `docker` says how Docker is asked about it, so that a caller looking at several services asks once. */
+export async function observeCompose(
+  target: Pick<Target, "service" | "containerPort">,
+  cwd: string,
+  docker: () => Promise<DockerState> = () => observeDocker(cwd),
+): Promise<ComposeObservation> {
+  const state = await docker();
+  if (!state.ok) return { status: "docker-unavailable", reason: state.reason };
   const result = await run(
     "docker",
     ["compose", "port", target.service, String(target.containerPort)],
@@ -459,6 +507,7 @@ export type Probes = {
   observeCompose: (
     target: Pick<Target, "service" | "containerPort">,
     cwd: string,
+    docker: () => Promise<DockerState>,
   ) => Promise<ComposeObservation>;
 };
 
@@ -480,11 +529,14 @@ export async function inspectTargets(
   probes: Probes = REAL_PROBES,
 ): Promise<Finding[]> {
   const asked = new Map<string, Promise<ComposeObservation>>();
+  // `docker info` once for all the services, and only if one of them is local and answering.
+  let docker: Promise<DockerState> | undefined;
+  const dockerState = () => (docker ??= observeDocker(cwd));
   const compose = (target: Target) => {
     const key = `${target.service}:${target.containerPort}`;
     let observation = asked.get(key);
     if (!observation) {
-      observation = probes.observeCompose(target, cwd);
+      observation = probes.observeCompose(target, cwd, dockerState);
       asked.set(key, observation);
     }
     return observation;
