@@ -45,14 +45,13 @@ function adminCredentials(): Credentials {
   }
   // `parseEnv` reads the file the way dotenv does (the last assignment wins, `export `, quotes and
   // an unquoted ` # comment`), as bootstrap's own reader and the servers do.
-  const env = parseEnv(text);
-  const fromFile = { email: env["DEV_ADMIN_EMAIL"], password: env["DEV_ADMIN_PASSWORD"] };
-  if (!fromFile.email || !fromFile.password) {
+  const { DEV_ADMIN_EMAIL, DEV_ADMIN_PASSWORD } = parseEnv(text);
+  if (!DEV_ADMIN_EMAIL || !DEV_ADMIN_PASSWORD) {
     throw new Error(
       `DEV_ADMIN_EMAIL or DEV_ADMIN_PASSWORD is not set in ${file}. Run pnpm bootstrap.`,
     );
   }
-  return { email: fromFile.email, password: fromFile.password };
+  return { email: DEV_ADMIN_EMAIL, password: DEV_ADMIN_PASSWORD };
 }
 
 /**
@@ -66,16 +65,21 @@ type PageDoc = { id?: number; title?: string | null; slug?: string | null; _stat
 /** A `pages` document in one language, read as the signed-in admin. `fetch` inside the page, because
  * `page.request` does not send the `Secure` cookie to http://localhost (SETUP.md, T11). An error
  * response fails here, so a field that is `undefined` in a test means the document lacks it. */
-async function readAs(page: Page, id: number, query: string): Promise<PageDoc> {
-  const { status, doc } = await page.evaluate(
+function readAs(page: Page, id: number, query: string): Promise<PageDoc> {
+  return page.evaluate(
     async ({ id, query }) => {
       const response = await fetch(`/api/pages/${id}?${query}`);
-      return { status: response.status, doc: (await response.json()) as PageDoc };
+      if (!response.ok)
+        throw new Error(`GET /api/pages/${id}?${query} answered ${response.status}`);
+      return (await response.json()) as PageDoc;
     },
     { id, query },
   );
-  expect(status, `GET /api/pages/${id}?${query}`).toBe(200);
-  return doc;
+}
+
+/** A DELETE as the signed-in admin (the same `fetch` inside the page); resolves to the status. */
+function deleteAs(page: Page, url: string): Promise<number> {
+  return page.evaluate((url) => fetch(url, { method: "DELETE" }).then((r) => r.status), url);
 }
 
 test.describe("the admin bootstrap made", () => {
@@ -93,15 +97,9 @@ test.describe("the admin bootstrap made", () => {
     if (!page) return;
     // Not a test: leave the database as found, whatever failed above. By slug and not by `pageId`,
     // which is unknown when the draft was saved and the redirect to it then failed.
-    await page
-      .evaluate(
-        (slug) =>
-          fetch(`/api/pages?where[slug][equals]=${slug}&locale=en`, { method: "DELETE" }).then(
-            (r) => r.status,
-          ),
-        english.slug,
-      )
-      .catch(() => undefined);
+    await deleteAs(page, `/api/pages?where[slug][equals]=${english.slug}&locale=en`).catch(
+      () => undefined,
+    );
     // A `?locale=` in the URL is also what Payload stores as the admin's language.
     await page.goto("/admin/collections/pages?locale=en").catch(() => undefined);
     await page.close();
@@ -195,10 +193,6 @@ test.describe("the admin bootstrap made", () => {
 
   test("deletes the page again", async () => {
     const id = pageId as number;
-    const status = await page.evaluate(
-      (id) => fetch(`/api/pages/${id}`, { method: "DELETE" }).then((r) => r.status),
-      id,
-    );
-    expect(status).toBe(200);
+    expect(await deleteAs(page, `/api/pages/${id}`)).toBe(200);
   });
 });

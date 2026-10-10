@@ -2,12 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import { catalogs, DEFAULT_LOCALE, formatDate, formatMoney, isLocale, LOCALES } from "./index";
 
-// Intl puts no-break spaces (U+00A0, U+202F) between a number and its symbol, and which one it picks
-// differs between ICU versions. The Swiss locales group digits with a mark whose code point changed
-// with the CLDR data: de-CH groups with ’ (U+2019) and fr-CH with U+202F in CLDR 47 (Node 22.22.0),
-// and both with ASCII ' in CLDR 48 (Node 22.23, GitHub's runners). Which one it is belongs to the
-// runtime, not to this package, so a group mark between digits reads as ' and a no-break space
-// elsewhere as a plain one. A grouping that is lost, or written as a plain space, still fails.
+// Intl's no-break spaces (U+00A0, U+202F) and the Swiss digit-group mark (’ U+2019 in de-CH and
+// U+202F in fr-CH with CLDR 47 / Node 22.22.0, ASCII ' with CLDR 48 / Node 22.23, GitHub's runners)
+// belong to the runtime, not to this package. A group mark between digits reads as ', a no-break
+// space elsewhere as a plain one; a grouping that is lost, or written as a plain space, still fails.
 const plain = (text: string) =>
   text.replace(/(?<=\d)[\u202f\u2019'](?=\d)/g, "'").replace(/[\u00a0\u202f]/g, " ");
 
