@@ -15,6 +15,7 @@ coverage
 .env
 .env.*
 !.env.example
+!apps/backend/.env.test
 
 # Local Payload uploads
 apps/storefront/media/
