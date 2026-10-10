@@ -134,6 +134,7 @@ export function run(
     let output = "";
     let timedOut = false;
     let prompt: string | undefined;
+    let stopped = false;
     let settled = false;
     let killTimer: NodeJS.Timeout | undefined;
     const finish = (result: Omit<RunResult, "output" | "timedOut" | "prompt">) => {
@@ -143,12 +144,13 @@ export function run(
       clearTimeout(killTimer);
       if (child.pid !== undefined) running.delete(child.pid);
       // A command that was stopped did not succeed, even if it exited 0 on the way out.
-      const code = (timedOut || prompt !== undefined) && result.code === 0 ? null : result.code;
+      const code = stopped && result.code === 0 ? null : result.code;
       resolve({ ...result, code, output, timedOut, ...(prompt === undefined ? {} : { prompt }) });
     };
     // SIGTERM first; a command that traps it and carries on is killed after a grace period, or
     // `close` would never come and this promise would never settle.
     const stop = () => {
+      stopped = true;
       stopTree(child.pid, platform);
       killTimer ??= setTimeout(
         () => stopTree(child.pid, platform, "SIGKILL"),

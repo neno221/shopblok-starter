@@ -86,10 +86,9 @@ export function isLocalHost(host: string): boolean {
   return LOCAL_HOSTS.has(host.toLowerCase());
 }
 
-/** `host:port` as a person would write it: an IPv6 address goes in brackets. */
+/** `host:port` as a person (or a URL) would write it: a bare IPv6 address goes in brackets. */
 export function addressOf(target: Pick<Target, "host" | "port">): string {
-  const host =
-    target.host.includes(":") && !target.host.startsWith("[") ? `[${target.host}]` : target.host;
+  const host = target.host.includes(":") ? `[${target.host}]` : target.host;
   return `${host}:${target.port}`;
 }
 
@@ -283,8 +282,7 @@ export async function meilisearchAnswers(
   timeoutMs = 2000,
 ): Promise<boolean> {
   try {
-    const hostname = host.includes(":") && !host.startsWith("[") ? `[${host}]` : host;
-    const response = await fetch(`http://${hostname}:${port}/health`, {
+    const response = await fetch(`http://${addressOf({ host, port })}/health`, {
       signal: AbortSignal.timeout(timeoutMs),
     });
     if (!response.ok) return false;

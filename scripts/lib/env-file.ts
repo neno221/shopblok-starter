@@ -45,25 +45,24 @@ function eolOf(text: string): string {
 type Found = { index: number; prefix: string; operator: string; value: string; comment: string };
 
 /**
- * Every assignment of `key`, in file order. When a key is assigned twice, the last one is the value
+ * The assignment of `key` that counts. When a key is assigned twice, the last one is the value
  * dotenv gives (Next's and Medusa's loaders parse with it, and `util.parseEnv` agrees), even when
  * that last one is blank.
  */
-function findAssignments(lines: string[], key: string): Found[] {
-  const found: Found[] = [];
-  lines.forEach((line, index) => {
+function findAssignment(lines: string[], key: string): Found | undefined {
+  let found: Found | undefined;
+  for (const [index, line] of lines.entries()) {
     const match = ASSIGNMENT.exec(line);
-    if (match?.[2] !== key) return;
+    if (match?.[2] !== key) continue;
     const { value, comment } = readValue(match[4] ?? "");
-    found.push({ index, prefix: match[1] ?? "", operator: match[3] ?? "=", value, comment });
-  });
+    found = { index, prefix: match[1] ?? "", operator: match[3] ?? "=", value, comment };
+  }
   return found;
 }
 
 /** The value of `key`, or `undefined` when it is absent. An empty string means it is there, blank. */
 export function getEnvValue(text: string, key: string): string | undefined {
-  // A duplicated key is rare; the loaders take the last line, so that is the value that counts.
-  return findAssignments(text.split(/\r?\n/), key).at(-1)?.value;
+  return findAssignment(text.split(/\r?\n/), key)?.value;
 }
 
 /** True when the key is absent or has no value: `KEY=`, `KEY=""` and `KEY= # note` all count. */
@@ -99,30 +98,23 @@ export function mergeEnv(
   const appended: string[] = [];
 
   for (const [key, value] of Object.entries(values)) {
-    // The last assignment is the one the loaders read, so it is the one to keep, replace or fill.
-    const effective = findAssignments(lines, key).at(-1);
-    const set = effective !== undefined && effective.value !== "" ? effective : undefined;
-
-    if (set !== undefined) {
-      if (options.replace?.includes(key) && set.value !== value) {
-        lines[set.index] =
-          `${set.prefix}${key}${set.operator}${formatEnvValue(value)}${set.comment}`;
-        changes.push({ key, action: "replaced" });
-      } else {
-        changes.push({ key, action: "kept" });
-      }
+    const current = findAssignment(lines, key);
+    if (current === undefined) {
+      appended.push(`${key}=${formatEnvValue(value)}`);
+      changes.push({ key, action: "added" });
       continue;
     }
 
-    if (effective !== undefined) {
-      lines[effective.index] =
-        `${effective.prefix}${key}${effective.operator}${formatEnvValue(value)}${effective.comment}`;
-      changes.push({ key, action: "filled" });
+    const blank = current.value === "";
+    const replace = !blank && options.replace?.includes(key) === true && current.value !== value;
+    if (!blank && !replace) {
+      changes.push({ key, action: "kept" });
       continue;
     }
 
-    appended.push(`${key}=${formatEnvValue(value)}`);
-    changes.push({ key, action: "added" });
+    lines[current.index] =
+      `${current.prefix}${key}${current.operator}${formatEnvValue(value)}${current.comment}`;
+    changes.push({ key, action: blank ? "filled" : "replaced" });
   }
 
   if (appended.length === 0 && changes.every((c) => c.action === "kept")) {

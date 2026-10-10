@@ -155,8 +155,7 @@ const medusa = (args: string[], ctx: Context) =>
 const payload = (args: string[], ctx: Context, extraEnv: Record<string, string | undefined> = {}) =>
   pnpm(["--filter", "@shopblok/storefront", "exec", "payload", ...args], ctx, extraEnv);
 
-/** `showOutput: false` for a command whose output was already streamed to the terminal. */
-function failed(what: string, result: RunResult, hint?: string, showOutput = true): StepError {
+function failed(what: string, result: RunResult, hint?: string): StepError {
   const why = result.prompt
     ? `asked "${result.prompt}", and bootstrap never answers prompts`
     : result.timedOut
@@ -164,7 +163,7 @@ function failed(what: string, result: RunResult, hint?: string, showOutput = tru
       : result.error
         ? `could not start (${result.error})`
         : `exited with code ${result.code}`;
-  return new StepError(`${what} ${why}.`, { hint, output: showOutput ? result.output : undefined });
+  return new StepError(`${what} ${why}.`, { hint, output: result.output });
 }
 
 // ---- 1. Preflight ---------------------------------------------------------------------------
@@ -586,7 +585,11 @@ async function doctor(ctx: Context): Promise<StepResult> {
   });
   if (result.code !== 0) {
     // Its output is on the screen already (`stream`): don't print the last lines of it again.
-    throw failed("`pnpm run doctor`", result, "Doctor's table above says what is wrong.", false);
+    throw failed(
+      "`pnpm run doctor`",
+      { ...result, output: "" },
+      "Doctor's table above says what is wrong.",
+    );
   }
   return { status: "unchanged" };
 }
@@ -707,7 +710,7 @@ async function main(): Promise<number> {
   }
   // With no stored password (the Medusa admin existed before bootstrap wrote one) there is none to
   // point to: step 5 and step 8 said what happened.
-  const where =
+  const passwordNote =
     ctx.state.admin.password === undefined
       ? "password not stored (see the notes under steps 5 and 8)"
       : "password in apps/backend/.env (DEV_ADMIN_PASSWORD)";
@@ -716,7 +719,7 @@ async function main(): Promise<number> {
       "Next: `pnpm dev`, then",
       "  storefront        http://localhost:8000  (Payload admin: /admin)",
       "  Medusa admin      http://localhost:9000/app",
-      `  admin login       ${ctx.state.admin.email}, ${where}`,
+      `  admin login       ${ctx.state.admin.email}, ${passwordNote}`,
     ].join("\n"),
   );
   return 0;
