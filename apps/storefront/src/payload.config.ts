@@ -7,6 +7,7 @@ import sharp from "sharp";
 import { Integrations } from "./payload/collections/integrations";
 import { Media } from "./payload/collections/media";
 import { Pages } from "./payload/collections/pages";
+import { S3Rich } from "./payload/collections/s3-rich";
 import { Users } from "./payload/collections/users";
 import { filterAvailableLocales } from "./payload/filter-available-locales";
 import { Markets } from "./payload/globals/markets";
@@ -34,7 +35,8 @@ export default buildConfig({
     user: Users.slug,
     importMap: { baseDir: dirname },
   },
-  collections: [Users, Integrations, Media, Pages],
+  // S3 PROTOTYPE: S3_RICH=1 adds the collection with many localized fields (L9).
+  collections: [Users, Integrations, Media, Pages, ...(process.env.S3_RICH === "1" ? [S3Rich] : [])],
   globals: [Markets],
   editor: lexicalEditor(),
   graphQL: { disable: true },
@@ -55,7 +57,8 @@ export default buildConfig({
     // D9: schema changes are saved migrations. Dev push is for experiments only.
     push: process.env.PAYLOAD_DB_PUSH === "true",
     disableCreateDatabase: process.env.NODE_ENV === "production",
-    migrationDir: path.resolve(dirname, "migrations"),
+    // S3 PROTOTYPE: S3_MIGRATION_DIR points the CLI at a scratch folder.
+    migrationDir: process.env.S3_MIGRATION_DIR ?? path.resolve(dirname, "migrations"),
   }),
   sharp,
   typescript: { outputFile: path.resolve(dirname, "payload-types.ts") },

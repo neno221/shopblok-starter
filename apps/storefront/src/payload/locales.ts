@@ -51,9 +51,21 @@ export const EXTRA_LANGUAGES = ["ar", "ja", "nb", "ru", "tr", "uk", "zh"] as con
  * because a market's country comes from the URL. A language outside this list is a migration
  * (S3's runbook). The default locale comes first, then the rest in order of first appearance.
  */
-export const LANGUAGES: readonly string[] = [
+const FULL_LANGUAGES: readonly string[] = [
   ...new Set<string>([DEFAULT_LOCALE, ...EU_LANGUAGES, ...MEDUSA_LANGUAGES, ...EXTRA_LANGUAGES]),
 ];
+
+// S3 PROTOTYPE (not for main): the same code serves the 42-language config and a 4-language one,
+// chosen by the environment, so both databases are built and read by identical code.
+//   S3_LOCALES=four       en, el, de, fr only
+//   S3_PLUS=is,sq         added to the list (L10 without editing this file)
+//   S3_MINUS=ga           taken out of the list (L11)
+const s3Base = process.env["S3_LOCALES"] === "four" ? ["en", "el", "de", "fr"] : FULL_LANGUAGES;
+const s3Plus = process.env["S3_PLUS"]?.split(",").filter(Boolean) ?? [];
+const s3Minus = new Set(process.env["S3_MINUS"]?.split(",").filter(Boolean) ?? []);
+export const LANGUAGES: readonly string[] = [...new Set([...s3Base, ...s3Plus])].filter(
+  (code) => !s3Minus.has(code),
+);
 
 /** Right-to-left languages among `LANGUAGES`. */
 const RTL_LANGUAGES: ReadonlySet<string> = new Set(["ar", "he"]);

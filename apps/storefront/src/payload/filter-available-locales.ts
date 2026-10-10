@@ -1,3 +1,4 @@
+import { cache } from "react";
 import type { Locale, Payload, PayloadRequest } from "payload";
 import { DEFAULT_LOCALE } from "./locales";
 
@@ -39,7 +40,41 @@ export function isMissingTable(error: unknown): boolean {
   return false;
 }
 
+// ---- S3 PROTOTYPE (not for main) -------------------------------------------------------------
+// Counters per HTTP request (the identity of `req.headers`, which the layout and the page of one
+// admin request share), and a switch between three ways to share the read:
+//   S3_MEMO=context  T09's: a promise in `req.context` (the baseline)
+//   S3_MEMO=headers  a WeakMap keyed by `req.headers` (or `req`)
+//   S3_MEMO=cache    React.cache
+type S3Counters = {
+  calls: number;
+  reads: number;
+  byRequest: Record<string, { calls: number; reads: number; url?: string }>;
+};
+export const s3Counters = ((globalThis as { __s3?: S3Counters }).__s3 ??= {
+  calls: 0,
+  reads: 0,
+  byRequest: {},
+});
+// The tag is written through the headers object (a Proxy per `headers()` call whose target is the
+// request's one Headers), so it names the HTTP request whichever module instance asks.
+const requestId = (req: PayloadRequest): string => {
+  const holder = (req.headers ?? req) as { __s3tag?: string };
+  return (holder.__s3tag ??= Math.random().toString(36).slice(2, 8));
+};
+const s3Entry = (req: PayloadRequest) => (s3Counters.byRequest[requestId(req)] ??= { calls: 0, reads: 0 });
+const s3ByHeaders = new WeakMap<object, Promise<Set<string>>>();
+type Slot = { promise: Promise<Set<string>> | undefined };
+const s3PerRender = cache((): Slot => ({ promise: undefined }));
+// The same, but ONE function for the whole process: the layout and the page load their own
+// instance of this module (S3 found two), and React.cache keys by function identity.
+const s3Global = globalThis as { __s3PerRender?: () => Slot; __s3Ttl?: { at: number; promise: Promise<Set<string>> } };
+s3Global.__s3PerRender ??= cache((): Slot => ({ promise: undefined }));
+// -----------------------------------------------------------------------------------------------
+
 async function readEnabledLanguages(payload: Payload, req: PayloadRequest) {
+  s3Counters.reads++;
+  s3Entry(req).reads++;
   try {
     // Not on behalf of the signed-in user: which languages exist is the shop's setting, so an
     // editor who may not read `markets` still gets the same selector.
@@ -72,8 +107,36 @@ export async function filterAvailableLocales({
   locales: Locale[];
   req: PayloadRequest;
 }): Promise<Locale[]> {
-  const cached = req.context[CONTEXT_KEY] as Promise<Set<string>> | undefined;
-  const enabled = cached ?? readEnabledLanguages(req.payload, req);
-  req.context[CONTEXT_KEY] = enabled;
+  s3Counters.calls++;
+  const entry = s3Entry(req);
+  entry.calls++;
+  const mode = process.env["S3_MEMO"] ?? "context";
+  let enabled: Promise<Set<string>>;
+  if (mode === "headers") {
+    const key = (req.headers ?? req) as object;
+    enabled = s3ByHeaders.get(key) ?? readEnabledLanguages(req.payload, req);
+    s3ByHeaders.set(key, enabled);
+  } else if (mode === "cache") {
+    const slot = s3PerRender();
+    enabled = slot.promise ?? readEnabledLanguages(req.payload, req);
+    slot.promise = enabled;
+  } else if (mode === "cache-global") {
+    const slot = (s3Global.__s3PerRender as () => Slot)();
+    enabled = slot.promise ?? readEnabledLanguages(req.payload, req);
+    slot.promise = enabled;
+  } else if (mode === "ttl") {
+    const now = performance.now();
+    const memo = s3Global.__s3Ttl;
+    if (memo && now - memo.at < 2000) {
+      enabled = memo.promise;
+    } else {
+      enabled = readEnabledLanguages(req.payload, req);
+      s3Global.__s3Ttl = { at: now, promise: enabled };
+    }
+  } else {
+    const cached = req.context[CONTEXT_KEY] as Promise<Set<string>> | undefined;
+    enabled = cached ?? readEnabledLanguages(req.payload, req);
+    req.context[CONTEXT_KEY] = enabled;
+  }
   return pickAvailableLocales(locales, await enabled);
 }
