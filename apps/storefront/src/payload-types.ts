@@ -350,7 +350,6 @@ export interface Page {
   id: number;
   title: string;
   slug: string;
-  heroImage?: (number | null) | Media;
   updatedAt: string;
   createdAt: string;
   _status?: ('draft' | 'published') | null;
@@ -510,7 +509,6 @@ export interface MediaSelect<T extends boolean = true> {
 export interface PagesSelect<T extends boolean = true> {
   title?: T;
   slug?: T;
-  heroImage?: T;
   updatedAt?: T;
   createdAt?: T;
   _status?: T;

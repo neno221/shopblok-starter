@@ -11,17 +11,13 @@ const repoRoot = fileURLToPath(new URL("../..", import.meta.url));
 function buildConfig(phase: string): NextConfig {
   return {
     // S1 may change these two (Cache Components x Payload admin).
-    cacheComponents: process.env["S1_CC"] !== "off",
-    partialPrefetching: process.env["S1_PARTIAL_PREFETCHING"] !== "off" && process.env["S1_CC"] !== "off",
+    cacheComponents: true,
+    partialPrefetching: true,
     typedRoutes: true,
     poweredByHeader: false,
     experimental: {
       // The app has one root layout per market, so there is no single layout for a 404 page.
-      globalNotFound: process.env["S1_CC"] !== "off",
-      // S1 toggle: validate only the segments that opt in with `instant` (dev only).
-      ...(process.env["S1_INSIGHTS"] === "manual"
-        ? { instantInsights: { validationLevel: "manual-warning" as const } }
-        : {}),
+      globalNotFound: true,
     },
     turbopack: { root: repoRoot },
     outputFileTracingRoot: repoRoot,
