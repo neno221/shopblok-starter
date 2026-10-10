@@ -2,6 +2,7 @@
 // of the servers come in, `Check`s come out. `doctor.ts` does the looking (reads the files, opens the
 // sockets, calls the servers); every decision that can be wrong lives here, with a test.
 import type { AppEnvs, IntegrationStatus } from "./integrations.ts";
+import type { BackendMarkets } from "./markets-check.ts";
 import type { Check } from "./report.ts";
 
 const isSet = (value: string | undefined): boolean => (value ?? "").trim() !== "";
@@ -331,6 +332,20 @@ export function compareWithMedusa(
     }
   }
   return problems;
+}
+
+/**
+ * Regions that Medusa has and `config/markets.ts` does not list: what is left after a market is taken
+ * out of the file (`seed-markets.ts` adds regions and never removes one). They are found by their
+ * countries, not their names, so an admin's rename does not hide one. A region with no country is
+ * not counted: nothing can be sold through it.
+ */
+export function orphanRegions(live: readonly LiveRegion[], config: BackendMarkets): LiveRegion[] {
+  const listed = new Set(config.regions.flatMap((region) => region.countries));
+  return live.filter(
+    (region) =>
+      region.countries.length > 0 && region.countries.every((country) => !listed.has(country)),
+  );
 }
 
 /** `GET {payload}/api/integrations/me` with the integrations key: who does Payload think this is? */

@@ -29,9 +29,9 @@ describe("loadExports", () => {
     expect(await loadExports(file, ["A", "B"])).toEqual({ exports: { A: 1 } });
   });
 
-  it("reads a file of a package with no `type`, with no warning in the way (the backend's case)", async () => {
-    // The directory has no package.json at all, like the backend's has no "type": Node would warn
-    // that it reparsed the file as a module.
+  it("reads a file of a package with no `type` (the backend's case)", async () => {
+    // The directory has no package.json at all, like the backend's has no "type": Node reparses the
+    // file as a module and warns on the child's stderr, which does not get in the way.
     const file = write("typeless.ts", `export const A = [1];\n`);
     const result = await loadExports(file, ["A"]);
     expect(result).toEqual({ exports: { A: [1] } });
@@ -43,6 +43,14 @@ describe("loadExports", () => {
     if ("error" in result) throw new Error(result.error);
     expect(Array.isArray(result.exports.SUPPORTED_LOCALES)).toBe(true);
     expect(Array.isArray(result.exports.MARKET_REGIONS)).toBe(true);
+  });
+
+  it("a thrown value that is not an Error is reported, not Node's version banner", async () => {
+    const file = write("throws-string.ts", `throw "plain text";\n`);
+    const result = await loadExports(file, ["A"]);
+    expect(result).toHaveProperty("error");
+    expect((result as { error: string }).error).not.toMatch(/^Node\.js v\d/);
+    expect((result as { error: string }).error).not.toBe("");
   });
 
   it("says why when the file throws or is missing", async () => {

@@ -25,6 +25,7 @@ import {
   compareWithMedusa,
   configChecks,
   explainPayloadFailure,
+  orphanRegions,
   readLocales,
   readRegions,
   type Context,
@@ -237,7 +238,8 @@ function serverCheck(
       result.kind === "refused"
         ? `nothing is listening at ${url}.`
         : `${url} does not answer (${result.reason}).`,
-    fix: starts,
+    // "Start it with pnpm dev" is for a server on this machine.
+    fix: local ? starts : `Check that ${url} is the right address and that the server is up.`,
   };
 }
 
@@ -384,7 +386,7 @@ async function main(): Promise<number> {
       id: "markets-global",
       title: "Markets global",
       level: "warn",
-      message: "not read: Postgres is not reachable (see above).",
+      message: "not read: the Postgres check above failed, so Payload was not started.",
     });
   } else {
     const read = await readMarketsGlobal();
@@ -488,7 +490,7 @@ async function main(): Promise<number> {
   }
 
   if (options.online) {
-    checks.push(...(await onlineChecks(envs, medusaUrl, map)));
+    checks.push(...(await onlineChecks(envs, medusaUrl, map, backend)));
   }
 
   const report: Report = { integrations: statuses, checks };
@@ -503,6 +505,7 @@ async function onlineChecks(
   envs: AppEnvs,
   medusaUrl: string,
   map: MarketMapData | undefined,
+  config: BackendMarkets | undefined,
 ): Promise<Check[]> {
   const checks: Check[] = [];
 
@@ -619,8 +622,31 @@ async function onlineChecks(
     );
   }
 
-  // 3. Every region's currency needs price fields in the search index (T08, D17).
-  const currencies = [...new Set(regions.map((region) => region.currency).filter(Boolean))];
+  // Regions left behind by a market that was taken out of the file: not a search-index problem.
+  const orphans = config === undefined ? [] : orphanRegions(regions, config);
+  if (orphans.length > 0) {
+    checks.push({
+      id: "medusa-orphans",
+      title: "Medusa regions left over",
+      level: "warn",
+      message: `Medusa has ${orphans.length === 1 ? "a region" : "regions"} that apps/backend/src/config/markets.ts does not list: the seed adds regions and never removes one.`,
+      details: orphans.map(
+        (region) => `"${region.name}" (${region.currency}): ${region.countries.join(", ")}`,
+      ),
+      fix: "Delete them in the Medusa admin (Settings → Regions), or add the market back to the file.",
+    });
+  }
+
+  // 3. Every region's currency needs price fields in the search index (T08, D17). A leftover
+  // region's currency is not in the file, so the index does not have it and should not.
+  const orphanCurrencies = new Set(orphans.map((region) => region.currency));
+  const currencies = [
+    ...new Set(
+      regions
+        .map((region) => region.currency)
+        .filter((currency) => currency !== "" && !orphanCurrencies.has(currency)),
+    ),
+  ];
   const missing: string[] = [];
   const unknown: string[] = [];
   const answers = await Promise.all(

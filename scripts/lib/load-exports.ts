@@ -1,8 +1,8 @@
 // Reading the exports of a TypeScript file that `scripts/` may not import (T14). `tsc` refuses the
 // backend's `config/markets.ts` (TS1287: its package is CommonJS to TypeScript, T13 item 6), and Node
-// warns about it (`MODULE_TYPELESS_PACKAGE_JSON`) when it reparses the file as a module. A child
-// process with that one warning switched off loads the file the way Node does, and hands the data
-// back as JSON, so the file is read as it really is and nothing is evaluated in doctor itself.
+// prints a `MODULE_TYPELESS_PACKAGE_JSON` warning when it reparses the file as a module. A child
+// process loads the file the way Node does, keeps that warning on its own (captured) stderr, and hands
+// the data back as JSON, so the file is read as it really is and nothing is evaluated in doctor itself.
 import { pathToFileURL } from "node:url";
 import { run } from "./exec.ts";
 import { extractMarker } from "./output.ts";
@@ -25,14 +25,7 @@ export async function loadExports(
 ): Promise<{ exports: Record<string, unknown> } | { error: string }> {
   const result = await run(
     process.execPath,
-    [
-      "--disable-warning=MODULE_TYPELESS_PACKAGE_JSON",
-      "--input-type=module",
-      "--eval",
-      LOADER,
-      pathToFileURL(file).href,
-      ...names,
-    ],
+    ["--input-type=module", "--eval", LOADER, pathToFileURL(file).href, ...names],
     { timeoutMs: 20_000 },
   );
   const picked = extractMarker<Record<string, unknown>>(result.output, MARKER);

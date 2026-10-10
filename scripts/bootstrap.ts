@@ -552,10 +552,8 @@ function payloadKey(ctx: Context): StepResult {
 // ---- 11. Doctor -----------------------------------------------------------------------------
 
 async function doctor(ctx: Context): Promise<StepResult> {
-  // T14 adds scripts/doctor.ts. Until then there is nothing to run, and that is not a failure.
-  if (!existsSync(path.join(root, "scripts", "doctor.ts"))) {
-    return { status: "skipped", detail: "arrives in T14" };
-  }
+  // Doctor writes nothing, and a server that is not running yet is only a warning for it, so a
+  // fresh bootstrap passes; a doctor error (Redis down, a wrong key) fails the run.
   const result = await run("pnpm", ["run", "doctor"], {
     cwd: root,
     env: ctx.options.ci ? { CI: "true" } : {},

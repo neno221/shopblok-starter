@@ -5,6 +5,7 @@ import {
   compareWithMedusa,
   configChecks,
   explainPayloadFailure,
+  orphanRegions,
   readLocales,
   readRegions,
   type Context,
@@ -416,5 +417,42 @@ describe("explainPayloadFailure", () => {
 
   it("copes with no output", () => {
     expect(explainPayloadFailure("").cause).toBe("Payload failed without a message");
+  });
+});
+
+describe("orphanRegions", () => {
+  const config = {
+    currencies: ["eur", "usd"],
+    regions: [
+      { name: "Europe", currency: "eur", countries: ["cy", "de"] },
+      { name: "United States", currency: "usd", countries: ["us"] },
+    ],
+    locales: ["en-US"],
+  };
+
+  it("finds a region whose countries the file no longer lists (a market taken out of config/markets.ts)", () => {
+    const live = [
+      { name: "Europe", currency: "eur", countries: ["cy", "de"] },
+      { name: "Brazil", currency: "brl", countries: ["br"] },
+    ];
+    expect(orphanRegions(live, config)).toEqual([
+      { name: "Brazil", currency: "brl", countries: ["br"] },
+    ]);
+  });
+
+  it("an admin's rename does not hide it, or create one", () => {
+    expect(
+      orphanRegions([{ name: "EU shop", currency: "eur", countries: ["cy", "de"] }], config),
+    ).toEqual([]);
+  });
+
+  it("a region that shares even one country with the file is not an orphan", () => {
+    expect(
+      orphanRegions([{ name: "Europe+", currency: "eur", countries: ["cy", "br"] }], config),
+    ).toEqual([]);
+  });
+
+  it("a region with no countries is not counted", () => {
+    expect(orphanRegions([{ name: "Empty", currency: "brl", countries: [] }], config)).toEqual([]);
   });
 });

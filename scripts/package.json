@@ -2,7 +2,7 @@
   "name": "@shopblok/scripts",
   "version": "0.0.0",
   "private": true,
-  "description": "Root scripts: check-workspace (T03), bootstrap (T13) and later doctor (T14). Run with plain node, which strips the types (Node 22.18 and newer).",
+  "description": "Root scripts: check-workspace (T03), bootstrap (T13) and doctor (T14). Run with plain node, which strips the types (Node 22.18 and newer).",
   "type": "module",
   "scripts": {
     "typecheck": "tsc",

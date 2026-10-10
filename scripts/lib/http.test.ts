@@ -1,7 +1,7 @@
 import http from "node:http";
 import net from "node:net";
 import { afterEach, describe, expect, it } from "vitest";
-import { jsonOf, request } from "./http.ts";
+import { codeOf, jsonOf, request } from "./http.ts";
 
 const servers: http.Server[] = [];
 
@@ -114,5 +114,22 @@ describe("jsonOf", () => {
     expect(jsonOf({ kind: "response", status: 200, text: '{"a":1}' })).toEqual({ a: 1 });
     expect(jsonOf({ kind: "response", status: 200, text: "not json" })).toBeUndefined();
     expect(jsonOf({ kind: "refused" })).toBeUndefined();
+  });
+});
+
+describe("codeOf", () => {
+  it("finds the code under fetch's wrapper, or inside an aggregate of several addresses", () => {
+    expect(codeOf(new TypeError("fetch failed", { cause: { code: "ECONNREFUSED" } }))).toBe(
+      "ECONNREFUSED",
+    );
+    expect(
+      codeOf(
+        new TypeError("fetch failed", {
+          cause: { errors: [{ message: "x" }, { code: "ECONNREFUSED" }] },
+        }),
+      ),
+    ).toBe("ECONNREFUSED");
+    expect(codeOf(new Error("plain"))).toBeUndefined();
+    expect(codeOf(undefined)).toBeUndefined();
   });
 });

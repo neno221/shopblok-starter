@@ -16,7 +16,8 @@ export type HttpOptions = {
   timeoutMs?: number;
 };
 
-function codeOf(error: unknown): string | undefined {
+/** The system error code under a failed `fetch`, e.g. `ECONNREFUSED`. */
+export function codeOf(error: unknown): string | undefined {
   // fetch wraps the socket error: `TypeError: fetch failed` with the system error as `cause`.
   const cause = (error as { cause?: { code?: unknown; errors?: { code?: unknown }[] } })?.cause;
   if (typeof cause?.code === "string") return cause.code;
