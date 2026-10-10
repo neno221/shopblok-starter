@@ -173,9 +173,11 @@ async function preflight(): Promise<StepResult> {
   const problems: string[] = [];
 
   // Versions: the same ranges package.json declares.
-  const engines = (JSON.parse(readFileSync(path.join(root, "package.json"), "utf8")) as {
-    engines?: { node?: string; pnpm?: string };
-  }).engines;
+  const engines = (
+    JSON.parse(readFileSync(path.join(root, "package.json"), "utf8")) as {
+      engines?: { node?: string; pnpm?: string };
+    }
+  ).engines;
   if (engines?.node && !satisfies(process.versions.node, engines.node)) {
     problems.push(`Node ${process.versions.node} is outside ${engines.node} (see .nvmrc).`);
   }
@@ -221,9 +223,7 @@ async function preflight(): Promise<StepResult> {
       const speaksProtocol = reachable && (await answers(target));
       // A remote host can't be a container of ours, so don't ask Docker about it.
       const observation: ComposeObservation =
-        reachable && isLocalHost(target.host)
-          ? await compose(target)
-          : { status: "not-published" };
+        reachable && isLocalHost(target.host) ? await compose(target) : { status: "not-published" };
       return judge({ target, reachable, speaksProtocol, compose: observation });
     }),
   );
@@ -273,7 +273,8 @@ function envFiles(): StepResult {
 
   // REVALIDATE_SECRET is one secret shared by both apps (SPEC §15): take the one that exists.
   const backendShared = getEnvValue(texts.get(backendEnv) ?? "", "REVALIDATE_SECRET") || undefined;
-  const storefrontShared = getEnvValue(texts.get(storefrontEnv) ?? "", "REVALIDATE_SECRET") || undefined;
+  const storefrontShared =
+    getEnvValue(texts.get(storefrontEnv) ?? "", "REVALIDATE_SECRET") || undefined;
   if (backendShared && storefrontShared && backendShared !== storefrontShared) {
     notes.push(
       "REVALIDATE_SECRET differs between apps/backend/.env and apps/storefront/.env; Medusa's revalidation calls will be refused until they match. Not changed.",
@@ -338,7 +339,11 @@ async function medusaMigrations(ctx: Context): Promise<StepResult> {
   // the new index version (the next server start fills it).
   const result = await medusa(["db:migrate", "--execute-safe-links", "--execute-safe-search"], ctx);
   if (result.code !== 0) {
-    throw failed("`medusa db:migrate`", result, "Is Postgres up and DATABASE_URL right in apps/backend/.env?");
+    throw failed(
+      "`medusa db:migrate`",
+      result,
+      "Is Postgres up and DATABASE_URL right in apps/backend/.env?",
+    );
   }
   const outcome = classifyMigrate(result.output);
   if (!outcome.changed) return { status: "unchanged" };
@@ -365,7 +370,7 @@ async function medusaSeeds(ctx: Context): Promise<StepResult> {
         `\`medusa exec ${script}\``,
         result,
         result.code === 0
-          ? "It exited 0 but never printed \"Finished executing script.\": the app could not load its config (check apps/backend/.env)."
+          ? 'It exited 0 but never printed "Finished executing script.": the app could not load its config (check apps/backend/.env).'
           : undefined,
       );
     }
@@ -386,7 +391,11 @@ async function medusaSeeds(ctx: Context): Promise<StepResult> {
     parts.push(demo.changed ? "demo catalog seeded" : "demo catalog unchanged");
   }
 
-  return { status: changed ? "done" : "unchanged", detail: changed ? parts.join(", ") : undefined, notes };
+  return {
+    status: changed ? "done" : "unchanged",
+    detail: changed ? parts.join(", ") : undefined,
+    notes,
+  };
 }
 
 // ---- 5. Medusa admin user -------------------------------------------------------------------
@@ -436,7 +445,7 @@ async function publishableKey(ctx: Context): Promise<StepResult> {
       "`print-publishable-key.ts`",
       result,
       key === undefined && result.code === 0
-        ? "It printed no {\"publishableKey\":…} line. Run the seeds first (step 4)."
+        ? 'It printed no {"publishableKey":…} line. Run the seeds first (step 4).'
         : undefined,
     );
   }
@@ -452,7 +461,10 @@ async function publishableKey(ctx: Context): Promise<StepResult> {
   ctx.state.publishableKeyChanged = true;
   return {
     status: "done",
-    detail: action === "replaced" ? "replaced the key of an earlier database" : "written to apps/storefront/.env",
+    detail:
+      action === "replaced"
+        ? "replaced the key of an earlier database"
+        : "written to apps/storefront/.env",
     notes: [
       `${PUBLISHABLE_KEY} is written into the storefront by \`next build\`: build again (or restart \`next dev\`) after this change.`,
     ],
@@ -502,7 +514,7 @@ async function payloadBootstrap(ctx: Context): Promise<StepResult> {
     throw failed(
       "`payload run bootstrap-payload.ts`",
       result,
-      result.code === 0 ? "It printed no {\"bootstrapPayload\":…} result line." : undefined,
+      result.code === 0 ? 'It printed no {"bootstrapPayload":…} result line.' : undefined,
     );
   }
 
@@ -530,7 +542,8 @@ async function payloadBootstrap(ctx: Context): Promise<StepResult> {
 
 function payloadKey(ctx: Context): StepResult {
   const apiKey = ctx.state.payloadApiKey;
-  if (apiKey === undefined) throw new StepError("Step 8 did not run, so there is no Payload API key.");
+  if (apiKey === undefined)
+    throw new StepError("Step 8 did not run, so there is no Payload API key.");
 
   const text = readText(backendEnv.file) ?? "";
   const storefrontText = readText(storefrontEnv.file) ?? "";
@@ -565,14 +578,19 @@ async function doctor(ctx: Context): Promise<StepResult> {
     env: ctx.options.ci ? { CI: "true" } : {},
     stream: true,
   });
-  if (result.code !== 0) throw failed("`pnpm run doctor`", result, "Doctor's table above says what is wrong.");
+  if (result.code !== 0)
+    throw failed("`pnpm run doctor`", result, "Doctor's table above says what is wrong.");
   return { status: "unchanged" };
 }
 
 // ---------------------------------------------------------------------------------------------
 // Running
 
-type Step = { number: number; name: string; run: (ctx: Context) => Promise<StepResult> | StepResult };
+type Step = {
+  number: number;
+  name: string;
+  run: (ctx: Context) => Promise<StepResult> | StepResult;
+};
 
 const STEPS: Step[] = [
   { number: 1, name: "Preflight", run: () => preflight() },
@@ -598,7 +616,11 @@ const STEPS: Step[] = [
   { number: 11, name: "Doctor", run: doctor },
 ];
 
-const LABEL: Record<Status, string> = { done: "✓ done", unchanged: "= unchanged", skipped: "↷ skipped" };
+const LABEL: Record<Status, string> = {
+  done: "✓ done",
+  unchanged: "= unchanged",
+  skipped: "↷ skipped",
+};
 const TOTAL = 11;
 
 function line(step: Step, result: StepResult, seconds: number): string {
@@ -648,10 +670,14 @@ async function main(): Promise<number> {
         console.error(error.message.replace(/^/gm, "      "));
         if (error.hint) console.error(error.hint.replace(/^/gm, "      "));
         if (error.output && !options.verbose) {
-          console.error(`      Last lines of its output:\n${redact(tail(error.output, 25)).replace(/^/gm, "        ")}`);
+          console.error(
+            `      Last lines of its output:\n${redact(tail(error.output, 25)).replace(/^/gm, "        ")}`,
+          );
         }
       } else {
-        console.error(`      ${error instanceof Error ? (error.stack ?? error.message) : String(error)}`);
+        console.error(
+          `      ${error instanceof Error ? (error.stack ?? error.message) : String(error)}`,
+        );
       }
       console.error(
         step.number === 1
@@ -667,7 +693,9 @@ async function main(): Promise<number> {
     `\nbootstrap finished in ${seconds} s: ${counts.done} done, ${counts.unchanged} unchanged, ${counts.skipped} skipped.`,
   );
   if (ctx.state.publishableKeyChanged) {
-    console.log(`The publishable key changed: rebuild the storefront (\`pnpm build\`) or restart \`pnpm dev\`.`);
+    console.log(
+      `The publishable key changed: rebuild the storefront (\`pnpm build\`) or restart \`pnpm dev\`.`,
+    );
   }
   console.log(
     [

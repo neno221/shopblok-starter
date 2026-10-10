@@ -70,7 +70,8 @@ function stopTree(pid: number | undefined, platform: NodeJS.Platform): void {
   if (pid === undefined) return;
   try {
     // A negative pid is the whole process group: `pnpm` starts `sh`, which starts `node`.
-    if (platform === "win32") spawn("taskkill", ["/pid", String(pid), "/t", "/f"], { stdio: "ignore" });
+    if (platform === "win32")
+      spawn("taskkill", ["/pid", String(pid), "/t", "/f"], { stdio: "ignore" });
     else process.kill(-pid, "SIGTERM");
   } catch {
     // Already gone.

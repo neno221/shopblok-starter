@@ -105,7 +105,9 @@ const markets = await payload.findGlobal({ slug: "markets", depth: 0, overrideAc
 if ((markets.countries ?? []).length === 0) {
   const seeded = marketMapProblems(seededMarkets);
   if (seeded.length > 0) {
-    throw new Error(`The seeded market map in @shopblok/fixtures is not usable: ${seeded.join("; ")}`);
+    throw new Error(
+      `The seeded market map in @shopblok/fixtures is not usable: ${seeded.join("; ")}`,
+    );
   }
   await payload.updateGlobal({
     slug: "markets",

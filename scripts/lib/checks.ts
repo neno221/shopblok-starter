@@ -134,7 +134,10 @@ export function targetsFrom(env: ConfiguredEnv): Target[] {
   } as const;
   const list: Target[] = [];
 
-  const medusaDb = urlTarget(env.DATABASE_URL, 5432, { ...postgres, label: "Postgres (medusa database)" }) ?? {
+  const medusaDb = urlTarget(env.DATABASE_URL, 5432, {
+    ...postgres,
+    label: "Postgres (medusa database)",
+  }) ?? {
     ...postgres,
     label: "Postgres (medusa database)",
     host: "localhost",
@@ -253,7 +256,11 @@ export async function redisAnswers(host: string, port: number, timeoutMs = 2000)
  * reply `S` or `N`; a server that does not speak Postgres does not answer that way. No login is
  * needed, so no password is involved.
  */
-export async function postgresAnswers(host: string, port: number, timeoutMs = 2000): Promise<boolean> {
+export async function postgresAnswers(
+  host: string,
+  port: number,
+  timeoutMs = 2000,
+): Promise<boolean> {
   const reply = await withSocket<string>(host, port, timeoutMs, (socket, done) => {
     socket.on("data", (data) => done(data.toString("latin1")));
     socket.write(Buffer.from([0, 0, 0, 8, 4, 210, 22, 47]));
@@ -262,7 +269,11 @@ export async function postgresAnswers(host: string, port: number, timeoutMs = 20
 }
 
 /** True when Meilisearch's `/health` says `available`. */
-export async function meilisearchAnswers(host: string, port: number, timeoutMs = 2000): Promise<boolean> {
+export async function meilisearchAnswers(
+  host: string,
+  port: number,
+  timeoutMs = 2000,
+): Promise<boolean> {
   try {
     const hostname = host.includes(":") && !host.startsWith("[") ? `[${host}]` : host;
     const response = await fetch(`http://${hostname}:${port}/health`, {
@@ -314,15 +325,22 @@ export async function observeCompose(
   target: Pick<Target, "service" | "containerPort">,
   cwd: string,
 ): Promise<ComposeObservation> {
-  const info = await run("docker", ["info", "--format", "{{.ServerVersion}}"], { cwd, timeoutMs: 20_000 });
+  const info = await run("docker", ["info", "--format", "{{.ServerVersion}}"], {
+    cwd,
+    timeoutMs: 20_000,
+  });
   if (info.code !== 0) {
     const reason = info.error ?? (info.output.trim().split(/\r?\n/).at(-1) || "docker info failed");
     return { status: "docker-unavailable", reason };
   }
-  const result = await run("docker", ["compose", "port", target.service, String(target.containerPort)], {
-    cwd,
-    timeoutMs: 20_000,
-  });
+  const result = await run(
+    "docker",
+    ["compose", "port", target.service, String(target.containerPort)],
+    {
+      cwd,
+      timeoutMs: 20_000,
+    },
+  );
   const ports = result.code === 0 ? parseComposePorts(result.output) : [];
   return ports.length > 0 ? { status: "published", ports } : { status: "not-published" };
 }
@@ -352,7 +370,11 @@ export const START_STACK = "Start the stack with `pnpm infra:up` (docker compose
 export function judge(observation: Observation): Finding {
   const { target, reachable, speaksProtocol, compose } = observation;
   const where = `${target.host}:${target.port}`;
-  const finding = (level: Finding["level"], message: string): Finding => ({ level, target, message });
+  const finding = (level: Finding["level"], message: string): Finding => ({
+    level,
+    target,
+    message,
+  });
 
   if (!reachable) {
     const extra = target.hint ? ` (${target.hint})` : "";
@@ -365,13 +387,19 @@ export function judge(observation: Observation): Finding {
     );
   }
   if (!isLocalHost(target.host)) {
-    return finding("ok", `${target.label} at ${where}: a remote server, so its owner can't be checked here`);
+    return finding(
+      "ok",
+      `${target.label} at ${where}: a remote server, so its owner can't be checked here`,
+    );
   }
 
   switch (compose.status) {
     case "published":
       if (compose.ports.includes(target.port)) {
-        return finding("ok", `${target.label} at ${where} is this project's ${target.service} container`);
+        return finding(
+          "ok",
+          `${target.label} at ${where} is this project's ${target.service} container`,
+        );
       }
       return finding(
         "error",
@@ -409,6 +437,8 @@ export function dockerUnavailableWarning(findings: readonly Finding[]): string |
     databases.length > 0
       ? `Migrations and seeds will write to the Postgres at ${databases.map(where).join(" and ")}, whatever that is`
       : "Migrations and seeds will write to whatever answers on those ports";
-  const list = unchecked.map((finding) => `${finding.target.label.split(" (")[0]} ${where(finding)}`).join(", ");
+  const list = unchecked
+    .map((finding) => `${finding.target.label.split(" (")[0]} ${where(finding)}`)
+    .join(", ");
   return `Docker is not available (${first.dockerReason}), so I can't check that these are this project's services: ${list}. ${writes}.`;
 }

@@ -70,9 +70,10 @@ describe("targetsFrom", () => {
   });
 
   it("checks both when the databases are on different servers", () => {
-    const targets = targetsFrom({ ...env, PAYLOAD_DATABASE_URL: "postgres://u:p@localhost:5433/payload" }).filter(
-      (t) => t.kind === "postgres",
-    );
+    const targets = targetsFrom({
+      ...env,
+      PAYLOAD_DATABASE_URL: "postgres://u:p@localhost:5433/payload",
+    }).filter((t) => t.kind === "postgres");
     expect(targets.map((t) => [t.label, t.port])).toEqual([
       ["Postgres (medusa database)", 15432],
       ["Postgres (payload database)", 5433],
@@ -96,16 +97,25 @@ describe("targetsFrom", () => {
       ["db.example.com", 5432],
       ["localhost", 15432],
     ]);
-    expect(targets.find((t) => t.kind === "meilisearch")).toMatchObject({ host: "localhost", port: 7701 });
+    expect(targets.find((t) => t.kind === "meilisearch")).toMatchObject({
+      host: "localhost",
+      port: 7701,
+    });
   });
 
   it("has no Redis to check when REDIS_URL is blank (the in-memory modules, T06)", () => {
     expect(targetsFrom({ ...env, REDIS_URL: "" }).some((t) => t.kind === "redis")).toBe(false);
-    expect(targetsFrom({ ...env, REDIS_URL: undefined }).some((t) => t.kind === "redis")).toBe(false);
+    expect(targetsFrom({ ...env, REDIS_URL: undefined }).some((t) => t.kind === "redis")).toBe(
+      false,
+    );
   });
 
   it("takes Mailpit's ports from the environment when they are set", () => {
-    const targets = targetsFrom({ ...env, MAILPIT_SMTP_PORT: "2025", MAILPIT_UI_PORT: "not a port" });
+    const targets = targetsFrom({
+      ...env,
+      MAILPIT_SMTP_PORT: "2025",
+      MAILPIT_UI_PORT: "not a port",
+    });
     expect(targets.find((t) => t.kind === "mailpit-smtp")?.port).toBe(2025);
     expect(targets.find((t) => t.kind === "mailpit-ui")?.port).toBe(8025);
   });
@@ -145,7 +155,9 @@ describe("judge", () => {
   });
 
   it("is happy with an IPv6 line next to the IPv4 one", () => {
-    expect(judge(observe({ compose: { status: "published", ports: [15432, 15432] } })).level).toBe("ok");
+    expect(judge(observe({ compose: { status: "published", ports: [15432, 15432] } })).level).toBe(
+      "ok",
+    );
   });
 
   it("is an error, with the start-the-stack hint, when nothing answers", () => {
@@ -156,7 +168,13 @@ describe("judge", () => {
   });
 
   it("adds the target's own hint to a missing service", () => {
-    const redis: Target = { ...target, label: "Redis", kind: "redis", service: "redis", hint: "the backend never starts when Redis is down" };
+    const redis: Target = {
+      ...target,
+      label: "Redis",
+      kind: "redis",
+      service: "redis",
+      hint: "the backend never starts when Redis is down",
+    };
     const finding = judge(observe({ target: redis, reachable: false, speaksProtocol: false }));
     expect(finding.message).toContain("the backend never starts when Redis is down");
   });
@@ -175,7 +193,9 @@ describe("judge", () => {
   });
 
   it("only warns when Docker is not there, and names the host and port that will be written to", () => {
-    const finding = judge(observe({ compose: { status: "docker-unavailable", reason: "no daemon" } }));
+    const finding = judge(
+      observe({ compose: { status: "docker-unavailable", reason: "no daemon" } }),
+    );
     expect(finding.level).toBe("warn");
     expect(finding.message).toContain("localhost:15432");
     expect(finding.message).toContain("Migrations and seeds will write");
@@ -183,7 +203,13 @@ describe("judge", () => {
 
   it("makes one warning of several that Docker could not check, naming the databases' host and port", () => {
     const docker = { status: "docker-unavailable", reason: "no daemon" } as const;
-    const redis: Target = { ...target, label: "Redis", kind: "redis", service: "redis", port: 6380 };
+    const redis: Target = {
+      ...target,
+      label: "Redis",
+      kind: "redis",
+      service: "redis",
+      port: 6380,
+    };
     const findings = [
       judge(observe({ compose: docker })),
       judge(observe({ target: redis, compose: docker })),
@@ -208,7 +234,9 @@ describe("judge", () => {
 
   it("does not claim a remote server is ours, and does not fail it", () => {
     const remote = { ...target, host: "db.example.com" };
-    const finding = judge(observe({ target: remote, compose: { status: "published", ports: [1] } }));
+    const finding = judge(
+      observe({ target: remote, compose: { status: "published", ports: [1] } }),
+    );
     expect(finding.level).toBe("ok");
     expect(finding.message).toContain("remote");
   });

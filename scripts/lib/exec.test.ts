@@ -11,7 +11,13 @@ describe("invocation", () => {
   });
 
   it("runs pnpm as one command line through the shell on Windows", () => {
-    expect(invocation("pnpm", ["--filter", "@shopblok/backend", "exec", "medusa", "db:migrate"], "win32")).toEqual({
+    expect(
+      invocation(
+        "pnpm",
+        ["--filter", "@shopblok/backend", "exec", "medusa", "db:migrate"],
+        "win32",
+      ),
+    ).toEqual({
       file: "pnpm --filter @shopblok/backend exec medusa db:migrate",
       args: [],
       shell: true,
@@ -48,7 +54,10 @@ describe("run", () => {
   const node = process.execPath;
 
   it("collects stdout and stderr together and reports the exit code", async () => {
-    const result = await run(node, ["-e", 'console.log("out"); console.error("err"); process.exit(3)']);
+    const result = await run(node, [
+      "-e",
+      'console.log("out"); console.error("err"); process.exit(3)',
+    ]);
     expect(result.code).toBe(3);
     expect(result.output).toContain("out");
     expect(result.output).toContain("err");
@@ -66,9 +75,13 @@ describe("run", () => {
 
   it("adds and removes environment variables for the command only", async () => {
     process.env.BOOTSTRAP_TEST_REMOVED = "still here";
-    const result = await run(node, ["-e", "console.log(process.env.A_ADDED, process.env.BOOTSTRAP_TEST_REMOVED)"], {
-      env: { A_ADDED: "yes", BOOTSTRAP_TEST_REMOVED: undefined },
-    });
+    const result = await run(
+      node,
+      ["-e", "console.log(process.env.A_ADDED, process.env.BOOTSTRAP_TEST_REMOVED)"],
+      {
+        env: { A_ADDED: "yes", BOOTSTRAP_TEST_REMOVED: undefined },
+      },
+    );
     expect(result.output.trim()).toBe("yes undefined");
     expect(process.env.BOOTSTRAP_TEST_REMOVED).toBe("still here");
     delete process.env.BOOTSTRAP_TEST_REMOVED;
@@ -76,7 +89,9 @@ describe("run", () => {
 
   it("runs in the given directory", async () => {
     const result = await run(node, ["-e", "console.log(process.cwd())"], { cwd: "/" });
-    expect(result.output.trim()).toBe(process.platform === "win32" ? process.cwd().slice(0, 3) : "/");
+    expect(result.output.trim()).toBe(
+      process.platform === "win32" ? process.cwd().slice(0, 3) : "/",
+    );
   });
 
   it("stops a command that runs too long", async () => {
@@ -107,7 +122,9 @@ describe("run", () => {
   });
 
   it("leaves a command alone when asked not to look for questions", async () => {
-    const result = await run(node, ["-e", 'console.log("Continue? (y/N)")'], { abortOnPrompt: false });
+    const result = await run(node, ["-e", 'console.log("Continue? (y/N)")'], {
+      abortOnPrompt: false,
+    });
     expect(result.prompt).toBeUndefined();
     expect(result.code).toBe(0);
   });

@@ -30,7 +30,10 @@ describe("mergeEnv", () => {
     const { text, changes } = mergeEnv(EXAMPLE, { JWT_SECRET: "aaa", COOKIE_SECRET: "bbb" });
 
     expect(text).toBe(
-      EXAMPLE.replace("JWT_SECRET=", "JWT_SECRET=aaa").replace("COOKIE_SECRET=", "COOKIE_SECRET=bbb"),
+      EXAMPLE.replace("JWT_SECRET=", "JWT_SECRET=aaa").replace(
+        "COOKIE_SECRET=",
+        "COOKIE_SECRET=bbb",
+      ),
     );
     expect(changes).toEqual([
       { key: "JWT_SECRET", action: "filled" },
@@ -40,7 +43,10 @@ describe("mergeEnv", () => {
 
   it("never overwrites a value that is there", () => {
     const existing = "JWT_SECRET=mine\nCOOKIE_SECRET='also mine'\n";
-    const { text, changes } = mergeEnv(existing, { JWT_SECRET: "generated", COOKIE_SECRET: "generated" });
+    const { text, changes } = mergeEnv(existing, {
+      JWT_SECRET: "generated",
+      COOKIE_SECRET: "generated",
+    });
 
     expect(text).toBe(existing);
     expect(changes).toEqual([
@@ -73,7 +79,7 @@ describe("mergeEnv", () => {
   });
 
   it("treats empty quotes and a value that is only a comment as blank", () => {
-    const { text } = mergeEnv('A=""\nB=   # keep this note\nC=\'\'\n', { A: "1", B: "2", C: "3" });
+    const { text } = mergeEnv("A=\"\"\nB=   # keep this note\nC=''\n", { A: "1", B: "2", C: "3" });
     expect(text).toBe("A=1\nB=   2 # keep this note\nC=3\n");
   });
 
@@ -105,12 +111,16 @@ describe("mergeEnv", () => {
 
   it("quotes a value that needs it", () => {
     expect(mergeEnv("", { A: "has space", B: "a#b", C: 'say "hi"' }).text).toBe(
-      "A=\"has space\"\nB=\"a#b\"\nC='say \"hi\"'\n",
+      'A="has space"\nB="a#b"\nC=\'say "hi"\'\n',
     );
   });
 
   it("rewrites nothing but the lines it changes", () => {
-    const { text } = mergeEnv(EXAMPLE, { REVALIDATE_SECRET: "r", PAYLOAD_API_KEY: "k", NEW_ONE: "n" });
+    const { text } = mergeEnv(EXAMPLE, {
+      REVALIDATE_SECRET: "r",
+      PAYLOAD_API_KEY: "k",
+      NEW_ONE: "n",
+    });
     const before = EXAMPLE.split("\n");
     const after = text.split("\n");
     const differing = after.filter((line, i) => line !== before[i]);
@@ -144,7 +154,9 @@ describe("reading", () => {
 
 describe("formatEnvValue and generators", () => {
   it("writes URLs and hex bare", () => {
-    expect(formatEnvValue("postgres://u:p@localhost:15432/db")).toBe("postgres://u:p@localhost:15432/db");
+    expect(formatEnvValue("postgres://u:p@localhost:15432/db")).toBe(
+      "postgres://u:p@localhost:15432/db",
+    );
     expect(formatEnvValue("")).toBe("");
   });
 

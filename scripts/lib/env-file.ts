@@ -101,7 +101,8 @@ export function mergeEnv(
 
     if (set !== undefined) {
       if (options.replace?.includes(key) && set.value !== value) {
-        lines[set.index] = `${set.prefix}${key}${set.operator}${formatEnvValue(value)}${set.comment}`;
+        lines[set.index] =
+          `${set.prefix}${key}${set.operator}${formatEnvValue(value)}${set.comment}`;
         changes.push({ key, action: "replaced" });
       } else {
         changes.push({ key, action: "kept" });
@@ -111,7 +112,8 @@ export function mergeEnv(
 
     const blank = assignments[0];
     if (blank !== undefined) {
-      lines[blank.index] = `${blank.prefix}${key}${blank.operator}${formatEnvValue(value)}${blank.comment}`;
+      lines[blank.index] =
+        `${blank.prefix}${key}${blank.operator}${formatEnvValue(value)}${blank.comment}`;
       changes.push({ key, action: "filled" });
       continue;
     }

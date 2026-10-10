@@ -54,7 +54,9 @@ describe("classifyMigrate", () => {
     expect(classifyMigrate(info("  ● Migrating Migration20240307161216")).changed).toBe(true);
     expect(classifyMigrate(info("Created following links tables")).changed).toBe(true);
     expect(classifyMigrate(info("Running migration script /x/a.js")).changed).toBe(true);
-    expect(classifyMigrate(info("Search indexes migrated. They are filled when the application starts"))).toEqual({
+    expect(
+      classifyMigrate(info("Search indexes migrated. They are filled when the application starts")),
+    ).toEqual({
       changed: true,
       searchIndexMigrated: true,
     });
@@ -100,11 +102,22 @@ describe("classifySeed", () => {
   });
 
   it("counts each way a seed writes", () => {
-    expect(classifySeed(info('Linked the stock location to "Default Sales Channel"')).changed).toBe(true);
-    expect(classifySeed(info('Filled the "product" search index from the database (it was pending).')).changed).toBe(true);
-    expect(classifySeed(info("Translations: created 54, updated 0, unchanged 0")).changed).toBe(true);
-    expect(classifySeed(info("Translations: created 0, updated 2, unchanged 52")).changed).toBe(true);
-    expect(classifySeed(info("Translations: created 0, updated 0, unchanged 54")).changed).toBe(false);
+    expect(classifySeed(info('Linked the stock location to "Default Sales Channel"')).changed).toBe(
+      true,
+    );
+    expect(
+      classifySeed(info('Filled the "product" search index from the database (it was pending).'))
+        .changed,
+    ).toBe(true);
+    expect(classifySeed(info("Translations: created 54, updated 0, unchanged 0")).changed).toBe(
+      true,
+    );
+    expect(classifySeed(info("Translations: created 0, updated 2, unchanged 52")).changed).toBe(
+      true,
+    );
+    expect(classifySeed(info("Translations: created 0, updated 0, unchanged 54")).changed).toBe(
+      false,
+    );
     expect(classifySeed(info("All 54 translations exist")).changed).toBe(false);
     expect(classifySeed(info("Indexed 8 demo products for search (ingest).")).changed).toBe(false);
   });
@@ -115,7 +128,10 @@ describe("classifySeed", () => {
   });
 
   it("knows the demo seed skipped itself", () => {
-    const out = [info("Demo catalog skipped (SEED_DEMO=false or the skip argument)."), info("Finished executing script.")].join("\n");
+    const out = [
+      info("Demo catalog skipped (SEED_DEMO=false or the skip argument)."),
+      info("Finished executing script."),
+    ].join("\n");
     expect(classifySeed(out)).toMatchObject({ finished: true, changed: false, skipped: true });
   });
 
@@ -125,7 +141,9 @@ describe("classifySeed", () => {
       warn("http.cookieSecret not found. Using default 'supersecret'."),
       warn('Region "Europe" differs from the seed (found as "EU"). Left as it is.'),
     ].join("\n");
-    expect(classifySeed(out).warnings).toEqual(['Region "Europe" differs from the seed (found as "EU"). Left as it is.']);
+    expect(classifySeed(out).warnings).toEqual([
+      'Region "Europe" differs from the seed (found as "EU"). Left as it is.',
+    ]);
   });
 });
 
@@ -133,7 +151,10 @@ describe("classifyUser", () => {
   it("separates a created user, an existing one and a failure", () => {
     expect(classifyUser(0, info("User created successfully."))).toBe("created");
     expect(
-      classifyUser(1, "  message: 'User with email: admin@example.com, already exists.',\n  type: 'invalid_data'"),
+      classifyUser(
+        1,
+        "  message: 'User with email: admin@example.com, already exists.',\n  type: 'invalid_data'",
+      ),
     ).toBe("exists");
     expect(classifyUser(1, "ECONNREFUSED 127.0.0.1:15432")).toBe("failed");
     expect(classifyUser(0, "nothing useful")).toBe("failed");
@@ -143,8 +164,10 @@ describe("classifyUser", () => {
 
 describe("classifyPayloadMigrate", () => {
   it("sees a run that migrated and one that did not", () => {
-    const first = "[00:09:21] INFO: Migrating: 20261009_115513_initial\n[00:09:21] INFO: Migrated:  20261009_115513_initial (158ms)\n[00:09:21] INFO: Done.";
-    const second = "[00:09:25] INFO: Reading migration files from /x/src/migrations\n[00:09:25] INFO: Done.";
+    const first =
+      "[00:09:21] INFO: Migrating: 20261009_115513_initial\n[00:09:21] INFO: Migrated:  20261009_115513_initial (158ms)\n[00:09:21] INFO: Done.";
+    const second =
+      "[00:09:25] INFO: Reading migration files from /x/src/migrations\n[00:09:25] INFO: Done.";
     expect(classifyPayloadMigrate(first).changed).toBe(true);
     expect(classifyPayloadMigrate(second).changed).toBe(false);
   });
@@ -155,7 +178,7 @@ describe("extractMarker", () => {
     const out = [
       "[00:09:21] INFO: start",
       '{"bootstrapPayload":{"admin":"created"}}',
-      "[00:09:22] INFO: log line that mentions {\"bootstrapPayload\": no",
+      '[00:09:22] INFO: log line that mentions {"bootstrapPayload": no',
       '{"bootstrapPayload":{"admin":"exists"}}',
     ].join("\n");
     expect(extractMarker<{ admin: string }>(out, "bootstrapPayload")).toEqual({ admin: "exists" });
