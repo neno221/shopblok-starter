@@ -1,5 +1,6 @@
 import type { CollectionConfig } from "payload";
 import { isStaff, staffOrPublished } from "../access/roles";
+import { revalidatePages } from "../hooks/revalidate-pages";
 
 /** A stub (D12): the fields M4's content model grows from, and drafts to test the read rule. */
 export const Pages: CollectionConfig = {
@@ -15,9 +16,12 @@ export const Pages: CollectionConfig = {
     update: isStaff,
     delete: isStaff,
   },
+  hooks: { afterChange: [revalidatePages] },
   versions: { drafts: true },
   fields: [
     { name: "title", type: "text", localized: true, required: true },
     { name: "slug", type: "text", localized: true, required: true },
+    // S1 prototype: an upload field, so the suite can pick an image from the media drawer.
+    { name: "heroImage", type: "upload", relationTo: "media" },
   ],
 };
