@@ -14,7 +14,9 @@
       // `PAYLOAD_SECRET` or a `MEDUSA_BACKEND_URL` from the shell would never reach `next dev`.
       // (`NEXT_PUBLIC_*` is listed by Turborepo's Next.js inference.) A `.env` file worked already:
       // Next loads it itself.
-      "passThroughEnv": ["PAYLOAD_*", "MEDUSA_BACKEND_URL"]
+      // `MEDUSA_DISABLE_TELEMETRY` is Medusa's opt-out: without it here, `medusa develop` queued
+      // telemetry events (CLI_START) even with the variable set in the shell (T15).
+      "passThroughEnv": ["PAYLOAD_*", "MEDUSA_BACKEND_URL", "MEDUSA_DISABLE_TELEMETRY"]
     },
     "transit": {
       "dependsOn": ["^transit"]
