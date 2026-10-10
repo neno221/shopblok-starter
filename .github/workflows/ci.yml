@@ -1,8 +1,10 @@
-# CI for M0 (plan T16). Three jobs:
+# CI for M0 (plan T16). Four jobs:
 #   check          the root checks, the same ones a contributor runs: no .env, no database.
 #   e2e-smoke      the compose stack, `pnpm bootstrap --ci`, a production build, both servers,
 #                  the three Playwright suites and `pnpm run doctor`.
+#   windows-gate   decides whether windows-smoke runs.
 #   windows-smoke  install and build on NTFS, weekly and when dependencies change.
+# Each job sets up pnpm and Node with .github/actions/setup.
 #
 # Every command here was run in the same order in the cloud VM before the first push (SETUP.md,
 # "CI (T16)"), with the timings given there.
@@ -56,19 +58,10 @@ jobs:
             informational: true
     steps:
       - uses: actions/checkout@v7
-      # Before setup-node: `cache: pnpm` runs pnpm. It reads `packageManager` (pnpm 12.10.1).
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v7
+      - uses: ./.github/actions/setup
         with:
           node-version: ${{ matrix.node-version }}
           node-version-file: ${{ matrix.node-version-file }}
-          cache: pnpm
-      # What the runner really has: Node's ICU/CLDR data decides how Intl writes prices, and it
-      # differs between Node 22 patch releases (the first run of this workflow found that).
-      - name: Versions
-        run: |
-          node -p "process.version + ' (ICU ' + process.versions.icu + ', CLDR ' + process.versions.cldr + ')'"
-          pnpm --version
       - run: pnpm install --frozen-lockfile
       - run: pnpm check:workspace
       - run: pnpm typecheck
@@ -77,28 +70,19 @@ jobs:
       - run: pnpm test
       - run: pnpm build
       # Not blocking in M0: it reports what the registry knows today, and a new advisory must not
-      # fail a PR that touched nothing. Run once, on the required leg.
+      # fail a PR that touched nothing. Run once, on the required leg. The warning is what shows on
+      # the run's page; `continue-on-error` would record the step as a success and say nothing.
       - name: Audit production dependencies (not blocking in M0)
         if: ${{ !matrix.informational }}
-        continue-on-error: true
-        run: pnpm audit --prod --audit-level=high
+        run: |
+          pnpm audit --prod --audit-level=high || echo "::warning title=pnpm audit::High-severity advisories, or the audit could not run. Not blocking in M0; the log of this step has the list."
 
   e2e-smoke:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v7
-        with:
-          node-version-file: .nvmrc
-          cache: pnpm
-      # What the runner really has: Node's ICU/CLDR data decides how Intl writes prices, and it
-      # differs between Node 22 patch releases (the first run of this workflow found that).
-      - name: Versions
-        run: |
-          node -p "process.version + ' (ICU ' + process.versions.icu + ', CLDR ' + process.versions.cldr + ')'"
-          pnpm --version
+      - uses: ./.github/actions/setup
       - run: pnpm install --frozen-lockfile
       # `docker compose up --wait`, not `services:`: service containers start before checkout, so
       # the init SQL under infra/ could not be mounted into them.
@@ -118,16 +102,21 @@ jobs:
         run: |
           mkdir -p "$RUNNER_TEMP/servers"
           nohup pnpm --filter @shopblok/backend dev > "$RUNNER_TEMP/servers/medusa.log" 2>&1 &
+          medusa=$!
           nohup pnpm --filter @shopblok/storefront start > "$RUNNER_TEMP/servers/storefront.log" 2>&1 &
+          storefront=$!
           for _ in $(seq 120); do
             if curl -fs -o /dev/null http://localhost:9000/health && curl -fs -o /dev/null http://localhost:8000/; then
               echo "Medusa and the storefront answer."
               exit 0
             fi
+            # A server that has exited will not answer: fail now, not after the 120 s.
+            for pid in "$medusa" "$storefront"; do
+              kill -0 "$pid" 2>/dev/null || { echo "::error::A server exited before both answered (process $pid); the diagnostics step has its log."; exit 1; }
+            done
             sleep 1
           done
           echo "::error::Medusa (:9000/health) and the storefront (:8000/) did not both answer within 120 s."
-          tail -n 40 "$RUNNER_TEMP"/servers/*.log
           exit 1
       # markets (T11), wiring (T12) and payload-admin run against the storefront that is up.
       # `--reporter` adds the HTML report that is uploaded below; the config stays as it is.
@@ -136,8 +125,8 @@ jobs:
         env:
           PLAYWRIGHT_HTML_OPEN: never
       # Every third-party integration is on its fallback, because CI sets none of their keys.
-      # (Redis is live, since bootstrap sets REDIS_URL, and Meilisearch is local until M6: neither
-      # is "third-party".) `ok` is doctor's own verdict, with both servers answering.
+      # (Redis is live, since bootstrap sets REDIS_URL, and Meilisearch, whose state is `fallback`
+      # until M6, is `kind: local`: neither is "third-party".) `ok` is doctor's own verdict, with both servers answering.
       - name: Doctor, as JSON
         run: |
           pnpm --silent run doctor --json > "$RUNNER_TEMP/doctor.json"
@@ -154,9 +143,13 @@ jobs:
           ' "$RUNNER_TEMP/doctor.json"
       - name: Doctor, online (Payload accepts the key, Medusa matches the map, the index has the currencies)
         run: pnpm run doctor --online
-      - name: Server logs (on failure)
+      # Postgres, Redis and Meilisearch are the usual cause when Medusa will not start.
+      - name: Diagnostics (on failure)
         if: failure()
-        run: tail -n 80 "$RUNNER_TEMP"/servers/*.log
+        run: |
+          tail -n 80 "$RUNNER_TEMP"/servers/*.log || true
+          docker compose ps --all
+          docker compose logs --no-color --tail 40
       - name: Upload the Playwright report
         if: always()
         uses: actions/upload-artifact@v7
@@ -219,17 +212,7 @@ jobs:
         shell: bash
     steps:
       - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v7
-        with:
-          node-version-file: .nvmrc
-          cache: pnpm
-      # What the runner really has: Node's ICU/CLDR data decides how Intl writes prices, and it
-      # differs between Node 22 patch releases (the first run of this workflow found that).
-      - name: Versions
-        run: |
-          node -p "process.version + ' (ICU ' + process.versions.icu + ', CLDR ' + process.versions.cldr + ')'"
-          pnpm --version
+      - uses: ./.github/actions/setup
       - run: pnpm install --frozen-lockfile
       - run: pnpm check:workspace
       - run: pnpm typecheck

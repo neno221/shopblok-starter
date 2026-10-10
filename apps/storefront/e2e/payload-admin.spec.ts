@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
+import { parseEnv } from "node:util";
 import { expect, test, type Page } from "@playwright/test";
 
 // T16: Payload's admin inside the storefront, end to end: the admin that `pnpm bootstrap` made
@@ -42,12 +43,10 @@ function adminCredentials(): Credentials {
       `No admin to log in with: ${file} does not exist. Run pnpm bootstrap, or set E2E_ADMIN_EMAIL and E2E_ADMIN_PASSWORD.`,
     );
   }
-  const read = (name: string) =>
-    new RegExp(`^${name}=(.*)$`, "m")
-      .exec(text)?.[1]
-      ?.trim()
-      .replace(/^(["'])(.*)\1$/, "$2");
-  const fromFile = { email: read("DEV_ADMIN_EMAIL"), password: read("DEV_ADMIN_PASSWORD") };
+  // `parseEnv` reads the file the way dotenv does (the last assignment wins, `export `, quotes and
+  // an unquoted ` # comment`), as bootstrap's own reader and the servers do.
+  const env = parseEnv(text);
+  const fromFile = { email: env["DEV_ADMIN_EMAIL"], password: env["DEV_ADMIN_PASSWORD"] };
   if (!fromFile.email || !fromFile.password) {
     throw new Error(
       `DEV_ADMIN_EMAIL or DEV_ADMIN_PASSWORD is not set in ${file}. Run pnpm bootstrap.`,
@@ -65,15 +64,18 @@ const field = (page: Page, name: "title" | "slug") => page.locator(`input[name="
 type PageDoc = { id?: number; title?: string | null; slug?: string | null; _status?: string };
 
 /** A `pages` document in one language, read as the signed-in admin. `fetch` inside the page, because
- * `page.request` does not send the `Secure` cookie to http://localhost (SETUP.md, T11). */
-function readAs(page: Page, id: number, query: string): Promise<{ status: number; doc: PageDoc }> {
-  return page.evaluate(
+ * `page.request` does not send the `Secure` cookie to http://localhost (SETUP.md, T11). An error
+ * response fails here, so a field that is `undefined` in a test means the document lacks it. */
+async function readAs(page: Page, id: number, query: string): Promise<PageDoc> {
+  const { status, doc } = await page.evaluate(
     async ({ id, query }) => {
       const response = await fetch(`/api/pages/${id}?${query}`);
       return { status: response.status, doc: (await response.json()) as PageDoc };
     },
     { id, query },
   );
+  expect(status, `GET /api/pages/${id}?${query}`).toBe(200);
+  return doc;
 }
 
 test.describe("the admin bootstrap made", () => {
@@ -88,15 +90,18 @@ test.describe("the admin bootstrap made", () => {
   });
 
   test.afterAll(async () => {
-    if (pageId !== undefined) {
-      // Not a test: leave the database as found, whatever failed above.
-      await page
-        .evaluate(
-          (id) => fetch(`/api/pages/${id}`, { method: "DELETE" }).then((r) => r.status),
-          pageId,
-        )
-        .catch(() => undefined);
-    }
+    if (!page) return;
+    // Not a test: leave the database as found, whatever failed above. By slug and not by `pageId`,
+    // which is unknown when the draft was saved and the redirect to it then failed.
+    await page
+      .evaluate(
+        (slug) =>
+          fetch(`/api/pages?where[slug][equals]=${slug}&locale=en`, { method: "DELETE" }).then(
+            (r) => r.status,
+          ),
+        english.slug,
+      )
+      .catch(() => undefined);
     // A `?locale=` in the URL is also what Payload stores as the admin's language.
     await page.goto("/admin/collections/pages?locale=en").catch(() => undefined);
     await page.close();
@@ -141,7 +146,7 @@ test.describe("the admin bootstrap made", () => {
     expect(pageId).toBeGreaterThan(0);
 
     const asAdmin = await readAs(page, pageId, "draft=true&locale=en&fallback-locale=none");
-    expect(asAdmin.doc).toMatchObject({
+    expect(asAdmin).toMatchObject({
       title: english.title,
       slug: english.slug,
       _status: "draft",
@@ -175,13 +180,13 @@ test.describe("the admin bootstrap made", () => {
     const en = await readAs(page, id, "locale=en&fallback-locale=none");
     const el = await readAs(page, id, "locale=el&fallback-locale=none");
     const de = await readAs(page, id, "locale=de&fallback-locale=none");
-    expect(en.doc).toMatchObject({
+    expect(en).toMatchObject({
       title: english.title,
       slug: english.slug,
       _status: "published",
     });
-    expect(el.doc).toMatchObject({ title: greek.title, slug: greek.slug });
-    expect(de.doc.title ?? null, "German was never written").toBeNull();
+    expect(el).toMatchObject({ title: greek.title, slug: greek.slug });
+    expect(de.title ?? null, "German was never written").toBeNull();
 
     // The config's `fallback: true`: a language with no text shows the English one.
     const fallback = await request.get(`/api/pages/${id}?locale=de`);
@@ -195,6 +200,5 @@ test.describe("the admin bootstrap made", () => {
       id,
     );
     expect(status).toBe(200);
-    pageId = undefined;
   });
 });

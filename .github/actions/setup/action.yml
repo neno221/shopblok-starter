@@ -1,0 +1,28 @@
+# What every job does after `actions/checkout`: pnpm, Node with the pnpm store cached, and one line
+# that says what the runner really has. A composite action rather than a copy in each job.
+name: Set up pnpm and Node
+description: pnpm from `packageManager`, Node from a version or a version file, the pnpm store cached.
+inputs:
+  node-version:
+    description: A Node version. Leave empty to read the version file.
+    default: ""
+  node-version-file:
+    description: The file that names the Node version. Leave empty when node-version is set.
+    default: .nvmrc
+runs:
+  using: composite
+  steps:
+    # Before setup-node: `cache: pnpm` runs pnpm. It reads `packageManager` (pnpm 12.10.1).
+    - uses: pnpm/action-setup@v6
+    - uses: actions/setup-node@v7
+      with:
+        node-version: ${{ inputs.node-version }}
+        node-version-file: ${{ inputs.node-version-file }}
+        cache: pnpm
+    # Node's ICU/CLDR data decides how Intl writes prices, and it differs between Node 22 patch
+    # releases (the first run of this workflow found that).
+    - name: Versions
+      shell: bash
+      run: |
+        node -p "process.version + ' (ICU ' + process.versions.icu + ', CLDR ' + process.versions.cldr + ')'"
+        pnpm --version

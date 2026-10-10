@@ -46,6 +46,12 @@
       "enabled": false
     },
     {
+      "description": "engines.pnpm is below 13 and pnpm/action-setup@v6 supports pnpm 12 and earlier: a pnpm major is a change of its own, made by hand together with both.",
+      "matchPackageNames": ["pnpm"],
+      "matchUpdateTypes": ["major"],
+      "enabled": false
+    },
+    {
       "description": "Node's line is chosen in .nvmrc and engines (a major is a decision of its own, Medusa and Payload both state which they support).",
       "matchPackageNames": ["node"],
       "matchUpdateTypes": ["major"],
