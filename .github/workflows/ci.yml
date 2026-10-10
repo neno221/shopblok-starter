@@ -120,7 +120,7 @@ jobs:
           nohup pnpm --filter @shopblok/backend dev > "$RUNNER_TEMP/servers/medusa.log" 2>&1 &
           nohup pnpm --filter @shopblok/storefront start > "$RUNNER_TEMP/servers/storefront.log" 2>&1 &
           for _ in $(seq 120); do
-            if curl -fsS -o /dev/null http://localhost:9000/health && curl -fsS -o /dev/null http://localhost:8000/; then
+            if curl -fs -o /dev/null http://localhost:9000/health && curl -fs -o /dev/null http://localhost:8000/; then
               echo "Medusa and the storefront answer."
               exit 0
             fi
