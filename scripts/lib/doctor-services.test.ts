@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { START_STACK, targetsFrom, type Finding, type Target } from "./checks.ts";
+import { judge, targetsFrom, type Finding, type Observation, type Target } from "./checks.ts";
 import {
   checkIdOf,
   isRequired,
@@ -28,16 +28,25 @@ const meilisearchLive: AppEnvs = {
 };
 const statuses = getIntegrationStatus(noKeys);
 
-const finding = (
-  target: Target,
-  level: Finding["level"],
-  extra: Partial<Finding> = {},
-): Finding => ({
-  target,
-  level,
-  message: `${target.label} at localhost:${target.port} is this project's ${target.service} container`,
-  ...extra,
-});
+/** What `judge` says about a service: this project's container, unless `over` says otherwise. */
+const finding = (target: Target, over: Partial<Observation> = {}): Finding =>
+  judge({
+    target,
+    reachable: true,
+    speaksProtocol: true,
+    compose: { status: "published", ports: [target.port] },
+    ...over,
+  });
+const down = { reachable: false };
+const noDocker: Partial<Observation> = {
+  compose: { status: "docker-unavailable", reason: "Cannot connect to the Docker daemon" },
+};
+
+// The compose stack's two databases on different servers, as `targetsFrom` makes them.
+const [medusaDb, payloadDb] = targetsFrom({
+  DATABASE_URL: "postgres://u:p@localhost:15432/medusa",
+  PAYLOAD_DATABASE_URL: "postgres://u:p@localhost:5433/payload",
+}).filter((t) => t.kind === "postgres") as [Target, Target];
 
 describe("isRequired", () => {
   it("makes Postgres and Redis required, and Mailpit not", () => {
@@ -55,16 +64,6 @@ describe("isRequired", () => {
 });
 
 describe("checkIdOf", () => {
-  const medusaDb = {
-    ...targetOf("postgres"),
-    label: "Postgres (medusa database)",
-  };
-  const payloadDb = {
-    ...targetOf("postgres"),
-    label: "Postgres (payload database)",
-    port: 5433,
-  };
-
   it("is the kind of the service", () => {
     expect(checkIdOf(targetOf("redis"), targets)).toBe("redis");
     expect(checkIdOf(targetOf("mailpit-ui"), targets)).toBe("mailpit-ui");
@@ -81,24 +80,14 @@ describe("payloadDatabaseFailed", () => {
   const postgres = targetOf("postgres");
 
   it("is true when the Postgres that holds the payload database failed", () => {
-    expect(payloadDatabaseFailed([finding(postgres, "error")], targets)).toBe(true);
-    expect(payloadDatabaseFailed([finding(postgres, "ok")], targets)).toBe(false);
+    expect(payloadDatabaseFailed([finding(postgres, down)], targets)).toBe(true);
+    expect(payloadDatabaseFailed([finding(postgres)], targets)).toBe(false);
   });
 
   it("looks at the payload database's own server when there are two", () => {
-    const medusaDb = { ...postgres, label: "Postgres (medusa database)" };
-    const payloadDb = {
-      ...postgres,
-      label: "Postgres (payload database)",
-      port: 5433,
-    };
     const two = [medusaDb, payloadDb];
-    expect(payloadDatabaseFailed([finding(medusaDb, "error"), finding(payloadDb, "ok")], two)).toBe(
-      false,
-    );
-    expect(payloadDatabaseFailed([finding(medusaDb, "ok"), finding(payloadDb, "error")], two)).toBe(
-      true,
-    );
+    expect(payloadDatabaseFailed([finding(medusaDb, down), finding(payloadDb)], two)).toBe(false);
+    expect(payloadDatabaseFailed([finding(medusaDb), finding(payloadDb, down)], two)).toBe(true);
   });
 
   it("is false when there is no payload database target to fail", () => {
@@ -107,30 +96,19 @@ describe("payloadDatabaseFailed", () => {
 });
 
 describe("serviceChecks", () => {
-  it("keeps an error for a required service", () => {
-    const [check] = serviceChecks(
-      [
-        finding(targetOf("redis"), "error", {
-          message: "Redis is not reachable at localhost:6380.",
-        }),
-      ],
-      targets,
-      statuses,
-    );
-    expect(check).toMatchObject({
-      id: "redis",
-      title: "Redis",
-      level: "error",
-      message: "Redis is not reachable at localhost:6380.",
-    });
+  it("keeps an error for a required service, with how to start the stack", () => {
+    const [check] = serviceChecks([finding(targetOf("redis"), down)], targets, statuses);
+    expect(check).toMatchObject({ id: "redis", title: "Redis", level: "error" });
+    expect(check?.message).toContain("Redis is not reachable at localhost:6380");
+    expect(check?.message).toContain("pnpm infra:up");
   });
 
   it("turns an error for a service that is not needed yet into a warning", () => {
     const checks = serviceChecks(
       [
-        finding(targetOf("meilisearch"), "error"),
-        finding(targetOf("mailpit-smtp"), "error"),
-        finding(targetOf("postgres"), "error"),
+        finding(targetOf("meilisearch"), down),
+        finding(targetOf("mailpit-smtp"), down),
+        finding(targetOf("postgres"), down),
       ],
       targets,
       statuses,
@@ -143,7 +121,7 @@ describe("serviceChecks", () => {
   });
 
   it("an ok finding drops the label from the sentence the table already has", () => {
-    const [check] = serviceChecks([finding(targetOf("redis"), "ok")], targets, statuses);
+    const [check] = serviceChecks([finding(targetOf("redis"))], targets, statuses);
     expect(check).toMatchObject({
       level: "ok",
       message: "localhost:6380 is this project's redis container",
@@ -151,12 +129,8 @@ describe("serviceChecks", () => {
   });
 
   it("one Docker warning instead of one per service, and the services themselves ok", () => {
-    const unchecked = (target: Target) =>
-      finding(target, "warn", {
-        dockerReason: "Cannot connect to the Docker daemon",
-      });
     const checks = serviceChecks(
-      [unchecked(targetOf("postgres")), unchecked(targetOf("redis"))],
+      [finding(targetOf("postgres"), noDocker), finding(targetOf("redis"), noDocker)],
       targets,
       statuses,
     );
@@ -171,21 +145,8 @@ describe("serviceChecks", () => {
   });
 
   it("carries no Docker warning when Docker was fine", () => {
-    const checks = serviceChecks([finding(targetOf("redis"), "ok")], targets, statuses);
+    const checks = serviceChecks([finding(targetOf("redis"))], targets, statuses);
     expect(checks.some((c) => c.id === "docker")).toBe(false);
-  });
-
-  it("says how to start the stack when a required service is down", () => {
-    const [check] = serviceChecks(
-      [
-        finding(targetOf("postgres"), "error", {
-          message: `not reachable. ${START_STACK}`,
-        }),
-      ],
-      targets,
-      statuses,
-    );
-    expect(check?.message).toContain("pnpm infra:up");
   });
 });
 

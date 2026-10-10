@@ -9,7 +9,7 @@ import {
   type Finding,
   type Target,
 } from "./checks.ts";
-import type { HttpResult } from "./http.ts";
+import { describeUnreachable, type HttpResult } from "./http.ts";
 import type { IntegrationStatus } from "./integrations.ts";
 import type { Check } from "./report.ts";
 
@@ -24,16 +24,12 @@ export function isRequired(target: Target, statuses: readonly IntegrationStatus[
 
 /** A check id that stays the same between runs: `postgres`, or `postgres-payload` when there are two. */
 export function checkIdOf(target: Target, all: readonly Target[]): string {
-  if (target.kind === "postgres") {
-    return all.filter((t) => t.kind === "postgres").length > 1
-      ? `postgres-${isPayloadDatabase(target) ? "payload" : "medusa"}`
-      : "postgres";
-  }
-  return target.kind;
+  if (target.kind !== "postgres") return target.kind;
+  const two = all.filter((t) => t.kind === "postgres").length > 1;
+  return two && target.databases?.[0] !== undefined
+    ? `postgres-${target.databases[0]}`
+    : "postgres";
 }
-
-const isPayloadDatabase = (target: Target): boolean =>
-  target.kind === "postgres" && target.label.includes("payload");
 
 /**
  * Whether the Postgres check for the payload database failed, so that Payload (which would connect to
@@ -43,7 +39,7 @@ export function payloadDatabaseFailed(
   findings: readonly Finding[],
   targets: readonly Target[],
 ): boolean {
-  const target = targets.find(isPayloadDatabase);
+  const target = targets.find((t) => t.databases?.includes("payload"));
   return findings.find((finding) => finding.target === target)?.level === "error";
 }
 
@@ -119,7 +115,7 @@ export function serverCheck(
     message:
       result.kind === "refused"
         ? `nothing is listening at ${url}.`
-        : `${url} does not answer (${result.reason}).`,
+        : `${url} ${describeUnreachable(result)}.`,
     // "Start it with pnpm dev" is for a server on this machine.
     fix: local ? starts : `Check that ${url} is the right address and that the server is up.`,
   };

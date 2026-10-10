@@ -77,6 +77,8 @@ export type Target = {
   containerPort: number;
   host: string;
   port: number;
+  /** For Postgres: which of the apps' databases this server holds (one server holds both in compose). */
+  databases?: ("medusa" | "payload")[];
   /** `rediss://`: the server speaks TLS, so a probe has to as well. */
   tls?: boolean;
   /** Why the check is needed or what to do when it fails, in a few words. */
@@ -150,34 +152,31 @@ export const COMPOSE_DEFAULTS = {
  * `REDIS_URL` means the backend runs on its in-memory modules (T06), so there is no Redis to check.
  */
 export function targetsFrom(env: ConfiguredEnv): Target[] {
-  const postgres = {
+  const database = (name: "medusa" | "payload"): Omit<Target, "host" | "port"> => ({
     kind: "postgres",
     service: "postgres",
     containerPort: 5432,
-  } as const;
+    label: `Postgres (${name} database)`,
+    databases: [name],
+  });
+  const onCompose = { host: "localhost", port: COMPOSE_DEFAULTS.postgresPort };
   const list: Target[] = [];
 
-  const medusaDb = urlTarget(env.DATABASE_URL, 5432, {
-    ...postgres,
-    label: "Postgres (medusa database)",
-  }) ?? {
-    ...postgres,
-    label: "Postgres (medusa database)",
-    host: "localhost",
-    port: COMPOSE_DEFAULTS.postgresPort,
+  const medusaDb = urlTarget(env.DATABASE_URL, 5432, database("medusa")) ?? {
+    ...database("medusa"),
+    ...onCompose,
   };
-  const payloadDb = urlTarget(env.PAYLOAD_DATABASE_URL, 5432, {
-    ...postgres,
-    label: "Postgres (payload database)",
-  }) ?? {
-    ...postgres,
-    label: "Postgres (payload database)",
-    host: "localhost",
-    port: COMPOSE_DEFAULTS.postgresPort,
+  const payloadDb = urlTarget(env.PAYLOAD_DATABASE_URL, 5432, database("payload")) ?? {
+    ...database("payload"),
+    ...onCompose,
   };
   // One server holds both databases in the compose stack: check it once, not twice.
   if (medusaDb.host === payloadDb.host && medusaDb.port === payloadDb.port) {
-    list.push({ ...medusaDb, label: "Postgres (medusa and payload databases)" });
+    list.push({
+      ...medusaDb,
+      label: "Postgres (medusa and payload databases)",
+      databases: ["medusa", "payload"],
+    });
   } else {
     list.push(medusaDb, payloadDb);
   }
@@ -336,7 +335,7 @@ export function answers(target: Target, timeoutMs = 2000): Promise<boolean> {
     case "postgres":
       return postgresAnswers(target.host, target.port, timeoutMs);
     case "redis":
-      return redisAnswers(target.host, target.port, timeoutMs, target.tls === true);
+      return redisAnswers(target.host, target.port, timeoutMs, target.tls);
     case "meilisearch":
       return meilisearchAnswers(target.host, target.port, timeoutMs);
     default:
@@ -367,7 +366,7 @@ export function parseComposePorts(output: string): number[] {
 /** Whether Docker answers: `docker info` is the cheapest call that needs the daemon. */
 export type DockerState = { ok: true } | { ok: false; reason: string };
 
-export async function observeDocker(cwd: string): Promise<DockerState> {
+async function observeDocker(cwd: string): Promise<DockerState> {
   const info = await run("docker", ["info", "--format", "{{.ServerVersion}}"], {
     cwd,
     timeoutMs: 20_000,
@@ -379,14 +378,11 @@ export async function observeDocker(cwd: string): Promise<DockerState> {
   };
 }
 
-/** `docker` says how Docker is asked about it, so that a caller looking at several services asks once. */
-export async function observeCompose(
+/** The host ports the compose stack publishes for a service's container port. Docker must be up. */
+async function observeCompose(
   target: Pick<Target, "service" | "containerPort">,
   cwd: string,
-  docker: () => Promise<DockerState> = () => observeDocker(cwd),
 ): Promise<ComposeObservation> {
-  const state = await docker();
-  if (!state.ok) return { status: "docker-unavailable", reason: state.reason };
   const result = await run(
     "docker",
     ["compose", "port", target.service, String(target.containerPort)],
@@ -504,16 +500,17 @@ export function dockerUnavailableWarning(findings: readonly Finding[]): string |
 export type Probes = {
   canConnect: (host: string, port: number) => Promise<boolean>;
   answers: (target: Target) => Promise<boolean>;
+  observeDocker: (cwd: string) => Promise<DockerState>;
   observeCompose: (
     target: Pick<Target, "service" | "containerPort">,
     cwd: string,
-    docker: () => Promise<DockerState>,
   ) => Promise<ComposeObservation>;
 };
 
 const REAL_PROBES: Probes = {
   canConnect: (host, port) => canConnect(host, port),
   answers: (target) => answers(target),
+  observeDocker,
   observeCompose,
 };
 
@@ -528,15 +525,20 @@ export async function inspectTargets(
   cwd: string,
   probes: Probes = REAL_PROBES,
 ): Promise<Finding[]> {
-  const asked = new Map<string, Promise<ComposeObservation>>();
   // `docker info` once for all the services, and only if one of them is local and answering.
   let docker: Promise<DockerState> | undefined;
-  const dockerState = () => (docker ??= observeDocker(cwd));
+  const observe = async (target: Target): Promise<ComposeObservation> => {
+    const state = await (docker ??= probes.observeDocker(cwd));
+    return state.ok
+      ? probes.observeCompose(target, cwd)
+      : { status: "docker-unavailable", reason: state.reason };
+  };
+  const asked = new Map<string, Promise<ComposeObservation>>();
   const compose = (target: Target) => {
     const key = `${target.service}:${target.containerPort}`;
     let observation = asked.get(key);
     if (!observation) {
-      observation = probes.observeCompose(target, cwd, dockerState);
+      observation = observe(target);
       asked.set(key, observation);
     }
     return observation;

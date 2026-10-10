@@ -4,10 +4,9 @@ import {
   classifySearchField,
   compareWithMedusa,
   configChecks,
-  describeUnreachable,
   explainPayloadFailure,
   explainPayloadRun,
-  medusaMarketsChecks,
+  medusaMarketsCheck,
   orphanRegions,
   orphanRegionsCheck,
   payloadAuthCheck,
@@ -203,21 +202,16 @@ describe("configChecks: secrets", () => {
 
   // The backend takes a blank secret only for NODE_ENV "", development and test
   // (`DEFAULT_SECRET_ENVS`, apps/backend/src/config/config.ts); anything else refuses to start.
+  const secretsFor = (nodeEnv: string) =>
+    find(run({ backend: {}, storefront: {} }, { nodeEnv, vercel: false }), "secrets");
+
   it.each(["staging", "preview", "Production"])("blank with NODE_ENV=%s is an error too", (env) => {
-    const check = find(
-      run({ backend: {}, storefront: {} }, { nodeEnv: env, vercel: false }),
-      "secrets",
-    );
-    expect(check?.level).toBe("error");
-    expect(check?.message).toContain(`NODE_ENV is ${env}`);
+    expect(secretsFor(env)?.level).toBe("error");
+    expect(secretsFor(env)?.message).toContain(`NODE_ENV is ${env}`);
   });
 
   it.each(["development", "test"])("blank with NODE_ENV=%s is only a warning", (env) => {
-    const check = find(
-      run({ backend: {}, storefront: {} }, { nodeEnv: env, vercel: false }),
-      "secrets",
-    );
-    expect(check?.level).toBe("warn");
+    expect(secretsFor(env)?.level).toBe("warn");
   });
 });
 
@@ -550,13 +544,6 @@ const timedOut: HttpResult = {
   reason: "no answer within 15 s",
 };
 
-describe("describeUnreachable", () => {
-  it("tells a stopped server from one that does not answer", () => {
-    expect(describeUnreachable(refused)).toBe("is not running");
-    expect(describeUnreachable(timedOut)).toBe("does not answer (no answer within 15 s)");
-  });
-});
-
 describe("payloadAuthCheck", () => {
   const url = "http://localhost:8000";
 
@@ -601,7 +588,7 @@ describe("payloadAuthCheck", () => {
   });
 });
 
-describe("medusaMarketsChecks", () => {
+describe("medusaMarketsCheck", () => {
   const url = "http://localhost:9000";
   const map = {
     countries: [
@@ -622,42 +609,39 @@ describe("medusaMarketsChecks", () => {
   const locales = json({ locales: [{ code: "el-GR" }, { code: "pt-BR" }] });
 
   it("warns that nothing was asked when the storefront has no publishable key", () => {
-    const { checks, regions: live } = medusaMarketsChecks(url, undefined, map);
-    expect(checks).toHaveLength(1);
-    expect(checks[0]).toMatchObject({ id: "medusa-markets", level: "warn" });
+    const { check, regions: live } = medusaMarketsCheck(url, undefined, map);
+    expect(check).toMatchObject({ id: "medusa-markets", level: "warn" });
     expect(live).toBeUndefined();
   });
 
   it("warns, and goes no further, when Medusa does not answer", () => {
-    const { checks, regions: live } = medusaMarketsChecks(url, { regions: refused, locales }, map);
-    expect(checks[0]?.message).toBe("not checked: Medusa at http://localhost:9000 is not running.");
+    const { check, regions: live } = medusaMarketsCheck(url, { regions: refused, locales }, map);
+    expect(check.message).toBe("not checked: Medusa at http://localhost:9000 is not running.");
     expect(live).toBeUndefined();
   });
 
   it("is an error when Medusa refuses the key", () => {
     const refusedKey = json({ message: "x" }, 400);
-    const { checks } = medusaMarketsChecks(url, { regions: refusedKey, locales }, map);
-    expect(checks[0]).toMatchObject({ level: "error" });
-    expect(checks[0]?.message).toContain("Medusa refused the publishable key");
+    const { check } = medusaMarketsCheck(url, { regions: refusedKey, locales }, map);
+    expect(check.level).toBe("error");
+    expect(check.message).toContain("Medusa refused the publishable key");
   });
 
   it("is ok when every open country has a region and every language a locale", () => {
-    const { checks, regions: live } = medusaMarketsChecks(url, { regions, locales }, map);
-    expect(checks).toEqual([
-      {
-        id: "medusa-markets",
-        title: "Medusa matches the storefront's map",
-        level: "ok",
-        message: "2 regions and 2 locales cover every open country and language.",
-      },
-    ]);
+    const { check, regions: live } = medusaMarketsCheck(url, { regions, locales }, map);
+    expect(check).toEqual({
+      id: "medusa-markets",
+      title: "Medusa matches the storefront's map",
+      level: "ok",
+      message: "2 regions and 2 locales cover every open country and language.",
+    });
     expect(live).toHaveLength(2);
   });
 
   it("lists what Medusa lacks", () => {
-    const { checks } = medusaMarketsChecks(url, { regions, locales: json({ locales: [] }) }, map);
-    expect(checks[0]?.level).toBe("warn");
-    expect(checks[0]?.details).toEqual([
+    const { check } = medusaMarketsCheck(url, { regions, locales: json({ locales: [] }) }, map);
+    expect(check.level).toBe("warn");
+    expect(check.details).toEqual([
       'Medusa\'s store has no locale "el-GR" (language "el")',
       'Medusa\'s store has no locale "pt-BR" (language "pt")',
     ]);
@@ -669,40 +653,32 @@ describe("medusaMarketsChecks", () => {
     ["a timeout", timedOut, "Medusa does not answer (no answer within 15 s)"],
     ["a refusal", refused, "Medusa is not running"],
   ])("still reports, with the reason, when /store/locales fails with %s", (_name, bad, reason) => {
-    const { checks } = medusaMarketsChecks(url, { regions, locales: bad }, map);
-    expect(checks).toHaveLength(1);
-    expect(checks[0]).toMatchObject({ id: "medusa-markets", level: "warn" });
-    expect(checks[0]?.details?.join("\n")).toContain(reason);
+    const { check } = medusaMarketsCheck(url, { regions, locales: bad }, map);
+    expect(check).toMatchObject({ id: "medusa-markets", level: "warn" });
+    expect(check.details?.join("\n")).toContain(reason);
   });
 
   it("still compares the regions when the locales cannot be read", () => {
     const onlyEurope = json({
       regions: [{ name: "Europe", currency_code: "eur", countries: [{ iso_2: "cy" }] }],
     });
-    const { checks } = medusaMarketsChecks(url, { regions: onlyEurope, locales: timedOut }, map);
-    expect(checks[0]?.message).toContain("does not have what the storefront's map expects");
-    expect(checks[0]?.details).toContain('Medusa has no region for the open country "br"');
+    const { check } = medusaMarketsCheck(url, { regions: onlyEurope, locales: timedOut }, map);
+    expect(check.message).toContain("does not have what the storefront's map expects");
+    expect(check.details).toContain('Medusa has no region for the open country "br"');
   });
 
   it("says so when there is no map to compare with, and still hands back the regions", () => {
-    const { checks, regions: live } = medusaMarketsChecks(url, { regions, locales }, undefined);
-    expect(checks[0]).toMatchObject({ id: "medusa-markets", level: "warn" });
-    expect(checks[0]?.message).toContain("no market map could be read");
+    const { check, regions: live } = medusaMarketsCheck(url, { regions, locales }, undefined);
+    expect(check).toMatchObject({ id: "medusa-markets", level: "warn" });
+    expect(check.message).toContain("no market map could be read");
     expect(live).toHaveLength(2);
   });
 });
 
 describe("orphanRegionsCheck and searchCurrencies", () => {
-  const europe: LiveRegion = {
-    name: "Europe",
-    currency: "eur",
-    countries: ["cy"],
-  };
-  const brazil: LiveRegion = {
-    name: "Brazil",
-    currency: "brl",
-    countries: ["br"],
-  };
+  const europe: LiveRegion = { name: "Europe", currency: "eur", countries: ["cy"] };
+  const brazil: LiveRegion = { name: "Brazil", currency: "brl", countries: ["br"] };
+  const germany: LiveRegion = { name: "Germany", currency: "eur", countries: ["de"] };
 
   it("is silent with no leftover region, and names each leftover one", () => {
     expect(orphanRegionsCheck([])).toBeUndefined();
@@ -718,21 +694,11 @@ describe("orphanRegionsCheck and searchCurrencies", () => {
   });
 
   it("keeps a currency that a leftover region shares with one in the file", () => {
-    const germany: LiveRegion = {
-      name: "Germany",
-      currency: "eur",
-      countries: ["de"],
-    };
     expect(searchCurrencies([europe, germany], [germany])).toEqual(["eur"]);
   });
 
   it("asks once about a currency two regions share, and never about a blank one", () => {
     const blank: LiveRegion = { name: "Odd", currency: "", countries: ["xx"] };
-    const germany: LiveRegion = {
-      name: "Germany",
-      currency: "eur",
-      countries: ["de"],
-    };
     expect(searchCurrencies([europe, germany, blank], [])).toEqual(["eur"]);
   });
 });

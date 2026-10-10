@@ -61,6 +61,11 @@ export async function request(url: string, options: HttpOptions = {}): Promise<H
   }
 }
 
+/** How a server that gave no answer is described: "is not running" or "does not answer (reason)". */
+export function describeUnreachable(result: Exclude<HttpResult, { kind: "response" }>): string {
+  return result.kind === "refused" ? "is not running" : `does not answer (${result.reason})`;
+}
+
 /** The body parsed as JSON, or `undefined` when it is not. */
 export function jsonOf(result: HttpResult): unknown {
   if (result.kind !== "response") return undefined;

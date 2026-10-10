@@ -7,14 +7,15 @@
 // It writes nothing: no file, no row, no migration. The one command it runs that touches the
 // database is `payload run` (to read the `markets` global), and that runs as production does, which
 // never creates a missing database. The decisions are in scripts/lib/ (doctor-checks.ts,
-// integrations.ts, markets-check.ts) with tests; this file looks at the machine and wires them up.
+// doctor-services.ts, integrations.ts, markets-check.ts) with tests; this file looks at the machine
+// and wires them up.
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { inspectTargets, targetsFrom } from "./lib/checks.ts";
 import {
   configChecks,
   explainPayloadRun,
-  medusaMarketsChecks,
+  medusaMarketsCheck,
   orphanRegions,
   orphanRegionsCheck,
   payloadAuthCheck,
@@ -27,10 +28,11 @@ import {
 import { payloadDatabaseFailed, serverCheck, serviceChecks } from "./lib/doctor-services.ts";
 import { envValue } from "./lib/env-file.ts";
 import { runPayload } from "./lib/exec.ts";
-import { request } from "./lib/http.ts";
+import { request, type HttpResult } from "./lib/http.ts";
 import {
   getIntegrationStatus,
   INTEGRATION_KEYS,
+  isSet,
   type AppEnvs,
   type EnvLike,
 } from "./lib/integrations.ts";
@@ -134,7 +136,7 @@ async function loadFixturesMap(): Promise<MarketMapData | string> {
 }
 
 /** `payload run`: the `markets` global, as `getMarketMap()` reads it. Runs as production (no database is created). */
-async function readMarketsGlobal(): Promise<Exclude<MarketsGlobalRead, { skipped: true }>> {
+async function readMarketsGlobal(): Promise<MarketsGlobalRead> {
   // `runPayload` repeats the run when Payload's CLI exits 0 in silence (see `exitedInSilence`);
   // this one only reads, so that is safe.
   const result = await runPayload(["run", "src/scripts/doctor-payload.ts"], {
@@ -183,9 +185,7 @@ async function main(): Promise<number> {
   const statuses = getIntegrationStatus(envs);
   const context: Context = {
     nodeEnv: envs.backend.NODE_ENV?.trim() || undefined,
-    vercel: ["VERCEL", "VERCEL_ENV", "VERCEL_URL"].some(
-      (name) => (envs.storefront[name] ?? "").trim() !== "",
-    ),
+    vercel: ["VERCEL", "VERCEL_ENV", "VERCEL_URL"].some((name) => isSet(envs.storefront, name)),
   };
 
   // Mailpit's ports are Docker Compose's variables: the shell or the root `.env`.
@@ -211,10 +211,11 @@ async function main(): Promise<number> {
   // the markets global. Payload's read (the slowest, about 2.5 s) waits only for the Postgres
   // check, not for the storefront, which may take several seconds to compile its first page.
   const serviceFindings = inspectTargets(targets, root);
-  const marketsRead = serviceFindings.then(
-    (findings): Promise<MarketsGlobalRead> | MarketsGlobalRead =>
-      payloadDatabaseFailed(findings, targets) ? { skipped: true } : readMarketsGlobal(),
+  const marketsRead = serviceFindings.then(async (findings): Promise<MarketsGlobalRead> =>
+    payloadDatabaseFailed(findings, targets) ? { skipped: true } : readMarketsGlobal(),
   );
+  // The `--online` requests need only the env, so they go out now, with the rest.
+  const online = options.online ? startOnlineRequests(envs, medusaUrl) : undefined;
   const [findings, medusaHealth, storefrontHome, backendFile, fixtures, read] = await Promise.all([
     serviceFindings,
     request(`${medusaUrl}/health`, { timeoutMs: 5000 }),
@@ -238,13 +239,12 @@ async function main(): Promise<number> {
     ...configChecks(envs, statuses, context),
   );
 
-  const global = marketsGlobalCheck(read);
-  const sync = marketsSyncCheck({ backendFile, fixtures, global: global.map });
-  checks.push(global.check);
-  if (sync.check !== undefined) checks.push(sync.check);
+  const globalMarkets = marketsGlobalCheck(read);
+  const sync = marketsSyncCheck({ backendFile, fixtures, global: globalMarkets.map });
+  checks.push(globalMarkets.check, sync.check);
 
-  if (options.online) {
-    checks.push(...(await onlineChecks(envs, medusaUrl, sync.map, sync.backend)));
+  if (online !== undefined) {
+    checks.push(...(await onlineChecks(online, medusaUrl, sync.map, sync.backend)));
   }
 
   const report: Report = { integrations: statuses, checks };
@@ -255,42 +255,56 @@ async function main(): Promise<number> {
 // ---------------------------------------------------------------------------------------------
 // --online
 
-async function onlineChecks(
-  envs: AppEnvs,
-  medusaUrl: string,
-  map: MarketMapData | undefined,
-  config: BackendMarkets | undefined,
-): Promise<Check[]> {
+type OnlineRequests = {
+  payloadUrl: string;
+  /** The storefront's publishable key, as Medusa wants it; blank when the storefront has none. */
+  headers: Record<string, string>;
+  /** `undefined` when there was no URL or key to ask with. */
+  payload: Promise<HttpResult | undefined>;
+  medusa: Promise<{ regions: HttpResult; locales: HttpResult } | undefined>;
+};
+
+/**
+ * The backend → Payload link, and Medusa's regions and locales with the storefront's key. They are
+ * independent of each other and of everything `main` looks at, so they are all asked at once.
+ */
+function startOnlineRequests(envs: AppEnvs, medusaUrl: string): OnlineRequests {
   const payloadUrl = trimSlash((envs.backend.PAYLOAD_SERVER_URL ?? "").trim());
   const payloadKey = (envs.backend.PAYLOAD_API_KEY ?? "").trim();
   const key = (envs.storefront.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY ?? "").trim();
   const headers = { "x-publishable-api-key": key };
+  return {
+    payloadUrl,
+    headers,
+    payload:
+      payloadUrl === "" || payloadKey === ""
+        ? Promise.resolve(undefined)
+        : request(`${payloadUrl}/api/integrations/me`, {
+            headers: { Authorization: `integrations API-Key ${payloadKey}` },
+            timeoutMs: 30_000,
+          }),
+    medusa:
+      key === ""
+        ? Promise.resolve(undefined)
+        : Promise.all([
+            request(`${medusaUrl}/store/regions?fields=id,name,currency_code,*countries`, {
+              headers,
+              timeoutMs: 15_000,
+            }),
+            request(`${medusaUrl}/store/locales`, { headers, timeoutMs: 15_000 }),
+          ]).then(([regions, locales]) => ({ regions, locales })),
+  };
+}
 
-  // The backend → Payload link, and Medusa's regions and locales with the storefront's key, are
-  // independent of each other: ask all three at once.
-  const [payloadAnswer, regions, locales] = await Promise.all([
-    payloadUrl === "" || payloadKey === ""
-      ? undefined
-      : request(`${payloadUrl}/api/integrations/me`, {
-          headers: { Authorization: `integrations API-Key ${payloadKey}` },
-          timeoutMs: 30_000,
-        }),
-    key === ""
-      ? undefined
-      : request(`${medusaUrl}/store/regions?fields=id,name,currency_code,*countries`, {
-          headers,
-          timeoutMs: 15_000,
-        }),
-    key === "" ? undefined : request(`${medusaUrl}/store/locales`, { headers, timeoutMs: 15_000 }),
-  ]);
-
-  const checks = [payloadAuthCheck(payloadUrl, payloadAnswer)];
-  const medusa = medusaMarketsChecks(
-    medusaUrl,
-    regions !== undefined && locales !== undefined ? { regions, locales } : undefined,
-    map,
-  );
-  checks.push(...medusa.checks);
+async function onlineChecks(
+  online: OnlineRequests,
+  medusaUrl: string,
+  map: MarketMapData | undefined,
+  config: BackendMarkets | undefined,
+): Promise<Check[]> {
+  const [payloadAnswer, medusaAnswers] = await Promise.all([online.payload, online.medusa]);
+  const medusa = medusaMarketsCheck(medusaUrl, medusaAnswers, map);
+  const checks = [payloadAuthCheck(online.payloadUrl, payloadAnswer), medusa.check];
   if (medusa.regions === undefined) return checks;
 
   // Regions left behind by a market that was taken out of the file: not a search-index problem.
@@ -300,23 +314,20 @@ async function onlineChecks(
 
   // Every region's currency needs price fields in the search index (T08, D17).
   const entries = await Promise.all(
-    searchCurrencies(medusa.regions, orphans).map(async (currency) => ({
-      currency,
-      state: searchFieldOf(
-        currency,
-        await request(`${medusaUrl}/store/search`, {
-          method: "POST",
-          headers,
-          timeoutMs: 15_000,
-          body: {
-            entity: "product",
-            filters: { q: "" },
-            pagination: { take: 0 },
-            search_options: { facets: [{ field: `min_price_${currency}`, type: "stats" }] },
-          },
-        }),
-      ),
-    })),
+    searchCurrencies(medusa.regions, orphans).map(async (currency) => {
+      const answer = await request(`${medusaUrl}/store/search`, {
+        method: "POST",
+        headers: online.headers,
+        timeoutMs: 15_000,
+        body: {
+          entity: "product",
+          filters: { q: "" },
+          pagination: { take: 0 },
+          search_options: { facets: [{ field: `min_price_${currency}`, type: "stats" }] },
+        },
+      });
+      return { currency, state: searchFieldOf(currency, answer) };
+    }),
   );
   checks.push(searchIndexCheck(entries));
   return checks;

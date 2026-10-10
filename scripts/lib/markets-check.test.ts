@@ -275,7 +275,7 @@ describe("marketsSyncCheck", () => {
       global: map,
     });
     expect(result.check).toMatchObject({ id: "markets-sync", level: "ok" });
-    expect(result.check?.message).toContain("the markets global");
+    expect(result.check.message).toContain("the markets global");
     expect(result.backend).toEqual(backend);
     expect(result.map).toBe(map);
   });
@@ -286,8 +286,8 @@ describe("marketsSyncCheck", () => {
       fixtures: map,
       global: undefined,
     });
-    expect(result.check?.level).toBe("ok");
-    expect(result.check?.message).toContain("the seeded fixtures");
+    expect(result.check.level).toBe("ok");
+    expect(result.check.message).toContain("the seeded fixtures");
     expect(result.map).toBe(map);
   });
 
@@ -302,8 +302,8 @@ describe("marketsSyncCheck", () => {
       global: open,
     });
     expect(result.check).toMatchObject({ level: "warn", fix: MARKETS_FIX });
-    expect(result.check?.message).toContain("disagree (D17)");
-    expect(result.check?.details?.length).toBeGreaterThan(0);
+    expect(result.check.message).toContain("disagree (D17)");
+    expect(result.check.details?.length).toBeGreaterThan(0);
   });
 
   it("warns when the backend's file cannot be read, and still hands on the map for --online", () => {
@@ -312,7 +312,7 @@ describe("marketsSyncCheck", () => {
       fixtures: map,
       global: undefined,
     });
-    expect(result.check?.message).toBe("could not read apps/backend/src/config/markets.ts (boom).");
+    expect(result.check.message).toBe("could not read apps/backend/src/config/markets.ts (boom).");
     expect(result.backend).toBeUndefined();
     expect(result.map).toBe(map);
   });
@@ -323,7 +323,7 @@ describe("marketsSyncCheck", () => {
       fixtures: map,
       global: map,
     });
-    expect(result.check?.message).toContain("is not what doctor expects");
+    expect(result.check.message).toContain("is not what doctor expects");
     expect(result.backend).toBeUndefined();
   });
 
@@ -333,7 +333,7 @@ describe("marketsSyncCheck", () => {
       fixtures: "could not read packages/fixtures/src/markets.ts (boom)",
       global: undefined,
     });
-    expect(result.check?.message).toBe("could not read packages/fixtures/src/markets.ts (boom)");
+    expect(result.check.message).toBe("could not read packages/fixtures/src/markets.ts (boom)");
     expect(result.map).toBeUndefined();
     expect(result.backend).toEqual(backend);
   });

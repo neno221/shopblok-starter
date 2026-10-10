@@ -2,12 +2,12 @@
 // of the servers come in, `Check`s come out. `doctor.ts` does the looking (reads the files, opens the
 // sockets, calls the servers); every decision that can be wrong lives here, with a test.
 import type { RunResult } from "./exec.ts";
-import { jsonOf, type HttpResult } from "./http.ts";
+import { describeUnreachable, jsonOf, type HttpResult } from "./http.ts";
 import { isSet, type AppEnvs, type IntegrationStatus } from "./integrations.ts";
 import type { BackendMarkets, MarketMapData } from "./markets-check.ts";
 import type { Check } from "./report.ts";
 
-// What each check is called, once: the table, `--json` and CI key on these.
+// What the `--online` checks are called: the table, `--json` and CI key on these.
 const PAYLOAD_AUTH = { id: "payload-auth", title: "Payload accepts the integrations key" } as const;
 const MEDUSA_MARKETS = {
   id: "medusa-markets",
@@ -328,7 +328,7 @@ export function readLocales(answer: { status: number; body: unknown }): string[]
  * edits the file and forgets `pnpm bootstrap`.
  */
 export function compareWithMedusa(
-  live: { regions: readonly LiveRegion[]; locales?: readonly string[] | undefined },
+  live: { regions: readonly LiveRegion[]; locales?: readonly string[] },
   map: {
     countries: readonly { code: string; enabled: boolean; languages: readonly string[] }[];
     languages: readonly { code: string; medusaLocale: string }[];
@@ -386,11 +386,6 @@ export function classifyPayloadAuth(answer: {
 // ---------------------------------------------------------------------------------------------
 // --online: the checks, from the answers
 
-/** How a server that gave no answer is described: "is not running" or "does not answer (reason)". */
-export function describeUnreachable(result: Exclude<HttpResult, { kind: "response" }>): string {
-  return result.kind === "refused" ? "is not running" : `does not answer (${result.reason})`;
-}
-
 /** The backend → Payload link. `answer` is `undefined` when there was no URL or key to ask with. */
 export function payloadAuthCheck(payloadUrl: string, answer: HttpResult | undefined): Check {
   if (answer === undefined) {
@@ -443,101 +438,82 @@ function localesOf(answer: HttpResult): string[] | string {
  * storefront has no publishable key to ask with. The regions come back when the later checks (the
  * leftover regions, the search index) can go on.
  */
-export function medusaMarketsChecks(
+export function medusaMarketsCheck(
   medusaUrl: string,
   answers: { regions: HttpResult; locales: HttpResult } | undefined,
   map: MarketMapData | undefined,
-): { checks: Check[]; regions: LiveRegion[] | undefined } {
+): { check: Check; regions?: LiveRegion[] } {
+  const check = (c: Omit<Check, "id" | "title">): Check => ({ ...MEDUSA_MARKETS, ...c });
+
   if (answers === undefined) {
     return {
-      regions: undefined,
-      checks: [
-        {
-          ...MEDUSA_MARKETS,
-          level: "warn",
-          message: "not checked: the storefront has no publishable key.",
-          fix: "Run `pnpm bootstrap`.",
-        },
-      ],
+      check: check({
+        level: "warn",
+        message: "not checked: the storefront has no publishable key.",
+        fix: "Run `pnpm bootstrap`.",
+      }),
     };
   }
   if (answers.regions.kind !== "response") {
     return {
-      regions: undefined,
-      checks: [
-        {
-          ...MEDUSA_MARKETS,
-          level: "warn",
-          message: `not checked: Medusa at ${medusaUrl} ${describeUnreachable(answers.regions)}.`,
-          fix: "Start it with `pnpm dev`.",
-        },
-      ],
+      check: check({
+        level: "warn",
+        message: `not checked: Medusa at ${medusaUrl} ${describeUnreachable(answers.regions)}.`,
+        fix: "Start it with `pnpm dev`.",
+      }),
     };
   }
-  const regions = readRegions({
-    status: answers.regions.status,
-    body: jsonOf(answers.regions),
-  });
+  const regions = readRegions({ status: answers.regions.status, body: jsonOf(answers.regions) });
   if (typeof regions === "string") {
     return {
-      regions: undefined,
-      checks: [
-        {
-          ...MEDUSA_MARKETS,
-          level: "error",
-          message: `GET /store/regions with the storefront's key failed: ${regions}.`,
-          fix: "The key belongs to the database. Run `pnpm bootstrap` (it writes the current key), then build the storefront again.",
-        },
-      ],
+      check: check({
+        level: "error",
+        message: `GET /store/regions with the storefront's key failed: ${regions}.`,
+        fix: "The key belongs to the database. Run `pnpm bootstrap` (it writes the current key), then build the storefront again.",
+      }),
     };
   }
-
   if (map === undefined) {
     return {
       regions,
-      checks: [
-        {
-          ...MEDUSA_MARKETS,
-          level: "warn",
-          message:
-            "not compared: no market map could be read (the Markets checks above say why), so there is nothing to compare Medusa's regions and locales with.",
-        },
-      ],
+      check: check({
+        level: "warn",
+        message:
+          "not compared: no market map could be read (the Markets checks above say why), so there is nothing to compare Medusa's regions and locales with.",
+      }),
     };
   }
+
   const locales = localesOf(answers.locales);
-  const problems = compareWithMedusa(
-    { regions, ...(typeof locales === "string" ? {} : { locales }) },
-    map,
-  );
-  const details = [
-    ...problems,
-    ...(typeof locales === "string"
-      ? [
-          `could not read Medusa's locales (${locales}), so the languages were not compared; /store/locales is served by the translation feature (MEDUSA_FF_TRANSLATION must not be false)`,
-        ]
-      : []),
-  ];
+  const readable = typeof locales !== "string";
+  const problems = compareWithMedusa({ regions, locales: readable ? locales : undefined }, map);
+  if (problems.length === 0 && readable) {
+    return {
+      regions,
+      check: check({
+        level: "ok",
+        message: `${regions.length} regions and ${locales.length} locales cover every open country and language.`,
+      }),
+    };
+  }
   return {
     regions,
-    checks: [
-      details.length === 0
-        ? {
-            ...MEDUSA_MARKETS,
-            level: "ok",
-            message: `${regions.length} regions and ${(locales as string[]).length} locales cover every open country and language.`,
-          }
-        : {
-            ...MEDUSA_MARKETS,
-            level: "warn",
-            message:
-              problems.length > 0
-                ? "the running Medusa does not have what the storefront's map expects (D17)."
-                : "Medusa's regions match the storefront's map, but its locales could not be compared.",
-            details,
-            fix: "Run `pnpm bootstrap`: it seeds the regions and locales from apps/backend/src/config/markets.ts.",
-          },
-    ],
+    check: check({
+      level: "warn",
+      message:
+        problems.length > 0
+          ? "the running Medusa does not have what the storefront's map expects (D17)."
+          : "Medusa's regions match the storefront's map, but its locales could not be compared.",
+      details: [
+        ...problems,
+        ...(readable
+          ? []
+          : [
+              `could not read Medusa's locales (${locales}), so the languages were not compared; /store/locales is served by the translation feature (MEDUSA_FF_TRANSLATION must not be false)`,
+            ]),
+      ],
+      fix: "Run `pnpm bootstrap`: it seeds the regions and locales from apps/backend/src/config/markets.ts.",
+    }),
   };
 }
 
@@ -634,9 +610,7 @@ export function searchIndexCheck(
 export const PAYLOAD_RUN_TIMEOUT_MS = 60_000;
 
 /** Why `payload run src/scripts/doctor-payload.ts` did not give its result: the run itself, then its log. */
-export function explainPayloadRun(
-  result: Pick<RunResult, "code" | "output" | "prompt" | "timedOut" | "error">,
-): { cause: string; fix: string } {
+export function explainPayloadRun(result: RunResult): { cause: string; fix: string } {
   if (result.error !== undefined) {
     return {
       cause: `pnpm could not be started (${result.error})`,

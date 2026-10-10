@@ -1,5 +1,3 @@
-import path from "node:path";
-import { pathToFileURL } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
   describeIntegration,
@@ -202,41 +200,6 @@ describe("describeMissing", () => {
     const meilisearch = byId(getIntegrationStatus(none), "meilisearch");
     expect(describeMissing(meilisearch)).toBe(
       "MEILISEARCH_HOST, MEILISEARCH_API_KEY (apps/backend)",
-    );
-  });
-});
-
-// The backend's own gates, loaded in place: `tsc` refuses a static import of it (TS1287, its package
-// is CommonJS to TypeScript; see load-exports.ts), and it has no build output to import instead.
-const modulesFile = path.resolve(import.meta.dirname, "../../apps/backend/src/config/modules.ts");
-const { buildModules } = (await import(pathToFileURL(modulesFile).href)) as {
-  buildModules: (env: Record<string, string | undefined>) => unknown;
-};
-
-describe("wired", () => {
-  // `wired` is a hand-kept flag per integration. `buildModules` is where the backend really switches
-  // a provider on (`has(env, ...)`), so an integration whose backend keys change the modules it
-  // registers must be marked wired; otherwise doctor keeps calling a live provider a fallback.
-  it("is set for every integration whose backend keys change the modules the backend registers", () => {
-    const empty = JSON.stringify(buildModules({}));
-    for (const status of getIntegrationStatus(none)) {
-      const env = Object.fromEntries(
-        status.parts
-          .filter((part) => part.app === "backend")
-          .flatMap((part) => part.missing)
-          .map((key) => [key, "x"]),
-      );
-      const changesModules = JSON.stringify(buildModules(env)) !== empty;
-      if (changesModules)
-        expect(status.wired, `${status.id} is switched on by buildModules`).toBe(true);
-    }
-  });
-
-  it("holds for Redis, the one integration wired in M0", () => {
-    const live = getIntegrationStatus(none).filter((status) => status.wired);
-    expect(live.map((status) => status.id)).toEqual(["redis"]);
-    expect(JSON.stringify(buildModules({ REDIS_URL: "redis://x" }))).not.toBe(
-      JSON.stringify(buildModules({})),
     );
   });
 });

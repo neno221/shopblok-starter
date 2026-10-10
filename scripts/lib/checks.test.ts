@@ -74,6 +74,18 @@ describe("targetsFrom", () => {
     expect(targets[0]?.label).toBe("Postgres (medusa and payload databases)");
   });
 
+  it("says which database each Postgres holds, so nobody has to read the label", () => {
+    const databases = (e: typeof env) =>
+      targetsFrom(e)
+        .filter((t) => t.kind === "postgres")
+        .map((t) => t.databases);
+    expect(databases(env)).toEqual([["medusa", "payload"]]);
+    expect(databases({ ...env, PAYLOAD_DATABASE_URL: "postgres://u:p@localhost:5433/p" })).toEqual([
+      ["medusa"],
+      ["payload"],
+    ]);
+  });
+
   it("checks both when the databases are on different servers", () => {
     const targets = targetsFrom({
       ...env,
@@ -381,28 +393,37 @@ describe("inspectTargets", () => {
     ...over,
   });
 
-  /** Probes that look at nothing real; `asked` counts the Docker questions. */
+  /** Probes that look at nothing real; `asked` counts the `docker compose port` questions. */
   function probes(options: {
     reachable?: boolean;
     speaks?: boolean;
     compose?: ComposeObservation;
-  }): { probes: Probes; asked: string[] } {
+  }): { probes: Probes; asked: string[]; dockerAsked: { count: number } } {
     const asked: string[] = [];
+    const dockerAsked = { count: 0 };
+    const compose = options.compose ?? { status: "published", ports: [15432] };
     return {
       asked,
+      dockerAsked,
       probes: {
         canConnect: async () => options.reachable ?? true,
         answers: async () => options.speaks ?? true,
+        observeDocker: async () => {
+          dockerAsked.count++;
+          return compose.status === "docker-unavailable"
+            ? { ok: false, reason: compose.reason }
+            : { ok: true };
+        },
         observeCompose: async (t) => {
           asked.push(`${t.service}:${t.containerPort}`);
-          return options.compose ?? { status: "published", ports: [15432] };
+          return compose;
         },
       },
     };
   }
 
   it("asks Docker once per service and container port, whatever the number of targets", async () => {
-    const { probes: p, asked } = probes({});
+    const { probes: p, asked, dockerAsked } = probes({});
     const findings = await inspectTargets(
       [
         target({ label: "Postgres (medusa database)" }),
@@ -418,18 +439,17 @@ describe("inspectTargets", () => {
       "/repo",
       {
         ...p,
-        observeCompose: async (t, cwd, docker) => {
+        observeCompose: async (t, cwd) => {
           expect(cwd).toBe("/repo");
-          return p
-            .observeCompose(t, cwd, docker)
-            .then((o) =>
-              t.service === "redis" ? { status: "published" as const, ports: [6380] } : o,
-            );
+          const observed = await p.observeCompose(t, cwd);
+          return t.service === "redis" ? { status: "published" as const, ports: [6380] } : observed;
         },
       },
     );
     expect(findings.map((f) => f.level)).toEqual(["ok", "ok", "ok"]);
     expect(asked.sort()).toEqual(["postgres:5432", "redis:6379"]);
+    // `docker info` is asked once for the three services, not once for each.
+    expect(dockerAsked.count).toBe(1);
   });
 
   it("is an error when the port is not published by this project's stack (D15)", async () => {

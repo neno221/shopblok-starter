@@ -1,7 +1,7 @@
 import http from "node:http";
 import net from "node:net";
 import { afterEach, describe, expect, it } from "vitest";
-import { codeOf, jsonOf, request } from "./http.ts";
+import { codeOf, describeUnreachable, jsonOf, request } from "./http.ts";
 
 const servers: http.Server[] = [];
 
@@ -148,5 +148,14 @@ describe("codeOf", () => {
       errors: [{ code: "ETIMEDOUT" }, { code: "EHOSTUNREACH" }],
     });
     expect(codeOf(new TypeError("fetch failed", { cause: aggregate }))).toBe("ETIMEDOUT");
+  });
+});
+
+describe("describeUnreachable", () => {
+  it("tells a stopped server from one that does not answer", () => {
+    expect(describeUnreachable({ kind: "refused" })).toBe("is not running");
+    expect(describeUnreachable({ kind: "unreachable", reason: "no answer within 15 s" })).toBe(
+      "does not answer (no answer within 15 s)",
+    );
   });
 });

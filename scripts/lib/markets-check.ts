@@ -256,13 +256,10 @@ export function marketsSyncCheck(input: {
   fixtures: MarketMapData | string;
   /** The `markets` global's map, when it was read and is filled in. */
   global: MarketMapData | undefined;
-}): {
-  check: Check | undefined;
-  backend: BackendMarkets | undefined;
-  map: MarketMapData | undefined;
-} {
+}): { check: Check; backend: BackendMarkets | undefined; map: MarketMapData | undefined } {
   const { backendFile, fixtures, global } = input;
-  const map = global ?? (typeof fixtures === "string" ? undefined : fixtures);
+  const source = global ?? fixtures;
+  const map = typeof source === "string" ? undefined : source;
   const warn = (message: string): Check => ({ ...MARKETS_SYNC, level: "warn", message });
 
   if ("error" in backendFile) {
@@ -280,12 +277,10 @@ export function marketsSyncCheck(input: {
       check: warn(`apps/backend/src/config/markets.ts is not what doctor expects: ${backend}.`),
     };
   }
-  if (map === undefined) {
-    // No global, and the fixtures could not be read: `fixtures` is the reason.
-    return { map, backend, check: warn(typeof fixtures === "string" ? fixtures : "no map") };
-  }
+  // No global, and the fixtures could not be read: `source` is the reason.
+  if (typeof source === "string") return { map, backend, check: warn(source) };
 
-  const problems = compareMarkets(backend, map);
+  const problems = compareMarkets(backend, source);
   const where = global === undefined ? "the seeded fixtures" : "the markets global";
   return {
     map,
