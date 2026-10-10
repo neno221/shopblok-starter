@@ -1,5 +1,10 @@
 {
   "$schema": "https://turborepo.dev/schema.json",
+  // Medusa's telemetry opt-out. Strict mode drops it from every `turbo run` task, and without it
+  // `medusa start` (which `medusa develop` spawns) queues CLI_START events even with the variable set
+  // in the shell (T15). It is an opt-out, so it is global rather than on `dev` alone: a task added
+  // later that runs a Medusa command would otherwise opt the developer back in without a sign.
+  "globalPassThroughEnv": ["MEDUSA_DISABLE_TELEMETRY"],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
@@ -14,9 +19,7 @@
       // `PAYLOAD_SECRET` or a `MEDUSA_BACKEND_URL` from the shell would never reach `next dev`.
       // (`NEXT_PUBLIC_*` is listed by Turborepo's Next.js inference.) A `.env` file worked already:
       // Next loads it itself.
-      // `MEDUSA_DISABLE_TELEMETRY` is Medusa's opt-out: without it here, `medusa develop` queued
-      // telemetry events (CLI_START) even with the variable set in the shell (T15).
-      "passThroughEnv": ["PAYLOAD_*", "MEDUSA_BACKEND_URL", "MEDUSA_DISABLE_TELEMETRY"]
+      "passThroughEnv": ["PAYLOAD_*", "MEDUSA_BACKEND_URL"]
     },
     "transit": {
       "dependsOn": ["^transit"]
