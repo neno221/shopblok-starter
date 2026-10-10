@@ -2,11 +2,11 @@
 
 | | |
 |---|---|
-| Status | **Accepted** 2026-10-10 by the owner (Stephanos): keep Cache Components on. The readings of the plan's PASS rule under "Decision" are part of what was accepted |
+| Status | **Accepted** 2026-10-10 by the owner (Stephanos): keep Cache Components on. The S1 session's two other readings of the plan's PASS rule (under "Decision", items 2 and 3) stand until the owner changes them |
 | Date | 2026-10-10 |
 | Spike | S1, [docs/plans/M0.md](../plans/M0.md) §6 |
 | Versions | Next 16.4.0 (Turbopack), Payload 3.90.2, React 19.3.0, Node 22.22.0, Chromium 1248 through Playwright 1.64.0 |
-| Prototype | commit `dbfec6e` on `claude/busy-fermat-3wb1z5` (D13: the spike code does not merge; the next commit removes it from the tree). PRs merge with a merge commit, so `dbfec6e` stays in `main`'s history (a squash would drop it). Reproduce: SETUP.md, "Cache Components × Payload admin (S1)", row "Reproduce" |
+| Prototype | commit `dbfec6e` on `claude/busy-fermat-3wb1z5` (D13: the spike code does not merge; the next commit removes it from the tree). PRs merge with a merge commit (plan G2), so `dbfec6e` stays in `main`'s history. Reproduce: SETUP.md, "Cache Components × Payload admin (S1)", row "Reproduce" |
 
 ## Context
 
@@ -53,7 +53,7 @@ No build prints a blocking-route, "Uncached data was accessed outside of `<Suspe
 | on | `manual-warning` | 1 | 18/19 | 12 "Maximum update depth", 7 `new Date()` |
 | **off (Cache Components off)** | none | 3 | **10/10 admin checks, 3 of 3 runs** | **0 judged messages** |
 
-Read the last row with the others: the same admin, the same suite, in dev, with only `cacheComponents` off (`globalNotFound` off and the storefront's `use cache` pages set aside, because they cannot compile without it). The dev errors are therefore not Payload's alone, and not the suite's. The "Maximum update depth exceeded" loops are in `/admin/collections/media/<id>` (the document view) and `/admin/logout`; they appear in every dev column with Cache Components on and are the likely reason the media drawer times out now and then (not isolated by a test). None of them appears in `next start`.
+Read the last row with the others: the same admin, the same suite, in dev, with only `cacheComponents` off (`globalNotFound` off and the storefront's `use cache` pages set aside, because they cannot compile without it). The dev errors are therefore not Payload's alone, and not the suite's. The "Maximum update depth exceeded" loops are in `/admin/collections/media/<id>` (the document view) and `/admin/logout`; they appear in every dev column with Cache Components on and are the likely reason the media drawer times out now and then. None of them appears in `next start`.
 
 `⨯ turbopackServerFastRefresh` in the banner is `withPayload` setting `experimental.turbopackServerFastRefresh: false` (its comment: "Server fast refresh breaks HMR"). Dev only; no effect on a build.
 
@@ -92,20 +92,20 @@ Draft requests are not cached (the loader ran 200 times for 200 draft requests, 
 
 ## Decision
 
-**Accepted: keep `cacheComponents: true` and `partialPrefetching: true`, with no edit to Payload's generated files and no change to the settings in `next.config.ts`.** The owner chose this on 2026-10-10.
+**Accepted: keep `cacheComponents: true` and `partialPrefetching: true`, with no edit to Payload's generated files and no change to the settings in `next.config.ts`.**
 
-Why: in production mode (`next build && next start`, what CI runs) every column passes all 19 checks with a clean console, the base column included, so none of W1–W3, `manual-warning` or `partialPrefetching: false` is needed. They do not help where help would be wanted either: in dev none of them gives a clean console. Two of them cost something, on single runs: `partialPrefetching: false` with W1 failed at the media drawer in all 3 of its dev runs (the table shows the last), and W3 failed there in its last run (its two earlier runs, on a previous version of the suite, passed). `partialPrefetching: false` alone passed the drawer in its one run but logged more errors (15 "Maximum update depth", "uncached data" errors). That is too few runs to rank the workarounds, and the decision does not depend on a ranking: none is adopted. The login problem the plan names for `partialPrefetching` plus instant navigations (PR #16020) did not appear.
+Why: in production mode (`next build && next start`, what CI runs) every column passes all 19 checks with a clean console, the base column included, so none of W1–W3, `manual-warning` or `partialPrefetching: false` is needed. In dev none of them gives a clean console. The dev runs are too few to rank them: `partialPrefetching: false` with W1 failed at the media drawer in 3 of 3 runs, W3 failed there in its last run (its two earlier runs, on a previous version of the suite, passed), and `partialPrefetching: false` alone passed the drawer but logged 15 "Maximum update depth" errors and "uncached data" errors. None is adopted. The login problem the plan names for `partialPrefetching` plus instant navigations (PR #16020) did not appear.
 
-**How the plan's PASS rule is read.** The plan's text is unchanged; the rule needs, in one column, "the admin suite passes with zero browser-console errors … in both dev and start". This ADR applies three readings:
+**How the plan's PASS rule is read.** The plan's text is unchanged; the rule needs, in one column, "the admin suite passes with zero browser-console errors … in both dev and start". This ADR applies three readings; the first is the owner's decision, the other two were made by the S1 session:
 
-1. **Criterion 2, dev.** In `next dev` every column with Cache Components on logs console errors (table above), so read to the letter the verdict is **FAIL**, and §6 sends S1 to the fallback. The owner chose not to apply it, so the rule is read for production mode and the dev errors are a recorded limitation. Reasons: (a) the errors are Next's dev-only prerender validation and a dev-mode React loop that surfaces in Payload's document and logout views, absent from `next start`; (b) all 18 functional checks pass in the base dev column, so the admin works while it logs them; (c) the fallback gives up `'use cache'` for the whole storefront (SPEC §8.3, cart and checkout dynamic) to quieten the admin's dev console.
+1. **Criterion 2, dev.** In `next dev` every column with Cache Components on logs console errors (table above), so read to the letter the verdict is **FAIL**, and §6 sends S1 to the fallback. The fallback was not applied, so the rule is read for production mode and the dev errors are a recorded limitation. Reasons: (a) the errors are Next's dev-only prerender validation and a dev-mode React loop that surfaces in Payload's document and logout views, absent from `next start`; (b) all 18 functional checks pass in the base dev column, so the admin works while it logs them; (c) the fallback gives up `'use cache'` for the whole storefront (SPEC §8.3, cart and checkout dynamic) to quieten the admin's dev console.
 2. **Criterion 2, excused messages.** A failed request to another host (the admin's Gravatar avatar, blocked in the cloud) and `ERR_ABORTED` prefetches are not counted.
 3. **Criterion 4, "fresh within 2 requests".** With `'max'`, request 1 may be stale and starts a refresh of about 300 ms; request 2 after a 500 ms pause is fresh. Two requests back to back still show the old text.
 
 **The dev limitation, and what to do about it.** The source of the dev `new Date()` errors was not traced, and no upstream issue is linked (the plan's #18065 is the nearest known one, not confirmed to be this). So:
 
-- When Renovate's grouped PR bumps `next` or `payload`, open the admin pages in `next dev` once and look at the console; if it is clean, drop this limitation and say so here.
-- File or link the upstream issue when someone with access can (a cloud session cannot open issues on `payloadcms/payload`, SETUP.md T14 item 4).
+- On a minor bump of `next` or `payload`, open the admin pages in `next dev` once and look at the console; if it is clean, drop this limitation and say so here.
+- File or link the upstream issue when someone with access can.
 - The suite's console check ran across the whole admin flow, so it was not measured whether the storefront's own pages are clean in dev. Check them in `next dev` at M1.
 - Until then, when the admin's console matters, use `pnpm --filter @shopblok/storefront build && … start` (37 s) or expect the dev noise. The Payload admin is not where the storefront's day-to-day dev loop lives.
 
@@ -119,20 +119,21 @@ Kept for reference, if the dev limitation ever outweighs `use cache`:
 4. SPEC §8.3 is rewritten; Q14 and the risk-table row change.
 5. Splitting Payload into its own app is not part of M0 and is not needed by anything here.
 
-The baseline row shows the dev admin would be clean. The fallback was not built.
+The baseline row shows the dev admin would be clean.
 
 ## Consequences
 
 - `lib/cache.ts` works with the Local API as it is. **Tags are fixed when `cached()` is called**, so a tag per language (`pages:<locale>`) needs one wrapper per language (the prototype used a factory) or `cached()` taking tags from its arguments. SPEC §8.3 asks for global tags, which `cached()` already supports (`payload:pages` was revalidated alongside); per-language tags are not needed for M0.
-- Payload hooks revalidate with `revalidateTag(tag, 'max')` (content) or `{ expire: 0 }` (price and stock webhooks, SPEC §8.3); `updateTag` and `refresh()` are Server Action only (Next's docs; `updateTag` was not tried from a Payload hook). Wrap the call: Next's docs say it needs a request context, so it is expected to throw in scripts and `payload migrate` (not confirmed, see above).
-- **Not tested on the deployment target.** SPEC §8.1 and §10.8 put the storefront and Payload on Vercel. Every result here is from one self-hosted Node process (`next start`, the in-memory cache); Vercel uses its own cache handler across serverless instances, and SPEC §8.3's line that Vercel propagates `revalidateTag` across functions is not tested by S1. M7's deployment check should repeat three things on a Vercel preview: a published edit is fresh by request 2 after a pause, `{ expire: 0 }` is fresh on the next request, and the 200-request draft test shows 0 leaks. If one fails there, this ADR is reopened.
+- Payload hooks revalidate with `revalidateTag(tag, 'max')` (content) or `{ expire: 0 }` (price and stock webhooks, SPEC §8.3); `updateTag` and `refresh()` are Server Action only (Next's docs; `updateTag` was not tried from a Payload hook). Wrap the call: it is expected to throw outside a request (not confirmed, see "Not exercised" above).
+- **Not tested on the deployment target.** SPEC §8.1 and §10.8 put the storefront and Payload on Vercel. Every result here is from one self-hosted Node process (`next start`, the in-memory cache); Vercel uses its own cache handler across serverless instances, and SPEC §8.3's line that Vercel propagates `revalidateTag` across functions is not tested by S1. M7's deployment check should repeat three things on a Vercel preview: a published edit is fresh by request 2 after a pause, `{ expire: 0 }` is fresh on the next request, and the 200-request draft test shows 0 leaks. If T17 step 4 writes those as Playwright specs, M7 can point them at the preview with `E2E_BASE_URL` (`playwright.config.ts` reads it). If one fails there, this ADR is reopened.
 - Under `[market]` the page shell regenerates at most every 30 s whatever a content entry's `cacheLife` (the market map's entry sets it, SETUP.md T10), so a tag invalidation and the 30 s shell are independent clocks.
 - A route handler that reads process state must call `connection()` or Next prerenders it (the counter route did).
-- Renovate PRs for `next` and `payload` run `e2e-smoke`, which logs in and writes a localized page in production mode (T16). The extra S1 coverage that is useful there (media upload and open, the list view, a console with no errors) is a T17 item (plan T17, step 4; the suite is `spike/s1/s1.spec.ts` in `dbfec6e`). So are the checks that encode this decision, the draft-isolation test and the tag checks; they need test-only routes, as the prototype had. The first-user form needs an empty database and its own server (SETUP.md T16 item 1) and stays in the prototype.
+- Renovate PRs for `next` and `payload` run `e2e-smoke`, which logs in and writes a localized page in production mode (T16). The extra S1 coverage that is useful there (media upload and open, the list view, a console with no errors) is a T17 item, with the draft-isolation test and the tag checks that encode this decision (plan T17 step 4; the suite is `spike/s1/s1.spec.ts` in `dbfec6e`). The first-user form needs an empty database and its own server (SETUP.md T16 item 1) and stays in the prototype.
 - Admin 404s answer 200 (`/admin/nope`); accepted.
 
 ## Spec changes
 
 - §8.3: add that the Payload hook uses `revalidateTag(tag, 'max')` and the webhook `{ expire: 0 }` (both verified under `next start`, not yet on Vercel) and that tags are global as written. Keep the rule `lib/cache.ts` states for drafts: `draftMode()` is read outside the cached function and `isEnabled` is passed in as an argument, so it is part of the cache key. S1 tested the opposite pattern on purpose (a read inside the cached function, the advisory's pattern) and 200 concurrent requests leaked nothing on 16.4.0, on one process; that is evidence the advisory's fix holds, not a pattern for M4's preview code to copy.
 - §8.3 / Q14 / risk table ("Payload × Cache Components"): replace "validated by an M0 spike" with "validated by ADR 0001: kept on; production mode clean, `next dev` logs console errors in the admin". The fallback is not taken, so §8.3 keeps `'use cache'`.
+- §17: M7's exit adds the three Vercel checks under "Consequences"; M1's adds a console check of the storefront's own routes in `next dev`.
 - No change to §8.1.
