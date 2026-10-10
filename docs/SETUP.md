@@ -1824,3 +1824,72 @@ Items 1 to 3 are recorded in the plan (§4, §4a, §6) and in ADR 0001; **the PA
 - `GET` route handlers that only read process state are prerendered unless they call `connection()`.
 - The upload fields' drawer is the check for the plan's "#16270: media selection forces a full reload": it passes in `start` (6 of 6 base and W1 runs in dev too). The issue itself could not be read (the cloud blocks `github.com` issue pages), so this is my reading of it.
 - Not run: Windows (W2 covers the quickstart), `partialPrefetching` with a real cart or account route (M1 onward), Instant Navigations beyond the admin.
+
+## Search per locale (S2)
+
+**Result: S2 passes as the plan defines it.** One Meilisearch index per locale (candidate B) passes T1, T2, T4, T5, T6 and T7 on Meilisearch, and the multilingual index (candidate A') passes T1, T2, T4, T6 and T7 on `search-postgres`; the per-locale-fields index (A) passes all of them too, with a restart for T7. T3 (isolation) holds for A and B and leaks for A' by design; T8's costs and T9's configurations are recorded; T10, a middleware that turns the request's locale into the search options, also passes. Five readings of the plan's rules are yours to confirm (ADR 0002, "Decision"); none changed a rule. [ADR 0002](adr/0002-search-locale-indexing.md) has the tables, the mutations and the consequences for M3 and M6. It is *Proposed*: merging puts it on `main` as *Proposed*, and T17 sets it to *Accepted* unless your message changes one of R1 to R5 (silence means the defaults stand).
+
+| | |
+|---|---|
+| Date | 2026-10-10 |
+| Branch | `claude/amazing-volta-3sn94u`. The plan names `spike/s2-search-locales` (D13); the platform fixed the session's branch, so I used it. The prototype is one commit, **`ca361b2`**, and the next commit removes it from the tree. Cut `spike/s2-search-locales` from it if you want the plan's branch |
+| Session start | `node -v` v22.22.0, `pnpm -v` 12.10.1, `pnpm install --frozen-lockfile` 15.4 s. CLOUD.md's step 3: `dockerd` started, `pnpm infra:up` 18.2 s with 4 healthy, `docker compose port postgres 5432` printed `0.0.0.0:15432`. Step 4: `pnpm bootstrap` 45.8 s (8 done, 2 unchanged, 2 skipped; doctor's three warnings: Medusa and the storefront not running, no Resend key). Turborepo docs (2.11.7, `docs/README.md`: a pointer page, no deprecation notice) read; no turbo config changed. `pnpm --filter @shopblok/backend exec eslint --version` v9.39.5 |
+| Files in the merged tree | `docs/adr/0002-search-locale-indexing.md`, this section, the plan, NEXT-SESSION, the S2 line in `README.md`, `apps/backend/integration-tests/http/search-locale-assumptions.spec.ts` (5 tests on the stock configuration), and `apps/backend/.env.test` with the `.gitignore` line that lets it in (the runner's Postgres and a blank `REDIS_URL`, added by the review of this PR). **No other code differs from `main`**: `git diff 359bb12 --stat -- . ':!docs' ':!README.md'` lists only those three files |
+| Prototype (`ca361b2`, not for main) | `apps/backend/src/modules/meilisearch-search/` (a Meilisearch provider of the Search Module, about 770 lines), `src/search/s2-variants.ts` and `src/search/helpers/s2-shared.ts` (the five index definitions, loaded only with `S2_SPIKE` set), the S2 branch of `src/config/modules.ts` (both providers) and the locale middleware in `src/api/middlewares.ts`, `integration-tests/http/search-locale.spec.ts` and `.fixtures.ts` (T1 to T10 over all five definitions in one app), and `integration-tests/s2-t7-restart.sh` |
+| Runs | About 50 runs of the spec, the mutations and the T7 script, several of them stopped by my own mistakes (a T8 that waited too briefly, a script that waited for the wrong number of indexes). Logs were in the session's scratchpad and are gone; the ADR has the last result of each |
+| Reproduce | CLOUD.md steps 1 to 4 (install, Docker, `pnpm infra:up`, `pnpm bootstrap`: the spec needs Postgres on 15432 and Meilisearch on 7701 with the master key). Then `git switch --detach ca361b2` and, from the repo root, `DB_HOST=localhost DB_PORT=15432 DB_USERNAME=postgres DB_PASSWORD=postgres pnpm --filter @shopblok/backend test:integration:http search-locale -t 'T[1-7]|T9|T10'` (about 90 s); without `-t` T8 creates 1,000 products and takes 15 to 20 minutes (`S2_T8_PRODUCTS=100` for a quick one), and `S2_REPORT=<file>` writes every recorded result as JSON. T7's operator flow: `bash apps/backend/integration-tests/s2-t7-restart.sh` (about 2 minutes, on a throwaway database). It blanks `REDIS_URL` (`S2_REDIS=redis://localhost:6380` opts in), creates no data in the `medusa` database, and deletes the Meilisearch indexes it made. `S2_PG_LANGUAGE=greek` (and `S2_PG_UNACCENT=false`) run the Postgres side with another text-search configuration |
+
+### Checks (S2's tests)
+
+| # | Test | Result |
+|---|---|---|
+| T1 | each locale finds the shirt by its own words | **Pass** on all five definitions |
+| T2 | accents and tonos ignored | **Pass** on all five. Postgres: `medusa_search_english` (unaccent, then the English stemmer) folds Greek and French accents and capitals. Without `unaccent` (`simple`) T2 fails on both Postgres definitions |
+| T3 | isolation | **Pass** for B (required). A isolates on both providers; A' leaks by design (informational) |
+| T4 | freshness within 10 s through events | **Pass** on all five: 0.4 s (`s2_pg_a`) to 1.7 s (`s2_ms_ap`) in a chain of five indexes updated one after the other by the same event, 150 to 270 ms per index; the same over the Redis event bus |
+| T5 | category facets | **Pass**: labels in the locale for A and B, ids labelled by the storefront for A' |
+| T6 | hits translated by one extra call | **Pass** on all five (`GET /store/products?id[]=…` with `x-medusa-locale` and `region_id`: translated title, EUR 49) |
+| T7 | a language added in settings | **Pass for B and A'** with no restart; **A: restart, migration and reindex** (12.0 s `db:migrate`, about 9 s restart for the demo catalog), through the real Admin API. Reading R2 in the ADR |
+| T8 | cost, 1,002 products | **Recorded**: Postgres 7.1 MB (A), 6.0 MB (A'), 4.6 MB (stock `product`); Meilisearch 9.4 MB (A), 5.9 MB (A'), 22.2 MB (B, six indexes). Reindex 15 to 17 s on every candidate, 4.2 s for the stock index; the transform dominates |
+| T9 | pt-BR and mn-MN | **Pass** on all five. Postgres uses `medusa_search_english`; Mongolian is found by exact lexemes, a misspelling only with `typo_tolerance`. Meilisearch has no Mongolian language, so the hint is dropped |
+
+### Checks beyond S2's list
+
+| Check | Result | Key output |
+|---|---|---|
+| T10: the request's locale reaches the search | **Pass** | `x-medusa-locale` alone, no `search_options`: hits on all five, isolation follows the header |
+| The assumptions spec on the unmodified backend | **Pass** | `search-locale-assumptions.spec.ts`, 5 tests, `Tests: 5 passed`, about 27 s in four runs after the review fixes (each created product waits for its index handlers through test-utils' `waitSubscribersExecution`), with no `An error occurred while processing` lines; the version reviewed logged two |
+| The tests can fail | **Pass, after one fix** | Ten mutations, ADR 0002 lists them. One was not caught (the provider's own restriction to a locale's attributes, because Meilisearch isolates by language hint alone); a check on `mn-MN` closed it |
+| T4 and T7 over the Redis event bus | **Pass** | same times as the in-memory bus, `event-bus-redis` in the log |
+| Postgres with the `greek` configuration | **Pass** | T1, T2, T9 on `s2_pg_a` and `s2_pg_ap`; needs `CREATE TEXT SEARCH CONFIGURATION medusa_search_greek` (copy of `greek`, `unaccent` first) |
+| Root checks on the final tree | **Pass** | `pnpm --filter @shopblok/backend test:unit` 85 of 85, `lint` "No lint issues found", `build` "Backend build completed successfully (9.38s)", Prettier on the new spec |
+| `AGENTS.md` | untouched | S2 changes no turbo configuration |
+
+### What should change in the plan
+
+Items 1 and 2 are recorded in the plan (§4, §4a, §6) and in the ADR; **the PASS list's own text is unchanged**. The rest are notes.
+
+1. **S2 passes.** The plan's rule is applied as written. Five readings are listed in the ADR (R1 to R5): the rule names B on Meilisearch although A passed there too; T7's "no code change" for A; T4's "worker mode" (one process, not a separate worker); T8 has no threshold and the plan said four locales where the index had six; T9 expected "trigram only" and Mongolian is found by exact lexemes.
+2. **T4's wording works only in one form.** "`updateTranslationsWorkflow` on the el-GR title" throws in 2.21.2 when called with a `selector`; the by-id form works (ADR, "Found on the way", item 1).
+3. **Nested translations need ids.** `query.graph(..., { locale })` leaves a nested object in English unless the object's `id` is selected. M3's transform must select the ids.
+4. **For T17 (SPEC v0.6):** the lines are under "Spec changes" in the ADR (SPEC §6.2, §8.5, §10.5, §14, G7, §17 and the risk table). The backend's integration tests are not in CI; the assumptions spec runs by hand until T17 step 4 adds `test:integration:http` to a job (CI's compose stack provides Postgres on 15432, which `apps/backend/.env.test` already points the runner at) or names a follow-up.
+5. **For M3 and M6:** ADR 0002, "Consequences". The prototype's spec is the acceptance suite.
+6. **For M4 (the Medusa-to-Payload sync) and any bulk import:** one `translation.created` event per row, and each makes every index re-read the product in every locale. End a bulk change with `searchModule.reindex({ index })`.
+7. **For S3 and T17 (harness lessons, all hit here):**
+   - `medusaIntegrationTestRunner` restores the database from a snapshot before every test, so anything outside Postgres (Meilisearch, here) keeps the last test's data: re-sync it in a `beforeEach`. It also boots the app twice, and the first instance's startup seed of the first search index fails on a closed connection (`Connection ended unexpectedly`); reindex explicitly.
+   - The runner reads `medusa-config.ts` before it applies its `env` option, so a switch the config reads has to be set at import time in the spec.
+   - `loadEnv("test")` also loads `apps/backend/.env`, so a test run inherits `REDIS_URL` and uses the dev stack's Redis (and a running dev server would share its queues). dotenv never overrides a variable that is already set, even to nothing, so `apps/backend/.env.test` (committed) blanks `REDIS_URL` and also sets `DB_HOST`, `DB_PORT`, `DB_USERNAME` and `DB_PASSWORD` for the compose Postgres: a bare `pnpm --filter @shopblok/backend test:integration:http` works on every OS, and no spec needs its own workaround.
+   - Never `pkill -f` with a pattern your own command line contains. I did once (`pkill -f "jest.*search-locale"`); it ended my shell instead of the test. Find the PID with `ps` fields and kill that.
+   - `medusa develop` restarts its server when the server dies; start it with `setsid` and stop its process group.
+   - To mutate a file in `node_modules/.pnpm`, copy it first: its link count is 2 (the pnpm store), and an in-place edit changes the store.
+   - A foreground `sleep` is refused by the tool; wait with a background `until` loop.
+
+### Smaller observations
+
+- **Meilisearch isolates by language, not only by attribute.** With `localizedAttributes` set and a language hint (`locales: ["el"]`) in the query, a German word does not hit Greek text in the same index (0 hits); without the hint, and for a language it has none for, all attributes are searched. The hint comes from `meiliLanguage()`; 141 codes are accepted, Mongolian is not.
+- **The B definition should not list the locales.** The prototype did (to create their indexes eagerly), so adding `it-IT` changed the definition's hash and re-seeded B as well. Creating a locale's index on its first write is enough.
+- **Postgres reindex timings in the test harness are noisy** (the stock `product` index took 239 s, 73 s and 4.2 s on three runs of the same 1,002 documents): the database is idle in most samples of `pg_stat_activity` and the time goes to the app's connection pool and to `DROP TABLE … CASCADE` of the old versions. T8's table reports the spread. The Meilisearch candidates and the quiet runs give 15 to 17 s.
+- **Handlers for one event run one index after another** (the Search Module's `ingestEvent` loop), so every added index adds its own handler time to the latency of the event.
+- **Sorting by title in the locale was not tested.** B's `title` is the locale's own text in its index, A has `title_<locale>` (sortable), and A' keeps only the default-language `title`.
+- The `medusa` database and the Payload database were not touched by the specs; the specs use the runner's temporary databases (`medusa-<id>-integration-1` and `-template`), which a killed run leaves behind (dropped by hand once). The Meilisearch indexes of killed runs (97 of them once) carry a random `r<hex>_` prefix and were deleted by hand.
+- The Greek, German, French, Portuguese, Mongolian and Italian texts of the test products are mine and have not been checked by a native speaker (as with the other catalogs, T03 item 3).
