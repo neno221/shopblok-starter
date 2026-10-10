@@ -1764,3 +1764,63 @@ A code review of the diff made 15 points; the fixes are in the diff (the audit w
 - **Worth knowing.** A page made in `beforeAll` is traced like any other (the review thought not): `trace.zip` was written for a failing test. It holds the login request, so the admin password is in it; in CI that password belongs to a database that is gone with the runner, so nothing is added.
 - **Not a fault.** The plan says Meilisearch "is `fallback` until M6" and the workflow said "`local`": both are right, `local` is its `kind` and `fallback` its `state`; the wording now says which.
 - **Left as it is, on purpose.** The root `pnpm build` in `e2e-smoke` (item 8). The `windows-gate` job (item 3): adding `scripts/`, `turbo.json`, `.nvmrc` and `ci.yml` to what it matches is a choice about Windows minutes, which cost double on a private repo, and the weekly run catches the rest; a separate workflow with a `paths` filter is a fair alternative that was not taken. The `thirdParty.length !== 5` assertion changes only when SPEC §10's list does, and `scripts/lib/integrations.test.ts` tests the list itself. The remaining CLDR-pinned expectations (`₮`, `R$`, `Οκτ`, `oct.`) held on CLDR 47 and 48; the next CLDR change that moves one is the signal to normalise it. The temporary break commit `1406356` and its revert stay in the history; PRs merge with a merge commit, so `git bisect --first-parent` skips them.
+
+## Cache Components × Payload admin (S1)
+
+**Result: S1 ran, and the owner decided on 2026-10-10 to keep Cache Components on; ADR 0001 is Accepted.** In production mode (`next build && next start`) the base config passes all 19 checks, and so does every other column, with zero console errors, so no edit to Payload's generated files and no change to the settings in `next.config.ts` is needed. In `next dev` every column with Cache Components on logs console errors (Next's dev-only prerender validation, and a React "Maximum update depth exceeded" loop in Payload's document and logout views), while the same admin with `cacheComponents` off is clean. The plan's PASS rule says "zero browser-console errors … in both dev and start", so read to the letter S1 is a FAIL and the fallback (`cacheComponents: false`) applies. Keeping them reads the rule for production mode and records the dev errors as a limitation; the ADR says why, how to revisit it, what S1 did not test (Vercel) and lists the fallback's steps. [ADR 0001](adr/0001-cache-components-payload.md) has the tables.
+
+| | |
+|---|---|
+| Date | 2026-10-10 |
+| Branch | `claude/busy-fermat-3wb1z5`. The plan names `spike/s1-…` (D13); the session's branch was fixed by the platform, so the prototype is one commit, **`dbfec6e`**, and the next commit removes it. Cut `spike/s1-cache-components` from `dbfec6e` if you want the plan's branch |
+| Session start | `node -v` v22.22.0, `pnpm -v` 12.10.1, `pnpm install --frozen-lockfile` 21.3 s. CLOUD.md's step 3: `dockerd` started, `pnpm infra:up` 17.7 s with 4 healthy, `docker compose port postgres 5432` printed `0.0.0.0:15432`. Step 4: `pnpm bootstrap` 51.1 s (8 done, 2 unchanged, 2 skipped; doctor's three warnings). `playwright --version` 1.64.0, `eslint --version` v9.39.5. Turborepo docs (2.11.7, `docs/README.md`) read; no turbo config changed |
+| Files in the merged tree | `docs/adr/0001-cache-components-payload.md`, this section, the plan, NEXT-SESSION, the S1 line in `README.md`, and one comment in `apps/storefront/next.config.ts`. **No code differs from `main`**: `git diff 1aed983 --stat -- . ':!docs' ':!README.md'` lists only that comment |
+| Prototype (`dbfec6e`, not for main) | `src/lib/spike/s1.ts` (two cached Local API reads on `cached()`, a loader counter in `globalThis`), `[market]/spike-cache/{page,draft/page}.tsx`, `next/spike/{counter,revalidate,draft}/route.ts`, `payload/hooks/revalidate-pages.ts` (the `pages` `afterChange` hook), a `heroImage` upload field on `pages` with its migration (for the drawer check), and `spike/s1/`: the 19-check Playwright suite, `run-column.sh` (one matrix column, any of `start`/`dev`, `partialPrefetching`, W1/W2/W3, `manual-warning`, Cache Components off), the three `.patch` files, `fresh-db.sh`, the mutation runners. `next.config.ts` carries the `S1_*` toggles there |
+| Runs | About 50 suite runs: the plan's 8 columns three times as the suite was corrected, then W2, W3, `manual-warning`, repeats of the base dev column, 3 runs of the Cache Components-off baseline, 4 mutation runs. Logs were in the session's scratchpad and are gone. The ADR has the last run of each column; earlier runs (and the drawer-failure counts across them) can only be re-run with "Reproduce" |
+| Reproduce | CLOUD.md steps 1 to 4 (or the quickstart): install, Docker, `pnpm infra:up`, and `pnpm bootstrap`, which writes the `apps/storefront/.env` the prototype needs (without it `fresh-db.sh` fails with "migrate never ran"). Then `git switch --detach dbfec6e` (it changes no `package.json` or lockfile), and from `apps/storefront`: `S1_OUT=<folder> spike/s1/run-column.sh start on no` (arguments: `start`/`dev`, `on`/`off`, `no`/`yes` for W1; `S1_W2=yes`, `S1_W3=yes`, `S1_INSIGHTS=manual`, `S1_CC=off` select the others). It creates `payload_s1` itself and never touches the `payload` database; it refuses to run if `PAYLOAD_DATABASE_URL` is not `…/payload_s1` |
+
+### Checks (S1's PASS list)
+
+| # | PASS criterion | Result |
+|---|---|---|
+| 1 | `next build` exits 0; no blocking-route, uncached-outside-Suspense or sync-I/O error | **Pass** in all 7 `start` columns (35–40 s). Also: a read with `cacheLife` all zero **fails** the build, which is the guard working |
+| 2 | Admin suite, zero console errors or hydration warnings | `start`: **pass** in all 7 columns. `dev`: functional checks pass (18 of 19) in the base column, the console check **fails in every column** (read for production mode, ADR 0001; the "Maximum update depth" loop and the `new Date()` source were not traced) |
+| 3 | `GET /api/pages` 200 | **Pass**. `/admin/nope` answers 200 (accepted) |
+| 4 | Cache behaviour: hit counter, fresh within 2 requests, `{ expire: 0 }` | **Pass** in `start` (the "2 requests" needs a 500 ms pause with `'max'`, below) |
+| 5 | Draft isolation, 200 concurrent mixed requests | **Pass**: 0 of 100 public responses carried the draft marker, cold and warm; every draft response had it |
+| 6 | Market home `◐` with a streamed dynamic hole | **Pass**: `/[market]` and `/admin/[[...segments]]` are `◐`; `/` has the pending boundary and fallback in its shell |
+
+### Checks beyond S1's list
+
+- **The first-user form is now tested** (T16 item 1 left it open): the suite runs against an empty `payload_s1` and its own server on :8000, so the origin Payload's CSRF check compares is the right one. It passes in `start` and `dev`. It is not in CI: CI's database already has the bootstrap admin.
+- **A baseline with Cache Components off** (dev, 3 runs): 10 of 10 admin checks, 0 console messages. This is what turns "Payload logs errors in dev" into "Cache Components × Payload logs errors in dev". It needed `globalNotFound` off and the storefront's `use cache` pages set aside, since they cannot compile without the flag.
+- **The tests can fail:** four mutations, each caught by the intended check (ADR 0001).
+- **Fresh content with `'max'`:** request 1 stale, the refresh takes about 300 ms, request 2 after 500 ms is fresh. Back to back, request 2 is still stale.
+- **`withPayload` and `turbopackServerFastRefresh`** (plan §6, T00): `withPayload` sets `experimental.turbopackServerFastRefresh: false` ("Server fast refresh breaks HMR" in its source), which is why the banner prints `⨯ turbopackServerFastRefresh`. Dev only; nothing for a build.
+- **`PAYLOAD_CACHE_COMPONENTS_ENABLED`:** `withPayload` sets it when `nextConfig.cacheComponents` is truthy, and `RootLayout` wraps its content in `<Suspense fallback={null}>` only then. Our config goes through `withPayload(buildConfig(phase))`, so it is set.
+
+### What should change in the plan
+
+Items 1 to 3 are recorded in the plan (§4, §4a, §6) and in ADR 0001; **the PASS list's own text is unchanged** and points to the ADR. The rest are notes.
+
+1. **S1's PASS rule is read for production mode.** As written it cannot pass with Cache Components on: dev logs errors that `start` does not. The owner decided on 2026-10-10 to keep (ADR 0001, Accepted).
+2. **`partialPrefetching` stays on, and none of W1, W2, W3 or `manual-warning` is adopted.** `check-workspace.ts` therefore asserts nothing new (the plan asked for an assertion only if a generated-file edit is adopted), and the plan's "Renovate PRs for `payload` or `next` run the admin suite" is already true through T16's `payload-admin`.
+3. **Criteria 2 and 4 are read more exactly than written**, by the S1 session (ADR 0001, "Decision", items 2 and 3). Read literally, criterion 4 fails in every column.
+4. **For M1 and M4 (`cached()`):** tags are fixed when `cached()` is called. SPEC §8.3 asks for global tags, which works (`payload:pages`). A tag per language needs one wrapper per language or `cached()` taking `tags` as a function of its arguments; decide when a page needs it.
+5. **For M4 (the `pages` hook):** `revalidateTag(tag, 'max')` works inside Payload's REST route handler (the admin's save; measured). `updateTag` from a hook and `revalidateTag` outside Next were not exercised; test both when the hook is written (ADR 0001, "Consequences"). Do not call it for drafts: revalidate when the document or its previous version is published.
+6. **For T17:** SPEC §8.3, Q14 and the risk-table row change as listed under "Spec changes" in ADR 0001. The ADR's template (context, options, tests and results, decision, consequences, spec changes) is the one `docs/adr/README.md` should hold.
+7. **For S2 and S3 (harness lessons, all hit here):**
+   - `payload migrate` and `payload run` exit 0 without doing anything about 1 run in 20 (T14 item 4). Any helper that migrates a throwaway database must check for the table afterwards and repeat.
+   - The runner's own `pkill`-style match killed the session's shell once (exit 144): match exact `ps` fields (`$2 ~ /^next-server/`), never a pattern the calling command line contains (CLOUD.md says so for `pkill -f`; it holds for `awk` over `ps` too).
+   - Playwright's `click` on the admin's nav link is blocked by an overlay at 1280×720; click in the page. A toast is not proof of a save: wait for the PATCH.
+   - A deep link to `/admin/logout` gave a console 400 on `POST /api/users/logout` in 2 of 6 runs; the nav link 0 of 6.
+   - Cache Components off needs `src/app/global-not-found.tsx` set aside, and a request to any `use cache` route poisons the rest of that dev run (every route answers 500).
+
+### Smaller observations
+
+- The Gravatar request of the admin avatar fails in the cloud (`ERR_TUNNEL_CONNECTION_FAILED`), as T09 noted; the suite excuses a failed request to another host but not one to this server.
+- In dev the browser console gets Next's prerender errors with the route `"/admin/[[...segments]]"` and a frame in Payload's `RootLayout` or `NotFound`. Payload's `timestamp()` helper (the only `new Date()` I found in `@payloadcms/next`) is never called, so the source of the `new Date()` is elsewhere in Payload or Next; I did not trace it, and no upstream issue is linked (ADR 0001, "Decision").
+- Next 16.4's `experimental.instantInsights.validationLevel: 'manual-warning'` did not remove any of the dev errors, only the "instant navigation" one.
+- `GET` route handlers that only read process state are prerendered unless they call `connection()`.
+- The upload fields' drawer is the check for the plan's "#16270: media selection forces a full reload": it passes in `start` (6 of 6 base and W1 runs in dev too). The issue itself could not be read (the cloud blocks `github.com` issue pages), so this is my reading of it.
+- Not run: Windows (W2 covers the quickstart), `partialPrefetching` with a real cart or account route (M1 onward), Instant Navigations beyond the admin.

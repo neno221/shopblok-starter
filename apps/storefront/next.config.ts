@@ -10,7 +10,7 @@ const repoRoot = fileURLToPath(new URL("../..", import.meta.url));
 
 function buildConfig(phase: string): NextConfig {
   return {
-    // S1 may change these two (Cache Components x Payload admin).
+    // Both stay on; ADR 0001 says why and what the Payload admin's dev console shows.
     cacheComponents: true,
     partialPrefetching: true,
     typedRoutes: true,
