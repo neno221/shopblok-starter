@@ -85,20 +85,14 @@ describe("saving the markets global", () => {
     // A frozen clock, so a slow CI machine cannot let the filter's memo expire between two calls.
     vi.spyOn(performance, "now").mockReturnValue(1_000);
   });
-  afterEach(() => {
-    vi.restoreAllMocks();
-    // The memo lives on `globalThis`: leave none behind for the next test file in this worker.
-    clearEnabledLanguages();
-  });
+  afterEach(() => vi.restoreAllMocks());
 
-  it("makes the admin's locale selector read the new languages at once (S3)", async () => {
-    // The filter keeps one read of `markets` for a moment; a save must not leave a page that
-    // follows it with the old list. Which hooks the global has, and in what order, is not the
-    // point (M4 adds one that revalidates the market map): all of them run, as Payload runs them.
-    const findGlobal = vi
-      .fn()
-      .mockResolvedValueOnce({ countries: [] })
-      .mockResolvedValueOnce({ countries: [{ enabled: true, languages: ["de"] }] });
+  it("makes the admin's locale selector offer the saved languages at once (S3)", async () => {
+    // The filter keeps one read of `markets` for a moment, and Payload commits a save after its
+    // hooks, so a read in between still gets the old document (`findGlobal` below never changes).
+    // Which hooks the global has, and in what order, is not the point (M4 adds one that
+    // revalidates the market map): all of them run, as Payload runs them.
+    const findGlobal = vi.fn().mockResolvedValue({ countries: [] });
     const payload = { findGlobal, logger: { warn: vi.fn() } } as unknown as Payload;
     const req = { context: {}, payload } as unknown as PayloadRequest;
     const locales = ["en", "de", "el"].map((code) => ({ code, label: code }));
@@ -106,13 +100,12 @@ describe("saving the markets global", () => {
       (await filterAvailableLocales({ locales, req })).map((locale) => locale.code);
 
     expect(await codes()).toEqual(["en"]);
-    expect(await codes()).toEqual(["en"]);
-    expect(findGlobal).toHaveBeenCalledTimes(1);
 
+    const doc = { countries: [{ enabled: true, languages: ["de"] }] };
     const hooks = Markets.hooks?.afterChange ?? [];
     expect(hooks.length).toBeGreaterThan(0);
     for (const hook of hooks) {
-      await hook({ doc: {}, global: Markets, previousDoc: {}, req } as never);
+      await hook({ doc, global: Markets, previousDoc: {}, req } as never);
     }
 
     expect(await codes()).toEqual(["en", "de"]);

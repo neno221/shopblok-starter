@@ -1,14 +1,13 @@
 import type { Locale, Payload, PayloadRequest } from "payload";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  COMMIT_GRACE_MS,
   ENABLED_LANGUAGES_TTL_MS,
   clearEnabledLanguages,
-  clearEnabledLanguagesAfterSave,
   enabledLanguages,
   filterAvailableLocales,
   isMissingTable,
   pickAvailableLocales,
+  rememberEnabledLanguages,
 } from "./filter-available-locales";
 
 const locales: Locale[] = ["en", "el", "de", "fr", "pt"].map((code) => ({ code, label: code }));
@@ -128,7 +127,7 @@ describe("filterAvailableLocales", () => {
     expect(findGlobal).toHaveBeenCalledTimes(2);
   });
 
-  it("reads again after clearEnabledLanguages, which saving markets calls", async () => {
+  it("reads again after clearEnabledLanguages", async () => {
     const findGlobal = vi
       .fn()
       .mockResolvedValueOnce({ countries: [] })
@@ -144,28 +143,32 @@ describe("filterAvailableLocales", () => {
     ]);
   });
 
-  it("clears again after a save has committed, for a read that started in between", async () => {
-    // Payload commits the save's transaction after the global's `afterChange` hooks: a page that
-    // reads in that gap gets the old `markets`, and must not keep it for the memo's whole time.
-    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
-    try {
-      const findGlobal = vi
-        .fn()
-        .mockResolvedValueOnce({ countries: [] })
-        .mockResolvedValueOnce({ countries: [{ enabled: true, languages: ["de"] }] });
-      const payload = fakePayload(findGlobal);
-      clearEnabledLanguagesAfterSave();
-      expect(codes(await filterAvailableLocales({ locales, req: requestOf(payload) }))).toEqual([
-        "en",
-      ]);
-      await vi.advanceTimersByTimeAsync(COMMIT_GRACE_MS);
-      expect(codes(await filterAvailableLocales({ locales, req: requestOf(payload) }))).toEqual([
-        "en",
-        "de",
-      ]);
-    } finally {
-      vi.useRealTimers();
-    }
+  it("serves the languages a save handed over, whatever the database still says", async () => {
+    // Payload commits a save after its hooks: a read in between still sees the old `markets`.
+    const findGlobal = vi.fn().mockResolvedValue({ countries: [] });
+    const payload = fakePayload(findGlobal);
+    expect(codes(await filterAvailableLocales({ locales, req: requestOf(payload) }))).toEqual([
+      "en",
+    ]);
+    rememberEnabledLanguages(payload, { countries: [{ enabled: true, languages: ["de"] }] });
+    expect(codes(await filterAvailableLocales({ locales, req: requestOf(payload) }))).toEqual([
+      "en",
+      "de",
+    ]);
+    expect(findGlobal).toHaveBeenCalledTimes(1);
+    // ... for the memo's time, and not longer.
+    now += ENABLED_LANGUAGES_TTL_MS;
+    await filterAvailableLocales({ locales, req: requestOf(payload) });
+    expect(findGlobal).toHaveBeenCalledTimes(2);
+  });
+
+  it("reads again after a save that handed over no countries (a partial select)", async () => {
+    const findGlobal = vi.fn().mockResolvedValue({ countries: [] });
+    const payload = fakePayload(findGlobal);
+    await filterAvailableLocales({ locales, req: requestOf(payload) });
+    rememberEnabledLanguages(payload, {});
+    await filterAvailableLocales({ locales, req: requestOf(payload) });
+    expect(findGlobal).toHaveBeenCalledTimes(2);
   });
 
   it("keeps its memo where every copy of the module sees it (the layout and the page load their own)", async () => {
@@ -216,9 +219,7 @@ describe("filterAvailableLocales", () => {
   });
 
   it("inside a write's transaction it reads with that request and shares nothing", async () => {
-    // Payload calls the filter from a create or update once `localizeStatus` is on, with the
-    // transaction open. A read that left it would need a second connection while the write holds
-    // the first, and it would not see what the write itself changed.
+    // Once `localizeStatus` is on, Payload calls the filter from a write (see the filter's doc).
     const findGlobal = vi.fn().mockResolvedValue({ countries: [] });
     const payload = fakePayload(findGlobal);
     const inTransaction = { ...requestOf(payload), transactionID: "tx-1" } as PayloadRequest;

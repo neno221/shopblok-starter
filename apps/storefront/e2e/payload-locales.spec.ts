@@ -34,26 +34,25 @@ let originalLocale: string | null | undefined;
 
 const LOCALE_PREFERENCE = "/api/payload-preferences/locale";
 
+/** The bootstrap admin's JWT; `Origin` is what Payload's CSRF check compares on a write. */
+const adminHeaders = () => ({ Authorization: `JWT ${token}`, Origin: appOrigin });
+
 async function readMarkets(request: APIRequestContext): Promise<Record<string, unknown>> {
-  const response = await request.get("/api/globals/markets", {
-    headers: { Authorization: `JWT ${token}` },
-  });
+  const response = await request.get("/api/globals/markets", { headers: adminHeaders() });
   expect(response.status(), "an admin may read the markets global").toBe(200);
   return (await response.json()) as Record<string, unknown>;
 }
 
 async function postMarkets(request: APIRequestContext, body: unknown): Promise<void> {
   const response = await request.post("/api/globals/markets", {
-    headers: { Authorization: `JWT ${token}`, Origin: appOrigin },
+    headers: adminHeaders(),
     data: body,
   });
   expect(response.status(), await response.text()).toBe(200);
 }
 
 async function readLocalePreference(request: APIRequestContext): Promise<string | null> {
-  const response = await request.get(LOCALE_PREFERENCE, {
-    headers: { Authorization: `JWT ${token}` },
-  });
+  const response = await request.get(LOCALE_PREFERENCE, { headers: adminHeaders() });
   expect(response.status(), "an admin may read their own preferences").toBe(200);
   return ((await response.json()) as { value: string | null }).value;
 }
@@ -62,7 +61,7 @@ async function writeLocalePreference(
   request: APIRequestContext,
   value: string | null,
 ): Promise<void> {
-  const headers = { Authorization: `JWT ${token}`, Origin: appOrigin };
+  const headers = adminHeaders();
   const response =
     value === null
       ? await request.delete(LOCALE_PREFERENCE, { headers })
@@ -122,19 +121,24 @@ test.afterAll(async ({ request }) => {
   // Not a test: leave the shared server as found, whatever failed above, and fail the run if that
   // cannot be done (a swallowed error would leave the next step with the last test's markets).
   // The REST body is the document the form would send back, minus what Payload sets itself.
+  // Payload also remembers the admin's last language per user, and the tests changed that.
+  const restores: Promise<void>[] = [];
+  if (originalMarkets !== undefined) {
+    const {
+      id: _id,
+      createdAt: _created,
+      updatedAt: _updated,
+      globalType: _type,
+      ...body
+    } = originalMarkets;
+    restores.push(postMarkets(request, body));
+  }
+  if (originalLocale !== undefined) restores.push(writeLocalePreference(request, originalLocale));
   try {
-    if (originalMarkets !== undefined) {
-      const {
-        id: _id,
-        createdAt: _created,
-        updatedAt: _updated,
-        globalType: _type,
-        ...body
-      } = originalMarkets;
-      await postMarkets(request, body);
-    }
-    // Payload remembers the admin's last language per user; the tests changed it.
-    if (originalLocale !== undefined) await writeLocalePreference(request, originalLocale);
+    // Each restore is tried even when the other fails; the first failure fails the run.
+    const results = await Promise.allSettled(restores);
+    const failed = results.find((result) => result.status === "rejected");
+    if (failed) throw failed.reason;
   } finally {
     await page?.close();
   }
@@ -223,9 +227,7 @@ test("L8: the API answers for a language that is switched off (the filter is the
 }) => {
   await setMarkets(request, [{ code: "cy", languages: ["el"] }]);
   const asVisitor = await request.get("/api/pages?locale=fr");
-  const asAdmin = await request.get("/api/pages?locale=fr", {
-    headers: { Authorization: `JWT ${token}` },
-  });
+  const asAdmin = await request.get("/api/pages?locale=fr", { headers: adminHeaders() });
   expect(asVisitor.status()).toBe(200);
   expect(asAdmin.status()).toBe(200);
 });

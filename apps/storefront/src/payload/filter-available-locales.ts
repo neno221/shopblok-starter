@@ -40,14 +40,13 @@ export function isMissingTable(error: unknown): boolean {
 async function readEnabledLanguages(payload: Payload, req?: PayloadRequest) {
   try {
     // Not on behalf of the signed-in user: which languages exist is the shop's setting, so an
-    // editor who may not read `markets` still gets the same selector. And with the caller's `req`
-    // only inside a write's transaction (`filterAvailableLocales`): a result that is shared between
-    // requests (below) must not depend on one.
+    // editor who may not read `markets` still gets the same selector. `req` is given only inside a
+    // write's transaction (`filterAvailableLocales`).
     const markets = await payload.findGlobal({
       slug: "markets",
       depth: 0,
       overrideAccess: true,
-      ...(req && { req }),
+      req,
     });
     return enabledLanguages(markets);
   } catch (error) {
@@ -70,18 +69,10 @@ async function readEnabledLanguages(payload: Payload, req?: PayloadRequest) {
  * by time: nothing in the calls says which HTTP request they belong to (`req.headers` is a new
  * Proxy per `headers()` call, and React's `cache()` scope was shared by only two of the three).
  * Two seconds is long enough for one page and short enough that a person who saved `markets`
- * reads the new list on the next page; a save clears it at once (`clearEnabledLanguagesAfterSave`).
- * Another server process is up to this much behind, counted in that process's own running time.
+ * reads the new list on the next page; a save puts the new list in at once
+ * (`rememberEnabledLanguages`). Another server process is up to this much behind.
  */
 export const ENABLED_LANGUAGES_TTL_MS = 2_000;
-
-/**
- * How long after a save the memo is cleared a second time. Payload runs a global's `afterChange`
- * hooks and only then commits the save's transaction, so a read that starts between the two still
- * sees the old `markets` and would be kept for `ENABLED_LANGUAGES_TTL_MS`. A commit is one round
- * trip to the database; a quarter of a second is far more than it takes.
- */
-export const COMMIT_GRACE_MS = 250;
 
 type Memo = { payload: Payload; at: number; enabled: Promise<Set<string>> };
 const MEMO = Symbol.for("shopblok.enabledLanguages");
@@ -92,10 +83,20 @@ export function clearEnabledLanguages(): void {
   delete shared[MEMO];
 }
 
-/** The `markets` global calls it from `afterChange`: now, and again once the save has committed. */
-export function clearEnabledLanguagesAfterSave(): void {
-  clearEnabledLanguages();
-  setTimeout(clearEnabledLanguages, COMMIT_GRACE_MS).unref();
+/**
+ * The `markets` global calls it from `afterChange` with the document it saved. Payload commits the
+ * save's transaction only after its `afterChange` hooks, so a page that reads in between would get
+ * the old list, and the memo would keep it. The new list is put in the memo instead, which no read
+ * can beat. A document without `countries` (a partial `select`) says nothing: the memo is cleared.
+ * If the save is rolled back after the hook, the wrong list lasts for the memo's time at most.
+ */
+export function rememberEnabledLanguages(payload: Payload, saved: MarketsDoc): void {
+  if (!Array.isArray(saved.countries)) return clearEnabledLanguages();
+  shared[MEMO] = {
+    payload,
+    at: performance.now(),
+    enabled: Promise.resolve(enabledLanguages(saved)),
+  };
 }
 
 function sharedRead(payload: Payload): Promise<Set<string>> {

@@ -2,7 +2,7 @@ import type { GlobalConfig, TextFieldSingleValidation } from "payload";
 import { text } from "payload/shared";
 import { MEDUSA_LOCALES, isMedusaLocale, medusaLocalesOf } from "../../lib/markets/medusa-locales";
 import { isAdmin, isStaff } from "../access/roles";
-import { clearEnabledLanguagesAfterSave } from "../filter-available-locales";
+import { rememberEnabledLanguages } from "../filter-available-locales";
 import { LOCALES } from "../locales";
 
 const languageOptions = LOCALES.map(({ code, label }) => ({
@@ -57,12 +57,8 @@ export const Markets: GlobalConfig = {
   access: { read: isStaff, update: isAdmin },
   hooks: {
     // The admin's locale selector follows this global (`filterAvailableLocales`), which keeps its
-    // read for a moment. Forget it, so the page the save refreshes already offers the new list.
-    afterChange: [
-      () => {
-        clearEnabledLanguagesAfterSave();
-      },
-    ],
+    // read for a moment. Hand it the saved list, so the page the save refreshes already offers it.
+    afterChange: [({ doc, req }) => rememberEnabledLanguages(req.payload, doc)],
   },
   fields: [
     {
