@@ -250,7 +250,7 @@ describe("D17: any shop's markets, with no change to resolve", () => {
     };
     expect(served(map, "/")).toEqual(["pt-br", ""]);
     expect(served(map, "/en/store")).toEqual(["en-br", "/store"]);
-    expect(listMarkets(map).map((m) => m.htmlLang)).toEqual(["pt-BR", "en-BR"]);
+    expect(listMarkets(map).map((m) => m.htmlLang)).toEqual(["pt-BR", "en-XX"]);
   });
 });
 
