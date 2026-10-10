@@ -63,6 +63,12 @@ jobs:
           node-version: ${{ matrix.node-version }}
           node-version-file: ${{ matrix.node-version-file }}
           cache: pnpm
+      # What the runner really has: Node's ICU/CLDR data decides how Intl writes prices, and it
+      # differs between Node 22 patch releases (the first run of this workflow found that).
+      - name: Versions
+        run: |
+          node -p "process.version + ' (ICU ' + process.versions.icu + ', CLDR ' + process.versions.cldr + ')'"
+          pnpm --version
       - run: pnpm install --frozen-lockfile
       - run: pnpm check:workspace
       - run: pnpm typecheck
@@ -87,6 +93,12 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: pnpm
+      # What the runner really has: Node's ICU/CLDR data decides how Intl writes prices, and it
+      # differs between Node 22 patch releases (the first run of this workflow found that).
+      - name: Versions
+        run: |
+          node -p "process.version + ' (ICU ' + process.versions.icu + ', CLDR ' + process.versions.cldr + ')'"
+          pnpm --version
       - run: pnpm install --frozen-lockfile
       # `docker compose up --wait`, not `services:`: service containers start before checkout, so
       # the init SQL under infra/ could not be mounted into them.
@@ -212,6 +224,12 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: pnpm
+      # What the runner really has: Node's ICU/CLDR data decides how Intl writes prices, and it
+      # differs between Node 22 patch releases (the first run of this workflow found that).
+      - name: Versions
+        run: |
+          node -p "process.version + ' (ICU ' + process.versions.icu + ', CLDR ' + process.versions.cldr + ')'"
+          pnpm --version
       - run: pnpm install --frozen-lockfile
       - run: pnpm check:workspace
       - run: pnpm typecheck

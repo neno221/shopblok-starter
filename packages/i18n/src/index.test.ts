@@ -3,15 +3,18 @@ import { describe, expect, it } from "vitest";
 import { catalogs, DEFAULT_LOCALE, formatDate, formatMoney, isLocale, LOCALES } from "./index";
 
 // Intl puts no-break spaces (U+00A0, U+202F) between a number and its symbol or digit groups, and
-// which one it picks differs between ICU versions. Compare with plain spaces.
-const plain = (text: string) => text.replace(/[\u00a0\u202f]/g, " ");
+// which one it picks differs between ICU versions. The Swiss locales group with an apostrophe whose
+// code point changed with the CLDR data: de-CH groups with ’ (U+2019) and fr-CH with U+202F in
+// CLDR 47 (Node 22.22.0), and both with ASCII ' in CLDR 48 (Node 22.23, GitHub's runners). Which
+// one it is belongs to the runtime, not to this package, so compare with plain spaces.
+const plain = (text: string) => text.replace(/[\u00a0\u202f\u2019']/g, " ");
 
 describe("formatMoney", () => {
   it.each([
     ["el-CY", "EUR", "1.234,50 €"],
     ["en-US", "USD", "$1,234.50"],
     ["en-GB", "GBP", "£1,234.50"],
-    ["de-CH", "CHF", "CHF 1’234.50"],
+    ["de-CH", "CHF", "CHF 1 234.50"],
     ["fr-CH", "CHF", "1 234.50 CHF"],
     // Any currency Medusa sells in formats the same way: a shop that opens Brazil or Mongolia
     // needs no change here.
