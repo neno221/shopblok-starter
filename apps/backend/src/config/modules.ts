@@ -106,6 +106,31 @@ export function buildModules(env: Env): InputConfigModules {
           ],
         },
       },
+    // S2 prototype (not for main, D13): both search providers in one app, so every index
+    // variant in `src/search/s2-variants.ts` runs over the same data. Replaces Medusa's default
+    // Search Module entry, so the Postgres provider is listed again, with the same options.
+    isTruthy(env.S2_SPIKE) && {
+      resolve: "@medusajs/medusa/search",
+      options: {
+        default_provider: "search-postgres",
+        index_prefix: env.S2_INDEX_PREFIX?.trim() || undefined,
+        providers: [
+          {
+            resolve: "@medusajs/medusa/search-postgres",
+            id: "postgres",
+            options: { engine: "native", language: env.S2_PG_LANGUAGE?.trim() || "english" },
+          },
+          {
+            resolve: "./src/modules/meilisearch-search",
+            id: "meilisearch",
+            options: {
+              host: env.MEILISEARCH_HOST ?? "http://localhost:7701",
+              api_key: env.MEILISEARCH_API_KEY || undefined,
+            },
+          },
+        ],
+      },
+    },
   ];
 
   return modules.filter((entry): entry is ModuleEntry => Boolean(entry));
