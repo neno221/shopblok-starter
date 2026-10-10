@@ -212,3 +212,18 @@ describe("showing output", () => {
     expect(redact("nothing secret here")).toBe("nothing secret here");
   });
 });
+
+describe("redact: connection strings", () => {
+  it("hides the password of a URL, with or without a user name", () => {
+    expect(redact("postgres://postgres:hunter2@localhost:15432/medusa")).toBe(
+      "postgres://postgres:…@localhost:15432/medusa",
+    );
+    expect(redact("redis://:hunter2@localhost:6380")).toBe("redis://:…@localhost:6380");
+  });
+
+  it("leaves a URL without a password alone", () => {
+    expect(redact("http://localhost:9000/health redis://localhost:6380")).toBe(
+      "http://localhost:9000/health redis://localhost:6380",
+    );
+  });
+});

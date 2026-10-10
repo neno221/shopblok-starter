@@ -11,17 +11,12 @@ import { randomUUID } from "node:crypto";
 import { chmodSync, existsSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import {
-  answers,
-  canConnect,
   dockerUnavailableWarning,
+  inspectTargets,
   isLocalHost,
-  judge,
-  observeCompose,
   satisfies,
   targetsFrom,
-  type ComposeObservation,
   type Finding,
-  type Target,
 } from "./lib/checks.ts";
 import {
   changedAnything,
@@ -31,7 +26,7 @@ import {
   mergeEnv,
   type EnvChange,
 } from "./lib/env-file.ts";
-import { run, type RunResult } from "./lib/exec.ts";
+import { retryWhileSilent, run, type RunResult } from "./lib/exec.ts";
 import {
   classifyMigrate,
   classifyPayloadMigrate,
@@ -152,8 +147,12 @@ function pnpm(args: string[], ctx: Context, extraEnv: Record<string, string | un
 const medusa = (args: string[], ctx: Context) =>
   pnpm(["--filter", "@shopblok/backend", "exec", "medusa", ...args], ctx);
 
+// Payload's CLI now and then exits 0 without running anything (see `exitedInSilence`); both of its
+// commands here are safe to run again, so a silent exit is repeated rather than believed.
 const payload = (args: string[], ctx: Context, extraEnv: Record<string, string | undefined> = {}) =>
-  pnpm(["--filter", "@shopblok/storefront", "exec", "payload", ...args], ctx, extraEnv);
+  retryWhileSilent(() =>
+    pnpm(["--filter", "@shopblok/storefront", "exec", "payload", ...args], ctx, extraEnv),
+  );
 
 function failed(what: string, result: RunResult, hint?: string): StepError {
   const why = result.prompt
@@ -208,28 +207,7 @@ async function preflight(): Promise<StepResult> {
     MAILPIT_UI_PORT: pick("MAILPIT_UI_PORT", composeText),
   });
 
-  // `docker compose port` once per service and container port.
-  const composeCache = new Map<string, Promise<ComposeObservation>>();
-  const compose = (target: Target) => {
-    const key = `${target.service}:${target.containerPort}`;
-    let observation = composeCache.get(key);
-    if (!observation) {
-      observation = observeCompose(target, root);
-      composeCache.set(key, observation);
-    }
-    return observation;
-  };
-
-  const findings: Finding[] = await Promise.all(
-    targets.map(async (target) => {
-      const reachable = await canConnect(target.host, target.port);
-      const speaksProtocol = reachable && (await answers(target));
-      // A remote host can't be a container of ours, so don't ask Docker about it.
-      const observation: ComposeObservation =
-        reachable && isLocalHost(target.host) ? await compose(target) : { status: "not-published" };
-      return judge({ target, reachable, speaksProtocol, compose: observation });
-    }),
-  );
+  const findings: Finding[] = await inspectTargets(targets, root);
 
   for (const finding of findings) {
     if (finding.level === "error") problems.push(finding.message);

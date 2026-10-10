@@ -5,6 +5,7 @@ import {
   addressOf,
   canConnect,
   dockerUnavailableWarning,
+  inspectTargets,
   isLocalHost,
   judge,
   meilisearchAnswers,
@@ -13,7 +14,9 @@ import {
   redisAnswers,
   satisfies,
   targetsFrom,
+  type ComposeObservation,
   type Observation,
+  type Probes,
   type Target,
 } from "./checks.ts";
 
@@ -334,5 +337,105 @@ describe("probes", () => {
     expect(await meilisearchAnswers("127.0.0.1", await serve('{"status":"booting"}'))).toBe(false);
     expect(await meilisearchAnswers("127.0.0.1", await serve("{}", 503))).toBe(false);
     expect(await meilisearchAnswers("127.0.0.1", await closedPort(), 300)).toBe(false);
+  });
+});
+
+describe("inspectTargets", () => {
+  const target = (over: Partial<Target>): Target => ({
+    label: "Postgres",
+    kind: "postgres",
+    service: "postgres",
+    containerPort: 5432,
+    host: "localhost",
+    port: 15432,
+    ...over,
+  });
+
+  /** Probes that look at nothing real; `asked` counts the Docker questions. */
+  function probes(options: {
+    reachable?: boolean;
+    speaks?: boolean;
+    compose?: ComposeObservation;
+  }): { probes: Probes; asked: string[] } {
+    const asked: string[] = [];
+    return {
+      asked,
+      probes: {
+        canConnect: async () => options.reachable ?? true,
+        answers: async () => options.speaks ?? true,
+        observeCompose: async (t) => {
+          asked.push(`${t.service}:${t.containerPort}`);
+          return options.compose ?? { status: "published", ports: [15432] };
+        },
+      },
+    };
+  }
+
+  it("asks Docker once per service and container port, whatever the number of targets", async () => {
+    const { probes: p, asked } = probes({});
+    const findings = await inspectTargets(
+      [
+        target({ label: "Postgres (medusa database)" }),
+        target({ label: "Postgres (payload database)" }),
+        target({
+          label: "Redis",
+          kind: "redis",
+          service: "redis",
+          containerPort: 6379,
+          port: 6380,
+        }),
+      ],
+      "/repo",
+      {
+        ...p,
+        observeCompose: async (t, cwd) => {
+          expect(cwd).toBe("/repo");
+          return p
+            .observeCompose(t, cwd)
+            .then((o) =>
+              t.service === "redis" ? { status: "published" as const, ports: [6380] } : o,
+            );
+        },
+      },
+    );
+    expect(findings.map((f) => f.level)).toEqual(["ok", "ok", "ok"]);
+    expect(asked.sort()).toEqual(["postgres:5432", "redis:6379"]);
+  });
+
+  it("is an error when the port is not published by this project's stack (D15)", async () => {
+    const { probes: p } = probes({ compose: { status: "published", ports: [15432] } });
+    const [finding] = await inspectTargets([target({ port: 5432 })], "/repo", p);
+    expect(finding?.level).toBe("error");
+    expect(finding?.message).toContain("belongs to something else (D15)");
+  });
+
+  it("never asks Docker about a remote host, or about a service that does not answer", async () => {
+    const remote = probes({});
+    const [ok] = await inspectTargets([target({ host: "db.example.com" })], "/repo", remote.probes);
+    expect(ok?.level).toBe("ok");
+    expect(ok?.message).toContain("a remote server");
+    expect(remote.asked).toEqual([]);
+
+    const down = probes({ reachable: false });
+    const [bad] = await inspectTargets([target({})], "/repo", down.probes);
+    expect(bad?.level).toBe("error");
+    expect(bad?.message).toContain("is not reachable");
+    expect(down.asked).toEqual([]);
+  });
+
+  it("an answer that is not the service's protocol is an error", async () => {
+    const { probes: p } = probes({ speaks: false });
+    const [finding] = await inspectTargets([target({})], "/repo", p);
+    expect(finding?.level).toBe("error");
+    expect(finding?.message).toContain("does not behave like Postgres");
+  });
+
+  it("a Docker that cannot be asked is a warning with the reason", async () => {
+    const { probes: p } = probes({
+      compose: { status: "docker-unavailable", reason: "no daemon" },
+    });
+    const [finding] = await inspectTargets([target({})], "/repo", p);
+    expect(finding?.level).toBe("warn");
+    expect(finding?.dockerReason).toBe("no daemon");
   });
 });

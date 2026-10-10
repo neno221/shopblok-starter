@@ -448,3 +448,55 @@ export function dockerUnavailableWarning(findings: readonly Finding[]): string |
     .join(", ");
   return `Docker is not available (${first.dockerReason}), so I can't check that these are this project's services: ${list}. ${writes}.`;
 }
+
+// ---------------------------------------------------------------------------------------------
+// Looking at all of them
+
+/** How `inspectTargets` looks at the machine; the tests replace these. */
+export type Probes = {
+  canConnect: (host: string, port: number) => Promise<boolean>;
+  answers: (target: Target) => Promise<boolean>;
+  observeCompose: (
+    target: Pick<Target, "service" | "containerPort">,
+    cwd: string,
+  ) => Promise<ComposeObservation>;
+};
+
+const REAL_PROBES: Probes = {
+  canConnect: (host, port) => canConnect(host, port),
+  answers: (target) => answers(target),
+  observeCompose,
+};
+
+/**
+ * The D15 verdict for each target: is it reachable, does it speak the protocol, and does it belong
+ * to this project's compose stack. Shared by bootstrap's preflight and doctor, so both say the same
+ * thing about the same port. `docker compose port` is asked once per service and container port, and
+ * never for a remote host, which cannot be one of our containers.
+ */
+export async function inspectTargets(
+  targets: readonly Target[],
+  cwd: string,
+  probes: Probes = REAL_PROBES,
+): Promise<Finding[]> {
+  const asked = new Map<string, Promise<ComposeObservation>>();
+  const compose = (target: Target) => {
+    const key = `${target.service}:${target.containerPort}`;
+    let observation = asked.get(key);
+    if (!observation) {
+      observation = probes.observeCompose(target, cwd);
+      asked.set(key, observation);
+    }
+    return observation;
+  };
+
+  return Promise.all(
+    targets.map(async (target) => {
+      const reachable = await probes.canConnect(target.host, target.port);
+      const speaksProtocol = reachable && (await probes.answers(target));
+      const observation: ComposeObservation =
+        reachable && isLocalHost(target.host) ? await compose(target) : { status: "not-published" };
+      return judge({ target, reachable, speaksProtocol, compose: observation });
+    }),
+  );
+}
