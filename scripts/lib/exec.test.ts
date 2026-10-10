@@ -85,6 +85,38 @@ describe("run", () => {
     expect(result.code).not.toBe(0);
   });
 
+  it("stops a command that asks a yes/no question instead of waiting for an answer that cannot come", async () => {
+    const started = Date.now();
+    const result = await run(node, [
+      "-e",
+      'console.log("It looks like you have dev data. Would you like to proceed? \\u203a (y/N)"); setInterval(() => {}, 1000)',
+    ]);
+    expect(result.prompt).toContain("Would you like to proceed?");
+    expect(result.prompt).toContain("(y/N)");
+    expect(result.timedOut).toBe(false);
+    expect(result.code).not.toBe(0);
+    expect(Date.now() - started).toBeLessThan(5000);
+  });
+
+  it("finds a question that arrives in two pieces, and one with colour codes", async () => {
+    const result = await run(node, [
+      "-e",
+      'process.stdout.write("\\u001b[36m?\\u001b[39m Proceed (y"); setTimeout(() => process.stdout.write("/N)\\n"), 100); setInterval(() => {}, 1000)',
+    ]);
+    expect(result.prompt).toBe("? Proceed (y/N)");
+  });
+
+  it("leaves a command alone when asked not to look for questions", async () => {
+    const result = await run(node, ["-e", 'console.log("Continue? (y/N)")'], { abortOnPrompt: false });
+    expect(result.prompt).toBeUndefined();
+    expect(result.code).toBe(0);
+  });
+
+  it("does not mistake ordinary output for a question", async () => {
+    const result = await run(node, ["-e", 'console.log("saved (and/or) loaded [ok] y/n")']);
+    expect(result.prompt).toBeUndefined();
+  });
+
   it("returns an error, and does not throw, for a program that cannot start", async () => {
     const result = await run("bootstrap-test-no-such-program", []);
     expect(result.code).toBeNull();

@@ -3,6 +3,7 @@ import net from "node:net";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   canConnect,
+  dockerUnavailableWarning,
   judge,
   meilisearchAnswers,
   parseComposePorts,
@@ -55,7 +56,6 @@ describe("targetsFrom", () => {
     const targets = targetsFrom(env);
     expect(targets.map((t) => [t.kind, t.host, t.port])).toEqual([
       ["postgres", "localhost", 15432],
-      ["postgres", "localhost", 15432],
       ["redis", "localhost", 6380],
       ["meilisearch", "localhost", 7701],
       ["mailpit-smtp", "localhost", 1025],
@@ -63,16 +63,39 @@ describe("targetsFrom", () => {
     ]);
   });
 
+  it("checks one Postgres once when both databases are on the same server", () => {
+    const targets = targetsFrom(env).filter((t) => t.kind === "postgres");
+    expect(targets).toHaveLength(1);
+    expect(targets[0]?.label).toBe("Postgres (medusa and payload databases)");
+  });
+
+  it("checks both when the databases are on different servers", () => {
+    const targets = targetsFrom({ ...env, PAYLOAD_DATABASE_URL: "postgres://u:p@localhost:5433/payload" }).filter(
+      (t) => t.kind === "postgres",
+    );
+    expect(targets.map((t) => [t.label, t.port])).toEqual([
+      ["Postgres (medusa database)", 15432],
+      ["Postgres (payload database)", 5433],
+    ]);
+  });
+
   it("follows an edited port, so a changed .env is what gets checked", () => {
-    const targets = targetsFrom({ ...env, DATABASE_URL: "postgres://u:p@127.0.0.1:5432/medusa", REDIS_URL: "redis://localhost:6390" });
+    const targets = targetsFrom({
+      ...env,
+      DATABASE_URL: "postgres://u:p@127.0.0.1:5432/medusa",
+      PAYLOAD_DATABASE_URL: "postgres://u:p@127.0.0.1:5432/payload",
+      REDIS_URL: "redis://localhost:6390",
+    });
     expect(targets[0]).toMatchObject({ host: "127.0.0.1", port: 5432 });
     expect(targets.find((t) => t.kind === "redis")?.port).toBe(6390);
   });
 
   it("uses the standard port of a URL that names none, and the compose default of a missing one", () => {
     const targets = targetsFrom({ DATABASE_URL: "postgres://u:p@db.example.com/medusa" });
-    expect(targets[0]).toMatchObject({ host: "db.example.com", port: 5432 });
-    expect(targets[1]).toMatchObject({ host: "localhost", port: 15432 });
+    expect(targets.filter((t) => t.kind === "postgres").map((t) => [t.host, t.port])).toEqual([
+      ["db.example.com", 5432],
+      ["localhost", 15432],
+    ]);
     expect(targets.find((t) => t.kind === "meilisearch")).toMatchObject({ host: "localhost", port: 7701 });
   });
 
@@ -143,7 +166,6 @@ describe("judge", () => {
     expect(finding.level).toBe("error");
     expect(finding.message).toContain("publishes port 15433");
     expect(finding.message).toContain("belongs to something else");
-    expect(finding.message).toContain("Nothing was written");
   });
 
   it("is an error when the stack is not running but something answers on the port", () => {
@@ -157,6 +179,25 @@ describe("judge", () => {
     expect(finding.level).toBe("warn");
     expect(finding.message).toContain("localhost:15432");
     expect(finding.message).toContain("Migrations and seeds will write");
+  });
+
+  it("makes one warning of several that Docker could not check, naming the databases' host and port", () => {
+    const docker = { status: "docker-unavailable", reason: "no daemon" } as const;
+    const redis: Target = { ...target, label: "Redis", kind: "redis", service: "redis", port: 6380 };
+    const findings = [
+      judge(observe({ compose: docker })),
+      judge(observe({ target: redis, compose: docker })),
+    ];
+    const warning = dockerUnavailableWarning(findings);
+    expect(warning).toContain("Docker is not available (no daemon)");
+    expect(warning).toContain("Postgres localhost:15432, Redis localhost:6380");
+    expect(warning).toContain("write to the Postgres at localhost:15432");
+    expect(warning).toMatch(/\.$/);
+  });
+
+  it("has no Docker warning when Docker answered, or when the only findings are other warnings", () => {
+    expect(dockerUnavailableWarning([judge(observe({}))])).toBeUndefined();
+    expect(dockerUnavailableWarning([])).toBeUndefined();
   });
 
   it("is an error when the port is open but the program there is not the service", () => {

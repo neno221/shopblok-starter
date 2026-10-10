@@ -134,22 +134,27 @@ export function targetsFrom(env: ConfiguredEnv): Target[] {
   } as const;
   const list: Target[] = [];
 
-  list.push(
-    urlTarget(env.DATABASE_URL, 5432, { ...postgres, label: "Postgres (medusa database)" }) ?? {
-      ...postgres,
-      label: "Postgres (medusa database)",
-      host: "localhost",
-      port: COMPOSE_DEFAULTS.postgresPort,
-    },
-  );
-  list.push(
-    urlTarget(env.PAYLOAD_DATABASE_URL, 5432, { ...postgres, label: "Postgres (payload database)" }) ?? {
-      ...postgres,
-      label: "Postgres (payload database)",
-      host: "localhost",
-      port: COMPOSE_DEFAULTS.postgresPort,
-    },
-  );
+  const medusaDb = urlTarget(env.DATABASE_URL, 5432, { ...postgres, label: "Postgres (medusa database)" }) ?? {
+    ...postgres,
+    label: "Postgres (medusa database)",
+    host: "localhost",
+    port: COMPOSE_DEFAULTS.postgresPort,
+  };
+  const payloadDb = urlTarget(env.PAYLOAD_DATABASE_URL, 5432, {
+    ...postgres,
+    label: "Postgres (payload database)",
+  }) ?? {
+    ...postgres,
+    label: "Postgres (payload database)",
+    host: "localhost",
+    port: COMPOSE_DEFAULTS.postgresPort,
+  };
+  // One server holds both databases in the compose stack: check it once, not twice.
+  if (medusaDb.host === payloadDb.host && medusaDb.port === payloadDb.port) {
+    list.push({ ...medusaDb, label: "Postgres (medusa and payload databases)" });
+  } else {
+    list.push(medusaDb, payloadDb);
+  }
 
   const redis = urlTarget(env.REDIS_URL, 6379, {
     kind: "redis",
@@ -329,6 +334,8 @@ export type Finding = {
   level: "ok" | "warn" | "error";
   target: Target;
   message: string;
+  /** Set when the finding is a warning only because Docker could not be asked. */
+  dockerReason?: string;
 };
 
 export type Observation = {
@@ -368,17 +375,40 @@ export function judge(observation: Observation): Finding {
       }
       return finding(
         "error",
-        `${target.label} is configured for ${where}, but this project's ${target.service} container publishes port ${compose.ports.join(" and ")}, so the service answering on ${target.port} belongs to something else (D15). Nothing was written. Fix the port in the .env file, or stop the other service.`,
+        `${target.label} is configured for ${where}, but this project's ${target.service} container publishes port ${compose.ports.join(" and ")}, so the service answering on ${target.port} belongs to something else (D15). Fix the port in the .env file, or stop the other service.`,
       );
     case "not-published":
       return finding(
         "error",
-        `${target.label} answers at ${where}, but this project's compose stack does not publish ${target.service} (it is not running), so the service there belongs to something else (D15). Nothing was written. ${START_STACK}`,
+        `${target.label} answers at ${where}, but this project's compose stack does not publish ${target.service} (it is not running), so the service there belongs to something else (D15). ${START_STACK}`,
       );
     case "docker-unavailable":
-      return finding(
-        "warn",
-        `Docker is not available (${compose.reason}), so I can't check that ${where} is this project's ${target.service}. Migrations and seeds will write to whatever answers there.`,
-      );
+      return {
+        ...finding(
+          "warn",
+          `Docker is not available (${compose.reason}), so I can't check that ${where} is this project's ${target.service}. Migrations and seeds will write to whatever answers there.`,
+        ),
+        dockerReason: compose.reason,
+      };
   }
+}
+
+/**
+ * One warning for all the services that could not be checked because Docker is not there, instead
+ * of one per service. It names the host and port the migrations will write to: when Docker is
+ * missing, that sentence is the only protection against a service that isn't ours (D15).
+ */
+export function dockerUnavailableWarning(findings: readonly Finding[]): string | undefined {
+  const unchecked = findings.filter((finding) => finding.dockerReason !== undefined);
+  const first = unchecked[0];
+  if (first?.dockerReason === undefined) return undefined;
+
+  const where = (finding: Finding) => `${finding.target.host}:${finding.target.port}`;
+  const databases = unchecked.filter((finding) => finding.target.kind === "postgres");
+  const writes =
+    databases.length > 0
+      ? `Migrations and seeds will write to the Postgres at ${databases.map(where).join(" and ")}, whatever that is`
+      : "Migrations and seeds will write to whatever answers on those ports";
+  const list = unchecked.map((finding) => `${finding.target.label.split(" (")[0]} ${where(finding)}`).join(", ");
+  return `Docker is not available (${first.dockerReason}), so I can't check that these are this project's services: ${list}. ${writes}.`;
 }

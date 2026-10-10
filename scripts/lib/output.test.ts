@@ -94,6 +94,11 @@ describe("classifySeed", () => {
     expect(classifySeed(FIRST.replace("Finished executing script.", "")).finished).toBe(false);
   });
 
+  it("wants the final line as Medusa prints it, not a line that only starts like it", () => {
+    expect(classifySeed(info("Finished executing script early")).finished).toBe(false);
+    expect(classifySeed(info("Finished executing script.")).finished).toBe(true);
+  });
+
   it("counts each way a seed writes", () => {
     expect(classifySeed(info('Linked the stock location to "Default Sales Channel"')).changed).toBe(true);
     expect(classifySeed(info('Filled the "product" search index from the database (it was pending).')).changed).toBe(true);

@@ -1,6 +1,7 @@
 // Running commands for `pnpm bootstrap` (T13): one place that knows how to start `pnpm` on Linux,
 // macOS and Windows, collects a command's output, never waits for input and never hangs for ever.
 import { spawn } from "node:child_process";
+import { stripAnsi } from "./output.ts";
 
 export type RunOptions = {
   cwd?: string;
@@ -10,6 +11,11 @@ export type RunOptions = {
   timeoutMs?: number;
   /** Copy the command's output to this process's stdout as it arrives. */
   stream?: boolean;
+  /**
+   * Stop the command when its output asks a yes/no question. Default: true. stdin is closed, so a
+   * command that waits for the answer would wait for ever; this ends it at once instead.
+   */
+  abortOnPrompt?: boolean;
 };
 
 export type RunResult = {
@@ -18,9 +24,14 @@ export type RunResult = {
   /** stdout and stderr in the order they arrived: Medusa logs to both. */
   output: string;
   timedOut: boolean;
+  /** The question, when the command was stopped because it asked one. */
+  prompt?: string;
   /** Why the command could not start (for example `spawn docker ENOENT`). */
   error?: string;
 };
+
+// `prompts`, `inquirer` and `readline` confirmations end with a hint like `(y/N)` or `[Y/n]`.
+const YES_NO_PROMPT = /[([](?:y\/n|y\/N|Y\/n|yes\/no)[)\]]/;
 
 export type Invocation = { file: string; args: string[]; shell: boolean };
 
@@ -94,13 +105,14 @@ export function run(
   return new Promise((resolve) => {
     let output = "";
     let timedOut = false;
+    let prompt: string | undefined;
     let settled = false;
-    const finish = (result: Omit<RunResult, "output" | "timedOut">) => {
+    const finish = (result: Omit<RunResult, "output" | "timedOut" | "prompt">) => {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
       if (child.pid !== undefined) running.delete(child.pid);
-      resolve({ ...result, output, timedOut });
+      resolve({ ...result, output, timedOut, ...(prompt === undefined ? {} : { prompt }) });
     };
 
     const env: NodeJS.ProcessEnv = { ...process.env };
@@ -129,6 +141,19 @@ export function run(
       const text = chunk.toString("utf8");
       output += text;
       if (options.stream) process.stdout.write(text);
+      if (prompt === undefined && options.abortOnPrompt !== false) {
+        // The question may arrive in two chunks, so look at the end of everything so far.
+        const recent = output.slice(-400);
+        if (YES_NO_PROMPT.test(recent)) {
+          prompt =
+            stripAnsi(recent)
+              .split(/\r?\n/)
+              .filter((line) => YES_NO_PROMPT.test(line))
+              .at(-1)
+              ?.trim() ?? "a yes/no question";
+          stopTree(child.pid, platform);
+        }
+      }
     };
     child.stdout.on("data", collect);
     child.stderr.on("data", collect);

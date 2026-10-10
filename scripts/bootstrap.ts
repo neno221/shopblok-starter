@@ -13,6 +13,7 @@ import path from "node:path";
 import {
   answers,
   canConnect,
+  dockerUnavailableWarning,
   isLocalHost,
   judge,
   observeCompose,
@@ -155,11 +156,13 @@ const payload = (args: string[], ctx: Context, extraEnv: Record<string, string |
   pnpm(["--filter", "@shopblok/storefront", "exec", "payload", ...args], ctx, extraEnv);
 
 function failed(what: string, result: RunResult, hint?: string): StepError {
-  const why = result.timedOut
-    ? "timed out"
-    : result.error
-      ? `could not start (${result.error})`
-      : `exited with code ${result.code}`;
+  const why = result.prompt
+    ? `asked "${result.prompt}", and bootstrap never answers prompts`
+    : result.timedOut
+      ? "timed out"
+      : result.error
+        ? `could not start (${result.error})`
+        : `exited with code ${result.code}`;
   return new StepError(`${what} ${why}.`, { hint, output: result.output });
 }
 
@@ -227,19 +230,25 @@ async function preflight(): Promise<StepResult> {
 
   for (const finding of findings) {
     if (finding.level === "error") problems.push(finding.message);
-    else if (finding.level === "warn") notes.push(finding.message);
   }
+  const noDocker = dockerUnavailableWarning(findings);
+  if (noDocker) notes.push(noDocker);
   if (problems.length > 0) {
-    throw new StepError(problems.join("\n  "), {
+    throw new StepError(problems.join("\n"), {
       hint: "Nothing was written. Fix the above and run `pnpm bootstrap` again.",
     });
   }
 
-  const places = findings
-    .filter((finding) => finding.level === "ok")
-    .map((finding) => `${finding.target.label.split(" (")[0]} :${finding.target.port}`);
-  const unique = [...new Set(places)].join(", ");
-  return { status: "unchanged", detail: unique, notes };
+  // "Postgres :15432, Mailpit :1025/:8025": one entry per service, with each of its ports.
+  const ports = new Map<string, string[]>();
+  for (const finding of findings.filter((f) => f.level === "ok")) {
+    const name = finding.target.label.split(" (")[0] ?? finding.target.label;
+    const list = ports.get(name) ?? [];
+    list.push(`:${finding.target.port}`);
+    ports.set(name, [...new Set(list)]);
+  }
+  const detail = [...ports].map(([name, list]) => `${name} ${list.join("/")}`).join(", ");
+  return { status: "unchanged", detail, notes };
 }
 
 // ---- 2. Env files ---------------------------------------------------------------------------
@@ -454,7 +463,7 @@ async function publishableKey(ctx: Context): Promise<StepResult> {
 
 async function payloadMigrations(ctx: Context): Promise<StepResult> {
   const result = await payload(["migrate"], ctx);
-  if (result.code !== 0) {
+  if (result.code !== 0 || result.prompt) {
     const pushed = /dev mode|dynamically pushed/i.test(result.output);
     throw failed(
       "`payload migrate`",
@@ -636,8 +645,8 @@ async function main(): Promise<number> {
       if (live) process.stdout.write("\r\u001b[2K");
       console.error(`[${step.number}/${TOTAL}] ${step.name} … ✗ failed`);
       if (error instanceof StepError) {
-        console.error(`      ${error.message}`);
-        if (error.hint) console.error(`      ${error.hint}`);
+        console.error(error.message.replace(/^/gm, "      "));
+        if (error.hint) console.error(error.hint.replace(/^/gm, "      "));
         if (error.output && !options.verbose) {
           console.error(`      Last lines of its output:\n${redact(tail(error.output, 25)).replace(/^/gm, "        ")}`);
         }
@@ -645,7 +654,9 @@ async function main(): Promise<number> {
         console.error(`      ${error instanceof Error ? (error.stack ?? error.message) : String(error)}`);
       }
       console.error(
-        `\nbootstrap stopped at step ${step.number}. Steps before it are done; run \`pnpm bootstrap\` again after fixing this.`,
+        step.number === 1
+          ? "\nbootstrap stopped before it changed anything. Run `pnpm bootstrap` again after fixing this."
+          : `\nbootstrap stopped at step ${step.number}. The steps before it are done; run \`pnpm bootstrap\` again after fixing this.`,
       );
       return 1;
     }

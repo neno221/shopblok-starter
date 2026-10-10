@@ -4,7 +4,7 @@
 // reads the output. Every pattern below is taken from a real run (the tests quote them).
 
 // eslint-disable-next-line no-control-regex -- the escape character is what an ANSI sequence starts with
-const ANSI = /\u001b\[[0-9;]*[A-Za-z]/g;
+const ANSI = /\u001b\[[0-9;?]*[A-Za-z]/g;
 
 export function stripAnsi(text: string): string {
   return text.replace(ANSI, "");
