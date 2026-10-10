@@ -10,7 +10,8 @@ const repoRoot = fileURLToPath(new URL("../..", import.meta.url));
 
 function buildConfig(phase: string): NextConfig {
   return {
-    // S1 may change these two (Cache Components x Payload admin).
+    // Both stay on (ADR 0001): the embedded Payload admin is clean under `next start`; in `next dev`
+    // it logs console errors with them on.
     cacheComponents: true,
     partialPrefetching: true,
     typedRoutes: true,
