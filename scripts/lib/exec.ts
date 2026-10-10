@@ -16,6 +16,12 @@ export type RunOptions = {
    * command that waits for the answer would wait for ever; this ends it at once instead.
    */
   abortOnPrompt?: boolean;
+  /**
+   * How long a command that was asked to stop (SIGTERM) may take to do so before it is killed
+   * (SIGKILL). Default: 5 seconds. Without it, a command that traps SIGTERM and carries on would
+   * keep `run` waiting for ever.
+   */
+  killAfterMs?: number;
 };
 
 export type RunResult = {
@@ -30,8 +36,9 @@ export type RunResult = {
   error?: string;
 };
 
-// `prompts`, `inquirer` and `readline` confirmations end with a hint like `(y/N)` or `[Y/n]`.
-const YES_NO_PROMPT = /[([](?:y\/n|y\/N|Y\/n|yes\/no)[)\]]/;
+// `prompts`, `inquirer` and `readline` confirmations end with a hint like `(y/N)`, `[Y/n]` or
+// `(Yes/No)`: any case, so `(Y/N)` is a question too.
+const YES_NO_PROMPT = /[([](?:y\/n|yes\/no)[)\]]/i;
 
 export type Invocation = { file: string; args: string[]; shell: boolean };
 
@@ -59,20 +66,32 @@ export function invocation(
 export function quoteForCmd(arg: string): string {
   if (arg !== "" && /^[A-Za-z0-9_@+=:,./\\-]+$/.test(arg)) return arg;
   // Inside quotes `"` is doubled, and `%` would still expand (cmd's escape `^%` does not work
-  // there): refuse what cannot be quoted safely rather than guess.
-  if (/[%\r\n]/.test(arg)) throw new Error(`Cannot pass ${JSON.stringify(arg)} to cmd.exe safely`);
+  // there): refuse what cannot be quoted safely rather than guess. The message does not repeat the
+  // argument: it may be a password.
+  if (/[%\r\n]/.test(arg)) {
+    throw new Error("An argument contains % or a line break, which cmd.exe cannot be given safely");
+  }
   return `"${arg.replace(/"/g, '""')}"`;
 }
 
 const DEFAULT_TIMEOUT_MS = 10 * 60 * 1000;
+const DEFAULT_KILL_AFTER_MS = 5_000;
 
-function stopTree(pid: number | undefined, platform: NodeJS.Platform): void {
+function stopTree(
+  pid: number | undefined,
+  platform: NodeJS.Platform,
+  signal: "SIGTERM" | "SIGKILL" = "SIGTERM",
+): void {
   if (pid === undefined) return;
   try {
     // A negative pid is the whole process group: `pnpm` starts `sh`, which starts `node`.
-    if (platform === "win32")
-      spawn("taskkill", ["/pid", String(pid), "/t", "/f"], { stdio: "ignore" });
-    else process.kill(-pid, "SIGTERM");
+    if (platform === "win32") {
+      // `/f` is already forceful; an 'error' event nobody listens to would end this process.
+      spawn("taskkill", ["/pid", String(pid), "/t", "/f"], { stdio: "ignore" }).on(
+        "error",
+        () => {},
+      );
+    } else process.kill(-pid, signal);
   } catch {
     // Already gone.
   }
@@ -101,19 +120,40 @@ export function run(
   options: RunOptions = {},
 ): Promise<RunResult> {
   const platform = process.platform;
-  const { file, args: fileArgs, shell } = invocation(command, args, platform);
+  let invoked: Invocation;
+  try {
+    invoked = invocation(command, args, platform);
+  } catch (error) {
+    // An argument cmd.exe cannot be given safely: a result, like any other command that can't start.
+    const reason = error instanceof Error ? error.message : String(error);
+    return Promise.resolve({ code: null, output: "", timedOut: false, error: reason });
+  }
+  const { file, args: fileArgs, shell } = invoked;
 
   return new Promise((resolve) => {
     let output = "";
     let timedOut = false;
     let prompt: string | undefined;
     let settled = false;
+    let killTimer: NodeJS.Timeout | undefined;
     const finish = (result: Omit<RunResult, "output" | "timedOut" | "prompt">) => {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
+      clearTimeout(killTimer);
       if (child.pid !== undefined) running.delete(child.pid);
-      resolve({ ...result, output, timedOut, ...(prompt === undefined ? {} : { prompt }) });
+      // A command that was stopped did not succeed, even if it exited 0 on the way out.
+      const code = (timedOut || prompt !== undefined) && result.code === 0 ? null : result.code;
+      resolve({ ...result, code, output, timedOut, ...(prompt === undefined ? {} : { prompt }) });
+    };
+    // SIGTERM first; a command that traps it and carries on is killed after a grace period, or
+    // `close` would never come and this promise would never settle.
+    const stop = () => {
+      stopTree(child.pid, platform);
+      killTimer ??= setTimeout(
+        () => stopTree(child.pid, platform, "SIGKILL"),
+        options.killAfterMs ?? DEFAULT_KILL_AFTER_MS,
+      );
     };
 
     const env: NodeJS.ProcessEnv = { ...process.env };
@@ -135,11 +175,13 @@ export function run(
     installInterruptHandlers(platform);
     const timer = setTimeout(() => {
       timedOut = true;
-      stopTree(child.pid, platform);
+      stop();
     }, options.timeoutMs ?? DEFAULT_TIMEOUT_MS);
 
-    const collect = (chunk: Buffer) => {
-      const text = chunk.toString("utf8");
+    // Strings, decoded per stream: a multi-byte character (Medusa's `●`) can arrive in two chunks.
+    child.stdout.setEncoding("utf8");
+    child.stderr.setEncoding("utf8");
+    const collect = (text: string) => {
       output += text;
       if (options.stream) process.stdout.write(text);
       if (prompt === undefined && options.abortOnPrompt !== false) {
@@ -152,7 +194,7 @@ export function run(
               .filter((line) => YES_NO_PROMPT.test(line))
               .at(-1)
               ?.trim() ?? "a yes/no question";
-          stopTree(child.pid, platform);
+          stop();
         }
       }
     };

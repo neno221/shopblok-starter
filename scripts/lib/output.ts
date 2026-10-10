@@ -99,7 +99,9 @@ export type UserOutcome = "created" | "exists" | "failed";
  */
 export function classifyUser(code: number | null, output: string): UserOutcome {
   const text = stripAnsi(output);
-  if (/already exists/i.test(text)) return "exists";
+  // Medusa's own sentence, not any "already exists": a database error such as `relation "user"
+  // already exists` is a failure.
+  if (/User with email:[^\r\n]*already exists/i.test(text)) return "exists";
   if (code === 0 && /User created successfully/.test(text)) return "created";
   return "failed";
 }
@@ -145,6 +147,9 @@ export function tail(output: string, count = 25): string {
 /** Hides anything that looks like a secret from text about to be shown: the apps' result lines and keys. */
 export function redact(text: string): string {
   return text
-    .replace(/("(?:publishableKey|apiKey|password)"\s*:\s*")[^"]+(")/g, "$1…$2")
+    .replace(
+      /("(?:publishableKey|apiKey|password|generatedAdminPassword)"\s*:\s*")[^"]+(")/g,
+      "$1…$2",
+    )
     .replace(/\bpk_[0-9a-f]{12,}/g, "pk_…");
 }

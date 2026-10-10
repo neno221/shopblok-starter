@@ -86,6 +86,13 @@ export function isLocalHost(host: string): boolean {
   return LOCAL_HOSTS.has(host.toLowerCase());
 }
 
+/** `host:port` as a person would write it: an IPv6 address goes in brackets. */
+export function addressOf(target: Pick<Target, "host" | "port">): string {
+  const host =
+    target.host.includes(":") && !target.host.startsWith("[") ? `[${target.host}]` : target.host;
+  return `${host}:${target.port}`;
+}
+
 function urlTarget(
   value: string | undefined,
   fallbackPort: number,
@@ -96,7 +103,8 @@ function urlTarget(
     const url = new URL(value.trim());
     return {
       ...base,
-      host: url.hostname,
+      // `new URL("redis://[::1]:6380").hostname` is `[::1]`; a socket needs the bare address.
+      host: url.hostname.replace(/^\[(.*)\]$/, "$1"),
       port: url.port === "" ? fallbackPort : Number(url.port),
     };
   } catch {
@@ -369,7 +377,7 @@ export const START_STACK = "Start the stack with `pnpm infra:up` (docker compose
 /** What to say about one service. Pure: the tests feed it every combination. */
 export function judge(observation: Observation): Finding {
   const { target, reachable, speaksProtocol, compose } = observation;
-  const where = `${target.host}:${target.port}`;
+  const where = addressOf(target);
   const finding = (level: Finding["level"], message: string): Finding => ({
     level,
     target,
@@ -431,7 +439,7 @@ export function dockerUnavailableWarning(findings: readonly Finding[]): string |
   const first = unchecked[0];
   if (first?.dockerReason === undefined) return undefined;
 
-  const where = (finding: Finding) => `${finding.target.host}:${finding.target.port}`;
+  const where = (finding: Finding) => addressOf(finding.target);
   const databases = unchecked.filter((finding) => finding.target.kind === "postgres");
   const writes =
     databases.length > 0

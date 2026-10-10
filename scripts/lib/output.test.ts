@@ -157,6 +157,9 @@ describe("classifyUser", () => {
       ),
     ).toBe("exists");
     expect(classifyUser(1, "ECONNREFUSED 127.0.0.1:15432")).toBe("failed");
+    // Some other "already exists" is not the user's.
+    expect(classifyUser(1, 'error: relation "user" already exists')).toBe("failed");
+    expect(classifyUser(1, 'database "medusa" already exists')).toBe("failed");
     expect(classifyUser(0, "nothing useful")).toBe("failed");
     expect(classifyUser(null, "")).toBe("failed");
   });
@@ -202,6 +205,9 @@ describe("showing output", () => {
   it("redact hides keys and passwords", () => {
     expect(redact('{"publishableKey":"pk_0123456789abcdef0123"}')).toBe('{"publishableKey":"…"}');
     expect(redact('{"password":"hunter2"}')).toBe('{"password":"…"}');
+    expect(redact('{"bootstrapPayload":{"generatedAdminPassword":"0123456789abcdef0123"}}')).toBe(
+      '{"bootstrapPayload":{"generatedAdminPassword":"…"}}',
+    );
     expect(redact("key is pk_0123456789abcdef0123456789")).toBe("key is pk_…");
     expect(redact("nothing secret here")).toBe("nothing secret here");
   });

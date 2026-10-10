@@ -1,3 +1,4 @@
+import { parseEnv } from "node:util";
 import { describe, expect, it } from "vitest";
 import {
   changedAnything,
@@ -146,9 +147,25 @@ describe("reading", () => {
     expect(isUnset(text, "C")).toBe(true);
   });
 
-  it("a duplicated key counts as set when any line has a value", () => {
+  it("a duplicated key has the value of its last line, as the loaders read it", () => {
     expect(isUnset("A=\nA=2\n", "A")).toBe(false);
     expect(getEnvValue("A=\nA=2\n", "A")).toBe("2");
+    expect(getEnvValue("A=1\nA=2\n", "A")).toBe("2");
+    expect(getEnvValue("A=1\nA=\n", "A")).toBe("");
+    expect(isUnset("A=1\nA=\n", "A")).toBe(true);
+    // Node's own dotenv parser gives the same answers.
+    expect(parseEnv("A=1\nA=2\n").A).toBe("2");
+    expect(parseEnv("A=1\nA=\n").A).toBe("");
+  });
+
+  it("a merge changes the line that wins, so the value the loaders read is the new one", () => {
+    const replaced = mergeEnv("K=old\nK=stale\n", { K: "new" }, { replace: ["K"] });
+    expect(replaced.text).toBe("K=old\nK=new\n");
+    expect(parseEnv(replaced.text).K).toBe("new");
+
+    const filled = mergeEnv("K=old\nK=\n", { K: "new" });
+    expect(filled.text).toBe("K=old\nK=new\n");
+    expect(parseEnv(filled.text).K).toBe("new");
   });
 });
 

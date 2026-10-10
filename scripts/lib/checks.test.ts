@@ -2,8 +2,10 @@ import http from "node:http";
 import net from "node:net";
 import { afterEach, describe, expect, it } from "vitest";
 import {
+  addressOf,
   canConnect,
   dockerUnavailableWarning,
+  isLocalHost,
   judge,
   meilisearchAnswers,
   parseComposePorts,
@@ -108,6 +110,20 @@ describe("targetsFrom", () => {
     expect(targetsFrom({ ...env, REDIS_URL: undefined }).some((t) => t.kind === "redis")).toBe(
       false,
     );
+  });
+
+  it("gives a socket the bare IPv6 address of a URL, not the bracketed form (a name lookup fails on it)", () => {
+    const targets = targetsFrom({
+      ...env,
+      DATABASE_URL: "postgres://u:p@[::1]:15432/medusa",
+      PAYLOAD_DATABASE_URL: "postgres://u:p@[::1]:15432/payload",
+      REDIS_URL: "redis://[::1]:6380",
+    });
+    expect(targets.find((t) => t.kind === "postgres")).toMatchObject({ host: "::1", port: 15432 });
+    expect(targets.find((t) => t.kind === "redis")).toMatchObject({ host: "::1", port: 6380 });
+    expect(isLocalHost("::1")).toBe(true);
+    expect(addressOf({ host: "::1", port: 6380 })).toBe("[::1]:6380");
+    expect(addressOf({ host: "localhost", port: 6380 })).toBe("localhost:6380");
   });
 
   it("takes Mailpit's ports from the environment when they are set", () => {

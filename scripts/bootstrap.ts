@@ -155,7 +155,8 @@ const medusa = (args: string[], ctx: Context) =>
 const payload = (args: string[], ctx: Context, extraEnv: Record<string, string | undefined> = {}) =>
   pnpm(["--filter", "@shopblok/storefront", "exec", "payload", ...args], ctx, extraEnv);
 
-function failed(what: string, result: RunResult, hint?: string): StepError {
+/** `showOutput: false` for a command whose output was already streamed to the terminal. */
+function failed(what: string, result: RunResult, hint?: string, showOutput = true): StepError {
   const why = result.prompt
     ? `asked "${result.prompt}", and bootstrap never answers prompts`
     : result.timedOut
@@ -163,7 +164,7 @@ function failed(what: string, result: RunResult, hint?: string): StepError {
       : result.error
         ? `could not start (${result.error})`
         : `exited with code ${result.code}`;
-  return new StepError(`${what} ${why}.`, { hint, output: result.output });
+  return new StepError(`${what} ${why}.`, { hint, output: showOutput ? result.output : undefined });
 }
 
 // ---- 1. Preflight ---------------------------------------------------------------------------
@@ -195,14 +196,17 @@ async function preflight(): Promise<StepResult> {
   // over their examples (dotenv never overrides a variable that is already set).
   const backendText = envTextOrExample(backendEnv);
   const storefrontText = envTextOrExample(storefrontEnv);
+  // Mailpit's ports are Docker Compose's variables (infra/docker-compose.yml): the shell or the
+  // root `.env`, which Compose reads, set them.
+  const composeText = readText(path.join(root, ".env")) ?? "";
   const pick = (name: string, text: string) => process.env[name] ?? getEnvValue(text, name);
   const targets = targetsFrom({
     DATABASE_URL: pick("DATABASE_URL", backendText),
     PAYLOAD_DATABASE_URL: pick("PAYLOAD_DATABASE_URL", storefrontText),
     REDIS_URL: pick("REDIS_URL", backendText),
     MEILISEARCH_HOST: pick("MEILISEARCH_HOST", backendText),
-    MAILPIT_SMTP_PORT: process.env.MAILPIT_SMTP_PORT,
-    MAILPIT_UI_PORT: process.env.MAILPIT_UI_PORT,
+    MAILPIT_SMTP_PORT: pick("MAILPIT_SMTP_PORT", composeText),
+    MAILPIT_UI_PORT: pick("MAILPIT_UI_PORT", composeText),
   });
 
   // `docker compose port` once per service and container port.
@@ -408,7 +412,9 @@ async function adminUser(ctx: Context): Promise<StepResult> {
   ctx.state.admin = { email, password: storedPassword };
 
   // The password is on the command line, which `medusa user` requires; it is a development account.
-  const result = await medusa(["user", "-e", email, "-p", password], ctx);
+  // `--password=<value>` and not `-p <value>`: the CLI (yargs) takes a value that starts with `-`
+  // (a generated password can) for a flag, and the user would be made with an empty password.
+  const result = await medusa(["user", `--email=${email}`, `--password=${password}`], ctx);
   const outcome = classifyUser(result.code, result.output);
 
   if (outcome === "failed") throw failed("`medusa user`", result);
@@ -578,8 +584,10 @@ async function doctor(ctx: Context): Promise<StepResult> {
     env: ctx.options.ci ? { CI: "true" } : {},
     stream: true,
   });
-  if (result.code !== 0)
-    throw failed("`pnpm run doctor`", result, "Doctor's table above says what is wrong.");
+  if (result.code !== 0) {
+    // Its output is on the screen already (`stream`): don't print the last lines of it again.
+    throw failed("`pnpm run doctor`", result, "Doctor's table above says what is wrong.", false);
+  }
   return { status: "unchanged" };
 }
 
@@ -697,12 +705,18 @@ async function main(): Promise<number> {
       `The publishable key changed: rebuild the storefront (\`pnpm build\`) or restart \`pnpm dev\`.`,
     );
   }
+  // With no stored password (the Medusa admin existed before bootstrap wrote one) there is none to
+  // point to: step 5 and step 8 said what happened.
+  const where =
+    ctx.state.admin.password === undefined
+      ? "password not stored (see the notes under steps 5 and 8)"
+      : "password in apps/backend/.env (DEV_ADMIN_PASSWORD)";
   console.log(
     [
       "Next: `pnpm dev`, then",
       "  storefront        http://localhost:8000  (Payload admin: /admin)",
       "  Medusa admin      http://localhost:9000/app",
-      `  admin login       ${ctx.state.admin.email}, password in apps/backend/.env (DEV_ADMIN_PASSWORD)`,
+      `  admin login       ${ctx.state.admin.email}, ${where}`,
     ].join("\n"),
   );
   return 0;

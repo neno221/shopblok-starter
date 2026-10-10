@@ -44,7 +44,11 @@ function eolOf(text: string): string {
 
 type Found = { index: number; prefix: string; operator: string; value: string; comment: string };
 
-/** Every assignment of `key`, in file order. dotenv keeps the first one it reads. */
+/**
+ * Every assignment of `key`, in file order. When a key is assigned twice, the last one is the value
+ * dotenv gives (Next's and Medusa's loaders parse with it, and `util.parseEnv` agrees), even when
+ * that last one is blank.
+ */
 function findAssignments(lines: string[], key: string): Found[] {
   const found: Found[] = [];
   lines.forEach((line, index) => {
@@ -58,9 +62,8 @@ function findAssignments(lines: string[], key: string): Found[] {
 
 /** The value of `key`, or `undefined` when it is absent. An empty string means it is there, blank. */
 export function getEnvValue(text: string, key: string): string | undefined {
-  const assignments = findAssignments(text.split(/\r?\n/), key);
-  // A duplicated key is rare and loaders disagree on which line wins; a value on any line counts.
-  return assignments.find((a) => a.value !== "")?.value ?? assignments[0]?.value;
+  // A duplicated key is rare; the loaders take the last line, so that is the value that counts.
+  return findAssignments(text.split(/\r?\n/), key).at(-1)?.value;
 }
 
 /** True when the key is absent or has no value: `KEY=`, `KEY=""` and `KEY= # note` all count. */
@@ -96,8 +99,9 @@ export function mergeEnv(
   const appended: string[] = [];
 
   for (const [key, value] of Object.entries(values)) {
-    const assignments = findAssignments(lines, key);
-    const set = assignments.find((a) => a.value !== "");
+    // The last assignment is the one the loaders read, so it is the one to keep, replace or fill.
+    const effective = findAssignments(lines, key).at(-1);
+    const set = effective !== undefined && effective.value !== "" ? effective : undefined;
 
     if (set !== undefined) {
       if (options.replace?.includes(key) && set.value !== value) {
@@ -110,10 +114,9 @@ export function mergeEnv(
       continue;
     }
 
-    const blank = assignments[0];
-    if (blank !== undefined) {
-      lines[blank.index] =
-        `${blank.prefix}${key}${blank.operator}${formatEnvValue(value)}${blank.comment}`;
+    if (effective !== undefined) {
+      lines[effective.index] =
+        `${effective.prefix}${key}${effective.operator}${formatEnvValue(value)}${effective.comment}`;
       changes.push({ key, action: "filled" });
       continue;
     }

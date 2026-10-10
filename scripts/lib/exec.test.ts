@@ -48,6 +48,10 @@ describe("quoteForCmd", () => {
     expect(() => quoteForCmd("%PATH%")).toThrow(/safely/);
     expect(() => quoteForCmd("a\nb")).toThrow(/safely/);
   });
+
+  it("does not repeat the refused argument: it may be a password", () => {
+    expect(() => quoteForCmd("hunter2%")).toThrow(/^(?!.*hunter2)/);
+  });
 });
 
 describe("run", () => {
@@ -119,6 +123,54 @@ describe("run", () => {
       'process.stdout.write("\\u001b[36m?\\u001b[39m Proceed (y"); setTimeout(() => process.stdout.write("/N)\\n"), 100); setInterval(() => {}, 1000)',
     ]);
     expect(result.prompt).toBe("? Proceed (y/N)");
+  });
+
+  it("finds a question whatever the case of its hint", async () => {
+    for (const hint of ["(Y/N)", "(Yes/No)", "[y/n]", "[YES/NO]"]) {
+      const result = await run(node, [
+        "-e",
+        `console.log("Proceed? ${hint}"); setInterval(() => {}, 1000)`,
+      ]);
+      expect(result.prompt, hint).toContain(hint);
+      expect(result.code, hint).not.toBe(0);
+    }
+  });
+
+  it("kills a command that ignores SIGTERM instead of waiting for it for ever", async () => {
+    const started = Date.now();
+    const result = await run(
+      node,
+      ["-e", 'process.on("SIGTERM", () => {}); setInterval(() => {}, 1000)'],
+      { timeoutMs: 200, killAfterMs: 300 },
+    );
+    expect(result.timedOut).toBe(true);
+    expect(result.code).not.toBe(0);
+    expect(Date.now() - started).toBeLessThan(5000);
+  });
+
+  it("does not call a stopped command a success when it exits 0 as it stops", async () => {
+    const timedOut = await run(
+      node,
+      ["-e", 'process.on("SIGTERM", () => process.exit(0)); setInterval(() => {}, 1000)'],
+      { timeoutMs: 300 },
+    );
+    expect(timedOut.timedOut).toBe(true);
+    expect(timedOut.code).toBeNull();
+
+    const asked = await run(node, [
+      "-e",
+      'process.on("SIGTERM", () => process.exit(0)); console.log("Proceed? (y/N)"); setInterval(() => {}, 1000)',
+    ]);
+    expect(asked.prompt).toContain("(y/N)");
+    expect(asked.code).toBeNull();
+  });
+
+  it("reads a multi-byte character that arrives in two chunks", async () => {
+    const result = await run(node, [
+      "-e",
+      'const b = Buffer.from("  ● Migrating X\\n"); process.stdout.write(b.subarray(0, 3)); setTimeout(() => process.stdout.write(b.subarray(3)), 100)',
+    ]);
+    expect(result.output).toBe("  ● Migrating X\n");
   });
 
   it("leaves a command alone when asked not to look for questions", async () => {
