@@ -1,5 +1,10 @@
 {
   "$schema": "https://turborepo.dev/schema.json",
+  // Medusa's telemetry opt-out. Strict mode drops it from every `turbo run` task, so `medusa start`
+  // (spawned by `medusa develop`) queues CLI_START events despite the variable in the shell (T15).
+  // Global rather than on `dev`: a task added later that runs a Medusa command would lose the
+  // opt-out unnoticed.
+  "globalPassThroughEnv": ["MEDUSA_DISABLE_TELEMETRY"],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
