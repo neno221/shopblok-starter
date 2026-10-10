@@ -1,3 +1,5 @@
+import { readdirSync, readFileSync } from "node:fs";
+import path from "node:path";
 import { DEFAULT_LOCALE as STORE_DEFAULT_LOCALE, LOCALES as STORE_LOCALES } from "@shopblok/i18n";
 import { describe, expect, it } from "vitest";
 import {
@@ -9,11 +11,49 @@ import {
   languageLabel,
 } from "./locales";
 
+/** The `_locales` enum of every saved migration snapshot, oldest first: what the database had. */
+function migratedLocales(): { file: string; values: string[] }[] {
+  const dir = path.resolve(import.meta.dirname, "../migrations");
+  const files = readdirSync(dir)
+    .filter((file) => file.endsWith(".json"))
+    .sort();
+  if (files.length === 0) throw new Error(`no migration snapshot in ${dir}`);
+  return files.map((file) => {
+    const snapshot = JSON.parse(readFileSync(path.join(dir, file), "utf8")) as {
+      enums: Record<string, { values: string[] }>;
+    };
+    const values = snapshot.enums["public._locales"]?.values;
+    if (values === undefined) throw new Error(`${file} has no _locales enum`);
+    return { file, values };
+  });
+}
+
 describe("LANGUAGES", () => {
-  it("has the 42 languages of the plan (D17), the default first, with no duplicate", () => {
-    expect(LANGUAGES).toHaveLength(42);
+  it("has at least the 42 languages of the plan (D17), the default first, with no duplicate", () => {
+    // "At least": the list only grows (S3, L11; the comment in locales.ts says why).
+    expect(LANGUAGES.length).toBeGreaterThanOrEqual(42);
     expect(new Set(LANGUAGES).size).toBe(LANGUAGES.length);
     expect(LANGUAGES[0]).toBe(DEFAULT_LOCALE);
+  });
+
+  it("has the same languages as the `_locales` enum of the newest saved migration (S3, L10)", () => {
+    // A language added here without `payload migrate:create` would pass every other test and fail
+    // the first time someone enables it in `markets` or saves a page in it (HTTP 500). The order
+    // does not matter to the database, so it does not matter here.
+    const newest = migratedLocales().at(-1);
+    expect([...LANGUAGES].sort()).toEqual([...(newest?.values ?? [])].sort());
+  });
+
+  it("still lists every language any saved migration ever had (S3, L11)", () => {
+    // Removing a language together with a regenerated migration keeps the test above green, and
+    // is the data-loss case: a Payload that no longer lists a language deletes its content on the
+    // next ordinary save. Only a language added later may be missing from the older snapshots.
+    for (const { file, values } of migratedLocales()) {
+      expect(
+        values.filter((code) => !LANGUAGES.includes(code)),
+        `${file}: languages dropped from locales.ts`,
+      ).toEqual([]);
+    }
   });
 
   it("holds the 24 EU languages and the seven the plan names", () => {

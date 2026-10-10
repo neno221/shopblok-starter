@@ -27,8 +27,6 @@ export function pickAvailableLocales(locales: Locale[], enabled: ReadonlySet<str
   return picked.length > 0 ? picked : locales.slice(0, 1);
 }
 
-const CONTEXT_KEY = "shopblok.enabledLanguages";
-
 /** Postgres `undefined_table`; drizzle puts the driver's error on `cause`. */
 const UNDEFINED_TABLE = "42P01";
 
@@ -39,10 +37,11 @@ export function isMissingTable(error: unknown): boolean {
   return false;
 }
 
-async function readEnabledLanguages(payload: Payload, req: PayloadRequest) {
+async function readEnabledLanguages(payload: Payload, req?: PayloadRequest) {
   try {
     // Not on behalf of the signed-in user: which languages exist is the shop's setting, so an
-    // editor who may not read `markets` still gets the same selector.
+    // editor who may not read `markets` still gets the same selector. `req` is given only inside a
+    // write's transaction (`filterAvailableLocales`).
     const markets = await payload.findGlobal({
       slug: "markets",
       depth: 0,
@@ -60,10 +59,69 @@ async function readEnabledLanguages(payload: Payload, req: PayloadRequest) {
 }
 
 /**
+ * How long one read of `markets` serves every call, in milliseconds.
+ *
+ * Payload calls the filter three times for one admin page load (the root layout twice and the page
+ * once, S3 L7), and each call gets a `req` of its own: `initReq` hands out a copy of the request,
+ * and its `context` with it. What the first call keeps in `req.context` is not there for the
+ * others, and a variable in this module is no better, because the layout and the page each load
+ * their own instance of it. A memo that works has to live on `globalThis`, and it has to be keyed
+ * by time: nothing in the calls says which HTTP request they belong to (`req.headers` is a new
+ * Proxy per `headers()` call, and React's `cache()` scope was shared by only two of the three).
+ * Two seconds is long enough for one page and short enough that a person who saved `markets`
+ * reads the new list on the next page; a save puts the new list in at once
+ * (`rememberEnabledLanguages`). Another server process is up to this much behind.
+ */
+export const ENABLED_LANGUAGES_TTL_MS = 2_000;
+
+type Memo = { payload: Payload; at: number; enabled: Promise<Set<string>> };
+const MEMO = Symbol.for("shopblok.enabledLanguages");
+const shared = globalThis as typeof globalThis & { [MEMO]?: Memo };
+
+/** Forgets the read, so the next call reads `markets` again. */
+export function clearEnabledLanguages(): void {
+  delete shared[MEMO];
+}
+
+/**
+ * The `markets` global calls it from `afterChange` with the document it saved. Payload commits the
+ * save's transaction only after its `afterChange` hooks, so a page that reads in between would get
+ * the old list, and the memo would keep it. The new list is put in the memo instead, which no read
+ * can beat. A document without `countries` (a partial `select`) says nothing: the memo is cleared.
+ * If the save is rolled back after the hook, the wrong list lasts for the memo's time at most.
+ */
+export function rememberEnabledLanguages(payload: Payload, saved: MarketsDoc): void {
+  if (!Array.isArray(saved.countries)) return clearEnabledLanguages();
+  shared[MEMO] = {
+    payload,
+    at: performance.now(),
+    enabled: Promise.resolve(enabledLanguages(saved)),
+  };
+}
+
+function sharedRead(payload: Payload): Promise<Set<string>> {
+  // `performance.now()` and not `Date.now()`: the same monotonic clock `lib/markets` uses, because
+  // Cache Components refuse `Date.now()` in a render (SETUP.md, T10 item 1).
+  const now = performance.now();
+  const memo = shared[MEMO];
+  if (memo?.payload === payload && now - memo.at < ENABLED_LANGUAGES_TTL_MS) return memo.enabled;
+  const entry: Memo = { payload, at: now, enabled: readEnabledLanguages(payload) };
+  shared[MEMO] = entry;
+  // A read that failed is not kept: the next call tries again.
+  entry.enabled.catch(() => {
+    if (shared[MEMO] === entry) delete shared[MEMO];
+  });
+  return entry.enabled;
+}
+
+/**
  * Payload's `localization.filterAvailableLocales`. It only filters the admin's locale selector,
  * the version view and (experimental) the publish menu; the REST and Local API still accept every
- * preloaded locale, so the storefront enforces markets itself (S3, L8). Payload calls it at least
- * twice per admin page, so the read of `markets` is shared through `req.context`.
+ * preloaded locale, so the storefront enforces markets itself (S3, L8). The read of `markets` is
+ * shared between the calls Payload makes for one page (`ENABLED_LANGUAGES_TTL_MS`). A write calls
+ * it too (to choose the locales that get a publication status, once `localizeStatus` is on), with
+ * its transaction open and holding a connection: that read joins the transaction and is not
+ * shared, or each write would wait for a second connection while it holds the first.
  */
 export async function filterAvailableLocales({
   locales,
@@ -72,8 +130,8 @@ export async function filterAvailableLocales({
   locales: Locale[];
   req: PayloadRequest;
 }): Promise<Locale[]> {
-  const cached = req.context[CONTEXT_KEY] as Promise<Set<string>> | undefined;
-  const enabled = cached ?? readEnabledLanguages(req.payload, req);
-  req.context[CONTEXT_KEY] = enabled;
-  return pickAvailableLocales(locales, await enabled);
+  const enabled = req.transactionID
+    ? await readEnabledLanguages(req.payload, req)
+    : await sharedRead(req.payload);
+  return pickAvailableLocales(locales, enabled);
 }

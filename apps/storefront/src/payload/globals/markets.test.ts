@@ -1,6 +1,7 @@
-import type { TextFieldSingleValidation } from "payload";
-import { describe, expect, it } from "vitest";
-import { countryCode, medusaLocale } from "./markets";
+import type { Payload, PayloadRequest, TextFieldSingleValidation } from "payload";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { clearEnabledLanguages, filterAvailableLocales } from "../filter-available-locales";
+import { Markets, countryCode, medusaLocale } from "./markets";
 
 type Options = Parameters<TextFieldSingleValidation>[1];
 // What Payload's own `text` validator reads from the request.
@@ -75,5 +76,38 @@ describe("medusaLocale (D17)", () => {
     for (const value of [undefined, null, ""]) {
       expect(medusaLocale(value, withLanguage("pt", false))).toBe(true);
     }
+  });
+});
+
+describe("saving the markets global", () => {
+  beforeEach(() => {
+    clearEnabledLanguages();
+    // A frozen clock, so a slow CI machine cannot let the filter's memo expire between two calls.
+    vi.spyOn(performance, "now").mockReturnValue(1_000);
+  });
+  afterEach(() => vi.restoreAllMocks());
+
+  it("makes the admin's locale selector offer the saved languages at once (S3)", async () => {
+    // The filter keeps one read of `markets` for a moment, and Payload commits a save after its
+    // hooks, so a read in between still gets the old document (`findGlobal` below never changes).
+    // Which hooks the global has, and in what order, is not the point (M4 adds one that
+    // revalidates the market map): all of them run, as Payload runs them.
+    const findGlobal = vi.fn().mockResolvedValue({ countries: [] });
+    const payload = { findGlobal, logger: { warn: vi.fn() } } as unknown as Payload;
+    const req = { context: {}, payload } as unknown as PayloadRequest;
+    const locales = ["en", "de", "el"].map((code) => ({ code, label: code }));
+    const codes = async () =>
+      (await filterAvailableLocales({ locales, req })).map((locale) => locale.code);
+
+    expect(await codes()).toEqual(["en"]);
+
+    const doc = { countries: [{ enabled: true, languages: ["de"] }] };
+    const hooks = Markets.hooks?.afterChange ?? [];
+    expect(hooks.length).toBeGreaterThan(0);
+    for (const hook of hooks) {
+      await hook({ doc, global: Markets, previousDoc: {}, req } as never);
+    }
+
+    expect(await codes()).toEqual(["en", "de"]);
   });
 });

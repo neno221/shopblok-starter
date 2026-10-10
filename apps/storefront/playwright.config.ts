@@ -15,5 +15,19 @@ export default defineConfig({
     baseURL: process.env["E2E_BASE_URL"] ?? "http://localhost:8000",
     trace: "retain-on-failure",
   },
-  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+  projects: [
+    {
+      name: "chromium",
+      use: { ...devices["Desktop Chrome"] },
+      testIgnore: /payload-locales\.spec\.ts/,
+    },
+    // Saves the `markets` global (and puts it back), which the other suites read through the proxy:
+    // it runs when all of them are done.
+    {
+      name: "locales",
+      use: { ...devices["Desktop Chrome"] },
+      testMatch: /payload-locales\.spec\.ts/,
+      dependencies: ["chromium"],
+    },
+  ],
 });

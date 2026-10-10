@@ -1,10 +1,13 @@
 import type { Locale, Payload, PayloadRequest } from "payload";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  ENABLED_LANGUAGES_TTL_MS,
+  clearEnabledLanguages,
   enabledLanguages,
   filterAvailableLocales,
   isMissingTable,
   pickAvailableLocales,
+  rememberEnabledLanguages,
 } from "./filter-available-locales";
 
 const locales: Locale[] = ["en", "el", "de", "fr", "pt"].map((code) => ({ code, label: code }));
@@ -62,64 +65,193 @@ function missingTable() {
   return new Error("Failed query", { cause: driver });
 }
 
-function fakeRequest(findGlobal: ReturnType<typeof vi.fn>) {
-  return {
-    context: {},
-    payload: { findGlobal, logger: { warn: vi.fn() } } as unknown as Payload,
-  } as unknown as PayloadRequest;
+/** One Payload instance (they all share the memo on `globalThis`), and a request of its own each time. */
+function fakePayload(findGlobal: ReturnType<typeof vi.fn>) {
+  return { findGlobal, logger: { warn: vi.fn() } } as unknown as Payload;
 }
+const requestOf = (payload: Payload) => ({ context: {}, payload }) as unknown as PayloadRequest;
 
 describe("filterAvailableLocales", () => {
-  it("reads markets once per request, however often Payload calls it", async () => {
+  let now = 0;
+  beforeEach(() => {
+    clearEnabledLanguages();
+    now = 1_000;
+    vi.spyOn(performance, "now").mockImplementation(() => now);
+  });
+  afterEach(() => vi.restoreAllMocks());
+
+  it("reads markets once for the three calls Payload makes for one admin page, each with its own request", async () => {
+    // S3, L7: the root layout twice and the page once, each with a copy of `req` and its `context`.
     const findGlobal = vi
       .fn()
       .mockResolvedValue({ countries: [{ enabled: true, languages: ["el"] }] });
-    const req = fakeRequest(findGlobal);
-    const first = await filterAvailableLocales({ locales, req });
-    const second = await filterAvailableLocales({ locales, req });
-    expect(codes(first)).toEqual(["en", "el"]);
-    expect(codes(second)).toEqual(["en", "el"]);
+    const payload = fakePayload(findGlobal);
+    const results = [];
+    for (let call = 0; call < 3; call++) {
+      results.push(await filterAvailableLocales({ locales, req: requestOf(payload) }));
+    }
+    for (const result of results) expect(codes(result)).toEqual(["en", "el"]);
     expect(findGlobal).toHaveBeenCalledTimes(1);
   });
 
-  it("shares the read between two calls that start together", async () => {
+  it("shares the read between calls that start together", async () => {
     const findGlobal = vi.fn().mockResolvedValue({ countries: [] });
-    const req = fakeRequest(findGlobal);
+    const payload = fakePayload(findGlobal);
     await Promise.all([
-      filterAvailableLocales({ locales, req }),
-      filterAvailableLocales({ locales, req }),
+      filterAvailableLocales({ locales, req: requestOf(payload) }),
+      filterAvailableLocales({ locales, req: requestOf(payload) }),
+      filterAvailableLocales({ locales, req: requestOf(payload) }),
     ]);
     expect(findGlobal).toHaveBeenCalledTimes(1);
   });
 
-  it("reads again for the next request", async () => {
-    const findGlobal = vi.fn().mockResolvedValue({ countries: [] });
-    await filterAvailableLocales({ locales, req: fakeRequest(findGlobal) });
-    await filterAvailableLocales({ locales, req: fakeRequest(findGlobal) });
+  it("reads again once the read is older than the memo's time", async () => {
+    const findGlobal = vi
+      .fn()
+      .mockResolvedValueOnce({ countries: [{ enabled: true, languages: ["el"] }] })
+      .mockResolvedValueOnce({ countries: [{ enabled: true, languages: ["el", "de"] }] });
+    const payload = fakePayload(findGlobal);
+    expect(codes(await filterAvailableLocales({ locales, req: requestOf(payload) }))).toEqual([
+      "en",
+      "el",
+    ]);
+    now += ENABLED_LANGUAGES_TTL_MS - 1;
+    await filterAvailableLocales({ locales, req: requestOf(payload) });
+    expect(findGlobal).toHaveBeenCalledTimes(1);
+    now += 1;
+    expect(codes(await filterAvailableLocales({ locales, req: requestOf(payload) }))).toEqual([
+      "en",
+      "el",
+      "de",
+    ]);
     expect(findGlobal).toHaveBeenCalledTimes(2);
   });
 
-  it("is not scoped to the user: the read overrides access, with the request", async () => {
-    const findGlobal = vi.fn().mockResolvedValue({});
-    const req = fakeRequest(findGlobal);
-    await filterAvailableLocales({ locales, req });
-    expect(findGlobal).toHaveBeenCalledWith(
-      expect.objectContaining({ slug: "markets", overrideAccess: true, depth: 0, req }),
+  it("reads again after clearEnabledLanguages", async () => {
+    const findGlobal = vi
+      .fn()
+      .mockResolvedValueOnce({ countries: [] })
+      .mockResolvedValueOnce({ countries: [{ enabled: true, languages: ["de"] }] });
+    const payload = fakePayload(findGlobal);
+    expect(codes(await filterAvailableLocales({ locales, req: requestOf(payload) }))).toEqual([
+      "en",
+    ]);
+    clearEnabledLanguages();
+    expect(codes(await filterAvailableLocales({ locales, req: requestOf(payload) }))).toEqual([
+      "en",
+      "de",
+    ]);
+  });
+
+  it("serves the languages a save handed over, whatever the database still says", async () => {
+    // Payload commits a save after its hooks: a read in between still sees the old `markets`.
+    const findGlobal = vi.fn().mockResolvedValue({ countries: [] });
+    const payload = fakePayload(findGlobal);
+    expect(codes(await filterAvailableLocales({ locales, req: requestOf(payload) }))).toEqual([
+      "en",
+    ]);
+    rememberEnabledLanguages(payload, { countries: [{ enabled: true, languages: ["de"] }] });
+    expect(codes(await filterAvailableLocales({ locales, req: requestOf(payload) }))).toEqual([
+      "en",
+      "de",
+    ]);
+    expect(findGlobal).toHaveBeenCalledTimes(1);
+    // ... for the memo's time, and not longer.
+    now += ENABLED_LANGUAGES_TTL_MS;
+    await filterAvailableLocales({ locales, req: requestOf(payload) });
+    expect(findGlobal).toHaveBeenCalledTimes(2);
+  });
+
+  it("reads again after a save that handed over no countries (a partial select)", async () => {
+    const findGlobal = vi.fn().mockResolvedValue({ countries: [] });
+    const payload = fakePayload(findGlobal);
+    await filterAvailableLocales({ locales, req: requestOf(payload) });
+    rememberEnabledLanguages(payload, {});
+    await filterAvailableLocales({ locales, req: requestOf(payload) });
+    expect(findGlobal).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps its memo where every copy of the module sees it (the layout and the page load their own)", async () => {
+    const findGlobal = vi.fn().mockResolvedValue({ countries: [] });
+    const payload = fakePayload(findGlobal);
+    await filterAvailableLocales({ locales, req: requestOf(payload) });
+    vi.resetModules();
+    const other = await import("./filter-available-locales");
+    await other.filterAvailableLocales({ locales, req: requestOf(payload) });
+    expect(findGlobal).toHaveBeenCalledTimes(1);
+    // ... and the other copy's clear reaches the first copy's memo.
+    other.clearEnabledLanguages();
+    await filterAvailableLocales({ locales, req: requestOf(payload) });
+    expect(findGlobal).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not hand one Payload instance the read of another", async () => {
+    const first = vi.fn().mockResolvedValue({ countries: [{ enabled: true, languages: ["el"] }] });
+    const second = vi.fn().mockResolvedValue({ countries: [{ enabled: true, languages: ["fr"] }] });
+    expect(
+      codes(await filterAvailableLocales({ locales, req: requestOf(fakePayload(first)) })),
+    ).toEqual(["en", "el"]);
+    expect(
+      codes(await filterAvailableLocales({ locales, req: requestOf(fakePayload(second)) })),
+    ).toEqual(["en", "fr"]);
+  });
+
+  it("does not keep a read that failed", async () => {
+    const outage = Object.assign(new Error("connection terminated"), { code: "ECONNRESET" });
+    const findGlobal = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("Failed query", { cause: outage }))
+      .mockResolvedValueOnce({ countries: [{ enabled: true, languages: ["el"] }] });
+    const payload = fakePayload(findGlobal);
+    await expect(filterAvailableLocales({ locales, req: requestOf(payload) })).rejects.toThrow(
+      "Failed query",
     );
+    expect(codes(await filterAvailableLocales({ locales, req: requestOf(payload) }))).toEqual([
+      "en",
+      "el",
+    ]);
+  });
+
+  it("is not scoped to the user or to the request: the read overrides access and takes no req", async () => {
+    const findGlobal = vi.fn().mockResolvedValue({});
+    await filterAvailableLocales({ locales, req: requestOf(fakePayload(findGlobal)) });
+    expect(findGlobal).toHaveBeenCalledWith({ slug: "markets", depth: 0, overrideAccess: true });
+  });
+
+  it("inside a write's transaction it reads with that request and shares nothing", async () => {
+    // Once `localizeStatus` is on, Payload calls the filter from a write (see the filter's doc).
+    const findGlobal = vi.fn().mockResolvedValue({ countries: [] });
+    const payload = fakePayload(findGlobal);
+    const inTransaction = { ...requestOf(payload), transactionID: "tx-1" } as PayloadRequest;
+    await filterAvailableLocales({ locales, req: inTransaction });
+    await filterAvailableLocales({ locales, req: inTransaction });
+    expect(findGlobal).toHaveBeenCalledTimes(2);
+    expect(findGlobal).toHaveBeenNthCalledWith(1, {
+      slug: "markets",
+      depth: 0,
+      overrideAccess: true,
+      req: inTransaction,
+    });
+    // ... and it did not fill the memo that page loads share.
+    await filterAvailableLocales({ locales, req: requestOf(payload) });
+    expect(findGlobal).toHaveBeenCalledTimes(3);
   });
 
   it("falls back to English when the markets table does not exist (before migrate)", async () => {
-    const findGlobal = vi.fn().mockRejectedValue(missingTable());
-    const req = fakeRequest(findGlobal);
-    expect(codes(await filterAvailableLocales({ locales, req }))).toEqual(["en"]);
+    const payload = fakePayload(vi.fn().mockRejectedValue(missingTable()));
+    expect(codes(await filterAvailableLocales({ locales, req: requestOf(payload) }))).toEqual([
+      "en",
+    ]);
   });
 
   it("lets any other error fail the request instead of hiding the markets", async () => {
     const outage = Object.assign(new Error("connection terminated"), { code: "ECONNRESET" });
-    const req = fakeRequest(
+    const payload = fakePayload(
       vi.fn().mockRejectedValue(new Error("Failed query", { cause: outage })),
     );
-    await expect(filterAvailableLocales({ locales, req })).rejects.toThrow("Failed query");
+    await expect(filterAvailableLocales({ locales, req: requestOf(payload) })).rejects.toThrow(
+      "Failed query",
+    );
   });
 });
 
