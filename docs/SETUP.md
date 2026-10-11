@@ -1,6 +1,135 @@
 # Setup
 
-> Only the results of T00 to T12 and C0 exist so far. T17 adds the keyless quickstart, ports, credentials and the other Windows notes.
+How to run the starter on your own machine: the quickstart, the ports, the logins, the notes for Windows and for a Claude Code cloud session. Below "The M0 log" is what each M0 task found and measured, one section per task and spike, in the order they ran. The log is the evidence behind [SPEC.md](SPEC.md) v0.6 and the [ADRs](adr/README.md); read the section a number or a decision in the spec points to.
+
+- [Quickstart](#quickstart-no-keys-no-accounts) · [Prerequisites](#prerequisites-every-os) · [Ports and logins](#ports-urls-and-logins) · [Opening a market](#opening-a-market) · [Windows](#windows-notes) · [Cloud](#working-in-a-claude-code-cloud-environment) · [Checking a clean machine](#checking-a-clean-machine) · [If something fails](#if-something-fails) · [Where we differ from the skills](#where-we-deliberately-differ-from-the-medusa-skills)
+
+## Quickstart (no keys, no accounts)
+
+Nothing here needs a third-party account: Stripe, Resend, PostHog, Sentry and Cloudflare R2 are on their local fallbacks until their keys are set (SPEC §10).
+
+### Prerequisites (every OS)
+
+| | Needed | Check |
+|---|---|---|
+| Node | 22.22 or newer on the 22 line (`.nvmrc` says `22`; `engines` is `>=22.22.0 <25`). Node 24 works and runs as an informational leg in CI | `node -v` |
+| pnpm | **12.10.1**, installed with `npm install -g pnpm@12.10.1`. Not Corepack: Corepack 0.34 cannot run pnpm 12 | `pnpm -v` prints `12.10.1` inside the repo |
+| Corepack | **Off**: `corepack disable` (on Windows from an **administrator** terminal, because the shims it leaves are in `C:\Program Files\nodejs`). If a machine ever ran `corepack enable`, plain `pnpm` fails with `Cannot find module '…\corepack\v1\pnpm\12.10.1\bin\pnpm.cjs'` | `where pnpm` (Windows) or `which pnpm`: the first hit must be the npm-global pnpm, not a Corepack shim |
+| Docker | Docker Desktop (Windows, macOS) or Docker Engine (Linux), **running**, with Compose v2.20 or newer (the root `compose.yaml` uses `include`) | `docker info`, `docker compose version` |
+| Git | any recent version | |
+| Free ports | 15432 (Postgres), 6380 (Redis), 7701 (Meilisearch), 1025 and 8025 (Mailpit), 9000 (Medusa), 8000 (storefront and Payload) | `pnpm bootstrap` names the first port that another program holds |
+| Disk and memory | `node_modules` is 1.5 GB and the pnpm store another 1.5 GB (they share files by hard link, so on one drive the two are nearer 1.5 GB), the four images 1 GB, a production build a few hundred MB. The cloud VM (4 cores, 16 GB) ran the stack, both dev servers and a browser with room to spare | `du -sh node_modules` |
+
+Linux and Windows 11 have been run end to end (CI on `ubuntu-latest` and `windows-latest`, the cloud VM, and W2 on the Windows PC). **macOS has not been tried**; nothing in the repo is Linux- or Windows-specific beyond what Docker Desktop and Node cover, so it is expected to work.
+
+### The commands
+
+```bash
+git clone https://github.com/stephanos221/shopblok-starter.git
+cd shopblok-starter
+pnpm install --frozen-lockfile     # 15 to 27 s with a warm cache; 18 to 26 s on a CI runner
+docker compose up -d --wait        # the same as `pnpm infra:up`; 4 healthy services in 6 to 19 s once the images are pulled
+pnpm bootstrap                     # 35 to 63 s on empty volumes; running it again changes nothing
+pnpm dev                           # Medusa on :9000, the storefront and Payload on :8000
+```
+
+PowerShell is the same, with `cd shopblok-starter` and the `E:` drive of the Windows notes below. Use `pnpm run doctor`, **never `pnpm doctor`**: pnpm has a built-in command of that name and it wins over our script.
+
+`pnpm bootstrap` is the only step that needs thought, so here is what it does (SPEC §5; "`pnpm bootstrap` (T13)" below has the table): it checks that each service on its port is this project's own container, writes `apps/backend/.env` and `apps/storefront/.env` from the examples with generated secrets, migrates and seeds Medusa (regions, currencies, locales, a demo catalog with Greek, German and French translations), creates the Medusa and Payload admins, writes the publishable key and the Payload API key, migrates Payload and fills its `markets` global, and ends with `pnpm run doctor`. It is safe to run again whenever you change `apps/backend/src/config/markets.ts`, after `pnpm infra:reset`, or after a long pause. `--no-demo` skips the demo catalog; `--ci` is the same run for a machine with nobody at it.
+
+The first request to each page in `pnpm dev` compiles it (about 20 s for `/` and for `/admin`); after that a page takes well under a second.
+
+**Stopping.** `^C` in the terminal that runs `pnpm dev` ends both servers and their helpers. (A session without a terminal, like a cloud session, sends `kill -INT` to the turbo process: `ps -eo pid,cmd | grep '[l]inux-64/bin/turbo run dev'`.) `pnpm infra:down` stops and removes the containers and **keeps the databases**; `pnpm infra:reset` wipes them (and then `pnpm bootstrap` rebuilds them; the storefront must be built again, or `pnpm dev` restarted, because a new database has a new publishable key).
+
+### Ports, URLs and logins
+
+| What | Where | Login |
+|---|---|---|
+| Storefront (until M1 a page that shows the market, its language, the region, the currency and 4 priced products) | http://localhost:8000 | none |
+| Payload admin | http://localhost:8000/admin | `admin@example.com`, password in `apps/backend/.env` as `DEV_ADMIN_PASSWORD` |
+| Medusa admin | http://localhost:9000/app | the same login |
+| Medusa health | http://localhost:9000/health | none |
+| Mailpit inbox | http://localhost:8025 | none. Nothing sends to it in M0 (Payload has no email adapter yet) |
+| Postgres | `localhost:15432`, databases `medusa` and `payload` | `postgres` / `postgres` |
+| Redis | `localhost:6380` | none |
+| Meilisearch | http://localhost:7701 | master key `shopblok-local-dev-master-key` (nothing uses it before M6; the search is `search-postgres`) |
+
+The password is generated by bootstrap and is a plain-text development password in a git-ignored file: `grep DEV_ADMIN_PASSWORD apps/backend/.env` (PowerShell: `Select-String DEV_ADMIN_PASSWORD apps\backend\.env`). Never run bootstrap with real credentials.
+
+The host ports are not the standard ones on purpose (D15): a machine that already runs Postgres on 5432 would otherwise connect Medusa and Payload to the wrong server, and Payload creates a missing database on connect. [infra/README.md](../infra/README.md) has the services, the `POSTGRES_PORT`/`REDIS_PORT`/`MEILI_PORT` overrides and why 5433 is not used.
+
+**What to look at.** The storefront's pages are the wiring page of T12, not a shop yet:
+
+| URL | You should see |
+|---|---|
+| `/` | Cyprus, Greek: `<html lang="el-CY">`, region Europe, EUR, four Greek product titles with prices like `12,00 €` |
+| `/us` | English, USD (`$14.00`) |
+| `/ch/fr` | Swiss French, CHF (`12.00 CHF`) |
+| `/cy` | a redirect to `/` (two hops, 308 then 301) |
+| `/el-cy` | 404: the internal market key is never public |
+| `/admin` | Payload's login; its locale selector offers English and the languages of the countries enabled in the `markets` global |
+
+(SPEC §8.5 writes `/us/` and `/ch/fr/`; public URLs have no trailing slash.) **Where verification links appear (M3).** Sign-up and its email verification arrive in M3. Until a Resend key is set, Medusa's `notification-local` provider writes each email, verification links included, to the backend's console: the terminal that runs `pnpm dev`, in the lines prefixed `@shopblok/backend:dev:`. `pnpm run doctor` prints a warning about it ("Sign-up requires email verification, but there is no Resend key"); that warning is expected and is the only one a bootstrapped setup has once both servers are up.
+
+**The Payload admin in `pnpm dev`.** `next dev` logs console errors in the admin (Next's dev-only prerender validation and a React "Maximum update depth" loop in Payload's document and logout views). They are not in production mode and the admin works; ADR 0001 has the evidence. When the console matters, use `pnpm --filter @shopblok/storefront build` and `pnpm --filter @shopblok/storefront start` (37 s to build).
+
+### Opening a market
+
+A shop picks its regions, currencies and languages in one place per app and everything follows (D17). In M0 there are two lists, kept by hand and checked against each other by `pnpm run doctor` (D19); M4's sync removes the duplication. For a Brazilian shop (`brl`, a `Brazil` region, `pt-BR`; `br` and `pt` in the storefront's map):
+
+1. **`apps/backend/src/config/markets.ts`:** add `{ currency_code: "brl", is_default: false }` to `SUPPORTED_CURRENCIES`, `{ name: "Brazil", currency_code: "brl", countries: ["br"], standard_shipping: 20 }` to `MARKET_REGIONS`, and `"pt-BR"` to `SUPPORTED_LOCALES` (one Medusa locale per language, one of the 51 Medusa ships). The file's header says the same. The search index, the store's currencies and locales, the regions, the tax regions and the shipping all follow this file.
+2. **The storefront's map:** the `markets` global in Payload's admin (Markets: the country, its languages, and the Medusa locale of each language), or, before the first `pnpm bootstrap`, `packages/fixtures/src/markets.ts`, which bootstrap copies into the global while it has no country.
+3. **A language that Payload does not know.** Payload preloads 42 languages (every language Medusa has a locale for is among them), so Portuguese and Mongolian need nothing. For one outside the 42, follow [A language outside the list](#a-language-outside-the-list) first: one line, one migration, deployed before the code. **Locales only grow**: a closed market is switched off in `markets`, never taken out of the list.
+4. **`pnpm bootstrap`**, then restart `pnpm dev` (a new currency changes the search index schema, so bootstrap's `db:migrate` plans a new index version and the next start fills it). `pnpm run doctor --online` then has no complaint: it checks that both lists agree, that Medusa has a region for every open country, and that the index has `min_price_brl`.
+
+The UI text of a language other than English, Greek, German and French stays English until its catalog is added (M3). Translations of the catalog go in Medusa Admin, Settings, Translations. A market taken out of `config/markets.ts` leaves its region in Medusa (the seed adds and never removes); `doctor --online` lists it, and Medusa Admin, Settings, Regions deletes it.
+
+### Windows notes
+
+- **E: must be NTFS (D2).** exFAT has no symbolic or hard links, no permissions and no journal, and its 128 KB clusters would make hundreds of thousands of small library files far larger than they are. `fsutil fsinfo volumeinfo E:` says `File System Name : NTFS`. pnpm puts its store on the same drive (`E:\.pnpm-store`), so hard links work.
+- **Long paths.** `node_modules` paths reach about 300 characters (the longest under T00's probe was 304). Turn long paths on once, from an administrator PowerShell: `New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" -Name LongPathsEnabled -Value 1 -PropertyType DWORD -Force`, and check with `(Get-ItemProperty HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem).LongPathsEnabled`, which must print `1`. A shorter folder name than `E:\shopblok-starter` helps; a longer one is a harder test (W2 uses `E:\shopblok-starter-w2` on purpose).
+- **Corepack off**, from an administrator terminal (see the prerequisites). Until then, putting `%APPDATA%\npm` first on `PATH` for the session is the workaround.
+- **Docker Desktop keeps the databases in named volumes** (inside its own VM), not on E:. E: holds the checkout, `node_modules` and the pnpm store only, and `pnpm infra:reset` is what deletes the data.
+- **Other programs on the default ports.** The reference PC runs another project's Postgres, Redis and Meilisearch on 5432, 6379 and 7700, which is why the stack publishes 15432, 6380 and 7701 (D15). W1 tests that clash on the real machine.
+- **What has run on Windows.** T00 (Windows 11 Home 10.0.26200, Node 22.22.0, NTFS E:): pnpm 12.10.1 installs, builds and hot-reloads Next 16.4.0, Payload 3.90.2 and Medusa 2.21.2 together; two config fixes it found (`allowBuilds` for `msgpackr-extract` and `protobufjs`, and `@medusajs/cli` as a direct dependency of the backend) are in the repo ("Windows preflight (T00)" below). CI's `windows-smoke` job installs, type-checks and builds on `windows-latest` weekly and on PRs that change a dependency file (4 m 16 s). `pnpm bootstrap`, `pnpm dev` and `^C` have only run on Linux; W2 runs them on the PC and closes M0 (plan §4a).
+- Scripts use `node:path`, `docker` and `pnpm` started without a shell where possible, and a quoted `cmd.exe` command line where not (`scripts/lib/exec.ts`); line endings are LF (`.gitattributes`).
+
+### Working in a Claude Code cloud environment
+
+The M0 plan ran in cloud sessions (decision D16). [CLOUD.md](CLOUD.md) says how to set the environment up once, what every session does first (Node, pnpm, Docker, `pnpm infra:up`, `pnpm bootstrap`), and how the cloud differs from a PC (Docker is off at the start, no other GitHub repo can be downloaded, `gh pr` needs REST). C0's results are in "Cloud preflight (C0)" below.
+
+### Checking a clean machine
+
+CI is the clean-machine reference. On `ubuntu-latest`, after `pnpm install` (18 to 26 s): `docker compose up -d --wait` takes 16 to 24 s, `pnpm bootstrap --ci` 41 to 60 s, the production build 70 to 99 s, and the Playwright suites about 36 s; `check (Node 22)` takes about 3 minutes and `e2e-smoke` about 4 m 20 s ("CI (T16)" below). The Windows install on a runner takes 59 s and the build 89 s, with a short workspace path, so it does not replace W2's long-path check.
+
+### If something fails
+
+| Symptom | Cause and fix |
+|---|---|
+| `pnpm bootstrap` stops at step 1 with "…belongs to something else (D15)" | Another program holds a port the apps use, or the compose stack is not the one running. Stop it, or move ours with `POSTGRES_PORT` and the apps' URLs |
+| `pnpm doctor` prints pnpm's own checks | Use `pnpm run doctor` |
+| `Cannot find module '…\corepack\…\pnpm.cjs'` | Corepack is on: `corepack disable` from an administrator terminal |
+| Every storefront request answers 400 "Publishable API key required" | The database was wiped and has a new key: `pnpm bootstrap`, then build the storefront again or restart `pnpm dev`. A stale `NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY` exported in the shell beats the `.env` under `pnpm dev` |
+| `payload migrate` or `payload run` prints nothing | Payload's CLI exits 0 without doing anything in about 1 run in 20; bootstrap and doctor repeat it, and so should you |
+| `payload migrate` asks "Would you like to proceed?" | Dev push touched the database: `pnpm infra:reset`, or answer it yourself. Bootstrap stops instead of answering |
+| `/store/search` says a `min_price_<currency>` field is not facetable | A currency was added without `medusa db:migrate` and a restart; `pnpm bootstrap` does both |
+| Docker is not running (cloud session) | CLOUD.md, "What every cloud session does first", step 3 |
+
+### Where we deliberately differ from the Medusa skills
+
+The three skills (`building-with-medusa`, `building-storefronts`, `storefront-best-practices`) are the reference for Medusa code. These differences are on purpose (plan §3):
+
+- Data comes from a server-first DAL (`apps/storefront/src/lib/medusa`). React Query is only for client interactivity, from M3.
+- The region comes from the URL and `proxy.ts`, not from `localStorage`.
+- We cache with `'use cache'`, `cacheLife` and `cacheTag`, not the `revalidate` export, which is a build error under Cache Components.
+- We pin exact versions; the skills use `@latest`.
+- Medusa commands run as `pnpm --filter @shopblok/backend exec medusa …`.
+- The skill's store-route `curl` example leaves out the `x-publishable-api-key` header; always send it.
+- Seeds run through `medusa exec` scripts and never inside a migration (D7), so demo products cannot reach production.
+
+---
+
+# The M0 log
 
 ## Windows preflight (T00)
 
