@@ -2,9 +2,21 @@
 
 A brand-neutral storefront starter: **Medusa v2** (commerce) + **Next.js 16** with embedded **Payload CMS 3** (content), built on an atomic design system (shadcn/ui + Tailwind v4).
 
-**Status:** M0 in progress. T00 and T01 ran on Windows; C0 and the rest of M0 run in a Claude Code cloud environment.
+**Status:** M0 (the foundation) is built; **W2, the Windows exit check, is what is left** (plan §4a). T00 and T01 ran on Windows; C0 and the rest of M0 ran in a Claude Code cloud environment.
 
-- Spec: [docs/SPEC.md](docs/SPEC.md)
+**Quickstart** (no keys, no accounts; prerequisites and the details are in [docs/SETUP.md](docs/SETUP.md#quickstart-no-keys-no-accounts): Node 22.22+, pnpm 12.10.1 installed with `npm install -g pnpm@12.10.1`, Corepack off, Docker running):
+
+```bash
+pnpm install --frozen-lockfile
+docker compose up -d --wait   # Postgres, Redis, Meilisearch, Mailpit
+pnpm bootstrap                # .env files, migrations, seeds, admins, keys: about a minute
+pnpm dev                      # Medusa on :9000, the storefront and Payload on :8000
+```
+
+Then http://localhost:8000 (Cyprus, Greek, EUR), `/us`, `/ch/fr`, the Payload admin at `/admin` and the Medusa admin at http://localhost:9000/app, both with `admin@example.com` and the `DEV_ADMIN_PASSWORD` in `apps/backend/.env`. Check the setup with `pnpm run doctor` (never `pnpm doctor`, which is pnpm's own command).
+
+- Spec: [docs/SPEC.md](docs/SPEC.md) (v0.6)
+- Decisions: [docs/adr/](docs/adr/README.md) (ADRs 0001 to 0003, all accepted)
 - M0 plan: [docs/plans/M0.md](docs/plans/M0.md) (§4a lists what runs in the cloud and what you do on your PC)
 - Cloud environment: [docs/CLOUD.md](docs/CLOUD.md)
 - Windows preflight (T00): passed, see [docs/SETUP.md](docs/SETUP.md)
@@ -26,8 +38,9 @@ A brand-neutral storefront starter: **Medusa v2** (commerce) + **Next.js 16** wi
 - Root scripts and the dev loop (T15): passed, see [docs/SETUP.md](docs/SETUP.md#root-scripts-and-the-dev-loop-t15); all eleven root scripts run as the plan says, so no script changed. `pnpm dev` starts Medusa (:9000) and the storefront with Payload (:8000), `pnpm dev --filter=@shopblok/storefront...` starts the storefront alone, and `pnpm infra:down` keeps the databases (only `pnpm infra:reset` wipes them). One change: `turbo.json` passes `MEDUSA_DISABLE_TELEMETRY` through, because Turborepo's strict mode dropped the opt-out and `pnpm dev` sent Medusa telemetry. `^C` stops `pnpm dev`; without a terminal, `kill -INT` the turbo process ([docs/CLOUD.md](docs/CLOUD.md))
 - CI (T16): passed, see [docs/SETUP.md](docs/SETUP.md#ci-t16); [.github/workflows/ci.yml](.github/workflows/ci.yml) runs `check` (typecheck, lint, tests and build on Node 22; Node 24 is informational), `e2e-smoke` (compose, `pnpm bootstrap --ci`, a production build, both servers, 48 Playwright tests in the `markets`, `wiring`, `payload-admin` and `payload-locales` suites, `pnpm run doctor`) and `windows-smoke` (weekly, on request, and on PRs that change a dependency file). `renovate.json` groups Medusa, Payload and Next and holds back majors that earlier decisions rule out; it needs the Renovate app installed. The first run found a Node/ICU difference in two `i18n` tests, which now normalise it
 - Spike S1 (Cache Components × Payload admin): run, see [docs/SETUP.md](docs/SETUP.md#cache-components--payload-admin-s1) and [docs/adr/0001-cache-components-payload.md](docs/adr/0001-cache-components-payload.md) (accepted 2026-10-10: keep Cache Components on; production mode is clean, `next dev` logs console errors in the admin)
-- Spike S2 (search per locale): run, verdict PASS, see [docs/SETUP.md](docs/SETUP.md#search-per-locale-s2) and [docs/adr/0002-search-locale-indexing.md](docs/adr/0002-search-locale-indexing.md) (proposed: one Meilisearch index per locale for M6, one multilingual index for the keyless Postgres default in M3; the request's locale reaches `/store/search` through a small middleware)
-- Spike S3 (Payload locale preloading): run, verdict PASS, see [docs/SETUP.md](docs/SETUP.md#payload-locale-preloading-s3) and [docs/adr/0003-payload-locale-preloading.md](docs/adr/0003-payload-locale-preloading.md) (proposed: the 42 preloaded languages cost nothing measurable and the admin's selector follows the `markets` global; a language outside the list is one line plus a 4 ms migration, deployed before the code; **locales only grow**, because a Payload that no longer lists a language deletes its content on the next save)
-- Next step: [docs/NEXT-SESSION.md](docs/NEXT-SESSION.md) (T17, docs, ADRs and spec v0.6, in the cloud)
+- Spike S2 (search per locale): run, verdict PASS, see [docs/SETUP.md](docs/SETUP.md#search-per-locale-s2) and [docs/adr/0002-search-locale-indexing.md](docs/adr/0002-search-locale-indexing.md) (accepted: one Meilisearch index per locale for M6, one multilingual index for the keyless Postgres default in M3; the request's locale reaches `/store/search` through a small middleware)
+- Spike S3 (Payload locale preloading): run, verdict PASS, see [docs/SETUP.md](docs/SETUP.md#payload-locale-preloading-s3) and [docs/adr/0003-payload-locale-preloading.md](docs/adr/0003-payload-locale-preloading.md) (accepted: the 42 preloaded languages cost nothing measurable and the admin's selector follows the `markets` global; a language outside the list is one line plus a 4 ms migration, deployed before the code; **locales only grow**, because a Payload that no longer lists a language deletes its content on the next save)
+- Docs, ADRs and spec v0.6 (T17): passed on Linux, see [docs/SETUP.md](docs/SETUP.md#docs-adrs-and-spec-v06-t17). SETUP.md now starts with the quickstart, ports, logins, "Opening a market" and the Windows and cloud notes; `docs/adr/README.md` has the template; SPEC v0.6 lists what changed and why. A second clone followed the quickstart word for word and reached the exit criteria Linux can check (Brazil added as a market included). CI runs ADR 0001's cache, tag and draft checks (behind `E2E_TEST_ROUTES=true`, which only `e2e-smoke` sets) and, in a new `backend-integration` job, the backend's integration tests
+- Next step: [docs/NEXT-SESSION.md](docs/NEXT-SESSION.md): merge the PR, then W2 on your PC (the Windows fresh-clone check) closes M0. There is no next cloud task until then
 
 Design tokens are based on the "shadcn/ui – Design System by ReUI" Figma community file, licensed CC BY 4.0.
