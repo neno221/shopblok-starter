@@ -12,6 +12,7 @@ export type RawEnv = {
   NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY?: string | undefined;
   MEDUSA_BACKEND_URL?: string | undefined;
   PAYLOAD_DATABASE_URL?: string | undefined;
+  E2E_TEST_ROUTES?: string | undefined;
 };
 
 /**
@@ -41,10 +42,22 @@ export const env: RawEnv = {
   get PAYLOAD_DATABASE_URL() {
     return process.env.PAYLOAD_DATABASE_URL;
   },
+  get E2E_TEST_ROUTES() {
+    return process.env.E2E_TEST_ROUTES;
+  },
 };
 
 export function isProduction(source: RawEnv = env): boolean {
   return source.NODE_ENV === "production";
+}
+
+/**
+ * The test-only routes under `/next/e2e` (ADR 0001's checks, plan T17 step 4) answer only when
+ * this is exactly `true`. CI's `e2e-smoke` sets it on the server it starts; a deployment never
+ * does, and both run a production build, so the gate is read at run time (see `lib/e2e/gate.ts`).
+ */
+export function e2eRoutesEnabled(source: RawEnv = env): boolean {
+  return source.E2E_TEST_ROUTES === "true";
 }
 
 /** Where Medusa is, and the key that lets a storefront read its Store API. */

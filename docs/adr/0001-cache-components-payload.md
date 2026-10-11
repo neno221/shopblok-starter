@@ -125,11 +125,46 @@ The baseline row shows the dev admin would be clean.
 
 - `lib/cache.ts` works with the Local API as it is. **Tags are fixed when `cached()` is called**, so a tag per language (`pages:<locale>`) needs one wrapper per language (the prototype used a factory) or `cached()` taking tags from its arguments. SPEC §8.3 asks for global tags, which `cached()` already supports (`payload:pages` was revalidated alongside); per-language tags are not needed for M0.
 - Payload hooks revalidate with `revalidateTag(tag, 'max')` (content) or `{ expire: 0 }` (price and stock webhooks, SPEC §8.3); `updateTag` and `refresh()` are Server Action only (Next's docs; `updateTag` was not tried from a Payload hook). Wrap the call: it is expected to throw outside a request (not confirmed, see "Not exercised" above).
-- **Not tested on the deployment target.** SPEC §8.1 and §10.8 put the storefront and Payload on Vercel. Every result here is from one self-hosted Node process (`next start`, the in-memory cache); Vercel uses its own cache handler across serverless instances, and SPEC §8.3's line that Vercel propagates `revalidateTag` across functions is not tested by S1. M7's deployment check should repeat three things on a Vercel preview: a published edit is fresh by request 2 after a pause, `{ expire: 0 }` is fresh on the next request, and the 200-request draft test shows 0 leaks. If T17 step 4 writes those as Playwright specs, M7 can point them at the preview with `E2E_BASE_URL` (`playwright.config.ts` reads it). If one fails there, this ADR is reopened.
+- **Not tested on the deployment target.** SPEC §8.1 and §10.8 put the storefront and Payload on Vercel. Every result here is from one self-hosted Node process (`next start`, the in-memory cache); Vercel uses its own cache handler across serverless instances, and SPEC §8.3's line that Vercel propagates `revalidateTag` across functions is not tested by S1. M7's deployment check should repeat three things on a Vercel preview: a published edit is fresh by request 2 after a pause, `{ expire: 0 }` is fresh on the next request, and the 200-request draft test shows 0 leaks. T17 wrote them as Playwright specs (below), so M7 can point `payload-cache.spec.ts` at the preview with `E2E_BASE_URL` (`playwright.config.ts` reads it). Its test-only routes answer 404 unless the preview was started with `E2E_TEST_ROUTES=true`: set it on the preview environment only, never on production. If one fails there, this ADR is reopened.
 - Under `[market]` the page shell regenerates at most every 30 s whatever a content entry's `cacheLife` (the market map's entry sets it, SETUP.md T10), so a tag invalidation and the 30 s shell are independent clocks.
 - A route handler that reads process state must call `connection()` or Next prerenders it (the counter route did).
-- Renovate PRs for `next` and `payload` run `e2e-smoke`, which logs in and writes a localized page in production mode (T16). The extra S1 coverage that is useful there (media upload and open, the list view, a console with no errors) is a T17 item, with the draft-isolation test and the tag checks that encode this decision (plan T17 step 4; the suite is `spike/s1/s1.spec.ts` in `dbfec6e`). The first-user form needs an empty database and its own server (SETUP.md T16 item 1) and stays in the prototype.
+- Renovate PRs for `next` and `payload` run `e2e-smoke`, which logs in and writes a localized page in production mode (T16), and since T17 the checks that encode this decision (next section).
 - Admin 404s answer 200 (`/admin/nope`); accepted.
+
+## In CI since T17
+
+Plan T17 step 4 moved the checks that carry this decision out of the prototype (`dbfec6e`) into `e2e-smoke`, so a Renovate bump of `next` or `payload` meets them. They run against `next build && next start` after `pnpm bootstrap --ci`, the mode this ADR accepted.
+
+| S1 check | Where it runs now |
+|---|---|
+| A read of `pages` inside `"use cache"` is a hit on the second request (loader counter) | `e2e/payload-cache.spec.ts`, "the second request is a hit" |
+| An admin edit shows within two requests (the `pages` hook, `revalidateTag(tag, 'max')` inside Payload's REST handler) | `payload-cache.spec.ts`, "an admin edit shows within two requests". The hook (`src/payload/hooks/revalidate-pages.ts`) is now in the `pages` collection |
+| `revalidateTag(tag, { expire: 0 })` from a route handler: fresh on the next request; `'max'`: fresh within two requests; a foreign tag changes nothing | `payload-cache.spec.ts`, three tests |
+| Draft isolation, 200 concurrent requests mixed, cold and warm cache | `payload-cache.spec.ts`, "draft isolation (GHSA-3w37-wq28-93x7)": 0 of 100 public responses carry the draft marker, 100 of 100 draft responses do |
+| Media upload, opened from the list without a full reload | `e2e/payload-admin.spec.ts` |
+| The list view paginated without a full reload | `payload-admin.spec.ts` |
+| A browser console with no errors or warnings across the admin run | `payload-admin.spec.ts`, last test |
+| First-user form, log out through the nav link | **Not in CI.** The first needs an empty database and its own server and build (SETUP.md, T16 item 1); login is tested, logout is not |
+| Choosing an image in an upload field's drawer (#16270) | **Not in CI.** It needs an upload field on a collection; the prototype added `heroImage` to `pages` with a migration. The first collection M4 adds with an upload field should bring the check back (plan §5, "Follow-ups from T17") |
+| The dev-mode console (`next dev`) | **Not in CI**, by the decision above |
+
+**The routes.** The prototype read `pages` from pages under `[market]`. A page cannot read an environment variable at run time without becoming dynamic, and a public page that exists for a test would be in every deployment, so the reads are route handlers under `/next/e2e` (JSON, no markup). Each asks the gate first (`src/lib/e2e/gate.ts`): it calls `connection()`, so the handler is dynamic, and answers 404 unless `E2E_TEST_ROUTES` is exactly `true`. Only `e2e-smoke` sets it, on the storefront it starts. Unit tests cover the gate and each route (404 for any other value, `1` and `TRUE` included; locale and tag allow-lists). What this changes in the evidence: the reads now run at request time, so they exercise the runtime cache (the in-memory entries of `next start`), not a `use cache` read prerendered into a page's static shell. The shell is covered by the `markets` suite (`/[market]` is `◐`, the market map is a `use cache` read of Payload's global, T10).
+
+**The tests can fail** (T17; each mutation applied to the source file, the storefront rebuilt and started with the gate open, the spec run, the file restored):
+
+| Mutation | Test that failed |
+|---|---|
+| the preview read always asks for drafts | "200 concurrent requests, mixed, on a cold cache" |
+| the `pages` hook revalidates nothing | "an admin edit shows within two requests" |
+| the cached read bypasses the cache (life all zero) | "the second request is a hit" |
+| the route handler's `revalidateTag` does nothing | "revalidateTag(tag, { expire: 0 }) from a route handler gives fresh content on the next request" |
+| the route handler revalidates with `'max'` when asked for `expire: 0` | the same test (a stale read is not fresh) |
+| media accepts no PNG | "uploads an image to media, which is then served" (the save never leaves the form; the test times out after 60 s) |
+| the list link to a media document followed with a full page load (test side) | "opens that image from the media list without a full reload" |
+| the page-number button followed with a full page load (test side) | "paginates the list view without a full reload" |
+| `payload-admin.spec.ts` run against `next dev` (the console S1 found noisy) | "the browser console had no errors or warnings" fails with 11 judged messages of 19: `new Date()` and `crypto.getRandomValues()` "while prerendering" and `URL data in generateMetadata()`, on `/admin/login`, `/admin`, the page and media views. A second dev run failed earlier, at the media document (dev-mode flakiness, as S1 saw) |
+
+The mutations of the test routes' gate and of the `pages` hook are caught by their unit tests (14 mutations, SETUP.md, "Docs, ADRs and spec v0.6 (T17)"). Every e2e mutation was caught by the test named for it: the first run of this table failed `payload-cache` at another test for the two route-handler mutations (a serial group stops at its first failure), so the route-handler tests were moved before the hook test.
 
 ## Spec changes
 

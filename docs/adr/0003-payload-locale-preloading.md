@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Status | **Proposed** 2026-10-10 (S3 verdict: **PASS** as the plan defines it, with the reading of L7 under "Decision"). Merging the PR (plan G2) puts it on `main` as *Proposed*. T17 sets it to *Accepted* unless the owner's message changes one of the readings R1 to R6 under "Decision" (silence means the defaults stand), and rewrites what the owner changes |
+| Status | **Accepted** 2026-10-10 (T17). S3's verdict was **PASS** as the plan defines it, with the reading of L7 under "Decision". S3 left six readings of the plan's rules to the owner (R1 to R6 under "Decision", silence means the defaults stand); the T17 prompt changed none, so all six stand as written. R6: `payload-locales.spec.ts` stays in `e2e-smoke` |
 | Date | 2026-10-10 |
 | Spike | S3, [docs/plans/M0.md](../plans/M0.md) §6 |
 | Versions | Payload 3.90.2 (`@payloadcms/db-postgres` 3.90.2, drizzle-orm 0.45.2), Next 16.4.0, PostgreSQL 17.11, Node 22.22.0, Playwright 1.64.0 (Chromium) |
@@ -153,14 +153,14 @@ Each mutation was applied to the real file, only the tests that should notice it
 4. **The storefront enforces its markets; the API does not.** The filter touches the admin selector only (L8): the REST and Local API serve any preloaded locale, whatever `markets` says, and do not even reject an unknown one. A page of a language that is switched off is still readable at `/api/pages?locale=…`. M4's content reads must take their locales from the market map, and nothing may treat "switched off in `markets`" as "hidden".
 5. **The runbook** is in SETUP.md, "A language outside the list".
 
-**Readings of the plan's rules that are yours to decide** (the rules were not changed):
+**Readings of the plan's rules, confirmed by T17 (the owner changed none of them, so each default stands; the rules were not changed):**
 
 - **R1. L7.** The plan says "at most 1 `markets` read per admin request (counter in `req.context`)". The counter cannot live in `req.context` (each call has its own), T09's `req.context` memo read three times per page load, and I read "admin request" as the page load (one HTTP request, three filter calls). The fix (decision 2) makes it at most one. If you would rather have no staleness at all, the options are no memo (three reads of a one-row global per page; I did not time the two extra) or a memo tied to the request, which Payload gives no handle for. Default: as built.
 - **R2. L9.** The budget is applied to each of the 18 request and query measures, with "the admin edit-view load" read as the server's time for a browser navigation (HTTP, 100 loads) and a browser's time to the last field (30 loads). The 4-language config is the same code and data with `S3_LOCALES=four`. The content model is a stand-in with 32 localized fields; M4's will differ. Default: as measured.
 - **R3. L2 to L6 and mode.** They run against a production build, with `markets` saved over the REST API (what the admin's form sends) and not through the form's own fields; the same spec passes under `next dev` once the admin is compiled (above). Default: as measured.
 - **R4. L10's example.** `ga` is already preloaded, so the run used `is`. Default: as recorded.
 - **R5. L11's policy.** "Add-only" is enforced by a comment and two tests, not by a CI check that no migration removes an enum value. Default: as built.
-- **R6. The new e2e project.** `payload-locales.spec.ts` runs in CI's `e2e-smoke` (about 20 s) after the other suites and restores `markets`. Default: it stays; T17 step 4 may move it. To drop it, remove the `locales` project from `playwright.config.ts`.
+- **R6. The new e2e project.** `payload-locales.spec.ts` runs in CI's `e2e-smoke` (about 20 s) after the other suites and restores `markets`. T17 step 4 kept it there: it needs the same production build, the bootstrap admin and the `markets` global that `e2e-smoke` already has, and a second job would repeat all three. To drop it, remove the `locales` project from `playwright.config.ts`.
 
 ## Consequences
 

@@ -1,6 +1,142 @@
 # Setup
 
-> Only the results of T00 to T12 and C0 exist so far. T17 adds the keyless quickstart, ports, credentials and the other Windows notes.
+How to run the starter on your own machine: the quickstart, the ports, the logins, the notes for Windows and for a Claude Code cloud session. Below "The M0 log" is what each M0 task found and measured, one section per task and spike, in the order they ran. The log is the evidence behind [SPEC.md](SPEC.md) v0.6 and the [ADRs](adr/README.md); read the section a number or a decision in the spec points to.
+
+- [Quickstart](#quickstart-no-keys-no-accounts) · [Prerequisites](#prerequisites-every-os) · [Ports and logins](#ports-urls-and-logins) · [Opening a market](#opening-a-market) · [Windows](#windows-notes) · [Cloud](#working-in-a-claude-code-cloud-environment) · [Checking a clean machine](#checking-a-clean-machine) · [If something fails](#if-something-fails) · [Where we differ from the skills](#where-we-deliberately-differ-from-the-medusa-skills)
+
+## Quickstart (no keys, no accounts)
+
+Nothing here needs a third-party account: Stripe, Resend, PostHog, Sentry and Cloudflare R2 are on their local fallbacks until their keys are set (SPEC §10).
+
+### Prerequisites (every OS)
+
+| | Needed | Check |
+|---|---|---|
+| Node | 22.22 or newer on the 22 line (`.nvmrc` says `22`; `engines` is `>=22.22.0 <25`). Node 24 works and runs as an informational leg in CI | `node -v` |
+| pnpm | **12.10.1**, installed with `npm install -g pnpm@12.10.1`. Not Corepack: Corepack 0.34 cannot run pnpm 12 | `pnpm -v` prints `12.10.1` inside the repo |
+| Corepack | **Off**: `corepack disable` (on Windows from an **administrator** terminal, because the shims it leaves are in `C:\Program Files\nodejs`). If a machine ever ran `corepack enable`, plain `pnpm` fails with `Cannot find module '…\corepack\v1\pnpm\12.10.1\bin\pnpm.cjs'` | `where pnpm` (Windows) or `which pnpm`: the first hit must be the npm-global pnpm, not a Corepack shim |
+| Docker | Docker Desktop (Windows, macOS) or Docker Engine (Linux), **running**, with Compose v2.20 or newer (the root `compose.yaml` uses `include`) | `docker info`, `docker compose version` |
+| Git | any recent version | |
+| Free ports | 15432 (Postgres), 6380 (Redis), 7701 (Meilisearch), 1025 and 8025 (Mailpit), 9000 (Medusa), 8000 (storefront and Payload) | `docker compose up` stops with "port is already allocated" for the first compose port that another program holds (move ours with `POSTGRES_PORT`, `REDIS_PORT`, `MEILI_PORT`); `pnpm dev` fails to start on a busy 8000 or 9000 |
+| Disk and memory | `node_modules` is 1.5 GB and the pnpm store another 1.5 GB (they share files by hard link, so on one drive the two are nearer 1.5 GB), the four images 1 GB, a production build a few hundred MB. The cloud VM (4 cores, 16 GB) ran the stack, both dev servers and a browser with room to spare | `du -sh node_modules` |
+
+Linux has been run end to end (CI on `ubuntu-latest` and the cloud VM). On Windows 11, T00 and CI's `windows-smoke` (`windows-latest`) have run the install, the type check and the build; `pnpm bootstrap`, `pnpm dev` and the rest of the quickstart are for W2 on the PC to run (plan §4a). **macOS has not been tried**; nothing in the repo is Linux- or Windows-specific beyond what Docker Desktop and Node cover, so it is expected to work.
+
+### The commands
+
+```bash
+git clone https://github.com/stephanos221/shopblok-starter.git
+cd shopblok-starter
+pnpm install --frozen-lockfile     # 2 s when the pnpm store has everything (a second checkout), 15 to 27 s from a cold store, 18 to 26 s on a CI runner
+docker compose up -d --wait        # the same as `pnpm infra:up`; 4 healthy services in 6 to 24 s once the images are pulled
+pnpm bootstrap                     # about a minute on empty volumes (54 to 63 s in T17's check, 35 to 60 s earlier); running it again changes nothing
+pnpm dev                           # Medusa on :9000, the storefront and Payload on :8000
+```
+
+PowerShell is the same, with `cd shopblok-starter` and the `E:` drive of the Windows notes below. Use `pnpm run doctor`, **never `pnpm doctor`**: pnpm has a built-in command of that name and it wins over our script.
+
+`pnpm bootstrap` is the only step that needs thought, so here is what it does (SPEC §5; "`pnpm bootstrap` (T13)" below has the table): it checks that each service on its port is this project's own container, writes `apps/backend/.env` and `apps/storefront/.env` from the examples with generated secrets, migrates and seeds Medusa (regions, currencies, locales, a demo catalog with Greek, German and French translations), creates the Medusa and Payload admins, writes the publishable key and the Payload API key, migrates Payload and fills its `markets` global, and ends with `pnpm run doctor`. It is safe to run again whenever you change `apps/backend/src/config/markets.ts`, after `pnpm infra:reset`, or after a long pause. `--no-demo` skips the demo catalog; `--ci` is the same run for a machine with nobody at it.
+
+The first request to each page in `pnpm dev` compiles it (about 20 s for `/` and for `/admin`); after that a page takes well under a second.
+
+**Stopping.** `^C` in the terminal that runs `pnpm dev` ends both servers and their helpers. (A session without a terminal, like a cloud session, sends `kill -INT` to the turbo process: `ps -eo pid,cmd | grep '[l]inux-64/bin/turbo run dev'`.) `pnpm infra:down` stops and removes the containers and **keeps the databases**; `pnpm infra:reset` wipes them (and then `pnpm bootstrap` rebuilds them; the storefront must be built again, or `pnpm dev` restarted, because a new database has a new publishable key).
+
+### Ports, URLs and logins
+
+| What | Where | Login |
+|---|---|---|
+| Storefront (until M1 a page that shows the market, its language, the region, the currency and 4 priced products) | http://localhost:8000 | none |
+| Payload admin | http://localhost:8000/admin | `admin@example.com`, password in `apps/backend/.env` as `DEV_ADMIN_PASSWORD` |
+| Medusa admin | http://localhost:9000/app | the same login |
+| Medusa health | http://localhost:9000/health | none |
+| Mailpit inbox | http://localhost:8025 | none. Nothing sends to it in M0 (Payload has no email adapter yet) |
+| Postgres | `localhost:15432`, databases `medusa` and `payload` | `postgres` / `postgres` |
+| Redis | `localhost:6380` | none |
+| Meilisearch | http://localhost:7701 | master key `shopblok-local-dev-master-key` (nothing uses it before M6; the search is `search-postgres`) |
+
+The password is generated by bootstrap and is a plain-text development password in a git-ignored file: `grep DEV_ADMIN_PASSWORD apps/backend/.env` (PowerShell: `Select-String DEV_ADMIN_PASSWORD apps\backend\.env`). Never run bootstrap with real credentials.
+
+The host ports are not the standard ones on purpose (D15): a machine that already runs Postgres on 5432 would otherwise connect Medusa and Payload to the wrong server, and Payload creates a missing database on connect. [infra/README.md](../infra/README.md) has the services, the `POSTGRES_PORT`/`REDIS_PORT`/`MEILI_PORT` overrides and why 5433 is not used.
+
+**What to look at.** The storefront's pages are the wiring page of T12, not a shop yet:
+
+| URL | You should see |
+|---|---|
+| `/` | Cyprus, Greek: `<html lang="el-CY">`, region Europe, EUR, four Greek product titles with prices like `12,00 €` |
+| `/us` | English, USD (`$14.00`) |
+| `/ch/fr` | Swiss French, CHF (`12.00 CHF`) |
+| `/cy` | a redirect to `/` (two hops, 308 then 301) |
+| `/el-cy` | 404: the internal market key is never public |
+| `/admin` | Payload's login; its locale selector offers English and the languages of the countries enabled in the `markets` global |
+
+(SPEC §8.5 writes `/us/` and `/ch/fr/`; public URLs have no trailing slash.) **Where verification links appear (M3).** Sign-up and its email verification arrive in M3. Until a Resend key is set, Medusa's `notification-local` provider writes each email, verification links included, to the backend's console: in the terminal that runs `pnpm dev`, turbo's terminal interface (`ui: tui`, the default) lists each task, so pick `@shopblok/backend#dev` to read its output (without a terminal the lines carry the prefix `@shopblok/backend:dev:`). `pnpm run doctor` prints a warning about it ("Sign-up requires email verification, but there is no Resend key"); that warning is expected and is the only one a bootstrapped setup has once both servers are up.
+
+**The Payload admin in `pnpm dev`.** `next dev` logs console errors in the admin (Next's dev-only prerender validation and a React "Maximum update depth" loop in Payload's document and logout views). They are not in production mode and the admin works; ADR 0001 has the evidence. When the console matters, use `pnpm --filter @shopblok/storefront build` and `pnpm --filter @shopblok/storefront start` (37 s to build).
+
+### Opening a market
+
+A shop picks its regions, currencies and languages in one place per app and everything follows (D17). In M0 there are two lists, kept by hand and checked against each other by `pnpm run doctor` (D19); M4's sync removes the duplication. For a Brazilian shop (`brl`, a `Brazil` region, `pt-BR`; `br` and `pt` in the storefront's map):
+
+1. **`apps/backend/src/config/markets.ts`:** add `{ currency_code: "brl", is_default: false }` to `SUPPORTED_CURRENCIES`, `{ name: "Brazil", currency_code: "brl", countries: ["br"], standard_shipping: 20 }` to `MARKET_REGIONS`, and `"pt-BR"` to `SUPPORTED_LOCALES` (one Medusa locale per language, one of the 51 Medusa ships). The file's header says the same. The search index, the store's currencies and locales, the regions, the tax regions and the shipping all follow this file.
+2. **The storefront's map:** the `markets` global in Payload's admin (Markets: the country, its languages, and the Medusa locale of each language), or, before the first `pnpm bootstrap`, `packages/fixtures/src/markets.ts`, which bootstrap copies into the global while it has no country.
+3. **A language that Payload does not know.** Payload preloads 42 languages (every language Medusa has a locale for is among them), so Portuguese and Mongolian need nothing. For one outside the 42, follow [A language outside the list](#a-language-outside-the-list) first: one line, one migration, deployed before the code. **Locales only grow**: a closed market is switched off in `markets`, never taken out of the list.
+4. **`pnpm bootstrap`**, then restart `pnpm dev` (a new currency changes the search index schema, so bootstrap's `db:migrate` plans a new index version and the next start fills it). `pnpm run doctor --online` then has no complaint: it checks that both lists agree, that Medusa has a region for every open country, and that the index has `min_price_brl`. By hand, on a database made after the edit (`pnpm infra:reset`, then `pnpm bootstrap`; products that exist keep their prices, so only a fresh database has BRL ones): `/br` shows `<html lang="pt-BR">`, the Brazil region, BRL and prices like `R$ 155,00`, and the search filters and sorts by the new currency:
+
+   ```bash
+   KEY=$(grep '^NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY=' apps/storefront/.env | cut -d= -f2-)
+   curl -s -X POST http://localhost:9000/store/search -H "x-publishable-api-key: $KEY" -H 'content-type: application/json' \
+     -d '{"entity":"product","filters":{"q":"","min_price_brl":{"$lte":100}},"pagination":{"order":{"min_price_brl":"ASC"}}}'
+   ```
+
+The UI text of a language other than English, Greek, German and French stays English until its catalog is added (M3). Translations of the catalog go in Medusa Admin, Settings, Translations. A market taken out of `config/markets.ts` leaves its region in Medusa (the seed adds and never removes); `doctor --online` lists it, and Medusa Admin, Settings, Regions deletes it.
+
+### Windows notes
+
+- **E: must be NTFS (D2).** exFAT has no symbolic or hard links, no permissions and no journal, and its 128 KB clusters would make hundreds of thousands of small library files far larger than they are. `fsutil fsinfo volumeinfo E:` says `File System Name : NTFS`. pnpm puts its store on the same drive (`E:\.pnpm-store`), so hard links work.
+- **Long paths.** `node_modules` paths reach about 300 characters (the longest under T00's probe was 304). Turn long paths on once, from an administrator PowerShell: `New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" -Name LongPathsEnabled -Value 1 -PropertyType DWORD -Force`, and check with `(Get-ItemProperty HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem).LongPathsEnabled`, which must print `1`. A shorter folder name than `E:\shopblok-starter` helps; a longer one is a harder test (W2 uses `E:\shopblok-starter-w2` on purpose).
+- **Corepack off**, from an administrator terminal (see the prerequisites). Until then, putting `%APPDATA%\npm` first on `PATH` for the session is the workaround.
+- **Docker Desktop keeps the databases in named volumes** (inside its own VM), not on E:. E: holds the checkout, `node_modules` and the pnpm store only, and `pnpm infra:reset` is what deletes the data.
+- **Other programs on the default ports.** The reference PC runs another project's Postgres, Redis and Meilisearch on 5432, 6379 and 7700, which is why the stack publishes 15432, 6380 and 7701 (D15). W1 tests that clash on the real machine.
+- **What has run on Windows.** T00 (Windows 11 Home 10.0.26200, Node 22.22.0, NTFS E:): pnpm 12.10.1 installs, builds and hot-reloads Next 16.4.0, Payload 3.90.2 and Medusa 2.21.2 together; two config fixes it found (`allowBuilds` for `msgpackr-extract` and `protobufjs`, and `@medusajs/cli` as a direct dependency of the backend) are in the repo ("Windows preflight (T00)" below). CI's `windows-smoke` job installs, type-checks and builds on `windows-latest` weekly and on PRs that change a dependency file (4 m 16 s). `pnpm bootstrap`, `pnpm dev` and `^C` have only run on Linux; W2 runs them on the PC and closes M0 (plan §4a).
+- Scripts use `node:path`, `docker` and `pnpm` started without a shell where possible, and a quoted `cmd.exe` command line where not (`scripts/lib/exec.ts`); line endings are LF (`.gitattributes`).
+
+### Working in a Claude Code cloud environment
+
+The M0 plan ran in cloud sessions (decision D16). [CLOUD.md](CLOUD.md) says how to set the environment up once, what every session does first (Node, pnpm, Docker, `pnpm infra:up`, `pnpm bootstrap`), and how the cloud differs from a PC (Docker is off at the start, no other GitHub repo can be downloaded, `gh pr` needs REST). C0's results are in "Cloud preflight (C0)" below.
+
+### Checking a clean machine
+
+CI is the clean-machine reference. On `ubuntu-latest`, after `pnpm install` (18 to 26 s): `docker compose up -d --wait` takes 16 to 24 s, `pnpm bootstrap --ci` 37 to 60 s, the production build 70 to 99 s, and the Playwright suites about 36 s; `check (Node 22)` takes about 3 minutes and `e2e-smoke` about 4 m 20 s ("CI (T16)" below). The Windows install on a runner takes 59 s and the build 89 s, with a short workspace path, so it does not replace W2's long-path check.
+
+### If something fails
+
+| Symptom | Cause and fix |
+|---|---|
+| `pnpm bootstrap` stops at step 1 with "…belongs to something else (D15)" | Another program holds a port the apps use, or the compose stack is not the one running. Stop it, or move ours with `POSTGRES_PORT` and the apps' URLs |
+| `pnpm doctor` prints pnpm's own checks | Use `pnpm run doctor` |
+| `Cannot find module '…\corepack\…\pnpm.cjs'` | Corepack is on: `corepack disable` from an administrator terminal |
+| Every storefront request answers 400 "Publishable API key required" | The database was wiped and has a new key: `pnpm bootstrap`, then build the storefront again or restart `pnpm dev`. A stale `NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY` exported in the shell beats the `.env` under `pnpm dev` |
+| `DEV_ADMIN_PASSWORD` is missing from `apps/backend/.env` after `pnpm bootstrap` | The `.env` was deleted over a database that kept its admins, so bootstrap cannot know the password (it only knows what it generated). `pnpm infra:reset`, then `pnpm bootstrap` |
+| `payload migrate` or `payload run` prints nothing | Payload's CLI exits 0 without doing anything in about 1 run in 20; bootstrap and doctor repeat it, and so should you |
+| `payload migrate` asks "Would you like to proceed?" | Dev push touched the database: `pnpm infra:reset`, or answer it yourself. Bootstrap stops instead of answering |
+| `/store/search` says a `min_price_<currency>` field is not facetable | A currency was added without `medusa db:migrate` and a restart; `pnpm bootstrap` does both |
+| Docker is not running (cloud session) | CLOUD.md, "What every cloud session does first", step 3 |
+
+### Where we deliberately differ from the Medusa skills
+
+The three skills (`building-with-medusa`, `building-storefronts`, `storefront-best-practices`) are the reference for Medusa code. These differences are on purpose (plan §3):
+
+- Data comes from a server-first DAL (`apps/storefront/src/lib/medusa`). React Query is only for client interactivity, from M3.
+- The region comes from the URL and `proxy.ts`, not from `localStorage`.
+- We cache with `'use cache'`, `cacheLife` and `cacheTag`, not the `revalidate` export, which is a build error under Cache Components.
+- We pin exact versions; the skills use `@latest`.
+- Medusa commands run as `pnpm --filter @shopblok/backend exec medusa …`.
+- The skill's store-route `curl` example leaves out the `x-publishable-api-key` header; always send it.
+- Seeds run through `medusa exec` scripts and never inside a migration (D7), so demo products cannot reach production.
+
+---
+
+# The M0 log
 
 ## Windows preflight (T00)
 
@@ -1982,3 +2118,94 @@ Items 1 and 2 are recorded in the plan (§4, §6) and in the ADR; **the PASS lis
 - **Icelandic's name in the selector** is *íslenska (is)*, from the runtime's ICU data (`languageLabel`), and `Intl.DisplayNames` had it.
 - **Throwaway databases** in the compose volume: `payload_s3_full`, `_four`, `_full2`, `_l1_*`, `_l10`, `_l10b`, `_l11`, `_l11b`, `_l11c` and `_e2e`; they were dropped at the end of the session.
 - The Greek, German, French and Icelandic test text is mine and has not been checked by a native speaker.
+
+## Docs, ADRs and spec v0.6 (T17)
+
+**Result: every check in T17's Verify list that a Linux cloud session can run passes; the Windows half (W2) is yours.** A second clone of the branch, in its own folder and Compose project, followed the quickstart above command by command and reached every exit criterion of plan §7 that Linux can check (table below); no command in SETUP.md was wrong, and the corrections are three timings and one missing example (the BRL search request). The three ADRs are written and *Accepted* (0002 and 0003 now: the T17 prompt changed none of S2's R1 to R5 or S3's R1 to R6, so the defaults stand), SPEC is v0.6, and S1's checks run in CI: `e2e-smoke` has a new `payload-cache` suite (12 tests) and four new `payload-admin` tests, behind a run-time gate, and the backend's integration tests run in a new job, `backend-integration`. Every new test was shown to fail with a mutation (25 mutations and one run against `next dev`, below). Three S1 checks are not in CI and have named follow-ups (plan §5, "Follow-ups from T17"). **M0 cannot close yet:** W2 (the Windows exit check) is still to run after this PR is merged.
+
+| | |
+|---|---|
+| Date | 2026-10-10 to 2026-10-11 (the session crossed midnight UTC) |
+| Branch / PR | `claude/blissful-edison-dye7ur`, [PR 26](https://github.com/stephanos221/shopblok-starter/pull/26) |
+| Session start | `node -v` v22.22.0, `pnpm -v` 12.10.1, `pnpm install --frozen-lockfile` 27.5 s. CLOUD.md's step 3: `dockerd` started, `pnpm infra:up` 18.9 s with 4 healthy, `docker compose port postgres 5432` printed `0.0.0.0:15432`. Step 4: `pnpm bootstrap` 62.8 s (8 done, 2 unchanged, 2 skipped; doctor's three warnings: Medusa and the storefront not running, no Resend key). Pins through `pnpm exec`: `eslint` v9.39.5 (the bare `eslint` is the image's 10.1.0), `playwright` 1.64.0, `tsc` 5.9.3 |
+| Turborepo docs | `docs/README.md` of the installed 2.11.7 (`node -p "require.resolve('turbo/package.json')"` from the root): a pointer page. The deprecations in the docs (`turbo scan`, `turbo-ignore`, the `--daemon` flags, workspaces in Vitest's guide) apply to nothing in this repo's `turbo.json`, scripts or workflow. T17 changes no turbo configuration; `AGENTS.md` is unchanged (`md5sum` `995f281e6ed512494bf15f386443be6c`) |
+| New files | `docs/adr/README.md`; storefront: `src/lib/e2e/{gate, handlers, reads, runs}.ts` with `gate.test.ts` and `handlers.test.ts`, `src/app/next/e2e/{counter, draft, pages, pages-by-tag, preview, revalidate}/route.ts`, `src/payload/hooks/revalidate-pages.ts` with its two tests (`.test.ts`, and `.next.test.ts`, which calls the real `revalidateTag`), `e2e/payload-cache.spec.ts` |
+| Changed files | `docs/SETUP.md` (the quickstart at the top, this section), `docs/SPEC.md` (v0.6), `docs/adr/000{1,2,3}-*.md`, `docs/plans/M0.md`, `docs/NEXT-SESSION.md`, `README.md`; `.github/workflows/ci.yml` (the `backend-integration` job; `E2E_TEST_ROUTES` on the storefront server); storefront `src/lib/env.ts` and its test (one variable), `src/payload/collections/pages.ts` (the hook), `e2e/payload-admin.spec.ts` (four tests), `playwright.config.ts` (`workers: 1`); backend `search-locale-assumptions.spec.ts` (its header only). No dependency, lockfile, migration or `turbo.json` change |
+| Tests | Root `pnpm test`: i18n **18**, scripts **270**, storefront **412** (385 + 27 new: 18 from the step-4 code and 9 from the review of this PR, for the hook's unpublish and delete cases, the tag allow-list and a test that pins the "outside Next" message to the installed Next), backend **85**. Playwright **64** in 5 files: `markets` 28, `wiring` 7, `payload-admin` 10 (6 + 4), `payload-cache` 12, `payload-locales` 7. Backend integration **5** |
+
+### Checks (T17 "Verify")
+
+| Check | Result | Key output |
+|---|---|---|
+| A fresh clone, SETUP.md word for word on Linux, reaches the exit criteria (§7) | **Pass** | The second clone is `/home/user/fresh/shopblok-starter-fresh` (folder name different from the first clone's, so Compose gave it its own project and empty volumes; the first clone's stack was `pnpm infra:down`ed first, since two stacks cannot take the same ports). Per criterion, next table |
+| Step 4 is done, or a follow-up task for it is named in §5 | **Done, with three named follow-ups** | S1's cache, tag and draft checks, the media upload and open, the list view and the clean console are in `e2e-smoke`; the backend's integration tests are in `backend-integration`. Not done, and named in plan §5 ("Follow-ups from T17"): the first-user form, the media drawer of an upload field (#16270), the dev-mode console |
+| The three ADRs each have a decision and test evidence | **Pass** | ADR 0001 *Accepted* 2026-10-10 (owner), 0002 and 0003 *Accepted* 2026-10-10 (T17). Each has "Tests and results", "Decision" and "Spec changes"; `docs/adr/README.md` has the template and the rules |
+| The fresh-clone check on Windows (E:) | **Not run: W2** | After this PR is merged (plan §4a) |
+| CI is green on the PR | **Pass** | Run `38095964740` (head `82b6de5`, the step-4 code): all jobs success, `backend-integration` 1 m 25 s, `e2e-smoke` 4 m 16 s. Run `38097017741` (head `290e96e`, with `workers: 1` and the docs): `check (Node 22)` 3 m 10 s, `check (Node 24)` 3 m 08 s, `backend-integration` 1 m 18 s (the tests 16 s), `e2e-smoke` 4 m 12 s (Playwright, all 64 tests, 35 s), `windows-smoke` skipped (no dependency file changed). The runs on the final head are in the PR description |
+
+### The exit criteria (plan §7) in the fresh clone
+
+| # | Criterion | Result | Key output |
+|---|---|---|---|
+| 1 | `pnpm install --frozen-lockfile` exits 0; `pnpm check:workspace` passes | **Pass** | `Done in 2.3s using pnpm v12.10.1` (the store already held everything); `React per app: ok` (storefront 19.3.0, backend 18.3.1), `Payload versions: ok` (8 packages, one version), `Workspace packages: ok`, exit 0 |
+| 2 | `docker compose up -d --wait` exits 0, four healthy | **Pass** | 7 s: `shopblok-starter-fresh-{postgres,redis,meilisearch,mailpit}-1 Up … (healthy)`; `docker compose port postgres 5432` → `0.0.0.0:15432` |
+| 3 | `pnpm bootstrap` exits 0; again, no changes | **Pass** | Run 1: `bootstrap finished in 62.8 s: 8 done, 2 unchanged, 2 skipped` (migrations 20.8 s, seeds 13.4 s, admin 6.4 s, key 5.3 s, Payload migrations 5.2 s, Payload step 5.6 s); run 2: `54 s: 0 done, 10 unchanged, 2 skipped`. After `infra:down` and `infra:up`: `57.6 s: 0 done, 10 unchanged` |
+| 4 | `pnpm dev` serves everything listed | **Pass** | Medusa `/health` 200 14 s after the start; `/app` 200 and the dev admin logs in in a browser (lands on `/app/orders`; `POST /auth/user/emailpass` 200). `/`: `<html lang="el-CY">`, market `el-cy`, region Europe, EUR, `Καπέλο από καμβά — 22,00 €`, `Λινό σορτς — 39,00 €`, `Παντελόνι φόρμας Everyday — 49,00 €`, `Κλασικό μπλουζάκι — 25,00 €` (first request 18.0 s, then 0.24 s). `/us`: `en-US`, United States, USD, `Canvas Cap — $24.00`. `/ch/fr`: `fr-CH`, Switzerland, CHF, `Casquette en toile — 22.00 CHF`. `/cy/` → `308 location: /cy` → `301 location: /`; `/el-cy` 404. Payload `/admin` accepts the dev login in a browser and by `POST /api/users/login` (200); its locale selector offers `English`, `français (fr)`, `Deutsch (de)`, `Ελληνικά (el)`, the four languages of the `markets` global |
+| 4 | The backend → Payload link works | **Pass** | `pnpm run doctor --online`: `✓ Payload accepts the integrations key`, `✓ Medusa matches the storefront's map: 4 regions and 4 locales …`, `✓ Search index currencies: min_price_<currency> exists for eur, usd, chf, gbp`, `15 checks ok, 1 warning, 0 errors`, exit 0, 7 s |
+| 5 | `pnpm run doctor` lists every third-party integration on fallback, prints the email warning, exits 0 | **Pass** | `Stripe fallback`, `Resend fallback`, `PostHog fallback`, `Sentry fallback`, `Meilisearch fallback`, `Redis live`, `Cloudflare R2 fallback`; `! Email verification`; `12 checks ok, 1 warning, 0 errors`, exit 0, 6 s. `doctor --json`: `third-party: stripe=fallback resend=fallback posthog=fallback sentry=fallback r2=fallback`, `ok: true` |
+| 6 | `pnpm typecheck && pnpm lint && pnpm test && pnpm build` is green | **Pass**, in CI's state (no `.env`, no containers, no servers, after the checks above) | `typecheck` 13 s `Tasks: 8 successful`; `lint` 10 s `9 successful`; `test` 12 s `4 successful` (18 + 270 + 403 + 85; 412 storefront tests after the review of this PR added 9); `build` 61 s `cache miss, executing` for both, `Tasks: 2 successful`, `◐ /[market]`, `ƒ /next/e2e/*` (six routes), `○ /next/markets 30s 1h`; the second `build`: `Cached: 2 cached, 2 total`, `74ms >>> FULL TURBO`. CI is green on the PR (above) |
+| 7 | ADRs 0001 to 0003 are merged, each with a decision and evidence; SPEC v0.6 reflects them | **In the PR**; merged when it is (G2) | |
+| 8 | D17: opening a market takes the edits SETUP.md lists and nothing else | **Pass** | Brazil added as "Opening a market" says (`brl`, a `Brazil` region and `pt-BR` in `config/markets.ts`; `br` and `pt` in `packages/fixtures/src/markets.ts`), `pnpm infra:reset` (8 s), `pnpm bootstrap` (61.3 s, `6 done, 4 unchanged`, step 6 `replaced the key of an earlier database`), `pnpm dev`: `/br` is `<html lang="pt-BR">`, market `pt-br`, region Brazil, BRL, `price-currencies BRL, CHF, EUR, GBP, USD`, `Classic Tee — R$ 155,00`, `Everyday Joggers — R$ 304,00`. `POST /store/search` with `min_price_brl <= 100` → `Dotted Notebook 74`, `Ceramic Mug 87`; sorted by `min_price_brl` descending → `Heritage Hoodie 366`, `Everyday Joggers 304`, `Linen Shorts 242`. `doctor --online`: `5 regions and 5 locales cover every open country and language`, `min_price_<currency> exists for chf, eur, usd, gbp, brl`, `15 checks ok, 1 warning` (the email one). The two edits were reverted with `git checkout` |
+
+Also in the fresh clone: `^C` of `pnpm dev` (the quickstart's last step) as `kill -INT` of the turbo process, as a cloud session does it: 15 processes of the checkout before, **0 after 1.05 s**, ports 8000 and 9000 closed. `pnpm infra:down` then `pnpm infra:up` keeps both databases (Medusa: 4 regions and 8 products, Payload: 6 `markets_countries` and 1 user, before and after). `pnpm infra:reset` followed by `pnpm bootstrap` brings them back (the Brazil run above). Not run on Linux: the browser `^C` of a terminal on a PC with Claude Code installed (W2, T15 table).
+
+### Step 4: S1's checks and the backend's integration tests in CI
+
+**What moved into CI, and where** (ADR 0001, "In CI since T17", has the table per S1 check):
+
+- **`e2e/payload-cache.spec.ts`** (12 tests, serial): the test-only routes are open; a `pages` read inside `use cache` serves the Greek title and the second request is a hit (a loader counter does not move); `revalidateTag(tag, { expire: 0 })` from a route handler gives fresh content on the next request; the same with `'max'` (fresh within two requests, 500 ms apart); a tag that is not the entry's changes nothing; an admin edit shows within two requests (the `pages` hook calls `revalidateTag('pages:<locale>', 'max')` inside Payload's REST handler); a published page whose newest version is a draft, then **200 concurrent requests, half with the Draft Mode cookie**, on a cold and on a warm cache: `public: 100, with the draft marker: 0, with the public title: 100; draft: 100, with the draft marker: 100; non-200: 0` both times.
+- **`e2e/payload-admin.spec.ts`**, four new tests: an image uploaded to `media` is served (`image/png`); it opens from the media list without a full reload; the pages list paginates without a full reload (12 pages made through the API, `limit=10` in the URL); and the browser console had no errors or warnings across the whole run (`failed requests: 14 (this server, not aborted: 0; aborted: 6); other hosts: www.gravatar.com`, `console messages (8, 0 judged)`; a failed request to another host, a resource of another host that answers an error, and `ERR_ABORTED` are excused).
+- **`backend-integration`**, a job of its own (not a step of `e2e-smoke`): it starts only Postgres (`docker compose up -d --wait postgres`) and runs `pnpm --filter @shopblok/backend test:integration:http`, which needs no `.env` and no bootstrap (`apps/backend/.env.test` names port 15432 and blanks `REDIS_URL`). It does not wait for the browser job and its failure names Medusa, not Payload; the cost is another install (about 45 s of the job's 78). Renovate's `@medusajs/*` PR runs it.
+- **`payload-locales.spec.ts` stays in `e2e-smoke`** (S3's R6): it needs the production build, the bootstrap admin and the `markets` global that the job already has, and a second job would repeat all three.
+
+**The test-only routes.** The prototype read `pages` from pages under `[market]`. That cannot be gated at run time (a page that reads an environment variable is dynamic, and a public page for a test would be in every deployment), so the reads are six route handlers under `/next/e2e` (`pages`, `pages-by-tag`, `preview`, `counter`, `draft`, `revalidate`). Each asks `e2eGate()` (`src/lib/e2e/gate.ts`) first, which calls `connection()` (so the handler is dynamic and the build cannot freeze the answer) and answers 404 unless `E2E_TEST_ROUTES` is exactly `true`; `lib/env.ts` reads it, as for every variable. Only `e2e-smoke` sets it, on the storefront it starts (`E2E_TEST_ROUTES=true nohup pnpm … start`); the build and the other steps do not, and CLOUD.md's cloud sessions do not. The routes accept only language codes and three tag families: `e2e:*` (the test-only entries), `pages:<language>` and `payload:pages` (what the `pages` hook revalidates, and so what M4's reads of pages will carry). A gate that failed open could therefore refresh those two, and nothing else: not the Medusa catalog or the market map. What this changes in S1's evidence: the reads now run at request time and hit the runtime cache, not a `use cache` read prerendered into a page's static shell; the shell is what the `markets` suite and the `◐` build output cover (ADR 0001, "The routes").
+
+**The `pages` hook.** The tag checks need a hook to test "an admin edit shows within two requests", and S1's was removed with the prototype, so `src/payload/hooks/revalidate-pages.ts` is in the `pages` collection now (no schema change, no migration): published change → `revalidateTag('pages:<locale>', 'max')` and `revalidateTag('payload:pages', 'max')`, wrapped (it throws outside Next; that case is logged at debug level and any other failure as a warning), skipped for a draft that was never published and when `req.context.disableRevalidate` is set (SPEC §7.7). An unpublish revalidates even over a newer draft (a `beforeChange` hook reads whether the page row was published, because Payload's `previousDoc` is the latest version, a draft in that case), and so does the delete of a published page (`afterDelete`). M4 extends it.
+
+**Two things the new specs found about the harness:**
+
+1. **Payload loses a login when two start together.** `payload-admin` and `payload-cache` both log in as the bootstrap admin in `beforeAll`; with Playwright's default two workers they did so at the same moment once, and the second's JWT was refused with 403 on `POST /api/pages`. `addSessionToUser` (`payload/dist/auth/sessions.js`) reads the user's `sessions`, pushes the new one and writes the whole array back, so two logins at the same moment can lose one (the cause was read in the source, not reproduced by a deliberate race). `playwright.config.ts` has `workers: 1` now, with the reason; the suites take about 15 s longer locally and the same 35 s in CI. (A first creation of the admin's `locale` preference racing, which T16 saw once, is probably the same family.)
+2. **The admin remembers a list's page size per user.** The pagination mutation "the list shows 50 a page" was not caught on the first try: the first click on a page number stores `limit=10` as the user's preference, so a later change of `defaultLimit` is ignored. The test names `limit=10` in the URL, so it assumes nothing about what a person or an earlier run left behind. (The pagination test is now caught by a different mutation: following the page button with a full page load.)
+
+Also seen: the production server's log prints `Route "/admin/[[...segments]]": Next.js encountered the unstable value new Date() while prerendering` on admin requests (14 lines in one e2e run, none for the `/next/e2e` routes). It is the text of the dev-mode console errors ADR 0001 records, in the server log of `next start`; the browser console is clean. **Not caused by T17:** `main` (`c866b23`), built and started in the second clone, prints the same line (5 times in its 6-test `payload-admin` run).
+
+### The tests can fail (25 mutations and one dev-mode run)
+
+| Layer | Mutations | Result |
+|---|---|---|
+| Playwright, 8 source or test mutations (the storefront rebuilt and started with the gate open, the spec run, the file restored; harness in the session's scratch directory) | the preview read always asks for drafts; the `pages` hook revalidates nothing; the cached read bypasses the cache (life all zero); the route handler's `revalidateTag` does nothing; the route handler revalidates with `'max'` when asked for `expire: 0`; media accepts no PNG; a media list link followed with a full page load; pagination followed with a full page load | **8 of 8 caught, each by the test named for it** ([ADR 0001](adr/0001-cache-components-payload.md#in-ci-since-t17) has the table). The first run caught the two route-handler mutations at a different test, because a serial group stops at its first failure; the route-handler tests were moved before the hook test. Baseline after the last restore: 22 passed |
+| Playwright, the console check against real product errors | `payload-admin.spec.ts` run against `next dev` on :8001 (`NEXT_PUBLIC_BASE_URL` and `E2E_BASE_URL` set to it) | The console test fails with 11 of 19 messages judged: `new Date()` and `crypto.getRandomValues()` "while prerendering" and "URL data in `generateMetadata()`", on `/admin/login`, `/admin` and the page and media views. A second dev run failed earlier, at the media document (dev-mode flakiness, as S1 saw) |
+| Vitest, 14 mutations (gate, routes, hook) | the gate accepts any set value; no `connection()`; the gate always open; any tag may be revalidated; any locale string is read; the counter, Draft Mode and revalidate routes skip the gate; the hook ignores the previous version, lets `revalidateTag` throw, ignores `disableRevalidate`, revalidates English only, uses `expire: 0`, revalidates drafts | **14 of 14 caught** (1 to 4 tests each) |
+| Jest, 3 mutations of Medusa's installed code (files replaced by rename, so pnpm's store is never written through) | `search-postgres` accepts `search_options.locales` (plan.js); `updateTranslationsWorkflow` emits `translation.changed`; `search-postgres` defaults to a text-search configuration that does not exist | **3 of 3 caught**: "search-postgres rejects search_options.locales…" (1 failed); "a translation event carries translation ids…" (1 failed); "/store/search ignores the request's locale…" and "search-postgres folds Greek accents…" (2 failed). Baseline after: 5 passed |
+
+### What should change in the plan
+
+Items 1 to 3 are applied in this PR (plan text, workflow, config); the rest are notes.
+
+1. **T17 step 4 is done, with three named follow-ups** (plan §5, "Follow-ups from T17"): the first-user form (needs an empty database and its own server and build; M7's deployment check), the media drawer of an upload field (#16270; the first M4 collection with an upload field), and a dev-mode console check (ADR 0001 reads the rule for production mode). Each is also in the ADR.
+2. **CI has five jobs** (`check`, `backend-integration`, `e2e-smoke`, `windows-gate`, `windows-smoke`), and Playwright runs with one worker. T16's "Four jobs" and G3(d)'s branch-protection list change: require `check (Node 22)`, `backend-integration` and `e2e-smoke`, not `check (Node 24)` or `windows-smoke`.
+3. **The `pages` collection has a hook now**, the first product code that the spikes' evidence needed. M4 extends it and owns the tags its cached reads use.
+4. **For M7:** ADR 0001's three Vercel checks are `payload-cache.spec.ts` with `E2E_BASE_URL` pointing at a preview that was started with `E2E_TEST_ROUTES=true` (a preview only, never production). A `doctor` warning when that variable is set with `NODE_ENV=production` would make a slip visible; not built.
+5. **For M3 and M6:** the prototype's acceptance suites stay in `ca361b2` (`git show ca361b2:apps/backend/integration-tests/http/search-locale.spec.ts`); port the tests each milestone needs, with a mutation for each. `search-locale-assumptions.spec.ts` is the only integration spec in CI today.
+6. **For anyone who adds a Playwright spec that logs in as the admin:** it runs after the others (one worker), and must not assume the admin's language or list size (name `?locale=` and `limit=` in the URL).
+7. **SPEC v0.6 leaves out nothing that depended on a merged spike** (all three ADRs are on `main`). What it does not say, because nothing measured it: Vercel behaviour (ADR 0001), macOS, and the Windows runs (W1 and W2).
+
+### Smaller observations
+
+- **The PR's first push was green on the first try**, `e2e-smoke` included: the new suite did not need a second run, because the VM rehearsal had used the workflow's own commands (production build, bootstrap, servers started directly).
+- **Commit trailers:** this session's commits say `Co-Authored-By: Claude <noreply@anthropic.com>` and the session link, without a model name, because the instructions forbid model identifiers in pushed artifacts (as T12 and T15 did).
+- **A fresh clone's `pnpm install` takes 2.3 s** when the pnpm store has every package; the 15 to 27 s of earlier sessions were from a cold store (CI: 18 to 26 s).
+- **`du`:** `node_modules` is 1.5 GB and the pnpm store 1.5 GB (hard-linked); the four images are 1.01 GB; the four volumes of a bootstrapped stack 105 MB.
+- **A `kill -TERM` of a process group** stopped `next start`, `medusa develop` and their helpers; one defunct `next-server` (zombie) remained until its parent was reaped, and `ps` showed nothing a second later. The harness stops servers by group because every server was started with `setsid`.
+- **A `.env` deleted over a kept database** leaves bootstrap without the admin's password (T13 item 5 predicted it): the baseline run of `main` in the second clone had `payload-admin` fail at "DEV_ADMIN_EMAIL or DEV_ADMIN_PASSWORD is not set" until `pnpm infra:reset` and a new bootstrap. A stale `.next/dev/types/validator.ts` from an earlier `next dev` also broke the first `next build` after the checkout moved to another commit (T00's note); `rm -r .next` fixed it.
+- **Throwaways** (the mutation harnesses `mutate_e2e.py`, `mutate_backend.py`, `mutate_unit.py`, the fresh-clone scripts, the second clone's folder) were in the session's scratch directory or outside the repo; the numbers above are from them.

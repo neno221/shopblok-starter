@@ -1,5 +1,10 @@
 import type { CollectionConfig } from "payload";
 import { isStaff, staffOrPublished } from "../access/roles";
+import {
+  rememberPublished,
+  revalidateDeletedPage,
+  revalidatePages,
+} from "../hooks/revalidate-pages";
 
 /** A stub (D12): the fields M4's content model grows from, and drafts to test the read rule. */
 export const Pages: CollectionConfig = {
@@ -14,6 +19,11 @@ export const Pages: CollectionConfig = {
     create: isStaff,
     update: isStaff,
     delete: isStaff,
+  },
+  hooks: {
+    beforeChange: [rememberPublished],
+    afterChange: [revalidatePages],
+    afterDelete: [revalidateDeletedPage],
   },
   versions: { drafts: true },
   fields: [

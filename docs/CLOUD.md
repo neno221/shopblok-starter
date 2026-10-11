@@ -10,7 +10,7 @@ The facts about cloud environments come from the Claude Code docs, checked on 20
    - the Claude GitHub App is installed on the repo (claude.ai/code asks for it the first time you pick the repo), or
    - you run `/web-setup` once in a local `claude` terminal. It hands your local `gh` token to the cloud. That token has the `workflow` scope, which T16 needs to push `.github/workflows/ci.yml`. C0 checked the route this environment uses (a token with no OAuth scopes that expires about two hours after the session starts) and a push of `.github/workflows/c0-probe.yml` was accepted, so `/web-setup` is only a fallback if a later push of a workflow file is refused.
 2. **Create the environment.** On claude.ai/code, click the cloud icon with the environment name, in the row above the message box, then **Add cloud environment**. In the desktop app's Code tab, use the environment dropdown in the prompt box. Fill in the four fields as below.
-3. **Start each session** in that environment, on the repo `stephanos221/shopblok-starter` and the branch `main`, and paste the prompt from [NEXT-SESSION.md](NEXT-SESSION.md).
+3. **Start each session** in that environment, on the repo `stephanos221/shopblok-starter` and the branch `main`, and paste the prompt from [NEXT-SESSION.md](NEXT-SESSION.md) (after T17 there is none until W2 has run; the next cloud task is M1's plan).
 
 ### Name
 

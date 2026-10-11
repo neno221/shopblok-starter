@@ -1,5 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { DEFAULT_MEDUSA_BACKEND_URL, env, EnvError, isProduction, medusaEnv } from "./env";
+import {
+  DEFAULT_MEDUSA_BACKEND_URL,
+  e2eRoutesEnabled,
+  env,
+  EnvError,
+  isProduction,
+  medusaEnv,
+} from "./env";
 
 const KEY = "pk_3c101e19ff02cb898eb71f6e20ccca7c4f824b84522d9a36b2ba9e19b6ffba30";
 
@@ -92,6 +99,7 @@ describe("env", () => {
 
   it("exposes exactly the variables the app reads", () => {
     expect(Object.keys(env).sort()).toEqual([
+      "E2E_TEST_ROUTES",
       "MEDUSA_BACKEND_URL",
       "NEXT_PHASE",
       "NEXT_PUBLIC_BASE_URL",
@@ -108,5 +116,21 @@ describe("isProduction", () => {
     for (const NODE_ENV of [undefined, "development", "test", "staging"]) {
       expect(isProduction({ NODE_ENV })).toBe(false);
     }
+  });
+});
+
+describe("e2eRoutesEnabled (the gate of the test-only routes)", () => {
+  it("is on for the exact value `true` and nothing else", () => {
+    expect(e2eRoutesEnabled({ E2E_TEST_ROUTES: "true" })).toBe(true);
+    for (const E2E_TEST_ROUTES of [undefined, "", "1", "TRUE", "True", "yes", " true", "false"]) {
+      expect(e2eRoutesEnabled({ E2E_TEST_ROUTES })).toBe(false);
+    }
+  });
+
+  it("is off when nothing sets it, and reads the real environment by default", () => {
+    vi.stubEnv("E2E_TEST_ROUTES", "");
+    expect(e2eRoutesEnabled()).toBe(false);
+    vi.stubEnv("E2E_TEST_ROUTES", "true");
+    expect(e2eRoutesEnabled()).toBe(true);
   });
 });

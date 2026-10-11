@@ -8,6 +8,11 @@ import { defineConfig, devices } from "@playwright/test";
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: true,
+  // One worker, so the specs run one after the other. The admin specs all log in as the admin
+  // bootstrap made, and Payload keeps a user's sessions in one array on the user document: two
+  // logins at the same moment overwrite each other, and the JWT of the session that lost is refused
+  // with 403 (seen in T17: `payload-cache` and `payload-admin` starting together).
+  workers: 1,
   forbidOnly: Boolean(process.env["CI"]),
   retries: 0,
   reporter: [["list"]],

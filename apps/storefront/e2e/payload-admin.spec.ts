@@ -17,6 +17,12 @@ import { adminCredentials } from "./support/admin-credentials";
 // bootstrap's credentials tests what the quickstart's reader does, and fails if bootstrap makes an
 // admin that cannot log in. The first-user form is left to M7's deployment check (SETUP.md, T16).
 //
+// ADR 0001 (T17 step 4) adds what S1's prototype checked about the admin and that Next or Payload
+// upgrades could break: an image uploaded to `media` and opened from the list without a full reload,
+// the list view paginated without a full reload, and a browser console with no errors or warnings
+// across the whole run. (S1's third admin check, choosing an image in an upload field's drawer,
+// needs an upload field on a collection: the first one M4 adds should bring it back; plan §5.)
+//
 // The page it creates is deleted at the end and the admin's language selector is put back on
 // English, so a run leaves the database as it found it. (Payload remembers the last language an
 // admin picked, per user, and opens the next page in it: the suite names its language in the URL
@@ -24,6 +30,32 @@ import { adminCredentials } from "./support/admin-credentials";
 
 test.describe.configure({ mode: "serial" });
 test.setTimeout(60_000);
+
+// A 1 x 1 PNG.
+const PNG = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
+  "base64",
+);
+
+type Message = { type: string; text: string; page: string; source: string };
+
+/** A client navigation keeps the document alive and leaves this marker; a full reload erases it. */
+const mark = (page: Page) =>
+  page.evaluate(() => ((window as unknown as { __e2e: number }).__e2e = 1));
+const marked = (page: Page) =>
+  page.evaluate(() => (window as unknown as { __e2e?: number }).__e2e === 1);
+
+/** A request to another host than `baseURL`'s (the admin's Gravatar avatar, D18) is not this server's console. */
+const localTo = (baseURL: string | undefined) => {
+  const own = new URL(baseURL ?? "").hostname;
+  return (url: string) => {
+    try {
+      return new URL(url).hostname === own;
+    } catch {
+      return true;
+    }
+  };
+};
 
 /**
  * A field of the form that is on screen. Next keeps the route you came from mounted but hidden
@@ -57,15 +89,41 @@ test.describe("the admin bootstrap made", () => {
   let page: Page;
   let pageId: number | undefined;
   const stamp = Date.now().toString(36);
+  const consoleMessages: Message[] = [];
+  const failedRequests: { url: string; error: string }[] = [];
   const english = { title: `E2E page ${stamp}`, slug: `e2e-page-${stamp}` };
   const greek = { title: `Δοκιμαστική σελίδα ${stamp}`, slug: `dokimastiki-${stamp}` };
 
   test.beforeAll(async ({ browser, baseURL }) => {
     page = await browser.newPage({ baseURL: baseURL ?? "http://localhost:8000" });
+    const where = () => new URL(page.url() || "http://x/").pathname;
+    page.on("console", (message) => {
+      if (message.type() !== "error" && message.type() !== "warning") return;
+      consoleMessages.push({
+        type: message.type(),
+        text: message.text(),
+        page: where(),
+        // For a failed resource the console says only "Failed to load resource"; this is its URL.
+        source: message.location().url,
+      });
+    });
+    page.on("pageerror", (error) => {
+      consoleMessages.push({ type: "pageerror", text: error.message, page: where(), source: "" });
+    });
+    page.on("requestfailed", (request) => {
+      failedRequests.push({ url: request.url(), error: request.failure()?.errorText ?? "" });
+    });
   });
 
   test.afterAll(async () => {
     if (!page) return;
+    // Media and the bulk pages of the tests below, by their stamped names.
+    await deleteAs(page, `/api/media?where[filename][contains]=e2e-${stamp}`).catch(
+      () => undefined,
+    );
+    await deleteAs(page, `/api/pages?where[slug][contains]=e2e-bulk-${stamp}&locale=en`).catch(
+      () => undefined,
+    );
     // Not a test: leave the database as found, whatever failed above. By slug and not by `pageId`,
     // which is unknown when the draft was saved and the redirect to it then failed.
     await deleteAs(page, `/api/pages?where[slug][equals]=${english.slug}&locale=en`).catch(
@@ -165,5 +223,96 @@ test.describe("the admin bootstrap made", () => {
   test("deletes the page again", async () => {
     const id = pageId as number;
     expect(await deleteAs(page, `/api/pages/${id}`)).toBe(200);
+  });
+
+  test("uploads an image to media, which is then served", async ({ request }) => {
+    await page.goto("/admin/collections/media/create?locale=en");
+    await page
+      .locator('input[type="file"]')
+      .first()
+      .setInputFiles({ name: `e2e-${stamp}.png`, mimeType: "image/png", buffer: PNG });
+    await page.locator('input[name="alt"]:visible').fill("E2E test image");
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await page.waitForURL(/\/admin\/collections\/media\/(\d+)/);
+    const id = Number(/\/media\/(\d+)/.exec(page.url())?.[1]);
+    expect(id).toBeGreaterThan(0);
+
+    const doc = await page.evaluate(async (id) => {
+      const response = await fetch(`/api/media/${id}?locale=en`);
+      return (await response.json()) as { filename?: string; mimeType?: string; url?: string };
+    }, id);
+    expect(doc).toMatchObject({ filename: `e2e-${stamp}.png`, mimeType: "image/png" });
+    const file = await request.get(doc.url ?? "/missing");
+    expect(file.status(), "the uploaded file is served").toBe(200);
+    expect(file.headers()["content-type"]).toContain("image/png");
+  });
+
+  test("opens that image from the media list without a full reload", async () => {
+    await page.goto("/admin/collections/media?locale=en");
+    await mark(page);
+    await page
+      .getByRole("link", { name: new RegExp(`e2e-${stamp}`) })
+      .first()
+      .click();
+    await page.waitForURL(/\/admin\/collections\/media\/(\d+)/);
+    await expect(page.locator('input[name="alt"]:visible')).toHaveValue("E2E test image");
+    expect(await marked(page), "opening a document from the list is a client navigation").toBe(
+      true,
+    );
+  });
+
+  test("paginates the list view without a full reload", async () => {
+    // More than the 10 a page shows. Drafts, in English, named so the cleanup finds them.
+    for (let i = 0; i < 12; i += 1) {
+      const status = await page.evaluate(
+        async ({ i, stamp }) =>
+          (
+            await fetch("/api/pages?locale=en", {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({
+                title: `E2E bulk ${i} ${stamp}`,
+                slug: `e2e-bulk-${stamp}-${i}`,
+                _status: "draft",
+              }),
+            })
+          ).status,
+        { i, stamp },
+      );
+      expect(status).toBe(201);
+    }
+    // `limit=10` in the URL: the admin remembers a list's page size per user (the first click on a
+    // page number stores it), so a size chosen earlier by a person or an earlier run is not assumed.
+    await page.goto("/admin/collections/pages?locale=en&limit=10");
+    await expect(page.locator("tbody tr")).toHaveCount(10);
+    const firstRow = await page.locator("tbody tr").first().innerText();
+    await mark(page);
+    await page.getByRole("button", { name: "2", exact: true }).click();
+    await page.waitForURL(/page=2/);
+    await expect(page.locator("tbody tr").first()).not.toHaveText(firstRow);
+    expect(await marked(page), "pagination is a client navigation").toBe(true);
+  });
+
+  // Last: it judges everything the admin logged since the first test. A failed request to another
+  // host is excused (the admin asks Gravatar for an avatar, D18, and the cloud's proxy blocks it);
+  // so is a fetch that a navigation cancelled (`ERR_ABORTED`), which is the browser's doing. A
+  // request to this server that fails is not.
+  test("the browser console had no errors or warnings", ({ baseURL }) => {
+    const isLocal = localTo(baseURL);
+    const aborted = failedRequests.filter((r) => r.error === "net::ERR_ABORTED").length;
+    const local = failedRequests.filter((r) => isLocal(r.url) && r.error !== "net::ERR_ABORTED");
+    console.log(
+      `failed requests: ${failedRequests.length} (this server, not aborted: ${local.length}; aborted: ${aborted}); ` +
+        `other hosts: ${[...new Set(failedRequests.filter((r) => !isLocal(r.url)).map((r) => new URL(r.url).hostname))].join(", ") || "none"}`,
+    );
+    expect(local, "no request to this server failed").toEqual([]);
+    const judged = consoleMessages.filter(
+      (m) => !(m.source !== "" && !isLocal(m.source) && /^Failed to load resource/.test(m.text)),
+    );
+    const summary = judged.map((m) => `${m.type} @ ${m.page}: ${m.text.slice(0, 400)}`);
+    console.log(
+      `console messages (${consoleMessages.length}, ${judged.length} judged)${summary.length ? ":\n" + summary.join("\n") : ""}`,
+    );
+    expect(summary).toEqual([]);
   });
 });
