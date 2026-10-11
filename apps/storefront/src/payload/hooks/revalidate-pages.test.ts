@@ -59,9 +59,9 @@ describe("revalidatePages", () => {
     expect(revalidateTag).not.toHaveBeenCalled();
   });
 
-  it("uses English when the request names no language", () => {
+  it("uses the base language of the Payload config when the request names no language", () => {
     run({ doc: { _status: "published" }, locale: undefined });
-    expect(revalidateTag.mock.calls[0]).toEqual(["pages:en", "max"]);
+    expect(revalidateTag.mock.calls[0]).toEqual([`pages:${DEFAULT_LOCALE}`, "max"]);
   });
 
   it("does nothing when the caller sets context.disableRevalidate", () => {
@@ -76,37 +76,7 @@ describe("revalidatePages", () => {
     const doc = { _status: "published" };
     expect(run({ doc, locale: "el" })).toBe(doc);
     expect(debug).toHaveBeenCalledWith(expect.stringContaining("no revalidation outside Next"));
-  });
-
-  it("returns the document it was given", () => {
-    const doc = { _status: "published" };
-    expect(run({ doc, locale: "el" })).toBe(doc);
-  });
-
-  it("uses the base language of the Payload config, not a literal, when the request has none", () => {
-    run({ doc: { _status: "published" } });
-    expect(revalidateTag.mock.calls[0]?.[0]).toBe(`pages:${DEFAULT_LOCALE}`);
-  });
-
-  it("revalidates when a page that was published is unpublished over a newer draft", () => {
-    // The previous *version* is that draft, so both statuses read `draft`; the page row was published.
-    run({
-      doc: { id: 7, _status: "draft" },
-      previousDoc: { _status: "draft" },
-      locale: "el",
-      context: { pagesPublishedBefore: { "7": true } },
-    });
-    expect(revalidateTag).toHaveBeenCalledTimes(2);
-  });
-
-  it("does not take another page's published state for this one's", () => {
-    run({
-      doc: { id: 8, _status: "draft" },
-      previousDoc: { _status: "draft" },
-      locale: "el",
-      context: { pagesPublishedBefore: { "7": true, "8": false } },
-    });
-    expect(revalidateTag).not.toHaveBeenCalled();
+    expect(warn).not.toHaveBeenCalled();
   });
 
   it("warns, and still does not fail the save, when revalidateTag throws inside Next", () => {
@@ -116,42 +86,76 @@ describe("revalidatePages", () => {
     const doc = { _status: "published" };
     expect(run({ doc, locale: "el" })).toBe(doc);
     expect(warn).toHaveBeenCalledWith(
-      expect.objectContaining({ msg: expect.stringContaining("may be stale") }),
+      { err: expect.any(Error) },
+      expect.stringContaining("may be stale"),
     );
     expect(debug).not.toHaveBeenCalled();
+  });
+
+  it("returns the document it was given", () => {
+    const doc = { _status: "published" };
+    expect(run({ doc, locale: "el" })).toBe(doc);
   });
 });
 
 describe("rememberPublished", () => {
-  const remember = (args: {
-    operation: string;
-    originalDoc?: { id?: number };
-    context?: object;
-  }) => {
-    const req = request("el", args.context as Record<string, unknown>);
-    const data = { title: "x" };
-    return {
-      req,
+  const data = { title: "x" };
+  const remember = (operation: string, id?: number, context: Record<string, unknown> = {}) =>
+    rememberPublished({
       data,
-      result: rememberPublished({ ...args, data, req } as unknown as RememberArgs),
-    };
-  };
+      operation,
+      originalDoc: id === undefined ? undefined : { id },
+      req: request("el", context),
+    } as unknown as RememberArgs);
 
-  it("records whether the page row visitors read is published, per page id", async () => {
-    findOne.mockResolvedValueOnce({ id: 7, _status: "published" });
-    findOne.mockResolvedValueOnce({ id: 8, _status: "draft" });
-    const context = {};
-    await remember({ operation: "update", originalDoc: { id: 7 }, context }).result;
-    await remember({ operation: "update", originalDoc: { id: 8 }, context }).result;
-    expect(context).toEqual({ pagesPublishedBefore: { "7": true, "8": false } });
+  /** The page row's status before a save, then what `revalidatePages` sees after it. */
+  const save = async (id: number, rowStatus: string, context: Record<string, unknown>) => {
+    findOne.mockResolvedValueOnce({ id, _status: rowStatus });
+    await remember("update", id, context);
+  };
+  // An editor saved a draft over the published text and then unpublished: the newest version, which
+  // Payload hands over as `previousDoc`, is a draft, and so is the document that was saved.
+  const unpublished = (id: number, context: Record<string, unknown>) =>
+    run({
+      doc: { id, _status: "draft" },
+      previousDoc: { _status: "draft" },
+      locale: "el",
+      context,
+    });
+
+  it("reads only the status of the page row being updated", async () => {
+    await save(7, "published", {});
     expect(findOne).toHaveBeenCalledWith(
-      expect.objectContaining({ collection: "pages", where: { id: { equals: 7 } } }),
+      expect.objectContaining({
+        collection: "pages",
+        where: { id: { equals: 7 } },
+        select: { _status: true },
+      }),
     );
   });
 
+  it("makes an unpublish over a newer draft revalidate, though both versions read `draft`", async () => {
+    const context = {};
+    await save(7, "published", context);
+    unpublished(7, context);
+    expect(revalidateTag).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not take another page's published state for this one's (a bulk update shares a req)", async () => {
+    const context = {};
+    await save(7, "published", context);
+    await save(8, "draft", context);
+    unpublished(8, context);
+    expect(revalidateTag).not.toHaveBeenCalled();
+  });
+
   it("reads nothing for a create, and returns the data it was given", async () => {
-    const { data, result } = remember({ operation: "create" });
-    expect(await result).toBe(data);
+    expect(await remember("create")).toBe(data);
+    expect(findOne).not.toHaveBeenCalled();
+  });
+
+  it("reads nothing when the caller sets context.disableRevalidate", async () => {
+    expect(await remember("update", 7, { disableRevalidate: true })).toBe(data);
     expect(findOne).not.toHaveBeenCalled();
   });
 });

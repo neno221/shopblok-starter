@@ -45,16 +45,16 @@ const mark = (page: Page) =>
 const marked = (page: Page) =>
   page.evaluate(() => (window as unknown as { __e2e?: number }).__e2e === 1);
 
-/** The hosts of this server: localhost, and the host of `baseURL` when `E2E_BASE_URL` moves it. */
-const ownHosts = new Set(["localhost", "127.0.0.1"]);
-
-/** A request to another host (the admin's Gravatar avatar, D18) is not this server's console. */
-const isLocal = (url: string) => {
-  try {
-    return ownHosts.has(new URL(url).hostname);
-  } catch {
-    return true;
-  }
+/** A request to another host than `baseURL`'s (the admin's Gravatar avatar, D18) is not this server's console. */
+const localTo = (baseURL: string | undefined) => {
+  const own = new URL(baseURL ?? "").hostname;
+  return (url: string) => {
+    try {
+      return new URL(url).hostname === own;
+    } catch {
+      return true;
+    }
+  };
 };
 
 /**
@@ -96,7 +96,6 @@ test.describe("the admin bootstrap made", () => {
 
   test.beforeAll(async ({ browser, baseURL }) => {
     page = await browser.newPage({ baseURL: baseURL ?? "http://localhost:8000" });
-    ownHosts.add(new URL(baseURL ?? "http://localhost:8000").hostname);
     const where = () => new URL(page.url() || "http://x/").pathname;
     page.on("console", (message) => {
       if (message.type() !== "error" && message.type() !== "warning") return;
@@ -298,7 +297,8 @@ test.describe("the admin bootstrap made", () => {
   // host is excused (the admin asks Gravatar for an avatar, D18, and the cloud's proxy blocks it);
   // so is a fetch that a navigation cancelled (`ERR_ABORTED`), which is the browser's doing. A
   // request to this server that fails is not.
-  test("the browser console had no errors or warnings", () => {
+  test("the browser console had no errors or warnings", ({ baseURL }) => {
+    const isLocal = localTo(baseURL);
     const aborted = failedRequests.filter((r) => r.error === "net::ERR_ABORTED").length;
     const local = failedRequests.filter((r) => isLocal(r.url) && r.error !== "net::ERR_ABORTED");
     console.log(

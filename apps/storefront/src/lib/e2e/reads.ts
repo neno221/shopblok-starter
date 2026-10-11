@@ -50,19 +50,19 @@ type PagesReadKind = {
   /** The entry's name; the language is appended. */
   name: string;
   tags: (locale: string) => string[];
-  /** The key of the loader counter, given whether Draft Mode was on. */
-  counter: (draft: boolean) => string;
+  /** The key of the loader counter (a read that Draft Mode turned to drafts counts as `draft`). */
+  counter: string;
   /** Reads `draftMode()` inside the cached function: the pattern of GHSA-3w37-wq28-93x7. */
-  draftAware: boolean;
+  draftAware?: boolean;
 };
 
 /** One cached read of `pages`, per language; the three reads below differ only in these options. */
-function cachedPagesRead({ name, tags, counter, draftAware }: PagesReadKind): Read {
+function cachedPagesRead({ name, tags, counter, draftAware = false }: PagesReadKind): Read {
   return perLocale((locale) =>
     cached(
       async (language: string): Promise<PagesRead> => {
-        const draft = draftAware ? (await draftMode()).isEnabled : false;
-        const runId = bump(`${counter(draft)}:${language}`);
+        const draft = draftAware && (await draftMode()).isEnabled;
+        const runId = bump(`${draft ? "draft" : counter}:${language}`);
         const titles = await findPages(language, draft);
         return { runId, at: new Date().toISOString(), draft, titles };
       },
@@ -78,8 +78,7 @@ function cachedPagesRead({ name, tags, counter, draftAware }: PagesReadKind): Re
 export const readPublished: Read = cachedPagesRead({
   name: "e2e:published",
   tags: (locale) => [`pages:${locale}`, "payload:pages"],
-  counter: () => "published",
-  draftAware: false,
+  counter: "published",
 });
 
 /**
@@ -89,8 +88,7 @@ export const readPublished: Read = cachedPagesRead({
 export const readByTag: Read = cachedPagesRead({
   name: "e2e:by-tag",
   tags: (locale) => [`e2e:pages:${locale}`],
-  counter: () => "by-tag",
-  draftAware: false,
+  counter: "by-tag",
 });
 
 /**
@@ -102,6 +100,6 @@ export const readByTag: Read = cachedPagesRead({
 export const readForPreview: Read = cachedPagesRead({
   name: "e2e:preview",
   tags: (locale) => [`e2e:preview:${locale}`],
-  counter: (draft) => (draft ? "draft" : "preview-public"),
+  counter: "preview-public",
   draftAware: true,
 });
