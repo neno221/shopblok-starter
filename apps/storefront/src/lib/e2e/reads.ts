@@ -46,39 +46,52 @@ async function findPages(language: string, draft: boolean) {
   return docs.map((doc) => doc.title ?? "(none)");
 }
 
+type PagesReadKind = {
+  /** The entry's name; the language is appended. */
+  name: string;
+  tags: (locale: string) => string[];
+  /** The key of the loader counter, given whether Draft Mode was on. */
+  counter: (draft: boolean) => string;
+  /** Reads `draftMode()` inside the cached function: the pattern of GHSA-3w37-wq28-93x7. */
+  draftAware: boolean;
+};
+
+/** One cached read of `pages`, per language; the three reads below differ only in these options. */
+function cachedPagesRead({ name, tags, counter, draftAware }: PagesReadKind): Read {
+  return perLocale((locale) =>
+    cached(
+      async (language: string): Promise<PagesRead> => {
+        const draft = draftAware ? (await draftMode()).isEnabled : false;
+        const runId = bump(`${counter(draft)}:${language}`);
+        const titles = await findPages(language, draft);
+        return { runId, at: new Date().toISOString(), draft, titles };
+      },
+      { name: `${name}:${locale}`, tags: tags(locale), life: LIFE },
+    ),
+  );
+}
+
 /**
  * The published titles in one language, under the tags a `pages` hook revalidates
  * (`pages:<locale>` and `payload:pages`): the check that an admin's save shows up.
  */
-export const readPublished: Read = perLocale((locale) =>
-  cached(
-    async (language: string): Promise<PagesRead> => {
-      const runId = bump(`published:${language}`);
-      const titles = await findPages(language, false);
-      return { runId, at: new Date().toISOString(), draft: false, titles };
-    },
-    {
-      name: `e2e:published:${locale}`,
-      tags: [`pages:${locale}`, "payload:pages"],
-      life: LIFE,
-    },
-  ),
-);
+export const readPublished: Read = cachedPagesRead({
+  name: "e2e:published",
+  tags: (locale) => [`pages:${locale}`, "payload:pages"],
+  counter: () => "published",
+  draftAware: false,
+});
 
 /**
  * The same read under a tag no Payload hook touches (`e2e:pages:<locale>`), so a test can change a
  * page and then decide, with `revalidateTag` from a route handler, when the cache learns of it.
  */
-export const readByTag: Read = perLocale((locale) =>
-  cached(
-    async (language: string): Promise<PagesRead> => {
-      const runId = bump(`by-tag:${language}`);
-      const titles = await findPages(language, false);
-      return { runId, at: new Date().toISOString(), draft: false, titles };
-    },
-    { name: `e2e:by-tag:${locale}`, tags: [`e2e:pages:${locale}`], life: LIFE },
-  ),
-);
+export const readByTag: Read = cachedPagesRead({
+  name: "e2e:by-tag",
+  tags: (locale) => [`e2e:pages:${locale}`],
+  counter: () => "by-tag",
+  draftAware: false,
+});
 
 /**
  * The draft-aware read: `draftMode()` is read **inside** the cached function, the pattern of
@@ -86,14 +99,9 @@ export const readByTag: Read = perLocale((locale) =>
  * pages only. ADR 0001 (Spec changes) says this is evidence that the advisory's fix holds, not a
  * pattern for M4's preview code, which reads `draftMode()` outside and passes `isEnabled` in.
  */
-export const readForPreview: Read = perLocale((locale) =>
-  cached(
-    async (language: string): Promise<PagesRead> => {
-      const { isEnabled } = await draftMode();
-      const runId = bump(`${isEnabled ? "draft" : "preview-public"}:${language}`);
-      const titles = await findPages(language, isEnabled);
-      return { runId, at: new Date().toISOString(), draft: isEnabled, titles };
-    },
-    { name: `e2e:preview:${locale}`, tags: [`e2e:preview:${locale}`], life: LIFE },
-  ),
-);
+export const readForPreview: Read = cachedPagesRead({
+  name: "e2e:preview",
+  tags: (locale) => [`e2e:preview:${locale}`],
+  counter: (draft) => (draft ? "draft" : "preview-public"),
+  draftAware: true,
+});

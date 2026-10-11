@@ -300,8 +300,13 @@ test.describe("draft isolation (GHSA-3w37-wq28-93x7)", () => {
     await run("warm");
   });
 
-  test("Draft Mode off again", async () => {
+  test("Draft Mode off expires the bypass cookie", async () => {
+    // Node's fetch keeps no cookies, so nothing is switched off on this side; the route's answer is
+    // what a browser would act on: the bypass cookie, expired.
     const response = await fetch(`${base()}/next/e2e/draft?on=0`);
     expect(response.status).toBe(200);
+    expect(response.headers.getSetCookie().join("\n")).toMatch(
+      /__prerender_bypass=;[^\n]*Expires=Thu, 01 Jan 1970/,
+    );
   });
 });

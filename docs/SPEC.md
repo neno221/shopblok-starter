@@ -190,9 +190,9 @@ shopblok-starter/
 | Redis 7 | **6380** (container 6379) | Medusa modules + sessions | Optional in dev (in-memory fallbacks), live after `pnpm bootstrap` |
 | Meilisearch v1 | **7701** (container 7700) | Medusa Search provider (M6) | Master key only on the backend. The browser never talks to Meilisearch. Until M6 the search is `search-postgres` |
 | Mailpit | 8025 / 1025 | Local inbox for Payload SMTP (optional) | Medusa uses `notification-local` without Resend |
+| Object storage | n/a | Medusa files, Payload media | **Local disk** with no keys. A dev **R2** bucket once `S3_*` keys are set (§10.7) |
 
 The host ports are not the standard ones on purpose (D15). A developer machine often runs other local services on 5432, 6379 and 7700, and then `docker compose up` fails, or worse: `postgres://postgres:postgres@localhost:5432/…` reaches the other project's Postgres, which accepts the same login, and Payload **creates a missing database on connect**. 5433 is not used either, because a second PostgreSQL install lands there. The containers keep the standard ports inside; `POSTGRES_PORT`, `REDIS_PORT`, `MEILI_PORT` (and the two Mailpit ports) override the host side. They are published on all interfaces (`0.0.0.0`) for local development (D21); bind them to `127.0.0.1` on a machine others can reach. `pnpm bootstrap` checks that the service on each configured port is this project's own container. `pnpm infra:up`, `infra:down` (keeps the volumes) and `infra:reset` (wipes them) wrap Docker Compose.
-| Object storage | n/a | Medusa files, Payload media | **Local disk** with no keys. A dev **R2** bucket once `S3_*` keys are set (§10.7) |
 
 **`pnpm bootstrap`** (as built in M0: eleven steps, each ending `done`, `unchanged` or `skipped`; a second run changes nothing; `--ci` for a machine with nobody at it, `--no-demo` to skip the demo catalog)
 1. Preflight: Node and pnpm against `engines`, and every service reachable on the port the apps use and owned by this project's compose stack (D15).
@@ -471,7 +471,7 @@ In the block drawer each block shows a thumbnail via `admin.images.thumbnail` (3
 - **Scheduled publish:** Vercel Cron calls `/api/payload-jobs/run` with `CRON_SECRET`.
 - **Revalidation:** hooks call `revalidateTag(tag, 'max')`, with tags per locale. Hooks are guarded by `req.context.disableRevalidate`.
   - `updateTag` and `refresh()` work only in Server Actions; a Payload hook runs in its REST route handler, so it uses `revalidateTag(tag, 'max' | { expire: 0 })` (verified under `next start`, ADR 0001). The call is wrapped, because it throws outside a Next request (a Payload script, `payload migrate`).
-  - Revalidate when the document or its previous version is published, never for a draft that was never published (`apps/storefront/src/payload/hooks/revalidate-pages.ts` is the first hook).
+  - Revalidate when the document is published, when it was published before the save (an unpublish, even over a newer draft: Payload's `previousDoc` is the latest version, not the published row) and when a published document is deleted; never for a draft that was never published (`apps/storefront/src/payload/hooks/revalidate-pages.ts` is the first hook). A failure other than "outside a Next request" is logged as a warning.
   - `'max'` is stale-while-revalidate: the first request after a save may show the old text and starts a refresh of about 300 ms; the next shows the new.
   - Do not copy Payload's website template `dynamic` and `revalidate` exports: they are build errors under Cache Components.
 
@@ -1095,8 +1095,10 @@ Lighthouse CI runs on Vercel previews.
 1. `check` (Node 22 required, Node 24 informational): install, `check:workspace`, typecheck, lint, unit tests, build. No `.env`, no database.
 2. `backend-integration`: the backend's integration tests on the compose Postgres.
 3. `e2e-smoke`: compose services up with `docker compose up -d --wait` (not `services:`: service containers start before checkout, so the init SQL under `infra/` could not be mounted), `pnpm bootstrap --ci`, a production build, Medusa and the storefront started directly, the Playwright suites above, `pnpm run doctor --json` (every third-party integration on its fallback, `ok` true) and `--online`. Later: visual and a11y.
-4. `windows-gate` → `windows-smoke`: install, typecheck and build on a Windows runner, weekly, on request, and on PRs that change a dependency file.
-5. Lighthouse on the Vercel preview (M7).
+4. `windows-gate`: decides whether the next job runs.
+5. `windows-smoke`: install, typecheck and build on a Windows runner, weekly, on request, and on PRs that change a dependency file.
+
+Later: Lighthouse on the Vercel preview (M7).
 
 Also: Renovate (`renovate.json` groups Medusa, Payload and Next, so `e2e-smoke` and `backend-integration` run on those PRs, and holds back the majors that earlier decisions rule out), `pnpm audit` (a warning in M0, not a gate), secret scanning (a repository setting).
 

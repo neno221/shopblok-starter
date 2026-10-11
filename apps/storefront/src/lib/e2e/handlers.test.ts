@@ -79,7 +79,17 @@ describe("the routes under /next/e2e", () => {
   });
 
   it("revalidate only the tags the app's own tests use", async () => {
-    for (const tag of ["", "medusa:products", "global:markets", "pages", "pages:", "x pages:el"]) {
+    for (const tag of [
+      "",
+      "medusa:products",
+      "global:markets",
+      "pages",
+      "pages:",
+      "x pages:el",
+      "pages:EL",
+      "pages:el:extra",
+      "payload:global:markets",
+    ]) {
       const response = await respondWithRevalidation(
         at(`/next/e2e/revalidate?tag=${encodeURIComponent(tag)}&profile=max`),
       );

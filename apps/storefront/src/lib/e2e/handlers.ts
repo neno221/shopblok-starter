@@ -9,9 +9,11 @@ import { runs } from "./runs";
 // 404 and nothing below runs.
 
 const LOCALE = /^[a-z]{2,3}$/;
-// Only the tags this app's own tests use, so a gate that failed open could not purge a cache that
-// belongs to the shop.
-const ALLOWED_TAG = /^(pages|payload|e2e):[\w:-]+$/;
+// Only the tags the specs revalidate: the test-only entries (`e2e:*`) and the two families the
+// `pages` hook revalidates, `pages:<language>` and `payload:pages`. Those two are the shop's own
+// too (M4's cached reads of pages will carry them), so a gate that failed open could still refresh
+// them; it could not touch the Medusa catalog (`medusa:*`) or the market map (`global:markets`).
+const ALLOWED_TAG = /^(?:e2e:[\w:-]+|pages:[a-z]{2,3}|payload:pages)$/;
 
 /** `GET ?locale=el` through one of the cached reads, as JSON. */
 export async function respondWithRead(

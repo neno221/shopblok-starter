@@ -48,7 +48,7 @@ This is the Windows half of the plan's §7 and of T17's Verify. A Linux clone ha
    - in the browser: `localhost:8000/` in Greek with EUR prices, `/us`, `/ch/fr`, `/cy` redirecting to `/`, `/el-cy` returning 404, the Medusa admin at `localhost:9000/app` and the Payload admin at `localhost:8000/admin`, including its locale selector (English, français, Deutsch, Ελληνικά for the seeded map);
    - a second `pnpm bootstrap` reports `0 done, 10 unchanged, 2 skipped`;
    - `pnpm run doctor` (12 checks ok, 1 warning: the email one) and `pnpm run doctor --online` (15 checks ok, 1 warning);
-   - `pnpm typecheck && pnpm lint && pnpm test && pnpm build` (stop the stack and delete the two `.env` files first if you want CI's state; the test counts are 18 + 270 + 403 + 85);
+   - `pnpm typecheck && pnpm lint && pnpm test && pnpm build` (stop the stack and delete the two `.env` files first if you want CI's state; the test counts are 18 + 270 + 411 + 85);
    - `^C` in the terminal that runs `pnpm dev` leaves no `node` process of the checkout behind (T15 ran this on Linux only, and not on a PC with Claude Code installed, where Medusa's SIGINT handler can ask a one-time question on the first `^C`: SETUP.md, T15 table);
    - `pnpm infra:down` then `pnpm infra:up` keeps both databases;
    - `pnpm infra:reset` followed by `pnpm bootstrap` brings them back (the storefront must be built again, or `pnpm dev` restarted: the new database has a new publishable key).

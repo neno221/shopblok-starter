@@ -45,10 +45,13 @@ const mark = (page: Page) =>
 const marked = (page: Page) =>
   page.evaluate(() => (window as unknown as { __e2e?: number }).__e2e === 1);
 
+/** The hosts of this server: localhost, and the host of `baseURL` when `E2E_BASE_URL` moves it. */
+const ownHosts = new Set(["localhost", "127.0.0.1"]);
+
 /** A request to another host (the admin's Gravatar avatar, D18) is not this server's console. */
 const isLocal = (url: string) => {
   try {
-    return ["localhost", "127.0.0.1"].includes(new URL(url).hostname);
+    return ownHosts.has(new URL(url).hostname);
   } catch {
     return true;
   }
@@ -93,6 +96,7 @@ test.describe("the admin bootstrap made", () => {
 
   test.beforeAll(async ({ browser, baseURL }) => {
     page = await browser.newPage({ baseURL: baseURL ?? "http://localhost:8000" });
+    ownHosts.add(new URL(baseURL ?? "http://localhost:8000").hostname);
     const where = () => new URL(page.url() || "http://x/").pathname;
     page.on("console", (message) => {
       if (message.type() !== "error" && message.type() !== "warning") return;
