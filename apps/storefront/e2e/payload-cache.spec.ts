@@ -180,29 +180,6 @@ test.describe("cache", () => {
     expect(Number(second.runId)).toBeGreaterThan(0);
   });
 
-  test("an admin edit shows within two requests (the pages hook revalidates with 'max')", async () => {
-    // The hook revalidates `pages:el` and `payload:pages`, which `/next/e2e/pages` carries. Start
-    // from an entry that holds the page, whatever an earlier read left behind.
-    await revalidate("pages:el", "expire0");
-    expect((await read("/next/e2e/pages?locale=el")).titles).toContain(current);
-    const edited = `${title} (edited)`;
-    await page.goto(`/admin/collections/pages/${id}?locale=el`);
-    await field("title").fill(edited);
-    const [saved] = await Promise.all([
-      page.waitForResponse(
-        (r) => r.request().method() === "PATCH" && new URL(r.url()).pathname === `/api/pages/${id}`,
-        { timeout: 30_000 },
-      ),
-      page.getByRole("button", { name: /^Publish/ }).click(),
-    ]);
-    expect(saved.status()).toBeLessThan(300);
-    expect(
-      await freshWithinTwo("/next/e2e/pages?locale=el", edited),
-      "the edit appeared in request 1 or 2",
-    ).toBeGreaterThan(0);
-    current = edited;
-  });
-
   test("revalidateTag(tag, { expire: 0 }) from a route handler gives fresh content on the next request", async () => {
     const path = "/next/e2e/pages-by-tag?locale=el";
     // Warm: the entry holds the current title.
@@ -228,6 +205,7 @@ test.describe("cache", () => {
     await patchPage(id, "locale=el", { title: edited, _status: "published" });
     await revalidate("e2e:pages:el", "max");
     expect(await freshWithinTwo(path, edited)).toBeGreaterThan(0);
+    current = edited;
   });
 
   test("a tag that is not the entry's changes nothing", async () => {
@@ -236,6 +214,28 @@ test.describe("cache", () => {
     await revalidate("e2e:pages:de", "expire0");
     const after = await read(path);
     expect(after.runId, "the Greek entry was not refreshed by the German tag").toBe(before.runId);
+  });
+  test("an admin edit shows within two requests (the pages hook revalidates with 'max')", async () => {
+    // The hook revalidates `pages:el` and `payload:pages`, which `/next/e2e/pages` carries. Start
+    // from an entry that holds the page, whatever an earlier read left behind.
+    await revalidate("pages:el", "expire0");
+    expect((await read("/next/e2e/pages?locale=el")).titles).toContain(current);
+    const edited = `${title} (edited)`;
+    await page.goto(`/admin/collections/pages/${id}?locale=el`);
+    await field("title").fill(edited);
+    const [saved] = await Promise.all([
+      page.waitForResponse(
+        (r) => r.request().method() === "PATCH" && new URL(r.url()).pathname === `/api/pages/${id}`,
+        { timeout: 30_000 },
+      ),
+      page.getByRole("button", { name: /^Publish/ }).click(),
+    ]);
+    expect(saved.status()).toBeLessThan(300);
+    expect(
+      await freshWithinTwo("/next/e2e/pages?locale=el", edited),
+      "the edit appeared in request 1 or 2",
+    ).toBeGreaterThan(0);
+    current = edited;
   });
 });
 

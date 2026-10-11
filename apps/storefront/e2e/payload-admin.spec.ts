@@ -278,7 +278,9 @@ test.describe("the admin bootstrap made", () => {
       );
       expect(status).toBe(201);
     }
-    await page.goto("/admin/collections/pages?locale=en");
+    // `limit=10` in the URL: the admin remembers a list's page size per user (the first click on a
+    // page number stores it), so a size chosen earlier by a person or an earlier run is not assumed.
+    await page.goto("/admin/collections/pages?locale=en&limit=10");
     await expect(page.locator("tbody tr")).toHaveCount(10);
     const firstRow = await page.locator("tbody tr").first().innerText();
     await mark(page);

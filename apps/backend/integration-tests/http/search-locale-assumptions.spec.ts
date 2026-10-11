@@ -10,7 +10,8 @@
  *
  *   pnpm --filter @shopblok/backend test:integration:http search-locale-assumptions
  *
- * CI does not run the backend's integration tests yet (T17 decides whether it should).
+ * CI runs it: the `backend-integration` job in `.github/workflows/ci.yml` starts the compose Postgres
+ * and runs `pnpm --filter @shopblok/backend test:integration:http` on every PR.
  */
 import { medusaIntegrationTestRunner, TestEventUtils } from "@medusajs/test-utils";
 import { ContainerRegistrationKeys, Modules, ProductStatus } from "@medusajs/framework/utils";
