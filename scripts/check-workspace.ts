@@ -8,6 +8,7 @@
 import { existsSync, readdirSync, readFileSync, realpathSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
+import { installedPayloadVersions } from "./lib/pnpm-store.ts";
 
 type Result = { status: "ok" | "skip" | "fail"; lines: string[] };
 type PackageJson = {
@@ -130,30 +131,13 @@ function checkReact(): Result {
   return { status: failed ? "fail" : checked === 0 ? "skip" : "ok", lines };
 }
 
-/** Every installed copy of `payload` and `@payloadcms/*`, from pnpm's virtual store. */
-function installedPayloadVersions(): Map<string, Set<string>> {
-  const store = path.join(root, "node_modules", ".pnpm");
-  const found = new Map<string, Set<string>>();
-  for (const entry of readdirSync(store)) {
-    // Store folders are `payload@3.90.2` and `@payloadcms+ui@3.90.2_react@19.3.0…`.
-    const match = /^(payload|@payloadcms\+[^@]+)@/.exec(entry);
-    const folder = match?.[1];
-    if (folder === undefined) continue;
-    const name = folder.replace("+", "/");
-    // The folder's own package.json is the authority; its name may carry a peer suffix.
-    const manifest = path.join(store, entry, "node_modules", ...name.split("/"), "package.json");
-    const version = readJson(manifest).version;
-    if (version === undefined) continue;
-    found.set(name, (found.get(name) ?? new Set()).add(version));
-  }
-  return found;
-}
-
 function checkPayload(): Result {
-  if (!existsSync(path.join(root, "node_modules", ".pnpm"))) {
+  const store = path.join(root, "node_modules", ".pnpm");
+  if (!existsSync(store)) {
     return { status: "fail", lines: ["FAIL  node_modules/.pnpm not found (run pnpm install)"] };
   }
-  const found = installedPayloadVersions();
+  // Found by each store folder's own package, not by the folder's name, which pnpm shortens.
+  const found = installedPayloadVersions(store);
   if (found.size === 0) {
     return { status: "skip", lines: ["skip  no payload or @payloadcms packages installed yet"] };
   }

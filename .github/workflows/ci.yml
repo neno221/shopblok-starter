@@ -5,7 +5,8 @@
 #   e2e-smoke      the compose stack, `pnpm bootstrap --ci`, a production build, both servers,
 #                  the five Playwright suites and `pnpm run doctor`.
 #   windows-gate   decides whether windows-smoke runs.
-#   windows-smoke  install and build on NTFS, weekly and when dependencies change.
+#   windows-smoke  install, type check, unit tests, build and a Ctrl-C of `pnpm dev` on NTFS,
+#                  weekly and when dependencies change.
 # Each job sets up pnpm and Node with .github/actions/setup.
 #
 # Every command here was run in the same order in the cloud VM before the first push (SETUP.md,
@@ -241,4 +242,13 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm check:workspace
       - run: pnpm typecheck
+      # The unit tests start processes, stop process trees and open sockets, which Windows does
+      # its own way: W2 found two Windows-only failures in them (SETUP.md, "W2 fixes").
+      - run: pnpm test
       - run: pnpm build
+      # One Ctrl-C typed into the console of `pnpm dev` (the storefront: no database here) must
+      # leave no process behind. With npm's `pnpm.cmd` between turbo and each task, turbo waited
+      # for ever (W2, finding 1; `scripts/dev.ts`).
+      - name: One Ctrl-C stops pnpm dev
+        shell: pwsh
+        run: ./.github/scripts/dev-ctrl-c.ps1

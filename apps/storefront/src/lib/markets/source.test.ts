@@ -3,8 +3,10 @@ import type { MarketsGlobal } from "./global";
 import {
   createMarketSource,
   defaultAllowFallback,
+  DEV_MARKET_LOAD_TIMEOUT_MS,
   MARKET_LOAD_TIMEOUT_MS,
   MarketMapError,
+  marketLoadTimeoutMs,
   type FallbackReason,
   type MarketSourceOptions,
 } from "./source";
@@ -33,13 +35,13 @@ const incompleteGlobal: MarketsGlobal = {
 
 /** An answer for a read that never settles (a database host gone silent). */
 const NEVER = new Promise<never>(() => {});
-type Answer = MarketsGlobal | Error | null | typeof NEVER;
+type Answer = MarketsGlobal | Error | null | Promise<MarketsGlobal>;
 
 /** A source over a fake loader and a clock the test moves. */
 function setup(
   first: Answer,
   allow: (reason: FallbackReason) => boolean = () => false,
-  extra: Pick<MarketSourceOptions, "staleWhileRevalidate"> = {},
+  extra: Pick<MarketSourceOptions, "staleWhileRevalidate" | "firstLoadTimeoutMs"> = {},
 ) {
   const clock = { time: 1_000_000 };
   // What the next reads return, in order; the last answer repeats.
@@ -315,6 +317,60 @@ describe("getMarketMap: staleWhileRevalidate (the proxy's choice)", () => {
     expect(warn).not.toHaveBeenCalled();
     await flush();
     expect(warn.mock.calls[0]?.[0]).toMatch(/connection reset.*still serving the map read earlier/);
+  });
+});
+
+describe("marketLoadTimeoutMs (W2, finding 3)", () => {
+  it("is 60 s in development, where the first read starts Payload, and D10's 10 s otherwise", () => {
+    expect(marketLoadTimeoutMs({ NODE_ENV: "development" })).toBe(DEV_MARKET_LOAD_TIMEOUT_MS);
+    expect(DEV_MARKET_LOAD_TIMEOUT_MS).toBe(60_000);
+    for (const NODE_ENV of ["production", "test", undefined]) {
+      expect(marketLoadTimeoutMs(NODE_ENV === undefined ? {} : { NODE_ENV }), NODE_ENV).toBe(
+        MARKET_LOAD_TIMEOUT_MS,
+      );
+    }
+    expect(MARKET_LOAD_TIMEOUT_MS).toBe(10_000);
+  });
+
+  describe("as the source's firstLoadTimeoutMs", () => {
+    beforeEach(() => vi.useFakeTimers());
+    afterEach(() => vi.useRealTimers());
+
+    /** A first read that answers after 13 s, as Payload's start did on W2's PC. */
+    const slowFirstRead = (firstLoadTimeoutMs?: number) => {
+      const answer = new Promise<MarketsGlobal>((resolve) =>
+        setTimeout(() => resolve(brazilGlobal), 13_000),
+      );
+      const extra = firstLoadTimeoutMs === undefined ? {} : { firstLoadTimeoutMs };
+      return setup(answer, undefined, extra);
+    };
+
+    it("lets a first read take 13 s with the development value", async () => {
+      const { source } = slowFirstRead(DEV_MARKET_LOAD_TIMEOUT_MS);
+      const read = source.get();
+      await vi.advanceTimersByTimeAsync(13_000);
+      expect(await read).toEqual(brazil);
+    });
+
+    it("gives up on it after 10 s by default", async () => {
+      const { source } = slowFirstRead();
+      const failure = expect(source.get()).rejects.toThrow(/no answer after 10 s/);
+      await vi.advanceTimersByTimeAsync(MARKET_LOAD_TIMEOUT_MS);
+      await failure;
+    });
+
+    it("keeps D10's 10 s for the reads after the first, development value or not", async () => {
+      const { source, advance, next, warn } = setup(brazilGlobal, undefined, {
+        firstLoadTimeoutMs: DEV_MARKET_LOAD_TIMEOUT_MS,
+      });
+      expect(await source.get()).toEqual(brazil);
+      next(NEVER);
+      advance(30_000);
+      const read = source.get();
+      await vi.advanceTimersByTimeAsync(MARKET_LOAD_TIMEOUT_MS);
+      expect(await read).toEqual(brazil);
+      expect(warn).toHaveBeenCalledWith(expect.stringMatching(/no answer after 10 s/));
+    });
   });
 });
 

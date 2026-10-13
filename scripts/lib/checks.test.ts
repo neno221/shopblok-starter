@@ -293,7 +293,14 @@ afterEach(() => {
 
 function listen(handler: (socket: net.Socket) => void): Promise<number> {
   return new Promise((resolve) => {
-    const server = net.createServer(handler);
+    const server = net.createServer((socket) => {
+      // A probe hangs up as soon as it has its answer. On Windows a peer that closes with data
+      // unread resets the connection, and this side's `ECONNRESET` with no listener would be an
+      // uncaught error that fails the run although every test passed (W2, finding 2). What a probe
+      // concludes is checked on its side; the server's view of the hang-up is not under test.
+      socket.on("error", () => {});
+      handler(socket);
+    });
     servers.push({ close: () => server.close() });
     server.listen(0, "127.0.0.1", () => resolve((server.address() as net.AddressInfo).port));
   });

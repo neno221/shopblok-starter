@@ -1,7 +1,7 @@
 import { markets as seeded } from "@shopblok/fixtures";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MARKETS_ROUTE, createProxyMarketMap, marketsRouteUrl } from "./proxy-market-map";
-import { MARKET_LOAD_TIMEOUT_MS, MarketMapError } from "./source";
+import { DEV_MARKET_LOAD_TIMEOUT_MS, MARKET_LOAD_TIMEOUT_MS, MarketMapError } from "./source";
 import { brazil } from "./test-maps";
 
 /** A fake `fetch` that answers from a queue and records what it was asked. */
@@ -58,6 +58,59 @@ describe("the environment the proxy reads by default", () => {
     vi.spyOn(console, "warn").mockImplementation(() => undefined);
     const map = await createProxyMarketMap({ fetcher: fakeFetch([empty]).fetcher }).get();
     expect(map).toEqual(seeded);
+  });
+
+  it("decides how long to wait by the real NODE_ENV: longer in development only", async () => {
+    const timeout = vi.spyOn(AbortSignal, "timeout");
+    vi.stubEnv("NODE_ENV", "development");
+    await createProxyMarketMap({ fetcher: fakeFetch([json(seeded)]).fetcher }).get();
+    expect(timeout).toHaveBeenLastCalledWith(DEV_MARKET_LOAD_TIMEOUT_MS);
+    vi.stubEnv("NODE_ENV", "production");
+    await createProxyMarketMap({ fetcher: fakeFetch([json(seeded)]).fetcher }).get();
+    expect(timeout).toHaveBeenLastCalledWith(MARKET_LOAD_TIMEOUT_MS);
+  });
+});
+
+describe("how long the proxy waits for the route (W2, finding 3)", () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  /** The route answers after `ms`, as `next dev`'s first answer does while Payload starts. */
+  const after = (ms: number) => () =>
+    new Promise<Response>((resolve) => setTimeout(() => resolve(json(seeded)()), ms));
+  const silent = () => new Promise<Response>(() => {});
+
+  it("waits in development for a first answer that takes 13 s, as W2's did on Windows", async () => {
+    const timeout = vi.spyOn(AbortSignal, "timeout");
+    const { fetcher } = fakeFetch([after(13_000)]);
+    const read = createProxyMarketMap({ env: development, fetcher }).get();
+    await vi.advanceTimersByTimeAsync(13_000);
+    expect(await read).toEqual(seeded);
+    // The fetch itself is aborted no sooner either.
+    expect(timeout).toHaveBeenCalledWith(DEV_MARKET_LOAD_TIMEOUT_MS);
+  });
+
+  it("still gives up in development, after 60 s", async () => {
+    const { fetcher } = fakeFetch([silent]);
+    const failure = expect(
+      createProxyMarketMap({ env: development, fetcher }).get(),
+    ).rejects.toThrow(/no answer after 60 s/);
+    await vi.advanceTimersByTimeAsync(DEV_MARKET_LOAD_TIMEOUT_MS);
+    await failure;
+  });
+
+  it("keeps D10's 10 s in production", async () => {
+    const timeout = vi.spyOn(AbortSignal, "timeout");
+    const { fetcher } = fakeFetch([after(13_000)]);
+    const failure = expect(
+      createProxyMarketMap({ env: production, fetcher }).get(),
+    ).rejects.toThrow(/no answer after 10 s/);
+    await vi.advanceTimersByTimeAsync(MARKET_LOAD_TIMEOUT_MS);
+    await failure;
+    expect(timeout).toHaveBeenCalledWith(MARKET_LOAD_TIMEOUT_MS);
   });
 });
 

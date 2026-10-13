@@ -18,6 +18,11 @@ export type MarketSourceOptions = {
    * next call joins it or starts another.
    */
   staleWhileRevalidate?: boolean;
+  /**
+   * How long a read may take while no map is held yet: `MARKET_LOAD_TIMEOUT_MS` by default (see
+   * `marketLoadTimeoutMs`). Once a map is held, every read gets `MARKET_LOAD_TIMEOUT_MS` (D10).
+   */
+  firstLoadTimeoutMs?: number;
   /** A monotonic clock in ms; `performance.now()` by default, which Cache Components allows. */
   now?: () => number;
   warn?: (message: string) => void;
@@ -37,6 +42,19 @@ const MARKET_MAP_TTL_MS = 30_000;
  * goes silent after it was made, and anything else that never settles.
  */
 export const MARKET_LOAD_TIMEOUT_MS = 10_000;
+
+/**
+ * The same wait in `next dev`, where the first read of a fresh server starts Payload, and the
+ * proxy's first read also waits for the map route to compile. That took 8.2 s to over 13 s on the
+ * reference Windows PC, so with 10 s the first page after `pnpm dev` started could answer 500 (W2,
+ * finding 3). A production server has no such first read: the map route was prerendered.
+ */
+export const DEV_MARKET_LOAD_TIMEOUT_MS = 60_000;
+
+/** How long a read of the global may take: longer in development only (D10's rules otherwise). */
+export function marketLoadTimeoutMs(env: { NODE_ENV?: string }): number {
+  return env.NODE_ENV === "development" ? DEV_MARKET_LOAD_TIMEOUT_MS : MARKET_LOAD_TIMEOUT_MS;
+}
 
 /**
  * When the seeded fixtures may stand in for the global (D10, T10 step 4):
@@ -73,6 +91,7 @@ export function describeError(error: unknown): string {
  */
 export function createMarketSource(options: MarketSourceOptions) {
   const { load, fallback, allowFallback, staleWhileRevalidate } = options;
+  const firstLoadTimeoutMs = options.firstLoadTimeoutMs ?? MARKET_LOAD_TIMEOUT_MS;
   const now = options.now ?? (() => performance.now());
   const warn = options.warn ?? ((message: string) => console.warn(message));
 
@@ -108,7 +127,9 @@ export function createMarketSource(options: MarketSourceOptions) {
   async function read(): Promise<MarketMap> {
     let doc: MarketsGlobal | null | undefined;
     try {
-      doc = await withTimeout(loadOnce(), MARKET_LOAD_TIMEOUT_MS);
+      // The longer wait is for a server that is starting; with a map held, D10's 10 s again.
+      const timeoutMs = current === undefined ? firstLoadTimeoutMs : MARKET_LOAD_TIMEOUT_MS;
+      doc = await withTimeout(loadOnce(), timeoutMs);
     } catch (error) {
       return otherwise(
         "unreachable",

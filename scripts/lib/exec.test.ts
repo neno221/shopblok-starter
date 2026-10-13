@@ -156,17 +156,24 @@ describe("run", () => {
   });
 
   it("does not call a stopped command a success when it exits 0 as it stops", async () => {
+    // On a timeout, Linux and macOS stop the command with SIGTERM, and its handler exits 0. Windows
+    // stops it with `taskkill /t /f`, which no handler sees, so there it ends with the exit code 1
+    // that a forced kill gives the process, and never exits 0 (W2, finding 2); the second half
+    // covers the 0 on every platform.
     const timedOut = await run(
       node,
       ["-e", 'process.on("SIGTERM", () => process.exit(0)); setInterval(() => {}, 1000)'],
       { timeoutMs: 300 },
     );
     expect(timedOut.timedOut).toBe(true);
-    expect(timedOut.code).toBeNull();
+    expect(timedOut.code).toBe(process.platform === "win32" ? 1 : null);
 
+    // A question stops the command at once. This one exits 0 by itself right after asking, which
+    // is before the stop can reach it on any platform; `run` has decided to stop it by then (its
+    // output is read before it counts as closed), so that 0 is no success either.
     const asked = await run(node, [
       "-e",
-      'process.on("SIGTERM", () => process.exit(0)); console.log("Proceed? (y/N)"); setInterval(() => {}, 1000)',
+      'process.on("SIGTERM", () => process.exit(0)); process.stdout.write("Proceed? (y/N)\\n", () => process.exit(0))',
     ]);
     expect(asked.prompt).toContain("(y/N)");
     expect(asked.code).toBeNull();
