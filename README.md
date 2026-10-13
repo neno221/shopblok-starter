@@ -2,7 +2,7 @@
 
 A brand-neutral storefront starter: **Medusa v2** (commerce) + **Next.js 16** with embedded **Payload CMS 3** (content), built on an atomic design system (shadcn/ui + Tailwind v4).
 
-**Status:** M0 (the foundation) is built; **W2's second run, the Windows exit check, is what is left** (plan §4a): its first run's three Windows failures are fixed ([W2 fixes](docs/SETUP.md#w2-fixes)). T00, T01, W1, W2 and the W2 fixes ran on Windows; C0 and the rest of M0 ran in a Claude Code cloud environment.
+**Status:** M0 (the foundation) is **done**: the Windows exit check (W2) passed on its second run, 2026-10-13 ([SETUP.md](docs/SETUP.md#windows-exit-check-w2-second-run)), so the exit criteria (plan §7) hold on Linux and on Windows. T00, T01, W1, W2 and the W2 fixes ran on Windows; C0 and the rest of M0 ran in a Claude Code cloud environment. Next: the plan for M1 (design foundations, SPEC §17.1).
 
 **Quickstart** (no keys, no accounts; prerequisites and the details are in [docs/SETUP.md](docs/SETUP.md#quickstart-no-keys-no-accounts): Node 22.22+, pnpm 12.10.1 installed with `npm install -g pnpm@12.10.1`, Corepack off, Docker running):
 
@@ -43,6 +43,7 @@ Then http://localhost:8000 (Cyprus, Greek, EUR), `/us`, `/ch/fr`, the Payload ad
 - Docs, ADRs and spec v0.6 (T17): passed on Linux, see [docs/SETUP.md](docs/SETUP.md#docs-adrs-and-spec-v06-t17). SETUP.md now starts with the quickstart, ports, logins, "Opening a market" and the Windows and cloud notes; `docs/adr/README.md` has the template; SPEC v0.6 lists what changed and why. A second clone followed the quickstart word for word and reached the exit criteria Linux can check (Brazil added as a market included). CI runs ADR 0001's cache, tag and draft checks (behind `E2E_TEST_ROUTES=true`, which only `e2e-smoke` sets) and, in a new `backend-integration` job, the backend's integration tests
 - Windows exit check (W2), first run 2026-10-13: not passed, see [docs/SETUP.md](docs/SETUP.md#windows-exit-check-w2). A fresh clone on E: passes most of the exit criteria with the same output as Linux, but on Windows `^C` needed pressing twice to stop `pnpm dev`, `pnpm test` failed in `@shopblok/scripts` (two Windows-only test problems), and the first request after `pnpm dev` started could answer 500
 - W2 fix task, 2026-10-13: all three fixed, and `check:workspace` sees every Payload package on Windows, see [docs/SETUP.md](docs/SETUP.md#w2-fixes). `pnpm dev` now starts turbo through `scripts/dev.ts`, so one `^C` stops it on Windows; CI's `windows-smoke` runs the unit tests and checks that `^C`
-- Next step: [docs/NEXT-SESSION.md](docs/NEXT-SESSION.md): merge the PR, then W2 on your PC again; M0 closes when it passes
+- Windows exit check (W2), second run 2026-10-13: passed, see [docs/SETUP.md](docs/SETUP.md#windows-exit-check-w2-second-run). A fresh clone on E: reached every exit criterion. The first request after `pnpm dev` started answered 200 (39.1 s), `check:workspace` lists 8 Payload packages, `pnpm test` passes, and one `^C` left no process of the clone behind; **M0 is closed**
+- Next step: [docs/NEXT-SESSION.md](docs/NEXT-SESSION.md): merge the W2 PR, then the plan for M1
 
 Design tokens are based on the "shadcn/ui – Design System by ReUI" Figma community file, licensed CC BY 4.0.
