@@ -4,7 +4,11 @@
   // (spawned by `medusa develop`) queues CLI_START events despite the variable in the shell (T15).
   // Global rather than on `dev`: a task added later that runs a Medusa command would lose the
   // opt-out unnoticed.
-  "globalPassThroughEnv": ["MEDUSA_DISABLE_TELEMETRY"],
+  // `SWC_NATIVE_BINDING_CACHE`: where `@swc/core` unpacks its native binary. A local Claude Code
+  // session in the Windows desktop app must set it (SETUP.md, "Windows notes"), because the
+  // packaged app redirects `AppData\Local` and swc refuses that folder; strict mode dropped it, so
+  // `medusa build` failed under `pnpm build` there (W2, finding 5). Passthrough: in no hash.
+  "globalPassThroughEnv": ["MEDUSA_DISABLE_TELEMETRY", "SWC_NATIVE_BINDING_CACHE"],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
