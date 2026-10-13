@@ -76,11 +76,13 @@ describe("installedPayloadVersions", () => {
       JSON.stringify({ name: "payload", version: "9.9.9" }),
     );
     linked("@payloadcms+ui@3.90.2", "payload", elsewhere);
-    // pnpm's hoist folder holds links only.
-    linked(
-      "node_modules",
-      "@payloadcms/ui",
+    // pnpm's hoist folder, `.pnpm/node_modules`, holds links only.
+    const hoisted = path.join(store, "node_modules", "@payloadcms", "ui");
+    mkdirSync(path.dirname(hoisted), { recursive: true });
+    symlinkSync(
       path.join(store, "@payloadcms+ui@3.90.2", "node_modules", "@payloadcms", "ui"),
+      hoisted,
+      "junction",
     );
     expect(versions(installedPayloadVersions(store))).toEqual({ "@payloadcms/ui": ["3.90.2"] });
   });

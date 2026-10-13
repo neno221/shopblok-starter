@@ -47,7 +47,8 @@ export function createProxyMarketMap(options: ProxyMarketMapOptions = {}) {
   // NEXT_PUBLIC_* value; a spread of the whole environment would find nothing in this bundle.
   const env: Env = options.env ?? processEnv;
   const fetcher = options.fetcher ?? fetch;
-  // 60 s in `next dev`, where the first read waits for Payload to start (W2, finding 3); 10 s else.
+  // 60 s for the first read in `next dev`, which waits for Payload to start (W2, finding 3); 10 s
+  // otherwise. The fetch gets the same, so it is not cut off before the source gives up.
   const timeoutMs = marketLoadTimeoutMs(env);
   return createMarketSource({
     load: async (): Promise<MarketsGlobal> => {
@@ -73,7 +74,7 @@ export function createProxyMarketMap(options: ProxyMarketMapOptions = {}) {
     },
     fallback: seededMarkets,
     allowFallback: defaultAllowFallback(env),
-    loadTimeoutMs: timeoutMs,
+    firstLoadTimeoutMs: timeoutMs,
     staleWhileRevalidate: true,
     ...(options.now === undefined ? {} : { now: options.now }),
     ...(options.warn === undefined ? {} : { warn: options.warn }),

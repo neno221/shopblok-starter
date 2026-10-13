@@ -18,8 +18,11 @@ export type MarketSourceOptions = {
    * next call joins it or starts another.
    */
   staleWhileRevalidate?: boolean;
-  /** How long one read may take: `MARKET_LOAD_TIMEOUT_MS` by default (see `marketLoadTimeoutMs`). */
-  loadTimeoutMs?: number;
+  /**
+   * How long a read may take while no map is held yet: `MARKET_LOAD_TIMEOUT_MS` by default (see
+   * `marketLoadTimeoutMs`). Once a map is held, every read gets `MARKET_LOAD_TIMEOUT_MS` (D10).
+   */
+  firstLoadTimeoutMs?: number;
   /** A monotonic clock in ms; `performance.now()` by default, which Cache Components allows. */
   now?: () => number;
   warn?: (message: string) => void;
@@ -88,7 +91,7 @@ export function describeError(error: unknown): string {
  */
 export function createMarketSource(options: MarketSourceOptions) {
   const { load, fallback, allowFallback, staleWhileRevalidate } = options;
-  const loadTimeoutMs = options.loadTimeoutMs ?? MARKET_LOAD_TIMEOUT_MS;
+  const firstLoadTimeoutMs = options.firstLoadTimeoutMs ?? MARKET_LOAD_TIMEOUT_MS;
   const now = options.now ?? (() => performance.now());
   const warn = options.warn ?? ((message: string) => console.warn(message));
 
@@ -124,7 +127,9 @@ export function createMarketSource(options: MarketSourceOptions) {
   async function read(): Promise<MarketMap> {
     let doc: MarketsGlobal | null | undefined;
     try {
-      doc = await withTimeout(loadOnce(), loadTimeoutMs);
+      // The longer wait is for a server that is starting; with a map held, D10's 10 s again.
+      const timeoutMs = current === undefined ? firstLoadTimeoutMs : MARKET_LOAD_TIMEOUT_MS;
+      doc = await withTimeout(loadOnce(), timeoutMs);
     } catch (error) {
       return otherwise(
         "unreachable",

@@ -10,8 +10,9 @@ const source = createMarketSource({
   load: loadMarketsGlobal,
   fallback: seededMarkets,
   allowFallback: defaultAllowFallback(env),
-  // The first read starts Payload, which `next dev` can take more than 10 s to do (W2, finding 3).
-  loadTimeoutMs: marketLoadTimeoutMs(env),
+  // The first read starts Payload, which `next dev` can take more than 10 s to do (W2, finding 3);
+  // the reads after it get 10 s again.
+  firstLoadTimeoutMs: marketLoadTimeoutMs(env),
 });
 
 /**

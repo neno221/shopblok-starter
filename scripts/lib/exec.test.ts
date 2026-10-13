@@ -157,8 +157,9 @@ describe("run", () => {
 
   it("does not call a stopped command a success when it exits 0 as it stops", async () => {
     // On a timeout, Linux and macOS stop the command with SIGTERM, and its handler exits 0. Windows
-    // stops it with `taskkill /t /f`, which no handler sees, so there it ends with taskkill's exit
-    // code 1 and never exits 0 (W2, finding 2); the second half covers the 0 on every platform.
+    // stops it with `taskkill /t /f`, which no handler sees, so there it ends with the exit code 1
+    // that a forced kill gives the process, and never exits 0 (W2, finding 2); the second half
+    // covers the 0 on every platform.
     const timedOut = await run(
       node,
       ["-e", 'process.on("SIGTERM", () => process.exit(0)); setInterval(() => {}, 1000)'],

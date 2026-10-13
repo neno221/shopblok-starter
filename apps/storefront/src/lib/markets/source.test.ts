@@ -41,7 +41,7 @@ type Answer = MarketsGlobal | Error | null | Promise<MarketsGlobal>;
 function setup(
   first: Answer,
   allow: (reason: FallbackReason) => boolean = () => false,
-  extra: Pick<MarketSourceOptions, "staleWhileRevalidate" | "loadTimeoutMs"> = {},
+  extra: Pick<MarketSourceOptions, "staleWhileRevalidate" | "firstLoadTimeoutMs"> = {},
 ) {
   const clock = { time: 1_000_000 };
   // What the next reads return, in order; the last answer repeats.
@@ -332,16 +332,17 @@ describe("marketLoadTimeoutMs (W2, finding 3)", () => {
     expect(MARKET_LOAD_TIMEOUT_MS).toBe(10_000);
   });
 
-  describe("as the source's loadTimeoutMs", () => {
+  describe("as the source's firstLoadTimeoutMs", () => {
     beforeEach(() => vi.useFakeTimers());
     afterEach(() => vi.useRealTimers());
 
     /** A first read that answers after 13 s, as Payload's start did on W2's PC. */
-    const slowFirstRead = (loadTimeoutMs?: number) => {
+    const slowFirstRead = (firstLoadTimeoutMs?: number) => {
       const answer = new Promise<MarketsGlobal>((resolve) =>
         setTimeout(() => resolve(brazilGlobal), 13_000),
       );
-      return setup(answer, undefined, loadTimeoutMs === undefined ? {} : { loadTimeoutMs });
+      const extra = firstLoadTimeoutMs === undefined ? {} : { firstLoadTimeoutMs };
+      return setup(answer, undefined, extra);
     };
 
     it("lets a first read take 13 s with the development value", async () => {
@@ -356,6 +357,19 @@ describe("marketLoadTimeoutMs (W2, finding 3)", () => {
       const failure = expect(source.get()).rejects.toThrow(/no answer after 10 s/);
       await vi.advanceTimersByTimeAsync(MARKET_LOAD_TIMEOUT_MS);
       await failure;
+    });
+
+    it("keeps D10's 10 s for the reads after the first, development value or not", async () => {
+      const { source, advance, next, warn } = setup(brazilGlobal, undefined, {
+        firstLoadTimeoutMs: DEV_MARKET_LOAD_TIMEOUT_MS,
+      });
+      expect(await source.get()).toEqual(brazil);
+      next(NEVER);
+      advance(30_000);
+      const read = source.get();
+      await vi.advanceTimersByTimeAsync(MARKET_LOAD_TIMEOUT_MS);
+      expect(await read).toEqual(brazil);
+      expect(warn).toHaveBeenCalledWith(expect.stringMatching(/no answer after 10 s/));
     });
   });
 });

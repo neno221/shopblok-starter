@@ -3,6 +3,7 @@
 // (`pnpm dev --filter @shopblok/storefront`).
 import { spawn } from "node:child_process";
 import { createRequire } from "node:module";
+import { constants } from "node:os";
 import { devEnvironment } from "./lib/dev-env.ts";
 
 // turbo's launcher, the file `node_modules/.bin/turbo` starts. On Windows it takes the Ctrl-C from
@@ -23,4 +24,7 @@ child.on("error", (error) => {
   console.error(`pnpm dev: could not start turbo (${error.message})`);
   process.exit(1);
 });
-child.on("exit", (code, signal) => process.exit(code ?? (signal === "SIGINT" ? 130 : 1)));
+// Ended by a signal: 128 + its number, as a shell reports it (130 for SIGINT, 143 for SIGTERM).
+child.on("exit", (code, signal) =>
+  process.exit(code ?? (signal === null ? 1 : 128 + (constants.signals[signal] ?? 0))),
+);

@@ -129,7 +129,10 @@ $before = Get-Tree $shell.Id
 "before Ctrl-C: $($before.Count) processes ($(@($before | Where-Object Name -eq 'node.exe').Count) node)"
 $before | ForEach-Object { Format-Process $_ }
 if (-not $ready) {
-  Stop-Process -Id ($before.ProcessId) -Force -ErrorAction SilentlyContinue
+  # An empty tree (pnpm dev already gone) has no id to bind; its output says why it stopped.
+  if ($before.Count -gt 0) { Stop-Process -Id ($before.ProcessId) -Force -ErrorAction SilentlyContinue }
+  "--- the end of pnpm dev's output ($LogFile)"
+  Get-Content $LogFile -Tail 25 -ErrorAction SilentlyContinue
   throw "nothing listened on port $ReadyPort within $ReadySeconds s"
 }
 "ready: port $ReadyPort listens"
