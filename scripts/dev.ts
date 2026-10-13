@@ -17,7 +17,7 @@ const child = spawn(process.execPath, [turbo, "run", "dev", ...process.argv.slic
 // process group elsewhere), and turbo stops the tasks: this waits for it rather than leave first.
 // Passing it on would be turbo's second Ctrl-C, which kills the tasks instead.
 process.on("SIGINT", () => {});
-// A SIGTERM is sent to this process alone.
+// A SIGTERM (`kill`, a process manager) is sent to this process alone: pass it on.
 process.on("SIGTERM", () => child.kill("SIGTERM"));
 child.on("error", (error) => {
   console.error(`pnpm dev: could not start turbo (${error.message})`);

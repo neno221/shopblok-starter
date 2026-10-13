@@ -1,6 +1,6 @@
 # windows-smoke: one Ctrl-C stops `pnpm dev` and leaves no process behind (W2, finding 1).
 #
-# Starts `pnpm dev` in a console of its own, as a terminal does, waits until it serves, types Ctrl-C
+# Starts `pnpm dev` in a console of its own, as a terminal does, waits until it listens, types Ctrl-C
 # into that console as a key press would (the console's input, not a signal), and then counts the
 # processes it had started that are still there. Before the fix, turbo started each task through
 # npm's batch file `pnpm.cmd`, and that cmd.exe waited for an answer to "Terminate batch job (Y/N)?"
@@ -13,7 +13,8 @@
 # `next dev` starts without one, while `medusa develop` would not. The batch file was per task.
 param(
   [string]$Filter = '@shopblok/storefront',
-  # Internal: type Ctrl-C into the console of this process and exit (the script runs itself for it).
+  # Internal: type Ctrl-C into the console of the process with this id, and exit (the script runs
+  # itself for it, because attaching to another console means leaving its own).
   [int]$TypeCtrlCInto = 0,
   # `next dev` listens here once it is up. No page is asked for: with no database, every page fails.
   [int]$ReadyPort = 8000,
