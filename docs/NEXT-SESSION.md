@@ -4,7 +4,7 @@
 
 ## What the plan needs from you (its §0)
 
-1. **The Figma file link.** SPEC §9.1 names your copy by its key, `1PUSIlNviAwiZT0praTxES`; send its URL, or another copy's. It must be a copy in your team ("Steph's team"; the connector is signed in on this PC), not the Community page.
+1. **The Figma file link. Answered 2026-10-13:** https://www.figma.com/design/1PUSIlNviAwiZT0praTxES. It opens through the connector, but it lists only two top-level pages ("★ Welcome", "⤷ Mixed Visuals"). The variables export doesn't depend on that; T18 checks whether the kit's component sets are in this copy (plan §0 item 1).
 2. **`E:\commerce-blocks`** is gone from E: and not in your user folder's usual places. Say where it is, if you still have it, and whether it should seed `packages/ui`. Default: start from shadcn's and ReUI's registries alone.
 3. **G5:** add `ui.shadcn.com`, `reui.io`, `base-ui.com`, `fonts.googleapis.com` and `fonts.gstatic.com` to the cloud environment's allowed domains, or say no and those steps run on your PC (plan §4a).
 4. **Confirm or change D24 to D39** (plan §1). The ones with a real alternative: D29 (shadcn's `base-vega` instead of the spec's `base-nova`, if the kit's Button is 36 px), D33 (the DS page gated by a build flag until M7), D35 (an AA grey of our own where the kit fails the contrast gate), D36 (the backend outage: catalog data in the static shell, plus `/next/status`), D37 (the `next dev` console check in CI) and D38 (no pixel baselines until M2).
@@ -15,7 +15,7 @@ A session folds your answers into the plan's §0 and §1, and you merge the plan
 
 Open the desktop app's Code tab on `E:\shopblok-starter`, with `main` pulled and the Figma connector signed in, and paste:
 
-> Run task T18 of docs/plans/M1.md: export the Figma kit's variables. The file is <the link from the plan's §0>. Read docs/plans/M1.md (§0, §1 D24 to D29, §4a and §5 T18) and docs/NEXT-SESSION.md first. Load the `/figma-use` skill before any `use_figma` call, and send the file nothing but reads. Work on a new branch from `main`. Follow T18's steps and its Verify list, write the results into docs/SETUP.md under "Figma export (T18)", put the Button measurement into D29 and say which style holds, update the plan's status line and NEXT-SESSION.md (T19's prompt next), then open a PR and don't merge it.
+> Run task T18 of docs/plans/M1.md: export the Figma kit's variables. The file is https://www.figma.com/design/1PUSIlNviAwiZT0praTxES (it lists only two top-level pages; see the plan's §0 item 1). Read docs/plans/M1.md (§0, §1 D24 to D29, §4a and §5 T18) and docs/NEXT-SESSION.md first. Load the `/figma-use` skill before any `use_figma` call, and send the file nothing but reads. Work on a new branch from `main`. Follow T18's steps and its Verify list, write the results into docs/SETUP.md under "Figma export (T18)", put the Button measurement into D29 and say which style holds, update the plan's status line and NEXT-SESSION.md (T19's prompt next), then open a PR and don't merge it.
 
 ## S4 · Backend outage spike (in a cloud session)
 
