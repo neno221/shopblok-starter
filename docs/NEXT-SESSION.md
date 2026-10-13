@@ -5,7 +5,7 @@
 ## What the plan needs from you (its §0)
 
 1. **The Figma file link. Answered 2026-10-13:** https://www.figma.com/design/1PUSIlNviAwiZT0praTxES. It opens through the connector, but it lists only two top-level pages ("★ Welcome", "⤷ Mixed Visuals"). The variables export doesn't depend on that; T18 checks whether the kit's component sets are in this copy (plan §0 item 1).
-2. **`E:\commerce-blocks`** is gone from E: and not in your user folder's usual places. Say where it is, if you still have it, and whether it should seed `packages/ui`. Default: start from shadcn's and ReUI's registries alone.
+2. **`E:mmerce-blocks`. Answered 2026-10-13: there is none; M1 starts from shadcn's and ReUI's registries alone.**
 3. **G5:** add `ui.shadcn.com`, `reui.io`, `base-ui.com`, `fonts.googleapis.com` and `fonts.gstatic.com` to the cloud environment's allowed domains, or say no and those steps run on your PC (plan §4a).
 4. **Confirm or change D24 to D39** (plan §1). The ones with a real alternative: D29 (shadcn's `base-vega` instead of the spec's `base-nova`, if the kit's Button is 36 px), D33 (the DS page gated by a build flag until M7), D35 (an AA grey of our own where the kit fails the contrast gate), D36 (the backend outage: catalog data in the static shell, plus `/next/status`), D37 (the `next dev` console check in CI) and D38 (no pixel baselines until M2).
 
