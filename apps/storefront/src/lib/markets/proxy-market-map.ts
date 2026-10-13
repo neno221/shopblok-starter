@@ -5,7 +5,7 @@ import {
   createMarketSource,
   defaultAllowFallback,
   describeError,
-  MARKET_LOAD_TIMEOUT_MS,
+  marketLoadTimeoutMs,
   type MarketSourceOptions,
 } from "./source";
 
@@ -47,6 +47,8 @@ export function createProxyMarketMap(options: ProxyMarketMapOptions = {}) {
   // NEXT_PUBLIC_* value; a spread of the whole environment would find nothing in this bundle.
   const env: Env = options.env ?? processEnv;
   const fetcher = options.fetcher ?? fetch;
+  // 60 s in `next dev`, where the first read waits for Payload to start (W2, finding 3); 10 s else.
+  const timeoutMs = marketLoadTimeoutMs(env);
   return createMarketSource({
     load: async (): Promise<MarketsGlobal> => {
       const url = marketsRouteUrl(env);
@@ -54,7 +56,7 @@ export function createProxyMarketMap(options: ProxyMarketMapOptions = {}) {
       const fail = (what: string) => new Error(`${url.href} ${what}`);
       const response = await fetcher(url, {
         cache: "no-store",
-        signal: AbortSignal.timeout(MARKET_LOAD_TIMEOUT_MS),
+        signal: AbortSignal.timeout(timeoutMs),
       }).catch((error: unknown) => {
         throw fail(`could not be fetched (${describeError(error)})`);
       });
@@ -71,6 +73,7 @@ export function createProxyMarketMap(options: ProxyMarketMapOptions = {}) {
     },
     fallback: seededMarkets,
     allowFallback: defaultAllowFallback(env),
+    loadTimeoutMs: timeoutMs,
     staleWhileRevalidate: true,
     ...(options.now === undefined ? {} : { now: options.now }),
     ...(options.warn === undefined ? {} : { warn: options.warn }),
