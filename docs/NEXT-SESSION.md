@@ -1,15 +1,15 @@
-# M1 is planned: your answers come first
+# M1 is planned and its decisions are confirmed
 
-**M0 is closed** (W2's second run passed on 2026-10-13, [PR 29](https://github.com/stephanos221/shopblok-starter/pull/29), merged). **The M1 plan is written:** [plans/M1.md](plans/M1.md), design foundations (SPEC §17.1 and §9), in its own PR, not merged. No M1 task has started.
+**M0 is closed** (W2's second run passed on 2026-10-13, [PR 29](https://github.com/stephanos221/shopblok-starter/pull/29), merged). **The M1 plan is ready:** [plans/M1.md](plans/M1.md), design foundations (SPEC §17.1 and §9), in [PR 30](https://github.com/stephanos221/shopblok-starter/pull/30). No M1 task has started.
 
-## What the plan needs from you (its §0)
+## Your answers, all in the plan
 
-1. **The Figma file link. Answered 2026-10-13:** https://www.figma.com/design/1PUSIlNviAwiZT0praTxES. It opens through the connector, but it lists only two top-level pages ("★ Welcome", "⤷ Mixed Visuals"). The variables export doesn't depend on that; T18 checks whether the kit's component sets are in this copy (plan §0 item 1).
-2. **`E:\commerce-blocks`. Answered 2026-10-13: there is none; M1 starts from shadcn's and ReUI's registries alone.**
-3. **G5:** add `ui.shadcn.com`, `reui.io`, `base-ui.com`, `fonts.googleapis.com` and `fonts.gstatic.com` to the cloud environment's allowed domains, or say no and those steps run on your PC (plan §4a).
-4. **Confirm or change D24 to D39** (plan §1). The ones with a real alternative: D29 (shadcn's `base-vega` instead of the spec's `base-nova`, if the kit's Button is 36 px), D33 (the DS page gated by a build flag until M7), D35 (an AA grey of our own where the kit fails the contrast gate), D36 (the backend outage: catalog data in the static shell, plus `/next/status`), D37 (the `next dev` console check in CI) and D38 (no pixel baselines until M2).
+1. **The Figma file:** https://www.figma.com/design/1PUSIlNviAwiZT0praTxES. It opens through the connector, but it lists only two top-level pages ("★ Welcome", "⤷ Mixed Visuals"). The variables export doesn't depend on that; T18 checks whether the kit's component sets are in this copy (plan §0 item 1).
+2. **`E:\commerce-blocks`:** there is none; M1 starts from shadcn's and ReUI's registries alone.
+3. **G5:** you added the five domains on 2026-10-14; CLOUD.md lists them.
+4. **D24 to D39, confirmed 2026-10-14**, with three changes from the defaults: **D26** Style Dictionary builds the CSS; **D32** every interactive atom is 44 px or more at every width; **D34** the automatic checks run in English and Greek. **D36** (catalog data in the page shell, plus `/next/status`) is your choice, and S4 checks it before ADR 0004 records it.
 
-A session folds your answers into the plan's §0 and §1, and you merge the plan PR. Then two sessions can start at the same time.
+**Next:** merge PR 30 with a merge commit (G2). Then the two sessions below can start at the same time.
 
 ## T18 · Figma export (on your PC, in a local session)
 
@@ -21,7 +21,7 @@ Open the desktop app's Code tab on `E:\shopblok-starter`, with `main` pulled and
 
 Start a cloud session in the `shopblok-starter` environment, on `main`, and paste:
 
-> Run spike S4 of docs/plans/M1.md (§6): where the catalog pages' data lives, and the HTTP status of a backend outage (SPEC §8.1, decision D36). Start as docs/CLOUD.md, "What every cloud session does first", steps 1 to 4 say. Read docs/plans/M1.md (§1 D36, §6 S4), SETUP.md's "Medusa DAL and the wiring page (T12)" item 2, and docs/adr/0001-cache-components-payload.md first. Keep the prototype in one commit that the next commit removes, as S1 to S3 did. Run O1 to O10, write ADR 0004 (docs/adr/README.md's template) with the results and leave its status as Proposed for the owner's decision, record everything in docs/SETUP.md under "Backend outage (S4)", update the plan and NEXT-SESSION.md, then open a PR with `gh api` (CLOUD.md) and don't merge it. Timebox: one day.
+> Run spike S4 of docs/plans/M1.md (§6): where the catalog pages' data lives, and the HTTP status of a backend outage (SPEC §8.1, decision D36). Start as docs/CLOUD.md, "What every cloud session does first", steps 1 to 4 say. Read docs/plans/M1.md (§1 D36, §6 S4), SETUP.md's "Medusa DAL and the wiring page (T12)" item 2, and docs/adr/0001-cache-components-payload.md first. Keep the prototype in one commit that the next commit removes, as S1 to S3 did. Run O1 to O10, write ADR 0004 (docs/adr/README.md's template) with the results; if S4 passes, set it to Accepted with D36 as the owner chose it on 2026-10-14, and if it fails, leave it Proposed with the fallback for the owner's decision; record everything in docs/SETUP.md under "Backend outage (S4)", update the plan and NEXT-SESSION.md, then open a PR with `gh api` (CLOUD.md) and don't merge it. Timebox: one day.
 
 ## Still open from M0 (yours)
 
@@ -58,7 +58,7 @@ Start a cloud session in the `shopblok-starter` environment, on `main`, and past
    - `--env-mode=loose` for `dev` only was considered and left out.
    - Payload's silent CLI exit is retried, and the upstream issue is yours to file (F4).
    - Orphan regions are reported by `doctor`, never deleted.
-   - Catalog data in a streamed part gives HTTP 200 on a backend outage (SPEC §8.1). W2's second run saw it again on the first request after `pnpm dev`, while Medusa was still starting. **M1 decides it:** D36 proposes a default, S4 measures it, and ADR 0004 records your decision.
+   - Catalog data in a streamed part gives HTTP 200 on a backend outage (SPEC §8.1). W2's second run saw it again on the first request after `pnpm dev`, while Medusa was still starting. **M1 decides it:** D36 is your choice (2026-10-14), S4 checks it, and ADR 0004 records it.
    - Bootstrap keeps a plain-text dev password in a git-ignored file.
    - The prototypes stay in their commits, not on `spike/*` branches.
    - Medusa's one-time Claude Code question on the first `^C` has never been seen. It cannot appear on this PC, where the `medusa-dev` plugin is installed.
