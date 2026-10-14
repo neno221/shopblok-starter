@@ -44,9 +44,16 @@ docs.renovatebot.com
 cdn.playwright.dev
 playwright.download.prss.microsoft.com
 playwright.azureedge.net
+ui.shadcn.com
+reui.io
+base-ui.com
+fonts.googleapis.com
+fonts.gstatic.com
 ```
 
-Why Custom: the default **Trusted** list already covers npm, GitHub, Docker Hub, nodejs.org and Ubuntu's package mirrors, which is everything installs and builds need. It doesn't cover the documentation sites the plan checks versions and APIs against, or the hosts Playwright downloads its browser from (the last three lines). **Full** would also work, since M0 holds no secrets, but it lets a session reach any site. If a session reports a blocked domain it needs, add it here; running sessions pick up the change within about a minute.
+Why Custom: the default **Trusted** list already covers npm, GitHub, Docker Hub, nodejs.org and Ubuntu's package mirrors, which is everything M0's installs and builds need. It doesn't cover the documentation sites the plan checks versions and APIs against, or the hosts Playwright downloads its browser from (`cdn.playwright.dev` and the two after it). **Full** would also work, since M0 holds no secrets, but it lets a session reach any site. If a session reports a blocked domain it needs, add it here; running sessions pick up the change within about a minute.
+
+The last five lines are M1's (its plan, step G5; added to the environment by the owner on 2026-10-14): the shadcn CLI reads `ui.shadcn.com` and `reui.io` (the two component registries), `base-ui.com` is Base UI's documentation, and `next/font/google` downloads Inter from `fonts.googleapis.com` and `fonts.gstatic.com` at build time and in `next dev`, failing the build when it can't.
 
 ### Environment variables
 
