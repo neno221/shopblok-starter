@@ -2465,7 +2465,7 @@ What each M1 task found and measured ([plans/M1.md](plans/M1.md)), in the order 
 
 | Check | Result | Key output |
 |---|---|---|
-| The body's colour and background are `tokens.css`'s | **Moved to T19** | There are no colours yet; `bg-background` and `text-foreground` arrive with `tokens.css` |
+| The body's colour and background are `tokens.css`'s | **Moved to T19; done there** (SETUP.md, "Tokens (T19)") | There were no colours yet; `bg-background` and `text-foreground` arrived with `tokens.css` |
 | The body's computed `font-family` starts with the `next/font` Inter | **Pass** | `/us`, `/` and the global 404 page (its own `<html>`) all compute `Inter, "Inter Fallback", ui-sans-serif, …`, and an Inter `FontFace` has `status: "loaded"` |
 | `/` loads the Greek subset file; `/us` does not | **Pass, with `preload: false`** (item 1 below) | `/` fetches `2edaebbd…woff2` (Greek, 30,256 bytes) and `234d9015…woff2` (Latin, 73,016); `/us` and the 404 page fetch the Latin file only |
 | No request to `fonts.googleapis.com` or `fonts.gstatic.com` | **Pass** | None on `/`, `/us` or the 404 page, with the browser recording every request |
@@ -2484,7 +2484,7 @@ What each M1 task found and measured ([plans/M1.md](plans/M1.md)), in the order 
 
 ### Deviation from the plan: tokens are not here
 
-T18 (the Figma export) has not landed, so T19 (which builds `tokens.css`) cannot run, and T20 was done first without tokens: the stylesheet has no `@import "./tokens.css"`, no `bg-background` or `text-foreground`, and no default border colour. **T19 now also adds `@import "./tokens.css";` to `globals.css` and the base colours** (body background and text colour, the default border colour), and takes over T20's check on the body's computed colours. Until then the storefront's pages are Tailwind's preflight in black on white.
+T18 (the Figma export) has not landed, so T19 (which builds `tokens.css`) cannot run, and T20 was done first without tokens: the stylesheet has no `@import "./tokens.css"`, no `bg-background` or `text-foreground`, and no default border colour. **T19 now also adds `@import "./tokens.css";` to `globals.css` and the base colours** (body background and text colour, the default border colour), and takes over T20's check on the body's computed colours. Until then the storefront's pages are Tailwind's preflight in black on white. **T19 has since done both** ("Tokens (T19)"): `globals.css` imports `tokens.css` and has the base layer, and T20's `@theme inline { --font-sans }` moved into the generated file.
 
 ### Smaller observations
 
@@ -2543,3 +2543,117 @@ T18 (the Figma export) has not landed, so T19 (which builds `tokens.css`) cannot
 
 - `use_figma` answers at most 20,480 bytes, and the export is about 235,000, so the code returns 14,000-character slices. The connector allows about ten calls a minute. A refused call says "truncated to 20kb" even for `return 1`, which reads like a size error but isn't one; `get_metadata` and `whoami` still answered meanwhile. After about two minutes, calls worked again. The script's header and `packages/ui/tokens/README.md` say this.
 - The slices went from the tool's answers into files through the session's own transcript, so a later export needs a session that can save each answer to a file (the README's prompt).
+
+## Tokens (T19)
+
+**Result: `pnpm tokens` builds `tokens.css` and `tokens.ts` from the two token files through Style Dictionary 5.6.1, light only, and the build stops on a contrast, radius or spacing failure.** The kit fails the gate in seven places, not D35's three; the numbers are below, and **the field edge is yours to change** (item 1 of "Overrides"). The generated stylesheet is imported by `globals.css`, with the base colours T20 left out.
+
+| | |
+|---|---|
+| Date | 2026-10-15 |
+| Branch | `claude/m1-1d8p7b` (committed locally; no PR opened by this session) |
+| New | `scripts/figma-tokens.ts` (`pnpm tokens`), `scripts/lib/tokens/{contrast, checks, figma-parser, model, formats, build}.ts` and their tests (`contrast`, `checks`, `figma-parser`, `build`, `committed`), `scripts/turbo.json`, `packages/ui/tokens/shopblok.tokens.json`, `packages/ui/src/styles/tokens.css`, `packages/ui/src/tokens.ts`, `packages/ui/src/styles/brands/README.md` |
+| Changed | `scripts/package.json` (`style-dictionary` 5.6.1, exact, in `@shopblok/scripts` only), the lockfile (51 packages added, nothing changed), root `package.json` (`tokens`), `packages/ui/src/styles/globals.css`, `packages/ui/tokens/README.md`, `apps/storefront/e2e/styles-fonts.spec.ts` |
+| Tests | i18n 18, scripts **369** (87 new), storefront 422, backend 85: all pass in CI's state. Playwright, `styles-fonts.spec.ts` alone against `next start` (no Medusa, no Payload database): 8 of 8, 3 of them new |
+
+### What was done
+
+1. **The parser** (`figma-parser.ts`) reads `figma.tokens.json` as DTCG tokens: the mode named "Light" (the default mode where a collection has none), the collection's name as the first path segment, every alias as `{Collection.path}`, colours as the hex strings the kit holds. It returns 1,029 variables, 92 text styles and 14 effect styles as 1,135 tokens. The three text-style names that appear twice get " (2)" (T18 item 3), and a test counts the styles in and the tokens out. A style holds its own values and **no reference at all**, so the 50 unlisted `Shadcn/shadow/*` references never reach Style Dictionary (T18 item 3). A collision between a variable and a group, a colour that isn't `#rrggbb(aa)`, and an alias into a collection that isn't in the file each stop the parse.
+2. **Style Dictionary** (`build.ts`): `usesDtcg`, the parser for `figma.tokens.json` only, one transform (the name is the whole path, because the radius and the shadows both have an `md` and Style Dictionary reports equal names in one file as a collision), `warnings: "error"` and `brokenReferences: "throw"`. `formatPlatform` gives the text of both files; `pnpm tokens` writes it. **Style Dictionary throws on a broken reference and on a cycle, but it names them only at `verbose`** (it prints "Some token references (4) could not be found" and nothing else). So a failed build is run once more at `verbose`, and that error is the one thrown: `{Mode.state.destructive} tries to reference {TailwindCSS - Colors.Red.Red-6000}, which is not defined`. No check of our own was needed for the references.
+3. **The model** (`model.ts`) reads the resolved tokens once, runs every check, and is the only thing the two formats print from. A check that fails stops both. All failures come in one message.
+4. **`shopblok.tokens.json`** holds, as DTCG: `primitive` (two greys of our own), `semantic` (all 51 colours as references, so the name-to-variable map is data), `contrast` (35 pairs), and what the kit lacks: `viewport`, `z-index`, `container`, `motion`.
+5. **`globals.css`** imports `tokens.css` after the two existing imports and has an `@layer base` with `border-border` on everything and `bg-background text-foreground` on the body. T20's own `@theme inline { --font-sans }` moved into `tokens.css`, which writes the same stack from the kit's font name.
+6. **`scripts/turbo.json`** adds the token files and the two generated files to `scripts#test`'s inputs (`$TURBO_ROOT$/packages/ui/…`, as the storefront's does for the lockfile). Without it, turbo would replay a cached pass after a change in `packages/ui`, because `committed.test.ts` reads files outside its package. This is the only change to Turborepo's configuration; I read `docs/reference/package-configurations.mdx` and `configuration.mdx` in the installed package first (AGENTS.md).
+
+### The mapping
+
+| Kit | CSS | Notes |
+|---|---|---|
+| `Mode/base/*` (17), `Mode/chart/*` (5), `Mode/sidebar/*` (8), `Mode/state/destructive` | `--background` … `--ring`, `--chart-1..5`, `--sidebar*`, `--destructive`, and `--color-*` for each in `@theme inline` | Light values, hex as held. A value the kit writes as an alias to a palette colour is `var(--red-600)` (the palette colour is emitted as `--red-600` only where one is used: 15 of them); a value the kit holds as a literal is the literal |
+| `Mode/state/destructive-foreground`, `…/success`, `…/warning`, `…/info` | read only, as the "kit" side of an override | See "Overrides" |
+| (not in the kit) | `--price`, `--price-sale`, `--price-original`, `--rating`, `--success`, `--warning`, `--info`, `--badge-sale`, `--badge-new`, `--stock-in`, `--stock-low`, `--stock-out`, `--overlay`, and `-foreground` for `success`, `warning`, `info`, `badge-sale`, `badge-new`, `overlay` | `shopblok.tokens.json`, each a reference to a palette colour except `--overlay` (black at 60 %: a primitive has no alpha) |
+| `Shadcn/radius/lg` (10) | `--radius: 0.625rem` | `--radius-xs` … `--radius-4xl` are `calc(var(--radius) ± n px)` with n = −8, −4, −2, 0, +4, +8, +12, +16. The run fails unless the kit's eight values equal them (they do: 2, 6, 8, 10, 14, 18, 22, 26) |
+| `TailwindCSS/{gap,margin,padding,size,spacing,width,height}/*` (425 variables) | `--spacing: 0.25rem` | Checked, not emitted. 410 are numbered steps and equal 4 px × their number (half steps are written `0,5`); 12 are one pixel (`gap-px`, `h-px`, `m-px`, `size-px`, `s-px`, `w-px`, and the paddings, which the kit names `pb-pb`, `pl-pl`, `pr-pr`, `pt-pt`, `px-px`, `py-py`; the check reads those as `px`); the three `…-Infinite` (9999) are not steps |
+| `Shadcn/font/family/font-sans` ("Inter") | `--font-sans: var(--font-inter, ui-sans-serif), system-ui, sans-serif, …emoji` | The variable name comes from the kit's font name; `next/font` sets it (D28) |
+| `Shadcn/font/weight/*` | `--font-weight-normal` (400), `-medium`, `-semibold`, `-bold` (700) | The kit also uses Bold; SPEC §9.1 listed 400, 500, 600 |
+| `TailwindCSS/text/<step>/{font-size, line-height}` (14 steps, `2xs` to `9xl`) | `--text-<step>` and `--text-<step>--line-height`, in rem | `2xs` (10/14) is not one of Tailwind's own steps |
+| `TailwindCSS/breakpoint/*` | `--breakpoint-sm` … `-2xl` (40, 48, 64, 80, 96 rem) | The kit's values are Tailwind's defaults |
+| `Effect styles/shadow/*` (7) | `--shadow-2xs` … `--shadow-2xl` | From the style's own values, layers reversed (Figma lists the bottom layer first). `--shadow-md` is `0 4px 6px -1px #0000001a, 0 2px 4px -2px #0000001a`, Tailwind's own, and a test pins it. `--shadow-sm` has one layer where Tailwind's has two (kit oddity, below) |
+| (not in the kit) | `--viewport-phone` … `-desktop` (375, 768, 1024, 1440 px), `--z-sticky` … `--z-toast` (20 to 80), `--container-page` (90rem), `--container-prose` (42rem), `--duration-fast|base|slow` (100, 150, 300 ms), `--ease-standard` (Tailwind's ease-in-out) | `shopblok.tokens.json` |
+
+`tokens.css` has one `:root` and one `@theme inline`, no `.dark` and no `prefers-color-scheme`; a test checks that and that all 32 contract variables and all 13 commerce tokens (and their `-foreground`s) are in both. The built storefront stylesheet carries them: `:root{--amber-600:#e17100;…}` and `body{background-color:var(--background);color:var(--foreground)}`.
+
+**Not mapped: 607 of the kit's 1,135 tokens.** `Mode/opacity/*` (123) and `Mode/mode mix/*` (17) are the kit's alpha steps and light/dark blends; `Mode/state/*` (7 of 12: focus, invert and the foregrounds); `Shadcn/focus/*` (30) and the six `ring/*` effect styles; the 92 text styles (the type scale comes from the variables); `blur/xs`; 229 palette colours no semantic token uses; `TailwindCSS/{blur, border-radius, border-width, line-height, shadow, stroke-width}` (98); the `Device` collection (breakpoint, grid count, gutter and margin per device, 4). `pnpm tokens` prints the groups.
+
+### Overrides (D35): seven, each with the kit's value, ours and both ratios
+
+The plan expected three. The kit holds shadcn neutral's three failures (items 1 to 3), and fails a fourth pair of its own (item 4); items 5 to 7 are the commerce colours SPEC §9.2 adds, where the kit's `state/*` hues are the starting point and fail under white text. A pair fails with the kit's value in every case, so none is a preference.
+
+| # | Token | Kit | Ours | Pair | Kit's ratio | Our ratio |
+|---|---|---|---|---|---|---|
+| 1 | `input` | `#e5e5e5` | `#949494` (`--neutral-450`, ours) | `input` on `background`, 3:1 | **1.26:1** | **3.03:1** |
+| 2 | `ring` | `#a1a1a1` | `#949494` (`--neutral-450`), **at alpha 1** | `ring` on `background`, 3:1 | 2.58:1 at 100 %; **1.54:1 at the 50 % the kit draws it at** | 3.03:1 at 100 % |
+| 3 | `muted-foreground` | `#737373` | `#707070` (`--neutral-550`, ours) | on `muted` `#f5f5f5`, 4.5:1 | **4.35:1** | 4.54:1 |
+| | | | | on `background`, 4.5:1 | 4.74:1 | 4.95:1 |
+| 4 | `destructive-foreground` | `#fef2f2` (Red-50) | `#ffffff` | on `destructive` `#e7000b`, 4.5:1 | 4.36:1 | 4.77:1 |
+| 5 | `success` | `#00bc7d` (Emerald-500) | `#006045` (Emerald-800) | `success-foreground` (white) on it, and it on `background`, 4.5:1 | 2.47:1 | 7.61:1 |
+| 6 | `warning` | `#f0b100` (Yellow-500) | `#a65f00` (Yellow-700) | the same two pairs | 1.91:1 | 4.93:1 |
+| 7 | `info` | `#8e51ff` (Violet-500) | `#7f22fe` (Violet-600) | the same two pairs | 4.40:1 | 5.89:1 |
+
+1. **The field edge is yours to change (D35's default, as asked).** The lightest grey that reaches 3:1 on white is `#949494` (3.03:1; `#959595` is 2.99:1, and a test pins both). Tailwind's own neutrals offer `#a1a1a1` (2.58:1) or `#737373` (4.74:1) and nothing between. Your alternatives: (a) `#737373`, one palette colour and no primitive of ours, much darker than the kit; (b) WCAG 1.4.11's exemption, where something else identifies the field, which keeps the kit's `#e5e5e5` and has to hold for every form in M2 to M4. To change it, edit `semantic.input` in `shopblok.tokens.json` and run `pnpm tokens`; the gate tells you if the new value fails.
+2. **The ring's alpha is part of the decision (D35: "at the alpha the components draw it with").** The kit's `ring/default` effect style draws `#a1a1a1` at 50 % (`opacity/ring-50`), which is 1.54:1. **I settled on alpha 1**, so the ring and the field edge are one grey and one token: drawn at full strength, `#949494` is 3.03:1. At 50 % the lightest grey that passes would be `#2a2a2a` (3.01:1; `#2b2b2b` is 2.99:1), nearly black under a half-transparent 3 px ring. The pair says `alpha: 1`, **T21 must draw the ring without `/50`** (`ring-ring`, not `ring-ring/50`), and a test shows the 50 % version failing with "ring #a1a1a1 at 50 % on background #ffffff is 1.54:1".
+3. **`muted-foreground`:** `#707070` is the lightest grey that passes on `muted` (`#717171` is 4.48:1, pinned by a test). Moving to Tailwind's Neutral-600 (`#525252`) was the alternative; it would have darkened every caption by far more than needed.
+4. **`destructive-foreground`** is not in SPEC §9.2's contract and shadcn v4's own buttons use `text-white`. It is emitted because the kit has it and D35 checks every `-foreground`; if T21 draws white text on `destructive` directly, the token is unused but harmless.
+5. **Items 5 to 7 are my choice of colours, not the kit's.** The kit's `state/success|warning|info` are 500-step hues paired with 900-step foregrounds (a tinted-surface alert); SPEC §9.2 names `success`, `warning` and `info` as tokens, and I made each a solid surface with a white `-foreground`, which is also readable as text on `background`. For each I took the lightest step of the kit's own hue that passes. The kit's Emerald-600 and Emerald-700 are the same colour (`#009966`, 3.65:1), so the next step that passes is 800. If you'd rather keep the kit's colours for these three, say so: they would then need a dark text colour instead of white.
+
+### Checks
+
+| Check | Result | Key output |
+|---|---|---|
+| `pnpm install`, then `pnpm install --frozen-lockfile` | **Pass** | "Already up to date"; "Lockfile is up to date, resolution step is skipped" |
+| `pnpm check:workspace` | **Pass** | Payload: 8 packages, one version each; `style-dictionary` is a dependency of `scripts` only |
+| `pnpm typecheck && pnpm lint && pnpm test && pnpm build`, both `.env` files moved away | **Pass** | 18 + 369 + 422 + 85 tests, no `Errors` line |
+| `pnpm tokens` twice, then `git diff --exit-code` | **Pass** | the second run changes nothing; both files pass `prettier --check` |
+| Every declared pair passes | **Pass** | 35 pairs: 31 text at 4.5:1 and 4 UI at 3:1; the output lists the seven overrides with both ratios |
+| `tokens.css` is light only and complete | **Pass** | a test: no `.dark`, no `prefers-color-scheme`, one `:root`; every contract and commerce variable in `:root` and in `@theme inline` |
+| **Mutation:** a colour changed in `figma.tokens.json` | **Fails** | `committed.test.ts`: "tokens.css is what the build gives; if not, run `pnpm tokens`" (`base/border` to `#e4e4e4`) |
+| **Mutation:** an alias to a missing variable | **Fails, names it** | `{Mode.state.destructive} tries to reference {TailwindCSS - Colors.Red.Red-6000}, which is not defined` |
+| **Mutation:** an alias cycle | **Fails, names it** | `Circular definition cycle for {semantic.accent} => {Mode.base.accent}, {Mode.base.accent-foreground}, {Mode.base.accent}` |
+| **Mutation:** an overridden pair put back to the kit's value | **Fails, names pair and ratio** | `contrast ui.input-on-background: input #e5e5e5 on background #ffffff is 1.26:1, needs 3:1` |
+| **Mutation:** a radius off the scale | **Fails** | `radius 3xl: the kit has 24px; --radius (10px) + 12px gives 22px` |
+| **Mutation:** a spacing value off the step | **Fails** | `spacing TailwindCSS.gap.gap-3: 13px, but Tailwind's gap-3 is 12px (a 4px step)` |
+| The body's computed colours are `tokens.css`'s (moved from T20) | **Pass** | Playwright against `next start`, `/us`, `/` and the 404 page: `color` `rgb(9, 9, 11)`, `background-color` `rgb(255, 255, 255)`, border colour `rgb(229, 229, 229)`, read from `tokens.css` by the spec |
+| **Mutation:** the body rule without `bg-background` | **Fails** | the three new Playwright tests fail on the rebuilt storefront |
+
+The five plan mutations are tests too (`build.test.ts` makes each on a copy of the files in a temporary folder, with a dozen more: a pair that goes missing, a text pair asking for 3:1, a scrim that fails when composited), and each was also made by hand on the real files, run through `committed.test.ts`, and reverted.
+
+### Anything in the kit that doesn't fit the plan's mapping
+
+- **`primary` is `#000000`** (T18), not shadcn neutral's `#171717`; `primary-foreground` is `#fafafa`. Both pass (21:1 on white, 20.12:1 as text on it). `popover-foreground` is `#000000` while `foreground` and `card-foreground` are `#09090b`; kept as the kit has them.
+- **The shadows' bound variables are unlisted** (T18). Handled: the parser uses the effect styles' own values, none of the references. `--shadow-*` in `tokens.css` is from the styles; the kit's `TailwindCSS/shadow/*` variables (60) are not read.
+- **The six `ring/*` effect styles** (3 px spreads: default, destructive, focus, info, success, warning) are not emitted; `ring-3` plus a colour does the same. `ring/focus` is blue (`#2b7fff33`).
+- **`chart-1` is `#8fc6ff`, 1.79:1 on white.** Charts are not in D35's pairs, so they are not gated, and the five chart colours are all blue. Worth a decision when a chart exists.
+- **`sidebar-ring` is Neutral-400 (`#a1a1a1`, 2.58:1 on the sidebar)**, the same failure as `ring`. Not gated (D35 lists no sidebar pair, and the storefront has no sidebar); the DS page can list it.
+- **The kit's Emerald-600 and Emerald-700 are the same colour.** Its `TailwindCSS - Colors` palette is Tailwind v4's, converted to hex.
+- **The Device collection** says Phone = 640 (`breakpoint/sm`), Tablet = 768, Laptop = 1024, Desktop = 1280, Large Screen = 1536. SPEC §9.2 says breakpoints 375/768/1024/1440. See "Decisions" item 1.
+- **The kit's `shadow/sm` effect style has one layer** (`0 1px 3px 0`), while its `TailwindCSS/shadow/sm/1` and `…/sm/2` variables, like Tailwind's own `shadow-sm`, have two (`0 1px 3px 0` and `0 1px 2px -1px`). The other six styles match their variables layer for layer (I compared every one). `--shadow-sm` follows the style, as T18 item 3 says; see "Decisions" item 9.
+- **Names:** `Mode/opacity/destrucrtive/*` is a typo group (T18); nothing reads it.
+
+### Decisions the plan did not settle
+
+1. **Breakpoints.** D27 lists "breakpoints 375/768/1024/1440" among what the kit lacks, but the kit has five (Tailwind's), and 375 and 1440 are SPEC's design widths (the DS page's viewports, D34), not layout breakpoints. I emitted the kit's five as `--breakpoint-sm` … `-2xl` (so `md:` is 48rem as before, nothing in Tailwind moves) and the four design widths as `--viewport-phone|tablet|laptop|desktop` custom properties in `:root`. If you want `xs:` at 375 or a `3xl:` at 1440, that is a line in `shopblok.tokens.json` and one in `formats.ts`.
+2. **The ring's alpha** (above, item 2) and **the status colours** (item 5).
+3. **Own primitives are emitted, kit palette colours only where used** ("Primitives are emitted only where a semantic token uses them"). So `--input: var(--neutral-450)` and `--destructive: var(--red-600)`, and a brand reassigns either. The kit's literals (`--background: #ffffff`) stay literals.
+4. **The pair and token names** (`text.price-on-background`, `ui.ring-on-background`) and the 35 pairs themselves. D35 lists "the price, badge, stock and status tokens"; I read that as each on `background` (and `card` for the prices) and each `-foreground` on its surface. `rating` is a 3:1 pair (a star is a graphic), and the scrim is measured over `background`.
+5. **z-index, container, motion and the status/commerce hues** are my values (listed in the mapping table); none is in the kit or the spec. They are one-line edits.
+6. **The generator's files.** The plan names `figma-parser`, `checks`, `contrast` and `formats`; `model.ts` (reads the tokens, runs the checks, is what both formats print) and `build.ts` (the Style Dictionary set-up, which `figma-tokens.ts` and the test share) are extra.
+7. **Prettier.** The repo sets no Prettier config (`packages/config`'s preset isn't referenced), so `prettier --check` uses the defaults, 80 columns, and the generated files are written to pass it (the font stack wraps as Prettier wraps it). The preset's 100 columns would flag the existing T18 and T20 files.
+8. **The default border colour** is `@apply border-border` on `*`, as shadcn does; no `outline-ring/50`, which the plan did not list.
+9. **`--shadow-sm`: the effect style or the variables.** The style draws one layer, the variables (Tailwind's) two. I followed the style, because that is what a designer applies in Figma and what T18 item 3 asks the parser to read. Reading `TailwindCSS/shadow/sm/1` and `/2` instead would give Tailwind's own `shadow-sm`; it is a change in `model.ts`'s shadow step, or a one-line fix of the style in Figma and a re-export.
+
+### Smaller observations
+
+- The overrides name the kit's token as a plain path (`Mode.base.input`) in `$extensions`, not as a `{reference}`; I did not test whether Style Dictionary resolves references there.
+- A composite `$value` (the contrast pairs, with `foreground`, `background` and `minimum`) has its inner references resolved, which is how the pairs read the final colours; their original `{semantic.…}` text, kept in `token.original`, gives the names in the messages.
+- `pnpm tokens` takes about half a second. `scripts/turbo.json` (item 6 above) is there on reasoning, not on an observed stale cache: without it, turbo's `scripts#test` hash would not include the token files.
+- `styledictionary.com` was not needed: `node_modules/style-dictionary`'s README and types covered the hooks, `formatPlatform` and `getPlatformTokens`.

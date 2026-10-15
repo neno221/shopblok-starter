@@ -3,10 +3,13 @@
 | File | Written by | What it is |
 |---|---|---|
 | `figma.tokens.json` | the export only (M1 plan, T18; D24, D25) | Every local variable collection of the Figma kit, in every mode, and the kit's local text and effect styles. A normalised copy of Figma's own model: aliases as `{ "alias": "collection/name" }` (with `"remote": true` for another library's variable, and `"unlisted": true` for one its collection no longer lists, which isn't in the file), colours as `#rrggbb` or `#rrggbbaa`, keys sorted and lists sorted by name, no ids and no dates |
-| `shopblok.tokens.json` | hand (T19; D27) | SPEC §9.2's commerce tokens, the contrast pairs and their AA overrides (D35), and what the kit lacks |
-| `../src/styles/tokens.css` | `pnpm tokens` (T19; D26) | The CSS both files build to |
+| `shopblok.tokens.json` | hand (T19; D27) | The two greys of our own, `semantic` (every CSS colour variable as a reference to the kit or to a palette colour, with the kit's value named where an override replaces it, D35), SPEC §9.2's commerce tokens, the contrast pairs, and what the kit lacks (design widths, z-index, containers, motion) |
+| `../src/styles/tokens.css` | `pnpm tokens` (T19; D26) | The CSS both files build to: `:root` and `@theme inline`, light only |
+| `../src/tokens.ts` | `pnpm tokens` (T19) | The same facts as data for the design-system pages: names, values, sources, the kit's value where overridden, and every pair's ratio |
 
 **Never edit `figma.tokens.json` by hand.** A change to the kit is made in Figma and exported again; a departure from the kit goes in `shopblok.tokens.json`. Re-exporting an unchanged kit gives an empty `git diff`.
+
+**Never edit `tokens.css` or `tokens.ts` by hand either.** Run `pnpm tokens` after a change to either token file. The build checks the pairs of `shopblok.tokens.json` (4.5:1 for text, 3:1 for UI components), the radius scale and the 4 px spacing step before it writes anything, and `pnpm test` fails if the committed files differ from the build (`scripts/lib/tokens/committed.test.ts`). To change an override, edit its token under `semantic` in `shopblok.tokens.json`; the failure message names the pair and the ratio.
 
 ## Exporting again
 

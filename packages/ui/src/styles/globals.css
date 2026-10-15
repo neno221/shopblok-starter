@@ -1,20 +1,21 @@
 @import "tailwindcss" source(none);
 @import "tw-animate-css";
+@import "./tokens.css";
 
 /* `source(none)` turns off Tailwind's automatic detection, which scans from the working directory
    of whoever builds (apps/storefront: its e2e specs, its config). This package's own sources are
    scanned here (relative to this file); each app adds its own `@source` in its stylesheet. */
 @source "../";
 
-/* `--font-inter` is set by `next/font` on <html> (apps/storefront/src/lib/fonts.ts, D28); the
-   fallback inside var() keeps a sans-serif where a root layout doesn't set it. `inline`
-   makes `font-sans` read the variable where it is used, not where the theme declares it. */
-@theme inline {
-  --font-sans:
-    var(--font-inter, ui-sans-serif), system-ui, sans-serif,
-    "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
-}
+/* `tokens.css` (generated, T19) holds the theme: the colours, the radius, the type scale and
+   `--font-sans`, which reads the variable `next/font` sets on <html> (apps/storefront/src/lib/
+   fonts.ts, D28). Tailwind's preflight sets <html>'s font-family from `--font-sans`. */
+@layer base {
+  * {
+    @apply border-border;
+  }
 
-/* Preflight already sets <html>'s font-family from `--font-sans`. T19 adds
-   `@import "./tokens.css";` above and an `@layer base` with the base colours (background, text,
-   the default border colour). */
+  body {
+    @apply bg-background text-foreground;
+  }
+}

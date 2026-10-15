@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import {
   expect,
   test,
@@ -154,7 +155,44 @@ test.describe("Inter through next/font", () => {
   });
 });
 
+/** `--name: #rrggbb;` in packages/ui's tokens.css, as the `rgb(r, g, b)` a browser computes. */
+function tokenColour(name: string): string {
+  const css = readFileSync(
+    new URL("../../../packages/ui/src/styles/tokens.css", import.meta.url),
+    "utf8",
+  );
+  const hex = new RegExp(`^ {2}--${name}: #([0-9a-f]{6});`, "m").exec(css)?.[1];
+  if (hex === undefined)
+    throw new Error(`--${name} is not a #rrggbb literal in tokens.css`);
+  const channel = (at: number) => parseInt(hex.slice(at, at + 2), 16);
+  return `rgb(${channel(0)}, ${channel(2)}, ${channel(4)})`;
+}
+
 test.describe("the shared stylesheet", () => {
+  // T19 (moved from T20): the base layer of globals.css uses the tokens.
+  for (const path of ["/us", "/", "/no-such-page-t20"]) {
+    test(`on ${path} the body's colour, background and border colour are tokens.css's`, async ({
+      page,
+    }) => {
+      await load(page, path);
+      const computed = await page.evaluate(() => {
+        const style = getComputedStyle(document.body);
+        return {
+          color: style.color,
+          backgroundColor: style.backgroundColor,
+          borderColor: style.borderTopColor,
+        };
+      });
+      expect(computed).toEqual({
+        color: tokenColour("foreground"),
+        backgroundColor: tokenColour("background"),
+        borderColor: tokenColour("border"),
+      });
+      // Not preflight's black on transparent: the tokens are in use.
+      expect(computed.color).not.toBe("rgb(0, 0, 0)");
+    });
+  }
+
   test("a class used only inside packages/ui/src is in the built CSS (@source)", async ({
     page,
     request,
