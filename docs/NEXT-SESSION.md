@@ -1,21 +1,18 @@
-# M1 is planned and its decisions are confirmed
+# M1: T18 is done, T19 is next
 
-**M0 is closed** (W2's second run passed on 2026-10-13, [PR 29](https://github.com/stephanos221/shopblok-starter/pull/29), merged). **The M1 plan is ready:** [plans/M1.md](plans/M1.md), design foundations (SPEC §17.1 and §9), in [PR 30](https://github.com/stephanos221/shopblok-starter/pull/30). No M1 task has started.
+**T18 exported the Figma kit** (2026-10-15, SETUP.md "Figma export (T18)"): `packages/ui/tokens/figma.tokens.json` has 5 collections and 1,029 variables, made by `scripts/figma/export-variables.js`. **D29 is still open:** this copy of the kit has no atom components, so no Button was measured. Earlier: M0 is closed ([PR 29](https://github.com/stephanos221/shopblok-starter/pull/29)), and the M1 plan is [plans/M1.md](plans/M1.md) ([PR 30](https://github.com/stephanos221/shopblok-starter/pull/30)).
 
-## Your answers, all in the plan
+## Yours: D29 before T21
 
-1. **The Figma file:** https://www.figma.com/design/1PUSIlNviAwiZT0praTxES. It opens through the connector, but it lists only two top-level pages ("★ Welcome", "⤷ Mixed Visuals"). The variables export doesn't depend on that; T18 checks whether the kit's component sets are in this copy (plan §0 item 1).
-2. **`E:\commerce-blocks`:** there is none; M1 starts from shadcn's and ReUI's registries alone.
-3. **G5:** you added the five domains on 2026-10-14; CLOUD.md lists them.
-4. **D24 to D39, confirmed 2026-10-14**, with three changes from the defaults: **D26** Style Dictionary builds the CSS; **D32** every interactive atom is 44 px or more at every width; **D34** the automatic checks run in English and Greek. **D36** (catalog data in the page shell, plus `/next/status`) is your choice, and S4 checks it before ADR 0004 records it.
+T19 and T20 don't need it. Pick one:
+- add a complete copy of the Community file "shadcn/ui – Design System by ReUI" to your team, and a session on your PC runs T18's steps 5 and 6 on it (the Button's height decides); or
+- choose without the measurement: `base-vega` (36 px, the size the plan says ReUI's kit draws) or `base-nova` (32 px).
 
-**Next:** merge PR 30 with a merge commit (G2). Then the two sessions below can start at the same time.
+## T19 · Tokens through Style Dictionary (in a cloud session)
 
-## T18 · Figma export (on your PC, in a local session)
+Start a cloud session in the `shopblok-starter` environment, on `main`, and paste:
 
-Open the desktop app's Code tab on `E:\shopblok-starter`, with `main` pulled and the Figma connector signed in, and paste:
-
-> Run task T18 of docs/plans/M1.md: export the Figma kit's variables. The file is https://www.figma.com/design/1PUSIlNviAwiZT0praTxES (it lists only two top-level pages; see the plan's §0 item 1). Read docs/plans/M1.md (§0, §1 D24 to D29, §4a and §5 T18) and docs/NEXT-SESSION.md first. Load the `/figma-use` skill before any `use_figma` call, and send the file nothing but reads. Work on a new branch from `main`. Follow T18's steps and its Verify list, write the results into docs/SETUP.md under "Figma export (T18)", put the Button measurement into D29 and say which style holds, update the plan's status line and NEXT-SESSION.md (T19's prompt next), then open a PR and don't merge it.
+> Run task T19 of docs/plans/M1.md: build `tokens.css` from the Figma export with Style Dictionary, light only, with the contrast gate. Start as docs/CLOUD.md, "What every cloud session does first", steps 1 to 4 say. Read docs/plans/M1.md (§1 D25 to D28 and D35, §5 T19), SETUP.md's "Figma export (T18)" (its "What should change in the plan" items 3 and 4 concern this task) and packages/ui/tokens/README.md first. Work on a new branch from `main`. Follow T19's steps and its Verify list, record everything in docs/SETUP.md under "Tokens (T19)", update the plan's status line and NEXT-SESSION.md (T20's prompt next), then open a PR with `gh api` (CLOUD.md) and don't merge it.
 
 ## S4 · Backend outage spike (in a cloud session)
 

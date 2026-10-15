@@ -2436,3 +2436,54 @@ NEXT-SESSION.md listed four things the W2 fix task could not check, because it r
 - `git status` in the clone was clean after every step; turbo did not touch `AGENTS.md`.
 - **The session could not see the command lines of processes in your own terminal.** `Get-CimInstance Win32_Process` returned them for the processes the app started and for an editor's TypeScript servers, but not for the processes of `pnpm dev` in Windows Terminal; why was not looked into. The `^C` check above therefore went by parent process ids. A later run from the app can do the same: `Get-NetTCPConnection -State Listen -LocalPort 8000,9000`, then walk `ParentProcessId` up to the root `pnpm.exe`.
 - **The clone and its four volumes are kept** (`E:\shopblok-starter-w2`, with the plain data and the stack stopped by `pnpm infra:down`). `docker compose down -v` there and deleting the folder remove them.
+
+## Figma export (T18)
+
+**Result: the variables are exported, but D29 has no measurement.** `packages/ui/tokens/figma.tokens.json` holds the kit's 5 local collections in all their modes (1,029 variables), its 92 text styles and its 14 effect styles. Committed read-only code made it, and every one of 17 runs gave the same text. **This copy of the kit has none of the atoms' component sets** (no Button, Input, Checkbox or Switch), so T18's steps 5 and 6 couldn't be done here, and D29 stays open (plan §1).
+
+| | |
+|---|---|
+| Date | 2026-10-15 |
+| Run by | A cloud session (the project thread), not your PC. The Figma connector works in the cloud as `Steph` ("Steph's team", Pro, Full seat; `whoami`), so D24's "your PC" wasn't needed for the variables |
+| File | `1PUSIlNviAwiZT0praTxES`. `figma.root.name` is `Document`, so that is the `source.fileName` in the export |
+| Code | `scripts/figma/export-variables.js` (plugin-API reads only: no setter, nothing created or deleted) and `scripts/figma/assemble.mjs` |
+| Calls | `whoami` 2, `get_metadata` 2, `get_screenshot` 2, `use_figma` 30: 17 slices of the export, 3 probes of the file's pages and components, and 10 refused (1 too large, 9 rate-limited) |
+
+### The collections
+
+| Collection | Modes (default first) | Variables | What's in it |
+|---|---|---|---|
+| Device | Phone, Tablet, Laptop, Desktop, Large Screen | 4 | Breakpoint, Grid Count, Gutter, Margin (FLOAT) |
+| Mode | Light, Dark | 182 | The colour layer: `base/*` (17, the shadcn contract), `chart/*` 5, `sidebar/*` 8, `state/*` 12, `opacity/*` 123, `mode mix/*` 17 |
+| Shadcn | Mode 1 | 43 | `focus/*` 30 (the six rings), `font/*` 5 (Inter; 400, 500, 600, 700), `radius/*` 8 |
+| TailwindCSS | Value | 556 | Spacing, padding, margin, gap, size, width, height, text, border, shadow, blur and breakpoint steps, named after Tailwind's classes |
+| TailwindCSS - Colors | Light, Dark | 244 | Tailwind's 22 palettes × 11 steps, plus Black and White |
+
+### Checks (T18 "Verify")
+
+1. **Every local collection, every mode: pass.** The file has the 5 collections above and 1,029 variables, the same count `variableCount` reported from the plugin API on every run.
+2. **A second export is identical: pass.** Each of the 17 slices was a full export in its own run, and all 17 reported the same length (230,081 characters) and FNV-1a hash (`2a006917`). `assemble.mjs` checks both before it writes.
+3. **Nothing written: pass.** The code calls no setter. The session sent the file nothing but reads; the version history can be checked under File → Show version history.
+4. **`docs/design/kit/`: partial.** `atoms.md` has the CC BY 4.0 credit, what this copy draws and the atoms it doesn't. There are no PNGs: the copy draws none of the shadcn atoms, and the container couldn't download the two screenshots it did take (Payment Methods and Flags), because the proxy refuses figma.com's asset host.
+5. **D29 measured: fail.** No Button exists in this copy. See "What should change in the plan".
+
+### What's in the kit that SPEC §9.1 doesn't mention
+
+- **Payment method icons and country flags.** The plan expected neither. `Payment Method / visa, mastercard, maestro, ideal, klarna, apple-pay, google-pay, paypal, wechat` (no Revolut Pay), and `Tabler Flag / <country>`. Also avatars, brand logos, file-type icons and patterns.
+- **`primary` is pure black** (`#000000` in Light), not shadcn neutral's `#171717`. `popover-foreground` is `#000000` too, while `foreground` is `#09090b`.
+- **D35's failing pairs are here as predicted.** In Light, `ring` is `#a1a1a1`, `border` and `input` are `#e5e5e5`, `muted` is `#f5f5f5` and `muted-foreground` is `#737373`.
+- **Seven focus rings.** The `ring/*` effect styles are 3 px spreads with no blur, bound to `Shadcn/focus/*`. `ring/default` is `#a1a1a180` and `ring/focus` is `#2b7fff33`.
+- **The shadows point at variables the file doesn't have.** The eight `shadow/*` effect styles bind to `Shadcn/shadow/*` (50 references), which aren't among the Shadcn collection's 43 variables; they're probably in the library the kit was built from. The effects' own values are in the export, so T19 can use those. All of the variables' own aliases resolve.
+- **Smaller oddities:** a typo group, `Mode/opacity/destrucrtive/`. Three text-style names appear twice: `text-6xl/leading-none/medium`, `text-6xl/leading-regular/regular` and `text-xs/leading-normal/semibold`. The radius scale goes to `4xl` (26), past SPEC §9.1's `3xl`.
+
+### What should change in the plan
+
+1. **D29 stays open.** There's no Button to measure. Either add a complete copy of the Community file to your team and run T18's steps 5 and 6 on it, or choose the style without the measurement. The plan's own note that the ReUI kit draws `new-york-v4`'s sizes (36 px) points to `base-vega`. Nothing before T21 needs it.
+2. **§4a and D24:** the variables export runs in the cloud as well, since the Figma connector works there. Only the screenshots need your PC, because the container can't download them.
+3. **T19's parser:** the `shadow/*` styles' bound variables don't exist (above). It should take each effect's own values and not fail on those references. A missing alias among the *variables* should still fail the build.
+4. **SPEC §9.3 and T23:** PaymentIcon and Flag have kit artwork. Revolut Pay doesn't.
+
+### Smaller observations
+
+- `use_figma` answers at most 20,480 bytes, and the export is 230,081, so the code returns 14,000-character slices. The connector allows about ten calls a minute. A refused call says "truncated to 20kb" even for `return 1`, which reads like a size error but isn't one; `get_metadata` and `whoami` still answered meanwhile. After about two minutes, calls worked again. The script's header and `packages/ui/tokens/README.md` say this.
+- The slices went from the tool's answers into files through the session's own transcript, so a later export needs a session that can save each answer to a file (the README's prompt).
