@@ -3,6 +3,7 @@ import {
   test,
   type APIRequestContext,
   type Page,
+  type Request,
 } from "@playwright/test";
 
 // T20: the shared stylesheet and Inter (SETUP.md, "Styles and fonts (T20)"; plan D28). Run against
@@ -10,9 +11,10 @@ import {
 //
 // The font files are told apart by what the built stylesheet says about them: `next/font` writes
 // one @font-face per subset, each with its own `unicode-range`, and the Greek one is the face whose
-// range contains U+370-377 (the Greek and Coptic block's first letters).
+// range contains U+370-377 (the Greek and Coptic block's first letters; Google's source CSS writes
+// it U+0370-0377, the minified build U+370-377).
 
-const GREEK_RANGE_MARK = "U+370-377";
+const GREEK_RANGE_MARK = /U\+0?370-0?377/i;
 const GOOGLE_HOSTS = /(^|\.)(fonts\.googleapis\.com|fonts\.gstatic\.com)$/;
 
 type FontFace = { file: string; unicodeRange: string };
@@ -62,14 +64,19 @@ function interFaces(css: string): FontFace[] {
 async function load(page: Page, path: string) {
   const woff2: string[] = [];
   const google: string[] = [];
-  page.on("request", (request) => {
+  const onRequest = (request: Request) => {
     const url = new URL(request.url());
     if (GOOGLE_HOSTS.test(url.hostname)) google.push(request.url());
     if (url.pathname.endsWith(".woff2"))
       woff2.push(url.pathname.split("/").pop() ?? url.pathname);
-  });
-  await page.goto(path, { waitUntil: "networkidle" });
-  await page.evaluate(() => document.fonts.ready);
+  };
+  page.on("request", onRequest);
+  try {
+    await page.goto(path, { waitUntil: "networkidle" });
+    await page.evaluate(() => document.fonts.ready);
+  } finally {
+    page.off("request", onRequest);
+  }
   return { woff2, google };
 }
 
@@ -117,7 +124,7 @@ test.describe("Inter through next/font", () => {
       const us = await load(usPage, "/us");
       const faces = interFaces(await builtCss(greekPage, request));
       const greekFiles = faces.filter((face) =>
-        face.unicodeRange.includes(GREEK_RANGE_MARK),
+        GREEK_RANGE_MARK.test(face.unicodeRange),
       );
       expect(
         greekFiles,

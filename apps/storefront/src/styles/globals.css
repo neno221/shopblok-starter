@@ -1,1 +1,4 @@
 @import "@shopblok/ui/globals.css";
+
+/* The storefront's own sources (relative to this file); the shared stylesheet scans packages/ui. */
+@source "../";
