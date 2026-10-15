@@ -18,11 +18,7 @@ Start a cloud session in the `shopblok-starter` environment, on `main`, and past
 
 ## Still open from M0 (yours)
 
-1. **G3, still four parts** ([SETUP.md](SETUP.md#ci-t16), "CI (T16)", item 5):
-   - (a) secret scanning and push protection in Settings → Code security (a session cannot read either setting);
-   - (b) install the Renovate GitHub app (`renovate.json` does nothing without it);
-   - (c) optional: Dependabot alerts are disabled;
-   - (d) optional: branch protection on `main`, requiring `check (Node 22)`, `backend-integration` and `e2e-smoke`, but not `check (Node 24)` or `windows-smoke`. Until then, `gh pr merge --auto` merges at once rather than waiting for CI.
+1. **G3 is closed** ([SETUP.md](SETUP.md#ci-t16), "CI (T16)", item 5, "Outcome"): Renovate is installed and its pin PR is merged, Dependabot alerts are on. Secret scanning and branch protection are not available for a private repo on a Free account, so `main` stays unprotected: wait for green CI before merging, since `gh pr merge --auto` merges at once.
 2. **Say so if you disagree with a default.** Each one stays unless you say.
    - **ADRs 0002 and 0003 are *Accepted*** because your T17 prompt changed none of S2's readings R1 to R5 or S3's R1 to R6. The ones with a real alternative:
      - S2 R1: Meilisearch keeps one index per locale (option B). Option A, on both providers, would be 2.3 times smaller and needs a restart for a new language.
