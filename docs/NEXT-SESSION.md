@@ -2,11 +2,13 @@
 
 **T18 exported the Figma kit** (2026-10-15, SETUP.md "Figma export (T18)"): `packages/ui/tokens/figma.tokens.json` has 5 collections and 1,029 variables, made by `scripts/figma/export-variables.js`. This copy of the kit has no atom components, so no Button was measured; **you chose `base-vega` for D29** instead. Earlier: M0 is closed ([PR 29](https://github.com/stephanos221/shopblok-starter/pull/29)), and the M1 plan is [plans/M1.md](plans/M1.md) ([PR 30](https://github.com/stephanos221/shopblok-starter/pull/30)).
 
+**T20 is already done** (2026-10-15, without tokens, because T18 had not landed then; [SETUP.md](SETUP.md#styles-and-fonts-t20)). So T19 also adds the tokens import and the base colours to `packages/ui/src/styles/globals.css`.
+
 ## T19 · Tokens through Style Dictionary (in a cloud session)
 
 Start a cloud session in the `shopblok-starter` environment, on `main`, and paste:
 
-> Run task T19 of docs/plans/M1.md: build `tokens.css` from the Figma export with Style Dictionary, light only, with the contrast gate. Start as docs/CLOUD.md, "What every cloud session does first", steps 1 to 4 say. Read docs/plans/M1.md (§1 D25 to D28 and D35, §5 T19), SETUP.md's "Figma export (T18)" (its "What should change in the plan" item 3 concerns this task) and packages/ui/tokens/README.md first. Work on a new branch from `main`. Follow T19's steps and its Verify list, record everything in docs/SETUP.md under "Tokens (T19)", update the plan's status line and NEXT-SESSION.md (T20's prompt next), then open a PR with `gh api` (CLOUD.md) and don't merge it.
+> Run task T19 of docs/plans/M1.md: build `tokens.css` from the Figma export with Style Dictionary, light only, with the contrast gate. Start as docs/CLOUD.md, "What every cloud session does first", steps 1 to 4 say. Read docs/plans/M1.md (§1 D25 to D28 and D35, §5 T19), SETUP.md's "Figma export (T18)" (its "What should change in the plan" item 3 concerns this task), its "Styles and fonts (T20)" ("Deviation from the plan": T19 also adds the tokens import and the base colours) and packages/ui/tokens/README.md first. Work on a new branch from `main`. Follow T19's steps and its Verify list, record everything in docs/SETUP.md under "Tokens (T19)", update the plan's status line and NEXT-SESSION.md (T21's prompt next), then open a PR with `gh api` (CLOUD.md) and don't merge it.
 
 ## S4 · Backend outage spike (in a cloud session)
 

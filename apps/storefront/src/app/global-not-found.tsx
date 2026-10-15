@@ -1,6 +1,7 @@
 import { catalogs } from "@shopblok/i18n";
 import type { Metadata, Route } from "next";
 import Link from "next/link";
+import { inter } from "../lib/fonts";
 import { getRenderMarketMap } from "../lib/markets/cached-market-map";
 import { primaryMarket } from "../lib/markets/market";
 import { buildPublicUrl } from "../lib/markets/url";
@@ -29,7 +30,7 @@ export default async function GlobalNotFound() {
   const { notFound } = catalogs.en;
   const home = await homeHref();
   return (
-    <html lang="en">
+    <html lang="en" className={inter.variable}>
       <body>
         <main className="p-8">
           <h1 className="text-2xl font-semibold">{notFound.title}</h1>
