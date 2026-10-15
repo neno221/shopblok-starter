@@ -1,16 +1,16 @@
 // The committed tokens.css and tokens.ts are what Style Dictionary builds from the two token files
-// (M1 plan, T19 step 5; D26): the same build `pnpm tokens` runs, through `formatPlatform`, which
-// writes nothing. So `pnpm test` (and CI's `check`) fails if someone edits a generated file by
+// (M1 plan, T19 step 5; D26): the same build `pnpm tokens` runs, which writes nothing here. So `pnpm test` (and CI's `check`) fails if someone edits a generated file by
 // hand, forgets `pnpm tokens` after changing a token file, or breaks a contrast pair.
 import { readFileSync } from "node:fs";
-import { describe, expect, it, vi } from "vitest";
-import { buildModelFrom, formatTokens, PATHS } from "./build.ts";
+import { describe, expect, it } from "vitest";
+import { buildTokens, PATHS } from "./build.ts";
 import { pairRatio } from "./contrast.ts";
+import { COVERAGE_EXEMPT, needsPair } from "./checks.ts";
 import { COMMERCE, CONTRACT, SURFACES } from "./model.ts";
 
-vi.setConfig({ testTimeout: 30_000 });
-
-const built = await formatTokens();
+// One build for the whole file: the model every test reads, and the text of both files.
+const built = await buildTokens();
+const { model } = built;
 const committed = {
   css: readFileSync(PATHS.css, "utf8"),
   ts: readFileSync(PATHS.ts, "utf8"),
@@ -100,8 +100,7 @@ describe("tokens.css", () => {
     );
   });
 
-  it("emits a primitive only where a semantic token reads it", async () => {
-    const model = await buildModelFrom();
+  it("emits a primitive only where a semantic token reads it", () => {
     const used = new Set(
       model.colors.flatMap((c) => (c.primitive ? [c.primitive] : [])),
     );
@@ -117,21 +116,31 @@ describe("the greys of our own are the lightest that pass (D35)", () => {
   const grey = (step: number) =>
     `#${step.toString(16).padStart(2, "0").repeat(3)}`;
 
-  it("neutral-450 reaches 3:1 on white and one step lighter does not", async () => {
-    const { primitives } = await buildModelFrom();
+  it("neutral-450 reaches 3:1 on white and one step lighter does not", () => {
+    const { primitives } = model;
     const value = primitives.find((p) => p.name === "neutral-450")!.value;
     expect(value).toBe(grey(0x94));
     expect(pairRatio(value, "#ffffff")).toBeGreaterThanOrEqual(3);
     expect(pairRatio(grey(0x95), "#ffffff")).toBeLessThan(3);
   });
 
-  it("neutral-550 reaches 4.5:1 on muted and one step lighter does not", async () => {
-    const { primitives, colors } = await buildModelFrom();
+  it("neutral-550 reaches 4.5:1 on muted and one step lighter does not", () => {
+    const { primitives, colors } = model;
     const value = primitives.find((p) => p.name === "neutral-550")!.value;
     const muted = colors.find((c) => c.name === "muted")!.value;
     expect(value).toBe(grey(0x70));
     expect(pairRatio(value, muted)).toBeGreaterThanOrEqual(4.5);
     expect(pairRatio(grey(0x71), muted)).toBeLessThan(4.5);
+  });
+
+  it("neutral-475 reaches 3:1 on the sidebar, where neutral-450 does not, and one step lighter does not", () => {
+    const { primitives, colors } = model;
+    const value = primitives.find((p) => p.name === "neutral-475")!.value;
+    const sidebar = colors.find((c) => c.name === "sidebar")!.value;
+    expect(value).toBe(grey(0x91));
+    expect(pairRatio(value, sidebar)).toBeGreaterThanOrEqual(3);
+    expect(pairRatio(grey(0x92), sidebar)).toBeLessThan(3);
+    expect(pairRatio(grey(0x94), sidebar)).toBeLessThan(3);
   });
 
   it("at the 50 % alpha the kit draws a ring with, no grey lighter than #2a2a2a reaches 3:1", () => {
@@ -141,16 +150,39 @@ describe("the greys of our own are the lightest that pass (D35)", () => {
 });
 
 describe("the gate", () => {
-  it("passes every declared pair, and each pair has a ratio in tokens.ts", async () => {
-    const model = await buildModelFrom();
+  it("has a pair for every foreground and every ring", () => {
+    const paired = new Set(
+      model.pairs.flatMap((p) => [p.foreground.name, p.background.name]),
+    );
+    for (const { name } of model.colors)
+      if (needsPair(name)) expect(paired, name).toContain(name);
+    expect(Object.keys(COVERAGE_EXEMPT)).toEqual([]);
+  });
+
+  it("holds the sidebar ring at 3:1 on the sidebar, 2.48:1 in the kit", () => {
+    const pair = model.pairs.find(
+      (p) => p.id === "ui.sidebar-ring-on-sidebar",
+    )!;
+    expect(pair.ratio).toBeGreaterThanOrEqual(3);
+    expect(pair.kit?.ratio).toBeCloseTo(2.48, 2);
+    expect(pair.kit?.passes).toBe(false);
+  });
+
+  it("reads the font variable fonts.ts sets", () => {
+    expect(readFileSync(PATHS.fonts, "utf8")).toContain(
+      `variable: "${model.font.variable}"`,
+    );
+  });
+
+  it("passes every declared pair, and each pair has a ratio in tokens.ts", () => {
     expect(model.pairs.length).toBeGreaterThanOrEqual(30);
     for (const pair of model.pairs)
       expect(pair.ratio, pair.id).toBeGreaterThanOrEqual(pair.minimum);
     expect(committed.ts).toContain('id: "ui.input-on-background"');
   });
 
-  it("checks the pairs D35 lists", async () => {
-    const ids = (await buildModelFrom()).pairs.map((p) => p.id);
+  it("checks the pairs D35 lists", () => {
+    const ids = model.pairs.map((p) => p.id);
     for (const id of [
       "text.foreground-on-background",
       "text.card-foreground-on-card",
@@ -164,18 +196,18 @@ describe("the gate", () => {
       "text.stock-out-on-background",
       "ui.input-on-background",
       "ui.ring-on-background",
+      "ui.sidebar-ring-on-sidebar",
       "ui.primary-on-background",
     ])
       expect(ids).toContain(id);
   });
 
-  it("does not check `border`, which D35 calls decorative", async () => {
-    const ids = (await buildModelFrom()).pairs.map((p) => p.id);
+  it("does not check `border`, which D35 calls decorative", () => {
+    const ids = model.pairs.map((p) => p.id);
     expect(ids.filter((id) => id.includes("border"))).toEqual([]);
   });
 
-  it("overrides the kit in seven places, each with the kit's ratio beside ours", async () => {
-    const model = await buildModelFrom();
+  it("overrides the kit in eight places, each with the kit's ratio beside ours", () => {
     const overridden = model.colors
       .filter((c) => c.override)
       .map((c) => c.name);
@@ -184,6 +216,7 @@ describe("the gate", () => {
       "destructive-foreground",
       "input",
       "ring",
+      "sidebar-ring",
       "success",
       "warning",
       "info",

@@ -6,6 +6,7 @@
 import { formatRatio } from "./contrast.ts";
 import {
   buildModel,
+  type BuildOptions,
   type ColorEntry,
   type Model,
   type ShadowLayer,
@@ -249,9 +250,22 @@ export function renderTs(model: Model): string {
 // ---------------------------------------------------------------------------------------------
 // Style Dictionary hooks
 
-export const formats = {
-  "shopblok/css": ({ dictionary }: { dictionary: Dictionary }) =>
-    renderCss(buildModel(dictionary)),
-  "shopblok/ts": ({ dictionary }: { dictionary: Dictionary }) =>
-    renderTs(buildModel(dictionary)),
-};
+/**
+ * The two formats for one build, and the model they share: whichever runs first builds it (every
+ * check runs then), the other renders the same one. `model()` is what the build returns beside
+ * the text, so the checks and the two files come from one pass over the tokens.
+ */
+export function createFormats(options: BuildOptions = {}) {
+  let model: Model | undefined;
+  const modelOf = (dictionary: Dictionary): Model =>
+    (model ??= buildModel(dictionary, options));
+  return {
+    formats: {
+      "shopblok/css": ({ dictionary }: { dictionary: Dictionary }) =>
+        renderCss(modelOf(dictionary)),
+      "shopblok/ts": ({ dictionary }: { dictionary: Dictionary }) =>
+        renderTs(modelOf(dictionary)),
+    },
+    model: (): Model | undefined => model,
+  };
+}

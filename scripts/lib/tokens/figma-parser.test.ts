@@ -215,6 +215,37 @@ describe("styles", () => {
     expect((styles[0]!.token["$value"] as Obj)["fontWeight"]).toBe(600);
   });
 
+  it("records a text style's unknown weight and units as the kit writes them, and does not throw", () => {
+    const tree = parseFigmaTokens(
+      file([], {
+        text: [
+          {
+            ...text("text-xs/auto"),
+            fontStyle: "Extra Bold",
+            lineHeight: { unit: "AUTO" },
+            letterSpacing: { unit: "EM", value: 2 },
+          },
+          {
+            ...text("text-xs/odd"),
+            lineHeight: { unit: "LINES", value: 3 },
+          },
+        ],
+      }),
+    );
+    expect(at(tree, "Text styles", "text-xs", "auto")["$value"]).toEqual({
+      fontFamily: "Inter",
+      fontSize: "12px",
+      fontWeight: "Extra Bold",
+      letterSpacing: "2 EM",
+      lineHeight: "normal",
+    });
+    expect(
+      (at(tree, "Text styles", "text-xs", "odd")["$value"] as Obj)[
+        "lineHeight"
+      ],
+    ).toBe("3 LINES");
+  });
+
   it("writes a shadow from the style's own values and no reference, even where the style binds to a variable the kit no longer lists", () => {
     const tree = parseFigmaTokens(
       file([], {

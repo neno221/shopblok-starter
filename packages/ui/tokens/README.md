@@ -9,7 +9,7 @@
 
 **Never edit `figma.tokens.json` by hand.** A change to the kit is made in Figma and exported again; a departure from the kit goes in `shopblok.tokens.json`. Re-exporting an unchanged kit gives an empty `git diff`.
 
-**Never edit `tokens.css` or `tokens.ts` by hand either.** Run `pnpm tokens` after a change to either token file. The build checks the pairs of `shopblok.tokens.json` (4.5:1 for text, 3:1 for UI components), the radius scale and the 4 px spacing step before it writes anything, and `pnpm test` fails if the committed files differ from the build (`scripts/lib/tokens/committed.test.ts`). To change an override, edit its token under `semantic` in `shopblok.tokens.json`; the failure message names the pair and the ratio.
+**Never edit `tokens.css` or `tokens.ts` by hand either.** Run `pnpm tokens` after a change to either token file. The build checks the pairs of `shopblok.tokens.json` (4.5:1 for text, 3:1 for UI components), the radius scale and the 4 px spacing step before it writes anything (every `*-foreground` and `*-ring` token must be in a pair, or listed with a reason in `COVERAGE_EXEMPT` in `scripts/lib/tokens/checks.ts`; and `fonts.ts` must set the font variable `tokens.css` reads), and `pnpm test` fails if the committed files differ from the build (`scripts/lib/tokens/committed.test.ts`). To change an override, edit its token under `semantic` in `shopblok.tokens.json`; the failure message names the pair and the ratio.
 
 ## Exporting again
 

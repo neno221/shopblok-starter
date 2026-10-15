@@ -10,6 +10,16 @@
         }
       }
     },
+    "neutral-475": {
+      "$type": "color",
+      "$value": "#919191",
+      "$description": "The sidebar ring's grey. #949494 (neutral-450) is 2.91:1 on `sidebar` (#fafafa), so this is the lightest grey that reaches 3:1 there: #929292 is 2.98:1.",
+      "$extensions": {
+        "com.shopblok": {
+          "reason": "neutral-450 fails 3:1 on `sidebar`, which is not white."
+        }
+      }
+    },
     "neutral-550": {
       "$type": "color",
       "$value": "#707070",
@@ -177,7 +187,14 @@
     },
     "sidebar-ring": {
       "$type": "color",
-      "$value": "{Mode.sidebar.ring}"
+      "$value": "{primitive.neutral-475}",
+      "$description": "The ring on the sidebar, drawn at full strength (alpha 1), like `ring`. The kit's #a1a1a1 is 2.48:1 on `sidebar` (#fafafa); this is the lightest grey that reaches 3:1 there.",
+      "$extensions": {
+        "com.shopblok": {
+          "kit": "Mode.sidebar.ring",
+          "reason": "Fails 3:1 on `sidebar` (WCAG 1.4.11)."
+        }
+      }
     },
     "price": {
       "$type": "color",
@@ -550,6 +567,16 @@
           "alpha": 1
         },
         "$description": "Drawn at full strength (alpha 1); see `ring`."
+      },
+      "sidebar-ring-on-sidebar": {
+        "$type": "contrast",
+        "$value": {
+          "foreground": "{semantic.sidebar-ring}",
+          "background": "{semantic.sidebar}",
+          "minimum": 3,
+          "alpha": 1
+        },
+        "$description": "Drawn at full strength (alpha 1); see `sidebar-ring`."
       },
       "primary-on-background": {
         "$type": "contrast",

@@ -1,6 +1,6 @@
 # M1: T19 is done, T21 is next
 
-**T19 built the tokens** (2026-10-15, SETUP.md "Tokens (T19)"): `pnpm tokens` writes `packages/ui/src/styles/tokens.css` and `packages/ui/src/tokens.ts` from the two token files through Style Dictionary 5.6.1, and `globals.css` imports them with the base colours. The contrast gate has 35 pairs and the kit fails it in **seven** places, not D35's three; **the field edge is yours to change** (below). Earlier: T18 exported the Figma kit ([SETUP.md](SETUP.md#figma-export-t18)), T20 wired Tailwind and Inter ([SETUP.md](SETUP.md#styles-and-fonts-t20)), M0 is closed ([PR 29](https://github.com/stephanos221/shopblok-starter/pull/29)), and the M1 plan is [plans/M1.md](plans/M1.md) ([PR 30](https://github.com/stephanos221/shopblok-starter/pull/30)).
+**T19 built the tokens** (2026-10-15, SETUP.md "Tokens (T19)"): `pnpm tokens` writes `packages/ui/src/styles/tokens.css` and `packages/ui/src/tokens.ts` from the two token files through Style Dictionary 5.6.1, and `globals.css` imports them with the base colours. The contrast gate has 36 pairs and the kit fails it in **eight** places, not D35's three; **the field edge is yours to change** (below). Earlier: T18 exported the Figma kit ([SETUP.md](SETUP.md#figma-export-t18)), T20 wired Tailwind and Inter ([SETUP.md](SETUP.md#styles-and-fonts-t20)), M0 is closed ([PR 29](https://github.com/stephanos221/shopblok-starter/pull/29)), and the M1 plan is [plans/M1.md](plans/M1.md) ([PR 30](https://github.com/stephanos221/shopblok-starter/pull/30)).
 
 ## T21 · shadcn and ReUI set-up, and the 17 shadcn atoms (in a cloud session)
 
@@ -81,7 +81,7 @@ This is the Windows half of the plan's §7. The steps that passed on 2026-10-13 
    - `pnpm check:workspace` prints **8 packages** under "Payload versions".
    - A second `pnpm bootstrap` reports `0 done, 10 unchanged, 2 skipped`.
    - `pnpm run doctor` gives 12 checks ok and 1 warning (the email one); `pnpm run doctor --online` gives 15 ok and 1 warning.
-   - `pnpm typecheck && pnpm lint && pnpm test && pnpm build` passes in CI's state: stop the stack and move the two `.env` files out first. **The test counts are 18 + 369 + 422 + 85** (as of T19; they were 18 + 282 + 422 + 85 at `0bbaebe`), with no `Errors` line.
+   - `pnpm typecheck && pnpm lint && pnpm test && pnpm build` passes in CI's state: stop the stack and move the two `.env` files out first. **The test counts are 18 + 397 + 422 + 85** (as of T19; they were 18 + 282 + 422 + 85 at `0bbaebe`), with no `Errors` line.
    - **One `^C`** in the terminal that runs `pnpm dev` brings the prompt back and leaves no process of the checkout behind. `Get-CimInstance Win32_Process | Where-Object CommandLine -like '*shopblok-starter-w2*'` should list nothing except an editor's TypeScript servers, if one is open. Each task prints `Terminate batch job (Y/N)?` once on its way out; that is expected, and nothing waits for an answer.
    - `pnpm infra:down` then `pnpm infra:up` keeps both databases.
    - `pnpm infra:reset` followed by `pnpm bootstrap` brings them back. Then restart `pnpm dev`, because the new database has a new publishable key.

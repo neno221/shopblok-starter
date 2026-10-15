@@ -1,4 +1,5 @@
-// The Style Dictionary parser for `figma.tokens.json` (M1 plan, T19 step 1; D25, D26). It turns
+// The parser for `figma.tokens.json` (M1 plan, T19 step 1; D25, D26); `build.ts` runs it and hands
+// Style Dictionary its result as `tokens`, not as a source path. It turns
 // the normalised export of the Figma kit into design tokens in the DTCG layout: `$value`, `$type`
 // and `{reference}`s, with the collection's name as the first segment of every path and each "/"
 // of a variable's name as one more. Light mode only (SPEC §9): the mode named "Light" if the
@@ -145,32 +146,33 @@ function px(value: number): string {
   return `${value}px`;
 }
 
+/**
+ * A text style. Nothing reads these (the type scale comes from the `TailwindCSS/text/*`
+ * variables, and `tokens.css` and `tokens.ts` hold no style), so a unit or a weight this parser
+ * doesn't know is recorded as the kit writes it, never an error: a new style in Figma must not
+ * stop a token build it has no part in. The effect styles and the variables do feed the
+ * output, and they still fail on what they can't read.
+ */
 function parseText(
   style: NonNullable<NonNullable<FigmaFile["styles"]>["text"]>[number],
 ): DesignToken {
-  const weight = WEIGHTS[style.fontStyle];
-  if (weight === undefined)
-    throw new Error(`${style.name}: unknown font style "${style.fontStyle}"`);
-  let lineHeight: string;
-  if (style.lineHeight.unit === "PIXELS")
-    lineHeight = px(style.lineHeight.value ?? 0);
-  else if (style.lineHeight.unit === "PERCENT")
-    lineHeight = `${style.lineHeight.value ?? 100}%`;
-  else
-    throw new Error(
-      `${style.name}: unknown line height unit ${style.lineHeight.unit}`,
-    );
-  if (
-    style.letterSpacing.unit !== "PERCENT" &&
-    style.letterSpacing.unit !== "PIXELS"
-  )
-    throw new Error(
-      `${style.name}: unknown letter spacing unit ${style.letterSpacing.unit}`,
-    );
+  const weight = WEIGHTS[style.fontStyle] ?? style.fontStyle;
+  const { unit, value } = style.lineHeight;
+  const lineHeight =
+    unit === "PIXELS"
+      ? px(value ?? 0)
+      : unit === "PERCENT"
+        ? `${value ?? 100}%`
+        : unit === "AUTO"
+          ? "normal"
+          : `${value ?? ""} ${unit}`.trim();
+  const spacing = style.letterSpacing;
   const letterSpacing =
-    style.letterSpacing.unit === "PERCENT"
-      ? `${style.letterSpacing.value}%`
-      : px(style.letterSpacing.value);
+    spacing.unit === "PERCENT"
+      ? `${spacing.value}%`
+      : spacing.unit === "PIXELS"
+        ? px(spacing.value)
+        : `${spacing.value ?? ""} ${spacing.unit}`.trim();
   return {
     $type: "typography",
     $value: {
@@ -226,7 +228,7 @@ function parseEffect(
   };
 }
 
-/** Style Dictionary's `parser` hook: the text of `figma.tokens.json` in, DTCG tokens out. */
+/** The text of `figma.tokens.json` in, DTCG tokens out. */
 export function parseFigmaTokens(contents: string): DesignTokens {
   const file = JSON.parse(contents) as FigmaFile;
   const names = file.collections.map((collection) => collection.name);

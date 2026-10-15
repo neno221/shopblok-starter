@@ -247,9 +247,14 @@ export const colors = [
   {
     name: "sidebar-ring",
     variable: "--sidebar-ring",
-    value: "#a1a1a1",
-    source: "Mode.sidebar.ring",
+    value: "#919191",
+    source: "primitive.neutral-475",
     group: "contract",
+    kit: {
+      source: "Mode.sidebar.ring",
+      value: "#a1a1a1",
+      reason: "Fails 3:1 on `sidebar` (WCAG 1.4.11).",
+    },
   },
   {
     name: "price",
@@ -942,6 +947,25 @@ export const contrast = [
     ratio: 3.03,
     kit: {
       ratio: 2.58,
+      passes: false,
+    },
+  },
+  {
+    id: "ui.sidebar-ring-on-sidebar",
+    kind: "ui",
+    minimum: 3,
+    alpha: 1,
+    foreground: {
+      name: "sidebar-ring",
+      value: "#919191",
+    },
+    background: {
+      name: "sidebar",
+      value: "#fafafa",
+    },
+    ratio: 3.02,
+    kit: {
+      ratio: 2.48,
       passes: false,
     },
   },

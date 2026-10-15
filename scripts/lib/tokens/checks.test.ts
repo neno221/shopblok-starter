@@ -1,10 +1,16 @@
 import { describe, expect, it } from "vitest";
 import {
+  CheckError,
+  checkCoverage,
+  checkFontVariable,
   checkRadius,
   checkSpacing,
+  COVERAGE_EXEMPT,
+  declaredFontVariable,
   describeFailure,
   evaluatePair,
   expectedSpacing,
+  needsPair,
   RADIUS_OFFSETS,
   type PairSpec,
 } from "./checks.ts";
@@ -144,6 +150,9 @@ describe("evaluatePair", () => {
     expect(() =>
       evaluatePair(spec({ background: side("overlay", "#00000099") })),
     ).toThrow(/translucent/);
+    expect(() =>
+      evaluatePair(spec({ background: side("overlay", "#00000099") })),
+    ).toThrow(CheckError);
   });
 
   it("describes a failure with the pair, both colours and the ratio", () => {
@@ -162,5 +171,104 @@ describe("evaluatePair", () => {
     expect(describeFailure(failing)).toContain(
       "ring #a1a1a1 at 50 % on background #ffffff is 1.54:1",
     );
+  });
+});
+
+describe("checkCoverage", () => {
+  const names = [
+    "background",
+    "foreground",
+    "card",
+    "card-foreground",
+    "ring",
+    "sidebar-ring",
+    "border",
+    "chart-1",
+  ];
+  const paired = new Set(["foreground", "card-foreground", "ring"]);
+
+  it("applies to foreground, *-foreground, ring and *-ring, and to nothing else", () => {
+    expect(names.filter(needsPair)).toEqual([
+      "foreground",
+      "card-foreground",
+      "ring",
+      "sidebar-ring",
+    ]);
+    expect(needsPair("overlay-foreground")).toBe(true);
+    expect(needsPair("foregrounds")).toBe(false);
+    expect(needsPair("sidebar-border")).toBe(false);
+  });
+
+  it("names a foreground or a ring that sits in no pair", () => {
+    expect(checkCoverage(names, paired, {})).toEqual([
+      expect.stringMatching(/^semantic\.sidebar-ring sits in no contrast pair/),
+    ]);
+    expect(
+      checkCoverage([...names, "badge-new-foreground"], paired, {}),
+    ).toEqual([
+      expect.stringContaining("semantic.sidebar-ring "),
+      expect.stringContaining("semantic.badge-new-foreground "),
+    ]);
+  });
+
+  it("lets an exempt token go without a pair", () => {
+    expect(
+      checkCoverage(names, paired, {
+        "sidebar-ring": "the storefront has no sidebar",
+      }),
+    ).toEqual([]);
+  });
+
+  it("keeps the list honest: no unknown token, no empty reason, nothing already paired", () => {
+    const exempt = (entry: Record<string, string>) =>
+      checkCoverage(names, new Set([...paired, "sidebar-ring"]), entry);
+    expect(exempt({ "no-such-foreground": "x" })).toEqual([
+      "COVERAGE_EXEMPT lists no-such-foreground, which is no semantic token",
+    ]);
+    expect(exempt({ border: " " })).toEqual([
+      "COVERAGE_EXEMPT lists border without a reason",
+    ]);
+    expect(exempt({ ring: "x" })).toEqual([
+      "COVERAGE_EXEMPT lists ring, which sits in a pair now: remove the entry",
+    ]);
+    expect(exempt({ border: "decorative" })).toEqual([
+      "COVERAGE_EXEMPT lists border, which the rule does not apply to: remove the entry",
+    ]);
+  });
+
+  it("ships an allow-list whose entries all have a reason", () => {
+    for (const [name, reason] of Object.entries(COVERAGE_EXEMPT))
+      expect(reason.trim(), name).not.toBe("");
+  });
+});
+
+describe("checkFontVariable", () => {
+  const fonts = `export const inter = Inter({\n  display: "swap",\n  variable: "--font-inter",\n});`;
+
+  it("reads the variable fonts.ts gives next/font", () => {
+    expect(declaredFontVariable(fonts)).toBe("--font-inter");
+    expect(declaredFontVariable("export const inter = Inter({});")).toBe(
+      undefined,
+    );
+  });
+
+  it("passes when tokens.css reads that variable", () => {
+    expect(checkFontVariable("--font-inter", "Inter", fonts)).toEqual([]);
+  });
+
+  it("fails when the kit's font name would change the variable", () => {
+    expect(
+      checkFontVariable("--font-inter-variable", "Inter Variable", fonts),
+    ).toEqual([
+      expect.stringMatching(
+        /tokens\.css reads --font-inter-variable \(from the kit's font "Inter Variable"\), but .*fonts\.ts sets --font-inter;/,
+      ),
+    ]);
+  });
+
+  it("fails when fonts.ts gives no variable at all", () => {
+    expect(checkFontVariable("--font-inter", "Inter", "export {}")).toEqual([
+      expect.stringContaining("declares no `variable:"),
+    ]);
   });
 });

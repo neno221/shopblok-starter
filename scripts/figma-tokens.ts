@@ -3,12 +3,11 @@
 // plain `node scripts/figma-tokens.ts`. Exit code 1, with the reason, if a check fails: nothing is
 // written then.
 import { writeFileSync } from "node:fs";
-import { buildModelFrom, formatTokens, PATHS } from "./lib/tokens/build.ts";
+import { buildTokens, PATHS } from "./lib/tokens/build.ts";
 import { formatRatio } from "./lib/tokens/contrast.ts";
 
 try {
-  const model = await buildModelFrom();
-  const { css, ts } = await formatTokens();
+  const { model, css, ts } = await buildTokens();
   writeFileSync(PATHS.css, css);
   writeFileSync(PATHS.ts, ts);
 

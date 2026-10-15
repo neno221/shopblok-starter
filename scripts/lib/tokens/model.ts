@@ -1,13 +1,18 @@
 // What `tokens.css` and `tokens.ts` say, as plain data (M1 plan, T19; D26 to D28, D35). It reads
 // the tokens Style Dictionary resolved (`getPlatformTokens`) and runs every check on them; both
 // formats render this one model, so neither can print what the checks did not see. It throws, with
-// every failure in one message, before anything is written.
+// every problem it could find in one message, before anything is written: a problem with the token
+// files (a `CheckError`) is noted and the build goes on to the next thing; only a bug in this code
+// stops it short.
 //
 // The mapping from the kit's names to CSS variables is this file's, the commerce tokens, the
 // overrides and the pairs are `shopblok.tokens.json`'s, and the kit's tokens are read, never
 // changed (D27).
 import type { Dictionary, TransformedToken } from "style-dictionary/types";
 import {
+  CheckError,
+  checkCoverage,
+  checkFontVariable,
   checkRadius,
   checkSpacing,
   describeFailure,
@@ -172,36 +177,59 @@ type Tok = TransformedToken & { original?: { $value?: unknown } };
 const refName = (reference: unknown): string => {
   const match =
     typeof reference === "string" ? /^\{(.+)\}$/.exec(reference) : null;
-  if (!match) throw new Error(`"${String(reference)}" is not a {reference}`);
+  if (!match)
+    throw new CheckError(`"${String(reference)}" is not a {reference}`);
   return match[1]!.split(".").at(-1)!;
 };
 
-export function buildModel(dictionary: Dictionary): Model {
+export type BuildOptions = {
+  /** The text of apps/storefront/src/lib/fonts.ts: the font variable is checked against it. */
+  fontsSource?: string;
+};
+
+export function buildModel(
+  dictionary: Dictionary,
+  options: BuildOptions = {},
+): Model {
   const map = dictionary.tokenMap as Map<string, Tok>;
   const errors: string[] = [];
   const read = new Set<string>();
 
+  /** Runs `step`; a `CheckError` becomes one more problem, and the result is undefined. */
+  const attempt = <T>(step: () => T): T | undefined => {
+    try {
+      return step();
+    } catch (error) {
+      if (!(error instanceof CheckError)) throw error;
+      errors.push(error.message);
+      return undefined;
+    }
+  };
+
   const token = (key: string): Tok => {
     const found = map.get(`{${key}}`);
-    if (!found) throw new Error(`the token ${key} is missing`);
+    if (!found) throw new CheckError(`the token ${key} is missing`);
     read.add(key);
     return found;
   };
   const hex = (key: string): string => {
     const value = token(key).$value;
     if (typeof value !== "string" || !HEX.test(value))
-      throw new Error(`${key} is "${String(value)}", not a #rrggbb(aa) colour`);
+      throw new CheckError(
+        `${key} is "${String(value)}", not a #rrggbb(aa) colour`,
+      );
     return value;
   };
   const num = (key: string): number => {
     const value = token(key).$value;
     if (typeof value !== "number")
-      throw new Error(`${key} is "${String(value)}", not a number`);
+      throw new CheckError(`${key} is "${String(value)}", not a number`);
     return value;
   };
   const text = (key: string): string => {
     const value = token(key).$value;
-    if (typeof value !== "string") throw new Error(`${key} is not a string`);
+    if (typeof value !== "string")
+      throw new CheckError(`${key} is not a string`);
     return value;
   };
   const group = (prefix: string): { key: string; token: Tok }[] =>
@@ -251,7 +279,8 @@ export function buildModel(dictionary: Dictionary): Model {
   const emitted = new Map<string, Primitive>();
   const colors: ColorEntry[] = [];
   const kitOverrides = new Map<string, string>(); // css name -> the kit's colour
-  for (const name of ordered) {
+  const unreadable = new Set<string>(); // colours with a problem: their pairs are not run
+  const readColour = (name: string): void => {
     const key = `semantic.${name}`;
     const found = token(key);
     const value = hex(key);
@@ -300,7 +329,10 @@ export function buildModel(dictionary: Dictionary): Model {
         ? { description: String(found.$description) }
         : {}),
     });
-  }
+  };
+  for (const name of ordered)
+    if (attempt(() => (readColour(name), true)) === undefined)
+      unreadable.add(name);
   const primitives = [...emitted.values()].sort((a, b) =>
     a.name.localeCompare(b.name, "en", { numeric: true }),
   );
@@ -309,7 +341,9 @@ export function buildModel(dictionary: Dictionary): Model {
   const kitRadius: Record<string, number> = {};
   for (const entry of group("Shadcn.radius")) {
     read.add(entry.key);
-    kitRadius[entry.key.slice("Shadcn.radius.".length)] = num(entry.key);
+    const value = attempt(() => num(entry.key));
+    if (value !== undefined)
+      kitRadius[entry.key.slice("Shadcn.radius.".length)] = value;
   }
   errors.push(...checkRadius(kitRadius));
   const radiusBase = kitRadius["lg"] ?? 0;
@@ -325,32 +359,36 @@ export function buildModel(dictionary: Dictionary): Model {
   // --- spacing ---------------------------------------------------------------------------
   const spacingEntries = SPACING_GROUPS.flatMap((name) =>
     group(`TailwindCSS.${name}`),
-  ).map((entry) => {
+  ).flatMap((entry) => {
     read.add(entry.key);
-    return {
-      key: entry.key,
-      name: entry.key.split(".").at(-1)!,
-      px: num(entry.key),
-    };
+    const px = attempt(() => num(entry.key));
+    return px === undefined
+      ? []
+      : [{ key: entry.key, name: entry.key.split(".").at(-1)!, px }];
   });
   const spacing = checkSpacing(spacingEntries);
   errors.push(...spacing.errors);
-  if (num("TailwindCSS.spacing.s-1") !== SPACING_STEP_PX)
+  const step = attempt(() => num("TailwindCSS.spacing.s-1"));
+  if (step !== undefined && step !== SPACING_STEP_PX)
     errors.push(
-      `spacing: s-1 is ${num("TailwindCSS.spacing.s-1")}px, not the ${SPACING_STEP_PX}px --spacing`,
+      `spacing: s-1 is ${step}px, not the ${SPACING_STEP_PX}px --spacing`,
     );
 
   // --- type ------------------------------------------------------------------------------
-  const family = text("Shadcn.font.family.font-sans");
-  const weights = group("Shadcn.font.weight").map((entry) => {
+  const family = attempt(() => text("Shadcn.font.family.font-sans")) ?? "";
+  const variable = `--font-${family.toLowerCase().replace(/\s+/g, "-")}`;
+  if (family !== "" && options.fontsSource !== undefined)
+    errors.push(...checkFontVariable(variable, family, options.fontsSource));
+  const weights = group("Shadcn.font.weight").flatMap((entry) => {
     read.add(entry.key);
     const kitName = entry.key.split(".").at(-1)!;
     const name = WEIGHT_NAMES[kitName];
-    if (!name)
-      throw new Error(
-        `${entry.key}: no Tailwind name for the weight ${kitName}`,
-      );
-    return { name, value: num(entry.key) };
+    if (!name) {
+      errors.push(`${entry.key}: no Tailwind name for the weight ${kitName}`);
+      return [];
+    }
+    const value = attempt(() => num(entry.key));
+    return value === undefined ? [] : [{ name, value }];
   });
   weights.sort((a, b) => a.value - b.value);
   const textSteps = [
@@ -359,22 +397,29 @@ export function buildModel(dictionary: Dictionary): Model {
     ),
   ];
   const textScale = textSteps
-    .map((step) => ({
-      step,
-      sizePx: num(`TailwindCSS.text.${step}.font-size`),
-      lineHeightPx: num(`TailwindCSS.text.${step}.line-height`),
-    }))
+    .flatMap((step) => {
+      const scale = attempt(() => ({
+        step,
+        sizePx: num(`TailwindCSS.text.${step}.font-size`),
+        lineHeightPx: num(`TailwindCSS.text.${step}.line-height`),
+      }));
+      return scale ? [scale] : [];
+    })
     .sort((a, b) => a.sizePx - b.sizePx);
 
   // --- breakpoints, shadows ----------------------------------------------------------------
   const breakpoints = group("TailwindCSS.breakpoint")
-    .map((entry) => ({
-      name: entry.key.split(".").at(-1)!,
-      px: num(entry.key),
-    }))
+    .flatMap((entry) => {
+      const px = attempt(() => num(entry.key));
+      return px === undefined
+        ? []
+        : [{ name: entry.key.split(".").at(-1)!, px }];
+    })
     .sort((a, b) => a.px - b.px);
-  const shadows = SHADOW_ORDER.map((name) => {
-    const layers = token(`${EFFECT_STYLES}.shadow.${name}`).$value as {
+  const shadows = SHADOW_ORDER.flatMap((name) => {
+    const style = attempt(() => token(`${EFFECT_STYLES}.shadow.${name}`));
+    if (!style) return [];
+    const layers = style.$value as {
       color: string;
       offsetX: string;
       offsetY: string;
@@ -383,16 +428,18 @@ export function buildModel(dictionary: Dictionary): Model {
     }[];
     const px = (value: string) => Number(value.replace(/px$/, ""));
     // Figma lists a style's layers bottom first; CSS lists the top one first.
-    return {
-      name,
-      layers: [...layers].reverse().map((layer) => ({
-        x: px(layer.offsetX),
-        y: px(layer.offsetY),
-        blur: px(layer.blur),
-        spread: px(layer.spread),
-        color: layer.color,
-      })),
-    };
+    return [
+      {
+        name,
+        layers: [...layers].reverse().map((layer) => ({
+          x: px(layer.offsetX),
+          y: px(layer.offsetY),
+          blur: px(layer.blur),
+          spread: px(layer.spread),
+          color: layer.color,
+        })),
+      },
+    ];
   });
 
   // --- what the kit lacks (shopblok.tokens.json) -----------------------------------------
@@ -412,6 +459,8 @@ export function buildModel(dictionary: Dictionary): Model {
     colors.find((color) => color.name === name)!.value;
   const pairs: PairEntry[] = [];
   const failures: string[] = [];
+  /** Every token some declared pair names, whether or not the pair could be run. */
+  const declared = new Set<string>();
   for (const kind of ["text", "ui"] as const) {
     for (const { key, token: found } of own(`contrast.${kind}`).map(
       (entry) => ({
@@ -424,71 +473,84 @@ export function buildModel(dictionary: Dictionary): Model {
         string,
         unknown
       >;
-      const side = (
-        field: "foreground" | "background" | "over",
-      ): Side | undefined => {
-        if (written[field] === undefined) return undefined;
-        const name = refName(written[field]);
-        if (!semanticNames.includes(name))
-          throw new Error(`${key}: ${name} is not a semantic token`);
-        return { name, hex: String(resolved[field]) };
-      };
-      const foreground = side("foreground")!;
-      const background = side("background")!;
-      const over = side("over");
-      const minimum = Number(resolved["minimum"]);
-      const alpha =
-        resolved["alpha"] === undefined ? 1 : Number(resolved["alpha"]);
-      if (minimum !== (kind === "text" ? 4.5 : 3))
-        errors.push(
-          `${key}: a ${kind} pair needs ${kind === "text" ? 4.5 : 3}:1, it says ${minimum}`,
-        );
-      const spec: PairSpec = {
-        id: key.slice("contrast.".length),
-        foreground,
-        background,
-        ...(over ? { over } : {}),
-        minimum,
-        alpha,
-      };
-      const result = evaluatePair(spec);
-      const entry: PairEntry = { ...result, kind };
-      const touched = [foreground, background, over].some(
-        (s) => s && kitOverrides.has(s.name),
-      );
-      if (touched) {
-        const swap = (s: Side): Side => ({
-          name: s.name,
-          hex: kitOverrides.get(s.name) ?? valueOf(s.name),
-        });
-        const kit = evaluatePair({
-          ...spec,
-          foreground: swap(foreground),
-          background: swap(background),
-          ...(over ? { over: swap(over) } : {}),
-        });
-        entry.kit = { ratio: kit.ratio, passes: kit.passes };
+      for (const field of ["foreground", "background", "over"]) {
+        const named = /^\{(.+)\}$/.exec(String(written[field]))?.[1];
+        if (named) declared.add(named.split(".").at(-1)!);
       }
-      pairs.push(entry);
-      if (!result.passes) failures.push(describeFailure(result));
+      attempt(() => {
+        const side = (
+          field: "foreground" | "background" | "over",
+        ): Side | undefined => {
+          if (written[field] === undefined) return undefined;
+          const name = refName(written[field]);
+          if (!semanticNames.includes(name))
+            throw new CheckError(`${key}: ${name} is not a semantic token`);
+          return { name, hex: String(resolved[field]) };
+        };
+        const foreground = side("foreground");
+        const background = side("background");
+        if (!foreground || !background)
+          throw new CheckError(
+            `${key}: a pair needs a foreground and a background`,
+          );
+        const over = side("over");
+        // A colour that could not be read has said why already.
+        if (
+          [foreground, background, over].some(
+            (s) => s && unreadable.has(s.name),
+          )
+        )
+          return;
+        const minimum = Number(resolved["minimum"]);
+        const alpha =
+          resolved["alpha"] === undefined ? 1 : Number(resolved["alpha"]);
+        if (minimum !== (kind === "text" ? 4.5 : 3))
+          errors.push(
+            `${key}: a ${kind} pair needs ${kind === "text" ? 4.5 : 3}:1, it says ${minimum}`,
+          );
+        const spec: PairSpec = {
+          id: key.slice("contrast.".length),
+          foreground,
+          background,
+          ...(over ? { over } : {}),
+          minimum,
+          alpha,
+        };
+        const result = evaluatePair(spec);
+        const entry: PairEntry = { ...result, kind };
+        const touched = [foreground, background, over].some(
+          (s) => s && kitOverrides.has(s.name),
+        );
+        if (touched) {
+          const swap = (s: Side): Side => ({
+            name: s.name,
+            hex: kitOverrides.get(s.name) ?? valueOf(s.name),
+          });
+          const kit = evaluatePair({
+            ...spec,
+            foreground: swap(foreground),
+            background: swap(background),
+            ...(over ? { over: swap(over) } : {}),
+          });
+          entry.kit = { ratio: kit.ratio, passes: kit.passes };
+        }
+        pairs.push(entry);
+        if (!result.passes) failures.push(describeFailure(result));
+      });
     }
   }
-  if (pairs.length === 0)
+  if (declared.size === 0)
     errors.push("shopblok.tokens.json declares no contrast pair");
   // Every override is a departure from the kit that the gate must be able to see: each one has
   // to sit in at least one declared pair.
   for (const color of colors)
-    if (
-      color.override &&
-      !pairs.some((p) =>
-        [p.foreground, p.background, p.over].some(
-          (s) => s?.name === color.name,
-        ),
-      )
-    )
+    if (color.override && !declared.has(color.name))
       errors.push(
         `semantic.${color.name} overrides the kit and sits in no contrast pair`,
       );
+  // And so does every text colour and every ring, overridden or not: the gate would otherwise
+  // look only where someone already looked (D35).
+  errors.push(...checkCoverage(semanticNames, declared));
 
   errors.push(...failures);
   if (errors.length > 0)
@@ -538,10 +600,7 @@ export function buildModel(dictionary: Dictionary): Model {
       checked: spacing.checked,
       full: spacing.full,
     },
-    font: {
-      family,
-      variable: `--font-${family.toLowerCase().replace(/\s+/g, "-")}`,
-    },
+    font: { family, variable },
     weights,
     text: textScale,
     breakpoints,
