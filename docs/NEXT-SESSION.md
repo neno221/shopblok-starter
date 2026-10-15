@@ -18,8 +18,9 @@ Start a cloud session in the `shopblok-starter` environment, on `main`, and past
 
 ## Still open from M0 (yours)
 
-1. **G3 is closed** ([SETUP.md](SETUP.md#ci-t16), "CI (T16)", item 5, "Outcome"): Renovate is installed and its pin PR is merged, Dependabot alerts are on. Secret scanning and branch protection are not available for a private repo on a Free account, so `main` stays unprotected: wait for green CI before merging, since `gh pr merge --auto` merges at once.
-2. **Say so if you disagree with a default.** Each one stays unless you say.
+G3 is closed ([SETUP.md](SETUP.md#ci-t16), "CI (T16)", item 5, "Outcome"): Renovate is installed and its pin PR is merged, and Dependabot alerts are on. Secret scanning, push protection and branch protection are not available for a private repo on a personal Free account, so `main` stays unprotected. Wait for green CI before merging, because `gh pr merge --auto` merges at once.
+
+1. **Say so if you disagree with a default.** Each one stays unless you say.
    - **ADRs 0002 and 0003 are *Accepted*** because your T17 prompt changed none of S2's readings R1 to R5 or S3's R1 to R6. The ones with a real alternative:
      - S2 R1: Meilisearch keeps one index per locale (option B). Option A, on both providers, would be 2.3 times smaller and needs a restart for a new language.
      - S3 R1: the filter's 2-second memo leaves another server process up to 2 s behind a save.
@@ -37,7 +38,7 @@ Start a cloud session in the `shopblok-starter` environment, on `main`, and past
      - the first-user form (M7);
      - the media drawer (the first M4 collection with an upload field);
      - the dev-mode console (needs an upstream issue).
-3. **Carried over, unchanged.** Each has its default; the evidence is in SETUP.md and the ADRs.
+2. **Carried over, unchanged.** Each has its default; the evidence is in SETUP.md and the ADRs.
    - The first request after a `next start` can wait 320 to 370 ms (`instrumentation.ts`, decided at M7).
    - A saved `markets` map reaches the proxy in 30 to about 65 s.
    - `/cy/` is two hops.

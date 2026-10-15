@@ -1,6 +1,6 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "description": "Plan T16, step 4. Takes effect once the Renovate GitHub app is installed on the repo (G3).",
+  "description": "Plan T16, step 4. The Renovate GitHub app is installed on the repo (G3, 2026-10-15).",
   "extends": ["config:recommended", ":pinAllExceptPeerDependencies"],
   "packageRules": [
     {
