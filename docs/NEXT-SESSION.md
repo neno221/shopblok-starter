@@ -1,6 +1,8 @@
 # M1 is planned and its decisions are confirmed
 
-**M0 is closed** (W2's second run passed on 2026-10-13, [PR 29](https://github.com/stephanos221/shopblok-starter/pull/29), merged). **The M1 plan is ready:** [plans/M1.md](plans/M1.md), design foundations (SPEC §17.1 and §9), in [PR 30](https://github.com/stephanos221/shopblok-starter/pull/30). No M1 task has started.
+**M0 is closed** (W2's second run passed on 2026-10-13, [PR 29](https://github.com/stephanos221/shopblok-starter/pull/29), merged). **The M1 plan is ready:** [plans/M1.md](plans/M1.md), design foundations (SPEC §17.1 and §9), in [PR 30](https://github.com/stephanos221/shopblok-starter/pull/30). Only T20 has run so far.
+
+**T20 is already done** (2026-10-15, on `claude/m1-1d8p7b`, without tokens because T18 has not landed; [SETUP.md](SETUP.md#styles-and-fonts-t20)). T19 still waits for T18, and now also adds the tokens import and the base colours to `packages/ui/src/styles/globals.css`.
 
 ## Your answers, all in the plan
 

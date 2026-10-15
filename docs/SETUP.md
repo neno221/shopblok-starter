@@ -2436,3 +2436,58 @@ NEXT-SESSION.md listed four things the W2 fix task could not check, because it r
 - `git status` in the clone was clean after every step; turbo did not touch `AGENTS.md`.
 - **The session could not see the command lines of processes in your own terminal.** `Get-CimInstance Win32_Process` returned them for the processes the app started and for an editor's TypeScript servers, but not for the processes of `pnpm dev` in Windows Terminal; why was not looked into. The `^C` check above therefore went by parent process ids. A later run from the app can do the same: `Get-NetTCPConnection -State Listen -LocalPort 8000,9000`, then walk `ParentProcessId` up to the root `pnpm.exe`.
 - **The clone and its four volumes are kept** (`E:\shopblok-starter-w2`, with the plain data and the stack stopped by `pnpm infra:down`). `docker compose down -v` there and deleting the folder remove them.
+
+---
+
+# The M1 log
+
+What each M1 task found and measured ([plans/M1.md](plans/M1.md)), in the order the tasks ran.
+
+## Styles and fonts (T20)
+
+**Result: the storefront has one shared stylesheet and Inter through `next/font`, without tokens; T20 ran ahead of T19, and T19 now finishes it.** Every check in T20's Verify list holds except the two that need `tokens.css` (the body's colours, in the first row below). The Payload admin is untouched: its layout imports no storefront CSS and no font, and `payload-admin.spec.ts` passes unchanged.
+
+| | |
+|---|---|
+| Date | 2026-10-15 |
+| Branch | `claude/m1-1d8p7b` |
+| New | `packages/ui/src/styles/globals.css`, `packages/ui/src/styles/source-probe.ts`, `apps/storefront/src/lib/fonts.ts`, `apps/storefront/e2e/styles-fonts.spec.ts` |
+| Changed | `packages/ui/package.json` (export `./globals.css`; `tailwindcss` 4.3.3 and `tw-animate-css` 1.4.0 as dependencies), `apps/storefront/package.json` (`@shopblok/ui` `workspace:*`), `apps/storefront/src/styles/globals.css` (one `@import`), the two storefront root layouts (`[market]/layout.tsx`, `global-not-found.tsx`: `inter.variable` on `<html>`), the lockfile (the `ui` importer and `tw-animate-css@1.4.0`, nothing else) |
+| Tests | Storefront 422 (unchanged), scripts 282, i18n 18. Playwright **69 of 69** against `next start` (5 new, in `styles-fonts.spec.ts`; `payload-admin`, `payload-cache`, `markets`, `wiring` and `payload-locales` unchanged) |
+
+### What was done
+
+1. **`packages/ui/src/styles/globals.css`** imports Tailwind and `tw-animate-css`, lists two `@source`s (`packages/ui/src` and `apps/storefront/src`, relative to the file), declares `--font-sans` in an `@theme inline` block as `var(--font-inter)` followed by a system stack, and sets `html { font-family: var(--font-sans) }` in `@layer base`. It is exported as `@shopblok/ui/globals.css`; the storefront's `src/styles/globals.css` is the one line `@import "@shopblok/ui/globals.css";`.
+2. **`src/lib/fonts.ts`** calls `Inter` once: subsets `latin`, `latin-ext`, `greek`; the variable font with the `opsz` axis (`wght` is the default axis, 100 to 900); `display: "swap"`; `variable: "--font-inter"`. Both root layouts put `inter.variable` on `<html>`. The computed `font-family` of `<body>` is `Inter, "Inter Fallback", ui-sans-serif, system-ui, sans-serif, …`; `Inter Fallback` is the size-adjusted Arial that `next/font` writes, which keeps the layout shift down.
+3. **The build downloaded Inter from Google (G5)** and `.next/static/media/` holds seven woff2 files, served from our own origin: Latin 73,016 bytes, Latin-ext 133,704, Greek 30,256 (and four more, Cyrillic, Cyrillic-ext, Greek-ext and Vietnamese, which the stylesheet declares for subsets we did not ask for and the browser never fetches).
+
+### Checks
+
+| Check | Result | Key output |
+|---|---|---|
+| The body's colour and background are `tokens.css`'s | **Moved to T19** | There are no colours yet; `bg-background` and `text-foreground` arrive with `tokens.css` |
+| The body's computed `font-family` starts with the `next/font` Inter | **Pass** | `/us`, `/` and the global 404 page (its own `<html>`) all compute `Inter, "Inter Fallback", ui-sans-serif, …`, and an Inter `FontFace` has `status: "loaded"` |
+| `/` loads the Greek subset file; `/us` does not | **Pass, with `preload: false`** (item 1 below) | `/` fetches `2edaebbd…woff2` (Greek, 30,256 bytes) and `234d9015…woff2` (Latin, 73,016); `/us` and the 404 page fetch the Latin file only |
+| No request to `fonts.googleapis.com` or `fonts.gstatic.com` | **Pass** | None on `/`, `/us` or the 404 page, with the browser recording every request |
+| A class used only inside `packages/ui/src` is in the built CSS | **Pass** | `.min-w-\[37\.5rem\]` is in the built stylesheet; it is written only in `packages/ui/src/styles/source-probe.ts` (item 2 below) |
+| `pnpm build` in CI's state (no `.env`) | **Pass** | `typecheck`, `lint`, `test` and `build` exit 0 with both `.env` files moved away; `pnpm install --frozen-lockfile` and `pnpm check:workspace` pass |
+| The e2e suite, `payload-admin` included | **Pass** | 69 of 69 in 44 s, run as in CI (`E2E_TEST_ROUTES=true next start`, Medusa up, `pnpm bootstrap` before). Chromium was the image's build 1194 through a `launchOptions.executablePath` in an uncommitted config, because `cdn.playwright.dev` was refused in this session |
+| Mutations | **Fail as they should** | `preload` left at its default: `/us` fetched all three requested subsets (Latin, Latin-ext and Greek, 236,976 bytes) and the Greek test failed. `@source "../"` removed: the probe test failed |
+
+### Decisions the plan did not settle
+
+1. **`preload: false`.** D28 says a Greek page downloads the Greek file and an English page doesn't. With `next/font`'s default (`preload: true`) every page gets a preload hint for the files of all three listed subsets, so `/us` fetched the Greek and Latin-ext files too (237 kB instead of 73 kB). With `preload: false` the browser takes only the files whose `unicode-range` covers the characters on the page. The price is that the Latin file is no longer a preload hint: it starts when the stylesheet has been parsed and the text laid out, and `display: swap` shows the fallback (size-adjusted, so with little shift) until then. The alternative is to keep the preload and give up the per-page saving, or to call `Inter` a second time for the Greek market, which D28 rules out. Measure the first paint when the first real page exists (M2) and change it there if the swap shows.
+2. **The probe.** The plan's "a class used only inside `packages/ui/src` is in the built CSS" needs such a class, and `packages/ui` has none until T21's atoms. `source-probe.ts` holds one arbitrary-value class, and the e2e spec reads the built stylesheet for its rule. It is a Playwright check and not a unit test because the built CSS only exists after `pnpm build`, which `pnpm test` runs before in CI. T21 should point the spec at an atom's class and delete the probe.
+3. **`@import "tailwindcss" source(none)`.** Tailwind v4 also scans from the working directory of the build (here `apps/storefront`, so its `e2e/` folder), so the probe class written in the spec would have put its rule into the CSS and made the check pass whatever `@source` said. With `source(none)` only the two `@source` lines count.
+4. **Dependencies.** `tailwindcss` 4.3.3 is declared in `packages/ui` too, next to `tw-animate-css` 1.4.0, because `@import "tailwindcss"` resolves from the file's own folder and pnpm does not hoist it there. Both versions are exact, and 4.3.3 is the storefront's version.
+5. **`@theme inline`.** It makes `font-sans` read `var(--font-inter)` where it is used; the variable itself is set by the class on `<html>`.
+
+### Deviation from the plan: tokens are not here
+
+T18 (the Figma export) has not landed, so T19 (which builds `tokens.css`) cannot run, and T20 was done first without tokens: the stylesheet has no `@import "./tokens.css"`, no `bg-background` or `text-foreground`, and no default border colour. **T19 now also adds `@import "./tokens.css";` to `globals.css` and the base colours** (body background and text colour, the default border colour), and takes over T20's check on the body's computed colours. Until then the storefront's pages are Tailwind's preflight in black on white.
+
+### Smaller observations
+
+- **The session's `pnpm` could not be started by turbo.** pnpm 12.10.1's own copy under `~/.local/share/pnpm/.tools/` still had the shebang-less placeholder (its postinstall had not replaced it with the native binary), and `turbo` executes it directly: `Exec format error (os error 8)` on every task. Running `node install.js` in that folder fixed it for the session. It is the VM, not the repo, and `npm install -g pnpm@12.10.1` as CLOUD.md says may have avoided it.
+- **Docker Hub answered 429 (rate limit) and the VM had none of the four images.** `mirror.gcr.io/<repo>:<tag>` answered, so each image was pulled from there and tagged with its Docker Hub name; then `pnpm infra:up` and `pnpm bootstrap` ran as usual (49.6 s).
+- **`prettier --check` already warns on both root layouts** at `main`, and nothing in CI runs it; they were left as they were.
