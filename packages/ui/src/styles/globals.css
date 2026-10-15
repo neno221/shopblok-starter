@@ -1,0 +1,25 @@
+@import "tailwindcss" source(none);
+@import "tw-animate-css";
+
+/* `source(none)` turns off Tailwind's automatic detection, which scans from the working directory
+   of whoever builds (apps/storefront: its e2e specs, its config), and the two @source lines say
+   what is scanned: the shared package's own sources, and the storefront's. Paths are relative to
+   this file. */
+@source "../";
+@source "../../../../apps/storefront/src";
+
+/* `--font-inter` is set by `next/font` on <html> (apps/storefront/src/lib/fonts.ts, D28). `inline`
+   makes `font-sans` read the variable where it is used, not where the theme declares it. */
+@theme inline {
+  --font-sans:
+    var(--font-inter), ui-sans-serif, system-ui, sans-serif,
+    "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+}
+
+/* T19 adds `@import "./tokens.css";` above and the base colours below (background, text, the
+   default border colour). */
+@layer base {
+  html {
+    font-family: var(--font-sans);
+  }
+}
