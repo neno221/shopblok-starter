@@ -5,9 +5,16 @@
 // plugin in the Figma desktop app. It calls no setter and creates, changes or
 // deletes nothing. It returns the kit's local variables and its local text and
 // effect styles, already normalised as D25 says:
-//   - collections, variables and styles sorted by name, object keys sorted;
+//   - collections, variables and styles sorted by name (styles that share a
+//     name by their content), object keys sorted;
 //   - a collection's modes keep Figma's order (the first is the default);
-//   - aliases written as "<collection>/<variable name>", never as ids;
+//   - aliases written as { alias: "<collection>/<variable name>" }, never as
+//     ids, with `remote: true` when the variable comes from another library,
+//     and `unlisted: true` when it is a variable of this file that its
+//     collection no longer lists (so it isn't in the export; the kit's effect
+//     styles still use 50 of these);
+//   - a reference to a variable Figma can't find stops the export with an
+//     error, rather than writing a placeholder;
 //   - colours as #rrggbb, or #rrggbbaa when alpha < 1;
 //   - floats rounded to 4 decimals (Figma stores float32, so 0.1 reads as
 //     0.10000000149011612);
@@ -19,8 +26,9 @@
 // connector also allows only about ten calls a minute, and a refused call
 // says "truncated to 20kb" whatever its size, so pause a minute after every
 // few slices. Every slice carries its offset, the length and an
-// FNV-1a hash of the whole text; scripts/figma/assemble.mjs joins the slices,
-// checks both, and writes packages/ui/tokens/figma.tokens.json.
+// FNV-1a hash of the whole text; scripts/figma/assemble.ts joins the slices,
+// checks both, and writes packages/ui/tokens/figma.tokens.json. A slice never
+// ends between the two halves of a surrogate pair.
 const PAGE = 0;
 const PAGE_SIZE = 14000;
 const FILE_KEY = "1PUSIlNviAwiZT0praTxES";
@@ -49,45 +57,54 @@ function sortKeys(value) {
   return value;
 }
 
-const byName = (a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0);
+const cmp = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
+const byName = (a, b) => cmp(a.name, b.name);
+// Three of the kit's text styles share their name with another; their content
+// keeps the order the same from one export to the next.
+const byNameThenContent = (a, b) =>
+  byName(a, b) || cmp(JSON.stringify(sortKeys(a)), JSON.stringify(sortKeys(b)));
 
-const collectionNames = new Map();
-async function collectionName(id) {
-  if (!collectionNames.has(id)) {
+const collectionsById = new Map();
+async function collection(id) {
+  if (!collectionsById.has(id)) {
     const c = await figma.variables.getVariableCollectionByIdAsync(id);
-    collectionNames.set(id, c ? c.name : "?");
+    if (!c) throw new Error(`variable collection ${id} not found`);
+    collectionsById.set(id, { name: c.name, ids: new Set(c.variableIds) });
   }
-  return collectionNames.get(id);
+  return collectionsById.get(id);
 }
 
-const aliasNames = new Map();
-async function aliasName(id) {
-  if (!aliasNames.has(id)) {
+const aliases = new Map();
+async function alias(id, where) {
+  if (!aliases.has(id)) {
     const v = await figma.variables.getVariableByIdAsync(id);
-    aliasNames.set(
-      id,
-      v
-        ? (await collectionName(v.variableCollectionId)) + "/" + v.name
-        : "?missing",
-    );
+    if (!v) throw new Error(`${where} refers to variable ${id}, not found`);
+    const c = await collection(v.variableCollectionId);
+    aliases.set(id, {
+      alias: c.name + "/" + v.name,
+      remote: v.remote || undefined,
+      unlisted: !v.remote && !c.ids.has(id) ? true : undefined,
+    });
   }
-  return aliasNames.get(id);
+  return aliases.get(id);
 }
 
-async function value(v) {
+async function value(v, where) {
   if (v && typeof v === "object" && v.type === "VARIABLE_ALIAS") {
-    return { alias: await aliasName(v.id) };
+    return alias(v.id, where);
   }
   if (v && typeof v === "object" && "r" in v) return hex(v);
   if (typeof v === "number") return round(v);
   return v;
 }
 
-async function bound(boundVariables) {
+async function bound(boundVariables, where) {
   if (!boundVariables) return undefined;
   const out = {};
   for (const [field, b] of Object.entries(boundVariables)) {
-    if (b && b.type === "VARIABLE_ALIAS") out[field] = await aliasName(b.id);
+    if (b && b.type === "VARIABLE_ALIAS") {
+      out[field] = await alias(b.id, `${where}, ${field}`);
+    }
   }
   return Object.keys(out).length ? out : undefined;
 }
@@ -97,10 +114,13 @@ async function exportCollection(c) {
   const vars = [];
   for (const id of c.variableIds) {
     const v = await figma.variables.getVariableByIdAsync(id);
-    if (!v) continue;
+    if (!v)
+      throw new Error(`collection ${c.name} lists variable ${id}, not found`);
     const values = {};
-    for (const m of c.modes)
-      values[m.name] = await value(v.valuesByMode[m.modeId]);
+    for (const m of c.modes) {
+      const where = `${c.name}/${v.name} (${m.name})`;
+      values[m.name] = await value(v.valuesByMode[m.modeId], where);
+    }
     vars.push({
       name: v.name,
       type: v.resolvedType,
@@ -145,7 +165,7 @@ async function exportStyles() {
       paragraphIndent: round(s.paragraphIndent),
       textCase: s.textCase,
       textDecoration: s.textDecoration,
-      boundVariables: await bound(s.boundVariables),
+      boundVariables: await bound(s.boundVariables, `text style ${s.name}`),
     });
   }
   const effect = [];
@@ -160,15 +180,18 @@ async function exportStyles() {
         offset: e.offset
           ? { x: round(e.offset.x), y: round(e.offset.y) }
           : undefined,
-        radius: round(e.radius),
+        radius: e.radius !== undefined ? round(e.radius) : undefined,
         spread: e.spread !== undefined ? round(e.spread) : undefined,
         showShadowBehindNode: e.showShadowBehindNode,
-        boundVariables: await bound(e.boundVariables),
+        boundVariables: await bound(e.boundVariables, `effect style ${s.name}`),
       });
     }
     effect.push({ name: s.name, description: s.description, effects });
   }
-  return { text: text.sort(byName), effect: effect.sort(byName) };
+  return {
+    text: text.sort(byNameThenContent),
+    effect: effect.sort(byNameThenContent),
+  };
 }
 
 const collections = (
@@ -191,12 +214,17 @@ for (let i = 0; i < text.length; i++) {
   hash ^= text.charCodeAt(i);
   hash = Math.imul(hash, 0x01000193) >>> 0;
 }
+// Moves a boundary that falls inside a surrogate pair one place on.
+const boundary = (i) =>
+  i > 0 && i < text.length && /[\uD800-\uDBFF]/.test(text[i - 1]) ? i + 1 : i;
+const start = boundary(PAGE * PAGE_SIZE);
+const end = boundary((PAGE + 1) * PAGE_SIZE);
 return {
   page: PAGE,
-  offset: PAGE * PAGE_SIZE,
+  offset: start,
   pages: Math.ceil(text.length / PAGE_SIZE),
   length: text.length,
   fnv1a: hash.toString(16).padStart(8, "0"),
   variableCount: out.collections.reduce((n, c) => n + c.variableCount, 0),
-  chunk: text.slice(PAGE * PAGE_SIZE, (PAGE + 1) * PAGE_SIZE),
+  chunk: text.slice(start, end),
 };

@@ -6,7 +6,7 @@
 
 Start a cloud session in the `shopblok-starter` environment, on `main`, and paste:
 
-> Run task T19 of docs/plans/M1.md: build `tokens.css` from the Figma export with Style Dictionary, light only, with the contrast gate. Start as docs/CLOUD.md, "What every cloud session does first", steps 1 to 4 say. Read docs/plans/M1.md (§1 D25 to D28 and D35, §5 T19), SETUP.md's "Figma export (T18)" (its "What should change in the plan" items 3 and 4 concern this task) and packages/ui/tokens/README.md first. Work on a new branch from `main`. Follow T19's steps and its Verify list, record everything in docs/SETUP.md under "Tokens (T19)", update the plan's status line and NEXT-SESSION.md (T20's prompt next), then open a PR with `gh api` (CLOUD.md) and don't merge it.
+> Run task T19 of docs/plans/M1.md: build `tokens.css` from the Figma export with Style Dictionary, light only, with the contrast gate. Start as docs/CLOUD.md, "What every cloud session does first", steps 1 to 4 say. Read docs/plans/M1.md (§1 D25 to D28 and D35, §5 T19), SETUP.md's "Figma export (T18)" (its "What should change in the plan" item 3 concerns this task) and packages/ui/tokens/README.md first. Work on a new branch from `main`. Follow T19's steps and its Verify list, record everything in docs/SETUP.md under "Tokens (T19)", update the plan's status line and NEXT-SESSION.md (T20's prompt next), then open a PR with `gh api` (CLOUD.md) and don't merge it.
 
 ## S4 · Backend outage spike (in a cloud session)
 

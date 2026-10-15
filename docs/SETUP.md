@@ -2439,15 +2439,15 @@ NEXT-SESSION.md listed four things the W2 fix task could not check, because it r
 
 ## Figma export (T18)
 
-**Result: the variables are exported; D29 was settled without a measurement.** `packages/ui/tokens/figma.tokens.json` holds the kit's 5 local collections in all their modes (1,029 variables), its 92 text styles and its 14 effect styles. Committed read-only code made it, and every one of 17 runs gave the same text. **This copy of the kit has none of the atoms' component sets** (no Button, Input, Checkbox or Switch), so T18's steps 5 and 6 couldn't be done here. You chose `base-vega` for D29 without the measurement (2026-10-15).
+**Result: the variables are exported; D29 was settled without a measurement.** `packages/ui/tokens/figma.tokens.json` holds the kit's 5 local collections in all their modes (1,029 variables), its 92 text styles and its 14 effect styles. Committed read-only code made it, and every run of it gave the same text. **This copy of the kit has none of the atoms' component sets** (no Button, Input, Checkbox or Switch), so T18's steps 5 and 6 couldn't be done here. You chose `base-vega` for D29 without the measurement (2026-10-15).
 
 | | |
 |---|---|
 | Date | 2026-10-15 |
 | Run by | A cloud session (the project thread), not your PC. The Figma connector works in the cloud as `Steph` ("Steph's team", Pro, Full seat; `whoami`), so D24's "your PC" wasn't needed for the variables |
 | File | `1PUSIlNviAwiZT0praTxES`. `figma.root.name` is `Document`, so that is the `source.fileName` in the export |
-| Code | `scripts/figma/export-variables.js` (plugin-API reads only: no setter, nothing created or deleted) and `scripts/figma/assemble.mjs` |
-| Calls | `whoami` 2, `get_metadata` 2, `get_screenshot` 2, `use_figma` 30: 17 slices of the export, 3 probes of the file's pages and components, and 10 refused (1 too large, 9 rate-limited) |
+| Code | `scripts/figma/export-variables.js` (plugin-API reads only: no setter, nothing created or deleted) and `scripts/figma/assemble.ts` (with `scripts/lib/figma-slices.ts` and its test) |
+| Calls | `whoami` 2, `get_metadata` 2, `get_screenshot` 2, `use_figma` 30: 17 slices of the export, 3 probes of the file's pages and components, and 10 refused (1 too large, 9 rate-limited). After the review: 17 slices again, 1 probe of the shadow variables, and 1 run for the final length and hash |
 
 ### The collections
 
@@ -2462,7 +2462,7 @@ NEXT-SESSION.md listed four things the W2 fix task could not check, because it r
 ### Checks (T18 "Verify")
 
 1. **Every local collection, every mode: pass.** The file has the 5 collections above and 1,029 variables, the same count `variableCount` reported from the plugin API on every run.
-2. **A second export is identical: pass.** Each of the 17 slices was a full export in its own run, and all 17 reported the same length (230,081 characters) and FNV-1a hash (`2a006917`). `assemble.mjs` checks both before it writes.
+2. **A second export is identical: pass.** Each slice is a full export in its own run, and every run of the same code reported the same length and FNV-1a hash: 17 runs of the first code (230,081 characters, `2a006917`) and 17 of the code after the review (234,271, `a2428f19`). `assemble.ts` checks both before it writes. The committed file is the last code's output (235,071, `140cc6d9`): that run's length and hash match the 17 slices with `"unlisted": true` added to the 50 shadow references, the only change that code makes.
 3. **Nothing written: pass.** The code calls no setter. The session sent the file nothing but reads; the version history can be checked under File → Show version history.
 4. **`docs/design/kit/`: partial.** `atoms.md` has the CC BY 4.0 credit, what this copy draws and the atoms it doesn't. There are no PNGs: the copy draws none of the shadcn atoms, and the container couldn't download the two screenshots it did take (Payment Methods and Flags), because the proxy refuses figma.com's asset host.
 5. **D29 measured: not possible.** No Button exists in this copy. You chose `base-vega` instead (plan §1).
@@ -2472,18 +2472,19 @@ NEXT-SESSION.md listed four things the W2 fix task could not check, because it r
 - **Payment method icons and country flags.** The plan expected neither. `Payment Method / visa, mastercard, maestro, ideal, klarna, apple-pay, google-pay, paypal, wechat` (no Revolut Pay), and `Tabler Flag / <country>`. Also avatars, brand logos, file-type icons and patterns.
 - **`primary` is pure black** (`#000000` in Light), not shadcn neutral's `#171717`. `popover-foreground` is `#000000` too, while `foreground` is `#09090b`.
 - **D35's failing pairs are here as predicted.** In Light, `ring` is `#a1a1a1`, `border` and `input` are `#e5e5e5`, `muted` is `#f5f5f5` and `muted-foreground` is `#737373`.
-- **Seven focus rings.** The `ring/*` effect styles are 3 px spreads with no blur, bound to `Shadcn/focus/*`. `ring/default` is `#a1a1a180` and `ring/focus` is `#2b7fff33`.
-- **The shadows point at variables the file doesn't have.** The eight `shadow/*` effect styles bind to `Shadcn/shadow/*` (50 references), which aren't among the Shadcn collection's 43 variables; they're probably in the library the kit was built from. The effects' own values are in the export, so T19 can use those. All of the variables' own aliases resolve.
-- **Smaller oddities:** a typo group, `Mode/opacity/destrucrtive/`. Three text-style names appear twice: `text-6xl/leading-none/medium`, `text-6xl/leading-regular/regular` and `text-xs/leading-normal/semibold`. The radius scale goes to `4xl` (26), past SPEC §9.1's `3xl`.
+- **Six focus rings.** The `ring/*` effect styles are 3 px spreads with no blur, bound to `Shadcn/focus/*`. `ring/default` is `#a1a1a180` and `ring/focus` is `#2b7fff33`.
+- **The shadows are bound to variables the kit no longer lists.** The eight `shadow/*` effect styles bind to `Shadcn/shadow/*` (50 references). Figma still resolves those variables, as local (not remote) variables of the Shadcn collection, but the collection's list of 43 doesn't include them, so they aren't in the export. The export marks each of those references `"unlisted": true` (it would mark another library's variable `"remote": true`; there are none). The effects' own values are in the export, and the `TailwindCSS` collection has its own `shadow/*` variables. Every other reference resolves to an exported variable; a reference Figma couldn't resolve at all would stop the export.
+- **Three text-style names appear twice**, with different content: `text-6xl/leading-none/medium`, `text-6xl/leading-regular/regular` and `text-xs/leading-normal/semibold`. The export orders each pair by content, so the order doesn't change between exports.
+- **Smaller oddities:** a typo group, `Mode/opacity/destrucrtive/`. The radius scale goes to `4xl` (26), past SPEC §9.1's `3xl`.
 
 ### What should change in the plan
 
 1. **D29 is `base-vega`, without a measurement.** There's no Button to measure. You chose `base-vega` (36 px), the size the plan says the ReUI kit draws, over adding a complete copy of the Community file. §1 says so.
 2. **§4a and D24:** the variables export runs in the cloud as well, since the Figma connector works there. Only the screenshots need your PC, because the container can't download them.
-3. **T19's parser:** the `shadow/*` styles' bound variables don't exist (above). It should take each effect's own values and not fail on those references. A missing alias among the *variables* should still fail the build.
+3. **T19's parser** has two things to handle. First, the `shadow/*` styles' bound variables are unlisted (`"unlisted": true`, above): it should take each effect's own values and not look those references up. Any other alias that doesn't resolve should still fail the build. Second, three text-style names are duplicated (above): it must not key text styles by name alone, or it will drop one of each pair silently.
 4. **SPEC §9.3 and T23:** PaymentIcon and Flag have kit artwork. Revolut Pay doesn't.
 
 ### Smaller observations
 
-- `use_figma` answers at most 20,480 bytes, and the export is 230,081, so the code returns 14,000-character slices. The connector allows about ten calls a minute. A refused call says "truncated to 20kb" even for `return 1`, which reads like a size error but isn't one; `get_metadata` and `whoami` still answered meanwhile. After about two minutes, calls worked again. The script's header and `packages/ui/tokens/README.md` say this.
+- `use_figma` answers at most 20,480 bytes, and the export is about 235,000, so the code returns 14,000-character slices. The connector allows about ten calls a minute. A refused call says "truncated to 20kb" even for `return 1`, which reads like a size error but isn't one; `get_metadata` and `whoami` still answered meanwhile. After about two minutes, calls worked again. The script's header and `packages/ui/tokens/README.md` say this.
 - The slices went from the tool's answers into files through the session's own transcript, so a later export needs a session that can save each answer to a file (the README's prompt).

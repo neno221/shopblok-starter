@@ -14513,7 +14513,9 @@
         "effects": [
           {
             "boundVariables": {
-              "radius": "TailwindCSS/blur/xs"
+              "radius": {
+                "alias": "TailwindCSS/blur/xs"
+              }
             },
             "radius": 4,
             "type": "BACKGROUND_BLUR",
@@ -14528,11 +14530,21 @@
           {
             "blendMode": "NORMAL",
             "boundVariables": {
-              "color": "Shadcn/focus/default/color",
-              "offsetX": "Shadcn/focus/default/offset-x",
-              "offsetY": "Shadcn/focus/default/offset-y",
-              "radius": "Shadcn/focus/default/blur",
-              "spread": "Shadcn/focus/default/spread"
+              "color": {
+                "alias": "Shadcn/focus/default/color"
+              },
+              "offsetX": {
+                "alias": "Shadcn/focus/default/offset-x"
+              },
+              "offsetY": {
+                "alias": "Shadcn/focus/default/offset-y"
+              },
+              "radius": {
+                "alias": "Shadcn/focus/default/blur"
+              },
+              "spread": {
+                "alias": "Shadcn/focus/default/spread"
+              }
             },
             "color": "#a1a1a180",
             "offset": {
@@ -14554,11 +14566,21 @@
           {
             "blendMode": "NORMAL",
             "boundVariables": {
-              "color": "Shadcn/focus/destructive/color",
-              "offsetX": "Shadcn/focus/destructive/offset-x",
-              "offsetY": "Shadcn/focus/destructive/offset-y",
-              "radius": "Shadcn/focus/destructive/blur",
-              "spread": "Shadcn/focus/destructive/spread"
+              "color": {
+                "alias": "Shadcn/focus/destructive/color"
+              },
+              "offsetX": {
+                "alias": "Shadcn/focus/destructive/offset-x"
+              },
+              "offsetY": {
+                "alias": "Shadcn/focus/destructive/offset-y"
+              },
+              "radius": {
+                "alias": "Shadcn/focus/destructive/blur"
+              },
+              "spread": {
+                "alias": "Shadcn/focus/destructive/spread"
+              }
             },
             "color": "#e7000b33",
             "offset": {
@@ -14580,11 +14602,21 @@
           {
             "blendMode": "NORMAL",
             "boundVariables": {
-              "color": "Shadcn/focus/focus/color",
-              "offsetX": "Shadcn/focus/default/offset-x",
-              "offsetY": "Shadcn/focus/default/offset-y",
-              "radius": "Shadcn/focus/default/blur",
-              "spread": "Shadcn/focus/default/spread"
+              "color": {
+                "alias": "Shadcn/focus/focus/color"
+              },
+              "offsetX": {
+                "alias": "Shadcn/focus/default/offset-x"
+              },
+              "offsetY": {
+                "alias": "Shadcn/focus/default/offset-y"
+              },
+              "radius": {
+                "alias": "Shadcn/focus/default/blur"
+              },
+              "spread": {
+                "alias": "Shadcn/focus/default/spread"
+              }
             },
             "color": "#2b7fff33",
             "offset": {
@@ -14606,11 +14638,21 @@
           {
             "blendMode": "NORMAL",
             "boundVariables": {
-              "color": "Shadcn/focus/info/color",
-              "offsetX": "Shadcn/focus/info/offset-x",
-              "offsetY": "Shadcn/focus/info/offset-y",
-              "radius": "Shadcn/focus/info/blur",
-              "spread": "Shadcn/focus/info/spread"
+              "color": {
+                "alias": "Shadcn/focus/info/color"
+              },
+              "offsetX": {
+                "alias": "Shadcn/focus/info/offset-x"
+              },
+              "offsetY": {
+                "alias": "Shadcn/focus/info/offset-y"
+              },
+              "radius": {
+                "alias": "Shadcn/focus/info/blur"
+              },
+              "spread": {
+                "alias": "Shadcn/focus/info/spread"
+              }
             },
             "color": "#8e51ff33",
             "offset": {
@@ -14632,11 +14674,21 @@
           {
             "blendMode": "NORMAL",
             "boundVariables": {
-              "color": "Shadcn/focus/success/color",
-              "offsetX": "Shadcn/focus/success/offset-x",
-              "offsetY": "Shadcn/focus/success/offset-y",
-              "radius": "Shadcn/focus/success/blur",
-              "spread": "Shadcn/focus/success/spread"
+              "color": {
+                "alias": "Shadcn/focus/success/color"
+              },
+              "offsetX": {
+                "alias": "Shadcn/focus/success/offset-x"
+              },
+              "offsetY": {
+                "alias": "Shadcn/focus/success/offset-y"
+              },
+              "radius": {
+                "alias": "Shadcn/focus/success/blur"
+              },
+              "spread": {
+                "alias": "Shadcn/focus/success/spread"
+              }
             },
             "color": "#00bc7d33",
             "offset": {
@@ -14658,11 +14710,21 @@
           {
             "blendMode": "NORMAL",
             "boundVariables": {
-              "color": "Shadcn/focus/warning/color",
-              "offsetX": "Shadcn/focus/warning/offset-x",
-              "offsetY": "Shadcn/focus/warning/offset-y",
-              "radius": "Shadcn/focus/warning/blur",
-              "spread": "Shadcn/focus/warning/spread"
+              "color": {
+                "alias": "Shadcn/focus/warning/color"
+              },
+              "offsetX": {
+                "alias": "Shadcn/focus/warning/offset-x"
+              },
+              "offsetY": {
+                "alias": "Shadcn/focus/warning/offset-y"
+              },
+              "radius": {
+                "alias": "Shadcn/focus/warning/blur"
+              },
+              "spread": {
+                "alias": "Shadcn/focus/warning/spread"
+              }
             },
             "color": "#f0b10033",
             "offset": {
@@ -14684,11 +14746,26 @@
           {
             "blendMode": "NORMAL",
             "boundVariables": {
-              "color": "Shadcn/shadow/2xl/color",
-              "offsetX": "Shadcn/shadow/2xl/offset-x",
-              "offsetY": "Shadcn/shadow/2xl/offset-y",
-              "radius": "Shadcn/shadow/2xl/blur",
-              "spread": "Shadcn/shadow/2xl/spread"
+              "color": {
+                "alias": "Shadcn/shadow/2xl/color",
+                "unlisted": true
+              },
+              "offsetX": {
+                "alias": "Shadcn/shadow/2xl/offset-x",
+                "unlisted": true
+              },
+              "offsetY": {
+                "alias": "Shadcn/shadow/2xl/offset-y",
+                "unlisted": true
+              },
+              "radius": {
+                "alias": "Shadcn/shadow/2xl/blur",
+                "unlisted": true
+              },
+              "spread": {
+                "alias": "Shadcn/shadow/2xl/spread",
+                "unlisted": true
+              }
             },
             "color": "#00000040",
             "offset": {
@@ -14710,11 +14787,26 @@
           {
             "blendMode": "NORMAL",
             "boundVariables": {
-              "color": "Shadcn/shadow/2xs/color",
-              "offsetX": "Shadcn/shadow/2xs/offset-x",
-              "offsetY": "Shadcn/shadow/2xs/offset-y",
-              "radius": "Shadcn/shadow/2xs/blur",
-              "spread": "Shadcn/shadow/2xs/spread"
+              "color": {
+                "alias": "Shadcn/shadow/2xs/color",
+                "unlisted": true
+              },
+              "offsetX": {
+                "alias": "Shadcn/shadow/2xs/offset-x",
+                "unlisted": true
+              },
+              "offsetY": {
+                "alias": "Shadcn/shadow/2xs/offset-y",
+                "unlisted": true
+              },
+              "radius": {
+                "alias": "Shadcn/shadow/2xs/blur",
+                "unlisted": true
+              },
+              "spread": {
+                "alias": "Shadcn/shadow/2xs/spread",
+                "unlisted": true
+              }
             },
             "color": "#0000000d",
             "offset": {
@@ -14736,11 +14828,26 @@
           {
             "blendMode": "NORMAL",
             "boundVariables": {
-              "color": "Shadcn/shadow/lg/2/color",
-              "offsetX": "Shadcn/shadow/lg/2/offset-x",
-              "offsetY": "Shadcn/shadow/lg/2/offset-y",
-              "radius": "Shadcn/shadow/lg/2/blur",
-              "spread": "Shadcn/shadow/lg/2/spread"
+              "color": {
+                "alias": "Shadcn/shadow/lg/2/color",
+                "unlisted": true
+              },
+              "offsetX": {
+                "alias": "Shadcn/shadow/lg/2/offset-x",
+                "unlisted": true
+              },
+              "offsetY": {
+                "alias": "Shadcn/shadow/lg/2/offset-y",
+                "unlisted": true
+              },
+              "radius": {
+                "alias": "Shadcn/shadow/lg/2/blur",
+                "unlisted": true
+              },
+              "spread": {
+                "alias": "Shadcn/shadow/lg/2/spread",
+                "unlisted": true
+              }
             },
             "color": "#0000001a",
             "offset": {
@@ -14756,11 +14863,26 @@
           {
             "blendMode": "NORMAL",
             "boundVariables": {
-              "color": "Shadcn/shadow/lg/1/color",
-              "offsetX": "Shadcn/shadow/lg/1/offset-x",
-              "offsetY": "Shadcn/shadow/lg/1/offset-y",
-              "radius": "Shadcn/shadow/lg/1/blur",
-              "spread": "Shadcn/shadow/lg/1/spread"
+              "color": {
+                "alias": "Shadcn/shadow/lg/1/color",
+                "unlisted": true
+              },
+              "offsetX": {
+                "alias": "Shadcn/shadow/lg/1/offset-x",
+                "unlisted": true
+              },
+              "offsetY": {
+                "alias": "Shadcn/shadow/lg/1/offset-y",
+                "unlisted": true
+              },
+              "radius": {
+                "alias": "Shadcn/shadow/lg/1/blur",
+                "unlisted": true
+              },
+              "spread": {
+                "alias": "Shadcn/shadow/lg/1/spread",
+                "unlisted": true
+              }
             },
             "color": "#0000001a",
             "offset": {
@@ -14782,11 +14904,26 @@
           {
             "blendMode": "NORMAL",
             "boundVariables": {
-              "color": "Shadcn/shadow/md/2/color",
-              "offsetX": "Shadcn/shadow/md/2/offset-x",
-              "offsetY": "Shadcn/shadow/md/2/offset-y",
-              "radius": "Shadcn/shadow/md/2/blur",
-              "spread": "Shadcn/shadow/md/2/spread"
+              "color": {
+                "alias": "Shadcn/shadow/md/2/color",
+                "unlisted": true
+              },
+              "offsetX": {
+                "alias": "Shadcn/shadow/md/2/offset-x",
+                "unlisted": true
+              },
+              "offsetY": {
+                "alias": "Shadcn/shadow/md/2/offset-y",
+                "unlisted": true
+              },
+              "radius": {
+                "alias": "Shadcn/shadow/md/2/blur",
+                "unlisted": true
+              },
+              "spread": {
+                "alias": "Shadcn/shadow/md/2/spread",
+                "unlisted": true
+              }
             },
             "color": "#0000001a",
             "offset": {
@@ -14802,11 +14939,26 @@
           {
             "blendMode": "NORMAL",
             "boundVariables": {
-              "color": "Shadcn/shadow/md/1/color",
-              "offsetX": "Shadcn/shadow/md/1/offset-x",
-              "offsetY": "Shadcn/shadow/md/1/offset-y",
-              "radius": "Shadcn/shadow/md/1/blur",
-              "spread": "Shadcn/shadow/md/1/spread"
+              "color": {
+                "alias": "Shadcn/shadow/md/1/color",
+                "unlisted": true
+              },
+              "offsetX": {
+                "alias": "Shadcn/shadow/md/1/offset-x",
+                "unlisted": true
+              },
+              "offsetY": {
+                "alias": "Shadcn/shadow/md/1/offset-y",
+                "unlisted": true
+              },
+              "radius": {
+                "alias": "Shadcn/shadow/md/1/blur",
+                "unlisted": true
+              },
+              "spread": {
+                "alias": "Shadcn/shadow/md/1/spread",
+                "unlisted": true
+              }
             },
             "color": "#0000001a",
             "offset": {
@@ -14828,11 +14980,26 @@
           {
             "blendMode": "NORMAL",
             "boundVariables": {
-              "color": "Shadcn/shadow/sm/1/color",
-              "offsetX": "Shadcn/shadow/sm/1/offset-x",
-              "offsetY": "Shadcn/shadow/sm/1/offset-y",
-              "radius": "Shadcn/shadow/sm/1/blur",
-              "spread": "Shadcn/shadow/sm/1/spread"
+              "color": {
+                "alias": "Shadcn/shadow/sm/1/color",
+                "unlisted": true
+              },
+              "offsetX": {
+                "alias": "Shadcn/shadow/sm/1/offset-x",
+                "unlisted": true
+              },
+              "offsetY": {
+                "alias": "Shadcn/shadow/sm/1/offset-y",
+                "unlisted": true
+              },
+              "radius": {
+                "alias": "Shadcn/shadow/sm/1/blur",
+                "unlisted": true
+              },
+              "spread": {
+                "alias": "Shadcn/shadow/sm/1/spread",
+                "unlisted": true
+              }
             },
             "color": "#0000001a",
             "offset": {
@@ -14854,11 +15021,26 @@
           {
             "blendMode": "NORMAL",
             "boundVariables": {
-              "color": "Shadcn/shadow/xl/2/color",
-              "offsetX": "Shadcn/shadow/xl/2/offset-x",
-              "offsetY": "Shadcn/shadow/xl/2/offset-y",
-              "radius": "Shadcn/shadow/xl/2/blur",
-              "spread": "Shadcn/shadow/xl/2/spread"
+              "color": {
+                "alias": "Shadcn/shadow/xl/2/color",
+                "unlisted": true
+              },
+              "offsetX": {
+                "alias": "Shadcn/shadow/xl/2/offset-x",
+                "unlisted": true
+              },
+              "offsetY": {
+                "alias": "Shadcn/shadow/xl/2/offset-y",
+                "unlisted": true
+              },
+              "radius": {
+                "alias": "Shadcn/shadow/xl/2/blur",
+                "unlisted": true
+              },
+              "spread": {
+                "alias": "Shadcn/shadow/xl/2/spread",
+                "unlisted": true
+              }
             },
             "color": "#0000001a",
             "offset": {
@@ -14874,11 +15056,26 @@
           {
             "blendMode": "NORMAL",
             "boundVariables": {
-              "color": "Shadcn/shadow/xl/1/color",
-              "offsetX": "Shadcn/shadow/xl/1/offset-x",
-              "offsetY": "Shadcn/shadow/xl/1/offset-y",
-              "radius": "Shadcn/shadow/xl/1/blur",
-              "spread": "Shadcn/shadow/xl/1/spread"
+              "color": {
+                "alias": "Shadcn/shadow/xl/1/color",
+                "unlisted": true
+              },
+              "offsetX": {
+                "alias": "Shadcn/shadow/xl/1/offset-x",
+                "unlisted": true
+              },
+              "offsetY": {
+                "alias": "Shadcn/shadow/xl/1/offset-y",
+                "unlisted": true
+              },
+              "radius": {
+                "alias": "Shadcn/shadow/xl/1/blur",
+                "unlisted": true
+              },
+              "spread": {
+                "alias": "Shadcn/shadow/xl/1/spread",
+                "unlisted": true
+              }
             },
             "color": "#0000001a",
             "offset": {
@@ -14900,11 +15097,26 @@
           {
             "blendMode": "NORMAL",
             "boundVariables": {
-              "color": "Shadcn/shadow/xs/color",
-              "offsetX": "Shadcn/shadow/xs/offset-x",
-              "offsetY": "Shadcn/shadow/xs/offset-y",
-              "radius": "Shadcn/shadow/xs/blur",
-              "spread": "Shadcn/shadow/xs/spread"
+              "color": {
+                "alias": "Shadcn/shadow/xs/color",
+                "unlisted": true
+              },
+              "offsetX": {
+                "alias": "Shadcn/shadow/xs/offset-x",
+                "unlisted": true
+              },
+              "offsetY": {
+                "alias": "Shadcn/shadow/xs/offset-y",
+                "unlisted": true
+              },
+              "radius": {
+                "alias": "Shadcn/shadow/xs/blur",
+                "unlisted": true
+              },
+              "spread": {
+                "alias": "Shadcn/shadow/xs/spread",
+                "unlisted": true
+              }
             },
             "color": "#0000000d",
             "offset": {
@@ -14924,9 +15136,15 @@
     "text": [
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/2xl/font-size",
-          "fontWeight": "Shadcn/font/weight/medium"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/2xl/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/medium"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
@@ -14948,9 +15166,15 @@
       },
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/2xl/font-size",
-          "fontWeight": "Shadcn/font/weight/regular"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/2xl/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/regular"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
@@ -14972,9 +15196,15 @@
       },
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/2xl/font-size",
-          "fontWeight": "Shadcn/font/weight/semibold"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/2xl/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/semibold"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
@@ -14996,10 +15226,18 @@
       },
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/2xl/font-size",
-          "fontWeight": "Shadcn/font/weight/medium",
-          "lineHeight": "TailwindCSS/text/2xl/line-height"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/2xl/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/medium"
+          },
+          "lineHeight": {
+            "alias": "TailwindCSS/text/2xl/line-height"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
@@ -15021,10 +15259,18 @@
       },
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/2xl/font-size",
-          "fontWeight": "Shadcn/font/weight/regular",
-          "lineHeight": "TailwindCSS/text/2xl/line-height"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/2xl/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/regular"
+          },
+          "lineHeight": {
+            "alias": "TailwindCSS/text/2xl/line-height"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
@@ -15046,10 +15292,18 @@
       },
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/2xl/font-size",
-          "fontWeight": "Shadcn/font/weight/semibold",
-          "lineHeight": "TailwindCSS/text/2xl/line-height"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/2xl/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/semibold"
+          },
+          "lineHeight": {
+            "alias": "TailwindCSS/text/2xl/line-height"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
@@ -15071,9 +15325,15 @@
       },
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/2xs/font-size",
-          "fontWeight": "Shadcn/font/weight/medium"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/2xs/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/medium"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
@@ -15095,9 +15355,15 @@
       },
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/2xs/font-size",
-          "fontWeight": "Shadcn/font/weight/regular"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/2xs/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/regular"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
@@ -15119,9 +15385,15 @@
       },
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/2xs/font-size",
-          "fontWeight": "Shadcn/font/weight/semibold"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/2xs/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/semibold"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
@@ -15143,9 +15415,15 @@
       },
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/2xs/font-size",
-          "fontWeight": "Shadcn/font/weight/medium"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/2xs/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/medium"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
@@ -15167,10 +15445,18 @@
       },
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/2xs/font-size",
-          "fontWeight": "Shadcn/font/weight/medium",
-          "lineHeight": "TailwindCSS/text/2xs/line-height"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/2xs/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/medium"
+          },
+          "lineHeight": {
+            "alias": "TailwindCSS/text/2xs/line-height"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
@@ -15192,10 +15478,18 @@
       },
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/2xs/font-size",
-          "fontWeight": "Shadcn/font/weight/regular",
-          "lineHeight": "TailwindCSS/text/2xs/line-height"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/2xs/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/regular"
+          },
+          "lineHeight": {
+            "alias": "TailwindCSS/text/2xs/line-height"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
@@ -15217,10 +15511,18 @@
       },
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/2xs/font-size",
-          "fontWeight": "Shadcn/font/weight/semibold",
-          "lineHeight": "TailwindCSS/text/2xs/line-height"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/2xs/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/semibold"
+          },
+          "lineHeight": {
+            "alias": "TailwindCSS/text/2xs/line-height"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
@@ -15242,10 +15544,18 @@
       },
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/2xs/font-size",
-          "fontWeight": "Shadcn/font/weight/medium",
-          "lineHeight": "TailwindCSS/text/2xs/line-height"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/2xs/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/medium"
+          },
+          "lineHeight": {
+            "alias": "TailwindCSS/text/2xs/line-height"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
@@ -15267,9 +15577,15 @@
       },
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/3xl/font-size",
-          "fontWeight": "Shadcn/font/weight/medium"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/3xl/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/medium"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
@@ -15291,9 +15607,15 @@
       },
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/3xl/font-size",
-          "fontWeight": "Shadcn/font/weight/regular"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/3xl/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/regular"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
@@ -15315,9 +15637,15 @@
       },
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/3xl/font-size",
-          "fontWeight": "Shadcn/font/weight/semibold"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/3xl/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/semibold"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
@@ -15339,10 +15667,18 @@
       },
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/3xl/font-size",
-          "fontWeight": "Shadcn/font/weight/bold",
-          "lineHeight": "TailwindCSS/text/3xl/line-height"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/3xl/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/bold"
+          },
+          "lineHeight": {
+            "alias": "TailwindCSS/text/3xl/line-height"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
@@ -15364,10 +15700,18 @@
       },
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/3xl/font-size",
-          "fontWeight": "Shadcn/font/weight/medium",
-          "lineHeight": "TailwindCSS/text/3xl/line-height"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/3xl/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/medium"
+          },
+          "lineHeight": {
+            "alias": "TailwindCSS/text/3xl/line-height"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
@@ -15389,10 +15733,18 @@
       },
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/3xl/font-size",
-          "fontWeight": "Shadcn/font/weight/regular",
-          "lineHeight": "TailwindCSS/text/3xl/line-height"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/3xl/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/regular"
+          },
+          "lineHeight": {
+            "alias": "TailwindCSS/text/3xl/line-height"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
@@ -15414,10 +15766,18 @@
       },
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/3xl/font-size",
-          "fontWeight": "Shadcn/font/weight/semibold",
-          "lineHeight": "TailwindCSS/text/3xl/line-height"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/3xl/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/semibold"
+          },
+          "lineHeight": {
+            "alias": "TailwindCSS/text/3xl/line-height"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
@@ -15439,9 +15799,15 @@
       },
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/4xl/font-size",
-          "fontWeight": "Shadcn/font/weight/medium"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/4xl/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/medium"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
@@ -15463,9 +15829,15 @@
       },
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/4xl/font-size",
-          "fontWeight": "Shadcn/font/weight/regular"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/4xl/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/regular"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
@@ -15487,9 +15859,15 @@
       },
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/4xl/font-size",
-          "fontWeight": "Shadcn/font/weight/semibold"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/4xl/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/semibold"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
@@ -15511,10 +15889,18 @@
       },
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/4xl/font-size",
-          "fontWeight": "Shadcn/font/weight/medium",
-          "lineHeight": "TailwindCSS/text/4xl/line-height"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/4xl/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/medium"
+          },
+          "lineHeight": {
+            "alias": "TailwindCSS/text/4xl/line-height"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
@@ -15536,10 +15922,18 @@
       },
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/4xl/font-size",
-          "fontWeight": "Shadcn/font/weight/regular",
-          "lineHeight": "TailwindCSS/text/4xl/line-height"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/4xl/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/regular"
+          },
+          "lineHeight": {
+            "alias": "TailwindCSS/text/4xl/line-height"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
@@ -15561,10 +15955,18 @@
       },
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/4xl/font-size",
-          "fontWeight": "Shadcn/font/weight/semibold",
-          "lineHeight": "TailwindCSS/text/4xl/line-height"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/4xl/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/semibold"
+          },
+          "lineHeight": {
+            "alias": "TailwindCSS/text/4xl/line-height"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
@@ -15586,10 +15988,18 @@
       },
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/5xl/font-size",
-          "fontWeight": "Shadcn/font/weight/medium",
-          "lineHeight": "TailwindCSS/text/5xl/line-height"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/5xl/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/medium"
+          },
+          "lineHeight": {
+            "alias": "TailwindCSS/text/5xl/line-height"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
@@ -15611,10 +16021,18 @@
       },
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/5xl/font-size",
-          "fontWeight": "Shadcn/font/weight/regular",
-          "lineHeight": "TailwindCSS/text/5xl/line-height"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/5xl/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/regular"
+          },
+          "lineHeight": {
+            "alias": "TailwindCSS/text/5xl/line-height"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
@@ -15636,10 +16054,18 @@
       },
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/5xl/font-size",
-          "fontWeight": "Shadcn/font/weight/semibold",
-          "lineHeight": "TailwindCSS/text/5xl/line-height"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/5xl/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/semibold"
+          },
+          "lineHeight": {
+            "alias": "TailwindCSS/text/5xl/line-height"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
@@ -15661,10 +16087,18 @@
       },
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/5xl/font-size",
-          "fontWeight": "Shadcn/font/weight/medium",
-          "lineHeight": "TailwindCSS/text/5xl/line-height"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/5xl/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/medium"
+          },
+          "lineHeight": {
+            "alias": "TailwindCSS/text/5xl/line-height"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
@@ -15686,10 +16120,18 @@
       },
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/5xl/font-size",
-          "fontWeight": "Shadcn/font/weight/regular",
-          "lineHeight": "TailwindCSS/text/5xl/line-height"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/5xl/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/regular"
+          },
+          "lineHeight": {
+            "alias": "TailwindCSS/text/5xl/line-height"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
@@ -15711,10 +16153,18 @@
       },
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/5xl/font-size",
-          "fontWeight": "Shadcn/font/weight/semibold",
-          "lineHeight": "TailwindCSS/text/5xl/line-height"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/5xl/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/semibold"
+          },
+          "lineHeight": {
+            "alias": "TailwindCSS/text/5xl/line-height"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
@@ -15736,10 +16186,18 @@
       },
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/6xl/font-size",
-          "fontWeight": "Shadcn/font/weight/medium",
-          "lineHeight": "TailwindCSS/text/6xl/line-height"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/6xl/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/medium"
+          },
+          "lineHeight": {
+            "alias": "TailwindCSS/text/6xl/line-height"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
@@ -15761,10 +16219,18 @@
       },
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/6xl/font-size",
-          "fontWeight": "Shadcn/font/weight/medium",
-          "lineHeight": "TailwindCSS/text/6xl/line-height"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/6xl/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/medium"
+          },
+          "lineHeight": {
+            "alias": "TailwindCSS/text/6xl/line-height"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
@@ -15786,10 +16252,18 @@
       },
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/6xl/font-size",
-          "fontWeight": "Shadcn/font/weight/semibold",
-          "lineHeight": "TailwindCSS/text/6xl/line-height"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/6xl/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/semibold"
+          },
+          "lineHeight": {
+            "alias": "TailwindCSS/text/6xl/line-height"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
@@ -15811,10 +16285,18 @@
       },
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/6xl/font-size",
-          "fontWeight": "Shadcn/font/weight/regular",
-          "lineHeight": "TailwindCSS/text/6xl/line-height"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/6xl/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/regular"
+          },
+          "lineHeight": {
+            "alias": "TailwindCSS/text/6xl/line-height"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
@@ -15836,10 +16318,18 @@
       },
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/6xl/font-size",
-          "fontWeight": "Shadcn/font/weight/regular",
-          "lineHeight": "TailwindCSS/text/6xl/line-height"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/6xl/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/regular"
+          },
+          "lineHeight": {
+            "alias": "TailwindCSS/text/6xl/line-height"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
@@ -15861,10 +16351,18 @@
       },
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/6xl/font-size",
-          "fontWeight": "Shadcn/font/weight/semibold",
-          "lineHeight": "TailwindCSS/text/6xl/line-height"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/6xl/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/semibold"
+          },
+          "lineHeight": {
+            "alias": "TailwindCSS/text/6xl/line-height"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
@@ -15886,10 +16384,18 @@
       },
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/7xl/font-size",
-          "fontWeight": "Shadcn/font/weight/medium",
-          "lineHeight": "TailwindCSS/text/7xl/line-height"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/7xl/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/medium"
+          },
+          "lineHeight": {
+            "alias": "TailwindCSS/text/7xl/line-height"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
@@ -15911,10 +16417,18 @@
       },
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/7xl/font-size",
-          "fontWeight": "Shadcn/font/weight/regular",
-          "lineHeight": "TailwindCSS/text/7xl/line-height"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/7xl/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/regular"
+          },
+          "lineHeight": {
+            "alias": "TailwindCSS/text/7xl/line-height"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
@@ -15936,10 +16450,18 @@
       },
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/7xl/font-size",
-          "fontWeight": "Shadcn/font/weight/semibold",
-          "lineHeight": "TailwindCSS/text/7xl/line-height"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/7xl/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/semibold"
+          },
+          "lineHeight": {
+            "alias": "TailwindCSS/text/7xl/line-height"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
@@ -15961,10 +16483,18 @@
       },
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/7xl/font-size",
-          "fontWeight": "Shadcn/font/weight/medium",
-          "lineHeight": "TailwindCSS/text/7xl/line-height"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/7xl/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/medium"
+          },
+          "lineHeight": {
+            "alias": "TailwindCSS/text/7xl/line-height"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
@@ -15986,10 +16516,18 @@
       },
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/7xl/font-size",
-          "fontWeight": "Shadcn/font/weight/regular",
-          "lineHeight": "TailwindCSS/text/7xl/line-height"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/7xl/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/regular"
+          },
+          "lineHeight": {
+            "alias": "TailwindCSS/text/7xl/line-height"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
@@ -16011,10 +16549,18 @@
       },
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/7xl/font-size",
-          "fontWeight": "Shadcn/font/weight/semibold",
-          "lineHeight": "TailwindCSS/text/7xl/line-height"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/7xl/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/semibold"
+          },
+          "lineHeight": {
+            "alias": "TailwindCSS/text/7xl/line-height"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
@@ -16036,10 +16582,18 @@
       },
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/8xl/font-size",
-          "fontWeight": "Shadcn/font/weight/medium",
-          "lineHeight": "TailwindCSS/text/8xl/line-height"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/8xl/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/medium"
+          },
+          "lineHeight": {
+            "alias": "TailwindCSS/text/8xl/line-height"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
@@ -16061,10 +16615,18 @@
       },
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/8xl/font-size",
-          "fontWeight": "Shadcn/font/weight/regular",
-          "lineHeight": "TailwindCSS/text/8xl/line-height"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/8xl/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/regular"
+          },
+          "lineHeight": {
+            "alias": "TailwindCSS/text/8xl/line-height"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
@@ -16086,10 +16648,18 @@
       },
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/8xl/font-size",
-          "fontWeight": "Shadcn/font/weight/semibold",
-          "lineHeight": "TailwindCSS/text/8xl/line-height"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/8xl/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/semibold"
+          },
+          "lineHeight": {
+            "alias": "TailwindCSS/text/8xl/line-height"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
@@ -16111,10 +16681,18 @@
       },
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/8xl/font-size",
-          "fontWeight": "Shadcn/font/weight/medium",
-          "lineHeight": "TailwindCSS/text/8xl/line-height"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/8xl/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/medium"
+          },
+          "lineHeight": {
+            "alias": "TailwindCSS/text/8xl/line-height"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
@@ -16136,10 +16714,18 @@
       },
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/8xl/font-size",
-          "fontWeight": "Shadcn/font/weight/regular",
-          "lineHeight": "TailwindCSS/text/8xl/line-height"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/8xl/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/regular"
+          },
+          "lineHeight": {
+            "alias": "TailwindCSS/text/8xl/line-height"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
@@ -16161,10 +16747,18 @@
       },
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/8xl/font-size",
-          "fontWeight": "Shadcn/font/weight/semibold",
-          "lineHeight": "TailwindCSS/text/8xl/line-height"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/8xl/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/semibold"
+          },
+          "lineHeight": {
+            "alias": "TailwindCSS/text/8xl/line-height"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
@@ -16186,10 +16780,18 @@
       },
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/9xl/font-size",
-          "fontWeight": "Shadcn/font/weight/medium",
-          "lineHeight": "TailwindCSS/text/9xl/line-height"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/9xl/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/medium"
+          },
+          "lineHeight": {
+            "alias": "TailwindCSS/text/9xl/line-height"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
@@ -16211,10 +16813,18 @@
       },
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/9xl/font-size",
-          "fontWeight": "Shadcn/font/weight/regular",
-          "lineHeight": "TailwindCSS/text/9xl/line-height"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/9xl/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/regular"
+          },
+          "lineHeight": {
+            "alias": "TailwindCSS/text/9xl/line-height"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
@@ -16236,10 +16846,18 @@
       },
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/9xl/font-size",
-          "fontWeight": "Shadcn/font/weight/semibold",
-          "lineHeight": "TailwindCSS/text/9xl/line-height"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/9xl/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/semibold"
+          },
+          "lineHeight": {
+            "alias": "TailwindCSS/text/9xl/line-height"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
@@ -16261,10 +16879,18 @@
       },
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/9xl/font-size",
-          "fontWeight": "Shadcn/font/weight/medium",
-          "lineHeight": "TailwindCSS/text/9xl/line-height"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/9xl/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/medium"
+          },
+          "lineHeight": {
+            "alias": "TailwindCSS/text/9xl/line-height"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
@@ -16286,10 +16912,18 @@
       },
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/9xl/font-size",
-          "fontWeight": "Shadcn/font/weight/regular",
-          "lineHeight": "TailwindCSS/text/9xl/line-height"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/9xl/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/regular"
+          },
+          "lineHeight": {
+            "alias": "TailwindCSS/text/9xl/line-height"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
@@ -16311,10 +16945,18 @@
       },
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/9xl/font-size",
-          "fontWeight": "Shadcn/font/weight/semibold",
-          "lineHeight": "TailwindCSS/text/9xl/line-height"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/9xl/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/semibold"
+          },
+          "lineHeight": {
+            "alias": "TailwindCSS/text/9xl/line-height"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
@@ -16336,9 +16978,15 @@
       },
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/base/font-size",
-          "fontWeight": "Shadcn/font/weight/medium"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/base/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/medium"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
@@ -16360,9 +17008,15 @@
       },
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/base/font-size",
-          "fontWeight": "Shadcn/font/weight/regular"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/base/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/regular"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
@@ -16384,9 +17038,15 @@
       },
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/base/font-size",
-          "fontWeight": "Shadcn/font/weight/semibold"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/base/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/semibold"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
@@ -16408,10 +17068,18 @@
       },
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/base/font-size",
-          "fontWeight": "Shadcn/font/weight/medium",
-          "lineHeight": "TailwindCSS/text/base/line-height"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/base/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/medium"
+          },
+          "lineHeight": {
+            "alias": "TailwindCSS/text/base/line-height"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
@@ -16433,10 +17101,18 @@
       },
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/base/font-size",
-          "fontWeight": "Shadcn/font/weight/regular",
-          "lineHeight": "TailwindCSS/text/base/line-height"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/base/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/regular"
+          },
+          "lineHeight": {
+            "alias": "TailwindCSS/text/base/line-height"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
@@ -16458,10 +17134,18 @@
       },
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/base/font-size",
-          "fontWeight": "Shadcn/font/weight/semibold",
-          "lineHeight": "TailwindCSS/text/base/line-height"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/base/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/semibold"
+          },
+          "lineHeight": {
+            "alias": "TailwindCSS/text/base/line-height"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
@@ -16483,9 +17167,15 @@
       },
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/lg/font-size",
-          "fontWeight": "Shadcn/font/weight/medium"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/lg/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/medium"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
@@ -16507,9 +17197,15 @@
       },
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/lg/font-size",
-          "fontWeight": "Shadcn/font/weight/regular"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/lg/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/regular"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
@@ -16531,9 +17227,15 @@
       },
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/lg/font-size",
-          "fontWeight": "Shadcn/font/weight/semibold"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/lg/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/semibold"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
@@ -16555,10 +17257,18 @@
       },
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/lg/font-size",
-          "fontWeight": "Shadcn/font/weight/medium",
-          "lineHeight": "TailwindCSS/text/lg/line-height"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/lg/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/medium"
+          },
+          "lineHeight": {
+            "alias": "TailwindCSS/text/lg/line-height"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
@@ -16580,10 +17290,18 @@
       },
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/lg/font-size",
-          "fontWeight": "Shadcn/font/weight/regular",
-          "lineHeight": "TailwindCSS/text/lg/line-height"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/lg/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/regular"
+          },
+          "lineHeight": {
+            "alias": "TailwindCSS/text/lg/line-height"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
@@ -16605,10 +17323,18 @@
       },
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/lg/font-size",
-          "fontWeight": "Shadcn/font/weight/semibold",
-          "lineHeight": "TailwindCSS/text/lg/line-height"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/lg/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/semibold"
+          },
+          "lineHeight": {
+            "alias": "TailwindCSS/text/lg/line-height"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
@@ -16630,9 +17356,15 @@
       },
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/sm/font-size",
-          "fontWeight": "Shadcn/font/weight/medium"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/sm/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/medium"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
@@ -16654,9 +17386,15 @@
       },
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/sm/font-size",
-          "fontWeight": "Shadcn/font/weight/regular"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/sm/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/regular"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
@@ -16678,9 +17416,15 @@
       },
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/sm/font-size",
-          "fontWeight": "Shadcn/font/weight/semibold"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/sm/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/semibold"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
@@ -16702,9 +17446,15 @@
       },
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/sm/font-size",
-          "fontWeight": "Shadcn/font/weight/medium"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/sm/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/medium"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
@@ -16726,10 +17476,18 @@
       },
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/sm/font-size",
-          "fontWeight": "Shadcn/font/weight/medium",
-          "lineHeight": "TailwindCSS/text/sm/line-height"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/sm/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/medium"
+          },
+          "lineHeight": {
+            "alias": "TailwindCSS/text/sm/line-height"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
@@ -16751,10 +17509,18 @@
       },
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/sm/font-size",
-          "fontWeight": "Shadcn/font/weight/regular",
-          "lineHeight": "TailwindCSS/text/sm/line-height"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/sm/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/regular"
+          },
+          "lineHeight": {
+            "alias": "TailwindCSS/text/sm/line-height"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
@@ -16776,10 +17542,18 @@
       },
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/sm/font-size",
-          "fontWeight": "Shadcn/font/weight/semibold",
-          "lineHeight": "TailwindCSS/text/sm/line-height"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/sm/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/semibold"
+          },
+          "lineHeight": {
+            "alias": "TailwindCSS/text/sm/line-height"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
@@ -16801,10 +17575,18 @@
       },
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/sm/font-size",
-          "fontWeight": "Shadcn/font/weight/medium",
-          "lineHeight": "TailwindCSS/text/sm/line-height"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/sm/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/medium"
+          },
+          "lineHeight": {
+            "alias": "TailwindCSS/text/sm/line-height"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
@@ -16826,9 +17608,15 @@
       },
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/xl/font-size",
-          "fontWeight": "Shadcn/font/weight/medium"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/xl/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/medium"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
@@ -16850,9 +17638,15 @@
       },
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/xl/font-size",
-          "fontWeight": "Shadcn/font/weight/regular"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/xl/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/regular"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
@@ -16874,9 +17668,15 @@
       },
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/xl/font-size",
-          "fontWeight": "Shadcn/font/weight/semibold"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/xl/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/semibold"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
@@ -16898,10 +17698,18 @@
       },
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/xl/font-size",
-          "fontWeight": "Shadcn/font/weight/medium",
-          "lineHeight": "TailwindCSS/text/xl/line-height"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/xl/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/medium"
+          },
+          "lineHeight": {
+            "alias": "TailwindCSS/text/xl/line-height"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
@@ -16923,10 +17731,18 @@
       },
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/xl/font-size",
-          "fontWeight": "Shadcn/font/weight/regular",
-          "lineHeight": "TailwindCSS/text/xl/line-height"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/xl/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/regular"
+          },
+          "lineHeight": {
+            "alias": "TailwindCSS/text/xl/line-height"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
@@ -16948,10 +17764,18 @@
       },
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/xl/font-size",
-          "fontWeight": "Shadcn/font/weight/semibold",
-          "lineHeight": "TailwindCSS/text/xl/line-height"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/xl/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/semibold"
+          },
+          "lineHeight": {
+            "alias": "TailwindCSS/text/xl/line-height"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
@@ -16973,9 +17797,15 @@
       },
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/xs/font-size",
-          "fontWeight": "Shadcn/font/weight/medium"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/xs/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/medium"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
@@ -16997,9 +17827,15 @@
       },
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/xs/font-size",
-          "fontWeight": "Shadcn/font/weight/regular"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/xs/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/regular"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
@@ -17021,9 +17857,15 @@
       },
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/xs/font-size",
-          "fontWeight": "Shadcn/font/weight/semibold"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/xs/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/semibold"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
@@ -17045,9 +17887,15 @@
       },
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/xs/font-size",
-          "fontWeight": "Shadcn/font/weight/medium"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/xs/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/medium"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
@@ -17069,10 +17917,18 @@
       },
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/xs/font-size",
-          "fontWeight": "Shadcn/font/weight/medium",
-          "lineHeight": "TailwindCSS/text/xs/line-height"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/xs/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/medium"
+          },
+          "lineHeight": {
+            "alias": "TailwindCSS/text/xs/line-height"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
@@ -17094,10 +17950,18 @@
       },
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/xs/font-size",
-          "fontWeight": "Shadcn/font/weight/regular",
-          "lineHeight": "TailwindCSS/text/xs/line-height"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/xs/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/regular"
+          },
+          "lineHeight": {
+            "alias": "TailwindCSS/text/xs/line-height"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
@@ -17119,10 +17983,18 @@
       },
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/xs/font-size",
-          "fontWeight": "Shadcn/font/weight/semibold",
-          "lineHeight": "TailwindCSS/text/xs/line-height"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/xs/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/semibold"
+          },
+          "lineHeight": {
+            "alias": "TailwindCSS/text/xs/line-height"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
@@ -17144,10 +18016,18 @@
       },
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/xs/font-size",
-          "fontWeight": "Shadcn/font/weight/semibold",
-          "lineHeight": "TailwindCSS/text/xs/line-height"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/xs/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/semibold"
+          },
+          "lineHeight": {
+            "alias": "TailwindCSS/text/xs/line-height"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
@@ -17169,10 +18049,18 @@
       },
       {
         "boundVariables": {
-          "fontFamily": "Shadcn/font/family/font-sans",
-          "fontSize": "TailwindCSS/text/xs/font-size",
-          "fontWeight": "Shadcn/font/weight/medium",
-          "lineHeight": "TailwindCSS/text/xs/line-height"
+          "fontFamily": {
+            "alias": "Shadcn/font/family/font-sans"
+          },
+          "fontSize": {
+            "alias": "TailwindCSS/text/xs/font-size"
+          },
+          "fontWeight": {
+            "alias": "Shadcn/font/weight/medium"
+          },
+          "lineHeight": {
+            "alias": "TailwindCSS/text/xs/line-height"
+          }
         },
         "description": "",
         "fontFamily": "Inter",
