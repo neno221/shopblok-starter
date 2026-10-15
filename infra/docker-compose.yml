@@ -75,7 +75,7 @@ services:
       start_period: 5s
 
   mailpit:
-    image: axllent/mailpit:v1.31.4
+    image: axllent/mailpit:v1.31.6
     environment:
       MP_DATABASE: /data/mailpit.db
       # The version check calls out to GitHub; skip it (offline machines, CI).
