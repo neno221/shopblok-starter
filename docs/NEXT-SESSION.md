@@ -1,12 +1,6 @@
 # M1: T18 is done, T19 is next
 
-**T18 exported the Figma kit** (2026-10-15, SETUP.md "Figma export (T18)"): `packages/ui/tokens/figma.tokens.json` has 5 collections and 1,029 variables, made by `scripts/figma/export-variables.js`. **D29 is still open:** this copy of the kit has no atom components, so no Button was measured. Earlier: M0 is closed ([PR 29](https://github.com/stephanos221/shopblok-starter/pull/29)), and the M1 plan is [plans/M1.md](plans/M1.md) ([PR 30](https://github.com/stephanos221/shopblok-starter/pull/30)).
-
-## Yours: D29 before T21
-
-T19 and T20 don't need it. Pick one:
-- add a complete copy of the Community file "shadcn/ui – Design System by ReUI" to your team, and a session on your PC runs T18's steps 5 and 6 on it (the Button's height decides); or
-- choose without the measurement: `base-vega` (36 px, the size the plan says ReUI's kit draws) or `base-nova` (32 px).
+**T18 exported the Figma kit** (2026-10-15, SETUP.md "Figma export (T18)"): `packages/ui/tokens/figma.tokens.json` has 5 collections and 1,029 variables, made by `scripts/figma/export-variables.js`. This copy of the kit has no atom components, so no Button was measured; **you chose `base-vega` for D29** instead. Earlier: M0 is closed ([PR 29](https://github.com/stephanos221/shopblok-starter/pull/29)), and the M1 plan is [plans/M1.md](plans/M1.md) ([PR 30](https://github.com/stephanos221/shopblok-starter/pull/30)).
 
 ## T19 · Tokens through Style Dictionary (in a cloud session)
 

@@ -2439,7 +2439,7 @@ NEXT-SESSION.md listed four things the W2 fix task could not check, because it r
 
 ## Figma export (T18)
 
-**Result: the variables are exported, but D29 has no measurement.** `packages/ui/tokens/figma.tokens.json` holds the kit's 5 local collections in all their modes (1,029 variables), its 92 text styles and its 14 effect styles. Committed read-only code made it, and every one of 17 runs gave the same text. **This copy of the kit has none of the atoms' component sets** (no Button, Input, Checkbox or Switch), so T18's steps 5 and 6 couldn't be done here, and D29 stays open (plan §1).
+**Result: the variables are exported; D29 was settled without a measurement.** `packages/ui/tokens/figma.tokens.json` holds the kit's 5 local collections in all their modes (1,029 variables), its 92 text styles and its 14 effect styles. Committed read-only code made it, and every one of 17 runs gave the same text. **This copy of the kit has none of the atoms' component sets** (no Button, Input, Checkbox or Switch), so T18's steps 5 and 6 couldn't be done here. You chose `base-vega` for D29 without the measurement (2026-10-15).
 
 | | |
 |---|---|
@@ -2465,7 +2465,7 @@ NEXT-SESSION.md listed four things the W2 fix task could not check, because it r
 2. **A second export is identical: pass.** Each of the 17 slices was a full export in its own run, and all 17 reported the same length (230,081 characters) and FNV-1a hash (`2a006917`). `assemble.mjs` checks both before it writes.
 3. **Nothing written: pass.** The code calls no setter. The session sent the file nothing but reads; the version history can be checked under File → Show version history.
 4. **`docs/design/kit/`: partial.** `atoms.md` has the CC BY 4.0 credit, what this copy draws and the atoms it doesn't. There are no PNGs: the copy draws none of the shadcn atoms, and the container couldn't download the two screenshots it did take (Payment Methods and Flags), because the proxy refuses figma.com's asset host.
-5. **D29 measured: fail.** No Button exists in this copy. See "What should change in the plan".
+5. **D29 measured: not possible.** No Button exists in this copy. You chose `base-vega` instead (plan §1).
 
 ### What's in the kit that SPEC §9.1 doesn't mention
 
@@ -2478,7 +2478,7 @@ NEXT-SESSION.md listed four things the W2 fix task could not check, because it r
 
 ### What should change in the plan
 
-1. **D29 stays open.** There's no Button to measure. Either add a complete copy of the Community file to your team and run T18's steps 5 and 6 on it, or choose the style without the measurement. The plan's own note that the ReUI kit draws `new-york-v4`'s sizes (36 px) points to `base-vega`. Nothing before T21 needs it.
+1. **D29 is `base-vega`, without a measurement.** There's no Button to measure. You chose `base-vega` (36 px), the size the plan says the ReUI kit draws, over adding a complete copy of the Community file. §1 says so.
 2. **§4a and D24:** the variables export runs in the cloud as well, since the Figma connector works there. Only the screenshots need your PC, because the container can't download them.
 3. **T19's parser:** the `shadow/*` styles' bound variables don't exist (above). It should take each effect's own values and not fail on those references. A missing alias among the *variables* should still fail the build.
 4. **SPEC §9.3 and T23:** PaymentIcon and Flag have kit artwork. Revolut Pay doesn't.

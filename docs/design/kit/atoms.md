@@ -31,4 +31,4 @@ These come from `packages/ui/tokens/figma.tokens.json`, not from drawn component
 All of SPEC §9.3's atoms except PaymentIcon and Flag:
 Button, IconButton, Link, Input, Textarea, Select, NativeSelect, Checkbox, Radio, Switch, Label, Badge, Chip, Price, Rating, Swatch, SizePill, QuantityStepper, Skeleton, Spinner, Avatar, Icon, Logo, Separator, Kbd, Tooltip, Progress, StockIndicator, VisuallyHidden and Image.
 
-Their sizes come from shadcn's and ReUI's registries (D29, D32). A complete copy of the Community file would add the shadcn ones (plan §0 item 1).
+Their sizes come from shadcn's and ReUI's registries: `base-vega` (D29) and 44 px targets (D32).
