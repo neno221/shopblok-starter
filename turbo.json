@@ -11,7 +11,10 @@
   "globalPassThroughEnv": ["MEDUSA_DISABLE_TELEMETRY", "SWC_NATIVE_BINDING_CACHE"],
   "tasks": {
     "build": {
-      "dependsOn": ["^build"],
+      // `transit`: a source-only package (no build script, D3: packages/ui's globals.css,
+      // @shopblok/i18n…) has no `build` hash of its own, so without it an edit there could replay
+      // a cached storefront build. The transit node puts its files in the build's hash.
+      "dependsOn": ["^build", "transit"],
       "inputs": ["$TURBO_DEFAULT$", ".env*"],
       "env": ["MEDUSA_BACKEND_URL", "STOREFRONT_URL"],
       "outputs": [".next/**", "!.next/cache/**", ".medusa/server/**", "dist/**"]
