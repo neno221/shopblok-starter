@@ -1,7 +1,7 @@
 // Vendored from shadcn/ui (`shadcn add radio-group`, CLI 4.21.4, style base-vega), 2026-10-16. MIT,
 // see packages/ui/NOTICE.md. Edited (SETUP.md, "shadcn and ReUI (T21)"): the circle keeps the kit's
 // 16 px and its `::after` is a 44 × 44 hit area centred on it (D32); the focus ring at full strength
-// (D35); the dot centred without physical offsets; light only (no `dark:`). Put each item in a
+// (D35, also when invalid); the dot centred without physical offsets; light only (no `dark:`). Put each item in a
 // `Label` for a bigger target and a name.
 "use client";
 
@@ -24,7 +24,7 @@ function RadioGroupItem({ className, ...props }: RadioPrimitive.Root.Props) {
     <RadioPrimitive.Root
       data-slot="radio-group-item"
       className={cn(
-        "group/radio-group-item peer relative flex aspect-square size-4 shrink-0 rounded-full border border-input outline-none group-has-[:focus-visible]/field-label:ring-0 group-has-[:focus-visible]/field-label:not-data-checked:border-input after:absolute after:-inset-3.5 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 data-disabled:cursor-not-allowed data-disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 aria-invalid:aria-checked:border-primary data-checked:border-primary data-checked:bg-primary data-checked:text-primary-foreground group-has-[:focus-visible]/field-label:data-checked:border-primary",
+        "group/radio-group-item peer relative flex aspect-square size-4 shrink-0 rounded-full border border-input outline-none group-has-[:focus-visible]/field-label:ring-0 group-has-[:focus-visible]/field-label:not-data-checked:border-input after:absolute after:-inset-3.5 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 data-disabled:cursor-not-allowed data-disabled:opacity-50 aria-invalid:border-destructive aria-invalid:aria-checked:border-primary data-checked:border-primary data-checked:bg-primary data-checked:text-primary-foreground group-has-[:focus-visible]/field-label:data-checked:border-primary",
         className,
       )}
       {...props}

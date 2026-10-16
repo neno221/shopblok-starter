@@ -1,6 +1,6 @@
 // Vendored from shadcn/ui (`shadcn add select`, CLI 4.21.4, style base-vega), 2026-10-16. MIT, see
 // packages/ui/NOTICE.md. Edited (SETUP.md, "shadcn and ReUI (T21)"): the trigger and each option at
-// least 44 px tall and no `sm` size (D32); the focus ring at full strength (D35); `side` takes the
+// least 44 px tall and no `sm` size (D32); the focus ring at full strength (D35, also when invalid); `side` takes the
 // logical `inline-start` and `inline-end` and not `left` or `right`; logical properties; the
 // trigger is never wider than its container and cuts the chosen value to one line with an ellipsis,
 // which it says (`data-truncate`, D34), while the options wrap; light only (no `dark:`).
@@ -41,7 +41,7 @@ function SelectTrigger({ className, children, ...props }: SelectPrimitive.Trigge
     <SelectPrimitive.Trigger
       data-slot="select-trigger"
       className={cn(
-        "flex h-11 w-fit max-w-full items-center justify-between gap-1.5 rounded-md border border-input bg-transparent py-2 ps-3 pe-2.5 text-base whitespace-nowrap shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 data-disabled:cursor-not-allowed data-disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 data-placeholder:text-muted-foreground md:text-sm [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+        "flex h-11 w-fit max-w-full items-center justify-between gap-1.5 rounded-md border border-input bg-transparent py-2 ps-3 pe-2.5 text-base whitespace-nowrap shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 data-disabled:cursor-not-allowed data-disabled:opacity-50 aria-invalid:border-destructive data-placeholder:text-muted-foreground md:text-sm [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
         className,
       )}
       {...props}

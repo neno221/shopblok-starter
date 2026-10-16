@@ -35,6 +35,17 @@ describe("Button", () => {
     expect(onClick).toHaveBeenCalledTimes(2);
   });
 
+  it("keeps the full-strength ring on the destructive variant and when invalid (D35)", () => {
+    render(
+      <Button variant="destructive" aria-invalid>
+        Remove
+      </Button>,
+    );
+    const classes = screen.getByRole("button").className;
+    expect(classes).toContain("focus-visible:ring-ring");
+    expect(classes).not.toMatch(/ring-[a-z-]+\/\d/);
+  });
+
   it("changes its fill on hover (default variant)", () => {
     render(<Button>Pay</Button>);
     expect(screen.getByRole("button").className).toContain("hover:bg-primary/80");

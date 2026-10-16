@@ -26,6 +26,14 @@ describe("NativeSelect", () => {
     expect(select.hasAttribute("data-truncate")).toBe(true);
   });
 
+  it("puts className on the wrapper and selectClassName on the select", () => {
+    render(<Sizes className="w-full" selectClassName="ring-3" />);
+    const select = screen.getByRole("combobox", { name: "Size" });
+    expect(select.className).toContain("ring-3");
+    expect(select.parentElement?.className).toContain("w-full");
+    expect(select.parentElement?.className).not.toContain("ring-3");
+  });
+
   it("changes from the keyboard and the pointer", async () => {
     const user = userEvent.setup();
     render(<Sizes />);

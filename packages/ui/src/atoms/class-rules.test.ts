@@ -79,6 +79,13 @@ describe("the rules catch", () => {
       "dark:aria-invalid:border-destructive/50",
     ],
     ["ring alpha", `"focus-visible:ring-ring/50"`, "focus-visible:ring-ring/50"],
+    ["ring alpha", `"focus-visible:ring-destructive/20"`, "focus-visible:ring-destructive/20"],
+    ["ring alpha", `"aria-invalid:ring-destructive/20"`, "aria-invalid:ring-destructive/20"],
+    [
+      "ring alpha",
+      `"dark:aria-invalid:ring-destructive/40"`,
+      "dark:aria-invalid:ring-destructive/40",
+    ],
   ];
 
   it.each(cases)("%s: %s", (rule, source, token) => {
@@ -94,6 +101,7 @@ describe("the rules let through", () => {
     `"hover:bg-[color-mix(in_oklch,var(--secondary),var(--foreground)_5%)]"`,
     `"data-[side=left]:top-1/2 slide-in-from-start-2 text-[13px] bg-[var(--x)]"`,
     `side = "left"`,
+    `"ring-1 ring-foreground/10 ring-2 ring-background"`,
     `// pl-2 and dark:bg-black/50 in a comment\n"ps-2"`,
     `/* text-left, #fff */ "text-start"`,
   ])("%s", (source) => {

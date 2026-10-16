@@ -1,15 +1,18 @@
 // Vendored from shadcn/ui (`shadcn add native-select`, CLI 4.21.4, style base-vega), 2026-10-16. MIT,
 // see packages/ui/NOTICE.md. Edited (SETUP.md, "shadcn and ReUI (T21)"): 44 px tall and no `sm`
-// size (D32), the focus ring at full strength (D35), logical properties, the options on the popover
+// size (D32), the focus ring at full strength (D35, also when invalid), logical properties, the options on the popover
 // tokens instead of the system colours `Canvas` and `CanvasText`, light only (no `dark:`). The
 // browser cuts the chosen option to the box, so the select says so (`data-truncate`, D34).
 import * as React from "react";
 import { cn } from "@shopblok/ui/lib/utils";
 import { ChevronDownIcon } from "lucide-react";
 
-type NativeSelectProps = Omit<React.ComponentProps<"select">, "size">;
+type NativeSelectProps = Omit<React.ComponentProps<"select">, "size"> & {
+  /** Classes for the `<select>` itself; `className` goes on the wrapper. */
+  selectClassName?: string;
+};
 
-function NativeSelect({ className, ...props }: NativeSelectProps) {
+function NativeSelect({ className, selectClassName, ...props }: NativeSelectProps) {
   return (
     <div
       className={cn(
@@ -21,7 +24,10 @@ function NativeSelect({ className, ...props }: NativeSelectProps) {
       <select
         data-slot="native-select"
         data-truncate=""
-        className="h-11 w-full min-w-0 appearance-none rounded-md border border-input bg-transparent py-1 ps-3 pe-9 text-base shadow-xs transition-[color,box-shadow] outline-none select-none selection:bg-primary selection:text-primary-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring disabled:pointer-events-none disabled:cursor-not-allowed aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm"
+        className={cn(
+          "h-11 w-full min-w-0 appearance-none rounded-md border border-input bg-transparent py-1 ps-3 pe-9 text-base shadow-xs transition-[color,box-shadow] outline-none select-none selection:bg-primary selection:text-primary-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring disabled:pointer-events-none disabled:cursor-not-allowed aria-invalid:border-destructive md:text-sm",
+          selectClassName,
+        )}
         {...props}
       />
       <ChevronDownIcon

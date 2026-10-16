@@ -72,8 +72,9 @@ const initials = (name: string) =>
     .join("");
 
 /**
- * The usual states of a form field, then the long label. `focus` draws the focus classes on the
- * element `className` reaches; NativeSelect's goes to its wrapper, so it leaves the state out.
+ * The usual states of a form field, then the long label. The focus states pass the focus classes
+ * as `className`, so `render` puts it on the control itself (NativeSelect's `selectClassName`).
+ * "Invalid and focused" shows the full-strength ring over the destructive border (D35).
  */
 function fieldStates(
   slug: string,
@@ -84,7 +85,6 @@ function fieldStates(
     disabled?: boolean;
     invalid?: boolean;
   }) => ReactNode,
-  { focus = true }: { focus?: boolean } = {},
 ): DsState[] {
   const state = (
     id: string,
@@ -102,17 +102,19 @@ function fieldStates(
   });
   return [
     state("default", "Default", undefined),
-    ...(focus
-      ? [
-          state("focus", "Focus", "The ring `:focus-visible` draws, at full strength (D35).", {
-            className: FOCUS,
-          }),
-        ]
-      : []),
+    state("focus", "Focus", "The ring `:focus-visible` draws, at full strength (D35).", {
+      className: FOCUS,
+    }),
     state("disabled", "Disabled", undefined, { disabled: true }),
     state("invalid", "Invalid", "aria-invalid, with the error message as its description.", {
       invalid: true,
     }),
+    state(
+      "invalid-focus",
+      "Invalid and focused",
+      "The full-strength ring over the destructive border: where focus lands after a failed submit.",
+      { invalid: true, className: FOCUS },
+    ),
     state("long-label", "Long label", "The locale's longest strings.", { long: true }),
   ];
 }
@@ -128,6 +130,43 @@ function ErrorText({ id, children }: { id: string; children: ReactNode }) {
 
 const sizeItems = (ctx: DsContext) =>
   ctx.fixture.sizes.map((size) => ({ label: size.label, value: size.label }));
+
+/** The fixture's sizes in stock, and the first one that is not. */
+const radioSizes = (ctx: DsContext) => ({
+  available: ctx.fixture.sizes.filter((size) => size.available),
+  soldOut: ctx.fixture.sizes.find((size) => !size.available),
+});
+
+/** Two sizes in stock; `className` goes on the first radio. */
+function radioPair(
+  ctx: DsContext,
+  { chosen, invalid, className }: { chosen?: boolean; invalid?: boolean; className?: string },
+) {
+  const [first, second] = radioSizes(ctx).available;
+  return (
+    <RadioGroup
+      aria-label={ctx.fixture.ordinary.fieldLabel}
+      defaultValue={chosen ? first?.label : undefined}
+    >
+      {[first, second].map(
+        (size, index) =>
+          size && (
+            <Choice
+              key={size.label}
+              control={
+                <RadioGroupItem
+                  value={size.label}
+                  aria-invalid={invalid ? "true" : undefined}
+                  className={index === 0 ? className : undefined}
+                />
+              }
+              label={size.label}
+            />
+          ),
+      )}
+    </RadioGroup>
+  );
+}
 
 export const atoms: readonly DsEntry[] = [
   {
@@ -172,6 +211,16 @@ export const atoms: readonly DsEntry[] = [
         label: "Focus",
         description: "The ring `:focus-visible` draws, at full strength (D35).",
         render: (ctx) => <Button className={FOCUS}>{ctx.fixture.ordinary.action}</Button>,
+      },
+      {
+        id: "destructive-focus",
+        label: "Destructive, focused",
+        description: "The destructive variant keeps the same full-strength ring (D35).",
+        render: (ctx) => (
+          <Button variant="destructive" className={FOCUS}>
+            {ctx.fixture.ordinary.action}
+          </Button>
+        ),
       },
       {
         id: "disabled",
@@ -317,24 +366,21 @@ export const atoms: readonly DsEntry[] = [
         </NativeSelect>
       </Field>
     ),
-    states: fieldStates(
-      "native-select",
-      ({ id, strings, disabled, invalid }) => (
-        <Field id={id} label={strings.fieldLabel}>
-          <NativeSelect
-            id={id}
-            className="w-full"
-            disabled={disabled}
-            aria-invalid={invalid || undefined}
-            aria-describedby={invalid ? `${id}-error` : undefined}
-          >
-            <NativeSelectOption value="a">{strings.placeholder}</NativeSelectOption>
-          </NativeSelect>
-          {invalid && <ErrorText id={`${id}-error`}>{strings.errorText}</ErrorText>}
-        </Field>
-      ),
-      { focus: false },
-    ),
+    states: fieldStates("native-select", ({ id, strings, className, disabled, invalid }) => (
+      <Field id={id} label={strings.fieldLabel}>
+        <NativeSelect
+          id={id}
+          className="w-full"
+          selectClassName={className}
+          disabled={disabled}
+          aria-invalid={invalid || undefined}
+          aria-describedby={invalid ? `${id}-error` : undefined}
+        >
+          <NativeSelectOption value="a">{strings.placeholder}</NativeSelectOption>
+        </NativeSelect>
+        {invalid && <ErrorText id={`${id}-error`}>{strings.errorText}</ErrorText>}
+      </Field>
+    )),
   },
   {
     id: "atoms/checkbox",
@@ -392,6 +438,17 @@ export const atoms: readonly DsEntry[] = [
         ),
       },
       {
+        id: "invalid-focus",
+        label: "Invalid and focused",
+        description: "The full-strength ring over the destructive border (D35).",
+        render: (ctx) => (
+          <Choice
+            control={<Checkbox aria-invalid="true" className={FOCUS} />}
+            label={ctx.fixture.ordinary.optionLabel}
+          />
+        ),
+      },
+      {
         id: "long-label",
         label: "Long label",
         description: "The label wraps beside the box.",
@@ -410,7 +467,10 @@ export const atoms: readonly DsEntry[] = [
       "Each label is at least 44 px tall, and each circle's hit area is 44 × 44 (D32).",
     ],
     live: (ctx) => (
-      <RadioGroup aria-label={ctx.fixture.ordinary.fieldLabel} defaultValue="M">
+      <RadioGroup
+        aria-label={ctx.fixture.ordinary.fieldLabel}
+        defaultValue={radioSizes(ctx).available[1]?.label}
+      >
         {ctx.fixture.sizes.map((size) => (
           <Choice
             key={size.label}
@@ -424,51 +484,61 @@ export const atoms: readonly DsEntry[] = [
       {
         id: "default",
         label: "Default",
-        description: "One chosen, one disabled (a size out of stock).",
-        render: (ctx) => (
-          <RadioGroup aria-label={ctx.fixture.ordinary.fieldLabel} defaultValue="S">
-            {ctx.fixture.sizes.slice(0, 3).map((size) => (
-              <Choice
-                key={size.label}
-                control={<RadioGroupItem value={size.label} />}
-                label={size.label}
-              />
-            ))}
-            <Choice control={<RadioGroupItem value="XL" disabled />} label="XL" />
-          </RadioGroup>
-        ),
+        description: "One chosen, one disabled (the first size out of stock).",
+        render: (ctx) => {
+          const { available, soldOut } = radioSizes(ctx);
+          return (
+            <RadioGroup
+              aria-label={ctx.fixture.ordinary.fieldLabel}
+              defaultValue={available[0]?.label}
+            >
+              {available.slice(0, 3).map((size) => (
+                <Choice
+                  key={size.label}
+                  control={<RadioGroupItem value={size.label} />}
+                  label={size.label}
+                />
+              ))}
+              {soldOut && (
+                <Choice
+                  control={<RadioGroupItem value={soldOut.label} disabled />}
+                  label={soldOut.label}
+                />
+              )}
+            </RadioGroup>
+          );
+        },
       },
       {
         id: "focus",
         label: "Focus",
         description: "The ring `:focus-visible` draws, at full strength (D35).",
-        render: (ctx) => (
-          <RadioGroup aria-label={ctx.fixture.ordinary.fieldLabel} defaultValue="S">
-            <Choice control={<RadioGroupItem value="S" className={FOCUS} />} label="S" />
-            <Choice control={<RadioGroupItem value="M" />} label="M" />
-          </RadioGroup>
-        ),
+        render: (ctx) => radioPair(ctx, { chosen: true, className: FOCUS }),
       },
       {
         id: "invalid",
         label: "Invalid",
         description: "aria-invalid on each radio: nothing chosen in a required group.",
-        render: (ctx) => (
-          <RadioGroup aria-label={ctx.fixture.ordinary.fieldLabel}>
-            <Choice control={<RadioGroupItem value="S" aria-invalid="true" />} label="S" />
-            <Choice control={<RadioGroupItem value="M" aria-invalid="true" />} label="M" />
-          </RadioGroup>
-        ),
+        render: (ctx) => radioPair(ctx, { invalid: true }),
+      },
+      {
+        id: "invalid-focus",
+        label: "Invalid and focused",
+        description: "The full-strength ring over the destructive border (D35).",
+        render: (ctx) => radioPair(ctx, { invalid: true, className: FOCUS }),
       },
       {
         id: "long-label",
         label: "Long label",
-        render: (ctx) => (
-          <RadioGroup aria-label={ctx.fixture.long.fieldLabel} defaultValue="a">
-            <Choice control={<RadioGroupItem value="a" />} label={ctx.fixture.long.optionLabel} />
-            <Choice control={<RadioGroupItem value="b" />} label={ctx.fixture.long.toggleLabel} />
-          </RadioGroup>
-        ),
+        render: (ctx) => {
+          const { optionLabel, toggleLabel } = ctx.fixture.long;
+          return (
+            <RadioGroup aria-label={ctx.fixture.long.fieldLabel} defaultValue={optionLabel}>
+              <Choice control={<RadioGroupItem value={optionLabel} />} label={optionLabel} />
+              <Choice control={<RadioGroupItem value={toggleLabel} />} label={toggleLabel} />
+            </RadioGroup>
+          );
+        },
       },
     ],
   },
@@ -631,6 +701,7 @@ export const atoms: readonly DsEntry[] = [
     a11y: [
       "role=status with an accessible name from props (catalogs.*.atoms.spinner.loading): no English of its own.",
       "Turns slower when the reader asks for reduced motion.",
+      "A status region added with its name already in it is often not announced. In a button the button's name carries it; for a loading area, set aria-busy on the area or put text in a live region already on the page.",
     ],
     live: (ctx) => <Spinner label={catalogs[ctx.locale].atoms.spinner.loading} />,
     states: [
@@ -658,7 +729,7 @@ export const atoms: readonly DsEntry[] = [
     label: "Avatar",
     summary: "A customer's picture, with their initials until it loads.",
     a11y: [
-      "The image's alt is the person's name; the initials are its fallback.",
+      "The image's alt is the person's name. If the image fails, only the initials are left, so show the name as text beside the avatar.",
       "Not a control: wrap it in a link or button for that, and name that.",
     ],
     live: (ctx) => (

@@ -28,6 +28,14 @@ describe("Input", () => {
     expect(field.className).toContain("focus-visible:ring-ring");
   });
 
+  it("marks an invalid field with its border and keeps the focus ring at full strength", () => {
+    render(<Input aria-label="Email" aria-invalid />);
+    const classes = screen.getByRole("textbox", { name: "Email" }).className;
+    expect(classes).toContain("aria-invalid:border-destructive");
+    expect(classes).toContain("focus-visible:ring-ring");
+    expect(classes).not.toMatch(/aria-invalid:ring-/);
+  });
+
   it("ignores typing when disabled", async () => {
     const user = userEvent.setup();
     render(<Input aria-label="Email" disabled />);

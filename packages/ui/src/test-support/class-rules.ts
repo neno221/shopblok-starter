@@ -99,7 +99,12 @@ export function findViolations(source: string): Violation[] {
       if (variants.includes("dark")) {
         found.push({ rule: "dark variant", token });
       }
-      if (/^ring-ring\/\d/.test(utility)) {
+      // D35: a focus or invalid ring is drawn at full strength, whatever its colour.
+      if (
+        /^ring-ring\/\d/.test(utility) ||
+        (/^ring-[a-z-]+\/\d/.test(utility) &&
+          variants.some((v) => v === "focus-visible" || v === "aria-invalid"))
+      ) {
         found.push({ rule: "ring alpha", token });
       }
     }

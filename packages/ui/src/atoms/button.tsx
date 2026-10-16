@@ -1,6 +1,6 @@
 // Vendored from shadcn/ui (`shadcn add button`, CLI 4.21.4, style base-vega), 2026-10-16. MIT, see
 // packages/ui/NOTICE.md. Edited (SETUP.md, "shadcn and ReUI (T21)"): 44 px and taller only (D32: no
-// `xs`, `sm`, `icon-xs` or `icon-sm`), the focus ring at full strength (`ring-ring`, D35), a solid
+// `xs`, `sm`, `icon-xs` or `icon-sm`), the focus ring at full strength (`ring-ring`, D35, also on the destructive variant and when invalid), a solid
 // destructive variant (the tinted one is 4.01:1), long labels wrap (`min-h-11`, no
 // `whitespace-nowrap`), logical properties, light only (no `dark:`).
 import { Button as ButtonPrimitive } from "@base-ui/react/button";
@@ -8,7 +8,7 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@shopblok/ui/lib/utils";
 
 const buttonVariants = cva(
-  "group/button inline-flex shrink-0 items-center justify-center rounded-md border border-transparent bg-clip-padding text-center text-sm font-medium transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  "group/button inline-flex shrink-0 items-center justify-center rounded-md border border-transparent bg-clip-padding text-center text-sm font-medium transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {
@@ -20,7 +20,7 @@ const buttonVariants = cva(
         ghost:
           "hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground",
         destructive:
-          "bg-destructive text-destructive-foreground hover:bg-[color-mix(in_oklch,var(--destructive),var(--foreground)_15%)] focus-visible:border-destructive focus-visible:ring-destructive/20",
+          "bg-destructive text-destructive-foreground hover:bg-[color-mix(in_oklch,var(--destructive),var(--foreground)_15%)]",
         link: "text-primary underline-offset-4 hover:underline",
       },
       size: {
