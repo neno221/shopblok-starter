@@ -1,0 +1,32 @@
+// Parked copy of variant B3 (S4): it makes `next build` fail on purpose, so it is not in src/app.
+// To see the failure: mkdir -p 'src/app/(storefront)/[market]/spike-product/b3/[handle]' and copy this
+// file there as page.tsx, then run `pnpm exec next build` from apps/storefront.
+
+import { Suspense } from "react";
+import { spikeStaticParams } from "../../../../../../lib/spike-s4/catalog";
+import { SpikeProductPage } from "../../../../../../lib/spike-s4/product-view";
+import { VisitorPartServer } from "../../../../../../lib/spike-s4/visitor-part-server";
+
+// THROWAWAY spike code (plan M1 §6, S4), variant B3: B plus a per-visitor part behind `Suspense`
+// that reads `cookies()` on the server (D36's pattern for the cart count and the account). Does it
+// survive `ensureStatic = "navigation"`? The docs say no (runtime data fails even inside
+// `Suspense`), so `next build` is EXPECTED to fail on this route; the error is the measurement.
+export const ensureStatic = "navigation";
+
+export function generateStaticParams() {
+  return spikeStaticParams();
+}
+
+export default async function SpikeProductB3({
+  params,
+}: PageProps<"/[market]/spike-product/b3/[handle]">) {
+  // Awaited here, outside any `Suspense`, exactly as in B.
+  const { handle } = await params;
+  return (
+    <SpikeProductPage variant="B3" handle={handle}>
+      <Suspense fallback={<p className="mt-4">…</p>}>
+        <VisitorPartServer />
+      </Suspense>
+    </SpikeProductPage>
+  );
+}
