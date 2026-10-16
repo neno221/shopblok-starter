@@ -1,8 +1,8 @@
 # Setup
 
-How to run the starter on your own machine: the quickstart, the ports, the logins, the notes for Windows and for a Claude Code cloud session. Below "The M0 log" and "The M1 log" are what each task found and measured, one section per task and spike, in the order they ran. The log is the evidence behind [SPEC.md](SPEC.md) v0.6 and the [ADRs](adr/README.md); read the section a number or a decision in the spec points to.
+How to run the starter on your own machine: the quickstart, the ports, the logins, the notes for Windows and for a Claude Code cloud session. Below "The M0 log" and "The M1 log" are what each task found and measured, one section per task and spike, in the order they ran. The log is the evidence behind [SPEC.md](SPEC.md) v0.7 and the [ADRs](adr/README.md); read the section a number or a decision in the spec points to.
 
-- [Quickstart](#quickstart-no-keys-no-accounts) · [Prerequisites](#prerequisites-every-os) · [Ports and logins](#ports-urls-and-logins) · [Opening a market](#opening-a-market) · [Windows](#windows-notes) · [Cloud](#working-in-a-claude-code-cloud-environment) · [Checking a clean machine](#checking-a-clean-machine) · [If something fails](#if-something-fails) · [Where we differ from the skills](#where-we-deliberately-differ-from-the-medusa-skills)
+- [Quickstart](#quickstart-no-keys-no-accounts) · [Prerequisites](#prerequisites-every-os) · [Ports and logins](#ports-urls-and-logins) · [Opening a market](#opening-a-market) · [The design-system page, tokens and the Figma export](#the-design-system-page-tokens-and-the-figma-export-m1) · [Windows](#windows-notes) · [Cloud](#working-in-a-claude-code-cloud-environment) · [Checking a clean machine](#checking-a-clean-machine) · [If something fails](#if-something-fails) · [Where we differ from the skills](#where-we-deliberately-differ-from-the-medusa-skills)
 
 ## Quickstart (no keys, no accounts)
 
@@ -45,7 +45,7 @@ The first request to each page in `pnpm dev` compiles it (20 to 40 s for `/` and
 
 | What | Where | Login |
 |---|---|---|
-| Storefront (until M1 a page that shows the market, its language, the region, the currency and 4 priced products) | http://localhost:8000 | none |
+| Storefront (until M3 a page that shows the market, its language, the region, the currency and 4 priced products) | http://localhost:8000 | none |
 | Payload admin | http://localhost:8000/admin | `admin@example.com`, password in `apps/backend/.env` as `DEV_ADMIN_PASSWORD` |
 | Medusa admin | http://localhost:9000/app | the same login |
 | Medusa health | http://localhost:9000/health | none |
@@ -68,6 +68,7 @@ The host ports are not the standard ones on purpose (D15): a machine that alread
 | `/cy` | a redirect to `/` (two hops, 308 then 301) |
 | `/el-cy` | 404: the internal market key is never public |
 | `/admin` | Payload's login; its locale selector offers English and the languages of the countries enabled in the `markets` global |
+| `/design-system/en` | The design-system page (M1): Foundations and the 32 atoms, with a locale toggle (`en`, `de`, `fr`, `el`) and a viewport switcher. Always on in `pnpm dev`; [below](#the-design-system-page-tokens-and-the-figma-export-m1) for a build |
 
 (SPEC §8.5 writes `/us/` and `/ch/fr/`; public URLs have no trailing slash.) **Where verification links appear (M3).** Sign-up and its email verification arrive in M3. Until a Resend key is set, Medusa's `notification-local` provider writes each email, verification links included, to the backend's console: in the terminal that runs `pnpm dev`, they are the lines with the prefix `@shopblok/backend:dev:` (turbo 2.11.7's `ui` defaults to `stream`, and `turbo.json` leaves it there; earlier versions of this page said `tui` was the default). `pnpm run doctor` prints a warning about it ("Sign-up requires email verification, but there is no Resend key"); that warning is expected and is the only one a bootstrapped setup has once both servers are up.
 
@@ -90,6 +91,23 @@ A shop picks its regions, currencies and languages in one place per app and ever
 
 The UI text of a language other than English, Greek, German and French stays English until its catalog is added (M3). Translations of the catalog go in Medusa Admin, Settings, Translations. A market taken out of `config/markets.ts` leaves its region in Medusa (the seed adds and never removes); `doctor --online` lists it, and Medusa Admin, Settings, Regions deletes it.
 
+### The design-system page, tokens and the Figma export (M1)
+
+**The page.** `http://localhost:8000/design-system/en` (also `/de`, `/fr` and `/el`; `/design-system` redirects to `/design-system/en`) shows the tokens (Foundations) and every atom with its states, in the locale you pick, at 375, 768 and 1440 px. It is `noindex`, reads no data and needs no stack. In `pnpm dev` it is always on. **A production build serves it only if it was built with `DESIGN_SYSTEM_ENABLED=true`**; otherwise every `/design-system/…` URL is a 404:
+
+```bash
+DESIGN_SYSTEM_ENABLED=true pnpm --filter @shopblok/storefront build
+pnpm --filter @shopblok/storefront start
+```
+
+The value is frozen into the build, so setting it only on `start` changes nothing (D33; "DS page shell (T22)", code-review fix 1). The flag is commented out in `apps/storefront/.env.example`. CI's `design-system` job builds this way with no `.env` and no compose; to run its checks (192 cells: every atom at 375, 768 and 1440 px in `en` and `el`) against that build, in a second terminal: `E2E_DESIGN_SYSTEM=true pnpm --filter @shopblok/storefront test:e2e --project=design-system` (3 minutes; set the variable per command, not exported). The `dev-console` project, which needs `next dev` instead, is described in "The storefront in next dev (T25)".
+
+**`pnpm tokens`.** It builds `packages/ui/src/styles/tokens.css` and `packages/ui/src/tokens.ts` from `packages/ui/tokens/figma.tokens.json` (the Figma export) and `packages/ui/tokens/shopblok.tokens.json` (ours), through Style Dictionary, in about half a second. Run it after editing `shopblok.tokens.json` or after a new export, and commit the two files with the change. It stops before writing if a contrast pair, the radius scale or the 4 px spacing step fails, and names the pair and its ratio; `pnpm test` fails with "tokens.css is what the build gives" when the committed files differ from the build. Never edit `figma.tokens.json`, `tokens.css` or `tokens.ts` by hand ([packages/ui/tokens/README.md](../packages/ui/tokens/README.md); "Tokens (T19)").
+
+**Exporting from Figma again (T18).** Only if the kit changed. The export is read-only plugin code, `scripts/figma/export-variables.js`, that a session runs through the Figma connector's `use_figma` tool on file `1PUSIlNviAwiZT0praTxES`; it works from a cloud session as well as from your PC, as long as the connector is signed in. The connector answers at most 20,480 bytes and allows about ten calls a minute, so the code returns the export in slices (17 for the current kit; a refused call says "truncated to 20kb" whatever its size: wait a minute and try again). `node scripts/figma/assemble.ts <folder>` joins the slices and checks their length and hash. [packages/ui/tokens/README.md](../packages/ui/tokens/README.md#exporting-again) has the prompt to give the session. Then `git diff --stat packages/ui/tokens/figma.tokens.json` shows what changed (nothing, for an unchanged kit), and `pnpm tokens` rebuilds the CSS and tells you which contrast pairs the new values break. Without the connector, the same code runs as a development plugin in the Figma desktop app.
+
+**Fonts need the network.** Inter comes from Google through `next/font/google`, downloaded at build time and in `next dev`, and a failed download fails the build. A machine behind a proxy must reach `fonts.googleapis.com` and `fonts.gstatic.com`; the cloud environment allows both ([CLOUD.md](CLOUD.md#network-access)).
+
 ### Windows notes
 
 - **E: must be NTFS (D2).** exFAT has no symbolic or hard links, no permissions and no journal, and its 128 KB clusters would make hundreds of thousands of small library files far larger than they are. `fsutil fsinfo volumeinfo E:` says `File System Name : NTFS`. pnpm puts its store on the same drive (`E:\.pnpm-store`), so hard links work.
@@ -99,6 +117,7 @@ The UI text of a language other than English, Greek, German and French stays Eng
 - **Other programs on the default ports.** The reference PC runs another project's Postgres, Redis and Meilisearch on 5432, 6379 and 7700, which is why the stack publishes 15432, 6380 and 7701 (D15). W1 tests that clash on the real machine.
 - **What has run on Windows.** T00 (Windows 11 Home 10.0.26200, Node 22.22.0, NTFS E:): pnpm 12.10.1 installs, builds and hot-reloads Next 16.4.0, Payload 3.90.2 and Medusa 2.21.2 together; two config fixes it found (`allowBuilds` for `msgpackr-extract` and `protobufjs`, and `@medusajs/cli` as a direct dependency of the backend) are in the repo ("Windows preflight (T00)" below). CI's `windows-smoke` job installs, type-checks, runs the unit tests, builds and checks that one `^C` stops `pnpm dev`, on `windows-latest`, weekly and on PRs that change a dependency file (4 m 16 s before the W2 fixes added the tests and the `^C` check; 5 m 33 s and 7 m 16 s in PR 28's two runs). W2 (2026-10-13) ran the whole quickstart in a fresh clone on E: (["Windows exit check (W2)"](#windows-exit-check-w2) below): it works, 2 to 7 times slower than the cloud VM. Its three failures (stopping `pnpm dev` took `^C` twice, a page could answer 500 right after `pnpm dev` started, `pnpm test` failed in `@shopblok/scripts`) and `check:workspace` missing a package on Windows are fixed (["W2 fixes"](#w2-fixes)), and W2's second run (2026-10-13, a fresh clone again) passed all of §7 on the PC, one `^C` included (["Windows exit check (W2), second run"](#windows-exit-check-w2-second-run)).
 - **From the Claude desktop app** (a local Claude Code session, as in W1 and W2): the app is packaged, so every Medusa command needs `$env:SWC_NATIVE_BINDING_CACHE` pointing at a private folder (for example `C:\Users\<you>\.swc-native-cache`). Without it `@swc/core` fails with `ERR_SWC_NATIVE_CACHE`. `turbo.json` passes the variable through to every task (`globalPassThroughEnv`, W2 finding 5), so `pnpm lint`, `pnpm test` and `pnpm build` need nothing else; before the W2 fixes they also needed `$env:TURBO_ENV_MODE = 'loose'`. A PowerShell window outside the app needs neither.
+- **M1 has not been run on Windows yet.** The tokens, the atoms, the DS page and `pnpm tokens` were built and checked on Linux and on CI's Ubuntu runners; `windows-smoke` installs, type-checks, builds and unit-tests them on `windows-latest`, and W3 (the plan's §4a) runs the page, the fonts and one `^C` on the PC. No M1 task recorded a Windows-specific step, so there is no M1 note here yet.
 - Scripts use `node:path`, `docker` and `pnpm` started without a shell where possible, and a quoted `cmd.exe` command line where not (`scripts/lib/exec.ts`); line endings are LF (`.gitattributes`).
 
 ### Working in a Claude Code cloud environment
@@ -122,6 +141,9 @@ CI is the clean-machine reference. On `ubuntu-latest`, after `pnpm install` (18 
 | `payload migrate` asks "Would you like to proceed?" | Dev push touched the database: `pnpm infra:reset`, or answer it yourself. Bootstrap stops instead of answering |
 | `/store/search` says a `min_price_<currency>` field is not facetable | A currency was added without `medusa db:migrate` and a restart; `pnpm bootstrap` does both |
 | Docker is not running (cloud session) | CLOUD.md, "What every cloud session does first", step 3 |
+| `/design-system/…` answers 404 in a build, or the `design-system` Playwright project stops with "answered 404, not 200" | The build lacks `DESIGN_SYSTEM_ENABLED=true`, which is read when `next build` runs (see "The design-system page" above). `next dev` always serves it |
+| `pnpm test` fails with "tokens.css is what the build gives", or `pnpm tokens` names a pair and a ratio | A token file changed without `pnpm tokens`, or a new value fails the contrast gate. Run `pnpm tokens`; if it names a pair, pick a colour that passes (`shopblok.tokens.json`) |
+| `pnpm build` or `next dev` fails while downloading Inter | `next/font/google` could not reach `fonts.googleapis.com` or `fonts.gstatic.com`. Allow both (CLOUD.md lists them for the cloud environment) |
 | On Windows, turbo keeps printing `2 tasks shutting down...` after `^C` | turbo started the tasks through npm's batch file `pnpm.cmd`, and each one's `cmd.exe` waits on `Terminate batch job (Y/N)?`, which nobody sees. `pnpm dev` prevents it (`scripts/dev.ts`); it happens with `turbo run dev` started some other way, or with a pnpm that is not a `pnpm.exe`. Press `^C` again: turbo then force-kills them (W2, finding 1) |
 | The first page after `pnpm dev` starts answers 500: `…/next/markets could not be fetched (…)` or `the markets global could not be read (no answer after 60 s)` | In development the first read of the market map may take 60 s, because it starts Payload (8 to 13 s on the reference PC, W2 finding 3). Past that, Payload did not start: is the stack up (`pnpm infra:up`), and what does the storefront's log say? |
 

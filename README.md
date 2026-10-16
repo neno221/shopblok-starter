@@ -2,7 +2,7 @@
 
 A brand-neutral storefront starter: **Medusa v2** (commerce) + **Next.js 16** with embedded **Payload CMS 3** (content), built on an atomic design system (shadcn/ui + Tailwind v4).
 
-**Status:** M0 (the foundation) is **done**: the Windows exit check (W2) passed on its second run, 2026-10-13 ([SETUP.md](docs/SETUP.md#windows-exit-check-w2-second-run)), so the exit criteria (plan §7) hold on Linux and on Windows. T00, T01, W1, W2 and the W2 fixes ran on Windows; C0 and the rest of M0 ran in a Claude Code cloud environment. Next: the plan for M1 (design foundations, SPEC §17.1).
+**Status:** M0 (the foundation) is **done**: the Windows exit check (W2) passed on its second run, 2026-10-13 ([SETUP.md](docs/SETUP.md#windows-exit-check-w2-second-run)), so the exit criteria (plan §7) hold on Linux and on Windows. T00, T01, W1, W2 and the W2 fixes ran on Windows; C0 and the rest of M0 ran in a Claude Code cloud environment. **M1 (design foundations) is built** and merged except for its Windows check: the Figma kit's variables are exported and `pnpm tokens` builds the tokens from them, the 32 atoms of SPEC §9.3 are in `packages/ui`, the design-system page shows them, CI checks every atom at three widths in two locales, and ADR 0004 settles where the catalog pages' data lives ([plan](docs/plans/M1.md); SETUP.md has a section for each task). Next: W3, the Windows check and the design review on your PC.
 
 **Quickstart** (no keys, no accounts; prerequisites and the details are in [docs/SETUP.md](docs/SETUP.md#quickstart-no-keys-no-accounts): Node 22.22+, pnpm 12.10.1 installed with `npm install -g pnpm@12.10.1`, Corepack off, Docker running):
 
@@ -15,9 +15,11 @@ pnpm dev                      # Medusa on :9000, the storefront and Payload on :
 
 Then http://localhost:8000 (Cyprus, Greek, EUR), `/us`, `/ch/fr`, the Payload admin at `/admin` and the Medusa admin at http://localhost:9000/app, both with `admin@example.com` and the `DEV_ADMIN_PASSWORD` in `apps/backend/.env`. Check the setup with `pnpm run doctor` (never `pnpm doctor`, which is pnpm's own command).
 
-- Spec: [docs/SPEC.md](docs/SPEC.md) (v0.6)
-- Decisions: [docs/adr/](docs/adr/README.md) (ADRs 0001 to 0003, all accepted)
-- M0 plan: [docs/plans/M0.md](docs/plans/M0.md) (§4a lists what runs in the cloud and what you do on your PC)
+**The design-system page** is at http://localhost:8000/design-system/en in `pnpm dev` (also `/de`, `/fr` and `/el`): Foundations (colours, type, spacing, radius, shadows, motion, icons and credits) and every atom, at 375, 768 and 1440 px. A production build serves it only if it was built with `DESIGN_SYSTEM_ENABLED=true`; otherwise every `/design-system/…` URL is a 404. `pnpm tokens` rebuilds the CSS tokens after a change to `packages/ui/tokens/`, and [docs/SETUP.md](docs/SETUP.md#the-design-system-page-tokens-and-the-figma-export-m1) says how to run the checks and how to export from Figma again.
+
+- Spec: [docs/SPEC.md](docs/SPEC.md) (v0.7)
+- Decisions: [docs/adr/](docs/adr/README.md) (ADRs 0001 to 0004, all accepted)
+- M0 plan: [docs/plans/M0.md](docs/plans/M0.md) (§4a lists what runs in the cloud and what you do on your PC) · M1 plan: [docs/plans/M1.md](docs/plans/M1.md)
 - Cloud environment: [docs/CLOUD.md](docs/CLOUD.md)
 - Windows preflight (T00): passed, see [docs/SETUP.md](docs/SETUP.md)
 - Workspace config (T01): passed, see [docs/SETUP.md](docs/SETUP.md#workspace-config-t01)
@@ -44,6 +46,9 @@ Then http://localhost:8000 (Cyprus, Greek, EUR), `/us`, `/ch/fr`, the Payload ad
 - Windows exit check (W2), first run 2026-10-13: not passed, see [docs/SETUP.md](docs/SETUP.md#windows-exit-check-w2). A fresh clone on E: passes most of the exit criteria with the same output as Linux, but on Windows `^C` needed pressing twice to stop `pnpm dev`, `pnpm test` failed in `@shopblok/scripts` (two Windows-only test problems), and the first request after `pnpm dev` started could answer 500
 - W2 fix task, 2026-10-13: all three fixed, and `check:workspace` sees every Payload package on Windows, see [docs/SETUP.md](docs/SETUP.md#w2-fixes). `pnpm dev` now starts turbo through `scripts/dev.ts`, so one `^C` stops it on Windows; CI's `windows-smoke` runs the unit tests and checks that `^C`
 - Windows exit check (W2), second run 2026-10-13: passed, see [docs/SETUP.md](docs/SETUP.md#windows-exit-check-w2-second-run). A fresh clone on E: reached every exit criterion. The first request after `pnpm dev` started answered 200 (39.1 s), `check:workspace` lists 8 Payload packages, `pnpm test` passes, and one `^C` left no process of the clone behind; **M0 is closed**
-- Next step: [docs/NEXT-SESSION.md](docs/NEXT-SESSION.md): merge the W2 PR, then the plan for M1
+- Next step: [docs/NEXT-SESSION.md](docs/NEXT-SESSION.md): W3, the Windows check and design review that close M1
 
-Design tokens are based on the "shadcn/ui – Design System by ReUI" Figma community file, licensed CC BY 4.0.
+## Credits
+
+- **Design tokens** are based on the "shadcn/ui – Design System by ReUI" Figma community file by ReUI, licensed [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) ([the file](https://www.figma.com/community/file/1649373313065184861/shadcn-ui-design-system-by-reui)). Shopblok's tokens and atoms are adapted from it: the colours the build's contrast gate changes, the radius, spacing and type scales as the kit defines them, and our own commerce tokens. The credit is also on the design-system page (Foundations, "Icons and credits").
+- **Third-party code and data** in `packages/ui`: shadcn/ui, Base UI and ReUI's free items (MIT), `cn` (MIT), `class-variance-authority` (Apache-2.0), `tw-animate-css` (MIT), Lucide (ISC), Simple Icons (CC0; each payment mark remains its owner's trademark) and `country-flag-icons` (MIT). The notices are in [packages/ui/NOTICE.md](packages/ui/NOTICE.md). Inter (SIL OFL) is credited on the design-system page.

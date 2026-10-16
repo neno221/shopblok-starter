@@ -1,6 +1,6 @@
 # Shopblok Starter: Medusa × Payload × Next.js
 
-**Spec v0.6** · 2026-10-10 · facts checked against official docs on 2026-10-08 and against the M0 build on 2026-10-10. What changed from v0.5, and why, is in "Changes in v0.6" under the decisions log
+**Spec v0.7** · 2026-10-16 · facts checked against official docs on 2026-10-08, against the M0 build on 2026-10-10 and against the M1 build on 2026-10-16. What changed from v0.6, and why, is in "Changes in v0.7" under the decisions log; v0.6's changes follow it
 
 Status tags:
 **[Decided]** agreed · **[Proposed]** a default I picked, confirm or change · **[Risk]** see §17.2
@@ -30,6 +30,36 @@ Status tags:
 | 2026-10-10 | **Cache Components stay on** with the embedded Payload admin: production mode is clean, `next dev` logs console errors in the admin (ADR 0001, accepted by the owner) |
 | 2026-10-10 | **Search per locale:** one Meilisearch index per locale (M6), one multilingual index on the keyless Postgres default (M3) (ADR 0002) |
 | 2026-10-10 | **Payload preloads 42 languages**; the `markets` global decides which the admin offers; locales only grow (ADR 0003) |
+| 2026-10-14 | **Design tokens (M1):** the kit's variables are exported by committed read-only plugin code, and Style Dictionary 5.6.1 builds `tokens.css` and `tokens.ts` through `pnpm tokens`, with a contrast gate that overrides the kit where it fails (D24 to D27, D35) |
+| 2026-10-14 | **Targets:** every interactive atom is at least 44 × 44 px at every width, on every device (D32) |
+| 2026-10-14 | **DS checks:** every atom at 375, 768 and 1440 px in `en` and `el`, in a CI job of its own (D34) |
+| 2026-10-14 | **Catalog data in the shell:** the indexable pages read their data in the static shell, and `/next/status` answers 503 for uptime monitors (D36; ADR 0004, accepted 2026-10-16 after S4 passed) |
+| 2026-10-15 | **Style:** shadcn's `base-vega`, not `base-nova`. The copy of the kit has no Button to measure, so the owner chose it without a measurement (D29) |
+
+### Changes in v0.7
+
+M1 (docs/plans/M1.md) built the design foundations (tokens, the 32 atoms, the DS page, its checks and the dev-console check) and ran spike S4. v0.7 is v0.6 with what that built and found, and with the decisions the plan confirmed (D24 to D39, 2026-10-14). Each row names the sections it touched, the reason, and where the evidence is (D# = the plan's decisions in §1, "finding #" = the plan's §8, ADR = docs/adr/, SETUP = docs/SETUP.md). Anything not listed is unchanged.
+
+| Sections | Change | Why |
+|---|---|---|
+| Decisions log | Five rows for M1's decisions: the token pipeline, 44 px targets, the DS checks, catalog data in the shell, and the `base-vega` style | D24 to D27, D35, D32, D34, D36, D29 |
+| §2 (Principle 7), §13 | 44 × 44 px targets at every width, for every interactive atom; a text link inside a sentence is exempt; shadcn's `xs` and `sm` sizes are dropped from the interactive atoms | D32; finding 9. WCAG 2.5.8's own minimum is 24 px, so 44 is the spec's choice. One size everywhere is simpler to build and to check. SETUP "shadcn and ReUI (T21)" item 6, "DS checks (T24)" item 3 |
+| §3 | The UI row names `base-vega` instead of `base-nova`, Base UI 1.9.0 (`@base-ui/react`), shadcn CLI 4.21.4 and shadcn's `cn` package; the `E:\commerce-blocks` line is gone | D29; finding 1; plan §0 item 2 (there is no such scaffold). A style cannot change after initialization. `base-vega`'s Button is 36 px like the classic kit's, `base-nova`'s 32 px. The kit copy has no Button, so the owner chose without a measurement (SETUP "Figma export (T18)" item 5). Registry's `cn`: SETUP "shadcn and ReUI (T21)" item 2 |
+| §4 | The layout as built: `packages/ui/tokens/`, `src/styles/`, `src/atoms/`; `src/app/design-system/[locale]/` with its own root layouts and `src/design-system/`; `scripts/figma/` and `scripts/figma-tokens.ts`; `docs/design/kit/`; `src/lib/fonts.ts` | Finding 2; D30, D33. SETUP "Tokens (T19)", "DS page shell (T22)" |
+| §8.1 | The DS route is `/design-system/[locale]/…`, static, gated by a build flag, and `design-system` is a reserved first segment; the catalog rows are static shells; a `/next/status` row; the streamed-part paragraph ends with ADR 0004's decision instead of "Decide with the first real catalog page (M1)" | D33, D36; findings 3 and 16; ADR 0004 (accepted 2026-10-16). SETUP "DS page shell (T22)" items 2 to 4, "Backend outage (S4)" |
+| §8.3 | On a catalog page and in the layouts above it, per-visitor parts are Client Components that read in the browser; `Suspense` and `'use cache: private'` stay for the dynamic pages; the catalog's `cacheLife` has a long `expire`; `generateStaticParams` reads Medusa with a build stand-in | Finding 16; ADR 0004, readings 2 to 4. `ensureStatic = "navigation"` fails the build on `cookies()` even inside `Suspense` (B3), and a URL idle for longer than `expire` gives one 500 during an outage |
+| §9.1 pipeline | The export runs committed, read-only plugin code through the Figma connector; `figma.tokens.json` is the normalised model with every mode; Style Dictionary 5.6.1, driven by `scripts/figma-tokens.ts`, writes the committed `tokens.css` and `tokens.ts`; `shopblok.tokens.json` holds commerce tokens and AA overrides. The kit's weights include 700 and its radius scale reaches `4xl`; the copy draws none of the shadcn atoms | D24 to D27; finding 4. SETUP "Figma export (T18)" (17 identical runs; 1,029 variables, 92 text styles, 14 effect styles), "Tokens (T19)". The connector worked in the cloud, so the export is not tied to a PC |
+| §9.1 primitives, §9.3 | Where each atom comes from: shadcn (17), ReUI's `rating` and `number-field` (2), Simple Icons for PaymentIcon, `country-flag-icons` for Flag, and ours on the tokens; the line between ReUI's MIT items and its licensed Pro items | D31; findings 5 and 7. ReUI's licence (updated 2026-09-28); `packages/ui/NOTICE.md`; SETUP "shadcn and ReUI (T21)", "Atoms (T23)" |
+| §9.3 | The count stays **32 atoms**, all built; the plan's "33" (and its "16 other atoms") were miscounts | SETUP "Atoms (T23)": 17 shadcn plus 15 others equal the 32 names §9.3 lists |
+| §9.2 | One `--radius` with a derived scale; spacing is Tailwind's 4 px step; the 36 contrast pairs (31 text at 4.5:1, 5 UI at 3:1); `border` is decorative; the kit fails the gate in eight places and each override is in `shopblok.tokens.json` | D27, D35; finding 6. SETUP "Tokens (T19)", "Overrides": every override with the kit's value, ours and both ratios |
+| §9.6 | The DS page as built: `/design-system/[locale]/…` for `en`, `de`, `fr`, `el`; frames for the viewport iframes; the gate is `DESIGN_SYSTEM_ENABLED` at build time until M7 adds the Payload login; the chrome is in English and the entries in the chosen locale with that locale's market; entries come from a manifest that M2's registry replaces | D33; finding 8. SETUP "DS page shell (T22)" and its review fixes (the flag is frozen into the build) |
+| §12 | "Status codes": `ensureStatic = "navigation"`, and a catalog page answers 5xx, not 200, when it cannot be rendered; the 404 and 500 bodies are Next's bare error shell | Finding 16; ADR 0004, readings 1 and 6 |
+| §13 | Fonts: `next/font/google` downloads Inter at build time and fails the build without it, so the cloud environment allows `fonts.googleapis.com` and `fonts.gstatic.com`; the gate composites alpha and lists its pairs; shadcn's neutral defaults fail three, and where the kit fails too, the override is ours | D28, D35; findings 10 and 11. SETUP "Styles and fonts (T20)" (`preload: false`: a Greek page loads the Greek file, an English page does not), "Tokens (T19)" |
+| §14 | CI is six jobs: the `design-system` job (192 cells) is new, and `e2e-smoke` ends with the `dev-console` step; component tests use Testing Library and happy-dom; screenshots are artifacts and pixel baselines start in M2; from M3, `e2e-smoke` starts Medusa before `pnpm build` | D34, D37, D38; findings 12 and 16; ADR 0004, reading 4. SETUP "DS checks (T24)" (five mutations), "The storefront in next dev (T25)", "shadcn and ReUI (T21)" |
+| §15 | `DESIGN_SYSTEM_ENABLED` is read at build time, frozen into the bundle, and listed in turbo's `build` env | D33; finding 13. SETUP "DS page shell (T22)", code-review fix 1: a build without the flag, started with it, answered 200 for DS pages until the value was frozen |
+| §17.1 | M1's row as built; M2 gains the pixel baselines and the registry that replaces M1's manifest; M3 gains `/next/status` and the catalog pages built to ADR 0004; M4's CMS pages read in the shell too; M7 gains the DS page's Payload login | Finding 14; ADR 0004, "Consequences" |
+| §18 | Q8: the DS page is gated by a build flag until M7 | D33 |
+| §19 | Sources for shadcn's monorepo and `components.json` pages and its July 2026 Base UI entry, ReUI's registry and licence, Figma's MCP rate limits and REST variables pages, DTCG 2025.10, Style Dictionary, Simple Icons' disclaimer, WCAG 2.2, and the Next 16.4 pages on fonts, `generateStaticParams` and `ensureStatic` | Finding 15 |
 
 ### Changes in v0.6
 
@@ -110,7 +140,7 @@ Starting a new brand:
 4. **Tokens, not values.** Components use semantic tokens only. A brand overrides tokens, not components.
 5. **Variants are data.** One registry drives the Payload select options and thumbnails, the renderer, and the design-system page.
 6. **Presentational sections.** Sections take normalized props from resolvers, so the same UI can render live Medusa data, Payload content or fixtures.
-7. **Accessible.** WCAG 2.2 AA, cart and checkout fully keyboard-usable, 44 px touch targets, `aria-live="polite"` on the cart count, `env(safe-area-inset-bottom)` on sticky mobile CTAs.
+7. **Accessible.** WCAG 2.2 AA, cart and checkout fully keyboard-usable, 44 × 44 px targets at every width for every interactive atom (a text link inside a sentence is exempt, as WCAG 2.5.8 exempts it), `aria-live="polite"` on the cart count, `env(safe-area-inset-bottom)` on sticky mobile CTAs.
 8. **No emojis in the UI.** Use Lucide icons or images.
 9. **No hard-coded strings or formats.** All copy comes from i18n messages. All money and dates go through `Intl` with the active locale.
 10. **Markets are data.** Countries and languages come from settings (Medusa + Payload), never from code constants.
@@ -127,7 +157,7 @@ Starting a new brand:
 | Commerce | **Medusa** | **2.21.2** | Backend scaffolded from `medusajs/dtc-starter` `apps/backend` |
 | Storefront | **Next.js** | **16.4.0** exactly (React 19.3) | 16.3.6 fixes the critical `next/og` RCE advisory (GHSA-vcvr-r3jv-pc5j) but not the six advisories of 2026-09-30 (fixed in 16.3.8); two apply here, a draft-mode leak through `use cache` deduplication (GHSA-3w37-wq28-93x7) and a cache leak across root-param values (GHSA-h694-7cp9-m8p3). 16.4.0 has every fix. Renovate opens a PR for each release and CI tests it. Payload's peer range is ≥ 16.3.3 < 17 |
 | CMS | **Payload** | **3.90.2** | Embedded in the storefront. Upgrade to v4 once it's stable |
-| UI | Tailwind CSS v4, shadcn/ui (Base UI flavour, `base-nova`), lucide-react, **Inter** | n/a | The `E:\commerce-blocks` scaffold can seed `packages/ui` |
+| UI | Tailwind CSS v4, shadcn/ui (Base UI flavour, style `base-vega`), lucide-react, **Inter** | Tailwind 4.3.3, **Base UI 1.9.0** (`@base-ui/react`), shadcn CLI 4.21.4, lucide-react 1.56.0 | `base-vega` rather than `base-nova` (D29): the kit's Button is 36 px, and a style cannot change after initialization. The CLI runs as `pnpm dlx shadcn@4.21.4` and is not a dependency; shadcn's registry now imports its own `cn` package (0.4.0, MIT) instead of `clsx` and `tailwind-merge`. ReUI's free items come from its registry (§9.1) |
 | i18n | `next-intl`, with messages from Payload; Payload localization; Medusa Translation Module | n/a | §8.5 |
 | Data | Postgres 17 | n/a | Medusa's Postgres search provider needs the `pg_trgm` and `unaccent` extensions |
 | Cache / queues | Redis 7 | n/a | Medusa event bus, workflow engine, locking, caching, sessions, rate limiting |
@@ -156,14 +186,19 @@ shopblok-starter/
 │  └─ storefront/             Next.js 16.4 + embedded Payload 3.90 (:8000, Payload admin /admin). Deployed to Vercel. Apps read the shared packages' TypeScript source directly (D3): no build step in `packages/*`
 │     ├─ src/app/(payload)/      generated Payload admin + REST (/admin, /api)
 │     ├─ src/app/(storefront)/   [market]/… storefront routes (internal; public URLs via proxy rewrite, §8.5)
-│     ├─ src/app/design-system/  DS reference (§9.6)
+│     ├─ src/app/design-system/[locale]/  DS reference (§9.6): its own root layouts (overview, entry, frame), not under `[market]`
+│     ├─ src/design-system/      the DS's manifest (`entries.tsx`, until M2's registry), gate, Foundations pages and components
 │     ├─ src/payload/            collections, globals, blocks, fields, hooks, access
 │     ├─ src/lib/medusa/         server-only DAL (SDK, cookies, actions)
 │     ├─ src/lib/cms/            server-only Payload Local API queries
 │     ├─ src/lib/markets/        market resolution, URL builder, hreflang
+│     ├─ src/lib/fonts.ts        Inter through `next/font/google` (§13)
 │     └─ src/resolvers/          productSource/categorySource → section props
 ├─ packages/
 │  ├─ ui/                     @shopblok/ui: tokens → atoms → molecules → organisms → sections → templates (presentational only)
+│  │  ├─ tokens/                 figma.tokens.json (the export, never edited), shopblok.tokens.json (by hand)
+│  │  ├─ src/styles/             globals.css, tokens.css (generated and committed), brands/ (documented; no brand ships in M1)
+│  │  └─ src/atoms/              the 32 atoms with their tests; src/lib/utils.ts (`cn`); NOTICE.md holds the third-party notices
 │  ├─ registry/               @shopblok/registry: variant manifest (id, kind, label, thumbnail, prop contract)
 │  ├─ i18n/                   @shopblok/i18n: default message catalogs (en, de, fr, el), formatters
 │  ├─ fixtures/               @shopblok/fixtures: typed mock data (@medusajs/types + Payload types), multi-locale
@@ -171,8 +206,8 @@ shopblok-starter/
 │  └─ config/                 tsconfig / eslint / prettier presets
 ├─ infra/docker-compose.yml   postgres, redis, meilisearch, mailpit (local only; no object-storage container)
 ├─ compose.yaml               includes infra/docker-compose.yml, so plain `docker compose up` works from the root
-├─ scripts/                   bootstrap, doctor, check-workspace (M0); thumbnails, figma-tokens (later)
-├─ docs/                      SPEC.md, SETUP.md, CLOUD.md, plans/, adr/; DEPLOY.md (Vercel + Railway + R2) and GO-LIVE.md in M7
+├─ scripts/                   bootstrap, doctor, check-workspace (M0); figma-tokens.ts (`pnpm tokens`) and figma/ (the export's plugin code and its assembler) (M1); thumbnails (M2)
+├─ docs/                      SPEC.md, SETUP.md, CLOUD.md, plans/, adr/, design/kit/ (the Figma kit's credit and what its copy draws); DEPLOY.md (Vercel + Railway + R2) and GO-LIVE.md in M7
 ├─ .github/workflows/ci.yml, renovate.json
 ├─ pnpm-workspace.yaml        every pnpm setting (no .npmrc: pnpm 12 reads only auth and registry from it)
 ├─ turbo.json
@@ -500,13 +535,13 @@ In the block drawer each block shows a thumbnail via `admin.images.thumbnail` (3
 
 | Public route | Template | Index | Rendering |
 |---|---|---|---|
-| `{m}/` | Home (`site-settings.homepage`) | ✓ | cached shell + tags |
-| `{m}/[...slug]` | CMS page | ✓ | cached + tags |
-| `{m}/products/[handle]` | PDP | ✓ | cached; cart controls in Suspense |
-| `{m}/categories/[...handle]` | PLP | ✓ | cached first page; facets via search |
+| `{m}/` | Home (`site-settings.homepage`) | ✓ | static shell (`ensureStatic = "navigation"`), `cached()` with tags; per-visitor parts read in the browser |
+| `{m}/[...slug]` | CMS page | ✓ | static shell (`ensureStatic = "navigation"`), `cached()` with tags; per-visitor parts read in the browser |
+| `{m}/products/[handle]` | PDP | ✓ | static shell (`ensureStatic = "navigation"`), `cached()` with tags; cart controls are Client Components |
+| `{m}/categories/[...handle]` | PLP | ✓ | static shell (`ensureStatic = "navigation"`), `cached()` with tags, first page; facets via search |
 | `{m}/collections/[handle]` | PLP | ✓ | same |
 | `{m}/store` | PLP (all) | ✓ | same |
-| `{m}/journal/[slug]` | Post | ✓ | cached + tags |
+| `{m}/journal/[slug]` | Post | ✓ | static shell (`ensureStatic = "navigation"`), `cached()` with tags; per-visitor parts read in the browser |
 | `{m}/search` | Results | noindex | dynamic |
 | `{m}/cart` | Cart | noindex | dynamic |
 | `{m}/checkout` | Checkout (minimal chrome) | noindex | dynamic, nonce CSP |
@@ -517,19 +552,20 @@ In the block drawer each block shows a thumbnail via `admin.images.thumbnail` (3
 | `/api/payment-return`, `/api/revalidate` | Route handlers | n/a | n/a |
 | `/next/preview`, `/next/exit-preview` | Draft mode | n/a | n/a |
 | `/next/markets` | The market map for `proxy.ts` (open countries only) | n/a | prerendered, refreshed every 30 s |
+| `/next/status` | Uptime check (built with the first catalog page, M3): 200, or 503 when Medusa's Store API or Payload's database does not answer within 2 s | n/a | dynamic, `no-store` |
 | `/next/e2e/*` | Test-only reads for CI (ADR 0001's checks) | n/a | dynamic; **404 unless `E2E_TEST_ROUTES=true`**, which only CI's `e2e-smoke` sets |
 | `/admin/*`, `/api/*` | Payload | disallow | n/a |
-| `/design-system/*` | DS reference | noindex, gated | static |
+| `/design-system/[locale]/…` | DS reference (`en`, `de`, `fr`, `el`), and `/design-system/[locale]/frame/…` for the bare render of each viewport iframe (§9.6) | noindex, gated by `DESIGN_SYSTEM_ENABLED` at build time | static |
 
 **Internally**, every storefront route lives under `src/app/(storefront)/[market]/…`, where `market` is a key such as `el-cy`. `proxy.ts` maps clean public URLs to these internal routes with a rewrite, and the link builder does the reverse. Public URLs never show the internal key (the internal `/el-cy` is a 404).
 
 Things M0 measured about these URLs:
 - **No trailing slash.** `trailingSlash` is off, so Next redirects `/us/` to `/us`. `/us/`, `/ch/fr/` and `/cy/` in this spec are notation for `/us`, `/ch/fr` and `/cy`; `buildPublicUrl` and the hreflang tags give the slashless form (`/` for the primary market).
 - **`/cy/` is two hops**: Next's 308 to `/cy`, then the proxy's 301 to `/`. Setting `skipTrailingSlashRedirect` would make it one but would also stop Next normalising `/admin/` and `/api/…/`, so it stays off.
-- **`admin`, `api` and `next` are reserved first segments** (Payload's routes, the draft-mode routes and `/next/markets`). The matcher leaves them and files (a last segment that ends in `.` and a letter) alone, so a CMS page with one of those slugs is not reachable at the primary country's `/…` URL.
+- **`admin`, `api`, `design-system` and `next` are reserved first segments** (Payload's routes, the DS page, the draft-mode routes, `/next/markets` and `/next/status`). The matcher leaves them and files (a last segment that ends in `.` and a letter) alone, so a CMS page with one of those slugs is not reachable at the primary country's `/…` URL.
 - **`x-middleware-rewrite`** is visible on responses in `next start` and tells a visitor the internal key; M7 (headers) can strip it.
 - **A not-found URL** is rewritten to `/` (which matches no route), not to `/_not-found`, which `[market]` would take for a market key.
-- **A failure in a streamed part cannot change the HTTP status.** Next sends the static shell first with status 200; an error in a part that streams in afterwards renders the error boundary and the status stays 200 (the `loading` docs say so). So a page whose data must give a 5xx when the backend is down needs that data in the static shell (`use cache`, which survives an outage because the shell is served stale) or a status route for monitors (`/next/status` answering 503). Decide with the first real catalog page (M1).
+- **A failure in a streamed part cannot change the HTTP status.** Next sends the static shell first with status 200; an error in a part that streams in afterwards renders the error boundary and the status stays 200 (the `loading` docs say so). So a page whose data must give a 5xx when the backend is down needs that data in the static shell (`use cache`, which survives an outage because the shell is served stale) or a status route for monitors (`/next/status` answering 503). ADR 0004 (accepted 2026-10-16, after S4) decides it: the indexable pages (home, PDP, PLP, CMS page, post) read their data in the static shell (`cached()`, `notFound()` before any `Suspense`, `ensureStatic = "navigation"`), and `Suspense` is for per-visitor parts, which read in the browser on those pages, and for `/search`. An outage then serves the last good page, a page that was never rendered answers 5xx, a missing one answers 404, and `/next/status` tells an uptime monitor the state. The M0 wiring page keeps its streamed part until M3 replaces it.
 
 ### 8.2 Data layer (port of dtc-starter logic, with known bugs fixed)
 
@@ -563,7 +599,9 @@ Things M0 measured about these URLs:
 
 - **Catalog and CMS reads:** `'use cache'` + `cacheLife` + **global** tags. Region and locale are passed in as arguments. Tags are fixed when `cached()` is called, so a tag per language needs one wrapper per language. `cacheLife` leaves a read out of the prerender when `expire` is under 5 minutes or `stale` under 30 s, and then a root layout that needs it would block.
 - **Drafts:** `draftMode()` is read outside the cached function and `isEnabled` is passed in, so it is part of the cache key. (ADR 0001 tested the opposite pattern on purpose, the one of GHSA-3w37-wq28-93x7: 200 concurrent mixed requests leaked nothing on 16.4.0 on one process. That is evidence the fix holds, not a pattern to copy.)
-- **Cart, customer and checkout:** in Suspense holes or `'use cache: private'`. The header cart count is a streamed island.
+- **Catalog pages (ADR 0004):** the home, PDP, PLP, CMS page and post read in the static shell and export `ensureStatic = "navigation"`, which makes the build refuse request-time work in the route. Their `cacheLife` has a long `expire`, set by the longest outage the shop should ride out and not by freshness: a URL with no traffic for longer than `expire` gives its first visitor a 500 during an outage, and then the old page again. Freshness comes from tags (webhooks, below) and `revalidate`. `ensureStatic` refuses `expire` under 5 minutes, `stale` under 30 s and `revalidate` 0.
+- **Build:** with Cache Components, `generateStaticParams` must return at least one param. A catalog page's reads Medusa; while `next build` runs with no `MEDUSA_BACKEND_URL` it returns one placeholder handle that the page turns into a 404 before it asks Medusa anything (D10's rule), and with the URL set, an unreachable Medusa fails the build and names it. So a deployment builds with its backend up.
+- **Cart, customer and checkout:** on a catalog page and in the layouts above it, per-visitor parts are Client Components that read in the browser, the header cart count included (`ensureStatic = "navigation"` fails the build on `cookies()` even inside `Suspense`). `Suspense` holes and `'use cache: private'` stay for the dynamic pages (cart, checkout, account) and `/search`.
 - **Mutations:** `updateTag('cart')` / `refresh()`.
 - **Webhooks:** `revalidateTag(tag, { expire: 0 })` for price and stock changes, `'max'` for content (both verified under `next start`).
 - Vercel propagates `revalidateTag` across functions, so no Redis cache handler is needed. **Not tested on Vercel** (ADR 0001): M7's deployment check repeats three things on a preview: a published edit is fresh by request 2 after a pause, `{ expire: 0 }` is fresh on the next request, and the 200-request draft test shows 0 leaks.
@@ -687,25 +725,27 @@ A language outside Payload's 42 preloaded ones needs **one line in `locales.ts` 
 
 ### 9.1 Source of truth: Figma
 
-- **File:** "shadcn/ui – Design System by ReUI" (community, **CC BY 4.0**, credited in the README and on the DS page). Your copy: `1PUSIlNviAwiZT0praTxES`.
+- **File:** "shadcn/ui – Design System by ReUI" (community, **CC BY 4.0**, credited in the README, in `packages/ui/NOTICE.md` and on the DS page). Your copy: `1PUSIlNviAwiZT0praTxES`.
 - **Access confirmed** after the plan upgrade (2026-10-08). From the variables on one component canvas:
 
 | Variable group | Observed |
 |---|---|
-| Font | `font/family/font-sans` = **Inter**. Weights 400, 500, 600 |
+| Font | `font/family/font-sans` = **Inter**. Weights 400, 500, 600, 700 |
 | Type scale | Tailwind steps, e.g. `text/xs` 12/16, `text/lg` 18/28, `text/xl` 20/28, `text/4xl` 36 |
-| Radius | xs 2, md 8, **lg 10**, xl 14, 3xl 22. This is the shadcn v4 scale on a 10 px base |
+| Radius | xs 2, sm 6, md 8, **lg 10**, xl 14, 2xl 18, 3xl 22, 4xl 26. This is the shadcn v4 scale on a 10 px base |
 | Color | shadcn neutral (`base/background`, `base/foreground`, `base/muted`, `base/muted-foreground`, `base/accent`, `base/border`), plus opacity variants and an `info` hue |
 | Spacing | Variables named after Tailwind classes (`gap/gap-2` = 8, `padding/padding-x/px-3` = 12, `size/size-5` = 20) |
-| Modes | Light and dark values exist. **We import light only** |
+| Modes | Light and dark values exist. The export keeps every mode (below); **`tokens.css` is light only** |
 
 - **Pipeline (M1):**
-  1. Export every variable collection through the Figma plugin API.
-  2. Commit as `packages/ui/tokens/figma.tokens.json`.
-  3. A script generates `tokens.css` (Tailwind v4 `@theme` + `:root`, light only).
-  4. Re-running the export shows any drift in a git diff.
-- Known issue: about 9 components in the kit have broken property configurations when published as a library. We read variables and use the frames as visual reference only.
-- **Primitives:** shadcn/ui (Base UI flavour) plus ReUI's free MIT components where useful. Keep the MIT notice.
+  1. **Export.** Read-only plugin-API code, committed as `scripts/figma/export-variables.js`, runs through the Figma connector's `use_figma` tool, from any session where the connector is signed in (T18 ran in a cloud session; D24). The connector answers at most 20,480 bytes, so the code returns one slice per run and `scripts/figma/assemble.ts` joins the slices after checking their length and hash.
+  2. **Commit `packages/ui/tokens/figma.tokens.json`:** Figma's own variable model, normalised (D25): every collection with every mode, dark included; each variable's name, type, scopes, code syntax, description and value per mode; aliases as `collection/name`; colours as `#rrggbb(aa)`; keys and lists sorted; no ids and no dates. The kit's text and effect styles are in a second section. An unchanged file exports to an empty diff.
+  3. **`packages/ui/tokens/shopblok.tokens.json`, by hand (D27):** §9.2's commerce tokens as references to primitives, the contrast pairs, any AA override, and what the kit lacks (design widths, z-index, containers, motion). The export is a pure copy of the kit, so a re-export never fights a hand edit.
+  4. **`pnpm tokens`** (`scripts/figma-tokens.ts`, Style Dictionary 5.6.1; D26): a custom parser reads the Figma file as DTCG tokens, a custom format writes `:root` and `@theme inline` (Style Dictionary's own `css/variables` writes `:root` only), and the contrast, radius and spacing checks (§9.2) run on the resolved tokens before anything is written. It writes `packages/ui/src/styles/tokens.css` and `packages/ui/src/tokens.ts` (the same facts as data for the DS pages), light only. Both are committed, so `packages/ui` has no build step (D3), and a test fails when the committed files differ from the build.
+  5. Re-running the export shows any drift in a git diff.
+- Known issue: about 9 components in the kit have broken property configurations when published as a library. We read variables and use the frames as visual reference only. **The copy of the kit has none of the shadcn atoms' component sets** (T18): it draws payment-method icons and country flags, and the atoms come from the registries below.
+- **Primitives:** shadcn/ui (Base UI flavour, style `base-vega`) through its CLI, and ReUI's free items from its registry (`https://reui.io/r/{style}/{name}.json`, namespace `@reui`; no npm package). ReUI's licence (updated 2026-09-28) puts the items of its public repository under MIT, notice kept (`packages/ui/NOTICE.md`); its Pro blocks, templates and icons are not used. The vendored files live in `packages/ui/src/atoms/`, are ours to edit, and each keeps a header naming its source, style and date.
+- **Code in `packages/ui` (D30):** subpath exports (`@shopblok/ui/atoms/button`, `@shopblok/ui/globals.css`) and no barrel file. Atoms take every visible string as a prop (Principle 9); their copy lives in `@shopblok/i18n`. The package may import `next/link` and `next/image` (`next` is a peer) and nothing server-only, and it declares React as a peer, which `check:workspace` checks.
 - All components handle long translated strings (German runs about 30% longer, Greek is often long too) and use logical properties.
 - Inter covers the Greek script, so subset it to Latin + Latin-ext + Greek.
 
@@ -713,16 +753,26 @@ A language outside Payload's 42 preloaded ones needs **one line in `locales.ts` 
 
 | Layer | Contents |
 |---|---|
-| Primitive | Neutral scale, status hues, Inter, type scale, spacing, radii, shadows, motion, breakpoints (375/768/1024/1440), z-index, containers |
+| Primitive | Neutral scale (with greys of our own where the kit has none that passes), status hues, Inter, type scale, spacing, radii, shadows, motion, breakpoints (the kit's five, Tailwind's) and the design widths 375/768/1024/1440 (`--viewport-phone` to `-desktop`), z-index, containers |
 | Semantic (shadcn contract) | `background`, `foreground`, `card`, `popover`, `primary`, `secondary`, `muted`, `accent`, `destructive`, `border`, `input`, `ring`, `chart-1..5`, `sidebar-*` (+ `-foreground`) |
 | Semantic (commerce additions) | `price`, `price-sale`, `price-original`, `rating`, `success`, `warning`, `info`, `badge-sale`, `badge-new`, `stock-in`, `stock-low`, `stock-out`, `overlay` |
 | Brand override | `brands/<name>.css` reassigns semantic tokens, fonts and radius only |
 
-Light theme only.
+Light theme only. `tokens.css` has one `:root` and one `@theme inline`, and no `.dark` and no `prefers-color-scheme`.
+
+- **Radius:** one `--radius` (10 px, the kit's `lg`) and shadcn's derived scale, `--radius-xs` to `--radius-4xl` as `calc(var(--radius) ± n px)`. The build fails unless the kit's own eight values equal the derived ones. A brand changes one value and the whole scale follows.
+- **Spacing** is Tailwind's 4 px step (`--spacing: 0.25rem`). The kit's spacing variables are checked against it and not emitted.
+- **Contrast pairs (D35).** `shopblok.tokens.json` declares them: 36 in M1, 31 text pairs at 4.5:1 and 5 UI pairs at 3:1. Text: each `*-foreground` on its surface, `muted-foreground` on `muted` and on `background`, and the price, badge, stock and status tokens on the surfaces they sit on. UI: `input` against `background` (a text field's edge), `ring` and `sidebar-ring` (drawn at full strength, not at 50 %), `primary` and `rating` against `background`. `border` is decorative (separators, card edges) and is not checked. A translucent colour is composited over its surface first. Every `foreground`, `*-foreground` and `*-ring` token must be in a pair or listed with a reason.
+- **Overrides.** A pair the kit fails is fixed in `shopblok.tokens.json` by pointing the semantic token at the lightest colour that passes, never in `figma.tokens.json`. The kit fails the gate in eight places (`input`, `ring`, `muted-foreground`, `destructive-foreground`, `sidebar-ring`, and the commerce hues `success`, `warning`, `info`); the build prints every override beside the kit's value, the DS Foundations page shows both, and SETUP.md ("Tokens (T19)") has each with both ratios.
 
 ### 9.3 Atomic inventory (v1)
 
-**Atoms:** Button, IconButton, Link, Input, Textarea, Select, NativeSelect, Checkbox, Radio, Switch, Label, Badge, Chip, Price, Rating, Swatch, SizePill, QuantityStepper, Skeleton, Spinner, Avatar, Icon, Logo, Separator, Kbd, Tooltip, Progress, StockIndicator, VisuallyHidden, Image, PaymentIcon (incl. Apple Pay, Google Pay, Revolut Pay), Flag.
+**Atoms:** Button, IconButton, Link, Input, Textarea, Select, NativeSelect, Checkbox, Radio, Switch, Label, Badge, Chip, Price, Rating, Swatch, SizePill, QuantityStepper, Skeleton, Spinner, Avatar, Icon, Logo, Separator, Kbd, Tooltip, Progress, StockIndicator, VisuallyHidden, Image, PaymentIcon (incl. Apple Pay, Google Pay, Revolut), Flag.
+
+**All 32 atoms are built** (M1), in `packages/ui/src/atoms/`, on the tokens (no colour literals, logical properties only) and with component tests for their states, keyboard use and long strings. Where each comes from (D31):
+- **shadcn (17):** Button, Input, Textarea, Select, NativeSelect, Checkbox, Radio (`radio-group`), Switch, Label, Badge, Skeleton, Spinner, Avatar, Separator, Kbd, Tooltip, Progress. There is one Badge: shadcn's.
+- **ReUI's free registry items (2):** Rating (`rating`, read-only) and QuantityStepper (built on `number-field`).
+- **Ours, on the tokens (13):** IconButton, Link, Chip, Price, Swatch, SizePill, StockIndicator, VisuallyHidden, Image, Icon, Logo, PaymentIcon and Flag. PaymentIcon's marks come from Simple Icons (CC0 data): Visa, Mastercard, American Express, Apple Pay, Google Pay, Revolut, PayPal and Klarna, single-colour, and each mark remains its owner's trademark (Simple Icons' disclaimer). A provider that requires its own artwork on a payment page (Apple Pay's mark guidelines, for one) gets it with that integration (M6). Flag's SVGs come from `country-flag-icons` (MIT); no emoji (Principle 8).
 
 **Molecules:** ProductCard (variants), PriceBlock, VariantSelector, SearchField, Breadcrumbs, Pagination, SortSelect, FilterGroup, ActiveFilterChips, CartLineItem, PromoCodeField, FreeShippingProgress, AddressCard, AddressForm (per-country format), ShippingOptionCard, PaymentMethodCard, **SavedPaymentMethodCard**, OrderSummaryRow, ReviewItem, RatingSummary, NewsletterForm, MarketSwitcher, Stepper, EmptyState, Toast, CopyCodeChip, CountdownTimer, AccordionItem, MediaFigure, ShippingEstimator, **VerificationNotice**.
 
@@ -806,24 +856,26 @@ Light theme only.
 
 ### 9.6 Design-system reference page
 
-**Route and access:** `/design-system`. `noindex`, excluded from the sitemap and robots. On in dev, behind Payload login in production. No Storybook.
+**Route and access:** `/design-system/[locale]/…`, where `locale` is `en`, `de`, `fr` or `el`. The locale is a path segment, so every page is static and needs no database, backend or proxy. `/design-system` redirects (307) to `/design-system/en`, and `design-system` is a reserved first segment (§8.1). The DS has root layouts of its own (the app has none at the top), so `<html lang>` follows the locale. `noindex, nofollow`, excluded from the sitemap; M7's `robots.ts` disallows it (§12). No Storybook.
+- **Gate:** on in `next dev`. In a production build it is on only when `DESIGN_SYSTEM_ENABLED=true` at build time, and the value is frozen into the bundle (setting it on `next start` changes nothing); otherwise every DS route is a 404. The Payload login this section used to ask for moves to M7, because it would make every DS page dynamic and Payload cannot be imported into `proxy.ts` (D10).
+- **Locale and market:** each locale renders with one market's formats: `en` with `en-US` and USD, `el` with `el-CY` and EUR, `de` with `de-DE` and EUR, `fr` with `fr-CH` and CHF. The DS's own chrome (header, navigation, labels) is in English; an entry's content is in the chosen locale.
 
 **Navigation tree**
-- Foundations: colors, type, spacing, radius, shadow, motion, icons, CC BY credit.
-- Atoms, Molecules, Organisms.
+- Foundations (8 entries in M1): colors (the contrast pairs, and the kit's value beside ours where overridden), typography, spacing, radius, shadows, motion, breakpoints with design widths and layers, icons and credits (the kit's CC BY 4.0 credit among them).
+- Atoms (the 32 of §9.3), Molecules, Organisms.
 - Sections (every block × variant).
 - Headers and Footers.
 - Templates.
 - Pages.
 
 **Each entry shows**
-- A live render with fixtures.
-- A states matrix.
-- A **viewport switcher** (375 / 768 / 1440 iframes side by side).
+- A live render with fixtures from `@shopblok/fixtures`.
+- A states matrix. Hover and focus cannot be held on a static page, so those states draw the classes that `:hover` and `:focus-visible` add, and say so.
+- A **viewport switcher** (375 / 768 / 1440 px iframes of the frame route, side by side or one at a time, scaled to fit the column).
 - A **locale toggle** (en / de / fr / el) for long strings and currency formats.
-- a11y notes and the matching Payload block schema.
+- a11y notes and, from M4, the matching Payload block schema.
 
-**Generation:** built from `@shopblok/registry`. Playwright screenshots double as visual-regression baselines and as the Payload thumbnails.
+**Generation:** M1's entries come from a manifest in the storefront (`apps/storefront/src/design-system/entries.tsx`); M2's `@shopblok/registry` replaces it. The `design-system` CI job (§14) screenshots every atom's frame at the three widths in `en` and `el`; the screenshots are CI artifacts in M1, and from M2 they double as visual-regression baselines and as the Payload thumbnails.
 
 ---
 
@@ -1043,7 +1095,7 @@ Sync is one-way: Medusa → Payload.
 
 **OG images:** localized Payload image, then the product thumbnail, then a generated `opengraph-image.tsx`.
 
-**Status codes:** `notFound()` before any Suspense boundary, so missing pages return a real 404. Redirects are 301/308 from Payload. No IP-based redirects.
+**Status codes:** `notFound()` before any Suspense boundary, so missing pages return a real 404, and the catalog pages export `ensureStatic = "navigation"` (ADR 0004): without it, a page that was never rendered answers 200 at first, for a missing product and during an outage alike. A catalog page that cannot be rendered because the backend is down answers 5xx, never a 200 error page, and a page already rendered is served stale. The body of such a 404 or 500 is Next's bare error shell: the status and `noindex` are in the response, and the not-found page or the error state renders after hydration. That is a recorded limitation; check `curl` on a missing product on each minor bump of `next`. Redirects are 301/308 from Payload. No IP-based redirects.
 
 **Crawlability:** `<a href>` pagination and facets. More than 2 facets → `noindex,follow`.
 
@@ -1054,8 +1106,9 @@ Sync is one-way: Medusa → Payload.
 ## 13. Accessibility and performance budgets
 
 **Accessibility (WCAG 2.2 AA)**
-- axe-core in CI on every DS entry and key route, in two locales.
-- The token build checks contrast and fails below 4.5:1 for text and 3:1 for UI.
+- axe-core in CI (the `design-system` job, §14) on every atom's DS frame at 375, 768 and 1440 px in two locales, `en` and `el`, with the WCAG 2.2 A and AA rules and none disabled. Key routes follow with the pages they test. German and Greek long strings are covered by every atom's component tests (the shared helper renders `de` and `el`); French is covered by the dev-console check, which opens an atom page in all four locales, and by W3's review.
+- Every interactive atom is at least 44 × 44 px at every width (D32). Checkbox, Radio and Switch keep the kit's drawn size and get a 44 × 44 clickable area; a link inside a sentence is exempt.
+- The token build checks contrast and fails below 4.5:1 for text and 3:1 for UI (the pairs are §9.2's). It composites translucent colours first and lists the pairs it checks. shadcn's neutral defaults fail three of them, and where the kit fails too, the override is ours, in `shopblok.tokens.json`.
 - Focus management in drawers and dialogs.
 - Mega menu rules (open on hover or keyboard, full width, stays open over trigger or panel).
 - Radio semantics for variants; a skip link; `aria-current`.
@@ -1072,7 +1125,7 @@ Sync is one-way: Medusa → Payload.
 | First-load JS (PLP/PDP) | ≤ 170 KB gz. Messages split per route and locale |
 | LCP image | `preload` / `fetchPriority="high"`, AVIF/WebP, `sizes` |
 | Below-fold images | `loading="lazy"`, ≤ 500 KB on mobile |
-| Fonts | Inter via `next/font`, self-hosted, subset Latin + Latin-ext + Greek |
+| Fonts | Inter via `next/font/google` (D28), served from our own origin, subsets Latin + Latin-ext + Greek, the variable font, `display: swap`, `preload: false` so that a Greek page loads the Greek file and an English page does not. Next downloads the files at build time (and in `next dev`) from `fonts.googleapis.com` and `fonts.gstatic.com`, and a failed download fails the build; CI, Vercel and a PC reach them, and the cloud environment allows both (G5) |
 
 Lighthouse CI runs on Vercel previews.
 
@@ -1082,21 +1135,22 @@ Lighthouse CI runs on Vercel previews.
 
 | Layer | Tool | Scope |
 |---|---|---|
-| Unit | Vitest (storefront, packages, `scripts/`) | Resolvers, price formatting per locale, variant selection, registry integrity, **market resolution + URL builder + hreflang**, CSP builder, the `markets` global's filter and save hook, `locales.ts` against the newest migration's enum |
-| Component | Vitest + Testing Library | States, keyboard, long strings |
+| Unit | Vitest (storefront, packages, `scripts/`) | Resolvers, price formatting per locale, variant selection, registry integrity, **market resolution + URL builder + hreflang**, CSP builder, the `markets` global's filter and save hook, `locales.ts` against the newest migration's enum, the token build against the committed `tokens.css` and `tokens.ts` |
+| Component | Vitest + Testing Library on happy-dom (`packages/ui`) | Each atom's role and name, focus, disabled and invalid states, keyboard use, the 44 px classes, and a long German and Greek label; a scan of `src/atoms/` fails on a physical class, a colour literal, a `dark:` variant or a ring drawn at an alpha |
 | Backend | `@medusajs/test-utils` with **Jest** (D14: Medusa's test helpers are Jest-only; the rest of the repo uses Vitest) | Payload sync (incl. markets), search provider per locale (ADR 0002's acceptance suite), notification provider per locale, saved-payment-method routes (ownership), region-enable script, verification enforcement. In CI today: `search-locale-assumptions.spec.ts`, the Medusa behaviour ADR 0002 rests on |
-| E2E | Playwright | M0 suites, in `e2e-smoke` against a production build after `pnpm bootstrap --ci`: `markets` (URLs, redirects, the proxy), `wiring` (language, region, currency, prices per market), `payload-admin` (login, a page in two languages, media, the list view, a clean console), `payload-cache` (ADR 0001: cache hit, tag revalidation, 200-request draft isolation) and `payload-locales` (ADR 0003: the admin's selector follows `markets`). Later: keyless purchase in **CY (`/`) and US (`/us/`)**; `/cy/` → `/` redirect; CH language switch (`/ch/` ↔ `/ch/fr/`) keeps the cart; sign-up → verify → login (link read from the console provider); Stripe test mode with a saved card when keys exist; CMS: build → translate → publish per locale, live preview, redirect, header/footer switch; adding a market through settings |
-| Visual | Playwright | DS × 3 widths (also the Payload thumbnails) |
-| a11y | axe-core | DS + key routes |
+| E2E | Playwright | M0 suites, in `e2e-smoke` against a production build after `pnpm bootstrap --ci`: `markets` (URLs, redirects, the proxy), `wiring` (language, region, currency, prices per market), `payload-admin` (login, a page in two languages, media, the list view, a clean console), `payload-cache` (ADR 0001: cache hit, tag revalidation, 200-request draft isolation) and `payload-locales` (ADR 0003: the admin's selector follows `markets`); M1 adds `styles-fonts` (Inter's subsets, the token colours) and `dev-console` (the storefront's routes in `next dev`, below). Later: keyless purchase in **CY (`/`) and US (`/us/`)**; `/cy/` → `/` redirect; CH language switch (`/ch/` ↔ `/ch/fr/`) keeps the cart; sign-up → verify → login (link read from the console provider); Stripe test mode with a saved card when keys exist; CMS: build → translate → publish per locale, live preview, redirect, header/footer switch; adding a market through settings |
+| Visual | Playwright | M1: a screenshot of every atom × 375, 768, 1440 px × `en`, `el`, kept as CI artifacts with no baselines (D38). From M2: pixel baselines, also the Payload thumbnails |
+| a11y | axe-core (`@axe-core/playwright`) | Every atom × 3 widths × `en`, `el` (M1); key routes later |
 | Perf | Lighthouse CI | Budgets on Vercel previews |
 | i18n | Script | Code catalogs cover every `ui-strings` key |
 
-**CI (GitHub Actions)** (`.github/workflows/ci.yml`; SETUP.md, "CI (T16)" has the timings). Five jobs:
+**CI (GitHub Actions)** (`.github/workflows/ci.yml`; SETUP.md, "CI (T16)" has the timings). Six jobs:
 1. `check` (Node 22 required, Node 24 informational): install, `check:workspace`, typecheck, lint, unit tests, build. No `.env`, no database.
 2. `backend-integration`: the backend's integration tests on the compose Postgres.
-3. `e2e-smoke`: compose services up with `docker compose up -d --wait` (not `services:`: service containers start before checkout, so the init SQL under `infra/` could not be mounted), `pnpm bootstrap --ci`, a production build, Medusa and the storefront started directly, the Playwright suites above, `pnpm run doctor --json` (every third-party integration on its fallback, `ok` true) and `--online`. Later: visual and a11y.
-4. `windows-gate`: decides whether the next job runs.
-5. `windows-smoke`: install, typecheck and build on a Windows runner, weekly, on request, and on PRs that change a dependency file.
+3. `e2e-smoke`: compose services up with `docker compose up -d --wait` (not `services:`: service containers start before checkout, so the init SQL under `infra/` could not be mounted), `pnpm bootstrap --ci`, a production build, Medusa and the storefront started directly, the Playwright suites above, `pnpm run doctor --json` (every third-party integration on its fallback, `ok` true) and `--online`. Its last step (D37) stops `next start` by PID, starts `next dev` and runs the `dev-console` project over the storefront's own routes and the DS pages, with the console rules of `payload-admin.spec.ts`; anything excused is upstream, named by its exact text and route, and the Payload admin stays out (ADR 0001). From M3 on, `e2e-smoke` starts Medusa before `pnpm build` (ADR 0004, reading 4) and runs the outage test: Medusa stopped by PID gives the last good page, a 5xx for a page never rendered, a real 404 for a missing one, and 503 from `/next/status`.
+4. `design-system` (D34): Ubuntu, Node 22, no compose and no `.env`. It builds the storefront with `DESIGN_SYSTEM_ENABLED=true`, starts `next start`, and runs the `design-system` Playwright project over every atom's frame: 32 atoms × 375, 768, 1440 px × `en`, `el` is 192 cells, each with axe, no overflow or clipped text outside `data-truncate`, 44 × 44 px targets and an empty console. It uploads the report with a screenshot of every cell. A build without the flag stops the suite at once with a message that says so. It is not a required check: branch protection is not available on the owner's plan (G3).
+5. `windows-gate`: decides whether the next job runs.
+6. `windows-smoke`: install, `check:workspace`, typecheck, the unit tests, build and the one-`^C` check of `pnpm dev` (`dev-ctrl-c.ps1`) on a Windows runner, weekly, on request, and on PRs that change a dependency file.
 
 Later: Lighthouse on the Vercel preview (M7).
 
@@ -1135,7 +1189,7 @@ Also: Renovate (`renovate.json` groups Medusa, Payload and Next, so `e2e-smoke` 
 | Added later | `RESEND_API_KEY`, `RESEND_FROM_EMAIL` | |
 | Added later | `NEXT_PUBLIC_POSTHOG_KEY`, `NEXT_PUBLIC_POSTHOG_HOST` | rebuild |
 | Added later | `NEXT_PUBLIC_SENTRY_DSN`, `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT` | rebuild |
-| Flags | `DESIGN_SYSTEM_ENABLED` | |
+| Flags | `DESIGN_SYSTEM_ENABLED` | Read at build time and frozen into the bundle (`next.config.ts`'s `env`), so setting it on `next start` changes nothing; listed in turbo's `build` env in `apps/storefront/turbo.json`, so that a build with it is never replayed for one without. `next dev` always serves the DS (§9.6) |
 | CI only | `E2E_TEST_ROUTES` | Opens the test-only routes under `/next/e2e`; only `e2e-smoke` sets it. Never set it on a production deployment (a preview used for M7's checks is the exception) |
 
 Markets are **data** (Medusa + the Payload `markets` global), not env. The base language (`en`) is a Payload config constant set once per brand.
@@ -1174,13 +1228,13 @@ Every key is optional at boot. Public (`NEXT_PUBLIC_*`) keys need a Vercel redep
 | # | Milestone | Done when |
 |---|---|---|
 | M0 | **Foundation**: monorepo, compose, backend from dtc-starter, Next 16.4 + Payload 3.90 shell, market resolution + proxy rewrite, `bootstrap`/`doctor`, CI. **Spikes:** Cache Components × Payload admin; Search Module per-locale indexing; Payload locale preloading with `filterAvailableLocales` | Everything boots wired together with no keys; spike ADRs written (0001 to 0003, accepted 2026-10-10; the Windows exit check closes M0) |
-| M1 | **Design foundations**: full Figma variable export → tokens (light only), atoms, DS page shell (viewport and locale switchers, fixtures) | All atoms × 3 widths × 2 locales, contrast green; the storefront's own routes checked for console errors in `next dev` (ADR 0001); the first catalog page settles where its data lives, in the shell or in a streamed part (§8.1, status codes) |
-| M2 | **Molecules + organisms + registry**, thumbnail generator | Registry drives the DS page and thumbnails |
-| M3 | **Commerce core**: DAL, markets/i18n, search-backed PLP, PDP, cart, 3-step checkout (system payment), confirmation, account with **required email verification** (the four backend pieces of §8.4), password reset; the Postgres search index (A′), its transform, the `/store/search` locale middleware and the `translation.*` events (ADR 0002); UI text for any language an owner enables | Keyless E2E in US and CY passes |
-| M4 | **CMS**: collections, globals (incl. `markets`, `ui-strings`, `email-templates`), blocks, localization, sync (products, categories, collections, markets), live preview, drafts, scheduling, SEO, redirects, forms, revalidation (content reads take their locale from the market map, not from the request; the first collection with an upload field brings back S1's media-drawer check) | Editor builds, translates and publishes the homepage; adds a market from settings |
+| M1 | **Design foundations** (built 2026-10-15 to 2026-10-16; W3 closes it): the full Figma variable export → tokens (light only, `pnpm tokens`, the contrast gate), the 32 atoms, the DS page shell (viewport and locale switchers, fixtures, the build flag), the `design-system` CI job, the `dev-console` step, and spike S4 | All 32 atoms × 3 widths × `en` and `el` (192 cells), contrast green (36 pairs); the storefront's own routes clean in `next dev` (ADR 0001); where the catalog pages' data lives: in the static shell (ADR 0004, accepted: S4 passed, §8.1 and §12) |
+| M2 | **Molecules + organisms + registry**, thumbnail generator, pixel baselines (D38) | Registry drives the DS page and thumbnails (it replaces M1's manifest), and the DS cells have committed baselines. Per-visitor molecules for catalog pages, the header's cart count included, are Client Components that read in the browser (ADR 0004) |
+| M3 | **Commerce core**: DAL, markets/i18n, search-backed PLP, PDP, cart, 3-step checkout (system payment), confirmation, account with **required email verification** (the four backend pieces of §8.4), password reset; the Postgres search index (A′), its transform, the `/store/search` locale middleware and the `translation.*` events (ADR 0002); UI text for any language an owner enables; the home, PDP and PLP built to ADR 0004 (`ensureStatic = "navigation"`, `generateStaticParams` with a build stand-in, a long `expire` with tags, `e2e-smoke` starting Medusa before `pnpm build`, an outage test) and `/next/status` | Keyless E2E in US and CY passes |
+| M4 | **CMS**: collections, globals (incl. `markets`, `ui-strings`, `email-templates`), blocks, localization, sync (products, categories, collections, markets), live preview, drafts, scheduling, SEO, redirects, forms, revalidation (content reads take their locale from the market map, not from the request; the first collection with an upload field brings back S1's media-drawer check); CMS pages and posts read in the static shell like the catalog (ADR 0004; their stand-in rule is D10's); the matching Payload block schema on each DS entry | Editor builds, translates and publishes the homepage; adds a market from settings |
 | M5 | **Section library**: all blocks × variants | On the DS page and selectable in Payload |
 | M6 | **Integrations**: Stripe (Payment Element, **saved methods**, Apple Pay, Google Pay, **Revolut Pay**), Resend + localized emails, PostHog + consent, Sentry ×3, Meilisearch provider (one index per locale, with the changes ADR 0002 lists), Redis modules, **R2** | Each turns on purely via env; `doctor`'s `wired` flags flip |
-| M7 | **Hardening + deploy**: CSP, headers (including `withPayload`'s `Vary`, `Accept-CH` and `X-Powered-By` on every route, and `x-middleware-rewrite`), sitemaps, hreflang, JSON-LD, OG, a11y/perf; Vercel + Railway + R2 staging; docs | Audits green on staging; ADR 0001's three checks green on a Vercel preview (`payload-cache.spec.ts` with `E2E_BASE_URL` and `E2E_TEST_ROUTES=true` on the preview only) |
+| M7 | **Hardening + deploy**: CSP, headers (including `withPayload`'s `Vary`, `Accept-CH` and `X-Powered-By` on every route, and `x-middleware-rewrite`), `robots.ts` disallowing `design-system`, the DS page's Payload-login gate (replacing M1's build flag), sitemaps, hreflang, JSON-LD, OG, a11y/perf; uptime monitors on `/next/status`; Vercel + Railway + R2 staging; docs | Audits green on staging; ADR 0001's three checks green on a Vercel preview (`payload-cache.spec.ts` with `E2E_BASE_URL` and `E2E_TEST_ROUTES=true` on the preview only); ADR 0004's outage and expiry checks repeated there, because Vercel's cache is not the one measured |
 | M8 | **Optional**: reviews, wishlist, comparison, Express Checkout Element | n/a |
 
 ### 17.2 Risks
@@ -1226,7 +1280,7 @@ Every key is optional at boot. Public (`NEXT_PUBLIC_*`) keys need a Vercel redep
 | Q5 | Categories / collections | Synced into Payload |
 | Q6 | Commerce template variants | `templates` global |
 | Q7 | Theming | Code tokens per brand + optional primary/radius override |
-| Q8 | DS page | Gated in production; no Storybook |
+| Q8 | DS page | Gated in production (by a build flag until M7 adds the Payload login, D33); no Storybook |
 | Q9 | Reviews, wishlist | M8; Q&A, gift cards, store locator, lookbook in v1.1 |
 | Q10 | Editorial | `posts` collection |
 | Q11 | Newsletter / free shipping | Resend Audiences (env-gated); threshold from Medusa |
@@ -1275,6 +1329,7 @@ Every key is optional at boot. Public (`NEXT_PUBLIC_*`) keys need a Vercel redep
 - Advisory: https://nextjs.org/blog/nextjs-security-update-september-22-2026
 - September 2026 security release: https://nextjs.org/blog/september-2026-security-release
 - 16.4: https://nextjs.org/blog/next-16-4
+- The docs bundled with the installed 16.4.0 (`node_modules/next/dist/docs/`): fonts (`01-app/01-getting-started/13-fonts.md`), `generateStaticParams` and the Cache Components migration guide (`01-app/03-api-reference/04-functions/generate-static-params.md`, `01-app/02-guides/migrating-to-cache-components.md`), `ensureStatic` and `cacheLife` (ADR 0004 lists the pages)
 
 **Payload 3.90**
 - Localization (`filterAvailableLocales`): https://payloadcms.com/docs/configuration/localization
@@ -1299,6 +1354,12 @@ Every key is optional at boot. Public (`NEXT_PUBLIC_*`) keys need a Vercel redep
 - Railway Buckets (not used, private-only): https://docs.railway.com/storage-buckets
 
 **Design and licensing**
-- ReUI license: https://reui.io/legal/license · ReUI MIT repo: https://github.com/keenthemes/reui
+- ReUI license: https://reui.io/legal/license · ReUI MIT repo: https://github.com/keenthemes/reui · ReUI registry: https://www.reui.io/docs/registry
 - Figma kit (CC BY 4.0): https://www.figma.com/community/file/1649373313065184861/shadcn-ui-design-system-by-reui
+- Figma MCP server rate limits: https://developers.figma.com/docs/figma-mcp-server/rate-limits-access/ · REST variables (Enterprise only): https://developers.figma.com/docs/rest-api/variables/
+- shadcn/ui: `components.json` https://ui.shadcn.com/docs/components-json · monorepo https://ui.shadcn.com/docs/monorepo · changelog (Base UI as the default, July 2026; CLI v4) https://ui.shadcn.com/docs/changelog · Base UI https://base-ui.com
+- Design tokens (DTCG Format Module 2025.10): https://www.w3.org/community/reports/design-tokens/CG-FINAL-format-20251028/ · Style Dictionary: https://styledictionary.com/reference/hooks/parsers/ · https://styledictionary.com/reference/api/ · https://styledictionary.com/info/dtcg/
+- Simple Icons disclaimer: https://github.com/simple-icons/simple-icons/blob/develop/DISCLAIMER.md
+- Tailwind CSS (source detection, theme): https://tailwindcss.com/docs/detecting-classes-in-source-files · https://tailwindcss.com/docs/theme
+- WCAG 2.2: https://www.w3.org/TR/WCAG22/
 - shadcnspace license: https://shadcnspace.com/license
