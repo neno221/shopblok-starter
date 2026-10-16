@@ -2,7 +2,7 @@
 
 `@shopblok/ui` contains or builds on the works below. The atoms in `src/atoms/` that came from a
 registry keep a header naming their source, style and date, and have been edited for this repository
-(SETUP.md, "shadcn and ReUI (T21)").
+(SETUP.md, "shadcn and ReUI (T21)" and "Atoms (T23)"). The other atoms are ours, on the tokens.
 
 ## shadcn/ui — MIT
 
@@ -41,9 +41,55 @@ SOFTWARE.
 
 ## ReUI — MIT
 
-The registry items `rating` and `number-field` (T23) come from ReUI's public registry
-(`https://reui.io/r/{style}/{name}.json`), whose items ReUI's licence (updated 2026-09-28) puts under
-MIT with this notice kept. ReUI's Pro blocks, templates and icons are not used.
+Two atoms are vendored from ReUI's public registry (`https://reui.io/r/{style}/{name}.json`, style
+`base-vega`, shadcn CLI 4.21.4, 2026-10-16), whose items ReUI's licence (updated 2026-09-28) puts under
+MIT with this notice kept: `rating` (`src/atoms/rating.tsx`) and `number-field`
+(`src/atoms/quantity-stepper.tsx`, the QuantityStepper). Both have been edited for this repository
+(SETUP.md, "Atoms (T23)"). ReUI's Pro blocks, templates and icons are not used. The licence text is
+the MIT text above (shadcn/ui), which ReUI's items carry.
+
+## Simple Icons — CC0 1.0
+
+`simple-icons` 16.35.0 (npm): the marks of PaymentIcon (`src/atoms/payment-icon.tsx`), which imports
+eight icons by name: Visa, Mastercard, American Express, Apple Pay, Google Pay, Revolut, PayPal and
+Klarna. The package's data is released under CC0 1.0 Universal (public domain dedication,
+<https://creativecommons.org/publicdomain/zero/1.0/>), and needs no notice.
+
+**Each mark remains the trademark of its owner.** CC0 covers Simple Icons' data, not the brands'
+rights in their logos; the package's `DISCLAIMER.md` asks users to seek the permissions their use
+needs. The marks are shown only to say which payment methods the shop accepts. A payment provider
+that requires its own artwork on a payment page (Apple Pay's mark guidelines, for one) gets it with
+that integration (M6).
+
+## country-flag-icons — MIT
+
+`country-flag-icons` 1.6.20 (npm): the SVG flags of Flag (`src/atoms/flag.tsx`, from
+`country-flag-icons/react/3x2`).
+
+```
+(The MIT License)
+
+Copyright (c) 2020 @catamphetamine <purecatamphetamine@gmail.com>
+
+Permission is hereby granted, free of charge, to any person obtaining
+a copy of this software and associated documentation files (the
+'Software'), to deal in the Software without restriction, including
+without limitation the rights to use, copy, modify, merge, publish,
+distribute, sublicense, and/or sell copies of the Software, and to
+permit persons to whom the Software is furnished to do so, subject to
+the following conditions:
+
+The above copyright notice and this permission notice shall be
+included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+```
 
 ## Lucide — ISC
 

@@ -55,6 +55,21 @@ export function IconsAndCredits() {
           icons (ISC). The notices are in <code>packages/ui/NOTICE.md</code>.
         </li>
         <li>
+          Rating and QuantityStepper are vendored from{" "}
+          <a className="underline" href="https://reui.io">
+            ReUI
+          </a>{" "}
+          (MIT). PaymentIcon draws marks from{" "}
+          <a className="underline" href="https://simpleicons.org">
+            Simple Icons
+          </a>{" "}
+          (CC0; each mark remains its owner&apos;s trademark) and Flag draws{" "}
+          <a className="underline" href="https://gitlab.com/catamphetamine/country-flag-icons">
+            country-flag-icons
+          </a>{" "}
+          (MIT).
+        </li>
+        <li>
           The typeface is{" "}
           <a className="underline" href="https://rsms.me/inter/">
             Inter

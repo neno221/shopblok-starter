@@ -34,6 +34,35 @@ describe("every file in src/atoms/", () => {
     );
   });
 
+  it("has the 15 others of T23 (D31): the 32 atoms of SPEC §9.3, and no other file", () => {
+    const others = [
+      "chip",
+      "flag",
+      "icon",
+      "icon-button",
+      "image",
+      "link",
+      "logo",
+      "payment-icon",
+      "price",
+      "quantity-stepper",
+      "rating",
+      "size-pill",
+      "stock-indicator",
+      "swatch",
+      "visually-hidden",
+    ];
+    expect(atomFiles.map((name) => name.replace(/\.tsx$/, ""))).toEqual(
+      expect.arrayContaining(others),
+    );
+    expect(atomFiles).toHaveLength(17 + others.length);
+  });
+
+  it('keeps Flag a server component: no "use client", so the flags cost no client JavaScript', () => {
+    const source = readFileSync(path.join(atomsDir, "flag.tsx"), "utf8");
+    expect(source).not.toMatch(/^\s*["']use client["']/m);
+  });
+
   it.each(atomFiles)(
     "%s: logical directions, token colours, light only, ring at full strength",
     (name) => {

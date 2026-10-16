@@ -41,7 +41,7 @@ import type { DsContext, DsEntry, DsState } from "./types";
 // the atom adds on `:hover` and `:focus-visible`; the description says so.
 
 /** The classes `focus-visible:` adds, for the focus states. */
-const FOCUS = "border-ring ring-3 ring-ring";
+export const FOCUS = "border-ring ring-3 ring-ring";
 
 function Field({ id, label, children }: { id: string; label: string; children: ReactNode }) {
   return (
