@@ -1,0 +1,18 @@
+{
+  "$schema": "https://turborepo.dev/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    "test": {
+      // `committed.test.ts` (T19) compares the token files and the generated tokens.css and
+      // tokens.ts, which lie in packages/ui. Without them in the hash, a change to a token file
+      // or a hand edit of tokens.css would replay a cached pass.
+      "dependsOn": ["transit"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/packages/ui/tokens/*.json",
+        "$TURBO_ROOT$/packages/ui/src/styles/tokens.css",
+        "$TURBO_ROOT$/packages/ui/src/tokens.ts"
+      ]
+    }
+  }
+}

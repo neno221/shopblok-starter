@@ -5,6 +5,7 @@ import {
   type Page,
   type Request,
 } from "@playwright/test";
+import { colors } from "../../../packages/ui/src/tokens";
 
 // T20: the shared stylesheet and Inter (SETUP.md, "Styles and fonts (T20)"; plan D28). Run against
 // `next start` after `pnpm build`.
@@ -154,7 +155,51 @@ test.describe("Inter through next/font", () => {
   });
 });
 
+/**
+ * The colour `--name` resolves to, as the `rgb(r, g, b)` a browser computes. It is read from
+ * packages/ui's generated tokens.ts, which holds each colour resolved to `#rrggbb`, and not from
+ * tokens.css, where a colour the kit aliases to a palette colour is written `var(--primitive)`.
+ */
+function tokenColour(name: string): string {
+  const hex = colors.find((color) => color.name === name)?.value;
+  if (hex === undefined || !/^#[0-9a-f]{6}$/.test(hex))
+    throw new Error(`--${name} is not a #rrggbb colour in tokens.ts`);
+  const channel = (at: number) => parseInt(hex.slice(at, at + 2), 16);
+  return `rgb(${channel(1)}, ${channel(3)}, ${channel(5)})`;
+}
+
 test.describe("the shared stylesheet", () => {
+  // tokens.css writes `--input: var(--neutral-450)`: a colour the kit aliases to a palette
+  // colour (or one of ours) is not a literal there, and the helper resolves it all the same.
+  test("tokenColour resolves a colour that tokens.css writes as var(--…)", () => {
+    expect(tokenColour("input")).toMatch(/^rgb\(\d+, \d+, \d+\)$/);
+    expect(tokenColour("sidebar-foreground")).toMatch(/^rgb\(\d+, \d+, \d+\)$/);
+  });
+
+  // T19 (moved from T20): the base layer of globals.css uses the tokens.
+  for (const path of ["/us", "/", "/no-such-page-t20"]) {
+    test(`on ${path} the body's colour, background and border colour are tokens.css's`, async ({
+      page,
+    }) => {
+      await load(page, path);
+      const computed = await page.evaluate(() => {
+        const style = getComputedStyle(document.body);
+        return {
+          color: style.color,
+          backgroundColor: style.backgroundColor,
+          borderColor: style.borderTopColor,
+        };
+      });
+      expect(computed).toEqual({
+        color: tokenColour("foreground"),
+        backgroundColor: tokenColour("background"),
+        borderColor: tokenColour("border"),
+      });
+      // Not preflight's black on transparent: the tokens are in use.
+      expect(computed.color).not.toBe("rgb(0, 0, 0)");
+    });
+  }
+
   test("a class used only inside packages/ui/src is in the built CSS (@source)", async ({
     page,
     request,

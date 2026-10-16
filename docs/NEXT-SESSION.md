@@ -1,14 +1,12 @@
-# M1: T18 is done, T19 is next
+# M1: T19 is done, T21 is next
 
-**T18 exported the Figma kit** (2026-10-15, SETUP.md "Figma export (T18)"): `packages/ui/tokens/figma.tokens.json` has 5 collections and 1,029 variables, made by `scripts/figma/export-variables.js`. This copy of the kit has no atom components, so no Button was measured; **you chose `base-vega` for D29** instead. Earlier: M0 is closed ([PR 29](https://github.com/stephanos221/shopblok-starter/pull/29)), and the M1 plan is [plans/M1.md](plans/M1.md) ([PR 30](https://github.com/stephanos221/shopblok-starter/pull/30)).
+**T19 built the tokens** (2026-10-15, SETUP.md "Tokens (T19)"): `pnpm tokens` writes `packages/ui/src/styles/tokens.css` and `packages/ui/src/tokens.ts` from the two token files through Style Dictionary 5.6.1, and `globals.css` imports them with the base colours. The contrast gate has 36 pairs and the kit fails it in **eight** places, not D35's three; **the field edge is yours to change** (below). Earlier: T18 exported the Figma kit ([SETUP.md](SETUP.md#figma-export-t18)), T20 wired Tailwind and Inter ([SETUP.md](SETUP.md#styles-and-fonts-t20)), M0 is closed ([PR 29](https://github.com/stephanos221/shopblok-starter/pull/29)), and the M1 plan is [plans/M1.md](plans/M1.md) ([PR 30](https://github.com/stephanos221/shopblok-starter/pull/30)).
 
-**T20 is already done** (2026-10-15, without tokens, because T18 had not landed then; [SETUP.md](SETUP.md#styles-and-fonts-t20)). So T19 also adds the tokens import and the base colours to `packages/ui/src/styles/globals.css`.
-
-## T19 · Tokens through Style Dictionary (in a cloud session)
+## T21 · shadcn and ReUI set-up, and the 17 shadcn atoms (in a cloud session)
 
 Start a cloud session in the `shopblok-starter` environment, on `main`, and paste:
 
-> Run task T19 of docs/plans/M1.md: build `tokens.css` from the Figma export with Style Dictionary, light only, with the contrast gate. Start as docs/CLOUD.md, "What every cloud session does first", steps 1 to 4 say. Read docs/plans/M1.md (§1 D25 to D28 and D35, §5 T19), SETUP.md's "Figma export (T18)" (its "What should change in the plan" item 3 concerns this task), its "Styles and fonts (T20)" ("Deviation from the plan": T19 also adds the tokens import and the base colours) and packages/ui/tokens/README.md first. Work on a new branch from `main`. Follow T19's steps and its Verify list, record everything in docs/SETUP.md under "Tokens (T19)", update the plan's status line and NEXT-SESSION.md (T21's prompt next), then open a PR with `gh api` (CLOUD.md) and don't merge it.
+> Run task T21 of docs/plans/M1.md: set up shadcn and ReUI in `packages/ui` and add the 17 shadcn atoms on our tokens, tested. Start as docs/CLOUD.md, "What every cloud session does first", steps 1 to 4 say. Read docs/plans/M1.md (§1 D29 to D32 and D35, §5 T21) and SETUP.md's "Tokens (T19)" ("Overrides" item 2: **the ring is drawn at alpha 1, so `ring-ring` and not `ring-ring/50`**; the semantic colour names are in `packages/ui/src/tokens.ts`), "Styles and fonts (T20)" and "Figma export (T18)" first. Work on a new branch from `main`. Follow T21's steps and its Verify list (G5 is done: `ui.shadcn.com`, `reui.io` and `base-ui.com` are on the allowlist), record everything in docs/SETUP.md under "shadcn and ReUI (T21)", update the plan's status line and NEXT-SESSION.md (T22's prompt next), then open a PR with `gh api` (CLOUD.md) and don't merge it.
 
 ## S4 · Backend outage spike (in a cloud session)
 
@@ -21,6 +19,14 @@ Start a cloud session in the `shopblok-starter` environment, on `main`, and past
 G3 is closed ([SETUP.md](SETUP.md#ci-t16), "CI (T16)", item 5, "Outcome"): Renovate is installed and its pin PR is merged, and Dependabot alerts are on. Secret scanning, push protection and branch protection are not available for a private repo on a personal Free account, so `main` stays unprotected. Wait for green CI before merging, because `gh pr merge --auto` merges at once.
 
 1. **Say so if you disagree with a default.** Each one stays unless you say.
+   - **T19's choices** (SETUP.md, "Tokens (T19)"):
+     - **the field edge:** `input` is `#949494` (3.03:1, the lightest grey that passes; the kit's `#e5e5e5` is 1.26:1). The alternatives are `#737373`, or no visible edge where a fill or a label identifies the field (WCAG 1.4.11). Edit `semantic.input` in `packages/ui/tokens/shopblok.tokens.json` and run `pnpm tokens`;
+     - **the ring** is drawn at alpha 1 in the same `#949494` (at the kit's 50 % it would have to be `#2a2a2a`);
+     - **`muted-foreground`** `#737373` becomes `#707070`, and `destructive-foreground` becomes white;
+     - **`success`, `warning` and `info`** are solid surfaces with white text, in darker steps of the kit's own hues (Emerald-800, Yellow-700, Violet-600), because the kit's 500 steps fail under white;
+     - **breakpoints:** Tailwind's five (the kit's) stay, and 375/768/1024/1440 are `--viewport-*` custom properties;
+     - **`--shadow-sm`** follows the kit's effect style, which has one layer where Tailwind's has two;
+     - the z-index, container and motion values are mine (one-line edits).
    - **ADRs 0002 and 0003 are *Accepted*** because your T17 prompt changed none of S2's readings R1 to R5 or S3's R1 to R6. The ones with a real alternative:
      - S2 R1: Meilisearch keeps one index per locale (option B). Option A, on both providers, would be 2.3 times smaller and needs a restart for a new language.
      - S3 R1: the filter's 2-second memo leaves another server process up to 2 s behind a save.
@@ -72,7 +78,7 @@ This is the Windows half of the plan's §7. The steps that passed on 2026-10-13 
    - `pnpm check:workspace` prints **8 packages** under "Payload versions".
    - A second `pnpm bootstrap` reports `0 done, 10 unchanged, 2 skipped`.
    - `pnpm run doctor` gives 12 checks ok and 1 warning (the email one); `pnpm run doctor --online` gives 15 ok and 1 warning.
-   - `pnpm typecheck && pnpm lint && pnpm test && pnpm build` passes in CI's state: stop the stack and move the two `.env` files out first. **The test counts are 18 + 282 + 422 + 85** (as of `0bbaebe`), with no `Errors` line.
+   - `pnpm typecheck && pnpm lint && pnpm test && pnpm build` passes in CI's state: stop the stack and move the two `.env` files out first. **The test counts are 18 + 397 + 422 + 85** (as of T19; they were 18 + 282 + 422 + 85 at `0bbaebe`), with no `Errors` line.
    - **One `^C`** in the terminal that runs `pnpm dev` brings the prompt back and leaves no process of the checkout behind. `Get-CimInstance Win32_Process | Where-Object CommandLine -like '*shopblok-starter-w2*'` should list nothing except an editor's TypeScript servers, if one is open. Each task prints `Terminate batch job (Y/N)?` once on its way out; that is expected, and nothing waits for an answer.
    - `pnpm infra:down` then `pnpm infra:up` keeps both databases.
    - `pnpm infra:reset` followed by `pnpm bootstrap` brings them back. Then restart `pnpm dev`, because the new database has a new publishable key.

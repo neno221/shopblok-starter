@@ -2,7 +2,7 @@
   "name": "@shopblok/scripts",
   "version": "0.0.0",
   "private": true,
-  "description": "Root scripts: check-workspace (T03), bootstrap (T13) and doctor (T14). Run with plain node, which strips the types (Node 22.18 and newer).",
+  "description": "Root scripts: check-workspace (T03), bootstrap (T13), doctor (T14) and tokens (T19). Run with plain node, which strips the types (Node 22.18 and newer).",
   "type": "module",
   "scripts": {
     "typecheck": "tsc",
@@ -13,6 +13,7 @@
     "@shopblok/config": "workspace:*",
     "@types/node": "22.20.5",
     "eslint": "9.39.5",
+    "style-dictionary": "5.6.1",
     "typescript": "5.9.3",
     "vite": "8.3.3",
     "vitest": "5.0.3"
