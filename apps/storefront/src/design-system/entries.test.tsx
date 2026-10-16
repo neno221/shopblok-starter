@@ -54,6 +54,7 @@ describe("the Foundations pages", () => {
     expect(layout).toContain("--z-toast");
     const credits = html("foundations/icons-credits");
     expect(credits).toContain("CC BY 4.0");
-    expect(credits).toContain("No atom draws an icon yet");
+    expect(credits).toContain("ChevronDown");
+    expect(credits).toContain("shadcn/ui");
   });
 });

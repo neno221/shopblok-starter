@@ -24,9 +24,9 @@ test.setTimeout(90_000);
 // a margin (3 s; it was 1.5 s). Raise it if a message is ever seen to arrive late.
 const settleMs = 3_000;
 
-// Foundations pages are DS entries that exist today; plan T25 step 1 asks for "one atom page in
-// each of the four locales", and there are no atoms yet (T21 is not merged). T21 or T23 adds one
-// atom page to this list (SETUP.md, "The storefront in next dev (T25)").
+// Plan T25 step 1: "one atom page in each of the four locales". Select is the atom page with the
+// most client code (Base UI's list box, its portal and positioning), added by T21; the Foundations
+// page stays as T25 left it.
 const designSystemLocales = ["en", "el", "de", "fr"] as const;
 
 const routes: { path: string; status: number }[] = [
@@ -40,6 +40,10 @@ const routes: { path: string; status: number }[] = [
   { path: "/design-system/en", status: 200 },
   ...designSystemLocales.map((locale) => ({
     path: `/design-system/${locale}/foundations/typography`,
+    status: 200,
+  })),
+  ...designSystemLocales.map((locale) => ({
+    path: `/design-system/${locale}/atoms/select`,
     status: 200,
   })),
   { path: "/design-system/el/frame/foundations/colors", status: 200 },

@@ -42,8 +42,9 @@ export function formatDate(
 
 // The design-system pages' own chrome (T22, D33). A developer tool: English only, so the other
 // three catalogs have no such key and `Messages` leaves it out. What the pages show of an entry
-// (its sample content) is in the chosen locale and comes from @shopblok/fixtures. T21 adds the
-// atoms' labels as a catalog key of its own (`atoms`), in all four languages.
+// (its sample content) is in the chosen locale and comes from @shopblok/fixtures. The atoms' own
+// copy (strings an atom needs whatever the page: a spinner's name) is the `atoms` key, in all four
+// languages; atoms take it as props (D30).
 const designSystem = {
   title: "Design system",
   skipToContent: "Skip to the content",
@@ -94,6 +95,9 @@ const en = {
     priceCurrencies: "Price filter currencies",
     noProducts: "This region has no products.",
   },
+  atoms: {
+    spinner: { loading: "Loading" },
+  },
   notFound: {
     title: "Page not found",
     body: "The page you are looking for does not exist.",
@@ -121,6 +125,9 @@ const el: Messages = {
     priceCurrencies: "Νομίσματα φίλτρου τιμής",
     noProducts: "Αυτή η περιοχή δεν έχει προϊόντα.",
   },
+  atoms: {
+    spinner: { loading: "Φόρτωση" },
+  },
   notFound: {
     title: "Η σελίδα δεν βρέθηκε",
     body: "Η σελίδα που ψάχνετε δεν υπάρχει.",
@@ -143,6 +150,9 @@ const de: Messages = {
     noRegion: "Medusa hat keine Region für das Land dieses Marktes, daher gibt es keine Preise.",
     priceCurrencies: "Währungen des Preisfilters",
     noProducts: "Diese Region hat keine Produkte.",
+  },
+  atoms: {
+    spinner: { loading: "Wird geladen" },
   },
   notFound: {
     title: "Seite nicht gefunden",
@@ -167,6 +177,9 @@ const fr: Messages = {
       "Medusa n'a pas de région pour le pays de ce marché, il n'y a donc aucun prix à afficher.",
     priceCurrencies: "Devises du filtre de prix",
     noProducts: "Cette région n'a aucun produit.",
+  },
+  atoms: {
+    spinner: { loading: "Chargement" },
   },
   notFound: {
     title: "Page introuvable",

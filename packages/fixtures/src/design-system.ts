@@ -36,6 +36,18 @@ export type DesignSystemStrings = {
   placeholder: string;
   helpText: string;
   errorText: string;
+  /** A checkbox's or a radio's label. */
+  optionLabel: string;
+  /** A switch's label. */
+  toggleLabel: string;
+  /** A badge's text. */
+  badge: string;
+  /** A tooltip's text. */
+  hint: string;
+  /** A customer's name (an avatar's alt text and initials). */
+  personName: string;
+  /** A progress bar's label. */
+  progressLabel: string;
 };
 
 export type DesignSystemFixture = {
@@ -60,6 +72,8 @@ export type DesignSystemFixture = {
     lowThreshold: number;
   };
   rating: { value: number; max: number; count: number };
+  /** A keyboard shortcut as the locale's keyboards label it (German keyboards say "Strg"). */
+  shortcut: string[];
   sizes: { label: string; available: boolean }[];
   colours: { name: string; hex: string }[];
 };
@@ -109,6 +123,12 @@ const en: DesignSystemFixture = {
     placeholder: "Choose a size",
     helpText: "Fits true to size.",
     errorText: "Choose a size to continue.",
+    optionLabel: "Gift wrap",
+    toggleLabel: "Email me when it's back",
+    badge: "New",
+    hint: "Save for later",
+    personName: "Anna Keller",
+    progressLabel: "Order progress",
   },
   long: {
     productName:
@@ -120,10 +140,17 @@ const en: DesignSystemFixture = {
     placeholder: "Tell the courier where to leave the parcel if nobody is home",
     helpText: "We pass this on to the courier exactly as you write it.",
     errorText: "We could not add this item, because the size you chose is no longer in stock.",
+    optionLabel: "Gift wrap it and add a card with a handwritten message",
+    toggleLabel: "Email me when this size is back in stock in my nearest store",
+    badge: "New this season, limited run",
+    hint: "Save this item to your wishlist and buy it later",
+    personName: "Anna-Katharina Keller-Papadopoulou",
+    progressLabel: "Spend a little more to get free delivery on this order",
   },
   prices: prices(64, 49),
   stock,
   rating,
+  shortcut: ["Ctrl", "K"],
   sizes,
   colours: [
     { name: "Black", hex: "#111111" },
@@ -152,6 +179,12 @@ const el: DesignSystemFixture = {
     placeholder: "Επιλέξτε μέγεθος",
     helpText: "Η εφαρμογή είναι στο κανονικό μέγεθος.",
     errorText: "Επιλέξτε μέγεθος για να συνεχίσετε.",
+    optionLabel: "Συσκευασία δώρου",
+    toggleLabel: "Ειδοποίηση όταν επιστρέψει",
+    badge: "Νέο",
+    hint: "Αποθήκευση για αργότερα",
+    personName: "Άννα Παπαδοπούλου",
+    progressLabel: "Πρόοδος παραγγελίας",
   },
   long: {
     productName:
@@ -164,10 +197,18 @@ const el: DesignSystemFixture = {
     helpText: "Τις μεταβιβάζουμε στον κούριερ ακριβώς όπως τις γράφετε.",
     errorText:
       "Δεν μπορέσαμε να προσθέσουμε το προϊόν, επειδή το μέγεθος που επιλέξατε δεν είναι πια διαθέσιμο.",
+    optionLabel: "Συσκευασία δώρου με κάρτα και χειρόγραφο μήνυμα από εμένα",
+    toggleLabel:
+      "Στείλτε μου email όταν αυτό το μέγεθος είναι ξανά διαθέσιμο στο κοντινότερο κατάστημα",
+    badge: "Νέο αυτή τη σεζόν, περιορισμένη παραγωγή",
+    hint: "Αποθηκεύστε το προϊόν στη λίστα επιθυμιών για να το αγοράσετε αργότερα",
+    personName: "Αικατερίνη Παπαδοπούλου-Χριστοδουλίδου",
+    progressLabel: "Ξοδέψτε λίγο ακόμα για δωρεάν αποστολή σε αυτή την παραγγελία",
   },
   prices: prices(59, 47),
   stock,
   rating,
+  shortcut: ["Ctrl", "K"],
   sizes,
   colours: [
     { name: "Μαύρο", hex: "#111111" },
@@ -196,6 +237,12 @@ const de: DesignSystemFixture = {
     placeholder: "Größe wählen",
     helpText: "Fällt normal aus.",
     errorText: "Wählen Sie eine Größe, um fortzufahren.",
+    optionLabel: "Als Geschenk verpacken",
+    toggleLabel: "Bei Verfügbarkeit benachrichtigen",
+    badge: "Neu",
+    hint: "Für später merken",
+    personName: "Anna Keller",
+    progressLabel: "Bestellfortschritt",
   },
   long: {
     productName:
@@ -209,10 +256,19 @@ const de: DesignSystemFixture = {
     helpText: "Wir geben diese Hinweise genau so an den Paketdienst weiter, wie Sie sie schreiben.",
     errorText:
       "Wir konnten diesen Artikel nicht hinzufügen, weil die gewählte Größe nicht mehr auf Lager ist.",
+    optionLabel: "Als Geschenk verpacken und eine Karte mit handgeschriebener Nachricht beilegen",
+    toggleLabel:
+      "Benachrichtigen Sie mich per E-Mail, sobald diese Größe in meiner nächstgelegenen Filiale wieder verfügbar ist",
+    badge: "Neu in dieser Saison, limitierte Auflage",
+    hint: "Diesen Artikel auf die Wunschliste setzen und später kaufen",
+    personName: "Anna-Katharina Keller-Schwarzenberger",
+    progressLabel:
+      "Noch ein wenig mehr bestellen, um bei dieser Bestellung kostenlosen Versand zu erhalten",
   },
   prices: prices(59, 47),
   stock,
   rating,
+  shortcut: ["Strg", "K"],
   sizes,
   colours: [
     { name: "Schwarz", hex: "#111111" },
@@ -241,6 +297,12 @@ const fr: DesignSystemFixture = {
     placeholder: "Choisir une taille",
     helpText: "Taille normalement.",
     errorText: "Choisissez une taille pour continuer.",
+    optionLabel: "Emballage cadeau",
+    toggleLabel: "M’avertir du retour",
+    badge: "Nouveau",
+    hint: "Enregistrer pour plus tard",
+    personName: "Anne Keller",
+    progressLabel: "Progression de la commande",
   },
   long: {
     productName:
@@ -253,10 +315,19 @@ const fr: DesignSystemFixture = {
     helpText: "Nous transmettons ces instructions au coursier exactement comme vous les écrivez.",
     errorText:
       "Nous n'avons pas pu ajouter cet article, car la taille choisie n'est plus en stock.",
+    optionLabel: "Emballage cadeau avec une carte et un message écrit à la main",
+    toggleLabel:
+      "M’envoyer un e-mail quand cette taille est de nouveau disponible dans le magasin le plus proche",
+    badge: "Nouveau cette saison, série limitée",
+    hint: "Enregistrer cet article dans la liste d’envies pour l’acheter plus tard",
+    personName: "Anne-Catherine Keller-Dubois-Lefèvre",
+    progressLabel:
+      "Encore un petit effort pour profiter de la livraison gratuite sur cette commande",
   },
   prices: prices(58, 46),
   stock,
   rating,
+  shortcut: ["Ctrl", "K"],
   sizes,
   colours: [
     { name: "Noir", hex: "#111111" },

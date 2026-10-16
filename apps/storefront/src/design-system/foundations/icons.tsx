@@ -40,6 +40,21 @@ export function IconsAndCredits() {
           . Changes: the colours the build&apos;s contrast gate rejects, and the commerce tokens.
         </li>
         <li>
+          The 17 shadcn atoms are vendored from{" "}
+          <a className="underline" href="https://ui.shadcn.com">
+            shadcn/ui
+          </a>{" "}
+          (style base-vega, MIT) on{" "}
+          <a className="underline" href="https://base-ui.com">
+            Base UI
+          </a>{" "}
+          (MIT), and draw{" "}
+          <a className="underline" href="https://lucide.dev">
+            Lucide
+          </a>{" "}
+          icons (ISC). The notices are in <code>packages/ui/NOTICE.md</code>.
+        </li>
+        <li>
           The typeface is{" "}
           <a className="underline" href="https://rsms.me/inter/">
             Inter
