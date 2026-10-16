@@ -1,6 +1,6 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "description": "Plan T16, step 4. Takes effect once the Renovate GitHub app is installed on the repo (G3).",
+  "description": "Plan T16, step 4. The Renovate GitHub app is installed on the repo (G3, 2026-10-15).",
   "extends": ["config:recommended", ":pinAllExceptPeerDependencies"],
   "packageRules": [
     {
@@ -62,6 +62,13 @@
       "matchManagers": ["docker-compose"],
       "matchUpdateTypes": ["major"],
       "enabled": false
+    },
+    {
+      "description": "Plan §2 and T21: lucide-react releases nearly every day; one update a week is enough for an icon set.",
+      "matchPackageNames": ["lucide-react"],
+      "groupName": "lucide-react",
+      "schedule": ["before 6am on monday"],
+      "labels": ["lucide"]
     }
   ]
 }

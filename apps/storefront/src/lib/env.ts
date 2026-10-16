@@ -13,6 +13,7 @@ export type RawEnv = {
   MEDUSA_BACKEND_URL?: string | undefined;
   PAYLOAD_DATABASE_URL?: string | undefined;
   E2E_TEST_ROUTES?: string | undefined;
+  DESIGN_SYSTEM_ENABLED?: string | undefined;
 };
 
 /**
@@ -45,6 +46,9 @@ export const env: RawEnv = {
   get E2E_TEST_ROUTES() {
     return process.env.E2E_TEST_ROUTES;
   },
+  get DESIGN_SYSTEM_ENABLED() {
+    return process.env.DESIGN_SYSTEM_ENABLED;
+  },
 };
 
 export function isProduction(source: RawEnv = env): boolean {
@@ -58,6 +62,31 @@ export function isProduction(source: RawEnv = env): boolean {
  */
 export function e2eRoutesEnabled(source: RawEnv = env): boolean {
   return source.E2E_TEST_ROUTES === "true";
+}
+
+/**
+ * The design-system pages (`/design-system/[locale]/…`, D33) exist in `next dev`, and in a
+ * production build only when `DESIGN_SYSTEM_ENABLED` was exactly `true` while `next build` ran.
+ * The value is frozen into the bundle by `next.config.ts` (`designSystemBuildFlag`), which makes
+ * `process.env.DESIGN_SYSTEM_ENABLED` a constant at build time: the environment of `next start` is
+ * never consulted. That matters because a build without the flag prerenders one param per route and
+ * renders every other DS path on request (Cache Components allows no `dynamicParams = false`); a
+ * runtime read there would let a server started with the flag answer 200 for those paths and 404
+ * for the prerendered one. Reading it per request (as `e2eRoutesEnabled` does) would also make
+ * every page dynamic under Cache Components. When it is false every DS route calls `notFound()`.
+ * The Payload-login gate SPEC §9.6 asks for moves to M7.
+ */
+export function designSystemEnabled(source: RawEnv = env): boolean {
+  return source.NODE_ENV === "development" || source.DESIGN_SYSTEM_ENABLED === "true";
+}
+
+/**
+ * What `next.config.ts` writes into the bundle for `process.env.DESIGN_SYSTEM_ENABLED`: `"true"`
+ * only for the exact value `true` while `next build` runs, `"false"` otherwise (the variable unset
+ * included, so the build never leaves the read to run time).
+ */
+export function designSystemBuildFlag(source: RawEnv = env): "true" | "false" {
+  return source.DESIGN_SYSTEM_ENABLED === "true" ? "true" : "false";
 }
 
 /** Where Medusa is, and the key that lets a storefront read its Store API. */

@@ -1,9 +1,13 @@
-# CI for M0 (plan T16, T17). Five jobs:
+# CI for M0 (plan T16, T17), and M1's `design-system` (T24). Six jobs:
 #   check          the root checks, the same ones a contributor runs: no .env, no database.
 #   backend-integration
 #                  the backend's integration tests (`test:integration:http`) on the compose Postgres.
 #   e2e-smoke      the compose stack, `pnpm bootstrap --ci`, a production build, both servers,
-#                  the five Playwright suites and `pnpm run doctor`.
+#                  the five Playwright suites, `pnpm run doctor` and, last, the storefront's
+#                  console in `next dev` (T25).
+#   design-system  the atoms' frames in English and Greek at 375, 768 and 1440 px: axe, overflow,
+#                  44 px controls, the console (T24, D34). No compose: a build with the flag and
+#                  `next start` are all it needs.
 #   windows-gate   decides whether windows-smoke runs.
 #   windows-smoke  install, type check, unit tests, build and a Ctrl-C of `pnpm dev` on NTFS,
 #                  weekly and when dependencies change.
@@ -58,7 +62,7 @@ jobs:
             node-version: "24"
             informational: true
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.1
       - uses: ./.github/actions/setup
         with:
           node-version: ${{ matrix.node-version }}
@@ -85,7 +89,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.1
       - uses: ./.github/actions/setup
       - run: pnpm install --frozen-lockfile
       - name: Start Postgres
@@ -102,7 +106,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.1
       - uses: ./.github/actions/setup
       - run: pnpm install --frozen-lockfile
       # `docker compose up --wait`, not `services:`: service containers start before checkout, so
@@ -118,7 +122,8 @@ jobs:
       # item 8) and the `markets` global has to be filled for the prerender.
       - run: pnpm build
       # Both servers are started directly, not through turbo: they get the whole environment and
-      # read their own .env. `nohup … &` keeps them up across steps.
+      # read their own .env. `nohup … &` keeps them up across steps. The storefront's PID
+      # goes in a file, because the last step stops it by PID (the dev-console step below).
       - name: Start Medusa and the storefront
         run: |
           mkdir -p "$RUNNER_TEMP/servers"
@@ -128,6 +133,7 @@ jobs:
           # (ADR 0001's checks). Only this server gets it; the build above has no say in it.
           E2E_TEST_ROUTES=true nohup pnpm --filter @shopblok/storefront start > "$RUNNER_TEMP/servers/storefront.log" 2>&1 &
           storefront=$!
+          echo "$storefront" > "$RUNNER_TEMP/servers/storefront.pid"
           for _ in $(seq 120); do
             if curl -fs -o /dev/null http://localhost:9000/health && curl -fs -o /dev/null http://localhost:8000/; then
               echo "Medusa and the storefront answer."
@@ -167,6 +173,48 @@ jobs:
           ' "$RUNNER_TEMP/doctor.json"
       - name: Doctor, online (Payload accepts the key, Medusa matches the map, the index has the currencies)
         run: pnpm run doctor --online
+      # D37, plan T25 (ADR 0001): the storefront's own routes in `next dev`, judged by the console
+      # rules of payload-admin.spec.ts. Last, because it replaces the storefront: `next start` is
+      # stopped by PID (a tree: pnpm, sh, next, next-server), then `next dev` takes port 8000 (it
+      # writes to .next/dev, apart from the production build) and the `dev-console` project runs
+      # against it. The Payload admin is not visited. The first request compiles `/` (about 20 s on
+      # the VM that measured it, not yet on a runner), hence the 120 s. Its own report and results
+      # folders, because a run of Playwright empties the output folder it uses and replaces the HTML
+      # report it writes.
+      # The project must not run against `next start`, which would pass for the wrong reason, so
+      # three things are proved and not assumed: stop-tree.sh exits non-zero if the tree or port 8000
+      # is still alive (and the step stops there); `next dev` is alive when it answers; and the
+      # answer comes from a dev server, because /_next/static/development/ exists only in `next dev`
+      # (404 in `next start`).
+      - name: Console of the storefront in next dev
+        run: |
+          bash .github/scripts/stop-tree.sh --port 8000 "$(cat "$RUNNER_TEMP/servers/storefront.pid")"
+          nohup pnpm --filter @shopblok/storefront dev > "$RUNNER_TEMP/servers/storefront-dev.log" 2>&1 &
+          dev=$!
+          echo "$dev" > "$RUNNER_TEMP/servers/storefront-dev.pid"
+          answered=false
+          home=none
+          marker=none
+          deadline=$((SECONDS + 120))
+          while [ "$SECONDS" -lt "$deadline" ]; do
+            kill -0 "$dev" 2>/dev/null || { echo "::error::next dev exited before it answered; storefront-dev.log in the server-logs artifact has its output."; exit 1; }
+            home=$(curl -s --max-time 30 -o /dev/null -w '%{http_code}' http://localhost:8000/ || true)
+            marker=$(curl -s --max-time 30 -o /dev/null -w '%{http_code}' http://localhost:8000/_next/static/development/_buildManifest.js || true)
+            if [ "$home" = 200 ] && [ "$marker" = 200 ] && kill -0 "$dev" 2>/dev/null; then answered=true; break; fi
+            sleep 1
+          done
+          if [ "$answered" != true ]; then
+            echo "::error::next dev: / did not answer 200 as a dev server within 120 s (last: / $home, dev marker $marker)."
+            bash .github/scripts/stop-tree.sh --port 8000 "$dev" || true
+            exit 1
+          fi
+          status=0
+          E2E_DEV_CONSOLE=true pnpm --filter @shopblok/storefront test:e2e --project=dev-console --reporter=list,html --output=test-results-dev-console || status=$?
+          bash .github/scripts/stop-tree.sh --port 8000 "$dev" || status=$?
+          exit "$status"
+        env:
+          PLAYWRIGHT_HTML_OPEN: never
+          PLAYWRIGHT_HTML_OUTPUT_DIR: playwright-report-dev-console
       # Postgres, Redis and Meilisearch are the usual cause when Medusa will not start. Their logs
       # go in the folder that is uploaded below, next to the servers'.
       - name: Diagnostics (on failure)
@@ -178,22 +226,91 @@ jobs:
           tail -n 80 "$RUNNER_TEMP"/servers/*.log || true
       - name: Upload the Playwright report
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: playwright-report
           path: |
             apps/storefront/playwright-report
+            apps/storefront/playwright-report-dev-console
             apps/storefront/test-results
+            apps/storefront/test-results-dev-console
           if-no-files-found: ignore
           retention-days: 14
       - name: Upload the server logs and doctor's JSON
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: server-logs
           path: |
             ${{ runner.temp }}/servers
             ${{ runner.temp }}/doctor.json
+          if-no-files-found: ignore
+          retention-days: 14
+
+  # D34, plan T24: every atom's frame (en, el × 375, 768, 1440) against `next start` built with
+  # DESIGN_SYSTEM_ENABLED=true. The DS pages read no data and the build falls back to the market
+  # map's build-time default (D10), so there is no compose, no bootstrap and no `.env`: this is the
+  # whole of what the job needs, and it runs in parallel with e2e-smoke. Nothing else runs the
+  # `design-system` project, and it runs nothing else (playwright.config.ts).
+  design-system:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: ./.github/actions/setup
+      - run: pnpm install --frozen-lockfile
+      - name: Install Playwright's Chromium
+        run: pnpm --filter @shopblok/storefront exec playwright install --with-deps chromium
+      # Through `next build` itself (the package's `build` script), not turbo: the flag is read at
+      # build time and frozen into the static DS pages (D33).
+      - name: Build the storefront with the design system on
+        run: pnpm --filter @shopblok/storefront build
+        env:
+          DESIGN_SYSTEM_ENABLED: "true"
+      # Started directly and kept up by `nohup … &`, as in e2e-smoke; the PID goes in a file for the
+      # step that stops it. The suite itself stops with a message if the build lacks the flag.
+      - name: Start the storefront
+        run: |
+          mkdir -p "$RUNNER_TEMP/servers"
+          nohup pnpm --filter @shopblok/storefront start > "$RUNNER_TEMP/servers/storefront.log" 2>&1 &
+          storefront=$!
+          echo "$storefront" > "$RUNNER_TEMP/servers/storefront.pid"
+          for _ in $(seq 120); do
+            if curl -fs -o /dev/null http://localhost:8000/design-system/en; then
+              echo "The storefront answers."
+              exit 0
+            fi
+            kill -0 "$storefront" 2>/dev/null || { echo "::error::The storefront exited before it answered; the server-logs artifact has its log."; exit 1; }
+            sleep 1
+          done
+          echo "::error::The storefront (:8000/design-system/en) did not answer 200 within 120 s."
+          exit 1
+      - name: Design-system checks
+        run: pnpm --filter @shopblok/storefront test:e2e --project=design-system --reporter=list,html
+        env:
+          E2E_DESIGN_SYSTEM: "true"
+          PLAYWRIGHT_HTML_OPEN: never
+      - name: Stop the storefront
+        if: always()
+        run: |
+          pid="$(cat "$RUNNER_TEMP/servers/storefront.pid" 2>/dev/null || true)"
+          if [ -n "$pid" ]; then bash .github/scripts/stop-tree.sh --port 8000 "$pid"; fi
+      - name: Upload the Playwright report, with the screenshots
+        if: always()
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: design-system-report
+          path: |
+            apps/storefront/playwright-report
+            apps/storefront/test-results
+          if-no-files-found: ignore
+          retention-days: 14
+      - name: Upload the server log
+        if: always()
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: design-system-server-logs
+          path: ${{ runner.temp }}/servers
           if-no-files-found: ignore
           retention-days: 14
 
@@ -237,7 +354,7 @@ jobs:
       run:
         shell: bash
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.1
       - uses: ./.github/actions/setup
       - run: pnpm install --frozen-lockfile
       - run: pnpm check:workspace

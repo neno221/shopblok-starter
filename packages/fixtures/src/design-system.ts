@@ -1,0 +1,399 @@
+// Mock data for the design-system pages (M1 plan, T22; D33): for each of the four locales, the
+// market whose formats it renders with, ordinary and long strings, prices, stock, a rating, sizes
+// and colours. The atoms' DS entries take their sample content from here, never from literals of
+// their own, so a long German label or a Swiss franc price is the same fixture in every entry.
+// Amounts are in major units, as Medusa returns them (`formatMoney` in @shopblok/i18n).
+//
+// The locale list repeats `LOCALES` of @shopblok/i18n on purpose: this package has no dependencies
+// but its config, and a storefront test checks that the two lists are the same.
+
+export const designSystemLocales = ["en", "el", "de", "fr"] as const;
+
+export type DesignSystemLocale = (typeof designSystemLocales)[number];
+
+/** The market a DS locale renders with (D33): its key, country, language and `<html lang>`. */
+export type DesignSystemMarket = {
+  /** `{language}-{country}`, a key of the seeded market map (markets.ts). */
+  key: string;
+  /** ISO 3166-1 alpha-2, lowercase. */
+  country: string;
+  /** ISO 639-1, lowercase: the DS locale itself. */
+  language: DesignSystemLocale;
+  /** `{language}-{COUNTRY}`: `<html lang>` and the locale of every `Intl` call. */
+  htmlLang: string;
+  /** ISO 4217, uppercase. */
+  currency: string;
+};
+
+/** One set of sample strings. */
+export type DesignSystemStrings = {
+  productName: string;
+  productDescription: string;
+  /** A button's label. */
+  action: string;
+  /** A form field's label. */
+  fieldLabel: string;
+  placeholder: string;
+  helpText: string;
+  errorText: string;
+  /** A checkbox's or a radio's label. */
+  optionLabel: string;
+  /** A switch's label. */
+  toggleLabel: string;
+  /** A badge's text. */
+  badge: string;
+  /** A tooltip's text. */
+  hint: string;
+  /** A customer's name (an avatar's alt text and initials). */
+  personName: string;
+  /** A progress bar's label. */
+  progressLabel: string;
+  /** A link's text. */
+  linkLabel: string;
+  /** A chip's text. */
+  chipLabel: string;
+  /** The store's name: the logo's accessible name. */
+  storeName: string;
+  /** An image's alternative text. */
+  imageAlt: string;
+};
+
+export type DesignSystemFixture = {
+  locale: DesignSystemLocale;
+  market: DesignSystemMarket;
+  /** What a shop writes: short enough to fit anywhere. */
+  ordinary: DesignSystemStrings;
+  /** The same strings at the length that breaks a layout (German's runs about 30 % longer). */
+  long: DesignSystemStrings;
+  prices: {
+    regular: number;
+    /** A marked-down price and the one it replaces. */
+    sale: { amount: number; original: number };
+    /** Four digits, so the locale's grouping and decimal marks show. */
+    high: number;
+  };
+  stock: {
+    inStock: number;
+    lowStock: number;
+    outOfStock: number;
+    /** At or under this many, a stock indicator says "low". */
+    lowThreshold: number;
+  };
+  rating: { value: number; max: number; count: number };
+  /** A keyboard shortcut as the locale's keyboards label it (German keyboards say "Strg"). */
+  shortcut: string[];
+  sizes: { label: string; available: boolean }[];
+  colours: { name: string; hex: string }[];
+};
+
+/**
+ * A sample product photo for the Image and Swatch entries: a data URI, so no host is needed and
+ * `next/image` serves it as it is. Neutral shapes stand in for the photograph.
+ */
+export const sampleImage = {
+  src: `data:image/svg+xml,${encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="600" height="800" viewBox="0 0 600 800"><rect width="600" height="800" fill="#d9cdb8"/><rect y="560" width="600" height="240" fill="#a99b82"/><rect x="150" y="160" width="300" height="360" rx="24" fill="#f2ede2"/></svg>',
+  )}`,
+  width: 600,
+  height: 800,
+};
+
+const sizes: DesignSystemFixture["sizes"] = [
+  { label: "XS", available: true },
+  { label: "S", available: true },
+  { label: "M", available: true },
+  { label: "L", available: true },
+  { label: "XL", available: false },
+  { label: "XXL", available: true },
+];
+
+const stock: DesignSystemFixture["stock"] = {
+  inStock: 24,
+  lowStock: 3,
+  outOfStock: 0,
+  lowThreshold: 5,
+};
+
+const rating: DesignSystemFixture["rating"] = {
+  value: 4.6,
+  max: 5,
+  count: 1284,
+};
+
+// The amounts are the demo catalog's Heritage Hoodie (apps/backend/src/scripts/lib/demo-catalog.ts):
+// EUR 59, USD 64, CHF 58.
+function prices(regular: number, sale: number): DesignSystemFixture["prices"] {
+  return { regular, sale: { amount: sale, original: regular }, high: 1249.5 };
+}
+
+const en: DesignSystemFixture = {
+  locale: "en",
+  market: {
+    key: "en-us",
+    country: "us",
+    language: "en",
+    htmlLang: "en-US",
+    currency: "USD",
+  },
+  ordinary: {
+    productName: "Heritage Hoodie",
+    productDescription: "A midweight hoodie in brushed organic cotton, cut for everyday wear.",
+    action: "Add to cart",
+    fieldLabel: "Size",
+    placeholder: "Choose a size",
+    helpText: "Fits true to size.",
+    errorText: "Choose a size to continue.",
+    optionLabel: "Gift wrap",
+    toggleLabel: "Email me when it's back",
+    badge: "New",
+    hint: "Save for later",
+    personName: "Anna Keller",
+    linkLabel: "Size guide",
+    chipLabel: "Organic cotton",
+    storeName: "Shopblok",
+    imageAlt: "A folded Heritage Hoodie in oatmeal on a wooden shelf",
+    progressLabel: "Order progress",
+  },
+  long: {
+    productName:
+      "Heritage Hoodie in brushed organic cotton fleece with reinforced seams and a double-lined hood",
+    productDescription:
+      "A midweight hoodie cut to be worn all day. The organic cotton is brushed on the inside for extra warmth, and the seams are reinforced where they take the most strain.",
+    action: "Add to cart and continue to checkout",
+    fieldLabel: "Delivery instructions for the courier",
+    placeholder: "Tell the courier where to leave the parcel if nobody is home",
+    helpText: "We pass this on to the courier exactly as you write it.",
+    errorText: "We could not add this item, because the size you chose is no longer in stock.",
+    optionLabel: "Gift wrap it and add a card with a handwritten message",
+    toggleLabel: "Email me when this size is back in stock in my nearest store",
+    badge: "New this season, limited run",
+    hint: "Save this item to your wishlist and buy it later",
+    personName: "Anna-Katharina Keller-Papadopoulou",
+    linkLabel: "Read our full size guide and fit notes before you order",
+    chipLabel: "Organic cotton, brushed inside, made in Portugal",
+    storeName: "Shopblok Heritage Outfitters and Everyday Goods",
+    imageAlt: "A folded Heritage Hoodie in oatmeal wool-blend fleece on a wooden shelf next to a pair of boots",
+    progressLabel: "Spend a little more to get free delivery on this order",
+  },
+  prices: prices(64, 49),
+  stock,
+  rating,
+  shortcut: ["Ctrl", "K"],
+  sizes,
+  colours: [
+    { name: "Black", hex: "#111111" },
+    { name: "Oatmeal", hex: "#d9cdb8" },
+    { name: "Forest green", hex: "#2f5d3a" },
+    { name: "Sky blue", hex: "#8ec5ea" },
+    { name: "Brick", hex: "#a4452c" },
+  ],
+};
+
+const el: DesignSystemFixture = {
+  locale: "el",
+  market: {
+    key: "el-cy",
+    country: "cy",
+    language: "el",
+    htmlLang: "el-CY",
+    currency: "EUR",
+  },
+  ordinary: {
+    productName: "Φούτερ με κουκούλα Heritage",
+    productDescription:
+      "Φούτερ μεσαίου βάρους από βουρτσισμένο οργανικό βαμβάκι, για καθημερινή χρήση.",
+    action: "Προσθήκη στο καλάθι",
+    fieldLabel: "Μέγεθος",
+    placeholder: "Επιλέξτε μέγεθος",
+    helpText: "Η εφαρμογή είναι στο κανονικό μέγεθος.",
+    errorText: "Επιλέξτε μέγεθος για να συνεχίσετε.",
+    optionLabel: "Συσκευασία δώρου",
+    toggleLabel: "Ειδοποίηση όταν επιστρέψει",
+    badge: "Νέο",
+    hint: "Αποθήκευση για αργότερα",
+    personName: "Άννα Παπαδοπούλου",
+    linkLabel: "Οδηγός μεγεθών",
+    chipLabel: "Οργανικό βαμβάκι",
+    storeName: "Shopblok",
+    imageAlt: "Ένα διπλωμένο φούτερ Heritage σε χρώμα βρώμης πάνω σε ξύλινο ράφι",
+    progressLabel: "Πρόοδος παραγγελίας",
+  },
+  long: {
+    productName:
+      "Φούτερ με κουκούλα Heritage από βουρτσισμένο οργανικό βαμβακερό φλις με ενισχυμένες ραφές και διπλή κουκούλα",
+    productDescription:
+      "Ένα φούτερ μεσαίου βάρους που κόβεται για να φοριέται όλη μέρα. Το οργανικό βαμβάκι είναι βουρτσισμένο στο εσωτερικό για επιπλέον ζεστασιά, και οι ραφές ενισχύονται στα σημεία που δέχονται τη μεγαλύτερη καταπόνηση.",
+    action: "Προσθήκη στο καλάθι και συνέχεια στο ταμείο",
+    fieldLabel: "Οδηγίες παράδοσης για τον κούριερ",
+    placeholder: "Γράψτε πού να αφήσει το δέμα ο κούριερ αν δεν είναι κανείς σπίτι",
+    helpText: "Τις μεταβιβάζουμε στον κούριερ ακριβώς όπως τις γράφετε.",
+    errorText:
+      "Δεν μπορέσαμε να προσθέσουμε το προϊόν, επειδή το μέγεθος που επιλέξατε δεν είναι πια διαθέσιμο.",
+    optionLabel: "Συσκευασία δώρου με κάρτα και χειρόγραφο μήνυμα από εμένα",
+    toggleLabel:
+      "Στείλτε μου email όταν αυτό το μέγεθος είναι ξανά διαθέσιμο στο κοντινότερο κατάστημα",
+    badge: "Νέο αυτή τη σεζόν, περιορισμένη παραγωγή",
+    hint: "Αποθηκεύστε το προϊόν στη λίστα επιθυμιών για να το αγοράσετε αργότερα",
+    personName: "Αικατερίνη Παπαδοπούλου-Χριστοδουλίδου",
+    linkLabel: "Διαβάστε τον πλήρη οδηγό μεγεθών και τις οδηγίες εφαρμογής πριν παραγγείλετε",
+    chipLabel: "Οργανικό βαμβάκι, βουρτσισμένο εσωτερικά, κατασκευασμένο στην Πορτογαλία",
+    storeName: "Shopblok Heritage Outfitters και καθημερινά είδη",
+    imageAlt: "Ένα διπλωμένο φούτερ Heritage σε χρώμα βρώμης από φλις μείγματος μαλλιού πάνω σε ξύλινο ράφι δίπλα σε ένα ζευγάρι μπότες",
+    progressLabel: "Ξοδέψτε λίγο ακόμα για δωρεάν αποστολή σε αυτή την παραγγελία",
+  },
+  prices: prices(59, 47),
+  stock,
+  rating,
+  shortcut: ["Ctrl", "K"],
+  sizes,
+  colours: [
+    { name: "Μαύρο", hex: "#111111" },
+    { name: "Βρώμη", hex: "#d9cdb8" },
+    { name: "Πράσινο του δάσους", hex: "#2f5d3a" },
+    { name: "Γαλάζιο", hex: "#8ec5ea" },
+    { name: "Τουβλί", hex: "#a4452c" },
+  ],
+};
+
+const de: DesignSystemFixture = {
+  locale: "de",
+  market: {
+    key: "de-de",
+    country: "de",
+    language: "de",
+    htmlLang: "de-DE",
+    currency: "EUR",
+  },
+  ordinary: {
+    productName: "Heritage-Hoodie",
+    productDescription:
+      "Ein Hoodie mittlerer Stärke aus gebürsteter Bio-Baumwolle, geschnitten für den Alltag.",
+    action: "In den Warenkorb",
+    fieldLabel: "Größe",
+    placeholder: "Größe wählen",
+    helpText: "Fällt normal aus.",
+    errorText: "Wählen Sie eine Größe, um fortzufahren.",
+    optionLabel: "Als Geschenk verpacken",
+    toggleLabel: "Bei Verfügbarkeit benachrichtigen",
+    badge: "Neu",
+    hint: "Für später merken",
+    personName: "Anna Keller",
+    linkLabel: "Größentabelle",
+    chipLabel: "Bio-Baumwolle",
+    storeName: "Shopblok",
+    imageAlt: "Ein gefalteter Heritage-Hoodie in Hafer auf einem Holzregal",
+    progressLabel: "Bestellfortschritt",
+  },
+  long: {
+    productName:
+      "Heritage-Kapuzenpullover aus gebürstetem Bio-Baumwollfleece mit verstärkten Nähten und doppelt gefütterter Kapuze",
+    productDescription:
+      "Ein Kapuzenpullover mittlerer Stärke, der für einen ganzen Tag geschnitten ist. Die Bio-Baumwolle ist innen für zusätzliche Wärme gebürstet, und die Nähte sind dort verstärkt, wo sie am stärksten beansprucht werden.",
+    action: "In den Warenkorb legen und weiter zur Kasse",
+    fieldLabel: "Lieferhinweise für den Paketdienst",
+    placeholder:
+      "Sagen Sie dem Paketdienst, wo er das Paket abstellen soll, wenn niemand zu Hause ist",
+    helpText: "Wir geben diese Hinweise genau so an den Paketdienst weiter, wie Sie sie schreiben.",
+    errorText:
+      "Wir konnten diesen Artikel nicht hinzufügen, weil die gewählte Größe nicht mehr auf Lager ist.",
+    optionLabel: "Als Geschenk verpacken und eine Karte mit handgeschriebener Nachricht beilegen",
+    toggleLabel:
+      "Benachrichtigen Sie mich per E-Mail, sobald diese Größe in meiner nächstgelegenen Filiale wieder verfügbar ist",
+    badge: "Neu in dieser Saison, limitierte Auflage",
+    hint: "Diesen Artikel auf die Wunschliste setzen und später kaufen",
+    personName: "Anna-Katharina Keller-Schwarzenberger",
+    linkLabel: "Lesen Sie vor der Bestellung unsere vollständige Größentabelle und die Hinweise zur Passform",
+    chipLabel: "Bio-Baumwolle, innen gebürstet, hergestellt in Portugal",
+    storeName: "Shopblok Heritage Ausstatter für Alltagsgegenstände",
+    imageAlt: "Ein gefalteter Heritage-Kapuzenpullover in Hafer aus Fleece mit Wollanteil auf einem Holzregal neben einem Paar Stiefel",
+    progressLabel:
+      "Noch ein wenig mehr bestellen, um bei dieser Bestellung kostenlosen Versand zu erhalten",
+  },
+  prices: prices(59, 47),
+  stock,
+  rating,
+  shortcut: ["Strg", "K"],
+  sizes,
+  colours: [
+    { name: "Schwarz", hex: "#111111" },
+    { name: "Hafer", hex: "#d9cdb8" },
+    { name: "Waldgrün", hex: "#2f5d3a" },
+    { name: "Himmelblau", hex: "#8ec5ea" },
+    { name: "Ziegelrot", hex: "#a4452c" },
+  ],
+};
+
+const fr: DesignSystemFixture = {
+  locale: "fr",
+  market: {
+    key: "fr-ch",
+    country: "ch",
+    language: "fr",
+    htmlLang: "fr-CH",
+    currency: "CHF",
+  },
+  ordinary: {
+    productName: "Sweat à capuche Heritage",
+    productDescription:
+      "Un sweat à capuche de poids moyen en coton biologique gratté, coupé pour tous les jours.",
+    action: "Ajouter au panier",
+    fieldLabel: "Taille",
+    placeholder: "Choisir une taille",
+    helpText: "Taille normalement.",
+    errorText: "Choisissez une taille pour continuer.",
+    optionLabel: "Emballage cadeau",
+    toggleLabel: "M’avertir du retour",
+    badge: "Nouveau",
+    hint: "Enregistrer pour plus tard",
+    personName: "Anne Keller",
+    linkLabel: "Guide des tailles",
+    chipLabel: "Coton biologique",
+    storeName: "Shopblok",
+    imageAlt: "Un sweat à capuche Heritage plié, couleur avoine, sur une étagère en bois",
+    progressLabel: "Progression de la commande",
+  },
+  long: {
+    productName:
+      "Sweat à capuche Heritage en molleton de coton biologique gratté, coutures renforcées et capuche doublée",
+    productDescription:
+      "Un sweat à capuche de poids moyen, coupé pour être porté toute la journée. Le coton biologique est gratté à l'intérieur pour plus de chaleur, et les coutures sont renforcées aux endroits les plus sollicités.",
+    action: "Ajouter au panier et passer à la caisse",
+    fieldLabel: "Instructions de livraison pour le coursier",
+    placeholder: "Indiquez au coursier où laisser le colis si personne n'est à la maison",
+    helpText: "Nous transmettons ces instructions au coursier exactement comme vous les écrivez.",
+    errorText:
+      "Nous n'avons pas pu ajouter cet article, car la taille choisie n'est plus en stock.",
+    optionLabel: "Emballage cadeau avec une carte et un message écrit à la main",
+    toggleLabel:
+      "M’envoyer un e-mail quand cette taille est de nouveau disponible dans le magasin le plus proche",
+    badge: "Nouveau cette saison, série limitée",
+    hint: "Enregistrer cet article dans la liste d’envies pour l’acheter plus tard",
+    personName: "Anne-Catherine Keller-Dubois-Lefèvre",
+    linkLabel: "Lisez notre guide des tailles complet et les conseils de coupe avant de commander",
+    chipLabel: "Coton biologique, gratté à l’intérieur, fabriqué au Portugal",
+    storeName: "Shopblok Heritage, équipement pour le quotidien",
+    imageAlt: "Un sweat à capuche Heritage plié en molleton mêlé de laine, couleur avoine, sur une étagère en bois à côté d’une paire de bottes",
+    progressLabel:
+      "Encore un petit effort pour profiter de la livraison gratuite sur cette commande",
+  },
+  prices: prices(58, 46),
+  stock,
+  rating,
+  shortcut: ["Ctrl", "K"],
+  sizes,
+  colours: [
+    { name: "Noir", hex: "#111111" },
+    { name: "Avoine", hex: "#d9cdb8" },
+    { name: "Vert forêt", hex: "#2f5d3a" },
+    { name: "Bleu ciel", hex: "#8ec5ea" },
+    { name: "Brique", hex: "#a4452c" },
+  ],
+};
+
+/** One fixture per DS locale. */
+export const designSystemFixtures: Record<DesignSystemLocale, DesignSystemFixture> = {
+  en,
+  el,
+  de,
+  fr,
+};

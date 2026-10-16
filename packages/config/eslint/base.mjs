@@ -15,6 +15,8 @@ export default defineConfig([
     "**/coverage/**",
     "**/playwright-report/**",
     "**/test-results/**",
+    "**/playwright-report-dev-console/**",
+    "**/test-results-dev-console/**",
     "**/blob-report/**",
     "**/playwright/.cache/**",
   ]),

@@ -24,5 +24,7 @@ apps/storefront/media/
 # Playwright output
 playwright-report/
 test-results/
+playwright-report-dev-console/
+test-results-dev-console/
 blob-report/
 playwright/.cache/

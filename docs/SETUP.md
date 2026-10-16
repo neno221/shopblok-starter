@@ -1881,6 +1881,7 @@ Items 1 to 4 are applied in this PR (plan text, tests, workflow); 5 to 9 are not
 3. **`windows-smoke` sits behind a gate job.** A job cannot have a `paths` filter, and the plan wants Windows minutes spent only weekly and on dependency PRs. `windows-gate` (Linux, 3 to 4 s) decides from the event and, for a PR, from `gh api …/pulls/N/files`. `package.json` is matched at any depth, because a dependency bump changes a workspace's `package.json`. Cost: one more job in every PR's check list, and `windows-smoke` shows as skipped.
 4. **Renovate holds back majors that earlier decisions rule out** (`renovate.json`, each rule with its reason): TypeScript (D5), ESLint and `@eslint/js` (T02 item 1), `@types/node` (the 22 line), `graphql` (Payload 3 allows 16), Node (`.nvmrc` and `engines`), and any major of a compose image (a database major is a data migration). `config:recommended` does not pin Actions to digests (checked in Renovate's preset list), so the tag pins stay. Without these rules the first Renovate run would propose TypeScript 7, ESLint 10 and `@types/node` 26. The groups are `@medusajs/*`, `payload` with `@payloadcms/*`, and `next` with `eslint-config-next`; `e2e-smoke`, with the admin suite, runs on every PR, so it runs on the Payload and Next ones.
 5. **For you, G3 (nothing here can change them).** (a) **Secret scanning and push protection:** `GET /repos/…` answers `security_and_analysis: null` and `…/secret-scanning/alerts` is blocked by the proxy, so the session cannot see whether either is on. Turn them on in Settings → Code security; a private repo may need GitHub Secret Protection (paid), and if the page says so, that is the answer to record. (b) **Dependabot alerts are disabled** on the repo (`…/dependabot/alerts` answers "Dependabot alerts are disabled for this repository"); Renovate's PRs and the non-blocking `pnpm audit` step are what is left, unless you turn them on. (c) **Install the Renovate GitHub app** on the repo; `renovate.json` does nothing without it, and its first run will open a dashboard issue and the pin and group PRs. (d) **Branch protection:** `main` is not protected (C0). If you want CI to gate merges, require `check (Node 22)` and `e2e-smoke`, not `check (Node 24)` (informational) or `windows-smoke` (often skipped; a skipped required check counts as passing). (e) `windows-smoke` did not need the Actions tab: the dispatch worked from the session.
+   **Outcome (2026-10-15, G3 closed).** (a) **Not available:** the Settings page offers no secret scanning or push protection for this private repo on the owner's personal Free account (GitHub Secret Protection is sold for organizations). Nothing to turn on; revisit if the repo goes public or moves to an organization. (b) **Dependabot alerts are on:** the owner enabled them, and `…/dependabot/alerts` now answers 403 "Resource not accessible by integration" instead of "disabled", so the session still cannot read the alerts themselves. (c) **Renovate is installed** ("Renovate Only", "Scan and Alert"). Since `renovate.json` already exists it skipped onboarding; its first PR, "Pin dependencies" (#31), pinned the Actions to exact tags, the backend's ranged devDependencies, and `.nvmrc` from `22` to `v22.23.3` (so CI's jobs without a `node-version` input now run exactly that, and each Node patch is a Renovate PR). All six checks passed and it was merged. (d) **Branch protection is not possible on this plan:** `…/branches/main/protection` and `…/rulesets` both answer 403 "Upgrade to GitHub Pro or make this repository public to enable this feature." `main` stays unprotected, so merges are gated by whoever merges waiting for green CI, and `gh pr merge --auto` still merges at once. If the plan changes, require `check (Node 22)`, `backend-integration` and `e2e-smoke` (the list in (d) above, plus `backend-integration` from T17, "Step 4" item 2) and, once M1 adds it, `design-system`.
 6. **Reading CI from the cloud.** `gh api …/actions/jobs/<id>/logs` redirects to `productionresultssa11.blob.core.windows.net`, which the proxy refuses (`Forbidden`). The GitHub MCP server's `get_job_logs` (`owner`, `repo`, `job_id`, `return_content: true`, `tail_lines`) returned the failed step's log; it has no way to read from the top, so a `Versions`-style line at the start of a long log is out of reach. Run and job states, steps with timings, artifacts' names and sizes, and `…/dispatches` all work through `gh api`. CLOUD.md says so now.
 7. **Findings about Payload's admin that the suite works around** (S1 may want them): (a) Next 16 with Cache Components keeps the route you came from mounted but hidden, so right after a redirect `input[name="title"]` matches the old form as well (a strict-mode violation); the spec's `field()` helper selects `:visible`. (b) Payload stores the language an admin last picked, per user (`payload_preferences`, key `locale`), and opens the next page in it: a draft made "in English" landed in `el` after an earlier Greek session. The spec names `?locale=en` in the URL (which also updates the preference) and puts it back at the end. A first creation of that preference can race: a duplicated `locale` row appeared once during exploration (two parallel requests), which is a Payload matter and not seen in the suites. (c) The admin asks `www.gravatar.com` for an avatar (D18); the cloud proxy refuses it (`connect_rejected`), the page is unaffected.
 8. **`e2e-smoke` leaves `pnpm build` as the root script,** which also builds the backend (about 30 s of the 97 s on the runner) although only the storefront needs the post-bootstrap build. `pnpm --filter @shopblok/storefront build` would save it; left as the plan words it, so the workflow runs what the quickstart runs.
@@ -2436,3 +2437,617 @@ NEXT-SESSION.md listed four things the W2 fix task could not check, because it r
 - `git status` in the clone was clean after every step; turbo did not touch `AGENTS.md`.
 - **The session could not see the command lines of processes in your own terminal.** `Get-CimInstance Win32_Process` returned them for the processes the app started and for an editor's TypeScript servers, but not for the processes of `pnpm dev` in Windows Terminal; why was not looked into. The `^C` check above therefore went by parent process ids. A later run from the app can do the same: `Get-NetTCPConnection -State Listen -LocalPort 8000,9000`, then walk `ParentProcessId` up to the root `pnpm.exe`.
 - **The clone and its four volumes are kept** (`E:\shopblok-starter-w2`, with the plain data and the stack stopped by `pnpm infra:down`). `docker compose down -v` there and deleting the folder remove them.
+
+---
+
+# The M1 log
+
+What each M1 task found and measured ([plans/M1.md](plans/M1.md)), in the order the tasks ran.
+
+## Styles and fonts (T20)
+
+**Result: the storefront has one shared stylesheet and Inter through `next/font`, without tokens; T20 ran ahead of T19, and T19 now finishes it.** Every check in T20's Verify list holds except the two that need `tokens.css` (the body's colours, in the first row below). The Payload admin is untouched: its layout imports no storefront CSS and no font, and `payload-admin.spec.ts` passes unchanged.
+
+| | |
+|---|---|
+| Date | 2026-10-15 |
+| Branch | `claude/m1-1d8p7b` |
+| New | `packages/ui/src/styles/globals.css`, `packages/ui/src/styles/source-probe.ts`, `apps/storefront/src/lib/fonts.ts`, `apps/storefront/e2e/styles-fonts.spec.ts` |
+| Changed | `packages/ui/package.json` (export `./globals.css`; `tailwindcss` 4.3.3 and `tw-animate-css` 1.4.0 as dependencies), `apps/storefront/package.json` (`@shopblok/ui` `workspace:*`), `apps/storefront/src/styles/globals.css` (one `@import`), the two storefront root layouts (`[market]/layout.tsx`, `global-not-found.tsx`: `inter.variable` on `<html>`), the lockfile (the `ui` importer and `tw-animate-css@1.4.0`, nothing else) |
+| Tests | Storefront 422 (unchanged), scripts 282, i18n 18. Playwright **69 of 69** against `next start` (5 new, in `styles-fonts.spec.ts`; `payload-admin`, `payload-cache`, `markets`, `wiring` and `payload-locales` unchanged) |
+
+### What was done
+
+1. **`packages/ui/src/styles/globals.css`** imports Tailwind and `tw-animate-css`, scans its own sources with `@source "../"`, and declares `--font-sans` in an `@theme inline` block as `var(--font-inter, ui-sans-serif)` followed by a system stack; Tailwind's preflight applies it to `<html>`. It is exported as `@shopblok/ui/globals.css`. The storefront's `src/styles/globals.css` imports it and adds its own `@source "../"`, so the shared package names no app's path. `turbo.json`'s `build` now also depends on `transit`, so an edit in a source-only package (this stylesheet, `@shopblok/i18n`) changes the storefront build's hash instead of replaying a cached build (turbo's docs, "Transit Nodes").
+2. **`src/lib/fonts.ts`** calls `Inter` once: subsets `latin`, `latin-ext`, `greek`; the variable font with the `opsz` axis (`wght` is the default axis, 100 to 900); `display: "swap"`; `variable: "--font-inter"`. Both root layouts put `inter.variable` on `<html>`. The computed `font-family` of `<body>` is `Inter, "Inter Fallback", ui-sans-serif, system-ui, sans-serif, …`; `Inter Fallback` is the size-adjusted Arial that `next/font` writes, which keeps the layout shift down.
+3. **The build downloaded Inter from Google (G5)** and `.next/static/media/` holds seven woff2 files, served from our own origin: Latin 73,016 bytes, Latin-ext 133,704, Greek 30,256 (and four more, Cyrillic, Cyrillic-ext, Greek-ext and Vietnamese, which the stylesheet declares for subsets we did not ask for and the browser never fetches).
+
+### Checks
+
+| Check | Result | Key output |
+|---|---|---|
+| The body's colour and background are `tokens.css`'s | **Moved to T19; done there** (SETUP.md, "Tokens (T19)") | There were no colours yet; `bg-background` and `text-foreground` arrived with `tokens.css` |
+| The body's computed `font-family` starts with the `next/font` Inter | **Pass** | `/us`, `/` and the global 404 page (its own `<html>`) all compute `Inter, "Inter Fallback", ui-sans-serif, …`, and an Inter `FontFace` has `status: "loaded"` |
+| `/` loads the Greek subset file; `/us` does not | **Pass, with `preload: false`** (item 1 below) | `/` fetches `2edaebbd…woff2` (Greek, 30,256 bytes) and `234d9015…woff2` (Latin, 73,016); `/us` and the 404 page fetch the Latin file only |
+| No request to `fonts.googleapis.com` or `fonts.gstatic.com` | **Pass** | None on `/`, `/us` or the 404 page, with the browser recording every request |
+| A class used only inside `packages/ui/src` is in the built CSS | **Pass** | `.min-w-\[37\.5rem\]` is in the built stylesheet; it is written only in `packages/ui/src/styles/source-probe.ts` (item 2 below) |
+| `pnpm build` in CI's state (no `.env`) | **Pass** | `typecheck`, `lint`, `test` and `build` exit 0 with both `.env` files moved away; `pnpm install --frozen-lockfile` and `pnpm check:workspace` pass |
+| The e2e suite, `payload-admin` included | **Pass** | 69 of 69 in 44 s, run as in CI (`E2E_TEST_ROUTES=true next start`, Medusa up, `pnpm bootstrap` before). Chromium was the image's build 1194 through a `launchOptions.executablePath` in an uncommitted config, because `cdn.playwright.dev` was refused in this session |
+| Mutations | **Fail as they should** | `preload` left at its default: `/us` fetched all three requested subsets (Latin, Latin-ext and Greek, 236,976 bytes) and the Greek test failed. `@source "../"` removed: the probe test failed |
+
+### Decisions the plan did not settle
+
+1. **`preload: false`.** D28 says a Greek page downloads the Greek file and an English page doesn't. With `next/font`'s default (`preload: true`) every page gets a preload hint for the files of all three listed subsets, so `/us` fetched the Greek and Latin-ext files too (237 kB instead of 73 kB). With `preload: false` the browser takes only the files whose `unicode-range` covers the characters on the page. The price is that the Latin file is no longer a preload hint: it starts when the stylesheet has been parsed and the text laid out, and `display: swap` shows the fallback (size-adjusted, so with little shift) until then. The alternative is to keep the preload and give up the per-page saving, or to call `Inter` a second time for the Greek market, which D28 rules out. Measure the first paint when the first real page exists (M2) and change it there if the swap shows.
+2. **The probe.** The plan's "a class used only inside `packages/ui/src` is in the built CSS" needs such a class, and `packages/ui` has none until T21's atoms. `source-probe.ts` holds one arbitrary-value class, and the e2e spec reads the built stylesheet for its rule. It is a Playwright check and not a unit test because the built CSS only exists after `pnpm build`, which `pnpm test` runs before in CI. T21 should point the spec at an atom's class and delete the probe.
+3. **`@import "tailwindcss" source(none)`.** Tailwind v4 also scans from the working directory of the build (here `apps/storefront`, so its `e2e/` folder), so the probe class written in the spec would have put its rule into the CSS and made the check pass whatever `@source` said. With `source(none)` only the explicit `@source` lines count.
+4. **Dependencies.** `tailwindcss` 4.3.3 is declared in `packages/ui` too, next to `tw-animate-css` 1.4.0, because `@import "tailwindcss"` resolves from the file's own folder and pnpm does not hoist it there. Both versions are exact, and 4.3.3 is the storefront's version.
+5. **`@theme inline`.** It makes `font-sans` read `var(--font-inter)` where it is used; the variable itself is set by the class on `<html>`.
+
+### Deviation from the plan: tokens are not here
+
+T18 (the Figma export) has not landed, so T19 (which builds `tokens.css`) cannot run, and T20 was done first without tokens: the stylesheet has no `@import "./tokens.css"`, no `bg-background` or `text-foreground`, and no default border colour. **T19 now also adds `@import "./tokens.css";` to `globals.css` and the base colours** (body background and text colour, the default border colour), and takes over T20's check on the body's computed colours. Until then the storefront's pages are Tailwind's preflight in black on white. **T19 has since done both** ("Tokens (T19)"): `globals.css` imports `tokens.css` and has the base layer, and T20's `@theme inline { --font-sans }` moved into the generated file.
+
+### Smaller observations
+
+- **The session's `pnpm` could not be started by turbo.** pnpm 12.10.1's own copy under `~/.local/share/pnpm/.tools/` still had the shebang-less placeholder (its postinstall had not replaced it with the native binary), and `turbo` executes it directly: `Exec format error (os error 8)` on every task. Running `node install.js` in that folder fixed it for the session. It is the VM, not the repo, and `npm install -g pnpm@12.10.1` as CLOUD.md says may have avoided it.
+- **Docker Hub answered 429 (rate limit) and the VM had none of the four images.** `mirror.gcr.io/<repo>:<tag>` answered, so each image was pulled from there and tagged with its Docker Hub name; then `pnpm infra:up` and `pnpm bootstrap` ran as usual (49.6 s).
+- **`prettier --check` already warns on both root layouts** at `main`, and nothing in CI runs it; they were left as they were.
+
+## Figma export (T18)
+
+**Result: the variables are exported; D29 was settled without a measurement.** `packages/ui/tokens/figma.tokens.json` holds the kit's 5 local collections in all their modes (1,029 variables), its 92 text styles and its 14 effect styles. Committed read-only code made it, and every run of it gave the same text. **This copy of the kit has none of the atoms' component sets** (no Button, Input, Checkbox or Switch), so T18's steps 5 and 6 couldn't be done here. You chose `base-vega` for D29 without the measurement (2026-10-15).
+
+| | |
+|---|---|
+| Date | 2026-10-15 |
+| Run by | A cloud session (the project thread), not your PC. The Figma connector works in the cloud as `Steph` ("Steph's team", Pro, Full seat; `whoami`), so D24's "your PC" wasn't needed for the variables |
+| File | `1PUSIlNviAwiZT0praTxES`. `figma.root.name` is `Document`, so that is the `source.fileName` in the export |
+| Code | `scripts/figma/export-variables.js` (plugin-API reads only: no setter, nothing created or deleted) and `scripts/figma/assemble.ts` (with `scripts/lib/figma-slices.ts` and its test) |
+| Calls | `whoami` 2, `get_metadata` 2, `get_screenshot` 2, `use_figma` 30: 17 slices of the export, 3 probes of the file's pages and components, and 10 refused (1 too large, 9 rate-limited). After the review: 17 slices again, 1 probe of the shadow variables, and 1 run for the final length and hash |
+
+### The collections
+
+| Collection | Modes (default first) | Variables | What's in it |
+|---|---|---|---|
+| Device | Phone, Tablet, Laptop, Desktop, Large Screen | 4 | Breakpoint, Grid Count, Gutter, Margin (FLOAT) |
+| Mode | Light, Dark | 182 | The colour layer: `base/*` (17, the shadcn contract), `chart/*` 5, `sidebar/*` 8, `state/*` 12, `opacity/*` 123, `mode mix/*` 17 |
+| Shadcn | Mode 1 | 43 | `focus/*` 30 (the six rings), `font/*` 5 (Inter; 400, 500, 600, 700), `radius/*` 8 |
+| TailwindCSS | Value | 556 | Spacing, padding, margin, gap, size, width, height, text, border, shadow, blur and breakpoint steps, named after Tailwind's classes |
+| TailwindCSS - Colors | Light, Dark | 244 | Tailwind's 22 palettes × 11 steps, plus Black and White |
+
+### Checks (T18 "Verify")
+
+1. **Every local collection, every mode: pass.** The file has the 5 collections above and 1,029 variables, the same count `variableCount` reported from the plugin API on every run.
+2. **A second export is identical: pass.** Each slice is a full export in its own run, and every run of the same code reported the same length and FNV-1a hash: 17 runs of the first code (230,081 characters, `2a006917`) and 17 of the code after the review (234,271, `a2428f19`). `assemble.ts` checks both before it writes. The committed file is the last code's output (235,071, `140cc6d9`): that run's length and hash match the 17 slices with `"unlisted": true` added to the 50 shadow references, the only change that code makes.
+3. **Nothing written: pass.** The code calls no setter. The session sent the file nothing but reads; the version history can be checked under File → Show version history.
+4. **`docs/design/kit/`: partial.** `atoms.md` has the CC BY 4.0 credit, what this copy draws and the atoms it doesn't. There are no PNGs: the copy draws none of the shadcn atoms, and the container couldn't download the two screenshots it did take (Payment Methods and Flags), because the proxy refuses figma.com's asset host.
+5. **D29 measured: not possible.** No Button exists in this copy. You chose `base-vega` instead (plan §1).
+
+### What's in the kit that SPEC §9.1 doesn't mention
+
+- **Payment method icons and country flags.** The plan expected neither. `Payment Method / visa, mastercard, maestro, ideal, klarna, apple-pay, google-pay, paypal, wechat` (no Revolut Pay), and `Tabler Flag / <country>`. Also avatars, brand logos, file-type icons and patterns.
+- **`primary` is pure black** (`#000000` in Light), not shadcn neutral's `#171717`. `popover-foreground` is `#000000` too, while `foreground` is `#09090b`.
+- **D35's failing pairs are here as predicted.** In Light, `ring` is `#a1a1a1`, `border` and `input` are `#e5e5e5`, `muted` is `#f5f5f5` and `muted-foreground` is `#737373`.
+- **Six focus rings.** The `ring/*` effect styles are 3 px spreads with no blur, bound to `Shadcn/focus/*`. `ring/default` is `#a1a1a180` and `ring/focus` is `#2b7fff33`.
+- **The shadows are bound to variables the kit no longer lists.** The eight `shadow/*` effect styles bind to `Shadcn/shadow/*` (50 references). Figma still resolves those variables, as local (not remote) variables of the Shadcn collection, but the collection's list of 43 doesn't include them, so they aren't in the export. The export marks each of those references `"unlisted": true` (it would mark another library's variable `"remote": true`; there are none). The effects' own values are in the export, and the `TailwindCSS` collection has its own `shadow/*` variables. Every other reference resolves to an exported variable; a reference Figma couldn't resolve at all would stop the export.
+- **Three text-style names appear twice**, with different content: `text-6xl/leading-none/medium`, `text-6xl/leading-regular/regular` and `text-xs/leading-normal/semibold`. The export orders each pair by content, so the order doesn't change between exports.
+- **Smaller oddities:** a typo group, `Mode/opacity/destrucrtive/`. The radius scale goes to `4xl` (26), past SPEC §9.1's `3xl`.
+
+### What should change in the plan
+
+1. **D29 is `base-vega`, without a measurement.** There's no Button to measure. You chose `base-vega` (36 px), the size the plan says the ReUI kit draws, over adding a complete copy of the Community file. §1 says so.
+2. **§4a and D24:** the variables export runs in the cloud as well, since the Figma connector works there. Only the screenshots need your PC, because the container can't download them.
+3. **T19's parser** has two things to handle. First, the `shadow/*` styles' bound variables are unlisted (`"unlisted": true`, above): it should take each effect's own values and not look those references up. Any other alias that doesn't resolve should still fail the build. Second, three text-style names are duplicated (above): it must not key text styles by name alone, or it will drop one of each pair silently.
+4. **SPEC §9.3 and T23:** PaymentIcon and Flag have kit artwork. Revolut Pay doesn't.
+
+### Smaller observations
+
+- `use_figma` answers at most 20,480 bytes, and the export is about 235,000, so the code returns 14,000-character slices. The connector allows about ten calls a minute. A refused call says "truncated to 20kb" even for `return 1`, which reads like a size error but isn't one; `get_metadata` and `whoami` still answered meanwhile. After about two minutes, calls worked again. The script's header and `packages/ui/tokens/README.md` say this.
+- The slices went from the tool's answers into files through the session's own transcript, so a later export needs a session that can save each answer to a file (the README's prompt).
+
+## Tokens (T19)
+
+**Result: `pnpm tokens` builds `tokens.css` and `tokens.ts` from the two token files through Style Dictionary 5.6.1, light only, and the build stops on a contrast, radius or spacing failure.** The kit fails the gate in eight places, not D35's three; the numbers are below, and **the field edge is yours to change** (item 1 of "Overrides"). The generated stylesheet is imported by `globals.css`, with the base colours T20 left out.
+
+| | |
+|---|---|
+| Date | 2026-10-15 |
+| Branch | `claude/m1-1d8p7b`, PR 40 |
+| New | `scripts/figma-tokens.ts` (`pnpm tokens`), `scripts/lib/tokens/{contrast, checks, figma-parser, model, formats, build}.ts` and their tests (`contrast`, `checks`, `figma-parser`, `build`, `committed`), `scripts/turbo.json`, `packages/ui/tokens/shopblok.tokens.json`, `packages/ui/src/styles/tokens.css`, `packages/ui/src/tokens.ts`, `packages/ui/src/styles/brands/README.md` |
+| Changed | `scripts/package.json` (`style-dictionary` 5.6.1, exact, in `@shopblok/scripts` only), the lockfile (51 packages added, nothing changed), root `package.json` (`tokens`), `packages/ui/src/styles/globals.css`, `packages/ui/tokens/README.md`, `apps/storefront/e2e/styles-fonts.spec.ts` |
+| Tests | i18n 18, scripts **397** (115 new), storefront 422, backend 85: all pass in CI's state. Playwright, `styles-fonts.spec.ts` alone against `next start` (no Medusa, no Payload database): 9 of 9, 4 of them new |
+
+### What was done
+
+1. **The parser** (`figma-parser.ts`) reads `figma.tokens.json` as DTCG tokens: the mode named "Light" (the default mode where a collection has none), the collection's name as the first path segment, every alias as `{Collection.path}`, colours as the hex strings the kit holds. It returns 1,029 variables, 92 text styles and 14 effect styles as 1,135 tokens. The three text-style names that appear twice get " (2)" (T18 item 3), and a test counts the styles in and the tokens out. A style holds its own values and **no reference at all**, so the 50 unlisted `Shadcn/shadow/*` references never reach Style Dictionary (T18 item 3). A collision between a variable and a group, a colour that isn't `#rrggbb(aa)`, and an alias into a collection that isn't in the file each stop the parse.
+2. **Style Dictionary** (`build.ts`): `usesDtcg`, the two files parsed by `build.ts` itself (the Figma export by `figma-parser.ts`) and handed over as one `tokens` object, not as `source` paths (see "Code-review fixes", item 5), one transform (the name is the whole path, because the radius and the shadows both have an `md` and Style Dictionary reports equal names in one file as a collision), `warnings: "error"` and `brokenReferences: "throw"`. `formatPlatform` gives the text of both files; `pnpm tokens` writes it. **Style Dictionary throws on a broken reference and on a cycle, but it names them only at `verbose`** (it prints "Some token references (4) could not be found" and nothing else). So a failed build is run once more at `verbose`, and that error is the one thrown: `{Mode.state.destructive} tries to reference {TailwindCSS - Colors.Red.Red-6000}, which is not defined`. No check of our own was needed for the references.
+3. **The model** (`model.ts`) reads the resolved tokens once, runs every check, and is the only thing the two formats print from. A check that fails stops both. All the problems it can find come in one message (a reference to nothing or a cycle is Style Dictionary's own error and comes alone, before the checks).
+4. **`shopblok.tokens.json`** holds, as DTCG: `primitive` (three greys of our own), `semantic` (all 51 colours as references, so the name-to-variable map is data), `contrast` (36 pairs), and what the kit lacks: `viewport`, `z-index`, `container`, `motion`.
+5. **`globals.css`** imports `tokens.css` after the two existing imports and has an `@layer base` with `border-border` on everything and `bg-background text-foreground` on the body. T20's own `@theme inline { --font-sans }` moved into `tokens.css`, which writes the same stack from the kit's font name.
+6. **`scripts/turbo.json`** adds the token files and the two generated files to `scripts#test`'s inputs (`$TURBO_ROOT$/packages/ui/…`, as the storefront's does for the lockfile). Without it, turbo would replay a cached pass after a change in `packages/ui`, because `committed.test.ts` reads files outside its package. This is the only change to Turborepo's configuration; I read `docs/reference/package-configurations.mdx` and `configuration.mdx` in the installed package first (AGENTS.md).
+
+### The mapping
+
+| Kit | CSS | Notes |
+|---|---|---|
+| `Mode/base/*` (17), `Mode/chart/*` (5), `Mode/sidebar/*` (8), `Mode/state/destructive` | `--background` … `--ring`, `--chart-1..5`, `--sidebar*`, `--destructive`, and `--color-*` for each in `@theme inline` | Light values, hex as held. A value the kit writes as an alias to a palette colour is `var(--red-600)` (the palette colour is emitted as `--red-600` only where one is used: 14 of them); a value the kit holds as a literal is the literal |
+| `Mode/state/destructive-foreground`, `…/success`, `…/warning`, `…/info` | read only, as the "kit" side of an override | See "Overrides" |
+| (not in the kit) | `--price`, `--price-sale`, `--price-original`, `--rating`, `--success`, `--warning`, `--info`, `--badge-sale`, `--badge-new`, `--stock-in`, `--stock-low`, `--stock-out`, `--overlay`, and `-foreground` for `success`, `warning`, `info`, `badge-sale`, `badge-new`, `overlay` | `shopblok.tokens.json`, each a reference to a palette colour except `--overlay` (black at 60 %: a primitive has no alpha) |
+| `Shadcn/radius/lg` (10) | `--radius: 0.625rem` | `--radius-xs` … `--radius-4xl` are `calc(var(--radius) ± n px)` with n = −8, −4, −2, 0, +4, +8, +12, +16. The run fails unless the kit's eight values equal them (they do: 2, 6, 8, 10, 14, 18, 22, 26) |
+| `TailwindCSS/{gap,margin,padding,size,spacing,width,height}/*` (425 variables) | `--spacing: 0.25rem` | Checked, not emitted. 410 are numbered steps and equal 4 px × their number (half steps are written `0,5`); 12 are one pixel (`gap-px`, `h-px`, `m-px`, `size-px`, `s-px`, `w-px`, and the paddings, which the kit names `pb-pb`, `pl-pl`, `pr-pr`, `pt-pt`, `px-px`, `py-py`; the check reads those as `px`); the three `…-Infinite` (9999) are not steps |
+| `Shadcn/font/family/font-sans` ("Inter") | `--font-sans: var(--font-inter, ui-sans-serif), system-ui, sans-serif, …emoji` | The variable name comes from the kit's font name; `next/font` sets it (D28), and the build fails if `fonts.ts` sets another ("Code-review fixes", item 3) |
+| `Shadcn/font/weight/*` | `--font-weight-normal` (400), `-medium`, `-semibold`, `-bold` (700) | The kit also uses Bold; SPEC §9.1 listed 400, 500, 600 |
+| `TailwindCSS/text/<step>/{font-size, line-height}` (14 steps, `2xs` to `9xl`) | `--text-<step>` and `--text-<step>--line-height`, in rem | `2xs` (10/14) is not one of Tailwind's own steps |
+| `TailwindCSS/breakpoint/*` | `--breakpoint-sm` … `-2xl` (40, 48, 64, 80, 96 rem) | The kit's values are Tailwind's defaults |
+| `Effect styles/shadow/*` (7) | `--shadow-2xs` … `--shadow-2xl` | From the style's own values, layers reversed (Figma lists the bottom layer first). `--shadow-md` is `0 4px 6px -1px #0000001a, 0 2px 4px -2px #0000001a`, Tailwind's own, and a test pins it. `--shadow-sm` has one layer where Tailwind's has two (kit oddity, below) |
+| (not in the kit) | `--viewport-phone` … `-desktop` (375, 768, 1024, 1440 px), `--z-sticky` … `--z-toast` (20 to 80), `--container-page` (90rem), `--container-prose` (42rem), `--duration-fast|base|slow` (100, 150, 300 ms), `--ease-standard` (Tailwind's ease-in-out) | `shopblok.tokens.json` |
+
+`tokens.css` has one `:root` and one `@theme inline`, no `.dark` and no `prefers-color-scheme`; a test checks that and that all 32 contract variables and all 13 commerce tokens (and their `-foreground`s) are in both. The built storefront stylesheet carries them: `:root{--amber-600:#e17100;…}` and `body{background-color:var(--background);color:var(--foreground)}`.
+
+**Not mapped: 608 of the kit's 1,135 tokens.** `Mode/opacity/*` (123) and `Mode/mode mix/*` (17) are the kit's alpha steps and light/dark blends; `Mode/state/*` (7 of 12: focus, invert and the foregrounds); `Shadcn/focus/*` (30) and the six `ring/*` effect styles; the 92 text styles (the type scale comes from the variables); `blur/xs`; 230 palette colours no semantic token uses; `TailwindCSS/{blur, border-radius, border-width, line-height, shadow, stroke-width}` (98); the `Device` collection (breakpoint, grid count, gutter and margin per device, 4). `pnpm tokens` prints the groups.
+
+### Overrides (D35): eight, each with the kit's value, ours and both ratios
+
+The plan expected three. The kit holds shadcn neutral's three failures (items 1 to 3), and fails a fourth pair of its own (item 4); item 5 is the sidebar's ring, which the first version of the gate did not look at ("Code-review fixes", item 1); items 6 to 8 are the commerce colours SPEC §9.2 adds, where the kit's `state/*` hues are the starting point and fail under white text. A pair fails with the kit's value in every case, so none is a preference.
+
+| # | Token | Kit | Ours | Pair | Kit's ratio | Our ratio |
+|---|---|---|---|---|---|---|
+| 1 | `input` | `#e5e5e5` | `#949494` (`--neutral-450`, ours) | `input` on `background`, 3:1 | **1.26:1** | **3.03:1** |
+| 2 | `ring` | `#a1a1a1` | `#949494` (`--neutral-450`), **at alpha 1** | `ring` on `background`, 3:1 | 2.58:1 at 100 %; **1.54:1 at the 50 % the kit draws it at** | 3.03:1 at 100 % |
+| 3 | `muted-foreground` | `#737373` | `#707070` (`--neutral-550`, ours) | on `muted` `#f5f5f5`, 4.5:1 | **4.35:1** | 4.54:1 |
+| | | | | on `background`, 4.5:1 | 4.74:1 | 4.95:1 |
+| 4 | `destructive-foreground` | `#fef2f2` (Red-50) | `#ffffff` | on `destructive` `#e7000b`, 4.5:1 | 4.36:1 | 4.77:1 |
+| 5 | `sidebar-ring` | `#a1a1a1` (Neutral-400) | `#919191` (`--neutral-475`, ours), **at alpha 1** | `sidebar-ring` on `sidebar` `#fafafa`, 3:1 | **2.48:1** | **3.02:1** |
+| 6 | `success` | `#00bc7d` (Emerald-500) | `#006045` (Emerald-800) | `success-foreground` (white) on it, and it on `background`, 4.5:1 | 2.47:1 | 7.61:1 |
+| 7 | `warning` | `#f0b100` (Yellow-500) | `#a65f00` (Yellow-700) | the same two pairs | 1.91:1 | 4.93:1 |
+| 8 | `info` | `#8e51ff` (Violet-500) | `#7f22fe` (Violet-600) | the same two pairs | 4.40:1 | 5.89:1 |
+
+1. **The field edge is yours to change (D35's default, as asked).** The lightest grey that reaches 3:1 on white is `#949494` (3.03:1; `#959595` is 2.99:1, and a test pins both). Tailwind's own neutrals offer `#a1a1a1` (2.58:1) or `#737373` (4.74:1) and nothing between. Your alternatives: (a) `#737373`, one palette colour and no primitive of ours, much darker than the kit; (b) WCAG 1.4.11's exemption, where something else identifies the field, which keeps the kit's `#e5e5e5` and has to hold for every form in M2 to M4. To change it, edit `semantic.input` in `shopblok.tokens.json` and run `pnpm tokens`; the gate tells you if the new value fails.
+2. **The ring's alpha is part of the decision (D35: "at the alpha the components draw it with").** The kit's `ring/default` effect style draws `#a1a1a1` at 50 % (`opacity/ring-50`), which is 1.54:1. **I settled on alpha 1**, so the ring and the field edge are one grey and one token: drawn at full strength, `#949494` is 3.03:1. At 50 % the lightest grey that passes would be `#2a2a2a` (3.01:1; `#2b2b2b` is 2.99:1), nearly black under a half-transparent 3 px ring. The pair says `alpha: 1`, **T21 must draw the ring without `/50`** (`ring-ring`, not `ring-ring/50`), and a test shows the 50 % version failing with "ring #a1a1a1 at 50 % on background #ffffff is 1.54:1".
+3. **`muted-foreground`:** `#707070` is the lightest grey that passes on `muted` (`#717171` is 4.48:1, pinned by a test). Moving to Tailwind's Neutral-600 (`#525252`) was the alternative; it would have darkened every caption by far more than needed.
+4. **`destructive-foreground`** is not in SPEC §9.2's contract and shadcn v4's own buttons use `text-white`. It is emitted because the kit has it and D35 checks every `-foreground`; if T21 draws white text on `destructive` directly, the token is unused but harmless.
+5. **Items 6 to 8 are my choice of colours, not the kit's.** The kit's `state/success|warning|info` are 500-step hues paired with 900-step foregrounds (a tinted-surface alert); SPEC §9.2 names `success`, `warning` and `info` as tokens, and I made each a solid surface with a white `-foreground`, which is also readable as text on `background`. For each I took the lightest step of the kit's own hue that passes. The kit's Emerald-600 and Emerald-700 are the same colour (`#009966`, 3.65:1), so the next step that passes is 800. If you'd rather keep the kit's colours for these three, say so: they would then need a dark text colour instead of white.
+
+### Checks
+
+| Check | Result | Key output |
+|---|---|---|
+| `pnpm install`, then `pnpm install --frozen-lockfile` | **Pass** | "Already up to date"; "Lockfile is up to date, resolution step is skipped" |
+| `pnpm check:workspace` | **Pass** | Payload: 8 packages, one version each; `style-dictionary` is a dependency of `scripts` only |
+| `pnpm typecheck && pnpm lint && pnpm test && pnpm build`, both `.env` files moved away | **Pass** | 18 + 397 + 422 + 85 tests, no `Errors` line |
+| `pnpm tokens` twice, then `git diff --exit-code` | **Pass** | the second run changes nothing; both files pass `prettier --check` |
+| Every declared pair passes | **Pass** | 36 pairs: 31 text at 4.5:1 and 5 UI at 3:1; the output lists the eight overrides with both ratios |
+| `tokens.css` is light only and complete | **Pass** | a test: no `.dark`, no `prefers-color-scheme`, one `:root`; every contract and commerce variable in `:root` and in `@theme inline` |
+| **Mutation:** a colour changed in `figma.tokens.json` | **Fails** | `committed.test.ts`: "tokens.css is what the build gives; if not, run `pnpm tokens`" (`base/border` to `#e4e4e4`) |
+| **Mutation:** an alias to a missing variable | **Fails, names it** | `{Mode.state.destructive} tries to reference {TailwindCSS - Colors.Red.Red-6000}, which is not defined` |
+| **Mutation:** an alias cycle | **Fails, names it** | `Circular definition cycle for {semantic.accent} => {Mode.base.accent}, {Mode.base.accent-foreground}, {Mode.base.accent}` |
+| **Mutation:** an overridden pair put back to the kit's value | **Fails, names pair and ratio** | `contrast ui.input-on-background: input #e5e5e5 on background #ffffff is 1.26:1, needs 3:1` |
+| **Mutation:** a radius off the scale | **Fails** | `radius 3xl: the kit has 24px; --radius (10px) + 12px gives 22px` |
+| **Mutation:** a spacing value off the step | **Fails** | `spacing TailwindCSS.gap.gap-3: 13px, but Tailwind's gap-3 is 12px (a 4px step)` |
+| The body's computed colours are `tokens.css`'s (moved from T20) | **Pass** | Playwright against `next start`, `/us`, `/` and the 404 page: `color` `rgb(9, 9, 11)`, `background-color` `rgb(255, 255, 255)`, border colour `rgb(229, 229, 229)`, read from `tokens.css` by the spec |
+| **Mutation:** the body rule without `bg-background` | **Fails** | the three new Playwright tests fail on the rebuilt storefront |
+
+The five plan mutations are tests too (`build.test.ts` makes each on a copy of the files in a temporary folder, with a dozen more: a pair that goes missing, a text pair asking for 3:1, a scrim that fails when composited), and each was also made by hand on the real files, run through `committed.test.ts`, and reverted.
+
+### Anything in the kit that doesn't fit the plan's mapping
+
+- **`primary` is `#000000`** (T18), not shadcn neutral's `#171717`; `primary-foreground` is `#fafafa`. Both pass (21:1 on white, 20.12:1 as text on it). `popover-foreground` is `#000000` while `foreground` and `card-foreground` are `#09090b`; kept as the kit has them.
+- **The shadows' bound variables are unlisted** (T18). Handled: the parser uses the effect styles' own values, none of the references. `--shadow-*` in `tokens.css` is from the styles; the kit's `TailwindCSS/shadow/*` variables (60) are not read.
+- **The six `ring/*` effect styles** (3 px spreads: default, destructive, focus, info, success, warning) are not emitted; `ring-3` plus a colour does the same. `ring/focus` is blue (`#2b7fff33`).
+- **`chart-1` is `#8fc6ff`, 1.79:1 on white.** Charts are not in D35's pairs, so they are not gated, and the five chart colours are all blue. Worth a decision when a chart exists.
+- **`sidebar-ring` is Neutral-400 in the kit (`#a1a1a1`), 2.48:1 on `sidebar` (`#fafafa`)**, the same failure as `ring`. The first version of the gate did not see it; it is overridden now (override 5, "Code-review fixes" item 1).
+- **The kit's Emerald-600 and Emerald-700 are the same colour.** Its `TailwindCSS - Colors` palette is Tailwind v4's, converted to hex.
+- **The Device collection** says Phone = 640 (`breakpoint/sm`), Tablet = 768, Laptop = 1024, Desktop = 1280, Large Screen = 1536. SPEC §9.2 says breakpoints 375/768/1024/1440. See "Decisions" item 1.
+- **The kit's `shadow/sm` effect style has one layer** (`0 1px 3px 0`), while its `TailwindCSS/shadow/sm/1` and `…/sm/2` variables, like Tailwind's own `shadow-sm`, have two (`0 1px 3px 0` and `0 1px 2px -1px`). The other six styles match their variables layer for layer (I compared every one). `--shadow-sm` follows the style, as T18 item 3 says; see "Decisions" item 9.
+- **Names:** `Mode/opacity/destrucrtive/*` is a typo group (T18); nothing reads it.
+
+### Decisions the plan did not settle
+
+1. **Breakpoints.** D27 lists "breakpoints 375/768/1024/1440" among what the kit lacks, but the kit has five (Tailwind's), and 375 and 1440 are SPEC's design widths (the DS page's viewports, D34), not layout breakpoints. I emitted the kit's five as `--breakpoint-sm` … `-2xl` (so `md:` is 48rem as before, nothing in Tailwind moves) and the four design widths as `--viewport-phone|tablet|laptop|desktop` custom properties in `:root`. If you want `xs:` at 375 or a `3xl:` at 1440, that is a line in `shopblok.tokens.json` and one in `formats.ts`.
+2. **The ring's alpha** (above, item 2) and **the status colours** (item 5).
+3. **Own primitives are emitted, kit palette colours only where used** ("Primitives are emitted only where a semantic token uses them"). So `--input: var(--neutral-450)` and `--destructive: var(--red-600)`, and a brand reassigns either. The kit's literals (`--background: #ffffff`) stay literals.
+4. **The pair and token names** (`text.price-on-background`, `ui.ring-on-background`) and the 36 pairs themselves. D35 lists "the price, badge, stock and status tokens"; I read that as each on `background` (and `card` for the prices) and each `-foreground` on its surface. `rating` is a 3:1 pair (a star is a graphic), and the scrim is measured over `background`.
+5. **z-index, container, motion and the status/commerce hues** are my values (listed in the mapping table); none is in the kit or the spec. They are one-line edits.
+6. **The generator's files.** The plan names `figma-parser`, `checks`, `contrast` and `formats`; `model.ts` (reads the tokens, runs the checks, is what both formats print) and `build.ts` (the Style Dictionary set-up, which `figma-tokens.ts` and the test share) are extra.
+7. **Prettier.** The repo sets no Prettier config (`packages/config`'s preset isn't referenced), so `prettier --check` uses the defaults, 80 columns, and the generated files are written to pass it (the font stack wraps as Prettier wraps it). The preset's 100 columns would flag the existing T18 and T20 files.
+8. **The default border colour** is `@apply border-border` on `*`, as shadcn does; no `outline-ring/50`, which the plan did not list.
+9. **`--shadow-sm`: the effect style or the variables.** The style draws one layer, the variables (Tailwind's) two. I followed the style, because that is what a designer applies in Figma and what T18 item 3 asks the parser to read. Reading `TailwindCSS/shadow/sm/1` and `/2` instead would give Tailwind's own `shadow-sm`; it is a change in `model.ts`'s shadow step, or a one-line fix of the style in Figma and a re-export.
+
+### Code-review fixes (PR 39, 2026-10-15)
+
+A review of the first version found ten things; each was checked against the code first, and all ten held.
+
+1. **`sidebar-ring` failed 3:1 and nothing looked.** It was `var(--neutral-400)`, `#a1a1a1`, 2.48:1 on `sidebar` (`#fafafa`). It is now overridden like `ring`, at alpha 1, and has its pair `ui.sidebar-ring-on-sidebar` at 3:1. `ring`'s grey does not do: `#949494` (`--neutral-450`) is 3.03:1 on white but **2.91:1 on `#fafafa`**, so `sidebar-ring` has a grey of its own, `#919191` (`--neutral-475`): **kit 2.48:1, ours 3.02:1** (`#929292` is 2.98:1; a test pins both steps). `input` and `ring` keep `#949494`, 3.03:1; no other number changed. Eight overrides, 36 pairs.
+2. **`tokenColour` in `styles-fonts.spec.ts`** read `--name: #rrggbb;` from the CSS text and threw on `var(--primitive)`. It reads the resolved `value` from the generated `tokens.ts` now, and a test calls it for `input` and `sidebar-foreground`, which `tokens.css` writes as `var(--…)`.
+3. **The font variable has one source of truth, checked at build time.** A shared constant cannot work: `next/font` needs a string literal in `fonts.ts`, not an import. `buildTokens` reads `apps/storefront/src/lib/fonts.ts` and fails if its `variable` is not the one `tokens.css` reads (`--font-` plus the kit's font name): "tokens.css reads --font-inter-variable (from the kit's font \"Inter Variable\"), but … fonts.ts sets --font-inter".
+4. **Text styles no longer block the build.** Nothing reads them, so an unknown weight or unit is recorded as the kit writes it (`fontWeight: "Extra Bold"`, `lineHeight: "normal"` for AUTO, `"2 EM"`). Variables and effect styles, which feed `tokens.css` and `tokens.ts`, still throw.
+5. **Source paths.** Escaping the glob was not enough: Style Dictionary also keeps each source path as the token's `filePath` and reads `{…}` in it as a reference, so a checkout under a folder with `{` or `}` still failed ("token is missing", for all 1,242 tokens). The two files are now parsed in `build.ts` and passed as one `tokens` object, with an error for a path defined in both. A test builds from a folder named `shopblok (old) [x] {y} !z-`.
+6. **Errors are collected.** A problem with the token files (a missing token, a value of the wrong kind, a pair that names a token that does not exist) is noted and the build goes on; any other error is a bug and stops it. A test breaks seven things at once and finds all seven. One exception stays: a reference to nothing, or a cycle, is Style Dictionary's own error and comes alone, before the checks run.
+7. **The coverage rule.** Every `foreground`, `*-foreground`, `ring` and `*-ring` must be in a declared pair, or in `COVERAGE_EXEMPT` (`checks.ts`) with a reason. The list is empty: all 17 foregrounds and both rings are in pairs, and `border`, `sidebar-border` and `chart-1` to `chart-5` are not in the rule's scope. The charts are not allow-listed because the rule does not name them, which is not a statement that they pass: `chart-1` is still 1.79:1 on white (below). A stale entry (unknown token, no reason, already paired) is an error too. Tests: a new `promo-foreground` or `popover-ring` fails the build, and so does taking out the sidebar ring's pair.
+8. **`pnpm tokens` builds once.** One Style Dictionary run, one model (the first format builds it, the second renders the same one), and `buildTokens` returns `{ model, css, ts }`. Before: three runs.
+9. **Tests compute the build once.** `committed.test.ts` builds at module scope and every test reads that model (it built 8 times). `testTimeout: 30_000` is gone from both test files: the slowest test takes under 200 ms.
+10. **The verbose rerun only follows a Style Dictionary reference error** ("Some token references (n) could not be found"), the one error that says no more than that unless it is verbose. A failed check is not run twice (a test counts the runs: 1 and 2).
+
+### Smaller observations
+
+- The overrides name the kit's token as a plain path (`Mode.base.input`) in `$extensions`, not as a `{reference}`; I did not test whether Style Dictionary resolves references there.
+- A composite `$value` (the contrast pairs, with `foreground`, `background` and `minimum`) has its inner references resolved, which is how the pairs read the final colours; their original `{semantic.…}` text, kept in `token.original`, gives the names in the messages.
+- `pnpm tokens` takes about half a second. `scripts/turbo.json` (item 6 above) is there on reasoning, not on an observed stale cache: without it, turbo's `scripts#test` hash would not include the token files.
+- `styledictionary.com` was not needed: `node_modules/style-dictionary`'s README and types covered the hooks, `formatPlatform` and `getPlatformTokens`.
+
+## DS page shell (T22)
+
+**Result: `/design-system/[locale]/…` exists, gated by `DESIGN_SYSTEM_ENABLED`, with the Foundations pages, the entry-page machinery and the frame route, and no atoms.** T22 ran **before T21** (order change below): this session could not reach `ui.shadcn.com`, `reui.io` or `base-ui.com` (the proxy answered 403), so the shadcn atoms could not be added. **T21 now also adds its atoms' DS entries.**
+
+| | |
+|---|---|
+| Date | 2026-10-16 |
+| Branch | `claude/m1-1d8p7b`, PR 40 |
+| New | `apps/storefront/src/app/design-system/[locale]/{(overview), (entry)/[...entry], frame/[...entry]}/` (each a root layout and a page), `apps/storefront/src/design-system/` (`entries.tsx`, `catalog.ts`, `gate.ts`, `context.ts`, `types.ts`, `metadata.ts`, `icons.ts`, `components/`, `foundations/`, and 7 test files), `packages/fixtures/src/design-system.ts` |
+| Changed | `lib/env.ts` (`designSystemEnabled()`), `proxy.ts` (reserved segment), `next.config.ts` (the redirect), `.env.example`, `apps/storefront/turbo.json` (`DESIGN_SYSTEM_ENABLED` for `build`), `packages/i18n/src/index.ts` (`designSystem`), `packages/ui/package.json` (export `./tokens`), `e2e/markets.spec.ts`, `proxy.test.ts`, `env.test.ts`, i18n's test |
+| Tests | i18n **19**, scripts 397, storefront **523** (101 new), backend 85 (cached, unchanged): all pass in CI's state (no `.env`). `pnpm install --frozen-lockfile`, `check:workspace`, `typecheck`, `lint` and `build` pass; `prettier --check` is clean on every changed and new file (with `packages/config/prettier.config.mjs`) |
+
+### What was done
+
+1. **Order change.** The plan had T21 first so that the shell would be built around real atoms. Built first, the shell has the Foundations entries (real, from `tokens.ts`) and a machinery that a test drives with a test-only entry. The plan's T21 step list and Verify list stand, plus: each atom adds its DS entry (below).
+2. **Three root layouts.** The plan's `(shell)` group is not one layout: under Cache Components an unknown `[...entry]` is a runtime value, and a page that calls `notFound()` after `await params` answered **200 with the not-found page on the first request** (404 from the second, from the cache). A root param is read before anything streams, so `entry` and `locale` are root params: `[locale]/(overview)/` (overview), `[locale]/(entry)/[...entry]/` (entry pages) and `[locale]/frame/[...entry]/` (frames) each have a root layout (`<html lang>`, Inter, the shared CSS, `robots: { index: false, follow: false }`); the first two wrap the content in the shell (header, navigation tree, English chrome with `lang="en"`), the frame wraps nothing. The pages check again (`requireDesignSystemEntry()`), so a page moved under another layout stays a 404.
+3. **Gate (`designSystemEnabled()`, `lib/env.ts`).** True when `NODE_ENV === "development"` (`next dev`), else only for `DESIGN_SYSTEM_ENABLED === "true"`. `src/design-system/gate.ts` is called by every layout and page: flag off or locale not one of the four, `notFound()`. `staticParams()` returns one param instead of 68 when the flag is off (Cache Components wants at least one), so a build without the flag prerenders three 404 pages and not ~70. `DESIGN_SYSTEM_ENABLED` is in `build`'s `env` in `apps/storefront/turbo.json` (extending the root's list with `$TURBO_EXTENDS$`) after reading turbo 2.11.7's `using-environment-variables` and `configuration#env` pages; `.env.example` has it commented out.
+4. **Proxy and redirect.** `design-system` is a reserved first segment in `proxy.ts`'s matcher (`/design-systems` and `/design-system-2/en` stay storefront paths); `next.config.ts` redirects `/design-system` to `/design-system/en` with 307 (not permanent).
+5. **Params.** `entryParams()` (`catalog.ts`) is manifest × `LOCALES`; both entry layouts' `generateStaticParams` return it, and `routes.test.tsx` compares what they return with the manifest in each of the four locales.
+6. **Fixtures** (`@shopblok/fixtures`, `design-system.ts`): per locale the market (D33: `en-us` USD, `el-cy` EUR, `de-de` EUR, `fr-ch` CHF), ordinary and long strings (7 fields each), prices (regular 64/59/59/58, a sale price and its original, 1249.50 for the grouping), stock, a rating, sizes and colours (named in the locale). The locale list repeats `LOCALES` on purpose (the package has no dependencies); a storefront test compares them.
+7. **Foundations** (8 entries, `src/design-system/foundations/`): colours (swatches, ours beside the kit's value and reason where overridden, the 36 contrast pairs with ratio, rule, result and the kit's ratio), typography (the scale and weights in the locale's text), spacing, radius, shadows, motion, breakpoints/design widths/layers, and icons and credits (the kit's CC BY 4.0 credit and Inter's OFL). `@shopblok/ui` now exports `./tokens`.
+8. **Entry page:** the title and group, the locale toggle (links to the same page in the other locales, the current one `aria-current`, each showing its market), the live render and the states matrix (`EntryBody`, the same component the frame shows alone), the a11y notes, and the viewport switcher (a client component: "All three" shows the 375, 768 and 1440 px iframes of the frame route side by side, scaled together by a `ResizeObserver` to fit; the buttons show one at a time; either way the frames are scaled down when the column is narrower than they are, and a note says by how much; a link opens the frame at 1:1).
+9. **Copy:** the shell's chrome is `catalogs.en.designSystem` (English only: `Messages` omits it, so `el`, `de` and `fr` have no such key; a test checks that); an entry's content is in the locale and its language is marked (`lang` on each part).
+
+### How T21 and T23 add an entry
+
+In `apps/storefront/src/design-system/entries.tsx` an entry is an object of type `DsEntry` (`types.ts`): `id: "atoms/button"`, `group: "atoms"`, `label`, `summary`, `a11y` (at least one note), `live(ctx)`, and `states` (one `{ id, label, description?, render(ctx) }` per state). Every sample string, price, size and colour comes from `ctx.fixture` (`@shopblok/fixtures`), money from `ctx.money`. Append it to `entries` (or spread a new `atoms.tsx` list into it). Nothing else changes: the navigation lists the `Atoms` group with its first entry, the page and the frame exist in all four locales (`entryParams()`), and `entries.test.tsx` renders each entry in each locale and `catalog.test.ts` checks its id, group and notes. An atom that draws an icon adds a row to `src/design-system/icons.ts`. The atoms' own copy goes in a new `atoms` key of `@shopblok/i18n`, in all four catalogs (plan T22 step 8; there was nothing to put in it yet). T24 opens `/design-system/{en,el}/frame/{id}`.
+
+### Checks
+
+| Check | Result | Key output |
+|---|---|---|
+| Build with `DESIGN_SYSTEM_ENABLED=true`: every DS route static | **Pass** | 68 prerendered routes (4 overview + 32 + 32 frames), all `○`, "response: complete" in the prerender manifest. Each of the three routes also has one `◐` row: the empty fallback shell Next adds for params that are not listed (`/[market]` has the same); an unlisted path renders at run time and answers 404 |
+| Build without the flag | **Pass** | `/design-system/en`, `/design-system/el/foundations/colors`, a frame, `/de`, `/xx` and an unknown entry: 404 on `next start` |
+| `next dev` | **Pass** | `/design-system/en`, `/fr/foundations/colors` and `/el/frame/foundations/typography` answer 200 |
+| `/design-system` | **Pass** | 307 to `/design-system/en` (flag on and off) |
+| `/design-system/xx`, `/xx/foundations/colors`, `/en/nope`, `/en/frame/nope`, `/en/frame`, `/en/atoms/button`, `/EN`, `/en/a/b/c` | **404 on the first request** | with the flag on, `next start` |
+| `<html lang>` and `noindex` | **Pass** | `en-US`, `el-CY`, `de-DE`, `fr-CH`; `<meta name="robots" content="noindex, nofollow">` on pages and frames |
+| In Chromium (build 1194, a temporary config, deleted) | **Pass** | 8 Foundations frames × 3 widths × `en` and `el`: no horizontal overflow. Motion's `--duration-*` values are read from the stylesheet (`.1s`, `.15s`, `.3s`: Lightning CSS minifies them). The switcher: three iframes at 43 % (161, 329, 617 px wide) in a 1440 px window, one at 768 px after the button; the locale toggle goes to `de-DE` |
+| Unit tests | **Pass** | manifest × 4 locales against the generated params, page and frame; the gate; the root layouts; the class maps against `tokens.ts` and `tokens.css`; the fixtures against the seeded market map; the machinery with a test-only entry |
+| Proxy test and `markets.spec.ts` | **Proxy test pass; the new `markets.spec.ts` block passes on its own** | the block (3 tests: no rewrite, no `Location`, 200 or 404, and the 307) ran against `next start` built with and without the flag. The whole file needs the compose stack (its `beforeAll` wants `/` to answer 200), and Docker was not started in this session, so the other tests were not run |
+| Mutation: `design-system` removed from the reserved segments | **Fails as it should** | 5 tests of the proxy matcher fail |
+| Mutation: `designSystemEnabled()` returns `true` | **Fails as it should** | 9 tests fail (env, gate, layouts) |
+| Mutation: the gate's flag check removed | **Fails as it should** | 4 tests fail |
+
+### Decisions the plan did not settle
+
+1. **Entries are root params, three root layouts** (item 2): the plan's single `(shell)` group gave a 200 on the first visit to an unknown entry.
+2. **`generateStaticParams` is gate-aware** (item 3): one param when the flag is off.
+3. **The redirect is 307, and is there with the flag off** (it then lands on a 404).
+4. **Foundations as manifest entries, `atoms` copy deferred, icons empty:** `tokens.ts` has no spacing, motion or container export, so those pages read the CSS variables (`CssValue`) or a documented constant (`SPACING_STEP_PX`, checked against `tokens.css`); class maps (`foundations/classes.ts`) write each utility out because Tailwind finds only literal classes, and a test fails when `tokens.ts` gains a step the maps lack. `@theme inline` variables are not emitted to `:root`, so the pages use the utilities, not `var(--radius-md)`. The icons list is empty until an atom draws one. The `atoms` key of `@shopblok/i18n` comes with T21.
+5. **`lang`:** the chrome is `lang="en"` and an entry's content is in the market's `lang`, inside `<html lang>` = the locale's market (WCAG 3.1.2).
+6. **The viewport iframes are 720 px high** and scroll inside; a frame does not report its height.
+7. **`/favicon.ico` is a request to `[market]`** and answers 500 in a build with no Payload secret (CI's `e2e-smoke` has one, so it is a 404 there). It is the same on every page; T25's console check will see it on the DS pages too.
+
+### Code-review fixes (PR 40)
+
+Review of 217ec0a (nine findings, 2026-10-16). All nine held; the main one was reproduced before it was fixed.
+
+| # | Finding | What was done |
+|---|---|---|
+| 1 | With the flag off at build, the other DS paths render on request and read `DESIGN_SYSTEM_ENABLED` at run time | **Reproduced:** built without the flag, started with `DESIGN_SYSTEM_ENABLED=true`: `/design-system/en` 404, `/el`, `/el/foundations/colors`, `/de/frame/foundations/typography` 200. **`dynamicParams = false` is not an option:** Next 16.4's `dynamicParams` page says it is "not available when Cache Components is enabled", and the Cache Components migration guide says the export fails the build ("Route segment config "dynamicParams" is not compatible with `nextConfig.cacheComponents`"). **Fix: freeze the flag at build.** `next.config.ts` sets `env: { DESIGN_SYSTEM_ENABLED: designSystemBuildFlag() }` (`"true"` only for the exact value, else `"false"`, never undefined), so `next build` replaces `process.env.DESIGN_SYSTEM_ENABLED` in every bundle (the compiled chunks read `get DESIGN_SYSTEM_ENABLED(){return"false"}`; the expression is left only in the source maps). That is what D33 says ("read at build time") and what the T22 note claimed. `staticParams`, the gate and the unit tests are unchanged: they still read through `designSystemEnabled()`. |
+| 2 | `env.ts` comment and `.env.example` promised a frozen value | They now say how it is frozen and that setting the flag on `next start` changes nothing. |
+| 3 | The switcher's first render was unscaled | `available` starts as `null`: the scale is 0 and the frames are `invisible` until the `ResizeObserver` reports. Sampled every animation frame in Chromium (1440 px window): no frame was ever visible at 1:1; the first visible frames are 161, 329 and 617 px wide. The scale note appears after the first measurement (it was never in the server HTML, and is not now; it needs a width). |
+| 4 | The button group was labelled with the entry's name | `aria-label` is "Preview width" (`catalogs.en.designSystem.viewports.group`). |
+| 5 | "At its real width" was not true of single mode | Single mode is scaled to fit like the three-up view, and the note says by how much (1440 px in a 1440 px window is 78 %). I changed the text, not the behaviour: "Open the frame" already gives 1:1, and horizontal scrolling inside the page would need a focusable scroll region. Item 8 above and the component's comment now say so. |
+| 6 | SETUP.md's record said "no PR opened" | The row says PR 40. |
+| 7 | Viewport widths hard-coded | `viewportWidths()` (`src/design-system/viewport-widths.ts`) reads `phone`, `tablet` and `desktop` from `@shopblok/ui/tokens` and throws when a name or a `px` value is missing. The server component passes them to the client switcher, so `tokens.ts` stays out of the client bundle. A test ties the result to `[375, 768, 1440]`. |
+| 8 | `CssValue` recalculated styles on every render | It reads once per mount, in a ref callback with state. A `useEffect` with `setState` is what the review suggested, but the repo's `react-hooks/set-state-in-effect` rule refuses it. A hot-reloaded stylesheet in `next dev` shows its new value on the next page load (as before: it never refreshed). |
+| 9 | `noEntries` was dead copy | Removed from `catalogs.en.designSystem`. |
+
+**Proof for finding 1** (CI's state: no `.env`; `next start` on the real build):
+
+- Build without the flag, `next start` with `DESIGN_SYSTEM_ENABLED=true` **and** with it unset: `/design-system/en`, `/el`, `/el/foundations/colors`, `/de/frame/foundations/typography`, `/fr/foundations/spacing`, `/en/foundations/colors`, `/en/frame/foundations/colors`, `/xx`, `/en/nope` all answer 404; `/design-system` is a 307 to `/design-system/en`. Only `/en`, `/en/foundations/colors` and `/en/frame/foundations/colors` were prerendered; the others are the on-demand paths that answered 200 before.
+- Build with the flag, `next start` with no variable: 68 prerendered DS routes (4 + 32 + 32), all status 200; `/design-system/{en,el,de,fr}/…` answer 200 with `<html lang>` `en-US`, `el-CY`, `de-DE`, `fr-CH` and `<meta name="robots" content="noindex, nofollow">`; `/xx`, `/en/nope`, `/en/frame/nope`, `/en/frame`, `/EN`, `/en/a/b/c`, `/en/atoms/button` answer 404; the redirect is 307.
+- **Mutation:** with the `env:` line removed from `next.config.ts`, the same flag-off build started with the flag answers 200 for `/el`, `/el/foundations/colors`, `/de/frame/foundations/typography` and `/fr/foundations/spacing` again (the bug), and `src/next-config.test.ts` fails 2 tests. Restored afterwards.
+
+New tests: `next-config.test.ts` (2), `viewport-widths.test.ts` (4), `designSystemBuildFlag` in `env.test.ts` (3), and two switcher cases in `components.test.tsx`; storefront is **534** tests (523 + 11), i18n 19, scripts 397. The unit tests cannot see a bundle, so the run-time proof above is by hand; no CI step starts a flag-off server with the flag set. If that regresses, add one to `e2e-smoke` (build without the flag, start with it, expect 404 from `/design-system/el`). `docs/SETUP.md` itself is not Prettier-formatted (the file at 217ec0a is not), so it was left as written.
+
+## The storefront in next dev (T25)
+
+**Result: the storefront's own routes log nothing to the browser console in `next dev`, once `/favicon.ico` exists, and `e2e-smoke` now checks it (D37).** Twelve routes were opened; Next's and React's dev-only validation (the "`new Date()` while prerendering" family that ADR 0001 found in the admin) did not appear on any of them, so **nothing is excused** (`devExcuses` in `e2e/support/dev-console-excuses.ts` is empty). Two things did show up, both explained below.
+
+| | |
+|---|---|
+| Date | 2026-10-16 |
+| Branch | `claude/m1-1d8p7b`, [PR 41](https://github.com/stephanos221/shopblok-starter/pull/41) |
+| New | `apps/storefront/e2e/dev-console.spec.ts`, `e2e/support/console.ts` (the console rules of `payload-admin.spec.ts`, moved out; T24 does this move in its plan, so T25 did it here and T24 only imports), `e2e/support/dev-console-excuses.ts`, `src/app/favicon.ico`, `.github/scripts/stop-tree.sh` |
+| Changed | `e2e/payload-admin.spec.ts` (imports the rules; same checks, same output), `playwright.config.ts` (the `dev-console` project), `.github/workflows/ci.yml` (the last step of `e2e-smoke`, and the PID files), `.gitignore` and `packages/config/eslint/base.mjs` (the two new output folders), the plan's status line and T25 step 1, ADR 0001 (one line), NEXT-SESSION.md |
+| Versions | Next 16.4.0 (Turbopack), Payload 3.90.2, Chromium 1194 (a temporary config with `executablePath`, deleted) |
+
+### Every console message observed
+
+Cold `next dev` (`.next/dev` removed), compose stack up, `pnpm bootstrap` run, Medusa running. One page per route, `load`, then `networkidle` and 1.5 s.
+
+| Route | Type and exact text | Source | What happened |
+|---|---|---|---|
+| all 12 routes below, before the fix | error: `Failed to load resource: the server responded with a status of 404 (Not Found)` | `http://localhost:8000/favicon.ico` | **Ours; fixed.** The app had no favicon, so the browser's request for `/favicon.ico` reached `[market]` as a market named `favicon.ico` and answered 404 (T22's note, item 7). The dev server also printed, after each one, `Error: Route "/[market]": Could not validate \`instant\` because an error prevented the target segment from rendering` with `NEXT_HTTP_ERROR_FALLBACK;404` from `getCurrentMarket` (`src/lib/current-market.ts:19`): the same request, in the server log. `src/app/favicon.ico` (a 32 × 32 black square in the `primary` colour, **a placeholder: replace it with the brand's icon**) serves `/favicon.ico` with 200 and adds `<link rel="icon">`; the proxy's matcher already skips it (a dot and a letter). Both the console message and the server error are gone. A first version of the file with a PNG that was not RGBA made every page answer 500 (`Format error decoding Ico: The PNG is not in RGBA format!`), so Next checks the file in dev |
+| `/el-cy` | error: `Failed to load resource: the server responded with a status of 404 (Not Found)` | `http://localhost:8000/el-cy` (the page itself) | **Not an error: the route is a 404 on purpose.** Chromium logs the 404 of the document it was asked for. The spec excuses it by `isOwnNotFound`: the type, the exact text, a source equal to the route's own URL, and only for a route that is expected to answer 404 |
+| `/nope/nope` | the same | `http://localhost:8000/nope/nope` | the same |
+
+After the fix, with the spec as committed:
+
+| Route | Status | Console messages | Judged |
+|---|---|---|---|
+| `/` | 200 | 0 | 0 |
+| `/us` | 200 | 0 | 0 |
+| `/ch/fr` | 200 | 0 | 0 |
+| `/el-cy` | 404 | 1 (its own document) | 0 |
+| `/nope/nope` | 404 | 1 (its own document) | 0 |
+| `/next/markets` | 200 | 0 | 0 |
+| `/design-system/en` | 200 | 0 | 0 |
+| `/design-system/{en,el,de,fr}/foundations/typography` | 200 | 0 each | 0 |
+| `/design-system/el/frame/foundations/colors` | 200 | 0 | 0 |
+
+The dev server's own log is clean too (no `Error`, no `⨯` line apart from the banner's `turbopackServerFastRefresh`, which ADR 0001 explains). The spec does not read that log; CI uploads it (`storefront-dev.log` in the `server-logs` artifact).
+
+**Foundations stand in for the atom page.** Plan step 1 asks for one atom page in each of the four locales. There are no atoms yet (T21 is blocked on the registries), so the list has `/design-system/{en,el,de,fr}/foundations/typography` and one frame. **T21 or T23: add one atom page to `routes` in `e2e/dev-console.spec.ts`, in all four locales** (D34 relies on this check for German and French).
+
+### How it runs
+
+- **Project.** `dev-console` exists only when `E2E_DEV_CONSOLE=true`; without it the config lists `chromium` and `locales` as before, and `chromium` ignores `dev-console.spec.ts` as well. Reason: `playwright test` runs every project, and this one needs a different server (`next dev`) from the other suites (`next start`). Locally, with the stack up and `pnpm bootstrap` run: `pnpm --filter @shopblok/storefront dev`, wait for `/` to answer 200 (about 25 s from cold), then `E2E_DEV_CONSOLE=true pnpm --filter @shopblok/storefront test:e2e --project=dev-console`. Port 8000 must be free: stop `next start` first. The spec's timeout is 90 s per route (the first visit compiles it).
+- **CI.** The last step of `e2e-smoke`, after both `doctor` steps (they need `next start`): `.github/scripts/stop-tree.sh --port 8000` stops `next start` by the PID that the start step wrote to `$RUNNER_TEMP/servers/storefront.pid`, `pnpm --filter @shopblok/storefront dev` starts, the step waits up to 120 s for `/` to answer 200 from a dev server (see "Code-review fixes (PR 41)"; it fails at once if `next dev` exits), runs the project, and stops `next dev` by PID whether the run passed or not. `stop-tree.sh` takes the PID's descendants from `ps` and sends SIGTERM to them (children first), waits 20 s and sends SIGKILL to what is left, because the servers are a tree (`pnpm`, `sh`, `next`, `next-server`) and a signal to `pnpm` alone leaves `next-server` on port 8000 (CLOUD.md, "Dev servers"). The step writes its report to `playwright-report-dev-console` and its results to `test-results-dev-console` (a Playwright run empties its output folder and replaces the HTML report), both uploaded with the others. The Payload admin is not visited.
+- **Time.** On this VM: `/` answers 200 after 23 s from a cold `.next/dev` (21 s the first time, with the stack just started), the 12 tests take 51 to 57 s, so the step adds about 1.5 to 2 minutes. The plan allowed 2 to 4. Not yet measured on a GitHub runner.
+- **Turborepo.** `turbo.json` is unchanged: the step runs `next dev` through `pnpm --filter … dev`, the script `next dev -p 8000`, not through `turbo run dev`, and `.env` is read by Next itself.
+
+### Checks
+
+| Check | Result | Key output |
+|---|---|---|
+| `pnpm install --frozen-lockfile` | **Pass** | lockfile up to date |
+| `pnpm typecheck && pnpm lint && pnpm test && pnpm build`, CI's state (both `.env` files moved aside, then restored) | **Pass** | i18n 19, scripts 397, storefront **534** tests (unchanged: the new code is Playwright) |
+| `dev-console`, cold `next dev` | **12/12 pass** | table above |
+| The existing e2e suite against `next start` (build with `.env`, `E2E_TEST_ROUTES=true`) | **76/76 pass** (`chromium` and `locales`; `dev-console` is not in the list) | includes `payload-admin`'s console test, now on `support/console.ts` |
+| The CI steps themselves | **Pass** | the two steps' `run` scripts were taken out of `ci.yml` and run in order, with `RUNNER_TEMP` set: start Medusa and the storefront; then the dev step (`--config` pointed at the temporary config for the local Chromium). `next start` was stopped, `next dev` answered, 12 passed, and nothing was left on port 8000 or in `ps` |
+| prettier `--check` (`packages/config/prettier.config.mjs`) | **Pass** | every changed and new file but SETUP.md (not Prettier-formatted, as T22 noted) |
+| **Mutation:** `console.error("T25 mutation")` in `[market]/layout.tsx` | **Fails as it should** | `/`, `/us` and `/ch/fr` fail (3 of 12) with `error @ /: %c%s%c T25 mutation … Prerender`: Next replays a server component's `console.error` in the browser's console. The two 404 routes pass, because the layout calls `notFound()` before it reaches the line. The CI step's exit status was 1 and `next dev` was stopped. The file was restored (`git diff` empty) |
+| **Mutation:** no favicon | **Fails as it should** | the first run of this task: 12 of 12 failed on `/favicon.ico` |
+
+### Decisions the plan did not settle
+
+1. **`dev-console` exists only when `E2E_DEV_CONSOLE=true`**, instead of being always listed (item above). The alternative, listing it and passing `--project=chromium --project=locales` in the existing step, would change that step and break when T24 adds its project.
+2. **The 404 routes' own document is excused by a rule, not by a list entry**, because it is the browser's message about a page that is meant to be a 404, not Next's or React's dev validation. The rule is narrow (type, exact text, the route's own URL, expected status 404).
+3. **The favicon is a placeholder file**, not a design choice: the brand icon is yours.
+4. **`stop-tree.sh`** instead of `kill "$pid"`: see "How it runs".
+5. **The dev server's log is uploaded, not judged.** It was clean; a check on it would need its own list of excused lines.
+6. **The browser's console only.** Server-side `console.error` calls reach it in dev (the mutation above), which is why the market layout is covered.
+7. **One visit per route**, no client navigation between routes. A navigation test (links, prefetch) would be a new check; the DS pages' viewport switcher and the locale toggle are not clicked here.
+
+### Code-review fixes (PR 41)
+
+The review is `reviews/pr-41-code-review.md`; the first CI run of PR 41 (run 38876631305, job 116893136529) failed too. Each finding was checked before it was fixed.
+
+| # | Finding | Holds? | What changed |
+|---|---|---|---|
+| CI | `e2e-smoke` failed: 10 of 12 passed, `/design-system/de/foundations/typography` and `/fr/…` ran 90 s and timed out | **Yes** | The log shows both tests got through `goto`, `networkidle` and the wait and then stood in `context.close()` until the test timeout, so the console was never judged. The `next dev` log is clean and answered 200 to every route; the `ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL` lines at the end of the log are the two servers' own logs, printed by the diagnostics step after `stop-tree.sh` had stopped them. The `new Date()` lines in `storefront.log` are the Payload admin under `next start` (ADR 0001) and have nothing to do with it. **Not reproduced**: 12/12 on this VM with the headless shell of Chromium 1194 (CI had 1248, which this VM cannot download), cold `.next/dev`, the CI steps' scripts, and also pinned to 2 cores and with 6 busy loops. So the cause (a stalled browser on the runner) is inferred from the log, not shown. `context.close()` is bounded to 20 s (a warning, then the console is judged), and the `dev-console` project has `retries: 1`. A real finding is the same on the second visit and still fails. If it recurs, open `test-results-dev-console/…/trace.zip` from the `playwright-report` artifact |
+| 1 | The dev step could pass against `next start` | **Yes** | `stop-tree.sh --port 8000` exits 1 when a process of the tree is alive after SIGKILL or when the port still accepts connections (it must refuse four checks in a row, 2 s, so a supervisor that restarts the server is caught); it also stops whatever listens on the port by its PID, so an orphaned `next-server` is found; a PID that is empty or not a number is exit 2. In the step: `kill -0` on `next dev` comes before the request, and the answer counts only when `/_next/static/development/_buildManifest.js` is 200 too (404 in `next start`, 200 in `next dev`, both measured) |
+| 2 | No `--max-time` on `curl` | **Yes** | `--max-time 30` on both requests, and the wait is a 120 s deadline (`$SECONDS`), not 60 sleeps. 120 s because the first compile has not been measured on a runner; judge it on the first green run |
+| 3 | A fixed 1.5 s wait | **Yes, as a risk** | 3 s (`settleMs`), with the reason in a comment. No event exists to wait for |
+| 4 | `baseURL ?? ""` | **Yes** | The test throws a clear message when `baseURL` is missing |
+| 5 | `/robots.txt` and other root files reach `[market]` | **Real, not fixed** | Measured in `next dev`: `/robots.txt`, `/apple-touch-icon.png`, `/sitemap.xml` and `/manifest.webmanifest` answer 404 (right) and each logs the same `Could not validate \`instant\`` error as `/favicon.ico` did, in the **server** log only. Chromium does not request them, so no browser console message, and nothing in the suite sees it. It is not small: the matcher skips dotted paths on purpose (a skipped path is a file), so the fix is either metadata routes (`robots.ts`, `sitemap.ts`: an indexing policy that M1 does not have) or a change to the proxy's matcher and its tests. Left for the milestone that owns SEO |
+| 6 | "Nothing is pushed" | **Yes** | NEXT-SESSION.md and this file's T25 table say PR 41 |
+| 7 | The plan points excuses at `support/console.ts` | **Yes** | The plan says `e2e/support/dev-console-excuses.ts` |
+| 8 | `medusa.pid` is never read | **Yes** | The line is gone and the comment says only the storefront's PID is kept |
+
+**Proof.** `pnpm install --frozen-lockfile`; `typecheck`, `lint`, `test` and `build` in CI's state (both `.env` moved aside, restored): pass, storefront 534 tests. The two CI steps' `run` scripts, taken out of `ci.yml` and run in order with `RUNNER_TEMP` set: **normal path 12 passed**, ports free and nothing left in `ps`. **Mutation (a)**: a `next start` kept alive by a restarting supervisor, with a dead PID in `storefront.pid`: the step fails with exit 1 at `stop-tree.sh` ("port 8000 still accepts connections"), before any test. **Mutation (a′)**: the same with a `stop-tree.sh` that exits 0 like the old one: the step fails with "next dev exited before it answered" (`next dev` dies of EADDRINUSE), so the readiness check alone also refuses it. Tools the scripts use: `bash`, `ps`, `awk`, `curl`, and for a port's owner any of `lsof`, `ss`, `fuser`; on this VM `lsof` sees no sockets and `fuser` does, which is why all that exist are asked. Without any, the port check (bash `/dev/tcp`) still works, and only the orphan kill is lost.
+
+## shadcn and ReUI (T21)
+
+**Result: the 17 shadcn atoms are in `packages/ui/src/atoms/`, on our tokens, each with component tests and a DS entry.** shadcn's CLI writes into `packages/ui` from `apps/storefront`, every atom is at least 44 px tall or has a 44 px target (D32), draws the ring at full strength (D35), uses logical properties and no `dark:` variant, and a scan of `src/atoms/` fails on a physical class, a colour literal, a `dark:` variant or `ring-ring/<alpha>`. One surprise: **shadcn's registry no longer uses `clsx` and `tailwind-merge`** (item 2).
+
+| | |
+|---|---|
+| Date | 2026-10-16 |
+| Branch | `claude/t21-shadcn-atoms-d43xhp` |
+| Hosts | `ui.shadcn.com`, `reui.io` and `base-ui.com` answer 200 from this session (the new environment, G5). `www.reui.io` is refused (403) and was not needed |
+| New | `packages/ui/{components.json, NOTICE.md, vitest.config.ts}`, `packages/ui/src/atoms/` (17 atoms, 17 test files and `class-rules.test.ts`), `packages/ui/src/lib/utils.ts`, `packages/ui/src/test-support/{setup, class-rules, long-labels}.ts`, `apps/storefront/components.json`, `apps/storefront/src/design-system/atoms.tsx` |
+| Changed | `packages/ui/{package.json, tsconfig.json}`, `apps/storefront/{package.json, tsconfig.json}` (`lucide-react`; the CLI's path aliases), `apps/storefront/src/design-system/{entries.tsx, icons.ts, foundations/icons.tsx}` and three tests, `apps/storefront/e2e/{dev-console, styles-fonts}.spec.ts`, `packages/fixtures/src/design-system.ts` (six strings and a shortcut per locale), `packages/i18n/src/index.ts` (`atoms`), `scripts/check-workspace.ts`, `renovate.json`, the lockfile (added only: Base UI, cva, `cn`, lucide, Testing Library, happy-dom). Deleted: `packages/ui/src/styles/source-probe.ts` |
+| Tests | ui **154** (new), storefront **602** (534 + 68), i18n 19, scripts 397: all pass in CI's state (no `.env`) |
+
+### What was done
+
+1. **`components.json`, both, by hand** (shadcn's monorepo page): `style: "base-vega"` (D29), `baseColor: "neutral"`, `iconLibrary: "lucide"`, `rsc: true`, `tailwind.config: ""`, `tailwind.css` at `packages/ui/src/styles/globals.css`, the aliases `ui` and `components` → `@shopblok/ui/atoms`, `utils` → `@shopblok/ui/lib/utils`, `hooks` → `@shopblok/ui/hooks`, `lib` → `@shopblok/ui/lib`, and `registries: { "@reui": "https://reui.io/r/{style}/{name}.json" }`. `packages/ui` exports `./atoms/*` (`.tsx`), `./lib/*`, `./hooks/*`, `./globals.css` and `./tokens`; no barrel.
+2. **`cn` is shadcn's own package now.** In shadcn 4.21.4's `base-vega` registry every item imports `cn` from `"cn"` (npm `cn` 0.4.0, MIT, by shadcn and Aiden Bai, 2026-09-22: "a drop-in replacement for clsx + tailwind-merge", zero dependencies), and the style's `index` item lists `cn`, `class-variance-authority`, `lucide-react` and `@base-ui/react`; `clsx` and `tailwind-merge` are not used. The CLI rewrites that import whatever `utils` says. I kept D30's `src/lib/utils.ts` as `export { cn } from "cn";` and pointed the atoms at it, so a custom Tailwind theme (`cn/config`'s `createCn`) has one place to go; `clsx` and `tailwind-merge` (plan §2) are not installed.
+3. **The CLI did not install anything and did not resolve the aliases at first.** `shadcn add` from `apps/storefront` needs the aliases in a tsconfig: both tsconfigs now map `@shopblok/ui/{atoms,lib,hooks}` and `…/*` to `packages/ui/src/…` (the bare forms are what the CLI resolves; a wildcard `@shopblok/ui/*` was avoided because it would also capture `./globals.css` and `./tokens`). Without `src/lib/utils.ts` on disk the CLI added `cn@^0.4.0` to `packages/ui` and no other dependency; with it, none. The dependencies were then added by hand at the plan's pins: `@base-ui/react` 1.9.0, `class-variance-authority` 0.7.1, `lucide-react` 1.56.0 (1.58.0 is out, Renovate's weekly rule takes it), `cn` 0.4.0, all exact. The CLI said it "updated" `globals.css` and changed nothing in it.
+4. **No `shadcn/tailwind.css`.** The style's `index` item would import it (custom variants such as `data-open` that also match Radix's `data-state`, and shimmer and scroll-fade utilities) and needs `shadcn` as a dependency. Tailwind 4's own `data-*` variants match what Base UI sets, so it is left out; every atom state was checked in Chromium. Except two: Separator's `data-horizontal:` and `data-vertical:` match nothing Base UI renders (it sets `data-orientation`), so they are written `data-[orientation=…]:` (PR 42 review, finding 1).
+5. **Each atom, edited** (the header of each file lists its edits): no `dark:` classes (in Tailwind 4 they follow the OS setting, and the tokens are light only, D27); `focus-visible:ring-ring` instead of `ring-ring/50`; `pl-`/`pr-`/`ml-`/`right-`/`left-`/`text-left` → `ps-`/`pe-`/`ms-`/`end-`/`start-`/`text-start`; Tooltip and Select take only `top`, `bottom`, `inline-start` and `inline-end` (a type: `left` and `right` would need physical classes); NativeSelect's options use the popover tokens instead of `Canvas`/`CanvasText`; Spinner's hard-coded `aria-label="Loading"` is a required `label` prop (D30), fed from `catalogs.*.atoms.spinner.loading`; Skeleton is `aria-hidden` and pulses with `motion-safe:`.
+6. **D32, 44 px.** Button: `min-h-11` (default), `min-h-12` (`lg`), `size-11`/`size-12` (`icon`, `icon-lg`); `xs`, `sm`, `icon-xs` and `icon-sm` are gone. Input, Select's trigger and NativeSelect: `h-11`, no `sm`; each Select option `min-h-11`; Textarea is `min-h-16`. Checkbox and Radio keep the kit's 16 px and Switch its 32 × 18.4 px track; each has a `::after` hit area centred on it (`-inset-3.5` → 44 × 44; the switch 44 × 44.4), and the DS entries put them in a `Label` with `min-h-11`, which is the target T24 measures. In Chromium, every button, field, combobox and label-wrapped choice in the 17 frames is at least 44 × 44 at 375, 768 and 1440 px in all four locales.
+7. **Long labels wrap.** Button and Badge lost `whitespace-nowrap` (a German "In den Warenkorb legen und weiter zur Kasse" is the case), Label is `leading-snug` instead of `leading-none`, Select's options wrap. Two atoms cut on purpose and say so with `data-truncate` (D34): Select's chosen value (one line, ellipsis) and NativeSelect (the browser cuts the chosen option). Select's trigger is `max-w-full`, so it never outgrows a block container; a grid with an `auto` track still grows to its min-content, so the DS `Field` uses `grid-cols-[minmax(0,1fr)]`.
+8. **Destructive is solid.** The kit's tinted destructive (`bg-destructive/10 text-destructive`) is **4.01:1** on white, 3.31:1 at the hover's 20 %: below 4.5:1. Button and Badge draw `bg-destructive text-destructive-foreground` (4.77:1, T19's override 4), hover darkens with `color-mix` against `foreground`.
+9. **Tests** (Vitest 5.0.3, happy-dom 21.0.1, Testing Library 16.3.3 / 10.4.2 / user-event 14.6.8): for each atom its role and name, focus by Tab, disabled, `aria-invalid`, the 44 px classes and a long German and Greek label from `@shopblok/fixtures`; Space toggles Checkbox (Enter does not) and Switch; the arrows move through RadioGroup and skip a disabled radio, Tab leaves the group; Select opens with ArrowDown, moves and picks with Enter; Tooltip opens on focus and hover and closes on Escape. `class-rules.test.ts` scans every `src/atoms/*.tsx` (strings only, comments stripped) and checks each file starts with a source header; its own cases cover each rule both ways. Type tests (`@ts-expect-error`): no `sm` button size, Spinner's `label` required, no `side="left"`.
+10. **DS entries** (`src/design-system/atoms.tsx`, spread into `entries`): 17 pages × 4 locales, each with a live render and its states (default, focus, disabled, invalid and long label for fields; hover only on Button). Hover and focus can't be held on a static page, so those states draw the classes `:hover` and `:focus-visible` add, and say so. Every sample string is from the fixtures, which gained `optionLabel`, `toggleLabel`, `badge`, `hint`, `personName`, `progressLabel` (ordinary and long, four locales) and `shortcut` (`Strg` + `K` in German). `icons.ts` lists Check, ChevronDown, ChevronUp, Loader2 and Heart (a sample icon), and the credits name shadcn/ui, Base UI and Lucide.
+11. **`check:workspace`** checks `packages/ui`: React 19.3.0, `@types/react` 19, and the React that `@base-ui/react` resolves. React, React DOM and their types are peers and dev dependencies, `next` 16.4.0 a peer (D30).
+12. **`dev-console.spec.ts`** opens `/design-system/{en,el,de,fr}/atoms/select` (the atom with the most client code). **`styles-fonts.spec.ts`**'s `@source` check looks for the Switch's `after:-inset-y-[13px]`, and `source-probe.ts` is deleted, as T20 asked.
+13. **NOTICE.md:** shadcn/ui (MIT), `cn` (MIT), Base UI (MIT), ReUI (MIT, for T23's items), Lucide (ISC) and the kit (CC BY 4.0). **Renovate:** `lucide-react` in both packages as one group, before 6 am on Mondays.
+
+### Checks
+
+| Check | Result | Key output |
+|---|---|---|
+| The 17 atoms in `src/atoms/` | **Pass** | avatar, badge, button, checkbox, input, kbd, label, native-select, progress, radio-group, select, separator, skeleton, spinner, switch, textarea, tooltip (a test lists them) |
+| `pnpm install --frozen-lockfile`, `check:workspace` | **Pass** | `packages/ui: react 19.3.0`, `@types/react 19.3.0`, `→ @base-ui/react: react 19.3.0` |
+| `typecheck`, `lint`, `test`, `build`, both `.env` absent | **Pass** | ui 154, storefront 602, i18n 19, scripts 397 |
+| Build with `DESIGN_SYSTEM_ENABLED=true` | **Pass** | 204 DS routes prerendered (4 overviews, 25 entries × 4 locales × page and frame) |
+| 17 atom frames × 4 locales × 375/768/1440 in Chromium (build 1194, `next start`) | **Pass** | no horizontal overflow, no clipped text outside `data-truncate`, every target ≥ 44 × 44, no console error or warning. The first run found the Select frames 586 px wide at 375 (item 7); fixed |
+| `dev-console`, the DS routes in `next dev` | **Pass** | 10 of 10, the four `atoms/select` pages included: 0 console messages. The 17 atom frames in `en` and `de` in `next dev`: none either |
+| `styles-fonts.spec.ts` against `next start` | **Pass** | 9 of 9; the `@source` test finds `.after\:-inset-y-\[13px\]` |
+| **Mutation:** `pe-3` back to `pr-3` in `button.tsx` | **Fails** | `button.tsx: logical directions, token colours, light only, ring at full strength` |
+| **Mutation:** `bg-[#000000]` in `button.tsx` | **Fails** | the same test, a `colour literal` |
+| **Mutation:** a Checkbox that swallows Space | **Fails** | `toggles with Space, and not with Enter` |
+
+### Decisions the plan did not settle
+
+1. **`cn` instead of `clsx` + `tailwind-merge`** (item 2), because the registry writes it.
+2. **The hit areas are `::after`, the measured target is the label** (item 6). A pseudo-element counts for clicks but not for `getBoundingClientRect`, so T24's size check should measure a Checkbox, Radio or Switch through its `label`.
+3. **Solid destructive** (item 8) and **wrapping buttons** (item 7) depart from the kit's look; both were needed for D35's 4.5:1 and D34's no-clipping rule.
+4. **Logical sides only** on Tooltip and Select (item 5).
+5. **The atoms' copy is small:** `atoms.spinner.loading` is the only string an atom itself needs; the rest of what the entries show is sample content and lives in the fixtures, as T22 set up.
+6. **Prettier:** the vendored files are formatted with the repo's preset (`packages/config/prettier.config.mjs`), so they carry semicolons and 100 columns; a later `shadcn add --overwrite` will undo that and the edits, so diff before accepting one.
+
+### Smaller observations
+
+- `@base-ui/react`'s optional peers `date-fns` and `@date-fns/tz` were already in the lockfile (another package brings them), so pnpm links them; nothing imports them.
+- Base UI's Checkbox, Radio and Switch render a `span` with the role and a hidden 1 × 1 `input`; happy-dom handles both, and Space, the arrows and label clicks behave there as in Chromium.
+- The CLI printed "Remember to wrap your app with `TooltipProvider`". The Tooltip DS entry wraps its own; M2's layout should add one at the root.
+
+### Code-review fixes (PR 42)
+
+The review is `reviews/pr-42-code-review.md`. Every finding held; each was checked before it was fixed.
+
+| # | Finding | What changed |
+|---|---|---|
+| 1 | Separator draws nothing: `data-horizontal:` and `data-vertical:` come from `shadcn/tailwind.css`, which is not imported | `data-[orientation=horizontal]:h-px`, `…:w-full`, `data-[orientation=vertical]:w-px`, `…:self-stretch`. A test reads the `data-orientation` the separator renders and asserts the class for that value. In Chromium the lines measure 343 × 1 and 1 × 24 at 375 px, in all four locales |
+| 2 | An invalid field's focus ring is `ring-destructive/20` (1.44:1), because `aria-invalid:` rules come after `focus-visible:` ones | The `aria-invalid:ring-3 aria-invalid:ring-destructive/20` pair is gone from Input, Textarea, Select, NativeSelect, Checkbox, Radio, Switch, Button and Badge. An invalid field is marked by its destructive border (and its error text); in focus it draws the same `ring-ring` as any field, over that border. Removing the rule instead of adding `aria-invalid:focus-visible:` keeps it independent of variant order |
+| 3 | Destructive Button and Badge replace the ring with `ring-destructive/20` | The variants' `focus-visible:ring-destructive/20` (and Button's `focus-visible:border-destructive`) are gone, so `ring-ring` stays. The scan in `test-support/class-rules.ts` now rejects any `ring-<colour>/<n>` under `focus-visible:` or `aria-invalid:` (as well as `ring-ring/<n>` anywhere), with three new cases; `ring-foreground/10` on a popup's edge still passes |
+| 4 | The focus states cannot show 2 or 3 | Button has "Destructive, focused"; Input, Textarea, Select, NativeSelect, Checkbox and Radio have "Invalid and focused". NativeSelect takes `selectClassName` for its `<select>` (`className` stays on the wrapper), so it has Focus states too |
+| 5 | The Radio entry writes its own labels | Labels, values and the chosen one come from `ctx.fixture.sizes`; the disabled radio is the first size with `available: false`; the long-label values are the long strings |
+| 6 | Spinner's `role="status"` is unlikely to be announced | A line in its a11y notes: in a button the button's name carries it; a loading area takes `aria-busy` or text in a live region already on the page |
+| 7 | Avatar's name is lost when the image fails | A line in its a11y notes: show the name as text beside the avatar |
+
+**Proof.** ui 163 tests (154 before), storefront 602; `tsc` and `eslint` in both. In `next dev`, Chromium at 375 px: Separator, NativeSelect, Radio, Button, Checkbox, Input, Select and Textarea in all four locales, no horizontal overflow and no console message.
+
+## Atoms (T23)
+
+**Result: the 15 other atoms of SPEC §9.3 are in `packages/ui/src/atoms/`, each with component tests and a DS entry, so all 32 atoms are there.** The plan says "16 other atoms" and "33 atoms"; SPEC §9.3 lists 32 (17 shadcn + 15), and every one is built. `class-rules.test.ts` asserts the 32 files and runs T21's scan over all of them. D34's "33 atoms × 6 cells" is 32 × 6 = 192 cells for T24.
+
+| | |
+|---|---|
+| Date | 2026-10-16 |
+| Branch | `claude/t21-shadcn-atoms-d43xhp` (restarted from `main` after PR 42 merged) |
+| New | `packages/ui/src/atoms/{icon-button, link, chip, price, rating, swatch, size-pill, quantity-stepper, stock-indicator, visually-hidden, image, icon, logo, payment-icon, flag}.tsx`, each with its `*.test.tsx`; `apps/storefront/src/design-system/atoms-commerce.tsx` (the 15 entries) and `components/removable-chip.tsx` |
+| Changed | `packages/ui/{package.json, NOTICE.md, vitest.config.ts}`, `class-rules.test.ts`, `apps/storefront/{vitest.config.ts, src/design-system/{entries.tsx, atoms.tsx, icons.ts, foundations/icons.tsx}}` and `entries.test.tsx`, `packages/fixtures/src/design-system.ts`, `packages/i18n/src/index.ts` (`atoms`), the lockfile (added only) |
+| Deps | `simple-icons` 16.35.0, `country-flag-icons` 1.6.20, `@shopblok/i18n` (`workspace:*`, for Price's `formatMoney`) |
+| Tests | ui **318** (163 + 155), storefront **677** (602 + 75); `tsc`, `eslint`, `pnpm install --frozen-lockfile`, `check:workspace` and `next build` with the flag all pass |
+
+### What was done
+
+| Atom | Source | Notes |
+|---|---|---|
+| IconButton | ours | Button's `icon`/`icon-lg` size (44/48 px); `label` is required by the type and is the accessible name |
+| Link | ours, on `next/link` | `inline` (in a sentence, WCAG 2.5.8's exemption) or `standalone` (44 px); `rel="noopener noreferrer"` with `target="_blank"`, and an optional `newTabLabel` read out after the text; `aria-current` passes through |
+| Chip | ours | The remove button is a real 44 × 44 box pulled back with `-my-1.5`, so the chip stays 32 px; `onRemove` and `removeLabel` are required together. A server page cannot pass `onRemove`, so the DS uses a small client wrapper (`removable-chip.tsx`) |
+| Price | ours | `formatMoney` with major units (never ×/÷ 100); a sale shows the original in `<s>`, each price with a `VisuallyHidden` label; `price`, `price-sale` and `price-original` tokens. Tests compare with `formatMoney` for `en-US`/USD, `el-CY`/EUR, `de-DE`/EUR and `fr-CH`/CHF and normalise CLDR's spaces (SPEC §14, "Test rule") |
+| Rating | vendored from ReUI `rating` (base-vega) | Read-only: no hover, click or `"use client"`; rounds to the nearest half (the fixture's 4.6 shows 4.5); the name is the `label` prop ("4.5 out of 5", from `atoms.rating.label`) and the visible number a `valueText` prop; `text-rating`/`fill-rating` |
+| Swatch, SizePill | ours | Selected (`aria-pressed`), disabled, and unavailable (struck through, still focusable, with `unavailableLabel` added to its name; only `disabled` blocks it); colour or image swatch. Radio semantics come with M2's VariantSelector |
+| QuantityStepper | vendored from ReUI `number-field` | ReUI's six parts, the scrub area and its `Label` became one component: 44 px tall, both buttons 44 × 44 with required labels, Lucide icons, the ring at full strength round the whole field (`has-[:focus-visible]`). Base UI gives the buttons `tabindex=-1`: Tab reaches the input, and the arrow keys step it (tested) |
+| StockIndicator | ours | `text` is required; an icon shape plus `text-stock-*`, so the state is never colour alone (WCAG 1.4.1) |
+| VisuallyHidden | ours | `sr-only` |
+| Image | ours, on `next/image` | `fill` in an aspect-ratio frame, the radius tokens, a Skeleton until it loads; `alt` is required, and `""` must be passed on purpose (a `@ts-expect-error` test) |
+| Icon | ours | A Lucide icon at the size tokens; `aria-hidden` unless it has a `label`, then `role="img"` |
+| Logo | ours | An SVG slot named by `name`; without children it shows the name as text |
+| PaymentIcon | ours, simple-icons | The D31 eight (Visa, Mastercard, American Express, Apple Pay, Google Pay, Revolut, PayPal, Klarna), single-colour (`fill-current`), `role="img"` with a label. Imported as eight named exports from `"simple-icons"`: the `simple-icons/icons` entry is deprecated and logs a `console.warn` at import, which D34's console rule would judge |
+| Flag | ours, country-flag-icons | `country-flag-icons/react/3x2` by ISO 3166-1 code, with a label; no `"use client"`, so it costs no client JavaScript. `isFlagCode` narrows a string. The DS takes country names from `Intl.DisplayNames` |
+
+1. **The ReUI CLI run.** `pnpm dlx shadcn@4.21.4 add @reui/rating @reui/number-field` timed out in Node's `fetch` to `reui.io`, though `curl` through the proxy answered. The two registry items were fetched with `curl` and the CLI run on the local files: it wrote into an untracked `src/components/reui/` (deleted) and stopped to ask about overwriting `label.tsx` (declined). So both files were written by hand from the registry JSON, and their headers list the edits. Nothing tracked was changed by the CLI.
+2. **Copy and fixtures.** `atoms` in the four catalogs gained `chip.remove`, `link.newTab`, `price.{sale, original}`, `rating.label` (`{value}`, `{max}`), `quantityStepper.{label, decrease, increase}`, `stock.{inStock, low, outOfStock}` (`{count}`), `variant.unavailable` and the payment brands' names. The fixtures gained `linkLabel`, `chipLabel`, `storeName` and `imageAlt` (ordinary and long, four locales) and a sample image (a data URI). Names a control has but does not draw (an icon button's, a swatch's, the stepper's buttons) are shown as a caption under it in the DS, so the page shows what a screen reader says.
+3. **Vitest and `country-flag-icons`.** The package imports `react` without declaring it, so Node resolved it from pnpm's store, which holds another major ("A React Element from an older version of React"). Both `vitest.config.ts` files now inline the package and dedupe `react` and `react-dom`. `next build` and `next start` render the flags without that.
+4. **NOTICE.md** gains simple-icons (CC0; each mark remains its owner's trademark) and country-flag-icons (MIT), and ReUI's notice covers `rating` and `number-field`. The DS credits page lists ReUI, Simple Icons and country-flag-icons.
+
+### Checks
+
+| Check | Result |
+|---|---|
+| The 15 frames × `en`, `el`, `de`, `fr` × 375, 768, 1440 px, in Chromium against `next start` built with `DESIGN_SYSTEM_ENABLED=true` | **180 pages: all 200, no horizontal overflow, nothing clipped outside `data-truncate`, every control at least 44 × 44 (an `::after` hit area counted, inline links exempt), no console error or warning.** Not axe: that is T24 |
+| T23's mutations | StockIndicator without its text: 5 tests fail. Price × 100: 9 fail, the four market comparisons among them. Image with `alt` optional: `tsc` fails (`Unused '@ts-expect-error' directive`) |
+| T21's scan over the new files | Passes; the file count is asserted (32) |
+
+### Decisions the plan did not settle
+
+1. **Unavailable swatches and size pills stay focusable and clickable** (a shopper may still want to see that variant, or be told when it is back); only `disabled` blocks them. Their name says "unavailable".
+2. **QuantityStepper keeps Base UI's keyboard model** (buttons out of the Tab order, arrows on the input). Putting the buttons in the Tab order is a small change if you want it.
+3. **Link has two variants:** `inline` for links in running text (exempt from D32) and `standalone` at 44 px.
+4. **Rating rounds to halves**, as the plan's "halves included" suggests; the label says the exact value given.
+5. `dev-console.spec.ts` keeps T21's one atom page (`atoms/select`); the 180-page check above covered the new ones once, and T24 checks every atom in CI.
+
+### Code-review fixes (PR 43)
+
+The review is `reviews/pr-43-code-review.md`. The first CI run also failed one test on both Node versions, fixed first.
+
+| # | Finding | What changed |
+|---|---|---|
+| CI | `check` failed: the Price entry's `fr` test expected `1'249.50 CHF` | The runners' Node writes fr-CH's grouping mark as an ASCII apostrophe, which React escapes as `&#x27;` in markup (this VM's Node 22.22.0 writes U+202F). The test unescapes it before comparing (SPEC §14, "Test rule") |
+| 1 | A selected sold-out SizePill is grey on black (4.24:1) | `data-unavailable:not-data-selected:text-muted-foreground`: selected keeps `primary-foreground` (measured in Chromium: `#fafafa` on `#000`). Swatch and SizePill have a "Selected and unavailable" state |
+| 2 | Image never recovers from a failed load | `onError` drops the skeleton and draws an "image missing" mark (Lucide `ImageOff`, hidden from assistive technology) on the muted fill; `data-failed` on the frame. A failure before hydration is not detected (`complete` with no width is also a picture that has not started) |
+| 3 | Image's state survives a new `src` | The state is keyed on the source (a URL, or a static import's `src`), so a new `src` shows the skeleton again |
+| 4 | `unavailable` did not require `unavailableLabel` | A union on Swatch and SizePill, as Chip and Price have; `@ts-expect-error` tests |
+| 5 | Rating's empty stars were 1.48:1 | Full `muted-foreground` (4.95:1); the header says so |
+| 6 | A `NaN` rating drew five stars | A value that is not finite counts as 0; a test |
+| 7 | The VisuallyHidden entry | No `aria-hidden` on the live render, and a space before the hidden text |
+| 8 | The rating label padded whole numbers | The spoken value has no padded zero and `max` is formatted the same way ("3 out of 5"); the drawn value keeps one decimal |
+| 9 | `soldOutSize`'s comment | Corrected |
+| 11 | Logo showed an empty image for `false` | `null`, `undefined`, `false` and `""` show the name as text; a test |
+| 16 | Leftovers | QuantityStepper's root drops ReUI's label layout; Swatch passes `disabled` through `props` |
+| 10, 12 to 15 | Flag's fallback props, `isFlagCode`'s module, Image's `sizes` default, simple-icons' root import in dev, the `{name}` filler's home | Left for M2, which builds the first callers (MarketSwitcher, the product grid, the cart): each is a choice about how those use the atoms rather than a defect in T23 |
+
+**Proof.** ui 326 tests, storefront 677; `tsc` and `eslint` in both; `next build` with the flag, then the 180-page Chromium check again (15 frames × 4 locales × 3 widths): no overflow, no clipping, every control at least 44 × 44, no console message.
+
+## DS checks (T24)
+
+**Result: D34's checks run over every atom in a new CI job, `design-system`.** 32 atoms × 375, 768 and 1440 px × `en` and `el` is **192 cells**, one Playwright test each (`atoms/price · el · 375`): axe, overflow, 44 × 44 targets, the console, and a full-page screenshot. All 192 pass; no atom and no DS entry needed a change, and no axe rule is disabled.
+
+| | |
+|---|---|
+| Date | 2026-10-16 |
+| Branch | `claude/t21-shadcn-atoms-d43xhp` (restarted from `main` after PR 43 merged) |
+| New | `apps/storefront/e2e/design-system.spec.ts` |
+| Changed | `apps/storefront/playwright.config.ts` (the `design-system` project), `.github/workflows/ci.yml` (the job), `apps/storefront/package.json` (`@axe-core/playwright` 4.13.0), the lockfile (added only) |
+| Local run | 192 passed in 3.0 min with two workers (5 min 19 s with one), against `next start` |
+
+### How it works
+
+1. **The atoms come from the page.** Playwright's loader cannot import `entries.tsx` (`next/image` resolves only inside Next), so the spec reads `/design-system/en` once at collection and takes every `/design-system/en/atoms/<slug>` link; that page is rendered from the manifest, so a new atom is checked without touching the spec. The widths are `viewportWidths()`, the DS's own.
+2. **The flag.** If `/design-system/en` is not 200, the suite is one test, "the build serves the design system", which fails with `… answered 404, not 200: this build lacks DESIGN_SYSTEM_ENABLED=true (the DS routes are 404 without it, D33) …`.
+3. **Each cell** attaches its screenshot first, then runs the four checks with `expect.soft`, so one cell reports every failed check:
+   - **axe** (`@axe-core/playwright`, tags `wcag2a`, `wcag2aa`, `wcag21a`, `wcag21aa`, `wcag22aa`): no violations, printed with selectors and axe's summary.
+   - **overflow:** `scrollWidth` ≤ `innerWidth`, and no element with hidden or clipped overflow has `scrollWidth > clientWidth` outside `[data-truncate]`. Two exemptions, both found on the first run (18 failures, all overflow): visually hidden boxes (1 × 1 or `.sr-only`, such as Base UI's hidden inputs and Progress's label), and a clipped element with no text (Rating's partial-star mask); an input's value counts as text.
+   - **size (D32):** buttons, standalone links, inputs, selects, textareas and the control roles are at least 44 × 44, counting a control's `::after` hit area from its resolved inset; Checkbox, Radio and Switch also pass by their label. Skipped: `aria-hidden`, `display: none`, `visibility: hidden`, ≤ 1 × 1, and a link inline with its parent's own text (WCAG 2.5.8's exemption).
+   - **console:** `e2e/support/console.ts`'s rules (T25 had already moved them out of `payload-admin.spec.ts`), and failed requests to the server.
+4. **The project** exists only with `E2E_DESIGN_SYSTEM=true`, as `dev-console` does, retries 0; the `chromium` project ignores the spec. `PW_CHROMIUM_PATH` points Playwright at a local Chromium (this VM's `/opt/pw-browsers/chromium-1194/chrome-linux/chrome`) and is unset in CI.
+5. **The job** (ubuntu, Node 22, 30 min limit, beside `e2e-smoke`): install, Playwright's Chromium, `pnpm --filter @shopblok/storefront build` with `DESIGN_SYSTEM_ENABLED=true` (not through turbo), `next start` with its PID kept, a wait for `/design-system/en` (120 s), the project, `stop-tree.sh`, and two artifacts: `design-system-report` (the HTML report and `test-results`, one PNG per cell, so six per atom) and the server log. No compose, no bootstrap, no `.env`: the flagged build ran here with none of them in about 35 s.
+6. **`@axe-core/playwright` is 4.13.0**, not the latest 4.14.0: that was published the day before and pnpm's minimum release age refused it. Renovate will offer it.
+
+### Mutations
+
+Each applied, run at `en · 375`, and reverted.
+
+| Mutation | Check | Output |
+|---|---|---|
+| Price drawn in `#bbbbbb` | axe | `color-contrast (serious) … insufficient color contrast of 1.91 … Expected contrast ratio of 4.5:1` |
+| Chip at `width: 500px; max-width: none` | overflow | `the page is wider than the viewport (scrollWidth 533, innerWidth 375)` |
+| Button's `min-h-11` as `min-h-9` | size | `controls smaller than 44 × 44 (D32)` / `button[data-slot=button]"Add to cart": its hit area 108.3 × 38.0` |
+| `console.error` in Checkbox's effect | console | `error @ /design-system/en/frame/atoms/checkbox: mutation: console.error in checkbox` |
+| A build without the flag | flag | one test, `answered 404, not 200: this build lacks DESIGN_SYSTEM_ENABLED=true …` |
+
+### Decisions the plan did not settle
+
+1. The two overflow exemptions above, instead of putting `data-truncate` on a star mask that truncates nothing.
+2. The atoms are read from the overview page rather than a list in the spec, so the spec cannot fall behind the manifest.
+3. The job is not a required check: branch protection is not available on the owner's plan (G3).
+
+### Code-review fixes (PR 44)
+
+The review is `reviews/pr-44-code-review.md`. Findings 1 to 8 were fixed; 9 and 10 (a composite action for starting the storefront, a table of opt-in projects) are optional refactors left for when a third opt-in project or a third copy of the start steps appears.
+
+| # | Finding | What changed |
+|---|---|---|
+| 1 | Vertical clipping was never caught | Each axis is checked on its own (`overflowX` with the widths, `overflowY` with the heights, 1 px for rounding). Mutation: Badge at `h-3 overflow-y-hidden` fails with `scrollHeight 15 > clientHeight 10; text "Νέο"` |
+| 2 | `::after` counted against the wrong containing block | The hit area is used only when the control is positioned; otherwise its own box |
+| 3 | An ancestor's `visibility: hidden` skipped a visible control | Only the element's own computed `visibility` counts; `display: none` and `aria-hidden` still hide the subtree |
+| 4 | An id other than one `[a-z0-9-]+` segment dropped out silently | Any id under `atoms/` is taken |
+| 5 | Links between separators counted as running text | The parent's text must hold a letter or a digit |
+| 6 | `E2E_DESIGN_SYSTEM` replaced the default run silently | Both flags at once throw; set them per command (`E2E_DESIGN_SYSTEM=true pnpm --filter @shopblok/storefront test:e2e --project=design-system`), not exported |
+| 7 | One worker | Two for the `design-system` project (static pages, no login): 3.0 min locally |
+| 8 | The collection's `fetch` had no timeout | 30 s, reported as the suite's one failing test |
+
+**Proof.** `tsc`, `eslint`, then the full project against a fresh flagged build: 192 passed.

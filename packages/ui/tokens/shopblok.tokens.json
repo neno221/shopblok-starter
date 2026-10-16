@@ -1,0 +1,681 @@
+{
+  "primitive": {
+    "neutral-450": {
+      "$type": "color",
+      "$value": "#949494",
+      "$description": "Between the kit's Neutral-400 (#a1a1a1, 2.52:1 on white) and Neutral-500 (#737373, 4.74:1). The lightest grey that reaches 3:1 on white: #959595 is 2.99:1.",
+      "$extensions": {
+        "com.shopblok": {
+          "reason": "The kit has nothing between its 400 and 500 that passes 3:1."
+        }
+      }
+    },
+    "neutral-475": {
+      "$type": "color",
+      "$value": "#919191",
+      "$description": "The sidebar ring's grey. #949494 (neutral-450) is 2.91:1 on `sidebar` (#fafafa), so this is the lightest grey that reaches 3:1 there: #929292 is 2.98:1.",
+      "$extensions": {
+        "com.shopblok": {
+          "reason": "neutral-450 fails 3:1 on `sidebar`, which is not white."
+        }
+      }
+    },
+    "neutral-550": {
+      "$type": "color",
+      "$value": "#707070",
+      "$description": "Between the kit's Neutral-500 (#737373) and Neutral-600 (#525252). The lightest grey that reaches 4.5:1 on `muted` (#f5f5f5): #717171 is 4.48:1.",
+      "$extensions": {
+        "com.shopblok": {
+          "reason": "The kit's Neutral-500 is 4.35:1 on `muted`."
+        }
+      }
+    }
+  },
+  "semantic": {
+    "background": {
+      "$type": "color",
+      "$value": "{Mode.base.background}"
+    },
+    "foreground": {
+      "$type": "color",
+      "$value": "{Mode.base.foreground}"
+    },
+    "card": {
+      "$type": "color",
+      "$value": "{Mode.base.card}"
+    },
+    "card-foreground": {
+      "$type": "color",
+      "$value": "{Mode.base.card-foreground}"
+    },
+    "popover": {
+      "$type": "color",
+      "$value": "{Mode.base.popover}"
+    },
+    "popover-foreground": {
+      "$type": "color",
+      "$value": "{Mode.base.popover-foreground}"
+    },
+    "primary": {
+      "$type": "color",
+      "$value": "{Mode.base.primary}"
+    },
+    "primary-foreground": {
+      "$type": "color",
+      "$value": "{Mode.base.primary-foreground}"
+    },
+    "secondary": {
+      "$type": "color",
+      "$value": "{Mode.base.secondary}"
+    },
+    "secondary-foreground": {
+      "$type": "color",
+      "$value": "{Mode.base.secondary-foreground}"
+    },
+    "muted": {
+      "$type": "color",
+      "$value": "{Mode.base.muted}"
+    },
+    "muted-foreground": {
+      "$type": "color",
+      "$value": "{primitive.neutral-550}",
+      "$description": "Muted text. The kit's #737373 is 4.35:1 on `muted` (D35); this is the lightest grey that reaches 4.5:1 there.",
+      "$extensions": {
+        "com.shopblok": {
+          "kit": "Mode.base.muted-foreground",
+          "reason": "Fails 4.5:1 on `muted`."
+        }
+      }
+    },
+    "accent": {
+      "$type": "color",
+      "$value": "{Mode.base.accent}"
+    },
+    "accent-foreground": {
+      "$type": "color",
+      "$value": "{Mode.base.accent-foreground}"
+    },
+    "destructive": {
+      "$type": "color",
+      "$value": "{Mode.state.destructive}"
+    },
+    "destructive-foreground": {
+      "$type": "color",
+      "$value": "{TailwindCSS - Colors.White}",
+      "$description": "Text on `destructive`. The kit's Red-50 is 4.36:1 on its Red-600; white is the lightest foreground there is.",
+      "$extensions": {
+        "com.shopblok": {
+          "kit": "Mode.state.destructive-foreground",
+          "reason": "Fails 4.5:1 on `destructive`."
+        }
+      }
+    },
+    "border": {
+      "$type": "color",
+      "$value": "{Mode.base.border}",
+      "$description": "Decorative (separators, card edges): not checked (D35)."
+    },
+    "input": {
+      "$type": "color",
+      "$value": "{primitive.neutral-450}",
+      "$description": "A text field's edge. The kit's #e5e5e5 is 1.26:1 on white (D35); this is the lightest grey that reaches 3:1.",
+      "$extensions": {
+        "com.shopblok": {
+          "kit": "Mode.base.input",
+          "reason": "Fails 3:1 on `background` (WCAG 1.4.11)."
+        }
+      }
+    },
+    "ring": {
+      "$type": "color",
+      "$value": "{primitive.neutral-450}",
+      "$description": "The focus ring, drawn at full strength (alpha 1). The kit draws #a1a1a1 at 50 %, which is 1.54:1 on white (D35); at 50 % the lightest grey that reaches 3:1 would be #2a2a2a, so the alpha is part of the decision.",
+      "$extensions": {
+        "com.shopblok": {
+          "kit": "Mode.base.ring",
+          "reason": "Fails 3:1 on `background` at the kit's 50 % alpha (and at 100 %)."
+        }
+      }
+    },
+    "chart-1": {
+      "$type": "color",
+      "$value": "{Mode.chart.chart-1}"
+    },
+    "chart-2": {
+      "$type": "color",
+      "$value": "{Mode.chart.chart-2}"
+    },
+    "chart-3": {
+      "$type": "color",
+      "$value": "{Mode.chart.chart-3}"
+    },
+    "chart-4": {
+      "$type": "color",
+      "$value": "{Mode.chart.chart-4}"
+    },
+    "chart-5": {
+      "$type": "color",
+      "$value": "{Mode.chart.chart-5}"
+    },
+    "sidebar": {
+      "$type": "color",
+      "$value": "{Mode.sidebar.sidebar}"
+    },
+    "sidebar-foreground": {
+      "$type": "color",
+      "$value": "{Mode.sidebar.foreground}"
+    },
+    "sidebar-primary": {
+      "$type": "color",
+      "$value": "{Mode.sidebar.primary}"
+    },
+    "sidebar-primary-foreground": {
+      "$type": "color",
+      "$value": "{Mode.sidebar.primary-foreground}"
+    },
+    "sidebar-accent": {
+      "$type": "color",
+      "$value": "{Mode.sidebar.accent}"
+    },
+    "sidebar-accent-foreground": {
+      "$type": "color",
+      "$value": "{Mode.sidebar.accent-foreground}"
+    },
+    "sidebar-border": {
+      "$type": "color",
+      "$value": "{Mode.sidebar.border}"
+    },
+    "sidebar-ring": {
+      "$type": "color",
+      "$value": "{primitive.neutral-475}",
+      "$description": "The ring on the sidebar, drawn at full strength (alpha 1), like `ring`. The kit's #a1a1a1 is 2.48:1 on `sidebar` (#fafafa); this is the lightest grey that reaches 3:1 there.",
+      "$extensions": {
+        "com.shopblok": {
+          "kit": "Mode.sidebar.ring",
+          "reason": "Fails 3:1 on `sidebar` (WCAG 1.4.11)."
+        }
+      }
+    },
+    "price": {
+      "$type": "color",
+      "$value": "{TailwindCSS - Colors.Neutral.Neutral-950}"
+    },
+    "price-sale": {
+      "$type": "color",
+      "$value": "{TailwindCSS - Colors.Red.Red-700}"
+    },
+    "price-original": {
+      "$type": "color",
+      "$value": "{TailwindCSS - Colors.Neutral.Neutral-600}"
+    },
+    "rating": {
+      "$type": "color",
+      "$value": "{TailwindCSS - Colors.Amber.Amber-600}",
+      "$description": "Star fill: a graphic, 3:1."
+    },
+    "success": {
+      "$type": "color",
+      "$value": "{TailwindCSS - Colors.Emerald.Emerald-800}",
+      "$description": "Solid status colour with white text, and text on `background`. The kit's Emerald-500 (and its 600, which equals its 700) is below 4.5:1 under white.",
+      "$extensions": {
+        "com.shopblok": {
+          "kit": "Mode.state.success",
+          "reason": "The kit's colour fails 4.5:1 under white text."
+        }
+      }
+    },
+    "success-foreground": {
+      "$type": "color",
+      "$value": "{TailwindCSS - Colors.White}"
+    },
+    "warning": {
+      "$type": "color",
+      "$value": "{TailwindCSS - Colors.Yellow.Yellow-700}",
+      "$description": "As `success`. The kit's Yellow-500 is 1.91:1 under white.",
+      "$extensions": {
+        "com.shopblok": {
+          "kit": "Mode.state.warning",
+          "reason": "The kit's colour fails 4.5:1 under white text."
+        }
+      }
+    },
+    "warning-foreground": {
+      "$type": "color",
+      "$value": "{TailwindCSS - Colors.White}"
+    },
+    "info": {
+      "$type": "color",
+      "$value": "{TailwindCSS - Colors.Violet.Violet-600}",
+      "$description": "As `success`. The kit's Violet-500 is 4.40:1 under white.",
+      "$extensions": {
+        "com.shopblok": {
+          "kit": "Mode.state.info",
+          "reason": "The kit's colour fails 4.5:1 under white text."
+        }
+      }
+    },
+    "info-foreground": {
+      "$type": "color",
+      "$value": "{TailwindCSS - Colors.White}"
+    },
+    "badge-sale": {
+      "$type": "color",
+      "$value": "{TailwindCSS - Colors.Red.Red-600}"
+    },
+    "badge-sale-foreground": {
+      "$type": "color",
+      "$value": "{TailwindCSS - Colors.White}"
+    },
+    "badge-new": {
+      "$type": "color",
+      "$value": "{TailwindCSS - Colors.Blue.Blue-600}"
+    },
+    "badge-new-foreground": {
+      "$type": "color",
+      "$value": "{TailwindCSS - Colors.White}"
+    },
+    "stock-in": {
+      "$type": "color",
+      "$value": "{TailwindCSS - Colors.Emerald.Emerald-800}"
+    },
+    "stock-low": {
+      "$type": "color",
+      "$value": "{TailwindCSS - Colors.Yellow.Yellow-700}"
+    },
+    "stock-out": {
+      "$type": "color",
+      "$value": "{TailwindCSS - Colors.Red.Red-700}"
+    },
+    "overlay": {
+      "$type": "color",
+      "$value": "#00000099",
+      "$description": "A scrim over images and pages: black at 60 %. The only colour here that is not a reference, because a primitive has no alpha."
+    },
+    "overlay-foreground": {
+      "$type": "color",
+      "$value": "{TailwindCSS - Colors.White}"
+    }
+  },
+  "contrast": {
+    "text": {
+      "foreground-on-background": {
+        "$type": "contrast",
+        "$value": {
+          "foreground": "{semantic.foreground}",
+          "background": "{semantic.background}",
+          "minimum": 4.5
+        }
+      },
+      "card-foreground-on-card": {
+        "$type": "contrast",
+        "$value": {
+          "foreground": "{semantic.card-foreground}",
+          "background": "{semantic.card}",
+          "minimum": 4.5
+        }
+      },
+      "popover-foreground-on-popover": {
+        "$type": "contrast",
+        "$value": {
+          "foreground": "{semantic.popover-foreground}",
+          "background": "{semantic.popover}",
+          "minimum": 4.5
+        }
+      },
+      "primary-foreground-on-primary": {
+        "$type": "contrast",
+        "$value": {
+          "foreground": "{semantic.primary-foreground}",
+          "background": "{semantic.primary}",
+          "minimum": 4.5
+        }
+      },
+      "secondary-foreground-on-secondary": {
+        "$type": "contrast",
+        "$value": {
+          "foreground": "{semantic.secondary-foreground}",
+          "background": "{semantic.secondary}",
+          "minimum": 4.5
+        }
+      },
+      "muted-foreground-on-muted": {
+        "$type": "contrast",
+        "$value": {
+          "foreground": "{semantic.muted-foreground}",
+          "background": "{semantic.muted}",
+          "minimum": 4.5
+        }
+      },
+      "muted-foreground-on-background": {
+        "$type": "contrast",
+        "$value": {
+          "foreground": "{semantic.muted-foreground}",
+          "background": "{semantic.background}",
+          "minimum": 4.5
+        }
+      },
+      "accent-foreground-on-accent": {
+        "$type": "contrast",
+        "$value": {
+          "foreground": "{semantic.accent-foreground}",
+          "background": "{semantic.accent}",
+          "minimum": 4.5
+        }
+      },
+      "destructive-foreground-on-destructive": {
+        "$type": "contrast",
+        "$value": {
+          "foreground": "{semantic.destructive-foreground}",
+          "background": "{semantic.destructive}",
+          "minimum": 4.5
+        }
+      },
+      "destructive-on-background": {
+        "$type": "contrast",
+        "$value": {
+          "foreground": "{semantic.destructive}",
+          "background": "{semantic.background}",
+          "minimum": 4.5
+        }
+      },
+      "sidebar-foreground-on-sidebar": {
+        "$type": "contrast",
+        "$value": {
+          "foreground": "{semantic.sidebar-foreground}",
+          "background": "{semantic.sidebar}",
+          "minimum": 4.5
+        }
+      },
+      "sidebar-primary-foreground-on-sidebar-primary": {
+        "$type": "contrast",
+        "$value": {
+          "foreground": "{semantic.sidebar-primary-foreground}",
+          "background": "{semantic.sidebar-primary}",
+          "minimum": 4.5
+        }
+      },
+      "sidebar-accent-foreground-on-sidebar-accent": {
+        "$type": "contrast",
+        "$value": {
+          "foreground": "{semantic.sidebar-accent-foreground}",
+          "background": "{semantic.sidebar-accent}",
+          "minimum": 4.5
+        }
+      },
+      "price-on-background": {
+        "$type": "contrast",
+        "$value": {
+          "foreground": "{semantic.price}",
+          "background": "{semantic.background}",
+          "minimum": 4.5
+        }
+      },
+      "price-on-card": {
+        "$type": "contrast",
+        "$value": {
+          "foreground": "{semantic.price}",
+          "background": "{semantic.card}",
+          "minimum": 4.5
+        }
+      },
+      "price-sale-on-background": {
+        "$type": "contrast",
+        "$value": {
+          "foreground": "{semantic.price-sale}",
+          "background": "{semantic.background}",
+          "minimum": 4.5
+        }
+      },
+      "price-sale-on-card": {
+        "$type": "contrast",
+        "$value": {
+          "foreground": "{semantic.price-sale}",
+          "background": "{semantic.card}",
+          "minimum": 4.5
+        }
+      },
+      "price-original-on-background": {
+        "$type": "contrast",
+        "$value": {
+          "foreground": "{semantic.price-original}",
+          "background": "{semantic.background}",
+          "minimum": 4.5
+        }
+      },
+      "price-original-on-card": {
+        "$type": "contrast",
+        "$value": {
+          "foreground": "{semantic.price-original}",
+          "background": "{semantic.card}",
+          "minimum": 4.5
+        }
+      },
+      "success-foreground-on-success": {
+        "$type": "contrast",
+        "$value": {
+          "foreground": "{semantic.success-foreground}",
+          "background": "{semantic.success}",
+          "minimum": 4.5
+        }
+      },
+      "warning-foreground-on-warning": {
+        "$type": "contrast",
+        "$value": {
+          "foreground": "{semantic.warning-foreground}",
+          "background": "{semantic.warning}",
+          "minimum": 4.5
+        }
+      },
+      "info-foreground-on-info": {
+        "$type": "contrast",
+        "$value": {
+          "foreground": "{semantic.info-foreground}",
+          "background": "{semantic.info}",
+          "minimum": 4.5
+        }
+      },
+      "success-on-background": {
+        "$type": "contrast",
+        "$value": {
+          "foreground": "{semantic.success}",
+          "background": "{semantic.background}",
+          "minimum": 4.5
+        }
+      },
+      "warning-on-background": {
+        "$type": "contrast",
+        "$value": {
+          "foreground": "{semantic.warning}",
+          "background": "{semantic.background}",
+          "minimum": 4.5
+        }
+      },
+      "info-on-background": {
+        "$type": "contrast",
+        "$value": {
+          "foreground": "{semantic.info}",
+          "background": "{semantic.background}",
+          "minimum": 4.5
+        }
+      },
+      "badge-sale-foreground-on-badge-sale": {
+        "$type": "contrast",
+        "$value": {
+          "foreground": "{semantic.badge-sale-foreground}",
+          "background": "{semantic.badge-sale}",
+          "minimum": 4.5
+        }
+      },
+      "badge-new-foreground-on-badge-new": {
+        "$type": "contrast",
+        "$value": {
+          "foreground": "{semantic.badge-new-foreground}",
+          "background": "{semantic.badge-new}",
+          "minimum": 4.5
+        }
+      },
+      "stock-in-on-background": {
+        "$type": "contrast",
+        "$value": {
+          "foreground": "{semantic.stock-in}",
+          "background": "{semantic.background}",
+          "minimum": 4.5
+        }
+      },
+      "stock-low-on-background": {
+        "$type": "contrast",
+        "$value": {
+          "foreground": "{semantic.stock-low}",
+          "background": "{semantic.background}",
+          "minimum": 4.5
+        }
+      },
+      "stock-out-on-background": {
+        "$type": "contrast",
+        "$value": {
+          "foreground": "{semantic.stock-out}",
+          "background": "{semantic.background}",
+          "minimum": 4.5
+        }
+      },
+      "overlay-foreground-on-overlay": {
+        "$type": "contrast",
+        "$value": {
+          "foreground": "{semantic.overlay-foreground}",
+          "background": "{semantic.overlay}",
+          "over": "{semantic.background}",
+          "minimum": 4.5
+        },
+        "$description": "The scrim over `background`."
+      }
+    },
+    "ui": {
+      "input-on-background": {
+        "$type": "contrast",
+        "$value": {
+          "foreground": "{semantic.input}",
+          "background": "{semantic.background}",
+          "minimum": 3
+        }
+      },
+      "ring-on-background": {
+        "$type": "contrast",
+        "$value": {
+          "foreground": "{semantic.ring}",
+          "background": "{semantic.background}",
+          "minimum": 3,
+          "alpha": 1
+        },
+        "$description": "Drawn at full strength (alpha 1); see `ring`."
+      },
+      "sidebar-ring-on-sidebar": {
+        "$type": "contrast",
+        "$value": {
+          "foreground": "{semantic.sidebar-ring}",
+          "background": "{semantic.sidebar}",
+          "minimum": 3,
+          "alpha": 1
+        },
+        "$description": "Drawn at full strength (alpha 1); see `sidebar-ring`."
+      },
+      "primary-on-background": {
+        "$type": "contrast",
+        "$value": {
+          "foreground": "{semantic.primary}",
+          "background": "{semantic.background}",
+          "minimum": 3
+        }
+      },
+      "rating-on-background": {
+        "$type": "contrast",
+        "$value": {
+          "foreground": "{semantic.rating}",
+          "background": "{semantic.background}",
+          "minimum": 3
+        }
+      }
+    }
+  },
+  "viewport": {
+    "phone": {
+      "$type": "dimension",
+      "$value": "375px"
+    },
+    "tablet": {
+      "$type": "dimension",
+      "$value": "768px"
+    },
+    "laptop": {
+      "$type": "dimension",
+      "$value": "1024px"
+    },
+    "desktop": {
+      "$type": "dimension",
+      "$value": "1440px"
+    }
+  },
+  "z-index": {
+    "sticky": {
+      "$type": "number",
+      "$value": 20
+    },
+    "header": {
+      "$type": "number",
+      "$value": 30
+    },
+    "dropdown": {
+      "$type": "number",
+      "$value": 40
+    },
+    "overlay": {
+      "$type": "number",
+      "$value": 50
+    },
+    "modal": {
+      "$type": "number",
+      "$value": 60
+    },
+    "popover": {
+      "$type": "number",
+      "$value": 70
+    },
+    "toast": {
+      "$type": "number",
+      "$value": 80
+    }
+  },
+  "container": {
+    "page": {
+      "$type": "dimension",
+      "$value": "90rem",
+      "$description": "The widest a page's content grows: SPEC §9.2's 1440 px desktop frame."
+    },
+    "prose": {
+      "$type": "dimension",
+      "$value": "42rem"
+    }
+  },
+  "motion": {
+    "duration": {
+      "fast": {
+        "$type": "duration",
+        "$value": "100ms"
+      },
+      "base": {
+        "$type": "duration",
+        "$value": "150ms"
+      },
+      "slow": {
+        "$type": "duration",
+        "$value": "300ms"
+      }
+    },
+    "easing": {
+      "standard": {
+        "$type": "cubicBezier",
+        "$value": "cubic-bezier(0.4, 0, 0.2, 1)",
+        "$description": "Tailwind's own ease-in-out curve."
+      }
+    }
+  }
+}

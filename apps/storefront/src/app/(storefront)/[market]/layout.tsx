@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { getCurrentMarket } from "../../../lib/current-market";
+import { inter } from "../../../lib/fonts";
 import { getMarketMap } from "../../../lib/markets/get-market-map";
 import { listMarkets } from "../../../lib/markets/market";
 import "../../../styles/globals.css";
@@ -18,7 +19,7 @@ export async function generateStaticParams() {
 export default async function RootLayout({ children }: { children: ReactNode }) {
   const market = await getCurrentMarket();
   return (
-    <html lang={market.htmlLang}>
+    <html lang={market.htmlLang} className={inter.variable}>
       <body>{children}</body>
     </html>
   );
