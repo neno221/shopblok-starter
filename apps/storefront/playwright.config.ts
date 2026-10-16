@@ -29,6 +29,9 @@ export default defineConfig({
     ? [
         {
           name: "dev-console",
+          // One retry, for a browser that stalls on a runner (CI run 38876631305). A console
+          // message is the same on the second visit, so a real finding still fails twice.
+          retries: 1,
           use: { ...devices["Desktop Chrome"] },
           testMatch: /dev-console\.spec\.ts/,
         },

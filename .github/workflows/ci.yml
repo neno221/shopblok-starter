@@ -119,14 +119,13 @@ jobs:
       # item 8) and the `markets` global has to be filled for the prerender.
       - run: pnpm build
       # Both servers are started directly, not through turbo: they get the whole environment and
-      # read their own .env. `nohup … &` keeps them up across steps. Their PIDs go in files, because
-      # the last step stops the storefront by PID (the dev-console step below).
+      # read their own .env. `nohup … &` keeps them up across steps. The storefront's PID
+      # goes in a file, because the last step stops it by PID (the dev-console step below).
       - name: Start Medusa and the storefront
         run: |
           mkdir -p "$RUNNER_TEMP/servers"
           nohup pnpm --filter @shopblok/backend dev > "$RUNNER_TEMP/servers/medusa.log" 2>&1 &
           medusa=$!
-          echo "$medusa" > "$RUNNER_TEMP/servers/medusa.pid"
           # E2E_TEST_ROUTES opens the routes under /next/e2e that payload-cache.spec.ts needs
           # (ADR 0001's checks). Only this server gets it; the build above has no say in it.
           E2E_TEST_ROUTES=true nohup pnpm --filter @shopblok/storefront start > "$RUNNER_TEMP/servers/storefront.log" 2>&1 &
@@ -176,28 +175,39 @@ jobs:
       # stopped by PID (a tree: pnpm, sh, next, next-server), then `next dev` takes port 8000 (it
       # writes to .next/dev, apart from the production build) and the `dev-console` project runs
       # against it. The Payload admin is not visited. The first request compiles `/` (about 20 s on
-      # the VM that measured it), hence the 60 s. Its own report and results folders, because a run
-      # of Playwright empties the output folder it uses and replaces the HTML report it writes.
+      # the VM that measured it, not yet on a runner), hence the 120 s. Its own report and results
+      # folders, because a run of Playwright empties the output folder it uses and replaces the HTML
+      # report it writes.
+      # The project must not run against `next start`, which would pass for the wrong reason, so
+      # three things are proved and not assumed: stop-tree.sh exits non-zero if the tree or port 8000
+      # is still alive (and the step stops there); `next dev` is alive when it answers; and the
+      # answer comes from a dev server, because /_next/static/development/ exists only in `next dev`
+      # (404 in `next start`).
       - name: Console of the storefront in next dev
         run: |
-          bash .github/scripts/stop-tree.sh "$(cat "$RUNNER_TEMP/servers/storefront.pid")"
+          bash .github/scripts/stop-tree.sh --port 8000 "$(cat "$RUNNER_TEMP/servers/storefront.pid")"
           nohup pnpm --filter @shopblok/storefront dev > "$RUNNER_TEMP/servers/storefront-dev.log" 2>&1 &
           dev=$!
           echo "$dev" > "$RUNNER_TEMP/servers/storefront-dev.pid"
           answered=false
-          for _ in $(seq 60); do
-            if [ "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8000/)" = 200 ]; then answered=true; break; fi
-            kill -0 "$dev" 2>/dev/null || { echo "::error::next dev exited before / answered 200; storefront-dev.log in the server-logs artifact has its output."; exit 1; }
+          home=none
+          marker=none
+          deadline=$((SECONDS + 120))
+          while [ "$SECONDS" -lt "$deadline" ]; do
+            kill -0 "$dev" 2>/dev/null || { echo "::error::next dev exited before it answered; storefront-dev.log in the server-logs artifact has its output."; exit 1; }
+            home=$(curl -s --max-time 30 -o /dev/null -w '%{http_code}' http://localhost:8000/ || true)
+            marker=$(curl -s --max-time 30 -o /dev/null -w '%{http_code}' http://localhost:8000/_next/static/development/_buildManifest.js || true)
+            if [ "$home" = 200 ] && [ "$marker" = 200 ] && kill -0 "$dev" 2>/dev/null; then answered=true; break; fi
             sleep 1
           done
           if [ "$answered" != true ]; then
-            echo "::error::next dev: / did not answer 200 within 60 s."
-            bash .github/scripts/stop-tree.sh "$dev"
+            echo "::error::next dev: / did not answer 200 as a dev server within 120 s (last: / $home, dev marker $marker)."
+            bash .github/scripts/stop-tree.sh --port 8000 "$dev" || true
             exit 1
           fi
           status=0
           E2E_DEV_CONSOLE=true pnpm --filter @shopblok/storefront test:e2e --project=dev-console --reporter=list,html --output=test-results-dev-console || status=$?
-          bash .github/scripts/stop-tree.sh "$dev"
+          bash .github/scripts/stop-tree.sh --port 8000 "$dev" || status=$?
           exit "$status"
         env:
           PLAYWRIGHT_HTML_OPEN: never

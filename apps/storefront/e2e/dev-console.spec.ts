@@ -18,6 +18,12 @@ import { excusedInDev, isOwnNotFound } from "./support/dev-console-excuses";
 
 test.setTimeout(90_000);
 
+// How long a page is watched after `networkidle`. Dev validation logs after hydration and after the
+// first client render, and a message that comes later is lost when the context closes: on a slow
+// runner a route could report clean that is not. There is no event to wait for instead, so this is
+// a margin (3 s; it was 1.5 s). Raise it if a message is ever seen to arrive late.
+const settleMs = 3_000;
+
 // Foundations pages are DS entries that exist today; plan T25 step 1 asks for "one atom page in
 // each of the four locales", and there are no atoms yet (T21 is not merged). T21 or T23 adds one
 // atom page to this list (SETUP.md, "The storefront in next dev (T25)").
@@ -41,6 +47,12 @@ const routes: { path: string; status: number }[] = [
 
 for (const route of routes) {
   test(`${route.path} logs nothing to the console in next dev`, async ({ browser, baseURL }) => {
+    // The config sets it; without it `new URL(path, "")` would throw "Invalid base URL" inside the
+    // excuse callback, far from the cause.
+    if (!baseURL)
+      throw new Error(
+        "dev-console needs a baseURL: playwright.config.ts sets E2E_BASE_URL or http://localhost:8000.",
+      );
     const context = await browser.newContext({ baseURL });
     const page = await context.newPage();
     const consoleMessages: Message[] = [];
@@ -49,18 +61,29 @@ for (const route of routes) {
     try {
       const response = await page.goto(route.path, { waitUntil: "load" });
       expect(response?.status(), `${route.path} answers ${route.status}`).toBe(route.status);
-      // Dev validation logs after hydration and after the first client render; let both finish.
+      // Let hydration and the first client render finish, then the margin above.
       await page.waitForLoadState("networkidle");
-      await page.waitForTimeout(1_500);
+      await page.waitForTimeout(settleMs);
     } finally {
-      await context.close();
+      // CI run 38876631305: two routes passed every step above and then sat in `context.close()`
+      // until the 90 s test timeout (the console was never judged; the server log was clean). Not
+      // reproduced off the runner (SETUP.md, "Code-review fixes (PR 41)"). The close is bounded, so
+      // a stuck browser costs 20 s and a warning instead of the test, and the console below is
+      // judged either way; the worker's teardown deals with the browser.
+      const closed = await Promise.race([
+        context.close().then(
+          () => true,
+          () => true,
+        ),
+        new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 20_000)),
+      ]);
+      if (!closed) console.warn(`${route.path}: context.close() did not return within 20 s`);
     }
     const { local, judged, summary, failedLine } = judgeConsole(
       consoleMessages,
       failedRequests,
       baseURL,
-      (message) =>
-        excusedInDev(route.path, message) || isOwnNotFound(message, route, baseURL ?? ""),
+      (message) => excusedInDev(route.path, message) || isOwnNotFound(message, route, baseURL),
     );
     console.log(
       `${route.path}: ${consoleMessages.length} console messages, ${judged.length} judged, ${judged.length - summary.length} excused; ${failedLine}` +
