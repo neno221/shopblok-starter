@@ -119,6 +119,21 @@ describe("EntryPage", () => {
       expect(markup).toContain(`Preview at ${width} px: Sample`);
     }
   });
+
+  it("labels the width buttons by their purpose, not with the entry's name", () => {
+    const markup = page("en");
+    expect(markup).toMatch(/<div role="group" aria-label="Preview width"/);
+    expect(markup).not.toMatch(/role="group" aria-label="Sample"/);
+  });
+
+  it("draws no frame at 1:1 before the column is measured (server render, first client render)", () => {
+    const markup = page("en");
+    // Hidden, and every frame wrapper has no size yet; the scale note waits for a measurement.
+    expect(markup).toContain('class="invisible flex items-start"');
+    expect(markup.match(/style="width:0;height:0"/g)).toHaveLength(3);
+    expect(markup).toContain("transform:scale(0)");
+    expect(markup).not.toContain("Scaled to fit");
+  });
 });
 
 describe("NavTree", () => {

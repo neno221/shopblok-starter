@@ -67,6 +67,7 @@ const designSystem = {
   },
   viewports: {
     all: "All three",
+    group: "Preview width",
     scaleNote: "Scaled to fit",
     title: "Preview at",
     openFrame: "Open the frame",
@@ -75,7 +76,6 @@ const designSystem = {
     market: "Market",
     currency: "Currency",
   },
-  noEntries: "This group has no entries yet.",
 };
 
 const en = {

@@ -2,6 +2,7 @@ import { fileURLToPath } from "node:url";
 import { withPayload } from "@payloadcms/next/withPayload";
 import type { NextConfig } from "next";
 import { PHASE_DEVELOPMENT_SERVER } from "next/constants";
+import { designSystemBuildFlag } from "./src/lib/env";
 
 // The repo root. The shared packages are linked from `packages/*` and Next compiles their source
 // (D3), so Turbopack and the file tracing must see outside this folder. The Payload templates point
@@ -19,6 +20,12 @@ function buildConfig(phase: string): NextConfig {
       // The app has one root layout per market, so there is no single layout for a 404 page.
       globalNotFound: true,
     },
+    // D33: the design-system flag is read when `next build` runs. `env` replaces every
+    // `process.env.DESIGN_SYSTEM_ENABLED` in the bundles with this string, so `next start` never
+    // reads it. Without this, a build without the flag would still prerender one DS path and render
+    // the others on request, reading the runtime environment (`dynamicParams = false` is a build
+    // error under Cache Components). It is always `"true"` or `"false"`, never undefined.
+    env: { DESIGN_SYSTEM_ENABLED: designSystemBuildFlag() },
     turbopack: { root: repoRoot },
     outputFileTracingRoot: repoRoot,
     // `/design-system` has no page of its own; the locale is a path segment (D33). Not permanent: the

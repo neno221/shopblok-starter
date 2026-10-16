@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   DEFAULT_MEDUSA_BACKEND_URL,
+  designSystemBuildFlag,
   designSystemEnabled,
   e2eRoutesEnabled,
   env,
@@ -194,5 +195,27 @@ describe("designSystemEnabled (the gate of the design-system pages, D33)", () =>
     expect(designSystemEnabled()).toBe(false);
     vi.stubEnv("DESIGN_SYSTEM_ENABLED", "true");
     expect(designSystemEnabled()).toBe(true);
+  });
+});
+
+describe("designSystemBuildFlag (what next.config.ts freezes into the bundle, D33)", () => {
+  it("is `true` only for the exact value `true`, and `false` for everything else", () => {
+    expect(designSystemBuildFlag({ DESIGN_SYSTEM_ENABLED: "true" })).toBe("true");
+    for (const DESIGN_SYSTEM_ENABLED of [undefined, "", "1", "TRUE", " true", "false", "yes"]) {
+      expect(designSystemBuildFlag({ DESIGN_SYSTEM_ENABLED }), String(DESIGN_SYSTEM_ENABLED)).toBe(
+        "false",
+      );
+    }
+  });
+
+  it("does not look at NODE_ENV: `next dev` has its own rule in designSystemEnabled", () => {
+    expect(designSystemBuildFlag({ NODE_ENV: "development" })).toBe("false");
+  });
+
+  it("reads the real environment by default", () => {
+    vi.stubEnv("DESIGN_SYSTEM_ENABLED", "true");
+    expect(designSystemBuildFlag()).toBe("true");
+    vi.stubEnv("DESIGN_SYSTEM_ENABLED", "");
+    expect(designSystemBuildFlag()).toBe("false");
   });
 });

@@ -4,6 +4,7 @@ import type { DsContext, DsEntry } from "../types";
 import { EntryBody } from "./entry-body";
 import { LocaleToggle } from "./locale-toggle";
 import { Section } from "./section";
+import { viewportWidths } from "../viewport-widths";
 import { ViewportSwitcher } from "./viewport-switcher";
 
 const copy = catalogs.en.designSystem;
@@ -43,8 +44,10 @@ export function EntryPage({ entry, ctx }: { entry: DsEntry; ctx: DsContext }) {
           <ViewportSwitcher
             frameSrc={framePath(ctx.locale, entry)}
             entryLabel={entry.label}
+            widths={viewportWidths()}
             labels={{
               all: copy.viewports.all,
+              group: copy.viewports.group,
               scaleNote: copy.viewports.scaleNote,
               title: copy.viewports.title,
               openFrame: copy.viewports.openFrame,
