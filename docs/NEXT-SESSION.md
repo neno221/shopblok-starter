@@ -1,26 +1,31 @@
-# M1: T19 and T21 to T25 are done; T26 is next, after S4
+# M1: S4 passed; T26 is next
+
+**S4 passed** (2026-10-16, [PR 45](https://github.com/stephanos221/shopblok-starter/pull/45), SETUP.md "Backend outage (S4)"): [ADR 0004](adr/0004-catalog-data-in-the-shell.md) is *Accepted* with D36 as you chose it. A product page that reads Medusa in its static shell kept serving the last good page while Medusa was down, answered 500 for a page it had never rendered and a real 404 for a missing product, recovered without a restart, and built in CI's state with a stand-in; `/next/status` answered 503 within 2.01 s in every outage. The deciding cases were repeated on `main` after T24, with the same results. **Merge the PR with a merge commit (G2):** the prototype commit `bbb4045` has to stay in `main`'s history. S4 adds six readings that stand unless you change them (below, item 1), and one of them has a real alternative.
+
+**The cloud environment needs a look.** Its setup script last ran on 2026-10-15 at 20:41 UTC with no network, so the saved copy has no pnpm 12.10.1, no compose images, no Chromium in `/opt/ms-playwright`, and no `/opt/dtc-starter` or `/opt/payload-templates`. You also changed its Network access on 2026-10-16, because the package hosts were refused. A change to the allowed domains or the script makes the script run again, so the next session should find it fixed: `grep -E 'setup (start|end)|step 6' /var/log/shopblok-setup.log` tells. If not, CLOUD.md ("What every cloud session does first", steps 1 and 3) has the workarounds S4's session used; one of them, npm through the agent proxy, needs your approval in the session.
 
 **T24 added the `design-system` CI job** (2026-10-16, SETUP.md "DS checks (T24)"): every atom at 375, 768 and 1440 px in `en` and `el` (192 cells) is checked with axe, for overflow, for 44 px targets and for console messages, with a screenshot of each in the `design-system-report` artifact. **T23 added the other 15 atoms** (2026-10-16, SETUP.md "Atoms (T23)"), so all 32 of SPEC §9.3 (the plan said 33) are in `packages/ui/src/atoms/` with tests and DS entries (`atoms-commerce.tsx`); Price formats through `formatMoney`, PaymentIcon uses simple-icons and Flag country-flag-icons as a server component. Two choices are **yours to change**: unavailable swatches and size pills stay focusable, and the quantity stepper keeps Base UI's keyboard model (Tab reaches the input, the arrows step it). **T21 added the 17 shadcn atoms** (2026-10-16, SETUP.md "shadcn and ReUI (T21)"): `packages/ui/src/atoms/` on the tokens, each with component tests (Vitest, happy-dom, Testing Library) and a DS entry in `apps/storefront/src/design-system/atoms.tsx`; a scan (`src/atoms/class-rules.test.ts`) fails on a physical class, a colour literal, a `dark:` variant or `ring-ring/<alpha>` in any atom, T23's included. shadcn's registry now imports its own `cn` package (`src/lib/utils.ts` re-exports it); `clsx` and `tailwind-merge` are not used. Checkbox, Radio and Switch keep the kit's size with a `::after` hit area, and their `Label` (`min-h-11`) is the 44 px target. `/design-system/{locale}/atoms/select` is in the dev-console list. **T25** (PR 41) and **T22** (PR 40) are merged: the dev-console step ends `e2e-smoke`, `/favicon.ico` is a placeholder (**yours to replace**), and the DS shell has the Foundations pages and the `DESIGN_SYSTEM_ENABLED` gate. **T19 built the tokens** (SETUP.md "Tokens (T19)"); **the field edge is yours to change** (below). Earlier: T18 exported the Figma kit ([SETUP.md](SETUP.md#figma-export-t18)), T20 wired Tailwind and Inter ([SETUP.md](SETUP.md#styles-and-fonts-t20)), M0 is closed ([PR 29](https://github.com/stephanos221/shopblok-starter/pull/29)), and the M1 plan is [plans/M1.md](plans/M1.md) ([PR 30](https://github.com/stephanos221/shopblok-starter/pull/30)).
 
 ## T26 · Docs, ADR 0004 and SPEC v0.7 (in a cloud session, after S4)
 
-**Wait for S4** (below): T26 makes ADR 0004 *Accepted* and writes its decision into SPEC §8.1 and §12, so it starts once S4's PR is merged and you have decided D36 if S4 failed.
+**Start once S4's PR is merged.** ADR 0004 is already *Accepted* (S4 passed), so T26 checks it and writes its decision into the spec: ADR 0004's "Spec changes" list the lines (§8.1, §8.3, §12, §14, §17.1), and the plan's §8 has them as item 16.
 
 Start a cloud session in the `shopblok-starter` environment, on `main`, and paste:
 
-> Run task T26 of docs/plans/M1.md: SETUP.md, README.md, ADR 0004 and SPEC v0.7. Start as docs/CLOUD.md, "What every cloud session does first", steps 1 to 4 say. Read docs/plans/M1.md (§1, §7, §8, §5 T26), docs/adr/0004 (S4's result) and SETUP.md's M1 sections ("Figma export (T18)" to "DS checks (T24)", and "Backend outage (S4)") first. Work on a new branch from `main`. Note that SPEC §9.3 has 32 atoms, not the plan's 33 (SETUP.md "Atoms (T23)"). Follow T26's steps and its Verify list, update the plan's status line and NEXT-SESSION.md (the W3 prompt next), then open a PR.
-
-## S4 · Backend outage spike (in a cloud session)
-
-Start a cloud session in the `shopblok-starter` environment, on `main`, and paste:
-
-> Run spike S4 of docs/plans/M1.md (§6): where the catalog pages' data lives, and the HTTP status of a backend outage (SPEC §8.1, decision D36). Start as docs/CLOUD.md, "What every cloud session does first", steps 1 to 4 say. Read docs/plans/M1.md (§1 D36, §6 S4), SETUP.md's "Medusa DAL and the wiring page (T12)" item 2, and docs/adr/0001-cache-components-payload.md first. Keep the prototype in one commit that the next commit removes, as S1 to S3 did. Run O1 to O10, write ADR 0004 (docs/adr/README.md's template) with the results; if S4 passes, set it to Accepted with D36 as the owner chose it on 2026-10-14, and if it fails, leave it Proposed with the fallback for the owner's decision; record everything in docs/SETUP.md under "Backend outage (S4)", update the plan and NEXT-SESSION.md, then open a PR with `gh api` (CLOUD.md) and don't merge it. Timebox: one day.
+> Run task T26 of docs/plans/M1.md: SETUP.md, README.md, ADR 0004 and SPEC v0.7. Start as docs/CLOUD.md, "What every cloud session does first", steps 1 to 4 say. Read docs/plans/M1.md (§1, §7, §8, §5 T26), docs/adr/0004-catalog-data-in-the-shell.md (S4's result and its "Spec changes") and SETUP.md's M1 sections ("Figma export (T18)" to "DS checks (T24)", and "Backend outage (S4)") first. Work on a new branch from `main`. Note that SPEC §9.3 has 32 atoms, not the plan's 33 (SETUP.md "Atoms (T23)"). Follow T26's steps and its Verify list, update the plan's status line and NEXT-SESSION.md (the W3 prompt next), then open a PR.
 
 ## Still open from M0 (yours)
 
 G3 is closed ([SETUP.md](SETUP.md#ci-t16), "CI (T16)", item 5, "Outcome"): Renovate is installed and its pin PR is merged, and Dependabot alerts are on. Secret scanning, push protection and branch protection are not available for a private repo on a personal Free account, so `main` stays unprotected. Wait for green CI before merging, because `gh pr merge --auto` merges at once.
 
 1. **Say so if you disagree with a default.** Each one stays unless you say.
+   - **ADR 0004's readings** (S4, "Decision"):
+     - catalog pages export `ensureStatic = "navigation"`; without it the first answers for a page never rendered are 200 (B2);
+     - **per-visitor parts on catalog pages, the header's cart count included, are Client Components that read in the browser**, because `cookies()` fails the build under that export even inside `Suspense` (B3). **The alternative:** drop the export and keep server-rendered islands, accepting a soft 200 on the first requests for a page never rendered;
+     - the catalog's `expire` is long, because a URL idle for longer than `expire` gives its first visitor a 500 during an outage;
+     - from M3, `e2e-smoke` starts Medusa before `pnpm build`, and a build with `MEDUSA_BACKEND_URL` set needs Medusa up (CI's `check` build uses a stand-in);
+     - `/next/status` reads Medusa's Store API, because `/health` answers 200 while Medusa's database is down;
+     - the 404 and 500 bodies of those pages are Next's bare error shell, filled in after hydration (a limitation; check on a `next` bump).
    - **T19's choices** (SETUP.md, "Tokens (T19)"):
      - **the field edge:** `input` is `#949494` (3.03:1, the lightest grey that passes; the kit's `#e5e5e5` is 1.26:1). The alternatives are `#737373`, or no visible edge where a fill or a label identifies the field (WCAG 1.4.11). Edit `semantic.input` in `packages/ui/tokens/shopblok.tokens.json` and run `pnpm tokens`;
      - **the ring** is drawn at alpha 1 in the same `#949494` (at the kit's 50 % it would have to be `#2a2a2a`);
@@ -56,7 +61,7 @@ G3 is closed ([SETUP.md](SETUP.md#ci-t16), "CI (T16)", item 5, "Outcome"): Renov
    - `--env-mode=loose` for `dev` only was considered and left out.
    - Payload's silent CLI exit is retried, and the upstream issue is yours to file (F4).
    - Orphan regions are reported by `doctor`, never deleted.
-   - Catalog data in a streamed part gives HTTP 200 on a backend outage (SPEC §8.1). W2's second run saw it again on the first request after `pnpm dev`, while Medusa was still starting. **M1 decides it:** D36 is your choice (2026-10-14), S4 checks it, and ADR 0004 records it.
+   - Catalog data in a streamed part gives HTTP 200 on a backend outage (SPEC §8.1). **Decided by ADR 0004** (S4 passed): the catalog pages read their data in the static shell, built that way in M3; the M0 wiring page keeps the streamed part until M3 replaces it.
    - Bootstrap keeps a plain-text dev password in a git-ignored file.
    - The prototypes stay in their commits, not on `spike/*` branches.
    - Medusa's one-time Claude Code question on the first `^C` has never been seen. It cannot appear on this PC, where the `medusa-dev` plugin is installed.

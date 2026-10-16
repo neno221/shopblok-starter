@@ -1,15 +1,16 @@
 # Architecture decision records
 
 An ADR records one decision that the code, the spec or a later task depends on, with the evidence that
-made it. M0 has three, one per spike (plan §6). Write the next one when a choice is expensive to undo
-or when someone will ask "why is it like this" in a year; do not write one for a choice the spec or the
-plan already makes.
+made it. M0 has three, one per spike (M0 plan §6), and M1 adds 0004 (S4, M1 plan §6). Write the next
+one when a choice is expensive to undo or when someone will ask "why is it like this" in a year; do not
+write one for a choice the spec or the plan already makes.
 
 | # | Title | Spike | Status |
 |---|---|---|---|
 | [0001](0001-cache-components-payload.md) | Cache Components with the embedded Payload admin | S1 | **Accepted** 2026-10-10: keep Cache Components on |
 | [0002](0002-search-locale-indexing.md) | Per-locale indexing with the Search Module | S2 | **Accepted** 2026-10-10: one index per locale on Meilisearch (M6), one multilingual index on Postgres (M3) |
 | [0003](0003-payload-locale-preloading.md) | Payload preloads 42 languages, and the `markets` global decides which the admin offers | S3 | **Accepted** 2026-10-10: keep the preload; locales only grow |
+| [0004](0004-catalog-data-in-the-shell.md) | Catalog pages read their data in the static shell, so a backend outage serves the last good page or a 5xx, never a 200 error page | S4 (M1) | **Accepted** 2026-10-16: D36 as the owner chose it, confirmed by S4's PASS; `ensureStatic = "navigation"`, per-visitor parts read in the browser, `/next/status` |
 
 ## Rules
 
