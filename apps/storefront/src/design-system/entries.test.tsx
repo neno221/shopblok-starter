@@ -105,6 +105,9 @@ describe("the atoms' entries (T21, T23)", () => {
   it("labels the rating in the locale's number format", () => {
     expect(html("atoms/rating", "de")).toContain("4,5 von 5");
     expect(html("atoms/rating", "en")).toContain("4.5 out of 5");
+    // A whole value is spoken without a padded zero (PR 43 review).
+    expect(html("atoms/rating", "en")).toContain("3 out of 5");
+    expect(html("atoms/rating", "en")).not.toContain("3.0 out of 5");
   });
 
   it("names the flags in the locale, from Intl", () => {

@@ -36,6 +36,30 @@ describe("Image", () => {
     expect(frame.getAttribute("data-loaded")).toBe("");
   });
 
+  it("drops the skeleton and marks the frame when the picture fails to load", async () => {
+    // A data URI that does not decode, so nothing loads after the error.
+    const { container } = render(<Image src="data:image/png;base64,AAAA" alt="A folded hoodie" />);
+    const frame = frameOf(container);
+    fireEvent.error(screen.getByRole("img", { name: "A folded hoodie" }));
+    await waitFor(() => expect(frame.getAttribute("data-failed")).toBe(""));
+    expect(frame.querySelector("[data-slot=image-placeholder]")).toBeNull();
+    expect(frame.querySelector("[data-slot=image-failed]")?.getAttribute("aria-hidden")).toBe(
+      "true",
+    );
+    expect(screen.getByRole("img", { name: "A folded hoodie" })).toBeTruthy();
+  });
+
+  it("shows the skeleton again for a new src", async () => {
+    const other = `${sampleImage.src}#other`;
+    const { container, rerender } = render(<Image src={sampleImage.src} alt="x" />);
+    const frame = frameOf(container);
+    fireEvent.load(screen.getByRole("img"));
+    await waitFor(() => expect(frame.getAttribute("data-loaded")).toBe(""));
+    rerender(<Image src={other} alt="x" />);
+    expect(frame.getAttribute("data-loaded")).toBeNull();
+    expect(frame.querySelector("[data-slot=image-placeholder]")).not.toBeNull();
+  });
+
   it("hides the skeleton from assistive technology", () => {
     const { container } = render(<Image src={sampleImage.src} alt="x" />);
     expect(

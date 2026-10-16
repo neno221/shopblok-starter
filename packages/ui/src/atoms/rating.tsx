@@ -1,10 +1,12 @@
 // Vendored from ReUI (`@reui/rating`, shadcn CLI 4.21.4, style base-vega), 2026-10-16. MIT, see
 // packages/ui/NOTICE.md. Edited (SETUP.md, "Atoms (T23)"): read-only, so the hover state, the
 // click handler and `"use client"` are gone and it renders on the server; the value is rounded to
-// the nearest half star; the colour is the `rating` token (not `yellow-400`) and the empty stars
-// `muted-foreground`; the whole rating is one `role="img"` named by the required `label` prop (D30:
-// "4.5 out of 5" in the page's language), and the visible value is the `valueText` prop (an
-// `Intl` string in the page's locale, not `toFixed`); partial stars fill from the inline start.
+// the nearest half star, and a value that is not a number counts as 0; the colour is the `rating`
+// token (not `yellow-400`) and the empty stars `muted-foreground` at full strength (4.95:1; ReUI's
+// 30 % is 1.48:1, under WCAG 1.4.11's 3:1); the whole rating is one `role="img"` named by the
+// required `label` prop (D30: "4.5 out of 5" in the page's language), and the visible value is the
+// `valueText` prop (an `Intl` string in the page's locale, not `toFixed`); partial stars fill from
+// the inline start.
 import { cva, type VariantProps } from "class-variance-authority";
 import { StarIcon } from "lucide-react";
 import type * as React from "react";
@@ -62,7 +64,10 @@ type RatingProps = Omit<React.ComponentProps<"div">, "children" | "role" | "aria
   };
 
 function Rating({ value, max = 5, label, valueText, size, className, ...props }: RatingProps) {
-  const shown = Math.min(Math.max(Math.round(value * 2) / 2, 0), max);
+  // A value that is not a number (an average of no reviews, 0 / 0) is drawn as 0: a NaN width
+  // would be dropped, and the filled star would cover the whole star.
+  const finite = Number.isFinite(value) ? value : 0;
+  const shown = Math.min(Math.max(Math.round(finite * 2) / 2, 0), max);
   return (
     <div
       data-slot="rating"
@@ -78,7 +83,7 @@ function Rating({ value, max = 5, label, valueText, size, className, ...props }:
             <div key={index} className="relative">
               <StarIcon
                 data-slot="rating-star-empty"
-                className={cn(starVariants({ size }), "text-muted-foreground/30")}
+                className={cn(starVariants({ size }), "text-muted-foreground")}
               />
               <div className="absolute inset-0 overflow-hidden" style={{ width: `${fill}%` }}>
                 <StarIcon

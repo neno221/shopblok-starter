@@ -20,11 +20,15 @@ type SwatchProps = Omit<
   /** The URL of a texture or product image, when a colour is not enough. */
   image?: string;
   selected?: boolean;
-  /** Sold out in this option: struck through, still reachable. */
-  unavailable?: boolean;
-  /** Read out after the name when `unavailable` ("Unavailable"). */
-  unavailableLabel?: string;
-};
+} & (
+    | { unavailable?: false; unavailableLabel?: string }
+    | {
+        /** Sold out in this option: struck through, still reachable. */
+        unavailable: true;
+        /** Read out after the name ("Unavailable"): without it the state would be a line alone. */
+        unavailableLabel: string;
+      }
+  );
 
 function Swatch({
   label,
@@ -33,7 +37,6 @@ function Swatch({
   selected = false,
   unavailable = false,
   unavailableLabel,
-  disabled,
   className,
   type = "button",
   ...props
@@ -45,7 +48,6 @@ function Swatch({
       data-selected={selected ? "" : undefined}
       data-unavailable={unavailable ? "" : undefined}
       aria-pressed={selected}
-      disabled={disabled}
       className={cn(
         "relative inline-flex size-11 shrink-0 items-center justify-center rounded-full border border-transparent outline-none transition-colors hover:border-border focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 data-selected:border-2 data-selected:border-primary data-unavailable:opacity-60",
         className,

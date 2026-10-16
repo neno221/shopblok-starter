@@ -45,4 +45,9 @@ describe("Logo", () => {
     expect(text.className).not.toMatch(CLIPPING_CLASSES);
     expect(text.className).toContain("max-w-full");
   });
+
+  it("shows the name as text for a falsy child, not an empty image", () => {
+    render(<Logo name="Shopblok">{false}</Logo>);
+    expect(screen.getByText("Shopblok")).toBeTruthy();
+  });
 });

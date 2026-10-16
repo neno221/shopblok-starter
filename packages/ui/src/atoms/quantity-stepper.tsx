@@ -38,7 +38,7 @@ function QuantityStepper({
       data-slot="quantity-stepper"
       min={min}
       step={step}
-      className={cn("flex w-fit max-w-full flex-col items-start gap-2", className)}
+      className={cn("flex w-fit max-w-full", className)}
       {...props}
     >
       <NumberFieldPrimitive.Group

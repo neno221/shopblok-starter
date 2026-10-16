@@ -2969,3 +2969,25 @@ The review is `reviews/pr-42-code-review.md`. Every finding held; each was check
 3. **Link has two variants:** `inline` for links in running text (exempt from D32) and `standalone` at 44 px.
 4. **Rating rounds to halves**, as the plan's "halves included" suggests; the label says the exact value given.
 5. `dev-console.spec.ts` keeps T21's one atom page (`atoms/select`); the 180-page check above covered the new ones once, and T24 checks every atom in CI.
+
+### Code-review fixes (PR 43)
+
+The review is `reviews/pr-43-code-review.md`. The first CI run also failed one test on both Node versions, fixed first.
+
+| # | Finding | What changed |
+|---|---|---|
+| CI | `check` failed: the Price entry's `fr` test expected `1'249.50 CHF` | The runners' Node writes fr-CH's grouping mark as an ASCII apostrophe, which React escapes as `&#x27;` in markup (this VM's Node 22.22.0 writes U+202F). The test unescapes it before comparing (SPEC §14, "Test rule") |
+| 1 | A selected sold-out SizePill is grey on black (4.24:1) | `data-unavailable:not-data-selected:text-muted-foreground`: selected keeps `primary-foreground` (measured in Chromium: `#fafafa` on `#000`). Swatch and SizePill have a "Selected and unavailable" state |
+| 2 | Image never recovers from a failed load | `onError` drops the skeleton and draws an "image missing" mark (Lucide `ImageOff`, hidden from assistive technology) on the muted fill; `data-failed` on the frame. A failure before hydration is not detected (`complete` with no width is also a picture that has not started) |
+| 3 | Image's state survives a new `src` | The state is keyed on the source (a URL, or a static import's `src`), so a new `src` shows the skeleton again |
+| 4 | `unavailable` did not require `unavailableLabel` | A union on Swatch and SizePill, as Chip and Price have; `@ts-expect-error` tests |
+| 5 | Rating's empty stars were 1.48:1 | Full `muted-foreground` (4.95:1); the header says so |
+| 6 | A `NaN` rating drew five stars | A value that is not finite counts as 0; a test |
+| 7 | The VisuallyHidden entry | No `aria-hidden` on the live render, and a space before the hidden text |
+| 8 | The rating label padded whole numbers | The spoken value has no padded zero and `max` is formatted the same way ("3 out of 5"); the drawn value keeps one decimal |
+| 9 | `soldOutSize`'s comment | Corrected |
+| 11 | Logo showed an empty image for `false` | `null`, `undefined`, `false` and `""` show the name as text; a test |
+| 16 | Leftovers | QuantityStepper's root drops ReUI's label layout; Swatch passes `disabled` through `props` |
+| 10, 12 to 15 | Flag's fallback props, `isFlagCode`'s module, Image's `sizes` default, simple-icons' root import in dev, the `{name}` filler's home | Left for M2, which builds the first callers (MarketSwitcher, the product grid, the cart): each is a choice about how those use the atoms rather than a defect in T23 |
+
+**Proof.** ui 330 tests, storefront 677; `tsc` and `eslint` in both; `next build` with the flag, then the 180-page Chromium check again (15 frames × 4 locales × 3 widths): no overflow, no clipping, every control at least 44 × 44, no console message.

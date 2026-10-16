@@ -76,4 +76,9 @@ describe("Swatch", () => {
     render(<Swatch label={strings.optionLabel} colour="#111111" />);
     expect(screen.getByRole("button", { name: strings.optionLabel })).toBeTruthy();
   });
+
+  it("needs unavailableLabel when unavailable", () => {
+    // @ts-expect-error -- without its label the sold-out state would be a line alone (WCAG 1.4.1).
+    render(<Swatch label="Forest" colour="green" unavailable />);
+  });
 });

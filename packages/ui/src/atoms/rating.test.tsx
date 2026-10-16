@@ -41,6 +41,23 @@ describe("Rating", () => {
     ]);
   });
 
+  it("draws a value that is not a number as 0, not as five stars", () => {
+    expect(fills(render(<Rating value={Number.NaN} label="a" />).container)).toEqual([
+      "0%",
+      "0%",
+      "0%",
+      "0%",
+      "0%",
+    ]);
+  });
+
+  it("draws the empty stars in the full muted-foreground (3:1 for a graphic)", () => {
+    const { container } = render(<Rating value={1} label="a" />);
+    const empty = container.querySelector("[data-slot=rating-star-empty]");
+    expect(empty?.getAttribute("class")).toContain("text-muted-foreground");
+    expect(empty?.getAttribute("class")).not.toMatch(/text-muted-foreground\//);
+  });
+
   it("rounds to the nearest half and stays between 0 and the maximum", () => {
     expect(fills(render(<Rating value={4.6} label="a" />).container)[4]).toBe("50%");
     expect(fills(render(<Rating value={4.8} label="b" />).container)[4]).toBe("100%");

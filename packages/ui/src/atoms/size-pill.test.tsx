@@ -37,6 +37,22 @@ describe("SizePill", () => {
     expect(onClick).toHaveBeenCalledTimes(1);
   });
 
+  it("keeps the fill's foreground when selected and unavailable (muted on black is 4.24:1)", () => {
+    render(
+      <SizePill selected unavailable unavailableLabel="Unavailable">
+        XL
+      </SizePill>,
+    );
+    const classes = screen.getByRole("button").className.split(" ");
+    expect(classes).toContain("data-unavailable:not-data-selected:text-muted-foreground");
+    expect(classes).not.toContain("data-unavailable:text-muted-foreground");
+  });
+
+  it("needs unavailableLabel when unavailable", () => {
+    // @ts-expect-error -- without its label the sold-out state would be a line alone (WCAG 1.4.1).
+    render(<SizePill unavailable>XL</SizePill>);
+  });
+
   it("does nothing when disabled", async () => {
     const onClick = vi.fn();
     const user = userEvent.setup();

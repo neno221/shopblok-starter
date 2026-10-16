@@ -15,7 +15,8 @@ type LogoProps = Omit<React.ComponentProps<"span">, "children" | "role" | "aria-
 
 function Logo({ name, children, className, ...props }: LogoProps) {
   const base = "inline-flex max-w-full items-center text-foreground";
-  if (children === undefined || children === null) {
+  // `{svg && <Svg />}` with no SVG passes `false`: that is no logo too, not an empty image.
+  if (children == null || children === false || children === "") {
     return (
       <span
         data-slot="logo"

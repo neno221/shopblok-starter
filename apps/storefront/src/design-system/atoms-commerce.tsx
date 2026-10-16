@@ -52,17 +52,21 @@ function fill(template: string, values: Record<string, string | number>): string
 
 const copy = (ctx: DsContext) => catalogs[ctx.locale].atoms;
 
+/** The value drawn beside the stars: always one decimal ("4.0"). */
 const formatNumber = (ctx: DsContext, value: number) =>
   new Intl.NumberFormat(ctx.fixture.market.htmlLang, {
     minimumFractionDigits: 1,
     maximumFractionDigits: 1,
   }).format(value);
 
-const ratingLabel = (ctx: DsContext, value: number) =>
-  fill(copy(ctx).rating.label, {
-    value: formatNumber(ctx, value),
-    max: ctx.fixture.rating.max,
+/** The spoken value: no padded zero ("3 out of 5", not "3.0"), `max` in the same format. */
+const ratingLabel = (ctx: DsContext, value: number) => {
+  const format = new Intl.NumberFormat(ctx.fixture.market.htmlLang, { maximumFractionDigits: 1 });
+  return fill(copy(ctx).rating.label, {
+    value: format.format(value),
+    max: format.format(ctx.fixture.rating.max),
   });
+};
 
 /** What the stock count says: out at zero, low at the threshold or under, in stock above it. */
 function stockStatus(ctx: DsContext, count: number): StockStatus {
@@ -87,7 +91,7 @@ const marketCodes = (Object.keys(designSystemFixtures) as Locale[]).map(
   (locale) => designSystemFixtures[locale].market.country,
 );
 
-/** The fixture's colours, then the first size or colour that is sold out. */
+/** The first of the fixture's sizes that is sold out. */
 const soldOutSize = (ctx: DsContext) => ctx.fixture.sizes.find((size) => !size.available);
 
 const sampleMark = (
@@ -648,6 +652,25 @@ export const commerceAtoms: readonly DsEntry[] = [
         },
       },
       {
+        id: "selected-unavailable",
+        label: "Selected and unavailable",
+        description: "A sold-out colour that has been picked: the thicker edge and the line.",
+        render: (ctx) => {
+          const colour = ctx.fixture.colours[4];
+          return colour ? (
+            <Named name={`${colour.name}, ${copy(ctx).variant.unavailable}`}>
+              <Swatch
+                label={colour.name}
+                colour={colour.hex}
+                selected
+                unavailable
+                unavailableLabel={copy(ctx).variant.unavailable}
+              />
+            </Named>
+          ) : null;
+        },
+      },
+      {
         id: "disabled",
         label: "Disabled",
         render: (ctx) => {
@@ -729,6 +752,17 @@ export const commerceAtoms: readonly DsEntry[] = [
         description: "Struck through; the name says so.",
         render: (ctx) => (
           <SizePill unavailable unavailableLabel={copy(ctx).variant.unavailable}>
+            {soldOutSize(ctx)?.label}
+          </SizePill>
+        ),
+      },
+      {
+        id: "selected-unavailable",
+        label: "Selected and unavailable",
+        description:
+          "A sold-out size that has been picked: the fill's own text colour, struck through.",
+        render: (ctx) => (
+          <SizePill selected unavailable unavailableLabel={copy(ctx).variant.unavailable}>
             {soldOutSize(ctx)?.label}
           </SizePill>
         ),
@@ -941,8 +975,7 @@ export const commerceAtoms: readonly DsEntry[] = [
     ],
     live: (ctx) => (
       <p className="text-sm">
-        <span aria-hidden="true">{ctx.fixture.ordinary.badge}</span>
-        <VisuallyHidden>{ctx.fixture.ordinary.hint}</VisuallyHidden>
+        {ctx.fixture.ordinary.badge} <VisuallyHidden>{ctx.fixture.ordinary.hint}</VisuallyHidden>
       </p>
     ),
     states: [
@@ -952,7 +985,7 @@ export const commerceAtoms: readonly DsEntry[] = [
         description: "Nothing shows after the visible text; a screen reader reads both.",
         render: (ctx) => (
           <p className="text-sm">
-            {ctx.fixture.ordinary.badge}
+            {ctx.fixture.ordinary.badge}{" "}
             <VisuallyHidden>{ctx.fixture.ordinary.hint}</VisuallyHidden>
           </p>
         ),
@@ -973,8 +1006,7 @@ export const commerceAtoms: readonly DsEntry[] = [
         label: "Long text",
         render: (ctx) => (
           <p className="text-sm">
-            {ctx.fixture.long.badge}
-            <VisuallyHidden>{ctx.fixture.long.hint}</VisuallyHidden>
+            {ctx.fixture.long.badge} <VisuallyHidden>{ctx.fixture.long.hint}</VisuallyHidden>
           </p>
         ),
       },
