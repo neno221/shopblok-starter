@@ -3145,7 +3145,7 @@ ADR 0004 has the full tables. In short, for B unless the row says otherwise:
 | | |
 |---|---|
 | Date | 2026-10-16 (steps 1 to 3 and the review) and 2026-10-17 (step 4 on; the PC had been switched off in between, which stopped `pnpm dev` and the stack) |
-| Machine | As in W2: Windows 11 Home 10.0.26200, E: NTFS; Node v22.22.0; pnpm 12.10.1; Docker 29.8.2 (Docker Desktop) |
+| Machine | As in W2: Windows 11 Home 10.0.26200, E: NTFS; Node v22.22.0 (below `.nvmrc`'s v22.23.3, which CI uses, and inside `engines`); pnpm 12.10.1; Docker 29.8.2 (Docker Desktop) |
 | Before | `docker compose ls -a` listed none of this project's stacks running (`doomerdeals` exited, `stoa-marketplace` on its own ports). Ports 15432, 6380, 7701, 1025, 8025, 8000 and 9000 were free |
 | Checkout | `git switch main`, `git pull`: fast-forward from `f487874` to **`b38a0a7`** (PR 46's merge). `pnpm install --frozen-lockfile` 90.3 s (`Done in 1m 30.1s`, 74 packages added for M1). `docker compose up -d --wait` 8.0 s, four healthy. `pnpm bootstrap` 227.3 s: `0 done, 10 unchanged, 2 skipped` (this checkout's volumes, filled by an earlier run) |
 | Run by | A local Claude Code session (the desktop app's Code tab, PowerShell). `pnpm dev` and `next start` ran in the app's Terminal panel, and its Ctrl+C was the panel's own. The pages were read by Playwright scripts in the session's scratchpad (Playwright 1.64.0 from `apps/storefront`, headless Chromium) |
@@ -3163,7 +3163,7 @@ ADR 0004 has the full tables. In short, for B unless the row says otherwise:
 
 ### Design review (the owner's, the plan's W3 step 2)
 
-The owner went through the DS page against the kit in Figma and approved it on 2026-10-16 with no difference to change. Add a row for anything seen later.
+The owner went through the DS page against the kit in Figma and approved it on 2026-10-16 (the day before the run finished) with no difference to change. Add a row for anything seen later.
 
 | What I saw | Fix task or accepted |
 |---|---|
@@ -3172,6 +3172,7 @@ The owner went through the DS page against the kit in Figma and approved it on 2
 ### What should change in the plan
 
 1. **M1 is closed.** The status line, §7 item 9 and NEXT-SESSION.md say so. No decision changes, and nothing goes to a fix task.
+2. **§7 item 8 on M1's last PR.** This PR changes no dependency file, so `windows-gate` skips `windows-smoke` (as on PR 46). The CI workflow was started by hand on this PR's branch ([run 38979390649](https://github.com/stephanos221/shopblok-starter/actions/runs/38979390649), commit `c8966e1`), and every job passed: `check` on Node 22 and 24, `backend-integration`, `e2e-smoke`, `design-system` and `windows-smoke` (8 m 45 s on `windows-latest`).
 
 ### Smaller observations
 
