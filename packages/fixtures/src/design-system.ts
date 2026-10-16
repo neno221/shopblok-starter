@@ -48,6 +48,14 @@ export type DesignSystemStrings = {
   personName: string;
   /** A progress bar's label. */
   progressLabel: string;
+  /** A link's text. */
+  linkLabel: string;
+  /** A chip's text. */
+  chipLabel: string;
+  /** The store's name: the logo's accessible name. */
+  storeName: string;
+  /** An image's alternative text. */
+  imageAlt: string;
 };
 
 export type DesignSystemFixture = {
@@ -76,6 +84,18 @@ export type DesignSystemFixture = {
   shortcut: string[];
   sizes: { label: string; available: boolean }[];
   colours: { name: string; hex: string }[];
+};
+
+/**
+ * A sample product photo for the Image and Swatch entries: a data URI, so no host is needed and
+ * `next/image` serves it as it is. Neutral shapes stand in for the photograph.
+ */
+export const sampleImage = {
+  src: `data:image/svg+xml,${encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="600" height="800" viewBox="0 0 600 800"><rect width="600" height="800" fill="#d9cdb8"/><rect y="560" width="600" height="240" fill="#a99b82"/><rect x="150" y="160" width="300" height="360" rx="24" fill="#f2ede2"/></svg>',
+  )}`,
+  width: 600,
+  height: 800,
 };
 
 const sizes: DesignSystemFixture["sizes"] = [
@@ -128,6 +148,10 @@ const en: DesignSystemFixture = {
     badge: "New",
     hint: "Save for later",
     personName: "Anna Keller",
+    linkLabel: "Size guide",
+    chipLabel: "Organic cotton",
+    storeName: "Shopblok",
+    imageAlt: "A folded Heritage Hoodie in oatmeal on a wooden shelf",
     progressLabel: "Order progress",
   },
   long: {
@@ -145,6 +169,10 @@ const en: DesignSystemFixture = {
     badge: "New this season, limited run",
     hint: "Save this item to your wishlist and buy it later",
     personName: "Anna-Katharina Keller-Papadopoulou",
+    linkLabel: "Read our full size guide and fit notes before you order",
+    chipLabel: "Organic cotton, brushed inside, made in Portugal",
+    storeName: "Shopblok Heritage Outfitters and Everyday Goods",
+    imageAlt: "A folded Heritage Hoodie in oatmeal wool-blend fleece on a wooden shelf next to a pair of boots",
     progressLabel: "Spend a little more to get free delivery on this order",
   },
   prices: prices(64, 49),
@@ -184,6 +212,10 @@ const el: DesignSystemFixture = {
     badge: "Νέο",
     hint: "Αποθήκευση για αργότερα",
     personName: "Άννα Παπαδοπούλου",
+    linkLabel: "Οδηγός μεγεθών",
+    chipLabel: "Οργανικό βαμβάκι",
+    storeName: "Shopblok",
+    imageAlt: "Ένα διπλωμένο φούτερ Heritage σε χρώμα βρώμης πάνω σε ξύλινο ράφι",
     progressLabel: "Πρόοδος παραγγελίας",
   },
   long: {
@@ -203,6 +235,10 @@ const el: DesignSystemFixture = {
     badge: "Νέο αυτή τη σεζόν, περιορισμένη παραγωγή",
     hint: "Αποθηκεύστε το προϊόν στη λίστα επιθυμιών για να το αγοράσετε αργότερα",
     personName: "Αικατερίνη Παπαδοπούλου-Χριστοδουλίδου",
+    linkLabel: "Διαβάστε τον πλήρη οδηγό μεγεθών και τις οδηγίες εφαρμογής πριν παραγγείλετε",
+    chipLabel: "Οργανικό βαμβάκι, βουρτσισμένο εσωτερικά, κατασκευασμένο στην Πορτογαλία",
+    storeName: "Shopblok Heritage Outfitters και καθημερινά είδη",
+    imageAlt: "Ένα διπλωμένο φούτερ Heritage σε χρώμα βρώμης από φλις μείγματος μαλλιού πάνω σε ξύλινο ράφι δίπλα σε ένα ζευγάρι μπότες",
     progressLabel: "Ξοδέψτε λίγο ακόμα για δωρεάν αποστολή σε αυτή την παραγγελία",
   },
   prices: prices(59, 47),
@@ -242,6 +278,10 @@ const de: DesignSystemFixture = {
     badge: "Neu",
     hint: "Für später merken",
     personName: "Anna Keller",
+    linkLabel: "Größentabelle",
+    chipLabel: "Bio-Baumwolle",
+    storeName: "Shopblok",
+    imageAlt: "Ein gefalteter Heritage-Hoodie in Hafer auf einem Holzregal",
     progressLabel: "Bestellfortschritt",
   },
   long: {
@@ -262,6 +302,10 @@ const de: DesignSystemFixture = {
     badge: "Neu in dieser Saison, limitierte Auflage",
     hint: "Diesen Artikel auf die Wunschliste setzen und später kaufen",
     personName: "Anna-Katharina Keller-Schwarzenberger",
+    linkLabel: "Lesen Sie vor der Bestellung unsere vollständige Größentabelle und die Hinweise zur Passform",
+    chipLabel: "Bio-Baumwolle, innen gebürstet, hergestellt in Portugal",
+    storeName: "Shopblok Heritage Ausstatter für Alltagsgegenstände",
+    imageAlt: "Ein gefalteter Heritage-Kapuzenpullover in Hafer aus Fleece mit Wollanteil auf einem Holzregal neben einem Paar Stiefel",
     progressLabel:
       "Noch ein wenig mehr bestellen, um bei dieser Bestellung kostenlosen Versand zu erhalten",
   },
@@ -302,6 +346,10 @@ const fr: DesignSystemFixture = {
     badge: "Nouveau",
     hint: "Enregistrer pour plus tard",
     personName: "Anne Keller",
+    linkLabel: "Guide des tailles",
+    chipLabel: "Coton biologique",
+    storeName: "Shopblok",
+    imageAlt: "Un sweat à capuche Heritage plié, couleur avoine, sur une étagère en bois",
     progressLabel: "Progression de la commande",
   },
   long: {
@@ -321,6 +369,10 @@ const fr: DesignSystemFixture = {
     badge: "Nouveau cette saison, série limitée",
     hint: "Enregistrer cet article dans la liste d’envies pour l’acheter plus tard",
     personName: "Anne-Catherine Keller-Dubois-Lefèvre",
+    linkLabel: "Lisez notre guide des tailles complet et les conseils de coupe avant de commander",
+    chipLabel: "Coton biologique, gratté à l’intérieur, fabriqué au Portugal",
+    storeName: "Shopblok Heritage, équipement pour le quotidien",
+    imageAlt: "Un sweat à capuche Heritage plié en molleton mêlé de laine, couleur avoine, sur une étagère en bois à côté d’une paire de bottes",
     progressLabel:
       "Encore un petit effort pour profiter de la livraison gratuite sur cette commande",
   },
