@@ -2990,4 +2990,4 @@ The review is `reviews/pr-43-code-review.md`. The first CI run also failed one t
 | 16 | Leftovers | QuantityStepper's root drops ReUI's label layout; Swatch passes `disabled` through `props` |
 | 10, 12 to 15 | Flag's fallback props, `isFlagCode`'s module, Image's `sizes` default, simple-icons' root import in dev, the `{name}` filler's home | Left for M2, which builds the first callers (MarketSwitcher, the product grid, the cart): each is a choice about how those use the atoms rather than a defect in T23 |
 
-**Proof.** ui 330 tests, storefront 677; `tsc` and `eslint` in both; `next build` with the flag, then the 180-page Chromium check again (15 frames × 4 locales × 3 widths): no overflow, no clipping, every control at least 44 × 44, no console message.
+**Proof.** ui 326 tests, storefront 677; `tsc` and `eslint` in both; `next build` with the flag, then the 180-page Chromium check again (15 frames × 4 locales × 3 widths): no overflow, no clipping, every control at least 44 × 44, no console message.
