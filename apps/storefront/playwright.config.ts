@@ -5,6 +5,11 @@ import { defineConfig, devices } from "@playwright/test";
 // Nothing here starts it, so the same specs can run in CI (T16), where bootstrap does the filling.
 // Build fresh before a run that changes the map: `next start` can serve a page from an earlier
 // map after a restart (SETUP.md, "After a restart").
+// The `dev-console` project (T25, D37) runs against `next dev`, which is not the server the other
+// projects need, so it exists only when asked: `E2E_DEV_CONSOLE=true playwright test
+// --project=dev-console`. Without the variable the default run is what it was.
+const devConsole = process.env["E2E_DEV_CONSOLE"] === "true";
+
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: true,
@@ -20,19 +25,27 @@ export default defineConfig({
     baseURL: process.env["E2E_BASE_URL"] ?? "http://localhost:8000",
     trace: "retain-on-failure",
   },
-  projects: [
-    {
-      name: "chromium",
-      use: { ...devices["Desktop Chrome"] },
-      testIgnore: /payload-locales\.spec\.ts/,
-    },
-    // Saves the `markets` global (and puts it back), which the other suites read through the proxy:
-    // it runs when all of them are done.
-    {
-      name: "locales",
-      use: { ...devices["Desktop Chrome"] },
-      testMatch: /payload-locales\.spec\.ts/,
-      dependencies: ["chromium"],
-    },
-  ],
+  projects: devConsole
+    ? [
+        {
+          name: "dev-console",
+          use: { ...devices["Desktop Chrome"] },
+          testMatch: /dev-console\.spec\.ts/,
+        },
+      ]
+    : [
+        {
+          name: "chromium",
+          use: { ...devices["Desktop Chrome"] },
+          testIgnore: [/payload-locales\.spec\.ts/, /dev-console\.spec\.ts/],
+        },
+        // Saves the `markets` global (and puts it back), which the other suites read through the proxy:
+        // it runs when all of them are done.
+        {
+          name: "locales",
+          use: { ...devices["Desktop Chrome"] },
+          testMatch: /payload-locales\.spec\.ts/,
+          dependencies: ["chromium"],
+        },
+      ],
 });

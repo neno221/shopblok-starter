@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { adminCredentials } from "./support/admin-credentials";
+import { collectConsole, judgeConsole, type FailedRequest, type Message } from "./support/console";
 
 // T16: Payload's admin inside the storefront, end to end: the admin that `pnpm bootstrap` made
 // logs in, creates a page with a title per language, and the API serves each language. It is the
@@ -37,25 +38,11 @@ const PNG = Buffer.from(
   "base64",
 );
 
-type Message = { type: string; text: string; page: string; source: string };
-
 /** A client navigation keeps the document alive and leaves this marker; a full reload erases it. */
 const mark = (page: Page) =>
   page.evaluate(() => ((window as unknown as { __e2e: number }).__e2e = 1));
 const marked = (page: Page) =>
   page.evaluate(() => (window as unknown as { __e2e?: number }).__e2e === 1);
-
-/** A request to another host than `baseURL`'s (the admin's Gravatar avatar, D18) is not this server's console. */
-const localTo = (baseURL: string | undefined) => {
-  const own = new URL(baseURL ?? "").hostname;
-  return (url: string) => {
-    try {
-      return new URL(url).hostname === own;
-    } catch {
-      return true;
-    }
-  };
-};
 
 /**
  * A field of the form that is on screen. Next keeps the route you came from mounted but hidden
@@ -90,29 +77,13 @@ test.describe("the admin bootstrap made", () => {
   let pageId: number | undefined;
   const stamp = Date.now().toString(36);
   const consoleMessages: Message[] = [];
-  const failedRequests: { url: string; error: string }[] = [];
+  const failedRequests: FailedRequest[] = [];
   const english = { title: `E2E page ${stamp}`, slug: `e2e-page-${stamp}` };
   const greek = { title: `Δοκιμαστική σελίδα ${stamp}`, slug: `dokimastiki-${stamp}` };
 
   test.beforeAll(async ({ browser, baseURL }) => {
     page = await browser.newPage({ baseURL: baseURL ?? "http://localhost:8000" });
-    const where = () => new URL(page.url() || "http://x/").pathname;
-    page.on("console", (message) => {
-      if (message.type() !== "error" && message.type() !== "warning") return;
-      consoleMessages.push({
-        type: message.type(),
-        text: message.text(),
-        page: where(),
-        // For a failed resource the console says only "Failed to load resource"; this is its URL.
-        source: message.location().url,
-      });
-    });
-    page.on("pageerror", (error) => {
-      consoleMessages.push({ type: "pageerror", text: error.message, page: where(), source: "" });
-    });
-    page.on("requestfailed", (request) => {
-      failedRequests.push({ url: request.url(), error: request.failure()?.errorText ?? "" });
-    });
+    collectConsole(page, consoleMessages, failedRequests);
   });
 
   test.afterAll(async () => {
@@ -298,18 +269,13 @@ test.describe("the admin bootstrap made", () => {
   // so is a fetch that a navigation cancelled (`ERR_ABORTED`), which is the browser's doing. A
   // request to this server that fails is not.
   test("the browser console had no errors or warnings", ({ baseURL }) => {
-    const isLocal = localTo(baseURL);
-    const aborted = failedRequests.filter((r) => r.error === "net::ERR_ABORTED").length;
-    const local = failedRequests.filter((r) => isLocal(r.url) && r.error !== "net::ERR_ABORTED");
-    console.log(
-      `failed requests: ${failedRequests.length} (this server, not aborted: ${local.length}; aborted: ${aborted}); ` +
-        `other hosts: ${[...new Set(failedRequests.filter((r) => !isLocal(r.url)).map((r) => new URL(r.url).hostname))].join(", ") || "none"}`,
+    const { local, judged, summary, failedLine } = judgeConsole(
+      consoleMessages,
+      failedRequests,
+      baseURL,
     );
+    console.log(failedLine);
     expect(local, "no request to this server failed").toEqual([]);
-    const judged = consoleMessages.filter(
-      (m) => !(m.source !== "" && !isLocal(m.source) && /^Failed to load resource/.test(m.text)),
-    );
-    const summary = judged.map((m) => `${m.type} @ ${m.page}: ${m.text.slice(0, 400)}`);
     console.log(
       `console messages (${consoleMessages.length}, ${judged.length} judged)${summary.length ? ":\n" + summary.join("\n") : ""}`,
     );
