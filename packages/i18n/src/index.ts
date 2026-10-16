@@ -1,5 +1,5 @@
-// The locale list, the Intl formatters and the M0 message catalogs (the wiring page's copy).
-// Kept in this one file while the package is small.
+// The locale list, the Intl formatters and the message catalogs (M0's wiring page, the 404 page and,
+// from M1, the design-system pages' chrome). Kept in this one file while the package is small.
 
 /** The store languages (SPEC §8.5) as ISO 639-1 codes. English is the base language. */
 export const LOCALES = ["en", "el", "de", "fr"] as const;
@@ -40,7 +40,46 @@ export function formatDate(
   return new Intl.DateTimeFormat(locale, options).format(new Date(date));
 }
 
+// The design-system pages' own chrome (T22, D33). A developer tool: English only, so the other
+// three catalogs have no such key and `Messages` leaves it out. What the pages show of an entry
+// (its sample content) is in the chosen locale and comes from @shopblok/fixtures. T21 adds the
+// atoms' labels as a catalog key of its own (`atoms`), in all four languages.
+const designSystem = {
+  title: "Design system",
+  skipToContent: "Skip to the content",
+  navLabel: "Design system",
+  overview: "Overview",
+  overviewIntro:
+    "Foundations and components of the Shopblok storefront, rendered from the shared tokens and fixtures. Pick a locale to see long strings and the market's currency formats.",
+  groups: {
+    foundations: "Foundations",
+    atoms: "Atoms",
+  },
+  locale: {
+    label: "Locale",
+    current: "current",
+  },
+  sections: {
+    liveRender: "Live render",
+    states: "States",
+    a11y: "Accessibility notes",
+    viewports: "Viewports",
+  },
+  viewports: {
+    all: "All three",
+    scaleNote: "Scaled to fit",
+    title: "Preview at",
+    openFrame: "Open the frame",
+  },
+  fixtures: {
+    market: "Market",
+    currency: "Currency",
+  },
+  noEntries: "This group has no entries yet.",
+};
+
 const en = {
+  designSystem,
   wiring: {
     title: "Shopblok wiring check",
     market: "Market",
@@ -62,8 +101,8 @@ const en = {
   },
 };
 
-/** The shape every catalog must have: English defines it. */
-export type Messages = typeof en;
+/** The shape every catalog must have: English defines it, except for the design-system chrome. */
+export type Messages = Omit<typeof en, "designSystem">;
 
 const el: Messages = {
   wiring: {

@@ -21,6 +21,15 @@ function buildConfig(phase: string): NextConfig {
     },
     turbopack: { root: repoRoot },
     outputFileTracingRoot: repoRoot,
+    // `/design-system` has no page of its own; the locale is a path segment (D33). Not permanent: the
+    // locale it lands on is a choice that may change. With the pages gated off the target answers 404.
+    redirects: async () => [
+      {
+        source: "/design-system",
+        destination: "/design-system/en",
+        permanent: false,
+      },
+    ],
     // Medusa's image URLs point at localhost in development, which next/image refuses by default.
     images: { dangerouslyAllowLocalIP: phase === PHASE_DEVELOPMENT_SERVER },
   };

@@ -72,4 +72,16 @@ describe("locales and catalogs", () => {
       }
     }
   });
+
+  it("has a non-empty string for every key of the design-system chrome (English only, D33)", () => {
+    const walk = (value: unknown, path: string): void => {
+      if (typeof value === "string") expect(value.trim(), path).not.toBe("");
+      else
+        for (const [key, child] of Object.entries(value as object)) walk(child, `${path}.${key}`);
+    };
+    walk(catalogs.en.designSystem, "en.designSystem");
+    for (const locale of ["el", "de", "fr"] as const) {
+      expect("designSystem" in catalogs[locale], locale).toBe(false);
+    }
+  });
 });

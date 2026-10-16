@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   DEFAULT_MEDUSA_BACKEND_URL,
+  designSystemEnabled,
   e2eRoutesEnabled,
   env,
   EnvError,
@@ -19,7 +20,10 @@ describe("medusaEnv", () => {
         MEDUSA_BACKEND_URL: "https://api.example.com",
         NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY: KEY,
       }),
-    ).resolves.toEqual({ backendUrl: "https://api.example.com", publishableKey: KEY });
+    ).resolves.toEqual({
+      backendUrl: "https://api.example.com",
+      publishableKey: KEY,
+    });
   });
 
   it("uses the local backend outside production when no URL is set, blank included", async () => {
@@ -38,7 +42,10 @@ describe("medusaEnv", () => {
   });
 
   it("requires the URL in production, where a localhost default would be a silent mistake", async () => {
-    const call = medusaEnv({ NODE_ENV: "production", NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY: KEY });
+    const call = medusaEnv({
+      NODE_ENV: "production",
+      NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY: KEY,
+    });
     await expect(call).rejects.toThrow(EnvError);
     await expect(call).rejects.toThrow(/MEDUSA_BACKEND_URL is required in production/);
   });
@@ -53,7 +60,9 @@ describe("medusaEnv", () => {
 
   it("refuses the key's id (apk_…) in place of its token (pk_…)", async () => {
     await expect(
-      medusaEnv({ NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY: "apk_01M4HCF3X63H0EHYYS3V03H4ZT" }),
+      medusaEnv({
+        NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY: "apk_01M4HCF3X63H0EHYYS3V03H4ZT",
+      }),
     ).rejects.toThrow(/not its id \(apk_…\)/);
   });
 
@@ -65,13 +74,19 @@ describe("medusaEnv", () => {
       "nope",
     ]) {
       await expect(
-        medusaEnv({ MEDUSA_BACKEND_URL, NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY: KEY }),
+        medusaEnv({
+          MEDUSA_BACKEND_URL,
+          NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY: KEY,
+        }),
       ).rejects.toThrow(/MEDUSA_BACKEND_URL must be an http\(s\) URL/);
     }
   });
 
   it("reports every problem at once", async () => {
-    const message = await medusaEnv({ NODE_ENV: "production", MEDUSA_BACKEND_URL: "nope" }).then(
+    const message = await medusaEnv({
+      NODE_ENV: "production",
+      MEDUSA_BACKEND_URL: "nope",
+    }).then(
       () => "",
       (error: Error) => error.message,
     );
@@ -99,6 +114,7 @@ describe("env", () => {
 
   it("exposes exactly the variables the app reads", () => {
     expect(Object.keys(env).sort()).toEqual([
+      "DESIGN_SYSTEM_ENABLED",
       "E2E_TEST_ROUTES",
       "MEDUSA_BACKEND_URL",
       "NEXT_PHASE",
@@ -132,5 +148,51 @@ describe("e2eRoutesEnabled (the gate of the test-only routes)", () => {
     expect(e2eRoutesEnabled()).toBe(false);
     vi.stubEnv("E2E_TEST_ROUTES", "true");
     expect(e2eRoutesEnabled()).toBe(true);
+  });
+});
+
+describe("designSystemEnabled (the gate of the design-system pages, D33)", () => {
+  it("is on in `next dev`, whatever the flag says", () => {
+    for (const DESIGN_SYSTEM_ENABLED of [undefined, "", "false", "true"]) {
+      expect(designSystemEnabled({ NODE_ENV: "development", DESIGN_SYSTEM_ENABLED })).toBe(true);
+    }
+  });
+
+  it("is on in a production build only for the exact value `true`", () => {
+    expect(
+      designSystemEnabled({
+        NODE_ENV: "production",
+        DESIGN_SYSTEM_ENABLED: "true",
+      }),
+    ).toBe(true);
+    for (const DESIGN_SYSTEM_ENABLED of [
+      undefined,
+      "",
+      "1",
+      "TRUE",
+      "True",
+      "yes",
+      " true",
+      "false",
+    ]) {
+      expect(
+        designSystemEnabled({ NODE_ENV: "production", DESIGN_SYSTEM_ENABLED }),
+        `DESIGN_SYSTEM_ENABLED=${String(DESIGN_SYSTEM_ENABLED)}`,
+      ).toBe(false);
+    }
+  });
+
+  it("is off for a production build with no flag and for an unknown NODE_ENV without it", () => {
+    expect(designSystemEnabled({ NODE_ENV: "production" })).toBe(false);
+    expect(designSystemEnabled({})).toBe(false);
+    expect(designSystemEnabled({ NODE_ENV: "test" })).toBe(false);
+  });
+
+  it("reads the real environment by default", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("DESIGN_SYSTEM_ENABLED", "");
+    expect(designSystemEnabled()).toBe(false);
+    vi.stubEnv("DESIGN_SYSTEM_ENABLED", "true");
+    expect(designSystemEnabled()).toBe(true);
   });
 });

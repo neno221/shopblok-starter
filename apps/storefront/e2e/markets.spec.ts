@@ -181,3 +181,27 @@ test.describe("Payload is not rewritten", () => {
     await expect(page.getByTestId("market")).toHaveCount(0);
   });
 });
+
+// T22 (D33): `design-system` is a reserved first segment, like `admin` and `api`. The CI build has
+// no DESIGN_SYSTEM_ENABLED, so the page answers 404 there and 200 in a build with the flag; either
+// way the proxy must not have touched the request. A rewrite to a market (`/el-cy/design-system/en`)
+// or to the not-found path would carry `x-middleware-rewrite`, and a 301 would be a redirect.
+test.describe("the design system is not rewritten", () => {
+  for (const path of ["/design-system/en", "/design-system/el/foundations/colors"]) {
+    test(`${path} is no market page`, async ({ request }) => {
+      const response = await request.get(path, { maxRedirects: 0 });
+      expect([200, 404], `status of ${path}`).toContain(response.status());
+      expect(response.headers()["x-middleware-rewrite"]).toBeUndefined();
+      expect(response.headers()["location"]).toBeUndefined();
+    });
+  }
+
+  test("/design-system goes to /design-system/en (next.config.ts), not through the proxy", async ({
+    request,
+  }) => {
+    const response = await request.get("/design-system", { maxRedirects: 0 });
+    expect(response.status()).toBe(307);
+    expect(locationOf(response)).toBe("/design-system/en");
+    expect(response.headers()["x-middleware-rewrite"]).toBeUndefined();
+  });
+});

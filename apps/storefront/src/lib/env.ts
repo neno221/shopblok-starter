@@ -13,6 +13,7 @@ export type RawEnv = {
   MEDUSA_BACKEND_URL?: string | undefined;
   PAYLOAD_DATABASE_URL?: string | undefined;
   E2E_TEST_ROUTES?: string | undefined;
+  DESIGN_SYSTEM_ENABLED?: string | undefined;
 };
 
 /**
@@ -45,6 +46,9 @@ export const env: RawEnv = {
   get E2E_TEST_ROUTES() {
     return process.env.E2E_TEST_ROUTES;
   },
+  get DESIGN_SYSTEM_ENABLED() {
+    return process.env.DESIGN_SYSTEM_ENABLED;
+  },
 };
 
 export function isProduction(source: RawEnv = env): boolean {
@@ -58,6 +62,17 @@ export function isProduction(source: RawEnv = env): boolean {
  */
 export function e2eRoutesEnabled(source: RawEnv = env): boolean {
   return source.E2E_TEST_ROUTES === "true";
+}
+
+/**
+ * The design-system pages (`/design-system/[locale]/…`, D33) exist in `next dev`, and in a
+ * production build only when `DESIGN_SYSTEM_ENABLED` was exactly `true` while `next build` ran.
+ * The pages are static, so the answer is frozen into the build: reading it per request (as
+ * `e2eRoutesEnabled` does) would make every page dynamic under Cache Components. When it is false
+ * every DS route calls `notFound()`. The Payload-login gate SPEC §9.6 asks for moves to M7.
+ */
+export function designSystemEnabled(source: RawEnv = env): boolean {
+  return source.NODE_ENV === "development" || source.DESIGN_SYSTEM_ENABLED === "true";
 }
 
 /** Where Medusa is, and the key that lets a storefront read its Store API. */
