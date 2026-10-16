@@ -107,6 +107,7 @@ Why: in production mode (`next build && next start`, what CI runs) every column 
 - On a minor bump of `next` or `payload`, open the admin pages in `next dev` once and look at the console; if it is clean, drop this limitation and say so here.
 - File or link the upstream issue when someone with access can.
 - The suite's console check ran across the whole admin flow, so it was not measured whether the storefront's own pages are clean in dev. Check them in `next dev` at M1.
+- Measured in M1 (T25, 2026-10-16): the storefront's own routes (the market homes, two 404s, `/next/markets`, the DS pages and a frame) log nothing to the browser console in `next dev`; the one finding was ours (no favicon, fixed) and nothing is excused. `e2e-smoke` checks it from now on (D37); SETUP.md, "The storefront in next dev (T25)".
 - Until then, when the admin's console matters, use `pnpm --filter @shopblok/storefront build && … start` (37 s) or expect the dev noise. The Payload admin is not where the storefront's day-to-day dev loop lives.
 
 ### The fallback (not chosen)

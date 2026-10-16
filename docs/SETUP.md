@@ -2753,3 +2753,91 @@ Review of 217ec0a (nine findings, 2026-10-16). All nine held; the main one was r
 - **Mutation:** with the `env:` line removed from `next.config.ts`, the same flag-off build started with the flag answers 200 for `/el`, `/el/foundations/colors`, `/de/frame/foundations/typography` and `/fr/foundations/spacing` again (the bug), and `src/next-config.test.ts` fails 2 tests. Restored afterwards.
 
 New tests: `next-config.test.ts` (2), `viewport-widths.test.ts` (4), `designSystemBuildFlag` in `env.test.ts` (3), and two switcher cases in `components.test.tsx`; storefront is **534** tests (523 + 11), i18n 19, scripts 397. The unit tests cannot see a bundle, so the run-time proof above is by hand; no CI step starts a flag-off server with the flag set. If that regresses, add one to `e2e-smoke` (build without the flag, start with it, expect 404 from `/design-system/el`). `docs/SETUP.md` itself is not Prettier-formatted (the file at 217ec0a is not), so it was left as written.
+
+## The storefront in next dev (T25)
+
+**Result: the storefront's own routes log nothing to the browser console in `next dev`, once `/favicon.ico` exists, and `e2e-smoke` now checks it (D37).** Twelve routes were opened; Next's and React's dev-only validation (the "`new Date()` while prerendering" family that ADR 0001 found in the admin) did not appear on any of them, so **nothing is excused** (`devExcuses` in `e2e/support/dev-console-excuses.ts` is empty). Two things did show up, both explained below.
+
+| | |
+|---|---|
+| Date | 2026-10-16 |
+| Branch | `claude/m1-1d8p7b`, [PR 41](https://github.com/stephanos221/shopblok-starter/pull/41) |
+| New | `apps/storefront/e2e/dev-console.spec.ts`, `e2e/support/console.ts` (the console rules of `payload-admin.spec.ts`, moved out; T24 does this move in its plan, so T25 did it here and T24 only imports), `e2e/support/dev-console-excuses.ts`, `src/app/favicon.ico`, `.github/scripts/stop-tree.sh` |
+| Changed | `e2e/payload-admin.spec.ts` (imports the rules; same checks, same output), `playwright.config.ts` (the `dev-console` project), `.github/workflows/ci.yml` (the last step of `e2e-smoke`, and the PID files), `.gitignore` and `packages/config/eslint/base.mjs` (the two new output folders), the plan's status line and T25 step 1, ADR 0001 (one line), NEXT-SESSION.md |
+| Versions | Next 16.4.0 (Turbopack), Payload 3.90.2, Chromium 1194 (a temporary config with `executablePath`, deleted) |
+
+### Every console message observed
+
+Cold `next dev` (`.next/dev` removed), compose stack up, `pnpm bootstrap` run, Medusa running. One page per route, `load`, then `networkidle` and 1.5 s.
+
+| Route | Type and exact text | Source | What happened |
+|---|---|---|---|
+| all 12 routes below, before the fix | error: `Failed to load resource: the server responded with a status of 404 (Not Found)` | `http://localhost:8000/favicon.ico` | **Ours; fixed.** The app had no favicon, so the browser's request for `/favicon.ico` reached `[market]` as a market named `favicon.ico` and answered 404 (T22's note, item 7). The dev server also printed, after each one, `Error: Route "/[market]": Could not validate \`instant\` because an error prevented the target segment from rendering` with `NEXT_HTTP_ERROR_FALLBACK;404` from `getCurrentMarket` (`src/lib/current-market.ts:19`): the same request, in the server log. `src/app/favicon.ico` (a 32 × 32 black square in the `primary` colour, **a placeholder: replace it with the brand's icon**) serves `/favicon.ico` with 200 and adds `<link rel="icon">`; the proxy's matcher already skips it (a dot and a letter). Both the console message and the server error are gone. A first version of the file with a PNG that was not RGBA made every page answer 500 (`Format error decoding Ico: The PNG is not in RGBA format!`), so Next checks the file in dev |
+| `/el-cy` | error: `Failed to load resource: the server responded with a status of 404 (Not Found)` | `http://localhost:8000/el-cy` (the page itself) | **Not an error: the route is a 404 on purpose.** Chromium logs the 404 of the document it was asked for. The spec excuses it by `isOwnNotFound`: the type, the exact text, a source equal to the route's own URL, and only for a route that is expected to answer 404 |
+| `/nope/nope` | the same | `http://localhost:8000/nope/nope` | the same |
+
+After the fix, with the spec as committed:
+
+| Route | Status | Console messages | Judged |
+|---|---|---|---|
+| `/` | 200 | 0 | 0 |
+| `/us` | 200 | 0 | 0 |
+| `/ch/fr` | 200 | 0 | 0 |
+| `/el-cy` | 404 | 1 (its own document) | 0 |
+| `/nope/nope` | 404 | 1 (its own document) | 0 |
+| `/next/markets` | 200 | 0 | 0 |
+| `/design-system/en` | 200 | 0 | 0 |
+| `/design-system/{en,el,de,fr}/foundations/typography` | 200 | 0 each | 0 |
+| `/design-system/el/frame/foundations/colors` | 200 | 0 | 0 |
+
+The dev server's own log is clean too (no `Error`, no `⨯` line apart from the banner's `turbopackServerFastRefresh`, which ADR 0001 explains). The spec does not read that log; CI uploads it (`storefront-dev.log` in the `server-logs` artifact).
+
+**Foundations stand in for the atom page.** Plan step 1 asks for one atom page in each of the four locales. There are no atoms yet (T21 is blocked on the registries), so the list has `/design-system/{en,el,de,fr}/foundations/typography` and one frame. **T21 or T23: add one atom page to `routes` in `e2e/dev-console.spec.ts`, in all four locales** (D34 relies on this check for German and French).
+
+### How it runs
+
+- **Project.** `dev-console` exists only when `E2E_DEV_CONSOLE=true`; without it the config lists `chromium` and `locales` as before, and `chromium` ignores `dev-console.spec.ts` as well. Reason: `playwright test` runs every project, and this one needs a different server (`next dev`) from the other suites (`next start`). Locally, with the stack up and `pnpm bootstrap` run: `pnpm --filter @shopblok/storefront dev`, wait for `/` to answer 200 (about 25 s from cold), then `E2E_DEV_CONSOLE=true pnpm --filter @shopblok/storefront test:e2e --project=dev-console`. Port 8000 must be free: stop `next start` first. The spec's timeout is 90 s per route (the first visit compiles it).
+- **CI.** The last step of `e2e-smoke`, after both `doctor` steps (they need `next start`): `.github/scripts/stop-tree.sh --port 8000` stops `next start` by the PID that the start step wrote to `$RUNNER_TEMP/servers/storefront.pid`, `pnpm --filter @shopblok/storefront dev` starts, the step waits up to 120 s for `/` to answer 200 from a dev server (see "Code-review fixes (PR 41)"; it fails at once if `next dev` exits), runs the project, and stops `next dev` by PID whether the run passed or not. `stop-tree.sh` takes the PID's descendants from `ps` and sends SIGTERM to them (children first), waits 20 s and sends SIGKILL to what is left, because the servers are a tree (`pnpm`, `sh`, `next`, `next-server`) and a signal to `pnpm` alone leaves `next-server` on port 8000 (CLOUD.md, "Dev servers"). The step writes its report to `playwright-report-dev-console` and its results to `test-results-dev-console` (a Playwright run empties its output folder and replaces the HTML report), both uploaded with the others. The Payload admin is not visited.
+- **Time.** On this VM: `/` answers 200 after 23 s from a cold `.next/dev` (21 s the first time, with the stack just started), the 12 tests take 51 to 57 s, so the step adds about 1.5 to 2 minutes. The plan allowed 2 to 4. Not yet measured on a GitHub runner.
+- **Turborepo.** `turbo.json` is unchanged: the step runs `next dev` through `pnpm --filter … dev`, the script `next dev -p 8000`, not through `turbo run dev`, and `.env` is read by Next itself.
+
+### Checks
+
+| Check | Result | Key output |
+|---|---|---|
+| `pnpm install --frozen-lockfile` | **Pass** | lockfile up to date |
+| `pnpm typecheck && pnpm lint && pnpm test && pnpm build`, CI's state (both `.env` files moved aside, then restored) | **Pass** | i18n 19, scripts 397, storefront **534** tests (unchanged: the new code is Playwright) |
+| `dev-console`, cold `next dev` | **12/12 pass** | table above |
+| The existing e2e suite against `next start` (build with `.env`, `E2E_TEST_ROUTES=true`) | **76/76 pass** (`chromium` and `locales`; `dev-console` is not in the list) | includes `payload-admin`'s console test, now on `support/console.ts` |
+| The CI steps themselves | **Pass** | the two steps' `run` scripts were taken out of `ci.yml` and run in order, with `RUNNER_TEMP` set: start Medusa and the storefront; then the dev step (`--config` pointed at the temporary config for the local Chromium). `next start` was stopped, `next dev` answered, 12 passed, and nothing was left on port 8000 or in `ps` |
+| prettier `--check` (`packages/config/prettier.config.mjs`) | **Pass** | every changed and new file but SETUP.md (not Prettier-formatted, as T22 noted) |
+| **Mutation:** `console.error("T25 mutation")` in `[market]/layout.tsx` | **Fails as it should** | `/`, `/us` and `/ch/fr` fail (3 of 12) with `error @ /: %c%s%c T25 mutation … Prerender`: Next replays a server component's `console.error` in the browser's console. The two 404 routes pass, because the layout calls `notFound()` before it reaches the line. The CI step's exit status was 1 and `next dev` was stopped. The file was restored (`git diff` empty) |
+| **Mutation:** no favicon | **Fails as it should** | the first run of this task: 12 of 12 failed on `/favicon.ico` |
+
+### Decisions the plan did not settle
+
+1. **`dev-console` exists only when `E2E_DEV_CONSOLE=true`**, instead of being always listed (item above). The alternative, listing it and passing `--project=chromium --project=locales` in the existing step, would change that step and break when T24 adds its project.
+2. **The 404 routes' own document is excused by a rule, not by a list entry**, because it is the browser's message about a page that is meant to be a 404, not Next's or React's dev validation. The rule is narrow (type, exact text, the route's own URL, expected status 404).
+3. **The favicon is a placeholder file**, not a design choice: the brand icon is yours.
+4. **`stop-tree.sh`** instead of `kill "$pid"`: see "How it runs".
+5. **The dev server's log is uploaded, not judged.** It was clean; a check on it would need its own list of excused lines.
+6. **The browser's console only.** Server-side `console.error` calls reach it in dev (the mutation above), which is why the market layout is covered.
+7. **One visit per route**, no client navigation between routes. A navigation test (links, prefetch) would be a new check; the DS pages' viewport switcher and the locale toggle are not clicked here.
+
+### Code-review fixes (PR 41)
+
+The review is `reviews/pr-41-code-review.md`; the first CI run of PR 41 (run 38876631305, job 116893136529) failed too. Each finding was checked before it was fixed.
+
+| # | Finding | Holds? | What changed |
+|---|---|---|---|
+| CI | `e2e-smoke` failed: 10 of 12 passed, `/design-system/de/foundations/typography` and `/fr/…` ran 90 s and timed out | **Yes** | The log shows both tests got through `goto`, `networkidle` and the wait and then stood in `context.close()` until the test timeout, so the console was never judged. The `next dev` log is clean and answered 200 to every route; the `ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL` lines at the end of the log are the two servers' own logs, printed by the diagnostics step after `stop-tree.sh` had stopped them. The `new Date()` lines in `storefront.log` are the Payload admin under `next start` (ADR 0001) and have nothing to do with it. **Not reproduced**: 12/12 on this VM with the headless shell of Chromium 1194 (CI had 1248, which this VM cannot download), cold `.next/dev`, the CI steps' scripts, and also pinned to 2 cores and with 6 busy loops. So the cause (a stalled browser on the runner) is inferred from the log, not shown. `context.close()` is bounded to 20 s (a warning, then the console is judged), and the `dev-console` project has `retries: 1`. A real finding is the same on the second visit and still fails. If it recurs, open `test-results-dev-console/…/trace.zip` from the `playwright-report` artifact |
+| 1 | The dev step could pass against `next start` | **Yes** | `stop-tree.sh --port 8000` exits 1 when a process of the tree is alive after SIGKILL or when the port still accepts connections (it must refuse four checks in a row, 2 s, so a supervisor that restarts the server is caught); it also stops whatever listens on the port by its PID, so an orphaned `next-server` is found; a PID that is empty or not a number is exit 2. In the step: `kill -0` on `next dev` comes before the request, and the answer counts only when `/_next/static/development/_buildManifest.js` is 200 too (404 in `next start`, 200 in `next dev`, both measured) |
+| 2 | No `--max-time` on `curl` | **Yes** | `--max-time 30` on both requests, and the wait is a 120 s deadline (`$SECONDS`), not 60 sleeps. 120 s because the first compile has not been measured on a runner; judge it on the first green run |
+| 3 | A fixed 1.5 s wait | **Yes, as a risk** | 3 s (`settleMs`), with the reason in a comment. No event exists to wait for |
+| 4 | `baseURL ?? ""` | **Yes** | The test throws a clear message when `baseURL` is missing |
+| 5 | `/robots.txt` and other root files reach `[market]` | **Real, not fixed** | Measured in `next dev`: `/robots.txt`, `/apple-touch-icon.png`, `/sitemap.xml` and `/manifest.webmanifest` answer 404 (right) and each logs the same `Could not validate \`instant\`` error as `/favicon.ico` did, in the **server** log only. Chromium does not request them, so no browser console message, and nothing in the suite sees it. It is not small: the matcher skips dotted paths on purpose (a skipped path is a file), so the fix is either metadata routes (`robots.ts`, `sitemap.ts`: an indexing policy that M1 does not have) or a change to the proxy's matcher and its tests. Left for the milestone that owns SEO |
+| 6 | "Nothing is pushed" | **Yes** | NEXT-SESSION.md and this file's T25 table say PR 41 |
+| 7 | The plan points excuses at `support/console.ts` | **Yes** | The plan says `e2e/support/dev-console-excuses.ts` |
+| 8 | `medusa.pid` is never read | **Yes** | The line is gone and the comment says only the storefront's PID is kept |
+
+**Proof.** `pnpm install --frozen-lockfile`; `typecheck`, `lint`, `test` and `build` in CI's state (both `.env` moved aside, restored): pass, storefront 534 tests. The two CI steps' `run` scripts, taken out of `ci.yml` and run in order with `RUNNER_TEMP` set: **normal path 12 passed**, ports free and nothing left in `ps`. **Mutation (a)**: a `next start` kept alive by a restarting supervisor, with a dead PID in `storefront.pid`: the step fails with exit 1 at `stop-tree.sh` ("port 8000 still accepts connections"), before any test. **Mutation (a′)**: the same with a `stop-tree.sh` that exits 0 like the old one: the step fails with "next dev exited before it answered" (`next dev` dies of EADDRINUSE), so the readiness check alone also refuses it. Tools the scripts use: `bash`, `ps`, `awk`, `curl`, and for a port's owner any of `lsof`, `ss`, `fuser`; on this VM `lsof` sees no sockets and `fuser` does, which is why all that exist are asked. Without any, the port check (bash `/dev/tcp`) still works, and only the orphan kill is lost.
