@@ -2,27 +2,13 @@
   "extends": "@shopblok/config/tsconfig.library.json",
   "compilerOptions": {
     "paths": {
-      "@shopblok/ui/atoms": [
-        "./src/atoms"
-      ],
-      "@shopblok/ui/atoms/*": [
-        "./src/atoms/*"
-      ],
-      "@shopblok/ui/lib": [
-        "./src/lib"
-      ],
-      "@shopblok/ui/lib/*": [
-        "./src/lib/*"
-      ],
-      "@shopblok/ui/hooks": [
-        "./src/hooks"
-      ],
-      "@shopblok/ui/hooks/*": [
-        "./src/hooks/*"
-      ]
+      "@shopblok/ui/atoms": ["./src/atoms"],
+      "@shopblok/ui/atoms/*": ["./src/atoms/*"],
+      "@shopblok/ui/lib": ["./src/lib"],
+      "@shopblok/ui/lib/*": ["./src/lib/*"],
+      "@shopblok/ui/hooks": ["./src/hooks"],
+      "@shopblok/ui/hooks/*": ["./src/hooks/*"]
     }
   },
-  "include": [
-    "src"
-  ]
+  "include": ["src"]
 }

@@ -2,27 +2,13 @@
   "extends": "@shopblok/config/tsconfig.nextjs.json",
   "compilerOptions": {
     "paths": {
-      "@payload-config": [
-        "./src/payload.config.ts"
-      ],
-      "@shopblok/ui/atoms": [
-        "../../packages/ui/src/atoms"
-      ],
-      "@shopblok/ui/atoms/*": [
-        "../../packages/ui/src/atoms/*"
-      ],
-      "@shopblok/ui/lib": [
-        "../../packages/ui/src/lib"
-      ],
-      "@shopblok/ui/lib/*": [
-        "../../packages/ui/src/lib/*"
-      ],
-      "@shopblok/ui/hooks": [
-        "../../packages/ui/src/hooks"
-      ],
-      "@shopblok/ui/hooks/*": [
-        "../../packages/ui/src/hooks/*"
-      ]
+      "@payload-config": ["./src/payload.config.ts"],
+      "@shopblok/ui/atoms": ["../../packages/ui/src/atoms"],
+      "@shopblok/ui/atoms/*": ["../../packages/ui/src/atoms/*"],
+      "@shopblok/ui/lib": ["../../packages/ui/src/lib"],
+      "@shopblok/ui/lib/*": ["../../packages/ui/src/lib/*"],
+      "@shopblok/ui/hooks": ["../../packages/ui/src/hooks"],
+      "@shopblok/ui/hooks/*": ["../../packages/ui/src/hooks/*"]
     }
   },
   "include": [
@@ -32,8 +18,5 @@
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts"
   ],
-  "exclude": [
-    "node_modules",
-    "src/migrations"
-  ]
+  "exclude": ["node_modules", "src/migrations"]
 }
