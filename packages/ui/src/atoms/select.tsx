@@ -1,8 +1,9 @@
 // Vendored from shadcn/ui (`shadcn add select`, CLI 4.21.4, style base-vega), 2026-10-16. MIT, see
 // packages/ui/NOTICE.md. Edited (SETUP.md, "shadcn and ReUI (T21)"): the trigger and each option at
 // least 44 px tall and no `sm` size (D32); the focus ring at full strength (D35); `side` takes the
-// logical `inline-start` and `inline-end` and not `left` or `right`; logical properties; the chosen value is cut to one line and says so
-// (`data-truncate`, D34) while the options wrap; light only (no `dark:`).
+// logical `inline-start` and `inline-end` and not `left` or `right`; logical properties; the
+// trigger is never wider than its container and cuts the chosen value to one line with an ellipsis,
+// which it says (`data-truncate`, D34), while the options wrap; light only (no `dark:`).
 "use client";
 
 import * as React from "react";
@@ -29,7 +30,7 @@ function SelectValue({ className, ...props }: SelectPrimitive.Value.Props) {
     <SelectPrimitive.Value
       data-slot="select-value"
       data-truncate=""
-      className={cn("flex flex-1 text-start", className)}
+      className={cn("min-w-0 flex-1 truncate text-start", className)}
       {...props}
     />
   );
@@ -40,7 +41,7 @@ function SelectTrigger({ className, children, ...props }: SelectPrimitive.Trigge
     <SelectPrimitive.Trigger
       data-slot="select-trigger"
       className={cn(
-        "flex h-11 w-fit items-center justify-between gap-1.5 rounded-md border border-input bg-transparent py-2 ps-3 pe-2.5 text-base whitespace-nowrap shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 data-disabled:cursor-not-allowed data-disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 data-placeholder:text-muted-foreground md:text-sm *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-1.5 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+        "flex h-11 w-fit max-w-full items-center justify-between gap-1.5 rounded-md border border-input bg-transparent py-2 ps-3 pe-2.5 text-base whitespace-nowrap shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 data-disabled:cursor-not-allowed data-disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 data-placeholder:text-muted-foreground md:text-sm [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
         className,
       )}
       {...props}

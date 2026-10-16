@@ -45,7 +45,8 @@ const FOCUS = "border-ring ring-3 ring-ring";
 
 function Field({ id, label, children }: { id: string; label: string; children: ReactNode }) {
   return (
-    <div className="grid gap-2">
+    // `minmax(0, 1fr)`: an auto track would grow to a Select's one-line value and overflow.
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-2">
       <Label htmlFor={id}>{label}</Label>
       {children}
     </div>
