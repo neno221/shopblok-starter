@@ -2991,3 +2991,46 @@ The review is `reviews/pr-43-code-review.md`. The first CI run also failed one t
 | 10, 12 to 15 | Flag's fallback props, `isFlagCode`'s module, Image's `sizes` default, simple-icons' root import in dev, the `{name}` filler's home | Left for M2, which builds the first callers (MarketSwitcher, the product grid, the cart): each is a choice about how those use the atoms rather than a defect in T23 |
 
 **Proof.** ui 326 tests, storefront 677; `tsc` and `eslint` in both; `next build` with the flag, then the 180-page Chromium check again (15 frames × 4 locales × 3 widths): no overflow, no clipping, every control at least 44 × 44, no console message.
+
+## DS checks (T24)
+
+**Result: D34's checks run over every atom in a new CI job, `design-system`.** 32 atoms × 375, 768 and 1440 px × `en` and `el` is **192 cells**, one Playwright test each (`atoms/price · el · 375`): axe, overflow, 44 × 44 targets, the console, and a full-page screenshot. All 192 pass; no atom and no DS entry needed a change, and no axe rule is disabled.
+
+| | |
+|---|---|
+| Date | 2026-10-16 |
+| Branch | `claude/t21-shadcn-atoms-d43xhp` (restarted from `main` after PR 43 merged) |
+| New | `apps/storefront/e2e/design-system.spec.ts` |
+| Changed | `apps/storefront/playwright.config.ts` (the `design-system` project), `.github/workflows/ci.yml` (the job), `apps/storefront/package.json` (`@axe-core/playwright` 4.13.0), the lockfile (added only) |
+| Local run | 192 passed in 5 min 19 s, one worker, against `next start` |
+
+### How it works
+
+1. **The atoms come from the page.** Playwright's loader cannot import `entries.tsx` (`next/image` resolves only inside Next), so the spec reads `/design-system/en` once at collection and takes every `/design-system/en/atoms/<slug>` link; that page is rendered from the manifest, so a new atom is checked without touching the spec. The widths are `viewportWidths()`, the DS's own.
+2. **The flag.** If `/design-system/en` is not 200, the suite is one test, "the build serves the design system", which fails with `… answered 404, not 200: this build lacks DESIGN_SYSTEM_ENABLED=true (the DS routes are 404 without it, D33) …`.
+3. **Each cell** attaches its screenshot first, then runs the four checks with `expect.soft`, so one cell reports every failed check:
+   - **axe** (`@axe-core/playwright`, tags `wcag2a`, `wcag2aa`, `wcag21a`, `wcag21aa`, `wcag22aa`): no violations, printed with selectors and axe's summary.
+   - **overflow:** `scrollWidth` ≤ `innerWidth`, and no element with hidden or clipped overflow has `scrollWidth > clientWidth` outside `[data-truncate]`. Two exemptions, both found on the first run (18 failures, all overflow): visually hidden boxes (1 × 1 or `.sr-only`, such as Base UI's hidden inputs and Progress's label), and a clipped element with no text (Rating's partial-star mask); an input's value counts as text.
+   - **size (D32):** buttons, standalone links, inputs, selects, textareas and the control roles are at least 44 × 44, counting a control's `::after` hit area from its resolved inset; Checkbox, Radio and Switch also pass by their label. Skipped: `aria-hidden`, `display: none`, `visibility: hidden`, ≤ 1 × 1, and a link inline with its parent's own text (WCAG 2.5.8's exemption).
+   - **console:** `e2e/support/console.ts`'s rules (T25 had already moved them out of `payload-admin.spec.ts`), and failed requests to the server.
+4. **The project** exists only with `E2E_DESIGN_SYSTEM=true`, as `dev-console` does, retries 0; the `chromium` project ignores the spec. `PW_CHROMIUM_PATH` points Playwright at a local Chromium (this VM's `/opt/pw-browsers/chromium-1194/chrome-linux/chrome`) and is unset in CI.
+5. **The job** (ubuntu, Node 22, 30 min limit, beside `e2e-smoke`): install, Playwright's Chromium, `pnpm --filter @shopblok/storefront build` with `DESIGN_SYSTEM_ENABLED=true` (not through turbo), `next start` with its PID kept, a wait for `/design-system/en` (120 s), the project, `stop-tree.sh`, and two artifacts: `design-system-report` (the HTML report and `test-results`, one PNG per cell, so six per atom) and the server log. No compose, no bootstrap, no `.env`: the flagged build ran here with none of them in about 35 s.
+6. **`@axe-core/playwright` is 4.13.0**, not the latest 4.14.0: that was published the day before and pnpm's minimum release age refused it. Renovate will offer it.
+
+### Mutations
+
+Each applied, run at `en · 375`, and reverted.
+
+| Mutation | Check | Output |
+|---|---|---|
+| Price drawn in `#bbbbbb` | axe | `color-contrast (serious) … insufficient color contrast of 1.91 … Expected contrast ratio of 4.5:1` |
+| Chip at `width: 500px; max-width: none` | overflow | `the page is wider than the viewport (scrollWidth 533, innerWidth 375)` |
+| Button's `min-h-11` as `min-h-9` | size | `controls smaller than 44 × 44 (D32)` / `button[data-slot=button]"Add to cart": its hit area 108.3 × 38.0` |
+| `console.error` in Checkbox's effect | console | `error @ /design-system/en/frame/atoms/checkbox: mutation: console.error in checkbox` |
+| A build without the flag | flag | one test, `answered 404, not 200: this build lacks DESIGN_SYSTEM_ENABLED=true …` |
+
+### Decisions the plan did not settle
+
+1. The two overflow exemptions above, instead of putting `data-truncate` on a star mask that truncates nothing.
+2. The atoms are read from the overview page rather than a list in the spec, so the spec cannot fall behind the manifest.
+3. The job is not a required check: branch protection is not available on the owner's plan (G3).

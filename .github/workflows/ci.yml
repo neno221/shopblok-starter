@@ -5,7 +5,7 @@
 #   e2e-smoke      the compose stack, `pnpm bootstrap --ci`, a production build, both servers,
 #                  the five Playwright suites, `pnpm run doctor` and, last, the storefront's
 #                  console in `next dev` (T25).
-#   design-system the atoms' frames in English and Greek at 375, 768 and 1440 px: axe, overflow,
+#   design-system  the atoms' frames in English and Greek at 375, 768 and 1440 px: axe, overflow,
 #                  44 px controls, the console (T24, D34). No compose: a build with the flag and
 #                  `next start` are all it needs.
 #   windows-gate   decides whether windows-smoke runs.
