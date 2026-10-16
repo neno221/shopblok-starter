@@ -16,12 +16,9 @@ Start a cloud session in the `shopblok-starter` environment, on `main`, and past
 
 ## Still open from M0 (yours)
 
-1. **G3, still four parts** ([SETUP.md](SETUP.md#ci-t16), "CI (T16)", item 5):
-   - (a) secret scanning and push protection in Settings → Code security (a session cannot read either setting);
-   - (b) install the Renovate GitHub app (`renovate.json` does nothing without it);
-   - (c) optional: Dependabot alerts are disabled;
-   - (d) optional: branch protection on `main`, requiring `check (Node 22)`, `backend-integration` and `e2e-smoke`, but not `check (Node 24)` or `windows-smoke`. Until then, `gh pr merge --auto` merges at once rather than waiting for CI.
-2. **Say so if you disagree with a default.** Each one stays unless you say.
+G3 is closed ([SETUP.md](SETUP.md#ci-t16), "CI (T16)", item 5, "Outcome"): Renovate is installed and its pin PR is merged, and Dependabot alerts are on. Secret scanning, push protection and branch protection are not available for a private repo on a personal Free account, so `main` stays unprotected. Wait for green CI before merging, because `gh pr merge --auto` merges at once.
+
+1. **Say so if you disagree with a default.** Each one stays unless you say.
    - **T19's choices** (SETUP.md, "Tokens (T19)"):
      - **the field edge:** `input` is `#949494` (3.03:1, the lightest grey that passes; the kit's `#e5e5e5` is 1.26:1). The alternatives are `#737373`, or no visible edge where a fill or a label identifies the field (WCAG 1.4.11). Edit `semantic.input` in `packages/ui/tokens/shopblok.tokens.json` and run `pnpm tokens`;
      - **the ring** is drawn at alpha 1 in the same `#949494` (at the kit's 50 % it would have to be `#2a2a2a`);
@@ -47,7 +44,7 @@ Start a cloud session in the `shopblok-starter` environment, on `main`, and past
      - the first-user form (M7);
      - the media drawer (the first M4 collection with an upload field);
      - the dev-mode console (needs an upstream issue).
-3. **Carried over, unchanged.** Each has its default; the evidence is in SETUP.md and the ADRs.
+2. **Carried over, unchanged.** Each has its default; the evidence is in SETUP.md and the ADRs.
    - The first request after a `next start` can wait 320 to 370 ms (`instrumentation.ts`, decided at M7).
    - A saved `markets` map reaches the proxy in 30 to about 65 s.
    - `/cy/` is two hops.
