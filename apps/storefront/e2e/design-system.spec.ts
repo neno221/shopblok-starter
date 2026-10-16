@@ -36,9 +36,13 @@ async function listAtoms(): Promise<{ ids: string[] } | { problem: string }> {
   const url = `${base}/design-system/en`;
   let response: Response;
   try {
-    response = await fetch(url);
+    // Collection runs outside any test's timeout: a server that accepts and never answers would
+    // otherwise hold the run until the job's limit.
+    response = await fetch(url, { signal: AbortSignal.timeout(30_000) });
   } catch (error) {
-    return { problem: `${url} did not answer (${String(error)}): start \`next start\` first.` };
+    return {
+      problem: `${url} did not answer within 30 s (${String(error)}): start \`next start\` first.`,
+    };
   }
   if (response.status !== 200) {
     return {
@@ -48,9 +52,10 @@ async function listAtoms(): Promise<{ ids: string[] } | { problem: string }> {
     };
   }
   const html = await response.text();
+  // Any id under `atoms/`, whatever its characters or depth, so none drops out of the matrix.
   const ids = [
     ...new Set(
-      [...html.matchAll(/href="\/design-system\/en\/(atoms\/[a-z0-9-]+)"/g)].map((m) => m[1]!),
+      [...html.matchAll(/href="\/design-system\/en\/(atoms\/[^"?#]+)"/g)].map((m) => m[1]!),
     ),
   ];
   return ids.length > 0 ? { ids } : { problem: `${url} links no atom: the manifest has no atoms.` };
@@ -102,23 +107,27 @@ async function undersizedControls(page: Page, min: number): Promise<Finding[]> {
       return parts.join("");
     };
 
+    // `visibility` is inherited and a descendant can set it back to `visible`, so only the
+    // element's own computed value counts; `display: none` and `aria-hidden` hide the subtree.
     const hidden = (el: Element) => {
+      if (getComputedStyle(el).visibility === "hidden") return true;
       for (let node: Element | null = el; node; node = node.parentElement) {
         if (node.getAttribute("aria-hidden") === "true") return true;
-        const style = getComputedStyle(node);
-        if (style.display === "none" || style.visibility === "hidden") return true;
+        if (getComputedStyle(node).display === "none") return true;
       }
       return el.getClientRects().length === 0;
     };
 
-    // A link inside running text: displayed inline, with text of its own parent around it.
+    // A link inside running text: displayed inline, with words of its own parent around it. A
+    // separator alone ("Home / Shop", "Terms · Privacy") is not running text, so it needs a
+    // letter or a digit.
     const inlineInText = (el: Element) => {
       if (el.tagName !== "A") return false;
       if (getComputedStyle(el).display !== "inline") return false;
       const parent = el.parentElement;
       if (!parent) return false;
       return [...parent.childNodes].some(
-        (node) => node.nodeType === Node.TEXT_NODE && (node.textContent ?? "").trim() !== "",
+        (node) => node.nodeType === Node.TEXT_NODE && /[\p{L}\p{N}]/u.test(node.textContent ?? ""),
       );
     };
 
@@ -131,12 +140,15 @@ async function undersizedControls(page: Page, min: number): Promise<Finding[]> {
     });
     const size = (box: Box) => ({ w: box.right - box.left, h: box.bottom - box.top });
 
-    // The element's box and its `::after`'s, when that is an absolutely positioned hit area.
+    // The element's box and its `::after`'s, when that is an absolutely positioned hit area. The
+    // `::after`'s offsets are from its containing block, which is the element only when the
+    // element is positioned; otherwise they would describe a box somewhere else.
     const hitArea = (el: Element): Box => {
       const box = boxOf(el.getBoundingClientRect());
       const after = getComputedStyle(el, "::after");
       if (after.content === "none" || after.position !== "absolute") return box;
       const style = getComputedStyle(el);
+      if (style.position === "static") return box;
       const padLeft = box.left + parseFloat(style.borderLeftWidth);
       const padTop = box.top + parseFloat(style.borderTopWidth);
       const left = padLeft + parseFloat(after.left);
@@ -195,8 +207,11 @@ async function clippedElements(page: Page): Promise<Finding[]> {
     const clips = (value: string) => value === "hidden" || value === "clip";
     for (const el of document.body.querySelectorAll("*")) {
       const style = getComputedStyle(el);
-      if (!clips(style.overflowX)) continue;
-      if (el.scrollWidth <= el.clientWidth) continue;
+      // Each axis on its own: `overflow-y: hidden` alone computes `overflow-x` to `auto`, and a
+      // `line-clamp` or a fixed height clips lines, not width. 1 px for sub-pixel rounding.
+      const overX = clips(style.overflowX) && el.scrollWidth > el.clientWidth + 1;
+      const overY = clips(style.overflowY) && el.scrollHeight > el.clientHeight + 1;
+      if (!overX && !overY) continue;
       if (el.closest("[data-truncate]")) continue;
       // Visually hidden text is clipped on purpose: `sr-only`, and Base UI's own (a 1 px box with
       // `clip-path`) for its live regions and hidden inputs.
@@ -211,7 +226,11 @@ async function clippedElements(page: Page): Promise<Finding[]> {
             ? `.${el.className.trim().split(/\s+/).slice(0, 3).join(".")}`
             : ""
         }`,
-        detail: `scrollWidth ${el.scrollWidth} > clientWidth ${el.clientWidth}; text "${(el.textContent ?? "").trim().slice(0, 40)}"`,
+        detail: `${
+          overX
+            ? `scrollWidth ${el.scrollWidth} > clientWidth ${el.clientWidth}`
+            : `scrollHeight ${el.scrollHeight} > clientHeight ${el.clientHeight}`
+        }; text "${(el.textContent ?? "").trim().slice(0, 40)}"`,
       });
     }
     return findings;

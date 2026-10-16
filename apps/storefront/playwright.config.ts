@@ -15,6 +15,13 @@ const devConsole = process.env["E2E_DEV_CONSOLE"] === "true";
 // `E2E_DESIGN_SYSTEM=true playwright test --project=design-system`. The default run (`chromium`,
 // `locales`) ignores its spec.
 const designSystem = process.env["E2E_DESIGN_SYSTEM"] === "true";
+// Each flag replaces the default projects, so both at once would run neither as asked. Set them per
+// command (`E2E_DESIGN_SYSTEM=true pnpm test:e2e …`), not exported in a shell.
+if (devConsole && designSystem) {
+  throw new Error(
+    "E2E_DEV_CONSOLE and E2E_DESIGN_SYSTEM are both true: set only one, per command.",
+  );
+}
 
 // A browser that is not the one `playwright install` fetched (the cloud VM's, CLOUD.md), for the
 // `design-system` project. Unset in CI.
@@ -27,7 +34,9 @@ export default defineConfig({
   // bootstrap made, and Payload keeps a user's sessions in one array on the user document: two
   // logins at the same moment overwrite each other, and the JWT of the session that lost is refused
   // with 403 (seen in T17: `payload-cache` and `payload-admin` starting together).
-  workers: 1,
+  // The design-system cells read static pages and log in to nothing, so they take two workers
+  // (CI's runner has two cores).
+  workers: designSystem ? 2 : 1,
   forbidOnly: Boolean(process.env["CI"]),
   retries: 0,
   reporter: [["list"]],

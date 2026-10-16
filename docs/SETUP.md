@@ -3002,7 +3002,7 @@ The review is `reviews/pr-43-code-review.md`. The first CI run also failed one t
 | Branch | `claude/t21-shadcn-atoms-d43xhp` (restarted from `main` after PR 43 merged) |
 | New | `apps/storefront/e2e/design-system.spec.ts` |
 | Changed | `apps/storefront/playwright.config.ts` (the `design-system` project), `.github/workflows/ci.yml` (the job), `apps/storefront/package.json` (`@axe-core/playwright` 4.13.0), the lockfile (added only) |
-| Local run | 192 passed in 5 min 19 s, one worker, against `next start` |
+| Local run | 192 passed in 3.0 min with two workers (5 min 19 s with one), against `next start` |
 
 ### How it works
 
@@ -3034,3 +3034,20 @@ Each applied, run at `en · 375`, and reverted.
 1. The two overflow exemptions above, instead of putting `data-truncate` on a star mask that truncates nothing.
 2. The atoms are read from the overview page rather than a list in the spec, so the spec cannot fall behind the manifest.
 3. The job is not a required check: branch protection is not available on the owner's plan (G3).
+
+### Code-review fixes (PR 44)
+
+The review is `reviews/pr-44-code-review.md`. Findings 1 to 8 were fixed; 9 and 10 (a composite action for starting the storefront, a table of opt-in projects) are optional refactors left for when a third opt-in project or a third copy of the start steps appears.
+
+| # | Finding | What changed |
+|---|---|---|
+| 1 | Vertical clipping was never caught | Each axis is checked on its own (`overflowX` with the widths, `overflowY` with the heights, 1 px for rounding). Mutation: Badge at `h-3 overflow-y-hidden` fails with `scrollHeight 15 > clientHeight 10; text "Νέο"` |
+| 2 | `::after` counted against the wrong containing block | The hit area is used only when the control is positioned; otherwise its own box |
+| 3 | An ancestor's `visibility: hidden` skipped a visible control | Only the element's own computed `visibility` counts; `display: none` and `aria-hidden` still hide the subtree |
+| 4 | An id other than one `[a-z0-9-]+` segment dropped out silently | Any id under `atoms/` is taken |
+| 5 | Links between separators counted as running text | The parent's text must hold a letter or a digit |
+| 6 | `E2E_DESIGN_SYSTEM` replaced the default run silently | Both flags at once throw; set them per command (`E2E_DESIGN_SYSTEM=true pnpm --filter @shopblok/storefront test:e2e --project=design-system`), not exported |
+| 7 | One worker | Two for the `design-system` project (static pages, no login): 3.0 min locally |
+| 8 | The collection's `fetch` had no timeout | 30 s, reported as the suite's one failing test |
+
+**Proof.** `tsc`, `eslint`, then the full project against a fresh flagged build: 192 passed.
