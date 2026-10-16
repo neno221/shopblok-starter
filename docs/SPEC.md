@@ -767,7 +767,7 @@ Light theme only. `tokens.css` has one `:root` and one `@theme inline`, and no `
 
 ### 9.3 Atomic inventory (v1)
 
-**Atoms:** Button, IconButton, Link, Input, Textarea, Select, NativeSelect, Checkbox, Radio, Switch, Label, Badge, Chip, Price, Rating, Swatch, SizePill, QuantityStepper, Skeleton, Spinner, Avatar, Icon, Logo, Separator, Kbd, Tooltip, Progress, StockIndicator, VisuallyHidden, Image, PaymentIcon (incl. Apple Pay, Google Pay, Revolut Pay), Flag.
+**Atoms:** Button, IconButton, Link, Input, Textarea, Select, NativeSelect, Checkbox, Radio, Switch, Label, Badge, Chip, Price, Rating, Swatch, SizePill, QuantityStepper, Skeleton, Spinner, Avatar, Icon, Logo, Separator, Kbd, Tooltip, Progress, StockIndicator, VisuallyHidden, Image, PaymentIcon (incl. Apple Pay, Google Pay, Revolut), Flag.
 
 **All 32 atoms are built** (M1), in `packages/ui/src/atoms/`, on the tokens (no colour literals, logical properties only) and with component tests for their states, keyboard use and long strings. Where each comes from (D31):
 - **shadcn (17):** Button, Input, Textarea, Select, NativeSelect, Checkbox, Radio (`radio-group`), Switch, Label, Badge, Skeleton, Spinner, Avatar, Separator, Kbd, Tooltip, Progress. There is one Badge: shadcn's.
@@ -1106,7 +1106,7 @@ Sync is one-way: Medusa → Payload.
 ## 13. Accessibility and performance budgets
 
 **Accessibility (WCAG 2.2 AA)**
-- axe-core in CI (the `design-system` job, §14) on every atom's DS frame at 375, 768 and 1440 px in two locales, `en` and `el`, with the WCAG 2.2 A and AA rules and none disabled. Key routes follow with the pages they test. German and French long strings are covered by every atom's component tests and by the dev-console check, which opens an atom page in all four locales.
+- axe-core in CI (the `design-system` job, §14) on every atom's DS frame at 375, 768 and 1440 px in two locales, `en` and `el`, with the WCAG 2.2 A and AA rules and none disabled. Key routes follow with the pages they test. German and Greek long strings are covered by every atom's component tests (the shared helper renders `de` and `el`); French is covered by the dev-console check, which opens an atom page in all four locales, and by W3's review.
 - Every interactive atom is at least 44 × 44 px at every width (D32). Checkbox, Radio and Switch keep the kit's drawn size and get a 44 × 44 clickable area; a link inside a sentence is exempt.
 - The token build checks contrast and fails below 4.5:1 for text and 3:1 for UI (the pairs are §9.2's). It composites translucent colours first and lists the pairs it checks. shadcn's neutral defaults fail three of them, and where the kit fails too, the override is ours, in `shopblok.tokens.json`.
 - Focus management in drawers and dialogs.
@@ -1150,7 +1150,7 @@ Lighthouse CI runs on Vercel previews.
 3. `e2e-smoke`: compose services up with `docker compose up -d --wait` (not `services:`: service containers start before checkout, so the init SQL under `infra/` could not be mounted), `pnpm bootstrap --ci`, a production build, Medusa and the storefront started directly, the Playwright suites above, `pnpm run doctor --json` (every third-party integration on its fallback, `ok` true) and `--online`. Its last step (D37) stops `next start` by PID, starts `next dev` and runs the `dev-console` project over the storefront's own routes and the DS pages, with the console rules of `payload-admin.spec.ts`; anything excused is upstream, named by its exact text and route, and the Payload admin stays out (ADR 0001). From M3 on, `e2e-smoke` starts Medusa before `pnpm build` (ADR 0004, reading 4) and runs the outage test: Medusa stopped by PID gives the last good page, a 5xx for a page never rendered, a real 404 for a missing one, and 503 from `/next/status`.
 4. `design-system` (D34): Ubuntu, Node 22, no compose and no `.env`. It builds the storefront with `DESIGN_SYSTEM_ENABLED=true`, starts `next start`, and runs the `design-system` Playwright project over every atom's frame: 32 atoms × 375, 768, 1440 px × `en`, `el` is 192 cells, each with axe, no overflow or clipped text outside `data-truncate`, 44 × 44 px targets and an empty console. It uploads the report with a screenshot of every cell. A build without the flag stops the suite at once with a message that says so. It is not a required check: branch protection is not available on the owner's plan (G3).
 5. `windows-gate`: decides whether the next job runs.
-6. `windows-smoke`: install, typecheck and build on a Windows runner, weekly, on request, and on PRs that change a dependency file.
+6. `windows-smoke`: install, `check:workspace`, typecheck, the unit tests, build and the one-`^C` check of `pnpm dev` (`dev-ctrl-c.ps1`) on a Windows runner, weekly, on request, and on PRs that change a dependency file.
 
 Later: Lighthouse on the Vercel preview (M7).
 
