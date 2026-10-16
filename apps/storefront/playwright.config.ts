@@ -10,6 +10,16 @@ import { defineConfig, devices } from "@playwright/test";
 // --project=dev-console`. Without the variable the default run is what it was.
 const devConsole = process.env["E2E_DEV_CONSOLE"] === "true";
 
+// The `design-system` project (T24, D34) runs against `next start` built with
+// DESIGN_SYSTEM_ENABLED=true and needs no backend. Like `dev-console` it exists only when asked:
+// `E2E_DESIGN_SYSTEM=true playwright test --project=design-system`. The default run (`chromium`,
+// `locales`) ignores its spec.
+const designSystem = process.env["E2E_DESIGN_SYSTEM"] === "true";
+
+// A browser that is not the one `playwright install` fetched (the cloud VM's, CLOUD.md), for the
+// `design-system` project. Unset in CI.
+const chromiumPath = process.env["PW_CHROMIUM_PATH"];
+
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: true,
@@ -25,30 +35,46 @@ export default defineConfig({
     baseURL: process.env["E2E_BASE_URL"] ?? "http://localhost:8000",
     trace: "retain-on-failure",
   },
-  projects: devConsole
+  projects: designSystem
     ? [
         {
-          name: "dev-console",
-          // One retry, for a browser that stalls on a runner (CI run 38876631305). A console
-          // message is the same on the second visit, so a real finding still fails twice.
-          retries: 1,
-          use: { ...devices["Desktop Chrome"] },
-          testMatch: /dev-console\.spec\.ts/,
+          name: "design-system",
+          retries: 0,
+          use: {
+            ...devices["Desktop Chrome"],
+            ...(chromiumPath ? { launchOptions: { executablePath: chromiumPath } } : {}),
+          },
+          testMatch: /design-system\.spec\.ts/,
         },
       ]
-    : [
-        {
-          name: "chromium",
-          use: { ...devices["Desktop Chrome"] },
-          testIgnore: [/payload-locales\.spec\.ts/, /dev-console\.spec\.ts/],
-        },
-        // Saves the `markets` global (and puts it back), which the other suites read through the proxy:
-        // it runs when all of them are done.
-        {
-          name: "locales",
-          use: { ...devices["Desktop Chrome"] },
-          testMatch: /payload-locales\.spec\.ts/,
-          dependencies: ["chromium"],
-        },
-      ],
+    : devConsole
+      ? [
+          {
+            name: "dev-console",
+            // One retry, for a browser that stalls on a runner (CI run 38876631305). A console
+            // message is the same on the second visit, so a real finding still fails twice.
+            retries: 1,
+            use: { ...devices["Desktop Chrome"] },
+            testMatch: /dev-console\.spec\.ts/,
+          },
+        ]
+      : [
+          {
+            name: "chromium",
+            use: { ...devices["Desktop Chrome"] },
+            testIgnore: [
+              /payload-locales\.spec\.ts/,
+              /dev-console\.spec\.ts/,
+              /design-system\.spec\.ts/,
+            ],
+          },
+          // Saves the `markets` global (and puts it back), which the other suites read through the proxy:
+          // it runs when all of them are done.
+          {
+            name: "locales",
+            use: { ...devices["Desktop Chrome"] },
+            testMatch: /payload-locales\.spec\.ts/,
+            dependencies: ["chromium"],
+          },
+        ],
 });

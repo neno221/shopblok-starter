@@ -1,10 +1,13 @@
-# CI for M0 (plan T16, T17). Five jobs:
+# CI for M0 (plan T16, T17), and M1's `design-system` (T24). Six jobs:
 #   check          the root checks, the same ones a contributor runs: no .env, no database.
 #   backend-integration
 #                  the backend's integration tests (`test:integration:http`) on the compose Postgres.
 #   e2e-smoke      the compose stack, `pnpm bootstrap --ci`, a production build, both servers,
 #                  the five Playwright suites, `pnpm run doctor` and, last, the storefront's
 #                  console in `next dev` (T25).
+#   design-system the atoms' frames in English and Greek at 375, 768 and 1440 px: axe, overflow,
+#                  44 px controls, the console (T24, D34). No compose: a build with the flag and
+#                  `next start` are all it needs.
 #   windows-gate   decides whether windows-smoke runs.
 #   windows-smoke  install, type check, unit tests, build and a Ctrl-C of `pnpm dev` on NTFS,
 #                  weekly and when dependencies change.
@@ -241,6 +244,73 @@ jobs:
           path: |
             ${{ runner.temp }}/servers
             ${{ runner.temp }}/doctor.json
+          if-no-files-found: ignore
+          retention-days: 14
+
+  # D34, plan T24: every atom's frame (en, el × 375, 768, 1440) against `next start` built with
+  # DESIGN_SYSTEM_ENABLED=true. The DS pages read no data and the build falls back to the market
+  # map's build-time default (D10), so there is no compose, no bootstrap and no `.env`: this is the
+  # whole of what the job needs, and it runs in parallel with e2e-smoke. Nothing else runs the
+  # `design-system` project, and it runs nothing else (playwright.config.ts).
+  design-system:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: ./.github/actions/setup
+      - run: pnpm install --frozen-lockfile
+      - name: Install Playwright's Chromium
+        run: pnpm --filter @shopblok/storefront exec playwright install --with-deps chromium
+      # Through `next build` itself (the package's `build` script), not turbo: the flag is read at
+      # build time and frozen into the static DS pages (D33).
+      - name: Build the storefront with the design system on
+        run: pnpm --filter @shopblok/storefront build
+        env:
+          DESIGN_SYSTEM_ENABLED: "true"
+      # Started directly and kept up by `nohup … &`, as in e2e-smoke; the PID goes in a file for the
+      # step that stops it. The suite itself stops with a message if the build lacks the flag.
+      - name: Start the storefront
+        run: |
+          mkdir -p "$RUNNER_TEMP/servers"
+          nohup pnpm --filter @shopblok/storefront start > "$RUNNER_TEMP/servers/storefront.log" 2>&1 &
+          storefront=$!
+          echo "$storefront" > "$RUNNER_TEMP/servers/storefront.pid"
+          for _ in $(seq 120); do
+            if curl -fs -o /dev/null http://localhost:8000/design-system/en; then
+              echo "The storefront answers."
+              exit 0
+            fi
+            kill -0 "$storefront" 2>/dev/null || { echo "::error::The storefront exited before it answered; the server-logs artifact has its log."; exit 1; }
+            sleep 1
+          done
+          echo "::error::The storefront (:8000/design-system/en) did not answer 200 within 120 s."
+          exit 1
+      - name: Design-system checks
+        run: pnpm --filter @shopblok/storefront test:e2e --project=design-system --reporter=list,html
+        env:
+          E2E_DESIGN_SYSTEM: "true"
+          PLAYWRIGHT_HTML_OPEN: never
+      - name: Stop the storefront
+        if: always()
+        run: |
+          pid="$(cat "$RUNNER_TEMP/servers/storefront.pid" 2>/dev/null || true)"
+          if [ -n "$pid" ]; then bash .github/scripts/stop-tree.sh --port 8000 "$pid"; fi
+      - name: Upload the Playwright report, with the screenshots
+        if: always()
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: design-system-report
+          path: |
+            apps/storefront/playwright-report
+            apps/storefront/test-results
+          if-no-files-found: ignore
+          retention-days: 14
+      - name: Upload the server log
+        if: always()
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: design-system-server-logs
+          path: ${{ runner.temp }}/servers
           if-no-files-found: ignore
           retention-days: 14
 
