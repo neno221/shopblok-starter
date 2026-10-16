@@ -17,6 +17,11 @@ type FlagProps = Omit<React.ComponentProps<"svg">, "role" | "aria-label" | "chil
   label: string;
 };
 
+/** Whether the set has a flag for this ISO 3166-1 alpha-2 code (either case). */
+function isFlagCode(code: string): code is FlagCode | Lowercase<FlagCode> {
+  return Object.hasOwn(flags, code.toUpperCase());
+}
+
 const frame = "inline-block aspect-[3/2] h-5 w-auto shrink-0 rounded-xs";
 
 function Flag({ code, label, className, ...props }: FlagProps) {
@@ -45,5 +50,5 @@ function Flag({ code, label, className, ...props }: FlagProps) {
   );
 }
 
-export { Flag };
+export { Flag, isFlagCode };
 export type { FlagCode, FlagProps };

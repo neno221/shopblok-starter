@@ -3,7 +3,7 @@ import path from "node:path";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { longLabels } from "../test-support/long-labels";
-import { Flag } from "./flag";
+import { Flag, isFlagCode } from "./flag";
 
 describe("Flag", () => {
   it.each([
@@ -39,6 +39,11 @@ describe("Flag", () => {
     // @ts-expect-error -- not an ISO 3166-1 code, so the type refuses it; the component survives it.
     render(<Flag code="ZZ" label="Nowhere" />);
     expect(screen.getByRole("img", { name: "Nowhere" })).toBeTruthy();
+  });
+
+  it("knows which ISO codes the set has, in either case", () => {
+    expect(["CY", "cy", "Us", "DE", "ch", "GR"].every(isFlagCode)).toBe(true);
+    expect(["ZZ", "", "cyp", "constructor"].some(isFlagCode)).toBe(false);
   });
 
   it("requires the label", () => {
