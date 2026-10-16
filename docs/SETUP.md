@@ -2916,3 +2916,56 @@ The review is `reviews/pr-42-code-review.md`. Every finding held; each was check
 | 7 | Avatar's name is lost when the image fails | A line in its a11y notes: show the name as text beside the avatar |
 
 **Proof.** ui 163 tests (154 before), storefront 602; `tsc` and `eslint` in both. In `next dev`, Chromium at 375 px: Separator, NativeSelect, Radio, Button, Checkbox, Input, Select and Textarea in all four locales, no horizontal overflow and no console message.
+
+## Atoms (T23)
+
+**Result: the 15 other atoms of SPEC §9.3 are in `packages/ui/src/atoms/`, each with component tests and a DS entry, so all 32 atoms are there.** The plan says "16 other atoms" and "33 atoms"; SPEC §9.3 lists 32 (17 shadcn + 15), and every one is built. `class-rules.test.ts` asserts the 32 files and runs T21's scan over all of them. D34's "33 atoms × 6 cells" is 32 × 6 = 192 cells for T24.
+
+| | |
+|---|---|
+| Date | 2026-10-16 |
+| Branch | `claude/t21-shadcn-atoms-d43xhp` (restarted from `main` after PR 42 merged) |
+| New | `packages/ui/src/atoms/{icon-button, link, chip, price, rating, swatch, size-pill, quantity-stepper, stock-indicator, visually-hidden, image, icon, logo, payment-icon, flag}.tsx`, each with its `*.test.tsx`; `apps/storefront/src/design-system/atoms-commerce.tsx` (the 15 entries) and `components/removable-chip.tsx` |
+| Changed | `packages/ui/{package.json, NOTICE.md, vitest.config.ts}`, `class-rules.test.ts`, `apps/storefront/{vitest.config.ts, src/design-system/{entries.tsx, atoms.tsx, icons.ts, foundations/icons.tsx}}` and `entries.test.tsx`, `packages/fixtures/src/design-system.ts`, `packages/i18n/src/index.ts` (`atoms`), the lockfile (added only) |
+| Deps | `simple-icons` 16.35.0, `country-flag-icons` 1.6.20, `@shopblok/i18n` (`workspace:*`, for Price's `formatMoney`) |
+| Tests | ui **318** (163 + 155), storefront **677** (602 + 75); `tsc`, `eslint`, `pnpm install --frozen-lockfile`, `check:workspace` and `next build` with the flag all pass |
+
+### What was done
+
+| Atom | Source | Notes |
+|---|---|---|
+| IconButton | ours | Button's `icon`/`icon-lg` size (44/48 px); `label` is required by the type and is the accessible name |
+| Link | ours, on `next/link` | `inline` (in a sentence, WCAG 2.5.8's exemption) or `standalone` (44 px); `rel="noopener noreferrer"` with `target="_blank"`, and an optional `newTabLabel` read out after the text; `aria-current` passes through |
+| Chip | ours | The remove button is a real 44 × 44 box pulled back with `-my-1.5`, so the chip stays 32 px; `onRemove` and `removeLabel` are required together. A server page cannot pass `onRemove`, so the DS uses a small client wrapper (`removable-chip.tsx`) |
+| Price | ours | `formatMoney` with major units (never ×/÷ 100); a sale shows the original in `<s>`, each price with a `VisuallyHidden` label; `price`, `price-sale` and `price-original` tokens. Tests compare with `formatMoney` for `en-US`/USD, `el-CY`/EUR, `de-DE`/EUR and `fr-CH`/CHF and normalise CLDR's spaces (SPEC §14, "Test rule") |
+| Rating | vendored from ReUI `rating` (base-vega) | Read-only: no hover, click or `"use client"`; rounds to the nearest half (the fixture's 4.6 shows 4.5); the name is the `label` prop ("4.5 out of 5", from `atoms.rating.label`) and the visible number a `valueText` prop; `text-rating`/`fill-rating` |
+| Swatch, SizePill | ours | Selected (`aria-pressed`), disabled, and unavailable (struck through, still focusable, with `unavailableLabel` added to its name; only `disabled` blocks it); colour or image swatch. Radio semantics come with M2's VariantSelector |
+| QuantityStepper | vendored from ReUI `number-field` | ReUI's six parts, the scrub area and its `Label` became one component: 44 px tall, both buttons 44 × 44 with required labels, Lucide icons, the ring at full strength round the whole field (`has-[:focus-visible]`). Base UI gives the buttons `tabindex=-1`: Tab reaches the input, and the arrow keys step it (tested) |
+| StockIndicator | ours | `text` is required; an icon shape plus `text-stock-*`, so the state is never colour alone (WCAG 1.4.1) |
+| VisuallyHidden | ours | `sr-only` |
+| Image | ours, on `next/image` | `fill` in an aspect-ratio frame, the radius tokens, a Skeleton until it loads; `alt` is required, and `""` must be passed on purpose (a `@ts-expect-error` test) |
+| Icon | ours | A Lucide icon at the size tokens; `aria-hidden` unless it has a `label`, then `role="img"` |
+| Logo | ours | An SVG slot named by `name`; without children it shows the name as text |
+| PaymentIcon | ours, simple-icons | The D31 eight (Visa, Mastercard, American Express, Apple Pay, Google Pay, Revolut, PayPal, Klarna), single-colour (`fill-current`), `role="img"` with a label. Imported as eight named exports from `"simple-icons"`: the `simple-icons/icons` entry is deprecated and logs a `console.warn` at import, which D34's console rule would judge |
+| Flag | ours, country-flag-icons | `country-flag-icons/react/3x2` by ISO 3166-1 code, with a label; no `"use client"`, so it costs no client JavaScript. `isFlagCode` narrows a string. The DS takes country names from `Intl.DisplayNames` |
+
+1. **The ReUI CLI run.** `pnpm dlx shadcn@4.21.4 add @reui/rating @reui/number-field` timed out in Node's `fetch` to `reui.io`, though `curl` through the proxy answered. The two registry items were fetched with `curl` and the CLI run on the local files: it wrote into an untracked `src/components/reui/` (deleted) and stopped to ask about overwriting `label.tsx` (declined). So both files were written by hand from the registry JSON, and their headers list the edits. Nothing tracked was changed by the CLI.
+2. **Copy and fixtures.** `atoms` in the four catalogs gained `chip.remove`, `link.newTab`, `price.{sale, original}`, `rating.label` (`{value}`, `{max}`), `quantityStepper.{label, decrease, increase}`, `stock.{inStock, low, outOfStock}` (`{count}`), `variant.unavailable` and the payment brands' names. The fixtures gained `linkLabel`, `chipLabel`, `storeName` and `imageAlt` (ordinary and long, four locales) and a sample image (a data URI). Names a control has but does not draw (an icon button's, a swatch's, the stepper's buttons) are shown as a caption under it in the DS, so the page shows what a screen reader says.
+3. **Vitest and `country-flag-icons`.** The package imports `react` without declaring it, so Node resolved it from pnpm's store, which holds another major ("A React Element from an older version of React"). Both `vitest.config.ts` files now inline the package and dedupe `react` and `react-dom`. `next build` and `next start` render the flags without that.
+4. **NOTICE.md** gains simple-icons (CC0; each mark remains its owner's trademark) and country-flag-icons (MIT), and ReUI's notice covers `rating` and `number-field`. The DS credits page lists ReUI, Simple Icons and country-flag-icons.
+
+### Checks
+
+| Check | Result |
+|---|---|
+| The 15 frames × `en`, `el`, `de`, `fr` × 375, 768, 1440 px, in Chromium against `next start` built with `DESIGN_SYSTEM_ENABLED=true` | **180 pages: all 200, no horizontal overflow, nothing clipped outside `data-truncate`, every control at least 44 × 44 (an `::after` hit area counted, inline links exempt), no console error or warning.** Not axe: that is T24 |
+| T23's mutations | StockIndicator without its text: 5 tests fail. Price × 100: 9 fail, the four market comparisons among them. Image with `alt` optional: `tsc` fails (`Unused '@ts-expect-error' directive`) |
+| T21's scan over the new files | Passes; the file count is asserted (32) |
+
+### Decisions the plan did not settle
+
+1. **Unavailable swatches and size pills stay focusable and clickable** (a shopper may still want to see that variant, or be told when it is back); only `disabled` blocks them. Their name says "unavailable".
+2. **QuantityStepper keeps Base UI's keyboard model** (buttons out of the Tab order, arrows on the input). Putting the buttons in the Tab order is a small change if you want it.
+3. **Link has two variants:** `inline` for links in running text (exempt from D32) and `standalone` at 44 px.
+4. **Rating rounds to halves**, as the plan's "halves included" suggests; the label says the exact value given.
+5. `dev-console.spec.ts` keeps T21's one atom page (`atoms/select`); the 180-page check above covered the new ones once, and T24 checks every atom in CI.
