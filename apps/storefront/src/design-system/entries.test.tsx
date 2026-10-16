@@ -81,7 +81,9 @@ describe("the atoms' entries (T21, T23)", () => {
 
   it.each(LOCALES)("shows Price in the market's own format, in %s", (locale) => {
     const ctx = createContext(locale);
-    const markup = html("atoms/price", locale);
+    // React escapes an ASCII apostrophe, which newer Node versions write as fr-CH's grouping mark
+    // (SPEC §14, "Test rule"), so the markup is unescaped before it is compared.
+    const markup = html("atoms/price", locale).replaceAll("&#x27;", "'");
     expect(markup).toContain(ctx.money(ctx.fixture.prices.regular));
     expect(markup).toContain(ctx.money(ctx.fixture.prices.sale.original));
     expect(markup).toContain(ctx.money(ctx.fixture.prices.high));
