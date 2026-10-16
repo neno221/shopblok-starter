@@ -5,7 +5,9 @@ import { seeded } from "./lib/markets/test-maps";
 import { config, proxy } from "./proxy";
 
 // The map comes from `/next/markets` (a fetch); the glue test below gives it directly.
-vi.mock("./lib/markets/proxy-market-map", () => ({ getProxyMarketMap: async () => seeded }));
+vi.mock("./lib/markets/proxy-market-map", () => ({
+  getProxyMarketMap: async () => seeded,
+}));
 
 // (The docs call the helper `unstable_doesProxyMatch`; 16.4.0 still exports it as
 // `unstable_doesMiddlewareMatch`.)
@@ -23,6 +25,8 @@ describe("the proxy matcher", () => {
     "/administrator", // starts like /admin, is a storefront path
     "/apis",
     "/nextstep",
+    "/design-systems", // starts like /design-system, is a storefront path
+    "/design-system-2/en",
     "/_not-found",
     "/cy/store?page=2",
     "/products/1.5l-bottle", // a dot in a slug is not a file
@@ -40,6 +44,11 @@ describe("the proxy matcher", () => {
     "/api",
     "/api/pages",
     "/api/users/first-register",
+    "/design-system",
+    "/design-system/",
+    "/design-system/en",
+    "/design-system/el/foundations/colors",
+    "/design-system/de/frame/atoms/button",
     "/next/preview",
     "/next/exit-preview",
     "/_next/static/chunks/main.js",

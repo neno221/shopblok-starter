@@ -8,7 +8,9 @@
       // mode would drop, and a build against another database must not replay this one's cache.
       // What the database holds can't be hashed: a cached build replays the map it was built with
       // until a request revalidates it (the layout's `cacheLife` is 30 s).
-      "env": ["$TURBO_EXTENDS$", "PAYLOAD_*"]
+      // `DESIGN_SYSTEM_ENABLED` (D33): the design-system pages are static, so the flag is frozen
+      // into the build; it is in the hash so that a build with it is never replayed for one without.
+      "env": ["$TURBO_EXTENDS$", "PAYLOAD_*", "DESIGN_SYSTEM_ENABLED"]
     },
     "test": {
       // `src/lib/markets/medusa-locales.test.ts` reads Medusa's locale list from the backend's

@@ -2552,7 +2552,7 @@ T18 (the Figma export) has not landed, so T19 (which builds `tokens.css`) cannot
 | | |
 |---|---|
 | Date | 2026-10-15 |
-| Branch | `claude/m1-1d8p7b` (committed locally; no PR opened by this session) |
+| Branch | `claude/m1-1d8p7b`, PR 40 |
 | New | `scripts/figma-tokens.ts` (`pnpm tokens`), `scripts/lib/tokens/{contrast, checks, figma-parser, model, formats, build}.ts` and their tests (`contrast`, `checks`, `figma-parser`, `build`, `committed`), `scripts/turbo.json`, `packages/ui/tokens/shopblok.tokens.json`, `packages/ui/src/styles/tokens.css`, `packages/ui/src/tokens.ts`, `packages/ui/src/styles/brands/README.md` |
 | Changed | `scripts/package.json` (`style-dictionary` 5.6.1, exact, in `@shopblok/scripts` only), the lockfile (51 packages added, nothing changed), root `package.json` (`tokens`), `packages/ui/src/styles/globals.css`, `packages/ui/tokens/README.md`, `apps/storefront/e2e/styles-fonts.spec.ts` |
 | Tests | i18n 18, scripts **397** (115 new), storefront 422, backend 85: all pass in CI's state. Playwright, `styles-fonts.spec.ts` alone against `next start` (no Medusa, no Payload database): 9 of 9, 4 of them new |
@@ -2674,3 +2674,82 @@ A review of the first version found ten things; each was checked against the cod
 - A composite `$value` (the contrast pairs, with `foreground`, `background` and `minimum`) has its inner references resolved, which is how the pairs read the final colours; their original `{semantic.…}` text, kept in `token.original`, gives the names in the messages.
 - `pnpm tokens` takes about half a second. `scripts/turbo.json` (item 6 above) is there on reasoning, not on an observed stale cache: without it, turbo's `scripts#test` hash would not include the token files.
 - `styledictionary.com` was not needed: `node_modules/style-dictionary`'s README and types covered the hooks, `formatPlatform` and `getPlatformTokens`.
+
+## DS page shell (T22)
+
+**Result: `/design-system/[locale]/…` exists, gated by `DESIGN_SYSTEM_ENABLED`, with the Foundations pages, the entry-page machinery and the frame route, and no atoms.** T22 ran **before T21** (order change below): this session could not reach `ui.shadcn.com`, `reui.io` or `base-ui.com` (the proxy answered 403), so the shadcn atoms could not be added. **T21 now also adds its atoms' DS entries.**
+
+| | |
+|---|---|
+| Date | 2026-10-16 |
+| Branch | `claude/m1-1d8p7b`, PR 40 |
+| New | `apps/storefront/src/app/design-system/[locale]/{(overview), (entry)/[...entry], frame/[...entry]}/` (each a root layout and a page), `apps/storefront/src/design-system/` (`entries.tsx`, `catalog.ts`, `gate.ts`, `context.ts`, `types.ts`, `metadata.ts`, `icons.ts`, `components/`, `foundations/`, and 7 test files), `packages/fixtures/src/design-system.ts` |
+| Changed | `lib/env.ts` (`designSystemEnabled()`), `proxy.ts` (reserved segment), `next.config.ts` (the redirect), `.env.example`, `apps/storefront/turbo.json` (`DESIGN_SYSTEM_ENABLED` for `build`), `packages/i18n/src/index.ts` (`designSystem`), `packages/ui/package.json` (export `./tokens`), `e2e/markets.spec.ts`, `proxy.test.ts`, `env.test.ts`, i18n's test |
+| Tests | i18n **19**, scripts 397, storefront **523** (101 new), backend 85 (cached, unchanged): all pass in CI's state (no `.env`). `pnpm install --frozen-lockfile`, `check:workspace`, `typecheck`, `lint` and `build` pass; `prettier --check` is clean on every changed and new file (with `packages/config/prettier.config.mjs`) |
+
+### What was done
+
+1. **Order change.** The plan had T21 first so that the shell would be built around real atoms. Built first, the shell has the Foundations entries (real, from `tokens.ts`) and a machinery that a test drives with a test-only entry. The plan's T21 step list and Verify list stand, plus: each atom adds its DS entry (below).
+2. **Three root layouts.** The plan's `(shell)` group is not one layout: under Cache Components an unknown `[...entry]` is a runtime value, and a page that calls `notFound()` after `await params` answered **200 with the not-found page on the first request** (404 from the second, from the cache). A root param is read before anything streams, so `entry` and `locale` are root params: `[locale]/(overview)/` (overview), `[locale]/(entry)/[...entry]/` (entry pages) and `[locale]/frame/[...entry]/` (frames) each have a root layout (`<html lang>`, Inter, the shared CSS, `robots: { index: false, follow: false }`); the first two wrap the content in the shell (header, navigation tree, English chrome with `lang="en"`), the frame wraps nothing. The pages check again (`requireDesignSystemEntry()`), so a page moved under another layout stays a 404.
+3. **Gate (`designSystemEnabled()`, `lib/env.ts`).** True when `NODE_ENV === "development"` (`next dev`), else only for `DESIGN_SYSTEM_ENABLED === "true"`. `src/design-system/gate.ts` is called by every layout and page: flag off or locale not one of the four, `notFound()`. `staticParams()` returns one param instead of 68 when the flag is off (Cache Components wants at least one), so a build without the flag prerenders three 404 pages and not ~70. `DESIGN_SYSTEM_ENABLED` is in `build`'s `env` in `apps/storefront/turbo.json` (extending the root's list with `$TURBO_EXTENDS$`) after reading turbo 2.11.7's `using-environment-variables` and `configuration#env` pages; `.env.example` has it commented out.
+4. **Proxy and redirect.** `design-system` is a reserved first segment in `proxy.ts`'s matcher (`/design-systems` and `/design-system-2/en` stay storefront paths); `next.config.ts` redirects `/design-system` to `/design-system/en` with 307 (not permanent).
+5. **Params.** `entryParams()` (`catalog.ts`) is manifest × `LOCALES`; both entry layouts' `generateStaticParams` return it, and `routes.test.tsx` compares what they return with the manifest in each of the four locales.
+6. **Fixtures** (`@shopblok/fixtures`, `design-system.ts`): per locale the market (D33: `en-us` USD, `el-cy` EUR, `de-de` EUR, `fr-ch` CHF), ordinary and long strings (7 fields each), prices (regular 64/59/59/58, a sale price and its original, 1249.50 for the grouping), stock, a rating, sizes and colours (named in the locale). The locale list repeats `LOCALES` on purpose (the package has no dependencies); a storefront test compares them.
+7. **Foundations** (8 entries, `src/design-system/foundations/`): colours (swatches, ours beside the kit's value and reason where overridden, the 36 contrast pairs with ratio, rule, result and the kit's ratio), typography (the scale and weights in the locale's text), spacing, radius, shadows, motion, breakpoints/design widths/layers, and icons and credits (the kit's CC BY 4.0 credit and Inter's OFL). `@shopblok/ui` now exports `./tokens`.
+8. **Entry page:** the title and group, the locale toggle (links to the same page in the other locales, the current one `aria-current`, each showing its market), the live render and the states matrix (`EntryBody`, the same component the frame shows alone), the a11y notes, and the viewport switcher (a client component: "All three" shows the 375, 768 and 1440 px iframes of the frame route side by side, scaled together by a `ResizeObserver` to fit; the buttons show one at a time; either way the frames are scaled down when the column is narrower than they are, and a note says by how much; a link opens the frame at 1:1).
+9. **Copy:** the shell's chrome is `catalogs.en.designSystem` (English only: `Messages` omits it, so `el`, `de` and `fr` have no such key; a test checks that); an entry's content is in the locale and its language is marked (`lang` on each part).
+
+### How T21 and T23 add an entry
+
+In `apps/storefront/src/design-system/entries.tsx` an entry is an object of type `DsEntry` (`types.ts`): `id: "atoms/button"`, `group: "atoms"`, `label`, `summary`, `a11y` (at least one note), `live(ctx)`, and `states` (one `{ id, label, description?, render(ctx) }` per state). Every sample string, price, size and colour comes from `ctx.fixture` (`@shopblok/fixtures`), money from `ctx.money`. Append it to `entries` (or spread a new `atoms.tsx` list into it). Nothing else changes: the navigation lists the `Atoms` group with its first entry, the page and the frame exist in all four locales (`entryParams()`), and `entries.test.tsx` renders each entry in each locale and `catalog.test.ts` checks its id, group and notes. An atom that draws an icon adds a row to `src/design-system/icons.ts`. The atoms' own copy goes in a new `atoms` key of `@shopblok/i18n`, in all four catalogs (plan T22 step 8; there was nothing to put in it yet). T24 opens `/design-system/{en,el}/frame/{id}`.
+
+### Checks
+
+| Check | Result | Key output |
+|---|---|---|
+| Build with `DESIGN_SYSTEM_ENABLED=true`: every DS route static | **Pass** | 68 prerendered routes (4 overview + 32 + 32 frames), all `○`, "response: complete" in the prerender manifest. Each of the three routes also has one `◐` row: the empty fallback shell Next adds for params that are not listed (`/[market]` has the same); an unlisted path renders at run time and answers 404 |
+| Build without the flag | **Pass** | `/design-system/en`, `/design-system/el/foundations/colors`, a frame, `/de`, `/xx` and an unknown entry: 404 on `next start` |
+| `next dev` | **Pass** | `/design-system/en`, `/fr/foundations/colors` and `/el/frame/foundations/typography` answer 200 |
+| `/design-system` | **Pass** | 307 to `/design-system/en` (flag on and off) |
+| `/design-system/xx`, `/xx/foundations/colors`, `/en/nope`, `/en/frame/nope`, `/en/frame`, `/en/atoms/button`, `/EN`, `/en/a/b/c` | **404 on the first request** | with the flag on, `next start` |
+| `<html lang>` and `noindex` | **Pass** | `en-US`, `el-CY`, `de-DE`, `fr-CH`; `<meta name="robots" content="noindex, nofollow">` on pages and frames |
+| In Chromium (build 1194, a temporary config, deleted) | **Pass** | 8 Foundations frames × 3 widths × `en` and `el`: no horizontal overflow. Motion's `--duration-*` values are read from the stylesheet (`.1s`, `.15s`, `.3s`: Lightning CSS minifies them). The switcher: three iframes at 43 % (161, 329, 617 px wide) in a 1440 px window, one at 768 px after the button; the locale toggle goes to `de-DE` |
+| Unit tests | **Pass** | manifest × 4 locales against the generated params, page and frame; the gate; the root layouts; the class maps against `tokens.ts` and `tokens.css`; the fixtures against the seeded market map; the machinery with a test-only entry |
+| Proxy test and `markets.spec.ts` | **Proxy test pass; the new `markets.spec.ts` block passes on its own** | the block (3 tests: no rewrite, no `Location`, 200 or 404, and the 307) ran against `next start` built with and without the flag. The whole file needs the compose stack (its `beforeAll` wants `/` to answer 200), and Docker was not started in this session, so the other tests were not run |
+| Mutation: `design-system` removed from the reserved segments | **Fails as it should** | 5 tests of the proxy matcher fail |
+| Mutation: `designSystemEnabled()` returns `true` | **Fails as it should** | 9 tests fail (env, gate, layouts) |
+| Mutation: the gate's flag check removed | **Fails as it should** | 4 tests fail |
+
+### Decisions the plan did not settle
+
+1. **Entries are root params, three root layouts** (item 2): the plan's single `(shell)` group gave a 200 on the first visit to an unknown entry.
+2. **`generateStaticParams` is gate-aware** (item 3): one param when the flag is off.
+3. **The redirect is 307, and is there with the flag off** (it then lands on a 404).
+4. **Foundations as manifest entries, `atoms` copy deferred, icons empty:** `tokens.ts` has no spacing, motion or container export, so those pages read the CSS variables (`CssValue`) or a documented constant (`SPACING_STEP_PX`, checked against `tokens.css`); class maps (`foundations/classes.ts`) write each utility out because Tailwind finds only literal classes, and a test fails when `tokens.ts` gains a step the maps lack. `@theme inline` variables are not emitted to `:root`, so the pages use the utilities, not `var(--radius-md)`. The icons list is empty until an atom draws one. The `atoms` key of `@shopblok/i18n` comes with T21.
+5. **`lang`:** the chrome is `lang="en"` and an entry's content is in the market's `lang`, inside `<html lang>` = the locale's market (WCAG 3.1.2).
+6. **The viewport iframes are 720 px high** and scroll inside; a frame does not report its height.
+7. **`/favicon.ico` is a request to `[market]`** and answers 500 in a build with no Payload secret (CI's `e2e-smoke` has one, so it is a 404 there). It is the same on every page; T25's console check will see it on the DS pages too.
+
+### Code-review fixes (PR 40)
+
+Review of 217ec0a (nine findings, 2026-10-16). All nine held; the main one was reproduced before it was fixed.
+
+| # | Finding | What was done |
+|---|---|---|
+| 1 | With the flag off at build, the other DS paths render on request and read `DESIGN_SYSTEM_ENABLED` at run time | **Reproduced:** built without the flag, started with `DESIGN_SYSTEM_ENABLED=true`: `/design-system/en` 404, `/el`, `/el/foundations/colors`, `/de/frame/foundations/typography` 200. **`dynamicParams = false` is not an option:** Next 16.4's `dynamicParams` page says it is "not available when Cache Components is enabled", and the Cache Components migration guide says the export fails the build ("Route segment config "dynamicParams" is not compatible with `nextConfig.cacheComponents`"). **Fix: freeze the flag at build.** `next.config.ts` sets `env: { DESIGN_SYSTEM_ENABLED: designSystemBuildFlag() }` (`"true"` only for the exact value, else `"false"`, never undefined), so `next build` replaces `process.env.DESIGN_SYSTEM_ENABLED` in every bundle (the compiled chunks read `get DESIGN_SYSTEM_ENABLED(){return"false"}`; the expression is left only in the source maps). That is what D33 says ("read at build time") and what the T22 note claimed. `staticParams`, the gate and the unit tests are unchanged: they still read through `designSystemEnabled()`. |
+| 2 | `env.ts` comment and `.env.example` promised a frozen value | They now say how it is frozen and that setting the flag on `next start` changes nothing. |
+| 3 | The switcher's first render was unscaled | `available` starts as `null`: the scale is 0 and the frames are `invisible` until the `ResizeObserver` reports. Sampled every animation frame in Chromium (1440 px window): no frame was ever visible at 1:1; the first visible frames are 161, 329 and 617 px wide. The scale note appears after the first measurement (it was never in the server HTML, and is not now; it needs a width). |
+| 4 | The button group was labelled with the entry's name | `aria-label` is "Preview width" (`catalogs.en.designSystem.viewports.group`). |
+| 5 | "At its real width" was not true of single mode | Single mode is scaled to fit like the three-up view, and the note says by how much (1440 px in a 1440 px window is 78 %). I changed the text, not the behaviour: "Open the frame" already gives 1:1, and horizontal scrolling inside the page would need a focusable scroll region. Item 8 above and the component's comment now say so. |
+| 6 | SETUP.md's record said "no PR opened" | The row says PR 40. |
+| 7 | Viewport widths hard-coded | `viewportWidths()` (`src/design-system/viewport-widths.ts`) reads `phone`, `tablet` and `desktop` from `@shopblok/ui/tokens` and throws when a name or a `px` value is missing. The server component passes them to the client switcher, so `tokens.ts` stays out of the client bundle. A test ties the result to `[375, 768, 1440]`. |
+| 8 | `CssValue` recalculated styles on every render | It reads once per mount, in a ref callback with state. A `useEffect` with `setState` is what the review suggested, but the repo's `react-hooks/set-state-in-effect` rule refuses it. A hot-reloaded stylesheet in `next dev` shows its new value on the next page load (as before: it never refreshed). |
+| 9 | `noEntries` was dead copy | Removed from `catalogs.en.designSystem`. |
+
+**Proof for finding 1** (CI's state: no `.env`; `next start` on the real build):
+
+- Build without the flag, `next start` with `DESIGN_SYSTEM_ENABLED=true` **and** with it unset: `/design-system/en`, `/el`, `/el/foundations/colors`, `/de/frame/foundations/typography`, `/fr/foundations/spacing`, `/en/foundations/colors`, `/en/frame/foundations/colors`, `/xx`, `/en/nope` all answer 404; `/design-system` is a 307 to `/design-system/en`. Only `/en`, `/en/foundations/colors` and `/en/frame/foundations/colors` were prerendered; the others are the on-demand paths that answered 200 before.
+- Build with the flag, `next start` with no variable: 68 prerendered DS routes (4 + 32 + 32), all status 200; `/design-system/{en,el,de,fr}/…` answer 200 with `<html lang>` `en-US`, `el-CY`, `de-DE`, `fr-CH` and `<meta name="robots" content="noindex, nofollow">`; `/xx`, `/en/nope`, `/en/frame/nope`, `/en/frame`, `/EN`, `/en/a/b/c`, `/en/atoms/button` answer 404; the redirect is 307.
+- **Mutation:** with the `env:` line removed from `next.config.ts`, the same flag-off build started with the flag answers 200 for `/el`, `/el/foundations/colors`, `/de/frame/foundations/typography` and `/fr/foundations/spacing` again (the bug), and `src/next-config.test.ts` fails 2 tests. Restored afterwards.
+
+New tests: `next-config.test.ts` (2), `viewport-widths.test.ts` (4), `designSystemBuildFlag` in `env.test.ts` (3), and two switcher cases in `components.test.tsx`; storefront is **534** tests (523 + 11), i18n 19, scripts 397. The unit tests cannot see a bundle, so the run-time proof above is by hand; no CI step starts a flag-off server with the flag set. If that regresses, add one to `e2e-smoke` (build without the flag, start with it, expect 404 from `/design-system/el`). `docs/SETUP.md` itself is not Prettier-formatted (the file at 217ec0a is not), so it was left as written.
