@@ -103,6 +103,7 @@ describe("the generated params (manifest × the four locales)", () => {
 describe("findEntry", () => {
   it("finds an entry by its path segments and answers undefined for anything else", () => {
     expect(findEntry(["foundations", "colors"])?.label).toBe("Colors");
+    expect(findEntry(["atoms", "button"])?.label).toBe("Button");
     for (const segments of [
       [],
       ["foundations"],
@@ -110,7 +111,7 @@ describe("findEntry", () => {
       ["foundations", "colors", "extra"],
       ["frame", "foundations", "colors"],
       ["Foundations", "colors"],
-      ["atoms", "button"], // none until T21 adds it
+      ["atoms", "nope"],
     ]) {
       expect(findEntry(segments), segments.join("/")).toBeUndefined();
     }
@@ -119,7 +120,9 @@ describe("findEntry", () => {
 
 describe("navigation", () => {
   it("lists a group only when it has entries, in the group order", () => {
-    expect(navigation(entries).map((section) => section.group)).toEqual(["foundations"]);
+    expect(navigation(entries).map((section) => section.group)).toEqual(["foundations", "atoms"]);
+    const foundationsOnly = navigation([testEntry("foundations/b", "foundations")]);
+    expect(foundationsOnly.map((section) => section.group)).toEqual(["foundations"]);
     const both = navigation([testEntry("atoms/a"), testEntry("foundations/b", "foundations")]);
     expect(both.map((section) => section.group)).toEqual(["foundations", "atoms"]);
   });

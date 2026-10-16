@@ -1,3 +1,4 @@
+import { atoms } from "./atoms";
 import { Colors } from "./foundations/colors";
 import { IconsAndCredits } from "./foundations/icons";
 import { LayoutTokens } from "./foundations/layout";
@@ -12,7 +13,7 @@ import type { DsEntry } from "./types";
 // `/design-system/[locale]/{id}` and a frame at `/design-system/[locale]/frame/{id}`, in all four
 // locales. M2's registry (`@shopblok/registry`) replaces this file.
 //
-// To add an atom (T21, T23): write its entry below `foundations`, with `group: "atoms"`, an id
+// To add an atom (T21, T23): write its entry in `atoms.tsx`, with `group: "atoms"`, an id
 // `atoms/{slug}`, its a11y notes, a `live` render and one `states` item per state, and take every
 // sample string, price and size from `ctx.fixture` (`@shopblok/fixtures`). The `Atoms` group
 // appears in the navigation with its first entry. `entries.test.ts` checks the ids, the notes and
@@ -112,4 +113,4 @@ const foundations: readonly DsEntry[] = [
   },
 ];
 
-export const entries: readonly DsEntry[] = [...foundations];
+export const entries: readonly DsEntry[] = [...foundations, ...atoms];

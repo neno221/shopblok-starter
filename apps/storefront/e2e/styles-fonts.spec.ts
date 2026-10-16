@@ -206,10 +206,11 @@ test.describe("the shared stylesheet", () => {
   }) => {
     await load(page, "/us");
     const css = await builtCss(page, request);
-    // packages/ui/src/styles/source-probe.ts is the one place this class is written.
+    // The Switch atom's hit area (packages/ui/src/atoms/switch.tsx) is the one place this class is
+    // written; the storefront only imports the component, so only `@source` can find it.
     expect(
-      css.includes(".min-w-\\[37\\.5rem\\]"),
-      "the built CSS has the rule for the probe class",
+      css.includes(".after\\:-inset-y-\\[13px\\]"),
+      "the built CSS has the rule for the Switch's hit area",
     ).toBe(true);
   });
 });

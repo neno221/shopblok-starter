@@ -107,7 +107,7 @@ describe("the root layouts", () => {
   it("are a 404 for an unknown entry, before anything streams (the entry and frame layouts)", async () => {
     on();
     for (const layout of [entryLayout, frameLayout]) {
-      for (const entry of [["nope"], ["foundations", "nope"], ["atoms", "button"], ["frame"]]) {
+      for (const entry of [["nope"], ["foundations", "nope"], ["atoms", "nope"], ["frame"]]) {
         await expect(renderLayout(layout, "en", entry), entry.join("/")).rejects.toMatchObject(
           NOT_FOUND,
         );
@@ -192,6 +192,7 @@ describe("the pages", () => {
     expect(markup).toContain("Foundations");
     expect(markup).toContain('href="/design-system/fr/foundations/colors"');
     expect(markup).toContain('href="/design-system/de"');
-    expect(markup).not.toContain("Atoms");
+    expect(markup).toContain("Atoms");
+    expect(markup).toContain('href="/design-system/fr/atoms/button"');
   });
 });
