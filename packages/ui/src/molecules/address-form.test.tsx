@@ -432,7 +432,11 @@ describe("AddressForm", () => {
         }
       }
       expect(problems).toEqual([]);
-    });
+    },
+    // Renders every country's form: a few seconds, which passed the 5 s default on a busy
+    // runner (PR 56 CI).
+    30_000,
+    );
 
     it("follows a page in another language: Japan's Latin order in English, labels in the page's language", () => {
       const { container } = setup("de", {
@@ -526,7 +530,11 @@ describe("AddressForm", () => {
         }
       }
       expect(problems).toEqual([]);
-    });
+    },
+    // Renders every country's form: a few seconds, which passed the 5 s default on a busy
+    // runner (PR 56 CI).
+    30_000,
+    );
 
     it("types each field for its keyboard: text, and tel for the phone", () => {
       const { container } = setup("en", { values: { countryCode: "de" } });
