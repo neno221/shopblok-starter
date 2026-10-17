@@ -369,7 +369,48 @@ export const el: Messages = {
       error: "Δεν ήταν δυνατή η αποστολή του email. Δοκιμάστε ξανά.",
     },
   },
-  organisms: {},
+  organisms: {
+    announcementBar: {
+      region: "Ανακοινώσεις",
+      pause: "Παύση ανακοινώσεων",
+      play: "Αυτόματη εναλλαγή ανακοινώσεων",
+      previous: "Προηγούμενη ανακοίνωση",
+      next: "Επόμενη ανακοίνωση",
+      position: "{current} από {total}",
+      dismiss: "Κλείσιμο ανακοινώσεων",
+    },
+    megaMenu: {
+      shopAll: "Δείτε όλα: {label}",
+      featured: "Προτεινόμενα",
+    },
+    mobileNavDrawer: {
+      open: "Μενού",
+      title: "Μενού",
+      close: "Κλείσιμο μενού",
+      back: "Πίσω: {label}",
+      shopAll: "Δείτε όλα: {label}",
+      account: "Ο λογαριασμός σας",
+    },
+    marketSuggestionBanner: {
+      region: "Πρόταση καταστήματος",
+      // A country's name from Intl does not decline, so it stands after a colon.
+      message:
+        "Φαίνεται ότι βρίσκεστε σε άλλη χώρα: {country}. Το κατάστημά της έχει τιμές σε {currency} και τοπική παράδοση.",
+      go: "Μετάβαση στο κατάστημα: {country}",
+      stay: "Συνέχεια στο κατάστημα: {current}",
+    },
+    header: {
+      skipToContent: "Μετάβαση στο περιεχόμενο",
+      home: "{store}, αρχική σελίδα",
+      navigation: "Κύριο μενού",
+      search: "Αναζήτηση",
+      account: "Λογαριασμός",
+      wishlist: "Λίστα επιθυμιών",
+      cart: "Καλάθι",
+      cartItems: "{count, plural, =0 {άδειο} one {# προϊόν} other {# προϊόντα}}",
+      cartOverflow: "{max}+",
+    },
+  },
   notFound: {
     title: "Η σελίδα δεν βρέθηκε",
     body: "Η σελίδα που ψάχνετε δεν υπάρχει.",

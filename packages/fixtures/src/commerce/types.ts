@@ -33,6 +33,13 @@ export type ToastSample = { trigger: string; message: ToastMessage };
 import type { Countdown, DiscountCode, NewsletterSignup } from "@shopblok/registry/contracts";
 import type { FreeShipping, PromoCodeEntry } from "@shopblok/registry/contracts";
 import type {
+  AnnouncementBar,
+  Header,
+  Image,
+  MarketSuggestion,
+  MobileNav,
+} from "@shopblok/registry/contracts";
+import type {
   ShippingEstimate,
   StepperState,
   SummaryLine,
@@ -89,6 +96,21 @@ export type CommerceFixture = {
   /** The filters `facets` has chosen, as chips: each with the listing without it (T33). */
   activeFilters: ActiveFilters;
   announcement: Announcement;
+  /** The sample data of the header and its organisms (T35). */
+  header: {
+    /** What every header variant draws: the navigation, every utility, the markets, three messages in turn. */
+    content: Header;
+    /** The visitor's cart count the DS feeds the browser's store (D44): the cart's own. */
+    cartCount: number;
+    /** The announcement bar with one message, with three in turn, and with one at the length that breaks a layout. */
+    announcements: { single: AnnouncementBar; rotating: AnnouncementBar; long: AnnouncementBar };
+    /** Another seeded market suggested to a visitor of this one, with the copy's words or the shop's own. */
+    suggestions: { copy: MarketSuggestion; message: MarketSuggestion };
+    /** The mobile drawer's levels and its foot: the navigation, the account's links, the markets. */
+    mobileNav: MobileNav;
+    /** The picture the transparent header sits on. */
+    hero: Image;
+  };
   figure: MediaFigure;
   /** EmptyState's samples (T33): filters that match nothing, a search with no result, an empty category. */
   emptyStates: {

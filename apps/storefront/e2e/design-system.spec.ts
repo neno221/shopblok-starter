@@ -549,6 +549,24 @@ if (problem === undefined) {
           await page.keyboard.press("Escape");
           await expect(popup, "Escape closes it").toBeHidden();
           await expect(trigger, "focus is back on the trigger").toBeFocused();
+        } else if (interaction.focus === "menu") {
+          // T35: a navigation menu's panel is no dialog. Focus stays on the trigger, Tab goes into
+          // the panel, Escape gives it back to the trigger, and Tab past the last link closes it.
+          await expect(trigger, "focus stays on the trigger").toBeFocused();
+          await page.keyboard.press("Tab");
+          await expect
+            .poll(() => popup.evaluate(holdsFocus), { message: "Tab moves into the panel" })
+            .toBe(true);
+          await page.keyboard.press("Escape");
+          await expect(popup, "Escape closes it").toBeHidden();
+          await expect(trigger, "focus is back on the trigger").toBeFocused();
+          await page.keyboard.press("Enter");
+          await expect(popup, "Enter opens it again").toBeVisible();
+          const stops = await popup.evaluate(
+            (el) => el.querySelectorAll("a[href], button:not([disabled])").length,
+          );
+          for (let press = 0; press <= stops; press += 1) await page.keyboard.press("Tab");
+          await expect.soft(popup, "Tab past the panel's last link closes it").toBeHidden();
         } else {
           await expect(trigger, "focus stays on the trigger").toBeFocused();
           const announcer = await popup.evaluate((el) => {
@@ -577,6 +595,42 @@ if (problem === undefined) {
         expect.soft(summary, "console errors and warnings").toEqual([]);
       });
     }
+  }
+}
+
+// D44 (T35): the cart count is the browser's. Each header's preview page (its live render alone, which
+// runs the real island: VisitorCartButton, fed by VisitorFixture after hydration) is prerendered, and
+// its HTML, read as a crawler or `curl` reads it, has the cart's placeholder: an empty live region and
+// no badge. In a browser the fixtures' count arrives once the page has hydrated.
+const headerIds = entries.filter((entry) => entry.family === "header").map((entry) => entry.id);
+
+if (problem === undefined) {
+  test("the headers are in the registry (D46)", () => {
+    expect(headerIds).toHaveLength(6);
+  });
+
+  for (const id of headerIds) {
+    test(`the cart count · ${id}`, async ({ page }) => {
+      const url = `${base}${previewPath("en", id)}`;
+      const html = await (await fetch(url, { signal: AbortSignal.timeout(30_000) })).text();
+      const buttons = [...html.matchAll(/<a[^>]*data-slot="cart-button"[^>]*>([\s\S]*?)<\/a>/g)];
+      expect(buttons, "one cart button in the HTML").toHaveLength(1);
+      const inner = buttons[0]?.[1] ?? "";
+      expect(inner, "the HTML has the count's live region").toContain('data-slot="cart-count"');
+      expect(inner, "the HTML has no badge").not.toContain('data-slot="cart-badge"');
+      expect(inner.replace(/<[^>]*>/g, ""), "the HTML names the cart alone").toBe("Cart");
+
+      const count = commerceFixtures.en.header.cartCount;
+      await page.goto(previewPath("en", id), { waitUntil: "load" });
+      const button = page.locator('[data-slot="cart-button"]');
+      await expect(
+        button.locator('[data-slot="cart-badge"]'),
+        "the count after hydration",
+      ).toHaveText(String(count));
+      await expect(button, "the link's name after hydration").toHaveAccessibleName(
+        `Cart ${count} ${count === 1 ? "item" : "items"}`,
+      );
+    });
   }
 }
 

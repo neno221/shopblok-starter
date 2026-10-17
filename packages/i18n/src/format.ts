@@ -4,6 +4,8 @@ import { IntlMessageFormat } from "intl-messageformat";
 // 47 tag such as `el-CY` or `de-CH` (the market's `<html lang>`), so a number or a plural follows the
 // market, not only the language. Building an Intl formatter costs far more than one `format()`
 // call, and a listing page formats dozens of prices and labels, so each kind keeps the ones it built.
+// A client component imports them from `@shopblok/i18n/format` (T35): the package's index also
+// carries the four catalogs, which the browser has no use for.
 
 const currencyFormats = new Map<string, Intl.NumberFormat>();
 

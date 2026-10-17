@@ -61,6 +61,14 @@ describe("EntryBody (the live render and the states matrix)", () => {
     expect(markup).toContain('<div lang="el-CY">');
   });
 
+  it("lays the states out in cards, or one under the other at full width (T35)", () => {
+    expect(render(sample, "en")).toContain('data-states-layout="grid"');
+    const stacked = render({ ...sample, statesLayout: "stack" }, "en");
+    expect(stacked).toContain('data-states-layout="stack"');
+    expect(stacked).toContain("grid-cols-1");
+    expect(stacked).not.toContain("minmax(14rem");
+  });
+
   it("has no states section for an entry without states", () => {
     const markup = render({ ...sample, states: undefined }, "en");
     expect(markup).toContain("Live render");

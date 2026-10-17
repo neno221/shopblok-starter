@@ -5,7 +5,8 @@
   "description": "Locales, the Intl formatters (money, dates, numbers, country names, ICU messages) and the message catalogs, a module per locale (D43). Exports TypeScript source: no build step (D3).",
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./format": "./src/format.ts"
   },
   "scripts": {
     "typecheck": "tsc",

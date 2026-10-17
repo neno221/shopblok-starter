@@ -364,7 +364,48 @@ export const fr: Messages = {
       error: "Nous n’avons pas pu envoyer l’e-mail. Veuillez réessayer.",
     },
   },
-  organisms: {},
+  organisms: {
+    announcementBar: {
+      region: "Annonces",
+      pause: "Mettre en pause les annonces",
+      play: "Faire défiler les annonces",
+      previous: "Annonce précédente",
+      next: "Annonce suivante",
+      position: "{current} sur {total}",
+      dismiss: "Fermer les annonces",
+    },
+    megaMenu: {
+      shopAll: "Tout voir : {label}",
+      featured: "À la une",
+    },
+    mobileNavDrawer: {
+      open: "Menu",
+      title: "Menu",
+      close: "Fermer le menu",
+      back: "Retour : {label}",
+      shopAll: "Tout voir : {label}",
+      account: "Votre compte",
+    },
+    marketSuggestionBanner: {
+      region: "Suggestion de boutique",
+      // A country's name from Intl comes without its article ("Suisse"), so it stands after a colon.
+      message:
+        "Vous semblez être dans un autre pays : {country}. Sa boutique affiche les prix en {currency} et livre sur place.",
+      go: "Aller à la boutique : {country}",
+      stay: "Rester sur la boutique : {current}",
+    },
+    header: {
+      skipToContent: "Aller au contenu",
+      home: "{store}, accueil",
+      navigation: "Menu principal",
+      search: "Rechercher",
+      account: "Compte",
+      wishlist: "Liste d’envies",
+      cart: "Panier",
+      cartItems: "{count, plural, =0 {vide} one {# article} other {# articles}}",
+      cartOverflow: "{max}+",
+    },
+  },
   notFound: {
     title: "Page introuvable",
     body: "La page que vous recherchez n'existe pas.",

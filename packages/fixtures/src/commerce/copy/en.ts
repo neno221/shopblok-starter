@@ -154,6 +154,20 @@ export const en: Copy = {
   },
   activeFilters: { priceRange: (min, max) => `$${min} to $${max}` },
   announcement: { message: "Free shipping on orders over $165", link: "See details" },
+  header: {
+    announcements: [
+      { message: "Free returns within 30 days", link: "How returns work" },
+      { message: "New: the autumn collection in organic cotton", link: "Shop the collection" },
+    ],
+    longAnnouncement: {
+      message:
+        "Order by 2 pm on a weekday for same-day dispatch, and enjoy free returns within 30 days on every order",
+      link: "Read our delivery and returns policy",
+    },
+    account: { signIn: "Sign in", orders: "Orders", wishlist: "Wishlist" },
+    suggestionMessage: "Shop in your own country's store for local prices and delivery times.",
+    heroAlt: "Folded knitwear in oatmeal and charcoal on a wooden bench",
+  },
   figure: {
     alt: "A person in an oatmeal hoodie walking along a harbor wall at sunrise",
     caption: "The autumn collection, photographed on location by the harbor.",

@@ -31,6 +31,7 @@ import {
   buildMarkets,
   buildNavigation,
 } from "./content";
+import { buildHeader } from "./header";
 import { buildEmptyStates } from "./listing";
 import { buildMarketing } from "./marketing";
 import { buildPaymentSamples } from "./payment-samples";
@@ -46,6 +47,9 @@ export function buildCommerceFixture(locale: DesignSystemLocale, copy: Copy): Co
   const products = buildProducts(ctx);
   const facets = buildFacets(ctx);
   const addresses = buildAddresses(ctx);
+  const navigation = buildNavigation(ctx);
+  const markets = buildMarkets(ctx);
+  const cart = buildCart(ctx);
   return {
     locale,
     market: { ...ctx.market },
@@ -53,15 +57,15 @@ export function buildCommerceFixture(locale: DesignSystemLocale, copy: Copy): Co
     products,
     product: buildProduct(ctx),
     categories: buildCategories(ctx),
-    cart: buildCart(ctx),
+    cart,
     addresses,
     addressSamples: buildAddressSamples(),
     orders: buildOrders(ctx, addresses),
     reviews: buildReviews(ctx),
     ratingSummary: buildRatingSummary(),
-    navigation: buildNavigation(ctx),
+    navigation,
     footer: buildFooter(ctx),
-    markets: buildMarkets(ctx),
+    markets,
     paymentMethods: buildPaymentMethods(ctx),
     savedPaymentMethods: buildSavedPaymentMethods(ctx),
     shippingOptions: buildShippingOptions(ctx),
@@ -70,12 +74,13 @@ export function buildCommerceFixture(locale: DesignSystemLocale, copy: Copy): Co
     // The chips come from the same facets as the sidebar, so the two cannot drift.
     activeFilters: buildActiveFilters(ctx, facets),
     announcement: buildAnnouncement(ctx),
+    header: buildHeader(ctx, navigation, markets, cart.itemCount),
     figure: buildFigure(ctx),
     emptyStates: buildEmptyStates(ctx),
     marketing: buildMarketing(ctx),
     site: buildSite(ctx),
     paymentSamples: buildPaymentSamples(ctx),
-    cartSamples: buildCartSamples(ctx, buildCart(ctx)),
+    cartSamples: buildCartSamples(ctx, cart),
     checkoutFlow: buildCheckoutFlow(ctx),
     long: buildLong(ctx),
   };

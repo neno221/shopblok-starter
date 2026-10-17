@@ -27,6 +27,7 @@ import { AddressFormState } from "@shopblok/registry/contracts";
 import { AccordionSection, ToastMessage } from "@shopblok/registry/contracts";
 import { Countdown, DiscountCode, NewsletterSignup } from "@shopblok/registry/contracts";
 import { FreeShipping, PromoCodeEntry } from "@shopblok/registry/contracts";
+import { AnnouncementBar, Header, MarketSuggestion, MobileNav } from "@shopblok/registry/contracts";
 import {
   ShippingEstimate,
   StepperState,
@@ -470,8 +471,18 @@ describe.each(designSystemLocales)("the %s fixtures", (locale) => {
       expect(current).toEqual([{ country: market.country, language: market.language }]);
     });
 
+    // The market switcher lists every market and the suggestion is another one: those are each in
+    // their own currency, under their own prefix.
+    const otherMarkets = [
+      "markets",
+      "header.content.market",
+      "header.mobileNav.market",
+      "header.suggestions.copy.suggested",
+      "header.suggestions.message.suggested",
+    ];
+
     it("has every amount in the market's currency", () => {
-      const holders = collect(fixture, "", ["markets"]).filter(
+      const holders = collect(fixture, "", otherMarkets).filter(
         (node) => node.key === "currencyCode",
       );
       // Prices, totals, the cart, the orders, the price range: plenty to check.
@@ -480,7 +491,7 @@ describe.each(designSystemLocales)("the %s fixtures", (locale) => {
     });
 
     it("starts every link with the market's prefix (SPEC §8.5)", () => {
-      const links = collect(fixture, "", ["markets"]).filter(
+      const links = collect(fixture, "", otherMarkets).filter(
         (node) =>
           node.key === "href" && typeof node.value === "string" && !/^https?:\/\//.test(node.value),
       );
@@ -1331,6 +1342,69 @@ describe.each(designSystemLocales)("the %s fixtures", (locale) => {
       expect(verification.waiting.email).toBe(fixture.marketing.newsletter.typed.email);
       expect(verification.long.email).toBe(fixture.marketing.newsletter.long.email);
       expect(verification.long.email.length).toBeGreaterThan(60);
+    });
+  });
+
+  describe("the header (T35)", () => {
+    const { header } = fixture;
+
+    it("parses with its contracts", () => {
+      expectParses(Header, header.content, `${locale}.header.content`);
+      expectAllParse(
+        AnnouncementBar,
+        Object.values(header.announcements),
+        `${locale}.header.announcements`,
+      );
+      expectAllParse(
+        MarketSuggestion,
+        Object.values(header.suggestions),
+        `${locale}.header.suggestions`,
+      );
+      expectParses(MobileNav, header.mobileNav, `${locale}.header.mobileNav`);
+    });
+
+    it("draws the fixture's own navigation, markets and cart", () => {
+      expect(header.content.navigation).toBe(fixture.navigation);
+      expect(header.mobileNav.items).toBe(fixture.navigation);
+      expect(header.content.market?.markets).toBe(fixture.markets);
+      expect(header.cartCount).toBe(fixture.cart.itemCount);
+      expect(header.cartCount).toBeGreaterThan(0);
+      expect(header.content.homeHref).toBe(prefix === "" ? "/" : prefix);
+      expect(header.content.storeName).toBe(designSystemFixtures[locale].ordinary.storeName);
+    });
+
+    it("has a bar of one message, one of three in turn, and one at the length that wraps", () => {
+      const { single, rotating, long } = header.announcements;
+      expect(single.messages).toEqual([fixture.announcement]);
+      expect(single.dismissible).toBe(false);
+      expect(rotating.messages).toHaveLength(3);
+      expect(rotating.messages[0]).toEqual(fixture.announcement);
+      expect(rotating.rotateSeconds).toBe(6);
+      expect(new Set(rotating.messages.map((each) => each.message)).size).toBe(3);
+      expect(at(long.messages, 0).message.length).toBeGreaterThan(
+        Math.max(...rotating.messages.map((each) => each.message.length)) * 2,
+      );
+    });
+
+    it("suggests another seeded market, in its own currency, once with the copy's words and once with its own", () => {
+      const { copy, message } = header.suggestions;
+      expect(copy.current.country).toBe(market.country);
+      expect(copy.suggested.country).not.toBe(market.country);
+      const suggested = fixture.markets.find((option) => option.country === copy.suggested.country);
+      expect(suggested?.currencyCode).toBe(copy.suggested.currencyCode);
+      expect(suggested?.languages.map((language) => language.href)).toContain(copy.suggested.href);
+      expect(copy.message).toBeUndefined();
+      expect(message.message).toBeTruthy();
+    });
+
+    it("ends the drawer with the account's links and the markets, and has a picture for the transparent header", () => {
+      expect(header.mobileNav.account.map((link) => link.href)).toEqual([
+        `${prefix}/account/login`,
+        `${prefix}/account/orders`,
+        `${prefix}/account/wishlist`,
+      ]);
+      expect(`${header.hero.width}:${header.hero.height}`).toBe("1600:900");
+      expect(header.hero.alt).not.toBe("");
     });
   });
 

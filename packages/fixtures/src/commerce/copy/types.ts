@@ -107,6 +107,19 @@ export type Copy = {
   activeFilters: { priceRange: (min: number, max: number) => string };
   /** The free-shipping message names the threshold (EUR 150, USD 165, CHF 150) as its locale writes it. */
   announcement: { message: string; link: string };
+  /**
+   * The header's samples (T35): two more messages for the announcement bar to show in turn after
+   * `announcement`, one at the length that breaks a layout, the account's links at the foot of the
+   * mobile drawer, the `markets` global's own suggestion message, and the picture the transparent
+   * header sits on.
+   */
+  header: {
+    announcements: [{ message: string; link: string }, { message: string; link: string }];
+    longAnnouncement: { message: string; link: string };
+    account: { signIn: string; orders: string; wishlist: string };
+    suggestionMessage: string;
+    heroAlt: string;
+  };
   /** `credit` is the name alone ("Shopblok Studio"): MediaFigure's copy adds the "Photo: …". */
   figure: { alt: string; caption: string; credit: string };
   /**

@@ -36,6 +36,12 @@ export type DsStory = {
   live: (ctx: DsContext) => ReactNode;
   /** The states matrix: every state on one frame (D34). Foundations have none. */
   states?: readonly DsState[];
+  /**
+   * How the states are laid out (T35). `grid` (the default) puts them side by side in cards of
+   * 14rem or more; `stack` gives each state the frame's whole width, for an organism that spans the
+   * page (a header follows the window's breakpoints, so it is drawn as wide as the window).
+   */
+  statesLayout?: "grid" | "stack";
 };
 
 /**

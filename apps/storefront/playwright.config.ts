@@ -50,6 +50,10 @@ const optIns: OptIn[] = [
         use: {
           ...devices["Desktop Chrome"],
           ...(chromiumPath ? { launchOptions: { executablePath: chromiumPath } } : {}),
+          // D50 (set in T35, the first entry that moves by itself: AnnouncementBar's rotation): the
+          // cells run as a reader who prefers reduced motion, so nothing changes between one run's
+          // picture and the next.
+          contextOptions: { reducedMotion: "reduce" },
         },
         testMatch: /design-system\.spec\.ts/,
       },
