@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { errors, expect, test, type Page, type Request } from "@playwright/test";
 import { collectConsole, judgeConsole, type FailedRequest, type Message } from "./support/console";
 import { excusedInDev, isOwnNotFound } from "./support/dev-console-excuses";
 
@@ -23,6 +23,50 @@ test.setTimeout(90_000);
 // runner a route could report clean that is not. There is no event to wait for instead, so this is
 // a margin (3 s; it was 1.5 s). Raise it if a message is ever seen to arrive late.
 const settleMs = 3_000;
+
+// How long `networkidle` may take after `load`. CI run 38985341436 (PR 48): on both attempts of the
+// job, about one route in four never reached it and failed at the 90 s test timeout with no clue,
+// although `next dev` answered every request in under 2 s; the retries passed in under 15 s. Off
+// the runner a probe reaches it about 0.5 s after `load`, on two cores and a cold cache too
+// (SETUP.md, "The wait for networkidle (PR 48)"). Past this margin the test names the requests
+// still open; see `waitForIdle`.
+const idleMs = 30_000;
+
+// What a page loads to render: while one of these is open, the first client render may not have
+// run, so a clean console proves nothing.
+const renderTypes = new Set(["document", "script", "stylesheet"]);
+
+/**
+ * Waits for `networkidle`, bounded by `idleMs`. On a time-out it lists the requests still open:
+ * one of this server's documents, scripts or stylesheets fails the test (the render may be
+ * incomplete); anything else (a font, an image, a fetch) is a warning, and the check goes on.
+ */
+async function waitForIdle(page: Page, path: string, open: Map<Request, number>, baseURL: string) {
+  const timedOut = await page
+    .waitForLoadState("networkidle", { timeout: idleMs })
+    .then(() => false)
+    .catch((error: unknown) => {
+      if (error instanceof errors.TimeoutError) return true;
+      throw error;
+    });
+  if (!timedOut) return;
+  const now = Date.now();
+  const list = [...open].map(([request, since]) => ({
+    line: `${request.resourceType()} ${request.url()} (open ${Math.round((now - since) / 1000)} s)`,
+    blocksRender:
+      renderTypes.has(request.resourceType()) &&
+      new URL(request.url()).origin === new URL(baseURL).origin,
+  }));
+  const report =
+    `${path}: no networkidle within ${idleMs / 1000} s; open requests:\n` +
+    (list.map((r) => `  ${r.line}`).join("\n") ||
+      "  none (a request opened and closed every 500 ms)");
+  console.warn(report);
+  expect(
+    list.filter((r) => r.blocksRender).map((r) => r.line),
+    report,
+  ).toEqual([]);
+}
 
 // Plan T25 step 1: "one atom page in each of the four locales". Select is the atom page with the
 // most client code (Base UI's list box, its portal and positioning), added by T21; the Foundations
@@ -62,11 +106,16 @@ for (const route of routes) {
     const consoleMessages: Message[] = [];
     const failedRequests: FailedRequest[] = [];
     collectConsole(page, consoleMessages, failedRequests);
+    // The requests still open, for `waitForIdle`'s report (every frame's, like `networkidle`).
+    const open = new Map<Request, number>();
+    page.on("request", (request) => open.set(request, Date.now()));
+    page.on("requestfinished", (request) => open.delete(request));
+    page.on("requestfailed", (request) => open.delete(request));
     try {
       const response = await page.goto(route.path, { waitUntil: "load" });
       expect(response?.status(), `${route.path} answers ${route.status}`).toBe(route.status);
       // Let hydration and the first client render finish, then the margin above.
-      await page.waitForLoadState("networkidle");
+      await waitForIdle(page, route.path, open, baseURL);
       await page.waitForTimeout(settleMs);
     } finally {
       // CI run 38876631305: two routes passed every step above and then sat in `context.close()`
