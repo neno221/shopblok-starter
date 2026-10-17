@@ -9,7 +9,7 @@ import { stories } from "./stories";
 
 describe("the stories and the registry (D40)", () => {
   it("have the same ids: a story for every entry, and an entry for every story", () => {
-    const ids = registry.map((entry) => entry.id);
+    const ids: readonly string[] = registry.map((entry) => entry.id);
     expect(
       Object.keys(stories).filter((id) => !ids.includes(id)),
       "stories with no entry",

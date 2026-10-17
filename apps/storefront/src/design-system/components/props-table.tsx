@@ -32,10 +32,13 @@ function typeOf(schema: JsonSchema): string {
 
 /**
  * The rows of an entry's "Props" table (D41): the top-level properties of its contract, read from
- * `z.toJSONSchema`, in the schema's order. A contract that is not an object has no rows.
+ * `z.toJSONSchema`, in the schema's order. A contract that is not an object has no rows. The
+ * schema is the input's (what a caller passes), so a prop with a default is not required; a type
+ * JSON Schema cannot express (a date, a transform) shows as `unknown` instead of throwing, which
+ * would fail the prerender (PR 51 review, items 1 and 2).
  */
 export function propRows(contract: z.ZodType): PropRow[] {
-  const schema = z.toJSONSchema(contract) as JsonSchema;
+  const schema = z.toJSONSchema(contract, { io: "input", unrepresentable: "any" }) as JsonSchema;
   const required = new Set(schema.required ?? []);
   return Object.entries(schema.properties ?? {}).map(([name, property]) => ({
     name,

@@ -1,5 +1,5 @@
 import { LOCALES, type Locale } from "@shopblok/i18n";
-import { entries as registry, GROUPS, type EntryId, type Group } from "@shopblok/registry";
+import { entries as registry, GROUPS, type Group } from "@shopblok/registry";
 import { stories } from "./stories";
 import type { DsEntry } from "./types";
 
@@ -11,7 +11,7 @@ export { GROUPS };
  */
 export const manifest: readonly DsEntry[] = registry.map((entry) => ({
   ...entry,
-  ...stories[entry.id as EntryId],
+  ...stories[entry.id],
 }));
 
 /** An entry's id as the route's `[...entry]` segments. */

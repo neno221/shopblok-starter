@@ -30,6 +30,22 @@ describe("propRows", () => {
     ]);
   });
 
+  it("documents the input: a prop with a default is not required", () => {
+    const contract = z.object({ size: z.enum(["sm", "md"]).default("md") });
+    expect(propRows(contract)).toEqual([{ name: "size", type: '"sm" | "md"', required: false }]);
+  });
+
+  it("shows a type JSON Schema cannot express as unknown instead of throwing", () => {
+    const contract = z.object({
+      placedAt: z.date(),
+      total: z.string().transform(Number),
+    });
+    expect(propRows(contract)).toEqual([
+      { name: "placedAt", type: "unknown", required: true },
+      { name: "total", type: "string", required: true },
+    ]);
+  });
+
   it("has no rows for a contract that is not an object", () => {
     expect(propRows(z.string())).toEqual([]);
   });

@@ -3397,7 +3397,7 @@ The storefront's `test` (739 tests, the two of `route.test.ts` and the new cases
 
 This replaces "How T21 and T23 add an entry" (T22).
 
-1. **The registry.** Add one object to the group's file in `packages/registry/src/entries/` (a new file for a new group, spread into `entries` in `src/index.ts` in `GROUPS` order, and its tuple added to `EntryId`): `id: "molecules/product-card"`, `group`, `kind`, `label` (English, D33), `component` (`{ module: "@shopblok/ui/molecules/product-card", name: "ProductCard" }`), and `family` and `variant` if a shop picks it (D46). Its view model's schema goes in `src/contracts/` and on the entry as `contract`. The array is `as const satisfies readonly EntryInput[]`, which keeps each id a literal type.
+1. **The registry.** Add one object to the group's file in `packages/registry/src/entries/` (a new file for a new group, spread into `all` in `src/index.ts` in `GROUPS` order; `entries` and `EntryId` both come from `all`): `id: "molecules/product-card"`, `group`, `kind`, `label` (English, D33), `component` (`{ module: "@shopblok/ui/molecules/product-card", name: "ProductCard" }`), and `family` and `variant` if a shop picks it (D46). Its view model's schema goes in `src/contracts/` and on the entry as `contract`. The array is `as const satisfies readonly EntryInput[]`, which keeps each id a literal type.
 2. **The story.** Add `"molecules/product-card": { summary, a11y, live(ctx), states }` to a file in `apps/storefront/src/design-system/stories/` (a new file is spread into `stories/index.ts`). Every sample string, price, size and colour comes from `ctx.fixture` (`@shopblok/fixtures`), money from `ctx.money`; the component's own copy is in `@shopblok/i18n`, in the four catalogs. `pnpm typecheck` fails until both halves exist.
 3. **Nothing else.** The navigation lists the group with its first entry (a group's label is `designSystem.groups` in `@shopblok/i18n`), the page, the frame and the preview exist in all four locales, `stories.test.tsx` renders the entry in each locale and checks its component's export, and the `design-system` job makes six cells of it (`en` and `el` at 375, 768 and 1440 px). An entry that draws an icon adds a row to `src/design-system/icons.ts`.
 
@@ -3431,3 +3431,15 @@ Each applied, checked and reverted from a copy.
 2. **`component` is a reference** (module and name), checked by the storefront's test, so the registry stays loadable by Payload's CLI and Playwright.
 3. **The preview pads its render by 24 px** (`p-6`), so a thumbnail does not cut a focus ring or a shadow; T40 can change it with its capture size.
 4. **`entries.test.tsx` became `stories.test.tsx`**, and the foundations' stories kept `entries.tsx`'s history (`git mv`).
+
+### Review fixes (PR 51)
+
+| # | Finding | Fix |
+|---|---|---|
+| 1 | `propRows` throws on a date, transform or other type JSON Schema cannot express, which would fail the prerender | `z.toJSONSchema(contract, { io: "input", unrepresentable: "any" })`: such a prop shows as `unknown`. A test with `z.date()` and a `.transform()` (it threw before) |
+| 2 | A prop with `.default()` showed as required (the output schema) | The input schema (`io: "input"`); a test with `z.enum([...]).default("md")` (it said "yes" before) |
+| 3 | The e2e matrix picked entries by group, not by `component` | `entry.component !== undefined`, as its comment says |
+| 4 | `EntryId` listed the entry files apart from `entries`, and `catalog.ts` cast to it | One `all` list feeds both; `entries` is typed with `EntryId`, so the cast is gone; "How to add an entry" says so |
+| 7 | An empty list would pass with zero DS cells (optional) | A failing test when no entry has a component |
+
+Items 5, 6 and 8 (optional) are left: `defineEntries` checking `kind` against `group`, `$ref` and tuples in `typeOf`, and two small duplications.

@@ -46,11 +46,15 @@ export function defineEntries(input: readonly EntryInput[]): readonly RegistryEn
   });
 }
 
-/** Every entry, in the navigation's order: the groups in `GROUPS` order, each in its file's. */
-export const entries = defineEntries([...foundations, ...atoms]);
+// The entry files, in the navigation's order. `entries` and `EntryId` both come from this one list,
+// so a new file added here is in both (PR 51 review, item 4).
+const all = [...foundations, ...atoms] as const;
 
 /** The id of an entry of the registry, as a type: a story keyed by anything else is an error. */
-export type EntryId = (typeof foundations)[number]["id"] | (typeof atoms)[number]["id"];
+export type EntryId = (typeof all)[number]["id"];
+
+/** Every entry, in the navigation's order: the groups in `GROUPS` order, each in its file's. */
+export const entries = defineEntries(all) as readonly (RegistryEntry & { id: EntryId })[];
 
 /** The entries of `group`, in order. */
 export function byGroup(group: Group, list: readonly RegistryEntry[] = entries): RegistryEntry[] {

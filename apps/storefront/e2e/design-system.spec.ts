@@ -57,7 +57,7 @@ const problem = await problemWithServer();
 // Every entry that renders a component: the atoms now, the molecules and organisms as M2 adds them.
 const ids =
   problem === undefined
-    ? entries.filter((entry) => entry.group !== "foundations").map((entry) => entry.id)
+    ? entries.filter((entry) => entry.component !== undefined).map((entry) => entry.id)
     : [];
 
 const framePath = (locale: string, id: string) => `/design-system/${locale}/frame/${id}`;
@@ -65,6 +65,11 @@ const framePath = (locale: string, id: string) => `/design-system/${locale}/fram
 if (problem !== undefined) {
   test("the build serves the design system", () => {
     throw new Error(problem);
+  });
+} else if (ids.length === 0) {
+  // The old overview scan failed on an empty list; the registry filter keeps that guarantee.
+  test("the registry has entries that render a component", () => {
+    throw new Error("No registry entry has a component, so the suite would check nothing.");
   });
 }
 
