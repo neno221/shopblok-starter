@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { catalogs } from "./index";
-import { countryName, formatDate, formatMessage, formatMoney, formatNumber } from "./format";
+import {
+  countryName,
+  formatDate,
+  formatMessage,
+  formatMoney,
+  formatNumber,
+  languageName,
+} from "./format";
 
 // Intl's no-break spaces (U+00A0, U+202F) and the Swiss digit-group mark (’ U+2019 in de-CH and
 // U+202F in fr-CH with CLDR 47 / Node 22.22.0, ASCII ' with CLDR 48 / Node 22.23, GitHub's runners)
@@ -79,6 +86,28 @@ describe("countryName", () => {
     ["US", "en-US", "United States"],
   ])("names %s in %s", (code, locale, expected) => {
     expect(countryName(code, locale)).toBe(expected);
+  });
+});
+
+describe("languageName", () => {
+  it.each([
+    ["el", "el", "Ελληνικά"],
+    ["en", "en", "English"],
+    ["de", "de-CH", "Deutsch"],
+    // CLDR writes French language names in lower case; the market switcher capitalises its own.
+    ["fr", "fr-CH", "français"],
+  ])("names %s in its own language, %s", (language, locale, expected) => {
+    expect(languageName(language, locale)).toBe(expected);
+  });
+
+  it("names a language in the page's language when asked to", () => {
+    expect(languageName("en", "el-CY")).toBe("Αγγλικά");
+    expect(languageName("fr", "de-DE")).toBe("Französisch");
+  });
+
+  it("gives back a code Intl does not know, and answers the same twice (cached)", () => {
+    expect(languageName("zz", "en-US")).toBe("zz");
+    expect(languageName("el", "el")).toBe(languageName("el", "el"));
   });
 });
 

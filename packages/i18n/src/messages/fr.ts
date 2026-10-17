@@ -95,6 +95,90 @@ export const fr: Messages = {
         forProduct: ", {title}",
       },
     },
+    // T33: discovery and the site-wide molecules (each filled by the task's component).
+    searchField: {
+      label: "Rechercher des produits",
+      placeholder: "Rechercher des produits",
+      submit: "Rechercher",
+      clear: "Effacer la recherche",
+    },
+    breadcrumbs: {
+      label: "Fil d’Ariane",
+      more: "Niveaux intermédiaires",
+    },
+    pagination: {
+      label: "Pagination",
+      previous: "Précédent",
+      next: "Suivant",
+      more: "Autres pages",
+      page: "Page {page, number}",
+      current: "Page {page, number} sur {pageCount, number}",
+    },
+    sortSelect: {
+      label: "Trier par",
+      apply: "Appliquer",
+      options: {
+        relevance: "Pertinence",
+        newest: "Nouveautés",
+        // A no-break space before the colon, as French sets it.
+        priceAsc: "Prix : croissant",
+        priceDesc: "Prix : décroissant",
+      },
+    },
+    filterGroup: {
+      products: "{count, plural, one {# produit} other {# produits}}",
+      showMore: "Afficher {count} de plus",
+      showFewer: "Afficher moins",
+      minimum: "Prix minimum",
+      maximum: "Prix maximum",
+      bounds: "Prix de {min} à {max}",
+    },
+    activeFilterChips: {
+      label: "{count, plural, one {# filtre actif} other {# filtres actifs}}",
+      // A no-break space before the colon, as French sets it.
+      chip: "{group} : {label}",
+      remove: "Retirer {filter}",
+      clearAll: "Tout effacer",
+      clearAllLabel: "Effacer tous les filtres",
+    },
+    emptyState: {},
+    marketSwitcher: {
+      // A no-break space before the colon, as French sets it.
+      trigger: "Pays et langue : {country}, {language}, {currency}",
+      title: "Pays et langue",
+      description:
+        "Votre pays détermine la devise, les prix et la livraison. Votre langue détermine les textes de la page.",
+      close: "Fermer",
+      list: "Pays et langues",
+      option: "{language}, {country}",
+    },
+    newsletterForm: {
+      title: "Inscrivez-vous à notre newsletter",
+      description: "Nouveautés, offres et histoires, une fois par mois. Pas de spam.",
+      emailLabel: "Adresse e-mail",
+      submit: "S’inscrire",
+      sending: "Inscription en cours…",
+      consent:
+        "En vous inscrivant, vous acceptez notre {privacy}. Vous pouvez vous désinscrire à tout moment.",
+      privacyLink: "politique de confidentialité",
+      done: "Merci, votre inscription est confirmée.",
+      error: "Nous n’avons pas pu inscrire cette adresse. Vérifiez-la et réessayez.",
+    },
+    accordionItem: {},
+    toast: {
+      kinds: { success: "Succès", error: "Erreur", info: "Information" },
+      close: "Fermer la notification",
+    },
+    copyCodeChip: {
+      copy: "Copier",
+      label: "Copier le code {code}",
+      copied: "Copié",
+      fallback: "Sélectionnez le code et copiez-le",
+    },
+    countdownTimer: {
+      label: "L’offre se termine le {date}",
+      ended: "Cette offre est terminée",
+    },
   },
   organisms: {},
   notFound: {

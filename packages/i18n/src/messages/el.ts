@@ -94,6 +94,87 @@ export const el: Messages = {
         forProduct: ", {title}",
       },
     },
+    // T33: discovery and the site-wide molecules (each filled by the task's component).
+    searchField: {
+      label: "Αναζήτηση προϊόντων",
+      placeholder: "Αναζήτηση προϊόντων",
+      submit: "Αναζήτηση",
+      clear: "Καθαρισμός αναζήτησης",
+    },
+    breadcrumbs: {
+      label: "Διαδρομή πλοήγησης",
+      more: "Ενδιάμεσα επίπεδα",
+    },
+    pagination: {
+      label: "Σελιδοποίηση",
+      previous: "Προηγούμενη",
+      next: "Επόμενη",
+      more: "Περισσότερες σελίδες",
+      page: "Σελίδα {page, number}",
+      current: "Σελίδα {page, number} από {pageCount, number}",
+    },
+    sortSelect: {
+      label: "Ταξινόμηση κατά",
+      apply: "Εφαρμογή",
+      options: {
+        relevance: "Συνάφεια",
+        newest: "Νεότερα",
+        priceAsc: "Τιμή: από τη χαμηλότερη στην υψηλότερη",
+        priceDesc: "Τιμή: από την υψηλότερη στη χαμηλότερη",
+      },
+    },
+    filterGroup: {
+      products: "{count, plural, one {# προϊόν} other {# προϊόντα}}",
+      showMore: "Εμφάνιση {count} ακόμη",
+      showFewer: "Εμφάνιση λιγότερων",
+      minimum: "Ελάχιστη τιμή",
+      maximum: "Μέγιστη τιμή",
+      bounds: "Τιμές από {min} έως {max}",
+    },
+    activeFilterChips: {
+      label: "{count, plural, one {# ενεργό φίλτρο} other {# ενεργά φίλτρα}}",
+      chip: "{group}: {label}",
+      remove: "Αφαίρεση {filter}",
+      clearAll: "Εκκαθάριση όλων",
+      clearAllLabel: "Εκκαθάριση όλων των φίλτρων",
+    },
+    emptyState: {},
+    marketSwitcher: {
+      trigger: "Χώρα και γλώσσα: {country}, {language}, {currency}",
+      title: "Χώρα και γλώσσα",
+      description:
+        "Η χώρα σας καθορίζει το νόμισμα, τις τιμές και την παράδοση. Η γλώσσα σας καθορίζει τα κείμενα της σελίδας.",
+      close: "Κλείσιμο",
+      list: "Χώρες και γλώσσες",
+      option: "{language}, {country}",
+    },
+    newsletterForm: {
+      title: "Εγγραφείτε στο ενημερωτικό μας δελτίο",
+      description: "Νέες αφίξεις, προσφορές και ιστορίες, μία φορά τον μήνα. Χωρίς spam.",
+      emailLabel: "Διεύθυνση email",
+      submit: "Εγγραφή",
+      sending: "Γίνεται εγγραφή…",
+      consent:
+        "Με την εγγραφή σας αποδέχεστε την {privacy} μας. Μπορείτε να διαγραφείτε ανά πάσα στιγμή.",
+      privacyLink: "πολιτική απορρήτου",
+      done: "Ευχαριστούμε, η εγγραφή σας ολοκληρώθηκε.",
+      error: "Δεν ήταν δυνατή η εγγραφή αυτής της διεύθυνσης. Ελέγξτε την και δοκιμάστε ξανά.",
+    },
+    accordionItem: {},
+    toast: {
+      kinds: { success: "Επιτυχία", error: "Σφάλμα", info: "Πληροφορία" },
+      close: "Κλείσιμο ειδοποίησης",
+    },
+    copyCodeChip: {
+      copy: "Αντιγραφή",
+      label: "Αντιγραφή κωδικού {code}",
+      copied: "Αντιγράφηκε",
+      fallback: "Επιλέξτε τον κωδικό και αντιγράψτε τον",
+    },
+    countdownTimer: {
+      label: "Η προσφορά λήγει στις {date}",
+      ended: "Η προσφορά έχει λήξει",
+    },
   },
   organisms: {},
   notFound: {

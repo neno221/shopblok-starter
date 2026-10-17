@@ -25,4 +25,15 @@ export const MarketOption = z.object({
     .describe("The default language first"),
 });
 
+/** The market switcher's countries (MarketSwitcher, D49); exactly one language is the current one. */
+export const MarketChoice = z
+  .object({ markets: z.array(MarketOption).min(1) })
+  .refine(
+    (choice) =>
+      choice.markets.flatMap((market) => market.languages).filter((language) => language.current)
+        .length === 1,
+    "exactly one language of one market is the current one",
+  );
+
 export type MarketOption = z.infer<typeof MarketOption>;
+export type MarketChoice = z.infer<typeof MarketChoice>;

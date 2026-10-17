@@ -60,6 +60,24 @@ export function countryName(code: string, locale: string): string {
   return names.of(upper) ?? upper;
 }
 
+const languageNames = new Map<string, Intl.DisplayNames>();
+
+/**
+ * A language's name in `inLocale` (`Ελληνικά` for `el` in `el`, `Deutsch` for `de` in `de-CH`), from
+ * `Intl`, never a literal. The market switcher names each language in its own language, so a shopper
+ * who cannot read the page's language can still find theirs. `Intl` writes some languages in
+ * lower case (`français`); the caller capitalises for a menu if it wants to. A code `Intl` does not
+ * know comes back as it was given.
+ */
+export function languageName(language: string, inLocale: string): string {
+  let names = languageNames.get(inLocale);
+  if (names === undefined) {
+    names = new Intl.DisplayNames(inLocale, { type: "language" });
+    languageNames.set(inLocale, names);
+  }
+  return names.of(language) ?? language;
+}
+
 /** What a message's placeholders take. */
 export type MessageValues = Record<string, string | number | Date>;
 

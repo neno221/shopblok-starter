@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import { manifest as entries } from "./catalog";
 import { EntryBody } from "./components/entry-body";
 import { createContext } from "./context";
+import { interactions } from "./interactions";
 import { stories } from "./stories";
 
 describe("the stories and the registry (D40)", () => {
@@ -50,6 +51,21 @@ describe("every entry of the manifest", () => {
       expect(markup).not.toContain("NaN");
     });
   }
+});
+
+describe("the interaction checks (D45, T33)", () => {
+  it.each(Object.entries(interactions))(
+    "%s has an entry whose live render draws its trigger",
+    (id, interaction) => {
+      const entry = entries.find((candidate) => candidate.id === id);
+      expect(entry, id).toBeDefined();
+      if (entry === undefined) return;
+      // The selectors are one attribute each (`[data-slot="…"]`), so the markup shows it as written.
+      expect(interaction.trigger).toMatch(/^\[[a-z-]+="[^"]+"\]$/);
+      const markup = renderToStaticMarkup(<>{entry.live(createContext("en"))}</>);
+      expect(markup).toContain(interaction.trigger.slice(1, -1));
+    },
+  );
 });
 
 const atomEntries = entries.filter((entry) => entry.group === "atoms");

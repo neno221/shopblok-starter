@@ -6,6 +6,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./atoms/flag-code": "./src/atoms/flag-code.ts",
     "./atoms/*": "./src/atoms/*.tsx",
     "./primitives/*": "./src/primitives/*.tsx",
     "./molecules/*": "./src/molecules/*.tsx",

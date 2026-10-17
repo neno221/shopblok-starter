@@ -8,7 +8,8 @@ import {
 } from "@shopblok/i18n";
 import type { EntryId } from "@shopblok/registry";
 import { Chip } from "@shopblok/ui/atoms/chip";
-import { Flag, isFlagCode } from "@shopblok/ui/atoms/flag";
+import { Flag } from "@shopblok/ui/atoms/flag";
+import { isFlagCode } from "@shopblok/ui/atoms/flag-code";
 import { Icon } from "@shopblok/ui/atoms/icon";
 import { IconButton } from "@shopblok/ui/atoms/icon-button";
 import { Image } from "@shopblok/ui/atoms/image";

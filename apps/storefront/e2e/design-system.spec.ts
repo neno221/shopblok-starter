@@ -1,6 +1,11 @@
+import { readdirSync, readFileSync } from "node:fs";
+import { createRequire } from "node:module";
+import path from "node:path";
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
+import { commerceFixtures, fixtureNow } from "@shopblok/fixtures";
 import { entries } from "@shopblok/registry";
+import { interactions, type DsInteraction } from "../src/design-system/interactions";
 import { viewportWidths } from "../src/design-system/viewport-widths";
 import { collectConsole, judgeConsole, type FailedRequest, type Message } from "./support/console";
 
@@ -9,7 +14,9 @@ import { collectConsole, judgeConsole, type FailedRequest, type Message } from "
 // `design-system`; SETUP.md, "DS checks (T24)"). One cell is one test, `atoms/price · el · 375`;
 // each checks axe, overflow, the 44 px size of controls, controls nested in a link or a button
 // (T32), the console (the rules of support/console.ts) and attaches a screenshot of the whole
-// frame. The checks are soft, so a cell reports every check that failed.
+// frame. The checks are soft, so a cell reports every check that failed. After the cells: T31's
+// overlay box, T33's interaction checks (D45: an overlay opened from the keyboard) and the bundle
+// test (D49: no flag in a client chunk).
 //
 // The widths are the viewport tokens the DS's own switcher uses (375, 768, 1440). D34 names `en`
 // and `el`, so it is those two and not the four locales of the page: `el` is the one with the other
@@ -293,6 +300,9 @@ for (const id of ids) {
     for (const width of widths) {
       test(`${id} · ${locale} · ${width}`, async ({ page, baseURL }, testInfo) => {
         await page.setViewportSize({ width, height: 900 });
+        // D50: the browser's clock is the fixtures' (timers still run), so a countdown that the
+        // server rendered from `fixtureNow` reads the same after hydration.
+        await page.clock.setFixedTime(new Date(fixtureNow));
         const consoleMessages: Message[] = [];
         const failedRequests: FailedRequest[] = [];
         collectConsole(page, consoleMessages, failedRequests);
@@ -409,4 +419,164 @@ if (problem === undefined) {
         .toEqual([]);
     });
   }
+}
+
+// D45 (T33): each overlay of `src/design-system/interactions.ts`, opened from its live render on the
+// entry's preview page, from the keyboard, at 375 and 1440 px in `en`: axe on the open state, then
+// focus. A popup that takes focus has it inside, keeps it there under Tab when it traps it, and
+// gives it back to the trigger on Escape; a toast leaves it on the trigger and is announced.
+const previewPath = (locale: string, id: string) => `/design-system/${locale}/preview/${id}`;
+
+/** Whether the element holds the focused element. Runs in the page. */
+const holdsFocus = (el: Element) => el.contains(document.activeElement);
+
+/**
+ * Whether focus is in the element within a second. Runs in the page. A focus trap's guard (an
+ * `aria-hidden` element on each side of the popup) takes focus first and hands it on a frame or two
+ * later, so the check waits for it before it counts focus as gone.
+ */
+const settlesInside = (el: Element) =>
+  new Promise<boolean>((resolve) => {
+    const start = performance.now();
+    const tick = () => {
+      if (el.contains(document.activeElement)) resolve(true);
+      else if (performance.now() - start > 1_000) resolve(false);
+      else requestAnimationFrame(tick);
+    };
+    tick();
+  });
+
+if (problem === undefined) {
+  for (const [id, interaction] of Object.entries(interactions) as [string, DsInteraction][]) {
+    for (const width of [375, 1440]) {
+      test(`interaction · ${id} · en · ${width}`, async ({ page, baseURL }) => {
+        await page.setViewportSize({ width, height: 900 });
+        await page.clock.setFixedTime(new Date(fixtureNow));
+        const consoleMessages: Message[] = [];
+        const failedRequests: FailedRequest[] = [];
+        collectConsole(page, consoleMessages, failedRequests);
+        const response = await page.goto(previewPath("en", id), { waitUntil: "load" });
+        expect(response?.status(), `${previewPath("en", id)} answers 200`).toBe(200);
+        await page.waitForLoadState("networkidle");
+
+        const trigger = page.locator(interaction.trigger).filter({ visible: true }).first();
+        const popup = page.locator(interaction.opens).filter({ visible: true }).first();
+        await expect(trigger, "the live render draws the trigger").toBeVisible();
+        // A press before hydration does nothing, so press again until it opens.
+        await expect(async () => {
+          if (!(await popup.isVisible())) {
+            await trigger.focus();
+            await page.keyboard.press("Enter");
+          }
+          await expect(popup).toBeVisible({ timeout: 1_000 });
+        }, "Enter on the trigger opens it").toPass({ timeout: 10_000 });
+
+        const axe = await new AxeBuilder({ page }).withTags(axeTags).analyze();
+        expect
+          .soft(
+            axe.violations.map(
+              (v) => `${v.id}: ${v.help} (${v.nodes.map((n) => n.target.join(" ")).join(", ")})`,
+            ),
+            "axe violations, open",
+          )
+          .toEqual([]);
+
+        if (interaction.focus === "inside") {
+          await expect
+            .poll(() => popup.evaluate(holdsFocus), { message: "focus moves into the popup" })
+            .toBe(true);
+          if (interaction.trap === true) {
+            const stops = await popup.evaluate(
+              (el) =>
+                el.querySelectorAll(
+                  'a[href], button:not([disabled]), input:not([type="hidden"]):not([disabled]), select, textarea, [tabindex]:not([tabindex="-1"])',
+                ).length,
+            );
+            for (const key of ["Tab", "Shift+Tab"]) {
+              let left = 0;
+              for (let press = 1; press <= stops + 2 && left === 0; press += 1) {
+                await page.keyboard.press(key);
+                if (!(await popup.evaluate(settlesInside))) left = press;
+              }
+              expect.soft(left, `${key} leaves the popup after ${left} presses`).toBe(0);
+            }
+          }
+          await page.keyboard.press("Escape");
+          await expect(popup, "Escape closes it").toBeHidden();
+          await expect(trigger, "focus is back on the trigger").toBeFocused();
+        } else {
+          await expect(trigger, "focus stays on the trigger").toBeFocused();
+          const announcer = await popup.evaluate((el) => {
+            const live =
+              '[aria-live="polite"], [aria-live="assertive"], [role="status"], [role="alert"]';
+            const region = el.closest(live);
+            if (region !== null)
+              return region.getAttribute("aria-live") ?? region.getAttribute("role");
+            // A live region elsewhere that says the popup's words.
+            const text = (el.textContent ?? "").trim().slice(0, 30);
+            for (const other of document.querySelectorAll(live))
+              if (text !== "" && (other.textContent ?? "").includes(text))
+                return other.getAttribute("aria-live") ?? other.getAttribute("role");
+            return null;
+          });
+          expect(announcer, "a live region announces it").not.toBeNull();
+        }
+
+        const { local, summary } = judgeConsole(consoleMessages, failedRequests, baseURL);
+        expect
+          .soft(
+            local.map((r) => `${r.url} ${r.error}`),
+            "failed requests",
+          )
+          .toEqual([]);
+        expect.soft(summary, "console errors and warnings").toEqual([]);
+      });
+    }
+  }
+}
+
+// D49 (T33): the flags stay on the server. Flag renders `country-flag-icons` to HTML, and
+// MarketSwitcher, a client component, takes each flag as a node the server rendered, so no client
+// chunk of this build holds a flag's drawing. The needle of a flag is the start of its longest path
+// (`d`), from the package's string set; the markets' flags whose longest path is long enough to be
+// their own (Cyprus's and the United States', at least) are the ones looked for.
+const appDir = path.resolve(import.meta.dirname, "..");
+
+/** Every `.js` file under `dir`, recursively. */
+function scripts(dir: string): string[] {
+  return readdirSync(dir, { withFileTypes: true }).flatMap((item) => {
+    const full = path.join(dir, item.name);
+    if (item.isDirectory()) return scripts(full);
+    return item.name.endsWith(".js") ? [full] : [];
+  });
+}
+
+if (problem === undefined) {
+  test("no client chunk holds a flag (D49)", () => {
+    const requireFromUi = createRequire(path.resolve(appDir, "../../packages/ui/package.json"));
+    const codes = [...new Set(commerceFixtures.en.markets.map((market) => market.flagCode))];
+    const needles = codes.flatMap((code) => {
+      const svg = readFileSync(
+        requireFromUi.resolve(`country-flag-icons/string/3x2/${code}`),
+        "utf8",
+      );
+      const paths = [...svg.matchAll(/ d="([^"]+)"/g)].map((match) => match[1] ?? "");
+      const longest = paths.sort((a, b) => b.length - a.length)[0] ?? "";
+      return longest.length >= 50 ? [{ code, needle: longest.slice(0, 48) }] : [];
+    });
+    expect(
+      needles.map((needle) => needle.code),
+      "flags with a path of their own",
+    ).toEqual(expect.arrayContaining(["CY", "US"]));
+
+    const chunks = scripts(path.join(appDir, ".next", "static"));
+    expect(chunks.length, "the build's client chunks (.next/static)").toBeGreaterThan(0);
+    const found = chunks.flatMap((file) => {
+      const source = readFileSync(file, "utf8");
+      return needles
+        .filter(({ needle }) => source.includes(needle))
+        .map(({ code }) => `${code} in ${path.relative(appDir, file)}`);
+    });
+    expect(found, "flags in client chunks").toEqual([]);
+  });
 }

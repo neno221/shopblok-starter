@@ -1,14 +1,15 @@
-// Ours, on the tokens (T23, SETUP.md "Atoms (T23)"). A country's flag by its ISO 3166-1 alpha-2
-// code, from `country-flag-icons` (MIT; SVG, not emoji, Principle 8), 3:2, as an image named by
-// `label` (D30: "Cyprus", in the page's language). A server component on purpose, with no
-// `"use client"`: the flags are rendered to HTML and cost no client JavaScript, so M2's
-// MarketSwitcher must keep it out of any client component's imports. A code the set does not
-// have draws an empty frame with the same name.
+// Ours, on the tokens (T23, SETUP.md "Atoms (T23)"; T33, "Discovery and site-wide molecules
+// (T33)"). A country's flag by its ISO 3166-1 alpha-2 code, from `country-flag-icons` (MIT; SVG,
+// not emoji, Principle 8), 3:2, as an image named by `label` (D30: "Cyprus", in the page's
+// language). A server component on purpose, with no `"use client"`: the flags are rendered to HTML
+// and cost no client JavaScript, so a client component never imports this file (D49:
+// MarketSwitcher takes each flag as a node the server rendered, and a test reads the built client
+// chunks for one). `isFlagCode` and `FlagCode` live in `flag-code.ts`, which has no flag in it. A
+// code the set does not have draws an empty frame with the same name and the caller's props.
 import * as flags from "country-flag-icons/react/3x2";
 import type * as React from "react";
 import { cn } from "@shopblok/ui/lib/utils";
-
-type FlagCode = keyof typeof flags;
+import type { FlagCode } from "@shopblok/ui/atoms/flag-code";
 
 type FlagProps = Omit<React.ComponentProps<"svg">, "role" | "aria-label" | "children"> & {
   /** ISO 3166-1 alpha-2, in either case (`CY`, `cy`). */
@@ -17,11 +18,6 @@ type FlagProps = Omit<React.ComponentProps<"svg">, "role" | "aria-label" | "chil
   label: string;
 };
 
-/** Whether the set has a flag for this ISO 3166-1 alpha-2 code (either case). */
-function isFlagCode(code: string): code is FlagCode | Lowercase<FlagCode> {
-  return Object.hasOwn(flags, code.toUpperCase());
-}
-
 const frame = "inline-block aspect-[3/2] h-5 w-auto shrink-0 rounded-xs";
 
 function Flag({ code, label, className, ...props }: FlagProps) {
@@ -29,9 +25,13 @@ function Flag({ code, label, className, ...props }: FlagProps) {
     code.toUpperCase()
   ];
   if (Svg === undefined) {
+    // The caller's attributes and handlers too (PR 43 review, item 10): they are SVG props, and the
+    // ones a span shares with an SVG (`id`, `data-*`, `title`, the events) are what a caller sets.
     return (
       <span
+        {...(props as React.ComponentProps<"span">)}
         data-slot="flag"
+        data-code={code.toUpperCase()}
         role="img"
         aria-label={label}
         className={cn(frame, "bg-muted", className)}
@@ -50,5 +50,5 @@ function Flag({ code, label, className, ...props }: FlagProps) {
   );
 }
 
-export { Flag, isFlagCode };
-export type { FlagCode, FlagProps };
+export { Flag };
+export type { FlagProps };

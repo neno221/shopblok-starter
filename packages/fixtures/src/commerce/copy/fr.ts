@@ -156,11 +156,100 @@ export const fr: Copy = {
     inStock: "En stock",
     onSale: "En promotion",
   },
+  activeFilters: { priceRange: (min, max) => `${min} à ${max} CHF` },
   announcement: { message: "Livraison gratuite dès 150 CHF", link: "En savoir plus" },
   figure: {
     alt: "Une personne en sweat à capuche couleur avoine marche le long d’un quai au lever du soleil",
     caption: "La collection d’automne, photographiée sur le port.",
     credit: "Shopblok Studio",
+  },
+  emptyStates: {
+    filters: {
+      title: "Aucun produit ne correspond à ces filtres",
+      text: "Essayez de retirer un filtre ou d’élargir la fourchette de prix.",
+      action: "Effacer tous les filtres",
+    },
+    search: {
+      title: "Aucun résultat",
+      text: "Vérifiez l’orthographe ou essayez un mot plus général.",
+      action: "Parcourir la boutique",
+    },
+    category: {
+      title: "Aucun produit pour le moment",
+      text: "Les nouveautés arrivent bientôt. Revenez nous voir prochainement.",
+    },
+  },
+  // French sets a no-break space (U+00A0) before ? : ; and !.
+  site: {
+    faq: {
+      items: [
+        {
+          title: "Quel est le délai de livraison ?",
+          answer: [
+            "La plupart des commandes arrivent en 2 à 4 jours ouvrés. Nous vous envoyons un lien de suivi par e-mail dès que votre colis quitte notre entrepôt.",
+            "La livraison est gratuite dès que votre commande dépasse le montant de livraison gratuite indiqué dans votre panier.",
+          ],
+        },
+        {
+          title: "Puis-je retourner un article ?",
+          answer: [
+            "Oui. Les articles non portés, dans leur emballage d’origine, peuvent être retournés dans les 30 jours suivant la livraison contre un remboursement intégral.",
+            "Lancez le retour depuis votre compte, imprimez l’étiquette et déposez le colis dans n’importe quel point relais.",
+          ],
+        },
+        {
+          title: "Comment trouver ma taille ?",
+          answer: [
+            "Chaque fiche produit comporte un guide des tailles avec les mesures en centimètres et en pouces.",
+            "Si vous hésitez entre deux tailles, prenez la plus grande pour une coupe plus ample.",
+          ],
+        },
+        {
+          title: "Quels moyens de paiement acceptez-vous ?",
+          answer: [
+            "Nous acceptons les principales cartes de crédit et de débit, Apple Pay, Google Pay, Revolut Pay, PayPal et Klarna.",
+            "Les données de votre carte vont directement à notre prestataire de paiement. Nous ne les conservons jamais.",
+          ],
+        },
+        {
+          title: "Comment laver mon sweat à capuche ?",
+          answer: [
+            "Lavez-le en machine à froid avec des couleurs similaires, retourné, et séchez-le à basse température.",
+            "N’utilisez pas d’eau de Javel et ne repassez pas l’imprimé.",
+          ],
+        },
+      ],
+      long: {
+        title:
+          "Que devient ma commande si l’un des articles est épuisé alors que j’ai déjà payé avec une carte cadeau et un code promo ?",
+        answer: [
+          "Si un article est épuisé avant que nous préparions votre commande, nous vous écrivons le jour même et vous proposons un remplacement dans une autre taille ou couleur, une date de livraison plus tardive ou le remboursement intégral de cet article sur les moyens de paiement d’origine.",
+          "Le solde d’une carte cadeau est recrédité sur la carte cadeau, et un code promo reste valable 14 jours après le remboursement, afin que vous puissiez l’utiliser sur une nouvelle commande sans payer un centime de plus.",
+        ],
+      },
+    },
+    toasts: {
+      success: {
+        trigger: "Ajouter au panier",
+        title: "Ajouté au panier",
+        description: "Votre article vous attend dans votre panier.",
+        actionLabel: "Annuler",
+      },
+      error: {
+        trigger: "Appliquer le code",
+        title: "Ce code n’a pas fonctionné",
+        description: "Vérifiez l’orthographe, ou le code est peut-être expiré.",
+      },
+      info: { trigger: "Vérifier la livraison", title: "La livraison prend 2 à 4 jours ouvrés" },
+      long: {
+        trigger: "Passer une grande commande",
+        title:
+          "Votre commande est passée, et l’e-mail de confirmation est en route vers votre boîte de réception",
+        description:
+          "Nous vous enverrons le lien de suivi dès que le colis quittera notre entrepôt, généralement sous un jour ouvré.",
+        actionLabel: "Voir le détail de votre commande",
+      },
+    },
   },
   long: {
     productTitle:

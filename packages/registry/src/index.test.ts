@@ -10,18 +10,20 @@ const atom = (id: string, extra: Partial<EntryInput> = {}): EntryInput => ({
 });
 
 describe("the registry (D40)", () => {
-  it("lists M1's 8 foundations and 32 atoms, then T32's 15 molecules, in the navigation's order", () => {
+  it("lists M1's 8 foundations and 32 atoms, then T32's 15 molecules and T33's 13, in the navigation's order", () => {
     expect(byGroup("foundations")).toHaveLength(8);
     expect(byGroup("atoms")).toHaveLength(32);
-    expect(byGroup("molecules")).toHaveLength(15);
-    expect(entries).toHaveLength(55);
+    expect(byGroup("molecules")).toHaveLength(28);
+    expect(entries).toHaveLength(68);
     expect(entries.map((entry) => entry.id).slice(0, 2)).toEqual([
       "foundations/colors",
       "foundations/typography",
     ]);
     expect(byGroup("atoms").at(-1)?.id).toBe("atoms/flag");
     expect(byGroup("molecules").at(0)?.id).toBe("molecules/price-block");
-    expect(entries.at(-1)?.id).toBe("molecules/media-figure");
+    expect(byGroup("molecules").at(14)?.id).toBe("molecules/media-figure");
+    expect(byGroup("molecules").at(15)?.id).toBe("molecules/search-field");
+    expect(entries.at(-1)?.id).toBe("molecules/countdown-timer");
   });
 
   it("gives every entry a unique `{group}/{slug}` id in a known group, and a label", () => {

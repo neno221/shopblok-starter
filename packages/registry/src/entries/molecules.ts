@@ -1,11 +1,25 @@
 import {
+  AccordionSection,
+  ActiveFilters,
+  Breadcrumbs,
+  Countdown,
+  DiscountCode,
+  EmptyStateContent,
+  FacetGroup,
+  MarketChoice,
   MediaFigure,
+  NewsletterSignup,
+  PageState,
   PriceSummary,
   ProductCard,
   RatingSummary,
   Review,
+  SearchQuery,
+  SortState,
+  ToastMessage,
   VariantChoice,
 } from "../contracts";
+import type { z } from "zod";
 import type { EntryInput } from "../types";
 
 // SPEC §9.3's molecules, in the navigation's order, each task's after the last (M2 plan, T32 to
@@ -27,6 +41,22 @@ const productCard = <const Variant extends string, const Label extends string>(
     family: "product-card",
     variant,
     contract: ProductCard,
+  }) as const satisfies EntryInput;
+
+/** A molecule that is one component, with its states, at `@shopblok/ui/molecules/{slug}`. */
+const molecule = <const Slug extends string>(
+  slug: Slug,
+  label: string,
+  name: string,
+  contract: z.ZodType,
+) =>
+  ({
+    id: `molecules/${slug}`,
+    group: "molecules",
+    kind: "molecule",
+    label,
+    component: { module: `@shopblok/ui/molecules/${slug}`, name },
+    contract,
   }) as const satisfies EntryInput;
 
 export const molecules = [
@@ -81,4 +111,18 @@ export const molecules = [
     component: { module: "@shopblok/ui/molecules/media-figure", name: "MediaFigure" },
     contract: MediaFigure,
   },
+  // T33: discovery and the site-wide molecules.
+  molecule("search-field", "SearchField", "SearchField", SearchQuery),
+  molecule("breadcrumbs", "Breadcrumbs", "Breadcrumbs", Breadcrumbs),
+  molecule("pagination", "Pagination", "Pagination", PageState),
+  molecule("sort-select", "SortSelect", "SortSelect", SortState),
+  molecule("filter-group", "FilterGroup", "FilterGroup", FacetGroup),
+  molecule("active-filter-chips", "ActiveFilterChips", "ActiveFilterChips", ActiveFilters),
+  molecule("empty-state", "EmptyState", "EmptyState", EmptyStateContent),
+  molecule("market-switcher", "MarketSwitcher", "MarketSwitcher", MarketChoice),
+  molecule("newsletter-form", "NewsletterForm", "NewsletterForm", NewsletterSignup),
+  molecule("accordion-item", "AccordionItem", "AccordionItem", AccordionSection),
+  molecule("toast", "Toast", "Toast", ToastMessage),
+  molecule("copy-code-chip", "CopyCodeChip", "CopyCodeChip", DiscountCode),
+  molecule("countdown-timer", "CountdownTimer", "CountdownTimer", Countdown),
 ] as const satisfies readonly EntryInput[];
