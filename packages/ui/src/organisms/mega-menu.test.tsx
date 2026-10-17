@@ -164,7 +164,6 @@ describe("MegaMenu: the split navigation of the centered header", () => {
     ]);
     const centre = items[2] as HTMLElement;
     expect(centre.getAttribute("data-slot")).toBe("mega-menu-center");
-    expect(centre.getAttribute("role")).toBe("none");
     expect(nav.querySelectorAll("nav")).toHaveLength(0);
   });
 

@@ -13,8 +13,9 @@
 // A mega menu's panel spans the header's row (`data-slot="header-row"`), not only the navigation's
 // column in it, which is what SPEC §13 and SBP megamenu.md ask of "full width" (PR 57 review); outside
 // a header it is as wide as the menu. The centered header's split navigation is `splitAt` and
-// `center`: one list, with the logo as a presentational item between the halves. A `Link`'s `external` flag is not used: the navigation's copy has no
-// new-tab note to read out, and a link that left the tab without saying so would fail a reader.
+// `center`: one list, with the logo a list item (not a menu item) between the halves. A `Link`'s
+// `external` flag is not used: the navigation's copy has no new-tab note to read out, and a link
+// that left the tab without saying so would fail a reader.
 import type { Messages } from "@shopblok/i18n";
 import { formatMessage } from "@shopblok/i18n/format";
 import type { Navigation } from "@shopblok/registry/contracts";

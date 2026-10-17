@@ -382,7 +382,7 @@ function MegaMenuNav({
       className={cn("max-w-none flex-wrap justify-start", className)}
     >
       {/* One list, so the arrow keys run across both halves of a split bar (PR 57 review). The
-          centre is a presentational item, not a menu item: the arrows skip it, Tab stops on its
+          centre is a list item but not a menu item: the arrows skip it, Tab stops on its
           link, and its auto margins push the halves to the two ends. */}
       <NavigationMenuList className="flex-wrap justify-start gap-x-1">
         {split === undefined ? (
@@ -391,7 +391,7 @@ function MegaMenuNav({
           <>
             {items(0, split)}
             {center === undefined ? null : (
-              <li role="none" data-slot="mega-menu-center" className="mx-auto shrink-0">
+              <li data-slot="mega-menu-center" className="mx-auto shrink-0">
                 {center}
               </li>
             )}
