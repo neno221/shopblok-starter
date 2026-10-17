@@ -1,4 +1,4 @@
-# T27 and T28 are done; T29 is next
+# T27 to T29 are done; T30 and T31 are next
 
 **The M2 plan** ([plans/M2.md](plans/M2.md), molecules, organisms and the registry, SPEC §17.1) was merged in [PR 48](https://github.com/stephanos221/shopblok-starter/pull/48). Its decisions D40 to D55 are defaults that stand, because you said on 2026-10-16 that M2's tasks may start once the plan is written; you can change any of them at any time, and the task that builds it then follows the new text. Three are worth a look: **D46** (M2 builds Header 6, Footer 5 and ProductCard 10, so the DS page ends M2 with 114 entries outside Foundations), **D51** (684 pixel baselines committed in git, an expected 40 to 60 MB; T40 stops and asks you above 60 MB) and **D53** (the CI gate). **G6, optional, about two minutes:** look at this month's Actions minutes under Settings → Billing and plans → Usage (the plan's §0, item 2, says why).
 
@@ -6,15 +6,23 @@
 
 **T28 is done** (2026-10-17, SETUP.md "Root files (T28)"). A root path that looks like a file and that nothing serves (`/robots.txt`, `/apple-touch-icon.png`, `/wp-login.php`) now answers a short plain-text 404 instead of the storefront's 404 page, and `next dev` no longer logs an error for each. `/favicon.ico` is still the icon, and M7's `robots.ts` and `sitemap.ts` will be served before the rule.
 
-**Next:** T29. Nothing else opens until it is merged: T30 and T31 follow it, and its session writes their prompts here. Nothing waits on your PC until W4.
+**T29 is done** (2026-10-17, SETUP.md "The registry (T29)"). The design system's 40 entries are now a list of data in `packages/registry`, which the DS page, its CI checks and, from M4, Payload's pickers read. What the page says about each entry stays in the storefront, and a test fails when an entry and its text do not match. Each entry also has a bare preview page, which T40 will photograph for the thumbnails, and a build now fails if a DS page ever reads the request. The page looks exactly as before.
+
+**Next:** T30 and T31, in either order (both prompts below). The molecule tasks (T32 to T34) need both. Nothing waits on your PC until W4.
 
 Every M2 task runs the same way (D55): a cloud session in the `shopblok-starter` environment, on `main`; a PR; a code review of it in a separate thread, with its findings in `reviews/pr-N-code-review.md` in the project's files; the session fixes them and merges with a merge commit once CI is green.
 
-## T29 · The registry, and the DS page on it (in a cloud session)
+## T30 · View models, copy and fixtures (in a cloud session)
 
 Start a cloud session in the `shopblok-starter` environment, on `main`, and paste:
 
-> Run task T29 of docs/plans/M2.md: `@shopblok/registry` as data (D40), the DS page, its checks and its tests reading it, the `preview` route, and `ensureStatic = "navigation"` on the DS pages (D44). Start as docs/CLOUD.md, "What every cloud session does first", steps 1 and 2 say; the DS checks need no stack. Read docs/plans/M2.md (§1 D40, D41, D44 and D52, §5 T29), SPEC §9.6, SETUP.md's "DS page shell (T22)", "Atoms (T23)" and "DS checks (T24)", and `apps/storefront/src/design-system/` first. Work on a new branch from `main`. Follow T29's steps and its Verify list: the same 192 cells pass, the build's route list is the same plus the preview routes, and each mutation fails. Record everything in docs/SETUP.md under "The registry (T29)", update the plan's status line and NEXT-SESSION.md (T30's and T31's prompts next), then open a PR. It gets a code review in a separate thread; fix its findings, and merge with a merge commit once CI is green (G2).
+> Run task T30 of docs/plans/M2.md: the view-model contracts in `@shopblok/registry` (D41), the catalogs as ICU messages in a module per locale with `formatMessage` (D43), and fixtures for every contract in the four locales. Start as docs/CLOUD.md, "What every cloud session does first", steps 1 and 2 say; it needs no stack. Read docs/plans/M2.md (§1 D41, D43 and D50, §5 T30), SPEC §8.2, §8.4, §7.3 and §14's test rule for `Intl` output, SETUP.md's "The registry (T29)", and `packages/i18n` and `packages/fixtures` first. Work on a new branch from `main`. Follow T30's steps and its Verify list: every fixture parses, the parity test fails for a missing Greek key and a changed argument, the plurals are right in the four locales, the DS cells do not change, and each mutation fails. Record everything in docs/SETUP.md under "View models, copy and fixtures (T30)", update the plan's status line and NEXT-SESSION.md, then open a PR. It gets a code review in a separate thread; fix its findings, and merge with a merge commit once CI is green (G2).
+
+## T31 · Primitives and providers (in a cloud session)
+
+Start a cloud session in the `shopblok-starter` environment, on `main`, and paste. It needs `ui.shadcn.com` and `reui.io`, which that environment allows:
+
+> Run task T31 of docs/plans/M2.md: the primitives in `packages/ui/src/primitives/` on our rules (D42, D47), one `Providers` component in every root layout, and the DS's overlay box (D45). Start as docs/CLOUD.md, "What every cloud session does first", steps 1 and 2 say; it needs no stack. Read docs/plans/M2.md (§1 D42, D45 and D47, §5 T31), SPEC §9.1 and §9.3, SETUP.md's "shadcn and ReUI (T21)" and "The registry (T29)", and `packages/ui` first. Work on a new branch from `main`. Run the shadcn CLI with `--dry-run` first and check that no existing atom is written again. Follow T31's steps and its Verify list: the scans pass on the four folders, `pnpm build` passes, the `design-system` job is unchanged, and each mutation fails. Record everything in docs/SETUP.md under "Primitives (T31)", update the plan's status line and NEXT-SESSION.md, then open a PR. It gets a code review in a separate thread; fix its findings, and merge with a merge commit once CI is green (G2).
 
 ## M1 (closed 2026-10-17)
 

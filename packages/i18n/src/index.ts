@@ -52,9 +52,13 @@ const designSystem = {
   overview: "Overview",
   overviewIntro:
     "Foundations and components of the Shopblok storefront, rendered from the shared tokens and fixtures. Pick a locale to see long strings and the market's currency formats.",
+  // The registry's groups (`@shopblok/registry`, `GROUPS`); a group is listed once it has an entry.
   groups: {
     foundations: "Foundations",
     atoms: "Atoms",
+    molecules: "Molecules",
+    organisms: "Organisms",
+    "headers-footers": "Headers and footers",
   },
   locale: {
     label: "Locale",
@@ -64,7 +68,18 @@ const designSystem = {
     liveRender: "Live render",
     states: "States",
     a11y: "Accessibility notes",
+    props: "Props",
     viewports: "Viewports",
+  },
+  // The "Props" table: an entry's contract as JSON Schema (D41).
+  props: {
+    caption: "The props this entry shows, from its contract",
+    name: "Prop",
+    type: "Type",
+    required: "Required",
+    description: "Description",
+    yes: "yes",
+    no: "no",
   },
   viewports: {
     all: "All three",
@@ -101,7 +116,11 @@ const en = {
     link: { newTab: "Opens in a new tab" },
     price: { sale: "Sale price", original: "Original price" },
     rating: { label: "{value} out of {max}" },
-    quantityStepper: { label: "Quantity", decrease: "Decrease quantity", increase: "Increase quantity" },
+    quantityStepper: {
+      label: "Quantity",
+      decrease: "Decrease quantity",
+      increase: "Increase quantity",
+    },
     stock: { inStock: "In stock", low: "Only {count} left", outOfStock: "Out of stock" },
     variant: { unavailable: "Unavailable" },
     payment: {
@@ -148,7 +167,11 @@ const el: Messages = {
     link: { newTab: "Ανοίγει σε νέα καρτέλα" },
     price: { sale: "Τιμή προσφοράς", original: "Αρχική τιμή" },
     rating: { label: "{value} στα {max}" },
-    quantityStepper: { label: "Ποσότητα", decrease: "Μείωση ποσότητας", increase: "Αύξηση ποσότητας" },
+    quantityStepper: {
+      label: "Ποσότητα",
+      decrease: "Μείωση ποσότητας",
+      increase: "Αύξηση ποσότητας",
+    },
     stock: { inStock: "Διαθέσιμο", low: "Απομένουν μόνο {count}", outOfStock: "Εξαντλημένο" },
     variant: { unavailable: "Μη διαθέσιμο" },
     payment: {
@@ -192,7 +215,11 @@ const de: Messages = {
     price: { sale: "Angebotspreis", original: "Ursprünglicher Preis" },
     rating: { label: "{value} von {max}" },
     quantityStepper: { label: "Menge", decrease: "Menge verringern", increase: "Menge erhöhen" },
-    stock: { inStock: "Auf Lager", low: "Nur noch {count} verfügbar", outOfStock: "Nicht auf Lager" },
+    stock: {
+      inStock: "Auf Lager",
+      low: "Nur noch {count} verfügbar",
+      outOfStock: "Nicht auf Lager",
+    },
     variant: { unavailable: "Nicht verfügbar" },
     payment: {
       visa: "Visa",
@@ -235,8 +262,16 @@ const fr: Messages = {
     link: { newTab: "S’ouvre dans un nouvel onglet" },
     price: { sale: "Prix soldé", original: "Prix initial" },
     rating: { label: "{value} sur {max}" },
-    quantityStepper: { label: "Quantité", decrease: "Diminuer la quantité", increase: "Augmenter la quantité" },
-    stock: { inStock: "En stock", low: "Plus que {count} en stock", outOfStock: "Rupture de stock" },
+    quantityStepper: {
+      label: "Quantité",
+      decrease: "Diminuer la quantité",
+      increase: "Augmenter la quantité",
+    },
+    stock: {
+      inStock: "En stock",
+      low: "Plus que {count} en stock",
+      outOfStock: "Rupture de stock",
+    },
     variant: { unavailable: "Indisponible" },
     payment: {
       visa: "Visa",

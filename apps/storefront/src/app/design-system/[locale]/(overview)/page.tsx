@@ -8,6 +8,9 @@ import { requireDesignSystemLocale } from "../../../../design-system/gate";
 
 const copy = catalogs.en.designSystem;
 
+// D44: a build fails if anything on this page reads the request (ADR 0004).
+export const ensureStatic = "navigation";
+
 // `/design-system/[locale]`: what is in the system, by group.
 export default async function Overview() {
   const locale = await requireDesignSystemLocale();

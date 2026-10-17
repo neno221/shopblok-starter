@@ -8,17 +8,27 @@ import {
   framePath,
   GROUPS,
   localeParams,
+  manifest as entries,
   navigation,
   overviewPath,
+  previewPath,
 } from "./catalog";
-import { entries } from "./entries";
 import type { DsEntry } from "./types";
 
 vi.mock("next/root-params", () => ({ locale: vi.fn() }));
 
+const kinds = {
+  foundations: "foundation",
+  atoms: "atom",
+  molecules: "molecule",
+  organisms: "organism",
+  "headers-footers": "organism",
+} as const;
+
 const testEntry = (id: string, group: DsEntry["group"] = "atoms"): DsEntry => ({
   id,
   group,
+  kind: kinds[group],
   label: id,
   summary: "A test entry.",
   a11y: ["A note."],
@@ -36,8 +46,9 @@ describe("the manifest", () => {
     expect(new Set(ids).size).toBe(ids.length);
     for (const entry of entries) {
       expect(entry.id, entry.id).toMatch(new RegExp(`^${entry.group}/[a-z0-9]+(-[a-z0-9]+)*$`));
-      // `frame` is the first segment of the frame routes; a group can never be called that.
-      expect(entrySegments(entry)[0], entry.id).not.toBe("frame");
+      // `frame` and `preview` are the first segments of the frame and preview routes; a group can
+      // never be called either.
+      expect(["frame", "preview"], entry.id).not.toContain(entrySegments(entry)[0]);
     }
   });
 
@@ -52,7 +63,7 @@ describe("the manifest", () => {
 });
 
 describe("the generated params (manifest × the four locales)", () => {
-  it("lists every entry once in each locale, as the page and the frame take them", () => {
+  it("lists every entry once in each locale, as the page, the frame and the preview take them", () => {
     const params = entryParams();
     expect(params).toHaveLength(entries.length * LOCALES.length);
     for (const locale of ["en", "el", "de", "fr"]) {
@@ -79,13 +90,16 @@ describe("the generated params (manifest × the four locales)", () => {
     ]);
   });
 
-  it("has a page and a frame path for each param", () => {
+  it("has a page, a frame and a preview path for each param", () => {
     for (const { locale, entry: segments } of entryParams()) {
       const entry = findEntry(segments);
       expect(entry).toBeDefined();
       expect(entryPath(locale, entry!)).toBe(`/design-system/${locale}/${segments.join("/")}`);
       expect(framePath(locale, entry!)).toBe(
         `/design-system/${locale}/frame/${segments.join("/")}`,
+      );
+      expect(previewPath(locale, entry!)).toBe(
+        `/design-system/${locale}/preview/${segments.join("/")}`,
       );
     }
   });
@@ -110,6 +124,7 @@ describe("findEntry", () => {
       ["foundations", "nope"],
       ["foundations", "colors", "extra"],
       ["frame", "foundations", "colors"],
+      ["preview", "foundations", "colors"],
       ["Foundations", "colors"],
       ["atoms", "nope"],
     ]) {
@@ -125,6 +140,17 @@ describe("navigation", () => {
     expect(foundationsOnly.map((section) => section.group)).toEqual(["foundations"]);
     const both = navigation([testEntry("atoms/a"), testEntry("foundations/b", "foundations")]);
     expect(both.map((section) => section.group)).toEqual(["foundations", "atoms"]);
+    // M2's groups (SPEC §9.6): they appear once they have an entry, in the spec's order.
+    const later = navigation([
+      testEntry("headers-footers/header-a", "headers-footers"),
+      testEntry("organisms/product-grid", "organisms"),
+      testEntry("molecules/product-card", "molecules"),
+    ]);
+    expect(later.map((section) => section.group)).toEqual([
+      "molecules",
+      "organisms",
+      "headers-footers",
+    ]);
   });
 
   it("keeps the manifest's order inside a group", () => {

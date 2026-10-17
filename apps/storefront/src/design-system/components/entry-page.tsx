@@ -3,6 +3,7 @@ import { entryPath, framePath } from "../catalog";
 import type { DsContext, DsEntry } from "../types";
 import { EntryBody } from "./entry-body";
 import { LocaleToggle } from "./locale-toggle";
+import { PropsTable } from "./props-table";
 import { Section } from "./section";
 import { viewportWidths } from "../viewport-widths";
 import { ViewportSwitcher } from "./viewport-switcher";
@@ -10,9 +11,9 @@ import { ViewportSwitcher } from "./viewport-switcher";
 const copy = catalogs.en.designSystem;
 
 /**
- * An entry's page (SPEC §9.6): its title, the locale toggle, the live render and the states, the
- * a11y notes and the viewport switcher. The render and the states are `EntryBody`, the same
- * component the frame shows alone.
+ * An entry's page (SPEC §9.6): its title, the locale toggle, the live render and the states, its
+ * props when it has a contract (D41), the a11y notes and the viewport switcher. The render and the
+ * states are `EntryBody`, the same component the frame shows alone.
  */
 export function EntryPage({ entry, ctx }: { entry: DsEntry; ctx: DsContext }) {
   const { market } = ctx.fixture;
@@ -30,6 +31,13 @@ export function EntryPage({ entry, ctx }: { entry: DsEntry; ctx: DsContext }) {
       <div className="mt-10">
         <EntryBody entry={entry} ctx={ctx} />
       </div>
+      {entry.contract !== undefined && (
+        <div className="mt-10">
+          <Section id="props" title={copy.sections.props}>
+            <PropsTable contract={entry.contract} />
+          </Section>
+        </div>
+      )}
       <div className="mt-10">
         <Section id="a11y" title={copy.sections.a11y}>
           <ul className="list-disc space-y-1 ps-5">

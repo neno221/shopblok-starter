@@ -1,5 +1,6 @@
 import { designSystemFixtures, sampleImage } from "@shopblok/fixtures";
 import { catalogs, type Locale } from "@shopblok/i18n";
+import type { EntryId } from "@shopblok/registry";
 import { Chip } from "@shopblok/ui/atoms/chip";
 import { Flag, isFlagCode } from "@shopblok/ui/atoms/flag";
 import { Icon } from "@shopblok/ui/atoms/icon";
@@ -19,12 +20,12 @@ import { VisuallyHidden } from "@shopblok/ui/atoms/visually-hidden";
 import { HeartIcon, StarIcon } from "lucide-react";
 import type { Route } from "next";
 import type { ReactNode } from "react";
+import { RemovableChip } from "../components/removable-chip";
+import type { DsContext, DsStory } from "../types";
 import { FOCUS } from "./atoms";
-import { RemovableChip } from "./components/removable-chip";
-import type { DsContext, DsEntry } from "./types";
 
-// The DS entries of the 15 atoms T23 adds (SETUP.md, "Atoms (T23)"), spread into `entries` after
-// the 17 shadcn atoms of `atoms.tsx`. The same rules: every sample string is from `ctx.fixture`, the
+// The stories of the 15 atoms T23 adds (SETUP.md, "Atoms (T23)"); the registry lists them after the
+// 17 shadcn atoms of `atoms.tsx`. The same rules: every sample string is from `ctx.fixture`, the
 // atoms' own copy from `catalogs[locale].atoms`, and each page renders the live render and every
 // state, so an `id` or a `name` that could repeat carries the state it is in.
 //
@@ -102,11 +103,8 @@ const sampleMark = (
   </svg>
 );
 
-export const commerceAtoms: readonly DsEntry[] = [
-  {
-    id: "atoms/icon-button",
-    group: "atoms",
-    label: "IconButton",
+export const commerceAtomStories = {
+  "atoms/icon-button": {
     summary: "A button that is only an icon: Button's icon size, named by a required label.",
     a11y: [
       "`label` is required by the type and is the accessible name; the icon inside is aria-hidden.",
@@ -186,10 +184,7 @@ export const commerceAtoms: readonly DsEntry[] = [
       },
     ],
   },
-  {
-    id: "atoms/link",
-    group: "atoms",
-    label: "Link",
+  "atoms/link": {
     summary: "next/link with the link styles: inline in text, or standalone as a 44 px target.",
     a11y: [
       "A real anchor: Enter follows it. The underline marks it as a link, so colour is not the only sign (WCAG 1.4.1).",
@@ -296,10 +291,7 @@ export const commerceAtoms: readonly DsEntry[] = [
       },
     ],
   },
-  {
-    id: "atoms/chip",
-    group: "atoms",
-    label: "Chip",
+  "atoms/chip": {
     summary: "A short tag, such as an applied filter, with an optional remove button.",
     a11y: [
       "The remove button is named by `removeLabel` (required with `onRemove`); the cross is aria-hidden.",
@@ -373,10 +365,7 @@ export const commerceAtoms: readonly DsEntry[] = [
       },
     ],
   },
-  {
-    id: "atoms/price",
-    group: "atoms",
-    label: "Price",
+  "atoms/price": {
     summary:
       "An amount in the market's currency and the page's locale; a sale shows the original struck through.",
     a11y: [
@@ -481,10 +470,7 @@ export const commerceAtoms: readonly DsEntry[] = [
       },
     ],
   },
-  {
-    id: "atoms/rating",
-    group: "atoms",
-    label: "Rating",
+  "atoms/rating": {
     summary: "A read-only rating out of five, halves included (ReUI).",
     a11y: [
       'One image named by `label` ("4,5 out of 5", in the page\'s language); the stars are hidden from assistive technology.',
@@ -562,10 +548,7 @@ export const commerceAtoms: readonly DsEntry[] = [
       },
     ],
   },
-  {
-    id: "atoms/swatch",
-    group: "atoms",
-    label: "Swatch",
+  "atoms/swatch": {
     summary: "One colour (or image) of a product's colour option, as a 44 px button.",
     a11y: [
       "A button with aria-pressed, named by `label`. M2's VariantSelector adds radio semantics around a group of them.",
@@ -699,10 +682,7 @@ export const commerceAtoms: readonly DsEntry[] = [
       },
     ],
   },
-  {
-    id: "atoms/size-pill",
-    group: "atoms",
-    label: "SizePill",
+  "atoms/size-pill": {
     summary: "One size option as a pill, at least 44 × 44 px.",
     a11y: [
       "A button with aria-pressed. M2's VariantSelector adds radio semantics around a group of them.",
@@ -780,10 +760,7 @@ export const commerceAtoms: readonly DsEntry[] = [
       },
     ],
   },
-  {
-    id: "atoms/quantity-stepper",
-    group: "atoms",
-    label: "QuantityStepper",
+  "atoms/quantity-stepper": {
     summary: "A number field with minus and plus buttons (ReUI's number-field on Base UI).",
     a11y: [
       "The input is named by `label`, the buttons by `decrementLabel` and `incrementLabel` (D30).",
@@ -900,10 +877,7 @@ export const commerceAtoms: readonly DsEntry[] = [
       },
     ],
   },
-  {
-    id: "atoms/stock-indicator",
-    group: "atoms",
-    label: "StockIndicator",
+  "atoms/stock-indicator": {
     summary: "Whether a product can be bought: in stock, low, or out, in words and colour.",
     a11y: [
       "The state is written as text and drawn as an icon of its own shape, as well as in colour (WCAG 1.4.1).",
@@ -963,10 +937,7 @@ export const commerceAtoms: readonly DsEntry[] = [
       },
     ],
   },
-  {
-    id: "atoms/visually-hidden",
-    group: "atoms",
-    label: "VisuallyHidden",
+  "atoms/visually-hidden": {
     summary: "Text for screen readers only: in the reading order, not drawn.",
     a11y: [
       "Uses Tailwind's sr-only: 1 px, clipped, not display:none, so it is read out.",
@@ -1012,10 +983,7 @@ export const commerceAtoms: readonly DsEntry[] = [
       },
     ],
   },
-  {
-    id: "atoms/image",
-    group: "atoms",
-    label: "Image",
+  "atoms/image": {
     summary:
       "next/image in a frame with an aspect ratio and a radius token, over a skeleton until it loads.",
     a11y: [
@@ -1106,10 +1074,7 @@ export const commerceAtoms: readonly DsEntry[] = [
       },
     ],
   },
-  {
-    id: "atoms/icon",
-    group: "atoms",
-    label: "Icon",
+  "atoms/icon": {
     summary: "A Lucide icon at the size tokens: decoration unless it has a label.",
     a11y: [
       "Without `label` the icon is aria-hidden: it sits beside text, or inside a button that has its own name.",
@@ -1170,10 +1135,7 @@ export const commerceAtoms: readonly DsEntry[] = [
       },
     ],
   },
-  {
-    id: "atoms/logo",
-    group: "atoms",
-    label: "Logo",
+  "atoms/logo": {
     summary: "A slot for the store's logo as an SVG, named by the store's name.",
     a11y: [
       "With an SVG in the slot the logo is an image (role=img) whose name is `name`, the store's name.",
@@ -1212,10 +1174,7 @@ export const commerceAtoms: readonly DsEntry[] = [
       },
     ],
   },
-  {
-    id: "atoms/payment-icon",
-    group: "atoms",
-    label: "PaymentIcon",
+  "atoms/payment-icon": {
     summary:
       "The mark of a payment method, in one colour (simple-icons, CC0; each mark remains its owner's trademark).",
     a11y: [
@@ -1280,10 +1239,7 @@ export const commerceAtoms: readonly DsEntry[] = [
       },
     ],
   },
-  {
-    id: "atoms/flag",
-    group: "atoms",
-    label: "Flag",
+  "atoms/flag": {
     summary:
       "A country's flag by its ISO code (country-flag-icons, SVG, 3:2), rendered on the server.",
     a11y: [
@@ -1346,4 +1302,4 @@ export const commerceAtoms: readonly DsEntry[] = [
       },
     ],
   },
-];
+} satisfies Partial<Record<EntryId, DsStory>>;

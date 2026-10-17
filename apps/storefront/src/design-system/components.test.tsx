@@ -12,6 +12,7 @@ import type { DsEntry } from "./types";
 const sample: DsEntry = {
   id: "atoms/sample",
   group: "atoms",
+  kind: "atom",
   label: "Sample",
   summary: "An entry that exists only in this test.",
   a11y: ["First note.", "Second note."],

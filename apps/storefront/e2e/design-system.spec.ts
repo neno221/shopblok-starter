@@ -1,23 +1,25 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
+import { entries } from "@shopblok/registry";
 import { viewportWidths } from "../src/design-system/viewport-widths";
 import { collectConsole, judgeConsole, type FailedRequest, type Message } from "./support/console";
 
-// T24 (D32, D34): every atom's frame, in two locales and at three widths, against `next start`
-// built with DESIGN_SYSTEM_ENABLED=true (the `design-system` project; CI job `design-system`;
-// SETUP.md, "DS checks (T24)"). One cell is one test, `atoms/price · el · 375`; each checks axe,
-// overflow, the 44 px size of controls, the console (the rules of support/console.ts) and attaches a
-// screenshot of the whole frame. The checks are soft, so a cell reports every check that failed.
+// T24 (D32, D34): every component entry's frame, in two locales and at three widths, against
+// `next start` built with DESIGN_SYSTEM_ENABLED=true (the `design-system` project; CI job
+// `design-system`; SETUP.md, "DS checks (T24)"). One cell is one test, `atoms/price · el · 375`;
+// each checks axe, overflow, the 44 px size of controls, the console (the rules of
+// support/console.ts) and attaches a screenshot of the whole frame. The checks are soft, so a cell
+// reports every check that failed.
 //
 // The widths are the viewport tokens the DS's own switcher uses (375, 768, 1440). D34 names `en`
 // and `el`, so it is those two and not the four locales of the page: `el` is the one with the other
 // script and the longer words.
 //
-// The atoms are the manifest's `atoms` group, as the build under test lists it: the DS overview
-// links every entry of the manifest, and the suite reads those links. (The manifest's own module
-// is React components, which Playwright's loader cannot import: `next/image` does not resolve
-// outside Next.) With the flag off the overview is a 404 and there is nothing to list: the suite is
-// then one test that says so, and stops there.
+// The entries are the registry's (T29, D40), every one outside Foundations: a new molecule or
+// organism gets its cells by being listed there. The registry is data with no React, so
+// Playwright's loader imports it; the stories, which render, stay in the storefront. With the flag
+// off the overview is a 404 and no frame exists: the suite is then one test that says so, and stops
+// there.
 
 const checkedLocales = ["en", "el"] as const;
 const widths = viewportWidths();
@@ -31,8 +33,8 @@ const MIN_SIZE = 44;
 // The config's default (`baseURL`), which a spec cannot read while it is being collected.
 const base = process.env["E2E_BASE_URL"] ?? "http://localhost:8000";
 
-/** The ids of the atoms (`atoms/price`), or why there are none. */
-async function listAtoms(): Promise<{ ids: string[] } | { problem: string }> {
+/** Why the server under test cannot be checked, or `undefined` when it serves the DS. */
+async function problemWithServer(): Promise<string | undefined> {
   const url = `${base}/design-system/en`;
   let response: Response;
   try {
@@ -40,34 +42,29 @@ async function listAtoms(): Promise<{ ids: string[] } | { problem: string }> {
     // otherwise hold the run until the job's limit.
     response = await fetch(url, { signal: AbortSignal.timeout(30_000) });
   } catch (error) {
-    return {
-      problem: `${url} did not answer within 30 s (${String(error)}): start \`next start\` first.`,
-    };
+    return `${url} did not answer within 30 s (${String(error)}): start \`next start\` first.`;
   }
-  if (response.status !== 200) {
-    return {
-      problem:
-        `${url} answered ${response.status}, not 200: this build lacks DESIGN_SYSTEM_ENABLED=true ` +
-        "(the DS routes are 404 without it, D33). Build with `DESIGN_SYSTEM_ENABLED=true next build` and start that build.",
-    };
-  }
-  const html = await response.text();
-  // Any id under `atoms/`, whatever its characters or depth, so none drops out of the matrix.
-  const ids = [
-    ...new Set(
-      [...html.matchAll(/href="\/design-system\/en\/(atoms\/[^"?#]+)"/g)].map((m) => m[1]!),
-    ),
-  ];
-  return ids.length > 0 ? { ids } : { problem: `${url} links no atom: the manifest has no atoms.` };
+  if (response.status !== 200)
+    return (
+      `${url} answered ${response.status}, not 200: this build lacks DESIGN_SYSTEM_ENABLED=true ` +
+      "(the DS routes are 404 without it, D33). Build with `DESIGN_SYSTEM_ENABLED=true next build` and start that build."
+    );
+  return undefined;
 }
 
-const listed = await listAtoms();
+const problem = await problemWithServer();
+
+// Every entry that renders a component: the atoms now, the molecules and organisms as M2 adds them.
+const ids =
+  problem === undefined
+    ? entries.filter((entry) => entry.group !== "foundations").map((entry) => entry.id)
+    : [];
 
 const framePath = (locale: string, id: string) => `/design-system/${locale}/frame/${id}`;
 
-if ("problem" in listed) {
+if (problem !== undefined) {
   test("the build serves the design system", () => {
-    throw new Error(listed.problem);
+    throw new Error(problem);
   });
 }
 
@@ -247,7 +244,7 @@ const lines = (findings: Finding[]) => {
   return [...counts].map(([line, n]) => (n > 1 ? `${line} (× ${n})` : line));
 };
 
-for (const id of "ids" in listed ? listed.ids : []) {
+for (const id of ids) {
   for (const locale of checkedLocales) {
     for (const width of widths) {
       test(`${id} · ${locale} · ${width}`, async ({ page, baseURL }, testInfo) => {

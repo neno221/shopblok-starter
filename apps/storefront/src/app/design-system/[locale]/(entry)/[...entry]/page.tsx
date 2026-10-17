@@ -4,6 +4,9 @@ import { EntryPage } from "../../../../../design-system/components/entry-page";
 import { createContext } from "../../../../../design-system/context";
 import { requireDesignSystemEntry } from "../../../../../design-system/gate";
 
+// D44: a build fails if anything on this page reads the request (ADR 0004).
+export const ensureStatic = "navigation";
+
 export async function generateMetadata({
   params,
 }: {
