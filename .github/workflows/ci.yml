@@ -234,10 +234,22 @@ jobs:
           url: http://localhost:8000/
           name: storefront-dev
       - name: Console of the storefront in next dev
+        id: dev-console
         run: E2E_DEV_CONSOLE=true pnpm --filter @shopblok/storefront test:e2e --project=dev-console --reporter=list,html --output=test-results-dev-console
         env:
           PLAYWRIGHT_HTML_OPEN: never
           PLAYWRIGHT_HTML_OUTPUT_DIR: playwright-report-dev-console
+      # T28 (D54): `[market]` answered root files such as `/robots.txt` and logged `Could not
+      # validate` to the server log for each, where the browser's console never sees it. The routes
+      # above include two of them; the log is complete once their run has ended, passed or failed.
+      - name: No validation error in next dev's log
+        if: ${{ !cancelled() && (steps.dev-console.outcome == 'success' || steps.dev-console.outcome == 'failure') }}
+        run: |
+          if grep -n "Could not validate" "$RUNNER_TEMP/servers/storefront-dev.log"; then
+            echo "::error::next dev logged 'Could not validate' (above); storefront-dev.log in the server logs artifact has the rest."
+            exit 1
+          fi
+          echo "next dev logged no 'Could not validate'."
       - name: Stop next dev
         if: always()
         run: |

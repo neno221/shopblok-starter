@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { getRewrittenUrl, unstable_doesMiddlewareMatch } from "next/experimental/testing/server";
 import { describe, expect, it, vi } from "vitest";
 import { seeded } from "./lib/markets/test-maps";
+import { pathsLeftAlone, storefrontPaths } from "./test-support/proxy-urls";
 import { config, proxy } from "./proxy";
 
 // The map comes from `/next/markets` (a fetch); the glue test below gives it directly.
@@ -14,58 +15,11 @@ vi.mock("./lib/markets/proxy-market-map", () => ({
 const runsOn = (url: string) => unstable_doesMiddlewareMatch({ config, url });
 
 describe("the proxy matcher", () => {
-  it.each([
-    "/",
-    "/us",
-    "/us/",
-    "/ch/fr/store",
-    "/store",
-    "/products/shirt",
-    "/el-cy", // an internal key: the proxy has to be the one to answer 404
-    "/administrator", // starts like /admin, is a storefront path
-    "/apis",
-    "/nextstep",
-    "/design-systems", // starts like /design-system, is a storefront path
-    "/design-system-2/en",
-    "/_not-found",
-    "/cy/store?page=2",
-    "/products/1.5l-bottle", // a dot in a slug is not a file
-    "/ch/fr/store/size-8.5",
-    "/cy/evil.example/x", // the dot is not in the last segment
-  ])("runs on the storefront path %s", (url) => {
+  it.each(storefrontPaths)("runs on the storefront path %s", (url) => {
     expect(runsOn(url)).toBe(true);
   });
 
-  it.each([
-    "/admin",
-    "/admin/",
-    "/admin/collections/pages",
-    "/admin/login",
-    "/api",
-    "/api/pages",
-    "/api/users/first-register",
-    "/design-system",
-    "/design-system/",
-    "/design-system/en",
-    "/design-system/el/foundations/colors",
-    "/design-system/de/frame/atoms/button",
-    "/next/preview",
-    "/next/exit-preview",
-    "/_next/static/chunks/main.js",
-    "/_next/image",
-    "/_next/data/build/index.json",
-    "/_vercel/insights/script.js",
-    "/_vercel/insights/view", // no dot: only the /_vercel/ rule leaves it alone
-    "/_vercel/speed-insights/vitals",
-    "/favicon.ico",
-    "/robots.txt",
-    "/sitemap.xml",
-    "/images/logo.png",
-    "/images/logo.min.js",
-    "/.well-known/security.txt",
-    "/.well-known/apple-app-site-association", // no extension: only the /.well-known/ rule
-    "/cy/evil.example", // the last segment is a file name to the matcher
-  ])("leaves %s alone", (url) => {
+  it.each(pathsLeftAlone)("leaves %s alone", (url) => {
     expect(runsOn(url)).toBe(false);
   });
 });
