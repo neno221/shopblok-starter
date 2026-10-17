@@ -1,3 +1,5 @@
+import { catalogs } from "@shopblok/i18n";
+import { Providers } from "@shopblok/ui/providers";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { getCurrentMarket } from "../../../lib/current-market";
@@ -18,9 +20,14 @@ export async function generateStaticParams() {
 // server component can read through `next/root-params`.
 export default async function RootLayout({ children }: { children: ReactNode }) {
   const market = await getCurrentMarket();
+  const { toast } = catalogs[market.locale].primitives;
   return (
     <html lang={market.htmlLang} className={inter.variable}>
-      <body>{children}</body>
+      <body>
+        <Providers copy={{ toastRegion: toast.region, toastClose: toast.close }}>
+          {children}
+        </Providers>
+      </body>
     </html>
   );
 }

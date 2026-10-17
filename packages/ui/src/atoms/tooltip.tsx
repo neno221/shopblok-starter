@@ -3,11 +3,12 @@
 // `inline-start` and `inline-end` and not `left` or `right`, so the arrow and the animation follow
 // the page's direction; logical properties; light only (no `dark:`). A tooltip only repeats what is
 // already on screen or names an icon; nothing a reader needs may live only in it (touch screens
-// never show it).
+// never show it). The popup portals into `usePortalContainer()` (T31, D45).
 "use client";
 
 import { Tooltip as TooltipPrimitive } from "@base-ui/react/tooltip";
 import { cn } from "@shopblok/ui/lib/utils";
+import { usePortalContainer } from "@shopblok/ui/primitives/portal-container";
 
 type LogicalSide = Exclude<TooltipPrimitive.Positioner.Props["side"], "left" | "right">;
 
@@ -36,7 +37,7 @@ function TooltipContent({
     side?: LogicalSide;
   }) {
   return (
-    <TooltipPrimitive.Portal>
+    <TooltipPrimitive.Portal container={usePortalContainer()}>
       <TooltipPrimitive.Positioner
         align={align}
         alignOffset={alignOffset}

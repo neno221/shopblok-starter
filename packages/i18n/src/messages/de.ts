@@ -43,6 +43,7 @@ export const de: Messages = {
       klarna: "Klarna",
     },
   },
+  primitives: { toast: { region: "Benachrichtigungen", close: "Benachrichtigung schließen" } },
   // Filled by M2's component tasks (T32 to T39), each with its components' strings.
   molecules: {},
   organisms: {},

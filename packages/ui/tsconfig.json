@@ -4,6 +4,12 @@
     "paths": {
       "@shopblok/ui/atoms": ["./src/atoms"],
       "@shopblok/ui/atoms/*": ["./src/atoms/*"],
+      "@shopblok/ui/primitives": ["./src/primitives"],
+      "@shopblok/ui/primitives/*": ["./src/primitives/*"],
+      "@shopblok/ui/molecules": ["./src/molecules"],
+      "@shopblok/ui/molecules/*": ["./src/molecules/*"],
+      "@shopblok/ui/organisms": ["./src/organisms"],
+      "@shopblok/ui/organisms/*": ["./src/organisms/*"],
       "@shopblok/ui/lib": ["./src/lib"],
       "@shopblok/ui/lib/*": ["./src/lib/*"],
       "@shopblok/ui/hooks": ["./src/hooks"],

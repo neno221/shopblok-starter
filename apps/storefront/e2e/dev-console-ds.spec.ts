@@ -20,4 +20,6 @@ checkRoutesInDev([
   { path: "/design-system/el/frame/foundations/colors", status: 200 },
   // T29 (D52): the preview, the live render alone, which T40 captures as a thumbnail.
   { path: "/design-system/el/preview/atoms/select", status: 200 },
+  // T31 (D45): a sheet and a popover drawn open on first render, each portalled into its box.
+  { path: "/design-system/en/checks/overlay-box", status: 200 },
 ]);

@@ -7,6 +7,10 @@
   "exports": {
     ".": "./src/index.ts",
     "./atoms/*": "./src/atoms/*.tsx",
+    "./primitives/*": "./src/primitives/*.tsx",
+    "./molecules/*": "./src/molecules/*.tsx",
+    "./organisms/*": "./src/organisms/*.tsx",
+    "./providers": "./src/providers.tsx",
     "./lib/*": "./src/lib/*.ts",
     "./hooks/*": "./src/hooks/*.ts",
     "./globals.css": "./src/styles/globals.css",
@@ -23,6 +27,7 @@
     "class-variance-authority": "0.7.1",
     "cn": "0.4.0",
     "country-flag-icons": "1.6.20",
+    "embla-carousel-react": "8.6.0",
     "lucide-react": "1.56.0",
     "simple-icons": "16.35.0",
     "tailwindcss": "4.3.3",

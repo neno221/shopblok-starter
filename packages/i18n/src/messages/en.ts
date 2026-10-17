@@ -47,6 +47,8 @@ export const en = {
       klarna: "Klarna",
     },
   },
+  // What the root layouts' Providers draw (D47): the toasts' region and their close button.
+  primitives: { toast: { region: "Notifications", close: "Close notification" } },
   // Filled by M2's component tasks (T32 to T39), each with its components' strings.
   molecules: {},
   organisms: {},

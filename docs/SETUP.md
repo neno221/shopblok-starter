@@ -3515,3 +3515,73 @@ A price multiplied by 100 is not something a schema can see (2999 is as valid as
 | 9 | The contracts' JSON Schema test didn't use the Props table's options (optional) | It uses `{ io: "input", unrepresentable: "any" }`, as `propRows` does |
 
 Items 5 to 8 (optional: the free shipping option beside the threshold, `facetData.price`'s comment, `Image` and `Link` beside `next/image` and `next/link`, `buildMarkets`' `htmlLang`, range and `htmlLang` refinements) are left.
+
+## Primitives (T31)
+
+**Result: the 22 primitives of D47 are in `packages/ui/src/primitives/` on our rules (20 from shadcn, `toggle` among them as `toggle-group`'s registry dependency, and ReUI's `stepper` and `timeline`); one `Providers` component (Base UI's direction, the tooltip provider, the toasts) wraps the storefront's root layout and the DS's four; and the DS draws an overlay open inside an `OverlayBox`, which a Chromium test measures.** No DS entry uses a primitive yet (D42: they appear through what uses them), so the 192 DS cells are unchanged, and they pass.
+
+| | |
+|---|---|
+| Date | 2026-10-17 |
+| Branch | prepared locally on T30 while PR 49's CI could not start, then `claude/project-thread-pmqmfo`, restarted from `main` after PR 52 merged |
+| New | `packages/ui/src/primitives/` (22 primitives and their 22 test files, and `portal-container.tsx`), `packages/ui/src/{providers.tsx, providers.test.tsx}`, `apps/storefront/src/design-system/components/overlay-box.tsx`, `apps/storefront/src/app/design-system/[locale]/(overview)/checks/overlay-box/page.tsx` |
+| Changed | `packages/ui/{package.json (exports `./primitives/*`, `./molecules/*`, `./organisms/*` and `./providers`), tsconfig.json (paths), NOTICE.md}`, `packages/ui/src/atoms/{class-rules.test.ts (four folders), checkbox, radio-group (and their tests), select, tooltip}.tsx`, `apps/storefront/{tsconfig.json, src/app/(storefront)/[market]/layout.tsx, src/design-system/{components/document.tsx, stories/atoms.tsx, routes.test.tsx}, e2e/{design-system, dev-console-ds}.spec.ts}`, `packages/i18n/src/{messages/{en,el,de,fr}.ts (`primitives.toast`), design-system.ts}`, `renovate.json`, the lockfile |
+| Dependencies | `embla-carousel-react` 8.6.0 (ui; the CLI asked for `^8.6.0`) |
+| Tests | ui **630** (304 new: 257 in `primitives/` and `providers.test.tsx`, the rest the scan's new cases), storefront **748** (1 new: the check page renders both boxes), registry 46, fixtures 226, i18n 49, scripts 429, backend 85; `typecheck`, `lint`, `check:workspace` and `pnpm install --frozen-lockfile` pass |
+
+### How it works
+
+- **Adding a primitive.** shadcn 4.21.4 ignores `-p, --path` for a `registry:ui` item: a real run writes to the `ui` alias of `packages/ui/components.json`, which is the atoms folder (T31's first real run wrote 11 files into `atoms/`; they were deleted). So, from `apps/storefront`: set `ui` and `components` to `@shopblok/ui/primitives` in **both** `components.json` files, run `pnpm dlx shadcn@4.21.4 add <item> --dry-run`, check that no atom is listed, run it for real, and put both files back. Pin what it adds (`git diff pnpm-lock.yaml`). ReUI's items are `@reui/<item>` the same way. The vendored file then gets our edits and a header that lists them.
+- **Our rules, as in the atoms (D30, D32, D35, D42):** tokens only (`bg-overlay` for a backdrop, `z-(--z-modal)`, `--z-popover` and `--z-toast` for the layers), logical properties (a `side` is `inline-start` or `inline-end`, never `left` or `right`; a chevron that points along the text turns with `rtl:rotate-180`), every control 44 px (`min-h-11`, Button's `icon` size, or an `::after` hit area on a small thumb), the ring at full strength, light only. **No English:** every string a reader sees or hears is a required prop (`closeLabel` on Dialog and Sheet, `label` on Breadcrumb, Pagination and its links, the carousel's buttons and role descriptions, the toast region, `getThumbLabel` on Slider). The kit's Radix-era attributes that Base UI never sets (`data-horizontal`, `data-[state=on]`, `data-motion`) were replaced with Base UI's (`data-[orientation=…]`, `aria-pressed`, `data-activation-direction`). Each file's header says what changed in it and why it is, or is not, a client component.
+- **Server components:** `accordion`, `breadcrumb`, `field`, `pagination`, `slider`, `table` and `toggle` have no `"use client"` (each Base UI part carries its own). A function prop still needs a client caller: Slider's `getThumbLabel` is a function, so the component that renders it (T33's price filter) is a client component.
+- **The scan** (`src/atoms/class-rules.test.ts`) now walks `atoms`, `primitives`, `molecules` and `organisms` recursively and checks the rules and the source header in each file; the atom counts stay.
+- **`Providers`** (`@shopblok/ui/providers`): `DirectionProvider` (the sliders, toggle groups, menus, stepper and carousel read the direction from it, not from `<html dir>`; `dir` defaults to `ltr`, and the four store languages are all `ltr`), `TooltipProvider` (the Tooltip story no longer wraps its own) and `Toaster` (the toast manager, its portal and viewport). The market layout renders it with `catalogs[market.locale].primitives.toast`, and the DS's `Document` with the DS locale's, so the four DS root layouts have it. Any client component calls `toast.add` from `@shopblok/ui/primitives/toast`.
+- **The overlay box (D45):** `OverlayBox` (`apps/storefront/src/design-system/components/`) is a box of fixed height (480 px unless given) with `[contain:paint]`, so it is the containing block of a `position: fixed` popup and clips it, and a `PortalContainerProvider` that points every primitive's portal (`usePortalContainer()`) at it. A story puts the overlay inside with `defaultOpen` and `modal={false}`, so the frame stays reachable and several open states fit on one page. The provider holds the box's **element**, from state (`ref={setBox}`), not a ref: an overlay drawn open inside the box resolves its portal before React sets a ref on the box around it, and Base UI looks again only when the prop changes, so with a ref both popups went to `<body>` (the first Chromium run found neither in its box). The check page `/design-system/{locale}/checks/overlay-box` draws a sheet and a popover open; `design-system.spec.ts` checks at 375 and 1440 px that each lies inside its box (after scrolling the box into view: a popover whose trigger is below the viewport flips above it), and runs axe on the page; the page is also in `dev-console-ds.spec.ts`.
+- **The CI gate** counts `packages/ui/src/primitives/` as shared from now on, because code outside the DS imports it (the market layout renders `Providers`, which renders the toast primitive): `node scripts/ci-gate.ts --files packages/ui/src/primitives/sheet.tsx` runs `e2e-smoke` and `design-system`.
+
+### How a component task uses them
+
+1. Import `@shopblok/ui/primitives/<name>` and pass every label from the catalogs (`molecules` or `organisms`), never a literal.
+2. A story that draws an overlay open wraps it in `<OverlayBox name="…">` with `defaultOpen` and `modal={false}`; the live render keeps the real trigger, and T33's interaction checks open it.
+3. A Drawer has no close button of its own (a swipe is a gesture, and the drawer needs a way out that is not one): put a `DrawerClose` with the catalog's text in it.
+4. A `DropdownMenuLabel` must sit inside a `DropdownMenuGroup` (Base UI throws otherwise).
+
+### Measured
+
+| Check | Result |
+|---|---|
+| The `design-system` project on `next start`, built with `DESIGN_SYSTEM_ENABLED=true` | **194 passed** in 2.3 min: the 192 cells, as before, and the two overlay box tests |
+| The overlay box tests, three times each (`--repeat-each=3`) | 6 passed |
+| The containing block, set in Chromium on the built check page | `contain: paint`, `transform: translateZ(0)` and `contain: layout`: the sheet and the popover inside their boxes at 375 and 1440 px. None: the sheet is pinned to the viewport (`{"x":1056,"y":0,"width":384,"height":900}` against the box's `{"x":288,"y":196,"width":1120,"height":480}` at 1440). `contain: paint` is kept (decision 8) |
+| The toast region's name on `next start`, default build | `/` (el-CY) `Ειδοποιήσεις`, `/us/` `Notifications`, `/de/` `Benachrichtigungen`, `/fr/` and `/ch/fr/` `Notifications` |
+| `e2e-smoke`'s suites on `next start`, default build, `E2E_TEST_ROUTES=true` | 86 passed (the market layout now renders `Providers`) |
+| `dev-console` and `dev-console-ds` in `next dev` | 20 passed, the overlay box page among them: 0 console messages, 0 failed requests |
+
+### Mutations
+
+Each applied, checked and reverted from a copy.
+
+| Mutation | Check | Output |
+|---|---|---|
+| A physical class in a primitive (`right-2` for the sheet's close button's `end-2`) | `class-rules.test.ts` | `× primitives/sheet.tsx: logical directions, token colours, light only, ring at full strength`, `"token": "right-2"`; 1 of 148 fails |
+| A dialog that returns focus nowhere (`finalFocus={false}` on `DialogPrimitive.Popup`) | `dialog.test.tsx` | 2 of 16 fail: `closes on Escape and returns focus to the trigger`, `opens from the keyboard and closes with its own button, focus back on the trigger` |
+| An overlay box without its containing block (`[contain:paint]` removed) | the overlay box test, in `next dev` | both widths fail: `the sheet-content lies inside its box`, received `{"x":1056,"y":0,"width":384,"height":900} outside {"x":288,"y":196,"width":1120,"height":480}` (and `{"x":93.75,…}` at 375) |
+| The box as a ref (`useRef`) in the sheet's first-render test | `sheet.test.tsx` | `× drawn open on first render (the DS box: defaultOpen, modal={false}), it lands in the container`; 1 of 17 fails |
+
+### Decisions the plan did not settle
+
+1. **A pressed Toggle is filled with `primary`,** and Pagination's current page is the filled `default` button. The kit's pressed `bg-muted` is 1.1:1 against the page and its current page's outline 1.26:1, under WCAG 1.4.11's 3:1.
+2. **A highlighted destructive menu item is solid** `destructive` on `destructive-foreground` (4.77:1; the kit's 10 % tint is 4.01:1), as Button's destructive is.
+3. **Drawer is the bottom sheet only** (`swipeDirection` `down` or `up`); a side panel is Sheet, whose `side` is `top`, `bottom`, `inline-start` or `inline-end` (default `inline-end`).
+4. **`PaginationLink` is a plain `<a>`** with Button's classes: the kit's Base UI Button on an anchor gave it `role="button"`, and pagination is links (SPEC §8.4).
+5. **`field` is a server component** (its error no longer memoises), so a form's layout needs no JavaScript; `navigation-menu` is a client component, because its positioner reads the portal container.
+6. **Table cells wrap**, and a column that must not break (a price) takes `whitespace-nowrap` itself: the kit's `whitespace-nowrap` let one long German or Greek header widen the table.
+7. **Checkbox's and Radio's hit areas were 42 px, not 44** (T21's `after:-inset-3.5` sits inside their 1 px border, which moves the containing block in by 1 px); they are now `after:-inset-[15px]`, as Slider's thumb is, and their tests measure 44.
+8. **`contain: paint` is the box's containing block.** All three measured the same; it also clips, as the box's `overflow-hidden` does, and says what it is for.
+9. **The toasts' region and close button are named by the catalogs** (`primitives.toast`: `Notifications` and `Close notification` in English); Base UI's default region name is English.
+
+### Smaller observations
+
+- **The accordion opens without its animation:** `animate-accordion-down` and `-up` come from tw-animate-css, whose keyframes read Radix's and other kits' height variables (`--radix-accordion-content-height`, falling back to `auto`) and not Base UI's `--accordion-panel-height`. T33's AccordionItem either animates the panel's height itself or drops the classes.
+- **The Accordion has no arrow-key navigation between headers** in Base UI 1.9.0 (Tab moves between them); WAI-ARIA's accordion pattern makes arrows optional.
+- **Toast:** Base UI marks the toasts stacked behind the front one as `aria-hidden`, close buttons included, so T33's interaction check should run axe with more than one toast open and see whether `aria-hidden-focus` is reported (not measured yet).

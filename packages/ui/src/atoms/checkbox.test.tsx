@@ -10,8 +10,9 @@ describe("Checkbox", () => {
     render(<Checkbox aria-label="Gift wrap" />);
     const box = screen.getByRole("checkbox", { name: "Gift wrap" });
     expect(box.className).toContain("size-4");
-    // 16 px + 2 × 14 px (`-inset-3.5`) = 44 px each way.
-    expect(box.className).toContain("after:-inset-3.5");
+    // The `::after` is placed from the padding box, 14 px inside the 1 px border: 14 px + 2 × 15 px
+    // = 44 px each way (T31: `-inset-3.5` made it 42).
+    expect(box.className).toContain("after:-inset-[15px]");
   });
 
   it("toggles with Space, and not with Enter", async () => {
