@@ -113,6 +113,16 @@ describe("PriceRange", () => {
       ]);
     });
 
+    it("gives the slider whole ends with fractional prices, so its steps of 1 reach both", () => {
+      setup({ min: 19.99, max: 149.99, selected: undefined });
+      const [low, high] = thumbs();
+      expect(low?.getAttribute("min")).toBe("19");
+      expect(high?.getAttribute("max")).toBe("150");
+      // Dragged to the far end, the maximum is no limit, not a price that drops the 150 items.
+      fireEvent.change(high as HTMLInputElement, { target: { value: "150" } });
+      expect(sent()).toContain("price.max=");
+    });
+
     it("draws no slider when the ends are the same, and the fields still work", () => {
       setup({ min: 50, max: 50, selected: undefined });
       expect(document.querySelector("[data-slot=slider]")).toBeNull();

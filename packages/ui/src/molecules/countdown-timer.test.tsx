@@ -193,6 +193,17 @@ describe("CountdownTimer in the browser", () => {
     expect(digits()).toEqual(["03", "03", "30", "45"]);
   });
 
+  it("stays at the contract's now when frozen (the design system), whatever the clock says", () => {
+    // A year on, the days countdown would read ended; frozen, it shows the fixtures' state.
+    vi.setSystemTime(at(fixtureNow, 365 * DAY));
+    setup("en", fixtures("en").countdown.days, { frozen: true });
+    expect(digits()).toEqual(["03", "04", "30", "45"]);
+    expect(ended()).toBeFalsy();
+    act(() => void vi.advanceTimersByTime(5 * SECOND));
+    expect(digits()).toEqual(["03", "04", "30", "45"]);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
   it("catches up when timers were held back (a background tab)", () => {
     setup("en", fixtures("en").countdown.days);
     vi.setSystemTime(at(fixtureNow, 10 * MINUTE));

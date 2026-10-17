@@ -28,6 +28,8 @@ type CountdownTimerProps = Omit<React.ComponentProps<"div">, "children"> & {
    * server and the browser write the same text; the market's, or UTC.
    */
   timeZone?: string;
+  /** Stays at the contract's `now` and does not tick: the design system's states. */
+  frozen?: boolean;
 };
 
 function CountdownTimer({

@@ -169,7 +169,18 @@ type CountdownClockProps = Omit<React.ComponentProps<"div">, "children"> & {
   label: string;
   /** What is said when it is over. */
   endedText: string;
+  /**
+   * Stays at `now` and never reads the browser's clock: the design system's states, drawn at the
+   * fixtures' fixed time, would otherwise all read "ended" once the real date passes them (PR 55
+   * review). A store leaves it off.
+   */
+  frozen?: boolean;
 };
+
+/** A clock that never moves: the reading at `now`, for a frozen countdown. */
+function createFrozenClock(seconds: number): Clock {
+  return { subscribe: () => () => {}, getSnapshot: () => seconds };
+}
 
 function CountdownClock({
   endsAt,
@@ -177,13 +188,17 @@ function CountdownClock({
   locale,
   label,
   endedText,
+  frozen = false,
   className,
   ...props
 }: CountdownClockProps) {
   const labelId = useId();
   const endsMs = Date.parse(endsAt);
   const nowMs = Date.parse(now);
-  const clock = useMemo(() => createClock(endsMs), [endsMs]);
+  const clock = useMemo(
+    () => (frozen ? createFrozenClock(secondsLeft(endsMs, nowMs)) : createClock(endsMs)),
+    [frozen, endsMs, nowMs],
+  );
   const left = useSyncExternalStore(clock.subscribe, clock.getSnapshot, () =>
     secondsLeft(endsMs, nowMs),
   );

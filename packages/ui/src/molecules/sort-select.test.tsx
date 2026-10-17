@@ -224,6 +224,15 @@ describe("SortSelect", () => {
       expect(requestSubmit).toHaveBeenCalledTimes(1);
     });
 
+    it("forgets a key whose keyup went to the opened native list, at the next pointer press", () => {
+      setup();
+      // Space or Alt+ArrowDown opens the list; its keyup goes to the list, not the select.
+      fireEvent.keyDown(select(), { key: " " });
+      fireEvent.pointerDown(select());
+      fireEvent.change(select(), { target: { value: "newest" } });
+      expect(requestSubmit).toHaveBeenCalledTimes(1);
+    });
+
     it("forgets a key held when focus leaves, so the next pointer choice submits", () => {
       setup();
       fireEvent.keyDown(select(), { key: "ArrowDown" });

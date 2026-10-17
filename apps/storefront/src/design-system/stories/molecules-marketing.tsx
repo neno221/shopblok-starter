@@ -149,6 +149,9 @@ function countdown(ctx: DsContext, value: Countdown, timeZone?: string) {
       copy={copy(ctx).countdownTimer}
       locale={lang(ctx)}
       timeZone={timeZone}
+      // The states are drawn at the fixtures' fixed now; the live page must not count on from the
+      // real date, which is past most of them (PR 55 review).
+      frozen
     />
   );
 }

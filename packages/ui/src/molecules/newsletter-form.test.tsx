@@ -100,6 +100,13 @@ describe("NewsletterForm", () => {
       expect(container.querySelector("form")?.getAttribute("method")).toBeNull();
     });
 
+    it("posts with no action too (to the page it is on), so the email never lands in the URL", () => {
+      const { container } = setup("en", {});
+      const form = container.querySelector("form");
+      expect(form?.hasAttribute("action")).toBe(false);
+      expect(form?.getAttribute("method")).toBe("post");
+    });
+
     it("renders on the server, as markup a browser can submit without JavaScript", () => {
       const markup = renderToStaticMarkup(
         <NewsletterForm

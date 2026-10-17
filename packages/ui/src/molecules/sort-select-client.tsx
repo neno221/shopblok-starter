@@ -22,7 +22,9 @@ type SortSelectFieldProps = {
 };
 
 function SortSelectField({ id, name, defaultValue, options, className }: SortSelectFieldProps) {
-  // True from the key press that may change the value until the key comes up.
+  // True from the key press that may change the value until the key comes up. A key that opens the
+  // native list sends its keyup to the list, not here, so a pointer press clears it too (PR 55
+  // review): otherwise every later choice with the mouse would stop submitting.
   const keyed = useRef(false);
   return (
     <NativeSelect
@@ -34,6 +36,9 @@ function SortSelectField({ id, name, defaultValue, options, className }: SortSel
         if (event.key !== "Enter" && event.key !== "Tab") keyed.current = true;
       }}
       onKeyUp={() => {
+        keyed.current = false;
+      }}
+      onPointerDown={() => {
         keyed.current = false;
       }}
       onBlur={() => {

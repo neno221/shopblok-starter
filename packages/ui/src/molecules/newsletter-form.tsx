@@ -97,7 +97,9 @@ function NewsletterForm({
       data-slot="newsletter-form"
       data-status={status}
       action={action}
-      method={typeof action === "string" ? "post" : undefined}
+      // POST unless React owns the submission (a function): a GET would put the email in the URL,
+      // and so in history, logs and Referer headers (PR 55 review), also with no `action` at all.
+      method={typeof action === "function" ? undefined : "post"}
       aria-labelledby={headingId}
       className={cn("@container flex w-full min-w-0 flex-col gap-4", className)}
       {...props}

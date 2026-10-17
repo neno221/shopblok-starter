@@ -40,6 +40,7 @@ import { buildSite } from "./site";
 export function buildCommerceFixture(locale: DesignSystemLocale, copy: Copy): CommerceFixture {
   const ctx = createContext(locale, copy);
   const products = buildProducts(ctx);
+  const facets = buildFacets(ctx);
   const addresses = buildAddresses(ctx);
   return {
     locale,
@@ -60,8 +61,9 @@ export function buildCommerceFixture(locale: DesignSystemLocale, copy: Copy): Co
     savedPaymentMethods: buildSavedPaymentMethods(ctx),
     shippingOptions: buildShippingOptions(ctx),
     search: buildSearch(ctx, products),
-    facets: buildFacets(ctx),
-    activeFilters: buildActiveFilters(ctx, buildFacets(ctx)),
+    facets,
+    // The chips come from the same facets as the sidebar, so the two cannot drift.
+    activeFilters: buildActiveFilters(ctx, facets),
     announcement: buildAnnouncement(ctx),
     figure: buildFigure(ctx),
     emptyStates: buildEmptyStates(ctx),

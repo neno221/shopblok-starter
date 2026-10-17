@@ -16,7 +16,7 @@
 import { Button } from "@shopblok/ui/atoms/button";
 import { cn } from "@shopblok/ui/lib/utils";
 import { CheckIcon, CopyIcon } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import type * as React from "react";
 
 type CopyStatus = "idle" | "copied" | "failed";
@@ -50,6 +50,9 @@ function CopyCodeControl({
   ...props
 }: CopyCodeControlProps) {
   const [status, setStatus] = useState<CopyStatus>(initialStatus);
+  // Counts the presses: the status line is keyed by it, so a second press with the same outcome
+  // writes the line again and the live region says it again (PR 55 review).
+  const [presses, setPresses] = useState(0);
   const codeRef = useRef<HTMLElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
   useEffect(() => () => clearTimeout(timer.current), []);
@@ -72,9 +75,11 @@ function CopyCodeControl({
       await navigator.clipboard.writeText(code);
     } catch {
       selectCode();
+      setPresses((count) => count + 1);
       setStatus("failed");
       return;
     }
+    setPresses((count) => count + 1);
     setStatus("copied");
     timer.current = setTimeout(() => setStatus("idle"), COPIED_MS);
   }
@@ -112,13 +117,15 @@ function CopyCodeControl({
         className="mt-1.5 flex min-h-5 items-start gap-1.5 text-sm leading-5"
       >
         {status === "copied" ? (
-          <>
+          <Fragment key={presses}>
             <CheckIcon aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-success" />
             <span className="min-w-0 wrap-break-word">{copiedText}</span>
-          </>
+          </Fragment>
         ) : null}
         {status === "failed" ? (
-          <span className="min-w-0 wrap-break-word">{fallbackText}</span>
+          <span key={presses} className="min-w-0 wrap-break-word">
+            {fallbackText}
+          </span>
         ) : null}
       </p>
     </div>

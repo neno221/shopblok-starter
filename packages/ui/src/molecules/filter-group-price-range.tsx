@@ -105,8 +105,10 @@ function PriceRange({
         <div className="px-4">
           <Slider
             className="[&_[data-slot=slider-thumb]>input]:-translate-x-[15px]! [&_[data-slot=slider-thumb]>input]:-translate-y-[15px]! [&_[data-slot=slider-thumb]>input]:size-11!"
-            min={min}
-            max={max}
+            // Whole bounds, so steps of 1 land on both ends with fractional prices (19.99): the
+            // far end then reads as no limit, as the checks below expect (PR 55 review).
+            min={Math.floor(min)}
+            max={Math.ceil(max)}
             step={1}
             value={thumbs}
             locale={locale}

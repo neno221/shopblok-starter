@@ -237,6 +237,14 @@ describe("Toaster, for the Toast molecule (T33)", () => {
     expect(root?.getAttribute("aria-hidden")).toBeNull();
     expect(root?.textContent).toContain("Error");
     expect(root?.textContent).toContain("Added to cart");
+    // The kind is in the toast's name, before the title (Base UI's own name is the title alone).
+    expect(screen.getByRole("dialog", { name: "Error Added to cart" })).toBe(root);
+  });
+
+  it("keeps Base UI's name, the title, when there is no kind", async () => {
+    render(<Page />);
+    add({ type: "info" });
+    expect(await screen.findByRole("dialog", { name: "Added to cart" })).toBeTruthy();
   });
 
   it.each([

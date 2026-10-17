@@ -3769,3 +3769,18 @@ Each applied, checked and reverted from a copy.
 - **The browser's own validation bubbles** (`required`, `type="email"`) speak the browser's language, not the page's.
 - **happy-dom toggles a checkbox inside its label twice on Space,** so the tests press Space on the swatch, whose label sits beside it.
 - **The Greek, German and French copy** of the new keys was drafted in this session, for W4's read.
+
+### Review fixes (PR 55)
+
+| Finding | Fix | Test |
+|---|---|---|
+| 1. NewsletterForm with no `action` submitted by GET, so the email went into the URL | `method="post"` unless the action is a function (React's) | `newsletter-form.test.tsx`: a form with no action posts |
+| 2. SortSelect's `keyed` flag could stick when a key opened the native list (its keyup goes to the list), so later pointer choices stopped submitting | a pointer press clears the flag too | `sort-select.test.tsx`: Space, then a pointer choice, submits |
+| 3. The DS's countdown states read "ended" once hydrated, because the browser counts from today and the fixtures' ends are in October 2026 | CountdownClock and CountdownTimer take `frozen`: the clock stays at the contract's `now` and never ticks; the DS passes it | `countdown-timer.test.tsx`: frozen a year later, the days state shows its digits and starts no timer |
+| 4. CopyCodeChip said nothing on a second press with the same outcome | the status line is keyed by a press count, so it is written again and the live region says it again | `copy-code-chip.test.tsx`: a new node on the second press |
+| 5. A toast's kind ("Error") was outside its name (Base UI names a toast by its title) | the toast is labelled by the kind and the title (`aria-labelledby`), only when there is a kind; otherwise Base UI's own name stands | `toast.test.tsx`: the dialog's name is "Error Added to cart", and the title alone without a kind |
+| 6 (optional). The price slider's steps of 1 from a fractional `min` never reached `max`, so the far end sent a price and dropped the top items | the slider's ends are `Math.floor(min)` and `Math.ceil(max)` (the fields already clamp) | `filter-group-price-range.test.tsx`: 19.99 to 149.99, the far end sends no limit |
+| 8 (optional). `buildFacets` ran twice per locale | built once; the active-filter chips use the sidebar's facets | the fixtures' tests |
+
+Finding 7 (the collapsed breadcrumb steps below `md`) is the plan's design, left for W4. **For W4:** Greek `activeFilterChips.remove` reads better as "Αφαίρεση φίλτρου {filter}", and the Greek sort options are long for a native select on a phone.
+

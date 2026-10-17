@@ -149,6 +149,19 @@ describe("CopyCodeChip", () => {
       expect(button().querySelector("svg")?.getAttribute("aria-hidden")).toBe("true");
     });
 
+    it("writes the line again on a second press with the same outcome, so it is said again", async () => {
+      useClipboard({ writeText: vi.fn().mockResolvedValue(undefined) });
+      setup();
+      fireEvent.click(button());
+      await settle();
+      const first = status().firstElementChild;
+      fireEvent.click(button());
+      await settle();
+      expect(status().textContent).toBe("Copied");
+      // A new node in the live region: the same text, announced again.
+      expect(status().firstElementChild).not.toBe(first);
+    });
+
     it("restarts the two seconds when pressed again", async () => {
       useClipboard({ writeText: vi.fn().mockResolvedValue(undefined) });
       setup();

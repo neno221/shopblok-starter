@@ -252,13 +252,21 @@ function ToastList({ closeLabel }: { closeLabel: string }) {
 
   return toasts.map((toastItem) => {
     const kindLabel = kindLabelOf(toastItem.data);
+    // The kind is part of the toast's name ("Error Payment failed"), not only a line for the eye
+    // (WCAG 1.4.1, PR 55 review): Base UI names the toast by its title alone.
+    const kindId = `${toastItem.id}-kind`;
+    const titleId = `${toastItem.id}-title`;
     return (
-      <Toast key={toastItem.id} toast={toastItem}>
+      <Toast
+        key={toastItem.id}
+        toast={toastItem}
+        {...(kindLabel === undefined ? {} : { "aria-labelledby": `${kindId} ${titleId}` })}
+      >
         <ToastContent className={toastLayout.content}>
           <ToastIcon type={toastItem.type} className={toastLayout.icon} />
           <div className={toastLayout.text}>
-            {kindLabel === undefined ? null : <ToastKind>{kindLabel}</ToastKind>}
-            <ToastTitle className="wrap-anywhere" />
+            {kindLabel === undefined ? null : <ToastKind id={kindId}>{kindLabel}</ToastKind>}
+            <ToastTitle id={titleId} className="wrap-anywhere" />
             <ToastDescription className="wrap-anywhere" />
           </div>
           <ToastAction className={toastLayout.action} />
