@@ -135,7 +135,12 @@ describe("the contracts (D41)", () => {
       (entry): entry is [string, z.ZodType] => entry[1] instanceof z.ZodType,
     );
     expect(schemas.length).toBeGreaterThan(40);
-    for (const [name, schema] of schemas) expect(() => z.toJSONSchema(schema), name).not.toThrow();
+    // The Props table's options (PR 51 review): the input, with nothing unrepresentable thrown.
+    for (const [name, schema] of schemas)
+      expect(
+        () => z.toJSONSchema(schema, { io: "input", unrepresentable: "any" }),
+        name,
+      ).not.toThrow();
   });
 
   it("take money in major units as a number, never as a string", () => {
@@ -179,11 +184,28 @@ describe("the contracts (D41)", () => {
     ]);
     expect(issues(Cart, { ...cart, itemCount: 3 })).toEqual(["the lines hold 2 items, not 3"]);
     expect(
+      issues(Cart, {
+        ...cart,
+        lines: [{ ...line, compareAtUnitPrice: { amount: 80, currencyCode: "USD" } }],
+      }),
+    ).toEqual(["USD in a EUR total"]);
+    expect(
+      issues(Cart, {
+        ...cart,
+        promoCodes: [{ code: "AUTUMN", discount: { amount: 10, currencyCode: "CHF" } }],
+      }),
+    ).toEqual(["CHF in a EUR total"]);
+    expect(
       issues(Order, {
         ...order,
         shippingMethod: { name: "Standard", price: { amount: 5, currencyCode: "CHF" } },
       }),
     ).toEqual(["CHF in a EUR total"]);
+  });
+
+  it("take an order paid with no card (the manual provider), but not a payment with nothing", () => {
+    expect(issues(Order, { ...order, payment: { name: "Pay on delivery" } })).toEqual([]);
+    expect(issues(Order, { ...order, payment: {} })).toEqual(["a payment needs a name or a brand"]);
   });
 
   it("want an order's history oldest first, from `placed`", () => {

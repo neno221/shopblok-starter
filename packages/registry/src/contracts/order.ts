@@ -55,13 +55,23 @@ export const Order = z
     shippingAddress: Address,
     billingAddress: Address.optional(),
     shippingMethod: z.object({ name: z.string().min(1), price: Money }),
-    payment: z.object({
-      brand: PaymentBrand,
-      last4: z
-        .string()
-        .regex(/^\d{4}$/)
-        .optional(),
-    }),
+    payment: z
+      .object({
+        name: z
+          .string()
+          .min(1)
+          .optional()
+          .describe("The method's name, as PaymentMethod's; what a manual payment shows"),
+        brand: PaymentBrand.optional(),
+        last4: z
+          .string()
+          .regex(/^\d{4}$/)
+          .optional(),
+      })
+      .refine((payment) => payment.name !== undefined || payment.brand !== undefined, {
+        message: "a payment needs a name or a brand",
+      })
+      .describe("A card's brand, or the name of a method with none (`pp_system_default`)"),
     events: z.array(OrderEvent).min(1).describe("Oldest first; the first is `placed`"),
   })
   .superRefine((order, context) => {

@@ -57,7 +57,12 @@ export const Cart = z
       [["freeShipping", "remaining"], cart.freeShipping?.remaining],
       ...cart.lines.flatMap((line, index): [(string | number)[], Money | undefined][] => [
         [["lines", index, "unitPrice"], line.unitPrice],
+        [["lines", index, "compareAtUnitPrice"], line.compareAtUnitPrice],
         [["lines", index, "total"], line.total],
+      ]),
+      ...cart.promoCodes.map((promo, index): [(string | number)[], Money | undefined] => [
+        ["promoCodes", index, "discount"],
+        promo.discount,
       ]),
     ]);
     const quantities = cart.lines.reduce((sum, line) => sum + line.quantity, 0);

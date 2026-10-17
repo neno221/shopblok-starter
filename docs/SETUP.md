@@ -3503,3 +3503,15 @@ A price multiplied by 100 is not something a schema can see (2999 is as valid as
 7. **An order's `taxTotal` and `shippingTotal` are required** and a cart's are optional (a cart has not worked them out yet), so a US order shows a tax of 0: its price has no VAT inside, and sales tax is not modelled before M3.
 8. **What the schemas leave to the tests**: sums (no schema adds up a cart) and a summary's average against its rows. Nothing stops tracking fields on an event other than `shipped`; OrderTimeline (T39) shows them where they are.
 9. **The Greek, German and French copy has not been read by a native speaker.** The fixtures' and the catalogs' strings are the owner's to correct at W4.
+
+### Review fixes (PR 52)
+
+| # | Finding | Fix |
+|---|---|---|
+| 1 | `Order.payment` needed a card brand, so an order paid with `pp_system_default` (manual) could not parse | `payment` takes a `name` (as `PaymentMethod.name`) and an optional `brand`, and needs one of them; a contract test with `{ name: "Pay on delivery" }` and one with `{}` |
+| 2 | The category tree repeats handles (`hoodies` under Women and Men), which Medusa keeps unique | **Not fixed here; a follow-up after T37.** T31 to T37 were written on these fixtures (T37's filter tests choose `"hoodies"`), so changing the handles now would conflict in every later commit. One change on the final tree: unique handles, `href`s keep the path |
+| 3 | The CMS links are under `/pages/`, which SPEC §8.1's `{m}/[...slug]` doesn't have | **Not fixed here; the same follow-up.** T35 and T36 move these links into `footer.ts` and the headers' fixtures |
+| 4 | A cart's currency check skipped `compareAtUnitPrice` and the promo codes' `discount` | Both are checked; two cases in "keep a cart's and an order's amounts in their currency" |
+| 9 | The contracts' JSON Schema test didn't use the Props table's options (optional) | It uses `{ io: "input", unrepresentable: "any" }`, as `propRows` does |
+
+Items 5 to 8 (optional: the free shipping option beside the threshold, `facetData.price`'s comment, `Image` and `Link` beside `next/image` and `next/link`, `buildMarkets`' `htmlLang`, range and `htmlLang` refinements) are left.
