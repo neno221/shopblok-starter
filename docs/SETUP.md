@@ -3585,3 +3585,5 @@ Each applied, checked and reverted from a copy.
 - **The accordion opens without its animation:** `animate-accordion-down` and `-up` come from tw-animate-css, whose keyframes read Radix's and other kits' height variables (`--radix-accordion-content-height`, falling back to `auto`) and not Base UI's `--accordion-panel-height`. T33's AccordionItem either animates the panel's height itself or drops the classes.
 - **The Accordion has no arrow-key navigation between headers** in Base UI 1.9.0 (Tab moves between them); WAI-ARIA's accordion pattern makes arrows optional.
 - **Toast:** Base UI marks the toasts stacked behind the front one as `aria-hidden`, close buttons included, so T33's interaction check should run axe with more than one toast open and see whether `aria-hidden-focus` is reported (not measured yet).
+
+**CI fix (PR 53).** `windows-smoke` failed `class-rules.test.ts` "includes the primitives": on Windows `path.relative` returns `primitives\dialog.tsx`, so `startsWith("primitives/")` found none. The scanned paths are now joined with `/` on every OS.

@@ -22,8 +22,11 @@ function componentFiles(dir: string): string[] {
   });
 }
 
+// Relative paths with `/` on every OS: on Windows `path.relative` gives `primitives\…`.
 const scanned = folders.flatMap((folder) =>
-  componentFiles(path.join(srcDir, folder)).map((file) => path.relative(srcDir, file)),
+  componentFiles(path.join(srcDir, folder)).map((file) =>
+    path.relative(srcDir, file).split(path.sep).join("/"),
+  ),
 );
 
 describe("every file in src/atoms/", () => {
