@@ -1,5 +1,11 @@
 import { designSystemFixtures, sampleImage } from "@shopblok/fixtures";
-import { catalogs, type Locale } from "@shopblok/i18n";
+import {
+  catalogs,
+  countryName as intlCountryName,
+  formatMessage,
+  formatNumber,
+  type Locale,
+} from "@shopblok/i18n";
 import type { EntryId } from "@shopblok/registry";
 import { Chip } from "@shopblok/ui/atoms/chip";
 import { Flag, isFlagCode } from "@shopblok/ui/atoms/flag";
@@ -46,27 +52,27 @@ function Named({ name, children }: { name: string; children: ReactNode }) {
   );
 }
 
-/** "{value} out of {max}" and "Only {count} left": the catalog's templates, filled in. */
-function fill(template: string, values: Record<string, string | number>): string {
-  return template.replace(/\{(\w+)\}/g, (match, key: string) => String(values[key] ?? match));
-}
-
 const copy = (ctx: DsContext) => catalogs[ctx.locale].atoms;
 
 /** The value drawn beside the stars: always one decimal ("4.0"). */
-const formatNumber = (ctx: DsContext, value: number) =>
-  new Intl.NumberFormat(ctx.fixture.market.htmlLang, {
+const ratingValue = (ctx: DsContext, value: number) =>
+  formatNumber(value, ctx.fixture.market.htmlLang, {
     minimumFractionDigits: 1,
     maximumFractionDigits: 1,
-  }).format(value);
+  });
 
 /** The spoken value: no padded zero ("3 out of 5", not "3.0"), `max` in the same format. */
 const ratingLabel = (ctx: DsContext, value: number) => {
-  const format = new Intl.NumberFormat(ctx.fixture.market.htmlLang, { maximumFractionDigits: 1 });
-  return fill(copy(ctx).rating.label, {
-    value: format.format(value),
-    max: format.format(ctx.fixture.rating.max),
-  });
+  const lang = ctx.fixture.market.htmlLang;
+  const options = { maximumFractionDigits: 1 };
+  return formatMessage(
+    copy(ctx).rating.label,
+    {
+      value: formatNumber(value, lang, options),
+      max: formatNumber(ctx.fixture.rating.max, lang, options),
+    },
+    lang,
+  );
 };
 
 /** What the stock count says: out at zero, low at the threshold or under, in stock above it. */
@@ -79,13 +85,14 @@ function stockText(ctx: DsContext, count: number): string {
   const status = stockStatus(ctx, count);
   const text = copy(ctx).stock;
   if (status === "out") return text.outOfStock;
-  return status === "low" ? fill(text.low, { count }) : text.inStock;
+  return status === "low"
+    ? formatMessage(text.low, { count }, ctx.fixture.market.htmlLang)
+    : text.inStock;
 }
 
 /** The country's name in the locale, from `Intl` (never a literal). */
 const countryName = (ctx: DsContext, code: string) =>
-  new Intl.DisplayNames(ctx.fixture.market.htmlLang, { type: "region" }).of(code.toUpperCase()) ??
-  code.toUpperCase();
+  intlCountryName(code, ctx.fixture.market.htmlLang);
 
 /** The four markets of the DS (D33), as ISO codes. */
 const marketCodes = (Object.keys(designSystemFixtures) as Locale[]).map(
@@ -482,7 +489,7 @@ export const commerceAtomStories = {
         value={ctx.fixture.rating.value}
         max={ctx.fixture.rating.max}
         label={ratingLabel(ctx, ctx.fixture.rating.value)}
-        valueText={formatNumber(ctx, ctx.fixture.rating.value)}
+        valueText={ratingValue(ctx, ctx.fixture.rating.value)}
       />
     ),
     states: [
@@ -495,7 +502,7 @@ export const commerceAtomStories = {
               value={value}
               max={ctx.fixture.rating.max}
               label={ratingLabel(ctx, value)}
-              valueText={formatNumber(ctx, value)}
+              valueText={ratingValue(ctx, value)}
             />
           </Named>
         ),
@@ -526,7 +533,7 @@ export const commerceAtomStories = {
                 value={ctx.fixture.rating.value}
                 max={ctx.fixture.rating.max}
                 label={ratingLabel(ctx, ctx.fixture.rating.value)}
-                valueText={formatNumber(ctx, ctx.fixture.rating.value)}
+                valueText={ratingValue(ctx, ctx.fixture.rating.value)}
               />
             ))}
           </div>

@@ -1,4 +1,4 @@
-# T27 to T29 are done; T30 and T31 are next
+# T27 to T30 are done; T31 is next
 
 **The M2 plan** ([plans/M2.md](plans/M2.md), molecules, organisms and the registry, SPEC §17.1) was merged in [PR 48](https://github.com/stephanos221/shopblok-starter/pull/48). Its decisions D40 to D55 are defaults that stand, because you said on 2026-10-16 that M2's tasks may start once the plan is written; you can change any of them at any time, and the task that builds it then follows the new text. Three are worth a look: **D46** (M2 builds Header 6, Footer 5 and ProductCard 10, so the DS page ends M2 with 114 entries outside Foundations), **D51** (684 pixel baselines committed in git, an expected 40 to 60 MB; T40 stops and asks you above 60 MB) and **D53** (the CI gate). **G6, optional, about two minutes:** look at this month's Actions minutes under Settings → Billing and plans → Usage (the plan's §0, item 2, says why).
 
@@ -8,15 +8,11 @@
 
 **T29 is done** (2026-10-17, SETUP.md "The registry (T29)"). The design system's 40 entries are now a list of data in `packages/registry`, which the DS page, its CI checks and, from M4, Payload's pickers read. What the page says about each entry stays in the storefront, and a test fails when an entry and its text do not match. Each entry also has a bare preview page, which T40 will photograph for the thumbnails, and a build now fails if a DS page ever reads the request. The page looks exactly as before.
 
-**Next:** T30 and T31, in either order (both prompts below). The molecule tasks (T32 to T34) need both. Nothing waits on your PC until W4.
+**T30 is done** (2026-10-17, SETUP.md "View models, copy and fixtures (T30)"). The shapes of the data M2's components take (a product card, a cart, an address, an order, the navigation and so on) are now written down once, in `packages/registry`, and checked: a price is a number in its currency, a sale price is higher than the price, a saved card can never hold a card number. The texts are now messages that know plurals ("Απομένει μόνο 1", "Απομένουν μόνο 3") in a file per language, and a test fails when a language lacks a text or changes one of its blanks. A set of sample shop data in the four languages (12 products, a cart, addresses in Cyprus, the US, Germany and Switzerland, orders, reviews, menus) is ready for the components. The Greek, German and French samples were written by the session; they are for you or a native speaker to read at W4. The page looks exactly as before.
+
+**Next:** T31 (its prompt is below). The molecule tasks (T32 to T34) need it. Nothing waits on your PC until W4.
 
 Every M2 task runs the same way (D55): a cloud session in the `shopblok-starter` environment, on `main`; a PR; a code review of it in a separate thread, with its findings in `reviews/pr-N-code-review.md` in the project's files; the session fixes them and merges with a merge commit once CI is green.
-
-## T30 · View models, copy and fixtures (in a cloud session)
-
-Start a cloud session in the `shopblok-starter` environment, on `main`, and paste:
-
-> Run task T30 of docs/plans/M2.md: the view-model contracts in `@shopblok/registry` (D41), the catalogs as ICU messages in a module per locale with `formatMessage` (D43), and fixtures for every contract in the four locales. Start as docs/CLOUD.md, "What every cloud session does first", steps 1 and 2 say; it needs no stack. Read docs/plans/M2.md (§1 D41, D43 and D50, §5 T30), SPEC §8.2, §8.4, §7.3 and §14's test rule for `Intl` output, SETUP.md's "The registry (T29)", and `packages/i18n` and `packages/fixtures` first. Work on a new branch from `main`. Follow T30's steps and its Verify list: every fixture parses, the parity test fails for a missing Greek key and a changed argument, the plurals are right in the four locales, the DS cells do not change, and each mutation fails. Record everything in docs/SETUP.md under "View models, copy and fixtures (T30)", update the plan's status line and NEXT-SESSION.md, then open a PR. It gets a code review in a separate thread; fix its findings, and merge with a merge commit once CI is green (G2).
 
 ## T31 · Primitives and providers (in a cloud session)
 

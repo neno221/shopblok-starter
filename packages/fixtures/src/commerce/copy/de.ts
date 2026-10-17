@@ -1,0 +1,244 @@
+import type { Copy } from "./types";
+
+// German as Germany reads it (de-DE): "Sie" throughout, "ß" where the spelling asks for it.
+export const de: Copy = {
+  home: "Startseite",
+  productTitles: {
+    "relaxed-fit-zip-hoodie":
+      "Lockerer Zip-Hoodie aus Bio-Baumwolle mit Rippbündchen an Ärmeln und Saum",
+    "brushed-fleece-hoodie": "Hoodie aus gebürstetem Fleece",
+    "garment-dyed-hoodie": "Stückgefärbter Kapuzenpullover",
+    "essential-tee": "Essential T-Shirt aus Bio-Baumwolle",
+    "fisherman-knit-sweater": "Fischer-Strickpullover",
+    "canvas-tote-bag": "Tragetasche aus Canvas",
+    "organic-cotton-cap": "Cap aus Bio-Baumwolle",
+    "merino-ankle-socks": "Merino-Sneakersocken, 3er-Pack",
+    "tapered-chino-trousers": "Chino-Hose mit schmal zulaufendem Bein",
+    "waxed-field-jacket": "Gewachste Feldjacke",
+    "ribbed-merino-turtleneck": "Rollkragenpullover aus Merino in Rippstrick",
+  },
+  hoodieDetails:
+    "Die gebürstete Innenseite wärmt, ohne aufzutragen, und die doppelt gefütterte Kapuze behält ihre Form. Verstärkte Nähte, Rippbündchen und eine Känguru-Tasche runden den Schnitt ab. Fällt normal aus; für eine lockerere Passform eine Größe größer wählen.",
+  customBadge: "Limitierte Auflage",
+  categories: {
+    women: "Damen",
+    men: "Herren",
+    accessories: "Accessoires",
+    clothing: "Kleidung",
+    bags: "Taschen",
+    headwear: "Kopfbedeckungen",
+    socks: "Socken",
+    hoodies: "Hoodies",
+    "t-shirts": "T-Shirts",
+    knitwear: "Strickwaren",
+    jackets: "Jacken",
+    trousers: "Hosen",
+    totes: "Tragetaschen",
+    backpacks: "Rucksäcke",
+    caps: "Caps",
+    beanies: "Mützen",
+    "ankle-socks": "Sneakersocken",
+    "crew-socks": "Crew-Socken",
+  },
+  colours: {
+    white: "Weiß",
+    charcoal: "Anthrazit",
+    navy: "Marineblau",
+    olive: "Olivgrün",
+    rust: "Rostbraun",
+    burgundy: "Bordeaux",
+    sand: "Sand",
+  },
+  options: { colour: "Farbe", size: "Größe" },
+  imageAlt: {
+    front: (title) => `${title}, Vorderansicht`,
+    back: (title) => `${title}, Rückansicht`,
+    detail: (title) => `${title}, Nahaufnahme des Stoffs`,
+    colour: (title, colour) => `${title} in ${colour}`,
+  },
+  reviews: [
+    {
+      author: "Thomas B.",
+      title: "Mein neuer Lieblings-Hoodie",
+      body: "Innen weich, außen robust. Ich habe ihn schon ein Dutzend Mal gewaschen und er sieht immer noch aus wie neu. Fällt wie angegeben aus.",
+    },
+    {
+      author: "Julia K.",
+      title: "Super, aber etwas lang",
+      body: "Stoff und Farbe gefallen mir sehr. Die Ärmel sind mir allerdings etwas zu lang – wer zwischen zwei Größen liegt, sollte die kleinere nehmen.",
+    },
+    {
+      author: "Michael S.",
+      title: "Jeden Cent wert",
+      body: "Das Gewicht ist ideal für den Herbst: warm, ohne schwer zu sein. Die Kapuze ist ordentlich gefüttert und fällt nicht in sich zusammen.",
+    },
+    {
+      author: "Sabine W.",
+      body: "Insgesamt gute Qualität. Der Farbton Hafer ist etwas heller als auf den Fotos.",
+    },
+    {
+      author: "Lukas H.",
+      title: "Beim Waschen eingelaufen",
+      body: "Anfangs war ich begeistert, aber nach der ersten Wäsche war er deutlich kürzer. Mit kaltem Wasser und Lufttrocknen wird es besser, das hätte ich gern vorher gewusst.",
+    },
+    {
+      author: "Anja R.",
+      title: "Perfekt zum Schichten",
+      body: "Ich trage ihn unter einer Jacke oder allein. Die Tasche ist tief genug für Handy und Schlüssel.",
+    },
+  ],
+  navigation: {
+    newIn: "Neuheiten",
+    sale: "Sale",
+    discover: "Entdecken",
+    bestsellers: "Bestseller",
+    giftCards: "Geschenkgutscheine",
+    organic: "Bio-Baumwolle",
+    womenFeatures: [
+      {
+        title: "Die Herbst-Auswahl",
+        alt: "Eine Frau in einem Hoodie in Hafer und einer weiten Hose geht im Herbst durch einen Park",
+      },
+      {
+        title: "Zeit für Strick",
+        alt: "Gefaltete dicke Strickpullover in Hafer, Marineblau und Grün auf einer Holzbank",
+      },
+    ],
+    menFeatures: [
+      {
+        title: "Alltags-Basics",
+        alt: "Ein Mann in einem schlichten T-Shirt und Chinos lehnt an einer Backsteinwand",
+      },
+    ],
+  },
+  footer: {
+    shop: "Shop",
+    help: "Hilfe",
+    company: "Unternehmen",
+    legal: "Rechtliches",
+    shipping: "Versand und Rückgabe",
+    sizeGuide: "Größentabelle",
+    contact: "Kontakt",
+    faq: "Häufige Fragen",
+    trackOrder: "Sendung verfolgen",
+    about: "Über uns",
+    sustainability: "Nachhaltigkeit",
+    careers: "Karriere",
+    stores: "Unsere Geschäfte",
+    terms: "Allgemeine Geschäftsbedingungen",
+    privacy: "Datenschutzerklärung",
+    cookies: "Cookie-Einstellungen",
+    imprint: "Impressum",
+  },
+  shipping: {
+    standard: "Standardversand",
+    express: "Expressversand",
+    free: "Kostenloser Spar-Versand",
+    pickup: "Abholung im Geschäft",
+    sameDay: "Lieferung am selben Tag",
+    storeName: "Shopblok Berlin-Mitte",
+  },
+  card: "Kredit- oder Debitkarte",
+  search: {
+    query: "hoodie",
+    categories: ["Damen-Hoodies", "Herren-Hoodies"],
+    suggestions: ["Hoodie mit Reißverschluss", "Oversize-Hoodie", "Hoodie aus Bio-Baumwolle"],
+  },
+  facets: {
+    category: "Kategorie",
+    colour: "Farbe",
+    size: "Größe",
+    price: "Preis",
+    inStock: "Auf Lager",
+    onSale: "Im Angebot",
+  },
+  announcement: { message: "Kostenloser Versand ab 150 €", link: "Mehr erfahren" },
+  figure: {
+    alt: "Eine Person in einem Hoodie in Hafer geht bei Sonnenaufgang an einer Hafenmauer entlang",
+    caption: "Die Herbstkollektion, fotografiert am Hafen.",
+    credit: "Foto: Shopblok Studio",
+  },
+  long: {
+    productTitle:
+      "Heritage-Kapuzenpullover aus gebürstetem Bio-Baumwollfleece mit verstärkten Nähten, doppelt gefütterter Kapuze, geräumiger Känguru-Tasche und farblich passenden Rippbündchen an Ärmeln und Saum, limitierte Herbstedition",
+    badge: "Limitierte Herbstedition, nur solange der Vorrat reicht und ohne Nachproduktion",
+    cartLine: {
+      title:
+        "Heritage-Kapuzenpullover aus gebürstetem Bio-Baumwollfleece mit verstärkten Nähten und doppelt gefütterter Kapuze, limitierte Herbstedition der aktuellen Saison",
+      options: [
+        {
+          option: "Farbe und Ausführung",
+          value: "Heritage-Hafer mit Kontrastnähten und flachen Kordeln im gleichen Farbton",
+        },
+        {
+          option: "Größe und Passform",
+          value:
+            "Extragroß, lange Passform (verlängert die Körperlänge um fünf Zentimeter gegenüber der Standardlänge)",
+        },
+      ],
+    },
+    address: {
+      firstName: "Anna-Katharina Elisabeth",
+      lastName: "Schmidt-Hohenzollern",
+      company:
+        "Hartmann & Söhne Beratungsgesellschaft für nachhaltige Unternehmensentwicklung und Digitalisierung mbH",
+      address1: "Hauptstraße Ecke Kaiser-Wilhelm-Ring, Hinterhaus, Aufgang C, Nr. 128–132",
+      address2: "3. Obergeschoss, Büro 3.14, Abteilung Wareneingang und Retourenabwicklung",
+      city: "Villingen-Schwenningen",
+      postalCode: "78050",
+      phone: "+49 30 23125 099",
+    },
+    nav: {
+      label:
+        "Damenbekleidung, Accessoires und saisonale Kollektionen für Arbeit, Freizeit und besondere Anlässe",
+      columns: [
+        {
+          title: "Alltagskleidung für die Arbeit, das Wochenende und alles dazwischen",
+          links: [
+            "Hoodies, Sweatshirts und Jacken mit Reißverschluss aus Bio-Baumwolle",
+            "T-Shirts, Langarmshirts und Basics für jede Jahreszeit",
+            "Strickwaren, Strickjacken und dicke Winterpullover",
+          ],
+        },
+        {
+          title: "Taschen, Mützen, Socken und die kleinen Dinge, die ein Outfit abrunden",
+          links: [
+            "Canvas-Tragetaschen, Rucksäcke und Wochenendtaschen, die lange halten",
+            "Caps, Mützen und Schals aus Wolle und Bio-Baumwolle",
+            "Merinosocken, Strumpfhosen und Thermo-Unterwäsche",
+          ],
+        },
+      ],
+      feature: {
+        title:
+          "Die Herbst-Auswahl: elf Teile für die Zeit vom ersten kühlen Morgen bis zum ersten Frost",
+        alt: "Eine Frau in einem Hoodie in Hafer und einer weiten Hose geht im Herbst durch einen Park",
+      },
+    },
+    footer: {
+      title:
+        "Kundenservice, Lieferung, Rückgabe und alles andere, was Sie vor und nach Ihrer Bestellung vielleicht wissen möchten",
+      links: [
+        "Lieferzeiten, Versandkosten und die Verfolgung Ihres Pakets",
+        "Rückgabe, Umtausch und die Abwicklung von Erstattungen",
+        "Unsere Größentabelle mit Maßen und Hinweisen zur Passform für jeden Artikel",
+        "Kontakt zu unserem Kundenservice per Telefon, Chat oder E-Mail",
+        "Häufig gestellte Fragen zu Bestellungen, Zahlungen und Ihrem Kundenkonto",
+      ],
+    },
+    review: {
+      author: "Katharina B.",
+      title:
+        "Eine sehr ausführliche Bewertung nach einer ganzen Saison mit Tragen, Waschen und Reisen",
+      body: [
+        "Ich habe den Heritage-Hoodie in Hafer zu Beginn des letzten Herbstes gekauft und trage ihn seitdem mindestens dreimal pro Woche. Das hier ist also die Bewertung einer ganzen Saison und kein erster Eindruck.",
+        "Zuerst die Passform. Ich bin 1,78 m groß und wiege etwa 75 Kilo, und Größe M ist genau das, was ich mir gewünscht habe: Brust und Schultern sind angenehm weit, ohne dass er übergroß wirkt, und die Ärmel enden genau am Handgelenk. Die Rippbündchen und der Saum haben ihre Form auch nach vielen Wäschen behalten.",
+        "Der Stoff ist das eigentliche Argument. Die gebürstete Innenseite ist vom ersten Tag an weich und hat nicht gepillt, nicht einmal unter dem Rucksackgurt, und die Außenseite zeigt an den Ellbogen kaum Abnutzung. Ich habe ihn kalt gewaschen und an der Luft getrocknet, dabei ist er in der Länge um weniger als einen Zentimeter eingelaufen.",
+        "Die Kapuze ist doppelt gefüttert und steht von allein, was bei Wind großartig ist und ein wenig stört, wenn man eine lockere, hängende Kapuze bevorzugt. Die Kordeln sind flach und verdrehen sich nicht, und die Tasche ist tief genug für Handy, Schlüssel und ein Paar Handschuhe.",
+        "Mein einziger Kritikpunkt ist, dass ich mir mehr Farben wünsche, denn ich würde mir morgen noch einen zweiten kaufen. Ansonsten kann ich nur Gutes sagen und empfehle ihn jedem, der einen Hoodie sucht, der lange hält.",
+      ].join("\n\n"),
+    },
+    shippingName:
+      "Expresslieferung bis an Ihre Haustür mit Unterschrift bei Empfang und kostenloser Sendungsverfolgung per SMS oder E-Mail",
+  },
+};
