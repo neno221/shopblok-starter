@@ -354,7 +354,48 @@ export const de: Messages = {
       error: "Die E-Mail konnte nicht gesendet werden. Bitte versuchen Sie es erneut.",
     },
   },
-  organisms: {},
+  organisms: {
+    announcementBar: {
+      region: "Hinweise",
+      pause: "Hinweise anhalten",
+      play: "Hinweise automatisch wechseln",
+      previous: "Vorheriger Hinweis",
+      next: "Nächster Hinweis",
+      position: "{current} von {total}",
+      dismiss: "Hinweise schließen",
+    },
+    megaMenu: {
+      shopAll: "Alle anzeigen: {label}",
+      featured: "Empfohlen",
+    },
+    mobileNavDrawer: {
+      open: "Menü",
+      title: "Menü",
+      close: "Menü schließen",
+      back: "Zurück: {label}",
+      shopAll: "Alle anzeigen: {label}",
+      account: "Ihr Konto",
+    },
+    marketSuggestionBanner: {
+      region: "Shop-Vorschlag",
+      // A country's name from Intl comes without its article ("Schweiz"), so it stands after a colon.
+      message:
+        "Sie scheinen in einem anderen Land zu sein: {country}. Der Shop dort hat Preise in {currency} und liefert vor Ort.",
+      go: "Zum Shop: {country}",
+      stay: "Im Shop bleiben: {current}",
+    },
+    header: {
+      skipToContent: "Zum Inhalt springen",
+      home: "{store}, Startseite",
+      navigation: "Hauptmenü",
+      search: "Suche",
+      account: "Konto",
+      wishlist: "Wunschliste",
+      cart: "Warenkorb",
+      cartItems: "{count, plural, =0 {leer} one {# Artikel} other {# Artikel}}",
+      cartOverflow: "{max}+",
+    },
+  },
   notFound: {
     title: "Seite nicht gefunden",
     body: "Die gesuchte Seite existiert nicht.",

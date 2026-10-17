@@ -3,6 +3,7 @@ import type { DsStory } from "../types";
 import { atomStories } from "./atoms";
 import { commerceAtomStories } from "./atoms-commerce";
 import { foundationStories } from "./foundations";
+import { headerStories } from "./headers";
 import { addressMoleculeStories } from "./molecules-address";
 import { cartMoleculeStories } from "./molecules-cart";
 import { checkoutMoleculeStories } from "./molecules-checkout";
@@ -13,6 +14,8 @@ import { paymentMoleculeStories } from "./molecules-payment";
 import { productMoleculeStories } from "./molecules-product";
 import { productCardStories } from "./molecules-product-card";
 import { siteMoleculeStories } from "./molecules-site";
+import { bannerOrganismStories } from "./organisms-banners";
+import { navigationOrganismStories } from "./organisms-navigation";
 
 // What the DS page says about each registry entry (D40): its summary, a11y notes, live render and
 // states, keyed by the entry's id. Each file's object is checked against the registry's ids
@@ -33,4 +36,7 @@ export const stories: Record<EntryId, DsStory> = {
   ...addressMoleculeStories,
   ...paymentMoleculeStories,
   ...checkoutMoleculeStories,
+  ...bannerOrganismStories,
+  ...navigationOrganismStories,
+  ...headerStories,
 };

@@ -154,6 +154,23 @@ export const de: Copy = {
   },
   activeFilters: { priceRange: (min, max) => `${min} € bis ${max} €` },
   announcement: { message: "Kostenloser Versand ab 150 €", link: "Mehr erfahren" },
+  header: {
+    announcements: [
+      {
+        message: "Kostenlose Rücksendung innerhalb von 30 Tagen",
+        link: "So funktioniert die Rücksendung",
+      },
+      { message: "Neu: die Herbstkollektion aus Bio-Baumwolle", link: "Zur Kollektion" },
+    ],
+    longAnnouncement: {
+      message:
+        "Bestellen Sie werktags bis 14 Uhr für den Versand am selben Tag und genießen Sie bei jeder Bestellung kostenlose Rücksendungen innerhalb von 30 Tagen",
+      link: "Unsere Versand- und Rückgabebedingungen lesen",
+    },
+    account: { signIn: "Anmelden", orders: "Bestellungen", wishlist: "Wunschliste" },
+    suggestionMessage: "Kaufen Sie im Shop Ihres Landes ein, mit lokalen Preisen und Lieferzeiten.",
+    heroAlt: "Gefaltete Strickwaren in Hafer und Anthrazit auf einer Holzbank",
+  },
   figure: {
     alt: "Eine Person in einem Hoodie in Hafer geht bei Sonnenaufgang an einer Hafenmauer entlang",
     caption: "Die Herbstkollektion, fotografiert am Hafen.",

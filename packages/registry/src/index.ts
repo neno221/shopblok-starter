@@ -1,6 +1,8 @@
 import { atoms } from "./entries/atoms";
 import { foundations } from "./entries/foundations";
+import { headersFooters } from "./entries/headers-footers";
 import { molecules } from "./entries/molecules";
+import { organisms } from "./entries/organisms";
 import {
   GROUPS,
   type EntryInput,
@@ -49,7 +51,11 @@ export function defineEntries(input: readonly EntryInput[]): readonly RegistryEn
 
 // The entry files, in the navigation's order. `entries` and `EntryId` both come from this one list,
 // so a new file added here is in both (PR 51 review, item 4).
-const all = [...foundations, ...atoms, ...molecules] as const;
+const all = [...foundations,
+  ...atoms,
+  ...molecules,
+  ...organisms,
+  ...headersFooters,] as const;
 
 /** The id of an entry of the registry, as a type: a story keyed by anything else is an error. */
 export type EntryId = (typeof all)[number]["id"];

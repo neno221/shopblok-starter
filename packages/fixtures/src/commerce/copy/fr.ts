@@ -158,6 +158,24 @@ export const fr: Copy = {
   },
   activeFilters: { priceRange: (min, max) => `${min} à ${max} CHF` },
   announcement: { message: "Livraison gratuite dès 150 CHF", link: "En savoir plus" },
+  header: {
+    announcements: [
+      { message: "Retours gratuits sous 30 jours", link: "Comment fonctionnent les retours" },
+      {
+        message: "Nouveau : la collection d’automne en coton bio",
+        link: "Découvrir la collection",
+      },
+    ],
+    longAnnouncement: {
+      message:
+        "Commandez avant 14 h en semaine pour une expédition le jour même, et profitez des retours gratuits sous 30 jours sur chaque commande",
+      link: "Lire notre politique de livraison et de retour",
+    },
+    account: { signIn: "Se connecter", orders: "Commandes", wishlist: "Liste d’envies" },
+    suggestionMessage:
+      "Achetez dans la boutique de votre pays, avec des prix et des délais de livraison locaux.",
+    heroAlt: "Tricots pliés coloris avoine et anthracite sur un banc en bois",
+  },
   figure: {
     alt: "Une personne en sweat à capuche couleur avoine marche le long d’un quai au lever du soleil",
     caption: "La collection d’automne, photographiée sur le port.",

@@ -397,7 +397,57 @@ export const en = {
       error: "We could not send the email. Please try again.",
     },
   },
-  organisms: {},
+  // T35: navigation and the headers. A component takes its part (`organisms.megaMenu`) as `copy`.
+  organisms: {
+    announcementBar: {
+      // The bar's landmark and, when it shows several messages in turn, its controls.
+      region: "Announcements",
+      pause: "Pause announcements",
+      play: "Play announcements",
+      previous: "Previous announcement",
+      next: "Next announcement",
+      // Which message is shown, for a reader who does not see it change.
+      position: "{current} of {total}",
+      dismiss: "Close announcements",
+    },
+    megaMenu: {
+      // The first link of a panel whose label goes somewhere too.
+      shopAll: "Shop all {label}",
+      featured: "Featured",
+    },
+    mobileNavDrawer: {
+      open: "Menu",
+      title: "Menu",
+      close: "Close menu",
+      // The button that goes up a level, named by the level it goes back to.
+      back: "Back to {label}",
+      shopAll: "Shop all {label}",
+      account: "Your account",
+    },
+    marketSuggestionBanner: {
+      region: "Store suggestion",
+      // {country} and {currency} are the suggested store's; {current} is the country the page is in.
+      message:
+        "It looks like you're in {country}. Its store has prices in {currency} and delivers locally.",
+      go: "Go to the {country} store",
+      stay: "Stay in the {current} store",
+    },
+    header: {
+      skipToContent: "Skip to content",
+      // The logo's link.
+      home: "{store}, home",
+      // The navigation landmark's name: a screen reader adds "navigation".
+      navigation: "Main",
+      search: "Search",
+      account: "Account",
+      wishlist: "Wishlist",
+      cart: "Cart",
+      // What the cart holds, after its name ("Cart 3 items"): only once the browser knows it (D44).
+      cartItems: "{count, plural, =0 {empty} one {# item} other {# items}}",
+      // The badge of a cart with more items than it has room for.
+      cartOverflow: "{max}+",
+    },
+  },
   notFound: {
     title: "Page not found",
     body: "The page you are looking for does not exist.",

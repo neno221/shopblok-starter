@@ -45,4 +45,12 @@ checkRoutesInDev([
   { path: "/design-system/el/molecules/cart-line-item", status: 200 },
   { path: "/design-system/fr/molecules/saved-payment-method-card", status: 200 },
   { path: "/design-system/de/molecules/verification-notice", status: 200 },
+  // T35: the mega-menu header in each locale, the organism page with the most client code (the
+  // navigation menu, the mobile drawer, the market switcher and the cart island), and the
+  // announcement bar's rotation in one.
+  ...locales.map((locale) => ({
+    path: `/design-system/${locale}/headers-footers/header-mega-menu`,
+    status: 200,
+  })),
+  { path: "/design-system/el/organisms/announcement-bar", status: 200 },
 ]);

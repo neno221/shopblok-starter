@@ -139,6 +139,8 @@ describe("navigation", () => {
       "foundations",
       "atoms",
       "molecules",
+      "organisms",
+      "headers-footers",
     ]);
     const foundationsOnly = navigation([testEntry("foundations/b", "foundations")]);
     expect(foundationsOnly.map((section) => section.group)).toEqual(["foundations"]);

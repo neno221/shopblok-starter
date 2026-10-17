@@ -19,9 +19,11 @@ export type DsInteraction = {
   /**
    * `inside`: focus moves into the popup and Escape closes it, with focus back on the trigger (a
    * dialog, a drawer, a popover). `stays`: focus stays on the trigger and the popup is announced by
-   * a live region (a toast).
+   * a live region (a toast). `menu` (T35): a navigation menu's panel, which is not a dialog: focus
+   * stays on the trigger, Tab goes into the panel, Escape closes it with focus back on the trigger,
+   * and Tab past the panel's last link closes it.
    */
-  focus: "inside" | "stays";
+  focus: "inside" | "stays" | "menu";
   /** With `inside`: the popup traps focus, so Tab and Shift+Tab never leave it. */
   trap?: boolean;
 };
@@ -42,6 +44,24 @@ export const interactions = {
   "molecules/saved-payment-method-card": {
     trigger: '[data-slot="saved-payment-method-remove"]',
     opens: '[data-slot="saved-payment-method-confirm"]',
+    focus: "inside",
+    trap: true,
+  },
+  // T35: a mega menu's panel, the mobile drawer, and the market switcher inside a header.
+  "organisms/mega-menu": {
+    trigger: '[data-slot="navigation-menu-trigger"]',
+    opens: '[data-slot="mega-menu-panel"]',
+    focus: "menu",
+  },
+  "organisms/mobile-nav-drawer": {
+    trigger: '[data-slot="mobile-nav-trigger"]',
+    opens: '[data-slot="mobile-nav-drawer"]',
+    focus: "inside",
+    trap: true,
+  },
+  "headers-footers/header-two-tier": {
+    trigger: '[data-slot="market-switcher-trigger"]',
+    opens: '[data-slot="market-switcher-popup"]',
     focus: "inside",
     trap: true,
   },
