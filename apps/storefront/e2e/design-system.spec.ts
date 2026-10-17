@@ -321,3 +321,51 @@ for (const id of ids) {
     }
   }
 }
+
+// D45 (T31): an overlay drawn open stays inside its OverlayBox. The check page draws a sheet (a
+// fixed popup pinned to an edge) and a popover (placed against its trigger) open, each in a box;
+// without the box's containing block the sheet would be pinned to the viewport instead.
+const overlayCheckPath = "/design-system/en/checks/overlay-box";
+
+if (problem === undefined) {
+  for (const width of [375, 1440]) {
+    test(`overlay box · en · ${width}`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      const response = await page.goto(overlayCheckPath, { waitUntil: "load" });
+      expect(response?.status(), `${overlayCheckPath} answers 200`).toBe(200);
+      for (const slot of ["sheet-content", "popover-content"]) {
+        const box = page
+          .locator("[data-overlay-box]")
+          .filter({ has: page.locator(`[data-slot=${slot}]`) });
+        const popup = box.locator(`[data-slot=${slot}]`);
+        await expect(popup, `the ${slot} is drawn open`).toBeVisible();
+        // In view, as a reader sees it: a popover whose trigger is below the viewport flips above it,
+        // out of its box, and comes back once there is room (Base UI places it again on scroll).
+        await box.scrollIntoViewIfNeeded();
+        const placement = async () => {
+          const outer = await box.boundingBox();
+          const inner = await popup.boundingBox();
+          if (outer === null || inner === null) return `no box for ${slot}`;
+          // 1 px for sub-pixel rounding.
+          const inside =
+            inner.x >= outer.x - 1 &&
+            inner.y >= outer.y - 1 &&
+            inner.x + inner.width <= outer.x + outer.width + 1 &&
+            inner.y + inner.height <= outer.y + outer.height + 1;
+          return inside ? "inside" : `${JSON.stringify(inner)} outside ${JSON.stringify(outer)}`;
+        };
+        await expect
+          .soft
+          .poll(placement, { message: `the ${slot} lies inside its box`, timeout: 5_000 })
+          .toBe("inside");
+      }
+      const axe = await new AxeBuilder({ page }).withTags(axeTags).analyze();
+      expect
+        .soft(
+          axe.violations.map((v) => `${v.id}: ${v.help}`),
+          "axe violations",
+        )
+        .toEqual([]);
+    });
+  }
+}

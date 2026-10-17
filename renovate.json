@@ -69,6 +69,12 @@
       "groupName": "lucide-react",
       "schedule": ["before 6am on monday"],
       "labels": ["lucide"]
+    },
+    {
+      "description": "M2 plan §2 and T31: embla-carousel-react is the engine of the carousel primitive (packages/ui/src/primitives/carousel.tsx), whose options and API calls a major can change; take one by hand, with that file and its tests.",
+      "matchPackageNames": ["embla-carousel-react"],
+      "matchUpdateTypes": ["major"],
+      "enabled": false
     }
   ]
 }

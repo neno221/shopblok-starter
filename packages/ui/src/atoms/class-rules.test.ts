@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { findViolations, splitClass } from "../test-support/class-rules";
@@ -6,6 +6,27 @@ import { findViolations, splitClass } from "../test-support/class-rules";
 const atomsDir = import.meta.dirname;
 const atomFiles = readdirSync(atomsDir).filter(
   (name) => name.endsWith(".tsx") && !name.endsWith(".test.tsx"),
+);
+
+// D42: the rules hold in the four folders of components. `molecules/` and `organisms/` arrive with
+// M2's component tasks; a folder that does not exist yet has nothing to scan.
+const folders = ["atoms", "primitives", "molecules", "organisms"] as const;
+const srcDir = path.join(atomsDir, "..");
+
+function componentFiles(dir: string): string[] {
+  if (!existsSync(dir)) return [];
+  return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const file = path.join(dir, entry.name);
+    if (entry.isDirectory()) return componentFiles(file);
+    return entry.name.endsWith(".tsx") && !entry.name.endsWith(".test.tsx") ? [file] : [];
+  });
+}
+
+// Relative paths with `/` on every OS: on Windows `path.relative` gives `primitives\…`.
+const scanned = folders.flatMap((folder) =>
+  componentFiles(path.join(srcDir, folder)).map((file) =>
+    path.relative(srcDir, file).split(path.sep).join("/"),
+  ),
 );
 
 describe("every file in src/atoms/", () => {
@@ -63,15 +84,22 @@ describe("every file in src/atoms/", () => {
     expect(source).not.toMatch(/^\s*["']use client["']/m);
   });
 
-  it.each(atomFiles)(
+});
+
+describe("every component file in src/{atoms,primitives,molecules,organisms}/", () => {
+  it("includes the primitives (T31, D47)", () => {
+    expect(scanned.filter((file) => file.startsWith("primitives/")).length).toBeGreaterThan(0);
+  });
+
+  it.each(scanned)(
     "%s: logical directions, token colours, light only, ring at full strength",
     (name) => {
-      expect(findViolations(readFileSync(path.join(atomsDir, name), "utf8"))).toEqual([]);
+      expect(findViolations(readFileSync(path.join(srcDir, name), "utf8"))).toEqual([]);
     },
   );
 
-  it.each(atomFiles)("%s: names its source in a header", (name) => {
-    const source = readFileSync(path.join(atomsDir, name), "utf8");
+  it.each(scanned)("%s: names its source in a header", (name) => {
+    const source = readFileSync(path.join(srcDir, name), "utf8");
     expect(source.split("\n")[0]).toMatch(/^\/\/ (Vendored from|Ours|From)/);
   });
 });

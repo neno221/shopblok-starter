@@ -3,12 +3,14 @@
 // least 44 px tall and no `sm` size (D32); the focus ring at full strength (D35, also when invalid); `side` takes the
 // logical `inline-start` and `inline-end` and not `left` or `right`; logical properties; the
 // trigger is never wider than its container and cuts the chosen value to one line with an ellipsis,
-// which it says (`data-truncate`, D34), while the options wrap; light only (no `dark:`).
+// which it says (`data-truncate`, D34), while the options wrap; light only (no `dark:`); the popup
+// portals into `usePortalContainer()` (T31, D45).
 "use client";
 
 import * as React from "react";
 import { Select as SelectPrimitive } from "@base-ui/react/select";
 import { cn } from "@shopblok/ui/lib/utils";
+import { usePortalContainer } from "@shopblok/ui/primitives/portal-container";
 import { ChevronDownIcon, CheckIcon, ChevronUpIcon } from "lucide-react";
 
 type LogicalSide = Exclude<SelectPrimitive.Positioner.Props["side"], "left" | "right">;
@@ -74,7 +76,7 @@ function SelectContent({
     "align" | "alignOffset" | "sideOffset" | "alignItemWithTrigger"
   > & { side?: LogicalSide }) {
   return (
-    <SelectPrimitive.Portal>
+    <SelectPrimitive.Portal container={usePortalContainer()}>
       <SelectPrimitive.Positioner
         side={side}
         sideOffset={sideOffset}

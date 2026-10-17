@@ -49,4 +49,15 @@ export const designSystem = {
     market: "Market",
     currency: "Currency",
   },
+  // D45: an overlay drawn open in a box of its own (`components/overlay-box.tsx`).
+  overlayBox: "{name}, drawn open",
+  // `/design-system/[locale]/checks/overlay-box`: the page the `design-system` job measures the box on.
+  overlayCheck: {
+    title: "Overlay box check",
+    intro:
+      "A sheet and a popover drawn open, each in its own box: the design-system checks measure that both stay inside it.",
+    sheet: "Sheet",
+    popover: "Popover",
+    close: "Close",
+  },
 };

@@ -1,14 +1,18 @@
 # Third-party notices
 
-`@shopblok/ui` contains or builds on the works below. The atoms in `src/atoms/` that came from a
-registry keep a header naming their source, style and date, and have been edited for this repository
-(SETUP.md, "shadcn and ReUI (T21)" and "Atoms (T23)"). The other atoms are ours, on the tokens.
+`@shopblok/ui` contains or builds on the works below. The atoms in `src/atoms/` and the primitives in
+`src/primitives/` that came from a registry keep a header naming their source, style and date, and
+have been edited for this repository (SETUP.md, "shadcn and ReUI (T21)", "Atoms (T23)" and
+"Primitives (T31)"). The other files are ours, on the tokens.
 
 ## shadcn/ui — MIT
 
 The atoms vendored with `shadcn add` (style `base-vega`, CLI 4.21.4, 2026-10-16): avatar, badge,
 button, checkbox, input, kbd, label, native-select, progress, radio-group, select, separator,
-skeleton, spinner, switch, textarea, tooltip. `cn` (the class merger they import, through
+skeleton, spinner, switch, textarea, tooltip. The primitives vendored the same way (style
+`base-vega`, CLI 4.21.4, 2026-10-17, T31): accordion, breadcrumb, carousel, collapsible, dialog,
+drawer, dropdown-menu, field, input-group, navigation-menu, pagination, popover, scroll-area, sheet,
+slider, table, tabs, toast, toggle and toggle-group. `cn` (the class merger they import, through
 `src/lib/utils.ts`) is shadcn's npm package of the same name, MIT, copyright (c) 2026 shadcn.
 
 ```
@@ -45,8 +49,17 @@ Two atoms are vendored from ReUI's public registry (`https://reui.io/r/{style}/{
 `base-vega`, shadcn CLI 4.21.4, 2026-10-16), whose items ReUI's licence (updated 2026-09-28) puts under
 MIT with this notice kept: `rating` (`src/atoms/rating.tsx`) and `number-field`
 (`src/atoms/quantity-stepper.tsx`, the QuantityStepper). Both have been edited for this repository
-(SETUP.md, "Atoms (T23)"). ReUI's Pro blocks, templates and icons are not used. The licence text is
+(SETUP.md, "Atoms (T23)"). Two primitives come from the same registry (2026-10-17, T31): `stepper`
+(`src/primitives/stepper.tsx`) and `timeline` (`src/primitives/timeline.tsx`), edited as SETUP.md,
+"Primitives (T31)", says. ReUI's Pro blocks, templates and icons are not used. The licence text is
 the MIT text above (shadcn/ui), which ReUI's items carry.
+
+## Embla Carousel — MIT
+
+`embla-carousel-react` 8.6.0 and the `embla-carousel` 8.6.0 it brings (npm), the engine of the
+carousel primitive (`src/primitives/carousel.tsx`), by David Jerleke (the packages' `author`). Both
+packages declare MIT and ship no licence file; the text is the MIT text above (shadcn/ui), with
+David Jerleke as the copyright holder.
 
 ## Simple Icons — CC0 1.0
 

@@ -32,7 +32,7 @@ describe("RadioGroup", () => {
     expect(screen.getByRole("radiogroup", { name: "Delivery" })).toBeTruthy();
     const radio = screen.getByRole("radio", { name: "Standard" });
     expect(radio.className).toContain("size-4");
-    expect(radio.className).toContain("after:-inset-3.5");
+    expect(radio.className).toContain("after:-inset-[15px]");
     expect(checked("Standard")).toBe("true");
   });
 

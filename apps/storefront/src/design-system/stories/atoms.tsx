@@ -21,12 +21,7 @@ import { Skeleton } from "@shopblok/ui/atoms/skeleton";
 import { Spinner } from "@shopblok/ui/atoms/spinner";
 import { Switch } from "@shopblok/ui/atoms/switch";
 import { Textarea } from "@shopblok/ui/atoms/textarea";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@shopblok/ui/atoms/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@shopblok/ui/atoms/tooltip";
 import { HeartIcon } from "lucide-react";
 import type { DesignSystemStrings } from "@shopblok/fixtures";
 import type { EntryId } from "@shopblok/registry";
@@ -783,17 +778,16 @@ export const atomStories = {
       "Touch screens never show it: nothing a reader needs may live only in a tooltip.",
       "Sides are logical (inline-start, inline-end), so the arrow follows the page's direction.",
     ],
+    // The root layout's Providers (T31) holds the TooltipProvider.
     live: (ctx) => (
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger
-            render={<Button size="icon" variant="outline" aria-label={ctx.fixture.ordinary.hint} />}
-          >
-            <HeartIcon aria-hidden="true" />
-          </TooltipTrigger>
-          <TooltipContent>{ctx.fixture.ordinary.hint}</TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger
+          render={<Button size="icon" variant="outline" aria-label={ctx.fixture.ordinary.hint} />}
+        >
+          <HeartIcon aria-hidden="true" />
+        </TooltipTrigger>
+        <TooltipContent>{ctx.fixture.ordinary.hint}</TooltipContent>
+      </Tooltip>
     ),
     states: [
       {
@@ -801,18 +795,16 @@ export const atomStories = {
         label: "Open",
         description: "Shown open, as hover or focus opens it.",
         render: (ctx) => (
-          <TooltipProvider>
-            <Tooltip defaultOpen>
-              <TooltipTrigger
-                render={
-                  <Button size="icon" variant="outline" aria-label={ctx.fixture.ordinary.hint} />
-                }
-              >
-                <HeartIcon aria-hidden="true" />
-              </TooltipTrigger>
-              <TooltipContent side="bottom">{ctx.fixture.long.hint}</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          <Tooltip defaultOpen>
+            <TooltipTrigger
+              render={
+                <Button size="icon" variant="outline" aria-label={ctx.fixture.ordinary.hint} />
+              }
+            >
+              <HeartIcon aria-hidden="true" />
+            </TooltipTrigger>
+            <TooltipContent side="bottom">{ctx.fixture.long.hint}</TooltipContent>
+          </Tooltip>
         ),
       },
     ],

@@ -12,6 +12,7 @@ vi.mock("../lib/fonts", () => ({ inter: { variable: "inter-variable" } }));
 
 import * as entryLayout from "../app/design-system/[locale]/(entry)/[...entry]/layout";
 import * as entryPage from "../app/design-system/[locale]/(entry)/[...entry]/page";
+import * as overlayCheckPage from "../app/design-system/[locale]/(overview)/checks/overlay-box/page";
 import * as overviewLayout from "../app/design-system/[locale]/(overview)/layout";
 import * as overviewPage from "../app/design-system/[locale]/(overview)/page";
 import * as frameLayout from "../app/design-system/[locale]/frame/[...entry]/layout";
@@ -190,7 +191,7 @@ describe("the pages", () => {
   });
 
   it("are all static: a build fails if one reads the request (D44)", () => {
-    for (const page of [overviewPage, entryPage, framePage, previewPage]) {
+    for (const page of [overviewPage, entryPage, framePage, previewPage, overlayCheckPage]) {
       expect(page.ensureStatic).toBe("navigation");
     }
   });
@@ -204,9 +205,20 @@ describe("the pages", () => {
     }
     off();
     root.entry.mockResolvedValue(["foundations", "colors"]);
-    for (const page of [entryPage, framePage, previewPage, overviewPage]) {
+    for (const page of [entryPage, framePage, previewPage, overviewPage, overlayCheckPage]) {
       await expect(page.default()).rejects.toMatchObject(NOT_FOUND);
     }
+  });
+
+  it("render the overlay box check with a box for the sheet and one for the popover (D45)", async () => {
+    on();
+    root.locale.mockResolvedValue("en");
+    const markup = renderToStaticMarkup(await overlayCheckPage.default());
+    expect(markup).toContain("Overlay box check");
+    // The popups are portalled once the page runs in a browser; the server renders the boxes.
+    expect(markup.match(/data-overlay-box=""/g)).toHaveLength(2);
+    expect(markup).toContain('aria-label="Sheet, drawn open"');
+    expect(markup).toContain('aria-label="Popover, drawn open"');
   });
 
   it("give each entry a title", async () => {
