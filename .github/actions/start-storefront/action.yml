@@ -1,0 +1,64 @@
+# Starts the storefront in the background and waits until it answers (T27; PR 44 review, item 9).
+# Used by e2e-smoke and design-system for `next start` and for `next dev`. The server keeps running
+# after this step (`nohup … &`); its PID is in `$RUNNER_TEMP/servers/<name>.pid` and its output in
+# `<name>.log` there, and a later step stops it with `.github/scripts/stop-tree.sh --port 8000`.
+# Environment the server needs (E2E_TEST_ROUTES) goes in the calling step's `env`.
+name: Start the storefront
+description: next start or next dev on port 8000, in the background, and a wait until it answers 200.
+inputs:
+  command:
+    description: "`start` (the production build) or `dev`."
+    required: true
+  url:
+    description: A URL that must answer 200 before the step ends.
+    required: true
+  name:
+    description: The base name of the log and PID files in $RUNNER_TEMP/servers.
+    default: storefront
+  timeout:
+    description: Seconds to wait for the answer.
+    default: "120"
+outputs:
+  pid:
+    description: The PID of the server's process tree.
+    value: ${{ steps.start.outputs.pid }}
+runs:
+  using: composite
+  steps:
+    # For `dev`, the answer must also come from a dev server: /_next/static/development/ exists only
+    # in `next dev` (404 in `next start`), so a `next start` left on the port cannot pass for it
+    # (T25). A server that has exited will not answer: the loop stops at once, not after the timeout.
+    - id: start
+      shell: bash
+      working-directory: ${{ github.workspace }}
+      env:
+        COMMAND: ${{ inputs.command }}
+        URL: ${{ inputs.url }}
+        NAME: ${{ inputs.name }}
+        TIMEOUT: ${{ inputs.timeout }}
+      run: |
+        case "$COMMAND" in start | dev) ;; *) echo "::error::start-storefront: command must be start or dev, not '$COMMAND'."; exit 2 ;; esac
+        mkdir -p "$RUNNER_TEMP/servers"
+        log="$RUNNER_TEMP/servers/$NAME.log"
+        nohup pnpm --filter @shopblok/storefront "$COMMAND" > "$log" 2>&1 &
+        pid=$!
+        echo "$pid" > "$RUNNER_TEMP/servers/$NAME.pid"
+        echo "pid=$pid" >> "$GITHUB_OUTPUT"
+        marker=200
+        code=none
+        deadline=$((SECONDS + TIMEOUT))
+        while [ "$SECONDS" -lt "$deadline" ]; do
+          kill -0 "$pid" 2>/dev/null || { echo "::error::next $COMMAND exited before it answered; $NAME.log in the server logs artifact has its output."; exit 1; }
+          code=$(curl -s --max-time 30 -o /dev/null -w '%{http_code}' "$URL" || true)
+          if [ "$COMMAND" = dev ]; then
+            marker=$(curl -s --max-time 30 -o /dev/null -w '%{http_code}' http://localhost:8000/_next/static/development/_buildManifest.js || true)
+          fi
+          if [ "$code" = 200 ] && [ "$marker" = 200 ] && kill -0 "$pid" 2>/dev/null; then
+            echo "next $COMMAND answers $URL."
+            exit 0
+          fi
+          sleep 1
+        done
+        echo "::error::next $COMMAND: $URL did not answer 200 within $TIMEOUT s (last: $code, dev marker $marker)."
+        bash .github/scripts/stop-tree.sh --port 8000 "$pid" || true
+        exit 1
