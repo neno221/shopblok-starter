@@ -7,7 +7,8 @@
 //   action) and the status per product (`quickAdd.status`, by the product's id), because one card
 //   adding is not every card adding. Without an action the form goes to the product's own page, which
 //   is what "Choose options" means anyway, so a listing that forgot to pass one still works (a GET to
-//   the page, with no JavaScript) rather than posting nowhere.
+//   the page, with no JavaScript) rather than posting nowhere. That card is always drawn as "Choose
+//   options" (no `variantId`), because "Add to cart" would promise an addition the page does not make.
 // - The other variants take the card's props alone; `swapped` (image swap, for the DS) is not
 //   passed, because a listing never holds a hover.
 import type { ProductCardVariant } from "@shopblok/registry/contracts";
@@ -61,9 +62,12 @@ const PLAIN = {
 
 function ListingCard({ variant, quickAdd, ...props }: ListingCardProps) {
   if (variant === "quick-add") {
+    // Without an action the form only opens the product's page: it chooses, it never adds.
+    const { variantId: _adds, ...choosing } = props.product;
     return (
       <ProductCardQuickAdd
         {...props}
+        product={quickAdd === undefined ? choosing : props.product}
         action={quickAdd?.action ?? props.product.href}
         status={quickAdd?.status?.[props.product.id]}
       />

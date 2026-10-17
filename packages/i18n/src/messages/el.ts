@@ -476,7 +476,7 @@ export const el: Messages = {
       chosen: "{count, plural, one {# επιλεγμένο φίλτρο} other {# επιλεγμένα φίλτρα}}",
       title: "Φίλτρα",
       close: "Κλείσιμο φίλτρων",
-      show: "{count, plural, =0 {Κανένα αποτέλεσμα} one {Εμφάνιση # αποτελέσματος} other {Εμφάνιση # αποτελεσμάτων}}",
+      show: "{count, plural, =0 {Εφαρμογή φίλτρων} one {Εμφάνιση # αποτελέσματος} other {Εμφάνιση # αποτελεσμάτων}}",
       clear: "Εκκαθάριση όλων",
     },
     productToolbar: {
@@ -498,7 +498,7 @@ export const el: Messages = {
     },
     compareTray: {
       region: "Σύγκριση προϊόντων",
-      count: "{count, number} από {max, number} επιλεγμένα",
+      count: "{count, plural, other {# από {max, number} επιλεγμένα}}",
       remove: "Αφαίρεση {title}",
       clear: "Αφαίρεση όλων",
       compare: "Σύγκριση",

@@ -207,6 +207,9 @@ describe("ProductGrid", () => {
       expect(forms).toHaveLength(3);
       for (const [index, form] of forms.entries()) {
         expect(form.getAttribute("action")).toBe(products()[index]?.href);
+        // The page only lets the visitor choose, so no card says "Add to cart".
+        expect(form.getAttribute("data-intent")).toBe("choose");
+        expect(form.querySelector('input[name="variantId"]')).toBeNull();
       }
     });
 

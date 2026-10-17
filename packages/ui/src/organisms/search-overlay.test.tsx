@@ -640,14 +640,36 @@ describe("SearchOverlay: while the next answer is on its way", () => {
     watch.observe(region, { childList: true, characterData: true, subtree: true });
     await user.type(field() as HTMLInputElement, "ies");
     await act(async () => {});
-    expect(seen).toEqual([]);
-    expect(status()).toBe("14 results");
+    // The old count is not said for the new text; emptying the region says nothing.
+    expect(seen.filter((text) => text !== "")).toEqual([]);
+    expect(status()).toBe("");
     // The page asks, and the region says so once.
     view.rerender(
       element("en", "loading", { search: { ...samples("en").loading.search, query: "hoodies" } }),
     );
     watch.disconnect();
     expect(status()).toBe("Searching…");
+  });
+
+  it("does not say the last answer is the answer to the text in the field now", async () => {
+    const empty = samples("en").empty;
+    const { user, view } = await openOverlay("en", "empty");
+    const asked = empty.result?.query ?? "";
+    expect(plain(slot("search-overlay-empty")?.textContent)).toContain(asked);
+    await user.type(field() as HTMLInputElement, "x");
+    view.rerender(element("en", "empty", { loading: true }));
+    expect(slot("search-overlay-empty")).toBeNull();
+    expect(plain(document.body.textContent)).not.toContain(`${asked}x`);
+    expect(status()).toBe("Searching…");
+    // Matches for an earlier text stay on screen while the next answer comes, without their count.
+    view.rerender(element("en", "results"));
+    await user.type(field() as HTMLInputElement, "x");
+    view.rerender(element("en", "results", { loading: true }));
+    expect(options().length).toBeGreaterThan(0);
+    expect(plain(submit()?.textContent)).toBe("Search");
+    view.rerender(element("en", "results"));
+    expect(plain(submit()?.textContent)).toBe("Search");
+    expect(status()).toBe("");
   });
 
   it("says nothing for a field with no text, even when the page is loading", async () => {
@@ -691,9 +713,11 @@ describe("SearchOverlay: a query with no results", () => {
   });
 
   it("draws the query the visitor typed, trimmed, in the sentence", async () => {
-    const { user } = await openOverlay("en", "empty");
+    const { user, view } = await openOverlay("en", "empty");
     await user.clear(field() as HTMLInputElement);
     await user.type(field() as HTMLInputElement, "  zzz  ");
+    const { result } = samples("en").empty;
+    view.rerender(element("en", "empty", { result: { ...(result as SearchResult), query: "zzz" } }));
     expect(plain(slot("search-overlay-empty")?.textContent)).toContain("“zzz”");
   });
 });
@@ -713,6 +737,7 @@ describe("SearchOverlay: long labels", () => {
     };
     const longResult: SearchResult = {
       ...result,
+      query: long.productName,
       products: [{ ...card, title: long.productName }],
       categories: [{ label: long.linkLabel, href: "/c" }],
       suggestions: [long.chipLabel],

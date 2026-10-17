@@ -4144,7 +4144,7 @@ Finding 5: `build/site.ts`'s `policyHref` (`/pages/cookies`) joins the PR 52 fol
 | Branch | prepared locally on T36 while PR 49's CI could not start, then `claude/project-thread-pmqmfo`, restarted from `main` after PR 58 merged |
 | New | `packages/ui/src/organisms/{search-overlay, search-overlay-results, filter-fields, filter-sidebar, filter-drawer, filter-drawer-client, product-toolbar, product-grid, listing-card, product-carousel, product-carousel-client, compare-tray}.tsx`, `product-grid-layout.ts` and their tests (the client and shared parts through their organism's), `packages/registry/src/contracts/{listing-organisms, listing-organisms.test}.ts`, `packages/fixtures/src/commerce/build/listing-organisms.ts`, `apps/storefront/src/design-system/components/{search-fixture, compare-tray-demo}.tsx` and the fixture's test, `apps/storefront/src/design-system/stories/{organisms-search-filters, organisms-product-lists}.tsx` and their tests |
 | Changed | `packages/ui/src/organisms/{loading-skeletons.tsx, cookie-consent-reserve.ts}`, `packages/ui/src/molecules/active-filter-chips.test.tsx`, `packages/i18n/src/messages/{en,el,de,fr}.ts`, `packages/registry/src/{contracts/index.ts, entries/organisms.ts, index.test.ts}`, `packages/fixtures/src/commerce/{types.ts, build/index.ts, commerce.test.ts, copy/*}`, `apps/storefront/{e2e/design-system.spec.ts, e2e/dev-console-ds.spec.ts, src/design-system/{interactions.ts, stories/index.ts}}` |
-| Tests | ui **4414** (410 new), storefront **2128** (361 new: the 7 entries in four locales in `stories.test.tsx`, the two stories' tests and the search fixture's), registry **184** (12 new), fixtures **378** (24 new), i18n 85, scripts 429, backend 85; `typecheck`, `lint`, `check:workspace` and `pnpm install --frozen-lockfile` pass |
+| Tests | ui **4415** (411 new), storefront **2128** (362 new: the 7 entries in four locales in `stories.test.tsx`, the two stories' tests and the search fixture's), registry **184** (12 new), fixtures **378** (24 new), i18n 85, scripts 429, backend 85; `typecheck`, `lint`, `check:workspace` and `pnpm install --frozen-lockfile` pass |
 
 ### How it works
 
@@ -4169,7 +4169,7 @@ Finding 5: `build/site.ts`'s `policyHref` (`/pages/cookies`) joins the PR 52 fol
 
 1. M3's listing page renders the toolbar with `<FilterDrawer/>` in its slot, the sidebar beside the products from `lg`, the chips, the grid and Pagination, all from the request's search answer; `loading.tsx` renders the skeleton, whose grid is the grid's.
 2. M3 connects the search: the header's search link becomes the overlay's button where a shop wants it, `onQueryChange` asks `/store/search` (with its own pause between keys) and answers with `result` and `loading`, and the recent queries come from the browser (D44).
-3. M5's comparison section feeds CompareTray from the visitor's choice (an island, D44), and decides how the tray and the cookie banner share the bottom of the window.
+3. M5's comparison section feeds CompareTray from the visitor's choice (an island, D44), and must stack the tray above the cookie banner (for example `bottom` from the banner's measured height) or hold the tray back until consent is answered, before the island can show both (WCAG 2.4.11; PR 59 review).
 4. Carousels on the home page and the product page (related, recently viewed) take a `title`, the cards and a `viewAll` link.
 
 ### Measured
@@ -4225,3 +4225,18 @@ Each applied, checked and reverted from a copy.
 - **A flex row breaks lines by `flex-basis`, not by the shrunk size,** so the toolbar's count has a 4rem basis; with a larger one the toggle fell to a third row at 375 px.
 - **CookieConsent's banner and CompareTray are both fixed to the bottom on `--z-overlay`;** together they overlap (the reservation takes the taller). Which goes above is M5's to decide with the comparison section.
 - **The Greek, German and French copy** of the new keys was drafted in this session, for W4's read.
+
+### Review fixes (PR 59)
+
+| Finding | Fix | Test |
+|---|---|---|
+| 1. The search overlay took the last answer as the answer to the text now in the field: "No results for “hoddiex”" and a stale "See all 12 results" while the next answer was on its way | `answers(query, result)` compares the answer's `query` with the field's. An answer for an earlier text with matches keeps them on screen (the loading design), and its foot reads "Search" with no count; one with no matches shows the waiting state, not "No results". The status and the count are said only for a current answer that is not loading | `search-overlay.test.tsx` "does not say the last answer is the answer to the text in the field now"; "does not announce keys" now expects the region emptied, not the old count |
+| 2. CompareTray and the cookie banner share the bottom edge and the layer | M5's item 3 above says to stack them or hold the tray back; `cookie-consent-reserve.ts`'s comment no longer reads as if the overlap were handled | none (M5) |
+| 3. The drawer's submit read "No results" at 0 | the `=0` branch is the sidebar's verb: "Apply filters", "Filter anwenden", "Εφαρμογή φίλτρων", "Appliquer les filtres" | `filter-drawer.test.tsx` |
+| 4. A quick-add listing without `quickAdd` said "Add to cart" on a single-variant card but only opened the product page | without an action, ListingCard draws every card as "Choose options" (no `variantId`); the header says so | `product-grid.test.tsx` checks `data-intent="choose"` and no `variantId` |
+| 5. The tray's status region arrives filled, so the first product is not announced | the header says a change while the tray is shown is said, and the first is M5's compare button's to say | none |
+| 6. The DS clip check let off every carousel viewport | scoped to `[data-slot="product-carousel"] [data-slot="carousel-content"]`; a new user of the primitive must show its own way in | DS run |
+| 7. The DS's grid and list links dropped the sort | `viewOf` adds the sort; the contract's `gridHref` and `listHref` say "with its filters and sort" | DS run |
+| 8. The storefront count read 361 new | 362 | |
+
+W4 copy changes from the review: the drawer's "Clear all" now matches the chips ("Filter löschen", "Effacer les filtres"); French `compareTray.count` agrees in the singular ("1 sur 4 choisi"), so `count` is a plural in all four catalogs; "Choisissez encore # produit à comparer"; "Wählen Sie noch # Produkt zum Vergleichen aus"; German `productCarousel.showing` is "Angezeigt: 5 bis 8 von 8".

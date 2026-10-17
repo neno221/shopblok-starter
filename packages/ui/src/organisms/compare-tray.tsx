@@ -18,7 +18,8 @@
 //   the page (`reserveSpaceFor`, CookieConsent's, which several fixed bars share), so the page's
 //   last links scroll above it and a control the visitor tabs to is not left behind it.
 // - The count and the "choose N more" line are one polite live region (`role="status"`), so a
-//   removal or an addition is said (WCAG 4.1.3). The compare link is outside it, and is drawn only
+//   removal or an addition while the tray is shown is said (WCAG 4.1.3). The first product is not:
+//   the region arrives with its text, so M5's compare button says "Added to compare" itself. The compare link is outside it, and is drawn only
 //   when two products are chosen: until then the line says how many more to choose, as text, in
 //   its place, rather than a link that goes nowhere or a disabled one.
 // - Focus after a removal. The removed item's button leaves the page, and an element removed while

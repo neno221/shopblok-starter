@@ -2,7 +2,9 @@
 // banner is fixed to the bottom of the window and the page behind it stays usable, so a control the
 // visitor tabs to near the bottom could end up under it. It is shared by every bar of this kind:
 // CompareTray (T37) reserves its height with the same function, and a page that shows both gets the
-// taller of the two, since they sit on the same edge. The banner's height is therefore reserved
+// taller of the two. That keeps the page clear of both, not the two bars clear of each other: they
+// share the edge and the layer, so M5 must stack the tray above the banner (or hold it back until
+// consent is answered) before the island shows both (SETUP.md "Listing organisms (T37)"). The banner's height is therefore reserved
 // at the end of the page's scrollport, on the root element, in two ways that work together:
 // - `scroll-padding-block-end` makes the browser's own scrolling (a Tab to a link, `focus()`, a
 //   jump to an anchor) leave the scrollport's last `height` px alone, so a control it scrolls into

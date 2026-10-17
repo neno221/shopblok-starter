@@ -86,12 +86,22 @@ type SearchOverlayResultsProps = {
   focusField: () => void;
 };
 
-/** The mode of the list: recent queries for an empty field, else what the last answer holds. */
+/** Whether `result` answers the text in the field now, not an earlier text. */
+function answers(query: string, result: SearchResult | undefined): result is SearchResult {
+  return result !== undefined && result.query.trim() === query.trim();
+}
+
+/**
+ * The mode of the list: recent queries for an empty field, else what the last answer holds.
+ * An answer to an earlier text keeps its matches on screen until the next one arrives, but
+ * never says "No results" for the new text: nobody has answered that yet.
+ */
 function modeOf(query: string, result: SearchResult | undefined): ResultsMode {
   if (query.trim() === "") return "recent";
   if (result === undefined) return "waiting";
   const found = result.products.length + result.categories.length + result.suggestions.length;
-  return found === 0 ? "empty" : "results";
+  if (found > 0) return "results";
+  return answers(query, result) ? "empty" : "waiting";
 }
 
 /** A character no message contains, standing in for the price while "From {price}" is formatted. */
@@ -387,5 +397,5 @@ function SearchOverlayResults({
   );
 }
 
-export { modeOf, SearchOverlayResults };
+export { answers, modeOf, SearchOverlayResults };
 export type { ResultsMode, SearchOverlayResultsProps };

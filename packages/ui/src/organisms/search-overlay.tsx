@@ -57,7 +57,7 @@ import {
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@shopblok/ui/primitives/input-group";
 import { SearchIcon, XIcon } from "lucide-react";
 import { useRef, useState } from "react";
-import { modeOf, SearchOverlayResults } from "./search-overlay-results";
+import { answers, modeOf, SearchOverlayResults } from "./search-overlay-results";
 
 type SearchOverlayProps = SearchOverlayContent & {
   /** The wording, from the catalog's `organisms.searchOverlay`. */
@@ -108,18 +108,25 @@ function SearchOverlay({
   const [query, setQuery] = useState(search.query);
   const field = useRef<HTMLInputElement>(null);
   const mode = modeOf(query, result);
-  const answered = (mode === "results" || mode === "empty") && result !== undefined;
   // A question on its way matters to a reader only when there is a question: an empty field asks none.
   const waiting = loading && mode !== "recent";
+  // The count is said, and sent with "See all", only for an answer to the text in the field now.
+  const answered =
+    (mode === "results" || mode === "empty") && !waiting && answers(query, result) ? result : undefined;
   const status = waiting
     ? copy.loading
     : answered
-      ? formatMessage(copy.status, { count: result.total }, locale)
+      ? formatMessage(copy.status, { count: answered.total }, locale)
       : "";
+  // Matches for an earlier text keep the foot (Enter still submits through it), named without a count.
   const seeAll =
-    answered && result.total > 0
-      ? formatMessage(copy.seeAll, { count: result.total }, locale)
-      : undefined;
+    answered !== undefined
+      ? answered.total > 0
+        ? formatMessage(copy.seeAll, { count: answered.total }, locale)
+        : undefined
+      : mode === "results"
+        ? copy.open
+        : undefined;
 
   /** Puts the text of a recent query or a suggestion in the field, and asks for its results. */
   function pickQuery(text: string) {

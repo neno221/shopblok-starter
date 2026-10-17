@@ -461,8 +461,8 @@ export const de: Messages = {
       chosen: "{count, plural, one {# Filter ausgewählt} other {# Filter ausgewählt}}",
       title: "Filter",
       close: "Filter schließen",
-      show: "{count, plural, =0 {Keine Ergebnisse} one {# Ergebnis anzeigen} other {# Ergebnisse anzeigen}}",
-      clear: "Alle löschen",
+      show: "{count, plural, =0 {Filter anwenden} one {# Ergebnis anzeigen} other {# Ergebnisse anzeigen}}",
+      clear: "Filter löschen",
     },
     productToolbar: {
       count: "{count, plural, =0 {Keine Produkte} one {# Produkt} other {# Produkte}}",
@@ -479,16 +479,16 @@ export const de: Messages = {
       previous: "Vorherige Produkte",
       next: "Nächste Produkte",
       position: "{index, number} von {count, number}",
-      showing: "{from, number} bis {to, number} von {count, number} werden angezeigt",
+      showing: "Angezeigt: {from, number} bis {to, number} von {count, number}",
     },
     compareTray: {
       region: "Produkte vergleichen",
-      count: "{count, number} von {max, number} ausgewählt",
+      count: "{count, plural, other {# von {max, number} ausgewählt}}",
       remove: "{title} entfernen",
       clear: "Alle entfernen",
       compare: "Vergleichen",
       needMore:
-        "{count, plural, one {Wählen Sie noch # Produkt zum Vergleichen} other {Wählen Sie noch # Produkte zum Vergleichen}}",
+        "{count, plural, one {Wählen Sie noch # Produkt zum Vergleichen aus} other {Wählen Sie noch # Produkte zum Vergleichen aus}}",
     },
   },
   notFound: {

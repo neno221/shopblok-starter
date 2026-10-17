@@ -530,7 +530,7 @@ export const en = {
       chosen: "{count, plural, one {# filter chosen} other {# filters chosen}}",
       title: "Filters",
       close: "Close filters",
-      show: "{count, plural, =0 {No results} one {Show # result} other {Show # results}}",
+      show: "{count, plural, =0 {Apply filters} one {Show # result} other {Show # results}}",
       clear: "Clear all",
     },
     productToolbar: {
@@ -556,7 +556,7 @@ export const en = {
     },
     compareTray: {
       region: "Compare products",
-      count: "{count, number} of {max, number} chosen",
+      count: "{count, plural, other {# of {max, number} chosen}}",
       remove: "Remove {title}",
       clear: "Remove all",
       compare: "Compare",

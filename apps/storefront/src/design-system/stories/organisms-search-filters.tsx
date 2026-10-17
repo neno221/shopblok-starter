@@ -602,9 +602,9 @@ function sortState(ctx: DsContext, selected: string, params: QueryParam[]): Sort
   };
 }
 
-/** The toggle's two addresses: the listing with its filters, and the view each link chooses. */
-function viewOf(ctx: DsContext, current: "grid" | "list") {
-  const filters = chosenParams(ctx);
+/** The toggle's two addresses: the listing with its filters and sort, and the view each link chooses. */
+function viewOf(ctx: DsContext, current: "grid" | "list", sort: string) {
+  const filters = [...chosenParams(ctx), { name: "sort", value: sort }];
   return {
     current,
     gridHref: withParams(listingPath(ctx), [...filters, { name: "view", value: "grid" }]),
@@ -651,7 +651,7 @@ function toolbar(ctx: DsContext, spec: ToolbarSpec) {
     <ProductToolbar
       count={count}
       sort={sortOptions === undefined ? sort : { ...sort, options: sortOptions }}
-      view={view === null ? undefined : viewOf(ctx, view)}
+      view={view === null ? undefined : viewOf(ctx, view, sort.selected)}
       copy={toolbarCopy(ctx, state, words)}
       sortCopy={{ ...messages(ctx).molecules.sortSelect, ...sortWords }}
       locale={lang(ctx)}

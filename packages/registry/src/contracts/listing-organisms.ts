@@ -97,8 +97,8 @@ export const ProductToolbar = z.object({
   view: z
     .object({
       current: z.enum(["grid", "list"]),
-      gridHref: Href.describe("This listing drawn as a grid"),
-      listHref: Href.describe("This listing drawn as a list"),
+      gridHref: Href.describe("This listing, with its filters and sort, drawn as a grid"),
+      listHref: Href.describe("This listing, with its filters and sort, drawn as a list"),
     })
     .optional()
     .describe("The grid or list toggle; left out, the toolbar draws none"),

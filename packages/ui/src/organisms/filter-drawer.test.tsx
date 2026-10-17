@@ -244,7 +244,7 @@ describe("FilterDrawer: the foot", () => {
   it.each([
     [1, "Show 1 result"],
     [24, "Show 24 results"],
-    [0, "No results"],
+    [0, "Apply filters"],
   ])("reads %i as %j, and stays pressable", async (resultCount, label) => {
     await openSheet("en", { resultCount });
     const submit = screen.getByRole("button", { name: label }) as HTMLButtonElement;
