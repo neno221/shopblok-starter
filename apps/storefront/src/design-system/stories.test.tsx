@@ -1,9 +1,45 @@
 import { catalogs, LOCALES } from "@shopblok/i18n";
+import { entries as registry } from "@shopblok/registry";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
+import { manifest as entries } from "./catalog";
 import { EntryBody } from "./components/entry-body";
 import { createContext } from "./context";
-import { entries } from "./entries";
+import { stories } from "./stories";
+
+describe("the stories and the registry (D40)", () => {
+  it("have the same ids: a story for every entry, and an entry for every story", () => {
+    const ids: readonly string[] = registry.map((entry) => entry.id);
+    expect(
+      Object.keys(stories).filter((id) => !ids.includes(id)),
+      "stories with no entry",
+    ).toEqual([]);
+    expect(
+      ids.filter((id) => !Object.hasOwn(stories, id)),
+      "entries with no story",
+    ).toEqual([]);
+  });
+
+  it("give the manifest the registry's entries, in its order", () => {
+    expect(entries.map((entry) => entry.id)).toEqual(registry.map((entry) => entry.id));
+    for (const [index, entry] of entries.entries()) {
+      expect(entry).toMatchObject(registry[index]!);
+    }
+  });
+
+  it("point every entry with a component at a module of @shopblok/ui that exports it", async () => {
+    for (const entry of registry) {
+      if (entry.component === undefined) {
+        expect(entry.kind, entry.id).toBe("foundation");
+        continue;
+      }
+      const exports: Record<string, unknown> = await import(entry.component.module);
+      expect(typeof exports[entry.component.name], `${entry.id}: ${entry.component.name}`).toBe(
+        "function",
+      );
+    }
+  });
+});
 
 describe("every entry of the manifest", () => {
   for (const entry of entries) {

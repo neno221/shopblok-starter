@@ -11,13 +11,10 @@ const copy = catalogs.en.designSystem;
  */
 export function EntryBody({ entry, ctx }: { entry: DsEntry; ctx: DsContext }) {
   const states = entry.states ?? [];
-  // An atom's render is in the locale; a Foundations page is English documentation that shows its
-  // samples in the locale (and marks them), so the language of each part is stated (WCAG 3.1.2).
-  const contentLang = entry.group === "foundations" ? "en" : ctx.fixture.market.htmlLang;
   return (
     <>
       <Section id="live-render" title={copy.sections.liveRender}>
-        <div lang={contentLang}>{entry.live(ctx)}</div>
+        <LiveRender entry={entry} ctx={ctx} />
       </Section>
       {states.length > 0 && (
         <Section id="states" title={copy.sections.states}>
@@ -42,4 +39,14 @@ export function EntryBody({ entry, ctx }: { entry: DsEntry; ctx: DsContext }) {
       )}
     </>
   );
+}
+
+/**
+ * The live render in its language: an atom's render is in the locale; a Foundations page is English
+ * documentation that shows its samples in the locale (and marks them), so the language of each part
+ * is stated (WCAG 3.1.2). The page, the frame and the preview show it.
+ */
+export function LiveRender({ entry, ctx }: { entry: DsEntry; ctx: DsContext }) {
+  const contentLang = entry.group === "foundations" ? "en" : ctx.fixture.market.htmlLang;
+  return <div lang={contentLang}>{entry.live(ctx)}</div>;
 }

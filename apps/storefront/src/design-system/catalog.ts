@@ -1,9 +1,18 @@
 import { LOCALES, type Locale } from "@shopblok/i18n";
-import { entries as manifest } from "./entries";
-import type { DsEntry, DsGroupId } from "./types";
+import { entries as registry, GROUPS, type Group } from "@shopblok/registry";
+import { stories } from "./stories";
+import type { DsEntry } from "./types";
 
-/** The groups in navigation order, with their English labels in `catalogs.en.designSystem.groups`. */
-export const GROUPS: readonly DsGroupId[] = ["foundations", "atoms"];
+export { GROUPS };
+
+/**
+ * The DS's entries (D40): the registry's, in its order, each with its story. Every id of the
+ * registry has a story (`stories/index.ts` is typed so), and `stories.test.tsx` checks it both ways.
+ */
+export const manifest: readonly DsEntry[] = registry.map((entry) => ({
+  ...entry,
+  ...stories[entry.id],
+}));
 
 /** An entry's id as the route's `[...entry]` segments. */
 export function entrySegments(entry: DsEntry): string[] {
@@ -19,10 +28,13 @@ export function findEntry(
   return entries.find((entry) => entry.id === id);
 }
 
-/** The groups that have entries, in order, each with its entries in manifest order. */
+/**
+ * The groups that have entries, in the registry's group order (SPEC §9.6), each with its entries in
+ * the registry's order. A group with no entry is not listed (T22 step 1).
+ */
 export function navigation(
   entries: readonly DsEntry[] = manifest,
-): { group: DsGroupId; entries: DsEntry[] }[] {
+): { group: Group; entries: DsEntry[] }[] {
   return GROUPS.map((group) => ({
     group,
     entries: entries.filter((entry) => entry.group === group),
@@ -30,9 +42,9 @@ export function navigation(
 }
 
 /**
- * The params of every page and every frame: each entry in each of the four locales. The routes'
+ * The params of every page, frame and preview: each entry in each of the four locales. The routes'
  * `generateStaticParams` return exactly this (Cache Components wants every param of a static route
- * listed, and at least one), and a unit test compares it with the manifest.
+ * listed, and at least one), and a unit test compares it with the registry.
  */
 export function entryParams(
   entries: readonly DsEntry[] = manifest,
@@ -55,6 +67,11 @@ export function entryPath(locale: Locale, entry: DsEntry): string {
 /** The path of an entry's frame in `locale`: the render with no chrome that the iframes load. */
 export function framePath(locale: Locale, entry: DsEntry): string {
   return `/design-system/${locale}/frame/${entry.id}`;
+}
+
+/** The path of an entry's preview in `locale`: the live render alone, for its thumbnail (D52). */
+export function previewPath(locale: Locale, entry: DsEntry): string {
+  return `/design-system/${locale}/preview/${entry.id}`;
 }
 
 /** The overview page's path. */

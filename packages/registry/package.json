@@ -2,18 +2,25 @@
   "name": "@shopblok/registry",
   "version": "0.0.0",
   "private": true,
-  "description": "The variant manifest: id, kind, label, thumbnail and prop contract. Exports TypeScript source: no build step (D3). A placeholder in M0.",
+  "description": "The DS registry (D40): every entry as data (id, group, kind, label, component, family and variant, thumbnail, prop contract), and the view models' zod schemas (D41). Exports TypeScript source: no build step (D3).",
   "type": "module",
   "exports": {
     ".": "./src/index.ts"
   },
   "scripts": {
     "typecheck": "tsc",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "zod": "4.6.5"
   },
   "devDependencies": {
     "@shopblok/config": "workspace:*",
+    "@types/node": "22.20.5",
     "eslint": "9.39.5",
-    "typescript": "5.9.3"
+    "typescript": "5.9.3",
+    "vite": "8.3.3",
+    "vitest": "5.0.3"
   }
 }

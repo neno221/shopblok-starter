@@ -1,30 +1,19 @@
-import { atoms } from "./atoms";
-import { commerceAtoms } from "./atoms-commerce";
-import { Colors } from "./foundations/colors";
-import { IconsAndCredits } from "./foundations/icons";
-import { LayoutTokens } from "./foundations/layout";
-import { Motion } from "./foundations/motion";
-import { Radius } from "./foundations/radius";
-import { Shadows } from "./foundations/shadows";
-import { Spacing } from "./foundations/spacing";
-import { Typography } from "./foundations/typography";
-import type { DsEntry } from "./types";
+import type { EntryId } from "@shopblok/registry";
+import { Colors } from "../foundations/colors";
+import { IconsAndCredits } from "../foundations/icons";
+import { LayoutTokens } from "../foundations/layout";
+import { Motion } from "../foundations/motion";
+import { Radius } from "../foundations/radius";
+import { Shadows } from "../foundations/shadows";
+import { Spacing } from "../foundations/spacing";
+import { Typography } from "../foundations/typography";
+import type { DsStory } from "../types";
 
-// The manifest of the design-system pages (D33, T22 step 4): every entry is a page at
-// `/design-system/[locale]/{id}` and a frame at `/design-system/[locale]/frame/{id}`, in all four
-// locales. M2's registry (`@shopblok/registry`) replaces this file.
-//
-// To add an atom (T21, T23): write its entry in `atoms.tsx` (or `atoms-commerce.tsx`), with `group: "atoms"`, an id
-// `atoms/{slug}`, its a11y notes, a `live` render and one `states` item per state, and take every
-// sample string, price and size from `ctx.fixture` (`@shopblok/fixtures`). The `Atoms` group
-// appears in the navigation with its first entry. `entries.test.ts` checks the ids, the notes and
-// that each entry renders in each locale.
+// The stories of the eight Foundations pages (T22): what each page says and shows. Their ids,
+// labels and order are the registry's (`@shopblok/registry`, `entries/foundations.ts`).
 
-const foundations: readonly DsEntry[] = [
-  {
-    id: "foundations/colors",
-    group: "foundations",
-    label: "Colors",
+export const foundationStories = {
+  "foundations/colors": {
     summary:
       "Every colour token with the kit's value beside ours where we override it, and the contrast ratio of each pair.",
     a11y: [
@@ -34,10 +23,7 @@ const foundations: readonly DsEntry[] = [
     ],
     live: () => <Colors />,
   },
-  {
-    id: "foundations/typography",
-    group: "foundations",
-    label: "Typography",
+  "foundations/typography": {
     summary:
       "The type scale and weights, set in the locale's own text. Greek pages use Inter's Greek subset.",
     a11y: [
@@ -47,10 +33,7 @@ const foundations: readonly DsEntry[] = [
     ],
     live: (ctx) => <Typography ctx={ctx} />,
   },
-  {
-    id: "foundations/spacing",
-    group: "foundations",
-    label: "Spacing",
+  "foundations/spacing": {
     summary: "Tailwind's 4 px step and the multiples the components use.",
     a11y: [
       "Interactive elements are at least 44 × 44 px (D32): a step of 11 is 44 px.",
@@ -58,30 +41,21 @@ const foundations: readonly DsEntry[] = [
     ],
     live: () => <Spacing />,
   },
-  {
-    id: "foundations/radius",
-    group: "foundations",
-    label: "Radius",
+  "foundations/radius": {
     summary: "One --radius and the scale derived from it.",
     a11y: [
       "Corners are decoration: a control's edge must still reach 3:1 against its background (WCAG 1.4.11).",
     ],
     live: () => <Radius />,
   },
-  {
-    id: "foundations/shadows",
-    group: "foundations",
-    label: "Shadows",
+  "foundations/shadows": {
     summary: "The kit's seven effect styles.",
     a11y: [
       "A shadow is never the only sign of a boundary or a state; pair it with a border or a text change.",
     ],
     live: () => <Shadows />,
   },
-  {
-    id: "foundations/motion",
-    group: "foundations",
-    label: "Motion",
+  "foundations/motion": {
     summary:
       "The three durations and the standard easing, with a bar that moves on hover and focus.",
     a11y: [
@@ -90,10 +64,7 @@ const foundations: readonly DsEntry[] = [
     ],
     live: () => <Motion />,
   },
-  {
-    id: "foundations/layout",
-    group: "foundations",
-    label: "Breakpoints and layers",
+  "foundations/layout": {
     summary:
       "Tailwind's breakpoints, the design widths the screens are checked at, and the z-index layers.",
     a11y: [
@@ -102,16 +73,11 @@ const foundations: readonly DsEntry[] = [
     ],
     live: () => <LayoutTokens />,
   },
-  {
-    id: "foundations/icons-credits",
-    group: "foundations",
-    label: "Icons and credits",
+  "foundations/icons-credits": {
     summary: "The icons the atoms use, and the credits for the kit and the typeface.",
     a11y: [
       "A decorative icon has aria-hidden; an icon that stands alone as a control gets an accessible name from its button.",
     ],
     live: () => <IconsAndCredits />,
   },
-];
-
-export const entries: readonly DsEntry[] = [...foundations, ...atoms, ...commerceAtoms];
+} satisfies Partial<Record<EntryId, DsStory>>;

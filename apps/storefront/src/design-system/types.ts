@@ -1,9 +1,7 @@
 import type { DesignSystemFixture } from "@shopblok/fixtures";
 import type { Locale } from "@shopblok/i18n";
+import type { RegistryEntry } from "@shopblok/registry";
 import type { ReactNode } from "react";
-
-/** The groups of the navigation tree. A group with no entry is not listed (T22 step 1). */
-export type DsGroupId = "foundations" | "atoms";
 
 /**
  * What an entry renders with: the page's locale, that locale's fixtures (its market, strings,
@@ -26,19 +24,10 @@ export type DsState = {
 };
 
 /**
- * One page of the design system, and the bare frame the viewport switcher loads. M2's registry
- * (`@shopblok/registry`) replaces this manifest; until then a new entry is one object in
- * `entries.tsx`.
+ * What the DS page says about a registry entry and how it renders it (D40): a story, in
+ * `stories/`, keyed by the entry's id. The id, group, label and the rest are the registry's.
  */
-export type DsEntry = {
-  /**
-   * The path below `/design-system/[locale]/`, `{group}/{slug}`: lowercase letters, digits and
-   * hyphens. The frame is at `/design-system/[locale]/frame/{id}`.
-   */
-  id: string;
-  group: DsGroupId;
-  /** The navigation label and the page title. The chrome is English (D33). */
-  label: string;
+export type DsStory = {
   /** One sentence under the title. */
   summary: string;
   /** What a keyboard or screen-reader user gets, and what to check. At least one note. */
@@ -48,3 +37,10 @@ export type DsEntry = {
   /** The states matrix: every state on one frame (D34). Foundations have none. */
   states?: readonly DsState[];
 };
+
+/**
+ * One page of the design system, and the bare frame the viewport switcher loads: a registry entry
+ * with its story. Its page is at `/design-system/[locale]/{id}`, its frame at
+ * `/design-system/[locale]/frame/{id}` and its preview at `/design-system/[locale]/preview/{id}`.
+ */
+export type DsEntry = RegistryEntry & DsStory;

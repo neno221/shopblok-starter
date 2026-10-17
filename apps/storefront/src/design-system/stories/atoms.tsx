@@ -29,11 +29,13 @@ import {
 } from "@shopblok/ui/atoms/tooltip";
 import { HeartIcon } from "lucide-react";
 import type { DesignSystemStrings } from "@shopblok/fixtures";
+import type { EntryId } from "@shopblok/registry";
 import type { ReactNode } from "react";
-import type { DsContext, DsEntry, DsState } from "./types";
+import type { DsContext, DsState, DsStory } from "../types";
 
-// The DS entries of the 17 shadcn atoms (T21; SETUP.md, "DS page shell (T22)", "How T21 and T23 add
-// an entry"). Every sample string comes from `ctx.fixture`, the atoms' own copy from `catalogs`.
+// The stories of the 17 shadcn atoms (T21; SETUP.md, "How to add an entry"): their ids, labels and
+// order are the registry's. Every sample string comes from `ctx.fixture`, the atoms' own copy from
+// `catalogs`.
 // A page renders the live render and every state, so each control's id carries the part it is in
 // (`live`, or the state's id) and stays unique on the page.
 //
@@ -168,11 +170,8 @@ function radioPair(
   );
 }
 
-export const atoms: readonly DsEntry[] = [
-  {
-    id: "atoms/button",
-    group: "atoms",
-    label: "Button",
+export const atomStories = {
+  "atoms/button": {
     summary:
       "An action. Six variants, at least 44 px tall, with an icon size for icon-only buttons.",
     a11y: [
@@ -240,10 +239,7 @@ export const atoms: readonly DsEntry[] = [
       },
     ],
   },
-  {
-    id: "atoms/input",
-    group: "atoms",
-    label: "Input",
+  "atoms/input": {
     summary: "A single-line text field, 44 px tall.",
     a11y: [
       "Every field has a visible label tied to it (for/id); the placeholder is a hint, never the label.",
@@ -269,10 +265,7 @@ export const atoms: readonly DsEntry[] = [
       </Field>
     )),
   },
-  {
-    id: "atoms/textarea",
-    group: "atoms",
-    label: "Textarea",
+  "atoms/textarea": {
     summary: "A multi-line text field that grows with its content.",
     a11y: [
       "A visible label tied to it; Enter adds a line, Tab leaves it.",
@@ -297,10 +290,7 @@ export const atoms: readonly DsEntry[] = [
       </Field>
     )),
   },
-  {
-    id: "atoms/select",
-    group: "atoms",
-    label: "Select",
+  "atoms/select": {
     summary:
       "A styled list box (Base UI), for choices that need more than a native select can draw.",
     a11y: [
@@ -343,10 +333,7 @@ export const atoms: readonly DsEntry[] = [
       </Field>
     )),
   },
-  {
-    id: "atoms/native-select",
-    group: "atoms",
-    label: "Native select",
+  "atoms/native-select": {
     summary: "The browser's own select, styled: the platform's picker on phones.",
     a11y: [
       "A native select: every platform's keyboard and screen-reader behaviour comes with it.",
@@ -382,10 +369,7 @@ export const atoms: readonly DsEntry[] = [
       </Field>
     )),
   },
-  {
-    id: "atoms/checkbox",
-    group: "atoms",
-    label: "Checkbox",
+  "atoms/checkbox": {
     summary: "An on/off choice in a form, in its label.",
     a11y: [
       "Space toggles it; Enter does not (it would submit the form).",
@@ -456,10 +440,7 @@ export const atoms: readonly DsEntry[] = [
       },
     ],
   },
-  {
-    id: "atoms/radio-group",
-    group: "atoms",
-    label: "Radio group",
+  "atoms/radio-group": {
     summary: "One choice of several, each in its label.",
     a11y: [
       "Tab enters the group at the chosen radio; the arrow keys move and choose; Tab leaves.",
@@ -542,10 +523,7 @@ export const atoms: readonly DsEntry[] = [
       },
     ],
   },
-  {
-    id: "atoms/switch",
-    group: "atoms",
-    label: "Switch",
+  "atoms/switch": {
     summary: "A setting that takes effect at once, in its label.",
     a11y: [
       "role=switch: Space toggles it, and the change applies without a submit.",
@@ -590,10 +568,7 @@ export const atoms: readonly DsEntry[] = [
       },
     ],
   },
-  {
-    id: "atoms/label",
-    group: "atoms",
-    label: "Label",
+  "atoms/label": {
     summary: "A form field's name, tied to its control.",
     a11y: [
       "Tied with for/id, or wrapping the control; clicking it focuses or toggles the control.",
@@ -625,10 +600,7 @@ export const atoms: readonly DsEntry[] = [
       },
     ],
   },
-  {
-    id: "atoms/badge",
-    group: "atoms",
-    label: "Badge",
+  "atoms/badge": {
     summary: "A short status or tag. Not a control, unless rendered as a link.",
     a11y: [
       "Text, so it is read as it is; a badge never carries meaning by its colour alone (WCAG 1.4.1).",
@@ -661,10 +633,7 @@ export const atoms: readonly DsEntry[] = [
       },
     ],
   },
-  {
-    id: "atoms/skeleton",
-    group: "atoms",
-    label: "Skeleton",
+  "atoms/skeleton": {
     summary: "A grey shape where content is loading.",
     a11y: [
       "aria-hidden: the region that is loading says so (aria-busy, or a Spinner), not each shape.",
@@ -693,10 +662,7 @@ export const atoms: readonly DsEntry[] = [
       },
     ],
   },
-  {
-    id: "atoms/spinner",
-    group: "atoms",
-    label: "Spinner",
+  "atoms/spinner": {
     summary: "Something is loading. Its name comes from the atoms' copy, in the locale.",
     a11y: [
       "role=status with an accessible name from props (catalogs.*.atoms.spinner.loading): no English of its own.",
@@ -723,10 +689,7 @@ export const atoms: readonly DsEntry[] = [
       },
     ],
   },
-  {
-    id: "atoms/avatar",
-    group: "atoms",
-    label: "Avatar",
+  "atoms/avatar": {
     summary: "A customer's picture, with their initials until it loads.",
     a11y: [
       "The image's alt is the person's name. If the image fails, only the initials are left, so show the name as text beside the avatar.",
@@ -765,10 +728,7 @@ export const atoms: readonly DsEntry[] = [
       },
     ],
   },
-  {
-    id: "atoms/separator",
-    group: "atoms",
-    label: "Separator",
+  "atoms/separator": {
     summary: "A line between groups of content, in the decorative border token.",
     a11y: [
       "role=separator with its orientation. The border token is decorative and not contrast-checked (D35).",
@@ -794,10 +754,7 @@ export const atoms: readonly DsEntry[] = [
       },
     ],
   },
-  {
-    id: "atoms/kbd",
-    group: "atoms",
-    label: "Kbd",
+  "atoms/kbd": {
     summary: "A key or a shortcut, as the locale's keyboards label it.",
     a11y: [
       "A kbd element: screen readers read the key names as text.",
@@ -818,10 +775,7 @@ export const atoms: readonly DsEntry[] = [
       },
     ],
   },
-  {
-    id: "atoms/tooltip",
-    group: "atoms",
-    label: "Tooltip",
+  "atoms/tooltip": {
     summary:
       "A short hint on hover or keyboard focus, for an icon button's name or a repeat of what is on screen.",
     a11y: [
@@ -863,10 +817,7 @@ export const atoms: readonly DsEntry[] = [
       },
     ],
   },
-  {
-    id: "atoms/progress",
-    group: "atoms",
-    label: "Progress",
+  "atoms/progress": {
     summary: "How far a task has got, with its label and value.",
     a11y: [
       "role=progressbar with aria-valuenow, named by its label.",
@@ -911,4 +862,4 @@ export const atoms: readonly DsEntry[] = [
       },
     ],
   },
-];
+} satisfies Partial<Record<EntryId, DsStory>>;

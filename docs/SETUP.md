@@ -100,7 +100,7 @@ DESIGN_SYSTEM_ENABLED=true pnpm --filter @shopblok/storefront build
 pnpm --filter @shopblok/storefront start
 ```
 
-The value is frozen into the build, so setting it only on `start` changes nothing (D33; "DS page shell (T22)", code-review fix 1). The flag is commented out in `apps/storefront/.env.example`. CI's `design-system` job builds this way with no `.env` and no compose; to run its checks (192 cells: every atom at 375, 768 and 1440 px in `en` and `el`) against that build, in a second terminal: `E2E_DESIGN_SYSTEM=true pnpm --filter @shopblok/storefront test:e2e --project=design-system` (3 minutes; set the variable per command, not exported). The `dev-console` project, which needs `next dev` instead, is described in "The storefront in next dev (T25)".
+The value is frozen into the build, so setting it only on `start` changes nothing (D33; "DS page shell (T22)", code-review fix 1). The flag is commented out in `apps/storefront/.env.example`. CI's `design-system` job builds this way with no `.env` and no compose; to run its checks (192 cells: every atom at 375, 768 and 1440 px in `en` and `el`) against that build, in a second terminal: `E2E_DESIGN_SYSTEM=true pnpm --filter @shopblok/storefront test:e2e --project=design-system` (3 minutes; set the variable per command, not exported). The `dev-console` project, which needs `next dev` instead, is described in "The storefront in next dev (T25)". A new entry is two objects, one in `@shopblok/registry` and its story in the storefront ("The registry (T29)", "How to add an entry").
 
 **`pnpm tokens`.** It builds `packages/ui/src/styles/tokens.css` and `packages/ui/src/tokens.ts` from `packages/ui/tokens/figma.tokens.json` (the Figma export) and `packages/ui/tokens/shopblok.tokens.json` (ours), through Style Dictionary, in about half a second. Run it after editing `shopblok.tokens.json` or after a new export, and commit the two files with the change. It stops before writing if a contrast pair, the radius scale or the 4 px spacing step fails, and names the pair and its ratio; `pnpm test` fails with "tokens.css is what the build gives" when the committed files differ from the build. Never edit `figma.tokens.json`, `tokens.css` or `tokens.ts` by hand ([packages/ui/tokens/README.md](../packages/ui/tokens/README.md); "Tokens (T19)").
 
@@ -2723,7 +2723,7 @@ A review of the first version found ten things; each was checked against the cod
 
 ### How T21 and T23 add an entry
 
-In `apps/storefront/src/design-system/entries.tsx` an entry is an object of type `DsEntry` (`types.ts`): `id: "atoms/button"`, `group: "atoms"`, `label`, `summary`, `a11y` (at least one note), `live(ctx)`, and `states` (one `{ id, label, description?, render(ctx) }` per state). Every sample string, price, size and colour comes from `ctx.fixture` (`@shopblok/fixtures`), money from `ctx.money`. Append it to `entries` (or spread a new `atoms.tsx` list into it). Nothing else changes: the navigation lists the `Atoms` group with its first entry, the page and the frame exist in all four locales (`entryParams()`), and `entries.test.tsx` renders each entry in each locale and `catalog.test.ts` checks its id, group and notes. An atom that draws an icon adds a row to `src/design-system/icons.ts`. The atoms' own copy goes in a new `atoms` key of `@shopblok/i18n`, in all four catalogs (plan T22 step 8; there was nothing to put in it yet). T24 opens `/design-system/{en,el}/frame/{id}`.
+T29 replaced this: "The registry (T29)", "How to add an entry". (T22 had an entry as one object in `entries.tsx`, which the registry and the stories now split.)
 
 ### Checks
 
@@ -3028,7 +3028,7 @@ The review is `reviews/pr-43-code-review.md`. The first CI run also failed one t
 
 ### How it works
 
-1. **The atoms come from the page.** Playwright's loader cannot import `entries.tsx` (`next/image` resolves only inside Next), so the spec reads `/design-system/en` once at collection and takes every `/design-system/en/atoms/<slug>` link; that page is rendered from the manifest, so a new atom is checked without touching the spec. The widths are `viewportWidths()`, the DS's own.
+1. **The atoms come from the page** (until T29: the spec now imports `@shopblok/registry`, "The registry (T29)"). Playwright's loader cannot import `entries.tsx` (`next/image` resolves only inside Next), so the spec reads `/design-system/en` once at collection and takes every `/design-system/en/atoms/<slug>` link; that page is rendered from the manifest, so a new atom is checked without touching the spec. The widths are `viewportWidths()`, the DS's own.
 2. **The flag.** If `/design-system/en` is not 200, the suite is one test, "the build serves the design system", which fails with `… answered 404, not 200: this build lacks DESIGN_SYSTEM_ENABLED=true (the DS routes are 404 without it, D33) …`.
 3. **Each cell** attaches its screenshot first, then runs the four checks with `expect.soft`, so one cell reports every failed check:
    - **axe** (`@axe-core/playwright`, tags `wcag2a`, `wcag2aa`, `wcag21a`, `wcag21aa`, `wcag22aa`): no violations, printed with selectors and axe's summary.
@@ -3370,3 +3370,76 @@ PR 50 review fixes: the `.rsc` exclusion above, with `/us.rsc` and `/us.RSC` in 
 ### Proof
 
 The storefront's `test` (739 tests, the two of `route.test.ts` and the new cases of `next-config.test.ts` and `proxy.test.ts` among them), `typecheck` and `lint`. On `next start` with `E2E_TEST_ROUTES=true`, as `e2e-smoke` starts it: the default Playwright suites passed 86 of 86. `actionlint` on `ci.yml`: only the SC2016 note from before. CI on the PR: the gate runs `e2e-smoke` (the config, the specs, `ci.yml`) and `design-system` (`next.config.ts` and `.github/` are on its run list), and skips `windows-smoke` (no dependency file).
+
+## The registry (T29)
+
+**Result: `@shopblok/registry` lists the DS's 40 entries as data (D40), and the DS page, its checks and its tests read it; `entries.tsx` is gone.** What the page says about an entry (its summary, a11y notes, live render and states) is a story in the storefront, keyed by the entry's id. Each entry also has a `preview` route (D52), and the four DS pages are `ensureStatic = "navigation"` (D44). The page looks as before: the same 192 cells pass, and the build lists the same routes plus the previews.
+
+| | |
+|---|---|
+| Date | 2026-10-17 |
+| Branch | prepared locally on T28 while PR 49's CI could not start, then `claude/project-thread-pmqmfo`, restarted from `main` after PR 50 merged |
+| New | `packages/registry/src/{types.ts, entries/foundations.ts, entries/atoms.ts, contracts/index.ts, index.test.ts, sources.test.ts}`, `apps/storefront/src/design-system/stories/index.ts`, `components/props-table.tsx` and its test, `apps/storefront/src/app/design-system/[locale]/preview/[...entry]/{layout,page}.tsx` |
+| Moved | `src/design-system/{atoms.tsx, atoms-commerce.tsx}` to `stories/`, `entries.tsx` to `stories/foundations.tsx` (the foundations' stories), `entries.test.tsx` to `stories.test.tsx` |
+| Changed | `packages/registry/{package.json, src/index.ts}`, `catalog.ts`, `types.ts`, `components/{entry-body,entry-page}.tsx`, the overview, entry and frame pages, `catalog.test.ts`, `routes.test.tsx`, `components.test.tsx`, `e2e/design-system.spec.ts`, `e2e/dev-console-ds.spec.ts` (one route), `packages/i18n/src/index.ts` (three group names, the Props table's copy), `apps/storefront/package.json` (`@shopblok/registry`), the lockfile (the workspace link only) |
+| Tests | registry **17** (new), storefront **747** (8 new), ui 326, scripts 429, i18n 19, backend 85; `typecheck`, `lint`, `check:workspace` and `pnpm install --frozen-lockfile` pass |
+
+### How it works
+
+- **The registry** (`packages/registry`) is data with no React: `id` (`{group}/{slug}`), `group` (`GROUPS`: `foundations`, `atoms`, `molecules`, `organisms`, `headers-footers`, SPEC §9.6's order), `kind`, `label`, `component` (`{ module: "@shopblok/ui/atoms/button", name: "Button" }`, not an import), `family` and `variant` (both or neither) and `contract` (a zod schema, D41). `defineEntries` checks the list when the module loads and throws on a malformed id, a duplicate id, an empty label, a family without a variant or a variant twice in its family, and derives `thumbnail` (`/registry/{id}.png`) for an entry with a family. Helpers: `entries`, `byGroup`, `findEntry`, `variantsOf(family)` (value, label and thumbnail, for M4's pickers). Its one dependency is `zod` 4.6.5; `sources.test.ts` reads its sources and fails on any import but `zod` and its own files.
+- **The stories** (`apps/storefront/src/design-system/stories/`): one object per file, `satisfies Partial<Record<EntryId, DsStory>>`, so a story for an id the registry does not have is a type error in that file; `stories/index.ts` spreads them into a `Record<EntryId, DsStory>`, so a missing story is a type error there. `EntryId` is the union of the registry's literal ids. `stories.test.tsx` checks both ways at run time, and that every entry with a `component` names a module of `@shopblok/ui` that exports it (a dynamic import of each). `catalog.ts`'s `manifest` is the registry's entries in order, each with its story; the navigation, the params, the overview, the frames and the previews read it.
+- **Props.** When an entry has a `contract`, its page shows a "Props" section before the a11y notes: the contract's top-level properties from `z.toJSONSchema`, in the schema's order, with the type (`string`, `"sale" | "new"`, `string[]`, `string | null`), whether it is required, and the description. No M1 entry has one; `props-table.test.tsx` renders a sample schema.
+- **`/design-system/{locale}/preview/{id}`:** the live render alone (no states, no headings), with the frame's root layout, so the gate, the 404s and `noindex` are the frame's. T40 captures the `en` previews of the family entries as thumbnails.
+- **`ensureStatic = "navigation"`** on the overview, entry, frame and preview pages: a build fails if one reads the request, even inside `<Suspense>`, where it would otherwise quietly become a partial prerender (mutations below). `routes.test.tsx` checks the four exports.
+- **The checks.** `design-system.spec.ts` imports the registry (Playwright's loader reads it: it imports neither React nor `next/image`) and makes a cell of every entry outside Foundations, instead of reading the overview's links. It still opens `/design-system/en` first: with the flag off the suite is one failing test that says so.
+
+### How to add an entry
+
+This replaces "How T21 and T23 add an entry" (T22).
+
+1. **The registry.** Add one object to the group's file in `packages/registry/src/entries/` (a new file for a new group, spread into `all` in `src/index.ts` in `GROUPS` order; `entries` and `EntryId` both come from `all`): `id: "molecules/product-card"`, `group`, `kind`, `label` (English, D33), `component` (`{ module: "@shopblok/ui/molecules/product-card", name: "ProductCard" }`), and `family` and `variant` if a shop picks it (D46). Its view model's schema goes in `src/contracts/` and on the entry as `contract`. The array is `as const satisfies readonly EntryInput[]`, which keeps each id a literal type.
+2. **The story.** Add `"molecules/product-card": { summary, a11y, live(ctx), states }` to a file in `apps/storefront/src/design-system/stories/` (a new file is spread into `stories/index.ts`). Every sample string, price, size and colour comes from `ctx.fixture` (`@shopblok/fixtures`), money from `ctx.money`; the component's own copy is in `@shopblok/i18n`, in the four catalogs. `pnpm typecheck` fails until both halves exist.
+3. **Nothing else.** The navigation lists the group with its first entry (a group's label is `designSystem.groups` in `@shopblok/i18n`), the page, the frame and the preview exist in all four locales, `stories.test.tsx` renders the entry in each locale and checks its component's export, and the `design-system` job makes six cells of it (`en` and `el` at 375, 768 and 1440 px). An entry that draws an icon adds a row to `src/design-system/icons.ts`.
+
+### Measured
+
+| Build | Before (`main`) | After |
+|---|---|---|
+| `DESIGN_SYSTEM_ENABLED=true` | 324 DS paths: 4 overviews, 160 entry pages, 160 frames | 484: the same plus 160 previews. The route lists differ only by the preview block (`diff` of the two outputs) |
+| The same, prerender manifest | every DS path a complete prerender; only the three fallback shells (`[locale]`, `[...entry]`, `frame/[...entry]`) have postponed state, as T22 found | the same, with `preview/[...entry]`'s fallback shell as the fourth; the 484 paths carry `_isEnsureStaticPage: true` |
+| Without the flag | one param per route, all 404 | the same, with one preview; `/design-system/en/preview/atoms/button` answers 404 on `next start` |
+
+On the flagged build, the `design-system` project passed **192 of 192** (2.2 min), the same cells as T24's (`atoms/flag · el · 1440` and so on, in the registry's order). On the unflagged build with `E2E_TEST_ROUTES=true`, as `e2e-smoke` starts it, the default suites passed 86 of 86, and the `design-system` project was one failing test, `answered 404, not 200: this build lacks DESIGN_SYSTEM_ENABLED=true`. In `next dev`, `dev-console` passed 8 of 8 and `dev-console-ds` 11 of 11 (`/design-system/el/preview/atoms/select` among them, with no console message), and the server log had no `Could not validate`. All of these ran on T29 over T28 and T27, the state of `main` once the three are merged.
+
+### Mutations
+
+Each applied, checked and reverted from a copy.
+
+| Mutation | Check | Output |
+|---|---|---|
+| An entry without a story (`foundations/extra` in the registry) | `typecheck`; `stories.test.tsx` | `stories/index.ts(12,14): error TS2741: Property '"foundations/extra"' is missing in type …`; `have the same ids …` fails, and the entry's render tests |
+| A story without an entry (`atoms/kbd` out of the registry) | the same | `stories/atoms.tsx(757,3): error TS2353: Object literal may only specify known properties, and '"atoms/kbd"' does not exist in type 'Partial<Record<EntryId, DsStory>>'`; `have the same ids …` fails |
+| A duplicate id (`atoms/kbd` twice) | every test that loads the registry | `Error: registry: "atoms/kbd" is listed twice.` in the registry's and the storefront's DS test files |
+| A wrong export name (`Keyboard` for `Kbd`) | `stories.test.tsx` | `atoms/kbd: Keyboard: expected 'undefined' to be 'function'` |
+| `await cookies()` at the top of the entry page | the flagged build | `Error: Route "/design-system/[locale]/[...entry]": Next.js encountered uncached or runtime data on a route that must be fully static.`; build exit 1 |
+| `cookies()` in a `<Suspense>` child of the preview page | the same | the same error for `preview/[...entry]`; build exit 1 |
+| The same, without `ensureStatic` (and its test line) | the same | the build passes, and the previews are `◐` with postponed state: what D44 is there to stop |
+
+### Decisions the plan did not settle
+
+1. **`kind`** is `foundation`, `atom`, `molecule` or `organism`; the headers and footers are organisms in a group of their own, so `group` alone could not say it.
+2. **`component` is a reference** (module and name), checked by the storefront's test, so the registry stays loadable by Payload's CLI and Playwright.
+3. **The preview pads its render by 24 px** (`p-6`), so a thumbnail does not cut a focus ring or a shadow; T40 can change it with its capture size.
+4. **`entries.test.tsx` became `stories.test.tsx`**, and the foundations' stories kept `entries.tsx`'s history (`git mv`).
+
+### Review fixes (PR 51)
+
+| # | Finding | Fix |
+|---|---|---|
+| 1 | `propRows` throws on a date, transform or other type JSON Schema cannot express, which would fail the prerender | `z.toJSONSchema(contract, { io: "input", unrepresentable: "any" })`: such a prop shows as `unknown`. A test with `z.date()` and a `.transform()` (it threw before) |
+| 2 | A prop with `.default()` showed as required (the output schema) | The input schema (`io: "input"`); a test with `z.enum([...]).default("md")` (it said "yes" before) |
+| 3 | The e2e matrix picked entries by group, not by `component` | `entry.component !== undefined`, as its comment says |
+| 4 | `EntryId` listed the entry files apart from `entries`, and `catalog.ts` cast to it | One `all` list feeds both; `entries` is typed with `EntryId`, so the cast is gone; "How to add an entry" says so |
+| 7 | An empty list would pass with zero DS cells (optional) | A failing test when no entry has a component |
+
+Items 5, 6 and 8 (optional) are left: `defineEntries` checking `kind` against `group`, `$ref` and tuples in `typeOf`, and two small duplications.
