@@ -1,18 +1,14 @@
-# T27 is done; T28 and T29 are next
+# T27 and T28 are done; T29 is next
 
 **The M2 plan** ([plans/M2.md](plans/M2.md), molecules, organisms and the registry, SPEC §17.1) was merged in [PR 48](https://github.com/stephanos221/shopblok-starter/pull/48). Its decisions D40 to D55 are defaults that stand, because you said on 2026-10-16 that M2's tasks may start once the plan is written; you can change any of them at any time, and the task that builds it then follows the new text. Three are worth a look: **D46** (M2 builds Header 6, Footer 5 and ProductCard 10, so the DS page ends M2 with 114 entries outside Foundations), **D51** (684 pixel baselines committed in git, an expected 40 to 60 MB; T40 stops and asks you above 60 MB) and **D53** (the CI gate). **G6, optional, about two minutes:** look at this month's Actions minutes under Settings → Billing and plans → Usage (the plan's §0, item 2, says why).
 
 **T27 is done** (2026-10-17, SETUP.md "CI for M2 (T27)"). A pull request now starts with a `gate` job that reads its changed files: a docs-only PR runs `check` and `backend-integration` only, a PR that changes only the design system's own files (molecules, organisms, the registry, the DS pages) skips `e2e-smoke`, and `windows-smoke` still runs only for a dependency file. Pushes to `main`, the weekly run and a run by hand still run `e2e-smoke` and `design-system`, and `windows-smoke` still runs weekly and by hand. The DS pages' console check in `next dev` moved into the `design-system` job, and its wait for the network to go quiet is bounded, so a hang like the one on PR 48's CI now fails in 30 s and names the request.
 
-**Next:** T28 and T29, one session each, in either order or side by side; they share no file. After them the plan's §4 gives the order, and each task's session writes the next prompts here. Nothing waits on your PC until W4.
+**T28 is done** (2026-10-17, SETUP.md "Root files (T28)"). A root path that looks like a file and that nothing serves (`/robots.txt`, `/apple-touch-icon.png`, `/wp-login.php`) now answers a short plain-text 404 instead of the storefront's 404 page, and `next dev` no longer logs an error for each. `/favicon.ico` is still the icon, and M7's `robots.ts` and `sitemap.ts` will be served before the rule.
+
+**Next:** T29. Nothing else opens until it is merged: T30 and T31 follow it, and its session writes their prompts here. Nothing waits on your PC until W4.
 
 Every M2 task runs the same way (D55): a cloud session in the `shopblok-starter` environment, on `main`; a PR; a code review of it in a separate thread, with its findings in `reviews/pr-N-code-review.md` in the project's files; the session fixes them and merges with a merge commit once CI is green.
-
-## T28 · Root files answer 404 (in a cloud session)
-
-Start a cloud session in the `shopblok-starter` environment, on `main`, and paste:
-
-> Run task T28 of docs/plans/M2.md: root paths that look like files (`/robots.txt`, `/apple-touch-icon.png`) answer 404 as plain text before `[market]` (D54; the PR 41 review, item 5). Start as docs/CLOUD.md, "What every cloud session does first", steps 1 to 4 say. Read docs/plans/M2.md (§1 D54, §5 T28), Next 16.4's `rewrites.md` and `route.md` in `apps/storefront/node_modules/next/dist/docs/01-app/03-api-reference/`, `apps/storefront/src/proxy.ts` and its test, and SETUP.md's "The storefront in next dev (T25)" (review fixes, item 5) and "CI for M2 (T27)" (the check now lives in `e2e/support/dev-console.ts`, and `e2e-smoke` starts `next dev` through `.github/actions/start-storefront`) first. Work on a new branch from `main`. Follow T28's steps and its Verify list, including both mutations (no rewrite, and a rewrite to a path with no route). Record everything in docs/SETUP.md under "Root files (T28)", update the plan's status line and NEXT-SESSION.md, then open a PR. It gets a code review in a separate thread; fix its findings, and merge with a merge commit once CI is green (G2).
 
 ## T29 · The registry, and the DS page on it (in a cloud session)
 

@@ -37,6 +37,24 @@ function buildConfig(phase: string): NextConfig {
         permanent: false,
       },
     ],
+    // D54 (T28): a root path that looks like a file answers a plain-text 404 instead of reaching
+    // `[market]`. `afterFiles` rewrites run after `public/` files and the routes without a dynamic
+    // segment, so `/favicon.ico` (a file route) and M7's `robots.ts` and `sitemap.ts` still win, and
+    // before the dynamic ones, `[market]` among them. The pattern is the proxy matcher's file rule
+    // (a last segment ending in `.` and a letter; `/size-8.5` is a slug) on one segment only:
+    // `/us/robots.txt` is a market's path, and the page behind it decides. The proxy never sees
+    // these paths, because its matcher skips files. The destination has to be a route: a rewrite
+    // that resolves to nothing falls through to the dynamic routes, `[market]` again.
+    rewrites: async () => ({
+      beforeFiles: [],
+      afterFiles: [
+        {
+          source: "/:file([^/]*\\.[A-Za-z][A-Za-z0-9]*)",
+          destination: "/next/missing-file",
+        },
+      ],
+      fallback: [],
+    }),
     // Medusa's image URLs point at localhost in development, which next/image refuses by default.
     images: { dangerouslyAllowLocalIP: phase === PHASE_DEVELOPMENT_SERVER },
   };

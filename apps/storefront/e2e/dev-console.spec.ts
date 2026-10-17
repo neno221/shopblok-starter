@@ -14,4 +14,8 @@ checkRoutesInDev([
   { path: "/el-cy", status: 404 },
   { path: "/nope/nope", status: 404 },
   { path: "/next/markets", status: 200 },
+  // Root files (T28, D54): the plain-text 404 of `/next/missing-file`, not `[market]`, which logged
+  // `Could not validate` to the server log for each (`e2e-smoke` greps that log after this run).
+  { path: "/robots.txt", status: 404 },
+  { path: "/apple-touch-icon.png", status: 404 },
 ]);

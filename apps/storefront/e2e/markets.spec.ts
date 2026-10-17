@@ -205,3 +205,63 @@ test.describe("the design system is not rewritten", () => {
     expect(response.headers()["x-middleware-rewrite"]).toBeUndefined();
   });
 });
+
+// T28 (D54): a root path that looks like a file, and that no file or route serves, answers a
+// plain-text 404 from `/next/missing-file` (next.config.ts's `afterFiles` rewrite), not the 404
+// page of `[market]`. Real files still win, and deeper paths and slugs behave as before.
+test.describe("root files", () => {
+  const plainNotFound = "text/plain; charset=utf-8";
+
+  for (const path of [
+    "/robots.txt",
+    "/sitemap.xml",
+    "/apple-touch-icon.png",
+    "/manifest.webmanifest",
+    "/wp-login.php",
+  ]) {
+    test(`${path} answers 404 as plain text`, async ({ request }) => {
+      const response = await request.get(path, { maxRedirects: 0 });
+      expect(response.status()).toBe(404);
+      expect(response.headers()["content-type"]).toBe(plainNotFound);
+      expect(await response.text()).toBe("Not Found");
+      // As Next's own 404 page: no CDN keeps it (route.ts says why).
+      expect(response.headers()["cache-control"]).toBe(
+        "private, no-cache, no-store, max-age=0, must-revalidate",
+      );
+      expect(response.headers()["x-middleware-rewrite"]).toBeUndefined();
+    });
+  }
+
+  test("HEAD /robots.txt answers 404 as plain text, with no body", async ({ request }) => {
+    const response = await request.head("/robots.txt", { maxRedirects: 0 });
+    expect(response.status()).toBe(404);
+    expect(response.headers()["content-type"]).toBe(plainNotFound);
+    expect((await response.body()).length).toBe(0);
+  });
+
+  test("/favicon.ico is still the icon (a file route wins over the rewrite)", async ({
+    request,
+  }) => {
+    const response = await request.get("/favicon.ico", { maxRedirects: 0 });
+    expect(response.status()).toBe(200);
+    expect(response.headers()["content-type"]).toBe("image/x-icon");
+  });
+
+  // `/us/robots.txt` has two segments, so the rewrite leaves it to `[market]`; `/size-8.5` is a
+  // slug to the proxy (a dot before a digit), which sends it to the primary market's 404.
+  for (const path of ["/us/robots.txt", "/size-8.5"]) {
+    test(`${path} is still the 404 page`, async ({ page }) => {
+      const response = await page.goto(path);
+      expect(response?.status()).toBe(404);
+      expect(response?.headers()["content-type"]).toContain("text/html");
+      await expect(page.locator("html")).toHaveAttribute("lang", "en");
+      await expect(page.getByRole("heading", { level: 1 })).toHaveText("Page not found");
+    });
+  }
+
+  test("/api/robots.txt is Payload's own 404", async ({ request }) => {
+    const response = await request.get("/api/robots.txt", { maxRedirects: 0 });
+    expect(response.status()).toBe(404);
+    expect(response.headers()["content-type"]).toContain("application/json");
+  });
+});
