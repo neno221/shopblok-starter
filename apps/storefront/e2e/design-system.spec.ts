@@ -15,8 +15,9 @@ import { collectConsole, judgeConsole, type FailedRequest, type Message } from "
 // each checks axe, overflow, the 44 px size of controls, controls nested in a link or a button
 // (T32), content that scrolls sideways in its box (T34), the console (the rules of support/console.ts) and attaches a screenshot of the whole
 // frame. The checks are soft, so a cell reports every check that failed. After the cells: T31's
-// overlay box, T33's interaction checks (D45: an overlay opened from the keyboard) and the bundle
-// test (D49: no flag in a client chunk).
+// overlay box, T33's interaction checks (D45: an overlay opened from the keyboard), T35's cart
+// count and T36's cookie banner (D44: what only the browser draws) and the bundle test (D49: no
+// flag in a client chunk).
 //
 // The widths are the viewport tokens the DS's own switcher uses (375, 768, 1440). D34 names `en`
 // and `el`, so it is those two and not the four locales of the page: `el` is the one with the other
@@ -637,6 +638,56 @@ if (problem === undefined) {
         page.locator('[data-slot="cart-count"]'),
         "the first count is not announced",
       ).toHaveText("");
+    });
+  }
+}
+
+// D44 (T36): cookie consent is the browser's too. Its preview page (the live render alone: the real
+// island, VisitorCookieConsent, fed by VisitorFixture with a visitor who has not chosen) is
+// prerendered with no banner in its HTML, because the server cannot know whether the visitor has
+// chosen; in a browser the banner appears once the page has hydrated. "Reject all" is as prominent
+// as "accept all" (M2 plan, T36): the two are drawn alike (the same height, colours, border and
+// type), at both widths. Accepting removes the banner.
+const consentId = "organisms/cookie-consent";
+
+/** What makes a button prominent, as the browser draws it. Runs in the page. */
+const prominence = (el: Element) => {
+  const style = getComputedStyle(el);
+  return {
+    height: Math.round(el.getBoundingClientRect().height),
+    background: style.backgroundColor,
+    color: style.color,
+    border: `${style.borderTopWidth} ${style.borderTopStyle} ${style.borderTopColor}`,
+    font: `${style.fontWeight} ${style.fontSize}`,
+  };
+};
+
+if (problem === undefined) {
+  for (const width of [375, 1440]) {
+    test(`cookie consent · en · ${width}`, async ({ page }) => {
+      const html = await (
+        await fetch(`${base}${previewPath("en", consentId)}`, {
+          signal: AbortSignal.timeout(30_000),
+        })
+      ).text();
+      expect(html, "the HTML has no banner").not.toContain('data-slot="cookie-consent"');
+      expect(html, "the HTML has no accept button").not.toContain(
+        'data-slot="cookie-consent-accept"',
+      );
+
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto(previewPath("en", consentId), { waitUntil: "load" });
+      const banner = page.locator('[data-slot="cookie-consent"]');
+      await expect(banner, "the banner after hydration").toBeVisible();
+      const accept = banner.locator('[data-slot="cookie-consent-accept"]');
+      const reject = banner.locator('[data-slot="cookie-consent-reject"]');
+      await expect(accept).toBeVisible();
+      await expect(reject).toBeVisible();
+      expect
+        .soft(await reject.evaluate(prominence), "reject all is drawn as accept all is")
+        .toEqual(await accept.evaluate(prominence));
+      await accept.click();
+      await expect(banner, "accepting removes the banner").toBeHidden();
     });
   }
 }

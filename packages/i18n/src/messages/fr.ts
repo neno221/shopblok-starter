@@ -405,6 +405,46 @@ export const fr: Messages = {
       cartItems: "{count, plural, =0 {vide} one {# article} other {# articles}}",
       cartOverflow: "{max}+",
     },
+    footer: {
+      home: "{store}, accueil",
+      navigation: "Pied de page",
+      legal: "Mentions légales",
+      social: "Suivez-nous",
+      socialLink: "{store} sur {network}",
+      payment: "Moyens de paiement",
+      newTab: "S’ouvre dans un nouvel onglet",
+    },
+    cookieConsent: {
+      region: "Consentement aux cookies",
+      title: "Les cookies de cette boutique",
+      message:
+        "Nous utilisons des cookies nécessaires au fonctionnement de la boutique. Avec votre accord, nous utilisons aussi des cookies de mesure d’audience, pour voir comment la boutique est utilisée, et des cookies marketing, pour vous montrer des offres adaptées à vos centres d’intérêt. Consultez notre {policy}.",
+      policyLink: "politique relative aux cookies",
+      acceptAll: "Tout accepter",
+      rejectAll: "Tout refuser",
+      choose: "Choisir les cookies",
+      dialogTitle: "Préférences de cookies",
+      dialogDescription:
+        "Choisissez les cookies que nous pouvons utiliser. Rien n’est activé avant que vous enregistriez.",
+      necessary: "Nécessaires",
+      necessaryDescription:
+        "Font fonctionner la boutique : ils retiennent votre panier, votre connexion, votre pays et votre langue, et ce choix.",
+      alwaysOn: "Toujours actifs",
+      analytics: "Mesure d’audience",
+      analyticsDescription:
+        "Comptent les visites et nous montrent comment la boutique est utilisée, pour que nous puissions l’améliorer.",
+      marketing: "Marketing",
+      marketingDescription:
+        "Vous montrent des offres adaptées à vos centres d’intérêt, ici et sur d’autres sites.",
+      save: "Enregistrer mes choix",
+      close: "Fermer",
+    },
+    loadingSkeleton: {
+      productGrid: "Chargement des produits",
+      productPage: "Chargement du produit",
+      cart: "Chargement de votre panier",
+      accountList: "Chargement de votre compte",
+    },
   },
   notFound: {
     title: "Page introuvable",

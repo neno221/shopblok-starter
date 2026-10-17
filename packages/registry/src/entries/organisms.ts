@@ -1,4 +1,11 @@
-import { AnnouncementBar, MarketSuggestion, MobileNav, Navigation } from "../contracts";
+import {
+  AnnouncementBar,
+  CookieConsent,
+  LoadingSkeleton,
+  MarketSuggestion,
+  MobileNav,
+  Navigation,
+} from "../contracts";
 import type { z } from "zod";
 import type { EntryInput } from "../types";
 
@@ -34,4 +41,7 @@ export const organisms = [
     "MarketSuggestionBanner",
     MarketSuggestion,
   ),
+  // T36: the site's organisms (the footers are in `headers-footers.ts`).
+  organism("cookie-consent", "CookieConsent", "CookieConsent", CookieConsent),
+  organism("loading-skeletons", "Loading skeletons", "LoadingSkeleton", LoadingSkeleton),
 ] as const satisfies readonly EntryInput[];

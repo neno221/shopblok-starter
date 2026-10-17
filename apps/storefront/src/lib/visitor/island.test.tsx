@@ -29,12 +29,12 @@ describe("the cart island in the browser", () => {
     root = createRoot(holder);
     act(() => root?.render(<VisitorCartButton href="/us/cart" copy={copy} locale="en-US" />));
     expect(region()?.textContent).toBe("");
-    act(() => setVisitor({ cartCount: 3 }));
+    act(() => setVisitor({ cartCount: 3, consent: null }));
     expect(document.querySelector('[data-slot="cart-badge"]')?.textContent).toBe("3");
     expect(region()?.textContent).toBe("");
-    act(() => setVisitor({ cartCount: 4 }));
+    act(() => setVisitor({ cartCount: 4, consent: null }));
     expect(region()?.textContent).toBe("Cart 4 items");
-    act(() => setVisitor({ cartCount: 3 }));
+    act(() => setVisitor({ cartCount: 3, consent: null }));
     expect(region()?.textContent).toBe("Cart 3 items");
   });
 });

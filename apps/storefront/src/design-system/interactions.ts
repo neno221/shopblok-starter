@@ -5,7 +5,8 @@ import type { EntryId } from "@shopblok/registry";
 // 1440 px in `en`, runs axe on the open state, checks where focus goes, and closes it
 // (`e2e/design-system.spec.ts`, "interaction · …"). The list is data with no React, next to the
 // stories rather than in them, because Playwright's loader cannot import the stories (D40's reason);
-// `stories.test.tsx` checks that each entry's live render draws the trigger.
+// `stories.test.tsx` checks that each entry's live render draws the trigger (or, for a trigger the
+// browser draws, that the server's render does not).
 
 export type DsInteraction = {
   /**
@@ -26,6 +27,11 @@ export type DsInteraction = {
   focus: "inside" | "stays" | "menu";
   /** With `inside`: the popup traps focus, so Tab and Shift+Tab never leave it. */
   trap?: boolean;
+  /**
+   * T36: the trigger is the browser's (D44), drawn only once the page has hydrated and the visitor
+   * store knows the visitor (cookie consent's banner), so the server's HTML has none of it.
+   */
+  afterHydration?: true;
 };
 
 export const interactions = {
@@ -60,6 +66,21 @@ export const interactions = {
     trap: true,
   },
   "headers-footers/header-two-tier": {
+    trigger: '[data-slot="market-switcher-trigger"]',
+    opens: '[data-slot="market-switcher-popup"]',
+    focus: "inside",
+    trap: true,
+  },
+  // T36: cookie consent's dialog, opened from the banner's "choose" once the page has hydrated (the
+  // banner is the browser's, D44), and the market switcher in the two-tier footer's bar.
+  "organisms/cookie-consent": {
+    trigger: '[data-slot="cookie-consent-choose"]',
+    opens: '[data-slot="cookie-consent-dialog"]',
+    focus: "inside",
+    trap: true,
+    afterHydration: true,
+  },
+  "headers-footers/footer-two-tier": {
     trigger: '[data-slot="market-switcher-trigger"]',
     opens: '[data-slot="market-switcher-popup"]',
     focus: "inside",

@@ -115,7 +115,6 @@ export const de: Copy = {
     shop: "Shop",
     help: "Hilfe",
     company: "Unternehmen",
-    legal: "Rechtliches",
     shipping: "Versand und Rückgabe",
     sizeGuide: "Größentabelle",
     contact: "Kontakt",
@@ -127,8 +126,9 @@ export const de: Copy = {
     stores: "Unsere Geschäfte",
     terms: "Allgemeine Geschäftsbedingungen",
     privacy: "Datenschutzerklärung",
-    cookies: "Cookie-Einstellungen",
+    cookies: "Cookie-Richtlinie",
     imprint: "Impressum",
+    copyright: (store, year) => `© ${year} ${store}. Alle Rechte vorbehalten.`,
   },
   shipping: {
     standard: "Standardversand",
@@ -262,6 +262,8 @@ export const de: Copy = {
         actionLabel: "Alle Bestelldetails ansehen und überprüfen",
       },
     },
+    cookieMessage:
+      "Shopblok verwendet einige Cookies, um Ihren Warenkorb und Ihr Land zu speichern. Wenn Sie zustimmen, zählen wir außerdem Besuche und stimmen unsere Angebote auf Sie ab.",
   },
   checkoutFlow: {
     cart: "Warenkorb",

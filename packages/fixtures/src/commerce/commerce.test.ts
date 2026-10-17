@@ -28,6 +28,7 @@ import { AccordionSection, ToastMessage } from "@shopblok/registry/contracts";
 import { Countdown, DiscountCode, NewsletterSignup } from "@shopblok/registry/contracts";
 import { FreeShipping, PromoCodeEntry } from "@shopblok/registry/contracts";
 import { AnnouncementBar, Header, MarketSuggestion, MobileNav } from "@shopblok/registry/contracts";
+import { ConsentChoice, CookieConsent, Footer } from "@shopblok/registry/contracts";
 import {
   ShippingEstimate,
   StepperState,
@@ -277,9 +278,9 @@ describe.each(designSystemLocales)("the %s fixtures", (locale) => {
       expectParses(RatingSummary, fixture.ratingSummary, `${locale}.ratingSummary`);
     });
 
-    it("navigation and footer are NavItems and FooterColumns", () => {
+    it("navigation is NavItems and the footers are Footers (T36)", () => {
       expectAllParse(NavItem, fixture.navigation, `${locale}.navigation`);
-      expectAllParse(FooterColumn, fixture.footer, `${locale}.footer`);
+      expectAllParse(Footer, Object.values(fixture.footer), `${locale}.footer`);
     });
 
     it("markets are MarketOptions", () => {
@@ -479,6 +480,7 @@ describe.each(designSystemLocales)("the %s fixtures", (locale) => {
       "header.mobileNav.market",
       "header.suggestions.copy.suggested",
       "header.suggestions.message.suggested",
+      "footer.content.market",
     ];
 
     it("has every amount in the market's currency", () => {
@@ -916,17 +918,24 @@ describe.each(designSystemLocales)("the %s fixtures", (locale) => {
       }
     });
 
-    it("has four footer columns of three to five links", () => {
-      expect(fixture.footer).toHaveLength(4);
-      for (const column of fixture.footer) {
+    it("has three footer columns of three to five links, and four legal links", () => {
+      const { columns, legalLinks } = fixture.footer.content;
+      expect(columns).toHaveLength(3);
+      for (const column of columns) {
         expect(column.links.length, column.title).toBeGreaterThanOrEqual(3);
         expect(column.links.length, column.title).toBeLessThanOrEqual(5);
       }
-      const external = fixture.footer.flatMap((column) =>
+      const external = columns.flatMap((column) =>
         column.links.filter((link) => link.external === true),
       );
       expect(external).toHaveLength(1);
       expect(external[0]!.href).toMatch(/^https:\/\//);
+      expect(legalLinks.map((link) => link.href)).toEqual([
+        `${prefix}/pages/terms`,
+        `${prefix}/pages/privacy`,
+        `${prefix}/pages/cookies`,
+        `${prefix}/pages/legal-notice`,
+      ]);
     });
   });
 
@@ -1408,6 +1417,84 @@ describe.each(designSystemLocales)("the %s fixtures", (locale) => {
     });
   });
 
+  describe("the footer (T36)", () => {
+    const { content, bare } = fixture.footer;
+
+    it("draws the fixture's own markets, the checkout's payment marks and the header's store", () => {
+      expect(content.market?.markets).toBe(fixture.markets);
+      expect(content.paymentIcons).toEqual([
+        ...new Set(fixture.paymentMethods.flatMap((method) => method.brands)),
+      ]);
+      expect(content.paymentIcons).toHaveLength(8);
+      expect(content.storeName).toBe(fixture.header.content.storeName);
+      expect(content.homeHref).toBe(fixture.header.content.homeHref);
+      expect(content.newsletter).toEqual(fixture.marketing.newsletter.empty);
+    });
+
+    it("links five profiles on other sites, the same in every locale", () => {
+      expect(content.social.map((link) => link.network)).toEqual([
+        "instagram",
+        "facebook",
+        "tiktok",
+        "pinterest",
+        "youtube",
+      ]);
+      expect(content.social).toEqual(commerceFixtures.en.footer.content.social);
+    });
+
+    it("writes the copyright with the store's name and the year of `fixtureNow`", () => {
+      expect(content.copyright).toContain(content.storeName);
+      expect(content.copyright).toContain("2026");
+      expect(content.copyright.startsWith("©")).toBe(true);
+      expect(bare.copyright).toBe(content.copyright);
+    });
+
+    it("has a bare footer with nothing but two legal links and the copyright", () => {
+      expect(bare.columns).toEqual([]);
+      expect(bare.newsletter).toBeUndefined();
+      expect(bare.social).toEqual([]);
+      expect(bare.paymentIcons).toEqual([]);
+      expect(bare.marketSwitcher).toBe(false);
+      expect(bare.market).toBeUndefined();
+      expect(bare.legalLinks).toEqual(content.legalLinks.slice(0, 2));
+    });
+  });
+
+  describe("cookie consent (T36)", () => {
+    const { cookieConsent } = fixture.site;
+
+    it("parses with its contracts", () => {
+      expectAllParse(
+        CookieConsent,
+        [cookieConsent.copy, cookieConsent.message],
+        `${locale}.site.cookieConsent`,
+      );
+      expectAllParse(
+        ConsentChoice,
+        Object.values(cookieConsent.choices),
+        `${locale}.site.cookieConsent.choices`,
+      );
+    });
+
+    it("links the footer's cookie page, once with the copy's words and once with the shop's own", () => {
+      expect(cookieConsent.copy.policyHref).toBe(`${prefix}/pages/cookies`);
+      expect(fixture.footer.content.legalLinks.map((link) => link.href)).toContain(
+        cookieConsent.copy.policyHref,
+      );
+      expect(cookieConsent.copy.message).toBeUndefined();
+      expect(cookieConsent.message.message?.trim()).toBeTruthy();
+      expect(cookieConsent.message.policyHref).toBe(cookieConsent.copy.policyHref);
+    });
+
+    it("has a choice that rejects everything, one with analytics alone, and one that accepts all", () => {
+      expect(cookieConsent.choices).toEqual({
+        rejected: { analytics: false, marketing: false },
+        analytics: { analytics: true, marketing: false },
+        accepted: { analytics: true, marketing: true },
+      });
+    });
+  });
+
   describe("the long values", () => {
     it("are longer than every ordinary counterpart", () => {
       const { long } = fixture;
@@ -1464,12 +1551,12 @@ describe.each(designSystemLocales)("the %s fixtures", (locale) => {
       longer(
         "footer title",
         long.footerColumn.title,
-        fixture.footer.map((c) => c.title),
+        fixture.footer.content.columns.map((c) => c.title),
       );
       longer(
         "footer link",
         long.footerColumn.links.map((l) => l.label).join(" "),
-        fixture.footer.flatMap((c) => c.links.map((l) => l.label)),
+        fixture.footer.content.columns.flatMap((c) => c.links.map((l) => l.label)),
       );
       longer(
         "review body",
@@ -1537,7 +1624,7 @@ describe("the parse checks catch a broken fixture", () => {
   it("a saved card with a card number, and a link without a slash", () => {
     const card = { ...at(fixture.savedPaymentMethods, 0), number: "4242424242424242" };
     expect(parses(SavedPaymentMethod, card)).toBe(false);
-    const link = { ...at(fixture.footer, 0).links[0], href: "pages/faq" };
+    const link = { ...at(fixture.footer.content.columns, 0).links[0], href: "pages/faq" };
     expect(parses(FooterColumn, { title: "x", links: [link] })).toBe(false);
   });
 });

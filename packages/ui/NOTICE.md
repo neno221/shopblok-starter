@@ -65,12 +65,16 @@ David Jerleke as the copyright holder.
 
 `simple-icons` 16.35.0 (npm): the marks of PaymentIcon (`src/atoms/payment-icon.tsx`), eight icons
 copied from the package into `src/atoms/payment-marks.ts` (T34; a test compares them with the
-package): Visa, Mastercard, American Express, Apple Pay, Google Pay, Revolut, PayPal and Klarna. The package's data is released under CC0 1.0 Universal (public domain dedication,
+package): Visa, Mastercard, American Express, Apple Pay, Google Pay, Revolut, PayPal and Klarna. The
+footers' social links (`src/organisms/footer/social-marks.ts`, T36) draw eight more, copied the same
+way and compared with the package by a test: Instagram, Facebook, TikTok, YouTube, Pinterest, X,
+Threads and Bluesky. The package's data is released under CC0 1.0 Universal (public domain dedication,
 <https://creativecommons.org/publicdomain/zero/1.0/>), and needs no notice.
 
 **Each mark remains the trademark of its owner.** CC0 covers Simple Icons' data, not the brands'
 rights in their logos; the package's `DISCLAIMER.md` asks users to seek the permissions their use
-needs. The marks are shown only to say which payment methods the shop accepts. A payment provider
+needs. The payment marks are shown only to say which payment methods the shop accepts, and the social
+marks only to link to the shop's own profiles. A payment provider
 that requires its own artwork on a payment page (Apple Pay's mark guidelines, for one) gets it with
 that integration (M6).
 

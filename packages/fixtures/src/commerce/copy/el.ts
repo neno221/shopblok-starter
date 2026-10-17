@@ -115,7 +115,6 @@ export const el: Copy = {
     shop: "Προϊόντα",
     help: "Βοήθεια",
     company: "Εταιρεία",
-    legal: "Νομικά",
     shipping: "Αποστολές και επιστροφές",
     sizeGuide: "Οδηγός μεγεθών",
     contact: "Επικοινωνία",
@@ -127,8 +126,9 @@ export const el: Copy = {
     stores: "Τα καταστήματά μας",
     terms: "Όροι και προϋποθέσεις",
     privacy: "Πολιτική απορρήτου",
-    cookies: "Ρυθμίσεις cookies",
+    cookies: "Πολιτική cookies",
     imprint: "Νομικές πληροφορίες",
+    copyright: (store, year) => `© ${year} ${store}. Με την επιφύλαξη παντός δικαιώματος.`,
   },
   shipping: {
     standard: "Κανονική αποστολή",
@@ -263,6 +263,8 @@ export const el: Copy = {
         actionLabel: "Δείτε τις λεπτομέρειες της παραγγελίας σας",
       },
     },
+    cookieMessage:
+      "Το Shopblok χρησιμοποιεί λίγα cookies για να θυμάται το καλάθι και τη χώρα σας. Αν συμφωνείτε, μετράμε επίσης τις επισκέψεις και προσαρμόζουμε τις προσφορές μας σε εσάς.",
   },
   checkoutFlow: {
     cart: "Καλάθι",

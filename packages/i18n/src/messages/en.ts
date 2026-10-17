@@ -447,6 +447,56 @@ export const en = {
       // The badge of a cart with more items than it has room for.
       cartOverflow: "{max}+",
     },
+    // T36: the footers, cookie consent and the loading skeletons.
+    footer: {
+      // The logo's or the wordmark's link.
+      home: "{store}, home",
+      // The landmark of the columns of links: a screen reader adds "navigation".
+      navigation: "Footer",
+      // The legal links' landmark, when they are a list of their own.
+      legal: "Legal",
+      // The heading over the social links, and each link's name: the network's own name.
+      social: "Follow us",
+      socialLink: "{store} on {network}",
+      // The list of the payment marks.
+      payment: "Ways to pay",
+      // Read after a link that opens another site in a new tab.
+      newTab: "Opens in a new tab",
+    },
+    cookieConsent: {
+      // The banner's landmark.
+      region: "Cookie consent",
+      title: "Cookies on this store",
+      // `{policy}` is where the link goes; its text is `policyLink`.
+      message:
+        "We use necessary cookies to make the store work. With your permission we also use analytics cookies to see how the store is used, and marketing cookies to show you offers that match your interests. Read our {policy}.",
+      policyLink: "cookie policy",
+      acceptAll: "Accept all",
+      rejectAll: "Reject all",
+      choose: "Choose cookies",
+      // The dialog "choose" opens.
+      dialogTitle: "Cookie preferences",
+      dialogDescription:
+        "Choose which cookies we may use. Nothing is switched on until you save.",
+      necessary: "Necessary",
+      necessaryDescription:
+        "Keep the store working: they remember your cart, your sign-in, your country and language, and this choice.",
+      // The necessary category's switch, which is on and cannot change.
+      alwaysOn: "Always on",
+      analytics: "Analytics",
+      analyticsDescription: "Count visits and show us how the store is used, so we can improve it.",
+      marketing: "Marketing",
+      marketingDescription: "Show you offers that match your interests, here and on other sites.",
+      save: "Save my choices",
+      close: "Close",
+    },
+    loadingSkeleton: {
+      // The busy region's name, for each layout.
+      productGrid: "Loading products",
+      productPage: "Loading the product",
+      cart: "Loading your cart",
+      accountList: "Loading your account",
+    },
   },
   notFound: {
     title: "Page not found",
