@@ -21,8 +21,20 @@ function sliders() {
 }
 
 describe("Slider", () => {
-  it("is not a client component: no state and no events in the file", () => {
-    expect(source).not.toMatch(/^\s*["']use client["']/m);
+  it("says in its header why it is a client component", () => {
+    expect(source).toMatch(/^"use client";$/m);
+    expect(source.split('"use client"')[0]).toMatch(/client component because/);
+  });
+
+  it("draws one thumb for a single number, as value or defaultValue, and two for the default range", () => {
+    const { unmount } = render(<Slider value={50} getThumbLabel={getThumbLabel} />);
+    expect(document.querySelectorAll("[data-slot=slider-thumb]")).toHaveLength(1);
+    unmount();
+    const second = render(<Slider defaultValue={30} getThumbLabel={getThumbLabel} />);
+    expect(document.querySelectorAll("[data-slot=slider-thumb]")).toHaveLength(1);
+    second.unmount();
+    render(<Slider getThumbLabel={getThumbLabel} />);
+    expect(document.querySelectorAll("[data-slot=slider-thumb]")).toHaveLength(2);
   });
 
   it("has one slider per value, each named by getThumbLabel (the type requires it)", () => {

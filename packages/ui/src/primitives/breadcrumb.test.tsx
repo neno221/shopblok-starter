@@ -41,8 +41,9 @@ function Trail(props: { label?: string; more?: string; home?: string; page?: str
 }
 
 describe("Breadcrumb", () => {
-  it("is a server component: no state and no events, so no 'use client'", () => {
-    expect(source).not.toMatch(/^\s*["']use client["']/m);
+  it("says in its header why it is a client component (BreadcrumbLink calls a hook)", () => {
+    expect(source).toMatch(/^"use client";$/m);
+    expect(source.split('"use client"')[0]).toMatch(/client component because/);
   });
 
   it("is a navigation named by its required label, with an ordered list of items", () => {

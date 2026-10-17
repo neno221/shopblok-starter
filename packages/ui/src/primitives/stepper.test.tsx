@@ -16,6 +16,7 @@ import {
   StepperSeparator,
   StepperTitle,
   StepperTrigger,
+  useStepper,
 } from "./stepper";
 
 const source = readFileSync(path.join(import.meta.dirname, "stepper.tsx"), "utf8");
@@ -159,6 +160,67 @@ describe("Stepper", () => {
     await user.tab();
     await user.keyboard("{ArrowLeft}");
     expect(document.activeElement).toBe(delivery);
+  });
+
+  it("skips a disabled step with the arrow keys, Home and End", async () => {
+    const user = userEvent.setup();
+    const { unmount } = render(<Steps disabledStep={2} />);
+    const [first, , payment] = screen.getAllByRole("tab");
+    await user.tab();
+    await user.keyboard("{ArrowRight}");
+    expect(document.activeElement).toBe(payment);
+    await user.keyboard("{ArrowLeft}");
+    expect(document.activeElement).toBe(first);
+    unmount();
+
+    render(<Steps disabledStep={3} />);
+    const [address] = screen.getAllByRole("tab");
+    const delivery = screen.getByRole("tab", { name: /Delivery/ });
+    await user.tab();
+    await user.keyboard("{End}");
+    expect(document.activeElement).toBe(delivery);
+    await user.keyboard("{ArrowRight}");
+    expect(document.activeElement).toBe(address);
+  });
+
+  it("keeps ids unique with two steppers on a page, and labels each panel by its tab", () => {
+    render(
+      <>
+        <Steps />
+        <Steps titles={["Size", "Colour", "Fit"]} />
+      </>,
+    );
+    const ids = [...document.querySelectorAll("[id]")].map((element) => element.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    for (const panel of screen.getAllByRole("tabpanel")) {
+      const tab = document.getElementById(panel.getAttribute("aria-labelledby") ?? "");
+      expect(tab?.getAttribute("role")).toBe("tab");
+      expect(tab?.getAttribute("aria-controls")).toBe(panel.id);
+    }
+    expect(screen.getByRole("tabpanel", { name: /Size/ }).textContent).toBe("Panel 1");
+  });
+
+  it("counts its steps however deep the items sit", () => {
+    let count = 0;
+    function Count() {
+      count = useStepper().stepsCount;
+      return null;
+    }
+    render(
+      <Stepper>
+        <StepperNav>
+          <>
+            {[1, 2, 3].map((step) => (
+              <StepperItem key={step} step={step}>
+                <StepperTrigger>{step}</StepperTrigger>
+              </StepperItem>
+            ))}
+          </>
+        </StepperNav>
+        <Count />
+      </Stepper>,
+    );
+    expect(count).toBe(3);
   });
 
   it("does not choose a disabled step", async () => {

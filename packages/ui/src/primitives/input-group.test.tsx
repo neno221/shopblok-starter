@@ -116,6 +116,34 @@ describe("InputGroup", () => {
     expect(document.activeElement).not.toBe(input);
   });
 
+  it("focuses a textarea from its addon, and calls a caller's onClick before (preventDefault stops it)", async () => {
+    const onClick = vi.fn();
+    const user = userEvent.setup();
+    const { unmount } = render(
+      <InputGroup>
+        <InputGroupAddon data-testid="addon" onClick={onClick}>
+          <SearchIcon aria-hidden="true" />
+        </InputGroupAddon>
+        <InputGroupTextarea aria-label="Note" />
+      </InputGroup>,
+    );
+    await user.click(screen.getByTestId("addon"));
+    expect(onClick).toHaveBeenCalledTimes(1);
+    expect(document.activeElement).toBe(screen.getByRole("textbox", { name: "Note" }));
+    unmount();
+
+    render(
+      <InputGroup>
+        <InputGroupAddon data-testid="addon" onClick={(event) => event.preventDefault()}>
+          <SearchIcon aria-hidden="true" />
+        </InputGroupAddon>
+        <InputGroupInput aria-label="Query" />
+      </InputGroup>,
+    );
+    await user.click(screen.getByTestId("addon"));
+    expect(document.activeElement).not.toBe(screen.getByRole("textbox", { name: "Query" }));
+  });
+
   it("takes a textarea, which is taller than 44 px", () => {
     render(
       <InputGroup>

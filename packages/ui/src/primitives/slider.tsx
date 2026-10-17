@@ -8,8 +8,13 @@
 // kit's `data-horizontal` and `data-vertical` match nothing Base UI renders, so the track had no
 // height); every thumb's name is the required `getThumbLabel`, and its spoken value is the
 // formatted number alone (Base UI's default for a range adds the English "start range" and "end
-// range"). No "use client": the file has no state and no events. Base UI reads the reading
-// direction from its `DirectionProvider`.
+// range"); a single number (`value={50}`) draws one thumb (the kit drew two, for `[min, max]`).
+// Base UI reads the reading direction from its `DirectionProvider`. A client component because
+// Base UI's slider keeps state and handles pointer and keyboard events, and the required
+// `getThumbLabel` is a function, which a server page cannot pass across the boundary: a page
+// renders the slider inside a client component of its own.
+"use client";
+
 import { Slider as SliderPrimitive } from "@base-ui/react/slider";
 import { cn } from "@shopblok/ui/lib/utils";
 
@@ -29,9 +34,13 @@ function Slider({
 }: SliderProps) {
   const _values = Array.isArray(value)
     ? value
-    : Array.isArray(defaultValue)
-      ? defaultValue
-      : [min, max];
+    : value !== undefined
+      ? [value]
+      : Array.isArray(defaultValue)
+        ? defaultValue
+        : defaultValue !== undefined
+          ? [defaultValue]
+          : [min, max];
 
   return (
     <SliderPrimitive.Root

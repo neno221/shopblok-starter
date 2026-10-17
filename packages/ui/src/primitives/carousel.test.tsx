@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { DirectionProvider } from "@base-ui/react/direction-provider";
 import { describe, expect, it, vi } from "vitest";
@@ -215,6 +215,35 @@ describe("Carousel", () => {
     expect(next).toHaveBeenCalledTimes(1);
     await user.keyboard("{ArrowRight}");
     expect(previous).toHaveBeenCalledTimes(1);
+  });
+
+  it("swaps the arrow keys when `opts.direction` makes embla right-to-left, as embla scrolls", async () => {
+    const user = userEvent.setup();
+    const api = await renderWithApi((setApi) => (
+      <Slides opts={{ direction: "rtl" }} setApi={setApi} />
+    ));
+    expect(api.internalEngine().options.direction).toBe("rtl");
+    const next = vi.spyOn(api, "scrollNext");
+    await user.tab();
+    await user.keyboard("{ArrowLeft}");
+    expect(next).toHaveBeenCalledTimes(1);
+  });
+
+  it("takes both of its listeners off embla when it unmounts", async () => {
+    let off: { mock: { calls: unknown[][] } } | undefined;
+    const api = await renderWithApi((setApi) => (
+      <Slides
+        setApi={(created) => {
+          if (created) off = vi.spyOn(created, "off");
+          setApi(created);
+        }}
+      />
+    ));
+    expect(api).toBeTruthy();
+    cleanup();
+    const events = off?.mock.calls.map(([event]) => event);
+    expect(events).toContain("reInit");
+    expect(events).toContain("select");
   });
 
   it("answers ArrowDown and ArrowUp in a vertical carousel, not the horizontal keys", async () => {

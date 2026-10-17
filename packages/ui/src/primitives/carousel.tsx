@@ -71,11 +71,13 @@ function Carousel({
   ...props
 }: React.ComponentProps<"div"> & CarouselProps) {
   const contextDirection = useDirection();
-  const direction = dir === "rtl" || dir === "ltr" ? dir : contextDirection;
+  // One direction for embla and the arrow keys: `opts.direction`, else `dir`, else the context's.
+  const direction =
+    opts?.direction ?? (dir === "rtl" || dir === "ltr" ? dir : contextDirection);
   const [carouselRef, api] = useEmblaCarousel(
     {
-      direction,
       ...opts,
+      direction,
       axis: orientation === "horizontal" ? "x" : "y",
     },
     plugins,
@@ -127,7 +129,8 @@ function Carousel({
     api.on("select", onSelect);
 
     return () => {
-      api?.off("select", onSelect);
+      api.off("reInit", onSelect);
+      api.off("select", onSelect);
     };
   }, [api, onSelect]);
 

@@ -4,8 +4,12 @@
 // "breadcrumb" and "More", and hid the ellipsis's text with `aria-hidden`); a link is a 44 × 44 px
 // target (`min-h-11 min-w-11`, D32: a breadcrumb is a row of links, not running text) and draws
 // the ring at full strength (D35); the separator's chevron turns with `rtl:rotate-180` to point
-// along the reading direction. No "use client": the file has no state and no events. An ellipsis
-// that opens a menu goes inside a 44 px trigger of its own.
+// along the reading direction. An ellipsis that opens a menu goes inside a 44 px trigger of its
+// own. A client component because BreadcrumbLink calls Base UI's `useRender`, a hook (it needs
+// `useMemo` and `useRef`, which React does not export to server components); a server page can
+// still render every part of it, and passes only plain props.
+"use client";
+
 import type * as React from "react";
 import { mergeProps } from "@base-ui/react/merge-props";
 import { useRender } from "@base-ui/react/use-render";

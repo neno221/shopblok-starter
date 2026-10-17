@@ -3,18 +3,23 @@
 // (`min-h-11 min-w-11`, D32) and aligns its text to the start, the focus ring is at full strength
 // (D35), a title wraps (`leading-snug`, not `leading-none`), and the arrow keys follow the reading
 // direction (ArrowLeft goes to the next step in a right-to-left horizontal stepper; the direction
-// is the `dir` prop, else Base UI's `DirectionProvider`). A client component because it keeps the
-// active step in state and registers its triggers for roving focus.
+// is the `dir` prop, else Base UI's `DirectionProvider`). Fixed from upstream (PR 53 review): the
+// tab and panel ids carry a `useId()` prefix, so two steppers on a page don't repeat ids; a
+// content is a `tabpanel` labelled by its tab; the arrow keys, Home and End move among the enabled
+// triggers in DOM order (upstream registered them in mount order, kept unmounted ones and
+// stopped at a disabled one); `stepsCount` counts the items however deep they sit (upstream only
+// looked at the Stepper's direct children, by a `displayName` it never set).
+// A client component because it keeps the active step in state and moves focus among its triggers.
 "use client";
 
-import type { HTMLAttributes, ReactElement } from "react";
+import type { HTMLAttributes, ReactNode } from "react";
 import {
   Children,
   createContext,
   isValidElement,
   useCallback,
   useContext,
-  useEffect,
+  useId,
   useMemo,
   useRef,
   useState,
@@ -42,10 +47,12 @@ interface StepperContextValue {
   orientation: StepperOrientation;
   /** Whether the stepper reads right to left, so the horizontal arrow keys swap. */
   rtl: boolean;
-  registerTrigger: (node: HTMLButtonElement | null) => void;
-  triggerNodes: HTMLButtonElement[];
-  focusNext: (currentIdx: number) => void;
-  focusPrev: (currentIdx: number) => void;
+  /** The prefix of this stepper's tab and panel ids, unique on the page. */
+  baseId: string;
+  /** This stepper's enabled triggers, in DOM order (not a nested stepper's). */
+  getTriggers: () => HTMLElement[];
+  focusNext: (current: HTMLElement) => void;
+  focusPrev: (current: HTMLElement) => void;
   focusFirst: () => void;
   focusLast: () => void;
   indicators: StepIndicators;
@@ -95,19 +102,16 @@ function Stepper({
   const contextDirection = useDirection();
   const rtl = (dir === "rtl" || dir === "ltr" ? dir : contextDirection) === "rtl";
   const [activeStep, setActiveStep] = useState(defaultValue);
-  const [triggerNodes, setTriggerNodes] = useState<HTMLButtonElement[]>([]);
+  const baseId = useId();
+  const rootRef = useRef<HTMLDivElement>(null);
 
-  // Register/unregister triggers
-  const registerTrigger = useCallback((node: HTMLButtonElement | null) => {
-    setTriggerNodes((prev) => {
-      if (node && !prev.includes(node)) {
-        return [...prev, node];
-      } else if (!node && prev.includes(node!)) {
-        return prev.filter((n) => n !== node);
-      } else {
-        return prev;
-      }
-    });
+  // Read from the DOM on each key press: always in order, without disabled or unmounted triggers.
+  const getTriggers = useCallback(() => {
+    const root = rootRef.current;
+    if (!root) return [];
+    return [
+      ...root.querySelectorAll<HTMLElement>("[data-slot=stepper-trigger]:not(:disabled)"),
+    ].filter((node) => node.closest("[data-slot=stepper]") === root);
   }, []);
 
   const handleSetActiveStep = useCallback(
@@ -123,41 +127,63 @@ function Stepper({
   const currentStep = value ?? activeStep;
 
   // Keyboard navigation logic
-  const focusTrigger = (idx: number) => {
-    if (triggerNodes[idx]) triggerNodes[idx].focus();
-  };
-  const focusNext = (currentIdx: number) => focusTrigger((currentIdx + 1) % triggerNodes.length);
-  const focusPrev = (currentIdx: number) =>
-    focusTrigger((currentIdx - 1 + triggerNodes.length) % triggerNodes.length);
-  const focusFirst = () => focusTrigger(0);
-  const focusLast = () => focusTrigger(triggerNodes.length - 1);
+  const focusBy = useCallback(
+    (current: HTMLElement, offset: number) => {
+      const triggers = getTriggers();
+      if (triggers.length === 0) return;
+      const index = triggers.indexOf(current);
+      // From a trigger that is not in the list (none should be), the first or last one.
+      const next =
+        index === -1
+          ? offset > 0
+            ? 0
+            : triggers.length - 1
+          : (index + offset + triggers.length) % triggers.length;
+      triggers[next]?.focus();
+    },
+    [getTriggers],
+  );
+  const focusNext = useCallback((current: HTMLElement) => focusBy(current, 1), [focusBy]);
+  const focusPrev = useCallback((current: HTMLElement) => focusBy(current, -1), [focusBy]);
+  const focusFirst = useCallback(() => getTriggers()[0]?.focus(), [getTriggers]);
+  const focusLast = useCallback(() => getTriggers().at(-1)?.focus(), [getTriggers]);
 
   // Context value
   const contextValue = useMemo<StepperContextValue>(
     () => ({
       activeStep: currentStep,
       setActiveStep: handleSetActiveStep,
-      stepsCount: Children.toArray(children).filter(
-        (child): child is ReactElement =>
-          isValidElement(child) &&
-          (child.type as { displayName?: string }).displayName === "StepperItem",
-      ).length,
+      stepsCount: countItems(children),
       orientation,
       rtl,
-      registerTrigger,
+      baseId,
+      getTriggers,
       focusNext,
       focusPrev,
       focusFirst,
       focusLast,
-      triggerNodes,
       indicators,
     }),
-    [currentStep, handleSetActiveStep, children, orientation, rtl, registerTrigger, triggerNodes],
+    [
+      currentStep,
+      handleSetActiveStep,
+      children,
+      orientation,
+      rtl,
+      baseId,
+      getTriggers,
+      focusNext,
+      focusPrev,
+      focusFirst,
+      focusLast,
+      indicators,
+    ],
   );
 
   return (
     <StepperContext.Provider value={contextValue}>
       <div
+        ref={rootRef}
         role="tablist"
         aria-orientation={orientation}
         data-slot="stepper"
@@ -170,6 +196,15 @@ function Stepper({
       </div>
     </StepperContext.Provider>
   );
+}
+
+/** The StepperItems among `children`, however deep (inside a StepperNav, a fragment, a wrapper). */
+function countItems(children: ReactNode): number {
+  return Children.toArray(children).reduce<number>((count, child) => {
+    if (!isValidElement<{ children?: ReactNode }>(child)) return count;
+    if (child.type === StepperItem) return count + 1;
+    return count + countItems(child.props.children);
+  }, 0);
 }
 
 interface StepperItemProps extends React.HTMLAttributes<HTMLDivElement> {
@@ -221,8 +256,7 @@ function StepperTrigger({ className, children, tabIndex, render, ...props }: Ste
   const {
     setActiveStep,
     activeStep,
-    registerTrigger,
-    triggerNodes,
+    baseId,
     focusNext,
     focusPrev,
     focusFirst,
@@ -232,22 +266,8 @@ function StepperTrigger({ className, children, tabIndex, render, ...props }: Ste
   } = stepperCtx;
   const { step, isDisabled } = useStepItem();
   const isSelected = activeStep === step;
-  const id = `stepper-tab-${step}`;
-  const panelId = `stepper-panel-${step}`;
-
-  // Register this trigger for keyboard navigation
-  const btnRef = useRef<HTMLButtonElement>(null);
-  useEffect(() => {
-    if (btnRef.current) {
-      registerTrigger(btnRef.current);
-    }
-  }, [btnRef.current]);
-
-  // Find our index among triggers for navigation
-  const myIdx = useMemo(
-    () => triggerNodes.findIndex((n: HTMLButtonElement) => n === btnRef.current),
-    [triggerNodes, btnRef.current],
-  );
+  const id = `${baseId}-tab-${step}`;
+  const panelId = `${baseId}-panel-${step}`;
 
   // The horizontal arrow that leads on to the next step: the right one, the left in right-to-left.
   const nextArrow = orientation === "horizontal" && rtl ? "ArrowLeft" : "ArrowRight";
@@ -258,20 +278,20 @@ function StepperTrigger({ className, children, tabIndex, render, ...props }: Ste
       case nextArrow:
       case "ArrowDown":
         e.preventDefault();
-        if (myIdx !== -1 && focusNext) focusNext(myIdx);
+        focusNext(e.currentTarget);
         break;
       case previousArrow:
       case "ArrowUp":
         e.preventDefault();
-        if (myIdx !== -1 && focusPrev) focusPrev(myIdx);
+        focusPrev(e.currentTarget);
         break;
       case "Home":
         e.preventDefault();
-        if (focusFirst) focusFirst();
+        focusFirst();
         break;
       case "End":
         e.preventDefault();
-        if (focusLast) focusLast();
+        focusLast();
         break;
       case "Enter":
       case " ":
@@ -304,7 +324,6 @@ function StepperTrigger({ className, children, tabIndex, render, ...props }: Ste
   return useRender({
     defaultTagName: "button",
     render,
-    ref: btnRef,
     props: mergeProps<"button">(defaultProps, props),
   });
 }
@@ -415,8 +434,8 @@ interface StepperContentProps extends React.ComponentProps<"div"> {
   forceMount?: boolean;
 }
 
-function StepperContent({ value, forceMount, children, className }: StepperContentProps) {
-  const { activeStep } = useStepper();
+function StepperContent({ value, forceMount, children, className, ...props }: StepperContentProps) {
+  const { activeStep, baseId } = useStepper();
   const isActive = value === activeStep;
 
   if (!forceMount && !isActive) {
@@ -425,6 +444,10 @@ function StepperContent({ value, forceMount, children, className }: StepperConte
 
   return (
     <div
+      role="tabpanel"
+      id={`${baseId}-panel-${value}`}
+      aria-labelledby={`${baseId}-tab-${value}`}
+      {...props}
       data-slot="stepper-content"
       data-state={activeStep}
       className={cn("w-full", className, !isActive && forceMount && "hidden")}
