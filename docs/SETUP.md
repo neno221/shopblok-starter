@@ -3902,3 +3902,6 @@ Each applied, checked and reverted from a copy.
 - **If a reader types a quantity, presses Enter and the cart refuses it,** the posted value is the cart's again, but the field shows what was typed until it loses focus (Base UI does not rewrite text being typed).
 - **Before hydration** the remove confirmation cannot open without `confirmHref`, and the resend's wait is the number at render time; a reload asks the server again.
 - **The Greek, German and French copy** of the new keys was drafted in this session, for W4's read.
+
+**CI fix (PR 56).** `check (Node 22)` failed two French cases in `molecules-cart.test.tsx` and `molecules-checkout.test.tsx`: the runner's Node 22 ICU writes fr-CH thousands with `'` (`1'234'567.89 CHF`; Node 22.22 here writes a narrow no-break space), and React escapes `'` in the markup as `&#x27;`, which the tests' `text()` did not decode. Both now decode entities, as `molecules-address.test.tsx` and `molecules-payment.test.tsx` already did.
+

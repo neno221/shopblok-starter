@@ -30,7 +30,21 @@ const html = (id: Id, stateId: string, locale: Locale) =>
   renderToStaticMarkup(state(id, stateId).render(createContext(locale)));
 /** Intl and the catalogs may write a no-break space where a test has a plain one. */
 const plain = (text: string) => text.replace(/\s/g, " ");
-const text = (markup: string) => plain(markup.replace(/<[^>]*>/g, "").replace(/\s+/g, " "));
+/**
+ * React escapes `'` and the others in text, and Intl writes `'` between thousands in fr-CH where
+ * its ICU data says so (Node 22's on the CI runner), so the text is decoded before it is compared.
+ */
+const entities: Record<string, string> = {
+  "&amp;": "&",
+  "&lt;": "<",
+  "&gt;": ">",
+  "&quot;": '"',
+  "&#x27;": "'",
+};
+const decode = (text: string) =>
+  text.replace(/&(?:amp|lt|gt|quot|#x27);/g, (all) => entities[all] ?? all);
+const text = (markup: string) =>
+  plain(decode(markup.replace(/<[^>]*>/g, "").replace(/\s+/g, " ")));
 const htmlLang = (locale: Locale) => createContext(locale).fixture.market.htmlLang;
 const flow = (locale: Locale) => commerceFixtures[locale].checkoutFlow;
 const catalog = (locale: Locale) => catalogs[locale].molecules;
