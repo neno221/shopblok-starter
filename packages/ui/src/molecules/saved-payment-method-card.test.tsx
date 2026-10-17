@@ -247,6 +247,8 @@ describe("SavedPaymentMethodCard", () => {
       expect(markup).toContain('<form data-slot="saved-payment-method-remove-wrapper"');
       expect(markup).toContain('action="/account/payment-methods/spm_01/remove"');
       expect(markup).toContain('method="get"');
+      // The id rides along as a field, since a GET form drops the action's own query (PR 56 review).
+      expect(markup).toMatch(/<input type="hidden" name="paymentMethodId" value="spm_01"\/>/);
       expect(markup).toMatch(
         /<button[^>]*type="submit"[^>]*data-slot="saved-payment-method-remove"/,
       );
@@ -489,6 +491,12 @@ describe("SavedPaymentMethodCard", () => {
       expect(alert.querySelector("form")?.getAttribute("method")).toBeNull();
       const names = [...alert.querySelectorAll("input")].map((input) => input.name);
       expect(names).toEqual(["paymentMethodId"]);
+    });
+
+    it("posts without an action too, so the id never lands in the URL (PR 56 review)", async () => {
+      render(<SavedPaymentMethodCard {...props("en", visa(), { defaultOpen: true })} />);
+      const alert = await dialog();
+      expect(alert.querySelector("form")?.getAttribute("method")).toBe("post");
     });
 
     it("shows it is working while a function action runs, and cannot be sent twice", async () => {

@@ -22,8 +22,9 @@ type RadioCardProps = Omit<
   "children" | "onChange" | "defaultChecked" | "htmlFor"
 > & {
   /**
-   * Chosen, as the caller says. With `onChange` it is a controlled radio; without, it is drawn
-   * chosen and read-only (the design system's states, or a page that has decided for the shopper).
+   * Chosen, as the caller says. With `onChange` it is a controlled radio; without, it is the state
+   * it is drawn in (the design system's states, or a page that has decided for the shopper), passed
+   * as `defaultChecked` since `readonly` does not apply to a radio.
    */
   checked?: boolean;
   /** Chosen when the page loads, and then the browser's. */
@@ -73,10 +74,11 @@ function RadioCard({
         type="radio"
         name={name}
         value={value}
-        checked={checked}
-        defaultChecked={defaultChecked}
+        // A fixed state with no onChange (the DS's read-only cells) is a default, not a controlled
+        // value: `readonly` does not apply to a radio (PR 56 review).
+        checked={onChange === undefined ? undefined : checked}
+        defaultChecked={onChange === undefined && checked !== undefined ? checked : defaultChecked}
         onChange={onChange}
-        readOnly={checked !== undefined && onChange === undefined ? true : undefined}
         required={required}
         disabled={disabled}
         aria-labelledby={labelledBy}

@@ -137,6 +137,11 @@ describe("PromoCodeField", () => {
       expect(slot("promo-code-apply").getAttribute("method")).toBeNull();
     });
 
+    it("posts without an action too (PR 56 review)", () => {
+      setup("en", promo("en").typed);
+      expect(slot("promo-code-apply").getAttribute("method")).toBe("post");
+    });
+
     it("has one labelled field: required, off for the browser's memory, a code to the point", () => {
       setup();
       expect(field().type).toBe("text");

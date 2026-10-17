@@ -127,7 +127,7 @@ function AddressCard({
           {removeAction === undefined ? null : (
             <form
               action={removeAction}
-              method={typeof removeAction === "string" ? "post" : undefined}
+              method={typeof removeAction === "function" ? undefined : "post"}
               data-slot="address-card-remove"
               className="flex max-w-full"
             >

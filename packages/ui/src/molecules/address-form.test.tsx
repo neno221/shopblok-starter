@@ -281,6 +281,11 @@ describe("AddressForm", () => {
       expect(container.querySelector("form")?.getAttribute("method")).toBeNull();
     });
 
+    it("posts without an action too, so the address never lands in the URL (PR 56 review)", () => {
+      const { container } = setup();
+      expect(container.querySelector("form")?.getAttribute("method")).toBe("post");
+    });
+
     it("passes the form's own props on, and merges the class", () => {
       const { container } = setup("en", { id: "checkout-address", className: "max-w-xl" });
       const form = container.querySelector("form");

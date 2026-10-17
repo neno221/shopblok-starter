@@ -152,9 +152,9 @@ function Stepper({
                     {body}
                   </Link>
                 ) : (
-                  <span data-slot="stepper-step" className={box}>
+                  <div data-slot="stepper-step" className={box}>
                     {body}
-                  </span>
+                  </div>
                 )}
                 {index < steps.length - 1 ? (
                   <StepperSeparator

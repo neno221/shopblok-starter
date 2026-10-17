@@ -3905,3 +3905,15 @@ Each applied, checked and reverted from a copy.
 
 **CI fix (PR 56).** `check (Node 22)` failed two French cases in `molecules-cart.test.tsx` and `molecules-checkout.test.tsx`: the runner's Node 22 ICU writes fr-CH thousands with `'` (`1'234'567.89 CHF`; Node 22.22 here writes a narrow no-break space), and React escapes `'` in the markup as `&#x27;`, which the tests' `text()` did not decode. Both now decode entities, as `molecules-address.test.tsx` and `molecules-payment.test.tsx` already did.
 
+
+### Review fixes (PR 56)
+
+| Finding | Fix | Test |
+|---|---|---|
+| 1. AddressForm, CartLineItem's two forms, PromoCodeField's forms and the card-removal confirmation submitted by GET with no `action`, so an address (or a line, a code, a card id) went into the URL | `method="post"` unless the action is a function (React's), as in NewsletterForm (PR 55); AddressCard's remove form has the same expression, though it is only drawn with an action | a test per component: with no action, the form posts |
+| 2. A quantity change waiting on its half-second timer was still sent after the line's remove was pressed | `pending` is kept in a ref and checked when the timer fires, and becoming pending clears a waiting timer | `cart-line-quantity.test.tsx`: commit a value, set `pending`, nothing is sent |
+| 3 (optional). A `confirmHref` with a query lost it (a GET form replaces the action's query with its data) | the GET form carries `paymentMethodId` as a hidden field; the prop's doc says so | `saved-payment-method-card.test.tsx`: the hidden id in the no-JS form |
+| 4 (optional). A Stepper step that is not a link was a `span` around the indicator's `div`s | the wrapper is a `div` (already `inline-flex`) | the stepper's tests |
+| 5 (optional). RadioCard set `readonly` on a radio (it does not apply) to quiet React's controlled-without-`onChange` warning | `checked` without `onChange` is passed as `defaultChecked` | `radio-card.test.tsx`: chosen, no warning, no `readonly` |
+
+**For W4 (copy):** Greek `province.prefecture` "Νομαρχία" is the authority ("Νομός" is the area); the Greek and French `confirmText` agree "{card}" as masculine or neuter ("Το …", "sera supprimé") though "Visa …" reads as a card (feminine "carte" in French); the French option separator "{option} : {value}" wants a narrow no-break space before the colon (the earlier catalogs do the same).

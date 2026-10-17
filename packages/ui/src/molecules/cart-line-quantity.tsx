@@ -61,6 +61,14 @@ function CartLineQuantity({
   const wrapper = useRef<HTMLDivElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => () => clearTimeout(timer.current), []);
+  // `pending` as it is when the timer fires, not when the change was made: a line whose remove was
+  // pressed in the meantime sends no quantity (PR 56 review). Becoming pending also drops a send
+  // that is waiting.
+  const pendingNow = useRef(pending);
+  useEffect(() => {
+    pendingNow.current = pending;
+    if (pending) clearTimeout(timer.current);
+  }, [pending]);
 
   function send(next: number | null, now: boolean) {
     clearTimeout(timer.current);
@@ -70,7 +78,10 @@ function CartLineQuantity({
       return;
     }
     if (pending || next === quantity) return;
-    const submit = () => wrapper.current?.closest("form")?.requestSubmit();
+    const submit = () => {
+      if (pendingNow.current) return;
+      wrapper.current?.closest("form")?.requestSubmit();
+    };
     if (now) submit();
     else timer.current = setTimeout(submit, SEND_AFTER_MS);
   }

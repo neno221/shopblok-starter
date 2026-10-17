@@ -270,12 +270,12 @@ describe("CartLineQuantity", () => {
       expect(onSubmit).not.toHaveBeenCalled();
     });
 
-    it("sends the change made just before the update began once, and no more", () => {
+    it("drops a change still waiting when an update begins (PR 56 review)", () => {
       const { onSubmit, again } = setup();
       press(plus());
       again({ pending: true });
-      wait(500);
-      expect(onSubmit.mock.calls.length).toBeLessThanOrEqual(1);
+      wait(2000);
+      expect(onSubmit).not.toHaveBeenCalled();
     });
   });
 

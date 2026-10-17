@@ -222,6 +222,12 @@ describe("CartLineItem", () => {
       expect(slot("cart-line-item-remove").getAttribute("method")).toBeNull();
     });
 
+    it("posts without an action too (PR 56 review)", () => {
+      setup();
+      expect(slot("cart-line-item-update").getAttribute("method")).toBe("post");
+      expect(slot("cart-line-item-remove").getAttribute("method")).toBe("post");
+    });
+
     it("keeps the remove button out of the quantity form, so Enter in the field never removes the line", () => {
       setup();
       expect(removeButton().closest("form")).toBe(slot("cart-line-item-remove"));

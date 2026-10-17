@@ -87,7 +87,7 @@ function PromoCodeField({
   const applying = pending === "apply";
   const removing = pending === "remove";
   // A URL is posted; a function is left to React, which posts it as a server action.
-  const method = (action: FormAction) => (typeof action === "string" ? "post" : undefined);
+  const method = (action: FormAction) => (typeof action === "function" ? undefined : "post");
   return (
     <div
       data-slot="promo-code-field"

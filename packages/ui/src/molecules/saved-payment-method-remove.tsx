@@ -58,7 +58,8 @@ type SavedPaymentMethodRemoveProps = {
   };
   /** What `<form action>` takes: M3's server action, or a URL (the form is then posted). */
   action?: React.ComponentProps<"form">["action"];
-  /** Without JavaScript: the page that asks the same question; the button goes there. */
+  /** Without JavaScript: the page that asks the same question; the button goes there, with the
+   * card's id as `paymentMethodId` in the query. */
   confirmHref?: string;
   status?: RemoveStatus;
   /** Open at first render: for the design system's states, inside its overlay box. */
@@ -118,6 +119,11 @@ function SavedPaymentMethodRemove({
       {...(confirmHref === undefined ? {} : { action: confirmHref, method: "get" })}
       className={className}
     >
+      {/* A GET form replaces the action's query with its own data, so the id goes along as a field
+          and a confirmHref such as `…/remove?id=spm_03` still knows the card (PR 56 review). */}
+      {confirmHref === undefined ? null : (
+        <input type="hidden" name="paymentMethodId" value={paymentMethodId} />
+      )}
       <Dialog defaultOpen={defaultOpen} modal={modal} disablePointerDismissal>
         <DialogTrigger
           data-slot="saved-payment-method-remove"
@@ -138,7 +144,7 @@ function SavedPaymentMethodRemove({
         >
           <form
             action={action}
-            method={typeof action === "string" ? "post" : undefined}
+            method={typeof action === "function" ? undefined : "post"}
             className="flex flex-col"
           >
             <input type="hidden" name="paymentMethodId" value={paymentMethodId} />

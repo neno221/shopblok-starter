@@ -166,11 +166,11 @@ describe("RadioCard", () => {
       expect(radio("Express").checked).toBe(false);
     });
 
-    it("is drawn chosen and read-only with `checked` alone, with no React warning", () => {
+    it("is drawn chosen with `checked` alone, with no React warning and no `readonly` (PR 56 review)", () => {
       const error = vi.spyOn(console, "error").mockImplementation(() => {});
       render(<Card value="a" title="Standard" checked />);
       expect(radio("Standard").checked).toBe(true);
-      expect(radio("Standard").readOnly).toBe(true);
+      expect(radio("Standard").hasAttribute("readonly")).toBe(false);
       expect(error).not.toHaveBeenCalled();
       error.mockRestore();
     });

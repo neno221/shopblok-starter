@@ -134,7 +134,7 @@ function CartLineItem({
           : formatMessage(copy.stock.low, { count: stock.quantity }, locale)
         : undefined;
   // A URL is posted; a function is left to React, which posts it as a server action.
-  const method = (action: FormAction) => (typeof action === "string" ? "post" : undefined);
+  const method = (action: FormAction) => (typeof action === "function" ? undefined : "post");
   const quantityLabel = formatMessage(copy.quantity, { line: name }, locale);
   const { image } = line;
   return (

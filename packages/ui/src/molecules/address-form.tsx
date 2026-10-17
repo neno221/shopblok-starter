@@ -196,7 +196,7 @@ function AddressForm({
       data-slot="address-form"
       data-status={status}
       action={action}
-      method={typeof action === "string" ? "post" : undefined}
+      method={typeof action === "function" ? undefined : "post"}
       aria-label={copy.label[section ?? "address"]}
       className={cn("@container flex w-full min-w-0 flex-col gap-4", className)}
       {...props}
