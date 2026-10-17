@@ -44,12 +44,14 @@ function buildConfig(phase: string): NextConfig {
     // (a last segment ending in `.` and a letter; `/size-8.5` is a slug) on one segment only:
     // `/us/robots.txt` is a market's path, and the page behind it decides. The proxy never sees
     // these paths, because its matcher skips files. The destination has to be a route: a rewrite
-    // that resolves to nothing falls through to the dynamic routes, `[market]` again.
+    // that resolves to nothing falls through to the dynamic routes, `[market]` again. `.rsc` is left
+    // out (PR 50 review): a deployment adapter can address a dynamic page's RSC payload as
+    // `/us.rsc`, and that must still reach `[market]`.
     rewrites: async () => ({
       beforeFiles: [],
       afterFiles: [
         {
-          source: "/:file([^/]*\\.[A-Za-z][A-Za-z0-9]*)",
+          source: "/:file([^/]*\\.(?![Rr][Ss][Cc]$)[A-Za-z][A-Za-z0-9]*)",
           destination: "/next/missing-file",
         },
       ],
