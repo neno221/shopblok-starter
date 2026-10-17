@@ -217,6 +217,33 @@ describe("NavigationMenu", () => {
     }
   });
 
+  it.each([
+    ["the ancestor `fullWidthAnchor` names", true, "1400px"],
+    ["the root when nothing matches", false, "1000px"],
+  ])("spans %s (PR 57 review)", async (_name, wrapped, width) => {
+    const rect = (w: number) =>
+      ({ x: 0, y: 0, left: 0, top: 0, right: w, bottom: 48, width: w, height: 48, toJSON() {} }) as DOMRect;
+    const spy = vi
+      .spyOn(HTMLElement.prototype, "getBoundingClientRect")
+      .mockImplementation(function (this: HTMLElement) {
+        const slot = this.getAttribute("data-slot");
+        return rect(slot === "header-row" ? 1400 : slot === "navigation-menu" ? 1000 : 90);
+      });
+    try {
+      const user = userEvent.setup();
+      const menu = <Example fullWidth fullWidthAnchor='[data-slot="header-row"]' />;
+      render(wrapped ? <div data-slot="header-row">{menu}</div> : menu);
+      screen.getByRole("button", { name: "Women" }).focus();
+      await user.keyboard("{Enter}");
+      await screen.findByRole("link", { name: "Dresses" });
+      await waitFor(() =>
+        expect(positionerBox()?.style.getPropertyValue("--anchor-width")).toBe(width),
+      );
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
   it("passes `positionerClassName` and `popupClassName` on, after its own classes", async () => {
     const user = userEvent.setup();
     render(<Example positionerClassName="z-50" popupClassName="rounded-t-none" />);

@@ -148,34 +148,43 @@ describe("MegaMenu: the landmark and the bar", () => {
 describe("MegaMenu: the split navigation of the centered header", () => {
   const center = <a href="/us">Store, home</a>;
 
-  it("draws two lists in the one landmark with `center` between them", () => {
+  it("draws one list in the one landmark, `center` an item between the halves (PR 57 review)", () => {
     render(bar("en", { splitAt: 2, center }));
     const nav = screen.getByRole("navigation");
     const lists = nav.querySelectorAll("ul");
-    expect(lists).toHaveLength(2);
-    const names = (list: Element | undefined) =>
-      [...(list?.querySelectorAll(":scope > li") ?? [])].map((item) => plain(item.textContent));
-    expect(names(lists[0])).toEqual([label("en", NEW_IN), label("en", WOMEN)]);
-    expect(names(lists[1])).toEqual([
+    expect(lists).toHaveLength(1);
+    const items = [...(lists[0]?.querySelectorAll(":scope > li") ?? [])];
+    expect(items.map((item) => plain(item.textContent))).toEqual([
+      label("en", NEW_IN),
+      label("en", WOMEN),
+      "Store, home",
       label("en", MEN),
       label("en", ACCESSORIES),
       label("en", SALE),
     ]);
-    const home = within(nav).getByRole("link", { name: "Store, home" });
-    expect(lists[0]?.compareDocumentPosition(home)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
-    expect(home.compareDocumentPosition(lists[1] as Element)).toBe(
-      Node.DOCUMENT_POSITION_FOLLOWING,
-    );
+    const centre = items[2] as HTMLElement;
+    expect(centre.getAttribute("data-slot")).toBe("mega-menu-center");
+    expect(centre.getAttribute("role")).toBe("none");
     expect(nav.querySelectorAll("nav")).toHaveLength(0);
   });
 
-  it("puts the second half at the end of its space", () => {
+  it("pushes the halves to the two ends with the centre's auto margins", () => {
     render(bar("en", { splitAt: 2, center }));
-    const [first, second] = screen.getByRole("navigation").querySelectorAll("ul");
-    expect(first?.className).toContain("flex-1");
-    expect(second?.className).toContain("flex-1");
-    expect(second?.className).toContain("justify-end");
-    expect(first?.className).not.toContain("justify-end");
+    const centre = document.querySelector('[data-slot="mega-menu-center"]') as HTMLElement;
+    expect(centre.className).toContain("mx-auto");
+  });
+
+  it("moves with the arrow keys from the first half to the second, past the centre", async () => {
+    const user = userEvent.setup();
+    render(bar("en", { splitAt: 2, center }));
+    screen.getByRole("button", { name: "Before" }).focus();
+    await user.tab();
+    await user.tab();
+    expect(plain(document.activeElement?.textContent)).toBe("Women");
+    await user.keyboard("{ArrowRight}");
+    expect(plain(document.activeElement?.textContent)).toBe("Men");
+    await user.keyboard("{ArrowLeft}");
+    expect(plain(document.activeElement?.textContent)).toBe("Women");
   });
 
   it("tabs through the first half, the centre, then the second half", async () => {
@@ -200,7 +209,7 @@ describe("MegaMenu: the split navigation of the centered header", () => {
     again();
     render(bar("en", { splitAt: 2 }));
     expect(document.querySelector('[data-slot="mega-menu-center"]')).toBeNull();
-    expect(screen.getByRole("navigation").querySelectorAll("ul")).toHaveLength(2);
+    expect(screen.getByRole("navigation").querySelectorAll("ul")).toHaveLength(1);
   });
 });
 

@@ -249,7 +249,8 @@ describe("MegaMenu's stories", () => {
       expect(props.splitAt).toBe(2);
       expect(markup).not.toContain("data-overlay-box");
       expect(count(markup, /data-slot="mega-menu-center"/g)).toBe(1);
-      expect(count(markup, /data-slot="navigation-menu-list"/g)).toBe(2);
+      // One list, the centre an item in it (PR 57 review), so the arrows cross the two halves.
+      expect(count(markup, /data-slot="navigation-menu-list"/g)).toBe(1);
       expect(plain(markup)).toContain(
         escaped(plain(createContext(locale).fixture.ordinary.storeName)),
       );

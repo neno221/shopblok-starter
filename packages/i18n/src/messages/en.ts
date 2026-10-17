@@ -442,7 +442,7 @@ export const en = {
       account: "Account",
       wishlist: "Wishlist",
       cart: "Cart",
-      // What the cart holds, after its name ("Cart, 3 items"): only once the browser knows it (D44).
+      // What the cart holds, after its name ("Cart 3 items"): only once the browser knows it (D44).
       cartItems: "{count, plural, =0 {empty} one {# item} other {# items}}",
       // The badge of a cart with more items than it has room for.
       cartOverflow: "{max}+",

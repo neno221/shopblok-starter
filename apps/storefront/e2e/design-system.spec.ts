@@ -616,7 +616,10 @@ if (problem === undefined) {
       const buttons = [...html.matchAll(/<a[^>]*data-slot="cart-button"[^>]*>([\s\S]*?)<\/a>/g)];
       expect(buttons, "one cart button in the HTML").toHaveLength(1);
       const inner = buttons[0]?.[1] ?? "";
-      expect(inner, "the HTML has the count's live region").toContain('data-slot="cart-count"');
+      // The live region sits beside the link, empty (PR 57 review: a page load announces nothing).
+      expect(html, "the HTML has the count's empty live region").toMatch(
+        /data-slot="cart-count"[^>]*><\/span>/,
+      );
       expect(inner, "the HTML has no badge").not.toContain('data-slot="cart-badge"');
       expect(inner.replace(/<[^>]*>/g, ""), "the HTML names the cart alone").toBe("Cart");
 
@@ -630,6 +633,10 @@ if (problem === undefined) {
       await expect(button, "the link's name after hydration").toHaveAccessibleName(
         `Cart ${count} ${count === 1 ? "item" : "items"}`,
       );
+      await expect(
+        page.locator('[data-slot="cart-count"]'),
+        "the first count is not announced",
+      ).toHaveText("");
     });
   }
 }

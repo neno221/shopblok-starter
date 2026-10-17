@@ -12,8 +12,8 @@
 // `navigationMenuTriggerStyle` can only be called from client code.
 // Edited again (SETUP.md, "Navigation and headers (T35)") for the mega menu: the popup is a `div`,
 // because Base UI draws it as a second `<nav>`, which the trigger's `aria-owns` puts inside the
-// root's own landmark; `fullWidth` anchors the positioner to the menu's root instead of the
-// trigger and makes the panel as wide as that root, so a mega menu spans its row while a dropdown
+// root's own landmark; `fullWidth` anchors the positioner to the menu's root (or to the ancestor
+// `fullWidthAnchor` names, PR 57 review) instead of the trigger and makes the panel as wide, so a mega menu spans its row while a dropdown
 // next to it keeps its narrow panel under its trigger (the page switches the prop with the open
 // item); `positionerClassName`, `popupClassName`, `sideOffset` and `collisionAvoidance` reach the
 // positioner and the popup that `NavigationMenu` draws itself; and nothing slides or fades over
@@ -37,6 +37,11 @@ type NavigationMenuProps = Omit<NavigationMenuPrimitive.Root.Props, "ref"> &
      * menu). The caller gives the root the width of its row. It can change with the open item.
      */
     fullWidth?: boolean;
+    /**
+     * A selector for an ancestor of the root that a `fullWidth` panel spans instead of the root (a
+     * header's row, when the menu is only one column of it). Without a match, the root.
+     */
+    fullWidthAnchor?: string;
     /** Classes for the positioner `NavigationMenu` draws. */
     positionerClassName?: string;
     /** Classes for the popup `NavigationMenu` draws. */
@@ -50,6 +55,7 @@ function NavigationMenu({
   sideOffset,
   collisionAvoidance,
   fullWidth = false,
+  fullWidthAnchor,
   positionerClassName,
   popupClassName,
   className,
@@ -74,7 +80,13 @@ function NavigationMenu({
         sideOffset={sideOffset}
         collisionAvoidance={collisionAvoidance}
         fullWidth={fullWidth}
-        anchor={fullWidth ? root : undefined}
+        anchor={
+          fullWidth
+            ? ((fullWidthAnchor === undefined
+                ? null
+                : root?.parentElement?.closest<HTMLElement>(fullWidthAnchor)) ?? root)
+            : undefined
+        }
         className={positionerClassName}
         popupClassName={popupClassName}
       />

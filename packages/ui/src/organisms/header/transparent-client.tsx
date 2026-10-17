@@ -78,8 +78,12 @@ function HeaderTransparentFrame({
       data-slot="header"
       data-variant="transparent"
       data-solid={solid ? "true" : "false"}
+      data-pinned={pinned === true ? "solid" : undefined}
       className={cn(
-        "group/header h-0 w-full z-(--z-header)",
+        // Pinned solid (a page with no hero under it), the header takes its row's height, as the
+        // classic one does, so it covers nothing (PR 57 review); otherwise it lies over the hero.
+        "group/header w-full z-(--z-header)",
+        pinned === true ? undefined : "h-0",
         sticky ? "sticky top-0" : "relative",
         className,
       )}

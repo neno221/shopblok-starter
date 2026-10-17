@@ -11,9 +11,18 @@ const htmlLang = { en: "en-US", el: "el-CY", de: "de-DE", fr: "fr-CH" } as const
 const plain = (text: string | null | undefined) => (text ?? "").replace(/\s+/g, " ").trim();
 const copy = (locale: Locale) => catalogs[locale].organisms.header;
 
-function button(locale: Locale, count?: number) {
-  return <CartButton href="/us/cart" count={count} copy={copy(locale)} locale={htmlLang[locale]} />;
+function button(locale: Locale, count?: number, announce?: boolean) {
+  return (
+    <CartButton
+      href="/us/cart"
+      count={count}
+      copy={copy(locale)}
+      locale={htmlLang[locale]}
+      announce={announce}
+    />
+  );
 }
+const region = () => document.querySelector('[data-slot="cart-count"]');
 
 describe("CartButton (D44)", () => {
   it("without a count is the placeholder: the bag, the name alone, an empty live region, no badge", () => {
@@ -21,9 +30,10 @@ describe("CartButton (D44)", () => {
     const link = screen.getByRole("link");
     expect(link.getAttribute("href")).toBe("/us/cart");
     expect(plain(link.textContent)).toBe("Cart");
-    const count = link.querySelector('[data-slot="cart-count"]');
-    expect(count?.getAttribute("aria-live")).toBe("polite");
-    expect(count?.textContent).toBe("");
+    expect(region()?.getAttribute("aria-live")).toBe("polite");
+    expect(region()?.textContent).toBe("");
+    // Beside the link, not in it: the region's words are not part of the link's name.
+    expect(link.contains(region())).toBe(false);
     expect(link.querySelector('[data-slot="cart-badge"]')).toBeNull();
   });
 
@@ -40,11 +50,23 @@ describe("CartButton (D44)", () => {
       render(button(locale, 3));
       const words = formatMessage(copy(locale).cartItems, { count: 3 }, htmlLang[locale]);
       const link = screen.getByRole("link", { name: plain(`${copy(locale).cart} ${words}`) });
-      expect(plain(link.querySelector('[data-slot="cart-count"]')?.textContent)).toBe(plain(words));
+      // A number the page has just learnt is not news: the live region says nothing.
+      expect(region()?.textContent).toBe("");
       const badge = link.querySelector('[data-slot="cart-badge"]');
       expect(badge?.textContent).toBe("3");
       // The digits are drawn; the words are read.
       expect(badge?.getAttribute("aria-hidden")).toBe("true");
+    },
+  );
+
+  it.each(LOCALES)(
+    "says the cart and the new number in its live region when `announce` (%s, PR 57 review)",
+    (locale) => {
+      const { rerender } = render(button(locale, 3));
+      rerender(button(locale, 4, true));
+      const words = formatMessage(copy(locale).cartItems, { count: 4 }, htmlLang[locale]);
+      expect(plain(region()?.textContent)).toBe(plain(`${copy(locale).cart} ${words}`));
+      expect(screen.getByRole("link", { name: plain(`${copy(locale).cart} ${words}`) })).toBeTruthy();
     },
   );
 

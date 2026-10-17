@@ -10,10 +10,10 @@
 // A server component on purpose: it makes every word (the "Shop all" links, with `formatMessage`) and
 // turns the contract's items into plain data for `MegaMenuNav` (`mega-menu-client.tsx`), the client
 // part that draws the landmark and the panels, so the client chunk holds no formatter and no catalog.
-// The root takes the width of its row from the header; the panel is as wide as the root, which is
-// what SPEC §13 asks of "full width" (the page's edge to edge is the header's choice of row). The
-// centered header's split navigation is `splitAt` and `center`: two lists inside the one landmark,
-// the logo between them. A `Link`'s `external` flag is not used: the navigation's copy has no
+// A mega menu's panel spans the header's row (`data-slot="header-row"`), not only the navigation's
+// column in it, which is what SPEC §13 and SBP megamenu.md ask of "full width" (PR 57 review); outside
+// a header it is as wide as the menu. The centered header's split navigation is `splitAt` and
+// `center`: one list, with the logo as a presentational item between the halves. A `Link`'s `external` flag is not used: the navigation's copy has no
 // new-tab note to read out, and a link that left the tab without saying so would fail a reader.
 import type { Messages } from "@shopblok/i18n";
 import { formatMessage } from "@shopblok/i18n/format";

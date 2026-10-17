@@ -29,7 +29,8 @@ import {
 
 type HeaderTransparentProps = HeaderProps & {
   /**
-   * Pins the look. `true`: solid from the start, for a page with no hero under the header. `false`:
+   * Pins the look. `true`: solid from the start, for a page with no hero under the header, and the
+   * header then takes its row's height instead of lying over the page. `false`:
    * transparent whatever the page does (the design system's picture). Unset: transparent at the top
    * of the page, solid once it scrolls or a menu or the drawer opens.
    */
@@ -51,7 +52,7 @@ function HeaderTransparent({ solid, ...props }: HeaderTransparentProps) {
         <div
           data-slot="header-surface"
           className={cn(
-            "absolute inset-x-0 top-0 transition-colors duration-(--duration-base) motion-reduce:transition-none",
+            "absolute inset-x-0 top-0 group-data-[pinned=solid]/header:relative transition-colors duration-(--duration-base) motion-reduce:transition-none",
             solidLook,
             transparentLook,
           )}
@@ -63,7 +64,7 @@ function HeaderTransparent({ solid, ...props }: HeaderTransparentProps) {
           >
             <div className="absolute inset-x-0 top-full h-8 bg-linear-to-b from-overlay to-transparent" />
           </div>
-          <div className="relative mx-auto grid w-full max-w-page grid-cols-[1fr_minmax(0,auto)_1fr] items-center gap-x-2 px-2 py-1 sm:px-4 lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:gap-x-6 lg:px-6 lg:py-2">
+          <div data-slot="header-row" className="relative mx-auto grid w-full max-w-page grid-cols-[1fr_minmax(0,auto)_1fr] items-center gap-x-2 px-2 py-1 sm:px-4 lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:gap-x-6 lg:px-6 lg:py-2">
             <HeaderMenuButton
               header={props}
               className="col-start-1 row-start-1 justify-self-start lg:hidden"

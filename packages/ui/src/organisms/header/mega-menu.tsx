@@ -57,7 +57,7 @@ function HeaderMegaMenu(props: HeaderProps) {
         </div>
         {props.navigation.length === 0 ? null : (
           <div data-slot="header-nav-row" className="hidden border-t lg:block">
-            <div className="mx-auto w-full max-w-page px-6">
+            <div data-slot="header-row" className="mx-auto w-full max-w-page px-6">
               <HeaderNav header={props} className="w-full" />
             </div>
           </div>

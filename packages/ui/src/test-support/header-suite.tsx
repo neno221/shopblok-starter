@@ -209,6 +209,13 @@ export function describeHeader(variant: HeaderUnderTest) {
         }
       });
 
+      it("sits in the header's row, which a mega menu's panel spans (PR 57 review)", () => {
+        view("en");
+        const row = navigationLandmark()?.closest('[data-slot="header-row"]');
+        expect(row).toBeTruthy();
+        expect(header().contains(row as Element)).toBe(true);
+      });
+
       it("is left out when the shop has no navigation, with no empty landmark", () => {
         view("en", { navigation: [] });
         expect(navigationLandmark()).toBeNull();

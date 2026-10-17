@@ -132,6 +132,22 @@ describe("HeaderTransparent: solid once the page has scrolled", () => {
     expect(solid()).toBe("true");
   });
 
+  it("takes its row's height when pinned solid, so a page with no hero is not covered (PR 57 review)", () => {
+    const { container } = render(<HeaderTransparent {...props({ solid: true })} />);
+    expect(header().className).not.toContain("h-0");
+    expect(header().getAttribute("data-pinned")).toBe("solid");
+    const surface = container.querySelector("[data-slot=header-surface]") as HTMLElement;
+    expect(surface.className).toContain("group-data-[pinned=solid]/header:relative");
+  });
+
+  it("lies over the page, with no height, when it only turns solid", () => {
+    render(<HeaderTransparent {...props()} />);
+    scrollTo(500);
+    expect(solid()).toBe("true");
+    expect(header().className).toContain("h-0");
+    expect(header().hasAttribute("data-pinned")).toBe(false);
+  });
+
   it("is transparent whatever the page does when `solid` is false", async () => {
     render(<HeaderTransparent {...props({ solid: false })} />);
     scrollTo(500);

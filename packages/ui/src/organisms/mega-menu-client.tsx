@@ -9,8 +9,8 @@
 // reads `:focus-visible`, which a keyboard's focus has and a click's does not. It takes everything
 // made: the words the server formatted ("Shop all Women") and the items as plain data, so it imports
 // no formatter and no catalog.
-// A mega menu's panel is as wide as the root (the header gives the root its row's width) and a
-// dropdown's is narrow under its trigger, so `fullWidth` follows the open item. The panel's parts
+// A mega menu's panel is as wide as the header's row (`fullWidthAnchor`; the menu's own width outside
+// a header) and a dropdown's is narrow under its trigger, so `fullWidth` follows the open item. The panel's parts
 // are laid out by the room they have, with no breakpoint: the columns are a grid of tracks at least
 // 11rem wide, and the featured tiles wrap under the columns when the row is too narrow. That is what
 // keeps a panel inside a 375 px screen, where it is one column. Each panel link is 44 px tall and
@@ -346,22 +346,17 @@ function MegaMenuNav({
     setValue(null);
   }
 
-  function list(from: number, to: number, listClassName: string) {
-    if (to <= from) return null;
-    return (
-      <NavigationMenuList className={cn("flex-wrap justify-start gap-x-1", listClassName)}>
-        {entries.slice(from, to).map((entry, offset) => (
-          <Entry
-            key={`${entry.kind}-${entry.label}-${from + offset}`}
-            entry={entry}
-            index={from + offset}
-            featuredLabel={featuredLabel}
-            prefetch={prefetch}
-            panelClassName={panelClassName}
-          />
-        ))}
-      </NavigationMenuList>
-    );
+  function items(from: number, to: number) {
+    return entries.slice(from, to).map((entry, offset) => (
+      <Entry
+        key={`${entry.kind}-${entry.label}-${from + offset}`}
+        entry={entry}
+        index={from + offset}
+        featuredLabel={featuredLabel}
+        prefetch={prefetch}
+        panelClassName={panelClassName}
+      />
+    ));
   }
 
   return (
@@ -376,6 +371,9 @@ function MegaMenuNav({
       onFocus={closeWhenFocusMovesToAnotherItem}
       closeDelay={CLOSE_DELAY_MS}
       fullWidth={wide}
+      // A mega menu spans the header's row, not only the navigation's column in it (SPEC §13, SBP
+      // megamenu.md; PR 57 review). Outside a header, the menu's own width.
+      fullWidthAnchor='[data-slot="header-row"]'
       // The wide panel has its own (it never flips or shifts); this one is the dropdown's.
       collisionAvoidance={DROPDOWN_COLLISION_AVOIDANCE}
       // The panel sits against the bar; a dropdown hangs a little below its trigger.
@@ -383,19 +381,24 @@ function MegaMenuNav({
       popupClassName={wide ? "rounded-t-none" : undefined}
       className={cn("max-w-none flex-wrap justify-start", className)}
     >
-      {split === undefined ? (
-        list(0, entries.length, "")
-      ) : (
-        <>
-          {list(0, split, "flex-1")}
-          {center === undefined ? null : (
-            <div data-slot="mega-menu-center" className="shrink-0">
-              {center}
-            </div>
-          )}
-          {list(split, entries.length, "flex-1 justify-end")}
-        </>
-      )}
+      {/* One list, so the arrow keys run across both halves of a split bar (PR 57 review). The
+          centre is a presentational item, not a menu item: the arrows skip it, Tab stops on its
+          link, and its auto margins push the halves to the two ends. */}
+      <NavigationMenuList className="flex-wrap justify-start gap-x-1">
+        {split === undefined ? (
+          items(0, entries.length)
+        ) : (
+          <>
+            {items(0, split)}
+            {center === undefined ? null : (
+              <li role="none" data-slot="mega-menu-center" className="mx-auto shrink-0">
+                {center}
+              </li>
+            )}
+            {items(split, entries.length)}
+          </>
+        )}
+      </NavigationMenuList>
     </NavigationMenu>
   );
 }

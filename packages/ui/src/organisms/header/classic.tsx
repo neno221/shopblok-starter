@@ -32,7 +32,7 @@ function HeaderClassic(props: HeaderProps) {
         data-variant="classic"
         className={headerClass(props.sticky, props.className)}
       >
-        <div className="mx-auto grid w-full max-w-page grid-cols-[1fr_minmax(0,auto)_1fr] items-center gap-x-2 px-2 py-1 sm:px-4 lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:gap-x-6 lg:px-6 lg:py-2">
+        <div data-slot="header-row" className="mx-auto grid w-full max-w-page grid-cols-[1fr_minmax(0,auto)_1fr] items-center gap-x-2 px-2 py-1 sm:px-4 lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:gap-x-6 lg:px-6 lg:py-2">
           <HeaderMenuButton
             header={props}
             className="col-start-1 row-start-1 justify-self-start lg:hidden"
