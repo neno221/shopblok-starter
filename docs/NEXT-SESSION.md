@@ -2,7 +2,7 @@
 
 **The M2 plan is ready:** [plans/M2.md](plans/M2.md), molecules, organisms and the registry (SPEC §17.1), in [PR 48](https://github.com/stephanos221/shopblok-starter/pull/48). Its decisions D40 to D55 are defaults that stand, because you said on 2026-10-16 that M2's tasks may start once the plan is written; you can change any of them at any time, and the task that builds it then follows the new text. Three are worth a look: **D46** (M2 builds Header 6, Footer 5 and ProductCard 10, so the DS page ends M2 with 114 entries outside Foundations), **D51** (684 pixel baselines committed in git, an expected 40 to 60 MB; T40 stops and asks you above 60 MB) and **D53** (a CI gate that skips `e2e-smoke` and `design-system` on PRs that cannot affect them). **G6, optional, about two minutes:** look at this month's Actions minutes under Settings → Billing and plans → Usage (the plan's §0, item 2, says why).
 
-**Next:** PR 48 gets its code review in a separate thread, its findings are fixed, and it merges with a merge commit once CI is green (G2). Then T27, T28 and T29 can start, one session each. If they run one at a time, T27 goes first, because it cuts the CI that every later PR runs. After them the plan's §4 gives the order, and each task's session writes the next prompts here. Nothing waits on your PC until W4.
+**Next:** PR 48 gets its code review in a separate thread, its findings are fixed, and it merges with a merge commit once CI is green (G2). Then T27 and T29 can start, one session each, and T28 once T27 is merged, because both change the `dev-console` check. If they run one at a time, the order is T27, T28, T29: T27 cuts the CI that every later PR runs. After them the plan's §4 gives the order, and each task's session writes the next prompts here. Nothing waits on your PC until W4.
 
 Every M2 task runs the same way (D55): a cloud session in the `shopblok-starter` environment, on `main`; a PR; a code review of it in a separate thread, with its findings in `reviews/pr-N-code-review.md` in the project's files; the session fixes them and merges with a merge commit once CI is green.
 
@@ -12,7 +12,7 @@ Start a cloud session in the `shopblok-starter` environment, on `main`, and past
 
 > Run task T27 of docs/plans/M2.md: CI for M2 (D53), the gate, the DS pages' dev-console check in the `design-system` job, and the start action. Start as docs/CLOUD.md, "What every cloud session does first", steps 1 and 2 say; T27 needs no stack. Read docs/plans/M2.md (§0 item 2, §1 D53, §5 T27), `.github/workflows/ci.yml`, SETUP.md's "CI (T16)", "The storefront in next dev (T25)" and "DS checks (T24)", and the review of PR 44 (items 6, 9 and 10; `reviews/pr-44-code-review.md` in the project's files) first. Work on a new branch from `main`. Follow T27's steps and its Verify list, show each mutation failing, and record each job's time and what the gate would have run on M1's last ten PRs. Record everything in docs/SETUP.md under "CI for M2 (T27)", update the plan's status line and NEXT-SESSION.md (the next prompts), then open a PR. It gets a code review in a separate thread; fix its findings, and merge with a merge commit once CI is green (G2).
 
-## T28 · Root files answer 404 (in a cloud session)
+## T28 · Root files answer 404 (in a cloud session, after T27 is merged)
 
 Start a cloud session in the `shopblok-starter` environment, on `main`, and paste:
 
