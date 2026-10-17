@@ -89,6 +89,88 @@ export const de: Messages = {
         forProduct: ", {title}",
       },
     },
+    // T33: discovery and the site-wide molecules (each filled by the task's component).
+    searchField: {
+      label: "Produkte suchen",
+      placeholder: "Produkte suchen",
+      submit: "Suchen",
+      clear: "Suche löschen",
+    },
+    breadcrumbs: {
+      label: "Brotkrumennavigation",
+      more: "Dazwischenliegende Ebenen",
+    },
+    pagination: {
+      label: "Seitennavigation",
+      previous: "Zurück",
+      next: "Weiter",
+      more: "Weitere Seiten",
+      page: "Seite {page, number}",
+      current: "Seite {page, number} von {pageCount, number}",
+    },
+    sortSelect: {
+      label: "Sortieren nach",
+      apply: "Anwenden",
+      options: {
+        relevance: "Relevanz",
+        newest: "Neueste zuerst",
+        priceAsc: "Preis: aufsteigend",
+        priceDesc: "Preis: absteigend",
+      },
+    },
+    filterGroup: {
+      products: "{count, plural, one {# Produkt} other {# Produkte}}",
+      showMore: "{count} weitere anzeigen",
+      showFewer: "Weniger anzeigen",
+      minimum: "Mindestpreis",
+      maximum: "Höchstpreis",
+      bounds: "Preise von {min} bis {max}",
+    },
+    activeFilterChips: {
+      label: "{count, plural, one {# aktiver Filter} other {# aktive Filter}}",
+      chip: "{group}: {label}",
+      remove: "{filter} entfernen",
+      clearAll: "Alle löschen",
+      clearAllLabel: "Alle Filter löschen",
+    },
+    emptyState: {},
+    marketSwitcher: {
+      trigger: "Land und Sprache: {country}, {language}, {currency}",
+      title: "Land und Sprache",
+      description:
+        "Ihr Land bestimmt Währung, Preise und Lieferung. Ihre Sprache bestimmt die Texte auf der Seite.",
+      close: "Schließen",
+      list: "Länder und Sprachen",
+      option: "{language}, {country}",
+    },
+    newsletterForm: {
+      title: "Abonnieren Sie unseren Newsletter",
+      description: "Neuheiten, Angebote und Geschichten, einmal im Monat. Kein Spam.",
+      emailLabel: "E-Mail-Adresse",
+      submit: "Abonnieren",
+      sending: "Wird abonniert …",
+      consent:
+        "Mit Ihrer Anmeldung stimmen Sie unserer {privacy} zu. Sie können sich jederzeit wieder abmelden.",
+      privacyLink: "Datenschutzerklärung",
+      done: "Vielen Dank, Sie sind angemeldet.",
+      error:
+        "Diese Adresse konnte nicht angemeldet werden. Bitte prüfen Sie die Eingabe und versuchen Sie es erneut.",
+    },
+    accordionItem: {},
+    toast: {
+      kinds: { success: "Erfolg", error: "Fehler", info: "Hinweis" },
+      close: "Benachrichtigung schließen",
+    },
+    copyCodeChip: {
+      copy: "Kopieren",
+      label: "Code {code} kopieren",
+      copied: "Kopiert",
+      fallback: "Markieren Sie den Code und kopieren Sie ihn",
+    },
+    countdownTimer: {
+      label: "Das Angebot endet am {date}",
+      ended: "Dieses Angebot ist beendet",
+    },
   },
   organisms: {},
   notFound: {

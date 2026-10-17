@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  ActiveFilters,
   Address,
   Announcement,
   Cart,
@@ -21,6 +22,9 @@ import {
   ShippingOption,
 } from "@shopblok/registry/contracts";
 import type { Category as CategoryNode } from "@shopblok/registry/contracts";
+import { EmptyStateContent } from "@shopblok/registry/contracts";
+import { AccordionSection, ToastMessage } from "@shopblok/registry/contracts";
+import { Countdown, DiscountCode, NewsletterSignup } from "@shopblok/registry/contracts";
 import {
   designSystemFixtures,
   designSystemLocales,
@@ -261,11 +265,56 @@ describe.each(designSystemLocales)("the %s fixtures", (locale) => {
     it("search is a SearchResult and facets are FacetGroups", () => {
       expectParses(SearchResult, fixture.search, `${locale}.search`);
       expectAllParse(FacetGroup, fixture.facets, `${locale}.facets`);
+      expectParses(ActiveFilters, fixture.activeFilters, `${locale}.activeFilters`);
     });
 
     it("announcement is an Announcement and figure a MediaFigure", () => {
       expectParses(Announcement, fixture.announcement, `${locale}.announcement`);
       expectParses(MediaFigure, fixture.figure, `${locale}.figure`);
+    });
+
+    it("marketing is NewsletterSignups, DiscountCodes and Countdowns (T33)", () => {
+      const { newsletter, discountCode, longDiscountCode, countdown } = fixture.marketing;
+      expectAllParse(NewsletterSignup, Object.values(newsletter), `${locale}.marketing.newsletter`);
+      expectAllParse(
+        DiscountCode,
+        [discountCode, longDiscountCode],
+        `${locale}.marketing.discountCode`,
+      );
+      expectAllParse(Countdown, Object.values(countdown), `${locale}.marketing.countdown`);
+      // The privacy page is under the market's prefix, like every link.
+      for (const each of Object.values(newsletter))
+        expect(each.privacyHref, `${locale}.marketing.newsletter`).toBe(
+          `${fixture.prefix}/pages/privacy`,
+        );
+      // The chip shows the code the cart applied; the long one has nowhere to break.
+      expect(discountCode.code).toBe(at(fixture.cart.promoCodes, 0).code);
+      expect(longDiscountCode.code).toHaveLength(40);
+      expect(longDiscountCode.code).toMatch(/^\S+$/);
+      expect(newsletter.long.email.length).toBeGreaterThan(80);
+      expect(newsletter.empty.email).toBe("");
+      // Every countdown is rendered at the fixed now (D50) and none ends before it.
+      for (const each of Object.values(countdown)) expect(each.now).toBe(fixtureNow);
+    });
+
+    it("the FAQ's sections are AccordionSections and the toasts ToastMessages (T33)", () => {
+      const { faq, toasts } = fixture.site;
+      expectAllParse(AccordionSection, [...faq.items, faq.long], `${locale}.site.faq`);
+      expectAllParse(
+        ToastMessage,
+        Object.values(toasts).map((sample) => sample.message),
+        `${locale}.site.toasts`,
+      );
+    });
+
+    it("emptyStates are EmptyStateContents: two with a way on, one with none (T33)", () => {
+      const { filters, search, category } = fixture.emptyStates;
+      expectAllParse(EmptyStateContent, [filters, search, category], `${locale}.emptyStates`);
+      expect(filters.text, `${locale}.emptyStates.filters`).toBeTruthy();
+      // The way out of filters that match nothing is the listing without them, under the prefix.
+      expect(filters.action?.href).toBe(`${fixture.prefix}/categories/women/clothing/hoodies`);
+      expect(search.action?.href).toBe(fixture.prefix === "" ? "/" : fixture.prefix);
+      expect(category.action, `${locale}.emptyStates.category`).toBeUndefined();
     });
 
     it("every long value parses with the contract of its ordinary counterpart", () => {
@@ -361,7 +410,8 @@ describe.each(designSystemLocales)("the %s fixtures", (locale) => {
     });
 
     it("dates everything before the fixed now", () => {
-      const dates = collect(fixture).filter(
+      // A countdown ends after it: its `endsAt` is the one date in the future.
+      const dates = collect(fixture, "", ["marketing.countdown"]).filter(
         (node) => typeof node.value === "string" && /^\d{4}-\d{2}-\d{2}T/.test(node.value),
       );
       expect(dates.length).toBeGreaterThan(10);
@@ -881,6 +931,90 @@ describe.each(designSystemLocales)("the %s fixtures", (locale) => {
     });
   });
 
+  describe("the chips of the chosen filters (ActiveFilterChips, T33)", () => {
+    const { facets, activeFilters } = fixture;
+    const listing = `${prefix}/store`;
+    /** The query parameters of a URL under the listing, as [name, value] pairs. */
+    const paramsOf = (href: string) => {
+      expect(href.startsWith(listing), href).toBe(true);
+      return [...new URLSearchParams(href.slice(listing.length + 1))].map(
+        ([name, value]) => `${name}=${value}`,
+      );
+    };
+
+    it("has a chip for every chosen option, the chosen price range and each switch that is on", () => {
+      const chosen = facets.flatMap((facet) => {
+        if (facet.kind === "checkbox" || facet.kind === "swatch")
+          return facet.options.filter((option) => option.selected).map(() => facet.id);
+        if (facet.kind === "range") return facet.selected === undefined ? [] : [facet.id];
+        return facet.selected ? [facet.id] : [];
+      });
+      expect(chosen.length).toBeGreaterThan(3);
+      expect(activeFilters.filters.map((filter) => filter.id.split(":")[0])).toEqual(chosen);
+    });
+
+    it("names the group with the facet's label, and an on/off filter with none", () => {
+      const labels = Object.fromEntries(facets.map((facet) => [facet.id, facet.label]));
+      for (const filter of activeFilters.filters) {
+        const facetId = filter.id.split(":")[0]!;
+        const facet = facets.find((candidate) => candidate.id === facetId)!;
+        if (facet.kind === "toggle") {
+          expect(filter.group, filter.id).toBeUndefined();
+          expect(filter.label, filter.id).toBe(facet.label);
+        } else {
+          expect(filter.group, filter.id).toBe(labels[facetId]);
+        }
+      }
+      // A chosen option is named by its label: the colours that are chosen.
+      const colours = facets.find((facet) => facet.kind === "swatch");
+      if (colours?.kind !== "swatch") throw new Error("no swatch group");
+      const named = colours.options.filter((option) => option.selected).map((o) => o.label);
+      expect(named.length).toBeGreaterThan(1);
+      expect(
+        activeFilters.filters
+          .filter((filter) => filter.id.startsWith(`${colours.id}:`))
+          .map((filter) => filter.label),
+      ).toEqual(named);
+    });
+
+    it("writes the chosen price range in the market's currency, with its two bounds", () => {
+      const price = facets.find((facet) => facet.kind === "range")!;
+      if (price.kind !== "range") throw new Error("not a range");
+      const chip = activeFilters.filters.find((filter) => filter.id === price.id)!;
+      const symbol = { en: "$", el: "€", de: "€", fr: "CHF" }[locale];
+      expect(chip.label).toContain(String(price.selected!.min));
+      expect(chip.label).toContain(String(price.selected!.max));
+      expect(chip.label).toContain(symbol);
+    });
+
+    it("links each chip to the listing without that value and every other value kept, under the prefix", () => {
+      // What the sidebar's form sends for each chosen value, from the facets themselves.
+      const sent = facets.flatMap((facet): string[][] => {
+        if (facet.kind === "checkbox" || facet.kind === "swatch")
+          return facet.options
+            .filter((option) => option.selected)
+            .map((option) => [`${facet.id}=${option.value}`]);
+        if (facet.kind === "range")
+          return facet.selected === undefined
+            ? []
+            : [[`${facet.id}.min=${facet.selected.min}`, `${facet.id}.max=${facet.selected.max}`]];
+        return facet.selected ? [[`${facet.id}=1`]] : [];
+      });
+      expect(sent).toHaveLength(activeFilters.filters.length);
+      expect(sent.length).toBeGreaterThan(3);
+      activeFilters.filters.forEach((filter, index) => {
+        // The link keeps every other chip's parameters, in order, and not this chip's own.
+        expect(paramsOf(filter.removeHref), filter.id).toEqual(
+          sent.filter((_, other) => other !== index).flat(),
+        );
+      });
+    });
+
+    it("clears everything with the listing itself", () => {
+      expect(activeFilters.clearHref).toBe(listing);
+    });
+  });
+
   describe("the figure and announcement", () => {
     it("has a 16:9 picture with a caption and a credit, and a free-shipping message with a link", () => {
       const { figure, announcement } = fixture;
@@ -889,6 +1023,72 @@ describe.each(designSystemLocales)("the %s fixtures", (locale) => {
       expect(figure.credit).toBeTruthy();
       expect(figure.image.alt).not.toBe("");
       expect(announcement.link?.href.startsWith(prefix === "" ? "/" : prefix)).toBe(true);
+    });
+  });
+
+  describe("the site samples (AccordionItem and Toast, T33)", () => {
+    it("has five questions with the same ids in every locale, each answered in paragraphs", () => {
+      const { items, long } = fixture.site.faq;
+      expect(items.map((item) => item.value)).toEqual([
+        "shipping",
+        "returns",
+        "sizing",
+        "payment",
+        "care",
+      ]);
+      expect(new Set([...items, long].map((item) => item.value)).size).toBe(items.length + 1);
+      for (const item of [...items, long]) {
+        expect(item.title.trim(), item.value).not.toBe("");
+        expect(item.answer.length, item.value).toBeGreaterThanOrEqual(2);
+        for (const paragraph of item.answer) expect(paragraph.trim(), item.value).not.toBe("");
+      }
+    });
+
+    it("has a long question and long answers, longer than every ordinary one", () => {
+      const { items, long } = fixture.site.faq;
+      const answer = (item: { answer: string[] }) => item.answer.join(" ").length;
+      expect(long.title.length).toBeGreaterThan(
+        Math.max(...items.map((item) => item.title.length)),
+      );
+      expect(answer(long)).toBeGreaterThan(Math.max(...items.map(answer)));
+    });
+
+    it("has a toast of each kind: a success with an action, an error with a description, an info with a title alone, and a long one with all three", () => {
+      const { success, error, info, long } = fixture.site.toasts;
+      expect([success, error, info].map((sample) => sample.message.kind)).toEqual([
+        "success",
+        "error",
+        "info",
+      ]);
+      expect(success.message.actionLabel).toBeTruthy();
+      expect(success.message.description).toBeTruthy();
+      expect(error.message.description).toBeTruthy();
+      expect(error.message.actionLabel).toBeUndefined();
+      expect(info.message.description).toBeUndefined();
+      expect(info.message.actionLabel).toBeUndefined();
+      expect(long.message.description).toBeTruthy();
+      expect(long.message.actionLabel).toBeTruthy();
+      for (const sample of [success, error, info, long])
+        expect(sample.trigger.trim(), sample.message.title).not.toBe("");
+      const length = (text: string | undefined) => (text ?? "").length;
+      expect(length(long.message.title)).toBeGreaterThan(length(success.message.title));
+      expect(length(long.message.description)).toBeGreaterThan(length(success.message.description));
+      expect(length(long.message.actionLabel)).toBeGreaterThan(length(success.message.actionLabel));
+    });
+
+    it("writes the German long samples longest of the four", () => {
+      const german = commerceFixtures.de.site;
+      const answer = (item: { answer: string[] }) => item.answer.join(" ").length;
+      expect(german.faq.long.title.length).toBeGreaterThanOrEqual(
+        fixture.site.faq.long.title.length,
+      );
+      expect(answer(german.faq.long)).toBeGreaterThanOrEqual(answer(fixture.site.faq.long));
+      expect(german.toasts.long.message.title.length).toBeGreaterThanOrEqual(
+        fixture.site.toasts.long.message.title.length,
+      );
+      expect(german.toasts.long.message.actionLabel?.length ?? 0).toBeGreaterThanOrEqual(
+        fixture.site.toasts.long.message.actionLabel?.length ?? 0,
+      );
     });
   });
 

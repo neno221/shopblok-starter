@@ -152,11 +152,99 @@ export const de: Copy = {
     inStock: "Auf Lager",
     onSale: "Im Angebot",
   },
+  activeFilters: { priceRange: (min, max) => `${min} € bis ${max} €` },
   announcement: { message: "Kostenloser Versand ab 150 €", link: "Mehr erfahren" },
   figure: {
     alt: "Eine Person in einem Hoodie in Hafer geht bei Sonnenaufgang an einer Hafenmauer entlang",
     caption: "Die Herbstkollektion, fotografiert am Hafen.",
     credit: "Shopblok Studio",
+  },
+  emptyStates: {
+    filters: {
+      title: "Keine Produkte entsprechen diesen Filtern",
+      text: "Entfernen Sie einen Filter oder erweitern Sie den Preisbereich.",
+      action: "Alle Filter zurücksetzen",
+    },
+    search: {
+      title: "Keine Ergebnisse gefunden",
+      text: "Prüfen Sie die Schreibweise oder versuchen Sie einen allgemeineren Begriff.",
+      action: "Zum Shop",
+    },
+    category: {
+      title: "Hier gibt es noch keine Produkte",
+      text: "Neuheiten sind auf dem Weg. Schauen Sie bald wieder vorbei.",
+    },
+  },
+  site: {
+    faq: {
+      items: [
+        {
+          title: "Wie lange dauert die Lieferung?",
+          answer: [
+            "Die meisten Bestellungen kommen innerhalb von 2 bis 4 Werktagen an. Sobald Ihr Paket unser Lager verlässt, schicken wir Ihnen per E-Mail einen Tracking-Link.",
+            "Die Lieferung ist kostenlos, sobald Ihre Bestellung den im Warenkorb angezeigten Betrag für kostenlosen Versand überschreitet.",
+          ],
+        },
+        {
+          title: "Kann ich einen Artikel zurückgeben?",
+          answer: [
+            "Ja. Ungetragene Artikel in der Originalverpackung können Sie innerhalb von 30 Tagen nach Lieferung gegen volle Erstattung zurückgeben.",
+            "Starten Sie die Rücksendung in Ihrem Konto, drucken Sie das Etikett aus und geben Sie das Paket an einer beliebigen Abgabestelle ab.",
+          ],
+        },
+        {
+          title: "Wie finde ich meine Größe?",
+          answer: [
+            "Jede Produktseite enthält eine Größentabelle mit Maßen in Zentimetern und Zoll.",
+            "Wenn Sie zwischen zwei Größen liegen, wählen Sie die größere für eine lockerere Passform.",
+          ],
+        },
+        {
+          title: "Welche Zahlungsarten akzeptieren Sie?",
+          answer: [
+            "Wir akzeptieren die gängigen Kredit- und Debitkarten, Apple Pay, Google Pay, Revolut Pay, PayPal und Klarna.",
+            "Ihre Kartendaten gehen direkt an unseren Zahlungsanbieter. Wir speichern sie nie.",
+          ],
+        },
+        {
+          title: "Wie wasche ich meinen Hoodie?",
+          answer: [
+            "Waschen Sie ihn in der Maschine kalt, mit ähnlichen Farben und auf links gedreht, und trocknen Sie ihn bei niedriger Temperatur im Trockner.",
+            "Nicht bleichen und den Aufdruck nicht bügeln.",
+          ],
+        },
+      ],
+      long: {
+        title:
+          "Was passiert mit meiner Bestellung, wenn einer der Artikel ausverkauft ist, nachdem ich bereits mit einer Geschenkkarte und einem Rabattcode bezahlt habe?",
+        answer: [
+          "Wird ein Artikel ausverkauft, bevor wir Ihre Bestellung verpacken, schreiben wir Ihnen noch am selben Tag eine E-Mail und bieten Ihnen einen Ersatz in einer anderen Größe oder Farbe, einen späteren Liefertermin oder die vollständige Erstattung dieses Artikels auf die ursprünglichen Zahlungsmittel an.",
+          "Das Guthaben einer Geschenkkarte wird der Geschenkkarte wieder gutgeschrieben, und ein Rabattcode bleibt nach der Erstattung noch 14 Tage gültig, damit Sie ihn bei einer neuen Bestellung ohne Mehrkosten einlösen können. Die Rückerstattungsbearbeitungszeit beträgt in der Regel höchstens fünf Werktage.",
+        ],
+      },
+    },
+    toasts: {
+      success: {
+        trigger: "In den Warenkorb",
+        title: "Zum Warenkorb hinzugefügt",
+        description: "Ihr Artikel liegt in Ihrem Warenkorb.",
+        actionLabel: "Rückgängig",
+      },
+      error: {
+        trigger: "Code einlösen",
+        title: "Dieser Code hat nicht funktioniert",
+        description: "Prüfen Sie die Schreibweise, oder der Code ist abgelaufen.",
+      },
+      info: { trigger: "Lieferung prüfen", title: "Die Lieferung dauert 2 bis 4 Werktage" },
+      long: {
+        trigger: "Große Bestellung aufgeben",
+        title:
+          "Ihre Bestellung wurde erfolgreich aufgegeben, und die Bestätigungs-E-Mail mit allen Einzelheiten ist bereits unterwegs in Ihr Postfach",
+        description:
+          "Den Tracking-Link senden wir Ihnen, sobald das Paket unser Lager verlässt, in der Regel innerhalb eines Werktags.",
+        actionLabel: "Alle Bestelldetails ansehen und überprüfen",
+      },
+    },
   },
   long: {
     productTitle:

@@ -1,9 +1,11 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { render, screen } from "@testing-library/react";
+import * as flags from "country-flag-icons/react/3x2";
 import { describe, expect, it } from "vitest";
 import { longLabels } from "../test-support/long-labels";
-import { Flag, isFlagCode } from "./flag";
+import { Flag } from "./flag";
+import { isFlagCode } from "./flag-code";
 
 describe("Flag", () => {
   it.each([
@@ -41,11 +43,54 @@ describe("Flag", () => {
     expect(screen.getByRole("img", { name: "Nowhere" })).toBeTruthy();
   });
 
+  it("passes the caller's props to the empty frame too (PR 43 review, item 10)", () => {
+    let clicked = 0;
+    render(
+      <Flag
+        // @ts-expect-error -- not an ISO 3166-1 code.
+        code="zz"
+        label="Nowhere"
+        id="flag-zz"
+        data-testid="flag"
+        onClick={() => (clicked += 1)}
+      />,
+    );
+    const frame = screen.getByTestId("flag");
+    expect(frame.tagName.toLowerCase()).toBe("span");
+    expect(frame.id).toBe("flag-zz");
+    expect(frame.getAttribute("data-code")).toBe("ZZ");
+    expect(frame.getAttribute("role")).toBe("img");
+    frame.click();
+    expect(clicked).toBe(1);
+  });
+});
+
+describe("isFlagCode (flag-code.ts)", () => {
   it("knows which ISO codes the set has, in either case", () => {
     expect(["CY", "cy", "Us", "DE", "ch", "GR"].every(isFlagCode)).toBe(true);
-    expect(["ZZ", "", "cyp", "constructor"].some(isFlagCode)).toBe(false);
+    expect(["ZZ", "", "cyp", "constructor", "BQ-BO", "bq-bo"].some(isFlagCode)).toBe(false);
   });
 
+  it("agrees with the React set: every two-letter flag, and no other code", () => {
+    const drawn = Object.keys(flags).filter((code) => /^[A-Z]{2}$/.test(code));
+    expect(drawn.length).toBeGreaterThan(240);
+    expect(drawn.filter((code) => !isFlagCode(code))).toEqual([]);
+    const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    const all = [...letters].flatMap((a) => [...letters].map((b) => a + b));
+    expect(all.filter(isFlagCode).sort()).toEqual([...drawn].sort());
+  });
+
+  it("has no React and no flag in it (D49): the set is imported as a type only", () => {
+    const source = readFileSync(path.join(import.meta.dirname, "flag-code.ts"), "utf8");
+    expect(source).not.toMatch(/^\s*["']use client["']/m);
+    expect(source).not.toMatch(/from "react"/);
+    // Every import of the React set is `import type`, which TypeScript erases.
+    for (const line of source.split("\n").filter((l) => l.includes("country-flag-icons/react")))
+      expect(line).toMatch(/^import type /);
+  });
+});
+
+describe("Flag, more", () => {
   it("requires the label", () => {
     // @ts-expect-error -- `label` is required (D30).
     render(<Flag code="CY" />);

@@ -8,7 +8,14 @@ import { fr } from "./messages/fr";
 // page, the 404 page, the atoms' and, from M2, the molecules' and organisms' copy, and the
 // design-system pages' English chrome (design-system.ts).
 
-export { countryName, formatDate, formatMessage, formatMoney, formatNumber } from "./format";
+export {
+  countryName,
+  formatDate,
+  formatMessage,
+  formatMoney,
+  formatNumber,
+  languageName,
+} from "./format";
 export type { MessageValues } from "./format";
 export type { Messages };
 

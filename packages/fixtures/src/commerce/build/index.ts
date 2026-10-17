@@ -2,6 +2,7 @@ import type { DesignSystemLocale } from "../../design-system";
 import { createContext } from "../context";
 import type { Copy } from "../copy";
 import type { CommerceFixture } from "../types";
+import { buildActiveFilters } from "./active-filters";
 import {
   buildCategories,
   buildFacets,
@@ -27,6 +28,9 @@ import {
   buildMarkets,
   buildNavigation,
 } from "./content";
+import { buildEmptyStates } from "./listing";
+import { buildMarketing } from "./marketing";
+import { buildSite } from "./site";
 
 /**
  * One locale's fixtures: the shared data (data/) in the locale's words (copy/), its DS market's
@@ -36,6 +40,7 @@ import {
 export function buildCommerceFixture(locale: DesignSystemLocale, copy: Copy): CommerceFixture {
   const ctx = createContext(locale, copy);
   const products = buildProducts(ctx);
+  const facets = buildFacets(ctx);
   const addresses = buildAddresses(ctx);
   return {
     locale,
@@ -56,9 +61,14 @@ export function buildCommerceFixture(locale: DesignSystemLocale, copy: Copy): Co
     savedPaymentMethods: buildSavedPaymentMethods(ctx),
     shippingOptions: buildShippingOptions(ctx),
     search: buildSearch(ctx, products),
-    facets: buildFacets(ctx),
+    facets,
+    // The chips come from the same facets as the sidebar, so the two cannot drift.
+    activeFilters: buildActiveFilters(ctx, facets),
     announcement: buildAnnouncement(ctx),
     figure: buildFigure(ctx),
+    emptyStates: buildEmptyStates(ctx),
+    marketing: buildMarketing(ctx),
+    site: buildSite(ctx),
     long: buildLong(ctx),
   };
 }

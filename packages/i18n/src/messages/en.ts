@@ -94,6 +94,99 @@ export const en = {
         forProduct: ", {title}",
       },
     },
+    // T33: discovery and the site-wide molecules (each filled by the task's component).
+    searchField: {
+      // The field's name and its landmark's, and the same words as its placeholder.
+      label: "Search products",
+      placeholder: "Search products",
+      submit: "Search",
+      clear: "Clear search",
+    },
+    breadcrumbs: {
+      label: "Breadcrumb",
+      // Read out where the middle of a long trail is left out on a narrow screen.
+      more: "Levels in between",
+    },
+    pagination: {
+      label: "Pagination",
+      previous: "Previous",
+      next: "Next",
+      more: "More pages",
+      // A page link's name, and the current page's (which also says how many there are).
+      page: "Page {page, number}",
+      current: "Page {page, number} of {pageCount, number}",
+    },
+    sortSelect: {
+      label: "Sort by",
+      apply: "Apply",
+      // The words of the sort options. The component does not read them: a listing's resolver
+      // builds `SortState.options` from them (the contract holds each option's label).
+      options: {
+        relevance: "Relevance",
+        newest: "Newest",
+        priceAsc: "Price: low to high",
+        priceDesc: "Price: high to low",
+      },
+    },
+    filterGroup: {
+      // An option's count, read out after its name ("Black, 8 products"); the digits are drawn apart.
+      products: "{count, plural, one {# product} other {# products}}",
+      showMore: "Show {count} more",
+      showFewer: "Show fewer",
+      // The price range's two fields and its two slider thumbs.
+      minimum: "Minimum price",
+      maximum: "Maximum price",
+      bounds: "Prices from {min} to {max}",
+    },
+    activeFilterChips: {
+      // The list's name: how many filters are applied.
+      label: "{count, plural, one {# active filter} other {# active filters}}",
+      // A chip's text ("Color: Black"); `{filter}` in `remove` is that text.
+      chip: "{group}: {label}",
+      remove: "Remove {filter}",
+      clearAll: "Clear all",
+      clearAllLabel: "Clear all filters",
+    },
+    emptyState: {},
+    marketSwitcher: {
+      // The trigger's name: the current market in the words of its three parts.
+      trigger: "Country and language: {country}, {language}, {currency}",
+      title: "Country and language",
+      description:
+        "Your country sets the currency, prices and delivery. Your language sets the words on the page.",
+      close: "Close",
+      list: "Countries and languages",
+      // A language link's name: the language in its own words (the visible text), then its country.
+      option: "{language}, {country}",
+    },
+    newsletterForm: {
+      title: "Join our newsletter",
+      description: "New arrivals, offers and stories, once a month. No spam.",
+      emailLabel: "Email address",
+      submit: "Subscribe",
+      sending: "Subscribing…",
+      // `{privacy}` is where the link goes; its text is `privacyLink`.
+      consent: "By subscribing you agree to our {privacy}. You can unsubscribe at any time.",
+      privacyLink: "privacy policy",
+      done: "Thank you, you are subscribed.",
+      error: "We could not subscribe this address. Check it and try again.",
+    },
+    accordionItem: {},
+    toast: {
+      // The kind of a toast, in words, beside its icon: colour and a drawing are not the only sign.
+      kinds: { success: "Success", error: "Error", info: "Information" },
+      close: "Close notification",
+    },
+    copyCodeChip: {
+      copy: "Copy",
+      label: "Copy code {code}",
+      copied: "Copied",
+      fallback: "Select the code and copy it",
+    },
+    countdownTimer: {
+      label: "Offer ends {date}",
+      ended: "This offer has ended",
+    },
   },
   organisms: {},
   notFound: {

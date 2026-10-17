@@ -17,6 +17,17 @@ export type ReviewCopy = { author: string; title?: string; body: string };
 /** A tile of a mega menu: its title and what its picture shows. */
 export type FeatureCopy = { title: string; alt: string };
 
+/** One question of a FAQ and its answer in paragraphs. */
+export type FaqCopy = { title: string; answer: string[] };
+
+/** A toast, and the words of the button that shows it. */
+export type ToastCopy = {
+  trigger: string;
+  title: string;
+  description?: string;
+  actionLabel?: string;
+};
+
 export type Copy = {
   /** The first breadcrumb: the market's home page. */
   home: string;
@@ -92,10 +103,32 @@ export type Copy = {
     inStock: string;
     onSale: string;
   };
+  /** The chips of the chosen filters (ActiveFilterChips): the price range as the market writes it. */
+  activeFilters: { priceRange: (min: number, max: number) => string };
   /** The free-shipping message names the threshold (EUR 150, USD 165, CHF 150) as its locale writes it. */
   announcement: { message: string; link: string };
   /** `credit` is the name alone ("Shopblok Studio"): MediaFigure's copy adds the "Photo: …". */
   figure: { alt: string; caption: string; credit: string };
+  /**
+   * EmptyState's samples (T33): no product matches the filters, a search finds nothing, a category
+   * has no products yet. `action` is the link's text.
+   */
+  emptyStates: {
+    filters: { title: string; text: string; action: string };
+    search: { title: string; text: string; action: string };
+    category: { title: string; text: string };
+  };
+  /**
+   * AccordionItem's and Toast's samples (T33): a FAQ of five questions and one long one, and a toast
+   * of each kind with the button that shows it. `answer` is paragraphs.
+   */
+  site: {
+    faq: {
+      items: [FaqCopy, FaqCopy, FaqCopy, FaqCopy, FaqCopy];
+      long: FaqCopy;
+    };
+    toasts: { success: ToastCopy; error: ToastCopy; info: ToastCopy; long: ToastCopy };
+  };
   /** The same kinds of strings at the length that breaks a layout (German's are the longest). */
   long: {
     productTitle: string;

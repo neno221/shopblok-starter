@@ -3689,3 +3689,98 @@ The plan's first mutation said a nested button fails axe's `nested-interactive`;
 
 Findings 6 (one `MAX_STARS` and `{max}` in the card's rating copy), 7 (Image's ratio and radius tables exported for MediaFigure and the card) and 8 (one `SwatchDisc` shared with the Swatch atom) are optional refactors, left for a later tidy-up. **For W4:** Greek `quickAdd.chooseOptions` reads "choice of choices" ("Επιλέξτε παραλλαγή" or "Επιλογές" read better), and Greek uses both "κριτική" (RatingSummary) and "αξιολόγηση" (ProductCard) for a review.
 
+
+## Discovery and site-wide molecules (T33)
+
+**Result: SearchField, Breadcrumbs, Pagination, SortSelect, FilterGroup, ActiveFilterChips, EmptyState, MarketSwitcher, NewsletterForm, AccordionItem, Toast, CopyCodeChip and CountdownTimer are in `packages/ui/src/molecules/`, each with its registry entry, its story, its copy in the four catalogs, fixtures and tests; the `design-system` job opens MarketSwitcher and a toast from the keyboard at 375 and 1440 px and checks axe and focus on the open state (D45); a test reads the build's client chunks and finds no flag in them (D49); and the DS checks run on the fixtures' clock (D50).** The 13 new entries' 78 cells, the 4 interaction checks and the bundle test pass, and so do the 284 before them.
+
+| | |
+|---|---|
+| Date | 2026-10-17 |
+| Branch | prepared locally on T32 while PR 49's CI could not start, then `claude/project-thread-pmqmfo`, restarted from `main` after PR 54 merged |
+| New | `packages/ui/src/molecules/{search-field(-client), breadcrumbs, pagination, sort-select(-client), empty-state, filter-group(-price-range, -swatch-option), active-filter-chips, market-switcher(-client), newsletter-form, accordion-item, toast, copy-code-chip, copy-code-control, countdown-timer, countdown-clock}.tsx` and their tests, `packages/ui/src/atoms/flag-code.ts`, `packages/registry/src/contracts/{listing, site}.ts` with `listing.test.ts` and `filters.test.ts`, `packages/fixtures/src/commerce/build/{listing, active-filters, site, marketing}.ts`, `apps/storefront/src/design-system/{interactions.ts, components/toast-demo.tsx, stories/molecules-{listing, filters, site, marketing}.tsx}` and the four stories' tests |
+| Changed | `packages/ui/src/atoms/{flag, chip}.tsx` and their tests, `packages/ui/src/primitives/toast.tsx` and its test, `packages/ui/package.json` (the `./atoms/flag-code` export), `packages/registry/src/{contracts/{index, market, facets}.ts, contracts/contracts.test.ts, entries/molecules.ts, index.test.ts}`, `packages/i18n/src/{format.ts (languageName), format.test.ts, index.ts, messages/{en,el,de,fr}.ts}`, `packages/fixtures/src/commerce/{types.ts, build/index.ts, commerce.test.ts, copy/*}`, `apps/storefront/{src/design-system/{stories/{index, atoms-commerce}.ts(x), stories.test.tsx}, e2e/{design-system, dev-console-ds}.spec.ts}` |
+| Tests | ui **1761** (641 new), storefront **1107** (274 new: the 13 entries in four locales in `stories.test.tsx`, the interaction list, and the four stories' tests), registry **86** (35 new), fixtures **274** (48 new), i18n **55** (6 new), scripts 429, backend 85; `typecheck`, `lint`, `check:workspace` and `pnpm install --frozen-lockfile` pass |
+
+### How it works
+
+- **Discovery works without JavaScript (SPEC §8.4).** **SearchField** is a `<div role="search">` (the test tools do not know `<search>` yet) around a GET form: a labelled `type="search"` input named `q`, a clear button that appears once hydrated and there is text, and a submit button. **Pagination** is links only (a test finds no button in it), from `hrefFor(page)`: `aria-current="page"` on the current one ("Page 10 of 20"), previous and next left out at the ends rather than drawn dead, and an ellipsis; 7 slots from `sm` and 5 below, both windows in the markup with CSS showing one, so a crawler sees every link; nothing for one page. **SortSelect** is a GET form with a submit button that stays after hydration; a choice from the pointer or the open list submits, a key press on the closed select does not (WCAG 3.2.2), and `SortState.params` carries the filters as hidden inputs without the page, so a new sort starts at page 1. **Breadcrumbs** collapse the middle below `md` when two or more steps sit between Home and the parent; the ellipsis is text, not a disclosure, and the current page is text with `aria-current`. **EmptyState** is an icon, a title, a text and an action (a link with button classes); it has no words of its own.
+- **Filters are one GET form's fields.** **FilterGroup** sends `{facet.id}={value}` for each chosen checkbox or swatch, `{id}.min` and `{id}.max` for a range, and `{id}=1` for a switch. Counts are drawn `aria-hidden` and read as a hidden ", N products". An option with no product is disabled unless it is chosen (a stale link's filter must come off). "Show more" is a native `<details>`, which opens by itself when a chosen option is inside it and still submits its closed fields. The price range is the slider primitive's two thumbs and two labelled number fields; an empty field means no limit, and a thumb at its end empties its field, so an untouched range posts `price.min=` and `price.max=` (the app drops empty values). **ActiveFilterChips** is a `ul` of Chips whose remove control is now a link (Chip's third variant, `removeHref` and `removeLabel`, with the button's box and ring), named "Remove Color: Black", and "Clear all" is named "Clear all filters".
+- **MarketSwitcher keeps the flags on the server (D49).** `market-switcher.tsx` is a server component: it makes every word (country names in the page's language, each language in its own with i18n's new `languageName`) and one `<Flag>` per country, and hands strings and the rendered flags to `MarketSwitcherOverlay` (`market-switcher-client.tsx`), which imports neither i18n, nor `atoms/flag.tsx`, nor `country-flag-icons` (a test reads its imports). From `md` up it is a popover (`modal="trap-focus"`, so the page behind stays scrollable), below it a modal bottom sheet (SPEC §9.4); both triggers are in the markup and CSS hides one, so the server and the browser agree with no `matchMedia`. Both have a visible close button: Base UI's popover traps focus only with a `Close` part inside it. Each language is a link named "Language, Country", the current one marked by a check, inverted colours and `aria-current`. `form="popover"` or `"drawer"` draws one form alone, for the DS's open states. `isFlagCode` and `FlagCode` are in `atoms/flag-code.ts`, which imports only `country-flag-icons`' root module (`hasFlag`, no drawing), and Flag's fallback passes on its props (PR 43 review, items 10 and 12).
+- **NewsletterForm** is an email field, the consent sentence with the privacy link inside it (one ICU message with a `{privacy}` slot), and a submit button, with `idle`, `sending`, `done` and `error` as a prop. While sending, the button is `aria-disabled` and `type="button"`, and a hidden disabled submit button comes first, so Enter cannot submit twice (HTML's implicit submission uses the first one). **CopyCodeChip** is the code and a copy button whose name does not change ("Copy code WELCOME10"); "Copied" is announced by a `role="status"` line that is always there, and when the clipboard is missing or refuses, the code is selected and a line says to copy it. **CountdownTimer (D50)** is a server part that formats the label and the end time and a client clock (`countdown-clock.tsx`) read with `useSyncExternalStore`: its server snapshot counts from the contract's `now`, never `Date.now()`, so the server and hydration agree; the browser then ticks on each whole second and stops at zero. The digits are `aria-hidden` in a `role="timer"` with `aria-live="off"`, a hidden sentence ("3 days, 4 hours, …", `Intl.NumberFormat` units and `Intl.ListFormat`) says the same, and a `role="status"` line says once that it ended (WCAG 4.1.3). It takes `timeZone` (default `UTC`) for the end time, so the server and the browser write the same text.
+- **AccordionItem** is built from Base UI's accordion parts rather than the primitive's trigger, which fixes `<h3>`: `headingLevel` (3 unless given), a chevron that turns, and a panel that animates its height, with nothing moving under reduced motion. **Toast:** `showToast(manager, message, copy)` adds a toast to the `Toaster` in `Providers`, with its kind's word ("Success") drawn beside the icon (WCAG 1.4.1); `Toast` draws one static, for the DS. Every kind is announced politely, an error too: Base UI's `priority: "high"` puts `aria-hidden` on a focusable toast. An error stays until it is closed; a success or an information leaves after 5 s, or 10 s with an action, and Base UI pauses the timer on hover and focus (WCAG 2.2.1). The primitive's list is now a grid (icon, text and close on one row, the action under the text) so a long German label does not squeeze the words.
+- **The interaction checks (D45)** are listed in `apps/storefront/src/design-system/interactions.ts`: for each entry, the trigger (one attribute selector), what opens, where focus goes (`inside` or `stays`) and whether it traps focus. `design-system.spec.ts` opens each on the entry's preview page (`/design-system/en/preview/{id}`, the live render alone) at 375 and 1440 px: Enter on the visible trigger (again until it opens, since a press before hydration does nothing), axe on the open state, then for `inside` focus in the popup, Tab and Shift+Tab as many times as the popup has stops plus two without leaving it, Escape, and focus back on the trigger; for `stays`, focus still on the trigger and a live region that says the toast. Base UI's focus guards (an `aria-hidden` element on each side) take focus first and hand it on a frame or two later, so the trap check waits up to a second for focus to come back before it counts a press as leaving. MarketSwitcher is checked at both widths, so both forms are; `stories.test.tsx` checks that each listed entry's live render draws its trigger.
+- **The bundle test (D49):** after the build, "no client chunk holds a flag (D49)" reads every `.js` file under `.next/static` for the start of the longest path of each market's flag (from `country-flag-icons/string/3x2`), and expects Cyprus's and the United States' needles to be long enough to be their own.
+- **The fixtures' clock (D50):** the DS cells and the interaction checks call `page.clock.setFixedTime(fixtureNow)` before they load the page. Without it, every countdown state reads "Ended" after hydration, since the fixtures' dates are behind the real clock.
+- **The registry** lists 28 molecules (68 entries): the 13 above, after T32's 15. Each has a contract (`SearchQuery`, `Breadcrumbs`, `PageState`, `SortState`, `FacetGroup`, `ActiveFilters`, `EmptyStateContent`, `MarketChoice`, `NewsletterSignup`, `AccordionSection`, `ToastMessage`, `DiscountCode`, `Countdown`).
+- **`dev-console-ds.spec.ts`** has `/design-system/{locale}/molecules/market-switcher` in the four locales and `/design-system/de/molecules/filter-group`, so the switcher's and the price range's hydration are checked in `next dev`.
+- **The CI gate:** the molecules, the stories, the contracts and `interactions.ts` are the DS's own (`design-system` only); T33's changes to `packages/ui/package.json` and `primitives/toast.tsx` run all three jobs.
+
+### How a component task uses them
+
+1. The headers and footers pass MarketSwitcher a `MarketChoice` from the market resolver and leave `form` unset; `form` and `defaultOpen` are for the DS's states.
+2. A listing page passes Pagination an `hrefFor` that keeps the filters and the sort, and SortSelect `params` with the filters and without the page; it drops empty `price.min` and `price.max`.
+3. A new overlay (a dialog, the cart drawer, a menu) gets a line in `interactions.ts`, and its trigger a `data-slot`, and the job checks it.
+4. A toast comes from `showToast(useToastManager(), message, copy)` in a client component (`useToastManager` is the toast primitive's); `copy` is `messages.molecules.toast`.
+
+### Measured
+
+| Check | Result |
+|---|---|
+| The `design-system` project on `next start`, built with `DESIGN_SYSTEM_ENABLED=true` | **367 passed** in 5.8 min: the 284 before, the 13 new entries' 78 cells, the 4 interaction checks (MarketSwitcher and the toast at 375 and 1440) and the bundle test |
+| The same, the first time | 361 passed, 6 failed: SearchField and SortSelect at `el` 375 (`scrollWidth 405, innerWidth 375`: a long submit label in a `shrink-0` button; now `max-w-full`, so it wraps), MarketSwitcher's popover states at 768 and 1440 (`scrollHeight 786 > clientHeight 718`: the box is now 880 px, not 720), and the sheet's interaction check at 375 (`Shift+Tab leaves the popup after 2 presses`: the focus guard, see above) |
+| `dev-console-ds` in `next dev` | 21 passed in 2.2 min: MarketSwitcher in the four locales and FilterGroup in `de`, 0 console messages, 0 failed requests |
+| `e2e-smoke`'s suites on `next start`, default build, `E2E_TEST_ROUTES=true` | 86 passed in 42.0 s |
+
+### Mutations
+
+Each applied, checked and reverted from a copy.
+
+| Mutation | Check | Output |
+|---|---|---|
+| `Flag` imported in `market-switcher-client.tsx` and drawn in the trigger | the bundle test, after a flagged build | fails: `flags in client chunks`, `CY in .next/static/chunks/2flt1zz4n--j2.js` and the same for US, GB and CH: each market flag with a path of its own, in one chunk (`flag.tsx` imports the whole set, `import * as flags`) |
+| The sheet without its trap (`Drawer modal={false}`) | the interaction check at 375 | fails: `Tab leaves the popup after 9 presses` |
+| CountdownClock's server snapshot from `Date.now()` | `countdown-timer.test.tsx` | 4 tests fail, among them "counts from the contract's now, whatever the clock says" (the fixed-clock test) |
+| The clock that never stops, `aria-live="off"` removed, the hidden first submit removed, the clipboard fallback not selecting the code, `timeZone` removed | the molecules' tests | each fails its test |
+
+### Where it differs from the plan
+
+1. **The interactions are a data module** (`interactions.ts`), not a field on the story: Playwright's loader cannot import the stories (D40's reason). A unit test ties each to its story.
+2. **The trap check is added:** the plan's step 5 said focus in, Escape and focus back; the sheet's mutation above needs Tab and Shift+Tab to fail.
+3. **The fixtures' clock is set now,** not in T40: CountdownTimer's states end after hydration without it.
+4. **The hydration checks are in `dev-console-ds.spec.ts`,** where the DS pages have been since T27.
+
+### Decisions the plan did not settle
+
+1. **A zero-count filter option is disabled,** unless it is chosen; adding it can only give an empty page.
+2. **Swatch filters are Base UI checkboxes drawn as the Swatch atom** (`role="checkbox"`, no `aria-pressed`), each named by a label beside it ("Black, 8 products"). Switches sit inside their label, with no fieldset.
+3. **The price range's hidden inputs are 44 px** (`size-11!` and a translate in `filter-group-price-range.tsx`): Base UI draws them 14 × 14, under the DS's target size. The fix belongs in the slider primitive, which nothing else uses yet.
+4. **On/off filters' chips say their label alone** (`ActiveFilter.group` is optional), with no "In stock: In stock".
+5. **MarketSwitcher's popups take no focus when drawn open at first render** (`defaultOpen`, the DS's states): several on one page would take focus from each other, and Base UI closes a popup that focus leaves. Opened by a reader, they take it.
+6. **The sheet's DS states switch off its slide-in and its overscroll bleed** (`[--bleed:0px] duration-0`), a band under its bottom edge that would stick out of the box; language names are capitalised, because `Intl` writes "français".
+7. **The toast demo uses `timeout: 0`,** so the interaction check never races a timer.
+8. **SortSelect's options come from the resolver,** which builds `SortState.options` from `molecules.sortSelect.options`; `SortState` rejects duplicate values and the sort's name inside `params`.
+9. **Contrast relied on** (from the token values): `muted-foreground` on `background` 4.95:1 and on `muted` 4.54:1 (counts, unit names, descriptions), `destructive` 4.77:1, `success` 7.61:1, `input` and `ring` 3.03:1, `primary-foreground` on `primary` 20.12:1.
+
+### Smaller observations
+
+- **Base UI 1.9's accordion has no arrow keys,** so Tab moves between its triggers, and a closed panel is not in the markup: crawlers and readers without JavaScript see the questions only (`keepMounted` or `hiddenUntilFound` would change that; untested).
+- **Before hydration** the copy button does nothing (the code is selectable text), the clear button is not there, and the slider's two thumbs are both named "Maximum price" (Base UI sets their names and values on mount).
+- **The browser's own validation bubbles** (`required`, `type="email"`) speak the browser's language, not the page's.
+- **happy-dom toggles a checkbox inside its label twice on Space,** so the tests press Space on the swatch, whose label sits beside it.
+- **The Greek, German and French copy** of the new keys was drafted in this session, for W4's read.
+
+### Review fixes (PR 55)
+
+| Finding | Fix | Test |
+|---|---|---|
+| 1. NewsletterForm with no `action` submitted by GET, so the email went into the URL | `method="post"` unless the action is a function (React's) | `newsletter-form.test.tsx`: a form with no action posts |
+| 2. SortSelect's `keyed` flag could stick when a key opened the native list (its keyup goes to the list), so later pointer choices stopped submitting | a pointer press clears the flag too | `sort-select.test.tsx`: Space, then a pointer choice, submits |
+| 3. The DS's countdown states read "ended" once hydrated, because the browser counts from today and the fixtures' ends are in October 2026 | CountdownClock and CountdownTimer take `frozen`: the clock stays at the contract's `now` and never ticks; the DS passes it | `countdown-timer.test.tsx`: frozen a year later, the days state shows its digits and starts no timer |
+| 4. CopyCodeChip said nothing on a second press with the same outcome | the status line is keyed by a press count, so it is written again and the live region says it again | `copy-code-chip.test.tsx`: a new node on the second press |
+| 5. A toast's kind ("Error") was outside its name (Base UI names a toast by its title) | the toast is labelled by the kind and the title (`aria-labelledby`), only when there is a kind; otherwise Base UI's own name stands | `toast.test.tsx`: the dialog's name is "Error Added to cart", and the title alone without a kind |
+| 6 (optional). The price slider's steps of 1 from a fractional `min` never reached `max`, so the far end sent a price and dropped the top items | the slider's ends are `Math.floor(min)` and `Math.ceil(max)` (the fields already clamp) | `filter-group-price-range.test.tsx`: 19.99 to 149.99, the far end sends no limit |
+| 8 (optional). `buildFacets` ran twice per locale | built once; the active-filter chips use the sidebar's facets | the fixtures' tests |
+
+Finding 7 (the collapsed breadcrumb steps below `md`) is the plan's design, left for W4. **For W4:** Greek `activeFilterChips.remove` reads better as "Αφαίρεση φίλτρου {filter}", and the Greek sort options are long for a native select on a phone.
+

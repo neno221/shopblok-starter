@@ -152,11 +152,98 @@ export const en: Copy = {
     inStock: "In stock",
     onSale: "On sale",
   },
+  activeFilters: { priceRange: (min, max) => `$${min} to $${max}` },
   announcement: { message: "Free shipping on orders over $165", link: "See details" },
   figure: {
     alt: "A person in an oatmeal hoodie walking along a harbor wall at sunrise",
     caption: "The autumn collection, photographed on location by the harbor.",
     credit: "Shopblok Studio",
+  },
+  emptyStates: {
+    filters: {
+      title: "No products match these filters",
+      text: "Try removing a filter or widening the price range.",
+      action: "Clear all filters",
+    },
+    search: {
+      title: "No results found",
+      text: "Check the spelling or try a more general word.",
+      action: "Browse the shop",
+    },
+    category: {
+      title: "No products here yet",
+      text: "New arrivals are on their way. Check back soon.",
+    },
+  },
+  site: {
+    faq: {
+      items: [
+        {
+          title: "How long does delivery take?",
+          answer: [
+            "Most orders arrive in 2 to 4 working days. We email you a tracking link as soon as your parcel leaves our warehouse.",
+            "Delivery is free once your order passes the free-shipping amount shown in your cart.",
+          ],
+        },
+        {
+          title: "Can I return an item?",
+          answer: [
+            "Yes. Unworn items in their original packaging can be returned within 30 days of delivery for a full refund.",
+            "Start a return from your account, print the label and hand the parcel in at any collection point.",
+          ],
+        },
+        {
+          title: "How do I find my size?",
+          answer: [
+            "Every product page has a size guide with measurements in centimeters and inches.",
+            "If you are between two sizes, take the larger one for a relaxed fit.",
+          ],
+        },
+        {
+          title: "Which payment methods do you accept?",
+          answer: [
+            "We accept the major credit and debit cards, Apple Pay, Google Pay, Revolut Pay, PayPal and Klarna.",
+            "Your card details go straight to our payment provider. We never store them.",
+          ],
+        },
+        {
+          title: "How do I wash my hoodie?",
+          answer: [
+            "Machine wash cold with similar colors, turned inside out, and tumble dry on low.",
+            "Do not bleach it, and do not iron the print.",
+          ],
+        },
+      ],
+      long: {
+        title:
+          "What happens to my order if one of the items sells out after I have already paid with a gift card and a discount code?",
+        answer: [
+          "If an item sells out before we pack your order, we email you the same day and offer a replacement in another size or color, a later delivery date, or a full refund of that item to the original payment methods.",
+          "A gift card balance goes back onto the gift card, and a discount code stays valid for 14 days after the refund, so you can use it on a new order without paying a cent more than you would have before.",
+        ],
+      },
+    },
+    toasts: {
+      success: {
+        trigger: "Add to cart",
+        title: "Added to cart",
+        description: "Your item is waiting in your cart.",
+        actionLabel: "Undo",
+      },
+      error: {
+        trigger: "Apply code",
+        title: "That code did not work",
+        description: "Check the spelling, or the code may have expired.",
+      },
+      info: { trigger: "Check delivery", title: "Delivery takes 2 to 4 working days" },
+      long: {
+        trigger: "Place a large order",
+        title: "Your order is placed, and the confirmation email is on its way to your inbox",
+        description:
+          "We will send the tracking link as soon as the parcel leaves our warehouse, which is usually within one working day.",
+        actionLabel: "View your order details",
+      },
+    },
   },
   long: {
     productTitle:

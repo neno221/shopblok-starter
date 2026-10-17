@@ -4,6 +4,10 @@ import * as contracts from "./index";
 import {
   Cart,
   Category,
+  Countdown,
+  MarketChoice,
+  PageState,
+  SortState,
   Href,
   Image,
   Money,
@@ -348,5 +352,52 @@ describe("the contracts (D41)", () => {
     };
     expect(issues(Category, tree)).toEqual([]);
     expect(issues(Category, { ...tree, children: [{ ...leaf, href: "nope" }] })).not.toEqual([]);
+  });
+
+  it("keep a listing's page and sort inside what exists (T33)", () => {
+    expect(issues(PageState, { page: 3, pageCount: 3 })).toEqual([]);
+    expect(issues(PageState, { page: 4, pageCount: 3 })).toEqual(["page is after the last page"]);
+    expect(issues(PageState, { page: 0, pageCount: 3 })).not.toEqual([]);
+    const sort = {
+      action: "/us/categories/hoodies",
+      name: "sort",
+      options: [
+        { value: "newest", label: "Newest" },
+        { value: "price-asc", label: "Price: low to high" },
+      ],
+      selected: "newest",
+      params: [{ name: "colour", value: "black" }],
+    };
+    expect(issues(SortState, sort)).toEqual([]);
+    expect(issues(SortState, { ...sort, selected: "oldest" })).toEqual([
+      "the selected sort is not one of the options",
+    ]);
+  });
+
+  it("mark exactly one language of the market switcher as current (T33)", () => {
+    const market = (country: string, current: boolean) => ({
+      country: country.toLowerCase(),
+      flagCode: country,
+      currencyCode: "EUR",
+      languages: [{ language: "en", htmlLang: `en-${country}`, href: "/", current }],
+    });
+    expect(issues(MarketChoice, { markets: [market("CY", true), market("DE", false)] })).toEqual(
+      [],
+    );
+    const message = "exactly one language of one market is the current one";
+    expect(issues(MarketChoice, { markets: [market("CY", false), market("DE", false)] })).toEqual([
+      message,
+    ]);
+    expect(issues(MarketChoice, { markets: [market("CY", true), market("DE", true)] })).toEqual([
+      message,
+    ]);
+  });
+
+  it("start a countdown before it ends (T33, D50)", () => {
+    const now = "2026-10-01T09:00:00.000Z";
+    expect(issues(Countdown, { endsAt: "2026-10-03T21:00:00.000Z", now })).toEqual([]);
+    expect(issues(Countdown, { endsAt: "2026-09-30T21:00:00.000Z", now })).toEqual([
+      "the countdown has already ended",
+    ]);
   });
 });

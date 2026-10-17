@@ -28,4 +28,11 @@ checkRoutesInDev([
     path: `/design-system/${locale}/molecules/variant-selector`,
     status: 200,
   })),
+  // T33: MarketSwitcher in each locale (a client component that takes the server's flags, D49, and
+  // draws a popover and a drawer open in their boxes), and FilterGroup's price range in one.
+  ...locales.map((locale) => ({
+    path: `/design-system/${locale}/molecules/market-switcher`,
+    status: 200,
+  })),
+  { path: "/design-system/de/molecules/filter-group", status: 200 },
 ]);

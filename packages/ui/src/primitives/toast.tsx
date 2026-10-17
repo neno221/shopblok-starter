@@ -5,7 +5,14 @@
 // button's name (it was "Close toast") the required `closeLabel`, both taken by `Toaster`; the
 // viewport sits on the `--z-toast` layer (a toast's own `z-[calc(1000-…)]` only orders the stack
 // inside it) and its portal goes to `usePortalContainer()` (D45); the focus ring is full strength
-// (D35); logical properties; light only (no `dark:`).
+// (D35); logical properties; light only (no `dark:`). T33 (SETUP.md "Discovery and site-wide
+// molecules (T33)"): `ToastList` draws what the Toast molecule's `showToast` adds: the toast's kind
+// in words beside its icon (`data.kindLabel`, a string the caller took from the catalog; colour and
+// a drawing are not the only sign of it), the icon in the kind's token colour (`ToastIcon` is now
+// exported), the content as a grid (icon, text and close on the first row, the action under the
+// text, so a long label does not squeeze the words), and a close button that leaves the tab order
+// while Base UI hides it from assistive technology (`aria-hidden` on a tab stop is axe's
+// `aria-hidden-focus`).
 // A client component: Base UI's Toast keeps the toast list and its timers, `ToastList` reads them
 // with a hook, and `toast` is the manager that callers share with `Toaster`.
 "use client";
@@ -151,19 +158,20 @@ function ToastClose({
   );
 }
 
-function ToastIcon({ type }: { type: string | undefined }) {
+/** The icon of a toast's type, in the type's token colour; it says nothing on its own (the kind is also text). */
+function ToastIcon({ type, className }: { type: string | undefined; className?: string }) {
   let icon: React.ReactNode = null;
 
   if (type === "success") {
-    icon = <CircleCheckIcon aria-hidden="true" />;
+    icon = <CircleCheckIcon className="text-success" aria-hidden="true" />;
   }
 
   if (type === "info") {
-    icon = <InfoIcon aria-hidden="true" />;
+    icon = <InfoIcon className="text-info" aria-hidden="true" />;
   }
 
   if (type === "warning") {
-    icon = <TriangleAlertIcon aria-hidden="true" />;
+    icon = <TriangleAlertIcon className="text-warning" aria-hidden="true" />;
   }
 
   if (type === "error") {
@@ -181,29 +189,92 @@ function ToastIcon({ type }: { type: string | undefined }) {
   return (
     <span
       data-slot="toast-icon"
-      className="shrink-0 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4"
+      className={cn(
+        "shrink-0 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4",
+        className,
+      )}
     >
       {icon}
     </span>
   );
 }
 
+/** The toast's kind in words ("Success"), above its title: `data.kindLabel` of the toast. */
+function ToastKind({ className, ...props }: React.ComponentProps<"p">) {
+  return (
+    <p
+      data-slot="toast-kind"
+      className={cn("text-xs font-medium text-foreground", className)}
+      {...props}
+    />
+  );
+}
+
+/**
+ * How a toast's content is laid out: the icon, the text and the close button on the first row, the
+ * action under the text. The columns are named, so a toast without an icon keeps its text in the
+ * second one.
+ */
+const toastLayout = {
+  content: "grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-x-3 gap-y-2",
+  icon: "col-start-1 row-start-1 mt-0.5",
+  text: "col-start-2 row-start-1 flex min-w-0 flex-col gap-1 py-1.5",
+  action: "col-start-2 col-end-4 row-start-2 justify-self-start",
+  close: "col-start-3 row-start-1",
+} as const;
+
+/**
+ * Base UI sets `aria-hidden` on the close button until the stack is expanded (hovered or focused) or
+ * the button has focus. A control that assistive technology cannot see must not be a tab stop (axe
+ * `aria-hidden-focus`, WCAG 4.1.2), so it is `tabIndex={-1}` while hidden; focusing the viewport (F6)
+ * expands the stack, unhides it and puts it back in the order.
+ */
+const closeButton: ToastPrimitive.Close.Props["render"] = (props) => (
+  <Button
+    variant="ghost"
+    size="icon"
+    {...props}
+    tabIndex={
+      props["aria-hidden"] === true || props["aria-hidden"] === "true" ? -1 : props.tabIndex
+    }
+  />
+);
+
+/** The kind's words a caller put in the toast's `data`, if it did. */
+function kindLabelOf(data: unknown): string | undefined {
+  if (typeof data !== "object" || data === null) return undefined;
+  const label = (data as { kindLabel?: unknown }).kindLabel;
+  return typeof label === "string" && label !== "" ? label : undefined;
+}
+
 function ToastList({ closeLabel }: { closeLabel: string }) {
   const { toasts } = ToastPrimitive.useToastManager();
 
-  return toasts.map((toastItem) => (
-    <Toast key={toastItem.id} toast={toastItem}>
-      <ToastContent>
-        <ToastIcon type={toastItem.type} />
-        <div className="flex min-w-0 flex-1 flex-col gap-1">
-          <ToastTitle />
-          <ToastDescription />
-        </div>
-        <ToastAction />
-        <ToastClose closeLabel={closeLabel} />
-      </ToastContent>
-    </Toast>
-  ));
+  return toasts.map((toastItem) => {
+    const kindLabel = kindLabelOf(toastItem.data);
+    // The kind is part of the toast's name ("Error Payment failed"), not only a line for the eye
+    // (WCAG 1.4.1, PR 55 review): Base UI names the toast by its title alone.
+    const kindId = `${toastItem.id}-kind`;
+    const titleId = `${toastItem.id}-title`;
+    return (
+      <Toast
+        key={toastItem.id}
+        toast={toastItem}
+        {...(kindLabel === undefined ? {} : { "aria-labelledby": `${kindId} ${titleId}` })}
+      >
+        <ToastContent className={toastLayout.content}>
+          <ToastIcon type={toastItem.type} className={toastLayout.icon} />
+          <div className={toastLayout.text}>
+            {kindLabel === undefined ? null : <ToastKind id={kindId}>{kindLabel}</ToastKind>}
+            <ToastTitle id={titleId} className="wrap-anywhere" />
+            <ToastDescription className="wrap-anywhere" />
+          </div>
+          <ToastAction className={toastLayout.action} />
+          <ToastClose closeLabel={closeLabel} className={toastLayout.close} render={closeButton} />
+        </ToastContent>
+      </Toast>
+    );
+  });
 }
 
 /**
@@ -239,11 +310,14 @@ export {
   ToastClose,
   ToastContent,
   ToastDescription,
+  ToastIcon,
+  ToastKind,
   ToastPortal,
   ToastProvider,
   ToastTitle,
   ToastViewport,
   createToastManager,
   toast,
+  toastLayout,
   useToastManager,
 };

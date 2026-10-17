@@ -49,6 +49,77 @@ describe("Chip", () => {
     render(<Chip removeLabel="Remove">B</Chip>);
   });
 
+  describe("removed by a link (removeHref, T33)", () => {
+    it("has a link named by removeLabel in place of the button, with the same 44 × 44 px box", () => {
+      render(
+        <Chip removeHref="/us/store?size=m" removeLabel="Remove Color: Black" prefetch={false}>
+          Color: Black
+        </Chip>,
+      );
+      const link = screen.getByRole("link", { name: "Remove Color: Black" });
+      expect(link.getAttribute("href")).toBe("/us/store?size=m");
+      expect(link.getAttribute("data-slot")).toBe("chip-remove");
+      expect(link.className).toContain("size-11");
+      expect(link.className).toContain("focus-visible:ring-ring");
+      expect(link.className).not.toContain("ring-ring/");
+      expect(screen.queryByRole("button")).toBeNull();
+      // The cross is a picture: the name is the link's.
+      expect(link.querySelector("svg")?.getAttribute("aria-hidden")).toBe("true");
+    });
+
+    it("keeps the chip 32 px tall and trims the end padding, as the button does", () => {
+      render(
+        <Chip removeHref="/store" removeLabel="Remove" data-testid="chip">
+          A
+        </Chip>,
+      );
+      const chip = screen.getByTestId("chip");
+      expect(chip.className).toContain("min-h-8");
+      expect(chip.className).toContain("pe-1");
+      expect(screen.getByRole("link").className).toContain("-my-1.5");
+    });
+
+    it("is reached with Tab, and nothing else in the chip is a control", async () => {
+      const user = userEvent.setup();
+      render(
+        <Chip removeHref="/store" removeLabel="Remove">
+          Organic cotton
+        </Chip>,
+      );
+      await user.tab();
+      expect(document.activeElement).toBe(screen.getByRole("link", { name: "Remove" }));
+      await user.tab();
+      expect(document.activeElement).toBe(document.body);
+    });
+
+    it("needs a removeLabel, and takes either a link or a handler, never both", () => {
+      // @ts-expect-error -- the remove link has no name without `removeLabel` (D30).
+      render(<Chip removeHref="/store">A</Chip>);
+      render(
+        // @ts-expect-error -- a chip is removed by a handler or by a link, not by both.
+        <Chip removeHref="/store" onRemove={() => {}} removeLabel="Remove">
+          B
+        </Chip>,
+      );
+      render(
+        // @ts-expect-error -- `prefetch` belongs to the link.
+        <Chip onRemove={() => {}} removeLabel="Remove" prefetch={false}>
+          C
+        </Chip>,
+      );
+    });
+
+    it.each(longLabels)("wraps a long %s label instead of cutting it", (_locale, strings) => {
+      render(
+        <Chip removeHref="/store" removeLabel="Remove" data-testid="chip">
+          {strings.chipLabel}
+        </Chip>,
+      );
+      expect(screen.getByTestId("chip").className).toContain("max-w-full");
+      expect(screen.getByText(strings.chipLabel).className).not.toMatch(CLIPPING_CLASSES);
+    });
+  });
+
   it.each(longLabels)("wraps a long %s label instead of cutting it", (_locale, strings) => {
     render(
       <Chip onRemove={() => {}} removeLabel="Remove" data-testid="chip">
