@@ -3600,3 +3600,78 @@ Each applied, checked and reverted from a copy.
 | 6 (optional). `InputGroupAddon` focused only an `<input>`, and a caller's `onClick` replaced its own | it focuses an input or textarea, after calling the caller's `onClick`, unless that prevented the default | `input-group.test.tsx`: a textarea gets focus, the caller's handler runs, `preventDefault` stops the focus |
 
 Findings 3 and 4 are upstream ReUI bugs (`@reui/stepper` as of 2026-10-17), recorded in the stepper's header.
+
+## Product molecules (T32)
+
+**Result: ProductCard's ten variants (D46), PriceBlock, VariantSelector, RatingSummary, ReviewItem and MediaFigure are in `packages/ui/src/molecules/`, each with its registry entry, its story, its copy in the four catalogs, fixtures and tests; Image's `sizes` is required; and the DS checks have a sixth check, controls nested in a link or a button, because axe's `nested-interactive` does not look inside a link.** The 15 new entries' 90 cells pass, and so do the 194 before them.
+
+| | |
+|---|---|
+| Date | 2026-10-17 |
+| Branch | prepared locally on T31 while PR 49's CI could not start, then `claude/project-thread-pmqmfo`, restarted from `main` after PR 53 merged |
+| New | `packages/ui/src/molecules/{price-block, variant-selector, rating-summary, review-item, media-figure}.tsx` and their tests, `packages/ui/src/molecules/product-card/` (`parts.tsx`, one file per variant, `product-card.test.tsx`, `product-card-parts.test.tsx`), `packages/registry/src/entries/molecules.ts`, `apps/storefront/src/design-system/stories/{molecules-product-card, molecules-product}.tsx`, `molecules-product.test.tsx` |
+| Changed | `packages/ui/src/atoms/{image, swatch, size-pill}.tsx` and their tests, `packages/ui/package.json` (`@shopblok/registry`, for the contract types), `packages/registry/src/{index.ts, index.test.ts, contracts/product.ts (VariantChoice), contracts/contracts.test.ts}`, `packages/i18n/src/messages/{en,el,de,fr}.ts` (`molecules.*`), `packages/fixtures/src/commerce/copy/*` (`figure.credit`), `apps/storefront/{src/design-system/{stories/index.ts, catalog.test.ts}, e2e/{design-system, dev-console-ds}.spec.ts}`, the lockfile |
+| Tests | ui **1120** (490 new: ProductCard's and PriceBlock's 317, the four other molecules' 135, the rest the scan's new files, Image, Swatch and SizePill), storefront **833** (85 new: the 15 entries in four locales in `stories.test.tsx`, and `molecules-product.test.tsx`'s 25), registry **51**, fixtures 226, i18n 49, scripts 429, backend 85; `typecheck`, `lint`, `check:workspace` and `pnpm install --frozen-lockfile` pass |
+
+### How it works
+
+- **One link per card.** The title's link is the card's only link: it is `block min-h-11` (the DS size check measures the link's own box) and an `::after` stretched over the card (`after:absolute after:inset-0`) makes the whole card clickable, with the focus ring on the `::after`, around the card. Nothing between the link and the card's root is positioned, or the `::after` would cover that box instead; `overlay` puts its picture and its panel in one grid cell for that reason, and a test walks the link's ancestors in every variant. Any other control (quick add) sits outside the link and above the stretched area. A long title is clamped with `data-truncate`, and the full title stays the link's name.
+- **The ten variants** share `parts.tsx` (`CardRoot`, `CardMedia`, `CardTitle`, `CardPrice`, `CardRating`, `cardBadges`, `CardSwatches`, `CardQuickAdd`) and take one set of props, `ProductCardProps`: `product` (the `ProductCard` contract), `copy` (`{ card, priceBlock }`, both from `molecules`), `locale` (the market's `<html lang>`), `sizes` (required), `heading` (`h3` unless given) and `prefetch`. Quick add also takes `action` (what a `<form action>` takes; M3 passes a server action) and `status` (`idle`, `adding`, `added`, `error`); image swap takes `swapped`, which draws the second image as on hover, because the DS runs with reduced motion and cannot hold a hover. All ten are server components.
+- **PriceBlock** draws the price with the Price atom: the sale price and the struck-through original, each with its hidden label; "From {price}" for a range, as an ICU message, so a language can put the word after the price; and a tax note (`tax="included"` or `"excluded"`).
+- **VariantSelector** (a client component) is one Base UI radio group per option, drawn with Swatch for a colour with a hex or an image and SizePill otherwise. Each group is named by a visible label (`aria-labelledby`, not a fieldset, so the name is not read twice) that becomes "{option}: {value}" once a value is chosen. A value is unavailable when no available variant has it together with the other options' choices; it is announced in its name and stays focusable (T23's choice, yours to change). The hidden inputs are `${name}.${optionId}`. Swatch and SizePill now take a `role` and drop `aria-pressed` under any role but `button` (axe's `aria-allowed-attr`).
+- **RatingSummary** is the average (a large number, `aria-hidden`, beside the Rating atom, which carries the name), the count, and a bar per star with its count as text; with no reviews it is the message alone. **ReviewItem** is an `<article>`: the title (or the author when there is none) as its heading (`headingLevel`, 3 unless given), the author, the date (`formatDate` in UTC, never `Date.now()`), the rating, the body in paragraphs and "Verified purchase" as text. **MediaFigure** is a `<figure>` with the Image atom and a caption and credit; `sizes` is required, and `ratio` is the nearest of Image's when not given.
+- **Contracts and copy (D41, D43):** packages/ui imports the contracts as types only (`import type … from "@shopblok/registry/contracts"`), so it now lists `@shopblok/registry` as a dependency. `VariantChoice` is `ProductDetail`'s options and variants with the same refinement; zod 4 forbids `.pick` on a refined object, so both are built from a shared shape and check. Every string is a catalog message under `molecules`; plurals use `one` and `other` (and `=0`).
+- **The registry** lists 15 molecules (55 entries): `molecules/price-block`, `molecules/product-card-{standard, swatches, quick-add, overlay, minimal, horizontal, compact, editorial, bordered, image-swap}` (the `product-card` family, so `variantsOf("product-card")` gives the ten in that order), `variant-selector`, `rating-summary`, `review-item` and `media-figure`. The DS's navigation gains the Molecules group.
+- **The DS's sixth check (`nestedControls`, `design-system.spec.ts`):** a link, a button or an element with their roles that holds another interactive element (a link, a button, a form field, a focusable `tabindex`, or one of eight interactive roles), unless that element is hidden, inert or `aria-hidden`. axe's `nested-interactive` looks only inside roles whose children are presentational (a button, a tab, a checkbox), and a link's are not, so a button inside a card's link passed axe (see Mutations).
+- **No prefetch on the DS page.** `next/link` prefetches each link in view in a production build, and the product pages come in M3, so each prefetch of `/us/products/…` answered 404 and failed the cell's console check (all 60 ProductCard cells, the first time). The cards take `prefetch`, and the stories pass `false`; a shop leaves it unset.
+- **`dev-console-ds.spec.ts`** has `/design-system/{locale}/molecules/variant-selector` in the four locales (the plan said `dev-console.spec.ts`; since T27 the DS pages are in `dev-console-ds`), so VariantSelector's hydration is checked in `next dev`.
+- **The CI gate:** a molecule is the DS's own (`node scripts/ci-gate.ts --files packages/ui/src/molecules/price-block.tsx` runs `design-system` only), and T32's change to `packages/ui/package.json` runs all three jobs.
+
+### How a component task uses them
+
+1. A card takes the `sizes` of the column it sits in (`(min-width: 768px) 25vw, 50vw` for a grid of four from 768 px), and `copy={{ card: messages.molecules.productCard, priceBlock: messages.molecules.priceBlock }}`.
+2. A molecule that adds a control to a card puts it outside the title's link, as quick add does; the DS's nested check fails otherwise.
+3. VariantSelector's `name` must be unique on the page (radios with one name are one group to the browser), so two selectors on one page take two names.
+
+### Measured
+
+| Check | Result |
+|---|---|
+| The `design-system` project on `next start`, built with `DESIGN_SYSTEM_ENABLED=true` | **284 passed** in 3.6 min: the 194 before (the nested check finds nothing in them) and the 90 new cells |
+| The 90 new cells alone (`-g molecules/`), after the prefetch fix | 90 passed in 1.3 min |
+| `e2e-smoke`'s suites on `next start`, default build, `E2E_TEST_ROUTES=true` | 86 passed in 42.5 s |
+| `dev-console-ds` in `next dev` | 16 passed: VariantSelector in the four locales, 0 console messages, 0 failed requests |
+
+### Mutations
+
+Each applied, checked and reverted from a copy.
+
+| Mutation | Check | Output |
+|---|---|---|
+| A button inside the card's title link (a "♥" in `CardTitle`) | `product-card.test.tsx`; the DS cells | 10 tests fail; in Chromium **axe passes** and the nested check fails: `interactive elements inside a link or a button`, `button "♥": inside a[data-slot=link] "Heritage Hoodie♥" (× 3)` |
+| A `relative` between the link and the card's root | `product-card.test.tsx` | the "only positioned box" test fails |
+| An Image without `sizes` | `typecheck` | `TS2741: Property 'sizes' is missing` (and TS2322 where props are spread) |
+| A variant without its story (`overlay` removed from the stories) | `typecheck`; `stories.test.tsx` | TS2741 in `stories/index.ts`; 5 tests fail |
+| The ProductCard stories without `prefetch: false` | the DS cells | all 60 ProductCard cells fail: `console errors and warnings`, `Failed to load resource: the server responded with a status of 404 (Not Found)` |
+
+The plan's first mutation said a nested button fails axe's `nested-interactive`; it does not, which is why the nested check was added.
+
+### Decisions the plan did not settle
+
+1. **The title link is `block min-h-11`, and its `::after` is the hit area and the ring.** The `Link` atom's own ring is `ring-0` in a card, so the ring is drawn once, around the card.
+2. **The overlay variant's panel is opaque `bg-background`,** not a tint over the picture, so every text pair is measured against one colour: title 19.9:1, `price` 19.8:1, `price-sale` 6.42:1, `price-original` 7.81:1, `muted-foreground` 4.95:1, white on `badge-sale` 4.77:1 and on `badge-new` 5.25:1, `destructive` 4.77:1 (from the token values).
+3. **At most two badges,** in this order: sold out, sale, new, bestseller, then the product's own. `minimal` and `compact` keep only "Sold out". Badges are `rounded-xl` rather than the atom's `rounded-4xl`, so a long German label that wraps is not cut by the corners.
+4. **The swatches on a card are display only:** discs in a named list, up to five; over five, four discs and "+N" (with "N more colors" hidden); an unavailable colour is struck through and its hidden name says so. Choosing a colour is VariantSelector's, on the product page.
+5. **Quick add:** "Choose options" when the product has more than one variant (the action then takes the shopper to the product page; the DS passes the product's link); a sold-out product's button is disabled and says "Sold out"; while adding, the button is `aria-disabled` (Base UI's `focusableWhenDisabled`) and `type="button"`, so it submits nothing twice, even before hydration; "Added to cart" (hidden) and the error (visible) are in a `role="status"` region that is always there. The button's name is its text and a hidden ", {title}".
+6. **The rating on a card** is the Rating atom named "{average} out of 5, {count} reviews"; the visible "(128)" is `aria-hidden` and wraps below the stars in a narrow column. A product with no reviews shows nothing.
+7. **Low stock is not drawn on a card:** SBP calls it optional and the plan's card does not list it.
+8. **RatingSummary's bars are `bg-primary` on `bg-muted`:** the amber `rating` colour on `muted` is 2.94:1, under WCAG 1.4.11's 3:1.
+9. **A SizePill in VariantSelector wraps** (`rounded-3xl max-w-full wrap-anywhere`): a long German or Greek value becomes a rounded rectangle, and one line is still a stadium. A colour value with neither a hex nor an image is a SizePill.
+10. **A chosen value that becomes unavailable stays chosen,** and says so in its name, rather than the selector changing the shopper's choice for them.
+11. **`figure.credit` in the fixtures is the name alone** ("Shopblok Studio"); MediaFigure's copy adds "Photo: {credit}". `unavailable` and the rating label are in two copy blocks each, so every component's `copy` stands alone.
+
+### Smaller observations
+
+- **VariantSelector needs JavaScript for the keyboard:** Base UI renders the radios with `tabindex="-1"` on the server, so Tab and the arrows work after hydration; without it, only the first choice reaches a form.
+- **The card's `href` is cast** to `Link`'s own `href` type in `parts.tsx`: the storefront's typed routes narrow it, and the card's link comes from data.
+- **The Greek, German and French copy** of the new keys was drafted in this session, for W4's read.

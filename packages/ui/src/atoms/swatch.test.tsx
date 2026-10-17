@@ -77,6 +77,20 @@ describe("Swatch", () => {
     expect(screen.getByRole("button", { name: strings.optionLabel })).toBeTruthy();
   });
 
+  it("drops aria-pressed when it is given a role, which only a button may carry (VariantSelector)", () => {
+    render(<Swatch label="Black" colour="#111111" selected role="radio" aria-checked />);
+    const radio = screen.getByRole("radio", { name: "Black" });
+    expect(radio.hasAttribute("aria-pressed")).toBe(false);
+    expect(radio.getAttribute("aria-checked")).toBe("true");
+    // The edge still follows `selected`.
+    expect(radio.getAttribute("data-selected")).toBe("");
+  });
+
+  it("keeps aria-pressed for the button role", () => {
+    render(<Swatch label="Black" colour="#111111" selected role="button" />);
+    expect(screen.getByRole("button", { name: "Black" }).getAttribute("aria-pressed")).toBe("true");
+  });
+
   it("needs unavailableLabel when unavailable", () => {
     // @ts-expect-error -- without its label the sold-out state would be a line alone (WCAG 1.4.1).
     render(<Swatch label="Forest" colour="green" unavailable />);

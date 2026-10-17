@@ -22,4 +22,10 @@ checkRoutesInDev([
   { path: "/design-system/el/preview/atoms/select", status: 200 },
   // T31 (D45): a sheet and a popover drawn open on first render, each portalled into its box.
   { path: "/design-system/en/checks/overlay-box", status: 200 },
+  // T32: one molecule page in each locale: VariantSelector, the product molecule with the most
+  // client code (Base UI's radio groups around Swatch and SizePill).
+  ...locales.map((locale) => ({
+    path: `/design-system/${locale}/molecules/variant-selector`,
+    status: 200,
+  })),
 ]);

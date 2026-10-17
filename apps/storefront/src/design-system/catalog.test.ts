@@ -135,7 +135,11 @@ describe("findEntry", () => {
 
 describe("navigation", () => {
   it("lists a group only when it has entries, in the group order", () => {
-    expect(navigation(entries).map((section) => section.group)).toEqual(["foundations", "atoms"]);
+    expect(navigation(entries).map((section) => section.group)).toEqual([
+      "foundations",
+      "atoms",
+      "molecules",
+    ]);
     const foundationsOnly = navigation([testEntry("foundations/b", "foundations")]);
     expect(foundationsOnly.map((section) => section.group)).toEqual(["foundations"]);
     const both = navigation([testEntry("atoms/a"), testEntry("foundations/b", "foundations")]);

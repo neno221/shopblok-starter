@@ -50,7 +50,51 @@ export const en = {
   // What the root layouts' Providers draw (D47): the toasts' region and their close button.
   primitives: { toast: { region: "Notifications", close: "Close notification" } },
   // Filled by M2's component tasks (T32 to T39), each with its components' strings.
-  molecules: {},
+  molecules: {
+    variantSelector: {
+      chosen: "{option}: {value}",
+      unavailable: "Unavailable",
+    },
+    ratingSummary: {
+      rating: "{value} out of {max}",
+      count:
+        "{count, plural, =0 {No reviews yet} one {Based on # review} other {Based on # reviews}}",
+      distribution: "Ratings by number of stars",
+      row: "{stars, plural, one {# star} other {# stars}}, {count, plural, one {# review} other {# reviews}}",
+    },
+    reviewItem: {
+      rating: "Rated {value} out of {max}",
+      verified: "Verified purchase",
+    },
+    mediaFigure: {
+      credit: "Photo: {credit}",
+    },
+    priceBlock: {
+      sale: "Sale price",
+      original: "Original price",
+      from: "From {price}",
+      taxIncluded: "Tax included",
+      taxExcluded: "Tax excluded",
+    },
+    productCard: {
+      soldOut: "Sold out",
+      badges: { sale: "Sale", new: "New", bestseller: "Bestseller" },
+      rating: "{average} out of 5, {count, plural, one {# review} other {# reviews}}",
+      ratingCount: "({count, number})",
+      swatches: "Colors",
+      swatchUnavailable: "Unavailable",
+      swatchesMore: "{count, plural, one {# more color} other {# more colors}}",
+      moreCount: "+{count, number}",
+      quickAdd: {
+        add: "Add to cart",
+        chooseOptions: "Choose options",
+        adding: "Adding to cart…",
+        added: "Added to cart",
+        error: "Could not add to cart. Please try again.",
+        forProduct: ", {title}",
+      },
+    },
+  },
   organisms: {},
   notFound: {
     title: "Page not found",

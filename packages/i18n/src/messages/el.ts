@@ -50,7 +50,51 @@ export const el: Messages = {
   },
   primitives: { toast: { region: "Ειδοποιήσεις", close: "Κλείσιμο ειδοποίησης" } },
   // Filled by M2's component tasks (T32 to T39), each with its components' strings.
-  molecules: {},
+  molecules: {
+    variantSelector: {
+      chosen: "{option}: {value}",
+      unavailable: "Μη διαθέσιμο",
+    },
+    ratingSummary: {
+      rating: "{value} στα {max}",
+      count:
+        "{count, plural, =0 {Δεν υπάρχουν κριτικές ακόμη} one {Βάσει # κριτικής} other {Βάσει # κριτικών}}",
+      distribution: "Βαθμολογίες ανά αριθμό αστεριών",
+      row: "{stars, plural, one {# αστέρι} other {# αστέρια}}, {count, plural, one {# κριτική} other {# κριτικές}}",
+    },
+    reviewItem: {
+      rating: "Βαθμολογία {value} στα {max}",
+      verified: "Επαληθευμένη αγορά",
+    },
+    mediaFigure: {
+      credit: "Φωτογραφία: {credit}",
+    },
+    priceBlock: {
+      sale: "Τιμή προσφοράς",
+      original: "Αρχική τιμή",
+      from: "Από {price}",
+      taxIncluded: "Οι φόροι περιλαμβάνονται",
+      taxExcluded: "Οι φόροι δεν περιλαμβάνονται",
+    },
+    productCard: {
+      soldOut: "Εξαντλημένο",
+      badges: { sale: "Προσφορά", new: "Νέο", bestseller: "Δημοφιλές" },
+      rating: "{average} στα 5, {count, plural, one {# αξιολόγηση} other {# αξιολογήσεις}}",
+      ratingCount: "({count, number})",
+      swatches: "Χρώματα",
+      swatchUnavailable: "Μη διαθέσιμο",
+      swatchesMore: "{count, plural, one {# ακόμη χρώμα} other {# ακόμη χρώματα}}",
+      moreCount: "+{count, number}",
+      quickAdd: {
+        add: "Προσθήκη στο καλάθι",
+        chooseOptions: "Επιλογή επιλογών",
+        adding: "Γίνεται προσθήκη…",
+        added: "Προστέθηκε στο καλάθι",
+        error: "Η προσθήκη στο καλάθι δεν ήταν δυνατή. Δοκιμάστε ξανά.",
+        forProduct: ", {title}",
+      },
+    },
+  },
   organisms: {},
   notFound: {
     title: "Η σελίδα δεν βρέθηκε",

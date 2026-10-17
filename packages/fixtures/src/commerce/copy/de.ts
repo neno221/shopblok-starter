@@ -156,7 +156,7 @@ export const de: Copy = {
   figure: {
     alt: "Eine Person in einem Hoodie in Hafer geht bei Sonnenaufgang an einer Hafenmauer entlang",
     caption: "Die Herbstkollektion, fotografiert am Hafen.",
-    credit: "Foto: Shopblok Studio",
+    credit: "Shopblok Studio",
   },
   long: {
     productTitle:

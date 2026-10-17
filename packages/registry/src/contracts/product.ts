@@ -95,6 +95,56 @@ export const ProductMedia = Image.extend({
   optionValueIds: z.array(Id).optional(),
 });
 
+/**
+ * What a product's options and its variants must satisfy together (SPEC §8.4): a value id is listed
+ * once in the product, and each variant names one existing value of each option. ProductDetail and
+ * VariantChoice both check it; zod 4 cannot `.pick` a refined object, so the check is a function.
+ */
+function checkChoice(
+  choice: { options: ProductOption[]; variants: ProductVariant[] },
+  context: z.RefinementCtx,
+) {
+  const values = new Map(
+    choice.options.map((option) => [option.id, new Set(option.values.map((value) => value.id))]),
+  );
+  // A value id is the product's, not only its option's: a picture names values without their
+  // option (`optionValueIds`), as Medusa's `optval_` ids are unique in the store.
+  const valueIds = choice.options.flatMap((option) => option.values.map((value) => value.id));
+  for (const id of new Set(valueIds.filter((id, index) => valueIds.indexOf(id) !== index)))
+    context.addIssue({
+      code: "custom",
+      path: ["options"],
+      message: `value ${id} is listed twice`,
+    });
+  for (const [index, variant] of choice.variants.entries()) {
+    const keys = Object.keys(variant.options);
+    if (keys.length !== values.size || keys.some((key) => !values.has(key)))
+      context.addIssue({
+        code: "custom",
+        path: ["variants", index, "options"],
+        message: `variant ${variant.id} does not name one value of each option`,
+      });
+    for (const [option, value] of Object.entries(variant.options))
+      if (values.get(option)?.has(value) === false)
+        context.addIssue({
+          code: "custom",
+          path: ["variants", index, "options", option],
+          message: `option ${option} has no value ${value}`,
+        });
+  }
+}
+
+const choiceShape = {
+  options: z.array(ProductOption),
+  variants: z.array(ProductVariant).min(1),
+};
+
+/**
+ * What VariantSelector takes: a product's options and variants, checked as a product page checks
+ * them (each variant names one existing value of each option, each value id is listed once).
+ */
+export const VariantChoice = z.object(choiceShape).superRefine(checkChoice);
+
 /** A product page's data (BuyBox, ProductGallery, VariantSelector). */
 export const ProductDetail = z
   .object({
@@ -105,25 +155,14 @@ export const ProductDetail = z
     href: Href,
     breadcrumbs: z.array(Link),
     media: z.array(ProductMedia).min(1),
-    options: z.array(ProductOption),
-    variants: z.array(ProductVariant).min(1),
+    ...choiceShape,
     price: PriceSummary,
     badges: z.array(ProductBadge),
     rating: RatingSummary.optional(),
   })
   .superRefine((product, context) => {
-    const values = new Map(
-      product.options.map((option) => [option.id, new Set(option.values.map((value) => value.id))]),
-    );
-    // A picture names values without their option (`optionValueIds`), so a value id is the
-    // product's, not only its option's, as Medusa's `optval_` ids are.
+    checkChoice(product, context);
     const valueIds = product.options.flatMap((option) => option.values.map((value) => value.id));
-    for (const id of new Set(valueIds.filter((id, index) => valueIds.indexOf(id) !== index)))
-      context.addIssue({
-        code: "custom",
-        path: ["options"],
-        message: `value ${id} is listed twice`,
-      });
     for (const [index, media] of product.media.entries())
       for (const id of media.optionValueIds ?? [])
         if (!valueIds.includes(id))
@@ -132,22 +171,6 @@ export const ProductDetail = z
             path: ["media", index, "optionValueIds"],
             message: `no option has a value ${id}`,
           });
-    for (const [index, variant] of product.variants.entries()) {
-      const keys = Object.keys(variant.options);
-      if (keys.length !== values.size || keys.some((key) => !values.has(key)))
-        context.addIssue({
-          code: "custom",
-          path: ["variants", index, "options"],
-          message: `variant ${variant.id} does not name one value of each option`,
-        });
-      for (const [option, value] of Object.entries(variant.options))
-        if (values.get(option)?.has(value) === false)
-          context.addIssue({
-            code: "custom",
-            path: ["variants", index, "options", option],
-            message: `option ${option} has no value ${value}`,
-          });
-    }
   });
 
 export type Stock = z.infer<typeof Stock>;
@@ -159,4 +182,5 @@ export type ProductOptionValue = z.infer<typeof ProductOptionValue>;
 export type ProductOption = z.infer<typeof ProductOption>;
 export type ProductVariant = z.infer<typeof ProductVariant>;
 export type ProductMedia = z.infer<typeof ProductMedia>;
+export type VariantChoice = z.infer<typeof VariantChoice>;
 export type ProductDetail = z.infer<typeof ProductDetail>;

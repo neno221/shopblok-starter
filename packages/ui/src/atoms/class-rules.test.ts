@@ -83,7 +83,6 @@ describe("every file in src/atoms/", () => {
     const source = readFileSync(path.join(atomsDir, "flag.tsx"), "utf8");
     expect(source).not.toMatch(/^\s*["']use client["']/m);
   });
-
 });
 
 describe("every component file in src/{atoms,primitives,molecules,organisms}/", () => {

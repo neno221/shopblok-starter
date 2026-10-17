@@ -159,7 +159,7 @@ export const el: Copy = {
   figure: {
     alt: "Ένα άτομο με φούτερ σε χρώμα βρώμης περπατά δίπλα στο μώλο ενός λιμανιού την ανατολή του ηλίου",
     caption: "Η φθινοπωρινή συλλογή, φωτογραφημένη στο λιμάνι της Λάρνακας.",
-    credit: "Φωτογραφία: Shopblok Studio",
+    credit: "Shopblok Studio",
   },
   long: {
     productTitle:
