@@ -477,7 +477,7 @@ export const en = {
       // The dialog "choose" opens.
       dialogTitle: "Cookie preferences",
       dialogDescription:
-        "Choose which cookies we may use. Nothing is switched on until you save, and you can change your choice at any time.",
+        "Choose which cookies we may use. Nothing is switched on until you save.",
       necessary: "Necessary",
       necessaryDescription:
         "Keep the store working: they remember your cart, your sign-in, your country and language, and this choice.",

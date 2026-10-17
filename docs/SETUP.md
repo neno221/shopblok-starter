@@ -4069,7 +4069,7 @@ Finding 5 (categories without JavaScript) is left for the M3 navigation work. Fi
 ### How a component task uses them
 
 1. M3's layout renders the variant the `footer` global names with its props, and `<VisitorCookieConsent policyHref=… />` once per page, after the main content; it feeds the store with `setVisitor` (the visitor's `consent` from the cookie, `null` when there is none).
-2. M6 stores the choice in a cookie the browser can read, and loads PostHog only when `consent.analytics` is true (SPEC §8.4). It also decides how a visitor changes their mind: once they have chosen the organism draws nothing, and `defaultSwitches` sets the dialog's switches to a choice already made.
+2. M6 stores the choice in a cookie the browser can read, and loads PostHog only when `consent.analytics` is true (SPEC §8.4). It also decides how a visitor changes their mind: once they have chosen the organism draws nothing, and `defaultSwitches` sets the dialog's switches to a choice already made. **M6 must add a control that reopens the consent dialog** (for example a store action `reopenConsent()` that CookieConsent reads as "draw the banner with the dialog open, the switches from `defaultSwitches`", and a footer link "Cookie settings" that calls it): withdrawing consent must be as easy as giving it (GDPR Art. 7(3)). Until then the footer links only the cookie policy and the dialog promises nothing about changing the choice later (PR 58 review).
 3. A route's `loading.tsx` renders `<LoadingSkeleton layout=… />`; T37's ProductGrid keeps the columns and gaps of the skeleton's `GRID` constant, and the skeleton changes with it if it does not.
 
 ### Measured
@@ -4121,3 +4121,15 @@ Each applied, checked and reverted from a copy.
 - **`@shopblok/ui` exports `organisms/*` as `.tsx` only,** so `footer/social-marks.ts` cannot be imported from the storefront.
 - **The skeleton's card matches ProductCard standard without a rating;** a card with one is 22 px taller, which the skeleton does not reserve.
 - **The Greek, German and French copy** of the new keys was drafted in this session, for W4's read.
+
+### Review fixes (PR 58)
+
+| Finding | Fix | Test |
+|---|---|---|
+| 1. The footer's "Cookie settings" link only opened the cookie policy, and the dialog promised the choice could be changed at any time, which nothing could do yet | the footer link is "Cookie policy" ("Cookie-Richtlinie", "Πολιτική cookies", "Politique relative aux cookies"); `dialogDescription` drops the promise in all four catalogs; M6's item above now asks for a control that reopens the dialog | the catalog and fixture tests |
+| 2 (optional). `setVisitor` replaced the whole visitor, so a later count could wipe the cookie choice | `setCartCount(count)` beside `setConsent`, each keeping the other field and changing a known visitor only; `setVisitor`'s doc says it is the first, full answer | `store.test.tsx`: a consent, then a count, keeps the consent |
+| 3 (optional). The DS note said accept and reject are the same width; from 640 px each is as wide as its words | the sentence says so | |
+| 4 (optional). The fixtures' `footer.legal` was read by nothing | removed from `Copy` and the four copy files | typecheck |
+| 7 (optional). An unwrapped comment in `build/site.ts` | rewrapped | |
+
+Finding 5: `build/site.ts`'s `policyHref` (`/pages/cookies`) joins the PR 52 follow-up's list of `/pages/` links. Finding 6: the footer leaves contact details (email, phone) to a linked "Contact" page; M3's footer global decides whether the contract gets a `contact` field. **For W4 (copy):** German and French category descriptions open with a verb and no subject ("Sorgen dafür…", "Font fonctionner…"), where "Sie sorgen dafür…" / "Ils font fonctionner…" may read better; French names the legal links' landmark "Mentions légales" and one link in it the same, where "Informations légales" for the landmark would tell them apart; French uses a plain space before ":" (one decision for all catalogs).

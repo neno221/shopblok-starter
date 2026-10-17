@@ -64,7 +64,6 @@ export type Copy = {
     shop: string;
     help: string;
     company: string;
-    legal: string;
     shipping: string;
     sizeGuide: string;
     contact: string;

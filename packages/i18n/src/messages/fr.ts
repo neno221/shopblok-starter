@@ -425,7 +425,7 @@ export const fr: Messages = {
       choose: "Choisir les cookies",
       dialogTitle: "Préférences de cookies",
       dialogDescription:
-        "Choisissez les cookies que nous pouvons utiliser. Rien n’est activé avant que vous enregistriez, et vous pouvez modifier votre choix à tout moment.",
+        "Choisissez les cookies que nous pouvons utiliser. Rien n’est activé avant que vous enregistriez.",
       necessary: "Nécessaires",
       necessaryDescription:
         "Font fonctionner la boutique : ils retiennent votre panier, votre connexion, votre pays et votre langue, et ce choix.",

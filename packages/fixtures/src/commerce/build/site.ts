@@ -2,8 +2,9 @@ import type { Context } from "../context";
 import type { CommerceFixture } from "../types";
 
 // The sample data of AccordionItem and Toast (T33): a FAQ's questions and answers, and one toast of
-// each kind; and CookieConsent's (T36): the cookie policy, the shop's own sentence, and choices. The words are in `copy/` (`site`); the sections' ids are shared by the four locales,
-// so a story addresses "the returns question" the same way everywhere.
+// each kind; and CookieConsent's (T36): the cookie policy, the shop's own sentence, and choices.
+// The words are in `copy/` (`site`); the sections' ids are shared by the four locales, so a story
+// addresses "the returns question" the same way everywhere.
 
 /** The ids of the five questions (an accordion's `value`), in the order they are asked. */
 const faqValues = ["shipping", "returns", "sizing", "payment", "care"] as const;

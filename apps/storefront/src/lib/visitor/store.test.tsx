@@ -6,6 +6,7 @@ import {
   getServerSnapshot,
   getSnapshot,
   resetVisitor,
+  setCartCount,
   setConsent,
   setVisitor,
   subscribe,
@@ -78,6 +79,15 @@ describe("the visitor store", () => {
     expect(listener).toHaveBeenCalledTimes(2);
     setConsent({ analytics: true, marketing: false });
     expect(listener).toHaveBeenCalledTimes(3);
+  });
+
+  it("changes the cart count and keeps the cookie choice, and only for a known visitor (PR 58 review)", () => {
+    setCartCount(4);
+    expect(getSnapshot()).toBe("unknown");
+    setVisitor({ cartCount: 1, consent: null });
+    setConsent({ analytics: true, marketing: false });
+    setCartCount(5);
+    expect(getSnapshot()).toEqual({ cartCount: 5, consent: { analytics: true, marketing: false } });
   });
 });
 

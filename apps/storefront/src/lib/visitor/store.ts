@@ -44,8 +44,11 @@ export function getServerSnapshot(): VisitorSnapshot {
 }
 
 /**
- * Sets what the browser knows: from an effect, or from the answer of a request (M3). On the server
- * the store would be the process's, shared by every request; the server snapshot ignores it anyway.
+ * Sets what the browser knows, the whole of it: the first, full answer (from an effect, or from a
+ * request in M3). A later change to one part goes through `setCartCount` or `setConsent`, which keep
+ * the other, so a new count never brings back a banner the visitor has answered (PR 58 review). On
+ * the server the store would be the process's, shared by every request; the server snapshot
+ * ignores it anyway.
  */
 export function setVisitor(next: Visitor): void {
   if (current !== "unknown" && current.cartCount === next.cartCount && sameConsent(current, next))
@@ -65,6 +68,15 @@ export function setVisitor(next: Visitor): void {
 export function setConsent(consent: ConsentChoice): void {
   if (current === "unknown") return;
   setVisitor({ ...current, consent });
+}
+
+/**
+ * A new number of items in the cart (after an add to cart, M3), keeping the visitor's cookie choice.
+ * Like `setConsent`, it changes a known visitor only: before the first full answer it does nothing.
+ */
+export function setCartCount(cartCount: number): void {
+  if (current === "unknown") return;
+  setVisitor({ ...current, cartCount });
 }
 
 function sameConsent(a: Visitor, b: Visitor): boolean {

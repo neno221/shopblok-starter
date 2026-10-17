@@ -415,7 +415,7 @@ export const de: Messages = {
       choose: "Cookies auswählen",
       dialogTitle: "Cookie-Einstellungen",
       dialogDescription:
-        "Wählen Sie, welche Cookies wir verwenden dürfen. Nichts wird eingeschaltet, bevor Sie speichern, und Sie können Ihre Auswahl jederzeit ändern.",
+        "Wählen Sie, welche Cookies wir verwenden dürfen. Nichts wird eingeschaltet, bevor Sie speichern.",
       necessary: "Notwendig",
       necessaryDescription:
         "Sorgen dafür, dass der Shop funktioniert, und merken sich Ihren Warenkorb, Ihre Anmeldung, Ihr Land, Ihre Sprache und diese Auswahl.",
