@@ -277,6 +277,31 @@ export const hoodie = {
   category: ["women", "clothing", "hoodies"] as const,
 };
 
+/**
+ * The hoodie's size guide (T38): body measurements in centimetres for each of its sizes, a range or
+ * one value. SizeGuideDialog shows them in inches too.
+ */
+export const hoodieSizeChart = {
+  chest: [
+    { from: 80, to: 84 },
+    { from: 84, to: 88 },
+    { from: 88, to: 92 },
+    { from: 92, to: 96 },
+    { from: 96, to: 100 },
+    { from: 100, to: 104 },
+  ],
+  waist: [
+    { from: 62, to: 66 },
+    { from: 66, to: 70 },
+    { from: 70, to: 74 },
+    { from: 74, to: 78 },
+    { from: 78, to: 82 },
+    { from: 82, to: 86 },
+  ],
+  length: [64, 66, 68, 70, 72, 74],
+  sleeve: [58, 59, 60, 61, 62, 63],
+};
+
 export type CategoryHandle =
   | "women"
   | "men"

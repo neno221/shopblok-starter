@@ -147,6 +147,40 @@ export const de: Copy = {
     misspelt: "hoddie",
   },
   carousel: { title: "Neu eingetroffen", viewAll: "Alle Neuheiten ansehen" },
+  productPage: {
+    notes: ["Versand in 2 bis 4 Werktagen", "Kostenlose Rückgabe innerhalb von 30 Tagen"],
+    sections: {
+      description: "Beschreibung",
+      details: "Details und Pflege",
+      delivery: "Versand",
+      returns: "Rückgabe",
+    },
+    facts: {
+      material: ["Material", "100 % Bio-Baumwolle, innen angeraut"],
+      fit: ["Passform", "Normal, fällt größengerecht aus"],
+      origin: ["Herstellung", "Portugal"],
+    },
+    care: [
+      "Maschinenwäsche kalt, auf links",
+      "Nicht im Trockner trocknen",
+      "Bügeln bei niedriger Temperatur",
+    ],
+    delivery: [
+      "Der Standardversand dauert 2 bis 4 Werktage.",
+      "Der Expressversand kommt am nächsten Werktag, wenn Sie bis 14 Uhr bestellen.",
+    ],
+    returns:
+      "Ungetragene Artikel können Sie innerhalb von 30 Tagen gegen volle Erstattung zurückgeben. Die Rückgabe ist kostenlos.",
+    returnsLink: "Rückgabebedingungen lesen",
+    sizeGuide: {
+      title: "Hoodies: Körpermaße",
+      chest: "Brustumfang",
+      waist: "Taillenumfang",
+      length: "Rückenlänge",
+      sleeve: "Ärmellänge",
+      note: "Messen Sie an der breitesten Stelle der Brust und halten Sie das Maßband waagerecht.",
+    },
+  },
   facets: {
     category: "Kategorie",
     colour: "Farbe",

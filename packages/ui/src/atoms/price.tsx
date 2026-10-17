@@ -3,7 +3,7 @@
 // market's `<html lang>`. With `original` it is a sale: the sale price in `price-sale`, the
 // original struck through in `price-original`, and each with a visually hidden label (WCAG 1.4.1:
 // colour and a line alone do not say which is which).
-import { formatMoney } from "@shopblok/i18n";
+import { formatMoney } from "@shopblok/i18n/format";
 import { VisuallyHidden } from "@shopblok/ui/atoms/visually-hidden";
 import type * as React from "react";
 import { cn } from "@shopblok/ui/lib/utils";

@@ -10,13 +10,13 @@ const atom = (id: string, extra: Partial<EntryInput> = {}): EntryInput => ({
 });
 
 describe("the registry (D40)", () => {
-  it("lists M1's 8 foundations and 32 atoms, then T32's 15 molecules, T33's 13 and T34's 12, then T35's 4 organisms and 6 headers, T36's 2 organisms and 5 footers and T37's 7 organisms, in the navigation's order", () => {
+  it("lists M1's 8 foundations and 32 atoms, then T32's 15 molecules, T33's 13 and T34's 12, then T35's 4 organisms and 6 headers, T36's 2 organisms and 5 footers, T37's 7 organisms and T38's 7, in the navigation's order", () => {
     expect(byGroup("foundations")).toHaveLength(8);
     expect(byGroup("atoms")).toHaveLength(32);
     expect(byGroup("molecules")).toHaveLength(40);
-    expect(byGroup("organisms")).toHaveLength(13);
+    expect(byGroup("organisms")).toHaveLength(20);
     expect(byGroup("headers-footers")).toHaveLength(11);
-    expect(entries).toHaveLength(104);
+    expect(entries).toHaveLength(111);
     expect(entries.map((entry) => entry.id).slice(0, 2)).toEqual([
       "foundations/colors",
       "foundations/typography",
@@ -42,6 +42,13 @@ describe("the registry (D40)", () => {
       "organisms/product-grid",
       "organisms/product-carousel",
       "organisms/compare-tray",
+      "organisms/product-gallery",
+      "organisms/buy-box",
+      "organisms/mobile-sticky-atc",
+      "organisms/product-info-accordions",
+      "organisms/reviews-section",
+      "organisms/quick-view-dialog",
+      "organisms/size-guide-dialog",
     ]);
     expect(byGroup("headers-footers").at(5)?.id).toBe("headers-footers/header-transparent");
     expect(entries.at(-1)?.id).toBe("headers-footers/footer-two-tier");

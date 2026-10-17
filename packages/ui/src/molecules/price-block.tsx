@@ -3,7 +3,8 @@
 // its hidden label; `varies` puts "From {price}" before it, and the message decides where the word
 // goes (the price is cut out of the formatted message, so a language that puts "from" after the
 // price can); an optional tax note goes under it. A server component: it only formats.
-import { formatMessage, type Messages } from "@shopblok/i18n";
+import type { Messages } from "@shopblok/i18n";
+import { formatMessage } from "@shopblok/i18n/format";
 import type { PriceSummary } from "@shopblok/registry/contracts";
 import { Price } from "@shopblok/ui/atoms/price";
 import { cn } from "@shopblok/ui/lib/utils";

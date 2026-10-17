@@ -100,4 +100,24 @@ export const interactions = {
     focus: "inside",
     trap: true,
   },
+  // T38: the product page's three dialogs: the gallery's zoom, the quick view and the size guide,
+  // each opened from its button.
+  "organisms/product-gallery": {
+    trigger: '[data-slot="product-gallery-zoom-trigger"]',
+    opens: '[data-slot="product-gallery-zoom"]',
+    focus: "inside",
+    trap: true,
+  },
+  "organisms/quick-view-dialog": {
+    trigger: '[data-slot="quick-view-trigger"]',
+    opens: '[data-slot="quick-view"]',
+    focus: "inside",
+    trap: true,
+  },
+  "organisms/size-guide-dialog": {
+    trigger: '[data-slot="size-guide-trigger"]',
+    opens: '[data-slot="size-guide"]',
+    focus: "inside",
+    trap: true,
+  },
 } as const satisfies Partial<Record<EntryId, DsInteraction>>;

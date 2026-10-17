@@ -564,6 +564,74 @@ export const en = {
       needMore:
         "{count, plural, one {Choose # more product to compare} other {Choose # more products to compare}}",
     },
+    // T38: the product page.
+    productGallery: {
+      // The gallery's name, and each picture's place in it (a thumbnail's name, a slide's name).
+      label: "Images of {title}",
+      position: "Image {index, number} of {count, number}",
+      // What a screen reader calls the phone's carousel and each slide (`aria-roledescription`).
+      carousel: "carousel",
+      slide: "slide",
+      previous: "Previous image",
+      next: "Next image",
+      // The button over the main picture, and the dialog it opens with the large picture.
+      zoom: "Enlarge image",
+      zoomTitle: "{title}, enlarged",
+      close: "Close",
+    },
+    buyBox: {
+      // The link to the reviews, beside the stars.
+      reviews: "{count, plural, one {# review} other {# reviews}}",
+      add: "Add to cart",
+      adding: "Adding to cart…",
+      added: "Added to cart",
+      error: "Could not add to cart. Please try again.",
+      soldOut: "Sold out",
+      // Beside the button while an option is not chosen; `options` is a list ("Colour and Size").
+      choose: "Choose {options} to add it to the cart",
+      // The name of the short notes under the button.
+      notes: "Delivery and returns",
+    },
+    mobileStickyAtc: {
+      region: "Buy this product",
+      add: "Add to cart",
+      soldOut: "Sold out",
+      // While an option is not chosen: a link up to the buy box's options.
+      choose: "Choose options",
+    },
+    productInfoAccordions: {
+      label: "Product information",
+    },
+    reviewsSection: {
+      title: "Reviews",
+      write: "Write a review",
+      empty: "No reviews yet",
+      emptyHint: "Be the first to review this product.",
+      // The list's name, and which reviews this page shows.
+      list: "Reviews",
+      showing:
+        "{count, plural, one {Showing # review} other {Showing {from, number} to {to, number} of # reviews}}",
+    },
+    quickViewDialog: {
+      // The button on a card, and its name, which says which product (it contains the button's words).
+      open: "Quick view",
+      openLabel: "Quick view: {title}",
+      close: "Close",
+      details: "View full details",
+    },
+    sizeGuideDialog: {
+      open: "Size guide",
+      title: "Size guide",
+      close: "Close",
+      // The units toggle: its name and its two buttons.
+      units: "Units",
+      centimetres: "Centimeters",
+      inches: "Inches",
+      // The table's caption in each unit, and its first column's heading.
+      captionCm: "Body measurements in centimeters",
+      captionIn: "Body measurements in inches",
+      size: "Size",
+    },
   },
   notFound: {
     title: "Page not found",

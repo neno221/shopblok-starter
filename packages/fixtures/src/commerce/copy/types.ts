@@ -101,6 +101,28 @@ export type Copy = {
   };
   /** ProductCarousel's heading and its link to the listing (T37). */
   carousel: { title: string; viewAll: string };
+  /**
+   * The product page's words (T38): the notes under the buy box's button, the titles and words of
+   * the information's sections (the description is the product's own), and the size guide's.
+   */
+  productPage: {
+    notes: [string, string];
+    sections: { description: string; details: string; delivery: string; returns: string };
+    /** Facts about the hoodie: a label and its value each. */
+    facts: { material: [string, string]; fit: [string, string]; origin: [string, string] };
+    care: [string, string, string];
+    delivery: [string, string];
+    returns: string;
+    returnsLink: string;
+    sizeGuide: {
+      title: string;
+      chest: string;
+      waist: string;
+      length: string;
+      sleeve: string;
+      note: string;
+    };
+  };
   facets: {
     category: string;
     colour: string;

@@ -147,6 +147,35 @@ export const en: Copy = {
     misspelt: "hooddie",
   },
   carousel: { title: "New in", viewAll: "Shop all new in" },
+  productPage: {
+    notes: ["Ships in 2 to 4 business days", "Free returns within 30 days"],
+    sections: {
+      description: "Description",
+      details: "Details and care",
+      delivery: "Shipping",
+      returns: "Returns",
+    },
+    facts: {
+      material: ["Material", "100% organic cotton, brushed inside"],
+      fit: ["Fit", "Regular, true to size"],
+      origin: ["Made in", "Portugal"],
+    },
+    care: ["Machine wash cold, inside out", "Do not tumble dry", "Iron on low heat"],
+    delivery: [
+      "Standard shipping takes 2 to 4 business days.",
+      "Express shipping arrives the next business day when you order by 2 pm.",
+    ],
+    returns: "Return anything unworn within 30 days for a full refund. Returns are free.",
+    returnsLink: "Read the returns policy",
+    sizeGuide: {
+      title: "Hoodies: body measurements",
+      chest: "Chest",
+      waist: "Waist",
+      length: "Body length",
+      sleeve: "Sleeve length",
+      note: "Measure around the fullest part of your chest, keeping the tape level.",
+    },
+  },
   facets: {
     category: "Category",
     colour: "Color",

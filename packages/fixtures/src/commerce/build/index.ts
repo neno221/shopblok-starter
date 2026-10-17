@@ -36,6 +36,7 @@ import { buildEmptyStates } from "./listing";
 import { buildListingOrganisms } from "./listing-organisms";
 import { buildMarketing } from "./marketing";
 import { buildPaymentSamples } from "./payment-samples";
+import { buildProductPage } from "./product-page";
 import { buildSite } from "./site";
 
 /**
@@ -55,19 +56,22 @@ export function buildCommerceFixture(locale: DesignSystemLocale, copy: Copy): Co
   const search = buildSearch(ctx, products);
   const activeFilters = buildActiveFilters(ctx, facets);
   const emptyStates = buildEmptyStates(ctx);
+  const product = buildProduct(ctx);
+  const reviews = buildReviews(ctx);
+  const ratingSummary = buildRatingSummary();
   return {
     locale,
     market: { ...ctx.market },
     prefix: ctx.prefix,
     products,
-    product: buildProduct(ctx),
+    product,
     categories: buildCategories(ctx),
     cart,
     addresses,
     addressSamples: buildAddressSamples(),
     orders: buildOrders(ctx, addresses),
-    reviews: buildReviews(ctx),
-    ratingSummary: buildRatingSummary(),
+    reviews,
+    ratingSummary,
     navigation,
     footer: buildFooter(ctx, markets, paymentMethods),
     markets,
@@ -90,6 +94,7 @@ export function buildCommerceFixture(locale: DesignSystemLocale, copy: Copy): Co
       activeFilters,
       emptyStates.filters,
     ),
+    productPage: buildProductPage(ctx, product, reviews, ratingSummary),
     marketing: buildMarketing(ctx),
     site: buildSite(ctx),
     paymentSamples: buildPaymentSamples(ctx),
