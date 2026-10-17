@@ -60,6 +60,9 @@ export const ProductCard = z.object({
   rating: RatingOverview.optional(),
   swatches: z.array(ColorSwatch),
   variantCount: z.int().positive(),
+  variantId: Id.optional().describe(
+    "The only variant's id, when variantCount is 1: quick add sends it, and without it the card asks to choose",
+  ),
   stock: Stock,
 });
 

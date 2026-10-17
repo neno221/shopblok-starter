@@ -1,11 +1,12 @@
 // Ours (T32, SETUP.md "Product molecules (T32)"): ProductCard, image swap. The standard card whose
 // picture changes to the product's second image while the pointer is over the card or focus is
-// inside it, with CSS only (`group-hover`, `group-focus-within`), so it needs no client code. Under
-// reduced motion the second picture is not drawn at all (`motion-reduce:hidden`), and a touch
-// screen, which has no hover, never shows it. The second picture is decoration (`alt=""`, hidden
-// from assistive technology): the first one is the product's. `swapped` draws the second picture
-// as on hover, for a static page (the design system's state). A card with one image shows it
-// and nothing else. A server component: no state, no event.
+// inside it, with CSS only (`group-hover`, `group-focus-within`), so it needs no client code. The
+// second picture is `display: none` unless the screen has hover and motion is not reduced, so a
+// touch screen or a reader who asks for reduced motion never downloads it (the browser skips a lazy
+// image that is not displayed; PR 54 review). The second picture is decoration (`alt=""`, hidden
+// from assistive technology): the first one is the product's. `swapped` draws the second picture as
+// on hover, for a static page (the design system's state). A card with one image shows it and
+// nothing else. A server component: no state, no event.
 import { Image } from "@shopblok/ui/atoms/image";
 import { cn } from "@shopblok/ui/lib/utils";
 import {
@@ -56,7 +57,7 @@ function ProductCardImageSwap({
               "pointer-events-none absolute inset-0 transition-opacity duration-300 motion-reduce:transition-none",
               swapped
                 ? "opacity-100"
-                : "opacity-0 group-focus-within/card:opacity-100 group-hover/card:opacity-100 motion-reduce:hidden",
+                : "hidden opacity-0 group-focus-within/card:opacity-100 group-hover/card:opacity-100 [@media(hover:hover)_and_(prefers-reduced-motion:no-preference)]:block",
             )}
           >
             <Image src={second.src} alt="" sizes={sizes} ratio="tall" />

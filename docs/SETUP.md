@@ -3675,3 +3675,17 @@ The plan's first mutation said a nested button fails axe's `nested-interactive`;
 - **VariantSelector needs JavaScript for the keyboard:** Base UI renders the radios with `tabindex="-1"` on the server, so Tab and the arrows work after hydration; without it, only the first choice reaches a form.
 - **The card's `href` is cast** to `Link`'s own `href` type in `parts.tsx`: the storefront's typed routes narrow it, and the card's link comes from data.
 - **The Greek, German and French copy** of the new keys was drafted in this session, for W4's read.
+
+### Review fixes (PR 54)
+
+| Finding | Fix | Test |
+|---|---|---|
+| 1. Quick add sent only `productId` and `handle`, so M3's action could not tell an add from "choose options", nor which variant to add | the card contract has an optional `variantId` (the only variant's, when `variantCount` is 1); the form sends `intent=add` with `variantId`, or `intent=choose` and no variant id (several variants, or one without its id), and the button says "Choose options" then | `product-card-parts.test.tsx`: the submitted FormData for each case |
+| 2. Badge keys `${kind}-${label}` repeat for two alike badges | keyed by place | two alike badges render with no console error |
+| 3. `image-swap`'s second picture was only `opacity-0`, so every card in view downloaded it, on phones too | `hidden` by default, `block` only under `@media (hover: hover) and (prefers-reduced-motion: no-preference)`, so a lazy image that is never shown is never fetched; `swapped` still draws it | the classes for both, and `swapped` |
+| 4. ReviewItem split paragraphs on `\n\n` only | a blank line in LF or CRLF, with spaces on it, ends a paragraph | a CRLF body with a spaced blank line |
+| 5. The quick-add spinner was a `role="status"` Spinner inside the button | a bare `aria-hidden` loader icon (`data-slot=product-card-quick-add-spinner`); the visible "Adding…" is the name | the existing spinner tests on the new slot |
+| 9 (optional). `nestedControls` counted any `[tabindex]` but `-1` and missed `summary` | `summary` is a control; a `tabindex` alone counts only when `tabIndex >= 0` | the DS run |
+
+Findings 6 (one `MAX_STARS` and `{max}` in the card's rating copy), 7 (Image's ratio and radius tables exported for MediaFigure and the card) and 8 (one `SwatchDisc` shared with the Swatch atom) are optional refactors, left for a later tidy-up. **For W4:** Greek `quickAdd.chooseOptions` reads "choice of choices" ("Επιλέξτε παραλλαγή" or "Επιλογές" read better), and Greek uses both "κριτική" (RatingSummary) and "αξιολόγηση" (ProductCard) for a review.
+

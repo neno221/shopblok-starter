@@ -217,7 +217,7 @@ async function nestedControls(page: Page): Promise<Finding[]> {
       'input:not([type="hidden"])',
       "select",
       "textarea",
-      '[tabindex]:not([tabindex="-1"])',
+      "summary",
       '[contenteditable="true"]',
       ...["button", "link", "checkbox", "radio", "switch", "tab", "menuitem", "slider"].map(
         (role) => `[role="${role}"]`,
@@ -230,7 +230,9 @@ async function nestedControls(page: Page): Promise<Finding[]> {
     };
     const findings: { selector: string; detail: string }[] = [];
     for (const el of document.querySelectorAll(outer))
-      for (const nested of el.querySelectorAll(inner)) {
+      for (const nested of el.querySelectorAll(`${inner}, [tabindex]`)) {
+        // A `tabindex` alone makes a control only when it is a Tab stop (0 or more, not -1 or -2).
+        if (!nested.matches(inner) && (nested as HTMLElement).tabIndex < 0) continue;
         // Not there for people: hidden, inert, or out of the accessibility tree.
         if (nested.closest('[aria-hidden="true"], [hidden], [inert]')) continue;
         findings.push({ selector: describe(nested), detail: `inside ${describe(el)}` });

@@ -41,7 +41,10 @@ function ReviewItem({
 }: ReviewItemProps) {
   const Heading = `h${headingLevel}` as const;
   const { author, title, body, createdAt, verified, rating } = review;
-  const paragraphs = body.split(/\n{2,}/).filter((paragraph) => paragraph.trim() !== "");
+  // A blank line ends a paragraph: LF or CRLF (a textarea sends CRLF), spaces on it allowed.
+  const paragraphs = body
+    .split(/\r?\n[^\S\r\n]*(?:\r?\n[^\S\r\n]*)+/)
+    .filter((paragraph) => paragraph.trim() !== "");
   return (
     <article
       data-slot="review-item"

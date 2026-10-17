@@ -138,6 +138,20 @@ describe("ReviewItem", () => {
     }
   });
 
+  it("splits paragraphs on CRLF blank lines and blank lines with spaces, as a textarea sends them", () => {
+    const { review } = commerceFixtures.en.long;
+    const { container } = renderReview("en", {
+      ...review,
+      body: "Great fit.\r\n\r\nWashes well.\n  \nWarm too.\r\nSame paragraph.",
+    });
+    const paragraphs = [...container.querySelectorAll("[data-slot=review-body] p")];
+    expect(paragraphs.map((paragraph) => paragraph.textContent)).toEqual([
+      "Great fit.",
+      "Washes well.",
+      "Warm too.\r\nSame paragraph.",
+    ]);
+  });
+
   it.each(LOCALES)(
     "keeps a long review's paragraphs, and lets long words wrap, in %s",
     (locale) => {

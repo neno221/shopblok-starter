@@ -11,11 +11,10 @@ import { Button } from "@shopblok/ui/atoms/button";
 import { Image, type ImageProps } from "@shopblok/ui/atoms/image";
 import { Link } from "@shopblok/ui/atoms/link";
 import { Rating } from "@shopblok/ui/atoms/rating";
-import { Spinner } from "@shopblok/ui/atoms/spinner";
 import { VisuallyHidden } from "@shopblok/ui/atoms/visually-hidden";
 import { cn } from "@shopblok/ui/lib/utils";
 import { PriceBlock } from "@shopblok/ui/molecules/price-block";
-import { CheckIcon, CircleAlertIcon } from "lucide-react";
+import { CheckIcon, CircleAlertIcon, Loader2Icon } from "lucide-react";
 import NextImage from "next/image";
 import type * as React from "react";
 
@@ -131,9 +130,10 @@ function CardBadges({ badges, className }: { badges: CardBadge[]; className?: st
       data-slot="product-card-badges"
       className={cn("flex min-w-0 flex-wrap items-start gap-1", className)}
     >
-      {badges.map((badge) => (
+      {badges.map((badge, index) => (
         <Badge
-          key={`${badge.kind}-${badge.label}`}
+          // By place: two badges can share a kind and a label (PR 54 review); the list is static.
+          key={index}
           data-kind={badge.kind}
           variant={badgeStyles[badge.kind].variant}
           className={cn("rounded-xl wrap-anywhere", badgeStyles[badge.kind].classes)}
@@ -419,8 +419,10 @@ type QuickAddProps = {
 
 /**
  * A form with the product's id and a submit button, outside the card's link and above its stretched
- * area. The visible text is "Add to cart", or "Choose options" when the product has more than one
- * variant (a card cannot say which to add: the action sends the shopper to the product's page);
+ * area. The form says what it asks for in a hidden `intent` (PR 54 review): `add`, with the
+ * product's only variant as `variantId`, or `choose` when the product has more than one variant
+ * or the card has no variant id (a card cannot say which to add: the action sends the shopper to
+ * the product's page and adds nothing). The visible text is "Add to cart" or "Choose options";
  * the name adds the product's title after it, so the visible text stays inside the name (WCAG
  * 2.5.3) and a list of buttons can be told apart. A sold-out product's button is disabled and says
  * so. While `adding` the button is `aria-disabled` and, being a plain button then, submits nothing.
@@ -441,13 +443,15 @@ function CardQuickAdd({
   const text = copy.card.quickAdd;
   const soldOut = isSoldOut(product);
   const adding = status === "adding" && !soldOut;
+  const variantId = product.variantCount === 1 ? product.variantId : undefined;
+  const intent = variantId === undefined ? "choose" : "add";
   const label = soldOut
     ? copy.card.soldOut
     : adding
       ? text.adding
       : status === "added"
         ? text.added
-        : product.variantCount > 1
+        : intent === "choose"
           ? text.chooseOptions
           : text.add;
   return (
@@ -455,10 +459,13 @@ function CardQuickAdd({
       action={action}
       data-slot="product-card-quick-add"
       data-status={status}
+      data-intent={intent}
       className={cn("relative z-10 flex flex-col", className)}
     >
+      <input type="hidden" name="intent" value={intent} />
       <input type="hidden" name="productId" value={product.id} />
       <input type="hidden" name="handle" value={product.handle} />
+      {variantId === undefined ? null : <input type="hidden" name="variantId" value={variantId} />}
       <Button
         type={adding ? "button" : "submit"}
         variant="outline"
@@ -467,7 +474,14 @@ function CardQuickAdd({
         aria-busy={adding ? true : undefined}
         className="w-full aria-disabled:pointer-events-none aria-disabled:opacity-50"
       >
-        {adding ? <Spinner aria-hidden="true" label={text.adding} /> : null}
+        {/* Decoration: the visible "Adding…" is the button's name; a Spinner is a status. */}
+        {adding ? (
+          <Loader2Icon
+            aria-hidden="true"
+            data-slot="product-card-quick-add-spinner"
+            className="animate-spin motion-reduce:animate-[spin_3s_linear_infinite]"
+          />
+        ) : null}
         {status === "added" && !soldOut ? <CheckIcon aria-hidden="true" /> : null}
         <span data-slot="product-card-quick-add-label">{label}</span>
         <VisuallyHidden>

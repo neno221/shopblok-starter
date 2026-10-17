@@ -333,7 +333,11 @@ const quickAdd: Variant = {
   sizes: "320px",
   grid: { className: gridOfFour, sizes: phoneAndUp },
   own: () => {
-    const one = (ctx: DsContext) => ({ ...product(ctx, "heritage-hoodie"), variantCount: 1 });
+    const one = (ctx: DsContext) => ({
+      ...product(ctx, "heritage-hoodie"),
+      variantCount: 1,
+      variantId: "var_heritage_hoodie_oatmeal_m",
+    });
     const status = (
       id: string,
       label: string,

@@ -5,6 +5,7 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { CLIPPING_CLASSES } from "../../test-support/long-labels";
+import { CardBadges } from "./parts";
 import { ProductCardImageSwap } from "./image-swap";
 import { ProductCardQuickAdd } from "./quick-add";
 import { ProductCardStandard } from "./standard";
@@ -140,7 +141,7 @@ describe("the swatches variant", () => {
 
 describe("the quick-add variant", () => {
   const hoodie = named("en", "heritage-hoodie");
-  const one = { ...hoodie, variantCount: 1 };
+  const one = { ...hoodie, variantCount: 1, variantId: "var_1" };
   const soldOut = named("en", "garment-dyed-hoodie");
 
   const draw = (
@@ -184,6 +185,32 @@ describe("the quick-add variant", () => {
     const data = action.mock.calls[0]?.[0] as FormData;
     expect(data.get("productId")).toBe(one.id);
     expect(data.get("handle")).toBe(one.handle);
+    expect(data.get("intent")).toBe("add");
+    expect(data.get("variantId")).toBe("var_1");
+  });
+
+  it('sends intent "choose" and no variant id for several variants, or one without its id', async () => {
+    const user = userEvent.setup();
+    for (const card of [hoodie, { ...hoodie, variantCount: 1 }]) {
+      const action = vi.fn();
+      const { unmount } = draw(card, "idle", action);
+      const button = screen.getByRole("button", { name: /^Choose options/ });
+      await user.click(button);
+      await waitFor(() => expect(action).toHaveBeenCalledTimes(1));
+      const data = action.mock.calls[0]?.[0] as FormData;
+      expect(data.get("intent")).toBe("choose");
+      expect(data.has("variantId")).toBe(false);
+      unmount();
+    }
+  });
+
+  it("keys its badges by place, so two alike are not a duplicate key", () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const twice = { kind: "custom" as const, label: "Online only" };
+    render(<CardBadges badges={[twice, twice]} />);
+    expect(screen.getAllByText("Online only")).toHaveLength(2);
+    expect(error).not.toHaveBeenCalled();
+    error.mockRestore();
   });
 
   it('says "Add to cart" for one variant and "Choose options" for several', () => {
@@ -214,8 +241,14 @@ describe("the quick-add variant", () => {
     const b = named("en", "essential-tee");
     render(
       <>
-        <ProductCardQuickAdd {...setup("en", { ...a, variantCount: 1 })} action="/a" />
-        <ProductCardQuickAdd {...setup("en", { ...b, variantCount: 1 })} action="/b" />
+        <ProductCardQuickAdd
+          {...setup("en", { ...a, variantCount: 1, variantId: "var_1" })}
+          action="/a"
+        />
+        <ProductCardQuickAdd
+          {...setup("en", { ...b, variantCount: 1, variantId: "var_1" })}
+          action="/b"
+        />
       </>,
     );
     const names = screen.getAllByRole("button").map((button) => button.textContent);
@@ -237,13 +270,13 @@ describe("the quick-add variant", () => {
     expect(button.disabled).toBe(false);
     expect(button.getAttribute("aria-disabled")).toBeNull();
     expect(button.type).toBe("submit");
-    expect(container.querySelector("[data-slot=spinner]")).toBeNull();
+    expect(container.querySelector("[data-slot=product-card-quick-add-spinner]")).toBeNull();
     const region = screen.getByRole("status");
     expect(region.textContent).toBe("");
   });
 
   it("disables a sold-out product's button and says so", () => {
-    draw({ ...soldOut, variantCount: 1 });
+    draw({ ...soldOut, variantCount: 1, variantId: "var_1" });
     const button = screen.getByRole<HTMLButtonElement>("button");
     expect(button.disabled).toBe(true);
     expect(button.textContent).toBe(`Sold out, ${soldOut.title}`);
@@ -271,7 +304,7 @@ describe("the quick-add variant", () => {
     // not a submit button, so that it submits nothing even before the page is hydrated.
     expect(button.disabled).toBe(false);
     expect(button.type).toBe("button");
-    expect(container.querySelector("[data-slot=spinner]")).not.toBeNull();
+    expect(container.querySelector("[data-slot=product-card-quick-add-spinner]")).not.toBeNull();
     expect(button.querySelector("[data-slot=product-card-quick-add-label]")?.textContent).toBe(
       "Adding to cart…",
     );
@@ -285,7 +318,7 @@ describe("the quick-add variant", () => {
 
   it("hides the spinner from assistive technology: the button's text says what is happening", () => {
     draw(one, "adding");
-    const spinner = document.querySelector("[data-slot=spinner]");
+    const spinner = document.querySelector("[data-slot=product-card-quick-add-spinner]");
     expect(spinner?.getAttribute("aria-hidden")).toBe("true");
     expect(
       screen.getByRole("button", { name: nameIs(`Adding to cart…, ${one.title}`) }),
@@ -355,7 +388,7 @@ describe("the quick-add variant", () => {
 
   it.each(LOCALES)("writes the button and the states in %s", (locale) => {
     const text = catalogs[locale].molecules.productCard.quickAdd;
-    const product = { ...named(locale, "heritage-hoodie"), variantCount: 1 };
+    const product = { ...named(locale, "heritage-hoodie"), variantCount: 1, variantId: "var_1" };
     for (const [status, expected] of [
       ["idle", text.add],
       ["adding", text.adding],
@@ -404,11 +437,22 @@ describe("the image-swap variant", () => {
     expect(container.querySelector("article")?.className).toContain("group/card");
   });
 
-  it("does not swap under reduced motion: the second picture is not drawn", () => {
-    const { container } = render(<ProductCardImageSwap {...setup("en", hoodie)} />);
+  it("draws the second picture only with hover and no reduced motion, so a phone never downloads it", () => {
+    const { container, unmount } = render(<ProductCardImageSwap {...setup("en", hoodie)} />);
     const swap = container.querySelector("[data-swap-image]");
-    expect(swap?.className).toContain("motion-reduce:hidden");
-    expect(swap?.className).toContain("motion-reduce:transition-none");
+    const classes = swap?.className.split(/\s+/) ?? [];
+    // `display: none` by default: the browser skips a lazy image that is not displayed.
+    expect(classes).toContain("hidden");
+    expect(classes).toContain(
+      "[@media(hover:hover)_and_(prefers-reduced-motion:no-preference)]:block",
+    );
+    expect(classes).toContain("motion-reduce:transition-none");
+    unmount();
+    // `swapped` (the DS's state) draws it everywhere.
+    const swapped = render(<ProductCardImageSwap {...setup("en", hoodie)} swapped />);
+    const shown = swapped.container.querySelector("[data-swap-image]");
+    expect(shown?.className.split(/\s+/)).not.toContain("hidden");
+    expect(shown?.className).toContain("opacity-100");
   });
 
   it("keeps the first picture as the product's, and the second as decoration", () => {
