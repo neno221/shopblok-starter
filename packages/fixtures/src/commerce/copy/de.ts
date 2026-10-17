@@ -246,6 +246,20 @@ export const de: Copy = {
       },
     },
   },
+  checkoutFlow: {
+    cart: "Warenkorb",
+    contact: "Kontakt und Adresse",
+    delivery: "Versand",
+    deliveryAndPayment: "Versand und Zahlung",
+    payment: "Zahlung",
+    review: "Übersicht",
+    long: [
+      "Kontaktdaten und Lieferadresse für Ihre Bestellung",
+      "Versandart und Lieferoptionen auswählen",
+      "Zahlungsmittel und Rechnungsadresse angeben",
+      "Bestellübersichtsseite prüfen und verbindlich bestellen",
+    ],
+  },
   long: {
     productTitle:
       "Heritage-Kapuzenpullover aus gebürstetem Bio-Baumwollfleece mit verstärkten Nähten, doppelt gefütterter Kapuze, geräumiger Känguru-Tasche und farblich passenden Rippbündchen an Ärmeln und Saum, limitierte Herbstedition",

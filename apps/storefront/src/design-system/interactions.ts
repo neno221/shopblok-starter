@@ -38,4 +38,11 @@ export const interactions = {
     opens: '[data-slot="toast"]',
     focus: "stays",
   },
+  // T34: the confirmation before a saved card is removed, an alert dialog.
+  "molecules/saved-payment-method-card": {
+    trigger: '[data-slot="saved-payment-method-remove"]',
+    opens: '[data-slot="saved-payment-method-confirm"]',
+    focus: "inside",
+    trap: true,
+  },
 } as const satisfies Partial<Record<EntryId, DsInteraction>>;

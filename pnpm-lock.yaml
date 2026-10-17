@@ -440,9 +440,15 @@ importers:
       '@shopblok/config':
         specifier: workspace:*
         version: link:../config
+      '@types/node':
+        specifier: 22.20.5
+        version: 22.20.5
       eslint:
         specifier: 9.39.5
         version: 9.39.5(jiti@2.7.0)(supports-color@7.2.0)
+      lib-address:
+        specifier: 0.7.0
+        version: 0.7.0
       typescript:
         specifier: 5.9.3
         version: 5.9.3
@@ -507,9 +513,6 @@ importers:
       next:
         specifier: 16.4.0
         version: 16.4.0(@babel/core@7.29.7(supports-color@7.2.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.64.0)(@types/node@22.20.5)(babel-plugin-macros@3.1.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(sass@1.77.4)
-      simple-icons:
-        specifier: 16.35.0
-        version: 16.35.0
       tailwindcss:
         specifier: 4.3.3
         version: 4.3.3
@@ -553,6 +556,9 @@ importers:
       react-dom:
         specifier: 19.3.0
         version: 19.3.0(react@19.3.0)
+      simple-icons:
+        specifier: 16.35.0
+        version: 16.35.0
       typescript:
         specifier: 5.9.3
         version: 5.9.3
@@ -7616,6 +7622,10 @@ packages:
       typescript:
         optional: true
 
+  lib-address@0.7.0:
+    resolution: {integrity: sha512-3rZ/KCwCotNA032W+PMfKAqmXNgs+PwTW099z6Uxf4lRRIIcOPTclO3LrSjkxJjIVNSfhITSTmWyW1wY8LM5NQ==}
+    engines: {node: '>=22.12.0'}
+
   lib0@0.2.119:
     resolution: {integrity: sha512-vh+TiejVy8Xm+hCdnRfn9BthGNvNUZdEXltNjVZL3TzRIKP3s1lnQh8pWd/Q0wCgY0FPAGVVjFF4ZiHUV3LFgA==}
     engines: {node: '>=16'}
@@ -10136,6 +10146,9 @@ packages:
     engines: {node: '>=18.0.0'}
     peerDependencies:
       zod: ^3.25.0 || ^4.0.0
+
+  zod@3.25.76:
+    resolution: {integrity: sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==}
 
   zod@4.2.0:
     resolution: {integrity: sha512-Bd5fw9wlIhtqCCxotZgdTOMwGm1a0u75wARVEY9HMs1X17trvA/lMi4+MGK5EUfYkXVTbX8UDiDKW4OgzHVUZw==}
@@ -18372,6 +18385,10 @@ snapshots:
     optionalDependencies:
       typescript: 5.9.3
 
+  lib-address@0.7.0:
+    optionalDependencies:
+      zod: 3.25.76
+
   lib0@0.2.119:
     dependencies:
       isomorphic.js: 0.2.5
@@ -21237,6 +21254,9 @@ snapshots:
   zod-validation-error@5.0.0(zod@4.2.0):
     dependencies:
       zod: 4.2.0
+
+  zod@3.25.76:
+    optional: true
 
   zod@4.2.0: {}
 

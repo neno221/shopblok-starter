@@ -129,6 +129,20 @@ export type Copy = {
     };
     toasts: { success: ToastCopy; error: ToastCopy; info: ToastCopy; long: ToastCopy };
   };
+  /**
+   * The labels of Stepper's samples (T34): checkout's three steps as SPEC §8.4 names them (contact
+   * and address; delivery and payment; review), the cart, the delivery and the payment as steps of
+   * their own for a longer flow, and four labels at the length that breaks a layout.
+   */
+  checkoutFlow: {
+    cart: string;
+    contact: string;
+    delivery: string;
+    deliveryAndPayment: string;
+    payment: string;
+    review: string;
+    long: [string, string, string, string];
+  };
   /** The same kinds of strings at the length that breaks a layout (German's are the longest). */
   long: {
     productTitle: string;

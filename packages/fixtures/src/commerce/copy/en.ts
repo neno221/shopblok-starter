@@ -245,6 +245,20 @@ export const en: Copy = {
       },
     },
   },
+  checkoutFlow: {
+    cart: "Cart",
+    contact: "Contact and address",
+    delivery: "Delivery",
+    deliveryAndPayment: "Delivery and payment",
+    payment: "Payment",
+    review: "Review",
+    long: [
+      "Contact details and delivery address for your order",
+      "Choose how your order is delivered to you",
+      "Payment method and billing address details",
+      "Review your order and place it",
+    ],
+  },
   long: {
     productTitle:
       "Heritage Hoodie in Brushed Organic Cotton Fleece with Reinforced Seams, Double-Lined Hood, Kangaroo Pocket and Matching Ribbed Cuffs, Limited Autumn Edition",

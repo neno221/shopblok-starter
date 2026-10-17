@@ -7,6 +7,7 @@
 
 export * from "./address";
 export * from "./cart";
+export * from "./checkout";
 export * from "./content";
 export * from "./facets";
 export * from "./image";

@@ -3,9 +3,13 @@ import type { DsStory } from "../types";
 import { atomStories } from "./atoms";
 import { commerceAtomStories } from "./atoms-commerce";
 import { foundationStories } from "./foundations";
+import { addressMoleculeStories } from "./molecules-address";
+import { cartMoleculeStories } from "./molecules-cart";
+import { checkoutMoleculeStories } from "./molecules-checkout";
 import { filterMoleculeStories } from "./molecules-filters";
 import { listingMoleculeStories } from "./molecules-listing";
 import { marketingMoleculeStories } from "./molecules-marketing";
+import { paymentMoleculeStories } from "./molecules-payment";
 import { productMoleculeStories } from "./molecules-product";
 import { productCardStories } from "./molecules-product-card";
 import { siteMoleculeStories } from "./molecules-site";
@@ -25,4 +29,8 @@ export const stories: Record<EntryId, DsStory> = {
   ...filterMoleculeStories,
   ...siteMoleculeStories,
   ...marketingMoleculeStories,
+  ...cartMoleculeStories,
+  ...addressMoleculeStories,
+  ...paymentMoleculeStories,
+  ...checkoutMoleculeStories,
 };

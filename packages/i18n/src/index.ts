@@ -17,6 +17,17 @@ export {
   languageName,
 } from "./format";
 export type { MessageValues } from "./format";
+export { addressFormat, addressLines, hasAddressFormat, postalCodePattern } from "./address-format";
+export type {
+  AddressFieldName,
+  AddressFormat,
+  AddressLine,
+  AddressLineKind,
+  AddressLinesInput,
+  CityName,
+  PostalCodeName,
+  ProvinceName,
+} from "./address-format";
 export type { Messages };
 
 /** The store languages (SPEC §8.5) as ISO 639-1 codes. English is the base language. */
