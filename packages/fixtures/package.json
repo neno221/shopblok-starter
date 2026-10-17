@@ -2,18 +2,24 @@
   "name": "@shopblok/fixtures",
   "version": "0.0.0",
   "private": true,
-  "description": "Typed mock data, starting with the seeded market map. Exports TypeScript source: no build step (D3).",
+  "description": "Typed mock data: the seeded market map, the design-system samples and, per locale, commerce fixtures typed by the registry's view models (D41). Exports TypeScript source: no build step (D3).",
   "type": "module",
   "exports": {
     ".": "./src/index.ts"
   },
   "scripts": {
     "typecheck": "tsc",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "test": "vitest run"
   },
   "devDependencies": {
     "@shopblok/config": "workspace:*",
     "eslint": "9.39.5",
-    "typescript": "5.9.3"
+    "typescript": "5.9.3",
+    "vite": "8.3.3",
+    "vitest": "5.0.3"
+  },
+  "dependencies": {
+    "@shopblok/registry": "workspace:*"
   }
 }

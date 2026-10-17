@@ -3398,7 +3398,7 @@ The storefront's `test` (739 tests, the two of `route.test.ts` and the new cases
 This replaces "How T21 and T23 add an entry" (T22).
 
 1. **The registry.** Add one object to the group's file in `packages/registry/src/entries/` (a new file for a new group, spread into `all` in `src/index.ts` in `GROUPS` order; `entries` and `EntryId` both come from `all`): `id: "molecules/product-card"`, `group`, `kind`, `label` (English, D33), `component` (`{ module: "@shopblok/ui/molecules/product-card", name: "ProductCard" }`), and `family` and `variant` if a shop picks it (D46). Its view model's schema goes in `src/contracts/` and on the entry as `contract`. The array is `as const satisfies readonly EntryInput[]`, which keeps each id a literal type.
-2. **The story.** Add `"molecules/product-card": { summary, a11y, live(ctx), states }` to a file in `apps/storefront/src/design-system/stories/` (a new file is spread into `stories/index.ts`). Every sample string, price, size and colour comes from `ctx.fixture` (`@shopblok/fixtures`), money from `ctx.money`; the component's own copy is in `@shopblok/i18n`, in the four catalogs. `pnpm typecheck` fails until both halves exist.
+2. **The story.** Add `"molecules/product-card": { summary, a11y, live(ctx), states }` to a file in `apps/storefront/src/design-system/stories/` (a new file is spread into `stories/index.ts`). Every sample string, price, size and colour comes from `ctx.fixture` (`@shopblok/fixtures`), money from `ctx.money`; the component's own copy is in `@shopblok/i18n`'s four catalogs (`src/messages/{en,el,de,fr}.ts`, ICU messages formatted with `formatMessage`; "View models, copy and fixtures (T30)"), and its data is a contract with fixtures. `pnpm typecheck` fails until both halves exist.
 3. **Nothing else.** The navigation lists the group with its first entry (a group's label is `designSystem.groups` in `@shopblok/i18n`), the page, the frame and the preview exist in all four locales, `stories.test.tsx` renders the entry in each locale and checks its component's export, and the `design-system` job makes six cells of it (`en` and `el` at 375, 768 and 1440 px). An entry that draws an icon adds a row to `src/design-system/icons.ts`.
 
 ### Measured
@@ -3443,3 +3443,75 @@ Each applied, checked and reverted from a copy.
 | 7 | An empty list would pass with zero DS cells (optional) | A failing test when no entry has a component |
 
 Items 5, 6 and 8 (optional) are left: `defineEntries` checking `kind` against `group`, `$ref` and tuples in `typeOf`, and two small duplications.
+
+## View models, copy and fixtures (T30)
+
+**Result: the 53 schemas M2's components take are in `@shopblok/registry/contracts` (D41), the copy is ICU messages in a module per locale with `formatMessage` (D43), and `@shopblok/fixtures` fills every contract in the four DS locales.** The DS page does not use the fixtures yet (the molecule tasks will), so it renders as before: the markup of the 160 entry pages (40 entries in four locales) is byte-for-byte T29's.
+
+| | |
+|---|---|
+| Date | 2026-10-17 |
+| Branch | prepared locally on T29 while PR 49's CI could not start, then `claude/project-thread-pmqmfo`, restarted from `main` after PR 51 merged |
+| New | `packages/registry/src/contracts/{money, image, content, product, review, cart, address, order, navigation, market, payment, shipping, search, facets, checks}.ts` and `contracts.test.ts`; `packages/i18n/src/{format.ts, design-system.ts, messages/{en,el,de,fr}.ts, format.test.ts, messages.test.ts}`; `packages/fixtures/src/commerce/` (`types`, `now`, `images`, `context`, `data/`, `copy/`, `build/`, `commerce.test.ts`) |
+| Changed | `packages/registry/{package.json (the `./contracts` export), src/contracts/index.ts, src/sources.test.ts}`, `packages/i18n/{package.json, src/index.ts, src/index.test.ts}`, `packages/fixtures/{package.json, src/index.ts}`, `apps/storefront/src/design-system/stories/atoms-commerce.tsx` (`fill` is gone), `docs/SETUP.md` (T29's how-to), the lockfile |
+| Dependencies | `intl-messageformat` 11.2.15 (i18n), `@formatjs/icu-messageformat-parser` 3.5.18 (i18n, dev: the parity test; the version `intl-messageformat` pins), `@shopblok/registry` (fixtures), `vite` 8.3.3 and `vitest` 5.0.3 (fixtures, dev) |
+| Tests | fixtures **226** (new), registry **46** (17), i18n **49** (19), storefront 747, ui 326, scripts 429, backend 85; `typecheck`, `lint`, `check:workspace` and `pnpm install --frozen-lockfile` pass |
+
+### How it works
+
+- **Contracts** (`packages/registry/src/contracts/`): zod 4 schemas, each with a type of the same name (`z.infer`), imported as `@shopblok/registry/contracts`. Money is `{ amount, currencyCode }` in major units (SPEC §8.2: 29.99, never 2999); a link or an image's `src` is a root path or `http(s)`, never `//host` or `javascript:`; dates are ISO with an offset. Beyond their fields, the schemas check what a component would otherwise draw wrong: a cart's and an order's amounts are in their currency and `itemCount` is the lines' quantities; a compare-at price is higher than the price and in its currency; a rating's rows are 5 to 1 stars and add up to its count; each variant names one value of each option, every value a picture names exists, and a value id is listed once per product; an order's events are oldest first, from `placed`; a saved card is a strict object, so a card number fails the parse. `contracts.test.ts` shows each rule rejecting what it is there for, and draws every schema with `z.toJSONSchema`, as the Props table does.
+- **The copy** (`packages/i18n/src/messages/`): `en.ts` is the source and its type is `Messages`; `el.ts`, `de.ts` and `fr.ts` are typed `Messages`, so a missing key is a type error. The messages are ICU (`{count, plural, one {…} other {…}}`); `formatMessage(message, values, locale)` caches a formatter per locale and message, and throws on a missing value instead of printing `{count}`. Next to it are `formatMoney`, `formatDate`, `formatNumber` and `countryName` (`Intl.DisplayNames`), each cached per locale and options. The design-system chrome is English only (D33) and lives in `design-system.ts`; `molecules` and `organisms` start empty, and each component task fills its own. `messages.test.ts` parses every message with `@formatjs/icu-messageformat-parser` and checks that each locale has English's keys and no other, that each message has English's arguments of the same kinds (a `plural` stays a plural), and that a plural uses only the language's CLDR categories (`one` and `other` in all four).
+- **The fixtures** (`packages/fixtures/src/commerce/`): `commerceFixtures[locale]` is one `buildCommerceFixture` over shared data (`data/`: ids, handles, image seeds, stock, ratings, prices in EUR, USD and CHF, the category tree, the address book, orders) in the locale's words (`copy/`), so the four cannot drift apart. Each locale is its DS market: `en` the US (`/us`, USD), `el` Cyprus (no prefix, EUR), `de` Germany (`/de`, EUR), `fr` Switzerland in French (`/ch/fr`, CHF), and every link starts with that prefix. It holds 12 products (one with a title of 60 or more characters, one on sale, one sold out, one with ten swatches, one whose price varies), the Heritage Hoodie's page (4 colours × 6 sizes, some sold out), a category tree three levels deep, a cart of three lines with a promo code, an address in each of CY, US, DE and CH in its format, two orders with their events, six reviews and a rating summary, the navigation (a link, two mega menus, a dropdown) and the footer, the six seeded markets, payment methods, saved cards and shipping options (one a pickup), a search result, a filter of each kind, an announcement, a figure, and a long-string set (`long`). Dates are before `fixtureNow`, `2026-10-01T09:00:00.000Z` (D50). Pictures are `fixtureImage({ seed, ratio, alt })`: data-URI SVGs of flat shapes in 3:4, 1:1, 4:3 and 16:9, with no file, network or licence.
+- **`commerce.test.ts`** parses every fixture with its contract and prints a failure with its path (`de.cart: lines.1.total.amount: …`), then checks what no schema can: the sums (line totals, subtotal, discount, the VAT inside an EU or Swiss total, the free-shipping rest, to 0.005), a summary's average against its rows, the card's rating against the page's, the prefixes, the dates, and that the German long strings are the longest.
+- **The registry stays DS-only for the CI gate.** The fixtures import the contracts as types (`import type`), which TypeScript erases and the gate does not count, and the test that imports them at run time is a test, which the gate skips: `node scripts/ci-gate.ts --files packages/registry/src/contracts/product.ts` still skips `e2e-smoke`.
+
+### How a component task uses them
+
+1. **Its data** is a contract: extend one in `src/contracts/` or add one (exported from `contracts/index.ts`), and set it as the entry's `contract`, so the page shows its Props.
+2. **Its sample data** is `commerceFixtures[ctx.locale]` (add to `data/` and `copy/` when the fixtures lack a case, and a check to `commerce.test.ts`); its long case comes from `long`.
+3. **Its copy** goes in `molecules` or `organisms` of the four catalogs, as ICU, and is formatted with `formatMessage(message, values, htmlLang)`; a number, a date, a price or a country's name comes from the formatters, never from a literal.
+
+### Measured
+
+| Check | Result |
+|---|---|
+| The DS page's markup, T29 against T30 | the 160 entry pages rendered with `renderToStaticMarkup`, as `stories.test.tsx` renders them: identical, byte for byte (the dump test was deleted afterwards). No stylesheet changed, so the 192 cells were not run again |
+| Plurals (`format.test.ts`) | `atoms.stock.low` with 1 and 3 in the four locales, compared as SPEC §14's test rule says (Intl's spaces made plain): `Only 1 left`, `Απομένει μόνο 1`, `Απομένουν μόνο 3`, `Nur noch 1 verfügbar`, `Plus que 1 en stock`; a plural's `#` in fr-CH groups 1234 as `1'234` |
+| The CI gate on T30's files | all three jobs run (`packages/fixtures/package.json`, a dependency file) |
+
+### Mutations
+
+Each applied, checked and reverted from a copy.
+
+| Mutation | Check | Output |
+|---|---|---|
+| A product card without its `title` (`build/catalog.ts`) | `typecheck`; `commerce.test.ts` | `error TS2741: Property 'title' is missing in type …`; `en.products[0]: title: Invalid input: expected string, received undefined` and the same in el, de and fr |
+| Every price as a string (`String(amount) as unknown as number` in `context.ts`) | the same | no type error (the cast hides it); `en.products[0]: price.price.amount: Invalid input: expected number, received string`, 56 tests fail |
+| A missing Greek key (`atoms.link.newTab`) | `typecheck`; `messages.test.ts` | `src/messages/el.ts(26,5): error TS2741: Property 'newTab' is missing …`; `English's keys it lacks: expected [ 'atoms.link.newTab' ] to deeply equal []` |
+| A changed argument (`{value}` to `{val}` in Greek's `atoms.rating.label`) | the same | no type error (both are strings); `atoms.rating.label: {"val":"argument","max":"argument"}, English {"value":"argument","max":"argument"}` |
+
+A price multiplied by 100 is not something a schema can see (2999 is as valid as 29.99), as the plan says: Price's tests cover the formatting, and M3's resolver tests compare Medusa's raw amount with the view model.
+
+### Decisions the plan did not settle
+
+1. **Free shipping starts at EUR 150, USD 165 and CHF 150.** Three lines with a quantity of two, a sale and a low-stock line cannot stay under 100, so the cart (114, 126 and 113) shows a remainder of 36, 39 and 37.
+2. **The sale product is the Brushed Fleece Hoodie** (49, 54, 48, from 69, 75, 67). The Heritage Hoodie keeps the DS fixtures' title, colours and description at its regular price (59, 64, 58).
+3. **A pickup point's address is a `LocationAddress`**: `Address` without the person's names, the id and the default flags.
+4. **`PaymentMethod.name` is what the customer reads**: a brand's own name (PayPal) or the store's translated word (Card).
+5. **A category's `handle` is its own segment** (`hoodies` under Women and under Men) and its `href` carries the path. Medusa's handles are unique in the store, so M3's resolver decides how the two meet.
+6. **`MarketOption.currencyCode` comes from a country-to-currency table** in the fixtures, since `markets.ts` has no currencies; M3 takes it from Medusa's regions.
+7. **An order's `taxTotal` and `shippingTotal` are required** and a cart's are optional (a cart has not worked them out yet), so a US order shows a tax of 0: its price has no VAT inside, and sales tax is not modelled before M3.
+8. **What the schemas leave to the tests**: sums (no schema adds up a cart) and a summary's average against its rows. Nothing stops tracking fields on an event other than `shipped`; OrderTimeline (T39) shows them where they are.
+9. **The Greek, German and French copy has not been read by a native speaker.** The fixtures' and the catalogs' strings are the owner's to correct at W4.
+
+### Review fixes (PR 52)
+
+| # | Finding | Fix |
+|---|---|---|
+| 1 | `Order.payment` needed a card brand, so an order paid with `pp_system_default` (manual) could not parse | `payment` takes a `name` (as `PaymentMethod.name`) and an optional `brand`, and needs one of them; a contract test with `{ name: "Pay on delivery" }` and one with `{}` |
+| 2 | The category tree repeats handles (`hoodies` under Women and Men), which Medusa keeps unique | **Not fixed here; a follow-up after T37.** T31 to T37 were written on these fixtures (T37's filter tests choose `"hoodies"`), so changing the handles now would conflict in every later commit. One change on the final tree: unique handles, `href`s keep the path |
+| 3 | The CMS links are under `/pages/`, which SPEC §8.1's `{m}/[...slug]` doesn't have | **Not fixed here; the same follow-up.** T35 and T36 move these links into `footer.ts` and the headers' fixtures |
+| 4 | A cart's currency check skipped `compareAtUnitPrice` and the promo codes' `discount` | Both are checked; two cases in "keep a cart's and an order's amounts in their currency" |
+| 9 | The contracts' JSON Schema test didn't use the Props table's options (optional) | It uses `{ io: "input", unrepresentable: "any" }`, as `propRows` does |
+
+Items 5 to 8 (optional: the free shipping option beside the threshold, `facetData.price`'s comment, `Image` and `Link` beside `next/image` and `next/link`, `buildMarkets`' `htmlLang`, range and `htmlLang` refinements) are left.

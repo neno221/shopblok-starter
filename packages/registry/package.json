@@ -5,7 +5,8 @@
   "description": "The DS registry (D40): every entry as data (id, group, kind, label, component, family and variant, thumbnail, prop contract), and the view models' zod schemas (D41). Exports TypeScript source: no build step (D3).",
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./contracts": "./src/contracts/index.ts"
   },
   "scripts": {
     "typecheck": "tsc",
