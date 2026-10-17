@@ -7,13 +7,7 @@
 import { execFileSync } from "node:child_process";
 import { appendFileSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
-import {
-  decideJobs,
-  inDesignSystemArea,
-  outputLines,
-  runtimeImports,
-  type Importer,
-} from "./lib/ci-gate.ts";
+import { decideJobs, outputLines, runtimeImports, type Importer } from "./lib/ci-gate.ts";
 
 const root = path.resolve(import.meta.dirname, "..");
 
@@ -21,7 +15,7 @@ const root = path.resolve(import.meta.dirname, "..");
 // `check`, whatever the gate says.
 const scanned = ["apps", "packages"];
 const skippedFolders = new Set(["node_modules", ".next", ".turbo", "dist", "coverage", ".medusa"]);
-const sourceFile = /\.(?:ts|tsx|mts|cts|js|jsx|mjs|cjs)$/;
+const sourceFile = /\.(?:ts|tsx|mts|cts|js|jsx|mjs|cjs|css)$/;
 const testFile = /\.test\.(?:ts|tsx|mts|js|jsx|mjs)$/;
 
 function sources(folder: string): string[] {
@@ -39,17 +33,17 @@ function sources(folder: string): string[] {
   return found;
 }
 
-/** Every run-time import by a file outside the DS-only areas. */
+/**
+ * Every run-time import in `apps/` and `packages/`, the DS-only areas' own too: `sharedAreas`
+ * follows an import chain from outside the DS through them (a page, an organism, its molecules).
+ */
 function importers(): Importer[] {
-  return scanned
-    .flatMap(sources)
-    .filter((file) => !inDesignSystemArea(file))
-    .flatMap((file) =>
-      runtimeImports(readFileSync(path.join(root, file), "utf8")).map((specifier) => ({
-        file,
-        specifier,
-      })),
-    );
+  return scanned.flatMap(sources).flatMap((file) =>
+    runtimeImports(readFileSync(path.join(root, file), "utf8")).map((specifier) => ({
+      file,
+      specifier,
+    })),
+  );
 }
 
 /** The PR's changed files, both names of a rename, from the API. */

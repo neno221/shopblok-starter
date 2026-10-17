@@ -3206,9 +3206,11 @@ The owner went through the DS page against the kit in Figma and approved it on 2
 - one of this server's documents, scripts or stylesheets fails the test at once, because the first render may not have run, so a clean console would prove nothing;
 - anything else (a font, an image, a fetch) is a warning, and the check goes on.
 
+PR 49's review changed the rule (item 5, in "CI for M2 (T27)" below): any request to this server open 10 s or more now fails, whatever its type, and the rest are warnings.
+
 So a hang now costs 30 s instead of 90 s, and the report says which request it was. The same function, in T27's `support/dev-console.ts`, was checked with two mutations, each started after `load` with `page.route` and `idleMs` at 5 s:
 
-- a `fetch` that never answers: a warning (`fetch http://localhost:8000/hang-fetch (open 5 s)`), and the test passes;
+- a `fetch` that never answers: a warning (`fetch http://localhost:8000/hang-fetch (open 5 s)`), and the test passes (it fails since PR 49's review);
 - a `<script>` that never answers: the test fails, naming `script http://localhost:8000/hang.js`.
 
 A resource that never answers before `load` blocks `page.goto` itself, which is unchanged. The ten DS routes of `dev-console` passed locally with the change.
@@ -3230,11 +3232,13 @@ A resource that never answers before `load` blocks `page.goto` itself, which is 
 
 | Job | Skipped on a PR when every changed file is | Runs for |
 |---|---|---|
-| `e2e-smoke` | docs (`docs/`, any `.md`), or the design system's own: `packages/registry/`, `packages/ui/src/{primitives,molecules,organisms}/`, `apps/storefront/src/design-system/`, `apps/storefront/src/app/design-system/`, `e2e/design-system.spec.ts`, `e2e/dev-console-ds.spec.ts`, `e2e/__screenshots__/` | anything else, and any dependency file |
-| `design-system` | docs, or a file the DS pages cannot reach: `apps/backend/`, `infra/`, `compose.yaml`, the market routes, Payload's admin, API, config, collections, types and migrations, `src/app/next/`, `src/scripts/`, the other suites' specs, unit tests and test helpers outside the DS, lint and tooling settings, and the root scripts other than the gate | the DS's own files, every shared package, `src/lib/`, `src/styles/`, `next.config.ts`, the Playwright config, `.github/`, the gate, anything new, and any dependency file |
+| `e2e-smoke` | docs (`docs/`, any `.md`), tooling (below), or the design system's own: `packages/registry/`, `packages/ui/src/{primitives,molecules,organisms}/`, `apps/storefront/src/design-system/`, `apps/storefront/src/app/design-system/`, `e2e/design-system.spec.ts`, `e2e/dev-console-ds.spec.ts`, `e2e/__screenshots__/` | anything else, and any dependency file |
+| `design-system` | docs, tooling, or a file the DS pages cannot reach: `apps/backend/`, `infra/`, `compose.yaml`, the market routes, Payload's admin, API, config, collections, types and migrations, `src/app/next/`, `src/scripts/`, the other suites' specs, unit tests and test helpers outside the DS, `.env.example`, and the root scripts other than the gate | the DS's own files, every shared package, `src/lib/`, `src/styles/`, `next.config.ts`, the Playwright config, `.github/`, the gate, anything new, and any dependency file |
 | `windows-smoke` | anything but a dependency file (its rule since T16) | a `package.json` at any depth, `pnpm-lock.yaml`, `pnpm-workspace.yaml` |
 
-**The import rule.** `scripts/ci-gate.ts` reads the run-time imports of every source file in `apps/` and `packages/` outside the DS-only areas (unit tests left out; `import type` and `export type` left out, because TypeScript erases them), and a DS-only area that one of them imports, by its package name (`@shopblok/ui/molecules/…`, `@shopblok/registry`) or by a relative path, counts as shared: a change in it runs `e2e-smoke` too. Today nothing outside the DS imports them, so the scan finds nothing; M3's pages and M4's Payload config will be the first.
+Tooling is what only tools read, which both rules skip: every `eslint.config.mjs`, `packages/config/eslint/`, the Prettier config, every `components.json` (the shadcn CLI), every `.gitignore`, `.editorconfig` and `renovate.json`. `check` lints and formats; `next build` has not run ESLint since Next 16. `apps/storefront/.env.example` is not tooling: `pnpm bootstrap` may copy it, so it runs `e2e-smoke`.
+
+**The import rule.** `scripts/ci-gate.ts` reads the run-time imports of every source file and stylesheet in `apps/` and `packages/` (unit tests left out; `import type` and `export type` left out, because TypeScript erases them). It matches `import … from "…"`, `export … from "…"`, a bare `import "…"`, `import("…")` and `require("…")` with a quoted or a template-literal path (up to its first `${`, so a template that starts with `${`, or names only the package as in `@shopblok/ui/${folder}/x`, is not seen), and a stylesheet's `@import "…"` or `@import url("…")`. A DS-only area that a file outside every DS-only area imports, by its package name (`@shopblok/ui/molecules/…`, `@shopblok/registry`) or by a relative path, counts as shared: a change in it runs `e2e-smoke` too. A file inside a shared area counts as outside, and the pass repeats until nothing is added, so a market page that imports an organism also shares the molecules the organism imports (PR 49 review, item 1). Today nothing outside the DS imports them, so the scan finds nothing; M3's pages and M4's Payload config will be the first.
 
 **Other events.** A push to `main` runs `e2e-smoke` and `design-system` but not `windows-smoke`, as `windows-gate` did since T16: the PR that was merged ran it if it changed a dependency file, and a Windows run bills about 36 minutes. The plan's T27 step 2 first said a push runs all three; D53 also said `windows-smoke` keeps its rule, and the plan now says the rule wins. The schedule, a dispatch and any event the gate does not know run all three.
 
@@ -3246,7 +3250,7 @@ Their file lists from the API, run through the function (`decideJobs`). Every M1
 
 | PR | Task | Files | `e2e-smoke` | `design-system` | `windows-smoke` | Decided by |
 |---|---|---|---|---|---|---|
-| 38 | G3 | 6 | runs | skipped | skipped | `renovate.json` (not docs, so `e2e-smoke` runs; the DS cannot reach it) |
+| 38 | G3 | 6 | skipped | skipped | skipped | docs and `renovate.json` (tooling) |
 | 39 | T19 | 26 | runs | runs | runs | `package.json` |
 | 40 | T22 | 58 | runs | runs | runs | `packages/ui/package.json` |
 | 41 | T25 | 14 | runs | runs | skipped | `.github/scripts/stop-tree.sh` |
@@ -3265,7 +3269,7 @@ M2's molecule and organism PRs that add no dependency (T32 to T39 mostly do not)
 
 Locally, in CI's state (no `.env`, no stack): `COMMAND=dev URL=http://localhost:8000/design-system/en` through the action's script answered in 9.6 s, and `E2E_DEV_CONSOLE=true pnpm --filter @shopblok/storefront test:e2e --project=dev-console-ds` passed 10 of 10 in 1.2 min with 0 console messages; `stop-tree.sh` then freed port 8000.
 
-**The wait for `networkidle` now also says what kept the network busy.** PR 48 bounded the wait at 30 s ("The wait for networkidle (PR 48)" above). On its green run ([38988638454](https://github.com/stephanos221/shopblok-starter/actions/runs/38988638454)) one route timed out at that margin with no request open: `/design-system/el/atoms/select: no networkidle within 30 s; open requests: none`, and then passed, with 0 console messages. That fits two causes: something started a request at least every 500 ms (Playwright's rule for `networkidle`), or the browser's count of open requests disagreed with its own events. The check moved with the rest into `support/dev-console.ts`, and its report now ends with the requests that started in the last 5 s, counted by URL, so the next time-out tells the two apart.
+**The wait for `networkidle` now also says what kept the network busy.** PR 48 bounded the wait at 30 s ("The wait for networkidle (PR 48)" above). On its green run ([38988638454](https://github.com/stephanos221/shopblok-starter/actions/runs/38988638454)) one route timed out at that margin with no request open: `/design-system/el/atoms/select: no networkidle within 30 s; open requests: none`, and then passed, with 0 console messages. That fits two causes: something started a request at least every 500 ms (Playwright's rule for `networkidle`), or the browser's count of open requests disagreed with its own events. The check moved with the rest into `support/dev-console.ts`, and its report now ends with the requests that started in the last 5 s, counted by URL, so the next time-out tells the two apart, and then with the page's frames (URL, and whether each is detached), because `networkidle` counts every frame's requests and a DS page with the viewport switcher has three lazy iframes (PR 49 review, item 6; inferred, not reproduced). Since the review, any request to this server open 10 s or more fails the test, whatever its type (item 5): `next dev` answered every request on the runner in under 2 s, so one that hangs is a bug (a route handler or a server action that never answers), and the time-out with nothing open stays a warning.
 
 ### The start action and the opt-in projects (PR 44 review, items 9 and 10)
 
@@ -3282,7 +3286,39 @@ Locally, in CI's state (no `.env`, no stack): `COMMAND=dev URL=http://localhost:
 | `console.error` in the Select entry's live render | `dev-console-ds` | `/design-system/en/atoms/select: 4 console messages, 4 judged, 0 excused`, the test fails with `error @ /design-system/en/atoms/select: … T27 mutation: a console.error in a DS entry's render …` |
 | A `fetch` every 200 ms after `load` (`setInterval`, `idleMs` at 5 s) | `dev-console-ds`, `/design-system/en/foundations/typography` | `no networkidle within 5 s; open requests: fetch …/_buildManifest.js (open 0 s)`, then `started in the last 5 s: 25 × fetch http://localhost:8000/_next/static/development/_buildManifest.js`, a warning, and the test passes |
 | The `e2e` rule without its dependency-file case | unit test | `packages/registry/package.json: expected { e2e: false … } to deeply equal { e2e: true … }` (found while writing the tests, and fixed) |
+| A market route that re-exports `@shopblok/ui/organisms/header/classic`, which imports `../../molecules/market-switcher/standard` | the gate, `--files` the molecule | `shared, because code outside the DS imports them: packages/ui/src/molecules/, packages/ui/src/organisms/` and `e2e-smoke: runs`; without the route, `e2e-smoke: skipped` (before the review fix, skipped in both cases) |
+| `@import "../../../../packages/ui/src/molecules/price/price.css"` in a stylesheet in `apps/storefront/src/styles/` | the gate, `--files` that stylesheet | `shared … packages/ui/src/molecules/` and `e2e-smoke: runs` |
+| A `fetch` to this server that never answers, after `load` (`page.route`), at the real 30 s | `dev-console-ds`, typography | the test fails: `open requests: fetch http://localhost:8000/hang-fetch (open 30 s)`, then the frames (the page and its three `/frame/` iframes) |
+| The same with a `<script>` | the same | the test fails, naming `script http://localhost:8000/hang.js (open 30 s)` |
+| The same `fetch` to another origin (`https://hang.example/x`) | the same | a warning (`fetch https://hang.example/x (open 30 s)`), and the test passes |
+| The `fetch` every 200 ms, at the real 30 s | the same | `25 × fetch …/_buildManifest.js (open 0 s)`, a warning, and the test passes |
+
+The ten DS routes passed unmutated after the changes (53.7 s), and the temporary hook and files were removed.
+
+### Review fixes (PR 49)
+
+| # | Finding | Fix |
+|---|---|---|
+| 1 | A DS-only folder imported only through another (a page, an organism, its molecules) stayed DS-only | `sharedAreas` repeats until nothing is added; an importer inside a shared area counts as outside. The test that asserted the old behaviour now expects `molecules/` and the registry shared through an organism, and keeps a chain nothing outside imports (`[]`) |
+| 2 | A failed DS check skipped the DS pages' `next dev` check | "Start next dev" runs when the checks ran (passed or failed) and `next start` was stopped (`steps.stop-start.outcome == 'success'`), and the check when `next dev` answered. Checked with `actionlint` and by reading, not with a failing run; the two Playwright runs write to separate report folders, so the checks' report survives |
+| 3 | Tooling-only files ran `e2e-smoke` | One `toolingOnly` list that both rules skip (`eslint.config.mjs`, the shared ESLint and Prettier configs, `components.json`, `.gitignore`, `.editorconfig`, `renovate.json`), with a test; `.env.example` still runs `e2e-smoke`. M1's PR 38 now runs neither job |
+| 4 | The scan saw only quoted imports in JS and TS | Template-literal `import(…)`/`require(…)` up to the first `${`, and stylesheets' `@import`, with a test each; the gaps that remain are named in the comment |
+| 5 | A request to this server that hung was a warning unless it was a document, script or stylesheet | Any request to this server open 10 s or more fails, whatever its type (`hangMs`); younger ones and other origins stay warnings |
+| 6 | A time-out with nothing open gave no clue | The report ends with the page's frames, and whether each is detached |
 
 ### Proof
 
-`scripts`: `vitest run` (28 gate tests), `tsc`, `eslint`. The storefront's `typecheck` and `lint`. `actionlint` 1.7.12 on `ci.yml`: one shellcheck note (SC2016, single quotes in the doctor step's `node --eval`), which was there before. CI on this PR: see the job times below.
+`scripts`: `vitest run` (429 tests, 32 of them the gate's), `tsc`, `eslint`. The storefront's `typecheck` and `lint`. `actionlint` 1.7.12 on `ci.yml`: one shellcheck note (SC2016, single quotes in the doctor step's `node --eval`), which was there before.
+
+CI before and after, from the jobs' start and end times. Before is `main` before T27 ([38981232705](https://github.com/stephanos221/shopblok-starter/actions/runs/38981232705), the push of PR 47: `e2e-smoke` checked the storefront's and the DS's routes in `next dev`); after is this PR's first run ([38989643210](https://github.com/stephanos221/shopblok-starter/actions/runs/38989643210)), where the gate ran `e2e-smoke` and `design-system` (the PR changes `.github/` and the storefront's e2e support) and skipped `windows-smoke` (no dependency file).
+
+| Job | Before | After |
+|---|---|---|
+| `windows-gate` / `gate` | 4 s | 8 s |
+| `check` (Node 22 / 24) | 3 min 07 s / 2 min 45 s | 3 min 51 s / 3 min 46 s |
+| `backend-integration` | 1 min 19 s | 1 min 17 s |
+| `e2e-smoke` | 12 min 48 s (7 min 13 s of it the 17 routes in `next dev`) | 5 min 19 s (31 s for the storefront's six) |
+| `design-system` | 5 min 40 s | 7 min 52 s (1 min 58 s for the DS's ten in `next dev`) |
+| Longest job (the run's wall time) | 12 min 48 s | 7 min 52 s |
+
+`check` ran 44 s and 61 s longer, mostly in `pnpm build` and `pnpm test`, which T27 does not change (the gate's tests add well under a second), so that is the runners. Before's `next dev` step passed, but 7 minutes for 17 routes fits routes that hung to the 90 s timeout and passed on their retry, as in the PR 48 section above (inferred: that run's log was not read). One run each way is not a measurement.

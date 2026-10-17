@@ -305,26 +305,33 @@ jobs:
           command: start
           url: http://localhost:8000/design-system/en
       - name: Design-system checks
+        id: ds-checks
         run: pnpm --filter @shopblok/storefront test:e2e --project=design-system --reporter=list,html
         env:
           E2E_DESIGN_SYSTEM: "true"
           PLAYWRIGHT_HTML_OPEN: never
       - name: Stop next start
+        id: stop-start
         if: always()
         run: |
           pid="$(cat "$RUNNER_TEMP/servers/storefront.pid" 2>/dev/null || true)"
           if [ -n "$pid" ]; then bash .github/scripts/stop-tree.sh --port 8000 "$pid"; fi
       # T27 (D53): the DS pages' console in `next dev`, which e2e-smoke checked before and which needs
-      # no stack. As e2e-smoke's dev-console steps: stop-tree.sh has freed port 8000 (or the job
-      # stopped), and start-storefront proves the answer comes from a dev server. `next dev` shows
-      # the DS without the flag (development).
+      # no stack. As e2e-smoke's dev-console steps: stop-tree.sh has freed port 8000, and
+      # start-storefront proves the answer comes from a dev server. `next dev` shows the DS without
+      # the flag (development). They run when the DS checks ran, failed ones too, as in e2e-smoke
+      # apart from those checks; only once `next start` is stopped, never while it may still hold
+      # the port; and the check only once `next dev` answers (PR 49 review, item 2).
       - name: Start next dev
+        id: start-dev
+        if: ${{ !cancelled() && steps.stop-start.outcome == 'success' && (steps.ds-checks.outcome == 'success' || steps.ds-checks.outcome == 'failure') }}
         uses: ./.github/actions/start-storefront
         with:
           command: dev
           url: http://localhost:8000/design-system/en
           name: storefront-dev
       - name: Console of the DS pages in next dev
+        if: ${{ !cancelled() && steps.start-dev.outcome == 'success' }}
         run: E2E_DEV_CONSOLE=true pnpm --filter @shopblok/storefront test:e2e --project=dev-console-ds --reporter=list,html --output=test-results-dev-console
         env:
           PLAYWRIGHT_HTML_OPEN: never

@@ -69,16 +69,31 @@ const designSystemUnaffected: readonly (string | RegExp)[] = [
   /\.test\.(?:ts|tsx|mts|js|mjs)$/,
   "apps/storefront/src/test-support/",
   "apps/storefront/vitest.config.ts",
-  // Settings that `check` reads and `next build` does not.
-  "apps/storefront/eslint.config.mjs",
-  "apps/storefront/components.json",
+  // `pnpm bootstrap` may copy it; no page reads it. (It runs `e2e-smoke`, which runs bootstrap.)
   "apps/storefront/.env.example",
-  ".editorconfig",
-  ".gitignore",
-  "renovate.json",
   // The root scripts (bootstrap, doctor, the token export), but not this gate.
   /^scripts\/(?!ci-gate\.ts$|lib\/ci-gate\.)/,
 ];
+
+/**
+ * Files that only tools read: lint, format and the shadcn CLI, which `check` covers, and Renovate
+ * and editors. Neither job's servers or build read them (`next build` has not run ESLint since
+ * Next 16), so both rules skip them.
+ */
+const toolingOnly: readonly (string | RegExp)[] = [
+  /(?:^|\/)eslint\.config\.mjs$/,
+  "packages/config/eslint/",
+  "packages/config/prettier.config.mjs",
+  /(?:^|\/)components\.json$/,
+  /(?:^|\/)\.gitignore$/,
+  ".editorconfig",
+  "renovate.json",
+];
+
+/** Whether only tools read the file (`toolingOnly`). */
+export function isToolingOnly(file: string): boolean {
+  return toolingOnly.some((area) => within(file, area));
+}
 
 /** A dependency changed: every job runs, `windows-smoke` included (its rule since T16). */
 export function isDependencyFile(file: string): boolean {
@@ -118,20 +133,35 @@ function imports(importer: Importer, area: DesignSystemArea): boolean {
 
 /**
  * The DS-only areas that code outside them imports, so that a change in them can reach a page
- * `e2e-smoke` checks. An importer inside a DS-only area is not counted: the DS importing itself
- * changes nothing.
+ * `e2e-smoke` checks. An importer counts when it is outside every DS-only area, or inside one that
+ * is already shared: a market page that imports an organism also reaches the molecules the organism
+ * imports, so the pass repeats until nothing is added. The DS importing itself, with nothing outside
+ * importing it, changes nothing.
  */
 export function sharedAreas(importers: readonly Importer[]): string[] {
-  const outside = importers.filter((importer) => areaOf(importer.file) === undefined);
-  return designSystemOnly
-    .filter((area) => outside.some((importer) => imports(importer, area)))
-    .map((area) => area.path);
+  const shared = new Set<DesignSystemArea>();
+  const counts = (importer: Importer): boolean => {
+    const area = areaOf(importer.file);
+    return area === undefined || shared.has(area);
+  };
+  let added = true;
+  while (added) {
+    added = false;
+    for (const area of designSystemOnly) {
+      if (shared.has(area)) continue;
+      if (importers.some((importer) => counts(importer) && imports(importer, area))) {
+        shared.add(area);
+        added = true;
+      }
+    }
+  }
+  return designSystemOnly.filter((area) => shared.has(area)).map((area) => area.path);
 }
 
 /**
  * The jobs a run needs. `files` are the PR's changed files (both names of a rename), relative to
- * the repo root; `importers` are the files outside the DS-only areas that import something at run
- * time (`runtimeImports`). Both are ignored for any event but `pull_request`.
+ * the repo root; `importers` are the run-time imports of every source file and stylesheet in
+ * `apps/` and `packages/` (`runtimeImports`). Both are ignored for any event but `pull_request`.
  */
 export function decideJobs(input: {
   event: string;
@@ -175,13 +205,15 @@ export function decideJobs(input: {
   const dependency = files.find(isDependencyFile);
   // A dependency file runs everything, even one inside a DS-only folder (the registry's
   // package.json): a new version reaches every package that resolves it.
-  const e2eFile = dependency ?? files.find((file) => !isDocs(file) && !dsOnly(file));
+  const e2eFile =
+    dependency ?? files.find((file) => !isDocs(file) && !isToolingOnly(file) && !dsOnly(file));
   const dsFile =
     dependency ??
     files.find(
       (file) =>
-        areaOf(file) !== undefined ||
-        (!isDocs(file) && !designSystemUnaffected.some((area) => within(file, area))),
+        !isToolingOnly(file) &&
+        (areaOf(file) !== undefined ||
+          (!isDocs(file) && !designSystemUnaffected.some((area) => within(file, area)))),
     );
 
   const reasons: string[] = [];
@@ -190,12 +222,12 @@ export function decideJobs(input: {
   }
   reasons.push(
     e2eFile === undefined
-      ? "e2e-smoke: skipped (every file is docs or the design system's own)"
+      ? "e2e-smoke: skipped (every file is docs, tooling or the design system's own)"
       : e2eFile === dependency
         ? `e2e-smoke: runs (${e2eFile}, a dependency file)`
-        : `e2e-smoke: runs (${e2eFile} is neither docs nor the design system's own)`,
+        : `e2e-smoke: runs (${e2eFile} is not docs, tooling or the design system's own)`,
     dsFile === undefined
-      ? "design-system: skipped (every file is docs or one the DS pages cannot reach)"
+      ? "design-system: skipped (every file is docs, tooling or one the DS pages cannot reach)"
       : `design-system: runs (${dsFile})`,
     dependency === undefined
       ? "windows-smoke: skipped (no dependency file)"
@@ -214,15 +246,23 @@ export function decideJobs(input: {
 // mentions (a comment that quotes an import) count, which can only make the gate run more.
 const staticImport = /\b(import|export)\s+(type\s+)?(?:[^'"`;]*?\bfrom\s*)?["']([^"']+)["']/g;
 const dynamicImport = /\b(?:import|require)\s*\(\s*["']([^"']+)["']\s*\)/g;
+// `import(`./${name}`)`: the text before the first `${`, which still names the folder when the
+// template starts with one (`../molecules/${name}`, `@shopblok/ui/molecules/${name}`). A template
+// that starts with `${`, or names only the package (`@shopblok/ui/${folder}/x`), is not seen.
+const templateImport = /\b(?:import|require)\s*\(\s*`([^`$]*)/g;
+// A stylesheet's `@import "x"` and `@import url("x")`.
+const cssImport = /@import\s+(?:url\(\s*)?["']([^"']+)["']/g;
 
-/** The module specifiers a source file imports at run time. */
+/** The module specifiers a source file (script or stylesheet) imports at run time. */
 export function runtimeImports(source: string): string[] {
   const found = new Set<string>();
   for (const match of source.matchAll(staticImport)) {
     if (match[2] === undefined && match[3] !== undefined) found.add(match[3]);
   }
-  for (const match of source.matchAll(dynamicImport)) {
-    if (match[1] !== undefined) found.add(match[1]);
+  for (const pattern of [dynamicImport, templateImport, cssImport]) {
+    for (const match of source.matchAll(pattern)) {
+      if (match[1] !== undefined && match[1] !== "") found.add(match[1]);
+    }
   }
   return [...found];
 }

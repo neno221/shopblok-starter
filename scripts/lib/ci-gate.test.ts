@@ -160,6 +160,28 @@ describe("decideJobs on a pull request", () => {
     });
   });
 
+  it("runs neither for files only tools read, and e2e-smoke for .env.example (bootstrap)", () => {
+    for (const file of [
+      "renovate.json",
+      ".editorconfig",
+      ".gitignore",
+      "apps/backend/.gitignore",
+      "apps/storefront/eslint.config.mjs",
+      "packages/registry/eslint.config.mjs",
+      "packages/config/eslint/next.mjs",
+      "packages/config/prettier.config.mjs",
+      "apps/storefront/components.json",
+      "packages/ui/components.json",
+    ]) {
+      expect(jobs(pr([file])), file).toEqual({ e2e: false, designSystem: false, windows: false });
+    }
+    expect(jobs(pr(["apps/storefront/.env.example"]))).toEqual({
+      e2e: true,
+      designSystem: false,
+      windows: false,
+    });
+  });
+
   it("runs every job when the API listed no file", () => {
     expect(jobs(pr([]))).toEqual({
       e2e: true,
@@ -170,7 +192,7 @@ describe("decideJobs on a pull request", () => {
 
   it("says why for each job", () => {
     expect(pr(["docs/SETUP.md", "apps/storefront/src/lib/env.ts"]).reasons).toEqual([
-      "e2e-smoke: runs (apps/storefront/src/lib/env.ts is neither docs nor the design system's own)",
+      "e2e-smoke: runs (apps/storefront/src/lib/env.ts is not docs, tooling or the design system's own)",
       "design-system: runs (apps/storefront/src/lib/env.ts)",
       "windows-smoke: skipped (no dependency file)",
     ]);
@@ -180,8 +202,8 @@ describe("decideJobs on a pull request", () => {
       "windows-smoke: runs (packages/registry/package.json)",
     ]);
     expect(pr(["docs/SETUP.md"]).reasons).toEqual([
-      "e2e-smoke: skipped (every file is docs or the design system's own)",
-      "design-system: skipped (every file is docs or one the DS pages cannot reach)",
+      "e2e-smoke: skipped (every file is docs, tooling or the design system's own)",
+      "design-system: skipped (every file is docs, tooling or one the DS pages cannot reach)",
       "windows-smoke: skipped (no dependency file)",
     ]);
   });
@@ -225,6 +247,35 @@ describe("decideJobs and the importers of the DS-only folders", () => {
     };
     expect(sharedAreas([importer])).toEqual(["packages/registry/"]);
     expect(pr(["packages/registry/src/index.ts"], [importer]).e2e).toBe(true);
+  });
+
+  it("follows an import chain through the DS: a page, an organism, its molecules, the registry", () => {
+    const chain: Importer[] = [
+      {
+        file: "apps/storefront/src/app/(storefront)/[market]/layout.tsx",
+        specifier: "@shopblok/ui/organisms/header/classic",
+      },
+      {
+        file: "packages/ui/src/organisms/header/classic.tsx",
+        specifier: "../../molecules/market-switcher/standard",
+      },
+      {
+        file: "packages/ui/src/molecules/market-switcher/standard.tsx",
+        specifier: "@shopblok/registry",
+      },
+    ];
+    expect(sharedAreas(chain)).toEqual([
+      "packages/registry/",
+      "packages/ui/src/molecules/",
+      "packages/ui/src/organisms/",
+    ]);
+    expect(jobs(pr(["packages/ui/src/molecules/market-switcher/standard.tsx"], chain))).toEqual({
+      e2e: true,
+      designSystem: true,
+      windows: false,
+    });
+    // Without the page, nothing outside the DS reaches the chain.
+    expect(sharedAreas(chain.slice(1))).toEqual([]);
   });
 
   it("does not count the design system importing its own folders", () => {
@@ -341,6 +392,33 @@ describe("runtimeImports", () => {
     expect(runtimeImports('import { type A } from "@shopblok/registry";')).toEqual([
       "@shopblok/registry",
     ]);
+  });
+
+  it("finds a template-literal import by the text before its first ${}", () => {
+    const source = [
+      "const a = await import(`../molecules/${name}`);",
+      "const b = await import(`@shopblok/ui/organisms/${kind}/x`);",
+      "const c = await import(`./plain`);",
+      "const d = await import(`${anything}`);",
+    ].join("\n");
+    expect(runtimeImports(source).sort()).toEqual(
+      ["../molecules/", "./plain", "@shopblok/ui/organisms/"].sort(),
+    );
+    // The prefix of a relative template names the folder, as a relative import would.
+    expect(
+      sharedAreas([{ file: "packages/ui/src/atoms/lazy.tsx", specifier: "../molecules/" }]),
+    ).toEqual(["packages/ui/src/molecules/"]);
+  });
+
+  it("finds a stylesheet's @import, quoted or in url()", () => {
+    const source = [
+      '@import "tailwindcss";',
+      "@import url('../../../packages/ui/src/molecules/price-block.css');",
+      '@source "../";',
+    ].join("\n");
+    expect(runtimeImports(source).sort()).toEqual(
+      ["../../../packages/ui/src/molecules/price-block.css", "tailwindcss"].sort(),
+    );
   });
 
   it("does not read a string after `export const` as an import", () => {

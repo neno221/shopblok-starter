@@ -26,14 +26,16 @@ const settleMs = 3_000;
 // four never reached it on the runner and failed at the 90 s test timeout with no clue, although
 // `next dev` answered every request in under 2 s; off the runner it comes 0.5 s after `load`
 // (SETUP.md, "The wait for networkidle (PR 48)"). Run 38988638454 then timed out once at this margin
-// with no request open. Past it the test names the requests still open and the ones that started
-// in the last `recentMs`; see `waitForIdle`.
+// with no request open. Past it the test names the requests still open, the ones that started in
+// the last `recentMs` and the page's frames; see `waitForIdle`.
 const idleMs = 30_000;
 const recentMs = 5_000;
 
-// What a page loads to render: while one of these is open, the first client render may not have
-// run, so a clean console proves nothing.
-const renderTypes = new Set(["document", "script", "stylesheet"]);
+// A request to this server still open after this long hangs: `next dev` answered every request in
+// under 2 s on the runner (and a first compile in about 20 s, before `load`), so a route handler,
+// a server action or a page that never answers is a bug, whatever its type (PR 49 review, item 5).
+// Shorter-lived ones are the churn that keeps `networkidle` away, and stay a warning.
+const hangMs = 10_000;
 
 /** What `waitForIdle` reports from: the requests still open, and when each request started. */
 type Requests = { open: Map<Request, number>; started: { line: string; at: number }[] };
@@ -52,10 +54,12 @@ function trackRequests(page: Page): Requests {
 
 /**
  * Waits for `networkidle`, bounded by `idleMs`. On a time-out it lists the requests still open:
- * one of this server's documents, scripts or stylesheets fails the test (the render may be
- * incomplete); anything else (a font, an image, a fetch) is a warning, and the check goes on. The
- * requests that started in the last `recentMs`, counted by URL, follow: with none open, they show
- * whether something kept starting requests (`networkidle` needs 500 ms without one) or nothing did.
+ * one to this server that has been open `hangMs` or more fails the test; anything else (a younger
+ * one, or one to another origin) is a warning, and the check goes on. The requests that started
+ * in the last `recentMs`, counted by URL, follow: with none open, they show whether something kept
+ * starting requests (`networkidle` needs 500 ms without one) or nothing did. Last come the page's
+ * frames, since `networkidle` counts every frame's requests (the DS pages' viewport switcher
+ * renders lazy iframes).
  */
 async function waitForIdle(page: Page, path: string, requests: Requests, baseURL: string) {
   const { open } = requests;
@@ -70,9 +74,7 @@ async function waitForIdle(page: Page, path: string, requests: Requests, baseURL
   const now = Date.now();
   const list = [...open].map(([request, since]) => ({
     line: `${request.resourceType()} ${request.url()} (open ${Math.round((now - since) / 1000)} s)`,
-    blocksRender:
-      renderTypes.has(request.resourceType()) &&
-      new URL(request.url()).origin === new URL(baseURL).origin,
+    hangs: now - since >= hangMs && new URL(request.url()).origin === new URL(baseURL).origin,
   }));
   const recent = new Map<string, number>();
   for (const { line, at } of requests.started)
@@ -81,10 +83,15 @@ async function waitForIdle(page: Page, path: string, requests: Requests, baseURL
     `${path}: no networkidle within ${idleMs / 1000} s; open requests:\n` +
     (list.map((r) => `  ${r.line}`).join("\n") || "  none") +
     `\nstarted in the last ${recentMs / 1000} s:\n` +
-    ([...recent].map(([line, count]) => `  ${count} × ${line}`).join("\n") || "  none");
+    ([...recent].map(([line, count]) => `  ${count} × ${line}`).join("\n") || "  none") +
+    `\nframes:\n` +
+    page
+      .frames()
+      .map((frame) => `  ${frame.url() || "(no URL)"}${frame.isDetached() ? " (detached)" : ""}`)
+      .join("\n");
   console.warn(report);
   expect(
-    list.filter((r) => r.blocksRender).map((r) => r.line),
+    list.filter((r) => r.hangs).map((r) => r.line),
     report,
   ).toEqual([]);
 }
