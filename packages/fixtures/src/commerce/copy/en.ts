@@ -129,6 +129,7 @@ export const en: Copy = {
     privacy: "Privacy policy",
     cookies: "Cookie settings",
     imprint: "Legal notice",
+    copyright: (store, year) => `© ${year} ${store}. All rights reserved.`,
   },
   shipping: {
     standard: "Standard delivery",
@@ -258,6 +259,8 @@ export const en: Copy = {
         actionLabel: "View your order details",
       },
     },
+    cookieMessage:
+      "Shopblok uses a few cookies to keep your cart and your country. If you agree, we also count visits and tailor our offers to you.",
   },
   checkoutFlow: {
     cart: "Cart",

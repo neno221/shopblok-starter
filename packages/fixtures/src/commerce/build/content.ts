@@ -110,53 +110,6 @@ export function buildNavigation(ctx: Context): NavItem[] {
   ];
 }
 
-export function buildFooter(ctx: Context): FooterColumn[] {
-  const { copy } = ctx;
-  const { footer } = copy;
-  const page = (label: string, path: string): Link => ({ label, href: ctx.href(path) });
-  return [
-    {
-      title: footer.shop,
-      links: [
-        page(copy.navigation.newIn, "/pages/new-in"),
-        { label: copy.categories.women, href: ctx.categoryHref("women") },
-        { label: copy.categories.men, href: ctx.categoryHref("men") },
-        { label: copy.categories.accessories, href: ctx.categoryHref("accessories") },
-        page(copy.navigation.sale, "/pages/sale"),
-      ],
-    },
-    {
-      title: footer.help,
-      links: [
-        page(footer.shipping, "/pages/shipping-returns"),
-        page(footer.sizeGuide, "/pages/size-guide"),
-        page(footer.contact, "/pages/contact"),
-        page(footer.faq, "/pages/faq"),
-        page(footer.trackOrder, "/account/orders"),
-      ],
-    },
-    {
-      title: footer.company,
-      links: [
-        page(footer.about, "/pages/about"),
-        page(footer.sustainability, "/pages/sustainability"),
-        // The one link that leaves the store: it opens in a new tab.
-        { label: footer.careers, href: "https://careers.example.com", external: true },
-        page(footer.stores, "/pages/stores"),
-      ],
-    },
-    {
-      title: footer.legal,
-      links: [
-        page(footer.terms, "/pages/terms"),
-        page(footer.privacy, "/pages/privacy"),
-        page(footer.cookies, "/pages/cookies"),
-        page(footer.imprint, "/pages/legal-notice"),
-      ],
-    },
-  ];
-}
-
 // The currency each seeded country sells in (the backend's regions); the seeded map has none.
 const currencyByCountry: Record<string, string> = {
   cy: "EUR",

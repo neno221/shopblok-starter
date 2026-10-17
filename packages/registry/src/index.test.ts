@@ -10,13 +10,13 @@ const atom = (id: string, extra: Partial<EntryInput> = {}): EntryInput => ({
 });
 
 describe("the registry (D40)", () => {
-  it("lists M1's 8 foundations and 32 atoms, then T32's 15 molecules, T33's 13 and T34's 12, then T35's 4 organisms and 6 headers, in the navigation's order", () => {
+  it("lists M1's 8 foundations and 32 atoms, then T32's 15 molecules, T33's 13 and T34's 12, then T35's 4 organisms and 6 headers and T36's 2 organisms and 5 footers, in the navigation's order", () => {
     expect(byGroup("foundations")).toHaveLength(8);
     expect(byGroup("atoms")).toHaveLength(32);
     expect(byGroup("molecules")).toHaveLength(40);
-    expect(byGroup("organisms")).toHaveLength(4);
-    expect(byGroup("headers-footers")).toHaveLength(6);
-    expect(entries).toHaveLength(90);
+    expect(byGroup("organisms")).toHaveLength(6);
+    expect(byGroup("headers-footers")).toHaveLength(11);
+    expect(entries).toHaveLength(97);
     expect(entries.map((entry) => entry.id).slice(0, 2)).toEqual([
       "foundations/colors",
       "foundations/typography",
@@ -33,8 +33,11 @@ describe("the registry (D40)", () => {
       "organisms/mega-menu",
       "organisms/mobile-nav-drawer",
       "organisms/market-suggestion-banner",
+      "organisms/cookie-consent",
+      "organisms/loading-skeletons",
     ]);
-    expect(entries.at(-1)?.id).toBe("headers-footers/header-transparent");
+    expect(byGroup("headers-footers").at(5)?.id).toBe("headers-footers/header-transparent");
+    expect(entries.at(-1)?.id).toBe("headers-footers/footer-two-tier");
   });
 
   it("gives every entry a unique `{group}/{slug}` id in a known group, and a label", () => {
@@ -70,7 +73,7 @@ describe("the registry (D40)", () => {
     }
   });
 
-  it("names the @shopblok/ui/organisms export of every organism and header, and its contract (D41)", () => {
+  it("names the @shopblok/ui/organisms export of every organism, header and footer, and its contract (D41)", () => {
     for (const entry of [...byGroup("organisms"), ...byGroup("headers-footers")]) {
       expect(entry.kind, entry.id).toBe("organism");
       expect(entry.component?.module, entry.id).toMatch(
@@ -175,6 +178,21 @@ describe("variantsOf", () => {
     });
   });
 
+  it("lists the five footers of SPEC §9.4 (D46), in its order", () => {
+    expect(variantsOf("footer").map((option) => option.value)).toEqual([
+      "multi-column",
+      "newsletter-first",
+      "minimal",
+      "wordmark",
+      "two-tier",
+    ]);
+    expect(variantsOf("footer")[3]).toEqual({
+      value: "wordmark",
+      label: "Footer · Big wordmark",
+      thumbnail: "/registry/headers-footers/footer-wordmark.png",
+    });
+  });
+
   it("lists ProductCard's ten variants (D46), in the navigation's order", () => {
     expect(variantsOf("product-card").map((option) => option.value)).toEqual([
       "standard",
@@ -235,7 +253,7 @@ describe("variantsOf", () => {
       },
     ]);
     expect(variantsOf("nope", list)).toEqual([]);
-    // T36 builds the footers.
-    expect(variantsOf("footer")).toEqual([]);
+    // The 21 variants a shop picks (D46, D52): six headers, five footers, ten cards.
+    expect(entries.filter((entry) => entry.family !== undefined)).toHaveLength(21);
   });
 });

@@ -53,4 +53,11 @@ checkRoutesInDev([
     status: 200,
   })),
   { path: "/design-system/el/organisms/announcement-bar", status: 200 },
+  // T36: the two-tier footer (the newsletter form, the accordions, the market switcher) in each
+  // locale, and cookie consent's island, whose banner the browser draws after hydration.
+  ...locales.map((locale) => ({
+    path: `/design-system/${locale}/headers-footers/footer-two-tier`,
+    status: 200,
+  })),
+  { path: "/design-system/de/organisms/cookie-consent", status: 200 },
 ]);

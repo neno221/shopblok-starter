@@ -129,6 +129,7 @@ export const de: Copy = {
     privacy: "Datenschutzerklärung",
     cookies: "Cookie-Einstellungen",
     imprint: "Impressum",
+    copyright: (store, year) => `© ${year} ${store}. Alle Rechte vorbehalten.`,
   },
   shipping: {
     standard: "Standardversand",
@@ -262,6 +263,8 @@ export const de: Copy = {
         actionLabel: "Alle Bestelldetails ansehen und überprüfen",
       },
     },
+    cookieMessage:
+      "Shopblok verwendet einige Cookies, um Ihren Warenkorb und Ihr Land zu speichern. Wenn Sie zustimmen, zählen wir außerdem Besuche und stimmen unsere Angebote auf Sie ab.",
   },
   checkoutFlow: {
     cart: "Warenkorb",

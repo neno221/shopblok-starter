@@ -395,6 +395,46 @@ export const de: Messages = {
       cartItems: "{count, plural, =0 {leer} one {# Artikel} other {# Artikel}}",
       cartOverflow: "{max}+",
     },
+    footer: {
+      home: "{store}, Startseite",
+      navigation: "Fußzeile",
+      legal: "Rechtliches",
+      social: "Folgen Sie uns",
+      socialLink: "{store} auf {network}",
+      payment: "Zahlungsarten",
+      newTab: "Öffnet in einem neuen Tab",
+    },
+    cookieConsent: {
+      region: "Cookie-Einwilligung",
+      title: "Cookies in diesem Shop",
+      message:
+        "Wir verwenden notwendige Cookies, damit der Shop funktioniert. Mit Ihrer Erlaubnis verwenden wir außerdem Analyse-Cookies, um zu sehen, wie der Shop genutzt wird, und Marketing-Cookies, um Ihnen Angebote zu zeigen, die zu Ihren Interessen passen. Lesen Sie unsere {policy}.",
+      policyLink: "Cookie-Richtlinie",
+      acceptAll: "Alle akzeptieren",
+      rejectAll: "Alle ablehnen",
+      choose: "Cookies auswählen",
+      dialogTitle: "Cookie-Einstellungen",
+      dialogDescription:
+        "Wählen Sie, welche Cookies wir verwenden dürfen. Nichts wird eingeschaltet, bevor Sie speichern, und Sie können Ihre Auswahl jederzeit ändern.",
+      necessary: "Notwendig",
+      necessaryDescription:
+        "Sorgen dafür, dass der Shop funktioniert, und merken sich Ihren Warenkorb, Ihre Anmeldung, Ihr Land, Ihre Sprache und diese Auswahl.",
+      alwaysOn: "Immer aktiv",
+      analytics: "Analyse",
+      analyticsDescription:
+        "Zählen Besuche und zeigen uns, wie der Shop genutzt wird, damit wir ihn verbessern können.",
+      marketing: "Marketing",
+      marketingDescription:
+        "Zeigen Ihnen Angebote, die zu Ihren Interessen passen, hier und auf anderen Websites.",
+      save: "Auswahl speichern",
+      close: "Schließen",
+    },
+    loadingSkeleton: {
+      productGrid: "Produkte werden geladen",
+      productPage: "Produkt wird geladen",
+      cart: "Ihr Warenkorb wird geladen",
+      accountList: "Ihr Konto wird geladen",
+    },
   },
   notFound: {
     title: "Seite nicht gefunden",

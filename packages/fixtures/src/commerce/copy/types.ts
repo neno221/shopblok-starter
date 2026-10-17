@@ -78,6 +78,8 @@ export type Copy = {
     privacy: string;
     cookies: string;
     imprint: string;
+    /** The footer's last line (T36), from the store's name and the year. */
+    copyright: (store: string, year: number) => string;
   };
   shipping: {
     standard: string;
@@ -133,7 +135,8 @@ export type Copy = {
   };
   /**
    * AccordionItem's and Toast's samples (T33): a FAQ of five questions and one long one, and a toast
-   * of each kind with the button that shows it. `answer` is paragraphs.
+   * of each kind with the button that shows it. `answer` is paragraphs. CookieConsent's (T36): the
+   * shop's own sentence.
    */
   site: {
     faq: {
@@ -141,6 +144,8 @@ export type Copy = {
       long: FaqCopy;
     };
     toasts: { success: ToastCopy; error: ToastCopy; info: ToastCopy; long: ToastCopy };
+    /** The cookie banner's sentence in the shop's own words (`site-settings`, T36). */
+    cookieMessage: string;
   };
   /**
    * The labels of Stepper's samples (T34): checkout's three steps as SPEC §8.4 names them (contact

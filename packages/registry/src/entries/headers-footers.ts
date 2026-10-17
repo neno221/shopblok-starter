@@ -1,4 +1,4 @@
-import { Header } from "../contracts";
+import { Footer, Header } from "../contracts";
 import type { EntryInput } from "../types";
 
 // SPEC §9.4's headers (T35) and footers (T36): the variants a shop picks in Payload's `header` and
@@ -18,6 +18,18 @@ const header = <const Variant extends string>(variant: Variant, label: string, n
     contract: Header,
   }) as const satisfies EntryInput;
 
+const footer = <const Variant extends string>(variant: Variant, label: string, name: string) =>
+  ({
+    id: `headers-footers/footer-${variant}`,
+    group: "headers-footers",
+    kind: "organism",
+    label: `Footer · ${label}`,
+    component: { module: `@shopblok/ui/organisms/footer/${variant}`, name },
+    family: "footer",
+    variant,
+    contract: Footer,
+  }) as const satisfies EntryInput;
+
 export const headersFooters = [
   // T35: the six headers of §9.4, in its order.
   header("classic", "Classic", "HeaderClassic"),
@@ -26,4 +38,10 @@ export const headersFooters = [
   header("mega-menu", "Mega menu", "HeaderMegaMenu"),
   header("minimal", "Minimal", "HeaderMinimal"),
   header("transparent", "Transparent", "HeaderTransparent"),
+  // T36: the five footers of §9.4, in its order.
+  footer("multi-column", "Multi-column", "FooterMultiColumn"),
+  footer("newsletter-first", "Newsletter first", "FooterNewsletterFirst"),
+  footer("minimal", "Minimal", "FooterMinimal"),
+  footer("wordmark", "Big wordmark", "FooterWordmark"),
+  footer("two-tier", "Two-tier", "FooterTwoTier"),
 ] as const satisfies readonly EntryInput[];

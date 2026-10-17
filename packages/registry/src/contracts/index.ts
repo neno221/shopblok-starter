@@ -10,6 +10,7 @@ export * from "./cart";
 export * from "./checkout";
 export * from "./content";
 export * from "./facets";
+export * from "./footer";
 export * from "./header";
 export * from "./image";
 export * from "./listing";

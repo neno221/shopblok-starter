@@ -26,11 +26,11 @@ import { buildCheckoutFlow } from "./checkout-flow";
 import {
   buildAnnouncement,
   buildFigure,
-  buildFooter,
   buildLong,
   buildMarkets,
   buildNavigation,
 } from "./content";
+import { buildFooter } from "./footer";
 import { buildHeader } from "./header";
 import { buildEmptyStates } from "./listing";
 import { buildMarketing } from "./marketing";
@@ -50,6 +50,7 @@ export function buildCommerceFixture(locale: DesignSystemLocale, copy: Copy): Co
   const navigation = buildNavigation(ctx);
   const markets = buildMarkets(ctx);
   const cart = buildCart(ctx);
+  const paymentMethods = buildPaymentMethods(ctx);
   return {
     locale,
     market: { ...ctx.market },
@@ -64,9 +65,9 @@ export function buildCommerceFixture(locale: DesignSystemLocale, copy: Copy): Co
     reviews: buildReviews(ctx),
     ratingSummary: buildRatingSummary(),
     navigation,
-    footer: buildFooter(ctx),
+    footer: buildFooter(ctx, markets, paymentMethods),
     markets,
-    paymentMethods: buildPaymentMethods(ctx),
+    paymentMethods,
     savedPaymentMethods: buildSavedPaymentMethods(ctx),
     shippingOptions: buildShippingOptions(ctx),
     search: buildSearch(ctx, products),

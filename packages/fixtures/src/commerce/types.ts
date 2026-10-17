@@ -24,6 +24,7 @@ import type {
 import type { DesignSystemLocale, DesignSystemMarket } from "../design-system";
 import type { AddressFormState } from "@shopblok/registry/contracts";
 import type { AccordionSection, ToastMessage } from "@shopblok/registry/contracts";
+import type { ConsentChoice, CookieConsent, Footer } from "@shopblok/registry/contracts";
 
 /** A section of a FAQ: the contract's heading and id, and the answer in paragraphs. */
 export type FaqItem = AccordionSection & { answer: string[] };
@@ -85,7 +86,13 @@ export type CommerceFixture = {
   ratingSummary: RatingSummary;
   /** The header's items: links, a dropdown and a mega menu. */
   navigation: NavItem[];
-  footer: FooterColumn[];
+  /** The sample data of the five footers (T36). */
+  footer: {
+    /** What every footer variant draws: three columns, the newsletter, five profiles, four legal links, the checkout's eight marks, the markets. */
+    content: Footer;
+    /** The least a shop can have: no columns, newsletter, profiles, marks or switcher; two legal links and the copyright. */
+    bare: Footer;
+  };
   /** The six seeded countries (markets.ts) with their languages; the DS market is current. */
   markets: MarketOption[];
   paymentMethods: PaymentMethod[];
@@ -139,7 +146,7 @@ export type CommerceFixture = {
       ended: Countdown;
     };
   };
-  /** The sample data of AccordionItem and Toast (T33). */
+  /** The sample data of AccordionItem and Toast (T33), and CookieConsent (T36). */
   site: {
     faq: {
       /** Five questions, with an id each section of an accordion can have. */
@@ -149,6 +156,12 @@ export type CommerceFixture = {
     };
     /** One toast of each kind, and a long one, each with the words of the button that shows it. */
     toasts: { success: ToastSample; error: ToastSample; info: ToastSample; long: ToastSample };
+    /** CookieConsent's (T36): the banner with the copy's sentence or the shop's own, and three choices a visitor can make. */
+    cookieConsent: {
+      copy: CookieConsent;
+      message: CookieConsent;
+      choices: { rejected: ConsentChoice; analytics: ConsentChoice; accepted: ConsentChoice };
+    };
   };
   /** The sample data of CartLineItem, FreeShippingProgress and PromoCodeField (T34). */
   cartSamples: {
