@@ -1,9 +1,10 @@
 // Ours, on the tokens (T23, SETUP.md "Atoms (T23)"). `next/image` in a frame that keeps an aspect
 // ratio, so nothing shifts while it loads (CLS), with the radius tokens and a skeleton that shows
 // until the picture has loaded. `alt` is required by the type: describe the picture, or pass `""`
-// on purpose when it is decoration next to text that says the same. The state belongs to one `src`:
-// a new `src` shows the skeleton again, and a picture that fails to load drops it and shows an
-// "image missing" mark on the frame's muted fill (the `alt` stays the image's name).
+// on purpose when it is decoration next to text that says the same. So is `sizes` (T32, PR 43
+// review, item 13): without it a grid card would download a full-width source. The state belongs
+// to one `src`: a new `src` shows the skeleton again, and a picture that fails to load drops it and
+// shows an "image missing" mark on the frame's muted fill (the `alt` stays the image's name).
 "use client";
 
 import { ImageOffIcon } from "lucide-react";
@@ -33,6 +34,11 @@ const radii = {
 type ImageProps = Omit<NextImageProps, "fill" | "width" | "height" | "alt" | "className"> & {
   /** What the picture shows. An empty string marks it as decoration, and has to be written. */
   alt: string;
+  /**
+   * The width the picture is drawn at, per breakpoint (`(min-width: 768px) 25vw, 50vw`), which
+   * picks the source to download. Required: a card that left it out would fetch a full-width one.
+   */
+  sizes: string;
   ratio?: keyof typeof ratios;
   radius?: keyof typeof radii;
   /** How the picture fills the frame. */
@@ -48,7 +54,7 @@ function Image({
   ratio = "square",
   radius = "md",
   fit = "cover",
-  sizes = "100vw",
+  sizes,
   className,
   imageClassName,
   onLoad,

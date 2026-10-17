@@ -48,6 +48,28 @@ describe("SizePill", () => {
     expect(classes).not.toContain("data-unavailable:text-muted-foreground");
   });
 
+  it("drops aria-pressed when it is given a role, which only a button may carry (VariantSelector)", () => {
+    render(
+      <SizePill selected role="radio" aria-checked>
+        M
+      </SizePill>,
+    );
+    const radio = screen.getByRole("radio", { name: "M" });
+    expect(radio.hasAttribute("aria-pressed")).toBe(false);
+    expect(radio.getAttribute("aria-checked")).toBe("true");
+    // The fill still follows `selected`.
+    expect(radio.getAttribute("data-selected")).toBe("");
+  });
+
+  it("keeps aria-pressed for the button role", () => {
+    render(
+      <SizePill selected role="button">
+        M
+      </SizePill>,
+    );
+    expect(screen.getByRole("button", { name: "M" }).getAttribute("aria-pressed")).toBe("true");
+  });
+
   it("needs unavailableLabel when unavailable", () => {
     // @ts-expect-error -- without its label the sold-out state would be a line alone (WCAG 1.4.1).
     render(<SizePill unavailable>XL</SizePill>);

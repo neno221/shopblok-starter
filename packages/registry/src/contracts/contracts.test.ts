@@ -14,6 +14,7 @@ import {
   RatingSummary,
   SavedPaymentMethod,
   ShippingOption,
+  VariantChoice,
 } from "./index";
 
 // The contracts' own rules (D41). The fixtures' test (`@shopblok/fixtures`) parses real data with
@@ -243,6 +244,49 @@ describe("the contracts (D41)", () => {
         variants: [],
       }),
     ).toContain("value oat is listed twice");
+  });
+
+  it("take a product's options and variants alone, as VariantSelector does, and check them the same way", () => {
+    const { options, variants } = detail;
+    const [variant] = variants;
+    expect(issues(VariantChoice, { options, variants })).toEqual([]);
+    expect(issues(VariantChoice, { options: [], variants: [] })).not.toEqual([]);
+    // The same two rules as ProductDetail's: one existing value of each option, each id listed once.
+    expect(
+      issues(VariantChoice, { options, variants: [{ ...variant, options: { colour: "oat" } }] }),
+    ).toEqual(["variant var_1 does not name one value of each option"]);
+    expect(
+      issues(VariantChoice, {
+        options,
+        variants: [{ ...variant, options: { colour: "navy", size: "m" } }],
+      }),
+    ).toEqual(["option colour has no value navy"]);
+    const [colour, size] = options;
+    expect(
+      issues(VariantChoice, {
+        options: [colour, { ...size, values: [{ id: "oat", label: "M" }] }],
+        variants,
+      }),
+    ).toContain("value oat is listed twice");
+    // A variant that names an option the product lacks is refused, too.
+    expect(
+      issues(VariantChoice, {
+        options,
+        variants: [{ ...variant, options: { colour: "oat", size: "m", fit: "slim" } }],
+      }),
+    ).toEqual(["variant var_1 does not name one value of each option"]);
+  });
+
+  it("give VariantChoice and ProductDetail the same verdict on options and variants", () => {
+    const [variant] = detail.variants;
+    const broken = [
+      { ...detail, variants: [{ ...variant, options: { colour: "oat" } }] },
+      { ...detail, variants: [{ ...variant, options: { colour: "navy", size: "m" } }] },
+    ];
+    for (const product of broken) {
+      const { options, variants } = product;
+      expect(issues(VariantChoice, { options, variants })).toEqual(issues(ProductDetail, product));
+    }
   });
 
   it("take a pickup point's address without a person's name", () => {

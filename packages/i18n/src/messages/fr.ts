@@ -50,7 +50,52 @@ export const fr: Messages = {
   },
   primitives: { toast: { region: "Notifications", close: "Fermer la notification" } },
   // Filled by M2's component tasks (T32 to T39), each with its components' strings.
-  molecules: {},
+  molecules: {
+    variantSelector: {
+      // A no-break space before the colon, as French sets it.
+      chosen: "{option} : {value}",
+      unavailable: "Indisponible",
+    },
+    ratingSummary: {
+      rating: "{value} sur {max}",
+      // "avis" does not change in the plural, and French counts 0 and 1 as "one".
+      count: "{count, plural, =0 {Aucun avis pour le moment} other {Basé sur # avis}}",
+      distribution: "Avis par nombre d’étoiles",
+      row: "{stars, plural, one {# étoile} other {# étoiles}}, {count, plural, other {# avis}}",
+    },
+    reviewItem: {
+      rating: "Noté {value} sur {max}",
+      verified: "Achat vérifié",
+    },
+    mediaFigure: {
+      credit: "Photo : {credit}",
+    },
+    priceBlock: {
+      sale: "Prix soldé",
+      original: "Prix initial",
+      from: "À partir de {price}",
+      taxIncluded: "Taxes comprises",
+      taxExcluded: "Hors taxes",
+    },
+    productCard: {
+      soldOut: "Épuisé",
+      badges: { sale: "Promo", new: "Nouveau", bestseller: "Meilleure vente" },
+      rating: "{average} sur 5, {count, plural, one {# avis} other {# avis}}",
+      ratingCount: "({count, number})",
+      swatches: "Couleurs",
+      swatchUnavailable: "Indisponible",
+      swatchesMore: "{count, plural, one {# couleur de plus} other {# couleurs de plus}}",
+      moreCount: "+{count, number}",
+      quickAdd: {
+        add: "Ajouter au panier",
+        chooseOptions: "Choisir les options",
+        adding: "Ajout au panier…",
+        added: "Ajouté au panier",
+        error: "Impossible d’ajouter l’article au panier. Veuillez réessayer.",
+        forProduct: ", {title}",
+      },
+    },
+  },
   organisms: {},
   notFound: {
     title: "Page introuvable",

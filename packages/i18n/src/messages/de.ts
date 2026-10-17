@@ -45,7 +45,51 @@ export const de: Messages = {
   },
   primitives: { toast: { region: "Benachrichtigungen", close: "Benachrichtigung schließen" } },
   // Filled by M2's component tasks (T32 to T39), each with its components' strings.
-  molecules: {},
+  molecules: {
+    variantSelector: {
+      chosen: "{option}: {value}",
+      unavailable: "Nicht verfügbar",
+    },
+    ratingSummary: {
+      rating: "{value} von {max}",
+      count:
+        "{count, plural, =0 {Noch keine Bewertungen} one {Basierend auf # Bewertung} other {Basierend auf # Bewertungen}}",
+      distribution: "Bewertungen nach Sternen",
+      row: "{stars, plural, one {# Stern} other {# Sterne}}, {count, plural, one {# Bewertung} other {# Bewertungen}}",
+    },
+    reviewItem: {
+      rating: "Bewertet mit {value} von {max}",
+      verified: "Verifizierter Kauf",
+    },
+    mediaFigure: {
+      credit: "Foto: {credit}",
+    },
+    priceBlock: {
+      sale: "Angebotspreis",
+      original: "Ursprünglicher Preis",
+      from: "Ab {price}",
+      taxIncluded: "Inkl. Steuern",
+      taxExcluded: "Zzgl. Steuern",
+    },
+    productCard: {
+      soldOut: "Ausverkauft",
+      badges: { sale: "Sale", new: "Neu", bestseller: "Bestseller" },
+      rating: "{average} von 5, {count, plural, one {# Bewertung} other {# Bewertungen}}",
+      ratingCount: "({count, number})",
+      swatches: "Farben",
+      swatchUnavailable: "Nicht verfügbar",
+      swatchesMore: "{count, plural, one {# weitere Farbe} other {# weitere Farben}}",
+      moreCount: "+{count, number}",
+      quickAdd: {
+        add: "In den Warenkorb",
+        chooseOptions: "Optionen wählen",
+        adding: "Wird hinzugefügt …",
+        added: "In den Warenkorb gelegt",
+        error: "Der Artikel konnte nicht hinzugefügt werden. Bitte versuchen Sie es erneut.",
+        forProduct: ", {title}",
+      },
+    },
+  },
   organisms: {},
   notFound: {
     title: "Seite nicht gefunden",

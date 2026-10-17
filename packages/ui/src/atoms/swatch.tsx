@@ -1,9 +1,12 @@
-// Ours, on the tokens (T23, SETUP.md "Atoms (T23)"). One colour or one image of a product's colour
-// option, as a 44 × 44 px button (D32) around a 32 px disc. `selected` is a thicker edge and
-// `aria-pressed` (M2's VariantSelector adds radio semantics around a group of these); `unavailable`
-// strikes the disc through and adds `unavailableLabel` to its name, and the swatch stays reachable
-// so a reader can still pick it and be told it is sold out; `disabled` cannot be used at all. The
-// colour is data from the catalog (`colour`, any CSS colour), so it is not a token.
+// Ours, on the tokens (T23, SETUP.md "Atoms (T23)"; T32, "Product molecules (T32)"). One colour or
+// one image of a product's colour option, as a 44 × 44 px button (D32) around a 32 px disc.
+// `selected` is a thicker edge and `aria-pressed`; given a `role` (VariantSelector renders it as a
+// radio through Base UI's `render` prop) it drops `aria-pressed`, which only a button may carry
+// (axe `aria-allowed-attr`), and the role's own state (`aria-checked`) comes from the caller.
+// `unavailable` strikes the disc through and adds `unavailableLabel` to its name, and the swatch
+// stays reachable so a reader can still pick it and be told it is sold out; `disabled` cannot be
+// used at all. The colour is data from the catalog (`colour`, any CSS colour), so it is not a
+// token.
 import Image from "next/image";
 import type * as React from "react";
 import { VisuallyHidden } from "@shopblok/ui/atoms/visually-hidden";
@@ -39,15 +42,17 @@ function Swatch({
   unavailableLabel,
   className,
   type = "button",
+  role,
   ...props
 }: SwatchProps) {
   return (
     <button
       type={type}
+      role={role}
       data-slot="swatch"
       data-selected={selected ? "" : undefined}
       data-unavailable={unavailable ? "" : undefined}
-      aria-pressed={selected}
+      aria-pressed={role === undefined || role === "button" ? selected : undefined}
       className={cn(
         "relative inline-flex size-11 shrink-0 items-center justify-center rounded-full border border-transparent outline-none transition-colors hover:border-border focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 data-selected:border-2 data-selected:border-primary data-unavailable:opacity-60",
         className,

@@ -94,6 +94,7 @@ export type Copy = {
   };
   /** The free-shipping message names the threshold (EUR 150, USD 165, CHF 150) as its locale writes it. */
   announcement: { message: string; link: string };
+  /** `credit` is the name alone ("Shopblok Studio"): MediaFigure's copy adds the "Photo: …". */
   figure: { alt: string; caption: string; credit: string };
   /** The same kinds of strings at the length that breaks a layout (German's are the longest). */
   long: {

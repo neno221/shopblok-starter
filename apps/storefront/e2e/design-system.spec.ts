@@ -7,9 +7,9 @@ import { collectConsole, judgeConsole, type FailedRequest, type Message } from "
 // T24 (D32, D34): every component entry's frame, in two locales and at three widths, against
 // `next start` built with DESIGN_SYSTEM_ENABLED=true (the `design-system` project; CI job
 // `design-system`; SETUP.md, "DS checks (T24)"). One cell is one test, `atoms/price · el · 375`;
-// each checks axe, overflow, the 44 px size of controls, the console (the rules of
-// support/console.ts) and attaches a screenshot of the whole frame. The checks are soft, so a cell
-// reports every check that failed.
+// each checks axe, overflow, the 44 px size of controls, controls nested in a link or a button
+// (T32), the console (the rules of support/console.ts) and attaches a screenshot of the whole
+// frame. The checks are soft, so a cell reports every check that failed.
 //
 // The widths are the viewport tokens the DS's own switcher uses (375, 768, 1440). D34 names `en`
 // and `el`, so it is those two and not the four locales of the page: `el` is the one with the other
@@ -202,6 +202,45 @@ async function undersizedControls(page: Page, min: number): Promise<Finding[]> {
   }, min);
 }
 
+/**
+ * Interactive elements inside a link or a button (T32): HTML's content model forbids them, and a
+ * screen reader names the outer control by the inner one's text. axe's `nested-interactive` only
+ * looks inside roles whose children are presentational (a button, a tab), not inside a link, so a
+ * button in a ProductCard's stretched link would pass it. Runs in the page.
+ */
+async function nestedControls(page: Page): Promise<Finding[]> {
+  return page.evaluate(() => {
+    const outer = 'a[href], button, [role="button"], [role="link"]';
+    const inner = [
+      "a[href]",
+      "button",
+      'input:not([type="hidden"])',
+      "select",
+      "textarea",
+      "summary",
+      '[contenteditable="true"]',
+      ...["button", "link", "checkbox", "radio", "switch", "tab", "menuitem", "slider"].map(
+        (role) => `[role="${role}"]`,
+      ),
+    ].join(", ");
+    const describe = (el: Element) => {
+      const slot = el.getAttribute("data-slot");
+      const text = (el.textContent ?? "").trim().slice(0, 30);
+      return `${el.tagName.toLowerCase()}${slot ? `[data-slot=${slot}]` : ""}${text ? ` "${text}"` : ""}`;
+    };
+    const findings: { selector: string; detail: string }[] = [];
+    for (const el of document.querySelectorAll(outer))
+      for (const nested of el.querySelectorAll(`${inner}, [tabindex]`)) {
+        // A `tabindex` alone makes a control only when it is a Tab stop (0 or more, not -1 or -2).
+        if (!nested.matches(inner) && (nested as HTMLElement).tabIndex < 0) continue;
+        // Not there for people: hidden, inert, or out of the accessibility tree.
+        if (nested.closest('[aria-hidden="true"], [hidden], [inert]')) continue;
+        findings.push({ selector: describe(nested), detail: `inside ${describe(el)}` });
+      }
+    return findings;
+  });
+}
+
 /** Elements that hide or clip their overflow and have more content than box (D34). Runs in the page. */
 async function clippedElements(page: Page): Promise<Finding[]> {
   return page.evaluate(() => {
@@ -301,6 +340,9 @@ for (const id of ids) {
         expect
           .soft(lines(await clippedElements(page)), "elements clip content without data-truncate")
           .toEqual([]);
+        expect
+          .soft(lines(await nestedControls(page)), "interactive elements inside a link or a button")
+          .toEqual([]);
 
         expect
           .soft(
@@ -354,8 +396,7 @@ if (problem === undefined) {
             inner.y + inner.height <= outer.y + outer.height + 1;
           return inside ? "inside" : `${JSON.stringify(inner)} outside ${JSON.stringify(outer)}`;
         };
-        await expect
-          .soft
+        await expect.soft
           .poll(placement, { message: `the ${slot} lies inside its box`, timeout: 5_000 })
           .toBe("inside");
       }

@@ -160,7 +160,7 @@ export const fr: Copy = {
   figure: {
     alt: "Une personne en sweat à capuche couleur avoine marche le long d’un quai au lever du soleil",
     caption: "La collection d’automne, photographiée sur le port.",
-    credit: "Photo : Shopblok Studio",
+    credit: "Shopblok Studio",
   },
   long: {
     productTitle:

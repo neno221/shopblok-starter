@@ -10,15 +10,18 @@ const atom = (id: string, extra: Partial<EntryInput> = {}): EntryInput => ({
 });
 
 describe("the registry (D40)", () => {
-  it("lists M1's 8 foundations and 32 atoms, in the navigation's order", () => {
+  it("lists M1's 8 foundations and 32 atoms, then T32's 15 molecules, in the navigation's order", () => {
     expect(byGroup("foundations")).toHaveLength(8);
     expect(byGroup("atoms")).toHaveLength(32);
-    expect(entries).toHaveLength(40);
+    expect(byGroup("molecules")).toHaveLength(15);
+    expect(entries).toHaveLength(55);
     expect(entries.map((entry) => entry.id).slice(0, 2)).toEqual([
       "foundations/colors",
       "foundations/typography",
     ]);
-    expect(entries.at(-1)?.id).toBe("atoms/flag");
+    expect(byGroup("atoms").at(-1)?.id).toBe("atoms/flag");
+    expect(byGroup("molecules").at(0)?.id).toBe("molecules/price-block");
+    expect(entries.at(-1)?.id).toBe("molecules/media-figure");
   });
 
   it("gives every entry a unique `{group}/{slug}` id in a known group, and a label", () => {
@@ -40,6 +43,17 @@ describe("the registry (D40)", () => {
     for (const entry of byGroup("foundations")) {
       expect(entry.kind, entry.id).toBe("foundation");
       expect(entry.component, entry.id).toBeUndefined();
+    }
+  });
+
+  it("names the @shopblok/ui/molecules export of every molecule, and its contract (D41)", () => {
+    for (const entry of byGroup("molecules")) {
+      expect(entry.kind, entry.id).toBe("molecule");
+      expect(entry.component?.module, entry.id).toMatch(
+        /^@shopblok\/ui\/molecules\/[a-z-]+(\/[a-z-]+)?$/,
+      );
+      expect(entry.component?.name, entry.id).toMatch(/^[A-Z][A-Za-z]+$/);
+      expect(entry.contract, entry.id).toBeDefined();
     }
   });
 
@@ -113,11 +127,34 @@ describe("defineEntries", () => {
     ]);
     expect(member?.thumbnail).toBe("/registry/organisms/header-classic.png");
     expect(single?.thumbnail).toBeUndefined();
-    for (const entry of entries) expect(entry.thumbnail, entry.id).toBeUndefined();
+    for (const entry of entries)
+      expect(entry.thumbnail, entry.id).toBe(
+        entry.family === undefined ? undefined : `/registry/${entry.id}.png`,
+      );
   });
 });
 
 describe("variantsOf", () => {
+  it("lists ProductCard's ten variants (D46), in the navigation's order", () => {
+    expect(variantsOf("product-card").map((option) => option.value)).toEqual([
+      "standard",
+      "swatches",
+      "quick-add",
+      "overlay",
+      "minimal",
+      "horizontal",
+      "compact",
+      "editorial",
+      "bordered",
+      "image-swap",
+    ]);
+    expect(variantsOf("product-card")[0]).toEqual({
+      value: "standard",
+      label: "ProductCard · Standard",
+      thumbnail: "/registry/molecules/product-card-standard.png",
+    });
+  });
+
   it("lists a family's variants as a Payload picker needs them (value, label, thumbnail)", () => {
     const list = defineEntries([
       {

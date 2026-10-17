@@ -156,7 +156,7 @@ export const en: Copy = {
   figure: {
     alt: "A person in an oatmeal hoodie walking along a harbor wall at sunrise",
     caption: "The autumn collection, photographed on location by the harbor.",
-    credit: "Photo: Shopblok Studio",
+    credit: "Shopblok Studio",
   },
   long: {
     productTitle:

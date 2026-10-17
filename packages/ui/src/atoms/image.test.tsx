@@ -10,7 +10,13 @@ const frameOf = (container: HTMLElement) =>
 describe("Image", () => {
   it("renders the picture named by its alt, in a frame with an aspect ratio and a radius token", () => {
     const { container } = render(
-      <Image src={sampleImage.src} alt="A folded hoodie" ratio="portrait" radius="lg" />,
+      <Image
+        src={sampleImage.src}
+        sizes="320px"
+        alt="A folded hoodie"
+        ratio="portrait"
+        radius="lg"
+      />,
     );
     expect(screen.getByRole("img", { name: "A folded hoodie" })).toBeTruthy();
     const frame = frameOf(container);
@@ -20,13 +26,15 @@ describe("Image", () => {
   });
 
   it("is a square with the md radius by default", () => {
-    const { container } = render(<Image src={sampleImage.src} alt="x" />);
+    const { container } = render(<Image src={sampleImage.src} sizes="320px" alt="x" />);
     expect(frameOf(container).className).toContain("aspect-square");
     expect(frameOf(container).className).toContain("rounded-md");
   });
 
   it("shows a skeleton until the picture has loaded, then hides it", async () => {
-    const { container } = render(<Image src={sampleImage.src} alt="A folded hoodie" />);
+    const { container } = render(
+      <Image src={sampleImage.src} sizes="320px" alt="A folded hoodie" />,
+    );
     const frame = frameOf(container);
     expect(frame.querySelector("[data-slot=image-placeholder]")).not.toBeNull();
     expect(frame.getAttribute("data-loaded")).toBeNull();
@@ -38,7 +46,9 @@ describe("Image", () => {
 
   it("drops the skeleton and marks the frame when the picture fails to load", async () => {
     // A data URI that does not decode, so nothing loads after the error.
-    const { container } = render(<Image src="data:image/png;base64,AAAA" alt="A folded hoodie" />);
+    const { container } = render(
+      <Image src="data:image/png;base64,AAAA" sizes="320px" alt="A folded hoodie" />,
+    );
     const frame = frameOf(container);
     fireEvent.error(screen.getByRole("img", { name: "A folded hoodie" }));
     await waitFor(() => expect(frame.getAttribute("data-failed")).toBe(""));
@@ -51,34 +61,46 @@ describe("Image", () => {
 
   it("shows the skeleton again for a new src", async () => {
     const other = `${sampleImage.src}#other`;
-    const { container, rerender } = render(<Image src={sampleImage.src} alt="x" />);
+    const { container, rerender } = render(<Image src={sampleImage.src} sizes="320px" alt="x" />);
     const frame = frameOf(container);
     fireEvent.load(screen.getByRole("img"));
     await waitFor(() => expect(frame.getAttribute("data-loaded")).toBe(""));
-    rerender(<Image src={other} alt="x" />);
+    rerender(<Image src={other} sizes="320px" alt="x" />);
     expect(frame.getAttribute("data-loaded")).toBeNull();
     expect(frame.querySelector("[data-slot=image-placeholder]")).not.toBeNull();
   });
 
   it("hides the skeleton from assistive technology", () => {
-    const { container } = render(<Image src={sampleImage.src} alt="x" />);
+    const { container } = render(<Image src={sampleImage.src} sizes="320px" alt="x" />);
     expect(
       container.querySelector("[data-slot=image-placeholder]")?.getAttribute("aria-hidden"),
     ).toBe("true");
   });
 
   it("takes an empty alt, but only when it is passed on purpose", () => {
-    const { container } = render(<Image src={sampleImage.src} alt="" />);
+    const { container } = render(<Image src={sampleImage.src} sizes="320px" alt="" />);
     expect(container.querySelector("img")?.getAttribute("alt")).toBe("");
   });
 
   it("requires alt", () => {
     // @ts-expect-error -- `alt` is required: an image needs a description, or an empty one on purpose.
-    render(<Image src={sampleImage.src} />);
+    render(<Image src={sampleImage.src} sizes="320px" />);
+  });
+
+  it("requires sizes, so a card cannot fetch a full-width source by leaving it out", () => {
+    // @ts-expect-error -- `sizes` is required (PR 43 review, item 13).
+    render(<Image src={sampleImage.src} alt="x" />);
+  });
+
+  it("passes sizes on to the picture, with the sources it picks from", () => {
+    // A path, not the data URI: next/image writes no srcset or sizes for a data URI.
+    render(<Image src="/hoodie.jpg" alt="x" sizes="(min-width: 768px) 25vw, 50vw" />);
+    expect(screen.getByRole("img").getAttribute("srcset")).toContain("w=640");
+    expect(screen.getByRole("img").getAttribute("sizes")).toBe("(min-width: 768px) 25vw, 50vw");
   });
 
   it.each(longLabels)("takes a long %s alt", (_locale, strings) => {
-    render(<Image src={sampleImage.src} alt={strings.imageAlt} />);
+    render(<Image src={sampleImage.src} sizes="320px" alt={strings.imageAlt} />);
     expect(screen.getByRole("img", { name: strings.imageAlt })).toBeTruthy();
   });
 });

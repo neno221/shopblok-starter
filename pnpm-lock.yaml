@@ -486,6 +486,9 @@ importers:
       '@shopblok/i18n':
         specifier: workspace:*
         version: link:../i18n
+      '@shopblok/registry':
+        specifier: workspace:*
+        version: link:../registry
       class-variance-authority:
         specifier: 0.7.1
         version: 0.7.1
