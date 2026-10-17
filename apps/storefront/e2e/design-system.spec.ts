@@ -275,6 +275,10 @@ async function clippedElements(page: Page): Promise<Finding[]> {
       const overY = clips(style.overflowY) && el.scrollHeight > el.clientHeight + 1;
       if (!overX && !overY) continue;
       if (el.closest("[data-truncate]")) continue;
+      // T37: a carousel's viewport hides the slides that are not in view, which its arrows, its
+      // arrow keys and a swipe bring in (and focus, too: embla scrolls a focused slide into view).
+      // The viewport alone is let off; what is inside a slide is checked like everything else.
+      if (el.matches('[data-slot="carousel-content"]')) continue;
       // Visually hidden text is clipped on purpose: `sr-only`, and Base UI's own (a 1 px box with
       // `clip-path`) for its live regions and hidden inputs.
       if (el.closest(".sr-only") || (el.clientWidth <= 1 && el.clientHeight <= 1)) continue;

@@ -147,7 +147,10 @@ export const fr: Copy = {
       "sweat à capuche oversize",
       "sweat à capuche en coton biologique",
     ],
+    recent: ["chemise en lin", "sweat", "chaussettes en laine", "tote bag en toile"],
+    misspelt: "sweaat",
   },
+  carousel: { title: "Nouveautés", viewAll: "Voir toutes les nouveautés" },
   facets: {
     category: "Catégorie",
     colour: "Couleur",

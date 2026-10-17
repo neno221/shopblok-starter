@@ -60,4 +60,14 @@ checkRoutesInDev([
     status: 200,
   })),
   { path: "/design-system/de/organisms/cookie-consent", status: 200 },
+  // T37: the search overlay in each locale (Base UI's Autocomplete in a dialog, and the DS's search
+  // fixture that answers it), and one page each for the carousel (embla), the filter drawer's sheet
+  // and the compare tray.
+  ...locales.map((locale) => ({
+    path: `/design-system/${locale}/organisms/search-overlay`,
+    status: 200,
+  })),
+  { path: "/design-system/el/organisms/product-carousel", status: 200 },
+  { path: "/design-system/fr/organisms/filter-drawer", status: 200 },
+  { path: "/design-system/de/organisms/compare-tray", status: 200 },
 ]);

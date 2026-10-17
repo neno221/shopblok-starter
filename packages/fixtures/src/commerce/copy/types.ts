@@ -95,7 +95,12 @@ export type Copy = {
     query: string;
     categories: [string, string];
     suggestions: [string, string, string];
+    /** SearchOverlay's (T37): the visitor's last queries, newest first, and one that finds nothing. */
+    recent: [string, string, string, string];
+    misspelt: string;
   };
+  /** ProductCarousel's heading and its link to the listing (T37). */
+  carousel: { title: string; viewAll: string };
   facets: {
     category: string;
     colour: string;

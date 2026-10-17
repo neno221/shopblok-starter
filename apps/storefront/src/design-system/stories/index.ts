@@ -17,6 +17,8 @@ import { productCardStories } from "./molecules-product-card";
 import { siteMoleculeStories } from "./molecules-site";
 import { bannerOrganismStories } from "./organisms-banners";
 import { navigationOrganismStories } from "./organisms-navigation";
+import { productListOrganismStories } from "./organisms-product-lists";
+import { searchFilterOrganismStories } from "./organisms-search-filters";
 import { siteOrganismStories } from "./organisms-site";
 
 // What the DS page says about each registry entry (D40): its summary, a11y notes, live render and
@@ -41,6 +43,8 @@ export const stories: Record<EntryId, DsStory> = {
   ...bannerOrganismStories,
   ...navigationOrganismStories,
   ...siteOrganismStories,
+  ...searchFilterOrganismStories,
+  ...productListOrganismStories,
   ...headerStories,
   ...footerStories,
 };

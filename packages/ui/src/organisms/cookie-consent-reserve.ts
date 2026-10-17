@@ -1,6 +1,8 @@
 // Ours (T36, SETUP.md "Footers and site organisms (T36)"; WCAG 2.4.11 Focus Not Obscured). CookieConsent's
 // banner is fixed to the bottom of the window and the page behind it stays usable, so a control the
-// visitor tabs to near the bottom could end up under it. The banner's height is therefore reserved
+// visitor tabs to near the bottom could end up under it. It is shared by every bar of this kind:
+// CompareTray (T37) reserves its height with the same function, and a page that shows both gets the
+// taller of the two, since they sit on the same edge. The banner's height is therefore reserved
 // at the end of the page's scrollport, on the root element, in two ways that work together:
 // - `scroll-padding-block-end` makes the browser's own scrolling (a Tab to a link, `focus()`, a
 //   jump to an anchor) leave the scrollport's last `height` px alone, so a control it scrolls into

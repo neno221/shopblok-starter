@@ -33,6 +33,7 @@ import {
 import { buildFooter } from "./footer";
 import { buildHeader } from "./header";
 import { buildEmptyStates } from "./listing";
+import { buildListingOrganisms } from "./listing-organisms";
 import { buildMarketing } from "./marketing";
 import { buildPaymentSamples } from "./payment-samples";
 import { buildSite } from "./site";
@@ -51,6 +52,9 @@ export function buildCommerceFixture(locale: DesignSystemLocale, copy: Copy): Co
   const markets = buildMarkets(ctx);
   const cart = buildCart(ctx);
   const paymentMethods = buildPaymentMethods(ctx);
+  const search = buildSearch(ctx, products);
+  const activeFilters = buildActiveFilters(ctx, facets);
+  const emptyStates = buildEmptyStates(ctx);
   return {
     locale,
     market: { ...ctx.market },
@@ -70,14 +74,22 @@ export function buildCommerceFixture(locale: DesignSystemLocale, copy: Copy): Co
     paymentMethods,
     savedPaymentMethods: buildSavedPaymentMethods(ctx),
     shippingOptions: buildShippingOptions(ctx),
-    search: buildSearch(ctx, products),
+    search,
     facets,
     // The chips come from the same facets as the sidebar, so the two cannot drift.
-    activeFilters: buildActiveFilters(ctx, facets),
+    activeFilters,
     announcement: buildAnnouncement(ctx),
     header: buildHeader(ctx, navigation, markets, cart.itemCount),
     figure: buildFigure(ctx),
-    emptyStates: buildEmptyStates(ctx),
+    emptyStates,
+    listing: buildListingOrganisms(
+      ctx,
+      products,
+      search,
+      facets,
+      activeFilters,
+      emptyStates.filters,
+    ),
     marketing: buildMarketing(ctx),
     site: buildSite(ctx),
     paymentSamples: buildPaymentSamples(ctx),

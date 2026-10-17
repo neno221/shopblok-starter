@@ -86,4 +86,18 @@ export const interactions = {
     focus: "inside",
     trap: true,
   },
+  // T37: the search overlay, a dialog opened from its button, and the filter drawer, a sheet opened
+  // from the toolbar's filter button.
+  "organisms/search-overlay": {
+    trigger: '[data-slot="search-overlay-trigger"]',
+    opens: '[data-slot="search-overlay"]',
+    focus: "inside",
+    trap: true,
+  },
+  "organisms/filter-drawer": {
+    trigger: '[data-slot="filter-drawer-trigger"]',
+    opens: '[data-slot="filter-drawer"]',
+    focus: "inside",
+    trap: true,
+  },
 } as const satisfies Partial<Record<EntryId, DsInteraction>>;

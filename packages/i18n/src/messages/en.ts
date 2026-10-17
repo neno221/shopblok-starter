@@ -497,6 +497,73 @@ export const en = {
       cart: "Loading your cart",
       accountList: "Loading your account",
     },
+    // T37: the listing organisms.
+    searchOverlay: {
+      // The button that opens the overlay, and the dialog's name.
+      open: "Search",
+      title: "Search the store",
+      // The field's name, and the same words as its placeholder.
+      label: "Search products",
+      placeholder: "Search products",
+      close: "Close search",
+      recent: "Recent searches",
+      clearRecent: "Clear recent searches",
+      products: "Products",
+      categories: "Categories",
+      suggestions: "Suggestions",
+      // The form's submit: the search page with every result.
+      seeAll: "{count, plural, one {See # result} other {See all # results}}",
+      // Announced politely as the results change (WCAG 4.1.3).
+      loading: "Searching…",
+      status: "{count, plural, =0 {No results} one {# result} other {# results}}",
+      noResults: "No results for “{query}”",
+      noResultsHint: "Check the spelling, or try a more general word.",
+    },
+    filterSidebar: {
+      // The form's heading and name.
+      title: "Filters",
+      apply: "Apply filters",
+    },
+    filterDrawer: {
+      // The button that opens the drawer, and how many filters are chosen, read after it.
+      open: "Filters",
+      chosen: "{count, plural, one {# filter chosen} other {# filters chosen}}",
+      title: "Filters",
+      close: "Close filters",
+      show: "{count, plural, =0 {No results} one {Show # result} other {Show # results}}",
+      clear: "Clear all",
+    },
+    productToolbar: {
+      count: "{count, plural, =0 {No products} one {# product} other {# products}}",
+      // The grid or list toggle's name, and its two buttons.
+      view: "View",
+      grid: "Grid",
+      list: "List",
+    },
+    productGrid: {
+      // The list of products' name.
+      label: "Products",
+    },
+    productCarousel: {
+      // What a screen reader calls the carousel and each slide (`aria-roledescription`).
+      carousel: "carousel",
+      slide: "slide",
+      previous: "Previous products",
+      next: "Next products",
+      // A slide's name, and what is announced when the carousel moves.
+      position: "{index, number} of {count, number}",
+      showing: "Showing {from, number} to {to, number} of {count, number}",
+    },
+    compareTray: {
+      region: "Compare products",
+      count: "{count, number} of {max, number} chosen",
+      remove: "Remove {title}",
+      clear: "Remove all",
+      compare: "Compare",
+      // Shown while too few products are chosen; the compare link waits for them.
+      needMore:
+        "{count, plural, one {Choose # more product to compare} other {Choose # more products to compare}}",
+    },
   },
   notFound: {
     title: "Page not found",
