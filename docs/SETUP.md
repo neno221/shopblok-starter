@@ -3182,3 +3182,33 @@ The owner went through the DS page against the kit in Figma and approved it on 2
 - **The storefront's log under `pnpm dev`** had the wiring page's `An error occurred in the Server Components render` while Medusa was still starting; that is the carried-over behaviour of a backend outage on the M0 wiring page (ADR 0004), and `/us` answered 200.
 - `git status` was clean after every step; neither turbo nor `next dev` touched the `AGENTS.md` files.
 - **The `.env` files were parked in `E:\shopblok-starter-w3-env`** for step 4 and moved back; the empty folder is left, because the session cannot delete a folder at a drive's root.
+
+## The wait for networkidle (PR 48)
+
+**Result: `dev-console.spec.ts` waits 30 s at most for `networkidle`, then names the requests still open.** PR 48 changes only docs, and its `e2e-smoke` failed twice in its last step, "Console of the storefront in next dev" ([run 38985341436](https://github.com/stephanos221/shopblok-starter/actions/runs/38985341436), attempts 1 and 2). The same step passed on `main` an hour before (run 38981232705).
+
+| | Attempt 1 | Attempt 2 |
+|---|---|---|
+| Routes that hung on the first try | `/`, typography in `en`, `el` and `de`, Select in `fr` | `/`, `/ch/fr`, typography in `el`, Select in `en` |
+| Of those, also on the retry | typography in `en` and `de` | typography in `el` |
+| How they failed | `Test timeout of 90000ms exceeded`, at `page.waitForLoadState("networkidle")` | the same |
+
+- Every try that finished saw 0 console messages and no failed request, and the retries passed in 4 to 15 s.
+- `next dev`'s log answers every request of a hung try in under 2 s, with no error, so what stayed open was in the browser.
+- **Off the runner it does not happen.** A probe recorded every request on the same routes in `next dev`:
+  - it reached `networkidle` about 0.5 s after `load` on each, on 4 cores and on 2 (`taskset -c 0,1`, a cold `.next/dev`);
+  - nothing was left open;
+  - a DS page with the viewport switcher makes about 122 requests (the page, its three frame iframes and their chunks).
+- The run's traces are in the `playwright-report` artifact, but this cloud session cannot download artifacts (the proxy refuses their storage host).
+
+**The change.** `waitForIdle` waits 30 s at most, then lists the requests still open:
+
+- one of this server's documents, scripts or stylesheets fails the test at once, because the first render may not have run, so a clean console would prove nothing;
+- anything else (a font, an image, a fetch) is a warning, and the check goes on.
+
+So a hang now costs 30 s instead of 90 s, and the report says which request it was. The same function, in T27's `support/dev-console.ts`, was checked with two mutations, each started after `load` with `page.route` and `idleMs` at 5 s:
+
+- a `fetch` that never answers: a warning (`fetch http://localhost:8000/hang-fetch (open 5 s)`), and the test passes;
+- a `<script>` that never answers: the test fails, naming `script http://localhost:8000/hang.js`.
+
+A resource that never answers before `load` blocks `page.goto` itself, which is unchanged. The ten DS routes of `dev-console` passed locally with the change.
