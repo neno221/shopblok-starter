@@ -3903,7 +3903,7 @@ Each applied, checked and reverted from a copy.
 - **Before hydration** the remove confirmation cannot open without `confirmHref`, and the resend's wait is the number at render time; a reload asks the server again.
 - **The Greek, German and French copy** of the new keys was drafted in this session, for W4's read.
 
-**CI fix (PR 56).** `check (Node 22)` failed two French cases in `molecules-cart.test.tsx` and `molecules-checkout.test.tsx`: the runner's Node 22 ICU writes fr-CH thousands with `'` (`1'234'567.89 CHF`; Node 22.22 here writes a narrow no-break space), and React escapes `'` in the markup as `&#x27;`, which the tests' `text()` did not decode. Both now decode entities, as `molecules-address.test.tsx` and `molecules-payment.test.tsx` already did.
+**CI fix (PR 56).** `check (Node 22)` failed two French cases in `molecules-cart.test.tsx` and `molecules-checkout.test.tsx`: the runner's Node 22 ICU writes fr-CH thousands with `'` (`1'234'567.89 CHF`; Node 22.22 here writes a narrow no-break space), and React escapes `'` in the markup as `&#x27;`, which the tests' `text()` did not decode. Both now decode entities, as `molecules-address.test.tsx` and `molecules-payment.test.tsx` already did. The cart test's `says` (and four lines like it) still escaped the expected sentence, so on the runner a decoded `'` met an expected `&#x27;`; text that has been decoded is now compared with the sentence as it is.
 
 
 ### Review fixes (PR 56)

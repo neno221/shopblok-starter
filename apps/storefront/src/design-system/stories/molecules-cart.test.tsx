@@ -83,7 +83,7 @@ const decode = (text: string) =>
 const text = (markup: string) =>
   plain(decode(markup.replace(/<[^>]*>/g, "").replace(/\s+/g, " ")));
 const says = (markup: string, sentence: string) =>
-  expect(text(markup)).toContain(plain(escaped(sentence)));
+  expect(text(markup)).toContain(plain(sentence));
 const htmlLang = (locale: Locale) => createContext(locale).fixture.market.htmlLang;
 const fixture = (locale: Locale) => commerceFixtures[locale];
 const copy = (locale: Locale) => catalogs[locale].molecules;
@@ -323,7 +323,7 @@ describe("CartLineItem's states", () => {
     const pending = html(id, "pending", locale);
     expect(pending).toContain('aria-busy="true"');
     expect(pending).toContain("data-pending");
-    expect(text(pending)).toContain(plain(escaped(c.updating)));
+    expect(text(pending)).toContain(plain(c.updating));
     expect(pending).toMatch(
       /<button type="button"[^>]*aria-disabled="true"[^>]*data-slot="icon-button"/,
     );
@@ -353,7 +353,7 @@ describe("CartLineItem's states", () => {
     const longPending = html(id, "long-pending", locale);
     says(longPending, long.cartLine.title);
     expect(longPending).toContain('aria-busy="true"');
-    expect(text(longPending)).toContain(plain(escaped(c.updating)));
+    expect(text(longPending)).toContain(plain(c.updating));
   });
 
   it("posts both forms to the page itself, and puts the line's id in each", () => {
@@ -445,7 +445,7 @@ describe("PromoCodeField's states", () => {
     expect(applying).toMatch(/<button type="submit" disabled="" hidden=""/);
     expect(applying).toMatch(/<button type="button"[^>]*aria-disabled="true"/);
     expect(applying).toMatch(/readOnly=""/);
-    expect(text(applying)).toContain(plain(escaped(c.applying)));
+    expect(text(applying)).toContain(plain(c.applying));
     expect(applying).toContain(`value="${promo.typed.code}"`);
 
     // Removing: the remove buttons are inert and the line says so.
@@ -454,8 +454,8 @@ describe("PromoCodeField's states", () => {
     expect(removing).toMatch(
       /<button type="button"[^>]*aria-disabled="true"[^>]*data-slot="promo-code-remove-button"/,
     );
-    expect(text(removing)).toContain(plain(escaped(c.removing)));
-    expect(text(applying)).not.toContain(plain(escaped(c.removing)));
+    expect(text(removing)).toContain(plain(c.removing));
+    expect(text(applying)).not.toContain(plain(c.removing));
 
     // The longest code, applied and typed, with the longest error.
     const long = html(id, "long", locale);
