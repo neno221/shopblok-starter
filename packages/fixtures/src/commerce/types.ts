@@ -22,6 +22,7 @@ import type {
   ShippingOption,
 } from "@shopblok/registry/contracts";
 import type { DesignSystemLocale, DesignSystemMarket } from "../design-system";
+import type { AddressFormState } from "@shopblok/registry/contracts";
 import type { AccordionSection, ToastMessage } from "@shopblok/registry/contracts";
 
 /** A section of a FAQ: the contract's heading and id, and the answer in paragraphs. */
@@ -30,6 +31,13 @@ export type FaqItem = AccordionSection & { answer: string[] };
 /** A toast and the words of the button that shows it. */
 export type ToastSample = { trigger: string; message: ToastMessage };
 import type { Countdown, DiscountCode, NewsletterSignup } from "@shopblok/registry/contracts";
+import type { FreeShipping, PromoCodeEntry } from "@shopblok/registry/contracts";
+import type {
+  ShippingEstimate,
+  StepperState,
+  SummaryLine,
+  VerificationRequest,
+} from "@shopblok/registry/contracts";
 
 /**
  * What one locale's commerce fixtures hold (M2 plan, T30 step 3): a value of each view model of
@@ -52,6 +60,18 @@ export type CommerceFixture = {
   cart: Cart;
   /** One address in each DS market's country (CY, US, DE, CH), each in its format. */
   addresses: Address[];
+  /** The sample data of AddressForm and AddressCard beyond the address book (T34). */
+  addressSamples: {
+    /** The seeded markets the address book leaves out: the United Kingdom and France. */
+    gb: Address;
+    fr: Address;
+    /** Japan, which no market seeds: a country added in settings (Principle 10). */
+    jp: Address;
+    /** A country Google's format data does not list (`ic`): the generic form. */
+    generic: Address;
+    /** A US form with a state missing and a four-digit ZIP code: what a failed submit hands back. */
+    mistaken: AddressFormState["values"];
+  };
   /** Two orders: one delivered (its whole history), one placed and paid. */
   orders: Order[];
   reviews: Review[];
@@ -107,6 +127,101 @@ export type CommerceFixture = {
     };
     /** One toast of each kind, and a long one, each with the words of the button that shows it. */
     toasts: { success: ToastSample; error: ToastSample; info: ToastSample; long: ToastSample };
+  };
+  /** The sample data of CartLineItem, FreeShippingProgress and PromoCodeField (T34). */
+  cartSamples: {
+    /** The cart's own lines are the regular, sale and low-stock cases; these are the other states. */
+    lines: {
+      /** Cannot be bought: the quantity cannot change, the line can be removed. */
+      outOfStock: CartLine;
+      /** The quantity is the most the stock allows. */
+      atLimit: CartLine;
+      /** A product with no picture. */
+      noImage: CartLine;
+      /** A product with no options (one variant). */
+      noOptions: CartLine;
+    };
+    /** From nothing in the cart to the threshold reached, and an amount of seven digits. */
+    freeShipping: {
+      empty: FreeShipping;
+      almost: FreeShipping;
+      reached: FreeShipping;
+      large: FreeShipping;
+    };
+    /** The promotion field: empty, a code applied, a code typed, two applied, and the longest. */
+    promo: {
+      empty: PromoCodeEntry;
+      applied: PromoCodeEntry;
+      typed: PromoCodeEntry;
+      two: PromoCodeEntry;
+      /** A code of 40 characters with nowhere to break, applied and typed. */
+      long: PromoCodeEntry;
+    };
+  };
+  /** The sample data of SavedPaymentMethodCard and PaymentMethodCard (T34): the states the account's own are not. */
+  paymentSamples: {
+    /** Expired the month before `fixtureNow`. */
+    expiredCard: SavedPaymentMethod;
+    /** Expires in `fixtureNow`'s month: a card works through its last day. */
+    expiringCard: SavedPaymentMethod;
+    /** The longest holder's name, on the default card. */
+    longHolderCard: SavedPaymentMethod;
+    /** No holder's name. */
+    anonymousCard: SavedPaymentMethod;
+    /** A method whose name is the length that breaks a layout, with three marks. */
+    longMethod: PaymentMethod;
+  };
+  /** The sample data of OrderSummaryRow, Stepper, ShippingEstimator and VerificationNotice (T34). */
+  checkoutFlow: {
+    /** The rows of a summary from the cart's totals, and the states a row can be in. */
+    summary: {
+      subtotal: SummaryLine;
+      /** The amount taken off, with the cart's promotion code beside it. */
+      discount: SummaryLine;
+      /** No amount yet: shipping before an option is chosen. */
+      shippingPending: SummaryLine;
+      /** The standard delivery's price. */
+      shippingPaid: SummaryLine;
+      shippingFree: SummaryLine;
+      /** The tax the price includes; with no amount where the market adds it at checkout (US). */
+      tax: SummaryLine;
+      total: SummaryLine;
+      /** A discount whose code is 40 characters with nowhere to break. */
+      longDetail: SummaryLine;
+      /** A total of seven digits before the decimals. */
+      large: SummaryLine;
+    };
+    /** Steps of a flow at each place the reader can be; only the steps already done have an `href`. */
+    steps: {
+      /** Checkout's three steps (SPEC §8.4), on the first, the second and the third. */
+      contact: StepperState;
+      delivery: StepperState;
+      review: StepperState;
+      /** The cart, contact, delivery, payment and review, on the payment. */
+      five: StepperState;
+      /** Four steps at the length that breaks a layout, on the third. */
+      long: StepperState;
+    };
+    /** The estimator before it is sent, with one country, answered, with nothing to offer, and so on. */
+    estimator: {
+      empty: ShippingEstimate;
+      /** A region of one country: nothing to choose. */
+      single: ShippingEstimate;
+      /** The market's country and address, with every shipping option (one of them not available). */
+      answered: ShippingEstimate;
+      /** A country the shop does not deliver to: an answer with no option. */
+      none: ShippingEstimate;
+      /** A postal code the country's format refuses, as the server hands it back. */
+      mistaken: ShippingEstimate;
+      /** An option named at the length that breaks a layout, and the pickup. */
+      long: ShippingEstimate;
+    };
+    /** The address a link was sent to: with a wait running, with none, and a very long address. */
+    verification: {
+      waiting: VerificationRequest;
+      ready: VerificationRequest;
+      long: VerificationRequest;
+    };
   };
   /** The same kinds of values at the length that breaks a layout. */
   long: {

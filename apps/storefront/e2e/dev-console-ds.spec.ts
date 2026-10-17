@@ -35,4 +35,14 @@ checkRoutesInDev([
     status: 200,
   })),
   { path: "/design-system/de/molecules/filter-group", status: 200 },
+  // T34: AddressForm in each locale (its client part swaps the fields when the country changes),
+  // and one page each for the other client parts: the cart line's quantity, the saved card's
+  // confirmation dialog, and the verification notice's cooldown clock.
+  ...locales.map((locale) => ({
+    path: `/design-system/${locale}/molecules/address-form`,
+    status: 200,
+  })),
+  { path: "/design-system/el/molecules/cart-line-item", status: 200 },
+  { path: "/design-system/fr/molecules/saved-payment-method-card", status: 200 },
+  { path: "/design-system/de/molecules/verification-notice", status: 200 },
 ]);

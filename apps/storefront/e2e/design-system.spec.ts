@@ -13,7 +13,7 @@ import { collectConsole, judgeConsole, type FailedRequest, type Message } from "
 // `next start` built with DESIGN_SYSTEM_ENABLED=true (the `design-system` project; CI job
 // `design-system`; SETUP.md, "DS checks (T24)"). One cell is one test, `atoms/price · el · 375`;
 // each checks axe, overflow, the 44 px size of controls, controls nested in a link or a button
-// (T32), the console (the rules of support/console.ts) and attaches a screenshot of the whole
+// (T32), content that scrolls sideways in its box (T34), the console (the rules of support/console.ts) and attaches a screenshot of the whole
 // frame. The checks are soft, so a cell reports every check that failed. After the cells: T31's
 // overlay box, T33's interaction checks (D45: an overlay opened from the keyboard) and the bundle
 // test (D49: no flag in a client chunk).
@@ -33,6 +33,19 @@ const widths = viewportWidths();
 
 // The tags of D34 / T24 step 1.
 const axeTags = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"];
+
+/**
+ * axe on the page with D34's tags, without Base UI's focus guards (T34). A guard is an empty
+ * `aria-hidden` span with `tabindex="0"` on each side of an open popup and of its portal, and it
+ * hands focus on the moment it gets it (a React focus handler, which axe cannot see: its own
+ * exemption reads the `onfocus` property). axe's `aria-hidden-focus` reports them as violations
+ * unless it thinks a modal is open, which it decides from a visible `role="dialog"`: MarketSwitcher's
+ * open states pass that way, SavedPaymentMethodCard's alert dialog (`role="alertdialog"`) does not.
+ * Where focus really goes is the interaction checks' to test. Any other `aria-hidden` element that
+ * can take focus is still reported.
+ */
+const axeScan = (page: Page) =>
+  new AxeBuilder({ page }).withTags(axeTags).exclude("[data-base-ui-focus-guard]").analyze();
 
 // The size D32 asks of an interactive element, in CSS px.
 const MIN_SIZE = 44;
@@ -285,6 +298,35 @@ async function clippedElements(page: Page): Promise<Finding[]> {
   });
 }
 
+/**
+ * Boxes whose content scrolls sideways (T34). `overflow-y: auto` computes `overflow-x` to `auto`
+ * too, so content wider than a box that scrolls down (a dialog) scrolls sideways instead of being
+ * clipped, and `clippedElements` does not see it: SavedPaymentMethodCard's confirmation did, its
+ * two buttons side by side in the DS's 200 px box. The boxes that are there to scroll sideways
+ * are left out: a table's container and a scroll area's viewport. Runs in the page.
+ */
+async function sidewaysScrollers(page: Page): Promise<Finding[]> {
+  return page.evaluate(() => {
+    const findings: { selector: string; detail: string }[] = [];
+    const scrolls = (value: string) => value === "auto" || value === "scroll";
+    for (const el of document.body.querySelectorAll("*")) {
+      if (!scrolls(getComputedStyle(el).overflowX) || el.scrollWidth <= el.clientWidth + 1)
+        continue;
+      if (el.closest('[data-slot="table-container"], [data-slot="scroll-area-viewport"]')) continue;
+      const slot = el.getAttribute("data-slot");
+      findings.push({
+        selector: `${el.tagName.toLowerCase()}${slot ? `[data-slot=${slot}]` : ""}${
+          typeof el.className === "string" && el.className
+            ? `.${el.className.trim().split(/\s+/).slice(0, 3).join(".")}`
+            : ""
+        }`,
+        detail: `scrollWidth ${el.scrollWidth} > clientWidth ${el.clientWidth}; text "${(el.textContent ?? "").trim().slice(0, 40)}"`,
+      });
+    }
+    return findings;
+  });
+}
+
 /** One line per finding; the same finding in several states of the frame is said once, with its count. */
 const lines = (findings: Finding[]) => {
   const counts = new Map<string, number>();
@@ -319,7 +361,7 @@ for (const id of ids) {
           contentType: "image/png",
         });
 
-        const axe = await new AxeBuilder({ page }).withTags(axeTags).analyze();
+        const axe = await axeScan(page);
         expect
           .soft(
             axe.violations.map(
@@ -349,6 +391,9 @@ for (const id of ids) {
           .toBeLessThanOrEqual(horizontal.innerWidth);
         expect
           .soft(lines(await clippedElements(page)), "elements clip content without data-truncate")
+          .toEqual([]);
+        expect
+          .soft(lines(await sidewaysScrollers(page)), "content scrolls sideways in its box")
           .toEqual([]);
         expect
           .soft(lines(await nestedControls(page)), "interactive elements inside a link or a button")
@@ -410,7 +455,7 @@ if (problem === undefined) {
           .poll(placement, { message: `the ${slot} lies inside its box`, timeout: 5_000 })
           .toBe("inside");
       }
-      const axe = await new AxeBuilder({ page }).withTags(axeTags).analyze();
+      const axe = await axeScan(page);
       expect
         .soft(
           axe.violations.map((v) => `${v.id}: ${v.help}`),
@@ -471,7 +516,7 @@ if (problem === undefined) {
           await expect(popup).toBeVisible({ timeout: 1_000 });
         }, "Enter on the trigger opens it").toPass({ timeout: 10_000 });
 
-        const axe = await new AxeBuilder({ page }).withTags(axeTags).analyze();
+        const axe = await axeScan(page);
         expect
           .soft(
             axe.violations.map(

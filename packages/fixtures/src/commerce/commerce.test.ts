@@ -23,8 +23,16 @@ import {
 } from "@shopblok/registry/contracts";
 import type { Category as CategoryNode } from "@shopblok/registry/contracts";
 import { EmptyStateContent } from "@shopblok/registry/contracts";
+import { AddressFormState } from "@shopblok/registry/contracts";
 import { AccordionSection, ToastMessage } from "@shopblok/registry/contracts";
 import { Countdown, DiscountCode, NewsletterSignup } from "@shopblok/registry/contracts";
+import { FreeShipping, PromoCodeEntry } from "@shopblok/registry/contracts";
+import {
+  ShippingEstimate,
+  StepperState,
+  SummaryLine,
+  VerificationRequest,
+} from "@shopblok/registry/contracts";
 import {
   designSystemFixtures,
   designSystemLocales,
@@ -231,6 +239,34 @@ describe.each(designSystemLocales)("the %s fixtures", (locale) => {
       expectAllParse(Address, fixture.addresses, `${locale}.addresses`);
     });
 
+    it("addressSamples are Addresses, and the mistaken form an AddressFormState (T34)", () => {
+      const { gb, fr, jp, generic, mistaken } = fixture.addressSamples;
+      expectAllParse(Address, [gb, fr, jp, generic], `${locale}.addressSamples`);
+      const countries = fixture.markets.map((market) => market.country);
+      expectParses(
+        AddressFormState,
+        { countries, values: mistaken },
+        `${locale}.addressSamples.mistaken`,
+      );
+      // Each is where its name says, and none is in the address book (a page with both has no id twice).
+      expect([gb, fr, jp, generic].map((address) => address.countryCode)).toEqual([
+        "gb",
+        "fr",
+        "jp",
+        "ic",
+      ]);
+      const ids = [...fixture.addresses, gb, fr, jp, generic].map((address) => address.id);
+      expect(new Set(ids).size).toBe(ids.length);
+      // Seeded markets sell to GB and FR, Japan is not one of them, and `ic` has no format.
+      expect(countries).toEqual(expect.arrayContaining(["gb", "fr"]));
+      expect(countries).not.toContain("jp");
+      expect(countries).not.toContain("ic");
+      // The mistaken form has what a failed submit shows: a ZIP code of four digits and no state.
+      expect(mistaken.countryCode).toBe("us");
+      expect(mistaken.postalCode).toMatch(/^\d{4}$/);
+      expect(mistaken.province).toBeUndefined();
+    });
+
     it("orders are Orders", () => {
       expectAllParse(Order, fixture.orders, `${locale}.orders`);
     });
@@ -295,6 +331,56 @@ describe.each(designSystemLocales)("the %s fixtures", (locale) => {
       expect(newsletter.empty.email).toBe("");
       // Every countdown is rendered at the fixed now (D50) and none ends before it.
       for (const each of Object.values(countdown)) expect(each.now).toBe(fixtureNow);
+    });
+
+    it("cartSamples are CartLines, FreeShippings and PromoCodeEntries, each the state it names (T34)", () => {
+      const { lines, freeShipping, promo } = fixture.cartSamples;
+      expectAllParse(CartLine, Object.values(lines), `${locale}.cartSamples.lines`);
+      expectAllParse(
+        FreeShipping,
+        Object.values(freeShipping),
+        `${locale}.cartSamples.freeShipping`,
+      );
+      expectAllParse(PromoCodeEntry, Object.values(promo), `${locale}.cartSamples.promo`);
+
+      // Each line is a state the cart's own three do not show, and its total adds up.
+      expect(lines.outOfStock.stock.status).toBe("out");
+      expect(lines.outOfStock.maxQuantity).toBeUndefined();
+      expect(lines.atLimit.quantity).toBe(lines.atLimit.maxQuantity);
+      expect(lines.atLimit.stock).toEqual({ status: "low", quantity: lines.atLimit.maxQuantity });
+      expect(lines.noImage.image).toBeUndefined();
+      expect(lines.noOptions.options).toEqual([]);
+      expect(lines.noOptions.compareAtUnitPrice).toBeUndefined();
+      for (const line of Object.values(lines))
+        expectNear(line.total.amount, line.unitPrice.amount * line.quantity, `${line.id} total`);
+      // They are not the cart's: a page that shows both has no id twice.
+      const ids = [...fixture.cart.lines, ...Object.values(lines)].map((line) => line.id);
+      expect(new Set(ids).size).toBe(ids.length);
+
+      // The bar runs from nothing to the threshold, in the market's currency.
+      const { threshold } = fixture.cart.freeShipping!;
+      expect(freeShipping.empty.remaining).toEqual(threshold);
+      expect(freeShipping.almost.remaining.amount).toBeGreaterThan(0);
+      expect(freeShipping.almost.remaining.amount).toBeLessThan(1);
+      expect(freeShipping.reached.remaining.amount).toBe(0);
+      for (const each of Object.values(freeShipping))
+        expect(each.threshold.currencyCode, `${locale}.cartSamples.freeShipping`).toBe(
+          fixture.market.currency,
+        );
+      expect(freeShipping.large.threshold.amount).toBeGreaterThan(1_000_000);
+
+      // The field: the cart's own code, a refused one kept in the field, and a code that is long.
+      expect(promo.empty).toEqual({ applied: [], code: "" });
+      expect(promo.applied.applied).toEqual(fixture.cart.promoCodes);
+      expect(promo.typed.applied).toEqual([]);
+      expect(promo.typed.code).not.toBe("");
+      expect(promo.two.applied.map((each) => each.code)).toEqual([
+        at(fixture.cart.promoCodes, 0).code,
+        "FREESHIP",
+      ]);
+      expect(at(promo.two.applied, 1).discount).toBeUndefined();
+      expect(at(promo.long.applied, 0).code).toBe(fixture.marketing.longDiscountCode.code);
+      expect(promo.long.code).toBe(fixture.marketing.longDiscountCode.code);
     });
 
     it("the FAQ's sections are AccordionSections and the toasts ToastMessages (T33)", () => {
@@ -883,6 +969,30 @@ describe.each(designSystemLocales)("the %s fixtures", (locale) => {
       expect(options.filter((option) => !option.available)).toHaveLength(1);
       expect(new Set(options.map((option) => option.name)).size).toBe(5);
     });
+
+    it("has the payment samples: an expired card, one that expires this month, the longest holder, no holder and a long method (T34)", () => {
+      const { expiredCard, expiringCard, longHolderCard, anonymousCard, longMethod } =
+        fixture.paymentSamples;
+      const cards = [expiredCard, expiringCard, longHolderCard, anonymousCard];
+      expectAllParse(SavedPaymentMethod, cards, `${locale}.paymentSamples cards`);
+      expectParses(PaymentMethod, longMethod, `${locale}.paymentSamples.longMethod`);
+      const now = new Date(fixtureNow);
+      const thisMonth = now.getUTCFullYear() * 12 + now.getUTCMonth() + 1;
+      const monthOf = (card: { expiryYear: number; expiryMonth: number }) =>
+        card.expiryYear * 12 + card.expiryMonth;
+      // A card works through its last day: the month before the fixed now is over, this one is not.
+      expect(monthOf(expiredCard)).toBe(thisMonth - 1);
+      expect(monthOf(expiringCard)).toBe(thisMonth);
+      expect(monthOf(longHolderCard)).toBeGreaterThan(thisMonth);
+      expect(anonymousCard.holderName).toBeUndefined();
+      expect(longHolderCard.holderName).toBe(ds.long.personName);
+      expect(longMethod.name).toBe(ds.long.optionLabel);
+      expect(longMethod.brands.length).toBe(3);
+      // The account's own cards stay good, and no sample reuses their ids.
+      const ids = [...fixture.savedPaymentMethods, ...cards].map((card) => card.id);
+      expect(new Set(ids).size).toBe(ids.length);
+      expect(fixture.paymentMethods.map((method) => method.id)).not.toContain(longMethod.id);
+    });
   });
 
   describe("search and filters", () => {
@@ -1089,6 +1199,138 @@ describe.each(designSystemLocales)("the %s fixtures", (locale) => {
       expect(german.toasts.long.message.actionLabel?.length ?? 0).toBeGreaterThanOrEqual(
         fixture.site.toasts.long.message.actionLabel?.length ?? 0,
       );
+    });
+  });
+
+  describe("the checkout flow samples (OrderSummaryRow, Stepper, ShippingEstimator, VerificationNotice, T34)", () => {
+    const { summary, steps, estimator, verification } = fixture.checkoutFlow;
+
+    it("parse with their contracts", () => {
+      expectAllParse(SummaryLine, Object.values(summary), `${locale}.checkoutFlow.summary`);
+      expectAllParse(StepperState, Object.values(steps), `${locale}.checkoutFlow.steps`);
+      expectAllParse(
+        ShippingEstimate,
+        Object.values(estimator),
+        `${locale}.checkoutFlow.estimator`,
+      );
+      expectAllParse(
+        VerificationRequest,
+        Object.values(verification),
+        `${locale}.checkoutFlow.verification`,
+      );
+    });
+
+    it("has summary rows that are the cart's own totals, each the state it names", () => {
+      const { cart } = fixture;
+      expect(summary.subtotal).toEqual({ kind: "subtotal", amount: cart.subtotal });
+      // The amount taken off (never negative), with the cart's code beside it.
+      expect(summary.discount).toEqual({
+        kind: "discount",
+        amount: cart.discountTotal,
+        detail: at(cart.promoCodes, 0).code,
+      });
+      expect(summary.total).toEqual({ kind: "total", amount: cart.total });
+      // Shipping: not chosen yet, a delivery's price, and free.
+      expect(summary.shippingPending).toEqual({ kind: "shipping" });
+      expect(summary.shippingPaid.amount).toEqual(
+        fixture.shippingOptions.find((option) => option.id === "so_standard")?.price,
+      );
+      expect(summary.shippingFree.amount?.amount).toBe(0);
+      // Tax is a row where the price includes it, and "calculated later" where it does not.
+      if (vat[market.country] === undefined) expect(summary.tax.amount).toBeUndefined();
+      else expect(summary.tax.amount).toEqual(cart.taxTotal);
+      // The long ones: a code with nowhere to break, and a total of seven digits.
+      expect(summary.longDetail.detail).toBe(fixture.marketing.longDiscountCode.code);
+      expect(summary.longDetail.detail).toHaveLength(40);
+      expect(summary.large.amount?.amount).toBeGreaterThan(1_000_000);
+    });
+
+    it("has steps in the locale's words, with a link only on the steps before the current one", () => {
+      const places = (state: StepperState) =>
+        state.steps.map((step) => [step.id, step.href !== undefined]);
+      expect(steps.contact.steps).toHaveLength(3);
+      expect(steps.contact.current).toBe("contact");
+      expect(places(steps.contact)).toEqual([
+        ["contact", false],
+        ["delivery", false],
+        ["review", false],
+      ]);
+      expect(steps.delivery.current).toBe("delivery");
+      expect(places(steps.delivery)).toEqual([
+        ["contact", true],
+        ["delivery", false],
+        ["review", false],
+      ]);
+      expect(steps.review.current).toBe("review");
+      expect(places(steps.review)).toEqual([
+        ["contact", true],
+        ["delivery", true],
+        ["review", false],
+      ]);
+      expect(steps.five.steps.map((step) => step.id)).toEqual([
+        "cart",
+        "contact",
+        "delivery",
+        "payment",
+        "review",
+      ]);
+      expect(steps.five.current).toBe("payment");
+      expect(steps.five.steps.filter((step) => step.href !== undefined)).toHaveLength(3);
+      expect(steps.long.steps).toHaveLength(4);
+      // The longest labels are long enough to break a layout, in each language.
+      for (const step of steps.long.steps)
+        expect(step.label.length, `${locale} ${step.id}`).toBeGreaterThan(28);
+      // A done step's link is under the market's prefix, as every link is.
+      expect(at(steps.review.steps, 0).href).toBe(`${prefix}/checkout/contact`);
+      expect(at(steps.five.steps, 0).href).toBe(`${prefix}/cart`);
+      if (locale !== "en") {
+        for (const [id, label] of steps.delivery.steps.map((step) => [step.id, step.label]))
+          expect(label, `${locale} ${id}`).not.toBe(
+            commerceFixtures.en.checkoutFlow.steps.delivery.steps.find((step) => step.id === id)
+              ?.label,
+          );
+      }
+    });
+
+    it("has an estimator in each state: not sent, one country, answered, nothing to offer, refused", () => {
+      for (const each of Object.values(estimator)) {
+        expect(each.action).toBe(`${prefix}/cart`);
+        expect(new Set(each.countries).size).toBe(each.countries.length);
+      }
+      // The six countries the shop could deliver to, the market's own first.
+      expect(estimator.empty.countries).toEqual(
+        [market.country, ...markets.countries.map((country) => country.code)].filter(
+          (code, index, all) => all.indexOf(code) === index,
+        ),
+      );
+      expect(estimator.empty.countries).toHaveLength(6);
+      expect(estimator.empty.countryCode).toBeUndefined();
+      expect(estimator.empty.options).toBeUndefined();
+      expect(estimator.empty.postalCode).toBe("");
+      expect(estimator.single.countries).toEqual([market.country]);
+      // Answered: the market's own address, and every option the shop has (one is not available).
+      expect(estimator.answered.countryCode).toBe(market.country);
+      expect(estimator.answered.postalCode).toBe(at(fixture.addresses, 0).postalCode);
+      expect(estimator.answered.options).toEqual(fixture.shippingOptions);
+      expect(estimator.answered.options?.some((option) => !option.available)).toBe(true);
+      expect(estimator.answered.options?.some((option) => option.pickup)).toBe(true);
+      expect(estimator.answered.options?.some((option) => option.price.amount === 0)).toBe(true);
+      // Nothing to offer: answered, with an empty list (not a missing one).
+      expect(estimator.none.options).toEqual([]);
+      expect(estimator.none.countryCode).not.toBe(market.country);
+      // Refused: the code is typed and wrong, with no answer.
+      expect(estimator.mistaken.options).toBeUndefined();
+      expect(estimator.mistaken.postalCode).not.toBe("");
+      // The long one has an option named at the length that breaks a layout.
+      expect(estimator.long.options).toContainEqual(fixture.long.shippingOption);
+    });
+
+    it("has verification requests with a wait running, with none, and with a very long address", () => {
+      expect(verification.waiting.resendInSeconds).toBeGreaterThan(0);
+      expect(verification.ready.resendInSeconds).toBe(0);
+      expect(verification.waiting.email).toBe(fixture.marketing.newsletter.typed.email);
+      expect(verification.long.email).toBe(fixture.marketing.newsletter.long.email);
+      expect(verification.long.email.length).toBeGreaterThan(60);
     });
   });
 

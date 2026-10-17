@@ -28,6 +28,65 @@ export const CartLine = z.object({
 /** A promotion code applied to the cart, and what it takes off. */
 export const PromoCode = z.object({ code: z.string().min(1), discount: Money.optional() });
 
+/**
+ * How far the cart is from free shipping (FreeShippingProgress): the threshold, and what is left.
+ * The bar's share is `1 - remaining / threshold`, so a threshold of 0 is refused: shipping that is
+ * always free has no progress to show, and the resolver sends no `freeShipping` for it.
+ */
+export const FreeShipping = z
+  .object({ threshold: Money, remaining: Money.describe("0 once the threshold is reached") })
+  .superRefine((free, context) => {
+    checkCurrency(context, free.threshold.currencyCode, [[["remaining"], free.remaining]]);
+    if (free.threshold.amount <= 0)
+      context.addIssue({
+        code: "custom",
+        path: ["threshold", "amount"],
+        message: "the threshold is not above 0",
+      });
+    if (free.remaining.amount < 0 || free.remaining.amount > free.threshold.amount)
+      context.addIssue({
+        code: "custom",
+        path: ["remaining"],
+        message: "remaining is below 0 or above the threshold",
+      });
+  });
+
+/**
+ * PromoCodeField (T34): the codes applied to the cart, and what the field holds. A code is listed
+ * once (the chips are keyed by it, and a code is the same in either case), and the discounts are
+ * in one currency, as a cart's are. The error of the last attempt is a prop of the component, not
+ * part of the cart's data.
+ */
+export const PromoCodeEntry = z
+  .object({
+    applied: z.array(PromoCode),
+    code: z.string().describe("What the field holds: kept after an error, empty at first"),
+  })
+  .superRefine((entry, context) => {
+    const seen = new Set<string>();
+    for (const [index, applied] of entry.applied.entries()) {
+      const key = applied.code.toUpperCase();
+      if (seen.has(key))
+        context.addIssue({
+          code: "custom",
+          path: ["applied", index, "code"],
+          message: "a code is applied twice",
+        });
+      seen.add(key);
+    }
+    const currencies = new Set(
+      entry.applied.flatMap((applied) =>
+        applied.discount === undefined ? [] : [applied.discount.currencyCode],
+      ),
+    );
+    if (currencies.size > 1)
+      context.addIssue({
+        code: "custom",
+        path: ["applied"],
+        message: "the discounts are in more than one currency",
+      });
+  });
+
 /** A cart (CartDrawer, the cart page, OrderSummary): its lines and totals, in one currency. */
 export const Cart = z
   .object({
@@ -41,10 +100,9 @@ export const Cart = z
     taxTotal: Money.optional(),
     total: Money,
     promoCodes: z.array(PromoCode),
-    freeShipping: z
-      .object({ threshold: Money, remaining: Money })
-      .optional()
-      .describe("FreeShippingProgress: the threshold, and what is left to reach it"),
+    freeShipping: FreeShipping.optional().describe(
+      "FreeShippingProgress: the threshold, and what is left to reach it",
+    ),
   })
   .superRefine((cart, context) => {
     checkCurrency(context, cart.currencyCode, [
@@ -77,4 +135,6 @@ export const Cart = z
 export type LineOption = z.infer<typeof LineOption>;
 export type CartLine = z.infer<typeof CartLine>;
 export type PromoCode = z.infer<typeof PromoCode>;
+export type FreeShipping = z.infer<typeof FreeShipping>;
+export type PromoCodeEntry = z.infer<typeof PromoCodeEntry>;
 export type Cart = z.infer<typeof Cart>;

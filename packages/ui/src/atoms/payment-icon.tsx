@@ -1,36 +1,18 @@
-// Ours, on the tokens (T23, SETUP.md "Atoms (T23)"). The mark of a payment method, from
-// `simple-icons` (CC0; each mark remains its owner's trademark, packages/ui/NOTICE.md), drawn in one
-// colour (`fill-current`: the text's colour) as an image named by `label` (D30). Only the eight
-// icons of D31 are imported, so the rest of the set never reaches a bundle. A provider that
-// requires its own artwork on a payment page gets it with that integration (M6).
-import {
-  siAmericanexpress,
-  siApplepay,
-  siGooglepay,
-  siKlarna,
-  siMastercard,
-  siPaypal,
-  siRevolut,
-  siVisa,
-} from "simple-icons";
-import type * as React from "react";
+// Ours, on the tokens (T23, SETUP.md "Atoms (T23)"; the marks' import changed in T34). The mark of a
+// payment method, drawn in one colour (`fill-current`: the text's colour) as an image named by
+// `label` (D30). The eight marks of D31 come from `payment-marks.ts`, a copy of their paths from
+// `simple-icons` (CC0; each mark remains its owner's trademark, packages/ui/NOTICE.md): importing the
+// package's root made Vitest and `next dev` parse its 5.25 MB `index.mjs` on every cold start (PR 43
+// review, item 14; the measurement is in SETUP.md, "Cart, checkout and account molecules (T34)").
+// A provider that requires its own artwork on a payment page gets it with that integration (M6).
 import { cn } from "@shopblok/ui/lib/utils";
-
-const marks = {
-  visa: siVisa,
-  mastercard: siMastercard,
-  americanexpress: siAmericanexpress,
-  applepay: siApplepay,
-  googlepay: siGooglepay,
-  revolut: siRevolut,
-  paypal: siPaypal,
-  klarna: siKlarna,
-} as const;
+import type * as React from "react";
+import { paymentMarks } from "./payment-marks";
 
 /** The payment methods of D31, as simple-icons' slugs. */
-export const paymentBrands = Object.keys(marks) as PaymentBrand[];
+export const paymentBrands = Object.keys(paymentMarks) as PaymentBrand[];
 
-type PaymentBrand = keyof typeof marks;
+type PaymentBrand = keyof typeof paymentMarks;
 
 const sizes = {
   sm: "size-6",
@@ -57,7 +39,7 @@ function PaymentIcon({ brand, label, size = "md", className, ...props }: Payment
       className={cn("shrink-0 fill-current", sizes[size], className)}
       {...props}
     >
-      <path d={marks[brand].path} />
+      <path d={paymentMarks[brand].path} />
     </svg>
   );
 }

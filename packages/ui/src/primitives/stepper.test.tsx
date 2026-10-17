@@ -278,3 +278,115 @@ describe("Stepper", () => {
     },
   );
 });
+
+// What the Stepper molecule (T34) needed changed: a stepper that is a list of links, not a set of
+// tabs. Each change is shown, and shown to leave the tabs stepper as it was.
+describe("Stepper as a navigation (the changes for T34)", () => {
+  function Progress(props: Partial<React.ComponentProps<typeof Stepper>>) {
+    return (
+      <Stepper role="none" value={2} {...props}>
+        <StepperNav aria-label="Checkout steps">
+          <ol>
+            {["Address", "Delivery", "Payment"].map((title, index) => (
+              <StepperItem
+                key={title}
+                step={index + 1}
+                render={<li />}
+                aria-current={index === 1 ? "step" : undefined}
+                className="custom-item"
+              >
+                <span>{title}</span>
+                {index < 2 ? <StepperSeparator /> : null}
+              </StepperItem>
+            ))}
+          </ol>
+        </StepperNav>
+      </Stepper>
+    );
+  }
+
+  it("takes another role for its root, and then has no tablist and no orientation", () => {
+    const { container } = render(<Progress />);
+    const root = container.querySelector("[data-slot=stepper]");
+    expect(root?.getAttribute("role")).toBe("none");
+    // aria-orientation is only allowed on some roles; a `none` root must not carry it.
+    expect(root?.hasAttribute("aria-orientation")).toBe(false);
+    expect(screen.queryByRole("tablist")).toBeNull();
+  });
+
+  it("still has a tablist with its orientation when it is given no role", () => {
+    render(<Steps orientation="vertical" />);
+    const root = screen.getByRole("tablist");
+    expect(root.getAttribute("aria-orientation")).toBe("vertical");
+    expect(root.getAttribute("role")).toBe("tablist");
+  });
+
+  it("names its nav: the nav passes its props on", () => {
+    render(<Progress />);
+    const nav = screen.getByRole("navigation", { name: "Checkout steps" });
+    expect(nav.getAttribute("data-slot")).toBe("stepper-nav");
+    // The classes it needs from its own are still there next to the caller's props.
+    expect(nav.className).toContain("group/stepper-nav");
+  });
+
+  it("draws an item as the element it is given: the li of an ordered list", () => {
+    render(<Progress />);
+    const items = screen.getAllByRole("listitem");
+    expect(items).toHaveLength(3);
+    expect(items.map((item) => item.tagName)).toEqual(["LI", "LI", "LI"]);
+    expect(items.every((item) => item.parentElement?.tagName === "OL")).toBe(true);
+    expect(items.map((item) => item.getAttribute("data-slot"))).toEqual([
+      "stepper-item",
+      "stepper-item",
+      "stepper-item",
+    ]);
+  });
+
+  it("keeps the item's state, its classes and its caller's class and attributes on the li", () => {
+    render(<Progress />);
+    const items = screen.getAllByRole("listitem");
+    expect(items.map((item) => item.getAttribute("data-state"))).toEqual([
+      "completed",
+      "active",
+      "inactive",
+    ]);
+    expect(items[1]?.getAttribute("aria-current")).toBe("step");
+    expect(items[0]?.hasAttribute("aria-current")).toBe(false);
+    for (const item of items) {
+      expect(item.className).toContain("group/step");
+      expect(item.className).toContain("custom-item");
+    }
+    // The caller's class wins over the item's own where they conflict (tailwind-merge, as before).
+    render(
+      <Stepper value={1}>
+        <StepperNav>
+          <StepperItem step={1} className="justify-start" data-testid="merged">
+            Address
+          </StepperItem>
+        </StepperNav>
+      </Stepper>,
+    );
+    const merged = screen.getByTestId("merged");
+    expect(merged.className).toContain("justify-start");
+    expect(merged.className).not.toContain("justify-center");
+  });
+
+  it("is a div when no element is given, as it was", () => {
+    render(<Steps />);
+    const item = document.querySelector("[data-slot=stepper-item]");
+    expect(item?.tagName).toBe("DIV");
+  });
+
+  it("marks the loading item as before", () => {
+    render(
+      <Stepper value={1}>
+        <StepperNav>
+          <StepperItem step={1} loading data-testid="loading">
+            Address
+          </StepperItem>
+        </StepperNav>
+      </Stepper>,
+    );
+    expect(screen.getByTestId("loading").getAttribute("data-loading")).toBe("true");
+  });
+});

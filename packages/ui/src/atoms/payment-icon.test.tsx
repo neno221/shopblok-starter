@@ -4,6 +4,7 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { longLabels } from "../test-support/long-labels";
 import { PaymentIcon, paymentBrands } from "./payment-icon";
+import { paymentMarks } from "./payment-marks";
 
 describe("PaymentIcon", () => {
   it("has the eight methods of D31", () => {
@@ -49,12 +50,22 @@ describe("PaymentIcon", () => {
     expect(other).toBeTruthy();
   });
 
-  it("imports the eight icons by name, never the whole set", () => {
+  it("imports nothing from simple-icons: the marks are our copy of eight paths", () => {
+    // The package's root is a 5.25 MB module that Vitest and `next dev` parse on every cold start
+    // (PR 43 review, item 14; SETUP.md, "Cart, checkout and account molecules (T34)").
+    // `payment-marks.test.ts` is the one test that reads the package, to keep the copy honest.
     const source = readFileSync(path.join(import.meta.dirname, "payment-icon.tsx"), "utf8");
-    expect(source).not.toMatch(/import\s+\*\s+as\s+\w+\s+from\s+["']simple-icons/);
-    expect(source).not.toMatch(/from\s+["']simple-icons\/icons["']/);
-    const imported = /import\s*\{([^}]+)\}\s*from\s*["']simple-icons["']/.exec(source)?.[1] ?? "";
-    expect(imported.split(",").filter((name) => name.trim() !== "")).toHaveLength(8);
+    expect(source).not.toMatch(/from\s+["']simple-icons/);
+    expect(source).not.toMatch(/import\s*\(\s*["']simple-icons/);
+    expect(source).toMatch(/from\s+["']\.\/payment-marks["']/);
+  });
+
+  it("draws the path of its own brand from the marks", () => {
+    for (const brand of paymentBrands) {
+      const { container, unmount } = render(<PaymentIcon brand={brand} label={brand} />);
+      expect(container.querySelector("path")?.getAttribute("d")).toBe(paymentMarks[brand].path);
+      unmount();
+    }
   });
 
   it.each(longLabels)("takes a long %s label", (_locale, strings) => {

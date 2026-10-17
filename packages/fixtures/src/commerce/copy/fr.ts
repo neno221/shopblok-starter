@@ -251,6 +251,20 @@ export const fr: Copy = {
       },
     },
   },
+  checkoutFlow: {
+    cart: "Panier",
+    contact: "Contact et adresse",
+    delivery: "Livraison",
+    deliveryAndPayment: "Livraison et paiement",
+    payment: "Paiement",
+    review: "Récapitulatif",
+    long: [
+      "Coordonnées et adresse de livraison de votre commande",
+      "Choix du mode de livraison de votre commande",
+      "Mode de paiement et adresse de facturation",
+      "Vérification et validation de votre commande",
+    ],
+  },
   long: {
     productTitle:
       "Sweat à capuche Heritage en molleton de coton biologique gratté, coutures renforcées, capuche doublée, poche kangourou et poignets côtelés assortis, édition limitée d’automne",

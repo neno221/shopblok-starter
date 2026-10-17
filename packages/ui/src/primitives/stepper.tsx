@@ -8,7 +8,13 @@
 // content is a `tabpanel` labelled by its tab; the arrow keys, Home and End move among the enabled
 // triggers in DOM order (upstream registered them in mount order, kept unmounted ones and
 // stopped at a disabled one); `stepsCount` counts the items however deep they sit (upstream only
-// looked at the Stepper's direct children, by a `displayName` it never set).
+// looked at the Stepper's direct children, by a `displayName` it never set). Edited again for the
+// Stepper molecule (SETUP.md, "Cart, checkout and account molecules (T34)"), which is a list of
+// links and not a set of tabs: the root's `role` can be changed, and `aria-orientation` is only
+// set on a `tablist` (axe's `aria-allowed-attr` refuses it on any other role); `StepperNav` passes
+// its props on, so the `nav` can be named (`aria-label`); and `StepperItem` takes `render`, as
+// `StepperTrigger` does, so an item can be an `li` of an `ol`. Nothing changes for a stepper that
+// uses none of the three.
 // A client component because it keeps the active step in state and moves focus among its triggers.
 "use client";
 
@@ -97,6 +103,7 @@ function Stepper({
   children,
   indicators = {},
   dir,
+  role = "tablist",
   ...props
 }: StepperProps) {
   const contextDirection = useDirection();
@@ -184,8 +191,8 @@ function Stepper({
     <StepperContext.Provider value={contextValue}>
       <div
         ref={rootRef}
-        role="tablist"
-        aria-orientation={orientation}
+        role={role}
+        aria-orientation={role === "tablist" ? orientation : undefined}
         data-slot="stepper"
         className={cn("w-full", className)}
         data-orientation={orientation}
@@ -207,12 +214,12 @@ function countItems(children: ReactNode): number {
   }, 0);
 }
 
-interface StepperItemProps extends React.HTMLAttributes<HTMLDivElement> {
+type StepperItemProps = useRender.ComponentProps<"div"> & {
   step: number;
   completed?: boolean;
   disabled?: boolean;
   loading?: boolean;
-}
+};
 
 function StepperItem({
   step,
@@ -221,6 +228,7 @@ function StepperItem({
   loading = false,
   className,
   children,
+  render,
   ...props
 }: StepperItemProps) {
   const { activeStep } = useStepper();
@@ -230,20 +238,26 @@ function StepperItem({
 
   const isLoading = loading && step === activeStep;
 
+  const defaultProps = {
+    "data-slot": "stepper-item",
+    className: cn(
+      "group/step flex items-center justify-center not-last:flex-1 group-data-[orientation=horizontal]/stepper-nav:flex-row group-data-[orientation=vertical]/stepper-nav:flex-col",
+      className,
+    ),
+    "data-state": state,
+    ...(isLoading ? { "data-loading": true } : {}),
+    children,
+  };
+
+  const item = useRender({
+    defaultTagName: "div",
+    render,
+    props: mergeProps<"div">(defaultProps, props),
+  });
+
   return (
     <StepItemContext.Provider value={{ step, state, isDisabled: disabled, isLoading }}>
-      <div
-        data-slot="stepper-item"
-        className={cn(
-          "group/step flex items-center justify-center not-last:flex-1 group-data-[orientation=horizontal]/stepper-nav:flex-row group-data-[orientation=vertical]/stepper-nav:flex-col",
-          className,
-        )}
-        data-state={state}
-        {...(isLoading ? { "data-loading": true } : {})}
-        {...props}
-      >
-        {children}
-      </div>
+      {item}
     </StepItemContext.Provider>
   );
 }
@@ -401,7 +415,7 @@ function StepperDescription({ children, className }: React.ComponentProps<"div">
   );
 }
 
-function StepperNav({ children, className }: React.ComponentProps<"nav">) {
+function StepperNav({ children, className, ...props }: HTMLAttributes<HTMLElement>) {
   const { activeStep, orientation } = useStepper();
 
   return (
@@ -413,6 +427,7 @@ function StepperNav({ children, className }: React.ComponentProps<"nav">) {
         "group/stepper-nav inline-flex data-[orientation=horizontal]:w-full data-[orientation=horizontal]:flex-row data-[orientation=vertical]:flex-col",
         className,
       )}
+      {...props}
     >
       {children}
     </nav>
@@ -429,7 +444,7 @@ function StepperPanel({ children, className }: React.ComponentProps<"div">) {
   );
 }
 
-interface StepperContentProps extends React.ComponentProps<"div"> {
+interface StepperContentProps extends HTMLAttributes<HTMLDivElement> {
   value: number;
   forceMount?: boolean;
 }

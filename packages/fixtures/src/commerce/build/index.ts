@@ -3,6 +3,8 @@ import { createContext } from "../context";
 import type { Copy } from "../copy";
 import type { CommerceFixture } from "../types";
 import { buildActiveFilters } from "./active-filters";
+import { buildAddressSamples } from "./address-samples";
+import { buildCartSamples } from "./cart-samples";
 import {
   buildCategories,
   buildFacets,
@@ -20,6 +22,7 @@ import {
   buildSavedPaymentMethods,
   buildShippingOptions,
 } from "./checkout";
+import { buildCheckoutFlow } from "./checkout-flow";
 import {
   buildAnnouncement,
   buildFigure,
@@ -30,6 +33,7 @@ import {
 } from "./content";
 import { buildEmptyStates } from "./listing";
 import { buildMarketing } from "./marketing";
+import { buildPaymentSamples } from "./payment-samples";
 import { buildSite } from "./site";
 
 /**
@@ -51,6 +55,7 @@ export function buildCommerceFixture(locale: DesignSystemLocale, copy: Copy): Co
     categories: buildCategories(ctx),
     cart: buildCart(ctx),
     addresses,
+    addressSamples: buildAddressSamples(),
     orders: buildOrders(ctx, addresses),
     reviews: buildReviews(ctx),
     ratingSummary: buildRatingSummary(),
@@ -69,6 +74,9 @@ export function buildCommerceFixture(locale: DesignSystemLocale, copy: Copy): Co
     emptyStates: buildEmptyStates(ctx),
     marketing: buildMarketing(ctx),
     site: buildSite(ctx),
+    paymentSamples: buildPaymentSamples(ctx),
+    cartSamples: buildCartSamples(ctx, buildCart(ctx)),
+    checkoutFlow: buildCheckoutFlow(ctx),
     long: buildLong(ctx),
   };
 }
