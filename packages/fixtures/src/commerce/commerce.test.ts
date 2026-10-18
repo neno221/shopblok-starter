@@ -338,7 +338,7 @@ describe.each(designSystemLocales)("the %s fixtures", (locale) => {
       // The privacy page is under the market's prefix, like every link.
       for (const each of Object.values(newsletter))
         expect(each.privacyHref, `${locale}.marketing.newsletter`).toBe(
-          `${fixture.prefix}/pages/privacy`,
+          `${fixture.prefix}/privacy`,
         );
       // The chip shows the code the cart applied; the long one has nowhere to break.
       expect(discountCode.code).toBe(at(fixture.cart.promoCodes, 0).code);
@@ -694,7 +694,9 @@ describe.each(designSystemLocales)("the %s fixtures", (locale) => {
       expect(fixture.categories.length).toBeGreaterThanOrEqual(2);
       for (const root of fixture.categories) expect(depth(root), root.handle).toBe(3);
       const visit = (category: CategoryNode, path: string[]): void => {
-        const here = [...path, category.handle];
+        // The URL is the path of keys: a handle's last segment after its root's prefix.
+        const key = path.length > 0 ? category.handle.replace(new RegExp(`^${path[0]}-`), "") : category.handle;
+        const here = [...path, key];
         expect(category.href).toBe(`${prefix}/categories/${here.join("/")}`);
         expect(category.handle).toMatch(/^[a-z0-9]+(-[a-z0-9]+)*$/);
         if (here.length === 3) expect(category.children).toEqual([]);
@@ -708,6 +710,16 @@ describe.each(designSystemLocales)("the %s fixtures", (locale) => {
       };
       fixture.categories.forEach(gather);
       expect(new Set(ids).size).toBe(ids.length);
+      // Medusa keeps a category's handle unique across the whole tree (PR 52 review).
+      const handles: string[] = [];
+      const gatherHandles = (category: CategoryNode): void => {
+        handles.push(category.handle);
+        category.children.forEach(gatherHandles);
+      };
+      fixture.categories.forEach(gatherHandles);
+      expect(new Set(handles).size).toBe(handles.length);
+      expect(handles).toContain("women-hoodies");
+      expect(handles).toContain("men-hoodies");
     });
   });
 
@@ -946,10 +958,10 @@ describe.each(designSystemLocales)("the %s fixtures", (locale) => {
       expect(external).toHaveLength(1);
       expect(external[0]!.href).toMatch(/^https:\/\//);
       expect(legalLinks.map((link) => link.href)).toEqual([
-        `${prefix}/pages/terms`,
-        `${prefix}/pages/privacy`,
-        `${prefix}/pages/cookies`,
-        `${prefix}/pages/legal-notice`,
+        `${prefix}/terms`,
+        `${prefix}/privacy`,
+        `${prefix}/cookies`,
+        `${prefix}/legal-notice`,
       ]);
     });
   });
@@ -1492,7 +1504,7 @@ describe.each(designSystemLocales)("the %s fixtures", (locale) => {
     });
 
     it("links the footer's cookie page, once with the copy's words and once with the shop's own", () => {
-      expect(cookieConsent.copy.policyHref).toBe(`${prefix}/pages/cookies`);
+      expect(cookieConsent.copy.policyHref).toBe(`${prefix}/cookies`);
       expect(fixture.footer.content.legalLinks.map((link) => link.href)).toContain(
         cookieConsent.copy.policyHref,
       );
@@ -1627,7 +1639,7 @@ describe.each(designSystemLocales)("the %s fixtures", (locale) => {
       const links = page.info.sections.flatMap((section) =>
         section.blocks.flatMap((block) => (block.kind === "link" ? [block.link.href] : [])),
       );
-      expect(links).toEqual([`${prefix}/pages/returns`]);
+      expect(links).toEqual([`${prefix}/returns`]);
     });
 
     it("show the first of 22 pages of reviews, and none at all", () => {

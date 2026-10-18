@@ -541,7 +541,7 @@ describe("ProductInfoAccordions' stories", () => {
         for (const text of [long.productName, long.productDescription, long.linkLabel]) {
           expect(markup).toContain(escaped(text));
         }
-        expect(markup).toContain(`href="${commerceFixtures[locale].prefix}/pages/returns"`);
+        expect(markup).toContain(`href="${commerceFixtures[locale].prefix}/returns"`);
       },
     );
   });

@@ -316,7 +316,7 @@ describe("FilterGroup", () => {
       const inputs = [...document.querySelectorAll<HTMLInputElement>("input[name=category]")];
       expect(inputs.map((input) => input.value)).toEqual(category.options.map((o) => o.value));
       expect(inputs.filter((input) => input.checked).map((input) => input.value)).toEqual([
-        "hoodies",
+        "women-hoodies",
       ]);
     });
   });

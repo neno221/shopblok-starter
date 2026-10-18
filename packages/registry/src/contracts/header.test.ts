@@ -12,7 +12,7 @@ const issues = (schema: Schema, value: unknown) =>
 
 const message = {
   message: "Free delivery over $75",
-  link: { label: "Details", href: "/us/pages/shipping" },
+  link: { label: "Details", href: "/us/shipping" },
 };
 
 const markets = {

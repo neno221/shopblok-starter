@@ -11,7 +11,7 @@ const faqValues = ["shipping", "returns", "sizing", "payment", "care"] as const;
 
 export function buildSite(ctx: Context): CommerceFixture["site"] {
   const { faq, toasts, cookieMessage } = ctx.copy.site;
-  const policyHref = ctx.href("/pages/cookies");
+  const policyHref = ctx.href("/cookies");
   return {
     faq: {
       items: faqValues.map((value, index) => {

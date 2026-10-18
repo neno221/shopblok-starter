@@ -26,10 +26,10 @@ const markets = {
 const footer = {
   storeName: "Shopblok",
   homeHref: "/us",
-  columns: [{ title: "Help", links: [{ label: "Contact us", href: "/us/pages/contact" }] }],
-  newsletter: { email: "", privacyHref: "/us/pages/privacy" },
+  columns: [{ title: "Help", links: [{ label: "Contact us", href: "/us/contact" }] }],
+  newsletter: { email: "", privacyHref: "/us/privacy" },
   social: [{ network: "instagram", href: "https://www.instagram.com/shopblok" }],
-  legalLinks: [{ label: "Privacy policy", href: "/us/pages/privacy" }],
+  legalLinks: [{ label: "Privacy policy", href: "/us/privacy" }],
   paymentIcons: ["visa", "mastercard"],
   marketSwitcher: true,
   market: markets,
@@ -86,7 +86,7 @@ describe("SocialLink", () => {
     expect(issues(SocialLink, { network: "x", href: "http://x.com/shopblok" })).toEqual([
       "a profile is an https URL",
     ]);
-    expect(issues(SocialLink, { network: "x", href: "/pages/social" })).toEqual([
+    expect(issues(SocialLink, { network: "x", href: "/social" })).toEqual([
       "a profile is an https URL",
     ]);
     expect(issues(SocialLink, { network: "myspace", href: "https://myspace.com/a" })).not.toEqual(
@@ -97,8 +97,8 @@ describe("SocialLink", () => {
 
 describe("CookieConsent and ConsentChoice", () => {
   it("take the policy and, optionally, the shop's own sentence", () => {
-    expect(issues(CookieConsent, { policyHref: "/us/pages/cookies" })).toEqual([]);
-    expect(issues(CookieConsent, { policyHref: "/us/pages/cookies", message: "" })).not.toEqual([]);
+    expect(issues(CookieConsent, { policyHref: "/us/cookies" })).toEqual([]);
+    expect(issues(CookieConsent, { policyHref: "/us/cookies", message: "" })).not.toEqual([]);
     expect(issues(CookieConsent, { policyHref: "pages/cookies" })).not.toEqual([]);
   });
 

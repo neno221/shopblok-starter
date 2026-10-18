@@ -14,6 +14,7 @@ import type {
 import type { Context } from "../context";
 import {
   type BadgeKind,
+  categoryByHandle,
   type CategoryNode,
   categoryTree,
   facetData,
@@ -159,10 +160,10 @@ export function buildProduct(ctx: Context): ProductDetail {
 
 export function buildCategories(ctx: Context): Category[] {
   const convert = (node: CategoryNode, path: string[]): Category => {
-    const here = [...path, node.handle];
+    const here = [...path, node.key];
     return {
       id: node.id,
-      title: ctx.copy.categories[node.handle],
+      title: ctx.copy.categories[node.key],
       handle: node.handle,
       href: ctx.categoryHref(...here),
       children: node.children.map((child) => convert(child, here)),
@@ -212,7 +213,7 @@ export function buildFacets(ctx: Context): FacetGroup[] {
       label: copy.facets.category,
       options: facetData.categories.map(({ handle, count, selected }) => ({
         value: handle,
-        label: copy.categories[handle],
+        label: copy.categories[categoryByHandle(handle).key],
         count,
         selected,
       })),

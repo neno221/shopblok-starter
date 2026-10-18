@@ -302,7 +302,7 @@ export const hoodieSizeChart = {
   sleeve: [58, 59, 60, 61, 62, 63],
 };
 
-export type CategoryHandle =
+export type CategoryKey =
   | "women"
   | "men"
   | "accessories"
@@ -322,14 +322,19 @@ export type CategoryHandle =
   | "ankle-socks"
   | "crew-socks";
 
-export type CategoryNode = { id: string; handle: CategoryHandle; children: CategoryNode[] };
+/**
+ * A category: `key` names it in the copy and in its URL's path (`/categories/women/clothing/hoodies`),
+ * and `handle` is Medusa's, which is unique across the whole tree (`IDX_category_handle_unique`).
+ */
+export type CategoryNode = { id: string; key: CategoryKey; handle: string; children: CategoryNode[] };
 
-type Branch = readonly [CategoryHandle, readonly (Branch | CategoryHandle)[]];
+type Branch = readonly [CategoryKey, readonly (Branch | CategoryKey)[]];
 
-const clothingLeaves: CategoryHandle[] = ["hoodies", "t-shirts", "knitwear", "jackets", "trousers"];
+const clothingLeaves: CategoryKey[] = ["hoodies", "t-shirts", "knitwear", "jackets", "trousers"];
 
-// Three roots, three levels each. A handle repeats across roots (both have "hoodies"); the path of
-// handles is what makes a category's URL unique.
+// Three roots, three levels each. A key repeats across roots (both have "hoodies"), so a key that
+// appears more than once takes its root's key in front for its handle ("women-hoodies"); the URL
+// keeps the path of keys.
 const tree: Branch[] = [
   ["women", [["clothing", clothingLeaves]]],
   ["men", [["clothing", clothingLeaves]]],
@@ -343,13 +348,31 @@ const tree: Branch[] = [
   ],
 ];
 
-function toNode(entry: Branch | CategoryHandle, parentId: string): CategoryNode {
-  const [handle, children] = typeof entry === "string" ? ([entry, []] as const) : entry;
-  const id = `${parentId}_${handle}`;
-  return { id, handle, children: children.map((child) => toNode(child, id)) };
+const keysIn = (entry: Branch | CategoryKey): CategoryKey[] =>
+  typeof entry === "string" ? [entry] : [entry[0], ...entry[1].flatMap(keysIn)];
+const allKeys = tree.flatMap(keysIn);
+const repeated = new Set(allKeys.filter((key, index) => allKeys.indexOf(key) !== index));
+
+function toNode(entry: Branch | CategoryKey, parentId: string, root?: CategoryKey): CategoryNode {
+  const [key, children] = typeof entry === "string" ? ([entry, []] as const) : entry;
+  const id = `${parentId}_${key}`;
+  const handle = root !== undefined && repeated.has(key) ? `${root}-${key}` : key;
+  return { id, key, handle, children: children.map((child) => toNode(child, id, root ?? key)) };
 }
 
 export const categoryTree: CategoryNode[] = tree.map((branch) => toNode(branch, "cat"));
+
+/** The category with Medusa's `handle`. */
+export function categoryByHandle(handle: string): CategoryNode {
+  const find = (nodes: CategoryNode[]): CategoryNode | undefined =>
+    nodes.reduce<CategoryNode | undefined>(
+      (found, node) => found ?? (node.handle === handle ? node : find(node.children)),
+      undefined,
+    );
+  const node = find(categoryTree);
+  if (node === undefined) throw new Error(`There is no category ${handle} in the fixtures`);
+  return node;
+}
 
 /** The six reviews of the Heritage Hoodie: what does not change with the language. */
 export const reviewMeta = [
@@ -367,15 +390,15 @@ export const ratingDistribution = [94, 22, 8, 2, 2] as const;
 /** The listing's filters: what each option counts, and which are chosen. */
 export const facetData = {
   categories: [
-    { handle: "hoodies", count: 4, selected: true },
-    { handle: "t-shirts", count: 1, selected: false },
-    { handle: "knitwear", count: 2, selected: false },
-    { handle: "jackets", count: 1, selected: false },
-    { handle: "trousers", count: 1, selected: false },
+    { handle: "women-hoodies", count: 4, selected: true },
+    { handle: "women-t-shirts", count: 1, selected: false },
+    { handle: "women-knitwear", count: 2, selected: false },
+    { handle: "women-jackets", count: 1, selected: false },
+    { handle: "women-trousers", count: 1, selected: false },
     { handle: "totes", count: 1, selected: false },
     { handle: "caps", count: 1, selected: false },
     { handle: "ankle-socks", count: 1, selected: false },
-  ] satisfies { handle: CategoryHandle; count: number; selected: boolean }[],
+  ] satisfies { handle: string; count: number; selected: boolean }[],
   colours: [
     { key: "black", count: 8, selected: true },
     { key: "white", count: 3, selected: false },

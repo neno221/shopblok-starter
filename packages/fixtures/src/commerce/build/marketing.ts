@@ -19,7 +19,7 @@ const after = (ms: number) => new Date(Date.parse(fixtureNow) + ms).toISOString(
 const endsIn = (ms: number) => ({ endsAt: after(ms), now: fixtureNow });
 
 export function buildMarketing(ctx: Context): CommerceFixture["marketing"] {
-  const privacyHref = ctx.href("/pages/privacy");
+  const privacyHref = ctx.href("/privacy");
   return {
     newsletter: {
       empty: { email: "", privacyHref },

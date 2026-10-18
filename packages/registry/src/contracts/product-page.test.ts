@@ -159,7 +159,7 @@ describe("ProductInfo", () => {
     blocks: [
       { kind: "facts", rows: [{ label: "Material", value: "Cotton" }] },
       { kind: "list", items: ["Machine wash at 30 °C"] },
-      { kind: "link", link: { label: "Care guide", href: "/pages/care" } },
+      { kind: "link", link: { label: "Care guide", href: "/care" } },
     ],
   };
 

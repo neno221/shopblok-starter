@@ -151,7 +151,7 @@ export function buildProductPage(
           title: words.sections.returns,
           blocks: [
             { kind: "text", paragraphs: [words.returns] },
-            { kind: "link", link: { label: words.returnsLink, href: ctx.href("/pages/returns") } },
+            { kind: "link", link: { label: words.returnsLink, href: ctx.href("/returns") } },
           ],
         },
       ],

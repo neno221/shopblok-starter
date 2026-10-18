@@ -265,14 +265,14 @@ describe("FilterGroup's states", () => {
           htmlLang(locale),
         );
         expect(markup, locale).toContain(plain(words));
-        expect(chosen(markup, "category"), locale).toEqual(["hoodies"]);
+        expect(chosen(markup, "category"), locale).toEqual(["women-hoodies"]);
       }
     });
 
     it("open the disclosure when a category behind it is chosen", () => {
       const markup = html(GROUP, "show-more-open", "en");
       expect(markup).toMatch(/<details [^>]*\bopen=""/);
-      expect(chosen(markup, "category")).toEqual(["hoodies", "ankle-socks"]);
+      expect(chosen(markup, "category")).toEqual(["women-hoodies", "ankle-socks"]);
     });
 
     it("disable the empty options that are not chosen, and not the chosen one", () => {
@@ -380,7 +380,7 @@ describe("FilterGroup's states", () => {
         expect(markup).toContain(`data-kind="${facet.kind}"`);
         expect(markup).toContain(plain(facet.label));
       }
-      expect(chosen(markup, "category")).toEqual(["hoodies"]);
+      expect(chosen(markup, "category")).toEqual(["women-hoodies"]);
       expect(chosen(markup, "colour")).toEqual(["black", "forest"]);
       expect(chosen(markup, "size")).toEqual(["m"]);
       expect(chosen(markup, "in-stock")).toEqual(["1"]);
