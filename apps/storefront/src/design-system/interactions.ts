@@ -120,4 +120,17 @@ export const interactions = {
     focus: "inside",
     trap: true,
   },
+  // T39: the cart's sheet and the dropdown after an add, each opened from its cart button.
+  "organisms/cart-drawer": {
+    trigger: '[data-slot="cart-drawer-trigger"]',
+    opens: '[data-slot="cart-drawer"]',
+    focus: "inside",
+    trap: true,
+  },
+  "organisms/quick-cart-dropdown": {
+    trigger: '[data-slot="quick-cart-trigger"]',
+    opens: '[data-slot="quick-cart"]',
+    focus: "inside",
+    trap: true,
+  },
 } as const satisfies Partial<Record<EntryId, DsInteraction>>;

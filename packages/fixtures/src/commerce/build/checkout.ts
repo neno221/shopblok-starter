@@ -47,7 +47,7 @@ function lineOptions(ctx: Context, line: LineSpec): LineOption[] {
  * The VAT inside a gross amount (CY and DE 19 %, CH 8.1 %): `gross × rate / (1 + rate)`. The
  * US has none in the price; its sales tax is worked out at checkout, so there is nothing to show.
  */
-function vatIncluded(ctx: Context, gross: number): number | undefined {
+export function vatIncluded(ctx: Context, gross: number): number | undefined {
   const rate = vatRates[ctx.market.country];
   return rate === undefined ? undefined : round2((gross * rate) / (1 + rate));
 }

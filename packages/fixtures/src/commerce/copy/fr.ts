@@ -308,6 +308,23 @@ export const fr: Copy = {
     cookieMessage:
       "Shopblok utilise quelques cookies pour retenir votre panier et votre pays. Si vous êtes d’accord, nous comptons aussi les visites et adaptons nos offres pour vous.",
   },
+  account: {
+    nav: {
+      overview: "Aperçu",
+      orders: "Commandes",
+      addresses: "Adresses",
+      paymentMethods: "Moyens de paiement",
+      returns: "Retours",
+      profile: "Profil",
+    },
+    reasons: {
+      tooSmall: "Trop petit",
+      tooLarge: "Trop grand",
+      notAsDescribed: "Non conforme à la description",
+      changedMind: "J’ai changé d’avis",
+    },
+    note: "Le t-shirt taille plus petit que ne l’indique le guide des tailles.",
+  },
   checkoutFlow: {
     cart: "Panier",
     contact: "Contact et adresse",
