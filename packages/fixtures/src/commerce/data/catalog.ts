@@ -323,8 +323,10 @@ export type CategoryKey =
   | "crew-socks";
 
 /**
- * A category: `key` names it in the copy and in its URL's path (`/categories/women/clothing/hoodies`),
- * and `handle` is Medusa's, which is unique across the whole tree (`IDX_category_handle_unique`).
+ * A category: `key` names it in the copy (and in the builders, which walk the tree by keys), and
+ * `handle` is Medusa's, which is unique across the whole tree (`IDX_category_handle_unique`). The
+ * URL is the path of handles (`/categories/women/women-clothing/women-hoodies`, SPEC §8.1's
+ * `[...handle]`), so each segment resolves with one handle lookup.
  */
 export type CategoryNode = { id: string; key: CategoryKey; handle: string; children: CategoryNode[] };
 
@@ -333,8 +335,8 @@ type Branch = readonly [CategoryKey, readonly (Branch | CategoryKey)[]];
 const clothingLeaves: CategoryKey[] = ["hoodies", "t-shirts", "knitwear", "jackets", "trousers"];
 
 // Three roots, three levels each. A key repeats across roots (both have "hoodies"), so a key that
-// appears more than once takes its root's key in front for its handle ("women-hoodies"); the URL
-// keeps the path of keys.
+// appears in more than one root takes its root's key in front for its handle ("women-hoodies"). A
+// key repeated inside one root would still collide; the fixtures' uniqueness test catches that.
 const tree: Branch[] = [
   ["women", [["clothing", clothingLeaves]]],
   ["men", [["clothing", clothingLeaves]]],
@@ -361,6 +363,17 @@ function toNode(entry: Branch | CategoryKey, parentId: string, root?: CategoryKe
 }
 
 export const categoryTree: CategoryNode[] = tree.map((branch) => toNode(branch, "cat"));
+
+/** The handles of the categories along a path of keys, from the root down. */
+export function categoryHandles(keys: readonly CategoryKey[]): string[] {
+  let level = categoryTree;
+  return keys.map((key) => {
+    const node = level.find((candidate) => candidate.key === key);
+    if (node === undefined) throw new Error(`There is no category ${keys.join("/")}`);
+    level = node.children;
+    return node.handle;
+  });
+}
 
 /** The category with Medusa's `handle`. */
 export function categoryByHandle(handle: string): CategoryNode {

@@ -3509,8 +3509,8 @@ A price multiplied by 100 is not something a schema can see (2999 is as valid as
 | # | Finding | Fix |
 |---|---|---|
 | 1 | `Order.payment` needed a card brand, so an order paid with `pp_system_default` (manual) could not parse | `payment` takes a `name` (as `PaymentMethod.name`) and an optional `brand`, and needs one of them; a contract test with `{ name: "Pay on delivery" }` and one with `{}` |
-| 2 | The category tree repeats handles (`hoodies` under Women and Men), which Medusa keeps unique | **Fixed after T38** ("PR 52 follow-up" at the end of this file). **Not fixed here; a follow-up after T37.** T31 to T37 were written on these fixtures (T37's filter tests choose `"hoodies"`), so changing the handles now would conflict in every later commit. One change on the final tree: unique handles, `href`s keep the path |
-| 3 | The CMS links are under `/pages/`, which SPEC §8.1's `{m}/[...slug]` doesn't have | **Fixed after T38** (the same section). **Not fixed here; the same follow-up.** T35 and T36 move these links into `footer.ts` and the headers' fixtures |
+| 2 | The category tree repeats handles (`hoodies` under Women and Men), which Medusa keeps unique | Deferred from this PR (T31 to T38 were built on these values); fixed after T38, see "PR 52 follow-up" at the end of this file |
+| 3 | The CMS links are under `/pages/`, which SPEC §8.1's `{m}/[...slug]` doesn't have | Deferred with item 2; fixed after T38 in the same follow-up |
 | 4 | A cart's currency check skipped `compareAtUnitPrice` and the promo codes' `discount` | Both are checked; two cases in "keep a cart's and an order's amounts in their currency" |
 | 9 | The contracts' JSON Schema test didn't use the Props table's options (optional) | It uses `{ io: "input", unrepresentable: "any" }`, as `propRows` does |
 
@@ -4355,5 +4355,16 @@ W4 copy changes from the review: French zoom title "Agrandissement : {title}" (n
 | Changed | `packages/fixtures/src/commerce/{data/catalog.ts, build/catalog.ts, build/content.ts, build/header.ts, build/footer.ts, build/site.ts, build/marketing.ts, build/product-page.ts, copy/types.ts, commerce.test.ts}`; tests and samples that named the old values in `packages/ui`, `packages/registry` and `apps/storefront/src/design-system` |
 | Tests | ui, storefront, registry, fixtures, i18n and scripts pass with the same counts as T38's review fixes, fixtures one assertion block richer; `typecheck`, `lint` pass |
 
-- **Categories.** A node now has a `key` (the copy's key and the URL's segment, `hoodies`) and a `handle` (Medusa's, unique). A key that appears more than once in the tree takes its root's key in front: `women-clothing`, `women-hoodies`, `men-hoodies`; Accessories' keys are unique and stay as they are. URLs keep the path of keys (`/categories/women/clothing/hoodies`). The listing's category facet sends the handle (`category=women-hoodies`), so its value names one category. `categoryByHandle` finds a node for its label. The type `CategoryHandle` is now `CategoryKey`.
+- **Categories.** A node now has a `key` (the copy's key, and how the builders name a category: `hoodies`) and a `handle` (Medusa's, unique). A key that appears in more than one root takes its root's key in front: `women-clothing`, `women-hoodies`, `men-hoodies`; Accessories' keys are unique and stay as they are. The URL is the path of handles, `/categories/women/women-clothing/women-hoodies` (SPEC §8.1's `[...handle]`), so M3 resolves each segment with one handle lookup: `ctx.categoryHref(...keys)` turns the keys into handles (`categoryHandles`). The listing's category facet sends the handle (`category=women-hoodies`), so its value names one category. `categoryByHandle` finds a node for its label. The type `CategoryHandle` is now `CategoryKey`.
 - **CMS links.** Every fixture link to a CMS page drops `/pages`: the header's announcements (`/shipping-returns`, `/returns`, `/autumn-edit`), the navigation and mega-menu features, the footers' columns and legal links, CookieConsent's `policyHref` (`/cookies`), the newsletter's privacy link and T38's returns link. The test samples in `packages/ui` and `packages/registry` follow, so nothing teaches the old shape.
+
+### Review fixes (PR 61)
+
+| Finding | Fix | Test |
+|---|---|---|
+| 1. The hrefs were a path of keys, which Medusa has no field for | `categoryHref` takes keys and writes their handles: `/categories/women/women-clothing/women-hoodies` | `commerce.test.ts` checks every href is the path of handles; the expectations that named `/women/clothing/hoodies` follow |
+| 2. The toolbar's test still sent `category=hoodies` | `women-hoodies` | `product-toolbar.test.tsx` |
+| 3. The PR 52 table said fixed and not fixed in one cell | reworded | |
+| 4. The handle test undid the prefix rule it tested | gone with 1: the href is checked against the handles directly | |
+| 5. Names said "handle" where they held a key | `categoryHref(...keys)`, `key` in the column and breadcrumb builders | |
+| 6. `${root}-${key}` separates repeats across roots only | the comment says so; the uniqueness test catches a repeat inside one root | |

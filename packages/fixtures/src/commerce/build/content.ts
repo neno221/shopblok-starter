@@ -42,10 +42,10 @@ function childLinks(ctx: Context, path: CategoryKey[]): Link[] {
 
 /** A mega menu's column: a category's title and links to its children. */
 function categoryColumn(ctx: Context, path: CategoryKey[]): MegaMenuColumn {
-  const handle = path[path.length - 1];
-  if (handle === undefined) throw new Error("A column needs a category");
+  const key = path[path.length - 1];
+  if (key === undefined) throw new Error("A column needs a category");
   return {
-    title: ctx.copy.categories[handle],
+    title: ctx.copy.categories[key],
     href: ctx.categoryHref(...path),
     links: childLinks(ctx, path),
   };

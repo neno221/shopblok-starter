@@ -415,7 +415,7 @@ describe.each(designSystemLocales)("the %s fixtures", (locale) => {
       expectAllParse(EmptyStateContent, [filters, search, category], `${locale}.emptyStates`);
       expect(filters.text, `${locale}.emptyStates.filters`).toBeTruthy();
       // The way out of filters that match nothing is the listing without them, under the prefix.
-      expect(filters.action?.href).toBe(`${fixture.prefix}/categories/women/clothing/hoodies`);
+      expect(filters.action?.href).toBe(`${fixture.prefix}/categories/women/women-clothing/women-hoodies`);
       expect(search.action?.href).toBe(fixture.prefix === "" ? "/" : fixture.prefix);
       expect(category.action, `${locale}.emptyStates.category`).toBeUndefined();
     });
@@ -685,7 +685,7 @@ describe.each(designSystemLocales)("the %s fixtures", (locale) => {
         for (const id of media.optionValueIds!) expect(colourIds.has(id), id).toBe(true);
       expect(product.breadcrumbs).toHaveLength(4);
       expect(at(product.breadcrumbs, 0).href).toBe(prefix === "" ? "/" : prefix);
-      expect(at(product.breadcrumbs, 3).href).toBe(`${prefix}/categories/women/clothing/hoodies`);
+      expect(at(product.breadcrumbs, 3).href).toBe(`${prefix}/categories/women/women-clothing/women-hoodies`);
     });
 
     it("is a tree three levels deep with at least two roots", () => {
@@ -694,9 +694,8 @@ describe.each(designSystemLocales)("the %s fixtures", (locale) => {
       expect(fixture.categories.length).toBeGreaterThanOrEqual(2);
       for (const root of fixture.categories) expect(depth(root), root.handle).toBe(3);
       const visit = (category: CategoryNode, path: string[]): void => {
-        // The URL is the path of keys: a handle's last segment after its root's prefix.
-        const key = path.length > 0 ? category.handle.replace(new RegExp(`^${path[0]}-`), "") : category.handle;
-        const here = [...path, key];
+        // The URL is the path of handles (SPEC §8.1's `[...handle]`).
+        const here = [...path, category.handle];
         expect(category.href).toBe(`${prefix}/categories/${here.join("/")}`);
         expect(category.handle).toMatch(/^[a-z0-9]+(-[a-z0-9]+)*$/);
         if (here.length === 3) expect(category.children).toEqual([]);

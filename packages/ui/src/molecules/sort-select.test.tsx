@@ -16,7 +16,7 @@ const clientSource = readFileSync(path.join(import.meta.dirname, "sort-select-cl
 function sortProps(locale: Locale, selected = "newest"): SortSelectProps {
   const { options } = catalogs[locale].molecules.sortSelect;
   return {
-    action: `${commerceFixtures[locale].prefix}/categories/women/clothing/hoodies`,
+    action: `${commerceFixtures[locale].prefix}/categories/women/women-clothing/women-hoodies`,
     name: "sort",
     options: [
       { value: "relevance", label: options.relevance },
@@ -70,7 +70,7 @@ describe("SortSelect", () => {
     it("is a GET form to the listing, with the select, its options and a submit button", () => {
       const html = parse();
       expect(html.getAttribute("method")).toBe("get");
-      expect(html.getAttribute("action")).toBe("/us/categories/women/clothing/hoodies");
+      expect(html.getAttribute("action")).toBe("/us/categories/women/women-clothing/women-hoodies");
       const field = html.querySelector("select") as HTMLSelectElement;
       expect(field.name).toBe("sort");
       expect([...field.options].map((option) => [option.value, option.textContent])).toEqual([

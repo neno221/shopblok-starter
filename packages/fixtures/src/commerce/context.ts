@@ -8,8 +8,10 @@ import {
 import { markets } from "../markets";
 import type { Copy } from "./copy";
 import {
+  categoryHandles,
   designSystemColourKeys,
   palette,
+  type CategoryKey,
   type ColourKey,
   type Currency,
   type Prices,
@@ -70,8 +72,8 @@ export type Context = {
   root: string;
   /** A path under the market's prefix: `href("/products/x")` is `/us/products/x`. */
   href(path: string): string;
-  /** A category's URL from the handles down to it. */
-  categoryHref(...handles: string[]): string;
+  /** A category's URL, named by the keys down to it; the URL holds their handles (SPEC §8.1). */
+  categoryHref(...keys: CategoryKey[]): string;
   money(amount: number): Money;
   /** The amount of a per-currency table in the market's currency. */
   price(prices: Prices): Money;
@@ -97,7 +99,7 @@ export function createContext(locale: DesignSystemLocale, copy: Copy): Context {
     prefix,
     root: marketRoot(prefix),
     href: (path) => `${prefix}${path}`,
-    categoryHref: (...handles) => `${prefix}/categories/${handles.join("/")}`,
+    categoryHref: (...keys) => `${prefix}/categories/${categoryHandles(keys).join("/")}`,
     money,
     price: (prices) => money(prices[currency]),
     productTitle: (handle) =>
