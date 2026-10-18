@@ -4238,5 +4238,6 @@ Each applied, checked and reverted from a copy.
 | 6. The DS clip check let off every carousel viewport | scoped to `[data-slot="product-carousel"] [data-slot="carousel-content"]`; a new user of the primitive must show its own way in | DS run |
 | 7. The DS's grid and list links dropped the sort | `viewOf` adds the sort; the contract's `gridHref` and `listHref` say "with its filters and sort" | DS run |
 | 8. The storefront count read 361 new | 362 | |
+| CI: the `design-system` job reached its 30 min limit (DS checks 17.3 min, then 29 of 45 `next dev` console pages; nothing failed) | `timeout-minutes: 50` in `ci.yml`, with the reason beside it; the last green run took 29.6 min | the job on this PR |
 
 W4 copy changes from the review: the drawer's "Clear all" now matches the chips ("Filter löschen", "Effacer les filtres"); French `compareTray.count` agrees in the singular ("1 sur 4 choisi"), so `count` is a plural in all four catalogs; "Choisissez encore # produit à comparer"; "Wählen Sie noch # Produkt zum Vergleichen aus"; German `productCarousel.showing` is "Angezeigt: 5 bis 8 von 8".
