@@ -13,7 +13,7 @@ const issues = (schema: Schema, value: unknown) =>
   schema.safeParse(value).error?.issues.map((issue) => issue.message) ?? [];
 
 const sort = {
-  action: "/us/categories/women/clothing/hoodies",
+  action: "/us/categories/women/women-clothing/women-hoodies",
   name: "sort",
   options: [
     { value: "relevance", label: "Relevance" },

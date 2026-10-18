@@ -169,7 +169,7 @@ describe("FilterDrawer: the sheet", () => {
     expect(formOf().getAttribute("method")).toBe("get");
     expect(formOf().getAttribute("action")).toBe(panelOf("en").action);
     expect(sent()).toEqual([
-      "category=hoodies",
+      "category=women-hoodies",
       "colour=black",
       "colour=forest",
       "size=m",

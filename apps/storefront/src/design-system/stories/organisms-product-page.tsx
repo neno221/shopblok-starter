@@ -279,7 +279,7 @@ function longInfo(ctx: DsContext): ProductInfo {
           { kind: "list", items: [long.helpText, long.hint] },
           {
             kind: "link",
-            link: { label: long.linkLabel, href: `${fixtures(ctx).prefix}/pages/returns` },
+            link: { label: long.linkLabel, href: `${fixtures(ctx).prefix}/returns` },
           },
         ],
       },

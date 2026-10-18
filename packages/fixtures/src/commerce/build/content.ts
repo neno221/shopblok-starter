@@ -13,18 +13,18 @@ import type {
   Address,
 } from "@shopblok/registry/contracts";
 import { marketPrefix, marketRoot, round2, type Context } from "../context";
-import { type CategoryHandle, type CategoryNode, categoryTree, palette } from "../data/catalog";
+import { type CategoryKey, type CategoryNode, categoryTree, palette } from "../data/catalog";
 import type { Prices } from "../data/catalog";
 import { fixtureImage } from "../images";
 import { markets } from "../../markets";
 import type { CommerceFixture } from "../types";
 
 /** The node at `path` of the category tree. */
-function findNode(path: CategoryHandle[]): CategoryNode {
+function findNode(path: CategoryKey[]): CategoryNode {
   let level = categoryTree;
   let found: CategoryNode | undefined;
-  for (const handle of path) {
-    found = level.find((node) => node.handle === handle);
+  for (const key of path) {
+    found = level.find((node) => node.key === key);
     if (found === undefined) throw new Error(`There is no category ${path.join("/")}`);
     level = found.children;
   }
@@ -33,19 +33,19 @@ function findNode(path: CategoryHandle[]): CategoryNode {
 }
 
 /** The links to a category's children. */
-function childLinks(ctx: Context, path: CategoryHandle[]): Link[] {
+function childLinks(ctx: Context, path: CategoryKey[]): Link[] {
   return findNode(path).children.map((child) => ({
-    label: ctx.copy.categories[child.handle],
-    href: ctx.categoryHref(...path, child.handle),
+    label: ctx.copy.categories[child.key],
+    href: ctx.categoryHref(...path, child.key),
   }));
 }
 
 /** A mega menu's column: a category's title and links to its children. */
-function categoryColumn(ctx: Context, path: CategoryHandle[]): MegaMenuColumn {
-  const handle = path[path.length - 1];
-  if (handle === undefined) throw new Error("A column needs a category");
+function categoryColumn(ctx: Context, path: CategoryKey[]): MegaMenuColumn {
+  const key = path[path.length - 1];
+  if (key === undefined) throw new Error("A column needs a category");
   return {
-    title: ctx.copy.categories[handle],
+    title: ctx.copy.categories[key],
     href: ctx.categoryHref(...path),
     links: childLinks(ctx, path),
   };
@@ -58,7 +58,7 @@ export function buildNavigation(ctx: Context): NavItem[] {
   const [autumn, knitwear] = navigation.womenFeatures;
   const [essentials] = navigation.menFeatures;
   return [
-    { kind: "link", ...page(navigation.newIn, "/pages/new-in") },
+    { kind: "link", ...page(navigation.newIn, "/new-in") },
     {
       kind: "megaMenu",
       label: copy.categories.women,
@@ -69,16 +69,16 @@ export function buildNavigation(ctx: Context): NavItem[] {
         {
           title: navigation.discover,
           links: [
-            page(navigation.bestsellers, "/pages/bestsellers"),
-            page(navigation.giftCards, "/pages/gift-cards"),
-            page(navigation.organic, "/pages/organic-cotton"),
+            page(navigation.bestsellers, "/bestsellers"),
+            page(navigation.giftCards, "/gift-cards"),
+            page(navigation.organic, "/organic-cotton"),
           ],
         },
       ],
       featured: [
         {
           title: autumn.title,
-          href: ctx.href("/pages/autumn-edit"),
+          href: ctx.href("/autumn-edit"),
           image: fixtureImage({ seed: 30, ratio: "4:3", alt: autumn.alt }),
         },
         {
@@ -96,7 +96,7 @@ export function buildNavigation(ctx: Context): NavItem[] {
       featured: [
         {
           title: essentials.title,
-          href: ctx.href("/pages/everyday-essentials"),
+          href: ctx.href("/everyday-essentials"),
           image: fixtureImage({ seed: 32, ratio: "16:9", alt: essentials.alt }),
         },
       ],
@@ -106,7 +106,7 @@ export function buildNavigation(ctx: Context): NavItem[] {
       label: copy.categories.accessories,
       items: childLinks(ctx, ["accessories"]),
     },
-    { kind: "link", ...page(navigation.sale, "/pages/sale") },
+    { kind: "link", ...page(navigation.sale, "/sale") },
   ];
 }
 
@@ -145,7 +145,7 @@ export function buildMarkets(ctx: Context): MarketOption[] {
 export function buildAnnouncement(ctx: Context): Announcement {
   return {
     message: ctx.copy.announcement.message,
-    link: { label: ctx.copy.announcement.link, href: ctx.href("/pages/shipping-returns") },
+    link: { label: ctx.copy.announcement.link, href: ctx.href("/shipping-returns") },
   };
 }
 
@@ -170,8 +170,8 @@ const longProductId = "prod_heritage_hoodie_limited";
 function longColumn(
   ctx: Context,
   column: { title: string; links: [string, string, string] },
-  path: CategoryHandle[],
-  leaves: [CategoryHandle, CategoryHandle, CategoryHandle],
+  path: CategoryKey[],
+  leaves: [CategoryKey, CategoryKey, CategoryKey],
 ): MegaMenuColumn {
   return {
     title: column.title,
@@ -255,7 +255,7 @@ export function buildLong(ctx: Context): CommerceFixture["long"] {
     featured: [
       {
         title: long.nav.feature.title,
-        href: ctx.href("/pages/autumn-edit"),
+        href: ctx.href("/autumn-edit"),
         image: fixtureImage({ seed: 52, ratio: "16:9", alt: long.nav.feature.alt }),
       },
     ],
@@ -263,11 +263,11 @@ export function buildLong(ctx: Context): CommerceFixture["long"] {
 
   // The five help pages, in the order of the long labels.
   const helpPaths = [
-    "/pages/shipping-returns",
-    "/pages/returns",
-    "/pages/size-guide",
-    "/pages/contact",
-    "/pages/faq",
+    "/shipping-returns",
+    "/returns",
+    "/size-guide",
+    "/contact",
+    "/faq",
   ];
   const footerColumn: FooterColumn = {
     title: long.footer.title,

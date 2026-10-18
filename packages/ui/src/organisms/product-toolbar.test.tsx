@@ -36,7 +36,7 @@ function sortOf(locale: Locale, selected = "relevance"): SortState {
       { value: "price-desc", label: words.priceDesc },
     ],
     selected,
-    params: [{ name: "category", value: "hoodies" }],
+    params: [{ name: "category", value: "women-hoodies" }],
   };
 }
 
@@ -111,7 +111,7 @@ describe("ProductToolbar: the sort", () => {
     expect(screen.getByRole("combobox", { name: sortCopyOf(locale).label })).toBeTruthy();
     expect(screen.getByRole("button", { name: sortCopyOf(locale).apply })).toBeTruthy();
     // The listing's filters ride along, and the page does not.
-    expect(new FormData(form).get("category")).toBe("hoodies");
+    expect(new FormData(form).get("category")).toBe("women-hoodies");
     expect(form.querySelector('input[name="page"]')).toBeNull();
   });
 

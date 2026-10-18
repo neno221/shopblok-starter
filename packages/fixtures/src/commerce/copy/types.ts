@@ -1,6 +1,6 @@
 import type { Address, LineOption } from "@shopblok/registry/contracts";
 import type {
-  CategoryHandle,
+  CategoryKey,
   ColourKey,
   designSystemColourKeys,
   ProductHandle,
@@ -36,7 +36,7 @@ export type Copy = {
   hoodieDetails: string;
   /** The label of the merchant's own badge (`custom`). */
   customBadge: string;
-  categories: Record<CategoryHandle, string>;
+  categories: Record<CategoryKey, string>;
   /** The colours that `design-system.ts` does not name. */
   colours: Record<Exclude<ColourKey, (typeof designSystemColourKeys)[number]>, string>;
   /** The titles of the two options of a variant. */

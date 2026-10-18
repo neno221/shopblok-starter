@@ -183,7 +183,7 @@ describe("FilterSidebar: what the form sends", () => {
   it("sends every chosen field, the way the URL carries it", () => {
     render(element("en"));
     expect(sent()).toEqual([
-      "category=hoodies",
+      "category=women-hoodies",
       "colour=black",
       "colour=forest",
       "size=m",
@@ -228,7 +228,7 @@ describe("FilterSidebar: what the form sends", () => {
     await user.click(screen.getByRole("checkbox", { name: /^Hoodies/ }));
     await user.click(screen.getByRole("checkbox", { name: /^L\s*,/ }));
     expect(sent()).toContain("size=l");
-    expect(sent()).not.toContain("category=hoodies");
+    expect(sent()).not.toContain("category=women-hoodies");
   });
 
   it("does not submit by itself: not on a tick, not on a switch", async () => {

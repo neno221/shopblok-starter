@@ -26,12 +26,12 @@ export function buildHeader(
     link: { label: copy.link, href: ctx.href(path) },
   });
   const [returns, collection] = header.announcements;
-  const first = message(announcement, "/pages/shipping-returns");
+  const first = message(announcement, "/shipping-returns");
   const rotating: AnnouncementBar = {
     messages: [
       first,
-      message(returns, "/pages/returns"),
-      message(collection, "/pages/autumn-edit"),
+      message(returns, "/returns"),
+      message(collection, "/autumn-edit"),
     ],
     rotateSeconds: 6,
     dismissible: true,
@@ -63,7 +63,7 @@ export function buildHeader(
       single: { messages: [first], dismissible: false },
       rotating,
       long: {
-        messages: [message(header.longAnnouncement, "/pages/shipping-returns")],
+        messages: [message(header.longAnnouncement, "/shipping-returns")],
         dismissible: true,
       },
     },

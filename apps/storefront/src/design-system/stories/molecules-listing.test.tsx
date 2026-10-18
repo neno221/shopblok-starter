@@ -508,6 +508,6 @@ describe("EmptyState's states", () => {
       expect(markup, text).toContain(plain(text));
     expect(markup).toContain("wrap-anywhere");
     // The action still goes to the way out, under the market's prefix.
-    expect(markup).toContain(`href="${prefix(locale)}/categories/women/clothing/hoodies"`);
+    expect(markup).toContain(`href="${prefix(locale)}/categories/women/women-clothing/women-hoodies"`);
   });
 });

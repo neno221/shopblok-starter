@@ -344,7 +344,7 @@ describe("ProductInfoAccordions", () => {
             { kind: "text", paragraphs: [strings.productDescription] },
             { kind: "facts", rows: [{ label: strings.fieldLabel, value: strings.imageAlt }] },
             { kind: "list", items: [strings.helpText] },
-            { kind: "link", link: { label: strings.linkLabel, href: "/pages/returns" } },
+            { kind: "link", link: { label: strings.linkLabel, href: "/returns" } },
           ],
         },
         { id: "more", title: strings.badge, blocks: [{ kind: "text", paragraphs: ["x"] }] },

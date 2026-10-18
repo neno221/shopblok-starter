@@ -366,7 +366,7 @@ export function describeFooter(variant: FooterUnderTest) {
           columns: [
             ...base,
             fixturesOf("en").long.footerColumn,
-            { title: "Fifth", links: [{ label: "Only link", href: "/us/pages/only" }] },
+            { title: "Fifth", links: [{ label: "Only link", href: "/us/only" }] },
           ],
         });
         expect(
@@ -426,7 +426,7 @@ export function describeFooter(variant: FooterUnderTest) {
       });
 
       it("keeps the address the shop gives, and submits to its own page with no action", () => {
-        view("en", { newsletter: { email: "ada@example.com", privacyHref: "/us/pages/privacy" } });
+        view("en", { newsletter: { email: "ada@example.com", privacyHref: "/us/privacy" } });
         const form = slot("newsletter-form") as HTMLFormElement;
         expect(form.getAttribute("action")).toBeNull();
         expect((within(form).getByLabelText("Email address") as HTMLInputElement).value).toBe(

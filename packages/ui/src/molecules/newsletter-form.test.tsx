@@ -174,7 +174,7 @@ describe("NewsletterForm", () => {
     it("points at the privacy page under the market's prefix", () => {
       setup("de");
       expect(screen.getByRole("link", { name: "Datenschutzerklärung" }).getAttribute("href")).toBe(
-        "/de/pages/privacy",
+        "/de/privacy",
       );
     });
 

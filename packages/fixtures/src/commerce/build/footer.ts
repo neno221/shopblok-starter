@@ -36,36 +36,36 @@ export function buildFooter(
     {
       title: footer.shop,
       links: [
-        page(copy.navigation.newIn, "/pages/new-in"),
+        page(copy.navigation.newIn, "/new-in"),
         { label: copy.categories.women, href: ctx.categoryHref("women") },
         { label: copy.categories.men, href: ctx.categoryHref("men") },
         { label: copy.categories.accessories, href: ctx.categoryHref("accessories") },
-        page(copy.navigation.sale, "/pages/sale"),
+        page(copy.navigation.sale, "/sale"),
       ],
     },
     {
       title: footer.help,
       links: [
-        page(footer.shipping, "/pages/shipping-returns"),
-        page(footer.sizeGuide, "/pages/size-guide"),
-        page(footer.contact, "/pages/contact"),
-        page(footer.faq, "/pages/faq"),
+        page(footer.shipping, "/shipping-returns"),
+        page(footer.sizeGuide, "/size-guide"),
+        page(footer.contact, "/contact"),
+        page(footer.faq, "/faq"),
         page(footer.trackOrder, "/account/orders"),
       ],
     },
     {
       title: footer.company,
       links: [
-        page(footer.about, "/pages/about"),
-        page(footer.sustainability, "/pages/sustainability"),
+        page(footer.about, "/about"),
+        page(footer.sustainability, "/sustainability"),
         // The one link that leaves the store: it opens in a new tab.
         { label: footer.careers, href: "https://careers.example.com", external: true },
-        page(footer.stores, "/pages/stores"),
+        page(footer.stores, "/stores"),
       ],
     },
   ];
-  const terms = page(footer.terms, "/pages/terms");
-  const privacy = page(footer.privacy, "/pages/privacy");
+  const terms = page(footer.terms, "/terms");
+  const privacy = page(footer.privacy, "/privacy");
   const storeName = ctx.ds.ordinary.storeName;
   const copyright = footer.copyright(storeName, new Date(fixtureNow).getUTCFullYear());
   return {
@@ -78,8 +78,8 @@ export function buildFooter(
       legalLinks: [
         terms,
         privacy,
-        page(footer.cookies, "/pages/cookies"),
-        page(footer.imprint, "/pages/legal-notice"),
+        page(footer.cookies, "/cookies"),
+        page(footer.imprint, "/legal-notice"),
       ],
       paymentIcons: [...new Set(paymentMethods.flatMap((method) => method.brands))],
       marketSwitcher: true,

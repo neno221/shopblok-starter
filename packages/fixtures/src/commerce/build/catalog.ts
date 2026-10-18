@@ -14,6 +14,8 @@ import type {
 import type { Context } from "../context";
 import {
   type BadgeKind,
+  categoryByHandle,
+  type CategoryKey,
   type CategoryNode,
   categoryTree,
   facetData,
@@ -116,8 +118,8 @@ export function buildProduct(ctx: Context): ProductDetail {
     href: ctx.href(`/products/${spec.handle}`),
     breadcrumbs: [
       { label: ctx.copy.home, href: ctx.root },
-      ...hoodie.category.map((handle, index) => ({
-        label: ctx.copy.categories[handle],
+      ...hoodie.category.map((key, index) => ({
+        label: ctx.copy.categories[key],
         href: ctx.categoryHref(...hoodie.category.slice(0, index + 1)),
       })),
     ],
@@ -158,11 +160,11 @@ export function buildProduct(ctx: Context): ProductDetail {
 }
 
 export function buildCategories(ctx: Context): Category[] {
-  const convert = (node: CategoryNode, path: string[]): Category => {
-    const here = [...path, node.handle];
+  const convert = (node: CategoryNode, path: CategoryKey[]): Category => {
+    const here = [...path, node.key];
     return {
       id: node.id,
-      title: ctx.copy.categories[node.handle],
+      title: ctx.copy.categories[node.key],
       handle: node.handle,
       href: ctx.categoryHref(...here),
       children: node.children.map((child) => convert(child, here)),
@@ -212,7 +214,7 @@ export function buildFacets(ctx: Context): FacetGroup[] {
       label: copy.facets.category,
       options: facetData.categories.map(({ handle, count, selected }) => ({
         value: handle,
-        label: copy.categories[handle],
+        label: copy.categories[categoryByHandle(handle).key],
         count,
         selected,
       })),
