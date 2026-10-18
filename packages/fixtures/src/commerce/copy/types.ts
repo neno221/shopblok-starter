@@ -174,6 +174,23 @@ export type Copy = {
     cookieMessage: string;
   };
   /**
+   * The account's samples (T39): the names of the account's pages in its navigation, and the
+   * return reasons a shop writes in Medusa (four, in the order the select lists them).
+   */
+  account: {
+    nav: {
+      overview: string;
+      orders: string;
+      addresses: string;
+      paymentMethods: string;
+      returns: string;
+      profile: string;
+    };
+    reasons: { tooSmall: string; tooLarge: string; notAsDescribed: string; changedMind: string };
+    /** What a customer writes in the return's note. */
+    note: string;
+  };
+  /**
    * The labels of Stepper's samples (T34): checkout's three steps as SPEC §8.4 names them (contact
    * and address; delivery and payment; review), the cart, the delivery and the payment as steps of
    * their own for a longer flow, and four labels at the length that breaks a layout.

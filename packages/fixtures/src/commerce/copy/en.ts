@@ -293,6 +293,23 @@ export const en: Copy = {
     cookieMessage:
       "Shopblok uses a few cookies to keep your cart and your country. If you agree, we also count visits and tailor our offers to you.",
   },
+  account: {
+    nav: {
+      overview: "Overview",
+      orders: "Orders",
+      addresses: "Addresses",
+      paymentMethods: "Payment methods",
+      returns: "Returns",
+      profile: "Profile",
+    },
+    reasons: {
+      tooSmall: "Too small",
+      tooLarge: "Too large",
+      notAsDescribed: "Not as described",
+      changedMind: "Changed my mind",
+    },
+    note: "The tee runs a size smaller than the size chart says.",
+  },
   checkoutFlow: {
     cart: "Cart",
     contact: "Contact and address",

@@ -632,6 +632,172 @@ export const en = {
       captionIn: "Measurements in inches",
       size: "Size",
     },
+    // T39: the cart, checkout and account organisms.
+    cartDrawer: {
+      // The button that opens the drawer, and what the cart holds after its name ("Cart 3 items").
+      open: "Cart",
+      items: "{count, plural, =0 {empty} one {# item} other {# items}}",
+      overflow: "{max}+",
+      title: "Your cart",
+      // Beside the title.
+      count: "{count, plural, one {# item} other {# items}}",
+      close: "Close cart",
+      // The list of lines, and the summary's name.
+      lines: "Items in your cart",
+      summary: "Cart summary",
+      note: "Shipping and taxes are calculated at checkout.",
+      checkout: "Checkout",
+      viewCart: "View cart",
+      emptyTitle: "Your cart is empty",
+      emptyText: "Add something you like and it will wait for you here.",
+      continue: "Continue shopping",
+    },
+    quickCartDropdown: {
+      open: "Cart",
+      items: "{count, plural, =0 {empty} one {# item} other {# items}}",
+      overflow: "{max}+",
+      title: "Added to your cart",
+      close: "Close",
+      // A chosen option beside its value, and the quantity of the line now.
+      option: "{option}: {value}",
+      quantity: "Quantity: {count, number}",
+      subtotal: "{count, plural, one {Subtotal (# item)} other {Subtotal (# items)}}",
+      viewCart: "View cart",
+      checkout: "Checkout",
+      // Said once, politely, when the dropdown opens on a new line.
+      announce: "Added to your cart: {title}",
+    },
+    checkoutSteps: {
+      title: "Checkout",
+    },
+    orderSummary: {
+      title: "Order summary",
+      // The list of lines, and the toggle that shows it below the wide layout.
+      items: "Items in your order",
+      show: "Show order summary",
+      hide: "Hide order summary",
+      count: "{count, plural, one {# item} other {# items}}",
+      option: "{option}: {value}",
+      quantity: "Quantity: {count, number}",
+      lineTotal: "Line total",
+    },
+    paymentStep: {
+      legend: "Payment",
+      // The groups' names when the customer has saved cards.
+      saved: "Your saved cards",
+      methods: "Other ways to pay",
+      card: "{brand} ending in {last4}",
+      expires: "Expires {date}",
+      expired: "Expired {date}",
+      default: "Default",
+      // The box Stripe's Payment Element goes in (M6), shown while a card is chosen.
+      details: "Card details",
+      save: "Save this card for next time",
+      // The system payment (Medusa's pp_system_default), when the region has no provider.
+      systemName: "Pay later",
+      systemText: "Place your order now; the store will tell you how to pay.",
+      submit: "Continue to review",
+      submitting: "Saving…",
+      errors: {
+        required: "Choose how you would like to pay.",
+        failed: "We could not save your payment choice. Please try again.",
+      },
+    },
+    accountNav: {
+      label: "Account",
+      signOut: "Sign out",
+    },
+    orderTimeline: {
+      label: "Order history",
+      // The words of each event, by its kind.
+      events: {
+        placed: "Order placed",
+        paid: "Payment received",
+        fulfilled: "Packed",
+        shipped: "Shipped",
+        delivered: "Delivered",
+        canceled: "Canceled",
+        returnRequested: "Return requested",
+        returned: "Returned",
+      },
+      latest: "Latest",
+      carrier: "With {carrier}",
+      tracking: "Tracking number {number}",
+      // The link to the carrier's page; the tracking number follows its words for a screen reader.
+      track: "Track parcel",
+      newTab: "Opens in a new tab",
+    },
+    orderTable: {
+      caption: "Your orders",
+      order: "Order",
+      date: "Date",
+      status: "Status",
+      items: "Items",
+      total: "Total",
+      details: "Details",
+      number: "#{number}",
+      title: "Order #{number}",
+      itemCount: "{count, plural, one {# item} other {# items}}",
+      // The link to an order's page, and its name, which says which order.
+      view: "View",
+      viewLabel: "View order #{number}",
+      statuses: {
+        placed: "Placed",
+        paid: "Paid",
+        fulfilled: "Packed",
+        shipped: "Shipped",
+        delivered: "Delivered",
+        canceled: "Canceled",
+        returnRequested: "Return requested",
+        returned: "Returned",
+      },
+      emptyTitle: "No orders yet",
+      emptyText: "When you place an order, it will be listed here.",
+      emptyAction: "Start shopping",
+    },
+    addressBook: {
+      list: "Saved addresses",
+      add: "Add a new address",
+      // The button on an address that is not the default, and its name (the visible words first).
+      makeDefault: "Set as default",
+      makeDefaultLabel: "Set as default: {name}, {city}",
+      saving: "Saving…",
+      emptyTitle: "No saved addresses",
+      emptyText: "Save an address to check out faster.",
+    },
+    paymentMethodsManager: {
+      list: "Saved payment methods",
+      add: "Add a payment method",
+      makeDefault: "Set as default",
+      makeDefaultLabel: "Set as default: {card}",
+      saving: "Saving…",
+      emptyTitle: "No saved payment methods",
+      emptyText: "Cards you save at checkout appear here.",
+    },
+    returnRequestForm: {
+      // The form's name.
+      label: "Return items from order #{number}",
+      items: "Items to return",
+      option: "{option}: {value}",
+      named: "{title} ({options})",
+      quantity: "Quantity to return",
+      available:
+        "{returnable, plural, =0 {Already returned} one {You can return # of {quantity, number}} other {You can return # of {quantity, number}}}",
+      reason: "Reason for the return",
+      reasonPlaceholder: "Choose a reason",
+      note: "Anything else we should know?",
+      optional: "(optional)",
+      noteHint: "Up to {max, number} characters.",
+      submit: "Request return",
+      submitting: "Sending…",
+      errors: {
+        items: "Choose at least one item to return.",
+        reason: "Choose a reason for the return.",
+        failed: "We could not send your request. Please try again.",
+      },
+      summary:
+        "{count, plural, one {# field needs your attention.} other {# fields need your attention.}}",
+    },
   },
   notFound: {
     title: "Page not found",

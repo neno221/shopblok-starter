@@ -81,4 +81,16 @@ checkRoutesInDev([
   { path: "/design-system/fr/organisms/quick-view-dialog", status: 200 },
   { path: "/design-system/de/organisms/size-guide-dialog", status: 200 },
   { path: "/design-system/en/organisms/mobile-sticky-atc", status: 200 },
+  // T39: the cart drawer in each locale (its sheet, its lines' steppers and the promotion field),
+  // and one page each for the dropdown, the checkout, the payment, the summary and the account's.
+  ...locales.map((locale) => ({
+    path: `/design-system/${locale}/organisms/cart-drawer`,
+    status: 200,
+  })),
+  { path: "/design-system/el/organisms/quick-cart-dropdown", status: 200 },
+  { path: "/design-system/de/organisms/checkout-steps", status: 200 },
+  { path: "/design-system/fr/organisms/payment-step", status: 200 },
+  { path: "/design-system/en/organisms/order-summary", status: 200 },
+  { path: "/design-system/el/organisms/payment-methods-manager", status: 200 },
+  { path: "/design-system/de/organisms/return-request-form", status: 200 },
 ]);

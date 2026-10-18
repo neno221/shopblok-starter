@@ -4,6 +4,7 @@ import type { Copy } from "../copy";
 import type { CommerceFixture } from "../types";
 import { buildActiveFilters } from "./active-filters";
 import { buildAddressSamples } from "./address-samples";
+import { buildAccount, buildCartCheckout } from "./cart-checkout-account";
 import { buildCartSamples } from "./cart-samples";
 import {
   buildCategories,
@@ -59,6 +60,10 @@ export function buildCommerceFixture(locale: DesignSystemLocale, copy: Copy): Co
   const product = buildProduct(ctx);
   const reviews = buildReviews(ctx);
   const ratingSummary = buildRatingSummary();
+  const orders = buildOrders(ctx, addresses);
+  const savedPaymentMethods = buildSavedPaymentMethods(ctx);
+  const shippingOptions = buildShippingOptions(ctx);
+  const checkoutFlow = buildCheckoutFlow(ctx);
   return {
     locale,
     market: { ...ctx.market },
@@ -69,15 +74,15 @@ export function buildCommerceFixture(locale: DesignSystemLocale, copy: Copy): Co
     cart,
     addresses,
     addressSamples: buildAddressSamples(),
-    orders: buildOrders(ctx, addresses),
+    orders,
     reviews,
     ratingSummary,
     navigation,
     footer: buildFooter(ctx, markets, paymentMethods),
     markets,
     paymentMethods,
-    savedPaymentMethods: buildSavedPaymentMethods(ctx),
-    shippingOptions: buildShippingOptions(ctx),
+    savedPaymentMethods,
+    shippingOptions,
     search,
     facets,
     // The chips come from the same facets as the sidebar, so the two cannot drift.
@@ -99,7 +104,17 @@ export function buildCommerceFixture(locale: DesignSystemLocale, copy: Copy): Co
     site: buildSite(ctx),
     paymentSamples: buildPaymentSamples(ctx),
     cartSamples: buildCartSamples(ctx, cart),
-    checkoutFlow: buildCheckoutFlow(ctx),
+    checkoutFlow,
+    cartCheckout: buildCartCheckout(
+      ctx,
+      cart,
+      checkoutFlow.steps,
+      shippingOptions,
+      paymentMethods,
+      savedPaymentMethods,
+      orders,
+    ),
+    account: buildAccount(ctx, orders, addresses, savedPaymentMethods),
     long: buildLong(ctx),
   };
 }

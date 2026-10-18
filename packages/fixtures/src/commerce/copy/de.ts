@@ -302,6 +302,23 @@ export const de: Copy = {
     cookieMessage:
       "Shopblok verwendet einige Cookies, um Ihren Warenkorb und Ihr Land zu speichern. Wenn Sie zustimmen, zählen wir außerdem Besuche und stimmen unsere Angebote auf Sie ab.",
   },
+  account: {
+    nav: {
+      overview: "Übersicht",
+      orders: "Bestellungen",
+      addresses: "Adressen",
+      paymentMethods: "Zahlungsarten",
+      returns: "Rücksendungen",
+      profile: "Profil",
+    },
+    reasons: {
+      tooSmall: "Zu klein",
+      tooLarge: "Zu groß",
+      notAsDescribed: "Nicht wie beschrieben",
+      changedMind: "Gefällt mir doch nicht",
+    },
+    note: "Das T-Shirt fällt eine Nummer kleiner aus, als die Größentabelle angibt.",
+  },
   checkoutFlow: {
     cart: "Warenkorb",
     contact: "Kontakt und Adresse",

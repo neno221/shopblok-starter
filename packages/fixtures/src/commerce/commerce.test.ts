@@ -1,5 +1,18 @@
 import { describe, expect, it } from "vitest";
 import {
+  AccountNav,
+  AddressBook,
+  CartDrawer,
+  CheckoutSteps,
+  OrderSummary,
+  OrderTable,
+  OrderTimeline,
+  PaymentMethodsManager,
+  PaymentStep,
+  QuickCart,
+  ReturnRequest,
+} from "@shopblok/registry/contracts";
+import {
   ActiveFilters,
   Address,
   Announcement,
@@ -1654,6 +1667,145 @@ describe.each(designSystemLocales)("the %s fixtures", (locale) => {
         product.options.find((option) => option.id === "size")?.values.map((value) => value.label),
       );
       expect(page.sizeGuide.unit).toBe(fixture.market.country === "us" ? "in" : "cm");
+    });
+  });
+
+  describe("the cart and checkout organisms (T39)", () => {
+    const { cartCheckout: samples, cart } = fixture;
+
+    it("parse as their contracts", () => {
+      expectAllParse(CartDrawer, Object.values(samples.drawer), `${locale}.cartCheckout.drawer`);
+      expectParses(QuickCart, samples.quickCart, `${locale}.cartCheckout.quickCart`);
+      expectAllParse(
+        OrderSummary,
+        Object.values(samples.summary),
+        `${locale}.cartCheckout.summary`,
+      );
+      expectAllParse(
+        CheckoutSteps,
+        Object.values(samples.checkout),
+        `${locale}.cartCheckout.checkout`,
+      );
+      expectAllParse(PaymentStep, Object.values(samples.payment), `${locale}.cartCheckout.payment`);
+    });
+
+    it("draw the cart in the drawer and an empty one, with the market's links", () => {
+      expect(samples.drawer.full.cart).toBe(cart);
+      expect(samples.drawer.empty.cart.lines).toEqual([]);
+      for (const drawer of Object.values(samples.drawer)) {
+        expect(drawer.cartHref).toBe(`${prefix}/cart`);
+        expect(drawer.checkoutHref).toBe(`${prefix}/checkout/contact`);
+        expect(drawer.continueHref).toBe(`${prefix}/store`);
+      }
+    });
+
+    it("add the cart's first line in the dropdown, with the cart's count and subtotal", () => {
+      expect(samples.quickCart.added).toBe(cart.lines[0]);
+      expect(samples.quickCart.itemCount).toBe(cart.itemCount);
+      expect(samples.quickCart.subtotal).toBe(cart.subtotal);
+    });
+
+    it("sum the cart's summary to its total, with shipping to choose, and the review's with the standard delivery", () => {
+      const rows = samples.summary.cart.rows;
+      expect(rows.map((row) => row.kind)).toEqual([
+        "subtotal",
+        "discount",
+        "shipping",
+        "tax",
+        "total",
+      ]);
+      expect(rows.find((row) => row.kind === "shipping")?.amount).toBeUndefined();
+      expect(rows.at(-1)?.amount).toEqual(cart.total);
+      const review = samples.checkout.review.summary.rows;
+      const shipping = review.find((row) => row.kind === "shipping")?.amount?.amount ?? 0;
+      expect(shipping).toBeGreaterThan(0);
+      expect(review.at(-1)?.amount?.amount).toBeCloseTo(cart.total.amount + shipping, 2);
+      expect(samples.summary.order.rows.at(-1)?.amount).toEqual(fixture.orders[0]?.total);
+    });
+
+    it("walk SPEC §8.4's three steps, each on its own, links back to the steps done only", () => {
+      const { contact, delivery, review } = samples.checkout;
+      expect([contact, delivery, review].map((step) => step.steps.current)).toEqual([
+        "contact",
+        "delivery",
+        "review",
+      ]);
+      expect(review.steps.steps.map((step) => step.href !== undefined)).toEqual([
+        true,
+        true,
+        false,
+      ]);
+    });
+
+    it("pay with a saved card, as a guest, and with nothing but the system payment", () => {
+      const { saved, guest, system } = samples.payment;
+      expect(saved.selected).toBe(fixture.savedPaymentMethods.find((card) => card.isDefault)?.id);
+      expect(saved.canSave).toBe(true);
+      expect(guest.saved).toEqual([]);
+      expect(guest.selected).toBeUndefined();
+      expect(system.methods).toEqual([]);
+      expect(system.saved).toEqual([]);
+    });
+  });
+
+  describe("the account organisms (T39)", () => {
+    const { account } = fixture;
+
+    it("parse as their contracts", () => {
+      expectParses(AccountNav, account.nav, `${locale}.account.nav`);
+      expectAllParse(OrderTimeline, Object.values(account.timeline), `${locale}.account.timeline`);
+      expectAllParse(OrderTable, Object.values(account.orders), `${locale}.account.orders`);
+      expectAllParse(
+        AddressBook,
+        Object.values(account.addressBook),
+        `${locale}.account.addressBook`,
+      );
+      expectAllParse(
+        PaymentMethodsManager,
+        Object.values(account.paymentMethods),
+        `${locale}.account.paymentMethods`,
+      );
+      expectAllParse(
+        ReturnRequest,
+        Object.values(account.returnRequest),
+        `${locale}.account.returnRequest`,
+      );
+    });
+
+    it("list the account's six pages under the market's prefix, on the orders", () => {
+      expect(account.nav.items).toHaveLength(6);
+      expect(account.nav.current).toBe("orders");
+      for (const item of account.nav.items)
+        expect(item.href.startsWith(`${prefix}/account`)).toBe(true);
+    });
+
+    it("list the two orders newest first, each with its latest event as its state", () => {
+      const ids = account.orders.list.orders.map((order) => order.displayId);
+      expect(ids).toEqual([1057, 1042]);
+      expect(account.orders.list.orders.map((order) => order.status)).toEqual([
+        "paid",
+        "delivered",
+      ]);
+      expect(account.orders.empty.orders).toEqual([]);
+      expect(account.timeline.delivered.events.at(-1)?.kind).toBe("delivered");
+    });
+
+    it("keep the address book and the cards of the fixtures, and none", () => {
+      expect(account.addressBook.full.entries.map((entry) => entry.address.id)).toEqual(
+        fixture.addresses.map((address) => address.id),
+      );
+      expect(account.paymentMethods.cards.cards).toBe(fixture.savedPaymentMethods);
+      expect(account.addressBook.empty.entries).toEqual([]);
+      expect(account.paymentMethods.empty.cards).toEqual([]);
+    });
+
+    it("return from the delivered order: nothing chosen, then one tee with a reason and a note", () => {
+      const { blank, filled } = account.returnRequest;
+      expect(blank.orderId).toBe(fixture.orders[0]?.id);
+      expect(blank.items.map((item) => item.quantityChosen)).toEqual([0, 0]);
+      expect(filled.items.map((item) => item.quantityChosen)).toEqual([0, 1]);
+      expect(filled.reason).toBe("rr_too_small");
+      expect(filled.note.length).toBeGreaterThan(0);
     });
   });
 

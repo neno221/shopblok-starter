@@ -40,6 +40,19 @@ import type {
   ReviewsSection,
   SizeGuide,
 } from "@shopblok/registry/contracts";
+import type {
+  AccountNav,
+  AddressBook,
+  CartDrawer,
+  CheckoutSteps,
+  OrderSummary,
+  OrderTable,
+  OrderTimeline,
+  PaymentMethodsManager,
+  PaymentStep,
+  QuickCart,
+  ReturnRequest,
+} from "@shopblok/registry/contracts";
 
 /** A section of a FAQ: the contract's heading and id, and the answer in paragraphs. */
 export type FaqItem = AccordionSection & { answer: string[] };
@@ -177,6 +190,34 @@ export type CommerceFixture = {
     info: ProductInfo;
     reviews: { first: ReviewsSection; none: ReviewsSection };
     sizeGuide: SizeGuide;
+  };
+  /**
+   * The cart and checkout organisms' samples (T39). The cart drawer with the cart and empty; the
+   * dropdown after the cart's first line was added; the order summary of the cart (shipping still to
+   * choose) and of the delivered order; the three checkout steps, the review with the standard
+   * delivery in its summary; the payment step for a customer with the three saved cards (the default
+   * chosen), for a guest, and with no provider at all (the system payment).
+   */
+  cartCheckout: {
+    drawer: { full: CartDrawer; empty: CartDrawer };
+    quickCart: QuickCart;
+    summary: { cart: OrderSummary; order: OrderSummary };
+    checkout: { contact: CheckoutSteps; delivery: CheckoutSteps; review: CheckoutSteps };
+    payment: { saved: PaymentStep; guest: PaymentStep; system: PaymentStep };
+  };
+  /**
+   * The account organisms' samples (T39). The account's six pages, on the orders; the history of the
+   * delivered order and of the one only paid; the two orders newest first, and none; the address book
+   * and the saved cards, full and empty; the return form of the delivered order, blank and with one
+   * tee, a reason and a note.
+   */
+  account: {
+    nav: AccountNav;
+    timeline: { delivered: OrderTimeline; placed: OrderTimeline };
+    orders: { list: OrderTable; empty: OrderTable };
+    addressBook: { full: AddressBook; empty: AddressBook };
+    paymentMethods: { cards: PaymentMethodsManager; empty: PaymentMethodsManager };
+    returnRequest: { blank: ReturnRequest; filled: ReturnRequest };
   };
   /** The sample data of NewsletterForm, CopyCodeChip and CountdownTimer (T33). */
   marketing: {
