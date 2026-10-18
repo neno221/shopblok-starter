@@ -207,7 +207,7 @@ describe("ReviewsSection", () => {
 
 describe("SizeGuide", () => {
   const guide = {
-    title: "Hoodies: body measurements",
+    title: "Hoodies: measurements",
     sizes: ["S", "M"],
     rows: [
       {

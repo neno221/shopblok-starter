@@ -626,6 +626,20 @@ describe("BuyBox: the status region", () => {
     expect(screen.getByRole("status").textContent).toBe(copy.error);
   });
 
+  it("drops the answer once the shopper changes the choice it answered (PR 60 review)", async () => {
+    const { rerender } = render(element("en", "ready", { status: "added" }));
+    const region = screen.getByRole("status");
+    expect(region.textContent).toBe("Added to cart");
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("radio", { name: "L" }));
+    expect(screen.getByRole("status")).toBe(region);
+    expect(region.textContent).toBe("");
+    // A new answer for the new choice is said.
+    rerender(element("en", "ready", { status: "adding" }));
+    rerender(element("en", "ready", { status: "error" }));
+    expect(region.textContent).toBe("Could not add to cart. Please try again.");
+  });
+
   it("keeps the stock line in the page, and it is the same element when it has words", async () => {
     render(element("en", "empty"));
     const region = slot("buy-box-stock") as HTMLElement;

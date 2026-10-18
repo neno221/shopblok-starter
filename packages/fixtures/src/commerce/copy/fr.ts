@@ -171,13 +171,13 @@ export const fr: Copy = {
     ],
     delivery: [
       "La livraison standard prend 2 à 4 jours ouvrés.",
-      "La livraison express arrive le jour ouvré suivant pour toute commande passée avant 14 h.",
+      "La livraison express arrive le jour ouvré suivant pour toute commande passée avant 14 h.",
     ],
     returns:
       "Retournez tout article non porté sous 30 jours pour un remboursement intégral. Les retours sont gratuits.",
     returnsLink: "Lire la politique de retour",
     sizeGuide: {
-      title: "Sweats à capuche : mensurations",
+      title: "Sweats à capuche : mesures",
       chest: "Tour de poitrine",
       waist: "Tour de taille",
       length: "Longueur du corps",
@@ -205,7 +205,7 @@ export const fr: Copy = {
     ],
     longAnnouncement: {
       message:
-        "Commandez avant 14 h en semaine pour une expédition le jour même, et profitez des retours gratuits sous 30 jours sur chaque commande",
+        "Commandez avant 14 h en semaine pour une expédition le jour même, et profitez des retours gratuits sous 30 jours sur chaque commande",
       link: "Lire notre politique de livraison et de retour",
     },
     account: { signIn: "Se connecter", orders: "Commandes", wishlist: "Liste d’envies" },

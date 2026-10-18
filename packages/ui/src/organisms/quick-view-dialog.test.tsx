@@ -16,6 +16,7 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { commerceFixtures } from "@shopblok/fixtures";
+import type { VariantSelection } from "@shopblok/registry/contracts";
 import { catalogs, LOCALES, type Locale } from "@shopblok/i18n";
 import { formatMessage } from "@shopblok/i18n/format";
 import { act, render, screen, waitFor, within } from "@testing-library/react";
@@ -280,6 +281,20 @@ describe("QuickViewDialog: what it holds", () => {
         name: catalogs[locale].organisms.quickViewDialog.details,
       }),
     ).toBe(slot("quick-view-details"));
+  });
+
+  it("sends 'view full details' to the address of the shopper's choice when given one", async () => {
+    const asked: VariantSelection[] = [];
+    const { user } = await openDialog("en", "ready", {
+      detailsHref: (selection) => {
+        asked.push(selection);
+        return `/us/products/x?${new URLSearchParams(selection).toString()}`;
+      },
+    });
+    await user.click(screen.getByRole("radio", { name: "L" }));
+    const href = slot("quick-view-details")?.getAttribute("href") ?? "";
+    expect(href).toBe(`/us/products/x?${new URLSearchParams(asked.at(-1)).toString()}`);
+    expect(Object.values(asked.at(-1) ?? {})).toHaveLength(2);
   });
 
   it.each([[true], [false], [null], [undefined]])(

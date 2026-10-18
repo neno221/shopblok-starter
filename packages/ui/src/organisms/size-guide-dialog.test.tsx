@@ -219,19 +219,19 @@ describe("SizeGuideDialog", () => {
     it("changes from one to the other with a click, and says the unit in the caption", async () => {
       const { user } = await openGuide("en");
       expect(plain(table().querySelector("caption")?.textContent)).toBe(
-        "Body measurements in inches",
+        "Measurements in inches",
       );
       await user.click(unit("cm"));
       expect(pressed(unit("cm"))).toBe(true);
       expect(pressed(unit("in"))).toBe(false);
       expect(plain(table().querySelector("caption")?.textContent)).toBe(
-        "Body measurements in centimeters",
+        "Measurements in centimeters",
       );
       expect(body()[0]).toEqual(["XS", "80–84", "62–66", "64", "58"]);
       await user.click(unit("in"));
       expect(body()[0]).toEqual(["XS", "31.5–33.1", "24.4–26", "25.2", "22.8"]);
       expect(plain(table().querySelector("caption")?.textContent)).toBe(
-        "Body measurements in inches",
+        "Measurements in inches",
       );
     });
 
@@ -253,7 +253,7 @@ describe("SizeGuideDialog", () => {
       expect(pressed(unit("in"))).toBe(false);
       expect(body()[0]).toEqual(["XS", "80–84", "62–66", "64", "58"]);
       expect(plain(table().querySelector("caption")?.textContent)).toBe(
-        "Body measurements in centimeters",
+        "Measurements in centimeters",
       );
       await user.click(unit("cm"));
       expect(pressed(unit("cm"))).toBe(true);
@@ -307,13 +307,13 @@ describe("SizeGuideDialog", () => {
       );
       const caption = table().querySelector("caption") as HTMLElement;
       expect(box.getAttribute("aria-labelledby")).toBe(caption.id);
-      expect(screen.getByRole("region", { name: "Body measurements in inches" })).toBe(box);
+      expect(screen.getByRole("region", { name: "Measurements in inches" })).toBe(box);
     });
 
     it("is named by the unit it shows, and stays named when the unit changes", async () => {
       const { user } = await openGuide("en");
       await user.click(unit("cm"));
-      expect(screen.getByRole("region", { name: "Body measurements in centimeters" })).toBe(
+      expect(screen.getByRole("region", { name: "Measurements in centimeters" })).toBe(
         slot("table-container"),
       );
     });

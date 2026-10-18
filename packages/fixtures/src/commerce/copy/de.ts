@@ -173,7 +173,7 @@ export const de: Copy = {
       "Ungetragene Artikel können Sie innerhalb von 30 Tagen gegen volle Erstattung zurückgeben. Die Rückgabe ist kostenlos.",
     returnsLink: "Rückgabebedingungen lesen",
     sizeGuide: {
-      title: "Hoodies: Körpermaße",
+      title: "Hoodies: Maße",
       chest: "Brustumfang",
       waist: "Taillenumfang",
       length: "Rückenlänge",

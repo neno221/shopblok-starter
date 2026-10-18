@@ -8,7 +8,7 @@
 // - The table has one row for each size and one column for each measurement: a shopper looks up
 //   their size and reads across. The first column holds the sizes (`<th scope="row">`), the
 //   headers are `<th scope="col">` with the catalog's "Size" first, and the caption says the unit
-//   ("Body measurements in centimeters"), so the unit is text whichever is shown. The contract
+//   ("Measurements in centimeters"), so the unit is text whichever is shown. The contract
 //   gives one row for each measurement, and the table is its transpose.
 // - Units. The values are centimetres in the contract and inches are the centimetres divided by
 //   2.54, to one decimal; numbers and ranges follow the locale (`formatNumber`, so Greek writes

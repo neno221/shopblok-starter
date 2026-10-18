@@ -129,7 +129,9 @@ export const ProductInfo = z
  */
 export const ReviewsSection = z
   .object({
-    summary: RatingSummary,
+    summary: RatingSummary.describe(
+      "The ratings; its count is the number of written reviews the pages hold (the last page's range is counted back from it), so a source that also counts star-only ratings passes the written ones here",
+    ),
     reviews: z.array(Review).max(24).describe("This page's reviews, newest first"),
     page: PageState,
     writeHref: Href.optional().describe("Where a reviewer writes one"),

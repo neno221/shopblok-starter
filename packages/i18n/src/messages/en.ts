@@ -628,8 +628,8 @@ export const en = {
       centimetres: "Centimeters",
       inches: "Inches",
       // The table's caption in each unit, and its first column's heading.
-      captionCm: "Body measurements in centimeters",
-      captionIn: "Body measurements in inches",
+      captionCm: "Measurements in centimeters",
+      captionIn: "Measurements in inches",
       size: "Size",
     },
   },

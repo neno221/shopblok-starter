@@ -171,6 +171,13 @@ function BuyBox({
   // What the stepper shows: the shopper's number, held to what a line takes now (a variant with
   // three left caps a ten chosen on another one).
   const shownQuantity = amount === null ? null : Math.min(amount, maxQuantity);
+  // "Added to cart" and the error answer the choice and the quantity that were sent. M3's status
+  // stays on its last answer until the next submit, so the answer is drawn only while the shopper
+  // has changed neither (compared during render, as the choice is).
+  const asked = JSON.stringify([chosen, shownQuantity]);
+  const [answered, setAnswered] = useState<{ status: AddStatus; asked: string }>({ status, asked });
+  if (answered.status !== status) setAnswered({ status, asked });
+  const answerShown = answered.status === status && answered.asked === asked;
 
   const Heading = HEADINGS[headingLevel - 1] ?? "h1";
   const { rating } = product;
@@ -343,13 +350,13 @@ function BuyBox({
           </p>
         )}
         <div role="status" data-slot="buy-box-status">
-          {status === "added" ? (
+          {status === "added" && answerShown ? (
             <p className="mt-2 flex items-start gap-1.5 text-sm font-medium text-success">
               <CheckIcon aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
               <span className="wrap-anywhere">{copy.buyBox.added}</span>
             </p>
           ) : null}
-          {status === "error" ? (
+          {status === "error" && answerShown ? (
             <p className="mt-2 flex items-start gap-1.5 text-sm text-destructive">
               <CircleAlertIcon aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
               <span className="wrap-anywhere">{copy.buyBox.error}</span>

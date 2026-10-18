@@ -4252,7 +4252,7 @@ W4 copy changes from the review: the drawer's "Clear all" now matches the chips 
 | Branch | prepared locally on T37 while PR 49's CI could not start and the repository moved to `neno221`, then `claude/project-thread-pmqmfo`, restarted from `main` after PR 59 merged |
 | New | `packages/ui/src/organisms/{product-gallery, product-gallery-zoom, buy-box, mobile-sticky-atc, product-info-accordions, reviews-section, quick-view-dialog, size-guide-dialog}.tsx`, `buy-box-choice.ts` and their tests (the zoom and the choice through their organism's), `packages/registry/src/contracts/{product-page, product-page.test}.ts`, `packages/fixtures/src/commerce/build/product-page.ts`, `apps/storefront/src/design-system/stories/{organisms-product-page, organisms-buy-box}.tsx` and their tests (`organisms-product-page` has a static and a happy-dom one) |
 | Changed | `packages/ui/src/{atoms/price.tsx, molecules/price-block.tsx, molecules/variant-selector.tsx}` and the selector's test, `packages/i18n/src/{format.ts, format.test.ts, index.ts, messages/{en,el,de,fr}.ts}`, `packages/registry/src/{contracts/index.ts, entries/organisms.ts, index.test.ts}`, `packages/fixtures/src/commerce/{types.ts, build/index.ts, commerce.test.ts, data/catalog.ts, copy/*}`, `apps/storefront/{e2e/dev-console-ds.spec.ts, src/design-system/{interactions.ts, stories/index.ts}}` |
-| Tests | ui **4890** (475 new), storefront **2432** (304 new: the 7 entries in four locales in `stories.test.tsx` and the two stories' tests), registry **198** (14 new), fixtures **406** (28 new), i18n **95** (10 new), scripts 429, backend 85; `typecheck`, `lint`, `check:workspace` and `pnpm install --frozen-lockfile` pass |
+| Tests | ui **4892** (477 new), storefront **2432** (304 new: the 7 entries in four locales in `stories.test.tsx` and the two stories' tests), registry **198** (14 new), fixtures **406** (28 new), i18n **95** (10 new), scripts 429, backend 85; `typecheck`, `lint`, `check:workspace` and `pnpm install --frozen-lockfile` pass |
 
 ### How it works
 
@@ -4274,8 +4274,9 @@ W4 copy changes from the review: the drawer's "Clear all" now matches the chips 
 ### How a component task uses them
 
 1. M3's product page renders ProductGallery and BuyBox side by side from `md` (the box sticky from `lg`), ProductInfoAccordions and ReviewsSection under them, and MobileStickyATC with the box's `formId`, `optionsId` (as `#…`) and `buttonId`. It reads the choice from the URL into `selection` and `selectedValueIds`, writes `onSelectionChange` back with `router.replace`, passes the server action as `action` and its progress as `status`, and passes a SizeGuideDialog as `sizeGuide` for a product with a size chart.
-2. The listing's quick-add card (T37) can open QuickViewDialog instead, with the same action.
-3. M8 brings the reviews and "Write a review"; until then the page passes what Medusa has.
+2. The listing's quick-add card (T37) can open QuickViewDialog instead, with the same action, and gives it `detailsHref` so "View full details" opens the product page on the shopper's choice.
+3. M8 brings the reviews and "Write a review"; until then the page passes what Medusa has. `summary.count` must be the number of written reviews (the last page's range counts back from it); a source that also counts star-only ratings passes the written ones.
+4. MobileStickyATC's `choice`, `price` and `status` must be rebuilt from the box's choice on every change (a shallow URL write leaves them stale), and M3 decides whether the bar shows "Adding…" and "Added to cart" itself: the box's own words have scrolled out of view when the bar is pressed (PR 60 review).
 
 ### Measured
 
@@ -4331,3 +4332,14 @@ Each applied, checked and reverted from a copy.
 - **A `fixed` popup is the containing block of the absolutely positioned parts inside it** (the number field's hidden input, visually hidden labels): one far down a scrolled body stretched the popup's scrollable area and tripped the clipping check in the workers' harness, so the quick view's body is `relative`.
 - **An IntersectionObserver reports only a change of its answer,** so "not intersecting, its top above 0" misses a jump over an element that was never in view; the sticky bar watches the band above the window instead.
 - **The Greek, German and French copy** of the new keys was drafted in this session, for W4's read.
+
+### Review fixes (PR 60)
+
+| Finding | Fix | Test |
+|---|---|---|
+| 1. "Added to cart" and the error stayed after the shopper changed the size or the quantity | BuyBox remembers the choice and quantity each answer came for, and draws it only while both still match; the status element stays mounted, so the next answer is still said | `buy-box.test.tsx` "drops the answer once the shopper changes the choice it answered" |
+| 2. The sticky bar reads the page's props, not the box's live choice, and shows no adding state | recorded for M3 (item 4 above) | none (M3) |
+| 3. "View full details" dropped the shopper's choice | `detailsHref(selection)` prop; left out, the link is `product.href` | `quick-view-dialog.test.tsx` "sends 'view full details' to the address of the shopper's choice" |
+| 4. The last reviews page's range assumes `summary.count` is the number of written reviews | the contract's `summary` says so (item 3 above) | none |
+
+W4 copy changes from the review: French zoom title "Agrandissement : {title}" (no agreement with the product's gender); Greek sticky bar "Ορίστε τις επιλογές σας"; the size guide is "measurements", not "body measurements", in its title and captions in all four (two rows are garment lengths); French "14 h" keeps a no-break space. Left for W4: `buyBox.choose` puts the option titles mid-sentence with their capitals in French and Greek.

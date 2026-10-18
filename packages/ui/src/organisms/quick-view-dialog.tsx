@@ -63,6 +63,11 @@ type QuickViewDialogProps = BuyBoxContent & {
   action?: string | ((formData: FormData) => void | Promise<void>);
   onSelectionChange?: (selection: VariantSelection) => void;
   status?: AddStatus;
+  /**
+   * "View full details"'s address for the shopper's choice, so the product page opens on it (SPEC
+   * §8.4 reads the choice from the URL; M3 builds it). Left out, the link is `product.href`.
+   */
+  detailsHref?: (selection: VariantSelection) => string;
   /** next/link's `prefetch` for "View full details"; the design system passes `false`. */
   prefetch?: boolean | null;
   /** Drawn open at first render (the design system's states); takes no focus until a reader opens it again. */
@@ -98,6 +103,7 @@ function QuickViewDialog({
   action,
   onSelectionChange,
   status,
+  detailsHref,
   prefetch,
   defaultOpen,
   modal,
@@ -167,7 +173,7 @@ function QuickViewDialog({
                 titleId={titleId}
               />
               <Link
-                href={product.href as LinkHref}
+                href={(detailsHref?.(chosen) ?? product.href) as LinkHref}
                 prefetch={prefetch}
                 variant="standalone"
                 data-slot="quick-view-details"

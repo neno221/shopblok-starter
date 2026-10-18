@@ -278,7 +278,7 @@ export const hoodie = {
 };
 
 /**
- * The hoodie's size guide (T38): body measurements in centimetres for each of its sizes, a range or
+ * The hoodie's size guide (T38): measurements in centimetres for each of its sizes, a range or
  * one value. SizeGuideDialog shows them in inches too.
  */
 export const hoodieSizeChart = {

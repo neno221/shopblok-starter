@@ -168,7 +168,7 @@ export const en: Copy = {
     returns: "Return anything unworn within 30 days for a full refund. Returns are free.",
     returnsLink: "Read the returns policy",
     sizeGuide: {
-      title: "Hoodies: body measurements",
+      title: "Hoodies: measurements",
       chest: "Chest",
       waist: "Waist",
       length: "Body length",
