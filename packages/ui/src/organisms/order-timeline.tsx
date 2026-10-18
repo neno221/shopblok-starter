@@ -75,7 +75,8 @@ function OrderTimeline({ events, copy, locale, label, className, ...props }: Ord
         const canceled = event.kind === "canceled";
         return (
           <TimelineItem
-            key={`${event.kind}-${event.at}`}
+            // Two events of one kind at one time (a split shipment) are allowed; the list never reorders.
+            key={index}
             step={index + 1}
             render={<li aria-current={latest ? "step" : undefined} />}
             data-kind={event.kind}
@@ -83,6 +84,7 @@ function OrderTimeline({ events, copy, locale, label, className, ...props }: Ord
           >
             <TimelineHeader className="flex min-w-0 flex-col">
               <TimelineSeparator />
+              {/* In UTC for a stable prerender; M3 brings the market's time zone (as OrderTable). */}
               <TimelineDate dateTime={event.at} className="order-2 mt-0.5 mb-0">
                 {formatDate(event.at, locale, {
                   dateStyle: "medium",
@@ -103,7 +105,9 @@ function OrderTimeline({ events, copy, locale, label, className, ...props }: Ord
               </TimelineTitle>
               <TimelineIndicator className={cn(latest && "bg-primary")} />
             </TimelineHeader>
-            {event.carrier === undefined && event.trackingNumber === undefined ? null : (
+            {event.carrier === undefined &&
+            event.trackingNumber === undefined &&
+            event.trackingUrl === undefined ? null : (
               <TimelineContent className="mt-1 flex min-w-0 flex-col gap-0.5 wrap-anywhere">
                 {event.carrier === undefined ? null : (
                   <span>{formatMessage(copy.carrier, { carrier: event.carrier }, locale)}</span>

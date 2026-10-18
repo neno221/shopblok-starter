@@ -4444,3 +4444,18 @@ Each applied, checked and reverted.
 - **Radios of one name in different forms are different groups,** so the DS's page of payment states keeps one choice per state without a name per state.
 - **happy-dom's name computation puts a space before a comma** that follows a visually hidden span; the tests compare names with it removed, as T37's do.
 - **The Greek, German and French copy** of the new keys was drafted in this session, for W4's read.
+
+### Review fixes (PR 62)
+
+| Finding | Fix | Test |
+|---|---|---|
+| 1. OrderTimeline dropped "Track package" when an event had only `trackingUrl` | the content block is drawn when any of carrier, number or address is there | `order-timeline.test.tsx` "links to the parcel when the event has only a tracking address" |
+| 2. PaymentStep offered nothing when every saved card had expired and `methods` was empty | an expired card is no offer: the system payment is drawn then | `payment-step.test.tsx` "offers the system payment when every saved card has expired" |
+| 3. QuickCartDropdown said "Added to your cart" when opened from its own button | it speaks only when the page opens it (after an add); the button's opening says nothing | `quick-cart-dropdown.test.tsx` (the polite region) |
+| 4. Two timeline events of one kind at one time shared a key | the key is the index (the list never reorders) | "draws two events of one kind at one time" |
+| 5. Order dates are in UTC | kept for a stable prerender, with a comment; **M3** passes the market's time zone to OrderTable and OrderTimeline so an order placed after midnight in Cyprus shows that day | none (M3) |
+| 6. The address book's fallback id and edit link differed | computed once | fixtures suite |
+| 7. PaymentStep copied the card's expiry helpers | `expiryText` and `isExpired` are exported from SavedPaymentMethodCard and imported | existing tests |
+| 8. The cart badge is drawn in three places | left: one helper for the header, drawer and quick cart is a refactor for M3 when the island feeds all three | none |
+| 9. `takesFocusWhenOpenedByAReader` has copies in many files | left for a small refactor PR (it touches T33 to T38 files) | none |
+| 10. Checkout and View cart closed the drawer and the popover on a modified click | they close only on a plain click | "stays open for a link opened in a new tab" |

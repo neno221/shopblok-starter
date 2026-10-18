@@ -154,6 +154,15 @@ describe("QuickCartDropdown: the popover", () => {
     await waitFor(() => expect(popup()).toBeNull());
   });
 
+  it("stays open for a link opened in a new tab", async () => {
+    const { user } = await openPopup("en");
+    const view = screen.getByRole("link", { name: copyOf("en").viewCart });
+    await user.keyboard("{Control>}");
+    await user.click(view);
+    await user.keyboard("{/Control}");
+    expect(popup()).not.toBeNull();
+  });
+
   it("is capped at the room under the button and scrolls inside", async () => {
     await openPopup("en");
     expect(popup()?.className).toContain("max-h-(--available-height)");
@@ -163,14 +172,14 @@ describe("QuickCartDropdown: the popover", () => {
 });
 
 describe("QuickCartDropdown: the polite region", () => {
-  it("is there and empty at first, and says what was added once it opens", async () => {
+  it("is there and empty at first, and says nothing when the shopper opens it from its button", async () => {
     render(element("en"));
     expect(status().getAttribute("aria-live")).toBe("polite");
     expect(status().textContent).toBe("");
     await userEvent.setup().click(trigger());
-    await waitFor(() =>
-      expect(status().textContent).toBe("Added to your cart: Merino Ankle Socks, 3-Pack"),
-    );
+    await waitFor(() => expect(popup()).not.toBeNull());
+    // No add happened: the button only shows the last one (PR 62 review).
+    expect(status().textContent).toBe("");
   });
 
   it("says nothing for a popover drawn open at first render", () => {

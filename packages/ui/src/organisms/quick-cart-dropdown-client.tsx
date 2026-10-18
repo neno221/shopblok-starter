@@ -26,7 +26,7 @@ import {
 import { Popover as PopoverPrimitive } from "@base-ui/react/popover";
 import { CircleCheckIcon, ShoppingBagIcon, XIcon } from "lucide-react";
 import NextLink from "next/link";
-import { useState, type ReactNode } from "react";
+import { useState, type MouseEvent, type ReactNode } from "react";
 
 type QuickCartDropdownClientProps = {
   copy: {
@@ -83,16 +83,25 @@ function QuickCartDropdownClient({
 }: QuickCartDropdownClientProps) {
   const [ownOpen, setOwnOpen] = useState(defaultOpen === true);
   const open = openProp ?? ownOpen;
-  // What the region says: nothing at first, the sentence once the popover opens after that.
+  // What the region says: nothing at first, and the sentence when the page opens the popover after
+  // an add. Opened from its own button, it says nothing: no add happened then.
   const [said, setSaid] = useState("");
   const [wasOpen, setWasOpen] = useState(open);
+  const [byButton, setByButton] = useState(false);
   if (open !== wasOpen) {
     setWasOpen(open);
-    setSaid(open ? copy.announce : "");
+    setSaid(open && !byButton ? copy.announce : "");
+    if (!open) setByButton(false);
   }
   const change = (next: boolean) => {
+    setByButton(next);
     setOwnOpen(next);
     onOpenChange?.(next);
+  };
+  /** A link followed in this tab closes the popover; one opened in a new tab leaves it. */
+  const closeOnPlainClick = (event: MouseEvent) => {
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    change(false);
   };
   return (
     <>
@@ -145,7 +154,7 @@ function QuickCartDropdownClient({
               href={checkoutHref as LinkHref}
               prefetch={prefetch}
               data-slot="quick-cart-checkout"
-              onClick={() => change(false)}
+              onClick={closeOnPlainClick}
               className={cn(buttonVariants(), "w-full")}
             >
               <span className="min-w-0 wrap-anywhere">{copy.checkout}</span>
@@ -154,7 +163,7 @@ function QuickCartDropdownClient({
               href={cartHref as LinkHref}
               prefetch={prefetch}
               data-slot="quick-cart-view"
-              onClick={() => change(false)}
+              onClick={closeOnPlainClick}
               className={cn(buttonVariants({ variant: "outline" }), "w-full")}
             >
               <span className="min-w-0 wrap-anywhere">{copy.viewCart}</span>

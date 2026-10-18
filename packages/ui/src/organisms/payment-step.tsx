@@ -12,7 +12,7 @@
 // a polite status region that is always in the form, tied to the fieldset ("Choose how you would like
 // to pay."); `status="pending"` holds the submit (`aria-disabled`, `type="button"`, a hidden disabled
 // submit first, as AddressForm does). A server component: the choice is the browser's radio state.
-import { formatMessage, formatNumber, type Messages } from "@shopblok/i18n";
+import { formatMessage, type Messages } from "@shopblok/i18n";
 import type {
   PaymentMethod,
   PaymentStep as PaymentStepContent,
@@ -25,6 +25,7 @@ import { Spinner } from "@shopblok/ui/atoms/spinner";
 import { cn } from "@shopblok/ui/lib/utils";
 import { PaymentMethodCard } from "@shopblok/ui/molecules/payment-method-card";
 import { RadioCard } from "@shopblok/ui/molecules/radio-card";
+import { expiryText, isExpired } from "@shopblok/ui/molecules/saved-payment-method-card";
 import { CircleAlertIcon } from "lucide-react";
 import { useId } from "react";
 import type * as React from "react";
@@ -60,23 +61,6 @@ type PaymentStepProps = Omit<
 /** The system payment: what Medusa offers when a region has no provider. */
 const SYSTEM_ID = "pp_system_default";
 
-/** Month and year as numbers in the locale's digits: `08/2028`. */
-function expiryText(card: SavedPaymentMethod, locale: string): string {
-  const month = formatNumber(card.expiryMonth, locale, {
-    minimumIntegerDigits: 2,
-    useGrouping: false,
-  });
-  return `${month}/${formatNumber(card.expiryYear, locale, { useGrouping: false })}`;
-}
-
-/** True from the month after the expiry month, in UTC (SavedPaymentMethodCard's rule). */
-function isExpired(card: SavedPaymentMethod, now: string): boolean {
-  const at = new Date(now);
-  const year = at.getUTCFullYear();
-  const month = at.getUTCMonth() + 1;
-  return card.expiryYear < year || (card.expiryYear === year && card.expiryMonth < month);
-}
-
 function PaymentStep({
   saved,
   methods,
@@ -100,7 +84,9 @@ function PaymentStep({
   const methodsId = `${id}-methods`;
   const words = copy.step;
   const pending = status === "pending";
-  const system = saved.length === 0 && methods.length === 0;
+  // An expired card is drawn but cannot be chosen, so it is no offer: with only those and no
+  // methods, the system payment is the one choice.
+  const system = saved.every((card) => isExpired(card, now)) && methods.length === 0;
   const takesCards = methods.some((method) => method.kind === "card");
   const name = "paymentMethod";
   return (

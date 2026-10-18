@@ -169,5 +169,5 @@ function SavedPaymentMethodCard({
   );
 }
 
-export { SavedPaymentMethodCard };
+export { expiryText, isExpired, SavedPaymentMethodCard };
 export type { SavedPaymentMethodCardProps };

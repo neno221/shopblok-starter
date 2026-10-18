@@ -203,10 +203,10 @@ export function buildAccount(
     reasons,
     note: "",
   };
-  const book = addresses.map((address) => ({
-    address: { ...address, id: address.id ?? `addr_${address.countryCode}` },
-    editHref: ctx.href(`/account/addresses/${address.id ?? address.countryCode}`),
-  }));
+  const book = addresses.map((address) => {
+    const id = address.id ?? `addr_${address.countryCode}`;
+    return { address: { ...address, id }, editHref: ctx.href(`/account/addresses/${id}`) };
+  });
   return {
     nav: {
       items: pages.map(([id, label, path]) => ({

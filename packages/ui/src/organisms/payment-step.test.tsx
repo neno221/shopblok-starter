@@ -115,6 +115,14 @@ describe("PaymentStep: the form", () => {
     expect(described?.className).toContain("text-destructive");
   });
 
+  it("offers the system payment when every saved card has expired and nothing else is on offer", () => {
+    const { saved } = paymentOf("en", "saved");
+    render(element("en", "saved", { saved, methods: [], now: "2099-01-15T00:00:00.000Z" }));
+    const copy = copyOf("en").step;
+    const radio = screen.getByRole("radio", { name: copy.systemName }) as HTMLInputElement;
+    expect(radio.checked).toBe(true);
+  });
+
   it("offers a guest the region's ways to pay with no saved cards' heading", () => {
     render(element("en", "guest"));
     expect(screen.queryByRole("group", { name: "Your saved cards" })).toBeNull();

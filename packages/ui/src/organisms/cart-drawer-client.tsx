@@ -32,7 +32,7 @@ import {
 } from "@shopblok/ui/primitives/sheet";
 import { ShoppingBagIcon, XIcon } from "lucide-react";
 import NextLink from "next/link";
-import { useState, type ReactNode } from "react";
+import { useState, type MouseEvent, type ReactNode } from "react";
 
 type CartDrawerClientProps = {
   copy: {
@@ -84,7 +84,11 @@ function CartDrawerClient({
   popupClassName,
 }: CartDrawerClientProps) {
   const [open, setOpen] = useState(defaultOpen === true);
-  const close = () => setOpen(false);
+  /** A link followed in this tab closes the drawer; one opened in a new tab leaves it. */
+  const close = (event: MouseEvent) => {
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    setOpen(false);
+  };
   return (
     <Sheet open={open} onOpenChange={setOpen} modal={modal ?? true}>
       <SheetTrigger

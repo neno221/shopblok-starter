@@ -90,6 +90,30 @@ describe("OrderTimeline", () => {
     },
   );
 
+  it("links to the parcel when the event has only a tracking address", () => {
+    const { events } = timelineOf("en");
+    const at = events.find((event) => event.kind === "shipped")?.at ?? events[0]!.at;
+    render(
+      element("en", "delivered", {
+        events: [{ kind: "shipped", at, trackingUrl: "https://track.example/1" }],
+      }),
+    );
+    const item = document.querySelector('[data-kind="shipped"]') as HTMLElement;
+    const link = slot("order-timeline-track", item) as HTMLAnchorElement;
+    expect(link.getAttribute("href")).toBe("https://track.example/1");
+    expect(item.textContent).not.toContain("Carrier");
+  });
+
+  it("draws two events of one kind at one time (a split shipment) without a key warning", () => {
+    const warn = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { events } = timelineOf("en");
+    const at = events[0]!.at;
+    render(element("en", "delivered", { events: [{ kind: "shipped", at }, { kind: "shipped", at }] }));
+    expect(document.querySelectorAll('[data-kind="shipped"]')).toHaveLength(2);
+    expect(warn.mock.calls.flat().join(" ")).not.toContain("same key");
+    warn.mockRestore();
+  });
+
   it.each(LOCALES)("says who carries the parcel, its number and links to it, in %s", (locale) => {
     render(element(locale));
     const copy = copyOf(locale);

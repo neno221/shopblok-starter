@@ -92,6 +92,8 @@ function OrderTable({
   const Heading = `h${headingLevel}` as const;
   // The number as it is: an order's number is a name, not a quantity, so it takes no grouping.
   const number = (order: OrderListItem) => String(order.displayId);
+  // In UTC, so the prerendered HTML is the same on every server; M3 passes the market's time zone
+  // (SETUP.md T39, review fixes) so an order placed after midnight in Cyprus shows that day.
   const date = (order: OrderListItem) =>
     formatDate(order.placedAt, locale, { dateStyle: "medium", timeZone: "UTC" });
   const status = (order: OrderListItem) => (
