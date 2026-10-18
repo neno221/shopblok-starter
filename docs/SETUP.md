@@ -4459,3 +4459,69 @@ Each applied, checked and reverted.
 | 8. The cart badge is drawn in three places | left: one helper for the header, drawer and quick cart is a refactor for M3 when the island feeds all three | none |
 | 9. `takesFocusWhenOpenedByAReader` has copies in many files | left for a small refactor PR (it touches T33 to T38 files) | none |
 | 10. Checkout and View cart closed the drawer and the popover on a modified click | they close only on a plain click | "stays open for a link opened in a new tab" |
+
+## Baselines and thumbnails (T40)
+
+**Result: every design-system cell outside Foundations (114 entries × `en`, `el` × 375, 768, 1440 px: 684 cells) now asserts `toHaveScreenshot` against a baseline at `apps/storefront/e2e/__screenshots__/design-system/{id}/{locale}-{width}.png`, the 21 family previews are captured by a `thumbnails` project into `apps/storefront/public/registry/{id}.png` (600 × 400, half scale), the `design-system` job runs in Playwright's container, and a `workflow_dispatch` input, `update-baselines`, makes both sets. The code is in; the first set is not committed: D51 says only CI's dispatch makes it, and the set measured over D51's 60 MB line (below), so the decision is yours before the dispatch.**
+
+| | |
+|---|---|
+| Date | 2026-10-18 |
+| Branch | `claude/project-thread-pmqmfo` |
+| New | `apps/storefront/e2e/thumbnails.spec.ts`, `apps/storefront/e2e/support/settle.ts`, `scripts/thumbnails.ts` |
+| Changed | `.github/workflows/ci.yml` (the container, the tools step, the `update-baselines` input and job), `apps/storefront/playwright.config.ts` (`snapshotPathTemplate`, `expect.toHaveScreenshot`, the `thumbnails` project), `apps/storefront/e2e/design-system.spec.ts` (`toHaveScreenshot` in place of the attached screenshot), `packages/registry/src/index.test.ts` (the thumbnail files), `scripts/lib/ci-gate.ts` (the thumbnails and `public/registry/` are DS-only files), `renovate.json` (the image tag moves with `@playwright/test`), the root `package.json` (`thumbnails`) |
+| Not done | the first set (`__screenshots__/` and `public/registry/` are empty in the repository), CI's times in the container against the runner's (needs a run), the history's `count-objects` after the set |
+
+### How it works
+
+- **The container.** The `design-system` job has `container: image: mcr.microsoft.com/playwright:v1.64.0-noble` with `--ipc=host --init`. Node 22 and pnpm come from `.github/actions/setup` as before; there is no `playwright install`, because the image holds the Chromium that `@playwright/test` 1.64.0 drives. The image (checked 2026-10-18 with `docker run`) has Node 24, the version-control client, `ps`, `awk`, `curl` and `bash`, and **none of `lsof`, `ss` or `fuser`**, which `stop-tree.sh` wants one of for its port check. The first step, before `actions/checkout` (so that checkout clones instead of downloading a tarball), checks `command -v` for the client, `ps`, `awk`, `curl` and one of the three, and `apt-get install`s what is missing (`procps`, `gawk`, `curl`, `lsof` and the client); with this image it installs `lsof`. Both Playwright projects run in one step, then the `dev-console-ds` step as before. `timeout-minutes` stays 50. The job's times (about 17 min at T37 on the runner) were not compared: that needs a run.
+- **Determinism (D50).** The clock is `fixtureNow` (`2026-10-01T09:00:00Z`, `page.clock.setFixedTime`), `reducedMotion: "reduce"` is in the project's context options, `toHaveScreenshot` runs with `animations: "disabled"` and `caret: "hide"` (set in `expect.toHaveScreenshot`, so they are written down), and `support/settle.ts` makes every image eager, loaded and decoded, and waits for `document.fonts.ready` and two frames, before each capture. The comparison is Playwright's default: per-pixel threshold 0.2, no differing pixel allowed.
+- **A full-page capture is not the same page twice.** Two runs on the same build gave two pictures for ProductGallery's cells: a full-page capture resizes the viewport itself, and embla re-measures on that resize, so the next arrow was drawn in its enabled colour in one load and in its disabled colour in the next (3 of 6 cells in one run, others in the next; the computed styles of a settled page were the same in every load, and loading images, transitions and a late `resize` event were each ruled out). `withPageSizedViewport` in `support/settle.ts` sizes the viewport to the page's height first (read again until it stops moving), waits 300 ms for each size, captures and puts the viewport back to 900 px. With that, ten loads of the page gave one picture. The other 680 cells needed nothing.
+- **Baselines.** `snapshotPathTemplate: "{testDir}/__screenshots__/{arg}{ext}"` for `design-system`, no platform suffix. A cell's first assertion is the soft screenshot, so a cell that differs still runs axe, overflow, size and console, and the report keeps the expected, actual and diff images (`design-system-report` artifact, `test-results/`). Foundations are not cells (D51). A baseline that is missing fails its cell (Playwright's default).
+- **Thumbnails (D52).** The `thumbnails` project (1200 × 800 viewport, `deviceScaleFactor: 0.5`, `scale: "device"` in the assertion, so the PNG is 600 × 400) visits `/design-system/en/preview/{id}` for each of the registry's 21 entries with a `thumbnail` and compares the viewport with `public/registry/{id}.png`: the thumbnail is the preview's baseline. Both projects run on the one flag (`E2E_DESIGN_SYSTEM=true`), and the `design-system` job's one Playwright step lists both. `pnpm thumbnails` (`scripts/thumbnails.ts`, which sets the flag because `VAR=x cmd` is not portable to Windows' shells) runs the project with `--update-snapshots=changed` against a server that is up; **only Playwright's container makes the committed ones** (D51). The registry already derived `thumbnail: /registry/{id}.png` (T29), and its test now also reads the folder: every family entry has a 600 × 400 PNG and no PNG lacks an entry. Until the first set is committed the folder does not exist and that test is skipped; from then on a missing file fails it (checked: with one removed, `has a PNG for every family entry` fails and names the entry). **Half scale did not blur**: Chromium draws the page at half device scale, so text is rasterised at its size and not resampled (checked by eye on `header-classic` and `product-card-bordered`); the zoom fallback was not needed.
+- **Updating.** Dispatch CI on the branch with `update-baselines` on: `gh api -X POST repos/<owner>/shopblok-starter/actions/workflows/ci.yml/dispatches -f ref=<branch> -F 'inputs[update-baselines]=true'`. That run starts the `update-baselines` job **instead of** `design-system` (the other jobs run as for any dispatch). The job is the only one with `permissions: contents: write` (the workflow's default stays `contents: read`): it uses the same container and tools step, builds with the flag, starts `next start` and runs both projects with `--update-snapshots=changed` over every cell, so axe, overflow, size and console run as in a normal run and a failure there stops the job before a commit. Then, only if that step passed, it stages `apps/storefront/e2e/__screenshots__/` and `apps/storefront/public/registry/` (and fails if anything but a PNG is staged), prints the PNGs changed (new, changed, deleted, of the whole set), the bytes the commit adds and the size of the set, warns on D51's lines (a set above 60 MB; more than half the set in one update), commits as `github-actions[bot]`, pushes to the branch (it refuses the default branch) and **prints that CI must be run again by hand**, with the command: a push made with `GITHUB_TOKEN` starts no workflow, so the PR's checks stay as they were until the session dispatches CI.
+- **Renovate.** `@playwright/test` and `mcr.microsoft.com/playwright` are one group (`playwright`). A merge changes the browser the baselines were made with, so that PR gets an `update-baselines` dispatch before it merges.
+
+### Size and the stop lines (D51)
+
+- **Rule.** Not Git LFS. If the first full set is over **60 MB**, T40 stops and asks you; the fallback is baselines in `en` only (the `el` cells keep their other checks). The history grows with every update (each commit adds a new copy of each PNG it changes): every update prints its PNGs and bytes, and a session stops and asks when the baselines' history passes **200 MB** (`git count-objects -vH` against the count recorded before the first set) or one update adds more than half a set.
+- **Before the first set** (a worktree of `main` at 3f03ca7, 2026-10-18): `count: 1193`, `size: 26.95 MiB` (loose), `in-pack: 3798`, `size-pack: 4.69 MiB`.
+- **Measured set (a local run in the image, below):** 684 PNGs, 104,711,489 bytes (**99.9 MiB**, 104.7 MB), 153 KB on average, the largest 0.9 MB; `en` alone is 48.2 MB (342 PNGs). By group, in the first run (683 cells): atoms 6.7 MB, molecules 34.9 MB, organisms 45.5 MB, headers and footers 17.0 MB.
+- **That is above 60 MB**, so nothing was committed and **the decision is yours**: either accept about 100 MB for the first set (the history then reaches the 200 MB line after one more full update), or take the fallback, `en` only, about 48 MB (half the cells; `el` keeps axe, overflow, size and console). The large cells are the long organisms and molecules (`address-form` 0.9 MB at 375 px in `el`, `reviews-section` 0.7 MB). D51's expectation of 40 to 60 MB was for about 30 KB a cell; the average is 153 KB.
+- **Thumbnails:** 21 PNGs of 600 × 400, 260,914 bytes in all (5 to 24 KB each; D52 inferred about 50 KB each, 1 MB in all).
+
+### Making and checking them locally, in the image
+
+The same image runs under Docker in the cloud (a fresh session has to start `dockerd` in the background first). The server runs on the host and the browser in the container, so only the browser and its fonts matter to the pixels:
+
+```
+DESIGN_SYSTEM_ENABLED=true pnpm --filter @shopblok/storefront build
+pnpm --filter @shopblok/storefront start &
+docker run --rm --ipc=host --network=host -v "$PWD":/w -w /w/apps/storefront -e CI=true -e E2E_DESIGN_SYSTEM=true \
+  mcr.microsoft.com/playwright:v1.64.0-noble node_modules/.bin/playwright test --project=design-system --project=thumbnails --update-snapshots=changed
+```
+
+Delete what a local run wrote before committing: the committed set is CI's, so that every run compares with the same fonts and browser. After a rebuild, stop the earlier `next start` by its PID first: it would answer with the old build's chunk names and every cell would fail on the console.
+
+### Checks
+
+Everything below ran in the image (`mcr.microsoft.com/playwright:v1.64.0-noble`, Chromium 1248, 4 cores, 2 workers) against `next start` on the host, built with the flag.
+
+| Check | Result |
+|---|---|
+| The whole suite, first run, writing baselines | 725 of 726 passed in 20.6 min: ProductGallery's `en · 1440` could not be made stable (the arrow state, above) |
+| The whole suite again, comparing | 723 of 726: that cell (missing) and two more ProductGallery cells (`el · 375`, `el · 768`) differed from the first run, on the same build |
+| After `withPageSizedViewport` and `settle`: writing, 684 cells and 21 thumbnails | 748 of 748 passed in 20.4 min |
+| The same again, comparing | **748 of 748 passed in 18.7 min, no diff** (the other 64 tests are the overlay, interaction, cart count, cookie and bundle checks) |
+| Ten loads of the ProductGallery page at 768 px, the viewport sized first | one picture; without it, 2 of 4 and 7 of 9 loads differed |
+| Mutation: `--badge-sale` one step (`red-600` to `red-500`), 30 cells | the 6 `molecules/product-card-standard` cells fail (2090 px differ at 375 px), the 24 atom cells (button, badge, price, avatar) pass: none of them draws the sale badge |
+| Mutation: a thumbnail deleted | the registry's `has a PNG for every family entry` fails and names `molecules/product-card-minimal` |
+| Not run | the 1 px move, a story that renders `new Date()` (the clock mutations), CI's two runs on one commit: they need the first set to be in git |
+| `pnpm check:workspace`, `pnpm typecheck`, `pnpm lint`, `pnpm test` | all pass (registry 13 files, scripts 21, storefront 67, ui 142; the registry's thumbnail check skipped while the folder is absent) |
+| Image tools | `lsof`, `ss` and `fuser` missing, the rest present; the `command -v` step installs `lsof` |
+
+### Left for you
+
+- **The 60 MB decision** (above), before the dispatch.
+- **The first set**: dispatch CI on the PR's branch with `update-baselines`, read the printed numbers, record `git count-objects -vH` after it in this section, dispatch CI again (it must pass twice on the unchanged commit), then merge.
+- **The runner's times in the container** against the earlier runner's (17 min for the DS checks at T37).

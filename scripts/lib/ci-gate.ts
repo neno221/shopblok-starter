@@ -37,10 +37,14 @@ export const designSystemOnly: readonly DesignSystemArea[] = [
   // The DS page's stories, shell and routes (T22).
   { path: "apps/storefront/src/design-system/" },
   { path: "apps/storefront/src/app/design-system/" },
-  // The DS checks (T24), the DS pages in `next dev` (T27) and, from T40, their baselines.
+  // The DS checks (T24), the DS pages in `next dev` (T27) and, from T40, the thumbnails and the
+  // baselines.
   { path: "apps/storefront/e2e/design-system.spec.ts" },
   { path: "apps/storefront/e2e/dev-console-ds.spec.ts" },
+  { path: "apps/storefront/e2e/thumbnails.spec.ts" },
   { path: "apps/storefront/e2e/__screenshots__/" },
+  // The 21 thumbnails (D52): served from `public/`, read by nothing outside the DS until M4.
+  { path: "apps/storefront/public/registry/" },
 ];
 
 /**

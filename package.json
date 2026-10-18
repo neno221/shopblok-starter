@@ -18,7 +18,8 @@
     "infra:down": "docker compose down",
     "infra:reset": "docker compose down -v && docker compose up -d --wait",
     "check:workspace": "node scripts/check-workspace.ts",
-    "tokens": "node scripts/figma-tokens.ts"
+    "tokens": "node scripts/figma-tokens.ts",
+    "thumbnails": "node scripts/thumbnails.ts"
   },
   "devDependencies": {
     "prettier": "3.9.9",

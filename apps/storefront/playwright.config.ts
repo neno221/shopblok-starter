@@ -13,10 +13,15 @@ import { defineConfig, devices, type Project } from "@playwright/test";
 //   dev-console     (T25, D37) the storefront's own routes in `next dev`; e2e-smoke's last step.
 //   dev-console-ds  (T27) the DS pages in `next dev`; the design-system job's last step.
 //   design-system   (T24, D34) every DS cell against `next start` built with
-//                   DESIGN_SYSTEM_ENABLED=true; no backend.
+//                   DESIGN_SYSTEM_ENABLED=true; no backend. T40 (D51): each cell is also a pixel
+//                   comparison against a committed baseline.
+//   thumbnails      (T40, D52) the previews of the 21 family entries at 1200 × 800 at half scale,
+//                   compared with (or, on an update, written as) `public/registry/{id}.png`. It
+//                   runs against the same server as `design-system`, so the one flag enables both.
 // A browser that is not the one `playwright install` fetched (the cloud VM's, CLOUD.md), for the
 // `design-system` project. Unset in CI.
 const chromiumPath = process.env["PW_CHROMIUM_PATH"];
+const launchOptions = chromiumPath ? { launchOptions: { executablePath: chromiumPath } } : {};
 
 // `next dev` compiles each route on its first visit, so the dev-console projects keep one worker,
 // and their one retry is for a browser that stalls on a runner (CI run 38876631305): a console
@@ -47,15 +52,34 @@ const optIns: OptIn[] = [
       {
         name: "design-system",
         retries: 0,
+        // D51: no platform suffix, because only Playwright's container makes baselines. The cell
+        // names its file: `design-system/{id}/{locale}-{width}.png`.
+        snapshotPathTemplate: "{testDir}/__screenshots__/{arg}{ext}",
         use: {
           ...devices["Desktop Chrome"],
-          ...(chromiumPath ? { launchOptions: { executablePath: chromiumPath } } : {}),
+          ...launchOptions,
           // D50 (set in T35, the first entry that moves by itself: AnnouncementBar's rotation): the
           // cells run as a reader who prefers reduced motion, so nothing changes between one run's
           // picture and the next.
           contextOptions: { reducedMotion: "reduce" },
         },
         testMatch: /design-system\.spec\.ts/,
+      },
+      {
+        name: "thumbnails",
+        retries: 0,
+        // D52: the thumbnail is the preview's baseline, in `public/` where Next serves it as
+        // `/registry/{id}.png` and the registry points to it.
+        snapshotPathTemplate: "{testDir}/../public/registry/{arg}{ext}",
+        use: {
+          ...devices["Desktop Chrome"],
+          ...launchOptions,
+          viewport: { width: 1200, height: 800 },
+          // Half scale: with `scale: "device"` in the spec the capture is 600 × 400 px.
+          deviceScaleFactor: 0.5,
+          contextOptions: { reducedMotion: "reduce" },
+        },
+        testMatch: /thumbnails\.spec\.ts/,
       },
     ],
   },
@@ -100,6 +124,10 @@ export default defineConfig({
   workers: active[0]?.workers ?? 1,
   forbidOnly: Boolean(process.env["CI"]),
   retries: 0,
+  // D51: Playwright's defaults for the comparison (per-pixel threshold 0.2, no differing pixel
+  // allowed), with the two things that move spelled out. A missing baseline fails the run (the
+  // default); only `--update-snapshots` writes one, and only the update-baselines job does that.
+  expect: { toHaveScreenshot: { animations: "disabled", caret: "hide" } },
   reporter: [["list"]],
   use: {
     baseURL: process.env["E2E_BASE_URL"] ?? "http://localhost:8000",

@@ -1,3 +1,6 @@
+import { existsSync, readdirSync, readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { byGroup, defineEntries, entries, findEntry, GROUPS, variantsOf, type EntryInput } from ".";
 
@@ -280,5 +283,62 @@ describe("variantsOf", () => {
     expect(variantsOf("nope", list)).toEqual([]);
     // The 21 variants a shop picks (D46, D52): six headers, five footers, ten cards.
     expect(entries.filter((entry) => entry.family !== undefined)).toHaveLength(21);
+  });
+});
+
+// T40 (D52): the file behind each `thumbnail`, where Next serves it (`public/registry/{id}.png`).
+// The `thumbnails` Playwright project writes them (`pnpm thumbnails`, or the update-baselines
+// input of CI), and only Playwright's container does (D51). Until the first set is committed the
+// folder does not exist and the check is skipped; from then on a family entry without its file
+// fails here, with the command that makes it.
+const thumbnailDir = fileURLToPath(
+  new URL("../../../apps/storefront/public/registry/", import.meta.url),
+);
+
+describe.skipIf(!existsSync(thumbnailDir))("the thumbnails (D52)", () => {
+  it("has a PNG for every family entry, 600 × 400 and 3:2", () => {
+    const missing: string[] = [];
+    for (const entry of entries) {
+      if (entry.thumbnail === undefined) continue;
+      const file = path.join(thumbnailDir, `${entry.id}.png`);
+      if (!existsSync(file)) {
+        missing.push(`${entry.id} (${entry.thumbnail})`);
+        continue;
+      }
+      const png = readFileSync(file);
+      // The IHDR chunk: width and height are the big-endian words at bytes 16 and 20.
+      expect(
+        png.subarray(1, 4).toString("latin1"),
+        `${entry.id} is a PNG`,
+      ).toBe("PNG");
+      expect(
+        [png.readUInt32BE(16), png.readUInt32BE(20)],
+        `${entry.id}: size`,
+      ).toEqual([600, 400]);
+    }
+    expect(
+      missing,
+      "family entries without a thumbnail: run `pnpm thumbnails` in Playwright's container, or dispatch CI with update-baselines",
+    ).toEqual([]);
+  });
+
+  it("has no PNG that no family entry points to", () => {
+    const wanted = new Set(
+      entries.flatMap((entry) =>
+        entry.thumbnail === undefined ? [] : [`${entry.id}.png`],
+      ),
+    );
+    const found = readdirSync(thumbnailDir, {
+      recursive: true,
+      withFileTypes: true,
+    })
+      .filter((item) => item.isFile() && item.name.endsWith(".png"))
+      .map((item) =>
+        path
+          .relative(thumbnailDir, path.join(item.parentPath, item.name))
+          .split(path.sep)
+          .join("/"),
+      );
+    expect(found.filter((file) => !wanted.has(file))).toEqual([]);
   });
 });
