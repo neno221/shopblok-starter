@@ -1,16 +1,22 @@
 import {
   AnnouncementBar,
+  BuyBox,
   CompareTray,
   CookieConsent,
   FilterPanel,
   LoadingSkeleton,
   MarketSuggestion,
   MobileNav,
+  MobileStickyATC,
   Navigation,
   ProductCarousel,
+  ProductGallery,
   ProductGrid,
+  ProductInfo,
   ProductToolbar,
+  ReviewsSection,
   SearchOverlay,
+  SizeGuide,
 } from "../contracts";
 import type { z } from "zod";
 import type { EntryInput } from "../types";
@@ -58,4 +64,18 @@ export const organisms = [
   organism("product-grid", "ProductGrid", "ProductGrid", ProductGrid),
   organism("product-carousel", "ProductCarousel", "ProductCarousel", ProductCarousel),
   organism("compare-tray", "CompareTray", "CompareTray", CompareTray),
+  // T38: the product page.
+  organism("product-gallery", "ProductGallery", "ProductGallery", ProductGallery),
+  organism("buy-box", "BuyBox", "BuyBox", BuyBox),
+  organism("mobile-sticky-atc", "MobileStickyATC", "MobileStickyATC", MobileStickyATC),
+  organism(
+    "product-info-accordions",
+    "ProductInfoAccordions",
+    "ProductInfoAccordions",
+    ProductInfo,
+  ),
+  organism("reviews-section", "ReviewsSection", "ReviewsSection", ReviewsSection),
+  // The quick view shows a buy box's data in a dialog, with the gallery beside it.
+  organism("quick-view-dialog", "QuickViewDialog", "QuickViewDialog", BuyBox),
+  organism("size-guide-dialog", "SizeGuideDialog", "SizeGuideDialog", SizeGuide),
 ] as const satisfies readonly EntryInput[];

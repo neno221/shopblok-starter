@@ -16,8 +16,10 @@ import { productMoleculeStories } from "./molecules-product";
 import { productCardStories } from "./molecules-product-card";
 import { siteMoleculeStories } from "./molecules-site";
 import { bannerOrganismStories } from "./organisms-banners";
+import { buyBoxOrganismStories } from "./organisms-buy-box";
 import { navigationOrganismStories } from "./organisms-navigation";
 import { productListOrganismStories } from "./organisms-product-lists";
+import { productPageOrganismStories } from "./organisms-product-page";
 import { searchFilterOrganismStories } from "./organisms-search-filters";
 import { siteOrganismStories } from "./organisms-site";
 
@@ -45,6 +47,8 @@ export const stories: Record<EntryId, DsStory> = {
   ...siteOrganismStories,
   ...searchFilterOrganismStories,
   ...productListOrganismStories,
+  ...productPageOrganismStories,
+  ...buyBoxOrganismStories,
   ...headerStories,
   ...footerStories,
 };

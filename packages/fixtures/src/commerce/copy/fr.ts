@@ -151,6 +151,40 @@ export const fr: Copy = {
     misspelt: "sweaat",
   },
   carousel: { title: "Nouveautés", viewAll: "Voir toutes les nouveautés" },
+  productPage: {
+    notes: ["Expédition sous 2 à 4 jours ouvrés", "Retours gratuits sous 30 jours"],
+    sections: {
+      description: "Description",
+      details: "Détails et entretien",
+      delivery: "Livraison",
+      returns: "Retours",
+    },
+    facts: {
+      material: ["Matière", "100 % coton bio, gratté à l’intérieur"],
+      fit: ["Coupe", "Classique, taille normalement"],
+      origin: ["Fabrication", "Portugal"],
+    },
+    care: [
+      "Lavage en machine à froid, sur l’envers",
+      "Pas de sèche-linge",
+      "Repassage à basse température",
+    ],
+    delivery: [
+      "La livraison standard prend 2 à 4 jours ouvrés.",
+      "La livraison express arrive le jour ouvré suivant pour toute commande passée avant 14 h.",
+    ],
+    returns:
+      "Retournez tout article non porté sous 30 jours pour un remboursement intégral. Les retours sont gratuits.",
+    returnsLink: "Lire la politique de retour",
+    sizeGuide: {
+      title: "Sweats à capuche : mesures",
+      chest: "Tour de poitrine",
+      waist: "Tour de taille",
+      length: "Longueur du corps",
+      sleeve: "Longueur de manche",
+      note: "Mesurez autour de la partie la plus forte de la poitrine, en gardant le mètre à l’horizontale.",
+    },
+  },
   facets: {
     category: "Catégorie",
     colour: "Couleur",
@@ -171,7 +205,7 @@ export const fr: Copy = {
     ],
     longAnnouncement: {
       message:
-        "Commandez avant 14 h en semaine pour une expédition le jour même, et profitez des retours gratuits sous 30 jours sur chaque commande",
+        "Commandez avant 14 h en semaine pour une expédition le jour même, et profitez des retours gratuits sous 30 jours sur chaque commande",
       link: "Lire notre politique de livraison et de retour",
     },
     account: { signIn: "Se connecter", orders: "Commandes", wishlist: "Liste d’envies" },

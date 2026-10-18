@@ -11,9 +11,11 @@ import { fr } from "./messages/fr";
 export {
   countryName,
   formatDate,
+  formatList,
   formatMessage,
   formatMoney,
   formatNumber,
+  formatNumberRange,
   languageName,
 } from "./format";
 export type { MessageValues } from "./format";

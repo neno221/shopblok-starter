@@ -11,12 +11,15 @@
 // `{name}.{option id}` = value id, so it works in a form without JavaScript. A client component:
 // it keeps the selection, which decides what is unavailable, and Base UI's radio group reads
 // the keys; give it `value` and `onValueChange`, or `defaultValue` to leave the state to it.
+// `labelEnd` (T38) puts a node at the end of one option's label line, by option id: the buy box
+// draws the size guide's button there, beside "Size". It is outside the group's name (the name is
+// the label alone), and an option with no node keeps the label line as it was.
 "use client";
 
 import { Radio } from "@base-ui/react/radio";
 import { RadioGroup } from "@base-ui/react/radio-group";
-import { formatMessage } from "@shopblok/i18n";
 import type { Messages } from "@shopblok/i18n";
+import { formatMessage } from "@shopblok/i18n/format";
 import type { ProductOption, VariantChoice } from "@shopblok/registry/contracts";
 import { SizePill } from "@shopblok/ui/atoms/size-pill";
 import { Swatch } from "@shopblok/ui/atoms/swatch";
@@ -47,6 +50,8 @@ type VariantSelectorProps = Omit<
     locale: string;
     /** The form field's prefix: a group submits as `{name}.{option id}`. Without it, no field. */
     name?: string;
+    /** A node at the end of an option's label line, by option id (the size guide beside "Size"). */
+    labelEnd?: Partial<Record<string, React.ReactNode>>;
   };
 
 function VariantSelector({
@@ -58,6 +63,7 @@ function VariantSelector({
   copy,
   locale,
   name,
+  labelEnd,
   className,
   ...props
 }: VariantSelectorProps) {
@@ -101,6 +107,7 @@ function VariantSelector({
           copy={copy}
           locale={locale}
           name={name === undefined ? undefined : `${name}.${option.id}`}
+          end={labelEnd?.[option.id]}
         />
       ))}
     </div>
@@ -115,6 +122,7 @@ function OptionGroup({
   copy,
   locale,
   name,
+  end,
 }: {
   option: ProductOption;
   chosen: string | undefined;
@@ -123,20 +131,34 @@ function OptionGroup({
   copy: Messages["molecules"]["variantSelector"];
   locale: string;
   name: string | undefined;
+  end: React.ReactNode;
 }) {
   const labelId = useId();
   const chosenValue = option.values.find((candidate) => candidate.id === chosen);
+  const label = (
+    <span
+      id={labelId}
+      data-slot="variant-selector-label"
+      className="text-sm font-medium wrap-anywhere"
+    >
+      {chosenValue === undefined
+        ? option.title
+        : formatMessage(copy.chosen, { option: option.title, value: chosenValue.label }, locale)}
+    </span>
+  );
   return (
     <div data-slot="variant-selector-option" className="flex min-w-0 flex-col gap-2">
-      <span
-        id={labelId}
-        data-slot="variant-selector-label"
-        className="text-sm font-medium wrap-anywhere"
-      >
-        {chosenValue === undefined
-          ? option.title
-          : formatMessage(copy.chosen, { option: option.title, value: chosenValue.label }, locale)}
-      </span>
+      {end === undefined || end === null || end === false ? (
+        label
+      ) : (
+        <div
+          data-slot="variant-selector-label-row"
+          className="flex min-w-0 flex-wrap items-center justify-between gap-x-3 gap-y-1"
+        >
+          {label}
+          {end}
+        </div>
+      )}
       <RadioGroup
         aria-labelledby={labelId}
         name={name}

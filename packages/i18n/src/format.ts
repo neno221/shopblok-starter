@@ -49,6 +49,47 @@ export function formatNumber(
   return format.format(value);
 }
 
+/**
+ * Formats a range in the locale (`88–92`, `34,6–36,2` in German), as `Intl.NumberFormat`'s
+ * `formatRange` writes it: the dash and its spacing are the locale's, so no message carries them
+ * (T38: the size guide's measurements). `options` as `Intl.NumberFormat` takes them.
+ */
+export function formatNumberRange(
+  from: number,
+  to: number,
+  locale: string,
+  options: Intl.NumberFormatOptions = {},
+): string {
+  const key = `${locale}|${JSON.stringify(options)}`;
+  let format = numberFormats.get(key);
+  if (format === undefined) {
+    format = new Intl.NumberFormat(locale, options);
+    numberFormats.set(key, format);
+  }
+  return format.formatRange(from, to);
+}
+
+const listFormats = new Map<string, Intl.ListFormat>();
+
+/**
+ * Joins names into a list in the locale ("Colour and Size", "Χρώμα και Μέγεθος"), with
+ * `Intl.ListFormat`: "and" for `conjunction`, "or" for `disjunction`, and commas alone for `unit`
+ * ("Black, M": the values of one variant). T38: what is left to choose, and what is chosen.
+ */
+export function formatList(
+  items: readonly string[],
+  locale: string,
+  type: "conjunction" | "disjunction" | "unit" = "conjunction",
+): string {
+  const key = `${locale}|${type}`;
+  let format = listFormats.get(key);
+  if (format === undefined) {
+    format = new Intl.ListFormat(locale, { style: "long", type });
+    listFormats.set(key, format);
+  }
+  return format.format(items);
+}
+
 const regionNames = new Map<string, Intl.DisplayNames>();
 
 /** A country's name in the locale (`Κύπρος` for `cy` in Greek), from `Intl`, never a literal. */

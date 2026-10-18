@@ -37,6 +37,14 @@ import {
   SearchOverlay,
 } from "@shopblok/registry/contracts";
 import {
+  BuyBox,
+  MobileStickyATC,
+  ProductGallery,
+  ProductInfo,
+  ReviewsSection,
+  SizeGuide,
+} from "@shopblok/registry/contracts";
+import {
   ShippingEstimate,
   StepperState,
   SummaryLine,
@@ -1558,6 +1566,83 @@ describe.each(designSystemLocales)("the %s fixtures", (locale) => {
         expect(tray.compareHref).toBe(
           `${prefix}/compare?products=${tray.items.map((item) => item.id).join(",")}`,
         );
+    });
+  });
+
+  describe("the product page organisms (T38)", () => {
+    const { productPage: page, product } = fixture;
+
+    it("parse as their contracts", () => {
+      expectAllParse(ProductGallery, Object.values(page.gallery), `${locale}.productPage.gallery`);
+      expectAllParse(BuyBox, Object.values(page.buyBox), `${locale}.productPage.buyBox`);
+      expectAllParse(MobileStickyATC, Object.values(page.sticky), `${locale}.productPage.sticky`);
+      expectParses(ProductInfo, page.info, `${locale}.productPage.info`);
+      expectAllParse(ReviewsSection, Object.values(page.reviews), `${locale}.productPage.reviews`);
+      expectParses(SizeGuide, page.sizeGuide, `${locale}.productPage.sizeGuide`);
+    });
+
+    it("show the hoodie's pictures, with forest's first once it is chosen, and one picture alone", () => {
+      expect(page.gallery.all.media).toBe(product.media);
+      expect(page.gallery.all.selectedValueIds).toEqual([]);
+      const [chosen] = page.gallery.chosen.selectedValueIds;
+      expect(product.media.some((media) => media.optionValueIds?.includes(chosen ?? ""))).toBe(
+        true,
+      );
+      expect(page.gallery.single.media).toHaveLength(1);
+    });
+
+    it("choose nothing, a colour, a variant in stock, the one with three left, and a sold-out one", () => {
+      const variantOf = (box: BuyBox) =>
+        product.variants.find((variant) =>
+          Object.entries(variant.options).every(
+            ([option, value]) => box.selection[option] === value,
+          ),
+        );
+      const { empty, partial, ready, low, soldOut } = page.buyBox;
+      expect(Object.keys(empty.selection)).toEqual([]);
+      expect(Object.keys(partial.selection)).toEqual(["colour"]);
+      expect(variantOf(partial)).toBeUndefined();
+      expect(variantOf(ready)?.stock.status).toBe("in-stock");
+      expect(variantOf(low)?.stock).toEqual({ status: "low", quantity: 3 });
+      expect(low.maxQuantity).toBe(3);
+      expect(variantOf(soldOut)?.available).toBe(false);
+      for (const box of Object.values(page.buyBox)) expect(box.product).toBe(product);
+    });
+
+    it("put the bar's three states on the same variants, with the chosen variant's price", () => {
+      expect(page.sticky.ready.status).toBe("ready");
+      expect(page.sticky.ready.choice).toHaveLength(product.options.length);
+      expect(page.sticky.incomplete.choice).toHaveLength(1);
+      expect(page.sticky.incomplete.price).toBe(product.price);
+      expect(page.sticky.soldOut.status).toBe("sold-out");
+    });
+
+    it("give the information four sections, the description in two paragraphs and a link to the returns page", () => {
+      expect(page.info.sections.map((section) => section.id)).toEqual([
+        "description",
+        "details",
+        "delivery",
+        "returns",
+      ]);
+      const links = page.info.sections.flatMap((section) =>
+        section.blocks.flatMap((block) => (block.kind === "link" ? [block.link.href] : [])),
+      );
+      expect(links).toEqual([`${prefix}/pages/returns`]);
+    });
+
+    it("show the first of 22 pages of reviews, and none at all", () => {
+      expect(page.reviews.first.reviews).toBe(fixture.reviews);
+      expect(page.reviews.first.page).toEqual({ page: 1, pageCount: 22 });
+      expect(page.reviews.none.summary.count).toBe(0);
+      expect(page.reviews.none.reviews).toEqual([]);
+      expect(page.reviews.first.writeHref?.startsWith(`${prefix}/`)).toBe(true);
+    });
+
+    it("measure the hoodie's six sizes, in inches first in the US only", () => {
+      expect(page.sizeGuide.sizes).toEqual(
+        product.options.find((option) => option.id === "size")?.values.map((value) => value.label),
+      );
+      expect(page.sizeGuide.unit).toBe(fixture.market.country === "us" ? "in" : "cm");
     });
   });
 

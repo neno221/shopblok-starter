@@ -32,6 +32,14 @@ import type {
   ProductGrid,
   SearchOverlay,
 } from "@shopblok/registry/contracts";
+import type {
+  BuyBox,
+  MobileStickyATC,
+  ProductGallery,
+  ProductInfo,
+  ReviewsSection,
+  SizeGuide,
+} from "@shopblok/registry/contracts";
 
 /** A section of a FAQ: the contract's heading and id, and the answer in paragraphs. */
 export type FaqItem = AccordionSection & { answer: string[] };
@@ -153,6 +161,22 @@ export type CommerceFixture = {
     grid: { products: ProductGrid; empty: ProductGrid };
     carousel: ProductCarousel;
     compare: { one: CompareTray; three: CompareTray; full: CompareTray };
+  };
+  /**
+   * The product page organisms' samples (T38), all of the Heritage Hoodie (`product`). The gallery
+   * with nothing chosen, with a colour chosen (forest: its picture is the main one), and with one
+   * picture; the buy box with nothing chosen, a colour only, black in M (in stock), forest in M (three
+   * left, so three at most) and black in XL (sold out); the sticky bar ready, with an option missing
+   * and sold out; the information's four sections; the first page of the 128 reviews, and none; the
+   * size guide, in inches first in the US.
+   */
+  productPage: {
+    gallery: { all: ProductGallery; chosen: ProductGallery; single: ProductGallery };
+    buyBox: { empty: BuyBox; partial: BuyBox; ready: BuyBox; low: BuyBox; soldOut: BuyBox };
+    sticky: { ready: MobileStickyATC; incomplete: MobileStickyATC; soldOut: MobileStickyATC };
+    info: ProductInfo;
+    reviews: { first: ReviewsSection; none: ReviewsSection };
+    sizeGuide: SizeGuide;
   };
   /** The sample data of NewsletterForm, CopyCodeChip and CountdownTimer (T33). */
   marketing: {

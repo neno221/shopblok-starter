@@ -70,4 +70,15 @@ checkRoutesInDev([
   { path: "/design-system/el/organisms/product-carousel", status: 200 },
   { path: "/design-system/fr/organisms/filter-drawer", status: 200 },
   { path: "/design-system/de/organisms/compare-tray", status: 200 },
+  // T38: the buy box in each locale (its choice, the variant selector, the stepper and the button
+  // that waits for every option), and one page each for the gallery (its carousel and its zoom
+  // dialog), the quick view, the size guide and the sticky bar.
+  ...locales.map((locale) => ({
+    path: `/design-system/${locale}/organisms/buy-box`,
+    status: 200,
+  })),
+  { path: "/design-system/el/organisms/product-gallery", status: 200 },
+  { path: "/design-system/fr/organisms/quick-view-dialog", status: 200 },
+  { path: "/design-system/de/organisms/size-guide-dialog", status: 200 },
+  { path: "/design-system/en/organisms/mobile-sticky-atc", status: 200 },
 ]);

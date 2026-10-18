@@ -678,4 +678,56 @@ describe("VariantSelector", () => {
       expect(radio(`${sizeLine.value}, ${unavailable}`)).toBeTruthy();
     });
   });
+  describe("labelEnd (T38: the size guide beside the size option's label)", () => {
+    const labelRows = (container: HTMLElement) => [
+      ...container.querySelectorAll("[data-slot=variant-selector-label-row]"),
+    ];
+
+    it("draws the node at the end of the named option's label line, and no other option's", () => {
+      const { container } = setup("en", {
+        labelEnd: { size: <button type="button">Size guide</button> },
+      });
+      const rows = labelRows(container);
+      expect(rows).toHaveLength(1);
+      const [row] = rows as [Element];
+      const label = row.querySelector("[data-slot=variant-selector-label]");
+      expect(label?.textContent).toBe("Size");
+      // The label comes first and the node last, in the same line.
+      expect(row.firstElementChild).toBe(label);
+      expect(row.lastElementChild?.textContent).toBe("Size guide");
+      // The colour option keeps a bare label: no row around it.
+      const colour = colourGroup().closest("[data-slot=variant-selector-option]");
+      expect(colour?.querySelector("[data-slot=variant-selector-label-row]")).toBeNull();
+      expect(colour?.firstElementChild?.getAttribute("data-slot")).toBe("variant-selector-label");
+    });
+
+    it("leaves the group's name the label alone: the node is outside it", () => {
+      setup("en", {
+        defaultValue: { size: "size-m" },
+        labelEnd: { size: <button type="button">Size guide</button> },
+      });
+      expect(group("Size: M")).toBeTruthy();
+      expect(sizeGroup().textContent).not.toContain("Size guide");
+      expect(screen.getByRole("button", { name: "Size guide" })).toBeTruthy();
+    });
+
+    it("keeps the label line exactly as it was without it, or with nothing for an option", () => {
+      const without = setup("en").container.innerHTML;
+      const empty = setup("en", { labelEnd: { size: null, colour: undefined, other: "x" } });
+      expect(labelRows(empty.container)).toHaveLength(0);
+      // The ids differ between two renders (useId), so compare the structure without them.
+      const strip = (html: string) => html.replace(/(id|aria-labelledby|for)="[^"]*"/g, "");
+      expect(strip(empty.container.innerHTML)).toBe(strip(without));
+    });
+
+    it("wraps and aligns its row: a long label never pushes the node out of the box", () => {
+      const { container } = setup("en", {
+        labelEnd: { size: <button type="button">Size guide</button> },
+      });
+      const row = labelRows(container)[0];
+      const classes = (row?.getAttribute("class") ?? "").split(/\s+/);
+      for (const name of ["flex", "min-w-0", "flex-wrap", "items-center", "justify-between"])
+        expect(classes).toContain(name);
+    });
+  });
 });

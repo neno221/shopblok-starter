@@ -3,9 +3,11 @@ import { catalogs } from "./index";
 import {
   countryName,
   formatDate,
+  formatList,
   formatMessage,
   formatMoney,
   formatNumber,
+  formatNumberRange,
   languageName,
 } from "./format";
 
@@ -75,6 +77,43 @@ describe("formatNumber", () => {
     expect(formatNumber(4, "en-US", options)).toBe("4.0");
     expect(formatNumber(4, "en-US")).toBe("4");
     expect(plain(formatNumber(1234.5, "de-CH"))).toBe("1'234.5");
+  });
+});
+
+describe("formatNumberRange (T38)", () => {
+  it.each([
+    ["en-US", 88, 92, "88–92"],
+    ["de-DE", 34.6, 36.2, "34,6–36,2"],
+    ["el-CY", 34.6, 36.2, "34,6–36,2"],
+    ["fr-CH", 34.6, 36.2, "34,6–36,2"],
+  ])(
+    "writes a range for %s with the locale's dash and decimal mark",
+    (locale, from, to, expected) => {
+      expect(plain(formatNumberRange(from, to, locale)).replace(/\s/g, "")).toBe(expected);
+    },
+  );
+
+  it("takes Intl.NumberFormat's options", () => {
+    const options = { maximumFractionDigits: 1 };
+    expect(formatNumberRange(34.64, 36.22, "en-US", options)).toBe("34.6–36.2");
+  });
+});
+
+describe("formatList (T38)", () => {
+  it.each([
+    ["en-US", "Colour and Size"],
+    ["el-CY", "Colour και Size"],
+    ["de-DE", "Colour und Size"],
+    ["fr-CH", "Colour et Size"],
+  ])("joins two names with %s's word for and", (locale, expected) => {
+    expect(formatList(["Colour", "Size"], locale)).toBe(expected);
+  });
+
+  it("joins three, one, with or, and with commas alone", () => {
+    expect(formatList(["Colour", "Size", "Fit"], "en-US")).toBe("Colour, Size, and Fit");
+    expect(formatList(["Size"], "en-US")).toBe("Size");
+    expect(formatList(["S", "M"], "en-US", "disjunction")).toBe("S or M");
+    expect(formatList(["Black", "M"], "en-US", "unit")).toBe("Black, M");
   });
 });
 
