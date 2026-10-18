@@ -51,7 +51,10 @@ describe("decideJobs on a pull request", () => {
       "apps/storefront/src/app/design-system/[locale]/(overview)/page.tsx",
       "apps/storefront/e2e/design-system.spec.ts",
       "apps/storefront/e2e/dev-console-ds.spec.ts",
+      "apps/storefront/e2e/thumbnails.spec.ts",
+      "apps/storefront/e2e/support/settle.ts",
       "apps/storefront/e2e/__screenshots__/design-system/atoms/button/en-375.png",
+      "apps/storefront/public/registry/molecules/product-card-minimal.png",
     ]) {
       expect(jobs(pr([file])), file).toEqual({
         e2e: false,
@@ -335,6 +338,14 @@ describe("decideJobs on other events", () => {
     expect(decision.reasons[1]).toBe(
       "windows-smoke: skipped (a push: the pull request ran it if it changed a dependency file)",
     );
+  });
+
+  it("a dispatch with update-baselines runs none of the three (PR 63 review)", () => {
+    const decision = decideJobs({ event: "workflow_dispatch", files: [], updateBaselines: true });
+    expect(jobs(decision)).toEqual({ e2e: false, designSystem: false, windows: false });
+    expect(decision.reasons).toEqual([
+      "workflow_dispatch with update-baselines: e2e-smoke, design-system and windows-smoke are skipped (the update-baselines job runs instead)",
+    ]);
   });
 
   it("an event the gate does not know fails open", () => {

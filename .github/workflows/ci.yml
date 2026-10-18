@@ -91,10 +91,14 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           PULL: ${{ github.event.pull_request.number }}
           REPO: ${{ github.repository }}
+          # Empty on every event but a dispatch.
+          UPDATE_BASELINES: ${{ inputs.update-baselines }}
         run: node scripts/ci-gate.ts
 
   check:
     name: check (${{ matrix.label }})
+    # A baseline update runs its own job only; the dispatch after it runs this (PR 63 review).
+    if: ${{ !inputs.update-baselines }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     # Node 24 is informational (Payload v4 readiness): a failure there shows as a red check and
@@ -135,6 +139,7 @@ jobs:
   # databases on the compose Postgres (`apps/backend/.env.test` names port 15432), so only Postgres
   # is started. It needs no `.env` and no bootstrap.
   backend-integration:
+    if: ${{ !inputs.update-baselines }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -457,8 +462,18 @@ jobs:
             echo "The image has git, ps, awk, curl and one of lsof, ss or fuser."
           fi
           git --version
-      # The branch the dispatch names, which the commit goes to.
+      # The branch the dispatch names, which the commit goes to. The write token is not kept in
+      # .git/config: install, build and the suite run third-party code, and only the commit step
+      # gets it (PR 63 review).
       - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      # A clean set: every baseline is written again, so a PNG no cell makes any more (a renamed
+      # entry, a dropped locale) shows as deleted, and an unchanged one is byte for byte the same
+      # file, which git does not count (PR 63 review).
+      - name: Remove the current baselines and thumbnails
+        shell: bash
+        run: rm -rf apps/storefront/e2e/__screenshots__/design-system apps/storefront/public/registry
       - uses: ./.github/actions/setup
       - run: pnpm install --frozen-lockfile
       - name: Build the storefront with the design system on
@@ -493,8 +508,11 @@ jobs:
           REF_TYPE: ${{ github.ref_type }}
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
           REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+          # The container runs as root over a workspace the runner's user owns.
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
           if [ "$REF_TYPE" != branch ] || [ "$BRANCH" = "$DEFAULT_BRANCH" ]; then
             echo "::error::update-baselines commits to a feature branch; this run is on '$BRANCH' ($REF_TYPE). Dispatch it on the branch of the change."
             exit 1
@@ -541,7 +559,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git commit -m "Update pixel baselines and thumbnails (run ${GITHUB_RUN_ID})" -m "$report"
-          git push origin "HEAD:refs/heads/$BRANCH"
+          git push "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git" "HEAD:refs/heads/$BRANCH"
           sha="$(git rev-parse --short HEAD)"
           next="CI must be run again by hand: a push made with GITHUB_TOKEN starts no workflow. Commit $sha is on $BRANCH. Dispatch: gh api -X POST repos/$REPO/actions/workflows/ci.yml/dispatches -f ref=$BRANCH"
           echo "$next"

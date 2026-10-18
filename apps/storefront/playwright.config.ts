@@ -125,8 +125,12 @@ export default defineConfig({
   forbidOnly: Boolean(process.env["CI"]),
   retries: 0,
   // D51: Playwright's defaults for the comparison (per-pixel threshold 0.2, no differing pixel
-  // allowed), with the two things that move spelled out. A missing baseline fails the run (the
-  // default); only `--update-snapshots` writes one, and only the update-baselines job does that.
+  // allowed), with the two things that move spelled out. "none": a missing baseline fails the cell
+  // and writes nothing. Playwright's own default ("missing" behaviour under "default") writes the
+  // actual image as the baseline, so a run on a host would leave host pixels that the next run
+  // passes against (PR 63 review). `--update-snapshots` on the command line still wins: the
+  // update-baselines job and `pnpm thumbnails` pass it.
+  updateSnapshots: "none",
   expect: { toHaveScreenshot: { animations: "disabled", caret: "hide" } },
   reporter: [["list"]],
   use: {

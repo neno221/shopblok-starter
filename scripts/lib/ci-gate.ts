@@ -42,6 +42,7 @@ export const designSystemOnly: readonly DesignSystemArea[] = [
   { path: "apps/storefront/e2e/design-system.spec.ts" },
   { path: "apps/storefront/e2e/dev-console-ds.spec.ts" },
   { path: "apps/storefront/e2e/thumbnails.spec.ts" },
+  { path: "apps/storefront/e2e/support/settle.ts" },
   { path: "apps/storefront/e2e/__screenshots__/" },
   // The 21 thumbnails (D52): served from `public/`, read by nothing outside the DS until M4.
   { path: "apps/storefront/public/registry/" },
@@ -171,8 +172,23 @@ export function decideJobs(input: {
   event: string;
   files: readonly string[];
   importers?: readonly Importer[];
+  /** A dispatch with `update-baselines` on (T40): its own job does the work. */
+  updateBaselines?: boolean;
 }): Decision {
   const { event, files } = input;
+  if (input.updateBaselines === true) {
+    // The update job builds, runs the whole DS suite and commits; the run after it, which the
+    // session dispatches on the new commit, runs everything. Windows minutes cost double, and the
+    // private repo's minutes ran out once (PR 63 review).
+    return {
+      e2e: false,
+      designSystem: false,
+      windows: false,
+      reasons: [
+        `${event} with update-baselines: e2e-smoke, design-system and windows-smoke are skipped (the update-baselines job runs instead)`,
+      ],
+    };
+  }
   if (event !== "pull_request") {
     // windows-smoke keeps T16's rule (D53): a push to `main` merged a PR, which ran it if it
     // changed a dependency file, and Windows minutes cost double. The schedule, a dispatch and any

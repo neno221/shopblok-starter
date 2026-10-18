@@ -28,6 +28,12 @@
       "labels": ["playwright"]
     },
     {
+      "description": "T40: the DS frames are prerendered by the server, and prices and dates come from Node's ICU, which changes between patch releases (fr-CH thousands, PR 56). A Node bump in .nvmrc can change pixel baselines: dispatch CI with update-baselines on that PR's branch (SETUP.md, 'Baselines and thumbnails (T40)').",
+      "matchPackageNames": ["node"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "labels": ["node", "baselines"]
+    },
+    {
       "description": "D5: TypeScript 5.9.3. TS 7 has no JS API until 7.1; Medusa's CLI and typescript-eslint need one.",
       "matchPackageNames": ["typescript"],
       "matchUpdateTypes": ["major"],

@@ -54,5 +54,8 @@ export async function withPageSizedViewport<T>(
     return await capture();
   } finally {
     await page.setViewportSize({ width, height });
+    // The cell's other checks (axe, overflow, the 44 px rule) measure the page next: let the
+    // resize observers that the restore wakes run first, as the loop above does (PR 63 review).
+    await page.waitForTimeout(300);
   }
 }
