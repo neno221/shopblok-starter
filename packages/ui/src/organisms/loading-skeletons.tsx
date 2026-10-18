@@ -26,12 +26,14 @@
 // shapes do not pulse (the atom's `motion-safe:`). The shapes' sizes are the Tailwind scale (the
 // 4 px step of the spacing token) and the cards' own aspect ratio; every box can shrink
 // (`min-w-0`), so nothing is wider than a 375 px window. A server component: it has no state.
-// T37's ProductGrid has to keep the product grid's columns and gaps in step with `GRID`.
+// ProductGrid (T37) draws its cards in the same columns and gaps: both import them from
+// `product-grid-layout.ts`, so the skeleton and the listing it stands in for cannot drift apart.
 import type { Messages } from "@shopblok/i18n";
 import type { LoadingSkeleton as LoadingSkeletonContent } from "@shopblok/registry/contracts";
 import { Skeleton } from "@shopblok/ui/atoms/skeleton";
 import { cn } from "@shopblok/ui/lib/utils";
 import type * as React from "react";
+import { PRODUCT_GRID } from "./product-grid-layout";
 
 type LoadingSkeletonProps = LoadingSkeletonContent & {
   /** The wording, from the catalog's `organisms.loadingSkeleton`. */
@@ -41,9 +43,6 @@ type LoadingSkeletonProps = LoadingSkeletonContent & {
 
 /** How many of each repeated part a layout draws unless `items` says. */
 const DEFAULT_ITEMS = { "product-grid": 8, cart: 3, "account-list": 4 } as const;
-
-/** The listing's columns and gaps: two under `md`, three from `md`, four from `lg`. */
-const GRID = "grid grid-cols-2 gap-x-4 gap-y-6 md:grid-cols-3 md:gap-x-6 md:gap-y-8 lg:grid-cols-4";
 
 const range = (count: number) => Array.from({ length: count }, (_, index) => index);
 
@@ -176,7 +175,7 @@ function shapes(layout: LoadingSkeletonContent["layout"], items?: number): React
   switch (layout) {
     case "product-grid":
       return (
-        <div className={GRID}>
+        <div className={PRODUCT_GRID}>
           {range(items ?? DEFAULT_ITEMS["product-grid"]).map((index) => (
             <CardShape key={index} />
           ))}

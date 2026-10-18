@@ -30,6 +30,13 @@ import { FreeShipping, PromoCodeEntry } from "@shopblok/registry/contracts";
 import { AnnouncementBar, Header, MarketSuggestion, MobileNav } from "@shopblok/registry/contracts";
 import { ConsentChoice, CookieConsent, Footer } from "@shopblok/registry/contracts";
 import {
+  CompareTray,
+  FilterPanel,
+  ProductCarousel,
+  ProductGrid,
+  SearchOverlay,
+} from "@shopblok/registry/contracts";
+import {
   ShippingEstimate,
   StepperState,
   SummaryLine,
@@ -1492,6 +1499,65 @@ describe.each(designSystemLocales)("the %s fixtures", (locale) => {
         analytics: { analytics: true, marketing: false },
         accepted: { analytics: true, marketing: true },
       });
+    });
+  });
+
+  describe("the listing organisms (T37)", () => {
+    const { listing } = fixture;
+
+    it("parse as their contracts", () => {
+      expectAllParse(SearchOverlay, Object.values(listing.search), `${locale}.listing.search`);
+      expectParses(FilterPanel, listing.filters, `${locale}.listing.filters`);
+      expectAllParse(ProductGrid, Object.values(listing.grid), `${locale}.listing.grid`);
+      expectParses(ProductCarousel, listing.carousel, `${locale}.listing.carousel`);
+      expectAllParse(CompareTray, Object.values(listing.compare), `${locale}.listing.compare`);
+    });
+
+    it("search the market's search page: nothing typed, T33's results, the next query, and one that finds nothing", () => {
+      const { idle, results, loading, empty } = listing.search;
+      for (const overlay of Object.values(listing.search))
+        expect(overlay.search.action).toBe(`${prefix}/search`);
+      expect(idle.search.query).toBe("");
+      expect(idle.result).toBeUndefined();
+      expect(idle.recent).toHaveLength(4);
+      expect(results.result).toBe(fixture.search);
+      expect(results.search.query).toBe(fixture.search.query);
+      expect(loading.loading).toBe(true);
+      expect(loading.result).toBe(fixture.search);
+      expect(loading.search.query).not.toBe(fixture.search.query);
+      expect(empty.result?.total).toBe(0);
+      expect(empty.result?.products).toEqual([]);
+      expect(empty.result?.query).toBe(empty.search.query);
+    });
+
+    it("filter the market's listing with T33's facets and chips, and keep no parameter twice", () => {
+      expect(listing.filters.action).toBe(`${prefix}/store`);
+      expect(listing.filters.groups).toBe(fixture.facets);
+      expect(listing.filters.active).toBe(fixture.activeFilters);
+    });
+
+    it("grid the twelve cards, and say what the empty listing says", () => {
+      expect(listing.grid.products.products).toBe(fixture.products);
+      expect(listing.grid.empty.products).toEqual([]);
+      expect(listing.grid.empty.empty).toBe(fixture.emptyStates.filters);
+    });
+
+    it("carry eight cards in the carousel, with a link to all of them", () => {
+      expect(listing.carousel.products).toEqual(fixture.products.slice(0, 8));
+      expect(listing.carousel.viewAll?.href.startsWith(`${prefix}/`)).toBe(true);
+    });
+
+    it("compare one card (too few), three, and four (the most), each with its comparison page", () => {
+      const { one, three, full } = listing.compare;
+      expect([one, three, full].map((tray) => tray.items.length)).toEqual([1, 3, 4]);
+      expect(full.items.length).toBe(full.max);
+      expect(three.items.map((item) => item.id)).toEqual(
+        fixture.products.slice(0, 3).map((product) => product.id),
+      );
+      for (const tray of [one, three, full])
+        expect(tray.compareHref).toBe(
+          `${prefix}/compare?products=${tray.items.map((item) => item.id).join(",")}`,
+        );
     });
   });
 

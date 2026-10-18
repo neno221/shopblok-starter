@@ -143,7 +143,10 @@ export const de: Copy = {
     query: "hoodie",
     categories: ["Damen-Hoodies", "Herren-Hoodies"],
     suggestions: ["Hoodie mit Reißverschluss", "Oversize-Hoodie", "Hoodie aus Bio-Baumwolle"],
+    recent: ["Leinenhemd", "Hoodie", "Wollsocken", "Canvas-Tasche"],
+    misspelt: "hoddie",
   },
+  carousel: { title: "Neu eingetroffen", viewAll: "Alle Neuheiten ansehen" },
   facets: {
     category: "Kategorie",
     colour: "Farbe",

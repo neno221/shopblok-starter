@@ -25,6 +25,13 @@ import type { DesignSystemLocale, DesignSystemMarket } from "../design-system";
 import type { AddressFormState } from "@shopblok/registry/contracts";
 import type { AccordionSection, ToastMessage } from "@shopblok/registry/contracts";
 import type { ConsentChoice, CookieConsent, Footer } from "@shopblok/registry/contracts";
+import type {
+  CompareTray,
+  FilterPanel,
+  ProductCarousel,
+  ProductGrid,
+  SearchOverlay,
+} from "@shopblok/registry/contracts";
 
 /** A section of a FAQ: the contract's heading and id, and the answer in paragraphs. */
 export type FaqItem = AccordionSection & { answer: string[] };
@@ -126,6 +133,26 @@ export type CommerceFixture = {
     search: EmptyStateContent;
     /** With no action: there is nothing to do but wait. */
     category: EmptyStateContent;
+  };
+  /**
+   * The listing organisms' samples (T37). SearchOverlay before the first query (the recent queries
+   * alone), with the results of `search`, while the next query loads (the last results kept), and for
+   * a query that finds nothing; the filters as one form (the facets, the chips); a grid of the twelve
+   * cards and one with none; the carousel of new products; the compare tray with one product (too
+   * few), three, and four (full). ProductToolbar's sort is built by its story from the catalog's
+   * words, as SortSelect's is.
+   */
+  listing: {
+    search: {
+      idle: SearchOverlay;
+      results: SearchOverlay;
+      loading: SearchOverlay;
+      empty: SearchOverlay;
+    };
+    filters: FilterPanel;
+    grid: { products: ProductGrid; empty: ProductGrid };
+    carousel: ProductCarousel;
+    compare: { one: CompareTray; three: CompareTray; full: CompareTray };
   };
   /** The sample data of NewsletterForm, CopyCodeChip and CountdownTimer (T33). */
   marketing: {

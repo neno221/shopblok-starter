@@ -10,13 +10,13 @@ const atom = (id: string, extra: Partial<EntryInput> = {}): EntryInput => ({
 });
 
 describe("the registry (D40)", () => {
-  it("lists M1's 8 foundations and 32 atoms, then T32's 15 molecules, T33's 13 and T34's 12, then T35's 4 organisms and 6 headers and T36's 2 organisms and 5 footers, in the navigation's order", () => {
+  it("lists M1's 8 foundations and 32 atoms, then T32's 15 molecules, T33's 13 and T34's 12, then T35's 4 organisms and 6 headers, T36's 2 organisms and 5 footers and T37's 7 organisms, in the navigation's order", () => {
     expect(byGroup("foundations")).toHaveLength(8);
     expect(byGroup("atoms")).toHaveLength(32);
     expect(byGroup("molecules")).toHaveLength(40);
-    expect(byGroup("organisms")).toHaveLength(6);
+    expect(byGroup("organisms")).toHaveLength(13);
     expect(byGroup("headers-footers")).toHaveLength(11);
-    expect(entries).toHaveLength(97);
+    expect(entries).toHaveLength(104);
     expect(entries.map((entry) => entry.id).slice(0, 2)).toEqual([
       "foundations/colors",
       "foundations/typography",
@@ -35,6 +35,13 @@ describe("the registry (D40)", () => {
       "organisms/market-suggestion-banner",
       "organisms/cookie-consent",
       "organisms/loading-skeletons",
+      "organisms/search-overlay",
+      "organisms/filter-sidebar",
+      "organisms/filter-drawer",
+      "organisms/product-toolbar",
+      "organisms/product-grid",
+      "organisms/product-carousel",
+      "organisms/compare-tray",
     ]);
     expect(byGroup("headers-footers").at(5)?.id).toBe("headers-footers/header-transparent");
     expect(entries.at(-1)?.id).toBe("headers-footers/footer-two-tier");

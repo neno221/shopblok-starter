@@ -254,6 +254,11 @@ describe("ActiveFilterChips", () => {
           expect(link(formatMessage(copy.remove, { filter: text }, market.htmlLang))).toBeTruthy();
         }
         expect(link(copy.clearAllLabel).textContent).toBe(copy.clearAll);
+        // WCAG 2.5.3 (Label in Name, T37): the name holds the words the eye sees, so a reader who
+        // says "click Clear all" reaches it. axe's label-content-name-mismatch found de and fr.
+        expect(copy.clearAllLabel.toLocaleLowerCase(market.htmlLang)).toContain(
+          copy.clearAll.toLocaleLowerCase(market.htmlLang),
+        );
       },
     );
 

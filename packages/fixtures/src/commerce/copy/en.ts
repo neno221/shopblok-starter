@@ -143,7 +143,10 @@ export const en: Copy = {
     query: "hoodie",
     categories: ["Women’s hoodies", "Men’s hoodies"],
     suggestions: ["hoodie with zip", "oversized hoodie", "organic cotton hoodie"],
+    recent: ["linen shirt", "hoodie", "wool socks", "canvas tote"],
+    misspelt: "hooddie",
   },
+  carousel: { title: "New in", viewAll: "Shop all new in" },
   facets: {
     category: "Category",
     colour: "Color",

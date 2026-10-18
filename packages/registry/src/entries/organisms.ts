@@ -1,10 +1,16 @@
 import {
   AnnouncementBar,
+  CompareTray,
   CookieConsent,
+  FilterPanel,
   LoadingSkeleton,
   MarketSuggestion,
   MobileNav,
   Navigation,
+  ProductCarousel,
+  ProductGrid,
+  ProductToolbar,
+  SearchOverlay,
 } from "../contracts";
 import type { z } from "zod";
 import type { EntryInput } from "../types";
@@ -44,4 +50,12 @@ export const organisms = [
   // T36: the site's organisms (the footers are in `headers-footers.ts`).
   organism("cookie-consent", "CookieConsent", "CookieConsent", CookieConsent),
   organism("loading-skeletons", "Loading skeletons", "LoadingSkeleton", LoadingSkeleton),
+  // T37: the listing.
+  organism("search-overlay", "SearchOverlay", "SearchOverlay", SearchOverlay),
+  organism("filter-sidebar", "FilterSidebar", "FilterSidebar", FilterPanel),
+  organism("filter-drawer", "FilterDrawer", "FilterDrawer", FilterPanel),
+  organism("product-toolbar", "ProductToolbar", "ProductToolbar", ProductToolbar),
+  organism("product-grid", "ProductGrid", "ProductGrid", ProductGrid),
+  organism("product-carousel", "ProductCarousel", "ProductCarousel", ProductCarousel),
+  organism("compare-tray", "CompareTray", "CompareTray", CompareTray),
 ] as const satisfies readonly EntryInput[];

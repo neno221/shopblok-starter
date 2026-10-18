@@ -297,7 +297,9 @@ jobs:
     needs: gate
     if: needs.gate.outputs.design-system == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # Two Playwright projects: the DS checks (~17 min on the runner at T37) and the next dev console
+    # check (~10-40 s a page while it compiles). 30 min was reached at T37 (PR 59); room for M2's pages.
+    timeout-minutes: 50
     steps:
       - uses: actions/checkout@v7.0.1
       - uses: ./.github/actions/setup
