@@ -1,8 +1,8 @@
 # Setup
 
-How to run the starter on your own machine: the quickstart, the ports, the logins, the notes for Windows and for a Claude Code cloud session. Below "The M0 log" and "The M1 log" are what each task found and measured, one section per task and spike, in the order they ran. The log is the evidence behind [SPEC.md](SPEC.md) v0.7 and the [ADRs](adr/README.md); read the section a number or a decision in the spec points to.
+How to run the starter on your own machine: the quickstart, the ports, the logins, the notes for Windows and for a Claude Code cloud session. Below "The M0 log", "The M1 log" and "The M2 log" are what each task found and measured, one section per task and spike, in the order they ran. The log is the evidence behind [SPEC.md](SPEC.md) v0.8 and the [ADRs](adr/README.md); read the section a number or a decision in the spec points to.
 
-- [Quickstart](#quickstart-no-keys-no-accounts) · [Prerequisites](#prerequisites-every-os) · [Ports and logins](#ports-urls-and-logins) · [Opening a market](#opening-a-market) · [The design-system page, tokens and the Figma export](#the-design-system-page-tokens-and-the-figma-export-m1) · [Windows](#windows-notes) · [Cloud](#working-in-a-claude-code-cloud-environment) · [Checking a clean machine](#checking-a-clean-machine) · [If something fails](#if-something-fails) · [Where we differ from the skills](#where-we-deliberately-differ-from-the-medusa-skills)
+- [Quickstart](#quickstart-no-keys-no-accounts) · [Prerequisites](#prerequisites-every-os) · [Ports and logins](#ports-urls-and-logins) · [Opening a market](#opening-a-market) · [The design-system page, tokens and the Figma export](#the-design-system-page-tokens-and-the-figma-export-m1) · [Adding a molecule or an organism](#how-to-add-a-molecule-or-an-organism-m2) · [Windows](#windows-notes) · [Cloud](#working-in-a-claude-code-cloud-environment) · [Checking a clean machine](#checking-a-clean-machine) · [If something fails](#if-something-fails) · [Where we differ from the skills](#where-we-deliberately-differ-from-the-medusa-skills)
 
 ## Quickstart (no keys, no accounts)
 
@@ -68,7 +68,7 @@ The host ports are not the standard ones on purpose (D15): a machine that alread
 | `/cy` | a redirect to `/` (two hops, 308 then 301) |
 | `/el-cy` | 404: the internal market key is never public |
 | `/admin` | Payload's login; its locale selector offers English and the languages of the countries enabled in the `markets` global |
-| `/design-system/en` | The design-system page (M1): Foundations and the 32 atoms, with a locale toggle (`en`, `de`, `fr`, `el`) and a viewport switcher. Always on in `pnpm dev`; [below](#the-design-system-page-tokens-and-the-figma-export-m1) for a build |
+| `/design-system/en` | The design-system page: five groups, in this order: Foundations (8 entries), Atoms (32), Molecules (40, ProductCard's ten variants among them), Organisms (31) and Headers and Footers (11: six headers, five footers), with a locale toggle (`en`, `de`, `fr`, `el`) and a viewport switcher. Always on in `pnpm dev`; [below](#the-design-system-page-tokens-and-the-figma-export-m1) for a build |
 
 (SPEC §8.5 writes `/us/` and `/ch/fr/`; public URLs have no trailing slash.) **Where verification links appear (M3).** Sign-up and its email verification arrive in M3. Until a Resend key is set, Medusa's `notification-local` provider writes each email, verification links included, to the backend's console: in the terminal that runs `pnpm dev`, they are the lines with the prefix `@shopblok/backend:dev:` (turbo 2.11.7's `ui` defaults to `stream`, and `turbo.json` leaves it there; earlier versions of this page said `tui` was the default). `pnpm run doctor` prints a warning about it ("Sign-up requires email verification, but there is no Resend key"); that warning is expected and is the only one a bootstrapped setup has once both servers are up.
 
@@ -93,20 +93,42 @@ The UI text of a language other than English, Greek, German and French stays Eng
 
 ### The design-system page, tokens and the Figma export (M1)
 
-**The page.** `http://localhost:8000/design-system/en` (also `/de`, `/fr` and `/el`; `/design-system` redirects to `/design-system/en`) shows the tokens (Foundations) and every atom with its states, in the locale you pick, at 375, 768 and 1440 px. It is `noindex`, reads no data and needs no stack. In `pnpm dev` it is always on. **A production build serves it only if it was built with `DESIGN_SYSTEM_ENABLED=true`**; otherwise every `/design-system/…` URL is a 404:
+**The page.** `http://localhost:8000/design-system/en` (also `/de`, `/fr` and `/el`; `/design-system` redirects to `/design-system/en`) lists 122 entries in five groups (the order of SPEC §9.6): **Foundations** (the tokens: colours, type, spacing, radius, shadows, motion, icons and credits), **Atoms** (32), **Molecules** (40), **Organisms** (31) and **Headers and Footers** (11). Each entry has its states, a "Props" table when it has a contract, and a live render, in the locale you pick, at 375, 768 and 1440 px; an overlay (a drawer, a dialog, a menu, a toast) is drawn open in a box, and its live render has the real trigger. The list is `@shopblok/registry`, and `/design-system/{locale}/preview/{id}` is an entry's live render alone (the thumbnails are made from it). It is `noindex`, reads no data and needs no stack. In `pnpm dev` it is always on. **A production build serves it only if it was built with `DESIGN_SYSTEM_ENABLED=true`**; otherwise every `/design-system/…` URL is a 404:
 
 ```bash
 DESIGN_SYSTEM_ENABLED=true pnpm --filter @shopblok/storefront build
 pnpm --filter @shopblok/storefront start
 ```
 
-The value is frozen into the build, so setting it only on `start` changes nothing (D33; "DS page shell (T22)", code-review fix 1). The flag is commented out in `apps/storefront/.env.example`. CI's `design-system` job builds this way with no `.env` and no compose; to run its checks (every entry outside Foundations at 375, 768 and 1440 px in `en` and `el`) against that build, in a second terminal: `E2E_DESIGN_SYSTEM=true pnpm --filter @shopblok/storefront test:e2e --project=design-system --ignore-snapshots` (about 20 minutes; set the variable per command, not exported). On a host (this VM, Windows) keep `--ignore-snapshots`: every cell's pixels differ outside Playwright's image, so the pixel comparison runs only in the image ("Baselines and thumbnails (T40)" has the Docker recipe). The `dev-console` project, which needs `next dev` instead, is described in "The storefront in next dev (T25)". A new entry is two objects, one in `@shopblok/registry` and its story in the storefront ("The registry (T29)", "How to add an entry").
+The value is frozen into the build, so setting it only on `start` changes nothing (D33; "DS page shell (T22)", code-review fix 1). The flag is commented out in `apps/storefront/.env.example`. CI's `design-system` job builds this way with no `.env` and no compose, in Playwright's container; to run its checks (the 114 entries outside Foundations at 375, 768 and 1440 px in `en` and `el`: 684 cells, with the screenshot compared in `en` only) against that build, in a second terminal: `E2E_DESIGN_SYSTEM=true pnpm --filter @shopblok/storefront test:e2e --project=design-system --ignore-snapshots` (about 20 minutes for the 748 tests M2 ended with; set the variable per command, not exported). On a host (this VM, Windows) keep `--ignore-snapshots`: every cell's pixels differ outside Playwright's image, so the pixel comparison runs only in the image ("Baselines and thumbnails (T40)" has the Docker recipe). The `dev-console` project, which needs `next dev` instead, is described in "The storefront in next dev (T25)". A new entry is a registry object, a story, a component, its copy and tests: ["How to add a molecule or an organism"](#how-to-add-a-molecule-or-an-organism-m2) below. **Pixel baselines and thumbnails** are made only by CI's `update-baselines` dispatch, in Playwright's container (the committed ones are English only, D51), and never on a host or on Windows: ["Updating the baselines and the thumbnails"](#updating-the-baselines-and-the-thumbnails-m2) below.
 
 **`pnpm tokens`.** It builds `packages/ui/src/styles/tokens.css` and `packages/ui/src/tokens.ts` from `packages/ui/tokens/figma.tokens.json` (the Figma export) and `packages/ui/tokens/shopblok.tokens.json` (ours), through Style Dictionary, in about half a second. Run it after editing `shopblok.tokens.json` or after a new export, and commit the two files with the change. It stops before writing if a contrast pair, the radius scale or the 4 px spacing step fails, and names the pair and its ratio; `pnpm test` fails with "tokens.css is what the build gives" when the committed files differ from the build. Never edit `figma.tokens.json`, `tokens.css` or `tokens.ts` by hand ([packages/ui/tokens/README.md](../packages/ui/tokens/README.md); "Tokens (T19)").
 
 **Exporting from Figma again (T18).** Only if the kit changed. The export is read-only plugin code, `scripts/figma/export-variables.js`, that a session runs through the Figma connector's `use_figma` tool on file `1PUSIlNviAwiZT0praTxES`; it works from a cloud session as well as from your PC, as long as the connector is signed in. The connector answers at most 20,480 bytes and allows about ten calls a minute, so the code returns the export in slices (17 for the current kit; a refused call says "truncated to 20kb" whatever its size: wait a minute and try again). `node scripts/figma/assemble.ts <folder>` joins the slices and checks their length and hash. [packages/ui/tokens/README.md](../packages/ui/tokens/README.md#exporting-again) has the prompt to give the session. Then `git diff --stat packages/ui/tokens/figma.tokens.json` shows what changed (nothing, for an unchanged kit), and `pnpm tokens` rebuilds the CSS and tells you which contrast pairs the new values break. Without the connector, the same code runs as a development plugin in the Figma desktop app.
 
 **Fonts need the network.** Inter comes from Google through `next/font/google`, downloaded at build time and in `next dev`, and a failed download fails the build. A machine behind a proxy must reach `fonts.googleapis.com` and `fonts.gstatic.com`; the cloud environment allows both ([CLOUD.md](CLOUD.md#network-access)).
+
+### How to add a molecule or an organism (M2)
+
+Five things, and `pnpm typecheck` fails until the first four agree. T29's "How to add an entry" has the registry and the story in detail, and T30 to T39's "How a component task uses them" have what each kind of component needs; this is the list in the order to do them. A header, a footer or a ProductCard variant is the same, with a `family` and a `variant` and one more step at the end.
+
+1. **The registry entry** (`packages/registry/src/entries/{molecules,organisms,headers-footers}.ts`): `id` (`molecules/price-block`), `group`, `kind`, `label` (English), `component` (`{ module: "@shopblok/ui/molecules/price-block", name: "PriceBlock" }`, a reference and not an import) and, for what a shop picks, `family` and `variant`. The data it shows is a **contract**, a zod 4 schema of a view model in `packages/registry/src/contracts/` (exported from `contracts/index.ts`) and set on the entry as `contract`; the DS page draws it as the "Props" table. The registry imports nothing but `zod` (a test reads its sources), so Payload's CLI and Playwright's loader can load it. Bump the counts in `packages/registry/src/index.test.ts`.
+2. **The component** (`packages/ui/src/{molecules,organisms}/<name>.tsx`; a folder with one file per variant for a family). Subpath exports, no barrel: `@shopblok/ui/molecules/price-block`. A server component unless it needs state or events (a client component's header says why). Tokens only, logical properties, 44 × 44 px targets, the ring at full strength; `class-rules.test.ts` scans all four folders. It takes `import type` of the contract, its strings as one `copy` prop, links as `href`s, actions as props or slots and money as `Money` with the locale: it fetches nothing, reads no cookie and builds no URL (D42). A file vendored from shadcn or ReUI goes in `primitives/` with a source header, and its licence in `packages/ui/NOTICE.md`.
+3. **The copy**, in all four catalogs: `molecules` or `organisms` in `packages/i18n/src/messages/{en,el,de,fr}.ts`, as ICU messages formatted with `formatMessage(message, values, locale)`; a number, a date, a price or a country's name comes from the formatters. A test fails when a locale lacks a key or has other ICU arguments than English. Greek, German and French are drafted by the session and read in W4.
+4. **The fixtures and the story.** Sample data comes from `@shopblok/fixtures` (`commerceFixtures[ctx.locale]`; its `long` case is the long German and Greek text; a test parses each fixture with its contract). The story is `"molecules/price-block": { summary, a11y, live(ctx), states }` in a file of `apps/storefront/src/design-system/stories/` (a new file is spread into `stories/index.ts`). An overlay is drawn open in an `OverlayBox` with `defaultOpen` and `modal={false}` (D45), its live render keeps the real trigger, and a line in `src/design-system/interactions.ts` (and a `data-slot` on the trigger) makes the `design-system` job open it from the keyboard at 375 and 1440 px and run axe on the open state. An icon the entry draws adds a row to `src/design-system/icons.ts`.
+5. **The tests**: the component's own (`<name>.test.tsx`: role and name, every state, keyboard, long German and Greek labels, and for an overlay focus in, Tab trapped, Escape closes and focus returns), the story's (`stories.test.tsx` renders every entry in the four locales and checks that its component's export exists), and the `design-system` job's six cells (`en` and `el` at 375, 768 and 1440 px: axe, overflow and clipped text, 44 px targets, console, and in `en` the pixels).
+
+**Then the pixels.** A new or changed entry has no baseline until CI's `update-baselines` dispatch makes it, so its first `design-system` run fails on the missing picture, by design; the session starts the dispatch, CI runs again by hand, and the baseline comes from the container. A family entry also gets its thumbnail (`apps/storefront/public/registry/{id}.png`, 600 × 400) from the same dispatch ([below](#updating-the-baselines-and-the-thumbnails-m2)). **The gate:** a PR that changes only DS files skips `e2e-smoke`; once code outside the DS imports a component at run time (the header's cart button is one), the gate runs it again (`node scripts/ci-gate.ts --files …` says what a change would run).
+
+### Updating the baselines and the thumbnails (M2)
+
+Short version; "Baselines and thumbnails (T40)" has the mechanism, the numbers and the stop lines.
+
+- **Who makes them:** only Playwright's container (`mcr.microsoft.com/playwright:v1.64.0-noble`), so the fonts and the browser are the same every time. A host's pixels differ (Windows' included), so there the DS checks run with `--ignore-snapshots`, and `pnpm thumbnails` refuses outside the image unless given `--host`.
+- **What exists:** 342 English baselines (114 entries × 375, 768 and 1440 px, in `apps/storefront/e2e/__screenshots__/design-system/`; D51's fallback, chosen on 2026-10-19; the `el` cells keep axe, overflow, size and console) and 21 thumbnails (`apps/storefront/public/registry/`, which are also their previews' baselines). **Not Git LFS.**
+- **To update:** dispatch CI on the branch with `update-baselines` on (Actions, "CI", "Run workflow", or the `gh api` call in "Baselines and thumbnails (T40)", "How it works", "Updating"). A job of its own rebuilds both sets, runs every other check on the way, commits the PNGs that changed to the branch as `github-actions[bot]` and prints how many it changed and how many bytes it added. **A push made with `GITHUB_TOKEN` starts no workflow: dispatch CI again by hand** and let it pass before merging. A set that passes D51's lines (60 MB, a history 200 MB larger than before the first set, an update of more than half a set) stops the session, which asks.
+- **Locally, in the image** (a cloud session or a PC with Docker): the recipe in "Baselines and thumbnails (T40)", "Making and checking them locally"; delete what it writes before committing, because the committed set is CI's.
+- **After a Renovate bump** of Playwright or of Node's minor or patch version, dispatch an update before merging: the browser or the ICU data changes pixels.
 
 ### Windows notes
 
@@ -118,6 +140,7 @@ The value is frozen into the build, so setting it only on `start` changes nothin
 - **What has run on Windows.** T00 (Windows 11 Home 10.0.26200, Node 22.22.0, NTFS E:): pnpm 12.10.1 installs, builds and hot-reloads Next 16.4.0, Payload 3.90.2 and Medusa 2.21.2 together; two config fixes it found (`allowBuilds` for `msgpackr-extract` and `protobufjs`, and `@medusajs/cli` as a direct dependency of the backend) are in the repo ("Windows preflight (T00)" below). CI's `windows-smoke` job installs, type-checks, runs the unit tests, builds and checks that one `^C` stops `pnpm dev`, on `windows-latest`, weekly and on PRs that change a dependency file (4 m 16 s before the W2 fixes added the tests and the `^C` check; 5 m 33 s and 7 m 16 s in PR 28's two runs). W2 (2026-10-13) ran the whole quickstart in a fresh clone on E: (["Windows exit check (W2)"](#windows-exit-check-w2) below): it works, 2 to 7 times slower than the cloud VM. Its three failures (stopping `pnpm dev` took `^C` twice, a page could answer 500 right after `pnpm dev` started, `pnpm test` failed in `@shopblok/scripts`) and `check:workspace` missing a package on Windows are fixed (["W2 fixes"](#w2-fixes)), and W2's second run (2026-10-13, a fresh clone again) passed all of §7 on the PC, one `^C` included (["Windows exit check (W2), second run"](#windows-exit-check-w2-second-run)).
 - **From the Claude desktop app** (a local Claude Code session, as in W1 and W2): the app is packaged, so every Medusa command needs `$env:SWC_NATIVE_BINDING_CACHE` pointing at a private folder (for example `C:\Users\<you>\.swc-native-cache`). Without it `@swc/core` fails with `ERR_SWC_NATIVE_CACHE`. `turbo.json` passes the variable through to every task (`globalPassThroughEnv`, W2 finding 5), so `pnpm lint`, `pnpm test` and `pnpm build` need nothing else; before the W2 fixes they also needed `$env:TURBO_ENV_MODE = 'loose'`. A PowerShell window outside the app needs neither.
 - **M1 on Windows (W3, 2026-10-17).** The fonts, every DS page in four locales at three widths, `pnpm tokens` (no diff, LF endings kept), the flagged and unflagged builds and one Ctrl+C all pass on the PC (["Windows check and design review (W3)"](#windows-check-and-design-review-w3)). The DS checks need Playwright's Chromium build 1248: run `pnpm exec playwright install chromium` in `apps/storefront` once.
+- **M2 on Windows.** Three things M2 added concern a Windows checkout. (1) A test that builds a path with `path.relative` must join it with `/`: PR 53's `windows-smoke` failed `class-rules.test.ts` because `primitives\dialog.tsx` does not start with `primitives/` ("Primitives (T31)", review fixes). (2) Pixel baselines and thumbnails are never made on Windows; run the DS checks there with `--ignore-snapshots`, and `pnpm thumbnails` is refused outside the image (D51; ["Baselines and thumbnails (T40)"](#baselines-and-thumbnails-t40)). `scripts/thumbnails.ts` sets `E2E_DESIGN_SYSTEM` itself because `VAR=x cmd` is not portable to Windows' shells. (3) `windows-smoke` still runs only for a dependency file, on the schedule and on a dispatch; the gate prints which of the three jobs a PR runs. W4 is the M2 check on the PC, with the same prerequisites as W3 (["Windows check and design review (W3)"](#windows-check-and-design-review-w3)); its prompt is in [NEXT-SESSION.md](NEXT-SESSION.md).
 - Scripts use `node:path`, `docker` and `pnpm` started without a shell where possible, and a quoted `cmd.exe` command line where not (`scripts/lib/exec.ts`); line endings are LF (`.gitattributes`).
 
 ### Working in a Claude Code cloud environment
@@ -4544,3 +4567,93 @@ Everything below ran in the image (`mcr.microsoft.com/playwright:v1.64.0-noble`,
 | 9 | The gate's tests miss the new DS-only paths; `settle.ts` is on no list | `settle.ts` is DS-only; the test lists it, `thumbnails.spec.ts` and a thumbnail |
 | 10 | `pnpm thumbnails` writes on any machine | It refuses outside the image unless given `--host` |
 | — | English only (Stephanos, 2026-10-19) | `design-system.spec.ts` asserts the screenshot for `en` cells only (`baselineLocales`); comments in the spec, config and ci.yml, D51's status in the plan and this section say so |
+
+## Docs and SPEC v0.8 (T41)
+
+**Result: [SPEC.md](SPEC.md) is v0.8 (2026-10-19) with a "Changes in v0.8" table that applies the plan's decisions D40 to D55 and every item of its §8; this file's quickstart lists the DS page's five groups and has "How to add a molecule or an organism" and "Updating the baselines and the thumbnails"; the README has the groups and the new third-party notices (`packages/ui/NOTICE.md` has the texts); and the W4 prompt is in [NEXT-SESSION.md](NEXT-SESSION.md). No ADR: no spike ran and no task made an expensive-to-undo choice the plan does not make (`docs/adr/README.md`'s rule). The CI numbers it left as placeholders on 2026-10-19 were filled on 2026-10-22, once CI ran again: each job's time after M2 and T40's first-set numbers come from PR 63's last commit (124bb85, all of M2's code, run 39832035433 twice) and the first set's dispatch (run 39822239725).**
+
+| | |
+|---|---|
+| Date | 2026-10-19 |
+| Branch | `claude/project-thread-pmqmfo` (drafted on `t41-draft` from T40's head, c7ac1dc, and moved onto `main` after PR 63's merge, 14033b2) |
+| Changed | `docs/SETUP.md` (the quickstart's DS paragraphs, two new subsections, the Windows notes, this section), `docs/SPEC.md`, `README.md`, `packages/ui/NOTICE.md`, `docs/plans/M2.md` (status line, exit criterion 5), `docs/NEXT-SESSION.md` |
+| Not done | W4 |
+| Tests | no code changed. `pnpm install --frozen-lockfile`, `pnpm check:workspace` and `pnpm lint` pass; `pnpm test`: scripts 430, fixtures 450, i18n 95, registry 218 (the thumbnail files' 2 tests now run: the first set is in), storefront 2560, ui 5253 |
+
+### What was done
+
+1. **SETUP.md.** The quickstart's page table and the DS paragraph name the five groups and their counts (122 entries: Foundations 8, Atoms 32, Molecules 40, Organisms 31, Headers and Footers 11); the checks' counts are 114 entries and 684 cells with the screenshot compared in `en` only. ["How to add a molecule or an organism (M2)"](#how-to-add-a-molecule-or-an-organism-m2) is the five things in order (the registry entry and its contract; the component; the copy in four catalogs; the fixtures and the story, with the overlay's interaction line; the tests), then the pixels and the gate. ["Updating the baselines and the thumbnails (M2)"](#updating-the-baselines-and-the-thumbnails-m2) is the short version of "Baselines and thumbnails (T40)". The Windows notes gain "M2 on Windows": the `path.relative` rule from PR 53, no baselines or thumbnails on Windows (D51), `scripts/thumbnails.ts` setting its own variable, and what `windows-smoke` runs on.
+2. **README.md and NOTICE.** The groups, the status, v0.8 and the next step. The notices were checked against `node_modules` (2026-10-19): `embla-carousel-react` and `embla-carousel` 8.6.0 (MIT; they declare it and ship no licence file) and ReUI's `stepper` and `timeline` were already in `packages/ui/NOTICE.md` from T31; **new:** `intl-messageformat` 11.2.15 (**BSD-3-Clause**, Oath Inc., with its `LICENSE.md` text, because it is in the client bundles) and its three `@formatjs/*` packages (MIT), and `lib-address` 0.7.0 (MIT, Lancelot Prigent) with the data it ships, Google's address metadata, from which `packages/i18n/src/address-formats.json` is generated.
+3. **SPEC v0.8.** The table has 17 rows (sections, change, reason, evidence). Body edits: the header and decisions log (seven rows), §2 (Principles 5 and 9), §3 (the i18n and UI rows), §4 (the layout), §7.3 and §7.4 (the registry's pickers and thumbnails), §8.1 and §12 (root files), §8.3 (the visitor store), §8.4 (AddressForm, forms), §9.3 (the molecules and organisms, the primitives and their sources), §9.4, §9.5 (ProductCard's ten), §9.6, §13, §14 (the container job, the gate, baselines), §17.1 and §19.
+4. **No ADR.** D48's package choice (`lib-address`, a development dependency that generates one committed file), D51's English-only fallback and D54's rewrite are all in the plan's rows or its stated fallbacks, and each is cheap to reverse: a package swap regenerates one file, the baselines' locale is one array (`baselineLocales`) and the rewrite is one config entry.
+5. **The plan and NEXT-SESSION.** The plan's status line says T41 is done; §7's criterion 5 says "every `en` cell" (the plan's convention is to edit §7, as W3 did for M1); NEXT-SESSION.md has W4's prompt, which also covers reading the Greek, German and French copy (D43).
+
+### Where each item of the plan's §8 is applied
+
+| § 8 | Applied in SPEC v0.8 |
+|---|---|
+| 1 (the layout) | §4 |
+| 2 (Principles 5 and 9) | §2 |
+| 3 (i18n and UI rows) | §3 |
+| 4 (thumbnails) | §7.3, §7.4, §7.6, §9.6 |
+| 5 (root files) | §8.1, §12 |
+| 6 (the visitor store) | §8.3 |
+| 7 (AddressForm) | §8.4 |
+| 8 (the molecules and organisms, variant counts) | §9.3, §9.5 |
+| 9 (the bottom sheet, the market switcher's flag) | §9.4 |
+| 10 (the DS page) | §9.6 |
+| 11 (providers, reduced motion) | §13 |
+| 12 (the CI job and the gate) | §14 |
+| 13 (§17.1) | §17.1 |
+| 14 (sources) | §19 |
+
+### What the exit criteria (plan §7) have for them today
+
+| # | Criterion | State on 2026-10-19 |
+|---|---|---|
+| 1 to 3 | Registry, molecules, organisms | Built and tested: registry 216 tests, ui 5253; the registry's counts test says 8, 32, 40, 31 and 11 entries (122) |
+| 4 | DS checks | Passed in the image on PR 63's last commit, 124bb85, twice on the runner (run 39832035433, attempts 1 and 2), with the baselines compared; and on each earlier task's PR |
+| 5 | Baselines | **Committed** by the `update-baselines` dispatch (run 39822239725, bot commit 68395a8): 342 `en` cells, 48.2 MB; criterion 5 reads "every `en` cell" (D51's fallback) |
+| 6 | Thumbnails | The same commit, 21 PNGs at 600 × 400; the registry's file test runs and passes |
+| 7 to 9 | Per-visitor parts, copy, root files | Built and tested (T28, T30, T35, T36) |
+| 10 | CI times | The table below |
+| 11 | Green | Every job, `windows-smoke` and `design-system` included, passed twice on PR 63's last commit (124bb85), M2's last code change. This PR changes only docs, so its gate runs `check` and `backend-integration` |
+| 12 | W4 | Yours, on the PC |
+| 13 | Docs | This task |
+
+### Each CI job's time before and after M2 (exit criterion 10)
+
+Before is `main` before T27 (run 38981232705, "CI for M2 (T27)"); T27's own first run is the middle column. **After** is PR 63's last commit, 124bb85 (all of M2's code, the first set committed), run 39832035433 twice on 2026-10-22, from the jobs' start and end times; the repository is public since that day, so the minutes cost nothing.
+
+| Job | Before M2 | T27's first run | After M2 (attempt 1 / attempt 2) |
+|---|---|---|---|
+| `windows-gate` / `gate` | 4 s | 8 s | 20 s / 12 s |
+| `check` (Node 22 / 24) | 3 min 07 s / 2 min 45 s | 3 min 51 s / 3 min 46 s | 5 min 28 s / 4 min 41 s; 4 min 25 s / 5 min 12 s |
+| `backend-integration` | 1 min 19 s | 1 min 17 s | 1 min 09 s / 1 min 48 s |
+| `e2e-smoke` | 12 min 48 s | 5 min 19 s | 5 min 04 s / 4 min 25 s |
+| `design-system` (192 cells before; about 17 min at T37, on the runner) | 5 min 40 s | 7 min 52 s | 27 min 11 s / 27 min 03 s (684 cells, 342 with a screenshot, and the 21 thumbnails, in the container, with the image pull and the tools step) |
+| `windows-smoke` | 5 min 33 s to 7 min 16 s (PR 28's two runs) | not run | 8 min 39 s / 9 min 14 s |
+| `update-baselines` (a dispatch) | n/a | n/a | 18 min 36 s (run 39822239725; its checks and writes 15 min 47 s) |
+| Longest job | 12 min 48 s | 7 min 52 s | 27 min 11 s (`design-system`; its limit is 50 min) |
+
+### T40's first-set numbers
+
+| | Expected (T40's local run in the image, `en` only) | After the dispatch on the runner |
+|---|---|---|
+| PNGs | 342 baselines and 21 thumbnails | 342 and 21: 363 new, 0 changed, 0 deleted (bot commit 68395a8) |
+| Bytes | about 48.2 MB and 260,914 bytes | 48,202,869 bytes of baselines and 308 KB of thumbnails on disk; the commit added 48,463,783 bytes |
+| `git count-objects -vH` before the set (a worktree of `main` at 3f03ca7) | `count: 1193`, `size: 26.95 MiB`, `in-pack: 3798`, `size-pack: 4.69 MiB` | after the set: `count: 1287`, `size: 29.46 MiB`, `in-pack: 4288`, `size-pack: 45.90 MiB` (about 44 MiB of the 200 MB allowance used) |
+| The container job's time against the runner's 17 minutes | not measured | 27 min, about 10 min more: the image pull, the tools step and the 342 comparisons |
+| CI twice on the unchanged commit | not run | both passed on 124bb85 (run 39832035433, attempts 1 and 2), after two Windows test timeouts were given 30 s ("Baselines and thumbnails (T40)") |
+
+### Checks
+
+- **Links.** Every relative link and anchor added to the README, SETUP.md, SPEC.md, the plan and NEXT-SESSION.md was checked by a script that resolves the file and the heading's slug (the run and its output are in the commit's session, not kept).
+- **Notices.** Licences read from `node_modules/.pnpm/*/node_modules/*/package.json` and each package's licence file, 2026-10-19.
+- `pnpm install --frozen-lockfile`, `pnpm check:workspace`, `pnpm lint` and `pnpm test` pass (counts above).
+
+### Uncertain
+
+1. **Google's terms for the address metadata were not read.** `lib-address` is MIT and says its data is Google's AddressValidationMetadata, but states no licence for the data. `packages/ui/NOTICE.md` says so. Read Google's terms before a release that ships `address-formats.json` outside this repository.
+2. **The test counts above** are from this VM's run (Node 22.22.0), not CI's; the registry's was taken again after the first set.
+3. **What CI runs for this PR:** `node scripts/ci-gate.ts --files` on its six files says `e2e-smoke`, `design-system` and `windows-smoke` are all skipped, so only `check` and `backend-integration` run.
