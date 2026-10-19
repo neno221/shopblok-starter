@@ -12,8 +12,8 @@
 #   design-system  the DS cells in English and Greek at 375, 768 and 1440 px: axe, overflow,
 #                  44 px controls, the console (T24, D34), then the DS pages' console in `next dev`
 #                  (T27). No compose: a build with the flag, `next start` and `next dev` are all it
-#                  needs. T40: it runs in Playwright's container, and each cell and each of the 21
-#                  thumbnails is also compared with its committed baseline (D51, D52).
+#                  needs. T40: it runs in Playwright's container, and each English cell and each of the
+#                  21 thumbnails is also compared with its committed baseline (D51, D52).
 #   update-baselines
 #                  only for a manual run with `update-baselines` on (and then instead of
 #                  design-system): the same build and the same two Playwright projects with

@@ -13,8 +13,8 @@ import { defineConfig, devices, type Project } from "@playwright/test";
 //   dev-console     (T25, D37) the storefront's own routes in `next dev`; e2e-smoke's last step.
 //   dev-console-ds  (T27) the DS pages in `next dev`; the design-system job's last step.
 //   design-system   (T24, D34) every DS cell against `next start` built with
-//                   DESIGN_SYSTEM_ENABLED=true; no backend. T40 (D51): each cell is also a pixel
-//                   comparison against a committed baseline.
+//                   DESIGN_SYSTEM_ENABLED=true; no backend. T40 (D51): each `en` cell is also a
+//                   pixel comparison against a committed baseline (`el` keeps the other checks).
 //   thumbnails      (T40, D52) the previews of the 21 family entries at 1200 × 800 at half scale,
 //                   compared with (or, on an update, written as) `public/registry/{id}.png`. It
 //                   runs against the same server as `design-system`, so the one flag enables both.

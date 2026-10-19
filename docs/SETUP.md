@@ -4462,7 +4462,7 @@ Each applied, checked and reverted.
 
 ## Baselines and thumbnails (T40)
 
-**Result: every design-system cell outside Foundations (114 entries × `en`, `el` × 375, 768, 1440 px: 684 cells) now asserts `toHaveScreenshot` against a baseline at `apps/storefront/e2e/__screenshots__/design-system/{id}/{locale}-{width}.png`, the 21 family previews are captured by a `thumbnails` project into `apps/storefront/public/registry/{id}.png` (600 × 400, half scale), the `design-system` job runs in Playwright's container, and a `workflow_dispatch` input, `update-baselines`, makes both sets. The code is in; the first set is not committed: D51 says only CI's dispatch makes it, and the set measured over D51's 60 MB line (below), so the decision is yours before the dispatch.**
+**Result: every English design-system cell outside Foundations (114 entries × 375, 768, 1440 px: 342 cells; `en` only, Stephanos's choice of D51's fallback on 2026-10-19) now asserts `toHaveScreenshot` against a baseline at `apps/storefront/e2e/__screenshots__/design-system/{id}/{locale}-{width}.png`, the 21 family previews are captured by a `thumbnails` project into `apps/storefront/public/registry/{id}.png` (600 × 400, half scale), the `design-system` job runs in Playwright's container, and a `workflow_dispatch` input, `update-baselines`, makes both sets. The code is in; the first set is not committed: D51 says only CI's dispatch makes it, and the set measured over D51's 60 MB line (below), so the decision is yours before the dispatch.**
 
 | | |
 |---|---|
@@ -4490,7 +4490,7 @@ Each applied, checked and reverted.
 - **Rule.** Not Git LFS. If the first full set is over **60 MB**, T40 stops and asks you; the fallback is baselines in `en` only (the `el` cells keep their other checks). The history grows with every update (each commit adds a new copy of each PNG it changes): every update prints its PNGs and bytes, and a session stops and asks when the baselines' history passes **200 MB** (`git count-objects -vH` against the count recorded before the first set) or one update adds more than half a set.
 - **Before the first set** (a worktree of `main` at 3f03ca7, 2026-10-18): `count: 1193`, `size: 26.95 MiB` (loose), `in-pack: 3798`, `size-pack: 4.69 MiB`.
 - **Measured set (a local run in the image, below):** 684 PNGs, 104,711,489 bytes (**99.9 MiB**, 104.7 MB), 153 KB on average, the largest 0.9 MB; `en` alone is 48.2 MB (342 PNGs). By group, in the first run (683 cells): atoms 6.7 MB, molecules 34.9 MB, organisms 45.5 MB, headers and footers 17.0 MB.
-- **That is above 60 MB**, so nothing was committed and **the decision is yours**: either accept about 100 MB for the first set (the history then reaches the 200 MB line after one more full update), or take the fallback, `en` only, about 48 MB (half the cells; `el` keeps axe, overflow, size and console). The large cells are the long organisms and molecules (`address-form` 0.9 MB at 375 px in `el`, `reviews-section` 0.7 MB). D51's expectation of 40 to 60 MB was for about 30 KB a cell; the average is 153 KB.
+- **Decision (Stephanos, 2026-10-19): `en` only.** The spec asserts the screenshot only for `en` cells (`baselineLocales`); `el` cells keep axe, overflow, size, sideways scrollers and console. The set is 342 cells plus the 21 thumbnails, about 48 MB. The update job's clean start (below) means no `el-*.png` is ever committed. The question was: either accept about 100 MB for the first set (the history then reaches the 200 MB line after one more full update), or take the fallback, `en` only, about 48 MB (half the cells; `el` keeps axe, overflow, size and console). The large cells are the long organisms and molecules (`address-form` 0.9 MB at 375 px in `el`, `reviews-section` 0.7 MB). D51's expectation of 40 to 60 MB was for about 30 KB a cell; the average is 153 KB.
 - **Thumbnails:** 21 PNGs of 600 × 400, 260,914 bytes in all (5 to 24 KB each; D52 inferred about 50 KB each, 1 MB in all).
 
 ### Making and checking them locally, in the image
@@ -4525,7 +4525,6 @@ Everything below ran in the image (`mcr.microsoft.com/playwright:v1.64.0-noble`,
 
 ### Left for you
 
-- **The 60 MB decision** (above), before the dispatch.
 - **The first set**: dispatch CI on the PR's branch with `update-baselines`, read the printed numbers, record `git count-objects -vH` after it in this section, dispatch CI again (it must pass twice on the unchanged commit), then merge.
 - **The runner's times in the container** against the earlier runner's (17 min for the DS checks at T37).
 
@@ -4543,3 +4542,4 @@ Everything below ran in the image (`mcr.microsoft.com/playwright:v1.64.0-noble`,
 | 8 | The job's time and the screenshot timeout are unmeasured on the runner | Read on the first dispatch (raise `timeout-minutes` or `expect.toHaveScreenshot.timeout` if needed) |
 | 9 | The gate's tests miss the new DS-only paths; `settle.ts` is on no list | `settle.ts` is DS-only; the test lists it, `thumbnails.spec.ts` and a thumbnail |
 | 10 | `pnpm thumbnails` writes on any machine | It refuses outside the image unless given `--host` |
+| — | English only (Stephanos, 2026-10-19) | `design-system.spec.ts` asserts the screenshot for `en` cells only (`baselineLocales`); comments in the spec, config and ci.yml, D51's status in the plan and this section say so |
