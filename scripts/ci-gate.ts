@@ -81,6 +81,7 @@ const decision = decideJobs({
   event,
   files,
   importers: event === "pull_request" ? importers() : [],
+  updateBaselines: process.env["UPDATE_BASELINES"] === "true",
 });
 if (event === "pull_request") console.log(`${files.length} changed files`);
 for (const reason of decision.reasons) console.log(reason);

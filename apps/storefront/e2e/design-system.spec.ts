@@ -8,13 +8,14 @@ import { entries } from "@shopblok/registry";
 import { interactions, type DsInteraction } from "../src/design-system/interactions";
 import { viewportWidths } from "../src/design-system/viewport-widths";
 import { collectConsole, judgeConsole, type FailedRequest, type Message } from "./support/console";
+import { settle, withPageSizedViewport } from "./support/settle";
 
 // T24 (D32, D34): every component entry's frame, in two locales and at three widths, against
 // `next start` built with DESIGN_SYSTEM_ENABLED=true (the `design-system` project; CI job
 // `design-system`; SETUP.md, "DS checks (T24)"). One cell is one test, `atoms/price · el · 375`;
 // each checks axe, overflow, the 44 px size of controls, controls nested in a link or a button
-// (T32), content that scrolls sideways in its box (T34), the console (the rules of support/console.ts) and attaches a screenshot of the whole
-// frame. The checks are soft, so a cell reports every check that failed. After the cells: T31's
+// (T32), content that scrolls sideways in its box (T34), the console (the rules of support/console.ts) and, in `en`, compares a screenshot of the whole
+// frame with its committed baseline (T40, D51; `el` keeps the other checks, the English-only set Stephanos chose on 2026-10-19). The checks are soft, so a cell reports every check that failed. After the cells: T31's
 // overlay box, T33's interaction checks (D45: an overlay opened from the keyboard), T35's cart
 // count and T36's cookie banner (D44: what only the browser draws) and the bundle test (D49: no
 // flag in a client chunk).
@@ -30,6 +31,8 @@ import { collectConsole, judgeConsole, type FailedRequest, type Message } from "
 // there.
 
 const checkedLocales = ["en", "el"] as const;
+// D51's fallback, chosen 2026-10-19: the full set was 99.9 MiB, `en` alone 48.2 MB.
+const baselineLocales: readonly string[] = ["en"];
 const widths = viewportWidths();
 
 // The tags of D34 / T24 step 1.
@@ -80,6 +83,9 @@ const ids =
   problem === undefined
     ? entries.filter((entry) => entry.component !== undefined).map((entry) => entry.id)
     : [];
+
+// The folder of the cells' baselines under `__screenshots__` (the config's snapshotPathTemplate).
+const snapshotDir = ["design-system"];
 
 const framePath = (locale: string, id: string) => `/design-system/${locale}/frame/${id}`;
 
@@ -346,7 +352,7 @@ const lines = (findings: Finding[]) => {
 for (const id of ids) {
   for (const locale of checkedLocales) {
     for (const width of widths) {
-      test(`${id} · ${locale} · ${width}`, async ({ page, baseURL }, testInfo) => {
+      test(`${id} · ${locale} · ${width}`, async ({ page, baseURL }) => {
         await page.setViewportSize({ width, height: 900 });
         // D50: the browser's clock is the fixtures' (timers still run), so a countdown that the
         // server rendered from `fixtureNow` reads the same after hydration.
@@ -358,14 +364,23 @@ for (const id of ids) {
         const response = await page.goto(framePath(locale, id), { waitUntil: "load" });
         expect(response?.status(), `${framePath(locale, id)} answers 200`).toBe(200);
         await page.waitForLoadState("networkidle");
-        // Fonts change a box's size, so they are in before anything is measured.
-        await page.evaluate(() => document.fonts.ready.then(() => undefined));
+        // Fonts change a box's size, and pictures their boxes' content, so both are in before
+        // anything is measured or captured (support/settle.ts).
+        await settle(page);
 
-        // First, so that a cell that fails has its picture.
-        await testInfo.attach(`${id.replace("/", "-")}-${locale}-${width}.png`, {
-          body: await page.screenshot({ fullPage: true }),
-          contentType: "image/png",
-        });
+        // T40 (D51): in `en`, the whole frame against its committed baseline,
+        // `__screenshots__/design-system/{id}/en-{width}.png` (the config's snapshotPathTemplate).
+        // First, and soft, so that a cell that fails has its picture (the report keeps the expected,
+        // actual and diff images) and still runs the other checks. The clock is fixed above, motion
+        // is reduced and animations are disabled (the config).
+        if (baselineLocales.includes(locale))
+          await withPageSizedViewport(page, width, 900, () =>
+            expect
+              .soft(page)
+              .toHaveScreenshot([...snapshotDir, ...id.split("/"), `${locale}-${width}.png`], {
+                fullPage: true,
+              }),
+          );
 
         const axe = await axeScan(page);
         expect

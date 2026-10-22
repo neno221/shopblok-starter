@@ -1,4 +1,5 @@
-# CI for M0 (plan T16, T17), M1's `design-system` (T24) and M2's gate (T27, D53). Six jobs:
+# CI for M0 (plan T16, T17), M1's `design-system` (T24), M2's gate (T27, D53) and baselines (T40, D51).
+# Seven jobs:
 #   check          the root checks, the same ones a contributor runs: no .env, no database.
 #   backend-integration
 #                  the backend's integration tests (`test:integration:http`) on the compose Postgres.
@@ -11,7 +12,13 @@
 #   design-system  the DS cells in English and Greek at 375, 768 and 1440 px: axe, overflow,
 #                  44 px controls, the console (T24, D34), then the DS pages' console in `next dev`
 #                  (T27). No compose: a build with the flag, `next start` and `next dev` are all it
-#                  needs.
+#                  needs. T40: it runs in Playwright's container, and each English cell and each of the
+#                  21 thumbnails is also compared with its committed baseline (D51, D52).
+#   update-baselines
+#                  only for a manual run with `update-baselines` on (and then instead of
+#                  design-system): the same build and the same two Playwright projects with
+#                  `--update-snapshots=changed`, and a commit of the PNGs that changed to the branch.
+#                  The only job that can write to the repository.
 #   windows-smoke  install, type check, unit tests, build and a Ctrl-C of `pnpm dev` on NTFS,
 #                  weekly and when dependencies change.
 # Each job but the gate sets up pnpm and Node with .github/actions/setup, and both storefront jobs
@@ -31,6 +38,14 @@ on:
   # Starts every job, windows-smoke included. In the cloud:
   #   gh api -X POST repos/stephanos221/shopblok-starter/actions/workflows/ci.yml/dispatches -f ref=<branch>
   workflow_dispatch:
+    inputs:
+      update-baselines:
+        description: >-
+          Write the pixel baselines and the thumbnails that changed and commit them to this branch
+          (the update-baselines job, in place of design-system). A push made by this workflow starts
+          no workflow: run CI again by hand afterwards.
+        type: boolean
+        default: false
 
 concurrency:
   group: ci-${{ github.event.pull_request.number || github.ref }}
@@ -76,10 +91,14 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           PULL: ${{ github.event.pull_request.number }}
           REPO: ${{ github.repository }}
+          # Empty on every event but a dispatch.
+          UPDATE_BASELINES: ${{ inputs.update-baselines }}
         run: node scripts/ci-gate.ts
 
   check:
     name: check (${{ matrix.label }})
+    # A baseline update runs its own job only; the dispatch after it runs this (PR 63 review).
+    if: ${{ !inputs.update-baselines }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     # Node 24 is informational (Payload v4 readiness): a failure there shows as a red check and
@@ -120,6 +139,7 @@ jobs:
   # databases on the compose Postgres (`apps/backend/.env.test` names port 15432), so only Postgres
   # is started. It needs no `.env` and no bootstrap.
   backend-integration:
+    if: ${{ !inputs.update-baselines }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -295,17 +315,43 @@ jobs:
   # (playwright.config.ts).
   design-system:
     needs: gate
-    if: needs.gate.outputs.design-system == 'true'
+    # A manual run with `update-baselines` makes the baselines in the next job and does not compare
+    # them; the run after it does.
+    if: ${{ needs.gate.outputs.design-system == 'true' && !inputs.update-baselines }}
     runs-on: ubuntu-latest
+    # T40 (D51): Playwright's image, so the browser and the fonts are the ones the baselines were
+    # made with; `--ipc=host` because Chromium shares memory through /dev/shm (Playwright's Docker
+    # page). Bump the tag with `@playwright/test` (Renovate groups them).
+    container:
+      image: mcr.microsoft.com/playwright:v1.64.0-noble
+      options: --ipc=host --init
     # Two Playwright projects: the DS checks (~17 min on the runner at T37) and the next dev console
     # check (~10-40 s a page while it compiles). 30 min was reached at T37 (PR 59); room for M2's pages.
     timeout-minutes: 50
     steps:
+      # Before checkout, which downloads a tarball instead of cloning when git is missing.
+      - name: Tools the steps use (T40)
+        shell: bash
+        run: |
+          missing=()
+          command -v git >/dev/null 2>&1 || missing+=(git)
+          command -v ps >/dev/null 2>&1 || missing+=(procps)
+          command -v awk >/dev/null 2>&1 || missing+=(gawk)
+          command -v curl >/dev/null 2>&1 || missing+=(curl)
+          # stop-tree.sh's port check wants one of the three.
+          if ! command -v lsof >/dev/null 2>&1 && ! command -v ss >/dev/null 2>&1 && ! command -v fuser >/dev/null 2>&1; then missing+=(lsof); fi
+          if [ "${#missing[@]}" -gt 0 ]; then
+            echo "The image lacks: ${missing[*]}. Installing."
+            apt-get update -qq
+            DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "${missing[@]}"
+          else
+            echo "The image has git, ps, awk, curl and one of lsof, ss or fuser."
+          fi
+          git --version
       - uses: actions/checkout@v7.0.1
       - uses: ./.github/actions/setup
       - run: pnpm install --frozen-lockfile
-      - name: Install Playwright's Chromium
-        run: pnpm --filter @shopblok/storefront exec playwright install --with-deps chromium
+      # No `playwright install`: the image has the browser that @playwright/test 1.64.0 drives.
       # Through `next build` itself (the package's `build` script), not turbo: the flag is read at
       # build time and frozen into the static DS pages (D33).
       - name: Build the storefront with the design system on
@@ -318,9 +364,11 @@ jobs:
         with:
           command: start
           url: http://localhost:8000/design-system/en
+      # The cells (their pixels too, D51) and the 21 thumbnails (D52). A baseline that is missing
+      # fails its cell: only the update-baselines job writes them.
       - name: Design-system checks
         id: ds-checks
-        run: pnpm --filter @shopblok/storefront test:e2e --project=design-system --reporter=list,html
+        run: pnpm --filter @shopblok/storefront test:e2e --project=design-system --project=thumbnails --reporter=list,html
         env:
           E2E_DESIGN_SYSTEM: "true"
           PLAYWRIGHT_HTML_OPEN: never
@@ -355,6 +403,8 @@ jobs:
         run: |
           pid="$(cat "$RUNNER_TEMP/servers/storefront-dev.pid" 2>/dev/null || true)"
           if [ -n "$pid" ]; then bash .github/scripts/stop-tree.sh --port 8000 "$pid"; fi
+      # A cell that differs has its expected, actual and diff images in the report and in
+      # test-results.
       - name: Upload the Playwright report, with the screenshots
         if: always()
         uses: actions/upload-artifact@v7.0.2
@@ -372,6 +422,163 @@ jobs:
         uses: actions/upload-artifact@v7.0.2
         with:
           name: design-system-server-logs
+          path: ${{ runner.temp }}/servers
+          if-no-files-found: ignore
+          retention-days: 14
+
+  # T40 (D51, D52): `workflow_dispatch` with `update-baselines` on. The same container, build and
+  # server as design-system, then both Playwright projects with `--update-snapshots=changed` (a
+  # snapshot that is missing or differs is written; one that matches is left alone), over every
+  # cell: the whole suite runs, so a failing axe or console check stops the job before anything is
+  # committed. The commit holds the PNGs under apps/storefront/e2e/__screenshots__/ and
+  # apps/storefront/public/registry/ and nothing else. This is the only job with `contents: write`.
+  # A push made with GITHUB_TOKEN starts no workflow, so the session runs CI again by hand.
+  update-baselines:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.update-baselines }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    container:
+      image: mcr.microsoft.com/playwright:v1.64.0-noble
+      options: --ipc=host --init
+    timeout-minutes: 50
+    steps:
+      # Before checkout, which downloads a tarball instead of cloning when git is missing.
+      - name: Tools the steps use (T40)
+        shell: bash
+        run: |
+          missing=()
+          command -v git >/dev/null 2>&1 || missing+=(git)
+          command -v ps >/dev/null 2>&1 || missing+=(procps)
+          command -v awk >/dev/null 2>&1 || missing+=(gawk)
+          command -v curl >/dev/null 2>&1 || missing+=(curl)
+          # stop-tree.sh's port check wants one of the three.
+          if ! command -v lsof >/dev/null 2>&1 && ! command -v ss >/dev/null 2>&1 && ! command -v fuser >/dev/null 2>&1; then missing+=(lsof); fi
+          if [ "${#missing[@]}" -gt 0 ]; then
+            echo "The image lacks: ${missing[*]}. Installing."
+            apt-get update -qq
+            DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "${missing[@]}"
+          else
+            echo "The image has git, ps, awk, curl and one of lsof, ss or fuser."
+          fi
+          git --version
+      # The branch the dispatch names, which the commit goes to. The write token is not kept in
+      # .git/config: install, build and the suite run third-party code, and only the commit step
+      # gets it (PR 63 review).
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      # A clean set: every baseline is written again, so a PNG no cell makes any more (a renamed
+      # entry, a dropped locale) shows as deleted, and an unchanged one is byte for byte the same
+      # file, which git does not count (PR 63 review).
+      - name: Remove the current baselines and thumbnails
+        shell: bash
+        run: rm -rf apps/storefront/e2e/__screenshots__/design-system apps/storefront/public/registry
+      - uses: ./.github/actions/setup
+      - run: pnpm install --frozen-lockfile
+      - name: Build the storefront with the design system on
+        run: pnpm --filter @shopblok/storefront build
+        env:
+          DESIGN_SYSTEM_ENABLED: "true"
+      - name: Start the storefront
+        uses: ./.github/actions/start-storefront
+        with:
+          command: start
+          url: http://localhost:8000/design-system/en
+      - name: Design-system checks and thumbnails, writing the baselines that changed
+        id: update
+        run: pnpm --filter @shopblok/storefront test:e2e --project=design-system --project=thumbnails --update-snapshots=changed --reporter=list,html
+        env:
+          E2E_DESIGN_SYSTEM: "true"
+          PLAYWRIGHT_HTML_OPEN: never
+      - name: Stop next start
+        if: always()
+        run: |
+          pid="$(cat "$RUNNER_TEMP/servers/storefront.pid" 2>/dev/null || true)"
+          if [ -n "$pid" ]; then bash .github/scripts/stop-tree.sh --port 8000 "$pid"; fi
+      # Only when every check passed. D51's numbers are printed here and in the run's summary: the
+      # PNGs that changed, the bytes the commit adds, the size of the whole set. A session stops and
+      # asks when an update adds more than half a set, when the set passes 60 MB or the history
+      # 200 MB (SETUP.md, "Baselines and thumbnails (T40)").
+      - name: Commit the baselines that changed
+        if: ${{ steps.update.outcome == 'success' }}
+        shell: bash
+        env:
+          BRANCH: ${{ github.ref_name }}
+          REF_TYPE: ${{ github.ref_type }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          # The container runs as root over a workspace the runner's user owns.
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          if [ "$REF_TYPE" != branch ] || [ "$BRANCH" = "$DEFAULT_BRANCH" ]; then
+            echo "::error::update-baselines commits to a feature branch; this run is on '$BRANCH' ($REF_TYPE). Dispatch it on the branch of the change."
+            exit 1
+          fi
+          dirs=(apps/storefront/e2e/__screenshots__ apps/storefront/public/registry)
+          # Only these two folders are added, and only PNGs are expected in them.
+          git add -A -- "${dirs[@]}"
+          stray="$(git diff --cached --name-only | grep -Ev '\.png$' || true)"
+          if [ -n "$stray" ]; then
+            echo "::error::A file other than a PNG is staged: $stray"
+            exit 1
+          fi
+          total=$(git ls-files -- "${dirs[@]}" | grep -c '\.png$' || true)
+          added=$(git diff --cached --name-only --diff-filter=A | wc -l)
+          modified=$(git diff --cached --name-only --diff-filter=M | wc -l)
+          deleted=$(git diff --cached --name-only --diff-filter=D | wc -l)
+          changed=$((added + modified + deleted))
+          bytes=0
+          while IFS= read -r file; do
+            [ -n "$file" ] || continue
+            bytes=$((bytes + $(git cat-file -s ":$file")))
+          done < <(git diff --cached --name-only --diff-filter=AM)
+          set_bytes=0
+          while IFS= read -r file; do
+            [ -n "$file" ] || continue
+            set_bytes=$((set_bytes + $(git cat-file -s ":$file")))
+          done < <(git ls-files -- "${dirs[@]}")
+          mb() { awk -v b="$1" 'BEGIN { printf "%.2f MB", b / 1048576 }'; }
+          report="PNGs changed: $changed ($added new, $modified changed, $deleted deleted) of $total in the set. Bytes added by this commit: $bytes ($(mb "$bytes")). The set: $(mb "$set_bytes")."
+          echo "$report"
+          { echo "### Baselines"; echo "$report"; } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$changed" -eq 0 ]; then
+            echo "Nothing changed: no commit."
+            echo "Nothing changed, so there is nothing to commit." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          # D51's stop lines. The history's 200 MB is measured in a clone (`git count-objects -vH`).
+          if [ "$set_bytes" -gt 62914560 ]; then
+            echo "::warning title=Baselines over 60 MB::The set is $(mb "$set_bytes"). D51: stop and ask (the fallback is baselines in en only)."
+          fi
+          if [ $((changed * 2)) -gt "$total" ]; then
+            echo "::warning title=More than half a set::This update changes $changed of $total PNGs. D51: stop and ask."
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Update pixel baselines and thumbnails (run ${GITHUB_RUN_ID})" -m "$report"
+          git push "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git" "HEAD:refs/heads/$BRANCH"
+          sha="$(git rev-parse --short HEAD)"
+          next="CI must be run again by hand: a push made with GITHUB_TOKEN starts no workflow. Commit $sha is on $BRANCH. Dispatch: gh api -X POST repos/$REPO/actions/workflows/ci.yml/dispatches -f ref=$BRANCH"
+          echo "$next"
+          echo "$next" >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload the Playwright report
+        if: always()
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: update-baselines-report
+          path: |
+            apps/storefront/playwright-report
+            apps/storefront/test-results
+          if-no-files-found: ignore
+          retention-days: 14
+      - name: Upload the server log
+        if: always()
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: update-baselines-server-logs
           path: ${{ runner.temp }}/servers
           if-no-files-found: ignore
           retention-days: 14
