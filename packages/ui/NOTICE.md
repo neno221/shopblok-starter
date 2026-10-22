@@ -1,6 +1,6 @@
 # Third-party notices
 
-`@shopblok/ui` contains or builds on the works below. The atoms in `src/atoms/` and the primitives in
+`@shopblok/ui` and `@shopblok/i18n` contain or build on the works below. The atoms in `src/atoms/` and the primitives in
 `src/primitives/` that came from a registry keep a header naming their source, style and date, and
 have been edited for this repository (SETUP.md, "shadcn and ReUI (T21)", "Atoms (T23)" and
 "Primitives (T31)"). The other files are ours, on the tokens.
@@ -60,6 +60,69 @@ the MIT text above (shadcn/ui), which ReUI's items carry.
 carousel primitive (`src/primitives/carousel.tsx`), by David Jerleke (the packages' `author`). Both
 packages declare MIT and ship no licence file; the text is the MIT text above (shadcn/ui), with
 David Jerleke as the copyright holder.
+
+## intl-messageformat and FormatJS — BSD-3-Clause and MIT
+
+`intl-messageformat` 11.2.15 (npm, BSD-3-Clause), which `@shopblok/i18n` uses to format its ICU messages
+(`formatMessage`, T30), so it is in the storefront's client bundles as well as its server code. Copyright
+(c) 2023, Oath Inc. The BSD licence asks for its notice and disclaimer to be kept in redistributions of
+the source and in the documentation or other materials that come with a binary; it is the package's own
+`LICENSE.md`:
+
+```
+Copyright (c) 2023, Oath Inc.
+
+Licensed under the terms of the New BSD license. See below for terms.
+
+Redistribution and use of this software in source and binary forms,
+with or without modification, are permitted provided that the following
+conditions are met:
+
+- Redistributions of source code must retain the above
+  copyright notice, this list of conditions and the
+  following disclaimer.
+
+- Redistributions in binary form must reproduce the above
+  copyright notice, this list of conditions and the
+  following disclaimer in the documentation and/or other
+  materials provided with the distribution.
+
+- Neither the name of Oath Inc. nor the names of its
+  contributors may be used to endorse or promote products
+  derived from this software without specific prior
+  written permission of Oath Inc.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+```
+
+It brings three FormatJS packages, each declaring MIT and shipping a `LICENSE.md` (copyright (c) 2023
+FormatJS): `@formatjs/icu-messageformat-parser` 3.5.18, `@formatjs/icu-skeleton-parser` 2.1.11 and
+`@formatjs/fast-memoize` 3.1.7. The text is the MIT text above (shadcn/ui), with FormatJS as the
+copyright holder.
+
+## lib-address and Google's address metadata — MIT
+
+`lib-address` 0.7.0 (npm, MIT, copyright (c) 2023 Lancelot Prigent) is a development dependency of
+`@shopblok/i18n`: it ships Google's address metadata (`AddressValidationMetadata`, libaddressinput's
+format, required fields, postal-code patterns and name types) as one JSON file per country. `pnpm
+--filter @shopblok/i18n address-formats` reads its 252 files and writes `packages/i18n/src/address-formats.json`
+(T34, D48): per country, only what AddressForm uses, 19.7 KB. That file is derived from Google's data;
+the package is not in the runtime, and a test compares the file with the package. The licence text is
+the package's own `LICENSE`, the MIT text above (shadcn/ui), with Lancelot Prigent as the copyright
+holder. The package states no licence for the data itself, and **Google's terms for the metadata were
+not checked** (T41's note). The repository is public since 2026-10-22, so the file is already
+published: read Google's terms for the metadata and record the result (or remove the file and fall
+back as D48 says) before M2 closes. It is an open item of W4.
 
 ## Simple Icons — CC0 1.0
 
