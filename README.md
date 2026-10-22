@@ -46,7 +46,7 @@ Then http://localhost:8000 (Cyprus, Greek, EUR), `/us`, `/ch/fr`, the Payload ad
 - Windows exit check (W2), first run 2026-10-13: not passed, see [docs/SETUP.md](docs/SETUP.md#windows-exit-check-w2). A fresh clone on E: passes most of the exit criteria with the same output as Linux, but on Windows `^C` needed pressing twice to stop `pnpm dev`, `pnpm test` failed in `@shopblok/scripts` (two Windows-only test problems), and the first request after `pnpm dev` started could answer 500
 - W2 fix task, 2026-10-13: all three fixed, and `check:workspace` sees every Payload package on Windows, see [docs/SETUP.md](docs/SETUP.md#w2-fixes). `pnpm dev` now starts turbo through `scripts/dev.ts`, so one `^C` stops it on Windows; CI's `windows-smoke` runs the unit tests and checks that `^C`
 - Windows exit check (W2), second run 2026-10-13: passed, see [docs/SETUP.md](docs/SETUP.md#windows-exit-check-w2-second-run). A fresh clone on E: reached every exit criterion. The first request after `pnpm dev` started answered 200 (39.1 s), `check:workspace` lists 8 Payload packages, `pnpm test` passes, and one `^C` left no process of the clone behind; **M0 is closed**
-- Next step: [docs/NEXT-SESSION.md](docs/NEXT-SESSION.md): T27 to T41 are done; the first baseline set is made by CI's `update-baselines` dispatch once Actions minutes are available; W4 (the Windows check and design review, which also reads the Greek, German and French copy) closes M2
+- Next step: [docs/NEXT-SESSION.md](docs/NEXT-SESSION.md): T27 to T41 are done and the first baseline set is committed (342 `en` cells and 21 thumbnails); W4 (the Windows check and design review, which also reads the Greek, German and French copy) closes M2
 
 ## Credits
 

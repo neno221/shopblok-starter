@@ -120,8 +120,9 @@ format, required fields, postal-code patterns and name types) as one JSON file p
 the package is not in the runtime, and a test compares the file with the package. The licence text is
 the package's own `LICENSE`, the MIT text above (shadcn/ui), with Lancelot Prigent as the copyright
 holder. The package states no licence for the data itself, and **Google's terms for the metadata were
-not checked** (T41's note): read them before a release that ships `address-formats.json` outside this
-repository.
+not checked** (T41's note). The repository is public since 2026-10-22, so the file is already
+published: read Google's terms for the metadata and record the result (or remove the file and fall
+back as D48 says) before M2 closes. It is an open item of W4.
 
 ## Simple Icons — CC0 1.0
 
