@@ -314,20 +314,26 @@ describe("FilterDrawer: the keyboard", () => {
     expect(document.activeElement).toBe(opener);
   });
 
-  it("keeps the focus inside while Tab and Shift+Tab go round", async () => {
-    const { user } = await openSheet("en");
-    const inside = () => sheet()?.contains(document.activeElement) === true;
-    const total = stops().length;
-    expect(total).toBeGreaterThan(10);
-    for (let press = 0; press < total + 3; press++) {
-      await user.tab();
-      expect(inside()).toBe(true);
-    }
-    for (let press = 0; press < total + 3; press++) {
-      await user.tab({ shift: true });
-      expect(inside()).toBe(true);
-    }
-  });
+  it(
+    "keeps the focus inside while Tab and Shift+Tab go round",
+    async () => {
+      const { user } = await openSheet("en");
+      const inside = () => sheet()?.contains(document.activeElement) === true;
+      const total = stops().length;
+      expect(total).toBeGreaterThan(10);
+      for (let press = 0; press < total + 3; press++) {
+        await user.tab();
+        expect(inside()).toBe(true);
+      }
+      for (let press = 0; press < total + 3; press++) {
+        await user.tab({ shift: true });
+        expect(inside()).toBe(true);
+      }
+    },
+    // Some 60 Tab presses: about 2.3 s here, which passed the 5 s default on the Windows runner
+    // (PR 63 CI, windows-smoke).
+    30_000,
+  );
 
   it("hides the page behind the sheet from assistive technology while it is open", async () => {
     await openSheet("en");
