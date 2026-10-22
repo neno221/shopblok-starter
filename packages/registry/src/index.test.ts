@@ -288,14 +288,13 @@ describe("variantsOf", () => {
 
 // T40 (D52): the file behind each `thumbnail`, where Next serves it (`public/registry/{id}.png`).
 // The `thumbnails` Playwright project writes them (`pnpm thumbnails`, or the update-baselines
-// input of CI), and only Playwright's container does (D51). Until the first set is committed the
-// folder does not exist and the check is skipped; from then on a family entry without its file
-// fails here, with the command that makes it.
+// input of CI), and only Playwright's container does (D51). A family entry without its file fails
+// here, with the command that makes it.
 const thumbnailDir = fileURLToPath(
   new URL("../../../apps/storefront/public/registry/", import.meta.url),
 );
 
-describe.skipIf(!existsSync(thumbnailDir))("the thumbnails (D52)", () => {
+describe("the thumbnails (D52)", () => {
   it("has a PNG for every family entry, 600 × 400 and 3:2", () => {
     const missing: string[] = [];
     for (const entry of entries) {
