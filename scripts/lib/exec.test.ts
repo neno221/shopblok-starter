@@ -132,16 +132,22 @@ describe("run", () => {
     expect(result.prompt).toBe("? Proceed (y/N)");
   });
 
-  it("finds a question whatever the case of its hint", async () => {
-    for (const hint of ["(Y/N)", "(Yes/No)", "[y/n]", "[YES/NO]"]) {
-      const result = await run(node, [
-        "-e",
-        `console.log("Proceed? ${hint}"); setInterval(() => {}, 1000)`,
-      ]);
-      expect(result.prompt, hint).toContain(hint);
-      expect(result.code, hint).not.toBe(0);
-    }
-  });
+  it(
+    "finds a question whatever the case of its hint",
+    async () => {
+      for (const hint of ["(Y/N)", "(Yes/No)", "[y/n]", "[YES/NO]"]) {
+        const result = await run(node, [
+          "-e",
+          `console.log("Proceed? ${hint}"); setInterval(() => {}, 1000)`,
+        ]);
+        expect(result.prompt, hint).toContain(hint);
+        expect(result.code, hint).not.toBe(0);
+      }
+    },
+    // Four Node processes started and killed: past the 5 s default on the Windows runner, where
+    // each kill is a `taskkill` (PR 63 CI, windows-smoke).
+    30_000,
+  );
 
   it("kills a command that ignores SIGTERM instead of waiting for it for ever", async () => {
     const started = Date.now();

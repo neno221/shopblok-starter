@@ -4527,6 +4527,7 @@ Everything below ran in the image (`mcr.microsoft.com/playwright:v1.64.0-noble`,
 ### Left for you
 
 - Nothing. The first set is in; CI must pass twice on the PR's last commit before the merge, and T41 records the container's job times against the earlier runner's (17 min for the DS checks at T37).
+- **Two Windows timeouts on this PR's CI**, in tests T40 did not touch: `filter-drawer.test.tsx`'s Tab round trip (about 60 presses, 2.3 s on Linux) and `exec.test.ts`'s four prompt hints (four Node processes killed with `taskkill`) passed the 5 s default on `windows-smoke`. Both now have a 30 s limit, as the AddressForm loops got in PR 56.
 
 ### Review fixes (PR 63)
 
