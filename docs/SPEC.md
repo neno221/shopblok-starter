@@ -1,6 +1,6 @@
 # Shopblok Starter: Medusa × Payload × Next.js
 
-**Spec v0.8** · 2026-10-22 (drafted 2026-10-19) · facts checked against official docs on 2026-10-08, against the M0 build on 2026-10-10, against the M1 build on 2026-10-16 and against the M2 build on 2026-10-19 and 2026-10-22. What changed from v0.7, and why, is in "Changes in v0.8" under the decisions log; v0.7's and v0.6's changes follow it
+**Spec v0.8** · 2026-10-22 (drafted 2026-10-19; Next 16.4.1 on 2026-10-24) · facts checked against official docs on 2026-10-08, against the M0 build on 2026-10-10, against the M1 build on 2026-10-16 and against the M2 build on 2026-10-19 and 2026-10-22. What changed from v0.7, and why, is in "Changes in v0.8" under the decisions log; v0.7's and v0.6's changes follow it
 
 Status tags:
 **[Decided]** agreed · **[Proposed]** a default I picked, confirm or change · **[Risk]** see §17.2
@@ -41,6 +41,7 @@ Status tags:
 | 2026-10-16 | **CI in M2:** a `gate` job decides per PR which of `e2e-smoke`, `design-system` and `windows-smoke` run, failing open (D53) |
 | 2026-10-17 | **AddressForm follows Google's address metadata for every country**, from `lib-address` 0.7.0, read at development time and kept as one 20 KB file (D48) |
 | 2026-10-19 | **Pixel baselines are English only:** 342 cells and 21 thumbnails, about 48 MB, made only in Playwright's container; the full set of 684 measured 99.9 MiB, over D51's 60 MB line, and the owner chose D51's fallback. The `el` cells keep axe, overflow, size and console (D51) |
+| 2026-10-24 | **Next.js 16.4.1:** the pin moves from 16.4.0 for two critical advisories, remote code execution in the image optimiser with SVG files (GHSA-2464-fhr4-w9xw) and in `use cache` functions that return typed arrays (GHSA-673q-mjm6-r5xr), and a high denial of service in the App Router through Server Actions (GHSA-p3m5-59mp-jv5r); `eslint-config-next` moves with it (D4). Approved by the owner after W4 |
 
 ### Changes in v0.8
 
@@ -185,7 +186,7 @@ Starting a new brand:
 | Package manager | **pnpm 12.10.1** + Turborepo **2.11.7** | pinned in `packageManager` | pnpm's normal (isolated) layout; all pnpm settings are in `pnpm-workspace.yaml` (pnpm 12 reads only auth and registry from `.npmrc`). Install it with `npm install -g pnpm@12.10.1` and keep Corepack off: Corepack 0.34 cannot run pnpm 12. The Windows development drive is NTFS (no links, permissions or journal on exFAT). pnpm's `SECURITY.md` still calls its Rust port "not production ready"; M0 installed, built and hot-reloaded on Windows and Linux with it. Fallback: pnpm 11.28 (same settings and lockfile) |
 | Language | **TypeScript 5.9.3** | exact | TS 7 has no JS API until 7.1; Medusa's CLI uses `ts-node` and `medusa build` calls `ts.createProgram`; typescript-eslint needs TS below 6.1; Payload's tsconfig uses `baseUrl`, which TS 7 rejects. ESLint is 9.39.5 (end of life since 2026-08-06; the Medusa plugin and `eslint-config-next` stop at 9), Prettier 3.9.9, Vitest 5.0.3, Playwright 1.64.0 |
 | Commerce | **Medusa** | **2.21.2** | Backend scaffolded from `medusajs/dtc-starter` `apps/backend` |
-| Storefront | **Next.js** | **16.4.0** exactly (React 19.3) | 16.3.6 fixes the critical `next/og` RCE advisory (GHSA-vcvr-r3jv-pc5j) but not the six advisories of 2026-09-30 (fixed in 16.3.8); two apply here, a draft-mode leak through `use cache` deduplication (GHSA-3w37-wq28-93x7) and a cache leak across root-param values (GHSA-h694-7cp9-m8p3). 16.4.0 has every fix. Renovate opens a PR for each release and CI tests it. Payload's peer range is ≥ 16.3.3 < 17 |
+| Storefront | **Next.js** | **16.4.1** exactly (React 19.3) | 16.3.6 fixes the critical `next/og` RCE advisory (GHSA-vcvr-r3jv-pc5j) but not the six advisories of 2026-09-30 (fixed in 16.3.8); two apply here, a draft-mode leak through `use cache` deduplication (GHSA-3w37-wq28-93x7) and a cache leak across root-param values (GHSA-h694-7cp9-m8p3). 16.4.0 has every fix. 16.4.1 (2026-10-24) adds the fixes for two critical RCEs, in the image optimiser with SVG files (GHSA-2464-fhr4-w9xw) and in `use cache` functions that return typed arrays (GHSA-673q-mjm6-r5xr), and for a Server Actions denial of service (GHSA-p3m5-59mp-jv5r, high). Renovate opens a PR for each release and CI tests it. Payload's peer range is ≥ 16.3.3 < 17 |
 | CMS | **Payload** | **3.90.2** | Embedded in the storefront. Upgrade to v4 once it's stable |
 | UI | Tailwind CSS v4, shadcn/ui (Base UI flavour, style `base-vega`), lucide-react, **Inter** | Tailwind 4.3.3, **Base UI 1.9.0** (`@base-ui/react`), shadcn CLI 4.21.4, lucide-react 1.56.0 | `base-vega` rather than `base-nova` (D29): the kit's Button is 36 px, and a style cannot change after initialization. The CLI runs as `pnpm dlx shadcn@4.21.4` and is not a dependency; shadcn's registry now imports its own `cn` package (0.4.0, MIT) instead of `clsx` and `tailwind-merge`. ReUI's free items come from its registry (§9.1). M2 adds embla-carousel-react 8.6.0 (the carousel), ReUI's `stepper` and `timeline`, and Base UI's Autocomplete, Toast and Drawer, and leaves out shadcn's `sonner` (it needs `next-themes`), `command` (cmdk, a second listbox library) and any form library (D47, D48) |
 | i18n | ICU MessageFormat: `intl-messageformat` in M2, `next-intl` from M3 on the same major, with messages from Payload; Payload localization; Medusa Translation Module | `intl-messageformat` 11.2.15 (BSD-3-Clause) | §8.5. A module per locale in `@shopblok/i18n` (`src/messages/{en,el,de,fr}.ts`), `formatMessage(message, values, locale)`, cached per locale and message. `use-intl` 4.14.9 (next-intl's runtime) depends on `intl-messageformat ^11.1.0`, so M3 adds no second copy; 12.1.3 is newer and would be one (D43) |
@@ -1077,7 +1078,7 @@ Sync is one-way: Medusa → Payload.
 **Other**
 - Draft mode: secret + Payload auth + `getSafeRedirect`, exit via POST.
 - Images: strict `remotePatterns`, limited redirects, no SVG optimization.
-- Build hygiene: type errors fail the build, and lint is a CI step of its own (`next build` no longer lints in Next 16). Next is pinned exactly (16.4.0, §3).
+- Build hygiene: type errors fail the build, and lint is a CI step of its own (`next build` no longer lints in Next 16). Next is pinned exactly (16.4.1, §3).
 
 ### 11.2 Medusa
 
@@ -1302,7 +1303,7 @@ Every key is optional at boot. Public (`NEXT_PUBLIC_*`) keys need a Vercel redep
 | Serverless Postgres connections | Pooled URL, small pool |
 | Sentry backend guide stuck on v7 | Current SDK + `registerOtel` |
 | Payload v4 (Node 24, access default flips) | Explicit `overrideAccess`; Node 24 in the CI matrix |
-| Next advisories (`next/og`; the six of 2026-09-30) | Pin 16.4.0 exactly; Renovate opens a PR per release and CI tests it |
+| Next advisories (`next/og`; the six of 2026-09-30; the two RCEs and one DoS of 2026-10-24) | Pin 16.4.1 exactly; Renovate opens a PR per release and CI tests it |
 | pnpm 12's Rust port is called "not production ready" by pnpm's own `SECURITY.md`; Corepack cannot run it | Installed, built and hot-reloaded on Windows and Linux in M0; fallback pnpm 11.28; Corepack off is a documented prerequisite |
 | ESLint 9 is end of life (2026-08-06) and the Medusa plugin and `eslint-config-next` stop at 9 | Stay on 9.39.5; Renovate holds the major; revisit when the plugin allows 10 |
 | Payload's CLI (`migrate`, `run`) exits 0 without doing anything in about 1 run in 20 | `bootstrap` and `doctor` repeat a silent run up to three times; the upstream issue still has to be filed |
@@ -1376,7 +1377,7 @@ Every key is optional at boot. Public (`NEXT_PUBLIC_*`) keys need a Vercel redep
 - Advisory: https://nextjs.org/blog/nextjs-security-update-september-22-2026
 - September 2026 security release: https://nextjs.org/blog/september-2026-security-release
 - 16.4: https://nextjs.org/blog/next-16-4
-- The docs bundled with the installed 16.4.0 (`node_modules/next/dist/docs/`): fonts (`01-app/01-getting-started/13-fonts.md`), `generateStaticParams` and the Cache Components migration guide (`01-app/03-api-reference/04-functions/generate-static-params.md`, `01-app/02-guides/migrating-to-cache-components.md`), `ensureStatic` and `cacheLife` (ADR 0004 lists the pages)
+- The docs bundled with the installed Next (read on 16.4.0 on 2026-10-16; 16.4.1 since 2026-10-24) (`node_modules/next/dist/docs/`): fonts (`01-app/01-getting-started/13-fonts.md`), `generateStaticParams` and the Cache Components migration guide (`01-app/03-api-reference/04-functions/generate-static-params.md`, `01-app/02-guides/migrating-to-cache-components.md`), `ensureStatic` and `cacheLife` (ADR 0004 lists the pages)
 
 **Payload 3.90**
 - Localization (`filterAvailableLocales`): https://payloadcms.com/docs/configuration/localization

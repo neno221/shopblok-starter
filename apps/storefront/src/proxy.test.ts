@@ -10,7 +10,7 @@ vi.mock("./lib/markets/proxy-market-map", () => ({
   getProxyMarketMap: async () => seeded,
 }));
 
-// (The docs call the helper `unstable_doesProxyMatch`; 16.4.0 still exports it as
+// (The docs call the helper `unstable_doesProxyMatch`; 16.4.1 still exports it as
 // `unstable_doesMiddlewareMatch`.)
 const runsOn = (url: string) => unstable_doesMiddlewareMatch({ config, url });
 

@@ -4689,7 +4689,7 @@ Before is `main` before T27 (run 38981232705, "CI for M2 (T27)"); T27's own firs
 - **Ctrl+C.** One Ctrl+C stopped `pnpm dev` and left no process of the checkout behind.
 - **Design review.** The owner's design review, the Greek, German and French texts included, found nothing to change.
 - **Google's terms.** Google's address metadata stays in the repository (the owner's decision, 2026-10-24).
-- **Next.js advisories.** One finding outside W4's list: **Next.js 16.4.0 has two critical advisories**, fixed in 16.4.1 (below). The owner approved the upgrade on 2026-10-24, and it runs as a cloud task.
+- **Next.js advisories.** One finding outside W4's list: **Next.js 16.4.0 has two critical advisories**, fixed in 16.4.1 (below). The owner approved the upgrade on 2026-10-24, and PR 66 made it ("Next.js 16.4.1" below).
 
 | | |
 |---|---|
@@ -4727,12 +4727,12 @@ This item was open since T41. `packages/i18n/src/address-formats.json` is derive
 
 `next build` checks for them itself. The first flagged build stopped with `SecurityFatalError: Your version of Next.js is affected by a known security vulnerability`, and the next run of the same command went through. The error's text also asks the AI agent running the build to offer `next upgrade --agent=security` in the background. The session did not run it, because a version bump goes through a PR and CI.
 
-**The upgrade to 16.4.1 is a cloud fix task**, which the owner approved on 2026-10-24 and which runs in its own thread: it bumps `next` in `apps/storefront` and `packages/ui`, `eslint-config-next` in `packages/config`, and the lockfile (Renovate's `next` group moves them together, D4). Payload 3.90.2's peer range for `next` (`>=16.3.3 <17.0.0`) already allows 16.4.1.
+**The upgrade to 16.4.1 was a cloud fix task**, which the owner approved on 2026-10-24 and which PR 66 made (["Next.js 16.4.1"](#nextjs-1641-2026-10-24) below; the audit also listed a third, a high Server Actions DoS): it bumped `next` in `apps/storefront` and `packages/ui`, `eslint-config-next` in `packages/config`, and the lockfile (Renovate's `next` group moves them together, D4). Payload 3.90.2's peer range for `next` (`>=16.3.3 <17.0.0`) already allows 16.4.1.
 
 ### What should change in the plan
 
 1. **M2 is closed.** The status line, §7 item 12 and NEXT-SESSION.md say so. No decision changes, and nothing from the review goes to a fix task.
-2. **Next 16.4.1** is the one follow-up (above).
+2. **Next 16.4.1** was the one follow-up (above), done in PR 66.
 
 ### Smaller observations
 
@@ -4753,3 +4753,21 @@ This item was open since T41. `packages/i18n/src/address-formats.json` is derive
 | 6 | 1,958 loads is not 4 × (1 + 122 × 4) | 1,956, plus the 2 warm-up loads the script made first |
 | 7 | The Machine row lacked W3's `.nvmrc` note | Added |
 | 8 | One URL named for four locales | `/design-system/{en,de,fr,el}` |
+
+## Next.js 16.4.1 (2026-10-24)
+
+W4 found that `pnpm audit --prod` lists three advisories for `next` 16.4.0, all fixed in **16.4.1**: two critical remote code executions, in the Image Optimization API when SVG files are used ([GHSA-2464-fhr4-w9xw](https://github.com/advisories/GHSA-2464-fhr4-w9xw)) and in `use cache` functions that return typed arrays ([GHSA-673q-mjm6-r5xr](https://github.com/advisories/GHSA-673q-mjm6-r5xr)), and a high one, a denial of service in the App Router through Server Actions ([GHSA-p3m5-59mp-jv5r](https://github.com/advisories/GHSA-p3m5-59mp-jv5r)). The owner approved the upgrade on 2026-10-24.
+
+- **What moved:** `next` in `apps/storefront` (dependency) and `packages/ui` (peer), `eslint-config-next` in `packages/config`, and the lockfile, which also moves `@next/env`, `@next/eslint-plugin-next`, the `@next/swc-*` binaries and the `next` that `@payloadcms/next`, `@payloadcms/ui` and `@payloadcms/richtext-lexical` resolve (D4: they move together). `globals` stays at 16.4.0, the version `eslint-config-next@16.4.1` still pins. Payload 3.90.2's peer range (`>=16.3.3 <17.0.0`) already allows 16.4.1. SPEC §3, §11.1 and §17.2 and its decisions log say 16.4.1.
+- **Audit:** `pnpm audit --prod` lists no advisory for `next` after the bump (it listed the three above before). It still lists 35 for other packages (8 low, 15 moderate, 11 high, 1 critical), all transitive and none new with this change: the critical one is `dompurify` 3.4.16 (GHSA-cg2g-xh64-v4q7) through Payload's `@monaco-editor/react`, and the rest are `undici`, `lodash`, `fast-uri`, `zod`, `body-parser`, `multer`, `@graphql-tools/utils`, `happy-dom` and others under Medusa and Payload. They wait for upstream releases or Renovate.
+- **Checks (cloud VM, Node 22.22.0):** `pnpm install` changed only the lockfile; `pnpm peers check` lists the same two unmet peers as before (`picomatch` for `fdir`, `esbuild` for `vite`). `check:workspace`, `typecheck` and `lint` exit 0. `pnpm test`: i18n 95, registry 218, fixtures 450, scripts 430, storefront 2560, ui 5253, all passing. `pnpm build` prints `▲ Next.js 16.4.1 (Turbopack)` and exits 0, with no `SecurityFatalError`. CI runs every job on this PR, `windows-smoke` included, because it changes dependency files.
+- **`windows-smoke` and two Tab-loop tests.** On this PR `windows-smoke` failed twice on one `packages/ui` test, `cookie-consent.test.tsx` › "keeps Tab and Shift+Tab inside, round the controls and back", at Vitest's 5 s default (260 ms on Linux). A dispatched CI run on `main` (16.4.0) passed it the same hour. The slowdown was not in Next: the PR's whole ui run took 265 s against `main`'s 159 s, every one of the 92 files whose times both logs print was slower (1.05 to 2.7 times, 1.5 in the middle; environment setup too), and on the cloud VM the ui suite takes 100 s on both versions. So it is the runner's speed, and that test and QuickViewDialog's like it (5028 ms on the PC in W4) get 30 s, as FilterDrawer's has since PR 63.
+
+### Review fixes (PR 66)
+
+| # | Finding | Fix |
+|---|---|---|
+| 1 | The "What moved" bullet named SPEC §16 | §11.1, the section that changed |
+| 2 | SPEC named only the two RCEs | The decisions log, §3 and §17.2 also name the Server Actions DoS (GHSA-p3m5-59mp-jv5r) |
+| 3 | §19 cited "the installed 16.4.0" | "The installed Next (read on 16.4.0 on 2026-10-16; 16.4.1 since 2026-10-24)" |
+| 4 | The header did not mention the change (optional) | The header's date line says Next 16.4.1 on 2026-10-24; the v0.8 changes table stays as history |
