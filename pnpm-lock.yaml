@@ -163,7 +163,7 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
-  monaco-editor>dompurify: 3.4.17
+  monaco-editor>dompurify: ^3.4.17
 
 packageExtensionsChecksum: sha256-UFdZyeioSOrXsjvoKEiOjYH/wAAH1xx0RF24DUj/wz8=
 
