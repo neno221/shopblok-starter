@@ -121,7 +121,7 @@ the package is not in the runtime, and a test compares the file with the package
 the package's own `LICENSE`, the MIT text above (shadcn/ui), with Lancelot Prigent as the copyright
 holder. The package states no licence for the data itself (T41's note). The repository is public
 since 2026-10-22, so the file is published; **the owner decided at W4 (2026-10-24) that the file
-stays**, on Google's terms for the metadata. Removing it would mean D48's fallback (a generic form).
+stays**; Google's terms for the metadata were not checked. Removing it would mean D48's fallback (a generic form).
 
 ## Simple Icons — CC0 1.0
 
