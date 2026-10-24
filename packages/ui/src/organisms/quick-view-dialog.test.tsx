@@ -211,6 +211,8 @@ describe("QuickViewDialog: the dialog", () => {
     expect(focused()).toBe(opener);
   });
 
+  // Over the 5 s default once on the PC in W4 (5028 ms), like CookieConsent's Tab loop on the
+  // Windows runner (PR 66 CI, windows-smoke).
   it("keeps Tab and Shift+Tab inside, all the way round", async () => {
     const { user } = await openDialog("en", "ready");
     await waitFor(() => expect(popup()?.contains(focused())).toBe(true));
@@ -232,7 +234,7 @@ describe("QuickViewDialog: the dialog", () => {
       ).toBe(true);
       expect(focused()).not.toBe(trigger());
     }
-  });
+  }, 30_000);
 
   it("makes the page behind it unreachable while it is open", async () => {
     render(

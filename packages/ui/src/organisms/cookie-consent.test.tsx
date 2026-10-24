@@ -563,6 +563,8 @@ describe("CookieConsent's dialog", () => {
       expect(document.activeElement).toBe(switchOf("Analytics"));
     });
 
+    // 24 presses, each with a waitFor: 260 ms on Linux, but over the 5 s default twice on the
+    // Windows runner (PR 66 CI, windows-smoke), whose whole ui run took 1.7 times main's that day.
     it("keeps Tab and Shift+Tab inside, round the controls and back", async () => {
       const user = userEvent.setup();
       setup();
@@ -580,7 +582,7 @@ describe("CookieConsent's dialog", () => {
         await user.tab({ shift: true });
         await waitFor(() => expect(dialog.contains(document.activeElement)).toBe(true));
       }
-    });
+    }, 30_000);
 
     it("closes on Escape with focus back on choose", async () => {
       const user = userEvent.setup();
