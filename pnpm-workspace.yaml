@@ -44,3 +44,13 @@ packageExtensions:
         optional: true
       "@types/react-dom":
         optional: true
+
+# monaco-editor 0.57.0, the latest, pins dompurify 3.4.15 exactly, which has a critical advisory
+# (GHSA-cg2g-xh64-v4q7, fixed in 3.4.17); it comes in through Payload's admin (@payloadcms/ui >
+# @monaco-editor/react), and Payload 3.92.0 has the same chain. Nothing runs this copy: monaco's
+# code imports its own bundled DOMPurify, and Payload's code fields load monaco 0.55.1 from
+# jsdelivr at runtime. The override only clears the audit (SETUP.md, "dompurify 3.4.17"). Drop it
+# once monaco-editor depends on dompurify >=3.4.17. A caret, not an exact pin, so that a later
+# monaco that wants a newer 3.x is not held back to 3.4.17.
+overrides:
+  "monaco-editor>dompurify": "^3.4.17"
