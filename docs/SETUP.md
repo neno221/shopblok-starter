@@ -4771,3 +4771,13 @@ W4 found that `pnpm audit --prod` lists three advisories for `next` 16.4.0, all 
 | 2 | SPEC named only the two RCEs | The decisions log, §3 and §17.2 also name the Server Actions DoS (GHSA-p3m5-59mp-jv5r) |
 | 3 | §19 cited "the installed 16.4.0" | "The installed Next (read on 16.4.0 on 2026-10-16; 16.4.1 since 2026-10-24)" |
 | 4 | The header did not mention the change (optional) | The header's date line says Next 16.4.1 on 2026-10-24; the v0.8 changes table stays as history |
+
+## dompurify 3.4.17 (2026-10-24)
+
+After PR 66, `pnpm audit --prod` listed one **critical** advisory: `dompurify` `>=3.4.4 <=3.4.16`, a `SAFE_FOR_TEMPLATES` bypass through shadow-root content in the DOM output modes ([GHSA-cg2g-xh64-v4q7](https://github.com/advisories/GHSA-cg2g-xh64-v4q7)), patched in **3.4.17**. The lockfile had 3.4.15 (the PR 66 note above says 3.4.16). The owner asked for this one to be fixed on 2026-10-24.
+
+- **Where it comes from:** `@payloadcms/ui` (also through `@payloadcms/next` and `@payloadcms/richtext-lexical`) > `@monaco-editor/react@4.7.0` > `monaco-editor@0.57.0` > `dompurify@3.4.15`. `monaco-editor` 0.57.0 is the latest release and pins `dompurify` exactly, and Payload 3.92.0 (the latest) still has `@monaco-editor/react` 4.7.0, so no upgrade fixes it.
+- **The fix:** a pnpm override in `pnpm-workspace.yaml`, `"monaco-editor>dompurify": "3.4.17"`, scoped to that one edge. The lockfile moves `dompurify` from 3.4.15 to 3.4.17 and records the override; nothing else changes. Drop it once `monaco-editor` depends on 3.4.17 or later.
+- **What runs is not this copy.** `monaco-editor`'s own code imports a DOMPurify 3.4.15 bundled inside it (`esm/vs/base/browser/dompurify/dompurify.js`), not the npm package, and never sets `SAFE_FOR_TEMPLATES`. Payload's code and JSON fields do not import `monaco-editor` either: `@monaco-editor/react`'s loader fetches `monaco-editor@0.55.1` from cdn.jsdelivr.net in the browser (its DOMPurify is 3.2.7, outside the advisory's range). The production build's chunks hold no DOMPurify, only that CDN path. So the override clears the audit and changes no code the admin runs.
+- **Audit:** `pnpm audit --prod` lists 30 (5 low, 15 moderate, 10 high, 0 critical), down from 35: 3.4.15's other, lower advisories went with it. The rest are unchanged (`undici`, `lodash`, `fast-uri`, `zod` and others under Medusa and Payload).
+- **Checks (cloud VM, Node 22.22.0):** `pnpm install` changed only the lockfile; `pnpm peers check` lists the same two unmet peers as before. `check:workspace`, `typecheck`, `lint` and `build` exit 0. The Payload admin's e2e checks (`payload-admin.spec.ts`) run in CI's `e2e-smoke`, which needs the compose stack (the VM has no Docker).

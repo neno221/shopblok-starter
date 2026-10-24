@@ -4,6 +4,8 @@
 
 **The one follow-up is done:** `pnpm audit` listed two critical advisories for Next.js `>=16.0.0 <=16.4.0` (remote code execution in the image optimiser with SVG files, GHSA-2464-fhr4-w9xw, and in `use cache` functions that return typed arrays, GHSA-673q-mjm6-r5xr) and a high one (a Server Actions DoS, GHSA-p3m5-59mp-jv5r), all fixed in **16.4.1**. The owner approved the upgrade on 2026-10-24, and PR 66 made it: `next` in the storefront and `packages/ui` and `eslint-config-next` are 16.4.1, and `pnpm audit --prod` lists nothing for `next` (SETUP.md, "Next.js 16.4.1").
 
+**The critical `dompurify` advisory is cleared too** (GHSA-cg2g-xh64-v4q7, through Payload's monaco editor): no release fixes it upstream, so a pnpm override in `pnpm-workspace.yaml` pins 3.4.17; nothing the admin runs changes, and `pnpm audit --prod` lists 30, none critical (SETUP.md, "dompurify 3.4.17").
+
 **Next:** the M3 plan.
 
 ## M2 (closed 2026-10-24)
