@@ -119,10 +119,9 @@ format, required fields, postal-code patterns and name types) as one JSON file p
 (T34, D48): per country, only what AddressForm uses, 19.7 KB. That file is derived from Google's data;
 the package is not in the runtime, and a test compares the file with the package. The licence text is
 the package's own `LICENSE`, the MIT text above (shadcn/ui), with Lancelot Prigent as the copyright
-holder. The package states no licence for the data itself, and **Google's terms for the metadata were
-not checked** (T41's note). The repository is public since 2026-10-22, so the file is already
-published: read Google's terms for the metadata and record the result (or remove the file and fall
-back as D48 says) before M2 closes. It is an open item of W4.
+holder. The package states no licence for the data itself (T41's note). The repository is public
+since 2026-10-22, so the file is published; **the owner decided at W4 (2026-10-24) that the file
+stays**; Google's terms for the metadata were not checked. Removing it would mean D48's fallback (a generic form).
 
 ## Simple Icons — CC0 1.0
 
