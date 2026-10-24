@@ -4684,3 +4684,12 @@ W4 found that `pnpm audit --prod` lists three advisories for `next` 16.4.0, all 
 - **What moved:** `next` in `apps/storefront` (dependency) and `packages/ui` (peer), `eslint-config-next` in `packages/config`, and the lockfile, which also moves `@next/env`, `@next/eslint-plugin-next`, the `@next/swc-*` binaries and the `next` that `@payloadcms/next`, `@payloadcms/ui` and `@payloadcms/richtext-lexical` resolve (D4: they move together). `globals` stays at 16.4.0, the version `eslint-config-next@16.4.1` still pins. Payload 3.90.2's peer range (`>=16.3.3 <17.0.0`) already allows 16.4.1. SPEC §3, §11.1 and §17.2 and its decisions log say 16.4.1.
 - **Audit:** `pnpm audit --prod` lists no advisory for `next` after the bump (it listed the three above before). It still lists 35 for other packages (8 low, 15 moderate, 11 high, 1 critical), all transitive and none new with this change: the critical one is `dompurify` 3.4.16 (GHSA-cg2g-xh64-v4q7) through Payload's `@monaco-editor/react`, and the rest are `undici`, `lodash`, `fast-uri`, `zod`, `body-parser`, `multer`, `@graphql-tools/utils`, `happy-dom` and others under Medusa and Payload. They wait for upstream releases or Renovate.
 - **Checks (cloud VM, Node 22.22.0):** `pnpm install` changed only the lockfile; `pnpm peers check` lists the same two unmet peers as before (`picomatch` for `fdir`, `esbuild` for `vite`). `check:workspace`, `typecheck` and `lint` exit 0. `pnpm test`: i18n 95, registry 218, fixtures 450, scripts 430, storefront 2560, ui 5253, all passing. `pnpm build` prints `▲ Next.js 16.4.1 (Turbopack)` and exits 0, with no `SecurityFatalError`. CI runs every job on this PR, `windows-smoke` included, because it changes dependency files.
+
+### Review fixes (PR 66)
+
+| # | Finding | Fix |
+|---|---|---|
+| 1 | The "What moved" bullet named SPEC §16 | §11.1, the section that changed |
+| 2 | SPEC named only the two RCEs | The decisions log, §3 and §17.2 also name the Server Actions DoS (GHSA-p3m5-59mp-jv5r) |
+| 3 | §19 cited "the installed 16.4.0" | "The installed Next (read on 16.4.0 on 2026-10-16; 16.4.1 since 2026-10-24)" |
+| 4 | The header did not mention the change (optional) | The header's date line says Next 16.4.1 on 2026-10-24; the v0.8 changes table stays as history |
