@@ -1,7 +1,9 @@
 import { fileURLToPath } from "node:url";
 import { configDefaults, defineConfig } from "vitest/config";
 
-// `e2e/*.spec.ts` are Playwright's: Vitest's default include would pick them up and fail.
+// `e2e/**/*.spec.ts` are Playwright's: Vitest's default include would pick them up and fail. The
+// helpers under `e2e/support` have unit tests of their own (`*.test.ts`, T42), which Playwright's
+// config does not match (`testMatch` there is `*.spec.ts`).
 // `server-only` throws outside Next's server bundle; the data layer imports it. The Medusa SDK is
 // loaded by Node as it is: Vite would transform its ESM build, whose source maps point to files the
 // package does not ship (hundreds of warnings). country-flag-icons imports `react` without
@@ -15,7 +17,7 @@ export default defineConfig({
     },
   },
   test: {
-    exclude: [...configDefaults.exclude, "e2e/**"],
+    exclude: [...configDefaults.exclude, "e2e/**/*.spec.ts"],
     server: { deps: { external: [/@medusajs\/js-sdk/], inline: ["country-flag-icons"] } },
   },
 });
