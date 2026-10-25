@@ -4857,7 +4857,7 @@ apps/storefront/.next/
 
 **This matters for T49 and T50.** Next's runtime alone (`rootMainFiles`) is 129.9 KiB of the 170 KB, `/_not-found` is 136.3 KB, and `/[market]` is already **224.5 KB, 54 KB over what the PDP and the PLP may be**: 7 chunks of its own add 94 KB, two of them 53.6 KB and 23.6 KB gzipped. So the first PDP built on this layout will probably fail the budget on its first run. The table at the top of the script is where a decision lands (a higher number, or a smaller layout); the plan keeps 170 KB (SPEC §13), and the script does what the plan says.
 
-**Jobs' times before M3** (step 5), and the column T42's PR will fill. "After M2" is T41's table (run 39832035433, PR 63's last commit, attempt 1 / attempt 2); "before M3" is the push of `main` at 0bcd634 (run 40186408459, 2026-10-25), **taken from a note in the cloud session's shared scratch folder (`ci-times-before-m3.md`), not read from GitHub by this session** (`TODO(orchestrator): confirm against the run`):
+**Jobs' times before M3** (step 5), and the column T42's PR will fill. "After M2" is T41's table (run 39832035433, PR 63's last commit, attempt 1 / attempt 2); "before M3" is the push of `main` at 0bcd634 (run 40186408459, 2026-10-25), read from the run's job list on GitHub:
 
 | Job | After M2 (T41) | Before M3 (`main` at 0bcd634) | T42's PR |
 |---|---|---|---|
