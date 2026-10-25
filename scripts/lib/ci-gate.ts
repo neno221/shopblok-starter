@@ -30,10 +30,16 @@ type DesignSystemArea = { path: string; importedAs?: RegExp };
 export const designSystemOnly: readonly DesignSystemArea[] = [
   // The registry (D40): entries and contracts. M4's Payload config is its first importer outside.
   { path: "packages/registry/", importedAs: /^@shopblok\/registry(\/|$)/ },
-  // D42's three folders. The atoms are not here: the storefront's pages use them already.
+  // D42's three folders (and M3's templates, below them). The atoms are not here: the storefront's
+  // pages use them already.
   { path: "packages/ui/src/primitives/", importedAs: /^@shopblok\/ui\/primitives(\/|$)/ },
   { path: "packages/ui/src/molecules/", importedAs: /^@shopblok\/ui\/molecules(\/|$)/ },
   { path: "packages/ui/src/organisms/", importedAs: /^@shopblok\/ui\/organisms(\/|$)/ },
+  // M3's page templates (D57, D67): built for the DS page's Templates group first, so a change
+  // there is DS-only until a market route imports one (the shell in T48, then the page tasks). The
+  // import rule makes the area shared from that PR on, and the templates' molecules and organisms
+  // with it.
+  { path: "packages/ui/src/templates/", importedAs: /^@shopblok\/ui\/templates(\/|$)/ },
   // The DS page's stories, shell and routes (T22).
   { path: "apps/storefront/src/design-system/" },
   { path: "apps/storefront/src/app/design-system/" },
