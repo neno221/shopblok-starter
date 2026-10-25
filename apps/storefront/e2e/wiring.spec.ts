@@ -214,6 +214,11 @@ test.describe("the wiring page: language, region, currency and translated produc
 // T46 (D62): the page's copy now comes from next-intl, which reads the market from the `[market]`
 // root param; the money still comes from `formatMoney` with the market's lang value. `/` is Cyprus:
 // Greek words, and the euro written the Greek way (`14,00 €`: comma, space, sign after), not `€14.00`.
+// The end of a `title — price` row. A price from a thousand up has a grouping separator, which the
+// demo catalog's prices (all below 1000) do not exercise today (PR 70 review, item 5).
+const GREEK_EURO = / — [\d.]+,\d{2}\s€$/;
+const AMERICAN_DOLLAR = / — \$[\d,]+\.\d{2}$/;
+
 test("/ is in Greek and writes the euro the Greek way", async ({ page }) => {
   await page.goto("/");
   const { wiring } = catalogs.el;
@@ -222,7 +227,7 @@ test("/ is in Greek and writes the euro the Greek way", async ({ page }) => {
   await expect(page.getByTestId("currency")).toHaveText("EUR");
   await expect(page.getByTestId("product")).toHaveCount(4);
   for (const row of await page.getByTestId("product").allInnerTexts()) {
-    expect(row.trim(), "Greek euro: 14,00 €").toMatch(/ — \d+,\d{2}\s€$/);
+    expect(row.trim(), "Greek euro: 14,00 €, 1.400,00 € from a thousand").toMatch(GREEK_EURO);
   }
 });
 
@@ -231,6 +236,8 @@ test("/us is in English and writes the dollar the American way", async ({ page }
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(catalogs.en.wiring.title);
   await expect(page.getByTestId("product")).toHaveCount(4);
   for (const row of await page.getByTestId("product").allInnerTexts()) {
-    expect(row.trim(), "American dollar: $28.00").toMatch(/ — \$\d+\.\d{2}$/);
+    expect(row.trim(), "American dollar: $28.00, $1,400.00 from a thousand").toMatch(
+      AMERICAN_DOLLAR,
+    );
   }
 });
