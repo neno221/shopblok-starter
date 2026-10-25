@@ -383,6 +383,12 @@ jobs:
     container:
       image: mcr.microsoft.com/playwright:v1.64.0-noble
       options: --ipc=host --init
+    # next-intl's plugin loads @swc/core with next.config.ts (T46). SWC's native addon unpacks itself
+    # into a cache that it refuses when a parent is writable by others without the sticky bit, which
+    # the container's HOME (/github/home) is: the build failed with ERR_SWC_NATIVE_CACHE (PR 70).
+    # /tmp is sticky, so a root there passes.
+    env:
+      SWC_NATIVE_BINDING_CACHE: /tmp/swc-native-cache
     # Two Playwright projects: the DS checks (~17 min on the runner at T37) and the next dev console
     # check (~10-40 s a page while it compiles). 30 min was reached at T37 (PR 59); room for M2's pages.
     timeout-minutes: 50
@@ -499,6 +505,9 @@ jobs:
     container:
       image: mcr.microsoft.com/playwright:v1.64.0-noble
       options: --ipc=host --init
+    # As in design-system: SWC's native cache under /tmp, not the container's HOME.
+    env:
+      SWC_NATIVE_BINDING_CACHE: /tmp/swc-native-cache
     timeout-minutes: 50
     steps:
       # Before checkout, which downloads a tarball instead of cloning when git is missing.
