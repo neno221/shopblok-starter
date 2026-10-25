@@ -199,7 +199,7 @@ jobs:
       # T42, D67 item 4 (SPEC §13): the PLP's and the PDP's first-load JS, gzipped, from the file Next
       # writes after a Turbopack build. The table of every route is in the log.
       - name: First-load JS budget
-        run: pnpm --filter @shopblok/storefront check:first-load --budget "/[market]=1"
+        run: pnpm --filter @shopblok/storefront check:first-load
       # Both servers are started directly, not through turbo: they get the whole environment and
       # read their own .env. `nohup … &` keeps them up across steps.
       # The storefront's PID goes in a file, because the dev-console steps below stop it by PID.
