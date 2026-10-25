@@ -18,6 +18,12 @@ import { defineConfig, devices, type Project } from "@playwright/test";
 //   thumbnails      (T40, D52) the previews of the 21 family entries at 1200 × 800 at half scale,
 //                   compared with (or, on an update, written as) `public/registry/{id}.png`. It
 //                   runs against the same server as `design-system`, so the one flag enables both.
+//   outage          (T42, D67) ADR 0004's outage test against the `next start` and Medusa that e2e-smoke
+//                   has up: `outage.spec.ts` stops Medusa by the PID file `start-medusa` wrote
+//                   (`E2E_MEDUSA_PID`, e2e/support/medusa-process.ts) and measures the pages;
+//                   `outage-recovery.spec.ts` runs after the workflow has started Medusa again, through
+//                   the same action. One project for both: the command line names the spec, and the
+//                   specs are not run together (the first leaves Medusa down). T49 writes them.
 // A browser that is not the one `playwright install` fetched (the cloud VM's, CLOUD.md), for the
 // `design-system` project. Unset in CI.
 const chromiumPath = process.env["PW_CHROMIUM_PATH"];
@@ -41,6 +47,19 @@ const optIns: OptIn[] = [
     projects: [
       devConsoleProject("dev-console", /dev-console\.spec\.ts/),
       devConsoleProject("dev-console-ds", /dev-console-ds\.spec\.ts/),
+    ],
+  },
+  {
+    flag: "E2E_OUTAGE",
+    // One worker, no retry: the spec stops a server, and a second run would find it already down.
+    workers: 1,
+    projects: [
+      {
+        name: "outage",
+        retries: 0,
+        use: { ...devices["Desktop Chrome"] },
+        testMatch: /outage(?:-recovery)?\.spec\.ts$/,
+      },
     ],
   },
   {
@@ -116,6 +135,9 @@ const defaultProjects: Project[] = [
 
 export default defineConfig({
   testDir: "./e2e",
+  // Only `*.spec.ts` are Playwright's. Playwright's default would also take `*.test.ts`, which are
+  // Vitest's (the helpers under e2e/support, T42).
+  testMatch: /\.spec\.ts$/,
   fullyParallel: true,
   // One worker for the default run, so the specs run one after the other. The admin specs all log
   // in as the admin bootstrap made, and Payload keeps a user's sessions in one array on the user

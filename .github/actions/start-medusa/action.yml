@@ -1,0 +1,104 @@
+# Starts Medusa in the background and waits until it answers, or stops it (T42, D67).
+# The only thing in the workflow that starts Medusa, so exactly one process owns port 9000 and the
+# PID file names it: `e2e-smoke` starts it before the storefront's build (the PDP's
+# `generateStaticParams` reads it, ADR 0004 reading 4), the outage spec stops it by that file, and
+# a later step starts it again through this action (the file is then rewritten with the new PID).
+# It runs `medusa develop`, as CI has always run Medusa; nothing else is wanted here, so there is
+# no `command` input (PR 69 review, nit 9).
+# The PID is `pnpm`'s, not Medusa's: `pnpm` > `medusa develop` > `medusa start`, so a signal to the one
+# PID can leave :9000 serving. The `stop` mode hands the PID to `.github/scripts/stop-tree.sh --port
+# 9000`, which stops the tree, stops an orphan on the port by its own PID, and exits 0 only when the
+# port is free (as the storefront's stop does).
+# The start succeeds only when /health answers and the process it started is still alive, as the
+# storefront's does: an answer from a server this step did not start (an orphan on :9000) must not
+# pass for ours, whose own `medusa develop` would die with EADDRINUSE (PR 69 review, item 2). So the
+# step also refuses to start while something already accepts connections on :9000.
+# The server keeps running after this step (`nohup … &`). Its PID is in `$RUNNER_TEMP/servers/medusa.pid`
+# and its output in `$RUNNER_TEMP/servers/<log>`, which the "server logs" artifact uploads.
+# Environment the server needs goes in the calling step's `env`; it reads apps/backend/.env itself.
+name: Start or stop Medusa
+description: medusa develop on port 9000, in the background, and a wait until /health answers; or stop it by the PID file.
+inputs:
+  log:
+    description: >-
+      The log file's name in $RUNNER_TEMP/servers. Use a different name for a second start, so the
+      first run's log (the outage's evidence) is kept.
+    default: medusa.log
+  stop:
+    description: >-
+      `true` stops the Medusa that $RUNNER_TEMP/servers/medusa.pid names and checks that :9000 is
+      free; nothing is started. A missing PID file means Medusa was never started (exit 0); a PID
+      file with no number in it is an error (exit 2), so a failed start never looks like "nothing
+      to stop".
+    default: "false"
+  timeout:
+    description: Seconds to wait for /health.
+    default: "120"
+outputs:
+  pid:
+    description: The PID of the server's process tree (empty when `stop` is `true`).
+    value: ${{ steps.start.outputs.pid }}
+runs:
+  using: composite
+  steps:
+    # The port check is a connection attempt through bash's /dev/tcp, on IPv4 and IPv6 loopback, as
+    # stop-tree.sh's last check is. Not `fuser 9000/tcp`: that is psmisc, which a runner may not
+    # have, and a tool that cannot see another user's sockets answers "nothing", which reads as
+    # free. A connection attempt needs no tool and no privilege, and any listener accepts it,
+    # whatever it speaks (curl would see only an HTTP server that answers in time). `ss` is asked
+    # only to name the owner in the log.
+    # `curl --max-time 5` bounds one poll: a Medusa that is up answers /health at once (there is no
+    # compile on its first request, unlike `next dev`'s, which is why start-storefront allows 30 s),
+    # and a connection that hangs must not hold the loop past `timeout`. The loop polls every second.
+    - id: start
+      if: ${{ inputs.stop != 'true' }}
+      shell: bash
+      working-directory: ${{ github.workspace }}
+      env:
+        LOG: ${{ inputs.log }}
+        TIMEOUT: ${{ inputs.timeout }}
+      run: |
+        case "$LOG" in '' | */* | .*) echo "::error::start-medusa: log must be a plain file name, not '$LOG'."; exit 2 ;; esac
+        port_taken() {
+          local host
+          for host in 127.0.0.1 ::1; do
+            (exec 3<>"/dev/tcp/$host/9000") 2>/dev/null && return 0
+          done
+          return 1
+        }
+        if port_taken; then
+          echo "::error::start-medusa: port 9000 already accepts connections, so a new Medusa could not bind it and its /health would be somebody else's. Stop what owns the port first (ss's view of its owner, if it can see one, follows)."
+          ss -H -ltnp 'sport = :9000' 2>/dev/null || true
+          exit 1
+        fi
+        mkdir -p "$RUNNER_TEMP/servers"
+        nohup pnpm --filter @shopblok/backend dev > "$RUNNER_TEMP/servers/$LOG" 2>&1 &
+        pid=$!
+        echo "$pid" > "$RUNNER_TEMP/servers/medusa.pid"
+        echo "pid=$pid" >> "$GITHUB_OUTPUT"
+        deadline=$((SECONDS + TIMEOUT))
+        while [ "$SECONDS" -lt "$deadline" ]; do
+          # A server that has exited will not answer: fail now, not after the timeout.
+          kill -0 "$pid" 2>/dev/null || { echo "::error::Medusa exited before it answered; $LOG in the server logs artifact has its output."; exit 1; }
+          if curl -fs --max-time 5 -o /dev/null http://localhost:9000/health && kill -0 "$pid" 2>/dev/null; then
+            echo "Medusa answers."
+            exit 0
+          fi
+          sleep 1
+        done
+        echo "::error::Medusa (:9000/health) did not answer within $TIMEOUT s."
+        bash .github/scripts/stop-tree.sh --port 9000 "$pid" || true
+        exit 1
+    # `$(cat …)` is not guarded with `|| true` or `[ -n … ]`, unlike the storefront's stops: an empty
+    # file must reach stop-tree.sh, which answers 2 (a PID that is not a number).
+    - id: stop
+      if: ${{ inputs.stop == 'true' }}
+      shell: bash
+      working-directory: ${{ github.workspace }}
+      run: |
+        file="$RUNNER_TEMP/servers/medusa.pid"
+        if [ ! -e "$file" ]; then
+          echo "start-medusa: $file does not exist, so Medusa was never started; nothing to stop."
+          exit 0
+        fi
+        bash .github/scripts/stop-tree.sh --port 9000 "$(cat "$file")"

@@ -1,4 +1,5 @@
-# CI for M0 (plan T16, T17), M1's `design-system` (T24), M2's gate (T27, D53) and baselines (T40, D51).
+# CI for M0 (plan T16, T17), M1's `design-system` (T24), M2's gate (T27, D53) and baselines (T40, D51),
+# and M3's `e2e-smoke` (T42, D67).
 # Seven jobs:
 #   check          the root checks, the same ones a contributor runs: no .env, no database.
 #   backend-integration
@@ -6,9 +7,11 @@
 #   gate           decides which of the next three a pull request needs, from the files it changes
 #                  (scripts/ci-gate.ts and its lib, with the rules and their tests). Any other
 #                  event runs e2e-smoke and design-system, and windows-smoke unless it is a push.
-#   e2e-smoke      the compose stack, `pnpm bootstrap --ci`, a production build, both servers,
-#                  the five Playwright suites, `pnpm run doctor` and, last, the storefront's own
-#                  routes' console in `next dev` (T25).
+#   e2e-smoke      the compose stack, `pnpm bootstrap --ci`, Medusa, a production build (Medusa is
+#                  up first, because the catalog pages' `generateStaticParams` read it: ADR 0004,
+#                  reading 4), the first-load JS budget (SPEC §13), the storefront, the Playwright
+#                  suites, the outage test (ADR 0004; once `e2e/outage.spec.ts` exists), `pnpm run
+#                  doctor` and, last, the storefront's own routes' console in `next dev` (T25).
 #   design-system  the DS cells in English and Greek at 375, 768 and 1440 px: axe, overflow,
 #                  44 px controls, the console (T24, D34), then the DS pages' console in `next dev`
 #                  (T27). No compose: a build with the flag, `next start` and `next dev` are all it
@@ -22,7 +25,8 @@
 #   windows-smoke  install, type check, unit tests, build and a Ctrl-C of `pnpm dev` on NTFS,
 #                  weekly and when dependencies change.
 # Each job but the gate sets up pnpm and Node with .github/actions/setup, and both storefront jobs
-# start the server with .github/actions/start-storefront.
+# start the server with .github/actions/start-storefront. e2e-smoke starts and stops Medusa with
+# .github/actions/start-medusa, the only thing that starts it (T42).
 #
 # Every command here was run in the same order in the cloud VM before the first push (SETUP.md,
 # "CI (T16)"), with the timings given there.
@@ -160,7 +164,9 @@ jobs:
     needs: gate
     if: needs.gate.outputs.e2e == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # 30 until M3 (about 5 minutes of work at M2's end). D67: the commerce suites (T48 to T54) and
+    # the outage test add to it, and 45 leaves room for them.
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7.0.1
       - uses: ./.github/actions/setup
@@ -174,28 +180,36 @@ jobs:
       # Writes both .env files (with the secrets), migrates, seeds, makes the Medusa and Payload
       # admins and the publishable key, fills the `markets` global, and ends with `doctor`.
       - run: pnpm bootstrap --ci
+      # Medusa before the build (T42, D67 item 1; ADR 0004, reading 4): the catalog pages'
+      # `generateStaticParams` read the backend while `next build` runs, and with MEDUSA_BACKEND_URL set
+      # an unreachable Medusa fails the build. The action is the only thing that starts Medusa: its PID
+      # file, `$RUNNER_TEMP/servers/medusa.pid`, names the process the outage test stops and the step
+      # after it starts again.
+      - name: Start Medusa
+        uses: ./.github/actions/start-medusa
       # After bootstrap: `next build` writes the publishable key into the bundle (SETUP.md, T12
       # item 8) and the `markets` global has to be filled for the prerender.
-      - run: pnpm build
+      # STOREFRONT_PRERENDER_PRODUCTS (D58, D67 item 2): four of the demo catalog's eight products are
+      # prerendered, so the outage test has pages that render on request (T49 is the first code that
+      # reads it; apps/storefront/turbo.json lists it for the build).
+      # Only the storefront is built (PR 69 review, item 5): `--filter` selects the entry point and
+      # turbo still runs its `^build` and `transit` dependencies (the packages it imports; none has a
+      # build script of its own, so there is nothing to run for them). The backend's `medusa build`
+      # is left out: nothing in this job reads `apps/backend/.medusa/server` (Medusa runs from source
+      # as `medusa develop`; doctor, the suites and next dev talk to it over HTTP), and it would
+      # rewrite `.medusa/` and run a Vite admin build beside the server on two cores. The `check`
+      # job builds the whole workspace, so `medusa build` stays covered there (it is the backend's
+      # type check).
+      - name: Build the storefront
+        run: pnpm exec turbo run build --filter=@shopblok/storefront
+        env:
+          STOREFRONT_PRERENDER_PRODUCTS: "4"
+      # T42, D67 item 4 (SPEC §13): the PLP's and the PDP's first-load JS, gzipped, from the file Next
+      # writes after a Turbopack build. The table of every route is in the log.
+      - name: First-load JS budget
+        run: pnpm --filter @shopblok/storefront check:first-load
       # Both servers are started directly, not through turbo: they get the whole environment and
-      # read their own .env. `nohup … &` keeps them up across steps. Medusa first, because the
-      # storefront's first answer can read it.
-      - name: Start Medusa
-        run: |
-          mkdir -p "$RUNNER_TEMP/servers"
-          nohup pnpm --filter @shopblok/backend dev > "$RUNNER_TEMP/servers/medusa.log" 2>&1 &
-          medusa=$!
-          for _ in $(seq 120); do
-            if curl -fs -o /dev/null http://localhost:9000/health; then
-              echo "Medusa answers."
-              exit 0
-            fi
-            # A server that has exited will not answer: fail now, not after the 120 s.
-            kill -0 "$medusa" 2>/dev/null || { echo "::error::Medusa exited before it answered; the diagnostics step has its log."; exit 1; }
-            sleep 1
-          done
-          echo "::error::Medusa (:9000/health) did not answer within 120 s."
-          exit 1
+      # read their own .env. `nohup … &` keeps them up across steps.
       # The storefront's PID goes in a file, because the dev-console steps below stop it by PID.
       - name: Start the storefront
         uses: ./.github/actions/start-storefront
@@ -214,6 +228,38 @@ jobs:
         run: pnpm --filter @shopblok/storefront test:e2e --reporter=list,html
         env:
           PLAYWRIGHT_HTML_OPEN: never
+      # T42, D67 item 2 (the specs are T49's): ADR 0004's outage test. Skipped while
+      # `e2e/outage.spec.ts` does not exist. The spec stops Medusa through
+      # `.github/scripts/stop-tree.sh --port 9000` on the PID file (`E2E_MEDUSA_PID`,
+      # e2e/support/medusa-process.ts), expects O2's 200, O3's 5xx, O4's 404 and `/next/status`'s 503, and
+      # leaves Medusa down. The action starts it again (the one process that owns :9000), and the
+      # second spec, O5, finds every page recovered with no restart of the storefront. Each run has
+      # its own report and results folders, because a run of Playwright empties the output folder it
+      # uses; a file the first spec writes in `test-results-outage/` survives the second run.
+      - name: Outage test (Medusa stopped)
+        if: ${{ hashFiles('apps/storefront/e2e/outage.spec.ts') != '' }}
+        run: pnpm --filter @shopblok/storefront test:e2e --project=outage --reporter=list,html --output=test-results-outage e2e/outage.spec.ts
+        env:
+          E2E_OUTAGE: "true"
+          E2E_MEDUSA_PID: ${{ runner.temp }}/servers/medusa.pid
+          PLAYWRIGHT_HTML_OPEN: never
+          PLAYWRIGHT_HTML_OUTPUT_DIR: playwright-report-outage
+      - name: Start Medusa again
+        if: ${{ hashFiles('apps/storefront/e2e/outage.spec.ts') != '' }}
+        uses: ./.github/actions/start-medusa
+        with:
+          log: medusa-restart.log
+      # Gated on its own spec: if T49 lands outage.spec.ts first, this step must not fail e2e-smoke with
+      # "No tests found" (PR 69 review, item 1). The restart above stays on outage.spec.ts, since that
+      # spec leaves Medusa down either way.
+      - name: Outage recovery test (Medusa started again)
+        if: ${{ hashFiles('apps/storefront/e2e/outage-recovery.spec.ts') != '' }}
+        run: pnpm --filter @shopblok/storefront test:e2e --project=outage --reporter=list,html --output=test-results-outage-recovery e2e/outage-recovery.spec.ts
+        env:
+          E2E_OUTAGE: "true"
+          E2E_MEDUSA_PID: ${{ runner.temp }}/servers/medusa.pid
+          PLAYWRIGHT_HTML_OPEN: never
+          PLAYWRIGHT_HTML_OUTPUT_DIR: playwright-report-outage-recovery
       # Every third-party integration is on its fallback, because CI sets none of their keys.
       # (Redis is live, since bootstrap sets REDIS_URL, and Meilisearch is `kind: local`: neither
       # is "third-party".) `ok` is doctor's own verdict, with both servers answering.
@@ -275,6 +321,14 @@ jobs:
         run: |
           pid="$(cat "$RUNNER_TEMP/servers/storefront-dev.pid" 2>/dev/null || true)"
           if [ -n "$pid" ]; then bash .github/scripts/stop-tree.sh --port 8000 "$pid"; fi
+      # By the PID file of the last start (T42). A job that never started Medusa has no file and
+      # nothing to stop; a file with no number in it fails, because a failed start must not pass for
+      # "nothing to stop".
+      - name: Stop Medusa
+        if: always()
+        uses: ./.github/actions/start-medusa
+        with:
+          stop: "true"
       # Postgres, Redis and Meilisearch are the usual cause when Medusa will not start. Their logs
       # go in the folder that is uploaded below, next to the servers'.
       - name: Diagnostics (on failure)
@@ -292,8 +346,12 @@ jobs:
           path: |
             apps/storefront/playwright-report
             apps/storefront/playwright-report-dev-console
+            apps/storefront/playwright-report-outage
+            apps/storefront/playwright-report-outage-recovery
             apps/storefront/test-results
             apps/storefront/test-results-dev-console
+            apps/storefront/test-results-outage
+            apps/storefront/test-results-outage-recovery
           if-no-files-found: ignore
           retention-days: 14
       - name: Upload the server logs and doctor's JSON

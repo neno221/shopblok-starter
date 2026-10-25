@@ -47,6 +47,7 @@ describe("decideJobs on a pull request", () => {
       "packages/registry/src/index.ts",
       "packages/ui/src/primitives/dialog.tsx",
       "packages/ui/src/organisms/header/classic.tsx",
+      "packages/ui/src/templates/home.tsx",
       "apps/storefront/src/design-system/stories/atoms.tsx",
       "apps/storefront/src/app/design-system/[locale]/(overview)/page.tsx",
       "apps/storefront/e2e/design-system.spec.ts",
@@ -241,6 +242,60 @@ describe("decideJobs and the importers of the DS-only folders", () => {
       specifier: "../molecules/x",
     };
     expect(sharedAreas([importer])).toEqual(["packages/ui/src/molecules/"]);
+  });
+
+  it("runs e2e-smoke for a template once a storefront route imports it (T42, D67)", () => {
+    const template = "packages/ui/src/templates/home.tsx";
+    const importer = {
+      file: "apps/storefront/src/app/(storefront)/[market]/page.tsx",
+      specifier: "@shopblok/ui/templates/home",
+    };
+    // DS-only while nothing outside imports it: the gate's templates area.
+    expect(jobs(pr([template]))).toEqual({ e2e: false, designSystem: true, windows: false });
+    expect(sharedAreas([importer])).toEqual(["packages/ui/src/templates/"]);
+    expect(jobs(pr([template], [importer]))).toEqual({
+      e2e: true,
+      designSystem: true,
+      windows: false,
+    });
+    expect(pr([template], [importer]).reasons[0]).toBe(
+      "shared, because code outside the DS imports them: packages/ui/src/templates/",
+    );
+  });
+
+  it("matches the templates by their package name, with or without a subpath, and not a lookalike", () => {
+    const from = (specifier: string) => ({
+      file: "apps/storefront/src/app/(storefront)/[market]/page.tsx",
+      specifier,
+    });
+    for (const specifier of ["@shopblok/ui/templates", "@shopblok/ui/templates/product-detail"]) {
+      expect(sharedAreas([from(specifier)]), specifier).toEqual(["packages/ui/src/templates/"]);
+    }
+    for (const specifier of ["@shopblok/ui/templates-old/x", "@shopblok/ui/template/x"]) {
+      expect(sharedAreas([from(specifier)]), specifier).toEqual([]);
+    }
+  });
+
+  it("follows a page, its template and the molecules the template imports", () => {
+    const chain: Importer[] = [
+      {
+        file: "apps/storefront/src/app/(storefront)/[market]/products/[handle]/page.tsx",
+        specifier: "@shopblok/ui/templates/product-detail",
+      },
+      {
+        file: "packages/ui/src/templates/product-detail.tsx",
+        specifier: "../molecules/price-block/standard",
+      },
+    ];
+    expect(sharedAreas(chain)).toEqual([
+      "packages/ui/src/molecules/",
+      "packages/ui/src/templates/",
+    ]);
+    // A template nothing outside the DS imports shares nothing, whatever it imports itself.
+    expect(sharedAreas(chain.slice(1))).toEqual([]);
+    expect(
+      jobs(pr(["packages/ui/src/molecules/price-block/standard.tsx"], chain.slice(1))),
+    ).toEqual({ e2e: false, designSystem: true, windows: false });
   });
 
   it("counts the registry as shared once a storefront file outside the DS imports it", () => {
