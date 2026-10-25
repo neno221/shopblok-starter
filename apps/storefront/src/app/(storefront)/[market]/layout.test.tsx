@@ -5,7 +5,7 @@ import { prerender } from "react-dom/static";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { pick, SHELL_MESSAGES } from "../../../i18n/messages";
 import type { MarketMap } from "../../../lib/markets/types";
-import { mongolia, seeded } from "../../../lib/markets/test-maps";
+import { brazil, mongolia, seeded } from "../../../lib/markets/test-maps";
 
 const state = vi.hoisted(() => ({ key: "", map: undefined as unknown as MarketMap }));
 vi.mock("next/root-params", () => ({ market: async () => state.key }));
@@ -94,6 +94,20 @@ describe("the market layout (D62)", () => {
       toastRegion: catalogs.de.primitives.toast.region,
       toastClose: catalogs.de.primitives.toast.close,
     });
+  });
+
+  // PR 70 review, item 1. The root layout is outside every error boundary: a value next-intl cannot
+  // use would make every page of the market a 500, its 404 page too.
+  it("renders a market whose stored lang value is no language tag, with the lang that language and country make", async () => {
+    for (const stored of ["pt_BR", "Portuguese"]) {
+      const map: MarketMap = {
+        ...brazil,
+        languages: [{ code: "pt", medusaLocale: "pt-BR", htmlLang: stored }],
+      };
+      const tree = await layoutFor(map, "pt-br");
+      expect(tree.props.lang, stored).toBe("pt-BR");
+      expect(await html(tree), stored).toContain('lang="pt-BR"');
+    }
   });
 
   it("sets lang from a market whose language has no catalog and names the region in English", async () => {

@@ -1,5 +1,6 @@
 import type { GlobalConfig, TextFieldSingleValidation } from "payload";
 import { text } from "payload/shared";
+import { isLanguageTag } from "../../lib/markets/market";
 import { MEDUSA_LOCALES, isMedusaLocale, medusaLocalesOf } from "../../lib/markets/medusa-locales";
 import { isAdmin, isStaff } from "../access/roles";
 import { rememberEnabledLanguages } from "../filter-available-locales";
@@ -41,6 +42,22 @@ export const medusaLocale: TextFieldSingleValidation = (value, options) => {
       ? `For ${language}, use ${choices.join(" or ")}.`
       : "Use one of Medusa's locales, for example en-US, el-GR or pt-BR.";
   return `"${value}" is not a Medusa locale. ${hint}`;
+};
+
+/**
+ * A language's `htmlLang`, when the owner writes one, is a language tag (`pt-BR`): next-intl and
+ * `formatMoney` hand it to `Intl`, which throws on `pt_BR` or `Portuguese`. Payload's own text
+ * check runs first, then an empty optional value goes through (the language and country make the
+ * lang value then). `listMarkets` ignores a stored value that is not a tag, so a value saved
+ * before this check exists does not break a page either (PR 70 review, item 1).
+ */
+export const htmlLang: TextFieldSingleValidation = (value, options) => {
+  const base = text(value, options);
+  if (base !== true) return base;
+  if (value === undefined || value === null || value === "") return true;
+  return isLanguageTag(value)
+    ? true
+    : `"${value}" is not a language tag. Use a code such as pt-BR or de-CH, or leave it empty.`;
 };
 
 /**
@@ -103,6 +120,7 @@ export const Markets: GlobalConfig = {
         {
           name: "htmlLang",
           type: "text",
+          validate: htmlLang,
           admin: {
             description:
               "Overrides the lang attribute of every country that uses this language, for example pt-BR.",

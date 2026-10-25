@@ -1,7 +1,7 @@
 import type { Payload, PayloadRequest, TextFieldSingleValidation } from "payload";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { clearEnabledLanguages, filterAvailableLocales } from "../filter-available-locales";
-import { Markets, countryCode, medusaLocale } from "./markets";
+import { Markets, countryCode, htmlLang, medusaLocale } from "./markets";
 
 type Options = Parameters<TextFieldSingleValidation>[1];
 // What Payload's own `text` validator reads from the request.
@@ -76,6 +76,41 @@ describe("medusaLocale (D17)", () => {
     for (const value of [undefined, null, ""]) {
       expect(medusaLocale(value, withLanguage("pt", false))).toBe(true);
     }
+  });
+});
+
+describe("htmlLang (PR 70 review, item 1)", () => {
+  it("accepts a language tag, as written", () => {
+    for (const value of ["pt-BR", "de-CH", "mn", "zh-Hant-TW", "pt-br"]) {
+      expect(htmlLang(value, optional)).toBe(true);
+    }
+  });
+
+  it("rejects what next-intl would hand to Intl and Intl would refuse, and says what to write", () => {
+    for (const value of ["pt_BR", "Portuguese", "pt BR", " pt-BR", "pt-", "pt-BR,en"]) {
+      expect(htmlLang(value, optional)).toBe(
+        `"${value}" is not a language tag. Use a code such as pt-BR or de-CH, or leave it empty.`,
+      );
+    }
+  });
+
+  it("lets the optional field stay empty", () => {
+    for (const value of [undefined, null, ""]) expect(htmlLang(value, optional)).toBe(true);
+  });
+
+  it("keeps Payload's required check when a field asks for it", () => {
+    for (const value of [undefined, null, ""]) {
+      expect(htmlLang(value, required)).toBe("validation:required");
+    }
+  });
+
+  it("is on the language row's field", () => {
+    const languages = Markets.fields.find((field) => "name" in field && field.name === "languages");
+    const field =
+      languages !== undefined && "fields" in languages
+        ? languages.fields.find((candidate) => "name" in candidate && candidate.name === "htmlLang")
+        : undefined;
+    expect(field).toMatchObject({ type: "text", validate: htmlLang });
   });
 });
 

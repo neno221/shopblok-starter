@@ -17,6 +17,32 @@ export function normalizeHost(value: string | null | undefined): string | undefi
   return host === "" ? undefined : host;
 }
 
+/**
+ * Whether `value` is a language tag `Intl` accepts: `pt-BR`, `de-CH`, `mn`, `zh-Hant-TW`; not
+ * `pt_BR`, `Portuguese` or `pt-BR,en`. A market's `<html lang>` is typed into the admin and goes to
+ * `Intl` through next-intl (D62) and `formatMoney`, which refuse anything else.
+ */
+export function isLanguageTag(value: string): boolean {
+  try {
+    return Intl.getCanonicalLocales(value).length === 1;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * The `<html lang>` of a market: the language's own value when the owner wrote one that is a
+ * language tag, else the language and the country (`pt` in `br` is `pt-BR`). A value that is not a
+ * tag is ignored here, where every reader of the map gets it, because the admin's check
+ * (`htmlLang` in `payload/globals/markets.ts`) only stops a save made after it existed, and a
+ * stored value outlives a change of rules.
+ */
+function htmlLangOf(stored: string | undefined, language: string, country: string): string {
+  return stored !== undefined && isLanguageTag(stored)
+    ? stored
+    : `${language}-${country.toUpperCase()}`;
+}
+
 /** The countries that are open, in the map's order. */
 export function enabledCountries(map: MarketMap): MarketCountry[] {
   return map.countries.filter((country) => country.enabled);
@@ -41,7 +67,7 @@ export function listMarkets(map: MarketMap): Market[] {
         key: toInternalKey(country.code, language),
         country: country.code,
         language,
-        htmlLang: entry?.htmlLang || `${language}-${country.code.toUpperCase()}`,
+        htmlLang: htmlLangOf(entry?.htmlLang, language, country.code),
         medusaLocale: entry?.medusaLocale ?? "",
         ...(domain === undefined ? {} : { domain }),
         isDefaultLanguage: index === 0,

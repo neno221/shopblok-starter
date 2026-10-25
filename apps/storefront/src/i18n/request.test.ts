@@ -66,6 +66,20 @@ describe("the request configuration (D62)", () => {
     expect(result.messages).toBe(catalogs.en);
   });
 
+  // PR 70 review, item 1: a lang value that is no language tag (typed into the admin) must not
+  // reach next-intl, whose first use of it throws a RangeError in the root layout.
+  it("gives a market whose stored lang value is no language tag the one language and country make", async () => {
+    for (const stored of ["pt_BR", "Portuguese"]) {
+      const map: MarketMap = {
+        ...brazil,
+        languages: [{ code: "pt", medusaLocale: "pt-BR", htmlLang: stored }],
+      };
+      const result = await configFor(map, "pt-br");
+      expect(result.locale, stored).toBe("pt-BR");
+      expect(result.messages).toBe(catalogs.en);
+    }
+  });
+
   it("fixes the time zone, so a build and a browser write the same time", async () => {
     for (const [map, key] of [
       [seeded, "el-cy"],
