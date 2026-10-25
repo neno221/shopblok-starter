@@ -1,6 +1,6 @@
 # Setup
 
-How to run the starter on your own machine: the quickstart, the ports, the logins, the notes for Windows and for a Claude Code cloud session. Below "The M0 log", "The M1 log" and "The M2 log" are what each task found and measured, one section per task and spike, in the order they ran. The log is the evidence behind [SPEC.md](SPEC.md) v0.8 and the [ADRs](adr/README.md); read the section a number or a decision in the spec points to.
+How to run the starter on your own machine: the quickstart, the ports, the logins, the notes for Windows and for a Claude Code cloud session. Below "The M0 log", "The M1 log", "The M2 log" and "The M3 log" are what each task found and measured, one section per task and spike, in the order they ran. The log is the evidence behind [SPEC.md](SPEC.md) v0.8 and the [ADRs](adr/README.md); read the section a number or a decision in the spec points to.
 
 - [Quickstart](#quickstart-no-keys-no-accounts) · [Prerequisites](#prerequisites-every-os) · [Ports and logins](#ports-urls-and-logins) · [Opening a market](#opening-a-market) · [The design-system page, tokens and the Figma export](#the-design-system-page-tokens-and-the-figma-export-m1) · [Adding a molecule or an organism](#how-to-add-a-molecule-or-an-organism-m2) · [Updating the baselines and the thumbnails](#updating-the-baselines-and-the-thumbnails-m2) · [Windows](#windows-notes) · [Cloud](#working-in-a-claude-code-cloud-environment) · [Checking a clean machine](#checking-a-clean-machine) · [If something fails](#if-something-fails) · [Where we differ from the skills](#where-we-deliberately-differ-from-the-medusa-skills)
 
@@ -4789,3 +4789,159 @@ After PR 66, `pnpm audit --prod` listed one **critical** advisory: `dompurify` `
 | 1 | The override was an exact pin, `3.4.17`, which would hold a later `monaco-editor` back from a newer `dompurify` | `^3.4.17` (the lockfile still resolves 3.4.17, the latest) |
 | 2 | The PR 66 note said `dompurify` 3.4.16 | 3.4.15, what the lockfile had |
 | 3 | NEXT-SESSION.md said "The one follow-up is done" next to a second one | "Both audit follow-ups are done" |
+
+# The M3 log
+
+What each M3 task found and measured ([plans/M3.md](plans/M3.md)), in the order the tasks ran.
+
+## CI for M3 (T42)
+
+**Result: `e2e-smoke` starts Medusa through a composite action, `.github/actions/start-medusa`, right after `pnpm bootstrap --ci` and before `pnpm build`; the outage test has its place in the job and its helpers (an opt-in Playwright project, and a function that stops Medusa by the PID file through `stop-tree.sh`); a script fails the job when the PLP or the PDP is over 170 KB of gzipped first-load JS; and the gate counts `packages/ui/src/templates/` as design-system-only until a route imports it (D67).** The unit tests, the type check, the lint and every mutation that needs no GitHub ran in the cloud VM and are below. What only a CI run shows is marked `TODO(orchestrator)`: the run's link and its jobs' times, and the 1 KB budget mutation as a CI failure (["What only CI shows"](#what-only-ci-shows-t42)).
+
+| | |
+|---|---|
+| Date | 2026-10-25 |
+| Branch | `m3/t42`, from `main` at 0bcd634 (PR 68, the M3 plan). PR: `TODO(orchestrator): PR number` |
+| New | `.github/actions/start-medusa/action.yml`, `apps/storefront/scripts/first-load.ts`, `first-load.test.ts` and `route-bundle-stats.fixture.json`, `apps/storefront/e2e/support/medusa-process.ts` and `medusa-process.test.ts` |
+| Changed | `.github/workflows/ci.yml` (`e2e-smoke`'s order, its `timeout-minutes` 30 to 45, the outage steps, the first-load step, a Stop Medusa step, the uploads), `apps/storefront/package.json` (`check:first-load`), `apps/storefront/playwright.config.ts` (the `outage` row, `testMatch`), `apps/storefront/vitest.config.ts` (the exclude), `apps/storefront/turbo.json` (`STOREFRONT_PRERENDER_PRODUCTS`), `scripts/lib/ci-gate.ts` and its test (the templates area) |
+| Tests | `pnpm typecheck`, `pnpm lint` and `pnpm test` pass at the root: scripts **433** (430 + 3), storefront **2602** (2560 + 31 for the budget script and 11 for `medusa-process.ts`), i18n 95, registry 218, fixtures 450, ui 5253, backend 85 |
+| Not done here | The CI run, its times, the 1 KB mutation in CI (no GitHub access in this session). The outage spec itself is T49's |
+
+### How it works
+
+1. **`start-medusa`** (composite action). Inputs `command` (`dev`, the only value: what CI has always run), `log` (a file name in `$RUNNER_TEMP/servers`, default `medusa.log`; a second start passes another so the first run's log is kept) and `timeout` (120 s); and `stop`. A start runs `nohup pnpm --filter @shopblok/backend dev`, writes the PID to **`$RUNNER_TEMP/servers/medusa.pid`** at once, and polls `/health` with `kill -0` on the PID, as the inline step did: a server that exited fails the step then, one that never answers fails at the timeout after `stop-tree.sh --port 9000` has stopped its tree. The PID is `pnpm`'s: `pnpm` > `medusa develop` > `medusa start`, so a signal to the one PID can leave `:9000` serving. **`stop: "true"`** starts nothing and runs `bash .github/scripts/stop-tree.sh --port 9000 "$(cat medusa.pid)"`, which stops the tree, stops an orphan on the port by its own PID and exits 0 only when the port is free. Two cases the storefront's stop steps do not have: a **missing** PID file means Medusa was never started (a notice, exit 0), and an **empty** one is not guarded (`$(cat …)` reaches the script, which answers 2 for a PID that is not a number), so a failed start never looks like "nothing to stop". The action is the only thing in the workflow that starts Medusa; a second start overwrites the PID file, so it always names the process that owns the port.
+2. **`e2e-smoke`'s order.** checkout, setup, install, the compose stack, Chromium, `pnpm bootstrap --ci`, **Start Medusa**, **Build** (`pnpm build` with `STOREFRONT_PRERENDER_PRODUCTS=4`), **First-load JS budget**, Start the storefront, Playwright suites, **the outage steps**, doctor (twice), the `next dev` steps, **Stop Medusa** (`if: always()`), diagnostics, uploads. `timeout-minutes` is 45 (the plan's number; the job took about 4 to 5 minutes at the end of M2, table below). The build step's variable is the plan's (D67 item 2): nothing reads it until T49's `generateStaticParams`.
+3. **The outage steps** sit between the suites and the doctor steps, so doctor and `dev-console` find Medusa up as before. Each has `if: hashFiles('apps/storefront/e2e/outage.spec.ts') != ''`, so they are skipped (they show as skipped, not as a failure) until T49 adds the spec: (a) `E2E_OUTAGE=true pnpm --filter @shopblok/storefront test:e2e --project=outage … e2e/outage.spec.ts` with `E2E_MEDUSA_PID=$RUNNER_TEMP/servers/medusa.pid`; (b) **Start Medusa again** through the action with `log: medusa-restart.log`; (c) the same command with `e2e/outage-recovery.spec.ts`. Each run has its own `--output` and `PLAYWRIGHT_HTML_OUTPUT_DIR` (`test-results-outage`, `test-results-outage-recovery`, `playwright-report-outage`, `playwright-report-outage-recovery`), because a run of Playwright empties the output folder it uses; all four are uploaded. **For T49:** the file that carries the O3 handle from the first spec to the second must live somewhere neither run empties, such as `test-results-outage/` (the second run empties only its own folder), or `$RUNNER_TEMP/servers/`.
+4. **`playwright.config.ts`.** One opt-in row, `E2E_OUTAGE`, one worker, no retry, holding **one project, `outage`**, whose `testMatch` is `outage.spec.ts` or `outage-recovery.spec.ts`; the command line names the file, as the plan's step 2 writes it. The default projects ignore both (the existing `optInSpecs` mechanism). The config's own `testMatch` is now `/\.spec\.ts$/` (Playwright's default takes `*.test.ts` too, and a unit test beside `medusa-process.ts` would have been loaded as a Playwright test: the first `--list` with the test in place failed with `TypeError … reading 'config'`), and Vitest's exclude is `e2e/**/*.spec.ts` instead of `e2e/**`.
+5. **`e2e/support/medusa-process.ts`** for T49's spec: `stopMedusa()` reads the PID file `E2E_MEDUSA_PID` names (it throws, naming the variable, when it is unset, and naming the file when it cannot be read), runs `bash <repo>/.github/scripts/stop-tree.sh --port 9000 <pid>`, throws with the script's output when it exits non-zero, then `waitUntilDown()` polls `/health` every 250 ms for up to 10 s until the connection is refused (a server that accepts and never answers still counts as up). `readPid`, `medusaIsUp` and `waitUntilDown` are exported; there is no function that starts anything, and a test says so. Options (`pidFile`, `port`, `run`, `isUp`, `sleep`, `now`) are the seams of the tests and the way to point it at a throwaway listener.
+6. **`apps/storefront/scripts/first-load.ts`** (`pnpm --filter @shopblok/storefront check:first-load`). It reads `.next/diagnostics/route-bundle-stats.json` (below), gzips every chunk file a row lists, sums them per route, and prints a table of every route with its raw and gzipped size, its budget and a result. **Fails (exit 1):** a budgeted route over its budget; a budgeted route with a `page.tsx` under `src/app` and **no row** (so a change of the file's format cannot pass silently); a stats file that is missing, not JSON, or not an array of `{ route, firstLoadUncompressedJsBytes, firstLoadChunkPaths }`; a chunk the stats name that is not on disk (the size would be too small). **Says, does not fail:** a budgeted route with no `page.tsx` yet (today both: T49 and T50 add the PDP and the PLP). The budgets are `export const budgets` at the top: `/[market]/products/[handle]` (PDP) and `/[market]/categories/[...handle]` (PLP) at 170 KB. `--budget "<route>=<KB>"` replaces one for a run (exit 2 for a bad argument). On GitHub it prints failures as `::error::`.
+7. **The gate.** `packages/ui/src/templates/` is a fourth DS-only area with `importedAs: /^@shopblok\/ui\/templates(\/|$)/`. Today no template exists, so nothing changes; from the first route that imports one, a change under it runs `e2e-smoke` too, and so do the molecules and organisms it imports (the pass repeats, as T27 built it).
+8. **`apps/storefront/turbo.json`.** `STOREFRONT_PRERENDER_PRODUCTS` is in `build`'s `env`. Read from `turbo run build --dry=json` while the files were as in this branch: with the line, the task's hash differs for 4, 500 and unset (`a10e02af8ebcf7d1`, `3676ff79f76c276d`, `a780207ae1655ddf`), and the variable is in the listed `env`; without it (the file as on `main`) the hash is the same for 4 and 500 (`cb7aa7f483799e9c`) and the variable is not listed, so strict mode would drop it from `pnpm build` and a cached build for 500 would be replayed for 4.
+
+### What Next writes under `.next/` (the plan's step 3)
+
+One `pnpm build` at the root, in this worktree with **no `.env` file** (CI's state; `ls apps/*/.env*` lists only the `.env.example` and `.env.test` files), Next 16.4.1 (Turbopack), cold turbo cache: 1 min 31.6 s for the two tasks (the backend's `medusa build` and the storefront's `next build`, which printed `Compiled successfully in 61s`, `Generating static pages using 3 workers (30/30) in 1668ms`, and D10's `markets: the markets global could not be read (…); using the seeded fixtures`), on a machine shared with three other sessions. The route table of the build has the columns `Revalidate` and `Expire` and **no First Load JS column**.
+
+```text
+apps/storefront/.next/
+  BUILD_ID  app-path-routes-manifest.json  build-manifest.json  export-marker.json
+  fallback-build-manifest.json  images-manifest.json  next-minimal-server.js.nft.json
+  next-server.js.nft.json  package.json  prerender-manifest.json  required-server-files.js
+  required-server-files.json  routes-manifest.json  trace  trace-build  turbopack
+  build/          1.1 MB
+  cache/          239 MB   (not an output: turbo's `outputs` exclude it)
+  diagnostics/    build-diagnostics.json (94 B)  framework.json (37 B)  route-bundle-stats.json (5,375 B)
+  node_modules/   the externals Turbopack hashes (drizzle-kit-…, pg-…, pino-…)
+  server/         87 MB    app/ (the prerendered .html, .rsc, .meta, .segments), chunks/, pages/,
+                           middleware (the proxy), the manifests
+  static/         4.2 MB   chunks/ (71 files), media/ (fonts, the OG image, the favicons),
+                           <build id>/ (_buildManifest.js, _ssgManifest.js, _clientMiddlewareManifest.js)
+  types/          48 KB
+```
+
+**`diagnostics/route-bundle-stats.json`** is the file the plan names; `writeRouteBundleStats` in `next/dist/build/route-bundle-stats.js` writes it after the route tree is printed, for Turbopack builds only. It is an array of `{ route, firstLoadUncompressedJsBytes, firstLoadChunkPaths }`, sorted by the byte count, descending, with 8 rows here: only **page routes** (`/admin/[[...segments]]`, five `design-system` routes, `/[market]`, `/_not-found`), none of the route handlers (`/api/…`, `/next/…`); the route is the normalized app path (route groups such as `(storefront)` removed, so `/[market]/products/[handle]` is what T49's page will be called). The paths are **relative to the storefront package** (`.next/static/chunks/….js`), not to `.next/`. A row's chunks are the page's and its layouts' client chunks plus `build-manifest.json`'s `rootMainFiles` (5 files here: the Turbopack runtime and the framework's shared chunks, 445,491 bytes, **129.9 KiB gzipped**); `firstLoadUncompressedJsBytes` is their uncompressed total, JS only. A trimmed copy (three rows) is the unit test's fixture.
+
+### Measured
+
+**The first-load table** of that build (`pnpm check:first-load`; KB are 1024 bytes; each chunk gzipped on its own at zlib's default level, summed):
+
+| Route | Chunks | Raw KB | gzip KB | Budget |
+|---|---|---|---|---|
+| `/admin/[[...segments]]` | 13 | 2128.7 | 632.2 | - |
+| `/design-system/[locale]/[...entry]` | 13 | 1185.5 | 372.8 | - |
+| `/design-system/[locale]` (and `checks/overlay-box`, `frame/…`, `preview/…`) | 12 | 1183.2 to 1183.6 | 371.6 to 371.8 | - |
+| `/[market]` (the M0 wiring page) | 12 | 723.3 | 224.5 | - |
+| `/_not-found` | 6 | 456.4 | 136.3 | - |
+| `/[market]/products/[handle]` | - | - | - | 170, no page yet |
+| `/[market]/categories/[...handle]` | - | - | - | 170, no page yet |
+
+**This matters for T49 and T50.** Next's runtime alone (`rootMainFiles`) is 129.9 KiB of the 170 KB, `/_not-found` is 136.3 KB, and `/[market]` is already **224.5 KB, 54 KB over what the PDP and the PLP may be**: 7 chunks of its own add 94 KB, two of them 53.6 KB and 23.6 KB gzipped. So the first PDP built on this layout will probably fail the budget on its first run. The table at the top of the script is where a decision lands (a higher number, or a smaller layout); the plan keeps 170 KB (SPEC §13), and the script does what the plan says.
+
+**Jobs' times before M3** (step 5), and the column T42's PR will fill. "After M2" is T41's table (run 39832035433, PR 63's last commit, attempt 1 / attempt 2); "before M3" is the push of `main` at 0bcd634 (run 40186408459, 2026-10-25), **taken from a note in the cloud session's shared scratch folder (`ci-times-before-m3.md`), not read from GitHub by this session** (`TODO(orchestrator): confirm against the run`):
+
+| Job | After M2 (T41) | Before M3 (`main` at 0bcd634) | T42's PR |
+|---|---|---|---|
+| `gate` | 20 s / 12 s | 6 s | `TODO(orchestrator)` |
+| `check` (Node 22 / 24) | 5 min 28 s / 4 min 41 s; 4 min 25 s / 5 min 12 s | 4 min 16 s (`test` 2:10, `build` 0:47) / 4 min 46 s | `TODO(orchestrator)` |
+| `backend-integration` | 1 min 09 s / 1 min 48 s | 59 s (the tests 16 s) | `TODO(orchestrator)` |
+| `e2e-smoke` | 5 min 04 s / 4 min 25 s | **3 min 50 s** (bootstrap 28 s, build 42 s, suites 30 s, `dev-console` 34 s) | `TODO(orchestrator)` |
+| `design-system` | 27 min 11 s / 27 min 03 s | 28 min 26 s (checks 16:03, DS console in `next dev` 9:21, build 1:27) | `TODO(orchestrator)` |
+| `windows-smoke` | 8 min 39 s / 9 min 14 s | skipped (a push) | `TODO(orchestrator)`: the gate runs it on this PR, see below |
+| Longest job | 27 min 11 s (`design-system`) | 28 min 26 s (`design-system`) | `TODO(orchestrator)` |
+
+The plan says `e2e-smoke` took "about 5 minutes" before M3; the run above says 3 min 50 s and T41's two attempts 4 min 25 s and 5 min 04 s, so it is 4 to 5 minutes, with the build the one step T42 changes (it now runs beside Medusa). `design-system` is the longest job by far and T42 does not touch it (limit 50 min).
+
+**The gate on this PR** (`node scripts/ci-gate.ts --files …` on the 13 changed files): `e2e-smoke` runs, `design-system` runs and `windows-smoke` runs, all three decided by `apps/storefront/package.json`: the gate treats any `package.json` as a dependency file, and the added script line is enough.
+
+### Mutations
+
+Everything here ran in the cloud VM. **Ports 8000 and 9000 belong to another session, so nothing below touches them:** the action's two scripts were extracted from `action.yml` with `yq` and run with `9000` replaced by **19000** (the health URL and `--port`), against a fake `pnpm` that starts a tree like the real one (`bash` > `python3 -m http.server 19000`), and the stop mutations used a throwaway `python3 -m http.server 19000` as the listener. It is the same code path as `--port 9000`. `shellcheck` 0.11 passes on both extracted scripts, and `actionlint` 1.7.12 on `ci.yml` reports only the one SC2016 note it reported before T42 (single quotes in the doctor step's `node --eval`).
+
+| Mutation | Check | Result |
+|---|---|---|
+| The PID file holds a dead PID, nothing listens on the port | the action's `stop` | `stop-tree: no such process (already exited).` then `stop-tree: stopped, port 19000 is free.`, **exit 0** |
+| The PID file holds a dead PID, a listener (not a child of anything the file names) is left on the port | `stop` | `stop-tree: stopping 27032` (the listener, found by the port), `stop-tree: stopped, port 19000 is free.`, **exit 0**; `/health` afterwards: no answer, no owner on the port |
+| The PID file is empty | `stop` | `stop-tree: '' is not a PID.`, **exit 2** |
+| The PID file holds `abc` | `stop` | `stop-tree: 'abc' is not a PID.`, **exit 2** |
+| No PID file | `stop` | `start-medusa: …/servers/medusa.pid does not exist, so Medusa was never started; nothing to stop.`, exit 0 |
+| A live tree: start, then stop | both | `Medusa answers.` (exit 0), the PID file names `pnpm`'s PID, the tree is `bash` > `bash -c` > `python3`; stop: `stop-tree: stopping <python3> <bash -c> <bash> <python3>`, `stopped, port 19000 is free.`, exit 0 |
+| The server exits at once | `start` | `::error::Medusa exited before it answered; medusa.log in the server logs artifact has its output.`, exit 1 (the log holds `fake medusa: crashing`) |
+| The server never answers (`TIMEOUT=4`) | `start` | `::error::Medusa (:9000/health) did not answer within 4 s.`, `stop-tree: stopping …`, `stopped, port 19000 is free.`, exit 1; no process left |
+| `command: start`, or `log: ../x.log` | `start` | `::error::start-medusa: command must be dev, not 'start'.` and `… log must be a plain file name, not '../x.log'.`, exit 2 |
+| Two starts, then stop | the restart | the second start's PID replaces the first in `medusa.pid`; `medusa.log` and `medusa-restart.log` both stay; the final stop frees the port |
+| `stopMedusa({ port: 19000 })` from a Node script, on a live tree | `medusa-process.ts` | `/health` 200 before; 3,642 ms (the script's four refusals) and `waitedMs: 4`; `/health` refused after; a second call on the dead PID: `no such process … | stopped, port 19000 is free.`; an empty file: `stop-tree.sh --port 19000 '' exited 2: stop-tree: '' is not a PID.`; a missing file: `… cannot be read. E2E_MEDUSA_PID must name the PID file of .github/actions/start-medusa …` |
+| `--budget "/[market]=1"` on the real build | `check:first-load` | `/[market] … 224.5 … 1 OVER`, `first-load: /[market] (overridden): 224.5 KB gzipped, over its 1 KB budget by 223.5 KB.`, **exit 1**. **In CI: `TODO(orchestrator)`** (below) |
+| `--budget "/[market]/products/[handle]=1"` | `check:first-load` | exit 0 and `/[market]/products/[handle] (overridden): no page.tsx under src/app yet, so its 1 KB budget is not checked.`: **the plan's "a budget of 1 KB fails the job" cannot fail on the PDP's or the PLP's own row before T49 and T50 exist**, so the mutation uses `/[market]` |
+| A `page.tsx` at `src/app/(storefront)/[market]/products/[handle]/`, the build unchanged | `check:first-load` | the row `/[market]/products/[handle] … 170 NO ROW`, `first-load: /[market]/products/[handle] (PDP) has a page under src/app and no row in route-bundle-stats.json: the file's format may have changed, or the build skipped the route. Not passing without a size.`, exit 1 (file removed afterwards) |
+| `firstLoadChunkPaths` renamed in the stats | `check:first-load` | `first-load: cannot use .next/diagnostics/route-bundle-stats.json: row 0 (/admin/[[...segments]]) has no `firstLoadChunkPaths` array of strings.`, exit 1 |
+| The stats file missing | `check:first-load` | `first-load: cannot use …: ENOENT: no such file or directory, open '…/route-bundle-stats.json'` and `Run `pnpm build` first.`, exit 1 |
+| One chunk file a row names moved away | `check:first-load` | six rows `1 chunk file(s) missing`, `first-load: /[market]: the stats name 1 chunk file(s) that are not on disk (.next/static/chunks/19964-v7bvo3f.js), so its size is too small. Run the build again.`, exit 1 |
+| The `templates` entry removed from `designSystemOnly` | the gate's tests | 4 fail: `packages/ui/src/templates/home.tsx: expected { e2e: true, … } to deeply equal …` and three more (shared area, specifier match, chain) |
+| The entry without its `importedAs` | the gate's tests | 3 fail (`expected [] to deeply equal [ 'packages/ui/src/templates/' ]` and two more); the DS-only test passes |
+| `>` to `>=` in the budget comparison | `first-load.test.ts` | 2 fail: `passes a route at 170 KB gzipped and fails it at 171 KB` and `fails by one byte` |
+| The no-row failure disabled | `first-load.test.ts` | 2 fail (`expected [] to have a length of 1 but got +0`) |
+| `gzipBytes` returns the raw length | `first-load.test.ts` | 1 fails: `expected 1048576 to be less than 2048` |
+| A missing chunk counted as 0 bytes | `first-load.test.ts` | 1 fails: `fails when a chunk the stats name is not on disk` |
+| `stopMedusa` ignores a non-zero exit | `medusa-process.test.ts` | 2 fail: `promise resolved "{ …(2) }" instead of rejecting` |
+| `stopMedusa` always passes port 9000 | `medusa-process.test.ts` | 1 fails: `expected [ '--port', '9000' ] to deeply equal [ '--port', '19000' ]` |
+| `STOREFRONT_PRERENDER_PRODUCTS` not in `turbo.json` | `turbo run build --dry=json` | the hash is `cb7aa7f483799e9c` for 4 and for 500 and the variable is not listed (see "How it works", item 8) |
+| `playwright test --list` before and after | the config change | identical: 86 tests in 6 files (default), 71 in 1 (`E2E_DEV_CONSOLE`), 23 in 2 (`E2E_DESIGN_SYSTEM`); `E2E_OUTAGE=true` lists none yet (`Error: No tests found`, which is why the CI steps wait for the spec) |
+
+### What only CI shows (T42)
+
+`TODO(orchestrator): CI run link` for the run of the PR's last commit. Check:
+
+1. **`e2e-smoke` passes with Medusa up before the build.** In the log: **Start Medusa** ends with `Medusa answers.`; **Build** runs after it with `STOREFRONT_PRERENDER_PRODUCTS=4` and prints the same route table as the VM's (8 page routes, `/[market]` with its market paths, no product page: the storefront's `generateStaticParams` still reads the market map only). The steps after it pass as before. **Look at `medusa.log`** (artifact `server-logs`) for a reload during the build (`modified … reloading dev server`) or a Medusa that died: `medusa build` removes `.medusa/server` while `medusa develop` runs, and `develop`'s watcher ignores `.medusa` and every dot file (read in `@medusajs/medusa/dist/commands/develop.js`), so none is expected, but the two never ran together in the VM (no `:9000` for a session). Compare the build's time with `main`'s 42 s.
+2. **The first-load table is in the log** (step **First-load JS budget**): the same 8 routes with numbers close to the VM's (CI's `.env` and publishable key may move a few bytes), `no route is over its budget`, and the two `no page.tsx under src/app yet` notes.
+3. **The outage steps show as skipped**, not as an error, and **Stop Medusa** ends with `stop-tree: stopped, port 9000 is free.`.
+4. **The jobs' times** into the table above.
+5. **The 1 KB mutation as a CI failure.** One commit, to be reverted after the run: in `ci.yml`, the step **First-load JS budget**, `run: pnpm --filter @shopblok/storefront check:first-load` becomes
+   `run: pnpm --filter @shopblok/storefront check:first-load --budget "/[market]=1"`.
+   Expected: that step fails with `::error::first-load: /[market] (overridden): … KB gzipped, over its 1 KB budget by … KB.`, the table above it shows `OVER`, the job is red, the steps between it and **Stop Medusa** are skipped, and **Stop Medusa** and the uploads still run. Link the failing run here: `TODO(orchestrator): mutation run link`. (On `/[market]/products/[handle]` it would pass, see the table above.)
+
+### Where it differs from the plan
+
+1. **The 1 KB mutation uses `/[market]`,** not the PDP or the PLP: those routes have no page yet, and a budget on a route without a page is only noted (step 3 of the plan says so).
+2. **`--budget <route>=<KB>`** is an addition: it is how the mutation is one line, and how T49 and T50 can see their pages fail locally.
+3. **A `Stop Medusa` step at the end of `e2e-smoke`** (the plan names the `stop` input and its use by the spec, not a closing step). It makes every run exercise the action's `stop` path and the PID file, and costs a few seconds (the script's four refused checks of the port: 3.6 s in the local run).
+4. **`vitest.config.ts` and a top-level `testMatch` in `playwright.config.ts`** are not in the plan's list: the unit test for `medusa-process.ts` (the plan asks for one) has to sit beside it, under `e2e/`, which Vitest excluded and Playwright took whole.
+5. **`hashFiles` in the steps' `if`** (the plan: "skipped while `e2e/outage.spec.ts` does not exist") instead of a shell test and an output.
+6. **A fixture file** (`route-bundle-stats.fixture.json`), the plan's "from a fixture", copied from Next's own output.
+
+### Decisions the plan did not settle
+
+1. **What a "KB" is, how gzip is counted.** 1 KB = 1024 bytes (as Lighthouse counts, which M7 will run); each chunk file gzipped on its own with `zlib.gzipSync`'s default level 6 and the sizes summed (what a server that compresses on the fly sends, one response per file), not brotli (Vercel serves brotli, which is smaller: the check is the stricter), and not the whole row as one stream. JavaScript only: that is what Next counts; CSS and fonts are not in SPEC §13's line.
+2. **A budget at exactly its size passes** (`>` fails), by one byte.
+3. **Strict on the input.** A missing or malformed stats file, a row without the three keys, an empty array and a missing chunk file all fail the check. A check that prints "ok" for a format it does not understand would defeat it.
+4. **Which routes have a page** is read from `src/app` (any `page.tsx|ts|jsx|js|mdx` outside `_private` folders, with route groups and `@slot` folders removed from the name), as the plan says ("the script looks for its `page.tsx`").
+5. **One `outage` project for both specs,** selected by the file on the command line, rather than two projects: the plan's command (`--project=outage e2e/outage-recovery.spec.ts`) names one project.
+6. **The PID file is left in place by `stop`** and by the outage spec; stopping again on its dead PID is a no-op that exits 0 (the first mutation above), and the restart overwrites it.
+7. **`start-medusa` accepts only `command: dev`.** `medusa start` needs the `.medusa/server` build to be current, which is the thing `e2e-smoke` now builds after starting Medusa.
+8. **The gate's `designSystemUnaffected` list is unchanged.** `apps/storefront/scripts/` and `e2e/support/medusa-process.ts` cannot affect the DS job's pages, but the gate fails open on a path no list names, and T49 and T50 touch both beside files that do run it.
+
+### Smaller observations
+
+- The "before M3" times come from a note (`ci-times-before-m3.md`) that was already in this session's scratch folder when the session looked, next to files it did not write (a Medusa log and PID file, two dump folders). The session did not read or write the others, and does not know who wrote the note, which is why the times are flagged.
+- **The gate already counts four of the DS-only areas as shared.** `node scripts/ci-gate.ts --files …` on this PR prints `shared, because code outside the DS imports them: packages/registry/, packages/ui/src/primitives/, packages/ui/src/molecules/, packages/ui/src/organisms/`. The importers are `apps/storefront/src/lib/visitor/cart-button.tsx` and `cookie-consent.tsx` (organisms, T35 and T36), `packages/ui/src/atoms/select.tsx`, `tooltip.tsx` and `providers.tsx` (primitives) and the `test-support/` suites (the registry's contracts, organisms), and the chain through the organisms makes the molecules shared too. So T27's "today nothing outside the DS imports them" has been out of date since T35, and a PR that changes only a molecule or an organism runs `e2e-smoke` now, which D53 counted on avoiding. No effect on T42, and the templates are not on that list (nothing imports them yet); whether `test-support/` files and the atoms' primitives should count is a gate decision for a later task.
+- `first-load.test.ts` and `medusa-process.test.ts` run in `windows-smoke`'s `pnpm test`: the chunk paths in the tests are compared with `/` separators, and they use temporary folders and fakes, no `bash`.
+- The build's `.next/cache` is 239 MB, and `route-bundle-stats.json` is rewritten on every `next build` (it was 5,375 bytes in each).
