@@ -12,6 +12,10 @@ import { findMarket } from "./markets/market";
  * different caches (`/next/markets`; `use cache`), so for a while after an owner changes a market
  * a key the proxy knows can be a 404 here; so can a path the proxy's matcher skips (SETUP.md, T08
  * item 2, T11).
+ *
+ * next-intl reads this for every request (`src/i18n/request.ts`, D62), so a page's translations,
+ * its `<html lang>` and its prices all come from the same market, with `withLocale`'s English
+ * fallback and time zone applied once.
  */
 export async function getCurrentMarket(): Promise<CurrentMarket> {
   const key = await market();
