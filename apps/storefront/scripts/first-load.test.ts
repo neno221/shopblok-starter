@@ -7,13 +7,15 @@ import {
   type Budget,
   KB,
   budgets,
+  errorLine,
+  escapeData,
   evaluate,
   gzipBytes,
   measure,
   pageRoutes,
   parseArgs,
   parseStats,
-  routeOfFolder,
+  routesManifestFile,
   run,
   statsFile,
   withOverrides,
@@ -27,6 +29,13 @@ const fixture = JSON.parse(
 );
 const rows = parseStats(fixture);
 const market = rows.find((row) => row.route === "/[market]")!;
+
+// Likewise a trimmed copy of `.next/app-path-routes-manifest.json` from the same build: the page
+// entries of the three rows above, an admin and a design-system page with a route group in their
+// path, and two route handlers (`…/route`).
+const manifest: unknown = JSON.parse(
+  readFileSync(path.join(import.meta.dirname, "app-path-routes-manifest.fixture.json"), "utf8"),
+);
 
 /** The chunk path the stats name, from the absolute path `measure` asks about (Windows spells it with backslashes). */
 const chunkOf = (file: string): string => path.relative("/pkg", file).split(path.sep).join("/");
@@ -122,10 +131,18 @@ describe("the budget", () => {
     expect(judged(170 * KB + 1).failures).toHaveLength(1);
   });
 
-  it("uses the PDP's and the PLP's routes at 170 KB in its table", () => {
+  it("budgets the PDP and the three listing pages at 170 KB, with the page/[n] routes T50 makes explicit", () => {
     expect(budgets).toEqual([
       { route: "/[market]/products/[handle]", label: "PDP", maxKB: 170 },
-      { route: "/[market]/categories/[...handle]", label: "PLP", maxKB: 170 },
+      { route: "/[market]/categories/[...handle]", label: "PLP, categories", maxKB: 170 },
+      { route: "/[market]/store", label: "PLP, store", maxKB: 170 },
+      { route: "/[market]/store/page/[n]", label: "PLP, store page n", maxKB: 170 },
+      { route: "/[market]/collections/[handle]", label: "PLP, collections", maxKB: 170 },
+      {
+        route: "/[market]/collections/[handle]/page/[n]",
+        label: "PLP, collections page n",
+        maxKB: 170,
+      },
     ]);
   });
 
@@ -146,9 +163,46 @@ describe("the budget", () => {
       new Set(["/[market]/products/[handle]"]),
     );
     expect(gone.failures).toHaveLength(1);
-    expect(gone.failures[0]).toMatch(/PDP\) has a page under src\/app and no row/);
+    expect(gone.failures[0]).toMatch(
+      /PDP\) is a page in \.next\/app-path-routes-manifest\.json and has no row/,
+    );
     expect(gone.table.at(-1)).toMatch(/NO ROW$/);
   });
+
+  // PR 69 review, item 4: a heavy listing page must not pass because its route is not in the table.
+  it.each(budgets.map((budget) => [budget.route, budget] as const))(
+    "fails %s when it has a page and no row, and only says so when it has no page",
+    (route, budget) => {
+      const measured = measure([market], "/pkg", () => 1);
+      const withPage = evaluate(measured, budgets, new Set([route]));
+      expect(withPage.failures).toHaveLength(1);
+      expect(withPage.failures[0]).toContain(`${route} (${budget.label}) is a page in`);
+      expect(withPage.table.filter((line) => line.endsWith("NO ROW"))).toHaveLength(1);
+
+      const withoutPage = evaluate(measured, budgets, new Set(["/[market]"]));
+      expect(withoutPage.failures).toEqual([]);
+      expect(withoutPage.notes).toHaveLength(budgets.length);
+    },
+  );
+
+  // SPEC §13: the PDP and every PLP route, the page/[n] ones included, over 170 KB gzipped fail.
+  it.each(budgets.map((budget) => [budget.route, budget.label] as const))(
+    "%s: passes at 170 KB and fails at 171 KB",
+    (route, label) => {
+      const failuresAt = (total: number) => {
+        const sizes = sizesAdding(total);
+        return evaluate(
+          measure([{ ...market, route }], "/pkg", (file) => sizes.get(chunkOf(file))),
+          budgets,
+          new Set([route]),
+        ).failures;
+      };
+      expect(failuresAt(170 * KB)).toEqual([]);
+      expect(failuresAt(171 * KB)).toEqual([
+        `${route} (${label}): 171.0 KB gzipped, over its 170 KB budget by 1.0 KB.`,
+      ]);
+    },
+  );
 
   it("says, and does not fail, when a budgeted route has no page yet", () => {
     const report = evaluate(
@@ -158,7 +212,7 @@ describe("the budget", () => {
     );
     expect(report.failures).toEqual([]);
     expect(report.notes).toEqual([
-      "/[market]/products/[handle] (PDP): no page.tsx under src/app yet, so its 170 KB budget is not checked.",
+      "/[market]/products/[handle] (PDP): Next built no page for it yet (not in .next/app-path-routes-manifest.json), so its 170 KB budget is not checked.",
     ]);
     expect(report.table.at(-1)).toMatch(/no page yet$/);
   });
@@ -194,7 +248,7 @@ describe("withOverrides and parseArgs", () => {
       { route: "/[market]", label: "overridden", maxKB: 1 },
     ]);
     expect(merged).toEqual([
-      { route: "/[market]/categories/[...handle]", label: "PLP", maxKB: 170 },
+      ...budgets.filter((budget) => budget.route !== "/[market]/products/[handle]"),
       { route: "/[market]/products/[handle]", label: "overridden", maxKB: 1 },
       { route: "/[market]", label: "overridden", maxKB: 1 },
     ]);
@@ -223,17 +277,57 @@ describe("withOverrides and parseArgs", () => {
   });
 });
 
-describe("the routes under src/app", () => {
-  it("names a folder's route as Next does: groups and slots are not in it", () => {
-    expect(routeOfFolder(".")).toBe("/");
-    expect(routeOfFolder("(storefront)/[market]/products/[handle]")).toBe(
-      "/[market]/products/[handle]",
+describe("the pages Next built", () => {
+  it("takes the routes of the page entries from the manifest, as Next names them", () => {
+    expect([...pageRoutes(manifest)].sort()).toEqual([
+      "/[market]",
+      "/_not-found",
+      "/admin/[[...segments]]",
+      "/design-system/[locale]/[...entry]",
+      "/design-system/[locale]/preview/[...entry]",
+    ]);
+  });
+
+  it("agrees with the stats file about every row's route (the two come from one build)", () => {
+    const pages = pageRoutes(manifest);
+    expect(rows.filter((row) => !pages.has(row.route))).toEqual([]);
+  });
+
+  it("leaves out route handlers", () => {
+    const pages = pageRoutes(manifest);
+    expect(pages.has("/api/[...slug]")).toBe(false);
+    expect(pages.has("/next/markets")).toBe(false);
+    expect(pages.has("/favicon.ico")).toBe(false);
+  });
+
+  it.each([
+    ["an array", [], /expected an object/],
+    ["null", null, /expected an object/],
+    [
+      "a route that is not a string",
+      { "/x/page": 1 },
+      /`\/x\/page` is not mapped to a route string/,
+    ],
+    ["no page entry", { "/x/route": "/x" }, /no app path ends in `\/page`/],
+    ["an empty object", {}, /no app path ends in `\/page`/],
+  ])("rejects %s", (_name, json, message) => {
+    expect(() => pageRoutes(json)).toThrow(message);
+  });
+});
+
+describe("the ::error:: annotation", () => {
+  it("escapes % first, then CR and LF, as GitHub reads workflow-command data", () => {
+    expect(escapeData("100% of /a%20b.js\r\nnext\nline")).toBe(
+      "100%25 of /a%2520b.js%0D%0Anext%0Aline",
     );
-    expect(routeOfFolder("(storefront)/[market]/@modal/categories/[...handle]")).toBe(
-      "/[market]/categories/[...handle]",
-    );
-    expect(routeOfFolder("(payload)/admin/[[...segments]]")).toBe("/admin/[[...segments]]");
-    expect(routeOfFolder("_private/x")).toBeUndefined();
+    // A literal %0A in the message stays a literal: it must not become a newline in the annotation.
+    expect(escapeData("a%0Ab")).toBe("a%250Ab");
+    expect(escapeData("nothing to escape")).toBe("nothing to escape");
+  });
+
+  it("is written under GitHub Actions only", () => {
+    expect(errorLine("first-load: x\ny 50%", true)).toBe("::error::first-load: x%0Ay 50%25");
+    expect(errorLine("first-load: x\ny 50%", false)).toBe("first-load: x\ny 50%");
   });
 });
 
@@ -251,21 +345,8 @@ describe("a package on disk", () => {
     writeFileSync(path.join(root, file), content);
   };
   const stats = (rowList: unknown[]) => write(statsFile, JSON.stringify(rowList));
-
-  it("finds the page files: pages only, not route handlers or layouts", () => {
-    write("src/app/(storefront)/[market]/page.tsx", "");
-    write("src/app/(storefront)/[market]/layout.tsx", "");
-    write("src/app/(storefront)/[market]/products/[handle]/page.tsx", "");
-    write("src/app/next/status/route.ts", "");
-    write("src/app/_components/page.tsx", "");
-    write("src/app/design-system/[locale]/page.mdx", "");
-    expect([...pageRoutes(path.join(root, "src/app"))].sort()).toEqual([
-      "/[market]",
-      "/[market]/products/[handle]",
-      "/design-system/[locale]",
-    ]);
-    expect(pageRoutes(path.join(root, "nowhere")).size).toBe(0);
-  });
+  const pagesBuilt = (appPaths: Record<string, string>) =>
+    write(routesManifestFile, JSON.stringify(appPaths));
 
   it("gzips the files: a compressible chunk counts for far less than its size", () => {
     const zeros = new Uint8Array(1024 * KB);
@@ -291,7 +372,7 @@ describe("a package on disk", () => {
     // Incompressible chunks, so the gzipped size is the file's size plus gzip's header.
     write(".next/static/chunks/a.js", randomBytes(120 * KB));
     write(".next/static/chunks/b.js", randomBytes(60 * KB));
-    write("src/app/(storefront)/[market]/page.tsx", "");
+    pagesBuilt({ "/(storefront)/[market]/page": "/[market]" });
     stats([
       {
         route: "/[market]",
@@ -320,7 +401,7 @@ describe("a package on disk", () => {
     expect(errors).toEqual([]);
     expect(lines.join("\n")).toMatch(/\/\[market\]\s+2\s+180\.0\s+18[0-9]\.\d\s+200\s+ok/);
     expect(lines.join("\n")).toContain(
-      "/[market]/products/[handle] (PDP): no page.tsx under src/app yet",
+      "/[market]/products/[handle] (PDP): Next built no page for it yet",
     );
 
     expect(exec(["--budget", "/[market]=1"])).toBe(1);
@@ -330,8 +411,7 @@ describe("a package on disk", () => {
     );
   });
 
-  it("run: a budgeted route with a page and no row fails; so does a stats file that is missing or has another shape", () => {
-    write("src/app/(storefront)/[market]/products/[handle]/page.tsx", "");
+  it("run: a budgeted route with a page and no row fails; so does a stats file or a manifest that is missing or has another shape", () => {
     const errors: string[] = [];
     const exec = () =>
       run(
@@ -358,8 +438,23 @@ describe("a package on disk", () => {
       },
     ]);
     expect(exec()).toBe(1);
+    expect(errors.pop()).toMatch(/cannot use \.next\/app-path-routes-manifest\.json: .*ENOENT/);
+
+    write(routesManifestFile, JSON.stringify(["/[market]"]));
+    expect(exec()).toBe(1);
+    expect(errors.pop()).toMatch(/expected an object from each app path/);
+
+    write(routesManifestFile, JSON.stringify({ "/next/status/route": "/next/status" }));
+    expect(exec()).toBe(1);
+    expect(errors.pop()).toMatch(/no app path ends in `\/page`/);
+
+    pagesBuilt({
+      "/(storefront)/[market]/page": "/[market]",
+      "/(storefront)/[market]/products/[handle]/page": "/[market]/products/[handle]",
+    });
+    expect(exec()).toBe(1);
     expect(errors.pop()).toMatch(
-      /\/\[market\]\/products\/\[handle\] \(PDP\) has a page under src\/app and no row/,
+      /\/\[market\]\/products\/\[handle\] \(PDP\) is a page in \.next\/app-path-routes-manifest\.json and has no row/,
     );
   });
 

@@ -10,12 +10,18 @@
 // the page. The row's own byte count is uncompressed; this script gzips each chunk file and sums
 // the sizes, which is what a visitor's first load transfers.
 //
-// What fails (exit 1): a budgeted route over its budget; a budgeted route whose `page.tsx` exists
-// under `src/app` and which has no row (so a change of the file's format cannot pass silently); a
-// stats file that is missing or not in the shape above; a chunk file the stats name that is not on
-// disk (a size that is too small must not pass). A budgeted route with no page yet is said, not
-// failed. The table of every route is always printed.
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+// Which routes have a page comes from Next as well: `.next/app-path-routes-manifest.json`, written by
+// the same build, maps each app path (`/(storefront)/[market]/products/[handle]/page`) to the route it
+// serves (`/[market]/products/[handle]`) with the `normalizeAppPath` that names the stats file's rows
+// (`build/index.js`, `build/route-bundle-stats.js`), so the two cannot disagree about a route group, a
+// slot or any other kind of folder (PR 69 review, item 6). Route handlers end in `/route` there.
+//
+// What fails (exit 1): a budgeted route over its budget; a budgeted route that has a page in the
+// manifest and no row in the stats (so a change of the stats file's format cannot pass silently); a
+// stats file or manifest that is missing or not in the shape above; a chunk file the stats name that
+// is not on disk (a size that is too small must not pass). A budgeted route Next built no page for
+// yet is said, not failed. The table of every route is always printed.
+import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { gzipSync } from "node:zlib";
@@ -34,12 +40,29 @@ export type Budget = {
 
 /**
  * The budgeted routes. Every other route is printed and not judged. T49 adds the PDP's page and T50
- * the PLP's; until a route has a `page.tsx` its budget is not checked. Change a budget here; a
- * one-off value for an experiment goes on the command line (`--budget "/[market]=1"`).
+ * the listing pages'; until Next builds a page for a route its budget is not checked. Change a
+ * budget here; a one-off value for an experiment goes on the command line
+ * (`--budget "/[market]=1"`).
+ *
+ * The PLP is three routes (D58: store, categories, collections), each at SPEC §13's 170 KB. The
+ * pagination is a path segment (D59), and T50 step 1 says how each route takes it: the category
+ * route is a catch-all that parses a trailing `page/{n}`, so `/categories/dresses/page/2` is the one
+ * row below; `store/page/[n]` and `collections/[handle]/page/[n]` are explicit routes, which Next
+ * names as their own rows. The keys are the ones Next writes for those folders. If T50 builds them
+ * another way (an optional catch-all, say), its page will be under another key and these rows will
+ * only say "no page yet": T50 changes the table.
  */
 export const budgets: readonly Budget[] = [
   { route: "/[market]/products/[handle]", label: "PDP", maxKB: 170 },
-  { route: "/[market]/categories/[...handle]", label: "PLP", maxKB: 170 },
+  { route: "/[market]/categories/[...handle]", label: "PLP, categories", maxKB: 170 },
+  { route: "/[market]/store", label: "PLP, store", maxKB: 170 },
+  { route: "/[market]/store/page/[n]", label: "PLP, store page n", maxKB: 170 },
+  { route: "/[market]/collections/[handle]", label: "PLP, collections", maxKB: 170 },
+  {
+    route: "/[market]/collections/[handle]/page/[n]",
+    label: "PLP, collections page n",
+    maxKB: 170,
+  },
 ];
 
 export type StatsRow = {
@@ -75,11 +98,7 @@ export function parseStats(json: unknown): StatsRow[] {
     ) {
       throw new Error(`${at} (${route}) has no \`firstLoadChunkPaths\` array of strings.`);
     }
-    return {
-      route,
-      firstLoadUncompressedJsBytes,
-      firstLoadChunkPaths: firstLoadChunkPaths,
-    };
+    return { route, firstLoadUncompressedJsBytes, firstLoadChunkPaths };
   });
 }
 
@@ -137,38 +156,24 @@ export function measure(
   });
 }
 
+export const routesManifestFile = ".next/app-path-routes-manifest.json";
+
 /**
- * The route a page file serves, as Next names it in the stats file: the folder's path below
- * `src/app`, without route groups (`(storefront)`) and parallel-route slots (`@modal`).
- * `undefined` for a folder Next does not route (`_private`).
+ * The routes that have a page, from `.next/app-path-routes-manifest.json`: an object from each app
+ * path (`/(storefront)/[market]/products/[handle]/page`; `…/route` for a route handler) to the route
+ * it serves (`/[market]/products/[handle]`). The value is the name the stats file's rows carry.
  */
-export function routeOfFolder(folder: string): string | undefined {
-  const segments = folder.split("/").filter((segment) => segment !== "" && segment !== ".");
-  if (segments.some((segment) => segment.startsWith("_"))) return undefined;
-  const routed = segments.filter(
-    (segment) => !/^\(.+\)$/.test(segment) && !segment.startsWith("@"),
-  );
-  return `/${routed.join("/")}`;
-}
-
-const pageFile = /^page\.(?:tsx|ts|jsx|js|mdx)$/;
-
-/** The routes that have a `page` file under `appDir` (a missing folder has none). */
-export function pageRoutes(appDir: string): Set<string> {
+export function pageRoutes(json: unknown): Set<string> {
+  if (typeof json !== "object" || json === null || Array.isArray(json)) {
+    throw new Error("expected an object from each app path to its route.");
+  }
   const routes = new Set<string>();
-  const walk = (folder: string): void => {
-    for (const entry of readdirSync(path.join(appDir, folder), {
-      withFileTypes: true,
-    })) {
-      if (entry.isDirectory()) {
-        if (entry.name !== "node_modules") walk(path.posix.join(folder, entry.name));
-      } else if (entry.isFile() && pageFile.test(entry.name)) {
-        const route = routeOfFolder(folder);
-        if (route !== undefined) routes.add(route);
-      }
-    }
-  };
-  if (existsSync(appDir)) walk(".");
+  for (const [appPath, route] of Object.entries(json)) {
+    if (typeof route !== "string")
+      throw new Error(`\`${appPath}\` is not mapped to a route string.`);
+    if (appPath.endsWith("/page")) routes.add(route);
+  }
+  if (routes.size === 0) throw new Error("no app path ends in `/page`: Next wrote no page.");
   return routes;
 }
 
@@ -184,7 +189,7 @@ export type Report = {
 const kb = (bytes: number): string => (bytes / KB).toFixed(1);
 
 /**
- * Judges the measured routes. `pages` are the routes that have a page file, which decides whether a
+ * Judges the measured routes. `pages` are the routes Next built a page for, which decides whether a
  * budgeted route without a row is a failure (the format changed) or only not built yet.
  */
 export function evaluate(
@@ -231,12 +236,12 @@ export function evaluate(
     if (pages.has(budget.route)) {
       lines.push([budget.route, "-", "-", "-", String(budget.maxKB), "NO ROW"]);
       failures.push(
-        `${budget.route} (${budget.label}) has a page under src/app and no row in route-bundle-stats.json: the file's format may have changed, or the build skipped the route. Not passing without a size.`,
+        `${budget.route} (${budget.label}) is a page in ${routesManifestFile} and has no row in route-bundle-stats.json: the stats file's format may have changed, or Next skipped the route. Not passing without a size.`,
       );
     } else {
       lines.push([budget.route, "-", "-", "-", String(budget.maxKB), "no page yet"]);
       notes.push(
-        `${budget.route} (${budget.label}): no page.tsx under src/app yet, so its ${budget.maxKB} KB budget is not checked.`,
+        `${budget.route} (${budget.label}): Next built no page for it yet (not in ${routesManifestFile}), so its ${budget.maxKB} KB budget is not checked.`,
       );
     }
   }
@@ -300,23 +305,23 @@ export function run(
     fail(`first-load: ${args.usage}\n${usageText}`);
     return 2;
   }
-  const file = path.join(root, statsFile);
+  const readJson = (file: string): unknown =>
+    JSON.parse(readFileSync(path.join(root, file), "utf8"));
+  let reading = statsFile;
   let rows: StatsRow[];
+  let pages: Set<string>;
   try {
-    rows = parseStats(JSON.parse(readFileSync(file, "utf8")));
+    rows = parseStats(readJson(statsFile));
+    reading = routesManifestFile;
+    pages = pageRoutes(readJson(routesManifestFile));
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error);
     fail(
-      `first-load: cannot use ${statsFile}: ${reason}\nRun \`pnpm build\` first. Next 16.4 writes the file after a Turbopack build; a build with another bundler, or another Next, may not.`,
+      `first-load: cannot use ${reading}: ${reason}\nRun \`pnpm build\` first. Next 16.4 writes both files after a Turbopack build; a build with another bundler, or another Next, may not.`,
     );
     return 1;
   }
-  const budgetList = withOverrides(tableBudgets, args.overrides);
-  const report = evaluate(
-    measure(rows, root),
-    budgetList,
-    pageRoutes(path.join(root, "src", "app")),
-  );
+  const report = evaluate(measure(rows, root), withOverrides(tableBudgets, args.overrides), pages);
   print("First-load JS per route, each chunk gzipped on its own and summed (SPEC §13):");
   for (const line of report.table) print(line);
   for (const note of report.notes) print(note);
@@ -326,6 +331,20 @@ export function run(
   }
   print("first-load: no route is over its budget.");
   return 0;
+}
+
+/**
+ * Workflow-command data as GitHub reads it: `%` first (or the `%0A` below would be escaped again),
+ * then CR and LF. What `escapeData` of @actions/core does; a message that quotes a percent-encoded
+ * path or a JSON parse error stays as written in the annotation.
+ */
+export function escapeData(text: string): string {
+  return text.replaceAll("%", "%25").replaceAll("\r", "%0D").replaceAll("\n", "%0A");
+}
+
+/** A line for stderr: an `::error::` annotation under GitHub Actions, the line itself elsewhere. */
+export function errorLine(line: string, github: boolean): string {
+  return github ? `::error::${escapeData(line)}` : line;
 }
 
 if (
@@ -338,6 +357,6 @@ if (
     process.argv.slice(2),
     root,
     (line) => console.log(line),
-    (line) => console.error(github ? `::error::${line.replaceAll("\n", "%0A")}` : line),
+    (line) => console.error(errorLine(line, github)),
   );
 }

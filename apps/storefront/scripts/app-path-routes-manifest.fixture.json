@@ -1,0 +1,10 @@
+{
+  "/(payload)/admin/[[...segments]]/page": "/admin/[[...segments]]",
+  "/(payload)/api/[...slug]/route": "/api/[...slug]",
+  "/(storefront)/[market]/page": "/[market]",
+  "/_not-found/page": "/_not-found",
+  "/design-system/[locale]/(entry)/[...entry]/page": "/design-system/[locale]/[...entry]",
+  "/design-system/[locale]/preview/[...entry]/page": "/design-system/[locale]/preview/[...entry]",
+  "/favicon.ico/route": "/favicon.ico",
+  "/next/markets/route": "/next/markets"
+}
