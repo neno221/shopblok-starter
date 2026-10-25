@@ -12,6 +12,7 @@
     "lint": "eslint .",
     "test": "vitest run",
     "test:e2e": "playwright test",
+    "check:first-load": "node scripts/first-load.ts",
     "payload": "payload",
     "generate:types": "payload generate:types",
     "generate:importmap": "payload generate:importmap"
