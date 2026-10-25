@@ -45,18 +45,43 @@ const MARKETS = [
 
 type Received = { document: string; scripts: { url: string; text: string }[] };
 
+/** The scripts whose body must be readable: the build's own files. Anything else may be cancelled. */
+function isBuildFile(url: string): boolean {
+  return new URL(url).pathname.startsWith("/_next/static/");
+}
+
 async function receive(page: Page, path: string): Promise<Received> {
-  const bodies: Promise<{ url: string; text: string }>[] = [];
+  // PR 70 review, item 4. `response.text()` rejects for a script the browser cancelled while the
+  // page hydrated ("Response body is unavailable"), and a script can answer after the page
+  // settles. So: every body is read to its end, whichever way it ends, after `networkidle`
+  // (reading as responses arrive, and again for any that came while reading), and only a build
+  // file that cannot be read fails the test.
+  const bodies: { url: string; body: Promise<string> }[] = [];
   page.on("response", (response) => {
-    if (response.request().resourceType() === "script") {
-      bodies.push(response.text().then((text) => ({ url: response.url(), text })));
-    }
+    if (response.request().resourceType() !== "script") return;
+    const body = response.text();
+    body.catch(() => undefined); // read by `allSettled` below; not an unhandled rejection meanwhile
+    bodies.push({ url: response.url(), body });
   });
   const response = await page.goto(path);
   expect(response?.status()).toBe(200);
   const document = (await response?.text()) ?? "";
   await page.waitForLoadState("networkidle");
-  return { document, scripts: await Promise.all(bodies) };
+
+  const scripts: Received["scripts"] = [];
+  const unreadable: string[] = [];
+  for (let read = 0; read < bodies.length;) {
+    const batch = bodies.slice(read);
+    read = bodies.length;
+    const settled = await Promise.allSettled(batch.map((entry) => entry.body));
+    settled.forEach((result, index) => {
+      const url = batch[index]?.url ?? "";
+      if (result.status === "fulfilled") scripts.push({ url, text: result.value });
+      else if (isBuildFile(url)) unreadable.push(`${url}: ${String(result.reason)}`);
+    });
+  }
+  expect(unreadable, "every file of the build was readable").toEqual([]);
+  return { document, scripts };
 }
 
 test.describe("the client receives the shell's messages and no catalog (D62)", () => {
