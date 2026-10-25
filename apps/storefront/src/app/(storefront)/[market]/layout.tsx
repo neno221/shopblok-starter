@@ -26,8 +26,11 @@ export async function generateStaticParams() {
 // D62: the copy comes from next-intl, which reads the same market (`src/i18n/request.ts`). The client
 // provider is given the shell's namespaces only; without `messages` it would send the whole catalog.
 export default async function RootLayout({ children }: { children: ReactNode }) {
-  const market = await getCurrentMarket();
-  const [t, messages] = await Promise.all([getTranslations("primitives.toast"), getMessages()]);
+  const [market, t, messages] = await Promise.all([
+    getCurrentMarket(),
+    getTranslations("primitives.toast"),
+    getMessages(),
+  ]);
   return (
     <html lang={market.htmlLang} className={inter.variable}>
       <body>
