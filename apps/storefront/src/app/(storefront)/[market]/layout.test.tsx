@@ -7,13 +7,18 @@ import { pick, SHELL_MESSAGES } from "../../../i18n/messages";
 import type { MarketMap } from "../../../lib/markets/types";
 import { brazil, mongolia, seeded } from "../../../lib/markets/test-maps";
 
-const state = vi.hoisted(() => ({ key: "", map: undefined as unknown as MarketMap }));
+const state = vi.hoisted(() => ({
+  key: "",
+  map: undefined as unknown as MarketMap,
+}));
 vi.mock("next/root-params", () => ({ market: async () => state.key }));
 vi.mock("../../../lib/markets/cached-market-map", () => ({
   getRenderMarketMap: async () => state.map,
 }));
 // `next/font` only works inside Next's build; the layout's markup is what is under test.
-vi.mock("../../../lib/fonts", () => ({ inter: { variable: "inter-variable" } }));
+vi.mock("../../../lib/fonts", () => ({
+  inter: { variable: "inter-variable" },
+}));
 // `next-intl`'s root entry is the Server Component build under the `react-server` condition, which
 // Vitest does not set: its provider reads the request configuration itself, as it does in Next.
 vi.mock("next-intl", async () => {
@@ -32,7 +37,12 @@ afterEach(() => {
   state.key = "";
 });
 
-type Props = { lang?: string; messages?: unknown; copy?: unknown; children?: ReactNode };
+type Props = {
+  lang?: string;
+  messages?: unknown;
+  copy?: unknown;
+  children?: ReactNode;
+};
 
 /** The first element in `node`'s tree for which `test` holds, looking through `props.children`. */
 function find(node: ReactNode, test: (props: Props) => boolean): ReactElement<Props> | undefined {
@@ -76,6 +86,32 @@ describe("the market layout (D62)", () => {
       for (const left of ["cartLineItem", "productCard", "designSystem", "atoms"]) {
         expect(sent, `${key}: ${left}`).not.toContain(left);
       }
+    }
+  });
+
+  // PR 70 review, item 2: the layout is outside every error boundary, so a catalog that lacks a shell
+  // message must not make it throw (every page of the language would answer 500).
+  it("shows the English message, and does not throw, when a catalog lacks a shell message", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const wiring = catalogs.de.wiring as Record<string, unknown>;
+    const held = wiring["backendHint"];
+    delete wiring["backendHint"];
+    try {
+      const provider = find(
+        await layoutFor(seeded, "de-ch"),
+        (props) => props.messages !== undefined,
+      );
+      expect(provider?.props.messages).toEqual({
+        wiring: {
+          backendUnavailable: catalogs.de.wiring.backendUnavailable,
+          backendHint: catalogs.en.wiring.backendHint,
+        },
+      });
+      expect(warn).toHaveBeenCalledWith(
+        expect.stringContaining('de catalog has no message at "wiring.backendHint"'),
+      );
+    } finally {
+      wiring["backendHint"] = held;
     }
   });
 
