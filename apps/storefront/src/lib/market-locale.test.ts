@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { withLocale } from "./market-locale";
+import { DEFAULT_TIME_ZONE, withLocale } from "./market-locale";
 import { findMarket } from "./markets/market";
 import { brazil, mongolia, seeded } from "./markets/test-maps";
 
@@ -20,5 +20,18 @@ describe("withLocale", () => {
       htmlLang: "pt-BR",
       medusaLocale: "pt-BR",
     });
+  });
+
+  // next-intl falls back to the zone of the machine that renders when none is set, so a prerender
+  // and a browser would write different times. D65 gives each country its own zone.
+  it("sets a fixed time zone, UTC until D65 gives a market its own", () => {
+    expect(DEFAULT_TIME_ZONE).toBe("UTC");
+    for (const [map, key] of [
+      [seeded, "el-cy"],
+      [mongolia, "mn-mn"],
+      [brazil, "pt-br"],
+    ] as const) {
+      expect(withLocale(findMarket(map, key)!).timeZone, key).toBe("UTC");
+    }
   });
 });

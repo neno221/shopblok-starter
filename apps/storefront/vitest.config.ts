@@ -7,15 +7,33 @@ import { configDefaults, defineConfig } from "vitest/config";
 // package does not ship (hundreds of warnings). country-flag-icons imports `react` without
 // declaring it, so Node would resolve it from pnpm's shared store, which may hold another major:
 // Vite processes the package instead (`inline`) and resolves its `react` from here (`dedupe`).
+//
+// next-intl (D62) picks its build by the `react-server` export condition, which Vitest does not set,
+// so `next-intl/server` would resolve to stubs that throw. The aliases do what Next does: the server
+// build of `next-intl/server`, and the plugin's own alias of `next-intl/config` to the request
+// configuration (`createNextIntlPlugin` in next.config.ts). A test that renders a Server Component
+// then runs the real `getTranslations` through the real `src/i18n/request.ts`. next-intl and
+// use-intl are `inline` so that the alias also applies to the imports inside the package.
+const fromHere = (path: string) => fileURLToPath(new URL(path, import.meta.url));
+
 export default defineConfig({
   resolve: {
     dedupe: ["react", "react-dom"],
     alias: {
-      "server-only": fileURLToPath(new URL("./src/test-support/server-only.ts", import.meta.url)),
+      "server-only": fromHere("./src/test-support/server-only.ts"),
+      "next-intl/server": fromHere(
+        "./node_modules/next-intl/dist/esm/development/server.react-server.js",
+      ),
+      "next-intl/config": fromHere("./src/i18n/request.ts"),
     },
   },
   test: {
     exclude: [...configDefaults.exclude, "e2e/**"],
-    server: { deps: { external: [/@medusajs\/js-sdk/], inline: ["country-flag-icons"] } },
+    server: {
+      deps: {
+        external: [/@medusajs\/js-sdk/],
+        inline: ["country-flag-icons", "next-intl", "use-intl"],
+      },
+    },
   },
 });

@@ -1,13 +1,24 @@
 import { DEFAULT_LOCALE, isLocale, type Locale } from "@shopblok/i18n";
 import type { Market } from "./markets/types";
 
-/** A market, and the message catalog its pages use: the language when `@shopblok/i18n` has it. */
-export type CurrentMarket = Market & { locale: Locale };
+/**
+ * The zone a market's dates are written in until D65 gives each country one (the `markets`
+ * global's `timeZone`, then `Market.timeZone`): a fixed zone, so the server that prerenders a page
+ * and the browser that hydrates it print the same time.
+ */
+export const DEFAULT_TIME_ZONE = "UTC";
+
+/**
+ * A market, the message catalog its pages use (the language when `@shopblok/i18n` has it) and the
+ * time zone its dates are written in.
+ */
+export type CurrentMarket = Market & { locale: Locale; timeZone: string };
 
 /** English copy for a language the i18n package has no catalog for (a Brazilian shop in `pt`). */
 export function withLocale(market: Market): CurrentMarket {
   return {
     ...market,
     locale: isLocale(market.language) ? market.language : DEFAULT_LOCALE,
+    timeZone: DEFAULT_TIME_ZONE,
   };
 }
