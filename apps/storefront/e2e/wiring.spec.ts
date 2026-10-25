@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { catalogs } from "./support/catalogs";
 
 // T16: the wiring page (`[market]/page.tsx`, SETUP.md "Medusa DAL and the wiring page (T12)") for
 // every market: the market's language and region, the currency of the prices, and the product
@@ -207,5 +208,29 @@ test.describe("the wiring page: language, region, currency and translated produc
       await expect(page.getByTestId("no-region")).toHaveCount(0);
       await expect(page.getByTestId("no-products")).toHaveCount(0);
     });
+  }
+});
+
+// T46 (D62): the page's copy now comes from next-intl, which reads the market from the `[market]`
+// root param; the money still comes from `formatMoney` with the market's lang value. `/` is Cyprus:
+// Greek words, and the euro written the Greek way (`14,00 €`: comma, space, sign after), not `€14.00`.
+test("/ is in Greek and writes the euro the Greek way", async ({ page }) => {
+  await page.goto("/");
+  const { wiring } = catalogs.el;
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(wiring.title);
+  await expect(page.getByText(wiring.currency, { exact: true })).toBeVisible();
+  await expect(page.getByTestId("currency")).toHaveText("EUR");
+  await expect(page.getByTestId("product")).toHaveCount(4);
+  for (const row of await page.getByTestId("product").allInnerTexts()) {
+    expect(row.trim(), "Greek euro: 14,00 €").toMatch(/ — \d+,\d{2}\s€$/);
+  }
+});
+
+test("/us is in English and writes the dollar the American way", async ({ page }) => {
+  await page.goto("/us");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(catalogs.en.wiring.title);
+  await expect(page.getByTestId("product")).toHaveCount(4);
+  for (const row of await page.getByTestId("product").allInnerTexts()) {
+    expect(row.trim(), "American dollar: $28.00").toMatch(/ — \$\d+\.\d{2}$/);
   }
 });
