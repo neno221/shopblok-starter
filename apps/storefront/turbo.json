@@ -10,7 +10,15 @@
       // until a request revalidates it (the layout's `cacheLife` is 30 s).
       // `DESIGN_SYSTEM_ENABLED` (D33): the design-system pages are static, so the flag is frozen
       // into the build; it is in the hash so that a build with it is never replayed for one without.
-      "env": ["$TURBO_EXTENDS$", "PAYLOAD_*", "DESIGN_SYSTEM_ENABLED"]
+      // `STOREFRONT_PRERENDER_PRODUCTS` (D58, D67): how many product pages `generateStaticParams`
+      // returns, so it is frozen into the build too, and strict mode would drop it from `pnpm build`
+      // without this line. CI sets it to 4 (T42); T49 is the first code that reads it.
+      "env": [
+        "$TURBO_EXTENDS$",
+        "PAYLOAD_*",
+        "DESIGN_SYSTEM_ENABLED",
+        "STOREFRONT_PRERENDER_PRODUCTS"
+      ]
     },
     "test": {
       // `src/lib/markets/medusa-locales.test.ts` reads Medusa's locale list from the backend's
