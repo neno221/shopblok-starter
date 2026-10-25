@@ -192,8 +192,16 @@ jobs:
       # STOREFRONT_PRERENDER_PRODUCTS (D58, D67 item 2): four of the demo catalog's eight products are
       # prerendered, so the outage test has pages that render on request (T49 is the first code that
       # reads it; apps/storefront/turbo.json lists it for the build).
-      - name: Build
-        run: pnpm build
+      # Only the storefront is built (PR 69 review, item 5): `--filter` selects the entry point and
+      # turbo still runs its `^build` and `transit` dependencies (the packages it imports; none has a
+      # build script of its own, so there is nothing to run for them). The backend's `medusa build`
+      # is left out: nothing in this job reads `apps/backend/.medusa/server` (Medusa runs from source
+      # as `medusa develop`; doctor, the suites and next dev talk to it over HTTP), and it would
+      # rewrite `.medusa/` and run a Vite admin build beside the server on two cores. The `check`
+      # job builds the whole workspace, so `medusa build` stays covered there (it is the backend's
+      # type check).
+      - name: Build the storefront
+        run: pnpm exec turbo run build --filter=@shopblok/storefront
         env:
           STOREFRONT_PRERENDER_PRODUCTS: "4"
       # T42, D67 item 4 (SPEC §13): the PLP's and the PDP's first-load JS, gzipped, from the file Next
@@ -241,8 +249,11 @@ jobs:
         uses: ./.github/actions/start-medusa
         with:
           log: medusa-restart.log
+      # Gated on its own spec: if T49 lands outage.spec.ts first, this step must not fail e2e-smoke with
+      # "No tests found" (PR 69 review, item 1). The restart above stays on outage.spec.ts, since that
+      # spec leaves Medusa down either way.
       - name: Outage recovery test (Medusa started again)
-        if: ${{ hashFiles('apps/storefront/e2e/outage.spec.ts') != '' }}
+        if: ${{ hashFiles('apps/storefront/e2e/outage-recovery.spec.ts') != '' }}
         run: pnpm --filter @shopblok/storefront test:e2e --project=outage --reporter=list,html --output=test-results-outage-recovery e2e/outage-recovery.spec.ts
         env:
           E2E_OUTAGE: "true"
