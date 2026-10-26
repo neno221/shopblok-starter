@@ -259,6 +259,38 @@ export async function addLine(
   return toCartDto(cart as unknown as WireCart);
 }
 
+/** A line as the actions check it: every line Medusa holds, those `toCartDto` leaves out too. */
+export type CartItemRef = { id: string; variantId: string | null; quantity: number };
+
+/**
+ * The cart's lines by id, variant and quantity only (the actions' ownership and limit checks, one
+ * small read), or `null` when the visitor has no open cart. Unlike `getCart` it keeps a line with
+ * no variant, so such a line can still be removed (PR 73 review).
+ */
+export async function getCartItems(): Promise<CartItemRef[] | null> {
+  const id = await getCartId();
+  if (id === undefined) return null;
+  try {
+    const { cart } = await medusaRequest(async (sdk) =>
+      sdk.store.cart.retrieve(
+        id,
+        { fields: "id,completed_at,items.id,items.variant_id,items.quantity" },
+        await headersFor(),
+      ),
+    );
+    const wire = cart as unknown as WireCart;
+    if (wire.completed_at) return null;
+    return (wire.items ?? []).flatMap((line) =>
+      line
+        ? [{ id: line.id, variantId: line.variant_id ?? null, quantity: line.quantity ?? 0 }]
+        : [],
+    );
+  } catch (error) {
+    if (isMissing(error)) return null;
+    throw error;
+  }
+}
+
 /** A new quantity for a line; 0 removes it. */
 export async function updateLine(
   lineId: string,

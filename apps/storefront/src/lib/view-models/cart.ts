@@ -5,7 +5,7 @@ import { toCurrencyCode, toMoney, toProductImage, type Hrefs } from "./common";
 
 /**
  * A cart as CartDrawer, QuickCartDropdown and the cart page take it (D60's `/next/cart`). The lines'
- * options, pictures and stock come from the products (`listProductsByIds` in the cart's region and
+ * options, pictures and stock come from the products (`readProductsByIds` in the cart's region and
  * the market's locale): the Store API's cart cannot select a line's variant options, and a line's
  * `variant_title` is the default language's. A line whose product is gone keeps its title and
  * price, with no options or picture.

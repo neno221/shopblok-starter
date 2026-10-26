@@ -129,6 +129,16 @@ describe("GET /next/visitor (D60)", () => {
     expect((await here.json()).suggestion).toBeNull();
   });
 
+  it("suggests again when the chosen market has closed since (PR 73 review)", async () => {
+    medusa();
+    const { visitorResponse } = await import("./handlers");
+    jar.reset({ _shopblok_market: "en-zz" });
+    const response = await visitorResponse(
+      get("/next/visitor?market=el-cy", { "x-vercel-ip-country": "US" }),
+    );
+    expect((await response.json()).suggestion).toMatchObject({ market: "en-us" });
+  });
+
   it("answers 503 when Medusa is down, so the island keeps its placeholder", async () => {
     jar.reset({ _medusa_cart_id: "cart_1" });
     stubMedusaFetch(() => connectionRefused());

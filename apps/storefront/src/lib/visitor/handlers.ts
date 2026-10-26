@@ -2,6 +2,7 @@ import "server-only";
 import type { Cart, MarketSuggestion } from "@shopblok/registry/contracts";
 import { cartView } from "../cart-view";
 import { getMarketContext } from "../market-context";
+import { findMarket } from "../markets/market";
 import { pathInMarket, suggestMarket } from "../markets/suggest";
 import { getCart } from "../medusa/cart";
 import { getChosenMarket } from "../medusa/cookies";
@@ -48,7 +49,9 @@ export async function visitorResponse(request: Request): Promise<Response> {
       getChosenMarket(),
     ]);
     let suggestion: VisitorAnswer["suggestion"] = null;
-    if (context !== null && chosen === undefined) {
+    // A cookie naming a market that has closed since is no choice: the banner may offer one.
+    const hasChosen = chosen !== undefined && context !== null && findMarket(context.map, chosen);
+    if (context !== null && !hasChosen) {
       const regions = await listRegions();
       const host = request.headers.get("host") ?? "";
       suggestion = suggestMarket({

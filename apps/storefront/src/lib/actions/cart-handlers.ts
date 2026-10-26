@@ -7,7 +7,7 @@ import { getMarketContext, type MarketContext } from "../market-context";
 import {
   addLine,
   applyPromoCode,
-  getCart,
+  getCartItems,
   removeLine,
   removePromoCode,
   updateLine,
@@ -33,9 +33,9 @@ async function contextFor(key: string): Promise<MarketContext> {
 }
 
 /** The visitor's cart, refused unless `lineId` is one of its lines (SPEC §11.1: ownership by id). */
-async function requireLine(lineId: string, locale: string): Promise<void> {
-  const cart = await getCart(locale);
-  if (cart === null || !cart.lines.some((line) => line.id === lineId))
+async function requireLine(lineId: string): Promise<void> {
+  const items = await getCartItems();
+  if (items === null || !items.some((line) => line.id === lineId))
     throw new ActionError("not-found", `line ${lineId} is not in the visitor's cart`);
 }
 
@@ -47,6 +47,14 @@ export const addToCartAction = action(
   }),
   async ({ market, variantId, quantity }): Promise<AddToCartAnswer> => {
     const context = await contextFor(market);
+    // Medusa adds a repeated variant to its line (checked on the stack: 2 then 98 make one line of
+    // 100), so the limit is the line's, not the add's.
+    const existing = (await getCartItems())?.find((line) => line.variantId === variantId);
+    if (existing !== undefined && existing.quantity + quantity > MAX_LINE_QUANTITY)
+      throw new ActionError(
+        "rejected",
+        `a line holds at most ${MAX_LINE_QUANTITY}; this one has ${existing.quantity}`,
+      );
     const cart = await addLine(
       { regionId: context.region.id, locale: context.market.medusaLocale },
       variantId,
@@ -69,7 +77,7 @@ export const updateLineAction = action(
   }),
   async ({ market, lineId, quantity }): Promise<CartAnswer> => {
     const context = await contextFor(market);
-    await requireLine(lineId, context.market.medusaLocale);
+    await requireLine(lineId);
     const cart = await updateLine(lineId, quantity, context.market.medusaLocale);
     updateTag("cart");
     const view = await cartView(cart, context);
@@ -81,7 +89,7 @@ export const removeLineAction = action(
   z.object({ market: marketKey, lineId: id }),
   async ({ market, lineId }): Promise<CartAnswer> => {
     const context = await contextFor(market);
-    await requireLine(lineId, context.market.medusaLocale);
+    await requireLine(lineId);
     const cart = await removeLine(lineId, context.market.medusaLocale);
     updateTag("cart");
     const view = await cartView(cart, context);
@@ -98,9 +106,10 @@ export const applyPromoAction = action(
     const context = await contextFor(market);
     const cart = await applyPromoCode(code, context.market.medusaLocale);
     // An unknown code is Medusa's 400 ("The promotion code … is invalid", checked on the stack),
-    // which `action()` answers as `rejected`. A code that exists but that the cart does not qualify
-    // for can come back applied to nothing, so the answer is checked too.
-    if (!cart.promoCodes.some((promo) => promo.code.toUpperCase() === code.toUpperCase()))
+    // which `action()` answers as `rejected`; Medusa compares exactly (`t47probe` is refused when
+    // `T47PROBE` exists). A code that exists but that the cart does not qualify for can come back
+    // applied to nothing, so the answer is checked too, exactly as well.
+    if (!cart.promoCodes.some((promo) => promo.code === code))
       throw new ActionError("rejected", `code ${code} was not applied`);
     updateTag("cart");
     const view = await cartView(cart, context);

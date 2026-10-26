@@ -218,6 +218,28 @@ describe("toFacetGroups", () => {
       selected: { min: 20, max: 59 },
     });
   });
+
+  it("keeps a selected value the search did not count, with 0, so it can be unticked (PR 73 review)", () => {
+    const groups = toFacetGroups(
+      result,
+      { categoryIds: ["pcat_home"], optionValueIds: [["optval_navy"]] },
+      "eur",
+      labels,
+    );
+    expectContract(z.array(FacetGroup), groups);
+    expect(groups.find((group) => group.id === "category")).toMatchObject({
+      options: [
+        { value: "pcat_apparel", count: 3, selected: false },
+        { value: "pcat_home", count: 0, selected: true },
+      ],
+    });
+    expect(groups.find((group) => group.id === "opt_colour")).toMatchObject({
+      options: [
+        { value: "optval_black", count: 2, selected: false },
+        { value: "optval_navy", count: 0, selected: true },
+      ],
+    });
+  });
 });
 
 describe("addresses", () => {

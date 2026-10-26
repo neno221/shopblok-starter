@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { loadVisitor } from "./source";
-import { getSnapshot, resetVisitor, setConsent, setVisitor } from "./store";
+import { getSnapshot, resetVisitor, setCartCount, setConsent, setVisitor } from "./store";
 
 afterEach(() => resetVisitor());
 
@@ -45,6 +45,19 @@ describe("loadVisitor (D60: the island's source)", () => {
       cartCount: 1,
       consent: { analytics: true, marketing: false },
     });
+  });
+
+  it("keeps a count an add set while the request was out (PR 73 review)", async () => {
+    let reply: (response: Response) => void = () => undefined;
+    const fetcher = vi.fn(() => new Promise<Response>((resolve) => (reply = resolve)));
+    const loading = loadVisitor("el-cy", "/", fetcher as unknown as typeof fetch);
+    setCartCount(3);
+    expect(getSnapshot()).toMatchObject({ cartCount: 3 });
+    reply(
+      new Response(JSON.stringify({ cartCount: 2, customer: { firstName: "Άννα" }, suggestion })),
+    );
+    expect(await loading).toBe(true);
+    expect(getSnapshot()).toMatchObject({ cartCount: 3, customer: { firstName: "Άννα" } });
   });
 
   it("leaves the store unknown when the answer is an error or not a visitor", async () => {

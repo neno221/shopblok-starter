@@ -108,6 +108,29 @@ describe("addToCart (D61)", () => {
   });
 });
 
+describe("the line's limit (PR 73 review: Medusa adds a repeated variant to its line)", () => {
+  it("refuses an add that takes the line past 99, and sends Medusa no write", async () => {
+    jar.reset({ _medusa_cart_id: "cart_1" });
+    const calls = medusa();
+    const { addToCartAction, MAX_LINE_QUANTITY } = await import("./cart-handlers");
+    // wireCart holds 2 of variant_black_m.
+    expect(
+      await addToCartAction({
+        market: "el-cy",
+        variantId: "variant_black_m",
+        quantity: MAX_LINE_QUANTITY - 1,
+      }),
+    ).toMatchObject({ ok: false, form: "rejected" });
+    expect(calls.filter((call) => call.method !== "GET")).toEqual([]);
+    const fits = await addToCartAction({
+      market: "el-cy",
+      variantId: "variant_black_m",
+      quantity: MAX_LINE_QUANTITY - 2,
+    });
+    expect(fits.ok).toBe(true);
+  });
+});
+
 describe("updateCartLine and removeCartLine (SPEC §11.1: ownership by id)", () => {
   it("changes a line of the visitor's own cart", async () => {
     jar.reset({ _medusa_cart_id: "cart_1" });
@@ -123,6 +146,18 @@ describe("updateCartLine and removeCartLine (SPEC §11.1: ownership by id)", () 
       ["POST", "/store/carts/cart_1/line-items/cali_mug"],
       ["DELETE", "/store/carts/cart_1/line-items/cali_mug"],
     ]);
+  });
+
+  it("removes a line the view leaves out (no variant), so it cannot be stuck in the cart", async () => {
+    jar.reset({ _medusa_cart_id: "cart_1" });
+    const items = wireCart.items ?? [];
+    const orphan = { ...items[0]!, id: "cali_orphan", variant_id: null, product_id: null };
+    const calls = medusa({ ...wireCart, items: [...items, orphan] });
+    const { removeLineAction } = await import("./cart-handlers");
+    expect((await removeLineAction({ market: "el-cy", lineId: "cali_orphan" })).ok).toBe(true);
+    expect(
+      calls.filter((call) => call.method === "DELETE").map((call) => call.url.pathname),
+    ).toEqual(["/store/carts/cart_1/line-items/cali_orphan"]);
   });
 
   it("refuses a line id that is not in the visitor's cart, and sends Medusa no write", async () => {
@@ -156,10 +191,20 @@ describe("applyPromo", () => {
     jar.reset({ _medusa_cart_id: "cart_1" });
     medusa();
     const { applyPromoAction } = await import("./cart-handlers");
-    const result = await applyPromoAction({ market: "el-cy", code: "welcome10" });
+    const result = await applyPromoAction({ market: "el-cy", code: "WELCOME10" });
     expect(result.ok && result.data.cart.promoCodes.map((promo) => promo.code)).toEqual([
       "WELCOME10",
     ]);
+  });
+
+  it("is rejected for a code in another case: Medusa compares exactly (PR 73 review)", async () => {
+    jar.reset({ _medusa_cart_id: "cart_1" });
+    medusa();
+    const { applyPromoAction } = await import("./cart-handlers");
+    expect(await applyPromoAction({ market: "el-cy", code: "welcome10" })).toMatchObject({
+      ok: false,
+      form: "rejected",
+    });
   });
 });
 

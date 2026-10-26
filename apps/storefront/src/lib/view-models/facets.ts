@@ -10,7 +10,8 @@ import { optionKind } from "./product";
 // visitor's locale from the category tree, the collections and the option values; a value with no
 // label (a category the Store API no longer lists) is left out rather than shown as an id. The
 // group ids are the query parameters (`facets.ts` in the registry): `category`, `collection`, each
-// option's id, `price` and `sale`; their values are Medusa's ids, the same in every language.
+// option's id, `price` and `sale`; their values are Medusa's ids, the same in every language. A
+// selected value the search did not count stays, with 0, so the shopper can untick it (PR 73 review).
 
 export const FACET_PARAM = {
   category: "category",
@@ -34,7 +35,12 @@ function checkbox(
   labelOf: (value: string) => string | undefined,
   selected: readonly string[] = [],
 ): FacetGroup | null {
-  const options: FacetOption[] = counts.flatMap((count) => {
+  const counted = new Set(counts.map((count) => count.value));
+  const all = [
+    ...counts,
+    ...selected.filter((value) => !counted.has(value)).map((value) => ({ value, count: 0 })),
+  ];
+  const options: FacetOption[] = all.flatMap((count) => {
     const text = labelOf(count.value);
     return text === undefined
       ? []
@@ -86,7 +92,7 @@ export function toFacetGroups(
   const counts = new Map(result.facets.optionValueIds.map((count) => [count.value, count.count]));
   const options = new Map<string, { title: string; values: OptionValueLabel[] }>();
   for (const label of labels.optionValues)
-    if (counts.has(label.valueId)) {
+    if (counts.has(label.valueId) || chosen.has(label.valueId)) {
       const entry = options.get(label.optionId) ?? { title: label.optionTitle, values: [] };
       entry.values.push(label);
       options.set(label.optionId, entry);

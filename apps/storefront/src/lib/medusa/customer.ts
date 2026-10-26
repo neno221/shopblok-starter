@@ -243,7 +243,12 @@ export async function login(email: string, password: string, prefix: string): Pr
     await removePendingCustomer();
   }
   await setAuthToken(token);
-  await transferCart();
+  // The customer is signed in from here on: a guest cart Medusa will not move (completed, gone,
+  // another customer's) is dropped, not a failed login (PR 73 review).
+  // During an outage the cookie stays, and the next login moves the cart.
+  await transferCart().catch(async (error: unknown) => {
+    if (error instanceof MedusaRequestError && error.kind === "rejected") await removeCartId();
+  });
   return { state: "signed-in" };
 }
 

@@ -24,7 +24,10 @@ export function redirectStatus(method: string): 301 | 308 {
  * remembered in a cookie, and only then can `/` redirect to it"): the root of the chosen market,
  * when the cookie names an open market other than the one `/` shows on this host. Only `/` itself,
  * and only for a read: every other URL is the market it names, whatever the cookie says, so a
- * shared link is never redirected. `undefined` when nothing should change.
+ * shared link is never redirected. Only on this origin: the cookie is per host, so two domain
+ * markets can each hold the other as the choice, and following one to the other host would bounce
+ * forever (PR 73 review); a market on another host is the suggestion banner's to offer.
+ * `undefined` when nothing should change.
  */
 export function chosenMarketRedirect(
   req: Pick<NextRequest, "method" | "nextUrl">,
@@ -39,9 +42,10 @@ export function chosenMarketRedirect(
   const target = findMarket(map, chosen);
   if (target === undefined) return undefined;
   const location = new URL(buildPublicUrl(target, "/", map), nextUrl.origin);
+  const here = new URL(buildPublicUrl(resolution.market, "/", map), nextUrl.origin);
+  // Another host is its own cookie's to decide, and a target that is this very page would loop.
+  if (location.origin !== here.origin || location.pathname === here.pathname) return undefined;
   location.search = nextUrl.search;
-  // A target that is this very page would loop.
-  if (location.origin === nextUrl.origin && location.pathname === "/") return undefined;
   return location;
 }
 

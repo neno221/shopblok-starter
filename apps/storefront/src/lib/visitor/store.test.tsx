@@ -84,9 +84,7 @@ describe("the visitor store", () => {
     expect(listener).toHaveBeenCalledTimes(3);
   });
 
-  it("changes the cart count and keeps the cookie choice, and only for a known visitor (PR 58 review)", () => {
-    setCartCount(4);
-    expect(getSnapshot()).toBe("unknown");
+  it("changes the cart count and keeps the cookie choice (PR 58 review)", () => {
     setVisitor({ cartCount: 1, consent: null });
     setConsent({ analytics: true, marketing: false });
     setCartCount(5);
@@ -95,6 +93,12 @@ describe("the visitor store", () => {
       consent: { analytics: true, marketing: false },
     });
   });
+});
+
+it("makes an unknown visitor known with the count of an add, so the badge shows it (PR 73 review)", () => {
+  resetVisitor();
+  setCartCount(4);
+  expect(getSnapshot()).toMatchObject({ cartCount: 4, consent: null, customer: null });
 });
 
 describe("the cart island's server render", () => {

@@ -1,10 +1,11 @@
 // D60 (T47): the visitor store's source in the shop. A prerendered page holds no visitor's value
 // (D44), so after hydration the island asks `/next/visitor`, which reads the httpOnly cookies, and
 // hands the answer to the store. Once per page: a later change comes from the action that made it
-// (`addToCart` answers the new count, which the caller gives `setCartCount`). The consent choice is
-// not the server's: the store keeps the one the visitor made on this page. A failed request leaves
-// the store "unknown", so the header keeps its placeholder rather than showing a wrong 0.
-import { getSnapshot, setVisitor, type Visitor } from "./store";
+// (`addToCart` answers the new count, which the caller gives `setCartCount`, and an answer that was
+// out meanwhile keeps it). The consent choice is not the server's: the store keeps the one the
+// visitor made on this page. A failed request leaves the store "unknown", so the header keeps its
+// placeholder rather than showing a wrong 0.
+import { getCartCountChanges, getSnapshot, setVisitor, type Visitor } from "./store";
 
 /** Where the island asks. */
 export const VISITOR_ROUTE = "/next/visitor";
@@ -34,14 +35,17 @@ export async function loadVisitor(
   fetcher: typeof fetch = fetch,
 ): Promise<boolean> {
   const url = `${VISITOR_ROUTE}?${new URLSearchParams({ market, path })}`;
+  const changes = getCartCountChanges();
   try {
     const response = await fetcher(url, { credentials: "same-origin", cache: "no-store" });
     if (!response.ok) return false;
     const body: unknown = await response.json();
     if (!isAnswer(body)) return false;
     const known = getSnapshot();
+    // An add answered while this request was out knows a newer count than this answer.
+    const newer = known !== "unknown" && getCartCountChanges() !== changes;
     setVisitor({
-      cartCount: body.cartCount,
+      cartCount: newer ? known.cartCount : body.cartCount,
       consent: known === "unknown" ? null : known.consent,
       customer: body.customer,
       suggestion: body.suggestion,

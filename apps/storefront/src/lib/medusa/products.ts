@@ -305,7 +305,12 @@ export const getProduct = cached(fetchProduct, {
 /** Ids per request: the Store API caps `limit`, and a cart or a search page has fewer. */
 const IDS_PER_REQUEST = 100;
 
-async function fetchProductsByIds(
+/**
+ * Products by id as `listProductsByIds` reads them, uncached: a cart's lines (PR 73 review), whose
+ * stock must be the current one, since a product's revalidation by its handle does not reach a
+ * cached set of ids. A cart read is per visitor anyway.
+ */
+export async function readProductsByIds(
   ids: readonly string[],
   { regionId, locale }: ProductQuery,
 ): Promise<ProductDto[]> {
@@ -343,7 +348,7 @@ async function fetchProductsByIds(
  * related products. Pass the ids sorted when their order does not matter, so equal sets share an
  * entry.
  */
-export const listProductsByIds = cached(fetchProductsByIds, {
+export const listProductsByIds = cached(readProductsByIds, {
   name: "medusa:products:by-id",
   tags: ["medusa:products"],
   life: CATALOG_LIFE,

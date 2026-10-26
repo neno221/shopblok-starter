@@ -95,13 +95,21 @@ export function setConsent(consent: ConsentChoice): void {
   setVisitor({ ...current, consent });
 }
 
+let cartCountChanges = 0;
+
+/** How many times `setCartCount` ran: `loadVisitor` keeps a count set while its request was out. */
+export function getCartCountChanges(): number {
+  return cartCountChanges;
+}
+
 /**
  * A new number of items in the cart (after an add to cart, M3), keeping the visitor's cookie choice.
- * Like `setConsent`, it changes a known visitor only: before the first full answer it does nothing.
+ * Before the first full answer it makes the visitor known with that count and nothing else, so an
+ * add while `/next/visitor` is out, or after it failed, still shows (PR 73 review).
  */
 export function setCartCount(cartCount: number): void {
-  if (current === "unknown") return;
-  setVisitor({ ...current, cartCount });
+  cartCountChanges += 1;
+  setVisitor(current === "unknown" ? { cartCount, consent: null } : { ...current, cartCount });
 }
 
 function sameCustomer(a: VisitorCustomer | null, b: VisitorCustomer | null): boolean {

@@ -220,9 +220,18 @@ describe("the visitor's chosen market (D66, SPEC §8.5)", () => {
     });
   });
 
-  it("sends / to a chosen market on its own domain there", () => {
-    expect(chosen("/", "de-ch", { map: withDomains, host: "example.com" })).toEqual({
-      redirect: "https://shop.ch/",
+  it("never sends / to another host: each host's cookie holds its own choice (PR 73 review)", () => {
+    // example.com's cookie says Switzerland and shop.ch's says Cyprus: following both would bounce.
+    expect(chosen("/", "de-ch", { map: withDomains, host: "example.com" })).toHaveProperty(
+      "rewrite",
+    );
+    expect(chosen("/", "el-cy", { map: withDomains, host: "shop.ch" })).toEqual({
+      rewrite: "https://example.com/de-ch",
+    });
+    expect(chosen("/", "en-us", { map: withDomains, host: "shop.ch" })).toHaveProperty("rewrite");
+    // A choice on the same host still counts.
+    expect(chosen("/", "fr-ch", { map: withDomains, host: "shop.ch" })).toEqual({
+      redirect: "https://shop.ch/fr",
       status: 307,
     });
   });
