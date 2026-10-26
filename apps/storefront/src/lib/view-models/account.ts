@@ -12,7 +12,7 @@ import type {
 import type { CustomerAddressDto, CustomerDto } from "../medusa/customer";
 import type { OrderDto, ReturnReasonDto } from "../medusa/orders";
 import { returnableOf } from "../medusa/orders";
-import { toContractAddress, toOrderConfirmation } from "./checkout";
+import { toAddressFormState, toContractAddress, toOrderConfirmation } from "./checkout";
 import { toMoney, toProductImage, type Hrefs } from "./common";
 
 // The account's view models (T53, D64), from the data layer's DTOs. Pure: the market's URLs and
@@ -66,7 +66,8 @@ export function orderEvents(order: OrderDto): OrderEvent[] {
   const kind = latestKind(order);
   const placed: OrderEvent = { kind: "placed", at: order.createdAt };
   if (kind === "placed") return [placed];
-  const at = Date.parse(order.updatedAt) >= Date.parse(order.createdAt) ? order.updatedAt : order.createdAt;
+  const at =
+    Date.parse(order.updatedAt) >= Date.parse(order.createdAt) ? order.updatedAt : order.createdAt;
   return [placed, { kind, at }];
 }
 
@@ -179,41 +180,17 @@ export function toAddressBook(customer: CustomerDto, url: Url): AddressBook {
 }
 
 /**
- * The address form: what a failed submit typed, else the saved address, else the market's country
- * with nothing typed; the countries are the region's (the market's first).
+ * The address form: the checkout's (`toAddressFormState`: what a failed submit typed, else the
+ * saved address, else the market's country), except that a saved address in a country the region
+ * no longer has is offered in the market's country rather than dropped.
  */
 export function toAccountAddressForm(
   countries: string[],
   saved: CustomerAddressDto | null,
   typed: Record<string, string> | undefined,
 ): AddressFormState {
-  const fallback = countries[0] ?? "";
-  if (typed !== undefined && Object.keys(typed).length > 0) {
-    const values: AddressFormState["values"] = {
-      countryCode: countries.includes(typed.countryCode ?? "") ? typed.countryCode! : fallback,
-    };
-    for (const field of [
-      "firstName",
-      "lastName",
-      "company",
-      "address1",
-      "address2",
-      "city",
-      "province",
-      "postalCode",
-      "phone",
-    ] as const) {
-      const value = typed[field]?.trim();
-      if (value) values[field] = value;
-    }
-    return { countries, values };
-  }
-  if (saved !== null) {
-    const values = toContractAddress(saved);
-    // A saved address in a country the region no longer has is offered in the market's country.
-    return countries.includes(values.countryCode)
-      ? { countries, values }
-      : { countries, values: { ...values, countryCode: fallback } };
-  }
-  return { countries, values: { countryCode: fallback } };
+  const typedSome = typed !== undefined && Object.keys(typed).length > 0;
+  if (typedSome || saved === null || countries.includes(saved.countryCode))
+    return toAddressFormState(countries, saved, typed);
+  return { countries, values: { ...toContractAddress(saved), countryCode: countries[0] ?? "" } };
 }

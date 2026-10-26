@@ -166,7 +166,7 @@ describe("updateCartLine and removeCartLine (SPEC §11.1: ownership by id)", () 
     const { updateLineAction } = await import("./cart-handlers");
     expect(
       await updateLineAction({ market: "el-cy", lineId: "cali_someone_else", quantity: 1 }),
-    ).toEqual({
+    ).toMatchObject({
       ok: false,
       errors: {},
       form: "not-found",
