@@ -11,6 +11,7 @@
     "./primitives/*": "./src/primitives/*.tsx",
     "./molecules/*": "./src/molecules/*.tsx",
     "./organisms/*": "./src/organisms/*.tsx",
+    "./templates/*": "./src/templates/*.tsx",
     "./providers": "./src/providers.tsx",
     "./lib/*": "./src/lib/*.ts",
     "./hooks/*": "./src/hooks/*.ts",

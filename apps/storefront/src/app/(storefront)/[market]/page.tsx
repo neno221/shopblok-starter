@@ -13,7 +13,7 @@ const PRODUCT_COUNT = 4;
 export default async function MarketHome() {
   const [market, t] = await Promise.all([getCurrentMarket(), getTranslations("wiring")]);
   return (
-    <main className="p-8">
+    <main id="main" className="p-8">
       <h1 className="text-2xl font-semibold">{t("title")}</h1>
       <dl className="mt-4 grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1">
         <dt>{t("market")}</dt>

@@ -116,14 +116,16 @@ export function pick(
 }
 
 /**
- * What the market layout gives its provider: the client code that renders on every page. Today that
- * is the error boundary's two lines (`error.tsx` reads them with `useTranslations("wiring")`); T48
- * adds the header's and the cookie banner's namespaces when it builds them. A page that renders an
- * island nests its own provider with its own `pick`.
+ * What the market layout gives its provider: the client code that renders on every page and reads
+ * the catalog itself. That is the error boundary's `error` template (`error.tsx`, T48); the header's
+ * and the cookie banner's islands are given their words as props by the server. A page that renders
+ * an island nests its own provider with its own `pick`.
  */
 export const SHELL_MESSAGES = [
-  "wiring.backendUnavailable",
-  "wiring.backendHint",
+  "templates.error.title",
+  "templates.error.body",
+  "templates.error.retry",
+  "templates.error.home",
 ] as const satisfies readonly MessagePath[];
 
 const reported = new Set<string>();

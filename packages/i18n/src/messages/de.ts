@@ -700,6 +700,20 @@ export const de: Messages = {
         "{count, plural, one {# Feld braucht Ihre Aufmerksamkeit.} other {# Felder brauchen Ihre Aufmerksamkeit.}}",
     },
   },
+  templates: {
+    notFound: {
+      title: "Seite nicht gefunden",
+      body: "Die gesuchte Seite existiert nicht oder wurde verschoben.",
+      home: "Zurück zur Startseite",
+      search: "Im Shop suchen",
+    },
+    error: {
+      title: "Etwas ist schiefgelaufen",
+      body: "Diese Seite kann gerade nicht angezeigt werden. Versuchen Sie es gleich noch einmal.",
+      retry: "Erneut versuchen",
+      home: "Zurück zur Startseite",
+    },
+  },
   notFound: {
     title: "Seite nicht gefunden",
     body: "Die gesuchte Seite existiert nicht.",

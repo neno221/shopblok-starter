@@ -16,6 +16,7 @@ export const designSystem = {
     molecules: "Molecules",
     organisms: "Organisms",
     "headers-footers": "Headers and footers",
+    templates: "Templates",
   },
   locale: {
     label: "Locale",

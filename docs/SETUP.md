@@ -5330,3 +5330,65 @@ The review (`reviews/pr-73-code-review.md` in the project's files, not in the re
 - The SDK writes a list as `id[0]=…&id[1]=…`; Medusa reads it as `id[]`.
 - An unknown promotion code is Medusa's 400 (`The promotion code NOPE is invalid`), which `applyPromo` answers as `rejected` with that message; the action also refuses an answer with the code not applied.
 - `prettier --check` with no `--config` reports every file: the config is `packages/config/prettier.config.mjs` (print width 100), which the editor integration finds and the bare CLI at the root does not.
+
+## The shell (T48)
+
+**Result: every market page now sits in the real shop around it (D66): the classic header with the navigation from Medusa's category tree, the search overlay, the account link, the market switcher and the cart's count, the multi-column footer, the suggestion banner and the cookie banner; the design system has a Templates group with `not-found` and `error`, and the market's 404 and error pages render them.** Against the stack, `shell.spec.ts` (7 tests) passes beside the other 93 browser tests, and every unit suite passes (storefront 93 files, ui 145, registry 13, fixtures 2, i18n 4).
+
+| | |
+|---|---|
+| Date | 2026-10-26 |
+| Branch | `claude/project-thread-bbr2fk`, from `main` at `65b9c5f` (PR 73 merged) |
+| New | `apps/storefront/src/components/shell/{header,footer,shell-data,shell-context,search-overlay-island,market-choice-island,suggestion-banner}.ts(x)`, `src/lib/{site,navigation}.ts`, `src/lib/shell/market-choice.ts`, `src/lib/actions/shell.tsx`, `src/lib/visitor/recent-searches.ts`, `src/lib/e2e/cart.ts` and `src/app/next/e2e/cart/route.ts`, `src/design-system/stories/templates.tsx`, `e2e/shell.spec.ts`; `packages/ui/src/templates/{status-page,not-found,error}.tsx`; `packages/registry/src/{contracts/pages,entries/templates}.ts`; `packages/fixtures/src/pages/`; a test file beside each new module |
+| Changed | `[market]/{layout,page,not-found,error}.tsx`, `src/i18n/messages.ts` (`SHELL_MESSAGES`), `src/lib/market-context.ts` (`hrefsFor`), `src/lib/visitor/handlers.ts` (`suggestionFor`), `packages/ui/src/organisms/header/parts.tsx` (the `search` slot), `packages/ui/package.json` (`./templates/*`), the registry's `GROUPS` and `Kind`, the four catalogs (`templates`), `e2e/{wiring,i18n-messages}.spec.ts` |
+
+### How it works
+
+- **`site.ts`** is the shop's settings until M4's globals: the header (`classic`) and footer (`multi-column`) variant, the store's name, a sticky header, the announcement ("Free returns within 30 days", in the four languages) and the footer's columns (Shop: the top-level categories and "All products"; Help: account, cart, order lookup). `SHELL_PREFETCH` is `false` until the pages those links point to exist (a prefetch of a 404 is a console error on every page); the task that builds the last of them sets it to `null`.
+- **`getShellData()`** (`components/shell/shell-data.ts`, React `cache`) reads the market, the market map, the category tree and the regions, all `cached()` entries, so the layout reads nothing per request. A Medusa error gives empty values (no navigation, no switcher) and the page is regenerated with them within the market map's 30 s life.
+- **Navigation** (`lib/navigation.ts`): a top-level category with no children is a link; one with children is a mega menu whose columns are its leaf children in one column titled with it, then a column per child that has children (two levels; deeper ones are the category page's). Panels stay unmounted (D66). The seed's three flat categories are three links.
+- **Search:** the header's new `search` slot takes `SearchOverlayIsland`, which waits 250 ms after the last key, aborts the question on its way, asks `/next/search?market&q` (T50's handler) and treats a 404, an answer that is not a result, or a refused request as "no results". The recent queries are `localStorage`'s (`recent-searches.ts`, eight at most, empty on the server). Enter still submits the overlay's GET form to `{m}/search`.
+- **Switcher and banner:** `toMarketChoice` lists the open markets a country per row, each language a link to its market's home, leaving out a country Medusa has no region for (and the whole switcher when the current market's country has none). `MarketChoiceIsland` listens on the document for a plain click on a switcher link or the banner's "go", calls `rememberMarket` and then goes to the same page in that market (`samePageIn`: the path inside the market and the query, after the other market's home); "stay" records the current market. The banner is drawn by a server action (`renderSuggestionBanner`), called once the visitor store has a suggestion; the action works the suggestion out again from the request.
+- **Templates:** `StatusPage` is what both share (the `<main id="main">`, a decorative icon, the one `<h1>`, a sentence, the ways on); `NotFoundTemplate` links home (primary) and to the search page; `ErrorTemplate` has a `retry` slot and links home. `as="div"` is for the design system, whose frame is the page's `<main>` already. The words are the catalogs' new `templates.notFound` and `templates.error`.
+- **The 404 and error pages:** `not-found.tsx` renders the not-found template with the market's home and search links. `error.tsx` renders the error template with a "Try again" button that calls Next's `retry()`, the home link from `ShellLinksProvider` (the layout's; a client component reads no root param) and `unstable_rethrow` first. `SHELL_MESSAGES` is now the error template's four sentences (the wiring lines left it); the header's and the cookie banner's islands get their words as props.
+- **Test hook:** `POST /next/e2e/cart?market=en-us&quantity=2` (404 unless `E2E_TEST_ROUTES=true`) puts that many of the catalog's first variant in the visitor's cart, so `shell.spec.ts` can check the header's count before any page can add to a cart.
+
+### Checks
+
+| Check | Result |
+|---|---|
+| `shell.spec.ts` against `next start` and the stack | 7 passed: no `cart-badge` and no banner in `/us`'s server HTML; the count "2" after the hook; three category links under `/us/categories/`; the skip link first, to `main#main`; the switcher's links `/`, `/us`, `/gb`, `/de`, `/fr`, `/ch`, `/ch/fr`, a click from `/ch/fr?utm=1` lands on `/us?utm=1` with `_shopblok_market=en-us`, then `/` answers 307 to `/us` and `/de` 200; with `x-vercel-ip-country: US` `/` offers `/us` and "stay" writes `el-cy` and the banner does not come back; `/`'s HTML under 200,000 B |
+| The whole default Playwright run | 100 passed (`i18n-messages.spec.ts` now finds the error template's sentences in the payload; `wiring.spec.ts` looks for `error-template`) |
+| `/`'s HTML | 167,461 to 174,560 B in the VM (the scripts are 127,873 B of it); `shell.spec.ts`'s ceiling is 200,000 |
+| `check:first-load` | `/[market]` 910.8 KB raw, **290.6 KB gzipped** (212 KB at T46); `/_not-found` 136.3. See "Where it differs from the plan" |
+
+### Mutations
+
+| Mutation | Caught by |
+|---|---|
+| `VisitorCartButton` draws a count of 2 before the store knows it (a header with the count in the server's HTML) | `shell.spec.ts`, "the server's HTML holds no cart count" |
+| A switcher option is a `<button>` instead of a link | `shell.spec.ts`, "the switcher links every market's home" |
+| The header ignores the `search` slot | the header suite's new test, 5 fail (every header that uses `HeaderSearch`) |
+| `toNavigation` treats every child as a leaf | `navigation.test.ts`, 2 fail |
+| `samePageIn` takes `/christmas` as inside `/ch`; it drops the query | `market-choice-island.test.tsx`, 1 and 3 fail |
+| The search island does not abort the question on its way; it takes any answer as a result | `search-overlay-island.test.tsx`, 1 and 2 fail |
+| Nine recent searches kept | `recent-searches.test.ts`, 1 fails |
+| `toMarketChoice` keeps a country with no region; it gives a switcher without the current market | `market-choice.test.ts`, 2 and 1 fail |
+| `error.tsx` without `unstable_rethrow`; "Try again" with no handler | `error.test.tsx`, 1 fails each |
+| The cart hook without its gate | `lib/e2e/cart.test.ts`, 1 fails |
+| `keepMounted` on a mega menu panel | not measurable on the seed: its categories are flat, so `/` has no panel and its HTML does not change. The ceiling is in place for when a shop has one |
+
+### Where it differs from the plan
+
+- **`/[market]` is not under 170 KB** (the plan's Verify). It was already 212 KB gzipped at T46 (the wiring page with the toast region and the cookie banner); the shell adds about 78 KB. Most of it is one shared chunk of Base UI (109 KB gzipped: the navigation menu, the dialogs of the mobile drawer and the search, the popover of the switcher). Removing the search island saved 0.6 KB only, so Turbopack's chunking, not one island, decides the number. `/[market]` is not budgeted; T49's product page is, and will meet this first (NEXT-SESSION.md, T49).
+- **The cart drawer and the quick cart are T52's,** with the cart page: nothing can add to a cart before the product page, and T52 builds what opens them. The header's cart is the count's island.
+- **The switcher's links are the markets' homes,** not the current path in each: the layout draws the switcher once for all the pages under it and knows no page's path. The island sends a click to the same page in the other market; without scripts the link goes to that market's home.
+- **The banner is rendered by a server action,** so its copy and its markup stay on the server; the layout draws an empty banner so the action's answer can use the organism's client part (an action's answer can only use a client component the page's own server tree imports).
+- **The count's test hook is a route under `/next/e2e`,** not a form posting to the add action: no page has an add-to-cart form before T49.
+- **`SHELL_PREFETCH` is `false`** until the shell's links point to pages that exist.
+
+### Smaller observations
+
+- happy-dom follows a link while a click is still on its way to the document (`HTMLAnchorElement.dispatchEvent` navigates during the bubbling phase), where a browser waits for the end of the dispatch; `market-choice-island.test.tsx` routes anchors' `dispatchEvent` past it.
+- Next 16.4's error boundary prop is `retry` (stable since 16.3); `reset` is still there for re-rendering without fetching.
+- `pkill -f next-server` from a shell whose own command line holds the pattern kills that shell; stop the server by its PID (`ps -eo pid,cmd | awk '/[n]ext-server/{print $1}'`).

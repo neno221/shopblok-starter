@@ -34,7 +34,7 @@ const FOREIGN_KEYS = [
 ];
 
 /** What the shell sends, and so what the scan must find (it is a scan of the right bytes). */
-const SHELL_KEYS = ["backendUnavailable", "backendHint"];
+const SHELL_KEYS = ["templates", "retry"];
 
 const MARKETS = [
   { path: "/", language: "el" },
@@ -93,9 +93,10 @@ test.describe("the client receives the shell's messages and no catalog (D62)", (
       const everything = [{ url: "the document", text: document }, ...scripts];
       expect(scripts.length, "the page loads its scripts").toBeGreaterThan(3);
 
-      // The scan reads the right bytes: the shell's two messages are in the document's payload, in
-      // the market's language (JSON in an inline script writes non-ASCII as it is).
-      const shell = catalogs[market.language].wiring.backendHint;
+      // The scan reads the right bytes: the shell's messages (the error template's, T48) are in the
+      // document's payload, in the market's language (JSON in an inline script writes non-ASCII as
+      // it is).
+      const shell = catalogs[market.language].templates.error.body;
       expect(document, "the provider's messages reach the document").toContain(SHELL_KEYS[0]);
       expect(document).toContain(SHELL_KEYS[1]);
       expect(document).toContain(JSON.stringify(shell).slice(1, -1));
@@ -113,7 +114,9 @@ test.describe("the client receives the shell's messages and no catalog (D62)", (
     const { document, scripts } = await receive(page, "/");
     for (const text of [document, ...scripts.map((script) => script.text)]) {
       for (const other of ["en", "de", "fr"] as const) {
-        expect(text).not.toContain(JSON.stringify(catalogs[other].wiring.backendHint).slice(1, -1));
+        expect(text).not.toContain(
+          JSON.stringify(catalogs[other].templates.error.body).slice(1, -1),
+        );
       }
     }
   });

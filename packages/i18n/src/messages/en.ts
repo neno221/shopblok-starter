@@ -476,8 +476,7 @@ export const en = {
       choose: "Choose cookies",
       // The dialog "choose" opens.
       dialogTitle: "Cookie preferences",
-      dialogDescription:
-        "Choose which cookies we may use. Nothing is switched on until you save.",
+      dialogDescription: "Choose which cookies we may use. Nothing is switched on until you save.",
       necessary: "Necessary",
       necessaryDescription:
         "Keep the store working: they remember your cart, your sign-in, your country and language, and this choice.",
@@ -797,6 +796,20 @@ export const en = {
       },
       summary:
         "{count, plural, one {# field needs your attention.} other {# fields need your attention.}}",
+    },
+  },
+  templates: {
+    notFound: {
+      title: "Page not found",
+      body: "The page you are looking for does not exist, or it has moved.",
+      home: "Back to the home page",
+      search: "Search the store",
+    },
+    error: {
+      title: "Something went wrong",
+      body: "This page could not be shown just now. Try again in a moment.",
+      retry: "Try again",
+      home: "Back to the home page",
     },
   },
   notFound: {

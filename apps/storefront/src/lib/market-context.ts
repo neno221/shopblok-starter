@@ -30,16 +30,15 @@ export async function getMarketContext(key: string): Promise<MarketContext | nul
   const region = await getRegionForCountry(found.country);
   if (region === undefined) return null;
   const url = (path: string) => buildPublicUrl(found, path, map);
+  return { map, market: withLocale(found), region, url, hrefs: hrefsFor(url) };
+}
+
+/** A market's catalog URLs (SPEC §8.1) from its `url` (a path inside it as its public URL). */
+export function hrefsFor(url: (path: string) => string): Required<Hrefs> {
   const segments = (handle: string) => handle.split("/").map(encodeURIComponent).join("/");
   return {
-    map,
-    market: withLocale(found),
-    region,
-    url,
-    hrefs: {
-      product: (handle) => url(`/products/${encodeURIComponent(handle)}`),
-      category: (handle) => url(`/categories/${segments(handle)}`),
-      collection: (handle) => url(`/collections/${encodeURIComponent(handle)}`),
-    },
+    product: (handle) => url(`/products/${encodeURIComponent(handle)}`),
+    category: (handle) => url(`/categories/${segments(handle)}`),
+    collection: (handle) => url(`/collections/${encodeURIComponent(handle)}`),
   };
 }

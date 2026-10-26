@@ -204,7 +204,7 @@ test.describe("the wiring page: language, region, currency and translated produc
       }
       expect(new Set(rows).size, "four different products").toBe(4);
 
-      await expect(page.getByTestId("error-state")).toHaveCount(0);
+      await expect(page.locator('[data-slot="error-template"]')).toHaveCount(0);
       await expect(page.getByTestId("no-region")).toHaveCount(0);
       await expect(page.getByTestId("no-products")).toHaveCount(0);
     });

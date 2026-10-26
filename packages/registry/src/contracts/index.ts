@@ -20,6 +20,7 @@ export * from "./market";
 export * from "./money";
 export * from "./navigation";
 export * from "./order";
+export * from "./pages";
 export * from "./payment";
 export * from "./product";
 export * from "./product-page";

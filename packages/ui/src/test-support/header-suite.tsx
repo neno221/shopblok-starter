@@ -470,6 +470,14 @@ export function describeHeader(variant: HeaderUnderTest) {
       expect(carts()).toHaveLength(0);
     });
 
+    // T48 (D66): the shop's search overlay goes where the search link would be, once.
+    it("draws the page's search in place of the search link, once", () => {
+      view("en", { search: <button type="button" data-testid="search-island" /> });
+      expect(screen.getAllByTestId("search-island")).toHaveLength(1);
+      expect(header().contains(screen.getByTestId("search-island"))).toBe(true);
+      expect(header().querySelector('[data-slot="header-search"]')).toBeNull();
+    });
+
     it("writes more than 99 items as 99+ with the real number in the name", () => {
       view("de", {
         cart: (

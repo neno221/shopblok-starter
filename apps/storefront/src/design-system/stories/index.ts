@@ -24,6 +24,7 @@ import { productListOrganismStories } from "./organisms-product-lists";
 import { productPageOrganismStories } from "./organisms-product-page";
 import { searchFilterOrganismStories } from "./organisms-search-filters";
 import { siteOrganismStories } from "./organisms-site";
+import { templateStories } from "./templates";
 
 // What the DS page says about each registry entry (D40): its summary, a11y notes, live render and
 // states, keyed by the entry's id. Each file's object is checked against the registry's ids
@@ -55,4 +56,5 @@ export const stories: Record<EntryId, DsStory> = {
   ...accountOrganismStories,
   ...headerStories,
   ...footerStories,
+  ...templateStories,
 };
