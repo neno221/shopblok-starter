@@ -35,6 +35,9 @@ type SiteText = {
   account: string;
   cart: string;
   orderLookup: string;
+  /** The product page's shop texts (T49): the buy box's notes, the delivery and returns section. */
+  productNotes: string[];
+  delivery: string[];
 };
 
 const TEXT: Record<"en" | "el" | "de" | "fr", SiteText> = {
@@ -46,6 +49,11 @@ const TEXT: Record<"en" | "el" | "de" | "fr", SiteText> = {
     account: "Your account",
     cart: "Your cart",
     orderLookup: "Find an order",
+    productNotes: ["Ships in 2 to 4 business days", "Free returns within 30 days"],
+    delivery: [
+      "Standard delivery takes 2 to 4 business days.",
+      "Return anything unworn within 30 days for a full refund. Returns are free.",
+    ],
   },
   el: {
     announcement: "Δωρεάν επιστροφές εντός 30 ημερών",
@@ -55,6 +63,11 @@ const TEXT: Record<"en" | "el" | "de" | "fr", SiteText> = {
     account: "Ο λογαριασμός σας",
     cart: "Το καλάθι σας",
     orderLookup: "Εύρεση παραγγελίας",
+    productNotes: ["Αποστολή σε 2 έως 4 εργάσιμες ημέρες", "Δωρεάν επιστροφές εντός 30 ημερών"],
+    delivery: [
+      "Η κανονική αποστολή διαρκεί 2 έως 4 εργάσιμες ημέρες.",
+      "Επιστρέψτε ό,τι δεν έχετε φορέσει εντός 30 ημερών για πλήρη επιστροφή χρημάτων. Οι επιστροφές είναι δωρεάν.",
+    ],
   },
   de: {
     announcement: "Kostenlose Rücksendung innerhalb von 30 Tagen",
@@ -64,6 +77,11 @@ const TEXT: Record<"en" | "el" | "de" | "fr", SiteText> = {
     account: "Ihr Konto",
     cart: "Ihr Warenkorb",
     orderLookup: "Bestellung finden",
+    productNotes: ["Versand in 2 bis 4 Werktagen", "Kostenlose Rückgabe innerhalb von 30 Tagen"],
+    delivery: [
+      "Der Standardversand dauert 2 bis 4 Werktage.",
+      "Ungetragene Artikel können Sie innerhalb von 30 Tagen gegen volle Erstattung zurückgeben. Die Rücksendung ist kostenlos.",
+    ],
   },
   fr: {
     announcement: "Retours gratuits sous 30 jours",
@@ -73,6 +91,11 @@ const TEXT: Record<"en" | "el" | "de" | "fr", SiteText> = {
     account: "Votre compte",
     cart: "Votre panier",
     orderLookup: "Retrouver une commande",
+    productNotes: ["Expédition sous 2 à 4 jours ouvrés", "Retours gratuits sous 30 jours"],
+    delivery: [
+      "La livraison standard prend 2 à 4 jours ouvrés.",
+      "Retournez tout article non porté sous 30 jours pour un remboursement intégral. Les retours sont gratuits.",
+    ],
   },
 };
 

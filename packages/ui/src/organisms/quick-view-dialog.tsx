@@ -50,7 +50,8 @@ import { Dialog, DialogContent, DialogTrigger } from "@shopblok/ui/primitives/di
 import { useId, useState } from "react";
 import type * as React from "react";
 import { BuyBox, type AddStatus, type BuyBoxCopy } from "./buy-box";
-import { chosenValueIds, useChosenSelection } from "./buy-box-choice";
+import { chosenValueIds } from "./buy-box-choice";
+import { useChosenSelection } from "./use-chosen-selection";
 import { ProductGallery } from "./product-gallery";
 
 type QuickViewDialogProps = BuyBoxContent & {

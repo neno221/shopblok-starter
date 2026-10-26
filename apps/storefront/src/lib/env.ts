@@ -14,6 +14,8 @@ export type RawEnv = {
   PAYLOAD_DATABASE_URL?: string | undefined;
   E2E_TEST_ROUTES?: string | undefined;
   DESIGN_SYSTEM_ENABLED?: string | undefined;
+  REVALIDATE_SECRET?: string | undefined;
+  STOREFRONT_PRERENDER_PRODUCTS?: string | undefined;
 };
 
 /**
@@ -48,6 +50,12 @@ export const env: RawEnv = {
   },
   get DESIGN_SYSTEM_ENABLED() {
     return process.env.DESIGN_SYSTEM_ENABLED;
+  },
+  get REVALIDATE_SECRET() {
+    return process.env.REVALIDATE_SECRET;
+  },
+  get STOREFRONT_PRERENDER_PRODUCTS() {
+    return process.env.STOREFRONT_PRERENDER_PRODUCTS;
   },
 };
 

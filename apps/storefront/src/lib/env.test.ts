@@ -123,6 +123,8 @@ describe("env", () => {
       "NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY",
       "NODE_ENV",
       "PAYLOAD_DATABASE_URL",
+      "REVALIDATE_SECRET",
+      "STOREFRONT_PRERENDER_PRODUCTS",
     ]);
   });
 });

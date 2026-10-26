@@ -809,6 +809,16 @@ export const en = {
       retry: "Try again",
       home: "Back to the home page",
     },
+    productDetail: {
+      // The product page's headings (T49): the related products' carousel, the visitor's recently
+      // viewed row, and the two information sections the page always has.
+      // The breadcrumbs' first step.
+      home: "Home",
+      related: "You may also like",
+      recentlyViewed: "Recently viewed",
+      description: "Description",
+      delivery: "Delivery and returns",
+    },
   },
 };
 

@@ -61,13 +61,8 @@ import { VariantSelector } from "@shopblok/ui/molecules/variant-selector";
 import { CheckIcon, CircleAlertIcon } from "lucide-react";
 import { useId, useRef, useState } from "react";
 import type * as React from "react";
-import {
-  missingOptions,
-  priceFor,
-  stockFor,
-  useChosenSelection,
-  variantFor,
-} from "./buy-box-choice";
+import { missingOptions, priceFor, stockFor, variantFor } from "./buy-box-choice";
+import { useChosenSelection } from "./use-chosen-selection";
 
 /** The wording a buy box draws: its own and its molecules' and atoms'. */
 type BuyBoxCopy = {

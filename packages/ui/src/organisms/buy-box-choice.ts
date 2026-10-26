@@ -2,8 +2,10 @@
 // view work out from a product and the options chosen so far, kept apart from the components so
 // that both read the same rules: which options are still missing, which variant the choice names
 // (only once every option has a value), the price and the stock to show for it, and the pictures'
-// `selectedValueIds`. `useChosenSelection` keeps the choice in state, starting from the `selection`
-// a page passes, and follows that prop when it changes (the URL's back and forward, SPEC §8.4's
+// `selectedValueIds`, and the sticky bar's content (T49). `useChosenSelection`
+// (`use-chosen-selection.ts`, apart so a server page can import these rules without a hook) keeps
+// the choice in state, starting from the `selection` a page passes, and follows that prop when it
+// changes (the URL's back and forward, SPEC §8.4's
 // two-way sync) with React's "storing information from previous renders" pattern: the previous prop
 // is kept in state and compared during render, so there is no effect and no frame drawn with the
 // old choice. The comparison is by content, not by identity, so a parent that builds `selection`
@@ -13,33 +15,19 @@
 import type { Messages } from "@shopblok/i18n";
 import { formatMessage } from "@shopblok/i18n/format";
 import type {
+  MobileStickyATC,
   PriceSummary,
   ProductDetail,
   ProductOption,
   ProductVariant,
   VariantSelection,
 } from "@shopblok/registry/contracts";
-import { useState } from "react";
 import type { StockStatus } from "@shopblok/ui/atoms/stock-indicator";
 
 /** Whether two choices name the same value for the same options, in whatever order they list them. */
 export function sameSelection(a: VariantSelection, b: VariantSelection): boolean {
   const keys = Object.keys(a);
   return keys.length === Object.keys(b).length && keys.every((key) => a[key] === b[key]);
-}
-
-/**
- * The choice, in state. It starts as `selection` and becomes the prop's again whenever the prop
- * changes to another choice; a change the shopper makes is `setChosen`.
- */
-export function useChosenSelection(selection: VariantSelection) {
-  const [chosen, setChosen] = useState(selection);
-  const [followed, setFollowed] = useState(selection);
-  if (followed !== selection && !sameSelection(followed, selection)) {
-    setFollowed(selection);
-    setChosen(selection);
-  }
-  return [chosen, setChosen] as const;
 }
 
 /** Whether the choice holds a value that the option really has. */
@@ -108,4 +96,36 @@ export function stockFor(
   if (stock.status === "low" && stock.quantity !== undefined)
     return { status: "low", text: formatMessage(copy.low, { count: stock.quantity }, locale) };
   return { status: "in-stock", text: copy.inStock };
+}
+
+/**
+ * The sticky bar for a choice (T49): the product's first picture, title and price, the chosen
+ * values' labels in the options' order, and whether the button adds (`ready`), asks for an option
+ * (`incomplete`) or names a variant that cannot be bought (`sold-out`). The page's server draws it
+ * for the default choice and the buy box island again for each choice.
+ */
+export function stickyFor(
+  product: Pick<ProductDetail, "title" | "media" | "options" | "variants" | "price">,
+  chosen: VariantSelection,
+): MobileStickyATC {
+  const variant = variantFor(product, chosen);
+  const choice = product.options.flatMap((option) => {
+    const value = option.values.find((each) => each.id === chosen[option.id]);
+    return value === undefined ? [] : [value.label];
+  });
+  const [first] = product.media;
+  // The bar's picture is a plain image: which values it shows is the gallery's business.
+  const image = first === undefined ? undefined : (({ optionValueIds: _, ...rest }) => rest)(first);
+  return {
+    title: product.title,
+    ...(image === undefined ? {} : { image }),
+    price: priceFor(product, variant),
+    choice,
+    status:
+      missingOptions(product, chosen).length > 0
+        ? "incomplete"
+        : variant?.available === true
+          ? "ready"
+          : "sold-out",
+  };
 }

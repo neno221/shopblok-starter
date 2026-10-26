@@ -10,6 +10,7 @@
     "./atoms/*": "./src/atoms/*.tsx",
     "./primitives/*": "./src/primitives/*.tsx",
     "./molecules/*": "./src/molecules/*.tsx",
+    "./organisms/buy-box-choice": "./src/organisms/buy-box-choice.ts",
     "./organisms/*": "./src/organisms/*.tsx",
     "./templates/*": "./src/templates/*.tsx",
     "./providers": "./src/providers.tsx",

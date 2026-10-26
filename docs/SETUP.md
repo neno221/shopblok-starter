@@ -5410,3 +5410,68 @@ The first CI run's `design-system` job failed in `next build`: it builds with no
 | 7. `templates.notFound` beside `notFound`, and the `wiring` lines unused by the shell | `global-not-found.tsx` reads `templates.notFound`; the old `notFound` namespace and `wiring.backendUnavailable`/`backendHint` are gone from the four catalogs |
 | 8. The suggestion was worked out twice | the banner's action takes the suggested market's key from the visitor store and checks it (`suggestionForKey`: an open market in another country, with a region); what it shows still comes from the map and the regions, not the browser |
 | 9. The region-to-currency lookup was copied | `currencyForCountry(regions)` beside `listRegions`, used by `/next/visitor` and the shell |
+
+## Product page (T49)
+
+**Result: `{m}/products/[handle]` is the shop's first catalog page in the static shell (D58, D61): the product in the market's language and prices, the gallery and the buy box side by side, the information, the reviews' empty state, the related products and the recently viewed row; `?variant=` chooses on load and follows the choice; add to cart updates the header's count. `/next/status`, `/api/revalidate`, Medusa's revalidation subscriber and its ten-minute job are in, and ADR 0004's outage test passes against the stack.** The design system has a third template, `product-detail`.
+
+| | |
+|---|---|
+| Date | 2026-10-26 |
+| Branch | `claude/project-thread-bbr2fk`, from `main` at `c9659d7` (PR 75 merged) |
+| New (storefront) | `src/app/(storefront)/[market]/products/[handle]/page.tsx`, `src/components/pdp/{buy-box-island,gallery-island,recently-viewed,choice-store}.ts(x)`, `src/lib/prerender.ts`, `src/lib/status/status.ts` with `src/app/next/status/route.ts`, `src/lib/revalidate/revalidate.ts` with `src/app/api/revalidate/route.ts`, `src/lib/seo/product.ts`, `src/lib/view-models/product-page.ts`, `src/lib/visitor/recently-viewed.ts`, `e2e/{catalog,outage,outage-recovery}.spec.ts`, `e2e/support/catalog.ts`; a test file beside each module |
+| New (backend) | `src/lib/storefront-revalidate.ts` (the event-to-tags table and the POST), `src/subscribers/storefront-revalidate.ts`, `src/jobs/revalidate-catalog.ts`, each with a unit spec |
+| New (packages) | `packages/ui/src/templates/product-detail.tsx` and its test, `packages/ui/src/organisms/use-chosen-selection.ts` (the hook, out of `buy-box-choice.ts`), the `ProductDetailPage` contract, the `templates/product-detail` entry, `pageFixtures[locale].productDetail`, the story |
+| Changed | `[market]/layout.tsx` (title template, `metadataBase`), `src/lib/env.ts` (`REVALIDATE_SECRET`, `STOREFRONT_PRERENDER_PRODUCTS`), `src/lib/site.ts` (the buy box's notes and the delivery text per language), `buy-box-choice.ts` (`stickyFor`), the four catalogs (`templates.productDetail`), the fixtures' copy (`productPage.related`), `packages/ui/package.json` (`./organisms/buy-box-choice`), `.env.example`, `.gitignore` (the outage runs' folders) |
+
+### How it works
+
+- **The page** exports `ensureStatic = "navigation"`. `generateStaticParams` goes through `prerender.ts`: with `MEDUSA_BACKEND_URL` set it asks for the first `STOREFRONT_PRERENDER_PRODUCTS` handles (500 by default) in handle order, and a Medusa that does not answer fails the build with a message naming it; without it (the design-system and `check` builds) it renders one placeholder, `__shopblok-stand-in__`, which the page answers with a 404 before it reads anything. A cap of 0 also renders the placeholder, because Cache Components refuse an empty list. The page reads the product (`getProduct`, tags `medusa:products` and `product:{handle}`), the related products (`searchProducts` on its first category, then `listProductsByIds`, the first eight but itself) and the messages, all `cached()`; `notFound()` comes first.
+- **The template** (`ProductDetailTemplate`) is the page's `<main>`: breadcrumbs, then the gallery (11 parts) and the buy box (9 parts, sticky under the header) from `md`, then the information, the reviews (`#reviews`), the related carousel and the `recentlyViewed` slot. `slots.buyBox` and `slots.gallery` replace the two parts that follow the visitor; without them (the design system) it draws them from its values. `PRODUCT_DETAIL_IDS` names the form, the options, the button, the title and the reviews, so the sticky bar submits the buy box's form; the DS states pass their own ids.
+- **The islands** (D61): each sits in a `Suspense` whose fallback is the server's buy box or gallery for the default choice, so the static HTML holds the default price, and reads `?variant=` with `useSearchParams()`. `BuyBoxIsland` writes a full choice into the URL with `history.replaceState` (no navigation; Next keeps `useSearchParams` in step), reads the URL again only when it names another variant than the one it wrote (a partial choice, which the URL cannot hold, is kept), adds through `addToCart` with `useActionState` (`adding` while it runs) and calls `setCartCount`, and draws the sticky bar for the current choice (`stickyFor`). `GalleryIsland` takes the choice the buy box publishes (`choice-store.ts`), so a colour alone already shows its pictures. `RecentlyViewed` remembers the page's card in `localStorage` per market (nine, newest first, links and pictures checked when read back) and draws the others.
+- **The default choice** is the only variant for a one-variant product, nothing otherwise (add to cart waits for every option, SPEC §8.4).
+- **Head:** the title is "{product} | Shopblok"; the description is the first 160 characters of Medusa's; canonical is the base PDP (`?variant=` is a choice, not a page); hreflang through `hreflangAlternates`; Open Graph with the first picture when it is a URL (not the placeholder). JSON-LD is a `@graph` of `Product` (one `Offer` per variant, availability from the stock) and `BreadcrumbList`, `<` escaped. `metadataBase` is `NEXT_PUBLIC_BASE_URL`.
+- **`/next/status`** is S4's variant C: a Store API read with the publishable key and a Payload `count`, 2 s each, side by side; 200 or 503, `no-store`, `{ status, checks: { medusa, payload } }`, the reason in the server log only.
+- **`/api/revalidate`** takes `POST { tags, expire? }` with `Authorization: Bearer <REVALIDATE_SECRET>`, compares SHA-256 digests with `timingSafeEqual`, accepts only the catalog's tags (`medusa:{products,regions,categories,collections}`, `search`, `navigation`, `product|category|collection:{handle}`; never `global:markets` or the CMS's), and calls `revalidateTag(tag, { expire: 0 })` for `expire: 0`, `"max"` otherwise. 401 for a wrong or missing secret (and for every call while the secret is unset, with an error in the log), 400 for a body or a tag it does not know.
+- **The subscriber** maps the event to tags (`RULES` in `lib/storefront-revalidate.ts`): a product's change refreshes `product:{handle}`, `medusa:products` and `search` with `"max"`; a variant's (the prices) refreshes the lists with `"max"` and its product's page with `expire: 0`, sent last; an inventory level's (the stock) only its products' pages with `expire: 0`, since a level changes on every order; a category's and a collection's their handle, their list tag, `search` (and `navigation` for a category); a translation's every text tag (its id names no product); a region's `medusa:regions`, `medusa:products` and `search` with `expire: 0`. The handles come from `query.graph` by id, deleted rows included; a deleted product or group uses its list tag. A failed read still sends the list tags; a failed POST is logged and never thrown (the event must not retry forever).
+- **The job** `revalidate-catalog` POSTs `{ tags: ["medusa:products", "search"], expire: "max" }` every ten minutes (`*/10 * * * *`), for price lists, which emit no events.
+
+### Checks
+
+| Check | Result |
+|---|---|
+| `catalog.spec.ts` (5) against `next start` built with `STOREFRONT_PRERENDER_PRODUCTS=4` | passed: `/products/demo-heritage-hoodie` in Greek with €, `/us/…` in English with $, both with the buy box and no `cart-badge` in the server's HTML; canonical without `?variant=`, hreflang for `el-CY`, `en-US`, `fr-CH` and `x-default`, JSON-LD `Product` with USD offers and a `BreadcrumbList`; `/us/products/no-such-product` 404 with `noindex`; `?variant=` checks both options on load; Space on Navy then M writes `?variant=variant_…`, Enter on "Add to cart" gives "1" in the header |
+| `shell.spec.ts` beside it | 7 passed |
+| `outage.spec.ts` with Medusa's `pnpm dev` PID in the PID file | passed (35 s): the handles past the cap read from the Store API; after the stop (`/health` refused after 5 ms) the visited page 200 with its title (O2), the last unvisited one 5xx (O3), the visited missing handle 404 (O4), `/next/status` 503 in under 2.01 s, and 31 s after the stop the O2 page 200 twice |
+| `outage-recovery.spec.ts` after starting Medusa again | passed: `/next/status` back to 200, the O3 page 200 (O5) with no restart of `next start` |
+| `.next/prerender-manifest.json` | each prerendered product route `initialRevalidateSeconds: 30`, `initialExpireSeconds: 3600` (the map's life sets the route's, D58) |
+| `pnpm build` with the stack | passes; 56 product pages (7 markets × 8) without a cap, 28 with 4; `x-nextjs-cache: HIT`, `Cache-Control: s-maxage=30, stale-while-revalidate=3570` |
+| `check:first-load` | **`/[market]/products/[handle]` 1002.8 KB raw, 322.9 KB gzipped**, over the 170 KB budget; `/[market]` 291.6. See "Where it differs from the plan" |
+| Unit suites | storefront 104 files, ui 146, registry 13, fixtures 2, i18n 4; backend unit 131 tests |
+| In the browser (1280 and 390 px) | no console errors; choosing, adding, reloading on `?variant=` and the recently viewed row on the next product page all work |
+
+### Mutations
+
+| Mutation | Caught by |
+|---|---|
+| `await cookies()` in the page (ADR 0004, B3) | `next build`: `Route "/[market]/products/[handle]": Next.js encountered uncached or runtime data on a route that must be fully static.` |
+| `CATALOG_LIFE` with `expire: 240` | `next build` fails; the first route to fail is `/[market]` (the shell's category tree reads with the same life: "During prerendering, dynamic "use cache" rejects when the prerender is complete"), and the product routes report the same |
+| The revalidate route compares the secret with `===` | `revalidate.test.ts`, "compares the secret in constant time" (it reads the module's import and call of `timingSafeEqual`) |
+| The subscriber lets a failed POST throw | `storefront-revalidate.unit.spec.ts` (subscriber), "never throws" |
+| The island around the buy box instead of beside it (no server buy box in the fallback) | `catalog.spec.ts`, "the server's HTML has the product…" (`data-slot="buy-box"` and the price are in the HTML only through the fallback) |
+| `notFound()` inside a `Suspense` | **not caught**: the 404 test still passes. Under `ensureStatic = "navigation"` Next generates the whole route before it answers a path it has not rendered, so a `notFound()` inside a boundary still gives a 404 with `noindex`. `notFound()` stays first in the page anyway |
+
+### Where it differs from the plan
+
+- **The PDP is 322.9 KB gzipped, not under 170.** The shell is 291.6 of it (T48's numbers); the page adds 31 KB (the gallery's and the carousel's embla, the buy box's radios and stepper, the zoom dialog). The budget is Steven's decision, asked on 2026-10-26; until it is made, `check:first-load` fails `e2e-smoke`.
+- **Add to cart needs JavaScript.** The buy box's action is a client function that calls the server action and then the visitor store; without a script the form does not post. A no-script add would need the market's key in the form and a redirect, which T52's cart page can bring.
+- **The gallery is an island too** (the plan names the buy box's): the chosen colour's pictures need the choice before it is a variant, which only the buy box knows; the two share it through `choice-store.ts`.
+- **Delivery and returns** are one section from `site.ts` (per language), and the buy box's notes come from there too, until M4's globals. The details and the size guide have no data in Medusa yet, so the page has neither.
+- **A recently viewed card keeps the price it had** when the visitor was on its page; viewing the product again replaces it.
+- **`buy-box-choice.ts` lost its hook** to `use-chosen-selection.ts`: the page's server code imports `stickyFor` and Next refuses a server import of a module that imports `useState`.
+
+### Smaller observations
+
+- A page that renders on request during an outage (O3) answers 500, and Next logs the failed `getProduct`; once Medusa is back the next request renders it (O5).
+- happy-dom's `form.requestSubmit()` throws "The specified element is not owned by this form element" on the buy box; the island's test clicks the button instead. Base UI's radios need the pointer events before `click()`.
+- Prettier picks up `packages/config/prettier.config.mjs` only when told: `npx prettier --config packages/config/prettier.config.mjs`. Without it it formats at 80 columns.

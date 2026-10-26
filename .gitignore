@@ -26,5 +26,9 @@ playwright-report/
 test-results/
 playwright-report-dev-console/
 test-results-dev-console/
+playwright-report-outage/
+playwright-report-outage-recovery/
+test-results-outage/
+test-results-outage-recovery/
 blob-report/
 playwright/.cache/

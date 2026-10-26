@@ -106,6 +106,8 @@ export type Copy = {
    * the information's sections (the description is the product's own), and the size guide's.
    */
   productPage: {
+    /** The related products' heading on the product page (T49). */
+    related: string;
     notes: [string, string];
     sections: { description: string; details: string; delivery: string; returns: string };
     /** Facts about the hoodie: a label and its value each. */

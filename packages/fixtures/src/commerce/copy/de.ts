@@ -148,6 +148,7 @@ export const de: Copy = {
   },
   carousel: { title: "Neu eingetroffen", viewAll: "Alle Neuheiten ansehen" },
   productPage: {
+    related: "Das könnte Ihnen auch gefallen",
     notes: ["Versand in 2 bis 4 Werktagen", "Kostenlose Rückgabe innerhalb von 30 Tagen"],
     sections: {
       description: "Beschreibung",
