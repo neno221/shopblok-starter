@@ -5695,7 +5695,7 @@ The review (`reviews/pr-80-code-review.md` in the project's files) had three mus
 |---|---|
 | The login sets `_medusa_jwt` before the customer exists (both of `login`'s branches) | `auth.spec.ts`, the refusal step ("Expected: false, Received: true" for the session cookie) |
 | `getOrder` returns the order without the owner check | `auth.spec.ts`, the second customer's test (the first customer's address in the order page's HTML) |
-| `safeNext` takes any string | `auth-forms.test.ts`: three tests (`//evil.com`, `/\\evil.com`, an absolute URL, whitespace, and the sign-in that would go on to another host) |
+| `safeNext` takes any string | `auth-forms.test.ts`: three tests (`//evil.com`, `/\evil.com`, an absolute URL, whitespace, and the sign-in that would go on to another host) |
 
 ### Where it differs from the plan
 
