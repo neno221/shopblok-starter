@@ -4,6 +4,7 @@ import type {
 } from "@medusajs/framework/types";
 
 import { SUPPORTED_LOCALES } from "../../config/markets";
+import { trimmed } from "./facets";
 import { type ProductOptionRow, toOptionValues } from "./option-values";
 import { resolveProductIds } from "./resolve-product-ids";
 
@@ -51,18 +52,14 @@ const TEXT_GRAPH_FIELDS = [
   "options.values.value",
 ];
 
-const trimmed = (values: (string | null | undefined)[]) =>
-  values
-    .map((value) => value?.trim())
-    .filter((value): value is string => Boolean(value));
-
 /**
  * The locales a document is built from: the store's `supported_locales`, read
- * once per batch, with the default locale first. A locale added in the admin
+ * once per batch, with the default locale first. The search middleware reads
+ * the same list to check a request's locale. A locale added in the admin
  * is picked up by the next write, with no restart (D17, ADR 0002 decision 2).
  */
 export async function storeLocales(
-  query: RemoteQueryFunction,
+  query: Pick<RemoteQueryFunction, "graph">,
 ): Promise<string[]> {
   const { data } = await query.graph({
     entity: "store",
@@ -94,7 +91,7 @@ function toTexts(row: TextRow): ProductTexts {
  * written; a locale with none for a field falls back to the default text.
  */
 export async function readTexts(
-  query: RemoteQueryFunction,
+  query: Pick<RemoteQueryFunction, "graph">,
   ids: string[],
   locales: string[],
 ): Promise<Map<string, Map<string, ProductTexts>>> {
@@ -104,13 +101,19 @@ export async function readTexts(
     return texts;
   }
 
-  for (const locale of locales) {
-    const { data } = await query.graph(
-      { entity: "product", fields: TEXT_GRAPH_FIELDS, filters: { id: ids } },
-      { locale },
-    );
+  const reads = await Promise.all(
+    locales.map(async (locale) => {
+      const { data } = await query.graph(
+        { entity: "product", fields: TEXT_GRAPH_FIELDS, filters: { id: ids } },
+        { locale },
+      );
 
-    for (const row of data as TextRow[]) {
+      return [locale, data as TextRow[]] as const;
+    }),
+  );
+
+  for (const [locale, rows] of reads) {
+    for (const row of rows) {
       const byLocale = texts.get(row.id) ?? new Map<string, ProductTexts>();
 
       byLocale.set(locale, toTexts(row));
@@ -189,18 +192,22 @@ export async function resolveTranslationProductIds(
 
   const productIds = new Set(byReference.get("product") ?? []);
 
-  for (const [reference, entity] of Object.entries(TRANSLATED_ENTITIES)) {
-    const referenceIds = byReference.get(reference);
+  const related = await Promise.all(
+    Object.entries(TRANSLATED_ENTITIES).flatMap(([reference, entity]) => {
+      const referenceIds = byReference.get(reference);
 
-    if (referenceIds?.length) {
-      const related = await resolveProductIds(
-        { name: `${entity}.updated`, data: referenceIds.map((id) => ({ id })) },
-        context,
-      );
+      return referenceIds?.length
+        ? [
+            resolveProductIds(
+              { name: `${entity}.updated`, data: referenceIds.map((id) => ({ id })) },
+              context,
+            ),
+          ]
+        : [];
+    }),
+  );
 
-      related.forEach((id) => productIds.add(id));
-    }
-  }
+  related.flat().forEach((id) => productIds.add(id));
 
   return [...productIds];
 }

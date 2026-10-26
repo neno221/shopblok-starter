@@ -6,7 +6,7 @@ import {
   search,
 } from "@medusajs/framework/utils";
 
-import { toFacetIds } from "./helpers/facets";
+import { toFacetIds, trimmed } from "./helpers/facets";
 import { type ProductOptionRow, toOptionValues } from "./helpers/option-values";
 import { loadPricing, priceFields, toProductPricing } from "./helpers/pricing";
 import { resolveProductIds } from "./helpers/resolve-product-ids";
@@ -30,6 +30,7 @@ const PRODUCT_GRAPH_FIELDS = [
   "sales_channels.id",
   "categories.id",
   "categories.name",
+  "tags.id",
   "tags.value",
   "options.id",
   "options.title",
@@ -48,7 +49,7 @@ type ProductRow = {
   collection_id?: string | null;
   sales_channels?: ({ id?: string | null } | null)[] | null;
   categories?: ({ id?: string | null; name?: string | null } | null)[] | null;
-  tags?: ({ value?: string | null } | null)[] | null;
+  tags?: ({ id?: string | null; value?: string | null } | null)[] | null;
   options?: (ProductOptionRow & {
     id?: string | null;
     values?: ({ id?: string | null; value?: string | null } | null)[] | null;
@@ -59,9 +60,10 @@ type ProductRow = {
  * One multilingual index (ADR 0002's A′, D63): `search_text` holds every store
  * locale's text, so a query in any language finds the product, and a language
  * added in the store needs no restart or migration. `title` is the default
- * language's, for sorting; `category` and `option_values` are its labels for
- * the hits. The facets are ids, which the storefront labels in the visitor's
- * locale.
+ * language's: sortable, and searched with more weight, so a title match ranks
+ * above a word in a description; `category`, `option_values` and `labels` are
+ * the default language's labels for the hits. The facets are ids, which the
+ * storefront labels in the visitor's locale.
  */
 const productFields = search.define({
   id: search.keyword().filterable().retrievable(),
@@ -69,7 +71,7 @@ const productFields = search.define({
   status: search.keyword().filterable().retrievable(false),
   sales_channel_ids: search.keyword().array().filterable().retrievable(false),
   search_text: search.text().searchable({ weight: 2 }).retrievable(false),
-  title: search.text().sortable().retrievable(),
+  title: search.text().searchable({ weight: 3 }).sortable().retrievable(),
   handle: search.keyword().retrievable(),
   // Returned on hits only: never filtered, sorted or faceted on.
   thumbnail: search.keyword().retrievable(),
@@ -89,18 +91,14 @@ const productFields = search.define({
     .filterable()
     .facetable()
     .retrievable(),
-  labels: search.keyword().array().filterable().facetable().retrievable(),
+  tag_ids: search.keyword().array().filterable().facetable().retrievable(),
+  labels: search.keyword().array().retrievable(),
   ...priceFields,
 });
 
 type ProductDocument = SearchTypes.InferSearchDocumentType<
   typeof productFields
 >;
-
-const trimmed = (values: (string | null | undefined)[]) =>
-  values
-    .map((value) => value?.trim())
-    .filter((value): value is string => Boolean(value));
 
 function toDocument(
   product: ProductRow,
@@ -140,10 +138,9 @@ const source = {
   ) => {
     const { query } = context.container;
     const ids = rows.map((row) => row.id);
-    const locales = await storeLocales(query);
     const [pricing, texts] = await Promise.all([
       loadPricing(ids, context),
-      readTexts(query, ids, locales),
+      storeLocales(query).then((locales) => readTexts(query, ids, locales)),
     ]);
 
     return rows.map((row) =>

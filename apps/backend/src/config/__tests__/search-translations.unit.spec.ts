@@ -56,16 +56,18 @@ describe("toSearchText", () => {
 });
 
 describe("toFacetIds", () => {
-  it("lists the ids of categories, the collection and option values, each once", () => {
+  it("lists the ids of categories, the collection, tags and option values, each once", () => {
     expect(
       toFacetIds({
         categories: [{ id: "pcat_1" }, { id: "pcat_1" }, null, { id: " " }],
         collection_id: "pcol_1",
+        tags: [{ id: "ptag_1" }, { id: null }],
         options: [{ values: [{ id: "optval_s" }, { id: "optval_m" }] }, { values: null }, null],
       }),
     ).toEqual({
       category_ids: ["pcat_1"],
       collection_ids: ["pcol_1"],
+      tag_ids: ["ptag_1"],
       option_value_ids: ["optval_s", "optval_m"],
     });
   });
@@ -74,6 +76,7 @@ describe("toFacetIds", () => {
     expect(toFacetIds({})).toEqual({
       category_ids: [],
       collection_ids: [],
+      tag_ids: [],
       option_value_ids: [],
     });
   });

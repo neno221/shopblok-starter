@@ -208,6 +208,9 @@ medusaIntegrationTestRunner({
           await container.resolve(Modules.SEARCH).ingest({ name: "product.updated", data: [{ id: linenId }] });
           expect(await hitIds("Sommer")).toEqual([]);
 
+          // The tag is a facet by id, which the storefront labels in the visitor's locale.
+          expect(await facets("tag_ids")).toEqual([{ value: tag!.id, count: 1 }]);
+
           await translate(container, "product_tag", tag!.id, { "de-DE": { value: "Sommer" } });
           await until(async () => (await hitIds("Sommer")).includes(linenId), {
             what: "the new German tag to be found",

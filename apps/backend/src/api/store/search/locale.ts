@@ -8,7 +8,7 @@ import {
   Modules,
 } from "@medusajs/framework/utils";
 
-import { DEFAULT_LOCALE } from "../../../search/helpers/translations";
+import { DEFAULT_LOCALE, storeLocales } from "../../../search/helpers/translations";
 
 type SearchQuery = { entity: string; search_options?: Record<string, unknown> };
 type SearchBody = SearchQuery | { queries: SearchQuery[] };
@@ -35,8 +35,8 @@ export function chooseSearchLocale(
  * Writes the search's locale into each query's `search_options.locales`,
  * replacing whatever the caller sent, so a caller cannot pick a locale, nor an
  * index name built from one (M6's Meilisearch provider has an index per
- * locale). A provider that refuses query-time locales (`search-postgres`, whose
- * one multilingual index needs none) gets no `locales` at all.
+ * locale). A provider that does not take query-time locales (`search-postgres`,
+ * whose one multilingual index needs none) gets no `locales` at all.
  */
 export function localizeSearchBody(
   body: SearchBody,
@@ -52,33 +52,12 @@ export function localizeSearchBody(
   }
 }
 
-/** Providers that answer a query with `locales` with an error. */
-const NO_QUERY_TIME_LOCALES = ["search-postgres"];
-
-// The store's locales, read once per request.
-const localesByRequest = new WeakMap<MedusaRequest, Promise<string[]>>();
-
-async function supportedLocales(req: MedusaRequest): Promise<string[]> {
-  let locales = localesByRequest.get(req);
-
-  if (!locales) {
-    const query = req.scope.resolve(ContainerRegistrationKeys.QUERY);
-
-    locales = query
-      .graph({ entity: "store", fields: ["supported_locales.locale_code"] })
-      .then(({ data }) =>
-        (data as { supported_locales?: ({ locale_code?: string } | null)[] }[]).flatMap(
-          (store) =>
-            (store.supported_locales ?? []).flatMap((l) =>
-              l?.locale_code ? [l.locale_code] : [],
-            ),
-        ),
-      );
-    localesByRequest.set(req, locales);
-  }
-
-  return locales;
-}
+/**
+ * The providers that take `search_options.locales` (M6's Meilisearch, by its
+ * registration id). Any other gets none: `search-postgres` answers a query
+ * with `locales` with an HTTP 400, so an unknown provider fails safe.
+ */
+const QUERY_TIME_LOCALE_PROVIDERS = ["meilisearch"];
 
 /**
  * `POST /store/search`, after `configureStoreSearch` (whose validator fills
@@ -97,14 +76,14 @@ export async function localizeStoreSearch(
       | undefined;
     const locale = chooseSearchLocale(
       (req as { locale?: string }).locale,
-      await supportedLocales(req),
+      await storeLocales(req.scope.resolve(ContainerRegistrationKeys.QUERY)),
     );
 
     localizeSearchBody(body, locale, (entity) => {
       try {
         const provider = search?.getIndex(entity).provider ?? "";
 
-        return !NO_QUERY_TIME_LOCALES.some((id) => provider.startsWith(id));
+        return QUERY_TIME_LOCALE_PROVIDERS.some((id) => provider.startsWith(id));
       } catch {
         // An unknown index: the route answers it with a 404.
         return false;
