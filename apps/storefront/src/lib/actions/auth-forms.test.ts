@@ -92,7 +92,7 @@ describe("loginForm", () => {
       ok: false,
       errors: {},
       form: "rejected",
-      message: "credentials",
+      reason: "credentials",
     });
     await expect(loginForm("en-us", signIn("/us/account/orders"))).rejects.toThrow(
       "redirect /us/login?f=key",

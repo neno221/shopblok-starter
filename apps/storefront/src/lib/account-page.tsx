@@ -3,11 +3,9 @@ import type { Messages } from "@shopblok/i18n";
 import type { AddressFormErrors } from "@shopblok/ui/molecules/address-form";
 import { accountCopy, type AccountErrors } from "@shopblok/ui/templates/account";
 import { AuthTemplate, authCopy } from "@shopblok/ui/templates/auth";
-import type { Metadata } from "next";
 import { connection } from "next/server";
-import { getMessages } from "next-intl/server";
 import { signIn, signOut } from "./actions/auth";
-import { authPageContext, type AuthPageContext } from "./auth-page";
+import { authPageContext, noindexMetadata, type AuthPageContext } from "./auth-page";
 import type { Flash } from "./flash";
 import { getCustomer, type CustomerDto } from "./medusa/customer";
 import { SHELL_PREFETCH } from "./site";
@@ -25,13 +23,8 @@ export async function accountPageContext(): Promise<AccountPageContext> {
   return { ...page, customer: await getCustomer() };
 }
 
-/** An account page's metadata: its title, and never in a search engine's index. */
-export async function accountMetadata(
-  title: (account: Messages["templates"]["account"]) => string,
-): Promise<Metadata> {
-  const messages = await getMessages();
-  return { title: title(messages.templates.account), robots: { index: false, follow: false } };
-}
+export const accountMetadata = (title: (account: Messages["templates"]["account"]) => string) =>
+  noindexMetadata((templates) => title(templates.account));
 
 /** A public URL as a path of this host (a market on its own domain has a full URL). */
 const localPath = (url: string) => {

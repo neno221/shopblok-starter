@@ -23,8 +23,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function AccountOrderPage({ params }: Props) {
-  const [{ id: raw }, page] = await Promise.all([params, accountPageContext()]);
-  const id = decodeURIComponent(raw);
+  const [{ id }, page] = await Promise.all([params, accountPageContext()]);
   const { customer, context, market, messages } = page;
   const path = `/account/orders/${encodeURIComponent(id)}`;
   if (customer === null) return <SignInFirst page={page} path={path} />;

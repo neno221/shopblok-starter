@@ -33,7 +33,7 @@ async function failed(
   const errors: Record<string, string> = {};
   for (const [name, kind] of Object.entries(result.errors))
     if (kind !== undefined) errors[name] = kind;
-  const form = result.message === "mine" ? "mine" : result.form;
+  const form = result.reason === "mine" ? "mine" : result.form;
   const key = await leaveFlash(path, {
     ...(form === undefined ? {} : { form }),
     errors,

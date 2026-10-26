@@ -294,12 +294,19 @@ export async function register(
 
 /**
  * Asks for the verification link and keeps the restricted token and the time in the pending
- * cookie, for the "send a new link" form (`resendVerification`). The registration's fields stay
- * when the cookie is this address's.
+ * cookie, for the "send a new link" form (`resendVerification`); within `RESEND_WAIT_MS` of the
+ * last link it only keeps the token. The registration's fields stay when the cookie is this
+ * address's.
  */
 async function sendVerification(email: string, token: string, prefix: string): Promise<void> {
   const pending = await getPendingCustomer();
   const kept = pending?.email === email ? pending : { email };
+  // A sign-in again within the wait keeps the new token but sends no new link (the resend's rule,
+  // PR 81 review, item 6): the link already sent still works.
+  if (kept.sentAt !== undefined && Date.now() < kept.sentAt + RESEND_WAIT_MS) {
+    await setPendingCustomer({ ...kept, token });
+    return;
+  }
   await setPendingCustomer({ ...kept, token, sentAt: Date.now() });
   await requestVerification(email, token, prefix).catch(() => undefined);
 }

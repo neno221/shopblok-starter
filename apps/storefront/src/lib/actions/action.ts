@@ -26,14 +26,26 @@ export type FormError =
 
 export type ActionResult<T> =
   | { ok: true; data: T }
-  | { ok: false; errors: Partial<Record<string, FieldError>>; form?: FormError; message?: string };
+  | {
+      ok: false;
+      errors: Partial<Record<string, FieldError>>;
+      form?: FormError;
+      /** Why, in the form's own words: a code the handler chose for the copy to match. */
+      reason?: string;
+      /** Medusa's refusal, for the log and for a message the copy can match (a promo code's). */
+      message?: string;
+    };
 
-/** A failure an action's handler throws on purpose: the visitor sees `form`. */
+/**
+ * A failure an action's handler throws on purpose: the visitor sees `form`, and `reason` when the
+ * handler gives one (a code such as `credentials`, never a sentence); `message` stays on the server.
+ */
 export class ActionError extends Error {
   override name = "ActionError";
   constructor(
     readonly form: FormError,
     message: string = form,
+    readonly reason?: string,
   ) {
     super(message);
   }
@@ -117,7 +129,7 @@ export function action<Schema extends z.ZodType, Result, Auth extends "none" | "
           ok: false,
           errors: {},
           form: error.form,
-          ...(error.message === error.form ? {} : { message: error.message }),
+          ...(error.reason === undefined ? {} : { reason: error.reason }),
         };
       if (error instanceof FieldsError) return { ok: false, errors: error.errors };
       if (error instanceof MedusaRequestError) {

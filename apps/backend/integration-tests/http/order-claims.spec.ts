@@ -153,6 +153,27 @@ medusaIntegrationTestRunner({
         expect(wrongEmail.data.message).toBe(noOrder.data.message);
       });
 
+      it("answers another account's order as an order that does not exist, and e-mails no one", async () => {
+        const owner = await signUp("owner@example.com");
+        const ownerId = (await api.get("/store/customers/me", asCustomer(owner))).data.customer.id as string;
+        const order = await placeOrder("owner@example.com", ownerId);
+        const token = await signUp("claimer@example.com");
+
+        const response = await claim(token, {
+          display_id: order.display_id,
+          email: "owner@example.com",
+        });
+
+        expect(response.status).toBe(404);
+        const notifications = getContainer().resolve(Modules.NOTIFICATION);
+        const sent = await notifications.listNotifications({
+          to: "owner@example.com",
+          template: "order-transfer-request",
+        });
+
+        expect(sent).toEqual([]);
+      });
+
       it("refuses a claim from a visitor who is not signed in", async () => {
         const order = await placeOrder("guest.alan@example.com");
         const response = await api.post(

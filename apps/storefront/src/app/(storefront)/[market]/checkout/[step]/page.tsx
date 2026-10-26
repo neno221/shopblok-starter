@@ -26,6 +26,7 @@ import {
   canOpen,
   firstOpenStep,
   formCountries,
+  savedAddressFor,
   toAddressFormState,
   toCheckoutSteps,
   toPaymentStep,
@@ -158,10 +159,7 @@ async function stepOf(
     // A signed-in customer's e-mail and default shipping address fill a cart that has none yet (T53).
     const customer =
       cart.email === null || cart.shippingAddress === null ? await getCustomer() : null;
-    const saved =
-      customer?.addresses.find((address) => address.isDefaultShipping) ??
-      customer?.addresses[0] ??
-      null;
+    const saved = customer === null ? null : savedAddressFor(customer, region.countries);
     return {
       kind: "contact",
       email: flash?.values?.email ?? cart.email ?? customer?.email ?? "",

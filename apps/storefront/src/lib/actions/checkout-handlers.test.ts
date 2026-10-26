@@ -184,11 +184,7 @@ describe("deliveryAction (step 2)", () => {
   };
 
   it("is incomplete on a cart without an e-mail and an address", async () => {
-    expect(await deliveryAction(delivery)).toMatchObject({
-      ok: false,
-      errors: {},
-      form: "incomplete",
-    });
+    expect(await deliveryAction(delivery)).toEqual({ ok: false, errors: {}, form: "incomplete" });
     expect(setShippingMethod).not.toHaveBeenCalled();
   });
 
@@ -223,7 +219,7 @@ describe("placeOrderAction (step 3)", () => {
       { ...deliveryDone, paymentProviderId: null },
     ]) {
       getOrCreateCart.mockResolvedValue(cart);
-      expect(await placeOrderAction({ market: "en-de" })).toMatchObject({
+      expect(await placeOrderAction({ market: "en-de" })).toEqual({
         ok: false,
         errors: {},
         form: "incomplete",
@@ -255,7 +251,7 @@ describe("placeOrderAction (step 3)", () => {
       error: "out of stock",
       cart: deliveryDone,
     } satisfies CompletedCart);
-    expect(await placeOrderAction({ market: "en-de" })).toMatchObject({
+    expect(await placeOrderAction({ market: "en-de" })).toEqual({
       ok: false,
       errors: {},
       form: "rejected",

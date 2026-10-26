@@ -229,7 +229,13 @@ describe("saveAddressAction", () => {
     expect(sent).toMatchObject({ first_name: "Anna", city: "Berlin", postal_code: "10115" });
     // The form left company, address 2 and the phone out: Medusa would keep them if not told.
     expect(sent).toMatchObject({ company: "", address_2: "", province: "", phone: "" });
-    expect(sent).not.toHaveProperty("is_default_shipping");
+    // The box was not ticked (an unticked box is not posted): no longer the default.
+    expect(sent).toMatchObject({ is_default_shipping: false });
+  });
+
+  it("keeps a changed address the default when the box is ticked", async () => {
+    await saveAddressAction({ ...form, addressId: "addr_1", isDefaultShipping: "true" });
+    expect(updateAddress.mock.calls[0]?.[1]).toMatchObject({ is_default_shipping: true });
   });
 });
 
@@ -377,13 +383,25 @@ describe("claimOrderAction", () => {
     expect(await claimOrderAction(claim)).toEqual({ ok: true, data: { sent: true } });
   });
 
-  it('answers rejected with the message "mine" for an order that is the customer\'s already (422)', async () => {
+  it("answers sent for any other refusal too (a transfer already open, another account's order)", async () => {
+    for (const status of [400, 403, 409]) {
+      claimOrder.mockRejectedValue(new MedusaRequestError("refused", "rejected", status));
+      expect(await claimOrderAction(claim)).toEqual({ ok: true, data: { sent: true } });
+    }
+  });
+
+  it("answers unauthorized when the session ended (401), not sent", async () => {
+    claimOrder.mockRejectedValue(new MedusaRequestError("no session", "rejected", 401));
+    expect(await claimOrderAction(claim)).toMatchObject({ ok: false, form: "unauthorized" });
+  });
+
+  it('answers rejected with the reason "mine" for an order that is the customer\'s already (422)', async () => {
     claimOrder.mockRejectedValue(new MedusaRequestError("already yours", "rejected", 422));
     expect(await claimOrderAction(claim)).toEqual({
       ok: false,
       errors: {},
       form: "rejected",
-      message: "mine",
+      reason: "mine",
     });
   });
 

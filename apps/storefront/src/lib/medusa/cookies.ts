@@ -95,11 +95,17 @@ export type PendingCustomer = {
   sentAt?: number;
 };
 
+/**
+ * The pending cookie is signed like the receipt (HMAC-SHA256 with PAYLOAD_SECRET): the resend's
+ * wait is in it, and a visitor must not be able to write an earlier time (PR 81 review, item 6).
+ * Deleting the cookie lifts the wait, so a rate limit on Medusa's side is still M7's (§6.2).
+ */
 export async function getPendingCustomer(): Promise<PendingCustomer | null> {
   const value = await read(COOKIE.pendingCustomer);
-  if (value === undefined) return null;
+  const body = value === undefined ? undefined : verified("pending", value);
+  if (body === undefined) return null;
   try {
-    const parsed: unknown = JSON.parse(value);
+    const parsed: unknown = JSON.parse(Buffer.from(body, "base64url").toString("utf8"));
     if (typeof parsed !== "object" || parsed === null) return null;
     const { email, firstName, lastName, phone, token, sentAt } = parsed as Record<string, unknown>;
     if (typeof email !== "string" || email === "") return null;
@@ -118,8 +124,15 @@ export async function getPendingCustomer(): Promise<PendingCustomer | null> {
   }
 }
 
-export const setPendingCustomer = (customer: PendingCustomer) =>
-  write(COOKIE.pendingCustomer, JSON.stringify(customer));
+/** Keeps the registration, signed; nothing without a secret to sign with. */
+export async function setPendingCustomer(customer: PendingCustomer): Promise<void> {
+  const value = signed("pending", Buffer.from(JSON.stringify(customer)).toString("base64url"));
+  if (value === undefined) {
+    console.error("[pending] PAYLOAD_SECRET is not set: a registration cannot be kept");
+    return;
+  }
+  await write(COOKIE.pendingCustomer, value);
+}
 export const removePendingCustomer = () => clear(COOKIE.pendingCustomer);
 
 /** The market the visitor chose themselves (D66), as its key; checked against the map by readers. */
@@ -131,33 +144,40 @@ export const setChosenMarket = (key: string) => write(COOKIE.market, key);
 // with the publishable key, so the cookie is signed (HMAC-SHA256 with the server's PAYLOAD_SECRET):
 // a visitor cannot write another order's id into it.
 
-function receiptSignature(orderId: string): string | undefined {
+/** `body.signature` for `purpose` (HMAC-SHA256 with PAYLOAD_SECRET); `undefined` without a secret. */
+function signed(purpose: string, body: string): string | undefined {
   const secret = env.PAYLOAD_SECRET?.trim();
   if (!secret) return undefined;
-  return createHmac("sha256", secret).update(`receipt:${orderId}`).digest("base64url");
+  return `${body}.${createHmac("sha256", secret).update(`${purpose}:${body}`).digest("base64url")}`;
+}
+
+/** The body of a value `signed` wrote for `purpose` with this server's secret; `undefined` otherwise. */
+function verified(purpose: string, value: string): string | undefined {
+  const dot = value.lastIndexOf(".");
+  if (dot <= 0) return undefined;
+  const expected = signed(purpose, value.slice(0, dot));
+  if (expected === undefined) return undefined;
+  const given = Buffer.from(value);
+  const wanted = Buffer.from(expected);
+  return given.length === wanted.length && timingSafeEqual(given, wanted)
+    ? value.slice(0, dot)
+    : undefined;
 }
 
 /** Keeps the order the browser just placed, signed; nothing without a secret to sign with. */
 export async function setReceipt(orderId: string): Promise<void> {
-  const signature = receiptSignature(orderId);
-  if (signature === undefined) {
+  const value = signed("receipt", orderId);
+  if (value === undefined) {
     console.error("[receipt] PAYLOAD_SECRET is not set: a guest's receipt cannot be shown");
     return;
   }
-  await write(COOKIE.receipt, `${orderId}.${signature}`);
+  await write(COOKIE.receipt, value);
 }
 
 /** The order the receipt cookie names, when its signature is this server's; `undefined` otherwise. */
 export async function getReceiptOrderId(): Promise<string | undefined> {
   const value = await read(COOKIE.receipt);
-  const dot = value?.lastIndexOf(".") ?? -1;
-  if (value === undefined || dot <= 0) return undefined;
-  const orderId = value.slice(0, dot);
-  const expected = receiptSignature(orderId);
-  if (expected === undefined) return undefined;
-  const given = Buffer.from(value.slice(dot + 1));
-  const wanted = Buffer.from(expected);
-  return given.length === wanted.length && timingSafeEqual(given, wanted) ? orderId : undefined;
+  return value === undefined ? undefined : verified("receipt", value);
 }
 
 /**

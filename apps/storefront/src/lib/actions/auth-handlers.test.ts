@@ -49,10 +49,10 @@ describe("loginAction", () => {
     expect(updateTag).toHaveBeenCalledWith("cart");
   });
 
-  it('is rejected with the message "credentials" for a wrong password, which the form reads', async () => {
+  it('is rejected with the reason "credentials" for a wrong password, which the form reads', async () => {
     login.mockResolvedValue({ state: "error", reason: "credentials" });
     const result = await loginAction(credentials);
-    expect(result).toEqual({ ok: false, errors: {}, form: "rejected", message: "credentials" });
+    expect(result).toEqual({ ok: false, errors: {}, form: "rejected", reason: "credentials" });
     if (result.ok) throw new Error("expected a failure");
     expect(authFormError(result)).toBe("credentials");
     expect(updateTag).not.toHaveBeenCalled();
@@ -84,9 +84,9 @@ describe("loginAction", () => {
 });
 
 describe("authFormError", () => {
-  it("reads the two messages the auth copy has, else the form's own error, else rejected", () => {
-    expect(authFormError({ form: "rejected", message: "exists" })).toBe("exists");
-    expect(authFormError({ form: "unavailable", message: "something else" })).toBe("unavailable");
+  it("reads the two reasons the auth copy has, else the form's own error, else rejected", () => {
+    expect(authFormError({ form: "rejected", reason: "exists" })).toBe("exists");
+    expect(authFormError({ form: "unavailable", reason: "something else" })).toBe("unavailable");
     expect(authFormError({})).toBe("rejected");
   });
 });
@@ -129,7 +129,6 @@ describe("resetAction", () => {
       ok: false,
       errors: {},
       form: "not-found",
-      message: "the reset link has expired",
     });
   });
 

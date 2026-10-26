@@ -1,7 +1,7 @@
 import "server-only";
 import { updateTag } from "next/cache";
 import { z } from "zod";
-import { getMarketContext, type MarketContext } from "../market-context";
+import type { MarketContext } from "../market-context";
 import { marketPrefix } from "../markets";
 import {
   login,
@@ -14,6 +14,7 @@ import {
 } from "../medusa/customer";
 import { MedusaRequestError } from "../medusa/sdk";
 import { action, ActionError, type FormError } from "./action";
+import { contextFor, formText as text, marketKey } from "./inputs";
 
 // Signing in and up (D64, T53): the auth forms' actions, on T47's data layer (`medusa/customer.ts`,
 // dtc-starter's flow with its bugs fixed). The e-mail is trimmed and lowercased before Medusa sees
@@ -21,26 +22,12 @@ import { action, ActionError, type FormError } from "./action";
 // compares the address exactly (PR 76 review). The market's public prefix goes with every request
 // that makes Medusa e-mail a link (T44 builds the link from it).
 
-const marketKey = z.string().min(1).max(64);
 const email = z.string().trim().toLowerCase().pipe(z.email().max(320));
 /** The shortest password the shop takes (the template's hint says the same). */
 export const PASSWORD_MIN = 8;
 const newPassword = z.string().min(PASSWORD_MIN).max(200);
-/** A field as a form sends it: trimmed, empty is absent. */
-const text = (max: number) =>
-  z.preprocess(
-    (value) => (typeof value === "string" && value.trim() === "" ? undefined : value),
-    z.string().trim().max(max).optional(),
-  );
-
 /** Why a sign-in or a registration failed when no field is to blame (the auth copy's keys). */
 export type AuthFormError = FormError | "credentials" | "not-verified" | "exists";
-
-async function contextFor(key: string): Promise<MarketContext> {
-  const context = await getMarketContext(key);
-  if (context === null) throw new ActionError("not-found", `no open market ${key}`);
-  return context;
-}
 
 const prefixOf = (context: MarketContext) => marketPrefix(context.market, context.map);
 
@@ -52,7 +39,7 @@ function outcomeOf(result: LoginResult): SignInOutcome {
   if (result.state === "verification-required")
     return { state: "check-email", email: result.email };
   if (result.reason === "credentials" || result.reason === "exists")
-    throw new ActionError("rejected", result.reason);
+    throw new ActionError("rejected", result.reason, result.reason);
   throw new ActionError(
     result.reason === "unavailable" ? "unavailable" : "rejected",
     result.reason,
@@ -155,7 +142,7 @@ export const logoutAction = action(logoutSchema, async ({ market }) => {
 });
 
 /** The form's error of a failed sign-in or registration, by what the handler threw. */
-export function authFormError(result: { form?: FormError; message?: string }): AuthFormError {
-  if (result.message === "credentials" || result.message === "exists") return result.message;
+export function authFormError(result: { form?: FormError; reason?: string }): AuthFormError {
+  if (result.reason === "credentials" || result.reason === "exists") return result.reason;
   return result.form ?? "rejected";
 }

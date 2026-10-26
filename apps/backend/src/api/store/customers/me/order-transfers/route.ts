@@ -24,7 +24,7 @@ export async function POST(
 
   const { data: orders } = await query.graph({
     entity: "order",
-    fields: ["id", "display_id", "email", "customer_id"],
+    fields: ["id", "display_id", "email", "customer_id", "customer.has_account"],
     // `display_id` is an integer column; the generated filter type has it as a string.
     filters: { display_id } as unknown as { display_id: string },
   });
@@ -38,6 +38,12 @@ export async function POST(
 
   if (order.customer_id === customerId) {
     throw new MedusaError(MedusaError.Types.DUPLICATE_ERROR, "The order is already yours.");
+  }
+
+  // Only a guest's order can be claimed (D64): another account's order is answered as one that
+  // does not exist, so the shop never e-mails a customer a transfer of their own order.
+  if (order.customer?.has_account) {
+    throw new MedusaError(MedusaError.Types.NOT_FOUND, "No order has this number and e-mail.");
   }
 
   await requestOrderTransferWorkflow(req.scope).run({

@@ -1,9 +1,8 @@
 import { OrderLookupTemplate, orderLookupCopy } from "@shopblok/ui/templates/order-lookup";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { getMessages } from "next-intl/server";
 import { answerTransfer } from "../../../../../../../lib/actions/account";
-import { authPageContext, param } from "../../../../../../../lib/auth-page";
+import { authPageContext, noindexMetadata, param } from "../../../../../../../lib/auth-page";
 import { getOrderNumber } from "../../../../../../../lib/medusa/orders";
 import { SHELL_PREFETCH } from "../../../../../../../lib/site";
 
@@ -20,16 +19,18 @@ type Props = {
 };
 
 export async function generateMetadata(): Promise<Metadata> {
-  const messages = await getMessages();
-  return { title: messages.templates.orderLookup.title, robots: { index: false, follow: false } };
+  return noindexMetadata((templates) => templates.orderLookup.title);
 }
 
 const OUTCOMES = new Set(["accepted", "declined", "failed"] as const);
 
 export default async function OrderTransferPage({ params, searchParams }: Props) {
-  const [{ id, token }, query, page] = await Promise.all([params, searchParams, authPageContext()]);
+  const [{ id: orderId, token }, query, page] = await Promise.all([
+    params,
+    searchParams,
+    authPageContext(),
+  ]);
   const { market, messages, context } = page;
-  const orderId = decodeURIComponent(id);
   const shared = {
     variant: "default" as const,
     copy: orderLookupCopy(messages),
@@ -50,7 +51,7 @@ export default async function OrderTransferPage({ params, searchParams }: Props)
     <OrderLookupTemplate
       {...shared}
       screen={{ kind: "transfer", displayId: number }}
-      action={answerTransfer.bind(null, market.key, orderId, decodeURIComponent(token))}
+      action={answerTransfer.bind(null, market.key, orderId, token)}
     />
   );
 }

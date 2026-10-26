@@ -42,13 +42,16 @@ export async function authPageContext(): Promise<AuthPageContext> {
   };
 }
 
-/** An auth page's metadata: its title, and never in a search engine's index. */
-export async function authMetadata(
-  title: (auth: Messages["templates"]["auth"]) => string,
+/** An auth, account or claim page's metadata: its title, and never in a search engine's index. */
+export async function noindexMetadata(
+  title: (templates: Messages["templates"]) => string,
 ): Promise<Metadata> {
   const messages = await getMessages();
-  return { title: title(messages.templates.auth), robots: { index: false, follow: false } };
+  return { title: title(messages.templates), robots: { index: false, follow: false } };
 }
+
+export const authMetadata = (title: (auth: Messages["templates"]["auth"]) => string) =>
+  noindexMetadata((templates) => title(templates.auth));
 
 const FORM_ERRORS = new Set(["credentials", "not-verified", "exists", "rejected", "unavailable"]);
 const FIELDS = new Set<AuthField>(["email", "password", "firstName", "lastName", "phone"]);

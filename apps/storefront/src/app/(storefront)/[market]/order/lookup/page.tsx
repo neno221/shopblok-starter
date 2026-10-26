@@ -1,9 +1,8 @@
 import { OrderLookupTemplate, orderLookupCopy } from "@shopblok/ui/templates/order-lookup";
 import type { Metadata } from "next";
-import { getMessages } from "next-intl/server";
 import { accountPageContext } from "../../../../../lib/account-page";
 import { claimGuestOrder } from "../../../../../lib/actions/account";
-import { param } from "../../../../../lib/auth-page";
+import { noindexMetadata, param } from "../../../../../lib/auth-page";
 import { readFlash, type Flash } from "../../../../../lib/flash";
 import { SHELL_PREFETCH } from "../../../../../lib/site";
 
@@ -18,8 +17,7 @@ export const instant = false;
 type Props = { searchParams: Promise<Record<string, string | string[] | undefined>> };
 
 export async function generateMetadata(): Promise<Metadata> {
-  const messages = await getMessages();
-  return { title: messages.templates.orderLookup.title, robots: { index: false, follow: false } };
+  return noindexMetadata((templates) => templates.orderLookup.title);
 }
 
 const FORM_ERRORS = new Set(["mine", "rejected", "unavailable"]);

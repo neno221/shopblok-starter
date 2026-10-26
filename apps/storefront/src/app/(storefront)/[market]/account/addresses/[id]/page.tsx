@@ -19,5 +19,5 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function EditAddressPage({ params, searchParams }: Props) {
   const [{ id }, query] = await Promise.all([params, searchParams]);
-  return <AddressScreen addressId={decodeURIComponent(id)} flashKey={param(query.f)} />;
+  return <AddressScreen addressId={id} flashKey={param(query.f)} />;
 }

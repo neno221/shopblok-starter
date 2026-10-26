@@ -1,6 +1,5 @@
 import "server-only";
 import { z } from "zod";
-import { getMarketContext, type MarketContext } from "../market-context";
 import { marketPrefix } from "../markets";
 import {
   addAddress,
@@ -21,6 +20,7 @@ import {
 import { MedusaRequestError } from "../medusa/sdk";
 import { toAddressInput } from "../view-models/address";
 import { action, ActionError, FieldsError } from "./action";
+import { contextFor, formText as text, marketKey } from "./inputs";
 import { addressErrors, keepFormatFields } from "./checkout-handlers";
 
 // The account's actions (D64, T53): each runs for the signed-in customer only (`auth: "customer"`,
@@ -30,21 +30,7 @@ import { addressErrors, keepFormatFields } from "./checkout-handlers";
 // the check here is so the refusal never rests on Medusa alone. The guest-order claim and the
 // transfer link's answer are here too.
 
-const marketKey = z.string().min(1).max(64);
 const id = z.string().min(1).max(128);
-/** A field as a form sends it: trimmed, empty is absent. */
-const text = (max: number) =>
-  z.preprocess(
-    (value) => (typeof value === "string" && value.trim() === "" ? undefined : value),
-    z.string().trim().max(max).optional(),
-  );
-
-async function contextFor(key: string): Promise<MarketContext> {
-  const context = await getMarketContext(key);
-  if (context === null) throw new ActionError("not-found", `no open market ${key}`);
-  return context;
-}
-
 /** The customer's own address, or the refusal a stranger's id gets. */
 function ownAddress(customer: CustomerDto, addressId: string) {
   const address = customer.addresses.find((each) => each.id === addressId);
@@ -130,13 +116,15 @@ export const saveAddressAction = action(
       lastName: kept.lastName ?? "",
       address1: kept.address1 ?? "",
     });
-    const defaults = isDefaultShipping === undefined ? {} : { is_default_shipping: true };
-    if (addressId === undefined) await addAddress({ ...input, ...defaults });
+    // An unticked box is not posted: a change without it makes the address no longer the default.
+    const isDefault = isDefaultShipping !== undefined;
+    if (addressId === undefined)
+      await addAddress({ ...input, ...(isDefault ? { is_default_shipping: true } : {}) });
     else {
       const cleared = Object.fromEntries(
         CLEARABLE.filter((field) => input[field] === undefined).map((field) => [field, ""]),
       );
-      await updateAddress(addressId, { ...cleared, ...input, ...defaults });
+      await updateAddress(addressId, { ...cleared, ...input, is_default_shipping: isDefault });
     }
     return { saved: true };
   },
@@ -249,9 +237,17 @@ export const claimOrderAction = action(
     try {
       await claimOrder(number, email, marketPrefix(context.market, context.map));
     } catch (error) {
-      if (error instanceof MedusaRequestError && error.kind === "rejected") {
-        if (error.status === 404) return { sent: true };
-        if (error.status === 422) throw new ActionError("rejected", "mine");
+      // Any other refusal (no such order, another account's, a transfer already open) is "sent"
+      // too: an answer of its own would tell that the number and the e-mail match an order.
+      // Only a session that ended and an outage are said.
+      if (
+        error instanceof MedusaRequestError &&
+        error.kind === "rejected" &&
+        error.status !== 401
+      ) {
+        if (error.status === 422)
+          throw new ActionError("rejected", "the order is the customer's", "mine");
+        return { sent: true };
       }
       throw error;
     }
