@@ -438,6 +438,30 @@ describe("AddressForm", () => {
     30_000,
     );
 
+    it("has no city field for the seven countries whose format has none, and those are all (D65)", () => {
+      const NO_CITY = ["ae", "gi", "jp", "ky", "mo", "nr", "sg"];
+      const withoutCity: string[] = [];
+      for (let a = 65; a <= 90; a += 1) {
+        for (let b = 65; b <= 90; b += 1) {
+          const code = String.fromCharCode(a, b).toLowerCase();
+          if (hasAddressFormat(code) && !addressFormat(code, "en").rows.flat().includes("city"))
+            withoutCity.push(code);
+        }
+      }
+      expect(withoutCity).toEqual(NO_CITY);
+      for (const countryCode of NO_CITY) {
+        const html = renderToStaticMarkup(
+          <AddressForm
+            countries={[countryCode]}
+            values={{ countryCode, address1: "1 Main St" }}
+            copy={catalogs.en.molecules.addressForm}
+            locale="en-US"
+          />,
+        );
+        expect(html, countryCode).not.toContain('name="city"');
+      }
+    });
+
     it("follows a page in another language: Japan's Latin order in English, labels in the page's language", () => {
       const { container } = setup("de", {
         countries: withJapan,

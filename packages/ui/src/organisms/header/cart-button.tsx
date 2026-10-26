@@ -14,16 +14,15 @@
 // one. It formats with `@shopblok/i18n/format`, which leaves the four catalogs out of the island's
 // chunk.
 import type { Messages } from "@shopblok/i18n";
-import { formatMessage, formatNumber } from "@shopblok/i18n/format";
+import { formatMessage } from "@shopblok/i18n/format";
 import { buttonVariants } from "@shopblok/ui/atoms/button";
 import { Icon } from "@shopblok/ui/atoms/icon";
+import { cartBadgeClassName, cartBadgeText } from "@shopblok/ui/lib/cart-badge";
 import { cn } from "@shopblok/ui/lib/utils";
 import { ShoppingBagIcon } from "lucide-react";
 import NextLink from "next/link";
 import type * as React from "react";
 
-/** The most the badge writes out; more is "99+". */
-const BADGE_MAX = 99;
 
 type CartButtonProps = {
   /** The cart page. */
@@ -56,12 +55,7 @@ type LinkHref = React.ComponentProps<typeof NextLink>["href"];
 
 function CartButton({ href, count, copy, locale, prefetch, announce, className }: CartButtonProps) {
   const known = count !== undefined && Number.isInteger(count) && count >= 0;
-  const badge =
-    !known || count === 0
-      ? undefined
-      : count > BADGE_MAX
-        ? formatMessage(copy.cartOverflow, { max: formatNumber(BADGE_MAX, locale) }, locale)
-        : formatNumber(count, locale);
+  const badge = known ? cartBadgeText(count, locale, copy.cartOverflow) : undefined;
   const words = known ? formatMessage(copy.cartItems, { count }, locale) : undefined;
   return (
     <>
@@ -78,7 +72,7 @@ function CartButton({ href, count, copy, locale, prefetch, announce, className }
           <span
             data-slot="cart-badge"
             aria-hidden="true"
-            className="pointer-events-none absolute -end-0.5 -top-0.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-xs leading-none font-semibold text-primary-foreground tabular-nums ring-2 ring-background"
+            className={cartBadgeClassName}
           >
             {badge}
           </span>

@@ -9,15 +9,13 @@
 // every word and renders the line, and hands both to `QuickCartDropdownClient`, which opens, closes
 // and says "Added to your cart: …" once in a polite region.
 import type { Messages } from "@shopblok/i18n";
-import { formatMessage, formatNumber } from "@shopblok/i18n/format";
+import { formatMessage } from "@shopblok/i18n/format";
 import type { QuickCart } from "@shopblok/registry/contracts";
 import { Image } from "@shopblok/ui/atoms/image";
 import { Price } from "@shopblok/ui/atoms/price";
+import { cartBadgeText } from "@shopblok/ui/lib/cart-badge";
 import { ImageOffIcon } from "lucide-react";
 import { QuickCartDropdownClient } from "./quick-cart-dropdown-client";
-
-/** The most the badge writes out; more is "99+" (CartButton's rule). */
-const BADGE_MAX = 99;
 
 type QuickCartDropdownProps = QuickCart & {
   /** The wording, from the catalog's `organisms.quickCartDropdown`. */
@@ -48,10 +46,7 @@ function QuickCartDropdown({
   triggerClassName,
   popupClassName,
 }: QuickCartDropdownProps) {
-  const badge =
-    itemCount > BADGE_MAX
-      ? formatMessage(copy.overflow, { max: formatNumber(BADGE_MAX, locale) }, locale)
-      : formatNumber(itemCount, locale);
+  const badge = cartBadgeText(itemCount, locale, copy.overflow) ?? "";
   const { image } = added;
   const line = (
     <div data-slot="quick-cart-line" className="grid grid-cols-[4rem_minmax(0,1fr)] gap-3">

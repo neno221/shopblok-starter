@@ -16,6 +16,8 @@
 
 import { buttonVariants, Button } from "@shopblok/ui/atoms/button";
 import { Icon } from "@shopblok/ui/atoms/icon";
+import { cartBadgeClassName } from "@shopblok/ui/lib/cart-badge";
+import { takesFocusWhenOpenedByAReader } from "@shopblok/ui/lib/reader-focus";
 import { cn } from "@shopblok/ui/lib/utils";
 import {
   Popover,
@@ -62,9 +64,6 @@ type QuickCartDropdownClientProps = {
 // `next/link` takes whatever an app with typed routes narrows its `href` to; these are strings the
 // app built.
 type LinkHref = React.ComponentProps<typeof NextLink>["href"];
-
-/** For a popover given `defaultOpen`: no focus when it opens by itself, the first control's later. */
-const takesFocusWhenOpenedByAReader = (interaction: string) => interaction !== "";
 
 function QuickCartDropdownClient({
   copy,
@@ -119,7 +118,7 @@ function QuickCartDropdownClient({
           <span
             data-slot="quick-cart-badge"
             aria-hidden="true"
-            className="pointer-events-none absolute -end-0.5 -top-0.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-xs leading-none font-semibold text-primary-foreground tabular-nums ring-2 ring-background"
+            className={cartBadgeClassName}
           >
             {badge}
           </span>

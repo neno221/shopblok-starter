@@ -20,6 +20,7 @@
 import { Popover as PopoverPrimitive } from "@base-ui/react/popover";
 import { Button, buttonVariants } from "@shopblok/ui/atoms/button";
 import { Icon } from "@shopblok/ui/atoms/icon";
+import { takesFocusWhenOpenedByAReader } from "@shopblok/ui/lib/reader-focus";
 import { cn } from "@shopblok/ui/lib/utils";
 import {
   Drawer,
@@ -89,12 +90,6 @@ type MarketSwitcherClientProps = {
   /** Classes for the popup (the popover's content, the sheet). */
   popupClassName?: string;
 };
-
-/**
- * For a popup given `defaultOpen`: no focus when it opens by itself (the interaction type is empty),
- * the first control's when a reader opens it later.
- */
-const takesFocusWhenOpenedByAReader = (interaction: string) => interaction !== "";
 
 const triggerClass = "h-auto min-w-0 max-w-full justify-between gap-2 py-2 text-start";
 const listMaxHeight = "max-h-[min(26rem,calc(100dvh-16rem))]";

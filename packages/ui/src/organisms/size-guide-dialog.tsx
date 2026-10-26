@@ -44,6 +44,7 @@ import type { Messages } from "@shopblok/i18n";
 import { formatNumber, formatNumberRange } from "@shopblok/i18n/format";
 import type { SizeGuide, SizeMeasure } from "@shopblok/registry/contracts";
 import { Button } from "@shopblok/ui/atoms/button";
+import { takesFocusWhenOpenedByAReader } from "@shopblok/ui/lib/reader-focus";
 import { cn } from "@shopblok/ui/lib/utils";
 import {
   Dialog,
@@ -96,12 +97,6 @@ function formatMeasure(measure: SizeMeasure, unit: Unit, locale: string): string
     ? formatNumber(from, locale, options)
     : formatNumberRange(from, to, locale, options);
 }
-
-/**
- * For a dialog given `defaultOpen`: no focus when it opens by itself (the interaction type is
- * empty), the default when a reader opens it later.
- */
-const takesFocusWhenOpenedByAReader = (interaction: string) => interaction !== "";
 
 function SizeGuideDialog({
   title,

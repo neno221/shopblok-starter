@@ -34,6 +34,7 @@
 import { Badge } from "@shopblok/ui/atoms/badge";
 import { buttonVariants, Button } from "@shopblok/ui/atoms/button";
 import { Icon } from "@shopblok/ui/atoms/icon";
+import { takesFocusWhenOpenedByAReader } from "@shopblok/ui/lib/reader-focus";
 import { cn } from "@shopblok/ui/lib/utils";
 import {
   Sheet,
@@ -77,12 +78,6 @@ type FilterDrawerClientProps = {
 // `next/link` takes whatever an app with typed routes narrows its `href` to; this one is a string
 // the app built.
 type LinkHref = React.ComponentProps<typeof NextLink>["href"];
-
-/**
- * For a sheet given `defaultOpen`: no focus when it opens by itself (the interaction type is
- * empty), the first control's when a reader opens it later.
- */
-const takesFocusWhenOpenedByAReader = (interaction: string) => interaction !== "";
 
 function FilterDrawerClient({
   action,

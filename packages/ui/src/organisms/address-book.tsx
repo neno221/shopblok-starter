@@ -92,7 +92,8 @@ function AddressBook({
           const saving = pending?.addressId === address.id && pending.action === "default";
           const who = {
             name: `${address.firstName} ${address.lastName}`.trim(),
-            city: address.city,
+            // Seven countries have no city (D65); the street then tells two addresses apart.
+            city: address.city ?? address.address1,
           };
           return (
             <li
