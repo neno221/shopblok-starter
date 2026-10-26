@@ -1,8 +1,13 @@
 import { z } from "zod";
-import { Href, Link } from "./content";
+import { Address, AddressFormState } from "./address";
+import { Cart } from "./cart";
+import { CheckoutSteps, OrderSummary, PaymentStep } from "./cart-checkout-account";
+import { Href, Id, Link } from "./content";
 import { Image } from "./image";
 import { Breadcrumbs, PageState, SearchQuery } from "./listing";
 import { FilterPanel, ProductCarousel, ProductGrid, ProductToolbar } from "./listing-organisms";
+import { ShippingOption } from "./shipping";
+import { Order } from "./order";
 import {
   BuyBox,
   MobileStickyATC,
@@ -133,6 +138,93 @@ export const HomePage = z.object({
   shopAll: Link.describe("Every product: the store's listing"),
 });
 
+/**
+ * The cart page (`cart`, T52, D65): the lines with their forms, the promotion codes, the totals and
+ * the way to the checkout; an empty cart is the way back to the shop.
+ */
+export const CartPage = z.object({
+  variant: z.literal("default").describe("D57: one variant in M3; M5 adds §9.5's"),
+  cart: Cart,
+  promoCode: z
+    .string()
+    .describe("What the promotion field holds: kept after an error, empty at first"),
+  checkoutHref: Href.describe("The checkout's first step"),
+  continueHref: Href.describe("Where 'Continue shopping' goes: the store"),
+});
+
+/** The checkout's first step: the email and the shipping address, in the region's countries. */
+export const CheckoutContactStep = z.object({
+  kind: z.literal("contact"),
+  email: z.string().describe("What the email field holds: the cart's, or what was typed"),
+  address: AddressFormState,
+});
+
+/**
+ * The checkout's second step: the cart's shipping options (one chosen, or none yet) and the payment
+ * (PaymentStep), sent as one form; with no option, the way back to the address.
+ */
+export const CheckoutDeliveryStep = z
+  .object({
+    kind: z.literal("delivery"),
+    options: z.array(ShippingOption).describe("The cart's options; none when nothing ships there"),
+    selected: Id.optional().describe("The option chosen, when one is"),
+    payment: PaymentStep,
+    addressHref: Href.describe("The first step, to change the address"),
+  })
+  .refine(
+    (step) =>
+      step.selected === undefined || step.options.some((option) => option.id === step.selected),
+    { message: "the chosen option is not one on offer", path: ["selected"] },
+  );
+
+/** The checkout's last step: what will be ordered, each part with its way back, and the button. */
+export const CheckoutReviewStep = z.object({
+  kind: z.literal("review"),
+  email: z.email(),
+  shippingAddress: Address,
+  shippingMethod: Order.shape.shippingMethod,
+  payment: Order.shape.payment,
+  editHrefs: z.object({
+    contact: Href.describe("The first step: the email and the address"),
+    delivery: Href.describe("The second step: the delivery and the payment"),
+  }),
+});
+
+/**
+ * The checkout (`checkout`, T52, D65): CheckoutSteps with the summary, and the current step's
+ * content. Each step is its own page and its own form, so the checkout posts without scripts.
+ */
+export const CheckoutPage = z
+  .object({
+    variant: z.literal("default").describe("D57: one variant in M3"),
+    checkout: CheckoutSteps,
+    step: z.discriminatedUnion("kind", [
+      CheckoutContactStep,
+      CheckoutDeliveryStep,
+      CheckoutReviewStep,
+    ]),
+  })
+  .refine((page) => page.checkout.steps.current === page.step.kind, {
+    message: "the stepper is on another step than the content",
+    path: ["step", "kind"],
+  });
+
+/**
+ * The receipt (`order-confirmation`, T52, D65): the thanks, the order's number, date and e-mail,
+ * where it goes and how, its summary and its history, and the way back to the shop.
+ */
+export const OrderConfirmationPage = z
+  .object({
+    variant: z.literal("default").describe("D57: one variant in M3"),
+    order: Order,
+    summary: OrderSummary,
+    continueHref: Href,
+  })
+  .refine((page) => page.summary.currencyCode === page.order.currencyCode, {
+    message: "the summary is in another currency than the order",
+    path: ["summary", "currencyCode"],
+  });
+
 export type NotFoundPage = z.infer<typeof NotFoundPage>;
 export type ListingResults = z.infer<typeof ListingResults>;
 export type ProductListingPage = z.infer<typeof ProductListingPage>;
@@ -141,3 +233,9 @@ export type ProductDetailPage = z.infer<typeof ProductDetailPage>;
 export type ErrorPage = z.infer<typeof ErrorPage>;
 export type CategoryTile = z.infer<typeof CategoryTile>;
 export type HomePage = z.infer<typeof HomePage>;
+export type CartPage = z.infer<typeof CartPage>;
+export type CheckoutContactStep = z.infer<typeof CheckoutContactStep>;
+export type CheckoutDeliveryStep = z.infer<typeof CheckoutDeliveryStep>;
+export type CheckoutReviewStep = z.infer<typeof CheckoutReviewStep>;
+export type CheckoutPage = z.infer<typeof CheckoutPage>;
+export type OrderConfirmationPage = z.infer<typeof OrderConfirmationPage>;

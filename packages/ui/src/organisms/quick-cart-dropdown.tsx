@@ -15,7 +15,10 @@ import { Image } from "@shopblok/ui/atoms/image";
 import { Price } from "@shopblok/ui/atoms/price";
 import { cartBadgeText } from "@shopblok/ui/lib/cart-badge";
 import { ImageOffIcon } from "lucide-react";
-import { QuickCartDropdownClient } from "./quick-cart-dropdown-client";
+import {
+  QuickCartDropdownClient,
+  type QuickCartDropdownClientProps,
+} from "./quick-cart-dropdown-client";
 
 type QuickCartDropdownProps = QuickCart & {
   /** The wording, from the catalog's `organisms.quickCartDropdown`. */
@@ -32,7 +35,7 @@ type QuickCartDropdownProps = QuickCart & {
   popupClassName?: string;
 };
 
-function QuickCartDropdown({
+function quickCartParts({
   added,
   itemCount,
   subtotal,
@@ -45,7 +48,7 @@ function QuickCartDropdown({
   modal,
   triggerClassName,
   popupClassName,
-}: QuickCartDropdownProps) {
+}: QuickCartDropdownProps): QuickCartDropdownClientProps {
   const badge = cartBadgeText(itemCount, locale, copy.overflow);
   const { image } = added;
   const line = (
@@ -95,30 +98,33 @@ function QuickCartDropdown({
       <Price amount={subtotal.amount} currency={subtotal.currencyCode} locale={locale} />
     </p>
   );
-  return (
-    <QuickCartDropdownClient
-      copy={{
-        open: copy.open,
-        items: formatMessage(copy.items, { count: itemCount }, locale),
-        title: copy.title,
-        close: copy.close,
-        viewCart: copy.viewCart,
-        checkout: copy.checkout,
-        announce: formatMessage(copy.announce, { title: added.title }, locale),
-      }}
-      badge={badge}
-      line={line}
-      subtotal={subtotalRow}
-      cartHref={cartHref}
-      checkoutHref={checkoutHref}
-      prefetch={prefetch}
-      defaultOpen={defaultOpen}
-      modal={modal}
-      triggerClassName={triggerClassName}
-      popupClassName={popupClassName}
-    />
-  );
+  return {
+    copy: {
+      open: copy.open,
+      items: formatMessage(copy.items, { count: itemCount }, locale),
+      title: copy.title,
+      close: copy.close,
+      viewCart: copy.viewCart,
+      checkout: copy.checkout,
+      announce: formatMessage(copy.announce, { title: added.title }, locale),
+    },
+    badge,
+    line,
+    subtotal: subtotalRow,
+    cartHref,
+    checkoutHref,
+    prefetch,
+    defaultOpen,
+    modal,
+    triggerClassName,
+    popupClassName,
+  };
 }
 
-export { QuickCartDropdown };
+/** The dropdown: its parts, drawn by its client part. */
+function QuickCartDropdown(props: QuickCartDropdownProps) {
+  return <QuickCartDropdownClient {...quickCartParts(props)} />;
+}
+
+export { QuickCartDropdown, quickCartParts };
 export type { QuickCartDropdownProps };

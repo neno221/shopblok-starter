@@ -204,6 +204,21 @@ describe("RadioCard", () => {
       expect(data.get("group")).toBe("b");
     });
 
+    it("joins the form it names from outside it, on the input and not the label", () => {
+      const { container } = render(
+        <>
+          <Card value="a" title="Standard" form="pay" />
+          <Card value="b" title="Express" form="pay" defaultChecked />
+          <form id="pay" />
+        </>,
+      );
+      expect(radio("Express").getAttribute("form")).toBe("pay");
+      expect(container.querySelector("label")?.hasAttribute("form")).toBe(false);
+      const form = container.querySelector("form") as HTMLFormElement;
+      expect(radio("Express").form).toBe(form);
+      expect(new FormData(form).get("group")).toBe("b");
+    });
+
     it("is disabled: not focusable, not chosen by a press, not sent", async () => {
       const user = userEvent.setup();
       const { container } = render(

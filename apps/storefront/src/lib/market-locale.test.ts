@@ -23,15 +23,34 @@ describe("withLocale", () => {
   });
 
   // next-intl falls back to the zone of the machine that renders when none is set, so a prerender
-  // and a browser would write different times. D65 gives each country its own zone.
-  it("sets a fixed time zone, UTC until D65 gives a market its own", () => {
+  // and a browser would write different times.
+  it("sets a fixed time zone, UTC for a country that has none (D65)", () => {
     expect(DEFAULT_TIME_ZONE).toBe("UTC");
     for (const [map, key] of [
-      [seeded, "el-cy"],
       [mongolia, "mn-mn"],
       [brazil, "pt-br"],
     ] as const) {
       expect(withLocale(findMarket(map, key)!).timeZone, key).toBe("UTC");
     }
+  });
+
+  it("uses the country's own zone from the map, in each of its languages (D65)", () => {
+    const zones = {
+      "el-cy": "Europe/Nicosia",
+      "en-us": "America/New_York",
+      "en-gb": "Europe/London",
+      "de-de": "Europe/Berlin",
+      "fr-fr": "Europe/Paris",
+      "de-ch": "Europe/Zurich",
+      "fr-ch": "Europe/Zurich",
+    };
+    for (const [key, zone] of Object.entries(zones)) {
+      expect(withLocale(findMarket(seeded, key)!).timeZone, key).toBe(zone);
+    }
+  });
+
+  it("uses UTC for a country whose zone was emptied", () => {
+    const map = { ...seeded, countries: seeded.countries.map(({ timeZone: _, ...c }) => c) };
+    expect(withLocale(findMarket(map, "el-cy")!).timeZone).toBe("UTC");
   });
 });

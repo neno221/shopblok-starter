@@ -94,7 +94,9 @@ test.describe("the product page (T49)", () => {
     await box.locator('[data-slot="buy-box-add"]').focus();
     await page.keyboard.press("Enter");
     await expect(box.locator('[data-slot="buy-box-status"]')).not.toBeEmpty();
-    await expect(page.locator('header [data-slot="cart-badge"]')).toHaveText("1");
+    // The header's quick cart opens on the add (T52), its button with the count.
+    await expect(page.locator('[data-slot="quick-cart"]')).toBeVisible();
+    await expect(page.locator('header [data-slot="quick-cart-badge"]')).toHaveText("1");
   });
 });
 

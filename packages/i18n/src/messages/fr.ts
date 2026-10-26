@@ -765,5 +765,84 @@ export const fr: Messages = {
         text: "Vérifiez l’orthographe, ou essayez un mot plus général.",
       },
     },
+    cart: {
+      title: "Votre panier",
+      count: "{count, plural, one {# article} other {# articles}}",
+      lines: "Articles de votre panier",
+      summary: "Récapitulatif de la commande",
+      note: "La livraison et les taxes sont calculées au paiement.",
+      checkout: "Passer la commande",
+      continue: "Continuer mes achats",
+      empty: {
+        title: "Votre panier est vide",
+        text: "Ajoutez ce qui vous plaît : vos articles vous attendront ici.",
+      },
+      errors: {
+        "not-found":
+          "Cet article n’est plus dans votre panier. Voici votre panier tel qu’il est maintenant.",
+        rejected: "Votre panier n’a pas pu être modifié. L’article est peut-être épuisé.",
+        unavailable: "La boutique est injoignable pour le moment. Réessayez dans un instant.",
+        invalid: "Cette quantité n’est pas possible. Saisissez un nombre de 1 à {max}.",
+      },
+    },
+    checkout: {
+      steps: {
+        contact: "Contact et adresse",
+        delivery: "Livraison et paiement",
+        review: "Récapitulatif",
+      },
+      contact: {
+        email: "E-mail",
+        emailHint: "Nous y envoyons votre reçu et le suivi de votre commande.",
+        submit: "Continuer vers la livraison",
+        errors: {
+          required: "Saisissez votre adresse e-mail.",
+          pattern: "Saisissez une adresse e-mail comme name@example.com.",
+          invalid: "Saisissez une adresse e-mail comme name@example.com.",
+        },
+      },
+      delivery: {
+        legend: "Livraison",
+        required: "Choisissez comment votre commande doit être livrée.",
+        none: {
+          title: "Nous ne livrons pas encore à cette adresse",
+          text: "Modifiez l’adresse, ou contactez-nous et nous trouverons une solution.",
+          back: "Modifier l’adresse",
+        },
+      },
+      review: {
+        contact: "Contact",
+        shipping: "Adresse de livraison",
+        delivery: "Livraison",
+        payment: "Paiement",
+        edit: "Modifier",
+        editLabel: "Modifier : {part}",
+        place: "Passer la commande",
+        placing: "Commande en cours…",
+        note: "En passant commande, vous acceptez les conditions de vente de la boutique.",
+      },
+      errors: {
+        "not-found": "Votre panier a changé. Vérifiez-le, puis continuez.",
+        rejected:
+          "La boutique n’a pas pu accepter cette étape. Vérifiez vos informations et réessayez.",
+        unavailable: "La boutique est injoignable pour le moment. Réessayez dans un instant.",
+        incomplete: "Terminez d’abord les étapes précédentes.",
+      },
+      empty: {
+        title: "Votre panier est vide",
+        text: "Ajoutez un article à votre panier, puis revenez pour commander.",
+        continue: "Continuer mes achats",
+      },
+    },
+    orderConfirmation: {
+      title: "Merci pour votre commande",
+      number: "Commande nº {number}",
+      placed: "Passée le {date}",
+      email: "Nous vous enverrons le suivi de votre commande à {email}.",
+      shipping: "Adresse de livraison",
+      delivery: "Livraison",
+      payment: "Paiement",
+      continue: "Continuer mes achats",
+    },
   },
 };

@@ -756,5 +756,87 @@ export const de: Messages = {
         text: "Prüfen Sie die Schreibweise oder versuchen Sie es mit einem allgemeineren Wort.",
       },
     },
+    cart: {
+      title: "Ihr Warenkorb",
+      count: "{count, plural, one {# Artikel} other {# Artikel}}",
+      lines: "Artikel in Ihrem Warenkorb",
+      summary: "Bestellübersicht",
+      note: "Versand und Steuern werden an der Kasse berechnet.",
+      checkout: "Zur Kasse",
+      continue: "Weiter einkaufen",
+      empty: {
+        title: "Ihr Warenkorb ist leer",
+        text: "Legen Sie etwas hinein, das Ihnen gefällt; es wartet hier auf Sie.",
+      },
+      errors: {
+        "not-found":
+          "Dieser Artikel ist nicht mehr in Ihrem Warenkorb. Hier ist Ihr Warenkorb, wie er jetzt ist.",
+        rejected:
+          "Ihr Warenkorb konnte nicht geändert werden. Der Artikel ist vielleicht ausverkauft.",
+        unavailable:
+          "Der Shop ist gerade nicht erreichbar. Bitte versuchen Sie es gleich noch einmal.",
+        invalid: "Diese Menge ist nicht möglich. Geben Sie eine Zahl von 1 bis {max} ein.",
+      },
+    },
+    checkout: {
+      steps: {
+        contact: "Kontakt und Adresse",
+        delivery: "Versand und Zahlung",
+        review: "Übersicht",
+      },
+      contact: {
+        email: "E-Mail",
+        emailHint: "Hierhin senden wir Ihre Quittung und Neuigkeiten zur Bestellung.",
+        submit: "Weiter zum Versand",
+        errors: {
+          required: "Geben Sie Ihre E-Mail-Adresse ein.",
+          pattern: "Geben Sie eine E-Mail-Adresse wie name@example.com ein.",
+          invalid: "Geben Sie eine E-Mail-Adresse wie name@example.com ein.",
+        },
+      },
+      delivery: {
+        legend: "Versand",
+        required: "Wählen Sie, wie Ihre Bestellung geliefert werden soll.",
+        none: {
+          title: "An diese Adresse können wir noch nicht liefern",
+          text: "Ändern Sie die Adresse oder schreiben Sie uns, dann finden wir einen Weg.",
+          back: "Adresse ändern",
+        },
+      },
+      review: {
+        contact: "Kontakt",
+        shipping: "Lieferadresse",
+        delivery: "Versand",
+        payment: "Zahlung",
+        edit: "Ändern",
+        editLabel: "Ändern: {part}",
+        place: "Bestellung aufgeben",
+        placing: "Ihre Bestellung wird aufgegeben…",
+        note: "Mit Ihrer Bestellung stimmen Sie den Verkaufsbedingungen des Shops zu.",
+      },
+      errors: {
+        "not-found": "Ihr Warenkorb hat sich geändert. Prüfen Sie ihn und fahren Sie dann fort.",
+        rejected:
+          "Der Shop konnte diesen Schritt nicht annehmen. Prüfen Sie Ihre Angaben und versuchen Sie es erneut.",
+        unavailable:
+          "Der Shop ist gerade nicht erreichbar. Bitte versuchen Sie es gleich noch einmal.",
+        incomplete: "Schließen Sie zuerst die vorherigen Schritte ab.",
+      },
+      empty: {
+        title: "Ihr Warenkorb ist leer",
+        text: "Legen Sie etwas in den Warenkorb und kommen Sie dann zur Kasse zurück.",
+        continue: "Weiter einkaufen",
+      },
+    },
+    orderConfirmation: {
+      title: "Vielen Dank für Ihre Bestellung",
+      number: "Bestellung #{number}",
+      placed: "Aufgegeben am {date}",
+      email: "Neuigkeiten zu Ihrer Bestellung senden wir an {email}.",
+      shipping: "Lieferadresse",
+      delivery: "Versand",
+      payment: "Zahlung",
+      continue: "Weiter einkaufen",
+    },
   },
 };

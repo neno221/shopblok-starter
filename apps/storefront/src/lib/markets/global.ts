@@ -1,4 +1,4 @@
-import { enabledCountries, normalizeHost } from "./market";
+import { enabledCountries, isTimeZone, normalizeHost } from "./market";
 import { isMedusaLocale } from "./medusa-locales";
 import type { MarketMap } from "./types";
 
@@ -14,6 +14,7 @@ export type MarketsGlobal = {
         enabled?: boolean | null;
         languages?: string[] | null;
         domain?: string | null;
+        timeZone?: string | null;
       }[]
     | null;
   languages?:
@@ -33,12 +34,16 @@ export function mapFromGlobal(doc: MarketsGlobal): MarketMap {
     countries: (doc.countries ?? []).flatMap((country) => {
       if (!country.code) return [];
       const domain = normalizeHost(country.domain);
+      // An invalid stored zone is ignored (D65), as `htmlLang` is: a value saved before the admin's
+      // check existed must not make `Intl` throw on a page.
+      const timeZone = country.timeZone?.trim();
       return [
         {
           code: country.code,
           enabled: country.enabled !== false,
           languages: country.languages ?? [],
           ...(domain === undefined ? {} : { domain }),
+          ...(timeZone && isTimeZone(timeZone) ? { timeZone } : {}),
         },
       ];
     }),

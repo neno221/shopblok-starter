@@ -16,6 +16,8 @@ export type Market = {
   medusaLocale: string;
   /** The country's own domain, lowercase and bare, when it has one. */
   domain?: string;
+  /** The country's IANA time zone (D65), when it has a valid one: `withLocale` falls back to UTC. */
+  timeZone?: string;
   /** Whether this is the country's first language, the one that needs no segment in its URL. */
   isDefaultLanguage: boolean;
 };

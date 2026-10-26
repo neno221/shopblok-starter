@@ -53,18 +53,19 @@ export type Budget = {
  * only say "no page yet": T50 changes the table.
  */
 export const budgets: readonly Budget[] = [
-  // Steven's decisions on PR 77 (T49) and in T50: the shell's layout alone is ~293 KB, so SPEC
-  // §13's 170 KB cannot hold; the PDP measured 322.9 KB and the listing pages 318.6 KB, and both
-  // have 330 KB.
-  { route: "/[market]/products/[handle]", label: "PDP", maxKB: 330 },
-  { route: "/[market]/categories/[...handle]", label: "PLP, categories", maxKB: 330 },
-  { route: "/[market]/store", label: "PLP, store", maxKB: 330 },
-  { route: "/[market]/store/page/[n]", label: "PLP, store page n", maxKB: 330 },
-  { route: "/[market]/collections/[handle]", label: "PLP, collections", maxKB: 330 },
+  // Steven's decisions on PR 77 (T49), in T50 and in T52: the shell's layout alone is ~293 KB, so
+  // SPEC §13's 170 KB cannot hold; the PDP measured 322.9 KB and the listing pages 318.6 KB (330 KB
+  // each), then the header's cart drawer and quick cart (T52) brought them to 332.4 and 331.5 KB,
+  // and both have 335 KB.
+  { route: "/[market]/products/[handle]", label: "PDP", maxKB: 335 },
+  { route: "/[market]/categories/[...handle]", label: "PLP, categories", maxKB: 335 },
+  { route: "/[market]/store", label: "PLP, store", maxKB: 335 },
+  { route: "/[market]/store/page/[n]", label: "PLP, store page n", maxKB: 335 },
+  { route: "/[market]/collections/[handle]", label: "PLP, collections", maxKB: 335 },
   {
     route: "/[market]/collections/[handle]/page/[n]",
     label: "PLP, collections page n",
-    maxKB: 330,
+    maxKB: 335,
   },
 ];
 

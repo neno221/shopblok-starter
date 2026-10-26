@@ -2,9 +2,10 @@
 // order-confirmation.md), on ReUI's timeline primitive (`primitives/timeline.tsx`). An order's history
 // as an ordered list named "Order history", oldest first, one item per event: its words by kind
 // ("Order placed", "Shipped", "Delivered"), the date and time as a `<time>` with its ISO value
-// (`formatDate` in the market's locale, in UTC so the server and every reader agree), and for a
-// shipment the carrier, the tracking number and "Track parcel", a 44 px link to the carrier's page that
-// opens in a new tab and says so, with the number after its words for a screen reader. The latest
+// (`formatDate` in the market's locale and time zone, D65, UTC unless given, so the server and
+// every reader agree), and for a shipment the carrier, the tracking number and "Track parcel", a
+// 44 px link to the carrier's page that opens in a new tab and says so, with the number after its
+// words for a screen reader. The latest
 // event is the order's state: it is marked `aria-current="step"` and with a "Latest" badge, and its
 // dot is filled; the others are done (the primitive draws their line and dot in the primary colour),
 // so a reader hears where the order is, and the eye sees it by fill and words, not colour alone. A
@@ -40,6 +41,8 @@ type OrderTimelineProps = Omit<React.ComponentProps<"div">, "children" | "defaul
     locale: string;
     /** The list's name when a page has two (the design system's states); `copy.label` otherwise. */
     label?: string;
+    /** The market's IANA time zone (D65) the dates are in; UTC unless given. */
+    timeZone?: string;
   };
 
 /** The copy's key of each kind of event. */
@@ -60,7 +63,15 @@ const eventKeys = {
 // `Link` takes whatever `next/link` takes; a carrier's page is an absolute URL the order holds.
 type LinkHref = React.ComponentProps<typeof Link>["href"];
 
-function OrderTimeline({ events, copy, locale, label, className, ...props }: OrderTimelineProps) {
+function OrderTimeline({
+  events,
+  copy,
+  locale,
+  label,
+  timeZone = "UTC",
+  className,
+  ...props
+}: OrderTimelineProps) {
   const last = events.length - 1;
   return (
     <Timeline
@@ -84,12 +95,12 @@ function OrderTimeline({ events, copy, locale, label, className, ...props }: Ord
           >
             <TimelineHeader className="flex min-w-0 flex-col">
               <TimelineSeparator />
-              {/* In UTC for a stable prerender; M3 brings the market's time zone (as OrderTable). */}
+              {/* In the market's time zone (D65), UTC unless given: the same on every server. */}
               <TimelineDate dateTime={event.at} className="order-2 mt-0.5 mb-0">
                 {formatDate(event.at, locale, {
                   dateStyle: "medium",
                   timeStyle: "short",
-                  timeZone: "UTC",
+                  timeZone,
                 })}
               </TimelineDate>
               <TimelineTitle

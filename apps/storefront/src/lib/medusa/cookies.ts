@@ -1,7 +1,8 @@
 import "server-only";
+import { createHmac, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
 import { COOKIE, type CookieName } from "../cookie-names";
-import { isProduction } from "../env";
+import { env, isProduction } from "../env";
 
 export { COOKIE };
 
@@ -38,6 +39,10 @@ export function cookieAttributes(name: CookieName): CookieAttributes {
       return { httpOnly: true, secure, sameSite: "strict", path: "/", maxAge: DAY };
     case COOKIE.market:
       return { httpOnly: true, secure, sameSite: "lax", path: "/", maxAge: 365 * DAY };
+    case COOKIE.receipt:
+      return { httpOnly: true, secure, sameSite: "lax", path: "/", maxAge: 7 * DAY };
+    case COOKIE.flash:
+      return { httpOnly: true, secure, sameSite: "strict", path: "/", maxAge: 60 };
   }
 }
 
@@ -110,3 +115,45 @@ export const removePendingCustomer = () => clear(COOKIE.pendingCustomer);
 /** The market the visitor chose themselves (D66), as its key; checked against the map by readers. */
 export const getChosenMarket = () => read(COOKIE.market);
 export const setChosenMarket = (key: string) => write(COOKIE.market, key);
+
+// The receipt (D65, T52): the order a guest's completed cart answered with, so the confirmation page
+// can show it to that browser and to nobody else. The Store API answers any order by id to anyone
+// with the publishable key, so the cookie is signed (HMAC-SHA256 with the server's PAYLOAD_SECRET):
+// a visitor cannot write another order's id into it.
+
+function receiptSignature(orderId: string): string | undefined {
+  const secret = env.PAYLOAD_SECRET?.trim();
+  if (!secret) return undefined;
+  return createHmac("sha256", secret).update(`receipt:${orderId}`).digest("base64url");
+}
+
+/** Keeps the order the browser just placed, signed; nothing without a secret to sign with. */
+export async function setReceipt(orderId: string): Promise<void> {
+  const signature = receiptSignature(orderId);
+  if (signature === undefined) {
+    console.error("[receipt] PAYLOAD_SECRET is not set: a guest's receipt cannot be shown");
+    return;
+  }
+  await write(COOKIE.receipt, `${orderId}.${signature}`);
+}
+
+/** The order the receipt cookie names, when its signature is this server's; `undefined` otherwise. */
+export async function getReceiptOrderId(): Promise<string | undefined> {
+  const value = await read(COOKIE.receipt);
+  const dot = value?.lastIndexOf(".") ?? -1;
+  if (value === undefined || dot <= 0) return undefined;
+  const orderId = value.slice(0, dot);
+  const expected = receiptSignature(orderId);
+  if (expected === undefined) return undefined;
+  const given = Buffer.from(value.slice(dot + 1));
+  const wanted = Buffer.from(expected);
+  return given.length === wanted.length && timingSafeEqual(given, wanted) ? orderId : undefined;
+}
+
+/**
+ * What a failed form leaves for the page it redirects back to (T52's post-redirect-get): the
+ * errors and what was typed, under a key the redirect's URL carries (`?f=`), so a reload shows them
+ * again and another visit to the page does not. A minute, `strict`: it never leaves the shop.
+ */
+export const setFlash = (value: string) => write(COOKIE.flash, value);
+export const getFlash = () => read(COOKIE.flash);

@@ -1,7 +1,10 @@
 import {
+  CartPage,
+  CheckoutPage,
   ErrorPage,
   HomePage,
   NotFoundPage,
+  OrderConfirmationPage,
   ProductDetailPage,
   ProductListingPage,
   SearchResultsPage,
@@ -38,4 +41,13 @@ export const templates = [
   template("search-results", "Search results", "SearchResultsTemplate", SearchResultsPage),
   // T51: the home page.
   template("home", "Home page", "HomeTemplate", HomePage),
+  // T52: the cart, the checkout and the receipt.
+  template("cart", "Cart page", "CartTemplate", CartPage),
+  template("checkout", "Checkout", "CheckoutTemplate", CheckoutPage),
+  template(
+    "order-confirmation",
+    "Order confirmation",
+    "OrderConfirmationTemplate",
+    OrderConfirmationPage,
+  ),
 ] as const satisfies readonly EntryInput[];

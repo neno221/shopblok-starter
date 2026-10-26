@@ -1,6 +1,6 @@
 import type { GlobalConfig, TextFieldSingleValidation } from "payload";
 import { text } from "payload/shared";
-import { isLanguageTag } from "../../lib/markets/market";
+import { isLanguageTag, isTimeZone } from "../../lib/markets/market";
 import { MEDUSA_LOCALES, isMedusaLocale, medusaLocalesOf } from "../../lib/markets/medusa-locales";
 import { isAdmin, isStaff } from "../access/roles";
 import { rememberEnabledLanguages } from "../filter-available-locales";
@@ -61,6 +61,22 @@ export const htmlLang: TextFieldSingleValidation = (value, options) => {
 };
 
 /**
+ * D65: a country's `timeZone` is the IANA zone its order dates are written in. It runs Payload's
+ * own text check first, lets an empty value through (UTC is used then), and otherwise asks `Intl`
+ * whether it takes the zone, since `formatDate` and next-intl hand it to `Intl.DateTimeFormat`,
+ * which throws a RangeError on anything else. `mapFromGlobal` ignores a stored value that fails
+ * this, so one saved before the check existed does not break a page.
+ */
+export const timeZone: TextFieldSingleValidation = (value, options) => {
+  const base = text(value, options);
+  if (base !== true) return base;
+  if (value === undefined || value === null || value === "") return true;
+  return isTimeZone(value)
+    ? true
+    : `"${value}" is not a time zone. Use an IANA name such as Europe/Nicosia or America/New_York, or leave it empty.`;
+};
+
+/**
  * The market map (D10), the editable part (D12): which countries are open, in which languages,
  * and how each language maps to a Medusa locale (D8). `getMarketMap()` reads it (T10) and the
  * validator above checks the Medusa locale codes; M4's sync fills `synced`. `filterAvailableLocales` reads it too: the
@@ -98,6 +114,15 @@ export const Markets: GlobalConfig = {
           name: "domain",
           type: "text",
           admin: { description: "A domain of its own for this country, if it has one." },
+        },
+        {
+          name: "timeZone",
+          type: "text",
+          validate: timeZone,
+          admin: {
+            description:
+              "The IANA time zone this country's order dates are written in, for example Europe/Nicosia. UTC is used when this is empty (D65).",
+          },
         },
       ],
     },

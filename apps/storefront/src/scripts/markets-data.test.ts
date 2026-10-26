@@ -53,6 +53,28 @@ describe("marketsGlobalData", () => {
     ]);
   });
 
+  it("seeds each country's time zone (D65)", () => {
+    const data = marketsGlobalData(markets);
+    expect(data.countries?.map((c) => `${c.code}:${c.timeZone}`)).toEqual([
+      "cy:Europe/Nicosia",
+      "us:America/New_York",
+      "gb:Europe/London",
+      "de:Europe/Berlin",
+      "fr:Europe/Paris",
+      "ch:Europe/Zurich",
+    ]);
+  });
+
+  it("leaves the time zone out of a country that has none", () => {
+    const data = marketsGlobalData({
+      countries: [{ code: "br", enabled: true, languages: ["pt"] }],
+      languages: [{ code: "pt", medusaLocale: "pt-BR" }],
+      primaryCountry: "br",
+      fallbackMarket: "pt-br",
+    });
+    expect(data.countries?.[0]).not.toHaveProperty("timeZone");
+  });
+
   it("keeps a country's own domain", () => {
     const data = marketsGlobalData({
       countries: [{ code: "ch", enabled: true, languages: ["de"], domain: "shop.ch" }],

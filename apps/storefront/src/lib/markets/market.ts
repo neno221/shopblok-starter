@@ -31,6 +31,20 @@ export function isLanguageTag(value: string): boolean {
 }
 
 /**
+ * Whether `value` is a time zone `Intl.DateTimeFormat` accepts (`Europe/Nicosia`, `UTC`). A
+ * country's `timeZone` is typed into the admin (D65) and goes to `Intl` through `formatDate` and
+ * next-intl, which throw a RangeError on a name they do not know.
+ */
+export function isTimeZone(value: string): boolean {
+  try {
+    new Intl.DateTimeFormat("en", { timeZone: value });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * The `<html lang>` of a market: the language's own value when the owner wrote one that is a
  * language tag, else the language and the country (`pt` in `br` is `pt-BR`). A value that is not a
  * tag is ignored here, where every reader of the map gets it, because the admin's check
@@ -63,6 +77,10 @@ export function listMarkets(map: MarketMap): Market[] {
     country.languages.map((language, index): Market => {
       const entry = map.languages.find((candidate) => candidate.code === language);
       const domain = normalizeHost(country.domain);
+      const timeZone =
+        country.timeZone !== undefined && isTimeZone(country.timeZone)
+          ? country.timeZone
+          : undefined;
       return {
         key: toInternalKey(country.code, language),
         country: country.code,
@@ -70,6 +88,7 @@ export function listMarkets(map: MarketMap): Market[] {
         htmlLang: htmlLangOf(entry?.htmlLang, language, country.code),
         medusaLocale: entry?.medusaLocale ?? "",
         ...(domain === undefined ? {} : { domain }),
+        ...(timeZone === undefined ? {} : { timeZone }),
         isDefaultLanguage: index === 0,
       };
     }),

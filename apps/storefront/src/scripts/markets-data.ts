@@ -24,6 +24,7 @@ export function marketsGlobalData(map: MarketMap): MarketsGlobalData {
       enabled: country.enabled,
       languages: country.languages as NonNullable<Market["countries"]>[number]["languages"],
       ...(country.domain === undefined ? {} : { domain: country.domain }),
+      ...(country.timeZone === undefined ? {} : { timeZone: country.timeZone }),
     })),
     languages: map.languages
       .filter((language) => used.has(language.code))

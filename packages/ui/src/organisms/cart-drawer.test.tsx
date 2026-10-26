@@ -13,7 +13,9 @@ import { userEvent } from "@testing-library/user-event";
 import { renderToString } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CLIPPING_CLASSES, longLabels } from "../test-support/long-labels";
-import { CartDrawer, type CartDrawerProps } from "./cart-drawer";
+import { useState } from "react";
+import { CartDrawer, cartDrawerParts, type CartDrawerProps } from "./cart-drawer";
+import { CartDrawerClient } from "./cart-drawer-client";
 
 vi.mock("next/link", async () =>
   (await import("../test-support/next-link-stand-in")).nextLinkStandIn(),
@@ -271,6 +273,46 @@ describe("CartDrawer: the keyboard", () => {
   it("hides the page behind it from assistive technology", async () => {
     await openSheet("en");
     expect(screen.queryByRole("button", { name: "Before" })).toBeNull();
+  });
+});
+
+describe("CartDrawer: opened by the caller (M3's header island)", () => {
+  it("draws its parts as CartDrawer does, and opens and closes on `open`", async () => {
+    const props = {
+      ...drawerOf("en"),
+      copy: copyOf("en"),
+      locale: htmlLang.en,
+      prefetch: false,
+    };
+    const closed: boolean[] = [];
+    function Island() {
+      const [open, setOpen] = useState(false);
+      return (
+        <>
+          <button type="button" onClick={() => setOpen(true)}>
+            Open
+          </button>
+          <CartDrawerClient
+            {...cartDrawerParts(props)}
+            open={open}
+            onOpenChange={(next) => {
+              closed.push(next);
+              setOpen(next);
+            }}
+          />
+        </>
+      );
+    }
+    const server = renderToString(<CartDrawer {...props} />);
+    expect(renderToString(<CartDrawerClient {...cartDrawerParts(props)} />)).toBe(server);
+    render(<Island />);
+    const user = userEvent.setup();
+    expect(sheet()).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Open" }));
+    await waitFor(() => expect(sheet()).not.toBeNull());
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(sheet()).toBeNull());
+    expect(closed).toEqual([false]);
   });
 });
 

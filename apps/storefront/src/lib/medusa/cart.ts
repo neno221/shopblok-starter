@@ -26,6 +26,20 @@ export type CartLineDto = {
   total: Money;
 };
 
+/** An address the cart holds (the shipping one), in the storefront's names. */
+export type CartAddressDto = {
+  firstName: string;
+  lastName: string;
+  company: string | null;
+  address1: string;
+  address2: string | null;
+  city: string | null;
+  province: string | null;
+  postalCode: string | null;
+  countryCode: string;
+  phone: string | null;
+};
+
 export type CartDto = {
   id: string;
   regionId: string;
@@ -47,6 +61,12 @@ export type CartDto = {
   promoCodes: { code: string; discount: Money | null }[];
   shippingMethodIds: string[];
   hasShippingAddress: boolean;
+  /** The shipping address, once the checkout's first step has set one with a name and a street. */
+  shippingAddress: CartAddressDto | null;
+  /** The shipping method chosen (the last one), with its name and price for this cart. */
+  shippingMethod: { optionId: string; name: string; amount: Money } | null;
+  /** The provider of the cart's pending payment session, once the delivery step started one. */
+  paymentProviderId: string | null;
   completed: boolean;
 };
 
@@ -68,6 +88,8 @@ export const CART_FIELDS = [
   "*promotions",
   "*shipping_methods",
   "*shipping_address",
+  "*payment_collection",
+  "*payment_collection.payment_sessions",
 ].join(",");
 
 type WireLine = {
@@ -99,9 +121,53 @@ export type WireCart = {
   total?: number | null;
   items?: (WireLine | null)[] | null;
   promotions?: ({ code?: string | null } | null)[] | null;
-  shipping_methods?: ({ id?: string | null; shipping_option_id?: string | null } | null)[] | null;
-  shipping_address?: { id?: string | null } | null;
+  shipping_methods?:
+    | ({
+        id?: string | null;
+        shipping_option_id?: string | null;
+        name?: string | null;
+        amount?: number | null;
+      } | null)[]
+    | null;
+  shipping_address?: WireAddress | null;
+  payment_collection?: {
+    payment_sessions?: ({ provider_id?: string | null; status?: string | null } | null)[] | null;
+  } | null;
 };
+
+/** An address as the Store API answers it (the cart's and the order's). */
+export type WireAddress = {
+  id?: string | null;
+  first_name?: string | null;
+  last_name?: string | null;
+  company?: string | null;
+  address_1?: string | null;
+  address_2?: string | null;
+  city?: string | null;
+  province?: string | null;
+  postal_code?: string | null;
+  country_code?: string | null;
+  phone?: string | null;
+};
+
+/** An address with the fields a delivery needs, or `null` (Medusa keeps an empty one on a cart). */
+export function toAddressDto(address: WireAddress | null | undefined): CartAddressDto | null {
+  if (!address?.first_name || !address.last_name || !address.address_1 || !address.country_code)
+    return null;
+  const text = (value: string | null | undefined) => (value ? value : null);
+  return {
+    firstName: address.first_name,
+    lastName: address.last_name,
+    company: text(address.company),
+    address1: address.address_1,
+    address2: text(address.address_2),
+    city: text(address.city),
+    province: text(address.province),
+    postalCode: text(address.postal_code),
+    countryCode: address.country_code.toLowerCase(),
+    phone: text(address.phone),
+  };
+}
 
 /** The Store API's cart as the DTO. A line without a product or a variant (deleted since) is left out. */
 export function toCartDto(cart: WireCart): CartDto {
@@ -141,6 +207,10 @@ export function toCartDto(cart: WireCart): CartDto {
   const shippingMethods = (cart.shipping_methods ?? []).flatMap((method) =>
     method?.shipping_option_id ? [method.shipping_option_id] : [],
   );
+  const method = (cart.shipping_methods ?? []).findLast((each) => each?.shipping_option_id);
+  const session = (cart.payment_collection?.payment_sessions ?? []).find(
+    (each) => each?.status === "pending" && each.provider_id,
+  );
   return {
     id: cart.id,
     regionId: cart.region_id ?? "",
@@ -166,6 +236,15 @@ export function toCartDto(cart: WireCart): CartDto {
     ),
     shippingMethodIds: shippingMethods,
     hasShippingAddress: Boolean(cart.shipping_address?.id),
+    shippingAddress: toAddressDto(cart.shipping_address),
+    shippingMethod: method?.shipping_option_id
+      ? {
+          optionId: method.shipping_option_id,
+          name: method.name || method.shipping_option_id,
+          amount: money(method.amount),
+        }
+      : null,
+    paymentProviderId: session?.provider_id ?? null,
     completed: Boolean(cart.completed_at),
   };
 }

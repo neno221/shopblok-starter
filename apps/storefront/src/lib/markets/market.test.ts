@@ -95,6 +95,25 @@ describe("listMarkets", () => {
     },
   );
 
+  it("carries a country's time zone when Intl accepts it, and leaves it out otherwise (D65)", () => {
+    expect(listMarkets(seeded).map((m) => `${m.key}:${m.timeZone}`)).toEqual([
+      "el-cy:Europe/Nicosia",
+      "en-us:America/New_York",
+      "en-gb:Europe/London",
+      "de-de:Europe/Berlin",
+      "fr-fr:Europe/Paris",
+      "de-ch:Europe/Zurich",
+      "fr-ch:Europe/Zurich",
+    ]);
+    const map = {
+      ...seeded,
+      countries: seeded.countries.map((c) =>
+        c.code === "cy" ? { ...c, timeZone: "Nowhere/Land" } : c,
+      ),
+    };
+    expect(listMarkets(map)[0]).not.toHaveProperty("timeZone");
+  });
+
   it("carries a country's domain as a bare lowercase host", () => {
     const map: MarketMap = {
       ...seeded,

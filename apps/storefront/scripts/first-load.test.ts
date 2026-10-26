@@ -131,17 +131,17 @@ describe("the budget", () => {
     expect(judged(170 * KB + 1).failures).toHaveLength(1);
   });
 
-  it("budgets the PDP at 330 KB and the three listing pages at 330 KB, with the page/[n] routes T50 makes explicit", () => {
+  it("budgets the PDP at 335 KB and the three listing pages at 335 KB, with the page/[n] routes T50 makes explicit", () => {
     expect(budgets).toEqual([
-      { route: "/[market]/products/[handle]", label: "PDP", maxKB: 330 },
-      { route: "/[market]/categories/[...handle]", label: "PLP, categories", maxKB: 330 },
-      { route: "/[market]/store", label: "PLP, store", maxKB: 330 },
-      { route: "/[market]/store/page/[n]", label: "PLP, store page n", maxKB: 330 },
-      { route: "/[market]/collections/[handle]", label: "PLP, collections", maxKB: 330 },
+      { route: "/[market]/products/[handle]", label: "PDP", maxKB: 335 },
+      { route: "/[market]/categories/[...handle]", label: "PLP, categories", maxKB: 335 },
+      { route: "/[market]/store", label: "PLP, store", maxKB: 335 },
+      { route: "/[market]/store/page/[n]", label: "PLP, store page n", maxKB: 335 },
+      { route: "/[market]/collections/[handle]", label: "PLP, collections", maxKB: 335 },
       {
         route: "/[market]/collections/[handle]/page/[n]",
         label: "PLP, collections page n",
-        maxKB: 330,
+        maxKB: 335,
       },
     ]);
   });
@@ -185,8 +185,7 @@ describe("the budget", () => {
     },
   );
 
-  // Each budgeted route, the page/[n] ones included, fails 1 KB over its budget (SPEC §13's 170 KB
-  // for the listing pages, 330 KB for the PDP).
+  // Each budgeted route, the page/[n] ones included, fails 1 KB over its budget (335 KB each, T52).
   it.each(budgets.map((budget) => [budget.route, budget.label, budget.maxKB] as const))(
     "%s: passes at its budget and fails 1 KB over",
     (route, label, max) => {

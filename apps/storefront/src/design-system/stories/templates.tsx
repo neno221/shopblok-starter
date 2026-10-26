@@ -5,15 +5,25 @@
 // and its words from `catalogs[ctx.locale].templates`. The states draw the template alone. The DS
 // frame is the page's `<main>`, so a template is drawn as a `div` here (`as="div"`) with an id of
 // its own, which the live header's skip link targets. Every link is drawn with `prefetch={false}`.
-import { commerceFixtures, pageFixtures } from "@shopblok/fixtures";
+import { commerceFixtures, fixtureNow, markets, pageFixtures } from "@shopblok/fixtures";
 import { catalogs } from "@shopblok/i18n";
 import type { EntryId } from "@shopblok/registry";
 import { Button } from "@shopblok/ui/atoms/button";
 import { FooterMultiColumn } from "@shopblok/ui/organisms/footer/multi-column";
 import { HeaderClassic } from "@shopblok/ui/organisms/header/classic";
+import { CartTemplate, cartCopy } from "@shopblok/ui/templates/cart";
+import {
+  CheckoutTemplate,
+  checkoutCopy,
+  type CheckoutErrors,
+} from "@shopblok/ui/templates/checkout";
 import { ErrorTemplate } from "@shopblok/ui/templates/error";
 import { HomeTemplate, homeCopy } from "@shopblok/ui/templates/home";
 import { NotFoundTemplate } from "@shopblok/ui/templates/not-found";
+import {
+  OrderConfirmationTemplate,
+  orderConfirmationCopy,
+} from "@shopblok/ui/templates/order-confirmation";
 import {
   ProductDetailTemplate,
   productDetailCopy,
@@ -236,6 +246,54 @@ const home = (ctx: DsContext, mainId: string, variant: "default" | "bare") => {
   );
 };
 
+const cart = (ctx: DsContext, mainId: string, state: "full" | "empty" | "error") => (
+  <CartTemplate
+    {...pageFixtures[ctx.locale].cart[state === "empty" ? "empty" : "full"]}
+    {...(state === "error"
+      ? { error: "rejected" as const, promoError: "invalid" as const, promoCode: "WELCOME5" }
+      : {})}
+    copy={cartCopy(catalogs[ctx.locale])}
+    locale={lang(ctx)}
+    prefetch={false}
+    as="div"
+    mainId={mainId}
+  />
+);
+
+const checkout = (
+  ctx: DsContext,
+  mainId: string,
+  step: "contact" | "delivery" | "review",
+  errors?: CheckoutErrors,
+) => (
+  <CheckoutTemplate
+    {...pageFixtures[ctx.locale].checkout[step]}
+    copy={checkoutCopy(catalogs[ctx.locale])}
+    locale={lang(ctx)}
+    now={fixtureNow}
+    {...(errors === undefined ? {} : { errors })}
+    prefetch={false}
+    as="div"
+    mainId={mainId}
+  />
+);
+
+/** The DS market's country's time zone (D65), as the shop's markets global seeds it. */
+const timeZone = (ctx: DsContext) =>
+  markets.countries.find((country) => country.code === ctx.fixture.market.country)?.timeZone;
+
+const orderConfirmation = (ctx: DsContext, mainId: string) => (
+  <OrderConfirmationTemplate
+    {...pageFixtures[ctx.locale].orderConfirmation}
+    copy={orderConfirmationCopy(catalogs[ctx.locale])}
+    locale={lang(ctx)}
+    timeZone={timeZone(ctx)}
+    prefetch={false}
+    as="div"
+    mainId={mainId}
+  />
+);
+
 const pageNote =
   "The template is the page between the header and the footer: in a shop it is the page's one `<main>`, the skip link's target, with the page's only `<h1>`. The icon is decoration and hidden from assistive technology.";
 const waysNote =
@@ -419,6 +477,103 @@ export const templateStories = {
         label: "No results",
         description: "A query that finds nothing: the empty state, no filters and no pages.",
         render: (ctx) => searchResults(ctx, "template-search-results-empty", true),
+      },
+    ],
+    statesLayout: "stack",
+  },
+  "templates/cart": {
+    summary:
+      "The cart page: the lines with their quantity and remove forms, the promotion codes, the subtotal, the discount and the total, and the way to the checkout. An empty cart is the way back to the shop.",
+    a11y: [
+      pageNote,
+      "Every change is a plain form that posts without JavaScript (the shop's server actions redirect back to the page). A line's controls are named for the line with its options. The summary is a section named by its `<h2>`; its rows are one `<dl>`.",
+      "An action's failure is said at the top in an alert, and a promotion code's beside its field.",
+    ],
+    live: (ctx) => page(ctx, "template-cart", cart(ctx, "template-cart", "full")),
+    states: [
+      {
+        id: "default",
+        label: "A cart",
+        description: "Three lines with a promotion code applied.",
+        render: (ctx) => cart(ctx, "template-cart-default", "full"),
+      },
+      {
+        id: "empty",
+        label: "Empty",
+        description: "No line: the empty state and the way back to the shop.",
+        render: (ctx) => cart(ctx, "template-cart-empty", "empty"),
+      },
+      {
+        id: "error",
+        label: "After a failed change",
+        description: "Medusa refused a change, and a code that does not exist was typed.",
+        render: (ctx) => cart(ctx, "template-cart-error", "error"),
+      },
+    ],
+    statesLayout: "stack",
+  },
+  "templates/checkout": {
+    summary:
+      "The checkout: CheckoutSteps with the order summary, and the current step as its own page and form: contact and address, delivery and payment (Pay later in M3), and the review that places the order.",
+    a11y: [
+      pageNote,
+      "“Checkout” is the page's `<h1>` and the step's name its `<h2>`; the stepper marks the current step. Every step posts without JavaScript.",
+      "The email field belongs to the address's form by its id, and the delivery options to the payment's, so each step sends one form. An error is text beside its field, and a step's failure an alert at the top.",
+      "In the review each part's “Edit” link is named for its part (“Edit: Contact”), the visible word first.",
+    ],
+    live: (ctx) => page(ctx, "template-checkout", checkout(ctx, "template-checkout", "contact")),
+    states: [
+      {
+        id: "contact",
+        label: "Contact and address",
+        description: "The email and the shipping address, typed.",
+        render: (ctx) => checkout(ctx, "template-checkout-contact", "contact"),
+      },
+      {
+        id: "contact-errors",
+        label: "Contact with errors",
+        description:
+          "No email, and the address's first line missing, as the action hands them back.",
+        render: (ctx) =>
+          checkout(ctx, "template-checkout-contact-errors", "contact", {
+            email: "required",
+            address: { address1: "required" },
+          }),
+      },
+      {
+        id: "delivery",
+        label: "Delivery and payment",
+        description: "Every shipping option (one not available) and the system payment.",
+        render: (ctx) => checkout(ctx, "template-checkout-delivery", "delivery"),
+      },
+      {
+        id: "review",
+        label: "Review",
+        description: "What will be ordered, each part with its way back, and “Place order”.",
+        render: (ctx) => checkout(ctx, "template-checkout-review", "review"),
+      },
+    ],
+    statesLayout: "stack",
+  },
+  "templates/order-confirmation": {
+    summary:
+      "The receipt: the thanks, the order's number, date and e-mail, where it goes, how it is delivered and paid, the summary with its lines open, its history, and the way back to the shop.",
+    a11y: [
+      pageNote,
+      "The thanks is the page's `<h1>`; each part has an `<h2>`. The dates are in the market's time zone, so an order placed after midnight in Cyprus shows that day.",
+    ],
+    live: (ctx) =>
+      page(
+        ctx,
+        "template-order-confirmation",
+        orderConfirmation(ctx, "template-order-confirmation"),
+      ),
+    states: [
+      {
+        id: "default",
+        label: "Placed",
+        description: "The order placed and paid.",
+        render: (ctx) => orderConfirmation(ctx, "template-order-confirmation-default"),
       },
     ],
     statesLayout: "stack",

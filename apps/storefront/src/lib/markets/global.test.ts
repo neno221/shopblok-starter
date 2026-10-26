@@ -60,6 +60,19 @@ describe("mapFromGlobal", () => {
     expect(map.languages[0]).toEqual({ code: "pt", medusaLocale: "pt-BR", htmlLang: "pt-BR" });
   });
 
+  it("keeps a country's time zone, and ignores one Intl refuses or that is empty (D65)", () => {
+    const map = mapFromGlobal({
+      countries: [
+        { code: "cy", languages: ["el"], timeZone: "Europe/Nicosia" },
+        { code: "us", languages: ["en"], timeZone: "Atlantis/Lost" },
+        { code: "gb", languages: ["en"], timeZone: "" },
+        { code: "de", languages: ["de"], timeZone: null },
+      ],
+    });
+    expect(map.countries[0]).toMatchObject({ timeZone: "Europe/Nicosia" });
+    for (const country of map.countries.slice(1)) expect(country).not.toHaveProperty("timeZone");
+  });
+
   it("drops rows with no code, and leaves out an empty domain or override", () => {
     const map = mapFromGlobal({
       countries: [

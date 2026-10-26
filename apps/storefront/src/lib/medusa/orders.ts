@@ -1,6 +1,7 @@
 import "server-only";
 import type { Money } from "./products";
-import { getAuthHeaders } from "./cookies";
+import { toAddressDto, type CartAddressDto, type WireAddress } from "./cart";
+import { getAuthHeaders, getReceiptOrderId } from "./cookies";
 import { getCustomer } from "./customer";
 import { localeHeaders, medusaRequest, MedusaRequestError } from "./sdk";
 
@@ -34,6 +35,11 @@ export type OrderDto = {
   shippingTotal: Money;
   taxTotal: Money;
   total: Money;
+  shippingAddress: CartAddressDto | null;
+  /** The shipping method (the first; M3 has one per order), its name and price. */
+  shippingMethod: { name: string; amount: Money } | null;
+  /** The provider of the order's first payment (`pp_system_default` in M3). */
+  paymentProviderId: string | null;
 };
 
 type WireOrder = {
@@ -49,6 +55,10 @@ type WireOrder = {
   shipping_total?: number | null;
   tax_total?: number | null;
   total?: number | null;
+  shipping_address?: WireAddress | null;
+  shipping_methods?: ({ name?: string | null; amount?: number | null } | null)[] | null;
+  payment_collections?:
+    ({ payments?: ({ provider_id?: string | null } | null)[] | null } | null)[] | null;
   items?:
     | ({
         id: string;
@@ -98,11 +108,23 @@ export function toOrderDto(order: WireOrder): OrderDto {
     shippingTotal: money(order.shipping_total),
     taxTotal: money(order.tax_total),
     total: money(order.total),
+    shippingAddress: toAddressDto(order.shipping_address),
+    shippingMethod: (() => {
+      const method = order.shipping_methods?.find((each) => each !== null);
+      return method ? { name: method.name || "", amount: money(method.amount) } : null;
+    })(),
+    paymentProviderId:
+      order.payment_collections
+        ?.flatMap((collection) => collection?.payments ?? [])
+        .find((payment) => payment?.provider_id)?.provider_id ?? null,
   };
 }
 
-const ORDER_FIELDS =
-  "id,display_id,email,customer_id,created_at,status,currency_code,item_subtotal,discount_total,shipping_total,tax_total,total,*items";
+const ORDER_FIELDS = [
+  "id,display_id,email,customer_id,created_at,status,currency_code",
+  "item_subtotal,discount_total,shipping_total,tax_total,total,*items",
+  "*shipping_address,*shipping_methods,*payment_collections,*payment_collections.payments",
+].join(",");
 
 export type OrderPage = { orders: OrderDto[]; page: number; pageCount: number; count: number };
 
@@ -135,8 +157,8 @@ export async function listOrders(
 
 /**
  * An order by id, for its owner only: the signed-in customer whose order it is, or `null`. A guest's
- * receipt does not come through here: the confirmation page has the order the completed cart
- * answered with (D65), and a guest claims an order through the transfer (T53).
+ * receipt does not come through here but through `getReceiptOrder` (D65), and a guest claims an
+ * order through the transfer (T53).
  */
 export async function getOrder(id: string, locale?: string): Promise<OrderDto | null> {
   const customer = await getCustomer();
@@ -152,6 +174,36 @@ export async function getOrder(id: string, locale?: string): Promise<OrderDto | 
     );
     const dto = toOrderDto(order as unknown as WireOrder);
     return dto.customerId === customer.id ? dto : null;
+  } catch (error) {
+    if (error instanceof MedusaRequestError && error.status === 404) return null;
+    throw error;
+  }
+}
+
+/**
+ * The receipt's order (D65): the signed-in customer's own, or the one this browser placed (the
+ * signed receipt cookie, `setReceipt`); `null` for any other id. The Store API answers any order by
+ * id to anyone with the publishable key (checked on the stack: a guest's order, no token), so this
+ * check is the only thing between a guessed id and someone's address.
+ */
+export async function getReceiptOrder(id: string, locale?: string): Promise<OrderDto | null> {
+  const [receipt, customer, headers] = await Promise.all([
+    getReceiptOrderId(),
+    getCustomer(),
+    getAuthHeaders(),
+  ]);
+  if (receipt !== id && customer === null) return null;
+  try {
+    const { order } = await medusaRequest((sdk) =>
+      sdk.store.order.retrieve(
+        id,
+        { fields: ORDER_FIELDS },
+        { ...(locale ? localeHeaders(locale) : {}), ...(headers ?? {}) },
+      ),
+    );
+    const dto = toOrderDto(order as unknown as WireOrder);
+    if (receipt === dto.id) return dto;
+    return customer !== null && dto.customerId === customer.id ? dto : null;
   } catch (error) {
     if (error instanceof MedusaRequestError && error.status === 404) return null;
     throw error;
