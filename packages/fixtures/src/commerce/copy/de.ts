@@ -146,6 +146,17 @@ export const de: Copy = {
     recent: ["Leinenhemd", "Hoodie", "Wollsocken", "Canvas-Tasche"],
     misspelt: "hoddie",
   },
+  homePage: {
+    hero: {
+      title: "Alltagsstücke, die bleiben",
+      text: "Weiche Basics, Leinen für warme Tage und ein paar Dinge fürs Zuhause.",
+      action: "Zur Kollektion",
+    },
+    categories: "Nach Kategorie einkaufen",
+    newArrivals: "Neu eingetroffen",
+    seeAllNew: "Alle Neuheiten ansehen",
+    shopAll: "Alle Produkte ansehen",
+  },
   listingPage: {
     sort: {
       relevance: "Relevanz",

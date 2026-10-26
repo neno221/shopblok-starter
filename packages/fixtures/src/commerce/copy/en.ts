@@ -146,6 +146,17 @@ export const en: Copy = {
     recent: ["linen shirt", "hoodie", "wool socks", "canvas tote"],
     misspelt: "hooddie",
   },
+  homePage: {
+    hero: {
+      title: "Everyday pieces, made to last",
+      text: "Soft basics, linen for warm days and a few things for home.",
+      action: "Shop the collection",
+    },
+    categories: "Shop by category",
+    newArrivals: "New arrivals",
+    seeAllNew: "See all new arrivals",
+    shopAll: "See all products",
+  },
   listingPage: {
     sort: {
       relevance: "Relevance",

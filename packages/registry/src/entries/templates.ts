@@ -1,5 +1,6 @@
 import {
   ErrorPage,
+  HomePage,
   NotFoundPage,
   ProductDetailPage,
   ProductListingPage,
@@ -35,4 +36,6 @@ export const templates = [
   // T50: the listing pages and the search page.
   template("product-listing", "Listing page", "ProductListingTemplate", ProductListingPage),
   template("search-results", "Search results", "SearchResultsTemplate", SearchResultsPage),
+  // T51: the home page.
+  template("home", "Home page", "HomeTemplate", HomePage),
 ] as const satisfies readonly EntryInput[];

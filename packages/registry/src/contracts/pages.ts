@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { Href } from "./content";
+import { Href, Link } from "./content";
+import { Image } from "./image";
 import { Breadcrumbs, PageState, SearchQuery } from "./listing";
 import { FilterPanel, ProductCarousel, ProductGrid, ProductToolbar } from "./listing-organisms";
 import {
@@ -101,9 +102,42 @@ export const SearchResultsPage = z.object({
   results: ListingResults,
 });
 
+/** A category on the home (T51): its name, its page, and a picture of one of its products. */
+export const CategoryTile = z.object({
+  label: z.string().min(1),
+  href: Href,
+  image: Image.optional().describe("The category's first product's picture, when it has one"),
+});
+
+/**
+ * The home page (`home`, T51, D58): a hero (the shop's message, a picture and the way into the
+ * shop), the top-level categories as tiles, the newest products as a carousel and a link to every
+ * product. M4's blocks replace the hero and decide the rest (`site-settings.homepage`).
+ */
+export const HomePage = z.object({
+  variant: z.literal("default").describe("D57: one variant in M3; M5 adds §9.5's"),
+  hero: z.object({
+    title: z.string().min(1).describe("The page's one heading"),
+    text: z.string().min(1).optional(),
+    image: Image.describe("Drawn beside the words: decorative, so its `alt` may be empty"),
+    action: Link,
+  }),
+  categories: z
+    .object({
+      title: z.string().min(1),
+      items: z.array(CategoryTile).min(1).max(8),
+    })
+    .optional()
+    .describe("The top-level categories, when the shop has some"),
+  newArrivals: ProductCarousel.optional().describe("The newest products, when there are some"),
+  shopAll: Link.describe("Every product: the store's listing"),
+});
+
 export type NotFoundPage = z.infer<typeof NotFoundPage>;
 export type ListingResults = z.infer<typeof ListingResults>;
 export type ProductListingPage = z.infer<typeof ProductListingPage>;
 export type SearchResultsPage = z.infer<typeof SearchResultsPage>;
 export type ProductDetailPage = z.infer<typeof ProductDetailPage>;
 export type ErrorPage = z.infer<typeof ErrorPage>;
+export type CategoryTile = z.infer<typeof CategoryTile>;
+export type HomePage = z.infer<typeof HomePage>;

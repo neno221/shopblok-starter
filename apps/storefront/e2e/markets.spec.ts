@@ -39,8 +39,11 @@ test.describe("market homes: the public URL stays, the market's language is serv
       // The browser ends on the public URL (Next drops the trailing slash), never on the key.
       expect(new URL(page.url()).pathname).toBe(home.shown);
       await expect(page.locator("html")).toHaveAttribute("lang", home.lang);
-      await expect(page.getByTestId("market")).toHaveText(home.key);
-      await expect(page.getByTestId("language")).toHaveText(home.lang);
+      // The market's own home (T51): its links are inside the market the key named.
+      await expect(page.locator('[data-slot="home-shop-all"]')).toHaveAttribute(
+        "href",
+        `${home.shown === "/" ? "" : home.shown}/store`,
+      );
     });
   }
 
@@ -178,7 +181,7 @@ test.describe("Payload is not rewritten", () => {
     // First visit: create-first-user. Later: login. Both are forms on /admin/….
     await page.waitForURL(/\/admin\/(login|create-first-user)/);
     await expect(page.locator('input[name="email"]')).toBeVisible();
-    await expect(page.getByTestId("market")).toHaveCount(0);
+    await expect(page.locator('[data-slot="home-template"]')).toHaveCount(0);
   });
 });
 

@@ -5547,3 +5547,47 @@ The review (`reviews/pr-78-code-review.md` in the project's files) had five must
 6. **Cleanup:** one `categoryPaths` in `lib/medusa/categories.ts` (each node with its path) for the static params and the overlay's category links; `parseScopeKey` replaced by `parseScope`; `pathPage` uses `pageOf`.
 
 The sort test also had a race of its own (it compared against a sorted copy of the prices read before the change landed), and the scripted filter test now waits for the island (drawn after hydration) before it ticks a box; each passed 6 runs in a row after.
+
+## Home (T51)
+
+**Result: each market's home is the shop's first page, built from Medusa's data in the static shell (D58), and the M0 wiring page is gone.** `{m}/` draws a hero (the shop's words from `site.ts` and a picture from `public/`, until M4's `hero` block), the top-level categories as tiles, the eight newest products as a carousel and a link to every product, with JSON-LD `Organization` and `WebSite` with a `SearchAction`. The wiring page's checks moved to the home: `<html lang>` and the switcher's current option, the carousel's prices in the market's currency and its titles in the market's language, and the `/next/markets` map.
+
+| | |
+|---|---|
+| Date | 2026-10-26 |
+| Branch | `claude/project-thread-bbr2fk`, from `main` at `6deced2` (PR 78 merged) |
+| New (storefront) | `src/lib/view-models/home.ts`, `src/lib/seo/home.ts`, `public/home/hero.svg`, their tests |
+| New (packages) | `packages/ui/src/templates/home.tsx` and its test, the `CategoryTile` and `HomePage` contracts, the `templates/home` entry (128 entries), `pageFixtures[locale].home`, the story |
+| Changed | `src/app/(storefront)/[market]/page.tsx` and its test (replaced), `src/lib/site.ts` (`hero` per language, `HERO_IMAGE`), the four catalogs (`templates.home`; `wiring` removed), the fixtures' copy (`homePage`), `e2e/wiring.spec.ts` (rewritten), `e2e/markets.spec.ts`, the tests and comments that named `wiring` |
+
+### How it works
+
+- **The route** exports `ensureStatic = "navigation"`. Every read is a `cached()` entry: `listCategories` (tags `medusa:categories`, `navigation`, `search`), `searchProducts` (`search`, `medusa:products`) and `listProductsByIds` (`medusa:products`), so the build renders each market's home (`○ /el-cy`, `○ /en-us`, …) and the backend's revalidation reaches it. A market without a region, and every market in a build without `MEDUSA_BACKEND_URL` (the stand-in, D10), is a 404 with `notFound()` before anything renders, as the listings are.
+- **The categories**: the first eight top-level categories in the navigation's order. A tile's picture is the newest product of the category or its children (one search, `pageSize: 1`), read through `listProductsByIds`; a product without a picture gives a tile without one (a muted frame, never the placeholder). The picture is decoration (`alt=""`): the tile is one link, named by the category.
+- **The new arrivals**: `searchProducts` sorted `newest` (the index's `created_at`), eight, as ProductCards in the region's prices; "See all new arrivals" is `{m}/store?sort=newest`. No category or no product leaves its section out, so an empty shop is the hero and the link to every product.
+- **The hero** is `siteText(language).hero` (English for a language the shop has no text in) and `HERO_IMAGE`, an SVG under `public/home/` that next/image serves as it is. The section headings and links are the catalog's `templates.home` (the plan says `pages.home`; the templates' words are under `templates`, as the other pages' are).
+- **Head**: the layout's default title (the store's name), the hero's line as the description, a self canonical, hreflang for every market's home, Open Graph `website`. JSON-LD is one `@graph`: the `Organization` (its `@id` the origin's, one for every market) and the market's `WebSite` with `inLanguage` and the `SearchAction` on `{m}/search?q={search_term_string}`.
+- **The wiring page's facts**: market and language in `<html lang>` and the switcher's `aria-current` option, region and currency in the carousel's prices (all eight demo products, each against the seed's table), titles in the market's language, the map at `/next/markets`; the published-pages count goes to M4 (`countPublishedPages` stays in `lib/cms/site.ts`).
+
+### Checks
+
+| Check | Result |
+|---|---|
+| `pnpm build` with the stack (`STOREFRONT_PRERENDER_PRODUCTS=4`, `STOREFRONT_LISTING_PAGE_SIZE=3`) | passes; the seven homes are `○` (static) |
+| `check:first-load` | `/[market]` 932.8 KB raw, **301.5 KB gzipped** (290.6 at T48; not budgeted); the PDP 325.3, the listings 319.0, all under their 330 KB |
+| `curl /` | 200, 163.7 KB of HTML (`shell.spec`'s ceiling is 200 KB): the Greek hero, "Αγορές ανά κατηγορία" with Ρούχα, Αξεσουάρ, Σπίτι, "Νέες αφίξεις" with eight products at `12,00 €` and so on, no cart count, the JSON-LD with `http://localhost:8000/search?q={search_term_string}` |
+| `wiring.spec.ts`, `markets.spec.ts`, `shell.spec.ts`, `i18n-messages.spec.ts`, `dev-console.spec.ts` | 63 passed; `catalog.spec.ts` 16 passed |
+| Unit suites | storefront 111 files (3,037 tests; the page's test rewritten, 7, and `view-models/home`, 2), ui 148 (the template's, 9), registry, fixtures and i18n green; `tsc` and eslint clean |
+
+### Mutations
+
+| Mutation | Caught by |
+|---|---|
+| The home awaits `connection()` | `next build`: `Route "/[market]": Next.js encountered uncached or runtime data on a route that must be fully static.` (on `/el-cy`) |
+| A carousel that autoplays (the plan's) | T37's `product-carousel` test, unchanged |
+
+### Where it differs from the plan
+
+- **`/[market]` is 301.5 KB gzipped.** The shell is most of it; the page grew about 11 KB since T48 (the carousel and the shared chunks); the home has no budget row (the plan names only the PLP and the PDP), and the script prints its size.
+- **The demo catalog has no pictures**, so in the local stack the tiles and the cards show their muted frames; the page test covers a category with a picture.
+- The words are `templates.home`, not `pages.home` (see above).

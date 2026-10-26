@@ -225,9 +225,9 @@ jobs:
         # Only this server gets it; the build above has no say in it.
         env:
           E2E_TEST_ROUTES: "true"
-      # markets (T11), wiring (T12), payload-admin, payload-cache (ADR 0001's cache, tag and draft
-      # checks) and payload-locales (S3, last: it saves the `markets` global and puts it back) run
-      # against the storefront that is up.
+      # markets (T11), wiring (T12; the home since T51), payload-admin, payload-cache (ADR 0001's
+      # cache, tag and draft checks) and payload-locales (S3, last: it saves the `markets` global
+      # and puts it back) run against the storefront that is up.
       # `--reporter` adds the HTML report that is uploaded below; the config stays as it is.
       - name: Playwright suites
         run: pnpm --filter @shopblok/storefront test:e2e --reporter=list,html

@@ -4,18 +4,6 @@ import type { Messages } from "./en";
 // W4 is where a native speaker reads it.
 
 export const de: Messages = {
-  wiring: {
-    title: "Shopblok-Verbindungsprüfung",
-    market: "Markt",
-    language: "Sprache",
-    currency: "Währung",
-    products: "Produkte",
-    pages: "Payload-Seiten",
-    region: "Region",
-    noRegion: "Medusa hat keine Region für das Land dieses Marktes, daher gibt es keine Preise.",
-    priceCurrencies: "Währungen des Preisfilters",
-    noProducts: "Diese Region hat keine Produkte.",
-  },
   atoms: {
     spinner: { loading: "Wird geladen" },
     chip: { remove: "Entfernen" },
@@ -749,6 +737,14 @@ export const de: Messages = {
         text: "Prüfen Sie Ihre Verbindung und versuchen Sie es erneut.",
         retry: "Erneut versuchen",
       },
+    },
+    home: {
+      // The home page (T51): its sections' headings and links; the hero's words are the shop's
+      // (`site.ts`, M4's hero block).
+      categories: "Nach Kategorie einkaufen",
+      newArrivals: "Neu eingetroffen",
+      seeAllNew: "Alle Neuheiten ansehen",
+      shopAll: "Alle Produkte ansehen",
     },
     searchResults: {
       // The search page (T50): its heading with a query and without one, and what it says when

@@ -99,6 +99,16 @@ export type Copy = {
     recent: [string, string, string, string];
     misspelt: string;
   };
+  /** The home page's words (T51). */
+  homePage: {
+    /** The hero's words (the shop's, as `site.ts` writes them in the app). */
+    hero: { title: string; text: string; action: string };
+    /** The sections' headings and links (the catalogs' `templates.home`). */
+    categories: string;
+    newArrivals: string;
+    seeAllNew: string;
+    shopAll: string;
+  };
   /**
    * The listing and search pages' words (T50): the sort's four options as the catalog names them,
    * and the search page's heading for `search.query`.

@@ -1,5 +1,6 @@
 import {
   ErrorPage,
+  HomePage,
   ListingResults,
   NotFoundPage,
   ProductDetailPage,
@@ -44,6 +45,18 @@ describe("the page fixtures (T48)", () => {
       expect(search.results.filters?.params).toEqual([{ name: "q", value: search.search.query }]);
       expect(listing.breadcrumbs.current).toBe(listing.title);
     }
+  });
+
+  it("give the home in every locale: the store as the hero's and the last link's way (T51)", () => {
+    for (const pages of Object.values(pageFixtures)) {
+      const { home } = pages;
+      expect(HomePage.parse(home)).toEqual(home);
+      expect(home.hero.action.href).toBe(home.shopAll.href);
+      expect(home.shopAll.href).toMatch(/\/store$/);
+      expect(home.categories?.items.length).toBeGreaterThan(0);
+      expect(home.newArrivals?.viewAll?.href).toBe(`${home.shopAll.href}?sort=newest`);
+    }
+    expect(pageFixtures.en.home.shopAll.href).toBe("/us/store");
   });
 
   it("refuse results whose filters and toolbar count different listings", () => {

@@ -1,5 +1,6 @@
 import type {
   ErrorPage,
+  HomePage,
   ListingResults,
   NotFoundPage,
   ProductDetailPage,
@@ -10,6 +11,7 @@ import type {
 } from "@shopblok/registry/contracts";
 import { commerceFixtures } from "../commerce";
 import { copies } from "../commerce/copy";
+import { fixtureImage } from "../commerce/images";
 import type { DesignSystemLocale } from "../design-system";
 
 // The templates' page-level fixtures (D56, T48): what each template shows between the header and
@@ -35,6 +37,11 @@ export type PageFixtures = {
   productListing: ProductListingPage;
   /** The search page for `search.query` (T50): the same results, by relevance, the query kept. */
   searchResults: SearchResultsPage;
+  /**
+   * The home (T51): the hero, the catalog's top-level categories with a picture each, the listing
+   * carousel's products as the new arrivals, and the link to every product.
+   */
+  home: HomePage;
 };
 
 /** The sort as a listing offers it: newest, then by price; a search puts relevance first. */
@@ -62,7 +69,7 @@ function sortState(
 }
 
 function pagesFor(locale: DesignSystemLocale): PageFixtures {
-  const { header, product, productPage, listing } = commerceFixtures[locale];
+  const { header, product, productPage, listing, categories } = commerceFixtures[locale];
   const related = listing.carousel.products.filter((card) => card.id !== product.id);
   const copy = copies[locale];
   const searchHref = listing.search.idle.search.action;
@@ -81,6 +88,7 @@ function pagesFor(locale: DesignSystemLocale): PageFixtures {
     page: { page: 1, pageCount: 2 },
   });
   const query = listing.search.results.search.query;
+  const storeHref = `${header.content.homeHref.replace(/\/$/, "")}/store`;
   return {
     notFound: {
       homeHref: header.content.homeHref,
@@ -114,6 +122,31 @@ function pagesFor(locale: DesignSystemLocale): PageFixtures {
       search: { action: searchHref, query },
       title: copy.listingPage.resultsFor,
       results: results("relevance", [{ name: "q", value: query }]),
+    },
+    home: {
+      variant: "default",
+      hero: {
+        title: copy.homePage.hero.title,
+        text: copy.homePage.hero.text,
+        image: fixtureImage({ seed: 21, ratio: "16:9", alt: "" }),
+        action: { label: copy.homePage.hero.action, href: storeHref },
+      },
+      categories: {
+        title: copy.homePage.categories,
+        items: categories.slice(0, 8).map((category, index) => ({
+          label: category.title,
+          href: category.href,
+          // Decorative: the tile's name says where it goes.
+          image: fixtureImage({ seed: 30 + index, ratio: "3:4", alt: "" }),
+        })),
+      },
+      newArrivals: {
+        title: copy.homePage.newArrivals,
+        products: listing.carousel.products,
+        variant: "standard",
+        viewAll: { label: copy.homePage.seeAllNew, href: `${storeHref}?sort=newest` },
+      },
+      shopAll: { label: copy.homePage.shopAll, href: storeHref },
     },
   };
 }
