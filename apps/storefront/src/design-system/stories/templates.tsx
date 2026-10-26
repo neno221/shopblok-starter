@@ -12,6 +12,7 @@ import { Button } from "@shopblok/ui/atoms/button";
 import { FooterMultiColumn } from "@shopblok/ui/organisms/footer/multi-column";
 import { HeaderClassic } from "@shopblok/ui/organisms/header/classic";
 import { ErrorTemplate } from "@shopblok/ui/templates/error";
+import { HomeTemplate, homeCopy } from "@shopblok/ui/templates/home";
 import { NotFoundTemplate } from "@shopblok/ui/templates/not-found";
 import {
   ProductDetailTemplate,
@@ -220,6 +221,21 @@ const searchResults = (ctx: DsContext, mainId: string, empty: boolean) => {
   );
 };
 
+const home = (ctx: DsContext, mainId: string, variant: "default" | "bare") => {
+  const { categories, newArrivals, ...base } = pageFixtures[ctx.locale].home;
+  const content = variant === "bare" ? base : { ...base, categories, newArrivals };
+  return (
+    <HomeTemplate
+      {...content}
+      copy={homeCopy(catalogs[ctx.locale])}
+      locale={lang(ctx)}
+      prefetch={false}
+      as="div"
+      mainId={mainId}
+    />
+  );
+};
+
 const pageNote =
   "The template is the page between the header and the footer: in a shop it is the page's one `<main>`, the skip link's target, with the page's only `<h1>`. The icon is decoration and hidden from assistive technology.";
 const waysNote =
@@ -352,6 +368,32 @@ export const templateStories = {
         label: "No products",
         description: "A category with no products yet: the empty state, and no pages.",
         render: (ctx) => productListing(ctx, "template-product-listing-empty", "empty"),
+      },
+    ],
+    statesLayout: "stack",
+  },
+  "templates/home": {
+    summary:
+      "The home page: the hero (a line, the way into the shop and a picture), the top-level categories as tiles, the newest products as a carousel and a link to every product. The hero's words are the shop's until M4's hero block; the rest is read from Medusa.",
+    a11y: [
+      pageNote,
+      "The hero's title is the page's one `<h1>`; the categories and the new arrivals each have an `<h2>` that names their section. A category tile is one link, its name and picture together; the picture is decoration (`alt=\"\"`), so the link's name is the category's.",
+      "The hero's picture is preloaded (it is the first screen's largest). Below `md` the hero is one column, the words before the picture.",
+    ],
+    live: (ctx) => page(ctx, "template-home", home(ctx, "template-home", "default")),
+    states: [
+      {
+        id: "default",
+        label: "Default",
+        description: "The hero, the categories, the new arrivals and the link to every product.",
+        render: (ctx) => home(ctx, "template-home-default", "default"),
+      },
+      {
+        id: "bare",
+        label: "An empty shop",
+        description:
+          "No categories and no products yet: the hero and the link to every product only.",
+        render: (ctx) => home(ctx, "template-home-bare", "bare"),
       },
     ],
     statesLayout: "stack",

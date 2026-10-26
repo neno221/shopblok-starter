@@ -53,7 +53,7 @@ describe("the market's error state (D62, D66)", () => {
 
   it("is a guard: a key outside SHELL_MESSAGES fails the render", () => {
     function Outside() {
-      return <p>{useTranslations("wiring")("title")}</p>;
+      return <p>{useTranslations("templates.home")("shopAll")}</p>;
     }
     expect(() => inShell("en", <Outside />)).toThrow(/MISSING_MESSAGE/);
   });

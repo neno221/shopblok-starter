@@ -26,8 +26,8 @@ describe("pick", () => {
   });
 
   it("returns one message at its place in the tree", () => {
-    expect(pick(catalogs.el, ["wiring.title"])).toEqual({
-      wiring: { title: catalogs.el.wiring.title },
+    expect(pick(catalogs.el, ["templates.home.shopAll"])).toEqual({
+      templates: { home: { shopAll: catalogs.el.templates.home.shopAll } },
     });
   });
 
@@ -62,8 +62,8 @@ describe("pick", () => {
     expect(() => pick(catalogs.en, ["molecules.cartLineItems" as MessagePath])).toThrow(
       'there is no message at "molecules.cartLineItems"',
     );
-    expect(() => pick(catalogs.en, ["wiring.title.deeper" as MessagePath])).toThrow(
-      "wiring.title.deeper",
+    expect(() => pick(catalogs.en, ["templates.home.shopAll.deeper" as MessagePath])).toThrow(
+      "templates.home.shopAll.deeper",
     );
     expect(() => pick(catalogs.en, ["constructor" as MessagePath])).toThrow("constructor");
   });
@@ -133,9 +133,9 @@ describe("pick with a fallback catalog (PR 70 review, item 2)", () => {
   });
 
   it("still throws for a path that neither catalog has, and throws with no fallback at all", () => {
-    const missing = ["wiring.nothingHere" as MessagePath];
+    const missing = ["templates.home.nothingHere" as MessagePath];
     expect(() => pick(catalogs.de, missing, { fallback: catalogs.en })).toThrow(
-      'there is no message at "wiring.nothingHere"',
+      'there is no message at "templates.home.nothingHere"',
     );
     const german = without(catalogs.de, ["templates.error.body"]);
     expect(() => pick(german, SHELL_MESSAGES)).toThrow(

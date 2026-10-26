@@ -5,18 +5,6 @@
 // the like; `messages.test.ts` checks that every locale has every key with English's arguments.
 
 export const en = {
-  wiring: {
-    title: "Shopblok wiring check",
-    market: "Market",
-    language: "Language",
-    currency: "Currency",
-    products: "Products",
-    pages: "Payload pages",
-    region: "Region",
-    noRegion: "Medusa has no region for this market's country, so there are no prices to show.",
-    priceCurrencies: "Price filter currencies",
-    noProducts: "This region has no products.",
-  },
   atoms: {
     spinner: { loading: "Loading" },
     chip: { remove: "Remove" },
@@ -848,6 +836,14 @@ export const en = {
         text: "Check your connection and try again.",
         retry: "Try again",
       },
+    },
+    home: {
+      // The home page (T51): its sections' headings and links; the hero's words are the shop's
+      // (`site.ts`, M4's hero block).
+      categories: "Shop by category",
+      newArrivals: "New arrivals",
+      seeAllNew: "See all new arrivals",
+      shopAll: "See all products",
     },
     searchResults: {
       // The search page (T50): its heading with a query and without one, and what it says when

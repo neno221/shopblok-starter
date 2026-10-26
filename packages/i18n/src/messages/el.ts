@@ -4,19 +4,6 @@ import type { Messages } from "./en";
 // W4 is where a native speaker reads it.
 
 export const el: Messages = {
-  wiring: {
-    title: "Έλεγχος σύνδεσης Shopblok",
-    market: "Αγορά",
-    language: "Γλώσσα",
-    currency: "Νόμισμα",
-    products: "Προϊόντα",
-    pages: "Σελίδες Payload",
-    region: "Περιοχή",
-    noRegion:
-      "Το Medusa δεν έχει περιοχή για τη χώρα αυτής της αγοράς, γι' αυτό δεν υπάρχουν τιμές.",
-    priceCurrencies: "Νομίσματα φίλτρου τιμής",
-    noProducts: "Αυτή η περιοχή δεν έχει προϊόντα.",
-  },
   atoms: {
     spinner: { loading: "Φόρτωση" },
     chip: { remove: "Αφαίρεση" },
@@ -763,6 +750,14 @@ export const el: Messages = {
         text: "Ελέγξτε τη σύνδεσή σας και δοκιμάστε ξανά.",
         retry: "Δοκιμάστε ξανά",
       },
+    },
+    home: {
+      // The home page (T51): its sections' headings and links; the hero's words are the shop's
+      // (`site.ts`, M4's hero block).
+      categories: "Αγορές ανά κατηγορία",
+      newArrivals: "Νέες αφίξεις",
+      seeAllNew: "Δείτε όλες τις νέες αφίξεις",
+      shopAll: "Δείτε όλα τα προϊόντα",
     },
     searchResults: {
       // The search page (T50): its heading with a query and without one, and what it says when

@@ -392,7 +392,7 @@ describe("a package on disk", () => {
         (line) => lines.push(line),
         (line) => errors.push(line),
         [
-          { route: "/[market]", label: "wiring", maxKB: 200 },
+          { route: "/[market]", label: "home", maxKB: 200 },
           { route: "/[market]/products/[handle]", label: "PDP", maxKB: 170 },
         ],
       );

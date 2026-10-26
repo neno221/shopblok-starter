@@ -14,7 +14,7 @@ import { catalogs } from "./support/catalogs";
 
 /**
  * Namespaces of molecules and organisms, and the design-system chrome: none of them belongs to the
- * wiring page or the shell, so a key here in what the client receives means a catalog came with it.
+ * home or the shell, so a key here in what the client receives means a catalog came with it.
  * Distinctive names, so that no library's chunk holds one by chance (a baseline build of `/` found
  * each of them in the chunk that held the four catalogs, and in no other).
  */

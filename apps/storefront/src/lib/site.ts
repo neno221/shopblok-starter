@@ -38,6 +38,8 @@ type SiteText = {
   /** The product page's shop texts (T49): the buy box's notes, the delivery and returns section. */
   productNotes: string[];
   delivery: string[];
+  /** The home page's hero (T51) until M4's `hero` block: its title, its line, its button. */
+  hero: { title: string; text: string; action: string };
 };
 
 const TEXT: Record<"en" | "el" | "de" | "fr", SiteText> = {
@@ -54,6 +56,11 @@ const TEXT: Record<"en" | "el" | "de" | "fr", SiteText> = {
       "Standard delivery takes 2 to 4 business days.",
       "Return anything unworn within 30 days for a full refund. Returns are free.",
     ],
+    hero: {
+      title: "Everyday pieces, made to last",
+      text: "Soft basics, linen for warm days and a few things for home.",
+      action: "Shop the collection",
+    },
   },
   el: {
     announcement: "Δωρεάν επιστροφές εντός 30 ημερών",
@@ -68,6 +75,11 @@ const TEXT: Record<"en" | "el" | "de" | "fr", SiteText> = {
       "Η κανονική αποστολή διαρκεί 2 έως 4 εργάσιμες ημέρες.",
       "Επιστρέψτε ό,τι δεν έχετε φορέσει εντός 30 ημερών για πλήρη επιστροφή χρημάτων. Οι επιστροφές είναι δωρεάν.",
     ],
+    hero: {
+      title: "Καθημερινά κομμάτια που αντέχουν",
+      text: "Μαλακά βασικά, λινά για τις ζεστές μέρες και μερικά πράγματα για το σπίτι.",
+      action: "Δείτε τη συλλογή",
+    },
   },
   de: {
     announcement: "Kostenlose Rücksendung innerhalb von 30 Tagen",
@@ -82,6 +94,11 @@ const TEXT: Record<"en" | "el" | "de" | "fr", SiteText> = {
       "Der Standardversand dauert 2 bis 4 Werktage.",
       "Ungetragene Artikel können Sie innerhalb von 30 Tagen gegen volle Erstattung zurückgeben. Die Rücksendung ist kostenlos.",
     ],
+    hero: {
+      title: "Alltagsstücke, die bleiben",
+      text: "Weiche Basics, Leinen für warme Tage und ein paar Dinge fürs Zuhause.",
+      action: "Zur Kollektion",
+    },
   },
   fr: {
     announcement: "Retours gratuits sous 30 jours",
@@ -96,12 +113,20 @@ const TEXT: Record<"en" | "el" | "de" | "fr", SiteText> = {
       "La livraison standard prend 2 à 4 jours ouvrés.",
       "Retournez tout article non porté sous 30 jours pour un remboursement intégral. Les retours sont gratuits.",
     ],
+    hero: {
+      title: "Des essentiels faits pour durer",
+      text: "Des basiques tout doux, du lin pour les beaux jours et quelques pièces pour la maison.",
+      action: "Découvrir la collection",
+    },
   },
 };
 
 export function siteText(language: string): SiteText {
   return language in TEXT ? TEXT[language as keyof typeof TEXT] : TEXT.en;
 }
+
+/** The home page's hero picture (T51), in `public/`: decoration, so its alternative text is empty. */
+export const HERO_IMAGE = { src: "/home/hero.svg", alt: "", width: 1500, height: 1000 };
 
 /** The announcement bar: one message, which the visitor can close. */
 export function announcementFor(language: string): AnnouncementBar {

@@ -14,11 +14,12 @@ describe("locales and catalogs", () => {
   });
 
   it("has a non-empty string for every key in every catalog", () => {
-    for (const locale of LOCALES) {
-      for (const [key, text] of Object.entries(catalogs[locale].wiring)) {
-        expect(text.trim(), `${locale}.wiring.${key}`).not.toBe("");
-      }
-    }
+    const walk = (value: unknown, path: string): void => {
+      if (typeof value === "string") expect(value.trim(), path).not.toBe("");
+      else
+        for (const [key, child] of Object.entries(value as object)) walk(child, `${path}.${key}`);
+    };
+    for (const locale of LOCALES) walk(catalogs[locale], locale);
   });
 
   it("has a non-empty string for every key of the design-system chrome (English only, D33)", () => {

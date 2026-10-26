@@ -4,8 +4,8 @@ import { el } from "./messages/el";
 import { en, type Messages } from "./messages/en";
 import { fr } from "./messages/fr";
 
-// The locale list, the formatters (format.ts) and the message catalogs (messages/, D43): M0's wiring
-// page, the 404 page, the atoms' and, from M2, the molecules' and organisms' copy, and the
+// The locale list, the formatters (format.ts) and the message catalogs (messages/, D43): the pages'
+// templates, the atoms' and, from M2, the molecules' and organisms' copy, and the
 // design-system pages' English chrome (design-system.ts).
 
 export {

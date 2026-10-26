@@ -81,17 +81,3 @@ export function findRegionForCountry(
 export async function getRegionForCountry(country: string): Promise<Region | undefined> {
   return findRegionForCountry(await listRegions(), country);
 }
-
-/**
- * The currencies the store sells in: those of its regions, sorted, lowercase. This is the
- * storefront's copy of the search index's `SEARCH_PRICE_CURRENCIES` (the backend's `pricing.ts`,
- * which takes the same set from `config/markets.ts`): read from Medusa, never typed in, so the price
- * filter (`min_price_<currency>`, M3) works for a market a shop opens with no edit here (D17).
- */
-export function currenciesOf(regions: readonly Region[]): string[] {
-  return [...new Set(regions.map((region) => region.currencyCode.toLowerCase()))].sort();
-}
-
-export async function getSearchPriceCurrencies(): Promise<string[]> {
-  return currenciesOf(await listRegions());
-}

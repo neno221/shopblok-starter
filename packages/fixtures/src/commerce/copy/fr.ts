@@ -150,6 +150,17 @@ export const fr: Copy = {
     recent: ["chemise en lin", "sweat", "chaussettes en laine", "tote bag en toile"],
     misspelt: "sweaat",
   },
+  homePage: {
+    hero: {
+      title: "Des essentiels faits pour durer",
+      text: "Des basiques tout doux, du lin pour les beaux jours et quelques pièces pour la maison.",
+      action: "Découvrir la collection",
+    },
+    categories: "Acheter par catégorie",
+    newArrivals: "Nouveautés",
+    seeAllNew: "Voir toutes les nouveautés",
+    shopAll: "Voir tous les produits",
+  },
   listingPage: {
     sort: {
       relevance: "Pertinence",
