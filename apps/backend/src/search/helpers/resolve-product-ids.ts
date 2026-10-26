@@ -76,7 +76,7 @@ async function productIdsInSalesChannels(
 
 /**
  * The products an event affects. A product event carries them directly; an
- * event about a variant, option, tag, category or sales channel is mapped to
+ * event about a variant, option, tag, category, collection or sales channel is mapped to
  * the products behind it.
  */
 export async function resolveProductIds(
@@ -137,6 +137,15 @@ export async function resolveProductIds(
       return relatedProductIds(
         query,
         "product_category",
+        ["products.id"],
+        ids,
+        (row) => relationIds(row.products),
+        deleted,
+      );
+    case "product-collection":
+      return relatedProductIds(
+        query,
+        "product_collection",
         ["products.id"],
         ids,
         (row) => relationIds(row.products),

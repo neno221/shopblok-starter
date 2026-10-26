@@ -6,60 +6,90 @@ import {
   search,
 } from "@medusajs/framework/utils";
 
-import { ProductOptionRow, toOptionValues } from "./helpers/option-values";
+import { toFacetIds } from "./helpers/facets";
+import { type ProductOptionRow, toOptionValues } from "./helpers/option-values";
 import { loadPricing, priceFields, toProductPricing } from "./helpers/pricing";
 import { resolveProductIds } from "./helpers/resolve-product-ids";
+import {
+  readTexts,
+  resolveTranslationProductIds,
+  storeLocales,
+  toSearchText,
+} from "./helpers/translations";
 
+// The ids of categories, options and values are the facets, and selecting them
+// is also what makes `query.graph(…, { locale })` translate those objects.
 const PRODUCT_GRAPH_FIELDS = [
   "id",
   "title",
-  "description",
   "handle",
   "thumbnail",
   "status",
   "created_at",
+  "collection_id",
   "sales_channels.id",
+  "categories.id",
   "categories.name",
   "tags.value",
+  "options.id",
   "options.title",
+  "options.values.id",
   "options.values.value",
 ];
 
 type ProductRow = {
   id: string;
   title?: string | null;
-  description?: string | null;
   handle?: string | null;
   thumbnail?: string | null;
   status?: string | null;
   created_at?: string | Date | null;
   deleted_at?: string | Date | null;
+  collection_id?: string | null;
   sales_channels?: ({ id?: string | null } | null)[] | null;
-  categories?: ({ name?: string | null } | null)[] | null;
+  categories?: ({ id?: string | null; name?: string | null } | null)[] | null;
   tags?: ({ value?: string | null } | null)[] | null;
-  options?: ProductOptionRow[] | null;
+  options?: (ProductOptionRow & {
+    id?: string | null;
+    values?: ({ id?: string | null; value?: string | null } | null)[] | null;
+  })[] | null;
 };
 
+/**
+ * One multilingual index (ADR 0002's A′, D63): `search_text` holds every store
+ * locale's text, so a query in any language finds the product, and a language
+ * added in the store needs no restart or migration. `title` is the default
+ * language's, for sorting; `category` and `option_values` are its labels for
+ * the hits. The facets are ids, which the storefront labels in the visitor's
+ * locale.
+ */
 const productFields = search.define({
   id: search.keyword().filterable().retrievable(),
   // Read by `/store/search` to scope the index; never returned to hits.
   status: search.keyword().filterable().retrievable(false),
   sales_channel_ids: search.keyword().array().filterable().retrievable(false),
-  title: search.text().searchable({ weight: 3 }).sortable().retrievable(),
-  description: search.text().searchable({ weight: 1 }),
+  search_text: search.text().searchable({ weight: 2 }).retrievable(false),
+  title: search.text().sortable().retrievable(),
   handle: search.keyword().retrievable(),
   // Returned on hits only: never filtered, sorted or faceted on.
   thumbnail: search.keyword().retrievable(),
   created_at: search.date().sortable().retrievable(),
-  category: search.keyword().array().filterable().facetable().retrievable(),
-  labels: search.keyword().array().filterable().facetable().retrievable(),
-  option_values: search
+  category: search.keyword().array().retrievable(),
+  option_values: search.keyword().array().retrievable(),
+  category_ids: search.keyword().array().filterable().facetable().retrievable(),
+  collection_ids: search
     .keyword()
     .array()
-    .searchable({ weight: 2 })
     .filterable()
     .facetable()
     .retrievable(),
+  option_value_ids: search
+    .keyword()
+    .array()
+    .filterable()
+    .facetable()
+    .retrievable(),
+  labels: search.keyword().array().filterable().facetable().retrievable(),
   ...priceFields,
 });
 
@@ -67,32 +97,31 @@ type ProductDocument = SearchTypes.InferSearchDocumentType<
   typeof productFields
 >;
 
+const trimmed = (values: (string | null | undefined)[]) =>
+  values
+    .map((value) => value?.trim())
+    .filter((value): value is string => Boolean(value));
+
 function toDocument(
   product: ProductRow,
   pricing: Parameters<typeof toProductPricing>[0],
+  searchText: string,
 ): ProductDocument {
-  const category = (product.categories ?? [])
-    .map((productCategory) => productCategory?.name?.trim())
-    .filter((name): name is string => Boolean(name));
-  const labels = (product.tags ?? [])
-    .map((tag) => tag?.value?.trim())
-    .filter((value): value is string => Boolean(value));
-  const salesChannelIds = (product.sales_channels ?? [])
-    .map((salesChannel) => salesChannel?.id?.trim())
-    .filter((id): id is string => Boolean(id));
-
   return {
     id: product.id,
     status: product.status ?? null,
-    sales_channel_ids: salesChannelIds,
+    sales_channel_ids: trimmed(
+      (product.sales_channels ?? []).map((salesChannel) => salesChannel?.id),
+    ),
+    search_text: searchText,
     title: product.title ?? null,
-    description: product.description ?? null,
     handle: product.handle ?? null,
     thumbnail: product.thumbnail ?? null,
     created_at: product.created_at ?? null,
-    category,
-    labels,
+    category: trimmed((product.categories ?? []).map((c) => c?.name)),
     option_values: toOptionValues(product.options),
+    ...toFacetIds(product),
+    labels: trimmed((product.tags ?? []).map((tag) => tag?.value)),
     ...toProductPricing(pricing),
   };
 }
@@ -100,7 +129,8 @@ function toDocument(
 /**
  * A row that returns no document leaves
  * the index: the helpers turn it into a delete on `consume` and on the
- * catch-up pass.
+ * catch-up pass. `seed` and `consume` share it: the store's locales are read
+ * once per batch, then each locale's texts once per batch.
  */
 const source = {
   fields: PRODUCT_GRAPH_FIELDS,
@@ -108,19 +138,41 @@ const source = {
     rows: ProductRow[],
     context: SearchTypes.SearchIngestionContext,
   ) => {
-    const pricing = await loadPricing(
-      rows.map((row) => row.id),
-      context,
-    );
+    const { query } = context.container;
+    const ids = rows.map((row) => row.id);
+    const locales = await storeLocales(query);
+    const [pricing, texts] = await Promise.all([
+      loadPricing(ids, context),
+      readTexts(query, ids, locales),
+    ]);
 
-    return rows.map((row) => toDocument(row, pricing.get(row.id)));
+    return rows.map((row) =>
+      toDocument(row, pricing.get(row.id), toSearchText(texts.get(row.id))),
+    );
   },
 };
+
+/** Translations are mapped to products through the `translations` entity. */
+function resolveIds(
+  event: { name: string; data: unknown },
+  context: SearchTypes.SearchIngestionContext,
+) {
+  return event.name.startsWith("translation.")
+    ? resolveTranslationProductIds(event, context)
+    : resolveProductIds(event, context);
+}
 
 /**
  * Everything a document is built from, so a change to any of it re-indexes the
  * products it touches. Only `product.deleted` removes documents: a deleted
- * variant, option, tag or category means the product has to be re-read.
+ * variant, option, tag, category or collection means the product has to be
+ * re-read. A `translation.*` event re-reads the products whose texts it
+ * changes.
+ *
+ * Each translation row emits its own event, and each event re-reads its
+ * products in every locale, so a bulk change of translations (M4's sync, a CSV
+ * import) ends with `searchModule.reindex({ index: "product" })` instead of
+ * waiting for the backlog (SETUP.md, "Search on Postgres (T43)").
  *
  * TODO: price lists emit no events (create, update, delete, batch prices).
  * TODO: price lists crossing their start or end date change prices silently.
@@ -144,7 +196,12 @@ const PRODUCT_EVENTS = [
   "product-tag.deleted",
   "product-category.updated",
   "product-category.deleted",
+  "product-collection.updated",
+  "product-collection.deleted",
   "sales-channel.deleted",
+  "translation.created",
+  "translation.updated",
+  "translation.deleted",
 ];
 
 export default defineSearchIndex({
@@ -158,7 +215,7 @@ export default defineSearchIndex({
   events: PRODUCT_EVENTS,
   consume: graphConsume<typeof productFields, ProductRow>({
     ...source,
-    resolve_ids: resolveProductIds,
+    resolve_ids: resolveIds,
     is_delete: (event) => event.name === "product.deleted",
   }),
   seed: graphSeed<typeof productFields, ProductRow>(source),
