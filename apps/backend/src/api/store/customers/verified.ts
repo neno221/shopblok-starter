@@ -40,31 +40,33 @@ export async function requireVerifiedCustomer(
   const identity = await auth.retrieveAuthIdentity(authIdentityId, {
     relations: ["provider_identities"],
   });
-  /** The addresses this identity has verified under a rule: the only ones it may create. */
-  const verified: string[] = [];
+  // The identity's addresses under a rule. Its verifications are a handful of rows, read in one
+  // query and matched here rather than one query per rule × provider.
+  const required = rules.flatMap((rule) =>
+    (identity.provider_identities ?? [])
+      .filter((provider) => provider.provider === rule.auth_provider)
+      .map((provider) => ({ entity_id: provider.entity_id, entity_type: rule.entity_type })),
+  );
+  const verifications = required.length
+    ? await auth.listAuthVerifications({ auth_identity_id: identity.id })
+    : [];
+  const isVerified = ({ entity_id, entity_type }: (typeof required)[number]) =>
+    verifications.some(
+      (verification) =>
+        verification.verified_at &&
+        verification.entity_id === entity_id &&
+        verification.entity_type === entity_type,
+    );
 
-  for (const rule of rules) {
-    for (const provider of identity.provider_identities ?? []) {
-      if (provider.provider !== rule.auth_provider) {
-        continue;
-      }
-
-      const verifications = await auth.listAuthVerifications({
-        auth_identity_id: identity.id,
-        entity_id: provider.entity_id,
-        entity_type: rule.entity_type,
-      });
-
-      if (!verifications.some((verification) => verification.verified_at)) {
-        throw new MedusaError(
-          MedusaError.Types.FORBIDDEN,
-          "Verify your e-mail address before creating your account.",
-        );
-      }
-
-      verified.push(provider.entity_id.toLowerCase());
-    }
+  if (!required.every(isVerified)) {
+    throw new MedusaError(
+      MedusaError.Types.FORBIDDEN,
+      "Verify your e-mail address before creating your account.",
+    );
   }
+
+  /** The addresses this identity has verified under a rule: the only ones it may create. */
+  const verified = required.map((r) => r.entity_id.toLowerCase());
 
   const body = (req.validatedBody ?? req.body) as { email?: unknown } | undefined;
   const email = typeof body?.email === "string" ? body.email.toLowerCase() : undefined;
