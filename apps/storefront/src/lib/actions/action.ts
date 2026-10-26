@@ -112,7 +112,13 @@ export function action<Schema extends z.ZodType, Result, Auth extends "none" | "
       const data = await handler(parsed.data, { customer } as Context<Auth>);
       return { ok: true, data };
     } catch (error) {
-      if (error instanceof ActionError) return { ok: false, errors: {}, form: error.form };
+      if (error instanceof ActionError)
+        return {
+          ok: false,
+          errors: {},
+          form: error.form,
+          ...(error.message === error.form ? {} : { message: error.message }),
+        };
       if (error instanceof FieldsError) return { ok: false, errors: error.errors };
       if (error instanceof MedusaRequestError) {
         if (error.kind === "unreachable") return { ok: false, errors: {}, form: "unavailable" };

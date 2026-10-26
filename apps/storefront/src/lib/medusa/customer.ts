@@ -180,7 +180,13 @@ export async function deleteAddress(addressId: string): Promise<void> {
 export type LoginResult =
   | { state: "signed-in" }
   | { state: "verification-required"; email: string }
-  | { state: "error"; reason: "credentials" | "unsupported" | "not-verified" | "unavailable" };
+  | {
+      state: "error";
+      reason: "credentials" | "unsupported" | "not-verified" | "unavailable" | "exists";
+    };
+
+/** The wait before another verification link may be asked for. */
+export const RESEND_WAIT_MS = 60_000;
 
 /**
  * Logs in and finishes what a registration left (dtc-starter's `completeLogin`). `prefix` is the
@@ -202,7 +208,7 @@ export async function login(email: string, password: string, prefix: string): Pr
   }
   if (typeof result === "object" && result !== null && "verification_required" in result) {
     const { token } = result as unknown as { token: string };
-    await requestVerification(email, token, prefix).catch(() => undefined);
+    await sendVerification(email, token, prefix);
     return { state: "verification-required", email };
   }
   if (typeof result !== "string") return { state: "error", reason: "unsupported" };
@@ -231,8 +237,10 @@ export async function login(email: string, password: string, prefix: string): Pr
       );
     } catch (error) {
       // T44: the backend answers 403 until the e-mail is verified (Medusa 2.21.2 does not refuse it).
-      if (error instanceof MedusaRequestError && error.status === 403)
-        return { state: "error", reason: "not-verified" };
+      if (error instanceof MedusaRequestError && error.status === 403) {
+        await sendVerification(email, token, prefix);
+        return { state: "verification-required", email };
+      }
       throw error;
     }
     const second = await medusaRequest((sdk) =>
@@ -240,9 +248,9 @@ export async function login(email: string, password: string, prefix: string): Pr
     );
     if (typeof second !== "string") return { state: "error", reason: "unsupported" };
     token = second;
-    await removePendingCustomer();
   }
   await setAuthToken(token);
+  await removePendingCustomer();
   // The customer is signed in from here on: a guest cart Medusa will not move (completed, gone,
   // another customer's) is dropped, not a failed login (PR 73 review).
   // During an outage the cookie stays, and the next login moves the cart.
@@ -262,19 +270,69 @@ export async function register(
   password: string,
   prefix: string,
 ): Promise<LoginResult> {
+  let exists = false;
   try {
     await medusaRequest((sdk) =>
       sdk.auth.register("customer", "emailpass", { email: customer.email, password }),
     );
   } catch (error) {
-    const exists =
+    exists =
       error instanceof MedusaRequestError &&
       error.status === 401 &&
       /already exists/i.test(error.message);
     if (!exists) throw error;
   }
   await setPendingCustomer(customer);
-  return login(customer.email, password, prefix);
+  const result = await login(customer.email, password, prefix);
+  // An address someone registered already, with another password: say so, not "wrong password".
+  if (exists && result.state === "error" && result.reason === "credentials") {
+    await removePendingCustomer();
+    return { state: "error", reason: "exists" };
+  }
+  return result;
+}
+
+/**
+ * Asks for the verification link and keeps the restricted token and the time in the pending
+ * cookie, for the "send a new link" form (`resendVerification`). The registration's fields stay
+ * when the cookie is this address's.
+ */
+async function sendVerification(email: string, token: string, prefix: string): Promise<void> {
+  const pending = await getPendingCustomer();
+  const kept = pending?.email === email ? pending : { email };
+  await setPendingCustomer({ ...kept, token, sentAt: Date.now() });
+  await requestVerification(email, token, prefix).catch(() => undefined);
+}
+
+/**
+ * The pending verification of `email` in this browser: the address and the seconds before a new
+ * link may be asked for; `null` when this browser has none for it (or for any, without `email`).
+ */
+export async function pendingVerification(
+  email?: string,
+): Promise<{ email: string; resendInSeconds: number; canResend: boolean } | null> {
+  const pending = await getPendingCustomer();
+  if (pending === null || (email !== undefined && pending.email !== email)) return null;
+  const wait = pending.sentAt === undefined ? 0 : pending.sentAt + RESEND_WAIT_MS - Date.now();
+  return {
+    email: pending.email,
+    resendInSeconds: Math.max(0, Math.ceil(wait / 1000)),
+    canResend: pending.token !== undefined,
+  };
+}
+
+/**
+ * Sends a new verification link for the address this browser is waiting on (the token a login
+ * left in the pending cookie, never one from a form). `false` when there is none for `email`, or
+ * the wait is not over.
+ */
+export async function resendVerification(email: string, prefix: string): Promise<boolean> {
+  const pending = await getPendingCustomer();
+  if (pending === null || pending.email !== email || pending.token === undefined) return false;
+  if (pending.sentAt !== undefined && Date.now() < pending.sentAt + RESEND_WAIT_MS) return false;
+  await setPendingCustomer({ ...pending, sentAt: Date.now() });
+  await requestVerification(email, pending.token, prefix);
+  return true;
 }
 
 /** Asks Medusa to send the verification e-mail, with the market's prefix for the link (T44). */
@@ -291,11 +349,19 @@ export async function requestVerification(
   );
 }
 
-/** Confirms the e-mail with the link's code. Needs no session: the link may open on another device. */
-export async function confirmVerification(code: string): Promise<boolean> {
-  return medusaRequest((sdk) => sdk.auth.verification.confirm({ code }))
-    .then(() => true)
-    .catch(() => false);
+/**
+ * Confirms the e-mail with the link's code, and answers the address it verified (`null` for a code
+ * Medusa refuses). Needs no session: the link may open on another device.
+ */
+export async function confirmVerification(code: string): Promise<string | null> {
+  try {
+    const answer: unknown = await medusaRequest((sdk) => sdk.auth.verification.confirm({ code }));
+    const email = (answer as { entity_id?: unknown } | null)?.entity_id;
+    return typeof email === "string" ? email : "";
+  } catch (error) {
+    if (error instanceof MedusaRequestError && error.kind === "rejected") return null;
+    throw error;
+  }
 }
 
 /** Sends the reset link (T44 builds `{prefix}/reset-password?token=…&email=…`). */

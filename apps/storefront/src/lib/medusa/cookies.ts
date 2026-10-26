@@ -79,12 +79,20 @@ export const getCartId = () => read(COOKIE.cartId);
 export const setCartId = (id: string) => write(COOKIE.cartId, id);
 export const removeCartId = () => clear(COOKIE.cartId);
 
-/** What a registration keeps until the e-mail is verified and the customer signs in (T53). */
+/**
+ * What a registration keeps until the e-mail is verified and the customer signs in (T53), and what
+ * a login that Medusa answered `verification_required` leaves for the "send a new link" form: the
+ * restricted token it gave (it can ask for a verification and nothing else, T44) and when the last
+ * link went out (the resend's wait).
+ */
 export type PendingCustomer = {
   email: string;
   firstName?: string;
   lastName?: string;
   phone?: string;
+  token?: string;
+  /** When the last verification link was asked for, in ms since the epoch. */
+  sentAt?: number;
 };
 
 export async function getPendingCustomer(): Promise<PendingCustomer | null> {
@@ -93,7 +101,7 @@ export async function getPendingCustomer(): Promise<PendingCustomer | null> {
   try {
     const parsed: unknown = JSON.parse(value);
     if (typeof parsed !== "object" || parsed === null) return null;
-    const { email, firstName, lastName, phone } = parsed as Record<string, unknown>;
+    const { email, firstName, lastName, phone, token, sentAt } = parsed as Record<string, unknown>;
     if (typeof email !== "string" || email === "") return null;
     const text = (field: unknown) =>
       typeof field === "string" && field !== "" ? field : undefined;
@@ -102,6 +110,8 @@ export async function getPendingCustomer(): Promise<PendingCustomer | null> {
       ...(text(firstName) === undefined ? {} : { firstName: text(firstName) }),
       ...(text(lastName) === undefined ? {} : { lastName: text(lastName) }),
       ...(text(phone) === undefined ? {} : { phone: text(phone) }),
+      ...(text(token) === undefined ? {} : { token: text(token) }),
+      ...(typeof sentAt === "number" && Number.isFinite(sentAt) ? { sentAt } : {}),
     };
   } catch {
     return null;
