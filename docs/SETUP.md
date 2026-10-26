@@ -5392,3 +5392,20 @@ The review (`reviews/pr-73-code-review.md` in the project's files, not in the re
 - happy-dom follows a link while a click is still on its way to the document (`HTMLAnchorElement.dispatchEvent` navigates during the bubbling phase), where a browser waits for the end of the dispatch; `market-choice-island.test.tsx` routes anchors' `dispatchEvent` past it.
 - Next 16.4's error boundary prop is `retry` (stable since 16.3); `reset` is still there for re-rendering without fetching.
 - `pkill -f next-server` from a shell whose own command line holds the pattern kills that shell; stop the server by its PID (`ps -eo pid,cmd | awk '/[n]ext-server/{print $1}'`).
+
+### CI fix (PR 75)
+
+The first CI run's `design-system` job failed in `next build`: it builds with no `.env`, and the shell's category and region reads threw `EnvError` ("Medusa is not configured") while every market page was prerendered. Catching the error is not enough, because an error inside a `"use cache"` entry fails the prerender even when its caller catches it (reproduced in the VM with the `.env` moved away; the M0 wiring page never met it because it calls `connection()` first). `getShellData()` now asks `medusaEnv()` first and reads nothing from Medusa when it is not configured; the no-`.env` build with `DESIGN_SYSTEM_ENABLED=true` passes, and its design-system cells for the two templates pass except for the `en` pixel comparisons, which wait for the baselines.
+
+### Code review (PR 75)
+
+| Item | Fix |
+|---|---|
+| 1. The mega-menu header lost the search's grid place when the `search` slot is given | `HeaderSearch` and `HeaderWideSearch` put the slot in a `header-search-slot` box with the variant's placement classes; a mega-menu test checks `lg:col-start-2 lg:row-start-1` on it |
+| 2. The banner's "go" kept the first page's path after a soft navigation | `SuggestionBannerIsland` reads `usePathname()` and asks again when it changes; `suggestion-banner.test.tsx` |
+| 3. An error in the market layout skips `[market]/error.tsx` | Accepted and documented in `shell-data.ts`: a segment's `error.tsx` is inside its layout. Medusa's outages already give an empty menu (`MedusaRequestError`), and an unconfigured Medusa reads nothing; anything else is a bug, which the global error page shows |
+| 4. The error state lost `role="alert"` | `StatusPage` takes `alert`; the error template's heading and sentence are the alert, the not-found template is none (`templates.test.tsx`) |
+| 5. The search island did not clean up on unmount | an effect's cleanup clears the timer and aborts the question; a test unmounts with one pending |
+| 6. The message scan's `"templates"` and `"retry"` could match anywhere | it looks for each of the error template's four sentences, in the market's language |
+| 7. `templates.notFound` beside `notFound`, and the `wiring` lines unused by the shell | left for T51, which retires the wiring page and its catalog lines (`global-not-found` can move to `templates.notFound` then) |
+| 8, 9. The suggestion is worked out twice; the region-to-currency lookup is copied | left: the action does not trust the browser's copy of the suggestion (a server action is a public endpoint); the lookup is one line in two places |

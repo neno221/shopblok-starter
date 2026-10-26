@@ -59,8 +59,9 @@ describe("NotFoundTemplate", () => {
     expect(slot("not-found-home")?.getAttribute("data-prefetch")).toBe("false");
   });
 
-  it("hides its icon from assistive technology", () => {
+  it("hides its icon from assistive technology, and is no alert", () => {
     render(<NotFoundTemplate homeHref="/" copy={catalogs.en.templates.notFound} />);
+    expect(screen.queryByRole("alert")).toBeNull();
     const icon = screen.getByRole("main").querySelector("svg");
     expect(icon?.closest('[aria-hidden="true"]')).not.toBeNull();
   });
@@ -77,6 +78,13 @@ describe("ErrorTemplate", () => {
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(copy.title);
     expect(main.textContent).toContain(copy.body);
     expect(screen.getByRole("link", { name: copy.home }).getAttribute("href")).toBe("/de");
+  });
+
+  it("says its heading and sentence as an alert, and not its buttons", () => {
+    const copy = catalogs.en.templates.error;
+    render(<ErrorTemplate homeHref="/" copy={copy} retry={<button>{copy.retry}</button>} />);
+    const alert = screen.getByRole("alert");
+    expect(alert.textContent).toBe(`${copy.title}${copy.body}`);
   });
 
   it("puts the retry first and makes home the outline button; without a retry, home is primary", () => {

@@ -8,6 +8,7 @@
 // Manifest" otherwise), and that puts the banner's client part there.
 "use client";
 
+import { usePathname } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { renderSuggestionBanner } from "../../lib/actions/shell";
 import { useVisitor } from "../../lib/visitor/use-visitor";
@@ -15,11 +16,14 @@ import { useVisitor } from "../../lib/visitor/use-visitor";
 export function SuggestionBannerIsland({ market }: { market: string }) {
   const visitor = useVisitor();
   const wanted = visitor !== "unknown" && visitor.suggestion !== null;
+  // The page's path, which changes on a soft navigation while the layout stays (PR 75 review, item
+  // 2): the banner's "go" leads to the same page in the other market.
+  const path = usePathname();
   const [banner, setBanner] = useState<ReactNode>(null);
   useEffect(() => {
     if (!wanted) return;
     let live = true;
-    renderSuggestionBanner(market, window.location.pathname).then(
+    renderSuggestionBanner(market, path).then(
       (node) => {
         if (live) setBanner(node);
       },
@@ -28,6 +32,6 @@ export function SuggestionBannerIsland({ market }: { market: string }) {
     return () => {
       live = false;
     };
-  }, [market, wanted]);
+  }, [market, path, wanted]);
   return wanted ? banner : null;
 }

@@ -41,6 +41,7 @@ function ErrorTemplate({
       icon={TriangleAlertIcon}
       title={copy.title}
       body={copy.body}
+      alert
       mainId={mainId}
       as={as}
       className={className}

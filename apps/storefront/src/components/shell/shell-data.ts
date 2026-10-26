@@ -9,6 +9,7 @@ import type { MarketMap } from "../../lib/markets/types";
 import { buildPublicUrl } from "../../lib/markets/url";
 import { listCategories } from "../../lib/medusa/categories";
 import { listRegions, type Region } from "../../lib/medusa/regions";
+import { EnvError, medusaEnv } from "../../lib/env";
 import { MedusaRequestError } from "../../lib/medusa/sdk";
 import { toMarketChoice } from "../../lib/shell/market-choice";
 import { toCategories } from "../../lib/view-models/category";
@@ -17,9 +18,22 @@ import { cache } from "react";
 // What the header and the footer read, once per render (React's `cache`): the market, the map, the
 // category tree and the regions, all `cached()` entries, so a catalog page's `ensureStatic` covers
 // the layout too (D66 step 1). Medusa's reads fall back to nothing when Medusa does not answer (a
-// build with no backend, a backend that was never up for this entry): the shell then has no
+// backend that was never up for this entry): the shell then has no
 // navigation and no switcher, and the page is regenerated with them within 30 s of Medusa's return
 // (the market map's life, `cached-market-map.ts`). Once an entry exists, an outage serves it stale.
+// A build with no Medusa configured (no `.env`, as the design-system job builds) reads nothing at
+// all: an error inside a `"use cache"` entry fails the prerender even when its caller catches it.
+// Any other error is a bug and reaches the global error page (a segment's `error.tsx` is inside its
+// layout, so it cannot catch the layout's own errors).
+
+const medusaConfigured = (): Promise<boolean> =>
+  medusaEnv().then(
+    () => true,
+    (error: unknown) => {
+      if (error instanceof EnvError) return false;
+      throw error;
+    },
+  );
 
 export type ShellData = {
   market: CurrentMarket;
@@ -44,10 +58,12 @@ const orNothing = async <T>(read: Promise<T>, nothing: T): Promise<T> => {
 export const getShellData = cache(async (): Promise<ShellData> => {
   const [market, map] = await Promise.all([getCurrentMarket(), getRenderMarketMap()]);
   const url = (path: string) => buildPublicUrl(market, path, map);
-  const [tree, regions] = await Promise.all([
-    orNothing(listCategories(market.medusaLocale), []),
-    orNothing(listRegions(), [] as Region[]),
-  ]);
+  const [tree, regions] = (await medusaConfigured())
+    ? await Promise.all([
+        orNothing(listCategories(market.medusaLocale), []),
+        orNothing(listRegions(), [] as Region[]),
+      ])
+    : [[], [] as Region[]];
   const currencyOf = (country: string) =>
     regions.find((region) => region.countries.includes(country))?.currencyCode;
   const choice = toMarketChoice(map, market, currencyOf);

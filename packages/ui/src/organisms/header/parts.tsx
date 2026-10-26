@@ -311,9 +311,22 @@ function TextLink({
  * The search: the page's `search` slot (the overlay, M3), or an icon link named "Search" to the
  * search page, which works without JavaScript.
  */
+/**
+ * The page's search slot in the place the header gives its own search (PR 75 review, item 1): the
+ * variant's grid placement is on this box, so an overlay's trigger sits where the link would.
+ */
+function SearchSlot({ children, className }: { children: React.ReactNode; className?: string }) {
+  return (
+    <div data-slot="header-search-slot" className={cn("flex shrink-0 items-center", className)}>
+      {children}
+    </div>
+  );
+}
+
 function HeaderSearch({ header, className }: { header: HeaderProps; className?: string }) {
   const { utilities, copy, prefetch } = header;
-  if (header.search !== undefined) return header.search;
+  if (header.search !== undefined)
+    return <SearchSlot className={className}>{header.search}</SearchSlot>;
   if (utilities.search === undefined) return null;
   return (
     <IconLink
@@ -334,8 +347,9 @@ function HeaderSearch({ header, className }: { header: HeaderProps; className?: 
  */
 function HeaderWideSearch({ header, className }: { header: HeaderProps; className?: string }) {
   const { utilities, copy, prefetch } = header;
-  // The slot is the overlay's own button, the same at every width.
-  if (header.search !== undefined) return header.search;
+  // The slot is the overlay's own button, the same at every width, in the field's place.
+  if (header.search !== undefined)
+    return <SearchSlot className={className}>{header.search}</SearchSlot>;
   if (utilities.search === undefined) return null;
   return (
     <NextLink

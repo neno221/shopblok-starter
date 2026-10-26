@@ -126,6 +126,25 @@ describe("SearchOverlayIsland (D66)", () => {
     expect(props()["loading"]).toBe(false);
   });
 
+  it("asks nothing and aborts its question once it is gone", async () => {
+    const signals: AbortSignal[] = [];
+    const fetcher = vi.fn(
+      (_url: string, init: RequestInit) =>
+        new Promise<Response>(() => {
+          signals.push(init.signal!);
+        }),
+    );
+    await mount(fetcher as unknown as typeof fetch);
+    await type("dre");
+    await wait(SEARCH_DELAY);
+    await type("dress");
+    await act(async () => root.unmount());
+    expect(signals.every((signal) => signal.aborted)).toBe(true);
+    await wait(SEARCH_DELAY);
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    root = createRoot(container);
+  });
+
   it("clears the result for an empty field, without asking", async () => {
     const fetcher = vi.fn(async () => Response.json(found));
     await mount(fetcher as unknown as typeof fetch);

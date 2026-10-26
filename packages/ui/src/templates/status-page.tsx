@@ -13,6 +13,11 @@ type StatusPageProps = {
   icon: LucideIcon;
   title: string;
   body: string;
+  /**
+   * The heading and the sentence are an alert: a screen reader says them when they replace the
+   * page (the error boundary's, after a client navigation; PR 75 review, item 4).
+   */
+  alert?: boolean;
   /** The ways on, in order: links or buttons drawn with the Button's classes. */
   children: React.ReactNode;
   /** The element's id, the skip link's target. `main` unless given. */
@@ -30,6 +35,7 @@ function StatusPage({
   icon,
   title,
   body,
+  alert,
   children,
   mainId,
   as: Element = "main",
@@ -51,7 +57,7 @@ function StatusPage({
         >
           <Icon icon={icon} size="xl" />
         </span>
-        <div className="flex min-w-0 flex-col gap-3">
+        <div role={alert ? "alert" : undefined} className="flex min-w-0 flex-col gap-3">
           <h1 className="text-2xl font-semibold text-balance wrap-anywhere sm:text-3xl">{title}</h1>
           <p className="text-base text-balance wrap-anywhere text-muted-foreground">{body}</p>
         </div>

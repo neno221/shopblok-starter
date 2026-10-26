@@ -10,7 +10,7 @@
 import type { Messages } from "@shopblok/i18n";
 import type { SearchResult } from "@shopblok/registry/contracts";
 import { SearchOverlay } from "@shopblok/ui/organisms/search-overlay";
-import { useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import {
   clearRecentSearches,
   getRecentSearches,
@@ -73,6 +73,18 @@ export function SearchOverlayIsland({
   const [loading, setLoading] = useState(false);
   const pending = useRef<{ timer: ReturnType<typeof setTimeout>; abort: AbortController }>(
     undefined,
+  );
+
+  // Nothing outlives the island: a question on its way when the header goes is dropped (PR 75
+  // review, item 5).
+  useEffect(
+    () => () => {
+      if (pending.current === undefined) return;
+      clearTimeout(pending.current.timer);
+      pending.current.abort.abort();
+      pending.current = undefined;
+    },
+    [],
   );
 
   function ask(query: string) {
