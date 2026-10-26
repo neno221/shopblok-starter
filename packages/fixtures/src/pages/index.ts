@@ -1,4 +1,13 @@
-import type { ErrorPage, NotFoundPage, ProductDetailPage } from "@shopblok/registry/contracts";
+import type {
+  ErrorPage,
+  ListingResults,
+  NotFoundPage,
+  ProductDetailPage,
+  ProductListingPage,
+  QueryParam,
+  SearchResultsPage,
+  SortState,
+} from "@shopblok/registry/contracts";
 import { commerceFixtures } from "../commerce";
 import { copies } from "../commerce/copy";
 import type { DesignSystemLocale } from "../design-system";
@@ -19,11 +28,59 @@ export type PageFixtures = {
    * its reviews, and the listing carousel's other products as the related ones.
    */
   productDetail: ProductDetailPage;
+  /**
+   * The hoodie's category (T50): the first of its two pages, newest first, with the listing
+   * organisms' twelve cards and filters (two chosen), and the same page with no product.
+   */
+  productListing: ProductListingPage;
+  /** The search page for `search.query` (T50): the same results, by relevance, the query kept. */
+  searchResults: SearchResultsPage;
 };
+
+/** The sort as a listing offers it: newest, then by price; a search puts relevance first. */
+function sortState(
+  action: string,
+  labels: { relevance: string; newest: string; priceAsc: string; priceDesc: string },
+  selected: "relevance" | "newest",
+  params: QueryParam[],
+): SortState {
+  const byPrice = [
+    { value: "price-asc", label: labels.priceAsc },
+    { value: "price-desc", label: labels.priceDesc },
+  ];
+  const newest = { value: "newest", label: labels.newest };
+  return {
+    action,
+    name: "sort",
+    options:
+      selected === "relevance"
+        ? [{ value: "relevance", label: labels.relevance }, newest, ...byPrice]
+        : [newest, ...byPrice],
+    selected,
+    params,
+  };
+}
 
 function pagesFor(locale: DesignSystemLocale): PageFixtures {
   const { header, product, productPage, listing } = commerceFixtures[locale];
   const related = listing.carousel.products.filter((card) => card.id !== product.id);
+  const copy = copies[locale];
+  const searchHref = listing.search.idle.search.action;
+  // The hoodie's own category is the listing: its trail up to it, and its name.
+  const category = product.breadcrumbs.at(-1) ?? { label: product.title, href: product.href };
+  const trail = product.breadcrumbs.slice(0, -1);
+  // The filter form lands on the search page with the listing named (D59), as the shop's does.
+  const scope = { name: "scope", value: "category:hoodies" };
+  const results = (selected: "relevance" | "newest", params: QueryParam[]): ListingResults => ({
+    toolbar: {
+      count: listing.filters.resultCount,
+      sort: sortState(searchHref, copy.listingPage.sort, selected, params),
+    },
+    filters: { ...listing.filters, action: searchHref, params },
+    grid: listing.grid.products,
+    page: { page: 1, pageCount: 2 },
+  });
+  const query = listing.search.results.search.query;
   return {
     notFound: {
       homeHref: header.content.homeHref,
@@ -45,6 +102,18 @@ function pagesFor(locale: DesignSystemLocale): PageFixtures {
         products: related,
         variant: "standard",
       },
+    },
+    productListing: {
+      variant: "default",
+      breadcrumbs: { trail: trail.length > 0 ? trail : [category], current: category.label },
+      title: category.label,
+      results: results("newest", [scope]),
+    },
+    searchResults: {
+      variant: "default",
+      search: { action: searchHref, query },
+      title: copy.listingPage.resultsFor,
+      results: results("relevance", [{ name: "q", value: query }]),
     },
   };
 }

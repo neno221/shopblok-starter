@@ -150,6 +150,15 @@ export const fr: Copy = {
     recent: ["chemise en lin", "sweat", "chaussettes en laine", "tote bag en toile"],
     misspelt: "sweaat",
   },
+  listingPage: {
+    sort: {
+      relevance: "Pertinence",
+      newest: "Nouveautés",
+      priceAsc: "Prix : croissant",
+      priceDesc: "Prix : décroissant",
+    },
+    resultsFor: "Résultats pour « sweat »",
+  },
   carousel: { title: "Nouveautés", viewAll: "Voir toutes les nouveautés" },
   productPage: {
     related: "Vous aimerez aussi",

@@ -1,4 +1,10 @@
-import { ErrorPage, NotFoundPage, ProductDetailPage } from "../contracts";
+import {
+  ErrorPage,
+  NotFoundPage,
+  ProductDetailPage,
+  ProductListingPage,
+  SearchResultsPage,
+} from "../contracts";
 import type { EntryInput } from "../types";
 
 // SPEC §9.3's templates (D56): a page's `<main>`, drawn in the DS inside the classic header and the
@@ -26,4 +32,7 @@ export const templates = [
   template("error", "Error", "ErrorTemplate", ErrorPage),
   // T49: the product page.
   template("product-detail", "Product page", "ProductDetailTemplate", ProductDetailPage),
+  // T50: the listing pages and the search page.
+  template("product-listing", "Listing page", "ProductListingTemplate", ProductListingPage),
+  template("search-results", "Search results", "SearchResultsTemplate", SearchResultsPage),
 ] as const satisfies readonly EntryInput[];

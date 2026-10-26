@@ -1,8 +1,8 @@
 // D66 (T48): the header's search. SearchOverlay asks at every change of its field; this waits
 // 250 ms after the last one, aborts the question on its way, and asks `/next/search` (T50's
-// handler) for the market. Until T50 the handler is missing, and a 404, like any answer that is not
-// a result, is "no results" for that query, so the overlay says so instead of spinning; a request
-// the network refused is the same. The recent queries are the browser's (`recent-searches.ts`).
+// handler, `lib/listing/handlers.ts`) for the market. An answer that is not a result (a 503 while
+// Medusa is down) is "no results" for that query, so the overlay says so instead of spinning; a
+// request the network refused is the same. The recent queries are the browser's (`recent-searches.ts`).
 // Enter with nothing highlighted submits the overlay's GET form to `{m}/search`, with or without
 // this island.
 "use client";
@@ -18,7 +18,7 @@ import {
   subscribeRecentSearches,
 } from "../../lib/visitor/recent-searches";
 
-/** Where the island asks (T50 answers it). */
+/** Where the island asks. */
 export const SEARCH_ROUTE = "/next/search";
 /** How long the island waits after the last key, in milliseconds. */
 export const SEARCH_DELAY = 250;

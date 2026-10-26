@@ -146,6 +146,15 @@ export const de: Copy = {
     recent: ["Leinenhemd", "Hoodie", "Wollsocken", "Canvas-Tasche"],
     misspelt: "hoddie",
   },
+  listingPage: {
+    sort: {
+      relevance: "Relevanz",
+      newest: "Neueste zuerst",
+      priceAsc: "Preis: aufsteigend",
+      priceDesc: "Preis: absteigend",
+    },
+    resultsFor: "Ergebnisse für „hoodie“",
+  },
   carousel: { title: "Neu eingetroffen", viewAll: "Alle Neuheiten ansehen" },
   productPage: {
     related: "Das könnte Ihnen auch gefallen",

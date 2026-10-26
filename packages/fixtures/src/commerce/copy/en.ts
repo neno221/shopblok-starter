@@ -146,6 +146,15 @@ export const en: Copy = {
     recent: ["linen shirt", "hoodie", "wool socks", "canvas tote"],
     misspelt: "hooddie",
   },
+  listingPage: {
+    sort: {
+      relevance: "Relevance",
+      newest: "Newest",
+      priceAsc: "Price: low to high",
+      priceDesc: "Price: high to low",
+    },
+    resultsFor: "Results for “hoodie”",
+  },
   carousel: { title: "New in", viewAll: "Shop all new in" },
   productPage: {
     related: "You may also like",

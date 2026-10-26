@@ -97,3 +97,168 @@ test.describe("the product page (T49)", () => {
     await expect(page.locator('header [data-slot="cart-badge"]')).toHaveText("1");
   });
 });
+
+// T50 (D59, D63, SPEC §8.1, §8.4, §12): the listing pages and the search. CI builds and starts with
+// `STOREFRONT_LISTING_PAGE_SIZE=3`, so apparel's four demo products are two pages and the
+// everyday-basics collection's five are two as well.
+const PAGE_SIZE = 3;
+const island = '[data-slot="listing-island"][data-active]';
+const serverResults = '[data-slot="product-listing-region"] > [data-slot="listing-results"]';
+
+const cardHrefs = (html: string) =>
+  [...html.matchAll(/data-slot="product-card-title"[^>]*><a [^>]*href="([^"]+)"/g)].map(
+    (match) => match[1],
+  );
+
+type Group = { id: string; kind: string; options?: { value: string; count: number }[] };
+
+test.describe("the listing pages and the search (T50)", () => {
+  test("a category's first page is in the server's HTML, in each market's language", async ({
+    request,
+  }) => {
+    const cy = await (await request.get("/categories/apparel")).text();
+    expect(cy).toContain(">Ρούχα</h1>");
+    expect(cardHrefs(cy)).toHaveLength(PAGE_SIZE);
+    const us = await (await request.get("/us/categories/apparel")).text();
+    expect(us).toContain(">Apparel</h1>");
+    expect(cardHrefs(us)).toHaveLength(PAGE_SIZE);
+    expect(us).toMatch(/<link rel="canonical" href="https?:\/\/[^"]+\/us\/categories\/apparel"\/>/);
+    expect(us).toContain('"@type":"CollectionPage"');
+    expect(us).not.toContain('data-slot="cart-badge"');
+  });
+
+  test("/page/2 is server-rendered and self-canonical, /page/3 and /page/1 are 404s", async ({
+    request,
+  }) => {
+    const first = cardHrefs(await (await request.get("/us/categories/apparel")).text());
+    const response = await request.get("/us/categories/apparel/page/2");
+    expect(response.status()).toBe(200);
+    const html = await response.text();
+    const second = cardHrefs(html);
+    expect(second).toHaveLength(1);
+    expect(first).not.toContain(second[0]);
+    expect(html).toMatch(
+      /<link rel="canonical" href="https?:\/\/[^"]+\/us\/categories\/apparel\/page\/2"\/>/,
+    );
+    expect((await request.get("/us/categories/apparel/page/3")).status()).toBe(404);
+    expect((await request.get("/us/categories/apparel/page/1")).status()).toBe(404);
+  });
+
+  test("a collection pages the same way", async ({ request }) => {
+    expect(
+      cardHrefs(await (await request.get("/us/collections/everyday-basics")).text()),
+    ).toHaveLength(PAGE_SIZE);
+    const second = await request.get("/us/collections/everyday-basics/page/2");
+    expect(second.status()).toBe(200);
+    expect(cardHrefs(await second.text())).toHaveLength(2);
+    expect((await request.get("/us/collections/everyday-basics/page/3")).status()).toBe(404);
+    expect((await request.get("/us/collections/no-such-collection")).status()).toBe(404);
+  });
+
+  test("a clean URL asks /next/listing nothing", async ({ page }) => {
+    const asked: string[] = [];
+    page.on("request", (request) => {
+      if (new URL(request.url()).pathname === "/next/listing") asked.push(request.url());
+    });
+    await page.goto("/us/categories/apparel");
+    await page.waitForLoadState("networkidle");
+    await expect(page.locator(serverResults)).toBeVisible();
+    expect(asked).toEqual([]);
+  });
+
+  test("?sort= reorders through the island, and the URL keeps it", async ({ page }) => {
+    const prices = async () =>
+      (await page.locator(`${island} [data-slot="price-block"]`).allTextContents()).map((text) =>
+        Number(/[\d.,]+/.exec(text)?.[0]?.replace(/,/g, "")),
+      );
+    await page.goto("/us/categories/apparel?sort=price-asc");
+    // The first answer of a fresh `next start` reads Medusa cold (it took 6 s once in the VM).
+    await expect(page.locator(island)).toBeVisible({ timeout: 20_000 });
+    await expect(page.locator(serverResults)).toBeHidden();
+    const ascending = await prices();
+    expect(ascending).toHaveLength(PAGE_SIZE);
+    expect(ascending).toEqual(ascending.toSorted((a, b) => a - b));
+    await page.locator(`${island} select[name="sort"]`).first().selectOption("price-desc");
+    await expect(page).toHaveURL(/\/us\/categories\/apparel\?sort=price-desc$/);
+    // Descending, and the dearest first: page 1 of the other order, not the same three reversed.
+    await expect
+      .poll(
+        async () => {
+          const shown = await prices();
+          return shown.length === PAGE_SIZE && shown[0] !== ascending[0]
+            ? shown.join() === shown.toSorted((a, b) => b - a).join()
+            : false;
+        },
+        { timeout: 20_000 },
+      )
+      .toBe(true);
+    await expect(page.locator('meta[name="robots"]')).toHaveCount(0);
+  });
+
+  test("three facets add noindex,follow; two do not", async ({ page, request }) => {
+    const body = (await (
+      await request.get("/next/listing?market=en-us&scope=store&sort=newest")
+    ).json()) as { filters: { groups: Group[] } };
+    const values = body.filters.groups
+      .filter((group) => group.kind === "checkbox" || group.kind === "swatch")
+      .flatMap((group) => (group.options ?? []).map((option) => [group.id, option.value]));
+    expect(values.length).toBeGreaterThanOrEqual(3);
+    const query = (count: number) => new URLSearchParams(values.slice(0, count)).toString();
+    await page.goto(`/us/store?${query(2)}`);
+    await expect(page.locator('[data-slot="listing-island"]')).toBeAttached();
+    await expect(page.locator('meta[name="robots"][content="noindex,follow"]')).toHaveCount(0);
+    await page.goto(`/us/store?${query(3)}`);
+    await expect(page.locator('meta[name="robots"][content="noindex,follow"]')).toHaveCount(1);
+  });
+
+  test("without scripts, the filter form lands on /search with the filter applied", async ({
+    browser,
+  }) => {
+    const context = await browser.newContext({ javaScriptEnabled: false });
+    const page = await context.newPage();
+    await page.goto("/us/categories/apparel");
+    const sidebar = page.locator('[data-slot="filter-sidebar"]');
+    const box = sidebar.locator('input[type="checkbox"][name="collection"]').first();
+    // The native input under Base UI's checkbox, which is what a form without scripts sends.
+    await box.check({ force: true });
+    await sidebar.locator('[data-slot="filter-sidebar-apply"]').click();
+    await expect(page).toHaveURL(/\/us\/search\?(.*&)?scope=category%3Aapparel/);
+    expect(new URL(page.url()).searchParams.getAll("collection")).toHaveLength(1);
+    await expect(page.locator('[data-slot="search-results-title"]')).toHaveText("Apparel");
+    await expect(page.locator('[data-slot="active-filter-chips"]').first()).toBeAttached();
+    await context.close();
+  });
+
+  test("with scripts, the filter form stays on the listing and the island draws its results", async ({
+    page,
+  }) => {
+    await page.goto("/us/categories/apparel");
+    const sidebar = page.locator(`${serverResults} [data-slot="filter-sidebar"]`);
+    await sidebar
+      .locator('input[type="checkbox"][name="collection"]')
+      .first()
+      .check({ force: true });
+    await sidebar.locator('[data-slot="filter-sidebar-apply"]').click();
+    await expect(page).toHaveURL(/\/us\/categories\/apparel\?collection=pcol_\w+$/);
+    await expect(page.locator(island)).toBeVisible();
+    await expect(
+      page.locator(`${island} [data-slot="active-filter-chips"]`).first(),
+    ).toBeAttached();
+    await expect(page.getByRole("status").filter({ hasText: /products? found/ })).toBeAttached();
+  });
+
+  test("/search?q= is server-rendered and noindex", async ({ request }) => {
+    const html = await (await request.get("/us/search?q=hoodie")).text();
+    expect(html).toContain("Results for “hoodie”");
+    expect(cardHrefs(html)).toEqual(["/us/products/demo-heritage-hoodie"]);
+    expect(html).toContain('<meta name="robots" content="noindex, follow"/>');
+  });
+
+  test("the overlay shows results as the visitor types", async ({ page }) => {
+    await page.goto("/us/categories/apparel");
+    await page.locator('[data-slot="search-overlay-trigger"]').click();
+    const overlay = page.locator('[data-slot="search-overlay"]');
+    await overlay.getByRole("combobox").pressSequentially("hoodie");
+    await expect(overlay.getByRole("option", { name: /Heritage Hoodie/ })).toBeVisible();
+  });
+});

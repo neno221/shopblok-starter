@@ -730,5 +730,40 @@ export const fr: Messages = {
       description: "Description",
       delivery: "Livraison et retours",
     },
+    productListing: {
+      // The listing pages (T50): the breadcrumbs' first step, the store's name, the filters' group
+      // names that are not content, the two empty states, and what the island announces.
+      home: "Accueil",
+      store: "Tous les produits",
+      facets: {
+        category: "Catégorie",
+        collection: "Collection",
+        price: "Prix",
+        onSale: "En promotion",
+      },
+      empty: {
+        title: "Aucun produit ici pour l’instant",
+        text: "De nouveaux produits arrivent bientôt. Découvrez le reste de la boutique.",
+        browse: "Voir tous les produits",
+      },
+      noMatch: {
+        title: "Aucun produit ne correspond à ces filtres",
+        text: "Retirez un filtre, ou effacez-les tous pour voir chaque produit ici.",
+        clear: "Effacer tous les filtres",
+      },
+      found:
+        "{count, plural, =0 {Aucun produit trouvé} one {# produit trouvé} other {# produits trouvés}}",
+      loading: "Mise à jour des produits",
+    },
+    searchResults: {
+      // The search page (T50): its heading with a query and without one, and what it says when
+      // nothing is found.
+      title: "Recherche",
+      resultsFor: "Résultats pour « {query} »",
+      empty: {
+        title: "Aucun résultat pour « {query} »",
+        text: "Vérifiez l’orthographe, ou essayez un mot plus général.",
+      },
+    },
   },
 };

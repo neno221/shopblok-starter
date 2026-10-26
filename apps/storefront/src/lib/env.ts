@@ -16,6 +16,7 @@ export type RawEnv = {
   DESIGN_SYSTEM_ENABLED?: string | undefined;
   REVALIDATE_SECRET?: string | undefined;
   STOREFRONT_PRERENDER_PRODUCTS?: string | undefined;
+  STOREFRONT_LISTING_PAGE_SIZE?: string | undefined;
 };
 
 /**
@@ -56,6 +57,9 @@ export const env: RawEnv = {
   },
   get STOREFRONT_PRERENDER_PRODUCTS() {
     return process.env.STOREFRONT_PRERENDER_PRODUCTS;
+  },
+  get STOREFRONT_LISTING_PAGE_SIZE() {
+    return process.env.STOREFRONT_LISTING_PAGE_SIZE;
   },
 };
 
