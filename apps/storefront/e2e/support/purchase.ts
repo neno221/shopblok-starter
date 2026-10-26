@@ -57,14 +57,15 @@ export async function withoutScripts(
 /** An address form's inputs by name (`firstName`, `address1`, `province`, `postalCode`, …). */
 export type AddressInput = Record<string, string>;
 
-/** The contact step's e-mail and address, typed into the page that shows it. */
+/** The contact step's e-mail and address, typed into the page that shows it (each when given). */
 export async function fillContact(
   page: Page,
   words: Words,
-  email: string,
-  address: AddressInput,
+  email: string | undefined,
+  address: AddressInput = {},
 ): Promise<void> {
-  await page.getByLabel(words.templates.checkout.contact.email, { exact: true }).fill(email);
+  if (email !== undefined)
+    await page.getByLabel(words.templates.checkout.contact.email, { exact: true }).fill(email);
   const form = page.locator('[data-slot="address-form"]:visible');
   for (const [name, value] of Object.entries(address))
     await form.locator(`input[name="${name}"]`).fill(value);
@@ -72,7 +73,7 @@ export async function fillContact(
 
 export type CheckOut = {
   words: Words;
-  /** Typed in the contact step with `address`; left out, the step is already filled (a saved address). */
+  /** Typed in the contact step; what is left out is already filled (a signed-in customer's). */
   email?: string;
   address?: AddressInput;
 };
@@ -86,7 +87,7 @@ export async function checkOut(page: Page, { words, email, address }: CheckOut):
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
     words.organisms.checkoutSteps.title,
   );
-  if (email !== undefined) await fillContact(page, words, email, address ?? {});
+  await fillContact(page, words, email, address);
   await page.getByRole("button", { name: words.templates.checkout.contact.submit }).click();
 
   await expect(page).toHaveURL(/\/checkout\/delivery$/);

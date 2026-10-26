@@ -6,8 +6,8 @@ import type { MarketContext } from "../market-context";
 import {
   completeCart,
   getCart,
-  getOrCreateCart,
   initiatePayment,
+  moveCart,
   setAddresses,
   setEmail,
   setShippingMethod,
@@ -31,13 +31,13 @@ const id = z.string().min(1).max(128);
 /**
  * The visitor's open cart with at least one line, in this market's region and language (D65: a
  * cart from another country moves to this region, one in another language keeps its lines and
- * takes this locale; `getOrCreateCart`'s rule). The checkout has nothing to do without one.
+ * takes this locale; `moveCart`'s rule). The checkout has nothing to do without one.
  */
 async function requireCart(context: MarketContext): Promise<CartDto> {
   const existing = await getCart(context.market.medusaLocale);
   if (existing === null || existing.lines.length === 0)
     throw new ActionError("not-found", "the visitor has no cart to check out");
-  return getOrCreateCart({
+  return moveCart(existing, {
     regionId: context.region.id,
     locale: context.market.medusaLocale,
   });
