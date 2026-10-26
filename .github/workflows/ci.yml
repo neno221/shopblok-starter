@@ -229,10 +229,13 @@ jobs:
       # cache, tag and draft checks) and payload-locales (S3, last: it saves the `markets` global
       # and puts it back) run against the storefront that is up.
       # `--reporter` adds the HTML report that is uploaded below; the config stays as it is.
+      # auth.spec.ts (T53) reads the links Medusa's local notification provider prints in the log
+      # the start-medusa action writes (the first start's: the outage steps come after).
       - name: Playwright suites
         run: pnpm --filter @shopblok/storefront test:e2e --reporter=list,html
         env:
           PLAYWRIGHT_HTML_OPEN: never
+          E2E_MEDUSA_LOG: ${{ runner.temp }}/servers/medusa.log
       # T42, D67 item 2 (the specs are T49's): ADR 0004's outage test. Skipped while
       # `e2e/outage.spec.ts` does not exist. The spec stops Medusa through
       # `.github/scripts/stop-tree.sh --port 9000` on the PID file (`E2E_MEDUSA_PID`,
