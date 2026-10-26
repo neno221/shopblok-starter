@@ -724,5 +724,15 @@ export const el: Messages = {
       retry: "Δοκιμάστε ξανά",
       home: "Επιστροφή στην αρχική σελίδα",
     },
+    productDetail: {
+      // The product page's headings (T49): the related products' carousel, the visitor's recently
+      // viewed row, and the two information sections the page always has.
+      // The breadcrumbs' first step.
+      home: "Αρχική",
+      related: "Μπορεί επίσης να σας αρέσουν",
+      recentlyViewed: "Είδατε πρόσφατα",
+      description: "Περιγραφή",
+      delivery: "Αποστολή και επιστροφές",
+    },
   },
 };

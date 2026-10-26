@@ -15,12 +15,18 @@ import { ShellLinksProvider } from "../../../components/shell/shell-context";
 import { SuggestionBannerIsland } from "../../../components/shell/suggestion-banner";
 import { getMarketMap } from "../../../lib/markets/get-market-map";
 import { listMarkets } from "../../../lib/markets/market";
-import { SHELL_PREFETCH } from "../../../lib/site";
+import { siteBase } from "../../../lib/seo/product";
+import { SHELL_PREFETCH, SITE } from "../../../lib/site";
 import { VisitorCookieConsent } from "../../../lib/visitor/cookie-consent";
 import { VisitorSource } from "../../../lib/visitor/visitor-source";
 import "../../../styles/globals.css";
 
-export const metadata: Metadata = { title: "Shopblok" };
+// A page's title is "{page} | Shopblok"; `metadataBase` turns the pages' relative canonical, hreflang
+// and Open Graph URLs into absolute ones (SPEC §12), from `NEXT_PUBLIC_BASE_URL`.
+export const metadata: Metadata = {
+  title: { default: SITE.storeName, template: `%s | ${SITE.storeName}` },
+  metadataBase: siteBase(),
+};
 
 // With Cache Components every root param needs at least one value, or the build fails. The keys
 // come from the market map; keys it gains later render on request.

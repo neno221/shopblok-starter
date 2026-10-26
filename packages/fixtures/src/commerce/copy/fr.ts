@@ -152,6 +152,7 @@ export const fr: Copy = {
   },
   carousel: { title: "Nouveautés", viewAll: "Voir toutes les nouveautés" },
   productPage: {
+    related: "Vous aimerez aussi",
     notes: ["Expédition sous 2 à 4 jours ouvrés", "Retours gratuits sous 30 jours"],
     sections: {
       description: "Description",

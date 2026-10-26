@@ -720,5 +720,15 @@ export const fr: Messages = {
       retry: "Réessayer",
       home: "Retour à l'accueil",
     },
+    productDetail: {
+      // The product page's headings (T49): the related products' carousel, the visitor's recently
+      // viewed row, and the two information sections the page always has.
+      // The breadcrumbs' first step.
+      home: "Accueil",
+      related: "Vous aimerez aussi",
+      recentlyViewed: "Vus récemment",
+      description: "Description",
+      delivery: "Livraison et retours",
+    },
   },
 };

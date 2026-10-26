@@ -148,6 +148,7 @@ export const en: Copy = {
   },
   carousel: { title: "New in", viewAll: "Shop all new in" },
   productPage: {
+    related: "You may also like",
     notes: ["Ships in 2 to 4 business days", "Free returns within 30 days"],
     sections: {
       description: "Description",

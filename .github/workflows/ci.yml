@@ -167,6 +167,10 @@ jobs:
     # 30 until M3 (about 5 minutes of work at M2's end). D67: the commerce suites (T48 to T54) and
     # the outage test add to it, and 45 leaves room for them.
     timeout-minutes: 45
+    # D58, D67 item 2: the build prerenders four of the demo catalog's eight products, and the outage
+    # spec takes its subjects from past the same cap, so both read it from here.
+    env:
+      STOREFRONT_PRERENDER_PRODUCTS: "4"
     steps:
       - uses: actions/checkout@v7.0.1
       - uses: ./.github/actions/setup
@@ -189,9 +193,9 @@ jobs:
         uses: ./.github/actions/start-medusa
       # After bootstrap: `next build` writes the publishable key into the bundle (SETUP.md, T12
       # item 8) and the `markets` global has to be filled for the prerender.
-      # STOREFRONT_PRERENDER_PRODUCTS (D58, D67 item 2): four of the demo catalog's eight products are
-      # prerendered, so the outage test has pages that render on request (T49 is the first code that
-      # reads it; apps/storefront/turbo.json lists it for the build).
+      # STOREFRONT_PRERENDER_PRODUCTS (the job's env, D58, D67 item 2): four of the demo catalog's
+      # eight products are prerendered, so the outage test has pages that render on request
+      # (apps/storefront/turbo.json lists it for the build).
       # Only the storefront is built (PR 69 review, item 5): `--filter` selects the entry point and
       # turbo still runs its `^build` and `transit` dependencies (the packages it imports; none has a
       # build script of its own, so there is nothing to run for them). The backend's `medusa build`
@@ -202,8 +206,6 @@ jobs:
       # type check).
       - name: Build the storefront
         run: pnpm exec turbo run build --filter=@shopblok/storefront
-        env:
-          STOREFRONT_PRERENDER_PRODUCTS: "4"
       # T42, D67 item 4 (SPEC §13): the PLP's and the PDP's first-load JS, gzipped, from the file Next
       # writes after a Turbopack build. The table of every route is in the log.
       - name: First-load JS budget

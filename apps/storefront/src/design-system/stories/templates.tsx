@@ -13,6 +13,12 @@ import { FooterMultiColumn } from "@shopblok/ui/organisms/footer/multi-column";
 import { HeaderClassic } from "@shopblok/ui/organisms/header/classic";
 import { ErrorTemplate } from "@shopblok/ui/templates/error";
 import { NotFoundTemplate } from "@shopblok/ui/templates/not-found";
+import {
+  ProductDetailTemplate,
+  productDetailCopy,
+  type ProductDetailIds,
+} from "@shopblok/ui/templates/product-detail";
+import type { ProductDetailPage } from "@shopblok/registry/contracts";
 import type { ReactNode } from "react";
 import type { DsContext, DsStory } from "../types";
 
@@ -80,6 +86,64 @@ const error = (ctx: DsContext, mainId: string, retry: boolean) => (
   />
 );
 
+/** A state's own ids, so two product pages on one DS page link nothing of each other's. */
+const idsFor = (prefix: string): ProductDetailIds => ({
+  form: `${prefix}-buy-box`,
+  options: `${prefix}-buy-box-options`,
+  button: `${prefix}-buy-box-add`,
+  title: `${prefix}-title`,
+  reviews: `${prefix}-reviews`,
+});
+
+type ProductDetailVariant = "default" | "chosen" | "long" | "no-related";
+
+/** The fixture's product page, changed for a state. */
+function productDetailContent(ctx: DsContext, state: ProductDetailVariant): ProductDetailPage {
+  const base = pageFixtures[ctx.locale].productDetail;
+  const fixtures = commerceFixtures[ctx.locale];
+  if (state === "chosen") {
+    const { productPage } = fixtures;
+    return {
+      ...base,
+      gallery: productPage.gallery.chosen,
+      buyBox: productPage.buyBox.ready,
+      sticky: productPage.sticky.ready,
+    };
+  }
+  if (state === "long") {
+    const title = fixtures.long.product.title;
+    return {
+      ...base,
+      breadcrumbs: { ...base.breadcrumbs, current: title },
+      gallery: { ...base.gallery, title },
+      buyBox: { ...base.buyBox, product: { ...base.buyBox.product, title } },
+      sticky: { ...base.sticky, title },
+    };
+  }
+  if (state === "no-related") {
+    const { related: _related, ...rest } = base;
+    return rest;
+  }
+  return base;
+}
+
+const productDetail = (ctx: DsContext, mainId: string, state: ProductDetailVariant) => {
+  const content = productDetailContent(ctx, state);
+  const href = content.buyBox.product.href;
+  return (
+    <ProductDetailTemplate
+      {...content}
+      copy={productDetailCopy(catalogs[ctx.locale])}
+      locale={lang(ctx)}
+      reviewsHrefFor={(n) => (n === 1 ? href : `${href}?reviews=${n}`)}
+      ids={idsFor(mainId)}
+      prefetch={false}
+      as="div"
+      mainId={mainId}
+    />
+  );
+};
+
 const pageNote =
   "The template is the page between the header and the footer: in a shop it is the page's one `<main>`, the skip link's target, with the page's only `<h1>`. The icon is decoration and hidden from assistive technology.";
 const waysNote =
@@ -132,6 +196,49 @@ export const templateStories = {
         label: "Without “Try again”",
         description: "Where nothing can be retried, the home page is the primary button.",
         render: (ctx) => error(ctx, "template-error-no-retry", false),
+      },
+    ],
+    statesLayout: "stack",
+  },
+  "templates/product-detail": {
+    summary:
+      "The product page: the breadcrumbs, the gallery beside the buy box from `md`, the information, the reviews and the related products. In a shop the buy box and the gallery follow `?variant=` through islands; the server draws this, the default choice.",
+    a11y: [
+      pageNote,
+      "The product's name is the page's one `<h1>`, in the buy box; every section under it has an `<h2>`. The buy box's rating links to the reviews, and the sticky bar's button submits the buy box's form, so both add the same choice.",
+      "One column below `md`, in reading order: the pictures, the buy box, the information, the reviews, the related products. From `md` the buy box sticks under the header while the pictures scroll, and its order in the page is unchanged.",
+    ],
+    live: (ctx) =>
+      page(
+        ctx,
+        "template-product-detail",
+        productDetail(ctx, "template-product-detail", "default"),
+      ),
+    states: [
+      {
+        id: "default",
+        label: "Nothing chosen",
+        description: "What the server renders: the buy box asks for a colour and a size.",
+        render: (ctx) => productDetail(ctx, "template-product-detail-default", "default"),
+      },
+      {
+        id: "chosen",
+        label: "A variant chosen",
+        description:
+          "`?variant=` named a colour and a size: its picture first, its price, “Add to cart”.",
+        render: (ctx) => productDetail(ctx, "template-product-detail-chosen", "chosen"),
+      },
+      {
+        id: "long",
+        label: "Long name",
+        description: "The longest name the copy allows wraps in the breadcrumbs and the title.",
+        render: (ctx) => productDetail(ctx, "template-product-detail-long", "long"),
+      },
+      {
+        id: "no-related",
+        label: "No related products",
+        description: "A product alone in its category: no carousel.",
+        render: (ctx) => productDetail(ctx, "template-product-detail-no-related", "no-related"),
       },
     ],
     statesLayout: "stack",

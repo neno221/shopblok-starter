@@ -148,6 +148,7 @@ export const el: Copy = {
   },
   carousel: { title: "Νέες αφίξεις", viewAll: "Όλες οι νέες αφίξεις" },
   productPage: {
+    related: "Μπορεί επίσης να σας αρέσουν",
     notes: ["Αποστολή σε 2 έως 4 εργάσιμες ημέρες", "Δωρεάν επιστροφές εντός 30 ημερών"],
     sections: {
       description: "Περιγραφή",
