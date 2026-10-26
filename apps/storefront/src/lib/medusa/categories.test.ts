@@ -3,7 +3,7 @@ import { wireCategories } from "../../test-support/medusa-wire";
 
 vi.mock("next/cache", () => ({ cacheTag: vi.fn(), cacheLife: vi.fn() }));
 
-const { flattenCategories, toCategoryTree } = await import("./categories");
+const { categoryPaths, flattenCategories, toCategoryTree } = await import("./categories");
 
 describe("toCategoryTree (D66: the navigation's two levels)", () => {
   it("nests the children under their parent, each level in rank order", () => {
@@ -36,5 +36,17 @@ describe("toCategoryTree (D66: the navigation's two levels)", () => {
       "home",
       "orphan",
     ]);
+  });
+
+  it("gives every node its path of handles, in the same order (T50)", () => {
+    const tree = toCategoryTree(wireCategories);
+    const paths = categoryPaths(tree);
+    expect(paths.map(({ node }) => node)).toEqual(flattenCategories(tree));
+    for (const { node, path } of paths) expect(path.at(-1)).toBe(node.handle);
+    const byHandle = new Map(paths.map(({ node, path }) => [node.handle, path]));
+    for (const parent of tree)
+      for (const child of parent.children)
+        expect(byHandle.get(child.handle)).toEqual([parent.handle, child.handle]);
+    expect(paths.some(({ path }) => path.length > 1)).toBe(true);
   });
 });

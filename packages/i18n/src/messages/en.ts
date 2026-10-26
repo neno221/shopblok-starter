@@ -843,6 +843,11 @@ export const en = {
       found:
         "{count, plural, =0 {No products found} one {# product found} other {# products found}}",
       loading: "Updating the products",
+      failed: {
+        title: "The products could not be loaded",
+        text: "Check your connection and try again.",
+        retry: "Try again",
+      },
     },
     searchResults: {
       // The search page (T50): its heading with a query and without one, and what it says when

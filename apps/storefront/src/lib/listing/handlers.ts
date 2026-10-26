@@ -3,7 +3,7 @@ import { catalogs } from "@shopblok/i18n";
 import type { Link, SearchResult } from "@shopblok/registry/contracts";
 import { cached } from "../cache";
 import { getMarketContext } from "../market-context";
-import { flattenCategories, listCategories, type CategoryNode } from "../medusa/categories";
+import { categoryPaths, listCategories } from "../medusa/categories";
 import { listOptionValueLabels, listProductsByIds } from "../medusa/products";
 import { searchProducts } from "../medusa/search";
 import { MedusaRequestError } from "../medusa/sdk";
@@ -71,17 +71,6 @@ export async function listingResponse(request: Request): Promise<Response> {
 export const OVERLAY_PRODUCTS = 8;
 const OVERLAY_LINKS = 4;
 
-/** Every category's id with its path of handles, which its URL is made of. */
-function categoryPaths(tree: readonly CategoryNode[], parents: string[] = []): Map<string, string> {
-  const paths = new Map<string, string>();
-  for (const node of tree) {
-    const path = [...parents, node.handle];
-    paths.set(node.id, path.join("/"));
-    for (const [id, each] of categoryPaths(node.children, path)) paths.set(id, each);
-  }
-  return paths;
-}
-
 async function overlayResult(market: string, query: string): Promise<SearchResult | null> {
   const context = await getMarketContext(market);
   if (context === null) return null;
@@ -105,15 +94,13 @@ async function overlayResult(market: string, query: string): Promise<SearchResul
   ]);
   const byCount = <T extends { count: number }>(rows: readonly T[]) =>
     rows.filter((row) => row.count > 0).toSorted((a, b) => b.count - a.count);
-  const paths = categoryPaths(categories);
-  const names = new Map(flattenCategories(categories).map((node) => [node.id, node.name]));
+  const byId = new Map(categoryPaths(categories).map((entry) => [entry.node.id, entry]));
   const categoryLinks: Link[] = byCount(result.facets.categoryIds)
     .flatMap(({ value }) => {
-      const path = paths.get(value);
-      const label = names.get(value);
-      return path === undefined || label === undefined
+      const entry = byId.get(value);
+      return entry === undefined
         ? []
-        : [{ label, href: context.hrefs.category(path) }];
+        : [{ label: entry.node.name, href: context.hrefs.category(entry.path.join("/")) }];
     })
     .slice(0, OVERLAY_LINKS);
   // The suggestions are the matches' option values, which the index searches too: a word that

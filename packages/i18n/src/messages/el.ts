@@ -758,6 +758,11 @@ export const el: Messages = {
       found:
         "{count, plural, =0 {Δεν βρέθηκαν προϊόντα} one {Βρέθηκε # προϊόν} other {Βρέθηκαν # προϊόντα}}",
       loading: "Ενημέρωση των προϊόντων",
+      failed: {
+        title: "Δεν ήταν δυνατή η φόρτωση των προϊόντων",
+        text: "Ελέγξτε τη σύνδεσή σας και δοκιμάστε ξανά.",
+        retry: "Δοκιμάστε ξανά",
+      },
     },
     searchResults: {
       // The search page (T50): its heading with a query and without one, and what it says when

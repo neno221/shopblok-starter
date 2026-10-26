@@ -4,6 +4,7 @@ import {
   listingMetadata,
   pathPage,
 } from "../../../../../../../components/listing/listing-page";
+import { collectionScope } from "../../../../../../../lib/listing/query";
 import { PLACEHOLDER_HANDLE } from "../../../../../../../lib/prerender";
 
 // D59 (T50): a collection's other pages, by path (`/collections/summer-edit/page/2`), rendered at
@@ -22,10 +23,7 @@ export async function generateStaticParams(): Promise<{ handle: string; n: strin
 
 async function read(params: Props["params"]) {
   const { handle, n } = await params;
-  return {
-    scope: { kind: "collection" as const, handle: decodeURIComponent(handle) },
-    page: pathPage(n),
-  };
+  return { scope: collectionScope(handle), page: pathPage(n) };
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {

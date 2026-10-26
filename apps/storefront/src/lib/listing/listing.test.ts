@@ -386,10 +386,16 @@ describe("readListing", () => {
       });
     });
 
-    it("says no product matches, without a link, when no chip can be drawn", async () => {
+    // PR 78 review, item 4: a filter that draws no chip still counts, so "Clear all" is the way out.
+    it("says no product matches, with Clear all, when no chip can be drawn", async () => {
       stubListingMedusa(nothing);
-      const { results } = await read("collection=pcol_unknown");
-      expect(results?.grid.empty).toEqual({ title: copy.noMatch.title, text: copy.noMatch.text });
+      const { results } = await read("collection=pcol_unknown&sort=newest");
+      expect(results?.filters?.active).toBeUndefined();
+      const empty = results?.grid.empty;
+      expect(empty).toMatchObject({ title: copy.noMatch.title, text: copy.noMatch.text });
+      expect(empty?.action?.label).toBe(copy.noMatch.clear);
+      expect(empty?.action?.href).toMatch(/\?sort=newest$/);
+      expect(empty?.action?.href).not.toContain("collection");
     });
 
     it("says what the search found nothing for", async () => {

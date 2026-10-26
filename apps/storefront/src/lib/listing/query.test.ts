@@ -2,7 +2,9 @@
 // parameter helpers the links are made with.
 import { describe, expect, it } from "vitest";
 import {
+  categoryScope,
   changesListing,
+  collectionScope,
   filterCount,
   filterParams,
   parseListingQuery,
@@ -14,6 +16,24 @@ import {
 } from "./query";
 
 const parse = (search: string) => parseListingQuery(new URLSearchParams(search));
+
+describe("categoryScope and collectionScope (PR 78 review, item 3)", () => {
+  it("take a path of handles and a handle", () => {
+    expect(categoryScope(["apparel", "tops"])).toEqual({
+      kind: "category",
+      path: ["apparel", "tops"],
+    });
+    expect(collectionScope("summer-edit")).toEqual({ kind: "collection", handle: "summer-edit" });
+  });
+
+  it("refuse a segment holding a slash, which would reach another category's page", () => {
+    expect(categoryScope(["apparel/tops"])).toBeNull();
+    expect(collectionScope("a/b")).toBeNull();
+    expect(categoryScope([])).toBeNull();
+    expect(categoryScope(Array.from({ length: 9 }, () => "a"))).toBeNull();
+    expect(collectionScope("%ZZ")).toBeNull();
+  });
+});
 
 describe("parseScope", () => {
   it("reads the store, a category path and a collection", () => {

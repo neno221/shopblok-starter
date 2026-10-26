@@ -21,10 +21,7 @@ export async function generateStaticParams({
   return categoryStaticParams(params.market);
 }
 
-async function read(params: Props["params"]) {
-  const { path, page } = categorySegments((await params).handle);
-  return { scope: { kind: "category" as const, path }, page };
-}
+const read = async (params: Props["params"]) => categorySegments((await params).handle);
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { scope, page } = await read(params);

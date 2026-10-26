@@ -21,10 +21,7 @@ import { ListingIsland } from "./listing-island";
 
 const results = pageFixtures.en.productListing.results;
 const copy = listingResultsCopy(catalogs.en);
-const announce = {
-  found: catalogs.en.templates.productListing.found,
-  loading: catalogs.en.templates.productListing.loading,
-};
+const announce = catalogs.en.templates.productListing;
 const BASE = "/us/categories/hoodies";
 const ACTION = "/us/search";
 const SCOPE = "category:hoodies";
@@ -129,7 +126,7 @@ describe("ListingIsland: the query", () => {
     );
   });
 
-  it("says it is loading until the answer comes", async () => {
+  it("says it is loading until the answer comes, with the server's results hidden", async () => {
     let answer: (response: Response) => void = () => {};
     const fetcher = vi.fn(
       () => new Promise<Response>((resolve) => (answer = resolve)),
@@ -137,29 +134,52 @@ describe("ListingIsland: the query", () => {
     await mount(fetcher, `${BASE}?sort=newest`);
     expect(island()?.getAttribute("aria-busy")).toBe("true");
     expect(status()?.textContent).toBe(announce.loading);
-    expect(island()?.hasAttribute("data-active")).toBe(false);
+    // A URL that changes the results never shows the server's (PR 78 review, item 1).
+    expect(island()?.hasAttribute("data-active")).toBe(true);
+    expect(container.querySelector('[data-slot="listing-island-loading"]')).not.toBeNull();
     await act(async () => answer(Response.json(results)));
     expect(island()?.hasAttribute("aria-busy")).toBe(false);
     expect(island()?.hasAttribute("data-active")).toBe(true);
+    expect(container.querySelector('[data-slot="listing-island-loading"]')).toBeNull();
   });
 
-  it("leaves the server's results when the answer is not OK", async () => {
-    await mount(answering(null, 503), `${BASE}?sort=newest`);
-    expect(island()?.hasAttribute("data-active")).toBe(false);
+  it("says the results could not be loaded when Medusa is down, and asks again on Try again", async () => {
+    const fetcher = answering(null, 503);
+    await mount(fetcher, `${BASE}?sale=1`);
+    expect(island()?.hasAttribute("data-active")).toBe(true);
     expect(island()?.hasAttribute("aria-busy")).toBe(false);
-    expect(status()?.textContent).toBe("");
+    expect(status()?.textContent).toBe(announce.failed.title);
+    const failed = container.querySelector('[data-slot="listing-island-failed"]');
+    expect(failed?.textContent).toContain(announce.failed.text);
     expect(container.querySelector('[data-slot="listing-results"]')).toBeNull();
+    fetcher.mockImplementation(async () => Response.json(results));
+    const retry = [...(failed?.querySelectorAll("button") ?? [])].find(
+      (button) => button.textContent === announce.failed.retry,
+    );
+    await act(async () => retry?.click());
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    expect(container.querySelector('[data-slot="listing-results"]')).not.toBeNull();
   });
 
-  it("leaves the server's results when the answer is no listing, or the request fails", async () => {
+  it("says the same when the answer is no listing, or the request fails", async () => {
     await mount(answering({ nothing: true }), `${BASE}?sort=newest`);
-    expect(island()?.hasAttribute("data-active")).toBe(false);
+    expect(container.querySelector('[data-slot="listing-island-failed"]')).not.toBeNull();
     await act(async () => root.render(null));
     const failing = vi.fn(async () => {
       throw new TypeError("fetch failed");
     }) as unknown as typeof fetch;
     await mount(failing, `${BASE}?sort=price-desc`);
-    expect(island()?.hasAttribute("data-active")).toBe(false);
+    expect(island()?.hasAttribute("data-active")).toBe(true);
+    expect(container.querySelector('[data-slot="listing-island-failed"]')).not.toBeNull();
+  });
+
+  it("gives no match with the way back to the listing for a page that is not there", async () => {
+    await mount(answering(null, 404), `${BASE}?sale=1&page=3`);
+    expect(island()?.hasAttribute("data-active")).toBe(true);
+    expect(status()?.textContent).toBe(announce.noMatch.title);
+    const missing = container.querySelector('[data-slot="listing-island-missing"]');
+    expect(missing?.textContent).toContain(announce.noMatch.text);
+    expect(missing?.querySelector("a")?.getAttribute("href")).toBe(BASE);
   });
 
   it("links the pages by the listing's own address with the filters", async () => {

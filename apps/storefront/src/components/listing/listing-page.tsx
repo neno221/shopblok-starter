@@ -15,10 +15,17 @@ import {
   scopeField,
   type ResolvedScope,
 } from "../../lib/listing/listing";
-import { parseListingQuery, scopeValue, type ListingScope } from "../../lib/listing/query";
+import {
+  categoryScope,
+  pageOf,
+  parseListingQuery,
+  parseScope,
+  scopeValue,
+  type ListingScope,
+} from "../../lib/listing/query";
 import { getMarketContext, type MarketContext } from "../../lib/market-context";
 import { hreflangAlternates } from "../../lib/markets/hreflang";
-import { listCategories, type CategoryNode } from "../../lib/medusa/categories";
+import { categoryPaths, listCategories } from "../../lib/medusa/categories";
 import { listCollections } from "../../lib/medusa/collections";
 import { buildReadsMedusa, PLACEHOLDER_HANDLE } from "../../lib/prerender";
 import { listingJsonLd } from "../../lib/seo/listing";
@@ -37,7 +44,8 @@ import { ListingIsland } from "./listing-island";
 /** A listing's page from its path segment: `/page/2` is 2; `1` and anything else is no page (404). */
 export function pathPage(segment: string | undefined): number | null {
   if (segment === undefined) return 1;
-  return /^[1-9]\d{0,4}$/.test(segment) && segment !== "1" ? Number(segment) : null;
+  const page = pageOf(segment);
+  return page !== null && page > 1 ? page : null;
 }
 
 type ListingPageData = {
@@ -49,12 +57,15 @@ type ListingPageData = {
   pageSize: number;
 };
 
-/** The listing's first page or `/page/n`, or `null` for a 404. Shared by the page and its metadata. */
+/**
+ * The listing's first page or `/page/n`, or `null` for a 404. Shared by the page and its metadata;
+ * `cache()` keys by value, so the scope travels as its string (`parseScope` reads it back).
+ */
 const readListingPage = cache(
   async (scopeKey: string, page: number | null): Promise<ListingPageData | null> => {
     // The stand-in (no Medusa, D10), its placeholder and `/page/1` ask Medusa nothing: a 404.
     if (page === null || !buildReadsMedusa() || scopeKey.includes(PLACEHOLDER_HANDLE)) return null;
-    const scope = parseScopeKey(scopeKey);
+    const scope = parseScope(scopeKey);
     if (scope === null) return null;
     const market = await getCurrentMarket();
     const [context, messages] = await Promise.all([getMarketContext(market.key), getMessages()]);
@@ -81,20 +92,17 @@ const readListingPage = cache(
   },
 );
 
-/** `cache()` keys by value, so the scope travels as its string. */
-function parseScopeKey(key: string): ListingScope | null {
-  if (key === "store") return { kind: "store" };
-  const [kind, rest = ""] = key.split(/:(.*)/s, 2);
-  if (kind === "collection") return { kind, handle: rest };
-  if (kind === "category") return { kind, path: rest.split("/") };
-  return null;
-}
-
 /** The address of a page of the listing: the first at the listing's own, the others by path. */
 const pageHref = (base: string, page: number) => (page === 1 ? base : `${base}/page/${page}`);
 
-export async function listingMetadata(scope: ListingScope, page: number | null): Promise<Metadata> {
-  const data = await readListingPage(scopeValue(scope), page);
+/** The key of a listing for `readListingPage`: empty, a 404, for a scope the URL did not make. */
+const keyOf = (scope: ListingScope | null) => (scope === null ? "" : scopeValue(scope));
+
+export async function listingMetadata(
+  scope: ListingScope | null,
+  page: number | null,
+): Promise<Metadata> {
+  const data = await readListingPage(keyOf(scope), page);
   if (data === null) return {};
   const { context, messages, resolved } = data;
   const path = pageHref(resolved.path, data.page);
@@ -118,8 +126,14 @@ export async function listingMetadata(scope: ListingScope, page: number | null):
   };
 }
 
-export async function ListingPage({ scope, page }: { scope: ListingScope; page: number | null }) {
-  const data = await readListingPage(scopeValue(scope), page);
+export async function ListingPage({
+  scope,
+  page,
+}: {
+  scope: ListingScope | null;
+  page: number | null;
+}) {
+  const data = await readListingPage(keyOf(scope), page);
   if (data === null) notFound();
   const { context, messages, resolved, results } = data;
   const { market } = context;
@@ -140,6 +154,7 @@ export async function ListingPage({ scope, page }: { scope: ListingScope; page: 
               breadcrumbs,
               products: results.grid.products,
               firstPosition: (data.page - 1) * data.pageSize + 1,
+              total: results.toolbar.count,
             }),
           ),
         }}
@@ -161,12 +176,12 @@ export async function ListingPage({ scope, page }: { scope: ListingScope; page: 
             <Suspense fallback={null}>
               <ListingIsland
                 market={market.key}
-                scope={scopeValue(scope)}
+                scope={scopeValue(resolved.scope)}
                 base={base}
                 pathPage={data.page}
                 action={context.url("/search")}
                 copy={copy.results}
-                announce={{ found: listingCopy.found, loading: listingCopy.loading }}
+                announce={listingCopy}
                 locale={market.htmlLang}
                 prefetch={SHELL_PREFETCH}
               />
@@ -176,14 +191,6 @@ export async function ListingPage({ scope, page }: { scope: ListingScope; page: 
       />
     </>
   );
-}
-
-/** Every category's path of handles, parents first (`["apparel"]`, `["apparel", "tops"]`). */
-function categoryPaths(tree: readonly CategoryNode[], path: string[] = []): string[][] {
-  return tree.flatMap((node) => {
-    const handles = [...path, node.handle];
-    return [handles, ...categoryPaths(node.children, handles)];
-  });
 }
 
 /**
@@ -197,7 +204,7 @@ export async function categoryStaticParams(market: string): Promise<{ handle: st
   const paths = categoryPaths(await listCategories(context.market.medusaLocale));
   return paths.length === 0
     ? [{ handle: [PLACEHOLDER_HANDLE] }]
-    : paths.map((handle) => ({ handle }));
+    : paths.map(({ path }) => ({ handle: path }));
 }
 
 export async function collectionStaticParams(market: string): Promise<{ handle: string }[]> {
@@ -210,13 +217,15 @@ export async function collectionStaticParams(market: string): Promise<{ handle: 
     : handles.map((handle) => ({ handle }));
 }
 
-/** A category's path and its page from the catch-all's segments (`["apparel", "page", "2"]`). */
+/**
+ * A category's scope and its page from the catch-all's segments (`["apparel", "page", "2"]`), as
+ * Next decoded them; a segment that is no handle (`apparel%2Ftops`, a broken escape) is no scope.
+ */
 export function categorySegments(segments: readonly string[]): {
-  path: string[];
+  scope: ListingScope | null;
   page: number | null;
 } {
-  const decoded = segments.map((segment) => decodeURIComponent(segment));
-  if (decoded.length >= 3 && decoded.at(-2) === "page")
-    return { path: decoded.slice(0, -2), page: pathPage(decoded.at(-1)) };
-  return { path: decoded, page: 1 };
+  if (segments.length >= 3 && segments.at(-2) === "page")
+    return { scope: categoryScope(segments.slice(0, -2)), page: pathPage(segments.at(-1)) };
+  return { scope: categoryScope(segments), page: 1 };
 }

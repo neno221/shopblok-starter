@@ -4,6 +4,7 @@ import {
   ListingPage,
   listingMetadata,
 } from "../../../../../components/listing/listing-page";
+import { collectionScope } from "../../../../../lib/listing/query";
 
 // D59 (T50): a collection's first page, in the static shell; every collection's is built (D58).
 export const ensureStatic = "navigation";
@@ -18,10 +19,8 @@ export async function generateStaticParams({
   return collectionStaticParams(params.market);
 }
 
-const scopeOf = async (params: Props["params"]) => ({
-  kind: "collection" as const,
-  handle: decodeURIComponent((await params).handle),
-});
+// Next has decoded the handle; one that is no handle (a broken escape) is a 404.
+const scopeOf = async (params: Props["params"]) => collectionScope((await params).handle);
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return listingMetadata(await scopeOf(params), 1);

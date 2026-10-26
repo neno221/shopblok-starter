@@ -2,7 +2,7 @@ import type { Breadcrumbs, ProductCard } from "@shopblok/registry/contracts";
 import { siteBase } from "./product";
 
 // A listing page's structured data (SPEC §12, T50): `CollectionPage` with the page's products as an
-// `ItemList` (their positions on this page, counted from the page's first) and the page's
+// `ItemList` (the whole listing's size, and the products' positions in it) and the page's
 // `BreadcrumbList`, as one `@graph`. URLs are absolute, from `NEXT_PUBLIC_BASE_URL`.
 
 const absolute = (path: string, base: URL) => new URL(path, base).toString();
@@ -15,6 +15,8 @@ export type ListingJsonLdInput = {
   products: readonly ProductCard[];
   /** The position of the page's first product in the whole listing, from 1. */
   firstPosition: number;
+  /** Every product in the listing, over all its pages: the list's size, which the positions run in. */
+  total: number;
 };
 
 export function listingJsonLd(input: ListingJsonLdInput, base: URL = siteBase()): object {
@@ -33,7 +35,7 @@ export function listingJsonLd(input: ListingJsonLdInput, base: URL = siteBase())
         url,
         mainEntity: {
           "@type": "ItemList",
-          numberOfItems: input.products.length,
+          numberOfItems: input.total,
           itemListElement: input.products.map((product, index) => ({
             "@type": "ListItem",
             position: input.firstPosition + index,

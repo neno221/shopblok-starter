@@ -3,7 +3,10 @@
 // (`useSearchParams`, so it sits in a `Suspense` with no fallback) and, only when the query changes
 // the results (a filter, a sort or a page), asks `/next/listing` for them and draws them before the
 // server's, which its root (`peer`, `data-active`) then hides by CSS. A clean URL fetches nothing,
-// so the server's first page and the island never disagree. The filter and sort forms GET the
+// so the server's first page and the island never disagree; a URL that changes the results never
+// shows the server's (PR 78 review, item 1): while the first answer loads it says so, and an answer
+// that is not results says what went wrong (no such page: "no match" with the way back to the
+// listing; Medusa down or no network: "could not be loaded" with "Try again"). The filter and sort forms GET the
 // search page without scripts; with them, their `submit` is caught here and becomes the listing's
 // own URL (`history.pushState`, which Next keeps `useSearchParams` in step with). The new count is
 // announced (WCAG 4.1.3), and more than two facets add `noindex,follow` (`robots-meta.tsx`).
@@ -11,6 +14,8 @@
 
 import { formatMessage } from "@shopblok/i18n";
 import type { ListingResults as ListingResultsContent } from "@shopblok/registry/contracts";
+import { Button } from "@shopblok/ui/atoms/button";
+import { EmptyState } from "@shopblok/ui/molecules/empty-state";
 import { ListingResults, type ListingResultsCopy } from "@shopblok/ui/templates/product-listing";
 import type { Route } from "next";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -38,14 +43,22 @@ export type ListingIslandProps = {
   /** The search page, where the filter and sort forms GET without scripts. */
   action: string;
   copy: ListingResultsCopy;
-  /** `found` is ICU with `{count}`. */
-  announce: { found: string; loading: string };
+  /** The listing's own words (`templates.productListing`); `found` is ICU with `{count}`. */
+  announce: {
+    found: string;
+    loading: string;
+    noMatch: { title: string; text: string; clear: string };
+    failed: { title: string; text: string; retry: string };
+  };
   locale: string;
   prefetch?: boolean | null;
   fetcher?: typeof fetch;
 };
 
-type Answer = { key: string; results: ListingResultsContent | null };
+/** What `/next/listing` gave for a URL: results, no such page (404), or no answer at all. */
+type Answer =
+  | { key: string; kind: "results"; results: ListingResultsContent }
+  | { key: string; kind: "missing" | "failed" };
 
 function isResults(body: unknown): body is ListingResultsContent {
   if (typeof body !== "object" || body === null) return false;
@@ -95,9 +108,9 @@ export function ListingIsland({
   const page = query.page ?? pathPage;
   const key = active ? `${chosen.toString()}#${page}` : "";
 
-  // The last answer and the URL it was for; `null` results for an answer that is none (a page past
-  // the last, Medusa down), which leaves the server's.
-  const [answer, setAnswer] = useState<Answer>({ key: "", results: null });
+  // The last answer and the URL it was for; `attempt` asks again for the same URL ("Try again").
+  const [answer, setAnswer] = useState<Answer | null>(null);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     if (key === "") return;
@@ -109,15 +122,19 @@ export function ListingIsland({
       ...chosen.entries(),
     ]);
     (fetcher ?? fetch)(`${LISTING_ROUTE}?${params}`, { signal: abort.signal })
-      .then(async (response) => (response.ok ? ((await response.json()) as unknown) : undefined))
-      .catch(() => undefined)
-      .then((body) => {
-        if (!abort.signal.aborted) setAnswer({ key, results: isResults(body) ? body : null });
+      .then(async (response): Promise<Answer> => {
+        if (response.status === 404 || response.status === 400) return { key, kind: "missing" };
+        const body: unknown = response.ok ? await response.json() : undefined;
+        return isResults(body) ? { key, kind: "results", results: body } : { key, kind: "failed" };
+      })
+      .catch((): Answer => ({ key, kind: "failed" }))
+      .then((next) => {
+        if (!abort.signal.aborted) setAnswer(next);
       });
     return () => abort.abort();
     // `key` stands for `chosen` and `page`.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key, market, scope, fetcher]);
+  }, [key, attempt, market, scope, fetcher]);
 
   // The listing's forms land here instead of on the search page: the filters reset the page.
   useEffect(() => {
@@ -136,31 +153,43 @@ export function ListingIsland({
     return () => document.removeEventListener("submit", onSubmit);
   }, [action, base, scope, router]);
 
-  const loading = active && answer.key !== key;
-  // While the next results load, the last ones stay; the first ones wait on the server's.
-  const results = active ? (answer.results ?? undefined) : undefined;
+  const current = answer !== null && answer.key === key ? answer : null;
+  const loading = active && current === null;
+  // While the next results load, the last ones stay.
+  const results =
+    current?.kind === "results"
+      ? current.results
+      : loading && answer?.kind === "results"
+        ? answer.results
+        : undefined;
   const hrefFor = (n: number) =>
     withQuery(
       base,
       new URLSearchParams([...chosen.entries(), ...(n === 1 ? [] : [["page", String(n)]])]),
     );
 
+  const status = loading
+    ? announce.loading
+    : current?.kind === "results"
+      ? formatMessage(announce.found, { count: current.results.toolbar.count }, locale)
+      : current?.kind === "missing"
+        ? announce.noMatch.title
+        : current?.kind === "failed"
+          ? announce.failed.title
+          : "";
+
   return (
     <div
       data-slot="listing-island"
       className="peer"
-      data-active={results === undefined ? undefined : ""}
+      data-active={active ? "" : undefined}
       aria-busy={loading || undefined}
     >
       {active ? <RobotsMeta filters={query.filters} /> : null}
       <p role="status" className="sr-only">
-        {loading
-          ? announce.loading
-          : results === undefined
-            ? ""
-            : formatMessage(announce.found, { count: results.toolbar.count }, locale)}
+        {status}
       </p>
-      {results === undefined ? null : (
+      {!active ? null : results !== undefined ? (
         <ListingResults
           {...results}
           copy={copy}
@@ -168,6 +197,29 @@ export function ListingIsland({
           hrefFor={hrefFor}
           prefetch={prefetch}
         />
+      ) : current?.kind === "missing" ? (
+        <EmptyState
+          data-slot="listing-island-missing"
+          title={announce.noMatch.title}
+          text={announce.noMatch.text}
+          action={{ label: announce.noMatch.clear, href: base }}
+          prefetch={prefetch}
+        />
+      ) : current?.kind === "failed" ? (
+        <div data-slot="listing-island-failed" className="flex flex-col items-center gap-4">
+          <EmptyState title={announce.failed.title} text={announce.failed.text} />
+          <Button type="button" variant="outline" onClick={() => setAttempt((n) => n + 1)}>
+            {announce.failed.retry}
+          </Button>
+        </div>
+      ) : (
+        <p
+          data-slot="listing-island-loading"
+          aria-hidden="true"
+          className="py-12 text-center text-muted-foreground"
+        >
+          {announce.loading}
+        </p>
       )}
     </div>
   );

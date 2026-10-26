@@ -28,7 +28,7 @@ type Graph = {
   ];
 };
 
-const build = (firstPosition: number, items = products) =>
+const build = (firstPosition: number, items = products, total = 30) =>
   listingJsonLd(
     {
       name: "Hoodies",
@@ -42,6 +42,7 @@ const build = (firstPosition: number, items = products) =>
       },
       products: items,
       firstPosition,
+      total,
     },
     base,
   ) as Graph;
@@ -62,7 +63,8 @@ describe("listingJsonLd", () => {
     expect(products.length).toBeGreaterThan(1);
     const { mainEntity } = build(25)["@graph"][0];
     expect(mainEntity["@type"]).toBe("ItemList");
-    expect(mainEntity.numberOfItems).toBe(products.length);
+    // The whole listing's size, which the positions run in (PR 78 review, item 5), not the page's.
+    expect(mainEntity.numberOfItems).toBe(30);
     expect(mainEntity.itemListElement.map((item) => item.position)).toEqual(
       products.map((_, index) => 25 + index),
     );
@@ -76,7 +78,7 @@ describe("listingJsonLd", () => {
 
   it("starts at 1 on the first page, and is an empty list for a page without products", () => {
     expect(build(1)["@graph"][0].mainEntity.itemListElement[0]?.position).toBe(1);
-    const empty = build(1, [])["@graph"][0].mainEntity;
+    const empty = build(1, [], 0)["@graph"][0].mainEntity;
     expect(empty.numberOfItems).toBe(0);
     expect(empty.itemListElement).toEqual([]);
   });
@@ -107,6 +109,7 @@ describe("listingJsonLd", () => {
       breadcrumbs: { trail: [], current: "Store" },
       products: [],
       firstPosition: 1,
+      total: 0,
     }) as Graph;
     expect(data["@graph"][0].url).toMatch(/^https?:\/\/.+\/store$/);
   });

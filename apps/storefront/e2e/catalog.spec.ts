@@ -155,6 +155,17 @@ test.describe("the listing pages and the search (T50)", () => {
     expect((await request.get("/us/collections/no-such-collection")).status()).toBe(404);
   });
 
+  test("a broken escape or an encoded slash in a listing's path is a 404", async ({ request }) => {
+    // PR 78 review, items 2 and 3: not a 500, and not another category's page.
+    for (const path of [
+      "/us/categories/%E0%A4%A",
+      "/us/categories/apparel%2Fpage%2F2",
+      "/us/collections/%ZZ",
+      "/us/collections/everyday-basics%2Fx/page/2",
+    ])
+      expect((await request.get(path)).status(), path).toBe(404);
+  });
+
   test("a clean URL asks /next/listing nothing", async ({ page }) => {
     const asked: string[] = [];
     page.on("request", (request) => {
@@ -173,7 +184,9 @@ test.describe("the listing pages and the search (T50)", () => {
       );
     await page.goto("/us/categories/apparel?sort=price-asc");
     // The first answer of a fresh `next start` reads Medusa cold (it took 6 s once in the VM).
-    await expect(page.locator(island)).toBeVisible({ timeout: 20_000 });
+    await expect(page.locator(`${island} [data-slot="listing-results"]`)).toBeVisible({
+      timeout: 20_000,
+    });
     await expect(page.locator(serverResults)).toBeHidden();
     const ascending = await prices();
     expect(ascending).toHaveLength(PAGE_SIZE);
@@ -233,6 +246,9 @@ test.describe("the listing pages and the search (T50)", () => {
     page,
   }) => {
     await page.goto("/us/categories/apparel");
+    // The island is drawn in the browser only: once it is there, the page has hydrated, and a tick
+    // before that would be reset by the checkbox's own hydration.
+    await expect(page.locator('[data-slot="listing-island"]')).toBeAttached();
     const sidebar = page.locator(`${serverResults} [data-slot="filter-sidebar"]`);
     await sidebar
       .locator('input[type="checkbox"][name="collection"]')

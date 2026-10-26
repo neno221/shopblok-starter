@@ -34,6 +34,16 @@ describe("the proxy", () => {
     expect(getRewrittenUrl(response)).toBe("https://example.com/fr-ch?page=2");
   });
 
+  it("answers a path with a broken escape with a plain 404, not Next's 500 (PR 78 review)", async () => {
+    for (const path of ["/us/collections/%ZZ", "/categories/%E0%A4%A"]) {
+      const response = await proxy(new NextRequest(`https://example.com${path}`));
+      expect(response.status).toBe(404);
+      expect(await response.text()).toBe("Not Found");
+    }
+    const fine = await proxy(new NextRequest("https://example.com/us/collections/caf%C3%A9"));
+    expect(fine.status).not.toBe(404);
+  });
+
   it("reads the visitor's chosen market from its cookie for / (D66)", async () => {
     const response = await proxy(
       new NextRequest("https://example.com/", { headers: { cookie: "_shopblok_market=en-us" } }),

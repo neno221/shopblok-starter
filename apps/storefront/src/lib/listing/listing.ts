@@ -254,8 +254,9 @@ export async function readListing(input: ReadListingInput): Promise<ListingResul
     );
   const chips = chipsFor(groups, chosen, link, market.htmlLang);
   const sortOnly = new URLSearchParams([...chosen.entries()].filter(([name]) => name === "sort"));
+  const clearHref = link(sortOnly);
   const active: ActiveFilters | undefined =
-    chips.length === 0 ? undefined : { filters: chips, clearHref: link(sortOnly) };
+    chips.length === 0 ? undefined : { filters: chips, clearHref };
   const filterFields = [...chosen.entries()]
     .filter(([name]) => name !== "sort")
     .map(([name, value]) => ({ name, value }));
@@ -271,11 +272,11 @@ export async function readListing(input: ReadListingInput): Promise<ListingResul
   const empty: EmptyStateContent =
     filterCount(query.filters) > 0
       ? {
+          // Always with its way out: a filter can count without a chip (a price range the facet
+          // drops, a category on a category's page), and then "Clear all" is the only one.
           title: copy.noMatch.title,
           text: copy.noMatch.text,
-          ...(active === undefined
-            ? {}
-            : { action: { label: copy.noMatch.clear, href: active.clearHref } }),
+          action: { label: copy.noMatch.clear, href: clearHref },
         }
       : hasWords
         ? {

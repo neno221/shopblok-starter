@@ -43,17 +43,26 @@ const OPTION_PARAM = /^opt_[0-9A-Za-z]+$/;
 const ID = /^[A-Za-z]+_[0-9A-Za-z]{1,64}$/;
 const MAX_VALUES = 50;
 
+/** A category's scope from its path of handles, or `null` for a path that is none. */
+export function categoryScope(path: readonly string[]): ListingScope | null {
+  // A handle never holds a `/` (HANDLE), so `apparel%2Ftops` is no path to `apparel/tops`.
+  return path.length > 0 && path.length <= 8 && path.every((part) => HANDLE.test(part))
+    ? { kind: "category", path: [...path] }
+    : null;
+}
+
+/** A collection's scope from its handle, or `null` for a handle that is none. */
+export function collectionScope(handle: string): ListingScope | null {
+  return HANDLE.test(handle) ? { kind: "collection", handle } : null;
+}
+
 /** `category:apparel/tops`, `collection:summer`, or `null` for anything else. */
 export function parseScope(value: string | null): ListingScope | null {
   if (value === null || value === "") return null;
   if (value === "store") return { kind: "store" };
   const [kind, rest = ""] = value.split(/:(.*)/s, 2);
-  if (kind === "collection" && HANDLE.test(rest)) return { kind, handle: rest };
-  if (kind === "category") {
-    const path = rest.split("/");
-    if (path.length > 0 && path.length <= 8 && path.every((part) => HANDLE.test(part)))
-      return { kind, path };
-  }
+  if (kind === "collection") return collectionScope(rest);
+  if (kind === "category") return categoryScope(rest.split("/"));
   return null;
 }
 
@@ -74,7 +83,8 @@ function amount(value: string | null): number | undefined {
   return Number.isFinite(number) && number >= 0 ? number : undefined;
 }
 
-function pageOf(value: string | null): number | null {
+/** A page number as the URL writes it (`2`), or `null` for anything else. */
+export function pageOf(value: string | null): number | null {
   if (value === null || !/^[1-9]\d{0,4}$/.test(value)) return null;
   return Number(value);
 }

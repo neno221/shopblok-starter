@@ -21,30 +21,53 @@ describe("pathPage", () => {
 });
 
 describe("categorySegments", () => {
+  const category = (...path: string[]) => ({ kind: "category", path });
+
   it("is the whole path, on the first page, when there is no page segment", () => {
-    expect(categorySegments(["apparel"])).toEqual({ path: ["apparel"], page: 1 });
-    expect(categorySegments(["apparel", "tops"])).toEqual({ path: ["apparel", "tops"], page: 1 });
+    expect(categorySegments(["apparel"])).toEqual({ scope: category("apparel"), page: 1 });
+    expect(categorySegments(["apparel", "tops"])).toEqual({
+      scope: category("apparel", "tops"),
+      page: 1,
+    });
   });
 
   it("takes /page/n off the end", () => {
-    expect(categorySegments(["apparel", "page", "3"])).toEqual({ path: ["apparel"], page: 3 });
+    expect(categorySegments(["apparel", "page", "3"])).toEqual({
+      scope: category("apparel"),
+      page: 3,
+    });
     expect(categorySegments(["apparel", "tops", "page", "12"])).toEqual({
-      path: ["apparel", "tops"],
+      scope: category("apparel", "tops"),
       page: 12,
     });
   });
 
   it("makes a page that is none a null page (a 404)", () => {
-    expect(categorySegments(["apparel", "page", "1"])).toEqual({ path: ["apparel"], page: null });
-    expect(categorySegments(["apparel", "page", "x"])).toEqual({ path: ["apparel"], page: null });
+    expect(categorySegments(["apparel", "page", "1"])).toEqual({
+      scope: category("apparel"),
+      page: null,
+    });
+    expect(categorySegments(["apparel", "page", "x"])).toEqual({
+      scope: category("apparel"),
+      page: null,
+    });
   });
 
   it("does not take a category called page for a page segment", () => {
-    expect(categorySegments(["page", "3"])).toEqual({ path: ["page", "3"], page: 1 });
-    expect(categorySegments(["apparel", "page"])).toEqual({ path: ["apparel", "page"], page: 1 });
+    expect(categorySegments(["page", "3"])).toEqual({ scope: category("page", "3"), page: 1 });
+    expect(categorySegments(["apparel", "page"])).toEqual({
+      scope: category("apparel", "page"),
+      page: 1,
+    });
   });
 
-  it("decodes the segments", () => {
-    expect(categorySegments(["caf%C3%A9", "page", "2"])).toEqual({ path: ["café"], page: 2 });
+  // PR 78 review, items 2 and 3: Next has decoded the segments, so they are taken as they come; a
+  // segment that is no handle (an encoded slash, a broken escape) is no scope, a 404, never a 500
+  // or another category's page.
+  it("takes the segments as Next decoded them, and no segment that is not a handle", () => {
+    expect(categorySegments(["apparel/tops"])).toEqual({ scope: null, page: 1 });
+    expect(categorySegments(["apparel/tops", "page", "2"])).toEqual({ scope: null, page: 2 });
+    expect(categorySegments(["%E0%A4%A"])).toEqual({ scope: null, page: 1 });
+    expect(categorySegments(["%41pparel"])).toEqual({ scope: null, page: 1 });
   });
 });

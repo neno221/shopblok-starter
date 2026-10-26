@@ -744,6 +744,11 @@ export const de: Messages = {
       found:
         "{count, plural, =0 {Keine Produkte gefunden} one {# Produkt gefunden} other {# Produkte gefunden}}",
       loading: "Die Produkte werden aktualisiert",
+      failed: {
+        title: "Die Produkte konnten nicht geladen werden",
+        text: "Prüfen Sie Ihre Verbindung und versuchen Sie es erneut.",
+        retry: "Erneut versuchen",
+      },
     },
     searchResults: {
       // The search page (T50): its heading with a query and without one, and what it says when
