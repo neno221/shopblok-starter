@@ -7,9 +7,8 @@ import { cartDrawerParts } from "@shopblok/ui/organisms/cart-drawer";
 import type { QuickCartDropdownClientProps } from "@shopblok/ui/organisms/quick-cart-dropdown-client";
 import { quickCartParts } from "@shopblok/ui/organisms/quick-cart-dropdown";
 import type { PromoCodeError } from "@shopblok/ui/molecules/promo-code-field";
-import { cartView, emptyCart, promoErrorOf } from "../cart-view";
+import { cartView, emptyCart, marketCart, promoErrorOf } from "../cart-view";
 import { getMarketContext, type MarketContext } from "../market-context";
-import { getCart } from "../medusa/cart";
 import { SHELL_PREFETCH } from "../site";
 import type { ActionResult } from "./action";
 import { formDataToObject } from "./action";
@@ -84,7 +83,7 @@ function drawerFor(
 }
 
 async function currentCart(context: MarketContext): Promise<Cart> {
-  const cart = await getCart(context.market.medusaLocale);
+  const cart = await marketCart(context);
   return cart === null ? emptyCart(context) : cartView(cart, context);
 }
 
@@ -136,7 +135,7 @@ export async function renderQuickCart(
 ): Promise<QuickParts | null> {
   const context = await contextOf(market);
   if (context === null || typeof lineId !== "string") return null;
-  const cart = await getCart(context.market.medusaLocale);
+  const cart = await marketCart(context);
   if (cart === null) return null;
   const view = await cartView(cart, context);
   const added = view.lines.find((line) => line.id === lineId);

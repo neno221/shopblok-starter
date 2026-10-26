@@ -155,6 +155,35 @@ describe("the cart through the SDK", () => {
     expect(calls).toHaveLength(1);
   });
 
+  it("reads a page's cart in the market's region: moved from another country's, with no cookie written (T54)", async () => {
+    jar.reset({ _medusa_cart_id: "cart_1" });
+    const calls = stubMedusaFetch((call) =>
+      call.method === "GET"
+        ? { body: { cart: wireCart } }
+        : { body: { cart: { ...wireCart, region_id: "reg_us", locale: "en-US" } } },
+    );
+    const { getMarketCart } = await import("./cart");
+    const cart = await getMarketCart({ regionId: "reg_us", locale: "en-US" });
+    expect(calls.map((call) => [call.method, call.url.pathname])).toEqual([
+      ["GET", "/store/carts/cart_1"],
+      ["POST", "/store/carts/cart_1"],
+    ]);
+    expect(calls[1]?.body).toEqual({ region_id: "reg_us", locale: "en-US" });
+    expect(cart?.regionId).toBe("reg_us");
+    expect(jar.writes).toEqual([]);
+  });
+
+  it("reads a page's cart already in the market with one call, and no cart as null", async () => {
+    jar.reset({ _medusa_cart_id: "cart_1" });
+    const calls = stubMedusaFetch(() => ({ body: { cart: wireCart } }));
+    const { getMarketCart } = await import("./cart");
+    expect((await getMarketCart({ regionId: "reg_eu", locale: "el-GR" }))?.id).toBe("cart_1");
+    expect(calls).toHaveLength(1);
+    jar.reset();
+    expect(await getMarketCart({ regionId: "reg_eu", locale: "el-GR" })).toBeNull();
+    expect(calls).toHaveLength(1);
+  });
+
   it("removes a line at quantity 0", async () => {
     jar.reset({ _medusa_cart_id: "cart_1" });
     const calls = stubMedusaFetch(() => ({

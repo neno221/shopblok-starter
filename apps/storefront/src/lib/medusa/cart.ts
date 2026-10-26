@@ -301,6 +301,15 @@ export async function getOrCreateCart(context: CartContext): Promise<CartDto> {
     await setCartId(cart.id);
     return toCartDto(cart as unknown as WireCart);
   }
+  return moveCart(existing, context, headers);
+}
+
+/** `cart` in the context's region and locale: itself when it is there, else moved (D65). */
+async function moveCart(
+  existing: CartDto,
+  context: CartContext,
+  headers: Record<string, string>,
+): Promise<CartDto> {
   if (existing.regionId === context.regionId && existing.locale === context.locale) return existing;
   const { cart } = await medusaRequest((sdk) =>
     sdk.store.cart.update(
@@ -311,6 +320,18 @@ export async function getOrCreateCart(context: CartContext): Promise<CartDto> {
     ),
   );
   return toCartDto(cart as unknown as WireCart);
+}
+
+/**
+ * The visitor's cart as this market's pages show it, or `null` (`getCart`'s): a cart made in
+ * another country is moved to this market's region first, so its prices, totals and shipping are
+ * this country's from the first page the visitor sees after a switch (D65, T54). It sets no cookie,
+ * so a page and a route handler may call it.
+ */
+export async function getMarketCart(context: CartContext): Promise<CartDto | null> {
+  const existing = await getCart(context.locale);
+  if (existing === null) return null;
+  return moveCart(existing, context, await headersFor(context.locale));
 }
 
 /** The cart the cookie names, for a write: an error when there is none (the action answers it). */

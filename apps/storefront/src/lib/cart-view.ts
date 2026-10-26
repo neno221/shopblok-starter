@@ -2,7 +2,7 @@ import "server-only";
 import type { Cart } from "@shopblok/registry/contracts";
 import type { PromoCodeError } from "@shopblok/ui/molecules/promo-code-field";
 import type { MarketContext } from "./market-context";
-import type { CartDto } from "./medusa/cart";
+import { getMarketCart, type CartDto } from "./medusa/cart";
 import { readProductsByIds } from "./medusa/products";
 import { toCart } from "./view-models/cart";
 
@@ -23,6 +23,10 @@ export async function cartView(cart: CartDto, context: MarketContext): Promise<C
         });
   return toCart(cart, products, context.hrefs);
 }
+
+/** The visitor's cart in this market's region and language (`getMarketCart`), or `null`. */
+export const marketCart = (context: MarketContext): Promise<CartDto | null> =>
+  getMarketCart({ regionId: context.region.id, locale: context.market.medusaLocale });
 
 /** An empty cart in the market's currency: what the cart page and the drawer draw without one. */
 export function emptyCart(context: MarketContext): Cart {

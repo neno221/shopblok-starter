@@ -1,5 +1,5 @@
 import { getMarketContext } from "../../../../lib/market-context";
-import { getCart } from "../../../../lib/medusa/cart";
+import { marketCart } from "../../../../lib/cart-view";
 import { firstOpenStep } from "../../../../lib/view-models/checkout";
 
 // D65 (T52): `/checkout` is a redirect to the step the visitor's cart has reached (contact and
@@ -13,7 +13,7 @@ export async function GET(_request: Request, { params }: Context): Promise<Respo
   const { market } = await params;
   const context = await getMarketContext(market);
   if (context === null) return new Response(null, { status: 404 });
-  const cart = await getCart(context.market.medusaLocale);
+  const cart = await marketCart(context);
   const path =
     cart === null || cart.lines.length === 0 ? "/cart" : `/checkout/${firstOpenStep(cart)}`;
   return new Response(null, {

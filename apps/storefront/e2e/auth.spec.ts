@@ -1,6 +1,6 @@
-import { readFileSync } from "node:fs";
 import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 import { catalogs } from "./support/catalogs";
+import { addToCart, checkOut, mailedCount, mailedLink, orderIdOf } from "./support/purchase";
 
 // T53 (D64, SPEC §8.2): the account in `/us`, against `next start` and the seeded Medusa, whose
 // e-mails the local notification provider prints in its log (`E2E_MEDUSA_LOG`: CI's
@@ -11,12 +11,12 @@ import { catalogs } from "./support/catalogs";
 // in with the new one; claims an order placed as a guest with the same address, which the e-mailed
 // link accepts. A second customer then asks for the first one's order page and return form by id
 // and gets the not-found page (SPEC §11.1: the ownership check, not Medusa, refuses: the Store API answers any
-// order by id). The specs share Medusa, so every address is new.
+// order by id). The specs share Medusa, so every address is new. The purchase's steps and the
+// e-mailed links are `support/purchase.ts`'s (T54).
 
 const en = catalogs.en;
 const auth = en.templates.auth;
 const PREFIX = "/us";
-const HANDLE = "demo-heritage-hoodie";
 const ADDRESS = {
   firstName: "Ada",
   lastName: "Lovelace",
@@ -28,40 +28,6 @@ const ADDRESS = {
 const JWT_COOKIE = "_medusa_jwt";
 
 test.describe.configure({ mode: "serial", timeout: 240_000 });
-
-/** The last link Medusa's log shows for `to` with `template`, waiting for it to be printed. */
-async function mailedLink(to: string, template: string, after = 0): Promise<string> {
-  const file = process.env["E2E_MEDUSA_LOG"];
-  if (!file) throw new Error("E2E_MEDUSA_LOG is not set: it is the log of the Medusa under test.");
-  let found: string[] = [];
-  await expect
-    .poll(
-      () => {
-        const pattern = new RegExp(
-          `notification to: '${to.replace(/[.+]/g, "\\$&")}' on the channel: 'email' with template: '${template}' and data: '(.*)'$`,
-          "gm",
-        );
-        found = [...readFileSync(file, "utf8").matchAll(pattern)].map(
-          (match) => (JSON.parse(match[1] ?? "{}") as { url?: string }).url ?? "",
-        );
-        return found.length;
-      },
-      { timeout: 30_000, message: `${template} to ${to} in ${file}` },
-    )
-    .toBeGreaterThan(after);
-  const url = new URL(found.at(-1) ?? "");
-  // The link names STOREFRONT_URL's origin; the page is opened on the server under test.
-  return url.pathname + url.search;
-}
-
-/** How many links of `template` went to `to` so far. */
-function mailedCount(to: string, template: string): number {
-  const file = process.env["E2E_MEDUSA_LOG"] ?? "";
-  return readFileSync(file, "utf8")
-    .split("\n")
-    .filter((line) => line.includes(`to: '${to}'`) && line.includes(`template: '${template}'`))
-    .length;
-}
 
 async function signIn(page: Page, email: string, password: string): Promise<void> {
   const form = page.locator('[data-slot="auth-login"]');
@@ -91,48 +57,11 @@ async function newCustomer(page: Page, email: string, password: string, name: st
   await expect(page).toHaveURL(new RegExp(`${PREFIX}/account$`));
 }
 
-/** The product's first variant's URL in `/us`, from the page's JSON-LD (as catalog.spec.ts does). */
-async function variantPath(page: Page): Promise<string> {
-  const html = await (await page.request.get(`${PREFIX}/products/${HANDLE}`)).text();
-  const text = /<script type="application\/ld\+json">([^<]*)<\/script>/.exec(html)?.[1] ?? "";
-  const graph = (
-    JSON.parse(text) as { "@graph": { "@type": string; offers?: { url: string }[] }[] }
-  )["@graph"];
-  const url = graph.find((node) => node["@type"] === "Product")?.offers?.[0]?.url;
-  if (url === undefined) throw new Error("the product has no offer");
-  const parsed = new URL(url);
-  return parsed.pathname + parsed.search;
-}
-
-async function addToCart(page: Page): Promise<void> {
-  await page.goto(await variantPath(page));
-  const box = page.locator('[data-slot="buy-box-island"] [data-slot="buy-box"]');
-  await expect(box.locator('[data-slot="buy-box-add"]')).not.toHaveAttribute("aria-disabled");
-  await box.locator('[data-slot="buy-box-add"]').click();
-  await expect(page.locator('[data-slot="quick-cart"]')).toBeVisible();
-  await page.keyboard.press("Escape");
-}
-
-/** The contact step (already filled or filled here) to the receipt; answers the order's id. */
-async function checkOut(page: Page, email?: string): Promise<string> {
+/** The contact step (already filled, or filled here with `email` and ADDRESS) to the receipt; answers the order's id. */
+async function buy(page: Page, email?: string): Promise<string> {
   await page.goto(`${PREFIX}/checkout/contact`);
-  const form = page.locator('[data-slot="address-form"]:visible');
-  if (email !== undefined) {
-    await page.getByLabel(en.templates.checkout.contact.email, { exact: true }).fill(email);
-    for (const [name, value] of Object.entries(ADDRESS))
-      await form.locator(`input[name="${name}"]`).fill(value);
-  }
-  await page.getByRole("button", { name: en.templates.checkout.contact.submit }).click();
-  await expect(page).toHaveURL(/\/checkout\/delivery$/);
-  await page
-    .locator('[data-slot="checkout-shipping"]:visible input[type="radio"]')
-    .first()
-    .check({ force: true });
-  await page.getByRole("button", { name: en.organisms.paymentStep.submit }).click();
-  await expect(page).toHaveURL(/\/checkout\/review$/);
-  await page.getByRole("button", { name: en.templates.checkout.review.place }).click();
-  await expect(page).toHaveURL(/\/order\/order_[^/]+\/confirmed$/);
-  return /\/order\/([^/]+)\/confirmed/.exec(page.url())?.[1] ?? "";
+  const address = email === undefined ? undefined : ADDRESS;
+  return orderIdOf(await checkOut(page, { words: en, email, address }));
 }
 
 const hasSession = async (context: BrowserContext) =>
@@ -156,8 +85,8 @@ test("register, refused until verified, verify, sign in, address at the checkout
   let guestOrder = "";
   let guestNumber = "";
   await test.step("a guest order, before the account exists", async () => {
-    await addToCart(guestPage);
-    guestOrder = await checkOut(guestPage, first.email);
+    await addToCart(guestPage, PREFIX);
+    guestOrder = await buy(guestPage, first.email);
     guestNumber = (
       await guestPage.locator('[data-slot="order-confirmation-number"]:visible').innerText()
     ).replace(/\D/g, "");
@@ -198,7 +127,7 @@ test("register, refused until verified, verify, sign in, address at the checkout
     await form.getByRole("button", { name: en.molecules.addressForm.submit }).click();
     await expect(page).toHaveURL(new RegExp(`${PREFIX}/account/addresses$`));
     await expect(page.getByRole("main")).toContainText(ADDRESS.address1);
-    await addToCart(page);
+    await addToCart(page, PREFIX);
     await page.goto(`${PREFIX}/checkout/contact`);
     await expect(page.getByLabel(en.templates.checkout.contact.email, { exact: true })).toHaveValue(
       first.email,
@@ -206,7 +135,7 @@ test("register, refused until verified, verify, sign in, address at the checkout
     await expect(
       page.locator('[data-slot="address-form"]:visible input[name="address1"]'),
     ).toHaveValue(ADDRESS.address1);
-    orderId = await checkOut(page);
+    orderId = await buy(page);
     await page.goto(`${PREFIX}/account/orders`);
     await expect(page.locator(`a[href$="/account/orders/${orderId}"]`).first()).toBeVisible();
   });

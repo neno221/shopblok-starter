@@ -1,9 +1,9 @@
 import "server-only";
 import type { Cart } from "@shopblok/registry/contracts";
 import { cacheLife, cacheTag } from "next/cache";
-import { cartView } from "./cart-view";
+import { cartView, marketCart } from "./cart-view";
 import { getMarketContext } from "./market-context";
-import { getCart, type CartDto } from "./medusa/cart";
+import type { CartDto } from "./medusa/cart";
 
 /**
  * The visitor's cart and its view model for the cart page and the checkout (D65): read once per
@@ -20,7 +20,7 @@ export async function readCheckoutCart(
   cacheLife({ stale: Infinity });
   const context = await getMarketContext(marketKey);
   if (context === null) return null;
-  const cart = await getCart(context.market.medusaLocale);
+  const cart = await marketCart(context);
   if (cart === null) return { cart: null, view: null };
   return { cart, view: await cartView(cart, context) };
 }

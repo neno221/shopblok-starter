@@ -1,6 +1,6 @@
 import "server-only";
 import type { Cart, MarketSuggestion } from "@shopblok/registry/contracts";
-import { cartView } from "../cart-view";
+import { cartView, marketCart } from "../cart-view";
 import { getMarketContext, type MarketContext } from "../market-context";
 import { findMarket } from "../markets/market";
 import { pathInMarket, suggestMarket } from "../markets/suggest";
@@ -99,7 +99,7 @@ export async function cartResponse(request: Request): Promise<Response> {
   try {
     const context = key === "" ? null : await getMarketContext(key);
     if (context === null) return json({ error: "unknown market" }, 404);
-    const cart = await getCart(context.market.medusaLocale);
+    const cart = await marketCart(context);
     const body: Cart | null = cart === null ? null : await cartView(cart, context);
     return json(body);
   } catch (error) {
