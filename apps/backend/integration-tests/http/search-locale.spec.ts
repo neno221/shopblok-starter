@@ -242,6 +242,10 @@ medusaIntegrationTestRunner({
             ["fr-FR", "chemise", "Chemise en lin"],
           ] as const) {
             const ids = await hitIds(q, locale);
+
+            // An empty `id[]` would list every product, so the hit itself is checked first.
+            expect(ids).toContain(linenId);
+
             const response = await api.get(
               `/store/products?${ids.map((id) => `id[]=${id}`).join("&")}` +
                 `&region_id=${seeded.regionId}&fields=id,title,*variants.calculated_price`,
