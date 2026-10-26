@@ -22,7 +22,7 @@
 
 import { buttonVariants, Button } from "@shopblok/ui/atoms/button";
 import { Icon } from "@shopblok/ui/atoms/icon";
-import { cartBadgeClassName } from "@shopblok/ui/lib/cart-badge";
+import { cartBadgeClassName } from "@shopblok/ui/lib/cart-badge-class";
 import { takesFocusWhenOpenedByAReader } from "@shopblok/ui/lib/reader-focus";
 import { cn } from "@shopblok/ui/lib/utils";
 import {

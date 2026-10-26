@@ -16,7 +16,7 @@
 
 import { buttonVariants, Button } from "@shopblok/ui/atoms/button";
 import { Icon } from "@shopblok/ui/atoms/icon";
-import { cartBadgeClassName } from "@shopblok/ui/lib/cart-badge";
+import { cartBadgeClassName } from "@shopblok/ui/lib/cart-badge-class";
 import { takesFocusWhenOpenedByAReader } from "@shopblok/ui/lib/reader-focus";
 import { cn } from "@shopblok/ui/lib/utils";
 import {
@@ -42,7 +42,9 @@ type QuickCartDropdownClientProps = {
     /** Said when the popover opens: "Added to your cart: Merino Ankle Socks". */
     announce: string;
   };
-  badge: string;
+  /** The badge's digits. Without them no badge is drawn, as in CartDrawer (the contract's count is
+   * positive, so QuickCartDropdown always passes them). */
+  badge?: string;
   /** The line just added, rendered by the server. */
   line: ReactNode;
   /** The cart's subtotal and count, rendered by the server. */
@@ -115,13 +117,15 @@ function QuickCartDropdownClient({
           <span className="sr-only">
             {copy.open}, {copy.items}
           </span>
-          <span
-            data-slot="quick-cart-badge"
-            aria-hidden="true"
-            className={cartBadgeClassName}
-          >
-            {badge}
-          </span>
+          {badge === undefined ? null : (
+            <span
+              data-slot="quick-cart-badge"
+              aria-hidden="true"
+              className={cartBadgeClassName}
+            >
+              {badge}
+            </span>
+          )}
         </PopoverTrigger>
         <PopoverContent
           data-slot="quick-cart"

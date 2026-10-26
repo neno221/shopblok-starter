@@ -17,12 +17,12 @@ import type { Messages } from "@shopblok/i18n";
 import { formatMessage } from "@shopblok/i18n/format";
 import { buttonVariants } from "@shopblok/ui/atoms/button";
 import { Icon } from "@shopblok/ui/atoms/icon";
-import { cartBadgeClassName, cartBadgeText } from "@shopblok/ui/lib/cart-badge";
+import { cartBadgeText } from "@shopblok/ui/lib/cart-badge";
+import { cartBadgeClassName } from "@shopblok/ui/lib/cart-badge-class";
 import { cn } from "@shopblok/ui/lib/utils";
 import { ShoppingBagIcon } from "lucide-react";
 import NextLink from "next/link";
 import type * as React from "react";
-
 
 type CartButtonProps = {
   /** The cart page. */
@@ -55,7 +55,7 @@ type LinkHref = React.ComponentProps<typeof NextLink>["href"];
 
 function CartButton({ href, count, copy, locale, prefetch, announce, className }: CartButtonProps) {
   const known = count !== undefined && Number.isInteger(count) && count >= 0;
-  const badge = known ? cartBadgeText(count, locale, copy.cartOverflow) : undefined;
+  const badge = cartBadgeText(count, locale, copy.cartOverflow);
   const words = known ? formatMessage(copy.cartItems, { count }, locale) : undefined;
   return (
     <>

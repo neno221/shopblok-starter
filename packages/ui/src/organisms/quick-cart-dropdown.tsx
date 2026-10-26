@@ -46,7 +46,7 @@ function QuickCartDropdown({
   triggerClassName,
   popupClassName,
 }: QuickCartDropdownProps) {
-  const badge = cartBadgeText(itemCount, locale, copy.overflow) ?? "";
+  const badge = cartBadgeText(itemCount, locale, copy.overflow);
   const { image } = added;
   const line = (
     <div data-slot="quick-cart-line" className="grid grid-cols-[4rem_minmax(0,1fr)] gap-3">

@@ -2,7 +2,9 @@ import { formatMessage, formatNumber } from "@shopblok/i18n/format";
 
 /**
  * The cart badge that CartButton, CartDrawer and QuickCartDropdown draw on the bag icon (T39's
- * review, item 8): the same digits, the same overflow rule and the same look in all three.
+ * review, item 8): the same digits, the same overflow rule and the same look in all three. The look is
+ * `cart-badge-class.ts`, apart from this module, so the client islands that only draw the badge
+ * do not bundle the formatter (PR 72's review, item 1).
  */
 
 /** The most the badge writes out; more is the catalog's overflow message ("99+"). */
@@ -25,10 +27,3 @@ export function cartBadgeText(
     ? formatMessage(overflow, { max: formatNumber(CART_BADGE_MAX, locale) }, locale)
     : formatNumber(count, locale);
 }
-
-/**
- * The badge's classes: on the icon's corner and out of the flow, so the button keeps its size when
- * the number arrives; hidden from pointer events (the button under it takes the click).
- */
-export const cartBadgeClassName =
-  "pointer-events-none absolute -end-0.5 -top-0.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-xs leading-none font-semibold text-primary-foreground tabular-nums ring-2 ring-background";
