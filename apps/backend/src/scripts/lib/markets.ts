@@ -32,6 +32,25 @@ export const SHIPPING_OPTION_NAME = "Standard";
 export const SHIPPING_OPTION_TYPE_CODE = "standard";
 
 /**
+ * The free return option in each zone (T53): what a customer's return ships back with
+ * (`POST /store/customers/me/returns` picks it by its type's code).
+ */
+export const RETURN_OPTION_NAME = "Return";
+
+export const RETURN_OPTION_TYPE_CODE = "return";
+
+/**
+ * The store's return reasons (T53, D64), found by `value` so an admin's new label survives. The
+ * account's return form lists them as the store wrote them.
+ */
+export const RETURN_REASONS = [
+  { value: "too_small", label: "Too small" },
+  { value: "too_large", label: "Too large" },
+  { value: "not_as_described", label: "Not as described" },
+  { value: "changed_mind", label: "Changed my mind" },
+] as const;
+
+/**
  * The shipping profile products and options go in: the one `db:migrate` creates
  * (`Default Shipping Profile`). Filtering on the type keeps an extra profile an
  * admin added from being picked just because it comes first.
