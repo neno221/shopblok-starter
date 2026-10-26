@@ -15,6 +15,7 @@ import type {
 import { CHECKOUT_STEP_IDS } from "@shopblok/registry/contracts";
 import type { CartAddressDto, CartDto } from "../medusa/cart";
 import type { ShippingOptionDto } from "../medusa/fulfillment";
+import type { CustomerAddressDto, CustomerDto } from "../medusa/customer";
 import type { OrderDto } from "../medusa/orders";
 import { SYSTEM_PAYMENT_PROVIDER } from "../medusa/payment";
 import { toCurrencyCode, toMoney, toProductImage, type Hrefs } from "./common";
@@ -127,6 +128,18 @@ export function toCheckoutSteps(
 export function formCountries(marketCountry: string, regionCountries: readonly string[]): string[] {
   const rest = regionCountries.filter((code) => code !== marketCountry);
   return regionCountries.includes(marketCountry) ? [marketCountry, ...rest] : [...rest];
+}
+
+/**
+ * The saved address that fills an empty contact step (T53): the customer's default when the region
+ * ships there, else the first saved address it ships to (PR 81 review, item 3).
+ */
+export function savedAddressFor(
+  customer: CustomerDto,
+  countries: readonly string[],
+): CustomerAddressDto | null {
+  const fits = customer.addresses.filter((address) => countries.includes(address.countryCode));
+  return fits.find((address) => address.isDefaultShipping) ?? fits[0] ?? null;
 }
 
 /**

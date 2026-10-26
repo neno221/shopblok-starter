@@ -2,7 +2,7 @@ import "server-only";
 import { addressFormat, type AddressFieldName } from "@shopblok/i18n";
 import { updateTag } from "next/cache";
 import { z } from "zod";
-import { getMarketContext, type MarketContext } from "../market-context";
+import type { MarketContext } from "../market-context";
 import {
   completeCart,
   getCart,
@@ -18,6 +18,7 @@ import { listShippingOptions } from "../medusa/fulfillment";
 import { listPaymentProviders, SYSTEM_PAYMENT_PROVIDER } from "../medusa/payment";
 import { toAddressInput } from "../view-models/address";
 import { action, ActionError, FieldsError, type FieldError } from "./action";
+import { contextFor, formText as text, marketKey } from "./inputs";
 
 // The checkout's actions (D65, T52): one per step, each on the visitor's own cart (the cookie's,
 // never an id from the form) in the market's region and language. Each checks what Medusa would
@@ -26,21 +27,7 @@ import { action, ActionError, FieldsError, type FieldError } from "./action";
 // code's pattern), the country against the region's, the shipping option against the cart's own
 // options and the payment against the region's providers. `updateTag("cart")` after each change.
 
-const marketKey = z.string().min(1).max(64);
 const id = z.string().min(1).max(128);
-/** A field as a form sends it: trimmed, empty is absent. */
-const text = (max: number) =>
-  z.preprocess(
-    (value) => (typeof value === "string" && value.trim() === "" ? undefined : value),
-    z.string().trim().max(max).optional(),
-  );
-
-async function contextFor(key: string): Promise<MarketContext> {
-  const context = await getMarketContext(key);
-  if (context === null) throw new ActionError("not-found", `no open market ${key}`);
-  return context;
-}
-
 /**
  * The visitor's open cart with at least one line, in this market's region and language (D65: a
  * cart from another country moves to this region, one in another language keeps its lines and

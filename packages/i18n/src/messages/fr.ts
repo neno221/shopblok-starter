@@ -844,5 +844,200 @@ export const fr: Messages = {
       payment: "Paiement",
       continue: "Continuer mes achats",
     },
+    auth: {
+      fields: {
+        email: "E-mail",
+        password: "Mot de passe",
+        newPassword: "Nouveau mot de passe",
+        passwordHint: "Au moins {min, number} caractères.",
+        firstName: "Prénom",
+        lastName: "Nom",
+        phone: "Téléphone",
+        optional: "(facultatif)",
+      },
+      login: {
+        title: "Se connecter",
+        lead: "Connectez-vous pour voir vos commandes et commander plus vite.",
+        submit: "Se connecter",
+        forgot: "Mot de passe oublié ?",
+        noAccount: "Nouveau ici ?",
+        register: "Créer un compte",
+        notices: {
+          verified:
+            "Votre adresse e-mail est vérifiée. Connectez-vous pour terminer la création de votre compte.",
+          "password-reset":
+            "Votre mot de passe a été modifié. Connectez-vous avec le nouveau.",
+          "signed-out": "Vous êtes déconnecté.",
+          "sign-in-required": "Connectez-vous pour voir votre compte.",
+        },
+      },
+      register: {
+        title: "Créer un compte",
+        lead: "Nous vous enverrons un lien pour vérifier votre adresse e-mail avant que le compte soit prêt.",
+        submit: "Créer le compte",
+        haveAccount: "Vous avez déjà un compte ?",
+        login: "Se connecter",
+      },
+      checkEmail: {
+        title: "Vérifiez votre adresse e-mail",
+        back: "Retour à la connexion",
+      },
+      forgot: {
+        title: "Réinitialiser votre mot de passe",
+        lead: "Saisissez l’adresse e-mail de votre compte et nous vous enverrons un lien pour choisir un nouveau mot de passe.",
+        submit: "Envoyer le lien",
+        sent: "Si un compte utilise {email}, un lien pour réinitialiser son mot de passe est en route.",
+        back: "Retour à la connexion",
+      },
+      reset: {
+        title: "Choisir un nouveau mot de passe",
+        lead: "Pour le compte {email}.",
+        submit: "Enregistrer le nouveau mot de passe",
+      },
+      linkExpired: {
+        title: "Ce lien ne fonctionne plus",
+        verify:
+          "Le lien a peut-être déjà été utilisé, ou il a expiré. Connectez-vous et nous vous en enverrons un nouveau.",
+        reset:
+          "Le lien a peut-être déjà été utilisé, ou il a expiré. Demandez-en un nouveau.",
+        restart: { verify: "Se connecter", reset: "Demander un nouveau lien" },
+      },
+      errors: {
+        required: "{field} est obligatoire.",
+        pattern: "Saisissez une adresse e-mail comme name@example.com.",
+        invalid: "{field} n’est pas valide.",
+        short: "Utilisez au moins {min, number} caractères.",
+      },
+      formErrors: {
+        credentials: "L’adresse e-mail ou le mot de passe n’est pas correct.",
+        "not-verified":
+          "Vérifiez d’abord votre adresse e-mail : ouvrez le lien que nous vous avons envoyé.",
+        exists:
+          "Un compte existe déjà avec cette adresse e-mail. Connectez-vous plutôt.",
+        rejected:
+          "Cela n’a pas fonctionné. Vérifiez vos informations et réessayez.",
+        unavailable:
+          "La boutique est injoignable pour le moment. Réessayez dans un instant.",
+      },
+    },
+    account: {
+      nav: {
+        overview: "Aperçu",
+        orders: "Commandes",
+        addresses: "Adresses",
+        paymentMethods: "Moyens de paiement",
+        returns: "Retours",
+        profile: "Profil",
+      },
+      overview: {
+        title: "Votre compte",
+        greeting: "Bon retour, {name}",
+        signedInAs: "Connecté en tant que {email}",
+        recent: "Commandes récentes",
+        allOrders: "Voir toutes les commandes",
+        manage: "Gérer votre compte",
+        addresses: "Adresses enregistrées",
+        addressesText:
+          "Ajoutez et modifiez les adresses de livraison de vos commandes.",
+        profile: "Profil",
+        profileText: "Votre nom et votre numéro de téléphone.",
+        lookup: "Retrouver une commande invité",
+        lookupText: "Ajoutez une commande passée sans vous connecter.",
+      },
+      orders: {
+        title: "Commandes",
+        lookup:
+          "Il manque une commande ? Ajoutez une commande passée en tant qu’invité.",
+      },
+      order: {
+        title: "Commande nº {number}",
+        placed: "Passée le {date}",
+        shipping: "Adresse de livraison",
+        delivery: "Livraison",
+        payment: "Paiement",
+        back: "Retour aux commandes",
+        return: "Retourner des articles",
+      },
+      addresses: {
+        title: "Adresses",
+      },
+      address: {
+        titleNew: "Ajouter une adresse",
+        titleEdit: "Modifier l’adresse",
+        defaultShipping: "Utiliser comme adresse de livraison par défaut",
+        back: "Retour aux adresses",
+      },
+      paymentMethods: {
+        title: "Moyens de paiement",
+        note: "Vous pourrez enregistrer vos cartes au paiement dès que les paiements par carte seront disponibles.",
+      },
+      returns: {
+        title: "Retours",
+        lead: "Choisissez la commande contenant les articles que vous souhaitez retourner.",
+        emptyTitle: "Rien à retourner",
+        emptyText:
+          "Les commandes dont vous pouvez retourner des articles apparaissent ici.",
+        emptyAction: "Voir vos commandes",
+      },
+      return: {
+        title: "Retourner des articles",
+        sent: "Votre demande de retour a été envoyée. Nous vous écrirons pour vous indiquer la suite.",
+        back: "Retour aux retours",
+      },
+      profile: {
+        title: "Profil",
+        email: "E-mail",
+        emailNote: "C’est l’adresse avec laquelle vous vous connectez.",
+        submit: "Enregistrer les modifications",
+        saved: "Vos modifications ont été enregistrées.",
+      },
+      formErrors: {
+        "not-found": "Cet élément ne fait pas partie de votre compte.",
+        rejected:
+          "La modification n’a pas pu être enregistrée. Vérifiez vos informations et réessayez.",
+        unavailable:
+          "La boutique est injoignable pour le moment. Réessayez dans un instant.",
+        unauthorized: "Votre session a expiré. Connectez-vous à nouveau.",
+      },
+    },
+    orderLookup: {
+      title: "Retrouver une commande invité",
+      lead: "Vous avez commandé sans vous connecter ? Saisissez le numéro de la commande et l’adresse e-mail utilisée, et nous enverrons à cette adresse un lien pour ajouter la commande à votre compte.",
+      number: "Numéro de commande",
+      numberHint: "Le numéro figurant sur votre reçu, par exemple 1042.",
+      email: "E-mail utilisé pour la commande",
+      submit: "Envoyer le lien",
+      sent: "Si les informations correspondent à une commande, son adresse e-mail a maintenant reçu un lien pour l’ajouter à votre compte.",
+      account: "Retour à votre compte",
+      signIn: {
+        text: "Connectez-vous avec une adresse e-mail vérifiée pour ajouter une commande passée en tant qu’invité.",
+        login: "Se connecter",
+        register: "Créer un compte",
+      },
+      transfer: {
+        title: "Ajouter la commande nº {number} à un compte",
+        lead: "Une personne ayant un compte a demandé à y ajouter cette commande. Si c’était vous, acceptez. Sinon, refusez et rien ne changera.",
+        accept: "Accepter",
+        decline: "Refuser",
+      },
+      done: {
+        accepted: "La commande fait maintenant partie du compte.",
+        declined: "La demande a été refusée. Rien n’a changé.",
+        failed: "Ce lien ne fonctionne plus. Il a peut-être déjà été utilisé.",
+        home: "Continuer mes achats",
+      },
+      errors: {
+        required: "{field} est obligatoire.",
+        pattern: "Saisissez une adresse e-mail comme name@example.com.",
+        number: "Saisissez le numéro de commande, uniquement des chiffres.",
+      },
+      formErrors: {
+        mine: "Cette commande est déjà dans votre compte.",
+        rejected:
+          "La demande n’a pas pu être envoyée. Vérifiez les informations et réessayez.",
+        unavailable:
+          "La boutique est injoignable pour le moment. Réessayez dans un instant.",
+      },
+    },
   },
 };

@@ -1,4 +1,6 @@
 import type {
+  AccountPage,
+  AuthPage,
   CartPage,
   CheckoutPage,
   ErrorPage,
@@ -6,6 +8,7 @@ import type {
   ListingResults,
   NotFoundPage,
   OrderConfirmationPage,
+  OrderLookupPage,
   ProductDetailPage,
   ProductListingPage,
   QueryParam,
@@ -56,6 +59,45 @@ export type PageFixtures = {
   checkout: { contact: CheckoutPage; delivery: CheckoutPage; review: CheckoutPage };
   /** The receipt (T52): the order placed and paid, with its summary. */
   orderConfirmation: OrderConfirmationPage;
+  /**
+   * The sign-in and registration pages (T53): sign in (blank, and after the e-mail's link), the
+   * registration, the e-mail to check, the reset link asked for and sent, the new password, and a
+   * link that no longer works.
+   */
+  auth: {
+    login: AuthPage;
+    verified: AuthPage;
+    register: AuthPage;
+    checkEmail: AuthPage;
+    forgot: AuthPage;
+    forgotSent: AuthPage;
+    reset: AuthPage;
+    linkExpired: AuthPage;
+  };
+  /**
+   * The account (T53), one page per screen: the overview with the two orders, the orders, the
+   * placed order, the address book, an address to change, the payment methods (none until M6),
+   * the returns, the delivered order's return form, and the profile.
+   */
+  account: {
+    overview: AccountPage;
+    orders: AccountPage;
+    order: AccountPage;
+    addresses: AccountPage;
+    address: AccountPage;
+    paymentMethods: AccountPage;
+    returns: AccountPage;
+    return: AccountPage;
+    profile: AccountPage;
+  };
+  /** The guest-order claim (T53): the form, a claim sent, the sign-in, the link's page, accepted. */
+  orderLookup: {
+    lookup: OrderLookupPage;
+    sent: OrderLookupPage;
+    signIn: OrderLookupPage;
+    transfer: OrderLookupPage;
+    accepted: OrderLookupPage;
+  };
 };
 
 /** The sort as a listing offers it: newest, then by price; a search puts relevance first. */
@@ -117,6 +159,24 @@ function pagesFor(locale: DesignSystemLocale): PageFixtures {
     ...typed
   } = placed.shippingAddress;
   const contactHref = `${home}/checkout/contact`;
+  const loginHref = `${home}/login`;
+  const lookupHref = `${home}/order/lookup`;
+  const login = (
+    fields: Partial<Extract<AuthPage["screen"], { kind: "login" }>>,
+  ): AuthPage["screen"] => ({
+    kind: "login",
+    email: "",
+    registerHref: `${home}/register`,
+    forgotHref: `${home}/forgot-password`,
+    ...fields,
+  });
+  const accountParts = fixtures.account;
+  const account = (
+    current: AccountPage["nav"]["current"],
+    screen: AccountPage["screen"],
+  ): AccountPage => ({ variant: "default", nav: { ...accountParts.nav, current }, screen });
+  const bookAddress = accountParts.addressBook.full.entries[0]?.address;
+  if (bookAddress === undefined) throw new Error("the address book is empty");
   const deliveryHref = `${home}/checkout/delivery`;
   return {
     notFound: {
@@ -231,6 +291,134 @@ function pagesFor(locale: DesignSystemLocale): PageFixtures {
       order: placed,
       summary: orderSummary(placed),
       continueHref: storeHref,
+    },
+    auth: {
+      login: { variant: "default", screen: login({ email: "" }) },
+      verified: { variant: "default", screen: login({ email: placed.email, notice: "verified" }) },
+      register: {
+        variant: "default",
+        screen: {
+          kind: "register",
+          values: { email: "", firstName: "", lastName: "", phone: "" },
+          loginHref,
+        },
+      },
+      checkEmail: {
+        variant: "default",
+        screen: {
+          kind: "check-email",
+          verification: checkoutFlow.verification.waiting,
+          loginHref,
+        },
+      },
+      forgot: { variant: "default", screen: { kind: "forgot", email: "", sent: false, loginHref } },
+      forgotSent: {
+        variant: "default",
+        screen: { kind: "forgot", email: placed.email, sent: true, loginHref },
+      },
+      reset: {
+        variant: "default",
+        screen: { kind: "reset", email: placed.email, token: "reset-token", loginHref },
+      },
+      linkExpired: {
+        variant: "default",
+        screen: { kind: "link-expired", link: "verify", restartHref: loginHref },
+      },
+    },
+    account: {
+      overview: account("overview", {
+        kind: "overview",
+        firstName: placed.shippingAddress.firstName,
+        email: placed.email,
+        recent: accountParts.orders.list,
+        ordersHref: `${home}/account/orders`,
+        addressesHref: `${home}/account/addresses`,
+        profileHref: `${home}/account/profile`,
+        lookupHref,
+      }),
+      orders: account("orders", {
+        kind: "orders",
+        table: accountParts.orders.list,
+        page: { page: 1, pageCount: 1 },
+        pageHref: `${home}/account/orders`,
+        lookupHref,
+      }),
+      order: account("orders", {
+        kind: "order",
+        order: placed,
+        summary: orderSummary(placed),
+        backHref: `${home}/account/orders`,
+        returnHref: `${home}/account/returns/${placed.id}`,
+      }),
+      addresses: account("addresses", { kind: "addresses", book: accountParts.addressBook.full }),
+      address: account("addresses", {
+        kind: "address",
+        addressId: bookAddress.id,
+        address: {
+          countries: checkoutFlow.estimator.answered.countries,
+          values: bookAddress,
+        },
+        isDefaultShipping: bookAddress.isDefaultShipping === true,
+        backHref: `${home}/account/addresses`,
+      }),
+      paymentMethods: account("payment-methods", {
+        kind: "payment-methods",
+        wallet: { cards: [] },
+      }),
+      returns: account("returns", {
+        kind: "returns",
+        table: {
+          ...accountParts.orders.list,
+          orders: accountParts.orders.list.orders
+            .filter((order) => order.id === accountParts.returnRequest.blank.orderId)
+            .map((order) => ({ ...order, href: `${home}/account/returns/${order.id}` })),
+        },
+      }),
+      return: account("returns", {
+        kind: "return",
+        request: accountParts.returnRequest.filled,
+        sent: false,
+        backHref: `${home}/account/returns`,
+      }),
+      profile: account("profile", {
+        kind: "profile",
+        email: placed.email,
+        values: {
+          firstName: placed.shippingAddress.firstName,
+          lastName: placed.shippingAddress.lastName,
+          phone: placed.shippingAddress.phone ?? "",
+        },
+        saved: false,
+      }),
+    },
+    orderLookup: {
+      lookup: {
+        variant: "default",
+        screen: {
+          kind: "lookup",
+          values: { number: "", email: "" },
+          sent: false,
+          accountHref: `${home}/account`,
+        },
+      },
+      sent: {
+        variant: "default",
+        screen: {
+          kind: "lookup",
+          values: { number: String(placed.displayId), email: placed.email },
+          sent: true,
+          accountHref: `${home}/account`,
+        },
+      },
+      signIn: {
+        variant: "default",
+        screen: { kind: "sign-in", loginHref, registerHref: `${home}/register` },
+      },
+      transfer: { variant: "default", screen: { kind: "transfer", displayId: placed.displayId } },
+      accepted: {
+        variant: "default",
+        screen: { kind: "transfer-done", outcome: "accepted", homeHref: storeHref },
+      },
     },
   };
 }

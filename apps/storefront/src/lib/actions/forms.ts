@@ -20,16 +20,16 @@ import { contactAction, deliveryAction, placeOrderAction } from "./checkout-hand
 type Handler = (input: unknown) => Promise<ActionResult<unknown>>;
 
 /** A redirect to a URL the market built: typed routes cannot know a market's public paths. */
-const go = (url: string): never => redirect(url as Parameters<typeof redirect>[0]);
+export const go = (url: string): never => redirect(url as Parameters<typeof redirect>[0]);
 
 /** The market's page at `path`, or the shop's root for a key that names no open market. */
-async function pageOf(market: string, path: string): Promise<string> {
+export async function pageOf(market: string, path: string): Promise<string> {
   const context = await getMarketContext(market);
   return context === null ? "/" : context.url(path);
 }
 
 /** What a form sent, as strings: what a flash may give back to the form. */
-function typed(data: FormData, names: readonly string[]): Record<string, string> {
+export function typed(data: FormData, names: readonly string[]): Record<string, string> {
   const values: Record<string, string> = {};
   for (const name of names) {
     const value = data.get(name);

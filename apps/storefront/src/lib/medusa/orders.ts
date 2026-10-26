@@ -19,6 +19,12 @@ export type OrderLineDto = {
   quantity: number;
   unitPrice: Money;
   total: Money;
+  /** How many were packed, shipped, delivered, asked back and received back (Medusa's detail). */
+  fulfilled: number;
+  shipped: number;
+  delivered: number;
+  returnRequested: number;
+  returnReceived: number;
 };
 
 export type OrderDto = {
@@ -27,6 +33,7 @@ export type OrderDto = {
   email: string | null;
   customerId: string | null;
   createdAt: string;
+  updatedAt: string;
   status: string;
   currencyCode: string;
   lines: OrderLineDto[];
@@ -48,6 +55,7 @@ type WireOrder = {
   email?: string | null;
   customer_id?: string | null;
   created_at?: string | Date | null;
+  updated_at?: string | Date | null;
   status?: string | null;
   currency_code: string;
   item_subtotal?: number | null;
@@ -70,6 +78,13 @@ type WireOrder = {
         quantity?: number | null;
         unit_price?: number | null;
         total?: number | null;
+        detail?: {
+          fulfilled_quantity?: number | null;
+          shipped_quantity?: number | null;
+          delivered_quantity?: number | null;
+          return_requested_quantity?: number | null;
+          return_received_quantity?: number | null;
+        } | null;
       } | null)[]
     | null;
 };
@@ -85,6 +100,7 @@ export function toOrderDto(order: WireOrder): OrderDto {
     email: order.email ?? null,
     customerId: order.customer_id ?? null,
     createdAt: new Date(order.created_at ?? 0).toISOString(),
+    updatedAt: new Date(order.updated_at ?? order.created_at ?? 0).toISOString(),
     status: order.status ?? "pending",
     currencyCode: order.currency_code,
     lines: (order.items ?? []).flatMap((item) =>
@@ -100,6 +116,11 @@ export function toOrderDto(order: WireOrder): OrderDto {
               quantity: item.quantity ?? 0,
               unitPrice: money(item.unit_price),
               total: money(item.total),
+              fulfilled: item.detail?.fulfilled_quantity ?? 0,
+              shipped: item.detail?.shipped_quantity ?? 0,
+              delivered: item.detail?.delivered_quantity ?? 0,
+              returnRequested: item.detail?.return_requested_quantity ?? 0,
+              returnReceived: item.detail?.return_received_quantity ?? 0,
             },
           ],
     ),
@@ -121,8 +142,8 @@ export function toOrderDto(order: WireOrder): OrderDto {
 }
 
 const ORDER_FIELDS = [
-  "id,display_id,email,customer_id,created_at,status,currency_code",
-  "item_subtotal,discount_total,shipping_total,tax_total,total,*items",
+  "id,display_id,email,customer_id,created_at,updated_at,status,currency_code",
+  "item_subtotal,discount_total,shipping_total,tax_total,total,*items,*items.detail",
   "*shipping_address,*shipping_methods,*payment_collections,*payment_collections.payments",
 ].join(",");
 
@@ -235,4 +256,85 @@ export async function declineOrderTransfer(orderId: string, token: string): Prom
   return medusaRequest((sdk) => sdk.store.order.declineTransfer(orderId, { token }, {}, headers))
     .then(() => true)
     .catch(() => false);
+}
+
+/**
+ * How many of a line may still be sent back: what was packed for it and has not been asked back
+ * or received back already. Nothing before it is fulfilled (a return is of what the shopper has).
+ */
+export function returnableOf(line: OrderLineDto): number {
+  return Math.max(0, line.fulfilled - line.returnRequested - line.returnReceived);
+}
+
+export type ReturnReasonDto = { id: string; label: string };
+
+/** The store's return reasons (T53, the seed's four), as the shop wrote them. */
+export async function listReturnReasons(): Promise<ReturnReasonDto[]> {
+  const { return_reasons } = await medusaRequest((sdk) =>
+    sdk.client.fetch<{ return_reasons: { id: string; label?: string | null }[] }>(
+      "/store/return-reasons",
+      { query: { fields: "id,label" } },
+    ),
+  );
+  return return_reasons.map((reason) => ({
+    id: reason.id,
+    label: reason.label || reason.id,
+  }));
+}
+
+/**
+ * A return of the customer's own order (T53): the backend's `/store/customers/me/returns`, which
+ * checks the order is the token's customer's and ships it back with the zone's free return option.
+ */
+export async function createCustomerReturn(input: {
+  orderId: string;
+  items: { id: string; quantity: number }[];
+  reasonId: string;
+  note?: string;
+}): Promise<void> {
+  const headers = await getAuthHeaders();
+  if (headers === undefined) throw new MedusaRequestError("Nobody is signed in", "rejected", 401);
+  await medusaRequest((sdk) =>
+    sdk.client.fetch("/store/customers/me/returns", {
+      method: "POST",
+      headers,
+      body: {
+        order_id: input.orderId,
+        items: input.items,
+        reason_id: input.reasonId,
+        ...(input.note === undefined ? {} : { note: input.note }),
+      },
+    }),
+  );
+}
+
+/**
+ * Claims a guest order by its number and e-mail (T53, D64): the backend's
+ * `/store/customers/me/order-transfers`, which e-mails the order's address a link to accept it
+ * (in the market's prefix). A number and an e-mail that match no order are a 404.
+ */
+export async function claimOrder(displayId: number, email: string, prefix: string): Promise<void> {
+  const headers = await getAuthHeaders();
+  if (headers === undefined) throw new MedusaRequestError("Nobody is signed in", "rejected", 401);
+  await medusaRequest((sdk) =>
+    sdk.client.fetch("/store/customers/me/order-transfers", {
+      method: "POST",
+      headers,
+      body: { display_id: displayId, email, market: prefix },
+    }),
+  );
+}
+
+/** An order's number by its id, for the transfer link's page (the Store API answers anyone). */
+export async function getOrderNumber(id: string): Promise<number | null> {
+  try {
+    const { order } = await medusaRequest((sdk) =>
+      sdk.store.order.retrieve(id, { fields: "id,display_id" }),
+    );
+    const number = (order as { display_id?: number | null }).display_id;
+    return typeof number === "number" && number > 0 ? number : null;
+  } catch (error) {
+    if (error instanceof MedusaRequestError && error.status === 404) return null;
+    throw error;
+  }
 }

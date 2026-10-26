@@ -940,6 +940,197 @@ export const en = {
       payment: "Payment",
       continue: "Continue shopping",
     },
+    auth: {
+      // Signing in and up (T53, D64): each screen's heading and lead, the fields, the buttons, the
+      // ways between the screens, and what a failed form says.
+      fields: {
+        email: "Email",
+        password: "Password",
+        newPassword: "New password",
+        // Under a new password, so the shopper knows the rule before typing.
+        passwordHint: "At least {min, number} characters.",
+        firstName: "First name",
+        lastName: "Last name",
+        phone: "Phone",
+        optional: "(optional)",
+      },
+      login: {
+        title: "Sign in",
+        lead: "Sign in to see your orders and check out faster.",
+        submit: "Sign in",
+        forgot: "Forgot your password?",
+        noAccount: "New here?",
+        register: "Create an account",
+        notices: {
+          verified: "Your email address is verified. Sign in to finish creating your account.",
+          "password-reset": "Your password has been changed. Sign in with the new one.",
+          "signed-out": "You have signed out.",
+          "sign-in-required": "Sign in to see your account.",
+        },
+      },
+      register: {
+        title: "Create an account",
+        lead: "We will send you a link to verify your email address before the account is ready.",
+        submit: "Create account",
+        haveAccount: "Already have an account?",
+        login: "Sign in",
+      },
+      checkEmail: {
+        title: "Verify your email address",
+        back: "Back to sign in",
+      },
+      forgot: {
+        title: "Reset your password",
+        lead: "Enter the email address of your account and we will send you a link to choose a new password.",
+        submit: "Send the link",
+        sent: "If an account uses {email}, a link to reset its password is on its way.",
+        back: "Back to sign in",
+      },
+      reset: {
+        title: "Choose a new password",
+        lead: "For the account {email}.",
+        submit: "Save the new password",
+      },
+      linkExpired: {
+        title: "This link no longer works",
+        verify:
+          "The link may have been used already, or it has expired. Sign in and we will send a new one.",
+        reset: "The link may have been used already, or it has expired. Ask for a new one.",
+        restart: { verify: "Sign in", reset: "Ask for a new link" },
+      },
+      // A field's own error, by its kind (T34's).
+      errors: {
+        required: "{field} is required.",
+        pattern: "Enter an email address like name@example.com.",
+        invalid: "{field} is not valid.",
+        short: "Use at least {min, number} characters.",
+      },
+      // The form's error when no field is to blame.
+      formErrors: {
+        credentials: "The email address or the password is not right.",
+        "not-verified": "Verify your email address first: open the link we sent you.",
+        exists: "An account with this email address exists already. Sign in instead.",
+        rejected: "That did not work. Check what you entered and try again.",
+        unavailable: "The store could not be reached. Please try again in a moment.",
+      },
+    },
+    account: {
+      // The account (T53): AccountNav's pages, each screen's heading and words, and what a failed
+      // form says.
+      nav: {
+        overview: "Overview",
+        orders: "Orders",
+        addresses: "Addresses",
+        paymentMethods: "Payment methods",
+        returns: "Returns",
+        profile: "Profile",
+      },
+      overview: {
+        title: "Your account",
+        // With the customer's first name.
+        greeting: "Welcome back, {name}",
+        signedInAs: "Signed in as {email}",
+        recent: "Recent orders",
+        allOrders: "View all orders",
+        manage: "Manage your account",
+        addresses: "Saved addresses",
+        addressesText: "Add and change where your orders go.",
+        profile: "Profile",
+        profileText: "Your name and phone number.",
+        lookup: "Find a guest order",
+        lookupText: "Add an order you placed without signing in.",
+      },
+      orders: {
+        title: "Orders",
+        lookup: "Missing an order? Add an order you placed as a guest.",
+      },
+      order: {
+        title: "Order #{number}",
+        placed: "Placed on {date}",
+        shipping: "Shipping address",
+        delivery: "Delivery",
+        payment: "Payment",
+        back: "Back to orders",
+        return: "Return items",
+      },
+      addresses: {
+        title: "Addresses",
+      },
+      address: {
+        titleNew: "Add an address",
+        titleEdit: "Change the address",
+        defaultShipping: "Use as my default shipping address",
+        back: "Back to addresses",
+      },
+      paymentMethods: {
+        title: "Payment methods",
+        note: "Cards can be saved at checkout once card payments are available.",
+      },
+      returns: {
+        title: "Returns",
+        lead: "Choose the order with the items you would like to send back.",
+        emptyTitle: "Nothing to return",
+        emptyText: "Orders you can return items from appear here.",
+        emptyAction: "View your orders",
+      },
+      return: {
+        title: "Return items",
+        sent: "Your return request has been sent. We will email you what to do next.",
+        back: "Back to returns",
+      },
+      profile: {
+        title: "Profile",
+        email: "Email",
+        emailNote: "This is the address you sign in with.",
+        submit: "Save changes",
+        saved: "Your changes have been saved.",
+      },
+      formErrors: {
+        "not-found": "That is not part of your account.",
+        rejected: "The change could not be saved. Check what you entered and try again.",
+        unavailable: "The store could not be reached. Please try again in a moment.",
+        unauthorized: "Your session has ended. Sign in again.",
+      },
+    },
+    orderLookup: {
+      // The claim of a guest order (T53, D64): the form, the page for a visitor who is not signed
+      // in, and the e-mail link's page.
+      title: "Find a guest order",
+      lead: "Placed an order without signing in? Enter its number and the email address you used, and we will send that address a link to add the order to your account.",
+      number: "Order number",
+      numberHint: "The number on your receipt, such as 1042.",
+      email: "Email used for the order",
+      submit: "Send the link",
+      sent: "If the details match an order, its email address now has a link to add it to your account.",
+      account: "Back to your account",
+      signIn: {
+        text: "Sign in with a verified email address to add an order you placed as a guest.",
+        login: "Sign in",
+        register: "Create an account",
+      },
+      transfer: {
+        title: "Add order #{number} to an account",
+        lead: "Someone with an account asked to add this order to it. If that was you, accept. If not, decline and nothing changes.",
+        accept: "Accept",
+        decline: "Decline",
+      },
+      done: {
+        accepted: "The order is now part of the account.",
+        declined: "The request has been declined. Nothing changed.",
+        failed: "This link no longer works. It may have been used already.",
+        home: "Continue shopping",
+      },
+      errors: {
+        required: "{field} is required.",
+        pattern: "Enter an email address like name@example.com.",
+        number: "Enter the order number, digits only.",
+      },
+      formErrors: {
+        mine: "This order is already in your account.",
+        rejected: "The request could not be sent. Check the details and try again.",
+        unavailable: "The store could not be reached. Please try again in a moment.",
+      },
+    },
   },
 };
 

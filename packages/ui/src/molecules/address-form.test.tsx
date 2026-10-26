@@ -213,6 +213,17 @@ describe("AddressForm", () => {
       expect(screen.getAllByRole("button")).toHaveLength(1);
     });
 
+    it("renders its children inside the form, after the fields and before the submit button", () => {
+      const { container } = setup("en", { children: <input type="checkbox" name="extra" /> });
+      const form = screen.getByRole("form", { name: "Address" });
+      const extra = container.querySelector('input[name="extra"]') as HTMLElement;
+      expect(form.contains(extra)).toBe(true);
+      const submit = container.querySelector('button[type="submit"]') as HTMLElement;
+      expect(extra.compareDocumentPosition(submit) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      const phone = control(container, "phone");
+      expect(phone.compareDocumentPosition(extra) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    });
+
     it.each([
       ["shipping", "Shipping address"],
       ["billing", "Billing address"],
@@ -432,11 +443,9 @@ describe("AddressForm", () => {
         }
       }
       expect(problems).toEqual([]);
-    },
-    // Renders every country's form: a few seconds, which passed the 5 s default on a busy
+    }, // Renders every country's form: a few seconds, which passed the 5 s default on a busy
     // runner (PR 56 CI).
-    30_000,
-    );
+    30_000);
 
     it("has no city field for the seven countries whose format has none, and those are all (D65)", () => {
       const NO_CITY = ["ae", "gi", "jp", "ky", "mo", "nr", "sg"];
@@ -554,11 +563,9 @@ describe("AddressForm", () => {
         }
       }
       expect(problems).toEqual([]);
-    },
-    // Renders every country's form: a few seconds, which passed the 5 s default on a busy
+    }, // Renders every country's form: a few seconds, which passed the 5 s default on a busy
     // runner (PR 56 CI).
-    30_000,
-    );
+    30_000);
 
     it("types each field for its keyboard: text, and tel for the phone", () => {
       const { container } = setup("en", { values: { countryCode: "de" } });

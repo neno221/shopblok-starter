@@ -1,8 +1,10 @@
 import { OrderConfirmationPage } from "@shopblok/registry/contracts";
 import { describe, expect, it } from "vitest";
 import type { CartAddressDto, CartDto } from "../medusa/cart";
+import type { CustomerAddressDto, CustomerDto } from "../medusa/customer";
 import type { OrderDto } from "../medusa/orders";
 import {
+  savedAddressFor,
   canOpen,
   firstOpenStep,
   stepsDone,
@@ -127,6 +129,51 @@ describe("toAddressFormState", () => {
   });
 });
 
+describe("savedAddressFor (T53)", () => {
+  const address = (
+    id: string,
+    countryCode: string,
+    isDefaultShipping = false,
+  ): CustomerAddressDto => ({
+    id,
+    firstName: "Ada",
+    lastName: "Lovelace",
+    company: null,
+    address1: "1 Main Street",
+    address2: null,
+    city: "Springfield",
+    province: null,
+    postalCode: null,
+    countryCode,
+    phone: null,
+    isDefaultShipping,
+    isDefaultBilling: false,
+  });
+  const customer = (addresses: CustomerAddressDto[]): CustomerDto => ({
+    id: "cus_1",
+    email: "ada@example.com",
+    firstName: null,
+    lastName: null,
+    phone: null,
+    addresses,
+  });
+
+  it("takes the default when the region ships there", () => {
+    const book = [address("a", "us"), address("b", "us", true)];
+    expect(savedAddressFor(customer(book), ["us"])?.id).toBe("b");
+  });
+
+  it("takes the first address the region ships to when the default is elsewhere", () => {
+    const book = [address("de", "de", true), address("us", "us")];
+    expect(savedAddressFor(customer(book), ["us", "ca"])?.id).toBe("us");
+  });
+
+  it("is null when no saved address is in the region", () => {
+    expect(savedAddressFor(customer([address("de", "de", true)]), ["us"])).toBeNull();
+    expect(savedAddressFor(customer([]), ["us"])).toBeNull();
+  });
+});
+
 describe("toReviewStep", () => {
   const editHrefs = { contact: "/checkout", delivery: "/checkout/delivery" };
 
@@ -158,6 +205,7 @@ describe("toOrderConfirmation", () => {
     email: "anna@example.com",
     customerId: null,
     createdAt: "2026-10-26T10:00:00.000Z",
+    updatedAt: "2026-10-26T10:00:00.000Z",
     status: "pending",
     currencyCode: "eur",
     lines: [
@@ -170,6 +218,11 @@ describe("toOrderConfirmation", () => {
         quantity: 2,
         unitPrice: { amount: 14, currencyCode: "eur" },
         total: { amount: 28, currencyCode: "eur" },
+        fulfilled: 0,
+        shipped: 0,
+        delivered: 0,
+        returnRequested: 0,
+        returnReceived: 0,
       },
     ],
     subtotal: { amount: 28, currencyCode: "eur" },

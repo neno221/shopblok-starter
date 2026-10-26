@@ -1,10 +1,13 @@
 import {
+  AccountPage,
+  AuthPage,
   CartPage,
   CheckoutPage,
   ErrorPage,
   HomePage,
   NotFoundPage,
   OrderConfirmationPage,
+  OrderLookupPage,
   ProductDetailPage,
   ProductListingPage,
   SearchResultsPage,
@@ -50,4 +53,8 @@ export const templates = [
     "OrderConfirmationTemplate",
     OrderConfirmationPage,
   ),
+  // T53: signing in and up, the account and the claim of a guest order.
+  template("auth", "Sign in and register", "AuthTemplate", AuthPage),
+  template("account", "Account", "AccountTemplate", AccountPage),
+  template("order-lookup", "Order lookup", "OrderLookupTemplate", OrderLookupPage),
 ] as const satisfies readonly EntryInput[];

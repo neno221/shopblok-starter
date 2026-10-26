@@ -19,7 +19,8 @@
  * its currencies and the locales of D8. It then adds the regions with a tax
  * region per country, and fulfilment: a stock location with one fulfilment set,
  * one service zone per region and a "Standard" shipping option in each, priced
- * in the region's currency. The currencies, regions and locales come from
+ * in the region's currency, with a free "Return" option beside it, and the
+ * store's return reasons (T53). The currencies, regions and locales come from
  * `src/config/markets.ts`, which explains how to open another market.
  */
 import type { ExecArgs } from "@medusajs/framework/types";
@@ -34,6 +35,7 @@ import {
   createLinksWorkflow,
   createLocationFulfillmentSetWorkflow,
   createRegionsWorkflow,
+  createReturnReasonsWorkflow,
   createSalesChannelsWorkflow,
   createServiceZonesWorkflow,
   createShippingOptionsWorkflow,
@@ -53,6 +55,9 @@ import {
   type MarketRegion,
   PAYMENT_PROVIDER_ID,
   PUBLISHABLE_KEY_TITLE,
+  RETURN_OPTION_NAME,
+  RETURN_OPTION_TYPE_CODE,
+  RETURN_REASONS,
   SALES_CHANNEL_NAME,
   SHIPPING_OPTION_NAME,
   SHIPPING_OPTION_TYPE_CODE,
@@ -429,6 +434,66 @@ export default async function seedMarkets({ container }: ExecArgs) {
     );
   } else {
     logger.info(`All "${SHIPPING_OPTION_NAME}" shipping options exist`);
+  }
+
+  // ---- Returns (T53): a free return option per zone, and the reasons ----------
+
+  const returnZones = new Set(
+    options
+      .filter((o) => o.name === RETURN_OPTION_NAME || o.type?.code === RETURN_OPTION_TYPE_CODE)
+      .map((o) => o.service_zone_id),
+  );
+  const newReturns = MARKET_REGIONS.flatMap((region) => {
+    const zone = zones.find((z) => z?.name === region.name);
+
+    return zone && !returnZones.has(zone.id) ? [{ region, zone }] : [];
+  });
+
+  if (newReturns.length) {
+    await createShippingOptionsWorkflow(container).run({
+      input: newReturns.map(({ region, zone }) => ({
+        name: RETURN_OPTION_NAME,
+        price_type: "flat" as const,
+        provider_id: FULFILLMENT_PROVIDER_ID,
+        service_zone_id: zone.id,
+        shipping_profile_id: profiles[0].id,
+        type: {
+          label: "Return",
+          description: "Send items back free of charge.",
+          code: RETURN_OPTION_TYPE_CODE,
+        },
+        prices: [{ currency_code: region.currency_code, amount: 0 }],
+        rules: [
+          { attribute: "enabled_in_store", value: "true", operator: "eq" as const },
+          { attribute: "is_return", value: "true", operator: "eq" as const },
+        ],
+      })),
+    });
+    logger.info(
+      `Created "${RETURN_OPTION_NAME}" options: ${newReturns.map((o) => o.region.name).join(", ")}`,
+    );
+  } else {
+    logger.info(`All "${RETURN_OPTION_NAME}" options exist`);
+  }
+
+  const { data: reasons } = await query.graph({
+    entity: "return_reason",
+    fields: ["id", "value"],
+    filters: { value: RETURN_REASONS.map((reason) => reason.value) },
+  });
+  const newReasons = missingBy(
+    RETURN_REASONS,
+    reasons.map((reason) => reason.value),
+    (reason) => reason.value,
+  );
+
+  if (newReasons.length) {
+    await createReturnReasonsWorkflow(container).run({
+      input: { data: newReasons.map((reason) => ({ value: reason.value, label: reason.label })) },
+    });
+    logger.info(`Created return reasons: ${newReasons.map((r) => r.value).join(", ")}`);
+  } else {
+    logger.info("All return reasons exist");
   }
 
   logger.info("Markets are seeded.");

@@ -13,7 +13,7 @@ const atom = (id: string, extra: Partial<EntryInput> = {}): EntryInput => ({
 });
 
 describe("the registry (D40)", () => {
-  it("lists M1's 8 foundations and 32 atoms, then T32's 15 molecules, T33's 13 and T34's 12, then T35's 4 organisms and 6 headers, T36's 2 organisms and 5 footers, T37's 7 organisms, T38's 7 and T39's 11, then T48's 2 templates, T49's 1, T50's 2, T51's 1 and T52's 3, in the navigation's order", () => {
+  it("lists M1's 8 foundations and 32 atoms, then T32's 15 molecules, T33's 13 and T34's 12, then T35's 4 organisms and 6 headers, T36's 2 organisms and 5 footers, T37's 7 organisms, T38's 7 and T39's 11, then T48's 2 templates, T49's 1, T50's 2, T51's 1, T52's 3 and T53's 3, in the navigation's order", () => {
     expect(byGroup("foundations")).toHaveLength(8);
     expect(byGroup("atoms")).toHaveLength(32);
     expect(byGroup("molecules")).toHaveLength(40);
@@ -29,8 +29,11 @@ describe("the registry (D40)", () => {
       "templates/cart",
       "templates/checkout",
       "templates/order-confirmation",
+      "templates/auth",
+      "templates/account",
+      "templates/order-lookup",
     ]);
-    expect(entries).toHaveLength(131);
+    expect(entries).toHaveLength(134);
     expect(entries.map((entry) => entry.id).slice(0, 2)).toEqual([
       "foundations/colors",
       "foundations/typography",
@@ -77,7 +80,7 @@ describe("the registry (D40)", () => {
     ]);
     expect(byGroup("headers-footers").at(5)?.id).toBe("headers-footers/header-transparent");
     expect(byGroup("headers-footers").at(-1)?.id).toBe("headers-footers/footer-two-tier");
-    expect(entries.at(-1)?.id).toBe("templates/order-confirmation");
+    expect(entries.at(-1)?.id).toBe("templates/order-lookup");
   });
 
   it("gives every entry a unique `{group}/{slug}` id in a known group, and a label", () => {

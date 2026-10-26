@@ -19,12 +19,14 @@ import { getCurrentMarket } from "../../../../../lib/current-market";
 import { readFlash, type Flash } from "../../../../../lib/flash";
 import { getMarketContext, type MarketContext } from "../../../../../lib/market-context";
 import type { CartDto } from "../../../../../lib/medusa/cart";
+import { getCustomer } from "../../../../../lib/medusa/customer";
 import { listShippingOptions } from "../../../../../lib/medusa/fulfillment";
 import { SHELL_PREFETCH } from "../../../../../lib/site";
 import {
   canOpen,
   firstOpenStep,
   formCountries,
+  savedAddressFor,
   toAddressFormState,
   toCheckoutSteps,
   toPaymentStep,
@@ -153,16 +155,21 @@ async function stepOf(
   flash: Flash | null,
 ): Promise<CheckoutPage["step"] | null> {
   const { market, region } = context;
-  if (step === "contact")
+  if (step === "contact") {
+    // A signed-in customer's e-mail and default shipping address fill a cart that has none yet (T53).
+    const customer =
+      cart.email === null || cart.shippingAddress === null ? await getCustomer() : null;
+    const saved = customer === null ? null : savedAddressFor(customer, region.countries);
     return {
       kind: "contact",
-      email: flash?.values?.email ?? cart.email ?? "",
+      email: flash?.values?.email ?? cart.email ?? customer?.email ?? "",
       address: toAddressFormState(
         formCountries(market.country, region.countries),
-        cart.shippingAddress,
+        cart.shippingAddress ?? saved,
         flash?.values,
       ),
     };
+  }
   if (step === "delivery") {
     const options = await listShippingOptions(cart.id, cart.currencyCode, market.medusaLocale);
     const offered = options.map((option) => toShippingOption(option, cart.currencyCode));

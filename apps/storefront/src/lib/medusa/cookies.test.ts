@@ -1,3 +1,4 @@
+import { createHmac } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createCookieJar } from "../../test-support/cookie-jar";
 
@@ -72,25 +73,61 @@ describe("the cookies' attributes (D60)", () => {
   });
 });
 
-describe("the pending customer", () => {
+describe("the pending customer (signed, PR 81 review)", () => {
+  beforeEach(() => vi.stubEnv("PAYLOAD_SECRET", "test-secret"));
+
+  /** A value signed as `setPendingCustomer` signs one, for any body. */
+  const sign = (body: string) => {
+    const encoded = Buffer.from(body).toString("base64url");
+    return `${encoded}.${createHmac("sha256", "test-secret").update(`pending:${encoded}`).digest("base64url")}`;
+  };
+
   it("reads back what was written", async () => {
-    await cookies.setPendingCustomer({ email: "a@example.com", firstName: "Άννα" });
+    await cookies.setPendingCustomer({ email: "a@example.com", firstName: "Άννα", sentAt: 5 });
+    jar.reset({ _medusa_pending_customer: jar.writes[0]!.value });
     expect(await cookies.getPendingCustomer()).toEqual({
       email: "a@example.com",
       firstName: "Άννα",
+      sentAt: 5,
     });
   });
 
-  it("is null for a value that is not a registration (tampered, or another app's)", async () => {
-    for (const value of ["not json", "null", '"text"', '{"firstName":"x"}', '{"email":""}']) {
+  it("is null for an unsigned value, a forged signature, and an edited time", async () => {
+    await cookies.setPendingCustomer({ email: "a@example.com", sentAt: Date.now() });
+    const [body, signature] = jar.writes[0]!.value.split(".");
+    const earlier = Buffer.from(JSON.stringify({ email: "a@example.com", sentAt: 0 })).toString(
+      "base64url",
+    );
+    for (const value of [
+      '{"email":"a@example.com","sentAt":0}',
+      `${body}.forged`,
+      `${earlier}.${signature}`,
+    ]) {
       jar.reset({ _medusa_pending_customer: value });
       expect(await cookies.getPendingCustomer()).toBeNull();
     }
   });
 
+  it("is null for a signed value that is not a registration", async () => {
+    for (const body of ["not json", "null", '"text"', '{"firstName":"x"}', '{"email":""}']) {
+      jar.reset({ _medusa_pending_customer: sign(body) });
+      expect(await cookies.getPendingCustomer()).toBeNull();
+    }
+  });
+
   it("keeps only the fields it knows, as text", async () => {
-    jar.reset({ _medusa_pending_customer: '{"email":"a@example.com","lastName":7,"admin":true}' });
+    jar.reset({
+      _medusa_pending_customer: sign('{"email":"a@example.com","lastName":7,"admin":true}'),
+    });
     expect(await cookies.getPendingCustomer()).toEqual({ email: "a@example.com" });
+  });
+
+  it("writes nothing without a secret to sign with", async () => {
+    vi.stubEnv("PAYLOAD_SECRET", " ");
+    const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    await cookies.setPendingCustomer({ email: "a@example.com" });
+    expect(jar.writes).toEqual([]);
+    error.mockRestore();
   });
 });
 
