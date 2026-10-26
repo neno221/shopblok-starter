@@ -1293,7 +1293,7 @@ Every key is optional at boot. Public (`NEXT_PUBLIC_*`) keys need a Vercel redep
 | Search Module is new; no official Meilisearch provider; per-locale indexing undocumented | Validated by ADR 0002; the Medusa defects it found are listed there and guarded by `search-locale-assumptions.spec.ts`; Postgres fallback; env-gated provider |
 | Translation Module is behind a feature flag | Pin Medusa; e2e in 2 locales; fallback to default strings |
 | Payload locales are fixed at startup | Validated by ADR 0003: 42 languages preloaded, `filterAvailableLocales` for the admin, locales only grow, a language outside them is one line and one migration deployed before the code |
-| Email verification enforcement may not be native in Medusa | Server-side check in the login action and auth flow; e2e test; verify in M3 |
+| Email verification enforcement may not be native in Medusa | **Verified in M3 (T44):** Medusa 2.21.2 answers an unverified login with `verification_required` and a restricted token, but that token (and the one `/register` gives) still creates the customer through `POST /store/customers`. The backend refuses it with a 403 middleware (`requireVerifiedCustomer`); `auth-verification.spec.ts` asserts both, so a Medusa bump that changes either fails CI |
 | Saving Revolut Pay / non-card methods via Medusa's Stripe provider | Verify in M6; cards-only saving as a fallback |
 | R2 public access is per bucket (private Medusa files) | WAF rule on the public domain or a second bucket; verify in M6 |
 | R2 custom domains need Cloudflare DNS | Document in DEPLOY; `r2.dev` for dev only |

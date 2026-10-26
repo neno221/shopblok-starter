@@ -5203,3 +5203,40 @@ The review (`reviews/pr-71-code-review.md` in the project's files) found no bloc
 - `turbo run typecheck` and `turbo run lint` failed in this session's container on spawning (`Exec format error (os error 8)`) before any task ran; `pnpm -r --workspace-concurrency=2 typecheck` (and `lint`) ran the same scripts and passed. CI runs them through its own steps.
 - Macau's format puts the street before the name, which the seven-country test allows.
 
+## Verification on the backend (T44)
+
+Required e-mail verification (D64, SPEC §8.4) and the password reset e-mail, on the backend. The storefront's flow is T53's.
+
+### How it works
+
+- **`authVerificationsPerActor`** (`apps/backend/src/config/config.ts`): `customer: [{ entity_type: "email", auth_provider: "emailpass" }]`, always on, no env gate. An unverified customer's login answers `{ verification_required: true, verification, token }`, where the token has no actor.
+- **The guard** (`apps/backend/src/api/store/customers/verified.ts`, wired on `POST /store/customers` in `middlewares.ts`): the account is created only for an auth identity whose e-mail has a verified `auth_verification`. It reads the same rules from the config, so an identity from a provider no rule names (a social login later) is not held back. Refused: **403**, "Verify your e-mail address before creating your account."
+- **`auth.verification_requested`** (`src/subscribers/auth-verification-requested.ts`): for `entity_type: "email"` only, it sends `createNotifications({ to, channel: "email", template: "customer-verification", data: { url, code } })`. The local provider prints it in the backend's console (M3); Resend sends it from M6.
+- **`auth.password_reset`** (`src/subscribers/auth-password-reset.ts`): for `actor_type: "customer"` only (an admin's reset has no storefront page), template `customer-password-reset`, `data: { url }`.
+- **The links** (`src/lib/storefront-url.ts`): `{STOREFRONT_URL}{prefix}/verify?code=…` and `{STOREFRONT_URL}{prefix}/reset-password?token=…&email=…`. `prefix` is the request's `metadata.market`, **the market's public prefix** (`""`, `/us`, `/ch/fr`, what the storefront's `marketPrefix` gives), not its key: only the storefront has the market map. The prefix comes from the client, so only its shape is accepted (up to two lower-case segments of two or three letters); anything else gives the primary market's link, so a link cannot point at another host (`//evil.example.com` is refused). `STOREFRONT_URL` must be an http(s) URL; otherwise the subscriber logs an error and sends nothing.
+
+### Measured (Medusa 2.21.2)
+
+- **Medusa does not enforce by itself.** The restricted token from an unverified login, and the token `/register` gives, both created the customer through `POST /store/customers` (200) before the guard. SPEC §17.2's risk row now says so. The plan's fallback was the storefront's login action; the guard on the backend is stronger (it holds for any client), so T53's action does not need to enforce, only to handle the 403.
+- **The verification event has a `code` and no separate token**, so the link is `/verify?code=…`, not the plan's `?token=…&code=…`. `POST /auth/verification/confirm` takes `{ code }` alone and allows an unauthenticated caller, which is what the `/verify` page needs.
+- **A repeated `POST /auth/verification/request` keeps the first request's metadata** (a new code, the old `metadata.market`). The storefront's "send again" therefore links to the market of the first request.
+
+### The suite and its mutations
+
+`apps/backend/integration-tests/http/auth-verification.spec.ts` (4 tests; run with `pnpm --filter @shopblok/backend test:integration:http auth-verification.spec`): register, log in (`verification_required`), the restricted and the register tokens refused with 403, request with `metadata: { market: "/us" }`, the e-mail's link is `…/us/verify?code=…`, confirm with the code alone, log in again, `POST /store/customers` 200, `GET /store/customers/me` 200; a request without a market and one with `//evil.example.com` link to the primary market (a fresh identity each, because of the metadata note above); a customer's password reset with `metadata: { market: "/ch/fr" }` links to `…/ch/fr/reset-password?token=…&email=…`. Unit tests: `config.unit.spec.ts` (the setting's shape) and `storefront-url.unit.spec.ts` (prefixes, a base with a path, non-URL bases).
+
+Each mutation fails the suite:
+
+| Mutation | Fails |
+|---|---|
+| No guard on `POST /store/customers` | the account test |
+| No `authVerificationsPerActor` | the account test |
+| Verification sent on `channel: "feed"` | the account test |
+| The market prefix left out of the link | the account and the reset tests |
+| Any `/…` accepted as a prefix | the "not a prefix" test |
+| The reset subscriber's actor check inverted | the reset test |
+
+### For later
+
+- **Rate limiting (M7, SPEC §6.2, §11.2):** `/auth/customer/emailpass/register`, `/auth/customer/emailpass` (login), `/auth/customer/emailpass/reset-password`, `/auth/verification/request` and `/auth/verification/confirm` are the routes to limit.
+- **T53** passes `metadata: { market: marketPrefix(market) }` to `sdk.auth.verification.request` and to `sdk.auth.resetPassword`, reads `code` on `/verify` and `token` and `email` on `/reset-password`, and shows the notice when `POST /store/customers` answers 403.
