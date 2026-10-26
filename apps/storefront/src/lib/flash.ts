@@ -17,8 +17,13 @@ export type Flash = {
   values?: Record<string, string>;
 };
 
-/** The most a flash may hold in all, so a cookie never grows past what a browser keeps. */
+/**
+ * The most a flash may hold in all, as the cookie stores it (percent-encoded: a Greek letter is six
+ * bytes), so it never grows past the ~4 KB a browser keeps (PR 80 review, item 3).
+ */
 const MAX_LENGTH = 3000;
+
+const stored = (body: string) => encodeURIComponent(body).length;
 
 /** Leaves `flash` for `path` and answers the key its redirect's URL carries. */
 export async function leaveFlash(path: string, flash: Flash): Promise<string> {
@@ -27,7 +32,7 @@ export async function leaveFlash(path: string, flash: Flash): Promise<string> {
     Object.entries(flash.values ?? {}).map(([name, value]) => [name, value.slice(0, 200)]),
   );
   let body = JSON.stringify({ key, path, ...flash, values });
-  if (body.length > MAX_LENGTH) body = JSON.stringify({ key, path, ...flash, values: {} });
+  if (stored(body) > MAX_LENGTH) body = JSON.stringify({ key, path, ...flash, values: {} });
   await setFlash(body);
   return key;
 }

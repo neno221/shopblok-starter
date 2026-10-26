@@ -10,6 +10,7 @@ import {
   updateLineFromCart,
 } from "../../../../lib/actions/checkout";
 import { MAX_LINE_QUANTITY } from "../../../../lib/actions/cart-handlers";
+import { emptyCart, promoErrorOf } from "../../../../lib/cart-view";
 import { readCheckoutCart } from "../../../../lib/checkout-cart";
 import { getCurrentMarket } from "../../../../lib/current-market";
 import { readFlash, type Flash } from "../../../../lib/flash";
@@ -54,11 +55,7 @@ function errorsOf(flash: Flash | null): {
 } {
   if (flash === null) return { promoCode: "" };
   const code = flash.values?.code;
-  if (code !== undefined)
-    return {
-      promoError: flash.form === "unavailable" ? "failed" : "invalid",
-      promoCode: code,
-    };
+  if (code !== undefined) return { promoError: promoErrorOf(flash.form), promoCode: code };
   if (flash.errors?.quantity !== undefined) return { error: "invalid", promoCode: "" };
   const form = flash.form as CartError | undefined;
   return { error: form !== undefined && CART_ERRORS.has(form) ? form : "rejected", promoCode: "" };
@@ -77,20 +74,10 @@ export default async function CartPage({ searchParams }: Props) {
   const key = typeof params.f === "string" ? params.f : undefined;
   const flash = await readFlash(cartHref, key);
   const { error, promoError, promoCode } = errorsOf(flash);
-  const empty = {
-    id: "none",
-    currencyCode: context.region.currencyCode.toUpperCase(),
-    lines: [],
-    itemCount: 0,
-    subtotal: { amount: 0, currencyCode: context.region.currencyCode.toUpperCase() },
-    discountTotal: { amount: 0, currencyCode: context.region.currencyCode.toUpperCase() },
-    total: { amount: 0, currencyCode: context.region.currencyCode.toUpperCase() },
-    promoCodes: [],
-  };
   return (
     <CartTemplate
       variant="default"
-      cart={read?.view ?? empty}
+      cart={read?.view ?? emptyCart(context)}
       promoCode={promoCode}
       checkoutHref={context.url("/checkout")}
       continueHref={context.url("/store")}

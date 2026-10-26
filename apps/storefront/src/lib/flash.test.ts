@@ -71,6 +71,20 @@ describe("leaveFlash and readFlash (T52's post-redirect-get)", () => {
     });
   });
 
+  it("counts the cap as the cookie stores it: Greek letters are percent-encoded (PR 80 review, item 3)", async () => {
+    // 1,600 letters, under 3000 characters, but six bytes each once encoded.
+    const values = Object.fromEntries(
+      Array.from({ length: 8 }, (_, at) => [`f${at}`, "α".repeat(200)]),
+    );
+    const key = await leaveFlash("/checkout", { form: "rejected", values });
+    expect(encodeURIComponent(jar.writes[0]!.value).length).toBeLessThanOrEqual(3000);
+    expect(await readFlash("/checkout", key)).toEqual({
+      form: "rejected",
+      errors: {},
+      values: {},
+    });
+  });
+
   it("keeps a flash just under the cap whole", async () => {
     const values = Object.fromEntries(
       Array.from({ length: 10 }, (_, at) => [`f${at}`, "y".repeat(200)]),

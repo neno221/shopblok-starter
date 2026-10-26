@@ -61,10 +61,16 @@ async function back(path: string, result: ActionResult<unknown>, values?: Record
 
 // --- The cart page ------------------------------------------------------------------------------
 
-async function cartForm(handler: Handler, market: string, data: FormData): Promise<void> {
+/** `keep`: the fields a refusal types back in; only the apply form's code (PR 80 review, item 1). */
+async function cartForm(
+  handler: Handler,
+  market: string,
+  data: FormData,
+  keep: readonly string[] = [],
+): Promise<void> {
   const path = await pageOf(market, "/cart");
   const result = await run(handler, market, data);
-  if (!result.ok) await back(path, result, typed(data, ["code"]));
+  if (!result.ok) await back(path, result, keep.length === 0 ? undefined : typed(data, keep));
   go(path);
 }
 
@@ -73,7 +79,7 @@ export const updateLineForm = (market: string, data: FormData) =>
 export const removeLineForm = (market: string, data: FormData) =>
   cartForm(removeLineAction, market, data);
 export const applyPromoForm = (market: string, data: FormData) =>
-  cartForm(applyPromoAction, market, data);
+  cartForm(applyPromoAction, market, data, ["code"]);
 export const removePromoForm = (market: string, data: FormData) =>
   cartForm(removePromoAction, market, data);
 

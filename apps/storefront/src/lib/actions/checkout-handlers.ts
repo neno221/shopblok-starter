@@ -109,12 +109,15 @@ export function addressErrors(
   return errors;
 }
 
-/** The address with only the fields its country's format has (and the phone). */
-function keepFormatFields(address: AddressValues, locale: string): AddressValues {
+/** The address with only the fields its country's format has (and the phone), the postal code upper-cased. */
+export function keepFormatFields(address: AddressValues, locale: string): AddressValues {
   const drawn = new Set<AddressFieldName>(addressFormat(address.countryCode, locale).rows.flat());
   const kept: AddressValues = { countryCode: address.countryCode, phone: address.phone };
   for (const field of Object.keys(addressFields) as (keyof typeof addressFields)[])
     if (field !== "phone" && drawn.has(field)) kept[field] = address[field];
+  // Matched case-insensitively, kept as a postal service writes it: `ec1y 8sy` is `EC1Y 8SY`
+  // (address-format.ts: "the server normalises it"; PR 80 review, item 2).
+  if (kept.postalCode !== undefined) kept.postalCode = kept.postalCode.toUpperCase();
   return kept;
 }
 

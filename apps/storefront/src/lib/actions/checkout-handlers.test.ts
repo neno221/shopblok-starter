@@ -35,8 +35,14 @@ vi.mock("../medusa/payment", () => ({
 const getMarketContext = vi.fn();
 vi.mock("../market-context", () => ({ getMarketContext }));
 
-const { addressErrors, contactAction, contactSchema, deliveryAction, placeOrderAction } =
-  await import("./checkout-handlers");
+const {
+  addressErrors,
+  contactAction,
+  contactSchema,
+  deliveryAction,
+  keepFormatFields,
+  placeOrderAction,
+} = await import("./checkout-handlers");
 
 const money = { amount: 0, currencyCode: "eur" };
 const address: CartAddressDto = {
@@ -128,6 +134,16 @@ describe("addressErrors (T34: the country's own format)", () => {
   it("refuses a country outside the region's, before looking at its format", () => {
     const fr = typed({ countryCode: "fr" });
     expect(addressErrors(fr, ["de", "sg"], "en")).toEqual({ countryCode: "invalid" });
+  });
+});
+
+describe("keepFormatFields", () => {
+  it("upper-cases the postal code, which the pattern matched in any case (PR 80 review, item 2)", () => {
+    const kept = keepFormatFields(
+      { countryCode: "gb", address1: "1 High St", city: "London", postalCode: "ec1y 8sy" },
+      "en-GB",
+    );
+    expect(kept.postalCode).toBe("EC1Y 8SY");
   });
 });
 

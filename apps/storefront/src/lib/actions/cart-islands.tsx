@@ -7,7 +7,7 @@ import { cartDrawerParts } from "@shopblok/ui/organisms/cart-drawer";
 import type { QuickCartDropdownClientProps } from "@shopblok/ui/organisms/quick-cart-dropdown-client";
 import { quickCartParts } from "@shopblok/ui/organisms/quick-cart-dropdown";
 import type { PromoCodeError } from "@shopblok/ui/molecules/promo-code-field";
-import { cartView } from "../cart-view";
+import { cartView, emptyCart, promoErrorOf } from "../cart-view";
 import { getMarketContext, type MarketContext } from "../market-context";
 import { getCart } from "../medusa/cart";
 import { SHELL_PREFETCH } from "../site";
@@ -50,22 +50,6 @@ type Intent = (typeof INTENTS)[number];
 async function contextOf(market: unknown): Promise<MarketContext | null> {
   if (typeof market !== "string" || market.length > MAX_KEY) return null;
   return getMarketContext(market);
-}
-
-/** An empty cart in the region's currency: the drawer says so and links on. */
-function emptyCart(context: MarketContext): Cart {
-  const currencyCode = context.region.currencyCode.toUpperCase();
-  const zero = { amount: 0, currencyCode };
-  return {
-    id: "none",
-    currencyCode,
-    lines: [],
-    itemCount: 0,
-    subtotal: zero,
-    discountTotal: zero,
-    total: zero,
-    promoCodes: [],
-  };
 }
 
 function drawerFor(
@@ -140,7 +124,7 @@ export async function changeCartInDrawer(
   if (intent === "apply-code" && typeof code === "string")
     return drawerFor(context, cart, {
       code,
-      error: result.form === "unavailable" ? "failed" : "invalid",
+      error: promoErrorOf(result.form),
     });
   return drawerFor(context, cart);
 }

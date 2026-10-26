@@ -5647,3 +5647,12 @@ The review (`reviews/pr-79-code-review.md` in the project's files) had three mus
 - **The drawer and the quick cart read server actions, not `/next/cart`**: the organisms are server components (D49), so the island asks the server to render them, as T48's suggestion banner does.
 - **The cart line's no-script quantity form** is not checked in Playwright: with scripts off, `(scripting: none)` does not match, so the `noscript:` fallback stays hidden; the checkout's forms are always drawn and are checked.
 - **The PDP and the listing pages are over 330 KB** with the header's cart island (about 12 KB on every page: the drawer's and the quick cart's code and the parts their answers draw); Steven raised both budgets to 335 KB. Loading the popups' code on first use did not help, because Next counts the chunk and the dialog and popover code is already shared.
+
+### Code review (PR 80)
+
+The review (`reviews/pr-80-code-review.md` in the project's files) had three must-fix items and one cleanup; all four are fixed, and items 5 to 9 (a malformed escape in the receipt's id, an unpriced option sent by a crafted form, the cart read twice, two cart updates in the contact step, a silent failed drawer call) are skipped under the findings rule. No security finding.
+
+1. **A failed "remove code" on the cart page** showed as an invalid code with the code typed back, because every cart form flashed `code`. Only the apply form types it back now (`cartForm`'s `keep`); `forms.test.ts` checks both forms.
+2. **The postal code** matched its pattern in any case but was saved as typed; `keepFormatFields` upper-cases it (`ec1y 8sy` is stored `EC1Y 8SY`), with a test.
+3. **The flash's cap** counted characters, while the cookie is percent-encoded (a Greek letter is six bytes), so a long Greek form could pass the browser's 4 KB and lose its answer. The cap is measured on the encoded value, with a Greek test.
+4. **Cleanup:** one `emptyCart(context)` and one `promoErrorOf(form)` in `lib/cart-view.ts`, used by the cart page and the drawer.
