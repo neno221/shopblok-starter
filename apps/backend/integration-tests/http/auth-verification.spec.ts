@@ -132,6 +132,9 @@ medusaIntegrationTestRunner({
         expect(second.status).toBe(200);
         expect(second.data.verification_required).not.toBe(true);
 
+        // Verified, but only for its own address: not someone else's.
+        expect((await createCustomer(second.data.token, "victim@example.com")).status).toBe(403);
+
         const created = await createCustomer(second.data.token, email);
 
         expect(created.status).toBe(200);
@@ -160,6 +163,25 @@ medusaIntegrationTestRunner({
         const url = new URL((await mailTo(email, "customer-verification")).data.url as string);
 
         expect(`${url.origin}${url.pathname}`).toBe(`${STOREFRONT_URL}/verify`);
+      });
+
+      it("sends no e-mail for an address the identity does not sign in with", async () => {
+        const email = "eve@example.com";
+        const victim = "bystander@example.com";
+
+        await register(email);
+
+        const token = (await login(email)).data.token as string;
+
+        expect((await requestVerification(token, victim)).status).toBe(201);
+        // A request for its own address after it: once that e-mail is there, the first event has
+        // been handled too.
+        expect((await requestVerification(token, email)).status).toBe(201);
+        await mailTo(email, "customer-verification");
+
+        const notifications = getContainer().resolve(Modules.NOTIFICATION);
+
+        expect(await notifications.listNotifications({ to: victim })).toHaveLength(0);
       });
 
       it("sends a customer's password reset as a link to /reset-password in the shopper's market", async () => {

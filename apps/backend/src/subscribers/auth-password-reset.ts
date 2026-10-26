@@ -1,7 +1,7 @@
 import type { SubscriberArgs, SubscriberConfig } from "@medusajs/framework";
-import { ContainerRegistrationKeys, Modules } from "@medusajs/framework/utils";
+import { createHash } from "node:crypto";
 
-import { storefrontLink } from "../lib/storefront-url";
+import { sendStorefrontLink } from "../lib/storefront-mail";
 
 type PasswordReset = {
   entity_id: string;
@@ -19,27 +19,17 @@ export default async function authPasswordReset({
   event: { data },
   container,
 }: SubscriberArgs<PasswordReset>) {
-  const logger = container.resolve(ContainerRegistrationKeys.LOGGER);
-
   if (data.actor_type !== "customer") {
     return;
   }
 
-  const url = storefrontLink(process.env.STOREFRONT_URL, data.metadata, "/reset-password", {
-    token: data.token,
-    email: data.entity_id,
-  });
-
-  if (!url) {
-    logger.error("auth.password_reset: STOREFRONT_URL is not a URL, so no link was sent.");
-    return;
-  }
-
-  await container.resolve(Modules.NOTIFICATION).createNotifications({
+  await sendStorefrontLink(container, {
     to: data.entity_id,
-    channel: "email",
     template: "customer-password-reset",
-    data: { url },
+    metadata: data.metadata,
+    path: "/reset-password",
+    query: { token: data.token, email: data.entity_id },
+    idempotencyKey: `reset-${createHash("sha256").update(data.token).digest("hex")}`,
   });
 }
 

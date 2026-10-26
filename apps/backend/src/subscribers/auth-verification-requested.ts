@@ -1,12 +1,14 @@
 import type { SubscriberArgs, SubscriberConfig } from "@medusajs/framework";
 import { ContainerRegistrationKeys, Modules } from "@medusajs/framework/utils";
+import { createHash } from "node:crypto";
 
-import { storefrontLink } from "../lib/storefront-url";
+import { sendStorefrontLink } from "../lib/storefront-mail";
 
 type VerificationRequested = {
   entity_id: string;
   entity_type: string;
   code: string;
+  auth_identity_id: string;
   metadata?: Record<string, unknown>;
 };
 
@@ -15,31 +17,42 @@ type VerificationRequested = {
  * `email` channel, as a link to the storefront's `/verify` page in the shopper's market. The local
  * provider prints it in the backend's console in development and M3; Resend sends it from M6.
  * The `/verify` page confirms with the code alone (`POST /auth/verification/confirm`).
+ *
+ * Medusa does not check the request's `entity_id` against the identity, so the e-mail goes only
+ * to an address the identity itself signs in with: otherwise any token (one `/register` away)
+ * could have the shop e-mail any address. Only customers have a verification rule
+ * (`authVerificationsPerActor`); a rule for admin users would need a template of its own.
  */
 export default async function authVerificationRequested({
   event: { data },
   container,
 }: SubscriberArgs<VerificationRequested>) {
-  const logger = container.resolve(ContainerRegistrationKeys.LOGGER);
-
   if (data.entity_type !== "email") {
     return;
   }
 
-  const url = storefrontLink(process.env.STOREFRONT_URL, data.metadata, "/verify", {
-    code: data.code,
-  });
+  const identity = await container
+    .resolve(Modules.AUTH)
+    .retrieveAuthIdentity(data.auth_identity_id, { relations: ["provider_identities"] });
+  const own = (identity.provider_identities ?? []).some(
+    (provider) => provider.entity_id.toLowerCase() === data.entity_id.toLowerCase(),
+  );
 
-  if (!url) {
-    logger.error("auth.verification_requested: STOREFRONT_URL is not a URL, so no link was sent.");
+  if (!own) {
+    container
+      .resolve(ContainerRegistrationKeys.LOGGER)
+      .warn("auth.verification_requested: the address is not the identity's own, so nothing was sent.");
     return;
   }
 
-  await container.resolve(Modules.NOTIFICATION).createNotifications({
+  await sendStorefrontLink(container, {
     to: data.entity_id,
-    channel: "email",
     template: "customer-verification",
-    data: { url, code: data.code },
+    metadata: data.metadata,
+    path: "/verify",
+    query: { code: data.code },
+    data: { code: data.code },
+    idempotencyKey: `verification-${createHash("sha256").update(data.code).digest("hex")}`,
   });
 }
 

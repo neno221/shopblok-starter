@@ -13,9 +13,10 @@ type VerificationRule = { entity_type: string; auth_provider: string };
 
 /**
  * `POST /store/customers`, after Medusa's `authenticate`: the account is created only for an
- * auth identity whose e-mail is verified (D64, SPEC §8.4). Medusa's `authVerificationsPerActor`
- * makes an unverified login answer `verification_required` with a restricted token, but that
- * token, like the one `/register` gives, still creates the customer, so the gate is here.
+ * auth identity whose e-mail is verified, and only under that e-mail (D64, SPEC §8.4). Medusa's
+ * `authVerificationsPerActor` makes an unverified login answer `verification_required` with a
+ * restricted token, but that token, like the one `/register` gives, still creates the customer,
+ * and the route takes the customer's `email` from the body unchecked, so the gate is here.
  *
  * The rules are the config's (`authVerificationsPerActor.customer`): an identity from a provider
  * no rule names (a social login later) is not held back. With no rules, nothing is checked.
@@ -39,6 +40,8 @@ export async function requireVerifiedCustomer(
   const identity = await auth.retrieveAuthIdentity(authIdentityId, {
     relations: ["provider_identities"],
   });
+  /** The addresses this identity has verified under a rule: the only ones it may create. */
+  const verified: string[] = [];
 
   for (const rule of rules) {
     for (const provider of identity.provider_identities ?? []) {
@@ -58,7 +61,19 @@ export async function requireVerifiedCustomer(
           "Verify your e-mail address before creating your account.",
         );
       }
+
+      verified.push(provider.entity_id.toLowerCase());
     }
+  }
+
+  const body = (req.validatedBody ?? req.body) as { email?: unknown } | undefined;
+  const email = typeof body?.email === "string" ? body.email.toLowerCase() : undefined;
+
+  if (verified.length > 0 && (!email || !verified.includes(email))) {
+    throw new MedusaError(
+      MedusaError.Types.FORBIDDEN,
+      "An account can only be created with the e-mail address you verified.",
+    );
   }
 
   next();
