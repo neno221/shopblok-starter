@@ -3,6 +3,7 @@ import type { Messages } from "@shopblok/i18n";
 import type { AuthErrors, AuthField } from "@shopblok/ui/templates/auth";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { connection } from "next/server";
 import { getMessages } from "next-intl/server";
 import { getCurrentMarket } from "./current-market";
 import type { Flash } from "./flash";
@@ -21,6 +22,9 @@ export type AuthPageContext = {
 };
 
 export async function authPageContext(): Promise<AuthPageContext> {
+  // Request time only: the build prerenders the market's shell and must not ask Medusa for the
+  // region (the design-system job builds with no backend).
+  await connection();
   const [market, messages] = await Promise.all([getCurrentMarket(), getMessages()]);
   const context = await getMarketContext(market.key);
   if (context === null) notFound();
