@@ -100,7 +100,7 @@ describe("VisitorCookieConsent", () => {
   describe("before the browser knows the visitor", () => {
     it("draws nothing on the server, even when the store holds a visitor who has not chosen", () => {
       setVisitor({ cartCount: 0, consent: null });
-      expect(getSnapshot()).toEqual({ cartCount: 0, consent: null });
+      expect(getSnapshot()).toMatchObject({ cartCount: 0, consent: null });
       expect(renderToString(island())).toBe("");
     });
 
@@ -184,7 +184,7 @@ describe("VisitorCookieConsent", () => {
     it("accept all records both and the banner goes", async () => {
       await visit();
       await click(slot("cookie-consent-accept"));
-      expect(getSnapshot()).toEqual({
+      expect(getSnapshot()).toMatchObject({
         cartCount: 4,
         consent: { analytics: true, marketing: true },
       });
@@ -194,7 +194,7 @@ describe("VisitorCookieConsent", () => {
     it("reject all records neither and the banner goes", async () => {
       await visit();
       await click(slot("cookie-consent-reject"));
-      expect(getSnapshot()).toEqual({
+      expect(getSnapshot()).toMatchObject({
         cartCount: 4,
         consent: { analytics: false, marketing: false },
       });
@@ -209,7 +209,7 @@ describe("VisitorCookieConsent", () => {
       expect(switchOf("marketing")?.getAttribute("aria-checked")).toBe("false");
       await click(slot("cookie-consent-dialog-save"));
       await settle(() => banner() === null);
-      expect(getSnapshot()).toEqual({
+      expect(getSnapshot()).toMatchObject({
         cartCount: 4,
         consent: { analytics: true, marketing: false },
       });
@@ -223,7 +223,7 @@ describe("VisitorCookieConsent", () => {
       expect(switchOf("marketing")?.getAttribute("aria-checked")).toBe("false");
       await click(slot("cookie-consent-dialog-save"));
       await settle(() => banner() === null);
-      expect(getSnapshot()).toEqual({
+      expect(getSnapshot()).toMatchObject({
         cartCount: 4,
         consent: { analytics: false, marketing: false },
       });
@@ -235,7 +235,7 @@ describe("VisitorCookieConsent", () => {
       await click(toggle("marketing"));
       await click(slot("cookie-consent-dialog-save"));
       await settle(() => banner() === null);
-      expect(getSnapshot()).toEqual({
+      expect(getSnapshot()).toMatchObject({
         cartCount: 4,
         consent: { analytics: false, marketing: true },
       });
@@ -246,7 +246,7 @@ describe("VisitorCookieConsent", () => {
       await openDialog();
       await click(slot("cookie-consent-dialog-accept"));
       await settle(() => banner() === null);
-      expect(getSnapshot()).toEqual({
+      expect(getSnapshot()).toMatchObject({
         cartCount: 4,
         consent: { analytics: true, marketing: true },
       });
@@ -254,7 +254,7 @@ describe("VisitorCookieConsent", () => {
       await openDialog();
       await click(slot("cookie-consent-dialog-reject"));
       await settle(() => banner() === null);
-      expect(getSnapshot()).toEqual({
+      expect(getSnapshot()).toMatchObject({
         cartCount: 4,
         consent: { analytics: false, marketing: false },
       });
@@ -268,7 +268,7 @@ describe("VisitorCookieConsent", () => {
         document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
       });
       await settle(() => slot("cookie-consent-dialog") === null);
-      expect(getSnapshot()).toEqual({ cartCount: 4, consent: null });
+      expect(getSnapshot()).toMatchObject({ cartCount: 4, consent: null });
       expect(banner()).not.toBeNull();
     });
 

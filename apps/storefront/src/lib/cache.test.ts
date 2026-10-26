@@ -8,7 +8,7 @@ vi.mock("next/cache", () => ({ cacheTag, cacheLife }));
 // what these tests want: they check what `cached` hands to `cacheTag`, `cacheLife` and the loader.
 // That two entries never share a key is a property of Next's compiler and is checked in a build
 // (SETUP.md, T12).
-const { cached } = await import("./cache");
+const { CATALOG_LIFE, cached } = await import("./cache");
 
 beforeEach(() => vi.clearAllMocks());
 
@@ -29,6 +29,22 @@ describe("cached", () => {
     await wrapped();
     expect(cacheTag).toHaveBeenCalledExactlyOnceWith("medusa:products", "medusa:regions");
     expect(cacheLife).toHaveBeenCalledExactlyOnceWith("minutes");
+  });
+
+  it("adds the tags a call's arguments give (product:{handle}), once each", async () => {
+    const wrapped = cached(async (handle: string) => handle, {
+      name: "t:tagsFor",
+      tags: ["medusa:products"],
+      tagsFor: (handle) => [`product:${handle}`, "medusa:products"],
+      life: CATALOG_LIFE,
+    });
+    await wrapped("tee");
+    expect(cacheTag).toHaveBeenCalledExactlyOnceWith("medusa:products", "product:tee");
+    expect(cacheLife).toHaveBeenCalledExactlyOnceWith(CATALOG_LIFE);
+  });
+
+  it("gives the catalog 30 days of outage and an hour without a webhook (D58)", () => {
+    expect(CATALOG_LIFE).toEqual({ stale: 300, revalidate: 3600, expire: 2_592_000 });
   });
 
   it("accepts an inline life", async () => {

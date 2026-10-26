@@ -19,7 +19,16 @@ export type CacheLifeProfile =
 // for them; at run time it takes any of the values above.
 const setLife = cacheLife as unknown as (profile: CacheLifeProfile) => void;
 
-export type CachedOptions = {
+/**
+ * The catalog's reads (D58): products, categories, collections, search. `expire` is the outage
+ * budget, 30 days: the longest a catalog page should keep answering while Medusa is down (ADR 0004,
+ * reading 3). Freshness comes from the tags (`/api/revalidate`, T49) and from `revalidate`, an hour,
+ * for a change no webhook reports. These are the data entries' lives; a page under `[market]` is
+ * regenerated at most every 30 s whatever they say (`cached-market-map.ts`).
+ */
+export const CATALOG_LIFE = { stale: 300, revalidate: 3600, expire: 2_592_000 } as const;
+
+export type CachedOptions<Args extends unknown[] = unknown[]> = {
   /**
    * The entry's name, and so the first part of its key. Unique per function: every wrapped function
    * shares the one `"use cache"` function below, which Next keys by its location, its arguments
@@ -28,6 +37,12 @@ export type CachedOptions = {
   name: string;
   /** Tags `revalidateTag` can invalidate, e.g. `medusa:regions` (SPEC §8.3). */
   tags: readonly string[];
+  /**
+   * More tags that depend on the call, e.g. `product:{handle}` (D58). They are worked out from the
+   * arguments before the cached function runs, so they are part of the key only through the
+   * arguments they come from.
+   */
+  tagsFor?: (...args: Args) => readonly string[];
   life: CacheLifeProfile;
 };
 
@@ -71,9 +86,15 @@ async function run(
  */
 export function cached<Args extends unknown[], Result>(
   load: (...args: Args) => Promise<Result>,
-  { name, tags, life }: CachedOptions,
+  { name, tags, tagsFor, life }: CachedOptions<Args>,
 ): (...args: Args) => Promise<Result> {
   loaders.set(name, load as unknown as Loader);
   const tagList = [...tags];
-  return (...args) => run(name, tagList, life, args) as Promise<Result>;
+  return (...args) =>
+    run(
+      name,
+      tagsFor === undefined ? tagList : [...new Set([...tagList, ...tagsFor(...args)])],
+      life,
+      args,
+    ) as Promise<Result>;
 }
