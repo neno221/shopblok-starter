@@ -3,7 +3,7 @@ import { vi } from "vitest";
 export const PUBLISHABLE_KEY =
   "pk_0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
 
-export type MedusaCall = { url: URL; headers: Headers };
+export type MedusaCall = { url: URL; headers: Headers; method: string; body: unknown };
 
 type Answer = { status?: number; body: unknown } | Error;
 
@@ -16,7 +16,13 @@ export function stubMedusaFetch(answer: (call: MedusaCall) => Answer): MedusaCal
   vi.stubGlobal(
     "fetch",
     vi.fn(async (input: URL | string, init?: RequestInit) => {
-      const call = { url: new URL(String(input)), headers: new Headers(init?.headers) };
+      const text = typeof init?.body === "string" ? init.body : undefined;
+      const call = {
+        url: new URL(String(input)),
+        headers: new Headers(init?.headers),
+        method: (init?.method ?? "GET").toUpperCase(),
+        body: text === undefined ? undefined : (JSON.parse(text) as unknown),
+      };
       calls.push(call);
       const result = answer(call);
       if (result instanceof Error) throw result;

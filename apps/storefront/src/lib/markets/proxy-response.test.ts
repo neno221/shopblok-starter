@@ -4,7 +4,7 @@ import { getRedirectUrl, getRewrittenUrl, isRewrite } from "next/experimental/te
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { listMarkets, primaryMarket } from "./market";
 import { NOT_FOUND_PATH, redirectStatus, respondToMarketRequest } from "./proxy-response";
-import { allMaps, brazil, mongolia, seeded, withDomains } from "./test-maps";
+import { allMaps, brazil, germanyClosed, mongolia, seeded, withDomains } from "./test-maps";
 
 function request(target: string, options: { method?: string; host?: string } = {}) {
   const url = new URL(target, "https://example.com");
@@ -178,5 +178,52 @@ describe("a redirect that would leave the host", () => {
     const response = guarded(request("/cy/x"), seeded);
     expect(isRewrite(response)).toBe(true);
     expect(getRewrittenUrl(response)).toBe("https://example.com/");
+  });
+});
+
+describe("the visitor's chosen market (D66, SPEC §8.5)", () => {
+  const chosen = (
+    target: string,
+    market: string | undefined,
+    options: { method?: string; host?: string; map?: MarketMap } = {},
+  ) => {
+    const response = respondToMarketRequest(
+      request(target, options),
+      options.map ?? seeded,
+      market,
+    );
+    if (isRewrite(response)) return { rewrite: getRewrittenUrl(response) };
+    return { redirect: getRedirectUrl(response), status: response.status };
+  };
+
+  it("sends / to the chosen market's root with a 307, keeping the query", () => {
+    expect(chosen("/", "en-us")).toEqual({ redirect: "https://example.com/us", status: 307 });
+    expect(chosen("/?utm_source=x", "fr-ch")).toEqual({
+      redirect: "https://example.com/ch/fr?utm_source=x",
+      status: 307,
+    });
+  });
+
+  it("leaves every other URL to the market it names", () => {
+    expect(chosen("/store", "en-us")).toEqual({ rewrite: "https://example.com/el-cy/store" });
+    expect(chosen("/de", "en-us")).toEqual({ rewrite: "https://example.com/de-de" });
+  });
+
+  it("does nothing for the primary market, a market that is not open, or a write", () => {
+    expect(chosen("/", "el-cy")).toEqual({ rewrite: "https://example.com/el-cy" });
+    expect(chosen("/", "en-zz")).toEqual({ rewrite: "https://example.com/el-cy" });
+    expect(chosen("/", "de-de", { map: germanyClosed })).toEqual({
+      rewrite: "https://example.com/el-cy",
+    });
+    expect(chosen("/", "en-us", { method: "POST" })).toEqual({
+      rewrite: "https://example.com/el-cy",
+    });
+  });
+
+  it("sends / to a chosen market on its own domain there", () => {
+    expect(chosen("/", "de-ch", { map: withDomains, host: "example.com" })).toEqual({
+      redirect: "https://shop.ch/",
+      status: 307,
+    });
   });
 });

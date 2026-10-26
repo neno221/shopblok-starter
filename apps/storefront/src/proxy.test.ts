@@ -1,5 +1,9 @@
 import { NextRequest } from "next/server";
-import { getRewrittenUrl, unstable_doesMiddlewareMatch } from "next/experimental/testing/server";
+import {
+  getRedirectUrl,
+  getRewrittenUrl,
+  unstable_doesMiddlewareMatch,
+} from "next/experimental/testing/server";
 import { describe, expect, it, vi } from "vitest";
 import { seeded } from "./lib/markets/test-maps";
 import { pathsLeftAlone, storefrontPaths } from "./test-support/proxy-urls";
@@ -28,5 +32,12 @@ describe("the proxy", () => {
   it("answers a request from the map it reads", async () => {
     const response = await proxy(new NextRequest("https://example.com/ch/fr?page=2"));
     expect(getRewrittenUrl(response)).toBe("https://example.com/fr-ch?page=2");
+  });
+
+  it("reads the visitor's chosen market from its cookie for / (D66)", async () => {
+    const response = await proxy(
+      new NextRequest("https://example.com/", { headers: { cookie: "_shopblok_market=en-us" } }),
+    );
+    expect([response.status, getRedirectUrl(response)]).toEqual([307, "https://example.com/us"]);
   });
 });

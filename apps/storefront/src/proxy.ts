@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { COOKIE } from "./lib/cookie-names";
 import { getProxyMarketMap } from "./lib/markets/proxy-market-map";
 import { respondToMarketRequest } from "./lib/markets/proxy-response";
 
@@ -7,9 +8,13 @@ import { respondToMarketRequest } from "./lib/markets/proxy-response";
 // the map and runs it. The map comes from `/next/markets` through a 30 s in-process cache (D10),
 // not from Payload's Local API: loading Payload here cost 550 ms on the first request of a process,
 // and the plan allows 150 ms (T11, SETUP.md). CMS redirects (M4) and the CSP split (M7) plug in
-// here later.
+// here later. `/` alone redirects to the market the visitor chose (`_shopblok_market`, D66).
 export async function proxy(req: NextRequest) {
-  return respondToMarketRequest(req, await getProxyMarketMap());
+  return respondToMarketRequest(
+    req,
+    await getProxyMarketMap(),
+    req.cookies.get(COOKIE.market)?.value || undefined,
+  );
 }
 
 export const config = {

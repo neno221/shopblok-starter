@@ -9,7 +9,15 @@
 // the value changes, because `useSyncExternalStore` compares snapshots with `Object.is` and a new
 // object on every read would render forever. The consent choice will live in a cookie the browser
 // can read (M6 wires PostHog to it, SPEC §8.4); until then the store holds it for the page's life.
-import type { ConsentChoice } from "@shopblok/registry/contracts";
+// M3 (T47, D60) gives the store its source, `source.ts`, which asks `/next/visitor` once after
+// hydration: the count, the signed-in customer's first name and the market suggestion.
+import type { ConsentChoice, MarketSuggestion } from "@shopblok/registry/contracts";
+
+/** The signed-in customer, as far as a page shows them (the header's greeting). */
+export type VisitorCustomer = { firstName: string | null };
+
+/** The market the banner suggests (D66), with its key for the `rememberMarket` action. */
+export type VisitorSuggestion = MarketSuggestion & { market: string };
 
 /** What the browser knows about the visitor. */
 export type Visitor = {
@@ -17,7 +25,15 @@ export type Visitor = {
   cartCount: number;
   /** What they chose about cookies (T36), or `null` before they choose: the banner is then shown. */
   consent: ConsentChoice | null;
+  /** The signed-in customer, or `null` for a guest. */
+  customer: VisitorCustomer | null;
+  /** Another market to offer, or `null`: none, or the visitor chose one already. */
+  suggestion: VisitorSuggestion | null;
 };
+
+/** A full answer as the callers give it: a guest with nothing to suggest unless they say. */
+export type VisitorInput = Omit<Visitor, "customer" | "suggestion"> &
+  Partial<Pick<Visitor, "customer" | "suggestion">>;
 
 /** The store's value: the visitor's, or "unknown" until the browser has it (and always on the server). */
 export type VisitorSnapshot = Visitor | "unknown";
@@ -50,12 +66,21 @@ export function getServerSnapshot(): VisitorSnapshot {
  * the server the store would be the process's, shared by every request; the server snapshot
  * ignores it anyway.
  */
-export function setVisitor(next: Visitor): void {
-  if (current !== "unknown" && current.cartCount === next.cartCount && sameConsent(current, next))
+export function setVisitor(input: VisitorInput): void {
+  const next: Visitor = { customer: null, suggestion: null, ...input };
+  if (
+    current !== "unknown" &&
+    current.cartCount === next.cartCount &&
+    sameConsent(current, next) &&
+    sameCustomer(current.customer, next.customer) &&
+    sameSuggestion(current.suggestion, next.suggestion)
+  )
     return;
   current = {
     cartCount: next.cartCount,
     consent: next.consent === null ? null : { ...next.consent },
+    customer: next.customer === null ? null : { ...next.customer },
+    suggestion: next.suggestion === null ? null : structuredClone(next.suggestion),
   };
   for (const listener of [...listeners]) listener();
 }
@@ -77,6 +102,16 @@ export function setConsent(consent: ConsentChoice): void {
 export function setCartCount(cartCount: number): void {
   if (current === "unknown") return;
   setVisitor({ ...current, cartCount });
+}
+
+function sameCustomer(a: VisitorCustomer | null, b: VisitorCustomer | null): boolean {
+  if (a === null || b === null) return a === b;
+  return a.firstName === b.firstName;
+}
+
+function sameSuggestion(a: VisitorSuggestion | null, b: VisitorSuggestion | null): boolean {
+  if (a === null || b === null) return a === b;
+  return a.market === b.market && a.suggested.href === b.suggested.href && a.message === b.message;
 }
 
 function sameConsent(a: Visitor, b: Visitor): boolean {
