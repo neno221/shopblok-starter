@@ -36,6 +36,11 @@ export function buildConfig(env: Env): InputConfigWithArrayModules {
         authCors: env.AUTH_CORS!,
         jwtSecret: getSecret(env, "JWT_SECRET"),
         cookieSecret: getSecret(env, "COOKIE_SECRET"),
+        // Required e-mail verification (D64, SPEC §8.4): always on, no env gate. A customer who
+        // logs in unverified gets `verification_required` and a restricted token.
+        authVerificationsPerActor: {
+          customer: [{ entity_type: "email", auth_provider: "emailpass" }],
+        },
       },
     },
     // Baked into the admin bundle at build time, so turbo.json's `build` task lists it.
