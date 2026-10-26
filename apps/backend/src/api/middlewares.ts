@@ -1,5 +1,6 @@
 import { configureStoreSearch, defineMiddlewares } from '@medusajs/framework/http'
 
+import { requireVerifiedCustomer } from './store/customers/verified'
 import { localizeStoreSearch } from './store/search/locale'
 
 // The product index declares filterable `status` and `sales_channel_ids`, so
@@ -19,6 +20,12 @@ export default defineMiddlewares({
         }),
         localizeStoreSearch,
       ],
+    },
+    // Required e-mail verification (D64): no account for an unverified e-mail.
+    {
+      method: ['POST'],
+      matcher: '/store/customers',
+      middlewares: [requireVerifiedCustomer],
     },
   ],
 })

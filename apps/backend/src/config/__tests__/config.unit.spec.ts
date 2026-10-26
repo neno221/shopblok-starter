@@ -71,6 +71,14 @@ describe("buildConfig", () => {
     });
   });
 
+  it("requires e-mail verification of customers who sign up with a password, always (D64)", () => {
+    for (const env of [{}, { NODE_ENV: "production" }]) {
+      expect(buildConfig(env).projectConfig?.http?.authVerificationsPerActor).toEqual({
+        customer: [{ entity_type: "email", auth_provider: "emailpass" }],
+      });
+    }
+  });
+
   it("takes the admin's storefront URL from STOREFRONT_URL", () => {
     expect(buildConfig({ STOREFRONT_URL: "http://localhost:8000" }).admin?.storefrontUrl).toBe(
       "http://localhost:8000",
