@@ -12,8 +12,6 @@ export const en = {
     currency: "Currency",
     products: "Products",
     pages: "Payload pages",
-    backendUnavailable: "The Medusa backend is not reachable.",
-    backendHint: "Start the backend with pnpm dev and reload; the server log has the details.",
     region: "Region",
     noRegion: "Medusa has no region for this market's country, so there are no prices to show.",
     priceCurrencies: "Price filter currencies",
@@ -476,8 +474,7 @@ export const en = {
       choose: "Choose cookies",
       // The dialog "choose" opens.
       dialogTitle: "Cookie preferences",
-      dialogDescription:
-        "Choose which cookies we may use. Nothing is switched on until you save.",
+      dialogDescription: "Choose which cookies we may use. Nothing is switched on until you save.",
       necessary: "Necessary",
       necessaryDescription:
         "Keep the store working: they remember your cart, your sign-in, your country and language, and this choice.",
@@ -799,10 +796,19 @@ export const en = {
         "{count, plural, one {# field needs your attention.} other {# fields need your attention.}}",
     },
   },
-  notFound: {
-    title: "Page not found",
-    body: "The page you are looking for does not exist.",
-    home: "Back to the home page",
+  templates: {
+    notFound: {
+      title: "Page not found",
+      body: "The page you are looking for does not exist, or it has moved.",
+      home: "Back to the home page",
+      search: "Search the store",
+    },
+    error: {
+      title: "Something went wrong",
+      body: "This page could not be shown just now. Try again in a moment.",
+      retry: "Try again",
+      home: "Back to the home page",
+    },
   },
 };
 

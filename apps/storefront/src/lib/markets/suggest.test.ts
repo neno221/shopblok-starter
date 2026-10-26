@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { findMarket } from "./market";
-import { pathInMarket, preferredLanguages, suggestMarket } from "./suggest";
+import { pathInMarket, preferredLanguages, suggestMarket, suggestionForKey } from "./suggest";
 import { seeded } from "./test-maps";
 
 const cy = findMarket(seeded, "el-cy")!;
@@ -58,5 +58,34 @@ describe("suggestMarket", () => {
 
   it("offers nothing in the visitor's own country (MarketSuggestion needs another one)", () => {
     expect(suggestMarket({ ...base, country: "CY", acceptLanguage: "en" })).toBeNull();
+  });
+});
+
+// PR 75 review, item 8: the banner's action takes the key the visitor store holds and only checks it.
+describe("suggestionForKey", () => {
+  const base = { map: seeded, current: cy, path: "/products/tee", currencyOf };
+
+  it("offers the market the key names, on the same page, as suggestMarket does", () => {
+    expect(suggestionForKey(base, "fr-ch")).toEqual({
+      market: "fr-ch",
+      current: { country: "cy" },
+      suggested: {
+        country: "ch",
+        language: "fr",
+        htmlLang: "fr-CH",
+        currencyCode: "CHF",
+        href: "/ch/fr/products/tee",
+      },
+    });
+    expect(suggestionForKey(base, "en-us")).toEqual(
+      suggestMarket({ ...base, country: "US", acceptLanguage: "en" }),
+    );
+  });
+
+  it("offers nothing for a key that is no open market, the current country, or no region", () => {
+    expect(suggestionForKey(base, "pt-br")).toBeNull();
+    expect(suggestionForKey(base, "<script>")).toBeNull();
+    expect(suggestionForKey(base, "el-cy")).toBeNull();
+    expect(suggestionForKey(base, "en-gb")).toBeNull();
   });
 });

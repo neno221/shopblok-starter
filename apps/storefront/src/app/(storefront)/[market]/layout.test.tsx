@@ -19,6 +19,12 @@ vi.mock("../../../lib/markets/cached-market-map", () => ({
 vi.mock("../../../lib/fonts", () => ({
   inter: { variable: "inter-variable" },
 }));
+// The shell (T48) has tests of its own; here it is a stand-in, so the layout reads no Medusa.
+vi.mock("../../../components/shell/shell-data", () => ({
+  getShellData: async () => ({ url: (path: string) => path, homes: [] }),
+}));
+vi.mock("../../../components/shell/header", () => ({ SiteHeader: () => null }));
+vi.mock("../../../components/shell/footer", () => ({ SiteFooter: () => null }));
 // `next-intl`'s root entry is the Server Component build under the `react-server` condition, which
 // Vitest does not set: its provider reads the request configuration itself, as it does in Next.
 vi.mock("next-intl", async () => {
@@ -93,25 +99,24 @@ describe("the market layout (D62)", () => {
   // message must not make it throw (every page of the language would answer 500).
   it("shows the English message, and does not throw, when a catalog lacks a shell message", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
-    const wiring = catalogs.de.wiring as Record<string, unknown>;
-    const held = wiring["backendHint"];
-    delete wiring["backendHint"];
+    const error = catalogs.de.templates.error as Record<string, unknown>;
+    const held = error["body"];
+    delete error["body"];
     try {
       const provider = find(
         await layoutFor(seeded, "de-ch"),
         (props) => props.messages !== undefined,
       );
       expect(provider?.props.messages).toEqual({
-        wiring: {
-          backendUnavailable: catalogs.de.wiring.backendUnavailable,
-          backendHint: catalogs.en.wiring.backendHint,
+        templates: {
+          error: { ...catalogs.de.templates.error, body: catalogs.en.templates.error.body },
         },
       });
       expect(warn).toHaveBeenCalledWith(
-        expect.stringContaining('de catalog has no message at "wiring.backendHint"'),
+        expect.stringContaining('de catalog has no message at "templates.error.body"'),
       );
     } finally {
-      wiring["backendHint"] = held;
+      error["body"] = held;
     }
   });
 

@@ -86,7 +86,7 @@ export type PickOptions = {
  * The part of the request's messages a client island needs (D62). `NextIntlClientProvider` given no
  * `messages` sends the whole catalog to the browser, so every provider in this app gets
  * `pick(messages, [...])` instead, and a page ships the namespaces of the islands it renders, not
- * the four catalogs. A path names one message (`"wiring.backendHint"`) or a namespace
+ * the four catalogs. A path names one message (`"templates.error.body"`) or a namespace
  * (`"molecules.cartLineItem"`); the result is a copy, so what a client component receives can never
  * be the catalog's own object.
  *
@@ -116,14 +116,16 @@ export function pick(
 }
 
 /**
- * What the market layout gives its provider: the client code that renders on every page. Today that
- * is the error boundary's two lines (`error.tsx` reads them with `useTranslations("wiring")`); T48
- * adds the header's and the cookie banner's namespaces when it builds them. A page that renders an
- * island nests its own provider with its own `pick`.
+ * What the market layout gives its provider: the client code that renders on every page and reads
+ * the catalog itself. That is the error boundary's `error` template (`error.tsx`, T48); the header's
+ * and the cookie banner's islands are given their words as props by the server. A page that renders
+ * an island nests its own provider with its own `pick`.
  */
 export const SHELL_MESSAGES = [
-  "wiring.backendUnavailable",
-  "wiring.backendHint",
+  "templates.error.title",
+  "templates.error.body",
+  "templates.error.retry",
+  "templates.error.home",
 ] as const satisfies readonly MessagePath[];
 
 const reported = new Set<string>();

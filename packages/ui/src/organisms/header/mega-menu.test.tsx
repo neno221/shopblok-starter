@@ -107,3 +107,18 @@ describe("HeaderMegaMenu: the end of the first row", () => {
     expect(header().querySelectorAll('[data-slot="cart-button"]')).toHaveLength(1);
   });
 });
+
+// PR 75 review, item 1: the page's search slot keeps the wide field's place in the grid.
+describe("HeaderMegaMenu: the search slot", () => {
+  it("sits where the wide search field would, between the logo and the utilities", () => {
+    render(
+      <HeaderMegaMenu
+        {...headerProps("en", { search: <button type="button" data-testid="search-island" /> })}
+      />,
+    );
+    const box = slot("header-search-slot");
+    expect(box?.contains(document.querySelector('[data-testid="search-island"]'))).toBe(true);
+    expect(box?.className).toContain("lg:col-start-2");
+    expect(box?.className).toContain("lg:row-start-1");
+  });
+});

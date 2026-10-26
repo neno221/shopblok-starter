@@ -76,6 +76,11 @@ type HeaderProps = Header & {
    * placeholder a prerendered page holds); the storefront passes the island that fills it in.
    */
   cart?: React.ReactNode;
+  /**
+   * The search, which opens over the page (M3: SearchOverlay with the shop's search behind it, D66).
+   * Without it the header draws the search link to `utilities.search`, which works with no script.
+   */
+  search?: React.ReactNode;
   /** The id of the page's main content, the skip link's target. `main` unless given. */
   mainId?: string;
   className?: string;
@@ -303,11 +308,25 @@ function TextLink({
 }
 
 /**
- * The search link: an icon link named "Search", to the search page. The search overlay arrives
- * with T37 and will open from here; until then it is a link, which works without JavaScript.
+ * The search: the page's `search` slot (the overlay, M3), or an icon link named "Search" to the
+ * search page, which works without JavaScript.
  */
+/**
+ * The page's search slot in the place the header gives its own search (PR 75 review, item 1): the
+ * variant's grid placement is on this box, so an overlay's trigger sits where the link would.
+ */
+function SearchSlot({ children, className }: { children: React.ReactNode; className?: string }) {
+  return (
+    <div data-slot="header-search-slot" className={cn("flex shrink-0 items-center", className)}>
+      {children}
+    </div>
+  );
+}
+
 function HeaderSearch({ header, className }: { header: HeaderProps; className?: string }) {
   const { utilities, copy, prefetch } = header;
+  if (header.search !== undefined)
+    return <SearchSlot className={className}>{header.search}</SearchSlot>;
   if (utilities.search === undefined) return null;
   return (
     <IconLink
@@ -328,6 +347,9 @@ function HeaderSearch({ header, className }: { header: HeaderProps; className?: 
  */
 function HeaderWideSearch({ header, className }: { header: HeaderProps; className?: string }) {
   const { utilities, copy, prefetch } = header;
+  // The slot is the overlay's own button, the same at every width, in the field's place.
+  if (header.search !== undefined)
+    return <SearchSlot className={className}>{header.search}</SearchSlot>;
   if (utilities.search === undefined) return null;
   return (
     <NextLink

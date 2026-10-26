@@ -13,13 +13,17 @@ const atom = (id: string, extra: Partial<EntryInput> = {}): EntryInput => ({
 });
 
 describe("the registry (D40)", () => {
-  it("lists M1's 8 foundations and 32 atoms, then T32's 15 molecules, T33's 13 and T34's 12, then T35's 4 organisms and 6 headers, T36's 2 organisms and 5 footers, T37's 7 organisms, T38's 7 and T39's 11, in the navigation's order", () => {
+  it("lists M1's 8 foundations and 32 atoms, then T32's 15 molecules, T33's 13 and T34's 12, then T35's 4 organisms and 6 headers, T36's 2 organisms and 5 footers, T37's 7 organisms, T38's 7 and T39's 11, then T48's 2 templates, in the navigation's order", () => {
     expect(byGroup("foundations")).toHaveLength(8);
     expect(byGroup("atoms")).toHaveLength(32);
     expect(byGroup("molecules")).toHaveLength(40);
     expect(byGroup("organisms")).toHaveLength(31);
     expect(byGroup("headers-footers")).toHaveLength(11);
-    expect(entries).toHaveLength(122);
+    expect(byGroup("templates").map((entry) => entry.id)).toEqual([
+      "templates/not-found",
+      "templates/error",
+    ]);
+    expect(entries).toHaveLength(124);
     expect(entries.map((entry) => entry.id).slice(0, 2)).toEqual([
       "foundations/colors",
       "foundations/typography",
@@ -65,7 +69,8 @@ describe("the registry (D40)", () => {
       "organisms/return-request-form",
     ]);
     expect(byGroup("headers-footers").at(5)?.id).toBe("headers-footers/header-transparent");
-    expect(entries.at(-1)?.id).toBe("headers-footers/footer-two-tier");
+    expect(byGroup("headers-footers").at(-1)?.id).toBe("headers-footers/footer-two-tier");
+    expect(entries.at(-1)?.id).toBe("templates/error");
   });
 
   it("gives every entry a unique `{group}/{slug}` id in a known group, and a label", () => {
@@ -306,14 +311,8 @@ describe("the thumbnails (D52)", () => {
       }
       const png = readFileSync(file);
       // The IHDR chunk: width and height are the big-endian words at bytes 16 and 20.
-      expect(
-        png.subarray(1, 4).toString("latin1"),
-        `${entry.id} is a PNG`,
-      ).toBe("PNG");
-      expect(
-        [png.readUInt32BE(16), png.readUInt32BE(20)],
-        `${entry.id}: size`,
-      ).toEqual([600, 400]);
+      expect(png.subarray(1, 4).toString("latin1"), `${entry.id} is a PNG`).toBe("PNG");
+      expect([png.readUInt32BE(16), png.readUInt32BE(20)], `${entry.id}: size`).toEqual([600, 400]);
     }
     expect(
       missing,
@@ -323,9 +322,7 @@ describe("the thumbnails (D52)", () => {
 
   it("has no PNG that no family entry points to", () => {
     const wanted = new Set(
-      entries.flatMap((entry) =>
-        entry.thumbnail === undefined ? [] : [`${entry.id}.png`],
-      ),
+      entries.flatMap((entry) => (entry.thumbnail === undefined ? [] : [`${entry.id}.png`])),
     );
     const found = readdirSync(thumbnailDir, {
       recursive: true,

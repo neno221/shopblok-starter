@@ -55,9 +55,7 @@ const langTag = (market: Market) => `${market.language}-${market.country.toUpper
  * a visitor in the right country but another of its languages gets no banner here; MarketSwitcher
  * covers that.
  */
-export function suggestMarket(
-  input: SuggestionInput,
-): (MarketSuggestion & { market: string }) | null {
+export function suggestMarket(input: SuggestionInput): Suggestion | null {
   const country = input.country?.trim().toLowerCase();
   if (!country || !/^[a-z]{2}$/.test(country) || country === input.current.country) return null;
   const candidates = listMarkets(input.map).filter((market) => market.country === country);
@@ -70,6 +68,16 @@ export function suggestMarket(
     candidates.find((market) => market.isDefaultLanguage) ??
     candidates[0];
   if (suggested === undefined) return null;
+  return suggestionOf(input, suggested);
+}
+
+type Suggestion = MarketSuggestion & { market: string };
+
+/** The banner's offer of `suggested` from `input.current`, or `null` when its country has no region. */
+function suggestionOf(
+  input: Pick<SuggestionInput, "map" | "current" | "path" | "currencyOf">,
+  suggested: Market,
+): Suggestion | null {
   const currencyCode = input.currencyOf(suggested.country);
   if (currencyCode === undefined) return null;
   return {
@@ -83,4 +91,20 @@ export function suggestMarket(
       href: buildPublicUrl(suggested, input.path, input.map),
     },
   };
+}
+
+/**
+ * The offer of the market `key` names, as `suggestMarket` would make it, for the banner's action
+ * (PR 75 review, item 8): `/next/visitor` has matched the request's country and languages already,
+ * so the action takes the key the visitor store holds and only checks it. Everything the banner
+ * shows comes from the map and the regions, never from the browser; `null` for a key that is no
+ * open market, or one in the current market's country (MarketSuggestion's refinement).
+ */
+export function suggestionForKey(
+  input: Pick<SuggestionInput, "map" | "current" | "path" | "currencyOf">,
+  key: string,
+): Suggestion | null {
+  const suggested = listMarkets(input.map).find((market) => market.key === key);
+  if (suggested === undefined || suggested.country === input.current.country) return null;
+  return suggestionOf(input, suggested);
 }

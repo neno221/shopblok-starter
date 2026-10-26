@@ -11,9 +11,6 @@ export const de: Messages = {
     currency: "Währung",
     products: "Produkte",
     pages: "Payload-Seiten",
-    backendUnavailable: "Das Medusa-Backend ist nicht erreichbar.",
-    backendHint:
-      "Starten Sie das Backend mit pnpm dev und laden Sie die Seite neu; das Server-Log enthält die Details.",
     region: "Region",
     noRegion: "Medusa hat keine Region für das Land dieses Marktes, daher gibt es keine Preise.",
     priceCurrencies: "Währungen des Preisfilters",
@@ -700,9 +697,18 @@ export const de: Messages = {
         "{count, plural, one {# Feld braucht Ihre Aufmerksamkeit.} other {# Felder brauchen Ihre Aufmerksamkeit.}}",
     },
   },
-  notFound: {
-    title: "Seite nicht gefunden",
-    body: "Die gesuchte Seite existiert nicht.",
-    home: "Zurück zur Startseite",
+  templates: {
+    notFound: {
+      title: "Seite nicht gefunden",
+      body: "Die gesuchte Seite existiert nicht oder wurde verschoben.",
+      home: "Zurück zur Startseite",
+      search: "Im Shop suchen",
+    },
+    error: {
+      title: "Etwas ist schiefgelaufen",
+      body: "Diese Seite kann gerade nicht angezeigt werden. Versuchen Sie es gleich noch einmal.",
+      retry: "Erneut versuchen",
+      home: "Zurück zur Startseite",
+    },
   },
 };

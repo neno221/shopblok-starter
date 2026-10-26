@@ -7,7 +7,7 @@ import { primaryMarket } from "../lib/markets/market";
 import { buildPublicUrl } from "../lib/markets/url";
 import "../styles/globals.css";
 
-export const metadata: Metadata = { title: catalogs.en.notFound.title };
+export const metadata: Metadata = { title: catalogs.en.templates.notFound.title };
 
 /**
  * The primary market's front page, or nothing when the map can't be read (an empty global, a
@@ -27,7 +27,7 @@ async function homeHref(): Promise<Route | undefined> {
 // Renders for every URL no route handles. It bypasses the layouts, so it brings its own `<html>`
 // and styles, and has no market to read: the default language, and a link to the primary market.
 export default async function GlobalNotFound() {
-  const { notFound } = catalogs.en;
+  const { notFound } = catalogs.en.templates;
   const home = await homeHref();
   return (
     <html lang="en" className={inter.variable}>

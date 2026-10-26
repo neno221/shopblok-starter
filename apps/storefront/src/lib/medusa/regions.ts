@@ -12,6 +12,17 @@ export type Region = {
   countries: string[];
 };
 
+/**
+ * The currency a country's region sells in, upper case (`EUR`), or `undefined` for a country no
+ * region has: the switcher's and the banner's lookup (PR 75 review, item 9).
+ */
+export function currencyForCountry(
+  regions: readonly Region[],
+): (country: string) => string | undefined {
+  return (country) =>
+    regions.find((region) => region.countries.includes(country))?.currencyCode.toUpperCase();
+}
+
 const REGION_FIELDS = "id,name,currency_code,*countries";
 const PAGE_SIZE = 100;
 

@@ -1,13 +1,13 @@
 import "server-only";
 import type { Cart, MarketSuggestion } from "@shopblok/registry/contracts";
 import { cartView } from "../cart-view";
-import { getMarketContext } from "../market-context";
+import { getMarketContext, type MarketContext } from "../market-context";
 import { findMarket } from "../markets/market";
 import { pathInMarket, suggestMarket } from "../markets/suggest";
 import { getCart } from "../medusa/cart";
 import { getChosenMarket } from "../medusa/cookies";
 import { getCustomer } from "../medusa/customer";
-import { listRegions } from "../medusa/regions";
+import { currencyForCountry, listRegions } from "../medusa/regions";
 import { MedusaRequestError } from "../medusa/sdk";
 
 // The browser's reads of what only the httpOnly cookies know (D60, ADR 0004 reading 2): a catalog
@@ -32,6 +32,32 @@ const unavailable = (error: unknown) =>
   error instanceof MedusaRequestError && error.kind === "unreachable";
 
 /**
+ * What the banner suggests to this request (D66, SPEC §8.5): `null` once the visitor chose an open
+ * market (`chosen`, the `_shopblok_market` cookie; a cookie naming a market that has closed since
+ * is no choice), or when there is nothing to suggest. `path` is the page's public path, so the
+ * suggestion links to the same page in the other market. `/next/visitor` and the banner's action
+ * both ask it.
+ */
+export async function suggestionFor(
+  context: MarketContext,
+  chosen: string | undefined,
+  headers: Pick<Headers, "get">,
+  path: string,
+): Promise<VisitorAnswer["suggestion"]> {
+  if (chosen !== undefined && findMarket(context.map, chosen) !== undefined) return null;
+  const regions = await listRegions();
+  const host = headers.get("host") ?? "";
+  return suggestMarket({
+    map: context.map,
+    current: context.market,
+    country: headers.get("x-vercel-ip-country"),
+    acceptLanguage: headers.get("accept-language"),
+    path: pathInMarket(path, host, context.map),
+    currencyOf: currencyForCountry(regions),
+  });
+}
+
+/**
  * `GET /next/visitor?market=<key>&path=<public path>`: the cart's count, the signed-in customer's
  * first name, and the market suggestion (`null` once the visitor chose a market, or when there is
  * nothing to suggest). An unknown market answers the count and the customer with no suggestion,
@@ -48,22 +74,10 @@ export async function visitorResponse(request: Request): Promise<Response> {
       getCustomer(),
       getChosenMarket(),
     ]);
-    let suggestion: VisitorAnswer["suggestion"] = null;
-    // A cookie naming a market that has closed since is no choice: the banner may offer one.
-    const hasChosen = chosen !== undefined && context !== null && findMarket(context.map, chosen);
-    if (context !== null && !hasChosen) {
-      const regions = await listRegions();
-      const host = request.headers.get("host") ?? "";
-      suggestion = suggestMarket({
-        map: context.map,
-        current: context.market,
-        country: request.headers.get("x-vercel-ip-country"),
-        acceptLanguage: request.headers.get("accept-language"),
-        path: pathInMarket(params.get("path") ?? "/", host, context.map),
-        currencyOf: (country) =>
-          regions.find((region) => region.countries.includes(country))?.currencyCode.toUpperCase(),
-      });
-    }
+    const suggestion =
+      context === null
+        ? null
+        : await suggestionFor(context, chosen, request.headers, params.get("path") ?? "/");
     const answer: VisitorAnswer = {
       cartCount: cart?.itemCount ?? 0,
       customer: customer === null ? null : { firstName: customer.firstName },

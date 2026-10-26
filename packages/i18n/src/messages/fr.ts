@@ -11,9 +11,6 @@ export const fr: Messages = {
     currency: "Devise",
     products: "Produits",
     pages: "Pages Payload",
-    backendUnavailable: "Le backend Medusa est injoignable.",
-    backendHint:
-      "Démarrez le backend avec pnpm dev puis rechargez la page ; le journal du serveur donne les détails.",
     region: "Région",
     noRegion:
       "Medusa n'a pas de région pour le pays de ce marché, il n'y a donc aucun prix à afficher.",
@@ -493,7 +490,8 @@ export const fr: Messages = {
     },
     compareTray: {
       region: "Comparer des produits",
-      count: "{count, plural, one {# sur {max, number} choisi} other {# sur {max, number} choisis}}",
+      count:
+        "{count, plural, one {# sur {max, number} choisi} other {# sur {max, number} choisis}}",
       remove: "Retirer {title}",
       clear: "Tout retirer",
       compare: "Comparer",
@@ -709,9 +707,18 @@ export const fr: Messages = {
         "{count, plural, one {# champ demande votre attention.} other {# champs demandent votre attention.}}",
     },
   },
-  notFound: {
-    title: "Page introuvable",
-    body: "La page que vous recherchez n'existe pas.",
-    home: "Retour à l'accueil",
+  templates: {
+    notFound: {
+      title: "Page introuvable",
+      body: "La page que vous recherchez n'existe pas ou a été déplacée.",
+      home: "Retour à l'accueil",
+      search: "Rechercher dans la boutique",
+    },
+    error: {
+      title: "Un problème est survenu",
+      body: "Cette page ne peut pas s'afficher pour le moment. Réessayez dans un instant.",
+      retry: "Réessayer",
+      home: "Retour à l'accueil",
+    },
   },
 };

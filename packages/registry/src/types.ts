@@ -1,8 +1,8 @@
 import type { z } from "zod";
 
 /**
- * The groups of the DS navigation, in SPEC §9.6's order: the ones M2 fills. Sections, Templates and
- * Pages join when a milestone builds their first entry.
+ * The groups of the DS navigation, in SPEC §9.6's order: the ones M2 and M3 fill. Sections join
+ * before Templates when M5 builds its first entry; SPEC §9.3's "Pages" are the app itself (D56).
  */
 export const GROUPS = [
   "foundations",
@@ -10,6 +10,7 @@ export const GROUPS = [
   "molecules",
   "organisms",
   "headers-footers",
+  "templates",
 ] as const;
 export type Group = (typeof GROUPS)[number];
 
@@ -17,7 +18,7 @@ export type Group = (typeof GROUPS)[number];
  * What an entry is, which its group does not always say: the headers and footers are organisms in
  * a group of their own.
  */
-export type Kind = "foundation" | "atom" | "molecule" | "organism";
+export type Kind = "foundation" | "atom" | "molecule" | "organism" | "template";
 
 /** The `@shopblok/ui` export an entry renders: its module, as an import path, and its name. */
 export type ComponentRef = { module: `@shopblok/ui/${string}`; name: string };

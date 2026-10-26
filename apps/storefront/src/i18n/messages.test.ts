@@ -72,18 +72,21 @@ describe("pick", () => {
 describe("pick with a fallback catalog (PR 70 review, item 2)", () => {
   it("reads a message the catalog lacks from the fallback, and says which", () => {
     const onFallback = vi.fn();
-    const german = without(catalogs.de, ["wiring.backendHint"]);
+    const german = without(catalogs.de, ["templates.error.body"]);
     const picked = pick(german, SHELL_MESSAGES, {
       fallback: catalogs.en,
       onFallback,
     });
     expect(picked).toEqual({
-      wiring: {
-        backendUnavailable: catalogs.de.wiring.backendUnavailable,
-        backendHint: catalogs.en.wiring.backendHint,
+      templates: {
+        error: {
+          ...catalogs.de.templates.error,
+          title: catalogs.de.templates.error.title,
+          body: catalogs.en.templates.error.body,
+        },
       },
     });
-    expect(onFallback.mock.calls).toEqual([["wiring.backendHint"]]);
+    expect(onFallback.mock.calls).toEqual([["templates.error.body"]]);
   });
 
   it("fills a namespace key by key, so one missing line costs that line only", () => {
@@ -134,9 +137,9 @@ describe("pick with a fallback catalog (PR 70 review, item 2)", () => {
     expect(() => pick(catalogs.de, missing, { fallback: catalogs.en })).toThrow(
       'there is no message at "wiring.nothingHere"',
     );
-    const german = without(catalogs.de, ["wiring.backendHint"]);
+    const german = without(catalogs.de, ["templates.error.body"]);
     expect(() => pick(german, SHELL_MESSAGES)).toThrow(
-      'there is no message at "wiring.backendHint"',
+      'there is no message at "templates.error.body"',
     );
   });
 });
@@ -152,25 +155,31 @@ describe("pickShell", () => {
 
   it("shows English for a shell message a language lacks, and warns once per language and path", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
-    const behind = without(catalogs.fr, ["wiring.backendUnavailable"]);
+    const behind = without(catalogs.fr, ["templates.error.title"]);
     const expected = {
-      wiring: {
-        backendUnavailable: catalogs.en.wiring.backendUnavailable,
-        backendHint: catalogs.fr.wiring.backendHint,
+      templates: {
+        error: {
+          ...catalogs.fr.templates.error,
+          title: catalogs.en.templates.error.title,
+          body: catalogs.fr.templates.error.body,
+        },
       },
     };
     expect(pickShell(behind, "fr")).toEqual(expected);
     expect(pickShell(behind, "fr")).toEqual(expected);
     expect(warn).toHaveBeenCalledTimes(1);
     expect(warn.mock.calls[0]?.[0]).toContain(
-      'fr catalog has no message at "wiring.backendUnavailable"',
+      'fr catalog has no message at "templates.error.title"',
     );
 
     // Another language is another warning.
-    expect(pickShell(without(catalogs.el, ["wiring.backendUnavailable"]), "el")).toEqual({
-      wiring: {
-        backendUnavailable: catalogs.en.wiring.backendUnavailable,
-        backendHint: catalogs.el.wiring.backendHint,
+    expect(pickShell(without(catalogs.el, ["templates.error.title"]), "el")).toEqual({
+      templates: {
+        error: {
+          ...catalogs.el.templates.error,
+          title: catalogs.en.templates.error.title,
+          body: catalogs.el.templates.error.body,
+        },
       },
     });
     expect(warn).toHaveBeenCalledTimes(2);
@@ -184,12 +193,9 @@ describe("SHELL_MESSAGES", () => {
     expect(() => pick(catalogs[locale], SHELL_MESSAGES)).not.toThrow();
   });
 
-  it("is the error boundary's two lines and nothing of a molecule or an organism", () => {
+  it("is the error boundary's template and nothing of a molecule or an organism", () => {
     expect(pick(catalogs.en, SHELL_MESSAGES)).toEqual({
-      wiring: {
-        backendUnavailable: catalogs.en.wiring.backendUnavailable,
-        backendHint: catalogs.en.wiring.backendHint,
-      },
+      templates: { error: catalogs.en.templates.error },
     });
   });
 });
