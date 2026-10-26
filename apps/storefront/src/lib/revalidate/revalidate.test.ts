@@ -75,6 +75,25 @@ describe("/api/revalidate", () => {
     expect(revalidate).not.toHaveBeenCalled();
   });
 
+  it("skips an unknown tag beside allowed ones, and revalidates the rest", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const revalidate = vi.fn();
+    const response = await revalidateResponse(
+      post({ tags: ["product:v1.2-shirt", "medusa:products", "global:markets", "search"] }),
+      revalidate,
+      source,
+    );
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      revalidated: ["medusa:products", "search"],
+      skipped: ["product:v1.2-shirt", "global:markets"],
+      expire: "max",
+    });
+    expect(revalidate.mock.calls.map(([tag]) => tag)).toEqual(["medusa:products", "search"]);
+    expect(warn).toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
   it("answers 400 for a body that is not JSON, empty tags, or a bad expire", async () => {
     for (const body of ["{", { tags: [] }, { tags: ["search"], expire: 5 }, { tags: "search" }]) {
       expect((await revalidateResponse(post(body), vi.fn(), source)).status).toBe(400);
@@ -93,7 +112,7 @@ describe("/api/revalidate", () => {
       "category:men/shirts",
       "collection:summer-2026",
     ];
-    expect(parseBody({ tags })).toEqual({ tags, expire: "max" });
+    expect(parseBody({ tags })).toEqual({ tags, skipped: [], expire: "max" });
   });
 
   it("compares the secret in constant time", () => {

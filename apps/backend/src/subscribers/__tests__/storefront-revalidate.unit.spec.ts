@@ -42,6 +42,19 @@ describe("storefront-revalidate subscriber", () => {
     ]);
   });
 
+  it("sends medusa:products for a stock change whose products cannot be read", async () => {
+    fetchMock.mockImplementation(async () => new Response("{}"));
+    const log = { warn: jest.fn(), error: jest.fn() };
+    const graph = jest.fn().mockRejectedValue(new Error("database down"));
+    await storefrontRevalidate({
+      event: { name: "inventory-level.deleted", data: { id: "ilev_1" } },
+      container: containerWith(graph, log),
+    } as never);
+    expect(fetchMock.mock.calls.map(([, init]) => JSON.parse(init.body))).toEqual([
+      { tags: ["medusa:products"], expire: "max" },
+    ]);
+  });
+
   it("never throws: a failed read still sends the list tags, a failed POST is logged", async () => {
     // The mutation (T49's Verify): a subscriber that lets the POST's error out fails here.
     fetchMock.mockRejectedValue(new Error("ECONNREFUSED"));

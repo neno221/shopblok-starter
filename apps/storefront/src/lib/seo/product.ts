@@ -8,12 +8,31 @@ import { env, type RawEnv } from "../env";
 
 const LOCAL_BASE = "http://localhost:8000";
 
-/** The site's origin for absolute URLs: `NEXT_PUBLIC_BASE_URL`, or the local one. */
+let warnedLocal = false;
+
+/**
+ * The site's origin for absolute URLs: `NEXT_PUBLIC_BASE_URL`, or the local one when it is unset.
+ * A value that is not a URL throws (a typo would otherwise publish localhost in every canonical),
+ * and a production build or server without one says so once on the console: CI builds with no
+ * `.env`, so it cannot fail there, but a real deployment must not publish localhost unnoticed.
+ */
 export function siteBase(source: RawEnv = env): URL {
-  try {
-    return new URL(source.NEXT_PUBLIC_BASE_URL?.trim() || LOCAL_BASE);
-  } catch {
+  const value = source.NEXT_PUBLIC_BASE_URL?.trim();
+  if (!value) {
+    if (source.NODE_ENV === "production" && !warnedLocal) {
+      warnedLocal = true;
+      console.error(
+        `[seo] NEXT_PUBLIC_BASE_URL is not set: canonical, hreflang, Open Graph and JSON-LD URLs use ${LOCAL_BASE}`,
+      );
+    }
     return new URL(LOCAL_BASE);
+  }
+  try {
+    return new URL(value);
+  } catch {
+    throw new Error(
+      `NEXT_PUBLIC_BASE_URL is "${value}", which is not a URL (https://shop.example)`,
+    );
   }
 }
 

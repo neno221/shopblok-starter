@@ -22,9 +22,13 @@ const MAX_TAG_LENGTH = 200;
 export type Expire = 0 | "max";
 export type Revalidate = (tag: string, profile: "max" | { expire: 0 }) => void;
 
-export type RevalidateBody = { tags: string[]; expire: Expire };
+export type RevalidateBody = { tags: string[]; skipped: string[]; expire: Expire };
 
-/** The request's body, or the reason it is refused. */
+/**
+ * The request's body, or the reason it is refused. A tag outside the list is skipped, not fatal:
+ * a product whose handle Medusa allows but the pattern does not (a `.`, a non-ASCII letter) still
+ * gets the catalog-wide tags sent beside its own. A body with no allowed tag at all is refused.
+ */
 export function parseBody(body: unknown): RevalidateBody | { error: string } {
   if (typeof body !== "object" || body === null) return { error: "body must be an object" };
   const { tags, expire = "max" } = body as { tags?: unknown; expire?: unknown };
@@ -32,12 +36,17 @@ export function parseBody(body: unknown): RevalidateBody | { error: string } {
     return { error: `tags must be a list of 1 to ${MAX_TAGS} tags` };
   }
   if (expire !== 0 && expire !== "max") return { error: 'expire must be 0 or "max"' };
+  const allowed = new Set<string>();
+  const skipped: string[] = [];
   for (const tag of tags) {
-    if (typeof tag !== "string" || tag.length > MAX_TAG_LENGTH || !ALLOWED_TAG.test(tag)) {
-      return { error: `unknown tag: ${String(tag).slice(0, MAX_TAG_LENGTH)}` };
+    if (typeof tag === "string" && tag.length <= MAX_TAG_LENGTH && ALLOWED_TAG.test(tag)) {
+      allowed.add(tag);
+    } else {
+      skipped.push(String(tag).slice(0, MAX_TAG_LENGTH));
     }
   }
-  return { tags: [...new Set(tags as string[])], expire };
+  if (allowed.size === 0) return { error: `unknown tags: ${skipped.join(", ")}` };
+  return { tags: [...allowed], skipped, expire };
 }
 
 const digest = (value: string) => createHash("sha256").update(value).digest();
@@ -76,5 +85,8 @@ export async function revalidateResponse(
   if ("error" in body) return Response.json({ error: body.error }, { status: 400 });
   const profile = body.expire === 0 ? { expire: 0 as const } : "max";
   for (const tag of body.tags) revalidate(tag, profile);
-  return Response.json({ revalidated: body.tags, expire: body.expire });
+  if (body.skipped.length > 0) {
+    console.warn(`[revalidate] skipped unknown tags: ${body.skipped.join(", ")}`);
+  }
+  return Response.json({ revalidated: body.tags, skipped: body.skipped, expire: body.expire });
 }

@@ -5,7 +5,7 @@ import { catalogHandles, OUTAGE_SUBJECTS, prerenderCap } from "./support/catalog
 import { stopMedusa } from "./support/medusa-process";
 
 // T49, D67 item 2, ADR 0004: what the shop answers while Medusa is down, against `next start` built
-// with STOREFRONT_PRERENDER_PRODUCTS=4. The subjects are taken from past the cap, so they were not
+// with STOREFRONT_PRERENDER_PRODUCTS (4 in CI). The subjects are taken from past the cap, so they were not
 // prerendered: O2's page is rendered once here before the stop, O3's never is. `catalog.spec.ts`
 // visits the first of them (the hoodie, in the demo catalog), so O3 is the last. The spec leaves
 // Medusa down; `ci.yml` starts it again and `outage-recovery.spec.ts` checks O5.

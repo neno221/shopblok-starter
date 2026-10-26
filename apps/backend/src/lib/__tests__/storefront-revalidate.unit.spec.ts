@@ -24,18 +24,35 @@ describe("batchesFor (the event-to-tags table)", () => {
       ["tee", "cap"],
       [{ tags: ["product:cap", "product:tee"], expire: 0 }],
     ],
-    ["inventory-level.updated", [], []],
+    ["inventory-level.deleted", [], [{ tags: ["medusa:products"], expire: "max" }]],
     [
       "product-category.updated",
       ["apparel"],
       [
         {
-          tags: ["category:apparel", "medusa:categories", "navigation", "search"],
+          tags: [
+            "category:apparel",
+            "medusa:categories",
+            "medusa:products",
+            "navigation",
+            "search",
+          ],
           expire: "max",
         },
       ],
     ],
-    ["product-collection.deleted", [], [{ tags: ["medusa:collections", "search"], expire: "max" }]],
+    [
+      "product-collection.deleted",
+      [],
+      [{ tags: ["medusa:collections", "medusa:products", "search"], expire: "max" }],
+    ],
+    [
+      "product-option-value.updated",
+      ["tee"],
+      [{ tags: ["product:tee", "medusa:products", "search"], expire: "max" }],
+    ],
+    ["product-tag.deleted", [], [{ tags: ["medusa:products", "search"], expire: "max" }]],
+    ["sales-channel.deleted", [], [{ tags: ["medusa:products", "search"], expire: "max" }]],
     [
       "translation.updated",
       [],
@@ -112,6 +129,20 @@ describe("handlesFor", () => {
     expect(graph.mock.calls[0][0].fields).toEqual(["inventory_item.variants.product.handle"]);
   });
 
+  it("follows an option value to every product of its option", async () => {
+    const graph = jest.fn().mockResolvedValue({
+      data: [{ option: { products: [{ handle: "tee" }, { handle: "cap" }, null] } }],
+    });
+    expect(await handlesFor({ graph }, "product-option-value.updated", ["optval_1"])).toEqual([
+      "tee",
+      "cap",
+    ]);
+    expect(graph.mock.calls[0][0]).toMatchObject({
+      entity: "product_option_value",
+      fields: ["option.products.handle"],
+    });
+  });
+
   it("reads nothing for an event whose tags need no handle, or without ids", async () => {
     const graph = jest.fn();
     expect(await handlesFor({ graph }, "product.deleted", ["prod_1"])).toEqual([]);
@@ -137,6 +168,19 @@ describe("postBatch", () => {
     expect(init.method).toBe("POST");
     expect(init.headers.authorization).toBe("Bearer s3cret");
     expect(JSON.parse(init.body)).toEqual(batch);
+  });
+
+  it("logs the tags the storefront skipped", async () => {
+    const log = logger();
+    const answer = { revalidated: ["search"], skipped: ["product:v1.2"], expire: "max" };
+    const ok = await postBatch(batch, {
+      storefrontUrl: "http://localhost:8000",
+      secret: "s",
+      logger: log,
+      fetch: jest.fn().mockResolvedValue(Response.json(answer)),
+    });
+    expect(ok).toBe(true);
+    expect(log.warn).toHaveBeenCalledWith(expect.stringContaining("skipped product:v1.2"));
   });
 
   it("logs and never throws when the storefront refuses, is down, or is not configured", async () => {

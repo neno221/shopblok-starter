@@ -1,29 +1,32 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
+import { parseEnv } from "node:util";
+import { prerenderCap as buildPrerenderCap } from "../../src/lib/prerender";
 
 // What the catalog specs read from Medusa directly (T49): the published handles in handle order, as
 // `prerender.ts` asks for them, so the outage spec never hard-codes which products a build left
-// out. The URL and the key come from the environment or, as `pnpm bootstrap` writes them, from
-// `apps/storefront/.env` (Playwright does not load it).
+// out. The settings come from the environment or, as `pnpm bootstrap` writes them, from
+// `apps/storefront/.env`, which `next build` reads too (Playwright does not load it).
 
 const envFile = path.resolve(import.meta.dirname, "../../.env");
 
-function fromEnvFile(name: string): string | undefined {
+/** The `.env` as dotenv reads it (`parseEnv`: the last assignment, `export `, quotes, comments). */
+function envFileValues(): Record<string, string | undefined> {
   try {
-    const line = readFileSync(envFile, "utf8")
-      .split("\n")
-      .find((each) => each.startsWith(`${name}=`));
-    return line?.slice(name.length + 1).trim() || undefined;
+    return parseEnv(readFileSync(envFile, "utf8"));
   } catch {
-    return undefined;
+    return {};
   }
 }
 
-const setting = (name: string) => process.env[name]?.trim() || fromEnvFile(name);
+const setting = (name: string) =>
+  process.env[name]?.trim() || envFileValues()[name]?.trim() || undefined;
 
-/** `STOREFRONT_PRERENDER_PRODUCTS` as the build had it: CI builds with 4 (D67, item 2). */
+/** `STOREFRONT_PRERENDER_PRODUCTS` as the build read it, through the build's own parser (CI: 4). */
 export function prerenderCap(): number {
-  return Number(process.env["STOREFRONT_PRERENDER_PRODUCTS"] ?? "4");
+  return buildPrerenderCap({
+    STOREFRONT_PRERENDER_PRODUCTS: setting("STOREFRONT_PRERENDER_PRODUCTS"),
+  });
 }
 
 /** Every published handle, in the order `generateStaticParams` takes them (Medusa's `order=handle`). */

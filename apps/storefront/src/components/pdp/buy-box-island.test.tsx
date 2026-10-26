@@ -131,6 +131,26 @@ describe("BuyBoxIsland (D61)", () => {
     expect(published).toEqual(target.options);
   });
 
+  it("follows a link back to the variant it opened on after another choice", async () => {
+    const other = product.variants.find(
+      (variant) =>
+        variant.available &&
+        variant.id !== target.id &&
+        variant.options[colour?.id as string] === target.options[colour?.id as string],
+    ) as (typeof product.variants)[number];
+    window.history.replaceState(null, "", `/us/products/hoodie?variant=${target.id}`);
+    await mount();
+    await act(async () => press(radio(1, other.options[size?.id as string] as string)));
+    expect(new URL(window.location.href).searchParams.get("variant")).toBe(other.id);
+    // A link to `?variant=` of the first one: the stand-in reads the address on the next render.
+    window.history.replaceState(null, "", `/us/products/hoodie?variant=${target.id}`);
+    await mount();
+    expect(published).toEqual(target.options);
+    const button = container.querySelector<HTMLElement>('[data-slot="buy-box-add"]') as HTMLElement;
+    await act(async () => button.click());
+    expect(added.calls).toEqual([{ market: "en-us", variantId: target.id, quantity: "1" }]);
+  });
+
   it("adds through the action and gives the store the new count", async () => {
     window.history.replaceState(null, "", `/us/products/hoodie?variant=${target.id}`);
     await mount();

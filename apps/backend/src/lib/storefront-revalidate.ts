@@ -26,7 +26,14 @@ type Rule = {
 };
 
 type HandleSource =
-  "product" | "product_variant" | "inventory_level" | "product_category" | "product_collection";
+  | "product"
+  | "product_variant"
+  | "product_option"
+  | "product_option_value"
+  | "product_tag"
+  | "inventory_level"
+  | "product_category"
+  | "product_collection";
 
 const productTags = (handles: string[]) => handles.map((handle) => `product:${handle}`);
 
@@ -43,8 +50,15 @@ const PRICES: Rule["batches"] = (handles) => [
   ...(handles.length > 0 ? [{ tags: productTags(handles), expire: 0 as const }] : []),
 ];
 
-const STOCK: Rule["batches"] = (handles) =>
-  handles.length > 0 ? [{ tags: productTags(handles), expire: 0 }] : [];
+/**
+ * Stock for the products the event names. With none (the read failed, or the level's item has no
+ * variant left) every product read is marked stale instead, with `"max"` for the reason above.
+ */
+const STOCK: Rule["batches"] = (handles) => [
+  handles.length > 0
+    ? { tags: productTags(handles), expire: 0 }
+    : { tags: ["medusa:products"], expire: "max" },
+];
 
 const group =
   (kind: "category" | "collection", list: string, extra: string[]): Rule["batches"] =>
@@ -55,8 +69,14 @@ const group =
     },
   ];
 
-const CATEGORY = group("category", "medusa:categories", ["navigation", "search"]);
-const COLLECTION = group("collection", "medusa:collections", ["search"]);
+// A product page's breadcrumbs carry its categories' and collection's names and handles, so a
+// group's change refreshes the product reads too.
+const CATEGORY = group("category", "medusa:categories", [
+  "medusa:products",
+  "navigation",
+  "search",
+]);
+const COLLECTION = group("collection", "medusa:collections", ["medusa:products", "search"]);
 
 /** A translation's id names no product, so every text the catalog shows is refreshed. */
 const TRANSLATION: Rule["batches"] = () => [
@@ -84,6 +104,16 @@ export const RULES: Record<string, Rule> = {
   "product-variant.created": { handlesOf: "product_variant", batches: PRICES },
   "product-variant.updated": { handlesOf: "product_variant", batches: PRICES },
   "product-variant.deleted": { handlesOf: "product_variant", batches: PRICES },
+  // An option can be shared by many products since 2.16; the search index follows the same events
+  // (`search/product.ts`). A sales channel's deletion unlinks its products, so none can be read.
+  "product-option.created": { handlesOf: "product_option", batches: CONTENT },
+  "product-option.updated": { handlesOf: "product_option", batches: CONTENT },
+  "product-option.deleted": { handlesOf: "product_option", batches: CONTENT },
+  "product-option-value.updated": { handlesOf: "product_option_value", batches: CONTENT },
+  "product-option-value.deleted": { handlesOf: "product_option_value", batches: CONTENT },
+  "product-tag.updated": { handlesOf: "product_tag", batches: CONTENT },
+  "product-tag.deleted": { handlesOf: "product_tag", batches: CONTENT },
+  "sales-channel.deleted": { batches: CONTENT },
   "inventory-level.created": { handlesOf: "inventory_level", batches: STOCK },
   "inventory-level.updated": { handlesOf: "inventory_level", batches: STOCK },
   "inventory-level.deleted": { handlesOf: "inventory_level", batches: STOCK },
@@ -117,6 +147,9 @@ export function batchesFor(event: string, handles: string[]): Batch[] {
   return rule.batches(unique).sort((a, b) => (a.expire === b.expire ? 0 : a.expire === 0 ? 1 : -1));
 }
 
+const handlesOf = (products: { handle?: unknown }[] | null | undefined) =>
+  (products ?? []).map((product) => product?.handle);
+
 /** What `query.graph` returns for each entity, and where the handle sits in it. */
 const HANDLE_FIELDS: Record<HandleSource, { field: string; pick: (row: any) => unknown[] }> = {
   product: { field: "handle", pick: (row) => [row.handle] },
@@ -124,6 +157,12 @@ const HANDLE_FIELDS: Record<HandleSource, { field: string; pick: (row: any) => u
     field: "product.handle",
     pick: (row) => [row.product?.handle],
   },
+  product_option: { field: "products.handle", pick: (row) => handlesOf(row.products) },
+  product_option_value: {
+    field: "option.products.handle",
+    pick: (row) => handlesOf(row.option?.products),
+  },
+  product_tag: { field: "products.handle", pick: (row) => handlesOf(row.products) },
   inventory_level: {
     field: "inventory_item.variants.product.handle",
     pick: (row) =>
@@ -203,12 +242,17 @@ export async function postBatch(batch: Batch, options: PostOptions): Promise<boo
       body: JSON.stringify(batch),
       signal: AbortSignal.timeout(timeoutMs),
     });
-    await response.body?.cancel();
     if (!response.ok) {
+      await response.body?.cancel();
       logger.warn(
         `storefront-revalidate: ${url} answered ${response.status} for ${batch.tags.join(", ")}`,
       );
       return false;
+    }
+    // The storefront skips a tag it does not know (a handle outside its pattern) and says which.
+    const answer = (await response.json().catch(() => null)) as { skipped?: unknown } | null;
+    if (Array.isArray(answer?.skipped) && answer.skipped.length > 0) {
+      logger.warn(`storefront-revalidate: ${url} skipped ${answer.skipped.join(", ")}`);
     }
     return true;
   } catch (error) {

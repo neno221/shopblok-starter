@@ -1,5 +1,5 @@
 import { pageFixtures } from "@shopblok/fixtures";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { jsonLdText, metaDescription, productJsonLd, shareableImage, siteBase } from "./product";
 
 const detail = pageFixtures.en.productDetail.buyBox.product;
@@ -51,6 +51,17 @@ describe("the product page's SEO (T49, SPEC §12)", () => {
       "https://shop.example",
     );
     expect(siteBase({}).origin).toBe("http://localhost:8000");
-    expect(siteBase({ NEXT_PUBLIC_BASE_URL: "not a url" }).origin).toBe("http://localhost:8000");
+  });
+
+  it("throws for a value that is not a URL, and says so in production without one", () => {
+    expect(() => siteBase({ NEXT_PUBLIC_BASE_URL: "shop.example" })).toThrow(
+      'NEXT_PUBLIC_BASE_URL is "shop.example", which is not a URL',
+    );
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    expect(siteBase({ NODE_ENV: "production" }).origin).toBe("http://localhost:8000");
+    siteBase({ NODE_ENV: "production" });
+    expect(error).toHaveBeenCalledTimes(1);
+    expect(error.mock.calls[0]?.[0]).toContain("NEXT_PUBLIC_BASE_URL is not set");
+    error.mockRestore();
   });
 });

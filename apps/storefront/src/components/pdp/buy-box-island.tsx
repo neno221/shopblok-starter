@@ -2,12 +2,11 @@
 
 import type { ProductDetail, VariantSelection } from "@shopblok/registry/contracts";
 import { BuyBox, type AddStatus, type BuyBoxCopy } from "@shopblok/ui/organisms/buy-box";
-import { variantFor } from "@shopblok/ui/organisms/buy-box-choice";
+import { stickyFor, variantFor } from "@shopblok/ui/organisms/buy-box-choice";
 import {
   MobileStickyATC,
   type MobileStickyATCProps,
 } from "@shopblok/ui/organisms/mobile-sticky-atc";
-import { stickyFor } from "@shopblok/ui/organisms/buy-box-choice";
 import type { ProductDetailIds } from "@shopblok/ui/templates/product-detail";
 import { useSearchParams } from "next/navigation";
 import { useActionState, useEffect, useState } from "react";
@@ -87,6 +86,9 @@ export function BuyBoxIsland({
 
   function choose(next: VariantSelection) {
     const variantId = variantFor(product, next)?.id ?? null;
+    // The box's own prop follows too: a later link back to the variant it opened on is then a
+    // change BuyBox sees, and it draws the link's choice instead of keeping this one.
+    setSelection(next);
     setCurrent(next);
     setWritten(variantId);
     writeVariant(variantId);
