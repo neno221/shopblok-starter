@@ -75,6 +75,9 @@ type AuthTemplateProps = AuthPage & {
 
 const linkClass =
   "font-medium text-foreground underline underline-offset-4 outline-none hover:no-underline focus-visible:rounded-sm focus-visible:ring-3 focus-visible:ring-ring";
+// A link on a line of its own is a control, so its row is 44 px high (D32); a link inside a
+// sentence keeps the sentence's line.
+const ownLineLinkClass = cn(linkClass, "inline-flex min-h-11 max-w-full items-center");
 
 function AuthTemplate({
   screen,
@@ -124,7 +127,7 @@ function AuthTemplate({
       href={href as LinkHref}
       prefetch={prefetch}
       data-slot="auth-back"
-      className={cn(linkClass, "self-start text-sm")}
+      className={cn(ownLineLinkClass, "self-start text-sm")}
     >
       {label}
     </NextLink>
@@ -219,7 +222,7 @@ function AuthTemplate({
               href={screen.forgotHref as LinkHref}
               prefetch={prefetch}
               data-slot="auth-forgot"
-              className={cn(linkClass, "self-start")}
+              className={cn(ownLineLinkClass, "self-start")}
             >
               {words.login.forgot}
             </NextLink>

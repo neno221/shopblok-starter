@@ -53,6 +53,9 @@ type OrderLookupTemplateProps = OrderLookupPage & {
 
 const linkClass =
   "font-medium text-foreground underline underline-offset-4 outline-none hover:no-underline focus-visible:rounded-sm focus-visible:ring-3 focus-visible:ring-ring";
+// A link on a line of its own is a control, so its row is 44 px high (D32); a link inside a
+// sentence keeps the sentence's line.
+const ownLineLinkClass = cn(linkClass, "inline-flex min-h-11 max-w-full items-center");
 
 function OrderLookupTemplate({
   screen,
@@ -139,7 +142,7 @@ function OrderLookupTemplate({
             href={screen.accountHref as LinkHref}
             prefetch={prefetch}
             data-slot="order-lookup-account"
-            className={cn(linkClass, "self-start text-sm")}
+            className={cn(ownLineLinkClass, "self-start text-sm")}
           >
             {copy.account}
           </NextLink>

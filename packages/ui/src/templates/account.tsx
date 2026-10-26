@@ -124,6 +124,9 @@ type AccountTemplateProps = AccountPage & {
 
 const linkClass =
   "font-medium text-foreground underline underline-offset-4 outline-none hover:no-underline focus-visible:rounded-sm focus-visible:ring-3 focus-visible:ring-ring";
+// A link on a line of its own is a control, so its row is 44 px high (D32); a link inside a
+// sentence keeps the sentence's line.
+const ownLineLinkClass = cn(linkClass, "inline-flex min-h-11 max-w-full items-center");
 const titleClass = "text-2xl leading-tight font-semibold wrap-break-word md:text-3xl";
 const sectionHeading = "text-lg leading-snug font-semibold wrap-break-word";
 const partHeading = "text-base leading-snug font-semibold wrap-anywhere";
@@ -148,7 +151,7 @@ function AccountTemplate({
       href={href as LinkHref}
       prefetch={prefetch}
       data-slot={slot}
-      className={cn(linkClass, extra)}
+      className={cn(ownLineLinkClass, extra)}
     >
       {label}
     </NextLink>
