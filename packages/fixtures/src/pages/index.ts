@@ -144,7 +144,7 @@ function pagesFor(locale: DesignSystemLocale): PageFixtures {
         title: copy.homePage.newArrivals,
         products: listing.carousel.products,
         variant: "standard",
-        viewAll: { label: copy.homePage.seeAllNew, href: `${storeHref}?sort=newest` },
+        viewAll: { label: copy.homePage.seeAllNew, href: storeHref },
       },
       shopAll: { label: copy.homePage.shopAll, href: storeHref },
     },

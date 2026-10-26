@@ -176,6 +176,20 @@ describe("the home page (T51)", () => {
     expect(tiles[0]?.split("</a>")[0]).toContain('alt=""');
   });
 
+  it("looks past a product the channel does not sell and a first image it cannot use", async () => {
+    shop();
+    // Home's newest is not sold here (the search has it, the product read drops it); the next one's
+    // first image is not a URL the page can use, so its thumbnail is the picture.
+    state.byCategory.home = ["unsold", "bowl", "vase"];
+    state.products.push({
+      ...product("bowl", 30, "https://cdn.example/bowl-thumb.jpg"),
+      images: [{ id: "img_bowl", url: "uploads/bowl.jpg" }],
+    });
+    const html = decode(await render(seeded, "el-cy"));
+    const tiles = html.split('data-slot="home-category"').slice(1);
+    expect(tiles[1]?.split("</a>")[0]).toContain("bowl-thumb.jpg");
+  });
+
   it("is the hero and the link to every product alone in a shop with nothing yet", async () => {
     const html = decode(await render(seeded, "en-us"));
     expect(html).not.toContain('data-slot="home-categories"');

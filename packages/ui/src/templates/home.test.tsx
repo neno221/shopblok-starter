@@ -6,7 +6,7 @@ import { pageFixtures } from "@shopblok/fixtures";
 import { catalogs, LOCALES } from "@shopblok/i18n";
 import { render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { HOME_IDS, HomeTemplate, homeCopy } from "./home";
+import { HomeTemplate, homeCopy, homeIds } from "./home";
 
 vi.mock("next/link", async () =>
   (await import("../test-support/next-link-stand-in")).nextLinkStandIn(),
@@ -52,7 +52,7 @@ describe("HomeTemplate", () => {
     const h1 = screen.getAllByRole("heading", { level: 1 });
     expect(h1).toHaveLength(1);
     expect(h1[0]?.textContent).toBe(page.hero.title);
-    expect(h1[0]?.id).toBe(HOME_IDS.hero);
+    expect(h1[0]?.id).toBe(homeIds("main").hero);
   });
 
   it("leads into the shop from the hero, with its line and picture", () => {
@@ -62,7 +62,7 @@ describe("HomeTemplate", () => {
     expect(action.textContent).toBe(hero.action.label);
     expect(action.getAttribute("href")).toBe(hero.action.href);
     expect(slot("home-hero-text")?.textContent).toBe(hero.text);
-    expect(slot("home-hero")?.getAttribute("aria-labelledby")).toBe(HOME_IDS.hero);
+    expect(slot("home-hero")?.getAttribute("aria-labelledby")).toBe(homeIds("main").hero);
     expect(slot("home-hero")?.querySelector("img")).toBeTruthy();
   });
 
@@ -99,6 +99,20 @@ describe("HomeTemplate", () => {
     expect(slot("home-hero")).toBeTruthy();
     expect(slot("home-shop-all")).toBeTruthy();
     expect(screen.queryAllByRole("heading", { level: 2 })).toHaveLength(0);
+  });
+
+  it("names its sections by ids of its own, so two homes on one page share none", () => {
+    renderHome("en", { as: "div", mainId: "first" });
+    renderHome("en", { as: "div", mainId: "second" });
+    const ids = [...document.querySelectorAll("[id]")].map((element) => element.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    for (const root of slots("home-template")) {
+      const id = root.id;
+      for (const section of root.querySelectorAll("[aria-labelledby]")) {
+        const label = section.getAttribute("aria-labelledby") ?? "";
+        expect(root.querySelector(`#${label}`), `${id}'s ${label}`).toBeTruthy();
+      }
+    }
   });
 
   it("is a div with another id where the page has its main already", () => {

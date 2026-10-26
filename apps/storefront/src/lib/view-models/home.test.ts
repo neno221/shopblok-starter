@@ -21,12 +21,13 @@ const input = (categories: number, products: number) => ({
 });
 
 describe("toHomePage", () => {
-  it("is a home the contract takes, the sections capped at eight", () => {
-    const page = toHomePage(input(10, 12));
+  it("is a home the contract takes with the page's most of each section", () => {
+    const page = toHomePage(input(HOME_CATEGORIES, NEW_ARRIVALS));
     expect(HomePage.parse(page)).toEqual(page);
     expect(page.categories?.items).toHaveLength(HOME_CATEGORIES);
     expect(page.newArrivals?.products).toHaveLength(NEW_ARRIVALS);
-    expect(page.newArrivals?.viewAll?.href).toBe("/us/store?sort=newest");
+    // The store's canonical URL: newest first is its own order.
+    expect(page.newArrivals?.viewAll?.href).toBe("/us/store");
     expect(page.hero.action).toEqual({ label: siteText("en").hero.action, href: "/us/store" });
     expect(page.shopAll).toEqual({ label: catalogs.en.templates.home.shopAll, href: "/us/store" });
   });

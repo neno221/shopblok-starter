@@ -12,15 +12,15 @@ import {
   listCategories,
   type CategoryNode,
 } from "../../../lib/medusa/categories";
-import { listProductsByIds } from "../../../lib/medusa/products";
+import { listProductsByIds, type ProductDto } from "../../../lib/medusa/products";
 import { searchProducts } from "../../../lib/medusa/search";
 import { buildReadsMedusa } from "../../../lib/prerender";
 import { homeJsonLd } from "../../../lib/seo/home";
 import { jsonLdText } from "../../../lib/seo/product";
 import { HERO_IMAGE, SHELL_PREFETCH, SITE, siteText } from "../../../lib/site";
-import { toProductImage } from "../../../lib/view-models/common";
+import { PLACEHOLDER_IMAGE, toProductImage } from "../../../lib/view-models/common";
 import { HOME_CATEGORIES, NEW_ARRIVALS, toHomePage } from "../../../lib/view-models/home";
-import { toProductCard } from "../../../lib/view-models/product";
+import { toImages, toProductCard } from "../../../lib/view-models/product";
 
 // D58 (T51): the market's home, in the static shell. Every read is a `cached()` entry (the
 // categories under `navigation`, the searches under `search`, the products under
@@ -42,7 +42,19 @@ const readHome = cache(async (): Promise<HomeData | null> => {
   return context === null ? null : { context, messages };
 });
 
-/** A category's first product's first picture: the newest of the category and its children. */
+/** How many of a category's newest products are looked at for a picture. */
+const PICTURE_CANDIDATES = 4;
+
+/** A product's first usable picture: its images, then its thumbnail; never the placeholder. */
+function usablePicture(product: ProductDto): Image | undefined {
+  const thumbnail = product.thumbnail === null ? [] : [toProductImage(product.thumbnail, "")];
+  return [...toImages(product), ...thumbnail].find((image) => image.src !== PLACEHOLDER_IMAGE.src);
+}
+
+/**
+ * A category's picture: the first usable one among its newest products (its children's included),
+ * so a product the channel does not sell or one without a picture does not leave the tile empty.
+ */
 async function firstPicture(
   context: MarketContext,
   node: CategoryNode,
@@ -55,18 +67,19 @@ async function firstPicture(
     filters: { categoryIds: flattenCategories([node]).map((each) => each.id) },
     sort: "newest",
     page: 1,
-    pageSize: 1,
+    pageSize: PICTURE_CANDIDATES,
   });
   if (result.ids.length === 0) return undefined;
-  const [product] = await listProductsByIds(result.ids, {
+  const products = await listProductsByIds(result.ids, {
     regionId: region.id,
     locale: market.medusaLocale,
   });
-  const url = product?.images[0]?.url ?? product?.thumbnail ?? null;
-  if (url === null) return undefined;
-  const image = toProductImage(url, "");
-  // The tile's name is the category's: its picture is decoration, never the placeholder.
-  return image.src.startsWith("data:") ? undefined : image;
+  for (const product of products) {
+    const picture = usablePicture(product);
+    // The tile's name is the category's: its picture is decoration.
+    if (picture !== undefined) return { ...picture, alt: "" };
+  }
+  return undefined;
 }
 
 /** The newest products as cards, newest first. */

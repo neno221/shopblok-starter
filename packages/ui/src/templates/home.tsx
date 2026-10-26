@@ -36,8 +36,13 @@ function homeCopy(messages: Messages): HomeCopy {
   };
 }
 
-/** The ids the sections' headings name them by. */
-const HOME_IDS = { hero: "home-hero-title", categories: "home-categories-title" } as const;
+/**
+ * The ids the sections' headings name them by, from the root's id: two homes on one page (the
+ * design system's live page and its states) never share one.
+ */
+function homeIds(mainId: string) {
+  return { hero: `${mainId}-hero-title`, categories: `${mainId}-categories-title` };
+}
 
 type HomeTemplateProps = HomePage & {
   copy: HomeCopy;
@@ -66,6 +71,7 @@ function HomeTemplate({
   as: Root = "main",
   className,
 }: HomeTemplateProps) {
+  const ids = homeIds(mainId);
   return (
     <Root
       id={mainId}
@@ -75,13 +81,13 @@ function HomeTemplate({
     >
       <section
         data-slot="home-hero"
-        aria-labelledby={HOME_IDS.hero}
+        aria-labelledby={ids.hero}
         className="bg-muted/50 py-8 md:py-12"
       >
         <div className={cn(section, "grid items-center gap-8 md:grid-cols-2 md:gap-12")}>
           <div className="flex min-w-0 flex-col items-start gap-4 md:gap-6">
             <h1
-              id={HOME_IDS.hero}
+              id={ids.hero}
               data-slot="home-hero-title"
               className="text-3xl leading-tight font-semibold text-balance wrap-anywhere md:text-5xl"
             >
@@ -119,10 +125,10 @@ function HomeTemplate({
       {categories === undefined ? null : (
         <section
           data-slot="home-categories"
-          aria-labelledby={HOME_IDS.categories}
+          aria-labelledby={ids.categories}
           className={cn(section, "flex flex-col gap-4 md:gap-6")}
         >
-          <h2 id={HOME_IDS.categories} className="text-xl font-semibold md:text-2xl">
+          <h2 id={ids.categories} className="text-xl font-semibold md:text-2xl">
             {categories.title}
           </h2>
           <ul className="grid grid-cols-2 gap-4 md:grid-cols-4">
@@ -181,5 +187,5 @@ function HomeTemplate({
   );
 }
 
-export { HOME_IDS, HomeTemplate, homeCopy };
+export { HomeTemplate, homeCopy, homeIds };
 export type { HomeCopy, HomeTemplateProps };

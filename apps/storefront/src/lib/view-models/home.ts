@@ -10,12 +10,13 @@ import type { CategoryTile, HomePage, Image, ProductCard } from "@shopblok/regis
 export const HOME_CATEGORIES = 8;
 /** The new arrivals' carousel shows the eight newest products. */
 export const NEW_ARRIVALS = 8;
+// The page reads no more than these; the view model takes what it is given.
 
 export type HomeInput = {
   hero: { title: string; text: string; action: string; image: Image };
-  /** The top-level categories in the navigation's order, with their pages' URLs. */
+  /** The top-level categories in the navigation's order, with their pages' URLs (eight at most). */
   categories: readonly { label: string; href: string; image?: Image }[];
-  /** The newest products as cards, newest first. */
+  /** The newest products as cards, newest first (eight at most). */
   newArrivals: readonly ProductCard[];
   /** The catalog's `templates.home` headings and links. */
   copy: Messages["templates"]["home"];
@@ -30,12 +31,12 @@ export function toHomePage({
   copy,
   storeHref,
 }: HomeInput): HomePage {
-  const tiles: CategoryTile[] = categories.slice(0, HOME_CATEGORIES).map((category) => ({
+  const tiles: CategoryTile[] = categories.map((category) => ({
     label: category.label,
     href: category.href,
     ...(category.image === undefined ? {} : { image: category.image }),
   }));
-  const products = newArrivals.slice(0, NEW_ARRIVALS);
+  const products = [...newArrivals];
   return {
     variant: "default",
     hero: {
@@ -52,7 +53,8 @@ export function toHomePage({
             title: copy.newArrivals,
             products,
             variant: "standard",
-            viewAll: { label: copy.seeAllNew, href: `${storeHref}?sort=newest` },
+            // The store's own order is the newest first: its canonical URL, not `?sort=newest`.
+            viewAll: { label: copy.seeAllNew, href: storeHref },
           },
         }),
     shopAll: { label: copy.shopAll, href: storeHref },

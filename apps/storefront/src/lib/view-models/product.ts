@@ -74,7 +74,7 @@ function toSwatches(product: ProductDto): ColorSwatch[] {
   }));
 }
 
-function toImages(product: ProductDto) {
+export function toImages(product: ProductDto) {
   const urls = product.images.length > 0 ? product.images.map((image) => image.url) : [];
   if (urls.length === 0 && product.thumbnail !== null) urls.push(product.thumbnail);
   // The title is the alternative text: the picture shows the product the card names.

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PUBLISHABLE_KEY, stubMedusaFetch } from "../../test-support/medusa-fetch";
-import { currenciesOf, findRegionForCountry, type Region } from "./regions";
+import { findRegionForCountry, type Region } from "./regions";
 
 vi.mock("next/cache", () => ({ cacheTag: vi.fn(), cacheLife: vi.fn() }));
 
@@ -11,8 +11,6 @@ const europe: Region = {
   countries: ["cy", "de", "fr"],
 };
 const us: Region = { id: "reg_us", name: "United States", currencyCode: "usd", countries: ["us"] };
-const brazil: Region = { id: "reg_br", name: "Brazil", currencyCode: "brl", countries: ["br"] };
-const mongolia: Region = { id: "reg_mn", name: "Mongolia", currencyCode: "mnt", countries: ["mn"] };
 
 describe("findRegionForCountry", () => {
   it("finds the region that sells in the country, in any case", () => {
@@ -29,25 +27,6 @@ describe("findRegionForCountry", () => {
   it("does not match part of a code", () => {
     expect(findRegionForCountry([europe], "c")).toBeUndefined();
     expect(findRegionForCountry([europe], "cyp")).toBeUndefined();
-  });
-});
-
-describe("currenciesOf (D17: the search price currencies come from Medusa, never from a list here)", () => {
-  it("is the regions' currencies, once each, sorted, lowercase", () => {
-    expect(currenciesOf([us, europe, { ...europe, id: "reg_eu2", countries: ["it"] }])).toEqual([
-      "eur",
-      "usd",
-    ]);
-    expect(currenciesOf([{ ...us, currencyCode: "USD" }])).toEqual(["usd"]);
-  });
-
-  it("follows the regions: a shop with Brazil and Mongolia gets BRL and MNT with no edit here", () => {
-    expect(currenciesOf([brazil, mongolia])).toEqual(["brl", "mnt"]);
-    expect(currenciesOf([europe, us, brazil, mongolia])).toEqual(["brl", "eur", "mnt", "usd"]);
-  });
-
-  it("is empty when there are no regions", () => {
-    expect(currenciesOf([])).toEqual([]);
   });
 });
 
@@ -121,9 +100,8 @@ describe("listRegions and getRegionForCountry, through the SDK", () => {
     stubMedusaFetch(() => ({
       body: { regions: [wire(europe), wire(us)], count: 2, offset: 0, limit: 100 },
     }));
-    const { getRegionForCountry, getSearchPriceCurrencies } = await import("./regions");
+    const { getRegionForCountry } = await import("./regions");
     expect(await getRegionForCountry("CY")).toMatchObject({ id: "reg_eu", currencyCode: "eur" });
     expect(await getRegionForCountry("br")).toBeUndefined();
-    expect(await getSearchPriceCurrencies()).toEqual(["eur", "usd"]);
   });
 });

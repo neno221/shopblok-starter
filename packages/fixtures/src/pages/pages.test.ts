@@ -54,7 +54,7 @@ describe("the page fixtures (T48)", () => {
       expect(home.hero.action.href).toBe(home.shopAll.href);
       expect(home.shopAll.href).toMatch(/\/store$/);
       expect(home.categories?.items.length).toBeGreaterThan(0);
-      expect(home.newArrivals?.viewAll?.href).toBe(`${home.shopAll.href}?sort=newest`);
+      expect(home.newArrivals?.viewAll?.href).toBe(home.shopAll.href);
     }
     expect(pageFixtures.en.home.shopAll.href).toBe("/us/store");
   });
