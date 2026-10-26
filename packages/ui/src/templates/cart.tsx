@@ -125,9 +125,9 @@ function CartTemplate({
         <p
           role="alert"
           data-slot="cart-error"
-          className="flex items-start gap-2 rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm leading-snug text-destructive"
+          className="flex items-start gap-2 rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm leading-snug text-foreground"
         >
-          <CircleAlertIcon aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+          <CircleAlertIcon aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-destructive" />
           <span className="min-w-0 wrap-break-word">
             {formatMessage(words.errors[error], { max: maxQuantity }, locale)}
           </span>
