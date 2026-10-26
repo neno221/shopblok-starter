@@ -5093,3 +5093,84 @@ The code review (`reviews/pr-70-code-review.md`) had five items to fix and one n
 **What the review's item 1 could not be reproduced as.** The review says a bad `htmlLang` makes `Intl` throw `RangeError` in the root layout, so that every page of the market becomes a 500. In the layout's own calls it does not: use-intl catches the error and calls `onError`, so `getTranslations("primitives.toast")` and `getMessages()` return, and the layout rendered `<html lang="pt_BR">` (the test above). What breaks is what `Intl` is asked to format: `formatMoney(…, "pt_BR")` throws `RangeError: Incorrect locale information provided` (inside the page's `Suspense`, where `error.tsx` catches it, as before T46), an ICU message that has a plural or an argument comes out as its key (`FORMATTING_ERROR: INVALID_MESSAGE`, checked with `createTranslator({ locale: "pt_BR" })`), and `formatter.number` logs `FORMATTING_ERROR` and falls back. The fix is the same, and it matters more once T48 puts ICU messages and formatters in the layout.
 
 **Two things the fixes found.** `prettier` run in `apps/storefront` finds no configuration and writes 80 columns: the repository's style is `packages/config/prettier.config.mjs` (100), so run it with `--config`. next-intl's client hooks catch whatever `onError` throws while `useTranslations` runs and rethrow "the context from `NextIntlClientProvider` was not found": an `onError` that throws is clear when it throws from `t()` (`MISSING_MESSAGE`), and misleading for `ENVIRONMENT_FALLBACK`, which is why the strict provider in `error.test.tsx` has a `timeZone`.
+
+## Search on Postgres (T43)
+
+**Result: the `product` index is ADR 0002's A′ (D63), and the S2 suite, ported for it, passes in `backend-integration`.** One searchable `search_text` holds every store locale's texts, the facets are ids, the three `translation.*` events re-index, and a middleware on `POST /store/search` gives the index the request's locale, checked against the store's. On the dev stack with the demo catalog, `κούπα` with `x-medusa-locale: el-GR` and `mug` with `en-US` both find `demo-ceramic-mug`, and the `category_ids` facet answers with its count; an edit of the mug's German title through the Admin API (`POST /admin/translations/batch`) made the new word searchable within a second, with no restart, and the edit back removed it.
+
+| | |
+|---|---|
+| Date | 2026-10-26 |
+| Branch | `claude/project-thread-lo9oew`, from `main` at `ad37f66` (PR 70 merged) |
+| New | `apps/backend/src/search/helpers/{translations,facets}.ts`, `src/api/store/search/locale.ts`, `src/config/__tests__/search-{translations,locale-middleware}.unit.spec.ts`, `integration-tests/http/search-locale.{spec,fixtures}.ts` |
+| Changed | `apps/backend/src/search/product.ts`, `src/search/helpers/resolve-product-ids.ts` (collections), `src/api/middlewares.ts`, `integration-tests/http/search-locale-assumptions.spec.ts` |
+
+### How it works
+
+- **Fields.** `search_text` (`text`, searchable with weight 2, never returned), `title` (the default language's: searchable with weight 3 as before, sortable and returned), `category_ids`, `collection_ids`, `tag_ids` and `option_value_ids` (`keyword` arrays, filterable, facetable, returned). `category` (names), `option_values` (`"Size:S"`) and `labels` (tag values) stay on the hits in the default language and are no longer facets or searchable; `description` left the index (it is in `search_text`). The status, the sales channels and the price fields are unchanged. The schema changed, so an existing database needs `medusa db:migrate` and a start (below).
+- **The transform** (`helpers/translations.ts`, shared by `seed` and `consume`): `storeLocales` reads the store's `supported_locales` once per batch, default locale first (`SUPPORTED_LOCALES[0]`, the data's language); `readTexts` runs one `query.graph(…, { locale })` per locale for the batch's ids, selecting `categories.id`, `collection.id`, `tags.id`, `options.id` and `options.values.id` so the nested objects come back translated (ADR 0002, "Found on the way" 2); `toSearchText` joins every locale's title, description, category names, collection title, tags and option values, one line each, each line once.
+- **Events.** The index lists `translation.created`, `translation.updated` and `translation.deleted`, and `product-collection.updated` and `.deleted`. `resolveTranslationProductIds` reads the event's translation rows (`withDeleted` for a deletion: the row is soft-deleted by then) and maps them by `reference`: `product` directly, `product_category`, `product_collection`, `product_option`, `product_option_value` and `product_tag` through `resolveProductIds`, which gained the collection case. A product is listed once however many of the event's rows touch it.
+- **The middleware** (`src/api/store/search/locale.ts`, after `configureStoreSearch`): `chooseSearchLocale` keeps `req.locale` only if it is one of the store's `supported_locales` (compared without case; read once per request), else the default locale; `localizeSearchBody` removes whatever `search_options.locales` the caller sent and, for an index whose provider takes query-time locales (an allow-list, `meilisearch` for M6, so an unknown provider gets none and fails safe), writes `[locale]`. The store's locales come from the same `storeLocales` the transform uses. Every query of a multi-query body is handled by its own index.
+- **The bulk rule.** Each translation row emits its own event, and each event re-reads its products in every locale, so a bulk change of translations (M4's sync, a CSV import) ends with `container.resolve(Modules.SEARCH).reindex({ index: "product" })`. From a shell, `medusa exec` a script that does that, or restart the server after `medusa db:migrate` when the schema changed.
+- **An existing database.** The schema changed, so after pulling this: `pnpm --filter @shopblok/backend exec medusa db:migrate` ("Rebuilt following search indexes", 10 s), then start the backend, which seeds the new version and makes it live. A fresh database gets it from `pnpm bootstrap`.
+
+### Measured
+
+| Check | Result |
+|---|---|
+| Reindex of the demo catalog (8 products, four locales) at `medusa develop`'s start | `8 documents synced in 1s`, server up after 8 s |
+| `search-locale.spec.ts` | 18 tests, about 17 to 21 s on its own (24 s in a full run); the slowest event path is under 0.7 s |
+| `backend-integration` locally (both specs) | 22 tests, 40 s including the runner's two boots |
+| Unit tests (`pnpm --filter @shopblok/backend test`) | 101 tests, 5 s |
+
+### The suite and its mutations
+
+The tests keep the ADR's numbers. **T1** (a reindex writes every store locale: each language finds the shirt by its own words, the sweater by none of them; translated category names are searchable; `search_text` is not on a hit, the English title, category, and the ids are), **T2** (accents, tonos and capitals), **T3** (informational: A′ leaks by design), **T4** (the events: a product title's and a category name's `translation.updated`, a tag's `translation.created`, a `translation.deleted`, each within 10 s over the in-memory bus), **T6** (hits translated and priced by one `/store/products?id[]=` call with the header), **the facets** (`category_ids` 1 + 1, `collection_ids` 2, four `option_value_ids` of 1, the category ids labelled in Greek by `/store/product-categories`, a facet id narrowing the hits), **T9 with T7** (`pt-BR` and `mn-MN` added to the store and translated, then found by `Camisa`, `linho`, `Маалинган`, `цамц`, `МААЛИНГАН`, with no restart), **T10** (the header alone; a caller's `locales` dropped, which Postgres would refuse; and, with the index reported as served by another provider and `query.search` spied, the locale sent, the fallback for `zz-ZZ`, `it-IT` and none, and the caller's `locales` overwritten).
+
+Each mutation was applied, the spec run, and the change reverted (`git checkout`):
+
+| Mutation | Failed |
+|---|---|
+| the three `translation.*` events left out of the index's list | the four T4 tests and T9 (10 s time-outs) |
+| the text read selects `categories.name` without `categories.id` | T1's category names, T4's category name |
+| the middleware lets the caller's `locales` win | T10 "overwrites the caller's locales" |
+| the middleware keeps a caller's `locales` for Postgres | T10 "drops a caller's search_options.locales" (HTTP 400) |
+| the middleware uses `req.locale` unchecked | T10 "falls back to the default locale" |
+| the middleware not wired in `middlewares.ts` | T10's four middleware tests |
+| `search_text` built from the default locale only | 12 tests: T1, T2, T3, T4, T6, T9, T10 |
+| a deleted translation read without `withDeleted` | T4 `translation.deleted` |
+| tag translations not mapped to products | T4 `translation.created` on a tag |
+| no `option_value_ids` | the facets test |
+| category names instead of ids in `category_ids` | T1's hit document, both facet tests |
+| `search_text` retrievable | T1 "search_text is never returned" |
+| one locale's texts per product (the last read wins) | 12 tests |
+
+T2's folding is the provider's text-search configuration (`unaccent`, then English), which the assumptions spec's Greek test guards on Medusa's side; ADR 0002's mutation (`simple` without `unaccent`) is not repeated here.
+
+### Where it differs from the plan
+
+1. **The middleware does not write `locales` for Postgres.** D63 says it overwrites `search_options.locales` with `[locale]`; `search-postgres` refuses any query with `locales` ("does not support query-time locales", the assumptions spec's first test), so every search would be an HTTP 400. It removes the caller's `locales` for every index and writes `[locale]` only where the index's provider takes them, which is ADR 0002's decision 4 ("`locales: [locale]` for Meilisearch, nothing for A′"). The choice is per index, from `searchModule.getIndex(entity).provider` against an allow-list; M6 checks that its provider's registration id starts with `meilisearch`.
+2. **Collections.** The plan names `product_collection` among the translated references but not among `search_text`'s texts; the collection title is in `search_text`, and `product-collection.updated` and `.deleted` are listed, so a renamed collection re-indexes its products.
+3. **Coalescing.** The index's `consume` gets one event at a time (`graphConsume`), and `batchTranslationsWorkflow` emits one event per row (ADR 0002, "Found on the way" 3), so products are deduplicated within an event, not across a batch of events. The cross-event half needs a debounce outside the Search Module; the bulk rule above is what covers it.
+4. **The assumptions spec** changed where T43 changed what it observed: the provider's refusal of `locales` is asked through `query.search` (the middleware now drops them before the route sees them); "`/store/search` ignores the request's locale, and the index holds the default language only" is gone, since this suite covers what replaced it; the event test listens with a subscriber of its own, since the index now subscribes to `translation.*` and `waitSubscribersExecution` returns the subscribers' results instead of the event body.
+5. **The plan's "T2"** ("a translation update re-indexes") is in T4 here, under the ADR's numbering; T2 is the ADR's accents test.
+
+### Smaller observations
+
+- `query.search` and the Search Module resolved from the test container are the instances the route uses, so `jest.spyOn` on them sees what `/store/search` sends; that is how T10 checks the Meilisearch path on Postgres.
+- The environment this ran in had no setup script (no preloaded images, no `/opt` sources, the docs domains blocked); the four images were pulled by hand and the Medusa facts were read from `node_modules/@medusajs/*/dist`.
+
+### Review fixes (PR 71)
+
+The review (`reviews/pr-71-code-review.md` in the project's files) found no blocker.
+
+| Item | Fix |
+|---|---|
+| 1. Titles lost their ranking weight | `title` is searchable again with weight 3 (label A), beside `search_text` at 2 (B). A spec that a title match outranks a description that repeats the word did **not** tell the two apart: with and without the weight the shirt came first, so it is not in the suite. One reading: `ts_rank_cd` over the default-language title, which now sits in both fields, already favours it. Recorded, not settled. Also worth knowing for M4's instant search: a query with `typo_tolerance: true` scores a hit `GREATEST(ts_rank_cd, word_similarity)`, and `word_similarity` is 1 for any text holding the exact word, so exact matches tie there whatever the weights |
+| 2. Tags were a facet by value | `tag_ids` (from `tags.id`) is the facet, which the storefront labels in the visitor's locale; `labels` stays on hits. The tag test checks the facet, and a `toFacetIds` without tag ids fails it |
+| 3. The provider check was a deny-list | an allow-list of providers that take `locales` (`meilisearch`); a mutation that adds `search-postgres` to it fails 16 of the 18 tests (every search is an HTTP 400) |
+| 4. The middleware read the store's locales its own way, with a cache that never hit | it calls `storeLocales` from `search/helpers/translations.ts` (one read, trimmed, the default first); the `WeakMap` is gone |
+| 5. `trimmed` copied three times | one, exported from `helpers/facets.ts` |
+| 6. One store read per search | left: a 30 to 60 s module cache is worth it before M4's instant search, and it is noted here for then |
+| 7. Sequential reads | the per-locale reads, the five reference lookups of a translation event, and the store's locales beside the pricing read all run side by side |
+

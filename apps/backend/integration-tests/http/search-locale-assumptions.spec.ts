@@ -5,6 +5,11 @@
  * one fails after a Medusa upgrade, read ADR 0002 again before changing the test: the design may
  * be simpler (Medusa gained locale support) or broken (an event or an option changed).
  *
+ * Since T43 the `product` index is the starter's A′ and `/store/search` has its locale middleware,
+ * so the spec asks the provider through `query.search` where the middleware would get in the way,
+ * and the stock index's "default language only" test is gone: `search-locale.spec.ts` covers what
+ * replaced it.
+ *
  * Run (the compose stack up, from the repo root; `apps/backend/.env.test` points the runner at its
  * Postgres and keeps the dev stack's Redis out):
  *
@@ -24,18 +29,34 @@ import {
   updateTranslationsWorkflow,
 } from "@medusajs/medusa/core-flows";
 
-import { SUPPORTED_LOCALES, TRANSLATED_LOCALES } from "../../src/config/markets";
+import { TRANSLATED_LOCALES } from "../../src/config/markets";
 import seedMarkets from "../../src/scripts/seed-markets";
 
 jest.setTimeout(180_000);
 
 // The seed sets the store's locales to exactly `SUPPORTED_LOCALES`, and the translation workflows
 // accept only those, so the spec reads its locales from the starter's lists: editing the locale
-// lists in `src/config/markets.ts` must not break it. `en-US`, the first, is the data's language.
-const [DEFAULT_LOCALE] = SUPPORTED_LOCALES;
+// lists in `src/config/markets.ts` must not break it.
 const [TRANSLATED_LOCALE] = TRANSLATED_LOCALES;
 
 type SearchOptions = { headers?: Record<string, string>; path?: string };
+
+/** Polls until `check` returns a value, for up to 10 s. */
+async function waitFor<T>(check: () => T | undefined): Promise<{ value: T }> {
+  const start = Date.now();
+
+  while (Date.now() - start < 10_000) {
+    const value = check();
+
+    if (value !== undefined) {
+      return { value };
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  }
+
+  throw new Error("Timed out waiting for the event");
+}
 
 medusaIntegrationTestRunner({
   testSuite: ({ api, getContainer }) => {
@@ -144,52 +165,18 @@ medusaIntegrationTestRunner({
         headers = { "x-publishable-api-key": keys[0]!.token as string };
       });
 
-      it("search-postgres rejects search_options.locales, so a storefront cannot pass the locale to it", async () => {
-        const response = await search({
-          entity: "product",
-          filters: { q: "shirt" },
-          search_options: { locales: [TRANSLATED_LOCALE] },
-        });
+      // Asked of the provider through `query.search`, past `/store/search`: the starter's middleware
+      // (T43) drops a caller's `locales` before the route sees them.
+      it("search-postgres rejects search_options.locales, so the locale cannot be passed to it", async () => {
+        const query = getContainer().resolve(ContainerRegistrationKeys.QUERY);
 
-        expect(response.status).toBeGreaterThanOrEqual(400);
-        expect(JSON.stringify(response.data)).toContain("does not support query-time locales");
-      });
-
-      it("/store/search ignores the request's locale, and the index holds the default language only", async () => {
-        const container = getContainer();
-        const id = await createProduct("linen-shirt", "Linen shirt");
-
-        await batchTranslationsWorkflow(container).run({
-          input: {
-            create: [
-              {
-                reference: "product",
-                reference_id: id,
-                locale_code: TRANSLATED_LOCALE,
-                translations: { title: "Translated" },
-              },
-            ],
-            update: [],
-            delete: [],
-          },
-        });
-
-        // Index the product again with its translation present: the index still holds English only.
-        await container.resolve(Modules.SEARCH).ingest({ name: "product.updated", data: [{ id }] });
-
-        for (const locale of [TRANSLATED_LOCALE, DEFAULT_LOCALE]) {
-          // Neither way of sending the locale changes what the index holds or returns. They are
-          // separate requests: Medusa reads `?locale=` first, so with both only it would be tested.
-          const requests = [
-            { headers: { "x-medusa-locale": locale } },
-            { path: `?locale=${locale}` },
-          ];
-
-          for (const options of requests) {
-            expect(await titles("Translated", options)).toEqual([]);
-            expect(await titles("Linen", options)).toEqual(["Linen shirt"]);
-          }
-        }
+        await expect(
+          query.search({
+            entity: "product",
+            filters: { q: "shirt" },
+            search_options: { locales: [TRANSLATED_LOCALE] },
+          } as never),
+        ).rejects.toThrow("does not support query-time locales");
       });
 
       it("search-postgres folds Greek accents and capitals, and lowercases Cyrillic, with its default text-search configuration", async () => {
@@ -250,16 +237,29 @@ medusaIntegrationTestRunner({
         const bus = container.resolve(Modules.EVENT_BUS);
         const productId = await createProduct("event-source", "Event source");
 
-        // Runs `action` and returns its result with the ids the `name` event carries. The wait is
-        // set up first because the event fires inside the action. The helper resolves with one
-        // entry per subscriber: with none (the stock configuration has none for `translation.*`)
-        // the entry is the event body.
+        // Runs `action` and returns its result with the ids the `name` event carries, read by a
+        // subscriber of the test's own (the product index listens to `translation.*` since T43).
+        // It is subscribed first because the event fires inside the action.
         const emits = async <T>(name: string, action: () => Promise<T>) => {
-          const emitted = TestEventUtils.waitSubscribersExecution(name, bus);
-          const result = await action();
-          const [{ data }] = await emitted;
+          let received: unknown;
+          const subscriber = async (event: { data: unknown }) => {
+            received ??= event.data;
+          };
+          const context = { subscriberId: `assumptions-${name}` };
 
-          return { result, ids: (Array.isArray(data) ? data : [data]).map((d) => d.id as string) };
+          bus.subscribe(name, subscriber as never, context);
+
+          try {
+            const result = await action();
+            const { value: data } = await waitFor(() => received);
+
+            return {
+              result,
+              ids: (Array.isArray(data) ? data : [data]).map((d) => (d as { id: string }).id),
+            };
+          } finally {
+            bus.unsubscribe(name, subscriber as never, context);
+          }
         };
 
         // The index handler's step: the translations entity maps the event's ids to the entity.
