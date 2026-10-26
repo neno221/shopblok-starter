@@ -69,6 +69,32 @@ describe("listMarkets", () => {
     expect(listMarkets(brazil)[0]).toMatchObject({ key: "pt-br", htmlLang: "pt-BR" });
   });
 
+  // PR 70 review, item 1: `htmlLang` is free text in the admin, and next-intl hands it to `Intl`,
+  // which throws on a value that is not a language tag, in the root layout where no error boundary
+  // catches it. A value that is not a tag is not used.
+  it.each(["pt_BR", "Portuguese", "pt-BR,en", " pt-BR", "pt-", "pt BR"])(
+    "falls back to language and country when the stored <html lang> is %j",
+    (stored) => {
+      const map: MarketMap = {
+        ...brazil,
+        languages: [{ code: "pt", medusaLocale: "pt-BR", htmlLang: stored }],
+      };
+      expect(listMarkets(map)[0]).toMatchObject({ key: "pt-br", htmlLang: "pt-BR" });
+      expect(Intl.getCanonicalLocales(listMarkets(map)[0]?.htmlLang ?? "")).toEqual(["pt-BR"]);
+    },
+  );
+
+  it.each(["pt-PT", "pt-pt", "mn", "zh-Hant-TW", "sr-Latn-RS"])(
+    "keeps a stored <html lang> that is a language tag, %j, as the owner wrote it",
+    (stored) => {
+      const map: MarketMap = {
+        ...brazil,
+        languages: [{ code: "pt", medusaLocale: "pt-BR", htmlLang: stored }],
+      };
+      expect(listMarkets(map)[0]?.htmlLang).toBe(stored);
+    },
+  );
+
   it("carries a country's domain as a bare lowercase host", () => {
     const map: MarketMap = {
       ...seeded,

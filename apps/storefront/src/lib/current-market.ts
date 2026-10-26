@@ -1,6 +1,7 @@
 import "server-only";
 import { notFound } from "next/navigation";
 import { market } from "next/root-params";
+import { cache } from "react";
 import { withLocale, type CurrentMarket } from "./market-locale";
 import { getRenderMarketMap } from "./markets/cached-market-map";
 import { findMarket } from "./markets/market";
@@ -12,10 +13,19 @@ import { findMarket } from "./markets/market";
  * different caches (`/next/markets`; `use cache`), so for a while after an owner changes a market
  * a key the proxy knows can be a 404 here; so can a path the proxy's matcher skips (SETUP.md, T08
  * item 2, T11).
+ *
+ * next-intl reads this for every request (`src/i18n/request.ts`, D62), so a page's translations,
+ * its `<html lang>` and its prices all come from the same market, with `withLocale`'s English
+ * fallback and time zone applied once.
+ *
+ * It is wrapped in React's `cache`, so the layout, the page and next-intl (through `request.ts`)
+ * share one read of the root param and one lookup in the map per request, and an unknown key is the
+ * same 404 for all of them. The root param is the request's own, so nothing is shared between
+ * requests (PR 70 review, item 7).
  */
-export async function getCurrentMarket(): Promise<CurrentMarket> {
+export const getCurrentMarket = cache(async (): Promise<CurrentMarket> => {
   const key = await market();
   const current = findMarket(await getRenderMarketMap(), key);
   if (current === undefined) notFound();
   return withLocale(current);
-}
+});

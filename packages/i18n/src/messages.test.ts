@@ -99,6 +99,24 @@ describe("the catalogs (D43)", () => {
     expect(mismatches).toEqual([]);
   });
 
+  // next-intl (D62) reads a key as one step of a dotted path (`t("a.b")`) and refuses a key with a
+  // dot in it, and it takes a message to be a string; an array or a number would reach the page as
+  // a missing message.
+  it.each(LOCALES)("%s's keys have no dot and its values are strings or namespaces", (locale) => {
+    const problems: string[] = [];
+    const visit = (value: object, path: string) => {
+      for (const [key, child] of Object.entries(value)) {
+        const here = path === "" ? key : `${path}.${key}`;
+        if (key.includes(".") || key === "") problems.push(`${here}: a key with a dot or empty`);
+        if (typeof child === "object" && child !== null && !Array.isArray(child))
+          visit(child, here);
+        else if (typeof child !== "string") problems.push(`${here}: ${typeof child}`);
+      }
+    };
+    visit(catalogs[locale], "");
+    expect(problems).toEqual([]);
+  });
+
   it.each(LOCALES)("%s's plurals use only its language's CLDR categories", (locale) => {
     const categories = new Set<string>(
       new Intl.PluralRules(locale).resolvedOptions().pluralCategories,

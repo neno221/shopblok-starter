@@ -1,3 +1,5 @@
+import { existsSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { PHASE_PRODUCTION_BUILD } from "next/constants";
 import {
   getRewrittenUrl,
@@ -28,6 +30,24 @@ describe("next.config.ts freezes the design-system flag into the build", () => {
   it("always sets a string, so the read is never left to run time", () => {
     vi.stubEnv("DESIGN_SYSTEM_ENABLED", undefined);
     expect(typeof config(PHASE_PRODUCTION_BUILD).env?.DESIGN_SYSTEM_ENABLED).toBe("string");
+  });
+});
+
+// D62: next-intl's plugin gives Turbopack its `next-intl/config` alias, and the alias is the request
+// configuration that reads the `[market]` root param. Without it, `getTranslations` fails at run
+// time with "Couldn't find next-intl config file", on the first page that calls it.
+describe("next.config.ts wires next-intl to the request configuration", () => {
+  it("aliases next-intl/config to src/i18n/request.ts, relative to this app", () => {
+    const aliases = config(PHASE_PRODUCTION_BUILD).turbopack?.resolveAlias;
+    expect(aliases?.["next-intl/config"]).toBe("./src/i18n/request.ts");
+    expect(existsSync(fileURLToPath(new URL("./i18n/request.ts", import.meta.url)))).toBe(true);
+  });
+
+  it("keeps what the other wrappers set: the monorepo root, Cache Components, the flag", () => {
+    const built = config(PHASE_PRODUCTION_BUILD);
+    expect(built.turbopack?.root).toBe(fileURLToPath(new URL("../../../", import.meta.url)));
+    expect(built.cacheComponents).toBe(true);
+    expect(built.env).toHaveProperty("DESIGN_SYSTEM_ENABLED");
   });
 });
 

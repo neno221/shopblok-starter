@@ -2,6 +2,7 @@ import { fileURLToPath } from "node:url";
 import { withPayload } from "@payloadcms/next/withPayload";
 import type { NextConfig } from "next";
 import { PHASE_DEVELOPMENT_SERVER } from "next/constants";
+import createNextIntlPlugin from "next-intl/plugin";
 import { designSystemBuildFlag } from "./src/lib/env";
 
 // The repo root. The shared packages are linked from `packages/*` and Next compiles their source
@@ -62,7 +63,12 @@ function buildConfig(phase: string): NextConfig {
   };
 }
 
+// D62: next-intl's plugin points `next-intl/config` at the request configuration, which reads the
+// `[market]` root param (`src/i18n/request.ts`). The path is relative to this folder, which is where
+// `next build` and `next dev` run; Turbopack refuses an absolute one.
+const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
+
 // `withPayload` takes the config object, so it wraps what the function returns for each phase.
 export default function config(phase: string): NextConfig {
-  return withPayload(buildConfig(phase), { devBundleServerPackages: false });
+  return withNextIntl(withPayload(buildConfig(phase), { devBundleServerPackages: false }));
 }

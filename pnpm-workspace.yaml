@@ -7,6 +7,10 @@ allowBuilds:
   msgpackr-extract: false
   protobufjs: false
   unrs-resolver: false
+  # next-intl's file watcher (message extraction, which T46 does not use). Its install script only
+  # compiles from source when `npm_config_build_from_source=true`; the prebuilt binary comes with
+  # the platform package (`@parcel/watcher-linux-x64-glibc`), so there is nothing to run (T46).
+  "@parcel/watcher": false
 
 # Payload's packages import `react` (and its types) without declaring them: @payloadcms/next
 # declares neither, and @payloadcms/ui and @payloadcms/richtext-lexical declare `react` but not
