@@ -5475,3 +5475,75 @@ The first CI run's `design-system` job failed in `next build`: it builds with no
 - A page that renders on request during an outage (O3) answers 500, and Next logs the failed `getProduct`; once Medusa is back the next request renders it (O5).
 - happy-dom's `form.requestSubmit()` throws "The specified element is not owned by this form element" on the buy box; the island's test clicks the button instead. Base UI's radios need the pointer events before `click()`.
 - Prettier picks up `packages/config/prettier.config.mjs` only when told: `npx prettier --config packages/config/prettier.config.mjs`. Without it it formats at 80 columns.
+
+## Listing pages and search (T50)
+
+**Result: the shop has its listing pages and its search (D59, D63).** `{m}/store`, `{m}/categories/[...handle]` and `{m}/collections/[handle]` are in the static shell, paged by path (`/page/2`), each first page built for every category and collection; the filters and the sort are in the query and drawn by a listing island beside the server's results; without JavaScript the same forms land on `{m}/search`, which renders every filter and sort on the server; `/next/listing` and `/next/search` answer the island and the header's overlay. The listing pages are 318.6 KB gzipped, so their budget is 330 KB, like the PDP's (Steven's choice, 2026-10-26).
+
+| | |
+|---|---|
+| Date | 2026-10-26 |
+| Branch | `claude/project-thread-bbr2fk`, from `main` at `7192112` (PR 77 merged) |
+| New (storefront) | `src/app/(storefront)/[market]/{store,store/page/[n],categories/[...handle],collections/[handle],collections/[handle]/page/[n],search}/page.tsx`, `src/app/next/{listing,search}/route.ts`, `src/components/listing/{listing-page,listing-island,robots-meta,remember-search}.tsx`, `src/lib/listing/{query,listing,handlers}.ts`, `src/lib/seo/listing.ts`, their tests |
+| New (packages) | `packages/ui/src/templates/{product-listing,search-results}.tsx` and their test, the `ListingResults`, `ProductListingPage` and `SearchResultsPage` contracts, the `templates/product-listing` and `templates/search-results` entries (127 entries), `pageFixtures[locale].{productListing,searchResults}`, the stories |
+| Changed | `src/lib/env.ts` (`STOREFRONT_LISTING_PAGE_SIZE`), the four catalogs (`templates.productListing`, `templates.searchResults`), the fixtures' copy (`listingPage`), `scripts/first-load.ts` and its test (the listing budgets), `components/shell/search-overlay-island.tsx` (its comment), `.github/workflows/ci.yml` (`e2e-smoke`'s env), `apps/storefront/turbo.json`, `.env.example`, `e2e/catalog.spec.ts` |
+
+### How it works
+
+- **The routes** each export `ensureStatic = "navigation"` and render `ListingPage` (`components/listing/listing-page.tsx`) with their scope and the page from the path. The category route is a catch-all that reads a trailing `page/{n}` (`["apparel", "page", "2"]`); `store/page/[n]` and `collections/[handle]/page/[n]` are their own routes. `generateStaticParams` lists every category's path and every collection's handle (the first pages); the other pages render on their first request. `/page/1`, a page past the last, an unknown category or collection, the stand-in's placeholder and every listing in a build without Medusa answer 404, with `notFound()` before any `Suspense`. The paged routes list one placeholder (`/page/1`, a 404), because Cache Components refuse an empty list and `ensureStatic` wants every parameter.
+- **The data** (`lib/listing/listing.ts`): `resolveScope` turns the scope into its title, trail and path in the market's language (a category through its path of handles in `listCategories`, with its descendants' ids as the search's filter), and `readListing` makes one `searchProducts` call (`cached()`, tags `search` and `medusa:products`), reads the hits through `listProductsByIds` and labels the facets' ids with `listCategories`, `listCollections` and `listOptionValueLabels`. The group the scope fixes (a category page's categories, a collection page's collections) is not offered. It builds the chips with their remove links, "Clear all" (which keeps the sort), the sort's options (relevance only with words), the forms' hidden fields and the empty states (no match with "Clear all", the search's "No results for …", an empty category with a link to the store). The page size is `STOREFRONT_LISTING_PAGE_SIZE` (24, 1 to 48).
+- **The query** (`lib/listing/query.ts`, shared by the browser and the server): the forms' fields (`category`, `collection`, `opt_…` per option, `price.min`, `price.max`, `sale=1`), `sort`, `q`, `page` and `scope` (`category:apparel/tops`, `collection:summer-edit`, `store`). Ids, handles, pages and amounts that are not one are dropped. `filterParams` gives the filters and the sort in one sorted order, so equal choices give equal URLs.
+- **The island** (`listing-island.tsx`) sits in its own `Suspense` with no fallback, before the server's results and never around them. It reads `useSearchParams()`; only when the query has a filter, a sort or a page does it ask `/next/listing?market&scope&page&…` and draw `ListingResults` in its root, which has `peer` and, once it has results, `data-active`, so the server's results (`peer-data-active:hidden`) are hidden by CSS. Once the query changes the results the server's are hidden at once: while the first answer loads the island says so, while a later one loads the last results stay, a 404 (no such page) is "no match" with a link back to the listing, and any other answer (503, no network) is "could not be loaded" with "Try again" (review item 1). Its pages' links keep the query (`?sort=…&page=2`). It catches a `submit` of any GET form whose action is the market's search page and whose hidden `scope` is its own (the sidebar, the drawer, the sort), drops the scope and the empty fields, and pushes the listing's URL (`history.pushState` on the same path, `router.push` from a `/page/n`): a new filter starts at page 1. It draws `<meta name="robots" content="noindex,follow">` with more than two facets (React hoists it into the head) and announces the count in a `role="status"` (4.1.3).
+- **`{m}/search`** is dynamic: `searchParams` is read inside a `Suspense` whose fallback is the field and the heading, so the shell around it stays static. A `scope` from a listing's form keeps the search to that listing (and titles it with the listing's name); words title it "Results for “…”". It is `noindex, follow`, its metadata reads nothing from the URL, a page past the last shows the first, and it calls `rememberSearch` for the overlay's recent queries.
+- **`/next/listing`** (`lib/listing/handlers.ts`): 400 for a scope that is none, 404 for a market, listing or page that is not there, 503 while Medusa is unreachable, else the `ListingResults` with `Cache-Control: public, max-age=60, stale-while-revalidate=300` (the catalog's, not a visitor's).
+- **`/next/search?market&q`**: the overlay's eight products, the matches' categories as links (most matches first, four) and suggestions from the matches' option values (three letters or more, not the query, four), `cached()` a minute per market and query (tags `search`, `medusa:products`).
+- **Head and JSON-LD**: the title (", Page 2" after the first), a self canonical on every page by path (a filtered URL's canonical is its clean page), hreflang and Open Graph; JSON-LD is a `@graph` of `CollectionPage` with an `ItemList` (positions continue across pages) and a `BreadcrumbList`.
+
+### Checks
+
+| Check | Result |
+|---|---|
+| `catalog.spec.ts` (11 new) against `next start` built with `STOREFRONT_PRERENDER_PRODUCTS=4` and `STOREFRONT_LISTING_PAGE_SIZE=3` | passed: `/categories/apparel` with "Ρούχα" and `/us/categories/apparel` with "Apparel", three products each in the server's HTML, the canonical, `CollectionPage`, no `cart-badge`; `/page/2` 200, self-canonical, with the fourth product; `/page/3` and `/page/1` 404; `/us/collections/everyday-basics` three and two, `/page/3` 404; a clean URL makes no request to `/next/listing`; `?sort=price-asc` and the sort select reorder through the island with the URL kept; three facets add the robots meta, two do not; without scripts the sidebar's form lands on `/us/search?…scope=category%3Aapparel` with the filter and the title "Apparel"; with scripts it stays on the listing with the island's chips and the count announced; `/us/search?q=hoodie` server-rendered with the hoodie and `noindex, follow`; the overlay lists the hoodie as "hoodie" is typed |
+| `shell.spec.ts` beside it | 7 passed |
+| `pnpm build` with the stack | passes; 21 category, 14 collection and 7 store first pages are `○` (static) |
+| `pnpm build` without `MEDUSA_BACKEND_URL` (the stand-in) | passes (the first try failed on `/search` reading the region and `/store` asking Medusa; both fixed, see "Smaller observations") |
+| `check:first-load` | the five listing routes 991.5 KB raw, **318.6 KB gzipped**, budget 330 KB; `/[market]/search` 307.9; the PDP 324.5 (it was 322.9: the shared chunks grew) |
+| `curl` of `/us/categories/apparel` | the three products, their links and prices; no cart count or other visitor value |
+| Unit suites | storefront 110 files (3,022 tests; new: `query`, `listing`, `handlers`, `seo/listing`, `listing-page`, `listing-island`), ui 147 (the templates' test, 20), registry 13, fixtures 2, i18n 4; `tsc` and eslint clean |
+
+### Mutations
+
+| Mutation | Caught by |
+|---|---|
+| `/[market]/store` awaits `searchParams` | `next build`: `Route "/[market]/store": Next.js encountered uncached or runtime data on a route that must be fully static.` (on `/el-cy/store`) |
+| The template in a `Suspense` around a client component that reads `useSearchParams()` (the island around the results) | `catalog.spec.ts`, "a category's first page is in the server's HTML…", "/page/2 …" and "a collection pages the same way": no product card in the HTML (`curl` finds 0) |
+| The island fetches for a clean URL (no `key === ""` check) | `catalog.spec.ts`, "a clean URL asks /next/listing nothing": received `/next/listing?market=en-us&scope=category%3Aapparel&page=1` |
+| The plan's: the backend without `localizeStoreSearch` (T43's mutation) | **not caught, and cannot be**: the Greek names stay (`/next/listing?market=el-cy` still says "Ρούχα", "Καθημερινά βασικά", "Μαύρο"). They come from the translated reads (`listCategories`, `listCollections`, `listOptionValueLabels` with `x-medusa-locale`), not from the search, whose A′ index searches every language anyway. The mutation that does reach them is below |
+| The storefront sends `x-medusa-locale: en-US` whatever the market | `catalog.spec.ts`, "a category's first page …": `/categories/apparel` has `<title>Apparel | Shopblok</title>`, no "Ρούχα" |
+
+### Where it differs from the plan
+
+- **The listing pages are 318.6 KB gzipped, not under 170.** The shell is 292.9 of it; the island and the listing's organisms add about 26 KB. Steven set the listing pages' budget to 330 KB on 2026-10-26, as the PDP's.
+- **The island is always mounted** (in its `Suspense`, drawing nothing for a clean URL), because it also catches the forms' submits; it fetches only when the query changes the results.
+- **The search page is where a listing's forms land without scripts**, as D59 says, so it reads `scope` and draws the listing's name, facets and empty state.
+- **The overlay's prefix**: `search-postgres` matches whole words, so "hoo" finds nothing and "hoodie" finds the hoodie; the overlay test types a whole word. A provider with prefix search (Meilisearch, M6) would answer after two keys.
+- **Suggestions** are the matches' option values ("Μαύρο", "Ναυτικό μπλε"), the only facet labels the index also searches; the plan says "suggestions from the facets".
+- The plan writes `?sort=price`; the sort's values are SortSelect's (`price-asc`, `price-desc`, `newest`, `relevance`).
+
+### Smaller observations
+
+- `/store` has no handle, so the stand-in's placeholder could not stop it asking Medusa; `readListingPage` now answers 404 for every listing when the build has no `MEDUSA_BACKEND_URL`, and the search page's static part takes its form's address from the shell's data instead of the market's context (which reads the region).
+- The no-script test checks the native input under Base UI's checkbox (`check({ force: true })`): Playwright's plain `check()` finds the visible box covering it.
+
+### Code review (PR 78)
+
+The review (`reviews/pr-78-code-review.md` in the project's files) had five must-fix items and one cleanup; all six are fixed, items 7 (a parent category whose handle is `page`) and 8 (the label reads after the search, not beside it) are skipped under the findings rule.
+
+1. **A failed filtered load showed the unfiltered products.** The island now marks itself active whenever the query changes the results, so the server's grid is hidden from the first moment, and draws a loading line, "no match" with "Clear all filters" to the listing for a 404, or "The products could not be loaded" with "Try again" for anything else (new `templates.productListing.failed` in the four catalogs). Unit tests for the loading, 503, 404, bad body and network cases and the retry.
+2. **A broken escape was a 500.** The second `decodeURIComponent` is gone (Next decodes params: `/us/products/demo%2Dheritage%2Dhoodie` is the hoodie), but Next itself answers a `URIError` in a dynamic route's params with a bare 500 before any page runs, the PDP's included (`/us/products/%ZZ` was a 500 too, with the PDP unchanged from `main`). The proxy now answers a path that does not decode with a plain 404, as `/next/missing-file` does; `proxy.test.ts` and `catalog.spec.ts` check it.
+3. **`apparel%2Ftops` reached `apparel/tops`.** The routes build their scope with `categoryScope` and `collectionScope` (`lib/listing/query.ts`), which take only handles, so a segment holding a `/` is a 404; `parseScope` uses the same two.
+4. **A filter without a chip left no way out.** The "no match" state always has "Clear all filters" (the listing with its sort only).
+5. **`numberOfItems`** is the listing's total, which the positions run in.
+6. **Cleanup:** one `categoryPaths` in `lib/medusa/categories.ts` (each node with its path) for the static params and the overlay's category links; `parseScopeKey` replaced by `parseScope`; `pathPage` uses `pageOf`.
+
+The sort test also had a race of its own (it compared against a sorted copy of the prices read before the change landed), and the scripted filter test now waits for the island (drawn after hydration) before it ticks a box; each passed 6 runs in a row after.

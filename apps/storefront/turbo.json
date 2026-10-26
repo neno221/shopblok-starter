@@ -13,11 +13,13 @@
       // `STOREFRONT_PRERENDER_PRODUCTS` (D58, D67): how many product pages `generateStaticParams`
       // returns, so it is frozen into the build too, and strict mode would drop it from `pnpm build`
       // without this line. CI sets it to 4 (T42); T49 is the first code that reads it.
+      // `STOREFRONT_LISTING_PAGE_SIZE` (T50): the listing pages' first pages are built with it.
       "env": [
         "$TURBO_EXTENDS$",
         "PAYLOAD_*",
         "DESIGN_SYSTEM_ENABLED",
-        "STOREFRONT_PRERENDER_PRODUCTS"
+        "STOREFRONT_PRERENDER_PRODUCTS",
+        "STOREFRONT_LISTING_PAGE_SIZE"
       ]
     },
     "test": {

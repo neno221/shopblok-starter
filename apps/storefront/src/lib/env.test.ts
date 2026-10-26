@@ -124,6 +124,7 @@ describe("env", () => {
       "NODE_ENV",
       "PAYLOAD_DATABASE_URL",
       "REVALIDATE_SECRET",
+      "STOREFRONT_LISTING_PAGE_SIZE",
       "STOREFRONT_PRERENDER_PRODUCTS",
     ]);
   });

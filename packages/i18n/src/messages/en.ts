@@ -819,6 +819,46 @@ export const en = {
       description: "Description",
       delivery: "Delivery and returns",
     },
+    productListing: {
+      // The listing pages (T50): the breadcrumbs' first step, the store's name, the filters' group
+      // names that are not content, the two empty states, and what the island announces.
+      home: "Home",
+      store: "All products",
+      facets: {
+        category: "Category",
+        collection: "Collection",
+        price: "Price",
+        onSale: "On sale",
+      },
+      empty: {
+        title: "No products here yet",
+        text: "New products are on their way. Have a look at the rest of the store.",
+        browse: "See all products",
+      },
+      noMatch: {
+        title: "No products match these filters",
+        text: "Remove a filter, or clear them all to see every product here.",
+        clear: "Clear all filters",
+      },
+      found:
+        "{count, plural, =0 {No products found} one {# product found} other {# products found}}",
+      loading: "Updating the products",
+      failed: {
+        title: "The products could not be loaded",
+        text: "Check your connection and try again.",
+        retry: "Try again",
+      },
+    },
+    searchResults: {
+      // The search page (T50): its heading with a query and without one, and what it says when
+      // nothing is found.
+      title: "Search",
+      resultsFor: "Results for “{query}”",
+      empty: {
+        title: "No results for “{query}”",
+        text: "Check the spelling, or try a more general word.",
+      },
+    },
   },
 };
 

@@ -720,5 +720,45 @@ export const de: Messages = {
       description: "Beschreibung",
       delivery: "Versand und Rückgabe",
     },
+    productListing: {
+      // The listing pages (T50): the breadcrumbs' first step, the store's name, the filters' group
+      // names that are not content, the two empty states, and what the island announces.
+      home: "Startseite",
+      store: "Alle Produkte",
+      facets: {
+        category: "Kategorie",
+        collection: "Kollektion",
+        price: "Preis",
+        onSale: "Im Angebot",
+      },
+      empty: {
+        title: "Hier gibt es noch keine Produkte",
+        text: "Neue Produkte sind unterwegs. Schauen Sie sich im übrigen Shop um.",
+        browse: "Alle Produkte ansehen",
+      },
+      noMatch: {
+        title: "Keine Produkte entsprechen diesen Filtern",
+        text: "Entfernen Sie einen Filter oder setzen Sie alle zurück, um alle Produkte hier zu sehen.",
+        clear: "Alle Filter zurücksetzen",
+      },
+      found:
+        "{count, plural, =0 {Keine Produkte gefunden} one {# Produkt gefunden} other {# Produkte gefunden}}",
+      loading: "Die Produkte werden aktualisiert",
+      failed: {
+        title: "Die Produkte konnten nicht geladen werden",
+        text: "Prüfen Sie Ihre Verbindung und versuchen Sie es erneut.",
+        retry: "Erneut versuchen",
+      },
+    },
+    searchResults: {
+      // The search page (T50): its heading with a query and without one, and what it says when
+      // nothing is found.
+      title: "Suche",
+      resultsFor: "Ergebnisse für „{query}“",
+      empty: {
+        title: "Keine Ergebnisse für „{query}“",
+        text: "Prüfen Sie die Schreibweise oder versuchen Sie es mit einem allgemeineren Wort.",
+      },
+    },
   },
 };

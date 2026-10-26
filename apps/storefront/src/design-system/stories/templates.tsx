@@ -18,7 +18,9 @@ import {
   productDetailCopy,
   type ProductDetailIds,
 } from "@shopblok/ui/templates/product-detail";
-import type { ProductDetailPage } from "@shopblok/registry/contracts";
+import { ProductListingTemplate, productListingCopy } from "@shopblok/ui/templates/product-listing";
+import { SearchResultsTemplate, searchResultsCopy } from "@shopblok/ui/templates/search-results";
+import type { ProductDetailPage, ProductListingPage } from "@shopblok/registry/contracts";
 import type { ReactNode } from "react";
 import type { DsContext, DsStory } from "../types";
 
@@ -144,6 +146,80 @@ const productDetail = (ctx: DsContext, mainId: string, state: ProductDetailVaria
   );
 };
 
+type ProductListingVariant = "default" | "no-filters" | "empty";
+
+/** The fixture's listing page, changed for a state. */
+function productListingContent(ctx: DsContext, state: ProductListingVariant): ProductListingPage {
+  const base = pageFixtures[ctx.locale].productListing;
+  const { listing } = commerceFixtures[ctx.locale];
+  if (state === "no-filters") {
+    const { filters: _filters, ...results } = base.results;
+    return { ...base, results };
+  }
+  if (state === "empty") {
+    const { filters: _filters, ...results } = base.results;
+    return {
+      ...base,
+      results: {
+        ...results,
+        toolbar: { ...results.toolbar, count: 0 },
+        grid: listing.grid.empty,
+        page: { page: 1, pageCount: 1 },
+      },
+    };
+  }
+  return base;
+}
+
+/** A page of the listing: the first at its own address, the others by path (D59). */
+const listingHrefFor = (base: string) => (n: number) => (n === 1 ? base : `${base}/page/${n}`);
+
+const productListing = (ctx: DsContext, mainId: string, state: ProductListingVariant) => {
+  const content = productListingContent(ctx, state);
+  const base = content.breadcrumbs.trail.at(-1)?.href ?? "/";
+  return (
+    <ProductListingTemplate
+      {...content}
+      copy={productListingCopy(catalogs[ctx.locale])}
+      locale={lang(ctx)}
+      hrefFor={listingHrefFor(base)}
+      prefetch={false}
+      as="div"
+      mainId={mainId}
+    />
+  );
+};
+
+const searchResults = (ctx: DsContext, mainId: string, empty: boolean) => {
+  const base = pageFixtures[ctx.locale].searchResults;
+  const { listing } = commerceFixtures[ctx.locale];
+  const { filters: _filters, ...unfiltered } = base.results;
+  const content = empty
+    ? {
+        ...base,
+        results: {
+          ...unfiltered,
+          toolbar: { ...unfiltered.toolbar, count: 0 },
+          grid: listing.grid.empty,
+          page: { page: 1, pageCount: 1 },
+        },
+      }
+    : base;
+  const action = content.search.action;
+  const query = encodeURIComponent(content.search.query);
+  return (
+    <SearchResultsTemplate
+      {...content}
+      copy={searchResultsCopy(catalogs[ctx.locale])}
+      locale={lang(ctx)}
+      hrefFor={(n) => (n === 1 ? `${action}?q=${query}` : `${action}?q=${query}&page=${n}`)}
+      prefetch={false}
+      as="div"
+      mainId={mainId}
+    />
+  );
+};
+
 const pageNote =
   "The template is the page between the header and the footer: in a shop it is the page's one `<main>`, the skip link's target, with the page's only `<h1>`. The icon is decoration and hidden from assistive technology.";
 const waysNote =
@@ -239,6 +315,68 @@ export const templateStories = {
         label: "No related products",
         description: "A product alone in its category: no carousel.",
         render: (ctx) => productDetail(ctx, "template-product-detail-no-related", "no-related"),
+      },
+    ],
+    statesLayout: "stack",
+  },
+  "templates/product-listing": {
+    summary:
+      "A listing page (a category, a collection, every product): the breadcrumbs, its name, the filters beside the products from `lg` (a drawer below it), the toolbar with the count and the sort, the grid and the pages, which are paths (`/page/2`). In a shop the listing island draws the results again for a URL with filters (D59); the server draws this, the first page.",
+    a11y: [
+      pageNote,
+      "The page's name is its one `<h1>`; the filters' heading and the cards' titles are `<h2>`s. The filters are one GET form named by its heading, applied with one button, so ticking a box never reloads the page under the hand (WCAG 3.2.2).",
+      "The pages and the chosen filters are links (`<a href>`), so a crawler and a visitor without JavaScript reach every page. Without JavaScript the filter and sort forms land on the search page, which applies them on the server.",
+    ],
+    live: (ctx) =>
+      page(
+        ctx,
+        "template-product-listing",
+        productListing(ctx, "template-product-listing", "default"),
+      ),
+    states: [
+      {
+        id: "default",
+        label: "Filters chosen",
+        description: "The first of two pages, two filters chosen, newest first.",
+        render: (ctx) => productListing(ctx, "template-product-listing-default", "default"),
+      },
+      {
+        id: "no-filters",
+        label: "Nothing to filter",
+        description:
+          "No product has anything to filter by: no sidebar, and the grid takes the width.",
+        render: (ctx) => productListing(ctx, "template-product-listing-no-filters", "no-filters"),
+      },
+      {
+        id: "empty",
+        label: "No products",
+        description: "A category with no products yet: the empty state, and no pages.",
+        render: (ctx) => productListing(ctx, "template-product-listing-empty", "empty"),
+      },
+    ],
+    statesLayout: "stack",
+  },
+  "templates/search-results": {
+    summary:
+      "The search page: the search field with the query, a heading that says what was searched, then the same results as a listing's, every filter and sort read on the server (it is dynamic). A listing's filter form lands here without JavaScript (D59).",
+    a11y: [
+      pageNote,
+      "The search field is a `search` landmark with a GET form of its own, so a new query starts without the last one's filters. The heading says what was searched; the results are a listing's, with the same headings and forms.",
+    ],
+    live: (ctx) =>
+      page(ctx, "template-search-results", searchResults(ctx, "template-search-results", false)),
+    states: [
+      {
+        id: "default",
+        label: "Results",
+        description: "The query's results, by relevance.",
+        render: (ctx) => searchResults(ctx, "template-search-results-default", false),
+      },
+      {
+        id: "empty",
+        label: "No results",
+        description: "A query that finds nothing: the empty state, no filters and no pages.",
+        render: (ctx) => searchResults(ctx, "template-search-results-empty", true),
       },
     ],
     statesLayout: "stack",

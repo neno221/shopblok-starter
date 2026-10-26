@@ -131,17 +131,17 @@ describe("the budget", () => {
     expect(judged(170 * KB + 1).failures).toHaveLength(1);
   });
 
-  it("budgets the PDP at 330 KB and the three listing pages at 170 KB, with the page/[n] routes T50 makes explicit", () => {
+  it("budgets the PDP at 330 KB and the three listing pages at 330 KB, with the page/[n] routes T50 makes explicit", () => {
     expect(budgets).toEqual([
       { route: "/[market]/products/[handle]", label: "PDP", maxKB: 330 },
-      { route: "/[market]/categories/[...handle]", label: "PLP, categories", maxKB: 170 },
-      { route: "/[market]/store", label: "PLP, store", maxKB: 170 },
-      { route: "/[market]/store/page/[n]", label: "PLP, store page n", maxKB: 170 },
-      { route: "/[market]/collections/[handle]", label: "PLP, collections", maxKB: 170 },
+      { route: "/[market]/categories/[...handle]", label: "PLP, categories", maxKB: 330 },
+      { route: "/[market]/store", label: "PLP, store", maxKB: 330 },
+      { route: "/[market]/store/page/[n]", label: "PLP, store page n", maxKB: 330 },
+      { route: "/[market]/collections/[handle]", label: "PLP, collections", maxKB: 330 },
       {
         route: "/[market]/collections/[handle]/page/[n]",
         label: "PLP, collections page n",
-        maxKB: 170,
+        maxKB: 330,
       },
     ]);
   });

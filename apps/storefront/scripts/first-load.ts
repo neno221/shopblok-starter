@@ -44,7 +44,7 @@ export type Budget = {
  * budget here; a one-off value for an experiment goes on the command line
  * (`--budget "/[market]=1"`).
  *
- * The PLP is three routes (D58: store, categories, collections), each at SPEC §13's 170 KB. The
+ * The PLP is three routes (D58: store, categories, collections). The
  * pagination is a path segment (D59), and T50 step 1 says how each route takes it: the category
  * route is a catch-all that parses a trailing `page/{n}`, so `/categories/dresses/page/2` is the one
  * row below; `store/page/[n]` and `collections/[handle]/page/[n]` are explicit routes, which Next
@@ -53,17 +53,18 @@ export type Budget = {
  * only say "no page yet": T50 changes the table.
  */
 export const budgets: readonly Budget[] = [
-  // Steven's decision on PR 77 (T49): the PDP measured 322.9 KB on the shell's layout, which alone
-  // is ~225 KB, so its budget is 330 KB; the listing pages keep SPEC §13's 170 KB.
+  // Steven's decisions on PR 77 (T49) and in T50: the shell's layout alone is ~293 KB, so SPEC
+  // §13's 170 KB cannot hold; the PDP measured 322.9 KB and the listing pages 318.6 KB, and both
+  // have 330 KB.
   { route: "/[market]/products/[handle]", label: "PDP", maxKB: 330 },
-  { route: "/[market]/categories/[...handle]", label: "PLP, categories", maxKB: 170 },
-  { route: "/[market]/store", label: "PLP, store", maxKB: 170 },
-  { route: "/[market]/store/page/[n]", label: "PLP, store page n", maxKB: 170 },
-  { route: "/[market]/collections/[handle]", label: "PLP, collections", maxKB: 170 },
+  { route: "/[market]/categories/[...handle]", label: "PLP, categories", maxKB: 330 },
+  { route: "/[market]/store", label: "PLP, store", maxKB: 330 },
+  { route: "/[market]/store/page/[n]", label: "PLP, store page n", maxKB: 330 },
+  { route: "/[market]/collections/[handle]", label: "PLP, collections", maxKB: 330 },
   {
     route: "/[market]/collections/[handle]/page/[n]",
     label: "PLP, collections page n",
-    maxKB: 170,
+    maxKB: 330,
   },
 ];
 

@@ -734,5 +734,45 @@ export const el: Messages = {
       description: "Περιγραφή",
       delivery: "Αποστολή και επιστροφές",
     },
+    productListing: {
+      // The listing pages (T50): the breadcrumbs' first step, the store's name, the filters' group
+      // names that are not content, the two empty states, and what the island announces.
+      home: "Αρχική",
+      store: "Όλα τα προϊόντα",
+      facets: {
+        category: "Κατηγορία",
+        collection: "Συλλογή",
+        price: "Τιμή",
+        onSale: "Σε προσφορά",
+      },
+      empty: {
+        title: "Δεν υπάρχουν ακόμη προϊόντα εδώ",
+        text: "Νέα προϊόντα έρχονται σύντομα. Ρίξτε μια ματιά στο υπόλοιπο κατάστημα.",
+        browse: "Δείτε όλα τα προϊόντα",
+      },
+      noMatch: {
+        title: "Κανένα προϊόν δεν ταιριάζει με αυτά τα φίλτρα",
+        text: "Αφαιρέστε ένα φίλτρο ή καθαρίστε τα όλα για να δείτε κάθε προϊόν εδώ.",
+        clear: "Καθαρισμός όλων των φίλτρων",
+      },
+      found:
+        "{count, plural, =0 {Δεν βρέθηκαν προϊόντα} one {Βρέθηκε # προϊόν} other {Βρέθηκαν # προϊόντα}}",
+      loading: "Ενημέρωση των προϊόντων",
+      failed: {
+        title: "Δεν ήταν δυνατή η φόρτωση των προϊόντων",
+        text: "Ελέγξτε τη σύνδεσή σας και δοκιμάστε ξανά.",
+        retry: "Δοκιμάστε ξανά",
+      },
+    },
+    searchResults: {
+      // The search page (T50): its heading with a query and without one, and what it says when
+      // nothing is found.
+      title: "Αναζήτηση",
+      resultsFor: "Αποτελέσματα για «{query}»",
+      empty: {
+        title: "Δεν βρέθηκαν αποτελέσματα για «{query}»",
+        text: "Ελέγξτε την ορθογραφία ή δοκιμάστε μια πιο γενική λέξη.",
+      },
+    },
   },
 };

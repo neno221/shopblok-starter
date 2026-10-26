@@ -99,6 +99,14 @@ export type Copy = {
     recent: [string, string, string, string];
     misspelt: string;
   };
+  /**
+   * The listing and search pages' words (T50): the sort's four options as the catalog names them,
+   * and the search page's heading for `search.query`.
+   */
+  listingPage: {
+    sort: { relevance: string; newest: string; priceAsc: string; priceDesc: string };
+    resultsFor: string;
+  };
   /** ProductCarousel's heading and its link to the listing (T37). */
   carousel: { title: string; viewAll: string };
   /**

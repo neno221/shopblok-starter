@@ -58,6 +58,17 @@ export function flattenCategories(tree: readonly CategoryNode[]): CategoryNode[]
   return tree.flatMap((node) => [node, ...flattenCategories(node.children)]);
 }
 
+/** Every node with its path of handles, parents first (`["apparel"]`, `["apparel", "tops"]`). */
+export function categoryPaths(
+  tree: readonly CategoryNode[],
+  parents: readonly string[] = [],
+): { node: CategoryNode; path: string[] }[] {
+  return tree.flatMap((node) => {
+    const path = [...parents, node.handle];
+    return [{ node, path }, ...categoryPaths(node.children, path)];
+  });
+}
+
 const CATEGORY_FIELDS = "id,handle,name,rank,parent_category_id";
 const PAGE_SIZE = 100;
 

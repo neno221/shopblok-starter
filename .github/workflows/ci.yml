@@ -168,9 +168,12 @@ jobs:
     # the outage test add to it, and 45 leaves room for them.
     timeout-minutes: 45
     # D58, D67 item 2: the build prerenders four of the demo catalog's eight products, and the outage
-    # spec takes its subjects from past the same cap, so both read it from here.
+    # spec takes its subjects from past the same cap, so both read it from here. T50: three products
+    # a listing page, for the build and for `next start` alike (the first pages are built, the
+    # others and the island's answers are not), so apparel's four demo products have a `/page/2`.
     env:
       STOREFRONT_PRERENDER_PRODUCTS: "4"
+      STOREFRONT_LISTING_PAGE_SIZE: "3"
     steps:
       - uses: actions/checkout@v7.0.1
       - uses: ./.github/actions/setup
