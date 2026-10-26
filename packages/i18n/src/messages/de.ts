@@ -11,9 +11,6 @@ export const de: Messages = {
     currency: "Währung",
     products: "Produkte",
     pages: "Payload-Seiten",
-    backendUnavailable: "Das Medusa-Backend ist nicht erreichbar.",
-    backendHint:
-      "Starten Sie das Backend mit pnpm dev und laden Sie die Seite neu; das Server-Log enthält die Details.",
     region: "Region",
     noRegion: "Medusa hat keine Region für das Land dieses Marktes, daher gibt es keine Preise.",
     priceCurrencies: "Währungen des Preisfilters",
@@ -713,10 +710,5 @@ export const de: Messages = {
       retry: "Erneut versuchen",
       home: "Zurück zur Startseite",
     },
-  },
-  notFound: {
-    title: "Seite nicht gefunden",
-    body: "Die gesuchte Seite existiert nicht.",
-    home: "Zurück zur Startseite",
   },
 };

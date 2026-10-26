@@ -11,9 +11,6 @@ export const fr: Messages = {
     currency: "Devise",
     products: "Produits",
     pages: "Pages Payload",
-    backendUnavailable: "Le backend Medusa est injoignable.",
-    backendHint:
-      "Démarrez le backend avec pnpm dev puis rechargez la page ; le journal du serveur donne les détails.",
     region: "Région",
     noRegion:
       "Medusa n'a pas de région pour le pays de ce marché, il n'y a donc aucun prix à afficher.",
@@ -723,10 +720,5 @@ export const fr: Messages = {
       retry: "Réessayer",
       home: "Retour à l'accueil",
     },
-  },
-  notFound: {
-    title: "Page introuvable",
-    body: "La page que vous recherchez n'existe pas.",
-    home: "Retour à l'accueil",
   },
 };

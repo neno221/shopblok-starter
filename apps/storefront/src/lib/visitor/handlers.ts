@@ -7,7 +7,7 @@ import { pathInMarket, suggestMarket } from "../markets/suggest";
 import { getCart } from "../medusa/cart";
 import { getChosenMarket } from "../medusa/cookies";
 import { getCustomer } from "../medusa/customer";
-import { listRegions } from "../medusa/regions";
+import { currencyForCountry, listRegions } from "../medusa/regions";
 import { MedusaRequestError } from "../medusa/sdk";
 
 // The browser's reads of what only the httpOnly cookies know (D60, ADR 0004 reading 2): a catalog
@@ -53,8 +53,7 @@ export async function suggestionFor(
     country: headers.get("x-vercel-ip-country"),
     acceptLanguage: headers.get("accept-language"),
     path: pathInMarket(path, host, context.map),
-    currencyOf: (country) =>
-      regions.find((region) => region.countries.includes(country))?.currencyCode.toUpperCase(),
+    currencyOf: currencyForCountry(regions),
   });
 }
 

@@ -3,11 +3,11 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const state = vi.hoisted(() => ({ path: "/ch/fr", asked: [] as [unknown, unknown][] }));
+const state = vi.hoisted(() => ({ path: "/ch/fr", asked: [] as unknown[][] }));
 vi.mock("next/navigation", () => ({ usePathname: () => state.path }));
 vi.mock("../../lib/actions/shell", () => ({
-  renderSuggestionBanner: vi.fn(async (market: unknown, path: unknown) => {
-    state.asked.push([market, path]);
+  renderSuggestionBanner: vi.fn(async (market: unknown, suggested: unknown, path: unknown) => {
+    state.asked.push([market, suggested, path]);
     return <p data-testid="banner">{String(path)}</p>;
   }),
 }));
@@ -55,11 +55,11 @@ describe("SuggestionBannerIsland (D66)", () => {
   it("draws the action's banner for the page the visitor is on, and again after a navigation", async () => {
     await draw();
     await suggest();
-    expect(state.asked).toEqual([["fr-ch", "/ch/fr"]]);
+    expect(state.asked).toEqual([["fr-ch", "en-us", "/ch/fr"]]);
     expect(container.textContent).toBe("/ch/fr");
     state.path = "/ch/fr/products/tee";
     await draw();
-    expect(state.asked.at(-1)).toEqual(["fr-ch", "/ch/fr/products/tee"]);
+    expect(state.asked.at(-1)).toEqual(["fr-ch", "en-us", "/ch/fr/products/tee"]);
     expect(container.textContent).toBe("/ch/fr/products/tee");
   });
 });

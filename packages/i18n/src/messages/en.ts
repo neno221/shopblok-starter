@@ -12,8 +12,6 @@ export const en = {
     currency: "Currency",
     products: "Products",
     pages: "Payload pages",
-    backendUnavailable: "The Medusa backend is not reachable.",
-    backendHint: "Start the backend with pnpm dev and reload; the server log has the details.",
     region: "Region",
     noRegion: "Medusa has no region for this market's country, so there are no prices to show.",
     priceCurrencies: "Price filter currencies",
@@ -811,11 +809,6 @@ export const en = {
       retry: "Try again",
       home: "Back to the home page",
     },
-  },
-  notFound: {
-    title: "Page not found",
-    body: "The page you are looking for does not exist.",
-    home: "Back to the home page",
   },
 };
 

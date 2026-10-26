@@ -86,7 +86,7 @@ export type PickOptions = {
  * The part of the request's messages a client island needs (D62). `NextIntlClientProvider` given no
  * `messages` sends the whole catalog to the browser, so every provider in this app gets
  * `pick(messages, [...])` instead, and a page ships the namespaces of the islands it renders, not
- * the four catalogs. A path names one message (`"wiring.backendHint"`) or a namespace
+ * the four catalogs. A path names one message (`"templates.error.body"`) or a namespace
  * (`"molecules.cartLineItem"`); the result is a copy, so what a client component receives can never
  * be the catalog's own object.
  *

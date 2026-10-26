@@ -8,7 +8,7 @@ import { listMarkets } from "../../lib/markets/market";
 import type { MarketMap } from "../../lib/markets/types";
 import { buildPublicUrl } from "../../lib/markets/url";
 import { listCategories } from "../../lib/medusa/categories";
-import { listRegions, type Region } from "../../lib/medusa/regions";
+import { currencyForCountry, listRegions, type Region } from "../../lib/medusa/regions";
 import { EnvError, medusaEnv } from "../../lib/env";
 import { MedusaRequestError } from "../../lib/medusa/sdk";
 import { toMarketChoice } from "../../lib/shell/market-choice";
@@ -23,8 +23,10 @@ import { cache } from "react";
 // (the market map's life, `cached-market-map.ts`). Once an entry exists, an outage serves it stale.
 // A build with no Medusa configured (no `.env`, as the design-system job builds) reads nothing at
 // all: an error inside a `"use cache"` entry fails the prerender even when its caller catches it.
-// Any other error is a bug and reaches the global error page (a segment's `error.tsx` is inside its
-// layout, so it cannot catch the layout's own errors).
+// Any other error from these reads (an answer of an unexpected shape, say) gives the same empty menu
+// and is logged (PR 75 review, item 3): a segment's `error.tsx` is inside its layout and cannot
+// catch the layout's own errors, so a throw here would put every market page on the bare global
+// error page.
 
 const medusaConfigured = (): Promise<boolean> =>
   medusaEnv().then(
@@ -50,8 +52,9 @@ const orNothing = async <T>(read: Promise<T>, nothing: T): Promise<T> => {
   try {
     return await read;
   } catch (error) {
-    if (error instanceof MedusaRequestError) return nothing;
-    throw error;
+    if (!(error instanceof MedusaRequestError))
+      console.error("shell: a Medusa read failed; the header and footer go without it", error);
+    return nothing;
   }
 };
 
@@ -64,9 +67,7 @@ export const getShellData = cache(async (): Promise<ShellData> => {
         orNothing(listRegions(), [] as Region[]),
       ])
     : [[], [] as Region[]];
-  const currencyOf = (country: string) =>
-    regions.find((region) => region.countries.includes(country))?.currencyCode;
-  const choice = toMarketChoice(map, market, currencyOf);
+  const choice = toMarketChoice(map, market, currencyForCountry(regions));
   return {
     market,
     map,
