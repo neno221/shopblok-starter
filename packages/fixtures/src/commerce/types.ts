@@ -103,6 +103,8 @@ export type CommerceFixture = {
     fr: Address;
     /** Japan, which no market seeds: a country added in settings (Principle 10). */
     jp: Address;
+    /** Singapore, whose format has no city field (D65): an address without one. */
+    sg: Address;
     /** A country Google's format data does not list (`ic`): the generic form. */
     generic: Address;
     /** A US form with a state missing and a four-digit ZIP code: what a failed submit hands back. */

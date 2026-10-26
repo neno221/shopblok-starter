@@ -13,7 +13,7 @@
 // hands both to `CartDrawerClient`, which opens and closes; no catalog and no formatter is in a
 // client chunk.
 import type { Messages } from "@shopblok/i18n";
-import { formatMessage, formatNumber } from "@shopblok/i18n/format";
+import { formatMessage } from "@shopblok/i18n/format";
 import type { CartDrawer as CartDrawerContent } from "@shopblok/registry/contracts";
 import { CartLineItem } from "@shopblok/ui/molecules/cart-line-item";
 import { EmptyState } from "@shopblok/ui/molecules/empty-state";
@@ -24,14 +24,12 @@ import {
   type PromoCodeError,
   type PromoCodePending,
 } from "@shopblok/ui/molecules/promo-code-field";
+import { cartBadgeText } from "@shopblok/ui/lib/cart-badge";
 import { ShoppingBagIcon } from "lucide-react";
 import type * as React from "react";
 import { CartDrawerClient } from "./cart-drawer-client";
 
 type FormAction = React.ComponentProps<"form">["action"];
-
-/** The most the badge writes out; more is "99+" (CartButton's rule). */
-const BADGE_MAX = 99;
 
 type CartDrawerProps = CartDrawerContent & {
   /** The wording: the drawer's own, and the molecules' it draws. */
@@ -88,12 +86,7 @@ function CartDrawer({
   const words = copy.drawer;
   const count = cart.itemCount;
   const empty = cart.lines.length === 0;
-  const badge =
-    count === 0
-      ? undefined
-      : count > BADGE_MAX
-        ? formatMessage(words.overflow, { max: formatNumber(BADGE_MAX, locale) }, locale)
-        : formatNumber(count, locale);
+  const badge = cartBadgeText(count, locale, words.overflow);
   const discountDetail = cart.promoCodes.map((promo) => promo.code).join(", ");
   const body = empty ? (
     <EmptyState

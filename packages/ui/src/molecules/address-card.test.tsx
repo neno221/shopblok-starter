@@ -210,6 +210,29 @@ describe("AddressCard", () => {
       ]);
     });
 
+    it("Singapore, whose format has no city: no city line and no empty row (D65)", () => {
+      const { container } = setup("en", { address: addressSamples.sg });
+      expect(lines(container)).toEqual([
+        "Wei Ling Tan",
+        "10 Anson Road, #12-08",
+        "SINGAPORE 079903",
+        "Singapore",
+      ]);
+    });
+
+    it("draws an address without a city in each of the seven countries whose format has none", () => {
+      for (const countryCode of ["ae", "gi", "jp", "ky", "mo", "nr", "sg"]) {
+        const { container, unmount } = setup("en", {
+          address: { firstName: "Ada", lastName: "Lovelace", address1: "1 Main St", countryCode },
+        });
+        const text = lines(container);
+        // In the country's order (Macau puts the street first).
+        expect(text, countryCode).toEqual(expect.arrayContaining(["Ada Lovelace", "1 Main St"]));
+        expect(text.join("|"), countryCode).not.toMatch(/undefined|\|\||^\||\|$/);
+        unmount();
+      }
+    });
+
     it("leaves out what the address does not have: no phone line, no empty row", () => {
       const { container } = setup("en", {
         address: {
@@ -309,6 +332,13 @@ describe("AddressCard", () => {
       });
       expect(link.getAttribute("href")).toBe("/us/account/addresses/addr_cy");
       expect(link.textContent).toBe("Edit");
+    });
+
+    it("names an address without a city by its street", () => {
+      setup("en", { address: addressSamples.sg, editHref: "/sg/account/addresses/addr_sg" });
+      expect(
+        screen.getByRole("link", { name: "Edit the address of Wei Ling Tan, 10 Anson Road, #12-08" }),
+      ).toBeTruthy();
     });
 
     it("is not drawn without a href", () => {
@@ -534,7 +564,7 @@ describe("AddressCard", () => {
         expect(label).toBe(
           formatMessage(
             copy.removeLabel,
-            { name: `${long.address.firstName} ${long.address.lastName}`, city: long.address.city },
+            { name: `${long.address.firstName} ${long.address.lastName}`, city: long.address.city ?? long.address.address1 },
             htmlLang(locale),
           ),
         );

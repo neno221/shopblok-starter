@@ -27,6 +27,7 @@ import type { ProductMedia } from "@shopblok/registry/contracts";
 import { Button } from "@shopblok/ui/atoms/button";
 import { Icon } from "@shopblok/ui/atoms/icon";
 import { Image } from "@shopblok/ui/atoms/image";
+import { takesFocusWhenOpenedByAReader } from "@shopblok/ui/lib/reader-focus";
 import { cn } from "@shopblok/ui/lib/utils";
 import { DialogClose, DialogContent, DialogTitle } from "@shopblok/ui/primitives/dialog";
 import { ChevronLeftIcon, ChevronRightIcon, XIcon } from "lucide-react";
@@ -54,12 +55,6 @@ const ZOOM_SIZES = "(min-width: 640px) 80vw, 100vw";
 
 /** The previous and next buttons: still focusable at the ends, where they are dimmed. */
 const ARROW = "shrink-0 aria-disabled:pointer-events-none aria-disabled:opacity-50";
-
-/**
- * For a dialog given `defaultOpen`: no focus when it opens by itself (the interaction type is
- * empty), the default when a reader opens it later.
- */
-const takesFocusWhenOpenedByAReader = (interaction: string) => interaction !== "";
 
 function GalleryZoom({
   title,

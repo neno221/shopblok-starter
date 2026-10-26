@@ -270,8 +270,8 @@ describe.each(designSystemLocales)("the %s fixtures", (locale) => {
     });
 
     it("addressSamples are Addresses, and the mistaken form an AddressFormState (T34)", () => {
-      const { gb, fr, jp, generic, mistaken } = fixture.addressSamples;
-      expectAllParse(Address, [gb, fr, jp, generic], `${locale}.addressSamples`);
+      const { gb, fr, jp, sg, generic, mistaken } = fixture.addressSamples;
+      expectAllParse(Address, [gb, fr, jp, sg, generic], `${locale}.addressSamples`);
       const countries = fixture.markets.map((market) => market.country);
       expectParses(
         AddressFormState,
@@ -1844,8 +1844,8 @@ describe.each(designSystemLocales)("the %s fixtures", (locale) => {
       );
       longer(
         "city",
-        long.address.city,
-        fixture.addresses.map((a) => a.city),
+        long.address.city ?? "",
+        fixture.addresses.flatMap((a) => a.city ?? []),
       );
       longer(
         "company",
