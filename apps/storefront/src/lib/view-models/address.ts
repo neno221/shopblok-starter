@@ -13,8 +13,7 @@ export function toAddress(address: CustomerAddressDto): Address {
     ...optional("company", address.company),
     address1: address.address1,
     ...optional("address2", address.address2),
-    // Required in the contract until T45 makes it optional (D65); "" never reaches a component.
-    city: address.city ?? "",
+    ...optional("city", address.city),
     ...optional("province", address.province),
     ...optional("postalCode", address.postalCode),
     countryCode: address.countryCode,

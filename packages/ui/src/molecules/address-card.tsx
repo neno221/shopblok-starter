@@ -65,7 +65,8 @@ function AddressCard({
   const lines = addressLines(address, locale);
   const who = {
     name: `${address.firstName} ${address.lastName}`.trim(),
-    city: address.city,
+    // Seven countries have no city (D65); the street then tells two addresses apart.
+    city: address.city ?? address.address1,
   };
   const marks = [
     address.isDefaultShipping === true ? copy.defaultShipping : null,

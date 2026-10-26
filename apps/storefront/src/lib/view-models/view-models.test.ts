@@ -242,6 +242,16 @@ describe("addresses", () => {
     expect(address.countryCode).toBe("cy");
   });
 
+  it("leaves the city out where the country has none (Singapore, D65)", () => {
+    const address = toAddress(
+      toAddressDto({ ...wire, city: null, country_code: "SG", postal_code: "079903" }),
+    );
+    expectContract(Address, address);
+    expect(address).not.toHaveProperty("city");
+    const { id: _id, ...input } = address;
+    expect(toAddressInput(input)).not.toHaveProperty("city");
+  });
+
   it("goes back to the Store API's names", () => {
     const { id: _id, ...address } = toAddress(toAddressDto(wire));
     expect(toAddressInput(address)).toEqual({

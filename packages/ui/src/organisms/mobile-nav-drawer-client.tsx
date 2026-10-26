@@ -24,6 +24,7 @@
 
 import { Button } from "@shopblok/ui/atoms/button";
 import { Icon } from "@shopblok/ui/atoms/icon";
+import { takesFocusWhenOpenedByAReader } from "@shopblok/ui/lib/reader-focus";
 import { cn } from "@shopblok/ui/lib/utils";
 import {
   Sheet,
@@ -88,12 +89,6 @@ type MobileNavDrawerClientProps = {
 // `next/link` takes whatever an app with typed routes narrows its `href` to; the hrefs here are
 // strings the app built (the same cast as CartButton's).
 type LinkHref = React.ComponentProps<typeof NextLink>["href"];
-
-/**
- * For a sheet given `defaultOpen`: no focus when it opens by itself (the interaction type is
- * empty), the first control's when a reader opens it later.
- */
-const takesFocusWhenOpenedByAReader = (interaction: string) => interaction !== "";
 
 /** A row of the sheet: 44 px tall, its text wraps (`wrap-anywhere`) and never leaves the row. */
 const rowClass =

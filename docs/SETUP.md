@@ -5174,6 +5174,34 @@ The review (`reviews/pr-71-code-review.md` in the project's files) found no bloc
 | 6. One store read per search | left: a 30 to 60 s module cache is worth it before M4's instant search, and it is noted here for then |
 | 7. Sequential reads | the per-locale reads, the five reference lookups of a translation event, and the store's locales beside the pricing read all run side by side |
 
+## Leftovers from M2 (T45)
+
+**Result: one cart badge helper, one focus helper, and `Address.city` optional (D68, D65), with no change to anything the design system draws.** `pnpm -r typecheck`, `pnpm -r lint` and every package's tests pass (UI 5,261, storefront 2,694, fixtures 450, registry 219).
+
+| | |
+|---|---|
+| Date | 2026-10-26 |
+| Branch | `claude/project-thread-lo9oew`, from `main` at `7e58444` (PR 71 merged) |
+| New | `packages/ui/src/lib/{cart-badge,reader-focus}.ts` and their tests |
+| Changed | CartButton, CartDrawer and QuickCartDropdown (server and client parts); the ten files that held `takesFocusWhenOpenedByAReader`; `packages/registry/src/contracts/address.ts` and its test; `packages/fixtures/src/commerce/{data/addresses,build/address-samples,types}.ts` and `commerce.test.ts`; AddressCard, AddressBook and their tests; AddressForm's test |
+
+### What changed
+
+1. **The cart badge** (T39's review, item 8). `lib/cart-badge.ts` has `CART_BADGE_MAX` (99), `cartBadgeText(count, locale, overflow)` (nothing for an unknown, empty or impossible count, the market's digits up to 99, the catalog's overflow message above) and, in `lib/cart-badge-class.ts`, `cartBadgeClassName` (the corner position, the look, the reserved space). CartButton, CartDrawer and QuickCartDropdown take their digits from the first and their classes from the second, and keep their own `data-slot`s, so the markup is the same as before. The live region stays CartButton's own: the drawer and the quick cart have none for the count (the quick cart's region speaks the added line), so there was nothing to share there. The class has a module of its own, with no import, so the drawer's and the quick cart's client parts do not bundle the formatter (PR 72's review: a page that draws them without CartButton, such as T52's cart page, would otherwise take it). QuickCartDropdown's client part takes the badge's digits as optional, as CartDrawer's does, and draws no badge without them, rather than an empty dot.
+2. **The focus helper** (item 9). `lib/reader-focus.ts` holds the one `takesFocusWhenOpenedByAReader`, and its comment holds what the ten copies' comments said; the ten files import it. The component tests that exercise it pass unchanged.
+3. **`Address.city` is optional** in the contract, as in Medusa, because AE, GI, JP, KY, MO, NR and SG have no city field. AddressForm's test now checks that exactly these seven of Google's formats have no `city` and that their forms draw none. `addressSamples.sg` is a Singapore address with no city (and no phone: no number range is kept for fiction there), parsed by the fixtures' test; no DS story draws it, so no baseline moves. AddressCard draws the lines `addressLines` gives, which already leave out an empty city; a test draws an address without a city in each of the seven countries. **The edit, remove and make-default labels** ("Edit the address of {name}, {city}") need a place: without a city they name the street (`city ?? address1`) in AddressCard and AddressBook, so the four catalogs are unchanged. T52's server actions require `city` where the country's format has one.
+
+### Mutations
+
+| Mutation | Failed |
+|---|---|
+| `city` required again in the contract | the registry's "does not ask for a city" test, and the fixtures' addressSamples parse in all four locales |
+| `cartBadgeText` without the overflow rule | `lib/cart-badge.test.ts` |
+
+### Smaller observations
+
+- `turbo run typecheck` and `turbo run lint` failed in this session's container on spawning (`Exec format error (os error 8)`) before any task ran; `pnpm -r --workspace-concurrency=2 typecheck` (and `lint`) ran the same scripts and passed. CI runs them through its own steps.
+- Macau's format puts the street before the name, which the seven-country test allows.
 
 ## The data layer (T47)
 
@@ -5236,7 +5264,7 @@ Each was applied, the tests run, and the change reverted:
 7. **"Low" is under 5.** D61 names "low" but no number; `LOW_STOCK_BELOW = 5` in `products.ts`, for tracked variants only (an untracked or backorder variant is never low or out).
 8. **The curl check's add went through the Store API**, with the storefront's cookie set to that cart: no page imports the actions yet, so they are not in the build's server reference manifest and cannot be posted to. The action's own path (create, cookie, answer) is covered by the unit tests; T48's `shell.spec.ts` adds a line through the action's form.
 9. **Customer, orders, fulfillment and payment are written, not exercised.** They type-check against the SDK and follow dtc-starter's flow with T44's facts (the prefix as `metadata.market`, the 403 until verified), but nothing calls them before T52 and T53, whose specs test them against the stack.
-10. **`Address.city`** is still required in the contract until T45 (PR 72) makes it optional; `toAddress` writes `""` for a saved address without one, which this PR changes once T45 is on `main`.
+10. **`Address.city`** is optional since T45 (PR 72), so `toAddress` leaves it out for a saved address without one, as it does the other empty optional fields.
 
 ### Smaller observations
 

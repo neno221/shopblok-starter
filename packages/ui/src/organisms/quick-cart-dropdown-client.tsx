@@ -16,6 +16,8 @@
 
 import { buttonVariants, Button } from "@shopblok/ui/atoms/button";
 import { Icon } from "@shopblok/ui/atoms/icon";
+import { cartBadgeClassName } from "@shopblok/ui/lib/cart-badge-class";
+import { takesFocusWhenOpenedByAReader } from "@shopblok/ui/lib/reader-focus";
 import { cn } from "@shopblok/ui/lib/utils";
 import {
   Popover,
@@ -40,7 +42,9 @@ type QuickCartDropdownClientProps = {
     /** Said when the popover opens: "Added to your cart: Merino Ankle Socks". */
     announce: string;
   };
-  badge: string;
+  /** The badge's digits. Without them no badge is drawn, as in CartDrawer (the contract's count is
+   * positive, so QuickCartDropdown always passes them). */
+  badge?: string;
   /** The line just added, rendered by the server. */
   line: ReactNode;
   /** The cart's subtotal and count, rendered by the server. */
@@ -62,9 +66,6 @@ type QuickCartDropdownClientProps = {
 // `next/link` takes whatever an app with typed routes narrows its `href` to; these are strings the
 // app built.
 type LinkHref = React.ComponentProps<typeof NextLink>["href"];
-
-/** For a popover given `defaultOpen`: no focus when it opens by itself, the first control's later. */
-const takesFocusWhenOpenedByAReader = (interaction: string) => interaction !== "";
 
 function QuickCartDropdownClient({
   copy,
@@ -116,13 +117,15 @@ function QuickCartDropdownClient({
           <span className="sr-only">
             {copy.open}, {copy.items}
           </span>
-          <span
-            data-slot="quick-cart-badge"
-            aria-hidden="true"
-            className="pointer-events-none absolute -end-0.5 -top-0.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-xs leading-none font-semibold text-primary-foreground tabular-nums ring-2 ring-background"
-          >
-            {badge}
-          </span>
+          {badge === undefined ? null : (
+            <span
+              data-slot="quick-cart-badge"
+              aria-hidden="true"
+              className={cartBadgeClassName}
+            >
+              {badge}
+            </span>
+          )}
         </PopoverTrigger>
         <PopoverContent
           data-slot="quick-cart"

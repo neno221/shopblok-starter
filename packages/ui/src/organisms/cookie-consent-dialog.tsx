@@ -37,6 +37,7 @@ import { Button } from "@shopblok/ui/atoms/button";
 import { Label } from "@shopblok/ui/atoms/label";
 import { Link } from "@shopblok/ui/atoms/link";
 import { Switch } from "@shopblok/ui/atoms/switch";
+import { takesFocusWhenOpenedByAReader } from "@shopblok/ui/lib/reader-focus";
 import { cn } from "@shopblok/ui/lib/utils";
 import {
   Dialog,
@@ -71,13 +72,6 @@ type CookieConsentDialogProps = {
   /** What the visitor chose, called once the dialog has gone from the page. */
   onAnswer: (choice: ConsentChoice) => void;
 };
-
-/**
- * For a dialog given `defaultOpen`: no focus when it opens by itself (the interaction type is
- * empty), the first control's when a reader opens it later. Several open states on one design-system
- * page would take it from each other, and a popup that is not modal closes when focus leaves it.
- */
-const takesFocusWhenOpenedByAReader = (interaction: string) => interaction !== "";
 
 // `Link` takes whatever `next/link` takes, which an app with typed routes narrows to its own
 // routes. The policy's `href` is a string the app built, so the cast follows the app's type.

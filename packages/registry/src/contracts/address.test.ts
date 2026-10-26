@@ -51,16 +51,21 @@ describe("Address (AddressCard)", () => {
     ).toEqual([]);
   });
 
-  it("wants a name, a street, a city and a country", () => {
-    for (const key of ["firstName", "lastName", "address1", "city", "countryCode"] as const) {
+  it("wants a name, a street and a country", () => {
+    for (const key of ["firstName", "lastName", "address1", "countryCode"] as const) {
       const { [key]: _removed, ...without } = address;
       expect(issues(Address, without), key).not.toEqual([]);
     }
   });
 
   it("refuses an empty string for a part: a part that is missing is absent", () => {
-    for (const key of ["company", "address2", "province", "postalCode", "phone"] as const)
+    for (const key of ["company", "address2", "city", "province", "postalCode", "phone"] as const)
       expect(issues(Address, { ...address, [key]: "" }), key).not.toEqual([]);
+  });
+
+  it("does not ask for a city: seven countries' formats have none (D65)", () => {
+    const { city: _city, ...singapore } = { ...address, countryCode: "sg", postalCode: "079903" };
+    expect(issues(Address, singapore)).toEqual([]);
   });
 
   it("does not ask for a province or a postal code: Cyprus has no province, Ireland had no postcode", () => {

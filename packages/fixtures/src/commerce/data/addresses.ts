@@ -44,6 +44,16 @@ export const jpAddress: Address = {
   phone: "+81 3 5555 0142",
 };
 
+/** Singapore, one of the seven countries whose format has no city field (D65): it has none, and no phone (no range is kept for fiction there). */
+export const sgAddress: Address = {
+  id: "addr_sg",
+  firstName: "Wei Ling",
+  lastName: "Tan",
+  address1: "10 Anson Road, #12-08",
+  postalCode: "079903",
+  countryCode: "sg",
+};
+
 /** The Canary Islands (`ic`, an exceptionally reserved code): Google's data has no format for it. */
 export const genericAddress: Address = {
   id: "addr_ic",

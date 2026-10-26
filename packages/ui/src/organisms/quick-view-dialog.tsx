@@ -44,6 +44,7 @@ import { formatMessage } from "@shopblok/i18n/format";
 import type { BuyBox as BuyBoxContent, VariantSelection } from "@shopblok/registry/contracts";
 import { Button } from "@shopblok/ui/atoms/button";
 import { Link } from "@shopblok/ui/atoms/link";
+import { takesFocusWhenOpenedByAReader } from "@shopblok/ui/lib/reader-focus";
 import { cn } from "@shopblok/ui/lib/utils";
 import { Dialog, DialogContent, DialogTrigger } from "@shopblok/ui/primitives/dialog";
 import { useId, useState } from "react";
@@ -82,12 +83,6 @@ type QuickViewDialogProps = BuyBoxContent & {
 // `Link` takes whatever `next/link` takes, which an app with typed routes narrows to its own
 // routes. The product's `href` is a string the app built, so the cast follows the app's type.
 type LinkHref = React.ComponentProps<typeof Link>["href"];
-
-/**
- * For a dialog given `defaultOpen`: no focus when it opens by itself (the interaction type is
- * empty), the first control's when a reader opens it later.
- */
-const takesFocusWhenOpenedByAReader = (interaction: string) => interaction !== "";
 
 /** The gallery's picture is half the popup from `md` up, and the popup's width below it. */
 const GALLERY_SIZES = "(min-width: 768px) 420px, calc(100vw - 4rem)";

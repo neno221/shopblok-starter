@@ -46,6 +46,7 @@ import { formatMessage } from "@shopblok/i18n/format";
 import type { SearchOverlay as SearchOverlayContent } from "@shopblok/registry/contracts";
 import { Button } from "@shopblok/ui/atoms/button";
 import { Icon } from "@shopblok/ui/atoms/icon";
+import { takesFocusWhenOpenedByAReader } from "@shopblok/ui/lib/reader-focus";
 import { cn } from "@shopblok/ui/lib/utils";
 import {
   Dialog,
@@ -81,12 +82,6 @@ type SearchOverlayProps = SearchOverlayContent & {
   /** Classes for the popup (the design system's states cap it to their box and stop its animation). */
   popupClassName?: string;
 };
-
-/**
- * For a dialog given `defaultOpen`: no focus when it opens by itself (the interaction type is
- * empty), the field's when a reader opens it later.
- */
-const takesFocusWhenOpenedByAReader = (interaction: string) => interaction !== "";
 
 function SearchOverlay({
   search,

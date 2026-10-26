@@ -81,7 +81,7 @@ describe("AddressBook", () => {
         );
         const name = formatMessage(
           words.makeDefaultLabel,
-          { name: `${address.firstName} ${address.lastName}`.trim(), city: address.city },
+          { name: `${address.firstName} ${address.lastName}`.trim(), city: address.city ?? address.address1 },
           htmlLang[locale],
         );
         const button = within(form).getByRole("button", { name });

@@ -9,7 +9,9 @@ export const CountryCode = z
 
 /**
  * Medusa's address fields (SPEC §8.4). Which are shown, in which order and which are required is
- * the country's format (D48, T34), not this schema's: Cyprus has no province, the US needs one.
+ * the country's format (D48, T34), not this schema's: Cyprus has no province, the US needs one, and
+ * seven countries have no city field at all (AE, GI, JP, KY, MO, NR, SG; D65), so `city` is optional
+ * here as it is in Medusa. The forms' server actions (T52) require it where the format has one.
  */
 export const Address = z.object({
   id: Id.optional(),
@@ -18,7 +20,7 @@ export const Address = z.object({
   company: z.string().min(1).optional(),
   address1: z.string().min(1),
   address2: z.string().min(1).optional(),
-  city: z.string().min(1),
+  city: z.string().min(1).optional(),
   province: z.string().min(1).optional(),
   postalCode: z.string().min(1).optional(),
   countryCode: CountryCode,
