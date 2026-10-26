@@ -53,7 +53,9 @@ export type Budget = {
  * only say "no page yet": T50 changes the table.
  */
 export const budgets: readonly Budget[] = [
-  { route: "/[market]/products/[handle]", label: "PDP", maxKB: 170 },
+  // Steven's decision on PR 77 (T49): the PDP measured 322.9 KB on the shell's layout, which alone
+  // is ~225 KB, so its budget is 330 KB; the listing pages keep SPEC §13's 170 KB.
+  { route: "/[market]/products/[handle]", label: "PDP", maxKB: 330 },
   { route: "/[market]/categories/[...handle]", label: "PLP, categories", maxKB: 170 },
   { route: "/[market]/store", label: "PLP, store", maxKB: 170 },
   { route: "/[market]/store/page/[n]", label: "PLP, store page n", maxKB: 170 },

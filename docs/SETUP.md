@@ -5446,7 +5446,7 @@ The first CI run's `design-system` job failed in `next build`: it builds with no
 | `outage-recovery.spec.ts` after starting Medusa again | passed: `/next/status` back to 200, the O3 page 200 (O5) with no restart of `next start` |
 | `.next/prerender-manifest.json` | each prerendered product route `initialRevalidateSeconds: 30`, `initialExpireSeconds: 3600` (the map's life sets the route's, D58) |
 | `pnpm build` with the stack | passes; 56 product pages (7 markets × 8) without a cap, 28 with 4; `x-nextjs-cache: HIT`, `Cache-Control: s-maxage=30, stale-while-revalidate=3570` |
-| `check:first-load` | **`/[market]/products/[handle]` 1002.8 KB raw, 322.9 KB gzipped**, over the 170 KB budget; `/[market]` 291.6. See "Where it differs from the plan" |
+| `check:first-load` | **`/[market]/products/[handle]` 1002.8 KB raw, 322.9 KB gzipped**, over the 170 KB budget (now 330 KB, below); `/[market]` 291.6. See "Where it differs from the plan" |
 | Unit suites | storefront 104 files, ui 146, registry 13, fixtures 2, i18n 4; backend unit 131 tests |
 | In the browser (1280 and 390 px) | no console errors; choosing, adding, reloading on `?variant=` and the recently viewed row on the next product page all work |
 
@@ -5463,7 +5463,7 @@ The first CI run's `design-system` job failed in `next build`: it builds with no
 
 ### Where it differs from the plan
 
-- **The PDP is 322.9 KB gzipped, not under 170.** The shell is 291.6 of it (T48's numbers); the page adds 31 KB (the gallery's and the carousel's embla, the buy box's radios and stepper, the zoom dialog). The budget is Steven's decision, asked on 2026-10-26; until it is made, `check:first-load` fails `e2e-smoke`.
+- **The PDP is 322.9 KB gzipped, not under 170.** The shell is 291.6 of it (T48's numbers); the page adds 31 KB (the gallery's and the carousel's embla, the buy box's radios and stepper, the zoom dialog). Steven raised the PDP's budget to 330 KB on 2026-10-26 (the `budgets` table in `scripts/first-load.ts`); the listing pages keep 170 KB.
 - **Add to cart needs JavaScript.** The buy box's action is a client function that calls the server action and then the visitor store; without a script the form does not post. A no-script add would need the market's key in the form and a redirect, which T52's cart page can bring.
 - **The gallery is an island too** (the plan names the buy box's): the chosen colour's pictures need the choice before it is a variant, which only the buy box knows; the two share it through `choice-store.ts`.
 - **Delivery and returns** are one section from `site.ts` (per language), and the buy box's notes come from there too, until M4's globals. The details and the size guide have no data in Medusa yet, so the page has neither.

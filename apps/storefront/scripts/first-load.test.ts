@@ -131,9 +131,9 @@ describe("the budget", () => {
     expect(judged(170 * KB + 1).failures).toHaveLength(1);
   });
 
-  it("budgets the PDP and the three listing pages at 170 KB, with the page/[n] routes T50 makes explicit", () => {
+  it("budgets the PDP at 330 KB and the three listing pages at 170 KB, with the page/[n] routes T50 makes explicit", () => {
     expect(budgets).toEqual([
-      { route: "/[market]/products/[handle]", label: "PDP", maxKB: 170 },
+      { route: "/[market]/products/[handle]", label: "PDP", maxKB: 330 },
       { route: "/[market]/categories/[...handle]", label: "PLP, categories", maxKB: 170 },
       { route: "/[market]/store", label: "PLP, store", maxKB: 170 },
       { route: "/[market]/store/page/[n]", label: "PLP, store page n", maxKB: 170 },
@@ -185,10 +185,11 @@ describe("the budget", () => {
     },
   );
 
-  // SPEC §13: the PDP and every PLP route, the page/[n] ones included, over 170 KB gzipped fail.
-  it.each(budgets.map((budget) => [budget.route, budget.label] as const))(
-    "%s: passes at 170 KB and fails at 171 KB",
-    (route, label) => {
+  // Each budgeted route, the page/[n] ones included, fails 1 KB over its budget (SPEC §13's 170 KB
+  // for the listing pages, 330 KB for the PDP).
+  it.each(budgets.map((budget) => [budget.route, budget.label, budget.maxKB] as const))(
+    "%s: passes at its budget and fails 1 KB over",
+    (route, label, max) => {
       const failuresAt = (total: number) => {
         const sizes = sizesAdding(total);
         return evaluate(
@@ -197,9 +198,9 @@ describe("the budget", () => {
           new Set([route]),
         ).failures;
       };
-      expect(failuresAt(170 * KB)).toEqual([]);
-      expect(failuresAt(171 * KB)).toEqual([
-        `${route} (${label}): 171.0 KB gzipped, over its 170 KB budget by 1.0 KB.`,
+      expect(failuresAt(max * KB)).toEqual([]);
+      expect(failuresAt((max + 1) * KB)).toEqual([
+        `${route} (${label}): ${max + 1}.0 KB gzipped, over its ${max} KB budget by 1.0 KB.`,
       ]);
     },
   );
