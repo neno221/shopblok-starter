@@ -52,7 +52,7 @@ type AddressFormCopy = Messages["molecules"]["addressForm"];
 
 type AddressFormProps = Omit<
   React.ComponentProps<"form">,
-  "children" | "action" | "method" | "aria-label" | "aria-labelledby"
+  "action" | "method" | "aria-label" | "aria-labelledby"
 > &
   AddressFormState & {
     /** The wording, from the catalog's `molecules.addressForm`. */
@@ -75,6 +75,8 @@ type AddressFormProps = Omit<
     status?: AddressFormStatus;
     /** The button's text when the page's step has its own ("Continue to delivery"). */
     submitLabel?: string;
+    /** Fields the page adds after the address, before the button (the account's default, T53). */
+    children?: React.ReactNode;
   };
 
 /** One country's format and words, plain data for the client part. */
@@ -153,6 +155,7 @@ function AddressForm({
   errors = {},
   status = "idle",
   submitLabel,
+  children,
   className,
   ...props
 }: AddressFormProps) {
@@ -223,6 +226,7 @@ function AddressForm({
           readOnly={pending}
         />
       )}
+      {children}
       <div role="status" aria-live="polite" data-slot="address-form-status">
         {pending ? <VisuallyHidden>{copy.saving}</VisuallyHidden> : null}
         {message === undefined ? null : (

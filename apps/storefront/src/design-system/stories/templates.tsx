@@ -11,6 +11,8 @@ import type { EntryId } from "@shopblok/registry";
 import { Button } from "@shopblok/ui/atoms/button";
 import { FooterMultiColumn } from "@shopblok/ui/organisms/footer/multi-column";
 import { HeaderClassic } from "@shopblok/ui/organisms/header/classic";
+import { AccountTemplate, accountCopy, type AccountErrors } from "@shopblok/ui/templates/account";
+import { AuthTemplate, authCopy, type AuthErrors } from "@shopblok/ui/templates/auth";
 import { CartTemplate, cartCopy } from "@shopblok/ui/templates/cart";
 import {
   CheckoutTemplate,
@@ -24,6 +26,7 @@ import {
   OrderConfirmationTemplate,
   orderConfirmationCopy,
 } from "@shopblok/ui/templates/order-confirmation";
+import { OrderLookupTemplate, orderLookupCopy } from "@shopblok/ui/templates/order-lookup";
 import {
   ProductDetailTemplate,
   productDetailCopy,
@@ -293,6 +296,52 @@ const orderConfirmation = (ctx: DsContext, mainId: string) => (
     mainId={mainId}
   />
 );
+
+type AuthScreen = keyof (typeof pageFixtures)["en"]["auth"];
+
+const auth = (ctx: DsContext, mainId: string, screen: AuthScreen, errors?: AuthErrors) => (
+  <AuthTemplate
+    {...pageFixtures[ctx.locale].auth[screen]}
+    copy={authCopy(catalogs[ctx.locale])}
+    locale={lang(ctx)}
+    {...(errors === undefined ? {} : { errors })}
+    prefetch={false}
+    as="div"
+    mainId={mainId}
+  />
+);
+
+type AccountScreen = keyof (typeof pageFixtures)["en"]["account"];
+
+const account = (ctx: DsContext, mainId: string, screen: AccountScreen, errors?: AccountErrors) => (
+  <AccountTemplate
+    {...pageFixtures[ctx.locale].account[screen]}
+    copy={accountCopy(catalogs[ctx.locale])}
+    locale={lang(ctx)}
+    timeZone={timeZone(ctx)}
+    now={fixtureNow}
+    {...(errors === undefined ? {} : { errors })}
+    prefetch={false}
+    as="div"
+    mainId={mainId}
+  />
+);
+
+type LookupScreen = keyof (typeof pageFixtures)["en"]["orderLookup"];
+
+const orderLookup = (ctx: DsContext, mainId: string, screen: LookupScreen) => (
+  <OrderLookupTemplate
+    {...pageFixtures[ctx.locale].orderLookup[screen]}
+    copy={orderLookupCopy(catalogs[ctx.locale])}
+    locale={lang(ctx)}
+    prefetch={false}
+    as="div"
+    mainId={mainId}
+  />
+);
+
+const formsNote =
+  "Every form is plain and posts without JavaScript (the shop's server actions redirect back). Each field has a visible label; an error is text beside its field, named in its `aria-describedby` before the hint, and a form's failure an alert at the top. A step just done is a polite status.";
 
 const pageNote =
   "The template is the page between the header and the footer: in a shop it is the page's one `<main>`, the skip link's target, with the page's only `<h1>`. The icon is decoration and hidden from assistive technology.";
@@ -574,6 +623,138 @@ export const templateStories = {
         label: "Placed",
         description: "The order placed and paid.",
         render: (ctx) => orderConfirmation(ctx, "template-order-confirmation-default"),
+      },
+    ],
+    statesLayout: "stack",
+  },
+  "templates/auth": {
+    summary:
+      "Signing in and up (D64): sign in, create an account, the e-mail to verify before the account exists, the password reset asked for and chosen, and a link that no longer works. One narrow column, one form per page.",
+    a11y: [
+      pageNote,
+      formsNote,
+      "The fields carry `autocomplete` (`username`, `current-password`, `new-password`, `given-name`), so a password manager fills them; the new password's rule is its hint.",
+      "The reset answer says the same whether or not an account uses the address.",
+    ],
+    live: (ctx) => page(ctx, "template-auth", auth(ctx, "template-auth", "login")),
+    states: [
+      {
+        id: "login",
+        label: "Sign in",
+        description: "After a wrong password: the form's alert.",
+        render: (ctx) => auth(ctx, "template-auth-login", "login", { form: "credentials" }),
+      },
+      {
+        id: "verified",
+        label: "Verified",
+        description: "Back from the e-mail's link: the address filled in and “verified, sign in”.",
+        render: (ctx) => auth(ctx, "template-auth-verified", "verified"),
+      },
+      {
+        id: "register",
+        label: "Register",
+        description: "No e-mail and a short password, as the action hands them back.",
+        render: (ctx) =>
+          auth(ctx, "template-auth-register", "register", {
+            fields: { email: "required", password: "short" },
+          }),
+      },
+      {
+        id: "check-email",
+        label: "Check your email",
+        description: "The verification link sent, a new one in a while.",
+        render: (ctx) => auth(ctx, "template-auth-check-email", "checkEmail"),
+      },
+      {
+        id: "reset",
+        label: "New password",
+        description: "The reset link's page.",
+        render: (ctx) => auth(ctx, "template-auth-reset", "reset"),
+      },
+    ],
+    statesLayout: "stack",
+  },
+  "templates/account": {
+    summary:
+      "The account: AccountNav beside the screen. The overview, the orders and one order, the address book and an address, the payment methods (none until M6), the returns and the profile.",
+    a11y: [
+      pageNote,
+      formsNote,
+      "AccountNav marks the page the customer is on (`aria-current`); “Sign out” is a form's button, never a link a prefetch could follow.",
+      "The dates are in the market's time zone.",
+    ],
+    live: (ctx) => page(ctx, "template-account", account(ctx, "template-account", "overview")),
+    states: [
+      {
+        id: "overview",
+        label: "Overview",
+        description: "The greeting, the two orders and the ways on.",
+        render: (ctx) => account(ctx, "template-account-overview", "overview"),
+      },
+      {
+        id: "order",
+        label: "An order",
+        description: "The placed order: where it goes, its history and its summary.",
+        render: (ctx) => account(ctx, "template-account-order", "order"),
+      },
+      {
+        id: "addresses",
+        label: "Addresses",
+        description: "The address book.",
+        render: (ctx) => account(ctx, "template-account-addresses", "addresses"),
+      },
+      {
+        id: "address",
+        label: "An address",
+        description: "An address to change, with the default checkbox.",
+        render: (ctx) => account(ctx, "template-account-address", "address"),
+      },
+      {
+        id: "return",
+        label: "A return",
+        description: "The delivered order's return form, filled in.",
+        render: (ctx) => account(ctx, "template-account-return", "return"),
+      },
+      {
+        id: "profile",
+        label: "Profile",
+        description: "The name and phone, the e-mail shown.",
+        render: (ctx) =>
+          account(ctx, "template-account-profile", "profile", {
+            profile: { firstName: "required" },
+          }),
+      },
+    ],
+    statesLayout: "stack",
+  },
+  "templates/order-lookup": {
+    summary:
+      "The claim of a guest order: the receipt's number and the e-mail, for a signed-in customer; the sign-in for a visitor; the e-mail link's page that accepts or declines.",
+    a11y: [
+      pageNote,
+      formsNote,
+      "The claim's answer never says whether the details matched an order. Accept and decline are two buttons of one form, so a visit alone changes nothing.",
+    ],
+    live: (ctx) =>
+      page(ctx, "template-order-lookup", orderLookup(ctx, "template-order-lookup", "lookup")),
+    states: [
+      {
+        id: "sent",
+        label: "Claim sent",
+        description: "The details typed, and the status that the link went out.",
+        render: (ctx) => orderLookup(ctx, "template-order-lookup-sent", "sent"),
+      },
+      {
+        id: "sign-in",
+        label: "Not signed in",
+        description: "Claiming needs an account.",
+        render: (ctx) => orderLookup(ctx, "template-order-lookup-sign-in", "signIn"),
+      },
+      {
+        id: "transfer",
+        label: "The e-mail's link",
+        description: "Accept or decline.",
+        render: (ctx) => orderLookup(ctx, "template-order-lookup-transfer", "transfer"),
       },
     ],
     statesLayout: "stack",

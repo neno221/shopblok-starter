@@ -838,5 +838,202 @@ export const de: Messages = {
       payment: "Zahlung",
       continue: "Weiter einkaufen",
     },
+    auth: {
+      fields: {
+        email: "E-Mail",
+        password: "Passwort",
+        newPassword: "Neues Passwort",
+        passwordHint: "Mindestens {min, number} Zeichen.",
+        firstName: "Vorname",
+        lastName: "Nachname",
+        phone: "Telefon",
+        optional: "(optional)",
+      },
+      login: {
+        title: "Anmelden",
+        lead: "Melden Sie sich an, um Ihre Bestellungen zu sehen und schneller zur Kasse zu gehen.",
+        submit: "Anmelden",
+        forgot: "Passwort vergessen?",
+        noAccount: "Neu hier?",
+        register: "Konto erstellen",
+        notices: {
+          verified:
+            "Ihre E-Mail-Adresse ist bestätigt. Melden Sie sich an, um die Erstellung Ihres Kontos abzuschließen.",
+          "password-reset":
+            "Ihr Passwort wurde geändert. Melden Sie sich mit dem neuen an.",
+          "signed-out": "Sie wurden abgemeldet.",
+          "sign-in-required": "Melden Sie sich an, um Ihr Konto zu sehen.",
+        },
+      },
+      register: {
+        title: "Konto erstellen",
+        lead: "Wir senden Ihnen einen Link zur Bestätigung Ihrer E-Mail-Adresse, bevor das Konto bereit ist.",
+        submit: "Konto erstellen",
+        haveAccount: "Sie haben schon ein Konto?",
+        login: "Anmelden",
+      },
+      checkEmail: {
+        title: "Bestätigen Sie Ihre E-Mail-Adresse",
+        back: "Zurück zur Anmeldung",
+      },
+      forgot: {
+        title: "Passwort zurücksetzen",
+        lead: "Geben Sie die E-Mail-Adresse Ihres Kontos ein, dann senden wir Ihnen einen Link zum Festlegen eines neuen Passworts.",
+        submit: "Link senden",
+        sent: "Falls ein Konto {email} verwendet, ist ein Link zum Zurücksetzen des Passworts unterwegs.",
+        back: "Zurück zur Anmeldung",
+      },
+      reset: {
+        title: "Neues Passwort festlegen",
+        lead: "Für das Konto {email}.",
+        submit: "Neues Passwort speichern",
+      },
+      linkExpired: {
+        title: "Dieser Link funktioniert nicht mehr",
+        verify:
+          "Der Link wurde möglicherweise schon verwendet oder ist abgelaufen. Melden Sie sich an, dann senden wir einen neuen.",
+        reset:
+          "Der Link wurde möglicherweise schon verwendet oder ist abgelaufen. Fordern Sie einen neuen an.",
+        restart: { verify: "Anmelden", reset: "Neuen Link anfordern" },
+      },
+      errors: {
+        required: "{field} ist erforderlich.",
+        pattern: "Geben Sie eine E-Mail-Adresse wie name@example.com ein.",
+        invalid: "{field} ist nicht gültig.",
+        short: "Verwenden Sie mindestens {min, number} Zeichen.",
+      },
+      formErrors: {
+        credentials: "Die E-Mail-Adresse oder das Passwort stimmt nicht.",
+        "not-verified":
+          "Bestätigen Sie zuerst Ihre E-Mail-Adresse: Öffnen Sie den Link, den wir Ihnen gesendet haben.",
+        exists:
+          "Mit dieser E-Mail-Adresse gibt es bereits ein Konto. Melden Sie sich stattdessen an.",
+        rejected:
+          "Das hat nicht geklappt. Prüfen Sie Ihre Angaben und versuchen Sie es erneut.",
+        unavailable:
+          "Der Shop ist gerade nicht erreichbar. Bitte versuchen Sie es gleich noch einmal.",
+      },
+    },
+    account: {
+      nav: {
+        overview: "Übersicht",
+        orders: "Bestellungen",
+        addresses: "Adressen",
+        paymentMethods: "Zahlungsarten",
+        returns: "Rücksendungen",
+        profile: "Profil",
+      },
+      overview: {
+        title: "Ihr Konto",
+        greeting: "Willkommen zurück, {name}",
+        signedInAs: "Angemeldet als {email}",
+        recent: "Letzte Bestellungen",
+        allOrders: "Alle Bestellungen ansehen",
+        manage: "Konto verwalten",
+        addresses: "Gespeicherte Adressen",
+        addressesText:
+          "Fügen Sie hinzu oder ändern Sie, wohin Ihre Bestellungen gehen.",
+        profile: "Profil",
+        profileText: "Ihr Name und Ihre Telefonnummer.",
+        lookup: "Gastbestellung finden",
+        lookupText:
+          "Fügen Sie eine Bestellung hinzu, die Sie ohne Anmeldung aufgegeben haben.",
+      },
+      orders: {
+        title: "Bestellungen",
+        lookup:
+          "Fehlt eine Bestellung? Fügen Sie eine als Gast aufgegebene Bestellung hinzu.",
+      },
+      order: {
+        title: "Bestellung #{number}",
+        placed: "Aufgegeben am {date}",
+        shipping: "Lieferadresse",
+        delivery: "Versand",
+        payment: "Zahlung",
+        back: "Zurück zu den Bestellungen",
+        return: "Artikel zurücksenden",
+      },
+      addresses: {
+        title: "Adressen",
+      },
+      address: {
+        titleNew: "Adresse hinzufügen",
+        titleEdit: "Adresse ändern",
+        defaultShipping: "Als Standard-Lieferadresse verwenden",
+        back: "Zurück zu den Adressen",
+      },
+      paymentMethods: {
+        title: "Zahlungsarten",
+        note: "Karten können an der Kasse gespeichert werden, sobald Kartenzahlungen verfügbar sind.",
+      },
+      returns: {
+        title: "Rücksendungen",
+        lead: "Wählen Sie die Bestellung mit den Artikeln, die Sie zurücksenden möchten.",
+        emptyTitle: "Nichts zurückzusenden",
+        emptyText:
+          "Bestellungen, aus denen Sie Artikel zurücksenden können, erscheinen hier.",
+        emptyAction: "Ihre Bestellungen ansehen",
+      },
+      return: {
+        title: "Artikel zurücksenden",
+        sent: "Ihre Rücksendeanfrage wurde gesendet. Wir teilen Ihnen per E-Mail mit, wie es weitergeht.",
+        back: "Zurück zu den Rücksendungen",
+      },
+      profile: {
+        title: "Profil",
+        email: "E-Mail",
+        emailNote: "Mit dieser Adresse melden Sie sich an.",
+        submit: "Änderungen speichern",
+        saved: "Ihre Änderungen wurden gespeichert.",
+      },
+      formErrors: {
+        "not-found": "Das gehört nicht zu Ihrem Konto.",
+        rejected:
+          "Die Änderung konnte nicht gespeichert werden. Prüfen Sie Ihre Angaben und versuchen Sie es erneut.",
+        unavailable:
+          "Der Shop ist gerade nicht erreichbar. Bitte versuchen Sie es gleich noch einmal.",
+        unauthorized: "Ihre Sitzung ist abgelaufen. Melden Sie sich erneut an.",
+      },
+    },
+    orderLookup: {
+      title: "Gastbestellung finden",
+      lead: "Sie haben ohne Anmeldung bestellt? Geben Sie die Bestellnummer und die verwendete E-Mail-Adresse ein, dann senden wir dieser Adresse einen Link, um die Bestellung Ihrem Konto hinzuzufügen.",
+      number: "Bestellnummer",
+      numberHint: "Die Nummer auf Ihrer Quittung, zum Beispiel 1042.",
+      email: "E-Mail-Adresse der Bestellung",
+      submit: "Link senden",
+      sent: "Wenn die Angaben zu einer Bestellung passen, hat deren E-Mail-Adresse jetzt einen Link, um sie Ihrem Konto hinzuzufügen.",
+      account: "Zurück zu Ihrem Konto",
+      signIn: {
+        text: "Melden Sie sich mit einer bestätigten E-Mail-Adresse an, um eine als Gast aufgegebene Bestellung hinzuzufügen.",
+        login: "Anmelden",
+        register: "Konto erstellen",
+      },
+      transfer: {
+        title: "Bestellung #{number} einem Konto hinzufügen",
+        lead: "Jemand mit einem Konto möchte diese Bestellung seinem Konto hinzufügen. Wenn Sie das waren, nehmen Sie an. Wenn nicht, lehnen Sie ab, und es ändert sich nichts.",
+        accept: "Annehmen",
+        decline: "Ablehnen",
+      },
+      done: {
+        accepted: "Die Bestellung gehört jetzt zum Konto.",
+        declined: "Die Anfrage wurde abgelehnt. Es hat sich nichts geändert.",
+        failed:
+          "Dieser Link funktioniert nicht mehr. Er wurde möglicherweise schon verwendet.",
+        home: "Weiter einkaufen",
+      },
+      errors: {
+        required: "{field} ist erforderlich.",
+        pattern: "Geben Sie eine E-Mail-Adresse wie name@example.com ein.",
+        number: "Geben Sie die Bestellnummer ein, nur Ziffern.",
+      },
+      formErrors: {
+        mine: "Diese Bestellung ist bereits in Ihrem Konto.",
+        rejected:
+          "Die Anfrage konnte nicht gesendet werden. Prüfen Sie die Angaben und versuchen Sie es erneut.",
+        unavailable:
+          "Der Shop ist gerade nicht erreichbar. Bitte versuchen Sie es gleich noch einmal.",
+      },
+    },
   },
 };

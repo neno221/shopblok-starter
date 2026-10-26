@@ -5,6 +5,7 @@
 // passes Payload's content through the same parse. Copy (D43), actions and slots are props of their
 // own, never part of a contract. Only what SPEC §9.3's components show; M3 extends them.
 
+export * from "./account-pages";
 export * from "./address";
 export * from "./cart";
 export * from "./cart-checkout-account";

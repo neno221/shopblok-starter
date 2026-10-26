@@ -1,4 +1,6 @@
 import {
+  AccountPage,
+  AuthPage,
   CartPage,
   CheckoutPage,
   ErrorPage,
@@ -6,6 +8,7 @@ import {
   ListingResults,
   NotFoundPage,
   OrderConfirmationPage,
+  OrderLookupPage,
   ProductDetailPage,
   ProductListingPage,
   SearchResultsPage,
@@ -99,5 +102,24 @@ describe("the page fixtures (T48)", () => {
     expect(
       ListingResults.safeParse({ ...results, toolbar: { ...results.toolbar, count: 1 } }).success,
     ).toBe(false);
+  });
+
+  it("give the auth, account and order lookup pages in every locale, each screen its own (T53)", () => {
+    for (const pages of Object.values(pageFixtures)) {
+      for (const page of Object.values(pages.auth)) expect(AuthPage.parse(page)).toEqual(page);
+      for (const page of Object.values(pages.account))
+        expect(AccountPage.parse(page)).toEqual(page);
+      for (const page of Object.values(pages.orderLookup))
+        expect(OrderLookupPage.parse(page)).toEqual(page);
+      expect(new Set(Object.values(pages.account).map((page) => page.screen.kind)).size).toBe(9);
+      expect(
+        pages.account.returns.screen.kind === "returns" &&
+          pages.account.returns.screen.table.orders,
+      ).toHaveLength(1);
+    }
+    expect(pageFixtures.en.auth.verified.screen).toMatchObject({
+      kind: "login",
+      notice: "verified",
+    });
   });
 });
