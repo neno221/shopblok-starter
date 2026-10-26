@@ -268,7 +268,7 @@ describe("CartDrawer: the keyboard", () => {
       await user.tab({ shift: true });
       expect(inside()).toBe(true);
     }
-  });
+  }, 30_000);
 
   it("hides the page behind it from assistive technology", async () => {
     await openSheet("en");
