@@ -97,7 +97,9 @@ export const applyPromoAction = action(
   async ({ market, code }): Promise<CartAnswer> => {
     const context = await contextFor(market);
     const cart = await applyPromoCode(code, context.market.medusaLocale);
-    // Medusa answers 200 for a code it does not know and applies nothing.
+    // An unknown code is Medusa's 400 ("The promotion code … is invalid", checked on the stack),
+    // which `action()` answers as `rejected`. A code that exists but that the cart does not qualify
+    // for can come back applied to nothing, so the answer is checked too.
     if (!cart.promoCodes.some((promo) => promo.code.toUpperCase() === code.toUpperCase()))
       throw new ActionError("rejected", `code ${code} was not applied`);
     updateTag("cart");
