@@ -20,7 +20,9 @@ export type FormError =
   /** Medusa refused the change (stock gone, a code that does not apply). */
   | "rejected"
   /** Medusa did not answer. */
-  | "unavailable";
+  | "unavailable"
+  /** A step before this one is not done (the checkout's: no address before the delivery). */
+  | "incomplete";
 
 export type ActionResult<T> =
   | { ok: true; data: T }
@@ -34,6 +36,14 @@ export class ActionError extends Error {
     message: string = form,
   ) {
     super(message);
+  }
+}
+
+/** A failure a handler finds in a field after the schema (an address its country refuses). */
+export class FieldsError extends Error {
+  override name = "FieldsError";
+  constructor(readonly errors: Partial<Record<string, FieldError>>) {
+    super(`fields: ${Object.keys(errors).join(", ")}`);
   }
 }
 
@@ -82,7 +92,7 @@ type Context<Auth> = Auth extends "customer"
 /**
  * Wraps a handler as a server action's body. The handler gets the parsed input and, with
  * `auth: "customer"`, the customer; what it returns is the `data` of `{ ok: true }`. A zod failure
- * answers `errors`; an `ActionError` answers its `form`; a Medusa refusal `rejected` and a Medusa
+ * and a `FieldsError` answer `errors`; an `ActionError` answers its `form`; a Medusa refusal `rejected` and a Medusa
  * outage `unavailable`; anything else is thrown on, to the route's error boundary.
  */
 export function action<Schema extends z.ZodType, Result, Auth extends "none" | "customer" = "none">(
@@ -103,6 +113,7 @@ export function action<Schema extends z.ZodType, Result, Auth extends "none" | "
       return { ok: true, data };
     } catch (error) {
       if (error instanceof ActionError) return { ok: false, errors: {}, form: error.form };
+      if (error instanceof FieldsError) return { ok: false, errors: error.errors };
       if (error instanceof MedusaRequestError) {
         if (error.kind === "unreachable") return { ok: false, errors: {}, form: "unavailable" };
         if (error.status === 404) return { ok: false, errors: {}, form: "not-found" };

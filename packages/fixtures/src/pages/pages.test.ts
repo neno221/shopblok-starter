@@ -1,8 +1,11 @@
 import {
+  CartPage,
+  CheckoutPage,
   ErrorPage,
   HomePage,
   ListingResults,
   NotFoundPage,
+  OrderConfirmationPage,
   ProductDetailPage,
   ProductListingPage,
   SearchResultsPage,
@@ -57,6 +60,32 @@ describe("the page fixtures (T48)", () => {
       expect(home.newArrivals?.viewAll?.href).toBe(home.shopAll.href);
     }
     expect(pageFixtures.en.home.shopAll.href).toBe("/us/store");
+  });
+
+  it("give the cart, the checkout's three steps and the receipt in every locale (T52)", () => {
+    for (const pages of Object.values(pageFixtures)) {
+      const { cart, checkout, orderConfirmation } = pages;
+      expect(CartPage.parse(cart.full)).toEqual(cart.full);
+      expect(CartPage.parse(cart.empty)).toEqual(cart.empty);
+      expect(cart.empty.cart.lines).toHaveLength(0);
+      for (const step of ["contact", "delivery", "review"] as const) {
+        expect(CheckoutPage.parse(checkout[step])).toEqual(checkout[step]);
+        expect(checkout[step].step.kind).toBe(step);
+      }
+      expect(OrderConfirmationPage.parse(orderConfirmation)).toEqual(orderConfirmation);
+      expect(orderConfirmation.order.events[0]?.kind).toBe("placed");
+    }
+    expect(pageFixtures.en.cart.full.checkoutHref).toBe("/us/checkout/contact");
+  });
+
+  it("refuse a checkout whose stepper is on another step, and a choice not on offer (T52)", () => {
+    const { contact, delivery } = pageFixtures.en.checkout;
+    expect(CheckoutPage.safeParse({ ...contact, step: delivery.step }).success).toBe(false);
+    if (delivery.step.kind !== "delivery") throw new Error("not the delivery step");
+    expect(
+      CheckoutPage.safeParse({ ...delivery, step: { ...delivery.step, selected: "so_nowhere" } })
+        .success,
+    ).toBe(false);
   });
 
   it("refuse results whose filters and toolbar count different listings", () => {

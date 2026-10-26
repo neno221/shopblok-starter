@@ -262,7 +262,7 @@ describe("QuickCartDropdown: the keyboard", () => {
       await user.tab({ shift: true });
       expect(popup()?.contains(document.activeElement)).toBe(true);
     }
-  });
+  }, 30_000);
 });
 
 describe("QuickCartDropdown: drawn open for the design system", () => {

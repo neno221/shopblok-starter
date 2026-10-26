@@ -1,7 +1,7 @@
 import type { Payload, PayloadRequest, TextFieldSingleValidation } from "payload";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { clearEnabledLanguages, filterAvailableLocales } from "../filter-available-locales";
-import { Markets, countryCode, htmlLang, medusaLocale } from "./markets";
+import { Markets, countryCode, htmlLang, medusaLocale, timeZone } from "./markets";
 
 type Options = Parameters<TextFieldSingleValidation>[1];
 // What Payload's own `text` validator reads from the request.
@@ -111,6 +111,42 @@ describe("htmlLang (PR 70 review, item 1)", () => {
         ? languages.fields.find((candidate) => "name" in candidate && candidate.name === "htmlLang")
         : undefined;
     expect(field).toMatchObject({ type: "text", validate: htmlLang });
+  });
+});
+
+describe("timeZone (D65)", () => {
+  it("accepts an IANA zone, as written", () => {
+    for (const value of ["Europe/Nicosia", "America/New_York", "Europe/Zurich", "UTC"]) {
+      expect(timeZone(value, optional)).toBe(true);
+    }
+  });
+
+  it("rejects what Intl.DateTimeFormat refuses, and says what to write", () => {
+    for (const value of ["Cyprus", "Europe/Nowhere", "GMT+2 hours", "Europe/Nicosia ", "+99:00"]) {
+      expect(timeZone(value, optional)).toBe(
+        `"${value}" is not a time zone. Use an IANA name such as Europe/Nicosia or America/New_York, or leave it empty.`,
+      );
+    }
+  });
+
+  it("lets the optional field stay empty (UTC is used then)", () => {
+    for (const value of [undefined, null, ""]) expect(timeZone(value, optional)).toBe(true);
+  });
+
+  it("keeps Payload's required check when a field asks for it", () => {
+    for (const value of [undefined, null, ""]) {
+      expect(timeZone(value, required)).toBe("validation:required");
+    }
+  });
+
+  it("is on the country row's field, with a description that says UTC is the default", () => {
+    const countries = Markets.fields.find((field) => "name" in field && field.name === "countries");
+    const field =
+      countries !== undefined && "fields" in countries
+        ? countries.fields.find((candidate) => "name" in candidate && candidate.name === "timeZone")
+        : undefined;
+    expect(field).toMatchObject({ type: "text", validate: timeZone });
+    expect(JSON.stringify(field)).toContain("UTC is used when this is empty");
   });
 });
 

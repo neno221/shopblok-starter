@@ -1,5 +1,6 @@
 import "server-only";
 import type { Cart } from "@shopblok/registry/contracts";
+import type { PromoCodeError } from "@shopblok/ui/molecules/promo-code-field";
 import type { MarketContext } from "./market-context";
 import type { CartDto } from "./medusa/cart";
 import { readProductsByIds } from "./medusa/products";
@@ -21,4 +22,25 @@ export async function cartView(cart: CartDto, context: MarketContext): Promise<C
           locale: context.market.medusaLocale,
         });
   return toCart(cart, products, context.hrefs);
+}
+
+/** An empty cart in the market's currency: what the cart page and the drawer draw without one. */
+export function emptyCart(context: MarketContext): Cart {
+  const currencyCode = context.region.currencyCode.toUpperCase();
+  const zero = { amount: 0, currencyCode };
+  return {
+    id: "none",
+    currencyCode,
+    lines: [],
+    itemCount: 0,
+    subtotal: zero,
+    discountTotal: zero,
+    total: zero,
+    promoCodes: [],
+  };
+}
+
+/** A refused code's words beside its field: Medusa unreachable, or a code it does not take. */
+export function promoErrorOf(form: string | undefined): PromoCodeError {
+  return form === "unavailable" ? "failed" : "invalid";
 }

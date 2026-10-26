@@ -80,13 +80,12 @@ describe("the request configuration (D62)", () => {
     }
   });
 
-  it("fixes the time zone, so a build and a browser write the same time", async () => {
-    for (const [map, key] of [
-      [seeded, "el-cy"],
-      [mongolia, "mn-mn"],
-    ] as const) {
-      expect((await configFor(map, key)).timeZone).toBe("UTC");
-    }
+  // D65: the country's zone from the market map, UTC for a country without one; either way a fixed
+  // zone, so a build and a browser write the same time.
+  it("gives the market's time zone, UTC when its country has none", async () => {
+    expect((await configFor(seeded, "el-cy")).timeZone).toBe("Europe/Nicosia");
+    expect((await configFor(seeded, "fr-ch")).timeZone).toBe("Europe/Zurich");
+    expect((await configFor(mongolia, "mn-mn")).timeZone).toBe("UTC");
   });
 
   it("is a 404 for a key the map does not have", async () => {

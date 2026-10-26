@@ -12,6 +12,7 @@ import { useSearchParams } from "next/navigation";
 import { useActionState, useEffect, useState } from "react";
 import { addToCart } from "../../lib/actions/cart";
 import { defaultSelection, selectionForVariant } from "../../lib/view-models/product-page";
+import { announceAdded } from "../../lib/visitor/cart-events";
 import { setCartCount } from "../../lib/visitor/store";
 import { publishChoice } from "./choice-store";
 
@@ -19,11 +20,12 @@ import { publishChoice } from "./choice-store";
 // `Suspense` whose fallback is the server's buy box for the default choice: the static HTML keeps the
 // default variant's price), keeps the URL in step with a full choice through `history.replaceState`
 // (Next keeps `useSearchParams` in step with it, and no navigation runs), publishes the choice for
-// the gallery island, adds through the cart's server action and tells the visitor store the new
-// count, so the header's badge follows. The sticky bar is drawn here because it follows the choice
-// and submits this form. The URL is read again only when it names another variant than the one
-// written last (a link to `?variant=…`), so a choice with an option still missing, which the URL
-// cannot hold, is never thrown away.
+// the gallery island, adds through the cart's server action, tells the visitor store the new
+// count, so the header's badge follows, and says which line it added, so the header's quick cart
+// opens on it (T52). The sticky bar is drawn here because it follows the choice and submits this
+// form. The URL is read again only when it names another variant than the one written last (a link
+// to `?variant=…`), so a choice with an option still missing, which the URL cannot hold,
+// is never thrown away.
 
 export type BuyBoxIslandProps = {
   product: ProductDetail;
@@ -79,6 +81,7 @@ export function BuyBoxIsland({
       });
       if (!result.ok) return "error";
       setCartCount(result.data.count);
+      announceAdded(result.data.line.id);
       return "added";
     },
     "idle",

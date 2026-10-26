@@ -60,6 +60,9 @@ type CartDrawerClientProps = {
   checkoutHref: string;
   prefetch?: boolean | null;
   defaultOpen?: boolean;
+  /** Controlled: M3's header island opens it when the cart button is clicked. */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
   modal?: boolean;
   triggerClassName?: string;
   popupClassName?: string;
@@ -78,14 +81,22 @@ function CartDrawerClient({
   checkoutHref,
   prefetch,
   defaultOpen,
+  open: openProp,
+  onOpenChange,
   modal,
   triggerClassName,
   popupClassName,
 }: CartDrawerClientProps) {
-  const [open, setOpen] = useState(defaultOpen === true);
+  const [ownOpen, setOwnOpen] = useState(defaultOpen === true);
+  const open = openProp ?? ownOpen;
+  const setOpen = (next: boolean) => {
+    setOwnOpen(next);
+    onOpenChange?.(next);
+  };
   /** A link followed in this tab closes the drawer; one opened in a new tab leaves it. */
   const close = (event: MouseEvent) => {
-    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey)
+      return;
     setOpen(false);
   };
   return (
@@ -99,11 +110,7 @@ function CartDrawerClient({
           {copy.open}, {copy.items}
         </span>
         {badge === undefined ? null : (
-          <span
-            data-slot="cart-drawer-badge"
-            aria-hidden="true"
-            className={cartBadgeClassName}
-          >
+          <span data-slot="cart-drawer-badge" aria-hidden="true" className={cartBadgeClassName}>
             {badge}
           </span>
         )}

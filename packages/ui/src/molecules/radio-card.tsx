@@ -36,6 +36,11 @@ type RadioCardProps = Omit<
   value: string;
   required?: boolean;
   disabled?: boolean;
+  /**
+   * The id of the `<form>` the radio belongs to when the card is drawn outside it (the checkout's
+   * delivery options, sent with PaymentStep's form). On the input, never the label.
+   */
+  form?: string;
   /** The id of the element inside that is the card's main line: the input's accessible name. */
   labelledBy: string;
   /** The ids inside that describe it, in reading order: the input's accessible description. */
@@ -52,6 +57,7 @@ function RadioCard({
   onChange,
   required,
   disabled,
+  form,
   labelledBy,
   describedBy,
   className,
@@ -81,6 +87,7 @@ function RadioCard({
         onChange={onChange}
         required={required}
         disabled={disabled}
+        form={form}
         aria-labelledby={labelledBy}
         aria-describedby={describedBy}
         className="peer sr-only"

@@ -3,7 +3,7 @@ import { Providers } from "@shopblok/ui/providers";
 import type { Metadata } from "next";
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages, getTranslations } from "next-intl/server";
-import type { ReactNode } from "react";
+import { Suspense, type ReactNode } from "react";
 import { pickShell } from "../../../i18n/messages";
 import { getCurrentMarket } from "../../../lib/current-market";
 import { inter } from "../../../lib/fonts";
@@ -65,7 +65,11 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
             <VisitorSource market={market.key} />
             <MarketChoiceIsland current={{ key: market.key, home }} markets={shell.homes} />
             <SiteHeader />
-            <SuggestionBannerIsland market={market.key} />
+            {/* The island reads the path, which a page with a segment known only at run time (the
+                receipt's order id, T52) does not have while the shell is prerendered. */}
+            <Suspense fallback={null}>
+              <SuggestionBannerIsland market={market.key} />
+            </Suspense>
             {/* Draws nothing; it is what puts the banner's client part in this page (see the island). */}
             <MarketSuggestionBanner
               copy={messages.organisms.marketSuggestionBanner}

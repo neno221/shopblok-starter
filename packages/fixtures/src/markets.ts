@@ -22,6 +22,11 @@ export type MarketCountry = {
   languages: string[];
   /** A per-country domain: on it the country segment is dropped. */
   domain?: string;
+  /**
+   * An IANA zone (`Europe/Nicosia`): the zone the country's order dates are written in (D65).
+   * Left out, the shop's own zone, UTC, is used.
+   */
+  timeZone?: string;
 };
 
 export type MarketMap = {
@@ -35,12 +40,12 @@ export type MarketMap = {
 
 export const markets: MarketMap = {
   countries: [
-    { code: "cy", enabled: true, languages: ["el"] },
-    { code: "us", enabled: true, languages: ["en"] },
-    { code: "gb", enabled: true, languages: ["en"] },
-    { code: "de", enabled: true, languages: ["de"] },
-    { code: "fr", enabled: true, languages: ["fr"] },
-    { code: "ch", enabled: true, languages: ["de", "fr"] },
+    { code: "cy", enabled: true, languages: ["el"], timeZone: "Europe/Nicosia" },
+    { code: "us", enabled: true, languages: ["en"], timeZone: "America/New_York" },
+    { code: "gb", enabled: true, languages: ["en"], timeZone: "Europe/London" },
+    { code: "de", enabled: true, languages: ["de"], timeZone: "Europe/Berlin" },
+    { code: "fr", enabled: true, languages: ["fr"], timeZone: "Europe/Paris" },
+    { code: "ch", enabled: true, languages: ["de", "fr"], timeZone: "Europe/Zurich" },
   ],
   languages: [
     { code: "en", medusaLocale: "en-US" },

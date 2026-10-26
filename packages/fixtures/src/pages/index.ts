@@ -1,8 +1,11 @@
 import type {
+  CartPage,
+  CheckoutPage,
   ErrorPage,
   HomePage,
   ListingResults,
   NotFoundPage,
+  OrderConfirmationPage,
   ProductDetailPage,
   ProductListingPage,
   QueryParam,
@@ -10,6 +13,7 @@ import type {
   SortState,
 } from "@shopblok/registry/contracts";
 import { commerceFixtures } from "../commerce";
+import { orderSummary } from "../commerce/build/cart-checkout-account";
 import { copies } from "../commerce/copy";
 import { fixtureImage } from "../commerce/images";
 import type { DesignSystemLocale } from "../design-system";
@@ -42,6 +46,16 @@ export type PageFixtures = {
    * carousel's products as the new arrivals, and the link to every product.
    */
   home: HomePage;
+  /** The cart page (T52): the commerce cart with its code, and the same with no line. */
+  cart: { full: CartPage; empty: CartPage };
+  /**
+   * The checkout's three steps (T52): the contact step with the placed order's address typed, the
+   * delivery step with every shipping option and the system payment (nothing chosen yet), and the
+   * review of the standard delivery to that address.
+   */
+  checkout: { contact: CheckoutPage; delivery: CheckoutPage; review: CheckoutPage };
+  /** The receipt (T52): the order placed and paid, with its summary. */
+  orderConfirmation: OrderConfirmationPage;
 };
 
 /** The sort as a listing offers it: newest, then by price; a search puts relevance first. */
@@ -69,7 +83,8 @@ function sortState(
 }
 
 function pagesFor(locale: DesignSystemLocale): PageFixtures {
-  const { header, product, productPage, listing, categories } = commerceFixtures[locale];
+  const fixtures = commerceFixtures[locale];
+  const { header, product, productPage, listing, categories } = fixtures;
   const related = listing.carousel.products.filter((card) => card.id !== product.id);
   const copy = copies[locale];
   const searchHref = listing.search.idle.search.action;
@@ -88,7 +103,21 @@ function pagesFor(locale: DesignSystemLocale): PageFixtures {
     page: { page: 1, pageCount: 2 },
   });
   const query = listing.search.results.search.query;
-  const storeHref = `${header.content.homeHref.replace(/\/$/, "")}/store`;
+  const home = header.content.homeHref.replace(/\/$/, "");
+  const storeHref = `${home}/store`;
+  const { cartCheckout, orders, shippingOptions, checkoutFlow } = fixtures;
+  const placed = orders[1];
+  const standard = shippingOptions.find((option) => option.id === "so_standard");
+  if (placed === undefined || standard === undefined)
+    throw new Error("the placed order or the standard delivery is missing");
+  const {
+    id: _id,
+    isDefaultBilling: _billing,
+    isDefaultShipping: _shipping,
+    ...typed
+  } = placed.shippingAddress;
+  const contactHref = `${home}/checkout/contact`;
+  const deliveryHref = `${home}/checkout/delivery`;
   return {
     notFound: {
       homeHref: header.content.homeHref,
@@ -147,6 +176,61 @@ function pagesFor(locale: DesignSystemLocale): PageFixtures {
         viewAll: { label: copy.homePage.seeAllNew, href: storeHref },
       },
       shopAll: { label: copy.homePage.shopAll, href: storeHref },
+    },
+    cart: {
+      full: {
+        variant: "default",
+        cart: cartCheckout.drawer.full.cart,
+        promoCode: "",
+        checkoutHref: contactHref,
+        continueHref: storeHref,
+      },
+      empty: {
+        variant: "default",
+        cart: cartCheckout.drawer.empty.cart,
+        promoCode: "",
+        checkoutHref: contactHref,
+        continueHref: storeHref,
+      },
+    },
+    checkout: {
+      contact: {
+        variant: "default",
+        checkout: cartCheckout.checkout.contact,
+        step: {
+          kind: "contact",
+          email: placed.email,
+          address: { countries: checkoutFlow.estimator.answered.countries, values: typed },
+        },
+      },
+      delivery: {
+        variant: "default",
+        checkout: cartCheckout.checkout.delivery,
+        step: {
+          kind: "delivery",
+          options: shippingOptions,
+          payment: cartCheckout.payment.system,
+          addressHref: contactHref,
+        },
+      },
+      review: {
+        variant: "default",
+        checkout: cartCheckout.checkout.review,
+        step: {
+          kind: "review",
+          email: placed.email,
+          shippingAddress: placed.shippingAddress,
+          shippingMethod: { name: standard.name, price: standard.price },
+          payment: placed.payment,
+          editHrefs: { contact: contactHref, delivery: deliveryHref },
+        },
+      },
+    },
+    orderConfirmation: {
+      variant: "default",
+      order: placed,
+      summary: orderSummary(placed),
+      continueHref: storeHref,
     },
   };
 }

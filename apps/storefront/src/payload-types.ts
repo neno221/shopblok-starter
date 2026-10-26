@@ -13,53 +13,53 @@
  * via the `definition` "supportedTimezones".
  */
 export type SupportedTimezones =
-  | 'Pacific/Midway'
-  | 'Pacific/Niue'
-  | 'Pacific/Honolulu'
-  | 'Pacific/Rarotonga'
-  | 'America/Anchorage'
-  | 'Pacific/Gambier'
-  | 'America/Los_Angeles'
-  | 'America/Tijuana'
-  | 'America/Denver'
-  | 'America/Phoenix'
-  | 'America/Chicago'
-  | 'America/Guatemala'
-  | 'America/New_York'
-  | 'America/Bogota'
-  | 'America/Caracas'
-  | 'America/Santiago'
-  | 'America/Buenos_Aires'
-  | 'America/Sao_Paulo'
-  | 'Atlantic/South_Georgia'
-  | 'Atlantic/Azores'
-  | 'Atlantic/Cape_Verde'
-  | 'Europe/London'
-  | 'Europe/Berlin'
-  | 'Africa/Lagos'
-  | 'Europe/Athens'
-  | 'Africa/Cairo'
-  | 'Europe/Moscow'
-  | 'Asia/Riyadh'
-  | 'Asia/Dubai'
-  | 'Asia/Baku'
-  | 'Asia/Karachi'
-  | 'Asia/Tashkent'
-  | 'Asia/Calcutta'
-  | 'Asia/Dhaka'
-  | 'Asia/Almaty'
-  | 'Asia/Jakarta'
-  | 'Asia/Bangkok'
-  | 'Asia/Shanghai'
-  | 'Asia/Singapore'
-  | 'Asia/Tokyo'
-  | 'Asia/Seoul'
-  | 'Australia/Brisbane'
-  | 'Australia/Sydney'
-  | 'Pacific/Guam'
-  | 'Pacific/Noumea'
-  | 'Pacific/Auckland'
-  | 'Pacific/Fiji';
+  | "Pacific/Midway"
+  | "Pacific/Niue"
+  | "Pacific/Honolulu"
+  | "Pacific/Rarotonga"
+  | "America/Anchorage"
+  | "Pacific/Gambier"
+  | "America/Los_Angeles"
+  | "America/Tijuana"
+  | "America/Denver"
+  | "America/Phoenix"
+  | "America/Chicago"
+  | "America/Guatemala"
+  | "America/New_York"
+  | "America/Bogota"
+  | "America/Caracas"
+  | "America/Santiago"
+  | "America/Buenos_Aires"
+  | "America/Sao_Paulo"
+  | "Atlantic/South_Georgia"
+  | "Atlantic/Azores"
+  | "Atlantic/Cape_Verde"
+  | "Europe/London"
+  | "Europe/Berlin"
+  | "Africa/Lagos"
+  | "Europe/Athens"
+  | "Africa/Cairo"
+  | "Europe/Moscow"
+  | "Asia/Riyadh"
+  | "Asia/Dubai"
+  | "Asia/Baku"
+  | "Asia/Karachi"
+  | "Asia/Tashkent"
+  | "Asia/Calcutta"
+  | "Asia/Dhaka"
+  | "Asia/Almaty"
+  | "Asia/Jakarta"
+  | "Asia/Bangkok"
+  | "Asia/Shanghai"
+  | "Asia/Singapore"
+  | "Asia/Tokyo"
+  | "Asia/Seoul"
+  | "Australia/Brisbane"
+  | "Australia/Sydney"
+  | "Pacific/Guam"
+  | "Pacific/Noumea"
+  | "Pacific/Auckland"
+  | "Pacific/Fiji";
 
 export interface Config {
   auth: {
@@ -72,10 +72,10 @@ export interface Config {
     integrations: Integration;
     media: Media;
     pages: Page;
-    'payload-kv': PayloadKv;
-    'payload-locked-documents': PayloadLockedDocument;
-    'payload-preferences': PayloadPreference;
-    'payload-migrations': PayloadMigration;
+    "payload-kv": PayloadKv;
+    "payload-locked-documents": PayloadLockedDocument;
+    "payload-preferences": PayloadPreference;
+    "payload-migrations": PayloadMigration;
   };
   collectionsJoins: {};
   collectionsSelect: {
@@ -83,105 +83,106 @@ export interface Config {
     integrations: IntegrationsSelect<false> | IntegrationsSelect<true>;
     media: MediaSelect<false> | MediaSelect<true>;
     pages: PagesSelect<false> | PagesSelect<true>;
-    'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
-    'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
-    'payload-preferences': PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
-    'payload-migrations': PayloadMigrationsSelect<false> | PayloadMigrationsSelect<true>;
+    "payload-kv": PayloadKvSelect<false> | PayloadKvSelect<true>;
+    "payload-locked-documents":
+      PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
+    "payload-preferences": PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
+    "payload-migrations": PayloadMigrationsSelect<false> | PayloadMigrationsSelect<true>;
   };
   db: {
     defaultIDType: number;
   };
   fallbackLocale:
-    | ('false' | 'none' | 'null')
+    | ("false" | "none" | "null")
     | false
     | null
     | (
-        | 'en'
-        | 'bg'
-        | 'hr'
-        | 'cs'
-        | 'da'
-        | 'nl'
-        | 'et'
-        | 'fi'
-        | 'fr'
-        | 'de'
-        | 'el'
-        | 'hu'
-        | 'ga'
-        | 'it'
-        | 'lv'
-        | 'lt'
-        | 'mt'
-        | 'pl'
-        | 'pt'
-        | 'ro'
-        | 'sk'
-        | 'sl'
-        | 'es'
-        | 'sv'
-        | 'nb'
-        | 'tr'
-        | 'ru'
-        | 'uk'
-        | 'ar'
-        | 'he'
-        | 'hi'
-        | 'bn'
-        | 'th'
-        | 'vi'
-        | 'id'
-        | 'ms'
-        | 'tl'
-        | 'zh'
-        | 'ja'
-        | 'ko'
-        | 'ka'
-        | 'mn'
+        | "en"
+        | "bg"
+        | "hr"
+        | "cs"
+        | "da"
+        | "nl"
+        | "et"
+        | "fi"
+        | "fr"
+        | "de"
+        | "el"
+        | "hu"
+        | "ga"
+        | "it"
+        | "lv"
+        | "lt"
+        | "mt"
+        | "pl"
+        | "pt"
+        | "ro"
+        | "sk"
+        | "sl"
+        | "es"
+        | "sv"
+        | "nb"
+        | "tr"
+        | "ru"
+        | "uk"
+        | "ar"
+        | "he"
+        | "hi"
+        | "bn"
+        | "th"
+        | "vi"
+        | "id"
+        | "ms"
+        | "tl"
+        | "zh"
+        | "ja"
+        | "ko"
+        | "ka"
+        | "mn"
       )
     | (
-        | 'en'
-        | 'bg'
-        | 'hr'
-        | 'cs'
-        | 'da'
-        | 'nl'
-        | 'et'
-        | 'fi'
-        | 'fr'
-        | 'de'
-        | 'el'
-        | 'hu'
-        | 'ga'
-        | 'it'
-        | 'lv'
-        | 'lt'
-        | 'mt'
-        | 'pl'
-        | 'pt'
-        | 'ro'
-        | 'sk'
-        | 'sl'
-        | 'es'
-        | 'sv'
-        | 'nb'
-        | 'tr'
-        | 'ru'
-        | 'uk'
-        | 'ar'
-        | 'he'
-        | 'hi'
-        | 'bn'
-        | 'th'
-        | 'vi'
-        | 'id'
-        | 'ms'
-        | 'tl'
-        | 'zh'
-        | 'ja'
-        | 'ko'
-        | 'ka'
-        | 'mn'
+        | "en"
+        | "bg"
+        | "hr"
+        | "cs"
+        | "da"
+        | "nl"
+        | "et"
+        | "fi"
+        | "fr"
+        | "de"
+        | "el"
+        | "hu"
+        | "ga"
+        | "it"
+        | "lv"
+        | "lt"
+        | "mt"
+        | "pl"
+        | "pt"
+        | "ro"
+        | "sk"
+        | "sl"
+        | "es"
+        | "sv"
+        | "nb"
+        | "tr"
+        | "ru"
+        | "uk"
+        | "ar"
+        | "he"
+        | "hi"
+        | "bn"
+        | "th"
+        | "vi"
+        | "id"
+        | "ms"
+        | "tl"
+        | "zh"
+        | "ja"
+        | "ko"
+        | "ka"
+        | "mn"
       )[];
   globals: {
     markets: Market;
@@ -190,48 +191,48 @@ export interface Config {
     markets: MarketsSelect<false> | MarketsSelect<true>;
   };
   locale:
-    | 'en'
-    | 'bg'
-    | 'hr'
-    | 'cs'
-    | 'da'
-    | 'nl'
-    | 'et'
-    | 'fi'
-    | 'fr'
-    | 'de'
-    | 'el'
-    | 'hu'
-    | 'ga'
-    | 'it'
-    | 'lv'
-    | 'lt'
-    | 'mt'
-    | 'pl'
-    | 'pt'
-    | 'ro'
-    | 'sk'
-    | 'sl'
-    | 'es'
-    | 'sv'
-    | 'nb'
-    | 'tr'
-    | 'ru'
-    | 'uk'
-    | 'ar'
-    | 'he'
-    | 'hi'
-    | 'bn'
-    | 'th'
-    | 'vi'
-    | 'id'
-    | 'ms'
-    | 'tl'
-    | 'zh'
-    | 'ja'
-    | 'ko'
-    | 'ka'
-    | 'mn';
+    | "en"
+    | "bg"
+    | "hr"
+    | "cs"
+    | "da"
+    | "nl"
+    | "et"
+    | "fi"
+    | "fr"
+    | "de"
+    | "el"
+    | "hu"
+    | "ga"
+    | "it"
+    | "lv"
+    | "lt"
+    | "mt"
+    | "pl"
+    | "pt"
+    | "ro"
+    | "sk"
+    | "sl"
+    | "es"
+    | "sv"
+    | "nb"
+    | "tr"
+    | "ru"
+    | "uk"
+    | "ar"
+    | "he"
+    | "hi"
+    | "bn"
+    | "th"
+    | "vi"
+    | "id"
+    | "ms"
+    | "tl"
+    | "zh"
+    | "ja"
+    | "ko"
+    | "ka"
+    | "mn";
   widgets: {
     collections: CollectionsWidget;
   };
@@ -286,7 +287,7 @@ export interface User {
   /**
    * Admins manage users, integrations and markets; editors manage content. The first account is always an admin, whatever is chosen here.
    */
-  role: 'admin' | 'editor';
+  role: "admin" | "editor";
   updatedAt: string;
   createdAt: string;
   email: string;
@@ -305,7 +306,7 @@ export interface User {
       }[]
     | null;
   password?: string | null;
-  collection: 'users';
+  collection: "users";
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -314,14 +315,14 @@ export interface User {
 export interface Integration {
   id: number;
   name: string;
-  role: 'medusa-sync';
+  role: "medusa-sync";
   updatedAt: string;
   createdAt: string;
   enableAPIKey?: boolean | null;
   apiKey?: string | null;
   apiKeyIndex?: string | null;
   hasAPIKey?: boolean | null;
-  collection: 'integrations';
+  collection: "integrations";
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -352,7 +353,7 @@ export interface Page {
   slug: string;
   updatedAt: string;
   createdAt: string;
-  _status?: ('draft' | 'published') | null;
+  _status?: ("draft" | "published") | null;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -379,29 +380,29 @@ export interface PayloadLockedDocument {
   id: number;
   document?:
     | ({
-        relationTo: 'users';
+        relationTo: "users";
         value: number | User;
       } | null)
     | ({
-        relationTo: 'integrations';
+        relationTo: "integrations";
         value: number | Integration;
       } | null)
     | ({
-        relationTo: 'media';
+        relationTo: "media";
         value: number | Media;
       } | null)
     | ({
-        relationTo: 'pages';
+        relationTo: "pages";
         value: number | Page;
       } | null);
   globalSlug?: string | null;
   user:
     | {
-        relationTo: 'users';
+        relationTo: "users";
         value: number | User;
       }
     | {
-        relationTo: 'integrations';
+        relationTo: "integrations";
         value: number | Integration;
       };
   updatedAt: string;
@@ -415,11 +416,11 @@ export interface PayloadPreference {
   id: number;
   user:
     | {
-        relationTo: 'users';
+        relationTo: "users";
         value: number | User;
       }
     | {
-        relationTo: 'integrations';
+        relationTo: "integrations";
         value: number | Integration;
       };
   key?: string | null;
@@ -567,101 +568,105 @@ export interface Market {
          * The default language first.
          */
         languages: (
-          | 'en'
-          | 'bg'
-          | 'hr'
-          | 'cs'
-          | 'da'
-          | 'nl'
-          | 'et'
-          | 'fi'
-          | 'fr'
-          | 'de'
-          | 'el'
-          | 'hu'
-          | 'ga'
-          | 'it'
-          | 'lv'
-          | 'lt'
-          | 'mt'
-          | 'pl'
-          | 'pt'
-          | 'ro'
-          | 'sk'
-          | 'sl'
-          | 'es'
-          | 'sv'
-          | 'nb'
-          | 'tr'
-          | 'ru'
-          | 'uk'
-          | 'ar'
-          | 'he'
-          | 'hi'
-          | 'bn'
-          | 'th'
-          | 'vi'
-          | 'id'
-          | 'ms'
-          | 'tl'
-          | 'zh'
-          | 'ja'
-          | 'ko'
-          | 'ka'
-          | 'mn'
+          | "en"
+          | "bg"
+          | "hr"
+          | "cs"
+          | "da"
+          | "nl"
+          | "et"
+          | "fi"
+          | "fr"
+          | "de"
+          | "el"
+          | "hu"
+          | "ga"
+          | "it"
+          | "lv"
+          | "lt"
+          | "mt"
+          | "pl"
+          | "pt"
+          | "ro"
+          | "sk"
+          | "sl"
+          | "es"
+          | "sv"
+          | "nb"
+          | "tr"
+          | "ru"
+          | "uk"
+          | "ar"
+          | "he"
+          | "hi"
+          | "bn"
+          | "th"
+          | "vi"
+          | "id"
+          | "ms"
+          | "tl"
+          | "zh"
+          | "ja"
+          | "ko"
+          | "ka"
+          | "mn"
         )[];
         /**
          * A domain of its own for this country, if it has one.
          */
         domain?: string | null;
+        /**
+         * The IANA time zone this country's order dates are written in, for example Europe/Nicosia. UTC is used when this is empty (D65).
+         */
+        timeZone?: string | null;
         id?: string | null;
       }[]
     | null;
   languages?:
     | {
         code:
-          | 'en'
-          | 'bg'
-          | 'hr'
-          | 'cs'
-          | 'da'
-          | 'nl'
-          | 'et'
-          | 'fi'
-          | 'fr'
-          | 'de'
-          | 'el'
-          | 'hu'
-          | 'ga'
-          | 'it'
-          | 'lv'
-          | 'lt'
-          | 'mt'
-          | 'pl'
-          | 'pt'
-          | 'ro'
-          | 'sk'
-          | 'sl'
-          | 'es'
-          | 'sv'
-          | 'nb'
-          | 'tr'
-          | 'ru'
-          | 'uk'
-          | 'ar'
-          | 'he'
-          | 'hi'
-          | 'bn'
-          | 'th'
-          | 'vi'
-          | 'id'
-          | 'ms'
-          | 'tl'
-          | 'zh'
-          | 'ja'
-          | 'ko'
-          | 'ka'
-          | 'mn';
+          | "en"
+          | "bg"
+          | "hr"
+          | "cs"
+          | "da"
+          | "nl"
+          | "et"
+          | "fi"
+          | "fr"
+          | "de"
+          | "el"
+          | "hu"
+          | "ga"
+          | "it"
+          | "lv"
+          | "lt"
+          | "mt"
+          | "pl"
+          | "pt"
+          | "ro"
+          | "sk"
+          | "sl"
+          | "es"
+          | "sv"
+          | "nb"
+          | "tr"
+          | "ru"
+          | "uk"
+          | "ar"
+          | "he"
+          | "hi"
+          | "bn"
+          | "th"
+          | "vi"
+          | "id"
+          | "ms"
+          | "tl"
+          | "zh"
+          | "ja"
+          | "ko"
+          | "ka"
+          | "mn";
         /**
          * The Medusa locale this language uses (D8), one of Medusa's 51: el-GR for Greek, pt-BR or pt-PT for Portuguese.
          */
@@ -697,6 +702,7 @@ export interface MarketsSelect<T extends boolean = true> {
         enabled?: T;
         languages?: T;
         domain?: T;
+        timeZone?: T;
         id?: T;
       };
   languages?:
@@ -722,7 +728,7 @@ export interface CollectionsWidget {
   data?: {
     [k: string]: unknown;
   };
-  width: 'full';
+  width: "full";
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -732,7 +738,6 @@ export interface Auth {
   [k: string]: unknown;
 }
 
-
-declare module 'payload' {
+declare module "payload" {
   export interface GeneratedTypes extends Config {}
 }

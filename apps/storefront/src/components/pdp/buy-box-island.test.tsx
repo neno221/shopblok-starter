@@ -12,7 +12,7 @@ vi.mock("next/navigation", () => ({
 }));
 const added = vi.hoisted(() => ({
   calls: [] as unknown[],
-  answer: { ok: true, data: { count: 3 } } as unknown,
+  answer: { ok: true, data: { count: 3, line: { id: "line_1" } } } as unknown,
 }));
 vi.mock("../../lib/actions/cart", () => ({
   addToCart: vi.fn(async (input: unknown) => {
@@ -21,6 +21,7 @@ vi.mock("../../lib/actions/cart", () => ({
   }),
 }));
 
+import { onAdded } from "../../lib/visitor/cart-events";
 import { getSnapshot, resetVisitor } from "../../lib/visitor/store";
 import { BuyBoxIsland } from "./buy-box-island";
 import { resetPublishedChoice, usePublishedChoice } from "./choice-store";
@@ -151,9 +152,11 @@ describe("BuyBoxIsland (D61)", () => {
     expect(added.calls).toEqual([{ market: "en-us", variantId: target.id, quantity: "1" }]);
   });
 
-  it("adds through the action and gives the store the new count", async () => {
+  it("adds through the action, gives the store the new count and says which line it added", async () => {
     window.history.replaceState(null, "", `/us/products/hoodie?variant=${target.id}`);
     await mount();
+    const lines: string[] = [];
+    const stop = onAdded((lineId) => lines.push(lineId));
     const button = container.querySelector<HTMLElement>('[data-slot="buy-box-add"]') as HTMLElement;
     await act(async () => button.click());
     expect(added.calls).toEqual([{ market: "en-us", variantId: target.id, quantity: "1" }]);
@@ -161,5 +164,8 @@ describe("BuyBoxIsland (D61)", () => {
     expect(container.querySelector('[data-slot="buy-box"]')?.getAttribute("data-status")).toBe(
       "added",
     );
+    // The header's quick cart opens on it (T52).
+    expect(lines).toEqual(["line_1"]);
+    stop();
   });
 });

@@ -15,8 +15,9 @@ import { getCurrentMarket } from "../lib/current-market";
  * - `messages` is the catalog of `market.locale`: `withLocale`'s one fallback rule, English for any
  *   language `@shopblok/i18n` has no catalog for. Indexing `catalogs` by the language would be a
  *   second rule, and `catalogs["mn"]` is `undefined`.
- * - `timeZone` is fixed, so a server rendering at build time and a browser agree (without one,
- *   next-intl falls back to the zone of whichever machine renders).
+ * - `timeZone` is the market's (the country's zone in the `markets` global, D65, else UTC), so a
+ *   server rendering at build time and a browser agree (without one, next-intl falls back to the
+ *   zone of whichever machine renders).
  */
 export default getRequestConfig(async () => {
   const market = await getCurrentMarket();

@@ -27,7 +27,7 @@ import {
 import { cartBadgeText } from "@shopblok/ui/lib/cart-badge";
 import { ShoppingBagIcon } from "lucide-react";
 import type * as React from "react";
-import { CartDrawerClient } from "./cart-drawer-client";
+import { CartDrawerClient, type CartDrawerClientProps } from "./cart-drawer-client";
 
 type FormAction = React.ComponentProps<"form">["action"];
 
@@ -62,7 +62,7 @@ type CartDrawerProps = CartDrawerContent & {
   popupClassName?: string;
 };
 
-function CartDrawer({
+function cartDrawerParts({
   cart,
   promoCode,
   cartHref,
@@ -82,7 +82,7 @@ function CartDrawer({
   modal,
   triggerClassName,
   popupClassName,
-}: CartDrawerProps) {
+}: CartDrawerProps): CartDrawerClientProps {
   const words = copy.drawer;
   const count = cart.itemCount;
   const empty = cart.lines.length === 0;
@@ -147,31 +147,34 @@ function CartDrawer({
       <OrderSummaryRow kind="total" amount={cart.total} copy={copy.rows} locale={locale} />
     </dl>
   );
-  return (
-    <CartDrawerClient
-      copy={{
-        open: words.open,
-        items: formatMessage(words.items, { count }, locale),
-        title: words.title,
-        count: formatMessage(words.count, { count }, locale),
-        close: words.close,
-        note: words.note,
-        checkout: words.checkout,
-        viewCart: words.viewCart,
-      }}
-      badge={badge}
-      body={body}
-      summary={summary}
-      cartHref={cartHref}
-      checkoutHref={checkoutHref}
-      prefetch={prefetch}
-      defaultOpen={defaultOpen}
-      modal={modal}
-      triggerClassName={triggerClassName}
-      popupClassName={popupClassName}
-    />
-  );
+  return {
+    copy: {
+      open: words.open,
+      items: formatMessage(words.items, { count }, locale),
+      title: words.title,
+      count: formatMessage(words.count, { count }, locale),
+      close: words.close,
+      note: words.note,
+      checkout: words.checkout,
+      viewCart: words.viewCart,
+    },
+    badge,
+    body,
+    summary,
+    cartHref,
+    checkoutHref,
+    prefetch,
+    defaultOpen,
+    modal,
+    triggerClassName,
+    popupClassName,
+  };
 }
 
-export { CartDrawer };
+/** The drawer: its parts, drawn by its client part. */
+function CartDrawer(props: CartDrawerProps) {
+  return <CartDrawerClient {...cartDrawerParts(props)} />;
+}
+
+export { CartDrawer, cartDrawerParts };
 export type { CartDrawerProps };

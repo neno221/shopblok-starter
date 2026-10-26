@@ -66,7 +66,7 @@ function cartSummary(ctx: Context, cart: Cart, shipping?: ShippingOption): Order
 }
 
 /** A placed order's summary: what it cost, as the confirmation and the order page show it. */
-function orderSummary(order: Order): OrderSummary {
+export function orderSummary(order: Order): OrderSummary {
   return {
     currencyCode: order.currencyCode,
     items: order.lines.map(summaryItem),

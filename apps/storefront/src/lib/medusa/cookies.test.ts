@@ -93,3 +93,79 @@ describe("the pending customer", () => {
     expect(await cookies.getPendingCustomer()).toEqual({ email: "a@example.com" });
   });
 });
+
+describe("the receipt (D65)", () => {
+  beforeEach(() => vi.stubEnv("PAYLOAD_SECRET", "test-secret"));
+
+  /** The signed value `setReceipt` wrote, for building forged ones from. */
+  async function signed(orderId: string): Promise<string> {
+    jar.reset();
+    await cookies.setReceipt(orderId);
+    return jar.writes[0]!.value;
+  }
+
+  it("is written as the order's id and its signature, httpOnly, lax, for 7 days, secure in production", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    await cookies.setReceipt("order_1");
+    expect(jar.writes).toMatchObject([
+      {
+        name: "_shopblok_receipt",
+        value: expect.stringMatching(/^order_1\.[\w-]+$/) as unknown,
+        options: { httpOnly: true, secure: true, sameSite: "lax", path: "/", maxAge: 604_800 },
+      },
+    ]);
+  });
+
+  it("reads back the id of a cookie this server signed", async () => {
+    await cookies.setReceipt("order_1");
+    expect(await cookies.getReceiptOrderId()).toBe("order_1");
+  });
+
+  it("is undefined for a forged signature, another order's signature and a malformed value", async () => {
+    const [, signature] = (await signed("order_1")).split(".");
+    for (const value of [
+      "order_1.forged",
+      `order_2.${signature}`,
+      `order_1.${signature}x`,
+      "order_1",
+      ".nothing",
+      "",
+    ]) {
+      jar.reset({ _shopblok_receipt: value });
+      expect(await cookies.getReceiptOrderId()).toBeUndefined();
+    }
+  });
+
+  it("is undefined when the secret changed since it was written", async () => {
+    const value = await signed("order_1");
+    vi.stubEnv("PAYLOAD_SECRET", "another-secret");
+    jar.reset({ _shopblok_receipt: value });
+    expect(await cookies.getReceiptOrderId()).toBeUndefined();
+  });
+
+  it("writes nothing without a secret to sign with", async () => {
+    vi.stubEnv("PAYLOAD_SECRET", " ");
+    const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    await cookies.setReceipt("order_1");
+    expect(jar.writes).toEqual([]);
+    expect(error).toHaveBeenCalled();
+    error.mockRestore();
+  });
+});
+
+describe("the flash (T52)", () => {
+  it("is strict and lasts a minute", () => {
+    expect(cookies.cookieAttributes("_shopblok_flash")).toMatchObject({
+      httpOnly: true,
+      sameSite: "strict",
+      maxAge: 60,
+    });
+  });
+
+  it("reads back what was written, and nothing when there is nothing", async () => {
+    expect(await cookies.getFlash()).toBeUndefined();
+    await cookies.setFlash('{"key":"k"}');
+    expect(jar.writes[0]).toMatchObject({ name: "_shopblok_flash", options: { maxAge: 60 } });
+    expect(await cookies.getFlash()).toBe('{"key":"k"}');
+  });
+});

@@ -9,14 +9,15 @@ import { getMessages } from "next-intl/server";
 import type { ReactElement } from "react";
 import { toNavigation } from "../../lib/navigation";
 import { announcementFor, SHELL_PREFETCH, SITE, type HeaderVariant } from "../../lib/site";
-import { VisitorCartButton } from "../../lib/visitor/cart-button";
+import { CartIsland } from "../../lib/visitor/cart-island";
+import { CartIslandParts } from "./cart-island-parts";
 import { SearchOverlayIsland } from "./search-overlay-island";
 import { getShellData } from "./shell-data";
 
 // The shop's header (D66): the variant `site.ts` names, with the navigation from Medusa's category
 // tree, the market switcher, the announcement bar, and the visitor's parts as islands in its slots
-// (D44): the cart button, which draws the count once the visitor store has it, and the search
-// overlay. The menu's panels stay unmounted (T35's item 8): their links are in the footer.
+// (D44): the cart button, which draws the count once the visitor store has it and opens the cart
+// drawer and the quick cart (T52), and the search overlay. The menu's panels stay unmounted (T35's item 8): their links are in the footer.
 
 const HEADERS: Record<HeaderVariant, (props: HeaderProps) => ReactElement> = {
   classic: HeaderClassic,
@@ -52,12 +53,16 @@ export async function SiteHeader() {
       locale={market.htmlLang}
       prefetch={SHELL_PREFETCH}
       cart={
-        <VisitorCartButton
-          href={cartHref}
-          copy={messages.organisms.header}
-          locale={market.htmlLang}
-          prefetch={SHELL_PREFETCH}
-        />
+        <>
+          <CartIslandParts />
+          <CartIsland
+            market={market.key}
+            href={cartHref}
+            copy={messages.organisms.header}
+            locale={market.htmlLang}
+            prefetch={SHELL_PREFETCH}
+          />
+        </>
       }
       search={
         <SearchOverlayIsland

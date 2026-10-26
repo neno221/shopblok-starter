@@ -44,6 +44,8 @@ type OrderTableProps = Omit<React.ComponentProps<"div">, "children"> &
     headingLevel?: HeadingLevel;
     /** next/link's `prefetch`; the design system passes `false`. */
     prefetch?: boolean | null;
+    /** The market's IANA time zone (D65) the dates are in; UTC unless given. */
+    timeZone?: string;
   };
 
 // `next/link` takes whatever an app with typed routes narrows its `href` to; these are strings the
@@ -73,6 +75,7 @@ function OrderTable({
   label,
   headingLevel = 3,
   prefetch,
+  timeZone = "UTC",
   className,
   ...props
 }: OrderTableProps) {
@@ -92,10 +95,10 @@ function OrderTable({
   const Heading = `h${headingLevel}` as const;
   // The number as it is: an order's number is a name, not a quantity, so it takes no grouping.
   const number = (order: OrderListItem) => String(order.displayId);
-  // In UTC, so the prerendered HTML is the same on every server; M3 passes the market's time zone
-  // (SETUP.md T39, review fixes) so an order placed after midnight in Cyprus shows that day.
+  // In the market's time zone (D65, UTC unless given), so the HTML is the same on every server and
+  // an order placed after midnight in Cyprus shows that day.
   const date = (order: OrderListItem) =>
-    formatDate(order.placedAt, locale, { dateStyle: "medium", timeZone: "UTC" });
+    formatDate(order.placedAt, locale, { dateStyle: "medium", timeZone });
   const status = (order: OrderListItem) => (
     <Badge variant={order.status === "canceled" ? "destructive" : "secondary"}>
       {copy.statuses[statusKeys[order.status]]}

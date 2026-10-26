@@ -855,6 +855,91 @@ export const en = {
         text: "Check the spelling, or try a more general word.",
       },
     },
+    cart: {
+      // The cart page (T52): its heading with the count, its two parts' names, the way on, and what
+      // it says when an action fails (the lines' and the codes' own errors are their molecules').
+      title: "Your cart",
+      count: "{count, plural, one {# item} other {# items}}",
+      lines: "Items in your cart",
+      summary: "Order summary",
+      note: "Shipping and taxes are calculated at checkout.",
+      checkout: "Go to checkout",
+      continue: "Continue shopping",
+      empty: {
+        title: "Your cart is empty",
+        text: "Add something you like and it will wait for you here.",
+      },
+      errors: {
+        "not-found": "That item is no longer in your cart. Here is your cart as it is now.",
+        rejected: "Your cart could not be changed. The item may be sold out.",
+        unavailable: "The store could not be reached. Please try again in a moment.",
+        invalid: "That quantity cannot be used. Enter a number from 1 to {max}.",
+      },
+    },
+    checkout: {
+      // The checkout (T52): its three steps' names (the stepper's and each step's heading), the
+      // contact step's email field, the delivery step's group, the review's parts and the order's
+      // button, and what a step says when its action fails.
+      steps: {
+        contact: "Contact and address",
+        delivery: "Delivery and payment",
+        review: "Review",
+      },
+      contact: {
+        email: "Email",
+        emailHint: "We send your receipt and the order's updates here.",
+        submit: "Continue to delivery",
+        errors: {
+          required: "Enter your email address.",
+          pattern: "Enter an email address like name@example.com.",
+          invalid: "Enter an email address like name@example.com.",
+        },
+      },
+      delivery: {
+        legend: "Delivery",
+        required: "Choose how you would like your order delivered.",
+        none: {
+          title: "We cannot deliver to this address yet",
+          text: "Change the address, or contact us and we will find a way.",
+          back: "Change the address",
+        },
+      },
+      review: {
+        contact: "Contact",
+        shipping: "Shipping address",
+        delivery: "Delivery",
+        payment: "Payment",
+        edit: "Edit",
+        // The visible word first (WCAG 2.5.3), then which part.
+        editLabel: "Edit: {part}",
+        place: "Place order",
+        placing: "Placing your order…",
+        note: "By placing your order you agree to the store's terms of sale.",
+      },
+      errors: {
+        "not-found": "Your cart has changed. Check it, then continue.",
+        rejected: "The store could not accept this step. Check what you entered and try again.",
+        unavailable: "The store could not be reached. Please try again in a moment.",
+        incomplete: "Complete the steps before this one first.",
+      },
+      empty: {
+        title: "Your cart is empty",
+        text: "Add something to your cart, then come back to check out.",
+        continue: "Continue shopping",
+      },
+    },
+    orderConfirmation: {
+      // The receipt (T52): the thanks, the order's number and date, where updates go, its parts'
+      // headings and the way back to the shop.
+      title: "Thank you for your order",
+      number: "Order #{number}",
+      placed: "Placed on {date}",
+      email: "We will send updates about your order to {email}.",
+      shipping: "Shipping address",
+      delivery: "Delivery",
+      payment: "Payment",
+      continue: "Continue shopping",
+    },
   },
 };
 
