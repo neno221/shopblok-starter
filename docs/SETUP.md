@@ -5742,7 +5742,7 @@ The review (`reviews/pr-81-code-review.md` in the project's files) had five must
 |---|---|
 | The commerce suites against the stack | `shell` 7, `catalog` 16, `checkout-cy` 5, `checkout-us` 3, `markets-switch` 2, `auth` 3: all pass; the whole default run, 112 tests, passes locally in 1.7 min (`E2E_TEST_ROUTES=true` on the server, as CI sets it) |
 | `check:first-load` | PDP **331.9 KB**, listing pages **331.0 KB** gzipped (budgets 335 KB); the 28 `/[market]` routes total 8,831.2 KB gzipped, from 306.1 (the cart page) to 331.9 KB; no route over its budget. Unchanged by T54 |
-| `e2e-smoke` in CI | TIMES |
+| `e2e-smoke` in CI | green on `aafaf8b` (run 40421388349): the job **5 min 39 s**, its Playwright suites step **1 min 25 s** with the six commerce suites in it (PR 81's last run, before T54's two suites: 7 min 10 s and 1 min 47 s; runners vary by about two minutes); green again on this commit's own runs, the pull request's and one started by hand |
 | Unit suites | storefront 119 files, 3,208 tests (new: `rememberMarket` moves the cart to the chosen region and language, leaves one already there and no cart alone, and keeps the choice when Medusa refuses the move); `tsc` and eslint clean |
 
 ### Mutations
