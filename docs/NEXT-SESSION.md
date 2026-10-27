@@ -1,4 +1,4 @@
-# M3: T42 to T54 are done; T55 is next
+# M3: T42 to T55 are done; T56 is next
 
 **The M3 plan is ready:** [plans/M3.md](plans/M3.md), the commerce core (SPEC §17.1), in [PR 68](https://github.com/neno221/shopblok-starter/pull/68). Its decisions D56 to D69 are defaults that stand, as M2's were; you can change any of them at any time, and the task that builds it then follows the new text. Three are worth a look: **D57** (every template is built once in M3, and §9.5's 34 template variants go to M5 with the sections and the pickers), **D59** (a listing page pages by path and filters in the browser under ADR 0004; a visitor without scripts who filters lands on the search page, which renders every filter on the server) and **D58** (the build prerenders up to 500 product pages; the rest render on their first visit). **G7, optional, about five minutes:** the repository is public, so secret scanning, push protection and a ruleset on `main` with required checks cost nothing now (the plan's §4a says which checks).
 
@@ -32,11 +32,13 @@ Every M3 task runs the same way (D69): a cloud session in the `shopblok-starter`
 
 **T54 is done** (2026-10-26, SETUP.md ["Keyless purchase (T54)"](SETUP.md#keyless-purchase-t54)). M3's finish line, "a keyless purchase in the US and Cyprus passes", is now checked on every CI run: a purchase from `/` and one from `/us`, each with JavaScript on and off, the account with its verification link, a cart that stays the same when a Swiss visitor switches from German to French, and the `/cy/` and `/` redirects. The run found one bug, now fixed: after switching to another country with the country picker, the cart page and the checkout kept showing the old country's prices and currency until the shopper changed something; they now show the new country's at once. (A shopper who types another country's address by hand still sees the cart in its old currency until the next step of the checkout, as before: moving the cart on every page view could break a checkout open in another tab, the code review found.)
 
-## T55 · Hardening leftovers (in a cloud session, optional)
+**T55 is done** (2026-10-27, SETUP.md ["Hardening (T55)"](SETUP.md#hardening-t55)). The security audit of the shop's packages now lists 23 warnings instead of 30, none critical. Seven were closed by moving a package to its fixed release where the package that needs it already allows that release (six small overrides, and a newer zod for the storefront); the other 23 sit inside Payload and Medusa, which pin the old versions, so they go when those projects release (the table in SETUP.md says which and why). The admin, the checkout and the backend's tests pass on the new versions. Payload's code editor still loads from a public CDN (jsdelivr): Payload 3.90 has no setting to point it at our own copy, so that goes to M7, with the security headers that would otherwise have to allow the CDN.
+
+## T56 · Docs and SPEC v0.9 (in a cloud session)
 
 Start a cloud session in the `shopblok-starter` environment, on `main`, and paste:
 
-> Run task T55 of docs/plans/M3.md: the audit advisories that an override can close, and Monaco served locally if Payload 3.90 lets the editor's loader point at it. Start as docs/CLOUD.md, "What every cloud session does first", steps 1 to 4 say. Read docs/plans/M3.md (§5 T55, D68) and SETUP.md's "dompurify 3.4.17 (2026-10-24)" first. Work on a new branch from `main`. Follow T55's steps and its Verify list. Record everything in docs/SETUP.md under "Hardening (T55)", update the plan's status line and NEXT-SESSION.md (T56's prompt), then open a PR, with the same review and merge as every M3 task (G2). T55 is optional: if Steven skips it, T56 (docs and SPEC v0.9) is next.
+> Run task T56 of docs/plans/M3.md: the docs say what M3 built. Start as docs/CLOUD.md, "What every cloud session does first", steps 1 to 4 say. Read docs/plans/M3.md (§1, §7, §8 and §5 T56) and SETUP.md's M3 log first. Work on a new branch from `main`. Follow T56's steps and its Verify list: SPEC v0.9 with "Changes in v0.9", SETUP.md's quickstart and "How to add a template or a page (M3)", the README, the CI times before and after M3, the plan's status line and §7, and W5's prompt (on Stephanos's PC) in NEXT-SESSION.md. Then open a PR, with the same review and merge as every M3 task (G2).
 
 ## M2 (closed 2026-10-24)
 
