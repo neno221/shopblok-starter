@@ -301,13 +301,27 @@ export async function getOrCreateCart(context: CartContext): Promise<CartDto> {
     await setCartId(cart.id);
     return toCartDto(cart as unknown as WireCart);
   }
+  return moveCart(existing, context, headers);
+}
+
+/**
+ * `existing` in the context's region and locale: itself when it is there, else moved (D65), with
+ * its lines kept. Only an action may call it (a page's read stays a read, PR 82 review): the
+ * checkout's actions and `getOrCreateCart` before a write, and `rememberMarket` when the visitor
+ * switches market.
+ */
+export async function moveCart(
+  existing: CartDto,
+  context: CartContext,
+  headers?: Record<string, string>,
+): Promise<CartDto> {
   if (existing.regionId === context.regionId && existing.locale === context.locale) return existing;
-  const { cart } = await medusaRequest((sdk) =>
+  const { cart } = await medusaRequest(async (sdk) =>
     sdk.store.cart.update(
       existing.id,
       { region_id: context.regionId, locale: context.locale },
       { fields: CART_FIELDS },
-      headers,
+      headers ?? (await headersFor(context.locale)),
     ),
   );
   return toCartDto(cart as unknown as WireCart);

@@ -8,7 +8,7 @@ vi.mock("next/cache", () => ({ cacheTag: vi.fn(), cacheLife: vi.fn(), updateTag 
 // The Medusa modules and the market are stand-ins: these tests are about what the actions check
 // and what they write, not about the SDK (the cart's own tests cover that).
 const getCart = vi.fn();
-const getOrCreateCart = vi.fn();
+const moveCart = vi.fn();
 const setEmail = vi.fn();
 const setAddresses = vi.fn();
 const setShippingMethod = vi.fn();
@@ -16,7 +16,7 @@ const initiatePayment = vi.fn();
 const completeCart = vi.fn();
 vi.mock("../medusa/cart", () => ({
   getCart,
-  getOrCreateCart,
+  moveCart,
   setEmail,
   setAddresses,
   setShippingMethod,
@@ -110,7 +110,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   getMarketContext.mockResolvedValue(context);
   getCart.mockResolvedValue(emptyCart);
-  getOrCreateCart.mockResolvedValue(emptyCart);
+  moveCart.mockResolvedValue(emptyCart);
   listPaymentProviders.mockResolvedValue(["pp_system_default"]);
   listShippingOptions.mockResolvedValue([{ id: "so_standard", name: "Standard", price: money }]);
 });
@@ -189,7 +189,7 @@ describe("deliveryAction (step 2)", () => {
   });
 
   it("refuses an option the cart does not offer, and a payment that is not the system's", async () => {
-    getOrCreateCart.mockResolvedValue(contactDone);
+    moveCart.mockResolvedValue(contactDone);
     expect(await deliveryAction({ ...delivery, shippingOption: "so_other" })).toEqual({
       ok: false,
       errors: { shippingOption: "invalid" },
@@ -203,7 +203,7 @@ describe("deliveryAction (step 2)", () => {
   });
 
   it("sets the method, starts the payment and updates the cart tag", async () => {
-    getOrCreateCart.mockResolvedValue(contactDone);
+    moveCart.mockResolvedValue(contactDone);
     expect(await deliveryAction(delivery)).toEqual({ ok: true, data: { step: "review" } });
     expect(setShippingMethod).toHaveBeenCalledWith("so_standard", "en-US");
     expect(initiatePayment).toHaveBeenCalledWith("pp_system_default", "en-US");
@@ -218,7 +218,7 @@ describe("placeOrderAction (step 3)", () => {
       { ...deliveryDone, shippingMethod: null },
       { ...deliveryDone, paymentProviderId: null },
     ]) {
-      getOrCreateCart.mockResolvedValue(cart);
+      moveCart.mockResolvedValue(cart);
       expect(await placeOrderAction({ market: "en-de" })).toEqual({
         ok: false,
         errors: {},
@@ -230,7 +230,7 @@ describe("placeOrderAction (step 3)", () => {
   });
 
   it("keeps the receipt for the order Medusa placed", async () => {
-    getOrCreateCart.mockResolvedValue(deliveryDone);
+    moveCart.mockResolvedValue(deliveryDone);
     completeCart.mockResolvedValue({
       kind: "order",
       orderId: "order_1",
@@ -245,7 +245,7 @@ describe("placeOrderAction (step 3)", () => {
   });
 
   it("is rejected when Medusa answers with the cart, and keeps no receipt", async () => {
-    getOrCreateCart.mockResolvedValue(deliveryDone);
+    moveCart.mockResolvedValue(deliveryDone);
     completeCart.mockResolvedValue({
       kind: "cart",
       error: "out of stock",

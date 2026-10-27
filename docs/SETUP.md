@@ -5717,3 +5717,53 @@ The review (`reviews/pr-81-code-review.md` in the project's files) had five must
 6. **Optional, security: the verification link's wait.** A sign-in again on an unverified account sent a new link every time, and the wait was a time in a cookie the visitor could edit. `sendVerification` keeps the wait too (a test fails without it), and `_medusa_pending_customer` is signed like the receipt (HMAC-SHA256 with `PAYLOAD_SECRET`, a shared `signed`/`verified` pair in `cookies.ts`; a test fails without the check). Deleting the cookie still lifts the wait: a rate limit on `/auth/*` is M7's (§6.2).
 7. **Optional, security: an `ActionError`'s message reached the browser.** The message stays on the server; a handler gives the form a `reason` code instead (`credentials`, `exists`, `mine`), and the cart and checkout tests are back to exact `toEqual`.
 8. **Optional, cleanup:** `marketKey`, the form-text field and `contextFor` are one copy in `lib/actions/inputs.ts` (the auth, account and checkout handlers use it), and one `noindexMetadata` serves the auth, account and claim pages.
+
+## Keyless purchase (T54)
+
+**Result: SPEC §17.1's done-when for M3, "keyless E2E in US and CY", is one run of `e2e-smoke`.** The purchase from `/` (Cyprus, T52's `checkout-cy.spec.ts`) and from `/us` (`checkout-us.spec.ts`), each with scripts and without, the account with its verification link read from Medusa's log (T53's `auth.spec.ts`), the language switch that keeps the cart and the country switch that moves it (`markets-switch.spec.ts`), and the `/cy/` and `/` redirects, all against the seeded Medusa with no key. The run found one bug, fixed here: after a switch to another country with the switcher, the cart page, the drawer and the checkout kept the old country's currency until the visitor's next action.
+
+| | |
+|---|---|
+| Date | 2026-10-26 |
+| Branch | `claude/project-thread-bbr2fk`, from `main` at `541a641` (PR 81 merged) |
+| New | `apps/storefront/e2e/support/purchase.ts` (the shared steps), `e2e/checkout-us.spec.ts`, `e2e/markets-switch.spec.ts` |
+| Changed | `e2e/checkout-cy.spec.ts` and `e2e/auth.spec.ts` (on the shared steps), `lib/medusa/cart.ts` (`moveCart` exported), `lib/actions/market-handlers.ts` (`rememberMarket` moves the cart), `lib/actions/checkout-handlers.ts` (`requireCart` reads the cart once), SPEC §14's e2e row |
+
+### How it works
+
+- **The shared steps** (`e2e/support/purchase.ts`): `add` and `addToCart` (the product's first variant from its JSON-LD, the quick cart, the header's count), `fillContact` and `checkOut` (the three steps to the receipt with the market's own words; the seeded shipping option, "Pay later", the review showing what was typed), `expectReceipt` (the title and the order's number in the market's words, the e-mail, the totals' currency, the date as the market's time zone writes it, the cart gone), `withoutScripts` (a context with JavaScript off that keeps the cart), and `mailedLink` and `mailedCount` (the links in Medusa's log, `E2E_MEDUSA_LOG`). A market is its prefix and its catalog, so `checkout-cy`, `checkout-us` and `auth` use the same steps.
+- **The US purchase** (`checkout-us.spec.ts`, 3 tests): from the product page through the drawer and the cart page (USD) to the receipt, with an address in New York (state `NY`, ZIP `10118`) and the date in America/New_York; the same without scripts after the add; and the contact step's action, with the browser's checks off, refusing an empty state and a four-digit ZIP while keeping what was typed.
+- **The switch** (`markets-switch.spec.ts`, 2 tests): a cart made on `/ch` (German, CHF) is the same cart on `/ch/fr` through the switcher's link (French, CHF, the header's count), and on `/de` the same line in Germany's region (EUR, no CHF), up to the checkout's contact step. `/cy/` reaches `/` (`markets.spec.ts` checks each of the two hops), and `/` with `_shopblok_market=en-us` answers 307 to `/us`.
+- **The fix: the cart moves when the visitor picks a market** (D65). A cart from another region moved only when a cart or checkout action ran, so after a switch the pages showed it in the region it was made in. `rememberMarket`, which the switcher's island awaits before it follows the link, now moves the visitor's cart to the chosen market's region and language (`moveCart`, one `POST /store/carts/{id}`), so the page it goes to shows that country's prices. A move Medusa refuses (a line with no price there) or cannot make is logged and leaves the cart where it was; the choice still counts. Page reads stay reads (PR 82's review): a visitor who types another market's URL, or follows the switcher's link without scripts, sees the cart as it is until the next cart or checkout action moves it, as before T54.
+
+### Checks
+
+| Check | Result |
+|---|---|
+| The commerce suites against the stack | `shell` 7, `catalog` 16, `checkout-cy` 5, `checkout-us` 3, `markets-switch` 2, `auth` 3: all pass; the whole default run, 112 tests, passes locally in 1.7 min (`E2E_TEST_ROUTES=true` on the server, as CI sets it) |
+| `check:first-load` | PDP **331.9 KB**, listing pages **331.0 KB** gzipped (budgets 335 KB); the 28 `/[market]` routes total 8,831.2 KB gzipped, from 306.1 (the cart page) to 331.9 KB; no route over its budget. Unchanged by T54 |
+| `e2e-smoke` in CI | green on `aafaf8b` (run 40421388349): the job **5 min 39 s**, its Playwright suites step **1 min 25 s** with the six commerce suites in it (PR 81's last run, before T54's two suites: 7 min 10 s and 1 min 47 s; runners vary by about two minutes); green again on this commit's own runs, the pull request's and one started by hand |
+| Unit suites | storefront 119 files, 3,208 tests (new: `rememberMarket` moves the cart to the chosen region and language, leaves one already there and no cart alone, and keeps the choice when Medusa refuses the move); `tsc` and eslint clean |
+
+### Mutations
+
+| Mutation | Caught by |
+|---|---|
+| A cart's `region_id` is not updated on a country switch (`moveCart` sends only the locale) | `markets-switch.spec.ts`, the country step ("Expected substring: €, Received string: Zwischensumme 58,00 CHF …") |
+
+### Where it differs from the plan
+
+- **The country switch needed a fix**, not only a suite: the plan expected D65's move on a switch, but it ran in the cart and checkout actions only. The fix is in this PR, as §4's "a failure there is a fix PR" allows for the task that finds it.
+- **`/cy/`'s two hops** are `markets.spec.ts`'s (since M0); `markets-switch.spec.ts` follows them to `/` and does not repeat each status.
+
+### Code review (PR 82)
+
+The review (`reviews/pr-82-code-review.md` in the project's files) had three must-fix items, all about the first fix, which moved the cart whenever a page read it, and four cleanups; all seven are fixed. Items 6 (the locale's exact comparison, efficiency), 7 (the receipt number's pattern is not escaped, test robustness) and 8 (`checkout-cy` no longer finds the Greek name fields by their labels, test coverage) are skipped under the findings rule.
+
+1. **A move Medusa refused made the page a 500**, and every later read tried again. Pages no longer move the cart; `rememberMarket` logs a refused move and keeps the choice (a unit test).
+2. **Looking at another market's cart changed a checkout open in another tab** (its shipping method and payment session dropped). Only the visitor's choice of market moves the cart now, and the checkout's own actions, as before.
+3. **The move ran inside `readCheckoutCart`'s `"use cache: private"` scope.** That read is a read again.
+4. **Cleanup: `requireCart` read the cart twice.** It reads it once and moves it with `moveCart`.
+5. **Cleanup: the move lived in a wrapper at five read sites.** It is in one action, where the market changes. The review's other half, a move in the proxy for a typed URL, is not done: the proxy answers GETs too, so it would bring back items 1 and 2, and a typed URL still moves the cart at the next action.
+9. **Cleanup: `checkOut` typed the address only with an e-mail.** Each is typed when given.
+10. **Cleanup: the move's headers were built twice.** `moveCart` builds them only when it moves, unless `getOrCreateCart` passes its own.

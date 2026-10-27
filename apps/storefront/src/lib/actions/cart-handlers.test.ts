@@ -210,6 +210,7 @@ describe("applyPromo", () => {
 
 describe("rememberMarket (D66)", () => {
   it("keeps an open market's key in the cookie, for a year", async () => {
+    medusa();
     const { rememberMarketAction } = await import("./market-handlers");
     expect(await rememberMarketAction({ market: "en-us" })).toEqual({
       ok: true,
@@ -218,6 +219,47 @@ describe("rememberMarket (D66)", () => {
     expect(jar.writes).toMatchObject([
       { name: "_shopblok_market", value: "en-us", options: { maxAge: 31_536_000 } },
     ]);
+  });
+
+  it("moves the visitor's cart to the chosen market's region and language (T54)", async () => {
+    jar.reset({ _medusa_cart_id: "cart_1" });
+    const calls = medusa();
+    const { rememberMarketAction } = await import("./market-handlers");
+    expect(await rememberMarketAction({ market: "en-us" })).toMatchObject({ ok: true });
+    const move = calls.find(
+      (call) => call.method === "POST" && call.url.pathname === "/store/carts/cart_1",
+    );
+    expect(move?.body).toEqual({ region_id: "reg_us", locale: "en-US" });
+    expect(updateTag).toHaveBeenCalledWith("cart");
+  });
+
+  it("leaves a cart already in the market alone, and has nothing to move without one", async () => {
+    jar.reset({ _medusa_cart_id: "cart_1" });
+    const calls = medusa();
+    const { rememberMarketAction } = await import("./market-handlers");
+    await rememberMarketAction({ market: "el-cy" });
+    jar.reset();
+    await rememberMarketAction({ market: "en-us" });
+    expect(calls.filter((call) => call.method === "POST")).toEqual([]);
+    expect(updateTag).not.toHaveBeenCalled();
+  });
+
+  it("keeps the choice when Medusa refuses the move, and logs it", async () => {
+    jar.reset({ _medusa_cart_id: "cart_1" });
+    const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    stubMedusaFetch((call: MedusaCall) => {
+      if (call.url.pathname === "/store/regions") return { body: regions };
+      if (call.method === "POST") return { status: 400, body: { message: "no price in USD" } };
+      return { body: { cart: wireCart } };
+    });
+    const { rememberMarketAction } = await import("./market-handlers");
+    expect(await rememberMarketAction({ market: "en-us" })).toEqual({
+      ok: true,
+      data: { market: "en-us" },
+    });
+    expect(jar.writes).toMatchObject([{ name: "_shopblok_market", value: "en-us" }]);
+    expect(error).toHaveBeenCalledWith(expect.stringContaining("not moved to en-us"));
+    error.mockRestore();
   });
 
   it("refuses a key the map has no open market for", async () => {

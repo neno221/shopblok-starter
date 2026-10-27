@@ -1,5 +1,14 @@
-import { expect, test, type Browser, type BrowserContext, type Page } from "@playwright/test";
+import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 import { catalogs } from "./support/catalogs";
+import {
+  add,
+  addToCart,
+  checkOut,
+  expectReceipt,
+  fillContact,
+  orderIdOf,
+  withoutScripts,
+} from "./support/purchase";
 
 // T52 (D65, SPEC §8.4): a purchase in Cyprus against `next start` and the seeded Medusa. From the
 // product page on `/`: the add and the header's count, the cart page, the three checkout steps with
@@ -9,10 +18,10 @@ import { catalogs } from "./support/catalogs";
 // an action's answer for a field the browser did not check; and the receipt for nobody else: a
 // visitor without the browser's receipt, and one with a forged one, get the not-found page. Next keeps the
 // pages a visitor came from in the document, hidden (`<Activity>`), so the locators take the
-// visible ones: roles, or `:visible`.
+// visible ones: roles, or `:visible`. The steps are `support/purchase.ts`'s (T54).
 
-const HANDLE = "demo-heritage-hoodie";
 const el = catalogs.el;
+const CY = { prefix: "", words: el, htmlLang: "el-CY", timeZone: "Europe/Nicosia" };
 const ADDRESS = {
   firstName: "Μαρία",
   lastName: "Γεωργίου",
@@ -20,110 +29,8 @@ const ADDRESS = {
   city: "Λευκωσία",
 };
 
-/** The product's first variant's URL, from the page's JSON-LD (as catalog.spec.ts does). */
-async function variantPath(page: Page): Promise<string> {
-  const html = await (await page.request.get(`/products/${HANDLE}`)).text();
-  const text = /<script type="application\/ld\+json">([^<]*)<\/script>/.exec(html)?.[1] ?? "";
-  const graph = (
-    JSON.parse(text) as { "@graph": { "@type": string; offers?: { url: string }[] }[] }
-  )["@graph"];
-  const url = graph.find((node) => node["@type"] === "Product")?.offers?.[0]?.url;
-  if (url === undefined) throw new Error("the product has no offer");
-  const parsed = new URL(url);
-  return parsed.pathname + parsed.search;
-}
-
-/** Adds the product's first variant from its page: the quick cart opens on it. */
-async function add(page: Page): Promise<void> {
-  await page.goto(await variantPath(page));
-  const box = page.locator('[data-slot="buy-box-island"] [data-slot="buy-box"]');
-  await expect(box.locator('[data-slot="buy-box-add"]')).not.toHaveAttribute("aria-disabled");
-  await box.locator('[data-slot="buy-box-add"]').click();
-  await expect(page.locator('[data-slot="quick-cart"]')).toBeVisible();
-}
-
-/** Adds, closes the quick cart and waits for the header's count. */
-async function addToCart(page: Page): Promise<void> {
-  await add(page);
-  await page.keyboard.press("Escape");
-  await expect(page.locator('header [data-slot="cart-badge"]')).toHaveText("1");
-}
-
-/** A context with JavaScript off that carries `from`'s cookies (the cart). */
-async function withoutScripts(browser: Browser, from: BrowserContext): Promise<BrowserContext> {
-  return browser.newContext({
-    javaScriptEnabled: false,
-    storageState: await from.storageState(),
-  });
-}
-
-async function fillContact(page: Page, email: string): Promise<void> {
-  await page.getByLabel(el.templates.checkout.contact.email, { exact: true }).fill(email);
-  const form = page.locator('[data-slot="address-form"]:visible');
-  await form
-    .getByLabel(el.molecules.addressForm.labels.firstName, { exact: true })
-    .fill(ADDRESS.firstName);
-  await form
-    .getByLabel(el.molecules.addressForm.labels.lastName, { exact: true })
-    .fill(ADDRESS.lastName);
-  await form.locator('input[name="address1"]').fill(ADDRESS.address1);
-  await form.locator('input[name="city"]').fill(ADDRESS.city);
-}
-
-/** The three steps from the contact page to the receipt; answers the receipt's URL. */
-async function checkOut(page: Page, email: string): Promise<string> {
-  await expect(page).toHaveURL(/\/checkout\/contact$/);
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-    el.organisms.checkoutSteps.title,
-  );
-  await fillContact(page, email);
-  await page.getByRole("button", { name: el.templates.checkout.contact.submit }).click();
-
-  await expect(page).toHaveURL(/\/checkout\/delivery$/);
-  const shipping = page.locator('[data-slot="checkout-shipping"]:visible input[type="radio"]');
-  await expect(shipping).toHaveCount(1);
-  await shipping.first().check({ force: true });
-  await expect(page.getByText(el.organisms.paymentStep.systemName)).toBeVisible();
-  await page.getByRole("button", { name: el.organisms.paymentStep.submit }).click();
-
-  await expect(page).toHaveURL(/\/checkout\/review$/);
-  const review = page.locator('[data-slot="checkout-review"]:visible');
-  await expect(review).toContainText(email);
-  await expect(review).toContainText(ADDRESS.address1);
-  await expect(review).toContainText(el.organisms.paymentStep.systemName);
-  await page.getByRole("button", { name: el.templates.checkout.review.place }).click();
-
-  await expect(page).toHaveURL(/\/order\/order_[^/]+\/confirmed$/);
-  return new URL(page.url()).pathname;
-}
-
-async function expectReceipt(page: Page, email: string): Promise<void> {
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-    el.templates.orderConfirmation.title,
-  );
-  const number = page.locator('[data-slot="order-confirmation-number"]:visible');
-  await expect(number).toHaveText(/^Παραγγελία #\d+$/);
-  await expect(page.getByRole("main")).toContainText(email);
-  await expect(page.locator('[data-slot="order-summary-rows"]:visible')).toContainText("€");
-  // The date the order was placed, in Cyprus's time zone (D65): the timeline's `<time>` has the
-  // instant, and the page writes it as Europe/Nicosia's clock reads it.
-  const at = await page
-    .locator('[data-slot="order-timeline"]:visible time')
-    .first()
-    .getAttribute("datetime");
-  expect(at).not.toBeNull();
-  const nicosia = new Intl.DateTimeFormat("el-CY", {
-    dateStyle: "long",
-    timeStyle: "short",
-    timeZone: "Europe/Nicosia",
-  }).format(new Date(at as string));
-  await expect(page.locator('[data-slot="order-confirmation-placed"]:visible')).toContainText(
-    nicosia,
-  );
-  // The cart is gone: the header has no count, and the cart page is empty.
-  await page.goto("/cart");
-  await expect(page.locator('[data-slot="cart-lines"]:visible')).toHaveCount(0);
-}
+/** The contact page's step to the receipt with this spec's address. */
+const buy = (page: Page, email: string) => checkOut(page, { words: el, email, address: ADDRESS });
 
 test.describe("a purchase in Cyprus (T52)", () => {
   test("from the product page to the receipt, with scripts", async ({ page }) => {
@@ -136,8 +43,8 @@ test.describe("a purchase in Cyprus (T52)", () => {
     await expect(page.locator('[data-slot="cart-line-item"]:visible')).toHaveCount(1);
     await page.locator('[data-slot="cart-checkout"]:visible').click();
     const email = `cy-${Date.now()}@example.com`;
-    const receipt = await checkOut(page, email);
-    await expectReceipt(page, email);
+    const receipt = await buy(page, email);
+    await expectReceipt(page, CY, email, "€");
     // The receipt again, as the browser that placed the order.
     await page.goto(receipt);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(
@@ -156,8 +63,8 @@ test.describe("a purchase in Cyprus (T52)", () => {
     await expect(page.locator('[data-slot="cart-line-item"]:visible')).toHaveCount(1);
     await page.locator('[data-slot="cart-checkout"]:visible').click();
     const email = `cy-noscript-${Date.now()}@example.com`;
-    await checkOut(page, email);
-    await expectReceipt(page, email);
+    await buy(page, email);
+    await expectReceipt(page, CY, email, "€");
     await context.close();
     await scripted.close();
   });
@@ -167,7 +74,7 @@ test.describe("a purchase in Cyprus (T52)", () => {
   }) => {
     await addToCart(page);
     await page.goto("/checkout/contact");
-    await fillContact(page, `cy-missing-${Date.now()}@example.com`);
+    await fillContact(page, el, `cy-missing-${Date.now()}@example.com`, ADDRESS);
     await page.locator('[data-slot="address-form"] input[name="address1"]').fill("");
     // The browser would stop an empty required field; the action must refuse it on its own.
     await page.locator('[data-slot="address-form"]').evaluate((form) => {
@@ -191,8 +98,8 @@ test.describe("a purchase in Cyprus (T52)", () => {
     await addToCart(page);
     await page.goto("/checkout/contact");
     const email = `cy-owner-${Date.now()}@example.com`;
-    const receipt = await checkOut(page, email);
-    const orderId = /\/order\/([^/]+)\/confirmed/.exec(receipt)?.[1] ?? "";
+    const receipt = await buy(page, email);
+    const orderId = orderIdOf(receipt);
     // Next answers a page's `notFound()` with a 200 whose document the browser draws from the
     // payload (the not-found page, with `noindex`), so the stranger is checked twice: what a browser
     // shows, and that the HTML carries neither the order's e-mail nor its address.
