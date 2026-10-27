@@ -5779,7 +5779,7 @@ The pattern of "dompurify 3.4.17 (2026-10-24)": a pnpm override scoped to one `p
 | Package | Edge | Was | Now | Parent's range | Advisories closed |
 |---|---|---|---|---|---|
 | `fast-uri` | `ajv>fast-uri` | 3.1.8 | **3.1.9** | `^3.0.1` | 2 low, 2 moderate (path equivalence, scheme injection and spoofing, host confusion) |
-| `body-parser` | `express>body-parser` | 1.20.8 | **1.20.9** | `~1.20.5` (the override is `~1.20.9`, the same minor) | 1 high (trailing bytes after a compressed body) |
+| `body-parser` | `express@4>body-parser` | 1.20.8 | **1.20.9** | `~1.20.5` (the override is `~1.20.9`, the same minor) | 1 high (trailing bytes after a compressed body) |
 | `multer` | `@medusajs/medusa>multer` | 2.4.0 | **2.5.0** | `^2.3.0` | 1 high (a pending `fileFilter` after the request is torn down) |
 | `lodash` | `inquirer>lodash`, `json-schema-to-typescript>lodash` | 4.17.23 | **4.18.1** | `^4.17.21` | none on their own: `@graphql-codegen/plugin-helpers` keeps 4.17.23 (below), so the two lodash advisories stay listed, with one path each instead of three |
 | `postcss-selector-parser` | `postcss-nested>…`, `tailwindcss>…` | 6.1.4 | **6.1.5** | `^6.1.1`, `^6.1.2` | 1 moderate (quadratic selector parsing) |
@@ -5798,7 +5798,7 @@ The pattern of "dompurify 3.4.17 (2026-10-24)": a pnpm override scoped to one `p
 | `@opentelemetry/instrumentation-pg` 0.52.0 | `@medusajs/deps` | 0.73.0 | outside `^0.52` (a 0.x minor is a major) |
 | `uuid` 9.0.1 | `bullmq` (Medusa's Redis event bus and workflow engine) | 11.1.1 | a major outside `^9` |
 | `happy-dom` 20.14.5 | `@lexical/headless` (Payload's rich text) | 21.0.4 | a major outside `^20.9.0` |
-| `ajv` 8.13.0 | `@rushstack/node-core-library` | 8.18.0 | its range is `~8.13.0` |
+| `ajv` 8.13.0 | `@rushstack/node-core-library`; also listed through `@medusajs/dashboard>@hookform/resolvers`, an optional peer (`^8.12.0`) that nothing loads, since the dashboard imports only the zod resolver | 8.18.0 | `@rushstack/node-core-library`'s range is `~8.13.0` |
 | `esbuild` 0.18.20 | `@esbuild-kit/core-utils` (Payload's drizzle kit) | 0.25.0 | outside `~0.18.20`; and the advisory is about esbuild's dev server, which nothing here starts |
 
 Each waits for its parent's release (Renovate opens it) or goes when the parent drops the package.
@@ -5813,3 +5813,13 @@ Payload's code and JSON fields render `@payloadcms/ui`'s `CodeEditor`, which imp
 - `check:workspace`, `typecheck`, `lint` and `test` exit 0; `next build` of the storefront exits 0.
 - `backend-integration`'s command (`test:integration:http`): 4 suites, 32 tests pass on body-parser 1.20.9 and multer 2.5.0.
 - Against `next start` and Medusa: `payload-admin`, `payload-locales`, `payload-cache`, `checkout-us` and `auth` specs, 130 tests pass.
+
+### Code review (PR 83)
+
+No must-fix findings; the three optional ones are cleanups, all fixed.
+
+| # | Finding | Fix |
+|---|---|---|
+| 1 | `express>body-parser` would also hold a future express 5 to body-parser 1.20 | `express@4>body-parser` |
+| 2 | The override comment's "drop it once the lockfile resolves the fix" can never fail while the override is there | Drop one once the dependant's declared range starts at the fixed release |
+| 3 | The `ajv` row missed the `@medusajs/dashboard>@hookform/resolvers` path | Named in the row: an optional peer nothing loads |
