@@ -5767,3 +5767,59 @@ The review (`reviews/pr-82-code-review.md` in the project's files) had three mus
 5. **Cleanup: the move lived in a wrapper at five read sites.** It is in one action, where the market changes. The review's other half, a move in the proxy for a typed URL, is not done: the proxy answers GETs too, so it would bring back items 1 and 2, and a typed URL still moves the cart at the next action.
 9. **Cleanup: `checkOut` typed the address only with an e-mail.** Each is typed when given.
 10. **Cleanup: the move's headers were built twice.** `moveCart` builds them only when it moves, unless `getOrCreateCart` passes its own.
+
+## Hardening (T55)
+
+**Result: `pnpm audit --prod` lists 23 advisories (3 low, 12 moderate, 8 high, 0 critical), down from 30, through six overrides in `pnpm-workspace.yaml`, each on one edge and to a fixed release inside that dependant's own range, and zod 4.6.7 for the storefront and the registry (their own pin, 4.6.5, had the advisory). The other 23 have no fixed release inside their dependant's range; they are in the table below. Monaco stays on `cdn.jsdelivr.net`: Payload 3.90 gives the code editor no loader option, so it goes to M7's CSP work, as the plan says for that case.** D68's two optional items (plans/M3.md §5 T55).
+
+### The overrides
+
+The pattern of "dompurify 3.4.17 (2026-10-24)": a pnpm override scoped to one `parent>child` edge, with a range that the parent's own range already allows, so the lockfile records the release the parent would take on a fresh resolve and nothing runs a version its parent did not ask for.
+
+| Package | Edge | Was | Now | Parent's range | Advisories closed |
+|---|---|---|---|---|---|
+| `fast-uri` | `ajv>fast-uri` | 3.1.8 | **3.1.9** | `^3.0.1` | 2 low, 2 moderate (path equivalence, scheme injection and spoofing, host confusion) |
+| `body-parser` | `express@4>body-parser` | 1.20.8 | **1.20.9** | `~1.20.5` (the override is `~1.20.9`, the same minor) | 1 high (trailing bytes after a compressed body) |
+| `multer` | `@medusajs/medusa>multer` | 2.4.0 | **2.5.0** | `^2.3.0` | 1 high (a pending `fileFilter` after the request is torn down) |
+| `lodash` | `inquirer>lodash`, `json-schema-to-typescript>lodash` | 4.17.23 | **4.18.1** | `^4.17.21` | none on their own: `@graphql-codegen/plugin-helpers` keeps 4.17.23 (below), so the two lodash advisories stay listed, with one path each instead of three |
+| `postcss-selector-parser` | `postcss-nested>…`, `tailwindcss>…` | 6.1.4 | **6.1.5** | `^6.1.1`, `^6.1.2` | 1 moderate (quadratic selector parsing) |
+| `zod` | the storefront's and the registry's own `package.json` | 4.6.5 | **4.6.7** (2026-10-12) | our pin | the storefront's path of the zod advisory (memory on oversized collections); Medusa's 4.2.0 keeps it listed |
+
+`pnpm dedupe` then moved `eslint-plugin-react-hooks`'s zod to the same 4.6.7 and dropped a duplicate `jest-config` snapshot; nothing else in the lockfile changed. `pnpm peers check` lists the same unmet peers as before.
+
+### What stays, and why
+
+| Package (installed) | Comes through | Fixed in | Why no override |
+|---|---|---|---|
+| `undici` 7.29.0 (13 advisories) | `payload` | 7.30.1 | Payload pins `7.29.0` exactly; wait for a Payload release |
+| `zod` 4.2.0 | `@medusajs/deps`, `@medusajs/admin-sdk`, and the backend's own pin, kept at Medusa's | 4.6.6 | Medusa pins `4.2.0` exactly; wait for Medusa |
+| `lodash` 4.17.23 (2) | `@graphql-codegen/plugin-helpers` (Medusa's `@medusajs/utils`) | 4.18.1 | its range is `~4.17.0` |
+| `@graphql-tools/utils` 10.11.0 (2) | `@graphql-codegen/*` under Medusa | 12.0.2 | a major outside `^10` |
+| `@opentelemetry/instrumentation-pg` 0.52.0 | `@medusajs/deps` | 0.73.0 | outside `^0.52` (a 0.x minor is a major) |
+| `uuid` 9.0.1 | `bullmq` (Medusa's Redis event bus and workflow engine) | 11.1.1 | a major outside `^9` |
+| `happy-dom` 20.14.5 | `@lexical/headless` (Payload's rich text) | 21.0.4 | a major outside `^20.9.0` |
+| `ajv` 8.13.0 | `@rushstack/node-core-library`; also listed through `@medusajs/dashboard>@hookform/resolvers`, an optional peer (`^8.12.0`) that nothing loads, since the dashboard imports only the zod resolver | 8.18.0 | `@rushstack/node-core-library`'s range is `~8.13.0` |
+| `esbuild` 0.18.20 | `@esbuild-kit/core-utils` (Payload's drizzle kit) | 0.25.0 | outside `~0.18.20`; and the advisory is about esbuild's dev server, which nothing here starts |
+
+Each waits for its parent's release (Renovate opens it) or goes when the parent drops the package.
+
+### Monaco
+
+Payload's code and JSON fields render `@payloadcms/ui`'s `CodeEditor`, which imports `@monaco-editor/react`'s `Editor` and passes it no loader settings; Payload's field and admin config have no option for them either (`elements/CodeEditor/types.d.ts` is `EditorProps` minus a few). So `@monaco-editor/loader` 1.7.0 keeps its default, `https://cdn.jsdelivr.net/npm/monaco-editor@0.55.1/min/vs`, and the plan's condition ("if Payload 3.90 exposes the loader's path") does not hold. **For M7's CSP:** either `cdn.jsdelivr.net` goes on the admin's `script-src` and `worker-src`, or a client component in `admin.components.providers` calls `loader.config({ paths: { vs: "/monaco/vs" } })` before any editor mounts, with `monaco-editor/min/vs` (25 MB on disk for 0.57.0) copied to `public/monaco/` at build time. The second only works if that component resolves the same `@monaco-editor/loader` copy as `@payloadcms/ui` (pnpm makes that a dependency to add and keep in step), and it would serve 0.57.0, whose bundled DOMPurify is 3.4.15 (see "dompurify 3.4.17"; monaco never sets the option the advisory needs). M7 decides with the CSP.
+
+### Checks (cloud VM, Node 22.22.0, the compose stack)
+
+- `pnpm install` and `pnpm dedupe`: only `pnpm-lock.yaml`, `pnpm-workspace.yaml` and the two `package.json` files change.
+- `check:workspace`, `typecheck`, `lint` and `test` exit 0; `next build` of the storefront exits 0.
+- `backend-integration`'s command (`test:integration:http`): 4 suites, 32 tests pass on body-parser 1.20.9 and multer 2.5.0.
+- Against `next start` and Medusa: `payload-admin`, `payload-locales`, `payload-cache`, `checkout-us` and `auth` specs, 130 tests pass.
+
+### Code review (PR 83)
+
+No must-fix findings; the three optional ones are cleanups, all fixed.
+
+| # | Finding | Fix |
+|---|---|---|
+| 1 | `express>body-parser` would also hold a future express 5 to body-parser 1.20 | `express@4>body-parser` |
+| 2 | The override comment's "drop it once the lockfile resolves the fix" can never fail while the override is there | Drop one once the dependant's declared range starts at the fixed release |
+| 3 | The `ajv` row missed the `@medusajs/dashboard>@hookform/resolvers` path | Named in the row: an optional peer nothing loads |

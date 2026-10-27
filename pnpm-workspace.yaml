@@ -58,3 +58,13 @@ packageExtensions:
 # monaco that wants a newer 3.x is not held back to 3.4.17.
 overrides:
   "monaco-editor>dompurify": "^3.4.17"
+  # T55 (SETUP.md, "Hardening (T55)"): each a fixed release inside the dependant's own range, on that
+  # edge only. Drop one once the dependant's declared range itself starts at the fixed release or
+  # later (its package.json, not the lockfile, which the override keeps fixed).
+  "ajv>fast-uri": "^3.1.9"
+  "express@4>body-parser": "~1.20.9"
+  "@medusajs/medusa>multer": "^2.5.0"
+  "inquirer>lodash": "^4.18.1"
+  "json-schema-to-typescript>lodash": "^4.18.1"
+  "postcss-nested>postcss-selector-parser": "^6.1.5"
+  "tailwindcss>postcss-selector-parser": "^6.1.5"
