@@ -49,7 +49,7 @@ Status tags:
 | 2026-10-25 | **next-intl 4.14.9 on the `[market]` root param:** the market's lang value, time zone and its language's catalog, English for a language with no catalog, and only the namespaces an island needs in the client (D62) |
 | 2026-10-25 | **Search on Postgres is A′** (one multilingual `search_text`, id facets that the storefront labels, the `translation.*` events, a locale middleware on `/store/search`), as ADR 0002 decided (D63) |
 | 2026-10-26 | **Email verification is enforced by the backend:** Medusa 2.21.2 lets an unverified identity's token create the customer, so `POST /store/customers` answers 403 until the e-mail is verified (D64; T44) |
-| 2026-10-26 | **First-load JS budget for the PDP and the listing pages is 335 KB gzipped,** not 170: the shell alone is about 293 KB (the owner's decisions on PR 77, in T50 and in T52; §13) |
+| 2026-10-26 | **First-load JS budget for the PDP and the listing pages is 335 KB gzipped,** not 170: the `[market]` shell alone measured 290.6 KB at T48 (the owner's decisions on PR 77, in T50 and in T52; §13) |
 | 2026-10-26 | **Order claims and returns go through the shop's own routes:** `POST /store/customers/me/order-transfers` (the order's number and e-mail) and `POST /store/customers/me/returns` (the owner checked); Medusa's open `POST /store/returns` is closed (T53) |
 
 ### Changes in v0.9
@@ -1246,7 +1246,7 @@ Sync is one-way: Medusa → Payload.
 | LCP | < 2.5 s |
 | INP | < 200 ms |
 | CLS | < 0.1 |
-| First-load JS (PLP/PDP) | **≤ 335 KB gz** (the owner's decisions of 2026-10-26; 170 KB was v0.8's line). Next's runtime is about 130 KB and the `[market]` shell about 293 KB (the header's menu, drawers and popovers share one Base UI chunk of about 109 KB), so 170 could not hold; at the end of M3 the PDP is 331.9 KB, the listing pages 331.0 KB and the home 314.5 KB (CI run 40429385385). Messages split per route and locale (only the namespaces an island needs reach the client) |
+| First-load JS (PLP/PDP) | **≤ 335 KB gz** (the owner's decisions of 2026-10-26; 170 KB was v0.8's line). Next's runtime is about 130 KB and the `[market]` shell measured 290.6 KB at T48 (the header's menu, drawers and popovers share one Base UI chunk of about 109 KB), so 170 could not hold; at the end of M3 the PDP is 331.9 KB, the listing pages 331.0 KB and the home 314.5 KB (CI run 40429385385). Messages split per route and locale (only the namespaces an island needs reach the client) |
 | LCP image | `preload` / `fetchPriority="high"`, AVIF/WebP, `sizes` |
 | Below-fold images | `loading="lazy"`, ≤ 500 KB on mobile |
 | Fonts | Inter via `next/font/google` (D28), served from our own origin, subsets Latin + Latin-ext + Greek, the variable font, `display: swap`, `preload: false` so that a Greek page loads the Greek file and an English page does not. Next downloads the files at build time (and in `next dev`) from `fonts.googleapis.com` and `fonts.gstatic.com`, and a failed download fails the build; CI, Vercel and a PC reach them, and the cloud environment allows both (G5) |
