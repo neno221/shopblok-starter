@@ -32,7 +32,12 @@ const bootstrapped: AppEnvs = {
     PAYLOAD_API_KEY: "k",
     PAYLOAD_SERVER_URL: "http://localhost:8000",
   },
-  storefront: { PAYLOAD_SECRET: "p", NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY: "pk_0123" },
+  storefront: {
+    PAYLOAD_SECRET: "p",
+    PREVIEW_SECRET: "v",
+    CRON_SECRET: "r",
+    NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY: "pk_0123",
+  },
 };
 
 const run = (envs: AppEnvs, context: Context = dev) =>
@@ -212,6 +217,30 @@ describe("configChecks: secrets", () => {
 
   it.each(["development", "test"])("blank with NODE_ENV=%s is only a warning", (env) => {
     expect(secretsFor(env)?.level).toBe("warn");
+  });
+});
+
+describe("configChecks: the preview and jobs secrets (T59)", () => {
+  const blank = { backend: bootstrapped.backend, storefront: { PAYLOAD_SECRET: "p" } };
+
+  it("set after bootstrap", () => {
+    expect(find(run(bootstrapped), "preview-cron-secrets")?.level).toBe("ok");
+  });
+
+  it("blank in development is a warning that names both and points at bootstrap", () => {
+    const check = find(run(blank), "preview-cron-secrets");
+    expect(check?.level).toBe("warn");
+    expect(check?.details).toEqual([
+      "not set: PREVIEW_SECRET (apps/storefront)",
+      "not set: CRON_SECRET (apps/storefront)",
+    ]);
+    expect(check?.fix).toContain("pnpm bootstrap");
+  });
+
+  it("blank in production is an error", () => {
+    const check = find(run(blank, { nodeEnv: "production", vercel: false }), "preview-cron-secrets");
+    expect(check?.level).toBe("error");
+    expect(check?.fix).toContain("Vercel Cron");
   });
 });
 

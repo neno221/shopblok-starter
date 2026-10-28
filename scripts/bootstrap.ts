@@ -546,7 +546,29 @@ function payloadKey(ctx: Context): StepResult {
   return { status: "done", detail: describeChanges(merged.changes), notes };
 }
 
-// ---- 11. Doctor -----------------------------------------------------------------------------
+// ---- 11. Payload content seed (T59) ---------------------------------------------------------
+
+type SeedCounts = { created: number; updated: number; unchanged: number };
+
+async function contentSeed(ctx: Context): Promise<StepResult> {
+  const result = await payload(["run", "src/scripts/seed-content.ts"], ctx);
+  const counts = extractMarker<SeedCounts>(result.output, "seedContent");
+  if (result.code !== 0 || counts === undefined) {
+    throw failed(
+      "`payload run seed-content.ts`",
+      result,
+      result.code === 0 ? 'It printed no {"seedContent":…} result line.' : undefined,
+    );
+  }
+  // An editor's change is never overwritten (`seededUpdate`), so "unchanged" covers those too.
+  const did = [
+    counts.created > 0 ? `${counts.created} created` : "",
+    counts.updated > 0 ? `${counts.updated} updated` : "",
+  ].filter(Boolean);
+  return did.length > 0 ? { status: "done", detail: did.join(", ") } : { status: "unchanged" };
+}
+
+// ---- 12. Doctor -----------------------------------------------------------------------------
 
 async function doctor(ctx: Context): Promise<StepResult> {
   // Doctor writes nothing, and a server that is not running yet is only a warning for it, so a
@@ -587,17 +609,13 @@ const STEPS: Step[] = [
   { number: 8, name: "Payload users and markets", run: payloadBootstrap },
   { number: 9, name: "Payload key", run: payloadKey },
   {
-    // Not built yet (SPEC §5 items 6 and 7): the Medusa → Payload sync and the Payload content seed.
+    // Not built yet (SPEC §5 item 6): T60 builds the Medusa → Payload sync.
     number: 10,
     name: "Medusa → Payload sync",
-    run: () => ({ status: "skipped", detail: "arrives in M4" }),
+    run: () => ({ status: "skipped", detail: "arrives with T60" }),
   },
-  {
-    number: 10,
-    name: "Payload content seed",
-    run: () => ({ status: "skipped", detail: "arrives in M4" }),
-  },
-  { number: 11, name: "Doctor", run: doctor },
+  { number: 11, name: "Payload content seed", run: contentSeed },
+  { number: 12, name: "Doctor", run: doctor },
 ];
 
 const LABEL: Record<Status, string> = {
@@ -605,7 +623,7 @@ const LABEL: Record<Status, string> = {
   unchanged: "= unchanged",
   skipped: "↷ skipped",
 };
-const TOTAL = 11;
+const TOTAL = 12;
 
 const KEY_CHANGED_NOTE =
   "The publishable key changed: rebuild the storefront (`pnpm build`) or restart `pnpm dev`.";

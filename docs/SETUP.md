@@ -1612,8 +1612,9 @@ Items 1 to 5 are applied in this PR (plan text, code); the rest are notes for th
 | 7 Payload migrations | `payload migrate` | no `Migrating:` line |
 | 8 Payload users and markets | `payload run src/scripts/bootstrap-payload.ts`: the first admin while `users` is empty; the `integrations` user "Medusa sync" with the key from the backend `.env`; the `markets` global from `@shopblok/fixtures` while it has no country | all three already in place |
 | 9 Payload key | `PAYLOAD_API_KEY` and `PAYLOAD_SERVER_URL` into the backend `.env` | already there |
-| 10 | Medusa → Payload sync, Payload content seed | `↷ skipped (arrives in M4)` |
-| 11 Doctor | `pnpm run doctor` | always (it writes nothing). Until T14 this was `↷ skipped (arrives in T14)`; now a doctor error fails the run and a warning does not |
+| 10 Medusa → Payload sync | Not built yet | `↷ skipped (arrives with T60)` |
+| 11 Payload content seed | `payload run src/scripts/seed-content.ts` (T59): each content type's module in `src/payload/seed/` creates its missing documents and updates a field only while it holds a value an earlier seed wrote, so an editor's change survives | nothing created or updated |
+| 12 Doctor | `pnpm run doctor` | always (it writes nothing). Until T14 this was `↷ skipped (arrives in T14)`; now a doctor error fails the run and a warning does not |
 
 `--ci` closes stdin for every command (this is always so), sets `CI=true` for them and prints no live status line; `--verbose` streams each command's output. Exit codes: 0 done, 1 a step failed, 2 a bad option. A failed step prints its cause, what to try, and the last 25 lines of the command's output with keys and passwords hidden.
 

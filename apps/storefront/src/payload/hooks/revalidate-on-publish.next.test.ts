@@ -1,6 +1,6 @@
 import { revalidateTag } from "next/cache";
 import { expect, it } from "vitest";
-import { OUTSIDE_NEXT } from "./revalidate-pages";
+import { OUTSIDE_NEXT } from "./revalidate-on-publish";
 
 // The one test here that does not mock `next/cache`: the hook tells "outside a Next request" from
 // a real failure by the message Next throws, and nothing else ties that string to the installed

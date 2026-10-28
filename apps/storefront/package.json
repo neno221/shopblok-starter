@@ -20,6 +20,7 @@
   "dependencies": {
     "@medusajs/js-sdk": "2.21.2",
     "@payloadcms/db-postgres": "3.92.1",
+    "@payloadcms/live-preview-react": "3.92.1",
     "@payloadcms/next": "3.92.1",
     "@payloadcms/richtext-lexical": "3.92.1",
     "@payloadcms/ui": "3.92.1",

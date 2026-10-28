@@ -8,8 +8,10 @@ import { Integrations } from "./payload/collections/integrations";
 import { Media } from "./payload/collections/media";
 import { Pages } from "./payload/collections/pages";
 import { Users } from "./payload/collections/users";
+import { cronOrAdmin } from "./payload/access/jobs";
 import { filterAvailableLocales } from "./payload/filter-available-locales";
 import { Markets } from "./payload/globals/markets";
+import { LIVE_PREVIEW_BREAKPOINTS, livePreviewUrl } from "./payload/live-preview";
 import { DEFAULT_LOCALE, LOCALES } from "./payload/locales";
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -33,6 +35,13 @@ export default buildConfig({
   admin: {
     user: Users.slug,
     importMap: { baseDir: dirname },
+    // D74: the edited language's market in three frames, through `/next/preview`. T61 and T66 add
+    // the globals and `posts`.
+    livePreview: {
+      breakpoints: LIVE_PREVIEW_BREAKPOINTS,
+      collections: ["pages"],
+      url: livePreviewUrl,
+    },
   },
   collections: [Users, Integrations, Media, Pages],
   globals: [Markets],
@@ -58,6 +67,16 @@ export default buildConfig({
     migrationDir: path.resolve(dirname, "migrations"),
   }),
   sharp,
+  // SPEC §7.1: 10 MiB per upload (Payload answers 413 above it).
+  upload: { limits: { fileSize: 10 * 1024 * 1024 } },
+  // D74: scheduled publishing runs on the jobs queue. Only the cron secret (Vercel Cron in
+  // production, `instrumentation.ts`'s timer in development) or an admin may run or queue jobs; no
+  // `autoRun`, which would publish outside a Next request where `revalidateTag` cannot work. The
+  // jobs collection stays Payload's: hidden, every operation denied.
+  jobs: {
+    access: { run: cronOrAdmin(), queue: cronOrAdmin(), cancel: cronOrAdmin() },
+    deleteJobOnComplete: true,
+  },
   // T57 (M4 D86 item 3): no type generation when Payload starts in development. It wrote the file
   // unformatted, so `next dev` left a 283-line diff (W5); `generate:types` writes and formats it,
   // and CI's `check` fails when the committed file is not what that writes.
