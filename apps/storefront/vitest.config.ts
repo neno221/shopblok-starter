@@ -16,6 +16,10 @@ import { configDefaults, defineConfig } from "vitest/config";
 // configuration (`createNextIntlPlugin` in next.config.ts). A test that renders a Server Component
 // then runs the real `getTranslations` through the real `src/i18n/request.ts`. next-intl and
 // use-intl are `inline` so that the alias also applies to the imports inside the package.
+//
+// W5: under `pnpm test`'s parallel run on Windows, the first test of a file, which pays for the
+// file's imports, took over Vitest's 5 s (two to four tests a run, never the same ones; each package
+// passes alone), so a test has 20 s here.
 const fromHere = (path: string) => fileURLToPath(new URL(path, import.meta.url));
 
 export default defineConfig({
@@ -31,6 +35,7 @@ export default defineConfig({
   },
   test: {
     exclude: [...configDefaults.exclude, "e2e/**/*.spec.ts"],
+    testTimeout: 20_000,
     server: {
       deps: {
         external: [/@medusajs\/js-sdk/],
