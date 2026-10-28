@@ -10,8 +10,9 @@ import {
   LOCALES,
   type Locale,
 } from "@shopblok/i18n";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
+import { hydrateRoot } from "react-dom/client";
 import { renderToStaticMarkup, renderToString } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { CLIPPING_CLASSES } from "../test-support/long-labels";
@@ -22,7 +23,8 @@ const htmlLang = (locale: Locale) => commerceFixtures[locale].market.htmlLang;
 /** The six seeded markets' countries, in the markets' order. */
 const SEEDED = commerceFixtures.en.markets.map((market) => market.country);
 /** Intl and the catalogs may write a no-break space where a test has a plain one. */
-const plain = (text: string | null | undefined) => (text ?? "").replace(/\s+/g, " ").trim();
+const plain = (text: string | null | undefined) =>
+  (text ?? "").replace(/\s+/g, " ").trim();
 
 function setup(locale: Locale = "en", props: Partial<AddressFormProps> = {}) {
   return render(
@@ -43,13 +45,18 @@ const fieldNames = (container: Container) =>
     (field) => field.dataset.field,
   );
 const control = (container: Container, name: string) =>
-  container.querySelector(`[name="${name}"]`) as HTMLInputElement | HTMLSelectElement;
+  container.querySelector(`[name="${name}"]`) as
+    HTMLInputElement | HTMLSelectElement;
 /** A field's label as it reads: the label, then "(optional)" when it may stay empty. */
 const labelText = (element: HTMLElement) =>
   plain((element as HTMLInputElement).labels?.[0]?.textContent);
-const pattern = (value: string, source: string) => new RegExp(`^(?:${source})$`, "v").test(value);
+const pattern = (value: string, source: string) =>
+  new RegExp(`^(?:${source})$`, "v").test(value);
 
-const source = readFileSync(path.join(import.meta.dirname, "address-form.tsx"), "utf8");
+const source = readFileSync(
+  path.join(import.meta.dirname, "address-form.tsx"),
+  "utf8",
+);
 const clientSource = readFileSync(
   path.join(import.meta.dirname, "address-form-fields.tsx"),
   "utf8",
@@ -80,7 +87,15 @@ const countries: Expectation[] = [
   {
     country: "cy",
     name: "Cyprus",
-    fields: ["firstName", "lastName", "company", "address1", "address2", "postalCode", "city"],
+    fields: [
+      "firstName",
+      "lastName",
+      "company",
+      "address1",
+      "address2",
+      "postalCode",
+      "city",
+    ],
     required: ["firstName", "lastName", "address1", "city"],
     labels: { postalCode: "Postal code", city: "City" },
     postalCode: {
@@ -105,7 +120,14 @@ const countries: Expectation[] = [
       "province",
       "postalCode",
     ],
-    required: ["firstName", "lastName", "address1", "city", "province", "postalCode"],
+    required: [
+      "firstName",
+      "lastName",
+      "address1",
+      "city",
+      "province",
+      "postalCode",
+    ],
     labels: { city: "City", province: "State", postalCode: "ZIP code" },
     postalCode: {
       pattern: "(\\d{5})(?:[ \\-](\\d{4}))?",
@@ -120,7 +142,15 @@ const countries: Expectation[] = [
   {
     country: "de",
     name: "Germany",
-    fields: ["firstName", "lastName", "company", "address1", "address2", "postalCode", "city"],
+    fields: [
+      "firstName",
+      "lastName",
+      "company",
+      "address1",
+      "address2",
+      "postalCode",
+      "city",
+    ],
     required: ["firstName", "lastName", "address1", "postalCode", "city"],
     labels: { postalCode: "Postal code", city: "City" },
     postalCode: {
@@ -136,7 +166,15 @@ const countries: Expectation[] = [
     country: "ch",
     name: "Switzerland",
     // The company comes before the name here, and CH- is written before the postal code.
-    fields: ["company", "firstName", "lastName", "address1", "address2", "postalCode", "city"],
+    fields: [
+      "company",
+      "firstName",
+      "lastName",
+      "address1",
+      "address2",
+      "postalCode",
+      "city",
+    ],
     required: ["firstName", "lastName", "address1", "postalCode", "city"],
     labels: { postalCode: "Postal code", city: "City" },
     postalCode: {
@@ -153,7 +191,15 @@ const countries: Expectation[] = [
     country: "gb",
     name: "United Kingdom",
     // The post town and the postcode each have a line of their own.
-    fields: ["firstName", "lastName", "company", "address1", "address2", "city", "postalCode"],
+    fields: [
+      "firstName",
+      "lastName",
+      "company",
+      "address1",
+      "address2",
+      "city",
+      "postalCode",
+    ],
     required: ["firstName", "lastName", "address1", "city", "postalCode"],
     labels: { city: "Town or city", postalCode: "Postal code" },
     postalCode: {
@@ -170,7 +216,15 @@ const countries: Expectation[] = [
     country: "fr",
     name: "France",
     // The company first, and no region to ask for.
-    fields: ["company", "firstName", "lastName", "address1", "address2", "postalCode", "city"],
+    fields: [
+      "company",
+      "firstName",
+      "lastName",
+      "address1",
+      "address2",
+      "postalCode",
+      "city",
+    ],
     required: ["firstName", "lastName", "address1", "postalCode", "city"],
     labels: { postalCode: "Postal code", city: "City" },
     postalCode: {
@@ -187,7 +241,15 @@ const countries: Expectation[] = [
     // Latin order a page in English gets.
     country: "jp",
     name: "Japan",
-    fields: ["firstName", "lastName", "company", "address1", "address2", "province", "postalCode"],
+    fields: [
+      "firstName",
+      "lastName",
+      "company",
+      "address1",
+      "address2",
+      "province",
+      "postalCode",
+    ],
     required: ["firstName", "lastName", "address1", "province", "postalCode"],
     labels: { province: "Prefecture", postalCode: "Postal code" },
     postalCode: {
@@ -209,19 +271,32 @@ describe("AddressForm", () => {
       const { container } = setup();
       const form = screen.getByRole("form", { name: "Address" });
       expect(form.tagName).toBe("FORM");
-      expect(container.querySelector('button[type="submit"]')?.textContent).toBe("Save address");
+      expect(
+        container.querySelector('button[type="submit"]')?.textContent,
+      ).toBe("Save address");
       expect(screen.getAllByRole("button")).toHaveLength(1);
     });
 
     it("renders its children inside the form, after the fields and before the submit button", () => {
-      const { container } = setup("en", { children: <input type="checkbox" name="extra" /> });
+      const { container } = setup("en", {
+        children: <input type="checkbox" name="extra" />,
+      });
       const form = screen.getByRole("form", { name: "Address" });
-      const extra = container.querySelector('input[name="extra"]') as HTMLElement;
+      const extra = container.querySelector(
+        'input[name="extra"]',
+      ) as HTMLElement;
       expect(form.contains(extra)).toBe(true);
-      const submit = container.querySelector('button[type="submit"]') as HTMLElement;
-      expect(extra.compareDocumentPosition(submit) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      const submit = container.querySelector(
+        'button[type="submit"]',
+      ) as HTMLElement;
+      expect(
+        extra.compareDocumentPosition(submit) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
       const phone = control(container, "phone");
-      expect(phone.compareDocumentPosition(extra) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(
+        phone.compareDocumentPosition(extra) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
     });
 
     it.each([
@@ -237,15 +312,25 @@ describe("AddressForm", () => {
       const fields = fieldNames(container);
       expect(fields[0]).toBe("countryCode");
       expect(fields.at(-1)).toBe("phone");
-      expect(container.querySelector("select")).toBe(control(container, "countryCode"));
+      expect(container.querySelector("select")).toBe(
+        control(container, "countryCode"),
+      );
       expect(container.querySelectorAll("select")).toHaveLength(1);
     });
 
     it("offers the countries it is given, named in the page's language, in the order given", () => {
       for (const locale of LOCALES) {
-        const { container, unmount } = setup(locale, { countries: ["ch", "cy", "us"] });
-        const options = [...container.querySelectorAll<HTMLOptionElement>("option")];
-        expect(options.map((option) => option.value)).toEqual(["ch", "cy", "us"]);
+        const { container, unmount } = setup(locale, {
+          countries: ["ch", "cy", "us"],
+        });
+        const options = [
+          ...container.querySelectorAll<HTMLOptionElement>("option"),
+        ];
+        expect(options.map((option) => option.value)).toEqual([
+          "ch",
+          "cy",
+          "us",
+        ]);
         expect(options.map((option) => option.textContent)).toEqual(
           ["ch", "cy", "us"].map((code) => countryName(code, htmlLang(locale))),
         );
@@ -253,14 +338,17 @@ describe("AddressForm", () => {
       }
       const { container } = setup("el");
       expect(
-        [...container.querySelectorAll("option")].find((option) => option.value === "cy")
-          ?.textContent,
+        [...container.querySelectorAll("option")].find(
+          (option) => option.value === "cy",
+        )?.textContent,
       ).toBe("Κύπρος");
     });
 
     it("selects the country of the values", () => {
       for (const country of SEEDED) {
-        const { container, unmount } = setup("en", { values: { countryCode: country } });
+        const { container, unmount } = setup("en", {
+          values: { countryCode: country },
+        });
         expect(control(container, "countryCode").value).toBe(country);
         unmount();
       }
@@ -273,13 +361,19 @@ describe("AddressForm", () => {
 
     it("says that every field is required unless marked optional", () => {
       setup();
-      expect(screen.getByText("All fields are required unless marked optional.")).toBeTruthy();
+      expect(
+        screen.getByText("All fields are required unless marked optional."),
+      ).toBeTruthy();
     });
 
     it("is a plain form: a URL action posts, a function leaves the method to React", () => {
       const { container, rerender } = setup("en", { action: "/api/address" });
-      expect(container.querySelector("form")?.getAttribute("action")).toBe("/api/address");
-      expect(container.querySelector("form")?.getAttribute("method")).toBe("post");
+      expect(container.querySelector("form")?.getAttribute("action")).toBe(
+        "/api/address",
+      );
+      expect(container.querySelector("form")?.getAttribute("method")).toBe(
+        "post",
+      );
       rerender(
         <AddressForm
           countries={SEEDED}
@@ -289,16 +383,23 @@ describe("AddressForm", () => {
           action={() => {}}
         />,
       );
-      expect(container.querySelector("form")?.getAttribute("method")).toBeNull();
+      expect(
+        container.querySelector("form")?.getAttribute("method"),
+      ).toBeNull();
     });
 
     it("posts without an action too, so the address never lands in the URL (PR 56 review)", () => {
       const { container } = setup();
-      expect(container.querySelector("form")?.getAttribute("method")).toBe("post");
+      expect(container.querySelector("form")?.getAttribute("method")).toBe(
+        "post",
+      );
     });
 
     it("passes the form's own props on, and merges the class", () => {
-      const { container } = setup("en", { id: "checkout-address", className: "max-w-xl" });
+      const { container } = setup("en", {
+        id: "checkout-address",
+        className: "max-w-xl",
+      });
       const form = container.querySelector("form");
       expect(form?.id).toBe("checkout-address");
       expect(form?.className).toContain("max-w-xl");
@@ -306,7 +407,9 @@ describe("AddressForm", () => {
     });
 
     it("sends the address's id when it has one (an address being edited), and only then", () => {
-      const withId = setup("en", { values: { countryCode: "us", id: "addr_us" } });
+      const withId = setup("en", {
+        values: { countryCode: "us", id: "addr_us" },
+      });
       expect(control(withId.container, "addressId").value).toBe("addr_us");
       withId.unmount();
       const without = setup("en");
@@ -327,9 +430,13 @@ describe("AddressForm", () => {
           ))}
         </>,
       );
-      const ids = [...container.querySelectorAll("[id]")].map((element) => element.id);
+      const ids = [...container.querySelectorAll("[id]")].map(
+        (element) => element.id,
+      );
       expect(new Set(ids).size).toBe(ids.length);
-      for (const control of container.querySelectorAll("input:not([type=hidden]), select")) {
+      for (const control of container.querySelectorAll(
+        "input:not([type=hidden]), select",
+      )) {
         expect((control as HTMLInputElement).labels).toHaveLength(1);
       }
       expect(screen.getAllByRole("form")).toHaveLength(2);
@@ -346,22 +453,36 @@ describe("AddressForm", () => {
         });
         expect(control(container, "countryCode").value).toBe(expected.country);
         // The order of the fields in the page is the country's, and the phone comes last.
-        expect(fieldNames(container)).toEqual(["countryCode", ...expected.fields, "phone"]);
+        expect(fieldNames(container)).toEqual([
+          "countryCode",
+          ...expected.fields,
+          "phone",
+        ]);
         // Each is required, or marked optional in its label; the browser is told too.
         for (const field of expected.fields) {
           const input = control(container, field);
           const required = expected.required.includes(field);
           expect(input.required, `${expected.country} ${field}`).toBe(required);
           const label = labelText(input);
-          if (required) expect(label, `${expected.country} ${field}`).not.toContain("(optional)");
-          else expect(label, `${expected.country} ${field}`).toMatch(/ \(optional\)$/);
+          if (required)
+            expect(label, `${expected.country} ${field}`).not.toContain(
+              "(optional)",
+            );
+          else
+            expect(label, `${expected.country} ${field}`).toMatch(
+              / \(optional\)$/,
+            );
         }
         // What the country calls its parts.
         for (const [field, label] of Object.entries(expected.labels)) {
-          expect(labelText(control(container, field)).replace(" (optional)", "")).toBe(label);
+          expect(
+            labelText(control(container, field)).replace(" (optional)", ""),
+          ).toBe(label);
         }
         // The postal code: its pattern, what it looks like, its prefix and its keyboard.
-        const postal = container.querySelector<HTMLInputElement>('[name="postalCode"]');
+        const postal = container.querySelector<HTMLInputElement>(
+          '[name="postalCode"]',
+        );
         if (expected.postalCode === undefined) {
           expect(postal).toBeNull();
           return;
@@ -370,18 +491,30 @@ describe("AddressForm", () => {
         expect(postal?.getAttribute("pattern")).toContain(code.pattern);
         expect(postal?.title).toBe(code.title);
         expect(screen.getByText(`For example: ${code.example}`)).toBeTruthy();
-        expect(postal?.getAttribute("inputmode")).toBe(code.numeric ? "numeric" : null);
+        expect(postal?.getAttribute("inputmode")).toBe(
+          code.numeric ? "numeric" : null,
+        );
         for (const value of code.accepts)
-          expect(pattern(value, postal?.getAttribute("pattern") ?? ""), value).toBe(true);
+          expect(
+            pattern(value, postal?.getAttribute("pattern") ?? ""),
+            value,
+          ).toBe(true);
         for (const value of code.refuses)
-          expect(pattern(value, postal?.getAttribute("pattern") ?? ""), value).toBe(false);
-        const prefix = container.querySelector("[data-slot=address-field-prefix]");
+          expect(
+            pattern(value, postal?.getAttribute("pattern") ?? ""),
+            value,
+          ).toBe(false);
+        const prefix = container.querySelector(
+          "[data-slot=address-field-prefix]",
+        );
         if (code.prefix === undefined) expect(prefix).toBeNull();
         else {
           expect(prefix?.textContent).toBe(code.prefix);
           // Shown beside the field, in front of the typed part, never typed itself.
           expect(prefix?.getAttribute("aria-hidden")).toBe("true");
-          expect(prefix?.closest("[data-slot=input-group]")?.contains(postal)).toBe(true);
+          expect(
+            prefix?.closest("[data-slot=input-group]")?.contains(postal),
+          ).toBe(true);
         }
       },
     );
@@ -407,15 +540,25 @@ describe("AddressForm", () => {
       // The street and the city are required, the rest may stay empty.
       for (const field of ["firstName", "lastName", "address1", "city"])
         expect(control(container, field).required, field).toBe(true);
-      for (const field of ["company", "address2", "province", "postalCode", "phone"])
+      for (const field of [
+        "company",
+        "address2",
+        "province",
+        "postalCode",
+        "phone",
+      ])
         expect(control(container, field).required, field).toBe(false);
       // No pattern, no example, no prefix: nothing to hold the postal code to.
       const postal = control(container, "postalCode");
       expect(postal.getAttribute("pattern")).toBeNull();
       expect(postal.title).toBe("");
-      expect(container.querySelector("[data-slot=address-field-prefix]")).toBeNull();
+      expect(
+        container.querySelector("[data-slot=address-field-prefix]"),
+      ).toBeNull();
       expect(labelText(postal)).toBe("Postal code (optional)");
-      expect(labelText(control(container, "province"))).toBe("Province (optional)");
+      expect(labelText(control(container, "province"))).toBe(
+        "Province (optional)",
+      );
       // The country is still named, as its code, and chosen.
       expect(control(container, "countryCode").value).toBe("qq");
     });
@@ -427,7 +570,8 @@ describe("AddressForm", () => {
           const code = String.fromCharCode(a, b).toLowerCase();
           if (!hasAddressFormat(code)) continue;
           const format = addressFormat(code, "en");
-          if (format.rows.some((row) => row.length > 3)) problems.push(`${code}: a long row`);
+          if (format.rows.some((row) => row.length > 3))
+            problems.push(`${code}: a long row`);
           const html = renderToStaticMarkup(
             <AddressForm
               countries={[code]}
@@ -437,15 +581,14 @@ describe("AddressForm", () => {
             />,
           );
           for (const field of format.rows.flat())
-            if (!html.includes(`name="${field}"`)) problems.push(`${code}: no ${field}`);
+            if (!html.includes(`name="${field}"`))
+              problems.push(`${code}: no ${field}`);
           if (html.includes("undefined") || html.includes("NaN"))
             problems.push(`${code}: undefined`);
         }
       }
       expect(problems).toEqual([]);
-    }, // Renders every country's form: a few seconds, which passed the 5 s default on a busy
-    // runner (PR 56 CI).
-    30_000);
+    }, 30_000); // runner (PR 56 CI). // Renders every country's form: a few seconds, which passed the 5 s default on a busy
 
     it("has no city field for the seven countries whose format has none, and those are all (D65)", () => {
       const NO_CITY = ["ae", "gi", "jp", "ky", "mo", "nr", "sg"];
@@ -453,7 +596,10 @@ describe("AddressForm", () => {
       for (let a = 65; a <= 90; a += 1) {
         for (let b = 65; b <= 90; b += 1) {
           const code = String.fromCharCode(a, b).toLowerCase();
-          if (hasAddressFormat(code) && !addressFormat(code, "en").rows.flat().includes("city"))
+          if (
+            hasAddressFormat(code) &&
+            !addressFormat(code, "en").rows.flat().includes("city")
+          )
             withoutCity.push(code);
         }
       }
@@ -476,9 +622,9 @@ describe("AddressForm", () => {
         countries: withJapan,
         values: { countryCode: "jp" },
       });
-      expect(labelText(control(container, "province")).replace(" (optional)", "")).toBe(
-        "Präfektur",
-      );
+      expect(
+        labelText(control(container, "province")).replace(" (optional)", ""),
+      ).toBe("Präfektur");
       expect(labelText(control(container, "postalCode"))).toBe("Postleitzahl");
       expect(labelText(control(container, "firstName"))).toBe("Vorname");
     });
@@ -491,10 +637,12 @@ describe("AddressForm", () => {
           countries: withJapan,
           values: { countryCode: "us" },
         });
-        expect(labelText(control(container, "province")).replace(/ \(.*\)$/, "")).toBe(
-          copy.labels.province.state,
+        expect(
+          labelText(control(container, "province")).replace(/ \(.*\)$/, ""),
+        ).toBe(copy.labels.province.state);
+        expect(labelText(control(container, "postalCode"))).toBe(
+          copy.labels.postalCode.zip,
         );
-        expect(labelText(control(container, "postalCode"))).toBe(copy.labels.postalCode.zip);
         expect(labelText(control(container, "company"))).toBe(
           `${copy.labels.company} ${copy.optional}`,
         );
@@ -521,7 +669,10 @@ describe("AddressForm", () => {
       const { container } = setup("en", { values: { countryCode: "us" } });
       expect(names.sort()).toEqual([...fieldNames(container)].sort());
       for (const [name, token] of Object.entries(expected)) {
-        expect(control(container, name).getAttribute("autocomplete"), name).toBe(token);
+        expect(
+          control(container, name).getAttribute("autocomplete"),
+          name,
+        ).toBe(token);
       }
       // The component's own table says the same, so a field cannot lose its token unseen.
       expect(TOKENS).toEqual(expected);
@@ -530,11 +681,15 @@ describe("AddressForm", () => {
     it.each(["shipping", "billing"] as const)(
       "prefixes every token with the section, for a %s address",
       (section) => {
-        const { container } = setup("en", { values: { countryCode: "us" }, section });
+        const { container } = setup("en", {
+          values: { countryCode: "us" },
+          section,
+        });
         for (const [name, token] of Object.entries(expected)) {
-          expect(control(container, name).getAttribute("autocomplete"), name).toBe(
-            `${section} ${token}`,
-          );
+          expect(
+            control(container, name).getAttribute("autocomplete"),
+            name,
+          ).toBe(`${section} ${token}`);
         }
       },
     );
@@ -555,17 +710,18 @@ describe("AddressForm", () => {
               section="billing"
             />,
           );
-          for (const element of holder.querySelectorAll("input:not([type=hidden]), select")) {
+          for (const element of holder.querySelectorAll(
+            "input:not([type=hidden]), select",
+          )) {
             const token = element.getAttribute("autocomplete");
             const name = element.getAttribute("name") ?? "";
-            if (token !== `billing ${expected[name]}`) problems.push(`${code} ${name}: ${token}`);
+            if (token !== `billing ${expected[name]}`)
+              problems.push(`${code} ${name}: ${token}`);
           }
         }
       }
       expect(problems).toEqual([]);
-    }, // Renders every country's form: a few seconds, which passed the 5 s default on a busy
-    // runner (PR 56 CI).
-    30_000);
+    }, 30_000); // runner (PR 56 CI). // Renders every country's form: a few seconds, which passed the 5 s default on a busy
 
     it("types each field for its keyboard: text, and tel for the phone", () => {
       const { container } = setup("en", { values: { countryCode: "de" } });
@@ -578,7 +734,9 @@ describe("AddressForm", () => {
         "city",
         "postalCode",
       ])
-        expect(control(container, name).getAttribute("type"), name).toBe("text");
+        expect(control(container, name).getAttribute("type"), name).toBe(
+          "text",
+        );
       expect(control(container, "phone").getAttribute("type")).toBe("tel");
       expect(control(container, "phone").getAttribute("inputmode")).toBe("tel");
       expect(control(container, "phone").required).toBe(false);
@@ -601,13 +759,27 @@ describe("AddressForm", () => {
 
     it("shows the values it is given, in the fields of their country", () => {
       const { container } = setup("en", {
-        values: { ...typed, company: "Northside Design Co.", address2: "Suite 210" },
+        values: {
+          ...typed,
+          company: "Northside Design Co.",
+          address2: "Suite 210",
+        },
       });
-      expect((control(container, "firstName") as HTMLInputElement).value).toBe(typed.firstName);
-      expect((control(container, "address1") as HTMLInputElement).value).toBe(typed.address1);
-      expect((control(container, "province") as HTMLInputElement).value).toBe("NY");
-      expect((control(container, "postalCode") as HTMLInputElement).value).toBe("11215");
-      expect((control(container, "phone") as HTMLInputElement).value).toBe(typed.phone);
+      expect((control(container, "firstName") as HTMLInputElement).value).toBe(
+        typed.firstName,
+      );
+      expect((control(container, "address1") as HTMLInputElement).value).toBe(
+        typed.address1,
+      );
+      expect((control(container, "province") as HTMLInputElement).value).toBe(
+        "NY",
+      );
+      expect((control(container, "postalCode") as HTMLInputElement).value).toBe(
+        "11215",
+      );
+      expect((control(container, "phone") as HTMLInputElement).value).toBe(
+        typed.phone,
+      );
       expect((control(container, "company") as HTMLInputElement).value).toBe(
         "Northside Design Co.",
       );
@@ -616,15 +788,23 @@ describe("AddressForm", () => {
     it("is quiet when nothing is wrong: no error, no invalid mark, nothing in the status line", () => {
       const { container } = setup();
       expect(container.querySelectorAll("[aria-invalid]")).toHaveLength(0);
-      expect(container.querySelector("[data-slot=address-field-error]")).toBeNull();
-      expect(container.querySelector("[data-slot=address-form-status]")?.textContent).toBe("");
+      expect(
+        container.querySelector("[data-slot=address-field-error]"),
+      ).toBeNull();
+      expect(
+        container.querySelector("[data-slot=address-form-status]")?.textContent,
+      ).toBe("");
     });
 
     it("says what is wrong beside each field and ties it to the field, keeping the values", () => {
       const { mistaken } = commerceFixtures.en.addressSamples;
       const { container } = setup("en", {
         values: mistaken,
-        errors: { province: "required", postalCode: "pattern", firstName: "invalid" },
+        errors: {
+          province: "required",
+          postalCode: "pattern",
+          firstName: "invalid",
+        },
       });
       const cases = [
         ["province", "State is required."],
@@ -643,14 +823,25 @@ describe("AddressForm", () => {
       }
       // The fields without a mistake are not marked.
       for (const name of ["lastName", "address1", "city"])
-        expect(control(container, name).getAttribute("aria-invalid"), name).toBeNull();
+        expect(
+          control(container, name).getAttribute("aria-invalid"),
+          name,
+        ).toBeNull();
       // What was typed stays.
-      expect((control(container, "postalCode") as HTMLInputElement).value).toBe("1121");
-      expect((control(container, "city") as HTMLInputElement).value).toBe("Brooklyn");
-      expect((control(container, "address1") as HTMLInputElement).value).toBe("482 Maple Avenue");
+      expect((control(container, "postalCode") as HTMLInputElement).value).toBe(
+        "1121",
+      );
+      expect((control(container, "city") as HTMLInputElement).value).toBe(
+        "Brooklyn",
+      );
+      expect((control(container, "address1") as HTMLInputElement).value).toBe(
+        "482 Maple Avenue",
+      );
       // The postal code keeps its example beside the error.
       expect(
-        control(container, "postalCode").getAttribute("aria-describedby")?.split(" "),
+        control(container, "postalCode")
+          .getAttribute("aria-describedby")
+          ?.split(" "),
       ).toHaveLength(2);
     });
 
@@ -669,7 +860,9 @@ describe("AddressForm", () => {
         />,
       );
       // The same element, so a screen reader sees its text change rather than a new region.
-      expect(container.querySelector("[data-slot=address-form-status]")).toBe(region);
+      expect(container.querySelector("[data-slot=address-form-status]")).toBe(
+        region,
+      );
       expect(region?.textContent).toBe("2 fields need your attention.");
       rerender(
         <AddressForm
@@ -687,11 +880,15 @@ describe("AddressForm", () => {
       const { container } = setup("en", {
         countries: withJapan,
         values: { countryCode: "gb", postalCode: "12345" },
-        errors: { postalCode: "pattern", city: "invalid", lastName: "required" },
+        errors: {
+          postalCode: "pattern",
+          city: "invalid",
+          lastName: "required",
+        },
       });
-      const messages = [...container.querySelectorAll("[data-slot=address-field-error]")].map(
-        (element) => element.textContent,
-      );
+      const messages = [
+        ...container.querySelectorAll("[data-slot=address-field-error]"),
+      ].map((element) => element.textContent);
       expect(messages).toEqual([
         "Last name is required.",
         "Town or city is not valid. Check it and try again.",
@@ -705,19 +902,24 @@ describe("AddressForm", () => {
         values: { countryCode: "qq", postalCode: "!!" },
         errors: { postalCode: "pattern" },
       });
-      expect(container.querySelector("[data-slot=address-field-error]")?.textContent).toBe(
-        "Postal code is not in the right format.",
-      );
+      expect(
+        container.querySelector("[data-slot=address-field-error]")?.textContent,
+      ).toBe("Postal code is not in the right format.");
     });
 
     it("can name the country and the phone in an error", () => {
-      const { container } = setup("en", { errors: { countryCode: "invalid", phone: "invalid" } });
+      const { container } = setup("en", {
+        errors: { countryCode: "invalid", phone: "invalid" },
+      });
       const select = control(container, "countryCode");
       expect(select.getAttribute("aria-invalid")).toBe("true");
       expect(
-        document.getElementById(select.getAttribute("aria-describedby") ?? "")?.textContent,
+        document.getElementById(select.getAttribute("aria-describedby") ?? "")
+          ?.textContent,
       ).toBe("Country or region is not valid. Check it and try again.");
-      expect(control(container, "phone").getAttribute("aria-invalid")).toBe("true");
+      expect(control(container, "phone").getAttribute("aria-invalid")).toBe(
+        "true",
+      );
     });
 
     it("ignores an error about a field the country does not have", () => {
@@ -726,12 +928,16 @@ describe("AddressForm", () => {
         errors: { province: "required" },
       });
       expect(container.querySelectorAll("[aria-invalid]")).toHaveLength(0);
-      expect(container.querySelector("[data-slot=address-form-status]")?.textContent).toBe("");
+      expect(
+        container.querySelector("[data-slot=address-form-status]")?.textContent,
+      ).toBe("");
     });
 
     it("says when the address could not be saved and no field is to blame", () => {
       const { container } = setup("en", { status: "error" });
-      expect(container.querySelector("[data-slot=address-form-status]")?.textContent).toBe(
+      expect(
+        container.querySelector("[data-slot=address-form-status]")?.textContent,
+      ).toBe(
         "We could not save this address. Check the details and try again.",
       );
       expect(container.querySelectorAll("[aria-invalid]")).toHaveLength(0);
@@ -744,9 +950,9 @@ describe("AddressForm", () => {
         values: { countryCode: "us" },
         errors: { province: "required", postalCode: "pattern" },
       });
-      const messages = [...container.querySelectorAll("[data-slot=address-field-error]")].map((e) =>
-        plain(e.textContent),
-      );
+      const messages = [
+        ...container.querySelectorAll("[data-slot=address-field-error]"),
+      ].map((e) => plain(e.textContent));
       expect(messages).toEqual([
         plain(
           formatMessage(
@@ -755,9 +961,20 @@ describe("AddressForm", () => {
             htmlLang(locale),
           ),
         ),
-        plain(formatMessage(copy.errors.postalCode.zip, { example: "95014" }, htmlLang(locale))),
+        plain(
+          formatMessage(
+            copy.errors.postalCode.zip,
+            { example: "95014" },
+            htmlLang(locale),
+          ),
+        ),
       ]);
-      expect(plain(container.querySelector("[data-slot=address-form-status]")?.textContent)).toBe(
+      expect(
+        plain(
+          container.querySelector("[data-slot=address-form-status]")
+            ?.textContent,
+        ),
+      ).toBe(
         plain(formatMessage(copy.summary, { count: 2 }, htmlLang(locale))),
       );
     });
@@ -766,7 +983,9 @@ describe("AddressForm", () => {
   describe("sending", () => {
     it("keeps the button, named for what is happening, and stops it submitting twice", () => {
       setup("en", { status: "pending" });
-      const button = screen.getByRole("button", { name: "Saving…" }) as HTMLButtonElement;
+      const button = screen.getByRole("button", {
+        name: "Saving…",
+      }) as HTMLButtonElement;
       expect(button.type).toBe("button");
       // Base UI's focusableWhenDisabled: aria-disabled, so it stays in the tab order.
       expect(button.getAttribute("aria-disabled")).toBe("true");
@@ -789,7 +1008,9 @@ describe("AddressForm", () => {
           status="pending"
         />,
       );
-      expect(container.querySelector("[data-slot=address-form-status]")).toBe(region);
+      expect(container.querySelector("[data-slot=address-form-status]")).toBe(
+        region,
+      );
       expect(region?.textContent).toBe("Saving…");
     });
 
@@ -804,12 +1025,18 @@ describe("AddressForm", () => {
         expect(input.readOnly, input.name).toBe(true);
         expect(input.disabled, input.name).toBe(false);
       }
-      expect((control(container, "address1") as HTMLInputElement).value).toBe("482 Maple Avenue");
-      expect(control(container, "countryCode").getAttribute("aria-disabled")).toBe("true");
+      expect((control(container, "address1") as HTMLInputElement).value).toBe(
+        "482 Maple Avenue",
+      );
+      expect(
+        control(container, "countryCode").getAttribute("aria-disabled"),
+      ).toBe("true");
     });
 
     it("has no submit button that works: a click and Enter both do nothing", async () => {
-      const onSubmit = vi.fn((event: React.FormEvent) => event.preventDefault());
+      const onSubmit = vi.fn((event: React.FormEvent) =>
+        event.preventDefault(),
+      );
       const user = userEvent.setup();
       const { container } = setup("en", {
         status: "pending",
@@ -821,10 +1048,14 @@ describe("AddressForm", () => {
       await user.keyboard("{Enter}");
       expect(onSubmit).not.toHaveBeenCalled();
       // The first submit button is a disabled one, which is what stops Enter in a browser.
-      const first = container.querySelector<HTMLButtonElement>('button[type="submit"]');
+      const first = container.querySelector<HTMLButtonElement>(
+        'button[type="submit"]',
+      );
       expect(first?.disabled).toBe(true);
       expect(first?.hidden).toBe(true);
-      expect(container.querySelectorAll('button[type="submit"]:not([disabled])')).toHaveLength(0);
+      expect(
+        container.querySelectorAll('button[type="submit"]:not([disabled])'),
+      ).toHaveLength(0);
     });
 
     it("keeps the country while it is being sent", async () => {
@@ -853,13 +1084,17 @@ describe("AddressForm", () => {
       const { rerender } = render(<AddressForm {...props} />);
       screen.getByRole("button", { name: "Save address" }).focus();
       rerender(<AddressForm {...props} status="pending" />);
-      expect(document.activeElement).toBe(screen.getByRole("button", { name: "Saving…" }));
+      expect(document.activeElement).toBe(
+        screen.getByRole("button", { name: "Saving…" }),
+      );
       await user.tab();
     });
 
     it("takes the button's text from the step it is in", () => {
       setup("en", { submitLabel: "Continue to delivery" });
-      expect(screen.getByRole("button", { name: "Continue to delivery" })).toBeTruthy();
+      expect(
+        screen.getByRole("button", { name: "Continue to delivery" }),
+      ).toBeTruthy();
     });
   });
 
@@ -884,15 +1119,25 @@ describe("AddressForm", () => {
         "postalCode",
         "phone",
       ]);
-      expect((control(container, "firstName") as HTMLInputElement).value).toBe("Eleni");
-      expect((control(container, "address1") as HTMLInputElement).value).toBe("Makariou 45");
-      expect((control(container, "city") as HTMLInputElement).value).toBe("Nicosia");
+      expect((control(container, "firstName") as HTMLInputElement).value).toBe(
+        "Eleni",
+      );
+      expect((control(container, "address1") as HTMLInputElement).value).toBe(
+        "Makariou 45",
+      );
+      expect((control(container, "city") as HTMLInputElement).value).toBe(
+        "Nicosia",
+      );
       // The labels, the required marks and the tokens are the new country's.
       expect(labelText(control(container, "province"))).toBe("State");
       expect(labelText(control(container, "postalCode"))).toBe("ZIP code");
       expect(control(container, "province").required).toBe(true);
-      expect(control(container, "postalCode").getAttribute("pattern")).toContain("\\d{5}");
-      expect(control(container, "postalCode").getAttribute("autocomplete")).toBe("postal-code");
+      expect(
+        control(container, "postalCode").getAttribute("pattern"),
+      ).toContain("\\d{5}");
+      expect(
+        control(container, "postalCode").getAttribute("autocomplete"),
+      ).toBe("postal-code");
     });
 
     it("reorders the fields the two countries share, without losing their text", async () => {
@@ -905,9 +1150,17 @@ describe("AddressForm", () => {
       await user.selectOptions(control(container, "countryCode"), "us");
       // Switzerland puts the company first, the United States after the name: same node, new place.
       expect(control(container, "company")).toBe(company);
-      expect(fieldNames(container).slice(1, 4)).toEqual(["firstName", "lastName", "company"]);
-      expect((control(container, "company") as HTMLInputElement).value).toBe("Atelier AG");
-      expect((control(container, "lastName") as HTMLInputElement).value).toBe("Meier");
+      expect(fieldNames(container).slice(1, 4)).toEqual([
+        "firstName",
+        "lastName",
+        "company",
+      ]);
+      expect((control(container, "company") as HTMLInputElement).value).toBe(
+        "Atelier AG",
+      );
+      expect((control(container, "lastName") as HTMLInputElement).value).toBe(
+        "Meier",
+      );
     });
 
     it("gives a field back its text when the shopper returns to the country that has it", async () => {
@@ -917,20 +1170,26 @@ describe("AddressForm", () => {
       await user.selectOptions(control(container, "countryCode"), "de");
       expect(container.querySelector('[name="province"]')).toBeNull();
       await user.selectOptions(control(container, "countryCode"), "us");
-      expect((control(container, "province") as HTMLInputElement).value).toBe("NY");
+      expect((control(container, "province") as HTMLInputElement).value).toBe(
+        "NY",
+      );
     });
 
     it("keeps focus on the select, and says once that the fields changed", async () => {
       const user = userEvent.setup();
       const { container } = setup("en", { values: { countryCode: "cy" } });
-      const status = container.querySelector("[data-slot=address-form-country-status]");
+      const status = container.querySelector(
+        "[data-slot=address-form-country-status]",
+      );
       expect(status?.getAttribute("role")).toBe("status");
       expect(status?.getAttribute("aria-live")).toBe("polite");
       expect(status?.textContent).toBe("");
       const select = control(container, "countryCode");
       await user.selectOptions(select, "gb");
       expect(document.activeElement).toBe(select);
-      expect(container.querySelector("[data-slot=address-form-country-status]")).toBe(status);
+      expect(
+        container.querySelector("[data-slot=address-form-country-status]"),
+      ).toBe(status);
       expect(status?.textContent).toBe(
         "The address fields now follow the format for United Kingdom.",
       );
@@ -945,7 +1204,9 @@ describe("AddressForm", () => {
       expect(container.querySelectorAll("[aria-invalid=true]")).toHaveLength(2);
       await user.selectOptions(control(container, "countryCode"), "de");
       expect(container.querySelectorAll("[aria-invalid]")).toHaveLength(0);
-      expect(container.querySelector("[data-slot=address-field-error]")).toBeNull();
+      expect(
+        container.querySelector("[data-slot=address-field-error]"),
+      ).toBeNull();
       // Back to the country the server drew: its errors are about it, and are back.
       await user.selectOptions(control(container, "countryCode"), "us");
       expect(container.querySelectorAll("[aria-invalid=true]")).toHaveLength(2);
@@ -955,7 +1216,9 @@ describe("AddressForm", () => {
       const { container, rerender } = setup("en", {
         values: { countryCode: "us", id: "addr_1", firstName: "Jordan" },
       });
-      fireEvent.change(control(container, "firstName"), { target: { value: "Typed over" } });
+      fireEvent.change(control(container, "firstName"), {
+        target: { value: "Typed over" },
+      });
       const props = {
         countries: SEEDED,
         copy: catalogs.en.molecules.addressForm,
@@ -968,11 +1231,18 @@ describe("AddressForm", () => {
         />,
       );
       // The same address: what the shopper typed stays.
-      expect((control(container, "firstName") as HTMLInputElement).value).toBe("Typed over");
-      rerender(
-        <AddressForm {...props} values={{ countryCode: "us", id: "addr_2", firstName: "Lena" }} />,
+      expect((control(container, "firstName") as HTMLInputElement).value).toBe(
+        "Typed over",
       );
-      expect((control(container, "firstName") as HTMLInputElement).value).toBe("Lena");
+      rerender(
+        <AddressForm
+          {...props}
+          values={{ countryCode: "us", id: "addr_2", firstName: "Lena" }}
+        />,
+      );
+      expect((control(container, "firstName") as HTMLInputElement).value).toBe(
+        "Lena",
+      );
     });
   });
 
@@ -1020,12 +1290,20 @@ describe("AddressForm", () => {
 
     it("has every country the form offers as an option, so the server can be sent any of them", () => {
       const html = markup();
-      for (const country of SEEDED) expect(html).toContain(`value="${country}"`);
+      for (const country of SEEDED)
+        expect(html).toContain(`value="${country}"`);
     });
 
     it("marks the fields as required in the markup the browser validates", () => {
       const html = markup({ values: { countryCode: "us" } });
-      for (const field of ["firstName", "lastName", "address1", "city", "province", "postalCode"])
+      for (const field of [
+        "firstName",
+        "lastName",
+        "address1",
+        "city",
+        "province",
+        "postalCode",
+      ])
         expect(html, field).toMatch(
           new RegExp(
             `<input[^>]*name="${field}"[^>]*required|<input[^>]*required[^>]*name="${field}"`,
@@ -1039,11 +1317,72 @@ describe("AddressForm", () => {
       expect(source).toContain('from "./address-form-fields"');
       expect(clientSource).toMatch(/^"use client";/m);
       // It may name types from @shopblok/i18n, never its code (the formats, the catalogs, ICU).
-      const imports = [...clientSource.matchAll(/^import (type )?[^;]*? from "([^"]+)";/gms)];
+      const imports = [
+        ...clientSource.matchAll(/^import (type )?[^;]*? from "([^"]+)";/gms),
+      ];
       for (const [, isType, from] of imports) {
         if (from === "@shopblok/i18n") expect(isType, from).toBe("type ");
         expect(from).not.toMatch(/intl-messageformat|address-format|messages/);
       }
+    });
+  });
+
+  describe("typed before hydration (T58)", () => {
+    const element = (
+      <AddressForm
+        countries={SEEDED}
+        values={{ countryCode: "us" }}
+        copy={catalogs.en.molecules.addressForm}
+        locale="en-US"
+        action="/api/address"
+      />
+    );
+
+    /** The server's markup, `before` done to it as a shopper would before the scripts run, then hydrated. */
+    async function hydrate(before: (container: HTMLElement) => void) {
+      const container = document.createElement("div");
+      document.body.append(container);
+      container.innerHTML = renderToString(element);
+      before(container);
+      const onRecoverableError = vi.fn();
+      await act(async () => {
+        hydrateRoot(container, element, { onRecoverableError });
+      });
+      expect(onRecoverableError).not.toHaveBeenCalled();
+      return container;
+    }
+
+    it("keeps a field typed before hydration when another field is typed in afterwards", async () => {
+      const container = await hydrate((root) => {
+        (control(root, "firstName") as HTMLInputElement).value = "Maria";
+      });
+      expect(control(container, "firstName").value).toBe("Maria");
+      // The next render of the fields: before T58 it wrote the hydrated state (empty) back.
+      fireEvent.change(control(container, "lastName"), {
+        target: { value: "Georgiou" },
+      });
+      expect(control(container, "firstName").value).toBe("Maria");
+      expect(control(container, "lastName").value).toBe("Georgiou");
+      container.remove();
+    });
+
+    it("follows a country chosen before hydration, keeping what was typed", async () => {
+      const container = await hydrate((root) => {
+        (control(root, "firstName") as HTMLInputElement).value = "Noah";
+        (control(root, "countryCode") as HTMLSelectElement).value = "ch";
+      });
+      expect(control(container, "countryCode").value).toBe("ch");
+      // Switzerland's fields: no state or province, the postal code with its prefix.
+      expect(container.querySelector(`[name="province"]`)).toBeNull();
+      expect(
+        container.querySelector('[data-slot="address-field-prefix"]')
+          ?.textContent,
+      ).toBe("CH-");
+      fireEvent.change(control(container, "city"), {
+        target: { value: "Zürich" },
+      });
+      expect(control(container, "firstName").value).toBe("Noah");
+      container.remove();
     });
   });
 
@@ -1074,7 +1413,9 @@ describe("AddressForm", () => {
     });
 
     it("submits with the button and with Enter in a field, once the required fields are filled", async () => {
-      const onSubmit = vi.fn((event: React.FormEvent) => event.preventDefault());
+      const onSubmit = vi.fn((event: React.FormEvent) =>
+        event.preventDefault(),
+      );
       const user = userEvent.setup();
       const { container } = setup("en", {
         onSubmit,
@@ -1088,7 +1429,9 @@ describe("AddressForm", () => {
     });
 
     it("lets the browser hold a postal code to its pattern, in the page's own words for the bubble", () => {
-      const { container } = setup("en", { values: { countryCode: "de", postalCode: "1234" } });
+      const { container } = setup("en", {
+        values: { countryCode: "de", postalCode: "1234" },
+      });
       const input = control(container, "postalCode") as HTMLInputElement;
       expect(input.title).toBe("Enter a postal code like 26133.");
       expect(input.getAttribute("pattern")).toBe("\\d{5}");
@@ -1098,10 +1441,16 @@ describe("AddressForm", () => {
   describe("sizes and long labels", () => {
     it("makes every control at least 44 px high (D32)", () => {
       const { container } = setup("en", { values: { countryCode: "us" } });
-      for (const input of container.querySelectorAll("input:not([type=hidden])"))
-        expect(input.className, (input as HTMLInputElement).name).toContain("h-11");
+      for (const input of container.querySelectorAll(
+        "input:not([type=hidden])",
+      ))
+        expect(input.className, (input as HTMLInputElement).name).toContain(
+          "h-11",
+        );
       expect(control(container, "countryCode").className).toContain("h-11");
-      expect(screen.getByRole("button", { name: "Save address" }).className).toContain("min-h-11");
+      expect(
+        screen.getByRole("button", { name: "Save address" }).className,
+      ).toContain("min-h-11");
     });
 
     it("uses the focus ring at full strength on the fields and the button", () => {
@@ -1115,12 +1464,16 @@ describe("AddressForm", () => {
         expect(element.className).not.toMatch(/ring-ring\/\d/);
       }
       // The postal code with a prefix sits in a group that draws the ring around both.
-      expect(container.querySelector("[data-slot=input-group]")?.className).toContain("ring-ring");
+      expect(
+        container.querySelector("[data-slot=input-group]")?.className,
+      ).toContain("ring-ring");
     });
 
     it("lays the fields out by container: stacked below 28 rem, on the format's rows above it", () => {
       const { container } = setup("en", { values: { countryCode: "us" } });
-      expect(container.querySelector("form")?.className).toContain("@container");
+      expect(container.querySelector("form")?.className).toContain(
+        "@container",
+      );
       const cell = (name: string) =>
         container.querySelector(`[data-field="${name}"]`)?.className ?? "";
       for (const name of ["firstName", "company", "address1", "city", "phone"])
@@ -1132,12 +1485,12 @@ describe("AddressForm", () => {
         expect(cell(name), name).toContain("@md:col-span-2");
       // A postal code beside a city takes a third, and the city the rest.
       const de = setup("en", { values: { countryCode: "de" } });
-      expect(de.container.querySelector('[data-field="postalCode"]')?.className).toContain(
-        "@md:col-span-2",
-      );
-      expect(de.container.querySelector('[data-field="city"]')?.className).toContain(
-        "@md:col-span-4",
-      );
+      expect(
+        de.container.querySelector('[data-field="postalCode"]')?.className,
+      ).toContain("@md:col-span-2");
+      expect(
+        de.container.querySelector('[data-field="city"]')?.className,
+      ).toContain("@md:col-span-4");
     });
 
     it.each(["de", "el"] as const)(
@@ -1146,12 +1499,18 @@ describe("AddressForm", () => {
         const { long, market } = commerceFixtures[locale];
         const { container } = setup(locale, {
           values: { ...long.address, countryCode: market.country },
-          errors: { postalCode: "pattern", address1: "required", city: "invalid" },
+          errors: {
+            postalCode: "pattern",
+            address1: "required",
+            city: "invalid",
+          },
           status: "error",
           submitLabel: long.shippingOption.name,
         });
         for (const element of container.querySelectorAll("*")) {
-          expect(String(element.getAttribute("class") ?? "")).not.toMatch(CLIPPING_CLASSES);
+          expect(String(element.getAttribute("class") ?? "")).not.toMatch(
+            CLIPPING_CLASSES,
+          );
         }
         // The whole value is in the field, however long, and the field says it scrolls.
         const address1 = control(container, "address1") as HTMLInputElement;
@@ -1167,25 +1526,37 @@ describe("AddressForm", () => {
   });
 
   describe("the copy", () => {
-    it.each(LOCALES)("reads in %s: form, note, country, fields and button", (locale) => {
-      const copy = catalogs[locale].molecules.addressForm;
-      const { container } = setup(locale, {
-        countries: withJapan,
-        values: { countryCode: commerceFixtures[locale].market.country },
-        section: "shipping",
-      });
-      expect(screen.getByRole("form", { name: copy.label.shipping })).toBeTruthy();
-      expect(screen.getByText(copy.requiredNote)).toBeTruthy();
-      expect(screen.getByLabelText(copy.countryLabel)).toBeTruthy();
-      expect(labelText(control(container, "phone"))).toBe(`${copy.labels.phone} ${copy.optional}`);
-      expect(screen.getByRole("button", { name: copy.submit })).toBeTruthy();
-    });
+    it.each(LOCALES)(
+      "reads in %s: form, note, country, fields and button",
+      (locale) => {
+        const copy = catalogs[locale].molecules.addressForm;
+        const { container } = setup(locale, {
+          countries: withJapan,
+          values: { countryCode: commerceFixtures[locale].market.country },
+          section: "shipping",
+        });
+        expect(
+          screen.getByRole("form", { name: copy.label.shipping }),
+        ).toBeTruthy();
+        expect(screen.getByText(copy.requiredNote)).toBeTruthy();
+        expect(screen.getByLabelText(copy.countryLabel)).toBeTruthy();
+        expect(labelText(control(container, "phone"))).toBe(
+          `${copy.labels.phone} ${copy.optional}`,
+        );
+        expect(screen.getByRole("button", { name: copy.submit })).toBeTruthy();
+      },
+    );
 
-    it.each(LOCALES)("names every country in %s through Intl, not a table of ours", (locale) => {
-      const { container } = setup(locale, { countries: withJapan });
-      for (const option of container.querySelectorAll("option")) {
-        expect(option.textContent).toBe(countryName(option.value, htmlLang(locale)));
-      }
-    });
+    it.each(LOCALES)(
+      "names every country in %s through Intl, not a table of ours",
+      (locale) => {
+        const { container } = setup(locale, { countries: withJapan });
+        for (const option of container.querySelectorAll("option")) {
+          expect(option.textContent).toBe(
+            countryName(option.value, htmlLang(locale)),
+          );
+        }
+      },
+    );
   });
 });

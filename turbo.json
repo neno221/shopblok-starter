@@ -26,7 +26,7 @@
       // `PAYLOAD_SECRET` or a `MEDUSA_BACKEND_URL` from the shell would never reach `next dev`.
       // (`NEXT_PUBLIC_*` is listed by Turborepo's Next.js inference.) A `.env` file worked already:
       // Next loads it itself.
-      "passThroughEnv": ["PAYLOAD_*", "MEDUSA_BACKEND_URL"]
+      "passThroughEnv": ["PAYLOAD_*", "MEDUSA_BACKEND_URL", "STOREFRONT_*"]
     },
     "transit": {
       "dependsOn": ["^transit"]

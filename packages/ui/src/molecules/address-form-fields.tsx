@@ -9,14 +9,23 @@
 // field that two countries share keeps its place in the page, its focus and its value across a
 // swap; the typed values live here, so a field that goes and comes back has its text again. A row
 // of the format is a run of cells that add up to a full row from 28 rem of form width (a
-// container query: the form decides, not the viewport) and stacks below it.
+// container query: the form decides, not the viewport) and stacks below it. What a shopper types
+// before hydration is adopted once the fields hydrate (T58): React keeps such text in the page but
+// not in this state, so the next render (a keystroke in another field) would empty the field.
 "use client";
 
 import type { AddressFieldName } from "@shopblok/i18n";
 import { Input } from "@shopblok/ui/atoms/input";
-import { NativeSelect, NativeSelectOption } from "@shopblok/ui/atoms/native-select";
+import {
+  NativeSelect,
+  NativeSelectOption,
+} from "@shopblok/ui/atoms/native-select";
 import { cn } from "@shopblok/ui/lib/utils";
-import { Field, FieldDescription, FieldLabel } from "@shopblok/ui/primitives/field";
+import {
+  Field,
+  FieldDescription,
+  FieldLabel,
+} from "@shopblok/ui/primitives/field";
 import {
   InputGroup,
   InputGroupAddon,
@@ -24,7 +33,7 @@ import {
   InputGroupText,
 } from "@shopblok/ui/primitives/input-group";
 import { CircleAlertIcon } from "lucide-react";
-import { useId, useState } from "react";
+import { useId, useLayoutEffect, useRef, useState } from "react";
 import type * as React from "react";
 
 /** A field the form posts: Medusa's address fields (what a country's format picks from) and the phone. */
@@ -145,7 +154,10 @@ function AddressField({
   const hintId = `${id}-hint`;
   const errorId = `${id}-error`;
   const hint = name === "postalCode" ? postalCode?.hint : undefined;
-  const describedBy = [hint === undefined ? null : hintId, error === undefined ? null : errorId]
+  const describedBy = [
+    hint === undefined ? null : hintId,
+    error === undefined ? null : errorId,
+  ]
     .filter(Boolean)
     .join(" ");
   const common = {
@@ -160,7 +172,8 @@ function AddressField({
     // A value longer than the box scrolls inside it: the design system's clipping check is told.
     "data-truncate": "",
     spellCheck: false,
-    onChange: (event: React.ChangeEvent<HTMLInputElement>) => onValueChange(event.target.value),
+    onChange: (event: React.ChangeEvent<HTMLInputElement>) =>
+      onValueChange(event.target.value),
   };
   const postal = name === "postalCode" ? postalCode : undefined;
   return (
@@ -173,7 +186,9 @@ function AddressField({
       <FieldLabel htmlFor={inputId} className="flex-wrap">
         {label}{" "}
         {required ? null : (
-          <span className="font-normal text-muted-foreground">{optionalMark}</span>
+          <span className="font-normal text-muted-foreground">
+            {optionalMark}
+          </span>
         )}
       </FieldLabel>
       {name === "phone" ? (
@@ -217,7 +232,10 @@ function AddressField({
           data-slot="address-field-error"
           className="flex items-start gap-2 text-sm leading-snug text-destructive"
         >
-          <CircleAlertIcon aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+          <CircleAlertIcon
+            aria-hidden="true"
+            className="mt-0.5 size-4 shrink-0"
+          />
           <span className="min-w-0 wrap-break-word">{error}</span>
         </p>
       )}
@@ -240,7 +258,36 @@ function AddressFormFields({
   const [country, setCountry] = useState(startCountry);
   const [values, setValues] = useState(startValues);
   const [announcement, setAnnouncement] = useState("");
-  const view = countries.find((candidate) => candidate.code === country) ?? countries[0];
+  const grid = useRef<HTMLDivElement>(null);
+  // T58: a field typed in (or a country chosen) before hydration keeps its text in the page, but
+  // React hydrates the state from the server's values, and the next render of a controlled field
+  // writes that state back: the text the shopper typed is gone (W5, `next dev` on the PC). Once,
+  // when the fields hydrate, the state takes what the page holds. A client render's page holds the
+  // state's own values, so this changes nothing there. Before paint, so nothing flickers.
+  useLayoutEffect(() => {
+    const root = grid.current;
+    if (root === null) return;
+    const typed: Partial<Record<AddressInputName, string>> = {};
+    for (const input of root.querySelectorAll<HTMLInputElement>(
+      "input[name]",
+    )) {
+      const name = input.name as AddressInputName;
+      if (input.value !== (startValues[name] ?? "")) typed[name] = input.value;
+    }
+    if (Object.keys(typed).length > 0)
+      setValues((current) => ({ ...current, ...typed }));
+    const chosen = root.querySelector<HTMLSelectElement>(
+      'select[name="countryCode"]',
+    )?.value;
+    const next = countries.find((candidate) => candidate.code === chosen);
+    if (next !== undefined && next.code !== startCountry) {
+      setCountry(next.code);
+      setAnnouncement(next.announcement);
+    }
+    // Once, on hydration: later changes reach the state through the fields' own handlers.
+  }, []);
+  const view =
+    countries.find((candidate) => candidate.code === country) ?? countries[0];
   if (view === undefined) return null;
   const token = (field: AddressFormField) =>
     section === undefined ? TOKENS[field] : `${section} ${TOKENS[field]}`;
@@ -252,7 +299,7 @@ function AddressFormFields({
   const selectErrorId = `${id}-country-error`;
   return (
     <div data-slot="address-form-fields" className="@container w-full min-w-0">
-      <div className="grid grid-cols-6 gap-x-3 gap-y-4">
+      <div ref={grid} className="grid grid-cols-6 gap-x-3 gap-y-4">
         <Field
           data-slot="address-field"
           data-field="countryCode"
@@ -266,14 +313,18 @@ function AddressFormFields({
             required
             autoComplete={token("countryCode")}
             aria-invalid={shown.countryCode === undefined ? undefined : true}
-            aria-describedby={shown.countryCode === undefined ? undefined : selectErrorId}
+            aria-describedby={
+              shown.countryCode === undefined ? undefined : selectErrorId
+            }
             aria-disabled={readOnly ? true : undefined}
             value={country}
             className="w-full"
             onChange={(event) => {
               // A form being sent keeps its country, as its text fields keep theirs.
               if (readOnly) return;
-              const next = countries.find((candidate) => candidate.code === event.target.value);
+              const next = countries.find(
+                (candidate) => candidate.code === event.target.value,
+              );
               if (next === undefined) return;
               setCountry(next.code);
               setAnnouncement(next.announcement);
@@ -291,8 +342,13 @@ function AddressFormFields({
               data-slot="address-field-error"
               className="flex items-start gap-2 text-sm leading-snug text-destructive"
             >
-              <CircleAlertIcon aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
-              <span className="min-w-0 wrap-break-word">{shown.countryCode}</span>
+              <CircleAlertIcon
+                aria-hidden="true"
+                className="mt-0.5 size-4 shrink-0"
+              />
+              <span className="min-w-0 wrap-break-word">
+                {shown.countryCode}
+              </span>
             </p>
           )}
         </Field>
@@ -341,4 +397,9 @@ function AddressFormFields({
 }
 
 export { AddressFormFields, TOKENS };
-export type { AddressFormCountryView, AddressFormField, AddressFormFieldsProps, AddressInputName };
+export type {
+  AddressFormCountryView,
+  AddressFormField,
+  AddressFormFieldsProps,
+  AddressInputName,
+};
