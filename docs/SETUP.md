@@ -6108,4 +6108,15 @@ G8 is unanswered, so `renovate.json` stays as it is. #35 (Mailpit 1.31.6) is tak
 
 ### CI times before M4
 
-Filled in from this PR's CI run before the merge.
+This PR's run 40725427712 on `6745718`, every job running (D87 item 3: T71 compares M4's end against it). The fixes after the review changed docs, a comment and the migration check's loop, which ran once in 3 s here.
+
+| Job | Before M4 | Of which |
+|---|---|---|
+| `gate` | 14 s | |
+| `check` (Node 22) | 6:55 | the generated-files check 6 s, typecheck 33 s, lint 24 s, test 3:40, build 1:17; Node 24's leg 5:14 |
+| `backend-integration` | 1:49 | tests 50 s |
+| `e2e-smoke` | 9:08 | bootstrap 35 s, the migration check 3 s, build 1:12, the suites 1:58, the outage 35 s, the console in `next dev` 1:40 |
+| `design-system` | 24:15 | the checks 13:33, the DS console in `next dev` 8:04, the build 1:01 |
+| `windows-smoke` | 9:23 | test 4:52, build 1:28 (it ran because `package.json` changed) |
+
+The run's wall clock is the `design-system` job's, 24 min, as in M3.
