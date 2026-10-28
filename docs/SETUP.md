@@ -6070,3 +6070,15 @@ T51's review table (PR 71, items 1 and 6) spoke of "M4's instant search": both n
 | `checkout-cy.spec.ts`'s new test, `next dev` | passes with the fix, fails without |
 | `STOREFRONT_LISTING_PAGE_SIZE=2 pnpm dev` | 2 cards on `/store` with the change, 8 without |
 | `checkout-cy.spec.ts` and `checkout-us.spec.ts` against `next build && next start` and Medusa (as `e2e-smoke`) | 9 of 9, the new test in 3.5 s |
+
+### Code review (PR 88)
+
+No correctness finding in the fix or the tests. One must-fix and four optional items, all cleanups, all fixed.
+
+| # | Finding | Fix |
+|---|---|---|
+| 1 (must-fix) | T51's table credited the later module cache to T58 | "(T58)" dropped |
+| 2 | Three files were formatted at Prettier's default 80 columns (the session ran `prettier` from a package, where no config is found), not the preset's 100 | Back to `main`'s formatting with only T58's lines added; run `pnpm exec prettier --config packages/config/prettier.config.mjs` |
+| 3 | `turbo.json`'s comment did not name `STOREFRONT_*`, and a shell's `STOREFRONT_URL` now reaches the backend too | The comment, and the note in "`STOREFRONT_*` in `next dev`" above |
+| 4 | "Once, on hydration" was not accurate: the layout effect runs again when `<Activity>` shows the page, and twice under StrictMode | The comment and "The fix" say so; the effect changes nothing there |
+| 5 | The spec's hydration probe used an unscoped locator | It uses the scoped `firstName` |
