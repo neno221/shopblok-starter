@@ -55,7 +55,7 @@ describe("the import and export collections are admins' only (D77)", () => {
     expect(hidden({ user: admin })).toBe(false);
     expect(exports.admin?.useAsTitle).toBe("name");
     const upload = exports.upload as { staticDir: string; filesRequiredOnCreate: boolean };
-    expect(upload.staticDir).toMatch(/apps\/storefront\/media\/exports$/);
+    expect(upload.staticDir).toMatch(/apps[\\/]storefront[\\/]media[\\/]exports$/);
     expect(upload.filesRequiredOnCreate).toBe(false);
   });
 });
