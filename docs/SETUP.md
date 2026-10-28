@@ -12,7 +12,7 @@ Nothing here needs a third-party account: Stripe, Resend, PostHog, Sentry and Cl
 
 | | Needed | Check |
 |---|---|---|
-| Node | 22.22 or newer on the 22 line (`.nvmrc` says `22`; `engines` is `>=22.22.0 <25`). Node 24 works and runs as an informational leg in CI | `node -v` |
+| Node | 22.23.4 or newer on the 22 line (`.nvmrc` says `v22.23.4`; `engines` is `>=22.23.4 <25`, the floor Payload 3.92 sets: "Versions and CI for M4 (T57)"). Node 24 works and runs as an informational leg in CI. Nothing refuses an older Node (pnpm only warns, and Payload 3.92.1 ran on 22.23.3), but nothing is tested on one either | `node -v` |
 | pnpm | **12.10.1**, installed with `npm install -g pnpm@12.10.1`. Not Corepack: Corepack 0.34 cannot run pnpm 12 | `pnpm -v` prints `12.10.1` inside the repo |
 | Corepack | **Off**: `corepack disable` (on Windows from an **administrator** terminal, because the shims it leaves are in `C:\Program Files\nodejs`). If a machine ever ran `corepack enable`, plain `pnpm` fails with `Cannot find module '…\corepack\v1\pnpm\12.10.1\bin\pnpm.cjs'` | `where pnpm` (Windows) or `which pnpm`: the first hit must be the npm-global pnpm, not a Corepack shim |
 | Docker | Docker Desktop (Windows, macOS) or Docker Engine (Linux), **running**, with Compose v2.20 or newer (the root `compose.yaml` uses `include`) | `docker info`, `docker compose version` |
