@@ -5885,7 +5885,7 @@ The run's wall clock is the `design-system` job's, as before M3; `e2e-smoke` rou
 | 11 | Leftovers closed | Met (T45, T48, T52) |
 | 12 | CI | Met: the times are above; `design-system` has 134 entries; the gate treats `packages/ui/src/templates/` as DS-only until a route imports it |
 | 13 | Green | Met when this PR merges: it merges only once its PR run and its dispatched run (every job, `windows-smoke` included) are green on the same commit |
-| 14 | W5 | **Open**: on Stephanos's PC; NEXT-SESSION.md has the prompt |
+| 14 | W5 | **Open** at T56; after W5's second run (2026-10-28), met except finding 3's check on the PC ("Windows check and design review (W5)") |
 | 15 | Docs | Met by this PR |
 
 ### Checks
@@ -5953,14 +5953,14 @@ Two must-fix items, both fixed; of the seven optional ones, item 3 (security) an
 
 ## Windows check and design review (W5)
 
-**State: in progress: steps 3 (DS checks) to 5 run again after the W5 fixes.** The owner stopped the PC checks on 2026-10-28 to finish them once the four fixes below have merged in the cloud. What ran, in `E:\shopblok-starter` on `main` at `b5b68b7` (PR 84's merge):
+**Result: step 3's DS checks, step 4's outage (O4 as CI runs it) and step 5 pass on the PC, and three of the four design-review findings are checked fixed there; finding 3 (the return form) waits for its check on the PC** ("Second run" below). The first run stopped on 2026-10-28 so that the four W5 fixes (PR 85, "W5 fixes" above) could merge; the second run, the same day, ran on `w5-windows-check` with `main` at `3ea1f34` merged in. What the first run did, in `E:\shopblok-starter` on `main` at `b5b68b7` (PR 84's merge):
 - **Shop pages (step 1).** In `next dev`, `/`, `/us`, `/de` and `/ch/fr` at 375, 768 and 1440 px: 440 checks, **no horizontal overflow**. They covered the catalog pages, the search page and overlay, the four auth pages, a guest purchase in each market from the drawer to the receipt, the switcher, the suggestion banner and the eleven account pages of a verified account. The only console messages were three dev-only errors (finding 2), and the only failed requests were the twelve expected 404s of the return form (finding 3).
 - **DS pages (step 2).** The 12 Templates and a sample of 16 other entries in `en`, `de`, `fr` and `el`: 452 loads, all 200, clean.
 - **Design review.** The owner's design review is done. The four odd things from step 1 go to a cloud fix task (the owner's answer, 2026-10-28), so W5 has open items.
 - **CI's state (step 3).** `typecheck`, `lint` and `build` pass. **`pnpm test` failed twice on 5 s time-outs** (different tests each run, all in the storefront); each package passes on its own.
 - **DS builds (step 3).** The flagged build serves the DS, and its checks pass (**798 of 798**, `--ignore-snapshots`). The unflagged build answers 404 for it. `/robots.txt` is a plain-text 404 and `/favicon.ico` 200 in both builds.
 - **Step 4, partly.** T54's four suites pass against the PC's stack (13 of 13). The outage's O2, O3 and `/next/status` answers are right; O4 is to do again (below).
-- **Not run:** the rest of step 4 and step 5.
+- **Not run in the first run:** the rest of step 4 and step 5 (both in the second run).
 
 | | |
 |---|---|
@@ -5983,27 +5983,48 @@ Two must-fix items, both fixed; of the seven optional ones, item 3 (security) an
 
 At the stop, the session closed `next start` and Medusa and ran `docker compose down` (volumes kept). Ports 8000 and 9000 were closed, no process of the checkout was left, and both `.env` files were in place.
 
+### Second run (after the W5 fixes, 2026-10-28)
+
+A local Claude Code session again (the desktop app's Code tab, PowerShell, `$env:SWC_NATIVE_BINDING_CACHE` set in every command), started over Remote Control from the project's thread. `git fetch origin`, `w5-windows-check` checked out and `origin/main` (`3ea1f34`, PR 85) merged into it with a merge commit (one conflict, this file: both sections kept). `pnpm install` 5 s (lockfile unchanged). `docker compose up -d --wait` 9 s, four healthy; Stoa's stack running on its own ports, left alone. The servers ran in the background (`cmd /c "… > log 2>&1"`) and were stopped by their process trees' PIDs, except step 5's `pnpm dev`, which ran in the app's Terminal panel.
+
+| # | Check | Result | Key output |
+|---|---|---|---|
+| 3 | The DS checks against a flagged build, in CI's state | **Pass** | Both `.env` files moved to `E:\shopblok-starter-w5-env`. `$env:DESIGN_SYSTEM_ENABLED = 'true'`, `pnpm --filter @shopblok/storefront build` exit 0 in 150 s; `start`: `/design-system/en` **200**, `/design-system/en/templates/home` **200** (`text/html`), `/robots.txt` **404 `text/plain; charset=utf-8`**, `/favicon.ico` **200** `image/x-icon`. `$env:E2E_DESIGN_SYSTEM = 'true'; pnpm --filter @shopblok/storefront test:e2e --project=design-system --ignore-snapshots`: **798 passed (21.2 min)**, exit 0, PR 85's header and template cells among them. 798, not 799: `--project=design-system` alone is what `--list` counts on this commit (the 21 thumbnails are a project of their own). Nothing failed only on Windows. The unflagged build was not repeated: PR 85 changed no route or flag, and the first run's 404s stand |
+| 4 | O4 as CI's `outage.spec.ts` does it | **Pass** | `.env` files back. Medusa: `cmd /c "pnpm --filter @shopblok/backend dev > E:\medusa.log 2>&1"`, `Server is ready on port: 9000 – 65222ms` (port 9000 owned by this checkout's `medusa … start`). Build with `$env:STOREFRONT_PRERENDER_PRODUCTS = '4'`: **exit 0 in 92 s, the first time** (Medusa answered `/health` 200 just before). `start` with `$env:E2E_TEST_ROUTES = 'true'`, `/next/status` 200. **Before the stop:** `/us/products/demo-tote-bag` (not built) **200** (1.27 s), `/us/products/no-such-product` **404** (0.19 s). Medusa stopped by its PID tree: port 9000 closed in 1.5 s. **During:** the tote bag **200** (11 ms, O2), `/us/products/demo-everyday-joggers` (never visited) **500** (O3), `/us/products/no-such-product` **404** (O4), `/next/status` **503 in 0.03 s** (`{"status":"unavailable","checks":{"medusa":"down","payload":"ok"}}`); a missing product never visited (`no-such-product-2`) answers 500, as in the first run. Past the route's 30 s `revalidate`, the tote bag **200** twice (D58: served stale). Medusa started again: `/next/status` **200** after 25 s, the joggers **200** (O5), `no-such-product` 404. Both servers stopped by PID; ports 8000 and 9000 closed |
+| 5 | `pnpm dev` once more: one `^C` leaves nothing behind | **Pass** | In the Terminal panel: `pnpm dev`, ports 8000 and 9000 listening after 25 s, `GET /` 200 in 22.3 s, `/health` 200; **16 processes** under the root `pnpm.exe`. **One `^C`:** `Shutting down Turborepo tasks...`, `Gracefully shutting down server`, `Terminate batch job (Y/N)?` once per task, `Tasks: 0 successful, 2 total`, the prompt back by itself. Then ports 8000 and 9000 closed, the root `pnpm.exe` gone, and **no process of the checkout** in `Get-CimInstance Win32_Process \| Where-Object CommandLine -like '*shopblok-starter*'` (only the editor's `tsserver` and the session's own shells) |
+
+**The four findings, checked again on the PC** (in a `pnpm dev` of its own, run in the background with its log in a file):
+
+| # | Check | Result |
+|---|---|---|
+| 1 | A new `/us` account's verification link opened in `pnpm dev` | **Fixed**: the notice reads "Your email address is verified. Sign in to finish creating your account." (the link read from the log's `customer-verification` line), and signing in then lands on `/us/account`. No `already used` line in the log |
+| 2 | "Next.js encountered" in `next dev`'s log after the catalog pages' first renders | **Fixed**: CI's `dev-console` project rendered `/`, `/us`, `/ch/fr`, `/us/store`, `/us/categories/apparel`, `/us/collections/summer-edit` and `/us/products/demo-classic-tee` with 0 console messages, and the re-check rendered the hoodie's page; the log has **0** "Next.js encountered" and 0 "Could not validate" lines. The project's two `page/2` routes answered 404 here: `STOREFRONT_LISTING_PAGE_SIZE=3` does not reach `next dev` through `pnpm dev` (turbo's strict env mode passes only `turbo.json`'s list; CI starts `next dev` directly), so with the default page size there is no page 2. Not a Windows failure; the paginated pages were not rendered here |
+| 3 | The return form of a fresh (unfulfilled) order shows the returns list | **Not checked on the PC.** The re-check registers a scratch account and places a test order in the local database. Its first run stopped before the order (in `next dev` the contact step's first name was emptied after it was typed, apparently by a late hydration, and the step stayed on `/checkout/contact`), and the session's permission check refused the rerun. PR 85's own checks cover it (the unit tests; `auth.spec.ts`'s other customer's return form, still the 404) |
+| 4 | The switcher's flag in the header row at 375 and 768 px | **Fixed**: in `/`, `/us`, `/de` and `/ch/fr`, one visible `market-switcher-trigger` in `header [data-slot="header-row"]`, **44 × 44** at 375 and 768 px (the full trigger, 236 to 273 × 44, at 1440), its flag drawn, its name the country, language and currency ("Χώρα και γλώσσα: Κύπρος, Ελληνικά, EUR"), no horizontal overflow |
+
+The second run left: `docker compose down` (volumes kept), both `.env` files in place, ports 8000 and 9000 closed, no process of the checkout, and `apps/storefront/src/payload-types.ts` restored (`next dev` rewrote it again). The scratch account `w5-recheck-…@example.com` (verified, a cart, no order) is in the local database; `pnpm infra:reset` removes it with the first run's.
+
 ### Design review (the owner's, the plan's W5 step 2)
 
 The owner did the review while steps 1 and 2 ran, with the session's list of odd things from step 1, and said on 2026-10-28 that it was done. Their answer for the four: **"fix all 4 in the cloud"**. Add a row for anything seen later.
 
 | What I saw | Fix task or accepted |
 |---|---|
-| 1. **The verification link says "This link no longer works" in `next dev`**, although it verified the address (signing in then works and creates the customer). `next dev` renders `/verify?code=…` twice per visit: the first render confirms the code (`POST /auth/verification/confirm` 200), the second is refused (`Verification code is invalid or already used`, 400), and the visitor sees the second. `next start` renders it once (`auth.spec.ts` passed in step 4). Separately, a link opened after about 15 minutes is refused as expired (Medusa's `Verification code has expired`), which is Medusa's own lifetime | fix task |
-| 2. **Three console errors in `next dev`**, each once, the first time a category, a product and a collection page are rendered: `Route "/[market]/categories/[...handle]"` (then `products/[handle]`, `collections/[handle]`) `: Next.js encountered URL data during prerendering or a navigation. params or searchParams accessed outside of <Suspense> may prevent the navigation from being instant …`. This is Next's dev-only check of instant navigations. `dev-console.spec.ts` opens only `/`, `/us`, `/ch/fr` and the 404s, so CI does not see it | fix task |
-| 3. **The return form is a 404 for an order with nothing to return.** `/account/returns/{id}` calls `notFound()` when `canReturn` is false, which is until something is fulfilled in Medusa's admin, so a fresh order's return form is the 404 page. That is T53's design; the fix task decides what the shopper should see instead | fix task |
-| 4. **At 375 and 768 px the country switcher is not in the header**, only in the footer and the menu; at 1440 px it is in the header too | fix task |
+| 1. **The verification link says "This link no longer works" in `next dev`**, although it verified the address (signing in then works and creates the customer). `next dev` renders `/verify?code=…` twice per visit: the first render confirms the code (`POST /auth/verification/confirm` 200), the second is refused (`Verification code is invalid or already used`, 400), and the visitor sees the second. `next start` renders it once (`auth.spec.ts` passed in step 4). Separately, a link opened after about 15 minutes is refused as expired (Medusa's `Verification code has expired`), which is Medusa's own lifetime | fix task: **fixed** (PR 85), checked on the PC in the second run |
+| 2. **Three console errors in `next dev`**, each once, the first time a category, a product and a collection page are rendered: `Route "/[market]/categories/[...handle]"` (then `products/[handle]`, `collections/[handle]`) `: Next.js encountered URL data during prerendering or a navigation. params or searchParams accessed outside of <Suspense> may prevent the navigation from being instant …`. This is Next's dev-only check of instant navigations. `dev-console.spec.ts` opens only `/`, `/us`, `/ch/fr` and the 404s, so CI does not see it | fix task: **fixed** (PR 85), checked on the PC in the second run |
+| 3. **The return form is a 404 for an order with nothing to return.** `/account/returns/{id}` calls `notFound()` when `canReturn` is false, which is until something is fulfilled in Medusa's admin, so a fresh order's return form is the 404 page. That is T53's design; the fix task decides what the shopper should see instead | fix task: **fixed** (PR 85: the returns list); **not yet checked on the PC** (second run, item 3) |
+| 4. **At 375 and 768 px the country switcher is not in the header**, only in the footer and the menu; at 1440 px it is in the header too | fix task: **fixed** (PR 85), checked on the PC in the second run |
 
 ### What should change in the plan
 
-1. **W5 is not passed yet.** After the fix task for the four rows above merges: run W5 again from step 3's DS checks, the rest of step 4 (O4 as CI does it) and step 5, then update the plan's status line, §7 item 14 and NEXT-SESSION.md.
-2. **W5's step 4 prompt** should say that the missing product is visited once **before** Medusa stops, as CI's O4 does.
+1. **Done in the second run:** step 3's DS checks, step 4's O4 and step 5 pass, and the plan's status line, §7 item 14 and NEXT-SESSION.md are updated. **Left:** finding 3's check on the PC (the review table); W5 passes with it.
+2. **Done:** W5's step 4 prompt in NEXT-SESSION.md now visits the missing product once **before** Medusa stops, as CI's O4 does.
 3. **`pnpm test` on the PC.** For the first time in a W check it failed twice, on 5 s time-outs in the storefront's story and route tests (two, then four, different each run), while each package passes alone. A longer limit for those tests (as T40 and W4's note did for others) would make the PC's run pass; it is the owner's call whether that joins the fix task.
 
 ### Smaller observations
 
 - **The first `e2e-smoke`-style build failed only because Medusa was slow**: a prerender's read waited the data layer's 10 s a minute after Medusa had started, and the next build passed. CI starts Medusa the same way before its build and has not seen this; on the PC, Medusa's first answers after a start are slow.
-- **The DS checks list 798 tests** on this commit; the docs say 799.
+- **The DS checks list 798 tests** on this commit and on the second run's; the docs said 799. The `design-system` project alone is 798 (the 21 thumbnails are a project of their own), so this section records what ran.
 - **Docker Desktop was not running** at the start; the session started it (11 s to `docker info`).
 - **`next dev` rewrote `apps/storefront/src/payload-types.ts`** (Payload's type generation; 283 lines changed in quoting and layout). The session restored it with `git restore`, as the checks need a clean tree.
 - **Left on E:**: `E:\medusa.log` (the session cannot delete a file at a drive's root) and the empty `E:\shopblok-starter-w5-env`, as for W3 and W4. Delete both by hand.
