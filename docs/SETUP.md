@@ -5907,3 +5907,46 @@ One must-fix, fixed; the six optional findings (2 to 7) are cleanups, all fixed.
 | 5 | The README's "Templates group (134 entries)" | 12 templates; 134 entries in all |
 | 6 | NEXT-SESSION.md still opened with "The M3 plan is ready" | "M3 is built" |
 | 7 | §7 item 13 was marked met while its runs were still going | Met once the PR merges, which waits for the PR run and the dispatched run on the same commit |
+
+## W5 fixes
+
+**Result: the four findings of W5's design review on the Windows PC (2026-10-27) are fixed in the cloud.** W5 stopped after step 4's commerce suites; its partial results are on the `w5-windows-check` branch, and steps 3 (the DS checks) to 5 run on the PC again once this merges.
+
+| | |
+|---|---|
+| Date | 2026-10-28 |
+| Branch | `claude/project-thread-bbr2fk`, from `main` at `b5b68b7` (PR 84 merged) |
+| New | `apps/backend/src/api/auth/verification-again.ts` |
+| Changed | the backend's `middlewares.ts` and `auth-verification.spec.ts`; five catalog pages (`instant = false`); `e2e/dev-console.spec.ts` and CI's dev-log step; `lib/account-page.tsx` (`ReturnsList`) and the two returns pages; MarketSwitcher (`compact`), HeaderSwitcher and four headers, their tests |
+
+### The fixes
+
+1. **The verification link said "no longer works" in `pnpm dev`, though it had verified.** `next dev` renders the `/verify` page twice; the first render confirms the code and Medusa 2.21.2 refuses the second (`TokenVerificationProvider.confirm` throws once `verified_at` is set). A mail scanner that opens the link before the customer does the same in production. A middleware on `POST /auth/verification/confirm` now answers a code that is already confirmed, while the code itself is still valid (15 minutes from when it was sent, the token provider's lifetime), as Medusa answered the first time: the same entity, 200. Any other code, an expired one or one a newer link replaced, goes on to Medusa unchanged.
+2. **Next's dev-only "encountered URL data during prerendering or a navigation" errors** on the store, category, collection and product pages. They read their path (a handle, or a listing's page number) before anything is drawn (ADR 0004: `notFound()` before any `Suspense`), so a navigation waits for the static page, and that instant-navigation check reports the read on every first load. The five pages set `instant = false`, each with a one-line pointer here; `ensureStatic`'s own check still applies (Next's docs). `dev-console.spec.ts` now loads all five (the store's and a collection's `page/2` among them), and CI's step that reads `next dev`'s log waits 10 s for the message, which comes a few seconds after the page answers, and fails on it.
+3. **An order's return form was a 404 when nothing on it could go back yet** (not fulfilled, or everything already asked back). It now shows the returns list (`ReturnsList`, the same as `/account/returns`, with its "Nothing to return" when empty). Someone else's order, or one that does not exist, is still a 404, and so is an order that could go back while the shop has no return reason (the list would link back to the same page).
+4. **The country switcher was not in the header at 375 and 768 px**: below `lg` it was only in the drawer's foot. The classic, centered, mega menu and transparent headers now show it in the row at every width, as its flag alone below `lg` (MarketSwitcher's new `compact`: a 44 px square with no frame, like the search and cart icons; the trigger's name is unchanged, so a reader hears the country, language and currency). From `lg` it is as before. The drawer keeps its own. The two-tier header already had it in its bar, and the minimal header keeps it in the drawer by design.
+
+### Checks
+
+| Check | Result |
+|---|---|
+| Backend integration (`auth-verification.spec.ts`) | 5/5; the same code confirmed again answers 200 with the same customer, an unknown code does not, nor the used code once it is older than 15 minutes (with that check taken out, the test fails: "Expected: not 200") |
+| `pnpm dev`, a fresh `.next` | 0 "encountered URL data" lines after loading the four kinds of catalog page (1 with the product page's `instant` taken out); `dev-console.spec.ts` 14/14 with `STOREFRONT_LISTING_PAGE_SIZE=3`, as CI runs it, and the log still clean 10 s after |
+| Unit suites | ui 154 files, 5,558 tests (new: the compact trigger, the header suite's "row" switcher at every width); storefront 119 files, 3,208 tests; `tsc` and eslint clean for ui, storefront and backend |
+| DS baselines | the headers' 375 and 768 px cells change (the flag in the row), and so do the templates' pages, which draw the classic header; new baselines from CI's `update-baselines` |
+
+### Not done
+
+- **Vitest's 5 s time-outs on the PC** under `pnpm test`'s parallel run (each package passes alone). Not one of the four findings; a later task can raise the storefront's story and route test time-outs if it recurs.
+- **W5's O4 on the PC**: the missing product answered 500 because W5's prompt did not visit it before Medusa stopped, as CI's O4 does. The prompt is corrected when W5's results are written up.
+
+### Code review (PR 85)
+
+Two must-fix items, both fixed; of the seven optional ones, item 3 (security) and item 8 (cleanup) are fixed and the rest are skipped under the findings rule, item 7 after a look at the new 375 px baselines.
+
+| # | Finding | Fix |
+|---|---|---|
+| 1 (must-fix) | An order that could go back while the shop has no return reason (or their fetch failed) drew the returns list, which listed it again with a link to the same page | The list only for an order with nothing to return; that case stays the 404 |
+| 2 (must-fix) | CI's grep for "Next.js encountered" could run before Next writes it, a few seconds after the page answers | The step waits 10 s before it reads the log |
+| 3 (security) | A used code answered for 15 minutes from its confirmation, past the code's own expiry | It answers only while the code itself is valid (`requested_at` + 15 min); a newer link replaces the row's hash, so a replaced code was already unknown. A test ages the code and expects the answer to stop |
+| 8 (cleanup) | The note copied onto the five pages spoke of a handle on `/store/page/[n]`, and the paginated pages were not in `dev-console.spec.ts` | One line on each page pointing to item 2 above; `/us/store/page/2` and `/us/collections/everyday-basics/page/2` in the spec |

@@ -7,7 +7,7 @@
 // link and not the SearchField molecule because the shared props carry no SearchField copy (the
 // same props go to every variant, which is what lets a shop switch variant in the CMS), and
 // because the search overlay of T37 will open from this very place and replace both. Below `lg` the
-// header is the other variants' row, with the navigation in the drawer. The end of the first row is
+// header is the other variants' row (the switcher as its flag alone), the navigation in the drawer. The end of the first row is
 // a wrapper that `lg:contents` dissolves, so the search, the utilities and the cart become the
 // row's own grid cells without a second copy of any of them in the markup.
 import {
@@ -46,9 +46,9 @@ function HeaderMegaMenu(props: HeaderProps) {
               header={props}
               className="lg:col-start-2 lg:row-start-1 lg:max-w-2xl lg:justify-self-center"
             />
-            <div className="hidden items-center gap-2 lg:col-start-3 lg:row-start-1 lg:flex">
+            <div className="flex items-center gap-2 lg:col-start-3 lg:row-start-1">
               <HeaderAccountIcons header={props} />
-              <HeaderSwitcher header={props} className="hidden lg:inline-flex" />
+              <HeaderSwitcher header={props} compact />
             </div>
             <div className="flex lg:col-start-4 lg:row-start-1">
               <HeaderCart header={props} />

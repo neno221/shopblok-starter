@@ -10,6 +10,8 @@ import {
 // (`/categories/apparel/tops`), its other pages by a trailing `page/{n}`
 // (`/categories/apparel/page/2`). Every category's first page is built (D58).
 export const ensureStatic = "navigation";
+// W5: no instant-navigation check for a page that reads its path first (SETUP.md, "W5 fixes").
+export const instant = false;
 
 type Props = { params: Promise<{ market: string; handle: string[] }> };
 

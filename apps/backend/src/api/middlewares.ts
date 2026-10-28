@@ -8,6 +8,7 @@ import {
 } from '@medusajs/framework/http'
 import { MedusaError } from '@medusajs/framework/utils'
 
+import { confirmVerificationAgain } from './auth/verification-again'
 import { StoreCreateCustomerReturn, StoreRequestOrderClaim } from './store/customers/me/validators'
 import { requireVerifiedCustomer } from './store/customers/verified'
 import { localizeStoreSearch } from './store/search/locale'
@@ -35,6 +36,12 @@ export default defineMiddlewares({
       method: ['POST'],
       matcher: '/store/customers',
       middlewares: [requireVerifiedCustomer],
+    },
+    // W5: a verification link opened twice answers as it did the first time.
+    {
+      method: ['POST'],
+      matcher: '/auth/verification/confirm',
+      middlewares: [confirmVerificationAgain],
     },
     // T53: a signed-in customer's claim of a guest order and return from their own order.
     // `/store/customers/me*` is authenticated by Medusa's own middleware.
