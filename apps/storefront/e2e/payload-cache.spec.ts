@@ -225,7 +225,11 @@ test.describe("cache", () => {
     await field("title").fill(edited);
     const [saved] = await Promise.all([
       page.waitForResponse(
-        (r) => r.request().method() === "PATCH" && new URL(r.url()).pathname === `/api/pages/${id}`,
+        // The publish, not an autosave that typing may have started first (T59: pages autosave).
+        (r) =>
+          r.request().method() === "PATCH" &&
+          new URL(r.url()).pathname === `/api/pages/${id}` &&
+          !new URL(r.url()).searchParams.has("autosave"),
         { timeout: 30_000 },
       ),
       page.getByRole("button", { name: /^Publish/ }).click(),

@@ -217,6 +217,38 @@ function secrets(envs: AppEnvs, context: Context): Check {
   };
 }
 
+/**
+ * The preview and jobs secrets (T59, D74). Without `PREVIEW_SECRET` every `/next/preview` answers
+ * 401, so editors cannot preview; without `CRON_SECRET` only an admin can run jobs, so nothing
+ * scheduled is published. A warning in development and test (bootstrap generates both), an error
+ * anywhere else, as for the signing secrets: production needs both for Vercel Cron and live preview.
+ */
+function previewAndCronSecrets(envs: AppEnvs, context: Context): Check {
+  const missing = ["PREVIEW_SECRET", "CRON_SECRET"].filter(
+    (name) => !isSet(envs.storefront, name),
+  );
+  if (missing.length === 0) {
+    return {
+      id: "preview-cron-secrets",
+      title: "Preview and jobs secrets",
+      level: "ok",
+      message: "PREVIEW_SECRET and CRON_SECRET are set.",
+    };
+  }
+  const production = context.nodeEnv !== undefined && !BLANK_SECRET_ENVS.includes(context.nodeEnv);
+  return {
+    id: "preview-cron-secrets",
+    title: "Preview and jobs secrets",
+    level: production ? "error" : "warn",
+    message:
+      "Blank: without PREVIEW_SECRET nobody can preview a draft, and without CRON_SECRET scheduled publishing never runs (only an admin may run jobs).",
+    details: missing.map((name) => `not set: ${name} (apps/storefront)`),
+    fix: production
+      ? "Set a fresh random value for each, and the same CRON_SECRET in Vercel Cron's settings."
+      : "Run `pnpm bootstrap`, which generates them.",
+  };
+}
+
 /** Everything the environment alone can tell, in the order the table shows it. */
 export function configChecks(
   envs: AppEnvs,
@@ -225,6 +257,7 @@ export function configChecks(
 ): Check[] {
   return [
     secrets(envs, context),
+    previewAndCronSecrets(envs, context),
     publishableKey(envs),
     payloadKey(envs),
     emailVerification(statuses),

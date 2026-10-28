@@ -135,13 +135,27 @@ test.describe("the admin bootstrap made", () => {
     request,
   }) => {
     await page.goto("/admin/collections/pages/create?locale=en");
-    await expect(page.getByRole("button", { name: "Locale" }).first()).toContainText("English");
-    await field(page, "title").fill(english.title);
-    await field(page, "slug").fill(english.slug);
-    await page.getByRole("button", { name: "Save Draft" }).click();
+    // Autosave (T59): opening "create" saves an empty draft at once and moves to its edit view, so
+    // the form is filled there, and the read below waits for Save Draft's own answer (the URL
+    // already names the page before that save is made).
     await page.waitForURL(/\/admin\/collections\/pages\/(\d+)/);
     pageId = Number(/\/pages\/(\d+)/.exec(page.url())?.[1]);
     expect(pageId).toBeGreaterThan(0);
+    await expect(page.getByRole("button", { name: "Locale" }).first()).toContainText("English");
+    await field(page, "title").fill(english.title);
+    await field(page, "slug").fill(english.slug);
+    const [saved] = await Promise.all([
+      page.waitForResponse(
+        // Save Draft, not an autosave that typing may have started first.
+        (r) =>
+          r.request().method() === "PATCH" &&
+          new URL(r.url()).pathname === `/api/pages/${pageId}` &&
+          !new URL(r.url()).searchParams.has("autosave"),
+        { timeout: 30_000 },
+      ),
+      page.getByRole("button", { name: "Save Draft" }).click(),
+    ]);
+    expect(saved.status()).toBeLessThan(300);
 
     const asAdmin = await readAs(page, pageId, "draft=true&locale=en&fallback-locale=none");
     expect(asAdmin).toMatchObject({

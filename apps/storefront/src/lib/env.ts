@@ -16,6 +16,8 @@ export type RawEnv = {
   DESIGN_SYSTEM_ENABLED?: string | undefined;
   REVALIDATE_SECRET?: string | undefined;
   PAYLOAD_SECRET?: string | undefined;
+  PREVIEW_SECRET?: string | undefined;
+  CRON_SECRET?: string | undefined;
   STOREFRONT_PRERENDER_PRODUCTS?: string | undefined;
   STOREFRONT_LISTING_PAGE_SIZE?: string | undefined;
 };
@@ -58,6 +60,12 @@ export const env: RawEnv = {
   },
   get PAYLOAD_SECRET() {
     return process.env.PAYLOAD_SECRET;
+  },
+  get PREVIEW_SECRET() {
+    return process.env.PREVIEW_SECRET;
+  },
+  get CRON_SECRET() {
+    return process.env.CRON_SECRET;
   },
   get STOREFRONT_PRERENDER_PRODUCTS() {
     return process.env.STOREFRONT_PRERENDER_PRODUCTS;

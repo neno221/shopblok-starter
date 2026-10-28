@@ -1,10 +1,7 @@
 import type { CollectionConfig } from "payload";
 import { isStaff, staffOrPublished } from "../access/roles";
-import {
-  rememberPublished,
-  revalidateDeletedPage,
-  revalidatePages,
-} from "../hooks/revalidate-pages";
+import { seedKey } from "../fields/seed-key";
+import { revalidateOnPublish } from "../hooks/revalidate-on-publish";
 
 /** A stub (D12): the fields M4's content model grows from, and drafts to test the read rule. */
 export const Pages: CollectionConfig = {
@@ -20,14 +17,17 @@ export const Pages: CollectionConfig = {
     update: isStaff,
     delete: isStaff,
   },
-  hooks: {
-    beforeChange: [rememberPublished],
-    afterChange: [revalidatePages],
-    afterDelete: [revalidateDeletedPage],
+  // `pages:<locale>` for the reads of one language, `payload:pages` for every reader.
+  hooks: revalidateOnPublish({ tags: (locale) => [`pages:${locale}`, "payload:pages"] }),
+  // D74: autosave, scheduled publishing (on the jobs queue) and up to 50 versions per page. The
+  // Save Draft button stays next to autosave, so an editor can still save a draft on purpose.
+  versions: {
+    drafts: { autosave: { showSaveDraftButton: true }, schedulePublish: true },
+    maxPerDoc: 50,
   },
-  versions: { drafts: true },
   fields: [
     { name: "title", type: "text", localized: true, required: true },
     { name: "slug", type: "text", localized: true, required: true },
+    seedKey(),
   ],
 };
