@@ -13,14 +13,7 @@ import {
 
 /** What an argument is: `{name}`, `{n, number}`, `{count, plural, …}`, `<b>…</b>` and the rest. */
 export type ArgumentKind =
-  | "argument"
-  | "number"
-  | "date"
-  | "time"
-  | "select"
-  | "plural"
-  | "selectordinal"
-  | "tag";
+  "argument" | "number" | "date" | "time" | "select" | "plural" | "selectordinal" | "tag";
 
 const kinds: Partial<Record<TYPE, ArgumentKind>> = {
   [TYPE.argument]: "argument",

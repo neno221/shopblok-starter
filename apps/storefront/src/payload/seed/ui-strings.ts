@@ -5,7 +5,12 @@ import { codeMessages } from "../../i18n/messages";
 import { namespaceOf, UI_STRINGS } from "../collections/ui-strings";
 
 /** What a `ui-strings` seed did, by document. */
-export type UiStringCounts = { created: number; updated: number; unchanged: number; deleted: number };
+export type UiStringCounts = {
+  created: number;
+  updated: number;
+  unchanged: number;
+  deleted: number;
+};
 
 /** One message of the code catalogs as the seed writes it. */
 export type CodeString = {
