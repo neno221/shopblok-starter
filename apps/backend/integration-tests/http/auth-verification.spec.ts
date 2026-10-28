@@ -126,6 +126,25 @@ medusaIntegrationTestRunner({
         expect(confirmed.status).toBe(200);
         expect(confirmed.data.entity_id).toBe(email);
 
+        // W5: the same link opened again (a second render, a mail scanner) answers the same.
+        const again = await api.post(
+          "/auth/verification/confirm",
+          { code: url.searchParams.get("code") },
+          anyStatus,
+        );
+
+        expect(again.status).toBe(200);
+        expect(again.data.entity_id).toBe(email);
+
+        // A code that was never sent is still refused.
+        const unknown = await api.post(
+          "/auth/verification/confirm",
+          { code: "no-such-code" },
+          anyStatus,
+        );
+
+        expect(unknown.status).not.toBe(200);
+
         // Verified: the next login's token creates the account.
         const second = await login(email);
 

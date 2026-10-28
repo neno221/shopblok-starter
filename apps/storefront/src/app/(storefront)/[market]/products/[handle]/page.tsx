@@ -46,6 +46,10 @@ import { RELATED_PRODUCTS, toProductDetailPage } from "../../../../../lib/view-m
 // viewed row reads `localStorage`.
 
 export const ensureStatic = "navigation";
+// W5: the page reads its path's handle before anything is drawn (ADR 0004: `notFound()` before any
+// `Suspense`), so a navigation waits for the static page; Next's dev-only instant-navigation check
+// would report that read on every first load. `ensureStatic`'s own check still applies (Next's docs).
+export const instant = false;
 
 type Params = { market: string; handle: string };
 type Props = { params: Promise<Params> };

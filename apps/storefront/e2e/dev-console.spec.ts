@@ -10,6 +10,11 @@ checkRoutesInDev([
   { path: "/", status: 200 },
   { path: "/us", status: 200 },
   { path: "/ch/fr", status: 200 },
+  // W5: the catalog pages with a handle, whose first load reported Next's instant-navigation check.
+  { path: "/us/store", status: 200 },
+  { path: "/us/categories/apparel", status: 200 },
+  { path: "/us/collections/summer-edit", status: 200 },
+  { path: "/us/products/demo-classic-tee", status: 200 },
   // Not an open market: the proxy lets it through and the market layout answers its 404 page.
   { path: "/el-cy", status: 404 },
   { path: "/nope/nope", status: 404 },

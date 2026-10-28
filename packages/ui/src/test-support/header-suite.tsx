@@ -109,8 +109,8 @@ export type HeaderUnderTest = {
    */
   utilities: "all" | "search";
   /**
-   * Where the market switcher is when the shop has one: in the row or the bar from `lg` and in the
-   * drawer below it (`row`), in a bar at every width (`bar`), or only in the drawer's foot (`drawer`).
+   * Where the market switcher is when the shop has one: in the row at every width, as its flag alone
+   * below `lg` (`row`, W5), in a bar at every width (`bar`), or only in the drawer's foot (`drawer`).
    */
   switcher: "row" | "bar" | "drawer";
 };
@@ -363,13 +363,16 @@ export function describeHeader(variant: HeaderUnderTest) {
         expect(slot("market-switcher")).toBeNull();
       });
 
-      it("shows the switcher from lg only, or at every width in a bar", () => {
+      it("shows the switcher at every width: its flag alone below lg in the row, whole in a bar", () => {
         view();
         const box = slot("market-switcher") as HTMLElement;
+        const triggers = box.querySelectorAll("[data-slot=market-switcher-trigger]");
+        expect(hiddenBelowLg(box)).toBe(false);
         if (variant.switcher === "row") {
-          expect(hiddenBelowLg(box)).toBe(true);
-          expect(shownFromLg(box)).toBe(true);
+          expect(box.closest('[data-slot="header-bar"]')).toBeNull();
+          for (const shown of triggers) expect(shown.className).toContain("max-lg:size-11");
         } else {
+          for (const shown of triggers) expect(shown.className).not.toContain("max-lg:size-11");
           expect(hiddenBelowLg(box)).toBe(false);
           expect(box.closest('[data-slot="header-bar"]')).not.toBeNull();
         }

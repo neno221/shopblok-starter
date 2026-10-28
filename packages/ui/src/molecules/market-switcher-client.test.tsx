@@ -135,6 +135,27 @@ describe("MarketSwitcherOverlay: the two forms", () => {
     expect(shown.className).not.toMatch(CLIPPING_CLASSES);
     expect(shown.getAttribute("data-slot")).toBe("market-switcher-trigger");
   });
+
+  // W5: a header's narrow row shows the market as its flag, in a 44 px square, named as before.
+  it("shows the flag alone below lg when compact, with the same name, at both triggers", () => {
+    setup({ compact: true });
+    for (const index of [0, 1]) {
+      const shown = trigger(index);
+      expect(shown.className).toContain("max-lg:size-11");
+      expect(shown.getAttribute("aria-label")).toBe(props.triggerLabel);
+      expect(within(shown).getByTestId("flag-CY").closest(".max-lg\\:hidden")).toBeNull();
+      expect(shown.querySelector("[lang=el-CY]")?.closest(".max-lg\\:hidden")).not.toBeNull();
+      expect(shown.querySelector("svg.lucide-chevron-down")?.getAttribute("class")).toContain(
+        "max-lg:hidden",
+      );
+    }
+  });
+
+  it("keeps its words at every width when not compact", () => {
+    setup({ form: "popover" });
+    expect(trigger().className).not.toContain("max-lg:");
+    expect(trigger().querySelector(".max-lg\\:hidden")).toBeNull();
+  });
 });
 
 describe.each(["popover", "drawer"] as const)("MarketSwitcherOverlay as a %s", (form) => {

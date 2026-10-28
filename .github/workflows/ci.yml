@@ -316,14 +316,16 @@ jobs:
       # T28 (D54): `[market]` answered root files such as `/robots.txt` and logged `Could not
       # validate` to the server log for each, where the browser's console never sees it. The routes
       # above include two of them; the log is complete once their run has ended, passed or failed.
+      # W5: Next's dev-only instant-navigation check ("Next.js encountered URL data …") also goes to
+      # this log, a few seconds after the page answers; the catalog routes above come before others.
       - name: No validation error in next dev's log
         if: ${{ !cancelled() && (steps.dev-console.outcome == 'success' || steps.dev-console.outcome == 'failure') }}
         run: |
-          if grep -n "Could not validate" "$RUNNER_TEMP/servers/storefront-dev.log"; then
-            echo "::error::next dev logged 'Could not validate' (above); storefront-dev.log in the server logs artifact has the rest."
+          if grep -n -E "Could not validate|Next\.js encountered" "$RUNNER_TEMP/servers/storefront-dev.log"; then
+            echo "::error::next dev logged a validation error (above); storefront-dev.log in the server logs artifact has the rest."
             exit 1
           fi
-          echo "next dev logged no 'Could not validate'."
+          echo "next dev logged no validation error."
       - name: Stop next dev
         if: always()
         run: |

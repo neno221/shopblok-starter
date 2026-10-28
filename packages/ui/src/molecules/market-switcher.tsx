@@ -43,6 +43,8 @@ type MarketSwitcherProps = Omit<React.ComponentProps<"div">, "children"> &
     modal?: boolean;
     /** Classes for the popup (the popover's content, the sheet). */
     popupClassName?: string;
+    /** Below `lg` the trigger shows the flag alone, a 44 px square (a header's narrow row, W5). */
+    compact?: boolean;
   };
 
 /** `Intl` writes some languages' names in lower case ("français"); a name on its own starts in a capital. */
@@ -59,6 +61,7 @@ function MarketSwitcher({
   defaultOpen,
   modal,
   popupClassName,
+  compact,
   className,
   ...props
 }: MarketSwitcherProps) {
@@ -115,6 +118,7 @@ function MarketSwitcher({
         defaultOpen={defaultOpen}
         modal={modal}
         popupClassName={popupClassName}
+        compact={compact}
       />
     </div>
   );

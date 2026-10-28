@@ -10,6 +10,10 @@ import {
 // (`/categories/apparel/tops`), its other pages by a trailing `page/{n}`
 // (`/categories/apparel/page/2`). Every category's first page is built (D58).
 export const ensureStatic = "navigation";
+// W5: the page reads its path's handle before anything is drawn (ADR 0004: `notFound()` before any
+// `Suspense`), so a navigation waits for the static page; Next's dev-only instant-navigation check
+// would report that read on every first load. `ensureStatic`'s own check still applies (Next's docs).
+export const instant = false;
 
 type Props = { params: Promise<{ market: string; handle: string[] }> };
 

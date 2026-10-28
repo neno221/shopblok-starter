@@ -17,8 +17,9 @@
 // middle and the cart at the end below `lg` (1024 px, SPEC §9.4), so the logo is centered whatever
 // the buttons beside it; from `lg` the menu button is gone and the variant's own layout takes
 // over. The search icon stays at every width (SBP navbar.md: the search icon beside the cart); the
-// account and wishlist links, the market switcher and the navigation are for `lg` and up, and
-// below it the drawer holds the account links and the switcher in its bottom-sheet form.
+// account and wishlist links and the navigation are for `lg` and up, and below it the drawer holds
+// the account links and the switcher in its bottom-sheet form. The switcher is in the row at every
+// width too, as its flag alone below `lg` (W5: the market a phone's shopper is in, one tap away).
 //
 // Every control is 44 px at least (D32): the icon links are `size-11` buttons, the logo link has
 // `min-h-11`, and the skip link has it once it shows. Long labels wrap and never truncate: the logo
@@ -428,9 +429,18 @@ function HeaderAccountText({ header, className }: { header: HeaderProps; classNa
 /**
  * The market switcher in its `auto` form: a popover from `md` up, a bottom sheet below (SPEC §9.4),
  * both triggers in the markup and CSS showing one. Nothing without `utilities.marketSwitcher`.
- * `className` goes on its box; the caller decides at which widths it shows.
+ * `className` goes on its box; the caller decides at which widths it shows. `compact` shows the
+ * flag alone below `lg`, where a header's row has room for an icon only (W5).
  */
-function HeaderSwitcher({ header, className }: { header: HeaderProps; className?: string }) {
+function HeaderSwitcher({
+  header,
+  className,
+  compact,
+}: {
+  header: HeaderProps;
+  className?: string;
+  compact?: boolean;
+}) {
   const { market, marketSwitcherCopy, locale, drawn } = header;
   if (!hasSwitcher(header) || market === undefined) return null;
   const form = drawn?.switcher;
@@ -441,6 +451,7 @@ function HeaderSwitcher({ header, className }: { header: HeaderProps; className?
         copy={marketSwitcherCopy}
         locale={locale}
         className={className}
+        compact={compact}
       />
     );
   }
@@ -450,6 +461,7 @@ function HeaderSwitcher({ header, className }: { header: HeaderProps; className?
       copy={marketSwitcherCopy}
       locale={locale}
       className={className}
+      compact={compact}
       form={form}
       defaultOpen
       modal={false}

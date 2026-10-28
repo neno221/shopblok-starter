@@ -5907,3 +5907,35 @@ One must-fix, fixed; the six optional findings (2 to 7) are cleanups, all fixed.
 | 5 | The README's "Templates group (134 entries)" | 12 templates; 134 entries in all |
 | 6 | NEXT-SESSION.md still opened with "The M3 plan is ready" | "M3 is built" |
 | 7 | §7 item 13 was marked met while its runs were still going | Met once the PR merges, which waits for the PR run and the dispatched run on the same commit |
+
+## W5 fixes
+
+**Result: the four findings of W5's design review on the Windows PC (2026-10-27) are fixed in the cloud.** W5 stopped after step 4's commerce suites; its partial results are on the `w5-windows-check` branch, and steps 3 (the DS checks) to 5 run on the PC again once this merges.
+
+| | |
+|---|---|
+| Date | 2026-10-28 |
+| Branch | `claude/project-thread-bbr2fk`, from `main` at `b5b68b7` (PR 84 merged) |
+| New | `apps/backend/src/api/auth/verification-again.ts` |
+| Changed | the backend's `middlewares.ts` and `auth-verification.spec.ts`; five catalog pages (`instant = false`); `e2e/dev-console.spec.ts` and CI's dev-log step; `lib/account-page.tsx` (`ReturnsList`) and the two returns pages; MarketSwitcher (`compact`), HeaderSwitcher and four headers, their tests |
+
+### The fixes
+
+1. **The verification link said "no longer works" in `pnpm dev`, though it had verified.** `next dev` renders the `/verify` page twice; the first render confirms the code and Medusa 2.21.2 refuses the second (`TokenVerificationProvider.confirm` throws once `verified_at` is set). A mail scanner that opens the link before the customer does the same in production. A middleware on `POST /auth/verification/confirm` now answers a code confirmed within the last 15 minutes (the token's own lifetime) as Medusa answered the first time: the same entity, 200. Any other code goes on to Medusa unchanged.
+2. **Next's dev-only "encountered URL data during prerendering or a navigation" errors** on the store, category, collection and product pages. They read their path's handle before anything is drawn (ADR 0004: `notFound()` before any `Suspense`), which is what that instant-navigation check reports. The five pages set `instant = false`; `ensureStatic`'s own check still applies (Next's docs). `dev-console.spec.ts` now loads those four kinds of page, and CI's step that reads `next dev`'s log fails on this message too.
+3. **An order's return form was a 404 when nothing on it could go back yet** (not fulfilled, or everything already asked back). It now shows the returns list (`ReturnsList`, the same as `/account/returns`, with its "Nothing to return" when empty). Someone else's order, or one that does not exist, is still a 404.
+4. **The country switcher was not in the header at 375 and 768 px**: below `lg` it was only in the drawer's foot. The classic, centered, mega menu and transparent headers now show it in the row at every width, as its flag alone below `lg` (MarketSwitcher's new `compact`: a 44 px square with no frame, like the search and cart icons; the trigger's name is unchanged, so a reader hears the country, language and currency). From `lg` it is as before. The drawer keeps its own. The two-tier header already had it in its bar, and the minimal header keeps it in the drawer by design.
+
+### Checks
+
+| Check | Result |
+|---|---|
+| Backend integration (`auth-verification.spec.ts`) | 5/5; the same code confirmed again answers 200 with the same customer, an unknown code does not |
+| `pnpm dev`, a fresh `.next` | 0 "encountered URL data" lines after loading the four kinds of catalog page (1 with the product page's `instant` taken out); `dev-console.spec.ts` 12/12 |
+| Unit suites | ui 154 files, 5,558 tests (new: the compact trigger, the header suite's "row" switcher at every width); storefront 119 files, 3,208 tests; `tsc` and eslint clean for ui, storefront and backend |
+| DS baselines | the headers' 375 and 768 px cells change (the flag in the row), and so do the templates' pages, which draw the classic header; new baselines from CI's `update-baselines` |
+
+### Not done
+
+- **Vitest's 5 s time-outs on the PC** under `pnpm test`'s parallel run (each package passes alone). Not one of the four findings; a later task can raise the storefront's story and route test time-outs if it recurs.
+- **W5's O4 on the PC**: the missing product answered 500 because W5's prompt did not visit it before Medusa stopped, as CI's O4 does. The prompt is corrected when W5's results are written up.
