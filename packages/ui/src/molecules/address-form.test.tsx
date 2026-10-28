@@ -10,8 +10,9 @@ import {
   LOCALES,
   type Locale,
 } from "@shopblok/i18n";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
+import { hydrateRoot } from "react-dom/client";
 import { renderToStaticMarkup, renderToString } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { CLIPPING_CLASSES } from "../test-support/long-labels";
@@ -1044,6 +1045,60 @@ describe("AddressForm", () => {
         if (from === "@shopblok/i18n") expect(isType, from).toBe("type ");
         expect(from).not.toMatch(/intl-messageformat|address-format|messages/);
       }
+    });
+  });
+
+  describe("typed before hydration (T58)", () => {
+    const element = (
+      <AddressForm
+        countries={SEEDED}
+        values={{ countryCode: "us" }}
+        copy={catalogs.en.molecules.addressForm}
+        locale="en-US"
+        action="/api/address"
+      />
+    );
+
+    /** The server's markup, changed by `before` as a shopper would before the scripts run, then hydrated. */
+    async function hydrate(before: (container: HTMLElement) => void) {
+      const container = document.createElement("div");
+      document.body.append(container);
+      container.innerHTML = renderToString(element);
+      before(container);
+      const onRecoverableError = vi.fn();
+      await act(async () => {
+        hydrateRoot(container, element, { onRecoverableError });
+      });
+      expect(onRecoverableError).not.toHaveBeenCalled();
+      return container;
+    }
+
+    it("keeps a field typed before hydration when another field is typed in afterwards", async () => {
+      const container = await hydrate((root) => {
+        (control(root, "firstName") as HTMLInputElement).value = "Maria";
+      });
+      expect(control(container, "firstName").value).toBe("Maria");
+      // The next render of the fields: before T58 it wrote the hydrated state (empty) back.
+      fireEvent.change(control(container, "lastName"), { target: { value: "Georgiou" } });
+      expect(control(container, "firstName").value).toBe("Maria");
+      expect(control(container, "lastName").value).toBe("Georgiou");
+      container.remove();
+    });
+
+    it("follows a country chosen before hydration, keeping what was typed", async () => {
+      const container = await hydrate((root) => {
+        (control(root, "firstName") as HTMLInputElement).value = "Noah";
+        (control(root, "countryCode") as HTMLSelectElement).value = "ch";
+      });
+      expect(control(container, "countryCode").value).toBe("ch");
+      // Switzerland's fields: no state or province, the postal code with its prefix.
+      expect(container.querySelector('[name="province"]')).toBeNull();
+      expect(container.querySelector('[data-slot="address-field-prefix"]')?.textContent).toBe(
+        "CH-",
+      );
+      fireEvent.change(control(container, "city"), { target: { value: "Zürich" } });
+      expect(control(container, "firstName").value).toBe("Noah");
+      container.remove();
     });
   });
 
