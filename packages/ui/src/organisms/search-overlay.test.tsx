@@ -635,6 +635,10 @@ describe("SearchOverlay: while the next answer is on its way", () => {
   it("does not announce keys: the status holds until the page says it is loading", async () => {
     const { user, view } = await openOverlay("en", "results");
     const region = slot("search-overlay-status") as HTMLElement;
+    // Base UI marks the region's first text with an invisible character and takes it off 200 ms
+    // later, so a reader hears it once; that reset is not a new announcement, and on a slow run it
+    // can land after typing starts (W5's `pnpm test` on the PC). The test watches from after it.
+    await waitFor(() => expect(region.textContent).not.toContain("\u2060"));
     const seen: string[] = [];
     const watch = new MutationObserver(() => seen.push(plain(region.textContent)));
     watch.observe(region, { childList: true, characterData: true, subtree: true });

@@ -7,7 +7,8 @@ import { addToCart, checkOut, mailedCount, mailedLink, orderIdOf } from "./suppo
 // `$RUNNER_TEMP/servers/medusa.log`). One customer goes the whole way: registers, is refused while
 // the address is unverified (no session cookie, the account still asks to sign in), opens the
 // verification link, signs in (the customer is created) and sees the dashboard; saves an address
-// and finds it filled in at the checkout; places an order; signs out; resets the password and signs
+// and finds it filled in at the checkout; places an order, whose return form, with nothing to send
+// back yet, shows the returns list (W5); signs out; resets the password and signs
 // in with the new one; claims an order placed as a guest with the same address, which the e-mailed
 // link accepts. A second customer then asks for the first one's order page and return form by id
 // and gets the not-found page (SPEC §11.1: the ownership check, not Medusa, refuses: the Store API answers any
@@ -138,6 +139,16 @@ test("register, refused until verified, verify, sign in, address at the checkout
     orderId = await buy(page);
     await page.goto(`${PREFIX}/account/orders`);
     await expect(page.locator(`a[href$="/account/orders/${orderId}"]`).first()).toBeVisible();
+  });
+
+  await test.step("an unfulfilled order's return form shows the returns list", async () => {
+    // W5, finding 3: the order is not fulfilled, so nothing on it can go back yet; its return form
+    // draws the returns list, with nothing in it, in place of the not-found page.
+    await page.goto(`${PREFIX}/account/returns/${orderId}`);
+    await expect(page.locator('[data-slot="order-table"][data-empty]:visible')).toContainText(
+      en.templates.account.returns.emptyTitle,
+    );
+    await expect(page.locator('[data-slot="not-found-template"]:visible')).toHaveCount(0);
   });
 
   await test.step("sign out", async () => {
