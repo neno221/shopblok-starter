@@ -7,13 +7,14 @@ import { FooterTwoTier } from "@shopblok/ui/organisms/footer/two-tier";
 import { FooterWordmark } from "@shopblok/ui/organisms/footer/wordmark";
 import { getMessages } from "next-intl/server";
 import type { ReactElement } from "react";
-import { footerColumns, SHELL_PREFETCH, SITE, type FooterVariant } from "../../lib/site";
+import { SHELL_PREFETCH, type FooterVariant } from "../../lib/site";
+import { ShellLogo } from "./logo";
 import { getShellData } from "./shell-data";
 
-// The shop's footer (D66): the variant `site.ts` names, with the top-level categories and the help
-// links as its columns (`site.ts`, until M4's `footer` global), the market switcher and the
-// copyright. No newsletter, profiles, legal links or payment marks yet: M4's global gives the shop
-// its own, and a footer draws nothing for an empty list.
+// The shop's footer (D66): the `footer` global's design, columns, profiles, legal links, payment
+// marks and copyright (T61, D78; until it is saved, `site.ts`'s columns: the top-level categories
+// and the help links), the market switcher and the logo. A footer draws nothing for an empty list.
+// The newsletter's signup arrives with T67's forms (D81).
 
 const FOOTERS: Record<FooterVariant, (props: FooterProps) => ReactElement> = {
   "multi-column": FooterMultiColumn,
@@ -23,30 +24,25 @@ const FOOTERS: Record<FooterVariant, (props: FooterProps) => ReactElement> = {
   "two-tier": FooterTwoTier,
 };
 
-/** The year the copyright line names: the build's, as a prerendered page keeps it. */
-const YEAR = new Date().getUTCFullYear();
-
 export async function SiteFooter() {
-  const [{ market, url, categories, choice }, messages] = await Promise.all([
+  const [{ market, url, choice, footer, settings }, messages] = await Promise.all([
     getShellData(),
     getMessages() as Promise<Messages>,
   ]);
-  const Footer = FOOTERS[SITE.footer];
+  const Footer = FOOTERS[footer.design];
+  const switcher = footer.marketSwitcher ? choice : undefined;
   return (
     <Footer
-      storeName={SITE.storeName}
+      storeName={settings.storeName}
       homeHref={url("/")}
-      columns={footerColumns(
-        market.language,
-        categories.map((category) => ({ label: category.title, href: category.href })),
-        url,
-      )}
-      social={[]}
-      legalLinks={[]}
-      paymentIcons={[]}
-      marketSwitcher={choice !== undefined}
-      {...(choice === undefined ? {} : { market: choice })}
-      copyright={`© ${YEAR} ${SITE.storeName}`}
+      columns={footer.columns}
+      social={footer.social}
+      legalLinks={footer.legalLinks}
+      paymentIcons={footer.paymentIcons}
+      marketSwitcher={switcher !== undefined}
+      {...(switcher === undefined ? {} : { market: switcher })}
+      copyright={footer.copyright}
+      {...(footer.logo === undefined ? {} : { logo: <ShellLogo image={footer.logo} /> })}
       copy={messages.organisms.footer}
       newsletterCopy={messages.molecules.newsletterForm}
       marketSwitcherCopy={messages.molecules.marketSwitcher}

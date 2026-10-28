@@ -7,7 +7,7 @@ import {
   type AppEnvs,
   type IntegrationId,
   type IntegrationStatus,
-} from "./integrations.ts";
+} from "./index";
 
 const none: AppEnvs = { backend: {}, storefront: {} };
 

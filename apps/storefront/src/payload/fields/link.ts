@@ -1,6 +1,13 @@
-import type { CollectionSlug, Field, GroupField, TextFieldSingleValidation } from "payload";
+import type {
+  CollectionSlug,
+  Field,
+  FilterOptions,
+  GroupField,
+  TextFieldSingleValidation,
+} from "payload";
 import { text } from "payload/shared";
 import { isSafeLinkUrl } from "../../lib/cms/link";
+import { CATALOG_COLLECTIONS } from "../../lib/cms/paths";
 
 export type LinkAppearance = "default" | "outline" | "text";
 
@@ -9,7 +16,7 @@ export type LinkFieldOptions = {
   name?: string;
   /**
    * The collections an internal link may point to (SPEC §7.5: page, category, collection, product,
-   * post). Empty until they exist: T60 adds the synced catalog, T65 `pages`' route, T66 `posts`.
+   * post). `CATALOG_COLLECTIONS` since T61; T65 adds `pages` (once it has its route), T66 `posts`.
    * Without any, the field offers a custom URL only.
    */
   relationTo?: CollectionSlug[];
@@ -19,6 +26,17 @@ export type LinkFieldOptions = {
   label?: boolean;
   required?: boolean;
 };
+
+/**
+ * The Medusa pickers (D85): a document Medusa deleted stays in Payload (D75's soft delete) but is not
+ * offered, since its page is gone. `resolveLink` leaves out a link that already points at one.
+ */
+export const hideDeletedInMedusa: Extract<FilterOptions, (...args: never[]) => unknown> = ({
+  relationTo,
+}) =>
+  (CATALOG_COLLECTIONS as readonly string[]).includes(relationTo)
+    ? { deletedInMedusa: { not_equals: true } }
+    : true;
 
 /**
  * The reusable `link` field (SPEC §7.5, D79): an internal reference or a custom URL, a label in
@@ -53,6 +71,7 @@ export function link({
             relationTo,
             maxDepth: 1,
             required,
+            filterOptions: hideDeletedInMedusa,
             admin: {
               condition: (_: unknown, sibling: { type?: string }) => sibling?.type === "reference",
             },

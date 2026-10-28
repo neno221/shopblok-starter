@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { seededUpdate } from "./values";
+import { comparable, seededUpdate } from "./values";
 
 describe("seededUpdate", () => {
   it("fills an empty field", () => {
@@ -19,5 +19,30 @@ describe("seededUpdate", () => {
 
   it("keeps an editor's value", () => {
     expect(seededUpdate("Our shop", { value: "Home", before: ["Welcome"] })).toBeNull();
+  });
+});
+
+describe("comparable (T61)", () => {
+  it("drops Payload's row ids and what holds nothing, so a read-back equals what was written", () => {
+    expect(
+      comparable({
+        title: { en: "Shop", el: null },
+        links: [
+          { id: "a1", link: { type: "custom", url: "/store", newTab: null, label: { en: "All" } } },
+        ],
+        empty: [],
+        note: "",
+        on: false,
+      }),
+    ).toEqual({
+      title: { en: "Shop" },
+      links: [{ link: { type: "custom", url: "/store", label: { en: "All" } } }],
+      on: false,
+    });
+  });
+
+  it("is undefined for a field never written", () => {
+    expect(comparable(null)).toBeUndefined();
+    expect(comparable({ label: { en: null } })).toBeUndefined();
   });
 });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getIntegrationStatus } from "./integrations.ts";
+import { getIntegrationStatus } from "@shopblok/integrations";
 import {
   effectiveLevel,
   exitCodeOf,

@@ -1,6 +1,13 @@
 import { expect, test, type Page } from "@playwright/test";
 import { adminCredentials } from "./support/admin-credentials";
 import { collectConsole, judgeConsole, type FailedRequest, type Message } from "./support/console";
+import {
+  adminToken,
+  draftOf,
+  publishGlobal,
+  snapshotGlobal,
+  type GlobalData,
+} from "./support/globals";
 
 // T16: Payload's admin inside the storefront, end to end: the admin that `pnpm bootstrap` made
 // logs in, creates a page with a title per language, and the API serves each language. It is the
@@ -21,10 +28,12 @@ import { collectConsole, judgeConsole, type FailedRequest, type Message } from "
 // ADR 0001 (T17 step 4) adds what S1's prototype checked about the admin and that Next or Payload
 // upgrades could break: an image uploaded to `media` and opened from the list without a full reload,
 // the list view paginated without a full reload, and a browser console with no errors or warnings
-// across the whole run. (S1's third admin check, choosing an image in an upload field's drawer,
-// needs an upload field on a collection: the first one M4 adds should bring it back; plan §5.)
+// across the whole run. S1's third admin check, choosing an image in an upload field's drawer,
+// came back with the first upload field (T61): the header global's logo. T61 also picks the
+// header's design by keyboard alone (D85's picker is a radio group: arrows move the choice).
 //
-// The page it creates is deleted at the end and the admin's language selector is put back on
+// The page it creates is deleted at the end, the header is published again as it was (which also
+// replaces the drafts the header tests saved), and the admin's language selector is put back on
 // English, so a run leaves the database as it found it. (Payload remembers the last language an
 // admin picked, per user, and opens the next page in it: the suite names its language in the URL
 // and does not rely on what an earlier run or a person left behind.)
@@ -75,6 +84,9 @@ function deleteAs(page: Page, url: string): Promise<number> {
 test.describe("the admin bootstrap made", () => {
   let page: Page;
   let pageId: number | undefined;
+  let mediaId: number | undefined;
+  let token = "";
+  let header: GlobalData | undefined;
   const stamp = Date.now().toString(36);
   const consoleMessages: Message[] = [];
   const failedRequests: FailedRequest[] = [];
@@ -84,9 +96,13 @@ test.describe("the admin bootstrap made", () => {
   test.beforeAll(async ({ browser, baseURL }) => {
     page = await browser.newPage({ baseURL: baseURL ?? "http://localhost:8000" });
     collectConsole(page, consoleMessages, failedRequests);
+    token = await adminToken();
+    header = await snapshotGlobal(token, "header");
   });
 
   test.afterAll(async () => {
+    if (header !== undefined)
+      await publishGlobal(token, "header", header, "all").catch(() => undefined);
     if (!page) return;
     // Media and the bulk pages of the tests below, by their stamped names.
     await deleteAs(page, `/api/media?where[filename][contains]=e2e-${stamp}`).catch(
@@ -221,6 +237,7 @@ test.describe("the admin bootstrap made", () => {
     await page.waitForURL(/\/admin\/collections\/media\/(\d+)/);
     const id = Number(/\/media\/(\d+)/.exec(page.url())?.[1]);
     expect(id).toBeGreaterThan(0);
+    mediaId = id;
 
     const doc = await page.evaluate(async (id) => {
       const response = await fetch(`/api/media/${id}?locale=en`);
@@ -244,6 +261,50 @@ test.describe("the admin bootstrap made", () => {
     expect(await marked(page), "opening a document from the list is a client navigation").toBe(
       true,
     );
+  });
+
+  test("chooses the header's logo in the upload field's drawer, and saves a draft", async () => {
+    expect(mediaId, "the image uploaded above").toBeDefined();
+    await page.goto("/admin/globals/header?locale=en");
+    const logo = page.locator("#field-logo");
+    await logo.getByRole("button", { name: "Choose from existing" }).click();
+    const drawer = page.locator("dialog.list-drawer");
+    await drawer
+      .locator("tbody tr")
+      .filter({ hasText: `e2e-${stamp}.png` })
+      .getByRole("button")
+      .first()
+      .click();
+    await expect(drawer).toBeHidden();
+    await expect(logo).toContainText(`e2e-${stamp}.png`);
+    await page.getByRole("button", { name: "Save Draft" }).click();
+    await expect.poll(async () => (await draftOf(token, "header"))["logo"]).toBe(mediaId);
+    // A draft: visitors still read the published header, without the logo.
+    expect((await snapshotGlobal(token, "header"))["logo"] ?? null).toBe(header?.["logo"] ?? null);
+  });
+
+  test("picks the header's design by keyboard alone", async () => {
+    await page.goto("/admin/globals/header?locale=en");
+    const picker = page.getByRole("radiogroup", { name: "Design" });
+    const radios = picker.getByRole("radio");
+    await expect(radios.first()).toBeVisible();
+    const before = await picker.getByRole("radio", { checked: true }).getAttribute("value");
+    const values = await radios.evaluateAll((all) =>
+      all.map((radio) => (radio as HTMLInputElement).value),
+    );
+    // Tab to the group: a radio group is one stop, on its checked radio.
+    for (let presses = 0; presses < 200; presses += 1) {
+      await page.keyboard.press("Tab");
+      if (await picker.evaluate((group) => group.contains(document.activeElement))) break;
+    }
+    const focused = page.locator(":focus");
+    await expect(focused).toHaveAttribute("value", before ?? "");
+    await page.keyboard.press("ArrowRight");
+    const next = values[(values.indexOf(before ?? "") + 1) % values.length];
+    await expect(picker.getByRole("radio", { checked: true })).toHaveAttribute("value", next ?? "");
+    await expect(focused).toHaveAttribute("value", next ?? "");
+    await page.getByRole("button", { name: "Save Draft" }).click();
+    await expect.poll(async () => (await draftOf(token, "header"))["design"]).toBe(next);
   });
 
   test("paginates the list view without a full reload", async () => {

@@ -26,6 +26,7 @@
     "@payloadcms/ui": "3.92.1",
     "@shopblok/fixtures": "workspace:*",
     "@shopblok/i18n": "workspace:*",
+    "@shopblok/integrations": "workspace:*",
     "@shopblok/registry": "workspace:*",
     "@shopblok/ui": "workspace:*",
     "@tailwindcss/postcss": "4.3.3",

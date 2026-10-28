@@ -1,7 +1,10 @@
 import type { Payload } from "payload";
 import { beforeEach, describe, expect, it } from "vitest";
-import { runSeeds } from "./run";
-import type { SeedModule } from "./types";
+import { siteText } from "../../lib/site";
+import { footerSeed, headerSeed, SEED_GLOBALS, siteSettingsSeed } from "./globals";
+import { runGlobalSeeds, runSeeds } from "./run";
+import type { SeedGlobal, SeedModule } from "./types";
+import { comparable } from "./values";
 
 /**
  * A `pages` table in memory, with drafts, enough of the Local API for the runner. Each write stamps
@@ -184,5 +187,205 @@ describe("runSeeds", () => {
         ({ context }) => (context as { disableRevalidate?: boolean })?.disableRevalidate,
       ),
     ).toBe(true);
+  });
+});
+
+/**
+ * One global in memory, read and written as Payload does with `locale: "all"` (a deep merge of the
+ * locale-keyed data, row ids added to array rows), and one language at a time for a path.
+ */
+function fakeGlobal() {
+  let stored: Record<string, unknown> = { design: "classic", _status: "draft" };
+  let saved = false;
+  let clock = Date.parse("2026-10-28T12:00:00Z");
+  const versions: { updatedAt: string; version: { _status: string } }[] = [];
+  const writes: { locale: string; data: Record<string, unknown>; context: unknown }[] = [];
+  let ids = 0;
+  const withIds = (value: unknown): unknown =>
+    Array.isArray(value)
+      ? value.map((row) =>
+          row !== null && typeof row === "object"
+            ? { id: `row${++ids}`, ...(withIds(row) as object) }
+            : row,
+        )
+      : value !== null && typeof value === "object"
+        ? Object.fromEntries(Object.entries(value).map(([k, v]) => [k, withIds(v)]))
+        : value;
+  const merge = (into: Record<string, unknown>, data: Record<string, unknown>) => {
+    for (const [key, value] of Object.entries(data)) {
+      const current = into[key];
+      if (
+        value !== null &&
+        typeof value === "object" &&
+        !Array.isArray(value) &&
+        current !== null &&
+        typeof current === "object" &&
+        !Array.isArray(current)
+      ) {
+        merge(current as Record<string, unknown>, value as Record<string, unknown>);
+      } else into[key] = withIds(value);
+    }
+  };
+  const payload = {
+    globals: { config: [{ slug: "site-settings", versions: { drafts: true } }] },
+    findGlobal: async () => structuredClone(saved ? stored : { ...stored, updatedAt: undefined }),
+    findGlobalVersions: async () => ({
+      docs: [...versions].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0, 1),
+    }),
+    updateGlobal: async ({
+      locale,
+      data,
+      context,
+    }: {
+      locale: string;
+      data: Record<string, unknown>;
+      context: unknown;
+    }) => {
+      writes.push({ locale, data: structuredClone(data), context });
+      if (locale === "all") merge(stored, data);
+      else {
+        // One language of a localized array: `{ productNotes: [...] }` under that language.
+        for (const [key, value] of Object.entries(data)) {
+          stored[key] = { ...(stored[key] as object), [locale]: withIds(value) };
+        }
+      }
+      saved = true;
+      stored["updatedAt"] = new Date((clock += 1000)).toISOString();
+    },
+  };
+  return {
+    payload: payload as unknown as Payload,
+    writes,
+    edit: (data: Record<string, unknown>) => merge(stored, data),
+    saveDraft: () =>
+      versions.push({
+        updatedAt: new Date((clock += 1000)).toISOString(),
+        version: { _status: "draft" },
+      }),
+    stored: () => stored,
+    reset: () => {
+      stored = { design: "classic", _status: "draft" };
+      saved = false;
+    },
+  };
+}
+
+const settingsSeed = (storeName: string, before: string[] = []): SeedGlobal => ({
+  global: "site-settings",
+  fields: () => ({
+    storeName: { value: storeName, before },
+    "seo.description": { value: { en: "Basics", el: "Βασικά" } },
+    productNotes: {
+      value: { en: [{ note: "Ships fast" }], el: [{ note: "Γρήγορη αποστολή" }] },
+    },
+  }),
+  perLocale: ["productNotes"],
+});
+
+describe("runGlobalSeeds (T61)", () => {
+  it("writes a global that was never saved, published, all languages at once", async () => {
+    const { payload, writes, stored } = fakeGlobal();
+    expect(await runGlobalSeeds(payload, [settingsSeed("Shopblok")])).toEqual({
+      created: 1,
+      updated: 0,
+      unchanged: 0,
+      kept: [],
+    });
+    expect(writes[0]).toMatchObject({
+      locale: "all",
+      data: {
+        _status: "published",
+        storeName: "Shopblok",
+        seo: { description: { en: "Basics", el: "Βασικά" } },
+      },
+      context: { disableRevalidate: true },
+    });
+    // A localized array, one language at a time.
+    expect(writes.slice(1).map((write) => [write.locale, write.data])).toEqual([
+      ["en", { productNotes: [{ note: "Ships fast" }] }],
+      ["el", { productNotes: [{ note: "Γρήγορη αποστολή" }] }],
+    ]);
+    expect(comparable(stored()["productNotes"])).toEqual({
+      en: [{ note: "Ships fast" }],
+      el: [{ note: "Γρήγορη αποστολή" }],
+    });
+  });
+
+  it("changes nothing on a second run, though Payload added row ids", async () => {
+    const { payload, writes } = fakeGlobal();
+    await runGlobalSeeds(payload, [settingsSeed("Shopblok")]);
+    writes.length = 0;
+    expect(await runGlobalSeeds(payload, [settingsSeed("Shopblok")])).toMatchObject({
+      unchanged: 1,
+    });
+    expect(writes).toEqual([]);
+  });
+
+  it("keeps an editor's value, and replaces one an earlier seed wrote", async () => {
+    const { payload, writes, edit } = fakeGlobal();
+    await runGlobalSeeds(payload, [settingsSeed("Shopblok")]);
+    edit({ seo: { description: { en: "Our own words", el: "Βασικά" } } });
+    writes.length = 0;
+    expect(await runGlobalSeeds(payload, [settingsSeed("Shopblok 2", ["Shopblok"])])).toMatchObject(
+      {
+        updated: 1,
+      },
+    );
+    expect(writes).toEqual([
+      { locale: "all", data: { storeName: "Shopblok 2" }, context: { disableRevalidate: true } },
+    ]);
+  });
+
+  it("leaves a global with an editor's newer draft alone, and names it", async () => {
+    const { payload, writes, saveDraft } = fakeGlobal();
+    await runGlobalSeeds(payload, [settingsSeed("Shopblok")]);
+    saveDraft();
+    writes.length = 0;
+    expect(await runGlobalSeeds(payload, [settingsSeed("Shopblok 2", ["Shopblok"])])).toMatchObject(
+      {
+        kept: ["site-settings"],
+      },
+    );
+    expect(writes).toEqual([]);
+  });
+});
+
+describe("the globals' seed (T61 step 6)", () => {
+  it("is the header, the footer and the site settings, in that order", () => {
+    expect(SEED_GLOBALS.map((seed) => seed.global)).toEqual(["header", "footer", "site-settings"]);
+  });
+
+  it("writes M3's shell from site.ts, in the four seeded languages", async () => {
+    const header = await headerSeed.fields({} as Payload);
+    expect(header["design"]?.value).toBe("classic");
+    expect(header["navigation.source"]?.value).toBe("categories");
+    expect(header["announcement.message"]?.value).toEqual({
+      en: siteText("en").announcement,
+      el: siteText("el").announcement,
+      de: siteText("de").announcement,
+      fr: siteText("fr").announcement,
+    });
+    const footer = await footerSeed.fields({} as Payload);
+    const columns = footer["columns"]?.value as {
+      title: Record<string, string>;
+      categories?: boolean;
+      links: { link: { url: string; label: Record<string, string> } }[];
+    }[];
+    expect(columns.map((column) => column.title["el"])).toEqual([
+      siteText("el").shop,
+      siteText("el").help,
+    ]);
+    expect(columns[0]?.categories).toBe(true);
+    expect(columns.flatMap((column) => column.links.map((row) => row.link.url))).toEqual([
+      "/store",
+      "/account",
+      "/cart",
+      "/order/lookup",
+    ]);
+    const settings = await siteSettingsSeed.fields({} as Payload);
+    expect(settings["productNotes"]?.value).toMatchObject({
+      de: siteText("de").productNotes.map((note) => ({ note })),
+    });
+    expect(siteSettingsSeed.perLocale).toEqual(["productNotes"]);
   });
 });

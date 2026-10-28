@@ -1,0 +1,22 @@
+{
+  "name": "@shopblok/integrations",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Which integrations are on (SPEC §10): getIntegrationStatus from the apps' environments, for doctor and Payload's integrations panel (D85). Pure, no imports. Exports TypeScript source: no build step (D3).",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc",
+    "lint": "eslint .",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@shopblok/config": "workspace:*",
+    "eslint": "9.39.5",
+    "typescript": "5.9.3",
+    "vite": "8.3.3",
+    "vitest": "5.0.3"
+  }
+}

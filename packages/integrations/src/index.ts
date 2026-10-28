@@ -1,7 +1,8 @@
 // Which integrations are on, from the two apps' environments (T14, SPEC §10). Pure: the env comes in
 // as plain objects and nothing is read from `process.env` or from disk, so the tests can feed every
-// combination. In M4 this moves into a package, where the Payload status panel (SPEC §7.6) shows the
-// same list; nothing here may import from `scripts/`.
+// combination. A package since T61 (D85): doctor prints it, and Payload's dashboard shows the same list
+// from the storefront's own environment (`payload/components/integrations-status.tsx`). It imports
+// nothing, so plain Node runs it from `scripts/` and Next bundles it into the admin.
 //
 // A value that is not there, or is blank, counts as not set (`has()` in the backend's `modules.ts`
 // reads it the same way). The result never holds a value, only names, so it is safe to print.

@@ -8,7 +8,7 @@ import {
   serviceChecks,
 } from "./doctor-services.ts";
 import type { HttpResult } from "./http.ts";
-import { getIntegrationStatus, type AppEnvs } from "./integrations.ts";
+import { getIntegrationStatus, type AppEnvs } from "@shopblok/integrations";
 
 const targets = targetsFrom({
   DATABASE_URL: "postgres://u:p@localhost:15432/medusa",

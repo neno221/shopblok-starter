@@ -19,7 +19,7 @@ import {
   type LiveRegion,
 } from "./doctor-checks.ts";
 import type { HttpResult } from "./http.ts";
-import { getIntegrationStatus, type AppEnvs } from "./integrations.ts";
+import { getIntegrationStatus, type AppEnvs } from "@shopblok/integrations";
 
 const dev: Context = { nodeEnv: undefined, vercel: false };
 
@@ -238,7 +238,10 @@ describe("configChecks: the preview and jobs secrets (T59)", () => {
   });
 
   it("blank in production is an error", () => {
-    const check = find(run(blank, { nodeEnv: "production", vercel: false }), "preview-cron-secrets");
+    const check = find(
+      run(blank, { nodeEnv: "production", vercel: false }),
+      "preview-cron-secrets",
+    );
     expect(check?.level).toBe("error");
     expect(check?.fix).toContain("Vercel Cron");
   });

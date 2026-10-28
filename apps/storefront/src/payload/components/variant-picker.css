@@ -1,0 +1,59 @@
+/* The variant picker's cards (D85): Payload's own theme variables, so it follows the admin's light
+   and dark themes. The radio input is hidden from sight but stays in the page for the keyboard and
+   screen readers; the card shows its state and its focus. */
+
+.variant-picker__options {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+  gap: var(--base);
+}
+
+.variant-picker__card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--base) / 2);
+  padding: calc(var(--base) / 2);
+  border: 1px solid var(--theme-elevation-150);
+  border-radius: var(--style-radius-m);
+  background: var(--theme-input-bg);
+  cursor: pointer;
+}
+
+.variant-picker__card:has(.variant-picker__input:checked) {
+  border-color: var(--theme-success-500);
+  box-shadow: 0 0 0 1px var(--theme-success-500);
+}
+
+.variant-picker__card:has(.variant-picker__input:focus-visible) {
+  outline: 2px solid var(--theme-text);
+  outline-offset: 2px;
+}
+
+.variant-picker__card:has(.variant-picker__input:disabled) {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.variant-picker__input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.variant-picker__image {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 3 / 2;
+  border-radius: var(--style-radius-s);
+  background: var(--theme-elevation-50);
+}
+
+.variant-picker__name {
+  font-weight: 500;
+}

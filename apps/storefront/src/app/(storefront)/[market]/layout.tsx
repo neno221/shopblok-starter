@@ -16,17 +16,21 @@ import { SuggestionBannerIsland } from "../../../components/shell/suggestion-ban
 import { getMarketMap } from "../../../lib/markets/get-market-map";
 import { listMarkets } from "../../../lib/markets/market";
 import { siteBase } from "../../../lib/seo/product";
-import { SHELL_PREFETCH, SITE } from "../../../lib/site";
+import { SHELL_PREFETCH } from "../../../lib/site";
 import { VisitorCookieConsent } from "../../../lib/visitor/cookie-consent";
 import { VisitorSource } from "../../../lib/visitor/visitor-source";
 import "../../../styles/globals.css";
 
-// A page's title is "{page} | Shopblok"; `metadataBase` turns the pages' relative canonical, hreflang
-// and Open Graph URLs into absolute ones (SPEC §12), from `NEXT_PUBLIC_BASE_URL`.
-export const metadata: Metadata = {
-  title: { default: SITE.storeName, template: `%s | ${SITE.storeName}` },
-  metadataBase: siteBase(),
-};
+// A page's title is "{page} | Shopblok", or the site settings' template and store name (T61, D78);
+// `metadataBase` turns the pages' relative canonical, hreflang and Open Graph URLs into absolute
+// ones (SPEC §12), from `NEXT_PUBLIC_BASE_URL`.
+export async function generateMetadata(): Promise<Metadata> {
+  const { settings } = await getShellData();
+  return {
+    title: { default: settings.storeName, template: settings.titleTemplate },
+    metadataBase: siteBase(),
+  };
+}
 
 // With Cache Components every root param needs at least one value, or the build fails. The keys
 // come from the market map; keys it gains later render on request.
@@ -49,6 +53,12 @@ export async function generateStaticParams() {
 // the server (D44): the store's source, the choice of market, the suggestion banner, the cookie
 // banner, and in the header the cart's count and the search. A page's `<main id="main">` is the
 // skip link's target.
+//
+// T61: the header, the footer and the title come from the `header`, `footer` and `site-settings`
+// globals in the market's language (`getShellData`), their drafts in Draft Mode. Live preview's
+// island is not here but on the market's home, where a global is previewed: whatever this layout
+// imports is an entry script of every page under it, even behind a dynamic `import()` (1.8 KB on
+// each, measured), and the home is the one page that needs it.
 export default async function RootLayout({ children }: { children: ReactNode }) {
   const [market, t, messages, shell] = await Promise.all([
     getCurrentMarket(),

@@ -65,6 +65,9 @@ async function marketMap(): Promise<MarketMap> {
   return getMarketMap();
 }
 
+/** The page a content global is previewed on (T61): the market's home, which shows all three. */
+const GLOBAL_PREVIEW_PATH = "/";
+
 /** `admin.livePreview.url`: the edited language's market, the document's path (D74). */
 export const livePreviewUrl: NonNullable<LivePreviewConfig["url"]> = async ({
   collectionConfig,
@@ -72,8 +75,13 @@ export const livePreviewUrl: NonNullable<LivePreviewConfig["url"]> = async ({
   globalConfig,
   locale,
 }) => {
-  const slug = collectionConfig?.slug ?? globalConfig?.slug;
-  const path = slug === undefined ? null : (CMS_PATHS[slug]?.(data) ?? null);
+  const slug = collectionConfig?.slug;
+  const path =
+    globalConfig !== undefined
+      ? GLOBAL_PREVIEW_PATH
+      : slug === undefined
+        ? null
+        : (CMS_PATHS[slug]?.(data) ?? null);
   if (path === null) return null;
   return previewUrl({
     map: await marketMap(),

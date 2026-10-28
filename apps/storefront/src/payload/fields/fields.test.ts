@@ -1,6 +1,6 @@
 import type { Field, GroupField, TextField } from "payload";
 import { describe, expect, it } from "vitest";
-import { link } from "./link";
+import { hideDeletedInMedusa, link } from "./link";
 import { sectionSettings } from "./section-settings";
 
 const named = (fields: Field[], name: string) =>
@@ -61,5 +61,22 @@ describe("sectionSettings", () => {
     expect(named(field.fields, "surface")).toMatchObject({
       options: ["default", "muted", "inverse"],
     });
+  });
+});
+
+describe("hideDeletedInMedusa (D85)", () => {
+  it("hides a catalog document Medusa deleted from the pickers, and filters nothing else", () => {
+    for (const relationTo of ["products", "categories", "collections"]) {
+      expect(hideDeletedInMedusa({ relationTo } as never)).toEqual({
+        deletedInMedusa: { not_equals: true },
+      });
+    }
+    expect(hideDeletedInMedusa({ relationTo: "pages" } as never)).toBe(true);
+  });
+
+  it("is on the link field's reference", () => {
+    const group = link({ relationTo: ["products"] });
+    const reference = group.fields.find((field) => "name" in field && field.name === "reference");
+    expect(reference).toMatchObject({ filterOptions: hideDeletedInMedusa });
   });
 });

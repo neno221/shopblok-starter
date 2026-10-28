@@ -23,6 +23,7 @@ const state = vi.hoisted(() => ({
   products: [] as ProductDto[],
 }));
 vi.mock("next/root-params", () => ({ market: async () => state.key }));
+vi.mock("next/headers", () => ({ draftMode: async () => ({ isEnabled: false }) }));
 vi.mock("../../../lib/markets/cached-market-map", () => ({
   getRenderMarketMap: async () => state.map,
 }));

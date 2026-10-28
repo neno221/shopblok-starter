@@ -1,4 +1,5 @@
 import { expect, test, type APIResponse } from "@playwright/test";
+import { adminToken, publishGlobal, snapshotGlobal, type GlobalData } from "./support/globals";
 
 // T48 (D66): the shell around every market page, against `next start` with the seeded map and the
 // demo catalog. What is the visitor's is never in the server's HTML (D44): the cart's count and the
@@ -6,6 +7,10 @@ import { expect, test, type APIResponse } from "@playwright/test";
 // one goes to the same page in that market and records the choice in `_shopblok_market`, and `/`
 // alone redirects to the market the cookie names (SPEC §8.5). The cart hook is `/next/e2e/cart`,
 // open on the server e2e-smoke starts (E2E_TEST_ROUTES=true).
+//
+// T61 (D78): the header is the `header` global's. A design published in the admin shows within two
+// requests, and the announcement is the market's language, not the visitor's: Greek on `/` (Cyprus)
+// while `/us` keeps English, whatever the browser asks for.
 
 /** The seed's three categories (`apps/backend/src/scripts/seed.ts`), flat: three links. */
 const SEED_CATEGORIES = 3;
@@ -119,5 +124,76 @@ test.describe("the shell (D66)", () => {
   test("/ stays under its HTML ceiling", async ({ request }) => {
     const bytes = (await (await request.get("/")).body()).byteLength;
     expect(bytes, `/ is ${bytes} bytes`).toBeLessThanOrEqual(HOME_HTML_CEILING);
+  });
+});
+
+const base = () => process.env["E2E_BASE_URL"] ?? "http://localhost:8000";
+
+/**
+ * A page's HTML within two requests: `revalidateTag(tag, 'max')` is stale-while-revalidate, so
+ * request 1 may still be the old page and starts the refresh, and request 2 follows after 500 ms
+ * (payload-cache.spec.ts measured why). Returns the number of the first request that matched, or 0.
+ */
+async function freshWithinTwo(
+  path: string,
+  matches: (html: string) => boolean,
+  headers: Record<string, string> = {},
+): Promise<number> {
+  const html = async () => (await fetch(new URL(path, base()), { headers })).text();
+  if (matches(await html())) return 1;
+  await new Promise((resolve) => setTimeout(resolve, 500));
+  return matches(await html()) ? 2 : 0;
+}
+
+const headerVariant = (html: string) => /<header[^>]*data-variant="([\w-]+)"/.exec(html)?.[1];
+const announcement = (html: string) =>
+  /data-slot="announcement-bar-text"[^>]*>([^<]*)</.exec(html)?.[1];
+
+test.describe("the header global (T61)", () => {
+  test.describe.configure({ mode: "serial" });
+  const stamp = Date.now().toString(36);
+  let token = "";
+  let published: GlobalData | undefined;
+
+  test.beforeAll(async () => {
+    token = await adminToken();
+    published = await snapshotGlobal(token, "header");
+  });
+
+  test.afterAll(async () => {
+    // Not a test: the header as it was, published again in every language.
+    if (published === undefined) return;
+    await publishGlobal(token, "header", published, "all");
+    // Settle: the next spec reads the old header from its first request.
+    await freshWithinTwo("/us", (html) => headerVariant(html) === published?.["design"]);
+  });
+
+  test("a design published in the admin shows within two requests", async () => {
+    expect(headerVariant(await (await fetch(new URL("/us", base()))).text())).not.toBe("centered");
+    await publishGlobal(token, "header", { design: "centered" });
+    expect(
+      await freshWithinTwo("/us", (html) => headerVariant(html) === "centered"),
+      "the centered header within two requests",
+    ).toBeGreaterThan(0);
+  });
+
+  test("the announcement is the market's language: Greek on /, English on /us", async () => {
+    const greek = `Ανακοίνωση ${stamp}`;
+    const english = `Notice ${stamp}`;
+    await publishGlobal(token, "header", { announcement: { message: english } }, "en");
+    await publishGlobal(token, "header", { announcement: { message: greek } }, "el");
+    expect(
+      await freshWithinTwo("/", (html) => announcement(html) === greek),
+      "the Greek announcement on / within two requests",
+    ).toBeGreaterThan(0);
+    expect(
+      await freshWithinTwo("/us", (html) => announcement(html) === english),
+      "the English announcement on /us within two requests",
+    ).toBeGreaterThan(0);
+    // A Greek browser on /us still reads the market's language.
+    const asGreek = await (
+      await fetch(new URL("/us", base()), { headers: { "accept-language": "el" } })
+    ).text();
+    expect(announcement(asGreek)).toBe(english);
   });
 });

@@ -1,8 +1,8 @@
-import type { CollectionSlug, Payload } from "payload";
+import type { CollectionSlug, GlobalSlug, Payload } from "payload";
 import { hasDraftsEnabled } from "payload/shared";
 import { DEFAULT_LOCALE } from "../locales";
-import type { SeedCounts, SeedDocument, SeedModule } from "./types";
-import { seededUpdate } from "./values";
+import type { SeedCounts, SeedDocument, SeedGlobal, SeedModule } from "./types";
+import { comparable, seededUpdate } from "./values";
 
 /** Seeds write many documents: no revalidation per save (the running site has none to refresh). */
 const CONTEXT = { disableRevalidate: true };
@@ -132,6 +132,118 @@ export async function runSeeds(payload: Payload, modules: SeedModule[]): Promise
       else if (updated) counts.updated++;
       else counts.unchanged++;
     }
+  }
+  return counts;
+}
+
+const valueAt = (doc: Record<string, unknown>, path: string): unknown =>
+  path
+    .split(".")
+    .reduce<unknown>(
+      (value, key) =>
+        value !== null && typeof value === "object"
+          ? (value as Record<string, unknown>)[key]
+          : undefined,
+      doc,
+    );
+
+function setAt(target: Record<string, unknown>, path: string, value: unknown): void {
+  const keys = path.split(".");
+  const last = keys.pop() as string;
+  let node = target;
+  for (const key of keys) node = (node[key] ??= {}) as Record<string, unknown>;
+  node[last] = value;
+}
+
+function deleteAt(target: Record<string, unknown>, path: string): void {
+  const keys = path.split(".");
+  const last = keys.pop() as string;
+  const parent = valueAt(target, keys.join(".")) as Record<string, unknown> | undefined;
+  if (keys.length === 0) delete target[last];
+  else if (parent !== undefined) delete parent[last];
+}
+
+/** Whether an editor has a draft of the global newer than its published text (`hasPendingDraft`). */
+async function hasPendingGlobalDraft(
+  payload: Payload,
+  slug: GlobalSlug,
+  stored: Record<string, unknown>,
+): Promise<boolean> {
+  const config = payload.globals.config.find((global) => global.slug === slug);
+  if (config === undefined || !hasDraftsEnabled(config)) return false;
+  const { docs } = await payload.findGlobalVersions({
+    slug,
+    sort: "-updatedAt",
+    limit: 1,
+    depth: 0,
+    pagination: false,
+    overrideAccess: true,
+  });
+  const newest = docs[0];
+  const status = (newest?.version as { _status?: string } | undefined)?._status;
+  if (newest === undefined || status !== "draft") return false;
+  return Date.parse(String(newest.updatedAt)) > Date.parse(String(stored["updatedAt"]));
+}
+
+/**
+ * Runs the globals' seeds (T61) by T59's rule: a field is written while it is empty or still holds
+ * what an earlier seed wrote (`seededUpdate`, on `comparable` values), so a second run changes
+ * nothing and an editor's change survives `pnpm bootstrap`. A global is read and written in every
+ * language at once (`locale: "all"`), so a menu's structure and its labels in each language are one
+ * value. One that was never saved is written whole and published; one with an editor's pending
+ * draft is left as it is and named in `kept`. Access control is off, nothing is revalidated.
+ */
+export async function runGlobalSeeds(payload: Payload, globals: SeedGlobal[]): Promise<SeedCounts> {
+  const counts: SeedCounts = { created: 0, updated: 0, unchanged: 0, kept: [] };
+  for (const { global, fields, perLocale = [] } of globals) {
+    const stored = (await payload.findGlobal({
+      slug: global,
+      locale: "all",
+      depth: 0,
+      overrideAccess: true,
+    } as never)) as unknown as Record<string, unknown>;
+    const saved = typeof stored["updatedAt"] === "string";
+    const data: Record<string, unknown> = {};
+    for (const [path, seeded] of Object.entries(await fields(payload))) {
+      const current = saved ? comparable(valueAt(stored, path)) : undefined;
+      // Compared as `comparable` on both sides; written as the seed has it.
+      const probe = { value: comparable(seeded.value), before: seeded.before?.map(comparable) };
+      if (seededUpdate(current, probe) !== null) setAt(data, path, seeded.value);
+    }
+    if (Object.keys(data).length === 0) {
+      counts.unchanged++;
+      continue;
+    }
+    if (saved && (await hasPendingGlobalDraft(payload, global, stored))) {
+      counts.kept.push(global);
+      continue;
+    }
+    const write = (locale: string, values: Record<string, unknown>) =>
+      payload.updateGlobal({
+        slug: global,
+        locale,
+        data: values,
+        depth: 0,
+        overrideAccess: true,
+        context: CONTEXT,
+      } as never);
+    // Everything but the per-language arrays in one write (publishing a new global), then each of
+    // those arrays one language at a time.
+    const languages: [string, Record<string, unknown>][] = [];
+    for (const path of perLocale) {
+      const value = valueAt(data, path) as Record<string, unknown> | undefined;
+      if (value === undefined) continue;
+      deleteAt(data, path);
+      for (const [locale, localeValue] of Object.entries(value)) {
+        const values: Record<string, unknown> = {};
+        setAt(values, path, localeValue);
+        languages.push([locale, values]);
+      }
+    }
+    await write("all", saved ? data : { ...data, _status: "published" });
+    for (const [locale, values] of languages) await write(locale, values);
+    if (saved) counts.updated++;
+    else counts.created++;
   }
   return counts;
 }
