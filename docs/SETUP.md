@@ -6069,3 +6069,4 @@ T51's review table (PR 71, items 1 and 6) spoke of "M4's instant search": both n
 | `address-form` unit suites | 91 of 91 (2 new); the 2 new fail with the fix reverted |
 | `checkout-cy.spec.ts`'s new test, `next dev` | passes with the fix, fails without |
 | `STOREFRONT_LISTING_PAGE_SIZE=2 pnpm dev` | 2 cards on `/store` with the change, 8 without |
+| `checkout-cy.spec.ts` and `checkout-us.spec.ts` against `next build && next start` and Medusa (as `e2e-smoke`) | 9 of 9, the new test in 3.5 s |
