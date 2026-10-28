@@ -86,9 +86,10 @@ exec > >(tee -a /var/log/shopblok-setup.log) 2>&1
 echo "setup start $(date -u +%FT%TZ)"
 set -x
 
-# 1. Node 22.22 or newer on the 22 line (.nvmrc, engines). Upgrade /opt/node22 only if it's older.
+# 1. Node 22.23.4 or newer on the 22 line (.nvmrc, engines; Payload 3.92 needs it, M4 D71).
+#    Upgrade /opt/node22 only if it's older.
 #    Remove the old npm and Corepack first: unpacking over them leaves stale files that break npm.
-if ! /opt/node22/bin/node -e 'const [a,b]=process.versions.node.split(".").map(Number);process.exit(a===22&&b>=22?0:1)'; then
+if ! /opt/node22/bin/node -e 'const [a,b,c]=process.versions.node.split(".").map(Number);process.exit(a===22&&(b>23||(b===23&&c>=4))?0:1)'; then
   mkdir -p /opt/node22
   rm -rf /opt/node22/lib/node_modules/npm /opt/node22/lib/node_modules/corepack
   tarball=$(curl -fsSL https://nodejs.org/dist/latest-v22.x/SHASUMS256.txt | grep -o 'node-v22\.[0-9.]*-linux-x64\.tar\.xz' | head -n1)
@@ -110,7 +111,7 @@ if ! docker info >/dev/null 2>&1; then
   for _ in $(seq 30); do docker info >/dev/null 2>&1 && break; sleep 1; done
 fi
 pids=()
-for image in postgres:17.11-alpine redis:7.4-alpine getmeili/meilisearch:v1.54.3 axllent/mailpit:v1.31.4; do
+for image in postgres:17.11-alpine redis:7.4-alpine getmeili/meilisearch:v1.54.3 axllent/mailpit:v1.31.6; do
   docker pull -q "$image" & pids+=($!)
 done
 
@@ -160,7 +161,16 @@ When C0 or a later task changes this script, it updates this page in its PR, and
 
 Each prompt in NEXT-SESSION.md says this, and C0 checks that it works.
 
-1. `node -v` prints 22.22 or newer, and `pnpm -v` prints `12.10.1`. If pnpm is wrong, run `npm install -g pnpm@12.10.1`. **If npm fails** (S4's session, 2026-10-16, SETUP.md "Backend outage (S4)"): `curl -sS "$HTTPS_PROXY/__agentproxy/status"` shows why. A `connect_rejected` for `registry.npmjs.org` means the environment's network policy lacks the package managers: the owner ticks that box under **Network access** (below). `getaddrinfo ENOTFOUND registry.npmjs.org` means npm went direct, because the proxy's no-proxy list names `registry.npmjs.org`, `jsr.io` and `npm.jsr.io`, and the VM had no direct DNS: run npm and pnpm with those three removed from `NO_PROXY`, `no_proxy` and `npm_config_noproxy`, so they go through the proxy (auto mode asks the owner first). Run project tools through `pnpm exec`, never as a bare command: the image has its own global `eslint` 10.1.0, `prettier` 3.8.1, `tsc` and `playwright` 1.56.1 on PATH, which are not the plan's pins. But `pnpm exec` falls through to the global copy of a tool that the package you run it from doesn't depend on. The root depends on `prettier` and `typescript`, so `pnpm exec prettier` and `pnpm exec tsc` are the pinned ones there; it doesn't depend on `eslint` or `playwright`, so run those as `pnpm --filter <package> exec …` from a package that does. Check `--version` against the plan's pin the first time.
+1. `node -v` prints `.nvmrc`'s version (22.23.4 since T57) or newer on the 22 line, and `pnpm -v` prints `12.10.1`. **If Node is older** (the image has 22.22.0, and the setup script upgraded only below 22.22 until you pasted T57's version), install `.nvmrc`'s version into `/opt/node22` the setup script's way, about ten seconds, before `pnpm install`; pnpm 12.10.1 stays, since it lives beside npm:
+   ```bash
+   want=$(sed 's/^v//' .nvmrc)
+   if [ "$(node -v)" != "v$want" ] && node -e "const p=v=>v.replace(/^v/,'').split('.').map(Number);const [a,b]=[p(process.version),p('$want')];process.exit(a[0]===b[0]&&(a[1]<b[1]||(a[1]===b[1]&&a[2]<b[2]))?0:1)"; then
+     rm -r /opt/node22/lib/node_modules/npm /opt/node22/lib/node_modules/corepack
+     curl -fsSL "https://nodejs.org/dist/v$want/node-v$want-linux-x64.tar.xz" | tar -xJ -C /opt/node22 --strip-components=1
+   fi
+   node -v
+   ```
+   If pnpm is wrong, run `npm install -g pnpm@12.10.1`. **If npm fails** (S4's session, 2026-10-16, SETUP.md "Backend outage (S4)"): `curl -sS "$HTTPS_PROXY/__agentproxy/status"` shows why. A `connect_rejected` for `registry.npmjs.org` means the environment's network policy lacks the package managers: the owner ticks that box under **Network access** (below). `getaddrinfo ENOTFOUND registry.npmjs.org` means npm went direct, because the proxy's no-proxy list names `registry.npmjs.org`, `jsr.io` and `npm.jsr.io`, and the VM had no direct DNS: run npm and pnpm with those three removed from `NO_PROXY`, `no_proxy` and `npm_config_noproxy`, so they go through the proxy (auto mode asks the owner first). Run project tools through `pnpm exec`, never as a bare command: the image has its own global `eslint` 10.1.0, `prettier` 3.8.1, `tsc` and `playwright` 1.56.1 on PATH, which are not the plan's pins. But `pnpm exec` falls through to the global copy of a tool that the package you run it from doesn't depend on. The root depends on `prettier` and `typescript`, so `pnpm exec prettier` and `pnpm exec tsc` are the pinned ones there; it doesn't depend on `eslint` or `playwright`, so run those as `pnpm --filter <package> exec …` from a package that does. Check `--version` against the plan's pin the first time.
 2. `pnpm install --frozen-lockfile`.
 3. **From T04 on:** run `docker info`. At session start it fails (`failed to connect to the docker API at unix:///var/run/docker.sock`), because the daemon isn't running. The session is root, so no `sudo`. Start it and wait for it (C0 measured about 1 s):
    ```bash

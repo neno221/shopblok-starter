@@ -55,7 +55,7 @@ describe("decideJobs on a pull request", () => {
       "apps/storefront/e2e/thumbnails.spec.ts",
       "apps/storefront/e2e/support/settle.ts",
       "apps/storefront/e2e/__screenshots__/design-system/atoms/button/en-375.png",
-      "apps/storefront/public/registry/molecules/product-card-minimal.png",
+      "packages/ui/src/sections/hero.tsx",
     ]) {
       expect(jobs(pr([file])), file).toEqual({
         e2e: false,
@@ -261,6 +261,32 @@ describe("decideJobs and the importers of the DS-only folders", () => {
     expect(pr([template], [importer]).reasons[0]).toBe(
       "shared, because code outside the DS imports them: packages/ui/src/templates/",
     );
+  });
+
+  it("runs e2e-smoke for a section once a storefront route imports it (T57, D87 item 1)", () => {
+    const section = "packages/ui/src/sections/hero.tsx";
+    const importer = {
+      file: "apps/storefront/src/app/(storefront)/[market]/[...slug]/page.tsx",
+      specifier: "@shopblok/ui/sections/hero",
+    };
+    expect(jobs(pr([section]))).toEqual({ e2e: false, designSystem: true, windows: false });
+    expect(sharedAreas([importer])).toEqual(["packages/ui/src/sections/"]);
+    expect(jobs(pr([section], [importer]))).toEqual({
+      e2e: true,
+      designSystem: true,
+      windows: false,
+    });
+    for (const specifier of ["@shopblok/ui/sections-old/x", "@shopblok/ui/section/x"]) {
+      expect(sharedAreas([{ ...importer, specifier }]), specifier).toEqual([]);
+    }
+  });
+
+  it("runs both jobs for a thumbnail, which Payload's admin shows from M4 on (T57, D87 item 1)", () => {
+    expect(jobs(pr(["apps/storefront/public/registry/molecules/product-card-minimal.png"]))).toEqual({
+      e2e: true,
+      designSystem: true,
+      windows: false,
+    });
   });
 
   it("matches the templates by their package name, with or without a subpath, and not a lookalike", () => {

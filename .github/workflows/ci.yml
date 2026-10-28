@@ -125,6 +125,21 @@ jobs:
           node-version: ${{ matrix.node-version }}
       - run: pnpm install --frozen-lockfile
       - run: pnpm check:workspace
+      # T57 (M4 D87 item 2): Payload's generated files are what the config makes. `generate:types`
+      # writes `payload-types.ts` and formats it with the repo's Prettier preset; `generate:importmap`
+      # rewrites the admin's import map. Neither needs a database or a .env. A Payload change
+      # committed without them fails here (W5 found the drift on the PC: `next dev` used to rewrite
+      # the types, until T57 turned that off).
+      - name: Payload's generated files are current
+        run: |
+          pnpm --filter @shopblok/storefront generate:types
+          pnpm --filter @shopblok/storefront generate:importmap
+          if [ -n "$(git status --porcelain --untracked-files=all -- apps/storefront/src)" ]; then
+            git status --short -- apps/storefront/src
+            git diff -- apps/storefront/src
+            echo "::error title=Generated files::Payload's generated files differ from the commit. Run \`pnpm --filter @shopblok/storefront generate:types\` and \`generate:importmap\` and commit the result."
+            exit 1
+          fi
       - run: pnpm typecheck
       # `next build` no longer lints (Next 16), so lint is a step of its own.
       - run: pnpm lint
@@ -187,6 +202,23 @@ jobs:
       # Writes both .env files (with the secrets), migrates, seeds, makes the Medusa and Payload
       # admins and the publishable key, fills the `markets` global, and ends with `doctor`.
       - run: pnpm bootstrap --ci
+      # T57 (M4 D87 item 2, D88): every schema change has its saved migration. After bootstrap has
+      # applied the committed migrations, `migrate:create --skip-empty` writes a file only when the
+      # config differs from the last migration's snapshot. Its log line "generating UP statements"
+      # shows it ran: Payload's CLI used to exit 0 now and then without doing anything (SETUP.md,
+      # CLOUD.md step 4), which here would pass.
+      - name: Payload's migrations match the config
+        run: |
+          out="$(pnpm --filter @shopblok/storefront payload migrate:create --skip-empty ci-check 2>&1)" || { echo "$out"; exit 1; }
+          echo "$out"
+          grep -q "generating UP statements" <<<"$out" || { echo "::error title=Migration check::migrate:create printed no sign that it ran."; exit 1; }
+          if [ -n "$(git status --porcelain --untracked-files=all -- apps/storefront/src/migrations)" ]; then
+            git status --short -- apps/storefront/src/migrations
+            git diff -- apps/storefront/src/migrations/index.ts
+            git ls-files --others --exclude-standard -- 'apps/storefront/src/migrations/*.ts' | xargs -r cat
+            echo "::error title=Missing migration::The Payload config changes the schema without a saved migration. Create it with \`pnpm --filter @shopblok/storefront payload migrate:create <name>\` on a branch rebased on main (M4 D88) and commit it."
+            exit 1
+          fi
       # Medusa before the build (T42, D67 item 1; ADR 0004, reading 4): the catalog pages'
       # `generateStaticParams` read the backend while `next build` runs, and with MEDUSA_BACKEND_URL set
       # an unreachable Medusa fails the build. The action is the only thing that starts Medusa: its PID
@@ -553,6 +585,23 @@ jobs:
       - name: Remove the current baselines and thumbnails
         shell: bash
         run: rm -rf apps/storefront/e2e/__screenshots__/design-system apps/storefront/public/registry
+      # T57 (M4 D72): the lossless PNG optimiser the commit step runs on the PNGs it is about to
+      # commit. A release binary pinned by version and checksum: Ubuntu 24.04, the image's base, has
+      # no package for it. A new version may write other bytes for the same pixels, which would show
+      # every compressed PNG as changed, so bump it only with a baseline update in mind.
+      - name: oxipng (T57)
+        shell: bash
+        env:
+          OXIPNG_VERSION: "10.2.1"
+          OXIPNG_SHA256: 1813750ef592c5350ca79c88f98b2c0876d05c826dc7156245256d4255c1ad17
+        run: |
+          set -euo pipefail
+          name="oxipng-${OXIPNG_VERSION}-x86_64-unknown-linux-musl"
+          curl -fsSL -o "$RUNNER_TEMP/oxipng.tar.gz" "https://github.com/shssoichiro/oxipng/releases/download/v${OXIPNG_VERSION}/${name}.tar.gz"
+          echo "${OXIPNG_SHA256}  $RUNNER_TEMP/oxipng.tar.gz" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/oxipng.tar.gz" -C "$RUNNER_TEMP" "${name}/oxipng"
+          echo "$RUNNER_TEMP/${name}" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/${name}/oxipng" --version
       - uses: ./.github/actions/setup
       - run: pnpm install --frozen-lockfile
       - name: Build the storefront with the design system on
@@ -597,6 +646,22 @@ jobs:
             exit 1
           fi
           dirs=(apps/storefront/e2e/__screenshots__ apps/storefront/public/registry)
+          # T57 (M4 D72): compress what differs from the branch's commit before adding it: the PNGs
+          # Playwright wrote new, and those whose bytes changed. Lossless, so `toHaveScreenshot`, which
+          # compares decoded pixels, accepts them as they were. A PNG whose pixels did not change is
+          # either Playwright's own bytes, as committed (nothing to do), or, if the commit holds a
+          # compressed copy, Playwright's bytes again, which oxipng turns back into exactly that copy.
+          # The rest of the set stays as it is: it shrinks as cells change (no one-time rewrite).
+          mapfile -t written < <(git status --porcelain --untracked-files=all -- "${dirs[@]}" \
+            | awk 'substr($0, 1, 2) != " D" && $NF ~ /\.png$/ { print $NF }')
+          if [ "${#written[@]}" -gt 0 ]; then
+            size() { stat -c %s "$@" | awk '{ s += $1 } END { print s + 0 }'; }
+            before=$(size "${written[@]}")
+            oxipng -o 2 --strip safe --quiet -- "${written[@]}"
+            after=$(size "${written[@]}")
+            echo "oxipng: ${#written[@]} PNGs written by this run, $before bytes before, $after after."
+            { echo "### oxipng"; echo "${#written[@]} PNGs written by this run: $before bytes before, $after after."; } >> "$GITHUB_STEP_SUMMARY"
+          fi
           # Only these two folders are added, and only PNGs are expected in them.
           git add -A -- "${dirs[@]}"
           stray="$(git diff --cached --name-only | grep -Ev '\.png$' || true)"
