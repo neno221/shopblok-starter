@@ -1,4 +1,5 @@
-import type { CollectionSlug, Field, GroupField } from "payload";
+import type { CollectionSlug, Field, GroupField, TextFieldSingleValidation } from "payload";
+import { text } from "payload/shared";
 import { isSafeLinkUrl } from "../../lib/cms/link";
 
 export type LinkAppearance = "default" | "outline" | "text";
@@ -63,11 +64,16 @@ export function link({
       type: "text",
       required,
       // A path inside the market (`/sale`), or https, mailto or tel. `javascript:` and the like are
-      // refused here, and again by `resolveLink`.
-      validate: (value: string | null | undefined) =>
-        value == null || value === "" || isSafeLinkUrl(value)
+      // refused here, and again by `resolveLink`. Payload's own `text` check runs first: a custom
+      // `validate` replaces it, and it is where `required` is enforced. Hidden by the condition
+      // (a reference link), the field is not validated at all (Payload 3.92.1's `beforeChange`).
+      validate: ((value, args) => {
+        const base = text(value, args);
+        if (base !== true) return base;
+        return value == null || value === "" || isSafeLinkUrl(value)
           ? true
-          : "Use a path starting with /, or an https, mailto or tel link.",
+          : "Use a path starting with /, or an https, mailto or tel link.";
+      }) satisfies TextFieldSingleValidation,
       admin: { condition: (_: unknown, sibling: { type?: string }) => sibling?.type === "custom" },
     },
     ...(label ? [{ name: "label", type: "text", localized: true, required } satisfies Field] : []),

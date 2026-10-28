@@ -1,5 +1,6 @@
 import { buildPublicUrl } from "../markets/url";
 import type { Market, MarketMap } from "../markets/types";
+import { CMS_PATHS } from "./paths";
 
 /** A custom link's URL may be a path in the market, or an https, mailto or tel link. */
 export function isSafeLinkUrl(value: string): boolean {
@@ -40,11 +41,11 @@ export type ResolvedLink = {
  * internal reference both go through `buildPublicUrl`, so the same link points at `/us/sale` in
  * the US market and `/sale` in Cyprus. An unsafe URL, a reference to a document that is gone or
  * not loaded, or a collection with no path yet gives `null`, and the caller leaves the link out.
- * T61 adds the catalog's paths (T60's collections), T65 pages', T66 posts'.
+ * The paths are `CMS_PATHS`, the ones live preview uses too; a test can pass its own.
  */
 export function resolveLink(
   value: LinkValue | null | undefined,
-  { market, map, paths = {} }: { market: Market; map: MarketMap; paths?: InternalPaths },
+  { market, map, paths = CMS_PATHS }: { market: Market; map: MarketMap; paths?: InternalPaths },
 ): ResolvedLink | null {
   if (value == null) return null;
   let href: string | null = null;

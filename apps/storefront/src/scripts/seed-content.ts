@@ -5,8 +5,9 @@
  *   pnpm --filter @shopblok/storefront exec payload run src/scripts/seed-content.ts
  *
  * Each content type's module is in `src/payload/seed/`. Safe to repeat: a second run changes
- * nothing, and an editor's change is kept (`seededUpdate`). Its result is one line of JSON,
- * `{"seedContent":{"created":…,"updated":…,"unchanged":…}}`, among Payload's log lines.
+ * nothing, and an editor's change is kept (`seededUpdate`), a pending draft too (`kept`). Its
+ * result is one line of JSON, `{"seedContent":{"created":…,"updated":…,"unchanged":…,"kept":[…]}}`,
+ * among Payload's log lines.
  */
 import config from "@payload-config";
 import { getPayload } from "payload";

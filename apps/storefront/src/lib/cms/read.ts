@@ -61,14 +61,23 @@ export function cmsUnavailable(source: RawEnv = env): boolean {
 }
 
 /**
+ * Who may see drafts (D73, D74): the Payload session in these headers, if it is a `users` (staff)
+ * document, never an integration's API key. The one rule for both the draft read (`draftUser`)
+ * and `/next/preview` (`preview-deps.ts`), so the route and the read cannot disagree.
+ */
+export async function staffFromHeaders(requestHeaders: Headers): Promise<StaffUser | null> {
+  const payload = await getPayloadClient();
+  const { user } = await payload.auth({ headers: requestHeaders });
+  return user?.collection === "users" ? user : null;
+}
+
+/**
  * The staff member signed in to Payload on this request, read from its cookie. Only a draft read
  * calls this, and only in Draft Mode, where the page is rendered per request anyway (`private,
  * no-store`), so reading the headers costs no cache.
  */
 export async function draftUser(): Promise<StaffUser | null> {
-  const payload = await getPayloadClient();
-  const { user } = await payload.auth({ headers: await headers() });
-  return user?.collection === "users" ? user : null;
+  return staffFromHeaders(await headers());
 }
 
 /**

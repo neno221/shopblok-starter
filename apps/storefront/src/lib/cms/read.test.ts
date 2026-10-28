@@ -12,7 +12,7 @@ const auth = vi.fn();
 const getPayloadClient = vi.fn(async () => ({ auth }));
 vi.mock("./payload", () => ({ getPayloadClient: () => getPayloadClient() }));
 
-import { CMS_LIFE, cmsRead, cmsUnavailable } from "./read";
+import { CMS_LIFE, cmsRead, cmsUnavailable, staffFromHeaders } from "./read";
 
 const load = vi.fn(async (_payload: unknown, query: unknown, slug: string) => ({ query, slug }));
 const readPage = cmsRead(load, {
@@ -94,5 +94,18 @@ describe("cmsRead without a database", () => {
     expect(cmsUnavailable({})).toBe(true);
     expect(cmsUnavailable({ PAYLOAD_DATABASE_URL: "" })).toBe(true);
     expect(cmsUnavailable({ PAYLOAD_DATABASE_URL: "postgres://db/payload" })).toBe(false);
+  });
+});
+
+describe("staffFromHeaders (the draft read's and /next/preview's one rule)", () => {
+  it("is the user of a `users` session in the given headers, and nobody else", async () => {
+    const given = new Headers({ cookie: "payload-token=xyz" });
+    auth.mockResolvedValue({ user: editor });
+    expect(await staffFromHeaders(given)).toBe(editor);
+    expect(auth).toHaveBeenCalledWith({ headers: given });
+    auth.mockResolvedValue({ user: { id: 2, collection: "integrations", role: "medusa-sync" } });
+    expect(await staffFromHeaders(given)).toBeNull();
+    auth.mockResolvedValue({ user: null });
+    expect(await staffFromHeaders(given)).toBeNull();
   });
 });

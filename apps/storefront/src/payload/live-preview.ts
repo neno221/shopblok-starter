@@ -1,9 +1,10 @@
-import type { LivePreviewConfig, PayloadRequest } from "payload";
+import type { LivePreviewConfig } from "payload";
+import { CMS_PATHS } from "../lib/cms/paths";
 import { env } from "../lib/env";
-import { mapFromGlobal, type MarketsGlobal } from "../lib/markets/global";
 import { listMarkets, primaryCountryCode } from "../lib/markets/market";
 import type { Market, MarketMap } from "../lib/markets/types";
 import { buildPublicUrl } from "../lib/markets/url";
+import { siteOrigin } from "../lib/site-origin";
 
 /** D74's three frames: a phone, a tablet and a laptop. */
 export const LIVE_PREVIEW_BREAKPOINTS = [
@@ -13,27 +14,28 @@ export const LIVE_PREVIEW_BREAKPOINTS = [
 ];
 
 /**
- * Where a document is inside a market, per collection or global. T65 gives `pages` its full path
- * (parents' slugs) and its route; T66 adds `posts`, T61 the globals (a market's home).
- */
-const PATHS: Record<string, (data: Record<string, unknown>) => string | null> = {
-  pages: (data) => (typeof data["slug"] === "string" && data["slug"] ? `/${data["slug"]}` : null),
-};
-
-/**
  * The market an editor previews a language in (D74): the primary country if it speaks it, else
- * the first open country that does.
+ * the first open country that does, among the countries served on the site's own host.
+ *
+ * **Known limit: a country with its own domain is never previewed.** `/next/preview` needs the
+ * editor's Payload session, and that cookie belongs to the admin's host: on the country's domain
+ * the request carries none (and the frame is cross-site to the admin, so Payload's CSRF rule
+ * would refuse it anyway), so the preview could only answer 401. A language that only such
+ * countries speak has no live preview (`null`; Payload says so). Own domains reach production
+ * with M7, which decides how to preview them (SETUP.md, "CMS foundations (T59)").
  */
 export function previewMarket(map: MarketMap, language: string): Market | undefined {
-  const speaking = listMarkets(map).filter((market) => market.language === language);
+  const speaking = listMarkets(map).filter(
+    (market) => market.language === language && market.domain === undefined,
+  );
   const primary = primaryCountryCode(map);
   return speaking.find((market) => market.country === primary) ?? speaking[0];
 }
 
 /**
- * The live-preview frame's URL: `/next/preview` with the secret and the page's public path, on the
- * market's own domain when it has one (its Draft Mode cookie belongs to that host), else on the
- * site's. `null` (no live preview) without a market for the language or without a secret.
+ * The live-preview frame's URL: `/next/preview` on the site's origin, with the secret and the
+ * page's public path in the market. `null` (no live preview) without a market for the language
+ * (`previewMarket`) or without a secret.
  */
 export function previewUrl(args: {
   map: MarketMap;
@@ -46,21 +48,21 @@ export function previewUrl(args: {
   const market = previewMarket(map, language);
   if (market === undefined || !secret) return null;
   const target = new URL(buildPublicUrl(market, path, map), serverURL);
-  const url = new URL("/next/preview", target.origin);
+  const url = new URL("/next/preview", serverURL);
   url.searchParams.set("path", target.pathname + target.search);
   url.searchParams.set("secret", secret);
   return url.toString();
 }
 
-const MAP_TTL_MS = 30_000;
-let memo: { map: MarketMap; until: number } | undefined;
-
-/** The market map for the url function, read at most every 30 s: Payload calls it on every autosave. */
-async function marketMap(req: PayloadRequest): Promise<MarketMap> {
-  if (memo !== undefined && memo.until > Date.now()) return memo.map;
-  const doc = (await req.payload.findGlobal({ slug: "markets", depth: 0, req })) as MarketsGlobal;
-  memo = { map: mapFromGlobal(doc), until: Date.now() + MAP_TTL_MS };
-  return memo.map;
+/**
+ * The shop's own market map (`get-market-map.ts`: the global kept for 30 s, with its development
+ * fallback), so the frame, `/next/preview` and `safeRedirect` agree on the markets. Imported when
+ * the url function first runs, which is only ever inside Next (the admin): the module is
+ * `server-only`, and a static import would load it with the config in `payload run` and the CLI.
+ */
+async function marketMap(): Promise<MarketMap> {
+  const { getMarketMap } = await import("../lib/markets/get-market-map");
+  return getMarketMap();
 }
 
 /** `admin.livePreview.url`: the edited language's market, the document's path (D74). */
@@ -69,16 +71,15 @@ export const livePreviewUrl: NonNullable<LivePreviewConfig["url"]> = async ({
   data,
   globalConfig,
   locale,
-  req,
 }) => {
   const slug = collectionConfig?.slug ?? globalConfig?.slug;
-  const path = slug === undefined ? null : (PATHS[slug]?.(data) ?? null);
+  const path = slug === undefined ? null : (CMS_PATHS[slug]?.(data) ?? null);
   if (path === null) return null;
   return previewUrl({
-    map: await marketMap(req),
+    map: await marketMap(),
     language: locale.code,
     path,
-    serverURL: req.payload.config.serverURL || "http://localhost:8000",
+    serverURL: siteOrigin(),
     secret: env.PREVIEW_SECRET,
   });
 };

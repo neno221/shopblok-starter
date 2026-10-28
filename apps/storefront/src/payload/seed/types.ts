@@ -18,4 +18,8 @@ export type SeedModule = {
   documents: (payload: Payload) => SeedDocument[] | Promise<SeedDocument[]>;
 };
 
-export type SeedCounts = { created: number; updated: number; unchanged: number };
+/**
+ * What a run did. `kept` names the documents (`pages:home`) the seed had changes for but left
+ * alone, because an editor has an unpublished draft newer than the published text (`runSeeds`).
+ */
+export type SeedCounts = { created: number; updated: number; unchanged: number; kept: string[] };

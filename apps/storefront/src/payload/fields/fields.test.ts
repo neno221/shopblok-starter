@@ -1,4 +1,4 @@
-import type { Field, TextField } from "payload";
+import type { Field, GroupField, TextField } from "payload";
 import { describe, expect, it } from "vitest";
 import { link } from "./link";
 import { sectionSettings } from "./section-settings";
@@ -24,11 +24,31 @@ describe("link field", () => {
     expect(named(link({ label: false }).fields, "label")).toBeUndefined();
   });
 
+  /** The `url` field's validate, called as Payload calls it (the parts of the arguments it reads). */
+  const validateUrl = (field: GroupField, value: string | null, required: boolean) => {
+    const url = named(field.fields, "url") as TextField;
+    const validate = url.validate as unknown as (value: unknown, args: unknown) => true | string;
+    return validate(value, { required, req: { payload: { config: {} }, t: (key: string) => key } });
+  };
+
   it("refuses a javascript: URL", () => {
-    const url = named(link().fields, "url") as TextField;
-    const validate = url.validate as unknown as (value: string) => true | string;
-    expect(validate("javascript:alert(1)")).not.toBe(true);
-    expect(validate("/sale")).toBe(true);
+    expect(validateUrl(link(), "javascript:alert(1)", true)).not.toBe(true);
+    expect(validateUrl(link(), "/sale", true)).toBe(true);
+    expect(validateUrl(link(), "https://example.com", true)).toBe(true);
+  });
+
+  it("refuses an empty URL when the link is required, and takes none when it is not", () => {
+    expect(validateUrl(link(), "", true)).not.toBe(true);
+    expect(validateUrl(link(), null, true)).not.toBe(true);
+    expect(validateUrl(link({ required: false }), "", false)).toBe(true);
+    expect(validateUrl(link({ required: false }), null, false)).toBe(true);
+  });
+
+  it("hides the URL of a reference link, so Payload does not validate it", () => {
+    const url = named(link({ relationTo: ["pages"] }).fields, "url") as TextField;
+    const condition = url.admin?.condition as (data: unknown, sibling: unknown) => boolean;
+    expect(condition({}, { type: "reference" })).toBe(false);
+    expect(condition({}, { type: "custom" })).toBe(true);
   });
 });
 

@@ -548,7 +548,7 @@ function payloadKey(ctx: Context): StepResult {
 
 // ---- 11. Payload content seed (T59) ---------------------------------------------------------
 
-type SeedCounts = { created: number; updated: number; unchanged: number };
+type SeedCounts = { created: number; updated: number; unchanged: number; kept?: string[] };
 
 async function contentSeed(ctx: Context): Promise<StepResult> {
   const result = await payload(["run", "src/scripts/seed-content.ts"], ctx);
@@ -565,7 +565,14 @@ async function contentSeed(ctx: Context): Promise<StepResult> {
     counts.created > 0 ? `${counts.created} created` : "",
     counts.updated > 0 ? `${counts.updated} updated` : "",
   ].filter(Boolean);
-  return did.length > 0 ? { status: "done", detail: did.join(", ") } : { status: "unchanged" };
+  // A document with an unpublished draft is left alone, so the draft stays the editor's.
+  const notes = (counts.kept ?? []).map(
+    (name) =>
+      `${name} has an unpublished draft, so the seed left it as it is. Publish or discard the draft, then run pnpm bootstrap again to take the seed's changes.`,
+  );
+  return did.length > 0
+    ? { status: "done", detail: did.join(", "), notes }
+    : { status: "unchanged", notes };
 }
 
 // ---- 12. Doctor -----------------------------------------------------------------------------

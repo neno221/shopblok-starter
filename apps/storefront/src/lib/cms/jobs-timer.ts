@@ -1,4 +1,5 @@
 import type { RawEnv } from "../env";
+import { siteOrigin } from "../site-origin";
 
 /** How often the development timer calls the jobs endpoint, as Vercel Cron will in production. */
 export const JOBS_INTERVAL_MS = 60_000;
@@ -20,7 +21,7 @@ export type JobsTimerDeps = {
 export function startJobsTimer({ env, fetch, setInterval, log }: JobsTimerDeps): boolean {
   const secret = env.CRON_SECRET;
   if (env.NODE_ENV !== "development" || !secret) return false;
-  const url = new URL("/api/payload-jobs/run", env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:8000");
+  const url = new URL("/api/payload-jobs/run", siteOrigin(env.NEXT_PUBLIC_BASE_URL));
   let failing = false;
   setInterval(() => {
     fetch(url, { headers: { Authorization: `Bearer ${secret}` }, cache: "no-store" })

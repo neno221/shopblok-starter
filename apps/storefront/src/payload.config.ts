@@ -4,6 +4,7 @@ import { postgresAdapter } from "@payloadcms/db-postgres";
 import { lexicalEditor } from "@payloadcms/richtext-lexical";
 import { buildConfig } from "payload";
 import sharp from "sharp";
+import { siteOrigin } from "./lib/site-origin";
 import { Integrations } from "./payload/collections/integrations";
 import { Media } from "./payload/collections/media";
 import { Pages } from "./payload/collections/pages";
@@ -23,7 +24,7 @@ const DEFAULT_DATABASE_URL = "postgres://postgres:postgres@localhost:15432/paylo
 
 // The site's own origin. Setting `serverURL` turns on Payload's CSRF check, and `cors` and `csrf`
 // list the same single origin.
-const serverURL = (process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:8000").replace(/\/+$/, "");
+const serverURL = siteOrigin();
 
 export default buildConfig({
   serverURL,

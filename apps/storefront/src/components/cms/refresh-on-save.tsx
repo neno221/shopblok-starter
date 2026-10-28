@@ -11,6 +11,8 @@ const LivePreviewListener = dynamic(() => import("./live-preview-listener"), { s
  * Live preview's island (D74): when the editor saves (or autosaves) in Payload's admin, the page in
  * the preview frame re-renders on the server with the new draft. A page renders it only in Draft
  * Mode, so a published page never loads the listener (`cms-preview.spec.ts` checks the scripts).
+ * `serverURL` is `siteOrigin()`: the listener accepts a message only when its origin is exactly
+ * this, so a raw `NEXT_PUBLIC_BASE_URL` with a trailing slash would ignore every save.
  */
 export function RefreshOnSave({ serverURL }: { serverURL: string }) {
   return <LivePreviewListener serverURL={serverURL} />;

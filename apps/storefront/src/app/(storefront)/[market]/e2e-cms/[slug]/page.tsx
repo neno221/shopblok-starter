@@ -4,7 +4,8 @@ import { connection } from "next/server";
 import { RefreshOnSave } from "../../../../../components/cms/refresh-on-save";
 import { readPageBySlug } from "../../../../../lib/cms/pages";
 import { getCurrentMarket } from "../../../../../lib/current-market";
-import { e2eRoutesEnabled, env } from "../../../../../lib/env";
+import { e2eRoutesEnabled } from "../../../../../lib/env";
+import { siteOrigin } from "../../../../../lib/site-origin";
 
 // Test-only (404 unless E2E_TEST_ROUTES=true; T59): a CMS page read the way the shop's pages read
 // one (D73), for `cms-preview.spec.ts` until T65's `[...slug]` route takes over. Draft Mode is read
@@ -28,9 +29,8 @@ export default async function E2eCmsPage({ params }: PageProps<"/[market]/e2e-cm
         {page.title}
       </h1>
       <p data-testid="cms-draft">{draft ? "draft" : "published"}</p>
-      {draft ? (
-        <RefreshOnSave serverURL={env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:8000"} />
-      ) : null}
+      {/* `siteOrigin()`, Payload's `serverURL`: the island ignores a message from any other origin. */}
+      {draft ? <RefreshOnSave serverURL={siteOrigin()} /> : null}
     </main>
   );
 }
