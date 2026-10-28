@@ -11,14 +11,15 @@ import type { StoreRequestOrderClaimType } from "../validators";
  * is found by its number and must have been placed with the e-mail typed (in any case), or the
  * answer is the same 404 as for a number that does not exist. Medusa then e-mails the order's
  * address a link to accept (the `order.transfer_requested` subscriber), so the order moves only
- * when that inbox says so. The market's prefix rides in the change's `internal_note` for the link.
+ * when that inbox says so. The market's prefix and language ride in the change's `internal_note`
+ * for the link and the copy (T70).
  * Customers exist only once verified (T44), so only a verified customer gets here.
  */
 export async function POST(
   req: AuthenticatedMedusaRequest<StoreRequestOrderClaimType>,
   res: MedusaResponse,
 ) {
-  const { display_id, email, market } = req.validatedBody;
+  const { display_id, email, market, language } = req.validatedBody;
   const customerId = req.auth_context.actor_id;
   const query = req.scope.resolve(ContainerRegistrationKeys.QUERY);
 
@@ -51,7 +52,7 @@ export async function POST(
       order_id: order.id,
       customer_id: customerId,
       logged_in_user: customerId,
-      internal_note: JSON.stringify({ market: market ?? "" }),
+      internal_note: JSON.stringify({ market: market ?? "", language: language ?? "" }),
     },
   });
 

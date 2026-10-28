@@ -1783,8 +1783,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.ui_strings": {
-      "name": "ui_strings",
+    "public.email_templates": {
+      "name": "email_templates",
       "schema": "",
       "columns": {
         "id": {
@@ -1793,32 +1793,15 @@
           "primaryKey": true,
           "notNull": true
         },
-        "key": {
-          "name": "key",
-          "type": "varchar",
+        "type": {
+          "name": "type",
+          "type": "enum_email_templates_type",
+          "typeSchema": "public",
           "primaryKey": false,
           "notNull": true
         },
-        "namespace": {
-          "name": "namespace",
-          "type": "varchar",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "source_message": {
-          "name": "source_message",
-          "type": "varchar",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "source_arguments": {
-          "name": "source_arguments",
-          "type": "varchar",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "note": {
-          "name": "note",
+        "seed_key": {
+          "name": "seed_key",
           "type": "varchar",
           "primaryKey": false,
           "notNull": false
@@ -1839,11 +1822,11 @@
         }
       },
       "indexes": {
-        "ui_strings_key_idx": {
-          "name": "ui_strings_key_idx",
+        "email_templates_type_idx": {
+          "name": "email_templates_type_idx",
           "columns": [
             {
-              "expression": "key",
+              "expression": "type",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -1854,23 +1837,23 @@
           "method": "btree",
           "with": {}
         },
-        "ui_strings_namespace_idx": {
-          "name": "ui_strings_namespace_idx",
+        "email_templates_seed_key_idx": {
+          "name": "email_templates_seed_key_idx",
           "columns": [
             {
-              "expression": "namespace",
+              "expression": "seed_key",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "concurrently": false,
           "method": "btree",
           "with": {}
         },
-        "ui_strings_updated_at_idx": {
-          "name": "ui_strings_updated_at_idx",
+        "email_templates_updated_at_idx": {
+          "name": "email_templates_updated_at_idx",
           "columns": [
             {
               "expression": "updated_at",
@@ -1884,8 +1867,8 @@
           "method": "btree",
           "with": {}
         },
-        "ui_strings_created_at_idx": {
-          "name": "ui_strings_created_at_idx",
+        "email_templates_created_at_idx": {
+          "name": "email_templates_created_at_idx",
           "columns": [
             {
               "expression": "created_at",
@@ -1907,21 +1890,39 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.ui_strings_locales": {
-      "name": "ui_strings_locales",
+    "public.email_templates_locales": {
+      "name": "email_templates_locales",
       "schema": "",
       "columns": {
-        "value": {
-          "name": "value",
+        "subject": {
+          "name": "subject",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "preheader": {
+          "name": "preheader",
           "type": "varchar",
           "primaryKey": false,
           "notNull": false
         },
-        "seeded": {
-          "name": "seeded",
+        "heading": {
+          "name": "heading",
           "type": "varchar",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
+        },
+        "body": {
+          "name": "body",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "cta": {
+          "name": "cta",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
         },
         "id": {
           "name": "id",
@@ -1944,8 +1945,8 @@
         }
       },
       "indexes": {
-        "ui_strings_locales_locale_parent_id_unique": {
-          "name": "ui_strings_locales_locale_parent_id_unique",
+        "email_templates_locales_locale_parent_id_unique": {
+          "name": "email_templates_locales_locale_parent_id_unique",
           "columns": [
             {
               "expression": "_locale",
@@ -1965,8 +1966,8 @@
           "method": "btree",
           "with": {}
         },
-        "ui_strings_locales_parent_id_idx": {
-          "name": "ui_strings_locales_parent_id_idx",
+        "email_templates_locales_parent_id_idx": {
+          "name": "email_templates_locales_parent_id_idx",
           "columns": [
             {
               "expression": "_parent_id",
@@ -1982,487 +1983,16 @@
         }
       },
       "foreignKeys": {
-        "ui_strings_locales_parent_id_fk": {
-          "name": "ui_strings_locales_parent_id_fk",
-          "tableFrom": "ui_strings_locales",
-          "tableTo": "ui_strings",
+        "email_templates_locales_parent_id_fk": {
+          "name": "email_templates_locales_parent_id_fk",
+          "tableFrom": "email_templates_locales",
+          "tableTo": "email_templates",
           "columnsFrom": ["_parent_id"],
           "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.exports": {
-      "name": "exports",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "serial",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "name": {
-          "name": "name",
-          "type": "varchar",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "format": {
-          "name": "format",
-          "type": "enum_exports_format",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'csv'"
-        },
-        "limit": {
-          "name": "limit",
-          "type": "numeric",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "page": {
-          "name": "page",
-          "type": "numeric",
-          "primaryKey": false,
-          "notNull": false,
-          "default": 1
-        },
-        "sort": {
-          "name": "sort",
-          "type": "varchar",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "sort_order": {
-          "name": "sort_order",
-          "type": "enum_exports_sort_order",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "locale": {
-          "name": "locale",
-          "type": "enum_exports_locale",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": false,
-          "default": "'all'"
-        },
-        "drafts": {
-          "name": "drafts",
-          "type": "enum_exports_drafts",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": false,
-          "default": "'yes'"
-        },
-        "collection_slug": {
-          "name": "collection_slug",
-          "type": "varchar",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'ui-strings'"
-        },
-        "where": {
-          "name": "where",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false,
-          "default": "'{}'::jsonb"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp(3) with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp(3) with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "url": {
-          "name": "url",
-          "type": "varchar",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "thumbnail_u_r_l": {
-          "name": "thumbnail_u_r_l",
-          "type": "varchar",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "filename": {
-          "name": "filename",
-          "type": "varchar",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "mime_type": {
-          "name": "mime_type",
-          "type": "varchar",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "filesize": {
-          "name": "filesize",
-          "type": "numeric",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "width": {
-          "name": "width",
-          "type": "numeric",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "height": {
-          "name": "height",
-          "type": "numeric",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "focal_x": {
-          "name": "focal_x",
-          "type": "numeric",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "focal_y": {
-          "name": "focal_y",
-          "type": "numeric",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {
-        "exports_updated_at_idx": {
-          "name": "exports_updated_at_idx",
-          "columns": [
-            {
-              "expression": "updated_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "exports_created_at_idx": {
-          "name": "exports_created_at_idx",
-          "columns": [
-            {
-              "expression": "created_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "exports_filename_idx": {
-          "name": "exports_filename_idx",
-          "columns": [
-            {
-              "expression": "filename",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.exports_texts": {
-      "name": "exports_texts",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "serial",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "order": {
-          "name": "order",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "parent_id": {
-          "name": "parent_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "path": {
-          "name": "path",
-          "type": "varchar",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "text": {
-          "name": "text",
-          "type": "varchar",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {
-        "exports_texts_order_parent": {
-          "name": "exports_texts_order_parent",
-          "columns": [
-            {
-              "expression": "order",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "parent_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "exports_texts_parent_fk": {
-          "name": "exports_texts_parent_fk",
-          "tableFrom": "exports_texts",
-          "tableTo": "exports",
-          "columnsFrom": ["parent_id"],
-          "columnsTo": ["id"],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.imports": {
-      "name": "imports",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "serial",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "collection_slug": {
-          "name": "collection_slug",
-          "type": "varchar",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'ui-strings'"
-        },
-        "import_mode": {
-          "name": "import_mode",
-          "type": "enum_imports_import_mode",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": false,
-          "default": "'update'"
-        },
-        "match_field": {
-          "name": "match_field",
-          "type": "varchar",
-          "primaryKey": false,
-          "notNull": false,
-          "default": "'key'"
-        },
-        "status": {
-          "name": "status",
-          "type": "enum_imports_status",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": false,
-          "default": "'pending'"
-        },
-        "summary_imported": {
-          "name": "summary_imported",
-          "type": "numeric",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "summary_updated": {
-          "name": "summary_updated",
-          "type": "numeric",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "summary_total": {
-          "name": "summary_total",
-          "type": "numeric",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "summary_issues": {
-          "name": "summary_issues",
-          "type": "numeric",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "summary_issue_details": {
-          "name": "summary_issue_details",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp(3) with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp(3) with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "url": {
-          "name": "url",
-          "type": "varchar",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "thumbnail_u_r_l": {
-          "name": "thumbnail_u_r_l",
-          "type": "varchar",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "filename": {
-          "name": "filename",
-          "type": "varchar",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "mime_type": {
-          "name": "mime_type",
-          "type": "varchar",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "filesize": {
-          "name": "filesize",
-          "type": "numeric",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "width": {
-          "name": "width",
-          "type": "numeric",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "height": {
-          "name": "height",
-          "type": "numeric",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "focal_x": {
-          "name": "focal_x",
-          "type": "numeric",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "focal_y": {
-          "name": "focal_y",
-          "type": "numeric",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {
-        "imports_updated_at_idx": {
-          "name": "imports_updated_at_idx",
-          "columns": [
-            {
-              "expression": "updated_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "imports_created_at_idx": {
-          "name": "imports_created_at_idx",
-          "columns": [
-            {
-              "expression": "created_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "imports_filename_idx": {
-          "name": "imports_filename_idx",
-          "columns": [
-            {
-              "expression": "filename",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
@@ -3021,8 +2551,8 @@
           "primaryKey": false,
           "notNull": false
         },
-        "ui_strings_id": {
-          "name": "ui_strings_id",
+        "email_templates_id": {
+          "name": "email_templates_id",
           "type": "integer",
           "primaryKey": false,
           "notNull": false
@@ -3179,11 +2709,11 @@
           "method": "btree",
           "with": {}
         },
-        "payload_locked_documents_rels_ui_strings_id_idx": {
-          "name": "payload_locked_documents_rels_ui_strings_id_idx",
+        "payload_locked_documents_rels_email_templates_id_idx": {
+          "name": "payload_locked_documents_rels_email_templates_id_idx",
           "columns": [
             {
-              "expression": "ui_strings_id",
+              "expression": "email_templates_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -3268,11 +2798,11 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "payload_locked_documents_rels_ui_strings_fk": {
-          "name": "payload_locked_documents_rels_ui_strings_fk",
+        "payload_locked_documents_rels_email_templates_fk": {
+          "name": "payload_locked_documents_rels_email_templates_fk",
           "tableFrom": "payload_locked_documents_rels",
-          "tableTo": "ui_strings",
-          "columnsFrom": ["ui_strings_id"],
+          "tableTo": "email_templates",
+          "columnsFrom": ["email_templates_id"],
           "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
@@ -4209,84 +3739,15 @@
         "mn"
       ]
     },
-    "public.enum_exports_format": {
-      "name": "enum_exports_format",
+    "public.enum_email_templates_type": {
+      "name": "enum_email_templates_type",
       "schema": "public",
-      "values": ["csv", "json"]
-    },
-    "public.enum_exports_sort_order": {
-      "name": "enum_exports_sort_order",
-      "schema": "public",
-      "values": ["asc", "desc"]
-    },
-    "public.enum_exports_locale": {
-      "name": "enum_exports_locale",
-      "schema": "public",
-      "values": [
-        "all",
-        "en",
-        "bg",
-        "hr",
-        "cs",
-        "da",
-        "nl",
-        "et",
-        "fi",
-        "fr",
-        "de",
-        "el",
-        "hu",
-        "ga",
-        "it",
-        "lv",
-        "lt",
-        "mt",
-        "pl",
-        "pt",
-        "ro",
-        "sk",
-        "sl",
-        "es",
-        "sv",
-        "nb",
-        "tr",
-        "ru",
-        "uk",
-        "ar",
-        "he",
-        "hi",
-        "bn",
-        "th",
-        "vi",
-        "id",
-        "ms",
-        "tl",
-        "zh",
-        "ja",
-        "ko",
-        "ka",
-        "mn"
-      ]
-    },
-    "public.enum_exports_drafts": {
-      "name": "enum_exports_drafts",
-      "schema": "public",
-      "values": ["yes", "no"]
-    },
-    "public.enum_imports_import_mode": {
-      "name": "enum_imports_import_mode",
-      "schema": "public",
-      "values": ["create", "update", "upsert"]
-    },
-    "public.enum_imports_status": {
-      "name": "enum_imports_status",
-      "schema": "public",
-      "values": ["pending", "completed", "partial", "failed"]
+      "values": ["verify-email", "password-reset", "order-transfer"]
     },
     "public.enum_payload_jobs_log_task_slug": {
       "name": "enum_payload_jobs_log_task_slug",
       "schema": "public",
-      "values": ["inline", "createCollectionExport", "createCollectionImport", "schedulePublish"]
+      "values": ["inline", "schedulePublish"]
     },
     "public.enum_payload_jobs_log_state": {
       "name": "enum_payload_jobs_log_state",
@@ -4296,7 +3757,7 @@
     "public.enum_payload_jobs_task_slug": {
       "name": "enum_payload_jobs_task_slug",
       "schema": "public",
-      "values": ["inline", "createCollectionExport", "createCollectionImport", "schedulePublish"]
+      "values": ["inline", "schedulePublish"]
     },
     "public.enum_markets_countries_languages": {
       "name": "enum_markets_countries_languages",
@@ -4405,6 +3866,6 @@
     "tables": {},
     "columns": {}
   },
-  "id": "5cce8824-c8fb-4701-9fef-4066c7a69cdd",
+  "id": "e866592c-ebbf-44d8-805f-df493713b25c",
   "prevId": "00000000-0000-0000-0000-000000000000"
 }

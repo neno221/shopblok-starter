@@ -28,11 +28,14 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+const PRIMARY = { market: "", language: "el" };
+const US = { market: "/us", language: "en" };
+
 describe("login (D64)", () => {
   it("signs in and moves the guest cart to the customer", async () => {
     const calls = medusa({ status: 200, body: { cart: { id: "cart_1" } } });
     const { login } = await import("./customer");
-    expect(await login("anna@example.com", "secret", "")).toEqual({ state: "signed-in" });
+    expect(await login("anna@example.com", "secret", PRIMARY)).toEqual({ state: "signed-in" });
     expect(jar.values.get("_medusa_jwt")).toBe("jwt_1");
     expect(jar.values.get("_medusa_cart_id")).toBe("cart_1");
     expect(calls.some((call) => call.url.pathname === "/store/carts/cart_1/customer")).toBe(true);
@@ -41,7 +44,7 @@ describe("login (D64)", () => {
   it("is still signed in when Medusa will not move the guest cart, which is dropped (PR 73 review)", async () => {
     medusa({ status: 400, body: { message: "Cannot transfer cart to a different customer" } });
     const { login } = await import("./customer");
-    expect(await login("anna@example.com", "secret", "")).toEqual({ state: "signed-in" });
+    expect(await login("anna@example.com", "secret", PRIMARY)).toEqual({ state: "signed-in" });
     expect(jar.values.get("_medusa_jwt")).toBe("jwt_1");
     expect(jar.values.has("_medusa_cart_id")).toBe(false);
   });
@@ -73,15 +76,19 @@ describe("the verification link on an unverified sign-in (PR 81 review, item 6)"
     const sent = () =>
       calls.filter((call) => call.url.pathname === "/auth/verification/request").length;
     for (let attempt = 0; attempt < 3; attempt++) {
-      expect(await login("anna@example.com", "secret", "/us")).toMatchObject({
+      expect(await login("anna@example.com", "secret", US)).toMatchObject({
         state: "verification-required",
       });
       nextRequest();
     }
     expect(sent()).toBe(1);
+    // The link's prefix and the copy's language (T44, T70).
+    expect(
+      calls.find((call) => call.url.pathname === "/auth/verification/request")?.body,
+    ).toMatchObject({ entity_id: "anna@example.com", metadata: US });
     expect(jar.values.has("_medusa_jwt")).toBe(false);
     vi.setSystemTime(Date.now() + RESEND_WAIT_MS);
-    await login("anna@example.com", "secret", "/us");
+    await login("anna@example.com", "secret", US);
     expect(sent()).toBe(2);
   });
 });

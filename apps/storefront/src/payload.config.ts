@@ -9,6 +9,7 @@ import { Categories } from "./payload/collections/categories";
 import { Collections } from "./payload/collections/collections";
 import { Integrations } from "./payload/collections/integrations";
 import { Media } from "./payload/collections/media";
+import { EmailTemplates } from "./payload/collections/email-templates";
 import { Pages } from "./payload/collections/pages";
 import { Products } from "./payload/collections/products";
 import { UiStrings } from "./payload/collections/ui-strings";
@@ -49,7 +50,17 @@ export default buildConfig({
       url: livePreviewUrl,
     },
   },
-  collections: [Users, Integrations, Media, Pages, Products, Categories, Collections, UiStrings],
+  collections: [
+    Users,
+    Integrations,
+    Media,
+    Pages,
+    Products,
+    Categories,
+    Collections,
+    EmailTemplates,
+    UiStrings,
+  ],
   globals: [Markets],
   editor: lexicalEditor(),
   graphQL: { disable: true },

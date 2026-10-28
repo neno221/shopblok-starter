@@ -6314,6 +6314,51 @@ Six serial tests against `next start` and `medusa develop`, through Medusa's Adm
 
 Left as the review says: 2 (concurrent upserts; the reconcile heals them), 3 (no `store.store-currency.*` events; the reconcile carries currency changes within 10 minutes), 4 (the last run is kept per process), 5 (redundant Payload calls per write) and 6 (an empty store rewrites `markets.synced` each run); none is security or a cleanup. 9 needed no change (`numberOfExecutions` beside `interval` is what 2.21.2 reads). After the fixes: the backend's `tsc`, lint, unit tests (155) and `medusa build`, the integration suite (6 of 6), the storefront's and the scripts' typecheck, lint and tests, `check-workspace`, and `pnpm bootstrap` (all 12 steps unchanged) pass.
 
+## E-mail copy (T70)
+
+**Result: the verification, password reset and order transfer e-mails take their subject, preheader, heading, body and button label from Payload's `email-templates` in the shopper's language, with the `{{variables}}` filled in; the backend keeps each answer 5 minutes and sends the built-in English when Payload does not answer within 2 s, so a CMS outage never stops a link; the seed writes M3's three e-mails in the four seeded languages.** M4 plan §5 T70; D84, D88.
+
+| | |
+|---|---|
+| Date | 2026-10-28 |
+| Branch | `claude/project-thread-08ud3k`, from `main` at `3663f87` (PR 91 merged) |
+| PR | 92 |
+
+### What there is now
+
+- **`email-templates`** (`payload/collections/email-templates.ts`, under Settings in the admin): `type` (`verify-email`, `password-reset`, `order-transfer`; unique, fixed once created), and per language `subject`, `preheader`, `heading`, `body` (rich text) and `cta` (the button's label). Read by staff and the `medusa-sync` integration, edited by staff, created and deleted by admins; the integration writes nothing. No drafts and no revalidation: the backend reads it, and its 5-minute cache is the delay an edit takes. The collection's description lists each type's variables.
+- **The variables** (`@shopblok/fixtures/email/templates.json`, `variables`): `verify-email` takes `{{email}}` and `{{code}}`, `password-reset` `{{email}}`, `order-transfer` `{{email}}` and `{{orderNumber}}`. A name outside the type's list stays as written, and a value is filled in one pass, so a value that contains braces is not filled again. Values go in as text, unescaped: the copy is plain text (a subject, a text body), and M6's HTML layouts escape it where it becomes HTML, once (PR 92 review, item 1; `o'brien@example.com` stays as it is). **The link is not a variable:** it goes in the notification's `url` beside the copy, and `cta` is its label.
+- **The language.** The backend cannot tell a market's language from its prefix (`/de` is a country or a language depending on the map, which is Payload's), so the storefront now sends the language with the prefix: `metadata: { market, language }` on the verification request and the password reset (`mailTarget()` in `lib/markets/url.ts`), and `language` in the claim's body, which the claim route keeps in the change's note with the market. `languageFrom()` takes only a language code's shape and falls back to English; Payload is asked with `locale=<language>&fallback-locale=en`, so a language with no text gets the English.
+- **The backend** (`lib/email-copy.ts`): `createEmailCopy({ source, timeoutMs: 2000, ttlMs: 300000, maxEntries: 100 })` keeps answers per type and language (at most 100, the oldest dropped first, since the language comes from the client), lets e-mails that miss the same key at once share one request, never keeps a failure (the next e-mail asks again), and builds `{ subject, preheader, heading, text, cta, language, source }`: a field Payload leaves empty takes the built-in English one, and the body becomes plain text through `lexicalToText` (paragraphs, headings and quotes as blocks, lists as `-` and `1.` lines with nesting, links as their text and URL, line breaks). The read goes through the T60 `payload` module (`findEmailTemplate`, with the client's new `locale`, `fallbackLocale` and per-request `timeoutMs`); the time-out is enforced in `email-copy.ts` too, so a hanging answer cannot hold an e-mail. Without the module (no `PAYLOAD_SERVER_URL`), every e-mail uses the built-in English; the check is the sync's `payloadModule()`, which logs once. `BUILT_IN` is the fixture's English, which a test compares.
+- **`sendStorefrontLink`** takes the e-mail's `type` and `values` and puts the copy in the notification's `data` beside the link, so the local provider prints the subject, the heading, the text and the link; the e2e suites keep reading `url` from the log. The order transfer's subscriber reads the order's `display_id` for `{{orderNumber}}` in the same query as the change (`order.display_id`).
+- **The seed** (`payload/seed/email-templates.ts`): the three documents from the fixture, the body as Lexical paragraphs, under the seed runner's rule (an editor's text survives `pnpm bootstrap`). Bootstrap's step 11 reported "3 created", and "unchanged" on the next run.
+- **The migration:** `20261028_211336_email_templates` (D88: created last, on `main` at `3663f87`): the table, its locales table and its column in `payload_locked_documents_rels`. `migrate:create --skip-empty` afterwards writes nothing.
+- **The admin's first load grows** from 635.8 KB to 817.6 KB: this is the first rich-text field, so the import map now carries Lexical's editor (generated by `generate:importmap`). It is the admin's own route, not budgeted, and no shop route changed.
+
+### Mutations (each fails a test)
+
+| Mutation | Fails |
+|---|---|
+| No time-out (`await source(…)` instead of `withTimeout(…)`) | `email-copy.unit.spec.ts`: "does not wait for a Payload that never answers past its time-out" (Exceeded timeout of 2000 ms) |
+
+### Checks (cloud VM, Node 22.23.4, the compose stack)
+
+- `lint`, `typecheck` and `test` exit 0 for the storefront (3319), the backend (168: 13 new in `email-copy.unit.spec.ts`), `scripts` (444) and the fixtures (458); `check-workspace` passes; `generate:types` and `generate:importmap` are current.
+- Against `next start` and Medusa: the default projects and the locales project, 144 passed, with `E2E_MEDUSA_LOG`. `auth.spec.ts`'s new test registers under `/` and finds the verification e-mail in Greek in Medusa's log (subject, heading, `language: "el"`, the link `/verify?code=…`); its first test finds Payload's English for `/us`. The transfer e-mail read "Order 37: confirm the move to an account" with the number and the address filled in.
+- First-load JS: every shop route as on `main` (the product page 332.0 KB, the listing pages 331.1, `/[market]` 314.6); the admin 817.6 (above). `pnpm build` with no `.env` exits 0.
+
+### Code review (PR 92)
+
+`reviews/pr-92-code-review.md` in the project's files: the market-language path holds (every caller sends it, the backend takes only a code's shape, and Payload answers an unknown locale in English). Fixed:
+
+1. **Values were HTML-escaped in plain-text copy** (must-fix): `o'brien@example.com` came out as `o&#39;brien@example.com` in the subject and the text, and M6's renderer would have escaped it again. Values now go in as text, still in one pass; D84's wording says the HTML renderer escapes. Test: "puts a value with markup in as text, and does not fill a value's own braces".
+3. **The cache had no bound, and its key's language is the client's** (optional, security): at most 100 answers, the oldest dropped first, and concurrent misses of one key share one request to Payload. Tests: "keeps at most maxEntries answers, dropping the oldest" and "asks Payload once for e-mails that miss the same key at the same time".
+4. **The migrations' `down()` could not run** (optional, cleanup): `DROP TABLE … CASCADE` had already removed the foreign key the next line drops; in this migration and T60's `20261028_194034_sync` the line is now `DROP CONSTRAINT IF EXISTS`. Checked: `migrate:down` twice rolled both back, and `pnpm bootstrap` applied them again (the sync "13 created, markets synced", the seed "3 created").
+5. **A second query for the order's number** (optional, cleanup): `order.display_id` comes with the change's query; the transfer e-mail read "Order 39: confirm the move to an account".
+6. **Two checks for the Payload module** (optional, cleanup): `emailCopyFor` uses the sync's `payloadModule()`.
+
+Left as the review says: 2 (`language` names the language asked for even when Payload fell back to English), 7 (the English e2e step cannot tell Payload's English from the built-in), 8 (a numbered list's start) and 9 (no test of the language through the claim route); none is security or a cleanup. After the fixes: the backend's `tsc`, lint and unit tests (170), the storefront's typecheck and tests, and `auth.spec.ts` (4 of 4, with `E2E_MEDUSA_LOG`) pass.
+
 ## ui-strings (T62)
 
 **Result: the shop's microcopy comes from Payload's `ui-strings` collection, one document per message (718, in en, el, de and fr), merged over the code catalogs behind next-intl; an edit in the admin shows on the next page or the one after, in that language only; a value whose ICU syntax or arguments differ from the code's English is refused on save, and one that got in anyway is not used (the code's text is, with one warning); `pnpm bootstrap` adds new keys, deletes removed ones and never overwrites an editor's value; and admins export the collection as CSV and import it back by key.** M4 plan §5 T62; D77, D62, D88.
@@ -6321,7 +6366,7 @@ Left as the review says: 2 (concurrent upserts; the reconcile heals them), 3 (no
 | | |
 |---|---|
 | Date | 2026-10-28 |
-| Branch | `claude/project-thread-oxrcpy`, from `main` at `3663f87` (PR 91 merged) |
+| Branch | `claude/project-thread-oxrcpy`, from `main` at `3663f87` (PR 91 merged), with `main` at `fe5ef4a` (PR 92 merged) merged in |
 | PR | 93 |
 
 ### What there is now
@@ -6333,7 +6378,7 @@ Left as the review says: 2 (concurrent upserts; the reconcile heals them), 3 (no
 - **The merge** (`i18n/request.ts`): `withOverrides(catalogs[market.locale], overrides)`, so the catalog is the same object as before when nothing is edited, and a copy otherwise. **Fallback, as D77 says:** the language's edited value; then English's (Payload's `fallbackLocale`, so an emptied Greek value shows the English value); then the code catalog's language; then English (a language with no catalog, such as `it` or `pt`). A failed read (no database, Payload down) logs one warning per outage and the page shows the code's copy. Only the picked namespaces reach the browser, as before (D62): `i18n-messages.spec.ts` passes unchanged.
 - **The seed** (`payload/seed/ui-strings.ts`, run by `seed-content.ts` after the T59 runner, bootstrap step 11): one read of every document in every language, then a create (all four languages in one call, `locale: "all"`) for each new key, an update for each document the rule changes, and one delete of the keys the code no longer has. **The rule, per language:** an empty value, or one still equal to `seeded`, takes the code's message; anything else is the editor's and stays; where the editor's value has become the code's, only `seeded` moves on. `source` and `namespace` always follow the code. Bootstrap's detail line counts created, updated and deleted.
 - **CSV** (`payload/import-export.ts`, `@payloadcms/plugin-import-export` 3.92.1, both `disableJobsQueue: true`): **Import / Export** in the admin's `ui-strings` list, admins only. The export has a `value_<locale>` column for each of the 42 languages (50 columns in all). The import updates by `key` only (the mode and the match field are fixed: ids differ between databases, and a new key comes from the code). Each batch is checked before the plugin writes it (`checkImportedStrings`): an unchanged cell is left out, so an untouched round trip saves nothing; a value that fails the ICU check is left out and listed in the import's summary with its row and reason (the import is then `partial`); and every changed row carries the stored English (see below). The files go to `apps/storefront/media/{exports,imports}` (git-ignored).
-- **The migration:** `20261028_215816_ui_strings` (D88: created last, on `main` at `3663f87`; T70 and T61 had not merged): `ui_strings` and `ui_strings_locales`, the plugin's `exports` and `imports` with their enums, and their columns in `payload_locked_documents_rels`. `migrate:create --skip-empty` afterwards writes nothing, and every migration applies to an empty database.
+- **The migration:** `20261028_220728_ui_strings` (D88: created last, after `main` at `fe5ef4a` was merged in, so after T70's `20261028_211336_email_templates`; T61 had not merged): `ui_strings` and `ui_strings_locales`, the plugin's `exports` and `imports` with their enums, and their columns in `payload_locked_documents_rels`. `migrate:create --skip-empty` afterwards writes nothing, and every migration applies to an empty database.
 
 ### What the import-export plugin does (3.92.1)
 

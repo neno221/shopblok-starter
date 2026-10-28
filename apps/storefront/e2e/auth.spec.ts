@@ -1,6 +1,15 @@
 import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 import { catalogs } from "./support/catalogs";
-import { addToCart, checkOut, mailedCount, mailedLink, orderIdOf } from "./support/purchase";
+import emailCopy from "@shopblok/fixtures/email/templates.json" with { type: "json" };
+import {
+  addToCart,
+  checkOut,
+  mailedCount,
+  mailedData,
+  mailedLink,
+  orderIdOf,
+  type Words,
+} from "./support/purchase";
 
 // T53 (D64, SPEC §8.2): the account in `/us`, against `next start` and the seeded Medusa, whose
 // e-mails the local notification provider prints in its log (`E2E_MEDUSA_LOG`: CI's
@@ -37,16 +46,23 @@ async function signIn(page: Page, email: string, password: string): Promise<void
   await form.getByRole("button", { name: auth.login.submit }).click();
 }
 
-async function register(page: Page, email: string, password: string, name: string) {
-  await page.goto(`${PREFIX}/register`);
+async function register(
+  page: Page,
+  email: string,
+  password: string,
+  name: string,
+  { prefix = PREFIX, words = en }: { prefix?: string; words?: Words } = {},
+) {
+  const copy = words.templates.auth;
+  await page.goto(`${prefix}/register`);
   const form = page.locator('[data-slot="auth-register-form"]');
   await form.locator('input[name="email"]').fill(email);
   await form.locator('input[name="password"]').fill(password);
   await form.locator('input[name="firstName"]').fill(name);
   await form.locator('input[name="lastName"]').fill("Tester");
-  await form.getByRole("button", { name: auth.register.submit }).click();
-  await expect(page).toHaveURL(new RegExp(`${PREFIX}/verify$`));
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText(auth.checkEmail.title);
+  await form.getByRole("button", { name: copy.register.submit }).click();
+  await expect(page).toHaveURL(new RegExp(`${prefix}/verify$`));
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(copy.checkEmail.title);
 }
 
 /** Registers, verifies and signs in: a customer with a session, on the dashboard. */
@@ -95,6 +111,14 @@ test("register, refused until verified, verify, sign in, address at the checkout
 
   await test.step("register: the e-mail to check", async () => {
     await register(page, first.email, first.password, "Ada");
+  });
+
+  await test.step("the verification e-mail's copy is Payload's English for /us (T70)", async () => {
+    await expect
+      .poll(() => mailedData(first.email, "customer-verification").at(-1)?.subject, {
+        timeout: 30_000,
+      })
+      .toBe(emailCopy.templates["verify-email"].en.subject);
   });
 
   await test.step("an unverified sign-in is refused: no session, the account asks to sign in", async () => {
@@ -199,6 +223,29 @@ test("register, refused until verified, verify, sign in, address at the checkout
     await page.goto(`${PREFIX}/account/orders`);
     await expect(page.locator(`a[href$="/account/orders/${guestOrder}"]`).first()).toBeVisible();
   });
+});
+
+test("a registration under / gets its verification e-mail in Greek (T70, D84)", async ({
+  page,
+}) => {
+  const greek = { email: `t70-el-${stamp}@example.com`, password: "greek-pass-3" };
+  await register(page, greek.email, greek.password, "Eleni", { prefix: "", words: catalogs.el });
+  let mailed: { url?: string; subject?: string; heading?: string; language?: string } | undefined;
+  await expect
+    .poll(
+      () => {
+        mailed = mailedData(greek.email, "customer-verification").at(-1);
+        return mailed?.subject;
+      },
+      { timeout: 30_000 },
+    )
+    .toBe(emailCopy.templates["verify-email"].el.subject);
+  expect(mailed).toMatchObject({
+    heading: emailCopy.templates["verify-email"].el.heading,
+    language: "el",
+  });
+  // The link is the primary market's: no prefix.
+  expect(new URL(mailed?.url ?? "").pathname).toBe("/verify");
 });
 
 test("another customer's order is the not-found page, its page and its return form", async ({

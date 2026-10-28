@@ -75,6 +75,7 @@ export interface Config {
     products: Product;
     categories: Category;
     collections: ProductCollection;
+    "email-templates": EmailTemplate;
     "ui-strings": UiString;
     exports: Export;
     imports: Import;
@@ -93,6 +94,7 @@ export interface Config {
     products: ProductsSelect<false> | ProductsSelect<true>;
     categories: CategoriesSelect<false> | CategoriesSelect<true>;
     collections: CollectionsSelect<false> | CollectionsSelect<true>;
+    "email-templates": EmailTemplatesSelect<false> | EmailTemplatesSelect<true>;
     "ui-strings": UiStringsSelect<false> | UiStringsSelect<true>;
     exports: ExportsSelect<false> | ExportsSelect<true>;
     imports: ImportsSelect<false> | ImportsSelect<true>;
@@ -468,6 +470,44 @@ export interface ProductCollection {
   createdAt: string;
 }
 /**
+ * Variables in double braces are filled in when the e-mail is sent. Verify the e-mail address: {{email}}, {{code}}. Password reset: {{email}}. Order transfer to an account: {{email}}, {{orderNumber}}. Anything else in braces stays as it is.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "email-templates".
+ */
+export interface EmailTemplate {
+  id: number;
+  type: "verify-email" | "password-reset" | "order-transfer";
+  subject: string;
+  /**
+   * The line inboxes show after the subject.
+   */
+  preheader?: string | null;
+  heading: string;
+  body: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ("ltr" | "rtl") | null;
+      format: "left" | "start" | "center" | "right" | "end" | "justify" | "";
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  };
+  /**
+   * The link's label; the link itself is added when the e-mail is sent.
+   */
+  cta: string;
+  seedKey?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
  * The shop's microcopy, one message per document. Placeholders such as {count} must stay as the English text has them; a save that changes one is refused.
  *
  * This interface was referenced by `Config`'s JSON-Schema
@@ -761,6 +801,10 @@ export interface PayloadLockedDocument {
         value: number | ProductCollection;
       } | null)
     | ({
+        relationTo: "email-templates";
+        value: number | EmailTemplate;
+      } | null)
+    | ({
         relationTo: "ui-strings";
         value: number | UiString;
       } | null);
@@ -971,6 +1015,21 @@ export interface CollectionsSelect<T extends boolean = true> {
   deletedInMedusa?: T;
   medusaUpdatedAt?: T;
   syncedAt?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "email-templates_select".
+ */
+export interface EmailTemplatesSelect<T extends boolean = true> {
+  type?: T;
+  subject?: T;
+  preheader?: T;
+  heading?: T;
+  body?: T;
+  cta?: T;
+  seedKey?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -1346,6 +1405,7 @@ export interface TaskCreateCollectionExport {
       | "products"
       | "categories"
       | "collections"
+      | "email-templates"
       | "ui-strings"
       | "exports"
       | "imports";

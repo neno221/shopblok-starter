@@ -26,6 +26,7 @@ export default async function authPasswordReset({
   await sendStorefrontLink(container, {
     to: data.entity_id,
     template: "customer-password-reset",
+    type: "password-reset",
     metadata: data.metadata,
     path: "/reset-password",
     query: { token: data.token, email: data.entity_id },
