@@ -115,6 +115,7 @@ describe("env", () => {
 
   it("exposes exactly the variables the app reads", () => {
     expect(Object.keys(env).sort()).toEqual([
+      "CRON_SECRET",
       "DESIGN_SYSTEM_ENABLED",
       "E2E_TEST_ROUTES",
       "MEDUSA_BACKEND_URL",
@@ -124,6 +125,7 @@ describe("env", () => {
       "NODE_ENV",
       "PAYLOAD_DATABASE_URL",
       "PAYLOAD_SECRET",
+      "PREVIEW_SECRET",
       "REVALIDATE_SECRET",
       "STOREFRONT_LISTING_PAGE_SIZE",
       "STOREFRONT_PRERENDER_PRODUCTS",
