@@ -7,7 +7,11 @@
  * every update, and a product's thumbnail as its URL (the Medusa × Payload guide's two gaps).
  */
 
-export type SyncCollection = "products" | "categories" | "collections";
+import type { SyncCollection, SyncDocument, SyncedMarkets } from "@shopblok/fixtures/sync" with {
+  "resolution-mode": "import",
+};
+
+export type { SyncCollection, SyncDocument };
 
 export const SYNC_COLLECTIONS: readonly SyncCollection[] = [
   "products",
@@ -19,10 +23,6 @@ export const SYNC_COLLECTIONS: readonly SyncCollection[] = [
  * A Payload document's synced part: its fields, and its references to other synced documents by
  * Medusa id (written as Payload ids once the document exists, the workflow's second step).
  */
-export type SyncDocument = {
-  fields: { medusaId: string } & Record<string, unknown>;
-  references: Record<string, string | null>;
-};
 
 type Timestamp = Date | string;
 
@@ -66,12 +66,7 @@ export type MedusaStore = {
 };
 
 /** The `markets` global's synced part. Medusa 2.21.2's store has no default locale. */
-export type MarketsSynced = {
-  regions: { medusaId: string; name: string; currency: string; countries: string[] }[];
-  currencies: string[];
-  defaultCurrency: string | null;
-  locales: string[];
-};
+export type MarketsSynced = SyncedMarkets;
 
 /** Which Medusa entity each collection follows, for `query.graph`. */
 export const ENTITY: Record<SyncCollection, "product" | "product_category" | "product_collection"> =

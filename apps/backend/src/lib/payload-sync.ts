@@ -1,4 +1,5 @@
 import type { MedusaContainer } from "@medusajs/framework/types";
+import type { SyncExport } from "@shopblok/fixtures/sync" with { "resolution-mode": "import" };
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils";
 
 import { PAYLOAD_MODULE } from "../modules/payload";
@@ -197,10 +198,11 @@ export async function reconcile(
     let documents: SyncDocument[];
     let stored: Listed[];
     try {
-      [documents, stored] = await Promise.all([
-        readDocuments(query, collection).then(parentsFirst),
-        payload.listDocuments(collection),
-      ]);
+      // Payload first, then Medusa, one after the other (PR 91 review, item 1): a record created
+      // in between is then in Medusa's read, never only in Payload's list, where the loop below
+      // would mark it deleted; one deleted in between is missing from Medusa's read, as it should be.
+      stored = await payload.listDocuments(collection);
+      documents = parentsFirst(await readDocuments(query, collection));
     } catch (error) {
       counts.failed++;
       errors.push(`${collection}: ${message(error)}`);
@@ -266,11 +268,7 @@ export async function reconcile(
 }
 
 /** Everything bootstrap's import needs, from Medusa alone (`export-for-payload.ts`). */
-export type SyncExport = {
-  exportedAt: string;
-  documents: Record<SyncCollection, SyncDocument[]>;
-  markets: MarketsSynced;
-};
+export type { SyncExport };
 
 export async function exportAll(container: MedusaContainer): Promise<SyncExport> {
   const query = queryOf(container);

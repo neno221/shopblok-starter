@@ -11,6 +11,7 @@ import { randomUUID } from "node:crypto";
 import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import type { ImportCounts } from "@shopblok/fixtures/sync";
 import {
   dockerUnavailableWarning,
   inspectTargets,
@@ -552,14 +553,6 @@ function payloadKey(ctx: Context): StepResult {
 }
 
 // ---- 10. Medusa → Payload sync (T60) -------------------------------------------------------
-
-type ImportCounts = {
-  created: number;
-  updated: number;
-  deleted: number;
-  unchanged: number;
-  markets: "updated" | "unchanged";
-};
 
 /**
  * D75: the first sync, with neither server running. `medusa exec` writes Medusa's documents to a

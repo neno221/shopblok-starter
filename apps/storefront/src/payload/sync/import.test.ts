@@ -47,6 +47,7 @@ function fakePayload() {
 
 const sync = { collection: "integrations", id: 1, role: "medusa-sync" } as unknown as TypedUser;
 const exported: SyncExport = {
+  exportedAt: "2026-10-28T12:00:00.000Z",
   documents: fixture.documents as SyncExport["documents"],
   markets: fixture.markets,
 };

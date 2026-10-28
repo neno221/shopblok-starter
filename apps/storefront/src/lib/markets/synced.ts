@@ -1,3 +1,4 @@
+import type { SyncedMarkets } from "@shopblok/fixtures/sync";
 import type { MarketsGlobal } from "./global";
 
 /**
@@ -6,12 +7,7 @@ import type { MarketsGlobal } from "./global";
  * the store's currencies and locales. Medusa 2.21.2's store has no default locale, so there is
  * none here.
  */
-export type SyncedMarkets = {
-  regions: { medusaId: string; name: string; currency: string; countries: string[] }[];
-  currencies: string[];
-  defaultCurrency: string | null;
-  locales: string[];
-};
+export type { SyncedMarkets };
 
 /** What `findGlobal` returns for the synced group, as far as this reads it. */
 export type SyncedMarketsGlobal = {

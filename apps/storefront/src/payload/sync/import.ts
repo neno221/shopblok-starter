@@ -1,5 +1,11 @@
 import type { Payload, TypedUser } from "payload";
-import { syncedFromGlobal, type SyncedMarkets } from "../../lib/markets/synced";
+import type {
+  ImportCounts,
+  SyncCollection,
+  SyncDocument,
+  SyncExport,
+} from "@shopblok/fixtures/sync";
+import { syncedFromGlobal } from "../../lib/markets/synced";
 
 /**
  * Bootstrap's first sync, the Payload half (D75, `pnpm bootstrap` step 10): the documents the
@@ -9,27 +15,13 @@ import { syncedFromGlobal, type SyncedMarkets } from "../../lib/markets/synced";
  * document that already matches Medusa is not written, so a second bootstrap changes nothing.
  */
 
-export const SYNC_COLLECTIONS = ["products", "categories", "collections"] as const;
-type SyncCollection = (typeof SYNC_COLLECTIONS)[number];
+export const SYNC_COLLECTIONS = [
+  "products",
+  "categories",
+  "collections",
+] as const satisfies readonly SyncCollection[];
 
-export type SyncDocument = {
-  fields: { medusaId: string } & Record<string, unknown>;
-  references: Record<string, string | null>;
-};
-
-/** What `export-for-payload.ts` writes. */
-export type SyncExport = {
-  documents: Record<SyncCollection, SyncDocument[]>;
-  markets: SyncedMarkets;
-};
-
-export type ImportCounts = {
-  created: number;
-  updated: number;
-  deleted: number;
-  unchanged: number;
-  markets: "updated" | "unchanged";
-};
+export type { ImportCounts, SyncDocument, SyncExport };
 
 type Stored = Record<string, unknown> & { id: number | string; medusaId: string };
 
@@ -57,7 +49,7 @@ const sameValue = (field: string, stored: unknown, wanted: unknown): boolean => 
 export async function importFromMedusa(
   payload: Payload,
   user: TypedUser,
-  exported: SyncExport,
+  exported: Pick<SyncExport, "documents" | "markets">,
 ): Promise<ImportCounts> {
   const counts: ImportCounts = {
     created: 0,

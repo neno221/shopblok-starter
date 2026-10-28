@@ -600,6 +600,9 @@ importers:
       '@shopblok/config':
         specifier: workspace:*
         version: link:../packages/config
+      '@shopblok/fixtures':
+        specifier: workspace:*
+        version: link:../packages/fixtures
       '@types/node':
         specifier: 22.20.5
         version: 22.20.5
