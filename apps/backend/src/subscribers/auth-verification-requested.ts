@@ -41,13 +41,17 @@ export default async function authVerificationRequested({
   if (!own) {
     container
       .resolve(ContainerRegistrationKeys.LOGGER)
-      .warn("auth.verification_requested: the address is not the identity's own, so nothing was sent.");
+      .warn(
+        "auth.verification_requested: the address is not the identity's own, so nothing was sent.",
+      );
     return;
   }
 
   await sendStorefrontLink(container, {
     to: data.entity_id,
     template: "customer-verification",
+    type: "verify-email",
+    values: { code: data.code },
     metadata: data.metadata,
     path: "/verify",
     query: { code: data.code },

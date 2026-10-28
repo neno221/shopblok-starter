@@ -153,8 +153,11 @@ export async function expectReceipt(
   await expect(page.locator('[data-slot="cart-lines"]:visible')).toHaveCount(0);
 }
 
-/** The links Medusa's log shows for `to` with `template` (the local notification provider's lines). */
-function mailedLinks(to: string, template: string): string[] {
+/** What a mailed notification carries: the link and, since T70, the copy (D84). */
+export type MailedData = { url?: string; subject?: string; heading?: string; language?: string };
+
+/** The data Medusa's log shows for `to` with `template` (the local notification provider's lines). */
+export function mailedData(to: string, template: string): MailedData[] {
   const file = process.env["E2E_MEDUSA_LOG"];
   if (!file) throw new Error("E2E_MEDUSA_LOG is not set: it is the log of the Medusa under test.");
   const pattern = new RegExp(
@@ -162,9 +165,12 @@ function mailedLinks(to: string, template: string): string[] {
     "gm",
   );
   return [...readFileSync(file, "utf8").matchAll(pattern)].map(
-    (match) => (JSON.parse(match[1] ?? "{}") as { url?: string }).url ?? "",
+    (match) => JSON.parse(match[1] ?? "{}") as MailedData,
   );
 }
+
+const mailedLinks = (to: string, template: string): string[] =>
+  mailedData(to, template).map((data) => data.url ?? "");
 
 /** How many links of `template` went to `to` so far. */
 export const mailedCount = (to: string, template: string) => mailedLinks(to, template).length;

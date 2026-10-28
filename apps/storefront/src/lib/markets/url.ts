@@ -20,6 +20,17 @@ export function marketPrefix(market: Market, map: MarketMap): string {
 }
 
 /**
+ * What the backend needs for an e-mail it sends to a shopper of `market` (T44, T70): the public
+ * prefix its links start with, and the language whose copy it reads from Payload's
+ * `email-templates` (D84). It travels in Medusa's `metadata`, as `{ market, language }`.
+ */
+export type MailTarget = { market: string; language: string };
+
+export function mailTarget(market: Market, map: MarketMap): MailTarget {
+  return { market: marketPrefix(market, map), language: market.language };
+}
+
+/**
  * The public URL of a page of a market. `path` is the page's path inside the market (`/`,
  * `/products/shirt`, `/store?page=2`); the result starts with the market's prefix. A market on its
  * own domain gets an absolute URL, because it differs from the current host when linked from

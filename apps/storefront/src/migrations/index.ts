@@ -3,6 +3,7 @@ import * as migration_20261026_174226_market_time_zones from "./20261026_174226_
 import * as migration_20261028_154553_localized_parent_id_indexes from "./20261028_154553_localized_parent_id_indexes";
 import * as migration_20261028_164715_cms_foundations from "./20261028_164715_cms_foundations";
 import * as migration_20261028_194034_sync from "./20261028_194034_sync";
+import * as migration_20261028_211336_email_templates from "./20261028_211336_email_templates";
 
 export const migrations = [
   {
@@ -29,5 +30,10 @@ export const migrations = [
     up: migration_20261028_194034_sync.up,
     down: migration_20261028_194034_sync.down,
     name: "20261028_194034_sync",
+  },
+  {
+    up: migration_20261028_211336_email_templates.up,
+    down: migration_20261028_211336_email_templates.down,
+    name: "20261028_211336_email_templates",
   },
 ];

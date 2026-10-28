@@ -91,6 +91,25 @@ export default class PayloadModuleService {
     return docs[0] ?? null;
   }
 
+  /**
+   * An e-mail's template in one language (T70, D84), English where that language has no text;
+   * `null` when Payload has none of the type. `timeoutMs` is the e-mail's own limit (2 s).
+   */
+  async findEmailTemplate(
+    type: string,
+    language: string,
+    timeoutMs: number,
+  ): Promise<PayloadDoc | null> {
+    const { docs } = await this.client.find("email-templates", {
+      where: { type: { equals: type } },
+      limit: 1,
+      locale: language,
+      fallbackLocale: "en",
+      timeoutMs,
+    });
+    return docs[0] ?? null;
+  }
+
   /** The synced fields of a stored document, references as Payload ids. */
   snapshot(collection: SyncCollection, document: PayloadDoc): Snapshot {
     const snapshot: Snapshot = {};

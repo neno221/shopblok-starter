@@ -44,7 +44,8 @@ vi.mock("../medusa/orders", async () => ({
 }));
 const getMarketContext = vi.fn();
 vi.mock("../market-context", () => ({ getMarketContext }));
-vi.mock("../markets", () => ({ marketPrefix: () => "/de" }));
+const MAIL = vi.hoisted(() => ({ market: "/de", language: "en" }));
+vi.mock("../markets", () => ({ mailTarget: () => MAIL }));
 
 const { MedusaRequestError } = await import("../medusa/sdk");
 const {
@@ -367,7 +368,7 @@ describe("claimOrderAction", () => {
 
   it("claims the number without its #, with the lower-case e-mail and the market's prefix", async () => {
     expect(await claimOrderAction(claim)).toEqual({ ok: true, data: { sent: true } });
-    expect(claimOrder).toHaveBeenCalledWith(1042, "anna@example.com", "/de");
+    expect(claimOrder).toHaveBeenCalledWith(1042, "anna@example.com", MAIL);
   });
 
   it("refuses a number that is not one", async () => {

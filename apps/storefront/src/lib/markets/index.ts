@@ -3,5 +3,5 @@
 export { hreflangAlternates } from "./hreflang";
 export { fallbackMarketOf, findMarket, listMarkets, primaryMarket, toInternalKey } from "./market";
 export { resolve } from "./resolve";
-export { buildPublicUrl, marketPrefix } from "./url";
+export { buildPublicUrl, mailTarget, marketPrefix, type MailTarget } from "./url";
 export type { Market, MarketMap, RequestUrl, Resolution } from "./types";

@@ -178,11 +178,11 @@ describe("createCustomerReturn (T53)", () => {
 });
 
 describe("claimOrder (T53, D64)", () => {
-  it("posts the number, the e-mail and the market's prefix to /store/customers/me/order-transfers", async () => {
+  it("posts the number, the e-mail, the market's prefix and its language to /store/customers/me/order-transfers", async () => {
     const calls = stubMedusaFetch(() => ({ body: {} }));
     jar.reset({ _medusa_jwt: "jwt.token" });
     const { claimOrder } = await import("./orders");
-    await claimOrder(1042, "anna@example.com", "/de");
+    await claimOrder(1042, "anna@example.com", { market: "/de", language: "de" });
     expect(calls[0]).toMatchObject({ method: "POST" });
     expect(calls[0]?.url.pathname).toBe("/store/customers/me/order-transfers");
     expect(calls[0]?.headers.get("authorization")).toBe("Bearer jwt.token");
@@ -190,13 +190,16 @@ describe("claimOrder (T53, D64)", () => {
       display_id: 1042,
       email: "anna@example.com",
       market: "/de",
+      language: "de",
     });
   });
 
   it("throws a 401 MedusaRequestError when nobody is signed in", async () => {
     const calls = stubMedusaFetch(() => ({ body: {} }));
     const { claimOrder } = await import("./orders");
-    await expect(claimOrder(1042, "anna@example.com", "/de")).rejects.toMatchObject({
+    await expect(
+      claimOrder(1042, "anna@example.com", { market: "/de", language: "de" }),
+    ).rejects.toMatchObject({
       kind: "rejected",
       status: 401,
     });
@@ -207,7 +210,9 @@ describe("claimOrder (T53, D64)", () => {
     stubMedusaFetch(() => ({ status: 404, body: { message: "Order not found" } }));
     jar.reset({ _medusa_jwt: "jwt.token" });
     const { claimOrder } = await import("./orders");
-    await expect(claimOrder(1042, "anna@example.com", "/de")).rejects.toMatchObject({
+    await expect(
+      claimOrder(1042, "anna@example.com", { market: "/de", language: "de" }),
+    ).rejects.toMatchObject({
       kind: "rejected",
       status: 404,
     });

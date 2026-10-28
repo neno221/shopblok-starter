@@ -27,7 +27,8 @@ vi.mock("../medusa/customer", () => ({
 }));
 const getMarketContext = vi.fn();
 vi.mock("../market-context", () => ({ getMarketContext }));
-vi.mock("../markets", () => ({ marketPrefix: () => "/de" }));
+const MAIL = vi.hoisted(() => ({ market: "/de", language: "en" }));
+vi.mock("../markets", () => ({ mailTarget: () => MAIL }));
 
 const { MedusaRequestError } = await import("../medusa/sdk");
 const { authFormError, forgotAction, loginAction, resetAction } = await import("./auth-handlers");
@@ -45,7 +46,7 @@ describe("loginAction", () => {
   it("trims and lower-cases the e-mail before Medusa sees it, and updates the cart tag", async () => {
     login.mockResolvedValue({ state: "signed-in" });
     expect(await loginAction(credentials)).toEqual({ ok: true, data: { state: "signed-in" } });
-    expect(login).toHaveBeenCalledWith("anna@example.com", "secret", "/de");
+    expect(login).toHaveBeenCalledWith("anna@example.com", "secret", MAIL);
     expect(updateTag).toHaveBeenCalledWith("cart");
   });
 
@@ -96,7 +97,7 @@ describe("forgotAction", () => {
 
   it("asks for the reset link with the lower-case e-mail and answers the address", async () => {
     expect(await forgotAction(forgot)).toEqual({ ok: true, data: { email: "anna@example.com" } });
-    expect(requestPasswordReset).toHaveBeenCalledWith("anna@example.com", "/de");
+    expect(requestPasswordReset).toHaveBeenCalledWith("anna@example.com", MAIL);
   });
 
   it("answers the same when Medusa refuses, so it tells nobody which addresses have an account", async () => {
