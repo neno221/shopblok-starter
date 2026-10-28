@@ -9,6 +9,7 @@ type TransferRequested = { id: string; order_change_id: string };
 type ChangeRow = {
   id: string;
   internal_note?: string | null;
+  order?: { display_id?: number | null } | null;
   actions?: ({ action?: string | null; details?: Record<string, unknown> | null } | null)[] | null;
 };
 
@@ -34,7 +35,7 @@ export default async function orderTransferRequested({
   const query = container.resolve(ContainerRegistrationKeys.QUERY);
   const { data: changes } = (await query.graph({
     entity: "order_change",
-    fields: ["id", "internal_note", "actions.action", "actions.details"],
+    fields: ["id", "internal_note", "order.display_id", "actions.action", "actions.details"],
     filters: { id: data.order_change_id },
   })) as { data: ChangeRow[] };
   const change = changes[0];
@@ -54,12 +55,7 @@ export default async function orderTransferRequested({
   }
 
   // The order's number for the copy (`{{orderNumber}}`); the link uses its id.
-  const { data: orders } = (await query.graph({
-    entity: "order",
-    fields: ["id", "display_id"],
-    filters: { id: data.id },
-  })) as { data: { display_id?: number | null }[] };
-  const number = orders[0]?.display_id;
+  const number = change.order?.display_id;
 
   await sendStorefrontLink(container, {
     to,

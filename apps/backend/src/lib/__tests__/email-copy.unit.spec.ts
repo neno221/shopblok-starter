@@ -119,13 +119,14 @@ describe("fillVariables", () => {
     ).toBe("Hi anna@example.com, {{orderNumber}} {{unknown}}");
   });
 
-  it("escapes markup in a value, and does not fill a value's own braces", () => {
+  it("puts a value with markup in as text, and does not fill a value's own braces", () => {
+    // Plain text: the HTML renderer (M6) escapes, once (PR 92 review, item 1).
     expect(
       fillVariables("To {{email}}", ["email", "code"], {
-        email: '<b>"x"</b> & {{code}}',
+        email: "o'brien+<b>&</b>@example.com {{code}}",
         code: "secret",
       }),
-    ).toBe("To &#60;b&#62;&#34;x&#34;&#60;/b&#62; &#38; {{code}}");
+    ).toBe("To o'brien+<b>&</b>@example.com {{code}}");
   });
 });
 
@@ -163,6 +164,38 @@ describe("createEmailCopy", () => {
       language: "el",
       source: "payload",
     });
+  });
+
+  it("asks Payload once for e-mails that miss the same key at the same time", async () => {
+    let answer: (template: StoredTemplate) => void = () => undefined;
+    const source = jest.fn<ReturnType<TemplateSource>, Parameters<TemplateSource>>(
+      () => new Promise((resolve) => (answer = resolve)),
+    );
+    const reader = createEmailCopy({ source });
+    const both = Promise.all([
+      reader.copyFor("verify-email", "el", values),
+      reader.copyFor("verify-email", "el", values),
+    ]);
+    answer(greek);
+    const [first, second] = await both;
+    expect(source).toHaveBeenCalledTimes(1);
+    expect(first.subject).toBe(greek.subject);
+    expect(second.subject).toBe(greek.subject);
+  });
+
+  it("keeps at most maxEntries answers, dropping the oldest (the language is the client's)", async () => {
+    const source = jest.fn<ReturnType<TemplateSource>, Parameters<TemplateSource>>(
+      async () => greek,
+    );
+    const reader = createEmailCopy({ source, maxEntries: 3 });
+    for (const language of ["aa", "bb", "cc", "dd"]) {
+      await reader.copyFor("verify-email", language, values);
+    }
+    expect(reader.size()).toBe(3);
+    await reader.copyFor("verify-email", "dd", values);
+    expect(source).toHaveBeenCalledTimes(4);
+    await reader.copyFor("verify-email", "aa", values);
+    expect(source).toHaveBeenCalledTimes(5);
   });
 
   it("keeps an answer 5 minutes per type and language, then asks again", async () => {

@@ -1,8 +1,7 @@
 import type { MedusaContainer } from "@medusajs/framework/types";
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils";
 
-import { PAYLOAD_MODULE } from "../modules/payload";
-import type PayloadModuleService from "../modules/payload/service";
+import { payloadModule } from "./payload-sync";
 
 /**
  * The copy of the e-mails the backend sends (D84, T70): Payload's `email-templates` in the
@@ -146,16 +145,13 @@ export function lexicalToText(value: unknown): string {
     .join("\n\n");
 }
 
-/** A value as text that is safe inside HTML (M6 renders the copy as HTML; the values are users'). */
-export function escapeMarkup(value: string): string {
-  return value.replace(/[&<>"']/g, (character) => `&#${character.charCodeAt(0)};`);
-}
-
 const VARIABLE = /\{\{\s*([A-Za-z][A-Za-z0-9_]*)\s*\}\}/g;
 
 /**
- * `{{name}}` replaced by its value, escaped, for each name the type allows; any other `{{…}}` stays
- * as it is written. One pass, so a value that itself contains `{{…}}` is not filled again.
+ * `{{name}}` replaced by its value for each name the type allows; any other `{{…}}` stays as it is
+ * written. One pass, so a value that itself contains `{{…}}` is not filled again. The values go in
+ * as they are: the copy is plain text (a subject, a text body), and whatever turns it into HTML
+ * (M6's renderer) escapes it there, once (PR 92 review, item 1).
  */
 export function fillVariables(
   text: string,
@@ -164,7 +160,7 @@ export function fillVariables(
 ): string {
   return text.replace(VARIABLE, (match, name: string) => {
     const value = allowed.includes(name) ? values[name] : undefined;
-    return value === undefined ? match : escapeMarkup(value);
+    return value ?? match;
   });
 }
 
@@ -184,6 +180,8 @@ export type EmailCopyOptions = {
   timeoutMs?: number;
   /** How long an answer is kept (D84: 5 minutes). */
   ttlMs?: number;
+  /** How many answers are kept at most; the oldest goes first. */
+  maxEntries?: number;
   now?: () => number;
   warn?: (message: string) => void;
 };
@@ -202,18 +200,25 @@ export function createEmailCopy({
   source,
   timeoutMs = 2_000,
   ttlMs = 5 * 60_000,
+  maxEntries = 100,
   now = Date.now,
   warn = () => undefined,
 }: EmailCopyOptions) {
+  // The language in the key comes from the client (PR 92 review, item 3): the cache is bounded,
+  // and e-mails that miss the same key at once share one request to Payload.
   const cache = new Map<string, { at: number; template: StoredTemplate | null }>();
+  const pending = new Map<string, Promise<StoredTemplate | null>>();
 
-  async function template(type: EmailType, language: string): Promise<StoredTemplate | null> {
-    const key = `${type}:${language}`;
-    const kept = cache.get(key);
-    if (kept !== undefined && now() - kept.at < ttlMs) return kept.template;
+  function keep(key: string, template: StoredTemplate | null) {
+    cache.delete(key);
+    cache.set(key, { at: now(), template });
+    while (cache.size > maxEntries) cache.delete(cache.keys().next().value as string);
+  }
+
+  async function read(type: EmailType, language: string, key: string) {
     try {
       const found = await withTimeout(source(type, language, timeoutMs), timeoutMs);
-      cache.set(key, { at: now(), template: found });
+      keep(key, found);
       return found;
     } catch (error) {
       // Not kept: the next e-mail asks Payload again.
@@ -221,7 +226,21 @@ export function createEmailCopy({
         `email-copy: ${type} (${language}) from Payload failed, so it goes out in English: ${reason(error)}`,
       );
       return null;
+    } finally {
+      pending.delete(key);
     }
+  }
+
+  function template(type: EmailType, language: string): Promise<StoredTemplate | null> {
+    const key = `${type}:${language}`;
+    const kept = cache.get(key);
+    if (kept !== undefined && now() - kept.at < ttlMs) return Promise.resolve(kept.template);
+    let request = pending.get(key);
+    if (request === undefined) {
+      request = read(type, language, key);
+      pending.set(key, request);
+    }
+    return request;
   }
 
   return {
@@ -247,8 +266,8 @@ export function createEmailCopy({
         source: fromPayload ? "payload" : "built-in",
       };
     },
-    /** Forgets every kept answer (tests). */
-    clear: () => cache.clear(),
+    /** How many answers are kept (tests). */
+    size: () => cache.size,
   };
 }
 
@@ -263,14 +282,8 @@ let shared: EmailCopySource | undefined;
 export function emailCopyFor(container: MedusaContainer): EmailCopySource {
   if (shared !== undefined) return shared;
   const logger = container.resolve(ContainerRegistrationKeys.LOGGER);
-  const payload = container.hasRegistration(PAYLOAD_MODULE)
-    ? container.resolve<PayloadModuleService>(PAYLOAD_MODULE)
-    : undefined;
-  if (payload === undefined) {
-    logger.info(
-      "email-copy: Payload is not configured, so e-mails go out with the built-in English.",
-    );
-  }
+  // The sync's check, which logs once when the module is off (PR 92 review, item 6).
+  const payload = payloadModule(container);
   shared = createEmailCopy({
     source: async (type, language, timeoutMs) =>
       payload === undefined
