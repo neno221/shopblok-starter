@@ -222,6 +222,7 @@ test.beforeAll(async ({ browser, baseURL }) => {
 });
 
 test.afterAll(async () => {
+  test.setTimeout(300_000);
   // Not a test: leave the shared server as found, whatever failed above, and fail the run if that
   // cannot be done. One save at a time: Payload writes every language of a document on a save of
   // one, so two saves of the same document at once lose one of them.
@@ -254,6 +255,14 @@ test.afterAll(async () => {
       ...body
     } = originalMarkets;
     await attempt("markets", () => api("POST", "/globals/markets", admin(), body));
+    // The next suites (`outage.spec.ts` reads `/us`) need the restored map served: until both
+    // caches have it, `/us` answers its old language or a 404 for up to 80 s.
+    try {
+      await waitForLanguage("/us", "en-US");
+      await waitForLanguage("/", "el-CY");
+    } catch (error) {
+      failures.push(`the restored markets: ${String(error)}`);
+    }
   }
   if (editorId !== undefined) {
     await attempt("the editor", () => api("DELETE", `/users/${editorId}`, admin()));
