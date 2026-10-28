@@ -6130,7 +6130,7 @@ The run's wall clock is the `design-system` job's, 24 min, as in M3.
 |---|---|
 | Date | 2026-10-28 |
 | Branch | `claude/project-thread-08ud3k`, from `main` at `170f3dd` (PR 89 merged) |
-| PR | [PR_N](https://github.com/neno221/shopblok-starter/pull/PR_N) |
+| PR | [90](https://github.com/neno221/shopblok-starter/pull/90) |
 
 ### Step 1: Draft Mode under `ensureStatic`
 
