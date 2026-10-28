@@ -36,3 +36,24 @@ export function adminOrSelf(slug: "users" | "integrations"): Access {
 /** Staff see drafts too; everyone else sees published documents only. */
 export const staffOrPublished: Access = ({ req }) =>
   staffUser(req) !== null ? true : { _status: { equals: "published" } };
+
+/**
+ * The Medusa sync (D75): an `integrations` user whose role is `medusa-sync`, signed in with its
+ * API key. Only it writes what Medusa owns: the synced documents' Medusa fields and
+ * `markets.synced`.
+ */
+export function isMedusaSyncRequest(req: PayloadRequest): boolean {
+  const user = req.user;
+  return user?.collection === "integrations" && user.role === "medusa-sync";
+}
+
+export const isMedusaSync: Access = ({ req }) => isMedusaSyncRequest(req);
+
+/** For a field Medusa owns: only the sync may write it. */
+export const isMedusaSyncField: FieldAccess = ({ req }) => isMedusaSyncRequest(req);
+
+export const staffOrMedusaSync: Access = ({ req }) =>
+  staffUser(req) !== null || isMedusaSyncRequest(req);
+
+export const adminOrMedusaSync: Access = ({ req }) =>
+  isAdminRequest(req) || isMedusaSyncRequest(req);

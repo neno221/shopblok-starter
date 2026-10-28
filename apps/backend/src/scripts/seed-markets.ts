@@ -6,8 +6,9 @@
  *
  * Idempotent: each entity is looked up first and only created when it is
  * missing, so a second run makes no change. The exception is the store's
- * currencies and locales, which are set to exactly the lists in
- * `src/config/markets.ts` (anything else on the store is removed). A renamed
+ * currencies, which are set to exactly the list in `src/config/markets.ts`
+ * (anything else on the store is removed); its locales are only added to
+ * (D76: one added in Medusa Admin stays). A renamed
  * region is still found by the countries it holds, and the stock location by
  * its fulfilment set. It writes through core-flows workflows only. Needs the
  * database up, and Redis when `REDIS_URL` is set.
@@ -68,7 +69,15 @@ import {
   SUPPORTED_LOCALES,
   TAX_PROVIDER_ID,
 } from "./lib/markets";
-import { countryDrift, findRegion, missingBy, required, storeDrift, storeName } from "./lib/plan";
+import {
+  countryDrift,
+  findRegion,
+  missingBy,
+  required,
+  storeDrift,
+  storeLocales,
+  storeName,
+} from "./lib/plan";
 
 /** The parts of a publishable key this script reads. */
 type KeyRow = { id: string; sales_channels?: ({ id: string } | null)[] | null };
@@ -143,9 +152,10 @@ export default async function seedMarkets({ container }: ExecArgs) {
     name: storeName(store.name, STORE_NAME, MEDUSA_DEFAULT_STORE_NAME),
     default_sales_channel_id: channel.id,
     supported_currencies: SUPPORTED_CURRENCIES.map((c) => ({ ...c })),
-    supported_locales: SUPPORTED_LOCALES.map((locale_code) => ({
-      locale_code,
-    })),
+    // Added, never removed (D76): a locale added in Medusa Admin stays.
+    supported_locales: storeLocales(store.supported_locales, SUPPORTED_LOCALES).map(
+      (locale_code) => ({ locale_code }),
+    ),
   };
   const drift = storeDrift(store, storeTarget);
 

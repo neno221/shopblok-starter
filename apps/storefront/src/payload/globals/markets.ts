@@ -1,8 +1,28 @@
-import type { GlobalConfig, TextFieldSingleValidation } from "payload";
+import type {
+  Field,
+  GlobalBeforeChangeHook,
+  GlobalConfig,
+  TextFieldSingleValidation,
+} from "payload";
+import { ValidationError } from "payload";
 import { text } from "payload/shared";
 import { isLanguageTag, isTimeZone } from "../../lib/markets/market";
 import { MEDUSA_LOCALES, isMedusaLocale, medusaLocalesOf } from "../../lib/markets/medusa-locales";
-import { isAdmin, isStaff } from "../access/roles";
+import type { MarketsGlobal } from "../../lib/markets/global";
+import {
+  isSyncedEmpty,
+  syncedFromGlobal,
+  syncedMarketProblems,
+  type SyncedMarketsGlobal,
+} from "../../lib/markets/synced";
+import {
+  adminOrMedusaSync,
+  isAdminField,
+  isMedusaSyncField,
+  staffOrMedusaSync,
+  staffUser,
+} from "../access/roles";
+import { revalidateGlobalOnPublish } from "../hooks/revalidate-on-publish";
 import { rememberEnabledLanguages } from "../filter-available-locales";
 import { LOCALES } from "../locales";
 
@@ -77,6 +97,42 @@ export const timeZone: TextFieldSingleValidation = (value, options) => {
 };
 
 /**
+ * D76: a staff member's save is checked against the synced part (`syncedMarketProblems`), and
+ * refused with the reasons on their fields. While `synced` is empty (a fresh clone, before the
+ * first sync) the reasons are only logged, so `pnpm bootstrap` and a first edit keep working. The
+ * sync's own writes are not checked: Medusa is the truth for the synced part, and a country it
+ * took out of a region shows up in doctor's `markets-sync` and on the next staff save.
+ */
+export const checkAgainstSynced: GlobalBeforeChangeHook = ({ data, originalDoc, req }) => {
+  if (staffUser(req) === null) return data;
+  // A REST save may send only some fields; the rest keep their stored values. The synced part is
+  // always the stored one: staff cannot write it (Payload drops it after this hook runs).
+  const stored = originalDoc as (MarketsGlobal & { synced?: SyncedMarketsGlobal }) | undefined;
+  const merged = { ...stored, ...data } as MarketsGlobal;
+  const synced = syncedFromGlobal(stored?.synced);
+  const problems = syncedMarketProblems(merged, synced);
+  if (problems.length === 0) return data;
+  if (isSyncedEmpty(synced)) {
+    req.payload.logger.warn(
+      `markets: not checked against Medusa yet (no sync has run): ${problems.map((problem) => problem.message).join(" ")}`,
+    );
+    return data;
+  }
+  throw new ValidationError({ global: "markets", errors: problems, req });
+};
+
+/** The parts staff edit: only an admin may write them, never the sync's API key. */
+const editable = (field: Field): Field =>
+  ({
+    ...field,
+    access: { ...("access" in field ? field.access : {}), update: isAdminField },
+  }) as Field;
+
+// `revalidateTag("global:markets")` on every save (D76): the layout's map read and the proxy's
+// map follow at once instead of after their 30 s.
+const revalidate = revalidateGlobalOnPublish({ tags: () => ["global:markets"] });
+
+/**
  * The market map (D10), the editable part (D12): which countries are open, in which languages,
  * and how each language maps to a Medusa locale (D8). `getMarketMap()` reads it (T10) and the
  * validator above checks the Medusa locale codes; M4's sync fills `synced`. `filterAvailableLocales` reads it too: the
@@ -86,84 +142,115 @@ export const Markets: GlobalConfig = {
   slug: "markets",
   label: "Markets",
   // The storefront reads it through the Local API, which is not subject to access; this is the
-  // REST and admin side.
-  access: { read: isStaff, update: isAdmin },
+  // REST and admin side. The sync reads it and writes `synced` (each field's access says which
+  // part is whose).
+  access: { read: staffOrMedusaSync, update: adminOrMedusaSync },
   hooks: {
-    // The admin's locale selector follows this global (`filterAvailableLocales`), which keeps its
-    // read for a moment. Hand it the saved list, so the page the save refreshes already offers it.
-    afterChange: [({ doc, req }) => rememberEnabledLanguages(req.payload, doc)],
+    beforeChange: [checkAgainstSynced, ...revalidate.beforeChange],
+    afterChange: [
+      // The admin's locale selector follows this global (`filterAvailableLocales`), which keeps
+      // its read for a moment. Hand it the saved list, so the page the save refreshes offers it.
+      ({ doc, req }) => rememberEnabledLanguages(req.payload, doc),
+      ...revalidate.afterChange,
+    ],
   },
   fields: [
-    {
-      name: "countries",
-      type: "array",
-      labels: { singular: "Country", plural: "Countries" },
-      admin: { initCollapsed: true },
-      fields: [
-        { name: "code", type: "text", required: true, validate: countryCode },
-        { name: "enabled", type: "checkbox", defaultValue: true },
+    ...(
+      [
+        {
+          name: "countries",
+          type: "array",
+          labels: { singular: "Country", plural: "Countries" },
+          admin: { initCollapsed: true },
+          fields: [
+            { name: "code", type: "text", required: true, validate: countryCode },
+            { name: "enabled", type: "checkbox", defaultValue: true },
+            {
+              name: "languages",
+              type: "select",
+              hasMany: true,
+              required: true,
+              options: languageOptions,
+              admin: { description: "The default language first." },
+            },
+            {
+              name: "domain",
+              type: "text",
+              admin: { description: "A domain of its own for this country, if it has one." },
+            },
+            {
+              name: "timeZone",
+              type: "text",
+              validate: timeZone,
+              admin: {
+                description:
+                  "The IANA time zone this country's order dates are written in, for example Europe/Nicosia. UTC is used when this is empty (D65).",
+              },
+            },
+          ],
+        },
         {
           name: "languages",
-          type: "select",
-          hasMany: true,
-          required: true,
-          options: languageOptions,
-          admin: { description: "The default language first." },
+          type: "array",
+          labels: { singular: "Language", plural: "Languages" },
+          admin: { initCollapsed: true },
+          fields: [
+            { name: "code", type: "select", required: true, options: languageOptions },
+            {
+              name: "medusaLocale",
+              type: "text",
+              required: true,
+              validate: medusaLocale,
+              admin: {
+                description: `The Medusa locale this language uses (D8), one of Medusa's ${MEDUSA_LOCALES.length}: el-GR for Greek, pt-BR or pt-PT for Portuguese.`,
+              },
+            },
+            {
+              name: "htmlLang",
+              type: "text",
+              validate: htmlLang,
+              admin: {
+                description:
+                  "Overrides the lang attribute of every country that uses this language, for example pt-BR.",
+              },
+            },
+          ],
         },
+        { name: "primaryCountry", type: "text", validate: countryCode },
         {
-          name: "domain",
+          name: "fallbackMarket",
           type: "text",
-          admin: { description: "A domain of its own for this country, if it has one." },
+          admin: { description: "The market hreflang x-default points to, for example en-us." },
         },
-        {
-          name: "timeZone",
-          type: "text",
-          validate: timeZone,
-          admin: {
-            description:
-              "The IANA time zone this country's order dates are written in, for example Europe/Nicosia. UTC is used when this is empty (D65).",
-          },
-        },
-      ],
-    },
-    {
-      name: "languages",
-      type: "array",
-      labels: { singular: "Language", plural: "Languages" },
-      admin: { initCollapsed: true },
-      fields: [
-        { name: "code", type: "select", required: true, options: languageOptions },
-        {
-          name: "medusaLocale",
-          type: "text",
-          required: true,
-          validate: medusaLocale,
-          admin: {
-            description: `The Medusa locale this language uses (D8), one of Medusa's ${MEDUSA_LOCALES.length}: el-GR for Greek, pt-BR or pt-PT for Portuguese.`,
-          },
-        },
-        {
-          name: "htmlLang",
-          type: "text",
-          validate: htmlLang,
-          admin: {
-            description:
-              "Overrides the lang attribute of every country that uses this language, for example pt-BR.",
-          },
-        },
-      ],
-    },
-    { name: "primaryCountry", type: "text", validate: countryCode },
-    {
-      name: "fallbackMarket",
-      type: "text",
-      admin: { description: "The market hreflang x-default points to, for example en-us." },
-    },
+      ] satisfies Field[]
+    ).map(editable),
     {
       name: "synced",
       type: "group",
-      admin: { description: "Filled by the Medusa sync (M4). Read-only.", readOnly: true },
-      fields: [],
+      admin: {
+        description:
+          "What Medusa has, written by the Medusa sync (D76). Read-only: change regions, currencies and locales in Medusa Admin.",
+        readOnly: true,
+      },
+      // Only the sync writes it; an admin's form sends it back unchanged and Payload drops it.
+      access: { create: isMedusaSyncField, update: isMedusaSyncField },
+      fields: [
+        {
+          name: "regions",
+          type: "array",
+          labels: { singular: "Region", plural: "Regions" },
+          fields: [
+            { name: "medusaId", type: "text", required: true },
+            { name: "name", type: "text", required: true },
+            { name: "currency", type: "text", required: true },
+            { name: "countries", type: "text", hasMany: true },
+          ],
+        },
+        { name: "currencies", type: "text", hasMany: true },
+        { name: "defaultCurrency", type: "text" },
+        { name: "locales", type: "text", hasMany: true },
+        { name: "syncedAt", type: "date", admin: { date: { pickerAppearance: "dayAndTime" } } },
+      ],
     },
   ],
 };

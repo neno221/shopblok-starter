@@ -41,6 +41,7 @@ import {
   marketsGlobalCheck,
   marketsSyncCheck,
   readMarketMap,
+  readSyncedMarkets,
   type BackendMarkets,
   type MarketMapData,
   type MarketsGlobalRead,
@@ -148,17 +149,21 @@ async function readMarketsGlobal(): Promise<MarketsGlobalRead> {
     env: { NODE_ENV: "production", NO_COLOR: "1" },
     timeoutMs: PAYLOAD_RUN_TIMEOUT_MS,
   });
-  const found = extractMarker<{ map: unknown; problems: string[] }>(result.output, "doctorPayload");
+  const found = extractMarker<{ map: unknown; problems: string[]; synced?: unknown }>(
+    result.output,
+    "doctorPayload",
+  );
   if (result.code === 0 && found !== undefined) {
+    const shapeError = (cause: string): MarketsGlobalRead => ({
+      ok: false,
+      cause,
+      fix: "Doctor and the storefront disagree about the global's shape.",
+    });
     const map = readMarketMap(found.map);
-    if (typeof map === "string") {
-      return {
-        ok: false,
-        cause: map,
-        fix: "Doctor and the storefront disagree about the global's shape.",
-      };
-    }
-    return { ok: true, map, problems: found.problems };
+    if (typeof map === "string") return shapeError(map);
+    const synced = readSyncedMarkets(found.synced);
+    if (typeof synced === "string") return shapeError(synced);
+    return { ok: true, map, problems: found.problems, synced };
   }
   return { ok: false, ...explainPayloadRun(result) };
 }
@@ -242,7 +247,12 @@ async function main(): Promise<number> {
   );
 
   const globalMarkets = marketsGlobalCheck(read);
-  const sync = marketsSyncCheck({ backendFile, fixtures, global: globalMarkets.map });
+  const sync = marketsSyncCheck({
+    backendFile,
+    fixtures,
+    global: globalMarkets.map,
+    synced: "ok" in read && read.ok ? read.synced : undefined,
+  });
   checks.push(globalMarkets.check, sync.check);
 
   if (online !== undefined) {

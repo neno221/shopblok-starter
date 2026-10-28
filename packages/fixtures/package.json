@@ -5,7 +5,9 @@
   "description": "Typed mock data: the seeded market map, the design-system samples and, per locale, commerce fixtures typed by the registry's view models (D41). Exports TypeScript source: no build step (D3).",
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./sync": "./src/sync/types.ts",
+    "./sync/documents.json": "./src/sync/documents.json"
   },
   "scripts": {
     "typecheck": "tsc",

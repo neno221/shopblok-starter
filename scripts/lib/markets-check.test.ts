@@ -2,10 +2,12 @@ import { describe, expect, it } from "vitest";
 import {
   compareMarkets,
   MARKETS_FIX,
+  MARKETS_SYNCED_FIX,
   marketsGlobalCheck,
   marketsSyncCheck,
   readBackendMarkets,
   readMarketMap,
+  readSyncedMarkets,
   type BackendMarkets,
   type MarketMapData,
 } from "./markets-check.ts";
@@ -336,5 +338,65 @@ describe("marketsSyncCheck", () => {
     expect(result.check.message).toBe("could not read packages/fixtures/src/markets.ts (boom)");
     expect(result.map).toBeUndefined();
     expect(result.backend).toEqual(backend);
+  });
+});
+
+describe("readSyncedMarkets (T60)", () => {
+  const synced = {
+    regions: backend.regions.map((region) => ({ medusaId: "reg_x", ...region })),
+    currencies: backend.currencies,
+    defaultCurrency: "eur",
+    locales: backend.locales,
+  };
+
+  it("reads the synced part doctor-payload prints, in the backend list's shape", () => {
+    expect(readSyncedMarkets(synced)).toEqual(backend);
+  });
+
+  it("is undefined before the first sync", () => {
+    expect(readSyncedMarkets(null)).toBeUndefined();
+    expect(readSyncedMarkets(undefined)).toBeUndefined();
+    expect(readSyncedMarkets({ regions: [], currencies: [], locales: [] })).toBeUndefined();
+  });
+
+  it("says so when the shape is not what doctor expects", () => {
+    expect(readSyncedMarkets({ regions: "x" })).toContain("is not { regions");
+  });
+});
+
+describe("marketsSyncCheck with a synced part (D76)", () => {
+  const backendFile = { error: "not needed" };
+
+  it("compares the global's two parts once a sync has run, not the backend's file", () => {
+    const result = marketsSyncCheck({ backendFile, fixtures: map, global: map, synced: backend });
+    expect(result.check).toMatchObject({ id: "markets-sync", level: "ok" });
+    expect(result.check.message).toBe(
+      "Medusa's regions and locales (the synced part) and the markets global's countries agree.",
+    );
+  });
+
+  it("warns with Medusa's words when a country is in no synced region", () => {
+    const withAustria = {
+      ...map,
+      countries: [...map.countries, { code: "at", enabled: true, languages: ["de"] }],
+    };
+    const result = marketsSyncCheck({
+      backendFile,
+      fixtures: map,
+      global: withAustria,
+      synced: backend,
+    });
+    expect(result.check).toMatchObject({ level: "warn", fix: MARKETS_SYNCED_FIX });
+    expect(result.check.details).toEqual([
+      "country \"at\" is open in the storefront's map but no region in Medusa (the markets global's synced part) has it (its pages show the no-region message)",
+    ]);
+  });
+
+  it("names a locale the store lacks", () => {
+    const lacking = { ...backend, locales: ["en-US", "el-GR", "de-DE"] };
+    const result = marketsSyncCheck({ backendFile, fixtures: map, global: map, synced: lacking });
+    expect(result.check.details).toEqual([
+      'language "fr" uses the Medusa locale "fr-FR", which is not in the store\'s locales in Medusa',
+    ]);
   });
 });

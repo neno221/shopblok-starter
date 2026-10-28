@@ -5,9 +5,12 @@ import { lexicalEditor } from "@payloadcms/richtext-lexical";
 import { buildConfig } from "payload";
 import sharp from "sharp";
 import { siteOrigin } from "./lib/site-origin";
+import { Categories } from "./payload/collections/categories";
+import { Collections } from "./payload/collections/collections";
 import { Integrations } from "./payload/collections/integrations";
 import { Media } from "./payload/collections/media";
 import { Pages } from "./payload/collections/pages";
+import { Products } from "./payload/collections/products";
 import { Users } from "./payload/collections/users";
 import { cronOrAdmin } from "./payload/access/jobs";
 import { filterAvailableLocales } from "./payload/filter-available-locales";
@@ -44,7 +47,7 @@ export default buildConfig({
       url: livePreviewUrl,
     },
   },
-  collections: [Users, Integrations, Media, Pages],
+  collections: [Users, Integrations, Media, Pages, Products, Categories, Collections],
   globals: [Markets],
   editor: lexicalEditor(),
   graphQL: { disable: true },
