@@ -138,6 +138,13 @@ test("register, refused until verified, verify, sign in, address at the checkout
     orderId = await buy(page);
     await page.goto(`${PREFIX}/account/orders`);
     await expect(page.locator(`a[href$="/account/orders/${orderId}"]`).first()).toBeVisible();
+    // W5, finding 3: the order is not fulfilled, so nothing on it can go back yet; its return form
+    // draws the returns list, with nothing in it, in place of the not-found page.
+    await page.goto(`${PREFIX}/account/returns/${orderId}`);
+    await expect(page.locator('[data-slot="order-table"][data-empty]:visible')).toContainText(
+      en.templates.account.returns.emptyTitle,
+    );
+    await expect(page.locator('[data-slot="not-found-template"]:visible')).toHaveCount(0);
   });
 
   await test.step("sign out", async () => {
