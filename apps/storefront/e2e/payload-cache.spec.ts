@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { adminCredentials } from "./support/admin-credentials";
+import { adminToken, base, freshWithinTwo } from "./support/server";
 
 // ADR 0001 (Accepted: Cache Components stay on with the embedded Payload admin) rests on three
 // behaviours that S1 measured once, on a throwaway branch (commit `dbfec6e`), and that a new
@@ -28,7 +29,6 @@ test.describe.configure({ mode: "serial" });
 test.setTimeout(90_000);
 
 const stamp = Date.now().toString(36);
-const base = () => process.env["E2E_BASE_URL"] ?? "http://localhost:8000";
 
 let page: Page;
 let token = "";
@@ -95,16 +95,9 @@ async function patchPage(id: number, query: string, body: unknown) {
   expect(response.status, await response.clone().text()).toBe(200);
 }
 
-/**
- * `'max'` is stale-while-revalidate: request 1 may still show the old text and starts the refresh,
- * which took about 300 ms in S1, so request 2 follows after a pause of 500 ms (back to back it
- * would still see the old text). Returns the number of the first request that showed `text`, or 0.
- */
-async function freshWithinTwo(path: string, text: string): Promise<number> {
-  if ((await read(path)).titles.includes(text)) return 1;
-  await new Promise((resolve) => setTimeout(resolve, 500));
-  return (await read(path)).titles.includes(text) ? 2 : 0;
-}
+/** Whether one of the test-only reads shows `text`, within two requests (`freshWithinTwo`). */
+const showsWithinTwo = (path: string, text: string) =>
+  freshWithinTwo(async () => (await read(path)).titles.includes(text));
 
 test.beforeAll(async ({ browser, baseURL }) => {
   page = await browser.newPage({ baseURL: baseURL ?? "http://localhost:8000" });
@@ -114,19 +107,8 @@ test.beforeAll(async ({ browser, baseURL }) => {
   await page.fill('input[name="password"]', password);
   await page.getByRole("button", { name: /^log in$|^login$/i }).click();
   await page.waitForURL(/\/admin\/?$/);
-  // A token for the requests made from Node: `page.request` does not send the Secure cookie to
-  // http://localhost (SETUP.md, T11), and these have no page to run in.
-  token = await page.evaluate(
-    async ({ email, password }) => {
-      const response = await fetch("/api/users/login", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
-      return ((await response.json()) as { token?: string }).token ?? "";
-    },
-    { email, password },
-  );
+  // A token for the requests made from Node, which have no page to run in.
+  token = await adminToken();
 });
 
 test.afterAll(async () => {
@@ -204,7 +186,7 @@ test.describe("cache", () => {
     const edited = `${title} (max)`;
     await patchPage(id, "locale=el", { title: edited, _status: "published" });
     await revalidate("e2e:pages:el", "max");
-    expect(await freshWithinTwo(path, edited)).toBeGreaterThan(0);
+    expect(await showsWithinTwo(path, edited)).toBeGreaterThan(0);
     current = edited;
   });
 
@@ -236,7 +218,7 @@ test.describe("cache", () => {
     ]);
     expect(saved.status()).toBeLessThan(300);
     expect(
-      await freshWithinTwo("/next/e2e/pages?locale=el", edited),
+      await showsWithinTwo("/next/e2e/pages?locale=el", edited),
       "the edit appeared in request 1 or 2",
     ).toBeGreaterThan(0);
     current = edited;

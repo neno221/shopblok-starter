@@ -240,7 +240,10 @@ export async function runGlobalSeeds(payload: Payload, globals: SeedGlobal[]): P
         languages.push([locale, values]);
       }
     }
-    await write("all", saved ? data : { ...data, _status: "published" });
+    // A saved global whose only changes are per-language arrays needs no "all" write (PR 94
+    // review, item 6): it would add a version that changes nothing.
+    if (!saved) await write("all", { ...data, _status: "published" });
+    else if (Object.keys(data).length > 0) await write("all", data);
     for (const [locale, values] of languages) await write(locale, values);
     if (saved) counts.updated++;
     else counts.created++;

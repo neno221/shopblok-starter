@@ -1,13 +1,8 @@
 import { expect, test, type Page } from "@playwright/test";
 import { adminCredentials } from "./support/admin-credentials";
 import { collectConsole, judgeConsole, type FailedRequest, type Message } from "./support/console";
-import {
-  adminToken,
-  draftOf,
-  publishGlobal,
-  snapshotGlobal,
-  type GlobalData,
-} from "./support/globals";
+import { draftOf, publishGlobal, snapshotGlobal, type GlobalData } from "./support/globals";
+import { adminToken } from "./support/server";
 
 // T16: Payload's admin inside the storefront, end to end: the admin that `pnpm bootstrap` made
 // logs in, creates a page with a title per language, and the API serves each language. It is the

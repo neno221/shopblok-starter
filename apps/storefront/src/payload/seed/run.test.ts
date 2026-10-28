@@ -336,6 +336,25 @@ describe("runGlobalSeeds (T61)", () => {
     ]);
   });
 
+  it("writes only the languages of an array when nothing else changed (no empty write)", async () => {
+    const { payload, writes } = fakeGlobal();
+    await runGlobalSeeds(payload, [settingsSeed("Shopblok")]);
+    writes.length = 0;
+    const first = settingsSeed("Shopblok");
+    const newNotes: SeedGlobal = {
+      ...first,
+      fields: async (p) => ({
+        ...(await first.fields(p)),
+        productNotes: {
+          value: { en: [{ note: "Ships today" }], el: [{ note: "Αποστολή σήμερα" }] },
+          before: [{ en: [{ note: "Ships fast" }], el: [{ note: "Γρήγορη αποστολή" }] }],
+        },
+      }),
+    };
+    expect(await runGlobalSeeds(payload, [newNotes])).toMatchObject({ updated: 1 });
+    expect(writes.map((write) => write.locale)).toEqual(["en", "el"]);
+  });
+
   it("leaves a global with an editor's newer draft alone, and names it", async () => {
     const { payload, writes, saveDraft } = fakeGlobal();
     await runGlobalSeeds(payload, [settingsSeed("Shopblok")]);

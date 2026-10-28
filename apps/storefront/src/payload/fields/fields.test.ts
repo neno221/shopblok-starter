@@ -74,6 +74,22 @@ describe("hideDeletedInMedusa (D85)", () => {
     expect(hideDeletedInMedusa({ relationTo: "pages" } as never)).toBe(true);
   });
 
+  it("lets through the document the link already holds, so a save is not refused for it", () => {
+    const holding = (relationTo: string, value: unknown) =>
+      hideDeletedInMedusa({
+        relationTo: "products",
+        siblingData: { type: "reference", reference: { relationTo, value } },
+      } as never);
+    const shown = { deletedInMedusa: { not_equals: true } };
+    expect(holding("products", 7)).toEqual({ or: [shown, { id: { equals: 7 } }] });
+    expect(holding("products", { id: 7, handle: "gone" })).toEqual({
+      or: [shown, { id: { equals: 7 } }],
+    });
+    // A reference to another collection lets nothing more through here.
+    expect(holding("categories", 7)).toEqual(shown);
+    expect(holding("products", null)).toEqual(shown);
+  });
+
   it("is on the link field's reference", () => {
     const group = link({ relationTo: ["products"] });
     const reference = group.fields.find((field) => "name" in field && field.name === "reference");

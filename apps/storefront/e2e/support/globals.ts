@@ -1,4 +1,4 @@
-import { adminCredentials } from "./admin-credentials";
+import { base } from "./server";
 
 // T61: the shell's globals (`header`, `footer`, `site-settings`) changed by a test and put back.
 // A test publishes what it needs through Payload's REST API as the bootstrap admin, and puts the
@@ -6,23 +6,8 @@ import { adminCredentials } from "./admin-credentials";
 // again. Publishing the snapshot also replaces any draft the test left, so the next editor opens
 // the global without a pending change.
 
-const base = () => process.env["E2E_BASE_URL"] ?? "http://localhost:8000";
-
 export type GlobalSlug = "header" | "footer" | "site-settings";
 export type GlobalData = Record<string, unknown>;
-
-/** The bootstrap admin's JWT, for requests made from Node. */
-export async function adminToken(): Promise<string> {
-  const { email, password } = adminCredentials();
-  const response = await fetch(`${base()}/api/users/login`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ email, password }),
-  });
-  const token = ((await response.json()) as { token?: string }).token ?? "";
-  if (token === "") throw new Error(`the bootstrap admin cannot sign in (${response.status})`);
-  return token;
-}
 
 /** `Origin` is what Payload's CSRF check compares on a write. */
 const headers = (token: string) => ({

@@ -21,9 +21,16 @@ const state = vi.hoisted(() => ({
   /** Product ids per category id; the new arrivals are every product, newest first. */
   byCategory: {} as Record<string, string[]>,
   products: [] as ProductDto[],
+  /** The site settings' store name (T61), as the shell reads it. */
+  storeName: "Shopblok",
 }));
 vi.mock("next/root-params", () => ({ market: async () => state.key }));
 vi.mock("next/headers", () => ({ draftMode: async () => ({ isEnabled: false }) }));
+vi.mock("../../../components/shell/shell-data", () => ({
+  getShellData: async () => ({
+    settings: { storeName: state.storeName, titleTemplate: `%s | ${state.storeName}` },
+  }),
+}));
 vi.mock("../../../lib/markets/cached-market-map", () => ({
   getRenderMarketMap: async () => state.map,
 }));
@@ -68,6 +75,7 @@ afterEach(() => {
   state.tree = [];
   state.byCategory = {};
   state.products = [];
+  state.storeName = "Shopblok";
 });
 
 function product(id: string, amount: number, image: string | null): ProductDto {
@@ -226,6 +234,14 @@ describe("the home page (T51)", () => {
         "query-input": "required name=search_term_string",
       },
     });
+  });
+
+  it("names the store as the site settings do, in the JSON-LD and the share title (T61)", async () => {
+    state.storeName = "Kalimera";
+    const html = await render(seeded, "en-us");
+    const [organization] = jsonLd(html)["@graph"];
+    expect(organization).toMatchObject({ "@type": "Organization", name: "Kalimera" });
+    expect((await generateMetadata()).openGraph?.title).toBe("Kalimera");
   });
 
   it("is self-canonical with the other markets' homes as alternates", async () => {
