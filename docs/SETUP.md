@@ -1,6 +1,6 @@
 # Setup
 
-How to run the starter on your own machine: the quickstart, the ports, the logins, the notes for Windows and for a Claude Code cloud session. Below "The M0 log", "The M1 log", "The M2 log" and "The M3 log" are what each task found and measured, one section per task and spike, in the order they ran. The log is the evidence behind [SPEC.md](SPEC.md) v0.9 and the [ADRs](adr/README.md); read the section a number or a decision in the spec points to.
+How to run the starter on your own machine: the quickstart, the ports, the logins, the notes for Windows and for a Claude Code cloud session. Below "The M0 log", "The M1 log", "The M2 log", "The M3 log" and "The M4 log" are what each task found and measured, one section per task and spike, in the order they ran. The log is the evidence behind [SPEC.md](SPEC.md) v0.9 and the [ADRs](adr/README.md); read the section a number or a decision in the spec points to.
 
 - [Quickstart](#quickstart-no-keys-no-accounts) · [Prerequisites](#prerequisites-every-os) · [Ports and logins](#ports-urls-and-logins) · [Opening a market](#opening-a-market) · [The design-system page, tokens and the Figma export](#the-design-system-page-tokens-and-the-figma-export-m1) · [Adding a molecule or an organism](#how-to-add-a-molecule-or-an-organism-m2) · [Adding a template or a page](#how-to-add-a-template-or-a-page-m3) · [Updating the baselines and the thumbnails](#updating-the-baselines-and-the-thumbnails-m2) · [Windows](#windows-notes) · [Cloud](#working-in-a-claude-code-cloud-environment) · [Checking a clean machine](#checking-a-clean-machine) · [If something fails](#if-something-fails) · [Where we differ from the skills](#where-we-deliberately-differ-from-the-medusa-skills)
 
@@ -12,7 +12,7 @@ Nothing here needs a third-party account: Stripe, Resend, PostHog, Sentry and Cl
 
 | | Needed | Check |
 |---|---|---|
-| Node | 22.22 or newer on the 22 line (`.nvmrc` says `22`; `engines` is `>=22.22.0 <25`). Node 24 works and runs as an informational leg in CI | `node -v` |
+| Node | 22.23.4 or newer on the 22 line (`.nvmrc` says `v22.23.4`; `engines` is `>=22.23.4 <25`, the floor Payload 3.92 sets: "Versions and CI for M4 (T57)"). Node 24 works and runs as an informational leg in CI. `pnpm bootstrap` refuses an older Node (its first check compares `node -v` with `engines`); pnpm itself only warns. Install `.nvmrc`'s version | `node -v` |
 | pnpm | **12.10.1**, installed with `npm install -g pnpm@12.10.1`. Not Corepack: Corepack 0.34 cannot run pnpm 12 | `pnpm -v` prints `12.10.1` inside the repo |
 | Corepack | **Off**: `corepack disable` (on Windows from an **administrator** terminal, because the shims it leaves are in `C:\Program Files\nodejs`). If a machine ever ran `corepack enable`, plain `pnpm` fails with `Cannot find module '…\corepack\v1\pnpm\12.10.1\bin\pnpm.cjs'` | `where pnpm` (Windows) or `which pnpm`: the first hit must be the npm-global pnpm, not a Corepack shim |
 | Docker | Docker Desktop (Windows, macOS) or Docker Engine (Linux), **running**, with Compose v2.20 or newer (the root `compose.yaml` uses `include`) | `docker info`, `docker compose version` |
@@ -147,6 +147,7 @@ Short version; "Baselines and thumbnails (T40)" has the mechanism, the numbers a
 - **What exists:** 378 English baselines (126 entries × 375, 768 and 1440 px, in `apps/storefront/e2e/__screenshots__/design-system/`; D51's fallback, chosen on 2026-10-19; the `el` cells keep axe, overflow, size and console) and 21 thumbnails (`apps/storefront/public/registry/`, which are also their previews' baselines). **Not Git LFS.**
 - **To update:** dispatch CI on the branch with `update-baselines` on (Actions, "CI", "Run workflow", or the `gh api` call in "Baselines and thumbnails (T40)", "How it works", "Updating"). A job of its own rebuilds both sets, runs the cells' other checks (axe, overflow, size, console) on the way while no other job runs, commits the PNGs that changed to the branch as `github-actions[bot]` and prints how many it changed and how many bytes it added. **A push made with `GITHUB_TOKEN` starts no workflow: dispatch CI again by hand** and let it pass before merging. A set that passes D51's lines (60 MB, a history 200 MB larger than before the first set, an update of more than half a set) stops the session, which asks.
 - **Locally, in the image** (a cloud session or a PC with Docker): the recipe in "Baselines and thumbnails (T40)", "Making and checking them locally"; delete what it writes before committing, because the committed set is CI's.
+- **Compressed as they are written (T57, M4 D72):** the update job runs oxipng 10.2.1 (lossless) on each PNG it writes new or changed before committing it, so a changed cell costs about a quarter less; the rest of the set stays as it is. Its version is pinned with the baselines in mind ("Versions and CI for M4 (T57)").
 - **After a Renovate bump** of Playwright or of Node's minor or patch version, dispatch an update before merging: the browser or the ICU data changes pixels.
 
 ### Windows notes
@@ -5810,7 +5811,9 @@ The pattern of "dompurify 3.4.17 (2026-10-24)": a pnpm override scoped to one `p
 
 | Package (installed) | Comes through | Fixed in | Why no override |
 |---|---|---|---|
-| `undici` 7.29.0 (13 advisories) | `payload` | 7.30.1 | Payload pins `7.29.0` exactly; wait for a Payload release |
+| ~~`undici` 7.29.0 (13 advisories)~~ | `payload` | 7.30.1 | **Gone in T57** (Payload 3.92.1 pins 7.30.1) |
+| `deepmerge` 4.3.1 (1 low, new since T55) | `payload` | none released | added in T57; no fixed release to move to |
+| `qs` 6.16.0 (1 moderate, new since T55) | Medusa's js-sdk and dashboard, express 4, body-parser 1 | 6.16.1 | **Closed in T57** by the override `"qs@6.16.0": "6.16.1"` |
 | `zod` 4.2.0 | `@medusajs/deps`, `@medusajs/admin-sdk`, and the backend's own pin, kept at Medusa's | 4.6.6 | Medusa pins `4.2.0` exactly; wait for Medusa |
 | `lodash` 4.17.23 (2) | `@graphql-codegen/plugin-helpers` (Medusa's `@medusajs/utils`) | 4.18.1 | its range is `~4.17.0` |
 | `@graphql-tools/utils` 10.11.0 (2) | `@graphql-codegen/*` under Medusa | 12.0.2 | a major outside `^10` |
@@ -6029,3 +6032,91 @@ The owner did the review while steps 1 and 2 ran, with the session's list of odd
 - **`next dev` rewrote `apps/storefront/src/payload-types.ts`** (Payload's type generation; 283 lines changed in quoting and layout). The session restored it with `git restore`, as the checks need a clean tree.
 - **Left on E:**: `E:\medusa.log` (the session cannot delete a file at a drive's root) and the empty `E:\shopblok-starter-w5-env`, as for W3 and W4. Delete both by hand.
 - The scratch accounts and orders (`w5-owner-…@example.com`, `w5-guest-…@example.com`) are in the local database; `pnpm infra:reset` removes them.
+
+# The M4 log
+
+## Versions and CI for M4 (T57)
+
+**Result: Payload 3.92.1 runs on Node 22.23.4 with Next 16.4.3, and the audit lists 11 advisories instead of 23 (undici's 13 gone with Payload's 7.30.1, qs closed by an override). CI now fails a Payload change committed without its generated types or import map (`check`) or without its migration (`e2e-smoke`), the `update-baselines` job compresses what it writes with oxipng, and the gate knows M4's sections. 3.92 wanted one migration of its own: three indexes on the localized tables. Renovate's three PRs are closed (#35's Mailpit 1.31.6 is taken here).** M4 plan §5 T57; D71, D72, D86 items 3 and 5, D87 items 1, 2 and 5.
+
+| | |
+|---|---|
+| Date | 2026-10-28 |
+| Branch | `claude/project-thread-08ud3k`, from `main` at `37adf16` (PR 87 merged) |
+| PR | [89](https://github.com/neno221/shopblok-starter/pull/89) |
+
+### Versions
+
+| Piece | Was | Now | Notes |
+|---|---|---|---|
+| Node (`.nvmrc`) | v22.23.3 | **v22.23.4** | `engines.node` `>=22.23.4 <25` (Payload 3.92's own is `^22.23.4 \|\| >=24.22.1`). The backend's own `engines` (`>=22.22.0`) stays: Medusa needs no more |
+| `payload`, `@payloadcms/{db-postgres,next,ui,richtext-lexical}` | 3.90.2 | **3.92.1** | one exact pin for all; `pnpm-lock.yaml` holds no 3.90.2 |
+| `next`, `eslint-config-next` | 16.4.1 | **16.4.3** | the storefront's, `packages/ui`'s and `@shopblok/config`'s pins |
+| Mailpit | 1.31.4 | **1.31.6** | Renovate #35's change: `infra/docker-compose.yml`, `infra/README.md`, CLOUD.md's setup script |
+| qs | 6.16.0 | **6.16.1** | `qs@6.16.0` override (below) |
+| oxipng | none | **10.2.1** | the `update-baselines` job only (below) |
+
+**ICU.** `process.versions` on Node 22.23.3 and 22.23.4: `icu` 78.3, `unicode` 17.0 and `cldr` 48.0 on both, so no number, price or date format can change through Node; only `tz` moved (2026c to 2026e), which affects time-zone rules, not formats. The dispatched update (below) confirms it in pixels.
+
+**Payload's release notes against our code** (3.91.0, 3.92.0, 3.92.1). The one breaking change for us is the Node floor (#18957, 3.92.0). nodemailer 10 (#18736) matters only to a custom transport; there is none, and Payload's e-mail is unset. "Version operations answer 404 where versions are off" (#18057): only `pages` has versions, and nothing calls a version route on the others. "Draft read access against the latest version in `findByID`" (#18000) is what `payload-cache.spec.ts`'s draft checks exercise; they pass. #18724 adds a `_parent_id` index to every localized table, which is the migration below. "Prevent silent CLI exits" (#18398, 3.91.0) may end the "Payload's CLI exits 0 without doing anything in about 1 run in 20" of CLOUD.md step 4; bootstrap and doctor keep their repeat, and the migration check below does not rely on it.
+
+**The migration.** `migrate:create --skip-empty` against a database bootstrapped on 3.90.2 wrote `CREATE INDEX "media_locales_parent_id_idx"`, `"pages_locales_parent_id_idx"` and `"_pages_v_locales_parent_id_idx"` (and their `DROP INDEX`); it is committed as `20261028_154553_localized_parent_id_indexes` (the `.ts` and `index.ts` formatted with the repo's Prettier preset, as T52's was). `payload migrate` applied it in 8 ms, and `migrate:create --skip-empty` then wrote nothing. T59 creates its own migration after this one (D88).
+
+**For T59: the jobs endpoint.** In 3.92.1, `/api/payload-jobs/run` answers **401** `{ message: "Unauthorized" }` when `jobs.access.run` returns false (`queues/endpoints/run.js`), and `/api/payload-jobs/handle-schedules` uses the same `access.run`, so D74's rule covers both.
+
+### Audit
+
+`pnpm audit --prod`: **11** (1 low, 5 moderate, 5 high), from T55's 23. undici is gone (7.30.1 in Payload 3.92.1). Two advisories are new since T55: `qs` 6.16.0 (moderate, GHSA-6pq8-jhm2-2vcw, through Medusa's js-sdk and dashboard and express 4), closed by the override `"qs@6.16.0": "6.16.1"` (every dependant's range admits 6.16.1; exact, because 6.16.2 and 6.17.0 were a day old), and `deepmerge` 4.3.1 (low, GHSA-gcqx-w48m-w2h4, through `payload`), which has no fixed release. In T55's table the undici row is gone and `deepmerge` joins it ("What stays", updated).
+
+### Generated files and the migration check (D87 item 2, D86 item 3)
+
+- **The dev server no longer writes the types.** Payload generated `payload-types.ts` whenever it started outside production (`payload/dist/index.js`, `typescript.autoGenerate`, default `true`), unformatted, which is the 283-line diff W5 saw after `next dev`. `typescript.autoGenerate: false` in `payload.config.ts` turns it off; the import map's own generation (`admin.importMap.autoGenerate`) stays on, because it writes the committed format already.
+- **`generate:types` formats what it writes.** Payload's generator writes single quotes and 80 columns; the committed file is the repo's Prettier preset (`packages/config/prettier.config.mjs`, which nothing finds by itself: SETUP.md, T02 item 6). The storefront's script is now `payload generate:types && prettier --config ../../packages/config/prettier.config.mjs --write src/payload-types.ts` (Prettier 3.9.9, now a devDependency of the storefront as well as the root's, so a global Prettier never answers instead: PR 89 review, item 5). On 3.92.1 it reproduces the committed file byte for byte.
+- **`check`**, after `check:workspace`: "Payload's generated files are current" runs `generate:types` and `generate:importmap` and fails if anything under `apps/storefront/src` differs or appeared. Neither needs a database or a `.env` (both ran with the storefront's `.env` moved away). `generate:importmap` rewrites a stale map (an extra line appended was removed).
+- **`e2e-smoke`**, after `pnpm bootstrap --ci`: "Payload's migrations match the config" runs `payload migrate:create --skip-empty ci-check` and fails if anything under `src/migrations` changed or appeared, printing the new migration. A run whose log lacks "generating UP statements" exited without doing anything (Payload's silent exit) and is repeated, up to three attempts as `retryWhileSilent` does (PR 89 review, item 1); three silent runs fail the step, so a silent exit cannot pass.
+- **Mutations** (the same commands as the steps): a `subtitle` field added to `pages` without regenerating fails the first (`M apps/storefront/src/payload-types.ts`); with the types regenerated and no migration, the second fails and prints `ALTER TABLE "pages_locales" ADD COLUMN "subtitle" varchar` and its `_pages_v_locales` twin. Unmutated, both pass.
+
+### Baselines: oxipng (D72, item 5)
+
+- **Source:** oxipng 10.2.1's release binary (`x86_64-unknown-linux-musl`, 2026-09-02), downloaded by the `update-baselines` job and checked against its SHA-256 (`1813750e…c1ad17`). Ubuntu 24.04, the Playwright image's base, has no oxipng package. The session downloaded and hashed it; its permission check refused to run a downloaded binary here, so oxipng has run only in CI.
+- **What it compresses:** after Playwright writes the set, the commit step runs `oxipng -o 2 --strip safe` on every PNG that differs from the branch's commit or is new, and prints how many and the bytes before and after. A PNG whose pixels did not change is Playwright's own bytes again: identical to an uncompressed committed copy (nothing to commit), or, where the committed copy is compressed, turned back into exactly that copy (oxipng is deterministic for one version and one input). So the set shrinks as cells change, with no one-time rewrite (D72). **Bump oxipng only with that in mind:** a new version may write other bytes for the same pixels, and every compressed PNG would then show as changed.
+- **The dispatch:** run 40721758151 on `d0f2778` (2026-10-28, the job 20 min 18 s, the DS checks 17 min 25 s): **"PNGs changed: 2 (0 new, 2 changed, 0 deleted) of 399 in the set. Bytes added by this commit: 87718 (0.08 MB). The set: 57.93 MB."** The two are the mutation below; every other PNG Playwright wrote was byte for byte the committed one, so Node 22.23.4, Next 16.4.3 and Payload 3.92.1 changed no pixel (the expectation of D71 and T57 step 5). The commit is `f47fb54`, by `github-actions[bot]`.
+- **Mutation:** two baselines (`atoms/button/en-375.png`, 46,401 B, and `molecules/product-card-minimal/en-768.png`, 65,713 B) were committed re-encoded with zlib level 1 (56,102 and 83,601 B; the same pixels by construction). The dispatch wrote Playwright's bytes for both (46,401 and 65,713 B, as committed before), which differ from the re-encoded copies, so both were compressed: **34,427 B (−25.8%) and 53,291 B (−18.9%)**, 112,114 B to 87,718 B together, in line with D72's 27% on the whole set. This PR's `design-system` job then compares every cell against them (decoded pixels), which is the "accepted unchanged" half of the check.
+
+### The gate (D87 item 1)
+
+- `packages/ui/src/sections/` is a DS-only area, imported as `@shopblok/ui/sections/…`, on the templates' terms: a change there runs `design-system` only until a route outside the DS imports a section (T65's CMS page template), and both from then on.
+- `apps/storefront/public/registry/` (the thumbnails) is no longer DS-only: Payload's variant picker (T61) and block drawer (T63) show them, so a change runs `e2e-smoke` and `design-system`.
+- The registry's comment now says why it is shared (M3's checkout, listing pages and view models import its contracts at run time), not that M4's Payload config would be its first importer.
+- Tests: two new cases (a section DS-only, then shared once a market route imports it, and a lookalike name not matching; a thumbnail running both jobs), 36 → 38 tests in `ci-gate.test.ts` as Vitest counts them (34 → 36 `it` blocks; one is an `it.each`).
+
+### Cloud sessions and Node
+
+CLOUD.md's "What every cloud session does first", step 1, now installs `.nvmrc`'s version into `/opt/node22` when `node -v` is older (the image has 22.22.0): the setup script's way (npm and Corepack removed first, the tarball from `nodejs.org/dist`), in about ten seconds; pnpm 12.10.1 stays. This session did exactly that (22.22.0 to 22.23.4). The setup script's step 1 now upgrades below 22.23.4 instead of 22.22, **for you to paste into the environment's settings when you like** (gear icon, Setup script); until then every session takes the ten seconds.
+
+### Renovate (D86 item 5, G8)
+
+G8 is unanswered, so `renovate.json` stays as it is. #35 (Mailpit 1.31.6) is taken in this PR; #35, #37 (Playwright 1.64.1, held by D72) and #32 ("Pin dependencies", stale since 2026-10-15) are closed with a comment that names this PR.
+
+### Checks (cloud VM, Node 22.23.4, the compose stack)
+
+- `pnpm install`: the lockfile moves Payload (and its `undici`, 7.29.0 → 7.30.1), Next, qs and `tsx` (4.22.4 → 4.23.15, the peer that vite, Vitest, Tailwind's `postcss-load-config` and Medusa's framework resolve) (+86 −89 packages); `pnpm peers check` lists the same two unmet peers as before (`picomatch` for `fdir`, `esbuild` for vite).
+- `check:workspace`, `typecheck`, `lint` and `test` exit 0 (3208 storefront tests); `pnpm build` with no `.env` exits 0 (1 m 36 s).
+- First-load JS (built as `e2e-smoke` does, with Medusa, four products prerendered), `main` against this branch: the product page 332.0 → 332.0 KB, the listing pages 331.1 → 331.0, `/[market]` 314.6 → 314.6, the checkout 311.4 → 311.4, the cart 306.2 → 306.2, the admin 632.1 → 635.8 (not budgeted). No route over 335 KB.
+- Against `next start` and Medusa: the default projects as `e2e-smoke` runs them (130 tests, with `E2E_TEST_ROUTES=true` and the Medusa log): 120 passed, 3 failed and 7 did not run in `catalog.spec.ts`, because this session's `next start` lacked the job's `STOREFRONT_LISTING_PAGE_SIZE=3`; started with it, `catalog.spec.ts` passed 16 of 16 (its first run after the restart failed two of the paging tests and passed on the next run, recorded in case it shows in CI). The admin, cache and locales suites (`payload-admin`, `payload-cache`, `payload-locales`) are among the 120.
+- `next dev`: started with `pnpm --filter @shopblok/storefront dev`, `/admin/login`, `/` and `/api/pages` answered 200, and `git status` stayed clean: `payload-types.ts` is no longer rewritten.
+
+### CI times before M4
+
+This PR's run 40725427712 on `6745718`, every job running (D87 item 3: T71 compares M4's end against it). The fixes after the review changed docs, a comment and the migration check's loop, which ran once in 3 s here.
+
+| Job | Before M4 | Of which |
+|---|---|---|
+| `gate` | 14 s | |
+| `check` (Node 22) | 6:55 | the generated-files check 6 s, typecheck 33 s, lint 24 s, test 3:40, build 1:17; Node 24's leg 5:14 |
+| `backend-integration` | 1:49 | tests 50 s |
+| `e2e-smoke` | 9:08 | bootstrap 35 s, the migration check 3 s, build 1:12, the suites 1:58, the outage 35 s, the console in `next dev` 1:40 |
+| `design-system` | 24:15 | the checks 13:33, the DS console in `next dev` 8:04, the build 1:01 |
+| `windows-smoke` | 9:23 | test 4:52, build 1:28 (it ran because `package.json` changed) |
+
+The run's wall clock is the `design-system` job's, 24 min, as in M3.

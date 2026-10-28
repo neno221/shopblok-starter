@@ -28,7 +28,8 @@ type DesignSystemArea = { path: string; importedAs?: RegExp };
  * pages will): `decideJobs` is given the importers, and an imported area counts as shared.
  */
 export const designSystemOnly: readonly DesignSystemArea[] = [
-  // The registry (D40): entries and contracts. M4's Payload config is its first importer outside.
+  // The registry (D40): entries and contracts. Shared since M3 through the import rule: the
+  // checkout, the listing pages and the view models import its contracts at run time.
   { path: "packages/registry/", importedAs: /^@shopblok\/registry(\/|$)/ },
   // D42's three folders (and M3's templates, below them). The atoms are not here: the storefront's
   // pages use them already.
@@ -40,6 +41,9 @@ export const designSystemOnly: readonly DesignSystemArea[] = [
   // import rule makes the area shared from that PR on, and the templates' molecules and organisms
   // with it.
   { path: "packages/ui/src/templates/", importedAs: /^@shopblok\/ui\/templates(\/|$)/ },
+  // M4's sections, the blocks' components (D70, D87 item 1): DS-only on the templates' terms, until
+  // a market route (T65's CMS page template) imports one.
+  { path: "packages/ui/src/sections/", importedAs: /^@shopblok\/ui\/sections(\/|$)/ },
   // The DS page's stories, shell and routes (T22).
   { path: "apps/storefront/src/design-system/" },
   { path: "apps/storefront/src/app/design-system/" },
@@ -50,8 +54,8 @@ export const designSystemOnly: readonly DesignSystemArea[] = [
   { path: "apps/storefront/e2e/thumbnails.spec.ts" },
   { path: "apps/storefront/e2e/support/settle.ts" },
   { path: "apps/storefront/e2e/__screenshots__/" },
-  // The 21 thumbnails (D52): served from `public/`, read by nothing outside the DS until M4.
-  { path: "apps/storefront/public/registry/" },
+  // Not `apps/storefront/public/registry/` (D52's thumbnails) since T57 (D87 item 1): Payload's
+  // variant picker (T61) and block drawer (T63) show them, so a change runs both jobs.
 ];
 
 /**

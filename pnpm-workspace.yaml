@@ -68,3 +68,8 @@ overrides:
   "json-schema-to-typescript>lodash": "^4.18.1"
   "postcss-nested>postcss-selector-parser": "^6.1.5"
   "tailwindcss>postcss-selector-parser": "^6.1.5"
+  # T57: qs 6.16.0's advisory (GHSA-6pq8-jhm2-2vcw, published after T55). Every dependant's range
+  # admits the fix (Medusa's `^6.15.2`, express 4's and body-parser 1's `~6.16.0`), so the override
+  # names the version rather than four edges. Exact, at the first fixed release (2026-10-14): 6.16.2
+  # and 6.17.0 were a day old when this was written. Drop it once no dependant resolves 6.16.0.
+  "qs@6.16.0": "6.16.1"

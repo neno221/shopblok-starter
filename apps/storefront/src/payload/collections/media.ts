@@ -7,7 +7,7 @@ const dirname = path.dirname(fileURLToPath(import.meta.url));
 
 /**
  * Uploads are images only, and SVG is not one of them: an SVG can carry script, and the browser
- * runs it when the file is opened on its own URL. Size limits stay at Payload's 3.90.2 defaults
+ * runs it when the file is opened on its own URL. Size limits stay at Payload 3.92.1's defaults
  * (20 MiB per file, 3 files per request, 50 MiB per request; HTTP 413 when exceeded).
  */
 export const IMAGE_MIME_TYPES = [

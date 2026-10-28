@@ -58,5 +58,8 @@ export default buildConfig({
     migrationDir: path.resolve(dirname, "migrations"),
   }),
   sharp,
-  typescript: { outputFile: path.resolve(dirname, "payload-types.ts") },
+  // T57 (M4 D86 item 3): no type generation when Payload starts in development. It wrote the file
+  // unformatted, so `next dev` left a 283-line diff (W5); `generate:types` writes and formats it,
+  // and CI's `check` fails when the committed file is not what that writes.
+  typescript: { autoGenerate: false, outputFile: path.resolve(dirname, "payload-types.ts") },
 });
