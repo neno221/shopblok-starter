@@ -5185,12 +5185,12 @@ The review (`reviews/pr-71-code-review.md` in the project's files) found no bloc
 
 | Item | Fix |
 |---|---|
-| 1. Titles lost their ranking weight | `title` is searchable again with weight 3 (label A), beside `search_text` at 2 (B). A spec that a title match outranks a description that repeats the word did **not** tell the two apart: with and without the weight the shirt came first, so it is not in the suite. One reading: `ts_rank_cd` over the default-language title, which now sits in both fields, already favours it. Recorded, not settled. Also worth knowing for M4's instant search: a query with `typo_tolerance: true` scores a hit `GREATEST(ts_rank_cd, word_similarity)`, and `word_similarity` is 1 for any text holding the exact word, so exact matches tie there whatever the weights |
+| 1. Titles lost their ranking weight | `title` is searchable again with weight 3 (label A), beside `search_text` at 2 (B). A spec that a title match outranks a description that repeats the word did **not** tell the two apart: with and without the weight the shirt came first, so it is not in the suite. One reading: `ts_rank_cd` over the default-language title, which now sits in both fields, already favours it. Recorded, not settled. Also worth knowing for the instant search (T50 built it in M3, after this review): a query with `typo_tolerance: true` scores a hit `GREATEST(ts_rank_cd, word_similarity)`, and `word_similarity` is 1 for any text holding the exact word, so exact matches tie there whatever the weights |
 | 2. Tags were a facet by value | `tag_ids` (from `tags.id`) is the facet, which the storefront labels in the visitor's locale; `labels` stays on hits. The tag test checks the facet, and a `toFacetIds` without tag ids fails it |
 | 3. The provider check was a deny-list | an allow-list of providers that take `locales` (`meilisearch`); a mutation that adds `search-postgres` to it fails 16 of the 18 tests (every search is an HTTP 400) |
 | 4. The middleware read the store's locales its own way, with a cache that never hit | it calls `storeLocales` from `search/helpers/translations.ts` (one read, trimmed, the default first); the `WeakMap` is gone |
 | 5. `trimmed` copied three times | one, exported from `helpers/facets.ts` |
-| 6. One store read per search | left: a 30 to 60 s module cache is worth it before M4's instant search, and it is noted here for then |
+| 6. One store read per search | left: a 30 to 60 s module cache was to be weighed once the instant search existed. T50 built that search in M3 (the overlay asks `/next/search`, which is `cached()` a minute per market and query), so a repeated query no longer reaches this read; the cache stays a possible later task (T58) |
 | 7. Sequential reads | the per-locale reads, the five reference lookups of a translation event, and the store's locales beside the pricing read all run side by side |
 
 ## Leftovers from M2 (T45)
@@ -6029,3 +6029,43 @@ The owner did the review while steps 1 and 2 ran, with the session's list of odd
 - **`next dev` rewrote `apps/storefront/src/payload-types.ts`** (Payload's type generation; 283 lines changed in quoting and layout). The session restored it with `git restore`, as the checks need a clean tree.
 - **Left on E:**: `E:\medusa.log` (the session cannot delete a file at a drive's root) and the empty `E:\shopblok-starter-w5-env`, as for W3 and W4. Delete both by hand.
 - The scratch accounts and orders (`w5-owner-…@example.com`, `w5-guest-…@example.com`) are in the local database; `pnpm infra:reset` removes them.
+
+## Leftovers from M3 (T58)
+
+**Result: D86's items 1, 2 and 4 are done.** The checkout's first name no longer empties when a shopper types before the page has hydrated (reproduced in the cloud on the first try, cause found and fixed, with a unit test and a browser test that both fail without the fix); `STOREFRONT_*` reaches `next dev` through `pnpm dev`; and SETUP.md no longer speaks of "M4's instant search".
+
+| | |
+|---|---|
+| Date | 2026-10-28 |
+| Branch | `claude/project-thread-01axl0`, from `main` at `37adf16` (PR 87 merged) |
+| Changed | `packages/ui/src/molecules/address-form-fields.tsx` (the fix) and `address-form.test.tsx`, `apps/storefront/e2e/checkout-cy.spec.ts`, `turbo.json` (`dev.passThroughEnv`), this file (T51's review table and this section), the plan's status line, NEXT-SESSION.md |
+| Machine | The cloud VM: Node 22.22.0, pnpm 12.10.1, the compose stack, `pnpm bootstrap` (48 s), `pnpm dev` |
+
+### The first name (D86 item 1)
+
+**Reproduced.** Under `pnpm dev`, Chromium with the CPU slowed six times (CDP's `Emulation.setCPUThrottlingRate`, `rate: 6`), a cart with one line, `/checkout/contact` visited once to compile it and then loaded again: the first-name field was in the page after 1.1 s, "Maria" was typed into it key by key by 2.0 s, and React hydrated it at 3.3 s. The value **survived hydration** ("Maria" at 3.3 s and still 3 s later), and was **emptied by the first keystroke in another field** (the last name): `first ""`, `last "X"`. Typing the last name before hydration too gave the same: both kept through hydration, the first name emptied by the next keystroke. That matches W5's PC run, where the step stayed on `/checkout/contact`: the browser refused the empty required field.
+
+**The cause.** AddressForm's client part (`AddressFormFields`, T34) holds the typed values in state and draws every field controlled (`value={values[name] ?? ""}`), the state starting from the server's values. React 19.3 keeps text typed before hydration in the page, but its state never learns it: no change event reaches the handler for a keystroke made before the handlers existed. The next render of the fields (any keystroke in another field: `setValues` renders every `AddressField`) writes each controlled field's state back to the page, and the field typed early gets its state, the server's empty value. A country chosen early is lost the same way: the select is controlled too, and the next render puts the server's country back while the page shows the other country's fields. The contact step's e-mail is uncontrolled (`defaultValue`), so it was never affected. None of the plan's three guesses (a `defaultValue` or `key` that differs between the server and the client, React's reset of a form after an action, an island re-rendering the step) was it; the third is closest, but the re-render is the fields' own. `next dev` showed it because its hydration is slow (large unminified chunks, every module compiled on demand); `next start` hydrates the same way, only sooner, so a slow phone could meet it in production.
+
+**The fix.** Once, when the fields hydrate (`useLayoutEffect` with no dependencies, so before paint and never again), `AddressFormFields` reads its own inputs and select from the page and takes into its state every value that differs from what the server drew, and the country if another was chosen (with the country's announcement, as a change would). A client render's page holds the state's own values, so there the effect changes nothing. The fields stay controlled, so everything T34 built on them (a field that goes with a country and comes back keeps its text) is unchanged.
+
+**The tests.**
+- `address-form.test.tsx`, "typed before hydration (T58)": the server's markup with "Maria" set in the first name, hydrated with `hydrateRoot` (no recoverable error), then a change in the last name: the first name is still "Maria". And the markup with "Noah" typed and Switzerland chosen before hydration: after hydrating, the select says `ch`, the fields are Switzerland's (no province, the `CH-` prefix), and a change in the city keeps "Noah". **With the fix reverted, both fail** (`expected '' to be 'Maria'`; the province field still drawn).
+- `checkout-cy.spec.ts`, "what is typed before the page hydrates is kept (T58)": a route holds every `/_next/static/…js` request until the first name is typed (a route also turns the browser's cache off, so every chunk comes through it); the field is checked to have no React fiber yet, then the scripts are let through, hydration is awaited (the fiber's key appears), the last name is typed key by key, and the first name is expected kept; the e-mail, street and city follow and the step goes on to `/checkout/delivery`. Under `next dev`, **with the fix it passes; reverted, it fails** at the first name after the last name's keystrokes (`Expected: "Μαρία"`, `Received: ""`). Against `next start` (as `e2e-smoke` runs it), the whole spec passes: see Checks.
+
+### `STOREFRONT_*` in `next dev` (D86 item 2)
+
+`turbo.json`'s `dev` task passes `STOREFRONT_*` through, beside `PAYLOAD_*` and `MEDUSA_BACKEND_URL` (turbo 2.11.7's bundled docs, "Using environment variables" and the configuration reference: `passThroughEnv` takes wildcards, and a passthrough is in no hash, which `dev` has no use for anyway since it is not cached). `STOREFRONT_LISTING_PAGE_SIZE=2 pnpm dev`: `/store` draws **2** product cards and links `/store/page/2` to `/store/page/4` (the eight demo products). The same command with the change taken out: **8** cards (the default 24 per page), which is what W5 saw. `STOREFRONT_URL` stays in `build.env` (it changes the build's output); `STOREFRONT_PRERENDER_PRODUCTS` reaches `next dev` now too, where it changes nothing.
+
+### The stale phrase (D86 item 4)
+
+T51's review table (PR 71, items 1 and 6) spoke of "M4's instant search": both now say T50 built it in M3, and item 6 says that `/next/search`'s minute of `cached()` per market and query already spares repeated queries the store read, so the module cache stays a possible later task.
+
+### Checks
+
+| Check | Result |
+|---|---|
+| The reproduction script (Playwright from the storefront's `@playwright/test` 1.64.0, CPU ×6, `next dev`) | Before the fix: first name `""` after the last name's keystroke. After it: `"Maria"`, and with both names typed before hydration, `"Maria"` and `"GeorgiouX"` |
+| `address-form` unit suites | 91 of 91 (2 new); the 2 new fail with the fix reverted |
+| `checkout-cy.spec.ts`'s new test, `next dev` | passes with the fix, fails without |
+| `STOREFRONT_LISTING_PAGE_SIZE=2 pnpm dev` | 2 cards on `/store` with the change, 8 without |
