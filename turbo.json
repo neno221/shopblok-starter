@@ -23,7 +23,9 @@
       "cache": false,
       "persistent": true,
       // Strict mode drops variables the task doesn't list, so `PAYLOAD_DB_PUSH=true pnpm dev`, a
-      // `PAYLOAD_SECRET` or a `MEDUSA_BACKEND_URL` from the shell would never reach `next dev`.
+      // `PAYLOAD_SECRET` or a `MEDUSA_BACKEND_URL` from the shell would never reach `next dev`, nor
+      // `STOREFRONT_LISTING_PAGE_SIZE` (W5; T58 added `STOREFRONT_*`, which also hands a shell's
+      // `STOREFRONT_URL` to the backend's `medusa develop`, over its `.env`).
       // (`NEXT_PUBLIC_*` is listed by Turborepo's Next.js inference.) A `.env` file worked already:
       // Next loads it itself.
       "passThroughEnv": ["PAYLOAD_*", "MEDUSA_BACKEND_URL", "STOREFRONT_*"]
