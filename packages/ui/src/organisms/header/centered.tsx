@@ -35,7 +35,10 @@ function HeaderCentered(props: HeaderProps) {
         data-variant="centered"
         className={headerClass(props.sticky, props.className)}
       >
-        <div data-slot="header-row" className="mx-auto grid w-full max-w-page grid-cols-[1fr_minmax(0,auto)_1fr] items-center gap-x-2 px-2 py-1 sm:px-4 lg:flex lg:flex-col lg:gap-y-1 lg:px-6 lg:py-2">
+        <div
+          data-slot="header-row"
+          className="mx-auto grid w-full max-w-page grid-cols-[1fr_minmax(0,auto)_1fr] items-center gap-x-2 px-2 py-1 sm:px-4 lg:flex lg:flex-col lg:gap-y-1 lg:px-6 lg:py-2"
+        >
           <HeaderMenuButton
             header={props}
             className="col-start-1 row-start-1 justify-self-start lg:hidden"
@@ -51,7 +54,7 @@ function HeaderCentered(props: HeaderProps) {
           <div className="col-start-3 row-start-1 flex items-center justify-end gap-1 lg:w-full lg:gap-2">
             <HeaderSearch header={props} />
             <HeaderAccountIcons header={props} />
-            <HeaderSwitcher header={props} className="hidden lg:inline-flex" />
+            <HeaderSwitcher header={props} compact />
             <HeaderCart header={props} />
           </div>
           <HeaderNav

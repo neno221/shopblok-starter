@@ -97,12 +97,13 @@ describe("HeaderMegaMenu: the wide search", () => {
 });
 
 describe("HeaderMegaMenu: the end of the first row", () => {
-  it("shows the account links and the switcher from lg, and the cart at every width", () => {
+  it("shows the account links from lg, and the switcher and the cart at every width", () => {
     render(<HeaderMegaMenu {...headerProps()} />);
-    for (const part of [slot("header-account"), slot("header-wishlist"), slot("market-switcher")]) {
+    for (const part of [slot("header-account"), slot("header-wishlist")]) {
       expect(hiddenBelowLg(part as Element)).toBe(true);
       expect(shownFromLg(part as Element)).toBe(true);
     }
+    expect(hiddenBelowLg(slot("market-switcher") as Element)).toBe(false);
     expect(hiddenBelowLg(carts()[0] as Element)).toBe(false);
     expect(header().querySelectorAll('[data-slot="cart-button"]')).toHaveLength(1);
   });

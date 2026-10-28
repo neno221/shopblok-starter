@@ -46,6 +46,8 @@ import { RELATED_PRODUCTS, toProductDetailPage } from "../../../../../lib/view-m
 // viewed row reads `localStorage`.
 
 export const ensureStatic = "navigation";
+// W5: no instant-navigation check for a page that reads its path first (SETUP.md, "W5 fixes").
+export const instant = false;
 
 type Params = { market: string; handle: string };
 type Props = { params: Promise<Params> };

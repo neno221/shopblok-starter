@@ -6,17 +6,20 @@ import {
   accountMetadata,
   accountPageContext,
   accountProps,
+  ReturnsList,
   SignInFirst,
 } from "../../../../../../lib/account-page";
 import { requestReturn } from "../../../../../../lib/actions/account";
 import { param } from "../../../../../../lib/auth-page";
 import { readFlash } from "../../../../../../lib/flash";
 import { getOrder, listReturnReasons } from "../../../../../../lib/medusa/orders";
-import { toReturnRequest } from "../../../../../../lib/view-models/account";
+import { canReturn, toReturnRequest } from "../../../../../../lib/view-models/account";
 
 // D64 (T53): the return form for one of the customer's orders (`getOrder` checks the owner; another's
-// order is the 404, as is one with nothing left to return). `?sent=1` after a request; a failed one
-// comes back with what was chosen (`?f=`). Dynamic and blocking; `noindex`.
+// order is the 404). An order with nothing to return yet (not fulfilled, or all asked back) draws
+// the returns list in the form's place, whose empty state says so (W5), rather than a 404.
+// `?sent=1` after a request; a failed one comes back with what was chosen (`?f=`). Dynamic and
+// blocking; `noindex`.
 
 export const instant = false;
 
@@ -62,7 +65,13 @@ export default async function ReturnPage({ params, searchParams }: Props) {
         ...(typed.note === undefined ? {} : { note: typed.note }),
         quantities,
       });
-  if (request === null) notFound();
+  if (request === null) {
+    // Only an order with nothing to return falls back to the list, which leaves it out. One that
+    // could go back but finds no return reason (none set up, or the fetch failed) would be listed
+    // again with a link to this same page (PR 85 review, item 1), so it stays the 404.
+    if (canReturn(order)) notFound();
+    return <ReturnsList page={page} />;
+  }
   return (
     <AccountTemplate
       {...common}

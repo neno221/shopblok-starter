@@ -10,6 +10,14 @@ checkRoutesInDev([
   { path: "/", status: 200 },
   { path: "/us", status: 200 },
   { path: "/ch/fr", status: 200 },
+  // W5: the catalog pages whose first load reported Next's instant-navigation check (each sets
+  // `instant = false`); the pages after the first exist with CI's `STOREFRONT_LISTING_PAGE_SIZE=3`.
+  { path: "/us/store", status: 200 },
+  { path: "/us/store/page/2", status: 200 },
+  { path: "/us/categories/apparel", status: 200 },
+  { path: "/us/collections/summer-edit", status: 200 },
+  { path: "/us/collections/everyday-basics/page/2", status: 200 },
+  { path: "/us/products/demo-classic-tee", status: 200 },
   // Not an open market: the proxy lets it through and the market layout answers its 404 page.
   { path: "/el-cy", status: 404 },
   { path: "/nope/nope", status: 404 },

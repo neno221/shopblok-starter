@@ -8,6 +8,8 @@ import { collectionScope } from "../../../../../lib/listing/query";
 
 // D59 (T50): a collection's first page, in the static shell; every collection's is built (D58).
 export const ensureStatic = "navigation";
+// W5: no instant-navigation check for a page that reads its path first (SETUP.md, "W5 fixes").
+export const instant = false;
 
 type Props = { params: Promise<{ market: string; handle: string }> };
 

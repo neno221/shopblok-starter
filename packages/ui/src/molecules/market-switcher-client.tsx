@@ -89,25 +89,32 @@ type MarketSwitcherClientProps = {
   modal?: boolean;
   /** Classes for the popup (the popover's content, the sheet). */
   popupClassName?: string;
+  /**
+   * Below `lg` the trigger shows the flag alone, in a 44 px square with no frame, the size of the
+   * header's other icons (W5: a header's narrow row has no room for the words). Its name is the same.
+   */
+  compact?: boolean;
 };
 
 const triggerClass = "h-auto min-w-0 max-w-full justify-between gap-2 py-2 text-start";
+const compactTriggerClass =
+  "max-lg:size-11 max-lg:justify-center max-lg:border-transparent max-lg:bg-transparent max-lg:p-0 max-lg:shadow-none";
 const listMaxHeight = "max-h-[min(26rem,calc(100dvh-16rem))]";
 
-function TriggerFace({ current }: { current: MarketSwitcherClientProps["current"] }) {
+function TriggerFace({ current, compact }: Pick<MarketSwitcherClientProps, "current" | "compact">) {
   return (
     <>
       <span aria-hidden="true" className="shrink-0">
         {current.flag}
       </span>
-      <span className="min-w-0 text-start wrap-anywhere">
+      <span className={cn("min-w-0 text-start wrap-anywhere", compact && "max-lg:hidden")}>
         <span className="font-medium">{current.country}</span>
         <span aria-hidden="true"> · </span>
         <span lang={current.htmlLang}>{current.language}</span>
         <span aria-hidden="true"> · </span>
         <span>{current.currency}</span>
       </span>
-      <Icon icon={ChevronDownIcon} className="shrink-0" />
+      <Icon icon={ChevronDownIcon} className={cn("shrink-0", compact && "max-lg:hidden")} />
     </>
   );
 }
@@ -176,9 +183,14 @@ function MarketPopover({
       <PopoverTrigger
         data-slot="market-switcher-trigger"
         aria-label={props.triggerLabel}
-        render={<Button variant="outline" className={cn(triggerClass, triggerClassName)} />}
+        render={
+          <Button
+            variant="outline"
+            className={cn(triggerClass, props.compact && compactTriggerClass, triggerClassName)}
+          />
+        }
       >
-        <TriggerFace current={props.current} />
+        <TriggerFace current={props.current} compact={props.compact} />
       </PopoverTrigger>
       <PopoverContent
         data-slot="market-switcher-popup"
@@ -216,9 +228,14 @@ function MarketSheet({
       <DrawerTrigger
         data-slot="market-switcher-trigger"
         aria-label={props.triggerLabel}
-        render={<Button variant="outline" className={cn(triggerClass, triggerClassName)} />}
+        render={
+          <Button
+            variant="outline"
+            className={cn(triggerClass, props.compact && compactTriggerClass, triggerClassName)}
+          />
+        }
       >
-        <TriggerFace current={props.current} />
+        <TriggerFace current={props.current} compact={props.compact} />
       </DrawerTrigger>
       <DrawerContent
         data-slot="market-switcher-popup"

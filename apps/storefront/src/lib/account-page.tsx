@@ -1,15 +1,16 @@
 import "server-only";
 import type { Messages } from "@shopblok/i18n";
 import type { AddressFormErrors } from "@shopblok/ui/molecules/address-form";
-import { accountCopy, type AccountErrors } from "@shopblok/ui/templates/account";
+import { AccountTemplate, accountCopy, type AccountErrors } from "@shopblok/ui/templates/account";
 import { AuthTemplate, authCopy } from "@shopblok/ui/templates/auth";
 import { connection } from "next/server";
 import { signIn, signOut } from "./actions/auth";
 import { authPageContext, noindexMetadata, type AuthPageContext } from "./auth-page";
 import type { Flash } from "./flash";
 import { getCustomer, type CustomerDto } from "./medusa/customer";
+import { listOrders } from "./medusa/orders";
 import { SHELL_PREFETCH } from "./site";
-import { toAccountNav, type AccountSection } from "./view-models/account";
+import { canReturn, toAccountNav, toOrderTable, type AccountSection } from "./view-models/account";
 
 // What the account pages share (T53, D64): the market, the signed-in customer (read again on every
 // request, never cached), the template's common props, and the sign-in a visitor who is not signed
@@ -69,6 +70,33 @@ export async function accountProps(page: AccountPageContext, section: AccountSec
     prefetch: SHELL_PREFETCH,
     signOut: signOut.bind(null, market.key),
   };
+}
+
+/**
+ * The returns list (D64): the customer's orders with something to send back (of the latest 50), each
+ * linked to its return form. `/account/returns` draws it, and so does an order's return form when
+ * nothing on that order can go back yet (W5: not fulfilled, or all asked back), in place of a 404.
+ */
+export async function ReturnsList({ page }: { page: AccountPageContext }) {
+  const { context, market } = page;
+  const [{ signOut, ...common }, orders] = await Promise.all([
+    accountProps(page, "returns"),
+    listOrders(1, 50, market.medusaLocale),
+  ]);
+  return (
+    <AccountTemplate
+      {...common}
+      screen={{
+        kind: "returns",
+        table: toOrderTable(
+          (orders?.orders ?? []).filter(canReturn),
+          (order) => context.url(`/account/returns/${encodeURIComponent(order.id)}`),
+          context.url("/account/orders"),
+        ),
+      }}
+      actions={{ signOut }}
+    />
+  );
 }
 
 const FORM_ERRORS = new Set(["not-found", "rejected", "unavailable", "unauthorized"]);

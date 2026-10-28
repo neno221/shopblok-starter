@@ -126,6 +126,46 @@ medusaIntegrationTestRunner({
         expect(confirmed.status).toBe(200);
         expect(confirmed.data.entity_id).toBe(email);
 
+        // W5: the same link opened again (a second render, a mail scanner) answers the same.
+        const again = await api.post(
+          "/auth/verification/confirm",
+          { code: url.searchParams.get("code") },
+          anyStatus,
+        );
+
+        expect(again.status).toBe(200);
+        expect(again.data.entity_id).toBe(email);
+
+        // A code that was never sent is still refused.
+        const unknown = await api.post(
+          "/auth/verification/confirm",
+          { code: "no-such-code" },
+          anyStatus,
+        );
+
+        expect(unknown.status).not.toBe(200);
+
+        // PR 85 review, item 3: a used code answers no longer than the code itself lives (15 min).
+        const auth = getContainer().resolve(Modules.AUTH);
+        const [row] = await auth.listAuthVerifications({ entity_id: email });
+
+        // The module's generated update, which its public interface leaves out.
+        await (
+          auth as unknown as {
+            updateAuthVerifications(data: { id: string; requested_at: Date }): Promise<unknown>;
+          }
+        ).updateAuthVerifications({
+          id: row?.id ?? "",
+          requested_at: new Date(Date.now() - 16 * 60_000),
+        });
+        const expired = await api.post(
+          "/auth/verification/confirm",
+          { code: url.searchParams.get("code") },
+          anyStatus,
+        );
+
+        expect(expired.status).not.toBe(200);
+
         // Verified: the next login's token creates the account.
         const second = await login(email);
 
