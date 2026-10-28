@@ -40,6 +40,11 @@ export type FindOptions = {
   page?: number;
   select?: Record<string, true>;
   sort?: string;
+  /** Payload's `locale` for localized fields, and the one it falls back to. */
+  locale?: string;
+  fallbackLocale?: string;
+  /** This request's own time-out, instead of the client's. */
+  timeoutMs?: number;
 };
 
 const doc = z.looseObject({ id: z.union([z.number(), z.string()]) });
@@ -84,6 +89,7 @@ export function createPayloadClient(options: PayloadClientOptions) {
     path: string,
     query: Record<string, unknown> = {},
     body?: unknown,
+    waitMs = timeoutMs,
   ): Promise<T> {
     const search = toQuery({ depth: 0, ...query }).join("&");
     const url = `${base}${path}${search === "" ? "" : `?${search}`}`;
@@ -96,7 +102,7 @@ export function createPayloadClient(options: PayloadClientOptions) {
           ...(body === undefined ? {} : { "Content-Type": "application/json" }),
         },
         body: body === undefined ? undefined : JSON.stringify(body),
-        signal: AbortSignal.timeout(timeoutMs),
+        signal: AbortSignal.timeout(waitMs),
       });
     } catch (error) {
       const cause = error instanceof Error ? error.message : String(error);
@@ -133,8 +139,27 @@ export function createPayloadClient(options: PayloadClientOptions) {
   }
 
   return {
-    find: (collection: string, { where, limit, page, select, sort }: FindOptions = {}) =>
-      request(findResult, "GET", `/${collection}`, { where, limit, page, select, sort }),
+    find: (
+      collection: string,
+      {
+        where,
+        limit,
+        page,
+        select,
+        sort,
+        locale,
+        fallbackLocale,
+        timeoutMs: waitMs,
+      }: FindOptions = {},
+    ) =>
+      request(
+        findResult,
+        "GET",
+        `/${collection}`,
+        { where, limit, page, select, sort, locale, "fallback-locale": fallbackLocale },
+        undefined,
+        waitMs,
+      ),
     create: async (collection: string, data: Record<string, unknown>) =>
       (await request(docResult, "POST", `/${collection}`, {}, data)).doc,
     update: async (collection: string, id: number | string, data: Record<string, unknown>) =>

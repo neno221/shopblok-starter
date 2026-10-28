@@ -1,4 +1,5 @@
 import "server-only";
+import type { MailTarget } from "../markets/url";
 import type { Money } from "./products";
 import { toAddressDto, type CartAddressDto, type WireAddress } from "./cart";
 import { getAuthHeaders, getReceiptOrderId } from "./cookies";
@@ -311,16 +312,21 @@ export async function createCustomerReturn(input: {
 /**
  * Claims a guest order by its number and e-mail (T53, D64): the backend's
  * `/store/customers/me/order-transfers`, which e-mails the order's address a link to accept it
- * (in the market's prefix). A number and an e-mail that match no order are a 404.
+ * (in the market's prefix and language, T70). A number and an e-mail that match no order are a
+ * 404.
  */
-export async function claimOrder(displayId: number, email: string, prefix: string): Promise<void> {
+export async function claimOrder(
+  displayId: number,
+  email: string,
+  mail: MailTarget,
+): Promise<void> {
   const headers = await getAuthHeaders();
   if (headers === undefined) throw new MedusaRequestError("Nobody is signed in", "rejected", 401);
   await medusaRequest((sdk) =>
     sdk.client.fetch("/store/customers/me/order-transfers", {
       method: "POST",
       headers,
-      body: { display_id: displayId, email, market: prefix },
+      body: { display_id: displayId, email, market: mail.market, language: mail.language },
     }),
   );
 }

@@ -1,0 +1,143 @@
+{
+  "variables": {
+    "verify-email": [
+      "email",
+      "code"
+    ],
+    "password-reset": [
+      "email"
+    ],
+    "order-transfer": [
+      "email",
+      "orderNumber"
+    ]
+  },
+  "templates": {
+    "verify-email": {
+      "en": {
+        "subject": "Confirm your e-mail address",
+        "preheader": "One click to finish creating your account.",
+        "heading": "Confirm your e-mail address",
+        "body": [
+          "Hello,",
+          "Please confirm that {{email}} is your address by opening the link below. The link works once."
+        ],
+        "cta": "Confirm my address"
+      },
+      "el": {
+        "subject": "Επιβεβαιώστε τη διεύθυνση e-mail σας",
+        "preheader": "Ένα κλικ για να ολοκληρώσετε τη δημιουργία του λογαριασμού σας.",
+        "heading": "Επιβεβαιώστε τη διεύθυνση e-mail σας",
+        "body": [
+          "Γεια σας,",
+          "Επιβεβαιώστε ότι η διεύθυνση {{email}} είναι δική σας ανοίγοντας τον παρακάτω σύνδεσμο. Ο σύνδεσμος λειτουργεί μία φορά."
+        ],
+        "cta": "Επιβεβαίωση διεύθυνσης"
+      },
+      "de": {
+        "subject": "Bestätigen Sie Ihre E-Mail-Adresse",
+        "preheader": "Ein Klick, um Ihr Konto fertig einzurichten.",
+        "heading": "Bestätigen Sie Ihre E-Mail-Adresse",
+        "body": [
+          "Hallo,",
+          "bitte bestätigen Sie, dass {{email}} Ihre Adresse ist, indem Sie den Link unten öffnen. Der Link funktioniert einmal."
+        ],
+        "cta": "Adresse bestätigen"
+      },
+      "fr": {
+        "subject": "Confirmez votre adresse e-mail",
+        "preheader": "Un clic pour terminer la création de votre compte.",
+        "heading": "Confirmez votre adresse e-mail",
+        "body": [
+          "Bonjour,",
+          "Veuillez confirmer que {{email}} est bien votre adresse en ouvrant le lien ci-dessous. Le lien ne fonctionne qu’une fois."
+        ],
+        "cta": "Confirmer mon adresse"
+      }
+    },
+    "password-reset": {
+      "en": {
+        "subject": "Reset your password",
+        "preheader": "Choose a new password for your account.",
+        "heading": "Reset your password",
+        "body": [
+          "Someone asked to reset the password for {{email}}. If it was you, open the link below and choose a new one.",
+          "If it was not you, you can ignore this e-mail: your password stays as it is."
+        ],
+        "cta": "Choose a new password"
+      },
+      "el": {
+        "subject": "Επαναφορά κωδικού πρόσβασης",
+        "preheader": "Επιλέξτε νέο κωδικό πρόσβασης για τον λογαριασμό σας.",
+        "heading": "Επαναφορά κωδικού πρόσβασης",
+        "body": [
+          "Ζητήθηκε επαναφορά του κωδικού πρόσβασης για το {{email}}. Αν ήσασταν εσείς, ανοίξτε τον παρακάτω σύνδεσμο και επιλέξτε νέο κωδικό.",
+          "Αν δεν ήσασταν εσείς, αγνοήστε αυτό το e-mail: ο κωδικός σας δεν αλλάζει."
+        ],
+        "cta": "Επιλογή νέου κωδικού"
+      },
+      "de": {
+        "subject": "Passwort zurücksetzen",
+        "preheader": "Wählen Sie ein neues Passwort für Ihr Konto.",
+        "heading": "Passwort zurücksetzen",
+        "body": [
+          "Für {{email}} wurde das Zurücksetzen des Passworts angefordert. Wenn Sie das waren, öffnen Sie den Link unten und wählen Sie ein neues.",
+          "Wenn nicht, können Sie diese E-Mail ignorieren: Ihr Passwort bleibt unverändert."
+        ],
+        "cta": "Neues Passwort wählen"
+      },
+      "fr": {
+        "subject": "Réinitialisez votre mot de passe",
+        "preheader": "Choisissez un nouveau mot de passe pour votre compte.",
+        "heading": "Réinitialisez votre mot de passe",
+        "body": [
+          "Une réinitialisation du mot de passe a été demandée pour {{email}}. Si c’est vous, ouvrez le lien ci-dessous et choisissez-en un nouveau.",
+          "Sinon, ignorez cet e-mail : votre mot de passe reste inchangé."
+        ],
+        "cta": "Choisir un nouveau mot de passe"
+      }
+    },
+    "order-transfer": {
+      "en": {
+        "subject": "Order {{orderNumber}}: confirm the move to an account",
+        "preheader": "Accept or decline the request.",
+        "heading": "Move order {{orderNumber}} to an account?",
+        "body": [
+          "Someone signed in to an account asked to add order {{orderNumber}}, placed with {{email}}, to their account.",
+          "If it was you, open the link below to accept. If not, you can decline there, or ignore this e-mail."
+        ],
+        "cta": "See the request"
+      },
+      "el": {
+        "subject": "Παραγγελία {{orderNumber}}: επιβεβαιώστε τη μεταφορά σε λογαριασμό",
+        "preheader": "Αποδεχτείτε ή απορρίψτε το αίτημα.",
+        "heading": "Να μεταφερθεί η παραγγελία {{orderNumber}} σε λογαριασμό;",
+        "body": [
+          "Κάποιος συνδεδεμένος σε λογαριασμό ζήτησε να προσθέσει στον λογαριασμό του την παραγγελία {{orderNumber}}, που έγινε με το {{email}}.",
+          "Αν ήσασταν εσείς, ανοίξτε τον παρακάτω σύνδεσμο για να το αποδεχτείτε. Αν όχι, μπορείτε να το απορρίψετε εκεί ή να αγνοήσετε αυτό το e-mail."
+        ],
+        "cta": "Προβολή αιτήματος"
+      },
+      "de": {
+        "subject": "Bestellung {{orderNumber}}: Übertragung an ein Konto bestätigen",
+        "preheader": "Nehmen Sie die Anfrage an oder lehnen Sie sie ab.",
+        "heading": "Bestellung {{orderNumber}} einem Konto zuordnen?",
+        "body": [
+          "Jemand, der in einem Konto angemeldet ist, möchte die Bestellung {{orderNumber}}, aufgegeben mit {{email}}, seinem Konto hinzufügen.",
+          "Wenn Sie das waren, öffnen Sie den Link unten, um zuzustimmen. Wenn nicht, können Sie die Anfrage dort ablehnen oder diese E-Mail ignorieren."
+        ],
+        "cta": "Anfrage ansehen"
+      },
+      "fr": {
+        "subject": "Commande {{orderNumber}} : confirmez le rattachement à un compte",
+        "preheader": "Acceptez ou refusez la demande.",
+        "heading": "Rattacher la commande {{orderNumber}} à un compte ?",
+        "body": [
+          "Une personne connectée à un compte a demandé à y ajouter la commande {{orderNumber}}, passée avec {{email}}.",
+          "Si c’est vous, ouvrez le lien ci-dessous pour accepter. Sinon, vous pouvez refuser la demande sur cette page ou ignorer cet e-mail."
+        ],
+        "cta": "Voir la demande"
+      }
+    }
+  }
+}

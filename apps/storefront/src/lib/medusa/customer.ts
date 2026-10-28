@@ -10,13 +10,15 @@ import {
   setPendingCustomer,
   type PendingCustomer,
 } from "./cookies";
+import type { MailTarget } from "../markets/url";
 import type { AddressInput } from "./cart";
 import { medusaRequest, MedusaRequestError } from "./sdk";
 
 // The customer and the auth flow (D64), ported from dtc-starter's `lib/data/customer.ts`. T53 wires
 // the pages and the actions; this file is what they call. The flow: register, then log in, which
 // answers `verification_required` while the e-mail is unverified; the verification request carries
-// the market's public prefix as `metadata.market` (T44 builds the link from it); `/verify` confirms
+// the market's public prefix as `metadata.market` (T44 builds the link from it) and its language as
+// `metadata.language` (T70 sends the copy in it); `/verify` confirms
 // with the code alone; the next login creates the customer from the pending cookie, sets the JWT
 // cookie and moves the guest cart to the customer. SPEC §8.2's fix: `getAuthHeaders()` is
 // `undefined` without a token, so a signed-out read returns `null` instead of calling Medusa.
@@ -189,13 +191,17 @@ export type LoginResult =
 export const RESEND_WAIT_MS = 60_000;
 
 /**
- * Logs in and finishes what a registration left (dtc-starter's `completeLogin`). `prefix` is the
+ * Logs in and finishes what a registration left (dtc-starter's `completeLogin`). `mail` is the
  * market's public prefix (`""`, `/us`, `/ch/fr`), which T44's subscriber puts before `/verify` in
- * the e-mail's link. A token with no customer yet creates the customer from the pending cookie and
+ * the e-mail's link, and its language, whose copy T70's subscriber sends. A token with no customer yet creates the customer from the pending cookie and
  * logs in again for a token bound to it; the JWT cookie is set only for that one. The guest cart
  * moves to the customer.
  */
-export async function login(email: string, password: string, prefix: string): Promise<LoginResult> {
+export async function login(
+  email: string,
+  password: string,
+  mail: MailTarget,
+): Promise<LoginResult> {
   let result: unknown;
   try {
     result = await medusaRequest((sdk) =>
@@ -208,7 +214,7 @@ export async function login(email: string, password: string, prefix: string): Pr
   }
   if (typeof result === "object" && result !== null && "verification_required" in result) {
     const { token } = result as unknown as { token: string };
-    await sendVerification(email, token, prefix);
+    await sendVerification(email, token, mail);
     return { state: "verification-required", email };
   }
   if (typeof result !== "string") return { state: "error", reason: "unsupported" };
@@ -238,7 +244,7 @@ export async function login(email: string, password: string, prefix: string): Pr
     } catch (error) {
       // T44: the backend answers 403 until the e-mail is verified (Medusa 2.21.2 does not refuse it).
       if (error instanceof MedusaRequestError && error.status === 403) {
-        await sendVerification(email, token, prefix);
+        await sendVerification(email, token, mail);
         return { state: "verification-required", email };
       }
       throw error;
@@ -268,7 +274,7 @@ export async function login(email: string, password: string, prefix: string): Pr
 export async function register(
   customer: PendingCustomer,
   password: string,
-  prefix: string,
+  mail: MailTarget,
 ): Promise<LoginResult> {
   let exists = false;
   try {
@@ -283,7 +289,7 @@ export async function register(
     if (!exists) throw error;
   }
   await setPendingCustomer(customer);
-  const result = await login(customer.email, password, prefix);
+  const result = await login(customer.email, password, mail);
   // An address someone registered already, with another password: say so, not "wrong password".
   if (exists && result.state === "error" && result.reason === "credentials") {
     await removePendingCustomer();
@@ -298,7 +304,7 @@ export async function register(
  * last link it only keeps the token. The registration's fields stay when the cookie is this
  * address's.
  */
-async function sendVerification(email: string, token: string, prefix: string): Promise<void> {
+async function sendVerification(email: string, token: string, mail: MailTarget): Promise<void> {
   const pending = await getPendingCustomer();
   const kept = pending?.email === email ? pending : { email };
   // A sign-in again within the wait keeps the new token but sends no new link (the resend's rule,
@@ -308,7 +314,7 @@ async function sendVerification(email: string, token: string, prefix: string): P
     return;
   }
   await setPendingCustomer({ ...kept, token, sentAt: Date.now() });
-  await requestVerification(email, token, prefix).catch(() => undefined);
+  await requestVerification(email, token, mail).catch(() => undefined);
 }
 
 /**
@@ -333,24 +339,27 @@ export async function pendingVerification(
  * left in the pending cookie, never one from a form). `false` when there is none for `email`, or
  * the wait is not over.
  */
-export async function resendVerification(email: string, prefix: string): Promise<boolean> {
+export async function resendVerification(email: string, mail: MailTarget): Promise<boolean> {
   const pending = await getPendingCustomer();
   if (pending === null || pending.email !== email || pending.token === undefined) return false;
   if (pending.sentAt !== undefined && Date.now() < pending.sentAt + RESEND_WAIT_MS) return false;
   await setPendingCustomer({ ...pending, sentAt: Date.now() });
-  await requestVerification(email, pending.token, prefix);
+  await requestVerification(email, pending.token, mail);
   return true;
 }
 
-/** Asks Medusa to send the verification e-mail, with the market's prefix for the link (T44). */
+/**
+ * Asks Medusa to send the verification e-mail, with the market's prefix for the link (T44) and its
+ * language for the copy (T70).
+ */
 export async function requestVerification(
   email: string,
   token: string,
-  prefix: string,
+  mail: MailTarget,
 ): Promise<void> {
   await medusaRequest((sdk) =>
     sdk.auth.verification.request(
-      { entity_id: email, entity_type: "email", metadata: { market: prefix } },
+      { entity_id: email, entity_type: "email", metadata: { ...mail } },
       { authorization: `Bearer ${token}` },
     ),
   );
@@ -371,12 +380,15 @@ export async function confirmVerification(code: string): Promise<string | null> 
   }
 }
 
-/** Sends the reset link (T44 builds `{prefix}/reset-password?token=…&email=…`). */
-export async function requestPasswordReset(email: string, prefix: string): Promise<void> {
+/**
+ * Sends the reset link (T44 builds `{prefix}/reset-password?token=…&email=…`), in the market's
+ * language (T70).
+ */
+export async function requestPasswordReset(email: string, mail: MailTarget): Promise<void> {
   await medusaRequest((sdk) =>
     sdk.auth.resetPassword("customer", "emailpass", {
       identifier: email,
-      metadata: { market: prefix },
+      metadata: { ...mail },
     }),
   );
 }

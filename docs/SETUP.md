@@ -6313,3 +6313,37 @@ Six serial tests against `next start` and `medusa develop`, through Medusa's Adm
 8. **The sync's shapes were written out on each side** (cleanup): they are declared once in `@shopblok/fixtures/sync` (above); `scripts/` gains the fixtures package as a dev dependency for the type.
 
 Left as the review says: 2 (concurrent upserts; the reconcile heals them), 3 (no `store.store-currency.*` events; the reconcile carries currency changes within 10 minutes), 4 (the last run is kept per process), 5 (redundant Payload calls per write) and 6 (an empty store rewrites `markets.synced` each run); none is security or a cleanup. 9 needed no change (`numberOfExecutions` beside `interval` is what 2.21.2 reads). After the fixes: the backend's `tsc`, lint, unit tests (155) and `medusa build`, the integration suite (6 of 6), the storefront's and the scripts' typecheck, lint and tests, `check-workspace`, and `pnpm bootstrap` (all 12 steps unchanged) pass.
+
+## E-mail copy (T70)
+
+**Result: the verification, password reset and order transfer e-mails take their subject, preheader, heading, body and button label from Payload's `email-templates` in the shopper's language, with the `{{variables}}` filled in and escaped; the backend keeps each answer 5 minutes and sends the built-in English when Payload does not answer within 2 s, so a CMS outage never stops a link; the seed writes M3's three e-mails in the four seeded languages.** M4 plan §5 T70; D84, D88.
+
+| | |
+|---|---|
+| Date | 2026-10-28 |
+| Branch | `claude/project-thread-08ud3k`, from `main` at `3663f87` (PR 91 merged) |
+| PR | 92 |
+
+### What there is now
+
+- **`email-templates`** (`payload/collections/email-templates.ts`, under Settings in the admin): `type` (`verify-email`, `password-reset`, `order-transfer`; unique, fixed once created), and per language `subject`, `preheader`, `heading`, `body` (rich text) and `cta` (the button's label). Read by staff and the `medusa-sync` integration, edited by staff, created and deleted by admins; the integration writes nothing. No drafts and no revalidation: the backend reads it, and its 5-minute cache is the delay an edit takes. The collection's description lists each type's variables.
+- **The variables** (`@shopblok/fixtures/email/templates.json`, `variables`): `verify-email` takes `{{email}}` and `{{code}}`, `password-reset` `{{email}}`, `order-transfer` `{{email}}` and `{{orderNumber}}`. A name outside the type's list stays as written, and a value is filled in one pass, so a value that contains braces is not filled again. Values are escaped for HTML (`&`, `<`, `>`, `"`, `'`), since M6 renders this copy as HTML. **The link is not a variable:** it goes in the notification's `url` beside the copy, and `cta` is its label, so escaping can never break it (a reset link's `&` would otherwise turn into `&#38;`).
+- **The language.** The backend cannot tell a market's language from its prefix (`/de` is a country or a language depending on the map, which is Payload's), so the storefront now sends the language with the prefix: `metadata: { market, language }` on the verification request and the password reset (`mailTarget()` in `lib/markets/url.ts`), and `language` in the claim's body, which the claim route keeps in the change's note with the market. `languageFrom()` takes only a language code's shape and falls back to English; Payload is asked with `locale=<language>&fallback-locale=en`, so a language with no text gets the English.
+- **The backend** (`lib/email-copy.ts`): `createEmailCopy({ source, timeoutMs: 2000, ttlMs: 300000 })` keeps answers per type and language, never keeps a failure (the next e-mail asks again), and builds `{ subject, preheader, heading, text, cta, language, source }`: a field Payload leaves empty takes the built-in English one, and the body becomes plain text through `lexicalToText` (paragraphs, headings and quotes as blocks, lists as `-` and `1.` lines with nesting, links as their text and URL, line breaks). The read goes through the T60 `payload` module (`findEmailTemplate`, with the client's new `locale`, `fallbackLocale` and per-request `timeoutMs`); the time-out is enforced in `email-copy.ts` too, so a hanging answer cannot hold an e-mail. Without the module (no `PAYLOAD_SERVER_URL`), every e-mail uses the built-in English, logged once. `BUILT_IN` is the fixture's English, which a test compares.
+- **`sendStorefrontLink`** takes the e-mail's `type` and `values` and puts the copy in the notification's `data` beside the link, so the local provider prints the subject, the heading, the text and the link; the e2e suites keep reading `url` from the log. The order transfer's subscriber reads the order's `display_id` for `{{orderNumber}}`.
+- **The seed** (`payload/seed/email-templates.ts`): the three documents from the fixture, the body as Lexical paragraphs, under the seed runner's rule (an editor's text survives `pnpm bootstrap`). Bootstrap's step 11 reported "3 created", and "unchanged" on the next run.
+- **The migration:** `20261028_211336_email_templates` (D88: created last, on `main` at `3663f87`): the table, its locales table and its column in `payload_locked_documents_rels`. `migrate:create --skip-empty` afterwards writes nothing.
+- **The admin's first load grows** from 635.8 KB to 817.6 KB: this is the first rich-text field, so the import map now carries Lexical's editor (generated by `generate:importmap`). It is the admin's own route, not budgeted, and no shop route changed.
+
+### Mutations (each fails a test)
+
+| Mutation | Fails |
+|---|---|
+| No time-out (`await source(…)` instead of `withTimeout(…)`) | `email-copy.unit.spec.ts`: "does not wait for a Payload that never answers past its time-out" (Exceeded timeout of 2000 ms) |
+
+### Checks (cloud VM, Node 22.23.4, the compose stack)
+
+- `lint`, `typecheck` and `test` exit 0 for the storefront (3319), the backend (168: 13 new in `email-copy.unit.spec.ts`), `scripts` (444) and the fixtures (458); `check-workspace` passes; `generate:types` and `generate:importmap` are current.
+- Against `next start` and Medusa: the default projects and the locales project, 144 passed, with `E2E_MEDUSA_LOG`. `auth.spec.ts`'s new test registers under `/` and finds the verification e-mail in Greek in Medusa's log (subject, heading, `language: "el"`, the link `/verify?code=…`); its first test finds Payload's English for `/us`. The transfer e-mail read "Order 37: confirm the move to an account" with the number and the address filled in.
+- First-load JS: every shop route as on `main` (the product page 332.0 KB, the listing pages 331.1, `/[market]` 314.6); the admin 817.6 (above). `pnpm build` with no `.env` exits 0.
+

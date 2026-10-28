@@ -7,7 +7,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./sync": "./src/sync/types.ts",
-    "./sync/documents.json": "./src/sync/documents.json"
+    "./sync/documents.json": "./src/sync/documents.json",
+    "./email/templates.json": "./src/email/templates.json"
   },
   "scripts": {
     "typecheck": "tsc",

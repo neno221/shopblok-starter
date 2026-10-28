@@ -1,6 +1,6 @@
 import "server-only";
 import { z } from "zod";
-import { marketPrefix } from "../markets";
+import { mailTarget } from "../markets";
 import {
   addAddress,
   deleteAddress,
@@ -235,7 +235,7 @@ export const claimOrderAction = action(
   async ({ market, number, email }) => {
     const context = await contextFor(market);
     try {
-      await claimOrder(number, email, marketPrefix(context.market, context.map));
+      await claimOrder(number, email, mailTarget(context.market, context.map));
     } catch (error) {
       // Any other refusal (no such order, another account's, a transfer already open) is "sent"
       // too: an answer of its own would tell that the number and the e-mail match an order.

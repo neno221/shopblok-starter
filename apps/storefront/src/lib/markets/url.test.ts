@@ -11,7 +11,7 @@ import {
   usOnly,
   withDomains,
 } from "./test-maps";
-import { buildPublicUrl, marketPrefix } from "./url";
+import { buildPublicUrl, mailTarget, marketPrefix } from "./url";
 
 /** The public URL of `path` in the market with this key. */
 function url(map: MarketMap, key: string, path = "/"): string {
@@ -132,5 +132,19 @@ describe("marketPrefix", () => {
   it("is empty for the home market and has at most a country and a language", () => {
     const prefixes = listMarkets(seeded).map((m) => marketPrefix(m, seeded));
     expect(prefixes).toEqual(["", "/us", "/gb", "/de", "/fr", "/ch", "/ch/fr"]);
+  });
+});
+
+describe("mailTarget (T70)", () => {
+  it("gives the backend each market's prefix and the language of its e-mails' copy", () => {
+    expect(listMarkets(seeded).map((m) => mailTarget(m, seeded))).toEqual([
+      { market: "", language: "el" },
+      { market: "/us", language: "en" },
+      { market: "/gb", language: "en" },
+      { market: "/de", language: "de" },
+      { market: "/fr", language: "fr" },
+      { market: "/ch", language: "de" },
+      { market: "/ch/fr", language: "fr" },
+    ]);
   });
 });
