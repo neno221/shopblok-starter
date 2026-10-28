@@ -299,7 +299,7 @@ test("a Greek value whose argument differs from English's is refused with the re
   const body = (await response.json()) as {
     errors: { data?: { errors?: { message: string }[] } }[];
   };
-  expect(body.errors[0]?.data?.errors?.[0]?.message).toBe(
+  expect(body.errors[0]?.data?.errors?.[0]?.message, JSON.stringify(body)).toBe(
     "It must use the English text's arguments ({count, plural}): {count, plural} is missing; {total} is not one of them.",
   );
   expect((await stringDoc(PLURAL)).value["el"]).toBe(doc.value["el"]);
