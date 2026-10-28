@@ -14,7 +14,7 @@ import { LANGUAGES } from "../locales";
 const revalidateTag = vi.fn();
 vi.mock("next/cache", () => ({ revalidateTag: (...args: unknown[]) => revalidateTag(...args) }));
 
-import { UiStrings, validateKey, validateValue } from "./ui-strings";
+import { keepRefusalReason, UiStrings, validateKey, validateValue } from "./ui-strings";
 
 const admin = { collection: "users", id: 1, role: "admin" };
 const editor = { collection: "users", id: 2, role: "editor" };
@@ -168,5 +168,38 @@ describe("ui-strings hooks", () => {
       req: request({ disableRevalidate: true }),
     } as unknown as Parameters<CollectionAfterChangeHook>[0]);
     expect(revalidateTag).not.toHaveBeenCalled();
+  });
+});
+
+describe("keepRefusalReason (PR 93)", () => {
+  const args = (error: Error) =>
+    ({ error, context: {}, req: {} }) as Parameters<typeof keepRefusalReason>[0];
+
+  it("answers a refused save with its reasons, whatever class the error is", async () => {
+    const data = {
+      collection: "ui-strings",
+      errors: [
+        { label: "Value", message: "It must use the English text's arguments", path: "value" },
+      ],
+    };
+    // A copy of Payload's ValidationError from another module instance: the name and data only.
+    const error = Object.assign(new Error("The following field is invalid: Value"), {
+      name: "ValidationError",
+      data,
+    });
+    expect(await keepRefusalReason(args(error))).toEqual({
+      response: {
+        errors: [
+          { name: "ValidationError", data, message: "The following field is invalid: Value" },
+        ],
+      },
+    });
+    expect(UiStrings.hooks?.afterError).toContain(keepRefusalReason);
+  });
+
+  it("leaves every other error to Payload", async () => {
+    expect(await keepRefusalReason(args(new Error("boom")))).toBeUndefined();
+    const bare = Object.assign(new Error("x"), { name: "ValidationError" });
+    expect(await keepRefusalReason(args(bare))).toBeUndefined();
   });
 });

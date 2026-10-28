@@ -1,5 +1,11 @@
 import { messageProblem } from "@shopblok/i18n/icu";
-import type { CollectionBeforeChangeHook, CollectionConfig, FieldAccess, Validate } from "payload";
+import type {
+  AfterErrorHook,
+  CollectionBeforeChangeHook,
+  CollectionConfig,
+  FieldAccess,
+  Validate,
+} from "payload";
 import { isAdmin, isStaff } from "../access/roles";
 import { revalidateOnPublish } from "../hooks/revalidate-on-publish";
 
@@ -40,6 +46,22 @@ const setNamespace: CollectionBeforeChangeHook = ({ data, originalDoc }) => {
 const revalidate = revalidateOnPublish({ tags: (locale) => [`ui-strings:${locale}`] });
 
 /**
+ * A refused save answers with its reason, field by field (`errors[0].data.errors`), which the
+ * admin shows under the field. Payload's formatter keeps those details only for an error that is
+ * `instanceof` its own `ValidationError`; in CI's build that check failed (PR 93) and the answer
+ * kept "The following field is invalid: Value" alone, the reason lost. This puts the details back
+ * for any error that carries them under that name.
+ */
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null;
+
+export const keepRefusalReason: AfterErrorHook = ({ error }) => {
+  const data = (error as { data?: unknown }).data;
+  if (error.name !== "ValidationError" || !isRecord(data)) return;
+  return { response: { errors: [{ name: error.name, data, message: error.message }] } };
+};
+
+/**
  * The shop's microcopy (D77): one document per message of the code catalogs, edited in each
  * language and read by next-intl's loader (`src/i18n/request.ts`) over the code's text. No drafts:
  * a save is live, and it revalidates `ui-strings:<locale>` in every language, since a language
@@ -73,6 +95,7 @@ export const UiStrings: CollectionConfig = {
   hooks: {
     ...revalidate,
     beforeChange: [...revalidate.beforeChange, setNamespace],
+    afterError: [keepRefusalReason],
   },
   fields: [
     {
