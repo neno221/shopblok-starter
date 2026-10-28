@@ -1,4 +1,4 @@
-import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
+import { expect, test, type APIRequestContext, type Frame, type Page } from "@playwright/test";
 import { adminCredentials } from "./support/admin-credentials";
 
 // S3 (ADR 0003): the admin's locale selector follows the `markets` global. Payload preloads 42
@@ -206,10 +206,26 @@ test("L6: ?locale=fr while fr is switched off redirects to an allowed locale, an
     "/admin/globals/markets?locale=fr",
     "/admin?locale=fr",
   ]) {
+    // Every URL the page passes through: on `pages/create`, autosave (T59) saves a draft as soon as
+    // the redirect lands and moves on to its edit view, whose URL carries no `locale`.
+    const visited: string[] = [];
+    const record = (frame: Frame) => {
+      if (frame === page.mainFrame()) visited.push(frame.url());
+    };
+    page.on("framenavigated", record);
     const response = await page.goto(url);
     await page.waitForLoadState("networkidle");
+    page.off("framenavigated", record);
     expect(response?.status(), url).toBeLessThan(400);
-    expect(new URL(page.url()).searchParams.get("locale"), url).toBe("en");
+    expect(
+      visited.map((visit) => new URL(visit).searchParams.get("locale")),
+      url,
+    ).toContain("en");
+    expect(new URL(page.url()).searchParams.get("locale"), url).not.toBe("fr");
+    const autosaved = /\/admin\/collections\/pages\/(\d+)$/.exec(new URL(page.url()).pathname);
+    if (autosaved) {
+      await request.delete(`/api/pages/${autosaved[1]}`, { headers: adminHeaders() });
+    }
   }
   // Payload stored `fr` as the admin's language before it redirected: a plain page must still load.
   const plain = await page.goto("/admin/collections/pages");
