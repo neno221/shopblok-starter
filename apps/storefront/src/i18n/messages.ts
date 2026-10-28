@@ -1,4 +1,5 @@
-import { catalogs, DEFAULT_LOCALE, type Locale, type Messages } from "@shopblok/i18n";
+import { catalogs, DEFAULT_LOCALE, isLocale, type Locale, type Messages } from "@shopblok/i18n";
+import { messageProblem, messagesOf } from "@shopblok/i18n/icu";
 import type { AbstractIntlMessages } from "next-intl";
 
 /** A dotted path to a message or to a whole namespace of `Messages`: `"molecules.cartLineItem"`. */
@@ -148,4 +149,90 @@ export function pickShell(messages: Messages, locale: Locale): AbstractIntlMessa
       );
     },
   });
+}
+
+// ---- ui-strings (D77) ------------------------------------------------------------------------
+
+/** One `ui-strings` row as the loader reads it: the key and the value in the market's language. */
+export type UiStringRow = { key: string; value?: string | null };
+
+/** Edited messages that differ from the code's, by dotted path: what a language's read keeps. */
+export type UiStringOverrides = Record<string, string>;
+
+const flat = new Map<Locale, Map<string, string>>();
+
+/**
+ * The shop's messages of a code catalog by dotted path, the design-system chrome left out (it is
+ * English only and no `ui-strings` key, D33). Worked out once per language and process.
+ */
+export function codeMessages(locale: Locale): ReadonlyMap<string, string> {
+  let messages = flat.get(locale);
+  if (messages === undefined) {
+    const { designSystem: _chrome, ...shop } = catalogs[locale] as Messages & {
+      designSystem?: unknown;
+    };
+    messages = messagesOf(shop);
+    flat.set(locale, messages);
+  }
+  return messages;
+}
+
+/** The catalog a market language's copy starts from: its own, or English for one with none (D62). */
+export const catalogLocale = (language: string): Locale =>
+  isLocale(language) ? language : DEFAULT_LOCALE;
+
+const skipped = new Set<string>();
+
+/**
+ * The rows of one language's `ui-strings` read that change what the page shows (D77): a value that
+ * is set, differs from the code catalog's message and passes the ICU check against the code's
+ * English. A key the code no longer has is ignored; a value that fails the check falls back to the
+ * code, with one warning per language, key and value for the life of the server, so a broken
+ * translation never reaches a page. The cached read keeps only these (usually none), so a request
+ * parses nothing.
+ */
+export function uiStringOverrides(
+  language: string,
+  rows: readonly UiStringRow[],
+  warn: (message: string) => void = console.warn,
+): UiStringOverrides {
+  const code = codeMessages(catalogLocale(language));
+  const english = codeMessages(DEFAULT_LOCALE);
+  const overrides: UiStringOverrides = {};
+  for (const { key, value } of rows) {
+    const source = english.get(key);
+    if (source === undefined || value === undefined || value === null || value === "") continue;
+    if (value === code.get(key)) continue;
+    const problem = messageProblem(value, source);
+    if (problem === null) {
+      overrides[key] = value;
+      continue;
+    }
+    const seen = `${language}:${key}:${value}`;
+    if (skipped.has(seen)) continue;
+    skipped.add(seen);
+    warn(`ui-strings: the ${language} value of "${key}" is not used, the code's is. ${problem}`);
+  }
+  return overrides;
+}
+
+/**
+ * The messages next-intl gets (D77): the code catalog with the edited values put in their place.
+ * With none it is the catalog itself, as before `ui-strings`; otherwise a copy, so the catalog
+ * every request shares is never changed.
+ */
+export function withOverrides(catalog: Messages, overrides: UiStringOverrides): Messages {
+  const keys = Object.keys(overrides);
+  if (keys.length === 0) return catalog;
+  const merged = clone(catalog) as Record<string, unknown>;
+  for (const key of keys) {
+    const path = key.split(".");
+    const last = path.pop();
+    let holder: unknown = merged;
+    for (const segment of path) holder = own(holder, segment);
+    if (last !== undefined && isNamespace(holder) && typeof own(holder, last) === "string") {
+      holder[last] = overrides[key];
+    }
+  }
+  return merged as Messages;
 }

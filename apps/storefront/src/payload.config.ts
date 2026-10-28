@@ -11,9 +11,11 @@ import { Integrations } from "./payload/collections/integrations";
 import { Media } from "./payload/collections/media";
 import { Pages } from "./payload/collections/pages";
 import { Products } from "./payload/collections/products";
+import { UiStrings } from "./payload/collections/ui-strings";
 import { Users } from "./payload/collections/users";
 import { cronOrAdmin } from "./payload/access/jobs";
 import { filterAvailableLocales } from "./payload/filter-available-locales";
+import { importExport } from "./payload/import-export";
 import { Markets } from "./payload/globals/markets";
 import { LIVE_PREVIEW_BREAKPOINTS, livePreviewUrl } from "./payload/live-preview";
 import { DEFAULT_LOCALE, LOCALES } from "./payload/locales";
@@ -47,7 +49,7 @@ export default buildConfig({
       url: livePreviewUrl,
     },
   },
-  collections: [Users, Integrations, Media, Pages, Products, Categories, Collections],
+  collections: [Users, Integrations, Media, Pages, Products, Categories, Collections, UiStrings],
   globals: [Markets],
   editor: lexicalEditor(),
   graphQL: { disable: true },
@@ -84,5 +86,7 @@ export default buildConfig({
   // T57 (M4 D86 item 3): no type generation when Payload starts in development. It wrote the file
   // unformatted, so `next dev` left a 283-line diff (W5); `generate:types` writes and formats it,
   // and CI's `check` fails when the committed file is not what that writes.
+  // D77: CSV export and import of `ui-strings`, admins only (`payload/import-export.ts`).
+  plugins: [importExport],
   typescript: { autoGenerate: false, outputFile: path.resolve(dirname, "payload-types.ts") },
 });
