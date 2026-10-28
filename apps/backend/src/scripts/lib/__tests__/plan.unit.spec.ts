@@ -7,6 +7,7 @@ import {
   planTranslations,
   required,
   storeDrift,
+  storeLocales,
   storeName,
   type DesiredTranslation,
   type ExistingTranslation,
@@ -37,6 +38,34 @@ describe("storeName", () => {
   it("keeps a name somebody chose, so a re-run does not undo an admin's rename", () => {
     expect(storeName("Acme Shop", wanted, medusaDefault)).toBe("Acme Shop");
     expect(storeName(wanted, wanted, medusaDefault)).toBe(wanted);
+  });
+});
+
+describe("storeLocales (D76)", () => {
+  it("adds the configured locales and keeps the ones an admin added", () => {
+    expect(
+      storeLocales([{ locale_code: "el-GR" }, { locale_code: "it-IT" }, null], ["en-US", "el-GR"]),
+    ).toEqual(["en-US", "el-GR", "it-IT"]);
+  });
+
+  it("gives a store with none the configured list", () => {
+    expect(storeLocales(undefined, ["en-US", "el-GR"])).toEqual(["en-US", "el-GR"]);
+    expect(storeLocales([], ["en-US"])).toEqual(["en-US"]);
+  });
+
+  it("leaves a store that has every configured locale as it is, so the seed does not update it", () => {
+    const current = [{ locale_code: "el-GR" }, { locale_code: "en-US" }, { locale_code: "it-IT" }];
+    const locales = storeLocales(current, ["en-US", "el-GR"]);
+    expect(
+      storeDrift(
+        { default_sales_channel_id: "sc_1", supported_currencies: [], supported_locales: current },
+        {
+          default_sales_channel_id: "sc_1",
+          supported_currencies: [],
+          supported_locales: locales.map((locale_code) => ({ locale_code })),
+        },
+      ),
+    ).toEqual([]);
   });
 });
 

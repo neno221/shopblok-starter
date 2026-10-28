@@ -1,5 +1,7 @@
 // D17 and D19: the backend's `apps/backend/src/config/markets.ts` and the storefront's market map
-// are two lists edited by hand in M0, and they have to agree (T14). Pure: both arrive as plain data,
+// are two lists edited by hand in M0, and they have to agree (T14). Since T60 (D76) the `markets`
+// global holds what Medusa has as well (its synced part), and doctor compares the global's two
+// parts; the backend's file (the seed's input) stands in for the synced part until the first sync. Pure: both arrive as plain data,
 // read by `doctor.ts` (the file through `loadExports`, the map from the `markets` global or from
 // `@shopblok/fixtures`). The shapes are declared here because `scripts/` cannot import either app
 // (T10 item 8, T13 item 6); `readBackendMarkets` and `readMarketMap` check the real data against them,
@@ -108,6 +110,58 @@ export function readMarketMap(value: unknown): MarketMapData | string {
 
 const quoted = (values: readonly string[]): string => values.map((v) => `"${v}"`).join(", ");
 
+/** Where the regions, currencies and locales the map is compared with come from, for the messages. */
+export type MarketsSource = { name: string; currencies: string; locales: string };
+
+export const FILE_SOURCE: MarketsSource = {
+  name: "config/markets.ts",
+  currencies: "SUPPORTED_CURRENCIES in config/markets.ts",
+  locales: "SUPPORTED_LOCALES in config/markets.ts",
+};
+
+export const SYNCED_SOURCE: MarketsSource = {
+  name: "Medusa (the markets global's synced part)",
+  currencies: "the store's currencies in Medusa",
+  locales: "the store's locales in Medusa",
+};
+
+/**
+ * The global's synced part (T60) as doctor-payload prints it, in the backend list's shape, or
+ * undefined while nothing has been synced, or why it is not what doctor expects.
+ */
+export function readSyncedMarkets(value: unknown): BackendMarkets | undefined | string {
+  if (value === undefined || value === null) return undefined;
+  if (!isRecord(value)) return "the synced part is not an object";
+  const { regions, currencies, locales } = value;
+  if (
+    !Array.isArray(regions) ||
+    !regions.every(
+      (r) =>
+        isRecord(r) &&
+        typeof r.name === "string" &&
+        typeof r.currency === "string" &&
+        isStringArray(r.countries),
+    ) ||
+    !isStringArray(currencies) ||
+    !isStringArray(locales)
+  ) {
+    return "the synced part is not { regions: { name, currency, countries }[], currencies, locales }";
+  }
+  if (regions.length === 0 && locales.length === 0) return undefined;
+  return {
+    currencies,
+    regions: regions.map((r) => {
+      const region = r as Record<string, unknown>;
+      return {
+        name: String(region.name),
+        currency: String(region.currency),
+        countries: region.countries as string[],
+      };
+    }),
+    locales,
+  };
+}
+
 /**
  * Where the two lists disagree, as sentences. Empty means they agree. Each is a case from D17:
  *
@@ -117,7 +171,11 @@ const quoted = (values: readonly string[]): string => values.map((v) => `"${v}"`
  * - and the backend list against itself (a region in a currency the store lacks, a country in two
  *   regions), which the seed would trip over later.
  */
-export function compareMarkets(backend: BackendMarkets, map: MarketMapData): string[] {
+export function compareMarkets(
+  backend: BackendMarkets,
+  map: MarketMapData,
+  source: MarketsSource = FILE_SOURCE,
+): string[] {
   const problems: string[] = [];
   const open = map.countries.filter((country) => country.enabled);
   const openCodes = new Set(open.map((country) => country.code));
@@ -126,14 +184,14 @@ export function compareMarkets(backend: BackendMarkets, map: MarketMapData): str
   for (const region of backend.regions) {
     if (!backend.currencies.includes(region.currency)) {
       problems.push(
-        `region "${region.name}" is in "${region.currency}", which is not in SUPPORTED_CURRENCIES in config/markets.ts`,
+        `region "${region.name}" is in "${region.currency}", which is not in ${source.currencies}`,
       );
     }
     for (const country of region.countries) {
       const other = regionCountries.get(country);
       if (other !== undefined && other !== region.name) {
         problems.push(
-          `country "${country}" is in two regions, "${other}" and "${region.name}", in config/markets.ts`,
+          `country "${country}" is in two regions, "${other}" and "${region.name}", in ${source.name}`,
         );
       }
       regionCountries.set(country, region.name);
@@ -143,7 +201,7 @@ export function compareMarkets(backend: BackendMarkets, map: MarketMapData): str
   for (const country of open) {
     if (!regionCountries.has(country.code)) {
       problems.push(
-        `country "${country.code}" is open in the storefront's map but no region in config/markets.ts has it (its pages show the no-region message)`,
+        `country "${country.code}" is open in the storefront's map but no region in ${source.name} has it (its pages show the no-region message)`,
       );
     }
   }
@@ -163,12 +221,16 @@ export function compareMarkets(backend: BackendMarkets, map: MarketMapData): str
     if (language === undefined || language.medusaLocale === "") continue;
     if (!backend.locales.includes(language.medusaLocale)) {
       problems.push(
-        `language "${code}" uses the Medusa locale "${language.medusaLocale}", which is not in SUPPORTED_LOCALES in config/markets.ts`,
+        `language "${code}" uses the Medusa locale "${language.medusaLocale}", which is not in ${source.locales}`,
       );
     }
   }
   return problems;
 }
+
+/** The hint for a synced part that disagrees with the edited part (D76). */
+export const MARKETS_SYNCED_FIX =
+  'Change the regions or the store\'s locales in Medusa Admin, or the countries and languages under Globals → Markets in Payload, until they agree (D76; SETUP.md, "Adding a market").';
 
 /** The hint every mismatch shares: which file to edit, and what applies the edit. */
 export const MARKETS_FIX =
@@ -184,7 +246,13 @@ const MARKETS_SYNC = { id: "markets-sync", title: "Markets: backend and storefro
 export type MarketsGlobalRead =
   /** Not attempted: the Postgres check failed, so Payload was not started. */
   | { skipped: true }
-  | { ok: true; map: MarketMapData; problems: string[] }
+  | {
+      ok: true;
+      map: MarketMapData;
+      problems: string[];
+      /** The synced part (T60), or undefined before the first sync. */
+      synced?: BackendMarkets;
+    }
   | { ok: false; cause: string; fix: string };
 
 /** The check on the `markets` global, and the map to compare when it is filled in. */
@@ -256,11 +324,41 @@ export function marketsSyncCheck(input: {
   fixtures: MarketMapData | string;
   /** The `markets` global's map, when it was read and is filled in. */
   global: MarketMapData | undefined;
+  /** The global's synced part (T60), when a sync has filled it. */
+  synced?: BackendMarkets;
 }): { check: Check; backend: BackendMarkets | undefined; map: MarketMapData | undefined } {
-  const { backendFile, fixtures, global } = input;
+  const { backendFile, fixtures, global, synced } = input;
   const source = global ?? fixtures;
   const map = typeof source === "string" ? undefined : source;
   const warn = (message: string): Check => ({ ...MARKETS_SYNC, level: "warn", message });
+
+  // D76: once a sync has run, the global's two parts are compared; the backend's file is still
+  // read, for `--online`.
+  if (synced !== undefined) {
+    const read = "error" in backendFile ? undefined : readBackendMarkets(backendFile.exports);
+    const backend = typeof read === "object" ? read : undefined;
+    if (typeof source === "string") return { map, backend, check: warn(source) };
+    const problems = compareMarkets(synced, source, SYNCED_SOURCE);
+    const where = global === undefined ? "the seeded fixtures" : "the markets global's countries";
+    return {
+      map,
+      backend,
+      check:
+        problems.length === 0
+          ? {
+              ...MARKETS_SYNC,
+              level: "ok",
+              message: `Medusa's regions and locales (the synced part) and ${where} agree.`,
+            }
+          : {
+              ...MARKETS_SYNC,
+              level: "warn",
+              message: `Medusa's regions and locales (the synced part) and ${where} disagree (D76).`,
+              details: problems,
+              fix: MARKETS_SYNCED_FIX,
+            },
+    };
+  }
 
   if ("error" in backendFile) {
     return {

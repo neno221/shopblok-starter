@@ -55,6 +55,19 @@ export function storeName(
 }
 
 /**
+ * The store's locales after the seed (D76): the configured ones first, then every other locale the
+ * store has, so a locale added in Medusa Admin survives `pnpm bootstrap`. The seed adds locales and
+ * never removes one (SPEC §8.5 had it set them exactly).
+ */
+export function storeLocales(
+  current: ({ locale_code: string } | null | undefined)[] | null | undefined,
+  configured: readonly string[],
+): string[] {
+  const present = (current ?? []).flatMap((locale) => (locale ? [locale.locale_code] : []));
+  return [...new Set([...configured, ...present])];
+}
+
+/**
  * Which parts of the store differ from the target. An empty list means the
  * store needs no update, and the seed doesn't call `updateStoresWorkflow`: it
  * replaces the store's currency and locale rows, so a no-op update would still

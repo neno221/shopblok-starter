@@ -8,7 +8,8 @@
 // `✓ done` in it. The decisions (what counts as unchanged, which port is whose) are in scripts/lib/
 // with tests; this file runs the steps. The Payload half is apps/storefront/src/scripts/bootstrap-payload.ts.
 import { randomUUID } from "node:crypto";
-import { chmodSync, existsSync, readFileSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import {
   dockerUnavailableWarning,
@@ -145,8 +146,12 @@ function commandOptions(ctx: Context, extraEnv: Record<string, string | undefine
   };
 }
 
-const medusa = (args: string[], ctx: Context) =>
-  run("pnpm", ["--filter", "@shopblok/backend", "exec", "medusa", ...args], commandOptions(ctx));
+const medusa = (args: string[], ctx: Context, extraEnv: Record<string, string | undefined> = {}) =>
+  run(
+    "pnpm",
+    ["--filter", "@shopblok/backend", "exec", "medusa", ...args],
+    commandOptions(ctx, extraEnv),
+  );
 
 const payload = (args: string[], ctx: Context, extraEnv: Record<string, string | undefined> = {}) =>
   runPayload(args, commandOptions(ctx, extraEnv));
@@ -546,6 +551,67 @@ function payloadKey(ctx: Context): StepResult {
   return { status: "done", detail: describeChanges(merged.changes), notes };
 }
 
+// ---- 10. Medusa → Payload sync (T60) -------------------------------------------------------
+
+type ImportCounts = {
+  created: number;
+  updated: number;
+  deleted: number;
+  unchanged: number;
+  markets: "updated" | "unchanged";
+};
+
+/**
+ * D75: the first sync, with neither server running. `medusa exec` writes Medusa's documents to a
+ * file, mapped as the sync maps them, and `payload run` upserts them through the Local API as the
+ * `medusa-sync` integration. After that, the backend's subscriber and reconcile job keep them.
+ */
+async function medusaPayloadSync(ctx: Context): Promise<StepResult> {
+  const apiKey = ctx.state.payloadApiKey;
+  if (apiKey === undefined) {
+    throw new StepError("Step 8 did not run, so there is no Payload API key.");
+  }
+  const dir = mkdtempSync(path.join(tmpdir(), "shopblok-sync-"));
+  const file = path.join(dir, "sync.json");
+  try {
+    const exported = await medusa(["exec", "./src/scripts/export-for-payload.ts"], ctx, {
+      PAYLOAD_SYNC_FILE: file,
+    });
+    const exportedCounts = extractMarker<{ counts: Record<string, number> }>(
+      exported.output,
+      "exportForPayload",
+    );
+    if (exported.code !== 0 || exportedCounts === undefined) {
+      throw failed(
+        "`medusa exec export-for-payload.ts`",
+        exported,
+        exported.code === 0 ? 'It printed no {"exportForPayload":…} result line.' : undefined,
+      );
+    }
+    const imported = await payload(["run", "src/scripts/import-from-medusa.ts"], ctx, {
+      PAYLOAD_SYNC_FILE: file,
+      BOOTSTRAP_PAYLOAD_API_KEY: apiKey,
+    });
+    const counts = extractMarker<ImportCounts>(imported.output, "importFromMedusa");
+    if (imported.code !== 0 || counts === undefined) {
+      throw failed(
+        "`payload run import-from-medusa.ts`",
+        imported,
+        imported.code === 0 ? 'It printed no {"importFromMedusa":…} result line.' : undefined,
+      );
+    }
+    const did = [
+      counts.created > 0 ? `${counts.created} created` : "",
+      counts.updated > 0 ? `${counts.updated} updated` : "",
+      counts.deleted > 0 ? `${counts.deleted} marked deleted` : "",
+      counts.markets === "updated" ? "markets synced" : "",
+    ].filter(Boolean);
+    return did.length > 0 ? { status: "done", detail: did.join(", ") } : { status: "unchanged" };
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
 // ---- 11. Payload content seed (T59) ---------------------------------------------------------
 
 type SeedCounts = { created: number; updated: number; unchanged: number; kept?: string[] };
@@ -615,12 +681,7 @@ const STEPS: Step[] = [
   { number: 7, name: "Payload migrations", run: payloadMigrations },
   { number: 8, name: "Payload users and markets", run: payloadBootstrap },
   { number: 9, name: "Payload key", run: payloadKey },
-  {
-    // Not built yet (SPEC §5 item 6): T60 builds the Medusa → Payload sync.
-    number: 10,
-    name: "Medusa → Payload sync",
-    run: () => ({ status: "skipped", detail: "arrives with T60" }),
-  },
+  { number: 10, name: "Medusa → Payload sync", run: medusaPayloadSync },
   { number: 11, name: "Payload content seed", run: contentSeed },
   { number: 12, name: "Doctor", run: doctor },
 ];

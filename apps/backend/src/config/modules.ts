@@ -39,6 +39,10 @@ export function getRedisUrl(env: Env): string | undefined {
  * - Caching: only with `REDIS_URL` and `MEDUSA_FF_CACHING=true`. There is no in-memory
  *   provider here (`in_memory.enable` stays off), so dev matches production.
  *
+ * - Payload (D75, T60): the Medusa → Payload sync, only with `PAYLOAD_SERVER_URL` and
+ *   `PAYLOAD_API_KEY` (`pnpm bootstrap` writes both). Without it the sync's subscriber, jobs and
+ *   route do nothing and say so once.
+ *
  * Search (`search-postgres`), `file-local`, `analytics-local` and `pp_system_default` are
  * Medusa defaults and stay unregistered here. M6 adds Stripe, Resend, PostHog, S3/R2,
  * Sentry and Meilisearch behind `has(env, ...)` gates in this function.
@@ -48,6 +52,15 @@ export function buildModules(env: Env): InputConfigModules {
 
   const modules: (ModuleEntry | false)[] = [
     { resolve: "@medusajs/medusa/translation" },
+
+    has(env, "PAYLOAD_SERVER_URL", "PAYLOAD_API_KEY") && {
+      resolve: "./src/modules/payload",
+      options: {
+        serverUrl: env.PAYLOAD_SERVER_URL?.trim(),
+        apiKey: env.PAYLOAD_API_KEY?.trim(),
+        userCollection: env.PAYLOAD_USER_COLLECTION?.trim() || "integrations",
+      },
+    },
 
     {
       resolve: "@medusajs/medusa/notification",

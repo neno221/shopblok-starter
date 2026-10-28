@@ -113,6 +113,8 @@ if ((markets.countries ?? []).length === 0) {
     slug: "markets",
     data: marketsGlobalData(seededMarkets),
     overrideAccess: true,
+    // A script has no Next cache to refresh (the hook would only warn).
+    context: { disableRevalidate: true },
   });
   outcome.markets = "seeded";
 } else {

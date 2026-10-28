@@ -1,7 +1,19 @@
-import type { Payload, PayloadRequest, TextFieldSingleValidation } from "payload";
+import {
+  ValidationError,
+  type Payload,
+  type PayloadRequest,
+  type TextFieldSingleValidation,
+} from "payload";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { clearEnabledLanguages, filterAvailableLocales } from "../filter-available-locales";
-import { Markets, countryCode, htmlLang, medusaLocale, timeZone } from "./markets";
+import {
+  Markets,
+  checkAgainstSynced,
+  countryCode,
+  htmlLang,
+  medusaLocale,
+  timeZone,
+} from "./markets";
 
 type Options = Parameters<TextFieldSingleValidation>[1];
 // What Payload's own `text` validator reads from the request.
@@ -180,5 +192,57 @@ describe("saving the markets global", () => {
     }
 
     expect(await codes()).toEqual(["en", "de"]);
+  });
+});
+
+describe("checkAgainstSynced (D76)", () => {
+  const syncedPart = {
+    regions: [{ medusaId: "reg_1", name: "Europe", currency: "eur", countries: ["cy", "de"] }],
+    currencies: ["eur"],
+    defaultCurrency: "eur",
+    locales: ["en-US", "el-GR"],
+  };
+  const hookArgs = (user: unknown, data: Record<string, unknown>, originalDoc = {}) => {
+    const warn = vi.fn();
+    const args = {
+      data,
+      originalDoc,
+      req: { user, payload: { logger: { warn } }, t: (key: string) => key },
+    } as unknown as Parameters<typeof checkAgainstSynced>[0];
+    return { args, warn };
+  };
+  const staff = { collection: "users", id: 1, role: "admin" };
+  const sync = { collection: "integrations", id: 1, role: "medusa-sync" };
+  const outside = { countries: [{ code: "at", enabled: true, languages: ["de"] }] };
+
+  it("refuses a staff save that opens a country Medusa has no region for", () => {
+    const { args } = hookArgs(staff, outside, { synced: syncedPart });
+    expect(() => checkAgainstSynced(args)).toThrow(ValidationError);
+  });
+
+  it("passes a staff save that agrees with the synced part, with the stored synced part", () => {
+    const data = {
+      countries: [{ code: "cy", enabled: true, languages: ["el"] }],
+      languages: [{ code: "el", medusaLocale: "el-GR" }],
+    };
+    const { args } = hookArgs(staff, data, { synced: syncedPart });
+    expect(checkAgainstSynced(args)).toBe(data);
+  });
+
+  it("only warns while nothing has been synced", () => {
+    const { args, warn } = hookArgs(staff, outside, { synced: {} });
+    expect(checkAgainstSynced(args)).toBe(outside);
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('"at" is in no Medusa region'));
+  });
+
+  it("checks against the stored synced part, whatever synced part a staff save sends", () => {
+    const { args } = hookArgs(staff, { ...outside, synced: {} }, { synced: syncedPart });
+    expect(() => checkAgainstSynced(args)).toThrow(ValidationError);
+  });
+
+  it("does not check the sync's own write", () => {
+    const data = { synced: { ...syncedPart, regions: [] } };
+    const { args } = hookArgs(sync, data, { ...outside, synced: syncedPart });
+    expect(checkAgainstSynced(args)).toBe(data);
   });
 });

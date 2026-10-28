@@ -6,6 +6,7 @@ const EVENT_BUS = "@medusajs/medusa/event-bus-redis";
 const WORKFLOW_ENGINE = "@medusajs/medusa/workflow-engine-redis";
 const LOCKING = "@medusajs/medusa/locking";
 const CACHING = "@medusajs/medusa/caching";
+const PAYLOAD = "./src/modules/payload";
 
 const REDIS_URL = "redis://localhost:6380";
 
@@ -116,6 +117,29 @@ describe("buildModules", () => {
           },
         ]);
       }
+    });
+  });
+
+  describe("payload (D75)", () => {
+    const PAYLOAD_ENV = { PAYLOAD_SERVER_URL: " http://localhost:8000 ", PAYLOAD_API_KEY: "key-1" };
+
+    it("registers the sync only with both the server URL and the API key", () => {
+      expect(resolves(PAYLOAD_ENV)).toEqual([TRANSLATION, PAYLOAD, NOTIFICATION]);
+      expect(resolves({ PAYLOAD_SERVER_URL: "http://localhost:8000" })).not.toContain(PAYLOAD);
+      expect(resolves({ PAYLOAD_API_KEY: "key-1" })).not.toContain(PAYLOAD);
+      expect(resolves({ ...PAYLOAD_ENV, PAYLOAD_API_KEY: " " })).not.toContain(PAYLOAD);
+    });
+
+    it("passes the trimmed values, and the integrations collection by default", () => {
+      expect(entry(PAYLOAD_ENV, PAYLOAD).options).toEqual({
+        serverUrl: "http://localhost:8000",
+        apiKey: "key-1",
+        userCollection: "integrations",
+      });
+      expect(
+        entry({ ...PAYLOAD_ENV, PAYLOAD_USER_COLLECTION: "machines" }, PAYLOAD).options
+          .userCollection,
+      ).toBe("machines");
     });
   });
 

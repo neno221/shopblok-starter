@@ -1,0 +1,153 @@
+{
+  "$comment": "The Medusa → Payload sync's shared fixture (T60, D75). `medusa` is what the backend reads with query.graph; `documents` and `markets` are what its mapping makes of it, which Payload's collections and the markets global must take. The backend's mapping test and the storefront's collection test both read this file, so a field renamed on one side fails the other's test.",
+  "medusa": {
+    "products": [
+      {
+        "id": "prod_01SYNCSHIRT",
+        "handle": "linen-shirt",
+        "title": "Linen shirt",
+        "thumbnail": "https://cdn.example.com/linen-shirt.webp",
+        "updated_at": "2026-10-28T09:15:00.000Z",
+        "deleted_at": null
+      },
+      {
+        "id": "prod_01SYNCSCARF",
+        "handle": "wool-scarf",
+        "title": "Wool scarf",
+        "thumbnail": null,
+        "updated_at": "2026-10-27T18:00:00.000Z",
+        "deleted_at": "2026-10-28T08:00:00.000Z"
+      }
+    ],
+    "categories": [
+      {
+        "id": "pcat_01SYNCTOPS",
+        "handle": "tops",
+        "name": "Tops",
+        "rank": 0,
+        "parent_category_id": null,
+        "updated_at": "2026-10-20T10:00:00.000Z",
+        "deleted_at": null
+      },
+      {
+        "id": "pcat_01SYNCSHIRTS",
+        "handle": "shirts",
+        "name": "Shirts",
+        "rank": 2,
+        "parent_category_id": "pcat_01SYNCTOPS",
+        "updated_at": "2026-10-21T10:00:00.000Z",
+        "deleted_at": null
+      }
+    ],
+    "collections": [
+      {
+        "id": "pcol_01SYNCSUMMER",
+        "handle": "summer",
+        "title": "Summer",
+        "updated_at": "2026-10-22T10:00:00.000Z",
+        "deleted_at": null
+      }
+    ],
+    "regions": [
+      {
+        "id": "reg_01SYNCEUROPE",
+        "name": "Europe",
+        "currency_code": "eur",
+        "countries": [{ "iso_2": "cy" }, { "iso_2": "de" }, { "iso_2": "fr" }]
+      },
+      {
+        "id": "reg_01SYNCUS",
+        "name": "US",
+        "currency_code": "usd",
+        "countries": [{ "iso_2": "us" }]
+      }
+    ],
+    "store": {
+      "supported_currencies": [
+        { "currency_code": "eur", "is_default": true },
+        { "currency_code": "usd", "is_default": false }
+      ],
+      "supported_locales": [
+        { "locale_code": "en-US" },
+        { "locale_code": "el-GR" },
+        { "locale_code": "de-DE" }
+      ]
+    }
+  },
+  "documents": {
+    "products": [
+      {
+        "fields": {
+          "medusaId": "prod_01SYNCSHIRT",
+          "title": "Linen shirt",
+          "handle": "linen-shirt",
+          "thumbnail": "https://cdn.example.com/linen-shirt.webp",
+          "deletedInMedusa": false,
+          "medusaUpdatedAt": "2026-10-28T09:15:00.000Z"
+        },
+        "references": {}
+      },
+      {
+        "fields": {
+          "medusaId": "prod_01SYNCSCARF",
+          "title": "Wool scarf",
+          "handle": "wool-scarf",
+          "thumbnail": null,
+          "deletedInMedusa": true,
+          "medusaUpdatedAt": "2026-10-27T18:00:00.000Z"
+        },
+        "references": {}
+      }
+    ],
+    "categories": [
+      {
+        "fields": {
+          "medusaId": "pcat_01SYNCTOPS",
+          "title": "Tops",
+          "handle": "tops",
+          "rank": 0,
+          "deletedInMedusa": false,
+          "medusaUpdatedAt": "2026-10-20T10:00:00.000Z"
+        },
+        "references": { "parent": null }
+      },
+      {
+        "fields": {
+          "medusaId": "pcat_01SYNCSHIRTS",
+          "title": "Shirts",
+          "handle": "shirts",
+          "rank": 2,
+          "deletedInMedusa": false,
+          "medusaUpdatedAt": "2026-10-21T10:00:00.000Z"
+        },
+        "references": { "parent": "pcat_01SYNCTOPS" }
+      }
+    ],
+    "collections": [
+      {
+        "fields": {
+          "medusaId": "pcol_01SYNCSUMMER",
+          "title": "Summer",
+          "handle": "summer",
+          "deletedInMedusa": false,
+          "medusaUpdatedAt": "2026-10-22T10:00:00.000Z"
+        },
+        "references": {}
+      }
+    ]
+  },
+  "markets": {
+    "regions": [
+      {
+        "medusaId": "reg_01SYNCEUROPE",
+        "name": "Europe",
+        "currency": "eur",
+        "countries": ["cy", "de", "fr"]
+      },
+      { "medusaId": "reg_01SYNCUS", "name": "US", "currency": "usd", "countries": ["us"] }
+    ],
+    "currencies": ["eur", "usd"],
+    "defaultCurrency": "eur",
+    "locales": ["de-DE", "el-GR", "en-US"]
+  }
+}

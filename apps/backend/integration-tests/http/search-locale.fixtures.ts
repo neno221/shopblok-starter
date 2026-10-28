@@ -63,7 +63,7 @@ export type Seeded = {
   regionId: string;
 };
 
-/** The real market seed: the store's locales are exactly `SUPPORTED_LOCALES`. */
+/** The real market seed: on a fresh store its locales are `SUPPORTED_LOCALES`. */
 export async function seedStore(container: MedusaContainer): Promise<Seeded> {
   const query = container.resolve(ContainerRegistrationKeys.QUERY);
 

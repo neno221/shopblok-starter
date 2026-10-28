@@ -72,6 +72,9 @@ export interface Config {
     integrations: Integration;
     media: Media;
     pages: Page;
+    products: Product;
+    categories: Category;
+    collections: ProductCollection;
     "payload-kv": PayloadKv;
     "payload-jobs": PayloadJob;
     "payload-locked-documents": PayloadLockedDocument;
@@ -84,6 +87,9 @@ export interface Config {
     integrations: IntegrationsSelect<false> | IntegrationsSelect<true>;
     media: MediaSelect<false> | MediaSelect<true>;
     pages: PagesSelect<false> | PagesSelect<true>;
+    products: ProductsSelect<false> | ProductsSelect<true>;
+    categories: CategoriesSelect<false> | CategoriesSelect<true>;
+    collections: CollectionsSelect<false> | CollectionsSelect<true>;
     "payload-kv": PayloadKvSelect<false> | PayloadKvSelect<true>;
     "payload-jobs": PayloadJobsSelect<false> | PayloadJobsSelect<true>;
     "payload-locked-documents":
@@ -400,6 +406,60 @@ export interface Page {
   _status?: ("draft" | "published") | null;
 }
 /**
+ * Follows Medusa. Edit these fields in Medusa Admin; the sync writes them here.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "products".
+ */
+export interface Product {
+  id: number;
+  medusaId: string;
+  title: string;
+  handle: string;
+  thumbnail?: string | null;
+  deletedInMedusa?: boolean | null;
+  medusaUpdatedAt?: string | null;
+  syncedAt?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * Follows Medusa. Edit these fields in Medusa Admin; the sync writes them here.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "categories".
+ */
+export interface Category {
+  id: number;
+  medusaId: string;
+  title: string;
+  handle: string;
+  parent?: (number | null) | Category;
+  rank?: number | null;
+  deletedInMedusa?: boolean | null;
+  medusaUpdatedAt?: string | null;
+  syncedAt?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * Follows Medusa. Edit these fields in Medusa Admin; the sync writes them here.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "collections".
+ */
+export interface ProductCollection {
+  id: number;
+  medusaId: string;
+  title: string;
+  handle: string;
+  deletedInMedusa?: boolean | null;
+  medusaUpdatedAt?: string | null;
+  syncedAt?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-kv".
  */
@@ -530,6 +590,18 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: "pages";
         value: number | Page;
+      } | null)
+    | ({
+        relationTo: "products";
+        value: number | Product;
+      } | null)
+    | ({
+        relationTo: "categories";
+        value: number | Category;
+      } | null)
+    | ({
+        relationTo: "collections";
+        value: number | ProductCollection;
       } | null);
   globalSlug?: string | null;
   user:
@@ -695,6 +767,51 @@ export interface PagesSelect<T extends boolean = true> {
   updatedAt?: T;
   createdAt?: T;
   _status?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "products_select".
+ */
+export interface ProductsSelect<T extends boolean = true> {
+  medusaId?: T;
+  title?: T;
+  handle?: T;
+  thumbnail?: T;
+  deletedInMedusa?: T;
+  medusaUpdatedAt?: T;
+  syncedAt?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "categories_select".
+ */
+export interface CategoriesSelect<T extends boolean = true> {
+  medusaId?: T;
+  title?: T;
+  handle?: T;
+  parent?: T;
+  rank?: T;
+  deletedInMedusa?: T;
+  medusaUpdatedAt?: T;
+  syncedAt?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "collections_select".
+ */
+export interface CollectionsSelect<T extends boolean = true> {
+  medusaId?: T;
+  title?: T;
+  handle?: T;
+  deletedInMedusa?: T;
+  medusaUpdatedAt?: T;
+  syncedAt?: T;
+  updatedAt?: T;
+  createdAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -897,9 +1014,23 @@ export interface Market {
    */
   fallbackMarket?: string | null;
   /**
-   * Filled by the Medusa sync (M4). Read-only.
+   * What Medusa has, written by the Medusa sync (D76). Read-only: change regions, currencies and locales in Medusa Admin.
    */
-  synced?: {};
+  synced?: {
+    regions?:
+      | {
+          medusaId: string;
+          name: string;
+          currency: string;
+          countries?: string[] | null;
+          id?: string | null;
+        }[]
+      | null;
+    currencies?: string[] | null;
+    defaultCurrency?: string | null;
+    locales?: string[] | null;
+    syncedAt?: string | null;
+  };
   updatedAt?: string | null;
   createdAt?: string | null;
 }
@@ -928,7 +1059,23 @@ export interface MarketsSelect<T extends boolean = true> {
       };
   primaryCountry?: T;
   fallbackMarket?: T;
-  synced?: T | {};
+  synced?:
+    | T
+    | {
+        regions?:
+          | T
+          | {
+              medusaId?: T;
+              name?: T;
+              currency?: T;
+              countries?: T;
+              id?: T;
+            };
+        currencies?: T;
+        defaultCurrency?: T;
+        locales?: T;
+        syncedAt?: T;
+      };
   updatedAt?: T;
   createdAt?: T;
   globalType?: T;

@@ -1,4 +1,5 @@
 import {
+  authenticate,
   configureStoreSearch,
   defineMiddlewares,
   validateAndTransformBody,
@@ -54,6 +55,12 @@ export default defineMiddlewares({
       method: ['POST'],
       matcher: '/store/customers/me/returns',
       middlewares: [validateAndTransformBody(StoreCreateCustomerReturn)],
+    },
+    // T60 (D75): Settings → Payload's bulk sync. Medusa's own `/admin` middleware also takes a
+    // secret API key; this one asks again for an admin's session or token only.
+    {
+      matcher: '/admin/payload/sync',
+      middlewares: [authenticate('user', ['session', 'bearer'])],
     },
     // Medusa's own return route answers anyone who has an order's id (SPEC §11.1); returns go
     // through `/store/customers/me/returns`, which checks the order is the customer's.
