@@ -205,13 +205,22 @@ jobs:
       # T57 (M4 D87 item 2, D88): every schema change has its saved migration. After bootstrap has
       # applied the committed migrations, `migrate:create --skip-empty` writes a file only when the
       # config differs from the last migration's snapshot. Its log line "generating UP statements"
-      # shows it ran: Payload's CLI used to exit 0 now and then without doing anything (SETUP.md,
-      # CLOUD.md step 4), which here would pass.
+      # shows it ran: Payload's CLI exits 0 now and then without doing anything (SETUP.md, CLOUD.md
+      # step 4), which here would pass. Such a silent run is repeated, up to three attempts in all, as
+      # `retryWhileSilent` does for bootstrap and doctor (PR 89 review, item 1); a run with no change
+      # writes nothing, so repeating it is safe.
       - name: Payload's migrations match the config
         run: |
-          out="$(pnpm --filter @shopblok/storefront payload migrate:create --skip-empty ci-check 2>&1)" || { echo "$out"; exit 1; }
-          echo "$out"
-          grep -q "generating UP statements" <<<"$out" || { echo "::error title=Migration check::migrate:create printed no sign that it ran."; exit 1; }
+          for attempt in 1 2 3; do
+            out="$(pnpm --filter @shopblok/storefront payload migrate:create --skip-empty ci-check 2>&1)" || { echo "$out"; exit 1; }
+            echo "$out"
+            grep -q "generating UP statements" <<<"$out" && break
+            if [ "$attempt" = 3 ]; then
+              echo "::error title=Migration check::migrate:create printed no sign that it ran, three times."
+              exit 1
+            fi
+            echo "::warning title=Migration check::migrate:create exited without running (attempt $attempt); repeating it."
+          done
           if [ -n "$(git status --porcelain --untracked-files=all -- apps/storefront/src/migrations)" ]; then
             git status --short -- apps/storefront/src/migrations
             git diff -- apps/storefront/src/migrations/index.ts

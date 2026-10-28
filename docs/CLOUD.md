@@ -125,7 +125,7 @@ done
      | tar -xz -C /opt/medusa-agent-skills --strip-components=1 \
   && chmod -R a+rX /opt/medusa-agent-skills ) & pids+=($!)
 
-# 6. dtc-starter at the commit the plan cites, and Payload's templates at its v3.90.2 tag (T05, T09).
+# 6. dtc-starter at the commit the plan cites, and Payload's templates at the v3.92.1 tag (T05, T09, T57).
 #    A running session can't download other repos from GitHub: its proxy serves only the
 #    session's own repo (C0). This script runs before that limit applies, so it fetches them now.
 #    A failed fetch logs "step 6 FAILED" and removes the folder, so a folder is complete or absent.
@@ -143,7 +143,7 @@ fetch_tar /opt/dtc-starter \
 # --no-wildcards-match-slash: `*` stops at `/`, so only the top-level templates/ folders match,
 # not a nested */templates/blank in packages/ or examples/.
 fetch_tar /opt/payload-templates \
-  https://codeload.github.com/payloadcms/payload/tar.gz/refs/tags/v3.90.2 \
+  https://codeload.github.com/payloadcms/payload/tar.gz/refs/tags/v3.92.1 \
   --strip-components=2 --wildcards --no-wildcards-match-slash \
   '*/templates/blank' '*/templates/with-postgres' '*/templates/ecommerce' & pids+=($!)
 
@@ -165,7 +165,7 @@ Each prompt in NEXT-SESSION.md says this, and C0 checks that it works.
    ```bash
    want=$(sed 's/^v//' .nvmrc)
    if [ "$(node -v)" != "v$want" ] && node -e "const p=v=>v.replace(/^v/,'').split('.').map(Number);const [a,b]=[p(process.version),p('$want')];process.exit(a[0]===b[0]&&(a[1]<b[1]||(a[1]===b[1]&&a[2]<b[2]))?0:1)"; then
-     rm -r /opt/node22/lib/node_modules/npm /opt/node22/lib/node_modules/corepack
+     rm -rf /opt/node22/lib/node_modules/npm /opt/node22/lib/node_modules/corepack
      curl -fsSL "https://nodejs.org/dist/v$want/node-v$want-linux-x64.tar.xz" | tar -xJ -C /opt/node22 --strip-components=1
    fi
    node -v
@@ -182,7 +182,7 @@ Each prompt in NEXT-SESSION.md says this, and C0 checks that it works.
    The four pinned images are already there from the setup script (`docker image ls`). Then `pnpm infra:up`. If one is missing (the setup script's run had no network, as S4's session found), `docker pull` it; if Docker Hub answers `429 Too Many Requests`, pull the same image from Google's Docker Hub mirror and give it the pinned name (`docker pull mirror.gcr.io/library/postgres:17.11-alpine && docker tag mirror.gcr.io/library/postgres:17.11-alpine postgres:17.11-alpine`). If `/opt/ms-playwright` is empty, `pnpm --filter @shopblok/storefront exec playwright install chromium` fills it.
 4. **From T13 on:** `pnpm bootstrap`. It's idempotent, so it's safe to run every time (about 40 s on empty volumes, 35 s when nothing is left to do). It writes `apps/backend/.env` and `apps/storefront/.env` the first time and keeps them, so after a paused session or a `docker compose down -v` it rebuilds the databases from them and writes the new publishable key; the storefront has to be built again after that, because `next build` writes the key into it. `--no-demo` skips the demo catalog; `--ci` is the same run for a machine with nobody at it. From T14 on, its last step runs `pnpm run doctor`: warnings (Medusa and the storefront not running yet, no Resend key) are normal there, and an error fails the run. Payload's CLI exits 0 without doing anything in about 1 run in 20; bootstrap and doctor repeat such a run, so a bare `pnpm --filter @shopblok/storefront exec payload …` that prints nothing should simply be run again.
 5. **Skills:** the plan's BWM, BS, SBP and CMD references are files under `/opt/medusa-agent-skills/plugins/` (`medusa-dev/skills/…` and `ecommerce-storefront/skills/…`). Read them from there.
-6. **Upstream sources (T05, T09):** dtc-starter at `15ef93d` is in `/opt/dtc-starter`, and Payload's `blank`, `with-postgres` and `ecommerce` templates at `v3.90.2` are in `/opt/payload-templates/<name>`. If a folder is missing, run `grep 'step 6' /var/log/shopblok-setup.log`: no output means the environment still has the old setup script (see the note under "Setup script"), and `step 6 FAILED: <dir>` means the download failed. Report which; don't try to download them.
+6. **Upstream sources (T05, T09):** dtc-starter at `15ef93d` is in `/opt/dtc-starter`, and Payload's `blank`, `with-postgres` and `ecommerce` templates at `v3.92.1` are in `/opt/payload-templates/<name>` (`v3.90.2` until you paste T57's setup script). If a folder is missing, run `grep 'step 6' /var/log/shopblok-setup.log`: no output means the environment still has the old setup script (see the note under "Setup script"), and `step 6 FAILED: <dir>` means the download failed. Report which; don't try to download them.
 7. **Push early.** The GitHub credential a session pushes with expires about two hours after the session starts, and C0 didn't test whether it is refreshed (SETUP.md, C0 item 7). Commit and push the branch after each finished step of the task, not only at the end. If a push is refused with an authentication error, stop and tell the owner: unpushed work is lost when the VM is reclaimed.
 
 A paused session's VM can be reclaimed. The conversation comes back, but running processes don't: containers, database contents, dev servers. After a pause, repeat steps 3 and 4.
