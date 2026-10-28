@@ -9,7 +9,9 @@
 // field that two countries share keeps its place in the page, its focus and its value across a
 // swap; the typed values live here, so a field that goes and comes back has its text again. A row
 // of the format is a run of cells that add up to a full row from 28 rem of form width (a
-// container query: the form decides, not the viewport) and stacks below it.
+// container query: the form decides, not the viewport) and stacks below it. What a shopper types
+// before hydration is adopted when the fields hydrate (T58): React keeps such text in the page but
+// not in this state, so the next render (a keystroke in another field) would empty the field.
 "use client";
 
 import type { AddressFieldName } from "@shopblok/i18n";
@@ -24,7 +26,7 @@ import {
   InputGroupText,
 } from "@shopblok/ui/primitives/input-group";
 import { CircleAlertIcon } from "lucide-react";
-import { useId, useState } from "react";
+import { useId, useLayoutEffect, useRef, useState } from "react";
 import type * as React from "react";
 
 /** A field the form posts: Medusa's address fields (what a country's format picks from) and the phone. */
@@ -240,6 +242,31 @@ function AddressFormFields({
   const [country, setCountry] = useState(startCountry);
   const [values, setValues] = useState(startValues);
   const [announcement, setAnnouncement] = useState("");
+  const grid = useRef<HTMLDivElement>(null);
+  // T58: a field typed in (or a country chosen) before hydration keeps its text in the page, but
+  // React hydrates the state from the server's values, and the next render of a controlled field
+  // writes that state back: the text the shopper typed is gone (W5, `next dev` on the PC). When the
+  // fields hydrate, the state takes what the page holds. The effect also runs when Next's
+  // `<Activity>` shows the page again, and twice under StrictMode; there, as after any client
+  // render, the page holds the state's own values, so it changes nothing. Before paint, so nothing
+  // flickers.
+  useLayoutEffect(() => {
+    const root = grid.current;
+    if (root === null) return;
+    const typed: Partial<Record<AddressInputName, string>> = {};
+    for (const input of root.querySelectorAll<HTMLInputElement>("input[name]")) {
+      const name = input.name as AddressInputName;
+      if (input.value !== (startValues[name] ?? "")) typed[name] = input.value;
+    }
+    if (Object.keys(typed).length > 0) setValues((current) => ({ ...current, ...typed }));
+    const chosen = root.querySelector<HTMLSelectElement>('select[name="countryCode"]')?.value;
+    const next = countries.find((candidate) => candidate.code === chosen);
+    if (next !== undefined && next.code !== startCountry) {
+      setCountry(next.code);
+      setAnnouncement(next.announcement);
+    }
+    // No dependencies: after hydration, changes reach the state through the fields' own handlers.
+  }, []);
   const view = countries.find((candidate) => candidate.code === country) ?? countries[0];
   if (view === undefined) return null;
   const token = (field: AddressFormField) =>
@@ -252,7 +279,7 @@ function AddressFormFields({
   const selectErrorId = `${id}-country-error`;
   return (
     <div data-slot="address-form-fields" className="@container w-full min-w-0">
-      <div className="grid grid-cols-6 gap-x-3 gap-y-4">
+      <div ref={grid} className="grid grid-cols-6 gap-x-3 gap-y-4">
         <Field
           data-slot="address-field"
           data-field="countryCode"

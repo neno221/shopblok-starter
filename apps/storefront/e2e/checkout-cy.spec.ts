@@ -16,7 +16,8 @@ import {
 // later", and the receipt with the order's number, its EUR totals and its date in Europe/Nicosia.
 // The same purchase without JavaScript once the cart has a line (the add needs JavaScript, T49);
 // an action's answer for a field the browser did not check; and the receipt for nobody else: a
-// visitor without the browser's receipt, and one with a forged one, get the not-found page. Next keeps the
+// visitor without the browser's receipt, and one with a forged one, get the not-found page. T58: a
+// first name typed before the page hydrates is kept (W5's finding). Next keeps the
 // pages a visitor came from in the document, hidden (`<Activity>`), so the locators take the
 // visible ones: roles, or `:visible`. The steps are `support/purchase.ts`'s (T54).
 
@@ -89,6 +90,43 @@ test.describe("a purchase in Cyprus (T52)", () => {
     await expect(page.locator('[data-slot="address-form"] input[name="city"]')).toHaveValue(
       ADDRESS.city,
     );
+  });
+
+  test("what is typed before the page hydrates is kept (T58)", async ({ page }) => {
+    await addToCart(page);
+    // The page's scripts wait until the first name is typed: the field is the server's HTML only.
+    // A route turns the browser's cache off, so every chunk comes through here.
+    let release = () => {};
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    await page.route(/\/_next\/static\/.+\.js(\?|$)/, async (route) => {
+      await held;
+      await route.continue();
+    });
+    await page.goto("/checkout/contact", { waitUntil: "commit" });
+    const form = page.locator('[data-slot="address-form"]:visible');
+    const firstName = form.locator('input[name="firstName"]');
+    // Typed key by key, as a shopper does: React keeps the page's text when it hydrates, but not
+    // in the fields' state, and the next render wrote that state (empty) back (W5).
+    await firstName.pressSequentially(ADDRESS.firstName);
+    // Hydrated: React has put its own keys on the field's element.
+    const hydrated = () =>
+      firstName.evaluate((input) =>
+        Object.keys(input).some((key) => key.startsWith("__reactFiber")),
+      );
+    expect(await hydrated()).toBe(false);
+    release();
+    await expect.poll(hydrated).toBe(true);
+    await expect(firstName).toHaveValue(ADDRESS.firstName);
+    // Another field's keystroke renders the fields again: the first name stays.
+    await form.locator('input[name="lastName"]').pressSequentially(ADDRESS.lastName);
+    await expect(firstName).toHaveValue(ADDRESS.firstName);
+    // And the step takes it.
+    const email = `cy-early-${Date.now()}@example.com`;
+    await fillContact(page, el, email, { address1: ADDRESS.address1, city: ADDRESS.city });
+    await page.getByRole("button", { name: el.templates.checkout.contact.submit }).click();
+    await expect(page).toHaveURL(/\/checkout\/delivery$/);
   });
 
   test("the receipt is the placing browser's only: anyone else, or a forged cookie, gets the 404 page", async ({
