@@ -4,10 +4,10 @@ import type { MedusaNextFunction, MedusaRequest, MedusaResponse } from "@medusaj
 import { Modules } from "@medusajs/framework/utils";
 
 /**
- * How long a used link still answers as it did (W5, finding 1): the token provider's own link
- * lifetime (`ttl_seconds`, 900 by default), counted from when the code was confirmed.
+ * A code's lifetime: Medusa's `TokenVerificationProvider` default (`ttl_seconds`, 900), counted from
+ * `requested_at`. `medusa-config.ts` sets no `ttl_seconds`; one that did would have to use this value.
  */
-const AGAIN_MS = 900_000;
+const CODE_TTL_MS = 900_000;
 
 /**
  * `POST /auth/verification/confirm`, before Medusa's route: a code that is already confirmed answers
@@ -18,8 +18,10 @@ const AGAIN_MS = 900_000;
  *
  * Only the token provider's codes (Medusa's `TokenVerificationProvider` stores the code's SHA-256
  * in `provider_metadata.token_hash` and keeps the row once it is verified); anything else, an
- * unknown code, or one confirmed longer ago than `AGAIN_MS` goes on to Medusa's route, which
- * answers as before. The answer names nothing the first confirmation did not.
+ * unknown code, a code not confirmed yet, or one past its own lifetime goes on to Medusa's route,
+ * which answers as before (PR 85 review, item 3: a used code answers no longer than an unused one
+ * would). A newer link replaces the row's hash, so a superseded code is unknown here as at Medusa.
+ * The answer names nothing the first confirmation did not.
  */
 export async function confirmVerificationAgain(
   req: MedusaRequest,
@@ -38,9 +40,13 @@ export async function confirmVerificationAgain(
   const [verification] = await auth.listAuthVerifications({
     provider_metadata: { token_hash: createHash("sha256").update(code).digest("hex") },
   } as Parameters<typeof auth.listAuthVerifications>[0]);
-  const verifiedAt = verification?.verified_at ? new Date(verification.verified_at) : undefined;
+  const requestedAt = verification?.requested_at ? new Date(verification.requested_at) : undefined;
 
-  if (!verification || !verifiedAt || Date.now() - verifiedAt.getTime() > AGAIN_MS) {
+  if (
+    !verification?.verified_at ||
+    !requestedAt ||
+    requestedAt.getTime() + CODE_TTL_MS <= Date.now()
+  ) {
     return next();
   }
 

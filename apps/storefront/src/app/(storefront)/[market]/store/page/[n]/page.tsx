@@ -8,9 +8,7 @@ import {
 // D59 (T50): the store's other pages, by path (`/store/page/2`), rendered at their first visit and
 // kept in the static shell; `/store/page/1` and a page past the last are 404s.
 export const ensureStatic = "navigation";
-// W5: the page reads its path's handle before anything is drawn (ADR 0004: `notFound()` before any
-// `Suspense`), so a navigation waits for the static page; Next's dev-only instant-navigation check
-// would report that read on every first load. `ensureStatic`'s own check still applies (Next's docs).
+// W5: no instant-navigation check for a page that reads its path first (SETUP.md, "W5 fixes").
 export const instant = false;
 
 type Props = { params: Promise<{ market: string; n: string }> };
