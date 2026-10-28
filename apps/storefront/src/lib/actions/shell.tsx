@@ -1,9 +1,9 @@
 "use server";
 
-import { catalogs } from "@shopblok/i18n";
 import { MarketSuggestionBanner } from "@shopblok/ui/organisms/market-suggestion-banner";
 import { headers } from "next/headers";
 import type { ReactNode } from "react";
+import { messagesFor } from "../../i18n/market-messages";
 import { getMarketContext } from "../market-context";
 import { pathInMarket, suggestionForKey } from "../markets/suggest";
 import { currencyForCountry, listRegions } from "../medusa/regions";
@@ -55,7 +55,7 @@ export async function renderSuggestionBanner(
   return (
     <MarketSuggestionBanner
       suggestion={shown}
-      copy={catalogs[context.market.locale].organisms.marketSuggestionBanner}
+      copy={(await messagesFor(context.market)).organisms.marketSuggestionBanner}
       locale={context.market.htmlLang}
     />
   );

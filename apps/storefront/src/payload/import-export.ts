@@ -28,27 +28,44 @@ type StoredString = {
   key: string;
   value?: Record<string, string | null | undefined> | null;
   source?: { message?: string | null } | null;
+  note?: string | null;
 };
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
 /**
- * What an import of `ui-strings` writes (D77), per batch, before the plugin saves it:
+ * A CSV cell as text: the plugin's parser turns `10`, `1.5`, `true` or `null` into a number, a
+ * boolean or `null`, and a translation may well be "10" (PR 93 review, item 5). Empty is `null`.
+ */
+function cellText(cell: unknown): string | null {
+  if (cell === undefined || cell === null || cell === "") return null;
+  return typeof cell === "string" ? cell : String(cell);
+}
+
+/**
+ * What an import of `ui-strings` writes (D77), per batch, before the plugin saves it. The plugin
+ * gets only the rows that change something, each as `{ key, value?, note? }`:
  *
  * - **Only what changed.** A language whose cell holds what is stored already (an empty cell for a
- *   language with no value, the 38 the export lists beside the shop's four) is left out, so a
- *   round trip of an untouched export saves nothing new.
- * - **The ICU check,** as on a save: a value that does not parse or changes the source's arguments
- *   is left out and reported in the import's summary (`reportImportProblems`). The plugin would
- *   refuse it too, but for a language other than English it only logs the refusal (3.92.1).
+ *   language with no value, the 38 the export lists beside the shop's four), and a `note` that is
+ *   the stored one, are left out, and a row with nothing left is not handed on at all: a round trip
+ *   of an untouched export saves (and revalidates) nothing (PR 93 review, item 4). The summary's
+ *   `total` still counts every row; `updated` counts the rows that changed.
+ * - **The ICU check,** as on a save: a value that does not parse, is blank or changes the source's
+ *   arguments is left out and reported in the import's summary (`reportImportProblems`). The
+ *   plugin would refuse it too, but for a language other than English it only logs the refusal
+ *   (3.92.1).
  * - **English first.** For a row without English, the plugin writes the row's first language into
  *   English (3.92.1: it saves the first column it finds in the default locale), so a translator's
  *   file with only `value_el` would overwrite the English text. Each row that changes a value
  *   therefore carries the stored English, or the edited one.
- *
- * A key that is not stored is left for the plugin, which reports it as not found (imports update
- * only: `adminOnly("imports")`).
+ * - **Every language's column.** A file exported in one language has a single `value` column,
+ *   which the plugin would save in the default locale, over English (PR 93 review, item 2). Such a
+ *   row is refused with the reason.
+ * - **Keys the seed made.** A key that is not stored is reported here and left out (imports update
+ *   only, `adminOnly("imports")`; a new key comes from the code), so every row number in the
+ *   summary is the file's.
  */
 export const checkImportedStrings: ImportBeforeHook = async ({ batchNumber, data, req }) => {
   const rows = data as Record<string, unknown>[];
@@ -60,32 +77,50 @@ export const checkImportedStrings: ImportBeforeHook = async ({ batchNumber, data
     depth: 0,
     pagination: false,
     overrideAccess: true,
-    select: { key: true, value: true, source: true },
+    select: { key: true, value: true, source: true, note: true },
     req,
   });
   const stored = new Map((docs as unknown as StoredString[]).map((doc) => [doc.key, doc]));
   const problems = (req.context[PROBLEMS] ??= []) as ImportProblem[];
-  return rows.map((row, index) => {
-    const doc = typeof row["key"] === "string" ? stored.get(row["key"]) : undefined;
-    const { value: cells, ...rest } = row;
-    if (doc === undefined || !isRecord(cells)) return row;
+  const report = (index: number, error: string, data: Record<string, unknown>) =>
+    problems.push({ row: (batchNumber - 1) * IMPORT_BATCH_SIZE + index + 1, error, data });
+  return rows.flatMap((row, index) => {
+    const key = row["key"];
+    const doc = typeof key === "string" ? stored.get(key) : undefined;
+    if (doc === undefined) {
+      report(
+        index,
+        "key: no UI string has this key. New keys come from the code (pnpm bootstrap).",
+        {
+          key,
+        },
+      );
+      return [];
+    }
+    const cells = row["value"];
+    if (cells !== undefined && !isRecord(cells)) {
+      report(
+        index,
+        "value: the file has one value column. Export with every language (Locale: All), so each has its value_<locale> column.",
+        { key: doc.key, value: cells },
+      );
+      return [];
+    }
     const changed: Record<string, string | null> = {};
-    for (const [locale, cell] of Object.entries(cells)) {
-      const next = typeof cell === "string" && cell !== "" ? cell : null;
+    for (const [locale, cell] of Object.entries(cells ?? {})) {
+      const next = cellText(cell);
       if (next === (doc.value?.[locale] ?? null)) continue;
       const problem = next === null ? null : messageProblem(next, doc.source?.message ?? next);
-      if (problem === null) {
-        changed[locale] = next;
-        continue;
-      }
-      problems.push({
-        row: (batchNumber - 1) * IMPORT_BATCH_SIZE + index + 1,
-        error: `value_${locale}: ${problem}`,
-        data: { key: doc.key, [`value_${locale}`]: next },
-      });
+      if (problem === null) changed[locale] = next;
+      else
+        report(index, `value_${locale}: ${problem}`, { key: doc.key, [`value_${locale}`]: next });
     }
-    if (Object.keys(changed).length === 0) return rest;
-    return { ...rest, value: { en: doc.value?.["en"] ?? null, ...changed } };
+    const note = "note" in row ? cellText(row["note"]) : (doc.note ?? null);
+    const update: Record<string, unknown> = {};
+    if (Object.keys(changed).length > 0)
+      update["value"] = { en: doc.value?.["en"] ?? null, ...changed };
+    if (note !== (doc.note ?? null)) update["note"] = note;
+    return Object.keys(update).length === 0 ? [] : [{ key: doc.key, ...update }];
   });
 };
 

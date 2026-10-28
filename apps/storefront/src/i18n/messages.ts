@@ -1,6 +1,7 @@
-import { catalogs, DEFAULT_LOCALE, isLocale, type Locale, type Messages } from "@shopblok/i18n";
+import { catalogs, DEFAULT_LOCALE, type Locale, type Messages } from "@shopblok/i18n";
 import { messageProblem, messagesOf } from "@shopblok/i18n/icu";
 import type { AbstractIntlMessages } from "next-intl";
+import { catalogLocale } from "../lib/market-locale";
 
 /** A dotted path to a message or to a whole namespace of `Messages`: `"molecules.cartLineItem"`. */
 type PathsOf<T> = T extends string
@@ -177,16 +178,15 @@ export function codeMessages(locale: Locale): ReadonlyMap<string, string> {
   return messages;
 }
 
-/** The catalog a market language's copy starts from: its own, or English for one with none (D62). */
-export const catalogLocale = (language: string): Locale =>
-  isLocale(language) ? language : DEFAULT_LOCALE;
-
 const skipped = new Set<string>();
 
 /**
  * The rows of one language's `ui-strings` read that change what the page shows (D77): a value that
- * is set, differs from the code catalog's message and passes the ICU check against the code's
- * English. A key the code no longer has is ignored; a value that fails the check falls back to the
+ * is set, differs from the code catalog's message and from the code's English, and passes the ICU
+ * check against the code's English. The read falls back to the stored English for a language with
+ * no value of its own, and that is usually the code's English unedited: it must not cover the
+ * language's catalog (PR 93 review, item 3), while an edited English still does, as D77's order
+ * says. A key the code no longer has is ignored; a value that fails the check falls back to the
  * code, with one warning per language, key and value for the life of the server, so a broken
  * translation never reaches a page. The cached read keeps only these (usually none), so a request
  * parses nothing.
@@ -202,7 +202,7 @@ export function uiStringOverrides(
   for (const { key, value } of rows) {
     const source = english.get(key);
     if (source === undefined || value === undefined || value === null || value === "") continue;
-    if (value === code.get(key)) continue;
+    if (value === code.get(key) || value === source) continue;
     const problem = messageProblem(value, source);
     if (problem === null) {
       overrides[key] = value;

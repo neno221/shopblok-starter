@@ -1,6 +1,6 @@
 import "server-only";
-import { catalogs } from "@shopblok/i18n";
 import type { Link, SearchResult } from "@shopblok/registry/contracts";
+import { messagesFor } from "../../i18n/market-messages";
 import { cached } from "../cache";
 import { getMarketContext } from "../market-context";
 import { categoryPaths, listCategories } from "../medusa/categories";
@@ -42,7 +42,7 @@ export async function listingResponse(request: Request): Promise<Response> {
   try {
     const context = await getMarketContext(params.get("market") ?? "");
     if (context === null) return nothing(404);
-    const messages = catalogs[context.market.locale];
+    const messages = await messagesFor(context.market);
     const resolved = await resolveScope(context, messages, scope);
     if (resolved === null) return nothing(404);
     const results = await readListing({

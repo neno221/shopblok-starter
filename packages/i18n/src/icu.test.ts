@@ -71,6 +71,15 @@ describe("messageProblem (D77)", () => {
     );
   });
 
+  it("refuses a value of spaces only, which would draw a blank label (PR 93 review, item 6)", () => {
+    for (const blank of [" ", "   ", "\n\t"]) {
+      expect(messageProblem(blank, "Remove")).toBe(
+        "It is blank: write the text, or leave it empty for the code's.",
+      );
+    }
+    expect(messageProblem(" Remove ", "Remove")).toBeNull();
+  });
+
   it("checks only the syntax when the source itself does not parse", () => {
     expect(messageProblem("{anything}", "{broken")).toBeNull();
     expect(messageProblem("{broken", "{broken")).not.toBeNull();

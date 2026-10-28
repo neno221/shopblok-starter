@@ -91,10 +91,12 @@ function parseProblem(error: unknown): string {
 /**
  * Why `value` may not stand in for the English `source` (D77), or `null` when it may: it must parse
  * as ICU and have exactly the source's arguments, each of the same kind, so a translation can never
- * drop `{count}`, invent `{total}` or turn a plural into a plain argument. A `source` that does not
- * parse checks the value's syntax only.
+ * drop `{count}`, invent `{total}` or turn a plural into a plain argument. Nor may it be blank
+ * (spaces only), which would draw an empty label. A `source` that does not parse checks the value's
+ * syntax only.
  */
 export function messageProblem(value: string, source: string): string | null {
+  if (value.trim() === "") return "It is blank: write the text, or leave it empty for the code's.";
   let theirs: Map<string, ArgumentKind>;
   try {
     theirs = messageArguments(value);

@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { adminCredentials } from "./support/admin-credentials";
+import { add } from "./support/purchase";
 
 // T62 (D77): the shop's microcopy from Payload's `ui-strings`, over the code catalogs.
 //
@@ -9,6 +10,8 @@ import { adminCredentials } from "./support/admin-credentials";
 // - A value that changes the English text's arguments is refused with the reason.
 // - The CSV export has a column per language and imports back by key; a refused value in the file
 //   is reported in the import's summary, and only admins may export or import.
+// - An edit reaches copy drawn outside next-intl's request config too: the quick cart a server
+//   action renders after an add.
 // - A market switched to a language with no catalog shows English until its strings are
 //   translated, and then the edited value.
 //
@@ -26,6 +29,8 @@ const base = () => process.env["E2E_BASE_URL"] ?? "http://localhost:8000";
 const HEADING = "templates.home.newArrivals";
 /** A message with an argument: `{count, plural, …}`. */
 const PLURAL = "atoms.stock.low";
+/** The quick cart's title, which a server action draws after an add (T52), outside next-intl. */
+const QUICK_TITLE = "organisms.quickCartDropdown.title";
 
 type Doc = { id: number; key: string; value: Record<string, string | null> };
 
@@ -356,6 +361,8 @@ test("the CSV export has every language's column and imports back by key; a refu
     };
   };
   expect(result.status).toBe("partial");
+  // Only the heading's row reached the plugin: the other 717 changed nothing, or nothing allowed.
+  expect(result.summary.updated).toBe(1);
   expect(result.summary.issues).toBe(1);
   expect(result.summary.issueDetails[0]?.row).toBe(records.indexOf(row(PLURAL)) + 1);
   expect(result.summary.issueDetails[0]?.error).toMatch(
@@ -366,12 +373,16 @@ test("the CSV export has every language's column and imports back by key; a refu
   expect(after.value).toEqual({ ...heading.value, de: german });
   expect((await stringDoc(PLURAL)).value).toEqual(plural.value);
 
-  // Nothing else moved: a second export is the first with the one cell changed.
+  // Nothing else moved, nor was saved: a second export is the first with the one cell changed,
+  // and only the heading's `updatedAt` is new.
   const again = parseCsv(await (await exportCsv(admin())).text());
-  const withoutTimes = (table: string[][]) =>
-    table.map((cells) => cells.filter((_, index) => index !== at("updatedAt")));
+  const headingRow = records.indexOf(row(HEADING)) + 1;
+  const withoutTime = (table: string[][]) =>
+    table.map((cells, index) =>
+      index === headingRow ? cells.filter((_, column) => column !== at("updatedAt")) : cells,
+    );
   row(PLURAL)[at("value_el")] = plural.value["el"] ?? "";
-  expect(withoutTimes(again)).toEqual(withoutTimes(rows));
+  expect(withoutTime(again)).toEqual(withoutTime(rows));
 
   // A translator's file with Greek only: English stays as it is. Left to the plugin, the row's
   // first language would be written into English (`checkImportedStrings`).
@@ -380,6 +391,44 @@ test("the CSV export has every language's column and imports back by key; a refu
   const only = await importCsv(`key,value_el\n${HEADING},${greek}\n`, admin());
   expect(only.status, await only.clone().text()).toBe(201);
   expect((await stringDoc(HEADING)).value).toEqual({ ...heading.value, de: german, el: greek });
+
+  // A file exported in one language has a single `value` column, which the plugin would save over
+  // English: it is refused, and nothing changes.
+  const single = await importCsv(`key,value\n${HEADING},Μόνο ελληνικά ${stamp}\n`, admin());
+  expect(single.status, await single.clone().text()).toBe(201);
+  const refused = (
+    (await single.json()) as { doc: { status: string; summary: { issues: number } } }
+  ).doc;
+  expect(refused).toMatchObject({ status: "failed", summary: { issues: 1 } });
+  expect((await stringDoc(HEADING)).value).toEqual({ ...heading.value, de: german, el: greek });
+});
+
+test("an edited quick-cart title shows in the quick cart a server action draws after an add", async ({
+  browser,
+}) => {
+  const doc = await stringDoc(QUICK_TITLE);
+  const edited = `Μπήκε στο καλάθι ${stamp}`;
+  expect((await setValue(doc.id, "el", edited)).status).toBe(200);
+  const shopper = await browser.newPage({ baseURL: base() });
+  // The action's read is stale-while-revalidate like a page's: an add right after the save may
+  // still draw the old title, the next one the new.
+  await expect
+    .poll(
+      async () => {
+        await add(shopper);
+        // The title names the dialog, beside the line just added.
+        const named = await shopper.getByRole("dialog", { name: edited }).count();
+        await shopper.keyboard.press("Escape");
+        return named;
+      },
+      {
+        message: "the quick cart is named by the edited title",
+        timeout: 60_000,
+        intervals: [2_000],
+      },
+    )
+    .toBe(1);
+  await shopper.close();
 });
 
 test("a market switched to a language with no catalog shows English, then its edited value", async () => {

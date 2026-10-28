@@ -240,6 +240,13 @@ describe("uiStringOverrides (D77)", () => {
     );
   });
 
+  it("keeps the language's catalog for an emptied value: the fallback's unedited English is no edit", () => {
+    // PR 93 review, item 3: an emptied Greek value reads as the stored English (Payload's fallback).
+    expect(uiStringOverrides("el", [{ key: LOW, value: catalogs.en.atoms.stock.low }])).toEqual({});
+    const edited = "{count, plural, other {Just # left}}";
+    expect(uiStringOverrides("el", [{ key: LOW, value: edited }])).toEqual({ [LOW]: edited });
+  });
+
   it("falls back to the code for a value that fails the check, warning once per value", () => {
     const warn = vi.fn();
     const broken = [{ key: LOW, value: "Μόνο {total} ακόμη" }];

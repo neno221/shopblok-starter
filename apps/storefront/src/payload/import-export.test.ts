@@ -65,12 +65,13 @@ describe("checkImportedStrings: what an import of ui-strings writes (D77)", () =
     key: "atoms.stock.low",
     value: { en: "Only {count} left", el: "Μόνο {count}", de: "Nur {count}", fr: null },
     source: { message: "Only {count} left" },
+    note: null,
   };
   const request = () => ({
     context: {} as Record<string, unknown>,
     payload: { find: vi.fn(async () => ({ docs: [stored] })) },
   });
-  const run = (rows: Record<string, unknown>[], req = request(), batchNumber = 1) =>
+  const run = (rows: Record<string, unknown>[], req: unknown = request(), batchNumber = 1) =>
     checkImportedStrings({
       batchNumber,
       data: rows,
@@ -105,6 +106,50 @@ describe("checkImportedStrings: what an import of ui-strings writes (D77)", () =
     expect(row).toEqual({ key: "atoms.stock.low", note: "n" });
   });
 
+  it("hands the plugin no row that changes nothing, so an untouched round trip saves nothing (review, item 4)", async () => {
+    const req = request();
+    const untouched = {
+      id: 7,
+      key: "atoms.stock.low",
+      namespace: "atoms",
+      note: "",
+      source: { message: "Only {count} left", arguments: "{count}" },
+      value: { en: "Only {count} left", el: "Μόνο {count}", de: "Nur {count}", fr: "", pt: "" },
+      createdAt: "2026-10-28T21:32:11.494Z",
+      updatedAt: "2026-10-28T21:32:11.494Z",
+    };
+    expect(await run([untouched, { key: "atoms.stock.low" }], req)).toEqual([]);
+    expect(req.context["uiStringsImportProblems"]).toEqual([]);
+  });
+
+  it("reads a number- or boolean-looking cell as its text, never as an empty value (review, item 5)", async () => {
+    const plain = {
+      key: "atoms.size",
+      value: { en: "Size" },
+      source: { message: "Size" },
+      note: null,
+    };
+    const req = { context: {}, payload: { find: vi.fn(async () => ({ docs: [plain] })) } };
+    const rows = await run([{ key: "atoms.size", value: { de: 10, fr: true, el: 1.5 } }], req);
+    expect(rows).toEqual([
+      { key: "atoms.size", value: { en: "Size", de: "10", fr: "true", el: "1.5" } },
+    ]);
+  });
+
+  it("refuses a file with one value column, which the plugin would save over English (review, item 2)", async () => {
+    const req = request();
+    expect(await run([{ key: "atoms.stock.low", value: "Μόνο {count}" }], req)).toEqual([]);
+    expect(req.context["uiStringsImportProblems"]).toEqual([
+      {
+        row: 1,
+        error: expect.stringMatching(
+          /^value: the file has one value column\. Export with every language/,
+        ),
+        data: { key: "atoms.stock.low", value: "Μόνο {count}" },
+      },
+    ]);
+  });
+
   it("keeps a changed value, with the stored English first, so the plugin never writes it into English", async () => {
     const [row] = await run([{ key: "atoms.stock.low", value: { el: "Λίγα: {count}", de: "" } }]);
     expect(row?.["value"]).toEqual({ en: "Only {count} left", el: "Λίγα: {count}", de: null });
@@ -119,9 +164,10 @@ describe("checkImportedStrings: what an import of ui-strings writes (D77)", () =
       { key: "atoms.stock.low", value: { el: "Λίγα" } },
       { key: "atoms.stock.low", value: { de: "Nur {count", fr: "Plus que {count}" } },
     ];
-    const [first, second] = await run(rows, req, 2);
-    expect(first).toEqual({ key: "atoms.stock.low" });
-    expect(second?.["value"]).toEqual({ en: "Only {count} left", fr: "Plus que {count}" });
+    const [only, ...more] = await run(rows, req, 2);
+    // The first row's one change was refused: nothing of it reaches the plugin.
+    expect(more).toEqual([]);
+    expect(only?.["value"]).toEqual({ en: "Only {count} left", fr: "Plus que {count}" });
     expect(req.context["uiStringsImportProblems"]).toEqual([
       {
         row: IMPORT_BATCH_SIZE + 1,
@@ -136,9 +182,22 @@ describe("checkImportedStrings: what an import of ui-strings writes (D77)", () =
     ]);
   });
 
-  it("hands a key that is not stored to the plugin as it is (it reports it as not found)", async () => {
-    const row = { key: "atoms.unknown", value: { el: "x" } };
-    expect(await run([row])).toEqual([row]);
+  it("reports a key that is not stored, with its row, and leaves it out", async () => {
+    const req = request();
+    const rows = [
+      { key: "atoms.stock.low", value: { el: "Λίγα: {count}" } },
+      { key: "atoms.unknown", value: { el: "x" } },
+    ];
+    expect(await run(rows, req)).toEqual([
+      { key: "atoms.stock.low", value: { en: "Only {count} left", el: "Λίγα: {count}" } },
+    ]);
+    expect(req.context["uiStringsImportProblems"]).toEqual([
+      {
+        row: 2,
+        error: expect.stringMatching(/^key: no UI string has this key/),
+        data: { key: "atoms.unknown" },
+      },
+    ]);
   });
 });
 
