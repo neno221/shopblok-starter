@@ -19,8 +19,12 @@ export const Pages: CollectionConfig = {
   },
   // `pages:<locale>` for the reads of one language, `payload:pages` for every reader.
   hooks: revalidateOnPublish({ tags: (locale) => [`pages:${locale}`, "payload:pages"] }),
-  // D74: autosave, scheduled publishing (on the jobs queue) and up to 50 versions per page.
-  versions: { drafts: { autosave: true, schedulePublish: true }, maxPerDoc: 50 },
+  // D74: autosave, scheduled publishing (on the jobs queue) and up to 50 versions per page. The
+  // Save Draft button stays next to autosave, so an editor can still save a draft on purpose.
+  versions: {
+    drafts: { autosave: { showSaveDraftButton: true }, schedulePublish: true },
+    maxPerDoc: 50,
+  },
   fields: [
     { name: "title", type: "text", localized: true, required: true },
     { name: "slug", type: "text", localized: true, required: true },

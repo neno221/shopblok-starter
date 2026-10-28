@@ -9,6 +9,9 @@ import { e2eRoutesEnabled, env } from "../../../../../lib/env";
 // Test-only (404 unless E2E_TEST_ROUTES=true; T59): a CMS page read the way the shop's pages read
 // one (D73), for `cms-preview.spec.ts` until T65's `[...slug]` route takes over. Draft Mode is read
 // outside the cached read and passed in; the live-preview island renders only in Draft Mode.
+// Dynamic and blocking (`instant = false`, as the cart page): the gate is read per request.
+
+export const instant = false;
 export default async function E2eCmsPage({ params }: PageProps<"/[market]/e2e-cms/[slug]">) {
   await connection();
   if (!e2eRoutesEnabled()) notFound();
