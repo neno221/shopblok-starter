@@ -5885,7 +5885,7 @@ The run's wall clock is the `design-system` job's, as before M3; `e2e-smoke` rou
 | 11 | Leftovers closed | Met (T45, T48, T52) |
 | 12 | CI | Met: the times are above; `design-system` has 134 entries; the gate treats `packages/ui/src/templates/` as DS-only until a route imports it |
 | 13 | Green | Met when this PR merges: it merges only once its PR run and its dispatched run (every job, `windows-smoke` included) are green on the same commit |
-| 14 | W5 | **Met** (2026-10-28): W5's second run, with finding 3 checked in the cloud ("Windows check and design review (W5)") |
+| 14 | W5 | **Met** (2026-10-28): W5's second run, with finding 3 checked in the cloud, except `pnpm test`, which failed twice in the first run on 5 s Vitest time-outs under turbo's parallel load while each package passes alone, and was not run again (Steven's call, pending) ("Windows check and design review (W5)") |
 | 15 | Docs | Met by this PR |
 
 ### Checks
@@ -5953,7 +5953,7 @@ Two must-fix items, both fixed; of the seven optional ones, item 3 (security) an
 
 ## Windows check and design review (W5)
 
-**Result: step 3's DS checks, step 4's outage (O4 as CI runs it) and step 5 pass on the PC, and the four design-review findings are checked fixed: three on the PC, and finding 3 (the return form) by a browser test in the cloud. W5 passes.** ("Second run" below.) The first run stopped on 2026-10-28 so that the four W5 fixes (PR 85, "W5 fixes" above) could merge; the second run, the same day, ran on `w5-windows-check` with `main` at `3ea1f34` merged in. What the first run did, in `E:\shopblok-starter` on `main` at `b5b68b7` (PR 84's merge):
+**Result: step 3's DS checks, step 4's outage (O4 as CI runs it) and step 5 pass on the PC, and the four design-review findings are checked fixed: three on the PC, and finding 3 (the return form) by a browser test in the cloud. W5 passes, except `pnpm test`, which failed twice in the first run on 5 s Vitest time-outs under turbo's parallel load while each package passes alone, and was not run again (Steven's call, pending).** ("Second run" below.) The first run stopped on 2026-10-28 so that the four W5 fixes (PR 85, "W5 fixes" above) could merge; the second run, the same day, ran on `w5-windows-check` with `main` at `3ea1f34` merged in. What the first run did, in `E:\shopblok-starter` on `main` at `b5b68b7` (PR 84's merge):
 - **Shop pages (step 1).** In `next dev`, `/`, `/us`, `/de` and `/ch/fr` at 375, 768 and 1440 px: 440 checks, **no horizontal overflow**. They covered the catalog pages, the search page and overlay, the four auth pages, a guest purchase in each market from the drawer to the receipt, the switcher, the suggestion banner and the eleven account pages of a verified account. The only console messages were three dev-only errors (finding 2), and the only failed requests were the twelve expected 404s of the return form (finding 3).
 - **DS pages (step 2).** The 12 Templates and a sample of 16 other entries in `en`, `de`, `fr` and `el`: 452 loads, all 200, clean.
 - **Design review.** The owner's design review is done. The four odd things from step 1 go to a cloud fix task (the owner's answer, 2026-10-28), so W5 has open items.
@@ -6017,14 +6017,14 @@ The owner did the review while steps 1 and 2 ran, with the session's list of odd
 
 ### What should change in the plan
 
-1. **Done in the second run:** step 3's DS checks, step 4's O4 and step 5 pass, and the plan's status line, §7 item 14 and NEXT-SESSION.md are updated. Finding 3 is checked by a browser test in the cloud (the review table). **W5 passes.**
+1. **Done in the second run:** step 3's DS checks, step 4's O4 and step 5 pass, and the plan's status line, §7 item 14 and NEXT-SESSION.md are updated. Finding 3 is checked by a browser test in the cloud (the review table). **W5 passes, except `pnpm test`, which failed twice in the first run on 5 s Vitest time-outs under turbo's parallel load while each package passes alone, and was not run again (Steven's call, pending)** (item 3).
 2. **Done:** W5's step 4 prompt in NEXT-SESSION.md now visits the missing product once **before** Medusa stops, as CI's O4 does.
 3. **`pnpm test` on the PC.** For the first time in a W check it failed twice, on 5 s time-outs in the storefront's story and route tests (two, then four, different each run), while each package passes alone. A longer limit for those tests (as T40 and W4's note did for others) would make the PC's run pass; it is the owner's call whether that joins the fix task.
 
 ### Smaller observations
 
 - **The first `e2e-smoke`-style build failed only because Medusa was slow**: a prerender's read waited the data layer's 10 s a minute after Medusa had started, and the next build passed. CI starts Medusa the same way before its build and has not seen this; on the PC, Medusa's first answers after a start are slow.
-- **The DS checks list 798 tests** on this commit and on the second run's; the docs said 799. The `design-system` project alone is 798 (the 21 thumbnails are a project of their own), so this section records what ran.
+- **The DS checks list 798 tests** on the PC (`--list`, on the first run's commit and on the second run's), where the docs said 799. CI's DS step runs the `design-system` and `thumbnails` projects together, 820 tests on PR 85's run, so 799 there; the one test's difference between the PC and CI is not traced. This section records what ran on the PC; the CI rows keep CI's counts.
 - **Docker Desktop was not running** at the start; the session started it (11 s to `docker info`).
 - **`next dev` rewrote `apps/storefront/src/payload-types.ts`** (Payload's type generation; 283 lines changed in quoting and layout). The session restored it with `git restore`, as the checks need a clean tree.
 - **Left on E:**: `E:\medusa.log` (the session cannot delete a file at a drive's root) and the empty `E:\shopblok-starter-w5-env`, as for W3 and W4. Delete both by hand.
