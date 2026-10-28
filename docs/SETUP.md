@@ -6322,7 +6322,7 @@ Left as the review says: 2 (concurrent upserts; the reconcile heals them), 3 (no
 |---|---|
 | Date | 2026-10-28 |
 | Branch | `claude/project-thread-oxrcpy`, from `main` at `3663f87` (PR 91 merged) |
-| PR | see the PR that adds this section |
+| PR | 93 |
 
 ### What there is now
 
