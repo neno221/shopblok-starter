@@ -66,7 +66,16 @@ export interface Config {
     users: UserAuthOperations;
     integrations: IntegrationAuthOperations;
   };
-  blocks: {};
+  blocks: {
+    richText: RichTextBlock;
+    mediaWithText: MediaWithTextBlock;
+    uspBar: UspBarBlock;
+    logoCloud: LogoCloudBlock;
+    faq: FaqBlock;
+    testimonials: TestimonialsBlock;
+    video: VideoBlock;
+    spacer: SpacerBlock;
+  };
   collections: {
     users: User;
     integrations: Integration;
@@ -310,49 +319,98 @@ export interface IntegrationAuthOperations {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "users".
+ * via the `definition` "RichTextBlock".
  */
-export interface User {
-  id: number;
-  /**
-   * Admins manage users, integrations and markets; editors manage content. The first account is always an admin, whatever is chosen here.
-   */
-  role: "admin" | "editor";
-  updatedAt: string;
-  createdAt: string;
-  email: string;
-  resetPasswordToken?: string | null;
-  resetPasswordExpiration?: string | null;
-  salt?: string | null;
-  hash?: string | null;
-  resetPasswordRequestedAt?: string | null;
-  loginAttempts?: number | null;
-  lockUntil?: string | null;
-  sessions?:
-    | {
-        id: string;
-        createdAt?: string | null;
-        expiresAt: string;
-      }[]
-    | null;
-  password?: string | null;
-  collection: "users";
+export interface RichTextBlock {
+  variant: "standard";
+  content: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ("ltr" | "rtl") | null;
+      format: "left" | "start" | "center" | "right" | "end" | "justify" | "";
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  };
+  sectionSettings?: {
+    anchor?: string | null;
+    spacing?: ("none" | "small" | "medium" | "large") | null;
+    surface?: ("default" | "muted" | "inverse") | null;
+    container?: ("narrow" | "default" | "wide" | "full") | null;
+    visibility?: ("all" | "mobile" | "desktop") | null;
+  };
+  id?: string | null;
+  blockName?: string | null;
+  blockType: "richText";
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "integrations".
+ * via the `definition` "MediaWithTextBlock".
  */
-export interface Integration {
-  id: number;
-  name: string;
-  role: "medusa-sync";
-  updatedAt: string;
-  createdAt: string;
-  enableAPIKey?: boolean | null;
-  apiKey?: string | null;
-  apiKeyIndex?: string | null;
-  hasAPIKey?: boolean | null;
-  collection: "integrations";
+export interface MediaWithTextBlock {
+  variant: "standard";
+  media: number | Media;
+  /**
+   * From wide screens up; on a phone the picture is above the text.
+   */
+  imageSide: "start" | "end";
+  heading?: string | null;
+  content?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ("ltr" | "rtl") | null;
+      format: "left" | "start" | "center" | "right" | "end" | "justify" | "";
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  links?:
+    | {
+        link: {
+          type?: ("reference" | "custom") | null;
+          reference?:
+            | ({
+                relationTo: "categories";
+                value: number | Category;
+              } | null)
+            | ({
+                relationTo: "collections";
+                value: number | ProductCollection;
+              } | null)
+            | ({
+                relationTo: "products";
+                value: number | Product;
+              } | null);
+          url?: string | null;
+          label: string;
+          newTab?: boolean | null;
+          appearance?: ("default" | "outline" | "text") | null;
+        };
+        id?: string | null;
+      }[]
+    | null;
+  sectionSettings?: {
+    anchor?: string | null;
+    spacing?: ("none" | "small" | "medium" | "large") | null;
+    surface?: ("default" | "muted" | "inverse") | null;
+    container?: ("narrow" | "default" | "wide" | "full") | null;
+    visibility?: ("all" | "mobile" | "desktop") | null;
+  };
+  id?: string | null;
+  blockName?: string | null;
+  blockType: "mediaWithText";
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -360,6 +418,9 @@ export interface Integration {
  */
 export interface Media {
   id: number;
+  /**
+   * What the picture shows; for a video or captions file, what it is.
+   */
   alt: string;
   caption?: string | null;
   updatedAt: string;
@@ -409,37 +470,6 @@ export interface Media {
   };
 }
 /**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "pages".
- */
-export interface Page {
-  id: number;
-  title: string;
-  slug: string;
-  seedKey?: string | null;
-  updatedAt: string;
-  createdAt: string;
-  _status?: ("draft" | "published") | null;
-}
-/**
- * Follows Medusa. Edit these fields in Medusa Admin; the sync writes them here.
- *
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "products".
- */
-export interface Product {
-  id: number;
-  medusaId: string;
-  title: string;
-  handle: string;
-  thumbnail?: string | null;
-  deletedInMedusa?: boolean | null;
-  medusaUpdatedAt?: string | null;
-  syncedAt?: string | null;
-  updatedAt: string;
-  createdAt: string;
-}
-/**
  * Follows Medusa. Edit these fields in Medusa Admin; the sync writes them here.
  *
  * This interface was referenced by `Config`'s JSON-Schema
@@ -474,6 +504,314 @@ export interface ProductCollection {
   syncedAt?: string | null;
   updatedAt: string;
   createdAt: string;
+}
+/**
+ * Follows Medusa. Edit these fields in Medusa Admin; the sync writes them here.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "products".
+ */
+export interface Product {
+  id: number;
+  medusaId: string;
+  title: string;
+  handle: string;
+  thumbnail?: string | null;
+  deletedInMedusa?: boolean | null;
+  medusaUpdatedAt?: string | null;
+  syncedAt?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "UspBarBlock".
+ */
+export interface UspBarBlock {
+  variant: "standard";
+  items: {
+    icon:
+      "delivery" | "returns" | "secure" | "support" | "sustainable" | "gift" | "quality" | "fast";
+    title: string;
+    text?: string | null;
+    id?: string | null;
+  }[];
+  sectionSettings?: {
+    anchor?: string | null;
+    spacing?: ("none" | "small" | "medium" | "large") | null;
+    surface?: ("default" | "muted" | "inverse") | null;
+    container?: ("narrow" | "default" | "wide" | "full") | null;
+    visibility?: ("all" | "mobile" | "desktop") | null;
+  };
+  id?: string | null;
+  blockName?: string | null;
+  blockType: "uspBar";
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "LogoCloudBlock".
+ */
+export interface LogoCloudBlock {
+  variant: "standard";
+  heading?: string | null;
+  logos: {
+    name: string;
+    image: number | Media;
+    /**
+     * The brand's site (https), opened in a new tab.
+     */
+    url?: string | null;
+    id?: string | null;
+  }[];
+  sectionSettings?: {
+    anchor?: string | null;
+    spacing?: ("none" | "small" | "medium" | "large") | null;
+    surface?: ("default" | "muted" | "inverse") | null;
+    container?: ("narrow" | "default" | "wide" | "full") | null;
+    visibility?: ("all" | "mobile" | "desktop") | null;
+  };
+  id?: string | null;
+  blockName?: string | null;
+  blockType: "logoCloud";
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "FaqBlock".
+ */
+export interface FaqBlock {
+  variant: "standard";
+  heading?: string | null;
+  items: {
+    question: string;
+    /**
+     * A blank line starts a new paragraph.
+     */
+    answer: string;
+    id?: string | null;
+  }[];
+  sectionSettings?: {
+    anchor?: string | null;
+    spacing?: ("none" | "small" | "medium" | "large") | null;
+    surface?: ("default" | "muted" | "inverse") | null;
+    container?: ("narrow" | "default" | "wide" | "full") | null;
+    visibility?: ("all" | "mobile" | "desktop") | null;
+  };
+  id?: string | null;
+  blockName?: string | null;
+  blockType: "faq";
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "TestimonialsBlock".
+ */
+export interface TestimonialsBlock {
+  variant: "standard";
+  heading?: string | null;
+  quotes: {
+    quote: string;
+    author: string;
+    /**
+     * Where they are from, or what they bought.
+     */
+    role?: string | null;
+    /**
+     * Stars, from 1 to 5; none leaves them out.
+     */
+    rating?: number | null;
+    /**
+     * Drawn small beside the name.
+     */
+    avatar?: (number | null) | Media;
+    id?: string | null;
+  }[];
+  sectionSettings?: {
+    anchor?: string | null;
+    spacing?: ("none" | "small" | "medium" | "large") | null;
+    surface?: ("default" | "muted" | "inverse") | null;
+    container?: ("narrow" | "default" | "wide" | "full") | null;
+    visibility?: ("all" | "mobile" | "desktop") | null;
+  };
+  id?: string | null;
+  blockName?: string | null;
+  blockType: "testimonials";
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "VideoBlock".
+ */
+export interface VideoBlock {
+  variant: "standard";
+  heading?: string | null;
+  /**
+   * What the video is: the player's name for screen readers.
+   */
+  title: string;
+  source: "embed" | "upload";
+  /**
+   * Nothing is loaded from YouTube or Vimeo until the visitor presses play.
+   */
+  url?: string | null;
+  /**
+   * MP4 or WebM.
+   */
+  file?: (number | null) | Media;
+  /**
+   * A WebVTT file per language; the page's language is on by default.
+   */
+  captions?:
+    | {
+        language:
+          | "en"
+          | "bg"
+          | "hr"
+          | "cs"
+          | "da"
+          | "nl"
+          | "et"
+          | "fi"
+          | "fr"
+          | "de"
+          | "el"
+          | "hu"
+          | "ga"
+          | "it"
+          | "lv"
+          | "lt"
+          | "mt"
+          | "pl"
+          | "pt"
+          | "ro"
+          | "sk"
+          | "sl"
+          | "es"
+          | "sv"
+          | "nb"
+          | "tr"
+          | "ru"
+          | "uk"
+          | "ar"
+          | "he"
+          | "hi"
+          | "bn"
+          | "th"
+          | "vi"
+          | "id"
+          | "ms"
+          | "tl"
+          | "zh"
+          | "ja"
+          | "ko"
+          | "ka"
+          | "mn";
+        file: number | Media;
+        id?: string | null;
+      }[]
+    | null;
+  /**
+   * Shown until the video plays.
+   */
+  poster?: (number | null) | Media;
+  caption?: string | null;
+  sectionSettings?: {
+    anchor?: string | null;
+    spacing?: ("none" | "small" | "medium" | "large") | null;
+    surface?: ("default" | "muted" | "inverse") | null;
+    container?: ("narrow" | "default" | "wide" | "full") | null;
+    visibility?: ("all" | "mobile" | "desktop") | null;
+  };
+  id?: string | null;
+  blockName?: string | null;
+  blockType: "video";
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "SpacerBlock".
+ */
+export interface SpacerBlock {
+  variant: "standard";
+  size: "small" | "medium" | "large";
+  divider?: boolean | null;
+  sectionSettings?: {
+    anchor?: string | null;
+    spacing?: ("none" | "small" | "medium" | "large") | null;
+    surface?: ("default" | "muted" | "inverse") | null;
+    container?: ("narrow" | "default" | "wide" | "full") | null;
+    visibility?: ("all" | "mobile" | "desktop") | null;
+  };
+  id?: string | null;
+  blockName?: string | null;
+  blockType: "spacer";
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "users".
+ */
+export interface User {
+  id: number;
+  /**
+   * Admins manage users, integrations and markets; editors manage content. The first account is always an admin, whatever is chosen here.
+   */
+  role: "admin" | "editor";
+  updatedAt: string;
+  createdAt: string;
+  email: string;
+  resetPasswordToken?: string | null;
+  resetPasswordExpiration?: string | null;
+  salt?: string | null;
+  hash?: string | null;
+  resetPasswordRequestedAt?: string | null;
+  loginAttempts?: number | null;
+  lockUntil?: string | null;
+  sessions?:
+    | {
+        id: string;
+        createdAt?: string | null;
+        expiresAt: string;
+      }[]
+    | null;
+  password?: string | null;
+  collection: "users";
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "integrations".
+ */
+export interface Integration {
+  id: number;
+  name: string;
+  role: "medusa-sync";
+  updatedAt: string;
+  createdAt: string;
+  enableAPIKey?: boolean | null;
+  apiKey?: string | null;
+  apiKeyIndex?: string | null;
+  hasAPIKey?: boolean | null;
+  collection: "integrations";
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "pages".
+ */
+export interface Page {
+  id: number;
+  title: string;
+  slug: string;
+  layout?:
+    | (
+        | RichTextBlock
+        | MediaWithTextBlock
+        | UspBarBlock
+        | LogoCloudBlock
+        | FaqBlock
+        | TestimonialsBlock
+        | VideoBlock
+        | SpacerBlock
+      )[]
+    | null;
+  seedKey?: string | null;
+  updatedAt: string;
+  createdAt: string;
+  _status?: ("draft" | "published") | null;
 }
 /**
  * Variables in double braces are filled in when the e-mail is sent. Verify the e-mail address: {{email}}, {{code}}. Password reset: {{email}}. Order transfer to an account: {{email}}, {{orderNumber}}. Anything else in braces stays as it is.
@@ -974,6 +1312,7 @@ export interface MediaSelect<T extends boolean = true> {
 export interface PagesSelect<T extends boolean = true> {
   title?: T;
   slug?: T;
+  layout?: T | {};
   seedKey?: T;
   updatedAt?: T;
   createdAt?: T;

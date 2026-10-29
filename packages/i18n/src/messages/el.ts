@@ -698,6 +698,14 @@ export const el: Messages = {
         "{count, plural, one {# πεδίο χρειάζεται την προσοχή σας.} other {# πεδία χρειάζονται την προσοχή σας.}}",
     },
   },
+  // Οι ενότητες του M4 (T63).
+  sections: {
+    video: {
+      playLabel: "Αναπαραγωγή βίντεο",
+      play: "Αναπαραγωγή βίντεο: {title}",
+      provider: "Παίζει από το {provider}, που μπορεί να αποθηκεύσει cookies.",
+    },
+  },
   templates: {
     notFound: {
       title: "Η σελίδα δεν βρέθηκε",

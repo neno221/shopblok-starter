@@ -685,6 +685,14 @@ export const de: Messages = {
         "{count, plural, one {# Feld braucht Ihre Aufmerksamkeit.} other {# Felder brauchen Ihre Aufmerksamkeit.}}",
     },
   },
+  // Die Sektionen von M4 (T63).
+  sections: {
+    video: {
+      playLabel: "Video abspielen",
+      play: "Video abspielen: {title}",
+      provider: "Wird von {provider} abgespielt, das Cookies setzen kann.",
+    },
+  },
   templates: {
     notFound: {
       title: "Seite nicht gefunden",

@@ -8,9 +8,9 @@ const atomFiles = readdirSync(atomsDir).filter(
   (name) => name.endsWith(".tsx") && !name.endsWith(".test.tsx"),
 );
 
-// D42: the rules hold in the four folders of components. `molecules/` and `organisms/` arrive with
+// D42: the rules hold in the folders of components (M4's sections too, D70). `molecules/` and `organisms/` arrive with
 // M2's component tasks; a folder that does not exist yet has nothing to scan.
-const folders = ["atoms", "primitives", "molecules", "organisms"] as const;
+const folders = ["atoms", "primitives", "molecules", "organisms", "sections"] as const;
 const srcDir = path.join(atomsDir, "..");
 
 function componentFiles(dir: string): string[] {

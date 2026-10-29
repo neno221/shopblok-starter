@@ -784,6 +784,14 @@ export const en = {
         "{count, plural, one {# field needs your attention.} other {# fields need your attention.}}",
     },
   },
+  // M4's sections (T63, D79): the blocks' fixed words; everything else on a block is the editor's.
+  sections: {
+    video: {
+      playLabel: "Play video",
+      play: "Play video: {title}",
+      provider: "Plays from {provider}, which may set cookies.",
+    },
+  },
   templates: {
     notFound: {
       title: "Page not found",

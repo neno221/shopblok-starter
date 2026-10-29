@@ -23,6 +23,7 @@ const kinds = {
   molecules: "molecule",
   organisms: "organism",
   "headers-footers": "organism",
+  sections: "section",
   templates: "template",
 } as const;
 
@@ -142,6 +143,7 @@ describe("navigation", () => {
       "molecules",
       "organisms",
       "headers-footers",
+      "sections",
       "templates",
     ]);
     const foundationsOnly = navigation([testEntry("foundations/b", "foundations")]);

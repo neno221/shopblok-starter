@@ -27,5 +27,6 @@ export * from "./product";
 export * from "./product-page";
 export * from "./review";
 export * from "./search";
+export * from "./sections";
 export * from "./shipping";
 export * from "./site";

@@ -42,7 +42,8 @@ export const designSystemOnly: readonly DesignSystemArea[] = [
   // with it.
   { path: "packages/ui/src/templates/", importedAs: /^@shopblok\/ui\/templates(\/|$)/ },
   // M4's sections, the blocks' components (D70, D87 item 1): DS-only on the templates' terms, until
-  // a market route (T65's CMS page template) imports one.
+  // a market route imports one. T63's `RenderBlocks` does (the test page `e2e-cms/[slug]`), so the
+  // import rule counts the area as shared from T63 on.
   { path: "packages/ui/src/sections/", importedAs: /^@shopblok\/ui\/sections(\/|$)/ },
   // The DS page's stories, shell and routes (T22).
   { path: "apps/storefront/src/design-system/" },
@@ -73,7 +74,9 @@ const designSystemUnaffected: readonly (string | RegExp)[] = [
   "apps/storefront/src/app/(payload)/",
   "apps/storefront/src/app/next/",
   // Payload: its config, collections, generated types and migrations, and the bootstrap scripts.
-  "apps/storefront/src/payload/",
+  // Not the blocks and the fields they are made of, nor the language list (T63, D70): the DS's
+  // "Payload block" panel reads them.
+  /^apps\/storefront\/src\/payload\/(?!blocks\/|fields\/|locales\.ts$)/,
   "apps/storefront/src/payload.config.ts",
   "apps/storefront/src/payload-types.ts",
   "apps/storefront/src/migrations/",

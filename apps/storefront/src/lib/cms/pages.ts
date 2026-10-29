@@ -1,8 +1,10 @@
 import "server-only";
+import type { Page } from "../../payload-types";
 import { cmsRead } from "./read";
+import { pageTags } from "./tags";
 
-/** What a page read returns until T63's blocks and T65's template need more. */
-export type CmsPage = { id: number; title: string; slug: string };
+/** What a page read returns until T65's template needs more: its title, slug and blocks (T63). */
+export type CmsPage = { id: number; title: string; slug: string; layout: Page["layout"] };
 
 /**
  * One page by its slug in the market's language (D73). T65 turns this into the lookup by full path
@@ -15,13 +17,16 @@ export const readPageBySlug = cmsRead(
       ...query,
       locale: query.locale as never,
       where: { slug: { equals: slug } },
-      depth: 0,
-      select: { title: true, slug: true },
+      // The blocks' uploads and internal links, populated (T63's `RenderBlocks` resolves them).
+      depth: 1,
+      select: { title: true, slug: true, layout: true },
       limit: 1,
       pagination: false,
     });
     const page = docs[0];
-    return page === undefined ? null : { id: page.id, title: page.title, slug: page.slug };
+    return page === undefined
+      ? null
+      : { id: page.id, title: page.title, slug: page.slug, layout: page.layout ?? [] };
   },
-  { name: "cms:page-by-slug", tags: (locale) => [`pages:${locale}`, "payload:pages"] },
+  { name: "cms:page-by-slug", tags: (locale) => pageTags(locale) },
 );

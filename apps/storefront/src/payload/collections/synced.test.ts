@@ -122,7 +122,7 @@ describe("who writes what (D75)", () => {
   });
 });
 
-describe("the content globals follow what they embed (T61, PR 94 review item 2)", () => {
+describe("the content globals and the pages follow what they embed (T61, PR 94 review item 2; T63, PR 95 review item 2)", () => {
   beforeEach(() => revalidateTag.mockReset());
   const update = (config: typeof Media, doc: object, previousDoc: object) =>
     config.hooks?.afterChange?.[0]?.({
@@ -141,10 +141,17 @@ describe("the content globals follow what they embed (T61, PR 94 review item 2)"
         expect.arrayContaining(["global:header:en", "global:footer:el", "global:site-settings:de"]),
       );
     });
+
+    it(`${config.slug}: and the pages, whose blocks link to it`, () => {
+      void update(config, { handle: "tee", deletedInMedusa: true }, { handle: "tee" });
+      expect(tags()).toEqual(expect.arrayContaining(["pages:en", "pages:el", "payload:pages"]));
+    });
   }
 
-  it("media: a replaced file refreshes them too", () => {
+  it("media: a replaced file refreshes them and the pages too", () => {
     void update(Media, { filename: "logo-2.png" }, { filename: "logo.png" });
-    expect(tags()).toContain("global:header:en");
+    expect(tags()).toEqual(
+      expect.arrayContaining(["global:header:en", "pages:fr", "payload:pages"]),
+    );
   });
 });

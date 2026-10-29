@@ -39,7 +39,7 @@ export type StringChange = {
   seeded?: Partial<Record<Locale, string>>;
 };
 
-/** Every message of the code catalogs, 718 at T62, in the four catalog languages (D77). */
+/** Every message of the code catalogs, 718 at T62 and 721 at T63, in the four catalog languages (D77). */
 export function codeStrings(): CodeString[] {
   const english = codeMessages(DEFAULT_LOCALE);
   return [...english].map(([key, message]) => ({

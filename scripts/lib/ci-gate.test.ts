@@ -138,6 +138,16 @@ describe("decideJobs on a pull request", () => {
     }
   });
 
+  it("runs both for the Payload blocks and the fields they are made of, which the DS's panel reads (T63)", () => {
+    for (const file of [
+      "apps/storefront/src/payload/blocks/faq.ts",
+      "apps/storefront/src/payload/fields/link.ts",
+      "apps/storefront/src/payload/locales.ts",
+    ]) {
+      expect(jobs(pr([file])), file).toEqual({ e2e: true, designSystem: true, windows: false });
+    }
+  });
+
   it("fails open: globals.css, the DS flag and a file on no list run both", () => {
     for (const file of [
       "apps/storefront/src/styles/globals.css",

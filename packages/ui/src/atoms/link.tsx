@@ -15,6 +15,21 @@ type LinkProps = React.ComponentProps<typeof NextLink> & {
   newTabLabel?: string;
 };
 
+/** The `rel` of a link: its own tokens, and `noopener noreferrer` when it opens a new tab. */
+function linkRel(target: string | undefined, rel: string | undefined): string | undefined {
+  const tokens = new Set((rel ?? "").split(/\s+/).filter(Boolean));
+  if (target === "_blank") {
+    tokens.add("noopener");
+    tokens.add("noreferrer");
+  }
+  return tokens.size > 0 ? [...tokens].join(" ") : undefined;
+}
+
+/** What a screen reader hears after a link that opens a new tab ("(Opens in a new tab)"). */
+function NewTabNote({ target, label }: { target: string | undefined; label: string | undefined }) {
+  return target === "_blank" && label ? <VisuallyHidden> ({label})</VisuallyHidden> : null;
+}
+
 function Link({
   className,
   variant = "inline",
@@ -24,17 +39,11 @@ function Link({
   children,
   ...props
 }: LinkProps) {
-  const newTab = target === "_blank";
-  const relTokens = new Set((rel ?? "").split(/\s+/).filter(Boolean));
-  if (newTab) {
-    relTokens.add("noopener");
-    relTokens.add("noreferrer");
-  }
   return (
     <NextLink
       data-slot="link"
       target={target}
-      rel={relTokens.size > 0 ? [...relTokens].join(" ") : undefined}
+      rel={linkRel(target, rel)}
       className={cn(
         "rounded-xs text-primary underline underline-offset-4 outline-none hover:decoration-2 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring aria-[current=page]:font-semibold",
         variant === "standalone" && "inline-flex min-h-11 items-center",
@@ -43,10 +52,10 @@ function Link({
       {...props}
     >
       {children}
-      {newTab && newTabLabel ? <VisuallyHidden> ({newTabLabel})</VisuallyHidden> : null}
+      <NewTabNote target={target} label={newTabLabel} />
     </NextLink>
   );
 }
 
-export { Link };
+export { Link, linkRel, NewTabNote };
 export type { LinkProps };
