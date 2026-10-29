@@ -125,7 +125,7 @@ export function languageName(language: string, inLocale: string): string {
 export type MessageValues = Record<string, string | number | Date>;
 
 // One per locale and message. The messages are the catalogs' strings, a fixed set, so the map
-// stays as small as the catalogs; a shop's own strings (M4's `ui-strings`) are a fixed set too.
+// stays as small as the catalogs; a shop's own strings (`ui-strings`, T62) are a fixed set too.
 const messageFormats = new Map<string, IntlMessageFormat>();
 
 /**

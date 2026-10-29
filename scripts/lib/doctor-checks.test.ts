@@ -126,7 +126,7 @@ describe("configChecks: the Payload integrations key", () => {
     );
     expect(check?.level).toBe("warn");
     expect(check?.message).toBe(
-      "PAYLOAD_API_KEY is not set in the backend, so the Medusa → Payload sync (M4) could not sign in to Payload.",
+      "PAYLOAD_API_KEY is not set in the backend, so the Medusa → Payload sync could not sign in to Payload.",
     );
   });
 

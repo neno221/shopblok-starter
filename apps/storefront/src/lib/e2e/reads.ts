@@ -103,7 +103,7 @@ export const readByTag: Read = cachedPagesRead({
  * The draft-aware read: `draftMode()` is read **inside** the cached function, the pattern of
  * GHSA-3w37-wq28-93x7. With Draft Mode on it returns the newest drafts; without it, the published
  * pages only. ADR 0001 (Spec changes) says this is evidence that the advisory's fix holds, not a
- * pattern for M4's preview code, which reads `draftMode()` outside and passes `isEnabled` in.
+ * pattern for the preview code (T59), which reads `draftMode()` outside and passes `isEnabled` in.
  */
 export const readForPreview: Read = cachedPagesRead({
   name: "e2e:preview",

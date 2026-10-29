@@ -173,7 +173,7 @@ describe("saving the markets global", () => {
   it("makes the admin's locale selector offer the saved languages at once (S3)", async () => {
     // The filter keeps one read of `markets` for a moment, and Payload commits a save after its
     // hooks, so a read in between still gets the old document (`findGlobal` below never changes).
-    // Which hooks the global has, and in what order, is not the point (M4 adds one that
+    // Which hooks the global has, and in what order, is not the point (T71 added one that
     // revalidates the market map): all of them run, as Payload runs them.
     const findGlobal = vi.fn().mockResolvedValue({ countries: [] });
     const payload = { findGlobal, logger: { warn: vi.fn() } } as unknown as Payload;

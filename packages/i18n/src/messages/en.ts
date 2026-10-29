@@ -1,8 +1,8 @@
 // The English catalog (D43): it defines every key, and `Messages` is its shape, so the other three
 // catalogs are type-checked against it. Messages are ICU MessageFormat (`{count, plural, one {# item}
-// other {# items}}`), the syntax next-intl (M3) and Payload's `ui-strings` (M4) read; format one with
-// `formatMessage`. A component takes its strings as props (D30), from `molecules.cartLineItem` and
-// the like; `messages.test.ts` checks that every locale has every key with English's arguments.
+// other {# items}}`), the syntax next-intl (M3) and Payload's `ui-strings` (T62) read; format one
+// with `formatMessage`. A component takes its strings as props (D30), from `molecules.cartLineItem`
+// and the like; `messages.test.ts` checks that every locale has every key with English's arguments.
 
 export const en = {
   atoms: {
@@ -784,7 +784,7 @@ export const en = {
         "{count, plural, one {# field needs your attention.} other {# fields need your attention.}}",
     },
   },
-  // M4's sections (T63, D79): the blocks' fixed words; everything else on a block is the editor's.
+  // The sections (T63, D79): the blocks' fixed words; everything else on a block is the editor's.
   sections: {
     video: {
       playLabel: "Play video",
@@ -874,7 +874,7 @@ export const en = {
     },
     home: {
       // The home page (T51): its sections' headings and links; the hero's words are the shop's
-      // (`site.ts`, M4's hero block).
+      // (`site.ts`, the seeded Home's hero block).
       categories: "Shop by category",
       newArrivals: "New arrivals",
       seeAllNew: "See all new arrivals",

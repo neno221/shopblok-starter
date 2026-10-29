@@ -2,7 +2,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
-// D40: the registry is data, so Payload's CLI (M4) and Playwright's loader can import it. Neither can
+// D40: the registry is data, so Payload's CLI and Playwright's loader can import it. Neither can
 // load React components, and `@shopblok/ui` is components, so no source file here may import React
 // or another `@shopblok/*` package; zod is the one dependency.
 const folder = import.meta.dirname;

@@ -1,10 +1,10 @@
 // Ours (T51, SETUP.md "Home (T51)"; D57, D58, SBP layouts/home-page.md, components/hero.md). The
-// home page's `<main>`: the hero (the page's one `<h1>`, a line, the way into the shop and a picture
-// beside them, preloaded: it is the first screen's largest), the top-level categories as tiles (a
-// picture and the name, one link each), the newest products as ProductCarousel, and a link to every
-// product. Each section is named by its `<h2>`. Every part comes from the page's values, which a
-// shop reads from Medusa (`site.ts` has the hero's words until M4's hero block); `variant` is the
-// contract's one value (D57).
+// home page's `<main>`: the hero (the page's one `<h1>`, a line, the way into the shop and a
+// picture beside them, preloaded: it is the first screen's largest), the top-level categories as
+// tiles (a picture and the name, one link each), the newest products as ProductCarousel, and a link
+// to every product. Each section is named by its `<h2>`. Every part comes from the page's values,
+// which a shop reads from Medusa (the hero's words are `site.ts`'s; a published CMS homepage
+// replaces this template, T65); `variant` is the contract's one value (D57).
 import type { Messages } from "@shopblok/i18n";
 import type { HomePage } from "@shopblok/registry/contracts";
 import { buttonVariants } from "@shopblok/ui/atoms/button";

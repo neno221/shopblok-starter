@@ -167,7 +167,7 @@ describe("the registry (D40)", () => {
       expect(entry.component?.module, entry.id).toBe(`@shopblok/ui/${entry.id}`);
       expect(entry.component?.name, entry.id).toMatch(/^[A-Z][A-Za-z]+Section$/);
       expect(entry.contract, entry.id).toBeDefined();
-      // One family per block, with one member in M4 (D79).
+      // One family per block, with one member until M5 (D79).
       expect(entry.family, entry.id).toBe(entry.id.slice("sections/".length));
       expect(entry.variant, entry.id).toBe("standard");
     }

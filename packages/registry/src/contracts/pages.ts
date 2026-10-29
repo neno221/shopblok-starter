@@ -182,7 +182,7 @@ export const CategoryTile = z.object({
 /**
  * The home page (`home`, T51, D58): a hero (the shop's message, a picture and the way into the
  * shop), the top-level categories as tiles, the newest products as a carousel and a link to every
- * product. M4's blocks replace the hero and decide the rest (`site-settings.homepage`).
+ * product. A published CMS homepage (`site-settings.homepage`, T65) replaces it with its blocks.
  */
 export const HomePage = z.object({
   variant: z.literal("default").describe("D57: one variant in M3; M5 adds §9.5's"),
