@@ -1,5 +1,6 @@
 import { siteText } from "../../lib/site";
 import { lexicalParagraphs } from "./email-templates";
+import { seededNewsletterId } from "./forms";
 import type { SeedGlobal } from "./types";
 import type { Seeded } from "./values";
 
@@ -35,28 +36,46 @@ export const headerSeed: SeedGlobal = {
   }),
 };
 
-/** The footer as M3 drew it: multi-column, `footerColumns`' "Shop" (the categories) and "Help". */
+/**
+ * The footer as M3 drew it: multi-column, `footerColumns`' "Shop" (the categories) and "Help"; and
+ * since T67 the newsletter, the seeded "Newsletter" form (`seedForms` runs first), its consent
+ * sentence linking `/privacy` (the page T65 seeds).
+ */
 export const footerSeed: SeedGlobal = {
   global: "footer",
-  fields: () => ({
-    design: seeded("multi-column"),
-    columns: seeded([
-      {
-        title: localized((text) => text.shop),
-        categories: true,
-        links: [customLink("/store", (text) => text.allProducts)],
-      },
-      {
-        title: localized((text) => text.help),
-        links: [
-          customLink("/account", (text) => text.account),
-          customLink("/cart", (text) => text.cart),
-          customLink("/order/lookup", (text) => text.orderLookup),
-        ],
-      },
-    ]),
-    marketSwitcher: seeded(true),
-  }),
+  fields: async (payload) => {
+    const newsletter = await seededNewsletterId(payload);
+    return {
+      design: seeded("multi-column"),
+      columns: seeded([
+        {
+          title: localized((text) => text.shop),
+          categories: true,
+          links: [customLink("/store", (text) => text.allProducts)],
+        },
+        {
+          title: localized((text) => text.help),
+          links: [
+            customLink("/account", (text) => text.account),
+            customLink("/cart", (text) => text.cart),
+            customLink("/order/lookup", (text) => text.orderLookup),
+          ],
+        },
+      ]),
+      marketSwitcher: seeded(true),
+      ...(newsletter === undefined
+        ? {}
+        : {
+            "newsletter.form": seeded(newsletter),
+            // A footer saved before T67 reads the column's default, `type: "reference"` with no
+            // page: nobody chose it, so the seed's link replaces it.
+            "newsletter.privacy": {
+              value: { type: "custom", url: "/privacy" },
+              before: [{ type: "reference" }],
+            },
+          }),
+    };
+  },
 };
 
 /**
