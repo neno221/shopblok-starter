@@ -330,6 +330,35 @@ describe("footerFrom", () => {
   });
 });
 
+describe("footerFrom: the newsletter (T67)", () => {
+  const signup = {
+    id: 3,
+    title: "Newsletter",
+    fields: [{ blockType: "email", name: "email", label: "Email", required: true }],
+  };
+  const withNewsletter = (form: unknown, url = "/privacy") =>
+    footer({
+      newsletter: { form, privacy: { type: "custom", url } },
+    } as unknown as Partial<Footer>);
+
+  it("posts to the global's form, with the consent sentence's privacy page in the market", () => {
+    expect(footerFrom(withNewsletter(signup), context(), settings, 2026).newsletter).toEqual({
+      formId: "3",
+      fieldName: "email",
+      privacyHref: "/us/privacy",
+    });
+  });
+
+  it("draws none without a form, with a form that is not one email field, or before a save", () => {
+    expect(footerFrom(footer({}), context(), settings, 2026)).not.toHaveProperty("newsletter");
+    const contact = { ...signup, fields: [...signup.fields, { blockType: "text", name: "name" }] };
+    expect(
+      footerFrom(withNewsletter(contact), context(), settings, 2026).newsletter,
+    ).toBeUndefined();
+    expect(footerFrom(null, context(), settings, 2026)).not.toHaveProperty("newsletter");
+  });
+});
+
 describe("copyrightLine", () => {
   it("fills in {year}, and is © year and the store's name when empty", () => {
     expect(copyrightLine("© {year} Kalimera Ltd", "Kalimera", 2026)).toBe("© 2026 Kalimera Ltd");

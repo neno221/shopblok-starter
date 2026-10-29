@@ -169,4 +169,18 @@ describe("FormBlockSection", () => {
     expect((container.querySelector("[name=name]") as HTMLInputElement).value).toBe("Guest");
     expect((container.querySelector("[name=consent]") as HTMLInputElement).checked).toBe(true);
   });
+
+  it("keeps a box the visitor unticked unticked after an answer, whatever the editor's default", () => {
+    const { section } = sectionFixtures.en.formBlock;
+    const fields = section.form.fields.map((field) =>
+      field.kind === "checkbox" ? { ...field, defaultChecked: true } : field,
+    );
+    const { container } = setup({
+      form: { ...section.form, fields },
+      status: "error",
+      errors: { email: "pattern" },
+      values: { email: "a@" },
+    });
+    expect((container.querySelector("[name=consent]") as HTMLInputElement).checked).toBe(false);
+  });
 });

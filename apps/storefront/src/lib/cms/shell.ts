@@ -25,6 +25,7 @@ import {
 } from "../site";
 import { resolveLink, type InternalPaths, type LinkValue } from "./link";
 import { CMS_PATHS } from "./paths";
+import { newsletterTarget, type NewsletterTarget } from "./resolve/forms";
 
 // The shell's content (D78): the `header`, `footer` and `site-settings` globals as the header and
 // footer components take them. A global that was never saved, or could not be read (no database at
@@ -75,6 +76,8 @@ export type ShellFooter = {
   marketSwitcher: boolean;
   copyright: string;
   logo?: Image;
+  /** The signup (T67, D81): the form to post to and the privacy page; none without a form. */
+  newsletter?: NewsletterTarget;
 };
 
 /** What the links of the header and footer resolve against: the market and its catalog. */
@@ -295,6 +298,11 @@ export function footerFrom(
       }),
     ),
   ];
+  const newsletter = newsletterTarget(
+    global.newsletter?.form,
+    global.newsletter?.privacy as LinkValue | null | undefined,
+    { market, map: context.map, paths },
+  );
   return {
     design: FOOTER_VARIANTS.includes(global.design) ? global.design : SITE.footer,
     columns: columns.slice(0, 5),
@@ -304,5 +312,6 @@ export function footerFrom(
     marketSwitcher: global.marketSwitcher !== false,
     copyright: copyrightLine(global.copyright, settings.storeName, year),
     ...logo,
+    ...(newsletter === undefined ? {} : { newsletter }),
   };
 }

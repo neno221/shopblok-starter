@@ -239,7 +239,8 @@ function FormBlockSection({
                       id={controlId}
                       name={field.name}
                       required={field.required}
-                      defaultChecked={typed === undefined ? field.defaultChecked : typed === "on"}
+                      // After an answer, a box keeps what was posted: unticked posts nothing.
+                      defaultChecked={values === undefined ? field.defaultChecked : typed === "on"}
                       aria-invalid={error === undefined ? undefined : true}
                       aria-describedby={error === undefined ? undefined : errorId}
                       className="size-4 shrink-0 accent-primary outline-none focus-visible:ring-3 focus-visible:ring-ring"

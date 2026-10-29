@@ -82,3 +82,17 @@ describe("FooterMultiColumn: where the pieces sit", () => {
     expect(inner.className).toContain("lg:px-8");
   });
 });
+
+describe("FooterMultiColumn: the shop's own newsletter (T67)", () => {
+  it("draws the slot the shop hands it in the newsletter's place, in place of its own form", () => {
+    render(
+      <FooterMultiColumn
+        {...footerProps()}
+        newsletterSlot={<form data-testid="shop-newsletter" aria-label="Shop newsletter" />}
+      />,
+    );
+    const box = slot("footer-newsletter") as HTMLElement;
+    expect(box.querySelector('[data-testid="shop-newsletter"]')).not.toBeNull();
+    expect(box.querySelector('[data-slot="newsletter-form"]')).toBeNull();
+  });
+});

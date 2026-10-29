@@ -5,7 +5,7 @@
  *   pnpm --filter @shopblok/storefront exec payload run src/scripts/seed-content.ts
  *
  * Each content type's module is in `src/payload/seed/`, the globals' in `seed/globals.ts` (T61);
- * `ui-strings` (T62, D77) has its own run, since its 721 documents are read and compared in one
+ * `ui-strings` (T62, D77) has its own run, since its 733 documents are read and compared in one
  * query. Safe to repeat: a second run changes nothing, and an editor's change is kept
  * (`seededUpdate`, `changeFor`), a pending draft too (`kept`). Its result is one line of JSON,
  * `{"seedContent":{"created":…,"updated":…,"unchanged":…,"kept":[…],"uiStrings":{…}}}`, among

@@ -91,6 +91,10 @@ describe("the blocks and the registry (D70)", () => {
       "video.heading",
       "video.title",
       "video.caption",
+      "newsletter.heading",
+      "newsletter.text",
+      "formBlock.heading",
+      "formBlock.intro",
     ]);
   });
 });
