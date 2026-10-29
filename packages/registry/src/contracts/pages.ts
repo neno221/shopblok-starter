@@ -100,12 +100,15 @@ export const ListingResults = z
 /**
  * A listing page (`product-listing`, T50): a category, a collection or every product (the store),
  * its breadcrumbs, its name and its results. Its pages are paths (`/page/2`), its filters and sort
- * a query the island reads.
+ * a query the island reads. A category or a collection may have a banner and an introduction from
+ * the shop's editors (T69, D83); the introduction is rich text, which the storefront renders and
+ * passes as the template's `slots.intro`, so the registry stays free of Payload.
  */
 export const ProductListingPage = z.object({
   variant: z.literal("default").describe("D57: one variant in M3; M5 adds §9.5's"),
   breadcrumbs: Breadcrumbs,
   title: z.string().min(1).describe("The page's one heading: the category's or collection's name"),
+  banner: Image.optional().describe("A wide picture under the title, an editor's (T69)"),
   results: ListingResults,
 });
 

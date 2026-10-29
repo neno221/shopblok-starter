@@ -16,7 +16,7 @@ import { formatMessage } from "@shopblok/i18n";
 import type { ListingResults as ListingResultsContent } from "@shopblok/registry/contracts";
 import { Button } from "@shopblok/ui/atoms/button";
 import { EmptyState } from "@shopblok/ui/molecules/empty-state";
-import { ListingResults, type ListingResultsCopy } from "@shopblok/ui/templates/product-listing";
+import { ListingResults, type ListingResultsCopy } from "@shopblok/ui/templates/listing-results";
 import type { Route } from "next";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";

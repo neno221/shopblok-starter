@@ -2,6 +2,7 @@ import type {
   ProductCard,
   ProductDetail,
   ProductDetailPage,
+  ProductInfoBlock,
   ProductInfoSection,
   RatingSummary,
   VariantSelection,
@@ -55,37 +56,44 @@ function paragraphs(text: string): string[] {
     .filter((part) => part !== "");
 }
 
+/** The ids of the information's sections the shop's rich text may fill (`slots.richText`). */
+export const INFO_SECTION = { description: "description", delivery: "delivery" } as const;
+
 export type ProductPageText = {
   /** The catalog's `templates.productDetail` headings. */
   headings: { related: string; description: string; delivery: string };
-  /** The shop's texts (`siteText`): the buy box's notes and the delivery section. */
+  /** The shop's texts (`productPageShopText`): the buy box's notes and the delivery section. */
   notes: string[];
-  delivery: string[];
+  /** Paragraphs, the shop's rich text (drawn from `slots.richText.delivery`), or no section. */
+  delivery: readonly string[] | "rich" | null;
+  /** The shop's rich description (T69) replaces Medusa's (drawn from `slots.richText.description`). */
+  richDescription?: boolean;
 };
+
+const RICH: ProductInfoBlock[] = [{ kind: "rich" }];
 
 export function toProductDetailPage(
   detail: ProductDetail,
   related: readonly ProductCard[],
-  { headings, notes, delivery }: ProductPageText,
+  { headings, notes, delivery, richDescription = false }: ProductPageText,
 ): ProductDetailPage {
   const selection = defaultSelection(detail);
   const description = paragraphs(detail.description);
-  const sections: ProductInfoSection[] = [
-    ...(description.length === 0
+  const descriptionBlocks: ProductInfoBlock[] = richDescription
+    ? RICH
+    : description.length === 0
       ? []
-      : [
-          {
-            id: "description",
-            title: headings.description,
-            blocks: [{ kind: "text" as const, paragraphs: description }],
-          },
-        ]),
-    {
-      id: "delivery",
-      title: headings.delivery,
-      blocks: [{ kind: "text", paragraphs: delivery }],
-    },
-  ];
+      : [{ kind: "text", paragraphs: description }];
+  const deliveryBlocks: ProductInfoBlock[] =
+    delivery === "rich"
+      ? RICH
+      : delivery === null || delivery.length === 0
+        ? []
+        : [{ kind: "text", paragraphs: [...delivery] }];
+  const sections: ProductInfoSection[] = [
+    { id: INFO_SECTION.description, title: headings.description, blocks: descriptionBlocks },
+    { id: INFO_SECTION.delivery, title: headings.delivery, blocks: deliveryBlocks },
+  ].filter((section) => section.blocks.length > 0);
   const cards = related.filter((card) => card.id !== detail.id).slice(0, RELATED_PRODUCTS);
   return {
     variant: "default",

@@ -119,3 +119,18 @@ export function cmsRead<Args extends unknown[], Result>(
     return load(await getPayloadClient(), query(locale, user), ...args);
   };
 }
+
+/**
+ * A content read that never takes its page down (T61, T69): a failure is logged with `what` (the
+ * part of the page that goes without it) and gives `null`, as no database does, so the page draws
+ * its code default. The cached entry rides out an outage anyway (`CMS_LIFE`); this is for a read
+ * with nothing cached yet.
+ */
+export async function cmsOrNull<T>(read: Promise<T | null>, what: string): Promise<T | null> {
+  try {
+    return await read;
+  } catch (error) {
+    console.error(`${what}: a Payload read failed`, error);
+    return null;
+  }
+}

@@ -54,6 +54,17 @@ describe("the page fixtures (T48)", () => {
     }
   });
 
+  it("give the listing with its category's banner and introduction in every locale (T69)", () => {
+    for (const pages of Object.values(pageFixtures)) {
+      const { page, intro } = pages.productListingContent;
+      expect(ProductListingPage.parse(page)).toEqual(page);
+      expect(page.banner?.width).toBe(3 * (page.banner?.height ?? 0));
+      expect(page.banner?.alt).toBe(page.title);
+      expect(intro.length).toBeGreaterThan(40);
+      expect(page.results).toEqual(pages.productListing.results);
+    }
+  });
+
   it("give the home in every locale: the store as the hero's and the last link's way (T51)", () => {
     for (const pages of Object.values(pageFixtures)) {
       const { home } = pages;

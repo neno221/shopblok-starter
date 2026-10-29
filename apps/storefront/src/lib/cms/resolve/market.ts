@@ -6,14 +6,17 @@ import { listCollections } from "../../medusa/collections";
 import { findProductTagId, listProductIdsOfType } from "../../medusa/product-groups";
 import { listProductMetadata, listProductsByIds } from "../../medusa/products";
 import { searchProducts } from "../../medusa/search";
+import { readCategoryContent } from "../catalog";
 import { renderTime } from "../now";
+import { cmsOrNull } from "../read";
 import type { CatalogReads } from "./catalog";
 import type { CommerceContext } from "./commerce";
 
 /**
  * The catalog reads of one market (T64): every search in the market's language and its region's
  * currency, every product priced in its region. The data layer's own cached reads, so the blocks
- * share their entries with the listing pages and are refreshed by the same tags.
+ * share their entries with the listing pages and are refreshed by the same tags; a category's own
+ * picture is its Payload document's (T69), tagged `cms:category:<handle>`.
  */
 export function catalogReads({ market, region }: Pick<MarketContext, "market" | "region">) {
   const locale = market.medusaLocale;
@@ -41,6 +44,14 @@ export function catalogReads({ market, region }: Pick<MarketContext, "market" | 
         : listProductMetadata([...ids].sort(), [...new Set(keys)].sort()),
     tagId: (value) => findProductTagId(value),
     typeProductIds: (value) => listProductIdsOfType(value),
+    // The synced collections have no drafts, so Draft Mode reads the same document (T69).
+    categoryImage: async (handle) =>
+      (
+        await cmsOrNull(
+          readCategoryContent({ market, draft: false }, handle),
+          "category tile: its newest product's picture",
+        )
+      )?.image,
   };
   return reads;
 }

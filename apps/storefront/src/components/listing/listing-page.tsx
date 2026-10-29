@@ -3,9 +3,14 @@ import { formatMessage } from "@shopblok/i18n";
 import type { ListingResults } from "@shopblok/registry/contracts";
 import { ProductListingTemplate, productListingCopy } from "@shopblok/ui/templates/product-listing";
 import type { Metadata } from "next";
+import { draftMode } from "next/headers";
 import { notFound } from "next/navigation";
 import { getMessages } from "next-intl/server";
 import { cache, Suspense } from "react";
+import { readCategoryContent, readCollectionContent } from "../../lib/cms/catalog";
+import type { ListingContent } from "../../lib/cms/catalog-content";
+import { cmsOrNull, type CmsReader } from "../../lib/cms/read";
+import { shellPaths } from "../../lib/cms/shell";
 import { getCurrentMarket } from "../../lib/current-market";
 import {
   listingBreadcrumbs,
@@ -31,6 +36,8 @@ import { buildReadsMedusa, PLACEHOLDER_HANDLE } from "../../lib/prerender";
 import { listingJsonLd } from "../../lib/seo/listing";
 import { jsonLdText } from "../../lib/seo/product";
 import { SHELL_PREFETCH } from "../../lib/site";
+import { CmsRichText } from "../cms/rich-text";
+import { getShellData } from "../shell/shell-data";
 import { ListingIsland } from "./listing-island";
 
 // D59 (T50): the listing pages' one server part. `{m}/store`, `{m}/categories/[...handle]` and
@@ -40,6 +47,9 @@ import { ListingIsland } from "./listing-island";
 // past the last is `notFound()`, before any `Suspense`. The filters and the sort are the island's
 // (`listing-island.tsx`): it is drawn beside the server's results, in its own `Suspense` with no
 // fallback, and does nothing for a URL without them.
+// T69 (D83): a category's or collection's banner and introduction from its Payload document, read
+// by its handle in the market's language, on every page of the listing; none for the store, and
+// none without a database or before the sync has written the document.
 
 /** A listing's page from its path segment: `/page/2` is 2; `1` and anything else is no page (404). */
 export function pathPage(segment: string | undefined): number | null {
@@ -55,7 +65,20 @@ type ListingPageData = {
   results: ListingResults;
   page: number;
   pageSize: number;
+  /** The category's or collection's content (T69); `null` for the store or without one. */
+  content: ListingContent | null;
 };
+
+/** The scope's Payload document's content: a category's (its last handle) or a collection's. */
+function readScopeContent(reader: CmsReader, scope: ListingScope) {
+  const read =
+    scope.kind === "category"
+      ? readCategoryContent(reader, scope.path.at(-1) ?? "")
+      : scope.kind === "collection"
+        ? readCollectionContent(reader, scope.handle)
+        : Promise.resolve(null);
+  return cmsOrNull(read, "listing page: no banner or introduction");
+}
 
 /**
  * The listing's first page or `/page/n`, or `null` for a 404. Shared by the page and its metadata;
@@ -67,12 +90,13 @@ const readListingPage = cache(
     if (page === null || !buildReadsMedusa() || scopeKey.includes(PLACEHOLDER_HANDLE)) return null;
     const scope = parseScope(scopeKey);
     if (scope === null) return null;
-    const market = await getCurrentMarket();
+    const [market, { isEnabled: draft }] = await Promise.all([getCurrentMarket(), draftMode()]);
     const [context, messages] = await Promise.all([getMarketContext(market.key), getMessages()]);
     if (context === null) return null;
     const resolved = await resolveScope(context, messages, scope);
     if (resolved === null) return null;
     const pageSize = listingPageSize();
+    const contentRead = readScopeContent({ market, draft }, scope);
     const results = await readListing({
       context,
       messages,
@@ -88,9 +112,16 @@ const readListingPage = cache(
       },
     });
     if (results === null) return null;
-    return { context, messages, resolved, results, page, pageSize };
+    return { context, messages, resolved, results, page, pageSize, content: await contentRead };
   },
 );
+
+/** The introduction, its links resolved in this market (a category's to its whole path). */
+async function introText(intro: NonNullable<ListingContent["intro"]>, context: MarketContext) {
+  const { categories, pages } = await getShellData();
+  const paths = shellPaths(categories, pages);
+  return <CmsRichText data={intro} context={{ market: context.market, map: context.map, paths }} />;
+}
 
 /** The address of a page of the listing: the first at the listing's own, the others by path. */
 const pageHref = (base: string, page: number) => (page === 1 ? base : `${base}/page/${page}`);
@@ -135,9 +166,10 @@ export async function ListingPage({
 }) {
   const data = await readListingPage(keyOf(scope), page);
   if (data === null) notFound();
-  const { context, messages, resolved, results } = data;
+  const { context, messages, resolved, results, content } = data;
   const { market } = context;
   const base = context.url(resolved.path);
+  const intro = content?.intro == null ? undefined : await introText(content.intro, context);
   const copy = productListingCopy(messages);
   const breadcrumbs = listingBreadcrumbs(resolved);
   const listingCopy = messages.templates.productListing;
@@ -163,12 +195,14 @@ export async function ListingPage({
         variant="default"
         breadcrumbs={breadcrumbs}
         title={resolved.title}
+        {...(content?.banner === undefined ? {} : { banner: content.banner })}
         results={results}
         copy={copy}
         locale={market.htmlLang}
         hrefFor={(n) => pageHref(base, n)}
         prefetch={SHELL_PREFETCH}
         slots={{
+          ...(intro === undefined ? {} : { intro }),
           // D59: beside the server's results, never around them, in a `Suspense` of its own with no
           // fallback: the static HTML holds the first page's products, and the island draws nothing
           // until the URL has a filter, a sort or a page in its query.

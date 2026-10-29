@@ -11,6 +11,8 @@ export const imageRatios = {
   "1:1": { width: 800, height: 800 },
   "4:3": { width: 800, height: 600 },
   "16:9": { width: 1600, height: 900 },
+  // A listing's banner (T69).
+  "3:1": { width: 1500, height: 500 },
 } as const;
 
 export type ImageRatio = keyof typeof imageRatios;

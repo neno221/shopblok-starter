@@ -146,6 +146,11 @@ describe("the content globals and the pages follow what they embed (T61, PR 94 r
       void update(config, { handle: "tee", deletedInMedusa: true }, { handle: "tee" });
       expect(tags()).toEqual(expect.arrayContaining(["pages:en", "pages:el", "payload:pages"]));
     });
+
+    it(`${config.slug}: and the catalog's content, whose rich texts link to it`, () => {
+      void update(config, { handle: "shirt" }, { handle: "tee" });
+      expect(tags()).toContain("cms:catalog");
+    });
   }
 
   it("media: a replaced file refreshes them and the pages too", () => {
@@ -153,5 +158,126 @@ describe("the content globals and the pages follow what they embed (T61, PR 94 r
     expect(tags()).toEqual(
       expect.arrayContaining(["global:header:en", "pages:fr", "payload:pages"]),
     );
+  });
+});
+
+const contentFieldNames = (fields: readonly Field[]) =>
+  fields.flatMap((field) =>
+    "name" in field && (field.custom as { content?: boolean } | undefined)?.content === true
+      ? [field.name]
+      : [],
+  );
+
+describe("the shop's own content on the synced documents (T69, D83)", () => {
+  const CONTENT = {
+    products: ["richDescription", "gallery"],
+    categories: ["image", "banner", "intro"],
+    collections: ["image", "banner", "intro"],
+  } as const;
+
+  for (const { config } of COLLECTIONS) {
+    const slug = config.slug as keyof typeof CONTENT;
+    it(`${config.slug}: has its content fields, none of them synced`, () => {
+      expect(contentFieldNames(config.fields)).toEqual(CONTENT[slug]);
+      const synced = new Set(syncedFieldNames(config.fields));
+      for (const name of CONTENT[slug]) expect(synced.has(name), name).toBe(false);
+    });
+
+    it(`${config.slug}: staff write the content, the sync and anonymous visitors cannot; it is not read-only`, () => {
+      for (const name of CONTENT[slug]) {
+        const field = named(config.fields, name);
+        const fieldAccess = field && "access" in field ? field.access : undefined;
+        for (const user of [admin, editor]) {
+          expect(fieldAs(fieldAccess?.update, user), `${name} update`).toBe(true);
+          expect(fieldAs(fieldAccess?.create, user), `${name} create`).toBe(true);
+        }
+        for (const user of [sync, null]) {
+          expect(fieldAs(fieldAccess?.update, user), `${name} update`).toBe(false);
+          expect(fieldAs(fieldAccess?.create, user), `${name} create`).toBe(false);
+        }
+        // Read like the document: by anyone (no read rule of its own).
+        expect(fieldAccess?.read).toBeUndefined();
+        expect(field?.admin && "readOnly" in field.admin && field.admin.readOnly).toBeFalsy();
+      }
+    });
+
+    it(`${config.slug}: the localized fields are the texts, not the pictures`, () => {
+      for (const name of CONTENT[slug]) {
+        const field = named(config.fields, name);
+        const localized = field !== undefined && "localized" in field && field.localized === true;
+        expect(localized, name).toBe(field?.type === "richText");
+      }
+    });
+
+    it(`${config.slug}: has no drafts, so the sync's saves never publish an editor's pending draft`, () => {
+      expect(config.versions).toBeUndefined();
+    });
+  }
+});
+
+describe("a save of a synced document refreshes its content read (T69, D73)", () => {
+  beforeEach(() => revalidateTag.mockReset());
+  const req = () => ({ context: {}, payload: { logger: { warn: vi.fn() } } });
+  const tags = () => revalidateTag.mock.calls.map(([tag]) => tag as string);
+  const KIND = { products: "product", categories: "category", collections: "collection" } as const;
+
+  const afterChange = (config: typeof Products, doc: object, previousDoc: object, context = {}) =>
+    Promise.all(
+      (config.hooks?.afterChange ?? []).map((hook) =>
+        hook({
+          collection: config,
+          doc,
+          previousDoc,
+          operation: "update",
+          req: { ...req(), context },
+        } as never),
+      ),
+    );
+  const afterDelete = (config: typeof Products, doc: object) =>
+    Promise.all(
+      (config.hooks?.afterDelete ?? []).map((hook) =>
+        hook({ collection: config, doc, id: 1, req: req() } as never),
+      ),
+    );
+
+  for (const { config } of COLLECTIONS) {
+    const kind = KIND[config.slug as keyof typeof KIND];
+    const tag = (handle: string) => `cms:${kind}:${handle}`;
+
+    it(`${config.slug}: an editor's save revalidates cms:${kind}:<handle>, once`, async () => {
+      await afterChange(config, { id: 1, handle: "tee", intro: "new" }, { id: 1, handle: "tee" });
+      expect(tags().filter((each) => each === tag("tee"))).toHaveLength(1);
+    });
+
+    it(`${config.slug}: a rename in Medusa revalidates the old handle's read and the new one's`, async () => {
+      await afterChange(config, { id: 1, handle: "tee" }, { id: 1, handle: "shirt" });
+      expect(tags()).toEqual(expect.arrayContaining([tag("tee"), tag("shirt")]));
+    });
+
+    it(`${config.slug}: a delete revalidates it`, async () => {
+      await afterDelete(config, { id: 1, handle: "tee" });
+      expect(tags()).toContain(tag("tee"));
+    });
+
+    it(`${config.slug}: bootstrap's import (disableRevalidate) revalidates nothing`, async () => {
+      await afterChange(
+        config,
+        { id: 1, handle: "tee" },
+        { id: 1, handle: "shirt" },
+        { disableRevalidate: true },
+      );
+      expect(tags()).toEqual([]);
+    });
+  }
+
+  it("media: a replaced file refreshes every catalog content read", () => {
+    void Media.hooks?.afterChange?.[0]?.({
+      collection: Media,
+      doc: { filename: "banner-2.webp" },
+      previousDoc: { filename: "banner.webp" },
+      operation: "update",
+      req: req(),
+    } as never);
+    expect(tags()).toContain("cms:catalog");
   });
 });

@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { pageFixtures } from "@shopblok/fixtures";
 import { catalogs, formatMessage } from "@shopblok/i18n";
-import { listingResultsCopy } from "@shopblok/ui/templates/product-listing";
+import { listingResultsCopy } from "@shopblok/ui/templates/listing-results";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";

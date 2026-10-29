@@ -165,6 +165,8 @@ export const en: Copy = {
       priceDesc: "Price: high to low",
     },
     resultsFor: "Results for “hoodie”",
+    intro:
+      "Heavyweight cotton hoodies, brushed soft inside and cut to layer. Garment-dyed colors that only get better with every wash.",
   },
   carousel: { title: "New in", viewAll: "Shop all new in" },
   productPage: {

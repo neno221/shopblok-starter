@@ -1,3 +1,4 @@
+import { adminHeaders } from "./payload-rest";
 import { base } from "./server";
 
 // T61: the shell's globals (`header`, `footer`, `site-settings`) changed by a test and put back.
@@ -9,12 +10,7 @@ import { base } from "./server";
 export type GlobalSlug = "header" | "footer" | "site-settings";
 export type GlobalData = Record<string, unknown>;
 
-/** `Origin` is what Payload's CSRF check compares on a write. */
-const headers = (token: string) => ({
-  Authorization: `JWT ${token}`,
-  "content-type": "application/json",
-  Origin: new URL(base()).origin,
-});
+const headers = (token: string) => ({ ...adminHeaders(token), "content-type": "application/json" });
 
 /** The published global in every language, without the fields Payload sets itself. */
 export async function snapshotGlobal(token: string, slug: GlobalSlug): Promise<GlobalData> {

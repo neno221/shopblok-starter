@@ -88,4 +88,42 @@ describe("resolveCategorySource (T64)", () => {
       await resolveCategorySource({ mode: "childrenOf", parent: synced("cat_gone") }, reads, hrefs),
     ).toEqual([]);
   });
+
+  it("pictures a tile with the category's own picture first (T69), then its newest product's", async () => {
+    const catalog = fakeCatalog(unitedStates);
+    const own = {
+      src: "/api/media/file/cap.webp",
+      alt: "Caps on a shelf",
+      width: 800,
+      height: 600,
+    };
+    catalog.categoryImages.set("accessories", own);
+    const tiles = await resolveCategorySource({ mode: "topLevel", limit: 2 }, catalog.reads, hrefs);
+    expect(tiles.map((tile) => tile.image)).toEqual([
+      expect.objectContaining({ src: "https://cdn.example/hoodie.jpg" }),
+      // Decoration, as a product's picture is on a tile: the name says where it goes.
+      { ...own, alt: "" },
+    ]);
+    // A category with its own picture asks the search for none.
+    const searched = catalog.calls
+      .filter((call) => call.read === "search")
+      .map((call) => call.args);
+    expect(searched).toHaveLength(1);
+  });
+
+  it("an editor's picture on the block wins over the category's own", async () => {
+    const catalog = fakeCatalog(unitedStates);
+    catalog.categoryImages.set("home", {
+      src: "/api/media/file/home.webp",
+      alt: "",
+      width: 800,
+      height: 600,
+    });
+    const [tile] = await resolveCategorySource(
+      { mode: "handpicked", items: [{ category: synced("cat_home"), image: picture }] },
+      catalog.reads,
+      hrefs,
+    );
+    expect(tile?.image?.src).toBe(picture.url);
+  });
 });
