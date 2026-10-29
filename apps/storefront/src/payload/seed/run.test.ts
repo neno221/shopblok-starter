@@ -419,6 +419,29 @@ describe("runGlobalSeeds (T61)", () => {
     ]);
   });
 
+  it("writes a saved global's localized change one language at a time, never all at once (PR 98)", async () => {
+    const { payload, writes } = fakeGlobal();
+    await runGlobalSeeds(payload, [settingsSeed("Shopblok")]);
+    writes.length = 0;
+    const first = settingsSeed("Shopblok");
+    const newWords: SeedGlobal = {
+      ...first,
+      fields: async (each) => ({
+        ...(await first.fields(each)),
+        "seo.description": {
+          value: { en: "Basics, again", el: "Βασικά, ξανά" },
+          before: [{ en: "Basics", el: "Βασικά" }],
+        },
+      }),
+    };
+    expect(await runGlobalSeeds(payload, [newWords])).toMatchObject({ updated: 1 });
+    // Payload refuses a `locale: "all"` write of site-settings, which holds a localized array.
+    expect(writes.map((write) => [write.locale, write.data])).toEqual([
+      ["en", { seo: { description: "Basics, again" } }],
+      ["el", { seo: { description: "Βασικά, ξανά" } }],
+    ]);
+  });
+
   it("leaves a global with an editor's newer draft alone, and names it", async () => {
     const { payload, writes, saveDraft } = fakeGlobal();
     await runGlobalSeeds(payload, [settingsSeed("Shopblok")]);

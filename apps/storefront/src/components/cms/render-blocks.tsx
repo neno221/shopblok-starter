@@ -18,7 +18,11 @@ import { TestimonialsSection } from "@shopblok/ui/sections/testimonials";
 import { UspBarSection } from "@shopblok/ui/sections/usp-bar";
 import { VideoSection } from "@shopblok/ui/sections/video";
 import type { Page } from "../../payload-types";
-import { resolveLayout, type ResolveContext } from "../../lib/cms/resolve/sections";
+import {
+  resolveLayout,
+  type ResolveContext,
+  type ResolvedBlock,
+} from "../../lib/cms/resolve/sections";
 import { faqJsonLd } from "../../lib/seo/faq";
 import { jsonLdText } from "../../lib/seo/product";
 import { SHELL_PREFETCH } from "../../lib/site";
@@ -32,7 +36,9 @@ import { CmsRichText } from "./rich-text";
 
 type RenderBlocksProps = {
   /** The page's `layout`, read at depth 1 (uploads and references populated). */
-  blocks: Page["layout"] | undefined;
+  blocks?: Page["layout"] | undefined;
+  /** The layout resolved already (`resolveLayout`), in place of `blocks`. */
+  resolved?: ResolvedBlock[];
   context: ResolveContext;
   /** The market's whole catalog (`getMessages()`), for the sections' fixed words. */
   messages: Messages;
@@ -56,11 +62,12 @@ type RenderBlocksProps = {
  */
 export async function RenderBlocks({
   blocks,
+  resolved: given,
   context,
   messages,
   heroTitle = false,
 }: RenderBlocksProps) {
-  const resolved = await resolveLayout(blocks, context);
+  const resolved = given ?? (await resolveLayout(blocks, context));
   const copy = sectionsCopy(messages);
   const locale = context.market.htmlLang;
   const timeZone = context.market.timeZone;

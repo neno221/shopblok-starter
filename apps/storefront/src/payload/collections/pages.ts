@@ -2,8 +2,14 @@ import type { CollectionConfig } from "payload";
 import { isStaff, staffOrPublished } from "../access/roles";
 import { seedKey } from "../fields/seed-key";
 import { slugField } from "../fields/slug";
+import { keepRefusalReason } from "../hooks/keep-refusal-reason";
 import { revalidateOnPublish } from "../hooks/revalidate-on-publish";
-import { nestedPageFields, populateBreadcrumbs, resaveInEveryLanguage } from "../nested-pages";
+import {
+  keepPageWithChildren,
+  nestedPageFields,
+  populateBreadcrumbs,
+  resaveInEveryLanguage,
+} from "../nested-pages";
 import { pageTags } from "../../lib/cms/tags";
 import { LAYOUT_BLOCKS } from "../blocks";
 
@@ -29,11 +35,14 @@ export const Pages: CollectionConfig = {
     delete: isStaff,
   },
   // The breadcrumbs (T65), with the re-save in every language last, once this save's own
-  // revalidation is done.
+  // revalidation is done. A page with pages under it is not deleted, and a refused save says why
+  // (a slug's reason) in a production build too.
   hooks: {
     ...revalidate,
     beforeChange: [populateBreadcrumbs, ...revalidate.beforeChange],
     afterChange: [...revalidate.afterChange, resaveInEveryLanguage],
+    beforeDelete: [keepPageWithChildren],
+    afterError: [keepRefusalReason],
   },
   // D74: autosave, scheduled publishing (on the jobs queue) and up to 50 versions per page. The
   // Save Draft button stays next to autosave, so an editor can still save a draft on purpose.

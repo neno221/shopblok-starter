@@ -309,11 +309,12 @@ export async function runGlobalSeeds(payload: Payload, globals: SeedGlobal[]): P
     // review, item 6): it would add a version that changes nothing.
     if (!saved) await write("all", { ...data, _status: "published" });
     else if (Object.keys(data).length > 0) {
-      // Changes in no language of their own (T65's `homepage`) are written in the default one:
-      // Payload 3.92.1 refuses a `locale: "all"` write of a global that holds a localized array
-      // (`site-settings.productNotes`), as it validates the array as one object.
-      const inEveryLanguage = languagesOf(data).length > 1;
-      await write(inEveryLanguage ? "all" : DEFAULT_LOCALE, data);
+      // One language at a time, the default first, as `runSeeds` writes `allLanguages` (PR 98
+      // review, item 4): Payload 3.92.1 refuses a `locale: "all"` write of a global that holds a
+      // localized array (`site-settings.productNotes`), as it validates the array as one object.
+      // Changes in no language of their own (T65's `homepage`) are the default language's write.
+      for (const locale of languagesOf(data))
+        await write(locale, inLanguage(data, locale) as Record<string, unknown>);
     }
     for (const [locale, values] of languages) await write(locale, values);
     if (saved) counts.updated++;

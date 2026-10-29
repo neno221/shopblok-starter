@@ -1,5 +1,6 @@
-import type { TextField, TextFieldSingleValidation, Where } from "payload";
+import type { PayloadRequest, TextField, TextFieldSingleValidation, Where } from "payload";
 import { text } from "payload/shared";
+import { pageIdOf } from "../../lib/cms/page-path";
 
 // D80's slugs: a page's address is its parents' slugs and its own (`/about/team`), in the market's
 // language, so a slug is one path segment that every language can write and no route already owns.
@@ -61,13 +62,6 @@ export function slugProblem(slug: string, { topLevel }: { topLevel: boolean }): 
   return null;
 }
 
-const parentId = (data: Record<string, unknown> | undefined): number | string | null => {
-  const parent = data?.["parent"];
-  if (parent === null || parent === undefined || parent === "") return null;
-  if (typeof parent === "object") return (parent as { id: number | string }).id;
-  return parent as number | string;
-};
-
 /**
  * The `slug` field's check (D80): Payload's own (required, a string) first, then `slugProblem`,
  * then that no other page under the same parent has this slug in the language being saved, so a
@@ -77,26 +71,45 @@ export const validateSlug: TextFieldSingleValidation = async (value, options) =>
   const base = text(value, options);
   if (base !== true) return base;
   if (typeof value !== "string" || value === "") return true;
-  const parent = parentId(options.data as Record<string, unknown> | undefined);
+  const parent = pageIdOf((options.data as Record<string, unknown> | undefined)?.["parent"]);
   const problem = slugProblem(value, { topLevel: parent === null });
   if (problem !== null) return problem;
   const { req, id } = options;
+  const taken = await siblingSlugTaken(req, {
+    slug: value,
+    parent,
+    id: pageIdOf(id),
+    language: req.locale ?? undefined,
+  });
+  return taken ? "Another page here already has this slug." : true;
+};
+
+/** Whether another page under `parent` (`null`: the top level) has `slug` in `language`. */
+export async function siblingSlugTaken(
+  req: PayloadRequest,
+  {
+    slug,
+    parent,
+    id,
+    language,
+  }: { slug: string; parent: number | null; id: number | null; language: string | undefined },
+): Promise<boolean> {
   const where: Where = {
     and: [
-      { slug: { equals: value } },
+      { slug: { equals: slug } },
       parent === null ? { parent: { exists: false } } : { parent: { equals: parent } },
-      ...(id === undefined ? [] : [{ id: { not_equals: id } }]),
+      ...(id === null ? [] : [{ id: { not_equals: id } }]),
     ],
   };
   const { totalDocs } = await req.payload.count({
     collection: "pages",
     where,
-    locale: (req.locale ?? undefined) as never,
+    locale: language as never,
     overrideAccess: true,
     req,
   });
-  return totalDocs === 0 ? true : "Another page here already has this slug.";
-};
+  return totalDocs > 0;
+}
 
 /** A page's `slug` (D80): localized, so a Greek page has a Greek address. */
 export function slugField(): TextField {

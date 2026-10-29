@@ -1,13 +1,18 @@
 import { createBreadcrumbsField, createParentField } from "@payloadcms/plugin-nested-docs";
-import type {
-  CollectionAfterChangeHook,
-  CollectionBeforeChangeHook,
-  Field,
-  PayloadRequest,
-  Where,
+import {
+  APIError,
+  type CollectionAfterChangeHook,
+  type CollectionBeforeChangeHook,
+  type CollectionBeforeDeleteHook,
+  type Field,
+  type PayloadRequest,
+  type RelationshipFieldSingleValidation,
+  type Where,
 } from "payload";
-import { pagePath } from "../lib/cms/page-path";
-import { LANGUAGES } from "./locales";
+import { relationship } from "payload/shared";
+import { MAX_PAGE_DEPTH, pageIdOf, pagePath } from "../lib/cms/page-path";
+import { siblingSlugTaken, slugProblem } from "./fields/slug";
+import { LANGUAGES, languageLabel } from "./locales";
 
 // D80: a page's `parent` and `breadcrumbs`, the fields of `@payloadcms/plugin-nested-docs`. The
 // plugin's own hooks are not used: they re-save a page's children only in the language being
@@ -17,21 +22,14 @@ import { LANGUAGES } from "./locales";
 // breadcrumbs in every language from the slugs as each language reads them (its own, or English's
 // where it has none) and save nothing but the breadcrumbs.
 
-/** Pages nest at most this deep; a deeper chain (or a loop) stops here instead of running on. */
-const MAX_DEPTH = 10;
-
 /** Set on the saves these hooks make themselves, so they do not start another round. */
 const RESAVING = "resavingBreadcrumbs";
 
-type Id = number | string;
+type Id = number;
 type PageRef = { id?: Id; slug?: unknown; title?: unknown; parent?: unknown };
 type Breadcrumb = { doc?: Id; url?: string; label: string };
 
-const idOf = (value: unknown): Id | null => {
-  if (value === null || value === undefined || value === "") return null;
-  if (typeof value === "object") return (value as { id?: Id }).id ?? null;
-  return value as Id;
-};
+const idOf = pageIdOf;
 
 /**
  * Runs Local API calls that pass `req` and puts back what they change on it: Payload sets
@@ -68,7 +66,7 @@ export async function breadcrumbsOf(req: PayloadRequest, page: PageRef): Promise
   const chain: PageRef[] = [page];
   const seen = new Set<Id>(page.id === undefined ? [] : [page.id]);
   let parent = idOf(page.parent);
-  while (parent !== null && !seen.has(parent) && chain.length < MAX_DEPTH) {
+  while (parent !== null && !seen.has(parent) && chain.length < MAX_PAGE_DEPTH) {
     seen.add(parent);
     const doc = await readPage(req, parent);
     if (doc === null) break;
@@ -163,7 +161,7 @@ async function descendants(req: PayloadRequest, id: Id): Promise<Saved[]> {
   const found: Saved[] = [];
   const seen = new Set<Id>([id]);
   let level: Id[] = [id];
-  for (let depth = 0; level.length > 0 && depth < MAX_DEPTH; depth++) {
+  for (let depth = 0; level.length > 0 && depth < MAX_PAGE_DEPTH; depth++) {
     const children = await latest(req, { parent: { in: level } });
     level = [];
     for (const child of children) {
@@ -215,12 +213,181 @@ export const resaveInEveryLanguage: CollectionAfterChangeHook = async ({
   return doc;
 };
 
-/** `parent` and `breadcrumbs` (D80): a page cannot be its own parent or one of its children's. */
+/** A page's parent's id, as the published pages (`draft: false`) or the latest versions read it. */
+async function parentOf(req: PayloadRequest, id: Id, draft: boolean): Promise<Id | null> {
+  const doc = (await keepingRequest(req, () =>
+    req.payload.findByID({
+      collection: "pages",
+      id,
+      draft,
+      depth: 0,
+      select: { parent: true },
+      disableErrors: true,
+      overrideAccess: true,
+      req,
+    }),
+  )) as PageRef | null;
+  return idOf(doc?.parent);
+}
+
+/**
+ * How many pages deep `parent` sits (1 at the top level), or `null` when its chain comes back to
+ * `id` (the page would be under itself) or is a loop already. Both ways of reading the pages count,
+ * the published ones and the latest versions, since either can be published next.
+ */
+async function depthUnder(req: PayloadRequest, parent: Id, id: Id | undefined) {
+  let deepest = 0;
+  for (const draft of [false, true]) {
+    const seen = new Set<Id>();
+    let current: Id | null = parent;
+    while (current !== null) {
+      if (current === id || seen.has(current)) return null;
+      seen.add(current);
+      if (seen.size > MAX_PAGE_DEPTH) break;
+      current = await parentOf(req, current, draft);
+    }
+    deepest = Math.max(deepest, seen.size);
+  }
+  return deepest;
+}
+
+/** How many levels of pages sit under `id` (0 for none), at most `MAX_PAGE_DEPTH`. */
+async function levelsUnder(req: PayloadRequest, id: Id): Promise<number> {
+  const seen = new Set<Id>([id]);
+  let level: Id[] = [id];
+  let levels = 0;
+  while (levels < MAX_PAGE_DEPTH) {
+    const children = (await latest(req, { parent: { in: level } })).filter(
+      (child) => !seen.has(child.id),
+    );
+    if (children.length === 0) break;
+    for (const child of children) seen.add(child.id);
+    level = children.map((child) => child.id);
+    levels++;
+  }
+  return levels;
+}
+
+/**
+ * A move's slugs in the languages other than the one being saved (PR 98 review, item 3): `parent`
+ * is the same in every language, so a page moved to the top level, or under another page, takes
+ * each of its slugs there. The slug being saved is `validateSlug`'s; this checks the page's own
+ * slugs in its other languages the same way (a market's or a route's segment at the top level, a
+ * sibling with the same slug), and names the language.
+ */
+async function otherLanguagesProblem(
+  req: PayloadRequest,
+  id: Id,
+  parent: Id | null,
+): Promise<string | null> {
+  const { docs } = await keepingRequest(req, () =>
+    req.payload.find({
+      collection: "pages",
+      where: { id: { equals: id } },
+      locale: "all",
+      draft: true,
+      depth: 0,
+      select: { slug: true },
+      limit: 1,
+      pagination: false,
+      overrideAccess: true,
+      req,
+    }),
+  );
+  const slugs = (docs[0]?.slug ?? {}) as unknown as Record<string, unknown>;
+  for (const language of ownLanguages(slugs)) {
+    if (language === req.locale) continue;
+    const slug = slugs[language] as string;
+    const problem = slugProblem(slug, { topLevel: parent === null });
+    const name = `${languageLabel(language)} (${language})`;
+    const where = `In ${name}, the slug "${slug}"`;
+    if (problem !== null) return `${where} cannot go here. ${problem}`;
+    if (await keepingRequest(req, () => siblingSlugTaken(req, { slug, parent, id, language })))
+      return `${where} is another page's here already. Change it in ${name} first.`;
+  }
+  return null;
+}
+
+/**
+ * The `parent` field's check (D80): Payload's own first (an existing page, the picker's
+ * `filterOptions`), then, once the editor saves (not while typing), that the page is not put under
+ * itself or one of its own pages, that it and the pages under it stay within `MAX_PAGE_DEPTH`
+ * (PR 98 review, item 5; the picker's filter does not stop either), and, when the page moves, that
+ * its slugs in its other languages may stand under the new parent (item 3). Payload checks a
+ * publish, not a draft's save: a move saved as a draft is checked when it is published.
+ */
+export const validateParent: RelationshipFieldSingleValidation = async (value, options) => {
+  const base = await relationship(value, options);
+  const { req } = options;
+  // The re-saves below change no parent.
+  if (base !== true || options.event === "onChange" || req.context[RESAVING] === true) return base;
+  const id = pageIdOf(options.id);
+  const parent = pageIdOf(value);
+  if (parent !== null) {
+    const depth = await depthUnder(req, parent, id ?? undefined);
+    if (depth === null) return "A page cannot go under itself or one of the pages under it.";
+    const below = id === null ? 0 : await levelsUnder(req, id);
+    if (depth + 1 + below > MAX_PAGE_DEPTH)
+      return `Pages nest at most ${MAX_PAGE_DEPTH} deep: under this parent, ${below === 0 ? "this page" : "the pages under this one"} would go deeper.`;
+  }
+  // Against the latest version (`previousValue`) and the published page: a move saved as a draft
+  // is checked when it is published.
+  const moved =
+    id !== null &&
+    (pageIdOf(options.previousValue) !== parent || (await parentOf(req, id, false)) !== parent);
+  const problem = moved ? await otherLanguagesProblem(req, id, parent) : null;
+  return problem ?? true;
+};
+
+/**
+ * `beforeDelete` (PR 98 review, item 2): a page with pages under it is not deleted. The database
+ * would empty their `parent`, so they would move to the top level with no check of their slugs
+ * (`/cart`, `/us`, a slug another page has there) and stale breadcrumbs. The editor moves or deletes
+ * them first, on purpose.
+ */
+export const keepPageWithChildren: CollectionBeforeDeleteHook = async ({ id, req }) => {
+  const page = pageIdOf(id);
+  if (page === null) return;
+  const where: Where = { parent: { equals: page } };
+  // The published pages and the latest versions: a draft can name the page as its parent too.
+  const [published, latestVersions] = await Promise.all([
+    keepingRequest(req, () =>
+      req.payload.find({
+        collection: "pages",
+        where,
+        depth: 0,
+        select: { _status: true },
+        limit: 0,
+        pagination: false,
+        overrideAccess: true,
+        req,
+      }),
+    ),
+    latest(req, where),
+  ]);
+  const under = new Set<Id>([
+    ...published.docs.map((doc) => doc.id),
+    ...latestVersions.map((doc) => doc.id),
+  ]);
+  if (under.size === 0) return;
+  // With `data`, so a production build shows the message (see `users.ts`).
+  throw new APIError(
+    `This page has ${under.size === 1 ? "a page" : `${under.size} pages`} under it: move ${under.size === 1 ? "it" : "them"} to another parent, or delete ${under.size === 1 ? "it" : "them"}, first.`,
+    400,
+    {},
+  );
+};
+
+/**
+ * `parent` and `breadcrumbs` (D80). The picker leaves out the page itself and the pages whose
+ * breadcrumbs name it, a convenience: `validateParent` is the guard.
+ */
 export function nestedPageFields(): Field[] {
   return [
     createParentField("pages", {
       filterOptions: ({ id }) =>
         id ? { id: { not_equals: id }, "breadcrumbs.doc": { not_in: [id] } } : true,
+      validate: validateParent,
     }),
     createBreadcrumbsField("pages"),
   ];

@@ -1,6 +1,6 @@
 import "server-only";
 import type { Page } from "../../payload-types";
-import { pagePaths, type PageNode, type PagePaths } from "./page-path";
+import { pageIdOf, pagePaths, type PageNode, type PagePaths } from "./page-path";
 import { cmsRead } from "./read";
 import { readSiteSettings } from "./site";
 import { pageTags } from "./tags";
@@ -18,7 +18,7 @@ const toCmsPage = (page: Pick<Page, "id" | "title" | "slug" | "parent" | "layout
   id: page.id,
   title: page.title,
   slug: page.slug,
-  parent: typeof page.parent === "object" ? (page.parent?.id ?? null) : (page.parent ?? null),
+  parent: pageIdOf(page.parent),
   layout: page.layout ?? [],
 });
 
@@ -108,15 +108,6 @@ export async function readPageByPath(
   return page === null ? null : { page, paths };
 }
 
-const idOf = (value: unknown): number | null =>
-  typeof value === "number"
-    ? value
-    : typeof value === "object" &&
-        value !== null &&
-        typeof (value as { id?: unknown }).id === "number"
-      ? (value as { id: number }).id
-      : null;
-
 /**
  * The page `site-settings.homepage` names (D80), if a visitor can read it (it is published; in
  * Draft Mode, the editor's latest version): `{m}/` then draws it. `null` when none is named, it is
@@ -124,13 +115,13 @@ const idOf = (value: unknown): number | null =>
  */
 export async function readHomepage(reader: Reader): Promise<CmsPage | null> {
   const settings = await readSiteSettings(reader);
-  const id = idOf(settings?.homepage);
+  const id = pageIdOf(settings?.homepage);
   return id === null ? null : readPageById(reader, id);
 }
 
 /** The homepage's id, when the site settings name one (the homepage's own address points home). */
 export async function readHomepageId(reader: Reader): Promise<number | null> {
-  return idOf((await readSiteSettings(reader))?.homepage);
+  return pageIdOf((await readSiteSettings(reader))?.homepage);
 }
 
 /**

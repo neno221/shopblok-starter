@@ -39,12 +39,18 @@ export type PagePaths = {
   byId: Record<string, PagePlace>;
 };
 
-const parentId = (node: PageNode): number | null =>
-  node.parent === null || node.parent === undefined
-    ? null
-    : typeof node.parent === "object"
-      ? node.parent.id
-      : node.parent;
+/**
+ * A page reference as the page's id (a page's `parent`, `site-settings.homepage`): the id, or a
+ * populated document's; `null` for none (`null`, `undefined`, the admin's `""`). The one helper for
+ * it, in the shop and in the admin's hooks (PR 98 review, item 6).
+ */
+export function pageIdOf(value: unknown): number | null {
+  const id = typeof value === "object" && value !== null ? (value as { id?: unknown }).id : value;
+  if (typeof id === "number") return id;
+  return typeof id === "string" && /^\d+$/.test(id) ? Number(id) : null;
+}
+
+const parentId = (node: PageNode): number | null => pageIdOf(node.parent);
 
 /**
  * The addresses of `nodes` (one language's read). A page whose parent is not among them (not

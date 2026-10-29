@@ -1,6 +1,13 @@
 import type { PayloadRequest } from "payload";
 import { describe, expect, it, vi } from "vitest";
-import { breadcrumbsOf, populateBreadcrumbs, resaveInEveryLanguage } from "./nested-pages";
+import {
+  breadcrumbsOf,
+  keepPageWithChildren,
+  nestedPageFields,
+  populateBreadcrumbs,
+  resaveInEveryLanguage,
+  validateParent,
+} from "./nested-pages";
 
 type Page = {
   id: number;
@@ -195,5 +202,178 @@ describe("resaveInEveryLanguage", () => {
       [3, "en"],
       [3, "el"],
     ]);
+  });
+});
+
+type Stored = {
+  id: number;
+  slug: Record<string, string>;
+  /** The published page's parent. */
+  parent: number | null;
+  /** The latest version's, when an editor's draft moved it. */
+  draftParent?: number | null;
+};
+
+/** The pages as the guards read them: published, latest versions, and slugs in each language. */
+function guardRequest(pages: Stored[], locale = "en", context: object = {}) {
+  const parentIn = (page: Stored, draft: boolean) =>
+    draft && page.draftParent !== undefined ? page.draftParent : page.parent;
+  const req = {
+    locale,
+    fallbackLocale: "en",
+    context,
+    t: (key: string) => key,
+  } as unknown as PayloadRequest;
+  req.payload = {
+    collections: {},
+    db: { defaultIDType: "number" },
+    findByID: vi.fn(async (args: { id: number; draft?: boolean }) => {
+      const page = pages.find((each) => each.id === args.id);
+      return page === undefined ? null : { parent: parentIn(page, args.draft === true) };
+    }),
+    find: vi.fn(
+      async (args: {
+        where: Record<string, { equals?: number; in?: number[] }>;
+        draft?: boolean;
+      }) => {
+        const { id, parent } = args.where;
+        const draft = args.draft === true;
+        const docs = pages
+          .filter((page) =>
+            id
+              ? page.id === id.equals
+              : parent?.in
+                ? parent.in.includes(parentIn(page, draft) ?? -1)
+                : parentIn(page, draft) === parent?.equals,
+          )
+          .map((page) => ({ id: page.id, _status: "published", slug: page.slug }));
+        return { docs };
+      },
+    ),
+    count: vi.fn(
+      async (args: {
+        where: {
+          and: Record<string, { equals?: unknown; exists?: boolean; not_equals?: number }>[];
+        };
+        locale: string;
+      }) => {
+        const [slug, parent, id] = args.where.and;
+        const totalDocs = pages.filter(
+          (page) =>
+            page.slug[args.locale] === slug?.["slug"]?.equals &&
+            (parent?.["parent"]?.exists === false
+              ? page.parent === null
+              : page.parent === parent?.["parent"]?.equals) &&
+            page.id !== id?.["id"]?.not_equals,
+        ).length;
+        return { totalDocs };
+      },
+    ),
+  } as unknown as PayloadRequest["payload"];
+  return req;
+}
+
+describe("validateParent (PR 98 review, items 3 and 5)", () => {
+  const TREE: Stored[] = [
+    { id: 1, slug: { en: "about", el: "sxetika" }, parent: null },
+    { id: 2, slug: { en: "team", el: "el" }, parent: 1 },
+    { id: 3, slug: { en: "jobs" }, parent: 2 },
+    { id: 4, slug: { en: "contact", el: "epafi" }, parent: null },
+  ];
+  const check = (
+    value: number | null,
+    { id, previous, req }: { id?: number; previous?: number | null; req: PayloadRequest },
+  ) =>
+    validateParent(value, {
+      id,
+      req,
+      event: "submit",
+      relationTo: "pages",
+      previousValue: previous,
+      data: {},
+      siblingData: {},
+    } as unknown as Parameters<typeof validateParent>[1]);
+
+  it("is the parent field's check", () => {
+    const [parent] = nestedPageFields();
+    expect(parent).toMatchObject({ name: "parent", validate: validateParent });
+  });
+
+  it("refuses a page under itself or under one of its own pages", async () => {
+    const req = guardRequest(TREE);
+    expect(await check(1, { id: 1, previous: null, req })).toMatch(/under itself/);
+    expect(await check(3, { id: 1, previous: null, req })).toMatch(/under itself/);
+    expect(await check(4, { id: 1, previous: null, req })).toBe(true);
+  });
+
+  it("refuses a loop an editor's draft would make when it is published", async () => {
+    // Page 4's latest version is under 1; 1 under 4 would be a loop once both are published.
+    const req = guardRequest(
+      TREE.map((page) => (page.id === 4 ? { ...page, draftParent: 1 } : page)),
+    );
+    expect(await check(4, { id: 1, previous: null, req })).toMatch(/under itself/);
+  });
+
+  it("keeps the page and the pages under it within ten levels", async () => {
+    const chain: Stored[] = Array.from({ length: 9 }, (_, index) => ({
+      id: 10 + index,
+      slug: { en: `level-${index + 1}` },
+      parent: index === 0 ? null : 9 + index,
+    }));
+    const req = guardRequest([...TREE, ...chain]);
+    // Under the ninth level: the tenth, allowed; a page with pages under it would go deeper.
+    expect(await check(18, { req })).toBe(true);
+    expect(await check(18, { id: 4, previous: null, req })).toBe(true);
+    expect(await check(18, { id: 1, previous: null, req })).toMatch(/at most 10 deep/);
+  });
+
+  it("checks a moved page's slugs in its other languages, naming the language", async () => {
+    const req = guardRequest(TREE, "en");
+    // Page 2's Greek slug, two letters, is allowed under a parent and not at the top level.
+    expect(await check(null, { id: 2, previous: 1, req })).toMatch(
+      /In Ελληνικά \(el\), the slug "el".*market's address/,
+    );
+    expect(await check(4, { id: 2, previous: 1, req })).toBe(true);
+    // Under page 4 beside a page that has the Greek slug already.
+    const taken = guardRequest([...TREE, { id: 5, slug: { en: "x", el: "el" }, parent: 4 }]);
+    expect(await check(4, { id: 2, previous: 1, req: taken })).toMatch(/another page's here/);
+    // Not moved: nothing more to check.
+    expect(await check(1, { id: 2, previous: 1, req })).toBe(true);
+  });
+
+  it("checks a move saved as a draft when it is published", async () => {
+    // The latest version is at the top level already; the published page is under 1.
+    const req = guardRequest(TREE);
+    expect(await check(null, { id: 2, previous: null, req })).toMatch(/In Ελληνικά \(el\)/);
+  });
+
+  it("checks nothing more while the editor types, or on its own re-saves", async () => {
+    const typing = await validateParent(1, {
+      id: 1,
+      req: guardRequest(TREE),
+      event: "onChange",
+      relationTo: "pages",
+    } as unknown as Parameters<typeof validateParent>[1]);
+    expect(typing).toBe(true);
+    const req = guardRequest(TREE, "en", { resavingBreadcrumbs: true });
+    expect(await check(1, { id: 1, previous: null, req })).toBe(true);
+  });
+});
+
+describe("keepPageWithChildren (PR 98 review, item 2)", () => {
+  const run = (req: PayloadRequest, id: number) =>
+    (keepPageWithChildren as unknown as (args: object) => Promise<unknown>)({ id, req });
+
+  it("refuses to delete a page with pages under it, published or in a draft", async () => {
+    const pages: Stored[] = [
+      { id: 1, slug: { en: "about" }, parent: null },
+      { id: 2, slug: { en: "team" }, parent: 1 },
+      { id: 3, slug: { en: "jobs" }, parent: null, draftParent: 4 },
+      { id: 4, slug: { en: "contact" }, parent: null },
+      { id: 5, slug: { en: "faq" }, parent: null },
+    ];
+    await expect(run(guardRequest(pages), 1)).rejects.toThrow(/a page under it/);
+    await expect(run(guardRequest(pages), 4)).rejects.toThrow(/a page under it/);
+    await expect(run(guardRequest(pages), 5)).resolves.toBeUndefined();
   });
 });

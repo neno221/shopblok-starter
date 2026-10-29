@@ -10,7 +10,8 @@ import { adminToken, base, freshWithinTwo } from "./support/server";
 //   `/us/about-…/team-…` in English and `/σχετικά-…/ομάδα-…` in Greek (the primary market, at `/`),
 //   with its breadcrumbs, its canonical and D80's hreflang, and no per-visitor value in the HTML.
 // - A top-level slug that is a market's (`us`) or one of the shop's routes (`checkout`) is refused;
-//   under a parent it is a plain segment.
+//   under a parent it is a plain segment. A page is not put under one of its own pages, and a page
+//   with pages under it is not deleted.
 // - A page that is not published is a 404, a real one (the status, before any stream).
 // - `site-settings.homepage` decides what `{m}/` draws: the seeded Home (M3's sections as blocks),
 //   another page once an editor names it.
@@ -175,6 +176,21 @@ test("a market's or a route's slug is refused at the top level, and allowed unde
   expect((await get(`/us/${about.en}/us`)).status).toBe(200);
 });
 
+test("a page is not put under one of its own pages, nor deleted with pages under it", async () => {
+  // PR 98 review, items 5 and 2: the parent picker's filter is no guard, and deleting a parent
+  // would move its pages to the top level unchecked.
+  const loop = await api("PATCH", `/api/pages/${parentId}?locale=en`, {
+    parent: childId,
+    _status: "published",
+  });
+  expect(loop.status, loop.text).toBe(400);
+  expect(loop.text).toContain("under itself or one of the pages under it");
+  const deleted = await api("DELETE", `/api/pages/${parentId}`);
+  expect(deleted.status, deleted.text).toBe(400);
+  expect(deleted.text).toMatch(/under it: move/);
+  expect((await get(`/us/${about.en}/${team.en}`)).status, "both still answer").toBe(200);
+});
+
 test("a page that is not published is a 404, with the status", async () => {
   const slug = `e2e-draft-${stamp}`;
   await createPage({ title: `Draft ${stamp}`, slug, _status: "draft" });
@@ -199,8 +215,26 @@ test("the seeded home draws M3's sections as blocks, in M3's order", async () =>
   expect(html).toMatch(/<link rel="canonical" href="https?:\/\/[^"]+\/us"\/>/);
 });
 
+/**
+ * Waits until `path` answers from a settled cache entry (`x-nextjs-cache: HIT`), so no
+ * regeneration is running. One that started before a publish, and ends after it, is stored as
+ * current with what it read before: the publish then shows only at the page's next regeneration,
+ * up to 30 s later. The pages made in `beforeAll` leave `/us` regenerating, and on a server just
+ * started that takes over a second.
+ */
+async function settled(path: string) {
+  for (let attempt = 0; attempt < 40; attempt++) {
+    const response = await get(path);
+    await response.text();
+    if (response.headers.get("x-nextjs-cache") === "HIT") return;
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+  throw new Error(`${path} never answered from a settled entry`);
+}
+
 test("the homepage follows site-settings.homepage", async () => {
   expect(homepage, "the seed names the Home (seed-content)").not.toBeNull();
+  await settled("/us");
   await publishGlobal(token, "site-settings", { homepage: childId });
   const shows = (title: string) => async () =>
     (await (await get("/us")).text()).includes(`${title}</h1>`);
@@ -208,6 +242,7 @@ test("the homepage follows site-settings.homepage", async () => {
   // As the homepage, it has no breadcrumbs: it is the market's home.
   expect(await (await get("/us")).text()).not.toContain('data-slot="breadcrumb"');
 
+  await settled("/us");
   await publishGlobal(token, "site-settings", { homepage });
   const seeded = async () => (await (await get("/us")).text()).includes('data-slot="hero-section"');
   expect(await freshWithinTwo(seeded, 1_500)).toBeGreaterThan(0);

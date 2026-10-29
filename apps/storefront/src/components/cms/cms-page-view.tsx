@@ -1,9 +1,11 @@
 import type { CmsPage as CmsPageContent } from "@shopblok/registry/contracts";
 import { CmsPageTemplate } from "@shopblok/ui/templates/cms-page";
 import { getMessages } from "next-intl/server";
+import { pageHeading } from "../../lib/cms/page-content";
 import type { PagePaths } from "../../lib/cms/page-path";
 import type { CmsPage } from "../../lib/cms/pages";
 import { commerceContext } from "../../lib/cms/resolve/market";
+import { resolveLayout, type ResolveContext } from "../../lib/cms/resolve/sections";
 import { shellPaths } from "../../lib/cms/shell";
 import type { CurrentMarket } from "../../lib/market-locale";
 import { getMarketContext } from "../../lib/market-context";
@@ -15,8 +17,8 @@ import { RenderBlocks } from "./render-blocks";
 
 type CmsPageViewProps = {
   page: CmsPage;
-  /** What the template draws above the blocks (`cmsPageContent`). */
-  content: CmsPageContent;
+  /** What the template draws above the blocks (`cmsPageContent`); the heading follows the blocks. */
+  content: Omit<CmsPageContent, "heading">;
   market: CurrentMarket;
   /** The pages' addresses, for links to pages when the shell has none. */
   paths?: PagePaths | null;
@@ -35,19 +37,22 @@ export async function CmsPageView({ page, content, market, paths, draft }: CmsPa
   const [messages, shell] = await Promise.all([getMessages(), getShellData()]);
   const context = buildReadsMedusa() ? await getMarketContext(market.key) : null;
   const commerce = context === null ? undefined : await commerceContext(context, messages);
+  const resolveContext: ResolveContext = {
+    market,
+    map: shell.map,
+    paths: shellPaths(shell.categories, shell.pages ?? paths),
+    ...(commerce === undefined ? {} : { commerce }),
+  };
+  const blocks = await resolveLayout(page.layout, resolveContext);
+  const heading = pageHeading(blocks);
   return (
     <>
-      <CmsPageTemplate {...content} copy={messages.molecules.breadcrumbs}>
+      <CmsPageTemplate {...content} heading={heading} copy={messages.molecules.breadcrumbs}>
         <RenderBlocks
-          blocks={page.layout}
-          context={{
-            market,
-            map: shell.map,
-            paths: shellPaths(shell.categories, shell.pages ?? paths),
-            ...(commerce === undefined ? {} : { commerce }),
-          }}
+          resolved={blocks}
+          context={resolveContext}
           messages={messages}
-          heroTitle={content.heading === "hero"}
+          heroTitle={heading === "hero"}
         />
       </CmsPageTemplate>
       {/* `siteOrigin()`, Payload's `serverURL`: the island ignores a message from any other origin. */}

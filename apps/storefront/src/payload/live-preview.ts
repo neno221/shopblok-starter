@@ -1,5 +1,5 @@
 import type { LivePreviewConfig, Payload } from "payload";
-import { MAX_PAGE_DEPTH, pagePath } from "../lib/cms/page-path";
+import { MAX_PAGE_DEPTH, pageIdOf, pagePath } from "../lib/cms/page-path";
 import { CMS_PATHS } from "../lib/cms/paths";
 import { env } from "../lib/env";
 import { listMarkets, primaryCountryCode } from "../lib/markets/market";
@@ -81,14 +81,14 @@ export async function pagePreviewPath(
 ): Promise<string | null> {
   const slugs: unknown[] = [data["slug"]];
   const seen = new Set<unknown>([data["id"]]);
-  let parent = data["parent"];
-  while (parent !== null && parent !== undefined && parent !== "") {
-    const id = typeof parent === "object" ? (parent as { id: number | string }).id : parent;
-    if (seen.has(id) || seen.size > MAX_PAGE_DEPTH) return null;
+  let id = pageIdOf(data["parent"]);
+  while (id !== null) {
+    // The page and its parents, at most `MAX_PAGE_DEPTH` in all, as `pagePaths` counts them.
+    if (seen.has(id) || seen.size >= MAX_PAGE_DEPTH) return null;
     seen.add(id);
     const doc = (await payload.findByID({
       collection: "pages",
-      id: id as number,
+      id,
       locale: locale as never,
       draft: true,
       depth: 0,
@@ -98,7 +98,7 @@ export async function pagePreviewPath(
     })) as { slug?: unknown; parent?: unknown } | null;
     if (doc === null) return null;
     slugs.unshift(doc.slug);
-    parent = doc.parent;
+    id = pageIdOf(doc.parent);
   }
   return pagePath(slugs);
 }
