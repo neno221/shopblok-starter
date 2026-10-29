@@ -701,6 +701,23 @@ export const de: Messages = {
     promoBanner: { ends: "Angebot endet am {date}" },
     comparison: { price: "Preis", missing: "Keine Angabe" },
     collectionSpotlight: { shop: "Zur Kollektion" },
+    form: {
+      submit: "Senden",
+      sending: "Wird gesendet…",
+      optional: "(optional)",
+      choose: "Bitte wählen…",
+      done: "Danke. Ihre Nachricht ist bei uns angekommen.",
+      invalid: "Einige Angaben brauchen eine Korrektur: Sie sind unten markiert.",
+      unavailable:
+        "Das Formular konnte gerade nicht gesendet werden. Versuchen Sie es gleich noch einmal.",
+      honeypot: "Lassen Sie dieses Feld leer",
+      errors: {
+        required: "Füllen Sie dieses Feld aus.",
+        checkbox: "Setzen Sie hier ein Häkchen, um fortzufahren.",
+        email: "Geben Sie eine E-Mail-Adresse ein, etwa name@example.com.",
+        invalid: "Prüfen Sie diese Angabe.",
+      },
+    },
   },
   templates: {
     notFound: {
@@ -876,8 +893,7 @@ export const de: Messages = {
         notices: {
           verified:
             "Ihre E-Mail-Adresse ist bestätigt. Melden Sie sich an, um die Erstellung Ihres Kontos abzuschließen.",
-          "password-reset":
-            "Ihr Passwort wurde geändert. Melden Sie sich mit dem neuen an.",
+          "password-reset": "Ihr Passwort wurde geändert. Melden Sie sich mit dem neuen an.",
           "signed-out": "Sie wurden abgemeldet.",
           "sign-in-required": "Melden Sie sich an, um Ihr Konto zu sehen.",
         },
@@ -925,8 +941,7 @@ export const de: Messages = {
           "Bestätigen Sie zuerst Ihre E-Mail-Adresse: Öffnen Sie den Link, den wir Ihnen gesendet haben.",
         exists:
           "Mit dieser E-Mail-Adresse gibt es bereits ein Konto. Melden Sie sich stattdessen an.",
-        rejected:
-          "Das hat nicht geklappt. Prüfen Sie Ihre Angaben und versuchen Sie es erneut.",
+        rejected: "Das hat nicht geklappt. Prüfen Sie Ihre Angaben und versuchen Sie es erneut.",
         unavailable:
           "Der Shop ist gerade nicht erreichbar. Bitte versuchen Sie es gleich noch einmal.",
       },
@@ -948,18 +963,15 @@ export const de: Messages = {
         allOrders: "Alle Bestellungen ansehen",
         manage: "Konto verwalten",
         addresses: "Gespeicherte Adressen",
-        addressesText:
-          "Fügen Sie hinzu oder ändern Sie, wohin Ihre Bestellungen gehen.",
+        addressesText: "Fügen Sie hinzu oder ändern Sie, wohin Ihre Bestellungen gehen.",
         profile: "Profil",
         profileText: "Ihr Name und Ihre Telefonnummer.",
         lookup: "Gastbestellung finden",
-        lookupText:
-          "Fügen Sie eine Bestellung hinzu, die Sie ohne Anmeldung aufgegeben haben.",
+        lookupText: "Fügen Sie eine Bestellung hinzu, die Sie ohne Anmeldung aufgegeben haben.",
       },
       orders: {
         title: "Bestellungen",
-        lookup:
-          "Fehlt eine Bestellung? Fügen Sie eine als Gast aufgegebene Bestellung hinzu.",
+        lookup: "Fehlt eine Bestellung? Fügen Sie eine als Gast aufgegebene Bestellung hinzu.",
       },
       order: {
         title: "Bestellung #{number}",
@@ -987,8 +999,7 @@ export const de: Messages = {
         title: "Rücksendungen",
         lead: "Wählen Sie die Bestellung mit den Artikeln, die Sie zurücksenden möchten.",
         emptyTitle: "Nichts zurückzusenden",
-        emptyText:
-          "Bestellungen, aus denen Sie Artikel zurücksenden können, erscheinen hier.",
+        emptyText: "Bestellungen, aus denen Sie Artikel zurücksenden können, erscheinen hier.",
         emptyAction: "Ihre Bestellungen ansehen",
       },
       return: {
@@ -1035,8 +1046,7 @@ export const de: Messages = {
       done: {
         accepted: "Die Bestellung gehört jetzt zum Konto.",
         declined: "Die Anfrage wurde abgelehnt. Es hat sich nichts geändert.",
-        failed:
-          "Dieser Link funktioniert nicht mehr. Er wurde möglicherweise schon verwendet.",
+        failed: "Dieser Link funktioniert nicht mehr. Er wurde möglicherweise schon verwendet.",
         home: "Weiter einkaufen",
       },
       errors: {

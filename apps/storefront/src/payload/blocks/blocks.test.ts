@@ -25,9 +25,9 @@ describe("the blocks and the registry (D70)", () => {
   });
 
   it("fail when a block has no entry, an entry no block, or the variants differ", () => {
-    const extra: Block = { slug: "newsletter", fields: [] };
+    const extra: Block = { slug: "storyCarousel", fields: [] };
     expect(blockDrift(sectionEntries(), [...BLOCKS, extra])).toEqual([
-      'the block "newsletter" has no Sections entry in the registry',
+      'the block "storyCarousel" has no Sections entry in the registry',
     ]);
     expect(blockDrift(sectionEntries(), BLOCKS.slice(1))).toEqual([
       'sections/rich-text names the block "richText", which src/payload/blocks/ lacks',
@@ -131,6 +131,10 @@ describe("the blocks and the registry (D70)", () => {
       "collectionSpotlight.heading",
       "collectionSpotlight.text",
       "recentlyViewed.heading",
+      "newsletter.heading",
+      "newsletter.text",
+      "formBlock.heading",
+      "formBlock.intro",
     ]);
   });
 });

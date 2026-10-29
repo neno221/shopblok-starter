@@ -9,9 +9,10 @@ export type SectionProductsCopy = ProductCardCopy & {
 
 /**
  * The sections' fixed words (D43), from a whole catalog: `sections` (the video's play button and
- * its provider's note, the commerce blocks' words), and the atoms', molecules' and organisms' that
- * the sections draw (a link's new-tab note, the stars, the cards, the countdown, the code to copy).
- * One object for every section, so `RenderBlocks` builds it once per page.
+ * its provider's note, the commerce blocks' words, the form's words), the newsletter's
+ * (NewsletterForm's), and the atoms', molecules' and organisms' that the sections draw (a link's
+ * new-tab note, the stars, the cards, the countdown, the code to copy). One object for every
+ * section, so `RenderBlocks` builds it once per page.
  */
 export type SectionsCopy = {
   newTab: string;
@@ -25,6 +26,8 @@ export type SectionsCopy = {
   promoBanner: Messages["sections"]["promoBanner"];
   comparison: Messages["sections"]["comparison"];
   collectionSpotlight: Messages["sections"]["collectionSpotlight"];
+  form: Messages["sections"]["form"];
+  newsletter: Messages["molecules"]["newsletterForm"];
 };
 
 export function sectionsCopy(messages: Messages): SectionsCopy {
@@ -46,5 +49,7 @@ export function sectionsCopy(messages: Messages): SectionsCopy {
     promoBanner: sections.promoBanner,
     comparison: sections.comparison,
     collectionSpotlight: sections.collectionSpotlight,
+    form: sections.form,
+    newsletter: molecules.newsletterForm,
   };
 }

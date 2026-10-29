@@ -22,6 +22,10 @@ import { resolveLayout, type ResolveContext } from "../../lib/cms/resolve/sectio
 import { faqJsonLd } from "../../lib/seo/faq";
 import { jsonLdText } from "../../lib/seo/product";
 import { SHELL_PREFETCH } from "../../lib/site";
+import { submitForm } from "../../lib/actions/form";
+import { FormHoneypot } from "./form-honeypot";
+import { FormBlockIsland } from "./form-block-island";
+import { NewsletterSectionIsland } from "./newsletter-section-island";
 import { OfferEnd } from "./offer-end";
 import { RecentlyViewedBlock } from "./recently-viewed-block";
 import { CmsRichText } from "./rich-text";
@@ -43,10 +47,12 @@ type RenderBlocksProps = {
  * A page's blocks (D70, T63): each block resolved for the market (`resolveLayout`: its links, its
  * uploads, its contract) and drawn by its section in `@shopblok/ui/sections`, which applies the
  * block's `sectionSettings`. A block that cannot be drawn is left out. The page's FAQs together
- * are one `FAQPage` JSON-LD, after the blocks. A server component: the only island is a video
- * embed's play button,
- * a promo code's copy button, a carousel's buttons and the visitor's recently viewed products. The
- * commerce blocks (T64) are drawn only with `context.commerce`, the market's catalog.
+ * are one `FAQPage` JSON-LD, after the blocks. A server component; its islands are a video embed's
+ * play button, a promo code's copy button, a carousel's buttons, the visitor's recently viewed
+ * products and the forms (T67, D81), each posting to `submitForm` bound to the market and its
+ * form, with the spam trap, and an `id` from the block's, so the answer to a post without scripts
+ * scrolls back to it. The commerce blocks (T64) are drawn only with `context.commerce`, the
+ * market's catalog.
  */
 export async function RenderBlocks({
   blocks,
@@ -195,6 +201,44 @@ export async function RenderBlocks({
                 copy={{ products: copy.products }}
                 locale={locale}
                 prefetch={prefetch}
+              />
+            );
+          case "newsletter":
+            return (
+              <NewsletterSectionIsland
+                key={block.key}
+                {...block.section}
+                copy={copy}
+                locale={locale}
+                fieldName={block.form.fieldName}
+                hiddenFields={<FormHoneypot label={copy.form.honeypot} />}
+                submit={submitForm.bind(null, { market: context.market.key, form: block.form.id })}
+                formId={`form-${block.key}`}
+              />
+            );
+          case "formBlock":
+            return (
+              <FormBlockIsland
+                key={block.key}
+                {...block.section}
+                copy={copy}
+                messages={Object.fromEntries(
+                  Object.entries(block.messages).map(([id, message]) => [
+                    id,
+                    <CmsRichText key={id} data={message} context={context} />,
+                  ]),
+                )}
+                confirmation={
+                  block.confirmation === null ? undefined : (
+                    <CmsRichText data={block.confirmation} context={context} />
+                  )
+                }
+                hiddenFields={<FormHoneypot label={copy.form.honeypot} />}
+                submit={submitForm.bind(null, {
+                  market: context.market.key,
+                  form: block.section.form.id,
+                })}
+                formId={`form-${block.key}`}
               />
             );
         }

@@ -7,7 +7,8 @@ import * as migration_20261028_211336_email_templates from './20261028_211336_em
 import * as migration_20261028_220728_ui_strings from './20261028_220728_ui_strings';
 import * as migration_20261029_000652_globals from './20261029_000652_globals';
 import * as migration_20261029_020305_blocks from './20261029_020305_blocks';
-import * as migration_20261029_043338_commerce_blocks from './20261029_043338_commerce_blocks';
+import * as migration_20261029_032810_forms from './20261029_032810_forms';
+import * as migration_20261029_045853_commerce_blocks from './20261029_045853_commerce_blocks';
 
 export const migrations = [
   {
@@ -56,8 +57,13 @@ export const migrations = [
     name: '20261029_020305_blocks',
   },
   {
-    up: migration_20261029_043338_commerce_blocks.up,
-    down: migration_20261029_043338_commerce_blocks.down,
-    name: '20261029_043338_commerce_blocks'
+    up: migration_20261029_032810_forms.up,
+    down: migration_20261029_032810_forms.down,
+    name: '20261029_032810_forms',
+  },
+  {
+    up: migration_20261029_045853_commerce_blocks.up,
+    down: migration_20261029_045853_commerce_blocks.down,
+    name: '20261029_045853_commerce_blocks'
   },
 ];

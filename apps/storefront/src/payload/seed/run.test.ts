@@ -384,7 +384,15 @@ describe("the globals' seed (T61 step 6)", () => {
       de: siteText("de").announcement,
       fr: siteText("fr").announcement,
     });
-    const footer = await footerSeed.fields({} as Payload);
+    // T67: the newsletter is the seeded form, looked up; none before the forms' seed ran.
+    const noForms = { find: async () => ({ docs: [] }) } as unknown as Payload;
+    const footer = await footerSeed.fields(noForms);
+    expect(footer).not.toHaveProperty(["newsletter.form"]);
+    const withForm = { find: async () => ({ docs: [{ id: 5 }] }) } as unknown as Payload;
+    expect(await footerSeed.fields(withForm)).toMatchObject({
+      "newsletter.form": { value: 5 },
+      "newsletter.privacy": { value: { type: "custom", url: "/privacy" } },
+    });
     const columns = footer["columns"]?.value as {
       title: Record<string, string>;
       categories?: boolean;

@@ -55,6 +55,10 @@ type NewsletterFormProps = Omit<
   status?: NewsletterStatus;
   /** The level of the form's heading in the page's outline. */
   headingLevel?: HeadingLevel;
+  /** The email field's `name`: the form's own field (T67's newsletter form posts the editor's name). */
+  fieldName?: string;
+  /** Hidden inputs the shop posts with the address (T67: the spam trap), first in the form. */
+  hiddenFields?: React.ReactNode;
   /**
    * The privacy link's `prefetch` (next/link). Unset, Next prefetches the page's shell in a
    * production build; the design system passes `false` because its pages do not exist before M3.
@@ -76,6 +80,8 @@ function NewsletterForm({
   action,
   status = "idle",
   headingLevel = 3,
+  fieldName = "email",
+  hiddenFields,
   prefetch,
   className,
   ...props
@@ -107,6 +113,7 @@ function NewsletterForm({
       {/* Enter in the one text field submits a form with no submit button; a disabled default
           button stops it while a signup is on its way. Hidden, so nobody meets it. */}
       {sending ? <button type="submit" disabled hidden tabIndex={-1} aria-hidden="true" /> : null}
+      {hiddenFields}
       <div className="flex min-w-0 flex-col gap-1">
         <Heading
           id={headingId}
@@ -124,7 +131,7 @@ function NewsletterForm({
         <div className="flex flex-col gap-2 @md:flex-row @md:items-start">
           <Input
             id={emailId}
-            name="email"
+            name={fieldName}
             type="email"
             autoComplete="email"
             inputMode="email"

@@ -70,6 +70,11 @@ type FooterProps = Footer & {
   logo?: React.ReactNode;
   /** What the newsletter form's `<form action>` takes (M3's server action). */
   newsletterAction?: NewsletterFormProps["action"];
+  /**
+   * The shop's own signup, drawn in the newsletter's place instead of the plain form (T67: the
+   * island that keeps the server action's answer). Drawn only when `newsletter` is set.
+   */
+  newsletterSlot?: React.ReactNode;
   /** The level of the footer's headings (the columns', the social links', the newsletter's). Default 2. */
   headingLevel?: HeadingLevel;
   className?: string;
@@ -249,6 +254,7 @@ function FooterNewsletter({ footer, className }: { footer: FooterProps; classNam
     newsletter,
     newsletterCopy,
     newsletterAction,
+    newsletterSlot,
     locale,
     prefetch,
     headingLevel = 2,
@@ -256,14 +262,16 @@ function FooterNewsletter({ footer, className }: { footer: FooterProps; classNam
   if (newsletter === undefined) return null;
   return (
     <div data-slot="footer-newsletter" className={cn("min-w-0", className)}>
-      <NewsletterForm
-        newsletter={newsletter}
-        copy={newsletterCopy}
-        locale={locale}
-        action={newsletterAction}
-        headingLevel={headingLevel}
-        prefetch={prefetch}
-      />
+      {newsletterSlot ?? (
+        <NewsletterForm
+          newsletter={newsletter}
+          copy={newsletterCopy}
+          locale={locale}
+          action={newsletterAction}
+          headingLevel={headingLevel}
+          prefetch={prefetch}
+        />
+      )}
     </div>
   );
 }

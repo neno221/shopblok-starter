@@ -5,9 +5,11 @@ import {
   ComparisonSection,
   FaqSection,
   FeaturedProductSection,
+  FormBlockSection,
   HeroSection,
   LogoCloudSection,
   MediaWithTextSection,
+  NewsletterSection,
   ProductCollectionSection,
   PromoBannerSection,
   RecentlyViewedSection,
@@ -39,6 +41,10 @@ describe("the sections' fixtures (T63)", () => {
       for (const each of [f.video.embed, f.video.file, f.video.long])
         expect(VideoSection.parse(each)).toEqual(each);
       expect(SpacerSection.parse(f.spacer.section)).toEqual(f.spacer.section);
+      for (const each of [f.newsletter.section, f.newsletter.long])
+        expect(NewsletterSection.parse(each)).toEqual(each);
+      for (const each of [f.formBlock.section, f.formBlock.long])
+        expect(FormBlockSection.parse(each)).toEqual(each);
     }
   });
 
@@ -74,6 +80,23 @@ describe("the sections' fixtures (T63)", () => {
       expect(f.video.long.title.length).toBeGreaterThan(f.video.embed.title.length);
       expect(f.faq.long.items[0]?.title.length).toBeGreaterThan(
         Math.max(...f.faq.section.items.map((item) => item.title.length)),
+      );
+      expect(f.newsletter.long.heading?.length).toBeGreaterThan(
+        f.newsletter.section.heading?.length ?? 0,
+      );
+      const labels = (section: typeof f.formBlock.section) =>
+        section.form.fields.map((field) => ("label" in field ? field.label.length : 0));
+      expect(Math.max(...labels(f.formBlock.long))).toBeGreaterThan(
+        Math.max(...labels(f.formBlock.section)),
+      );
+    }
+  });
+
+  it("give the contact form every kind of field once, each name once (T67)", () => {
+    for (const locale of designSystemLocales) {
+      const { fields } = sectionFixtures[locale].formBlock.section.form;
+      expect(new Set(fields.map((field) => field.kind))).toEqual(
+        new Set(["text", "email", "select", "textarea", "message", "checkbox"]),
       );
     }
   });

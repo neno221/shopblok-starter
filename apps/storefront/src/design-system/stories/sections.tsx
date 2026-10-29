@@ -8,7 +8,7 @@
 // drawn from the commerce fixtures' products and categories, as the resolvers would give them; a
 // countdown is frozen at the fixtures' `now`, and the recently viewed list is the browser's own in
 // the shop, a fixed list here.
-import { markets, sectionFixtures } from "@shopblok/fixtures";
+import { commerceFixtures, markets, sectionFixtures } from "@shopblok/fixtures";
 import { catalogs } from "@shopblok/i18n";
 import type { EntryId } from "@shopblok/registry";
 import type { SectionSettings } from "@shopblok/registry/contracts";
@@ -18,9 +18,11 @@ import { CollectionSpotlightSection } from "@shopblok/ui/sections/collection-spo
 import { ComparisonSection } from "@shopblok/ui/sections/comparison";
 import { FaqSection } from "@shopblok/ui/sections/faq";
 import { FeaturedProductSection } from "@shopblok/ui/sections/featured-product";
+import { FormBlockSection, type FormBlockSectionProps } from "@shopblok/ui/sections/form-block";
 import { HeroSection } from "@shopblok/ui/sections/hero";
 import { LogoCloudSection } from "@shopblok/ui/sections/logo-cloud";
 import { MediaWithTextSection } from "@shopblok/ui/sections/media-with-text";
+import { NewsletterSection } from "@shopblok/ui/sections/newsletter";
 import { ProductCollectionSection } from "@shopblok/ui/sections/product-collection";
 import { PromoBannerSection } from "@shopblok/ui/sections/promo-banner";
 import { RecentlyViewedSection } from "@shopblok/ui/sections/recently-viewed";
@@ -35,6 +37,7 @@ import type { DsContext, DsStory } from "../types";
 const fixtures = (ctx: DsContext) => sectionFixtures[ctx.locale];
 const copy = (ctx: DsContext) => sectionsCopy(catalogs[ctx.locale]);
 const lang = (ctx: DsContext) => ctx.fixture.market.htmlLang;
+const commerce = (ctx: DsContext) => commerceFixtures[ctx.locale];
 
 /** The DS market's country's time zone (D65), as the shop's markets global seeds it. */
 const timeZone = (ctx: DsContext) =>
@@ -238,6 +241,47 @@ function recentlyViewed(ctx: DsContext, settings?: SectionSettings) {
       copy={copy(ctx)}
       locale={lang(ctx)}
       prefetch={false}
+    />
+  );
+}
+
+function newsletter(
+  ctx: DsContext,
+  which: "section" | "long",
+  status?: "sending" | "done" | "error",
+  settings?: SectionSettings,
+) {
+  const section = fixtures(ctx).newsletter[which];
+  const typed = commerce(ctx).marketing.newsletter.typed;
+  return (
+    <NewsletterSection
+      {...section}
+      newsletter={
+        status === undefined ? section.newsletter : { ...section.newsletter, email: typed.email }
+      }
+      settings={settings}
+      status={status}
+      copy={copy(ctx)}
+      locale={lang(ctx)}
+      prefetch={false}
+    />
+  );
+}
+
+/** The contact form, with its note between the fields; `state` is the action's answer. */
+function contactForm(
+  ctx: DsContext,
+  which: "section" | "long",
+  state: Pick<FormBlockSectionProps, "status" | "errors" | "values" | "settings"> = {},
+) {
+  const { note, confirmation, ...samples } = fixtures(ctx).formBlock;
+  return (
+    <FormBlockSection
+      {...samples[which]}
+      {...state}
+      copy={copy(ctx)}
+      messages={{ note: <p>{note}</p> }}
+      confirmation={<p>{confirmation}</p>}
     />
   );
 }
@@ -705,6 +749,87 @@ export const sectionStories = {
         label: "Muted surface",
         description: "The carousel on the muted fill.",
         render: (ctx) => recentlyViewed(ctx, muted),
+      },
+    ],
+  },
+  "sections/newsletter": {
+    summary:
+      "The newsletter signup as a band of the page: the editor's heading and line over one email field, the consent sentence with the privacy link, and the four states. It posts the editor's newsletter form, with scripts or without.",
+    a11y: [
+      "The heading is an h2; empty, the catalog's words stand in.",
+      "The email field is labelled, typed `email` with `autocomplete=email`; the consent sentence links the privacy page.",
+      "The answer is text in a polite status region that is always in the page; a refused address is marked `aria-invalid` and tied to its error.",
+      "Without scripts the form posts and the page comes back scrolled to it, with the answer.",
+    ],
+    live: (ctx) => newsletter(ctx, "section"),
+    statesLayout: "stack",
+    states: [
+      {
+        id: "sending",
+        label: "Sending",
+        description: "The button keeps its place and name, busy; Enter is stopped.",
+        render: (ctx) => newsletter(ctx, "section", "sending"),
+      },
+      {
+        id: "done",
+        label: "Subscribed, muted",
+        description: "The thank-you line in the status region, on the muted fill.",
+        render: (ctx) => newsletter(ctx, "section", "done", muted),
+      },
+      {
+        id: "long",
+        label: "Long heading, error",
+        description: "A heading that wraps, a long address kept, and the error line.",
+        render: (ctx) => newsletter(ctx, "long", "error"),
+      },
+    ],
+  },
+  "sections/form-block": {
+    summary:
+      "A form an editor built in the admin: text, email, select, text area and checkbox fields in the editor's order, the editor's text between them, two half-width fields to a row where the form is wide enough, and the answer in place.",
+    a11y: [
+      "Each control is native and labelled; an optional field says so, a required one is `required`, so the browser checks it first.",
+      "A refused field is marked `aria-invalid`, its error tied to it by `aria-describedby`, and what was typed is kept (WCAG 3.3.1).",
+      "The answer is text in a polite status region that is always in the page (WCAG 4.1.3).",
+      "Without scripts the form posts and the page comes back scrolled to it, with the answer.",
+    ],
+    live: (ctx) => contactForm(ctx, "section"),
+    statesLayout: "stack",
+    states: [
+      {
+        id: "error",
+        label: "Refused fields",
+        description:
+          "The server refused the address's shape and the unticked box; the other answers are kept.",
+        render: (ctx) =>
+          contactForm(ctx, "section", {
+            status: "error",
+            errors: { email: "pattern", consent: "required" },
+            values: {
+              name: "Alex Doe",
+              email: "alex@",
+              topic: "returns",
+              message: fixtures(ctx).richText.body.paragraphs[0] ?? "",
+            },
+          }),
+      },
+      {
+        id: "sending",
+        label: "Sending",
+        description: "The fields read-only and the button busy, in place.",
+        render: (ctx) => contactForm(ctx, "section", { status: "sending" }),
+      },
+      {
+        id: "done",
+        label: "Sent, muted",
+        description: "The editor's confirmation in the status region, on the muted fill.",
+        render: (ctx) => contactForm(ctx, "section", { status: "done", settings: muted }),
+      },
+      {
+        id: "long",
+        label: "Long labels",
+        description: "Labels that wrap in both halves of a row; the fields keep their width.",
+        render: (ctx) => contactForm(ctx, "long"),
       },
     ],
   },

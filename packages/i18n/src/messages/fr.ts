@@ -710,6 +710,22 @@ export const fr: Messages = {
     promoBanner: { ends: "L’offre se termine le {date}" },
     comparison: { price: "Prix", missing: "Non précisé" },
     collectionSpotlight: { shop: "Découvrir la collection" },
+    form: {
+      submit: "Envoyer",
+      sending: "Envoi…",
+      optional: "(facultatif)",
+      choose: "Choisissez…",
+      done: "Merci. Nous avons bien reçu votre message.",
+      invalid: "Certaines réponses sont à revoir : elles sont signalées ci-dessous.",
+      unavailable: "Le formulaire n’a pas pu être envoyé. Réessayez dans un instant.",
+      honeypot: "Laissez ce champ vide",
+      errors: {
+        required: "Remplissez ce champ.",
+        checkbox: "Cochez cette case pour continuer.",
+        email: "Saisissez une adresse e-mail, comme name@example.com.",
+        invalid: "Vérifiez cette réponse.",
+      },
+    },
   },
   templates: {
     notFound: {
@@ -882,8 +898,7 @@ export const fr: Messages = {
         notices: {
           verified:
             "Votre adresse e-mail est vérifiée. Connectez-vous pour terminer la création de votre compte.",
-          "password-reset":
-            "Votre mot de passe a été modifié. Connectez-vous avec le nouveau.",
+          "password-reset": "Votre mot de passe a été modifié. Connectez-vous avec le nouveau.",
           "signed-out": "Vous êtes déconnecté.",
           "sign-in-required": "Connectez-vous pour voir votre compte.",
         },
@@ -915,8 +930,7 @@ export const fr: Messages = {
         title: "Ce lien ne fonctionne plus",
         verify:
           "Le lien a peut-être déjà été utilisé, ou il a expiré. Connectez-vous et nous vous en enverrons un nouveau.",
-        reset:
-          "Le lien a peut-être déjà été utilisé, ou il a expiré. Demandez-en un nouveau.",
+        reset: "Le lien a peut-être déjà été utilisé, ou il a expiré. Demandez-en un nouveau.",
         restart: { verify: "Se connecter", reset: "Demander un nouveau lien" },
       },
       errors: {
@@ -929,12 +943,9 @@ export const fr: Messages = {
         credentials: "L’adresse e-mail ou le mot de passe n’est pas correct.",
         "not-verified":
           "Vérifiez d’abord votre adresse e-mail : ouvrez le lien que nous vous avons envoyé.",
-        exists:
-          "Un compte existe déjà avec cette adresse e-mail. Connectez-vous plutôt.",
-        rejected:
-          "Cela n’a pas fonctionné. Vérifiez vos informations et réessayez.",
-        unavailable:
-          "La boutique est injoignable pour le moment. Réessayez dans un instant.",
+        exists: "Un compte existe déjà avec cette adresse e-mail. Connectez-vous plutôt.",
+        rejected: "Cela n’a pas fonctionné. Vérifiez vos informations et réessayez.",
+        unavailable: "La boutique est injoignable pour le moment. Réessayez dans un instant.",
       },
     },
     account: {
@@ -954,8 +965,7 @@ export const fr: Messages = {
         allOrders: "Voir toutes les commandes",
         manage: "Gérer votre compte",
         addresses: "Adresses enregistrées",
-        addressesText:
-          "Ajoutez et modifiez les adresses de livraison de vos commandes.",
+        addressesText: "Ajoutez et modifiez les adresses de livraison de vos commandes.",
         profile: "Profil",
         profileText: "Votre nom et votre numéro de téléphone.",
         lookup: "Retrouver une commande invité",
@@ -963,8 +973,7 @@ export const fr: Messages = {
       },
       orders: {
         title: "Commandes",
-        lookup:
-          "Il manque une commande ? Ajoutez une commande passée en tant qu’invité.",
+        lookup: "Il manque une commande ? Ajoutez une commande passée en tant qu’invité.",
       },
       order: {
         title: "Commande nº {number}",
@@ -992,8 +1001,7 @@ export const fr: Messages = {
         title: "Retours",
         lead: "Choisissez la commande contenant les articles que vous souhaitez retourner.",
         emptyTitle: "Rien à retourner",
-        emptyText:
-          "Les commandes dont vous pouvez retourner des articles apparaissent ici.",
+        emptyText: "Les commandes dont vous pouvez retourner des articles apparaissent ici.",
         emptyAction: "Voir vos commandes",
       },
       return: {
@@ -1012,8 +1020,7 @@ export const fr: Messages = {
         "not-found": "Cet élément ne fait pas partie de votre compte.",
         rejected:
           "La modification n’a pas pu être enregistrée. Vérifiez vos informations et réessayez.",
-        unavailable:
-          "La boutique est injoignable pour le moment. Réessayez dans un instant.",
+        unavailable: "La boutique est injoignable pour le moment. Réessayez dans un instant.",
         unauthorized: "Votre session a expiré. Connectez-vous à nouveau.",
       },
     },
@@ -1050,10 +1057,8 @@ export const fr: Messages = {
       },
       formErrors: {
         mine: "Cette commande est déjà dans votre compte.",
-        rejected:
-          "La demande n’a pas pu être envoyée. Vérifiez les informations et réessayez.",
-        unavailable:
-          "La boutique est injoignable pour le moment. Réessayez dans un instant.",
+        rejected: "La demande n’a pas pu être envoyée. Vérifiez les informations et réessayez.",
+        unavailable: "La boutique est injoignable pour le moment. Réessayez dans un instant.",
       },
     },
   },

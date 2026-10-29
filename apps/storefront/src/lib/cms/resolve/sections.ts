@@ -1,7 +1,9 @@
 import {
   FaqSection,
+  FormBlockSection,
   LogoCloudSection,
   MediaWithTextSection,
+  NewsletterSection,
   RichTextSection,
   SpacerSection,
   TestimonialsSection,
@@ -13,6 +15,7 @@ import { unstable_rethrow } from "next/navigation";
 import type { Media, Page } from "../../../payload-types";
 import { languageLabel } from "../../../payload/locales";
 import type { Market, MarketMap } from "../../markets/types";
+import { formFields, type StoredFormField } from "../../forms/fields";
 import type { InternalPaths, LinkValue } from "../link";
 import { mediaImage } from "../shell";
 import { parseVideoUrl } from "../video";
@@ -23,6 +26,7 @@ import {
   type CommerceContext,
   type ResolvedCommerceBlock,
 } from "./commerce";
+import { newsletterTarget, populatedForm } from "./forms";
 import { paragraphs, parsed, sectionLink, settingsOf, text } from "./shared";
 
 export { paragraphs, sectionLink };
@@ -56,22 +60,27 @@ export type ResolveContext = {
 /** A block resolved for its section; `key` is the block's id, for React's list. */
 export type ResolvedBlock =
   | ({ key: string } & (
-      | {
-          blockType: "richText";
-          section: RichTextSection;
-          content: LexicalState;
-        }
-      | {
-          blockType: "mediaWithText";
-          section: MediaWithTextSection;
-          content: LexicalState | null;
-        }
+      | { blockType: "richText"; section: RichTextSection; content: LexicalState }
+      | { blockType: "mediaWithText"; section: MediaWithTextSection; content: LexicalState | null }
       | { blockType: "uspBar"; section: UspBarSection }
       | { blockType: "logoCloud"; section: LogoCloudSection }
       | { blockType: "faq"; section: FaqSection }
       | { blockType: "testimonials"; section: TestimonialsSection }
       | { blockType: "video"; section: VideoSection }
       | { blockType: "spacer"; section: SpacerSection }
+      | {
+          blockType: "newsletter";
+          section: NewsletterSection;
+          form: { id: string; fieldName: string };
+        }
+      | {
+          blockType: "formBlock";
+          section: FormBlockSection;
+          /** The editor's text between fields, by the `message` field's id. */
+          messages: Record<string, LexicalState>;
+          /** The form's confirmation, or `null` for the catalog's thank-you. */
+          confirmation: LexicalState | null;
+        }
     ))
   | ResolvedCommerceBlock;
 
@@ -230,6 +239,53 @@ export function resolveBlock(block: LayoutBlock, context: ResolveContext): Resol
         divider: block.divider === true,
       });
       return section === undefined ? null : { key, blockType: "spacer", section };
+    }
+    case "newsletter": {
+      const target = newsletterTarget(block.form, block.privacy as LinkValue, context);
+      if (target === undefined) return null;
+      const section = parsed(NewsletterSection, {
+        settings,
+        heading: text(block.heading),
+        text: text(block.text),
+        newsletter: { email: "", privacyHref: target.privacyHref },
+      });
+      return section === undefined
+        ? null
+        : {
+            key,
+            blockType: "newsletter",
+            section,
+            form: { id: target.formId, fieldName: target.fieldName },
+          };
+    }
+    case "formBlock": {
+      const form = populatedForm(block.form);
+      if (form === undefined) return null;
+      const stored = (form.fields ?? []) as StoredFormField[];
+      const section = parsed(FormBlockSection, {
+        settings,
+        heading: text(block.heading),
+        intro: text(block.intro),
+        form: {
+          id: String(form.id),
+          fields: formFields(stored),
+          submitLabel: text(form.submitButtonLabel),
+        },
+      });
+      if (section === undefined) return null;
+      const messages: Record<string, LexicalState> = {};
+      for (const field of section.form.fields) {
+        if (field.kind !== "message") continue;
+        const message = stored.find((each) => each.id === field.id)?.message;
+        if (message != null) messages[field.id] = message as LexicalState;
+      }
+      return {
+        key,
+        blockType: "formBlock",
+        section,
+        messages,
+        confirmation: (form.confirmationMessage as LexicalState | null | undefined) ?? null,
+      };
     }
     default:
       return null;

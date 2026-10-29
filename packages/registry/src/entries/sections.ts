@@ -5,9 +5,11 @@ import {
   ComparisonSection,
   FaqSection,
   FeaturedProductSection,
+  FormBlockSection,
   HeroSection,
   LogoCloudSection,
   MediaWithTextSection,
+  NewsletterSection,
   ProductCollectionSection,
   PromoBannerSection,
   RecentlyViewedSection,
@@ -105,4 +107,7 @@ export const sections = [
     "RecentlyViewedSection",
     RecentlyViewedSection,
   ),
+  // T67: the two blocks that post a form (D81).
+  section("newsletter", "newsletter", "Newsletter", "NewsletterSection", NewsletterSection),
+  section("form-block", "formBlock", "Form", "FormBlockSection", FormBlockSection),
 ] as const satisfies readonly EntryInput[];

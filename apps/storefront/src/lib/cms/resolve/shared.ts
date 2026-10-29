@@ -1,11 +1,15 @@
 import { Href, type SectionLink, type SectionSettings } from "@shopblok/registry/contracts";
 import type { z } from "zod";
+import { text } from "../../text";
 import { resolveLink, type LinkValue } from "../link";
 import type { ResolveContext } from "./sections";
 
 // What the content blocks' resolver (`sections.ts`, T63) and the commerce blocks' (`commerce.ts`,
 // T64) share: Payload's empty values as "the default", the section settings an editor set, text in
-// paragraphs, a link field as a call to action, and the parse with a section's contract.
+// paragraphs, a link field as a call to action, and the parse with a section's contract. `text` is
+// the storefront's (`lib/text.ts`), passed on so both resolvers import their helpers from here.
+
+export { text };
 
 type Defined<T> = { [K in keyof T]: Exclude<T[K], null> };
 
@@ -18,9 +22,6 @@ export function defined<T extends Record<string, unknown>>(
     Object.entries(value).filter(([, each]) => each !== null && each !== undefined && each !== ""),
   ) as Partial<Defined<T>>;
 }
-
-export const text = (value: string | null | undefined): string | undefined =>
-  typeof value === "string" && value.trim() !== "" ? value : undefined;
 
 const SETTINGS = ["anchor", "spacing", "surface", "container", "visibility"] as const;
 

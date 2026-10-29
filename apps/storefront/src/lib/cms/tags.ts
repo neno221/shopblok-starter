@@ -11,3 +11,6 @@ export const embeddingTags = (locale: string) => [
   ...contentGlobalTags(locale),
   ...pageTags(locale),
 ];
+
+/** What a change to a form refreshes in one language (T67): its own reads, and what embeds it. */
+export const formTags = (locale: string) => [`forms:${locale}`, ...embeddingTags(locale)];

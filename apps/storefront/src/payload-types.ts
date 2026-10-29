@@ -84,6 +84,8 @@ export interface Config {
     comparison: ComparisonBlock;
     collectionSpotlight: CollectionSpotlightBlock;
     recentlyViewed: RecentlyViewedBlock;
+    newsletter: NewsletterBlock;
+    formBlock: FormBlockBlock;
   };
   collections: {
     users: User;
@@ -97,6 +99,8 @@ export interface Config {
     "ui-strings": UiString;
     exports: Export;
     imports: Import;
+    forms: Form;
+    "form-submissions": FormSubmission;
     "payload-kv": PayloadKv;
     "payload-jobs": PayloadJob;
     "payload-locked-documents": PayloadLockedDocument;
@@ -116,6 +120,8 @@ export interface Config {
     "ui-strings": UiStringsSelect<false> | UiStringsSelect<true>;
     exports: ExportsSelect<false> | ExportsSelect<true>;
     imports: ImportsSelect<false> | ImportsSelect<true>;
+    forms: FormsSelect<false> | FormsSelect<true>;
+    "form-submissions": FormSubmissionsSelect<false> | FormSubmissionsSelect<true>;
     "payload-kv": PayloadKvSelect<false> | PayloadKvSelect<true>;
     "payload-jobs": PayloadJobsSelect<false> | PayloadJobsSelect<true>;
     "payload-locked-documents":
@@ -1154,6 +1160,185 @@ export interface RecentlyViewedBlock {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "NewsletterBlock".
+ */
+export interface NewsletterBlock {
+  variant: "standard";
+  /**
+   * Empty: the shop's “Join our newsletter”, in each language.
+   */
+  heading?: string | null;
+  /**
+   * The line under the heading. Empty: the shop's own.
+   */
+  text?: string | null;
+  /**
+   * A form whose only field is an email field, such as “Newsletter”.
+   */
+  form: number | Form;
+  /**
+   * Where “privacy policy” in the consent sentence goes.
+   */
+  privacy?: {
+    type?: ("reference" | "custom") | null;
+    reference?:
+      | ({
+          relationTo: "categories";
+          value: number | Category;
+        } | null)
+      | ({
+          relationTo: "collections";
+          value: number | ProductCollection;
+        } | null)
+      | ({
+          relationTo: "products";
+          value: number | Product;
+        } | null);
+    url?: string | null;
+    newTab?: boolean | null;
+  };
+  sectionSettings?: {
+    anchor?: string | null;
+    spacing?: ("none" | "small" | "medium" | "large") | null;
+    surface?: ("default" | "muted" | "inverse") | null;
+    container?: ("narrow" | "default" | "wide" | "full") | null;
+    visibility?: ("all" | "mobile" | "desktop") | null;
+  };
+  id?: string | null;
+  blockName?: string | null;
+  blockType: "newsletter";
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "forms".
+ */
+export interface Form {
+  id: number;
+  title: string;
+  fields: (
+    | {
+        name: string;
+        label?: string | null;
+        width?: number | null;
+        required?: boolean | null;
+        defaultValue?: boolean | null;
+        id?: string | null;
+        blockName?: string | null;
+        blockType: "checkbox";
+      }
+    | {
+        name: string;
+        label?: string | null;
+        width?: number | null;
+        required?: boolean | null;
+        id?: string | null;
+        blockName?: string | null;
+        blockType: "email";
+      }
+    | {
+        message?: {
+          root: {
+            type: string;
+            children: {
+              type: any;
+              version: number;
+              [k: string]: unknown;
+            }[];
+            direction: ("ltr" | "rtl") | null;
+            format: "left" | "start" | "center" | "right" | "end" | "justify" | "";
+            indent: number;
+            version: number;
+          };
+          [k: string]: unknown;
+        } | null;
+        id?: string | null;
+        blockName?: string | null;
+        blockType: "message";
+      }
+    | {
+        name: string;
+        label?: string | null;
+        width?: number | null;
+        defaultValue?: string | null;
+        placeholder?: string | null;
+        options?:
+          | {
+              label: string;
+              value: string;
+              id?: string | null;
+            }[]
+          | null;
+        required?: boolean | null;
+        id?: string | null;
+        blockName?: string | null;
+        blockType: "select";
+      }
+    | {
+        name: string;
+        label?: string | null;
+        width?: number | null;
+        defaultValue?: string | null;
+        required?: boolean | null;
+        id?: string | null;
+        blockName?: string | null;
+        blockType: "text";
+      }
+    | {
+        name: string;
+        label?: string | null;
+        width?: number | null;
+        defaultValue?: string | null;
+        required?: boolean | null;
+        id?: string | null;
+        blockName?: string | null;
+        blockType: "textarea";
+      }
+  )[];
+  submitButtonLabel?: string | null;
+  /**
+   * Shown when the form is sent. Empty: the shop's thank-you.
+   */
+  confirmationMessage?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ("ltr" | "rtl") | null;
+      format: "left" | "start" | "center" | "right" | "end" | "justify" | "";
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  seedKey?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "FormBlockBlock".
+ */
+export interface FormBlockBlock {
+  variant: "standard";
+  heading?: string | null;
+  intro?: string | null;
+  form: number | Form;
+  sectionSettings?: {
+    anchor?: string | null;
+    spacing?: ("none" | "small" | "medium" | "large") | null;
+    surface?: ("default" | "muted" | "inverse") | null;
+    container?: ("narrow" | "default" | "wide" | "full") | null;
+    visibility?: ("all" | "mobile" | "desktop") | null;
+  };
+  id?: string | null;
+  blockName?: string | null;
+  blockType: "formBlock";
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "users".
  */
 export interface User {
@@ -1225,6 +1410,8 @@ export interface Page {
         | ComparisonBlock
         | CollectionSpotlightBlock
         | RecentlyViewedBlock
+        | NewsletterBlock
+        | FormBlockBlock
       )[]
     | null;
   seedKey?: string | null;
@@ -1419,6 +1606,23 @@ export interface Import {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "form-submissions".
+ */
+export interface FormSubmission {
+  id: number;
+  form: number | Form;
+  submissionData?:
+    | {
+        field: string;
+        value: string;
+        id?: string | null;
+      }[]
+    | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-kv".
  */
 export interface PayloadKv {
@@ -1570,6 +1774,14 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: "ui-strings";
         value: number | UiString;
+      } | null)
+    | ({
+        relationTo: "forms";
+        value: number | Form;
+      } | null)
+    | ({
+        relationTo: "form-submissions";
+        value: number | FormSubmission;
       } | null);
   globalSlug?: string | null;
   user:
@@ -1874,6 +2086,107 @@ export interface ImportsSelect<T extends boolean = true> {
   height?: T;
   focalX?: T;
   focalY?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "forms_select".
+ */
+export interface FormsSelect<T extends boolean = true> {
+  title?: T;
+  fields?:
+    | T
+    | {
+        checkbox?:
+          | T
+          | {
+              name?: T;
+              label?: T;
+              width?: T;
+              required?: T;
+              defaultValue?: T;
+              id?: T;
+              blockName?: T;
+            };
+        email?:
+          | T
+          | {
+              name?: T;
+              label?: T;
+              width?: T;
+              required?: T;
+              id?: T;
+              blockName?: T;
+            };
+        message?:
+          | T
+          | {
+              message?: T;
+              id?: T;
+              blockName?: T;
+            };
+        select?:
+          | T
+          | {
+              name?: T;
+              label?: T;
+              width?: T;
+              defaultValue?: T;
+              placeholder?: T;
+              options?:
+                | T
+                | {
+                    label?: T;
+                    value?: T;
+                    id?: T;
+                  };
+              required?: T;
+              id?: T;
+              blockName?: T;
+            };
+        text?:
+          | T
+          | {
+              name?: T;
+              label?: T;
+              width?: T;
+              defaultValue?: T;
+              required?: T;
+              id?: T;
+              blockName?: T;
+            };
+        textarea?:
+          | T
+          | {
+              name?: T;
+              label?: T;
+              width?: T;
+              defaultValue?: T;
+              required?: T;
+              id?: T;
+              blockName?: T;
+            };
+      };
+  submitButtonLabel?: T;
+  confirmationMessage?: T;
+  seedKey?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "form-submissions_select".
+ */
+export interface FormSubmissionsSelect<T extends boolean = true> {
+  form?: T;
+  submissionData?:
+    | T
+    | {
+        field?: T;
+        value?: T;
+        id?: T;
+      };
+  updatedAt?: T;
+  createdAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -2277,6 +2590,36 @@ export interface Footer {
         id?: string | null;
       }[]
     | null;
+  /**
+   * The signup in the footer. No form: no signup.
+   */
+  newsletter?: {
+    /**
+     * A form whose only field is an email field, such as “Newsletter”.
+     */
+    form?: (number | null) | Form;
+    /**
+     * Where “privacy policy” in the consent sentence goes.
+     */
+    privacy?: {
+      type?: ("reference" | "custom") | null;
+      reference?:
+        | ({
+            relationTo: "categories";
+            value: number | Category;
+          } | null)
+        | ({
+            relationTo: "collections";
+            value: number | ProductCollection;
+          } | null)
+        | ({
+            relationTo: "products";
+            value: number | Product;
+          } | null);
+      url?: string | null;
+      newTab?: boolean | null;
+    };
+  };
   social?:
     | {
         network:
@@ -2571,6 +2914,19 @@ export interface FooterSelect<T extends boolean = true> {
               id?: T;
             };
         id?: T;
+      };
+  newsletter?:
+    | T
+    | {
+        form?: T;
+        privacy?:
+          | T
+          | {
+              type?: T;
+              reference?: T;
+              url?: T;
+              newTab?: T;
+            };
       };
   social?:
     | T

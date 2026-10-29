@@ -5,9 +5,11 @@ import { CollectionSpotlightBlock } from "./collection-spotlight";
 import { ComparisonBlock } from "./comparison";
 import { FaqBlock } from "./faq";
 import { FeaturedProductBlock } from "./featured-product";
+import { FormBlockBlock } from "./form-block";
 import { HeroBlock } from "./hero";
 import { LogoCloudBlock } from "./logo-cloud";
 import { MediaWithTextBlock } from "./media-with-text";
+import { NewsletterBlock } from "./newsletter";
 import { ProductCollectionBlock } from "./product-collection";
 import { PromoBannerBlock } from "./promo-banner";
 import { RecentlyViewedBlock } from "./recently-viewed";
@@ -41,6 +43,9 @@ export const BLOCKS: Block[] = [
   ComparisonBlock,
   CollectionSpotlightBlock,
   RecentlyViewedBlock,
+  // T67: the blocks that post a form.
+  NewsletterBlock,
+  FormBlockBlock,
 ];
 
 /** The slugs `pages.layout` offers (`BlockSlug`: the generated types' names for the root blocks). */
