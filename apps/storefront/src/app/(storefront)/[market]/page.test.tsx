@@ -23,8 +23,17 @@ const state = vi.hoisted(() => ({
   products: [] as ProductDto[],
   /** The site settings' store name (T61), as the shell reads it. */
   storeName: "Shopblok",
+  /** The site settings' organization (T68), as the shell reads it. */
+  organization: {} as Record<string, string>,
   /** The page `site-settings.homepage` names, when it is set and published (T65). */
-  homepage: null as null | { id: number; title: string; slug: string; parent: null; layout: [] },
+  homepage: null as null | {
+    id: number;
+    title: string;
+    slug: string;
+    parent: null;
+    layout: [];
+    meta: { title?: string; description?: string };
+  },
 }));
 vi.mock("next/root-params", () => ({ market: async () => state.key }));
 vi.mock("next/headers", () => ({ draftMode: async () => ({ isEnabled: false }) }));
@@ -33,7 +42,12 @@ vi.mock("../../../components/shell/shell-data", async () => {
   const { findMarket } = await import("../../../lib/markets/market");
   return {
     getShellData: async () => ({
-      settings: { storeName: state.storeName, titleTemplate: `%s | ${state.storeName}` },
+      settings: {
+        storeName: state.storeName,
+        titleTemplate: `%s | ${state.storeName}`,
+        seo: {},
+        organization: state.organization,
+      },
       map: state.map,
       url: (path: string) => buildPublicUrl(findMarket(state.map, state.key)!, path, state.map),
     }),
@@ -93,6 +107,7 @@ afterEach(() => {
   state.byCategory = {};
   state.products = [];
   state.storeName = "Shopblok";
+  state.organization = {};
   state.homepage = null;
 });
 
@@ -262,6 +277,31 @@ describe("the home page (T51)", () => {
     expect((await generateMetadata()).openGraph?.title).toBe("Kalimera");
   });
 
+  it("describes the organization with the site settings' details, each only when set (T68)", async () => {
+    state.organization = { legalName: "Kalimera Ltd", telephone: "+357 22 000000" };
+    const html = await render(seeded, "en-us");
+    const [organization] = jsonLd(html)["@graph"];
+    expect(organization).toMatchObject({ legalName: "Kalimera Ltd", telephone: "+357 22 000000" });
+    expect(organization).not.toHaveProperty("email");
+  });
+
+  it("takes the homepage's own SEO fields over the hero's text (T68, D82)", async () => {
+    state.map = seeded;
+    state.key = "en-us";
+    state.homepage = {
+      id: 4,
+      title: "Home",
+      slug: "home",
+      parent: null,
+      layout: [],
+      meta: { title: "Kalimera, linen for warm days", description: "Shirts and dresses in linen." },
+    };
+    const metadata = await generateMetadata();
+    expect(metadata.title).toEqual({ absolute: "Kalimera, linen for warm days" });
+    expect(metadata.description).toBe("Shirts and dresses in linen.");
+    expect(metadata.openGraph?.title).toBe("Kalimera, linen for warm days");
+  });
+
   it("is self-canonical with the other markets' homes as alternates", async () => {
     state.map = seeded;
     state.key = "en-us";
@@ -277,7 +317,7 @@ describe("the home page (T51)", () => {
   });
 
   it("draws the page the site settings name instead, with the JSON-LD, Medusa or not (T65)", async () => {
-    state.homepage = { id: 4, title: "Home", slug: "home", parent: null, layout: [] };
+    state.homepage = { id: 4, title: "Home", slug: "home", parent: null, layout: [], meta: {} };
     state.regions = false;
     const html = await render(seeded, "en-us");
     expect(html).toContain('data-testid="cms-home"');

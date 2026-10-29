@@ -31,7 +31,14 @@ type Doc = Record<string, unknown> | null | undefined;
  */
 export type TagsFor = (locale: string, doc: Record<string, unknown>) => readonly string[];
 
-export type RevalidateOnPublishOptions = { tags: TagsFor };
+/**
+ * How long a revalidated entry may still be served while it is read again (`revalidateTag`'s
+ * profile): `"max"`, stale-while-revalidate, by default; `{ expire: 0 }` for a read whose next
+ * request must wait for the new data (`/next/redirects`, which only the proxy reads, every 30 s).
+ */
+export type RevalidateProfile = "max" | { expire: number };
+
+export type RevalidateOnPublishOptions = { tags: TagsFor; profile?: RevalidateProfile };
 
 const isPublished = (doc: Doc) => doc?.["_status"] === "published";
 
@@ -44,9 +51,14 @@ function tagsOf(tags: TagsFor, docs: readonly Doc[]): string[] {
   return [...all];
 }
 
-function revalidate(req: PayloadRequest, entity: string, tags: readonly string[]): void {
+function revalidate(
+  req: PayloadRequest,
+  entity: string,
+  tags: readonly string[],
+  profile: RevalidateProfile = "max",
+): void {
   try {
-    for (const tag of tags) revalidateTag(tag, "max");
+    for (const tag of tags) revalidateTag(tag, profile);
   } catch (error) {
     if (String(error).includes(OUTSIDE_NEXT)) {
       // A script (no Next request, so no cache to refresh here): the running site keeps serving
@@ -120,7 +132,7 @@ async function changesPublished(
  *   refresh; it logs a warning naming the tags, since those pages stay stale until their
  *   `revalidate`. Any other failure is logged the same way.
  */
-export function revalidateOnPublish({ tags }: RevalidateOnPublishOptions): {
+export function revalidateOnPublish({ tags, profile }: RevalidateOnPublishOptions): {
   beforeChange: CollectionBeforeChangeHook[];
   afterChange: CollectionAfterChangeHook[];
   afterDelete: CollectionAfterDeleteHook[];
@@ -162,14 +174,14 @@ export function revalidateOnPublish({ tags }: RevalidateOnPublishOptions): {
         doc,
         rowStatus(req, collection.slug, doc?.id),
       ));
-    if (changed) revalidate(req, collection.slug, tagsOf(tags, [doc, previousDoc]));
+    if (changed) revalidate(req, collection.slug, tagsOf(tags, [doc, previousDoc]), profile);
     return doc;
   };
 
   // The row is what is deleted, so its `_status` is what visitors could read.
   const afterDelete: CollectionAfterDeleteHook = ({ collection, doc, req }) => {
     if (!disabled(req) && (!hasDraftsEnabled(collection) || isPublished(doc))) {
-      revalidate(req, collection.slug, tagsOf(tags, [doc]));
+      revalidate(req, collection.slug, tagsOf(tags, [doc]), profile);
     }
     return doc;
   };

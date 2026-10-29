@@ -172,9 +172,9 @@ const contentFieldNames = (fields: readonly Field[]) =>
 
 describe("the shop's own content on the synced documents (T69, D83)", () => {
   const CONTENT = {
-    products: ["richDescription", "gallery"],
-    categories: ["image", "banner", "intro"],
-    collections: ["image", "banner", "intro"],
+    products: ["richDescription", "gallery", "meta"],
+    categories: ["image", "banner", "intro", "meta"],
+    collections: ["image", "banner", "intro", "meta"],
   } as const;
 
   for (const { config } of COLLECTIONS) {

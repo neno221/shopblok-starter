@@ -20,9 +20,14 @@ type Env = Parameters<typeof defaultAllowFallback>[0] & { NEXT_PUBLIC_BASE_URL?:
  * header, and would then cache that host's answer as the market map for every visitor.
  */
 export function marketsRouteUrl(env: Env): URL {
+  return appRouteUrl(MARKETS_ROUTE, env);
+}
+
+/** The URL of one of the app's own routes, from the environment (`marketsRouteUrl` says why). */
+export function appRouteUrl(route: string, env: { NEXT_PUBLIC_BASE_URL?: string }): URL {
   const base = env.NEXT_PUBLIC_BASE_URL || "http://localhost:8000";
   try {
-    return new URL(MARKETS_ROUTE, base);
+    return new URL(route, base);
   } catch {
     throw new Error(`NEXT_PUBLIC_BASE_URL is "${base}", which is not a URL (https://shop.example)`);
   }

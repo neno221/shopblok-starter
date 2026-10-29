@@ -34,6 +34,7 @@ import { categoryPaths, listCategories } from "../../lib/medusa/categories";
 import { listCollections } from "../../lib/medusa/collections";
 import { buildReadsMedusa, PLACEHOLDER_HANDLE } from "../../lib/prerender";
 import { listingJsonLd } from "../../lib/seo/listing";
+import { withSeo } from "../../lib/seo/meta";
 import { jsonLdText } from "../../lib/seo/product";
 import { SHELL_PREFETCH } from "../../lib/site";
 import { CmsRichText } from "../cms/rich-text";
@@ -128,7 +129,8 @@ export async function listingMetadata(
 ): Promise<Metadata> {
   const data = await readListingPage(keyOf(scope), page);
   if (data === null) return {};
-  const { context, messages, resolved } = data;
+  const { context, messages, resolved, content } = data;
+  const { settings } = await getShellData();
   const path = pageHref(resolved.path, data.page);
   const href = context.url(path);
   const title =
@@ -139,15 +141,23 @@ export async function listingMetadata(
           { page: data.page },
           context.market.htmlLang,
         )}`;
-  return {
-    title,
-    alternates: {
-      // SPEC §12: a listing's pages are self-canonical; a filtered or sorted URL points here too.
-      canonical: href,
-      languages: hreflangAlternates(path, context.map),
+  // D82: the category's or collection's own SEO fields (T69's content) first, its title on the
+  // first page only (a later page keeps its number), then the listing's, then the site's.
+  const meta = content?.meta;
+  const own = data.page === 1 || meta === undefined ? meta : { ...meta, title: undefined };
+  return withSeo(
+    {
+      title,
+      alternates: {
+        // SPEC §12: a listing's pages are self-canonical; a filtered or sorted URL points here too.
+        canonical: href,
+        languages: hreflangAlternates(path, context.map),
+      },
+      openGraph: { type: "website", title, url: href },
     },
-    openGraph: { type: "website", title, url: href },
-  };
+    own,
+    settings.seo,
+  );
 }
 
 export async function ListingPage({

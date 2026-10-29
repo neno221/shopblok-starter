@@ -1,14 +1,10 @@
-import type { Breadcrumbs, JournalPage, PostPage } from "@shopblok/registry/contracts";
-import { absolute, breadcrumbList, shareableImage, siteBase } from "./product";
+import type { JournalPage, PostPage } from "@shopblok/registry/contracts";
+import { absolute, pageBreadcrumbs, shareableImage, siteBase } from "./product";
 
 // The journal's structured data (SPEC §12, D80, T66): a post is a `BlogPosting` (its headline,
 // date, author, picture and summary, in the market's language), the journal a `Blog` listing the
 // page's posts, each with the page's `BreadcrumbList`, as one `@graph`. URLs are absolute, from
 // `NEXT_PUBLIC_BASE_URL`.
-
-/** A page's breadcrumbs, the page itself last at `href`, as its `BreadcrumbList`. */
-const pageBreadcrumbs = (breadcrumbs: Breadcrumbs, href: string, base: URL) =>
-  breadcrumbList([...breadcrumbs.trail, { label: breadcrumbs.current, href }], base);
 
 export type PostJsonLdInput = {
   post: PostPage;

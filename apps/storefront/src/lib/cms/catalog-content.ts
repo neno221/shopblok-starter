@@ -1,4 +1,6 @@
 import type { Image } from "@shopblok/registry/contracts";
+import type { SeoFields } from "../seo/meta";
+import { metaOf } from "./meta";
 import type { LexicalState } from "./resolve/sections";
 import { mediaImage } from "./shell";
 import type { CatalogContentSlug } from "./tags";
@@ -6,11 +8,23 @@ import type { CatalogContentSlug } from "./tags";
 // The catalog's content as the pages use it (T69): a rich text that has something in it, and the
 // uploads as images. Pure, so the read (`catalog.ts`) and its tests share it.
 
-/** A product's content: its rich description and the pictures after Medusa's. */
-export type ProductContent = { description: LexicalState | null; gallery: Image[] };
+/** A product's content: its rich description, the pictures after Medusa's, its SEO fields (T68). */
+export type ProductContent = {
+  description: LexicalState | null;
+  gallery: Image[];
+  meta: SeoFields;
+};
 
-/** A category's or collection's content: its tile's picture, its listing's banner and intro. */
-export type ListingContent = { image?: Image; banner?: Image; intro: LexicalState | null };
+/**
+ * A category's or collection's content: its tile's picture, its listing's banner and intro, and
+ * its SEO fields (T68).
+ */
+export type ListingContent = {
+  image?: Image;
+  banner?: Image;
+  intro: LexicalState | null;
+  meta: SeoFields;
+};
 
 export type CatalogContent<S extends CatalogContentSlug> = S extends "products"
   ? ProductContent
@@ -68,6 +82,7 @@ export function catalogContent<S extends CatalogContentSlug>(
     const content: ProductContent = {
       description: richTextOrNull(doc["richDescription"]),
       gallery: gallery.flatMap((each) => pictureOf(each) ?? []),
+      meta: metaOf(doc["meta"]),
     };
     return content as CatalogContent<S>;
   }
@@ -75,6 +90,7 @@ export function catalogContent<S extends CatalogContentSlug>(
     ...optional("image", pictureOf(doc["image"])),
     ...optional("banner", pictureOf(doc["banner"])),
     intro: richTextOrNull(doc["intro"]),
+    meta: metaOf(doc["meta"]),
   };
   return content as CatalogContent<S>;
 }

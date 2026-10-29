@@ -76,7 +76,7 @@ describe("journalContent", () => {
 });
 
 describe("postContent", () => {
-  const post: CmsPost = { ...summary(), content: null };
+  const post: CmsPost = { ...summary(), content: null, meta: {} };
 
   it("puts the post under Home and the journal, with its picture's own alternative text", () => {
     expect(postContent(post, { journal: "Journal", home: "Home", url })).toEqual({

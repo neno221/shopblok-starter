@@ -1,4 +1,4 @@
-import type { ProductDetail } from "@shopblok/registry/contracts";
+import type { Breadcrumbs, ProductDetail } from "@shopblok/registry/contracts";
 import { env, type RawEnv } from "../env";
 
 // The product page's structured data and texts for crawlers (SPEC §12, T49): JSON-LD `Product` with
@@ -57,6 +57,10 @@ export function breadcrumbList(
     })),
   };
 }
+
+/** A page's breadcrumbs, the page itself last at `href`, as its `BreadcrumbList`. */
+export const pageBreadcrumbs = (breadcrumbs: Breadcrumbs, href: string, base: URL) =>
+  breadcrumbList([...breadcrumbs.trail, { label: breadcrumbs.current, href }], base);
 
 /** A picture a crawler can fetch: an http(s) URL or a path, not the placeholder's `data:` one. */
 export function shareableImage(src: string, base: URL): string | undefined {

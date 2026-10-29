@@ -135,6 +135,45 @@ test("the head names the page, its canonical, and its address in each market", a
   expect(hrefLang("x-default")).toBe(`${origin}/us/${about.en}/${team.en}`);
 });
 
+test("the page's SEO fields go into its head, and its breadcrumbs into its JSON-LD (T68, D82)", async () => {
+  const path = `/us/${about.en}/${team.en}`;
+  await settled(encoded(path));
+  await settled(encoded(`/${about.el}/${team.el}`));
+  const meta = {
+    title: `Meet the team ${stamp} | Shop`,
+    description: `The people behind it ${stamp}.`,
+  };
+  const saved = await api("PATCH", `/api/pages/${childId}?locale=en`, {
+    meta,
+    _status: "published",
+  });
+  expect(saved.status, saved.text).toBe(200);
+  const shows = async () =>
+    (await (await get(path)).text()).includes(`<title>${meta.title}</title>`);
+  expect(await freshWithinTwo(shows, 1_500)).toBeGreaterThan(0);
+  const html = await (await get(path)).text();
+  // As written: the title template is not added to an SEO title.
+  expect(html).toContain(`<meta name="description" content="${meta.description}"/>`);
+  expect(html).toContain(`<meta property="og:title" content="${meta.title}"/>`);
+  const origin = new URL(base()).origin;
+  const graphs = [
+    ...html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g),
+  ].map((match) => JSON.parse(match[1] ?? "{}") as { "@graph"?: Record<string, unknown>[] });
+  const list = graphs
+    .flatMap((graph) => graph["@graph"] ?? [])
+    .find((node) => node["@type"] === "BreadcrumbList") as
+    { itemListElement: { name: string; item: string }[] } | undefined;
+  expect(list?.itemListElement.map((step) => [step.name, step.item])).toEqual([
+    ["Home", `${origin}/us`],
+    [`About us ${stamp}`, `${origin}/us/${about.en}`],
+    [TEAM_TITLE.en, `${origin}${path}`],
+  ]);
+  // Greek has no SEO title of its own: English's, by the fallback, as the page's texts have.
+  const greek = async () =>
+    (await (await get(`/${about.el}/${team.el}`)).text()).includes(`<title>${meta.title}</title>`);
+  expect(await freshWithinTwo(greek, 1_500)).toBeGreaterThan(0);
+});
+
 test("the HTML holds no per-visitor value", async () => {
   const response = await get(`/us/${about.en}/${team.en}`);
   const html = await response.text();
@@ -426,6 +465,22 @@ test.describe("the journal (T66)", () => {
     expect(hrefLang("en-US")).toBe(`${origin}/us/journal/${first.en.slug}`);
     expect(hrefLang("el-CY")).toBe(`${origin}/journal/${encodeURIComponent(first.el.slug)}`);
     expect(hrefLang("de-DE")).toBe(`${origin}/de/journal/${first.en.slug}`);
+  });
+
+  test("the post's SEO fields go into its head, and its summary stays the description without one (T68)", async () => {
+    const path = `/us/journal/${first.en.slug}`;
+    await settled(path);
+    const title = `Spring, in short ${stamp}`;
+    const saved = await api("PATCH", `/api/posts/${posts[0]}?locale=en`, {
+      meta: { title },
+      _status: "published",
+    });
+    expect(saved.status, saved.text).toBe(200);
+    const shows = async () => (await (await get(path)).text()).includes(`<title>${title}</title>`);
+    expect(await freshWithinTwo(shows, 1_500)).toBeGreaterThan(0);
+    const html = await (await get(path)).text();
+    expect(html).toContain('<meta name="description" content="What the season brings."/>');
+    expect(html).toContain(`<meta property="og:title" content="${title}"/>`);
   });
 
   test("the journal's second page works by path, and pages 1 and 3 are 404s", async () => {

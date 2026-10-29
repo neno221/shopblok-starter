@@ -48,3 +48,6 @@ export const CATALOG_CONTENT_TAG = "cms:catalog";
  * description linking to another product).
  */
 export const linkedTags = (locale: string) => [...embeddingTags(locale), CATALOG_CONTENT_TAG];
+
+/** The tag of the redirects' read (D82): a save of a redirect refreshes `/next/redirects`. */
+export const REDIRECTS_TAG = "redirects";

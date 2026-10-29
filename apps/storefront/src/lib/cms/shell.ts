@@ -9,6 +9,7 @@ import type {
   SocialLink,
 } from "@shopblok/registry/contracts";
 import { PaymentBrand as PaymentBrands, SocialNetwork } from "@shopblok/registry/contracts";
+import { titleTemplateOf, type SeoFields } from "../seo/meta";
 import { siteOrigin } from "../site-origin";
 import type {
   Footer as FooterGlobal,
@@ -59,6 +60,10 @@ export type ShellSettings = {
   logo?: Image;
   /** A page's `<title>`: `%s` is the page's own title. */
   titleTemplate: string;
+  /** The site's description and picture: a page's when neither it nor its template has one (D82). */
+  seo: SeoFields;
+  /** The shop as its `Organization` JSON-LD describes it, beside its name and logo (D82). */
+  organization: { legalName?: string; email?: string; telephone?: string };
 };
 
 export type ShellHeader = {
@@ -190,11 +195,25 @@ export function settingsFrom(global: SiteSetting | null | undefined): ShellSetti
   const storeName = (saved ? text(global?.storeName) : undefined) ?? SITE.storeName;
   const logo = saved ? mediaImage(global?.logo) : undefined;
   const template = saved ? text(global?.seo?.titleTemplate) : undefined;
+  const description = saved ? text(global?.seo?.description) : undefined;
+  const image = saved ? mediaImage(global?.seo?.image) : undefined;
+  const organization = saved ? global?.organization : undefined;
+  const legalName = text(organization?.legalName);
+  const email = text(organization?.email);
+  const telephone = text(organization?.telephone);
   return {
     storeName,
     ...(logo === undefined ? {} : { logo }),
-    titleTemplate:
-      template !== undefined && template.split("%s").length === 2 ? template : `%s | ${storeName}`,
+    titleTemplate: titleTemplateOf(template, storeName),
+    seo: {
+      ...(description === undefined ? {} : { description }),
+      ...(image === undefined ? {} : { image }),
+    },
+    organization: {
+      ...(legalName === undefined ? {} : { legalName }),
+      ...(email === undefined ? {} : { email }),
+      ...(telephone === undefined ? {} : { telephone }),
+    },
   };
 }
 

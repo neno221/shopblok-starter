@@ -62,7 +62,7 @@ describe("catalogContent", () => {
   });
 
   it("a product with nothing: no description, no pictures", () => {
-    expect(catalogContent("products", {})).toEqual({ description: null, gallery: [] });
+    expect(catalogContent("products", {})).toEqual({ description: null, gallery: [], meta: {} });
   });
 
   it("a category or collection: its picture, banner and intro, each only when set", () => {
@@ -79,9 +79,23 @@ describe("catalogContent", () => {
         alt: "About banner.webp",
       }),
       intro: state(paragraph("Layers for every season")),
+      meta: {},
     });
     expect(catalogContent("collections", { image: null, intro: state(paragraph("")) })).toEqual({
       intro: null,
+      meta: {},
     });
+  });
+
+  it("its SEO fields (T68): the texts that have something in them, the picture when populated", () => {
+    expect(
+      catalogContent("products", {
+        meta: { title: "Linen shirt | Kalimera", description: " ", image: upload("share.webp") },
+      }).meta,
+    ).toEqual({
+      title: "Linen shirt | Kalimera",
+      image: expect.objectContaining({ src: "/api/media/file/share.webp" }),
+    });
+    expect(catalogContent("categories", { meta: { title: "", image: 4 } }).meta).toEqual({});
   });
 });

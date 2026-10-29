@@ -15,6 +15,7 @@ import { ShellLinksProvider } from "../../../components/shell/shell-context";
 import { SuggestionBannerIsland } from "../../../components/shell/suggestion-banner";
 import { getMarketMap } from "../../../lib/markets/get-market-map";
 import { listMarkets } from "../../../lib/markets/market";
+import { withSeo } from "../../../lib/seo/meta";
 import { siteBase } from "../../../lib/seo/product";
 import { SHELL_PREFETCH } from "../../../lib/site";
 import { VisitorCookieConsent } from "../../../lib/visitor/cookie-consent";
@@ -24,12 +25,17 @@ import "../../../styles/globals.css";
 // A page's title is "{page} | Shopblok", or the site settings' template and store name (T61, D78);
 // `metadataBase` turns the pages' relative canonical, hreflang and Open Graph URLs into absolute
 // ones (SPEC §12), from `NEXT_PUBLIC_BASE_URL`.
+// T68 (D82): the site settings' description and picture are every page's that sets none of its own.
 export async function generateMetadata(): Promise<Metadata> {
   const { settings } = await getShellData();
-  return {
-    title: { default: settings.storeName, template: settings.titleTemplate },
-    metadataBase: siteBase(),
-  };
+  return withSeo(
+    {
+      title: { default: settings.storeName, template: settings.titleTemplate },
+      metadataBase: siteBase(),
+    },
+    null,
+    settings.seo,
+  );
 }
 
 // With Cache Components every root param needs at least one value, or the build fails. The keys

@@ -1,5 +1,7 @@
 import "server-only";
 import type { Media, Post } from "../../payload-types";
+import type { SeoFields } from "../seo/meta";
+import { metaOf } from "./meta";
 import { cmsRead, type CmsReader } from "./read";
 import { postTags } from "./tags";
 
@@ -19,8 +21,8 @@ export type CmsPostSummary = {
   hero: Media | null;
 };
 
-/** A post as its page shows it: the summary and the text. */
-export type CmsPost = CmsPostSummary & { content: Post["content"] };
+/** A post as its page shows it: the summary, the text and its SEO fields (T68). */
+export type CmsPost = CmsPostSummary & { content: Post["content"]; meta: SeoFields };
 
 /** The fields a list selects (the text is the post page's only). */
 const SUMMARY_SELECT = {
@@ -33,7 +35,7 @@ const SUMMARY_SELECT = {
 } as const;
 
 type StoredPost = Pick<Post, "id" | "title" | "slug" | "publishedAt"> &
-  Partial<Pick<Post, "excerpt" | "author" | "hero" | "content">>;
+  Partial<Pick<Post, "excerpt" | "author" | "hero" | "content" | "meta">>;
 
 const mediaOf = (value: unknown): Media | null =>
   value !== null && typeof value === "object" ? (value as Media) : null;
@@ -175,12 +177,14 @@ export const readPostById = cmsRead(
       locale: query.locale as never,
       where: { id: { equals: id } },
       depth: 1,
-      select: { ...SUMMARY_SELECT, content: true },
+      select: { ...SUMMARY_SELECT, content: true, meta: true },
       limit: 1,
       pagination: false,
     });
     const post = docs[0] as StoredPost | undefined;
-    return post === undefined ? null : { ...toSummary(post), content: post.content ?? null };
+    return post === undefined
+      ? null
+      : { ...toSummary(post), content: post.content ?? null, meta: metaOf(post.meta) };
   },
   { name: "cms:post-by-id", tags: (locale) => postTags(locale) },
 );

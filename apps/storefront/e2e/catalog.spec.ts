@@ -374,6 +374,7 @@ test.describe("the catalog's content from Payload (T69)", () => {
         api(token, "PATCH", `/api/products/${productId}?locale=${locale}`, {
           richDescription: null,
           gallery: [],
+          meta: { title: null, description: null, image: null },
         }),
       );
       await quietly(
@@ -430,6 +431,23 @@ test.describe("the catalog's content from Payload (T69)", () => {
     expect(greek).toContain(imageOf(picture.filename));
     // The market's language, never another's.
     expect(await us()).not.toContain(WORDS.heading.el);
+  });
+
+  test("a product's SEO title from Payload is its page's title, in its language only (T68, D82)", async () => {
+    await settled(`/us/products/${PRODUCT}`);
+    const title = `The classic tee, combed cotton ${stamp}`;
+    await api(token, "PATCH", `/api/products/${productId}?locale=en`, {
+      meta: { title, description: `A tee that lasts ${stamp}.` },
+    });
+    const us = async () => html(`/us/products/${PRODUCT}`);
+    expect(
+      await seenWithinTwo(async () => (await us()).includes(`<title>${title}</title>`)),
+    ).toBeGreaterThan(0);
+    const english = await us();
+    expect(english).toContain(`<meta name="description" content="A tee that lasts ${stamp}."/>`);
+    expect(english).toContain(`<meta property="og:title" content="${title}"/>`);
+    // The catalog's content has no English fallback (D83): the Greek page keeps Medusa's title.
+    expect(await html(`/products/${PRODUCT}`)).not.toContain(title);
   });
 
   test("the delivery text edited in site-settings shows on every product page", async () => {

@@ -24,7 +24,12 @@ vi.mock("../../../components/shell/shell-data", () => ({
   getShellData: async () => ({
     url: (path: string) => path,
     homes: [],
-    settings: { storeName: "Kalimera", titleTemplate: "%s · Kalimera" },
+    settings: {
+      storeName: "Kalimera",
+      titleTemplate: "%s · Kalimera",
+      seo: { description: "Linen for warm days." },
+      organization: {},
+    },
   }),
 }));
 vi.mock("../../../components/shell/header", () => ({ SiteHeader: () => null }));
@@ -88,6 +93,10 @@ describe("the market layout's metadata (T61)", () => {
       default: "Kalimera",
       template: "%s · Kalimera",
     });
+  });
+
+  it("describes every page that has no description of its own as the site settings do (T68)", async () => {
+    expect((await generateMetadata()).description).toBe("Linen for warm days.");
   });
 });
 
