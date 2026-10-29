@@ -1,6 +1,6 @@
 import type { Field, GroupField, TextField } from "payload";
 import { describe, expect, it } from "vitest";
-import { link } from "./link";
+import { hideDeletedInMedusa, link } from "./link";
 import { sectionSettings } from "./section-settings";
 
 const named = (fields: Field[], name: string) =>
@@ -61,5 +61,38 @@ describe("sectionSettings", () => {
     expect(named(field.fields, "surface")).toMatchObject({
       options: ["default", "muted", "inverse"],
     });
+  });
+});
+
+describe("hideDeletedInMedusa (D85)", () => {
+  it("hides a catalog document Medusa deleted from the pickers, and filters nothing else", () => {
+    for (const relationTo of ["products", "categories", "collections"]) {
+      expect(hideDeletedInMedusa({ relationTo } as never)).toEqual({
+        deletedInMedusa: { not_equals: true },
+      });
+    }
+    expect(hideDeletedInMedusa({ relationTo: "pages" } as never)).toBe(true);
+  });
+
+  it("lets through the document the link already holds, so a save is not refused for it", () => {
+    const holding = (relationTo: string, value: unknown) =>
+      hideDeletedInMedusa({
+        relationTo: "products",
+        siblingData: { type: "reference", reference: { relationTo, value } },
+      } as never);
+    const shown = { deletedInMedusa: { not_equals: true } };
+    expect(holding("products", 7)).toEqual({ or: [shown, { id: { equals: 7 } }] });
+    expect(holding("products", { id: 7, handle: "gone" })).toEqual({
+      or: [shown, { id: { equals: 7 } }],
+    });
+    // A reference to another collection lets nothing more through here.
+    expect(holding("categories", 7)).toEqual(shown);
+    expect(holding("products", null)).toEqual(shown);
+  });
+
+  it("is on the link field's reference", () => {
+    const group = link({ relationTo: ["products"] });
+    const reference = group.fields.find((field) => "name" in field && field.name === "reference");
+    expect(reference).toMatchObject({ filterOptions: hideDeletedInMedusa });
   });
 });

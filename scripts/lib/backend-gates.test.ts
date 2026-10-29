@@ -7,7 +7,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { describe, expect, it } from "vitest";
 import { configChecks } from "./doctor-checks.ts";
-import { getIntegrationStatus, type AppEnvs } from "./integrations.ts";
+import { getIntegrationStatus, type AppEnvs } from "@shopblok/integrations";
 
 const backendFile = (name: string) =>
   pathToFileURL(path.resolve(import.meta.dirname, "../../apps/backend/src/config", name)).href;

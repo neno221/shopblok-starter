@@ -7,8 +7,8 @@
 // It writes nothing: no file, no row, no migration. The one command it runs that touches the
 // database is `payload run` (to read the `markets` global), and that runs as production does, which
 // never creates a missing database. The decisions are in scripts/lib/ (doctor-checks.ts,
-// doctor-services.ts, integrations.ts, markets-check.ts) with tests; this file looks at the machine
-// and wires them up.
+// doctor-services.ts, markets-check.ts) and `@shopblok/integrations`, with tests; this file looks
+// at the machine and wires them up.
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { inspectTargets, targetsFrom } from "./lib/checks.ts";
@@ -35,7 +35,7 @@ import {
   isSet,
   type AppEnvs,
   type EnvLike,
-} from "./lib/integrations.ts";
+} from "@shopblok/integrations";
 import { loadExports } from "./lib/load-exports.ts";
 import {
   marketsGlobalCheck,

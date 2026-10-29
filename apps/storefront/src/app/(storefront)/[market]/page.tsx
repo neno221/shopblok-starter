@@ -1,9 +1,12 @@
 import type { Image } from "@shopblok/registry/contracts";
 import { HomeTemplate, homeCopy } from "@shopblok/ui/templates/home";
 import type { Metadata } from "next";
+import { draftMode } from "next/headers";
 import { notFound } from "next/navigation";
 import { getMessages } from "next-intl/server";
 import { cache } from "react";
+import { RefreshOnSave } from "../../../components/cms/refresh-on-save";
+import { getShellData } from "../../../components/shell/shell-data";
 import { getCurrentMarket } from "../../../lib/current-market";
 import { getMarketContext, type MarketContext } from "../../../lib/market-context";
 import { hreflangAlternates } from "../../../lib/markets/hreflang";
@@ -17,7 +20,8 @@ import { searchProducts } from "../../../lib/medusa/search";
 import { buildReadsMedusa } from "../../../lib/prerender";
 import { homeJsonLd } from "../../../lib/seo/home";
 import { jsonLdText } from "../../../lib/seo/product";
-import { HERO_IMAGE, SHELL_PREFETCH, SITE, siteText } from "../../../lib/site";
+import { HERO_IMAGE, SHELL_PREFETCH, siteText } from "../../../lib/site";
+import { siteOrigin } from "../../../lib/site-origin";
 import { PLACEHOLDER_IMAGE, toProductImage } from "../../../lib/view-models/common";
 import { HOME_CATEGORIES, NEW_ARRIVALS, toHomePage } from "../../../lib/view-models/home";
 import { toImages, toProductCard } from "../../../lib/view-models/product";
@@ -28,6 +32,10 @@ import { toImages, toProductCard } from "../../../lib/view-models/product";
 // `connection()` or an uncached read anywhere in it fails the build. The hero's words and picture
 // are the shop's (`site.ts`) until M4's `hero` block; the categories, their pictures and the new
 // arrivals are Medusa's.
+//
+// T61: the home is where the `header`, `footer` and `site-settings` globals are previewed (live
+// preview's frame, D74), so in Draft Mode it renders live preview's island, which redraws the frame
+// when the editor saves. A published home never renders it, and its code loads only when it does.
 
 export const ensureStatic = "navigation";
 
@@ -106,13 +114,15 @@ export async function generateMetadata(): Promise<Metadata> {
   const data = await readHome();
   if (data === null) return {};
   const { context } = data;
+  // The store's name is the site settings' (T61), as the layout's title and the header have it.
+  const { settings } = await getShellData();
   const href = context.url("/");
   const text = siteText(context.market.language);
   return {
     // The layout's default title, the store's name, is the home's.
     description: text.hero.text,
     alternates: { canonical: href, languages: hreflangAlternates("/", context.map) },
-    openGraph: { type: "website", title: SITE.storeName, url: href },
+    openGraph: { type: "website", title: settings.storeName, url: href },
   };
 }
 
@@ -121,6 +131,7 @@ export default async function MarketHome() {
   if (data === null) notFound();
   const { context, messages } = data;
   const { market } = context;
+  const [{ isEnabled: draft }, { settings }] = await Promise.all([draftMode(), getShellData()]);
   const tree = (await listCategories(market.medusaLocale)).slice(0, HOME_CATEGORIES);
   const [pictures, newArrivals] = await Promise.all([
     Promise.all(tree.map((node) => firstPicture(context, node))),
@@ -149,7 +160,7 @@ export default async function MarketHome() {
         dangerouslySetInnerHTML={{
           __html: jsonLdText(
             homeJsonLd({
-              storeName: SITE.storeName,
+              storeName: settings.storeName,
               homeHref: context.url("/"),
               searchHref: context.url("/search"),
               language: market.htmlLang,
@@ -163,6 +174,7 @@ export default async function MarketHome() {
         locale={market.htmlLang}
         prefetch={SHELL_PREFETCH}
       />
+      {draft ? <RefreshOnSave serverURL={siteOrigin()} /> : null}
     </>
   );
 }

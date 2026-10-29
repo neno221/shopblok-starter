@@ -1,5 +1,15 @@
 import "server-only";
 import type { Category, MarketChoice } from "@shopblok/registry/contracts";
+import { draftMode } from "next/headers";
+import {
+  footerFrom,
+  headerFrom,
+  settingsFrom,
+  type ShellFooter,
+  type ShellHeader,
+  type ShellSettings,
+} from "../../lib/cms/shell";
+import { readFooter, readHeader, readSiteSettings } from "../../lib/cms/site";
 import { getCurrentMarket } from "../../lib/current-market";
 import { hrefsFor } from "../../lib/market-context";
 import type { CurrentMarket } from "../../lib/market-locale";
@@ -7,7 +17,7 @@ import { getRenderMarketMap } from "../../lib/markets/cached-market-map";
 import { listMarkets } from "../../lib/markets/market";
 import type { MarketMap } from "../../lib/markets/types";
 import { buildPublicUrl } from "../../lib/markets/url";
-import { listCategories } from "../../lib/medusa/categories";
+import { listCategories, type CategoryNode } from "../../lib/medusa/categories";
 import { currencyForCountry, listRegions, type Region } from "../../lib/medusa/regions";
 import { EnvError, medusaEnv } from "../../lib/env";
 import { MedusaRequestError } from "../../lib/medusa/sdk";
@@ -27,6 +37,11 @@ import { cache } from "react";
 // and is logged (PR 75 review, item 3): a segment's `error.tsx` is inside its layout and cannot
 // catch the layout's own errors, so a throw here would put every market page on the bare global
 // error page.
+//
+// T61 (D78): the `header`, `footer` and `site-settings` globals, in the market's language (D73),
+// read beside Medusa. In Draft Mode (an editor's live preview) they are the drafts, uncached. A
+// global that cannot be read gives `site.ts`'s values, as one never saved does (`lib/cms/shell.ts`),
+// and the failure is logged: the shell is above every page, so it must not throw.
 
 const medusaConfigured = (): Promise<boolean> =>
   medusaEnv().then(
@@ -46,6 +61,11 @@ export type ShellData = {
   choice: MarketChoice | undefined;
   /** Every option's market: its key and its home, for the choice island. */
   homes: { key: string; home: string }[];
+  /** Draft Mode is on: an editor's preview (the globals are their drafts). */
+  draft: boolean;
+  settings: ShellSettings;
+  header: ShellHeader;
+  footer: ShellFooter;
 };
 
 const orNothing = async <T>(read: Promise<T>, nothing: T): Promise<T> => {
@@ -58,22 +78,54 @@ const orNothing = async <T>(read: Promise<T>, nothing: T): Promise<T> => {
   }
 };
 
+const cmsOrNothing = async <T>(read: Promise<T | null>): Promise<T | null> => {
+  try {
+    return await read;
+  } catch (error) {
+    console.error("shell: a Payload read failed; the header and footer use their defaults", error);
+    return null;
+  }
+};
+
+/** The year the copyright line names: the build's, as a prerendered page keeps it. */
+const YEAR = new Date().getUTCFullYear();
+
 export const getShellData = cache(async (): Promise<ShellData> => {
-  const [market, map] = await Promise.all([getCurrentMarket(), getRenderMarketMap()]);
+  const [market, map, { isEnabled: draft }] = await Promise.all([
+    getCurrentMarket(),
+    getRenderMarketMap(),
+    draftMode(),
+  ]);
   const url = (path: string) => buildPublicUrl(market, path, map);
-  const [tree, regions] = (await medusaConfigured())
-    ? await Promise.all([
-        orNothing(listCategories(market.medusaLocale), []),
-        orNothing(listRegions(), [] as Region[]),
-      ])
-    : [[], [] as Region[]];
+  const reader = { market, draft };
+  const [[tree, regions], header, footer, siteSettings] = await Promise.all([
+    medusaConfigured().then(
+      (configured): Promise<[CategoryNode[], Region[]]> | [CategoryNode[], Region[]] =>
+        configured
+          ? Promise.all([
+              orNothing(listCategories(market.medusaLocale), []),
+              orNothing(listRegions(), [] as Region[]),
+            ])
+          : [[], []],
+    ),
+    cmsOrNothing(readHeader(reader)),
+    cmsOrNothing(readFooter(reader)),
+    cmsOrNothing(readSiteSettings(reader)),
+  ]);
   const choice = toMarketChoice(map, market, currencyForCountry(regions));
+  const categories = toCategories(tree, hrefsFor(url));
+  const context = { market, map, url, categories };
+  const settings = settingsFrom(siteSettings);
   return {
     market,
     map,
     url,
-    categories: toCategories(tree, hrefsFor(url)),
+    categories,
     choice,
+    draft,
+    settings,
+    header: headerFrom(header, context, settings),
+    footer: footerFrom(footer, context, settings, YEAR),
     homes: listMarkets(map).map((each) => ({
       key: each.key,
       home: buildPublicUrl(each, "/", map),

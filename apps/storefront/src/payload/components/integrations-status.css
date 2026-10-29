@@ -1,0 +1,32 @@
+/* The integrations panel (D85), on Payload's theme variables. */
+
+.integrations-status {
+  margin-bottom: calc(var(--base) * 2);
+}
+
+.integrations-status__title {
+  margin: 0 0 calc(var(--base) / 2);
+}
+
+.integrations-status__note {
+  margin: 0 0 var(--base);
+  color: var(--theme-elevation-650);
+}
+
+.integrations-status__table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.integrations-status__table th,
+.integrations-status__table td {
+  padding: calc(var(--base) / 2);
+  border-bottom: 1px solid var(--theme-elevation-100);
+  text-align: start;
+  vertical-align: top;
+}
+
+.integrations-status__table thead th {
+  font-weight: 600;
+  color: var(--theme-elevation-800);
+}

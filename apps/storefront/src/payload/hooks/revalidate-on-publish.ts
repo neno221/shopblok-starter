@@ -208,3 +208,51 @@ export function revalidateGlobalOnPublish({ tags }: RevalidateOnPublishOptions):
 
   return { beforeChange: [beforeChange], afterChange: [afterChange] };
 }
+
+export type RevalidateWhenChangedOptions = {
+  /** The fields other entries copy from the document; a change to any of them revalidates. */
+  fields: readonly string[];
+  /** The tags of the entries that copy them, for one language. */
+  tags: (locale: string) => readonly string[];
+};
+
+const sameValue = (a: unknown, b: unknown) =>
+  JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+
+/**
+ * For a document that other cached reads embed rather than read themselves (PR 94 review, item 2):
+ * the content globals populate a catalog document's `handle` and `deletedInMedusa` and an upload's
+ * file, so a product renamed or deleted in Medusa, or a picture replaced, has to refresh them, or
+ * the header links to a page that no longer exists until the entry's `revalidate`. Revalidates
+ * `tags` in every language when an update changes one of `fields`, and on a delete; a create
+ * changes nothing anyone has cached. The sync writes through Payload's REST API, inside a Next
+ * request, so `revalidateTag` works there; bootstrap's import sets `disableRevalidate`.
+ */
+export function revalidateWhenChanged({ fields, tags }: RevalidateWhenChangedOptions): {
+  afterChange: CollectionAfterChangeHook[];
+  afterDelete: CollectionAfterDeleteHook[];
+} {
+  const every = () => [...new Set(LANGUAGES.flatMap((locale) => tags(locale)))];
+
+  const afterChange: CollectionAfterChangeHook = ({
+    collection,
+    doc,
+    operation,
+    previousDoc,
+    req,
+  }) => {
+    if (disabled(req) || operation !== "update") return doc;
+    const docs = [doc, previousDoc] as Doc[];
+    if (fields.some((field) => !sameValue(docs[0]?.[field], docs[1]?.[field]))) {
+      revalidate(req, collection.slug, every());
+    }
+    return doc;
+  };
+
+  const afterDelete: CollectionAfterDeleteHook = ({ collection, doc, req }) => {
+    if (!disabled(req)) revalidate(req, collection.slug, every());
+    return doc;
+  };
+
+  return { afterChange: [afterChange], afterDelete: [afterDelete] };
+}

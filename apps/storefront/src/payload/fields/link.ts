@@ -1,6 +1,13 @@
-import type { CollectionSlug, Field, GroupField, TextFieldSingleValidation } from "payload";
+import type {
+  CollectionSlug,
+  Field,
+  FilterOptions,
+  GroupField,
+  TextFieldSingleValidation,
+} from "payload";
 import { text } from "payload/shared";
 import { isSafeLinkUrl } from "../../lib/cms/link";
+import { CATALOG_COLLECTIONS } from "../../lib/cms/paths";
 
 export type LinkAppearance = "default" | "outline" | "text";
 
@@ -9,7 +16,7 @@ export type LinkFieldOptions = {
   name?: string;
   /**
    * The collections an internal link may point to (SPEC §7.5: page, category, collection, product,
-   * post). Empty until they exist: T60 adds the synced catalog, T65 `pages`' route, T66 `posts`.
+   * post). `CATALOG_COLLECTIONS` since T61; T65 adds `pages` (once it has its route), T66 `posts`.
    * Without any, the field offers a custom URL only.
    */
   relationTo?: CollectionSlug[];
@@ -18,6 +25,35 @@ export type LinkFieldOptions = {
   /** Whether a label is asked for (a menu item needs one; a card's whole-surface link may not). */
   label?: boolean;
   required?: boolean;
+};
+
+/** The id a relationship value names, populated or not. */
+const idOf = (value: unknown): number | string | undefined =>
+  typeof value === "number" || typeof value === "string"
+    ? value
+    : value !== null && typeof value === "object" && "id" in value
+      ? ((value as { id?: number | string }).id ?? undefined)
+      : undefined;
+
+/**
+ * The Medusa pickers (D85): a document Medusa deleted stays in Payload (D75's soft delete) but is not
+ * offered, since its page is gone. `resolveLink` leaves out a link that already points at one.
+ *
+ * Payload also applies `filterOptions` when it validates a save (PR 94 review, item 1), so the
+ * document the link holds is let through even when Medusa deleted it: otherwise a header that
+ * linked to a product Medusa then deleted could not be published again, for any change, until an
+ * editor found and replaced that link. The picker shows it too, as the current choice.
+ */
+export const hideDeletedInMedusa: Extract<FilterOptions, (...args: never[]) => unknown> = ({
+  relationTo,
+  siblingData,
+}) => {
+  if (!(CATALOG_COLLECTIONS as readonly string[]).includes(relationTo)) return true;
+  const shown = { deletedInMedusa: { not_equals: true } };
+  const held = (siblingData as { reference?: { relationTo?: unknown; value?: unknown } } | null)
+    ?.reference;
+  const id = held?.relationTo === relationTo ? idOf(held.value) : undefined;
+  return id === undefined ? shown : { or: [shown, { id: { equals: id } }] };
 };
 
 /**
@@ -53,6 +89,7 @@ export function link({
             relationTo,
             maxDepth: 1,
             required,
+            filterOptions: hideDeletedInMedusa,
             admin: {
               condition: (_: unknown, sibling: { type?: string }) => sibling?.type === "reference",
             },

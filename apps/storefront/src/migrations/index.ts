@@ -5,6 +5,7 @@ import * as migration_20261028_164715_cms_foundations from "./20261028_164715_cm
 import * as migration_20261028_194034_sync from "./20261028_194034_sync";
 import * as migration_20261028_211336_email_templates from "./20261028_211336_email_templates";
 import * as migration_20261028_220728_ui_strings from "./20261028_220728_ui_strings";
+import * as migration_20261029_000652_globals from "./20261029_000652_globals";
 
 export const migrations = [
   {
@@ -41,5 +42,10 @@ export const migrations = [
     up: migration_20261028_220728_ui_strings.up,
     down: migration_20261028_220728_ui_strings.down,
     name: "20261028_220728_ui_strings",
+  },
+  {
+    up: migration_20261029_000652_globals.up,
+    down: migration_20261029_000652_globals.down,
+    name: "20261029_000652_globals",
   },
 ];

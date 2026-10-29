@@ -1,11 +1,15 @@
 import fixture from "@shopblok/fixtures/sync/documents.json";
 import type { AccessArgs, Field, FieldAccess, PayloadRequest } from "payload";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { syncedFieldNames } from "../fields/synced";
 import { Markets } from "../globals/markets";
 import { Categories } from "./categories";
 import { Collections } from "./collections";
+import { Media } from "./media";
 import { Products } from "./products";
+
+const revalidateTag = vi.hoisted(() => vi.fn());
+vi.mock("next/cache", () => ({ revalidateTag }));
 
 // T60 (D75): the shared fixture (`@shopblok/fixtures/sync/documents.json`) is what the backend's
 // mapping writes; its test checks the mapping against the same file. A field renamed or dropped on
@@ -115,5 +119,32 @@ describe("who writes what (D75)", () => {
         expect(fieldAs(update, sync), field.name).toBe(false);
       }
     }
+  });
+});
+
+describe("the content globals follow what they embed (T61, PR 94 review item 2)", () => {
+  beforeEach(() => revalidateTag.mockReset());
+  const update = (config: typeof Media, doc: object, previousDoc: object) =>
+    config.hooks?.afterChange?.[0]?.({
+      collection: config,
+      doc,
+      previousDoc,
+      operation: "update",
+      req: { context: {}, payload: { logger: { warn: vi.fn() } } },
+    } as never);
+  const tags = () => revalidateTag.mock.calls.map(([tag]) => tag as string);
+
+  for (const { config } of COLLECTIONS) {
+    it(`${config.slug}: a rename or a delete in Medusa refreshes the header, footer and settings`, () => {
+      void update(config, { handle: "tee" }, { handle: "shirt" });
+      expect(tags()).toEqual(
+        expect.arrayContaining(["global:header:en", "global:footer:el", "global:site-settings:de"]),
+      );
+    });
+  }
+
+  it("media: a replaced file refreshes them too", () => {
+    void update(Media, { filename: "logo-2.png" }, { filename: "logo.png" });
+    expect(tags()).toContain("global:header:en");
   });
 });

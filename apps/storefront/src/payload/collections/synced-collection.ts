@@ -1,4 +1,5 @@
 import type { CollectionConfig, Field } from "payload";
+import { contentGlobalTags } from "../../lib/cms/globals";
 import { isMedusaSync, staffOrMedusaSync } from "../access/roles";
 import {
   deletedInMedusaField,
@@ -8,6 +9,7 @@ import {
   syncedAtField,
   titleField,
 } from "../fields/synced";
+import { revalidateWhenChanged } from "../hooks/revalidate-on-publish";
 
 type SyncedCollection = {
   slug: "products" | "categories" | "collections";
@@ -45,6 +47,12 @@ export function syncedCollection({
       update: staffOrMedusaSync,
       delete: isMedusaSync,
     },
+    // The content globals embed a linked document's handle and whether Medusa deleted it (T61): a
+    // rename or a delete in Medusa refreshes them, so the header never links to a page that is gone.
+    hooks: revalidateWhenChanged({
+      fields: ["handle", "deletedInMedusa"],
+      tags: contentGlobalTags,
+    }),
     fields: [
       medusaIdField(),
       titleField(),

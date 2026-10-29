@@ -3,7 +3,7 @@
 // sockets, calls the servers); every decision that can be wrong lives here, with a test.
 import type { RunResult } from "./exec.ts";
 import { describeUnreachable, jsonOf, type HttpResult } from "./http.ts";
-import { isSet, type AppEnvs, type IntegrationStatus } from "./integrations.ts";
+import { isSet, type AppEnvs, type IntegrationStatus } from "@shopblok/integrations";
 import type { BackendMarkets, MarketMapData } from "./markets-check.ts";
 import type { Check } from "./report.ts";
 
@@ -224,9 +224,7 @@ function secrets(envs: AppEnvs, context: Context): Check {
  * anywhere else, as for the signing secrets: production needs both for Vercel Cron and live preview.
  */
 function previewAndCronSecrets(envs: AppEnvs, context: Context): Check {
-  const missing = ["PREVIEW_SECRET", "CRON_SECRET"].filter(
-    (name) => !isSet(envs.storefront, name),
-  );
+  const missing = ["PREVIEW_SECRET", "CRON_SECRET"].filter((name) => !isSet(envs.storefront, name));
   if (missing.length === 0) {
     return {
       id: "preview-cron-secrets",

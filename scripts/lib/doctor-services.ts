@@ -10,7 +10,7 @@ import {
   type Target,
 } from "./checks.ts";
 import { describeUnreachable, type HttpResult } from "./http.ts";
-import type { IntegrationStatus } from "./integrations.ts";
+import type { IntegrationStatus } from "@shopblok/integrations";
 import type { Check } from "./report.ts";
 
 /** Postgres and Redis must be up for anything to work; the others are not used before M3 and M6. */

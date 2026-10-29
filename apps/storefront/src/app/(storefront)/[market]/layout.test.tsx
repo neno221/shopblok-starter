@@ -21,7 +21,11 @@ vi.mock("../../../lib/fonts", () => ({
 }));
 // The shell (T48) has tests of its own; here it is a stand-in, so the layout reads no Medusa.
 vi.mock("../../../components/shell/shell-data", () => ({
-  getShellData: async () => ({ url: (path: string) => path, homes: [] }),
+  getShellData: async () => ({
+    url: (path: string) => path,
+    homes: [],
+    settings: { storeName: "Kalimera", titleTemplate: "%s · Kalimera" },
+  }),
 }));
 vi.mock("../../../components/shell/header", () => ({ SiteHeader: () => null }));
 vi.mock("../../../components/shell/footer", () => ({ SiteFooter: () => null }));
@@ -37,7 +41,7 @@ vi.mock("next-intl", async () => {
   return (await import(/* @vite-ignore */ entry)) as object;
 });
 
-import RootLayout from "./layout";
+import RootLayout, { generateMetadata } from "./layout";
 
 afterEach(() => {
   state.key = "";
@@ -77,6 +81,15 @@ async function html(tree: ReactElement): Promise<string> {
 function toastCopy(tree: ReactElement<Props>): unknown {
   return find(tree, (props) => props.copy !== undefined)?.props.copy;
 }
+
+describe("the market layout's metadata (T61)", () => {
+  it("titles pages with the site settings' store name and template", async () => {
+    expect((await generateMetadata()).title).toEqual({
+      default: "Kalimera",
+      template: "%s · Kalimera",
+    });
+  });
+});
 
 describe("the market layout (D62)", () => {
   it("gives the client provider the shell's messages and no catalog", async () => {

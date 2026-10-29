@@ -18,3 +18,24 @@ export function seededUpdate<T>(current: unknown, seeded: Seeded<T>): T | null {
   if (isEmpty(current)) return seeded.value;
   return (seeded.before ?? []).some((old) => isDeepStrictEqual(current, old)) ? seeded.value : null;
 }
+
+/**
+ * A stored value as the seed compares it (T61's globals): without Payload's row `id`s, and without
+ * what holds nothing (`null`, empty strings, arrays and objects), so a value read back after the
+ * seed wrote it equals what the seed wrote, and a field never written is empty (`undefined`).
+ */
+export function comparable(value: unknown): unknown {
+  if (value === null || value === undefined || value === "") return undefined;
+  if (Array.isArray(value)) {
+    const items = value.map(comparable).filter((item) => item !== undefined);
+    return items.length === 0 ? undefined : items;
+  }
+  if (typeof value === "object") {
+    const entries = Object.entries(value)
+      .filter(([key]) => key !== "id")
+      .map(([key, item]) => [key, comparable(item)] as const)
+      .filter(([, item]) => item !== undefined);
+    return entries.length === 0 ? undefined : Object.fromEntries(entries);
+  }
+  return value;
+}

@@ -1,4 +1,5 @@
 import { emailTemplatesSeed } from "./email-templates";
+export { SEED_GLOBALS } from "./globals";
 import { pagesSeed } from "./pages";
 import type { SeedModule } from "./types";
 

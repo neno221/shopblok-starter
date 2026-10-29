@@ -1,7 +1,7 @@
 // What `pnpm run doctor` prints (T14): a list of checks, each ok, a warning or an error, and the
 // integrations table. Pure functions from the report to text or JSON, so a test can read what a
 // person or CI would. Nothing here knows how a check was made.
-import { describeIntegration, type IntegrationStatus } from "./integrations.ts";
+import { describeIntegration, type IntegrationStatus } from "@shopblok/integrations";
 import { redact } from "./output.ts";
 
 export type Level = "ok" | "warn" | "error";

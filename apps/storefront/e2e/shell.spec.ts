@@ -1,4 +1,7 @@
 import { expect, test, type APIResponse } from "@playwright/test";
+import { publishGlobal, snapshotGlobal, type GlobalData } from "./support/globals";
+import { appEnv } from "./support/app-env";
+import { adminToken, base, freshWithinTwo } from "./support/server";
 
 // T48 (D66): the shell around every market page, against `next start` with the seeded map and the
 // demo catalog. What is the visitor's is never in the server's HTML (D44): the cart's count and the
@@ -6,6 +9,10 @@ import { expect, test, type APIResponse } from "@playwright/test";
 // one goes to the same page in that market and records the choice in `_shopblok_market`, and `/`
 // alone redirects to the market the cookie names (SPEC §8.5). The cart hook is `/next/e2e/cart`,
 // open on the server e2e-smoke starts (E2E_TEST_ROUTES=true).
+//
+// T61 (D78): the header is the `header` global's. A design published in the admin shows within two
+// requests, and the announcement is the market's language, not the visitor's: Greek on `/` (Cyprus)
+// while `/us` keeps English, whatever the browser asks for.
 
 /** The seed's three categories (`apps/backend/src/scripts/seed.ts`), flat: three links. */
 const SEED_CATEGORIES = 3;
@@ -119,5 +126,135 @@ test.describe("the shell (D66)", () => {
   test("/ stays under its HTML ceiling", async ({ request }) => {
     const bytes = (await (await request.get("/")).body()).byteLength;
     expect(bytes, `/ is ${bytes} bytes`).toBeLessThanOrEqual(HOME_HTML_CEILING);
+  });
+});
+
+/** A page's HTML, as a visitor (or a browser with `headers`) asks for it. */
+const html = async (path: string, headers: Record<string, string> = {}) =>
+  (await fetch(new URL(path, base()), { headers })).text();
+/**
+ * Whether `path`'s HTML, within two requests, matches. A market page regenerates with its Medusa
+ * reads: 140 to 320 ms here once the server is warm, longer just after it starts, so request 2
+ * waits 1.5 s rather than the 0.5 s a test-only read needs.
+ */
+const showsWithinTwo = (
+  path: string,
+  matches: (html: string) => boolean,
+  headers: Record<string, string> = {},
+) => freshWithinTwo(async () => matches(await html(path, headers)), 1500);
+
+const headerVariant = (html: string) => /<header[^>]*data-variant="([\w-]+)"/.exec(html)?.[1];
+const announcement = (html: string) =>
+  /data-slot="announcement-bar-text"[^>]*>([^<]*)</.exec(html)?.[1];
+
+/** Payload's REST API as the `medusa-sync` integration, which alone creates catalog documents. */
+const integrationApi = (method: string, path: string, body?: unknown) =>
+  fetch(`${base()}/api${path}`, {
+    method,
+    headers: {
+      authorization: `integrations API-Key ${appEnv("backend", "PAYLOAD_API_KEY")}`,
+      origin: new URL(base()).origin,
+      "content-type": "application/json",
+    },
+    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+  });
+
+test.describe("the header global (T61)", () => {
+  test.describe.configure({ mode: "serial" });
+  const stamp = Date.now().toString(36);
+  let token = "";
+  let published: GlobalData | undefined;
+  let productId: number | undefined;
+
+  test.beforeAll(async () => {
+    token = await adminToken();
+    published = await snapshotGlobal(token, "header");
+  });
+
+  test.afterAll(async () => {
+    // Not a test: the header as it was, published again in every language, then the test's
+    // product (the header no longer links to it).
+    if (published !== undefined) {
+      await publishGlobal(token, "header", published, "all");
+      // Settle: the next spec reads the old header from its first request.
+      await showsWithinTwo("/us", (html) => headerVariant(html) === published?.["design"]);
+    }
+    if (productId !== undefined)
+      await integrationApi("DELETE", `/products/${productId}`).catch(() => undefined);
+  });
+
+  test("a design published in the admin shows within two requests", async () => {
+    expect(headerVariant(await html("/us"))).not.toBe("centered");
+    await publishGlobal(token, "header", { design: "centered" });
+    expect(
+      await showsWithinTwo("/us", (html) => headerVariant(html) === "centered"),
+      "the centered header within two requests",
+    ).toBeGreaterThan(0);
+  });
+
+  test("the announcement is the market's language: Greek on /, English on /us", async () => {
+    const greek = `Ανακοίνωση ${stamp}`;
+    const english = `Notice ${stamp}`;
+    await publishGlobal(token, "header", { announcement: { message: english } }, "en");
+    await publishGlobal(token, "header", { announcement: { message: greek } }, "el");
+    expect(
+      await showsWithinTwo("/", (html) => announcement(html) === greek),
+      "the Greek announcement on / within two requests",
+    ).toBeGreaterThan(0);
+    expect(
+      await showsWithinTwo("/us", (html) => announcement(html) === english),
+      "the English announcement on /us within two requests",
+    ).toBeGreaterThan(0);
+    // A Greek browser on /us still reads the market's language.
+    expect(announcement(await html("/us", { "accept-language": "el" }))).toBe(english);
+  });
+
+  test("a menu link follows its product: renamed, deleted in Medusa, and the header still publishes", async () => {
+    // A product as the sync writes one (Medusa's own sync is `sync.spec.ts`'s), removed in afterAll.
+    const created = await integrationApi("POST", "/products", {
+      medusaId: `prod_e2e_${stamp}`,
+      title: `E2E shirt ${stamp}`,
+      handle: `e2e-shirt-${stamp}`,
+    });
+    expect(created.status, await created.clone().text()).toBe(201);
+    productId = ((await created.json()) as { doc: { id: number } }).doc.id;
+    const reference = {
+      type: "reference",
+      reference: { relationTo: "products", value: productId },
+    };
+    await publishGlobal(token, "header", {
+      navigation: {
+        source: "manual",
+        items: [
+          { kind: "link", link: { ...reference, label: "Shirt" } },
+          { kind: "link", link: { type: "custom", url: "/store", label: "All" } },
+        ],
+      },
+    });
+    const linksTo = (handle: string) => (page: string) =>
+      page.includes(`href="/us/products/${handle}"`);
+    expect(await showsWithinTwo("/us", linksTo(`e2e-shirt-${stamp}`))).toBeGreaterThan(0);
+
+    // Renamed in Medusa: the cached header follows within two requests (PR 94 review, item 2).
+    const renamed = await integrationApi("PATCH", `/products/${productId}`, {
+      handle: `e2e-tee-${stamp}`,
+    });
+    expect(renamed.status, await renamed.clone().text()).toBe(200);
+    expect(await showsWithinTwo("/us", linksTo(`e2e-tee-${stamp}`))).toBeGreaterThan(0);
+
+    // Deleted in Medusa: the link is left out, the rest of the menu stays.
+    const deleted = await integrationApi("PATCH", `/products/${productId}`, {
+      deletedInMedusa: true,
+    });
+    expect(deleted.status, await deleted.clone().text()).toBe(200);
+    expect(
+      await showsWithinTwo(
+        "/us",
+        (page) => !linksTo(`e2e-tee-${stamp}`)(page) && page.includes('href="/us/store"'),
+      ),
+    ).toBeGreaterThan(0);
+
+    // The header still holds that link, and an unrelated change still publishes (item 1).
+    await publishGlobal(token, "header", { sticky: false });
   });
 });

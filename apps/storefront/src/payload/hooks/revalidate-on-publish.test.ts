@@ -4,7 +4,11 @@ import { LANGUAGES } from "../locales";
 const revalidateTag = vi.fn();
 vi.mock("next/cache", () => ({ revalidateTag: (...args: unknown[]) => revalidateTag(...args) }));
 
-import { revalidateGlobalOnPublish, revalidateOnPublish } from "./revalidate-on-publish";
+import {
+  revalidateGlobalOnPublish,
+  revalidateOnPublish,
+  revalidateWhenChanged,
+} from "./revalidate-on-publish";
 
 const warn = vi.fn();
 const findOne = vi.fn();
@@ -320,5 +324,61 @@ describe("revalidateGlobalOnPublish", () => {
   it("revalidates an unpublish", async () => {
     await saveGlobal("published", { _status: "draft" }, "draft");
     expect(revalidateTag).toHaveBeenCalled();
+  });
+});
+
+describe("revalidateWhenChanged (PR 94 review, item 2)", () => {
+  const w = revalidateWhenChanged({
+    fields: ["handle", "deletedInMedusa"],
+    tags: (locale) => [`global:header:${locale}`, `global:footer:${locale}`],
+  });
+  type WAfter = Parameters<NonNullable<(typeof w.afterChange)[0]>>[0];
+  type WDelete = Parameters<NonNullable<(typeof w.afterDelete)[0]>>[0];
+  const products = { slug: "products", versions: false };
+  const EVERY = LANGUAGES.flatMap((locale) => [
+    `global:header:${locale}`,
+    `global:footer:${locale}`,
+  ]).sort();
+
+  const change = (
+    doc: Record<string, unknown>,
+    previousDoc: Record<string, unknown>,
+    operation = "update",
+    context: Record<string, unknown> = {},
+  ) =>
+    w.afterChange[0]?.({
+      collection: products,
+      doc,
+      operation,
+      previousDoc,
+      req: request("en", context),
+    } as unknown as WAfter);
+
+  it("revalidates every language when an embedded field changes: a rename, a delete in Medusa", () => {
+    change({ handle: "tee" }, { handle: "shirt" });
+    expect(revalidated()).toEqual(EVERY);
+    revalidateTag.mockReset();
+    change({ handle: "tee", deletedInMedusa: true }, { handle: "tee", deletedInMedusa: false });
+    expect(revalidated()).toEqual(EVERY);
+  });
+
+  it("revalidates nothing for another field, a create, or with context.disableRevalidate", () => {
+    change({ handle: "tee", title: "New" }, { handle: "tee", title: "Old" });
+    change({ handle: "tee" }, {}, "create");
+    change({ handle: "tee" }, { handle: "shirt" }, "update", { disableRevalidate: true });
+    expect(revalidateTag).not.toHaveBeenCalled();
+  });
+
+  it("revalidates every language when the document is deleted", () => {
+    const doc = { handle: "tee" };
+    expect(
+      w.afterDelete[0]?.({
+        collection: products,
+        doc,
+        id: 7,
+        req: request(),
+      } as unknown as WDelete),
+    ).toBe(doc);
+    expect(revalidated()).toEqual(EVERY);
   });
 });

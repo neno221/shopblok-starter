@@ -202,9 +202,15 @@ export interface Config {
       )[];
   globals: {
     markets: Market;
+    header: Header;
+    footer: Footer;
+    "site-settings": SiteSetting;
   };
   globalsSelect: {
     markets: MarketsSelect<false> | MarketsSelect<true>;
+    header: HeaderSelect<false> | HeaderSelect<true>;
+    footer: FooterSelect<false> | FooterSelect<true>;
+    "site-settings": SiteSettingsSelect<false> | SiteSettingsSelect<true>;
   };
   locale:
     | "en"
@@ -1333,6 +1339,319 @@ export interface Market {
   createdAt?: string | null;
 }
 /**
+ * The shop's header in every market. Texts are per language; a language without its own shows the English.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "header".
+ */
+export interface Header {
+  id: number;
+  design: "classic" | "centered" | "two-tier" | "mega-menu" | "minimal";
+  /**
+   * The bar above the header. Without a message there is no bar.
+   */
+  announcement?: {
+    message?: string | null;
+    link?: {
+      type?: ("reference" | "custom") | null;
+      reference?:
+        | ({
+            relationTo: "categories";
+            value: number | Category;
+          } | null)
+        | ({
+            relationTo: "collections";
+            value: number | ProductCollection;
+          } | null)
+        | ({
+            relationTo: "products";
+            value: number | Product;
+          } | null);
+      url?: string | null;
+      label?: string | null;
+      newTab?: boolean | null;
+    };
+    dismissible?: boolean | null;
+  };
+  navigation?: {
+    /**
+     * Medusa's categories: the top-level categories, with their children as a mega menu, follow Medusa without a save here.
+     */
+    source?: ("categories" | "manual") | null;
+    items?:
+      | {
+          kind: "link" | "dropdown" | "megaMenu";
+          link?: {
+            type?: ("reference" | "custom") | null;
+            reference?:
+              | ({
+                  relationTo: "categories";
+                  value: number | Category;
+                } | null)
+              | ({
+                  relationTo: "collections";
+                  value: number | ProductCollection;
+                } | null)
+              | ({
+                  relationTo: "products";
+                  value: number | Product;
+                } | null);
+            url?: string | null;
+            label: string;
+            newTab?: boolean | null;
+          };
+          label?: string | null;
+          links?:
+            | {
+                link: {
+                  type?: ("reference" | "custom") | null;
+                  reference?:
+                    | ({
+                        relationTo: "categories";
+                        value: number | Category;
+                      } | null)
+                    | ({
+                        relationTo: "collections";
+                        value: number | ProductCollection;
+                      } | null)
+                    | ({
+                        relationTo: "products";
+                        value: number | Product;
+                      } | null);
+                  url?: string | null;
+                  label: string;
+                  newTab?: boolean | null;
+                };
+                id?: string | null;
+              }[]
+            | null;
+          columns?:
+            | {
+                title: string;
+                links?:
+                  | {
+                      link: {
+                        type?: ("reference" | "custom") | null;
+                        reference?:
+                          | ({
+                              relationTo: "categories";
+                              value: number | Category;
+                            } | null)
+                          | ({
+                              relationTo: "collections";
+                              value: number | ProductCollection;
+                            } | null)
+                          | ({
+                              relationTo: "products";
+                              value: number | Product;
+                            } | null);
+                        url?: string | null;
+                        label: string;
+                        newTab?: boolean | null;
+                      };
+                      id?: string | null;
+                    }[]
+                  | null;
+                id?: string | null;
+              }[]
+            | null;
+          id?: string | null;
+        }[]
+      | null;
+  };
+  utilities?: {
+    search?: boolean | null;
+    account?: boolean | null;
+    marketSwitcher?: boolean | null;
+  };
+  /**
+   * The header stays at the top while the page scrolls.
+   */
+  sticky?: boolean | null;
+  /**
+   * Empty: the site settings' logo, or the store's name as text.
+   */
+  logo?: (number | null) | Media;
+  _status?: ("draft" | "published") | null;
+  updatedAt?: string | null;
+  createdAt?: string | null;
+}
+/**
+ * The shop's footer in every market. Texts are per language; a language without its own shows the English.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "footer".
+ */
+export interface Footer {
+  id: number;
+  design: "multi-column" | "newsletter-first" | "minimal" | "wordmark" | "two-tier";
+  columns?:
+    | {
+        title: string;
+        /**
+         * They follow Medusa, so a new category shows without a save.
+         */
+        categories?: boolean | null;
+        links?:
+          | {
+              link: {
+                type?: ("reference" | "custom") | null;
+                reference?:
+                  | ({
+                      relationTo: "categories";
+                      value: number | Category;
+                    } | null)
+                  | ({
+                      relationTo: "collections";
+                      value: number | ProductCollection;
+                    } | null)
+                  | ({
+                      relationTo: "products";
+                      value: number | Product;
+                    } | null);
+                url?: string | null;
+                label: string;
+                newTab?: boolean | null;
+              };
+              id?: string | null;
+            }[]
+          | null;
+        id?: string | null;
+      }[]
+    | null;
+  social?:
+    | {
+        network:
+          | "instagram"
+          | "facebook"
+          | "tiktok"
+          | "youtube"
+          | "pinterest"
+          | "x"
+          | "threads"
+          | "bluesky";
+        url: string;
+        id?: string | null;
+      }[]
+    | null;
+  legalLinks?:
+    | {
+        link: {
+          type?: ("reference" | "custom") | null;
+          reference?:
+            | ({
+                relationTo: "categories";
+                value: number | Category;
+              } | null)
+            | ({
+                relationTo: "collections";
+                value: number | ProductCollection;
+              } | null)
+            | ({
+                relationTo: "products";
+                value: number | Product;
+              } | null);
+          url?: string | null;
+          label: string;
+          newTab?: boolean | null;
+        };
+        id?: string | null;
+      }[]
+    | null;
+  /**
+   * The marks of the ways to pay, in this order.
+   */
+  paymentIcons?:
+    | (
+        | "visa"
+        | "mastercard"
+        | "americanexpress"
+        | "applepay"
+        | "googlepay"
+        | "revolut"
+        | "paypal"
+        | "klarna"
+      )[]
+    | null;
+  marketSwitcher?: boolean | null;
+  /**
+   * The last line. {year} becomes the current year. Empty: © {year} and the store's name.
+   */
+  copyright?: string | null;
+  _status?: ("draft" | "published") | null;
+  updatedAt?: string | null;
+  createdAt?: string | null;
+}
+/**
+ * The store's name, its pictures and the texts every market shares.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "site-settings".
+ */
+export interface SiteSetting {
+  id: number;
+  storeName: string;
+  logo?: (number | null) | Media;
+  /**
+   * A square picture, at least 512 × 512.
+   */
+  icon?: (number | null) | Media;
+  /**
+   * The page the market's home shows. Empty: the built-in home page (T65 draws a chosen one).
+   */
+  homepage?: (number | null) | Page;
+  /**
+   * For example: Free shipping on orders over €50.
+   */
+  freeShippingMessage?: string | null;
+  seo?: {
+    /**
+     * %s is the page's title. Empty: %s | the store's name.
+     */
+    titleTemplate?: string | null;
+    description?: string | null;
+    image?: (number | null) | Media;
+  };
+  /**
+   * The shop as search engines describe it (Organization data).
+   */
+  organization?: {
+    legalName?: string | null;
+    email?: string | null;
+    telephone?: string | null;
+  };
+  /**
+   * The short lines under the buy button.
+   */
+  productNotes?:
+    | {
+        note: string;
+        id?: string | null;
+      }[]
+    | null;
+  /**
+   * The product page's delivery and returns section.
+   */
+  deliveryAndReturns?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ("ltr" | "rtl") | null;
+      format: "left" | "start" | "center" | "right" | "end" | "justify" | "";
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  _status?: ("draft" | "published") | null;
+  updatedAt?: string | null;
+  createdAt?: string | null;
+}
+/**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "markets_select".
  */
@@ -1374,6 +1693,188 @@ export interface MarketsSelect<T extends boolean = true> {
         locales?: T;
         syncedAt?: T;
       };
+  updatedAt?: T;
+  createdAt?: T;
+  globalType?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "header_select".
+ */
+export interface HeaderSelect<T extends boolean = true> {
+  design?: T;
+  announcement?:
+    | T
+    | {
+        message?: T;
+        link?:
+          | T
+          | {
+              type?: T;
+              reference?: T;
+              url?: T;
+              label?: T;
+              newTab?: T;
+            };
+        dismissible?: T;
+      };
+  navigation?:
+    | T
+    | {
+        source?: T;
+        items?:
+          | T
+          | {
+              kind?: T;
+              link?:
+                | T
+                | {
+                    type?: T;
+                    reference?: T;
+                    url?: T;
+                    label?: T;
+                    newTab?: T;
+                  };
+              label?: T;
+              links?:
+                | T
+                | {
+                    link?:
+                      | T
+                      | {
+                          type?: T;
+                          reference?: T;
+                          url?: T;
+                          label?: T;
+                          newTab?: T;
+                        };
+                    id?: T;
+                  };
+              columns?:
+                | T
+                | {
+                    title?: T;
+                    links?:
+                      | T
+                      | {
+                          link?:
+                            | T
+                            | {
+                                type?: T;
+                                reference?: T;
+                                url?: T;
+                                label?: T;
+                                newTab?: T;
+                              };
+                          id?: T;
+                        };
+                    id?: T;
+                  };
+              id?: T;
+            };
+      };
+  utilities?:
+    | T
+    | {
+        search?: T;
+        account?: T;
+        marketSwitcher?: T;
+      };
+  sticky?: T;
+  logo?: T;
+  _status?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  globalType?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "footer_select".
+ */
+export interface FooterSelect<T extends boolean = true> {
+  design?: T;
+  columns?:
+    | T
+    | {
+        title?: T;
+        categories?: T;
+        links?:
+          | T
+          | {
+              link?:
+                | T
+                | {
+                    type?: T;
+                    reference?: T;
+                    url?: T;
+                    label?: T;
+                    newTab?: T;
+                  };
+              id?: T;
+            };
+        id?: T;
+      };
+  social?:
+    | T
+    | {
+        network?: T;
+        url?: T;
+        id?: T;
+      };
+  legalLinks?:
+    | T
+    | {
+        link?:
+          | T
+          | {
+              type?: T;
+              reference?: T;
+              url?: T;
+              label?: T;
+              newTab?: T;
+            };
+        id?: T;
+      };
+  paymentIcons?: T;
+  marketSwitcher?: T;
+  copyright?: T;
+  _status?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  globalType?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "site-settings_select".
+ */
+export interface SiteSettingsSelect<T extends boolean = true> {
+  storeName?: T;
+  logo?: T;
+  icon?: T;
+  homepage?: T;
+  freeShippingMessage?: T;
+  seo?:
+    | T
+    | {
+        titleTemplate?: T;
+        description?: T;
+        image?: T;
+      };
+  organization?:
+    | T
+    | {
+        legalName?: T;
+        email?: T;
+        telephone?: T;
+      };
+  productNotes?:
+    | T
+    | {
+        note?: T;
+        id?: T;
+      };
+  deliveryAndReturns?: T;
+  _status?: T;
   updatedAt?: T;
   createdAt?: T;
   globalType?: T;

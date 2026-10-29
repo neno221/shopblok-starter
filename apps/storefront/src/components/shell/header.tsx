@@ -7,17 +7,18 @@ import type { HeaderProps } from "@shopblok/ui/organisms/header/parts";
 import { HeaderTwoTier } from "@shopblok/ui/organisms/header/two-tier";
 import { getMessages } from "next-intl/server";
 import type { ReactElement } from "react";
-import { toNavigation } from "../../lib/navigation";
-import { announcementFor, SHELL_PREFETCH, SITE, type HeaderVariant } from "../../lib/site";
+import { SHELL_PREFETCH, type HeaderVariant } from "../../lib/site";
 import { CartIsland } from "../../lib/visitor/cart-island";
 import { CartIslandParts } from "./cart-island-parts";
 import { SearchOverlayIsland } from "./search-overlay-island";
+import { ShellLogo } from "./logo";
 import { getShellData } from "./shell-data";
 
-// The shop's header (D66): the variant `site.ts` names, with the navigation from Medusa's category
-// tree, the market switcher, the announcement bar, and the visitor's parts as islands in its slots
-// (D44): the cart button, which draws the count once the visitor store has it and opens the cart
-// drawer and the quick cart (T52), and the search overlay. The menu's panels stay unmounted (T35's item 8): their links are in the footer.
+// The shop's header (D66): the `header` global's design, announcement, navigation (Medusa's category
+// tree unless an editor built one), utilities and logo (T61, D78; `site.ts`'s until the global is
+// saved), the market switcher, and the visitor's parts as islands in its slots (D44): the cart
+// button, which draws the count once the visitor store has it and opens the cart drawer and the
+// quick cart (T52), and the search overlay. The menu's panels stay unmounted (T35's item 8): their links are in the footer.
 
 const HEADERS: Record<HeaderVariant, (props: HeaderProps) => ReactElement> = {
   classic: HeaderClassic,
@@ -28,26 +29,28 @@ const HEADERS: Record<HeaderVariant, (props: HeaderProps) => ReactElement> = {
 };
 
 export async function SiteHeader() {
-  const [{ market, url, categories, choice }, messages] = await Promise.all([
+  const [{ market, url, choice, header, settings }, messages] = await Promise.all([
     getShellData(),
     getMessages() as Promise<Messages>,
   ]);
-  const Header = HEADERS[SITE.header];
+  const Header = HEADERS[header.design];
   const cartHref = url("/cart");
+  const switcher = header.utilities.marketSwitcher ? choice : undefined;
   return (
     <Header
-      storeName={SITE.storeName}
+      storeName={settings.storeName}
       homeHref={url("/")}
       cartHref={cartHref}
-      navigation={toNavigation(categories)}
+      navigation={header.navigation}
       utilities={{
-        search: url("/search"),
-        account: url("/account"),
-        marketSwitcher: choice !== undefined,
+        ...(header.utilities.search ? { search: url("/search") } : {}),
+        ...(header.utilities.account ? { account: url("/account") } : {}),
+        marketSwitcher: switcher !== undefined,
       }}
-      {...(choice === undefined ? {} : { market: choice })}
-      announcement={announcementFor(market.language)}
-      sticky={SITE.stickyHeader}
+      {...(switcher === undefined ? {} : { market: switcher })}
+      {...(header.announcement === undefined ? {} : { announcement: header.announcement })}
+      sticky={header.sticky}
+      {...(header.logo === undefined ? {} : { logo: <ShellLogo image={header.logo} /> })}
       copy={messages.organisms}
       marketSwitcherCopy={messages.molecules.marketSwitcher}
       locale={market.htmlLang}
@@ -64,16 +67,20 @@ export async function SiteHeader() {
           />
         </>
       }
-      search={
-        <SearchOverlayIsland
-          market={market.key}
-          action={url("/search")}
-          copy={messages.organisms.searchOverlay}
-          priceCopy={messages.molecules.priceBlock}
-          locale={market.htmlLang}
-          prefetch={SHELL_PREFETCH}
-        />
-      }
+      {...(header.utilities.search
+        ? {
+            search: (
+              <SearchOverlayIsland
+                market={market.key}
+                action={url("/search")}
+                copy={messages.organisms.searchOverlay}
+                priceCopy={messages.molecules.priceBlock}
+                locale={market.htmlLang}
+                prefetch={SHELL_PREFETCH}
+              />
+            ),
+          }
+        : {})}
     />
   );
 }

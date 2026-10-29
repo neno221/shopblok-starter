@@ -1,7 +1,9 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { CollectionConfig } from "payload";
+import { contentGlobalTags } from "../../lib/cms/globals";
 import { isStaff } from "../access/roles";
+import { revalidateWhenChanged } from "../hooks/revalidate-on-publish";
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -44,6 +46,12 @@ export const Media: CollectionConfig = {
     update: isStaff,
     delete: isStaff,
   },
+  // The content globals embed an upload's file, size and alt text (a logo): a replaced file or a
+  // new alt text refreshes them (T61).
+  hooks: revalidateWhenChanged({
+    fields: ["filename", "url", "alt", "width", "height"],
+    tags: contentGlobalTags,
+  }),
   upload: {
     // `apps/storefront/media`, git-ignored (T01). A shared disk or bucket replaces it in production.
     staticDir: path.resolve(dirname, "../../../media"),

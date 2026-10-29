@@ -1,6 +1,6 @@
 import { expect, test, type Browser } from "@playwright/test";
-import { adminCredentials } from "./support/admin-credentials";
 import { appEnv } from "./support/app-env";
+import { adminToken, base } from "./support/server";
 
 // T59 (D73, D74): preview and scheduled publishing, end to end, against a production build.
 //
@@ -20,7 +20,6 @@ test.describe.configure({ mode: "serial" });
 test.setTimeout(90_000);
 
 const stamp = Date.now().toString(36);
-const base = () => process.env["E2E_BASE_URL"] ?? "http://localhost:8000";
 const publishedTitle = `PREVIEW-PUBLISHED-${stamp}`;
 const draftTitle = `PREVIEW-DRAFT-${stamp}`;
 const slug = `e2e-preview-${stamp}`;
@@ -105,14 +104,7 @@ async function createPage(
 }
 
 test.beforeAll(async () => {
-  const { email, password } = adminCredentials();
-  const response = await fetch(`${base()}/api/users/login`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ email, password }),
-  });
-  token = ((await response.json()) as { token?: string }).token ?? "";
-  expect(token, "the bootstrap admin can sign in").not.toBe("");
+  token = await adminToken();
 });
 
 test.afterAll(async () => {

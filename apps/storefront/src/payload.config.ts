@@ -16,8 +16,12 @@ import { UiStrings } from "./payload/collections/ui-strings";
 import { Users } from "./payload/collections/users";
 import { cronOrAdmin } from "./payload/access/jobs";
 import { filterAvailableLocales } from "./payload/filter-available-locales";
+import { CONTENT_GLOBALS } from "./payload/globals/content-global";
+import { Footer } from "./payload/globals/footer";
+import { Header } from "./payload/globals/header";
 import { importExport } from "./payload/import-export";
 import { Markets } from "./payload/globals/markets";
+import { SiteSettings } from "./payload/globals/site-settings";
 import { LIVE_PREVIEW_BREAKPOINTS, livePreviewUrl } from "./payload/live-preview";
 import { DEFAULT_LOCALE, LOCALES } from "./payload/locales";
 
@@ -42,11 +46,14 @@ export default buildConfig({
   admin: {
     user: Users.slug,
     importMap: { baseDir: dirname },
-    // D74: the edited language's market in three frames, through `/next/preview`. T61 and T66 add
-    // the globals and `posts`.
+    // D85: the integrations (SPEC §10) and whether each is on, above the collections.
+    components: { beforeDashboard: ["/payload/components/integrations-status#IntegrationsStatus"] },
+    // D74: the edited language's market in three frames, through `/next/preview`. The globals show
+    // the market's home (T61); T66 adds `posts`.
     livePreview: {
       breakpoints: LIVE_PREVIEW_BREAKPOINTS,
       collections: ["pages"],
+      globals: [...CONTENT_GLOBALS],
       url: livePreviewUrl,
     },
   },
@@ -61,7 +68,7 @@ export default buildConfig({
     EmailTemplates,
     UiStrings,
   ],
-  globals: [Markets],
+  globals: [Markets, Header, Footer, SiteSettings],
   editor: lexicalEditor(),
   graphQL: { disable: true },
   localization: {
