@@ -6836,7 +6836,7 @@ The review (`reviews/pr-98-code-review.md`) had five must-fix findings and one c
 - Against `next start` and Medusa: the default projects and the locales project pass **183 of 183** with `E2E_MEDUSA_LOG` (`catalog.spec.ts`'s four T69 cases among them).
 - `pnpm build` with no `.env` exits 0 (the reads return `null` without a database and the pages are M3's); `migrate:create --skip-empty` writes nothing.
 - First-load JS, `main` (`b009a17`) against this branch, both built with CI's settings: the product page 334.0 → 334.0 KB gz (1023.7 KB raw both), the listing pages 332.4 → 332.4, `/[market]` 330.5 → 330.5, search 322.1 → 321.6 (the listing results' own module), the admin 825.3 → 825.3. Before the two moves under "Where it differs" the listing pages measured 332.6 and the product page 334.1.
-- BASELINES_TODO
+- **Baselines (D72):** the `update-baselines` dispatch (run 40864788071, commit `b480eca`) rewrote the two templates whose stories gained a state, `product-detail` and `product-listing`, in `en` at 375, 768 and 1440 px (the new "The shop's description" and "A banner and an introduction" states at the end of each page), and `molecules/promo-code-field/en-1440.png` again (its anti-aliased edge, as in T65). 7 PNGs changed of 478, none new; bytes in the commit 4,178,967 (3.99 MB); the set is 62.34 MB (62.27 before), still over D51's 60 MB line as since T64.
 
 ### Changes from the review of this PR
 
