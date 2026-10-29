@@ -7,7 +7,6 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   CREATE TYPE "public"."enum_pages_blocks_hero_variant" AS ENUM('standard');
   CREATE TYPE "public"."enum_pages_blocks_hero_ps_mode" AS ENUM('none', 'collection', 'category', 'handpicked', 'newest', 'onSale', 'tag', 'type');
   CREATE TYPE "public"."enum_pages_blocks_hero_ps_sort" AS ENUM('newest', 'priceAsc', 'priceDesc', 'title');
-  CREATE TYPE "public"."enum_pages_blocks_hero_ps_empty" AS ENUM('hide', 'message', 'newest');
   CREATE TYPE "public"."enum_pages_blocks_hero_ss_spacing" AS ENUM('none', 'small', 'medium', 'large');
   CREATE TYPE "public"."enum_pages_blocks_hero_ss_surface" AS ENUM('default', 'muted', 'inverse');
   CREATE TYPE "public"."enum_pages_blocks_hero_ss_container" AS ENUM('narrow', 'default', 'wide', 'full');
@@ -69,7 +68,6 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   CREATE TYPE "public"."enum__pages_v_blocks_hero_variant" AS ENUM('standard');
   CREATE TYPE "public"."enum__pages_v_blocks_hero_ps_mode" AS ENUM('none', 'collection', 'category', 'handpicked', 'newest', 'onSale', 'tag', 'type');
   CREATE TYPE "public"."enum__pages_v_blocks_hero_ps_sort" AS ENUM('newest', 'priceAsc', 'priceDesc', 'title');
-  CREATE TYPE "public"."enum__pages_v_blocks_hero_ps_empty" AS ENUM('hide', 'message', 'newest');
   CREATE TYPE "public"."enum__pages_v_blocks_hero_ss_spacing" AS ENUM('none', 'small', 'medium', 'large');
   CREATE TYPE "public"."enum__pages_v_blocks_hero_ss_surface" AS ENUM('default', 'muted', 'inverse');
   CREATE TYPE "public"."enum__pages_v_blocks_hero_ss_container" AS ENUM('narrow', 'default', 'wide', 'full');
@@ -159,7 +157,6 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   	"product_source_type" varchar,
   	"product_source_limit" numeric DEFAULT 4,
   	"product_source_sort" "enum_pages_blocks_hero_ps_sort" DEFAULT 'newest',
-  	"product_source_empty_behavior" "enum_pages_blocks_hero_ps_empty" DEFAULT 'hide',
   	"section_settings_anchor" varchar,
   	"section_settings_spacing" "enum_pages_blocks_hero_ss_spacing" DEFAULT 'medium',
   	"section_settings_surface" "enum_pages_blocks_hero_ss_surface" DEFAULT 'default',
@@ -489,7 +486,6 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   	"product_source_type" varchar,
   	"product_source_limit" numeric DEFAULT 4,
   	"product_source_sort" "enum__pages_v_blocks_hero_ps_sort" DEFAULT 'newest',
-  	"product_source_empty_behavior" "enum__pages_v_blocks_hero_ps_empty" DEFAULT 'hide',
   	"section_settings_anchor" varchar,
   	"section_settings_spacing" "enum__pages_v_blocks_hero_ss_spacing" DEFAULT 'medium',
   	"section_settings_surface" "enum__pages_v_blocks_hero_ss_surface" DEFAULT 'default',
@@ -1118,7 +1114,6 @@ export async function down({ db, payload, req }: MigrateDownArgs): Promise<void>
   DROP TYPE "public"."enum_pages_blocks_hero_variant";
   DROP TYPE "public"."enum_pages_blocks_hero_ps_mode";
   DROP TYPE "public"."enum_pages_blocks_hero_ps_sort";
-  DROP TYPE "public"."enum_pages_blocks_hero_ps_empty";
   DROP TYPE "public"."enum_pages_blocks_hero_ss_spacing";
   DROP TYPE "public"."enum_pages_blocks_hero_ss_surface";
   DROP TYPE "public"."enum_pages_blocks_hero_ss_container";
@@ -1180,7 +1175,6 @@ export async function down({ db, payload, req }: MigrateDownArgs): Promise<void>
   DROP TYPE "public"."enum__pages_v_blocks_hero_variant";
   DROP TYPE "public"."enum__pages_v_blocks_hero_ps_mode";
   DROP TYPE "public"."enum__pages_v_blocks_hero_ps_sort";
-  DROP TYPE "public"."enum__pages_v_blocks_hero_ps_empty";
   DROP TYPE "public"."enum__pages_v_blocks_hero_ss_spacing";
   DROP TYPE "public"."enum__pages_v_blocks_hero_ss_surface";
   DROP TYPE "public"."enum__pages_v_blocks_hero_ss_container";

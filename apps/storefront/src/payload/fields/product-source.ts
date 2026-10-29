@@ -77,7 +77,7 @@ export type ProductSourceOptions = {
 
 /**
  * The `productSource` group: a mode and what it needs (shown only for that mode, and checked only
- * then), how many, in which order, and what to do when nothing is found. Handpicked products keep
+ * then), how many, in which order, and (unless optional) what to do when nothing is found. Handpicked products keep
  * the editor's order and number; the pickers hide what Medusa deleted (D85).
  */
 export function productSource({
@@ -127,7 +127,10 @@ export function productSource({
       required: true,
       maxRows: max,
       filterOptions: hideDeletedExceptHeld("products"),
-      admin: { condition: when("handpicked"), description: "Shown in this order." },
+      admin: {
+        condition: when("handpicked"),
+        description: "Shown in this order.",
+      },
     },
     {
       name: "tag",
@@ -165,22 +168,26 @@ export function productSource({
       enumName: enumName("sort"),
       admin: { condition: unless("handpicked", "newest", ...off) },
     },
-    {
-      name: "emptyBehavior",
-      type: "select",
-      required: true,
-      defaultValue: "hide",
-      options: [
-        { value: "hide", label: "Hide the block" },
-        { value: "message", label: "Say there is nothing yet" },
-        { value: "newest", label: "Show the newest products instead" },
-      ],
-      enumName: enumName("empty"),
-      admin: {
-        condition: unless(...off),
-        description: "When the source has no product sold in the market.",
-      },
-    },
+    // The hero stands without its products, so an optional source has no empty behaviour to pick.
+    ...(optional
+      ? []
+      : [
+          {
+            name: "emptyBehavior",
+            type: "select",
+            required: true,
+            defaultValue: "hide",
+            options: [
+              { value: "hide", label: "Hide the block" },
+              { value: "message", label: "Say there is nothing yet" },
+              { value: "newest", label: "Show the newest products instead" },
+            ],
+            enumName: enumName("empty"),
+            admin: {
+              description: "When the source has no product sold in the market.",
+            },
+          } satisfies Field,
+        ]),
   ];
   return {
     name: "productSource",

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { findMarket } from "../../markets/market";
 import { seeded } from "../../markets/test-maps";
 import {
@@ -29,7 +29,11 @@ function commerce(market: FakeMarket = unitedStates) {
     now,
     storeHref: "/us/store",
     words: {
-      empty: { title: "Nothing here yet", text: "Look again soon.", action: "Shop everything" },
+      empty: {
+        title: "Nothing here yet",
+        text: "Look again soon.",
+        action: "Shop everything",
+      },
       recentlyViewed: "Recently viewed",
     },
   };
@@ -50,9 +54,15 @@ describe("the commerce blocks (T64)", () => {
     const hero = {
       blockType: "hero",
       heading: "Autumn",
-      productSource: { mode: "handpicked", products: [synced("prod_cap"), synced("prod_mug")] },
+      productSource: {
+        mode: "handpicked",
+        products: [synced("prod_cap"), synced("prod_mug")],
+      },
     };
-    const running = await resolve({ ...hero, countdownEnd: "2026-11-01T00:00:00.000Z" });
+    const running = await resolve({
+      ...hero,
+      countdownEnd: "2026-11-01T00:00:00.000Z",
+    });
     expect(running?.blockType === "hero" && running.section.countdown).toEqual({
       endsAt: "2026-11-01T00:00:00.000Z",
       now,
@@ -61,7 +71,10 @@ describe("the commerce blocks (T64)", () => {
       "prod_cap",
       "prod_mug",
     ]);
-    const ended = await resolve({ ...hero, countdownEnd: "2026-10-01T00:00:00.000Z" });
+    const ended = await resolve({
+      ...hero,
+      countdownEnd: "2026-10-01T00:00:00.000Z",
+    });
     expect(ended?.blockType === "hero" && ended.section.countdown).toBeUndefined();
     const alone = await resolve({
       blockType: "hero",
@@ -92,7 +105,10 @@ describe("the commerce blocks (T64)", () => {
 
   it("featuredProduct and bundle: left out when their products are gone", async () => {
     expect(
-      await resolve({ blockType: "featuredProduct", product: synced("prod_hoodie", true) }),
+      await resolve({
+        blockType: "featuredProduct",
+        product: synced("prod_hoodie", true),
+      }),
     ).toBeUndefined();
     const featured = await resolve({
       blockType: "featuredProduct",
@@ -116,9 +132,16 @@ describe("the commerce blocks (T64)", () => {
   });
 
   it("promoBanner: left out once its offer has ended", async () => {
-    const banner = { blockType: "promoBanner", heading: "Ten off", code: "WELCOME10" };
+    const banner = {
+      blockType: "promoBanner",
+      heading: "Ten off",
+      code: "WELCOME10",
+    };
     expect(await resolve({ ...banner, endsAt: "2026-10-29T11:59:59.000Z" })).toBeUndefined();
-    const running = await resolve({ ...banner, endsAt: "2026-11-30T00:00:00.000Z" });
+    const running = await resolve({
+      ...banner,
+      endsAt: "2026-11-30T00:00:00.000Z",
+    });
     expect(running?.blockType === "promoBanner" && running.section.endsAt).toBe(
       "2026-11-30T00:00:00.000Z",
     );
@@ -152,7 +175,11 @@ describe("the commerce blocks (T64)", () => {
 
   it("collectionSpotlight: the collection's translated title and page, or nothing once deleted", async () => {
     const resolved = await resolve(
-      { blockType: "collectionSpotlight", collection: synced("col_summer"), limit: 1 },
+      {
+        blockType: "collectionSpotlight",
+        collection: synced("col_summer"),
+        limit: 1,
+      },
       cyprus,
     );
     if (resolved?.blockType !== "collectionSpotlight") throw new Error("no spotlight");
@@ -160,8 +187,25 @@ describe("the commerce blocks (T64)", () => {
     expect(resolved.section.href).toBe("/us/collections/summer-edit");
     expect(resolved.section.products.map((p) => p.id)).toEqual(["prod_tee"]);
     expect(
-      await resolve({ blockType: "collectionSpotlight", collection: synced("col_summer", true) }),
+      await resolve({
+        blockType: "collectionSpotlight",
+        collection: synced("col_summer", true),
+      }),
     ).toBeUndefined();
+  });
+
+  it("collectionSpotlight: a limit that is not a whole number is rounded down, as the tiles' is", async () => {
+    const resolved = await resolve(
+      {
+        blockType: "collectionSpotlight",
+        collection: synced("col_summer"),
+        limit: 1.5,
+      },
+      cyprus,
+    );
+    expect(resolved?.blockType === "collectionSpotlight" && resolved.section.products).toHaveLength(
+      1,
+    );
   });
 
   it("recentlyViewed: the heading only, the catalog's when the editor wrote none", async () => {
@@ -173,10 +217,45 @@ describe("the commerce blocks (T64)", () => {
     });
   });
 
+  it("leaves out only the block whose catalog read fails", async () => {
+    const { context } = commerce();
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const failing: CommerceContext = {
+      ...context,
+      reads: {
+        ...context.reads,
+        tagId: () => Promise.reject(new Error("502 from Medusa")),
+      },
+    };
+    const resolved = await resolveLayout(
+      [
+        { blockType: "spacer", id: "s", variant: "standard", size: "small" },
+        {
+          blockType: "productCollection",
+          id: "p",
+          heading: "Cotton",
+          productSource: { mode: "tag", tag: "cotton" },
+        },
+        { blockType: "featuredProduct", id: "f", product: synced("prod_mug") },
+      ] as unknown as LayoutBlock[],
+      { market: us, map: seeded, commerce: failing },
+    );
+    expect(resolved.map((block) => block.key)).toEqual(["s", "f"]);
+    expect(error).toHaveBeenCalledOnce();
+    error.mockRestore();
+  });
+
   it("reads the catalog only for the commerce blocks", async () => {
     const { catalog, context } = commerce();
     await resolveLayout(
-      [{ blockType: "spacer", id: "s", variant: "standard", size: "small" } as LayoutBlock],
+      [
+        {
+          blockType: "spacer",
+          id: "s",
+          variant: "standard",
+          size: "small",
+        } as LayoutBlock,
+      ],
       { market: us, map: seeded, commerce: context },
     );
     expect(catalog.calls).toEqual([]);

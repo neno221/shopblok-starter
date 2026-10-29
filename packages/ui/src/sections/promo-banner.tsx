@@ -79,8 +79,8 @@ function PromoBannerSection({
           <SectionHeading>{heading}</SectionHeading>
           {text === undefined ? null : (
             <div className="flex max-w-prose flex-col gap-3 text-base text-pretty wrap-anywhere">
-              {text.map((paragraph) => (
-                <p key={paragraph}>{paragraph}</p>
+              {text.map((paragraph, index) => (
+                <p key={index}>{paragraph}</p>
               ))}
             </div>
           )}

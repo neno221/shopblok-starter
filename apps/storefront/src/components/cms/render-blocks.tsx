@@ -22,6 +22,7 @@ import { resolveLayout, type ResolveContext } from "../../lib/cms/resolve/sectio
 import { faqJsonLd } from "../../lib/seo/faq";
 import { jsonLdText } from "../../lib/seo/product";
 import { SHELL_PREFETCH } from "../../lib/site";
+import { OfferEnd } from "./offer-end";
 import { RecentlyViewedBlock } from "./recently-viewed-block";
 import { CmsRichText } from "./rich-text";
 
@@ -145,8 +146,8 @@ export async function RenderBlocks({
                 prefetch={prefetch}
               />
             );
-          case "promoBanner":
-            return (
+          case "promoBanner": {
+            const banner = (
               <PromoBannerSection
                 key={block.key}
                 {...block.section}
@@ -156,6 +157,15 @@ export async function RenderBlocks({
                 prefetch={prefetch}
               />
             );
+            const { endsAt } = block.section;
+            return endsAt === undefined ? (
+              banner
+            ) : (
+              <OfferEnd key={block.key} endsAt={endsAt}>
+                {banner}
+              </OfferEnd>
+            );
+          }
           case "comparison":
             return (
               <ComparisonSection

@@ -1,11 +1,16 @@
 import { sectionFixtures } from "@shopblok/fixtures";
 import { catalogs, formatDate, LOCALES } from "@shopblok/i18n";
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { PromoBannerSection } from "./promo-banner";
 import { sectionsCopy } from "./section-copy";
 
-const htmlLang = { en: "en-US", el: "el-CY", de: "de-DE", fr: "fr-CH" } as const;
+const htmlLang = {
+  en: "en-US",
+  el: "el-CY",
+  de: "de-DE",
+  fr: "fr-CH",
+} as const;
 
 describe("PromoBannerSection", () => {
   it.each(LOCALES)(
@@ -48,5 +53,23 @@ describe("PromoBannerSection", () => {
     expect(container.querySelector("img")).toBeNull();
     expect(container.querySelector("[data-slot=promo-banner-ends]")).toBeNull();
     expect(container.querySelector("[data-slot=promo-banner-terms]")).toBeNull();
+  });
+
+  it("draws a paragraph the editor wrote twice, twice, without React's duplicate-key warning", () => {
+    const { plain } = sectionFixtures.en.promoBanner;
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { container } = render(
+      <PromoBannerSection
+        {...plain}
+        text={["Free shipping.", "Free shipping."]}
+        copy={sectionsCopy(catalogs.en)}
+        locale="en-US"
+      />,
+    );
+    expect(
+      [...container.querySelectorAll("p")].filter((p) => p.textContent === "Free shipping."),
+    ).toHaveLength(2);
+    expect(error).not.toHaveBeenCalled();
+    error.mockRestore();
   });
 });

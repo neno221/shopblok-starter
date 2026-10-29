@@ -9,6 +9,7 @@ import {
   VideoSection,
   type VideoSource,
 } from "@shopblok/registry/contracts";
+import { unstable_rethrow } from "next/navigation";
 import type { Media, Page } from "../../../payload-types";
 import { languageLabel } from "../../../payload/locales";
 import type { Market, MarketMap } from "../../markets/types";
@@ -55,8 +56,16 @@ export type ResolveContext = {
 /** A block resolved for its section; `key` is the block's id, for React's list. */
 export type ResolvedBlock =
   | ({ key: string } & (
-      | { blockType: "richText"; section: RichTextSection; content: LexicalState }
-      | { blockType: "mediaWithText"; section: MediaWithTextSection; content: LexicalState | null }
+      | {
+          blockType: "richText";
+          section: RichTextSection;
+          content: LexicalState;
+        }
+      | {
+          blockType: "mediaWithText";
+          section: MediaWithTextSection;
+          content: LexicalState | null;
+        }
       | { blockType: "uspBar"; section: UspBarSection }
       | { blockType: "logoCloud"; section: LogoCloudSection }
       | { blockType: "faq"; section: FaqSection }
@@ -94,9 +103,20 @@ function videoSource(block: Extract<LayoutBlock, { blockType: "video" }>): Video
     const vtt = fileOf(row.file, ["text/vtt"]);
     if (vtt === undefined || seen.has(row.language)) return [];
     seen.add(row.language);
-    return [{ src: vtt.url, srclang: row.language, label: languageLabel(row.language) }];
+    return [
+      {
+        src: vtt.url,
+        srclang: row.language,
+        label: languageLabel(row.language),
+      },
+    ];
   });
-  return { kind: "file", src: file.url, type: file.type as "video/mp4" | "video/webm", tracks };
+  return {
+    kind: "file",
+    src: file.url,
+    type: file.type as "video/mp4" | "video/webm",
+    tracks,
+  };
 }
 
 /**
@@ -125,7 +145,12 @@ export function resolveBlock(block: LayoutBlock, context: ResolveContext): Resol
       });
       return section === undefined
         ? null
-        : { key, blockType: "mediaWithText", section, content: block.content ?? null };
+        : {
+            key,
+            blockType: "mediaWithText",
+            section,
+            content: block.content ?? null,
+          };
     }
     case "uspBar": {
       const section = parsed(UspBarSection, {
@@ -217,9 +242,30 @@ const isCommerce = (
   (COMMERCE_BLOCKS as readonly string[]).includes(block.blockType);
 
 /**
+ * A commerce block, or `null` when a catalog read fails (Medusa down or slow): that block is left
+ * out, never the page. Next's own control-flow errors are rethrown.
+ */
+async function resolveCommerceOrSkip(
+  block: Extract<LayoutBlock, { blockType: CommerceBlockType }>,
+  context: ResolveContext,
+  commerce: CommerceContext,
+): Promise<ResolvedCommerceBlock | null> {
+  try {
+    return await resolveCommerceBlock(block, context, commerce);
+  } catch (error) {
+    unstable_rethrow(error);
+    console.error(
+      `[blocks] ${block.blockType} ${block.id ?? ""} left out: the catalog read failed`,
+      error instanceof Error ? error.message : String(error),
+    );
+    return null;
+  }
+}
+
+/**
  * A page's layout, resolved: the blocks that can be drawn, in the editor's order. The commerce
- * blocks read the market's catalog at the same time (T64); without `context.commerce` they are
- * left out.
+ * blocks read the market's catalog at the same time (T64); without `context.commerce`, or when
+ * their read fails, they are left out.
  */
 export async function resolveLayout(
   layout: Page["layout"] | undefined,
@@ -231,7 +277,7 @@ export async function resolveLayout(
       isCommerce(block)
         ? commerce === undefined
           ? null
-          : resolveCommerceBlock(block, context, commerce)
+          : resolveCommerceOrSkip(block, context, commerce)
         : resolveBlock(block, context),
     ),
   );

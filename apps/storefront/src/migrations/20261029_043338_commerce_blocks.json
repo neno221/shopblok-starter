@@ -3930,14 +3930,6 @@
           "notNull": false,
           "default": "'newest'"
         },
-        "product_source_empty_behavior": {
-          "name": "product_source_empty_behavior",
-          "type": "enum_pages_blocks_hero_ps_empty",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": false,
-          "default": "'hide'"
-        },
         "section_settings_anchor": {
           "name": "section_settings_anchor",
           "type": "varchar",
@@ -11211,14 +11203,6 @@
           "primaryKey": false,
           "notNull": false,
           "default": "'newest'"
-        },
-        "product_source_empty_behavior": {
-          "name": "product_source_empty_behavior",
-          "type": "enum__pages_v_blocks_hero_ps_empty",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": false,
-          "default": "'hide'"
         },
         "section_settings_anchor": {
           "name": "section_settings_anchor",
@@ -24995,15 +24979,6 @@
         "title"
       ]
     },
-    "public.enum_pages_blocks_hero_ps_empty": {
-      "name": "enum_pages_blocks_hero_ps_empty",
-      "schema": "public",
-      "values": [
-        "hide",
-        "message",
-        "newest"
-      ]
-    },
     "public.enum_pages_blocks_hero_ss_spacing": {
       "name": "enum_pages_blocks_hero_ss_spacing",
       "schema": "public",
@@ -26028,15 +26003,6 @@
         "priceAsc",
         "priceDesc",
         "title"
-      ]
-    },
-    "public.enum__pages_v_blocks_hero_ps_empty": {
-      "name": "enum__pages_v_blocks_hero_ps_empty",
-      "schema": "public",
-      "values": [
-        "hide",
-        "message",
-        "newest"
       ]
     },
     "public.enum__pages_v_blocks_hero_ss_spacing": {
@@ -27259,6 +27225,6 @@
     "tables": {},
     "columns": {}
   },
-  "id": "76cc54d9-d76a-4222-aea6-6e56da9d5a20",
+  "id": "4fc28975-0908-472f-85f3-e52b5490401b",
   "prevId": "00000000-0000-0000-0000-000000000000"
 }

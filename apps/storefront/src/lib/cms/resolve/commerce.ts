@@ -18,7 +18,12 @@ import type { LinkValue } from "../link";
 import { mediaImage } from "../shell";
 import type { CatalogReads } from "./catalog";
 import { resolveCategorySource } from "./categories";
-import { liveMedusaId, resolveProductSource } from "./products";
+import {
+  handpickedCards,
+  handpickedProducts,
+  liveMedusaId,
+  resolveProductSource,
+} from "./products";
 import type { LayoutBlock, ResolveContext } from "./sections";
 import { paragraphs as split, parsed, sectionLink, settingsOf, text } from "./shared";
 
@@ -78,18 +83,6 @@ function future(value: string | null | undefined, now: string): string | undefin
   const at = Date.parse(value);
   return Number.isNaN(at) || at <= Date.parse(now) ? undefined : new Date(at).toISOString();
 }
-
-/** Handpicked products by their references, in the editor's order, as DTOs the market sells. */
-async function handpicked(
-  references: readonly unknown[] | null | undefined,
-  reads: CatalogReads,
-): Promise<ProductDto[]> {
-  const ids = [...new Set((references ?? []).flatMap((each) => liveMedusaId(each) ?? []))];
-  return ids.length === 0 ? [] : reads.products(ids);
-}
-
-const cardsOf = (products: readonly ProductDto[], hrefs: Pick<Hrefs, "product">) =>
-  products.flatMap((product) => toProductCard(product, hrefs) ?? []);
 
 /** A product's options as a comparison's rows: one per option title, its values joined. */
 function optionRows(
@@ -183,7 +176,7 @@ export async function resolveCommerceBlock(
       return section === undefined ? null : { key, blockType: "productCollection", section };
     }
     case "featuredProduct": {
-      const [card] = cardsOf(await handpicked([block.product], reads), hrefs);
+      const [card] = await handpickedCards([block.product], reads, hrefs);
       const image = mediaImage(block.media) ?? card?.images[0];
       const section = parsed(FeaturedProductSection, {
         settings,
@@ -199,7 +192,7 @@ export async function resolveCommerceBlock(
         settings,
         heading: text(block.heading),
         text: paragraphs(block.text),
-        products: cardsOf(await handpicked(block.products, reads), hrefs),
+        products: await handpickedCards(block.products, reads, hrefs),
       });
       return section === undefined ? null : { key, blockType: "bundle", section };
     }
@@ -219,7 +212,7 @@ export async function resolveCommerceBlock(
       return section === undefined ? null : { key, blockType: "promoBanner", section };
     }
     case "comparison": {
-      const products = (await handpicked(block.products, reads)).flatMap((product) => {
+      const products = (await handpickedProducts(block.products, reads)).flatMap((product) => {
         const card = toProductCard(product, hrefs);
         return card === null ? [] : [{ product, card }];
       });
@@ -259,13 +252,19 @@ export async function resolveCommerceBlock(
         id === null ? undefined : (await reads.collections()).find((each) => each.id === id);
       // Gone from Medusa, or not sold through the key's channel: nothing to spotlight.
       if (collection === undefined) return null;
-      const limit = typeof block.limit === "number" ? Math.max(0, Math.min(8, block.limit)) : 4;
+      const limit =
+        typeof block.limit === "number" ? Math.max(0, Math.min(8, Math.floor(block.limit))) : 4;
       const products: ProductCard[] =
         limit === 0
           ? []
           : ((
               await resolveProductSource(
-                { mode: "collection", collection: block.collection, limit, sort: block.sort },
+                {
+                  mode: "collection",
+                  collection: block.collection,
+                  limit,
+                  sort: block.sort,
+                },
                 reads,
                 hrefs,
                 { max: 8, defaultLimit: 4 },

@@ -809,10 +809,6 @@ export interface HeroBlock {
     type?: string | null;
     limit?: number | null;
     sort?: ("newest" | "priceAsc" | "priceDesc" | "title") | null;
-    /**
-     * When the source has no product sold in the market.
-     */
-    emptyBehavior?: ("hide" | "message" | "newest") | null;
   };
   sectionSettings?: {
     anchor?: string | null;
@@ -950,7 +946,7 @@ export interface ProductCollectionBlock {
     /**
      * When the source has no product sold in the market.
      */
-    emptyBehavior?: ("hide" | "message" | "newest") | null;
+    emptyBehavior: "hide" | "message" | "newest";
   };
   sectionSettings?: {
     anchor?: string | null;

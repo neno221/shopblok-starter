@@ -32,7 +32,10 @@ export type ProductSourceValue = {
 export type EmptyBehavior = "hide" | "message" | "newest";
 
 /** A source's products for a block, and what to do when there are none. */
-export type ResolvedProducts = { products: ProductCard[]; empty: EmptyBehavior };
+export type ResolvedProducts = {
+  products: ProductCard[];
+  empty: EmptyBehavior;
+};
 
 const SORTS: Record<string, Exclude<SearchSort, "relevance">> = {
   newest: "newest",
@@ -79,6 +82,29 @@ function cards(products: readonly ProductDto[], hrefs: Pick<Hrefs, "product">): 
 }
 
 /**
+ * Handpicked products by their references, in the editor's order, each once and at most `max`: the
+ * DTOs the market sells. A reference Medusa deleted, or one not populated, gives nothing.
+ */
+export async function handpickedProducts(
+  references: readonly unknown[] | null | undefined,
+  reads: CatalogReads,
+  max = 24,
+): Promise<ProductDto[]> {
+  const ids = [...new Set((references ?? []).flatMap((each) => liveMedusaId(each) ?? []))];
+  return ids.length === 0 ? [] : reads.products(ids.slice(0, max));
+}
+
+/** Handpicked products as cards: the featured product, the bundle (T64). */
+export async function handpickedCards(
+  references: readonly unknown[] | null | undefined,
+  reads: CatalogReads,
+  hrefs: Pick<Hrefs, "product">,
+  max = 24,
+): Promise<ProductCard[]> {
+  return cards(await handpickedProducts(references, reads, max), hrefs);
+}
+
+/**
  * The source's product DTOs, in the order the source gives them: at most `limit`, or for a
  * handpicked list (whose limit field is hidden) the editor's whole list up to the block's `max`.
  */
@@ -91,10 +117,8 @@ async function readSource(
   const search = async (filters: SearchFilters, order = sort) =>
     reads.products(await reads.search({ filters, sort: order, limit }));
   switch (value.mode) {
-    case "handpicked": {
-      const ids = (value.products ?? []).flatMap((product) => liveMedusaId(product) ?? []);
-      return ids.length === 0 ? [] : reads.products([...new Set(ids)].slice(0, max));
-    }
+    case "handpicked":
+      return handpickedProducts(value.products, reads, max);
     case "collection": {
       const id = liveMedusaId(value.collection);
       return id === null ? [] : search({ collectionIds: [id] });

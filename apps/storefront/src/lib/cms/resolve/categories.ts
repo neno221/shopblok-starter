@@ -4,6 +4,7 @@ import type { Hrefs } from "../../view-models/common";
 import { mediaImage } from "../shell";
 import { categoryPicture, type CatalogReads } from "./catalog";
 import { findCategory, liveMedusaId } from "./products";
+import { text } from "./shared";
 
 // SPEC §7.5's `categorySource`, resolved (T64, D79): the top-level categories, a category's
 // children or the editor's list, from Medusa's tree in the market's language. A tile's name is the
@@ -22,9 +23,6 @@ export type CategorySourceValue = {
 
 /** The most tiles a source gives (`CategoryShowcaseSection`). */
 export const MAX_TILES = 12;
-
-const label = (value: string | null | undefined) =>
-  typeof value === "string" && value.trim() !== "" ? value : undefined;
 
 /** The categories the source lists, in its order (Medusa's rank, or the editor's). */
 function nodesOf(value: CategorySourceValue, tree: readonly CategoryNode[]): CategoryNode[] {
@@ -86,7 +84,7 @@ export async function resolveCategorySource(
           : // Decoration, as the product's picture is: the tile's name says where it goes.
             { ...editorImage, alt: "" };
       return {
-        label: label(override?.label) ?? node.name,
+        label: text(override?.label) ?? node.name,
         href: hrefs.category((paths.get(node.id) ?? [node.handle]).join("/")),
         ...(image === undefined ? {} : { image }),
       };
