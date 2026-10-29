@@ -1,8 +1,19 @@
 import type {
+  BundleSection,
+  Category,
+  CategoryShowcaseSection,
+  CollectionSpotlightSection,
+  ComparisonSection,
   FaqSection,
+  FeaturedProductSection,
+  HeroSection,
   Image,
   LogoCloudSection,
   MediaWithTextSection,
+  ProductCard,
+  ProductCollectionSection,
+  PromoBannerSection,
+  RecentlyViewedSection,
   RichTextSection,
   SpacerSection,
   TestimonialsSection,
@@ -12,11 +23,13 @@ import type {
 import { commerceFixtures } from "../commerce";
 import { copies } from "../commerce/copy";
 import { fixtureImage } from "../commerce/images";
+import { fixtureNow } from "../commerce/now";
 import {
   designSystemFixtures,
   designSystemLocales,
   type DesignSystemLocale,
 } from "../design-system";
+import { commerceSectionCopies } from "./commerce-copy";
 import { sectionCopies } from "./copy";
 
 // The sections' fixtures (T63, D79): one view model per content block in each DS locale, as
@@ -25,7 +38,9 @@ import { sectionCopies } from "./copy";
 // pictures are `fixtureImage`'s data URIs and the logos are drawn here, so nothing is fetched.
 // The rich text is not a contract (Lexical is the storefront's): `richText.body` is the sample a
 // story draws as the section's children. The FAQ and the testimonials reuse the commerce
-// fixtures' questions and reviews.
+// fixtures' questions and reviews. T64's commerce sections take the commerce fixtures' cards and
+// category tree (Medusa's side, in the DS market's currency and language) with the editor's words of
+// `commerce-copy.ts`; their dates are after `fixtureNow`, which the DS checks set the clock to.
 
 /** The sample rich text a story draws: a heading, two paragraphs, a list and a link. */
 export type RichTextSample = {
@@ -49,7 +64,41 @@ export type SectionFixtures = {
   /** An embed (the live render), an upload with captions in the four languages, a long title. */
   video: { embed: VideoSection; file: VideoSection; long: VideoSection };
   spacer: { section: SpacerSection };
+  /** A hero with a picture and two links; one with a countdown and four products; a long one alone. */
+  hero: { section: HeroSection; offer: HeroSection; long: HeroSection };
+  /** The tree's first eight categories as tiles; three, the editor's label and picture on one. */
+  categoryShowcase: { section: CategoryShowcaseSection; edited: CategoryShowcaseSection };
+  /** Eight products as a carousel, four as a grid, and a source with no product that says so. */
+  productCollection: {
+    carousel: ProductCollectionSection;
+    grid: ProductCollectionSection;
+    empty: ProductCollectionSection;
+  };
+  /** The hoodie with the editor's heading, words and picture; the sale product on its own. */
+  featuredProduct: { section: FeaturedProductSection; sale: FeaturedProductSection };
+  /** Three products that go together; six, the most. */
+  bundle: { section: BundleSection; full: BundleSection };
+  /** An offer with a picture, a code, its end, the small print and a link; one with words only. */
+  promoBanner: { section: PromoBannerSection; plain: PromoBannerSection };
+  /** Three hoodies over the colours, a material and a care row; two products, one value missing. */
+  comparison: { section: ComparisonSection; two: ComparisonSection };
+  /** A collection's picture and words beside four products; a long heading with no product. */
+  collectionSpotlight: { section: CollectionSpotlightSection; long: CollectionSpotlightSection };
+  /** Six products the visitor saw (the browser's list, D44). */
+  recentlyViewed: { section: RecentlyViewedSection };
 };
+
+/** Every node of a category tree, parents before their children. */
+const flatten = (tree: readonly Category[]): Category[] =>
+  tree.flatMap((node) => [node, ...flatten(node.children)]);
+
+/** A product's colours as a comparison's cell: the swatches' names, or nothing. */
+const colours = (card: ProductCard): string | null =>
+  card.swatches.length === 0 ? null : card.swatches.map((swatch) => swatch.label).join(", ");
+
+/** The time after `fixtureNow`, in days: a countdown's or an offer's end. */
+const daysAfterNow = (days: number) =>
+  new Date(Date.parse(fixtureNow) + days * 86_400_000 + 5 * 3_600_000).toISOString();
 
 /** The press and brands of the logo cloud: names, so they are not translated. */
 const brands = [
@@ -94,7 +143,8 @@ const SAMPLE_VIDEO = "data:video/mp4;base64,";
 
 function build(locale: DesignSystemLocale): SectionFixtures {
   const words = sectionCopies[locale];
-  const { prefix, site } = commerceFixtures[locale];
+  const commerce = commerceSectionCopies[locale];
+  const { prefix, site, products, categories } = commerceFixtures[locale];
   const href = (path: string) => `${prefix}${path}`;
   const reviews = copies[locale].reviews;
 
@@ -225,8 +275,198 @@ function build(locale: DesignSystemLocale): SectionFixtures {
       long: { ...embed, title: words.video.longTitle },
     },
     spacer: { section: { size: "medium", divider: true } },
+    ...commerceSections(locale, commerce, products, categories, href),
   };
 }
+
+/** T64's commerce sections, from the commerce fixtures' cards and categories. */
+function commerceSections(
+  locale: DesignSystemLocale,
+  words: (typeof commerceSectionCopies)[DesignSystemLocale],
+  products: readonly ProductCard[],
+  categories: readonly Category[],
+  href: (path: string) => string,
+): Pick<
+  SectionFixtures,
+  | "hero"
+  | "categoryShowcase"
+  | "productCollection"
+  | "featuredProduct"
+  | "bundle"
+  | "promoBanner"
+  | "comparison"
+  | "collectionSpotlight"
+  | "recentlyViewed"
+> {
+  const card = (index: number): ProductCard => {
+    const found = products[index];
+    if (found === undefined)
+      throw new Error(`The ${locale} commerce fixtures have no card ${index}`);
+    return found;
+  };
+  const hoodies = [card(0), card(2), card(3)];
+  const sale = products.find((each) => each.price.compareAt !== undefined) ?? card(2);
+  const hero: HeroSection = {
+    eyebrow: words.hero.eyebrow,
+    heading: words.hero.heading,
+    subheading: words.hero.subheading,
+    image: fixtureImage({ seed: 21, ratio: "16:9", alt: words.hero.alt }),
+    links: [
+      { label: words.hero.primary, href: href("/collections/autumn") },
+      { label: words.hero.secondary, href: href("/pages/about"), appearance: "outline" },
+    ],
+    products: [],
+  };
+  const tiles = flatten(categories)
+    .slice(0, 8)
+    .map((category, index) => ({
+      label: category.title,
+      href: category.href,
+      // Decorative: the tile's name says where it goes.
+      image: fixtureImage({ seed: 30 + index, ratio: "3:4", alt: "" }),
+    }));
+  const collection: Omit<ProductCollectionSection, "display" | "products"> = {
+    heading: words.productCollection.heading,
+    intro: words.productCollection.intro,
+    link: { label: words.productCollection.link, href: href("/collections/new-in") },
+  };
+  const featured: FeaturedProductSection = {
+    heading: words.featuredProduct.heading,
+    product: card(0),
+    image: fixtureImage({ seed: 5, ratio: "1:1", alt: words.featuredProduct.alt }),
+    text: words.featuredProduct.text,
+  };
+  const promo: PromoBannerSection = {
+    heading: words.promoBanner.heading,
+    text: [words.promoBanner.text],
+    code: "WELCOME10",
+    terms: words.promoBanner.terms,
+    endsAt: daysAfterNow(30),
+    image: fixtureImage({ seed: 14, ratio: "4:3", alt: words.promoBanner.alt }),
+    link: { label: words.promoBanner.link, href: href("/store") },
+  };
+  const column = (product: ProductCard) => ({
+    id: product.id,
+    title: product.title,
+    href: product.href,
+    ...(product.images[0] === undefined ? {} : { image: { ...product.images[0], alt: "" } }),
+    price: product.price,
+  });
+  const spotlight: CollectionSpotlightSection = {
+    heading: words.collectionSpotlight.heading,
+    text: [words.collectionSpotlight.text],
+    image: fixtureImage({ seed: 9, ratio: "16:9", alt: words.collectionSpotlight.alt }),
+    href: href("/collections/heritage"),
+    products: products.slice(0, 4),
+  };
+  return {
+    hero: {
+      section: hero,
+      offer: {
+        ...hero,
+        countdown: { endsAt: daysAfterNow(3), now: fixtureNow },
+        products: products.slice(0, 4),
+      },
+      long: {
+        heading: words.hero.longHeading,
+        subheading: words.hero.subheading,
+        links: hero.links.slice(0, 1),
+        products: [],
+      },
+    },
+    categoryShowcase: {
+      section: {
+        heading: words.categoryShowcase.heading,
+        intro: words.categoryShowcase.intro,
+        link: { label: words.categoryShowcase.link, href: href("/store"), appearance: "text" },
+        tiles,
+      },
+      edited: {
+        heading: words.categoryShowcase.heading,
+        tiles: tiles.slice(0, 3).map((tile, index) =>
+          index === 2
+            ? {
+                ...tile,
+                label: words.categoryShowcase.label,
+                image: fixtureImage({ seed: 44, ratio: "3:4", alt: "" }),
+              }
+            : tile,
+        ),
+      },
+    },
+    productCollection: {
+      carousel: { ...collection, display: "carousel", products: products.slice(0, 8) },
+      grid: {
+        heading: words.productCollection.gridHeading,
+        display: "grid",
+        products: products.slice(4, 8),
+      },
+      empty: {
+        heading: words.productCollection.gridHeading,
+        display: "grid",
+        products: [],
+        empty: {
+          title: words.productCollection.heading,
+          action: { label: words.productCollection.link, href: href("/store") },
+        },
+      },
+    },
+    featuredProduct: {
+      section: featured,
+      sale: { product: sale, image: { ...(sale.images[0] ?? featured.image) } },
+    },
+    bundle: {
+      section: {
+        heading: words.bundle.heading,
+        text: [words.bundle.text],
+        products: [card(0), card(9), card(6)],
+      },
+      full: { heading: words.bundle.heading, products: products.slice(5, 11) },
+    },
+    promoBanner: {
+      section: promo,
+      plain: { heading: promo.heading, text: promo.text, code: promo.code },
+    },
+    comparison: {
+      section: {
+        heading: words.comparison.heading,
+        products: hoodies.map(column),
+        rows: [
+          { label: colourLabel[locale], values: hoodies.map(colours) },
+          {
+            label: words.comparison.material,
+            values: [
+              words.comparison.materials[0],
+              words.comparison.materials[1],
+              words.comparison.materials[0],
+            ],
+          },
+          { label: words.comparison.care, values: words.comparison.cares },
+        ],
+      },
+      two: {
+        heading: words.comparison.heading,
+        products: [column(card(0)), column(card(5))],
+        rows: [{ label: words.comparison.material, values: [words.comparison.materials[0], null] }],
+      },
+    },
+    collectionSpotlight: {
+      section: spotlight,
+      long: { ...spotlight, heading: words.collectionSpotlight.longHeading, products: [] },
+    },
+    recentlyViewed: {
+      section: { heading: words.recentlyViewed.heading, products: products.slice(2, 8) },
+    },
+  };
+}
+
+/** An option's name as Medusa would hold it, in each language: the comparison's colour row. */
+const colourLabel: Record<DesignSystemLocale, string> = {
+  en: "Colour",
+  el: "Χρώμα",
+  de: "Farbe",
+  fr: "Couleur",
+};
 
 /** The sections' fixtures in each DS locale (T63). */
 export const sectionFixtures: Record<DesignSystemLocale, SectionFixtures> = {

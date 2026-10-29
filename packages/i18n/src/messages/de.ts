@@ -692,6 +692,15 @@ export const de: Messages = {
       play: "Video abspielen: {title}",
       provider: "Wird von {provider} abgespielt, das Cookies setzen kann.",
     },
+    productCollection: {
+      emptyTitle: "Hier ist noch nichts",
+      emptyText: "Diese Produkte sind gerade nicht verfügbar.",
+      emptyAction: "Alle Produkte ansehen",
+    },
+    featuredProduct: { view: "Produkt ansehen" },
+    promoBanner: { ends: "Angebot endet am {date}" },
+    comparison: { price: "Preis", missing: "Keine Angabe" },
+    collectionSpotlight: { shop: "Zur Kollektion" },
   },
   templates: {
     notFound: {

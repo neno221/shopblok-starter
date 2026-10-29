@@ -1,7 +1,16 @@
 import type { Block, BlockSlug } from "payload";
+import { BundleBlock } from "./bundle";
+import { CategoryShowcaseBlock } from "./category-showcase";
+import { CollectionSpotlightBlock } from "./collection-spotlight";
+import { ComparisonBlock } from "./comparison";
 import { FaqBlock } from "./faq";
+import { FeaturedProductBlock } from "./featured-product";
+import { HeroBlock } from "./hero";
 import { LogoCloudBlock } from "./logo-cloud";
 import { MediaWithTextBlock } from "./media-with-text";
+import { ProductCollectionBlock } from "./product-collection";
+import { PromoBannerBlock } from "./promo-banner";
+import { RecentlyViewedBlock } from "./recently-viewed";
 import { RichTextBlock } from "./rich-text";
 import { SpacerBlock } from "./spacer";
 import { TestimonialsBlock } from "./testimonials";
@@ -22,6 +31,16 @@ export const BLOCKS: Block[] = [
   TestimonialsBlock,
   VideoBlock,
   SpacerBlock,
+  // T64: the commerce blocks.
+  HeroBlock,
+  CategoryShowcaseBlock,
+  ProductCollectionBlock,
+  FeaturedProductBlock,
+  BundleBlock,
+  PromoBannerBlock,
+  ComparisonBlock,
+  CollectionSpotlightBlock,
+  RecentlyViewedBlock,
 ];
 
 /** The slugs `pages.layout` offers (`BlockSlug`: the generated types' names for the root blocks). */

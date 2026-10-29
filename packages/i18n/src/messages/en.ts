@@ -791,6 +791,15 @@ export const en = {
       play: "Play video: {title}",
       provider: "Plays from {provider}, which may set cookies.",
     },
+    productCollection: {
+      emptyTitle: "Nothing here yet",
+      emptyText: "These products are not available right now.",
+      emptyAction: "Shop all products",
+    },
+    featuredProduct: { view: "View product" },
+    promoBanner: { ends: "Offer ends {date}" },
+    comparison: { price: "Price", missing: "Not specified" },
+    collectionSpotlight: { shop: "Shop the collection" },
   },
   templates: {
     notFound: {

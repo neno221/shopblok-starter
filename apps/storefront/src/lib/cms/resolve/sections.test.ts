@@ -264,14 +264,22 @@ describe("resolveBlock (T63)", () => {
 });
 
 describe("resolveLayout", () => {
-  it("keeps the blocks that can be drawn, in the editor's order", () => {
+  it("keeps the blocks that can be drawn, in the editor's order", async () => {
     const layout = [
       { blockType: "spacer", id: "a", variant: "standard", size: "small" },
       { blockType: "uspBar", id: "b", variant: "standard", items: [] },
       { blockType: "richText", id: "c", variant: "standard", content: lexical },
     ] as unknown as LayoutBlock[];
-    expect(resolveLayout(layout, context).map((block) => block.key)).toEqual(["a", "c"]);
-    expect(resolveLayout(null, context)).toEqual([]);
+    expect((await resolveLayout(layout, context)).map((block) => block.key)).toEqual(["a", "c"]);
+    expect(await resolveLayout(null, context)).toEqual([]);
+  });
+
+  it("leaves the commerce blocks out without the market's catalog", async () => {
+    const layout = [
+      { blockType: "recentlyViewed", id: "a", variant: "standard", heading: "Seen" },
+      { blockType: "spacer", id: "b", variant: "standard", size: "small" },
+    ] as unknown as LayoutBlock[];
+    expect((await resolveLayout(layout, context)).map((block) => block.key)).toEqual(["b"]);
   });
 });
 

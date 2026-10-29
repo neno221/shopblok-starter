@@ -701,6 +701,15 @@ export const fr: Messages = {
       play: "Lire la vidéo : {title}",
       provider: "Lue depuis {provider}, qui peut déposer des cookies.",
     },
+    productCollection: {
+      emptyTitle: "Rien ici pour l’instant",
+      emptyText: "Ces produits ne sont pas disponibles pour le moment.",
+      emptyAction: "Voir tous les produits",
+    },
+    featuredProduct: { view: "Voir le produit" },
+    promoBanner: { ends: "L’offre se termine le {date}" },
+    comparison: { price: "Prix", missing: "Non précisé" },
+    collectionSpotlight: { shop: "Découvrir la collection" },
   },
   templates: {
     notFound: {

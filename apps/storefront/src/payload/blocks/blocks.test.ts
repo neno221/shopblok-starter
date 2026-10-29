@@ -20,9 +20,9 @@ describe("the blocks and the registry (D70)", () => {
   });
 
   it("fail when a block has no entry, an entry no block, or the variants differ", () => {
-    const extra: Block = { slug: "hero", fields: [] };
+    const extra: Block = { slug: "newsletter", fields: [] };
     expect(blockDrift(sectionEntries(), [...BLOCKS, extra])).toEqual([
-      'the block "hero" has no Sections entry in the registry',
+      'the block "newsletter" has no Sections entry in the registry',
     ]);
     expect(blockDrift(sectionEntries(), BLOCKS.slice(1))).toEqual([
       'sections/rich-text names the block "richText", which src/payload/blocks/ lacks',
@@ -91,6 +91,30 @@ describe("the blocks and the registry (D70)", () => {
       "video.heading",
       "video.title",
       "video.caption",
+      "hero.eyebrow",
+      "hero.heading",
+      "hero.subheading",
+      "hero.links.link.label",
+      "categoryShowcase.heading",
+      "categoryShowcase.intro",
+      "categoryShowcase.links.link.label",
+      "categoryShowcase.categorySource.items.label",
+      "productCollection.heading",
+      "productCollection.intro",
+      "productCollection.links.link.label",
+      "featuredProduct.heading",
+      "featuredProduct.text",
+      "bundle.heading",
+      "bundle.text",
+      "promoBanner.heading",
+      "promoBanner.text",
+      "promoBanner.terms",
+      "promoBanner.links.link.label",
+      "comparison.heading",
+      "comparison.rows.label",
+      "collectionSpotlight.heading",
+      "collectionSpotlight.text",
+      "recentlyViewed.heading",
     ]);
   });
 });

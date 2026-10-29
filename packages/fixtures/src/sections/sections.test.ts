@@ -1,7 +1,16 @@
 import {
+  BundleSection,
+  CategoryShowcaseSection,
+  CollectionSpotlightSection,
+  ComparisonSection,
   FaqSection,
+  FeaturedProductSection,
+  HeroSection,
   LogoCloudSection,
   MediaWithTextSection,
+  ProductCollectionSection,
+  PromoBannerSection,
+  RecentlyViewedSection,
   RichTextSection,
   SpacerSection,
   TestimonialsSection,
@@ -10,6 +19,7 @@ import {
 } from "@shopblok/registry/contracts";
 import { describe, expect, it } from "vitest";
 import { commerceFixtures } from "../commerce";
+import { fixtureNow } from "../commerce/now";
 import { designSystemLocales } from "../design-system";
 import { sectionFixtures } from ".";
 
@@ -65,6 +75,48 @@ describe("the sections' fixtures (T63)", () => {
       expect(f.faq.long.items[0]?.title.length).toBeGreaterThan(
         Math.max(...f.faq.section.items.map((item) => item.title.length)),
       );
+    }
+  });
+
+  it("parse the commerce sections' contracts in every locale (T64)", () => {
+    for (const locale of designSystemLocales) {
+      const f = sectionFixtures[locale];
+      for (const each of Object.values(f.hero)) expect(HeroSection.parse(each)).toEqual(each);
+      for (const each of Object.values(f.categoryShowcase))
+        expect(CategoryShowcaseSection.parse(each)).toEqual(each);
+      for (const each of Object.values(f.productCollection))
+        expect(ProductCollectionSection.parse(each)).toEqual(each);
+      for (const each of Object.values(f.featuredProduct))
+        expect(FeaturedProductSection.parse(each)).toEqual(each);
+      for (const each of Object.values(f.bundle)) expect(BundleSection.parse(each)).toEqual(each);
+      for (const each of Object.values(f.promoBanner))
+        expect(PromoBannerSection.parse(each)).toEqual(each);
+      for (const each of Object.values(f.comparison))
+        expect(ComparisonSection.parse(each)).toEqual(each);
+      for (const each of Object.values(f.collectionSpotlight))
+        expect(CollectionSpotlightSection.parse(each)).toEqual(each);
+      expect(RecentlyViewedSection.parse(f.recentlyViewed.section)).toEqual(
+        f.recentlyViewed.section,
+      );
+    }
+  });
+
+  it("show the commerce fixtures' products in the market's currency, and end after the fixed now", () => {
+    for (const locale of designSystemLocales) {
+      const { products, prefix } = commerceFixtures[locale];
+      const f = sectionFixtures[locale];
+      const currency = products[0]?.price.price.currencyCode;
+      for (const card of [...f.hero.offer.products, ...f.productCollection.carousel.products])
+        expect(card.price.price.currencyCode).toBe(currency);
+      for (const tile of f.categoryShowcase.section.tiles)
+        expect(tile.href.startsWith(`${prefix}/categories/`), tile.href).toBe(true);
+      expect(Date.parse(f.hero.offer.countdown?.endsAt ?? "")).toBeGreaterThan(
+        Date.parse(fixtureNow),
+      );
+      expect(Date.parse(f.promoBanner.section.endsAt ?? "")).toBeGreaterThan(
+        Date.parse(fixtureNow),
+      );
+      expect(f.comparison.two.rows[0]?.values).toContain(null);
     }
   });
 });

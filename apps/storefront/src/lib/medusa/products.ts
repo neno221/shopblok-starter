@@ -351,3 +351,46 @@ export const listOptionValueLabels = cached(fetchOptionValueLabels, {
   tags: ["medusa:products", "search"],
   life: CATALOG_LIFE,
 });
+
+/** A scalar `metadata` value as text; anything else (an object, a list, nothing) is no value. */
+function metadataText(value: unknown): string | undefined {
+  if (typeof value === "string") return value.trim() === "" ? undefined : value;
+  if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  if (typeof value === "boolean") return String(value);
+  return undefined;
+}
+
+async function fetchProductMetadata(
+  ids: readonly string[],
+  keys: readonly string[],
+): Promise<Record<string, Record<string, string>>> {
+  const unique = [...new Set(ids)].slice(0, IDS_PER_REQUEST);
+  if (unique.length === 0 || keys.length === 0) return {};
+  const { products } = await medusaRequest((sdk) =>
+    sdk.store.product.list({ id: unique, limit: unique.length, fields: "id,metadata" }),
+  );
+  return Object.fromEntries(
+    (products as unknown as { id: string; metadata?: Record<string, unknown> | null }[]).map(
+      (product) => [
+        product.id,
+        Object.fromEntries(
+          keys.flatMap((key) => {
+            const text = metadataText(product.metadata?.[key]);
+            return text === undefined ? [] : [[key, text]];
+          }),
+        ),
+      ],
+    ),
+  );
+}
+
+/**
+ * The `metadata` values a comparison names (T64, SPEC §7.4 `comparison`), by product id: only the
+ * keys asked for, and only scalar values, as text. The product DTO keeps no metadata (a shop may
+ * hold anything there); this read brings out what an editor chose to show, nothing else.
+ */
+export const listProductMetadata = cached(fetchProductMetadata, {
+  name: "medusa:products:metadata",
+  tags: ["medusa:products"],
+  life: CATALOG_LIFE,
+});

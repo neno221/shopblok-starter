@@ -705,6 +705,15 @@ export const el: Messages = {
       play: "Αναπαραγωγή βίντεο: {title}",
       provider: "Παίζει από το {provider}, που μπορεί να αποθηκεύσει cookies.",
     },
+    productCollection: {
+      emptyTitle: "Τίποτα εδώ ακόμη",
+      emptyText: "Αυτά τα προϊόντα δεν είναι διαθέσιμα αυτή τη στιγμή.",
+      emptyAction: "Όλα τα προϊόντα",
+    },
+    featuredProduct: { view: "Δείτε το προϊόν" },
+    promoBanner: { ends: "Η προσφορά λήγει {date}" },
+    comparison: { price: "Τιμή", missing: "Δεν αναφέρεται" },
+    collectionSpotlight: { shop: "Δείτε τη συλλογή" },
   },
   templates: {
     notFound: {

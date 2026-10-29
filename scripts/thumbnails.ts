@@ -1,4 +1,4 @@
-// `pnpm thumbnails` (T40, D52): writes the 29 thumbnails, `apps/storefront/public/registry/{id}.png`,
+// `pnpm thumbnails` (T40, D52): writes the 38 thumbnails, `apps/storefront/public/registry/{id}.png`,
 // by running the `thumbnails` Playwright project against a storefront that is up (built with
 // DESIGN_SYSTEM_ENABLED=true and started with `next start`; SETUP.md, "Baselines and thumbnails
 // (T40)"). The flag is set here and not in the package script because `VAR=value command` is not

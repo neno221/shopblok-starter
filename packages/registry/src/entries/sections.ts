@@ -1,7 +1,16 @@
 import {
+  BundleSection,
+  CategoryShowcaseSection,
+  CollectionSpotlightSection,
+  ComparisonSection,
   FaqSection,
+  FeaturedProductSection,
+  HeroSection,
   LogoCloudSection,
   MediaWithTextSection,
+  ProductCollectionSection,
+  PromoBannerSection,
+  RecentlyViewedSection,
   RichTextSection,
   SpacerSection,
   TestimonialsSection,
@@ -35,7 +44,7 @@ const section = <const Slug extends string>(
   }) as const satisfies EntryInput;
 
 export const sections = [
-  // T63: the eight content blocks, in D79's order; T64 adds the nine commerce blocks.
+  // T63: the eight content blocks, in D79's order.
   section("rich-text", "richText", "Rich text", "RichTextSection", RichTextSection),
   section(
     "media-with-text",
@@ -56,4 +65,44 @@ export const sections = [
   ),
   section("video", "video", "Video", "VideoSection", VideoSection),
   section("spacer", "spacer", "Spacer", "SpacerSection", SpacerSection),
+  // T64: the nine commerce blocks, in D79's order; their products and categories come from Medusa.
+  section("hero", "hero", "Hero", "HeroSection", HeroSection),
+  section(
+    "category-showcase",
+    "categoryShowcase",
+    "Category showcase",
+    "CategoryShowcaseSection",
+    CategoryShowcaseSection,
+  ),
+  section(
+    "product-collection",
+    "productCollection",
+    "Product collection",
+    "ProductCollectionSection",
+    ProductCollectionSection,
+  ),
+  section(
+    "featured-product",
+    "featuredProduct",
+    "Featured product",
+    "FeaturedProductSection",
+    FeaturedProductSection,
+  ),
+  section("bundle", "bundle", "Bundle", "BundleSection", BundleSection),
+  section("promo-banner", "promoBanner", "Promo banner", "PromoBannerSection", PromoBannerSection),
+  section("comparison", "comparison", "Comparison", "ComparisonSection", ComparisonSection),
+  section(
+    "collection-spotlight",
+    "collectionSpotlight",
+    "Collection spotlight",
+    "CollectionSpotlightSection",
+    CollectionSpotlightSection,
+  ),
+  section(
+    "recently-viewed",
+    "recentlyViewed",
+    "Recently viewed",
+    "RecentlyViewedSection",
+    RecentlyViewedSection,
+  ),
 ] as const satisfies readonly EntryInput[];
