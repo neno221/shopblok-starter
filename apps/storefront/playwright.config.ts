@@ -121,7 +121,12 @@ const defaultProjects: Project[] = [
   {
     name: "chromium",
     use: { ...devices["Desktop Chrome"] },
-    testIgnore: [/payload-locales\.spec\.ts/, /ui-strings\.spec\.ts/, ...optInSpecs],
+    testIgnore: [
+      /payload-locales\.spec\.ts/,
+      /ui-strings\.spec\.ts/,
+      /markets-add\.spec\.ts/,
+      ...optInSpecs,
+    ],
   },
   // Save the `markets` global (and put it back), which the other suites read through the proxy:
   // they run when all of them are done. `ui-strings.spec.ts` (T62) also edits the home's copy.
@@ -130,6 +135,14 @@ const defaultProjects: Project[] = [
     use: { ...devices["Desktop Chrome"] },
     testMatch: /(payload-locales|ui-strings)\.spec\.ts/,
     dependencies: ["chromium"],
+  },
+  // T71: adds a market (Medusa's region, then Payload's Markets page) and takes it away again, so
+  // it runs after every suite that reads the map, the locales' included.
+  {
+    name: "markets-add",
+    use: { ...devices["Desktop Chrome"] },
+    testMatch: /markets-add\.spec\.ts/,
+    dependencies: ["locales"],
   },
 ];
 

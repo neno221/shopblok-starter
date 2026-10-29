@@ -148,15 +148,26 @@ export function createMarketSource(options: MarketSourceOptions) {
     );
   }
 
+  const readOnce = () =>
+    (reading ??= read().finally(() => {
+      reading = undefined;
+    }));
+
   return {
     /** The market map, from the cache when it is younger than the TTL. */
     async get(): Promise<MarketMap> {
       if (current !== undefined && now() < current.expires) return current.map;
-      reading ??= read().finally(() => {
-        reading = undefined;
-      });
+      const pending = readOnce();
       // With a map to serve, the caller doesn't wait: the read runs on and renews the map.
-      return staleWhileRevalidate && current !== undefined ? current.map : reading;
+      return staleWhileRevalidate && current !== undefined ? current.map : pending;
+    },
+    /**
+     * The global as it is now, whatever the TTL (joining a read already running), with the same
+     * last-good-map and fallback rules, and kept for `get()`. For a caller that has a cache of its
+     * own and was just told the global changed (`getRenderMarketMap`, T71).
+     */
+    fresh(): Promise<MarketMap> {
+      return readOnce();
     },
   };
 }

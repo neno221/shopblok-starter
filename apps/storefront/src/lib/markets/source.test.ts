@@ -117,6 +117,35 @@ describe("getMarketMap: the 30 s cache (D10)", () => {
   });
 });
 
+describe("fresh: the global as it is now (T71)", () => {
+  it("reads past the TTL, and `get()` then serves what it read", async () => {
+    const { source, load, advance, next } = setup(seededGlobal);
+    await source.get();
+    advance(1_000);
+    next(brazilGlobal);
+    expect(await source.fresh()).toEqual(brazil);
+    expect(await source.get()).toEqual(brazil);
+    expect(load).toHaveBeenCalledTimes(2);
+  });
+
+  it("joins a read already running instead of starting another", async () => {
+    const { source, load } = setup(seededGlobal);
+    const [read, fresh] = await Promise.all([source.get(), source.fresh()]);
+    expect(load).toHaveBeenCalledTimes(1);
+    expect(fresh).toBe(read);
+  });
+
+  it("keeps the last good map when the read fails, as `get()` does", async () => {
+    const { source, warn, next } = setup(seededGlobal);
+    const first = await source.get();
+    next(new Error("connection refused"));
+    expect(await source.fresh()).toBe(first);
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining("still serving the map read earlier"),
+    );
+  });
+});
+
 describe("getMarketMap: an empty or incomplete global", () => {
   it("falls back to the fixtures where allowed, and says so", async () => {
     const { source, warn, allowFallback } = setup(null, (reason) => reason === "unusable");

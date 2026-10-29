@@ -190,7 +190,7 @@ export function revalidateOnPublish({ tags, profile }: RevalidateOnPublishOption
 }
 
 /** `revalidateOnPublish` for a global: the same rules, with the global's one row. */
-export function revalidateGlobalOnPublish({ tags }: RevalidateOnPublishOptions): {
+export function revalidateGlobalOnPublish({ tags, profile }: RevalidateOnPublishOptions): {
   beforeChange: GlobalBeforeChangeHook[];
   afterChange: GlobalAfterChangeHook[];
 } {
@@ -214,7 +214,7 @@ export function revalidateGlobalOnPublish({ tags }: RevalidateOnPublishOptions):
     const changed =
       !hasDraftsEnabled(global) ||
       (await changesPublished(req, global.slug, doc, rowStatus(req, global.slug)));
-    if (changed) revalidate(req, global.slug, tagsOf(tags, [doc, previousDoc]));
+    if (changed) revalidate(req, global.slug, tagsOf(tags, [doc, previousDoc]), profile);
     return doc;
   };
 
