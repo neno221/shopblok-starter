@@ -5,6 +5,7 @@ import { draftMode } from "next/headers";
 import { notFound } from "next/navigation";
 import { getMessages } from "next-intl/server";
 import { cache } from "react";
+import { journalPath } from "../../lib/cms/paths";
 import { journalContent } from "../../lib/cms/post-content";
 import { readPostList } from "../../lib/cms/posts";
 import { getCurrentMarket } from "../../lib/current-market";
@@ -21,9 +22,6 @@ import { getShellData } from "../shell/shell-data";
 // shell, self-canonical and crawlable. A page past the last, and every page without a database
 // (D10's stand-in), is `notFound()`, called before anything renders. As many posts a page as the
 // listings show products (`STOREFRONT_LISTING_PAGE_SIZE`, 24 by default).
-
-/** The address of a page of the journal: the first at `/journal`, the others by path. */
-export const journalPath = (page: number) => (page === 1 ? "/journal" : `/journal/page/${page}`);
 
 /** The journal's `page` for the market, or `null` for a 404. Shared by the page and its metadata. */
 const readJournal = cache(async (page: number | null, draft: boolean) => {

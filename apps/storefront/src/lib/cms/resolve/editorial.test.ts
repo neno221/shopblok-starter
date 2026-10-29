@@ -5,7 +5,7 @@ import { findMarket } from "../../markets/market";
 import { seeded } from "../../markets/test-maps";
 import type { CmsPostSummary } from "../posts";
 import { resolveEditorialList, type PostsContext } from "./editorial";
-import type { LayoutBlock } from "./sections";
+import { resolveLayout, type LayoutBlock } from "./sections";
 
 const us = findMarket(seeded, "en-us")!;
 const cy = findMarket(seeded, "el-cy")!;
@@ -86,7 +86,7 @@ describe("resolveEditorialList", () => {
     expect(resolved?.section).not.toHaveProperty("heading");
   });
 
-  it("is left out with nothing to list, or when the read fails", async () => {
+  it("is left out with nothing to list, or when the read fails, and the page keeps its other blocks", async () => {
     const empty: PostsContext = { ...context(), newest: async () => [] };
     expect(await resolveEditorialList(block(), { market: us, map: seeded }, empty)).toBeNull();
     const failing: PostsContext = {
@@ -96,8 +96,17 @@ describe("resolveEditorialList", () => {
       },
     };
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
-    expect(await resolveEditorialList(block(), { market: us, map: seeded }, failing)).toBeNull();
-    expect(error).toHaveBeenCalledWith(expect.stringContaining("editorialList"), "down");
+    const spacer = { blockType: "spacer", id: "gap", variant: "standard", size: "small" };
+    const layout = [block(), spacer] as unknown as LayoutBlock[];
+    const resolved = await resolveLayout(layout, { market: us, map: seeded, posts: failing });
+    expect(resolved.map((each) => each.key)).toEqual(["gap"]);
+    expect(error).toHaveBeenCalledWith(
+      expect.stringContaining("editorialList list left out: the posts' read failed"),
+      "down",
+    );
+    // Without the journal's reads the block is left out, and nothing is read.
+    const none = await resolveLayout(layout, { market: us, map: seeded });
+    expect(none.map((each) => each.key)).toEqual(["gap"]);
     error.mockRestore();
   });
 });

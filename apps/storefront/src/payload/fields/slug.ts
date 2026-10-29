@@ -1,6 +1,8 @@
 import type { PayloadRequest, TextField, TextFieldSingleValidation, Where } from "payload";
 import { text } from "payload/shared";
 import { pageIdOf } from "../../lib/cms/page-path";
+import { keepingRequest } from "../keeping-request";
+import { DEFAULT_LOCALE } from "../locales";
 
 // D80's slugs: a page's address is its parents' slugs and its own (`/about/team`), in the market's
 // language, so a slug is one path segment that every language can write and no route already owns.
@@ -124,9 +126,40 @@ export function postSlugProblem(slug: string): string | null {
     : null;
 }
 
+/** A post's slugs, by language, as a `locale: "all"` read gives them. */
+type SlugsByLanguage = Record<string, string | null | undefined>;
+
+/** The slug a language reads: its own, else the default language's (Payload's fallback). */
+const slugIn = (slugs: SlugsByLanguage, language: string): string | undefined =>
+  slugs[language] || slugs[DEFAULT_LOCALE] || undefined;
+
 /**
- * A post's `slug` check: Payload's own first, then `postSlugProblem`, then that no other post has
- * this slug in the language being saved, so `/journal/<slug>` names one post.
+ * Whether saving `value` as the post's slug in `language` gives it an address another post
+ * already reads (PR 100 review, item 2). A language without a slug of its own reads the default
+ * language's, as the shop does, and a `where` in one language would not see that: a Greek slug
+ * meets another post's English one where that post has no Greek, and an English slug meets the
+ * other posts' slugs in each language this post has no slug of its own in.
+ */
+export function postSlugTaken(
+  value: string,
+  language: string,
+  own: SlugsByLanguage,
+  others: readonly SlugsByLanguage[],
+): boolean {
+  const mine: SlugsByLanguage = { ...own, [language]: value };
+  const languages = new Set([language]);
+  if (language === DEFAULT_LOCALE)
+    for (const other of others)
+      for (const each of Object.keys(other)) if (!own[each]) languages.add(each);
+  return others.some((other) =>
+    [...languages].some((each) => slugIn(mine, each) === value && slugIn(other, each) === value),
+  );
+}
+
+/**
+ * A post's `slug` check: Payload's own first, then `postSlugProblem`, then that no other post
+ * reads this slug in a language where this post would (`postSlugTaken`), so `/journal/<slug>`
+ * names one post in every market.
  */
 export const validatePostSlug: TextFieldSingleValidation = async (value, options) => {
   const base = text(value, options);
@@ -135,19 +168,27 @@ export const validatePostSlug: TextFieldSingleValidation = async (value, options
   const problem = postSlugProblem(value);
   if (problem !== null) return problem;
   const { req, id } = options;
-  const { totalDocs } = await req.payload.count({
-    collection: "posts",
-    where: {
-      and: [
-        { slug: { equals: value } },
-        ...(pageIdOf(id) === null ? [] : [{ id: { not_equals: pageIdOf(id) } }]),
-      ],
-    },
-    locale: (req.locale ?? undefined) as never,
-    overrideAccess: true,
-    req,
-  });
-  return totalDocs > 0 ? "Another post already has this slug." : true;
+  const { docs } = await keepingRequest(req, () =>
+    req.payload.find({
+      collection: "posts",
+      locale: "all",
+      depth: 0,
+      select: { slug: true },
+      limit: 0,
+      pagination: false,
+      overrideAccess: true,
+      req,
+    }),
+  );
+  const self = pageIdOf(id);
+  const slugsOf = (doc: { slug?: unknown }): SlugsByLanguage =>
+    doc.slug !== null && typeof doc.slug === "object" ? (doc.slug as SlugsByLanguage) : {};
+  const own = docs.find((doc) => doc.id === self);
+  const others = docs.filter((doc) => doc.id !== self).map(slugsOf);
+  const language = typeof req.locale === "string" ? req.locale : DEFAULT_LOCALE;
+  return postSlugTaken(value, language, own === undefined ? {} : slugsOf(own), others)
+    ? "Another post already has this slug."
+    : true;
 };
 
 /** A post's `slug` (T66, D80): localized, so a Greek post has a Greek address. */

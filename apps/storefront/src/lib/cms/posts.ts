@@ -52,9 +52,10 @@ const toSummary = (post: StoredPost): CmsPostSummary => ({
 export type PostSlugs = { byId: Record<string, string>; bySlug: Record<string, number> };
 
 /**
- * Every readable post's slug in the market's language (its own, or English's), newest first: the
- * route, the static params, hreflang and the lists' links read it. Of two posts with one slug (a
- * post without a Greek slug reads English's, which a Greek post may have taken) the older keeps it.
+ * Every readable post's slug in the market's language (its own, or English's): the route, hreflang
+ * and the lists' links read it (`withAddresses`). Of two posts with one slug (a post without a
+ * Greek slug reads English's, which a Greek post may have taken) the older keeps it, so the read
+ * is oldest first.
  */
 export const readPostSlugs = cmsRead(
   async (payload, query): Promise<PostSlugs> => {
@@ -83,8 +84,24 @@ export const readPostSlugs = cmsRead(
 /** A page of the journal: its posts, newest first, and how many pages there are. */
 export type PostList = { posts: CmsPostSummary[]; totalPages: number };
 
-/** The journal's `page` (from 1) of `limit` posts, newest `publishedAt` first. */
-export const readPostList = cmsRead(
+/**
+ * `posts` with the slugs `readPostSlugs` gives them (PR 100 review, item 1): a list's post reads
+ * its own slug, which may be the one an older post keeps, so its link is the shared map's; a post
+ * with no address in the language is left out.
+ */
+async function withAddresses(
+  reader: CmsReader,
+  posts: readonly CmsPostSummary[],
+): Promise<CmsPostSummary[]> {
+  const slugs = await readPostSlugs(reader);
+  return posts.flatMap((post) => {
+    const slug = slugs?.byId[String(post.id)];
+    return slug === undefined ? [] : [{ ...post, slug }];
+  });
+}
+
+/** A page of the journal as stored, newest `publishedAt` first (`readPostList` adds the links). */
+const readPostPage = cmsRead(
   async (payload, query, page: number, limit: number): Promise<PostList> => {
     const result = await payload.find({
       collection: "posts",
@@ -104,8 +121,21 @@ export const readPostList = cmsRead(
   { name: "cms:post-list", tags: (locale) => postTags(locale) },
 );
 
-/** The posts of `ids` a visitor can read, in the order given (an editorial list's picks). */
-export const readPostsByIds = cmsRead(
+/**
+ * The journal's `page` (from 1) of `limit` posts, newest `publishedAt` first, each at its address
+ * in the language; `null` with no database.
+ */
+export async function readPostList(
+  reader: CmsReader,
+  page: number,
+  limit: number,
+): Promise<PostList | null> {
+  const list = await readPostPage(reader, page, limit);
+  return list === null ? null : { ...list, posts: await withAddresses(reader, list.posts) };
+}
+
+/** The posts of `ids` as stored, in the order given (`readPostsByIds` adds the links). */
+const readPostsWithIds = cmsRead(
   async (payload, query, ids: readonly number[]): Promise<CmsPostSummary[]> => {
     if (ids.length === 0) return [];
     const { docs } = await payload.find({
@@ -123,6 +153,18 @@ export const readPostsByIds = cmsRead(
   },
   { name: "cms:posts-by-id", tags: (locale) => postTags(locale) },
 );
+
+/**
+ * The posts of `ids` a visitor can read, in the order given (an editorial list's picks), each at
+ * its address in the language; `null` with no database.
+ */
+export async function readPostsByIds(
+  reader: CmsReader,
+  ids: readonly number[],
+): Promise<CmsPostSummary[] | null> {
+  const posts = await readPostsWithIds(reader, ids);
+  return posts === null ? null : withAddresses(reader, posts);
+}
 
 /** One post by its id, in the market's language, with its text (read at depth 1). */
 export const readPostById = cmsRead(

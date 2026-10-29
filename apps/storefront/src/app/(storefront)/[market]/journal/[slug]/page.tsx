@@ -7,9 +7,9 @@ import { cache } from "react";
 import { RefreshOnSave } from "../../../../../components/cms/refresh-on-save";
 import { CmsRichText } from "../../../../../components/cms/rich-text";
 import { getShellData } from "../../../../../components/shell/shell-data";
-import { postPath } from "../../../../../lib/cms/paths";
+import { journalPath, postPath } from "../../../../../lib/cms/paths";
 import { postContent } from "../../../../../lib/cms/post-content";
-import { postSlugsIn, readPostBySlug, readPostSlugs } from "../../../../../lib/cms/posts";
+import { postSlugsIn, readPostBySlug, readPostList } from "../../../../../lib/cms/posts";
 import { shellPaths } from "../../../../../lib/cms/shell";
 import { getCurrentMarket } from "../../../../../lib/current-market";
 import { getMarketMap } from "../../../../../lib/markets/get-market-map";
@@ -35,9 +35,10 @@ type Params = { market: string; slug: string };
 type Props = { params: Promise<Params> };
 
 /**
- * D58: the published posts' slugs in the market's language, newest first, up to the PDPs' cap
- * (`STOREFRONT_PRERENDER_PRODUCTS`); the rest render on their first request. With no database (or
- * no post) the build renders one placeholder, which the page answers with a 404 before reading.
+ * D58: the newest published posts' slugs in the market's language (by `publishedAt`, the
+ * journal's first page at the PDPs' cap, `STOREFRONT_PRERENDER_PRODUCTS`); the rest render on
+ * their first request. With no database (or no post) the build renders one placeholder, which the
+ * page answers with a 404 before reading.
  */
 export async function generateStaticParams({
   params,
@@ -48,8 +49,8 @@ export async function generateStaticParams({
   const cap = prerenderCap();
   const market = findMarket(await getMarketMap(), params.market);
   if (market === undefined || cap === 0) return placeholder;
-  const slugs = await readPostSlugs({ market, draft: false });
-  const found = Object.keys(slugs?.bySlug ?? {}).slice(0, cap);
+  const newest = await readPostList({ market, draft: false }, 1, cap);
+  const found = (newest?.posts ?? []).map((post) => post.slug);
   return found.length === 0 ? placeholder : found.map((slug) => ({ slug }));
 }
 
@@ -74,7 +75,7 @@ const readPost = cache(async (encoded: string, draft: boolean) => {
   });
   return content === null
     ? null
-    : { market, post, content, messages, href: url(postPath(slug) ?? "/journal") };
+    : { market, post, content, messages, href: url(postPath(slug) ?? journalPath()) };
 });
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {

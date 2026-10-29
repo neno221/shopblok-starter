@@ -6,7 +6,7 @@ import {
   type Link,
 } from "@shopblok/registry/contracts";
 import { text } from "../text";
-import { postPath } from "./paths";
+import { journalPath, postPath } from "./paths";
 import type { CmsPost, CmsPostSummary } from "./posts";
 import { parsed } from "./resolve/shared";
 import { mediaImage } from "./shell";
@@ -76,7 +76,7 @@ export function postContent(
     parsed(PostPage, {
       title: post.title,
       breadcrumbs: {
-        trail: [...homeTrail(home, url), { label: journal, href: url("/journal") }],
+        trail: [...homeTrail(home, url), { label: journal, href: url(journalPath()) }],
         current: post.title,
       },
       publishedAt: post.publishedAt,

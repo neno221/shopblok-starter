@@ -443,10 +443,13 @@ export const FormBlockSection = z.object({
  * `editorialList` (T66, D79): posts of the journal in the market's language, the newest or the
  * editor's picks, as cards, with a link to the journal.
  */
+/** The most posts an editorial list shows: its block's limit and picks (T66). */
+export const EDITORIAL_LIST_MAX = 12;
+
 export const EditorialListSection = z.object({
   settings,
   heading,
-  posts: z.array(PostCard).min(1).max(12),
+  posts: z.array(PostCard).min(1).max(EDITORIAL_LIST_MAX),
   link: SectionLink.optional().describe("The journal, when the editor shows the link"),
 });
 

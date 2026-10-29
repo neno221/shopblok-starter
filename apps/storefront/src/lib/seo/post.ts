@@ -1,26 +1,14 @@
 import type { Breadcrumbs, JournalPage, PostPage } from "@shopblok/registry/contracts";
-import { shareableImage, siteBase } from "./product";
+import { absolute, breadcrumbList, shareableImage, siteBase } from "./product";
 
 // The journal's structured data (SPEC §12, D80, T66): a post is a `BlogPosting` (its headline,
 // date, author, picture and summary, in the market's language), the journal a `Blog` listing the
 // page's posts, each with the page's `BreadcrumbList`, as one `@graph`. URLs are absolute, from
 // `NEXT_PUBLIC_BASE_URL`.
 
-const absolute = (path: string, base: URL) => new URL(path, base).toString();
-
-/** The trail and the page itself as a `BreadcrumbList`. */
-export function breadcrumbList(breadcrumbs: Breadcrumbs, href: string, base: URL): object {
-  const trail = [...breadcrumbs.trail, { label: breadcrumbs.current, href }];
-  return {
-    "@type": "BreadcrumbList",
-    itemListElement: trail.map((step, index) => ({
-      "@type": "ListItem",
-      position: index + 1,
-      name: step.label,
-      item: absolute(step.href, base),
-    })),
-  };
-}
+/** A page's breadcrumbs, the page itself last at `href`, as its `BreadcrumbList`. */
+const pageBreadcrumbs = (breadcrumbs: Breadcrumbs, href: string, base: URL) =>
+  breadcrumbList([...breadcrumbs.trail, { label: breadcrumbs.current, href }], base);
 
 export type PostJsonLdInput = {
   post: PostPage;
@@ -50,7 +38,7 @@ export function postJsonLd(input: PostJsonLdInput, base: URL = siteBase()): obje
         ...(post.excerpt === undefined ? {} : { description: post.excerpt }),
         ...(image === undefined ? {} : { image }),
       },
-      breadcrumbList(post.breadcrumbs, input.href, base),
+      pageBreadcrumbs(post.breadcrumbs, input.href, base),
     ],
   };
 }
@@ -81,7 +69,7 @@ export function journalJsonLd(
             : { author: { "@type": "Person", name: post.author } }),
         })),
       },
-      breadcrumbList(journal.breadcrumbs, input.href, base),
+      pageBreadcrumbs(journal.breadcrumbs, input.href, base),
     ],
   };
 }

@@ -7,6 +7,7 @@ import {
   slugProblem,
   validateSlug,
   validatePostSlug,
+  postSlugTaken,
 } from "./slug";
 
 describe("slugProblem", () => {
@@ -105,34 +106,68 @@ describe("postSlugProblem (T66)", () => {
   });
 });
 
+describe("postSlugTaken (PR 100 review, item 2)", () => {
+  it("meets another post's slug in the language being saved", () => {
+    expect(postSlugTaken("welcome", "el", {}, [{ en: "hello", el: "welcome" }])).toBe(true);
+    expect(postSlugTaken("welcome", "el", {}, [{ en: "hello", el: "other" }])).toBe(false);
+  });
+
+  it("meets an English slug that another post reads in Greek by fallback", () => {
+    // Post A has no Greek slug, so the Greek shop reads `welcome` for it.
+    expect(postSlugTaken("welcome", "el", { en: "hi" }, [{ en: "welcome" }])).toBe(true);
+    expect(postSlugTaken("welcome", "el", {}, [{ en: "welcome", el: "kalos" }])).toBe(false);
+  });
+
+  it("meets, when saving English, another post's slug in a language this post has none of its own in", () => {
+    expect(postSlugTaken("welcome", "en", {}, [{ en: "hello", el: "welcome" }])).toBe(true);
+    // This post has its own Greek slug: its English one is not read there.
+    expect(postSlugTaken("welcome", "en", { el: "kalos" }, [{ en: "hello", el: "welcome" }])).toBe(
+      false,
+    );
+  });
+});
+
 describe("validatePostSlug (T66)", () => {
-  const options = (totalDocs: number, id?: number) => {
-    const count = vi.fn(async () => ({ totalDocs }));
+  const options = (docs: { id: number; slug: Record<string, string> }[], id?: number) => {
+    const req = { locale: "el", fallbackLocale: "en", context: {} } as unknown as PayloadRequest;
+    // As Payload does, the read sets the request's locale to its own.
+    const find = vi.fn(async (args: { locale: string }) => {
+      req.locale = args.locale as PayloadRequest["locale"];
+      return { docs };
+    });
+    req.payload = { find } as unknown as PayloadRequest["payload"];
     return {
-      count,
-      args: {
-        id,
-        req: { locale: "el", payload: { count } } as unknown as PayloadRequest,
-      } as unknown as Parameters<typeof validatePostSlug>[1],
+      find,
+      req,
+      args: { id, req } as unknown as Parameters<typeof validatePostSlug>[1],
     };
   };
 
-  it("refuses a slug another post has in the language being saved", async () => {
-    const { count, args } = options(1, 4);
-    expect(await validatePostSlug("welcome", args)).toBe("Another post already has this slug.");
-    expect(count).toHaveBeenCalledWith(
-      expect.objectContaining({
-        collection: "posts",
-        locale: "el",
-        where: { and: [{ slug: { equals: "welcome" } }, { id: { not_equals: 4 } }] },
-      }),
+  it("refuses a slug another post reads in the language being saved, and not the post's own", async () => {
+    const { find, args } = options(
+      [
+        { id: 3, slug: { en: "welcome" } },
+        { id: 4, slug: { en: "kalos", el: "kalos" } },
+      ],
+      4,
     );
+    expect(await validatePostSlug("welcome", args)).toBe("Another post already has this slug.");
+    expect(find).toHaveBeenCalledWith(
+      expect.objectContaining({ collection: "posts", locale: "all", overrideAccess: true }),
+    );
+    expect(await validatePostSlug("kalos", args)).toBe(true);
+  });
+
+  it("leaves the save's language as it was (its read is in every language)", async () => {
+    const { req, args } = options([{ id: 3, slug: { en: "hello" } }]);
+    expect(await validatePostSlug("welcome", args)).toBe(true);
+    expect(req.locale).toBe("el");
   });
 
   it("takes a free slug, and says why `page` is refused before asking", async () => {
-    expect(await validatePostSlug("welcome", options(0).args)).toBe(true);
-    const { count, args } = options(0);
+    expect(await validatePostSlug("welcome", options([]).args)).toBe(true);
+    const { find, args } = options([]);
     expect(await validatePostSlug("page", args)).toMatch(/journal's later pages/);
-    expect(count).not.toHaveBeenCalled();
+    expect(find).not.toHaveBeenCalled();
   });
 });

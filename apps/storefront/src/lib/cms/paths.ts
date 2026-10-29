@@ -31,6 +31,9 @@ const pageDocPath = (doc: Record<string, unknown>): string | null => {
   return parent === null || parent === undefined || parent === "" ? pagePath([doc["slug"]]) : null;
 };
 
+/** The journal's page `page` (D59, T66): the first at `/journal`, the others by path. */
+export const journalPath = (page = 1) => (page === 1 ? "/journal" : `/journal/page/${page}`);
+
 /** A post's address (T66, D80): `/journal/<slug>`, its slug in the language being read. */
 export const postPath = (slug: unknown): string | null =>
   typeof slug === "string" && slug !== "" ? `/journal/${encodeURIComponent(slug)}` : null;

@@ -1,11 +1,9 @@
 import type { Breadcrumbs, ProductCard } from "@shopblok/registry/contracts";
-import { siteBase } from "./product";
+import { absolute, breadcrumbList, siteBase } from "./product";
 
 // A listing page's structured data (SPEC §12, T50): `CollectionPage` with the page's products as an
 // `ItemList` (the whole listing's size, and the products' positions in it) and the page's
 // `BreadcrumbList`, as one `@graph`. URLs are absolute, from `NEXT_PUBLIC_BASE_URL`.
-
-const absolute = (path: string, base: URL) => new URL(path, base).toString();
 
 export type ListingJsonLdInput = {
   name: string;
@@ -44,15 +42,7 @@ export function listingJsonLd(input: ListingJsonLdInput, base: URL = siteBase())
           })),
         },
       },
-      {
-        "@type": "BreadcrumbList",
-        itemListElement: trail.map((step, index) => ({
-          "@type": "ListItem",
-          position: index + 1,
-          name: step.label,
-          item: absolute(step.href, base),
-        })),
-      },
+      breadcrumbList(trail, base),
     ],
   };
 }

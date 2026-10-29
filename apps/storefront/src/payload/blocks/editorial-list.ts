@@ -1,10 +1,8 @@
+import { EDITORIAL_LIST_MAX } from "@shopblok/registry/contracts";
 import { headingField, sectionBlock } from "./section-block";
 
 /** Where an editorial list's posts come from: the newest, or the editor's own list. */
 export const EDITORIAL_SOURCES = ["newest", "handpicked"] as const;
-
-/** The most posts the block shows (the section's contract takes 12). */
-export const EDITORIAL_LIST_MAX = 12;
 
 type Sibling = { source?: string | null };
 const when = (source: string) => (_: unknown, sibling: Sibling) => sibling?.source === source;

@@ -306,20 +306,42 @@ const isCommerce = (
   (COMMERCE_BLOCKS as readonly string[]).includes(block.blockType);
 
 /**
- * A commerce block, or `null` when a catalog read fails (Medusa down or slow): that block is left
- * out, never the page. Next's own control-flow errors are rethrown.
+ * How a block that reads a source as it resolves is read (PR 100 review, item 9): what the source
+ * is called in the log, and the read, or `null` when the page has no such source. `undefined` for
+ * a block that reads nothing (`resolveBlock`'s).
  */
-async function resolveCommerceOrSkip(
-  block: Extract<LayoutBlock, { blockType: CommerceBlockType }>,
+function readingBlock(
+  block: LayoutBlock,
   context: ResolveContext,
-  commerce: CommerceContext,
-): Promise<ResolvedCommerceBlock | null> {
+): { source: string; read: (() => Promise<ResolvedBlock | null>) | null } | undefined {
+  const { commerce, posts } = context;
+  if (isCommerce(block))
+    return {
+      source: "the catalog",
+      read: commerce === undefined ? null : () => resolveCommerceBlock(block, context, commerce),
+    };
+  if (block.blockType === "editorialList")
+    return {
+      source: "the posts'",
+      read: posts === undefined ? null : () => resolveEditorialList(block, context, posts),
+    };
+  return undefined;
+}
+
+/**
+ * A reading block, or `null` when its read fails (Medusa or Payload down or slow): that block is
+ * left out, never the page. Next's own control-flow errors are rethrown.
+ */
+async function readOrSkip(
+  block: LayoutBlock,
+  { source, read }: { source: string; read: () => Promise<ResolvedBlock | null> },
+): Promise<ResolvedBlock | null> {
   try {
-    return await resolveCommerceBlock(block, context, commerce);
+    return await read();
   } catch (error) {
     unstable_rethrow(error);
     console.error(
-      `[blocks] ${block.blockType} ${block.id ?? ""} left out: the catalog read failed`,
+      `[blocks] ${block.blockType} ${block.id ?? ""} left out: ${source} read failed`,
       error instanceof Error ? error.message : String(error),
     );
     return null;
@@ -335,14 +357,12 @@ export async function resolveLayout(
   layout: Page["layout"] | undefined,
   context: ResolveContext,
 ): Promise<ResolvedBlock[]> {
-  const { commerce, posts } = context;
   const resolved = await Promise.all(
     (layout ?? []).map((block) => {
-      if (isCommerce(block))
-        return commerce === undefined ? null : resolveCommerceOrSkip(block, context, commerce);
-      if (block.blockType === "editorialList")
-        return posts === undefined ? null : resolveEditorialList(block, context, posts);
-      return resolveBlock(block, context);
+      const reading = readingBlock(block, context);
+      if (reading === undefined) return resolveBlock(block, context);
+      const { source, read } = reading;
+      return read === null ? null : readOrSkip(block, { source, read });
     }),
   );
   return resolved.flatMap((block) => block ?? []);

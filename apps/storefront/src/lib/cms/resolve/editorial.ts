@@ -1,7 +1,7 @@
-import { EditorialListSection } from "@shopblok/registry/contracts";
-import { unstable_rethrow } from "next/navigation";
+import { EDITORIAL_LIST_MAX, EditorialListSection } from "@shopblok/registry/contracts";
 import { buildPublicUrl } from "../../markets/url";
 import { pageIdOf } from "../page-path";
+import { journalPath } from "../paths";
 import { postCard } from "../post-content";
 import type { CmsPostSummary } from "../posts";
 import { parsed, settingsOf, text } from "./shared";
@@ -12,9 +12,6 @@ import type { LayoutBlock, ResolveContext } from "./sections";
 // rather than the page's own read, so a post's publish refreshes every page that lists it. The
 // reads come in `context.posts` (`postsContext`), which the page builds with its Draft Mode: an
 // editor's preview lists the drafts it may see.
-
-/** The most posts the block shows, as the block's field allows. */
-const MAX = 12;
 
 /** How a page's blocks read the journal: the newest posts and the editor's picks. */
 export type PostsContext = {
@@ -38,38 +35,29 @@ const idsOf = (value: unknown): number[] =>
 
 /**
  * An editorial list as its section's view model, or `null` when nothing is left to list (no post
- * published in the language, every pick gone) or a read fails (logged): the block is left out,
- * never the page. Next's own control-flow errors are rethrown.
+ * published in the language, every pick gone). A read that fails throws: `resolveLayout` leaves
+ * the block out, never the page.
  */
 export async function resolveEditorialList(
   block: EditorialListBlock,
   context: ResolveContext,
   posts: PostsContext,
 ): Promise<ResolvedEditorialList | null> {
-  try {
-    const found =
-      block.source === "handpicked"
-        ? await posts.byIds(idsOf(block.posts).slice(0, MAX))
-        : await posts.newest(Math.min(Math.max(Math.trunc(block.limit ?? 3), 1), MAX));
-    const url = (path: string) => buildPublicUrl(context.market, path, context.map);
-    const heading = text(block.heading);
-    const section = parsed(EditorialListSection, {
-      settings: settingsOf(block),
-      ...(heading === undefined ? {} : { heading }),
-      posts: found.flatMap((post) => postCard(post, url) ?? []),
-      ...(block.showLink === false
-        ? {}
-        : { link: { label: posts.journalLabel, href: url("/journal"), appearance: "outline" } }),
-    });
-    return section === undefined
-      ? null
-      : { key: block.id ?? "editorialList", blockType: "editorialList", section };
-  } catch (error) {
-    unstable_rethrow(error);
-    console.error(
-      `[blocks] editorialList ${block.id ?? ""} left out: the posts' read failed`,
-      error instanceof Error ? error.message : String(error),
-    );
-    return null;
-  }
+  const found =
+    block.source === "handpicked"
+      ? await posts.byIds(idsOf(block.posts).slice(0, EDITORIAL_LIST_MAX))
+      : await posts.newest(Math.min(Math.max(Math.trunc(block.limit ?? 3), 1), EDITORIAL_LIST_MAX));
+  const url = (path: string) => buildPublicUrl(context.market, path, context.map);
+  const heading = text(block.heading);
+  const section = parsed(EditorialListSection, {
+    settings: settingsOf(block),
+    ...(heading === undefined ? {} : { heading }),
+    posts: found.flatMap((post) => postCard(post, url) ?? []),
+    ...(block.showLink === false
+      ? {}
+      : { link: { label: posts.journalLabel, href: url(journalPath()), appearance: "outline" } }),
+  });
+  return section === undefined
+    ? null
+    : { key: block.id ?? "editorialList", blockType: "editorialList", section };
 }

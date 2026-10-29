@@ -36,7 +36,27 @@ export function siteBase(source: RawEnv = env): URL {
   }
 }
 
-const absolute = (path: string, base: URL) => new URL(path, base).toString();
+/** `path` (or a URL) as an absolute URL on `base`. */
+export const absolute = (path: string, base: URL) => new URL(path, base).toString();
+
+/**
+ * A page's `BreadcrumbList`: its trail, the page itself last, each step an absolute URL. The
+ * product, listing, journal and post pages share it (PR 100 review, item 6).
+ */
+export function breadcrumbList(
+  trail: readonly { label: string; href: string }[],
+  base: URL,
+): object {
+  return {
+    "@type": "BreadcrumbList",
+    itemListElement: trail.map((step, index) => ({
+      "@type": "ListItem",
+      position: index + 1,
+      name: step.label,
+      item: absolute(step.href, base),
+    })),
+  };
+}
 
 /** A picture a crawler can fetch: an http(s) URL or a path, not the placeholder's `data:` one. */
 export function shareableImage(src: string, base: URL): string | undefined {
@@ -82,15 +102,7 @@ export function productJsonLd(product: ProductDetail, base: URL = siteBase()): o
           url: `${url}?variant=${encodeURIComponent(variant.id)}`,
         })),
       },
-      {
-        "@type": "BreadcrumbList",
-        itemListElement: trail.map((step, index) => ({
-          "@type": "ListItem",
-          position: index + 1,
-          name: step.label,
-          item: absolute(step.href, base),
-        })),
-      },
+      breadcrumbList(trail, base),
     ],
   };
 }

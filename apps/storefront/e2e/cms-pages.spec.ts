@@ -475,6 +475,18 @@ test.describe("the journal (T66)", () => {
     expect(listed(query)[0]).toBe(first.en.title);
   });
 
+  test("a slug another post reads by fallback is refused, with the reason", async () => {
+    // PR 100 review, item 2: the second post has no Greek slug, so the Greek shop reads its
+    // English one; the first post may not take it as its Greek slug.
+    const answer = await api("PATCH", `/api/posts/${posts[0]}?locale=el`, {
+      slug: second.slug,
+      _status: "published",
+    });
+    expect(answer.status, answer.text).toBe(400);
+    expect(answer.text).toContain("Another post already has this slug.");
+    expect((await get(`/journal/${first.el.slug}`)).status, "the Greek address stays").toBe(200);
+  });
+
   test("a missing or unpublished post is a 404, with the status", async () => {
     expect((await get(`/us/journal/missing-${stamp}`)).status).toBe(404);
     const slug = `e2e-draft-post-${stamp}`;
