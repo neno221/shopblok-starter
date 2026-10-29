@@ -171,14 +171,15 @@ describe("the shop's own content on the synced documents (T69, D83)", () => {
   } as const;
 
   for (const { config } of COLLECTIONS) {
+    const slug = config.slug as keyof typeof CONTENT;
     it(`${config.slug}: has its content fields, none of them synced`, () => {
-      expect(contentFieldNames(config.fields)).toEqual(CONTENT[config.slug]);
+      expect(contentFieldNames(config.fields)).toEqual(CONTENT[slug]);
       const synced = new Set(syncedFieldNames(config.fields));
-      for (const name of CONTENT[config.slug]) expect(synced.has(name), name).toBe(false);
+      for (const name of CONTENT[slug]) expect(synced.has(name), name).toBe(false);
     });
 
     it(`${config.slug}: staff write the content, the sync and anonymous visitors cannot; it is not read-only`, () => {
-      for (const name of CONTENT[config.slug]) {
+      for (const name of CONTENT[slug]) {
         const field = named(config.fields, name);
         const fieldAccess = field && "access" in field ? field.access : undefined;
         for (const user of [admin, editor]) {
@@ -196,7 +197,7 @@ describe("the shop's own content on the synced documents (T69, D83)", () => {
     });
 
     it(`${config.slug}: the localized fields are the texts, not the pictures`, () => {
-      for (const name of CONTENT[config.slug]) {
+      for (const name of CONTENT[slug]) {
         const field = named(config.fields, name);
         const localized = field !== undefined && "localized" in field && field.localized === true;
         expect(localized, name).toBe(field?.type === "richText");
@@ -235,9 +236,10 @@ describe("a save of a synced document refreshes its content read (T69, D73)", ()
     );
 
   for (const { config } of COLLECTIONS) {
-    const tag = (handle: string) => `cms:${KIND[config.slug]}:${handle}`;
+    const kind = KIND[config.slug as keyof typeof KIND];
+    const tag = (handle: string) => `cms:${kind}:${handle}`;
 
-    it(`${config.slug}: an editor's save revalidates cms:${KIND[config.slug]}:<handle>, once`, async () => {
+    it(`${config.slug}: an editor's save revalidates cms:${kind}:<handle>, once`, async () => {
       await afterChange(config, { id: 1, handle: "tee", intro: "new" }, { id: 1, handle: "tee" });
       expect(tags().filter((each) => each === tag("tee"))).toHaveLength(1);
     });

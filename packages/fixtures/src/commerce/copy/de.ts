@@ -165,6 +165,8 @@ export const de: Copy = {
       priceDesc: "Preis: absteigend",
     },
     resultsFor: "Ergebnisse für „hoodie“",
+    intro:
+      "Schwere Hoodies aus Baumwolle, innen weich angeraut und zum Darüberziehen geschnitten. Stückgefärbte Farben, die mit jeder Wäsche schöner werden.",
   },
   carousel: { title: "Neu eingetroffen", viewAll: "Alle Neuheiten ansehen" },
   productPage: {

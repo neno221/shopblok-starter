@@ -116,6 +116,8 @@ export type Copy = {
   listingPage: {
     sort: { relevance: string; newest: string; priceAsc: string; priceDesc: string };
     resultsFor: string;
+    /** An editor's introduction to the hoodies' category (T69), drawn under its banner. */
+    intro: string;
   };
   /** ProductCarousel's heading and its link to the listing (T37). */
   carousel: { title: string; viewAll: string };

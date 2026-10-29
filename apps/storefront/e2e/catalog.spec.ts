@@ -1,4 +1,7 @@
 import { expect, test } from "@playwright/test";
+import { publishGlobal } from "./support/globals";
+import { api, PNG, syncedId, upload } from "./support/payload-rest";
+import { adminToken, base, freshWithinTwo, settled } from "./support/server";
 
 // T49 (D58, D61, SPEC §8.4, §12): the product page against `next start` with the demo catalog. The
 // shell's HTML holds the product in the market's language and currency (what `curl` gets: the
@@ -278,5 +281,202 @@ test.describe("the listing pages and the search (T50)", () => {
     const overlay = page.locator('[data-slot="search-overlay"]');
     await overlay.getByRole("combobox").pressSequentially("hoodie");
     await expect(overlay.getByRole("option", { name: /Heritage Hoodie/ })).toBeVisible();
+  });
+});
+
+// T69 (D83, D78): the shop's own content on Medusa's synced documents, written through Payload's
+// REST API as the bootstrap admin and taken off again at the end: a product's rich description
+// and an extra picture on its page in both languages; the delivery text of `site-settings` on
+// every product page; a category's banner and its Greek introduction on its listing page under
+// `/`, English on `/us`; and the category's picture on the home's tile. Each edit is seen within
+// two requests (a market page regenerates with its Medusa reads, so the second waits 1.5 s), on a
+// page first left settled (`settled`, T65's ISR race).
+test.describe("the catalog's content from Payload (T69)", () => {
+  test.describe.configure({ mode: "serial" });
+  test.setTimeout(90_000);
+
+  const stamp = Date.now().toString(36);
+  // Not a product the commerce blocks' spec marks as deleted in Medusa; prerendered (the first four
+  // handles), so its page is a built one that has to be revalidated.
+  const PRODUCT = "demo-classic-tee";
+  const OTHER_PRODUCTS = ["demo-everyday-joggers", "demo-tote-bag"];
+  const CATEGORY = "accessories";
+  const WORDS = {
+    heading: { en: `Why it lasts ${stamp}`, el: `Γιατί αντέχει ${stamp}` },
+    strong: { en: `Combed cotton ${stamp}`, el: `Χτενισμένο βαμβάκι ${stamp}` },
+    intro: {
+      en: `Small things that go with you ${stamp}`,
+      el: `Μικρά πράγματα για παντού ${stamp}`,
+    },
+    delivery: `Delivered by bicycle within the day ${stamp}`,
+  };
+
+  const text = (value: string, format = 0) => ({
+    type: "text",
+    version: 1,
+    text: value,
+    format,
+    style: "",
+    mode: "normal",
+    detail: 0,
+  });
+  const node = (type: string, children: unknown[], extra: Record<string, unknown> = {}) => ({
+    type,
+    version: 1,
+    direction: "ltr",
+    format: "",
+    indent: 0,
+    ...extra,
+    children,
+  });
+  const lexical = (...children: unknown[]) => ({ root: node("root", children) });
+  /** A heading under the section's, and a paragraph with a strong word (`format: 1` is bold). */
+  const description = (language: "en" | "el") =>
+    lexical(
+      node("heading", [text(WORDS.heading[language])], { tag: "h3" }),
+      node("paragraph", [text(WORDS.strong[language], 1), text(" and nothing else.")], {
+        textFormat: 0,
+      }),
+    );
+  const paragraph = (value: string) => lexical(node("paragraph", [text(value)], { textFormat: 0 }));
+
+  let token = "";
+  let productId = 0;
+  let categoryId = 0;
+  let picture = { id: 0, filename: "" };
+  let banner = { id: 0, filename: "" };
+  let delivery: unknown;
+  const uploads: number[] = [];
+
+  /** The HTML of a page, from Node, as a crawler gets it. */
+  const html = async (path: string) => (await fetch(`${base()}${encodeURI(path)}`)).text();
+  /** How an upload appears in the page: through `/_next/image`, by its path on the shop. */
+  const imageOf = (filename: string) => encodeURIComponent(`/api/media/file/${filename}`);
+  const seenWithinTwo = (shows: () => Promise<boolean>) => freshWithinTwo(shows, 1_500);
+
+  test.beforeAll(async () => {
+    token = await adminToken();
+    for (const name of ["picture", "banner"]) {
+      const saved = await upload(token, `e2e-${name}-${stamp}.png`, "image/png", PNG, `A ${name}`);
+      uploads.push(saved.id);
+      if (name === "picture") picture = saved;
+      else banner = saved;
+    }
+    productId = await syncedId("products", PRODUCT);
+    categoryId = await syncedId("categories", CATEGORY);
+    const settings = await api<{ deliveryAndReturns?: unknown }>(
+      token,
+      "GET",
+      "/api/globals/site-settings?locale=en&depth=0",
+    );
+    delivery = settings.deliveryAndReturns ?? null;
+  });
+
+  test.afterAll(async () => {
+    const quietly = (call: Promise<unknown>) => call.catch(() => undefined);
+    for (const locale of ["en", "el"]) {
+      await quietly(
+        api(token, "PATCH", `/api/products/${productId}?locale=${locale}`, {
+          richDescription: null,
+          gallery: [],
+        }),
+      );
+      await quietly(
+        api(token, "PATCH", `/api/categories/${categoryId}?locale=${locale}`, {
+          intro: null,
+          image: null,
+          banner: null,
+        }),
+      );
+    }
+    if (delivery !== undefined)
+      await quietly(publishGlobal(token, "site-settings", { deliveryAndReturns: delivery }));
+    for (const id of uploads) await quietly(api(token, "DELETE", `/api/media/${id}`));
+  });
+
+  test("a product's rich description and extra picture show on its page in / and /us", async () => {
+    await settled(`/us/products/${PRODUCT}`);
+    await settled(`/products/${PRODUCT}`);
+    await api(token, "PATCH", `/api/products/${productId}?locale=en`, {
+      richDescription: description("en"),
+      gallery: [picture.id],
+    });
+    await api(token, "PATCH", `/api/products/${productId}?locale=el`, {
+      richDescription: description("el"),
+    });
+
+    const us = async () => html(`/us/products/${PRODUCT}`);
+    expect(
+      await seenWithinTwo(async () => (await us()).includes(WORDS.heading.en)),
+    ).toBeGreaterThan(0);
+    const english = await us();
+    expect(english).toMatch(new RegExp(`<h3>${WORDS.heading.en}</h3>`));
+    expect(english).toContain(`<strong>${WORDS.strong.en}</strong>`);
+    expect(english).toContain('data-slot="product-info-rich"');
+    // The market's language, never another's (ADR 0003).
+    expect(english).not.toContain(WORDS.heading.el);
+    // The picture after Medusa's, in the gallery (the same in every language: it is not localized).
+    expect(english).toContain(imageOf(picture.filename));
+
+    const cy = async () => html(`/products/${PRODUCT}`);
+    expect(
+      await seenWithinTwo(async () => (await cy()).includes(WORDS.heading.el)),
+    ).toBeGreaterThan(0);
+    const greek = await cy();
+    expect(greek).toContain(`<strong>${WORDS.strong.el}</strong>`);
+    expect(greek).not.toContain(WORDS.heading.en);
+    expect(greek).toContain(imageOf(picture.filename));
+  });
+
+  test("the delivery text edited in site-settings shows on every product page", async () => {
+    for (const handle of OTHER_PRODUCTS) await settled(`/us/products/${handle}`);
+    await publishGlobal(token, "site-settings", { deliveryAndReturns: paragraph(WORDS.delivery) });
+    for (const handle of OTHER_PRODUCTS) {
+      const shows = async () => (await html(`/us/products/${handle}`)).includes(WORDS.delivery);
+      expect(await seenWithinTwo(shows), handle).toBeGreaterThan(0);
+    }
+  });
+
+  test("a category's banner and Greek introduction on its listing page under /, English on /us", async () => {
+    await settled(`/categories/${CATEGORY}`);
+    await settled(`/us/categories/${CATEGORY}`);
+    await api(token, "PATCH", `/api/categories/${categoryId}?locale=el`, {
+      intro: paragraph(WORDS.intro.el),
+      banner: banner.id,
+    });
+    await api(token, "PATCH", `/api/categories/${categoryId}?locale=en`, {
+      intro: paragraph(WORDS.intro.en),
+    });
+
+    const cy = async () => html(`/categories/${CATEGORY}`);
+    expect(await seenWithinTwo(async () => (await cy()).includes(WORDS.intro.el))).toBeGreaterThan(
+      0,
+    );
+    const greek = await cy();
+    expect(greek).toContain('data-slot="product-listing-banner"');
+    expect(greek).toContain(imageOf(banner.filename));
+    expect(greek).toContain('data-slot="product-listing-intro"');
+    expect(greek).not.toContain(WORDS.intro.en);
+
+    const us = async () => html(`/us/categories/${CATEGORY}`);
+    expect(await seenWithinTwo(async () => (await us()).includes(WORDS.intro.en))).toBeGreaterThan(
+      0,
+    );
+    const english = await us();
+    expect(english).not.toContain(WORDS.intro.el);
+    expect(english).toContain(imageOf(banner.filename));
+  });
+
+  test("the home's category tile uses the category's own picture", async () => {
+    await settled("/us");
+    expect(await html("/us")).not.toContain(imageOf(picture.filename));
+    await api(token, "PATCH", `/api/categories/${categoryId}?locale=en`, { image: picture.id });
+    // In a tile: after the first tile's start (the picture is nowhere else on the home).
+    const shows = async () => {
+      const page = await html("/us");
+      const first = page.indexOf('data-slot="category-tile"');
+      return first >= 0 && page.indexOf(imageOf(picture.filename), first) > first;
+    };
+    expect(await seenWithinTwo(shows)).toBeGreaterThan(0);
   });
 });

@@ -113,7 +113,7 @@ const idsFor = (prefix: string): ProductDetailIds => ({
   reviews: `${prefix}-reviews`,
 });
 
-type ProductDetailVariant = "default" | "chosen" | "long" | "no-related";
+type ProductDetailVariant = "default" | "chosen" | "long" | "no-related" | "rich";
 
 /** The fixture's product page, changed for a state. */
 function productDetailContent(ctx: DsContext, state: ProductDetailVariant): ProductDetailPage {
@@ -142,7 +142,45 @@ function productDetailContent(ctx: DsContext, state: ProductDetailVariant): Prod
     const { related: _related, ...rest } = base;
     return rest;
   }
+  if (state === "rich") {
+    const sections = base.info.sections.map((section) =>
+      section.id === "description" ? { ...section, blocks: [{ kind: "rich" as const }] } : section,
+    );
+    return { ...base, info: { sections } };
+  }
   return base;
+}
+
+/**
+ * An editor's rich description (T69), as the shop's Lexical renderer draws it: the fixture's own
+ * words, as a paragraph, a heading under the section's, a list and a paragraph with a strong word.
+ */
+function richDescription(ctx: DsContext): ReactNode {
+  const { sections } = pageFixtures[ctx.locale].productDetail.info;
+  const paragraphs = sections.flatMap((section) =>
+    section.id === "description"
+      ? section.blocks.flatMap((block) => (block.kind === "text" ? block.paragraphs : []))
+      : [],
+  );
+  const details = sections.find((section) => section.id === "details");
+  const care = details?.blocks.flatMap((block) => (block.kind === "list" ? block.items : [])) ?? [];
+  const [first, ...rest] = paragraphs;
+  return (
+    <>
+      <p>{first}</p>
+      <h3>{details?.title}</h3>
+      <ul>
+        {care.map((item) => (
+          <li key={item}>{item}</li>
+        ))}
+      </ul>
+      {rest.map((paragraph) => (
+        <p key={paragraph}>
+          <strong>{paragraph}</strong>
+        </p>
+      ))}
+    </>
+  );
 }
 
 const productDetail = (ctx: DsContext, mainId: string, state: ProductDetailVariant) => {
@@ -158,11 +196,12 @@ const productDetail = (ctx: DsContext, mainId: string, state: ProductDetailVaria
       prefetch={false}
       as="div"
       mainId={mainId}
+      {...(state === "rich" ? { slots: { richText: { description: richDescription(ctx) } } } : {})}
     />
   );
 };
 
-type ProductListingVariant = "default" | "no-filters" | "empty";
+type ProductListingVariant = "default" | "no-filters" | "empty" | "content";
 
 /** The fixture's listing page, changed for a state. */
 function productListingContent(ctx: DsContext, state: ProductListingVariant): ProductListingPage {
@@ -184,6 +223,7 @@ function productListingContent(ctx: DsContext, state: ProductListingVariant): Pr
       },
     };
   }
+  if (state === "content") return pageFixtures[ctx.locale].productListingContent.page;
   return base;
 }
 
@@ -202,6 +242,9 @@ const productListing = (ctx: DsContext, mainId: string, state: ProductListingVar
       prefetch={false}
       as="div"
       mainId={mainId}
+      {...(state === "content"
+        ? { slots: { intro: <p>{pageFixtures[ctx.locale].productListingContent.intro}</p> } }
+        : {})}
     />
   );
 };
@@ -473,6 +516,13 @@ export const templateStories = {
         description: "A product alone in its category: no carousel.",
         render: (ctx) => productDetail(ctx, "template-product-detail-no-related", "no-related"),
       },
+      {
+        id: "rich",
+        label: "The shop's description",
+        description:
+          "An editor's rich description replaces Medusa's plain one (T69): a heading under the section's, a list, a strong word, in the editor's text's look.",
+        render: (ctx) => productDetail(ctx, "template-product-detail-rich", "rich"),
+      },
     ],
     statesLayout: "stack",
   },
@@ -509,6 +559,13 @@ export const templateStories = {
         label: "No products",
         description: "A category with no products yet: the empty state, and no pages.",
         render: (ctx) => productListing(ctx, "template-product-listing-empty", "empty"),
+      },
+      {
+        id: "content",
+        label: "A banner and an introduction",
+        description:
+          "The category's own content (T69): an editor's banner under the title (16:9 on a phone, 3:1 from `md`) and a few lines of introduction.",
+        render: (ctx) => productListing(ctx, "template-product-listing-content", "content"),
       },
     ],
     statesLayout: "stack",
