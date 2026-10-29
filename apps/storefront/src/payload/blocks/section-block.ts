@@ -16,9 +16,9 @@ export type SectionBlockOptions = {
 };
 
 /**
- * A block of `pages.layout` (D79, SPEC §7.4): its `variant` (the registry family's variants, one in
- * M4, drawn by the variant picker), its content fields and its `sectionSettings`, in that order.
- * The drawer's thumbnail and the singular label are the registry entry's (D52's
+ * A block of `pages.layout` (D79, SPEC §7.4): its `variant` (the registry family's variants, one
+ * each until M5, drawn by the variant picker), its content fields and its `sectionSettings`, in
+ * that order. The drawer's thumbnail and the singular label are the registry entry's (D52's
  * `/registry/sections/{slug}.png`), so the DS, the drawer and the picker show the same picture. A
  * slug the registry has no section for fails here, when the config loads.
  */

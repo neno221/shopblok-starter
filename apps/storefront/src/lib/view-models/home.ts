@@ -1,10 +1,10 @@
 import type { Messages } from "@shopblok/i18n";
 import type { CategoryTile, HomePage, Image, ProductCard } from "@shopblok/registry/contracts";
 
-// The home page (T51, D58) from what the page read: the shop's hero words and picture (`site.ts`
-// until M4's `hero` block), the top-level categories with their first product's picture, and the
-// newest products. A section with nothing to show is left out, so an empty shop is the hero and
-// the link to every product.
+// The home page (T51, D58) from what the page read: the shop's hero words and picture (`site.ts`; a
+// published CMS homepage replaces this page, T65), the top-level categories with their first
+// product's picture, and the newest products. A section with nothing to show is left out, so an
+// empty shop is the hero and the link to every product.
 
 /** The category showcase shows the first eight top-level categories (the contract's most). */
 export const HOME_CATEGORIES = 8;

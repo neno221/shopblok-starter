@@ -1,8 +1,8 @@
 import type { z } from "zod";
 
 /**
- * The groups of the DS navigation, in SPEC §9.6's order: the ones M2 and M3 fill, and M4's
- * Sections (D70), the blocks' components, between the headers and footers and the templates.
+ * The groups of the DS navigation, in SPEC §9.6's order: the ones M2 and M3 fill, and the
+ * Sections (D70, T63), the blocks' components, between the headers and footers and the templates.
  * SPEC §9.3's "Pages" are the app itself (D56).
  */
 export const GROUPS = [
@@ -37,7 +37,7 @@ export type EntryInput = {
   component?: ComponentRef;
   /**
    * The variants a shop picks (D46) share a family (`header`, `footer`, `product-card`); `variant`
-   * is the value a Payload picker stores (M4), unique in its family. Both or neither.
+   * is the value a Payload picker stores, unique in its family. Both or neither.
    */
   family?: string;
   variant?: string;
@@ -57,5 +57,5 @@ export type RegistryEntry = EntryInput & {
   thumbnail?: `/registry/${string}.png`;
 };
 
-/** What a Payload picker lists for one variant of a family (M4). */
+/** What a Payload picker lists for one variant of a family (D85). */
 export type VariantOption = { value: string; label: string; thumbnail: string };

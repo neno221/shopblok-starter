@@ -483,7 +483,7 @@ export const commerceAtomStories = {
     a11y: [
       'One image named by `label` ("4,5 out of 5", in the page\'s language); the stars are hidden from assistive technology.',
       "The value is shown to the nearest half star and also as text when `valueText` is given, so it is never colour alone (WCAG 1.4.1).",
-      "Read-only: it takes no focus. Entering a rating is a different control (M4).",
+      "Read-only: it takes no focus. Entering a rating is a different control (M8, reviews).",
     ],
     live: (ctx) => (
       <Rating

@@ -7,8 +7,8 @@ import { payloadModule } from "./payload-sync";
  * The copy of the e-mails the backend sends (D84, T70): Payload's `email-templates` in the
  * shopper's language, read as the `medusa-sync` integration and kept 5 minutes in memory, with
  * the `{{variables}}` filled in. When Payload does not answer within 2 s (or is not configured),
- * the e-mail goes out with the built-in English below, so a CMS outage never stops a link. In M4
- * the body is plain text (`lexicalToText`); M6 renders the same copy as HTML.
+ * the e-mail goes out with the built-in English below, so a CMS outage never stops a link. Until
+ * M6 the body is plain text (`lexicalToText`); M6 renders the same copy as HTML.
  */
 
 export const EMAIL_TYPES = ["verify-email", "password-reset", "order-transfer"] as const;

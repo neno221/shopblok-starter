@@ -56,8 +56,8 @@ async function fetchRegions(): Promise<Region[]> {
  * Every region of the store: one call for the whole list, whatever the number of markets, so
  * opening a country is a change in Medusa and nothing here (D17). Regions are the same in every
  * language, so the call takes no locale. `minutes`, so a market opened in the `markets` global does
- * not show "no region" for an hour; the hook that revalidates tag `medusa:regions` when an admin
- * edits a region (M4/M6) is the real fix, and this life is the stopgap until it exists.
+ * not show "no region" for an hour. The backend revalidates tag `medusa:regions` on every
+ * `region.*` event (T49), so this life only bounds a call that never arrived.
  */
 export const listRegions = cached(fetchRegions, {
   name: "medusa:regions",

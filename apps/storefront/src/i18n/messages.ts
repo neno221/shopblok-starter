@@ -94,7 +94,7 @@ export type PickOptions = {
  *
  * A path that holds nothing throws: a typo would otherwise ship an island with no text and no error
  * (`MessagePath` catches it at compile time for the English shape; this catches the other
- * catalogs, a `ui-strings` source in M4 and a path from a variable). That is right for a test and
+ * catalogs, the `ui-strings` source (T62) and a path from a variable). That is right for a test and
  * for development, and wrong in the root layout, where a throw is a 500 for every page in that
  * language (PR 70 review, item 2): there `options.fallback` supplies the English message instead,
  * and `onFallback` says which (`pickShell`). A path the fallback lacks too still throws.

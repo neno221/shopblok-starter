@@ -698,7 +698,7 @@ export const el: Messages = {
         "{count, plural, one {# πεδίο χρειάζεται την προσοχή σας.} other {# πεδία χρειάζονται την προσοχή σας.}}",
     },
   },
-  // Οι ενότητες του M4 (T63).
+  // Οι ενότητες (T63).
   sections: {
     video: {
       playLabel: "Αναπαραγωγή βίντεο",
@@ -787,7 +787,7 @@ export const el: Messages = {
     },
     home: {
       // The home page (T51): its sections' headings and links; the hero's words are the shop's
-      // (`site.ts`, M4's hero block).
+      // (`site.ts`, the seeded Home's hero block).
       categories: "Αγορές ανά κατηγορία",
       newArrivals: "Νέες αφίξεις",
       seeAllNew: "Δείτε όλες τις νέες αφίξεις",

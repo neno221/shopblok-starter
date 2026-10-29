@@ -291,7 +291,7 @@ describe("decideJobs and the importers of the DS-only folders", () => {
     }
   });
 
-  it("runs both jobs for a thumbnail, which Payload's admin shows from M4 on (T57, D87 item 1)", () => {
+  it("runs both jobs for a thumbnail, which Payload's admin shows (T57, D87 item 1)", () => {
     expect(jobs(pr(["apps/storefront/public/registry/molecules/product-card-minimal.png"]))).toEqual({
       e2e: true,
       designSystem: true,

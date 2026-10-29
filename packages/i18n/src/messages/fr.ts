@@ -694,7 +694,7 @@ export const fr: Messages = {
         "{count, plural, one {# champ demande votre attention.} other {# champs demandent votre attention.}}",
     },
   },
-  // Les sections de M4 (T63).
+  // Les sections (T63).
   sections: {
     video: {
       playLabel: "Lire la vidéo",
@@ -783,7 +783,7 @@ export const fr: Messages = {
     },
     home: {
       // The home page (T51): its sections' headings and links; the hero's words are the shop's
-      // (`site.ts`, M4's hero block).
+      // (`site.ts`, the seeded Home's hero block).
       categories: "Acheter par catégorie",
       newArrivals: "Nouveautés",
       seeAllNew: "Voir toutes les nouveautés",

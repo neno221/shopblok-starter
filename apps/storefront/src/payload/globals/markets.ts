@@ -142,8 +142,9 @@ const revalidate = revalidateGlobalOnPublish({
 /**
  * The market map (D10), the editable part (D12): which countries are open, in which languages,
  * and how each language maps to a Medusa locale (D8). `getMarketMap()` reads it (T10) and the
- * validator above checks the Medusa locale codes; M4's sync fills `synced`. `filterAvailableLocales` reads it too: the
- * admin offers the languages of the enabled countries, and English.
+ * validator above checks the Medusa locale codes; the Medusa sync (T60) fills `synced`.
+ * `filterAvailableLocales` reads it too: the admin offers the languages of the enabled countries,
+ * and English.
  */
 export const Markets: GlobalConfig = {
   slug: "markets",

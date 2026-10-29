@@ -620,7 +620,7 @@ export const templateStories = {
   },
   "templates/home": {
     summary:
-      "The home page: the hero (a line, the way into the shop and a picture), the top-level categories as tiles, the newest products as a carousel and a link to every product. The hero's words are the shop's until M4's hero block; the rest is read from Medusa.",
+      "The home page: the hero (a line, the way into the shop and a picture), the top-level categories as tiles, the newest products as a carousel and a link to every product. The hero's words are the shop's; the rest is read from Medusa. A published CMS homepage replaces this template (T65).",
     a11y: [
       pageNote,
       "The hero's title is the page's one `<h1>`; the categories and the new arrivals each have an `<h2>` that names their section. A category tile is one link, its name and picture together; the picture is decoration (`alt=\"\"`), so the link's name is the category's.",

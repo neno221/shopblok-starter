@@ -151,7 +151,7 @@ function publishableKey(envs: AppEnvs): Check {
   };
 }
 
-/** What the Medusa → Payload sync (M4) signs in with. */
+/** What the Medusa → Payload sync (T60) signs in with. */
 function payloadKey(envs: AppEnvs): Check {
   const missing = ["PAYLOAD_API_KEY", "PAYLOAD_SERVER_URL"].filter(
     (name) => !isSet(envs.backend, name),
@@ -168,7 +168,7 @@ function payloadKey(envs: AppEnvs): Check {
     id: "payload-key",
     title: "Payload integrations key",
     level: "warn",
-    message: `${missing.join(" and ")} ${missing.length === 1 ? "is" : "are"} not set in the backend, so the Medusa → Payload sync (M4) could not sign in to Payload.`,
+    message: `${missing.join(" and ")} ${missing.length === 1 ? "is" : "are"} not set in the backend, so the Medusa → Payload sync could not sign in to Payload.`,
     fix: "Run `pnpm bootstrap`: it creates the `integrations` user and writes the key.",
   };
 }

@@ -167,8 +167,8 @@ function resolveIds(
  * changes.
  *
  * Each translation row emits its own event, and each event re-reads its
- * products in every locale, so a bulk change of translations (M4's sync, a CSV
- * import) ends with `searchModule.reindex({ index: "product" })` instead of
+ * products in every locale, so a bulk change of translations (a CSV import, a
+ * script) ends with `searchModule.reindex({ index: "product" })` instead of
  * waiting for the backlog (SETUP.md, "Search on Postgres (T43)").
  *
  * TODO: price lists emit no events (create, update, delete, batch prices).

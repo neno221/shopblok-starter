@@ -36,7 +36,7 @@ import type { EntryInput } from "../types";
 
 // SPEC §9.3's molecules, in the navigation's order, each task's after the last (M2 plan, T32 to
 // T34). ProductCard is a family of ten variants (D46), each its own entry and DS page, with the
-// value a shop picks in Payload (M4) as `variant`; the others are one component with its states.
+// value a shop picks in Payload as `variant`; the others are one component with its states.
 // Each renders the export of `@shopblok/ui/molecules/…` that it names, and shows its contract.
 
 const productCard = <const Variant extends string, const Label extends string>(

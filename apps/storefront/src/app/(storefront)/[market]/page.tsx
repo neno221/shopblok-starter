@@ -31,8 +31,8 @@ import { toProductCard } from "../../../lib/view-models/product";
 // categories under `navigation`, the searches under `search`, the products under
 // `medusa:products`), so the route is `ensureStatic = "navigation"`: a `cookies()`, a
 // `connection()` or an uncached read anywhere in it fails the build. The hero's words and picture
-// are the shop's (`site.ts`) until M4's `hero` block; the categories, their pictures and the new
-// arrivals are Medusa's.
+// are the shop's (`site.ts`, which the seeded Home's `hero` block copies, T65); the categories,
+// their pictures and the new arrivals are Medusa's.
 //
 // T61: the home is where the `header`, `footer` and `site-settings` globals are previewed (live
 // preview's frame, D74), so in Draft Mode it renders live preview's island, which redraws the frame

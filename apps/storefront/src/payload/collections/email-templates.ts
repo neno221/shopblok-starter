@@ -25,7 +25,7 @@ const variablesHelp = EMAIL_TYPES.map(
  * each language. The backend reads it as the `medusa-sync` integration, keeps it 5 minutes, and
  * falls back to its built-in English when Payload does not answer; nothing is revalidated, so an
  * edit reaches the next e-mail within those 5 minutes. The link itself is not in the copy: the
- * backend adds it, and `cta` is its label. In M4 the body goes out as plain text (headings,
+ * backend adds it, and `cta` is its label. Until M6 the body goes out as plain text (headings,
  * paragraphs, lists and links); M6 renders it in `packages/emails`' layouts.
  */
 export const EmailTemplates: CollectionConfig = {

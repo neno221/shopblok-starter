@@ -1,9 +1,10 @@
 import type { AnnouncementBar, FooterColumn, Link } from "@shopblok/registry/contracts";
 
-// The storefront's own settings until M4's `header`, `footer` and `site-settings` globals (D66):
-// which header and footer variant the layout draws, the store's name, the announcement bar's
-// message, and the footer's columns besides the categories. The texts are content (Payload's, then),
-// so they are here per language, with English for a language the shop has no text in.
+// The storefront's own settings (D66): what the seed writes into the `header`, `footer` and
+// `site-settings` globals and the seeded Home (T61, T65), and what the shell draws while a global
+// has never been saved (no database, D10's stand-in): which header and footer variant, the store's
+// name, the announcement bar's message, and the footer's columns besides the categories. The texts
+// are per language, with English for a language the shop has no text in.
 
 /** A header variant of the registry's `header` family (`headers-footers/header-{variant}`). */
 export type HeaderVariant = "classic" | "centered" | "two-tier" | "mega-menu" | "minimal";
@@ -38,7 +39,7 @@ type SiteText = {
   /** The product page's shop texts (T49): the buy box's notes, the delivery and returns section. */
   productNotes: string[];
   delivery: string[];
-  /** The home page's hero (T51) until M4's `hero` block: its title, its line, its button. */
+  /** The home page's hero (T51; the seeded Home's `hero` block, T65): title, line, button. */
   hero: { title: string; text: string; action: string };
 };
 

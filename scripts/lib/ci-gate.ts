@@ -41,7 +41,7 @@ export const designSystemOnly: readonly DesignSystemArea[] = [
   // import rule makes the area shared from that PR on, and the templates' molecules and organisms
   // with it.
   { path: "packages/ui/src/templates/", importedAs: /^@shopblok\/ui\/templates(\/|$)/ },
-  // M4's sections, the blocks' components (D70, D87 item 1): DS-only on the templates' terms, until
+  // The sections, the blocks' components (D70, D87 item 1): DS-only on the templates' terms, until
   // a market route imports one. T63's `RenderBlocks` does (the test page `e2e-cms/[slug]`), so the
   // import rule counts the area as shared from T63 on.
   { path: "packages/ui/src/sections/", importedAs: /^@shopblok\/ui\/sections(\/|$)/ },

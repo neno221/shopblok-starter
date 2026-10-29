@@ -14,7 +14,7 @@ import {
 } from "./types";
 
 // The registry (D40): every entry of the design system as data, with no React, so the DS page, its
-// Playwright checks, the thumbnail run (D52) and M4's Payload config (which its CLI loads outside
+// Playwright checks, the thumbnail run (D52) and the Payload config (which its CLI loads outside
 // Next) read one list. What the DS page says about an entry (its summary, a11y notes, live render
 // and states) is a story in the storefront, keyed by the entry's id. A new entry is one object in
 // `entries/`; SETUP.md, "How to add an entry", has the rest.
@@ -112,7 +112,7 @@ export function sectionEntries(list: readonly RegistryEntry[] = entries): Regist
   return list.filter((entry) => entry.block !== undefined);
 }
 
-/** What M4's Payload pickers list for `family` (D46): each variant's value, label and thumbnail. */
+/** What the Payload pickers list for `family` (D46): each variant's value, label and thumbnail. */
 export function variantsOf(
   family: string,
   list: readonly RegistryEntry[] = entries,
