@@ -9,12 +9,12 @@ import { RefreshOnSave } from "../../../components/cms/refresh-on-save";
 import { getShellData } from "../../../components/shell/shell-data";
 import { cmsPageContent } from "../../../lib/cms/page-content";
 import { readHomepage } from "../../../lib/cms/pages";
-import { categoryPicture } from "../../../lib/cms/resolve/catalog";
+import { categoryTilePicture } from "../../../lib/cms/resolve/catalog";
 import { catalogReads } from "../../../lib/cms/resolve/market";
 import { getCurrentMarket } from "../../../lib/current-market";
 import { getMarketContext, type MarketContext } from "../../../lib/market-context";
 import { hreflangAlternates } from "../../../lib/markets/hreflang";
-import { flattenCategories, listCategories } from "../../../lib/medusa/categories";
+import { listCategories } from "../../../lib/medusa/categories";
 import { listProductsByIds } from "../../../lib/medusa/products";
 import { searchProducts } from "../../../lib/medusa/search";
 import { buildReadsMedusa } from "../../../lib/prerender";
@@ -144,15 +144,9 @@ export default async function MarketHome() {
   const tree = (await listCategories(market.medusaLocale)).slice(0, HOME_CATEGORIES);
   const reads = catalogReads(context);
   const [pictures, newArrivals] = await Promise.all([
-    // A tile's picture is its newest product's (its children's included); T64's showcase shares it.
-    Promise.all(
-      tree.map((node) =>
-        categoryPicture(
-          reads,
-          flattenCategories([node]).map((each) => each.id),
-        ),
-      ),
-    ),
+    // A tile's picture is the category's own (T69), else its newest product's (its children's
+    // included); T64's showcase shares the rule.
+    Promise.all(tree.map((node) => categoryTilePicture(reads, node))),
     readNewArrivals(context),
   ]);
   const text = siteText(market.language);

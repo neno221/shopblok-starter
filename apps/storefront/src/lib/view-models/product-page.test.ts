@@ -1,11 +1,14 @@
 import { pageFixtures } from "@shopblok/fixtures";
 import { ProductDetailPage } from "@shopblok/registry/contracts";
 import { describe, expect, it } from "vitest";
+import { PLACEHOLDER_IMAGE } from "./common";
 import {
   defaultSelection,
+  MAX_GALLERY_MEDIA,
   RELATED_PRODUCTS,
   selectionForVariant,
   toProductDetailPage,
+  withShopPictures,
 } from "./product-page";
 
 const page = pageFixtures.en.productDetail;
@@ -79,5 +82,63 @@ describe("the product page's data (T49, D61)", () => {
     const { reviews } = toProductDetailPage(detail, [], text);
     expect(reviews.summary.count).toBe(0);
     expect(reviews.reviews).toEqual([]);
+  });
+});
+
+describe("the shop's content on the product page (T69, D83)", () => {
+  const picture = (n: number) => ({
+    src: `/api/media/file/extra-${n}.webp`,
+    alt: `Extra ${n}`,
+    width: 800,
+    height: 1000,
+  });
+
+  it("puts the shop's pictures after Medusa's, within the gallery's 24", () => {
+    const media = withShopPictures(detail, [picture(1), picture(2)]).media;
+    expect(media.slice(0, detail.media.length)).toEqual(detail.media);
+    expect(media.slice(detail.media.length).map((each) => each.src)).toEqual([
+      picture(1).src,
+      picture(2).src,
+    ]);
+    const many = Array.from({ length: 30 }, (_, n) => picture(n));
+    expect(withShopPictures(detail, many).media).toHaveLength(MAX_GALLERY_MEDIA);
+  });
+
+  it("drops Medusa's placeholder once the shop has a picture, and keeps it otherwise", () => {
+    const bare = { ...detail, media: [{ ...PLACEHOLDER_IMAGE }] };
+    expect(withShopPictures(bare, [picture(1)]).media).toEqual([picture(1)]);
+    expect(withShopPictures(bare, []).media).toEqual(bare.media);
+  });
+
+  it("a rich description replaces Medusa's text with the section's rich block", () => {
+    const content = toProductDetailPage(detail, [], { ...text, richDescription: true });
+    expect(ProductDetailPage.parse(content)).toEqual(content);
+    expect(content.info.sections[0]).toEqual({
+      id: "description",
+      title: "Description",
+      blocks: [{ kind: "rich" }],
+    });
+    // Even for a product Medusa gave no description.
+    const bare = toProductDetailPage({ ...detail, description: "" }, [], {
+      ...text,
+      richDescription: true,
+    });
+    expect(bare.info.sections.map((section) => section.id)).toEqual(["description", "delivery"]);
+  });
+
+  it("the delivery section is paragraphs, the shop's rich text, or not there", () => {
+    const rich = toProductDetailPage(detail, [], { ...text, delivery: "rich" });
+    expect(rich.info.sections.at(-1)).toEqual({
+      id: "delivery",
+      title: "Delivery",
+      blocks: [{ kind: "rich" }],
+    });
+    const none = toProductDetailPage(detail, [], { ...text, delivery: null });
+    expect(none.info.sections.map((section) => section.id)).toEqual(["description"]);
+    const neither = toProductDetailPage({ ...detail, description: "" }, [], {
+      ...text,
+      delivery: [],
+    });
+    expect(neither.info.sections).toEqual([]);
   });
 });

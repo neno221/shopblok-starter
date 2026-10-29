@@ -1,8 +1,8 @@
 import type { CategoryTile } from "@shopblok/registry/contracts";
-import { categoryPaths, flattenCategories, type CategoryNode } from "../../medusa/categories";
+import { categoryPaths, type CategoryNode } from "../../medusa/categories";
 import type { Hrefs } from "../../view-models/common";
 import { mediaImage } from "../shell";
-import { categoryPicture, type CatalogReads } from "./catalog";
+import { categoryTilePicture, type CatalogReads } from "./catalog";
 import { findCategory, liveMedusaId } from "./products";
 import { text } from "./shared";
 
@@ -10,8 +10,9 @@ import { text } from "./shared";
 // children or the editor's list, from Medusa's tree in the market's language. A tile's name is the
 // category's translated name and its link the category's whole path (`/categories/apparel/tops`),
 // which the Payload document does not hold; the editor's label and picture win when set. Without a
-// picture of the editor's, a tile shows its newest product's (M3's home, T51). A category Medusa
-// deleted, or one the Store API does not list, is left out.
+// picture on the block, a tile shows the category's own (its document's `image`, T69), else its
+// newest product's (M3's home, T51). A category Medusa deleted, or one the Store API does not
+// list, is left out.
 
 /** A `categorySource` group as Payload stores it, read at depth 1. */
 export type CategorySourceValue = {
@@ -77,10 +78,7 @@ export async function resolveCategorySource(
       const editorImage = mediaImage(override?.image);
       const image =
         editorImage === undefined
-          ? await categoryPicture(
-              reads,
-              flattenCategories([node]).map((each) => each.id),
-            )
+          ? await categoryTilePicture(reads, node)
           : // Decoration, as the product's picture is: the tile's name says where it goes.
             { ...editorImage, alt: "" };
       return {

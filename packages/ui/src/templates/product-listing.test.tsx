@@ -229,3 +229,35 @@ describe("SearchResultsTemplate", () => {
     );
   });
 });
+
+describe("ProductListingTemplate: a banner and an introduction (T69)", () => {
+  const banner = {
+    src: "/api/media/file/banner.webp",
+    alt: "Hoodies on a rail",
+    width: 1500,
+    height: 500,
+  };
+
+  it("draws the banner, then the introduction, under the title and before the results", () => {
+    renderListing("en", { banner, slots: { intro: <p>Heavy cotton for cold mornings.</p> } });
+    const title = slot("product-listing-title");
+    const image = slot("product-listing-banner");
+    const intro = slot("product-listing-intro");
+    expect(image?.tagName).toBe("IMG");
+    expect(image?.getAttribute("alt")).toBe("Hoodies on a rail");
+    expect(intro?.textContent).toBe("Heavy cotton for cold mornings.");
+    expect(title?.compareDocumentPosition(image as Node)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(image?.compareDocumentPosition(intro as Node)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(intro?.compareDocumentPosition(slot("listing-results") as Node)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+    // The page's one h1 stays the title.
+    expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
+  });
+
+  it("draws neither without them", () => {
+    renderListing();
+    expect(slot("product-listing-banner")).toBeNull();
+    expect(slot("product-listing-intro")).toBeNull();
+  });
+});

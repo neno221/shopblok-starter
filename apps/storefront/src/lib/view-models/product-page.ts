@@ -1,12 +1,15 @@
 import type {
+  Image,
   ProductCard,
   ProductDetail,
   ProductDetailPage,
+  ProductInfoBlock,
   ProductInfoSection,
   RatingSummary,
   VariantSelection,
 } from "@shopblok/registry/contracts";
 import { stickyFor } from "@shopblok/ui/organisms/buy-box-choice";
+import { PLACEHOLDER_IMAGE } from "./common";
 
 // The product page's template data (D61, T49) from the product's view model: the default choice the
 // server renders (the island then reads `?variant=`), the information sections, the reviews' empty
@@ -55,37 +58,57 @@ function paragraphs(text: string): string[] {
     .filter((part) => part !== "");
 }
 
+/** The most pictures the gallery takes (`ProductGallery`). */
+export const MAX_GALLERY_MEDIA = 24;
+
+/**
+ * The product's pictures with the shop's after Medusa's (D83, T69): Medusa's placeholder goes once
+ * the shop has a picture, and the gallery keeps its 24.
+ */
+export function withShopPictures(detail: ProductDetail, pictures: readonly Image[]): ProductDetail {
+  if (pictures.length === 0) return detail;
+  const own = detail.media.filter((each) => each.src !== PLACEHOLDER_IMAGE.src);
+  return { ...detail, media: [...own, ...pictures].slice(0, MAX_GALLERY_MEDIA) };
+}
+
+/** The ids of the information's sections the shop's rich text may fill (`slots.richText`). */
+export const INFO_SECTION = { description: "description", delivery: "delivery" } as const;
+
 export type ProductPageText = {
   /** The catalog's `templates.productDetail` headings. */
   headings: { related: string; description: string; delivery: string };
-  /** The shop's texts (`siteText`): the buy box's notes and the delivery section. */
+  /** The shop's texts (`productPageShopText`): the buy box's notes and the delivery section. */
   notes: string[];
-  delivery: string[];
+  /** Paragraphs, the shop's rich text (drawn from `slots.richText.delivery`), or no section. */
+  delivery: readonly string[] | "rich" | null;
+  /** The shop's rich description (T69) replaces Medusa's (drawn from `slots.richText.description`). */
+  richDescription?: boolean;
 };
+
+const RICH: ProductInfoBlock[] = [{ kind: "rich" }];
 
 export function toProductDetailPage(
   detail: ProductDetail,
   related: readonly ProductCard[],
-  { headings, notes, delivery }: ProductPageText,
+  { headings, notes, delivery, richDescription = false }: ProductPageText,
 ): ProductDetailPage {
   const selection = defaultSelection(detail);
   const description = paragraphs(detail.description);
-  const sections: ProductInfoSection[] = [
-    ...(description.length === 0
+  const descriptionBlocks: ProductInfoBlock[] = richDescription
+    ? RICH
+    : description.length === 0
       ? []
-      : [
-          {
-            id: "description",
-            title: headings.description,
-            blocks: [{ kind: "text" as const, paragraphs: description }],
-          },
-        ]),
-    {
-      id: "delivery",
-      title: headings.delivery,
-      blocks: [{ kind: "text", paragraphs: delivery }],
-    },
-  ];
+      : [{ kind: "text", paragraphs: description }];
+  const deliveryBlocks: ProductInfoBlock[] =
+    delivery === "rich"
+      ? RICH
+      : delivery === null || delivery.length === 0
+        ? []
+        : [{ kind: "text", paragraphs: [...delivery] }];
+  const sections: ProductInfoSection[] = [
+    { id: INFO_SECTION.description, title: headings.description, blocks: descriptionBlocks },
+    { id: INFO_SECTION.delivery, title: headings.delivery, blocks: deliveryBlocks },
+  ].filter((section) => section.blocks.length > 0);
   const cards = related.filter((card) => card.id !== detail.id).slice(0, RELATED_PRODUCTS);
   return {
     variant: "default",

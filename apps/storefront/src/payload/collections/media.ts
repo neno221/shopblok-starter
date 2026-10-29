@@ -1,7 +1,7 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { CollectionConfig } from "payload";
-import { embeddingTags } from "../../lib/cms/tags";
+import { mediaTags } from "../../lib/cms/tags";
 import { isStaff } from "../access/roles";
 import { seedKey } from "../fields/seed-key";
 import { revalidateWhenChanged } from "../hooks/revalidate-on-publish";
@@ -53,11 +53,12 @@ export const Media: CollectionConfig = {
     update: isStaff,
     delete: isStaff,
   },
-  // The content globals and the pages' blocks embed an upload's file, size and alt text (a logo,
-  // a block's picture or video): a replaced file or a new alt text refreshes them (T61, T63).
+  // The content globals, the pages' blocks and the catalog's content embed an upload's file, size
+  // and alt text (a logo, a block's picture or video, a category's banner): a replaced file or a
+  // new alt text refreshes them (T61, T63, T69).
   hooks: revalidateWhenChanged({
     fields: ["filename", "url", "alt", "width", "height", "mimeType"],
-    tags: embeddingTags,
+    tags: mediaTags,
   }),
   upload: {
     // `apps/storefront/media`, git-ignored (T01). A shared disk or bucket replaces it in production.

@@ -14,3 +14,27 @@ export const embeddingTags = (locale: string) => [
 
 /** What a change to a form refreshes in one language (T67): its own reads, and what embeds it. */
 export const formTags = (locale: string) => [`forms:${locale}`, ...embeddingTags(locale)];
+
+/** The synced collections whose documents carry the shop's own content (D83, T69). */
+export type CatalogContentSlug = "products" | "categories" | "collections";
+
+const CATALOG_TAG_KIND: Record<CatalogContentSlug, string> = {
+  products: "product",
+  categories: "category",
+  collections: "collection",
+};
+
+/**
+ * The tag of a catalog document's content read (D73: `cms:product:<handle>`,
+ * `cms:category:<handle>`, `cms:collection:<handle>`). One for every language: a save writes the
+ * document's content in all of them at once, as far as a reader can tell (English is every
+ * language's fallback).
+ */
+export const catalogContentTag = (slug: CatalogContentSlug, handle: string) =>
+  `cms:${CATALOG_TAG_KIND[slug]}:${handle}`;
+
+/** Every catalog content read's tag besides its own: what a replaced upload refreshes. */
+export const CATALOG_CONTENT_TAG = "cms:catalog";
+
+/** What a change to an upload refreshes in one language: whatever embeds it (T61, T63, T69). */
+export const mediaTags = (locale: string) => [...embeddingTags(locale), CATALOG_CONTENT_TAG];

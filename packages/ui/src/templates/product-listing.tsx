@@ -12,12 +12,17 @@
 //   results and, once it holds results of its own (`data-active` on its root, which carries the
 //   `peer` class), the server's results are hidden by CSS (`peer-data-active:hidden`). The island is
 //   never around the server's results, so the first page's products are in the static HTML (D59).
+// - A category's or collection's banner and introduction (T69, an editor's): the banner under the
+//   title, 16:9 on a phone and 3:1 from `md`, preloaded as the page's largest picture; the
+//   introduction under it with the editor's text's look (`Prose`). The introduction is rich text the
+//   shop renders (`slots.intro`), since the registry holds none.
 // - `variant` is the contract's one value (D57).
 import type { Messages } from "@shopblok/i18n";
 import type {
   ListingResults as ListingResultsContent,
   ProductListingPage,
 } from "@shopblok/registry/contracts";
+import { Image } from "@shopblok/ui/atoms/image";
 import { cn } from "@shopblok/ui/lib/utils";
 import { ActiveFilterChips } from "@shopblok/ui/molecules/active-filter-chips";
 import { Breadcrumbs } from "@shopblok/ui/molecules/breadcrumbs";
@@ -27,6 +32,7 @@ import { FilterDrawer } from "@shopblok/ui/organisms/filter-drawer";
 import { FilterSidebar } from "@shopblok/ui/organisms/filter-sidebar";
 import { ProductGrid } from "@shopblok/ui/organisms/product-grid";
 import { ProductToolbar } from "@shopblok/ui/organisms/product-toolbar";
+import { Prose } from "@shopblok/ui/sections/prose";
 import type * as React from "react";
 
 /** The words of a listing's results: the organisms' and molecules' own, picked from a catalog. */
@@ -158,6 +164,8 @@ type ProductListingTemplateProps = ProductListingPage & {
   slots?: {
     /** The listing island in its `Suspense`: drawn before the server's results, which it hides once active. */
     island?: React.ReactNode;
+    /** The category's or collection's introduction (an editor's rich text, rendered by the shop). */
+    intro?: React.ReactNode;
   };
   /** next/link's `prefetch` for every link; the design system passes `false`. */
   prefetch?: boolean | null;
@@ -171,6 +179,7 @@ type ProductListingTemplateProps = ProductListingPage & {
 function ProductListingTemplate({
   breadcrumbs,
   title,
+  banner,
   results,
   copy,
   locale,
@@ -199,6 +208,23 @@ function ProductListingTemplate({
         >
           {title}
         </h1>
+        {banner === undefined ? null : (
+          <Image
+            src={banner.src}
+            alt={banner.alt}
+            ratio="video"
+            radius="lg"
+            sizes="(min-width: 1280px) 1216px, 100vw"
+            priority
+            className="md:aspect-[3/1]"
+            data-slot="product-listing-banner"
+          />
+        )}
+        {slots.intro == null ? null : (
+          <Prose data-slot="product-listing-intro" className="text-muted-foreground">
+            {slots.intro}
+          </Prose>
+        )}
       </div>
       <div data-slot="product-listing-region" className="min-w-0">
         {slots.island ?? null}

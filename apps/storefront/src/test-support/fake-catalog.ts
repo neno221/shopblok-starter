@@ -2,6 +2,7 @@
 // priced per region (EUR in Cyprus, USD in the US) and named per language (Greek, English), a
 // category tree, two collections, a tag and a type, and metadata. Each market gets its own reads,
 // as `catalogReads` makes them, and each read is recorded. Not a test file.
+import type { Image } from "@shopblok/registry/contracts";
 import type { CatalogReads } from "../lib/cms/resolve/catalog";
 import type { CategoryNode } from "../lib/medusa/categories";
 import type { ProductDto } from "../lib/medusa/products";
@@ -166,12 +167,15 @@ export type FakeCatalog = {
   calls: { read: keyof CatalogReads; args: unknown[] }[];
   /** Products Medusa has deleted since: gone from every read, as from the Store API. */
   deleted: Set<string>;
+  /** The categories' own pictures (their Payload documents' `image`, T69), by handle. */
+  categoryImages: Map<string, Image>;
 };
 
 /** One market's reads of the fake shop: its region's prices, its language's names. */
 export function fakeCatalog(market: FakeMarket): FakeCatalog {
   const calls: FakeCatalog["calls"] = [];
   const deleted = new Set<string>();
+  const categoryImages = new Map<string, Image>();
   // The Store API's rule: only products with a price in the region, and not deleted.
   const live = () =>
     fakeProducts.filter((each) => !deleted.has(each.id) && each.price[market.currency] !== null);
@@ -229,8 +233,9 @@ export function fakeCatalog(market: FakeMarket): FakeCatalog {
     typeProductIds: record("typeProductIds", async (value) =>
       fakeProducts.filter((each) => each.typeId === `type_${value}`).map((each) => each.id),
     ),
+    categoryImage: record("categoryImage", async (handle) => categoryImages.get(handle)),
   };
-  return { reads, calls, deleted };
+  return { reads, calls, deleted, categoryImages };
 }
 
 /** A synced document as a reference populates it (D75): its Medusa id, deleted or not. */
