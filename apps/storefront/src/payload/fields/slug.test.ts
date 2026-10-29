@@ -1,6 +1,13 @@
 import type { PayloadRequest } from "payload";
 import { describe, expect, it, vi } from "vitest";
-import { RESERVED_SEGMENTS, slugField, slugProblem, validateSlug } from "./slug";
+import {
+  postSlugProblem,
+  RESERVED_SEGMENTS,
+  slugField,
+  slugProblem,
+  validateSlug,
+  validatePostSlug,
+} from "./slug";
 
 describe("slugProblem", () => {
   it("takes lower-case letters of any script, digits and single hyphens", () => {
@@ -83,5 +90,49 @@ describe("validateSlug", () => {
     expect(count.mock.calls[1]?.[0]).toMatchObject({
       where: { and: [{ slug: { equals: "about" } }, { parent: { exists: false } }] },
     });
+  });
+});
+
+describe("postSlugProblem (T66)", () => {
+  it("takes a page's segments, reserved and two-letter ones too (a post is under /journal)", () => {
+    for (const slug of ["autumn-layers", "φροντίδα-πλεκτών", "us", "checkout"])
+      expect(postSlugProblem(slug), slug).toBeNull();
+  });
+
+  it("refuses what a page's slug refuses, and `page`, the journal's later pages' address", () => {
+    expect(postSlugProblem("Autumn Layers")).toMatch(/lower-case letters/);
+    expect(postSlugProblem("page")).toMatch(/journal's later pages/);
+  });
+});
+
+describe("validatePostSlug (T66)", () => {
+  const options = (totalDocs: number, id?: number) => {
+    const count = vi.fn(async () => ({ totalDocs }));
+    return {
+      count,
+      args: {
+        id,
+        req: { locale: "el", payload: { count } } as unknown as PayloadRequest,
+      } as unknown as Parameters<typeof validatePostSlug>[1],
+    };
+  };
+
+  it("refuses a slug another post has in the language being saved", async () => {
+    const { count, args } = options(1, 4);
+    expect(await validatePostSlug("welcome", args)).toBe("Another post already has this slug.");
+    expect(count).toHaveBeenCalledWith(
+      expect.objectContaining({
+        collection: "posts",
+        locale: "el",
+        where: { and: [{ slug: { equals: "welcome" } }, { id: { not_equals: 4 } }] },
+      }),
+    );
+  });
+
+  it("takes a free slug, and says why `page` is refused before asking", async () => {
+    expect(await validatePostSlug("welcome", options(0).args)).toBe(true);
+    const { count, args } = options(0);
+    expect(await validatePostSlug("page", args)).toMatch(/journal's later pages/);
+    expect(count).not.toHaveBeenCalled();
   });
 });

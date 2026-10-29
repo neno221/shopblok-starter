@@ -111,6 +111,62 @@ export async function siblingSlugTaken(
   return totalDocs > 0;
 }
 
+/**
+ * Why a post's slug cannot be saved, or `null` (T66, D80): a post is at `/journal/<slug>`, so its
+ * slug is one segment as a page's is, and not `page`, which the journal's later pages own
+ * (`/journal/page/2`, D59).
+ */
+export function postSlugProblem(slug: string): string | null {
+  const problem = slugProblem(slug, { topLevel: false });
+  if (problem !== null) return problem;
+  return slug === "page"
+    ? '"page" is the address of the journal\'s later pages. Choose another slug.'
+    : null;
+}
+
+/**
+ * A post's `slug` check: Payload's own first, then `postSlugProblem`, then that no other post has
+ * this slug in the language being saved, so `/journal/<slug>` names one post.
+ */
+export const validatePostSlug: TextFieldSingleValidation = async (value, options) => {
+  const base = text(value, options);
+  if (base !== true) return base;
+  if (typeof value !== "string" || value === "") return true;
+  const problem = postSlugProblem(value);
+  if (problem !== null) return problem;
+  const { req, id } = options;
+  const { totalDocs } = await req.payload.count({
+    collection: "posts",
+    where: {
+      and: [
+        { slug: { equals: value } },
+        ...(pageIdOf(id) === null ? [] : [{ id: { not_equals: pageIdOf(id) } }]),
+      ],
+    },
+    locale: (req.locale ?? undefined) as never,
+    overrideAccess: true,
+    req,
+  });
+  return totalDocs > 0 ? "Another post already has this slug." : true;
+};
+
+/** A post's `slug` (T66, D80): localized, so a Greek post has a Greek address. */
+export function postSlugField(): TextField {
+  return {
+    name: "slug",
+    type: "text",
+    localized: true,
+    required: true,
+    index: true,
+    validate: validatePostSlug,
+    admin: {
+      position: "sidebar",
+      description:
+        "The post's address in the journal, /journal/…: lower-case letters, digits and hyphens.",
+    },
+  };
+}
+
 /** A page's `slug` (D80): localized, so a Greek page has a Greek address. */
 export function slugField(): TextField {
   return {

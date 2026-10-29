@@ -15,6 +15,7 @@ import type { SectionSettings } from "@shopblok/registry/contracts";
 import { BundleSection } from "@shopblok/ui/sections/bundle";
 import { CategoryShowcaseSection } from "@shopblok/ui/sections/category-showcase";
 import { CollectionSpotlightSection } from "@shopblok/ui/sections/collection-spotlight";
+import { EditorialListSection } from "@shopblok/ui/sections/editorial-list";
 import { ComparisonSection } from "@shopblok/ui/sections/comparison";
 import { FaqSection } from "@shopblok/ui/sections/faq";
 import { FeaturedProductSection } from "@shopblok/ui/sections/featured-product";
@@ -286,6 +287,19 @@ function contactForm(
       copy={copy(ctx)}
       messages={{ note: <p>{note}</p> }}
       confirmation={<p>{confirmation}</p>}
+    />
+  );
+}
+
+function editorialList(ctx: DsContext, which: "section" | "long", settings?: SectionSettings) {
+  return (
+    <EditorialListSection
+      {...fixtures(ctx).editorialList[which]}
+      {...(settings === undefined ? {} : { settings })}
+      copy={copy(ctx)}
+      locale={lang(ctx)}
+      timeZone={timeZone(ctx)}
+      prefetch={false}
     />
   );
 }
@@ -834,6 +848,37 @@ export const sectionStories = {
         label: "Long labels",
         description: "Labels that wrap in both halves of a row; the fields keep their width.",
         render: (ctx) => contactForm(ctx, "long"),
+      },
+    ],
+  },
+  "sections/editorial-list": {
+    summary:
+      "Posts of the journal on a page: the newest or the editor's picks, in the market's language, as cards with the way to the journal.",
+    a11y: [
+      "Each post is an `<article>`: its title is an `<h3>` under the section's heading (an `<h2>` without one) and the card's only link, stretched over the card.",
+      "The picture is decoration: the title beside it names the post.",
+      "Each date is a `<time>` with the instant, written in the market's time zone and language.",
+    ],
+    live: (ctx) => editorialList(ctx, "section"),
+    statesLayout: "stack",
+    states: [
+      {
+        id: "long",
+        label: "One post, long title",
+        description: "A single card across the column, no picture, no heading and no link.",
+        render: (ctx) => editorialList(ctx, "long"),
+      },
+      {
+        id: "muted",
+        label: "Muted surface",
+        description: "The cards on the muted fill.",
+        render: (ctx) => editorialList(ctx, "section", muted),
+      },
+      {
+        id: "inverse",
+        label: "Inverse surface",
+        description: "The cards on the theme turned over; the dates keep their contrast.",
+        render: (ctx) => editorialList(ctx, "section", inverse),
       },
     ],
   },

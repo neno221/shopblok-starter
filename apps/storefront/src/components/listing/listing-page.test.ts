@@ -5,7 +5,8 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("next/cache", () => ({ cacheTag: vi.fn(), cacheLife: vi.fn() }));
 vi.mock("../../lib/current-market", () => ({ getCurrentMarket: vi.fn() }));
 
-import { categorySegments, pathPage } from "./listing-page";
+import { pathPage } from "../../lib/listing/query";
+import { categorySegments } from "./listing-page";
 
 describe("pathPage", () => {
   it("is 1 without a segment, and the number for a page from 2", () => {

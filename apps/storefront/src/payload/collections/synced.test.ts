@@ -142,16 +142,18 @@ describe("the content globals and the pages follow what they embed (T61, PR 94 r
       );
     });
 
-    it(`${config.slug}: and the pages, whose blocks link to it`, () => {
+    it(`${config.slug}: and the pages and the posts, whose blocks and text link to it`, () => {
       void update(config, { handle: "tee", deletedInMedusa: true }, { handle: "tee" });
-      expect(tags()).toEqual(expect.arrayContaining(["pages:en", "pages:el", "payload:pages"]));
+      expect(tags()).toEqual(
+        expect.arrayContaining(["pages:en", "pages:el", "payload:pages", "posts:de"]),
+      );
     });
   }
 
-  it("media: a replaced file refreshes them and the pages too", () => {
+  it("media: a replaced file refreshes them, the pages and the posts too", () => {
     void update(Media, { filename: "logo-2.png" }, { filename: "logo.png" });
     expect(tags()).toEqual(
-      expect.arrayContaining(["global:header:en", "pages:fr", "payload:pages"]),
+      expect.arrayContaining(["global:header:en", "pages:fr", "payload:pages", "posts:el"]),
     );
   });
 });

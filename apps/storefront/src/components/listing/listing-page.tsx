@@ -17,7 +17,7 @@ import {
 } from "../../lib/listing/listing";
 import {
   categoryScope,
-  pageOf,
+  pathPage,
   parseListingQuery,
   parseScope,
   scopeValue,
@@ -40,13 +40,6 @@ import { ListingIsland } from "./listing-island";
 // past the last is `notFound()`, before any `Suspense`. The filters and the sort are the island's
 // (`listing-island.tsx`): it is drawn beside the server's results, in its own `Suspense` with no
 // fallback, and does nothing for a URL without them.
-
-/** A listing's page from its path segment: `/page/2` is 2; `1` and anything else is no page (404). */
-export function pathPage(segment: string | undefined): number | null {
-  if (segment === undefined) return 1;
-  const page = pageOf(segment);
-  return page !== null && page > 1 ? page : null;
-}
 
 type ListingPageData = {
   context: MarketContext;

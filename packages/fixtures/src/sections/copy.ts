@@ -29,6 +29,8 @@ export type SectionCopy = {
     long: UspCopy;
   };
   logoCloud: { heading: string };
+  /** The editorial list (T66): its heading and its link to the journal. */
+  editorialList: { heading: string; all: string };
   faq: { heading: string };
   testimonials: { heading: string; roles: [string, string, string] };
   video: {
@@ -102,6 +104,7 @@ export const sectionCopies: Record<DesignSystemLocale, SectionCopy> = {
       },
     },
     logoCloud: { heading: "As seen in" },
+    editorialList: { heading: "From the journal", all: "See all posts" },
     faq: { heading: "Frequently asked questions" },
     testimonials: {
       heading: "What our customers say",
@@ -175,6 +178,7 @@ export const sectionCopies: Record<DesignSystemLocale, SectionCopy> = {
       },
     },
     logoCloud: { heading: "Μας είδατε στα" },
+    editorialList: { heading: "Από το ιστολόγιο", all: "Όλα τα άρθρα" },
     faq: { heading: "Συχνές ερωτήσεις" },
     testimonials: {
       heading: "Τι λένε οι πελάτες μας",
@@ -248,6 +252,7 @@ export const sectionCopies: Record<DesignSystemLocale, SectionCopy> = {
       },
     },
     logoCloud: { heading: "Bekannt aus" },
+    editorialList: { heading: "Aus dem Journal", all: "Alle Beiträge" },
     faq: { heading: "Häufig gestellte Fragen" },
     testimonials: {
       heading: "Das sagen unsere Kundinnen und Kunden",
@@ -321,6 +326,7 @@ export const sectionCopies: Record<DesignSystemLocale, SectionCopy> = {
       },
     },
     logoCloud: { heading: "Ils parlent de nous" },
+    editorialList: { heading: "Du journal", all: "Voir tous les articles" },
     faq: { heading: "Questions fréquentes" },
     testimonials: {
       heading: "Ce que disent nos clients",

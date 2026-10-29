@@ -701,6 +701,7 @@ export const de: Messages = {
     promoBanner: { ends: "Angebot endet am {date}" },
     comparison: { price: "Preis", missing: "Keine Angabe" },
     collectionSpotlight: { shop: "Zur Kollektion" },
+    editorialList: { all: "Alle Beiträge" },
     form: {
       submit: "Senden",
       sending: "Wird gesendet…",
@@ -1060,6 +1061,15 @@ export const de: Messages = {
           "Die Anfrage konnte nicht gesendet werden. Prüfen Sie die Angaben und versuchen Sie es erneut.",
         unavailable:
           "Der Shop ist gerade nicht erreichbar. Bitte versuchen Sie es gleich noch einmal.",
+      },
+    },
+    journal: {
+      title: "Journal",
+      byline: "Von {author}",
+      empty: {
+        title: "Noch keine Beiträge",
+        text: "Geschichten aus dem Shop erscheinen bald hier.",
+        action: "Alle Produkte ansehen",
       },
     },
   },

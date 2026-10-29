@@ -353,3 +353,158 @@ test("live preview: a title typed in the admin is the frame's heading within 3 s
     await context.close();
   }
 });
+
+// T66 (D80): the journal. Two posts are published here, the newest: with the seed's two that makes
+// four, two pages at e2e-smoke's page size of 3 (`STOREFRONT_LISTING_PAGE_SIZE`). The first has an
+// address in English and one in Greek; the second has English's only, which every market then
+// shows. Both are deleted at the end.
+test.describe("the journal (T66)", () => {
+  const first = {
+    en: { title: `Spring notes ${stamp}`, slug: `e2e-post-${stamp}` },
+    el: { title: `Ανοιξιάτικες σημειώσεις ${stamp}`, slug: `άρθρο-${stamp}` },
+  };
+  const second = { title: `Second post ${stamp}`, slug: `e2e-second-${stamp}` };
+  /** The seed's oldest post (`payload/seed/posts.ts`), the one left for page 2. */
+  const OLDEST = "Welcome to the journal";
+  const posts: number[] = [];
+
+  /** Creates a post in English and returns its id. */
+  async function createPost(data: Record<string, unknown>): Promise<number> {
+    const answer = await api<{ doc: { id: number } }>("POST", "/api/posts?locale=en", data);
+    expect(answer.status, answer.text).toBe(201);
+    const id = answer.json().doc.id;
+    posts.push(id);
+    return id;
+  }
+
+  /** The post links a page lists, by their text, in order. */
+  const listed = (html: string) =>
+    [...html.matchAll(/data-slot="post-card-link"[^>]*>([^<]+)</g)].map((match) => match[1]);
+
+  test.beforeAll(async () => {
+    // The pages made above leave the journal regenerating (its shell reads the pages): a
+    // regeneration that ends after the publish would keep what it read before (`settled`).
+    await settled("/us/journal");
+    await settled("/journal");
+    const now = Date.now();
+    const id = await createPost({
+      ...first.en,
+      publishedAt: new Date(now).toISOString(),
+      author: "Ann Example",
+      excerpt: "What the season brings.",
+      _status: "published",
+    });
+    const greek = await api("PATCH", `/api/posts/${id}?locale=el`, {
+      ...first.el,
+      excerpt: "Τι φέρνει η εποχή.",
+      _status: "published",
+    });
+    expect(greek.status, greek.text).toBe(200);
+    await createPost({
+      ...second,
+      publishedAt: new Date(now - 60_000).toISOString(),
+      _status: "published",
+    });
+  });
+
+  test.afterAll(async () => {
+    for (const id of posts) await api("DELETE", `/api/posts/${id}`).catch(() => undefined);
+  });
+
+  test("a published post shows in the journal and at its own address, in / and /us", async () => {
+    const lists = (path: string, title: string) => async () =>
+      listed(await (await get(path)).text()).includes(title);
+    expect(await freshWithinTwo(lists("/us/journal", first.en.title), 1_500)).toBeGreaterThan(0);
+    expect(await freshWithinTwo(lists("/journal", first.el.title), 1_500)).toBeGreaterThan(0);
+
+    const us = await (await get("/us/journal")).text();
+    // Newest first, three to a page: the two posts made here, then the seed's newer one.
+    expect(listed(us)).toEqual([first.en.title, second.title, "How to care for your knitwear"]);
+    expect(us).toContain(`href="/us/journal/${first.en.slug}"`);
+    expect(us).toContain('<link rel="canonical"');
+    const cy = await (await get("/journal")).text();
+    expect(cy).toContain('<html lang="el-CY"');
+    // The second post has no Greek of its own: its English title, at English's slug.
+    expect(listed(cy).slice(0, 2)).toEqual([first.el.title, second.title]);
+    expect(cy).toContain(`href="/journal/${encodeURIComponent(first.el.slug)}"`);
+    expect(cy).toContain(`href="/journal/${second.slug}"`);
+
+    const post = await get(`/us/journal/${first.en.slug}`);
+    expect(post.status).toBe(200);
+    const html = await post.text();
+    expect(html).toMatch(new RegExp(`data-slot="post-title"[^>]*>${first.en.title}</h1>`));
+    expect(html).toContain("Ann Example");
+    expect(html).toContain('"@type":"BlogPosting"');
+    expect(post.headers.getSetCookie(), "a post sets no cookie").toEqual([]);
+    const greek = await get(`/journal/${first.el.slug}`);
+    expect(greek.status).toBe(200);
+    expect(await greek.text()).toContain(`${first.el.title}</h1>`);
+    // Each language at its own address only.
+    expect((await get(`/us/journal/${first.el.slug}`)).status).toBe(404);
+    expect((await get(`/journal/${first.en.slug}`)).status).toBe(404);
+    expect((await get(`/journal/${second.slug}`)).status).toBe(200);
+  });
+
+  test("the post's head names its address in each market, English's where a language has none", async () => {
+    const html = await (await get(`/us/journal/${first.en.slug}`)).text();
+    expect(html).toContain(`<title>${first.en.title} | `);
+    expect(html).toContain('<meta name="description" content="What the season brings."/>');
+    const origin = new URL(base()).origin;
+    expect(html).toContain(`<link rel="canonical" href="${origin}/us/journal/${first.en.slug}"/>`);
+    const hrefLang = (language: string) =>
+      new RegExp(`<link rel="alternate" hrefLang="${language}" href="([^"]+)"/>`).exec(html)?.[1];
+    expect(hrefLang("en-US")).toBe(`${origin}/us/journal/${first.en.slug}`);
+    expect(hrefLang("el-CY")).toBe(`${origin}/journal/${encodeURIComponent(first.el.slug)}`);
+    expect(hrefLang("de-DE")).toBe(`${origin}/de/journal/${first.en.slug}`);
+  });
+
+  test("the journal's second page works by path, and pages 1 and 3 are 404s", async () => {
+    const response = await get("/us/journal/page/2");
+    expect(response.status).toBe(200);
+    const html = await response.text();
+    expect(listed(html)).toEqual([OLDEST]);
+    const origin = new URL(base()).origin;
+    expect(html).toContain(`<link rel="canonical" href="${origin}/us/journal/page/2"/>`);
+    expect(html).toContain("<title>Journal, Page 2 | ");
+    // Page 1 is `/journal` itself; a page past the last is no page.
+    expect((await get("/us/journal/page/1")).status).toBe(404);
+    expect((await get("/us/journal/page/3")).status).toBe(404);
+    // The query is not read: `?page=2` is the first page.
+    // (`get` would encode the `?` into the segment.)
+    const query = await (await fetch(`${base()}/us/journal?page=2`)).text();
+    expect(listed(query)[0]).toBe(first.en.title);
+  });
+
+  test("a missing or unpublished post is a 404, with the status", async () => {
+    expect((await get(`/us/journal/missing-${stamp}`)).status).toBe(404);
+    const slug = `e2e-draft-post-${stamp}`;
+    await createPost({ title: `Draft post ${stamp}`, slug, _status: "draft" });
+    const response = await get(`/us/journal/${slug}`);
+    expect(response.status).toBe(404);
+    expect(await response.text()).not.toContain(`Draft post ${stamp}`);
+  });
+
+  test("an editorial list on a page lists the newest posts, and links to the journal", async () => {
+    const slug = `e2e-editorial-${stamp}`;
+    await createPage({
+      title: `Editorial ${stamp}`,
+      slug,
+      layout: [
+        {
+          blockType: "editorialList",
+          variant: "standard",
+          heading: "From the journal",
+          source: "newest",
+          limit: 2,
+        },
+      ],
+      _status: "published",
+    });
+    const html = await (await get(`/us/${slug}`)).text();
+    const section = /data-slot="editorial-list-section"[\s\S]*?<\/section>/.exec(html)?.[0] ?? "";
+    expect(section).toContain("From the journal");
+    expect(listed(section)).toEqual([first.en.title, second.title]);
+    expect(section).toContain(`href="/us/journal/${first.en.slug}"`);
+    expect(section).toMatch(/href="\/us\/journal"[^>]*>[\s\S]*?See all posts/);
+  });
+});

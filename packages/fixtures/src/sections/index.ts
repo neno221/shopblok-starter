@@ -3,6 +3,7 @@ import type {
   Category,
   CategoryShowcaseSection,
   CollectionSpotlightSection,
+  EditorialListSection,
   ComparisonSection,
   FaqSection,
   FeaturedProductSection,
@@ -31,6 +32,7 @@ import {
   designSystemLocales,
   type DesignSystemLocale,
 } from "../design-system";
+import { journalHref, journalPosts } from "../pages/journal";
 import { commerceSectionCopies } from "./commerce-copy";
 import { sectionCopies } from "./copy";
 
@@ -101,6 +103,11 @@ export type SectionFixtures = {
     confirmation: string;
     long: FormBlockSection;
   };
+  /**
+   * The journal's three newest posts with the link to the journal (T66); `long` is one post with a
+   * title that wraps and no picture, under no heading.
+   */
+  editorialList: { section: EditorialListSection; long: EditorialListSection };
 };
 
 /** Every node of a category tree, parents before their children. */
@@ -364,6 +371,7 @@ function build(locale: DesignSystemLocale): SectionFixtures {
         newsletter: commerceFixtures[locale].marketing.newsletter.long,
       },
     },
+    editorialList: editorialList(locale, words.editorialList),
     formBlock: {
       section: contact,
       note: form.note,
@@ -379,6 +387,27 @@ function build(locale: DesignSystemLocale): SectionFixtures {
           ),
         },
       },
+    },
+  };
+}
+
+/** The editorial list (T66): the journal's posts, as `resolveEditorialList` would give them. */
+function editorialList(
+  locale: DesignSystemLocale,
+  words: { heading: string; all: string },
+): SectionFixtures["editorialList"] {
+  const posts = journalPosts(locale);
+  // The last post has no picture.
+  const plain = posts.at(-1);
+  if (plain === undefined) throw new Error("The journal's fixtures have no post");
+  return {
+    section: {
+      heading: words.heading,
+      posts: posts.slice(0, 3),
+      link: { label: words.all, href: journalHref(locale), appearance: "outline" },
+    },
+    long: {
+      posts: [{ ...plain, id: "post-long", title: copies[locale].journal.longTitle }],
     },
   };
 }

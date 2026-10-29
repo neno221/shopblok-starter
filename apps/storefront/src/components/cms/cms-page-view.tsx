@@ -5,6 +5,7 @@ import { pageHeading } from "../../lib/cms/page-content";
 import type { PagePaths } from "../../lib/cms/page-path";
 import type { CmsPage } from "../../lib/cms/pages";
 import { commerceContext } from "../../lib/cms/resolve/market";
+import { postsContext } from "../../lib/cms/resolve/posts";
 import { resolveLayout, type ResolveContext } from "../../lib/cms/resolve/sections";
 import { shellPaths } from "../../lib/cms/shell";
 import type { CurrentMarket } from "../../lib/market-locale";
@@ -31,7 +32,7 @@ type CmsPageViewProps = {
  * `{m}/[...slug]` and by `{m}/` for the homepage. The links resolve with the shell's paths (a child
  * category's whole path, a page's address in this language); the commerce blocks with the market's
  * catalog, or, without Medusa or a region for the market, not at all, so the content blocks still
- * draw (PR 97 review, item 6) instead of a 404.
+ * draw (PR 97 review, item 6) instead of a 404; the editorial lists with the journal's reads.
  */
 export async function CmsPageView({ page, content, market, paths, draft }: CmsPageViewProps) {
   const [messages, shell] = await Promise.all([getMessages(), getShellData()]);
@@ -42,6 +43,8 @@ export async function CmsPageView({ page, content, market, paths, draft }: CmsPa
     map: shell.map,
     paths: shellPaths(shell.categories, shell.pages ?? paths),
     ...(commerce === undefined ? {} : { commerce }),
+    // T66: the journal's posts for the editorial lists, as this page reads (Draft Mode included).
+    posts: postsContext({ market, draft }, messages),
   };
   const blocks = await resolveLayout(page.layout, resolveContext);
   const heading = pageHeading(blocks);

@@ -3,6 +3,7 @@ import type { FaqItem } from "@shopblok/registry/contracts";
 import { BundleSection } from "@shopblok/ui/sections/bundle";
 import { CategoryShowcaseSection } from "@shopblok/ui/sections/category-showcase";
 import { CollectionSpotlightSection } from "@shopblok/ui/sections/collection-spotlight";
+import { EditorialListSection } from "@shopblok/ui/sections/editorial-list";
 import { ComparisonSection } from "@shopblok/ui/sections/comparison";
 import { FaqSection } from "@shopblok/ui/sections/faq";
 import { FeaturedProductSection } from "@shopblok/ui/sections/featured-product";
@@ -58,7 +59,7 @@ type RenderBlocksProps = {
  * products and the forms (T67, D81), each posting to `submitForm` bound to the market and its
  * form, with the spam trap, and an `id` from the block's, so the answer to a post without scripts
  * scrolls back to it. The commerce blocks (T64) are drawn only with `context.commerce`, the
- * market's catalog.
+ * market's catalog, the editorial lists (T66) only with `context.posts`, the journal's reads.
  */
 export async function RenderBlocks({
   blocks,
@@ -221,6 +222,17 @@ export async function RenderBlocks({
                 hiddenFields={<FormHoneypot label={copy.form.honeypot} />}
                 submit={submitForm.bind(null, { market: context.market.key, form: block.form.id })}
                 formId={`form-${block.key}`}
+              />
+            );
+          case "editorialList":
+            return (
+              <EditorialListSection
+                key={block.key}
+                {...block.section}
+                copy={copy}
+                locale={locale}
+                timeZone={timeZone}
+                prefetch={prefetch}
               />
             );
           case "formBlock":

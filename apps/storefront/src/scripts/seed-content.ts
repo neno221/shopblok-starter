@@ -6,7 +6,7 @@
  *
  * Each content type's module is in `src/payload/seed/`, the globals' in `seed/globals.ts` (T61),
  * the forms' in `seed/forms.ts` (T67: created once, before the footer that names one);
- * `ui-strings` (T62, D77) has its own run, since its 741 documents are read and compared in one
+ * `ui-strings` (T62, D77) has its own run, since its 747 documents are read and compared in one
  * query. Safe to repeat: a second run changes nothing, and an editor's change is kept
  * (`seededUpdate`, `changeFor`), a pending draft too (`kept`). Its result is one line of JSON,
  * `{"seedContent":{"created":…,"updated":…,"unchanged":…,"kept":[…],"uiStrings":{…}}}`, among

@@ -1,9 +1,6 @@
 import type { Metadata } from "next";
-import {
-  ListingPage,
-  listingMetadata,
-  pathPage,
-} from "../../../../../../components/listing/listing-page";
+import { ListingPage, listingMetadata } from "../../../../../../components/listing/listing-page";
+import { pathPage } from "../../../../../../lib/listing/query";
 
 // D59 (T50): the store's other pages, by path (`/store/page/2`), rendered at their first visit and
 // kept in the static shell; `/store/page/1` and a page past the last are 404s.

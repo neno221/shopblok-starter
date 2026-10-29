@@ -54,6 +54,20 @@ describe("resolveLink", () => {
     });
   });
 
+  it("places a post at /journal/<slug> in the market, its slug as the language reads it (T66)", () => {
+    const post = (slug: unknown) => ({
+      type: "reference" as const,
+      reference: { relationTo: "posts", value: { slug } },
+    });
+    expect(resolveLink(post("autumn-layers"), { market: us, map: seeded })?.href).toBe(
+      "/us/journal/autumn-layers",
+    );
+    expect(resolveLink(post("φθινόπωρο"), { market: cy, map: seeded })?.href).toBe(
+      "/journal/%CF%86%CE%B8%CE%B9%CE%BD%CF%8C%CF%80%CF%89%CF%81%CE%BF",
+    );
+    expect(resolveLink(post(""), { market: us, map: seeded })).toBeNull();
+  });
+
   it("leaves out a reference it cannot place, and an unsafe URL", () => {
     const ctx = { market: us, map: seeded, paths };
     expect(

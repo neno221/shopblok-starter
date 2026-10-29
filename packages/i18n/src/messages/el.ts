@@ -714,6 +714,7 @@ export const el: Messages = {
     promoBanner: { ends: "Η προσφορά λήγει {date}" },
     comparison: { price: "Τιμή", missing: "Δεν αναφέρεται" },
     collectionSpotlight: { shop: "Δείτε τη συλλογή" },
+    editorialList: { all: "Όλα τα άρθρα" },
     form: {
       submit: "Αποστολή",
       sending: "Αποστολή…",
@@ -1066,6 +1067,15 @@ export const el: Messages = {
         rejected:
           "Δεν ήταν δυνατή η αποστολή του αιτήματος. Ελέγξτε τα στοιχεία και δοκιμάστε ξανά.",
         unavailable: "Δεν ήταν δυνατή η σύνδεση με το κατάστημα. Δοκιμάστε ξανά σε λίγο.",
+      },
+    },
+    journal: {
+      title: "Ιστολόγιο",
+      byline: "Από {author}",
+      empty: {
+        title: "Δεν υπάρχουν άρθρα ακόμη",
+        text: "Ιστορίες από το κατάστημα θα εμφανιστούν εδώ σύντομα.",
+        action: "Όλα τα προϊόντα",
       },
     },
   },

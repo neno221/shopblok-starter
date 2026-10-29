@@ -26,6 +26,7 @@ import {
   type CommerceContext,
   type ResolvedCommerceBlock,
 } from "./commerce";
+import { resolveEditorialList, type PostsContext, type ResolvedEditorialList } from "./editorial";
 import { newsletterTarget, populatedForm } from "./forms";
 import { paragraphs, parsed, sectionLink, settingsOf, text } from "./shared";
 
@@ -55,6 +56,11 @@ export type ResolveContext = {
    * read where Medusa is not, such as a build without it).
    */
   commerce?: CommerceContext;
+  /**
+   * The journal's reads, for the `editorialList` blocks (T66); without them those blocks are left
+   * out (a read with no page around it, such as a test page's).
+   */
+  posts?: PostsContext;
 };
 
 /** A block resolved for its section; `key` is the block's id, for React's list. */
@@ -82,7 +88,8 @@ export type ResolvedBlock =
           confirmation: LexicalState | null;
         }
     ))
-  | ResolvedCommerceBlock;
+  | ResolvedCommerceBlock
+  | ResolvedEditorialList;
 
 const mediaOf = (value: unknown): Media | undefined =>
   value !== null && typeof value === "object" ? (value as Media) : undefined;
@@ -130,7 +137,8 @@ function videoSource(block: Extract<LayoutBlock, { blockType: "video" }>): Video
 
 /**
  * One content block of a page's layout as its section's view model, or `null` when it cannot be
- * drawn. A commerce block reads Medusa: `resolveLayout` resolves it.
+ * drawn. A commerce block reads Medusa, an editorial list the journal: `resolveLayout` resolves
+ * them.
  */
 export function resolveBlock(block: LayoutBlock, context: ResolveContext): ResolvedBlock | null {
   const key = block.id ?? `${block.blockType}`;
@@ -320,22 +328,22 @@ async function resolveCommerceOrSkip(
 
 /**
  * A page's layout, resolved: the blocks that can be drawn, in the editor's order. The commerce
- * blocks read the market's catalog at the same time (T64); without `context.commerce`, or when
- * their read fails, they are left out.
+ * blocks read the market's catalog at the same time (T64), the editorial lists the journal (T66);
+ * without `context.commerce` or `context.posts`, or when their read fails, they are left out.
  */
 export async function resolveLayout(
   layout: Page["layout"] | undefined,
   context: ResolveContext,
 ): Promise<ResolvedBlock[]> {
-  const { commerce } = context;
+  const { commerce, posts } = context;
   const resolved = await Promise.all(
-    (layout ?? []).map((block) =>
-      isCommerce(block)
-        ? commerce === undefined
-          ? null
-          : resolveCommerceOrSkip(block, context, commerce)
-        : resolveBlock(block, context),
-    ),
+    (layout ?? []).map((block) => {
+      if (isCommerce(block))
+        return commerce === undefined ? null : resolveCommerceOrSkip(block, context, commerce);
+      if (block.blockType === "editorialList")
+        return posts === undefined ? null : resolveEditorialList(block, context, posts);
+      return resolveBlock(block, context);
+    }),
   );
   return resolved.flatMap((block) => block ?? []);
 }

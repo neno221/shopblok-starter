@@ -2,7 +2,7 @@ import { z } from "zod";
 import { Address, AddressFormState } from "./address";
 import { Cart } from "./cart";
 import { CheckoutSteps, OrderSummary, PaymentStep } from "./cart-checkout-account";
-import { Href, Id, Link } from "./content";
+import { Href, Id, IsoDateTime, Link } from "./content";
 import { Image } from "./image";
 import { Breadcrumbs, PageState, SearchQuery } from "./listing";
 import { FilterPanel, ProductCarousel, ProductGrid, ProductToolbar } from "./listing-organisms";
@@ -39,6 +39,54 @@ export const CmsPage = z.object({
       "`title`: the template draws the title; `hero`: the first block, a hero, has the `<h1>`",
     ),
 });
+
+/**
+ * A post as a list shows it (T66, D80): the journal's pages and the `editorialList` block. Its
+ * date is the post's `publishedAt`, which the list draws in the market's time zone.
+ */
+export const PostCard = z.object({
+  id: Id,
+  title: z.string().min(1),
+  href: Href.describe("The post's page: `/journal/<slug>` in the market"),
+  excerpt: z.string().min(1).optional().describe("The editor's summary, under the title"),
+  image: Image.optional().describe("The post's hero picture; its `alt` is the picture's own"),
+  publishedAt: IsoDateTime,
+  author: z.string().min(1).optional(),
+});
+
+/**
+ * The journal (`journal`, T66, D80, D59): the posts, newest first, a page of them at a time, with
+ * the pager; later pages are paths (`/journal/page/2`). Only the first page may be empty: the
+ * template says there is nothing yet.
+ */
+export const JournalPage = z
+  .object({
+    title: z.string().min(1).describe("The page's one heading: the journal's name"),
+    breadcrumbs: Breadcrumbs.describe("Home, then the journal"),
+    posts: z.array(PostCard).max(48),
+    page: PageState,
+    shopHref: Href.describe("Where an empty journal sends the visitor: the store"),
+  })
+  .refine(
+    (journal) => journal.posts.length > 0 || journal.page.page === 1,
+    "a page after the first with no post",
+  );
+
+/**
+ * A post (`post`, T66, D80): the breadcrumbs (Home, the journal), the title as the page's `<h1>`,
+ * the date and the author, the editor's summary, the hero picture; the post's text is the
+ * template's `children`, which the shop renders from Lexical.
+ */
+export const PostPage = z
+  .object({
+    title: z.string().min(1),
+    breadcrumbs: Breadcrumbs,
+    publishedAt: IsoDateTime,
+    author: z.string().min(1).optional(),
+    excerpt: z.string().min(1).optional().describe("Drawn as the post's lead"),
+    image: Image.optional().describe("The hero picture, across the column"),
+  })
+  .refine((post) => post.breadcrumbs.current === post.title, "the breadcrumbs end on another page");
 
 /** The error page (`error`): it says nothing about the error, only what the visitor can do. */
 export const ErrorPage = z.object({ homeHref: Href });
@@ -241,6 +289,9 @@ export const OrderConfirmationPage = z
 
 export type NotFoundPage = z.infer<typeof NotFoundPage>;
 export type CmsPage = z.infer<typeof CmsPage>;
+export type PostCard = z.infer<typeof PostCard>;
+export type JournalPage = z.infer<typeof JournalPage>;
+export type PostPage = z.infer<typeof PostPage>;
 export type ListingResults = z.infer<typeof ListingResults>;
 export type ProductListingPage = z.infer<typeof ProductListingPage>;
 export type SearchResultsPage = z.infer<typeof SearchResultsPage>;

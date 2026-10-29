@@ -22,7 +22,7 @@ const atom = (id: string, extra: Partial<EntryInput> = {}): EntryInput => ({
 });
 
 describe("the registry (D40)", () => {
-  it("lists M1's 8 foundations and 32 atoms, then T32's 15 molecules, T33's 13 and T34's 12, then T35's 4 organisms and 6 headers, T36's 2 organisms and 5 footers, T37's 7 organisms, T38's 7 and T39's 11, then T63's 8 sections, T64's 9 and T67's 2, then T48's 2 templates, T49's 1, T50's 2, T51's 1, T52's 3 and T53's 3, in the navigation's order", () => {
+  it("lists M1's 8 foundations and 32 atoms, then T32's 15 molecules, T33's 13 and T34's 12, then T35's 4 organisms and 6 headers, T36's 2 organisms and 5 footers, T37's 7 organisms, T38's 7 and T39's 11, then T63's 8 sections, T64's 9, T67's 2 and T66's 1, then T48's 2 templates, T49's 1, T50's 2, T51's 1, T52's 3, T53's 3, T65's 1 and T66's 2, in the navigation's order", () => {
     expect(byGroup("foundations")).toHaveLength(8);
     expect(byGroup("atoms")).toHaveLength(32);
     expect(byGroup("molecules")).toHaveLength(40);
@@ -48,6 +48,7 @@ describe("the registry (D40)", () => {
       "sections/recently-viewed",
       "sections/newsletter",
       "sections/form-block",
+      "sections/editorial-list",
     ]);
     expect(byGroup("templates").map((entry) => entry.id)).toEqual([
       "templates/not-found",
@@ -63,8 +64,10 @@ describe("the registry (D40)", () => {
       "templates/account",
       "templates/order-lookup",
       "templates/cms-page",
+      "templates/journal",
+      "templates/post",
     ]);
-    expect(entries).toHaveLength(154);
+    expect(entries).toHaveLength(157);
     expect(entries.map((entry) => entry.id).slice(0, 2)).toEqual([
       "foundations/colors",
       "foundations/typography",
@@ -111,7 +114,7 @@ describe("the registry (D40)", () => {
     ]);
     expect(byGroup("headers-footers").at(5)?.id).toBe("headers-footers/header-transparent");
     expect(byGroup("headers-footers").at(-1)?.id).toBe("headers-footers/footer-two-tier");
-    expect(entries.at(-1)?.id).toBe("templates/cms-page");
+    expect(entries.at(-1)?.id).toBe("templates/post");
   });
 
   it("gives every entry a unique `{group}/{slug}` id in a known group, and a label", () => {
@@ -188,6 +191,7 @@ describe("the registry (D40)", () => {
       "recentlyViewed",
       "newsletter",
       "formBlock",
+      "editorialList",
     ]);
     expect(entries.filter((entry) => entry.block !== undefined)).toEqual(byGroup("sections"));
   });
@@ -411,10 +415,10 @@ describe("variantsOf", () => {
       },
     ]);
     expect(variantsOf("nope", list)).toEqual([]);
-    // The 40 variants a shop picks (D46, D52, D79): six headers, five footers, ten cards and the
-    // nineteen blocks' one each (T63's eight content blocks, T64's nine commerce blocks, T67's two
-    // form blocks).
-    expect(entries.filter((entry) => entry.family !== undefined)).toHaveLength(40);
+    // The 41 variants a shop picks (D46, D52, D79): six headers, five footers, ten cards and the
+    // twenty blocks' one each (T63's eight content blocks, T64's nine commerce blocks, T67's two
+    // form blocks, T66's editorial list).
+    expect(entries.filter((entry) => entry.family !== undefined)).toHaveLength(41);
   });
 });
 

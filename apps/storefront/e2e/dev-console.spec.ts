@@ -18,6 +18,11 @@ checkRoutesInDev([
   { path: "/us/collections/summer-edit", status: 200 },
   { path: "/us/collections/everyday-basics/page/2", status: 200 },
   { path: "/us/products/demo-classic-tee", status: 200 },
+  // T66: the journal and a seeded post (`seed-content`), in English and in Greek, and a missing one.
+  { path: "/us/journal", status: 200 },
+  { path: "/us/journal/knitwear-care", status: 200 },
+  { path: "/journal/φροντίδα-πλεκτών", status: 200 },
+  { path: "/us/journal/no-such-post", status: 404 },
   // Not an open market: the proxy lets it through and the market layout answers its 404 page.
   { path: "/el-cy", status: 404 },
   { path: "/nope/nope", status: 404 },

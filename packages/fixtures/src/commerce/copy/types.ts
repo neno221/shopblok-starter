@@ -245,4 +245,17 @@ export type Copy = {
   };
   /** A CMS page under a parent (T65): the parent's title and the page's. */
   cmsPage: { parent: string; title: string };
+  /**
+   * The journal (T66): its name (the catalog's `templates.journal.title`), four posts (each with its summary, its author and its picture's alternative
+   * text), the first post's text in three paragraphs, and a title long enough to wrap.
+   */
+  journal: {
+    title: string;
+    posts: [JournalPostCopy, JournalPostCopy, JournalPostCopy, JournalPostCopy];
+    body: [string, string, string];
+    longTitle: string;
+  };
 };
+
+/** A post as the journal's fixtures write it. */
+export type JournalPostCopy = { title: string; excerpt: string; author: string; alt: string };

@@ -426,4 +426,44 @@ export const en: Copy = {
       "Express delivery to your door with a signature on receipt and tracking by text message",
   },
   cmsPage: { parent: "About us", title: "Our team" },
+  journal: {
+    title: "Journal",
+    posts: [
+      {
+        title: "Five ways to layer for autumn",
+        excerpt:
+          "A hoodie, a shirt and a light jacket: how we wear the new collection from the first cool morning to the last warm afternoon.",
+        author: "Maria Ioannou",
+        alt: "A hoodie and a jacket laid out on a wooden table",
+      },
+      {
+        title: "How to care for organic cotton",
+        excerpt:
+          "Cold water, a gentle cycle and no tumble dryer. Small habits that keep a favourite piece soft for years.",
+        author: "Nikos Petrou",
+        alt: "Folded cotton shirts beside a basket of laundry",
+      },
+      {
+        title: "Behind the seams: a visit to our workshop",
+        excerpt:
+          "We spent a day with the people who cut and sew our hoodies, and came back with a new respect for a flat seam.",
+        author: "Maria Ioannou",
+        alt: "A sewing machine with a half-finished sleeve",
+      },
+      {
+        title: "Notes from the studio",
+        excerpt:
+          "Colours we tried and dropped, a fabric we fell for, and what is coming next season.",
+        author: "Eleni Georgiou",
+        alt: "Fabric swatches pinned to a board",
+      },
+    ],
+    body: [
+      "Autumn is the season of changing plans: a cool morning, a warm afternoon and an evening that needs a jacket again. Layering is how we dress for all three.",
+      "Start with a shirt that breathes, add a hoodie you can take off without a second thought, and keep a light jacket for the walk home.",
+      "Each piece in the collection is cut to sit well over or under the others, so any two make an outfit.",
+    ],
+    longTitle:
+      "Everything we learned about natural dyes, wool blends and the long, patient craft of making clothes that last",
+  },
 };

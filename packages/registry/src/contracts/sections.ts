@@ -3,7 +3,7 @@ import { Href, Id, IsoDateTime, Link } from "./content";
 import { FORM_LIMITS } from "./form-limits";
 import { Image } from "./image";
 import { EmptyStateContent } from "./listing";
-import { CategoryTile } from "./pages";
+import { CategoryTile, PostCard } from "./pages";
 import { PriceSummary, ProductCard } from "./product";
 import { AccordionSection, Countdown, DiscountCode, NewsletterSignup } from "./site";
 
@@ -439,6 +439,17 @@ export const FormBlockSection = z.object({
   }),
 });
 
+/**
+ * `editorialList` (T66, D79): posts of the journal in the market's language, the newest or the
+ * editor's picks, as cards, with a link to the journal.
+ */
+export const EditorialListSection = z.object({
+  settings,
+  heading,
+  posts: z.array(PostCard).min(1).max(12),
+  link: SectionLink.optional().describe("The journal, when the editor shows the link"),
+});
+
 export type SectionSettings = z.infer<typeof SectionSettings>;
 export type SectionLink = z.infer<typeof SectionLink>;
 export type RichTextSection = z.infer<typeof RichTextSection>;
@@ -469,3 +480,4 @@ export type NewsletterSection = z.infer<typeof NewsletterSection>;
 export type FormFieldKind = (typeof FORM_FIELD_KINDS)[number];
 export type FormField = z.infer<typeof FormField>;
 export type FormBlockSection = z.infer<typeof FormBlockSection>;
+export type EditorialListSection = z.infer<typeof EditorialListSection>;

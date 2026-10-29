@@ -31,11 +31,15 @@ const pageDocPath = (doc: Record<string, unknown>): string | null => {
   return parent === null || parent === undefined || parent === "" ? pagePath([doc["slug"]]) : null;
 };
 
+/** A post's address (T66, D80): `/journal/<slug>`, its slug in the language being read. */
+export const postPath = (slug: unknown): string | null =>
+  typeof slug === "string" && slug !== "" ? `/journal/${encodeURIComponent(slug)}` : null;
+
 /**
  * Where a CMS document is inside a market, per collection (`/about`). One map for everything that
  * turns a document into a URL: `resolveLink` (an internal link) and live preview's url function
  * (the frame), so a link and the preview of its target can never point at different pages. A page's
- * is its full path (`pageDocPath`); T66 adds `posts`.
+ * is its full path (`pageDocPath`), a post's `/journal/<slug>` (T66).
  *
  * The catalog's paths are SPEC §8.1's (T61). A category's page is its whole path of handles
  * (`/categories/apparel/tops`), which its document does not hold (its `parent` is an id): this map
@@ -44,6 +48,7 @@ const pageDocPath = (doc: Record<string, unknown>): string | null => {
  */
 export const CMS_PATHS: InternalPaths = {
   pages: pageDocPath,
+  posts: (doc) => postPath(doc["slug"]),
   products: catalogPath("/products", encodeURIComponent),
   categories: catalogPath("/categories", encodeURIComponent),
   collections: catalogPath("/collections", encodeURIComponent),

@@ -6,10 +6,12 @@ import {
   CmsPage,
   ErrorPage,
   HomePage,
+  JournalPage,
   ListingResults,
   NotFoundPage,
   OrderConfirmationPage,
   OrderLookupPage,
+  PostPage,
   ProductDetailPage,
   ProductListingPage,
   SearchResultsPage,
@@ -130,5 +132,21 @@ describe("the page fixtures (T48)", () => {
       expect(pages.cmsPage.breadcrumbs?.current).toBe(pages.cmsPage.title);
     }
     expect(pageFixtures.el.cmsPage.title).toBe("Η ομάδα μας");
+  });
+
+  it("give the journal, newest first, and a post under it in every locale (T66)", () => {
+    for (const pages of Object.values(pageFixtures)) {
+      for (const journal of [pages.journal.first, pages.journal.empty])
+        expect(JournalPage.parse(journal)).toEqual(journal);
+      for (const post of [pages.post.page, pages.post.long])
+        expect(PostPage.parse(post)).toEqual(post);
+      const dates = pages.journal.first.posts.map((post) => Date.parse(post.publishedAt));
+      expect(dates).toEqual([...dates].sort((a, b) => b - a));
+      expect(pages.journal.empty.posts).toEqual([]);
+      const journalHref = pages.post.page.breadcrumbs.trail.at(-1)?.href;
+      expect(pages.journal.first.posts[0]?.href.startsWith(`${journalHref}/`)).toBe(true);
+      expect(pages.post.page.title).toBe(pages.journal.first.posts[0]?.title);
+      expect(pages.post.page.image?.alt).not.toBe("");
+    }
   });
 });

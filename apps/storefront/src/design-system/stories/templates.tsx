@@ -22,12 +22,14 @@ import {
 import { CmsPageTemplate } from "@shopblok/ui/templates/cms-page";
 import { ErrorTemplate } from "@shopblok/ui/templates/error";
 import { HomeTemplate, homeCopy } from "@shopblok/ui/templates/home";
+import { JournalTemplate, journalCopy } from "@shopblok/ui/templates/journal";
 import { NotFoundTemplate } from "@shopblok/ui/templates/not-found";
 import {
   OrderConfirmationTemplate,
   orderConfirmationCopy,
 } from "@shopblok/ui/templates/order-confirmation";
 import { OrderLookupTemplate, orderLookupCopy } from "@shopblok/ui/templates/order-lookup";
+import { PostTemplate, postCopy } from "@shopblok/ui/templates/post";
 import {
   ProductDetailTemplate,
   productDetailCopy,
@@ -371,6 +373,52 @@ function cmsPage(ctx: DsContext, mainId: string, state: CmsPageState) {
       {richText(ctx)}
       {mediaWithText(ctx, "section", { surface: "muted" })}
     </CmsPageTemplate>
+  );
+}
+
+type JournalState = "first" | "second" | "empty";
+
+/** The journal's address in the DS market, and a later page's (`/journal/page/2`, D59). */
+const journalHrefFor = (base: string) => (n: number) => (n === 1 ? base : `${base}/page/${n}`);
+
+function journal(ctx: DsContext, mainId: string, state: JournalState) {
+  const { first, empty } = pageFixtures[ctx.locale].journal;
+  const base = `${commerceFixtures[ctx.locale].header.content.homeHref.replace(/\/$/, "")}/journal`;
+  const fixture =
+    state === "empty"
+      ? empty
+      : state === "second"
+        ? { ...first, posts: first.posts.slice(2), page: { page: 2, pageCount: 2 } }
+        : first;
+  return (
+    <JournalTemplate
+      {...fixture}
+      copy={journalCopy(catalogs[ctx.locale])}
+      locale={lang(ctx)}
+      timeZone={timeZone(ctx)}
+      hrefFor={journalHrefFor(base)}
+      prefetch={false}
+      as="div"
+      mainId={mainId}
+    />
+  );
+}
+
+function post(ctx: DsContext, mainId: string, which: "page" | "long") {
+  const { body, ...fixtures } = pageFixtures[ctx.locale].post;
+  return (
+    <PostTemplate
+      {...fixtures[which]}
+      copy={postCopy(catalogs[ctx.locale])}
+      locale={lang(ctx)}
+      timeZone={timeZone(ctx)}
+      as="div"
+      mainId={mainId}
+    >
+      {body.map((paragraph) => (
+        <p key={paragraph}>{paragraph}</p>
+      ))}
+    </PostTemplate>
   );
 }
 
@@ -820,6 +868,64 @@ export const templateStories = {
         label: "Opening with a hero",
         description: "The hero's title is the page's heading; the page's own is not drawn.",
         render: (ctx) => cmsPage(ctx, "template-cms-page-hero", "hero"),
+      },
+    ],
+    statesLayout: "stack",
+  },
+  "templates/journal": {
+    summary:
+      "The journal: the shop's posts, newest first, a page at a time, each a card with its picture, its title, its date and author and its summary; later pages are addresses (`/journal/page/2`).",
+    a11y: [
+      pageNote,
+      "The journal's name is the page's one `<h1>` and each post's title an `<h2>`, the card's only link; the picture beside it is decoration.",
+      "Each date is a `<time>` with the instant, written in the market's time zone and language.",
+      "The pager is a `navigation` landmark of links (SPEC §8.4), the current page marked `aria-current`.",
+    ],
+    live: (ctx) => page(ctx, "template-journal", journal(ctx, "template-journal", "first")),
+    states: [
+      {
+        id: "first",
+        label: "First page",
+        description: "Four posts, the last without a picture, and the pager to page 2.",
+        render: (ctx) => journal(ctx, "template-journal-first", "first"),
+      },
+      {
+        id: "second",
+        label: "A later page",
+        description: "Page 2 of 2, by its path: two posts and the pager back.",
+        render: (ctx) => journal(ctx, "template-journal-second", "second"),
+      },
+      {
+        id: "empty",
+        label: "No post yet",
+        description: "What the journal says before the first post, with the way to the shop.",
+        render: (ctx) => journal(ctx, "template-journal-empty", "empty"),
+      },
+    ],
+    statesLayout: "stack",
+  },
+  "templates/post": {
+    summary:
+      "A post of the journal: the breadcrumbs to the journal, the title, the date and the author, the summary as the lead, the hero picture and the editor's text in a reading column.",
+    a11y: [
+      pageNote,
+      "The post is an `<article>`; its title is the page's one `<h1>` and the editor's headings start at h2.",
+      "The date is a `<time>` with the instant, in the market's time zone; the hero picture has the editor's alternative text.",
+      'The breadcrumbs are a `navigation` landmark: Home, the journal, and the post itself as text (`aria-current="page"`).',
+    ],
+    live: (ctx) => page(ctx, "template-post", post(ctx, "template-post", "page")),
+    states: [
+      {
+        id: "post",
+        label: "A post",
+        description: "The picture, the lead and three paragraphs.",
+        render: (ctx) => post(ctx, "template-post-post", "page"),
+      },
+      {
+        id: "long",
+        label: "Long title, no picture",
+        description: "A title that wraps over several lines; no picture and no lead.",
+        render: (ctx) => post(ctx, "template-post-long", "long"),
       },
     ],
     statesLayout: "stack",
