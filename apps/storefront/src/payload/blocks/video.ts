@@ -1,5 +1,5 @@
-import type { TextFieldSingleValidation } from "payload";
-import { text } from "payload/shared";
+import type { ArrayFieldValidation, TextFieldSingleValidation } from "payload";
+import { array, text } from "payload/shared";
 import { parseVideoUrl } from "../../lib/cms/video";
 import { languageLabel, LANGUAGES } from "../locales";
 import { headingField, imageField, mediaOfType, sectionBlock } from "./section-block";
@@ -14,6 +14,23 @@ const validateEmbedUrl: TextFieldSingleValidation = (value, args) => {
   return value == null || value === "" || parseVideoUrl(value) !== null
     ? true
     : "Paste the address of a YouTube or Vimeo video (https).";
+};
+
+/**
+ * One captions file per language: the player lists each once. The admin's form passes the row
+ * count as the value, so the rows are read from the block (`siblingData`) when it does.
+ */
+const validateCaptions: ArrayFieldValidation = (value, args) => {
+  const base = array(value, args);
+  if (base !== true) return base;
+  const rows = Array.isArray(value)
+    ? value
+    : (args.siblingData as { captions?: unknown })?.captions;
+  if (!Array.isArray(rows)) return true;
+  const languages = rows.map((row) => (row as { language?: unknown })?.language).filter(Boolean);
+  return new Set(languages).size === languages.length
+    ? true
+    : "Each language once: one captions file per language.";
 };
 
 /**
@@ -69,6 +86,7 @@ export const VideoBlock = sectionBlock({
       type: "array",
       required: true,
       minRows: 1,
+      validate: validateCaptions,
       admin: {
         condition: isUpload,
         description: "A WebVTT file per language; the page's language is on by default.",

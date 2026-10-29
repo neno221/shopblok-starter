@@ -1,11 +1,10 @@
 // Ours (T63, SETUP.md "Blocks (T63)"; SPEC §7.5 `link`). A section's calls to action in a row that
 // wraps: each a button (`default`, `outline`) or a 44 px text link, as the editor's `appearance`
-// says. A link to another site opens in a new tab and says so to screen readers. A server
-// component.
+// says. A link to another site opens in a new tab and says so to screen readers, as the Link atom
+// does it (`linkRel`, `NewTabNote`). A server component.
 import type { SectionLink } from "@shopblok/registry/contracts";
 import { buttonVariants } from "@shopblok/ui/atoms/button";
-import { Link } from "@shopblok/ui/atoms/link";
-import { VisuallyHidden } from "@shopblok/ui/atoms/visually-hidden";
+import { Link, linkRel, NewTabNote } from "@shopblok/ui/atoms/link";
 import { cn } from "@shopblok/ui/lib/utils";
 import NextLink from "next/link";
 import type * as React from "react";
@@ -27,7 +26,7 @@ function SectionLinks({ links, newTabLabel, prefetch, className }: SectionLinksP
   return (
     <ul data-slot="section-links" className={cn("flex flex-wrap items-center gap-3", className)}>
       {links.map((link) => {
-        const newTab = link.external === true ? { target: "_blank" as const } : {};
+        const target = link.external === true ? "_blank" : undefined;
         const href = link.href as LinkHref;
         return (
           <li key={`${link.href} ${link.label}`} className="min-w-0 max-w-full">
@@ -38,7 +37,7 @@ function SectionLinks({ links, newTabLabel, prefetch, className }: SectionLinksP
                 variant="standalone"
                 newTabLabel={newTabLabel}
                 className="wrap-anywhere"
-                {...newTab}
+                target={target}
               >
                 {link.label}
               </Link>
@@ -46,17 +45,17 @@ function SectionLinks({ links, newTabLabel, prefetch, className }: SectionLinksP
               <NextLink
                 href={href}
                 prefetch={prefetch}
-                rel={link.external === true ? "noopener noreferrer" : undefined}
+                rel={linkRel(target, undefined)}
                 className={cn(
                   buttonVariants({
                     variant: link.appearance === "outline" ? "outline" : "default",
                   }),
                   "max-w-full wrap-anywhere",
                 )}
-                {...newTab}
+                target={target}
               >
                 {link.label}
-                {link.external === true ? <VisuallyHidden> ({newTabLabel})</VisuallyHidden> : null}
+                <NewTabNote target={target} label={newTabLabel} />
               </NextLink>
             )}
           </li>

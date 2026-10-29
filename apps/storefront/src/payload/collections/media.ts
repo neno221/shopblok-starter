@@ -1,7 +1,7 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { CollectionConfig } from "payload";
-import { contentGlobalTags } from "../../lib/cms/globals";
+import { embeddingTags } from "../../lib/cms/tags";
 import { isStaff } from "../access/roles";
 import { revalidateWhenChanged } from "../hooks/revalidate-on-publish";
 
@@ -56,7 +56,7 @@ export const Media: CollectionConfig = {
   // a block's picture or video): a replaced file or a new alt text refreshes them (T61, T63).
   hooks: revalidateWhenChanged({
     fields: ["filename", "url", "alt", "width", "height", "mimeType"],
-    tags: (locale) => [...contentGlobalTags(locale), `pages:${locale}`, "payload:pages"],
+    tags: embeddingTags,
   }),
   upload: {
     // `apps/storefront/media`, git-ignored (T01). A shared disk or bucket replaces it in production.

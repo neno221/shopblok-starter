@@ -11,6 +11,8 @@ export type SectionBlockOptions = {
   plural: string;
   /** The content fields, between the variant and the section settings. */
   fields: Field[];
+  /** The settings' defaults where the section's own differ (`sectionSettings`). */
+  settings?: Parameters<typeof sectionSettings>[0];
 };
 
 /**
@@ -20,7 +22,13 @@ export type SectionBlockOptions = {
  * `/registry/sections/{slug}.png`), so the DS, the drawer and the picker show the same picture. A
  * slug the registry has no section for fails here, when the config loads.
  */
-export function sectionBlock({ slug, interfaceName, plural, fields }: SectionBlockOptions): Block {
+export function sectionBlock({
+  slug,
+  interfaceName,
+  plural,
+  fields,
+  settings,
+}: SectionBlockOptions): Block {
   const entry = sectionEntries().find((each) => each.block === slug);
   if (entry?.family === undefined || entry.thumbnail === undefined)
     throw new Error(`sectionBlock: the registry has no section for the block "${slug}".`);
@@ -29,7 +37,7 @@ export function sectionBlock({ slug, interfaceName, plural, fields }: SectionBlo
     interfaceName,
     labels: { singular: entry.label, plural },
     admin: { images: { thumbnail: { url: entry.thumbnail, alt: entry.label } } },
-    fields: [variantField({ family: entry.family }), ...fields, sectionSettings()],
+    fields: [variantField({ family: entry.family }), ...fields, sectionSettings(settings)],
   };
 }
 

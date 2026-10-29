@@ -4,7 +4,7 @@ import {
   type JSXConvertersFunction,
 } from "@payloadcms/richtext-lexical/react";
 import type { ReactNode } from "react";
-import { isSafeLinkUrl, resolveLink, type LinkValue } from "../../lib/cms/link";
+import { resolveLink, type LinkValue } from "../../lib/cms/link";
 import type { LexicalState, ResolveContext } from "../../lib/cms/resolve/sections";
 
 type LinkFields = {
@@ -42,15 +42,12 @@ function converters(context: ResolveContext): JSXConvertersFunction {
       ...defaultConverters,
       link: ({ node, nodesToJSX }) =>
         anchor(node.fields as LinkFields, nodesToJSX({ nodes: node.children })),
-      autolink: ({ node, nodesToJSX }) => {
-        const children = nodesToJSX({ nodes: node.children });
-        const url = (node.fields as LinkFields).url ?? "";
-        return isSafeLinkUrl(url) ? (
-          anchor({ ...(node.fields as LinkFields), linkType: "custom" }, children)
-        ) : (
-          <>{children}</>
-        );
-      },
+      // A URL typed into the text: a custom link, through the same check as any other.
+      autolink: ({ node, nodesToJSX }) =>
+        anchor(
+          { ...(node.fields as LinkFields), linkType: "custom" },
+          nodesToJSX({ nodes: node.children }),
+        ),
     }) as JSXConverters;
 }
 

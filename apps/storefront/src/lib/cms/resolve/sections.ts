@@ -68,9 +68,14 @@ function defined<T extends Record<string, unknown>>(
 const text = (value: string | null | undefined): string | undefined =>
   typeof value === "string" && value.trim() !== "" ? value : undefined;
 
+const SETTINGS = ["anchor", "spacing", "surface", "container", "visibility"] as const;
+
+/** The settings an editor set, and only those: no key for the rest, so a section's own default holds. */
 function settingsOf(block: { sectionSettings?: Record<string, unknown> | null }): SectionSettings {
-  const { anchor, spacing, surface, container, visibility } = defined(block.sectionSettings);
-  return { anchor, spacing, surface, container, visibility } as SectionSettings;
+  const set = defined(block.sectionSettings);
+  return Object.fromEntries(
+    SETTINGS.flatMap((key) => (set[key] === undefined ? [] : [[key, set[key]]])),
+  ) as SectionSettings;
 }
 
 /** A blank line ends a paragraph: LF or CRLF (a textarea sends CRLF), spaces on it allowed. */
@@ -122,11 +127,14 @@ function videoSource(block: Extract<LayoutBlock, { blockType: "video" }>): Video
   }
   const file = fileOf(block.file, ["video/mp4", "video/webm"]);
   if (file === undefined) return undefined;
+  // One track per language, the first of a language a draft holds twice (the block refuses it on
+  // save, PR 95 review item 6).
+  const seen = new Set<string>();
   const tracks = (block.captions ?? []).flatMap((row) => {
     const vtt = fileOf(row.file, ["text/vtt"]);
-    return vtt === undefined
-      ? []
-      : [{ src: vtt.url, srclang: row.language, label: languageLabel(row.language) }];
+    if (vtt === undefined || seen.has(row.language)) return [];
+    seen.add(row.language);
+    return [{ src: vtt.url, srclang: row.language, label: languageLabel(row.language) }];
   });
   return { kind: "file", src: file.url, type: file.type as "video/mp4" | "video/webm", tracks };
 }
@@ -200,7 +208,9 @@ export function resolveBlock(block: LayoutBlock, context: ResolveContext): Resol
         items: (block.items ?? []).map((item, index) => ({
           value: item.id ?? `question-${index}`,
           title: item.question,
-          answer: paragraphs(item.answer),
+          // A draft is saved before its required fields are filled (autosave): a row without its
+          // answer has no paragraphs, so the contract leaves the block out instead of the page failing.
+          answer: typeof item.answer === "string" ? paragraphs(item.answer) : [],
         })),
       });
       return section === undefined ? null : { key, blockType: "faq", section };

@@ -2,6 +2,7 @@ import type { CollectionConfig } from "payload";
 import { isStaff, staffOrPublished } from "../access/roles";
 import { seedKey } from "../fields/seed-key";
 import { revalidateOnPublish } from "../hooks/revalidate-on-publish";
+import { pageTags } from "../../lib/cms/tags";
 import { LAYOUT_BLOCKS } from "../blocks";
 
 /**
@@ -22,7 +23,7 @@ export const Pages: CollectionConfig = {
     delete: isStaff,
   },
   // `pages:<locale>` for the reads of one language, `payload:pages` for every reader.
-  hooks: revalidateOnPublish({ tags: (locale) => [`pages:${locale}`, "payload:pages"] }),
+  hooks: revalidateOnPublish({ tags: pageTags }),
   // D74: autosave, scheduled publishing (on the jobs queue) and up to 50 versions per page. The
   // Save Draft button stays next to autosave, so an editor can still save a draft on purpose.
   versions: {

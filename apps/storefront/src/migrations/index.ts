@@ -6,7 +6,7 @@ import * as migration_20261028_194034_sync from "./20261028_194034_sync";
 import * as migration_20261028_211336_email_templates from "./20261028_211336_email_templates";
 import * as migration_20261028_220728_ui_strings from "./20261028_220728_ui_strings";
 import * as migration_20261029_000652_globals from "./20261029_000652_globals";
-import * as migration_20261029_012302_blocks from "./20261029_012302_blocks";
+import * as migration_20261029_020305_blocks from "./20261029_020305_blocks";
 
 export const migrations = [
   {
@@ -50,8 +50,8 @@ export const migrations = [
     name: "20261029_000652_globals",
   },
   {
-    up: migration_20261029_012302_blocks.up,
-    down: migration_20261029_012302_blocks.down,
-    name: "20261029_012302_blocks",
+    up: migration_20261029_020305_blocks.up,
+    down: migration_20261029_020305_blocks.down,
+    name: "20261029_020305_blocks",
   },
 ];

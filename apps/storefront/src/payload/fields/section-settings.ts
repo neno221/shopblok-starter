@@ -26,8 +26,11 @@ const enumName =
  * Every block's `sectionSettings` (SPEC §7.4, D79): anchor, spacing, surface, container and
  * visibility. Not localized: all languages share a page's structure. `RenderBlocks` (T63) passes
  * them to the section, whose `SectionFrame` applies them; the anchor becomes the section's `id`.
+ * `defaults.container` is the block's own width when its section has one (the FAQ's is narrow).
  */
-export function sectionSettings(): GroupField {
+export function sectionSettings(
+  defaults: { container?: (typeof CONTAINERS)[number] } = {},
+): GroupField {
   return {
     name: "sectionSettings",
     type: "group",
@@ -59,7 +62,7 @@ export function sectionSettings(): GroupField {
       {
         name: "container",
         type: "select",
-        defaultValue: "default",
+        defaultValue: defaults.container ?? "default",
         options: [...CONTAINERS],
         enumName: enumName("container"),
       },

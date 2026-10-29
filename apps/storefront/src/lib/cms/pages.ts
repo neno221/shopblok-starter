@@ -1,6 +1,7 @@
 import "server-only";
 import type { Page } from "../../payload-types";
 import { cmsRead } from "./read";
+import { pageTags } from "./tags";
 
 /** What a page read returns until T65's template needs more: its title, slug and blocks (T63). */
 export type CmsPage = { id: number; title: string; slug: string; layout: Page["layout"] };
@@ -27,5 +28,5 @@ export const readPageBySlug = cmsRead(
       ? null
       : { id: page.id, title: page.title, slug: page.slug, layout: page.layout ?? [] };
   },
-  { name: "cms:page-by-slug", tags: (locale) => [`pages:${locale}`, "payload:pages"] },
+  { name: "cms:page-by-slug", tags: (locale) => pageTags(locale) },
 );

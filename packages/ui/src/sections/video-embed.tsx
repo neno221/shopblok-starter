@@ -13,16 +13,19 @@ import { PlayIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 /** The player's address: YouTube's privacy-enhanced host, Vimeo's with Do Not Track. */
-function embedUrl(provider: VideoProvider, videoId: string): string {
+function embedUrl(provider: VideoProvider, videoId: string, hash?: string): string {
   const id = encodeURIComponent(videoId);
-  return provider === "youtube"
-    ? `https://www.youtube-nocookie.com/embed/${id}?autoplay=1&rel=0`
-    : `https://player.vimeo.com/video/${id}?autoplay=1&dnt=1`;
+  if (provider === "youtube")
+    return `https://www.youtube-nocookie.com/embed/${id}?autoplay=1&rel=0`;
+  const unlisted = hash === undefined ? "" : `&h=${encodeURIComponent(hash)}`;
+  return `https://player.vimeo.com/video/${id}?autoplay=1&dnt=1${unlisted}`;
 }
 
 type VideoEmbedProps = {
   provider: VideoProvider;
   videoId: string;
+  /** An unlisted Vimeo video's privacy hash. */
+  hash?: string;
   /** The video's name: the frame's title. */
   title: string;
   poster?: ImageData;
@@ -37,7 +40,7 @@ type VideoEmbedProps = {
   className?: string;
 };
 
-function VideoEmbed({ provider, videoId, title, poster, copy, className }: VideoEmbedProps) {
+function VideoEmbed({ provider, videoId, hash, title, poster, copy, className }: VideoEmbedProps) {
   const [playing, setPlaying] = useState(false);
   const frame = useRef<HTMLIFrameElement>(null);
   useEffect(() => {
@@ -52,7 +55,7 @@ function VideoEmbed({ provider, videoId, title, poster, copy, className }: Video
       {playing ? (
         <iframe
           ref={frame}
-          src={embedUrl(provider, videoId)}
+          src={embedUrl(provider, videoId, hash)}
           title={title}
           allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
           allowFullScreen

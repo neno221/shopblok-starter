@@ -240,7 +240,7 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   	"section_settings_anchor" varchar,
   	"section_settings_spacing" "enum_pages_blocks_faq_ss_spacing" DEFAULT 'medium',
   	"section_settings_surface" "enum_pages_blocks_faq_ss_surface" DEFAULT 'default',
-  	"section_settings_container" "enum_pages_blocks_faq_ss_container" DEFAULT 'default',
+  	"section_settings_container" "enum_pages_blocks_faq_ss_container" DEFAULT 'narrow',
   	"section_settings_visibility" "enum_pages_blocks_faq_ss_visibility" DEFAULT 'all',
   	"block_name" varchar
   );
@@ -503,7 +503,7 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   	"section_settings_anchor" varchar,
   	"section_settings_spacing" "enum__pages_v_blocks_faq_ss_spacing" DEFAULT 'medium',
   	"section_settings_surface" "enum__pages_v_blocks_faq_ss_surface" DEFAULT 'default',
-  	"section_settings_container" "enum__pages_v_blocks_faq_ss_container" DEFAULT 'default',
+  	"section_settings_container" "enum__pages_v_blocks_faq_ss_container" DEFAULT 'narrow',
   	"section_settings_visibility" "enum__pages_v_blocks_faq_ss_visibility" DEFAULT 'all',
   	"_uuid" varchar,
   	"block_name" varchar

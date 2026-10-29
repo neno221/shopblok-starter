@@ -23,9 +23,19 @@ describe("parseVideoUrl", () => {
       "https://vimeo.com/76979871",
       "https://www.vimeo.com/76979871",
       "https://vimeo.com/channels/staffpicks/76979871",
-      "https://player.vimeo.com/video/76979871?h=abc",
+      "https://player.vimeo.com/video/76979871",
     ])
       expect(parseVideoUrl(url), url).toEqual(video);
+  });
+
+  it("keeps an unlisted Vimeo video's hash, which its player needs (PR 95 review, item 4)", () => {
+    const video = { provider: "vimeo", videoId: "76979871", hash: "abc123def0" };
+    for (const url of [
+      "https://vimeo.com/76979871/abc123def0",
+      "https://player.vimeo.com/video/76979871?h=abc123def0",
+    ])
+      expect(parseVideoUrl(url), url).toEqual(video);
+    expect(parseVideoUrl("https://player.vimeo.com/video/76979871?h=x%22y")).toBeNull();
   });
 
   it("refuses another host, http, a missing or malformed id, and what is not a URL", () => {
@@ -36,6 +46,8 @@ describe("parseVideoUrl", () => {
       "https://www.youtube.com/watch?v=short",
       "https://www.youtube.com/watch?v=aqz-KE-bpKQ%22onload",
       "https://www.youtube.com/channel/UC123",
+      // A playlist (PR 95 review, item 5): only single videos are embedded.
+      "https://www.youtube.com/embed/videoseries?list=PLxyz",
       "https://vimeo.com/about",
       "https://youtube.com.evil.example/watch?v=aqz-KE-bpKQ",
       "javascript:alert(1)",

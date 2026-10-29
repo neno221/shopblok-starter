@@ -131,6 +131,33 @@ describe("resolveBlock (T63)", () => {
     expect(paragraphs("One\nline\n\nTwo")).toEqual(["One\nline", "Two"]);
   });
 
+  it("leaves out a FAQ whose draft row has no answer yet, rather than failing (PR 95 review, item 1)", () => {
+    const block = {
+      blockType: "faq",
+      id: "f2",
+      variant: "standard",
+      items: [{ id: "q1", question: "Shipping?", answer: null }],
+    } as unknown as LayoutBlock;
+    expect(() => resolveBlock(block, context)).not.toThrow();
+    expect(resolveBlock(block, context)).toBeNull();
+  });
+
+  it("passes only the settings an editor set, so a section's own default holds (PR 95 review, item 3)", () => {
+    const resolved = resolveBlock(
+      {
+        blockType: "faq",
+        id: "f3",
+        variant: "standard",
+        items: [{ id: "q1", question: "Shipping?", answer: "Two days." }],
+        sectionSettings: { anchor: null, spacing: "medium", surface: null, container: null },
+      } as unknown as LayoutBlock,
+      context,
+    );
+    expect(resolved?.blockType === "faq" && Object.keys(resolved.section.settings ?? {})).toEqual([
+      "spacing",
+    ]);
+  });
+
   it("names a logo by its brand and links it to https only", () => {
     const resolved = resolveBlock(
       {
@@ -173,6 +200,13 @@ describe("resolveBlock (T63)", () => {
         } as LayoutBlock,
         context,
       );
+    const unlisted = video("https://vimeo.com/76979871/abc123def0");
+    expect(unlisted?.blockType === "video" && unlisted.section.source).toEqual({
+      kind: "embed",
+      provider: "vimeo",
+      videoId: "76979871",
+      hash: "abc123def0",
+    });
     const resolved = video("https://youtu.be/aqz-KE-bpKQ");
     expect(resolved?.blockType === "video" && resolved.section.source).toEqual({
       kind: "embed",
@@ -197,6 +231,8 @@ describe("resolveBlock (T63)", () => {
       block([
         { language: "el", file: media(7, "text/vtt") },
         { language: "en", file: media(8, "image/png") },
+        // A language twice in a draft: the first one plays (PR 95 review, item 6).
+        { language: "el", file: media(9, "text/vtt") },
       ]),
       context,
     );

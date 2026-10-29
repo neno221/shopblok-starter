@@ -17,7 +17,7 @@ type FaqSectionProps = FaqSectionData & {
 function FaqSection({ settings, heading, items, defaultOpen = [], className }: FaqSectionProps) {
   return (
     <SectionFrame
-      settings={{ container: "narrow", ...settings }}
+      settings={{ ...settings, container: settings?.container ?? "narrow" }}
       slot="faq-section"
       className={className}
       innerClassName="flex flex-col gap-6"

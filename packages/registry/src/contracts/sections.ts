@@ -155,13 +155,24 @@ export const VideoSource = z.discriminatedUnion("kind", [
     kind: z.literal("file"),
     src: MediaSrc,
     type: z.enum(["video/mp4", "video/webm"]),
-    /** WCAG 1.2.2: an uploaded video has captions, at least in one language. */
-    tracks: z.array(VideoTrack).min(1),
+    /** WCAG 1.2.2: an uploaded video has captions, at least in one language, one track each. */
+    tracks: z
+      .array(VideoTrack)
+      .min(1)
+      .refine(
+        (tracks) => new Set(tracks.map((track) => track.srclang)).size === tracks.length,
+        "one captions track per language",
+      ),
   }),
   z.object({
     kind: z.literal("embed"),
     provider: z.enum(VIDEO_PROVIDERS),
     videoId: z.string().regex(/^[A-Za-z0-9_-]{1,32}$/),
+    /** An unlisted Vimeo video's privacy hash (`h=`), without which its player refuses it. */
+    hash: z
+      .string()
+      .regex(/^[0-9a-f]{6,20}$/i)
+      .optional(),
   }),
 ]);
 

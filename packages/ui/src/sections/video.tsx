@@ -1,6 +1,6 @@
 // Ours (T63, SETUP.md "Blocks (T63)"; SPEC §7.4 `video`, D79, WCAG 1.2.2 and 2.2.2). A video the
 // shop uploaded, or one on YouTube or Vimeo. An upload plays in the browser's own player, with a
-// captions track per language (the page's language on by default) and nothing loaded before the
+// captions track per language (the page's language on by default, and no other) and nothing loaded before the
 // visitor presses play (`preload="none"`, the poster instead). An embed is `VideoEmbed`: a poster
 // and a play button, and the provider's player only after a click. Neither plays by itself. The
 // player is named by the video's title; the editor's caption is under it. A server component; the
@@ -33,10 +33,9 @@ function VideoSection({
   className,
 }: VideoSectionProps) {
   const language = locale.split("-")[0]?.toLowerCase();
+  // Only the page's language is on by default: captions in another are offered, not imposed.
   const defaultTrack =
-    source.kind === "file"
-      ? (source.tracks.find((track) => track.srclang === language) ?? source.tracks[0])
-      : undefined;
+    source.kind === "file" ? source.tracks.find((track) => track.srclang === language) : undefined;
   return (
     <SectionFrame
       settings={settings}
@@ -59,7 +58,7 @@ function VideoSection({
             <source src={source.src} type={source.type} />
             {source.tracks.map((track) => (
               <track
-                key={track.srclang}
+                key={track.src}
                 kind="captions"
                 src={track.src}
                 srcLang={track.srclang}
@@ -72,6 +71,7 @@ function VideoSection({
           <VideoEmbed
             provider={source.provider}
             videoId={source.videoId}
+            {...(source.hash === undefined ? {} : { hash: source.hash })}
             title={title}
             poster={poster}
             copy={{

@@ -256,8 +256,9 @@ test.describe("a page's content blocks (T63)", () => {
   });
 
   for (const market of [
-    { name: "the US, in English", prefix: "/us", slug: english.slug, title: english.title },
-    { name: "Cyprus, in Greek", prefix: "", slug: greek.slug, title: greek.title },
+    { name: "the US, in English", prefix: "/us", slug: english.slug, title: english.title, on: 1 },
+    // The video has English captions only: offered in Greek, not switched on (PR 95 review, item 6).
+    { name: "Cyprus, in Greek", prefix: "", slug: greek.slug, title: greek.title, on: 0 },
   ]) {
     test(`draws every block in ${market.name}, with no axe violation`, async ({ page }) => {
       const requested = providerRequests(page);
@@ -291,10 +292,11 @@ test.describe("a page's content blocks (T63)", () => {
         );
       expect(ld).toHaveLength(1);
       expect((ld[0] as { mainEntity: unknown[] }).mainEntity).toHaveLength(3);
-      // The upload: the browser's player, its captions on, nothing loaded before play.
+      // The upload: the browser's player, its captions on in their language, nothing loaded first.
       const video = main.locator("video");
       await expect(video).toHaveAttribute("preload", "none");
-      await expect(video.locator("track[default]")).toHaveAttribute("srclang", "en");
+      await expect(video.locator('track[srclang="en"]')).toHaveCount(1);
+      await expect(video.locator("track[default]")).toHaveCount(market.on);
       await page.waitForLoadState("networkidle");
       expect(requested, "requests to a video provider before any click").toEqual([]);
       const axe = await new AxeBuilder({ page }).include("main#main").withTags(axeTags).analyze();

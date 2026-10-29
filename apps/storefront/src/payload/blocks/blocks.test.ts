@@ -2,11 +2,12 @@
 // side only, or a variant added to a family without the block's `variant` field offering it, fails
 // here with the reason.
 import { entries, sectionEntries, variantsOf } from "@shopblok/registry";
-import type { BlocksField, Block } from "payload";
+import type { ArrayField, BlocksField, Block } from "payload";
 import { describe, expect, it } from "vitest";
 import { Pages } from "../collections/pages";
 import { BLOCKS, LAYOUT_BLOCKS } from ".";
 import { describeBlock } from "./describe";
+import { VideoBlock } from "./video";
 import { blockDrift } from "./drift";
 
 const field = (block: Block, name: string) =>
@@ -144,5 +145,42 @@ describe("describeBlock (the DS's Payload block panel)", () => {
       fields: [{ name: "id", type: "text" }, { name: "blockName", type: "text" }, ...faq!.fields],
     } as Block;
     expect(describeBlock("faq", [sanitized])).toEqual(describeBlock("faq"));
+  });
+});
+
+describe("the video block's captions (PR 95 review, item 6)", () => {
+  const captions = VideoBlock.fields.find(
+    (each) => "name" in each && each.name === "captions",
+  ) as ArrayField;
+  const validate = (rows: unknown[]) =>
+    captions.validate?.(
+      rows as never,
+      {
+        required: true,
+        minRows: 1,
+        siblingData: { captions: rows },
+        req: { t: (key: string) => key },
+      } as never,
+    );
+
+  it("takes one file per language, and refuses a language twice", () => {
+    expect(validate([{ language: "en" }, { language: "el" }])).toBe(true);
+    expect(validate([{ language: "en" }, { language: "en" }])).toBe(
+      "Each language once: one captions file per language.",
+    );
+  });
+
+  it("reads the rows from the block when the admin's form passes their count", () => {
+    expect(
+      captions.validate?.(
+        2 as never,
+        {
+          required: true,
+          minRows: 1,
+          siblingData: { captions: [{ language: "de" }, { language: "de" }] },
+          req: { t: (key: string) => key },
+        } as never,
+      ),
+    ).toBe("Each language once: one captions file per language.");
   });
 });

@@ -8,6 +8,8 @@ export const FaqBlock = sectionBlock({
   slug: "faq",
   interfaceName: "FaqBlock",
   plural: "FAQs",
+  // The questions read best in the text's column, as `FaqSection` draws them by default.
+  settings: { container: "narrow" },
   fields: [
     headingField,
     {

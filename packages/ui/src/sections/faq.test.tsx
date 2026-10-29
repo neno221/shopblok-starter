@@ -39,6 +39,9 @@ describe("FaqSection", () => {
     const { container, rerender } = render(<FaqSection {...section} />);
     expect(container.querySelector(".max-w-3xl")).toBeTruthy();
     expect(container.querySelector("summary")?.className).toContain("min-h-11");
+    // A key present but unset (a resolver's) keeps the default too.
+    rerender(<FaqSection {...section} settings={{ container: undefined, surface: "muted" }} />);
+    expect(container.querySelector(".max-w-3xl")).toBeTruthy();
     rerender(<FaqSection {...section} settings={{ container: "wide" }} />);
     expect(container.querySelector(".max-w-3xl")).toBeNull();
   });

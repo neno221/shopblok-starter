@@ -2321,7 +2321,7 @@
           "typeSchema": "public",
           "primaryKey": false,
           "notNull": false,
-          "default": "'default'"
+          "default": "'narrow'"
         },
         "section_settings_visibility": {
           "name": "section_settings_visibility",
@@ -5512,7 +5512,7 @@
           "typeSchema": "public",
           "primaryKey": false,
           "notNull": false,
-          "default": "'default'"
+          "default": "'narrow'"
         },
         "section_settings_visibility": {
           "name": "section_settings_visibility",
@@ -17085,6 +17085,6 @@
     "tables": {},
     "columns": {}
   },
-  "id": "a86d22a9-fb1f-45d8-936b-6ef9c02ec5da",
+  "id": "47627b46-af51-408d-ac67-245b27d5ca9c",
   "prevId": "00000000-0000-0000-0000-000000000000"
 }

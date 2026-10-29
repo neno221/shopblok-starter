@@ -72,7 +72,7 @@ describe("VideoSection", () => {
     ]);
   });
 
-  it("turns on the first captions when none is in the page's language", () => {
+  it("turns no captions on when none is in the page's language (PR 95 review, item 6)", () => {
     const { file } = sectionFixtures.en.video;
     if (file.source.kind !== "file") throw new Error("not a file");
     const { container } = render(
@@ -83,7 +83,16 @@ describe("VideoSection", () => {
         locale="en-US"
       />,
     );
-    const defaults = [...container.querySelectorAll("track[default]")];
-    expect(defaults.map((track) => track.getAttribute("srclang"))).toEqual(["de"]);
+    expect(container.querySelectorAll("track")).toHaveLength(2);
+    expect(container.querySelectorAll("track[default]")).toHaveLength(0);
+  });
+
+  it("adds an unlisted Vimeo video's hash to its player's address (PR 95 review, item 4)", () => {
+    expect(embedUrl("vimeo", "76979871", "abc123def0")).toBe(
+      "https://player.vimeo.com/video/76979871?autoplay=1&dnt=1&h=abc123def0",
+    );
+    expect(embedUrl("vimeo", "76979871")).toBe(
+      "https://player.vimeo.com/video/76979871?autoplay=1&dnt=1",
+    );
   });
 });
