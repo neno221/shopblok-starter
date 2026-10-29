@@ -6560,7 +6560,7 @@ The page and the uploads are deleted afterwards (each upload as soon as it exist
 - Against `next start` and Medusa: `cms-blocks.spec.ts` 4 of 4; the default projects and the locales project, 158 passed, with `E2E_MEDUSA_LOG`. The first full run failed once in `auth.spec.ts` ("a guest order, before the account exists": the order page did not open within 5 s of the click), which T63 did not change; it passed alone and in the next full run.
 - The DS build with no `.env` (`DESIGN_SYSTEM_ENABLED=true`) exits 0, and the design-system project's 48 cells of the Sections (8 entries × 3 widths × `en` and `el`) pass with `--ignore-snapshots`: axe, overflow, size and console. `pnpm build` with no `.env` exits 0.
 - First-load JS, `main` against this branch: the product page 332.0 → 332.0 KB and the listing pages 331.1 → 331.0 (the budgeted table, unchanged); the test page 308.0 → 308.7 (the embed's island); `/[market]` 316.4 → 316.3; the admin 818.0 → 825.4 (the blocks' fields and the second rich-text editor).
-- **Baselines (D72):** BASELINES.
+- **Baselines (D72):** the `update-baselines` dispatch (run 40803061496, commit `ae290c8`) wrote 33 PNGs: 24 new `en` baselines (the eight Sections at 375, 768 and 1440 px) and 8 new thumbnails (`public/registry/sections/`), compressed by oxipng, and it rewrote `templates/product-detail/en-375.png`, whose decoded pixels are identical to the old one's (compared after the run; only its encoding changed, 902.6 → 653.1 KB). Bytes added: 2,049,845 (1.95 MB); the set is 431 PNGs, 59.02 MB. The registry's thumbnail test passes with them.
 
 ### Code review (PR 95)
 
