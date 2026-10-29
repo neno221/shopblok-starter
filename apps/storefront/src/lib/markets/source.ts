@@ -98,6 +98,10 @@ export function createMarketSource(options: MarketSourceOptions) {
   let current: { map: MarketMap; expires: number } | undefined;
   let reading: Promise<MarketMap> | undefined;
   let loading: Promise<MarketsGlobal | null | undefined> | undefined;
+  // Each read is numbered when it starts; a read that ends after a later one has been kept (a
+  // `fresh()` that overtook it) answers its own caller but does not replace that later map.
+  let started = 0;
+  let kept = 0;
 
   /** The read in flight. One that timed out is still running, so the next caller joins it. */
   const loadOnce = () =>
@@ -105,46 +109,57 @@ export function createMarketSource(options: MarketSourceOptions) {
       loading = undefined;
     }));
 
-  const keep = (map: MarketMap): MarketMap => {
+  const keep = (map: MarketMap, order: number): MarketMap => {
+    if (order < kept) return map;
+    kept = order;
     current = { map, expires: now() + MARKET_MAP_TTL_MS };
     return map;
   };
 
   /** Called when the global can't be used: the last good map, the fallback, or the error. */
-  function otherwise(reason: FallbackReason, why: string, error: unknown): MarketMap {
+  function otherwise(
+    reason: FallbackReason,
+    why: string,
+    error: unknown,
+    order: number,
+  ): MarketMap {
     if (current !== undefined) {
       warn(`markets: ${why}; still serving the map read earlier`);
-      return keep(current.map);
+      return keep(current.map, order);
     }
     if (allowFallback(reason)) {
       warn(`markets: ${why}; using the seeded fixtures (run pnpm bootstrap to fill the global)`);
-      return keep(fallback);
+      return keep(fallback, order);
     }
     if (reason === "unreachable") throw error;
     throw new MarketMapError(`${why}. Fill in Markets in /admin, or run pnpm bootstrap.`);
   }
 
-  async function read(): Promise<MarketMap> {
+  /** One read of the global through `loader`: `loadOnce` for `get()`, a load of its own for `fresh()`. */
+  async function read(loader: () => Promise<MarketsGlobal | null | undefined>): Promise<MarketMap> {
+    const order = ++started;
     let doc: MarketsGlobal | null | undefined;
     try {
       // The longer wait is for a server that is starting; with a map held, D10's 10 s again.
       const timeoutMs = current === undefined ? firstLoadTimeoutMs : MARKET_LOAD_TIMEOUT_MS;
-      doc = await withTimeout(loadOnce(), timeoutMs);
+      doc = await withTimeout(loader(), timeoutMs);
     } catch (error) {
       return otherwise(
         "unreachable",
         `the markets global could not be read (${describeError(error)})`,
         error,
+        order,
       );
     }
     const map = mapFromGlobal(doc ?? {});
     const problems = marketMapProblems(map);
-    if (problems.length === 0) return keep(map);
+    if (problems.length === 0) return keep(map, order);
     const state = map.countries.length === 0 ? "empty" : "incomplete";
     return otherwise(
       "unusable",
       `the markets global is ${state}: ${problems.join("; ")}`,
       undefined,
+      order,
     );
   }
 
@@ -152,11 +167,20 @@ export function createMarketSource(options: MarketSourceOptions) {
     /** The market map, from the cache when it is younger than the TTL. */
     async get(): Promise<MarketMap> {
       if (current !== undefined && now() < current.expires) return current.map;
-      reading ??= read().finally(() => {
+      reading ??= read(loadOnce).finally(() => {
         reading = undefined;
       });
       // With a map to serve, the caller doesn't wait: the read runs on and renews the map.
       return staleWhileRevalidate && current !== undefined ? current.map : reading;
+    },
+    /**
+     * The global as it is now, whatever the TTL, with the same last-good-map and fallback rules,
+     * and kept for `get()`. It never joins a read already running, which may have started before
+     * the change (PR 102 review, item 1). For a caller that has a cache of its own and was just
+     * told the global changed (`getRenderMarketMap`, T71), so it runs about once per change.
+     */
+    fresh(): Promise<MarketMap> {
+      return read(load);
     },
   };
 }

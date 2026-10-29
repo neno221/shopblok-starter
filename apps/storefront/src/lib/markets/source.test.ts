@@ -117,6 +117,51 @@ describe("getMarketMap: the 30 s cache (D10)", () => {
   });
 });
 
+describe("fresh: the global as it is now (T71)", () => {
+  it("reads past the TTL, and `get()` then serves what it read", async () => {
+    const { source, load, advance, next } = setup(seededGlobal);
+    await source.get();
+    advance(1_000);
+    next(brazilGlobal);
+    expect(await source.fresh()).toEqual(brazil);
+    expect(await source.get()).toEqual(brazil);
+    expect(load).toHaveBeenCalledTimes(2);
+  });
+
+  it("never joins a read that started before it: that one may hold the global before a save", async () => {
+    const { source, load, next } = setup(seededGlobal);
+    next(seededGlobal, brazilGlobal);
+    const [read, fresh] = await Promise.all([source.get(), source.fresh()]);
+    expect(load).toHaveBeenCalledTimes(2);
+    expect(read).toEqual(seeded);
+    expect(fresh).toEqual(brazil);
+  });
+
+  it("is not overtaken by an earlier read that ends after it", async () => {
+    let answerEarlier: (global: MarketsGlobal) => void = () => {};
+    const earlier = new Promise<MarketsGlobal>((resolve) => (answerEarlier = resolve));
+    const { source, advance, next } = setup(seededGlobal);
+    await source.get();
+    advance(30_000);
+    next(earlier, brazilGlobal);
+    const stale = source.get();
+    expect(await source.fresh()).toEqual(brazil);
+    answerEarlier(seededGlobal);
+    expect(await stale).toEqual(seeded);
+    expect(await source.get()).toEqual(brazil);
+  });
+
+  it("keeps the last good map when the read fails, as `get()` does", async () => {
+    const { source, warn, next } = setup(seededGlobal);
+    const first = await source.get();
+    next(new Error("connection refused"));
+    expect(await source.fresh()).toBe(first);
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining("still serving the map read earlier"),
+    );
+  });
+});
+
 describe("getMarketMap: an empty or incomplete global", () => {
   it("falls back to the fixtures where allowed, and says so", async () => {
     const { source, warn, allowFallback } = setup(null, (reason) => reason === "unusable");

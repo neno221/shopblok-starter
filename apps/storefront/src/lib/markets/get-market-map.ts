@@ -22,3 +22,9 @@ const source = createMarketSource({
  * runs, never in production (`source.ts` has the full rules).
  */
 export const getMarketMap = source.get;
+
+/**
+ * The global read now, past the 30 s (`source.fresh`): for `getRenderMarketMap()`, whose own
+ * `use cache` entry is what keeps it, and which a save of the global expires (T71).
+ */
+export const getFreshMarketMap = source.fresh;

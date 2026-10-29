@@ -129,8 +129,15 @@ const editable = (field: Field): Field =>
   }) as Field;
 
 // `revalidateTag("global:markets")` on every save (D76): the layout's map read and the proxy's
-// map follow at once instead of after their 30 s.
-const revalidate = revalidateGlobalOnPublish({ tags: () => ["global:markets"] });
+// map follow at once instead of after their 30 s. Expired, not refreshed in the background, and
+// the entry is computed from the global itself, not the 30 s in-process map (T71): otherwise
+// `/next/markets` kept the old map up to twice more for 30 s each, and a new market took up to 90 s
+// to reach the proxy. Now the next read waits for the saved map, as the redirects' does (T68), and
+// only the proxy's own 30 s remain.
+const revalidate = revalidateGlobalOnPublish({
+  tags: () => ["global:markets"],
+  profile: { expire: 0 },
+});
 
 /**
  * The market map (D10), the editable part (D12): which countries are open, in which languages,

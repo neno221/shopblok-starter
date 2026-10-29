@@ -325,6 +325,24 @@ describe("revalidateGlobalOnPublish", () => {
     await saveGlobal("published", { _status: "draft" }, "draft");
     expect(revalidateTag).toHaveBeenCalled();
   });
+
+  it("passes the profile it is given: `markets` expires its read (T71)", async () => {
+    await saveGlobal("draft", { _status: "published" });
+    expect(revalidateTag).toHaveBeenCalledWith("global:header:en", "max");
+    revalidateTag.mockClear();
+    const markets = revalidateGlobalOnPublish({
+      tags: () => ["global:markets"],
+      profile: { expire: 0 },
+    });
+    const doc = { countries: [] };
+    await markets.afterChange[0]?.({
+      doc,
+      global: { slug: "markets" },
+      previousDoc: {},
+      req: request(),
+    } as unknown as GAfter);
+    expect(revalidateTag).toHaveBeenCalledWith("global:markets", { expire: 0 });
+  });
 });
 
 describe("revalidateWhenChanged (PR 94 review, item 2)", () => {

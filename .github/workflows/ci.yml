@@ -267,8 +267,10 @@ jobs:
         env:
           E2E_TEST_ROUTES: "true"
       # markets (T11), wiring (T12; the home since T51), payload-admin, payload-cache (ADR 0001's
-      # cache, tag and draft checks) and payload-locales (S3, last: it saves the `markets` global
-      # and puts it back) run against the storefront that is up.
+      # cache, tag and draft checks), editor-homepage (T71: an editor builds the home in the admin)
+      # and payload-locales (S3: it saves the `markets` global and puts it back) run against the
+      # storefront that is up. markets-add (T71) is last, in a project of its own: it adds Austria
+      # in Medusa and in Payload's Markets page, waits for /at, and takes both away again.
       # `--reporter` adds the HTML report that is uploaded below; the config stays as it is.
       # auth.spec.ts (T53) reads the links Medusa's local notification provider prints in the log
       # the start-medusa action writes (the first start's: the outage steps come after).

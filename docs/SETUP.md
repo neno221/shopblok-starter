@@ -6979,3 +6979,60 @@ The review (`reviews/pr-101-code-review.md` in the project's files) found three 
 Also fixed: `windows-smoke` failed `proxy-imports.test.ts` on the PR's first run, as `path.relative` gives backslashes on Windows; the test compares the paths with forward slashes.
 
 Not fixed (optional, not security, not a cleanup): 4, the proxy's same-address guard compares origins, so a market on its own domain reached over `http` could redirect to itself after a page is renamed to a `from`; 5, a full URL to the shop itself is not loop-checked; 6, a `from`'s market prefix is matched whatever the market's domain; 7, the loop check reads every redirect, page and post on each validation (efficiency); 8, `addressesOf` reads every post (efficiency); 9, `$&` and the like in a title are replacement patterns in `applyTitleTemplate`.
+
+## The editor's homepage and a new market (T71)
+
+**Result: M4's done-when runs in `e2e-smoke`. An editor, made by the admin and working only in Payload's admin, adds a promotion banner, an FAQ and a product collection with two hand-picked products to Home, watches the live preview at 375 px, translates the hero's heading and the FAQ into Greek, and publishes: `/` shows the Greek heading and `/us` the English within two requests, with EUR and USD prices, the FAQ's JSON-LD and no console message. An admin adds Austria to Medusa's Europe region, `markets.synced` lists it within a second, the admin opens `at` in German in Payload's Markets page, and `/at` answers in German with EUR prices and `lang="de-AT"` within 70 s (0 to 31 s measured), with `/de`'s hreflang listing it. Both suites put back what they change. On the way, a save of `markets` now reaches the proxy within its own 30 s: before, the map route read the 30 s in-process map again and kept it for 30 s more, so `/at` took 24 to more than 70 s.** M4 plan §5 T71; D76, D80, D88; SPEC §8.5, §17.1.
+
+| | |
+|---|---|
+| Date | 2026-10-29 |
+| Branch | `claude/project-thread-08ud3k`, from `main` at `b0b1841` (PR 101 merged) |
+| PR | (this PR) |
+
+### What there is now
+
+- **`e2e/editor-homepage.spec.ts`** (in the default project, serial): the bootstrap admin creates an editor (`role: editor`) through the REST API, and everything after is the editor's, in the admin's UI. On Home (the site settings' homepage) the editor adds a Promo banner, an FAQ with one question and a Product collection in "Handpicked" mode with two products; switches live preview to the Mobile breakpoint and checks the frame is 375 px wide and shows the new texts; switches the admin to Greek and writes the hero's heading, the FAQ and the new blocks' texts, then German and French (the new blocks' required texts only: see below); and presses "Publish changes". Each language's text is checked in the draft through REST before the next locale switch, since the autosave (375 ms) must have stored it. Then `/` (Cyprus, Greek) shows the Greek hero heading and `/us` the English promo within two requests each (`freshWithinTwo`), both with the FAQ's `FAQPage` JSON-LD; in a browser, each home's product collection shows the two products with `€` and `$` prices, and `judgeConsole` finds no console message and no failed local request. `afterAll` deletes the editor's document lock, writes Home's `layout` back in every language as it was before (English first) and published, and deletes the editor; it fails the run if any of that fails.
+- **`e2e/markets-add.spec.ts`** (its own project, `markets-add`, after `locales`; serial): Austria is added to the region that has Germany through Medusa's Admin API, and `markets.synced` lists `at` within 10 s (0.6 s measured, the `region.updated` subscriber). In Payload's Markets page the admin adds a country row (`at`, open, German, `Europe/Vienna`) and saves, and the global then has it as typed. `/at` answers 200 within 70 s, with `<html lang="de-AT">` (German's `htmlLang` is empty, so the language and the country), the same hero heading as `/de`, `€` prices and no `$` price; `/de`'s hreflang then lists `de-AT` at `/at` within the same 70 s. Before the save it waits until `/next/markets` and `/de` answer from a settled entry (`settled`), so no regeneration that started before the save stores the old map. `afterAll` posts the `markets` global back as it was (first: a save refuses an open country no synced region has), puts the region's countries back, and waits until `/at` is a 404 again, so the steps after it in `e2e-smoke` see the seeded map.
+- **`playwright.config.ts`:** `chromium` ignores `markets-add.spec.ts`; the new `markets-add` project depends on `locales`, as `locales` depends on `chromium`, so a plain `playwright test` runs it last. On its own: `playwright test --project=markets-add --no-deps`.
+- **The market map follows a save at once** (`lib/markets/cached-market-map.ts`, `get-market-map.ts`, `source.ts`, `payload/globals/markets.ts`): the save's `revalidateTag("global:markets")` is now `{ expire: 0 }` (the profile T68 added for the redirects), and `getRenderMarketMap()`'s `use cache` entry is computed from the global as it is now (`getFreshMarketMap`, the source's new `fresh()`, which keeps the last-good-map and fallback rules; unit cases in `source.test.ts` and the new `cached-market-map.test.ts`), not from the in-process map, which could be 30 s old. Only the proxy's own 30 s in-process map is left between a save and `/at`.
+- **`ci.yml`:** the Playwright suites step's comment names both suites; no step was added, since the default projects include `markets-add` through its dependency.
+
+### Where it differs from the plan
+
+- **The map's three 30 s.** The plan expected D10's 30 to 65 s. Measured before the change: 24, 38, 42, 54 and 65 s, and more than 70 s in about one run of four: after the save, `/next/markets`' regeneration called `getMarketMap()`, whose in-process map was up to 30 s old, and stored it for the entry's 30 s; with `"max"` the route also served its old entry once more; and the proxy's map adds its own 30 s. After the change: 0.1 to 30.5 s in seven runs (0.1 s when the proxy's map had just expired; 20.4 s in the full run). In a deployment with several server processes nothing changes for the others: each reads the global when its entry is computed, and the proxy's 30 s are per process.
+- **German and French too.** Payload 3.92.1 publishes every language at once (`publishAllLocales` when `localizeStatus` is off) and validates the required fields of each, "Publish in English" included, so a new block with a required text cannot be published until that text is written in every language (T63 found the same for a second language). The editor therefore fills the new blocks' required texts in German and French as well; without them the publish fails with four invalid fields. This is a limit for editors, not a test choice: an editor adding a block to a published page has to translate its required fields before anything goes live. Payload's `localizeStatus` (per-language publishing) or required-in-English-only fields would lift it; neither is in M4.
+- **The editor's lock.** The admin locks a document while it is open, and a browser closed on the edit view leaves the lock, so the restore's PATCH was refused with 423. The spec leaves the edit view before closing the browser and deletes the editor's lock in `afterAll`.
+
+### `e2e-smoke`
+
+- Both suites run in the Playwright suites step: `editor-homepage.spec.ts` with the default project (3 tests), `markets-add.spec.ts` last (3 tests).
+- The job: 15.3 min on `main` before this PR (run 40906634217, at `b0b1841`; the Playwright suites step 7 min 28 s), and **14.6 min** on the PR's first commit (run 40921296738, at `3027346`; the step 6 min 58 s). Locally the two suites take about 1 min 10 s together; on the runners that is within the minute or so the same step varies by from run to run.
+
+### Mutations (each fails a test)
+
+| Mutation | Fails |
+|---|---|
+| The sync's `region.updated` subscriber removed (`apps/backend/src/subscribers/payload-sync.ts`) | `markets-add.spec.ts`'s first test: "Timeout 10000ms exceeded while waiting on the predicate" (`markets.synced` never lists `at`; the reconcile job runs every 10 minutes) |
+| `getRenderMarketMap()` reading `getMarketMap()` again | `cached-market-map.test.ts`: "computes its entry from the global as it is now, not the 30 s in-process map" ("expected undefined to be { countries: … }") |
+
+### Checks (cloud VM, Node 22.23.4, the compose stack)
+
+- `lint`, `typecheck` and `test` exit 0 for every workspace with no `.env` (CI's state): the storefront 3903 (3904 after the review's fixes), ui 5752, `scripts` 431, the registry 228, the fixtures 469, i18n 108, `@shopblok/integrations` 14, the backend 170. `generate:types` and `generate:importmap` change nothing, and `migrate:create --skip-empty` writes no migration (T71 changes no schema).
+- Against `next start` and Medusa: the default projects, `locales` and `markets-add` pass **203 of 203** with `E2E_MEDUSA_LOG` (`editor-homepage.spec.ts` 3 of 3, `markets-add.spec.ts` 3 of 3). One earlier full run had `auth.spec.ts`'s guest order still on the review page after 5 s, and with it the 18 tests of the two later projects did not run; `auth.spec.ts` alone then passed 4 of 4, and the full run after it 203 of 203.
+- `markets-add` alone (`--project=markets-add --no-deps`), six runs after the change: `markets.synced` listed `at` after 0.59 to 0.63 s, and `/at` answered after 0.1 to 30.5 s.
+
+### Changes from the review of this PR
+
+The review (`reviews/pr-102-code-review.md` in the project's files) found three must-fix items and six optional ones. Under the rule for optional findings (fix one only if it concerns security or is a cleanup), the three and the one cleanup are fixed, and the other five are left as they are.
+
+| # | Finding | Fixed |
+|---|---|---|
+| 1 | `fresh()` joined a read already running, which could have started before the save, and the entry the save expired could then keep the old map for another 30 s | `fresh()` always starts a read of its own (`read(load)`), and every read is numbered when it starts: one that ends after a later read was kept answers its own caller but does not replace that map. Unit cases "never joins a read that started before it" and "is not overtaken by an earlier read that ends after it" in `source.test.ts`; `fresh()` joining a running read again fails the first, and dropping the order check fails the second |
+| 4 | `editor-homepage.spec.ts`'s restore was not waited for on the shop, so `shell.spec.ts` and `wiring.spec.ts`, which read `/` after it, could get the editor's Home | `afterAll` waits until `/` and `/us` no longer show the editor's promo (60 s at most; the pages keep `"max"`, so the first request after the restore can still be the old entry) |
+| 8 | The Medusa helpers and the admin's login form were copied between specs | `e2e/support/medusa-admin.ts` (`medusaUrl`, `medusaAdminToken`, which now fails on a refused login, and `medusaAdminApi`) and `e2e/support/admin-ui.ts` (`signInToAdmin`, the bootstrap admin by default); `markets-add.spec.ts`, `editor-homepage.spec.ts` and `sync.spec.ts` import them. The older specs' own logins stay as they are |
+| 9 | The `e2e-smoke` time after the PR was a placeholder, which T72's prompt copies | Filled in from the PR's runs, here and in NEXT-SESSION.md |
+
+Not fixed (optional, not security, not a cleanup): 2, `getMarketMap()`'s other callers (live preview, `preview-deps`) keep the 30 s in-process map; 3, `expire: 0` makes the first request to each page after a save of `markets` wait for its render (the sync writes `markets.synced` only when it changes, so this follows real market changes only); 5, `markets-add.spec.ts` does not check that Medusa's region starts without `at`; 6, `markets-add` does not run when a spec of an earlier project fails; 7, the editor's lock is looked up by the document's id alone, and the deletes are not checked.
+
+After the fixes: `editor-homepage`, `sync`, `shell` and `wiring` pass 29 of 29 together, and `markets-add` alone passes twice (`/at` after 10.5 and 0.1 s).
