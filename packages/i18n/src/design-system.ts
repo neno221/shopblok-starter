@@ -16,6 +16,7 @@ export const designSystem = {
     molecules: "Molecules",
     organisms: "Organisms",
     "headers-footers": "Headers and footers",
+    sections: "Sections",
     templates: "Templates",
   },
   locale: {
@@ -27,6 +28,7 @@ export const designSystem = {
     states: "States",
     a11y: "Accessibility notes",
     props: "Props",
+    block: "Payload block",
     viewports: "Viewports",
   },
   // The "Props" table: an entry's contract as JSON Schema (D41).
@@ -37,6 +39,18 @@ export const designSystem = {
     required: "Required",
     description: "Description",
     yes: "yes",
+    no: "no",
+  },
+  // D70: a section's Payload block, field by field (`components/block-table.tsx`).
+  block: {
+    caption: "The fields of the Payload block {slug}, read from src/payload/blocks/",
+    field: "Field",
+    type: "Type",
+    localized: "Localized",
+    required: "Required",
+    options: "Options",
+    yes: "yes",
+    yesWhenShown: "yes, when shown",
     no: "no",
   },
   viewports: {

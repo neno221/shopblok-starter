@@ -16,7 +16,7 @@
 #                  44 px controls, the console (T24, D34), then the DS pages' console in `next dev`
 #                  (T27). No compose: a build with the flag, `next start` and `next dev` are all it
 #                  needs. T40: it runs in Playwright's container, and each English cell and each of the
-#                  21 thumbnails is also compared with its committed baseline (D51, D52).
+#                  29 thumbnails is also compared with its committed baseline (D51, D52).
 #   update-baselines
 #                  only for a manual run with `update-baselines` on (and then instead of
 #                  design-system): the same build and the same two Playwright projects with
@@ -481,7 +481,7 @@ jobs:
         with:
           command: start
           url: http://localhost:8000/design-system/en
-      # The cells (their pixels too, D51) and the 21 thumbnails (D52). A baseline that is missing
+      # The cells (their pixels too, D51) and the 29 thumbnails (D52). A baseline that is missing
       # fails its cell: only the update-baselines job writes them.
       - name: Design-system checks
         id: ds-checks

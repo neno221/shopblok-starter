@@ -8,8 +8,8 @@ import { revalidateWhenChanged } from "../hooks/revalidate-on-publish";
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 
 /**
- * Uploads are images only, and SVG is not one of them: an SVG can carry script, and the browser
- * runs it when the file is opened on its own URL. A file may be 10 MiB (SPEC §7.1, the root
+ * The pictures an upload may be, and SVG is not one of them: an SVG can carry script, and the
+ * browser runs it when the file is opened on its own URL. A file may be 10 MiB (SPEC §7.1, the root
  * config's `upload.limits`; HTTP 413 above it).
  */
 export const IMAGE_MIME_TYPES = [
@@ -19,6 +19,12 @@ export const IMAGE_MIME_TYPES = [
   "image/avif",
   "image/gif",
 ];
+
+/**
+ * The `video` block's files (T63, D79): MP4 and WebM videos, and WebVTT captions. Only pictures
+ * get the sizes below; Payload stores any other file as it came.
+ */
+export const VIDEO_MIME_TYPES = ["video/mp4", "video/webm", "text/vtt"];
 
 /**
  * The sizes every image is stored in (T59, SPEC §7.1), cropped around the editor's focal point:
@@ -46,23 +52,29 @@ export const Media: CollectionConfig = {
     update: isStaff,
     delete: isStaff,
   },
-  // The content globals embed an upload's file, size and alt text (a logo): a replaced file or a
-  // new alt text refreshes them (T61).
+  // The content globals and the pages' blocks embed an upload's file, size and alt text (a logo,
+  // a block's picture or video): a replaced file or a new alt text refreshes them (T61, T63).
   hooks: revalidateWhenChanged({
-    fields: ["filename", "url", "alt", "width", "height"],
-    tags: contentGlobalTags,
+    fields: ["filename", "url", "alt", "width", "height", "mimeType"],
+    tags: (locale) => [...contentGlobalTags(locale), `pages:${locale}`, "payload:pages"],
   }),
   upload: {
     // `apps/storefront/media`, git-ignored (T01). A shared disk or bucket replaces it in production.
     staticDir: path.resolve(dirname, "../../../media"),
-    mimeTypes: IMAGE_MIME_TYPES,
+    mimeTypes: [...IMAGE_MIME_TYPES, ...VIDEO_MIME_TYPES],
     imageSizes: IMAGE_SIZES,
     focalPoint: true,
     // The admin's list shows the small size instead of the original.
     adminThumbnail: "thumb",
   },
   fields: [
-    { name: "alt", type: "text", localized: true, required: true },
+    {
+      name: "alt",
+      type: "text",
+      localized: true,
+      required: true,
+      admin: { description: "What the picture shows; for a video or captions file, what it is." },
+    },
     { name: "caption", type: "textarea", localized: true },
   ],
 };

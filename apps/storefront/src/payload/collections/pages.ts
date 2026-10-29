@@ -2,8 +2,12 @@ import type { CollectionConfig } from "payload";
 import { isStaff, staffOrPublished } from "../access/roles";
 import { seedKey } from "../fields/seed-key";
 import { revalidateOnPublish } from "../hooks/revalidate-on-publish";
+import { LAYOUT_BLOCKS } from "../blocks";
 
-/** A stub (D12): the fields M4's content model grows from, and drafts to test the read rule. */
+/**
+ * A page (D12): its title and slug, and its `layout`, the blocks between the header and the footer
+ * (T63, D79). T65 adds the page template, its parents and its route.
+ */
 export const Pages: CollectionConfig = {
   slug: "pages",
   admin: { useAsTitle: "title", defaultColumns: ["title", "slug", "_status", "updatedAt"] },
@@ -28,6 +32,9 @@ export const Pages: CollectionConfig = {
   fields: [
     { name: "title", type: "text", localized: true, required: true },
     { name: "slug", type: "text", localized: true, required: true },
+    // SPEC §7.4: every language shares the blocks and their order, and localizes their text (a
+    // fully localized layout is M5's). The blocks are the root config's (`payload/blocks/`).
+    { name: "layout", type: "blocks", blocks: [], blockReferences: LAYOUT_BLOCKS },
     seedKey(),
   ],
 };

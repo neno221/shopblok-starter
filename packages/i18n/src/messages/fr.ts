@@ -694,6 +694,14 @@ export const fr: Messages = {
         "{count, plural, one {# champ demande votre attention.} other {# champs demandent votre attention.}}",
     },
   },
+  // Les sections de M4 (T63).
+  sections: {
+    video: {
+      playLabel: "Lire la vidéo",
+      play: "Lire la vidéo : {title}",
+      provider: "Lue depuis {provider}, qui peut déposer des cookies.",
+    },
+  },
   templates: {
     notFound: {
       title: "Page introuvable",

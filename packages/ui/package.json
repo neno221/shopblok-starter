@@ -13,6 +13,8 @@
     "./organisms/buy-box-choice": "./src/organisms/buy-box-choice.ts",
     "./organisms/*": "./src/organisms/*.tsx",
     "./templates/*": "./src/templates/*.tsx",
+    "./sections/section-copy": "./src/sections/section-copy.ts",
+    "./sections/*": "./src/sections/*.tsx",
     "./providers": "./src/providers.tsx",
     "./lib/*": "./src/lib/*.ts",
     "./hooks/*": "./src/hooks/*.ts",

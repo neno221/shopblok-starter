@@ -1,8 +1,9 @@
 import type { z } from "zod";
 
 /**
- * The groups of the DS navigation, in SPEC §9.6's order: the ones M2 and M3 fill. Sections join
- * before Templates when M5 builds its first entry; SPEC §9.3's "Pages" are the app itself (D56).
+ * The groups of the DS navigation, in SPEC §9.6's order: the ones M2 and M3 fill, and M4's
+ * Sections (D70), the blocks' components, between the headers and footers and the templates.
+ * SPEC §9.3's "Pages" are the app itself (D56).
  */
 export const GROUPS = [
   "foundations",
@@ -10,6 +11,7 @@ export const GROUPS = [
   "molecules",
   "organisms",
   "headers-footers",
+  "sections",
   "templates",
 ] as const;
 export type Group = (typeof GROUPS)[number];
@@ -18,7 +20,7 @@ export type Group = (typeof GROUPS)[number];
  * What an entry is, which its group does not always say: the headers and footers are organisms in
  * a group of their own.
  */
-export type Kind = "foundation" | "atom" | "molecule" | "organism" | "template";
+export type Kind = "foundation" | "atom" | "molecule" | "organism" | "section" | "template";
 
 /** The `@shopblok/ui` export an entry renders: its module, as an import path, and its name. */
 export type ComponentRef = { module: `@shopblok/ui/${string}`; name: string };
@@ -39,6 +41,12 @@ export type EntryInput = {
    */
   family?: string;
   variant?: string;
+  /**
+   * The Payload block a section draws (D70): its `slug` in `src/payload/blocks/` (`richText`).
+   * Every Sections entry names one, and nothing else does; the storefront's drift test checks that
+   * the block exists and offers the family's variants. The registry itself stays free of Payload.
+   */
+  block?: string;
   /** The props an entry shows, as a zod schema of its view model (D41); none in M1's entries. */
   contract?: z.ZodType;
 };

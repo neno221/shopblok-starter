@@ -5,6 +5,7 @@ import { lexicalEditor } from "@payloadcms/richtext-lexical";
 import { buildConfig } from "payload";
 import sharp from "sharp";
 import { siteOrigin } from "./lib/site-origin";
+import { BLOCKS } from "./payload/blocks";
 import { Categories } from "./payload/collections/categories";
 import { Collections } from "./payload/collections/collections";
 import { Integrations } from "./payload/collections/integrations";
@@ -69,6 +70,8 @@ export default buildConfig({
     UiStrings,
   ],
   globals: [Markets, Header, Footer, SiteSettings],
+  // D70, D79: SPEC §7.4's blocks, defined once here; `pages.layout` names them (`blockReferences`).
+  blocks: BLOCKS,
   editor: lexicalEditor(),
   graphQL: { disable: true },
   localization: {

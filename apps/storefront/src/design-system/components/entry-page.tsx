@@ -1,6 +1,7 @@
 import { catalogs } from "@shopblok/i18n";
 import { entryPath, framePath } from "../catalog";
 import type { DsContext, DsEntry } from "../types";
+import { BlockTable } from "./block-table";
 import { EntryBody } from "./entry-body";
 import { LocaleToggle } from "./locale-toggle";
 import { PropsTable } from "./props-table";
@@ -12,7 +13,8 @@ const copy = catalogs.en.designSystem;
 
 /**
  * An entry's page (SPEC §9.6): its title, the locale toggle, the live render and the states, its
- * props when it has a contract (D41), the a11y notes and the viewport switcher. The render and the
+ * props when it has a contract (D41), a section's Payload block (D70), the a11y notes and the
+ * viewport switcher. The render and the
  * states are `EntryBody`, the same component the frame shows alone.
  */
 export function EntryPage({ entry, ctx }: { entry: DsEntry; ctx: DsContext }) {
@@ -35,6 +37,13 @@ export function EntryPage({ entry, ctx }: { entry: DsEntry; ctx: DsContext }) {
         <div className="mt-10">
           <Section id="props" title={copy.sections.props}>
             <PropsTable contract={entry.contract} />
+          </Section>
+        </div>
+      )}
+      {entry.block !== undefined && (
+        <div className="mt-10">
+          <Section id="block" title={copy.sections.block}>
+            <BlockTable slug={entry.block} />
           </Section>
         </div>
       )}

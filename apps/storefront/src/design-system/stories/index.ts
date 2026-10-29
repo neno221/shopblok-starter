@@ -24,6 +24,7 @@ import { productListOrganismStories } from "./organisms-product-lists";
 import { productPageOrganismStories } from "./organisms-product-page";
 import { searchFilterOrganismStories } from "./organisms-search-filters";
 import { siteOrganismStories } from "./organisms-site";
+import { sectionStories } from "./sections";
 import { templateStories } from "./templates";
 
 // What the DS page says about each registry entry (D40): its summary, a11y notes, live render and
@@ -56,5 +57,6 @@ export const stories: Record<EntryId, DsStory> = {
   ...accountOrganismStories,
   ...headerStories,
   ...footerStories,
+  ...sectionStories,
   ...templateStories,
 };
