@@ -17,7 +17,7 @@ import { languageLabel } from "../../../payload/locales";
 import type { Market, MarketMap } from "../../markets/types";
 import { formFields, type StoredFormField } from "../../forms/fields";
 import type { InternalPaths, LinkValue } from "../link";
-import { mediaImage } from "../shell";
+import { mediaImage, mediaSrc } from "../shell";
 import { parseVideoUrl } from "../video";
 import {
   COMMERCE_BLOCKS,
@@ -95,7 +95,7 @@ function fileOf(
   const media = mediaOf(value);
   const url = text(media?.url);
   const type = media?.mimeType ?? "";
-  return url !== undefined && types.includes(type) ? { url, type } : undefined;
+  return url !== undefined && types.includes(type) ? { url: mediaSrc(url), type } : undefined;
 }
 
 function videoSource(block: Extract<LayoutBlock, { blockType: "video" }>): VideoSource | undefined {

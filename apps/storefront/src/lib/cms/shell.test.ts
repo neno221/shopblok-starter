@@ -6,12 +6,14 @@ import { seeded } from "../markets/test-maps";
 import { buildPublicUrl } from "../markets/url";
 import { toNavigation } from "../navigation";
 import { announcementFor, footerColumns, SITE, siteText } from "../site";
+import { siteOrigin } from "../site-origin";
 import {
   copyrightLine,
   footerFrom,
   headerFrom,
   isSaved,
   mediaImage,
+  mediaSrc,
   settingsFrom,
   shellPaths,
   type ShellContext,
@@ -80,6 +82,28 @@ describe("mediaImage", () => {
     expect(mediaImage(7)).toBeUndefined();
     expect(mediaImage({ ...media, url: null })).toBeUndefined();
     expect(mediaImage({ ...media, width: null })).toBeUndefined();
+  });
+
+  it("links an upload on the shop's own origin by its path (PR 98)", () => {
+    const media = {
+      url: `${siteOrigin()}/api/media/file/hero.webp`,
+      alt: "",
+      width: 1600,
+      height: 1200,
+    };
+    expect(mediaImage(media)?.src).toBe("/api/media/file/hero.webp");
+  });
+});
+
+describe("mediaSrc", () => {
+  it("makes the shop's own uploads paths and leaves other hosts' alone", () => {
+    const origin = "https://shop.example";
+    expect(mediaSrc("https://shop.example/api/media/file/a%20b.webp?v=2", origin)).toBe(
+      "/api/media/file/a%20b.webp?v=2",
+    );
+    expect(mediaSrc("/api/media/file/a.webp", origin)).toBe("/api/media/file/a.webp");
+    expect(mediaSrc("https://cdn.example/a.webp", origin)).toBe("https://cdn.example/a.webp");
+    expect(mediaSrc("http://shop.example/a.webp", origin)).toBe("http://shop.example/a.webp");
   });
 });
 

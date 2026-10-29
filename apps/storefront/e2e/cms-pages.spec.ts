@@ -211,6 +211,15 @@ test("the seeded home draws M3's sections as blocks, in M3's order", async () =>
   ).toBe(true);
   expect([...order].sort((a, b) => a - b)).toEqual(order);
   expect(html).toMatch(/<h1 data-slot="hero-heading"/);
+  // The hero's picture loads: an upload is linked by its path, which `/_next/image` takes (an
+  // absolute URL on the shop's own host was a 400 there, and a failed page in `next dev`).
+  const picture = /<img[^>]*data-slot="hero-image"[^>]*srcSet="([^" ]+)/
+    .exec(html)?.[1]
+    ?.replaceAll("&amp;", "&");
+  expect(picture, "the hero's picture").toMatch(/^\/_next\/image\?url=%2Fapi%2Fmedia%2F/);
+  const loaded = await fetch(`${base()}${picture}`);
+  expect(loaded.status, "the hero's picture loads").toBe(200);
+  expect(loaded.headers.get("content-type")).toMatch(/^image\//);
   // The homepage's canonical is the market's home, not the page's own address.
   expect(html).toMatch(/<link rel="canonical" href="https?:\/\/[^"]+\/us"\/>/);
 });
