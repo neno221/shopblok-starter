@@ -1,6 +1,14 @@
 import { catalogs, LOCALES, type Messages } from "@shopblok/i18n";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { pick, pickShell, SHELL_MESSAGES, type MessagePath } from "./messages";
+import {
+  codeMessages,
+  pick,
+  pickShell,
+  SHELL_MESSAGES,
+  uiStringOverrides,
+  withOverrides,
+  type MessagePath,
+} from "./messages";
 
 /** A catalog with the messages at `paths` removed: a language that has fallen behind. */
 function without(messages: Messages, paths: string[]): Messages {
@@ -197,5 +205,91 @@ describe("SHELL_MESSAGES", () => {
     expect(pick(catalogs.en, SHELL_MESSAGES)).toEqual({
       templates: { error: catalogs.en.templates.error },
     });
+  });
+});
+
+describe("uiStringOverrides (D77)", () => {
+  const LOW = "atoms.stock.low";
+
+  it("keeps an edited value that passes the ICU check against the code's English", () => {
+    const value = "{count, plural, other {Μόνο # ακόμη}}";
+    expect(uiStringOverrides("el", [{ key: LOW, value }])).toEqual({ [LOW]: value });
+  });
+
+  it("leaves out a value that is the code's, an empty one, and a key the code no longer has", () => {
+    const warn = vi.fn();
+    expect(
+      uiStringOverrides(
+        "el",
+        [
+          { key: LOW, value: catalogs.el.atoms.stock.low },
+          { key: "atoms.stock.out", value: null },
+          { key: "templates.error.body", value: "" },
+          { key: "atoms.gone.message", value: "Gone" },
+        ],
+        warn,
+      ),
+    ).toEqual({});
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it("compares a language with no catalog with English's: Payload's English fallback is no edit", () => {
+    expect(uiStringOverrides("pt", [{ key: LOW, value: catalogs.en.atoms.stock.low }])).toEqual({});
+    expect(uiStringOverrides("pt", [{ key: LOW, value: "{count, plural, other {Só #}}" }])).toEqual(
+      { [LOW]: "{count, plural, other {Só #}}" },
+    );
+  });
+
+  it("keeps the language's catalog for an emptied value: the fallback's unedited English is no edit", () => {
+    // PR 93 review, item 3: an emptied Greek value reads as the stored English (Payload's fallback).
+    expect(uiStringOverrides("el", [{ key: LOW, value: catalogs.en.atoms.stock.low }])).toEqual({});
+    const edited = "{count, plural, other {Just # left}}";
+    expect(uiStringOverrides("el", [{ key: LOW, value: edited }])).toEqual({ [LOW]: edited });
+  });
+
+  it("falls back to the code for a value that fails the check, warning once per value", () => {
+    const warn = vi.fn();
+    const broken = [{ key: LOW, value: "Μόνο {total} ακόμη" }];
+    expect(uiStringOverrides("de", broken, warn)).toEqual({});
+    expect(uiStringOverrides("de", broken, warn)).toEqual({});
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn.mock.calls[0]?.[0]).toBe(
+      "ui-strings: the de value of \"atoms.stock.low\" is not used, the code's is. It must use the English text's arguments ({count, plural}): {count, plural} is missing; {total} is not one of them.",
+    );
+    expect(
+      uiStringOverrides("de", [{ key: LOW, value: "{count, plural, other {#" }], warn),
+    ).toEqual({});
+    expect(warn).toHaveBeenCalledTimes(2);
+  });
+
+  it("knows the 718 shop messages of each catalog, without the design-system chrome", () => {
+    for (const locale of LOCALES) expect(codeMessages(locale).size, locale).toBe(718);
+    expect([...codeMessages("en").keys()].some((key) => key.startsWith("designSystem."))).toBe(
+      false,
+    );
+  });
+});
+
+describe("withOverrides (D77)", () => {
+  it("is the catalog itself when nothing is edited", () => {
+    expect(withOverrides(catalogs.el, {})).toBe(catalogs.el);
+  });
+
+  it("puts each edited value at its path in a copy, and leaves the shared catalog as it was", () => {
+    const before = structuredClone(catalogs.el);
+    const merged = withOverrides(catalogs.el, { "templates.error.title": "Ωχ" });
+    expect(merged.templates.error.title).toBe("Ωχ");
+    expect(merged.templates.error.body).toBe(catalogs.el.templates.error.body);
+    expect(merged).not.toBe(catalogs.el);
+    expect(catalogs.el).toEqual(before);
+  });
+
+  it("never puts a string where the catalog has a namespace, or a path it does not have", () => {
+    const merged = withOverrides(catalogs.en, {
+      "templates.error": "flat",
+      "templates.nothing.here": "x",
+    });
+    expect(merged.templates.error).toEqual(catalogs.en.templates.error);
+    expect("nothing" in merged.templates).toBe(false);
   });
 });

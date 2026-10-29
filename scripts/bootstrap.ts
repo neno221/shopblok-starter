@@ -607,7 +607,14 @@ async function medusaPayloadSync(ctx: Context): Promise<StepResult> {
 
 // ---- 11. Payload content seed (T59) ---------------------------------------------------------
 
-type SeedCounts = { created: number; updated: number; unchanged: number; kept?: string[] };
+type SeedCounts = {
+  created: number;
+  updated: number;
+  unchanged: number;
+  kept?: string[];
+  /** T62 (D77): the `ui-strings` documents, one per message of the code catalogs. */
+  uiStrings?: { created: number; updated: number; unchanged: number; deleted: number };
+};
 
 async function contentSeed(ctx: Context): Promise<StepResult> {
   const result = await payload(["run", "src/scripts/seed-content.ts"], ctx);
@@ -620,9 +627,13 @@ async function contentSeed(ctx: Context): Promise<StepResult> {
     );
   }
   // An editor's change is never overwritten (`seededUpdate`), so "unchanged" covers those too.
+  const strings = counts.uiStrings;
   const did = [
     counts.created > 0 ? `${counts.created} created` : "",
     counts.updated > 0 ? `${counts.updated} updated` : "",
+    strings !== undefined && strings.created > 0 ? `${strings.created} ui-strings created` : "",
+    strings !== undefined && strings.updated > 0 ? `${strings.updated} ui-strings updated` : "",
+    strings !== undefined && strings.deleted > 0 ? `${strings.deleted} ui-strings deleted` : "",
   ].filter(Boolean);
   // A document with an unpublished draft is left alone, so the draft stays the editor's.
   const notes = (counts.kept ?? []).map(

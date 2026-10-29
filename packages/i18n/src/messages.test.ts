@@ -1,63 +1,13 @@
-import {
-  parse,
-  TYPE,
-  type MessageFormatElement,
-  type PluralElement,
-} from "@formatjs/icu-messageformat-parser";
+import { parse } from "@formatjs/icu-messageformat-parser";
 import { describe, expect, it } from "vitest";
+import { argumentsOf, messagesOf, pluralsOf } from "./icu";
 import { catalogs, LOCALES, type Locale } from "./index";
 
 // The catalogs' parity (D43): every locale has English's keys, each message is valid ICU, and each
 // has the same arguments as English's, of the same kinds. TypeScript already checks the keys of the
 // three object literals against `Messages`; this checks what it cannot see: a renamed or dropped
-// `{count}`, a `plural` turned into a plain argument, or a catalog built some other way.
-
-/** Every message of a catalog, by its path (`atoms.stock.low`). */
-function messagesOf(catalog: object, prefix = ""): Map<string, string> {
-  const found = new Map<string, string>();
-  for (const [key, value] of Object.entries(catalog)) {
-    const path = prefix === "" ? key : `${prefix}.${key}`;
-    if (typeof value === "string") found.set(path, value);
-    else for (const [child, text] of messagesOf(value as object, path)) found.set(child, text);
-  }
-  return found;
-}
-
-const kinds: Partial<Record<TYPE, string>> = {
-  [TYPE.argument]: "argument",
-  [TYPE.number]: "number",
-  [TYPE.date]: "date",
-  [TYPE.time]: "time",
-  [TYPE.select]: "select",
-  [TYPE.plural]: "plural",
-  [TYPE.tag]: "tag",
-};
-
-/** A message's arguments and their kinds (`count: plural`), with those inside plurals and selects. */
-function argumentsOf(elements: MessageFormatElement[], into = new Map<string, string>()) {
-  for (const element of elements) {
-    const kind = kinds[element.type];
-    if (kind !== undefined && "value" in element && typeof element.value === "string") {
-      const ordinal = element.type === TYPE.plural && element.pluralType === "ordinal";
-      into.set(element.value, ordinal ? "selectordinal" : kind);
-    }
-    if (element.type === TYPE.plural || element.type === TYPE.select)
-      for (const option of Object.values(element.options)) argumentsOf(option.value, into);
-    if (element.type === TYPE.tag) argumentsOf(element.children, into);
-  }
-  return into;
-}
-
-/** The plural elements of a message, at any depth. */
-function pluralsOf(elements: MessageFormatElement[]): PluralElement[] {
-  return elements.flatMap((element) => {
-    if (element.type === TYPE.plural)
-      return [element, ...Object.values(element.options).flatMap((o) => pluralsOf(o.value))];
-    if (element.type === TYPE.select)
-      return Object.values(element.options).flatMap((o) => pluralsOf(o.value));
-    return element.type === TYPE.tag ? pluralsOf(element.children) : [];
-  });
-}
+// `{count}`, a `plural` turned into a plain argument, or a catalog built some other way. The
+// helpers are `icu.ts`'s, the ones `ui-strings` (D77) checks an edited message with.
 
 const { designSystem: _chrome, ...englishMessages } = catalogs.en;
 const english = messagesOf(englishMessages);

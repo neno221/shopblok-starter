@@ -4,9 +4,17 @@ import type { MarketMap } from "../lib/markets/types";
 import { brazil, mongolia, seeded } from "../lib/markets/test-maps";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-const state = vi.hoisted(() => ({ key: "", map: undefined as unknown as MarketMap }));
+const state = vi.hoisted(() => ({
+  key: "",
+  map: undefined as unknown as MarketMap,
+  // `readUiStrings` (D77): `null` is "no database", as in every test here but the last group's.
+  read: (async () => null) as (reader: unknown) => Promise<Record<string, string> | null>,
+}));
 vi.mock("next/root-params", () => ({ market: async () => state.key }));
 vi.mock("../lib/markets/cached-market-map", () => ({ getRenderMarketMap: async () => state.map }));
+vi.mock("../lib/cms/ui-strings", () => ({
+  readUiStrings: (reader: unknown) => state.read(reader),
+}));
 
 import config from "./request";
 
@@ -26,6 +34,7 @@ async function configFor(map: MarketMap, key: string) {
 
 afterEach(() => {
   state.key = "";
+  state.read = async () => null;
 });
 
 describe("the request configuration (D62)", () => {
@@ -93,5 +102,53 @@ describe("the request configuration (D62)", () => {
     await expect(configFor(seeded, "xx-yy")).rejects.toMatchObject({
       digest: "NEXT_HTTP_ERROR_FALLBACK;404",
     });
+  });
+});
+
+describe("the request configuration with ui-strings (D77)", () => {
+  it("reads the market language's edited strings, never Draft Mode, and puts them over the catalog", async () => {
+    const readers: unknown[] = [];
+    state.read = async (reader) => {
+      readers.push(reader);
+      return { "templates.error.title": "Ωχ, κάτι χάλασε" };
+    };
+    const result = await configFor(seeded, "el-cy");
+    expect(readers).toEqual([
+      { market: expect.objectContaining({ language: "el" }), draft: false },
+    ]);
+    expect(result.messages?.templates?.error?.title).toBe("Ωχ, κάτι χάλασε");
+    expect(result.messages?.templates?.error?.body).toBe(catalogs.el.templates.error.body);
+    expect(catalogs.el.templates.error.title).not.toBe("Ωχ, κάτι χάλασε");
+  });
+
+  it("reads a language with no catalog in its own code, over the English catalog", async () => {
+    const languages: string[] = [];
+    state.read = async (reader) => {
+      languages.push((reader as { market: { language: string } }).market.language);
+      return { "templates.error.title": "Algo deu errado" };
+    };
+    const result = await configFor(brazil, "pt-br");
+    expect(languages).toEqual(["pt"]);
+    expect(result.messages?.templates?.error?.title).toBe("Algo deu errado");
+    expect(result.messages?.templates?.error?.body).toBe(catalogs.en.templates.error.body);
+  });
+
+  it("falls back to the code catalog when the read fails, with one warning per outage", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    state.read = async () => {
+      throw new Error("connect ECONNREFUSED 127.0.0.1:15432");
+    };
+    expect((await configFor(seeded, "el-cy")).messages).toBe(catalogs.el);
+    expect((await configFor(seeded, "el-cy")).messages).toBe(catalogs.el);
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(String(warn.mock.calls[0]?.[0])).toContain("ui-strings: the read failed");
+    state.read = async () => ({});
+    await configFor(seeded, "el-cy");
+    state.read = async () => {
+      throw new Error("down again");
+    };
+    await configFor(seeded, "el-cy");
+    expect(warn).toHaveBeenCalledTimes(2);
+    warn.mockRestore();
   });
 });

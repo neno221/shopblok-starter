@@ -4,15 +4,18 @@
  *
  *   pnpm --filter @shopblok/storefront exec payload run src/scripts/seed-content.ts
  *
- * Each content type's module is in `src/payload/seed/`, the globals' in `seed/globals.ts`. Safe to repeat: a second run changes
- * nothing, and an editor's change is kept (`seededUpdate`), a pending draft too (`kept`). Its
- * result is one line of JSON, `{"seedContent":{"created":…,"updated":…,"unchanged":…,"kept":[…]}}`,
- * among Payload's log lines.
+ * Each content type's module is in `src/payload/seed/`, the globals' in `seed/globals.ts` (T61);
+ * `ui-strings` (T62, D77) has its own run, since its 718 documents are read and compared in one
+ * query. Safe to repeat: a second run changes nothing, and an editor's change is kept
+ * (`seededUpdate`, `changeFor`), a pending draft too (`kept`). Its result is one line of JSON,
+ * `{"seedContent":{"created":…,"updated":…,"unchanged":…,"kept":[…],"uiStrings":{…}}}`, among
+ * Payload's log lines.
  */
 import config from "@payload-config";
 import { getPayload } from "payload";
 import { SEED_GLOBALS, SEED_MODULES } from "../payload/seed";
 import { runGlobalSeeds, runSeeds } from "../payload/seed/run";
+import { seedUiStrings } from "../payload/seed/ui-strings";
 
 const payload = await getPayload({ config });
 const documents = await runSeeds(payload, SEED_MODULES);
@@ -24,4 +27,7 @@ const counts = {
   unchanged: documents.unchanged + globals.unchanged,
   kept: [...documents.kept, ...globals.kept],
 };
-console.log(JSON.stringify({ seedContent: counts }));
+const started = performance.now();
+const uiStrings = await seedUiStrings(payload);
+const seconds = Number(((performance.now() - started) / 1000).toFixed(1));
+console.log(JSON.stringify({ seedContent: { ...counts, uiStrings: { ...uiStrings, seconds } } }));
