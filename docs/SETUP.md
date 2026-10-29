@@ -6577,3 +6577,57 @@ The page and the uploads are deleted afterwards (each upload as soon as it exist
 
 Left as the review says: 7 (the test page passes no `paths`, so a child category's link is `/categories/<handle>`; T65's `[...slug]` page passes `shellPaths`; T64's prompt asks for it in T65's) and 8 (the depth-1 read embeds whole documents); neither is security or a cleanup. After the fixes: `lint`, `typecheck` and `test` exit 0 (the storefront 3518, ui 5634; the registry's thumbnail test waits for the update job), `cms-blocks.spec.ts` 4 of 4 and `shell.spec.ts` 8 of 8.
 
+
+## Forms (T67)
+
+**Result: staff build forms in the admin (Payload's form builder, with D81's six kinds of field), and the shop posts them through one server action that checks every answer against the form's own fields, drops a filled spam trap with a "thank you", and stores the rest through the Local API; the plugin's REST `create` answers 403 to everyone. Two new blocks draw a form (`formBlock`) or a newsletter signup (`newsletter`), and the footer global names a newsletter form, which the seed sets to the seeded "Newsletter", so every page of the seeded shop has a signup. All three work without scripts.** M4 plan §5 T67; D72, D79, D81, D88.
+
+| | |
+|---|---|
+| Date | 2026-10-29 |
+| Branch | `claude/project-thread-7jp6v7`, from `main` at `f8c10c5` (PR 95 merged) |
+| PR | (this PR) |
+
+### What there is now
+
+- **The plugin** (`apps/storefront/src/payload/forms.ts`, `@payloadcms/plugin-form-builder` 3.92.1): the text, textarea, email, select, checkbox and message fields; no country, state, number, payment or upload. A form keeps its title, its fields (1 to 20, each with a name of letters, digits, `-` and `_` from a letter, once, and never `website`, the spam trap's), the submit button's label and an optional confirmation message (empty: the shop's "Thank you. We have your message."). The redirect after a submission and the plugin's e-mails are left out: a form always answers in place, and M6 sends e-mail through Resend. Forms are read by anyone (they hold labels, as a page does) and written by staff; a change revalidates the forms' reads and the pages and globals that embed one (`formTags`). Submissions: `create` and `update` closed to everyone, read by staff, deleted by admins. Both collections are in the admin's "Forms" group.
+- **The action** (`src/lib/actions/form.ts`, `form-handlers.ts`, M3's `action()`): the page binds the market's key and the form's id; the action checks them (an id is digits), returns "thank you" at once when the spam trap (`website`) holds anything, reads the form in the market's language (`readForm`, tagged `forms:<locale>`, anonymous like every public read), builds a zod schema from its fields (`lib/forms/fields.ts`: each kind and `required`, text 200, e-mail 254, text area 4,000 characters, a select's own values, a box `on`; a blank optional field is fine, anything not a field is dropped) and stores the answers with `overrideAccess: true` as the plugin's `submissionData` (a box as `true` or `false`). A refused answer comes back per field (`required`, `pattern`, `invalid`) with what was typed; a database error is `unavailable`. The plugin's own `afterChange` hook runs and sends nothing, since no form has e-mails.
+- **The sections** (`packages/ui/src/sections/form-block.tsx`, `newsletter.tsx`, Sections entries `form-block` and `newsletter`, 144 entries and 31 families): `FormBlockSection` draws the fields in the editor's order as native, labelled controls (two half-width fields share a row when the form is 28rem wide, a container query), the editor's text between them, each refused field marked (`aria-invalid`, its error tied by `aria-describedby`) with what was typed kept, and the answer in a polite status region that is always in the page; `NewsletterSection` is M3's `NewsletterForm` (now with `fieldName` and `hiddenFields`) in a section frame, under the editor's heading and line or the catalog's. The fixed words are the new `sections.form` namespace (12 messages, so the catalogs and `ui-strings` have 733). `FORM_LIMITS` is its own module (`@shopblok/registry/form-limits`): imported from the contracts it brought zod into the browser (45 KB on every page, seen in the first build).
+- **The blocks** (`src/payload/blocks/form-block.ts`, `newsletter.ts`): `formBlock` (heading, intro, a form) and `newsletter` (heading, line, a form whose only field is one e-mail field, checked on save, and the privacy page its consent sentence links to). The resolver (`lib/cms/resolve/sections.ts`, `resolve/forms.ts`) leaves out a newsletter whose form is not one e-mail field or whose privacy link does not resolve, and a form block whose form has no field to draw.
+- **The footer** (`src/payload/globals/footer.ts`): a `newsletter` group (the form, and the privacy link once a form is picked). `footerFrom` gives the shell the newsletter only when both are usable; with none, the footer draws no signup, as M3's did.
+- **The islands** (`src/components/cms/{form-block-island,newsletter-section-island,newsletter-form-island}.tsx`): each keeps the action's answer with `useActionState(action, initial, permalink)`, one module each so a page ships only the forms it draws. The footer's costs 1.6 KB on every page (the product page 332.0 → 333.6 KB, under its 335).
+- **The seed** (`src/payload/seed/forms.ts`, run by `seed-content.ts` before the globals): "Newsletter" (one e-mail field) and "Contact" (name and e-mail side by side, a topic, an order number, the message, a note, a consent box), labels in the four languages on the same rows; created once and then the editors' own (a second run leaves an existing form alone). The footer's seed sets the newsletter to "Newsletter" and its privacy link to `/privacy`. **`/privacy` is a 404 until a page with that slug exists** (T65's pages; the consent sentence links it either way). A footer saved before this migration reads the column default `privacy.type: "reference"` with no page, which the seed treats as unset (seen when the first seed run was refused with "Newsletter > Privacy policy > Reference").
+- **The migration:** `20261029_032810_forms` (D88: created last; `main` had not moved since `f8c10c5`): the two collections and their block tables, the two page blocks and the footer's group. `migrate:create --skip-empty` afterwards writes nothing.
+
+### Without scripts: where it differs from the plan
+
+D81 says the action "answers with a flash, as T52 and T53's forms do". A flash needs a page that reads a cookie per request, and the pages a form lives on are prerendered (home, the catalog, a product, T65's CMS pages), so the forms use React's `useActionState` with a permalink instead: the form posts to the permalink, Next runs the action and draws that page with the answer, and the browser scrolls to the form (`#form-<block>` or `#footer-newsletter`). **Next 16.4.3 draws the answer only on a page prerendered whole.** A page with a per-visitor part (the cart, checkout, the account, sign-in, T59's test page) is resumed from its prerendered shell, and React's resume takes no action state (`app-render.js` passes `formState` to a full render and not to `resumeToFizzStream`), so such a page comes back without the answer, though the post is stored. So the footer's newsletter posts to the market's home (`/us#footer-newsletter`), which answers from any page; a block's form posts to its own page, which is right for T65's prerendered pages and is why the no-script contact test on T59's test page checks the stored answer and the page's `#form-…`, not the message.
+
+The plan also put "the honeypot field" in `formSubmissionOverrides`; it is the action's instead (`website`, refused as a field name), and nothing of a trapped post is stored.
+
+### `e2e-smoke`
+
+`forms.spec.ts` reads the seeded forms, publishes a page with the contact form through T59's test route, and as the bootstrap admin reads the submissions back:
+
+- `POST /api/form-submissions` answers 403, anonymous and as the admin, and stores nothing;
+- **with scripts:** the contact form (axe clean in `main`, the note between the fields) shows the confirmation and is stored once with every field (the unticked order as `""`, the box as `true`); an e-mail the server refuses (`novalidate`, past the browser's check) is marked on its field with "Enter an email address…" and the other answers kept, and nothing is stored;
+- **without scripts:** the contact form is stored once and the page comes back at its `#form-…`; the footer's newsletter from `/us/cart` lands on `/us#footer-newsletter` with "Thank you, you are subscribed." and is stored;
+- **the spam trap**, filled with scripts in the contact form and without in the footer: "thank you" both times, nothing stored;
+- the footer's consent sentence links `/us/privacy`.
+
+The page and the run's submissions are deleted afterwards.
+
+### Mutations (each fails a test)
+
+| Mutation | Fails |
+|---|---|
+| `form-submissions`' `access.create` returns `true` | `forms.spec.ts`: "closes the REST create" expects 403, receives 201 |
+| The action ignores the spam trap (it returns early only for a value no bot sends) | `forms.spec.ts`: "answers a filled spam trap" finds the trapped submission stored; `form-handlers.test.ts`: two tests |
+
+### Checks (cloud VM, Node 22.23.4, the compose stack)
+
+- `lint` and `typecheck` exit 0 for every workspace; `test`: the storefront 3556, ui 5659, the fixtures 463, i18n 108, `scripts` 431, `@shopblok/integrations` 14, the registry 228 with its thumbnail test failing until the update job writes the two new PNGs, as it should. `generate:types` and `generate:importmap` are current.
+- Against `next start` and Medusa: `forms.spec.ts` 6 of 6; the default projects and the locales project otherwise as on `main`, with `E2E_MEDUSA_LOG` (two `catalog.spec.ts` listing tests depend on the server's page size and failed in a run whose server was started without `STOREFRONT_LISTING_PAGE_SIZE`; T67 does not touch the listings).
+- The seed twice: the first run creates the two forms and updates the footer, the second changes nothing; the Greek and French labels are on the same rows as the English.
+- The DS build with no `.env` (`DESIGN_SYSTEM_ENABLED=true`) exits 0, and the design-system project's 12 cells of the two new entries pass with `--ignore-snapshots`.
+- First-load JS, `main` against this branch: the product page 332.0 → 333.6 KB and the listing pages 331.1 → 332.2 (the footer's newsletter island; both under 335); `/[market]` 316.4 → 318.1; the test page 308.8 → 313.4 (the form block's island too); the admin 825.3 → 825.4.
