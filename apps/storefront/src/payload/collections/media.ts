@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 import type { CollectionConfig } from "payload";
 import { embeddingTags } from "../../lib/cms/tags";
 import { isStaff } from "../access/roles";
+import { seedKey } from "../fields/seed-key";
 import { revalidateWhenChanged } from "../hooks/revalidate-on-publish";
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -76,5 +77,7 @@ export const Media: CollectionConfig = {
       admin: { description: "What the picture shows; for a video or captions file, what it is." },
     },
     { name: "caption", type: "textarea", localized: true },
+    // The seeded Home's hero picture (T65) is found again by its key.
+    seedKey(),
   ],
 };

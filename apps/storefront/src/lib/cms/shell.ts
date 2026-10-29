@@ -25,6 +25,7 @@ import {
   type HeaderVariant,
 } from "../site";
 import { resolveLink, type InternalPaths, type LinkValue } from "./link";
+import { encodePagePath, type PagePaths } from "./page-path";
 import { CMS_PATHS } from "./paths";
 import { newsletterTarget, type NewsletterTarget } from "./resolve/forms";
 
@@ -89,6 +90,8 @@ export type ShellContext = {
   url: (path: string) => string;
   /** Medusa's category tree, as the shell has it (`toCategories`). */
   categories: readonly Category[];
+  /** The market language's page addresses (`readPagePaths`, T65); none without a database. */
+  pages?: PagePaths | null;
 };
 
 type Saved = { updatedAt?: string | null } | null | undefined;
@@ -110,9 +113,14 @@ export function mediaImage(value: unknown): Image | undefined {
 
 /**
  * The internal paths for this market's shell: `CMS_PATHS`, with a category's whole path of
- * handles (`/categories/apparel/tops`) from Medusa's tree, which its Payload document lacks.
+ * handles (`/categories/apparel/tops`) from Medusa's tree, which its Payload document lacks, and
+ * a page's address in the market's language from `pages` (T65): a page that has none there (not
+ * published, or under one that is not) gets no link. Without `pages` (no database), `CMS_PATHS`'.
  */
-export function shellPaths(categories: readonly Category[]): InternalPaths {
+export function shellPaths(
+  categories: readonly Category[],
+  pages?: PagePaths | null,
+): InternalPaths {
   const full = new Map<string, string[]>();
   const walk = (nodes: readonly Category[], path: string[]) => {
     for (const node of nodes) {
@@ -131,6 +139,14 @@ export function shellPaths(categories: readonly Category[]): InternalPaths {
         ? fallback
         : `/categories/${handles.map(encodeURIComponent).join("/")}`;
     },
+    ...(pages === null || pages === undefined
+      ? {}
+      : {
+          pages: (doc) => {
+            const path = pages.byId[String(doc["id"])]?.path;
+            return path === undefined ? null : encodePagePath(path);
+          },
+        }),
   };
 }
 
@@ -207,7 +223,7 @@ export function headerFrom(
       ...(settings.logo === undefined ? {} : { logo: settings.logo }),
     };
   }
-  const paths = shellPaths(categories);
+  const paths = shellPaths(categories, context.pages);
   const message = text(global.announcement?.message);
   const announcementLink = linkOf(global.announcement?.link, context, paths);
   const navigation =
@@ -270,7 +286,7 @@ export function footerFrom(
       ...logo,
     };
   }
-  const paths = shellPaths(categories);
+  const paths = shellPaths(categories, context.pages);
   const columns = (global.columns ?? []).flatMap((column) => {
     const title = text(column.title);
     const links = [

@@ -1,6 +1,7 @@
 import { siteText } from "../../lib/site";
 import { lexicalParagraphs } from "./email-templates";
 import { seededNewsletterId } from "./forms";
+import type { Payload } from "payload";
 import type { SeedGlobal } from "./types";
 import type { Seeded } from "./values";
 
@@ -78,17 +79,34 @@ export const footerSeed: SeedGlobal = {
   },
 };
 
+/** The seeded Home's id (`pagesSeed` runs first), or none if it is not there. */
+async function seededHomeId(payload: Payload): Promise<number | undefined> {
+  const { docs } = await payload.find({
+    collection: "pages",
+    where: { seedKey: { equals: "home" } },
+    depth: 0,
+    limit: 1,
+    pagination: false,
+    overrideAccess: true,
+  });
+  return docs[0]?.id;
+}
+
 /**
  * The site settings: the store's name and the product page's texts from `site.ts` in four
- * languages (T69 reads them). `homepage` stays empty until T65.
+ * languages (T69 reads them), and since T65 the seeded Home as the homepage (D80).
  */
 export const siteSettingsSeed: SeedGlobal = {
   global: "site-settings",
-  fields: () => ({
-    storeName: seeded("Shopblok"),
-    productNotes: seeded(localized((text) => text.productNotes.map((note) => ({ note })))),
-    deliveryAndReturns: seeded(localized((text) => lexicalParagraphs(text.delivery))),
-  }),
+  fields: async (payload) => {
+    const home = await seededHomeId(payload);
+    return {
+      storeName: seeded("Shopblok"),
+      productNotes: seeded(localized((text) => text.productNotes.map((note) => ({ note })))),
+      deliveryAndReturns: seeded(localized((text) => lexicalParagraphs(text.delivery))),
+      ...(home === undefined ? {} : { homepage: seeded(home) }),
+    };
+  },
   perLocale: ["productNotes"],
 };
 

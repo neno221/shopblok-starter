@@ -26,6 +26,20 @@ export const NotFoundPage = z.object({
   searchHref: Href.optional().describe("The search page, when the shop has one"),
 });
 
+/**
+ * A CMS page (`cms-page`, T65, D80): its title and, for a page with parents, the breadcrumbs; its
+ * blocks are the sections the shop draws under them. `heading` says who has the page's `<h1>`.
+ */
+export const CmsPage = z.object({
+  title: z.string().min(1),
+  breadcrumbs: Breadcrumbs.optional().describe("A page with parents: Home, the parents, the page"),
+  heading: z
+    .enum(["title", "hero"])
+    .describe(
+      "`title`: the template draws the title; `hero`: the first block, a hero, has the `<h1>`",
+    ),
+});
+
 /** The error page (`error`): it says nothing about the error, only what the visitor can do. */
 export const ErrorPage = z.object({ homeHref: Href });
 
@@ -226,6 +240,7 @@ export const OrderConfirmationPage = z
   });
 
 export type NotFoundPage = z.infer<typeof NotFoundPage>;
+export type CmsPage = z.infer<typeof CmsPage>;
 export type ListingResults = z.infer<typeof ListingResults>;
 export type ProductListingPage = z.infer<typeof ProductListingPage>;
 export type SearchResultsPage = z.infer<typeof SearchResultsPage>;

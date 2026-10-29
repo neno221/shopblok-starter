@@ -1,6 +1,6 @@
 import { expect, test, type Browser } from "@playwright/test";
 import { appEnv } from "./support/app-env";
-import { adminToken, base } from "./support/server";
+import { adminToken, base, freshWithinTwo } from "./support/server";
 
 // T59 (D73, D74): preview and scheduled publishing, end to end, against a production build.
 //
@@ -11,8 +11,8 @@ import { adminToken, base } from "./support/server";
 // - A scheduled publish happens when `/api/payload-jobs/run` is called with the cron secret, and
 //   the endpoint refuses a call without it, and the integration's API key too.
 //
-// The page is read by the test-only `/[market]/e2e-cms/[slug]` (404 unless E2E_TEST_ROUTES=true),
-// which reads it the way T65's CMS pages will. Requests go from Node with the cookies set by hand,
+// The page is read at its own address, `{m}/[...slug]` (T65). Requests go from Node with the
+// cookies set by hand,
 // as `payload-cache.spec.ts` does: Draft Mode's cookie is `Secure`, and a browser on
 // http://localhost would not send it with `page.request`.
 
@@ -24,7 +24,7 @@ const publishedTitle = `PREVIEW-PUBLISHED-${stamp}`;
 const draftTitle = `PREVIEW-DRAFT-${stamp}`;
 const slug = `e2e-preview-${stamp}`;
 // Greek is the primary market's language: its pages sit at `/…`.
-const pagePath = `/e2e-cms/${slug}`;
+const pagePath = `/${slug}`;
 /** A string only the live-preview island's code contains (`@payloadcms/live-preview`). */
 const ISLAND_MARKER = "payload-document-event";
 
@@ -53,7 +53,7 @@ async function shown(cookie?: string) {
   return {
     status: response.status,
     cacheControl: response.headers.get("cache-control") ?? "",
-    title: /data-testid="cms-title"[^>]*>([^<]*)</.exec(html)?.[1] ?? null,
+    title: /data-slot="cms-page-title"[^>]*>([^<]*)</.exec(html)?.[1] ?? null,
     html,
   };
 }
@@ -126,7 +126,7 @@ test("the admin saves a draft over a published page; a visitor sees the publishe
   expect(saved.status, await saved.clone().text()).toBe(200);
 
   const visitor = await shown();
-  expect(visitor.status, "E2E_TEST_ROUTES=true on the server?").toBe(200);
+  expect(visitor.status).toBe(200);
   expect(visitor.title).toBe(publishedTitle);
   expect(visitor.html).not.toContain(draftTitle);
 });
@@ -238,9 +238,11 @@ test("a scheduled publish runs when the jobs endpoint is called with the cron se
 
   const cron = { Authorization: `Bearer ${appEnv("storefront", "CRON_SECRET")}` };
   const visitorRead = () => fetch(`${base()}/api/pages/${id}?locale=en`);
+  const address = `${base()}/us/e2e-scheduled-${stamp}`;
   // Not due yet: the run leaves it alone.
   expect((await run(cron)).status).toBe(200);
   expect((await visitorRead()).status, "still a draft before its time").toBe(404);
+  expect((await fetch(address)).status, "no page at its address yet").toBe(404);
 
   await new Promise((resolve) =>
     setTimeout(resolve, Math.max(0, Date.parse(waitUntil) - Date.now()) + 500),
@@ -249,4 +251,10 @@ test("a scheduled publish runs when the jobs endpoint is called with the cron se
   const published = await visitorRead();
   expect(published.status, "published by the job").toBe(200);
   expect(((await published.json()) as { title: string }).title).toBe(title);
+  // And the page answers at its address (the publish revalidated the pages' addresses).
+  const shows = async () => {
+    const response = await fetch(address);
+    return response.status === 200 && (await response.text()).includes(`${title}</h1>`);
+  };
+  expect(await freshWithinTwo(shows, 1_500), "the page at /us/…").toBeGreaterThan(0);
 });

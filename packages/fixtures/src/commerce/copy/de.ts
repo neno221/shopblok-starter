@@ -437,4 +437,5 @@ export const de: Copy = {
     shippingName:
       "Expresslieferung bis an Ihre Haustür mit Unterschrift bei Empfang und kostenloser Sendungsverfolgung per SMS oder E-Mail",
   },
+  cmsPage: { parent: "Über uns", title: "Unser Team" },
 };

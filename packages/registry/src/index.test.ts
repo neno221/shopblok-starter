@@ -62,8 +62,9 @@ describe("the registry (D40)", () => {
       "templates/auth",
       "templates/account",
       "templates/order-lookup",
+      "templates/cms-page",
     ]);
-    expect(entries).toHaveLength(153);
+    expect(entries).toHaveLength(154);
     expect(entries.map((entry) => entry.id).slice(0, 2)).toEqual([
       "foundations/colors",
       "foundations/typography",
@@ -110,7 +111,7 @@ describe("the registry (D40)", () => {
     ]);
     expect(byGroup("headers-footers").at(5)?.id).toBe("headers-footers/header-transparent");
     expect(byGroup("headers-footers").at(-1)?.id).toBe("headers-footers/footer-two-tier");
-    expect(entries.at(-1)?.id).toBe("templates/order-lookup");
+    expect(entries.at(-1)?.id).toBe("templates/cms-page");
   });
 
   it("gives every entry a unique `{group}/{slug}` id in a known group, and a label", () => {

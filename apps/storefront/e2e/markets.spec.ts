@@ -1,4 +1,5 @@
 import { expect, test, type APIResponse } from "@playwright/test";
+import { catalogs } from "./support/catalogs";
 
 // T11: the proxy turns public market URLs into the internal `/{key}/…` routes (SPEC §8.1, §8.5).
 // Run against `next start` with the seeded map in the `markets` global (playwright.config.ts).
@@ -39,11 +40,11 @@ test.describe("market homes: the public URL stays, the market's language is serv
       // The browser ends on the public URL (Next drops the trailing slash), never on the key.
       expect(new URL(page.url()).pathname).toBe(home.shown);
       await expect(page.locator("html")).toHaveAttribute("lang", home.lang);
-      // The market's own home (T51): its links are inside the market the key named.
-      await expect(page.locator('[data-slot="home-shop-all"]')).toHaveAttribute(
-        "href",
-        `${home.shown === "/" ? "" : home.shown}/store`,
-      );
+      // The market's own home (the seeded Home, T65): its links are inside the market the key
+      // named, the hero's way into the shop among them.
+      await expect(
+        page.locator('[data-slot="hero-section"] [data-slot="section-links"] a').first(),
+      ).toHaveAttribute("href", `${home.shown === "/" ? "" : home.shown}/store`);
     });
   }
 
@@ -138,11 +139,19 @@ test.describe("the internal key is not public: 404 from global-not-found", () =>
     await expect(page.getByRole("link", { name: /home/i })).toHaveAttribute("href", "/");
   });
 
-  test("a path that is no page of the market is the same 404", async ({ page }) => {
+  // T65: a path under a market that is no page reaches `{m}/[...slug]`, whose `notFound()` draws
+  // the market's own 404 (`[market]/not-found.tsx`) in its language, linking to its home. The
+  // browser swaps it in; `curl` gets Next's error shell, as for a missing product (SETUP.md, T12).
+  test("a path that is no page of the market is the market's 404, in its language", async ({
+    page,
+  }) => {
     const response = await page.goto("/does-not-exist");
     expect(response?.status()).toBe(404);
-    await expect(page.locator("html")).toHaveAttribute("lang", "en");
-    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Page not found");
+    await expect(page.locator("html")).toHaveAttribute("lang", "el-CY");
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+      catalogs.el.templates.notFound.title,
+    );
+    await expect(page.locator('[data-slot="not-found-home"]')).toHaveAttribute("href", "/");
   });
 });
 
@@ -250,17 +259,28 @@ test.describe("root files", () => {
     expect(response.headers()["content-type"]).toBe("image/x-icon");
   });
 
-  // `/us/robots.txt` has two segments, so the rewrite leaves it to `[market]`; `/size-8.5` is a
-  // slug to the proxy (a dot before a digit), which sends it to the primary market's 404.
-  for (const path of ["/us/robots.txt", "/size-8.5"]) {
-    test(`${path} is still the 404 page`, async ({ page }) => {
-      const response = await page.goto(path);
-      expect(response?.status()).toBe(404);
-      expect(response?.headers()["content-type"]).toContain("text/html");
-      await expect(page.locator("html")).toHaveAttribute("lang", "en");
-      await expect(page.getByRole("heading", { level: 1 })).toHaveText("Page not found");
-    });
-  }
+  // `/us/robots.txt` looks like a file, so the proxy leaves it alone (no rewrite to `en-us`): since
+  // `{m}/[...slug]` (T65) it matches the route with `us` as the market key, which is no key, and the
+  // layout's `notFound()` gives Next's default 404 page (T08, item 2). Before T65 it matched no route
+  // and got `global-not-found`. Either way a 404 in HTML, never a file.
+  test("/us/robots.txt is still a 404 page", async ({ request }) => {
+    const response = await request.get("/us/robots.txt", { maxRedirects: 0 });
+    expect(response.status()).toBe(404);
+    expect(response.headers()["content-type"]).toContain("text/html");
+    expect(await response.text()).toContain("This page could not be found");
+  });
+
+  // `/size-8.5` is a slug to the proxy (a dot before a digit), which sends it to the primary market:
+  // `{m}/[...slug]` finds no page there, so the market's own 404, in Greek.
+  test("/size-8.5 is still the 404 page", async ({ page }) => {
+    const response = await page.goto("/size-8.5");
+    expect(response?.status()).toBe(404);
+    expect(response?.headers()["content-type"]).toContain("text/html");
+    await expect(page.locator("html")).toHaveAttribute("lang", "el-CY");
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+      catalogs.el.templates.notFound.title,
+    );
+  });
 
   test("/api/robots.txt is Payload's own 404", async ({ request }) => {
     const response = await request.get("/api/robots.txt", { maxRedirects: 0 });

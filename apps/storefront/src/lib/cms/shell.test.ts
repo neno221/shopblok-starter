@@ -129,6 +129,32 @@ describe("shellPaths", () => {
     expect(paths["products"]?.({ handle: "shirt" })).toBe("/products/shirt");
     expect(paths["collections"]?.({ handle: "summer" })).toBe("/collections/summer");
   });
+
+  it("gives a page its address in the market's language, and none to a page without one (T65)", () => {
+    const pages = {
+      byPath: { "/sxetika": 1, "/sxetika/ομάδα": 2 },
+      byId: {
+        "1": { path: "/sxetika", title: "Σχετικά", parent: null },
+        "2": { path: "/sxetika/ομάδα", title: "Ομάδα", parent: 1 },
+      },
+    };
+    const withPages = shellPaths(tree, pages);
+    expect(withPages["pages"]?.({ id: 2, slug: "ομάδα" })).toBe(
+      `/sxetika/${encodeURIComponent("ομάδα")}`,
+    );
+    expect(withPages["pages"]?.({ id: 9, slug: "draft" })).toBeNull();
+    // Without the addresses (no database): the breadcrumbs' last address, or a top-level slug.
+    expect(
+      paths["pages"]?.({
+        id: 2,
+        slug: "omada",
+        parent: 1,
+        breadcrumbs: [{ url: "/about" }, { url: "/about/omada" }],
+      }),
+    ).toBe("/about/omada");
+    expect(paths["pages"]?.({ id: 1, slug: "about" })).toBe("/about");
+    expect(paths["pages"]?.({ id: 2, slug: "omada", parent: 1 })).toBeNull();
+  });
 });
 
 describe("headerFrom", () => {

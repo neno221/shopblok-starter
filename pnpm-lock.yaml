@@ -315,6 +315,9 @@ importers:
       '@payloadcms/plugin-import-export':
         specifier: 3.92.1
         version: 3.92.1(@payloadcms/ui@3.92.1(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(monaco-editor@0.57.0)(next@16.4.3(@babel/core@7.29.7(supports-color@7.2.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.64.0)(@types/node@22.20.5)(babel-plugin-macros@3.1.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(sass@1.77.4))(payload@3.92.1(graphql@16.14.2)(supports-color@7.2.0)(typescript@5.9.3))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(supports-color@7.2.0)(typescript@5.9.3))(payload@3.92.1(graphql@16.14.2)(supports-color@7.2.0)(typescript@5.9.3))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      '@payloadcms/plugin-nested-docs':
+        specifier: 3.92.1
+        version: 3.92.1(payload@3.92.1(graphql@16.14.2)(supports-color@7.2.0)(typescript@5.9.3))
       '@payloadcms/richtext-lexical':
         specifier: 3.92.1
         version: 3.92.1(d5c0edae37e2da6e399f3ce24de86e27)
@@ -3577,6 +3580,11 @@ packages:
     resolution: {integrity: sha512-vVo4qh5Jh8/own+Xa4s8wrxVrMl0uQk1RRbBj/LOBWvkdWRCL1KtyooVoIWHdXHKYkMVc+GysNdlp9OlY3aMkA==}
     peerDependencies:
       '@payloadcms/ui': 3.92.1
+      payload: 3.92.1
+
+  '@payloadcms/plugin-nested-docs@3.92.1':
+    resolution: {integrity: sha512-8f5srLjfNcseZRAk0qujwH7xOdtbKmY0hqja7slWj60JcMhbquwkrkDUGj+Zh6qEyiawXHueo7uGmC4Ywx22Qg==}
+    peerDependencies:
       payload: 3.92.1
 
   '@payloadcms/richtext-lexical@3.92.1':
@@ -14033,6 +14041,10 @@ snapshots:
     transitivePeerDependencies:
       - react
       - react-dom
+
+  '@payloadcms/plugin-nested-docs@3.92.1(payload@3.92.1(graphql@16.14.2)(supports-color@7.2.0)(typescript@5.9.3))':
+    dependencies:
+      payload: 3.92.1(graphql@16.14.2)(supports-color@7.2.0)(typescript@5.9.3)
 
   '@payloadcms/richtext-lexical@3.92.1(d5c0edae37e2da6e399f3ce24de86e27)':
     dependencies:

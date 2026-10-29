@@ -189,7 +189,8 @@ test.describe("the home: language, currency and translated products for every ma
       const response = await page.goto(market.path);
       expect(response?.status()).toBe(200);
       await expect(page.locator("html")).toHaveAttribute("lang", market.htmlLang);
-      await expect(page.locator('[data-slot="home-template"]')).toHaveCount(1);
+      // The seeded Home (T65): a CMS page whose collection block lists the newest products.
+      await expect(page.locator('[data-slot="cms-page-template"]')).toHaveCount(1);
       await expect(page.locator('[data-slot="error-template"]')).toHaveCount(0);
 
       const cards = await carouselCards(page);

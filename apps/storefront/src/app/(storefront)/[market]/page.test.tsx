@@ -23,13 +23,30 @@ const state = vi.hoisted(() => ({
   products: [] as ProductDto[],
   /** The site settings' store name (T61), as the shell reads it. */
   storeName: "Shopblok",
+  /** The page `site-settings.homepage` names, when it is set and published (T65). */
+  homepage: null as null | { id: number; title: string; slug: string; parent: null; layout: [] },
 }));
 vi.mock("next/root-params", () => ({ market: async () => state.key }));
 vi.mock("next/headers", () => ({ draftMode: async () => ({ isEnabled: false }) }));
-vi.mock("../../../components/shell/shell-data", () => ({
-  getShellData: async () => ({
-    settings: { storeName: state.storeName, titleTemplate: `%s | ${state.storeName}` },
-  }),
+vi.mock("../../../components/shell/shell-data", async () => {
+  const { buildPublicUrl } = await import("../../../lib/markets/url");
+  const { findMarket } = await import("../../../lib/markets/market");
+  return {
+    getShellData: async () => ({
+      settings: { storeName: state.storeName, titleTemplate: `%s | ${state.storeName}` },
+      map: state.map,
+      url: (path: string) => buildPublicUrl(findMarket(state.map, state.key)!, path, state.map),
+    }),
+  };
+});
+vi.mock("../../../lib/cms/pages", () => ({ readHomepage: async () => state.homepage }));
+// The CMS page's own drawing is `[...slug]`'s; here only which page the home draws.
+vi.mock("../../../components/cms/cms-page-view", () => ({
+  CmsPageView: ({ page, content }: { page: { title: string }; content: { heading: string } }) => (
+    <main data-testid="cms-home" data-heading={content.heading}>
+      {page.title}
+    </main>
+  ),
 }));
 vi.mock("../../../lib/markets/cached-market-map", () => ({
   getRenderMarketMap: async () => state.map,
@@ -76,6 +93,7 @@ afterEach(() => {
   state.byCategory = {};
   state.products = [];
   state.storeName = "Shopblok";
+  state.homepage = null;
 });
 
 function product(id: string, amount: number, image: string | null): ProductDto {
@@ -256,5 +274,16 @@ describe("the home page (T51)", () => {
   it("is a 404 for a market whose country has no region", async () => {
     state.regions = false;
     await expect(render(seeded, "en-us")).rejects.toThrow(/NEXT_HTTP_ERROR_FALLBACK;404/);
+  });
+
+  it("draws the page the site settings name instead, with the JSON-LD, Medusa or not (T65)", async () => {
+    state.homepage = { id: 4, title: "Home", slug: "home", parent: null, layout: [] };
+    state.regions = false;
+    const html = await render(seeded, "en-us");
+    expect(html).toContain('data-testid="cms-home"');
+    expect(html).toContain(">Home</main>");
+    expect(html).not.toContain('data-slot="home-template"');
+    expect(jsonLd(html)["@graph"]).toHaveLength(2);
+    expect((await generateMetadata()).alternates?.canonical).toBe("/us");
   });
 });

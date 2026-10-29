@@ -438,6 +438,7 @@ export interface Media {
    */
   alt: string;
   caption?: string | null;
+  seedKey?: string | null;
   updatedAt: string;
   createdAt: string;
   url?: string | null;
@@ -1390,6 +1391,9 @@ export interface Integration {
 export interface Page {
   id: number;
   title: string;
+  /**
+   * The page's address under its parent: lower-case letters, digits and hyphens (about-us).
+   */
   slug: string;
   layout?:
     | (
@@ -1413,6 +1417,15 @@ export interface Page {
         | NewsletterBlock
         | FormBlockBlock
       )[]
+    | null;
+  parent?: (number | null) | Page;
+  breadcrumbs?:
+    | {
+        doc?: (number | null) | Page;
+        url?: string | null;
+        label?: string | null;
+        id?: string | null;
+      }[]
     | null;
   seedKey?: string | null;
   updatedAt: string;
@@ -1880,6 +1893,7 @@ export interface IntegrationsSelect<T extends boolean = true> {
 export interface MediaSelect<T extends boolean = true> {
   alt?: T;
   caption?: T;
+  seedKey?: T;
   updatedAt?: T;
   createdAt?: T;
   url?: T;
@@ -1944,6 +1958,15 @@ export interface PagesSelect<T extends boolean = true> {
   title?: T;
   slug?: T;
   layout?: T | {};
+  parent?: T;
+  breadcrumbs?:
+    | T
+    | {
+        doc?: T;
+        url?: T;
+        label?: T;
+        id?: T;
+      };
   seedKey?: T;
   updatedAt?: T;
   createdAt?: T;

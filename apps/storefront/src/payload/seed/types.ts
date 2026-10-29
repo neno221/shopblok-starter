@@ -8,6 +8,14 @@ export type SeedDocument = {
   localized: Record<string, Record<string, Seeded>>;
   /** Fields with one value for all languages. */
   shared?: Record<string, Seeded>;
+  /**
+   * Fields whose value holds every language's texts (`{ en: …, el: … }` inside it, as a `locale:
+   * "all"` read gives them): a page's `layout`, whose blocks every language shares (T65). Compared
+   * as `comparable` in every language at once, as a global's are (T61), and written one language
+   * at a time, since Payload 3.92.1 refuses a `locale: "all"` write of a document with a localized
+   * array (a page's `breadcrumbs`).
+   */
+  allLanguages?: Record<string, Seeded>;
   /** Published when the seed creates it; after that, publishing is the editor's call. */
   publish: boolean;
 };

@@ -4,8 +4,11 @@ import { draftMode } from "next/headers";
 import { notFound } from "next/navigation";
 import { getMessages } from "next-intl/server";
 import { cache } from "react";
+import { CmsPageView } from "../../../components/cms/cms-page-view";
 import { RefreshOnSave } from "../../../components/cms/refresh-on-save";
 import { getShellData } from "../../../components/shell/shell-data";
+import { cmsPageContent } from "../../../lib/cms/page-content";
+import { readHomepage } from "../../../lib/cms/pages";
 import { categoryPicture } from "../../../lib/cms/resolve/catalog";
 import { catalogReads } from "../../../lib/cms/resolve/market";
 import { getCurrentMarket } from "../../../lib/current-market";
@@ -32,6 +35,11 @@ import { toProductCard } from "../../../lib/view-models/product";
 // T61: the home is where the `header`, `footer` and `site-settings` globals are previewed (live
 // preview's frame, D74), so in Draft Mode it renders live preview's island, which redraws the frame
 // when the editor saves. A published home never renders it, and its code loads only when it does.
+//
+// T65 (D80): the page `site-settings.homepage` names, drawn with the CMS page template when it is
+// set and published (in Draft Mode, the editor's latest version); otherwise, and with no database
+// (`readHomepage` is `null`, D10's stand-in), M3's home template as before. The seed's "Home" draws
+// the same sections in the same order as M3's.
 
 export const ensureStatic = "navigation";
 
@@ -67,27 +75,72 @@ async function readNewArrivals(context: MarketContext) {
 }
 
 export async function generateMetadata(): Promise<Metadata> {
-  const data = await readHome();
-  if (data === null) return {};
-  const { context } = data;
+  const [{ isEnabled: draft }, market] = await Promise.all([draftMode(), getCurrentMarket()]);
+  const [homepage, data] = await Promise.all([readHomepage({ market, draft }), readHome()]);
+  if (homepage === null && data === null) return {};
   // The store's name is the site settings' (T61), as the layout's title and the header have it.
-  const { settings } = await getShellData();
-  const href = context.url("/");
-  const text = siteText(context.market.language);
+  const { settings, url, map } = await getShellData();
+  const href = url("/");
+  const text = siteText(market.language);
   return {
     // The layout's default title, the store's name, is the home's.
     description: text.hero.text,
-    alternates: { canonical: href, languages: hreflangAlternates("/", context.map) },
+    alternates: { canonical: href, languages: hreflangAlternates("/", map) },
     openGraph: { type: "website", title: settings.storeName, url: href },
   };
 }
 
+/** The home's `WebSite` JSON-LD: the store's name, its home and its search. */
+function HomeJsonLd({
+  storeName,
+  url,
+  language,
+}: {
+  storeName: string;
+  url: (path: string) => string;
+  language: string;
+}) {
+  return (
+    <script
+      type="application/ld+json"
+      // The store's name and the market's URLs, escaped by `jsonLdText` all the same.
+      dangerouslySetInnerHTML={{
+        __html: jsonLdText(
+          homeJsonLd({
+            storeName,
+            homeHref: url("/"),
+            searchHref: url("/search"),
+            language,
+          }),
+        ),
+      }}
+    />
+  );
+}
+
 export default async function MarketHome() {
+  const [{ isEnabled: draft }, current] = await Promise.all([draftMode(), getCurrentMarket()]);
+  const homepage = await readHomepage({ market: current, draft });
+  if (homepage !== null) {
+    const { settings, url } = await getShellData();
+    // The homepage is the market's home: no breadcrumbs, whatever its parent.
+    const { breadcrumbs: _none, ...content } = cmsPageContent(
+      homepage,
+      { byPath: {}, byId: {} },
+      { home: "", url },
+    );
+    return (
+      <>
+        <HomeJsonLd storeName={settings.storeName} url={url} language={current.htmlLang} />
+        <CmsPageView page={homepage} content={content} market={current} draft={draft} />
+      </>
+    );
+  }
   const data = await readHome();
   if (data === null) notFound();
   const { context, messages } = data;
   const { market } = context;
-  const [{ isEnabled: draft }, { settings }] = await Promise.all([draftMode(), getShellData()]);
+  const { settings } = await getShellData();
   const tree = (await listCategories(market.medusaLocale)).slice(0, HOME_CATEGORIES);
   const reads = catalogReads(context);
   const [pictures, newArrivals] = await Promise.all([
@@ -119,20 +172,7 @@ export default async function MarketHome() {
   });
   return (
     <>
-      <script
-        type="application/ld+json"
-        // The store's name and the market's URLs, escaped by `jsonLdText` all the same.
-        dangerouslySetInnerHTML={{
-          __html: jsonLdText(
-            homeJsonLd({
-              storeName: settings.storeName,
-              homeHref: context.url("/"),
-              searchHref: context.url("/search"),
-              language: market.htmlLang,
-            }),
-          ),
-        }}
-      />
+      <HomeJsonLd storeName={settings.storeName} url={context.url} language={market.htmlLang} />
       <HomeTemplate
         {...content}
         copy={homeCopy(messages)}

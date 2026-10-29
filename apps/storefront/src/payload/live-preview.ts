@@ -1,4 +1,5 @@
-import type { LivePreviewConfig } from "payload";
+import type { LivePreviewConfig, Payload } from "payload";
+import { MAX_PAGE_DEPTH, pagePath } from "../lib/cms/page-path";
 import { CMS_PATHS } from "../lib/cms/paths";
 import { env } from "../lib/env";
 import { listMarkets, primaryCountryCode } from "../lib/markets/market";
@@ -68,20 +69,57 @@ async function marketMap(): Promise<MarketMap> {
 /** The page a content global is previewed on (T61): the market's home, which shows all three. */
 const GLOBAL_PREVIEW_PATH = "/";
 
+/**
+ * A page's address in the language being edited (D80): its parents' slugs and its own, each as
+ * that language reads it, from the parents' latest versions, as the preview's Draft Mode reads
+ * them. `null` while the page has no slug yet.
+ */
+export async function pagePreviewPath(
+  payload: Pick<Payload, "findByID">,
+  data: Record<string, unknown>,
+  locale: string,
+): Promise<string | null> {
+  const slugs: unknown[] = [data["slug"]];
+  const seen = new Set<unknown>([data["id"]]);
+  let parent = data["parent"];
+  while (parent !== null && parent !== undefined && parent !== "") {
+    const id = typeof parent === "object" ? (parent as { id: number | string }).id : parent;
+    if (seen.has(id) || seen.size > MAX_PAGE_DEPTH) return null;
+    seen.add(id);
+    const doc = (await payload.findByID({
+      collection: "pages",
+      id: id as number,
+      locale: locale as never,
+      draft: true,
+      depth: 0,
+      select: { slug: true, parent: true },
+      disableErrors: true,
+      overrideAccess: true,
+    })) as { slug?: unknown; parent?: unknown } | null;
+    if (doc === null) return null;
+    slugs.unshift(doc.slug);
+    parent = doc.parent;
+  }
+  return pagePath(slugs);
+}
+
 /** `admin.livePreview.url`: the edited language's market, the document's path (D74). */
 export const livePreviewUrl: NonNullable<LivePreviewConfig["url"]> = async ({
   collectionConfig,
   data,
   globalConfig,
   locale,
+  req,
 }) => {
   const slug = collectionConfig?.slug;
   const path =
     globalConfig !== undefined
       ? GLOBAL_PREVIEW_PATH
-      : slug === undefined
-        ? null
-        : (CMS_PATHS[slug]?.(data) ?? null);
+      : slug === "pages"
+        ? await pagePreviewPath(req.payload, data, locale.code)
+        : slug === undefined
+          ? null
+          : (CMS_PATHS[slug]?.(data) ?? null);
   if (path === null) return null;
   return previewUrl({
     map: await marketMap(),

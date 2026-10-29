@@ -24,6 +24,7 @@
     "@payloadcms/next": "3.92.1",
     "@payloadcms/plugin-form-builder": "3.92.1",
     "@payloadcms/plugin-import-export": "3.92.1",
+    "@payloadcms/plugin-nested-docs": "3.92.1",
     "@payloadcms/richtext-lexical": "3.92.1",
     "@payloadcms/ui": "3.92.1",
     "@shopblok/fixtures": "workspace:*",

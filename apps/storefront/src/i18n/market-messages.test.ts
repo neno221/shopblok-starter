@@ -50,9 +50,14 @@ describe("every shop module takes its copy from messagesFor", () => {
       return /\.tsx?$/.test(entry.name) && !/\.test\.tsx?$/.test(entry.name) ? [full] : [];
     });
 
-  it("indexes `catalogs` only in i18n/ and the design system (which has no database)", () => {
+  // The content seed (T65) is not a shop module: it writes the code catalog's words once as a
+  // page's starting texts (the seeded Home's headings), which are the editors' from then on.
+  it("indexes `catalogs` only in i18n/, the design system (which has no database) and the seed", () => {
     const readers = files(src)
-      .filter((file) => !/[\\/](i18n|design-system|app[\\/]design-system)[\\/]/.test(file))
+      .filter(
+        (file) =>
+          !/[\\/](i18n|design-system|app[\\/]design-system|payload[\\/]seed)[\\/]/.test(file),
+      )
       .filter((file) => /catalogs\[/.test(readFileSync(file, "utf8")))
       .map((file) => path.relative(src, file));
     expect(readers).toEqual([]);

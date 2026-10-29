@@ -65,11 +65,15 @@ function sampleText(ctx: DsContext) {
   );
 }
 
-function richText(ctx: DsContext, settings?: SectionSettings) {
+export function richText(ctx: DsContext, settings?: SectionSettings) {
   return <RichTextSection settings={settings}>{sampleText(ctx)}</RichTextSection>;
 }
 
-function mediaWithText(ctx: DsContext, which: "section" | "long", settings?: SectionSettings) {
+export function mediaWithText(
+  ctx: DsContext,
+  which: "section" | "long",
+  settings?: SectionSettings,
+) {
   const { body, ...samples } = fixtures(ctx).mediaWithText;
   return (
     <MediaWithTextSection {...samples[which]} settings={settings} copy={copy(ctx)} prefetch={false}>
@@ -104,7 +108,7 @@ function video(ctx: DsContext, which: "embed" | "file" | "long", settings?: Sect
 
 type Fixtures = ReturnType<typeof fixtures>;
 
-function hero(
+export function hero(
   ctx: DsContext,
   which: keyof Fixtures["hero"],
   settings?: SectionSettings,
