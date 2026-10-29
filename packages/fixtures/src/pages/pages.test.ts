@@ -3,6 +3,7 @@ import {
   AuthPage,
   CartPage,
   CheckoutPage,
+  CmsPage,
   ErrorPage,
   HomePage,
   ListingResults,
@@ -121,5 +122,13 @@ describe("the page fixtures (T48)", () => {
       kind: "login",
       notice: "verified",
     });
+  });
+
+  it("give a CMS page under its parent in every locale, its breadcrumbs ending on it (T65)", () => {
+    for (const pages of Object.values(pageFixtures)) {
+      expect(CmsPage.parse(pages.cmsPage)).toEqual(pages.cmsPage);
+      expect(pages.cmsPage.breadcrumbs?.current).toBe(pages.cmsPage.title);
+    }
+    expect(pageFixtures.el.cmsPage.title).toBe("Η ομάδα μας");
   });
 });

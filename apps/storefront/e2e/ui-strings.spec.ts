@@ -27,6 +27,11 @@ const base = () => process.env["E2E_BASE_URL"] ?? "http://localhost:8000";
 
 /** The home page's "New arrivals" heading (T51). */
 const HEADING = "templates.home.newArrivals";
+/**
+ * A message every market page shows, in the footer's newsletter signup. Not HEADING: since T65 the
+ * seeded home is a CMS page whose block holds its own heading, so M3's home messages are not on `/`.
+ */
+const SHOWN = "molecules.newsletterForm.title";
 /** A message with an argument: `{count, plural, …}`. */
 const PLURAL = "atoms.stock.low";
 /** The quick cart's title, which a server action draws after an add (T52), outside next-intl. */
@@ -272,8 +277,8 @@ test.afterAll(async () => {
 });
 
 test("a Greek message edited in the admin shows on / within two requests, and /us keeps English", async () => {
-  const doc = await stringDoc(HEADING);
-  const edited = `Μόλις ήρθαν ${stamp}`;
+  const doc = await stringDoc(SHOWN);
+  const edited = `Το ενημερωτικό μας ${stamp}`;
   // Within two requests, too: an earlier run's restore may have left the cached page stale.
   expect(await freshWithinTwo("/", doc.value["el"] ?? "")).toBeGreaterThan(0);
 
@@ -455,12 +460,12 @@ test("a market switched to a language with no catalog shows English, then its ed
   const saved = await api("POST", "/globals/markets", admin(), body);
   expect(saved.status, await saved.text()).toBe(200);
 
-  const heading = await stringDoc(HEADING);
+  const shown = await stringDoc(SHOWN);
   await waitForLanguage("/us", "it-US");
-  expect(await html("/us")).toContain(heading.value["en"] ?? "");
+  expect(await html("/us")).toContain(shown.value["en"] ?? "");
 
-  const italian = `Nuovi arrivi ${stamp}`;
-  expect((await setValue(heading.id, "it", italian)).status).toBe(200);
+  const italian = `La nostra newsletter ${stamp}`;
+  expect((await setValue(shown.id, "it", italian)).status).toBe(200);
   expect(
     await freshWithinTwo("/us", italian),
     "the edit appeared in request 1 or 2",

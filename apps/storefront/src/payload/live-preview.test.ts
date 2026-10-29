@@ -1,6 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { greeceOnly, seeded, withDomains } from "../lib/markets/test-maps";
-import { LIVE_PREVIEW_BREAKPOINTS, previewMarket, previewUrl } from "./live-preview";
+import {
+  LIVE_PREVIEW_BREAKPOINTS,
+  pagePreviewPath,
+  previewMarket,
+  previewUrl,
+} from "./live-preview";
 
 const base = { serverURL: "https://shop.example", secret: "s3cret", path: "/about" };
 
@@ -57,5 +62,35 @@ describe("previewUrl", () => {
       "768x1024",
       "1440x900",
     ]);
+  });
+});
+
+describe("pagePreviewPath", () => {
+  const parents: Record<number, { slug: string; parent: number | null }> = {
+    1: { slug: "sxetika", parent: null },
+    2: { slug: "omada", parent: 1 },
+  };
+  const payload = {
+    findByID: vi.fn(async ({ id }: { id: number }) => parents[id] ?? null),
+  } as unknown as Parameters<typeof pagePreviewPath>[0];
+
+  it("is the parents' slugs and the page's own, as the language edited reads them", async () => {
+    expect(await pagePreviewPath(payload, { id: 3, slug: "theseis", parent: 2 }, "el")).toBe(
+      "/sxetika/omada/theseis",
+    );
+    expect(await pagePreviewPath(payload, { id: 4, slug: "privacy", parent: null }, "el")).toBe(
+      "/privacy",
+    );
+    expect(payload.findByID).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 2, locale: "el", draft: true }),
+    );
+  });
+
+  it("is null for a page with no slug yet, a parent gone or a loop", async () => {
+    expect(await pagePreviewPath(payload, { id: 3, slug: "", parent: 2 }, "el")).toBeNull();
+    expect(await pagePreviewPath(payload, { id: 3, slug: "x", parent: 9 }, "el")).toBeNull();
+    expect(
+      await pagePreviewPath(payload, { id: 1, slug: "x", parent: { id: 2 } }, "el"),
+    ).toBeNull();
   });
 });

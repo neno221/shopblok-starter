@@ -106,8 +106,11 @@ test.describe("Inter through next/font", () => {
   test("the global 404 page (its own <html>) uses Inter too", async ({
     page,
   }) => {
-    const response = await page.goto("/no-such-page-t20");
+    // An internal market key in the URL is answered by `global-not-found` (T12); a plain unknown
+    // path is a market's own 404 since `{m}/[...slug]` (T65).
+    const response = await page.goto("/el-cy/no-such-page-t20");
     expect(response?.status()).toBe(404);
+    await expect(page.locator("html")).toHaveAttribute("lang", "en");
     const family = await page.evaluate(
       () => getComputedStyle(document.body).fontFamily,
     );
@@ -148,7 +151,7 @@ test.describe("Inter through next/font", () => {
   });
 
   test("no request goes to Google's font hosts", async ({ page }) => {
-    for (const path of ["/", "/us", "/no-such-page-t20"]) {
+    for (const path of ["/", "/us", "/el-cy/no-such-page-t20"]) {
       const { google } = await load(page, path);
       expect(google, `${path} asks Google for nothing`).toEqual([]);
     }
@@ -177,7 +180,7 @@ test.describe("the shared stylesheet", () => {
   });
 
   // T19 (moved from T20): the base layer of globals.css uses the tokens.
-  for (const path of ["/us", "/", "/no-such-page-t20"]) {
+  for (const path of ["/us", "/", "/el-cy/no-such-page-t20"]) {
     test(`on ${path} the body's colour, background and border colour are tokens.css's`, async ({
       page,
     }) => {

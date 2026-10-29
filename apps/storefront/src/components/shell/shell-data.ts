@@ -9,6 +9,8 @@ import {
   type ShellHeader,
   type ShellSettings,
 } from "../../lib/cms/shell";
+import type { PagePaths } from "../../lib/cms/page-path";
+import { readPagePaths } from "../../lib/cms/pages";
 import { readFooter, readHeader, readSiteSettings } from "../../lib/cms/site";
 import { getCurrentMarket } from "../../lib/current-market";
 import { hrefsFor } from "../../lib/market-context";
@@ -42,6 +44,9 @@ import { cache } from "react";
 // read beside Medusa. In Draft Mode (an editor's live preview) they are the drafts, uncached. A
 // global that cannot be read gives `site.ts`'s values, as one never saved does (`lib/cms/shell.ts`),
 // and the failure is logged: the shell is above every page, so it must not throw.
+//
+// T65 (D80): the pages' addresses in the market's language, so a link to a page (in the globals
+// and in a page's blocks) goes to its address there; one read, tagged `pages:<locale>`.
 
 const medusaConfigured = (): Promise<boolean> =>
   medusaEnv().then(
@@ -58,6 +63,8 @@ export type ShellData = {
   /** A path inside the market as its public URL. */
   url: (path: string) => string;
   categories: Category[];
+  /** The page addresses in the market's language (T65), for internal links; none without a database. */
+  pages: PagePaths | null;
   choice: MarketChoice | undefined;
   /** Every option's market: its key and its home, for the choice island. */
   homes: { key: string; home: string }[];
@@ -98,7 +105,7 @@ export const getShellData = cache(async (): Promise<ShellData> => {
   ]);
   const url = (path: string) => buildPublicUrl(market, path, map);
   const reader = { market, draft };
-  const [[tree, regions], header, footer, siteSettings] = await Promise.all([
+  const [[tree, regions], header, footer, siteSettings, pages] = await Promise.all([
     medusaConfigured().then(
       (configured): Promise<[CategoryNode[], Region[]]> | [CategoryNode[], Region[]] =>
         configured
@@ -111,16 +118,18 @@ export const getShellData = cache(async (): Promise<ShellData> => {
     cmsOrNothing(readHeader(reader)),
     cmsOrNothing(readFooter(reader)),
     cmsOrNothing(readSiteSettings(reader)),
+    cmsOrNothing(readPagePaths(reader)),
   ]);
   const choice = toMarketChoice(map, market, currencyForCountry(regions));
   const categories = toCategories(tree, hrefsFor(url));
-  const context = { market, map, url, categories };
+  const context = { market, map, url, categories, pages };
   const settings = settingsFrom(siteSettings);
   return {
     market,
     map,
     url,
     categories,
+    pages,
     choice,
     draft,
     settings,

@@ -425,4 +425,5 @@ export const en: Copy = {
     shippingName:
       "Express delivery to your door with a signature on receipt and tracking by text message",
   },
+  cmsPage: { parent: "About us", title: "Our team" },
 };

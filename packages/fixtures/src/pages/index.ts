@@ -3,6 +3,7 @@ import type {
   AuthPage,
   CartPage,
   CheckoutPage,
+  CmsPage,
   ErrorPage,
   HomePage,
   ListingResults,
@@ -98,6 +99,11 @@ export type PageFixtures = {
     transfer: OrderLookupPage;
     accepted: OrderLookupPage;
   };
+  /**
+   * A CMS page under a parent (T65): "Our team" under "About us", with its breadcrumbs and its
+   * title as the heading; the DS draws sections under it.
+   */
+  cmsPage: CmsPage;
 };
 
 /** The sort as a listing offers it: newest, then by price; a search puts relevance first. */
@@ -419,6 +425,17 @@ function pagesFor(locale: DesignSystemLocale): PageFixtures {
         variant: "default",
         screen: { kind: "transfer-done", outcome: "accepted", homeHref: storeHref },
       },
+    },
+    cmsPage: {
+      title: copy.cmsPage.title,
+      breadcrumbs: {
+        trail: [
+          { label: copy.home, href: header.content.homeHref },
+          { label: copy.cmsPage.parent, href: `${home}/about` },
+        ],
+        current: copy.cmsPage.title,
+      },
+      heading: "title",
     },
   };
 }

@@ -442,4 +442,5 @@ export const fr: Copy = {
     shippingName:
       "Livraison express jusqu’à votre porte avec signature à la réception et suivi par SMS",
   },
+  cmsPage: { parent: "À propos", title: "Notre équipe" },
 };

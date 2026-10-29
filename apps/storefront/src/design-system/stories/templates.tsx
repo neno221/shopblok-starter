@@ -19,6 +19,7 @@ import {
   checkoutCopy,
   type CheckoutErrors,
 } from "@shopblok/ui/templates/checkout";
+import { CmsPageTemplate } from "@shopblok/ui/templates/cms-page";
 import { ErrorTemplate } from "@shopblok/ui/templates/error";
 import { HomeTemplate, homeCopy } from "@shopblok/ui/templates/home";
 import { NotFoundTemplate } from "@shopblok/ui/templates/not-found";
@@ -37,6 +38,7 @@ import { SearchResultsTemplate, searchResultsCopy } from "@shopblok/ui/templates
 import type { ProductDetailPage, ProductListingPage } from "@shopblok/registry/contracts";
 import type { ReactNode } from "react";
 import type { DsContext, DsStory } from "../types";
+import { hero, mediaWithText, richText } from "./sections";
 
 const lang = (ctx: DsContext) => ctx.fixture.market.htmlLang;
 
@@ -339,6 +341,38 @@ const orderLookup = (ctx: DsContext, mainId: string, screen: LookupScreen) => (
     mainId={mainId}
   />
 );
+
+type CmsPageState = "nested" | "top-level" | "hero";
+
+/**
+ * A CMS page (T65): "Our team" under "About us" with the sample rich text and a media with text;
+ * the same page at the top level (no breadcrumbs); and a page that opens with a hero, which takes
+ * the heading.
+ */
+function cmsPage(ctx: DsContext, mainId: string, state: CmsPageState) {
+  const { breadcrumbs, ...fixture } = pageFixtures[ctx.locale].cmsPage;
+  const copy = catalogs[ctx.locale].molecules.breadcrumbs;
+  if (state === "hero") {
+    return (
+      <CmsPageTemplate {...fixture} heading="hero" copy={copy} as="div" mainId={mainId}>
+        {hero(ctx, "section", undefined, 1)}
+        {richText(ctx)}
+      </CmsPageTemplate>
+    );
+  }
+  return (
+    <CmsPageTemplate
+      {...fixture}
+      {...(state === "nested" ? { breadcrumbs } : {})}
+      copy={copy}
+      as="div"
+      mainId={mainId}
+    >
+      {richText(ctx)}
+      {mediaWithText(ctx, "section", { surface: "muted" })}
+    </CmsPageTemplate>
+  );
+}
 
 const formsNote =
   "Every form is plain and posts without JavaScript (the shop's server actions redirect back). Each field has a visible label; an error is text beside its field, named in its `aria-describedby` before the hint, and a form's failure an alert at the top. A step just done is a polite status.";
@@ -755,6 +789,37 @@ export const templateStories = {
         label: "The e-mail's link",
         description: "Accept or decline.",
         render: (ctx) => orderLookup(ctx, "template-order-lookup-transfer", "transfer"),
+      },
+    ],
+    statesLayout: "stack",
+  },
+  "templates/cms-page": {
+    summary:
+      "A CMS page (an editor's, at its path under the market): the breadcrumbs of a page with parents, the title, then the page's blocks, each drawn by its section. The homepage is one when the site settings name it.",
+    a11y: [
+      pageNote,
+      "The title is the page's one `<h1>`, and every block's heading an `<h2>`; a page that opens with a hero gives the hero the `<h1>` instead and draws no title, so there is still one.",
+      'The breadcrumbs are a `navigation` landmark named by the catalog, Home first and the page itself last as text (`aria-current="page"`); a top-level page has none.',
+    ],
+    live: (ctx) => page(ctx, "template-cms-page", cmsPage(ctx, "template-cms-page", "nested")),
+    states: [
+      {
+        id: "nested",
+        label: "Under a parent",
+        description: "The breadcrumbs, the title, a rich text and a media with text.",
+        render: (ctx) => cmsPage(ctx, "template-cms-page-nested", "nested"),
+      },
+      {
+        id: "top-level",
+        label: "Top level",
+        description: "A page with no parent: no breadcrumbs.",
+        render: (ctx) => cmsPage(ctx, "template-cms-page-top-level", "top-level"),
+      },
+      {
+        id: "hero",
+        label: "Opening with a hero",
+        description: "The hero's title is the page's heading; the page's own is not drawn.",
+        render: (ctx) => cmsPage(ctx, "template-cms-page-hero", "hero"),
       },
     ],
     statesLayout: "stack",

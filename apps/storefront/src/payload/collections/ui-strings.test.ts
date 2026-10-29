@@ -14,7 +14,9 @@ import { LANGUAGES } from "../locales";
 const revalidateTag = vi.fn();
 vi.mock("next/cache", () => ({ revalidateTag: (...args: unknown[]) => revalidateTag(...args) }));
 
-import { keepRefusalReason, UiStrings, validateKey, validateValue } from "./ui-strings";
+import { keepRefusalReason } from "../hooks/keep-refusal-reason";
+import { Pages } from "./pages";
+import { UiStrings, validateKey, validateValue } from "./ui-strings";
 
 const admin = { collection: "users", id: 1, role: "admin" };
 const editor = { collection: "users", id: 2, role: "editor" };
@@ -195,6 +197,7 @@ describe("keepRefusalReason (PR 93)", () => {
       },
     });
     expect(UiStrings.hooks?.afterError).toContain(keepRefusalReason);
+    expect(Pages.hooks?.afterError).toContain(keepRefusalReason);
   });
 
   it("leaves every other error to Payload", async () => {

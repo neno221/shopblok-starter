@@ -9,6 +9,7 @@ import type {
   SocialLink,
 } from "@shopblok/registry/contracts";
 import { PaymentBrand as PaymentBrands, SocialNetwork } from "@shopblok/registry/contracts";
+import { siteOrigin } from "../site-origin";
 import type {
   Footer as FooterGlobal,
   Header as HeaderGlobal,
@@ -25,6 +26,7 @@ import {
   type HeaderVariant,
 } from "../site";
 import { resolveLink, type InternalPaths, type LinkValue } from "./link";
+import { encodePagePath, type PagePaths } from "./page-path";
 import { CMS_PATHS } from "./paths";
 import { newsletterTarget, type NewsletterTarget } from "./resolve/forms";
 
@@ -89,6 +91,8 @@ export type ShellContext = {
   url: (path: string) => string;
   /** Medusa's category tree, as the shell has it (`toCategories`). */
   categories: readonly Category[];
+  /** The market language's page addresses (`readPagePaths`, T65); none without a database. */
+  pages?: PagePaths | null;
 };
 
 type Saved = { updatedAt?: string | null } | null | undefined;
@@ -105,14 +109,35 @@ export function mediaImage(value: unknown): Image | undefined {
   if (typeof url !== "string" || url === "") return undefined;
   if (typeof width !== "number" || typeof height !== "number" || width <= 0 || height <= 0)
     return undefined;
-  return { src: url, alt: typeof media.alt === "string" ? media.alt : "", width, height };
+  return { src: mediaSrc(url), alt: typeof media.alt === "string" ? media.alt : "", width, height };
+}
+
+/**
+ * An upload's URL as the shop links it: a path (`/api/media/file/hero.webp`) when the file is on
+ * the shop's own origin. Payload writes it absolute, with `serverURL` (`siteOrigin()`), and
+ * `next/image` refuses an absolute URL on a host it has not been told of: `next dev` fails the
+ * page, and in production `/_next/image` answers 400, a broken picture (PR 98, the seeded hero).
+ * A file on another host (a storage adapter's) is left as it is.
+ */
+export function mediaSrc(url: string, origin: string = siteOrigin()): string {
+  try {
+    const parsed = new URL(url, origin);
+    return parsed.origin === origin ? `${parsed.pathname}${parsed.search}` : url;
+  } catch {
+    return url;
+  }
 }
 
 /**
  * The internal paths for this market's shell: `CMS_PATHS`, with a category's whole path of
- * handles (`/categories/apparel/tops`) from Medusa's tree, which its Payload document lacks.
+ * handles (`/categories/apparel/tops`) from Medusa's tree, which its Payload document lacks, and
+ * a page's address in the market's language from `pages` (T65): a page that has none there (not
+ * published, or under one that is not) gets no link. Without `pages` (no database), `CMS_PATHS`'.
  */
-export function shellPaths(categories: readonly Category[]): InternalPaths {
+export function shellPaths(
+  categories: readonly Category[],
+  pages?: PagePaths | null,
+): InternalPaths {
   const full = new Map<string, string[]>();
   const walk = (nodes: readonly Category[], path: string[]) => {
     for (const node of nodes) {
@@ -131,6 +156,14 @@ export function shellPaths(categories: readonly Category[]): InternalPaths {
         ? fallback
         : `/categories/${handles.map(encodeURIComponent).join("/")}`;
     },
+    ...(pages === null || pages === undefined
+      ? {}
+      : {
+          pages: (doc) => {
+            const path = pages.byId[String(doc["id"])]?.path;
+            return path === undefined ? null : encodePagePath(path);
+          },
+        }),
   };
 }
 
@@ -207,7 +240,7 @@ export function headerFrom(
       ...(settings.logo === undefined ? {} : { logo: settings.logo }),
     };
   }
-  const paths = shellPaths(categories);
+  const paths = shellPaths(categories, context.pages);
   const message = text(global.announcement?.message);
   const announcementLink = linkOf(global.announcement?.link, context, paths);
   const navigation =
@@ -270,7 +303,7 @@ export function footerFrom(
       ...logo,
     };
   }
-  const paths = shellPaths(categories);
+  const paths = shellPaths(categories, context.pages);
   const columns = (global.columns ?? []).flatMap((column) => {
     const title = text(column.title);
     const links = [

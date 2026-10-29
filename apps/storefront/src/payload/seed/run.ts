@@ -1,6 +1,6 @@
 import type { CollectionSlug, GlobalSlug, Payload } from "payload";
 import { hasDraftsEnabled } from "payload/shared";
-import { DEFAULT_LOCALE } from "../locales";
+import { DEFAULT_LOCALE, LANGUAGES } from "../locales";
 import type { SeedCounts, SeedDocument, SeedGlobal, SeedModule } from "./types";
 import { comparable, seededUpdate } from "./values";
 
@@ -24,6 +24,16 @@ function changesFor(doc: SeedDocument, stored: Stored | undefined, locale: strin
       const next = seededUpdate(stored?.[field], seeded);
       if (next !== null) data[field] = next;
     }
+  }
+  return data;
+}
+
+/** The changes `allLanguages`' fields need, on `comparable` values in every language. */
+function allChangesFor(doc: SeedDocument, stored: Stored | undefined) {
+  const data: Record<string, unknown> = {};
+  for (const [field, seeded] of Object.entries(doc.allLanguages ?? {})) {
+    const probe = { value: comparable(seeded.value), before: seeded.before?.map(comparable) };
+    if (seededUpdate(comparable(stored?.[field]), probe) !== null) data[field] = seeded.value;
   }
   return data;
 }
@@ -56,6 +66,35 @@ async function hasPendingDraft(
   return Date.parse(String(newest.updatedAt)) > Date.parse(String(stored["updatedAt"]));
 }
 
+const isLanguageMap = (value: object): value is Record<string, unknown> => {
+  const keys = Object.keys(value);
+  return keys.length > 0 && keys.every((key) => LANGUAGES.includes(key));
+};
+
+/** `value` with each `{ en: …, el: … }` inside it replaced by `language`'s (left out without one). */
+export function inLanguage(value: unknown, language: string): unknown {
+  if (Array.isArray(value)) return value.map((item) => inLanguage(item, language));
+  if (value === null || typeof value !== "object") return value;
+  if (isLanguageMap(value)) return value[language];
+  return Object.fromEntries(
+    Object.entries(value).map(([key, item]) => [key, inLanguage(item, language)]),
+  );
+}
+
+/** The languages `value`'s texts are in, the default first (it writes the blocks' structure). */
+function languagesOf(value: unknown): string[] {
+  const found = new Set<string>([DEFAULT_LOCALE]);
+  const walk = (node: unknown) => {
+    if (Array.isArray(node)) node.forEach(walk);
+    else if (node !== null && typeof node === "object") {
+      if (isLanguageMap(node)) for (const key of Object.keys(node)) found.add(key);
+      else Object.values(node).forEach(walk);
+    }
+  };
+  walk(value);
+  return [...found];
+}
+
 function localesOf(doc: SeedDocument): string[] {
   const all = new Set([DEFAULT_LOCALE]);
   for (const perLocale of Object.values(doc.localized)) {
@@ -68,7 +107,8 @@ function localesOf(doc: SeedDocument): string[] {
  * Runs the seed modules (T59 step 8): each document is found by its `seedKey`, created when it is
  * missing (English first, then each other language), and otherwise updated field by field under
  * `seededUpdate`'s rule, so a second run changes nothing and an editor's change survives
- * `pnpm bootstrap`. A document with an editor's unpublished draft newer than its published text
+ * `pnpm bootstrap`. Its `allLanguages` fields (a page's `layout`, T65) follow, compared in every
+ * language at once and written one language at a time. A document with an editor's unpublished draft newer than its published text
  * is not written at all (`hasPendingDraft`) and is named in `kept`, so the draft stays what the
  * editor is working on; the next run after a publish or a discard takes the seed's changes. A
  * system task: access control is off, and nothing is revalidated.
@@ -91,7 +131,8 @@ export async function runSeeds(payload: Payload, modules: SeedModule[]): Promise
       let updated = false;
       if (
         stored !== undefined &&
-        localesOf(doc).some((locale) => Object.keys(changesFor(doc, stored, locale)).length > 0) &&
+        (localesOf(doc).some((locale) => Object.keys(changesFor(doc, stored, locale)).length > 0) ||
+          Object.keys(allChangesFor(doc, stored)).length > 0) &&
         (await hasPendingDraft(payload, collection, stored))
       ) {
         counts.kept.push(`${collection}:${doc.key}`);
@@ -125,6 +166,30 @@ export async function runSeeds(payload: Payload, modules: SeedModule[]): Promise
             overrideAccess: true,
             context: CONTEXT,
           } as never);
+          if (!created) updated = true;
+        }
+      }
+      if (doc.allLanguages !== undefined && stored !== undefined) {
+        // Read back in every language, so the comparison sees what the writes above left.
+        const current = (await payload.findByID({
+          collection,
+          id: stored.id,
+          locale: "all",
+          depth: 0,
+          overrideAccess: true,
+        })) as unknown as Stored;
+        const data = allChangesFor(doc, current);
+        if (Object.keys(data).length > 0) {
+          for (const locale of languagesOf(data)) {
+            await payload.update({
+              collection,
+              id: stored.id,
+              locale: locale as never,
+              data: inLanguage(data, locale) as Record<string, unknown>,
+              overrideAccess: true,
+              context: CONTEXT,
+            } as never);
+          }
           if (!created) updated = true;
         }
       }
@@ -243,7 +308,14 @@ export async function runGlobalSeeds(payload: Payload, globals: SeedGlobal[]): P
     // A saved global whose only changes are per-language arrays needs no "all" write (PR 94
     // review, item 6): it would add a version that changes nothing.
     if (!saved) await write("all", { ...data, _status: "published" });
-    else if (Object.keys(data).length > 0) await write("all", data);
+    else if (Object.keys(data).length > 0) {
+      // One language at a time, the default first, as `runSeeds` writes `allLanguages` (PR 98
+      // review, item 4): Payload 3.92.1 refuses a `locale: "all"` write of a global that holds a
+      // localized array (`site-settings.productNotes`), as it validates the array as one object.
+      // Changes in no language of their own (T65's `homepage`) are the default language's write.
+      for (const locale of languagesOf(data))
+        await write(locale, inLanguage(data, locale) as Record<string, unknown>);
+    }
     for (const [locale, values] of languages) await write(locale, values);
     if (saved) counts.updated++;
     else counts.created++;

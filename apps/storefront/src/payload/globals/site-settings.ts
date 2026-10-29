@@ -41,7 +41,7 @@ export const SiteSettings = contentGlobal({
               relationTo: "pages",
               admin: {
                 description:
-                  "The page the market's home shows. Empty: the built-in home page (T65 draws a chosen one).",
+                  "The page the market's home shows, once it is published. Empty: the built-in home page.",
               },
             },
             {

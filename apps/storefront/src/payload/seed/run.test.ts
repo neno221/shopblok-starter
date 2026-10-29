@@ -2,7 +2,7 @@ import type { Payload } from "payload";
 import { beforeEach, describe, expect, it } from "vitest";
 import { siteText } from "../../lib/site";
 import { footerSeed, headerSeed, SEED_GLOBALS, siteSettingsSeed } from "./globals";
-import { runGlobalSeeds, runSeeds } from "./run";
+import { inLanguage, runGlobalSeeds, runSeeds } from "./run";
 import type { SeedGlobal, SeedModule } from "./types";
 import { comparable } from "./values";
 
@@ -180,6 +180,34 @@ describe("runSeeds", () => {
     expect(fake.calls).toEqual([]);
   });
 
+  it("writes a field with every language's texts one language at a time, English first (T65)", async () => {
+    const layout = [{ id: "b1", blockType: "hero", heading: { en: "Hi", el: "Γεια" }, media: 3 }];
+    const pages: SeedModule = {
+      collection: "pages",
+      documents: () => [
+        {
+          key: "home",
+          publish: true,
+          localized: { title: { en: { value: "Home" } }, slug: { en: { value: "home" } } },
+          allLanguages: { layout: { value: layout } },
+        },
+      ],
+    };
+    await runSeeds(fake.payload, [pages]);
+    const writes = fake.calls.filter(
+      (call) => call.op === "update" && "layout" in (call.data ?? {}),
+    );
+    expect(writes.map(({ locale, data }) => [locale, data])).toEqual([
+      ["en", { layout: [{ id: "b1", blockType: "hero", heading: "Hi", media: 3 }] }],
+      ["el", { layout: [{ id: "b1", blockType: "hero", heading: "Γεια", media: 3 }] }],
+    ]);
+    // Stored as a `locale: "all"` read gives it, it is what the seed writes: nothing to do.
+    fake.rows.get(1)!["layout"] = layout;
+    fake.calls.length = 0;
+    expect((await runSeeds(fake.payload, [pages])).unchanged).toBe(1);
+    expect(fake.calls.filter((call) => call.op === "update")).toEqual([]);
+  });
+
   it("saves with revalidation off", async () => {
     await runSeeds(fake.payload, [home({ en: "Home", el: "Αρχική" })]);
     expect(
@@ -282,6 +310,24 @@ const settingsSeed = (storeName: string, before: string[] = []): SeedGlobal => (
   perLocale: ["productNotes"],
 });
 
+describe("inLanguage", () => {
+  it("takes one language's text from each `{ en: …, el: … }`, leaving everything else", () => {
+    const value = {
+      heading: { en: "Hi", el: "Γεια" },
+      links: [{ id: "r1", link: { url: "/store", label: { en: "Shop", el: "Αγορά" } } }],
+      content: { root: { children: [] } },
+      media: 3,
+    };
+    expect(inLanguage(value, "el")).toEqual({
+      heading: "Γεια",
+      links: [{ id: "r1", link: { url: "/store", label: "Αγορά" } }],
+      content: { root: { children: [] } },
+      media: 3,
+    });
+    expect(inLanguage({ heading: { en: "Hi" } }, "de")).toEqual({ heading: undefined });
+  });
+});
+
 describe("runGlobalSeeds (T61)", () => {
   it("writes a global that was never saved, published, all languages at once", async () => {
     const { payload, writes, stored } = fakeGlobal();
@@ -331,8 +377,9 @@ describe("runGlobalSeeds (T61)", () => {
         updated: 1,
       },
     );
+    // The store's name is in no language of its own: written in English (T65).
     expect(writes).toEqual([
-      { locale: "all", data: { storeName: "Shopblok 2" }, context: { disableRevalidate: true } },
+      { locale: "en", data: { storeName: "Shopblok 2" }, context: { disableRevalidate: true } },
     ]);
   });
 
@@ -353,6 +400,46 @@ describe("runGlobalSeeds (T61)", () => {
     };
     expect(await runGlobalSeeds(payload, [newNotes])).toMatchObject({ updated: 1 });
     expect(writes.map((write) => write.locale)).toEqual(["en", "el"]);
+  });
+
+  it("writes a change in no language of its own in English, not in every language (T65)", async () => {
+    const { payload, writes } = fakeGlobal();
+    await runGlobalSeeds(payload, [settingsSeed("Shopblok")]);
+    writes.length = 0;
+    const withHomepage: SeedGlobal = {
+      ...settingsSeed("Shopblok"),
+      fields: async (each) => ({
+        ...(await settingsSeed("Shopblok").fields(each)),
+        homepage: { value: 4 },
+      }),
+    };
+    await runGlobalSeeds(payload, [withHomepage]);
+    expect(writes).toEqual([
+      { locale: "en", data: { homepage: 4 }, context: { disableRevalidate: true } },
+    ]);
+  });
+
+  it("writes a saved global's localized change one language at a time, never all at once (PR 98)", async () => {
+    const { payload, writes } = fakeGlobal();
+    await runGlobalSeeds(payload, [settingsSeed("Shopblok")]);
+    writes.length = 0;
+    const first = settingsSeed("Shopblok");
+    const newWords: SeedGlobal = {
+      ...first,
+      fields: async (each) => ({
+        ...(await first.fields(each)),
+        "seo.description": {
+          value: { en: "Basics, again", el: "Βασικά, ξανά" },
+          before: [{ en: "Basics", el: "Βασικά" }],
+        },
+      }),
+    };
+    expect(await runGlobalSeeds(payload, [newWords])).toMatchObject({ updated: 1 });
+    // Payload refuses a `locale: "all"` write of site-settings, which holds a localized array.
+    expect(writes.map((write) => [write.locale, write.data])).toEqual([
+      ["en", { seo: { description: "Basics, again" } }],
+      ["el", { seo: { description: "Βασικά, ξανά" } }],
+    ]);
   });
 
   it("leaves a global with an editor's newer draft alone, and names it", async () => {
@@ -409,10 +496,13 @@ describe("the globals' seed (T61 step 6)", () => {
       "/cart",
       "/order/lookup",
     ]);
-    const settings = await siteSettingsSeed.fields({} as Payload);
+    const settings = await siteSettingsSeed.fields(noForms);
     expect(settings["productNotes"]?.value).toMatchObject({
       de: siteText("de").productNotes.map((note) => ({ note })),
     });
     expect(siteSettingsSeed.perLocale).toEqual(["productNotes"]);
+    // T65: the seeded Home is the homepage once the pages' seed made it; nothing before.
+    expect(settings).not.toHaveProperty("homepage");
+    expect((await siteSettingsSeed.fields(withForm))["homepage"]).toEqual({ value: 5 });
   });
 });

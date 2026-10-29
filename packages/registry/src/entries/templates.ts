@@ -3,6 +3,7 @@ import {
   AuthPage,
   CartPage,
   CheckoutPage,
+  CmsPage,
   ErrorPage,
   HomePage,
   NotFoundPage,
@@ -57,4 +58,6 @@ export const templates = [
   template("auth", "Sign in and register", "AuthTemplate", AuthPage),
   template("account", "Account", "AccountTemplate", AccountPage),
   template("order-lookup", "Order lookup", "OrderLookupTemplate", OrderLookupPage),
+  // T65: the CMS pages (and the homepage when the site settings name one).
+  template("cms-page", "CMS page", "CmsPageTemplate", CmsPage),
 ] as const satisfies readonly EntryInput[];

@@ -243,4 +243,6 @@ export type Copy = {
     review: ReviewCopy & { title: string };
     shippingName: string;
   };
+  /** A CMS page under a parent (T65): the parent's title and the page's. */
+  cmsPage: { parent: string; title: string };
 };

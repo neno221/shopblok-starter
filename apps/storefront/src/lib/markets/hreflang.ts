@@ -1,5 +1,5 @@
 import { fallbackMarketOf, listMarkets } from "./market";
-import type { MarketMap } from "./types";
+import type { Market, MarketMap } from "./types";
 import { buildPublicUrl } from "./url";
 
 /**
@@ -9,15 +9,32 @@ import { buildPublicUrl } from "./url";
  * (SPEC §12: "with a single market, no hreflang is emitted"). A market on its own domain is listed
  * with its absolute URL (SPEC §12: "per-country domains are included"). Next resolves the others
  * against `metadataBase`.
+ *
+ * `path` is the page's path in every market, or, for a page whose address is in the market's
+ * language (a CMS page, D80), a function that gives it per market; a market where it gives `null`
+ * (the page has no address there) is left out.
  */
-export function hreflangAlternates(path: string, map: MarketMap): Record<string, string> {
+export function hreflangAlternates(
+  path: string | ((market: Market) => string | null),
+  map: MarketMap,
+): Record<string, string> {
   const markets = listMarkets(map);
   if (markets.length < 2) return {};
+  const pathIn = typeof path === "string" ? () => path : path;
+  const urlIn = (market: Market) => {
+    const each = pathIn(market);
+    return each === null ? undefined : buildPublicUrl(market, each, map);
+  };
   const alternates: Record<string, string> = {};
   // Two markets can share a lang value (a language override applies to every country using it);
   // hreflang values are unique, so the first market in the map's order keeps it.
-  for (const market of markets) alternates[market.htmlLang] ??= buildPublicUrl(market, path, map);
+  for (const market of markets) {
+    if (market.htmlLang in alternates) continue;
+    const url = urlIn(market);
+    if (url !== undefined) alternates[market.htmlLang] = url;
+  }
   const fallback = fallbackMarketOf(map, markets);
-  if (fallback !== undefined) alternates["x-default"] = buildPublicUrl(fallback, path, map);
+  const fallbackUrl = fallback === undefined ? undefined : urlIn(fallback);
+  if (fallbackUrl !== undefined) alternates["x-default"] = fallbackUrl;
   return alternates;
 }

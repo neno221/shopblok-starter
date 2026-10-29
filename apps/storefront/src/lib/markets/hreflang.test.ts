@@ -46,6 +46,19 @@ describe("hreflangAlternates: SPEC §12, on the seeded map", () => {
     });
   });
 
+  it("takes a path per market, leaving out a market where the page has none (a CMS page, D80)", () => {
+    const paths: Record<string, string | null> = { el: "/sxetika/omada", de: null };
+    const pathIn = (language: string) => (language in paths ? paths[language]! : "/about/team");
+    expect(hreflangAlternates((market) => pathIn(market.language), seeded)).toEqual({
+      "el-CY": "/sxetika/omada",
+      "en-US": "/us/about/team",
+      "en-GB": "/gb/about/team",
+      "fr-FR": "/fr/about/team",
+      "fr-CH": "/ch/fr/about/team",
+      "x-default": "/us/about/team",
+    });
+  });
+
   it("points x-default at the fallback market, wherever it is", () => {
     const toGreek: MarketMap = { ...seeded, fallbackMarket: "el-cy" };
     expect(hreflangAlternates("/", toGreek)["x-default"]).toBe("/");

@@ -6,8 +6,8 @@ import type { Payload } from "payload";
 
 /**
  * What the globals' references are read with (depth 1): an upload's file and size, a catalog
- * document's handle and whether Medusa deleted it, and the newsletter's form's fields (T67), which
- * is all `lib/cms/shell.ts` needs. The
+ * document's handle and whether Medusa deleted it, the newsletter's form's fields (T67), and a
+ * page's slug (the homepage, a link's page, T65), which is all `lib/cms/shell.ts` needs. The
  * cached entries stay small, and nothing else of a product reaches them.
  */
 const POPULATE = {
@@ -16,6 +16,8 @@ const POPULATE = {
   categories: { handle: true, deletedInMedusa: true },
   collections: { handle: true, deletedInMedusa: true },
   forms: { fields: true },
+  // A page's slug, parent and breadcrumbs (`CMS_PATHS`' fallback), not its blocks (T65).
+  pages: { title: true, slug: true, parent: true, breadcrumbs: true },
 } as const;
 
 function readGlobal<T>(slug: "header" | "footer" | "site-settings") {
