@@ -6794,7 +6794,7 @@ The review (`reviews/pr-98-code-review.md`) had five must-fix findings and one c
 |---|---|
 | Date | 2026-10-29 |
 | Branch | `claude/project-thread-x22cvv`, from `main` at `b009a17` (PR 98 merged) |
-| PR | (this PR) |
+| PR | [99](https://github.com/neno221/shopblok-starter/pull/99) |
 
 ### What there is now
 
