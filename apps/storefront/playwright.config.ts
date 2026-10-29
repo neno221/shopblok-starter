@@ -121,14 +121,14 @@ const defaultProjects: Project[] = [
   {
     name: "chromium",
     use: { ...devices["Desktop Chrome"] },
-    testIgnore: [/payload-locales\.spec\.ts/, ...optInSpecs],
+    testIgnore: [/payload-locales\.spec\.ts/, /ui-strings\.spec\.ts/, ...optInSpecs],
   },
-  // Saves the `markets` global (and puts it back), which the other suites read through the proxy:
-  // it runs when all of them are done.
+  // Save the `markets` global (and put it back), which the other suites read through the proxy:
+  // they run when all of them are done. `ui-strings.spec.ts` (T62) also edits the home's copy.
   {
     name: "locales",
     use: { ...devices["Desktop Chrome"] },
-    testMatch: /payload-locales\.spec\.ts/,
+    testMatch: /(payload-locales|ui-strings)\.spec\.ts/,
     dependencies: ["chromium"],
   },
 ];

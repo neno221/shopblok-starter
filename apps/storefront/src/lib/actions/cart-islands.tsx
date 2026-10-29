@@ -1,12 +1,12 @@
 "use server";
 
-import { catalogs } from "@shopblok/i18n";
 import type { Cart } from "@shopblok/registry/contracts";
 import type { CartDrawerClientProps } from "@shopblok/ui/organisms/cart-drawer-client";
 import { cartDrawerParts } from "@shopblok/ui/organisms/cart-drawer";
 import type { QuickCartDropdownClientProps } from "@shopblok/ui/organisms/quick-cart-dropdown-client";
 import { quickCartParts } from "@shopblok/ui/organisms/quick-cart-dropdown";
 import type { PromoCodeError } from "@shopblok/ui/molecules/promo-code-field";
+import { messagesFor } from "../../i18n/market-messages";
 import { cartView, emptyCart, promoErrorOf } from "../cart-view";
 import { getMarketContext, type MarketContext } from "../market-context";
 import { getCart } from "../medusa/cart";
@@ -52,13 +52,13 @@ async function contextOf(market: unknown): Promise<MarketContext | null> {
   return getMarketContext(market);
 }
 
-function drawerFor(
+async function drawerFor(
   context: MarketContext,
   cart: Cart,
   promo?: { code: string; error: PromoCodeError },
-): DrawerAnswer {
+): Promise<DrawerAnswer> {
   const { market } = context;
-  const messages = catalogs[market.locale];
+  const messages = await messagesFor(market);
   const parts = cartDrawerParts({
     cart,
     promoCode: promo?.code ?? "",
@@ -147,7 +147,7 @@ export async function renderQuickCart(
     subtotal: view.subtotal,
     cartHref: context.url("/cart"),
     checkoutHref: context.url("/checkout"),
-    copy: catalogs[context.market.locale].organisms.quickCartDropdown,
+    copy: (await messagesFor(context.market)).organisms.quickCartDropdown,
     locale: context.market.htmlLang,
     prefetch: SHELL_PREFETCH,
   });

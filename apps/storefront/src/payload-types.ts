@@ -76,6 +76,9 @@ export interface Config {
     categories: Category;
     collections: ProductCollection;
     "email-templates": EmailTemplate;
+    "ui-strings": UiString;
+    exports: Export;
+    imports: Import;
     "payload-kv": PayloadKv;
     "payload-jobs": PayloadJob;
     "payload-locked-documents": PayloadLockedDocument;
@@ -92,6 +95,9 @@ export interface Config {
     categories: CategoriesSelect<false> | CategoriesSelect<true>;
     collections: CollectionsSelect<false> | CollectionsSelect<true>;
     "email-templates": EmailTemplatesSelect<false> | EmailTemplatesSelect<true>;
+    "ui-strings": UiStringsSelect<false> | UiStringsSelect<true>;
+    exports: ExportsSelect<false> | ExportsSelect<true>;
+    imports: ImportsSelect<false> | ImportsSelect<true>;
     "payload-kv": PayloadKvSelect<false> | PayloadKvSelect<true>;
     "payload-jobs": PayloadJobsSelect<false> | PayloadJobsSelect<true>;
     "payload-locked-documents":
@@ -249,6 +255,8 @@ export interface Config {
   user: User | Integration;
   jobs: {
     tasks: {
+      createCollectionExport: TaskCreateCollectionExport;
+      createCollectionImport: TaskCreateCollectionImport;
       schedulePublish: TaskSchedulePublish;
       inline: {
         input: unknown;
@@ -500,6 +508,153 @@ export interface EmailTemplate {
   createdAt: string;
 }
 /**
+ * The shop's microcopy, one message per document. Placeholders such as {count} must stay as the English text has them; a save that changes one is refused.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "ui-strings".
+ */
+export interface UiString {
+  id: number;
+  key: string;
+  namespace?: string | null;
+  value?: string | null;
+  /**
+   * The code's English text and its arguments, which every language keeps.
+   */
+  source?: {
+    message?: string | null;
+    arguments?: string | null;
+  };
+  /**
+   * For translators.
+   */
+  note?: string | null;
+  seeded?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "exports".
+ */
+export interface Export {
+  id: number;
+  name?: string | null;
+  format: "csv" | "json";
+  limit?: number | null;
+  page?: number | null;
+  sort?: string | null;
+  sortOrder?: ("asc" | "desc") | null;
+  locale?:
+    | (
+        | "all"
+        | "en"
+        | "bg"
+        | "hr"
+        | "cs"
+        | "da"
+        | "nl"
+        | "et"
+        | "fi"
+        | "fr"
+        | "de"
+        | "el"
+        | "hu"
+        | "ga"
+        | "it"
+        | "lv"
+        | "lt"
+        | "mt"
+        | "pl"
+        | "pt"
+        | "ro"
+        | "sk"
+        | "sl"
+        | "es"
+        | "sv"
+        | "nb"
+        | "tr"
+        | "ru"
+        | "uk"
+        | "ar"
+        | "he"
+        | "hi"
+        | "bn"
+        | "th"
+        | "vi"
+        | "id"
+        | "ms"
+        | "tl"
+        | "zh"
+        | "ja"
+        | "ko"
+        | "ka"
+        | "mn"
+      )
+    | null;
+  drafts?: ("yes" | "no") | null;
+  selectionToUse?: ("currentSelection" | "currentFilters" | "all") | null;
+  fields?: string[] | null;
+  collectionSlug: string;
+  where?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  updatedAt: string;
+  createdAt: string;
+  url?: string | null;
+  thumbnailURL?: string | null;
+  filename?: string | null;
+  mimeType?: string | null;
+  filesize?: number | null;
+  width?: number | null;
+  height?: number | null;
+  focalX?: number | null;
+  focalY?: number | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "imports".
+ */
+export interface Import {
+  id: number;
+  collectionSlug: string;
+  importMode?: ("create" | "update" | "upsert") | null;
+  matchField?: string | null;
+  status?: ("pending" | "completed" | "partial" | "failed") | null;
+  summary?: {
+    imported?: number | null;
+    updated?: number | null;
+    total?: number | null;
+    issues?: number | null;
+    issueDetails?:
+      | {
+          [k: string]: unknown;
+        }
+      | unknown[]
+      | string
+      | number
+      | boolean
+      | null;
+  };
+  updatedAt: string;
+  createdAt: string;
+  url?: string | null;
+  thumbnailURL?: string | null;
+  filename?: string | null;
+  mimeType?: string | null;
+  filesize?: number | null;
+  width?: number | null;
+  height?: number | null;
+  focalX?: number | null;
+  focalY?: number | null;
+}
+/**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-kv".
  */
@@ -568,7 +723,8 @@ export interface PayloadJob {
     | {
         executedAt: string;
         completedAt: string;
-        taskSlug: "inline" | "schedulePublish";
+        taskSlug:
+          "inline" | "createCollectionExport" | "createCollectionImport" | "schedulePublish";
         taskID: string;
         input?:
           | {
@@ -601,7 +757,8 @@ export interface PayloadJob {
         id?: string | null;
       }[]
     | null;
-  taskSlug?: ("inline" | "schedulePublish") | null;
+  taskSlug?:
+    ("inline" | "createCollectionExport" | "createCollectionImport" | "schedulePublish") | null;
   queue?: string | null;
   waitUntil?: string | null;
   processing?: boolean | null;
@@ -646,6 +803,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: "email-templates";
         value: number | EmailTemplate;
+      } | null)
+    | ({
+        relationTo: "ui-strings";
+        value: number | UiString;
       } | null);
   globalSlug?: string | null;
   user:
@@ -871,6 +1032,84 @@ export interface EmailTemplatesSelect<T extends boolean = true> {
   seedKey?: T;
   updatedAt?: T;
   createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "ui-strings_select".
+ */
+export interface UiStringsSelect<T extends boolean = true> {
+  key?: T;
+  namespace?: T;
+  value?: T;
+  source?:
+    | T
+    | {
+        message?: T;
+        arguments?: T;
+      };
+  note?: T;
+  seeded?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "exports_select".
+ */
+export interface ExportsSelect<T extends boolean = true> {
+  name?: T;
+  format?: T;
+  limit?: T;
+  page?: T;
+  sort?: T;
+  sortOrder?: T;
+  locale?: T;
+  drafts?: T;
+  selectionToUse?: T;
+  fields?: T;
+  collectionSlug?: T;
+  where?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  url?: T;
+  thumbnailURL?: T;
+  filename?: T;
+  mimeType?: T;
+  filesize?: T;
+  width?: T;
+  height?: T;
+  focalX?: T;
+  focalY?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "imports_select".
+ */
+export interface ImportsSelect<T extends boolean = true> {
+  collectionSlug?: T;
+  importMode?: T;
+  matchField?: T;
+  status?: T;
+  summary?:
+    | T
+    | {
+        imported?: T;
+        updated?: T;
+        total?: T;
+        issues?: T;
+        issueDetails?: T;
+      };
+  updatedAt?: T;
+  createdAt?: T;
+  url?: T;
+  thumbnailURL?: T;
+  filename?: T;
+  mimeType?: T;
+  filesize?: T;
+  width?: T;
+  height?: T;
+  focalX?: T;
+  focalY?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -1148,6 +1387,67 @@ export interface CollectionsWidget {
     [k: string]: unknown;
   };
   width: "full";
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "TaskCreateCollectionExport".
+ */
+export interface TaskCreateCollectionExport {
+  input: {
+    id: string;
+    name: string;
+    batchSize?: number | null;
+    collectionSlug:
+      | "users"
+      | "integrations"
+      | "media"
+      | "pages"
+      | "products"
+      | "categories"
+      | "collections"
+      | "email-templates"
+      | "ui-strings"
+      | "exports"
+      | "imports";
+    drafts?: ("yes" | "no") | null;
+    exportCollection: string;
+    fields?: string[] | null;
+    format: "csv" | "json";
+    limit?: number | null;
+    locale?: string | null;
+    maxLimit?: number | null;
+    page?: number | null;
+    sort?: string | null;
+    userCollection?: string | null;
+    userID?: string | null;
+    where?:
+      | {
+          [k: string]: unknown;
+        }
+      | unknown[]
+      | string
+      | number
+      | boolean
+      | null;
+  };
+  output?: unknown;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "TaskCreateCollectionImport".
+ */
+export interface TaskCreateCollectionImport {
+  input: {
+    importId: string;
+    importCollection: string;
+    userID?: string | null;
+    userCollection?: string | null;
+    batchSize?: number | null;
+    debug?: boolean | null;
+    defaultVersionStatus?: ("draft" | "published") | null;
+    maxLimit?: number | null;
+  };
+  output?: unknown;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

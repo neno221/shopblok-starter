@@ -2135,7 +2135,7 @@ Items 1 and 2 are recorded in the plan (§4, §4a, §6) and in the ADR; **the PA
 The runbook, as run in L10 with Icelandic (`is`). The plan's example `ga` is already one of the 42; check a code against `LANGUAGES` first (`apps/storefront/src/payload/locales.ts`).
 
 1. **Edit one line.** Add the two-letter ISO 639-1 code to `EXTRA_LANGUAGES` in `apps/storefront/src/payload/locales.ts`. Right-to-left languages also go in `RTL_LANGUAGES`. Do nothing else in Payload's config: the `markets` global's selects and every other list are built from it.
-2. **Create the migration.** `pnpm --filter @shopblok/storefront exec payload migrate:create add-<language>` (with the compose Postgres up; a run that prints nothing did nothing, run it again). Read the file: the `up` must be four `ALTER TYPE … ADD VALUE '<code>'` statements (`_locales`, `enum__pages_v_published_locale`, `enum_markets_countries_languages`, `enum_markets_languages_code`) and nothing else. A collection added since the list may add more enums with the same values; they all take the new one.
+2. **Create the migration.** `pnpm --filter @shopblok/storefront exec payload migrate:create add-<language>` (with the compose Postgres up; a run that prints nothing did nothing, run it again). Read the file: the `up` must be five `ALTER TYPE … ADD VALUE '<code>'` statements (`_locales`, `enum__pages_v_published_locale`, `enum_markets_countries_languages`, `enum_markets_languages_code`, and since T62 `enum_exports_locale`, the CSV export's language) and nothing else. A collection added since the list may add more enums with the same values; they all take the new one.
 3. **Regenerate the types.** `pnpm --filter @shopblok/storefront generate:types` adds the code to three unions in `payload-types.ts`; `generate:importmap` changes nothing. Commit the migration (`.ts`, `.json` and the new lines in `index.ts`) and `payload-types.ts` with the list.
 4. **Run the checks.** `pnpm --filter @shopblok/storefront test` (`locales.test.ts` compares the list with the newest migration's `_locales` values, so it fails until step 2 is done) and `payload migrate:create sync-check --skip-empty`, which must create no file.
 5. **Deploy the migration before the code.** `payload migrate` is additive and takes milliseconds (4 ms in L10, on a database with 20 pages in four languages). The code first would answer HTTP 500 the moment someone saves `markets` or a page in the new language, and nothing else would break; the old code on the migrated database works.
@@ -6359,3 +6359,85 @@ Left as the review says: 2 (concurrent upserts; the reconcile heals them), 3 (no
 
 Left as the review says: 2 (`language` names the language asked for even when Payload fell back to English), 7 (the English e2e step cannot tell Payload's English from the built-in), 8 (a numbered list's start) and 9 (no test of the language through the claim route); none is security or a cleanup. After the fixes: the backend's `tsc`, lint and unit tests (170), the storefront's typecheck and tests, and `auth.spec.ts` (4 of 4, with `E2E_MEDUSA_LOG`) pass.
 
+## ui-strings (T62)
+
+**Result: the shop's microcopy comes from Payload's `ui-strings` collection, one document per message (718, in en, el, de and fr), merged over the code catalogs behind next-intl; an edit in the admin shows on the next page or the one after, in that language only; a value whose ICU syntax or arguments differ from the code's English is refused on save, and one that got in anyway is not used (the code's text is, with one warning); `pnpm bootstrap` adds new keys, deletes removed ones and never overwrites an editor's value; and admins export the collection as CSV and import it back by key.** M4 plan §5 T62; D77, D62, D88.
+
+| | |
+|---|---|
+| Date | 2026-10-28 |
+| Branch | `claude/project-thread-oxrcpy`, from `main` at `3663f87` (PR 91 merged), with `main` at `fe5ef4a` (PR 92 merged) merged in |
+| PR | 93 |
+
+### What there is now
+
+- **The collection** (`payload/collections/ui-strings.ts`, no drafts): `key` (unique, indexed, the dotted path; read-only, and no principal may change it after the create), `namespace` (the key's first segment, set by a hook on every save, filterable in the list), `value`ᴸ (a textarea; an empty one is stored as null), `source` (the code's English and its arguments, e.g. `{count, plural}`; read-only, written by the seed only), `note` (for translators) and `seeded`ᴸ (hidden: what the seed last wrote, for the update rule; not in the CSV). Read is public, update is staff, create and delete are admins' (and the seed's). The list searches `key` and `value`, 50 to a page.
+- **The ICU check** (`@shopblok/i18n/icu`'s `messageProblem`, on `@formatjs/icu-messageformat-parser`): a value must parse, must not be blank (spaces only), and must use exactly the source's arguments, of the same kinds (`plural`, `select`, `number`, tags…). A save that fails is a 400 with the reason, e.g. `It must use the English text's arguments ({count, plural}): {count, plural} is missing; {total} is not one of them.` The check compares with the stored `source`, so a forged `source` in the request is dropped by field access before it counts. **The reason reaches the admin through the collection's `afterError` hook** (`keepRefusalReason`): in CI's `e2e-smoke`, Payload's formatter answered the refusal with "The following field is invalid: Value" alone (it keeps the field details only for an error that is `instanceof` its own `ValidationError`, and that check failed there, never on the cloud VM, with the same build command and a clean `.next`). The hook puts the details back for any error named `ValidationError` that carries them. `messages.test.ts` now takes its argument helpers from the same module.
+- **Revalidation:** `revalidateOnPublish` with `ui-strings:<locale>` for every language (a collection without drafts revalidates on every change; the hook cannot tell which language a save touched, so it revalidates all 42, which costs a tag each). Seeds pass `disableRevalidate`.
+- **The read** (`lib/cms/ui-strings.ts`, `readUiStrings`): one cached `cmsRead` per language (`cms:ui-strings`, tag `ui-strings:<locale>`), all documents with `key` and `value` only, `pagination: false`. It returns only the values that differ from the code catalog and from the code's English, and pass the ICU check (`i18n/messages.ts`'s `uiStringOverrides`); a value that fails warns once per language, key and value: `ui-strings: the el value of "…" is not used, the code's is. …`.
+- **The merge** (`i18n/market-messages.ts`, `messagesFor(market)`): `withOverrides(catalogs[market.locale], overrides)`, so the catalog is the same object as before when nothing is edited, and a copy otherwise. next-intl's request config uses it, and so does all copy drawn outside it: the cart drawer and the quick cart the server actions answer, the market banner, and the listing's answers (`/next/listing`, `/next/search`). A test fails any shop module outside `i18n/` and the design system that indexes `catalogs` itself. **Fallback, as D77 says:** the language's edited value; then English's edited value (Payload's `fallbackLocale`; the unedited English it falls back to is no edit, so an emptied Greek value shows the Greek catalog); then the code catalog's language; then English (a language with no catalog, such as `it` or `pt`). The catalog a language starts from is `lib/market-locale.ts`'s `catalogLocale`, the one rule `withLocale` uses too. A failed read (no database, Payload down) logs one warning per outage and the page shows the code's copy. Only the picked namespaces reach the browser, as before (D62): `i18n-messages.spec.ts` passes unchanged.
+- **The seed** (`payload/seed/ui-strings.ts`, run by `seed-content.ts` after the T59 runner, bootstrap step 11): one read of every document in every language, then a create (all four languages in one call, `locale: "all"`) for each new key, an update for each document the rule changes, and one delete of the keys the code no longer has. **The rule, per language:** an empty value, or one still equal to `seeded`, takes the code's message; anything else is the editor's and stays; where the editor's value has become the code's, only `seeded` moves on. `source` and `namespace` always follow the code. Bootstrap's detail line counts created, updated and deleted.
+- **CSV** (`payload/import-export.ts`, `@payloadcms/plugin-import-export` 3.92.1, both `disableJobsQueue: true`): **Import / Export** in the admin's `ui-strings` list, admins only. The export has a `value_<locale>` column for each of the 42 languages (50 columns in all). The import updates by `key` only (the mode and the match field are fixed: ids differ between databases, and a new key comes from the code). Each batch is checked before the plugin writes it (`checkImportedStrings`), and the plugin gets only the rows that change something, as `{ key, value?, note? }`: an unchanged cell or note is left out, and a row with nothing left is not handed on, so an untouched round trip saves and revalidates nothing (the summary's `total` counts every row, `updated` the changed ones); a cell the CSV parser read as a number or a boolean (`10`, `true`) is taken as its text; a value that fails the ICU check, a key that is not stored and a file with a single `value` column (exported in one language) are listed in the import's summary with the row and the reason (the import is then `partial`, or `failed` when nothing changed); and every changed row carries the stored English (see below). The files go to `apps/storefront/media/{exports,imports}` (git-ignored).
+- **The migration:** `20261028_220728_ui_strings` (D88: created last, after `main` at `fe5ef4a` was merged in, so after T70's `20261028_211336_email_templates`; T61 had not merged): `ui_strings` and `ui_strings_locales`, the plugin's `exports` and `imports` with their enums, and their columns in `payload_locked_documents_rels`. `migrate:create --skip-empty` afterwards writes nothing, and every migration applies to an empty database.
+
+### What the import-export plugin does (3.92.1)
+
+Found while building it; each is handled in `import-export.ts` and covered by a test.
+
+1. **Its endpoints check nothing** (`/api/exports/download`, the previews), and `exports` and `imports` are readable by any signed-in principal, the integrations' API keys included, so anyone could download a file. `adminOnly()` gives both collections admin-only access (no updates), hides them from non-admins and wraps every endpoint with a 403.
+2. **A row without a `value_en` column overwrites English** with the row's first language (it saves the first locale it finds as the default locale). A translator's file with only `key,value_el` would have replaced the English text. `checkImportedStrings` puts the stored English first in every changed row; `ui-strings.spec.ts` imports a Greek-only file and checks English.
+3. **A refused value in a language other than English is only logged** ("Failed to update locale el for document N"); the summary says the row was updated. The check before the write reports it instead.
+4. **A file exported in one language** has one `value` column, which the plugin saves in the default locale, over English. Refused with the reason ("Export with every language").
+5. **The CSV parser types cells:** `10`, `1.5`, `true` and `null` come as a number, a boolean and `null`. Read back as text.
+6. **The export lists every language** (42 `value_*` columns, 38 of them empty for a shop with four). Left as is: a translator filters columns, and the import ignores empty cells that match.
+
+**Lost updates between languages.** Two saves of different languages of the same document at the same moment can lose one: Payload writes every language row on a save. The admin saves one language at a time, so this matters for scripts; `ui-strings.spec.ts` puts its edits back one at a time for that reason (a parallel restore left two values edited).
+
+### `ui-strings.spec.ts` (in `e2e-smoke`, the `locales` project)
+
+Five serial tests, after the `chromium` project (they change the home's copy and the `markets` global, which the other suites read): a Greek message edited in the admin (the textarea and Save) shows on `/` within two requests while `/us` keeps English; a Greek value with `{total}` instead of `{count, plural}` is refused with the exact reason, and a forged `key` or `source` changes nothing; an editor gets 403 on export, import and the list of exports, the admin's export has 718 rows and every language's column, an import of German edits plus a broken Greek plural is `partial` with one issue at the right row, only the heading's row is saved (`updated: 1`), a second export equals the first apart from the heading's `updatedAt`, a Greek-only file leaves English alone, and a single-`value` file is `failed` and changes nothing; a Greek quick-cart title edited over REST shows in the quick cart a server action draws after an add; `/us` switched to Italian (no catalog) shows English, then the Italian value set in Payload. The `afterAll` restores every value and the markets global, one save at a time, and waits until `/us` and `/` are served in their languages again: `outage.spec.ts` comes next and reads `/us`, which answered 404 in CI while the restored map was still on its way. It takes about 80 s plus up to 80 s for the restore, 58 of them waiting for the market map after the switch: after a save of `markets`, `/us` answered the old language, then 404, then the new one over about 36 s (and 82 s back), since the proxy's map and the render's map are cached separately (within D10's 30 to 65 s for the first, not for the second; T71 looks at that path).
+
+### Times (cloud VM, the compose Postgres)
+
+| | |
+|---|---|
+| The read, 718 rows, one language | 25 to 35 ms warm, 127 ms the first time; then cached |
+| The seed, first run (718 creates) | 4.8 s, 4.0 s on a second fresh database |
+| The seed, again | 0.1 s (718 unchanged) |
+| A CSV export of 718 rows | 0.32 s, 0.15 s again |
+| A CSV import of 718 rows | about 10 s |
+
+### Mutations (each fails a test)
+
+| Mutation | Fails |
+|---|---|
+| The loader without the ICU check | `messages.test.ts` "falls back to the code…", `lib/cms/ui-strings.test.ts` "keeps only…"; in a build, `/` renders `Μόλις ήρθαν {count}` literally for a row written straight to the database (with the check: the code's text and one warning) |
+| A seed that always writes the code's value | `seed/ui-strings.test.ts`: `changeFor` "keeps an editor's value…" and `seedUiStrings` "keeps an editor's value across a second run" |
+| The layout handing the client the whole merged catalog (`messages={messages}`) | `i18n-messages.spec.ts`: 4 of 5 ("cartLineItem is in the document") |
+| `validateValue` that accepts anything | `collections/ui-strings.test.ts`: 2 tests |
+| The import without the stored English first | `import-export.test.ts`: 2 tests |
+| The listing handler (or any shop module) reading `catalogs[market.locale]` again | `market-messages.test.ts`: "indexes `catalogs` only in i18n/ and the design system" (names `lib/listing/handlers.ts`) |
+
+### Checks (cloud VM, Node 22.23.4, the compose stack)
+
+- `lint`, `typecheck` and `test` exit 0: storefront 3375, ui 5560, scripts 444, registry 222, i18n 108, fixtures 458.
+- `pnpm bootstrap` twice with a Greek value edited in the database: both runs end with step 11 unchanged, and the edit stays.
+- Against `next start` and Medusa, the default projects as `e2e-smoke` runs them: 147 passed (`i18n-messages.spec.ts` unchanged 5 of 5) and the new quick-cart test failed on its locator (it read the line's title, not the dialog's name); after that fix `ui-strings.spec.ts` alone passed 5 of 5. The `ui-strings` values and notes were all back as seeded afterwards.
+- First-load JS: every storefront route as on `main` (the product page 332.0 KB, the listing pages 331.1, `/[market]` 314.6, checkout 311.6). The admin is 824.9 KB (817.6 on `main` after T70's Lexical): the plugin's provider, 7.3 KB.
+- A new language now takes five `ALTER TYPE`s: "A language outside the list" step 2 names `enum_exports_locale`.
+
+### Code review (PR 93)
+
+`reviews/pr-93-code-review.md` in the project's files: the collection, the save check, the seed's rule and the admin-only CSV follow D77. Fixed (after `main` with T70 was merged in, so the checks above are on that):
+
+1. **Edited strings did not reach copy drawn outside next-intl** (must-fix): the cart drawer and quick cart (server actions), the market banner and the listing's answers read `catalogs[market.locale]`, so an edit showed on the page and went on the next answer. All of them, and the request config, now take `messagesFor(market)` (`i18n/market-messages.ts`). Tests: `market-messages.test.ts` (the merge, and no module outside `i18n/` and the design system indexes `catalogs`); `ui-strings.spec.ts` checks an edited quick-cart title after an add.
+2. **A single-language CSV overwrote English** (must-fix): its one `value` column went past the checks to the plugin, which saves it in the default locale. Refused with the reason. Tests: unit, and `ui-strings.spec.ts` (`failed`, nothing changed).
+3. **An emptied value showed the unedited English** (must-fix): Payload's fallback hands the loader the stored English, which covered the language's catalog. A value equal to the code's English is now no edit; an edited English still is, as D77's order says. Test: `messages.test.ts`.
+4. **Rows that changed nothing still reached the plugin** (must-fix): every row of a round trip was saved (each save revalidating 42 tags), and an import whose one change was refused came out `partial`. The plugin now gets only the rows that change something; a key that is not stored is reported here too, so the row numbers stay the file's. Tests: unit, and `ui-strings.spec.ts` (`updated: 1`, only the heading's `updatedAt` new).
+5. **Number- and boolean-looking cells erased the value** (must-fix): the CSV parser types `10` and `true`, and the hook took a non-string as empty. Cells are read as text. Test: unit.
+6. **A value of spaces passed the check** (must-fix): `messageProblem` refuses it on save, on import and in the loader. Test: `icu.test.ts`.
+7. **`catalogLocale` repeated `withLocale`'s rule** (optional, cleanup): it is now `lib/market-locale.ts`'s, and `withLocale` uses it.
+
+Left as the review says: 8 (the merged catalog is copied per request when a language has edits) and 9 (the generated migration's `down()`, the same in every migration on `main`); neither is security or a cleanup.
+
+**Left for later:** production storage for the CSV files (a shared disk or a bucket, M7, with the media's).
