@@ -86,12 +86,14 @@ export interface Config {
     recentlyViewed: RecentlyViewedBlock;
     newsletter: NewsletterBlock;
     formBlock: FormBlockBlock;
+    editorialList: EditorialListBlock;
   };
   collections: {
     users: User;
     integrations: Integration;
     media: Media;
     pages: Page;
+    posts: Post;
     products: Product;
     categories: Category;
     collections: ProductCollection;
@@ -113,6 +115,7 @@ export interface Config {
     integrations: IntegrationsSelect<false> | IntegrationsSelect<true>;
     media: MediaSelect<false> | MediaSelect<true>;
     pages: PagesSelect<false> | PagesSelect<true>;
+    posts: PostsSelect<false> | PostsSelect<true>;
     products: ProductsSelect<false> | ProductsSelect<true>;
     categories: CategoriesSelect<false> | CategoriesSelect<true>;
     collections: CollectionsSelect<false> | CollectionsSelect<true>;
@@ -1414,6 +1417,78 @@ export interface FormBlockBlock {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "EditorialListBlock".
+ */
+export interface EditorialListBlock {
+  variant: "standard";
+  heading?: string | null;
+  source: "newest" | "handpicked";
+  limit?: number | null;
+  /**
+   * Shown in this order.
+   */
+  posts?: (number | Post)[] | null;
+  showLink?: boolean | null;
+  sectionSettings?: {
+    anchor?: string | null;
+    spacing?: ("none" | "small" | "medium" | "large") | null;
+    surface?: ("default" | "muted" | "inverse") | null;
+    container?: ("narrow" | "default" | "wide" | "full") | null;
+    visibility?: ("all" | "mobile" | "desktop") | null;
+  };
+  id?: string | null;
+  blockName?: string | null;
+  blockType: "editorialList";
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "posts".
+ */
+export interface Post {
+  id: number;
+  title: string;
+  /**
+   * The post's address in the journal, /journal/…: lower-case letters, digits and hyphens.
+   */
+  slug: string;
+  /**
+   * The post's date, which orders the journal (newest first).
+   */
+  publishedAt: string;
+  /**
+   * Shown as “By …” beside the date.
+   */
+  author?: string | null;
+  /**
+   * A sentence or two: the post's summary in lists, and its lead.
+   */
+  excerpt?: string | null;
+  /**
+   * The post's picture, at its top and on its cards.
+   */
+  hero?: (number | null) | Media;
+  content?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ("ltr" | "rtl") | null;
+      format: "left" | "start" | "center" | "right" | "end" | "justify" | "";
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  seedKey?: string | null;
+  updatedAt: string;
+  createdAt: string;
+  _status?: ("draft" | "published") | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "users".
  */
 export interface User {
@@ -1490,6 +1565,7 @@ export interface Page {
         | RecentlyViewedBlock
         | NewsletterBlock
         | FormBlockBlock
+        | EditorialListBlock
       )[]
     | null;
   parent?: (number | null) | Page;
@@ -1843,6 +1919,10 @@ export interface PayloadLockedDocument {
         value: number | Page;
       } | null)
     | ({
+        relationTo: "posts";
+        value: number | Post;
+      } | null)
+    | ({
         relationTo: "products";
         value: number | Product;
       } | null)
@@ -2041,6 +2121,23 @@ export interface PagesSelect<T extends boolean = true> {
         label?: T;
         id?: T;
       };
+  seedKey?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  _status?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "posts_select".
+ */
+export interface PostsSelect<T extends boolean = true> {
+  title?: T;
+  slug?: T;
+  publishedAt?: T;
+  author?: T;
+  excerpt?: T;
+  hero?: T;
+  content?: T;
   seedKey?: T;
   updatedAt?: T;
   createdAt?: T;
@@ -3122,6 +3219,7 @@ export interface TaskCreateCollectionExport {
       | "integrations"
       | "media"
       | "pages"
+      | "posts"
       | "products"
       | "categories"
       | "collections"
@@ -3177,10 +3275,15 @@ export interface TaskSchedulePublish {
   input: {
     type?: ("publish" | "unpublish") | null;
     locale?: string | null;
-    doc?: {
-      relationTo: "pages";
-      value: number | Page;
-    } | null;
+    doc?:
+      | ({
+          relationTo: "pages";
+          value: number | Page;
+        } | null)
+      | ({
+          relationTo: "posts";
+          value: number | Post;
+        } | null);
     global?: string | null;
     user?:
       | ({

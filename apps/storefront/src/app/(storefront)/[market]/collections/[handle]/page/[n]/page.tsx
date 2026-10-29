@@ -1,10 +1,6 @@
 import type { Metadata } from "next";
-import {
-  ListingPage,
-  listingMetadata,
-  pathPage,
-} from "../../../../../../../components/listing/listing-page";
-import { collectionScope } from "../../../../../../../lib/listing/query";
+import { ListingPage, listingMetadata } from "../../../../../../../components/listing/listing-page";
+import { collectionScope, pathPage } from "../../../../../../../lib/listing/query";
 import { PLACEHOLDER_HANDLE } from "../../../../../../../lib/prerender";
 
 // D59 (T50): a collection's other pages, by path (`/collections/summer-edit/page/2`), rendered at

@@ -135,6 +135,7 @@ describe("the blocks and the registry (D70)", () => {
       "newsletter.text",
       "formBlock.heading",
       "formBlock.intro",
+      "editorialList.heading",
     ]);
   });
 });

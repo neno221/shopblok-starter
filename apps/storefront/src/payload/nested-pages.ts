@@ -12,6 +12,7 @@ import {
 import { relationship } from "payload/shared";
 import { MAX_PAGE_DEPTH, pageIdOf, pagePath } from "../lib/cms/page-path";
 import { siblingSlugTaken, slugProblem } from "./fields/slug";
+import { keepingRequest } from "./keeping-request";
 import { LANGUAGES, languageLabel } from "./locales";
 
 // D80: a page's `parent` and `breadcrumbs`, the fields of `@payloadcms/plugin-nested-docs`. The
@@ -30,22 +31,6 @@ type PageRef = { id?: Id; slug?: unknown; title?: unknown; parent?: unknown };
 type Breadcrumb = { doc?: Id; url?: string; label: string };
 
 const idOf = pageIdOf;
-
-/**
- * Runs Local API calls that pass `req` and puts back what they change on it: Payload sets
- * `req.locale`, `req.fallbackLocale` and `req.context` to the call's, so without this the hooks of
- * the save in progress would run in another language after the first call.
- */
-async function keepingRequest<T>(req: PayloadRequest, run: () => Promise<T>): Promise<T> {
-  const { locale, fallbackLocale, context } = req;
-  try {
-    return await run();
-  } finally {
-    req.locale = locale;
-    req.fallbackLocale = fallbackLocale;
-    req.context = context;
-  }
-}
 
 /** A page's slug, title and parent as `req.locale` reads them, with English where it has none. */
 const readPage = (req: PayloadRequest, id: Id): Promise<PageRef | null> =>

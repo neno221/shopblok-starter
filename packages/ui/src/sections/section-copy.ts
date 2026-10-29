@@ -1,5 +1,6 @@
 import type { Messages } from "@shopblok/i18n";
 import type { ProductCardCopy } from "@shopblok/ui/molecules/product-card/parts";
+import type { PostCardCopy } from "@shopblok/ui/sections/post-card";
 
 /** The words of the product cards the commerce sections draw, and of their carousel and grid. */
 export type SectionProductsCopy = ProductCardCopy & {
@@ -10,8 +11,9 @@ export type SectionProductsCopy = ProductCardCopy & {
 /**
  * The sections' fixed words (D43), from a whole catalog: `sections` (the video's play button and
  * its provider's note, the commerce blocks' words, the form's words), the newsletter's
- * (NewsletterForm's), and the atoms', molecules' and organisms' that the sections draw (a link's
- * new-tab note, the stars, the cards, the countdown, the code to copy). One object for every
+ * (NewsletterForm's), the journal's author line (T66's post cards), and the atoms', molecules' and
+ * organisms' that the sections draw (a link's new-tab note, the stars, the cards, the countdown,
+ * the code to copy). One object for every
  * section, so `RenderBlocks` builds it once per page.
  */
 export type SectionsCopy = {
@@ -28,10 +30,11 @@ export type SectionsCopy = {
   collectionSpotlight: Messages["sections"]["collectionSpotlight"];
   form: Messages["sections"]["form"];
   newsletter: Messages["molecules"]["newsletterForm"];
+  postCard: PostCardCopy;
 };
 
 export function sectionsCopy(messages: Messages): SectionsCopy {
-  const { atoms, molecules, organisms, sections } = messages;
+  const { atoms, molecules, organisms, sections, templates } = messages;
   return {
     newTab: atoms.link.newTab,
     rating: atoms.rating.label,
@@ -51,5 +54,6 @@ export function sectionsCopy(messages: Messages): SectionsCopy {
     collectionSpotlight: sections.collectionSpotlight,
     form: sections.form,
     newsletter: molecules.newsletterForm,
+    postCard: { byline: templates.journal.byline },
   };
 }

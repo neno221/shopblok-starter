@@ -710,6 +710,7 @@ export const fr: Messages = {
     promoBanner: { ends: "L’offre se termine le {date}" },
     comparison: { price: "Prix", missing: "Non précisé" },
     collectionSpotlight: { shop: "Découvrir la collection" },
+    editorialList: { all: "Voir tous les articles" },
     form: {
       submit: "Envoyer",
       sending: "Envoi…",
@@ -1059,6 +1060,15 @@ export const fr: Messages = {
         mine: "Cette commande est déjà dans votre compte.",
         rejected: "La demande n’a pas pu être envoyée. Vérifiez les informations et réessayez.",
         unavailable: "La boutique est injoignable pour le moment. Réessayez dans un instant.",
+      },
+    },
+    journal: {
+      title: "Journal",
+      byline: "Par {author}",
+      empty: {
+        title: "Aucun article pour l’instant",
+        text: "Les histoires de la boutique apparaîtront bientôt ici.",
+        action: "Voir tous les produits",
       },
     },
   },

@@ -12,6 +12,7 @@ import { Integrations } from "./payload/collections/integrations";
 import { Media } from "./payload/collections/media";
 import { EmailTemplates } from "./payload/collections/email-templates";
 import { Pages } from "./payload/collections/pages";
+import { Posts } from "./payload/collections/posts";
 import { Products } from "./payload/collections/products";
 import { UiStrings } from "./payload/collections/ui-strings";
 import { Users } from "./payload/collections/users";
@@ -51,10 +52,10 @@ export default buildConfig({
     // D85: the integrations (SPEC §10) and whether each is on, above the collections.
     components: { beforeDashboard: ["/payload/components/integrations-status#IntegrationsStatus"] },
     // D74: the edited language's market in three frames, through `/next/preview`. The globals show
-    // the market's home (T61); T66 adds `posts`.
+    // the market's home (T61), a post its page in the journal (T66).
     livePreview: {
       breakpoints: LIVE_PREVIEW_BREAKPOINTS,
-      collections: ["pages"],
+      collections: ["pages", "posts"],
       globals: [...CONTENT_GLOBALS],
       url: livePreviewUrl,
     },
@@ -64,6 +65,7 @@ export default buildConfig({
     Integrations,
     Media,
     Pages,
+    Posts,
     Products,
     Categories,
     Collections,

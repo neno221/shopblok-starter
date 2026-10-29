@@ -3,6 +3,7 @@ import { BundleBlock } from "./bundle";
 import { CategoryShowcaseBlock } from "./category-showcase";
 import { CollectionSpotlightBlock } from "./collection-spotlight";
 import { ComparisonBlock } from "./comparison";
+import { EditorialListBlock } from "./editorial-list";
 import { FaqBlock } from "./faq";
 import { FeaturedProductBlock } from "./featured-product";
 import { FormBlockBlock } from "./form-block";
@@ -46,6 +47,8 @@ export const BLOCKS: Block[] = [
   // T67: the blocks that post a form.
   NewsletterBlock,
   FormBlockBlock,
+  // T66: the journal's posts.
+  EditorialListBlock,
 ];
 
 /** The slugs `pages.layout` offers (`BlockSlug`: the generated types' names for the root blocks). */

@@ -22,7 +22,7 @@ import {
 } from "../../lib/listing/listing";
 import {
   categoryScope,
-  pageOf,
+  pathPage,
   parseListingQuery,
   parseScope,
   scopeValue,
@@ -50,13 +50,6 @@ import { ListingIsland } from "./listing-island";
 // T69 (D83): a category's or collection's banner and introduction from its Payload document, read
 // by its handle in the market's language, on every page of the listing; none for the store, and
 // none without a database or before the sync has written the document.
-
-/** A listing's page from its path segment: `/page/2` is 2; `1` and anything else is no page (404). */
-export function pathPage(segment: string | undefined): number | null {
-  if (segment === undefined) return 1;
-  const page = pageOf(segment);
-  return page !== null && page > 1 ? page : null;
-}
 
 type ListingPageData = {
   context: MarketContext;

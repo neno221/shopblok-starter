@@ -445,4 +445,44 @@ export const fr: Copy = {
       "Livraison express jusqu’à votre porte avec signature à la réception et suivi par SMS",
   },
   cmsPage: { parent: "À propos", title: "Notre équipe" },
+  journal: {
+    title: "Journal",
+    posts: [
+      {
+        title: "Cinq façons de superposer pour l’automne",
+        excerpt:
+          "Un sweat, une chemise et une veste légère : comment nous portons la nouvelle collection, du premier matin frais au dernier après-midi doux.",
+        author: "Maria Ioannou",
+        alt: "Un sweat et une veste posés sur une table en bois",
+      },
+      {
+        title: "Comment entretenir le coton biologique",
+        excerpt:
+          "De l’eau froide, un cycle délicat et pas de sèche-linge. De petites habitudes qui gardent une pièce préférée douce pendant des années.",
+        author: "Nikos Petrou",
+        alt: "Des chemises en coton pliées à côté d’un panier à linge",
+      },
+      {
+        title: "Derrière les coutures : une visite de notre atelier",
+        excerpt:
+          "Nous avons passé une journée avec celles et ceux qui coupent et cousent nos sweats, et nous en sommes revenus avec un nouveau respect pour une couture plate.",
+        author: "Maria Ioannou",
+        alt: "Une machine à coudre avec une manche à moitié finie",
+      },
+      {
+        title: "Notes de l’atelier",
+        excerpt:
+          "Les couleurs essayées puis abandonnées, un tissu qui nous a séduits et ce qui arrive la saison prochaine.",
+        author: "Eleni Georgiou",
+        alt: "Des échantillons de tissu épinglés sur un tableau",
+      },
+    ],
+    body: [
+      "L’automne est la saison des projets qui changent : un matin frais, un après-midi doux et une soirée qui réclame de nouveau une veste. La superposition nous habille pour les trois.",
+      "Commencez par une chemise qui respire, ajoutez un sweat que vous retirez sans y penser et gardez une veste légère pour le retour.",
+      "Chaque pièce de la collection est coupée pour se porter dessus ou dessous les autres, si bien que deux pièces suffisent à composer une tenue.",
+    ],
+    longTitle:
+      "Tout ce que nous avons appris sur les teintures naturelles, les mélanges de laine et le long et patient savoir-faire des vêtements qui durent",
+  },
 };

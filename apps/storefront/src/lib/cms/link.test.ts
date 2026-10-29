@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { findMarket } from "../markets/market";
 import { seeded } from "../markets/test-maps";
 import { isSafeLinkUrl, resolveLink } from "./link";
+import { journalPath } from "./paths";
 
 const us = findMarket(seeded, "en-us")!;
 const cy = findMarket(seeded, "el-cy")!;
@@ -52,6 +53,28 @@ describe("resolveLink", () => {
       newTab: false,
       appearance: null,
     });
+  });
+
+  it("places a post at /journal/<slug> in the market, its slug as the language reads it (T66)", () => {
+    const post = (slug: unknown) => ({
+      type: "reference" as const,
+      reference: { relationTo: "posts", value: { slug } },
+    });
+    expect(resolveLink(post("autumn-layers"), { market: us, map: seeded })?.href).toBe(
+      "/us/journal/autumn-layers",
+    );
+    expect(resolveLink(post("φθινόπωρο"), { market: cy, map: seeded })?.href).toBe(
+      "/journal/%CF%86%CE%B8%CE%B9%CE%BD%CF%8C%CF%80%CF%89%CF%81%CE%BF",
+    );
+    expect(resolveLink(post(""), { market: us, map: seeded })).toBeNull();
+  });
+
+  it("has the journal at /journal and its later pages by path (T66)", () => {
+    expect([journalPath(), journalPath(1), journalPath(2)]).toEqual([
+      "/journal",
+      "/journal",
+      "/journal/page/2",
+    ]);
   });
 
   it("leaves out a reference it cannot place, and an unsafe URL", () => {

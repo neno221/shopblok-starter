@@ -6,9 +6,11 @@ import {
   CmsPage,
   ErrorPage,
   HomePage,
+  JournalPage,
   NotFoundPage,
   OrderConfirmationPage,
   OrderLookupPage,
+  PostPage,
   ProductDetailPage,
   ProductListingPage,
   SearchResultsPage,
@@ -60,4 +62,7 @@ export const templates = [
   template("order-lookup", "Order lookup", "OrderLookupTemplate", OrderLookupPage),
   // T65: the CMS pages (and the homepage when the site settings name one).
   template("cms-page", "CMS page", "CmsPageTemplate", CmsPage),
+  // T66: the journal and its posts.
+  template("journal", "Journal", "JournalTemplate", JournalPage),
+  template("post", "Post", "PostTemplate", PostPage),
 ] as const satisfies readonly EntryInput[];

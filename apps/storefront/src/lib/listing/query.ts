@@ -89,6 +89,13 @@ export function pageOf(value: string | null): number | null {
   return Number(value);
 }
 
+/** A listing's (or the journal's) page from its path segment: `/page/2` is 2; `1` and anything else is no page (404). */
+export function pathPage(segment: string | undefined): number | null {
+  if (segment === undefined) return 1;
+  const page = pageOf(segment);
+  return page !== null && page > 1 ? page : null;
+}
+
 /** The URL's filters, sort, query, page and scope; a value that is not one is left out. */
 export function parseListingQuery(params: URLSearchParams): ListingQuery {
   const filters: ListingFilters = {};

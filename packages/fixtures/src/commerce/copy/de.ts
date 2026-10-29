@@ -440,4 +440,44 @@ export const de: Copy = {
       "Expresslieferung bis an Ihre Haustür mit Unterschrift bei Empfang und kostenloser Sendungsverfolgung per SMS oder E-Mail",
   },
   cmsPage: { parent: "Über uns", title: "Unser Team" },
+  journal: {
+    title: "Journal",
+    posts: [
+      {
+        title: "Fünf Wege, im Herbst im Lagenlook zu gehen",
+        excerpt:
+          "Ein Hoodie, ein Hemd und eine leichte Jacke: So tragen wir die neue Kollektion vom ersten kühlen Morgen bis zum letzten warmen Nachmittag.",
+        author: "Maria Ioannou",
+        alt: "Ein Hoodie und eine Jacke auf einem Holztisch",
+      },
+      {
+        title: "So pflegen Sie Bio-Baumwolle",
+        excerpt:
+          "Kaltes Wasser, ein Schonwaschgang und kein Trockner. Kleine Gewohnheiten, die ein Lieblingsstück jahrelang weich halten.",
+        author: "Nikos Petrou",
+        alt: "Gefaltete Baumwollhemden neben einem Wäschekorb",
+      },
+      {
+        title: "Hinter den Nähten: ein Besuch in unserer Werkstatt",
+        excerpt:
+          "Wir haben einen Tag mit den Menschen verbracht, die unsere Hoodies zuschneiden und nähen, und kamen mit neuem Respekt vor einer flachen Naht zurück.",
+        author: "Maria Ioannou",
+        alt: "Eine Nähmaschine mit einem halb fertigen Ärmel",
+      },
+      {
+        title: "Notizen aus dem Atelier",
+        excerpt:
+          "Farben, die wir ausprobiert und verworfen haben, ein Stoff, in den wir uns verliebt haben, und was in der nächsten Saison kommt.",
+        author: "Eleni Georgiou",
+        alt: "Stoffmuster an einer Pinnwand",
+      },
+    ],
+    body: [
+      "Der Herbst ist die Zeit wechselnder Pläne: ein kühler Morgen, ein warmer Nachmittag und ein Abend, der wieder eine Jacke braucht. Mit Lagen kleiden wir uns für alle drei.",
+      "Beginnen Sie mit einem atmungsaktiven Hemd, ergänzen Sie einen Hoodie, den Sie ohne Nachdenken ausziehen, und halten Sie eine leichte Jacke für den Heimweg bereit.",
+      "Jedes Stück der Kollektion ist so geschnitten, dass es über oder unter den anderen gut sitzt, sodass zwei beliebige ein Outfit ergeben.",
+    ],
+    longTitle:
+      "Alles, was wir über Naturfarben, Wollmischungen und das lange, geduldige Handwerk langlebiger Kleidungsstücke gelernt haben",
+  },
 };

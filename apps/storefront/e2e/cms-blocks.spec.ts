@@ -180,6 +180,8 @@ function layout(media: { image: number; video: number; captions: number }) {
     { blockType: "spacer", size: "medium", divider: true },
     // A second FAQ: the page still has one FAQPage, with all three questions.
     { blockType: "faq", items: [{ question: "Do you ship to Cyprus?", answer: "Yes." }] },
+    // T66: the newest posts, the seed's two at least (`seed-content`).
+    { blockType: "editorialList", heading: "From the journal", source: "newest", limit: 2 },
   ].map((block) => ({ variant: "standard", ...block }));
 }
 
@@ -192,6 +194,7 @@ const SECTIONS = [
   "testimonials-section",
   "video-section",
   "spacer-section",
+  "editorial-list-section",
 ];
 
 /** Requests to a video provider, from the moment `page` was opened. */

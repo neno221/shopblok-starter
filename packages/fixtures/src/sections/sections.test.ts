@@ -2,6 +2,7 @@ import {
   BundleSection,
   CategoryShowcaseSection,
   CollectionSpotlightSection,
+  EditorialListSection,
   ComparisonSection,
   FaqSection,
   FeaturedProductSection,
@@ -45,6 +46,23 @@ describe("the sections' fixtures (T63)", () => {
         expect(NewsletterSection.parse(each)).toEqual(each);
       for (const each of [f.formBlock.section, f.formBlock.long])
         expect(FormBlockSection.parse(each)).toEqual(each);
+      for (const each of [f.editorialList.section, f.editorialList.long])
+        expect(EditorialListSection.parse(each)).toEqual(each);
+    }
+  });
+
+  it("list the journal's newest posts in the locale's market, each a page of the journal (T66)", () => {
+    for (const locale of designSystemLocales) {
+      const { prefix } = commerceFixtures[locale];
+      const { section } = sectionFixtures[locale].editorialList;
+      expect(section.posts).toHaveLength(3);
+      expect(section.link?.href).toBe(`${prefix}/journal`);
+      const dates = section.posts.map((post) => Date.parse(post.publishedAt));
+      expect(dates).toEqual([...dates].sort((a, b) => b - a));
+      for (const post of section.posts) {
+        expect(post.href.startsWith(`${prefix}/journal/`), post.href).toBe(true);
+        expect(Date.parse(post.publishedAt)).toBeLessThan(Date.parse(fixtureNow));
+      }
     }
   });
 

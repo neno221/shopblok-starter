@@ -6,10 +6,12 @@ import type {
   CmsPage,
   ErrorPage,
   HomePage,
+  JournalPage,
   ListingResults,
   NotFoundPage,
   OrderConfirmationPage,
   OrderLookupPage,
+  PostPage,
   ProductDetailPage,
   ProductListingPage,
   QueryParam,
@@ -21,6 +23,7 @@ import { orderSummary } from "../commerce/build/cart-checkout-account";
 import { copies } from "../commerce/copy";
 import { fixtureImage } from "../commerce/images";
 import type { DesignSystemLocale } from "../design-system";
+import { journalHref, journalPosts } from "./journal";
 
 // The templates' page-level fixtures (D56, T48): what each template shows between the header and
 // the footer, in each DS locale. The DS draws a template inside the classic header and the
@@ -110,6 +113,17 @@ export type PageFixtures = {
    * title as the heading; the DS draws sections under it.
    */
   cmsPage: CmsPage;
+  /**
+   * The journal (T66): its first page with the four posts, newest first (the pager says there are
+   * two pages), and a journal with no post yet.
+   */
+  journal: { first: JournalPage; empty: JournalPage };
+  /**
+   * A post (T66): the newest, with its picture, its author and its summary as the lead, and its
+   * text in paragraphs (`body`, which a story draws as the template's children); `long` has a title
+   * that wraps and no picture.
+   */
+  post: { page: PostPage; body: readonly string[]; long: PostPage };
 };
 
 /** The sort as a listing offers it: newest, then by price; a search puts relevance first. */
@@ -453,6 +467,53 @@ function pagesFor(locale: DesignSystemLocale): PageFixtures {
         current: copy.cmsPage.title,
       },
       heading: "title",
+    },
+    ...journalPages(locale, copy.home, header.content.homeHref, storeHref),
+  };
+}
+
+/** The journal's two states and a post's page (T66). */
+function journalPages(
+  locale: DesignSystemLocale,
+  homeLabel: string,
+  homeHref: string,
+  storeHref: string,
+): Pick<PageFixtures, "journal" | "post"> {
+  const { journal: words } = copies[locale];
+  const { title } = words;
+  const posts = journalPosts(locale);
+  const newest = posts[0];
+  if (newest === undefined) throw new Error("The journal's fixtures have no post");
+  const journal = (shown: typeof posts, pageCount: number): JournalPage => ({
+    title,
+    breadcrumbs: { trail: [{ label: homeLabel, href: homeHref }], current: title },
+    posts: shown,
+    page: { page: 1, pageCount },
+    shopHref: storeHref,
+  });
+  const trail = [
+    { label: homeLabel, href: homeHref },
+    { label: title, href: journalHref(locale) },
+  ];
+  const page: PostPage = {
+    title: newest.title,
+    breadcrumbs: { trail, current: newest.title },
+    publishedAt: newest.publishedAt,
+    ...(newest.author === undefined ? {} : { author: newest.author }),
+    ...(newest.excerpt === undefined ? {} : { excerpt: newest.excerpt }),
+    ...(newest.image === undefined ? {} : { image: { ...newest.image, alt: words.posts[0].alt } }),
+  };
+  return {
+    journal: { first: journal(posts, 2), empty: journal([], 1) },
+    post: {
+      page,
+      body: words.body,
+      long: {
+        title: words.longTitle,
+        breadcrumbs: { trail, current: words.longTitle },
+        publishedAt: newest.publishedAt,
+        ...(newest.author === undefined ? {} : { author: newest.author }),
+      },
     },
   };
 }

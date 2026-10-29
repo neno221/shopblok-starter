@@ -26,6 +26,7 @@ import {
   type CommerceContext,
   type ResolvedCommerceBlock,
 } from "./commerce";
+import { resolveEditorialList, type PostsContext, type ResolvedEditorialList } from "./editorial";
 import { newsletterTarget, populatedForm } from "./forms";
 import { paragraphs, parsed, sectionLink, settingsOf, text } from "./shared";
 
@@ -55,6 +56,11 @@ export type ResolveContext = {
    * read where Medusa is not, such as a build without it).
    */
   commerce?: CommerceContext;
+  /**
+   * The journal's reads, for the `editorialList` blocks (T66); without them those blocks are left
+   * out (a read with no page around it, such as a test page's).
+   */
+  posts?: PostsContext;
 };
 
 /** A block resolved for its section; `key` is the block's id, for React's list. */
@@ -82,7 +88,8 @@ export type ResolvedBlock =
           confirmation: LexicalState | null;
         }
     ))
-  | ResolvedCommerceBlock;
+  | ResolvedCommerceBlock
+  | ResolvedEditorialList;
 
 const mediaOf = (value: unknown): Media | undefined =>
   value !== null && typeof value === "object" ? (value as Media) : undefined;
@@ -130,7 +137,8 @@ function videoSource(block: Extract<LayoutBlock, { blockType: "video" }>): Video
 
 /**
  * One content block of a page's layout as its section's view model, or `null` when it cannot be
- * drawn. A commerce block reads Medusa: `resolveLayout` resolves it.
+ * drawn. A commerce block reads Medusa, an editorial list the journal: `resolveLayout` resolves
+ * them.
  */
 export function resolveBlock(block: LayoutBlock, context: ResolveContext): ResolvedBlock | null {
   const key = block.id ?? `${block.blockType}`;
@@ -298,20 +306,42 @@ const isCommerce = (
   (COMMERCE_BLOCKS as readonly string[]).includes(block.blockType);
 
 /**
- * A commerce block, or `null` when a catalog read fails (Medusa down or slow): that block is left
- * out, never the page. Next's own control-flow errors are rethrown.
+ * How a block that reads a source as it resolves is read (PR 100 review, item 9): what the source
+ * is called in the log, and the read, or `null` when the page has no such source. `undefined` for
+ * a block that reads nothing (`resolveBlock`'s).
  */
-async function resolveCommerceOrSkip(
-  block: Extract<LayoutBlock, { blockType: CommerceBlockType }>,
+function readingBlock(
+  block: LayoutBlock,
   context: ResolveContext,
-  commerce: CommerceContext,
-): Promise<ResolvedCommerceBlock | null> {
+): { source: string; read: (() => Promise<ResolvedBlock | null>) | null } | undefined {
+  const { commerce, posts } = context;
+  if (isCommerce(block))
+    return {
+      source: "the catalog",
+      read: commerce === undefined ? null : () => resolveCommerceBlock(block, context, commerce),
+    };
+  if (block.blockType === "editorialList")
+    return {
+      source: "the posts'",
+      read: posts === undefined ? null : () => resolveEditorialList(block, context, posts),
+    };
+  return undefined;
+}
+
+/**
+ * A reading block, or `null` when its read fails (Medusa or Payload down or slow): that block is
+ * left out, never the page. Next's own control-flow errors are rethrown.
+ */
+async function readOrSkip(
+  block: LayoutBlock,
+  { source, read }: { source: string; read: () => Promise<ResolvedBlock | null> },
+): Promise<ResolvedBlock | null> {
   try {
-    return await resolveCommerceBlock(block, context, commerce);
+    return await read();
   } catch (error) {
     unstable_rethrow(error);
     console.error(
-      `[blocks] ${block.blockType} ${block.id ?? ""} left out: the catalog read failed`,
+      `[blocks] ${block.blockType} ${block.id ?? ""} left out: ${source} read failed`,
       error instanceof Error ? error.message : String(error),
     );
     return null;
@@ -320,22 +350,20 @@ async function resolveCommerceOrSkip(
 
 /**
  * A page's layout, resolved: the blocks that can be drawn, in the editor's order. The commerce
- * blocks read the market's catalog at the same time (T64); without `context.commerce`, or when
- * their read fails, they are left out.
+ * blocks read the market's catalog at the same time (T64), the editorial lists the journal (T66);
+ * without `context.commerce` or `context.posts`, or when their read fails, they are left out.
  */
 export async function resolveLayout(
   layout: Page["layout"] | undefined,
   context: ResolveContext,
 ): Promise<ResolvedBlock[]> {
-  const { commerce } = context;
   const resolved = await Promise.all(
-    (layout ?? []).map((block) =>
-      isCommerce(block)
-        ? commerce === undefined
-          ? null
-          : resolveCommerceOrSkip(block, context, commerce)
-        : resolveBlock(block, context),
-    ),
+    (layout ?? []).map((block) => {
+      const reading = readingBlock(block, context);
+      if (reading === undefined) return resolveBlock(block, context);
+      const { source, read } = reading;
+      return read === null ? null : readOrSkip(block, { source, read });
+    }),
   );
   return resolved.flatMap((block) => block ?? []);
 }

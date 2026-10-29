@@ -800,6 +800,7 @@ export const en = {
     promoBanner: { ends: "Offer ends {date}" },
     comparison: { price: "Price", missing: "Not specified" },
     collectionSpotlight: { shop: "Shop the collection" },
+    editorialList: { all: "See all posts" },
     form: {
       submit: "Send",
       sending: "Sending…",
@@ -1163,6 +1164,17 @@ export const en = {
         mine: "This order is already in your account.",
         rejected: "The request could not be sent. Check the details and try again.",
         unavailable: "The store could not be reached. Please try again in a moment.",
+      },
+    },
+    journal: {
+      // The journal and its posts (T66, D80): the journal's name (its heading and the breadcrumbs'
+      // step), a post's author line, and what an empty journal says.
+      title: "Journal",
+      byline: "By {author}",
+      empty: {
+        title: "No posts yet",
+        text: "Stories from the shop will appear here soon.",
+        action: "Shop all products",
       },
     },
   },

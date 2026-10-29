@@ -2,6 +2,7 @@ import {
   BundleSection,
   CategoryShowcaseSection,
   CollectionSpotlightSection,
+  EditorialListSection,
   ComparisonSection,
   FaqSection,
   FeaturedProductSection,
@@ -110,4 +111,12 @@ export const sections = [
   // T67: the two blocks that post a form (D81).
   section("newsletter", "newsletter", "Newsletter", "NewsletterSection", NewsletterSection),
   section("form-block", "formBlock", "Form", "FormBlockSection", FormBlockSection),
+  // T66: the journal's posts on a page.
+  section(
+    "editorial-list",
+    "editorialList",
+    "Editorial list",
+    "EditorialListSection",
+    EditorialListSection,
+  ),
 ] as const satisfies readonly EntryInput[];

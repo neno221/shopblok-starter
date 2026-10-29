@@ -6,6 +6,7 @@ import { RefreshOnSave } from "../../../../../components/cms/refresh-on-save";
 import { RenderBlocks } from "../../../../../components/cms/render-blocks";
 import { readPageBySlug } from "../../../../../lib/cms/pages";
 import { commerceContext } from "../../../../../lib/cms/resolve/market";
+import { postsContext } from "../../../../../lib/cms/resolve/posts";
 import { getCurrentMarket } from "../../../../../lib/current-market";
 import { e2eRoutesEnabled } from "../../../../../lib/env";
 import { getMarketContext } from "../../../../../lib/market-context";
@@ -15,7 +16,8 @@ import { siteOrigin } from "../../../../../lib/site-origin";
 // one (D73), for `cms-preview.spec.ts` until T65's `[...slug]` route takes over. Draft Mode is read
 // outside the cached read and passed in; the live-preview island renders only in Draft Mode.
 // Dynamic and blocking (`instant = false`, as the cart page): the gate is read per request. The
-// commerce blocks (T64) are resolved with the market's catalog: its region's prices, its language.
+// commerce blocks (T64) are resolved with the market's catalog: its region's prices, its language;
+// the editorial lists (T66) with the journal's posts.
 
 export const instant = false;
 export default async function E2eCmsPage({ params }: PageProps<"/[market]/e2e-cms/[slug]">) {
@@ -43,7 +45,12 @@ export default async function E2eCmsPage({ params }: PageProps<"/[market]/e2e-cm
       </div>
       <RenderBlocks
         blocks={page.layout}
-        context={{ market, map: context.map, commerce }}
+        context={{
+          market,
+          map: context.map,
+          commerce,
+          posts: postsContext({ market, draft }, messages),
+        }}
         messages={messages}
       />
       {/* `siteOrigin()`, Payload's `serverURL`: the island ignores a message from any other origin. */}
