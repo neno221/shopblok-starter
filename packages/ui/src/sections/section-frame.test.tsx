@@ -41,6 +41,10 @@ describe("SectionFrame", () => {
     expect(outer).toContain("[--foreground:var(--neutral-50)]");
     expect(outer).toContain("[--primary:var(--neutral-50)]");
     expect(outer).toContain("[--primary-foreground:var(--neutral-950)]");
+    // T64: the prices too; the sale red has no shade that keeps 4.5:1 on the dark end.
+    expect(outer).toContain("[--price:var(--neutral-50)]");
+    expect(outer).toContain("[--price-sale:var(--neutral-50)]");
+    expect(outer).toContain("[--price-original:var(--neutral-450)]");
     // No token is set from another token it sets itself (that would be a cycle, and invalid).
     const set = [...outer.matchAll(/\[--([a-z-]+):var\(--([a-z0-9-]+)\)\]/g)];
     const names = new Set(set.map((match) => match[1]));

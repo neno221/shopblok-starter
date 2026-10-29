@@ -13,6 +13,11 @@ import { blockDrift } from "./drift";
 const field = (block: Block, name: string) =>
   block.fields.find((each) => "name" in each && each.name === name);
 
+const names = (fields: readonly unknown[]) =>
+  fields.flatMap((each) =>
+    typeof each === "object" && each !== null && "name" in each ? [String(each.name)] : [],
+  );
+
 describe("the blocks and the registry (D70)", () => {
   it("agree: an entry per block, a block per entry, and the family's variants", () => {
     expect(blockDrift(sectionEntries(), BLOCKS)).toEqual([]);
@@ -20,9 +25,9 @@ describe("the blocks and the registry (D70)", () => {
   });
 
   it("fail when a block has no entry, an entry no block, or the variants differ", () => {
-    const extra: Block = { slug: "hero", fields: [] };
+    const extra: Block = { slug: "storyCarousel", fields: [] };
     expect(blockDrift(sectionEntries(), [...BLOCKS, extra])).toEqual([
-      'the block "hero" has no Sections entry in the registry',
+      'the block "storyCarousel" has no Sections entry in the registry',
     ]);
     expect(blockDrift(sectionEntries(), BLOCKS.slice(1))).toEqual([
       'sections/rich-text names the block "richText", which src/payload/blocks/ lacks',
@@ -45,15 +50,23 @@ describe("the blocks and the registry (D70)", () => {
   it("gives each block the variant, its content and the section settings, with the registry's thumbnail and label", () => {
     for (const block of BLOCKS) {
       const entry = entries.find((each) => each.block === block.slug);
-      expect(block.fields[0], block.slug).toMatchObject({ name: "variant", type: "select" });
-      expect(block.fields.at(-1), block.slug).toMatchObject({ name: "sectionSettings" });
+      expect(block.fields[0], block.slug).toMatchObject({
+        name: "variant",
+        type: "select",
+      });
+      expect(block.fields.at(-1), block.slug).toMatchObject({
+        name: "sectionSettings",
+      });
       expect(block.admin?.images?.thumbnail, block.slug).toEqual({
         url: entry?.thumbnail,
         alt: entry?.label,
       });
       expect(block.labels?.singular, block.slug).toBe(entry?.label);
       expect(field(block, "variant"), block.slug).toMatchObject({
-        options: variantsOf(entry?.family ?? "").map(({ value, label }) => ({ value, label })),
+        options: variantsOf(entry?.family ?? "").map(({ value, label }) => ({
+          value,
+          label,
+        })),
       });
     }
   });
@@ -71,7 +84,10 @@ describe("the blocks and the registry (D70)", () => {
 
   it("localize the text and nothing else of the structure", () => {
     const rows = BLOCKS.flatMap((block) =>
-      (describeBlock(block.slug) ?? []).map((row) => ({ ...row, block: block.slug })),
+      (describeBlock(block.slug) ?? []).map((row) => ({
+        ...row,
+        block: block.slug,
+      })),
     );
     const localized = rows.filter((row) => row.localized).map((row) => `${row.block}.${row.path}`);
     expect(localized).toEqual([
@@ -91,6 +107,30 @@ describe("the blocks and the registry (D70)", () => {
       "video.heading",
       "video.title",
       "video.caption",
+      "hero.eyebrow",
+      "hero.heading",
+      "hero.subheading",
+      "hero.links.link.label",
+      "categoryShowcase.heading",
+      "categoryShowcase.intro",
+      "categoryShowcase.links.link.label",
+      "categoryShowcase.categorySource.items.label",
+      "productCollection.heading",
+      "productCollection.intro",
+      "productCollection.links.link.label",
+      "featuredProduct.heading",
+      "featuredProduct.text",
+      "bundle.heading",
+      "bundle.text",
+      "promoBanner.heading",
+      "promoBanner.text",
+      "promoBanner.terms",
+      "promoBanner.links.link.label",
+      "comparison.heading",
+      "comparison.rows.label",
+      "collectionSpotlight.heading",
+      "collectionSpotlight.text",
+      "recentlyViewed.heading",
       "newsletter.heading",
       "newsletter.text",
       "formBlock.heading",
@@ -137,9 +177,18 @@ describe("describeBlock (the DS's Payload block panel)", () => {
   it("says which required fields are checked only when shown (the video's source)", () => {
     const rows = describeBlock("video") ?? [];
     const required = (path: string) => rows.find((row) => row.path === path);
-    expect(required("url")).toMatchObject({ required: true, conditional: true });
-    expect(required("file")).toMatchObject({ required: true, conditional: true });
-    expect(required("title")).toMatchObject({ required: true, conditional: false });
+    expect(required("url")).toMatchObject({
+      required: true,
+      conditional: true,
+    });
+    expect(required("file")).toMatchObject({
+      required: true,
+      conditional: true,
+    });
+    expect(required("title")).toMatchObject({
+      required: true,
+      conditional: false,
+    });
   });
 
   it("leaves out the id and blockName Payload adds when it loads the config", () => {
@@ -186,5 +235,18 @@ describe("the video block's captions (PR 95 review, item 6)", () => {
         } as never,
       ),
     ).toBe("Each language once: one captions file per language.");
+  });
+});
+
+describe("productSource (T64)", () => {
+  it("offers what to do when nothing is found, except for the hero, which stands without products", () => {
+    const sourceOf = (slug: string) => {
+      const block = BLOCKS.find((each) => each.slug === slug);
+      const source = block === undefined ? undefined : field(block, "productSource");
+      if (source === undefined || !("fields" in source)) throw new Error(`no source on ${slug}`);
+      return names(source.fields);
+    };
+    expect(sourceOf("productCollection")).toContain("emptyBehavior");
+    expect(sourceOf("hero")).not.toContain("emptyBehavior");
   });
 });

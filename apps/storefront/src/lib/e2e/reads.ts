@@ -9,7 +9,12 @@ import { bump } from "./runs";
 // Payload read inside `"use cache"` is served from the cache, that `revalidateTag` (from Payload's
 // hook or from a route handler) refreshes it, and that Draft Mode never reaches a public response.
 
-export type PagesRead = { runId: number; at: string; draft: boolean; titles: string[] };
+export type PagesRead = {
+  runId: number;
+  at: string;
+  draft: boolean;
+  titles: string[];
+};
 
 type Read = (locale: string) => Promise<PagesRead>;
 
@@ -40,6 +45,9 @@ async function findPages(language: string, draft: boolean) {
     // control and sees published pages only.
     overrideAccess: draft,
     depth: 0,
+    // Only what the checks read: a whole page joins every block's tables (T64), and the
+    // draft-isolation test sends 100 uncached draft reads at once.
+    select: { title: true },
     pagination: false,
     sort: "createdAt",
   });

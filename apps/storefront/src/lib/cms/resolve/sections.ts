@@ -1,7 +1,6 @@
 import {
   FaqSection,
   FormBlockSection,
-  Href,
   LogoCloudSection,
   MediaWithTextSection,
   NewsletterSection,
@@ -10,20 +9,27 @@ import {
   TestimonialsSection,
   UspBarSection,
   VideoSection,
-  type SectionLink,
-  type SectionSettings,
   type VideoSource,
 } from "@shopblok/registry/contracts";
-import type { z } from "zod";
+import { unstable_rethrow } from "next/navigation";
 import type { Media, Page } from "../../../payload-types";
 import { languageLabel } from "../../../payload/locales";
 import type { Market, MarketMap } from "../../markets/types";
-import { text } from "../../text";
 import { formFields, type StoredFormField } from "../../forms/fields";
-import { resolveLink, type InternalPaths, type LinkValue } from "../link";
+import type { InternalPaths, LinkValue } from "../link";
 import { mediaImage } from "../shell";
 import { parseVideoUrl } from "../video";
+import {
+  COMMERCE_BLOCKS,
+  resolveCommerceBlock,
+  type CommerceBlockType,
+  type CommerceContext,
+  type ResolvedCommerceBlock,
+} from "./commerce";
 import { newsletterTarget, populatedForm } from "./forms";
+import { paragraphs, parsed, sectionLink, settingsOf, text } from "./shared";
+
+export { paragraphs, sectionLink };
 
 // SPEC §7.5's resolution rule for the content blocks (D70, T63): a block of `pages.layout`, as
 // Payload stores it (references, uploads at depth 1), becomes its section's view model for the
@@ -44,78 +50,39 @@ export type ResolveContext = {
   map: MarketMap;
   /** The internal paths; `CMS_PATHS` unless the page has the category tree (`shellPaths`). */
   paths?: InternalPaths;
+  /**
+   * The market's catalog, for the commerce blocks (T64); without it they are left out (a page
+   * read where Medusa is not, such as a build without it).
+   */
+  commerce?: CommerceContext;
 };
 
 /** A block resolved for its section; `key` is the block's id, for React's list. */
-export type ResolvedBlock = { key: string } & (
-  | { blockType: "richText"; section: RichTextSection; content: LexicalState }
-  | { blockType: "mediaWithText"; section: MediaWithTextSection; content: LexicalState | null }
-  | { blockType: "uspBar"; section: UspBarSection }
-  | { blockType: "logoCloud"; section: LogoCloudSection }
-  | { blockType: "faq"; section: FaqSection }
-  | { blockType: "testimonials"; section: TestimonialsSection }
-  | { blockType: "video"; section: VideoSection }
-  | { blockType: "spacer"; section: SpacerSection }
-  | { blockType: "newsletter"; section: NewsletterSection; form: { id: string; fieldName: string } }
-  | {
-      blockType: "formBlock";
-      section: FormBlockSection;
-      /** The editor's text between fields, by the `message` field's id. */
-      messages: Record<string, LexicalState>;
-      /** The form's confirmation, or `null` for the catalog's thank-you. */
-      confirmation: LexicalState | null;
-    }
-);
-
-type Defined<T> = { [K in keyof T]: Exclude<T[K], null> };
-
-/** Drops the nulls Payload stores for an empty field, so `undefined` means "the default". */
-function defined<T extends Record<string, unknown>>(
-  value: T | null | undefined,
-): Partial<Defined<T>> {
-  if (value == null) return {};
-  return Object.fromEntries(
-    Object.entries(value).filter(([, each]) => each !== null && each !== undefined && each !== ""),
-  ) as Partial<Defined<T>>;
-}
-
-const SETTINGS = ["anchor", "spacing", "surface", "container", "visibility"] as const;
-
-/** The settings an editor set, and only those: no key for the rest, so a section's own default holds. */
-function settingsOf(block: { sectionSettings?: Record<string, unknown> | null }): SectionSettings {
-  const set = defined(block.sectionSettings);
-  return Object.fromEntries(
-    SETTINGS.flatMap((key) => (set[key] === undefined ? [] : [[key, set[key]]])),
-  ) as SectionSettings;
-}
-
-/** A blank line ends a paragraph: LF or CRLF (a textarea sends CRLF), spaces on it allowed. */
-export function paragraphs(value: string): string[] {
-  return value
-    .split(/\r?\n[^\S\r\n]*(?:\r?\n[^\S\r\n]*)+/)
-    .map((paragraph) => paragraph.trim())
-    .filter((paragraph) => paragraph !== "");
-}
-
-/** A `link` field as a section's call to action, or none (nowhere to go, no label, not a page). */
-export function sectionLink(
-  value: LinkValue | null | undefined,
-  context: ResolveContext,
-): SectionLink | undefined {
-  const resolved = resolveLink(value, context);
-  const label = text(resolved?.label);
-  // `mailto:` and `tel:` are links the field allows, but not a section's call to action (`Href`).
-  if (resolved === null || label === undefined || !Href.safeParse(resolved.href).success)
-    return undefined;
-  return {
-    label,
-    href: resolved.href,
-    ...(resolved.newTab ? { external: true } : {}),
-    ...(resolved.appearance === null
-      ? {}
-      : { appearance: resolved.appearance as SectionLink["appearance"] }),
-  };
-}
+export type ResolvedBlock =
+  | ({ key: string } & (
+      | { blockType: "richText"; section: RichTextSection; content: LexicalState }
+      | { blockType: "mediaWithText"; section: MediaWithTextSection; content: LexicalState | null }
+      | { blockType: "uspBar"; section: UspBarSection }
+      | { blockType: "logoCloud"; section: LogoCloudSection }
+      | { blockType: "faq"; section: FaqSection }
+      | { blockType: "testimonials"; section: TestimonialsSection }
+      | { blockType: "video"; section: VideoSection }
+      | { blockType: "spacer"; section: SpacerSection }
+      | {
+          blockType: "newsletter";
+          section: NewsletterSection;
+          form: { id: string; fieldName: string };
+        }
+      | {
+          blockType: "formBlock";
+          section: FormBlockSection;
+          /** The editor's text between fields, by the `message` field's id. */
+          messages: Record<string, LexicalState>;
+          /** The form's confirmation, or `null` for the catalog's thank-you. */
+          confirmation: LexicalState | null;
+        }
+    ))
+  | ResolvedCommerceBlock;
 
 const mediaOf = (value: unknown): Media | undefined =>
   value !== null && typeof value === "object" ? (value as Media) : undefined;
@@ -145,18 +112,26 @@ function videoSource(block: Extract<LayoutBlock, { blockType: "video" }>): Video
     const vtt = fileOf(row.file, ["text/vtt"]);
     if (vtt === undefined || seen.has(row.language)) return [];
     seen.add(row.language);
-    return [{ src: vtt.url, srclang: row.language, label: languageLabel(row.language) }];
+    return [
+      {
+        src: vtt.url,
+        srclang: row.language,
+        label: languageLabel(row.language),
+      },
+    ];
   });
-  return { kind: "file", src: file.url, type: file.type as "video/mp4" | "video/webm", tracks };
+  return {
+    kind: "file",
+    src: file.url,
+    type: file.type as "video/mp4" | "video/webm",
+    tracks,
+  };
 }
 
-/** The section's view model, parsed with its contract, or `undefined` when it does not parse. */
-function parsed<T extends z.ZodType>(contract: T, candidate: unknown): z.infer<T> | undefined {
-  const result = contract.safeParse(candidate);
-  return result.success ? result.data : undefined;
-}
-
-/** One block of a page's layout as its section's view model, or `null` when it cannot be drawn. */
+/**
+ * One content block of a page's layout as its section's view model, or `null` when it cannot be
+ * drawn. A commerce block reads Medusa: `resolveLayout` resolves it.
+ */
 export function resolveBlock(block: LayoutBlock, context: ResolveContext): ResolvedBlock | null {
   const key = block.id ?? `${block.blockType}`;
   const settings = settingsOf(block);
@@ -179,7 +154,12 @@ export function resolveBlock(block: LayoutBlock, context: ResolveContext): Resol
       });
       return section === undefined
         ? null
-        : { key, blockType: "mediaWithText", section, content: block.content ?? null };
+        : {
+            key,
+            blockType: "mediaWithText",
+            section,
+            content: block.content ?? null,
+          };
     }
     case "uspBar": {
       const section = parsed(UspBarSection, {
@@ -312,10 +292,50 @@ export function resolveBlock(block: LayoutBlock, context: ResolveContext): Resol
   }
 }
 
-/** A page's layout, resolved: the blocks that can be drawn, in the editor's order. */
-export function resolveLayout(
+const isCommerce = (
+  block: LayoutBlock,
+): block is Extract<LayoutBlock, { blockType: CommerceBlockType }> =>
+  (COMMERCE_BLOCKS as readonly string[]).includes(block.blockType);
+
+/**
+ * A commerce block, or `null` when a catalog read fails (Medusa down or slow): that block is left
+ * out, never the page. Next's own control-flow errors are rethrown.
+ */
+async function resolveCommerceOrSkip(
+  block: Extract<LayoutBlock, { blockType: CommerceBlockType }>,
+  context: ResolveContext,
+  commerce: CommerceContext,
+): Promise<ResolvedCommerceBlock | null> {
+  try {
+    return await resolveCommerceBlock(block, context, commerce);
+  } catch (error) {
+    unstable_rethrow(error);
+    console.error(
+      `[blocks] ${block.blockType} ${block.id ?? ""} left out: the catalog read failed`,
+      error instanceof Error ? error.message : String(error),
+    );
+    return null;
+  }
+}
+
+/**
+ * A page's layout, resolved: the blocks that can be drawn, in the editor's order. The commerce
+ * blocks read the market's catalog at the same time (T64); without `context.commerce`, or when
+ * their read fails, they are left out.
+ */
+export async function resolveLayout(
   layout: Page["layout"] | undefined,
   context: ResolveContext,
-): ResolvedBlock[] {
-  return (layout ?? []).flatMap((block) => resolveBlock(block, context) ?? []);
+): Promise<ResolvedBlock[]> {
+  const { commerce } = context;
+  const resolved = await Promise.all(
+    (layout ?? []).map((block) =>
+      isCommerce(block)
+        ? commerce === undefined
+          ? null
+          : resolveCommerceOrSkip(block, context, commerce)
+        : resolveBlock(block, context),
+    ),
+  );
+  return resolved.flatMap((block) => block ?? []);
 }

@@ -40,7 +40,7 @@ export type StringChange = {
 };
 
 /**
- * Every message of the code catalogs, 718 at T62, 721 at T63 and 733 at T67, in the four catalog
+ * Every message of the code catalogs, 718 at T62, 721 at T63, 733 at T67 and 741 at T64, in the four catalog
  * languages (D77).
  */
 export function codeStrings(): CodeString[] {

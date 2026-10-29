@@ -66,6 +66,8 @@ type ProductCarouselProps = ProductCarouselContent & {
   copy: ProductCardCopy & { carousel: Messages["organisms"]["productCarousel"] };
   /** The market's `<html lang>`. */
   locale: string;
+  /** A line under the heading (a CMS block's intro, T64). */
+  intro?: string;
   /** The heading's level: 2 by default. The cards' titles are one deeper. */
   headingLevel?: 2 | 3 | 4 | 5;
   /** The `quick-add` variant's form, for every card. */
@@ -105,6 +107,7 @@ function ProductCarousel({
   products,
   variant,
   viewAll,
+  intro,
   copy,
   locale,
   headingLevel = 2,
@@ -155,6 +158,14 @@ function ProductCarousel({
           <CarouselNext label={words.next} focusableWhenDisabled className={ARROW} />
         </div>
       </div>
+      {intro === undefined ? null : (
+        <p
+          data-slot="product-carousel-intro"
+          className="-mt-2 max-w-prose text-base text-pretty wrap-anywhere text-muted-foreground"
+        >
+          {intro}
+        </p>
+      )}
       <CarouselContent className="-ms-3 touch-pan-y touch-pinch-zoom py-1 pe-1">
         {products.map((product, index) => (
           <CarouselItem

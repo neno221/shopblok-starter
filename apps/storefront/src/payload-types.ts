@@ -75,6 +75,15 @@ export interface Config {
     testimonials: TestimonialsBlock;
     video: VideoBlock;
     spacer: SpacerBlock;
+    hero: HeroBlock;
+    categoryShowcase: CategoryShowcaseBlock;
+    productCollection: ProductCollectionBlock;
+    featuredProduct: FeaturedProductBlock;
+    bundle: BundleBlock;
+    promoBanner: PromoBannerBlock;
+    comparison: ComparisonBlock;
+    collectionSpotlight: CollectionSpotlightBlock;
+    recentlyViewed: RecentlyViewedBlock;
     newsletter: NewsletterBlock;
     formBlock: FormBlockBlock;
   };
@@ -750,6 +759,407 @@ export interface SpacerBlock {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "HeroBlock".
+ */
+export interface HeroBlock {
+  variant: "standard";
+  eyebrow?: string | null;
+  heading: string;
+  subheading?: string | null;
+  media?: (number | null) | Media;
+  links?:
+    | {
+        link: {
+          type?: ("reference" | "custom") | null;
+          reference?:
+            | ({
+                relationTo: "categories";
+                value: number | Category;
+              } | null)
+            | ({
+                relationTo: "collections";
+                value: number | ProductCollection;
+              } | null)
+            | ({
+                relationTo: "products";
+                value: number | Product;
+              } | null);
+          url?: string | null;
+          label: string;
+          newTab?: boolean | null;
+          appearance?: ("default" | "outline" | "text") | null;
+        };
+        id?: string | null;
+      }[]
+    | null;
+  /**
+   * A countdown to this time; once it has passed, the countdown is not shown.
+   */
+  countdownEnd?: string | null;
+  productSource: {
+    mode: "none" | "collection" | "category" | "handpicked" | "newest" | "onSale" | "tag" | "type";
+    collection?: (number | null) | ProductCollection;
+    category?: (number | null) | Category;
+    descendants?: boolean | null;
+    /**
+     * Shown in this order.
+     */
+    products?: (number | Product)[] | null;
+    /**
+     * The tag's value, as Medusa Admin shows it (summer).
+     */
+    tag?: string | null;
+    /**
+     * The product type's value, as Medusa Admin shows it (Hoodie).
+     */
+    type?: string | null;
+    limit?: number | null;
+    sort?: ("newest" | "priceAsc" | "priceDesc" | "title") | null;
+  };
+  sectionSettings?: {
+    anchor?: string | null;
+    spacing?: ("none" | "small" | "medium" | "large") | null;
+    surface?: ("default" | "muted" | "inverse") | null;
+    container?: ("narrow" | "default" | "wide" | "full") | null;
+    visibility?: ("all" | "mobile" | "desktop") | null;
+  };
+  id?: string | null;
+  blockName?: string | null;
+  blockType: "hero";
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "CategoryShowcaseBlock".
+ */
+export interface CategoryShowcaseBlock {
+  variant: "standard";
+  heading?: string | null;
+  intro?: string | null;
+  links?:
+    | {
+        link: {
+          type?: ("reference" | "custom") | null;
+          reference?:
+            | ({
+                relationTo: "categories";
+                value: number | Category;
+              } | null)
+            | ({
+                relationTo: "collections";
+                value: number | ProductCollection;
+              } | null)
+            | ({
+                relationTo: "products";
+                value: number | Product;
+              } | null);
+          url?: string | null;
+          label: string;
+          newTab?: boolean | null;
+          appearance?: ("text" | "default" | "outline") | null;
+        };
+        id?: string | null;
+      }[]
+    | null;
+  categorySource: {
+    mode: "topLevel" | "childrenOf" | "handpicked";
+    parent?: (number | null) | Category;
+    /**
+     * Handpicked: the categories, in this order. Otherwise: a label or a picture for any of the categories shown.
+     */
+    items?:
+      | {
+          category: number | Category;
+          /**
+           * Instead of the category's name.
+           */
+          label?: string | null;
+          /**
+           * Instead of the category's newest product's picture.
+           */
+          image?: (number | null) | Media;
+          id?: string | null;
+        }[]
+      | null;
+    limit?: number | null;
+  };
+  sectionSettings?: {
+    anchor?: string | null;
+    spacing?: ("none" | "small" | "medium" | "large") | null;
+    surface?: ("default" | "muted" | "inverse") | null;
+    container?: ("narrow" | "default" | "wide" | "full") | null;
+    visibility?: ("all" | "mobile" | "desktop") | null;
+  };
+  id?: string | null;
+  blockName?: string | null;
+  blockType: "categoryShowcase";
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "ProductCollectionBlock".
+ */
+export interface ProductCollectionBlock {
+  variant: "standard";
+  heading: string;
+  intro?: string | null;
+  display: "carousel" | "grid";
+  /**
+   * The listing the products come from.
+   */
+  links?:
+    | {
+        link: {
+          type?: ("reference" | "custom") | null;
+          reference?:
+            | ({
+                relationTo: "categories";
+                value: number | Category;
+              } | null)
+            | ({
+                relationTo: "collections";
+                value: number | ProductCollection;
+              } | null)
+            | ({
+                relationTo: "products";
+                value: number | Product;
+              } | null);
+          url?: string | null;
+          label: string;
+          newTab?: boolean | null;
+          appearance?: "text" | null;
+        };
+        id?: string | null;
+      }[]
+    | null;
+  productSource: {
+    mode: "collection" | "category" | "handpicked" | "newest" | "onSale" | "tag" | "type";
+    collection?: (number | null) | ProductCollection;
+    category?: (number | null) | Category;
+    descendants?: boolean | null;
+    /**
+     * Shown in this order.
+     */
+    products?: (number | Product)[] | null;
+    /**
+     * The tag's value, as Medusa Admin shows it (summer).
+     */
+    tag?: string | null;
+    /**
+     * The product type's value, as Medusa Admin shows it (Hoodie).
+     */
+    type?: string | null;
+    limit?: number | null;
+    sort?: ("newest" | "priceAsc" | "priceDesc" | "title") | null;
+    /**
+     * When the source has no product sold in the market.
+     */
+    emptyBehavior: "hide" | "message" | "newest";
+  };
+  sectionSettings?: {
+    anchor?: string | null;
+    spacing?: ("none" | "small" | "medium" | "large") | null;
+    surface?: ("default" | "muted" | "inverse") | null;
+    container?: ("narrow" | "default" | "wide" | "full") | null;
+    visibility?: ("all" | "mobile" | "desktop") | null;
+  };
+  id?: string | null;
+  blockName?: string | null;
+  blockType: "productCollection";
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "FeaturedProductBlock".
+ */
+export interface FeaturedProductBlock {
+  variant: "standard";
+  heading?: string | null;
+  product: number | Product;
+  /**
+   * A blank line starts a new paragraph.
+   */
+  text?: string | null;
+  /**
+   * Instead of the product's first picture.
+   */
+  media?: (number | null) | Media;
+  sectionSettings?: {
+    anchor?: string | null;
+    spacing?: ("none" | "small" | "medium" | "large") | null;
+    surface?: ("default" | "muted" | "inverse") | null;
+    container?: ("narrow" | "default" | "wide" | "full") | null;
+    visibility?: ("all" | "mobile" | "desktop") | null;
+  };
+  id?: string | null;
+  blockName?: string | null;
+  blockType: "featuredProduct";
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "BundleBlock".
+ */
+export interface BundleBlock {
+  variant: "standard";
+  heading: string;
+  /**
+   * A blank line starts a new paragraph.
+   */
+  text?: string | null;
+  /**
+   * Shown in this order.
+   */
+  products: (number | Product)[];
+  sectionSettings?: {
+    anchor?: string | null;
+    spacing?: ("none" | "small" | "medium" | "large") | null;
+    surface?: ("default" | "muted" | "inverse") | null;
+    container?: ("narrow" | "default" | "wide" | "full") | null;
+    visibility?: ("all" | "mobile" | "desktop") | null;
+  };
+  id?: string | null;
+  blockName?: string | null;
+  blockType: "bundle";
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "PromoBannerBlock".
+ */
+export interface PromoBannerBlock {
+  variant: "standard";
+  heading: string;
+  /**
+   * A blank line starts a new paragraph.
+   */
+  text?: string | null;
+  /**
+   * The promotion's code in Medusa, which shoppers copy.
+   */
+  code?: string | null;
+  terms?: string | null;
+  /**
+   * When the offer ends; after it, the banner is not shown.
+   */
+  endsAt?: string | null;
+  media?: (number | null) | Media;
+  links?:
+    | {
+        link: {
+          type?: ("reference" | "custom") | null;
+          reference?:
+            | ({
+                relationTo: "categories";
+                value: number | Category;
+              } | null)
+            | ({
+                relationTo: "collections";
+                value: number | ProductCollection;
+              } | null)
+            | ({
+                relationTo: "products";
+                value: number | Product;
+              } | null);
+          url?: string | null;
+          label: string;
+          newTab?: boolean | null;
+          appearance?: ("default" | "outline" | "text") | null;
+        };
+        id?: string | null;
+      }[]
+    | null;
+  sectionSettings?: {
+    anchor?: string | null;
+    spacing?: ("none" | "small" | "medium" | "large") | null;
+    surface?: ("default" | "muted" | "inverse") | null;
+    container?: ("narrow" | "default" | "wide" | "full") | null;
+    visibility?: ("all" | "mobile" | "desktop") | null;
+  };
+  id?: string | null;
+  blockName?: string | null;
+  blockType: "promoBanner";
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "ComparisonBlock".
+ */
+export interface ComparisonBlock {
+  variant: "standard";
+  heading: string;
+  /**
+   * A column each, in this order.
+   */
+  products: (number | Product)[];
+  showOptions?: boolean | null;
+  rows?:
+    | {
+        label: string;
+        /**
+         * The key in the products' metadata in Medusa (material).
+         */
+        key: string;
+        id?: string | null;
+      }[]
+    | null;
+  sectionSettings?: {
+    anchor?: string | null;
+    spacing?: ("none" | "small" | "medium" | "large") | null;
+    surface?: ("default" | "muted" | "inverse") | null;
+    container?: ("narrow" | "default" | "wide" | "full") | null;
+    visibility?: ("all" | "mobile" | "desktop") | null;
+  };
+  id?: string | null;
+  blockName?: string | null;
+  blockType: "comparison";
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "CollectionSpotlightBlock".
+ */
+export interface CollectionSpotlightBlock {
+  variant: "standard";
+  collection: number | ProductCollection;
+  /**
+   * The collection's name unless you write one.
+   */
+  heading?: string | null;
+  /**
+   * A blank line starts a new paragraph.
+   */
+  text?: string | null;
+  media?: (number | null) | Media;
+  /**
+   * How many of its products; 0 shows none.
+   */
+  limit: number;
+  sort: "newest" | "priceAsc" | "priceDesc" | "title";
+  sectionSettings?: {
+    anchor?: string | null;
+    spacing?: ("none" | "small" | "medium" | "large") | null;
+    surface?: ("default" | "muted" | "inverse") | null;
+    container?: ("narrow" | "default" | "wide" | "full") | null;
+    visibility?: ("all" | "mobile" | "desktop") | null;
+  };
+  id?: string | null;
+  blockName?: string | null;
+  blockType: "collectionSpotlight";
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "RecentlyViewedBlock".
+ */
+export interface RecentlyViewedBlock {
+  variant: "standard";
+  heading?: string | null;
+  sectionSettings?: {
+    anchor?: string | null;
+    spacing?: ("none" | "small" | "medium" | "large") | null;
+    surface?: ("default" | "muted" | "inverse") | null;
+    container?: ("narrow" | "default" | "wide" | "full") | null;
+    visibility?: ("all" | "mobile" | "desktop") | null;
+  };
+  id?: string | null;
+  blockName?: string | null;
+  blockType: "recentlyViewed";
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "NewsletterBlock".
  */
 export interface NewsletterBlock {
@@ -991,6 +1401,15 @@ export interface Page {
         | TestimonialsBlock
         | VideoBlock
         | SpacerBlock
+        | HeroBlock
+        | CategoryShowcaseBlock
+        | ProductCollectionBlock
+        | FeaturedProductBlock
+        | BundleBlock
+        | PromoBannerBlock
+        | ComparisonBlock
+        | CollectionSpotlightBlock
+        | RecentlyViewedBlock
         | NewsletterBlock
         | FormBlockBlock
       )[]

@@ -57,6 +57,22 @@ export const hideDeletedInMedusa: Extract<FilterOptions, (...args: never[]) => u
 };
 
 /**
+ * `hideDeletedInMedusa` for a relationship to one catalog collection outside a `link` (T64's
+ * sources and pickers): the documents Medusa deleted are not offered, and those the field `name`
+ * already holds (one, or a list for `hasMany`) are let through, for the same reason as there.
+ */
+export function hideDeletedExceptHeld(
+  name: string,
+): Extract<FilterOptions, (...args: never[]) => unknown> {
+  return ({ siblingData }) => {
+    const shown = { deletedInMedusa: { not_equals: true } };
+    const held = (siblingData as Record<string, unknown> | null)?.[name];
+    const ids = (Array.isArray(held) ? held : [held]).flatMap((value) => idOf(value) ?? []);
+    return ids.length === 0 ? shown : { or: [shown, { id: { in: ids } }] };
+  };
+}
+
+/**
  * The reusable `link` field (SPEC §7.5, D79): an internal reference or a custom URL, a label in
  * each language, `newTab` and an appearance. It stores a reference, never a URL, for anything
  * internal: `resolveLink` (`lib/cms/link.ts`) turns it into the current market's public URL when

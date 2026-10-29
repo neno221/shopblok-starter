@@ -4,16 +4,28 @@
 // the rich text, which the storefront renders from Lexical, is drawn here from the fixtures' sample
 // as plain elements. The states show the settings an editor changes most (the surface, the side of
 // the picture) and the long texts. Every link is drawn with `prefetch={false}`. The entry page
-// adds the block's Payload fields (`components/block-table.tsx`).
-import { commerceFixtures, sectionFixtures } from "@shopblok/fixtures";
+// adds the block's Payload fields (`components/block-table.tsx`). The commerce sections (T64) are
+// drawn from the commerce fixtures' products and categories, as the resolvers would give them; a
+// countdown is frozen at the fixtures' `now`, and the recently viewed list is the browser's own in
+// the shop, a fixed list here.
+import { commerceFixtures, markets, sectionFixtures } from "@shopblok/fixtures";
 import { catalogs } from "@shopblok/i18n";
 import type { EntryId } from "@shopblok/registry";
 import type { SectionSettings } from "@shopblok/registry/contracts";
+import { BundleSection } from "@shopblok/ui/sections/bundle";
+import { CategoryShowcaseSection } from "@shopblok/ui/sections/category-showcase";
+import { CollectionSpotlightSection } from "@shopblok/ui/sections/collection-spotlight";
+import { ComparisonSection } from "@shopblok/ui/sections/comparison";
 import { FaqSection } from "@shopblok/ui/sections/faq";
+import { FeaturedProductSection } from "@shopblok/ui/sections/featured-product";
 import { FormBlockSection, type FormBlockSectionProps } from "@shopblok/ui/sections/form-block";
+import { HeroSection } from "@shopblok/ui/sections/hero";
 import { LogoCloudSection } from "@shopblok/ui/sections/logo-cloud";
 import { MediaWithTextSection } from "@shopblok/ui/sections/media-with-text";
 import { NewsletterSection } from "@shopblok/ui/sections/newsletter";
+import { ProductCollectionSection } from "@shopblok/ui/sections/product-collection";
+import { PromoBannerSection } from "@shopblok/ui/sections/promo-banner";
+import { RecentlyViewedSection } from "@shopblok/ui/sections/recently-viewed";
 import { RichTextSection } from "@shopblok/ui/sections/rich-text";
 import { sectionsCopy } from "@shopblok/ui/sections/section-copy";
 import { SpacerSection } from "@shopblok/ui/sections/spacer";
@@ -26,6 +38,10 @@ const fixtures = (ctx: DsContext) => sectionFixtures[ctx.locale];
 const copy = (ctx: DsContext) => sectionsCopy(catalogs[ctx.locale]);
 const lang = (ctx: DsContext) => ctx.fixture.market.htmlLang;
 const commerce = (ctx: DsContext) => commerceFixtures[ctx.locale];
+
+/** The DS market's country's time zone (D65), as the shop's markets global seeds it. */
+const timeZone = (ctx: DsContext) =>
+  markets.countries.find((country) => country.code === ctx.fixture.market.country)?.timeZone;
 
 const muted: SectionSettings = { surface: "muted" };
 const inverse: SectionSettings = { surface: "inverse" };
@@ -84,6 +100,149 @@ function faq(
 function video(ctx: DsContext, which: "embed" | "file" | "long", settings?: SectionSettings) {
   const section = fixtures(ctx).video[which];
   return <VideoSection {...section} settings={settings} copy={copy(ctx)} locale={lang(ctx)} />;
+}
+
+type Fixtures = ReturnType<typeof fixtures>;
+
+function hero(
+  ctx: DsContext,
+  which: keyof Fixtures["hero"],
+  settings?: SectionSettings,
+  headingLevel: 1 | 2 = 2,
+) {
+  return (
+    <HeroSection
+      {...fixtures(ctx).hero[which]}
+      {...(settings === undefined ? {} : { settings })}
+      copy={copy(ctx)}
+      locale={lang(ctx)}
+      timeZone={timeZone(ctx)}
+      headingLevel={headingLevel}
+      // Drawn at the fixtures' fixed now: the page must not count on from the real date.
+      frozen
+      prefetch={false}
+    />
+  );
+}
+
+function categoryShowcase(
+  ctx: DsContext,
+  which: keyof Fixtures["categoryShowcase"],
+  settings?: SectionSettings,
+) {
+  return (
+    <CategoryShowcaseSection
+      {...fixtures(ctx).categoryShowcase[which]}
+      {...(settings === undefined ? {} : { settings })}
+      copy={copy(ctx)}
+      prefetch={false}
+    />
+  );
+}
+
+function productCollection(
+  ctx: DsContext,
+  which: keyof Fixtures["productCollection"],
+  settings?: SectionSettings,
+) {
+  return (
+    <ProductCollectionSection
+      {...fixtures(ctx).productCollection[which]}
+      {...(settings === undefined ? {} : { settings })}
+      copy={copy(ctx)}
+      locale={lang(ctx)}
+      prefetch={false}
+    />
+  );
+}
+
+function featuredProduct(
+  ctx: DsContext,
+  which: keyof Fixtures["featuredProduct"],
+  settings?: SectionSettings,
+) {
+  return (
+    <FeaturedProductSection
+      {...fixtures(ctx).featuredProduct[which]}
+      {...(settings === undefined ? {} : { settings })}
+      copy={copy(ctx)}
+      locale={lang(ctx)}
+      prefetch={false}
+    />
+  );
+}
+
+function bundle(ctx: DsContext, which: keyof Fixtures["bundle"], settings?: SectionSettings) {
+  return (
+    <BundleSection
+      {...fixtures(ctx).bundle[which]}
+      {...(settings === undefined ? {} : { settings })}
+      copy={copy(ctx)}
+      locale={lang(ctx)}
+      prefetch={false}
+    />
+  );
+}
+
+function promoBanner(
+  ctx: DsContext,
+  which: keyof Fixtures["promoBanner"],
+  settings?: SectionSettings,
+) {
+  return (
+    <PromoBannerSection
+      {...fixtures(ctx).promoBanner[which]}
+      {...(settings === undefined ? {} : { settings })}
+      copy={copy(ctx)}
+      locale={lang(ctx)}
+      timeZone={timeZone(ctx)}
+      prefetch={false}
+    />
+  );
+}
+
+function comparison(
+  ctx: DsContext,
+  which: keyof Fixtures["comparison"],
+  settings?: SectionSettings,
+) {
+  return (
+    <ComparisonSection
+      {...fixtures(ctx).comparison[which]}
+      {...(settings === undefined ? {} : { settings })}
+      copy={copy(ctx)}
+      locale={lang(ctx)}
+      prefetch={false}
+    />
+  );
+}
+
+function collectionSpotlight(
+  ctx: DsContext,
+  which: keyof Fixtures["collectionSpotlight"],
+  settings?: SectionSettings,
+) {
+  return (
+    <CollectionSpotlightSection
+      {...fixtures(ctx).collectionSpotlight[which]}
+      {...(settings === undefined ? {} : { settings })}
+      copy={copy(ctx)}
+      locale={lang(ctx)}
+      prefetch={false}
+    />
+  );
+}
+
+function recentlyViewed(ctx: DsContext, settings?: SectionSettings) {
+  return (
+    <RecentlyViewedSection
+      {...fixtures(ctx).recentlyViewed.section}
+      {...(settings === undefined ? {} : { settings })}
+      copy={copy(ctx)}
+      locale={lang(ctx)}
+      prefetch={false}
+    />
+  );
 }
 
 function newsletter(
@@ -365,6 +524,231 @@ export const sectionStories = {
         label: "Large, muted",
         description: "`size: large` with the line, on the muted fill.",
         render: () => <SpacerSection size="large" divider settings={muted} />,
+      },
+    ],
+  },
+  "sections/hero": {
+    summary:
+      "The page's opening: a heading, a line and up to two links beside the editor's picture; optionally a countdown to the offer's end and up to four products from its source.",
+    a11y: [
+      "The heading is the page's h1 when the hero opens a page without a title of its own (its picture is then preloaded), otherwise an h2; the product cards' names are one level below it.",
+      "The text never sits on the picture (WCAG 1.4.3): beside it from md up, above it on a phone, so the heading is read and seen first.",
+      "The countdown is text the server renders (D50), CountdownTimer's; the products are a list named as a grid of products.",
+    ],
+    live: (ctx) => hero(ctx, "section"),
+    statesLayout: "stack",
+    states: [
+      {
+        id: "offer",
+        label: "Countdown and products",
+        description:
+          "An offer with its end and four products from its source, frozen at the fixtures' time.",
+        render: (ctx) => hero(ctx, "offer"),
+      },
+      {
+        id: "long",
+        label: "Long heading, page title",
+        description: "No picture and one link, a heading that wraps, drawn as the page's h1.",
+        render: (ctx) => hero(ctx, "long", undefined, 1),
+      },
+      {
+        id: "inverse",
+        label: "Inverse surface",
+        description: "`surface: inverse`: the links swap their colours with the theme.",
+        render: (ctx) => hero(ctx, "offer", inverse),
+      },
+    ],
+  },
+  "sections/category-showcase": {
+    summary:
+      "The shop's categories as picture tiles: the top-level ones, a category's children or the editor's list, each with its translated name and its newest product's picture.",
+    a11y: [
+      "A list of links, each a whole tile of at least 44 px named by the category; the picture is decoration.",
+      "Two across on a phone, four from md up; the order is Medusa's rank or the editor's.",
+    ],
+    live: (ctx) => categoryShowcase(ctx, "section"),
+    statesLayout: "stack",
+    states: [
+      {
+        id: "edited",
+        label: "Three, edited",
+        description: "A handpicked list of three, one with the editor's label and picture.",
+        render: (ctx) => categoryShowcase(ctx, "edited"),
+      },
+      {
+        id: "muted",
+        label: "Muted surface",
+        description: "The tiles on the muted fill.",
+        render: (ctx) => categoryShowcase(ctx, "edited", muted),
+      },
+    ],
+  },
+  "sections/product-collection": {
+    summary:
+      "Products from a source (a collection, a category, a tag, a type, the newest, those on sale, or the editor's list) as a carousel or a grid, in the market's prices.",
+    a11y: [
+      "The heading is an h2, the cards' names h3; the carousel is a region named by its heading, with 44 px buttons that say where they go.",
+      "With no product the block is left out, or says so with a link to every product, or shows the newest: the editor's choice.",
+    ],
+    live: (ctx) => productCollection(ctx, "carousel"),
+    statesLayout: "stack",
+    states: [
+      {
+        id: "grid",
+        label: "Grid",
+        description: "`display: grid`: four products in rows.",
+        render: (ctx) => productCollection(ctx, "grid"),
+      },
+      {
+        id: "empty",
+        label: "Nothing found, message",
+        description: "`emptyBehavior: message`: the empty state and a link to every product.",
+        render: (ctx) => productCollection(ctx, "empty"),
+      },
+      {
+        id: "muted",
+        label: "Muted surface",
+        description: "The grid on the muted fill.",
+        render: (ctx) => productCollection(ctx, "grid", muted),
+      },
+    ],
+  },
+  "sections/featured-product": {
+    summary:
+      "One product beside a large picture and the editor's words: its price in the market's currency and a link to its page.",
+    a11y: [
+      "With the editor's heading, it is the h2 and the product's name an h3; without one the name is the h2.",
+      "The picture is the editor's, with its alternative text, or the product's first.",
+    ],
+    live: (ctx) => featuredProduct(ctx, "section"),
+    statesLayout: "stack",
+    states: [
+      {
+        id: "sale",
+        label: "On sale, no words",
+        description: "The product's own picture and its sale price, without heading or text.",
+        render: (ctx) => featuredProduct(ctx, "sale"),
+      },
+      {
+        id: "inverse",
+        label: "Inverse surface",
+        description: "`surface: inverse`.",
+        render: (ctx) => featuredProduct(ctx, "section", inverse),
+      },
+    ],
+  },
+  "sections/bundle": {
+    summary:
+      "Products that go together, side by side with a plus between them: the editor's list, in its order.",
+    a11y: [
+      "A list of product cards; the plus signs are decoration (aria-hidden).",
+      "Two to six products: two across on a phone, three from md up, where the plus appears between two cards of a row.",
+    ],
+    live: (ctx) => bundle(ctx, "section"),
+    statesLayout: "stack",
+    states: [
+      {
+        id: "full",
+        label: "Six products",
+        description: "The most a bundle holds: six, in rows.",
+        render: (ctx) => bundle(ctx, "full"),
+      },
+      {
+        id: "muted",
+        label: "Muted surface",
+        description: "The cards on the muted fill.",
+        render: (ctx) => bundle(ctx, "section", muted),
+      },
+    ],
+  },
+  "sections/promo-banner": {
+    summary:
+      "An offer: a heading, a line, a code to copy, when it ends and the small print, beside a picture; left out of the page once its end has passed.",
+    a11y: [
+      "The code's copy button says what it copies and announces that it did, in a polite live region.",
+      "The end is a date written in the market's time zone, so the server and the browser say the same; nothing counts down.",
+    ],
+    live: (ctx) => promoBanner(ctx, "section"),
+    statesLayout: "stack",
+    states: [
+      {
+        id: "plain",
+        label: "Words only",
+        description: "No picture, code or end: a heading and a line.",
+        render: (ctx) => promoBanner(ctx, "plain"),
+      },
+      {
+        id: "inverse",
+        label: "Inverse surface",
+        description: "`surface: inverse`: the code chip keeps its contrast.",
+        render: (ctx) => promoBanner(ctx, "section", inverse),
+      },
+    ],
+  },
+  "sections/comparison": {
+    summary:
+      "Two to four products in a table: their pictures, names and prices, their options and the details the editor names from their metadata.",
+    a11y: [
+      "A table with a caption, the products as column headers and each row's label as a row header.",
+      'A missing value is a dash that a screen reader reads as "Not specified".',
+      "On a phone the table scrolls sideways inside its own box, which takes the focus and is named by the caption.",
+    ],
+    live: (ctx) => comparison(ctx, "section"),
+    statesLayout: "stack",
+    states: [
+      {
+        id: "two",
+        label: "Two products, a value missing",
+        description: "Two columns; one product has no value for a row.",
+        render: (ctx) => comparison(ctx, "two"),
+      },
+      {
+        id: "muted",
+        label: "Muted surface",
+        description: "The table on the muted fill.",
+        render: (ctx) => comparison(ctx, "section", muted),
+      },
+    ],
+  },
+  "sections/collection-spotlight": {
+    summary:
+      "A collection's picture and words beside a few of its products, with a link to the whole collection.",
+    a11y: [
+      "The heading is an h2 (the collection's translated title when the editor leaves it empty); the link names the collection.",
+      "The products are a list of cards; the picture has the editor's alternative text.",
+    ],
+    live: (ctx) => collectionSpotlight(ctx, "section"),
+    statesLayout: "stack",
+    states: [
+      {
+        id: "long",
+        label: "Long heading, no products",
+        description: "`limit: 0`: the picture, the words and the link only.",
+        render: (ctx) => collectionSpotlight(ctx, "long"),
+      },
+      {
+        id: "inverse",
+        label: "Inverse surface",
+        description: "`surface: inverse`.",
+        render: (ctx) => collectionSpotlight(ctx, "section", inverse),
+      },
+    ],
+  },
+  "sections/recently-viewed": {
+    summary:
+      "The products this visitor has viewed in this market, as a carousel under the editor's heading; the browser's list, drawn after hydration, and nothing on a first visit.",
+    a11y: [
+      "Nothing is rendered until there is a product, so a first visit has no empty region.",
+      "The carousel is a region named by its heading, with 44 px buttons.",
+    ],
+    live: (ctx) => recentlyViewed(ctx),
+    statesLayout: "stack",
+    states: [
+      {
+        id: "muted",
+        label: "Muted surface",
+        description: "The carousel on the muted fill.",
+        render: (ctx) => recentlyViewed(ctx, muted),
       },
     ],
   },

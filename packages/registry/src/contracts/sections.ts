@@ -1,8 +1,11 @@
 import { z } from "zod";
-import { Href, Id, Link } from "./content";
+import { Href, Id, IsoDateTime, Link } from "./content";
 import { FORM_LIMITS } from "./form-limits";
 import { Image } from "./image";
-import { AccordionSection, NewsletterSignup } from "./site";
+import { EmptyStateContent } from "./listing";
+import { CategoryTile } from "./pages";
+import { PriceSummary, ProductCard } from "./product";
+import { AccordionSection, Countdown, DiscountCode, NewsletterSignup } from "./site";
 
 // The sections' view models (D70, D79): what each of SPEC §7.4's blocks shows, once Payload's
 // content has been resolved for the market (links as `href`s, uploads as images). Text is the
@@ -198,6 +201,148 @@ export const SpacerSection = z.object({
   divider: z.boolean(),
 });
 
+// T64: the commerce blocks (D79). Their products and categories come from Medusa through a source
+// (SPEC §7.5's `productSource` and `categorySource`), resolved on the server in the market's region
+// and language, so a card's price is in the market's currency; Payload holds references only. The
+// cards are ProductCard's (D46), the tiles M3's home's. A section with products never lists one
+// twice.
+
+const uniqueIds = (items: readonly { id: string }[]) =>
+  new Set(items.map((item) => item.id)).size === items.length;
+
+/** Products a section shows, each once. */
+const products = (max: number) =>
+  z.array(ProductCard).max(max).refine(uniqueIds, "a product is listed twice");
+
+/** Text in paragraphs (an editor's blank line ends one). */
+const text = z.array(z.string().min(1)).min(1).optional().describe("Paragraphs");
+
+/**
+ * `hero`: the page's opening band. An eyebrow, the heading, a line, up to two calls to action and
+ * a picture beside them; optionally a countdown to an offer's end (D50: the server renders `now`)
+ * and up to four products from a source.
+ */
+export const HeroSection = z.object({
+  settings,
+  eyebrow: z.string().min(1).optional().describe("A short line above the heading"),
+  heading: z.string().min(1).describe("The hero's heading: the page's h1 when it opens the page"),
+  subheading: z.string().min(1).optional(),
+  image: Image.optional(),
+  links: z.array(SectionLink).max(2),
+  countdown: Countdown.optional(),
+  products: products(4),
+});
+
+/** `categoryShowcase`: categories as tiles, a picture and a name each, from a `categorySource`. */
+export const CategoryShowcaseSection = z.object({
+  settings,
+  heading,
+  intro: z.string().min(1).optional(),
+  link: SectionLink.optional(),
+  tiles: z.array(CategoryTile).min(1).max(12),
+});
+
+/**
+ * `productCollection`: products from a `productSource` as a grid or a carousel. With no product
+ * the editor chose to say so (`emptyBehavior: message`), it draws `empty` instead.
+ */
+export const ProductCollectionSection = z
+  .object({
+    settings,
+    heading: z.string().min(1).describe("The section's heading, which names the carousel"),
+    intro: z.string().min(1).optional(),
+    link: SectionLink.optional(),
+    display: z.enum(["grid", "carousel"]),
+    products: products(24),
+    empty: EmptyStateContent.optional().describe("What it says when the source has no product"),
+  })
+  .refine(
+    (section) => section.products.length > 0 || section.empty !== undefined,
+    "no products and nothing to say instead",
+  );
+
+/** `featuredProduct`: one product, large, with the editor's words and picture. */
+export const FeaturedProductSection = z.object({
+  settings,
+  heading,
+  product: ProductCard,
+  image: Image.describe("The editor's picture, or the product's first"),
+  text,
+});
+
+/** `bundle`: products that go together, handpicked; no bundle price in v1 (D79). */
+export const BundleSection = z.object({
+  settings,
+  heading: z.string().min(1),
+  text,
+  products: products(6).refine((list) => list.length >= 2, "a bundle has two products or more"),
+});
+
+/** `promoBanner`: an offer, with a code to copy (Medusa checks it at the cart) and its end. */
+export const PromoBannerSection = z.object({
+  settings,
+  heading: z.string().min(1),
+  text,
+  code: DiscountCode.shape.code.optional(),
+  terms: z.string().min(1).optional().describe("The small print"),
+  endsAt: IsoDateTime.optional().describe("When the offer ends; past it the block is left out"),
+  image: Image.optional(),
+  link: SectionLink.optional(),
+});
+
+/** A product in a comparison's head: its name, its page, a picture and its price. */
+export const ComparisonProduct = z.object({
+  id: Id,
+  title: z.string().min(1),
+  href: Href,
+  image: Image.optional(),
+  price: PriceSummary,
+});
+
+/**
+ * `comparison`: two to four handpicked products side by side, in a table: their prices, their
+ * options' values and the `metadata` keys the editor names, one row each. A value a product does not
+ * have is `null`.
+ */
+export const ComparisonSection = z
+  .object({
+    settings,
+    heading: z.string().min(1).describe("The table's caption"),
+    products: z
+      .array(ComparisonProduct)
+      .min(2)
+      .max(4)
+      .refine(uniqueIds, "a product is listed twice"),
+    rows: z.array(
+      z.object({ label: z.string().min(1), values: z.array(z.string().min(1).nullable()) }),
+    ),
+  })
+  .refine(
+    (table) => table.rows.every((row) => row.values.length === table.products.length),
+    "a row has a value for each product",
+  );
+
+/** `collectionSpotlight`: a collection's picture and words beside a few of its products. */
+export const CollectionSpotlightSection = z.object({
+  settings,
+  heading: z.string().min(1).describe("The editor's, or the collection's title"),
+  text,
+  image: Image.optional(),
+  href: Href.describe("The collection's page"),
+  products: products(8),
+});
+
+/**
+ * `recentlyViewed`: the visitor's recently viewed products (ADR 0004: read in the browser). The
+ * server knows only the heading; the island fills `products` from the browser's store and draws
+ * nothing while it is empty.
+ */
+export const RecentlyViewedSection = z.object({
+  settings,
+  heading: z.string().min(1),
+  products: products(8),
+});
+
 /** `newsletter`: the signup (NewsletterForm) as a section of its own, with the editor's words (D81). */
 export const NewsletterSection = z.object({
   settings,
@@ -310,6 +455,16 @@ export type VideoProvider = (typeof VIDEO_PROVIDERS)[number];
 export type VideoSource = z.infer<typeof VideoSource>;
 export type VideoSection = z.infer<typeof VideoSection>;
 export type SpacerSection = z.infer<typeof SpacerSection>;
+export type HeroSection = z.infer<typeof HeroSection>;
+export type CategoryShowcaseSection = z.infer<typeof CategoryShowcaseSection>;
+export type ProductCollectionSection = z.infer<typeof ProductCollectionSection>;
+export type FeaturedProductSection = z.infer<typeof FeaturedProductSection>;
+export type BundleSection = z.infer<typeof BundleSection>;
+export type PromoBannerSection = z.infer<typeof PromoBannerSection>;
+export type ComparisonProduct = z.infer<typeof ComparisonProduct>;
+export type ComparisonSection = z.infer<typeof ComparisonSection>;
+export type CollectionSpotlightSection = z.infer<typeof CollectionSpotlightSection>;
+export type RecentlyViewedSection = z.infer<typeof RecentlyViewedSection>;
 export type NewsletterSection = z.infer<typeof NewsletterSection>;
 export type FormFieldKind = (typeof FORM_FIELD_KINDS)[number];
 export type FormField = z.infer<typeof FormField>;

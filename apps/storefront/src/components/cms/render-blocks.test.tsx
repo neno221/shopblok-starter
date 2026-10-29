@@ -4,6 +4,8 @@ import { describe, expect, it } from "vitest";
 import { findMarket } from "../../lib/markets/market";
 import { seeded } from "../../lib/markets/test-maps";
 import type { LayoutBlock } from "../../lib/cms/resolve/sections";
+import { fakeCatalog, synced, unitedStates } from "../../test-support/fake-catalog";
+import type { CommerceContext } from "../../lib/cms/resolve/commerce";
 import { RenderBlocks } from "./render-blocks";
 
 const us = findMarket(seeded, "en-us")!;
@@ -48,14 +50,15 @@ const faq = (id: string, question: string) =>
     items: [{ id: `${id}-q`, question, answer: "An answer." }],
   }) as unknown as LayoutBlock;
 
-const render = (blocks: LayoutBlock[]) =>
+// An async server component: awaited, then rendered as the server would.
+const render = async (blocks: LayoutBlock[]) =>
   renderToStaticMarkup(
-    <RenderBlocks blocks={blocks} context={{ market: us, map: seeded }} messages={catalogs.en} />,
+    await RenderBlocks({ blocks, context: { market: us, map: seeded }, messages: catalogs.en }),
   );
 
 describe("RenderBlocks (T63)", () => {
-  it("draws each block by its section, in order, with its settings", () => {
-    const html = render([
+  it("draws each block by its section, in order, with its settings", async () => {
+    const html = await render([
       {
         blockType: "spacer",
         id: "s",
@@ -73,8 +76,8 @@ describe("RenderBlocks (T63)", () => {
     expect(html).toContain('data-surface="muted"');
   });
 
-  it("renders rich text with the market's link rule: internal to the market, unsafe as text", () => {
-    const html = render([
+  it("renders rich text with the market's link rule: internal to the market, unsafe as text", async () => {
+    const html = await render([
       {
         blockType: "richText",
         id: "r",
@@ -106,8 +109,8 @@ describe("RenderBlocks (T63)", () => {
     expect(html).toContain('data-slot="prose"');
   });
 
-  it("writes one FAQPage JSON-LD for all the page's questions, and none without a FAQ", () => {
-    const html = render([faq("a", "Shipping?"), faq("b", "Returns?")]);
+  it("writes one FAQPage JSON-LD for all the page's questions, and none without a FAQ", async () => {
+    const html = await render([faq("a", "Shipping?"), faq("b", "Returns?")]);
     const scripts = [...html.matchAll(/<script type="application\/ld\+json">(.*?)<\/script>/g)];
     expect(scripts).toHaveLength(1);
     const data = JSON.parse(scripts[0]?.[1] ?? "{}") as {
@@ -116,16 +119,16 @@ describe("RenderBlocks (T63)", () => {
     };
     expect(data["@type"]).toBe("FAQPage");
     expect(data.mainEntity.map((question) => question.name)).toEqual(["Shipping?", "Returns?"]);
-    expect(render([])).not.toContain("application/ld+json");
+    expect(await render([])).not.toContain("application/ld+json");
   });
 
-  it("escapes the editor's text in the JSON-LD", () => {
-    const html = render([faq("x", "</script><script>alert(1)</script>")]);
+  it("escapes the editor's text in the JSON-LD", async () => {
+    const html = await render([faq("x", "</script><script>alert(1)</script>")]);
     expect(html).not.toContain("</script><script>alert(1)");
   });
 
-  it("draws an embed's poster and play button, and no frame", () => {
-    const html = render([
+  it("draws an embed's poster and play button, and no frame", async () => {
+    const html = await render([
       {
         blockType: "video",
         id: "v",
@@ -141,7 +144,67 @@ describe("RenderBlocks (T63)", () => {
   });
 });
 
-describe("RenderBlocks: the forms (T67, D81)", () => {
+describe("RenderBlocks, the commerce blocks (T64)", () => {
+  const commerce: CommerceContext = {
+    reads: fakeCatalog(unitedStates).reads,
+    hrefs: {
+      product: (handle) => `/us/products/${handle}`,
+      category: (path) => `/us/categories/${path}`,
+      collection: (handle) => `/us/collections/${handle}`,
+    },
+    now: "2026-10-29T12:00:00.000Z",
+    storeHref: "/us/store",
+    words: {
+      empty: { title: "Nothing", text: "None yet.", action: "Shop" },
+      recentlyViewed: "Recently viewed",
+    },
+  };
+  const blocks = [
+    {
+      blockType: "hero",
+      id: "h",
+      variant: "standard",
+      heading: "Autumn is here",
+      productSource: { mode: "handpicked", products: [synced("prod_mug")] },
+    },
+    {
+      blockType: "productCollection",
+      id: "p",
+      variant: "standard",
+      heading: "New in",
+      display: "grid",
+      productSource: { mode: "newest", limit: 2 },
+    },
+    { blockType: "recentlyViewed", id: "r", variant: "standard" },
+  ] as unknown as LayoutBlock[];
+  const draw = async (heroTitle: boolean, withCatalog = true) =>
+    renderToStaticMarkup(
+      await RenderBlocks({
+        blocks,
+        context: { market: us, map: seeded, ...(withCatalog ? { commerce } : {}) },
+        messages: catalogs.en,
+        heroTitle,
+      }),
+    );
+
+  it("draws them with the market's catalog, prices in its currency", async () => {
+    const html = await draw(false);
+    expect(html).toContain('data-slot="hero-section"');
+    expect(html).toMatch(/<h2[^>]*data-slot="hero-heading"[^>]*>Autumn is here<\/h2>/);
+    expect(html).toContain('data-slot="product-collection-section"');
+    expect(html).toContain("/us/products/hoodie");
+    expect(html).toContain("$65.00");
+    // The visitor's list is the browser's: nothing on the server (D44).
+    expect(html).not.toContain("Recently viewed");
+  });
+
+  it("gives the page's h1 to a hero that opens it, and leaves the blocks out without a catalog", async () => {
+    expect(await draw(true)).toMatch(/<h1[^>]*data-slot="hero-heading"/);
+    expect(await draw(false, false)).toBe("");
+  });
+});
+
+describe("RenderBlocks: the forms (T67, D81)", async () => {
   const contact = {
     id: 4,
     title: "Contact",
@@ -158,8 +221,8 @@ describe("RenderBlocks: the forms (T67, D81)", () => {
     fields: [{ blockType: "email", id: "e1", name: "address", label: "Email", required: true }],
   };
 
-  it("draws a form block with the editor's text between the fields and the spam trap, posting to its anchor", () => {
-    const html = render([
+  it("draws a form block with the editor's text between the fields and the spam trap, posting to its anchor", async () => {
+    const html = await render([
       { blockType: "formBlock", id: "c1", variant: "standard", heading: "Write", form: contact },
     ] as unknown as LayoutBlock[]);
     expect(html).toContain('id="form-c1"');
@@ -171,8 +234,8 @@ describe("RenderBlocks: the forms (T67, D81)", () => {
     expect(html).not.toContain("Thanks, we write back.");
   });
 
-  it("draws a newsletter with its form's own field name and the spam trap", () => {
-    const html = render([
+  it("draws a newsletter with its form's own field name and the spam trap", async () => {
+    const html = await render([
       {
         blockType: "newsletter",
         id: "n1",

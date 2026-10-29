@@ -14,6 +14,8 @@ export const SEARCH_SORTS = ["relevance", "newest", "price-asc", "price-desc", "
 export type SearchSort = (typeof SEARCH_SORTS)[number];
 
 export type SearchFilters = {
+  /** Only these products (T64: a product type's, which the index does not hold). */
+  productIds?: string[];
   categoryIds?: string[];
   collectionIds?: string[];
   tagIds?: string[];
@@ -90,6 +92,7 @@ export function searchBody(input: SearchInput): Record<string, unknown> {
   const onSale = `on_sale_${currency}`;
   const { filters } = input;
   const clauses: Record<string, unknown>[] = [];
+  if (filters.productIds !== undefined) clauses.push({ id: filters.productIds });
   for (const key of ["categoryIds", "collectionIds", "tagIds"] as const) {
     const values = filters[key];
     if (nonEmpty(values)) clauses.push({ [FIELD[key]]: values });

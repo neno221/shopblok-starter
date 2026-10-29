@@ -72,6 +72,15 @@ describe("searchBody", () => {
     expect(body.pagination).toMatchObject({ order: { min_price_eur: "DESC" } });
   });
 
+  it("keeps to the given products by id, and to none when the list is empty (T64)", () => {
+    expect(
+      searchBody(input({ filters: { productIds: ["prod_a", "prod_b"], tagIds: ["ptag_x"] } }))
+        .filters,
+    ).toEqual({ $and: [{ id: ["prod_a", "prod_b"] }, { tag_ids: ["ptag_x"] }] });
+    // A product type with no product: nothing, never every product.
+    expect(searchBody(input({ filters: { productIds: [] } })).filters).toEqual({ id: [] });
+  });
+
   it("refuses a currency that is not a code, since a field name is built from it", () => {
     expect(() => searchBody(input({ currencyCode: "eur;drop" }))).toThrow(/currency code/);
   });

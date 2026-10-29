@@ -7,7 +7,9 @@
 // The `inverse` surface is the theme turned over rather than a colour of its own: it sets the
 // tokens the components read (`--background`, `--primary`…) to the theme's dark and light ends
 // inside the section, so a button, a link or a muted line inside it keeps its contrast without
-// knowing where it is. A server component.
+// knowing where it is. The prices too (T64): the sale red has no shade that keeps 4.5:1 on the dark
+// end, so a sale price there is the foreground, and the sale is said by the struck-through price,
+// the badge and the price's hidden "Sale price". A server component.
 import type { SectionSettings } from "@shopblok/registry/contracts";
 import type * as React from "react";
 import { cn } from "@shopblok/ui/lib/utils";
@@ -28,7 +30,7 @@ const containers = {
 
 /** The theme turned over: the light end of the neutral scale on its dark end. */
 const inverse =
-  "[--background:var(--neutral-950)] [--foreground:var(--neutral-50)] [--card:var(--neutral-900)] [--card-foreground:var(--neutral-50)] [--muted:var(--neutral-900)] [--muted-foreground:var(--neutral-450)] [--primary:var(--neutral-50)] [--primary-foreground:var(--neutral-950)] [--secondary:var(--neutral-900)] [--secondary-foreground:var(--neutral-50)] [--accent:var(--neutral-900)] [--accent-foreground:var(--neutral-50)] [--border:var(--neutral-600)] [--input:var(--neutral-450)] [--ring:var(--neutral-450)]";
+  "[--background:var(--neutral-950)] [--foreground:var(--neutral-50)] [--card:var(--neutral-900)] [--card-foreground:var(--neutral-50)] [--muted:var(--neutral-900)] [--muted-foreground:var(--neutral-450)] [--primary:var(--neutral-50)] [--primary-foreground:var(--neutral-950)] [--secondary:var(--neutral-900)] [--secondary-foreground:var(--neutral-50)] [--accent:var(--neutral-900)] [--accent-foreground:var(--neutral-50)] [--border:var(--neutral-600)] [--input:var(--neutral-450)] [--ring:var(--neutral-450)] [--price:var(--neutral-50)] [--price-sale:var(--neutral-50)] [--price-original:var(--neutral-450)]";
 
 const surfaces = {
   default: "bg-background text-foreground",
