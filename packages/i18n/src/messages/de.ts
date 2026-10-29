@@ -692,6 +692,23 @@ export const de: Messages = {
       play: "Video abspielen: {title}",
       provider: "Wird von {provider} abgespielt, das Cookies setzen kann.",
     },
+    form: {
+      submit: "Senden",
+      sending: "Wird gesendet…",
+      optional: "(optional)",
+      choose: "Bitte wählen…",
+      done: "Danke. Ihre Nachricht ist bei uns angekommen.",
+      invalid: "Einige Angaben brauchen eine Korrektur: Sie sind unten markiert.",
+      unavailable:
+        "Das Formular konnte gerade nicht gesendet werden. Versuchen Sie es gleich noch einmal.",
+      honeypot: "Lassen Sie dieses Feld leer",
+      errors: {
+        required: "Füllen Sie dieses Feld aus.",
+        checkbox: "Setzen Sie hier ein Häkchen, um fortzufahren.",
+        email: "Geben Sie eine E-Mail-Adresse ein, etwa name@example.com.",
+        invalid: "Prüfen Sie diese Angabe.",
+      },
+    },
   },
   templates: {
     notFound: {

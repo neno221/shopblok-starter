@@ -1,8 +1,10 @@
 import type {
   FaqSection,
+  FormBlockSection,
   Image,
   LogoCloudSection,
   MediaWithTextSection,
+  NewsletterSection,
   RichTextSection,
   SpacerSection,
   TestimonialsSection,
@@ -49,6 +51,19 @@ export type SectionFixtures = {
   /** An embed (the live render), an upload with captions in the four languages, a long title. */
   video: { embed: VideoSection; file: VideoSection; long: VideoSection };
   spacer: { section: SpacerSection };
+  /** The newsletter with the editor's words, and with a heading that wraps (T67). */
+  newsletter: { section: NewsletterSection; long: NewsletterSection };
+  /**
+   * A contact form (T67): every kind of field, two halves on a row, the editor's note between the
+   * fields (`note`, drawn as the `message` field's text) and the confirmation the form shows when it
+   * is sent; `long` has a label that wraps.
+   */
+  formBlock: {
+    section: FormBlockSection;
+    note: string;
+    confirmation: string;
+    long: FormBlockSection;
+  };
 };
 
 /** The press and brands of the logo cloud: names, so they are not translated. */
@@ -131,6 +146,71 @@ function build(locale: DesignSystemLocale): SectionFixtures {
         appearance: "outline",
       },
     ],
+  };
+
+  const form = words.form;
+  const contact: FormBlockSection = {
+    heading: form.heading,
+    intro: form.intro,
+    form: {
+      id: "contact",
+      submitLabel: form.submit,
+      fields: [
+        {
+          kind: "text",
+          name: "name",
+          label: form.name,
+          required: true,
+          width: "half",
+        },
+        {
+          kind: "email",
+          name: "email",
+          label: form.email,
+          required: true,
+          width: "half",
+        },
+        {
+          kind: "select",
+          name: "topic",
+          label: form.topic,
+          required: false,
+          width: "half",
+          options: form.topics.map((label, index) => ({
+            label,
+            value: ["order", "returns", "other"][index] ?? "other",
+          })),
+        },
+        {
+          kind: "text",
+          name: "order",
+          label: form.order,
+          required: false,
+          width: "half",
+        },
+        {
+          kind: "textarea",
+          name: "message",
+          label: form.message,
+          required: true,
+          width: "full",
+        },
+        { kind: "message", id: "note" },
+        {
+          kind: "checkbox",
+          name: "consent",
+          label: form.consent,
+          required: true,
+          width: "full",
+          defaultChecked: false,
+        },
+      ],
+    },
+  };
+  const newsletter: NewsletterSection = {
+    heading: words.newsletter.heading,
+    text: words.newsletter.text,
+    newsletter: commerceFixtures[locale].marketing.newsletter.empty,
   };
 
   return {
@@ -225,6 +305,30 @@ function build(locale: DesignSystemLocale): SectionFixtures {
       long: { ...embed, title: words.video.longTitle },
     },
     spacer: { section: { size: "medium", divider: true } },
+    newsletter: {
+      section: newsletter,
+      long: {
+        ...newsletter,
+        heading: words.newsletter.longHeading,
+        newsletter: commerceFixtures[locale].marketing.newsletter.long,
+      },
+    },
+    formBlock: {
+      section: contact,
+      note: form.note,
+      confirmation: form.confirmation,
+      long: {
+        ...contact,
+        form: {
+          ...contact.form,
+          fields: contact.form.fields.map((field) =>
+            field.kind === "text" && field.name === "order"
+              ? { ...field, label: form.longLabel }
+              : field,
+          ),
+        },
+      },
+    },
   };
 }
 

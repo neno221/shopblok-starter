@@ -1,7 +1,9 @@
 import {
   FaqSection,
+  FormBlockSection,
   LogoCloudSection,
   MediaWithTextSection,
+  NewsletterSection,
   RichTextSection,
   SpacerSection,
   TestimonialsSection,
@@ -56,4 +58,7 @@ export const sections = [
   ),
   section("video", "video", "Video", "VideoSection", VideoSection),
   section("spacer", "spacer", "Spacer", "SpacerSection", SpacerSection),
+  // T67: the two blocks that post a form (D81).
+  section("newsletter", "newsletter", "Newsletter", "NewsletterSection", NewsletterSection),
+  section("form-block", "formBlock", "Form", "FormBlockSection", FormBlockSection),
 ] as const satisfies readonly EntryInput[];

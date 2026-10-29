@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { Href, Id, Link } from "./content";
 import { Image } from "./image";
-import { AccordionSection } from "./site";
+import { AccordionSection, NewsletterSignup } from "./site";
 
 // The sections' view models (D70, D79): what each of SPEC §7.4's blocks shows, once Payload's
 // content has been resolved for the market (links as `href`s, uploads as images). Text is the
@@ -197,6 +197,108 @@ export const SpacerSection = z.object({
   divider: z.boolean(),
 });
 
+/** `newsletter`: the signup (NewsletterForm) as a section of its own, with the editor's words (D81). */
+export const NewsletterSection = z.object({
+  settings,
+  heading: heading.describe("The form's heading; the catalog's “Join our newsletter” when empty"),
+  text: z.string().min(1).optional().describe("The line under it; the catalog's when empty"),
+  newsletter: NewsletterSignup,
+});
+
+/**
+ * A form field's name (D81): what the form posts it under and the submission stores it as. Letters,
+ * digits, `-` and `_`, starting with a letter, so it can never be one of Next's own fields
+ * (`$ACTION_…`).
+ */
+export const FORM_FIELD_NAME = /^[A-Za-z][A-Za-z0-9_-]{0,39}$/;
+
+/** The kinds of field an editor may put in a form (D81): no payment, no upload. */
+export const FORM_FIELD_KINDS = [
+  "text",
+  "textarea",
+  "email",
+  "select",
+  "checkbox",
+  "message",
+] as const;
+
+/** The most a form may hold, and the longest each kind of answer may be (D81's size limits). */
+export const FORM_LIMITS = {
+  fields: 20,
+  text: 200,
+  email: 254,
+  textarea: 4000,
+  option: 200,
+} as const;
+
+const fieldBase = {
+  name: z.string().regex(FORM_FIELD_NAME),
+  label: z.string().min(1),
+  required: z.boolean(),
+  width: z.enum(["full", "half"]).describe("`half` shares a row with the next half from 28rem"),
+};
+
+/** One field of a form, as the section draws it; `message` is the editor's text between fields. */
+export const FormField = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.literal("text"),
+    ...fieldBase,
+    defaultValue: z.string().optional(),
+  }),
+  z.object({
+    kind: z.literal("textarea"),
+    ...fieldBase,
+    defaultValue: z.string().optional(),
+  }),
+  z.object({ kind: z.literal("email"), ...fieldBase }),
+  z.object({
+    kind: z.literal("select"),
+    ...fieldBase,
+    options: z
+      .array(
+        z.object({
+          label: z.string().min(1),
+          value: z.string().min(1).max(FORM_LIMITS.option),
+        }),
+      )
+      .min(1),
+    defaultValue: z.string().optional(),
+    placeholder: z.string().min(1).optional(),
+  }),
+  z.object({
+    kind: z.literal("checkbox"),
+    ...fieldBase,
+    defaultChecked: z.boolean(),
+  }),
+  z.object({
+    kind: z.literal("message"),
+    id: Id.describe("The key of its rendered text in the section's `messages`"),
+  }),
+]);
+
+/**
+ * `formBlock`: a form built in the admin (Payload's form builder, D81), posted to a server action.
+ * Names are unique, so each answer has one place to go back to.
+ */
+export const FormBlockSection = z.object({
+  settings,
+  heading,
+  intro: z.string().min(1).optional(),
+  form: z.object({
+    id: Id,
+    fields: z
+      .array(FormField)
+      .min(1)
+      .max(FORM_LIMITS.fields)
+      .refine((fields) => fields.some((field) => field.kind !== "message"), "a field to fill in")
+      .refine((fields) => {
+        const names = fields.flatMap((field) => (field.kind === "message" ? [] : [field.name]));
+        return new Set(names).size === names.length;
+      }, "each name once"),
+    submitLabel: z.string().min(1).optional().describe("The catalog's “Send” when empty"),
+  }),
+});
+
 export type SectionSettings = z.infer<typeof SectionSettings>;
 export type SectionLink = z.infer<typeof SectionLink>;
 export type RichTextSection = z.infer<typeof RichTextSection>;
@@ -213,3 +315,7 @@ export type VideoProvider = (typeof VIDEO_PROVIDERS)[number];
 export type VideoSource = z.infer<typeof VideoSource>;
 export type VideoSection = z.infer<typeof VideoSection>;
 export type SpacerSection = z.infer<typeof SpacerSection>;
+export type NewsletterSection = z.infer<typeof NewsletterSection>;
+export type FormFieldKind = (typeof FORM_FIELD_KINDS)[number];
+export type FormField = z.infer<typeof FormField>;
+export type FormBlockSection = z.infer<typeof FormBlockSection>;

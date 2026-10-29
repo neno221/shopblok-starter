@@ -40,6 +40,24 @@ export type SectionCopy = {
     /** The captions' label, each in its own language, as a player lists them. */
     tracks: Record<DesignSystemLocale, string>;
   };
+  /** The newsletter block's own heading and line (T67). */
+  newsletter: { heading: string; text: string; longHeading: string };
+  /** A contact form as an editor builds it (T67): its labels, the topics, the text between. */
+  form: {
+    heading: string;
+    intro: string;
+    name: string;
+    email: string;
+    order: string;
+    topic: string;
+    topics: [string, string, string];
+    message: string;
+    consent: string;
+    note: string;
+    submit: string;
+    confirmation: string;
+    longLabel: string;
+  };
 };
 
 /** Each language's name in itself: how a captions menu lists it. */
@@ -98,6 +116,27 @@ export const sectionCopies: Record<DesignSystemLocale, SectionCopy> = {
         "How the Heritage Hoodie is made, from the organic cotton field to the finished seam",
       tracks,
     },
+    newsletter: {
+      heading: "Stories from the mill",
+      text: "One letter a month: new fabrics, repairs and the people who make our clothes.",
+      longHeading:
+        "Stories from the mill, the workshop and the people who make, mend and wear our clothes",
+    },
+    form: {
+      heading: "Write to us",
+      intro: "We answer every message within one working day.",
+      name: "Your name",
+      email: "Email address",
+      order: "Order number",
+      topic: "What is it about?",
+      topics: ["An order", "Returns and repairs", "Something else"],
+      message: "Your message",
+      consent: "I agree that you may keep my message to answer it.",
+      note: "Please do not send card numbers or passwords in this form.",
+      submit: "Send message",
+      confirmation: "Thank you for writing. We will answer within one working day.",
+      longLabel: "The number of the order this is about, as it stands in your confirmation email",
+    },
   },
   el: {
     richText: {
@@ -150,6 +189,27 @@ export const sectionCopies: Record<DesignSystemLocale, SectionCopy> = {
         "Πώς φτιάχνεται το Heritage Hoodie, από το χωράφι με το βιολογικό βαμβάκι ως την τελευταία ραφή",
       tracks,
     },
+    newsletter: {
+      heading: "Ιστορίες από το κλωστήριο",
+      text: "Ένα γράμμα τον μήνα: νέα υφάσματα, επιδιορθώσεις και οι άνθρωποι που φτιάχνουν τα ρούχα μας.",
+      longHeading:
+        "Ιστορίες από το κλωστήριο, το εργαστήριο και τους ανθρώπους που φτιάχνουν, επιδιορθώνουν και φορούν τα ρούχα μας",
+    },
+    form: {
+      heading: "Γράψτε μας",
+      intro: "Απαντάμε σε κάθε μήνυμα μέσα σε μία εργάσιμη ημέρα.",
+      name: "Το όνομά σας",
+      email: "Διεύθυνση email",
+      order: "Αριθμός παραγγελίας",
+      topic: "Για ποιο θέμα;",
+      topics: ["Μια παραγγελία", "Επιστροφές και επιδιορθώσεις", "Κάτι άλλο"],
+      message: "Το μήνυμά σας",
+      consent: "Συμφωνώ να κρατήσετε το μήνυμά μου για να μου απαντήσετε.",
+      note: "Μη στέλνετε αριθμούς καρτών ή κωδικούς σε αυτή τη φόρμα.",
+      submit: "Αποστολή μηνύματος",
+      confirmation: "Ευχαριστούμε που μας γράψατε. Θα απαντήσουμε μέσα σε μία εργάσιμη ημέρα.",
+      longLabel: "Ο αριθμός της παραγγελίας που αφορά, όπως φαίνεται στο email επιβεβαίωσης",
+    },
   },
   de: {
     richText: {
@@ -200,6 +260,28 @@ export const sectionCopies: Record<DesignSystemLocale, SectionCopy> = {
       poster: "Rollen ungefärbter Baumwolle in einer Weberei",
       longTitle: "So entsteht der Heritage Hoodie, vom Bio-Baumwollfeld bis zur fertigen Naht",
       tracks,
+    },
+    newsletter: {
+      heading: "Geschichten aus der Weberei",
+      text: "Ein Brief im Monat: neue Stoffe, Reparaturen und die Menschen, die unsere Kleidung machen.",
+      longHeading:
+        "Geschichten aus der Weberei, der Werkstatt und von den Menschen, die unsere Kleidung machen, flicken und tragen",
+    },
+    form: {
+      heading: "Schreiben Sie uns",
+      intro: "Wir beantworten jede Nachricht innerhalb eines Werktags.",
+      name: "Ihr Name",
+      email: "E-Mail-Adresse",
+      order: "Bestellnummer",
+      topic: "Worum geht es?",
+      topics: ["Eine Bestellung", "Rücksendungen und Reparaturen", "Etwas anderes"],
+      message: "Ihre Nachricht",
+      consent: "Ich bin einverstanden, dass Sie meine Nachricht speichern, um sie zu beantworten.",
+      note: "Bitte senden Sie in diesem Formular keine Kartennummern oder Passwörter.",
+      submit: "Nachricht senden",
+      confirmation: "Danke für Ihre Nachricht. Wir antworten innerhalb eines Werktags.",
+      longLabel:
+        "Die Nummer der Bestellung, um die es geht, wie sie in Ihrer Bestätigungs-E-Mail steht",
     },
   },
   fr: {
@@ -252,6 +334,28 @@ export const sectionCopies: Record<DesignSystemLocale, SectionCopy> = {
       longTitle:
         "Comment est fabriqué le Heritage Hoodie, du champ de coton biologique à la dernière couture",
       tracks,
+    },
+    newsletter: {
+      heading: "Des nouvelles de la filature",
+      text: "Une lettre par mois : nouvelles étoffes, réparations et les personnes qui font nos vêtements.",
+      longHeading:
+        "Des nouvelles de la filature, de l’atelier et des personnes qui font, réparent et portent nos vêtements",
+    },
+    form: {
+      heading: "Écrivez-nous",
+      intro: "Nous répondons à chaque message en un jour ouvré.",
+      name: "Votre nom",
+      email: "Adresse e-mail",
+      order: "Numéro de commande",
+      topic: "De quoi s’agit-il ?",
+      topics: ["Une commande", "Retours et réparations", "Autre chose"],
+      message: "Votre message",
+      consent: "J’accepte que vous conserviez mon message pour y répondre.",
+      note: "N’envoyez ni numéro de carte ni mot de passe dans ce formulaire.",
+      submit: "Envoyer le message",
+      confirmation: "Merci de nous avoir écrit. Nous répondrons en un jour ouvré.",
+      longLabel:
+        "Le numéro de la commande concernée, tel qu’il figure dans votre e-mail de confirmation",
     },
   },
 };
