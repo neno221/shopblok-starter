@@ -26,6 +26,8 @@ import { importExport } from "./payload/import-export";
 import { Markets } from "./payload/globals/markets";
 import { SiteSettings } from "./payload/globals/site-settings";
 import { LIVE_PREVIEW_BREAKPOINTS, livePreviewUrl } from "./payload/live-preview";
+import { redirects } from "./payload/redirects";
+import { seo } from "./payload/seo";
 import { DEFAULT_LOCALE, LOCALES } from "./payload/locales";
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -112,6 +114,8 @@ export default buildConfig({
   // and CI's `check` fails when the committed file is not what that writes.
   // D77: CSV export and import of `ui-strings`, admins only (`payload/import-export.ts`). D81: the
   // form builder, hardened (`payload/forms.ts`): submissions only through the shop's server action.
-  plugins: [importExport, formBuilder],
+  // D82: the SEO fields on the pages and posts (`payload/seo.ts`; the synced collections have them
+  // as content) and the redirects the proxy answers (`payload/redirects.ts`).
+  plugins: [importExport, formBuilder, seo, redirects],
   typescript: { autoGenerate: false, outputFile: path.resolve(dirname, "payload-types.ts") },
 });

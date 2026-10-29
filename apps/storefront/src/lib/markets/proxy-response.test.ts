@@ -2,6 +2,7 @@ import type { MarketMap } from "@shopblok/fixtures";
 import { NextRequest } from "next/server";
 import { getRedirectUrl, getRewrittenUrl, isRewrite } from "next/experimental/testing/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { compileRedirects } from "../redirects/match";
 import { listMarkets, primaryMarket } from "./market";
 import { NOT_FOUND_PATH, redirectStatus, respondToMarketRequest } from "./proxy-response";
 import { allMaps, brazil, germanyClosed, mongolia, seeded, withDomains } from "./test-maps";
@@ -234,5 +235,71 @@ describe("the visitor's chosen market (D66, SPEC §8.5)", () => {
       redirect: "https://shop.ch/fr",
       status: 307,
     });
+  });
+});
+
+describe("CMS redirects, before the rewrite (D82, T68)", () => {
+  const redirects = compileRedirects(
+    {
+      redirects: [
+        { from: "/old", type: "301", to: { url: "/new" } },
+        { from: "/temporary", type: "302", to: { url: "/sale" } },
+        { from: "/moved", type: "308", to: { url: "https://other.example/moved" } },
+        { from: "/de/alt", type: "301", to: { url: "/neu" } },
+        { from: "/about", type: "301", to: { paths: { en: "/about", el: "/sxetika" } } },
+      ],
+    },
+    seeded,
+  );
+  const cms = (target: string, options: { method?: string } = {}) => {
+    const response = respondToMarketRequest(request(target, options), seeded, undefined, redirects);
+    if (isRewrite(response)) return { rewrite: getRewrittenUrl(response) };
+    return { redirect: getRedirectUrl(response), status: response.status };
+  };
+
+  it("answers /old in every market, at the market's own new address", () => {
+    expect(cms("/old")).toEqual({ redirect: "https://example.com/new", status: 301 });
+    expect(cms("/us/old")).toEqual({ redirect: "https://example.com/us/new", status: 301 });
+    expect(cms("/ch/fr/old")).toEqual({ redirect: "https://example.com/ch/fr/new", status: 301 });
+  });
+
+  it("keeps the method for anything but a read: 308 for a 301 or 308, 307 for a 302", () => {
+    expect(cms("/us/old", { method: "POST" })).toEqual({
+      redirect: "https://example.com/us/new",
+      status: 308,
+    });
+    expect(cms("/temporary")).toEqual({ redirect: "https://example.com/sale", status: 302 });
+    expect(cms("/temporary", { method: "POST" })).toEqual({
+      redirect: "https://example.com/sale",
+      status: 307,
+    });
+    expect(cms("/moved", { method: "HEAD" })).toEqual({
+      redirect: "https://other.example/moved",
+      status: 308,
+    });
+  });
+
+  it("answers a market-only redirect in its market only", () => {
+    expect(cms("/de/alt")).toEqual({ redirect: "https://example.com/de/neu", status: 301 });
+    expect(cms("/us/alt")).toEqual({ rewrite: "https://example.com/en-us/alt" });
+    expect(cms("/alt")).toEqual({ rewrite: "https://example.com/el-cy/alt" });
+  });
+
+  it("keeps the query string when the target has none of its own", () => {
+    expect(cms("/us/old?utm_source=mail")).toEqual({
+      redirect: "https://example.com/us/new?utm_source=mail",
+      status: 301,
+    });
+  });
+
+  it("goes on to the page when the target is the address itself (a page renamed to the from)", () => {
+    expect(cms("/us/about")).toEqual({ rewrite: "https://example.com/en-us/about" });
+    expect(cms("/about")).toEqual({ redirect: "https://example.com/sxetika", status: 301 });
+  });
+
+  it("leaves the internal key, a market's home and every other path to the market rules", () => {
+    expect(cms("/en-us/old")).toEqual({ rewrite: "https://example.com/" });
+    expect(cms("/us")).toEqual({ rewrite: "https://example.com/en-us" });
+    expect(cms("/us/store")).toEqual({ rewrite: "https://example.com/en-us/store" });
   });
 });

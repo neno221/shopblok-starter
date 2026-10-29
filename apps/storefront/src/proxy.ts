@@ -2,13 +2,17 @@ import { NextResponse, type NextRequest } from "next/server";
 import { COOKIE } from "./lib/cookie-names";
 import { getProxyMarketMap } from "./lib/markets/proxy-market-map";
 import { respondToMarketRequest } from "./lib/markets/proxy-response";
+import { compiledFor } from "./lib/redirects/match";
+import { getProxyRedirects } from "./lib/redirects/proxy-redirects";
 
 // Public URLs carry no market key (SPEC §8.1): `/us/store` is served from `/en-us/store`, and the
 // internal `/en-us/store` is a 404. `resolve` (lib/markets) decides all of that; this file reads
 // the map and runs it. The map comes from `/next/markets` through a 30 s in-process cache (D10),
 // not from Payload's Local API: loading Payload here cost 550 ms on the first request of a process,
-// and the plan allows 150 ms (T11, SETUP.md). CMS redirects (M4) and the CSP split (M7) plug in
-// here later. `/` alone redirects to the market the visitor chose (`_shopblok_market`, D66).
+// and the plan allows 150 ms (T11, SETUP.md). The CMS redirects (D82, T68) come the same way, from
+// `/next/redirects`, and are answered before the rewrite; `proxy-imports.test.ts` fails if anything
+// this file imports reaches Payload. The CSP split (M7) plugs in here later. `/` alone redirects to
+// the market the visitor chose (`_shopblok_market`, D66).
 //
 // A path with a broken escape (`/us/collections/%ZZ`) is a plain 404 here: Next decodes a dynamic
 // route's params and answers a `URIError` with a 500 before any page runs (PR 78 review, item 2).
@@ -21,10 +25,12 @@ export async function proxy(req: NextRequest) {
         "Cache-Control": "private, no-cache, no-store, max-age=0, must-revalidate",
       },
     });
+  const [map, redirects] = await Promise.all([getProxyMarketMap(), getProxyRedirects()]);
   return respondToMarketRequest(
     req,
-    await getProxyMarketMap(),
+    map,
     req.cookies.get(COOKIE.market)?.value || undefined,
+    compiledFor(redirects, map),
   );
 }
 

@@ -103,6 +103,7 @@ export interface Config {
     imports: Import;
     forms: Form;
     "form-submissions": FormSubmission;
+    redirects: Redirect;
     "payload-kv": PayloadKv;
     "payload-jobs": PayloadJob;
     "payload-locked-documents": PayloadLockedDocument;
@@ -125,6 +126,7 @@ export interface Config {
     imports: ImportsSelect<false> | ImportsSelect<true>;
     forms: FormsSelect<false> | FormsSelect<true>;
     "form-submissions": FormSubmissionsSelect<false> | FormSubmissionsSelect<true>;
+    redirects: RedirectsSelect<false> | RedirectsSelect<true>;
     "payload-kv": PayloadKvSelect<false> | PayloadKvSelect<true>;
     "payload-jobs": PayloadJobsSelect<false> | PayloadJobsSelect<true>;
     "payload-locked-documents":
@@ -527,6 +529,17 @@ export interface Category {
     };
     [k: string]: unknown;
   } | null;
+  /**
+   * The title, description and picture search engines and shared links show. Empty: the page's own.
+   */
+  meta?: {
+    title?: string | null;
+    description?: string | null;
+    /**
+     * Maximum upload file size: 12MB. Recommended file size for images is <500KB.
+     */
+    image?: (number | null) | Media;
+  };
   deletedInMedusa?: boolean | null;
   medusaUpdatedAt?: string | null;
   syncedAt?: string | null;
@@ -570,6 +583,17 @@ export interface ProductCollection {
     };
     [k: string]: unknown;
   } | null;
+  /**
+   * The title, description and picture search engines and shared links show. Empty: the page's own.
+   */
+  meta?: {
+    title?: string | null;
+    description?: string | null;
+    /**
+     * Maximum upload file size: 12MB. Recommended file size for images is <500KB.
+     */
+    image?: (number | null) | Media;
+  };
   deletedInMedusa?: boolean | null;
   medusaUpdatedAt?: string | null;
   syncedAt?: string | null;
@@ -610,6 +634,17 @@ export interface Product {
    * More pictures, shown after Medusa's in the product page's gallery.
    */
   gallery?: (number | Media)[] | null;
+  /**
+   * The title, description and picture search engines and shared links show. Empty: the page's own.
+   */
+  meta?: {
+    title?: string | null;
+    description?: string | null;
+    /**
+     * Maximum upload file size: 12MB. Recommended file size for images is <500KB.
+     */
+    image?: (number | null) | Media;
+  };
   deletedInMedusa?: boolean | null;
   medusaUpdatedAt?: string | null;
   syncedAt?: string | null;
@@ -1483,6 +1518,14 @@ export interface Post {
     [k: string]: unknown;
   } | null;
   seedKey?: string | null;
+  meta?: {
+    title?: string | null;
+    description?: string | null;
+    /**
+     * Maximum upload file size: 12MB. Recommended file size for images is <500KB.
+     */
+    image?: (number | null) | Media;
+  };
   updatedAt: string;
   createdAt: string;
   _status?: ("draft" | "published") | null;
@@ -1578,6 +1621,14 @@ export interface Page {
       }[]
     | null;
   seedKey?: string | null;
+  meta?: {
+    title?: string | null;
+    description?: string | null;
+    /**
+     * Maximum upload file size: 12MB. Recommended file size for images is <500KB.
+     */
+    image?: (number | null) | Media;
+  };
   updatedAt: string;
   createdAt: string;
   _status?: ("draft" | "published") | null;
@@ -1785,6 +1836,41 @@ export interface FormSubmission {
   createdAt: string;
 }
 /**
+ * Old addresses and where they go now. The shop answers a new or changed redirect within a minute.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "redirects".
+ */
+export interface Redirect {
+  id: number;
+  /**
+   * The old address: /old-page applies in every market, /de/old-page in that market only.
+   */
+  from: string;
+  to?: {
+    type?: ("reference" | "custom") | null;
+    reference?:
+      | ({
+          relationTo: "pages";
+          value: number | Page;
+        } | null)
+      | ({
+          relationTo: "posts";
+          value: number | Post;
+        } | null);
+    /**
+     * A path inside the visitor's market (/new-page), or a full URL (https://…).
+     */
+    url?: string | null;
+  };
+  /**
+   * 301: moved for good (most redirects). 302: for now, so browsers do not remember it. 308: for good, and a form posted to the old address is posted to the new one.
+   */
+  type: "301" | "302" | "308";
+  updatedAt: string;
+  createdAt: string;
+}
+/**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-kv".
  */
@@ -1949,6 +2035,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: "form-submissions";
         value: number | FormSubmission;
+      } | null)
+    | ({
+        relationTo: "redirects";
+        value: number | Redirect;
       } | null);
   globalSlug?: string | null;
   user:
@@ -2122,6 +2212,13 @@ export interface PagesSelect<T extends boolean = true> {
         id?: T;
       };
   seedKey?: T;
+  meta?:
+    | T
+    | {
+        title?: T;
+        description?: T;
+        image?: T;
+      };
   updatedAt?: T;
   createdAt?: T;
   _status?: T;
@@ -2139,6 +2236,13 @@ export interface PostsSelect<T extends boolean = true> {
   hero?: T;
   content?: T;
   seedKey?: T;
+  meta?:
+    | T
+    | {
+        title?: T;
+        description?: T;
+        image?: T;
+      };
   updatedAt?: T;
   createdAt?: T;
   _status?: T;
@@ -2154,6 +2258,13 @@ export interface ProductsSelect<T extends boolean = true> {
   thumbnail?: T;
   richDescription?: T;
   gallery?: T;
+  meta?:
+    | T
+    | {
+        title?: T;
+        description?: T;
+        image?: T;
+      };
   deletedInMedusa?: T;
   medusaUpdatedAt?: T;
   syncedAt?: T;
@@ -2173,6 +2284,13 @@ export interface CategoriesSelect<T extends boolean = true> {
   image?: T;
   banner?: T;
   intro?: T;
+  meta?:
+    | T
+    | {
+        title?: T;
+        description?: T;
+        image?: T;
+      };
   deletedInMedusa?: T;
   medusaUpdatedAt?: T;
   syncedAt?: T;
@@ -2190,6 +2308,13 @@ export interface CollectionsSelect<T extends boolean = true> {
   image?: T;
   banner?: T;
   intro?: T;
+  meta?:
+    | T
+    | {
+        title?: T;
+        description?: T;
+        image?: T;
+      };
   deletedInMedusa?: T;
   medusaUpdatedAt?: T;
   syncedAt?: T;
@@ -2387,6 +2512,23 @@ export interface FormSubmissionsSelect<T extends boolean = true> {
         value?: T;
         id?: T;
       };
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "redirects_select".
+ */
+export interface RedirectsSelect<T extends boolean = true> {
+  from?: T;
+  to?:
+    | T
+    | {
+        type?: T;
+        reference?: T;
+        url?: T;
+      };
+  type?: T;
   updatedAt?: T;
   createdAt?: T;
 }

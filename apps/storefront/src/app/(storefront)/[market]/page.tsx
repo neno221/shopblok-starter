@@ -18,7 +18,9 @@ import { listCategories } from "../../../lib/medusa/categories";
 import { listProductsByIds } from "../../../lib/medusa/products";
 import { searchProducts } from "../../../lib/medusa/search";
 import { buildReadsMedusa } from "../../../lib/prerender";
-import { homeJsonLd } from "../../../lib/seo/home";
+import type { ShellSettings } from "../../../lib/cms/shell";
+import { homeJsonLd, type HomeJsonLdInput } from "../../../lib/seo/home";
+import { withSeo } from "../../../lib/seo/meta";
 import { jsonLdText } from "../../../lib/seo/product";
 import { HERO_IMAGE, SHELL_PREFETCH, siteText } from "../../../lib/site";
 import { siteOrigin } from "../../../lib/site-origin";
@@ -82,32 +84,38 @@ export async function generateMetadata(): Promise<Metadata> {
   const { settings, url, map } = await getShellData();
   const href = url("/");
   const text = siteText(market.language);
-  return {
-    // The layout's default title, the store's name, is the home's.
-    description: text.hero.text,
-    alternates: { canonical: href, languages: hreflangAlternates("/", map) },
-    openGraph: { type: "website", title: settings.storeName, url: href },
-  };
+  // D82: the homepage's own SEO fields first (T65's page), then the hero's text, then the site's.
+  return withSeo(
+    {
+      // The layout's default title, the store's name, is the home's.
+      description: text.hero.text,
+      alternates: { canonical: href, languages: hreflangAlternates("/", map) },
+      openGraph: { type: "website", title: settings.storeName, url: href },
+    },
+    homepage?.meta,
+    settings.seo,
+  );
 }
 
-/** The home's `WebSite` JSON-LD: the store's name, its home and its search. */
+/** The home's `Organization` and `WebSite` JSON-LD: the shop, its home and its search. */
 function HomeJsonLd({
-  storeName,
+  settings,
   url,
   language,
 }: {
-  storeName: string;
+  settings: ShellSettings;
   url: (path: string) => string;
   language: string;
 }) {
   return (
     <script
       type="application/ld+json"
-      // The store's name and the market's URLs, escaped by `jsonLdText` all the same.
+      // The site settings' texts and the market's URLs, escaped by `jsonLdText` all the same.
       dangerouslySetInnerHTML={{
         __html: jsonLdText(
           homeJsonLd({
-            storeName,
+            storeName: settings.storeName,
+            ...organizationOf(settings),
             homeHref: url("/"),
             searchHref: url("/search"),
             language,
@@ -116,6 +124,12 @@ function HomeJsonLd({
       }}
     />
   );
+}
+
+/** The organization's details from the site settings (D82): its legal name, contacts and logo. */
+function organizationOf(settings: ShellSettings): Pick<HomeJsonLdInput, "organization"> {
+  const { organization, logo } = settings;
+  return { organization: { ...organization, ...(logo === undefined ? {} : { logo: logo.src }) } };
 }
 
 export default async function MarketHome() {
@@ -131,7 +145,7 @@ export default async function MarketHome() {
     );
     return (
       <>
-        <HomeJsonLd storeName={settings.storeName} url={url} language={current.htmlLang} />
+        <HomeJsonLd settings={settings} url={url} language={current.htmlLang} />
         <CmsPageView page={homepage} content={content} market={current} draft={draft} />
       </>
     );
@@ -166,7 +180,7 @@ export default async function MarketHome() {
   });
   return (
     <>
-      <HomeJsonLd storeName={settings.storeName} url={context.url} language={market.htmlLang} />
+      <HomeJsonLd settings={settings} url={context.url} language={market.htmlLang} />
       <HomeTemplate
         {...content}
         copy={homeCopy(messages)}

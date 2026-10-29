@@ -42,6 +42,7 @@ import {
   shareableImage,
   siteBase,
 } from "../../../../../lib/seo/product";
+import { withSeo } from "../../../../../lib/seo/meta";
 import { SHELL_PREFETCH } from "../../../../../lib/site";
 import { toProductCard, toProductDetail } from "../../../../../lib/view-models/product";
 import {
@@ -144,38 +145,44 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { handle } = await params;
   const page = await readPage(handle);
   if (page === null) return {};
-  const { context, detail } = page;
+  const { context, detail, content } = page;
+  const { settings } = await getShellData();
   const path = `/products/${encodeURIComponent(detail.handle)}`;
   const description = metaDescription(detail.description);
   const [first] = detail.media;
   const image = first === undefined ? undefined : shareableImage(first.src, siteBase());
-  return {
-    title: detail.title,
-    ...(description === "" ? {} : { description }),
-    alternates: {
-      // The base PDP: `?variant=` names a choice of this page, never a page of its own (SPEC §12).
-      canonical: detail.href,
-      languages: hreflangAlternates(path, context.map),
-    },
-    openGraph: {
-      type: "website",
+  // D82: the product's own SEO fields (T69's content) first, then Medusa's, then the site's.
+  return withSeo(
+    {
       title: detail.title,
-      url: detail.href,
       ...(description === "" ? {} : { description }),
-      ...(image === undefined || first === undefined
-        ? {}
-        : {
-            images: [
-              {
-                url: image,
-                width: first.width,
-                height: first.height,
-                alt: first.alt,
-              },
-            ],
-          }),
+      alternates: {
+        // The base PDP: `?variant=` names a choice of this page, never a page of its own (SPEC §12).
+        canonical: detail.href,
+        languages: hreflangAlternates(path, context.map),
+      },
+      openGraph: {
+        type: "website",
+        title: detail.title,
+        url: detail.href,
+        ...(description === "" ? {} : { description }),
+        ...(image === undefined || first === undefined
+          ? {}
+          : {
+              images: [
+                {
+                  url: image,
+                  width: first.width,
+                  height: first.height,
+                  alt: first.alt,
+                },
+              ],
+            }),
+      },
     },
-  };
+    content?.meta,
+    settings.seo,
+  );
 }
 
 export default async function ProductPage({ params }: Props) {

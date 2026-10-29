@@ -13,6 +13,12 @@ import { config, proxy } from "./proxy";
 vi.mock("./lib/markets/proxy-market-map", () => ({
   getProxyMarketMap: async () => seeded,
 }));
+// The redirects come from `/next/redirects` (a fetch) too (T68).
+vi.mock("./lib/redirects/proxy-redirects", () => ({
+  getProxyRedirects: async () => ({
+    redirects: [{ from: "/old", type: "301", to: { url: "/store" } }],
+  }),
+}));
 
 // (The docs call the helper `unstable_doesProxyMatch`; 16.4.1 still exports it as
 // `unstable_doesMiddlewareMatch`.)

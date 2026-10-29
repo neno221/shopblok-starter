@@ -17,6 +17,7 @@ import { hreflangAlternates } from "../../../../../lib/markets/hreflang";
 import { findMarket, listMarkets } from "../../../../../lib/markets/market";
 import { PLACEHOLDER_HANDLE, prerenderCap } from "../../../../../lib/prerender";
 import { postJsonLd } from "../../../../../lib/seo/post";
+import { withSeo } from "../../../../../lib/seo/meta";
 import { jsonLdText } from "../../../../../lib/seo/product";
 import { siteOrigin } from "../../../../../lib/site-origin";
 
@@ -83,26 +84,30 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const data = await readPost(slug, draft);
   if (data === null) return {};
   const { post, content, href } = data;
-  const { map } = await getShellData();
+  const { map, settings } = await getShellData();
   const languages = [...new Set(listMarkets(map).map((each) => each.language))];
   const slugs = await postSlugsIn(post.id, languages);
-  return {
-    // T68 adds the post's own SEO fields (D82); until then the summary is the description.
-    title: content.title,
-    ...(content.excerpt === undefined ? {} : { description: content.excerpt }),
-    alternates: {
-      canonical: href,
-      // D80: every open market, at the post's address in its language.
-      languages: hreflangAlternates((each) => postPath(slugs[each.language]), map),
-    },
-    openGraph: {
-      type: "article",
+  // D82: the post's own SEO fields first, then its title and summary, then the site's.
+  return withSeo(
+    {
       title: content.title,
-      url: href,
-      publishedTime: content.publishedAt,
-      ...(content.image === undefined ? {} : { images: [content.image.src] }),
+      ...(content.excerpt === undefined ? {} : { description: content.excerpt }),
+      alternates: {
+        canonical: href,
+        // D80: every open market, at the post's address in its language.
+        languages: hreflangAlternates((each) => postPath(slugs[each.language]), map),
+      },
+      openGraph: {
+        type: "article",
+        title: content.title,
+        url: href,
+        publishedTime: content.publishedAt,
+        ...(content.image === undefined ? {} : { images: [content.image.src] }),
+      },
     },
-  };
+    post.meta,
+    settings.seo,
+  );
 }
 
 export default async function PostRoute({ params }: Props) {

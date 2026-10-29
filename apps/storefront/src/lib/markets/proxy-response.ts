@@ -1,4 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server";
+import {
+  redirectCode,
+  redirectFor,
+  redirectLocation,
+  type CompiledRedirects,
+} from "../redirects/match";
+import { normalizePath } from "../redirects/rules";
 import { findMarket } from "./market";
 import { resolve } from "./resolve";
 import type { MarketMap, Resolution } from "./types";
@@ -50,6 +57,33 @@ export function chosenMarketRedirect(
 }
 
 /**
+ * The CMS redirect a request inside a market matches (D82), as the response, or `undefined`. A
+ * target without a query of its own keeps the request's (`?utm_source=…` survives the move); a
+ * full URL is sent as the editor wrote it. A target that is this very address (a page renamed to
+ * the redirect's `from` after the save checks passed) is no redirect: it would loop.
+ */
+export function cmsRedirect(
+  req: Pick<NextRequest, "method" | "nextUrl">,
+  resolution: Extract<Resolution, { kind: "rewrite" }>,
+  map: MarketMap,
+  redirects: CompiledRedirects,
+): NextResponse | undefined {
+  const entry = redirectFor(redirects, resolution.market, resolution.internalPath);
+  if (entry === undefined) return undefined;
+  const location = redirectLocation(entry, resolution.market, map);
+  if (location === undefined) return undefined;
+  const target = new URL(location, req.nextUrl.origin);
+  if (target.search === "" && !location.includes("?")) target.search = req.nextUrl.search;
+  const here = req.nextUrl;
+  if (
+    target.origin === here.origin &&
+    normalizePath(target.pathname) === normalizePath(here.pathname)
+  )
+    return undefined;
+  return NextResponse.redirect(target, redirectCode(entry.type, req.method));
+}
+
+/**
  * What the proxy answers for a public URL (SPEC §8.5), given the market map. `resolve` decides;
  * this only turns its answer into a response:
  * - a rewrite serves `/{market.key}{internalPath}` and keeps the query string, so the URL in the
@@ -59,14 +93,18 @@ export function chosenMarketRedirect(
  * - not found is a rewrite to Next's `global-not-found` route, which answers 404 in the default
  *   language, as for any URL that matches no route;
  * - `/` with `chosenMarket` (the `_shopblok_market` cookie) naming another open market answers 307
- *   to that market's root (`chosenMarketRedirect`).
+ *   to that market's root (`chosenMarketRedirect`);
+ * - a path inside a market that a CMS redirect names (D82, T68) answers with the redirect, before
+ *   the rewrite: its type for a GET or HEAD, the code that keeps the method otherwise
+ *   (`cmsRedirect`).
  *
- * Pure apart from reading the request: no I/O, so a test feeds it any map.
+ * Pure apart from reading the request: no I/O, so a test feeds it any map and redirects.
  */
 export function respondToMarketRequest(
   req: NextRequest,
   map: MarketMap,
   chosenMarket?: string,
+  redirects?: CompiledRedirects,
 ): NextResponse {
   const { nextUrl } = req;
   const resolution = resolve(nextUrl, req.headers.get("host") ?? "", map);
@@ -76,6 +114,9 @@ export function respondToMarketRequest(
   if (chosen !== undefined) return NextResponse.redirect(chosen, 307);
 
   if (resolution.kind === "rewrite") {
+    const redirect =
+      redirects === undefined ? undefined : cmsRedirect(req, resolution, map, redirects);
+    if (redirect !== undefined) return redirect;
     const url = nextUrl.clone();
     url.pathname = `/${resolution.market.key}${resolution.internalPath}`;
     return NextResponse.rewrite(url);

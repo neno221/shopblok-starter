@@ -20,10 +20,11 @@ const POPULATE = {
   pages: { title: true, slug: true, parent: true, breadcrumbs: true },
 } as const;
 
+// `meta` is the SEO plugin's group (T68, D82), with its picture populated like the others.
 const SELECT: Record<CatalogContentSlug, Record<string, true>> = {
-  products: { richDescription: true, gallery: true },
-  categories: { image: true, banner: true, intro: true },
-  collections: { image: true, banner: true, intro: true },
+  products: { richDescription: true, gallery: true, meta: true },
+  categories: { image: true, banner: true, intro: true, meta: true },
+  collections: { image: true, banner: true, intro: true, meta: true },
 };
 
 function readContent<S extends CatalogContentSlug>(slug: S) {

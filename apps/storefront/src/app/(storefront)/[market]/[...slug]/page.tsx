@@ -18,6 +18,9 @@ import { getMarketMap } from "../../../../lib/markets/get-market-map";
 import { hreflangAlternates } from "../../../../lib/markets/hreflang";
 import { findMarket, listMarkets } from "../../../../lib/markets/market";
 import { PLACEHOLDER_HANDLE, prerenderCap } from "../../../../lib/prerender";
+import { withSeo } from "../../../../lib/seo/meta";
+import { cmsPageJsonLd } from "../../../../lib/seo/page";
+import { jsonLdText } from "../../../../lib/seo/product";
 
 // D80 (T65): an editor's page at its address in the market's language (`/about/team`, the
 // parents' slugs and its own), in the static shell. Every read is a `cached()` entry (the pages'
@@ -25,6 +28,7 @@ import { PLACEHOLDER_HANDLE, prerenderCap } from "../../../../lib/prerender";
 // so the route is `ensureStatic = "navigation"`: a `searchParams`, a `cookies()` or an uncached
 // read anywhere in it fails the build. `notFound()` is called before any `Suspense`, so an address
 // with no published page is a real 404. A page that opens with a hero gives the hero its `<h1>`.
+// T68 (D82): its SEO fields in the metadata, and a `WebPage` with its `BreadcrumbList` as JSON-LD.
 // In Draft Mode (live preview, D74) it reads the editor's latest versions and renders the island
 // that redraws the frame on save.
 
@@ -56,43 +60,52 @@ export async function generateStaticParams({
     : addresses.map((path) => ({ slug: path.split("/").slice(1) }));
 }
 
-/** The page at the address and its market, or `null` for a 404. Shared by the page and metadata. */
+/**
+ * The page at the address, its market and its own address, or `null` for a 404. Shared by the page
+ * and metadata. The homepage's own address is the market's home, where `{m}/` draws it (D80): the
+ * canonical, Open Graph's URL and the JSON-LD all give that one (PR 101 review, item 3).
+ */
 const readPage = cache(async (segments: readonly string[], draft: boolean) => {
   if (segments[0] === PLACEHOLDER_HANDLE) return null;
   const path = pathFromSegments(segments);
   if (path === null) return null;
   const market = await getCurrentMarket();
-  const found = await readPageByPath({ market, draft }, path);
-  return found === null ? null : { market, path, ...found };
+  const [found, homepage] = await Promise.all([
+    readPageByPath({ market, draft }, path),
+    readHomepageId({ market, draft: false }),
+  ]);
+  if (found === null) return null;
+  const isHomepage = found.page.id === homepage;
+  return { market, path, isHomepage, address: isHomepage ? "/" : encodePagePath(path), ...found };
 });
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const [{ slug }, { isEnabled: draft }] = await Promise.all([params, draftMode()]);
   const data = await readPage(slug, draft);
   if (data === null) return {};
-  const { market, page, path } = data;
-  const { map, url } = await getShellData();
+  const { page, isHomepage, address } = data;
+  const { map, url, settings } = await getShellData();
   const languages = [...new Set(listMarkets(map).map((each) => each.language))];
-  const [addresses, homepage] = await Promise.all([
-    pageAddresses(page.id, languages),
-    readHomepageId({ market, draft: false }),
-  ]);
-  // The homepage's own address points at the market's home, where `{m}/` draws it (D80).
-  const isHomepage = page.id === homepage;
-  return {
-    // T68 adds the description, the image and the rest of the page's SEO fields (D82).
-    title: page.title,
-    alternates: {
-      canonical: url(isHomepage ? "/" : encodePagePath(path)),
-      // D80: every open market, at the page's address in its language.
-      languages: isHomepage
-        ? hreflangAlternates("/", map)
-        : hreflangAlternates((each) => {
-            const address = addresses[each.language];
-            return address === undefined ? null : encodePagePath(address);
-          }, map),
+  const addresses = await pageAddresses(page.id, languages);
+  // D82: the page's own SEO fields first, then its title, then the site's description and picture.
+  return withSeo(
+    {
+      title: page.title,
+      alternates: {
+        canonical: url(address),
+        // D80: every open market, at the page's address in its language.
+        languages: isHomepage
+          ? hreflangAlternates("/", map)
+          : hreflangAlternates((each) => {
+              const address = addresses[each.language];
+              return address === undefined ? null : encodePagePath(address);
+            }, map),
+      },
+      openGraph: { type: "website", title: page.title, url: url(address) },
     },
-  };
+    page.meta,
+    settings.seo,
+  );
 }
 
 export default async function CmsPageRoute({ params }: Props) {
@@ -102,9 +115,34 @@ export default async function CmsPageRoute({ params }: Props) {
   const { market, page, paths } = data;
   const { url } = await getShellData();
   const messages = await getMessages();
-  const content = cmsPageContent(page, paths, {
-    home: messages.templates.productDetail.home,
-    url,
-  });
-  return <CmsPageView page={page} content={content} market={market} paths={paths} draft={draft} />;
+  const home = messages.templates.productDetail.home;
+  const content = cmsPageContent(page, paths, { home, url });
+  const href = url(data.address);
+  // A top-level page shows no breadcrumbs, but its `BreadcrumbList` still starts at Home. The
+  // homepage's is itself alone, at the market's home, wherever it sits among the pages.
+  const breadcrumbs = data.isHomepage
+    ? { trail: [], current: page.title }
+    : (content.breadcrumbs ?? { trail: [{ label: home, href: url("/") }], current: page.title });
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        // The pages' titles, escaped by `jsonLdText` so they cannot close the element.
+        dangerouslySetInnerHTML={{
+          __html: jsonLdText(
+            cmsPageJsonLd({
+              title: page.title,
+              href,
+              language: market.htmlLang,
+              breadcrumbs,
+              ...(page.meta.description === undefined
+                ? {}
+                : { description: page.meta.description }),
+            }),
+          ),
+        }}
+      />
+      <CmsPageView page={page} content={content} market={market} paths={paths} draft={draft} />
+    </>
+  );
 }

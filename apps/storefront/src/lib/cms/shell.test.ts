@@ -112,6 +112,8 @@ describe("settingsFrom", () => {
     expect(settingsFrom(null)).toEqual({
       storeName: SITE.storeName,
       titleTemplate: `%s | ${SITE.storeName}`,
+      seo: {},
+      organization: {},
     });
   });
 
@@ -126,7 +128,26 @@ describe("settingsFrom", () => {
       storeName: "Kalimera",
       logo: { src: "/logo.png", alt: "", width: 100, height: 40 },
       titleTemplate: "%s · Kalimera",
+      seo: {},
+      organization: {},
     });
+  });
+
+  it("takes the site's description, picture and organization (T68, D82), each only when set", () => {
+    const saved = {
+      ...SAVED,
+      seo: {
+        description: "Linen for warm days.",
+        image: { url: "/share.png", width: 1200, height: 630, alt: "Linen" },
+      },
+      organization: { legalName: "Kalimera Ltd", email: "", telephone: "+357 22 000000" },
+    } as SiteSetting;
+    const { seo, organization } = settingsFrom(saved);
+    expect(seo).toEqual({
+      description: "Linen for warm days.",
+      image: { src: "/share.png", alt: "Linen", width: 1200, height: 630 },
+    });
+    expect(organization).toEqual({ legalName: "Kalimera Ltd", telephone: "+357 22 000000" });
   });
 
   it("builds the title template from the store's name when it has none, or a broken one", () => {

@@ -1,29 +1,38 @@
 import "server-only";
 import type { Page } from "../../payload-types";
+import type { SeoFields } from "../seo/meta";
+import { metaOf } from "./meta";
 import { pageIdOf, pagePaths, type PageNode, type PagePaths } from "./page-path";
 import { cmsRead } from "./read";
 import { readSiteSettings } from "./site";
 import { pageTags } from "./tags";
 
-/** What a page read returns: its id, title, slug, parent and blocks (T63, T65). */
+/** What a page read returns: its id, title, slug, parent, blocks (T63, T65) and SEO fields (T68). */
 export type CmsPage = {
   id: number;
   title: string;
   slug: string;
   parent: number | null;
   layout: Page["layout"];
+  meta: SeoFields;
 };
 
-const toCmsPage = (page: Pick<Page, "id" | "title" | "slug" | "parent" | "layout">): CmsPage => ({
+const toCmsPage = (
+  page: Pick<Page, "id" | "title" | "slug" | "parent" | "layout"> & Partial<Pick<Page, "meta">>,
+): CmsPage => ({
   id: page.id,
   title: page.title,
   slug: page.slug,
   parent: pageIdOf(page.parent),
   layout: page.layout ?? [],
+  meta: metaOf(page.meta),
 });
 
-/** The page fields a page read selects; the blocks' uploads and internal links come populated. */
-const PAGE_SELECT = { title: true, slug: true, parent: true, layout: true } as const;
+/**
+ * The page fields a page read selects; the blocks' uploads and internal links, and the SEO
+ * picture, come populated.
+ */
+const PAGE_SELECT = { title: true, slug: true, parent: true, layout: true, meta: true } as const;
 
 /**
  * Every page's address in the market's language (D80): the pages a visitor can read (in Draft Mode,
