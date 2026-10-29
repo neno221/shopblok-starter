@@ -7007,7 +7007,7 @@ Not fixed (optional, not security, not a cleanup): 4, the proxy's same-address g
 ### `e2e-smoke`
 
 - Both suites run in the Playwright suites step: `editor-homepage.spec.ts` with the default project (3 tests), `markets-add.spec.ts` last (3 tests).
-- The job: 15.3 min on `main` before this PR (run 40906634217, at `b0b1841`), **(CI_AFTER)** on this PR's last commit.
+- The job: 15.3 min on `main` before this PR (run 40906634217, at `b0b1841`; the Playwright suites step 7 min 28 s), and **14.6 min** on the PR's first commit (run 40921296738, at `3027346`; the step 6 min 58 s). Locally the two suites take about 1 min 10 s together; on the runners that is within the minute or so the same step varies by from run to run.
 
 ### Mutations (each fails a test)
 
@@ -7018,6 +7018,21 @@ Not fixed (optional, not security, not a cleanup): 4, the proxy's same-address g
 
 ### Checks (cloud VM, Node 22.23.4, the compose stack)
 
-- `lint`, `typecheck` and `test` exit 0 for every workspace with no `.env` (CI's state): the storefront 3903, ui 5752, `scripts` 431, the registry 228, the fixtures 469, i18n 108, `@shopblok/integrations` 14, the backend 170. `generate:types` and `generate:importmap` change nothing, and `migrate:create --skip-empty` writes no migration (T71 changes no schema).
+- `lint`, `typecheck` and `test` exit 0 for every workspace with no `.env` (CI's state): the storefront 3903 (3904 after the review's fixes), ui 5752, `scripts` 431, the registry 228, the fixtures 469, i18n 108, `@shopblok/integrations` 14, the backend 170. `generate:types` and `generate:importmap` change nothing, and `migrate:create --skip-empty` writes no migration (T71 changes no schema).
 - Against `next start` and Medusa: the default projects, `locales` and `markets-add` pass **203 of 203** with `E2E_MEDUSA_LOG` (`editor-homepage.spec.ts` 3 of 3, `markets-add.spec.ts` 3 of 3). One earlier full run had `auth.spec.ts`'s guest order still on the review page after 5 s, and with it the 18 tests of the two later projects did not run; `auth.spec.ts` alone then passed 4 of 4, and the full run after it 203 of 203.
 - `markets-add` alone (`--project=markets-add --no-deps`), six runs after the change: `markets.synced` listed `at` after 0.59 to 0.63 s, and `/at` answered after 0.1 to 30.5 s.
+
+### Changes from the review of this PR
+
+The review (`reviews/pr-102-code-review.md` in the project's files) found three must-fix items and six optional ones. Under the rule for optional findings (fix one only if it concerns security or is a cleanup), the three and the one cleanup are fixed, and the other five are left as they are.
+
+| # | Finding | Fixed |
+|---|---|---|
+| 1 | `fresh()` joined a read already running, which could have started before the save, and the entry the save expired could then keep the old map for another 30 s | `fresh()` always starts a read of its own (`read(load)`), and every read is numbered when it starts: one that ends after a later read was kept answers its own caller but does not replace that map. Unit cases "never joins a read that started before it" and "is not overtaken by an earlier read that ends after it" in `source.test.ts`; `fresh()` joining a running read again fails the first, and dropping the order check fails the second |
+| 4 | `editor-homepage.spec.ts`'s restore was not waited for on the shop, so `shell.spec.ts` and `wiring.spec.ts`, which read `/` after it, could get the editor's Home | `afterAll` waits until `/` and `/us` no longer show the editor's promo (60 s at most; the pages keep `"max"`, so the first request after the restore can still be the old entry) |
+| 8 | The Medusa helpers and the admin's login form were copied between specs | `e2e/support/medusa-admin.ts` (`medusaUrl`, `medusaAdminToken`, which now fails on a refused login, and `medusaAdminApi`) and `e2e/support/admin-ui.ts` (`signInToAdmin`, the bootstrap admin by default); `markets-add.spec.ts`, `editor-homepage.spec.ts` and `sync.spec.ts` import them. The older specs' own logins stay as they are |
+| 9 | The `e2e-smoke` time after the PR was a placeholder, which T72's prompt copies | Filled in from the PR's runs, here and in NEXT-SESSION.md |
+
+Not fixed (optional, not security, not a cleanup): 2, `getMarketMap()`'s other callers (live preview, `preview-deps`) keep the 30 s in-process map; 3, `expire: 0` makes the first request to each page after a save of `markets` wait for its render (the sync writes `markets.synced` only when it changes, so this follows real market changes only); 5, `markets-add.spec.ts` does not check that Medusa's region starts without `at`; 6, `markets-add` does not run when a spec of an earlier project fails; 7, the editor's lock is looked up by the document's id alone, and the deletes are not checked.
+
+After the fixes: `editor-homepage`, `sync`, `shell` and `wiring` pass 29 of 29 together, and `markets-add` alone passes twice (`/at` after 10.5 and 0.1 s).

@@ -1,6 +1,6 @@
-import { expect, test, type Page } from "@playwright/test";
-import { adminCredentials } from "./support/admin-credentials";
-import { appEnv } from "./support/app-env";
+import { expect, test } from "@playwright/test";
+import { signInToAdmin } from "./support/admin-ui";
+import { medusaAdminApi, medusaAdminToken, medusaUrl } from "./support/medusa-admin";
 import { rest } from "./support/payload-rest";
 import { adminToken, base, settled } from "./support/server";
 
@@ -35,24 +35,8 @@ let region: { id: string; countries: string[] } | undefined;
 let regionChanged = false;
 let originalMarkets: Markets | undefined;
 
-/** Medusa's origin, as the storefront reaches it. */
-function medusaUrl(): string {
-  try {
-    return appEnv("storefront", "MEDUSA_BACKEND_URL").replace(/\/$/, "");
-  } catch {
-    return "http://localhost:9000";
-  }
-}
-
-async function medusaApi<T>(method: string, path: string, body?: unknown): Promise<T> {
-  const response = await fetch(`${medusa}${path}`, {
-    method,
-    headers: { authorization: `Bearer ${medusaToken}`, "content-type": "application/json" },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
-  expect(response.status, `${method} ${path}: ${await response.clone().text()}`).toBeLessThan(300);
-  return (await response.json()) as T;
-}
+const medusaApi = <T>(method: string, path: string, body?: unknown) =>
+  medusaAdminApi<T>(medusa, medusaToken, method, path, body);
 
 type Markets = {
   [field: string]: unknown;
@@ -73,25 +57,10 @@ const get = (path: string) => fetch(`${base()}${path}`, { redirect: "manual" });
 const heroHeading = (html: string) =>
   /data-slot="hero-heading"[^>]*>([^<]+)</.exec(html)?.[1] ?? null;
 
-async function signInToAdmin(page: Page) {
-  const { email, password } = adminCredentials();
-  await page.goto("/admin/login");
-  await page.fill('input[name="email"]', email);
-  await page.fill('input[name="password"]', password);
-  await page.getByRole("button", { name: /^log in$|^login$/i }).click();
-  await page.waitForURL(/\/admin\/?$/);
-}
-
 test.beforeAll(async () => {
   token = await adminToken();
   medusa = medusaUrl();
-  const { email, password } = adminCredentials();
-  const login = await fetch(`${medusa}/auth/user/emailpass`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ email, password }),
-  });
-  medusaToken = ((await login.json()) as { token: string }).token;
+  medusaToken = await medusaAdminToken(medusa);
   originalMarkets = await readMarkets();
   expect(
     originalMarkets.countries.map((country) => country.code),

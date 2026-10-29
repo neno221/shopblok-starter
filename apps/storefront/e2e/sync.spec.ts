@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { adminCredentials } from "./support/admin-credentials";
 import { appEnv } from "./support/app-env";
+import { medusaAdminApi, medusaAdminToken, medusaUrl } from "./support/medusa-admin";
 
 // T60 (D75, D76): the Medusa → Payload sync between the running servers. A change made through
 // Medusa's Admin API shows in Payload within 10 s; a deleted product is marked, not removed; a
@@ -20,26 +21,10 @@ let medusaToken = "";
 let payloadToken = "";
 let editorToken = "";
 let editorId: number | undefined;
-/** Medusa's origin, as the storefront reaches it. */
-function medusaUrl(): string {
-  try {
-    return appEnv("storefront", "MEDUSA_BACKEND_URL").replace(/\/$/, "");
-  } catch {
-    return "http://localhost:9000";
-  }
-}
-
 const integration = () => `integrations API-Key ${appEnv("backend", "PAYLOAD_API_KEY")}`;
 
-const medusaApi = async (method: string, path: string, body?: unknown) => {
-  const response = await fetch(`${medusa}${path}`, {
-    method,
-    headers: { authorization: `Bearer ${medusaToken}`, "content-type": "application/json" },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
-  expect(response.status, `${method} ${path}: ${await response.clone().text()}`).toBeLessThan(300);
-  return (await response.json()) as Record<string, unknown>;
-};
+const medusaApi = (method: string, path: string, body?: unknown) =>
+  medusaAdminApi(medusa, medusaToken, method, path, body);
 
 /** Payload's REST API, as a staff member (`JWT …`) or the integration. */
 const payloadApi = (method: string, path: string, authorization: string, body?: unknown) =>
@@ -67,12 +52,7 @@ test.beforeAll(async ({ baseURL }) => {
   medusa = medusaUrl();
   const { email, password } = adminCredentials();
 
-  const medusaLogin = await fetch(`${medusa}/auth/user/emailpass`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ email, password }),
-  });
-  medusaToken = ((await medusaLogin.json()) as { token: string }).token;
+  medusaToken = await medusaAdminToken(medusa);
 
   const payloadLogin = await payloadApi("POST", "/users/login", "", { email, password });
   payloadToken = ((await payloadLogin.json()) as { token: string }).token;

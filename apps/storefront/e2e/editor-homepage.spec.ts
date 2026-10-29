@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
+import { signInToAdmin } from "./support/admin-ui";
 import { collectConsole, judgeConsole, type FailedRequest, type Message } from "./support/console";
 import { rest } from "./support/payload-rest";
 import { adminToken, base, freshWithinTwo, settled } from "./support/server";
@@ -186,6 +187,20 @@ test.afterAll(async () => {
     if (answer.status !== 200) problems.push(`the editor: ${answer.status} ${answer.text}`);
   }
   expect(problems, "the restore").toEqual([]);
+  // The pages keep `"max"`: the first request after the restore can still get the editor's Home.
+  // `shell.spec.ts` and `wiring.spec.ts` read `/` after this suite, so both homes are back first.
+  for (const [path, promo] of [
+    ["/", TEXT.promo.el],
+    ["/us", TEXT.promo.en],
+  ] as const) {
+    await expect
+      .poll(async () => (await (await fetch(`${base()}${path}`)).text()).includes(promo), {
+        message: `${path} shows Home as it was`,
+        timeout: 60_000,
+        intervals: [1_000],
+      })
+      .toBe(false);
+  }
 });
 
 test("an editor builds, previews, translates and publishes the homepage in the admin", async ({
@@ -200,11 +215,7 @@ test("an editor builds, previews, translates and publishes the homepage in the a
   });
   const page = await context.newPage();
   try {
-    await page.goto("/admin/login");
-    await page.fill('input[name="email"]', editor.email);
-    await page.fill('input[name="password"]', editor.password);
-    await page.getByRole("button", { name: /^log in$|^login$/i }).click();
-    await page.waitForURL(/\/admin\/?$/);
+    await signInToAdmin(page, editor);
 
     await page.goto(`/admin/collections/pages/${homeId}?locale=en`);
     await expect(field(page, "layout.0.heading")).toHaveValue(englishHero);

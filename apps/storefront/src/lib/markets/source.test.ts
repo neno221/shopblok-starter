@@ -128,11 +128,27 @@ describe("fresh: the global as it is now (T71)", () => {
     expect(load).toHaveBeenCalledTimes(2);
   });
 
-  it("joins a read already running instead of starting another", async () => {
-    const { source, load } = setup(seededGlobal);
+  it("never joins a read that started before it: that one may hold the global before a save", async () => {
+    const { source, load, next } = setup(seededGlobal);
+    next(seededGlobal, brazilGlobal);
     const [read, fresh] = await Promise.all([source.get(), source.fresh()]);
-    expect(load).toHaveBeenCalledTimes(1);
-    expect(fresh).toBe(read);
+    expect(load).toHaveBeenCalledTimes(2);
+    expect(read).toEqual(seeded);
+    expect(fresh).toEqual(brazil);
+  });
+
+  it("is not overtaken by an earlier read that ends after it", async () => {
+    let answerEarlier: (global: MarketsGlobal) => void = () => {};
+    const earlier = new Promise<MarketsGlobal>((resolve) => (answerEarlier = resolve));
+    const { source, advance, next } = setup(seededGlobal);
+    await source.get();
+    advance(30_000);
+    next(earlier, brazilGlobal);
+    const stale = source.get();
+    expect(await source.fresh()).toEqual(brazil);
+    answerEarlier(seededGlobal);
+    expect(await stale).toEqual(seeded);
+    expect(await source.get()).toEqual(brazil);
   });
 
   it("keeps the last good map when the read fails, as `get()` does", async () => {
