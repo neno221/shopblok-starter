@@ -1,8 +1,10 @@
 import {
   FaqSection,
+  FormBlockSection,
   Href,
   LogoCloudSection,
   MediaWithTextSection,
+  NewsletterSection,
   RichTextSection,
   SpacerSection,
   TestimonialsSection,
@@ -16,9 +18,12 @@ import type { z } from "zod";
 import type { Media, Page } from "../../../payload-types";
 import { languageLabel } from "../../../payload/locales";
 import type { Market, MarketMap } from "../../markets/types";
+import { text } from "../../text";
+import { formFields, type StoredFormField } from "../../forms/fields";
 import { resolveLink, type InternalPaths, type LinkValue } from "../link";
 import { mediaImage } from "../shell";
 import { parseVideoUrl } from "../video";
+import { newsletterTarget, populatedForm } from "./forms";
 
 // SPEC §7.5's resolution rule for the content blocks (D70, T63): a block of `pages.layout`, as
 // Payload stores it (references, uploads at depth 1), becomes its section's view model for the
@@ -51,6 +56,15 @@ export type ResolvedBlock = { key: string } & (
   | { blockType: "testimonials"; section: TestimonialsSection }
   | { blockType: "video"; section: VideoSection }
   | { blockType: "spacer"; section: SpacerSection }
+  | { blockType: "newsletter"; section: NewsletterSection; form: { id: string; fieldName: string } }
+  | {
+      blockType: "formBlock";
+      section: FormBlockSection;
+      /** The editor's text between fields, by the `message` field's id. */
+      messages: Record<string, LexicalState>;
+      /** The form's confirmation, or `null` for the catalog's thank-you. */
+      confirmation: LexicalState | null;
+    }
 );
 
 type Defined<T> = { [K in keyof T]: Exclude<T[K], null> };
@@ -64,9 +78,6 @@ function defined<T extends Record<string, unknown>>(
     Object.entries(value).filter(([, each]) => each !== null && each !== undefined && each !== ""),
   ) as Partial<Defined<T>>;
 }
-
-const text = (value: string | null | undefined): string | undefined =>
-  typeof value === "string" && value.trim() !== "" ? value : undefined;
 
 const SETTINGS = ["anchor", "spacing", "surface", "container", "visibility"] as const;
 
@@ -248,6 +259,53 @@ export function resolveBlock(block: LayoutBlock, context: ResolveContext): Resol
         divider: block.divider === true,
       });
       return section === undefined ? null : { key, blockType: "spacer", section };
+    }
+    case "newsletter": {
+      const target = newsletterTarget(block.form, block.privacy as LinkValue, context);
+      if (target === undefined) return null;
+      const section = parsed(NewsletterSection, {
+        settings,
+        heading: text(block.heading),
+        text: text(block.text),
+        newsletter: { email: "", privacyHref: target.privacyHref },
+      });
+      return section === undefined
+        ? null
+        : {
+            key,
+            blockType: "newsletter",
+            section,
+            form: { id: target.formId, fieldName: target.fieldName },
+          };
+    }
+    case "formBlock": {
+      const form = populatedForm(block.form);
+      if (form === undefined) return null;
+      const stored = (form.fields ?? []) as StoredFormField[];
+      const section = parsed(FormBlockSection, {
+        settings,
+        heading: text(block.heading),
+        intro: text(block.intro),
+        form: {
+          id: String(form.id),
+          fields: formFields(stored),
+          submitLabel: text(form.submitButtonLabel),
+        },
+      });
+      if (section === undefined) return null;
+      const messages: Record<string, LexicalState> = {};
+      for (const field of section.form.fields) {
+        if (field.kind !== "message") continue;
+        const message = stored.find((each) => each.id === field.id)?.message;
+        if (message != null) messages[field.id] = message as LexicalState;
+      }
+      return {
+        key,
+        blockType: "formBlock",
+        section,
+        messages,
+        confirmation: (form.confirmationMessage as LexicalState | null | undefined) ?? null,
+      };
     }
     default:
       return null;

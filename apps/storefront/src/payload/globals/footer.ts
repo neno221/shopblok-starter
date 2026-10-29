@@ -1,6 +1,7 @@
 import { PaymentBrand, SocialNetwork } from "@shopblok/registry/contracts";
 import type { ArrayFieldValidation, TextFieldSingleValidation } from "payload";
 import { array, text } from "payload/shared";
+import { formReference, privacyLink } from "../fields/form-reference";
 import { link } from "../fields/link";
 import { variantField } from "../fields/variant";
 import { contentGlobal } from "./content-global";
@@ -34,8 +35,8 @@ export const oneProfilePerNetwork: ArrayFieldValidation = (rows, options) => {
 /**
  * The `footer` global (D78, SPEC §7.3): the design, up to five columns of links (a column may list
  * the top-level categories first, as M3's "Shop" column did), the social profiles, the legal links,
- * the payment marks, the market switcher and the copyright line. The newsletter's signup comes with
- * T67's forms (D81).
+ * the payment marks, the market switcher and the copyright line, and the newsletter's signup (T67,
+ * D81): a form with one email field and the privacy page its consent sentence links to.
  */
 export const Footer = contentGlobal({
   slug: "footer",
@@ -68,6 +69,21 @@ export const Footer = contentGlobal({
           maxRows: 12,
           labels: { singular: "Link", plural: "Links" },
           fields: [link({ relationTo: SHELL_LINK_TARGETS })],
+        },
+      ],
+    },
+    {
+      name: "newsletter",
+      type: "group",
+      admin: { description: "The signup in the footer. No form: no signup." },
+      fields: [
+        formReference({ newsletter: true, required: false }),
+        {
+          ...privacyLink(),
+          admin: {
+            ...privacyLink().admin,
+            condition: (_: unknown, sibling: { form?: unknown }) => sibling?.form != null,
+          },
         },
       ],
     },

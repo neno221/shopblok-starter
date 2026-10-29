@@ -140,3 +140,50 @@ describe("RenderBlocks (T63)", () => {
     expect(html).not.toContain("vimeo.com/");
   });
 });
+
+describe("RenderBlocks: the forms (T67, D81)", () => {
+  const contact = {
+    id: 4,
+    title: "Contact",
+    confirmationMessage: state([paragraph([textNode("Thanks, we write back.")])]),
+    fields: [
+      { blockType: "text", id: "f1", name: "name", label: "Name", required: true },
+      { blockType: "message", id: "f2", message: state([paragraph([textNode("We read all.")])]) },
+      { blockType: "email", id: "f3", name: "email", label: "Email", required: true },
+    ],
+  };
+  const signup = {
+    id: 3,
+    title: "Newsletter",
+    fields: [{ blockType: "email", id: "e1", name: "address", label: "Email", required: true }],
+  };
+
+  it("draws a form block with the editor's text between the fields and the spam trap, posting to its anchor", () => {
+    const html = render([
+      { blockType: "formBlock", id: "c1", variant: "standard", heading: "Write", form: contact },
+    ] as unknown as LayoutBlock[]);
+    expect(html).toContain('id="form-c1"');
+    expect(html).toContain('name="name"');
+    expect(html).toContain('name="email"');
+    expect(html).toContain("We read all.");
+    expect(html).toMatch(/<div hidden="" data-slot="form-honeypot">.*name="website"/);
+    // The confirmation is drawn only once the form is sent.
+    expect(html).not.toContain("Thanks, we write back.");
+  });
+
+  it("draws a newsletter with its form's own field name and the spam trap", () => {
+    const html = render([
+      {
+        blockType: "newsletter",
+        id: "n1",
+        variant: "standard",
+        form: signup,
+        privacy: { type: "custom", url: "/privacy" },
+      },
+    ] as unknown as LayoutBlock[]);
+    expect(html).toContain('id="form-n1"');
+    expect(html).toContain('name="address"');
+    expect(html).toContain('href="/us/privacy"');
+    expect(html).toContain('name="website"');
+  });
+});

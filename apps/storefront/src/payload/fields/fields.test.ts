@@ -1,5 +1,6 @@
 import type { Field, GroupField, TextField } from "payload";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { formReference, NOT_A_NEWSLETTER, newsletterForm } from "./form-reference";
 import { hideDeletedInMedusa, link } from "./link";
 import { sectionSettings } from "./section-settings";
 
@@ -94,5 +95,45 @@ describe("hideDeletedInMedusa (D85)", () => {
     const group = link({ relationTo: ["products"] });
     const reference = group.fields.find((field) => "name" in field && field.name === "reference");
     expect(reference).toMatchObject({ filterOptions: hideDeletedInMedusa });
+  });
+});
+
+describe("formReference (T67, D81)", () => {
+  const forms: Record<number, unknown[]> = {
+    1: [{ blockType: "email", name: "email", label: "Email", required: true }],
+    2: [
+      { blockType: "text", name: "name", label: "Name" },
+      { blockType: "email", name: "email", label: "Email" },
+    ],
+  };
+  const findByID = vi.fn(async ({ id }: { id: number }) => {
+    if (forms[id] === undefined) throw new Error("not found");
+    return { id, fields: forms[id] };
+  });
+  const options = {
+    event: "submit",
+    relationTo: "forms",
+    required: false,
+    req: {
+      payload: { collections: { forms: {} }, db: { defaultIDType: "number" }, findByID },
+      t: (key: string) => key,
+    },
+  } as unknown as Parameters<typeof newsletterForm>[1];
+
+  it("takes a form whose only field is an email field as a newsletter's, and no other", async () => {
+    expect(await newsletterForm(1, options)).toBe(true);
+    expect(await newsletterForm(2, options)).toBe(NOT_A_NEWSLETTER);
+    expect(await newsletterForm(9, options)).toMatch(/no longer exists/);
+    expect(await newsletterForm(null as never, options)).toBe(true);
+  });
+
+  it("checks a newsletter's form only, and is required unless the caller says not", () => {
+    expect(formReference({ newsletter: true, required: false })).toMatchObject({
+      relationTo: "forms",
+      required: false,
+      validate: newsletterForm,
+    });
+    expect(formReference()).toMatchObject({ relationTo: "forms", required: true, maxDepth: 1 });
+    expect(formReference()).not.toHaveProperty("validate");
   });
 });

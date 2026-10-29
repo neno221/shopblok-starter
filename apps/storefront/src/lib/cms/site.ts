@@ -5,8 +5,9 @@ import { cmsRead, type CmsQuery } from "./read";
 import type { Payload } from "payload";
 
 /**
- * What the globals' references are read with (depth 1): an upload's file and size, and a catalog
- * document's handle and whether Medusa deleted it, which is all `lib/cms/shell.ts` needs. The
+ * What the globals' references are read with (depth 1): an upload's file and size, a catalog
+ * document's handle and whether Medusa deleted it, and the newsletter's form's fields (T67), which
+ * is all `lib/cms/shell.ts` needs. The
  * cached entries stay small, and nothing else of a product reaches them.
  */
 const POPULATE = {
@@ -14,6 +15,7 @@ const POPULATE = {
   products: { handle: true, deletedInMedusa: true },
   categories: { handle: true, deletedInMedusa: true },
   collections: { handle: true, deletedInMedusa: true },
+  forms: { fields: true },
 } as const;
 
 function readGlobal<T>(slug: "header" | "footer" | "site-settings") {

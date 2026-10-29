@@ -263,6 +263,91 @@ describe("resolveBlock (T63)", () => {
   });
 });
 
+describe("resolveBlock: the forms (T67, D81)", () => {
+  const signup = {
+    id: 3,
+    title: "Newsletter",
+    fields: [{ blockType: "email", id: "f1", name: "email", label: "Email", required: true }],
+  };
+  const contact = {
+    id: 4,
+    title: "Contact",
+    submitButtonLabel: "Send it",
+    confirmationMessage: lexical,
+    fields: [
+      { blockType: "text", id: "f1", name: "name", label: "Name", required: true, width: 50 },
+      { blockType: "message", id: "f2", message: lexical },
+      { blockType: "email", id: "f3", name: "email", label: "Email", required: true },
+    ],
+  };
+  const newsletter = (form: unknown, url = "/privacy") =>
+    ({
+      blockType: "newsletter",
+      id: "n1",
+      variant: "standard",
+      heading: "Letters",
+      text: "",
+      form,
+      privacy: { type: "custom", url },
+    }) as unknown as LayoutBlock;
+
+  it("draws a newsletter with its form's one email field and the market's privacy page", () => {
+    expect(resolveBlock(newsletter(signup), context)).toEqual({
+      key: "n1",
+      blockType: "newsletter",
+      section: {
+        settings: {},
+        heading: "Letters",
+        newsletter: { email: "", privacyHref: "/us/privacy" },
+      },
+      form: { id: "3", fieldName: "email" },
+    });
+  });
+
+  it("leaves out a newsletter whose form is not one email field, is not populated, or has no privacy page", () => {
+    expect(resolveBlock(newsletter(contact), context)).toBeNull();
+    expect(resolveBlock(newsletter(3), context)).toBeNull();
+    expect(resolveBlock(newsletter(signup, "javascript:alert(1)"), context)).toBeNull();
+  });
+
+  it("draws a form block with its fields, its text between them, its button and confirmation", () => {
+    const block = {
+      blockType: "formBlock",
+      id: "c1",
+      variant: "standard",
+      heading: "Write to us",
+      intro: null,
+      form: contact,
+    } as unknown as LayoutBlock;
+    expect(resolveBlock(block, context)).toEqual({
+      key: "c1",
+      blockType: "formBlock",
+      section: {
+        settings: {},
+        heading: "Write to us",
+        form: {
+          id: "4",
+          submitLabel: "Send it",
+          fields: [
+            { kind: "text", name: "name", label: "Name", required: true, width: "half" },
+            { kind: "message", id: "f2" },
+            { kind: "email", name: "email", label: "Email", required: true, width: "full" },
+          ],
+        },
+      },
+      messages: { f2: lexical },
+      confirmation: lexical,
+    });
+    expect(resolveBlock({ ...block, form: 4 } as LayoutBlock, context)).toBeNull();
+    expect(
+      resolveBlock(
+        { ...block, form: { ...contact, fields: [] } } as unknown as LayoutBlock,
+        context,
+      ),
+    ).toBeNull();
+  });
+});
+
 describe("resolveLayout", () => {
   it("keeps the blocks that can be drawn, in the editor's order", () => {
     const layout = [

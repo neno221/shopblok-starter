@@ -791,6 +791,23 @@ export const en = {
       play: "Play video: {title}",
       provider: "Plays from {provider}, which may set cookies.",
     },
+    form: {
+      submit: "Send",
+      sending: "Sending…",
+      optional: "(optional)",
+      choose: "Choose…",
+      done: "Thank you. We have your message.",
+      invalid: "Some answers need another look: they are marked below.",
+      unavailable: "The form could not be sent just now. Try again in a moment.",
+      // The spam trap's label: hidden from everyone, so a person never fills it in.
+      honeypot: "Leave this field empty",
+      errors: {
+        required: "Fill in this field.",
+        checkbox: "Tick this box to go on.",
+        email: "Enter an email address, like name@example.com.",
+        invalid: "Check this answer.",
+      },
+    },
   },
   templates: {
     notFound: {

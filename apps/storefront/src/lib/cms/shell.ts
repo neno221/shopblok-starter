@@ -16,6 +16,7 @@ import type {
 } from "../../payload-types";
 import type { Market, MarketMap } from "../markets/types";
 import { toNavigation } from "../navigation";
+import { text } from "../text";
 import {
   announcementFor,
   footerColumns,
@@ -25,6 +26,7 @@ import {
 } from "../site";
 import { resolveLink, type InternalPaths, type LinkValue } from "./link";
 import { CMS_PATHS } from "./paths";
+import { newsletterTarget, type NewsletterTarget } from "./resolve/forms";
 
 // The shell's content (D78): the `header`, `footer` and `site-settings` globals as the header and
 // footer components take them. A global that was never saved, or could not be read (no database at
@@ -75,6 +77,8 @@ export type ShellFooter = {
   marketSwitcher: boolean;
   copyright: string;
   logo?: Image;
+  /** The signup (T67, D81): the form to post to and the privacy page; none without a form. */
+  newsletter?: NewsletterTarget;
 };
 
 /** What the links of the header and footer resolve against: the market and its catalog. */
@@ -92,9 +96,6 @@ type Saved = { updatedAt?: string | null } | null | undefined;
 /** Whether an editor (or the seed) has saved the global: an unsaved one reads as `{}`. */
 export const isSaved = (global: Saved): boolean =>
   typeof global?.updatedAt === "string" && global.updatedAt !== "";
-
-const text = (value: unknown): string | undefined =>
-  typeof value === "string" && value.trim() !== "" ? value : undefined;
 
 /** An upload as an image the shell can draw: `undefined` for an id, a missing file or no size. */
 export function mediaImage(value: unknown): Image | undefined {
@@ -295,6 +296,11 @@ export function footerFrom(
       }),
     ),
   ];
+  const newsletter = newsletterTarget(
+    global.newsletter?.form,
+    global.newsletter?.privacy as LinkValue | null | undefined,
+    { market, map: context.map, paths },
+  );
   return {
     design: FOOTER_VARIANTS.includes(global.design) ? global.design : SITE.footer,
     columns: columns.slice(0, 5),
@@ -304,5 +310,6 @@ export function footerFrom(
     marketSwitcher: global.marketSwitcher !== false,
     copyright: copyrightLine(global.copyright, settings.storeName, year),
     ...logo,
+    ...(newsletter === undefined ? {} : { newsletter }),
   };
 }

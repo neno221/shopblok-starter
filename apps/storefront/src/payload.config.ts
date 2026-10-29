@@ -17,6 +17,7 @@ import { UiStrings } from "./payload/collections/ui-strings";
 import { Users } from "./payload/collections/users";
 import { cronOrAdmin } from "./payload/access/jobs";
 import { filterAvailableLocales } from "./payload/filter-available-locales";
+import { formBuilder } from "./payload/forms";
 import { CONTENT_GLOBALS } from "./payload/globals/content-global";
 import { Footer } from "./payload/globals/footer";
 import { Header } from "./payload/globals/header";
@@ -107,7 +108,8 @@ export default buildConfig({
   // T57 (M4 D86 item 3): no type generation when Payload starts in development. It wrote the file
   // unformatted, so `next dev` left a 283-line diff (W5); `generate:types` writes and formats it,
   // and CI's `check` fails when the committed file is not what that writes.
-  // D77: CSV export and import of `ui-strings`, admins only (`payload/import-export.ts`).
-  plugins: [importExport],
+  // D77: CSV export and import of `ui-strings`, admins only (`payload/import-export.ts`). D81: the
+  // form builder, hardened (`payload/forms.ts`): submissions only through the shop's server action.
+  plugins: [importExport, formBuilder],
   typescript: { autoGenerate: false, outputFile: path.resolve(dirname, "payload-types.ts") },
 });
