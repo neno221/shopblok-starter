@@ -4,8 +4,17 @@ import { seeded } from "../markets/test-maps";
 // D82 (T68): what `/next/redirects` answers. The cached reads are stand-ins: the stored redirects,
 // and the pages' and posts' addresses per language as the shop's routes read them.
 
-const state = vi.hoisted(() => ({ docs: null as unknown[] | null }));
+const state = vi.hoisted(() => ({
+  docs: null as unknown[] | null,
+  entry: undefined as { name: string; tags: readonly string[]; life: unknown } | undefined,
+}));
 vi.mock("server-only", () => ({}));
+vi.mock("../cache", () => ({
+  cached: (load: unknown, options: typeof state.entry) => {
+    state.entry = options;
+    return load;
+  },
+}));
 vi.mock("../cms/read", () => ({
   cmsRead: () => async () => state.docs,
 }));
@@ -31,6 +40,16 @@ vi.mock("../cms/posts", () => ({
 const { readRedirectList } = await import("./read");
 
 describe("readRedirectList", () => {
+  it("is one entry of its own, tagged `redirects` and regenerated every 30 s (PR 101 review, item 2)", () => {
+    // Also with no database, where no read under it is cached: the route then still has the tag
+    // and the period, and is not the build's empty list for good.
+    expect(state.entry).toEqual({
+      name: "redirects:list",
+      tags: ["redirects"],
+      life: { stale: 30, revalidate: 30, expire: 2_592_000 },
+    });
+  });
+
   it("is no redirects without a database or with none saved", async () => {
     state.docs = null;
     expect(await readRedirectList()).toEqual({ redirects: [] });

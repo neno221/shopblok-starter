@@ -76,7 +76,8 @@ const isPayload = (name: string) =>
 describe("the proxy's import graph has no Payload (D10, D82)", () => {
   it("reads only the market map and the redirects, over HTTP", () => {
     const { files, packages } = importGraph(path.join(dirname, "proxy.ts"));
-    const names = [...files].map((file) => path.relative(dirname, file));
+    // Forward slashes on Windows too, where `path.relative` gives backslashes (windows-smoke).
+    const names = [...files].map((file) => path.relative(dirname, file).split(path.sep).join("/"));
     expect(names).toEqual(
       expect.arrayContaining([
         "lib/markets/proxy-market-map.ts",

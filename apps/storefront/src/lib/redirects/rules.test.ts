@@ -7,6 +7,7 @@ import {
   normalizePath,
   referenceOf,
   storedEntry,
+  takenFromProblem,
 } from "./rules";
 
 // D82 (T68). `seeded` is SPEC §8.5's map: Cyprus at `/`, the others at `/us`, `/de`, `/ch/fr`….
@@ -61,6 +62,20 @@ describe("fromProblem: what the proxy can never see is refused with the reason (
     ["/ch/fr/", /home/],
   ])("refuses %s", (from, reason) => {
     expect(fromProblem(from, seeded)).toMatch(reason);
+  });
+});
+
+describe("takenFromProblem: one redirect per address (PR 101 review, item 1)", () => {
+  it("refuses a from that is another's once normalized, naming that one", () => {
+    expect(takenFromProblem("/old/", [{ from: "/new" }, { from: "/old" }])).toMatch(
+      /^\/old is the same address/,
+    );
+    expect(takenFromProblem("/caf%C3%A9", [{ from: "/café" }])).toMatch(/^\/café is the same/);
+  });
+
+  it("takes a new address, and a market's own copy of one", () => {
+    expect(takenFromProblem("/old", [{ from: "/older" }, { from: null }])).toBeUndefined();
+    expect(takenFromProblem("/de/old", [{ from: "/old" }])).toBeUndefined();
   });
 });
 

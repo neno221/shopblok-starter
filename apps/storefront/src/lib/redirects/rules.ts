@@ -92,6 +92,26 @@ export function fromProblem(from: string, map: MarketMap): string | undefined {
   return undefined;
 }
 
+/**
+ * Why a `from` is taken, or `undefined` (PR 101 review, item 1): another redirect's `from` that is
+ * the same path once normalized (`/old/` and `/old`, `/café` and `/caf%C3%A9`). Payload's unique
+ * index compares them as written, and the proxy would answer only the older one, so the new one
+ * would save and never be answered.
+ */
+export function takenFromProblem(
+  from: string,
+  others: readonly { from?: unknown }[],
+): string | undefined {
+  const own = normalizePath(from);
+  const same = others.find(
+    (other): other is { from: string } =>
+      typeof other.from === "string" && normalizePath(other.from) === own,
+  );
+  return same === undefined
+    ? undefined
+    : `${same.from} is the same address and already redirects: edit that redirect instead.`;
+}
+
 const ABSOLUTE = /^https?:\/\//i;
 
 /** Whether a target is a full URL (`https://…`) rather than a path inside the market. */

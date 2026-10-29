@@ -1,5 +1,6 @@
 import "server-only";
 import type { Redirect } from "../../payload-types";
+import { cached } from "../cache";
 import { postPath } from "../cms/paths";
 import { encodePagePath } from "../cms/page-path";
 import { pageAddresses } from "../cms/pages";
@@ -38,7 +39,7 @@ const readRedirectDocs = cmsRead(
  * `posts:<locale>`), so a renamed page moves its redirects with it. A redirect to a page or post
  * with no published address is left out. No database: no redirects.
  */
-export async function readRedirectList(): Promise<RedirectList> {
+async function loadRedirectList(): Promise<RedirectList> {
   const docs = await readRedirectDocs({ market: { language: "en" }, draft: false });
   if (docs === null || docs.length === 0) return { redirects: [] };
   const map = await getRenderMarketMap();
@@ -69,3 +70,17 @@ export async function readRedirectList(): Promise<RedirectList> {
   });
   return { redirects };
 }
+
+/**
+ * `/next/redirects`' own entry (PR 101 review, item 2), like `/next/markets`' (the market map's):
+ * tagged `redirects` and regenerated every 30 s whatever the reads under it did. Without it a build
+ * with no database read no entry at all, so the prerendered route had neither the tag nor a
+ * revalidate period, and a deployment with a database kept answering `{"redirects":[]}`.
+ */
+export const REDIRECT_LIST_LIFE = { stale: 30, revalidate: 30, expire: 2_592_000 } as const;
+
+export const readRedirectList = cached(loadRedirectList, {
+  name: "redirects:list",
+  tags: [REDIRECTS_TAG],
+  life: REDIRECT_LIST_LIFE,
+});

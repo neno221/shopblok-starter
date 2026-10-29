@@ -252,13 +252,32 @@ test("the seeded home draws M3's sections as blocks, in M3's order", async () =>
 
 test("the homepage follows site-settings.homepage", async () => {
   expect(homepage, "the seed names the Home (seed-content)").not.toBeNull();
+  const own = `/us/${about.en}/${team.en}`;
   await settled("/us");
+  await settled(encoded(own));
   await publishGlobal(token, "site-settings", { homepage: childId });
   const shows = (title: string) => async () =>
     (await (await get("/us")).text()).includes(`${title}</h1>`);
   expect(await freshWithinTwo(shows(TEAM_TITLE.en), 1_500)).toBeGreaterThan(0);
   // As the homepage, it has no breadcrumbs: it is the market's home.
   expect(await (await get("/us")).text()).not.toContain('data-slot="breadcrumb"');
+  // At its own address too, its canonical, Open Graph's URL, its WebPage and its BreadcrumbList
+  // give the market's home, one address for crawlers (PR 101 review, item 3).
+  const origin = new URL(base()).origin;
+  const canonical = `<link rel="canonical" href="${origin}/us"/>`;
+  const folded = async () => (await (await get(own)).text()).includes(canonical);
+  expect(await freshWithinTwo(folded, 1_500)).toBeGreaterThan(0);
+  const html = await (await get(own)).text();
+  expect(html).toContain(`<meta property="og:url" content="${origin}/us"/>`);
+  const nodes = [...html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)]
+    .map((match) => JSON.parse(match[1] ?? "{}") as { "@graph"?: Record<string, unknown>[] })
+    .flatMap((graph) => graph["@graph"] ?? []);
+  expect(nodes.find((node) => node["@type"] === "WebPage")).toMatchObject({ url: `${origin}/us` });
+  const list = nodes.find((node) => node["@type"] === "BreadcrumbList") as
+    { itemListElement: { name: string; item: string }[] } | undefined;
+  expect(list?.itemListElement.map((step) => [step.name, step.item])).toEqual([
+    [TEAM_TITLE.en, `${origin}/us`],
+  ]);
 
   await settled("/us");
   await publishGlobal(token, "site-settings", { homepage });

@@ -10,7 +10,8 @@ import { adminToken, base } from "./support/server";
 //   308 on a POST; a 302 answers a POST with 307. It is answered within 65 s of its save.
 // - One from `/de/…` works in Germany only.
 // - One to a page goes to the page's address in each market's language.
-// - On save, a loop, a `from` like `/old.html` and one under `/api` are refused with the reason.
+// - On save, a loop, a `from` taken by another, one like `/old.html` and one under `/api` are refused
+//   with the reason.
 //
 // Every redirect and page made here is deleted at the end.
 
@@ -132,7 +133,7 @@ test("a redirect to a page goes to its address in each market's language", async
   expect(await hit(`/de${TO_PAGE}`)).toEqual({ status: 301, location: `/de/${SLUG.en}` });
 });
 
-test("a loop, a from like /old.html and one under /api are refused on save, with the reason", async () => {
+test("a loop, a taken from, a from like /old.html and one under /api are refused on save, with the reason", async () => {
   const self = await save({
     from: `/e2e-loop-${stamp}`,
     to: { type: "custom", url: `/e2e-loop-${stamp}` },
@@ -158,6 +159,16 @@ test("a loop, a from like /old.html and one under /api are refused on save, with
   });
   expect(toPage.status).toBe(400);
   expect(reasons(toPage).join(" ")).toMatch(/already redirects/);
+
+  // The same address spelled another way: Payload's unique index would take it, and the proxy
+  // would answer only the older one (PR 101 review, item 1).
+  const twin = await save({
+    from: `${OLD}/`,
+    to: { type: "custom", url: "/journal" },
+    type: "301",
+  });
+  expect(twin.status).toBe(400);
+  expect(reasons(twin).join(" ")).toMatch(/same address/);
 
   const file = await save({
     from: `/old-${stamp}.html`,

@@ -1,7 +1,6 @@
 import { env as processEnv } from "../env";
 import { appRouteUrl } from "../markets/proxy-market-map";
 import { describeError, marketLoadTimeoutMs } from "../markets/source";
-import { withTimeout } from "../with-timeout";
 import { REDIRECT_TYPES, type RedirectEntry, type RedirectList } from "./rules";
 
 /** Where the proxy reads the redirects: `app/next/redirects/route.ts`, which its matcher skips. */
@@ -67,7 +66,7 @@ export function createProxyRedirects(options: ProxyRedirectsOptions = {}) {
 
   async function read(): Promise<RedirectList> {
     try {
-      const list = await withTimeout(load(), timeoutMs);
+      const list = await load();
       current = { list, expires: now() + REDIRECTS_TTL_MS };
       return list;
     } catch (error) {

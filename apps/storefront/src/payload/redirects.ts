@@ -13,6 +13,7 @@ import {
   REDIRECT_TYPES,
   referenceOf,
   storedEntry,
+  takenFromProblem,
   type RedirectEntry,
   type RedirectReference,
   type StoredRedirect,
@@ -139,6 +140,8 @@ async function loopOf(
     }),
   );
   const stored = docs.filter((doc) => String(doc.id) !== String(id)) as StoredRedirect[];
+  const taken = takenFromProblem(String(data.from ?? ""), stored);
+  if (taken !== undefined) return taken;
   const references = [data, ...stored].flatMap((doc) => referenceOf(doc) ?? []);
   const addresses = await addressesOf(req, references);
   const entry = (doc: StoredRedirect) =>

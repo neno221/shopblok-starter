@@ -144,6 +144,17 @@ describe("validateFrom", () => {
     );
   });
 
+  it("refuses a from another redirect has, spelled another way (PR 101 review, item 1)", async () => {
+    state.redirects = [{ id: 1, from: "/old", type: "301", to: custom("/a") }];
+    expect(await validateFrom("/old/", options({ type: "301", to: custom("/b") }))).toMatch(
+      /\/old is the same address/,
+    );
+    // Also when the target cannot be worked out yet (a page with no published address).
+    expect(await validateFrom("/old/", options({ type: "301", to: page(99) }))).toMatch(
+      /same address/,
+    );
+  });
+
   it("does not count the stored copy of the redirect being saved", async () => {
     state.redirects = [{ id: 3, from: "/old", type: "301", to: custom("/new") }];
     expect(await validateFrom("/old", options({ type: "302", to: custom("/new") }, 3))).toBe(true);
