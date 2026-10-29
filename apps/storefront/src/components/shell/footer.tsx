@@ -12,7 +12,7 @@ import type { NewsletterTarget } from "../../lib/cms/resolve/forms";
 import type { Market } from "../../lib/markets/types";
 import { SHELL_PREFETCH, type FooterVariant } from "../../lib/site";
 import { FormHoneypot } from "../cms/form-honeypot";
-import { NewsletterFormIsland } from "../cms/form-islands";
+import { NewsletterFormIsland } from "../cms/newsletter-form-island";
 import { ShellLogo } from "./logo";
 import { getShellData } from "./shell-data";
 
@@ -30,10 +30,15 @@ const FOOTERS: Record<FooterVariant, (props: FooterProps) => ReactElement> = {
   "two-tier": FooterTwoTier,
 };
 
-/** The footer's newsletter: the form's privacy page, and the island that posts to the form. */
+/**
+ * The footer's newsletter: the form's privacy page, and the island that posts to the form. Without
+ * scripts it posts to the market's home, a page prerendered whole, which draws the answer in its
+ * footer from any page (`form-island-state.ts`).
+ */
 function newsletterProps(
   signup: NewsletterTarget,
   market: Market,
+  homeHref: string,
   messages: Messages,
 ): Pick<FooterProps, "newsletter" | "newsletterSlot"> {
   const newsletter = { email: "", privacyHref: signup.privacyHref };
@@ -50,6 +55,7 @@ function newsletterProps(
         hiddenFields={<FormHoneypot label={messages.sections.form.honeypot} />}
         submit={submitForm.bind(null, { market: market.key, form: signup.formId })}
         formId="footer-newsletter"
+        permalink={`${homeHref}#footer-newsletter`}
       />
     ),
   };
@@ -78,7 +84,7 @@ export async function SiteFooter() {
       newsletterCopy={messages.molecules.newsletterForm}
       {...(footer.newsletter === undefined
         ? {}
-        : newsletterProps(footer.newsletter, market, messages))}
+        : newsletterProps(footer.newsletter, market, url("/"), messages))}
       marketSwitcherCopy={messages.molecules.marketSwitcher}
       locale={market.htmlLang}
       prefetch={SHELL_PREFETCH}

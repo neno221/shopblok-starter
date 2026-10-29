@@ -15,7 +15,8 @@ import { faqJsonLd } from "../../lib/seo/faq";
 import { jsonLdText } from "../../lib/seo/product";
 import { submitForm } from "../../lib/actions/form";
 import { FormHoneypot } from "./form-honeypot";
-import { FormBlockIsland, NewsletterSectionIsland } from "./form-islands";
+import { FormBlockIsland } from "./form-block-island";
+import { NewsletterSectionIsland } from "./newsletter-section-island";
 import { CmsRichText } from "./rich-text";
 
 type RenderBlocksProps = {

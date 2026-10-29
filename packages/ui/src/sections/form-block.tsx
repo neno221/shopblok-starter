@@ -17,7 +17,7 @@ import type {
   FormBlockSection as FormBlockSectionData,
   FormField,
 } from "@shopblok/registry/contracts";
-import { FORM_LIMITS } from "@shopblok/registry/contracts";
+import { FORM_LIMITS } from "@shopblok/registry/form-limits";
 import { Button } from "@shopblok/ui/atoms/button";
 import { Input } from "@shopblok/ui/atoms/input";
 import { NativeSelect, NativeSelectOption } from "@shopblok/ui/atoms/native-select";

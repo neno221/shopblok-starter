@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { Href, Id, Link } from "./content";
+import { FORM_LIMITS } from "./form-limits";
 import { Image } from "./image";
 import { AccordionSection, NewsletterSignup } from "./site";
 
@@ -222,14 +223,8 @@ export const FORM_FIELD_KINDS = [
   "message",
 ] as const;
 
-/** The most a form may hold, and the longest each kind of answer may be (D81's size limits). */
-export const FORM_LIMITS = {
-  fields: 20,
-  text: 200,
-  email: 254,
-  textarea: 4000,
-  option: 200,
-} as const;
+// The size limits live without zod, so a client component takes them without the contracts.
+export { FORM_LIMITS };
 
 const fieldBase = {
   name: z.string().regex(FORM_FIELD_NAME),
