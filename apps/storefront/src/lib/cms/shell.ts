@@ -16,6 +16,7 @@ import type {
 } from "../../payload-types";
 import type { Market, MarketMap } from "../markets/types";
 import { toNavigation } from "../navigation";
+import { text } from "../text";
 import {
   announcementFor,
   footerColumns,
@@ -95,9 +96,6 @@ type Saved = { updatedAt?: string | null } | null | undefined;
 /** Whether an editor (or the seed) has saved the global: an unsaved one reads as `{}`. */
 export const isSaved = (global: Saved): boolean =>
   typeof global?.updatedAt === "string" && global.updatedAt !== "";
-
-const text = (value: unknown): string | undefined =>
-  typeof value === "string" && value.trim() !== "" ? value : undefined;
 
 /** An upload as an image the shell can draw: `undefined` for an id, a missing file or no size. */
 export function mediaImage(value: unknown): Image | undefined {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   answersSchema,
-  checkFieldNames,
+  checkFields,
   formFields,
   HONEYPOT_FIELD,
   newsletterField,
@@ -71,6 +71,25 @@ describe("formFields: a form's fields as the section draws them (T67)", () => {
     expect(fields.map((field) => ("name" in field ? field.name : field.id))).toEqual(["name"]);
   });
 
+  it("trims an option's value, so the value drawn is the one a post is checked against", () => {
+    const [topic] = formFields([
+      {
+        blockType: "select",
+        name: "topic",
+        label: "Topic",
+        defaultValue: "sales ",
+        options: [{ label: "Sales", value: "sales " }],
+      },
+    ]);
+    expect(topic).toMatchObject({
+      options: [{ label: "Sales", value: "sales" }],
+      defaultValue: "sales",
+    });
+    expect(answersSchema(topic === undefined ? [] : [topic]).parse({ topic: "sales " })).toEqual({
+      topic: "sales",
+    });
+  });
+
   it("names a field by its name when the label is empty", () => {
     expect(formFields([{ blockType: "text", name: "city", label: " " }])[0]).toMatchObject({
       label: "city",
@@ -78,21 +97,36 @@ describe("formFields: a form's fields as the section draws them (T67)", () => {
   });
 });
 
-describe("checkFieldNames: the admin's check on save (T67)", () => {
+describe("checkFields: the admin's check on save (T67)", () => {
   it("passes names of letters, digits, - and _ from a letter, each once", () => {
-    expect(checkFieldNames(contact)).toBe(true);
-    expect(checkFieldNames(undefined)).toBe(true);
+    expect(checkFields(contact)).toBe(true);
+    expect(checkFields(undefined)).toBe(true);
   });
 
   it("refuses a bad name, the spam trap's and a name used twice", () => {
-    expect(checkFieldNames([{ blockType: "text", name: "first name" }])).toMatch(/cannot be/);
-    expect(checkFieldNames([{ blockType: "text", name: HONEYPOT_FIELD }])).toMatch(/spam trap/);
+    expect(checkFields([{ blockType: "text", name: "first name" }])).toMatch(/cannot be/);
+    expect(checkFields([{ blockType: "text", name: HONEYPOT_FIELD }])).toMatch(/spam trap/);
     expect(
-      checkFieldNames([
+      checkFields([
         { blockType: "text", name: "a" },
         { blockType: "email", name: "a" },
       ]),
     ).toMatch(/used twice/);
+  });
+
+  it("refuses a default longer than the answer the server takes, which no post could keep", () => {
+    expect(
+      checkFields([{ blockType: "text", name: "city", defaultValue: "x".repeat(201) }]),
+    ).toMatch(/keep it to 200 characters/);
+    expect(
+      checkFields([{ blockType: "textarea", name: "note", defaultValue: "x".repeat(4001) }]),
+    ).toMatch(/keep it to 4000 characters/);
+    expect(
+      checkFields([
+        { blockType: "text", name: "city", defaultValue: `${"x".repeat(200)}  ` },
+        { blockType: "textarea", name: "note", defaultValue: "x".repeat(4000) },
+      ]),
+    ).toBe(true);
   });
 });
 
@@ -119,6 +153,16 @@ describe("answersSchema: the post's check (D81)", () => {
       "invalid_type",
       "invalid_type",
     ]);
+  });
+
+  it("counts a line break once, as the browser's maxLength does, and stores it as a newline", () => {
+    // 4000 characters in the text area, 21 of them line breaks, posted as 4021 (each as CRLF).
+    const lines = Array.from({ length: 21 }, () => "x".repeat(180)).join("\r\n");
+    const message = `${lines}\r\n${"y".repeat(199)}`;
+    expect(message).toHaveLength(4021);
+    expect(message.replaceAll("\r\n", "\n")).toHaveLength(4000);
+    expect(schema.parse({ ...valid, message }).message).toBe(message.replaceAll("\r\n", "\n"));
+    expect(schema.safeParse({ ...valid, message: "a\r\nb\rc" }).data?.message).toBe("a\nb\nc");
   });
 
   it("refuses an email's wrong shape, an option not offered and a text over its limit", () => {

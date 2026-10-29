@@ -1,5 +1,5 @@
 // The forms' server action (D81, T67): what it checks before it stores a submission, and how it
-// stores one. The form read (`readForm`) and the Local API are stand-ins and the market map is the
+// stores one. The form reads (`readForm`, `isFormPlaced`) and the Local API are stand-ins and the market map is the
 // seeded one, so nothing here touches Payload's database or the network.
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -9,11 +9,15 @@ import { seeded } from "../markets/test-maps";
 vi.mock("next/cache", () => ({ cacheTag: vi.fn(), cacheLife: vi.fn(), updateTag: vi.fn() }));
 vi.mock("../markets/cached-market-map", () => ({ getRenderMarketMap: async () => seeded }));
 const readForm = vi.fn();
-vi.mock("../cms/forms", () => ({ readForm }));
+const placed = vi.fn();
+vi.mock("../cms/forms", () => ({
+  readForm,
+  isFormPlaced: async (_reader: unknown, id: number) => ((await placed()) as number[]).includes(id),
+}));
 const create = vi.fn();
 vi.mock("../cms/payload", () => ({ getPayloadClient: async () => ({ create }) }));
 
-const { submitFormAction, formState } = await import("./form-handlers");
+const { submitFormAction, formState, postedFieldNames } = await import("./form-handlers");
 const { submitForm } = await import("./form");
 
 const contact = {
@@ -28,6 +32,7 @@ const answers = { name: "Ann", email: "ann@example.com", consent: "on", website:
 
 beforeEach(() => {
   readForm.mockReset().mockResolvedValue(contact);
+  placed.mockReset().mockResolvedValue([3, 7]);
   create.mockReset().mockResolvedValue({ id: 1 });
 });
 
@@ -65,6 +70,25 @@ describe("submitFormAction: a post to a form built in the admin (D81)", () => {
     });
     expect(result).toEqual({ ok: true, data: { stored: false } });
     expect(readForm).not.toHaveBeenCalled();
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  it("finds the spam trap posted twice, with any copy filled", async () => {
+    const result = await submitFormAction({
+      market: "en-us",
+      form: "7",
+      answers: { ...answers, website: ["", "https://spam.example"] },
+    });
+    expect(result).toEqual({ ok: true, data: { stored: false } });
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  it("answers not-found for a form no footer or published page shows, and stores nothing", async () => {
+    placed.mockResolvedValueOnce([3]);
+    expect(await submitFormAction({ market: "en-us", form: "7", answers })).toMatchObject({
+      ok: false,
+      form: "not-found",
+    });
     expect(create).not.toHaveBeenCalled();
   });
 
@@ -123,22 +147,51 @@ describe("submitForm and formState: the island's state (T67)", () => {
     expect(create).toHaveBeenCalledTimes(1);
   });
 
-  it("types back what was sent, without the spam trap or Next's own fields", () => {
+  it("types back the form's own fields only, never what else was posted", () => {
     expect(
       formState(
         { ok: false, errors: { email: "pattern" } },
-        { name: "Ann", email: "ann@", website: "x", $ACTION_KEY: "k", list: ["a", "b"] },
+        {
+          name: "Ann",
+          email: "ann@",
+          website: "x",
+          $ACTION_KEY: "k",
+          list: ["a", "b"],
+          made: "up",
+        },
+        ["name", "email", "consent", "list"],
       ),
     ).toEqual({
       status: "error",
       errors: { email: "pattern" },
       values: { name: "Ann", email: "ann@" },
     });
-    expect(formState({ ok: false, errors: {}, form: "unavailable" }, {})).toEqual({
+    expect(formState({ ok: false, errors: {}, form: "unavailable" }, {}, [])).toEqual({
       status: "error",
       errors: {},
       values: {},
       form: "unavailable",
+    });
+  });
+
+  it("reads the names to type back from the post's form, and none for a form it cannot reach", async () => {
+    expect(await postedFieldNames({ market: "en-us", form: "7" })).toEqual([
+      "name",
+      "email",
+      "consent",
+    ]);
+    placed.mockResolvedValueOnce([]);
+    expect(await postedFieldNames({ market: "en-us", form: "7" })).toEqual([]);
+    expect(await postedFieldNames({ market: "atlantis", form: "7" })).toEqual([]);
+    expect(await postedFieldNames({ market: "en-us", form: "../7" })).toEqual([]);
+    const data = new FormData();
+    data.set("name", "Ann");
+    data.set("email", "ann@");
+    data.set("made", "up");
+    expect(await submitForm({ market: "en-us", form: "7" }, { status: "idle" }, data)).toEqual({
+      status: "error",
+      errors: { email: "pattern", consent: "required" },
+      values: { name: "Ann", email: "ann@" },
     });
   });
 

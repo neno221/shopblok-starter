@@ -1,7 +1,7 @@
 "use server";
 
 import { formDataToObject } from "./action";
-import { formState, submitFormAction } from "./form-handlers";
+import { formState, postedFieldNames, submitFormAction } from "./form-handlers";
 import type { FormState } from "./form-state";
 
 // The forms' server action (D81). The page binds the market's key and the form's id
@@ -20,5 +20,6 @@ export async function submitForm(
     string,
     unknown
   >;
-  return formState(await submitFormAction({ market, form, answers }), answers);
+  const result = await submitFormAction({ market, form, answers });
+  return formState(result, answers, result.ok ? [] : await postedFieldNames({ market, form }));
 }

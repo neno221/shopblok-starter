@@ -8,8 +8,8 @@ import { adminToken, base } from "./support/server";
 // `E2E_TEST_ROUTES=true`), and the footer's newsletter (the seeded "Newsletter", T67's footer seed)
 // on the US home. Each is sent with scripts and without, and the submission is read back through
 // the REST API as the bootstrap admin. The REST `create` is closed (403, even for an admin), a
-// filled spam trap answers "thank you" and stores nothing, and an e-mail the server refuses is
-// marked on its field. The page and the submissions are deleted afterwards.
+// form with submissions cannot be deleted, a filled spam trap answers "thank you" and stores
+// nothing, and an e-mail the server refuses is marked on its field. The page and the submissions are deleted afterwards.
 
 const stamp = Date.now().toString(36);
 const slug = `e2e-forms-${stamp}`;
@@ -192,6 +192,16 @@ test.describe("the forms (T67)", () => {
       expect(new URL(page.url()).hash).toMatch(/^#form-/);
     });
     expect(await submissionsWith(token, contact, email)).toHaveLength(1);
+  });
+
+  test("keeps a form with submissions: deleting it answers 400 and says how", async () => {
+    const response = await fetch(`${base()}/api/forms/${contact}`, {
+      method: "DELETE",
+      headers: headers(token),
+    });
+    expect(response.status).toBe(400);
+    expect(await response.text()).toContain("an admin deletes them under Form Submissions first");
+    await api(token, "GET", `/api/forms/${contact}?depth=0`);
   });
 
   test("marks an e-mail the server refuses on its field, keeping what was typed", async ({

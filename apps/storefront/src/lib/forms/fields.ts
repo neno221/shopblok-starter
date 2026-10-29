@@ -5,6 +5,7 @@ import {
   type FormField as FormFieldView,
 } from "@shopblok/registry/contracts";
 import { z } from "zod";
+import { text } from "../text";
 
 // D81's forms, between Payload's form builder and the shop: the fields an editor built, as the
 // `formBlock` section draws them, and the zod schema the server action checks the answers with.
@@ -30,9 +31,6 @@ export type StoredFormField = {
   options?: { label?: string | null; value?: string | null }[] | null;
   message?: unknown;
 };
-
-const text = (value: unknown): string | undefined =>
-  typeof value === "string" && value.trim() !== "" ? value : undefined;
 
 /** The plugin's width is a percentage: half or less shares a row (the section's two columns). */
 const widthOf = (width: number | null | undefined): "half" | "full" =>
@@ -65,10 +63,11 @@ function fieldView(field: StoredFormField, index: number): FormFieldView | undef
           kind: "select",
           ...base,
           options: (field.options ?? []).flatMap((option) => {
-            const value = text(option.value);
+            // Trimmed, as a posted answer is (`posted`), so the value drawn is the value accepted.
+            const value = text(option.value)?.trim();
             return value === undefined ? [] : [{ label: text(option.label) ?? value, value }];
           }),
-          defaultValue,
+          defaultValue: defaultValue?.trim(),
           placeholder: text(field.placeholder),
         };
       case "checkbox":
@@ -84,7 +83,7 @@ function fieldView(field: StoredFormField, index: number): FormFieldView | undef
 /**
  * A form's fields as the section draws them: each that can be drawn, in the editor's order. A field
  * with a name that is not a field name, or the spam trap's, is left out (the admin refuses both on
- * save, `checkFieldNames`), and so is a second field of one name.
+ * save, `checkFields`), and so is a second field of one name.
  */
 export function formFields(fields: readonly StoredFormField[] | null | undefined): FormFieldView[] {
   const seen = new Set<string>([HONEYPOT_FIELD]);
@@ -98,13 +97,18 @@ export function formFields(fields: readonly StoredFormField[] | null | undefined
   });
 }
 
+/** The most a text or text area's answer may hold (D81), which its default may not pass. */
+const DEFAULT_LIMITS: Partial<Record<string, number>> = {
+  text: FORM_LIMITS.text,
+  textarea: FORM_LIMITS.textarea,
+};
+
 /**
- * Why a form's field names cannot be saved, or `true` (the admin's check on the plugin's `fields`):
- * each a field name (letters, digits, `-` and `_`, from a letter), none the spam trap's, each once.
+ * Why a form's fields cannot be saved, or `true` (the admin's check on the plugin's `fields`): each
+ * a field name (letters, digits, `-` and `_`, from a letter), none the spam trap's, each once, and
+ * no default longer than the answer the server takes, which would refuse every post that keeps it.
  */
-export function checkFieldNames(
-  fields: readonly StoredFormField[] | null | undefined,
-): string | true {
+export function checkFields(fields: readonly StoredFormField[] | null | undefined): string | true {
   const seen = new Set<string>();
   for (const field of fields ?? []) {
     if (field.blockType === "message") continue;
@@ -115,14 +119,25 @@ export function checkFieldNames(
       return `“${HONEYPOT_FIELD}” is the spam trap's name: give this field another.`;
     if (seen.has(name)) return `Each field needs a name of its own: “${name}” is used twice.`;
     seen.add(name);
+    const limit = DEFAULT_LIMITS[field.blockType];
+    if (
+      limit !== undefined &&
+      typeof field.defaultValue === "string" &&
+      field.defaultValue.trim().length > limit
+    )
+      return `The default of “${name}” is longer than a visitor may send: keep it to ${limit} characters.`;
   }
   return true;
 }
 
-/** A posted text: trimmed, and empty as missing, so an optional field may be left blank. */
+/**
+ * A posted text: its line breaks as `\n`, trimmed, and empty as missing, so an optional field may
+ * be left blank. A text area posts each line break as CRLF, but the browser's `maxLength` counts
+ * it once: counted as posted, a message the browser allowed could be refused for its length.
+ */
 const posted = (value: unknown) => {
   if (typeof value !== "string") return value;
-  const trimmed = value.trim();
+  const trimmed = value.replace(/\r\n?/g, "\n").trim();
   return trimmed === "" ? undefined : trimmed;
 };
 

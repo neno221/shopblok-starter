@@ -18,6 +18,7 @@ import type { z } from "zod";
 import type { Media, Page } from "../../../payload-types";
 import { languageLabel } from "../../../payload/locales";
 import type { Market, MarketMap } from "../../markets/types";
+import { text } from "../../text";
 import { formFields, type StoredFormField } from "../../forms/fields";
 import { resolveLink, type InternalPaths, type LinkValue } from "../link";
 import { mediaImage } from "../shell";
@@ -77,9 +78,6 @@ function defined<T extends Record<string, unknown>>(
     Object.entries(value).filter(([, each]) => each !== null && each !== undefined && each !== ""),
   ) as Partial<Defined<T>>;
 }
-
-const text = (value: string | null | undefined): string | undefined =>
-  typeof value === "string" && value.trim() !== "" ? value : undefined;
 
 const SETTINGS = ["anchor", "spacing", "surface", "container", "visibility"] as const;
 
