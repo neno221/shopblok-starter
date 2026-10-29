@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { publishGlobal } from "./support/globals";
+import { publishGlobal, snapshotGlobal, type GlobalData } from "./support/globals";
 import { api, PNG, syncedId, upload } from "./support/payload-rest";
 import { adminToken, base, freshWithinTwo, settled } from "./support/server";
 
@@ -345,7 +345,7 @@ test.describe("the catalog's content from Payload (T69)", () => {
   let categoryId = 0;
   let picture = { id: 0, filename: "" };
   let banner = { id: 0, filename: "" };
-  let delivery: unknown;
+  let settings: GlobalData | undefined;
   const uploads: number[] = [];
 
   /** The HTML of a page, from Node, as a crawler gets it. */
@@ -364,12 +364,7 @@ test.describe("the catalog's content from Payload (T69)", () => {
     }
     productId = await syncedId("products", PRODUCT);
     categoryId = await syncedId("categories", CATEGORY);
-    const settings = await api<{ deliveryAndReturns?: unknown }>(
-      token,
-      "GET",
-      "/api/globals/site-settings?locale=en&depth=0",
-    );
-    delivery = settings.deliveryAndReturns ?? null;
+    settings = await snapshotGlobal(token, "site-settings");
   });
 
   test.afterAll(async () => {
@@ -389,8 +384,8 @@ test.describe("the catalog's content from Payload (T69)", () => {
         }),
       );
     }
-    if (delivery !== undefined)
-      await quietly(publishGlobal(token, "site-settings", { deliveryAndReturns: delivery }));
+    if (settings !== undefined)
+      await quietly(publishGlobal(token, "site-settings", settings, "all"));
     for (const id of uploads) await quietly(api(token, "DELETE", `/api/media/${id}`));
   });
 
@@ -401,9 +396,6 @@ test.describe("the catalog's content from Payload (T69)", () => {
       richDescription: description("en"),
       gallery: [picture.id],
     });
-    await api(token, "PATCH", `/api/products/${productId}?locale=el`, {
-      richDescription: description("el"),
-    });
 
     const us = async () => html(`/us/products/${PRODUCT}`);
     expect(
@@ -413,12 +405,22 @@ test.describe("the catalog's content from Payload (T69)", () => {
     expect(english).toMatch(new RegExp(`<h3>${WORDS.heading.en}</h3>`));
     expect(english).toContain(`<strong>${WORDS.strong.en}</strong>`);
     expect(english).toContain('data-slot="product-info-rich"');
-    // The market's language, never another's (ADR 0003).
-    expect(english).not.toContain(WORDS.heading.el);
     // The picture after Medusa's, in the gallery (the same in every language: it is not localized).
     expect(english).toContain(imageOf(picture.filename));
 
+    // Written in English only: the Greek page has the picture (so it is the new page) and keeps
+    // Medusa's Greek description, not the English text (PR 99 review, item 1).
     const cy = async () => html(`/products/${PRODUCT}`);
+    expect(
+      await seenWithinTwo(async () => (await cy()).includes(imageOf(picture.filename))),
+    ).toBeGreaterThan(0);
+    const untranslated = await cy();
+    expect(untranslated).not.toContain(WORDS.heading.en);
+    expect(untranslated).not.toContain(WORDS.strong.en);
+
+    await api(token, "PATCH", `/api/products/${productId}?locale=el`, {
+      richDescription: description("el"),
+    });
     expect(
       await seenWithinTwo(async () => (await cy()).includes(WORDS.heading.el)),
     ).toBeGreaterThan(0);
@@ -426,6 +428,8 @@ test.describe("the catalog's content from Payload (T69)", () => {
     expect(greek).toContain(`<strong>${WORDS.strong.el}</strong>`);
     expect(greek).not.toContain(WORDS.heading.en);
     expect(greek).toContain(imageOf(picture.filename));
+    // The market's language, never another's.
+    expect(await us()).not.toContain(WORDS.heading.el);
   });
 
   test("the delivery text edited in site-settings shows on every product page", async () => {

@@ -1,7 +1,8 @@
 import { base } from "./server";
 
-// Payload's REST API from Node as the bootstrap admin (T69): a JSON call, an upload, and a synced
-// document's id by its handle. `Origin` is what Payload's CSRF check compares on a write.
+// Payload's REST API from Node as the bootstrap admin (T69): the one place for its headers, a call
+// that returns Payload's answer, one that throws unless it is a 2xx, an upload, and a synced
+// document's id by its handle. `globals.ts` and the specs build on these.
 
 /** A 1 × 1 PNG; Payload stores its size, so the image has the width and height a page needs. */
 export const PNG = Buffer.from(
@@ -9,10 +10,27 @@ export const PNG = Buffer.from(
   "base64",
 );
 
-const headers = (token: string) => ({
+/** The admin's token, and `Origin`, which Payload's CSRF check compares on a write. */
+export const adminHeaders = (token: string) => ({
   Authorization: `JWT ${token}`,
   Origin: new URL(base()).origin,
 });
+
+/** A JSON call; returns the status and the body, parsed on demand. */
+export async function rest<T = Record<string, unknown>>(
+  token: string,
+  method: string,
+  path: string,
+  body?: unknown,
+) {
+  const response = await fetch(`${base()}${path}`, {
+    method,
+    headers: { ...adminHeaders(token), "content-type": "application/json" },
+    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+  });
+  const text = await response.text();
+  return { status: response.status, ok: response.ok, text, json: () => JSON.parse(text) as T };
+}
 
 /** A JSON call; throws with Payload's answer unless it is a 2xx. */
 export async function api<T = Record<string, unknown>>(
@@ -21,14 +39,9 @@ export async function api<T = Record<string, unknown>>(
   path: string,
   body?: unknown,
 ): Promise<T> {
-  const response = await fetch(`${base()}${path}`, {
-    method,
-    headers: { ...headers(token), "content-type": "application/json" },
-    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-  });
-  if (!response.ok)
-    throw new Error(`${method} ${path} answered ${response.status}: ${await response.text()}`);
-  return (await response.json()) as T;
+  const answer = await rest<T>(token, method, path, body);
+  if (!answer.ok) throw new Error(`${method} ${path} answered ${answer.status}: ${answer.text}`);
+  return answer.json();
 }
 
 /** Uploads a file to `media` with its English alternative text; returns its id and file name. */
@@ -44,7 +57,7 @@ export async function upload(
   form.append("_payload", JSON.stringify({ alt }));
   const response = await fetch(`${base()}/api/media?locale=en`, {
     method: "POST",
-    headers: headers(token),
+    headers: adminHeaders(token),
     body: form,
   });
   if (!response.ok)

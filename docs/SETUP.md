@@ -6832,7 +6832,7 @@ The review (`reviews/pr-98-code-review.md`) had five must-fix findings and one c
 
 ### Checks (cloud VM, Node 22.23.4, the compose stack)
 
-- `lint`, `typecheck` and `test` exit 0 for every workspace with no `.env` (CI's state): the storefront 3731, ui 5731, `scripts` 431, the registry 228, the fixtures 467, i18n 108, `@shopblok/integrations` 14, the backend 170. `generate:types` is current; `generate:importmap` reorders the import map (the products' rich description is now the first rich text field in the config), committed.
+- `lint`, `typecheck` and `test` exit 0 for every workspace with no `.env` (CI's state): the storefront 3731 (3735 after the review), ui 5731, `scripts` 431, the registry 228, the fixtures 467, i18n 108, `@shopblok/integrations` 14, the backend 170. `generate:types` is current; `generate:importmap` reorders the import map (the products' rich description is now the first rich text field in the config), committed.
 - Against `next start` and Medusa: the default projects and the locales project pass **183 of 183** with `E2E_MEDUSA_LOG` (`catalog.spec.ts`'s four T69 cases among them).
 - `pnpm build` with no `.env` exits 0 (the reads return `null` without a database and the pages are M3's); `migrate:create --skip-empty` writes nothing.
 - First-load JS, `main` (`b009a17`) against this branch, both built with CI's settings: the product page 334.0 → 334.0 KB gz (1023.7 KB raw both), the listing pages 332.4 → 332.4, `/[market]` 330.5 → 330.5, search 322.1 → 321.6 (the listing results' own module), the admin 825.3 → 825.3. Before the two moves under "Where it differs" the listing pages measured 332.6 and the product page 334.1.
@@ -6840,4 +6840,10 @@ The review (`reviews/pr-98-code-review.md`) had five must-fix findings and one c
 
 ### Changes from the review of this PR
 
-REVIEW_TODO
+The review (`reviews/pr-99-code-review.md`) had three must-fix findings and three cleanups; all are fixed, each with a test shown failing without it. Skipped, by the rule (neither security nor a cleanup): 4, every sync write revalidating the document's content read.
+
+- **An untranslated text is not set in that language** (`lib/cms/catalog.ts`): the content read passes `fallbackLocale: false` instead of D73's English, so a description or intro written in English only leaves the Greek page with Medusa's Greek description rather than English text. The uploads are not localized and are unchanged. Tests: `catalog.test.ts`, and `catalog.spec.ts`'s rich description case now writes English first and checks that `/` has the new picture and not the English text (it failed with the English fallback: the English heading on `/`), then writes Greek.
+- **An emptied heading, quote or list is empty** (`catalog-content.ts`): after select-all and delete Lexical keeps the first block's type, so `{heading, children: []}` counted as written. Only text and the nodes that show without text (a rule, an upload, a relationship, a block) count now. Test in `catalog-content.test.ts`.
+- **A rename or delete in Medusa refreshes the links in the catalog's rich texts** (`synced-collection.ts`, `tags.ts`): the content read copies a linked product's, category's or collection's handle and deletion, so the `embedded` hook now revalidates `cms:catalog` with the content globals and the pages (`linkedTags`, which the media hook uses too). A link to a page needs nothing more: its address comes from the page-paths read (`pages:<locale>`), which the PDP and listing pages render with. Test in `synced.test.ts`.
+- **Cleanups:** `catalog.spec.ts` snapshots `site-settings` in every language and restores it with `publishGlobal(…, "all")`; `e2e/support/payload-rest.ts` holds the one set of REST headers and calls (`adminHeaders`, `rest`, `api`), which `globals.ts` and `cms-pages.spec.ts` now use; `cmsOrNothing` is gone (`cmsOrNull` with the shell's message); the placeholders here are filled.
+- **Checks:** `lint`, `typecheck` and the storefront's unit tests exit 0; against `next start` `catalog.spec.ts`, `cms-pages.spec.ts`, `payload-admin.spec.ts` and `shell.spec.ts` pass **52 of 52**. No client code changed, so the first-load table is as above.

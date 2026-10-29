@@ -32,7 +32,8 @@ describe("the catalog's content reads", () => {
     expect(query).toMatchObject({
       collection: "products",
       locale: "el",
-      fallbackLocale: "en",
+      // A text the market's language lacks falls back to Medusa's, not to English.
+      fallbackLocale: false,
       overrideAccess: false,
       user: null,
       depth: 1,

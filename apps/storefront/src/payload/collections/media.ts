@@ -1,7 +1,7 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { CollectionConfig } from "payload";
-import { mediaTags } from "../../lib/cms/tags";
+import { linkedTags } from "../../lib/cms/tags";
 import { isStaff } from "../access/roles";
 import { seedKey } from "../fields/seed-key";
 import { revalidateWhenChanged } from "../hooks/revalidate-on-publish";
@@ -58,7 +58,7 @@ export const Media: CollectionConfig = {
   // new alt text refreshes them (T61, T63, T69).
   hooks: revalidateWhenChanged({
     fields: ["filename", "url", "alt", "width", "height", "mimeType"],
-    tags: mediaTags,
+    tags: linkedTags,
   }),
   upload: {
     // `apps/storefront/media`, git-ignored (T01). A shared disk or bucket replaces it in production.

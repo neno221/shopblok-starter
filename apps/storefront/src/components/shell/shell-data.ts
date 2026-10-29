@@ -86,8 +86,8 @@ const orNothing = async <T>(read: Promise<T>, nothing: T): Promise<T> => {
   }
 };
 
-const cmsOrNothing = <T>(read: Promise<T | null>) =>
-  cmsOrNull(read, "shell: the header and footer use their defaults");
+/** What a failed shell read logs: the shell then draws `site.ts`'s defaults. */
+const SHELL_DEFAULTS = "shell: the header and footer use their defaults";
 
 /** The year the copyright line names: the build's, as a prerendered page keeps it. */
 const YEAR = new Date().getUTCFullYear();
@@ -110,10 +110,10 @@ export const getShellData = cache(async (): Promise<ShellData> => {
             ])
           : [[], []],
     ),
-    cmsOrNothing(readHeader(reader)),
-    cmsOrNothing(readFooter(reader)),
-    cmsOrNothing(readSiteSettings(reader)),
-    cmsOrNothing(readPagePaths(reader)),
+    cmsOrNull(readHeader(reader), SHELL_DEFAULTS),
+    cmsOrNull(readFooter(reader), SHELL_DEFAULTS),
+    cmsOrNull(readSiteSettings(reader), SHELL_DEFAULTS),
+    cmsOrNull(readPagePaths(reader), SHELL_DEFAULTS),
   ]);
   const choice = toMarketChoice(map, market, currencyForCountry(regions));
   const categories = toCategories(tree, hrefsFor(url));

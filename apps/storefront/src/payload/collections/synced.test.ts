@@ -146,6 +146,11 @@ describe("the content globals and the pages follow what they embed (T61, PR 94 r
       void update(config, { handle: "tee", deletedInMedusa: true }, { handle: "tee" });
       expect(tags()).toEqual(expect.arrayContaining(["pages:en", "pages:el", "payload:pages"]));
     });
+
+    it(`${config.slug}: and the catalog's content, whose rich texts link to it`, () => {
+      void update(config, { handle: "shirt" }, { handle: "tee" });
+      expect(tags()).toContain("cms:catalog");
+    });
   }
 
   it("media: a replaced file refreshes them and the pages too", () => {

@@ -16,21 +16,31 @@ export type CatalogContent<S extends CatalogContentSlug> = S extends "products"
   ? ProductContent
   : ListingContent;
 
-/** Nodes that hold nothing a reader sees by themselves. */
-const CONTAINERS = new Set(["root", "paragraph", "linebreak", "text"]);
+/**
+ * Nodes that show something without text: everything else (a paragraph, a heading, a quote, a
+ * list, a link) only wraps text, and is empty without it.
+ */
+const SHOWN_WITHOUT_TEXT = new Set([
+  "horizontalrule",
+  "upload",
+  "relationship",
+  "block",
+  "inlineBlock",
+]);
 
 /** Whether a Lexical node, or one under it, shows something: text, or a node such as a rule. */
 function showsSomething(node: unknown): boolean {
   if (node === null || typeof node !== "object") return false;
   const { type, text, children } = node as { type?: unknown; text?: unknown; children?: unknown };
   if (typeof text === "string" && text.trim() !== "") return true;
-  if (typeof type === "string" && !CONTAINERS.has(type)) return true;
+  if (typeof type === "string" && SHOWN_WITHOUT_TEXT.has(type)) return true;
   return Array.isArray(children) && children.some(showsSomething);
 }
 
 /**
  * A rich text field's value, or `null` when it is empty: never written, or emptied in the editor
- * (Lexical then keeps a root with one empty paragraph), so the page falls back to Medusa's text.
+ * (Lexical then keeps a root with one empty block: a paragraph, or the heading, quote or list the
+ * text started with), so the page falls back to Medusa's text.
  */
 export function richTextOrNull(value: unknown): LexicalState | null {
   if (value === null || typeof value !== "object") return null;

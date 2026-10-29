@@ -1,5 +1,5 @@
 import type { CollectionConfig, Field } from "payload";
-import { catalogContentTag, embeddingTags } from "../../lib/cms/tags";
+import { catalogContentTag, linkedTags } from "../../lib/cms/tags";
 import { isMedusaSync, staffOrMedusaSync } from "../access/roles";
 import {
   deletedInMedusaField,
@@ -40,12 +40,13 @@ export function syncedCollection({
   fields = [],
   content = [],
 }: SyncedCollection): CollectionConfig {
-  // The content globals and the pages' blocks embed a linked document's handle and whether Medusa
-  // deleted it (T61, T63): a rename or a delete in Medusa refreshes them, so neither the header nor
-  // a page links to a page that is gone.
+  // The content globals, the pages' blocks and the catalog's rich texts embed a linked document's
+  // handle and whether Medusa deleted it (T61, T63, T69): a rename or a delete in Medusa refreshes
+  // them, so neither the header, a page nor another product's description links to a page that is
+  // gone.
   const embedded = revalidateWhenChanged({
     fields: ["handle", "deletedInMedusa"],
-    tags: embeddingTags,
+    tags: linkedTags,
   });
   // The document's own content read (T69, `lib/cms/catalog.ts`), under its old and its new handle.
   const own = revalidateOnPublish({

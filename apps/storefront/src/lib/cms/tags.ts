@@ -36,5 +36,10 @@ export const catalogContentTag = (slug: CatalogContentSlug, handle: string) =>
 /** Every catalog content read's tag besides its own: what a replaced upload refreshes. */
 export const CATALOG_CONTENT_TAG = "cms:catalog";
 
-/** What a change to an upload refreshes in one language: whatever embeds it (T61, T63, T69). */
-export const mediaTags = (locale: string) => [...embeddingTags(locale), CATALOG_CONTENT_TAG];
+/**
+ * What a change to a document others embed refreshes in one language: the content globals, the
+ * pages and the catalog's content (T61, T63, T69). An upload's file is copied into each read, and a
+ * product's, category's or collection's handle and deletion into each link to it (a product's
+ * description linking to another product).
+ */
+export const linkedTags = (locale: string) => [...embeddingTags(locale), CATALOG_CONTENT_TAG];

@@ -1,6 +1,7 @@
 import { expect, test, type Browser, type Page } from "@playwright/test";
 import { adminCredentials } from "./support/admin-credentials";
 import { publishGlobal } from "./support/globals";
+import { rest } from "./support/payload-rest";
 import { adminToken, base, freshWithinTwo, settled } from "./support/server";
 
 // T65 (D80, D74): the editor's pages at their addresses, `{m}/[...slug]`, against a production
@@ -36,22 +37,8 @@ const encoded = (path: string) => path.split("/").map(encodeURIComponent).join("
 let token = "";
 const created: number[] = [];
 
-const headers = () => ({
-  Authorization: `JWT ${token}`,
-  Origin: new URL(base()).origin,
-  "content-type": "application/json",
-});
-
 /** A REST call as the bootstrap admin; returns the status and the parsed body. */
-async function api<T>(method: string, path: string, body?: unknown) {
-  const response = await fetch(`${base()}${path}`, {
-    method,
-    headers: headers(),
-    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-  });
-  const text = await response.text();
-  return { status: response.status, text, json: () => JSON.parse(text) as T };
-}
+const api = <T>(method: string, path: string, body?: unknown) => rest<T>(token, method, path, body);
 
 /** Creates a page in `locale` and returns its id; the test fails with Payload's answer otherwise. */
 async function createPage(data: Record<string, unknown>, locale = "en"): Promise<number> {

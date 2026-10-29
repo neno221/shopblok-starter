@@ -26,6 +26,19 @@ describe("richTextOrNull", () => {
     expect(richTextOrNull(state(paragraph("   "), paragraph("")))).toBeNull();
   });
 
+  it("is null for an emptied heading, quote or list (Lexical keeps the first block's type)", () => {
+    expect(richTextOrNull(state({ type: "heading", tag: "h3", children: [] }))).toBeNull();
+    expect(
+      richTextOrNull(state({ type: "quote", children: [{ type: "text", text: " " }] })),
+    ).toBeNull();
+    const emptyList = {
+      type: "list",
+      listType: "bullet",
+      children: [{ type: "listitem", children: [] }],
+    };
+    expect(richTextOrNull(state(emptyList))).toBeNull();
+  });
+
   it("keeps a text, and a node that shows by itself (a rule)", () => {
     const written = state(paragraph(""), paragraph("Soft cotton"));
     expect(richTextOrNull(written)).toBe(written);
