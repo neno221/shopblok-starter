@@ -8,7 +8,7 @@ import type { Messages } from "@shopblok/i18n";
 import type { SearchResultsPage } from "@shopblok/registry/contracts";
 import { cn } from "@shopblok/ui/lib/utils";
 import { SearchField } from "@shopblok/ui/molecules/search-field";
-import { ListingResults, listingResultsCopy, type ListingResultsCopy } from "./product-listing";
+import { ListingResults, listingResultsCopy, type ListingResultsCopy } from "./listing-results";
 
 type SearchResultsCopy = {
   field: Messages["molecules"]["searchField"];

@@ -454,7 +454,7 @@ describe("ProductInfoAccordions: the shop's rich text (T69)", () => {
     expect(more).toEqual([]);
     expect(rich?.closest('[data-slot="accordion-content"]')).toBe(panelAt(0));
     expect(rich?.getAttribute("data-slot")).toBe("product-info-rich");
-    expect(tokens(rich)).toContain("max-w-prose");
+    expect(tokens(rich ?? null)).toContain("max-w-prose");
     expect(within(rich as HTMLElement).getByRole("heading", { level: 3 }).textContent).toBe(
       "Soft cotton",
     );

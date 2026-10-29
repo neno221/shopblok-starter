@@ -1,5 +1,4 @@
 import type {
-  Image,
   ProductCard,
   ProductDetail,
   ProductDetailPage,
@@ -9,7 +8,6 @@ import type {
   VariantSelection,
 } from "@shopblok/registry/contracts";
 import { stickyFor } from "@shopblok/ui/organisms/buy-box-choice";
-import { PLACEHOLDER_IMAGE } from "./common";
 
 // The product page's template data (D61, T49) from the product's view model: the default choice the
 // server renders (the island then reads `?variant=`), the information sections, the reviews' empty
@@ -56,19 +54,6 @@ function paragraphs(text: string): string[] {
     .split(/\n\s*\n/)
     .map((part) => part.replace(/\s+/g, " ").trim())
     .filter((part) => part !== "");
-}
-
-/** The most pictures the gallery takes (`ProductGallery`). */
-export const MAX_GALLERY_MEDIA = 24;
-
-/**
- * The product's pictures with the shop's after Medusa's (D83, T69): Medusa's placeholder goes once
- * the shop has a picture, and the gallery keeps its 24.
- */
-export function withShopPictures(detail: ProductDetail, pictures: readonly Image[]): ProductDetail {
-  if (pictures.length === 0) return detail;
-  const own = detail.media.filter((each) => each.src !== PLACEHOLDER_IMAGE.src);
-  return { ...detail, media: [...own, ...pictures].slice(0, MAX_GALLERY_MEDIA) };
 }
 
 /** The ids of the information's sections the shop's rich text may fill (`slots.richText`). */

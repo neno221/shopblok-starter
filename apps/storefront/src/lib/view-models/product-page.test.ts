@@ -4,12 +4,11 @@ import { describe, expect, it } from "vitest";
 import { PLACEHOLDER_IMAGE } from "./common";
 import {
   defaultSelection,
-  MAX_GALLERY_MEDIA,
   RELATED_PRODUCTS,
   selectionForVariant,
   toProductDetailPage,
-  withShopPictures,
 } from "./product-page";
+import { MAX_GALLERY_MEDIA, withShopPictures } from "./product-pictures";
 
 const page = pageFixtures.en.productDetail;
 const detail = page.buyBox.product;

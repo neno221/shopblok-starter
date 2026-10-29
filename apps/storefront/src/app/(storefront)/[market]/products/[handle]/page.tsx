@@ -48,8 +48,8 @@ import {
   INFO_SECTION,
   RELATED_PRODUCTS,
   toProductDetailPage,
-  withShopPictures,
 } from "../../../../../lib/view-models/product-page";
+import { withShopPictures } from "../../../../../lib/view-models/product-pictures";
 
 // D58, D61 (T49): the product page, in the static shell. Everything the server draws comes from
 // `cached()` entries (the product, the related products, the map, the region), so the route is
