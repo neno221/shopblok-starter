@@ -1,5 +1,5 @@
 import type { Image } from "@shopblok/registry/contracts";
-import type { CategoryNode } from "../../medusa/categories";
+import { flattenCategories, type CategoryNode } from "../../medusa/categories";
 import type { CollectionDto } from "../../medusa/collections";
 import type { ProductDto } from "../../medusa/products";
 import type { SearchFilters, SearchSort } from "../../medusa/search";
@@ -34,6 +34,11 @@ export type CatalogReads = {
   tagId: (value: string) => Promise<string | null>;
   /** The ids of a product type's products by the type's value (none when no type has it). */
   typeProductIds: (value: string) => Promise<string[]>;
+  /**
+   * A category's own picture by its handle: the `image` an editor set on its Payload document
+   * (T69, D83), or `undefined`. Not Medusa's, which has no picture for a category.
+   */
+  categoryImage: (handle: string) => Promise<Image | undefined>;
 };
 
 /** How many of a category's newest products are looked at for a picture (M3's home, T51). */
@@ -43,6 +48,23 @@ export const PICTURE_CANDIDATES = 4;
 function usablePicture(product: ProductDto): Image | undefined {
   const thumbnail = product.thumbnail === null ? [] : [toProductImage(product.thumbnail, "")];
   return [...toImages(product), ...thumbnail].find((image) => image.src !== PLACEHOLDER_IMAGE.src);
+}
+
+/**
+ * A category tile's picture (D83): the category's own (an editor's, T69) when it has one, else
+ * `categoryPicture`'s. Decoration either way, since the tile's name says where it goes. M3's home
+ * and the category showcase share it; an editor's picture on the block itself still comes first.
+ */
+export async function categoryTilePicture(
+  reads: Pick<CatalogReads, "search" | "products" | "categoryImage">,
+  node: CategoryNode,
+): Promise<Image | undefined> {
+  const own = await reads.categoryImage(node.handle);
+  if (own !== undefined) return { ...own, alt: "" };
+  return categoryPicture(
+    reads,
+    flattenCategories([node]).map((each) => each.id),
+  );
 }
 
 /**

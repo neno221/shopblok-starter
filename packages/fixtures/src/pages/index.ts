@@ -46,6 +46,12 @@ export type PageFixtures = {
    * organisms' twelve cards and filters (two chosen), and the same page with no product.
    */
   productListing: ProductListingPage;
+  /**
+   * The same page with the shop's own content on its category (T69, D83): an editor's banner, and
+   * the words of the introduction a story draws as the template's `slots.intro` (rich text is the
+   * storefront's, not a contract).
+   */
+  productListingContent: { page: ProductListingPage; intro: string };
   /** The search page for `search.query` (T50): the same results, by relevance, the query kept. */
   searchResults: SearchResultsPage;
   /**
@@ -225,6 +231,17 @@ function pagesFor(locale: DesignSystemLocale): PageFixtures {
       breadcrumbs: { trail: trail.length > 0 ? trail : [category], current: category.label },
       title: category.label,
       results: results("newest", [scope]),
+    },
+    productListingContent: {
+      page: {
+        variant: "default",
+        breadcrumbs: { trail: trail.length > 0 ? trail : [category], current: category.label },
+        title: category.label,
+        // The editor's alternative text (the media's): the banner is a picture, not decoration.
+        banner: fixtureImage({ seed: 44, ratio: "3:1", alt: category.label }),
+        results: results("newest", [scope]),
+      },
+      intro: copy.listingPage.intro,
     },
     searchResults: {
       variant: "default",

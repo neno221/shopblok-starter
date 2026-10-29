@@ -169,6 +169,8 @@ export const fr: Copy = {
       priceDesc: "Prix : décroissant",
     },
     resultsFor: "Résultats pour « sweat »",
+    intro:
+      "Des sweats à capuche en coton épais, gratté tout doux à l’intérieur et coupés pour se superposer. Des couleurs teintes en pièce qui s’embellissent à chaque lavage.",
   },
   carousel: { title: "Nouveautés", viewAll: "Voir toutes les nouveautés" },
   productPage: {

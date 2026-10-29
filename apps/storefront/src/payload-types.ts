@@ -489,7 +489,7 @@ export interface Media {
   };
 }
 /**
- * Follows Medusa. Edit these fields in Medusa Admin; the sync writes them here.
+ * Follows Medusa: its name, handle and the other greyed-out fields are edited in Medusa Admin, and the sync writes them here. The fields below them are the shop's own content, and a save shows on the shop at once.
  *
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "categories".
@@ -501,6 +501,32 @@ export interface Category {
   handle: string;
   parent?: (number | null) | Category;
   rank?: number | null;
+  /**
+   * The tile's picture on the home's category tiles. Empty: its newest product's.
+   */
+  image?: (number | null) | Media;
+  /**
+   * A wide picture at the top of its listing page, under the title.
+   */
+  banner?: (number | null) | Media;
+  /**
+   * A few lines under the title of its listing page.
+   */
+  intro?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ("ltr" | "rtl") | null;
+      format: "left" | "start" | "center" | "right" | "end" | "justify" | "";
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
   deletedInMedusa?: boolean | null;
   medusaUpdatedAt?: string | null;
   syncedAt?: string | null;
@@ -508,7 +534,7 @@ export interface Category {
   createdAt: string;
 }
 /**
- * Follows Medusa. Edit these fields in Medusa Admin; the sync writes them here.
+ * Follows Medusa: its name, handle and the other greyed-out fields are edited in Medusa Admin, and the sync writes them here. The fields below them are the shop's own content, and a save shows on the shop at once.
  *
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "collections".
@@ -518,6 +544,32 @@ export interface ProductCollection {
   medusaId: string;
   title: string;
   handle: string;
+  /**
+   * The tile's picture on the home's category tiles. Empty: its newest product's.
+   */
+  image?: (number | null) | Media;
+  /**
+   * A wide picture at the top of its listing page, under the title.
+   */
+  banner?: (number | null) | Media;
+  /**
+   * A few lines under the title of its listing page.
+   */
+  intro?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ("ltr" | "rtl") | null;
+      format: "left" | "start" | "center" | "right" | "end" | "justify" | "";
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
   deletedInMedusa?: boolean | null;
   medusaUpdatedAt?: string | null;
   syncedAt?: string | null;
@@ -525,7 +577,7 @@ export interface ProductCollection {
   createdAt: string;
 }
 /**
- * Follows Medusa. Edit these fields in Medusa Admin; the sync writes them here.
+ * Follows Medusa: its name, handle and the other greyed-out fields are edited in Medusa Admin, and the sync writes them here. The fields below them are the shop's own content, and a save shows on the shop at once.
  *
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "products".
@@ -536,6 +588,28 @@ export interface Product {
   title: string;
   handle: string;
   thumbnail?: string | null;
+  /**
+   * Shown on the product page instead of Medusa's description. Empty: Medusa's description.
+   */
+  richDescription?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ("ltr" | "rtl") | null;
+      format: "left" | "start" | "center" | "right" | "end" | "justify" | "";
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  /**
+   * More pictures, shown after Medusa's in the product page's gallery.
+   */
+  gallery?: (number | Media)[] | null;
   deletedInMedusa?: boolean | null;
   medusaUpdatedAt?: string | null;
   syncedAt?: string | null;
@@ -2078,6 +2152,8 @@ export interface ProductsSelect<T extends boolean = true> {
   title?: T;
   handle?: T;
   thumbnail?: T;
+  richDescription?: T;
+  gallery?: T;
   deletedInMedusa?: T;
   medusaUpdatedAt?: T;
   syncedAt?: T;
@@ -2094,6 +2170,9 @@ export interface CategoriesSelect<T extends boolean = true> {
   handle?: T;
   parent?: T;
   rank?: T;
+  image?: T;
+  banner?: T;
+  intro?: T;
   deletedInMedusa?: T;
   medusaUpdatedAt?: T;
   syncedAt?: T;
@@ -2108,6 +2187,9 @@ export interface CollectionsSelect<T extends boolean = true> {
   medusaId?: T;
   title?: T;
   handle?: T;
+  image?: T;
+  banner?: T;
+  intro?: T;
   deletedInMedusa?: T;
   medusaUpdatedAt?: T;
   syncedAt?: T;

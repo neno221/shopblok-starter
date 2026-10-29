@@ -140,4 +140,17 @@ describe("ProductDetailTemplate", () => {
     expect(screen.queryByRole("main")).toBeNull();
     expect(slot("product-detail-template")?.id).toBe("template-product-detail");
   });
+
+  it("draws the page's rich texts in the information (T69), and no information without a section", () => {
+    const page = pageFixtures.en.productDetail;
+    const { unmount } = renderPage("en", {
+      info: { sections: [{ id: "description", title: "Description", blocks: [{ kind: "rich" }] }] },
+      slots: { richText: { description: <p>Brushed cotton, made to last.</p> } },
+    });
+    expect(slot("product-info-rich")?.textContent).toBe("Brushed cotton, made to last.");
+    unmount();
+    renderPage("en", { info: { ...page.info, sections: [] } });
+    expect(slot("product-info-accordions")).toBeNull();
+    expect(slot("reviews-section")).not.toBeNull();
+  });
 });

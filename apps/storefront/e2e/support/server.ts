@@ -37,3 +37,19 @@ export async function freshWithinTwo(
   await new Promise((resolve) => setTimeout(resolve, pauseMs));
   return (await shows()) ? 2 : 0;
 }
+
+/**
+ * Waits until `path` answers from a settled cache entry (`x-nextjs-cache: HIT`), so no
+ * regeneration is running. One that started before a publish, and ends after it, is stored as
+ * current with what it read before: the publish then shows only at the page's next regeneration,
+ * up to 30 s later (T65). `path` is sent as it is, so a caller encodes what needs it.
+ */
+export async function settled(path: string): Promise<void> {
+  for (let attempt = 0; attempt < 40; attempt++) {
+    const response = await fetch(`${base()}${path}`, { redirect: "manual" });
+    await response.text();
+    if (response.headers.get("x-nextjs-cache") === "HIT") return;
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+  throw new Error(`${path} never answered from a settled entry`);
+}

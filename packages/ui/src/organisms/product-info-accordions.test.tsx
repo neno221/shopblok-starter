@@ -2,8 +2,8 @@
 // happy-dom with Testing Library: the region and the section headings in the four catalogs, which
 // sections are open at first and what opens and closes them (a pointer, Enter, Space; the arrow
 // keys between the titles are Base UI's own and happy-dom does not run them), that a closed
-// section's text is still in the page, the four kinds of block (paragraphs, a
-// list, facts, a link), the heading level, `prefetch`, a long German and Greek title, and the
+// section's text is still in the page, the five kinds of block (paragraphs, a
+// list, facts, a link, the shop's rich text), the heading level, `prefetch`, a long German and Greek title, and the
 // files' rules. Pixels are not measurable here: the layout at 375, 768 and 1440 px, the facts'
 // columns, the 44 px rule and axe are the design system's own checks, which are the lead's.
 import { readFileSync } from "node:fs";
@@ -420,5 +420,45 @@ describe("ProductInfoAccordions", () => {
         .join("\n");
       expect(code).not.toMatch(/hiddenUntilFound/);
     });
+  });
+});
+
+describe("ProductInfoAccordions: the shop's rich text (T69)", () => {
+  const info: ProductInfo = {
+    sections: [
+      { id: "description", title: "Description", blocks: [{ kind: "rich" }] },
+      {
+        id: "delivery",
+        title: "Delivery",
+        blocks: [{ kind: "text", paragraphs: ["Ships in 2 days."] }, { kind: "rich" }],
+      },
+    ],
+  };
+
+  it("draws the page's rich text where a section has its rich block, with the editor's text's look", () => {
+    setup("en", {
+      ...info,
+      defaultOpen: ["description", "delivery"],
+      rich: {
+        description: (
+          <>
+            <h3>Soft cotton</h3>
+            <p>
+              Brushed inside, <strong>heavy</strong> outside.
+            </p>
+          </>
+        ),
+      },
+    });
+    const [rich, ...more] = all("product-info-rich");
+    expect(more).toEqual([]);
+    expect(rich?.closest('[data-slot="accordion-content"]')).toBe(panelAt(0));
+    expect(rich?.getAttribute("data-slot")).toBe("product-info-rich");
+    expect(tokens(rich ?? null)).toContain("max-w-prose");
+    expect(within(rich as HTMLElement).getByRole("heading", { level: 3 }).textContent).toBe(
+      "Soft cotton",
+    );
+    // A rich block with no text for its section draws nothing; the section's other blocks stay.
+    expect(plain(panelAt(1).textContent)).toBe("Ships in 2 days.");
   });
 });

@@ -24,7 +24,9 @@
 //   `link` is a next/link at least 44 px tall, on a line of its own and not in a sentence. A link
 //   the contract marks `external` stays in the same tab: the catalog has no "opens in a new tab"
 //   note for it (the announcement bar makes the same choice). Every link takes `prefetch` from the
-//   prop. `locale` is part of the props every organism takes; nothing here formats a number or a
+//   prop. `rich` (T69) is the shop's rich text for the section, `rich[section.id]`: an editor's
+//   description or delivery text that the storefront renders from Payload as plain elements, drawn
+//   with the editor's text's look (`Prose`, the sections' own); nothing when the page passed none. `locale` is part of the props every organism takes; nothing here formats a number or a
 //   date, so it is not used.
 import type { Messages } from "@shopblok/i18n";
 import type { ProductInfo, ProductInfoBlock } from "@shopblok/registry/contracts";
@@ -32,6 +34,7 @@ import { Link } from "@shopblok/ui/atoms/link";
 import { cn } from "@shopblok/ui/lib/utils";
 import { AccordionItem } from "@shopblok/ui/molecules/accordion-item";
 import { Accordion } from "@shopblok/ui/primitives/accordion";
+import { Prose } from "@shopblok/ui/sections/prose";
 import type * as React from "react";
 
 type ProductInfoAccordionsProps = ProductInfo & {
@@ -45,6 +48,8 @@ type ProductInfoAccordionsProps = ProductInfo & {
   headingLevel?: 2 | 3 | 4;
   /** next/link's `prefetch` for every link; the design system passes `false`. */
   prefetch?: boolean | null;
+  /** The sections' rich texts by section id, drawn where a section has its `rich` block (T69). */
+  rich?: Readonly<Record<string, React.ReactNode>>;
   className?: string;
 };
 
@@ -55,11 +60,15 @@ type LinkHref = React.ComponentProps<typeof Link>["href"];
 function Block({
   block,
   prefetch,
+  rich,
 }: {
   block: ProductInfoBlock;
   prefetch: boolean | null | undefined;
+  rich: React.ReactNode;
 }) {
   switch (block.kind) {
+    case "rich":
+      return rich == null ? null : <Prose data-slot="product-info-rich">{rich}</Prose>;
     case "text":
       return (
         // The molecule's body puts 1 rem under every paragraph but the last, so no gap here.
@@ -121,6 +130,7 @@ function ProductInfoAccordions({
   defaultOpen,
   headingLevel = 2,
   prefetch,
+  rich = {},
   className,
 }: ProductInfoAccordionsProps) {
   const open = defaultOpen ?? sections.slice(0, 1).map((section) => section.id);
@@ -140,7 +150,7 @@ function ProductInfoAccordions({
           >
             <div className="flex flex-col gap-4">
               {section.blocks.map((block, index) => (
-                <Block key={index} block={block} prefetch={prefetch} />
+                <Block key={index} block={block} prefetch={prefetch} rich={rich[section.id]} />
               ))}
             </div>
           </AccordionItem>

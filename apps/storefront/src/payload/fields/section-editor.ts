@@ -24,18 +24,28 @@ const LEFT_OUT = new Set([
   "link",
 ]);
 
+type HeadingSize = "h2" | "h3" | "h4";
+
 /**
  * The editor of a block's rich text (T63): paragraphs, `h2` to `h4` (the page's title is its
  * `h1`), lists, quotes, rules, the inline styles, and links. An internal link points at a catalog
  * document (SPEC §7.5) and resolves to the current market's URL when the page renders, as the
  * `link` field's do; a custom one is checked again there (`isSafeLinkUrl`).
  */
-export const sectionEditor = lexicalEditor({
-  features: ({ defaultFeatures }) => [
-    ...defaultFeatures.filter(
-      (feature: FeatureProviderServer<unknown, unknown, unknown>) => !LEFT_OUT.has(feature.key),
-    ),
-    HeadingFeature({ enabledHeadingSizes: ["h2", "h3", "h4"] }),
-    LinkFeature({ enabledCollections: [...CATALOG_COLLECTIONS] }),
-  ],
-});
+export const sectionEditor = textEditor(["h2", "h3", "h4"]);
+
+/**
+ * The same editor with other heading levels: a product's description sits in a section of the
+ * product page whose title is an `h2`, so its own headings start at `h3` (T69).
+ */
+export function textEditor(headings: HeadingSize[]) {
+  return lexicalEditor({
+    features: ({ defaultFeatures }) => [
+      ...defaultFeatures.filter(
+        (feature: FeatureProviderServer<unknown, unknown, unknown>) => !LEFT_OUT.has(feature.key),
+      ),
+      HeadingFeature({ enabledHeadingSizes: headings }),
+      LinkFeature({ enabledCollections: [...CATALOG_COLLECTIONS] }),
+    ],
+  });
+}

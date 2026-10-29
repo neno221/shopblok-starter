@@ -1,7 +1,8 @@
 import { expect, test, type Browser, type Page } from "@playwright/test";
 import { adminCredentials } from "./support/admin-credentials";
 import { publishGlobal } from "./support/globals";
-import { adminToken, base, freshWithinTwo } from "./support/server";
+import { rest } from "./support/payload-rest";
+import { adminToken, base, freshWithinTwo, settled } from "./support/server";
 
 // T65 (D80, D74): the editor's pages at their addresses, `{m}/[...slug]`, against a production
 // build with the seeded content (`seed-content`).
@@ -36,22 +37,8 @@ const encoded = (path: string) => path.split("/").map(encodeURIComponent).join("
 let token = "";
 const created: number[] = [];
 
-const headers = () => ({
-  Authorization: `JWT ${token}`,
-  Origin: new URL(base()).origin,
-  "content-type": "application/json",
-});
-
 /** A REST call as the bootstrap admin; returns the status and the parsed body. */
-async function api<T>(method: string, path: string, body?: unknown) {
-  const response = await fetch(`${base()}${path}`, {
-    method,
-    headers: headers(),
-    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-  });
-  const text = await response.text();
-  return { status: response.status, text, json: () => JSON.parse(text) as T };
-}
+const api = <T>(method: string, path: string, body?: unknown) => rest<T>(token, method, path, body);
 
 /** Creates a page in `locale` and returns its id; the test fails with Payload's answer otherwise. */
 async function createPage(data: Record<string, unknown>, locale = "en"): Promise<number> {
@@ -223,23 +210,6 @@ test("the seeded home draws M3's sections as blocks, in M3's order", async () =>
   // The homepage's canonical is the market's home, not the page's own address.
   expect(html).toMatch(/<link rel="canonical" href="https?:\/\/[^"]+\/us"\/>/);
 });
-
-/**
- * Waits until `path` answers from a settled cache entry (`x-nextjs-cache: HIT`), so no
- * regeneration is running. One that started before a publish, and ends after it, is stored as
- * current with what it read before: the publish then shows only at the page's next regeneration,
- * up to 30 s later. The pages made in `beforeAll` leave `/us` regenerating, and on a server just
- * started that takes over a second.
- */
-async function settled(path: string) {
-  for (let attempt = 0; attempt < 40; attempt++) {
-    const response = await get(path);
-    await response.text();
-    if (response.headers.get("x-nextjs-cache") === "HIT") return;
-    await new Promise((resolve) => setTimeout(resolve, 500));
-  }
-  throw new Error(`${path} never answered from a settled entry`);
-}
 
 test("the homepage follows site-settings.homepage", async () => {
   expect(homepage, "the seed names the Home (seed-content)").not.toBeNull();

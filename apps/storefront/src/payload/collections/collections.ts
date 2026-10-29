@@ -1,8 +1,10 @@
+import { listingContentFields } from "../fields/catalog-content";
 import { syncedCollection } from "./synced-collection";
 
-/** Medusa's product collections (D75). T69 adds the CMS fields. */
+/** Medusa's product collections (D75), with the shop's picture, banner and intro (D83). */
 export const Collections = syncedCollection({
   slug: "collections",
   labels: { singular: "Collection", plural: "Collections" },
   interfaceName: "ProductCollection",
+  content: listingContentFields(),
 });

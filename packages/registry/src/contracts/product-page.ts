@@ -98,7 +98,12 @@ export const MobileStickyATC = z.object({
     ),
 });
 
-/** One block of a section of product information: paragraphs, a list, a table of facts or a link. */
+/**
+ * One block of a section of product information: paragraphs, a list, a table of facts, a link, or
+ * the shop's rich text (an editor's description or delivery text, T69), which the storefront
+ * renders from Payload and passes to the organism by the section's id, so the registry stays free
+ * of Payload.
+ */
 export const ProductInfoBlock = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("text"), paragraphs: z.array(z.string().min(1)).min(1) }),
   z.object({ kind: z.literal("list"), items: z.array(z.string().min(1)).min(1) }),
@@ -107,6 +112,9 @@ export const ProductInfoBlock = z.discriminatedUnion("kind", [
     rows: z.array(z.object({ label: z.string().min(1), value: z.string().min(1) })).min(1),
   }),
   z.object({ kind: z.literal("link"), link: Link }),
+  z
+    .object({ kind: z.literal("rich") })
+    .describe("The section's rich text, passed beside the content (`rich[section.id]`)"),
 ]);
 
 export const ProductInfoSection = z.object({

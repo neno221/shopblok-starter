@@ -204,12 +204,13 @@ describe("the commerce fixtures", () => {
   });
 
   describe("the generated images", () => {
-    it("come in four aspect ratios with their intrinsic size, as data URIs", () => {
+    it("come in five aspect ratios with their intrinsic size, as data URIs", () => {
       expect(imageRatios).toEqual({
         "3:4": { width: 600, height: 800 },
         "1:1": { width: 800, height: 800 },
         "4:3": { width: 800, height: 600 },
         "16:9": { width: 1600, height: 900 },
+        "3:1": { width: 1500, height: 500 },
       });
       for (const [ratio, size] of Object.entries(imageRatios)) {
         const image = fixtureImage({ seed: 3, ratio: ratio as keyof typeof imageRatios, alt: "x" });
@@ -428,7 +429,9 @@ describe.each(designSystemLocales)("the %s fixtures", (locale) => {
       expectAllParse(EmptyStateContent, [filters, search, category], `${locale}.emptyStates`);
       expect(filters.text, `${locale}.emptyStates.filters`).toBeTruthy();
       // The way out of filters that match nothing is the listing without them, under the prefix.
-      expect(filters.action?.href).toBe(`${fixture.prefix}/categories/women/women-clothing/women-hoodies`);
+      expect(filters.action?.href).toBe(
+        `${fixture.prefix}/categories/women/women-clothing/women-hoodies`,
+      );
       expect(search.action?.href).toBe(fixture.prefix === "" ? "/" : fixture.prefix);
       expect(category.action, `${locale}.emptyStates.category`).toBeUndefined();
     });
@@ -698,7 +701,9 @@ describe.each(designSystemLocales)("the %s fixtures", (locale) => {
         for (const id of media.optionValueIds!) expect(colourIds.has(id), id).toBe(true);
       expect(product.breadcrumbs).toHaveLength(4);
       expect(at(product.breadcrumbs, 0).href).toBe(prefix === "" ? "/" : prefix);
-      expect(at(product.breadcrumbs, 3).href).toBe(`${prefix}/categories/women/women-clothing/women-hoodies`);
+      expect(at(product.breadcrumbs, 3).href).toBe(
+        `${prefix}/categories/women/women-clothing/women-hoodies`,
+      );
     });
 
     it("is a tree three levels deep with at least two roots", () => {

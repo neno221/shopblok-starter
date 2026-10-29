@@ -11,6 +11,9 @@
 //   choice, in the server's HTML (D61).
 // - The buy box, the sticky bar and the reviews link to each other by the ids in `PRODUCT_DETAIL_IDS`,
 //   so an island that draws them passes the same ones.
+// - The information's rich texts (an editor's description, the shop's delivery text, T69) are the
+//   page's too, `slots.richText`, since the registry holds no rich text. A product with no section
+//   at all (no description, and the shop emptied its delivery text) draws no information.
 // - `variant` is the contract's one value (D57); M5's variants change the layout here.
 import type { Messages } from "@shopblok/i18n";
 import type { ProductDetailPage } from "@shopblok/registry/contracts";
@@ -110,6 +113,11 @@ type ProductDetailTemplateProps = ProductDetailPage & {
     gallery?: React.ReactNode;
     /** The visitor's recently viewed products (a browser list), under the related ones. */
     recentlyViewed?: React.ReactNode;
+    /**
+     * The information's rich texts by section id (T69): an editor's description or delivery text,
+     * rendered by the shop, drawn where the section has its `rich` block.
+     */
+    richText?: Readonly<Record<string, React.ReactNode>>;
   };
   /** The ids the parts link each other by: `PRODUCT_DETAIL_IDS` unless given (one per DS state). */
   ids?: ProductDetailIds;
@@ -193,7 +201,15 @@ function ProductDetailTemplate({
           </div>
         </div>
       </div>
-      <ProductInfoAccordions {...info} copy={copy.info} locale={locale} prefetch={prefetch} />
+      {info.sections.length === 0 ? null : (
+        <ProductInfoAccordions
+          {...info}
+          copy={copy.info}
+          locale={locale}
+          prefetch={prefetch}
+          {...(slots.richText === undefined ? {} : { rich: slots.richText })}
+        />
+      )}
       <ReviewsSection
         {...reviews}
         id={ids.reviews}

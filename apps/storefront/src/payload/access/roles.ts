@@ -18,6 +18,9 @@ export const isAdmin: Access = ({ req }) => isAdminRequest(req);
 
 export const isStaff: Access = ({ req }) => staffUser(req) !== null;
 
+/** For a field: only staff may write it (a synced document's CMS fields, T69; never an integration). */
+export const isStaffField: FieldAccess = ({ req }) => staffUser(req) !== null;
+
 /** For a field: only admins may change it (a user's `role`). */
 export const isAdminField: FieldAccess = ({ req }) => isAdminRequest(req);
 

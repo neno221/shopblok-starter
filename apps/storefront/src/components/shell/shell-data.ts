@@ -11,6 +11,7 @@ import {
 } from "../../lib/cms/shell";
 import type { PagePaths } from "../../lib/cms/page-path";
 import { readPagePaths } from "../../lib/cms/pages";
+import { cmsOrNull } from "../../lib/cms/read";
 import { readFooter, readHeader, readSiteSettings } from "../../lib/cms/site";
 import { getCurrentMarket } from "../../lib/current-market";
 import { hrefsFor } from "../../lib/market-context";
@@ -85,14 +86,8 @@ const orNothing = async <T>(read: Promise<T>, nothing: T): Promise<T> => {
   }
 };
 
-const cmsOrNothing = async <T>(read: Promise<T | null>): Promise<T | null> => {
-  try {
-    return await read;
-  } catch (error) {
-    console.error("shell: a Payload read failed; the header and footer use their defaults", error);
-    return null;
-  }
-};
+/** What a failed shell read logs: the shell then draws `site.ts`'s defaults. */
+const SHELL_DEFAULTS = "shell: the header and footer use their defaults";
 
 /** The year the copyright line names: the build's, as a prerendered page keeps it. */
 const YEAR = new Date().getUTCFullYear();
@@ -115,10 +110,10 @@ export const getShellData = cache(async (): Promise<ShellData> => {
             ])
           : [[], []],
     ),
-    cmsOrNothing(readHeader(reader)),
-    cmsOrNothing(readFooter(reader)),
-    cmsOrNothing(readSiteSettings(reader)),
-    cmsOrNothing(readPagePaths(reader)),
+    cmsOrNull(readHeader(reader), SHELL_DEFAULTS),
+    cmsOrNull(readFooter(reader), SHELL_DEFAULTS),
+    cmsOrNull(readSiteSettings(reader), SHELL_DEFAULTS),
+    cmsOrNull(readPagePaths(reader), SHELL_DEFAULTS),
   ]);
   const choice = toMarketChoice(map, market, currencyForCountry(regions));
   const categories = toCategories(tree, hrefsFor(url));
