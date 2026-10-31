@@ -86,6 +86,14 @@ describe("buildConfig", () => {
     expect(buildConfig({}).admin?.storefrontUrl).toBeUndefined();
   });
 
+  it("registers the markets plugin, without options (M4b, D89)", () => {
+    for (const env of [{}, { NODE_ENV: "production", REDIS_URL }]) {
+      expect(buildConfig(env).plugins).toEqual([
+        { resolve: "@shopblok/medusa-markets", options: {} },
+      ]);
+    }
+  });
+
   it("turns the translation flag on", () => {
     expect(buildConfig({}).featureFlags).toEqual({ translation: true });
   });

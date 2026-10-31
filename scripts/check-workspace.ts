@@ -72,6 +72,8 @@ const reactTargets: {
     ],
   },
   { app: "apps/backend", version: "18.3.1", via: [] },
+  // The markets plugin's admin extensions bundle into Medusa Admin, which has React 18 (T73).
+  { app: "packages/medusa-markets", version: "18.3.1", via: [] },
   // packages/ui renders and tests components (D30): React and its types are peers and dev
   // dependencies there, so its own copy must be the storefront's.
   { app: "packages/ui", version: "19.3.0", types: "19", via: [{ name: "@base-ui/react" }] },

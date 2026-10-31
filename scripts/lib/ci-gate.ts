@@ -67,6 +67,7 @@ export const designSystemOnly: readonly DesignSystemArea[] = [
 const designSystemUnaffected: readonly (string | RegExp)[] = [
   // The backend, and the stack it runs on.
   "apps/backend/",
+  "packages/medusa-markets/",
   "infra/",
   "compose.yaml",
   // The storefront's own routes: the market pages, Payload's admin and API, and `/next/*`.

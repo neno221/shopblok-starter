@@ -20,6 +20,9 @@
       "outputs": [".next/**", "!.next/cache/**", ".medusa/server/**", "dist/**"]
     },
     "dev": {
+      // `^build`: the backend loads the markets plugin from its `.medusa/server`, which only a
+      // build makes (T73, D89). Without it a fresh clone starts Medusa without the plugin's module.
+      "dependsOn": ["^build"],
       "cache": false,
       "persistent": true,
       // Strict mode drops variables the task doesn't list, so `PAYLOAD_DB_PUSH=true pnpm dev`, a
@@ -41,6 +44,17 @@
     },
     "test": {
       "dependsOn": ["transit"]
+    },
+    // The backend's tests and type check load the markets plugin, which exists only once built
+    // (T73, D89). This package is the one exception to D3 ("no build step in packages/*").
+    "@shopblok/backend#typecheck": {
+      "dependsOn": ["transit", "@shopblok/medusa-markets#build"]
+    },
+    "@shopblok/backend#lint": {
+      "dependsOn": ["transit", "@shopblok/medusa-markets#build"]
+    },
+    "@shopblok/backend#test": {
+      "dependsOn": ["transit", "@shopblok/medusa-markets#build"]
     },
     "db:migrate": {
       "cache": false

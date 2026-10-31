@@ -318,6 +318,15 @@ function envFiles(): StepResult {
 // ---- 3. Medusa migrations -------------------------------------------------------------------
 
 async function medusaMigrations(ctx: Context): Promise<StepResult> {
+  // T73 (D89): the markets plugin is loaded from its `.medusa/server`, which a fresh clone does not
+  // have, and Medusa skips a plugin's modules without a word when the folder is missing (the
+  // migration below would not create its tables). So it is built first, every run (about 5 s).
+  const plugin = await run(
+    "pnpm",
+    ["--filter", "@shopblok/medusa-markets", "build"],
+    commandOptions(ctx),
+  );
+  if (plugin.code !== 0) throw failed("`medusa plugin:build` (@shopblok/medusa-markets)", plugin);
   // D17: this runs on every bootstrap and before the seeds. A currency added to
   // apps/backend/src/config/markets.ts changes the search index schema, and only db:migrate plans
   // the new index version (the next server start fills it).
