@@ -17,7 +17,6 @@ type SyncRun = {
   startedAt: string;
   finishedAt: string;
   collections: Record<"products" | "categories" | "collections", Counts>;
-  markets: "updated" | "unchanged" | "failed";
   errors: string[];
 };
 
@@ -52,8 +51,8 @@ const PayloadSettingsPage = () => {
         <div>
           <Heading level="h1">Payload</Heading>
           <Text size="small" className="text-ui-fg-subtle">
-            Products, categories, collections and the markets' regions, currencies and locales
-            follow Medusa into Payload on every change, and a reconcile runs every ten minutes.
+            Products, categories and collections follow Medusa into Payload on every change, and a
+            reconcile runs every ten minutes.
           </Text>
         </div>
         <Button
@@ -78,7 +77,7 @@ const PayloadSettingsPage = () => {
           <div className="flex flex-col gap-y-3">
             <Text size="small">
               Last run: {run.kind === "bulk" ? "bulk" : "reconcile"}, finished{" "}
-              {new Date(run.finishedAt).toLocaleString()}. Markets: {run.markets}.
+              {new Date(run.finishedAt).toLocaleString()}.
             </Text>
             <Table>
               <Table.Header>

@@ -13,7 +13,7 @@ const LOCALE = /^[a-z]{2,3}$/;
 // `pages` hook revalidates, `pages:<language>` and `payload:pages`. Those two are the shop's own
 // too (the cached reads of CMS pages carry them, T65), so a gate that failed open could still
 // refresh them; it could not touch the Medusa catalog (`medusa:*`) or the market map
-// (`global:markets`).
+// (`medusa:markets`).
 const ALLOWED_TAG = /^(?:e2e:[\w:-]+|pages:[a-z]{2,3}|payload:pages)$/;
 
 /** `GET ?locale=el` through one of the cached reads, as JSON. */

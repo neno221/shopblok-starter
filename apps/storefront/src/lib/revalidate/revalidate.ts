@@ -8,12 +8,13 @@ import { env, type RawEnv } from "../env";
 
 /**
  * The catalog's tags (D58): the ones the data layer's `cached()` reads carry, and the per-handle
- * ones. A handle is Medusa's (lowercase, digits, `-` and `_`); a category's may be nested
- * (`men/shirts`). Nothing else is accepted, so a leaked secret cannot reach the market map
- * (`global:markets`) or the CMS's tags.
+ * ones, and `medusa:markets` (the market map, D94). A handle is Medusa's (lowercase, digits, `-`
+ * and `_`); a category's may be nested (`men/shirts`). Nothing else is accepted, so a leaked
+ * secret cannot reach the CMS's tags. It can expire the market map, as it can already expire
+ * `medusa:regions`, but never write it: the next read asks Medusa again (D94).
  */
 const ALLOWED_TAG =
-  /^(?:medusa:(?:products|regions|categories|collections)|search|navigation|(?:product|category|collection):[a-z0-9][\w-]*(?:\/[a-z0-9][\w-]*)*)$/;
+  /^(?:medusa:(?:products|regions|markets|categories|collections)|search|navigation|(?:product|category|collection):[a-z0-9][\w-]*(?:\/[a-z0-9][\w-]*)*)$/;
 
 /** One event names a handful of tags; a request with more than this is not one of Medusa's. */
 const MAX_TAGS = 100;

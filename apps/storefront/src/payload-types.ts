@@ -230,13 +230,11 @@ export interface Config {
         | "mn"
       )[];
   globals: {
-    markets: Market;
     header: Header;
     footer: Footer;
     "site-settings": SiteSetting;
   };
   globalsSelect: {
-    markets: MarketsSelect<false> | MarketsSelect<true>;
     header: HeaderSelect<false> | HeaderSelect<true>;
     footer: FooterSelect<false> | FooterSelect<true>;
     "site-settings": SiteSettingsSelect<false> | SiteSettingsSelect<true>;
@@ -2604,156 +2602,6 @@ export interface PayloadMigrationsSelect<T extends boolean = true> {
   createdAt?: T;
 }
 /**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "markets".
- */
-export interface Market {
-  id: number;
-  countries?:
-    | {
-        code: string;
-        enabled?: boolean | null;
-        /**
-         * The default language first.
-         */
-        languages: (
-          | "en"
-          | "bg"
-          | "hr"
-          | "cs"
-          | "da"
-          | "nl"
-          | "et"
-          | "fi"
-          | "fr"
-          | "de"
-          | "el"
-          | "hu"
-          | "ga"
-          | "it"
-          | "lv"
-          | "lt"
-          | "mt"
-          | "pl"
-          | "pt"
-          | "ro"
-          | "sk"
-          | "sl"
-          | "es"
-          | "sv"
-          | "nb"
-          | "tr"
-          | "ru"
-          | "uk"
-          | "ar"
-          | "he"
-          | "hi"
-          | "bn"
-          | "th"
-          | "vi"
-          | "id"
-          | "ms"
-          | "tl"
-          | "zh"
-          | "ja"
-          | "ko"
-          | "ka"
-          | "mn"
-        )[];
-        /**
-         * A domain of its own for this country, if it has one.
-         */
-        domain?: string | null;
-        /**
-         * The IANA time zone this country's order dates are written in, for example Europe/Nicosia. UTC is used when this is empty (D65).
-         */
-        timeZone?: string | null;
-        id?: string | null;
-      }[]
-    | null;
-  languages?:
-    | {
-        code:
-          | "en"
-          | "bg"
-          | "hr"
-          | "cs"
-          | "da"
-          | "nl"
-          | "et"
-          | "fi"
-          | "fr"
-          | "de"
-          | "el"
-          | "hu"
-          | "ga"
-          | "it"
-          | "lv"
-          | "lt"
-          | "mt"
-          | "pl"
-          | "pt"
-          | "ro"
-          | "sk"
-          | "sl"
-          | "es"
-          | "sv"
-          | "nb"
-          | "tr"
-          | "ru"
-          | "uk"
-          | "ar"
-          | "he"
-          | "hi"
-          | "bn"
-          | "th"
-          | "vi"
-          | "id"
-          | "ms"
-          | "tl"
-          | "zh"
-          | "ja"
-          | "ko"
-          | "ka"
-          | "mn";
-        /**
-         * The Medusa locale this language uses (D8), one of Medusa's 51: el-GR for Greek, pt-BR or pt-PT for Portuguese.
-         */
-        medusaLocale: string;
-        /**
-         * Overrides the lang attribute of every country that uses this language, for example pt-BR.
-         */
-        htmlLang?: string | null;
-        id?: string | null;
-      }[]
-    | null;
-  primaryCountry?: string | null;
-  /**
-   * The market hreflang x-default points to, for example en-us.
-   */
-  fallbackMarket?: string | null;
-  /**
-   * What Medusa has, written by the Medusa sync (D76). Read-only: change regions, currencies and locales in Medusa Admin.
-   */
-  synced?: {
-    regions?:
-      | {
-          medusaId: string;
-          name: string;
-          currency: string;
-          countries?: string[] | null;
-          id?: string | null;
-        }[]
-      | null;
-    currencies?: string[] | null;
-    defaultCurrency?: string | null;
-    locales?: string[] | null;
-    syncedAt?: string | null;
-  };
-  updatedAt?: string | null;
-  createdAt?: string | null;
-}
-/**
  * The shop's header in every market. Texts are per language; a language without its own shows the English.
  *
  * This interface was referenced by `Config`'s JSON-Schema
@@ -3095,52 +2943,6 @@ export interface SiteSetting {
   _status?: ("draft" | "published") | null;
   updatedAt?: string | null;
   createdAt?: string | null;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "markets_select".
- */
-export interface MarketsSelect<T extends boolean = true> {
-  countries?:
-    | T
-    | {
-        code?: T;
-        enabled?: T;
-        languages?: T;
-        domain?: T;
-        timeZone?: T;
-        id?: T;
-      };
-  languages?:
-    | T
-    | {
-        code?: T;
-        medusaLocale?: T;
-        htmlLang?: T;
-        id?: T;
-      };
-  primaryCountry?: T;
-  fallbackMarket?: T;
-  synced?:
-    | T
-    | {
-        regions?:
-          | T
-          | {
-              medusaId?: T;
-              name?: T;
-              currency?: T;
-              countries?: T;
-              id?: T;
-            };
-        currencies?: T;
-        defaultCurrency?: T;
-        locales?: T;
-        syncedAt?: T;
-      };
-  updatedAt?: T;
-  createdAt?: T;
-  globalType?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

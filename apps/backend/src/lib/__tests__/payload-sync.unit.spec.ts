@@ -4,15 +4,12 @@ import { createPayloadClient, PayloadRequestError, toQuery } from "../../modules
 import {
   categoryDocument,
   collectionDocument,
-  marketsSynced,
   parentsFirst,
   productDocument,
-  sameMarkets,
   SYNCED_FIELDS,
   type MedusaCategory,
   type MedusaCollection,
   type MedusaProduct,
-  type MedusaRegion,
   type SyncDocument,
 } from "../../modules/payload/mapping";
 import { needsWrite } from "../payload-sync";
@@ -30,11 +27,8 @@ const fixture = JSON.parse(
     products: MedusaProduct[];
     categories: MedusaCategory[];
     collections: MedusaCollection[];
-    regions: MedusaRegion[];
-    store: Parameters<typeof marketsSynced>[1];
   };
   documents: Record<"products" | "categories" | "collections", SyncDocument[]>;
-  markets: ReturnType<typeof marketsSynced>;
 };
 
 describe("the mapping (shared fixture)", () => {
@@ -56,22 +50,9 @@ describe("the mapping (shared fixture)", () => {
     }
   });
 
-  it("makes the markets' synced part of the regions and the store", () => {
-    expect(marketsSynced(fixture.medusa.regions, fixture.medusa.store)).toEqual(fixture.markets);
-  });
-
-  it("gives the same markets value whatever order Medusa lists things in", () => {
-    const shuffled = marketsSynced(
-      [...fixture.medusa.regions].reverse().map((region) => ({
-        ...region,
-        countries: [...(region.countries ?? [])].reverse(),
-      })),
-      {
-        supported_currencies: [...(fixture.medusa.store?.supported_currencies ?? [])].reverse(),
-        supported_locales: [...(fixture.medusa.store?.supported_locales ?? [])].reverse(),
-      },
-    );
-    expect(sameMarkets(shuffled, fixture.markets)).toBe(true);
+  it("carries no market data: the market map is Medusa's, not Payload's (D95)", () => {
+    expect(Object.keys(fixture)).toEqual(["$comment", "medusa", "documents"]);
+    expect(Object.keys(fixture.medusa).sort()).toEqual(["categories", "collections", "products"]);
   });
 
   it("reads timestamps as Medusa's modules return them (Date) and as HTTP does (string)", () => {
@@ -126,12 +107,21 @@ describe("needsWrite (the reconcile's comparison)", () => {
 });
 
 describe("the subscriber's events (D75)", () => {
-  it("covers create, update and delete of each synced type, and regions", () => {
-    for (const prefix of ["product", "product-category", "product-collection", "region"]) {
+  it("covers create, update and delete of each synced type", () => {
+    for (const prefix of ["product", "product-category", "product-collection"]) {
       for (const action of ["created", "updated", "deleted"]) {
         expect(PAYLOAD_SYNC_EVENTS[`${prefix}.${action}`]).toBeDefined();
       }
     }
+  });
+
+  it("does not follow regions or store locales into Payload any more (D95)", () => {
+    expect(
+      Object.keys(PAYLOAD_SYNC_EVENTS).filter((name) => /^(region|store)\./.test(name)),
+    ).toEqual([]);
+    expect(new Set(Object.values(PAYLOAD_SYNC_EVENTS))).toEqual(
+      new Set(["products", "categories", "collections"]),
+    );
   });
 });
 

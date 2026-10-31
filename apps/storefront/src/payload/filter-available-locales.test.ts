@@ -1,38 +1,45 @@
-import type { Locale, Payload, PayloadRequest } from "payload";
+import { markets as seeded } from "@shopblok/fixtures";
+import type { Locale, PayloadRequest } from "payload";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { MarketMap } from "../lib/markets/types";
 import {
-  ENABLED_LANGUAGES_TTL_MS,
-  clearEnabledLanguages,
+  FAILED_READ_TTL_MS,
+  clearAvailableLocalesMemory,
   enabledLanguages,
   filterAvailableLocales,
-  isMissingTable,
+  openLanguages,
   pickAvailableLocales,
-  rememberEnabledLanguages,
 } from "./filter-available-locales";
+
+// The map is Medusa's (D95); `market-map.ts` reaches it through a lazy import of `get-market-map`.
+const getMarketMap = vi.hoisted(() => vi.fn());
+vi.mock("../lib/markets/get-market-map", () => ({ getMarketMap }));
 
 const locales: Locale[] = ["en", "el", "de", "fr", "pt"].map((code) => ({ code, label: code }));
 const codes = (list: Locale[]) => list.map((locale) => locale.code);
 
+/** A map with these countries open or closed, each with its languages. */
+const mapOf = (
+  ...countries: [code: string, enabled: boolean, languages: string[]][]
+): MarketMap => ({
+  countries: countries.map(([code, enabled, languages]) => ({ code, enabled, languages })),
+  languages: [],
+  primaryCountry: "",
+  fallbackMarket: "",
+});
+
 describe("enabledLanguages", () => {
-  it("collects the languages of the enabled countries", () => {
-    const markets = {
-      countries: [
-        { enabled: true, languages: ["el"] },
-        { enabled: true, languages: ["de", "fr"] },
-        { enabled: false, languages: ["pt"] },
-      ],
-    };
-    expect([...enabledLanguages(markets)].sort()).toEqual(["de", "el", "fr"]);
+  it("collects the languages of the open countries", () => {
+    const map = mapOf(["cy", true, ["el"]], ["de", true, ["de", "fr"]], ["br", false, ["pt"]]);
+    expect([...enabledLanguages(map)].sort()).toEqual(["de", "el", "fr"]);
   });
 
-  it("treats an empty or missing global as nothing enabled", () => {
-    expect(enabledLanguages({}).size).toBe(0);
-    expect(enabledLanguages({ countries: null }).size).toBe(0);
-    expect(enabledLanguages({ countries: [{ languages: null }] }).size).toBe(0);
+  it("treats a map with no country as nothing enabled", () => {
+    expect(enabledLanguages(mapOf()).size).toBe(0);
   });
 
-  it("counts a country with no `enabled` value as enabled", () => {
-    expect([...enabledLanguages({ countries: [{ languages: ["el"] }] })]).toEqual(["el"]);
+  it("reads the seeded map's languages", () => {
+    expect([...enabledLanguages(seeded)].sort()).toEqual(["de", "el", "en", "fr"]);
   });
 });
 
@@ -59,212 +66,96 @@ describe("pickAvailableLocales", () => {
   });
 });
 
-/** What drizzle throws for a query on a missing table: its own error, the driver's on `cause`. */
-function missingTable() {
-  const driver = Object.assign(new Error('relation "markets" does not exist'), { code: "42P01" });
-  return new Error("Failed query", { cause: driver });
-}
+const warn = vi.fn();
+const requestOf = () => ({ payload: { logger: { warn } } }) as unknown as PayloadRequest;
+const offered = async () => codes(await filterAvailableLocales({ locales, req: requestOf() }));
 
-/** One Payload instance (they all share the memo on `globalThis`), and a request of its own each time. */
-function fakePayload(findGlobal: ReturnType<typeof vi.fn>) {
-  return { findGlobal, logger: { warn: vi.fn() } } as unknown as Payload;
-}
-const requestOf = (payload: Payload) => ({ context: {}, payload }) as unknown as PayloadRequest;
-
-describe("filterAvailableLocales", () => {
+describe("filterAvailableLocales (D95)", () => {
   let now = 0;
   beforeEach(() => {
-    clearEnabledLanguages();
+    clearAvailableLocalesMemory();
+    warn.mockReset();
+    getMarketMap.mockReset();
     now = 1_000;
     vi.spyOn(performance, "now").mockImplementation(() => now);
   });
   afterEach(() => vi.restoreAllMocks());
 
-  it("reads markets once for the three calls Payload makes for one admin page, each with its own request", async () => {
-    // S3, L7: the root layout twice and the page once, each with a copy of `req` and its `context`.
-    const findGlobal = vi
-      .fn()
-      .mockResolvedValue({ countries: [{ enabled: true, languages: ["el"] }] });
-    const payload = fakePayload(findGlobal);
-    const results = [];
-    for (let call = 0; call < 3; call++) {
-      results.push(await filterAvailableLocales({ locales, req: requestOf(payload) }));
-    }
-    for (const result of results) expect(codes(result)).toEqual(["en", "el"]);
-    expect(findGlobal).toHaveBeenCalledTimes(1);
+  it("offers the languages of the open markets in Medusa's map, and English", async () => {
+    getMarketMap.mockResolvedValue(mapOf(["cy", true, ["el"]], ["de", true, ["de"]]));
+    expect(await offered()).toEqual(["en", "el", "de"]);
+    expect(warn).not.toHaveBeenCalled();
   });
 
-  it("shares the read between calls that start together", async () => {
-    const findGlobal = vi.fn().mockResolvedValue({ countries: [] });
-    const payload = fakePayload(findGlobal);
-    await Promise.all([
-      filterAvailableLocales({ locales, req: requestOf(payload) }),
-      filterAvailableLocales({ locales, req: requestOf(payload) }),
-      filterAvailableLocales({ locales, req: requestOf(payload) }),
-    ]);
-    expect(findGlobal).toHaveBeenCalledTimes(1);
+  it("follows the map: a language opened in Medusa shows up on the next call", async () => {
+    getMarketMap.mockResolvedValueOnce(mapOf(["cy", true, ["el"]]));
+    expect(await offered()).toEqual(["en", "el"]);
+    // `getMarketMap` has the 30 s cache; this module adds none on top of it.
+    getMarketMap.mockResolvedValueOnce(mapOf(["cy", true, ["el"]], ["at", true, ["de"]]));
+    expect(await offered()).toEqual(["en", "el", "de"]);
   });
 
-  it("reads again once the read is older than the memo's time", async () => {
-    const findGlobal = vi
-      .fn()
-      .mockResolvedValueOnce({ countries: [{ enabled: true, languages: ["el"] }] })
-      .mockResolvedValueOnce({ countries: [{ enabled: true, languages: ["el", "de"] }] });
-    const payload = fakePayload(findGlobal);
-    expect(codes(await filterAvailableLocales({ locales, req: requestOf(payload) }))).toEqual([
-      "en",
-      "el",
-    ]);
-    now += ENABLED_LANGUAGES_TTL_MS - 1;
-    await filterAvailableLocales({ locales, req: requestOf(payload) });
-    expect(findGlobal).toHaveBeenCalledTimes(1);
-    now += 1;
-    expect(codes(await filterAvailableLocales({ locales, req: requestOf(payload) }))).toEqual([
-      "en",
-      "el",
-      "de",
-    ]);
-    expect(findGlobal).toHaveBeenCalledTimes(2);
+  describe("when Medusa cannot be read: it never throws (a Medusa outage cannot take the admin down)", () => {
+    it("offers the default locale alone, with a warning, before any map was read", async () => {
+      getMarketMap.mockRejectedValue(new Error("Medusa at http://localhost:9000 did not answer"));
+      expect(await offered()).toEqual(["en"]);
+      expect(warn).toHaveBeenCalledOnce();
+      expect(warn.mock.calls[0]?.[0]).toMatch(/did not answer.*default locale only/);
+    });
+
+    it("keeps the languages of the last good map, with a warning", async () => {
+      getMarketMap.mockResolvedValueOnce(mapOf(["cy", true, ["el"]], ["fr", true, ["fr"]]));
+      expect(await offered()).toEqual(["en", "el", "fr"]);
+      getMarketMap.mockRejectedValue(new Error("connection reset"));
+      expect(await offered()).toEqual(["en", "el", "fr"]);
+      expect(warn.mock.calls[0]?.[0]).toMatch(/connection reset.*keeps the languages read earlier/);
+    });
+
+    it("does not ask again for a while, so one page's three calls wait for one failure", async () => {
+      getMarketMap.mockRejectedValue(new Error("timeout"));
+      await offered();
+      await offered();
+      await offered();
+      expect(getMarketMap).toHaveBeenCalledTimes(1);
+      expect(warn).toHaveBeenCalledOnce();
+      now += FAILED_READ_TTL_MS - 1;
+      await offered();
+      expect(getMarketMap).toHaveBeenCalledTimes(1);
+      now += 1;
+      await offered();
+      expect(getMarketMap).toHaveBeenCalledTimes(2);
+    });
+
+    it("recovers: the next successful read replaces the fallback", async () => {
+      getMarketMap.mockRejectedValueOnce(new Error("down"));
+      expect(await offered()).toEqual(["en"]);
+      now += FAILED_READ_TTL_MS;
+      getMarketMap.mockResolvedValueOnce(mapOf(["cy", true, ["el"]]));
+      expect(await offered()).toEqual(["en", "el"]);
+      getMarketMap.mockResolvedValueOnce(mapOf(["cy", true, ["el"]], ["de", true, ["de"]]));
+      expect(await offered()).toEqual(["en", "el", "de"]);
+    });
+
+    it("survives a failure that is not an Error", async () => {
+      getMarketMap.mockRejectedValue("nope");
+      expect(await offered()).toEqual(["en"]);
+      expect(warn.mock.calls[0]?.[0]).toContain("nope");
+    });
+
+    it("survives a module that cannot be imported at all", async () => {
+      const languages = await openLanguages(warn, () => Promise.reject(new Error("no module")));
+      expect([...languages]).toEqual([]);
+      expect(warn).toHaveBeenCalledOnce();
+    });
   });
 
-  it("reads again after clearEnabledLanguages", async () => {
-    const findGlobal = vi
-      .fn()
-      .mockResolvedValueOnce({ countries: [] })
-      .mockResolvedValueOnce({ countries: [{ enabled: true, languages: ["de"] }] });
-    const payload = fakePayload(findGlobal);
-    expect(codes(await filterAvailableLocales({ locales, req: requestOf(payload) }))).toEqual([
-      "en",
-    ]);
-    clearEnabledLanguages();
-    expect(codes(await filterAvailableLocales({ locales, req: requestOf(payload) }))).toEqual([
-      "en",
-      "de",
-    ]);
-  });
-
-  it("serves the languages a save handed over, whatever the database still says", async () => {
-    // Payload commits a save after its hooks: a read in between still sees the old `markets`.
-    const findGlobal = vi.fn().mockResolvedValue({ countries: [] });
-    const payload = fakePayload(findGlobal);
-    expect(codes(await filterAvailableLocales({ locales, req: requestOf(payload) }))).toEqual([
-      "en",
-    ]);
-    rememberEnabledLanguages(payload, { countries: [{ enabled: true, languages: ["de"] }] });
-    expect(codes(await filterAvailableLocales({ locales, req: requestOf(payload) }))).toEqual([
-      "en",
-      "de",
-    ]);
-    expect(findGlobal).toHaveBeenCalledTimes(1);
-    // ... for the memo's time, and not longer.
-    now += ENABLED_LANGUAGES_TTL_MS;
-    await filterAvailableLocales({ locales, req: requestOf(payload) });
-    expect(findGlobal).toHaveBeenCalledTimes(2);
-  });
-
-  it("reads again after a save that handed over no countries (a partial select)", async () => {
-    const findGlobal = vi.fn().mockResolvedValue({ countries: [] });
-    const payload = fakePayload(findGlobal);
-    await filterAvailableLocales({ locales, req: requestOf(payload) });
-    rememberEnabledLanguages(payload, {});
-    await filterAvailableLocales({ locales, req: requestOf(payload) });
-    expect(findGlobal).toHaveBeenCalledTimes(2);
-  });
-
-  it("keeps its memo where every copy of the module sees it (the layout and the page load their own)", async () => {
-    const findGlobal = vi.fn().mockResolvedValue({ countries: [] });
-    const payload = fakePayload(findGlobal);
-    await filterAvailableLocales({ locales, req: requestOf(payload) });
+  it("keeps its memory where every copy of the module sees it (the layout and the page load their own)", async () => {
+    getMarketMap.mockResolvedValueOnce(mapOf(["cy", true, ["el"]]));
+    await offered();
     vi.resetModules();
     const other = await import("./filter-available-locales");
-    await other.filterAvailableLocales({ locales, req: requestOf(payload) });
-    expect(findGlobal).toHaveBeenCalledTimes(1);
-    // ... and the other copy's clear reaches the first copy's memo.
-    other.clearEnabledLanguages();
-    await filterAvailableLocales({ locales, req: requestOf(payload) });
-    expect(findGlobal).toHaveBeenCalledTimes(2);
-  });
-
-  it("does not hand one Payload instance the read of another", async () => {
-    const first = vi.fn().mockResolvedValue({ countries: [{ enabled: true, languages: ["el"] }] });
-    const second = vi.fn().mockResolvedValue({ countries: [{ enabled: true, languages: ["fr"] }] });
-    expect(
-      codes(await filterAvailableLocales({ locales, req: requestOf(fakePayload(first)) })),
-    ).toEqual(["en", "el"]);
-    expect(
-      codes(await filterAvailableLocales({ locales, req: requestOf(fakePayload(second)) })),
-    ).toEqual(["en", "fr"]);
-  });
-
-  it("does not keep a read that failed", async () => {
-    const outage = Object.assign(new Error("connection terminated"), { code: "ECONNRESET" });
-    const findGlobal = vi
-      .fn()
-      .mockRejectedValueOnce(new Error("Failed query", { cause: outage }))
-      .mockResolvedValueOnce({ countries: [{ enabled: true, languages: ["el"] }] });
-    const payload = fakePayload(findGlobal);
-    await expect(filterAvailableLocales({ locales, req: requestOf(payload) })).rejects.toThrow(
-      "Failed query",
-    );
-    expect(codes(await filterAvailableLocales({ locales, req: requestOf(payload) }))).toEqual([
-      "en",
-      "el",
-    ]);
-  });
-
-  it("is not scoped to the user or to the request: the read overrides access and takes no req", async () => {
-    const findGlobal = vi.fn().mockResolvedValue({});
-    await filterAvailableLocales({ locales, req: requestOf(fakePayload(findGlobal)) });
-    expect(findGlobal).toHaveBeenCalledWith({ slug: "markets", depth: 0, overrideAccess: true });
-  });
-
-  it("inside a write's transaction it reads with that request and shares nothing", async () => {
-    // Once `localizeStatus` is on, Payload calls the filter from a write (see the filter's doc).
-    const findGlobal = vi.fn().mockResolvedValue({ countries: [] });
-    const payload = fakePayload(findGlobal);
-    const inTransaction = { ...requestOf(payload), transactionID: "tx-1" } as PayloadRequest;
-    await filterAvailableLocales({ locales, req: inTransaction });
-    await filterAvailableLocales({ locales, req: inTransaction });
-    expect(findGlobal).toHaveBeenCalledTimes(2);
-    expect(findGlobal).toHaveBeenNthCalledWith(1, {
-      slug: "markets",
-      depth: 0,
-      overrideAccess: true,
-      req: inTransaction,
-    });
-    // ... and it did not fill the memo that page loads share.
-    await filterAvailableLocales({ locales, req: requestOf(payload) });
-    expect(findGlobal).toHaveBeenCalledTimes(3);
-  });
-
-  it("falls back to English when the markets table does not exist (before migrate)", async () => {
-    const payload = fakePayload(vi.fn().mockRejectedValue(missingTable()));
-    expect(codes(await filterAvailableLocales({ locales, req: requestOf(payload) }))).toEqual([
-      "en",
-    ]);
-  });
-
-  it("lets any other error fail the request instead of hiding the markets", async () => {
-    const outage = Object.assign(new Error("connection terminated"), { code: "ECONNRESET" });
-    const payload = fakePayload(
-      vi.fn().mockRejectedValue(new Error("Failed query", { cause: outage })),
-    );
-    await expect(filterAvailableLocales({ locales, req: requestOf(payload) })).rejects.toThrow(
-      "Failed query",
-    );
-  });
-});
-
-describe("isMissingTable", () => {
-  it("finds Postgres undefined_table on the error or anywhere down its causes", () => {
-    expect(isMissingTable(missingTable())).toBe(true);
-    expect(isMissingTable(Object.assign(new Error("x"), { code: "42P01" }))).toBe(true);
-  });
-
-  it("is false for other errors and for things that are not errors", () => {
-    expect(isMissingTable(new Error("x", { cause: { code: "42P01" } }))).toBe(false);
-    expect(isMissingTable(Object.assign(new Error("x"), { code: "28P01" }))).toBe(false);
-    expect(isMissingTable("42P01")).toBe(false);
-    expect(isMissingTable(undefined)).toBe(false);
+    getMarketMap.mockRejectedValue(new Error("down"));
+    const result = await other.filterAvailableLocales({ locales, req: requestOf() });
+    expect(codes(result)).toEqual(["en", "el"]);
   });
 });

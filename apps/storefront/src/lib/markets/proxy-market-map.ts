@@ -1,6 +1,5 @@
 import { markets as seededMarkets } from "@shopblok/fixtures";
 import { env as processEnv } from "../env";
-import type { MarketsGlobal } from "./global";
 import {
   createMarketSource,
   defaultAllowFallback,
@@ -8,6 +7,7 @@ import {
   marketLoadTimeoutMs,
   type MarketSourceOptions,
 } from "./source";
+import type { MarketMap } from "./types";
 
 /** Where the proxy reads the map: `app/next/markets/route.ts`, which the proxy's matcher skips. */
 export const MARKETS_ROUTE = "/next/markets";
@@ -43,8 +43,7 @@ type ProxyMarketMapOptions = {
 /**
  * The market map for the proxy (D10, T11's fallback): the map route's JSON, kept in process for
  * 30 s, with the same last-good-map, timeout and fallback rules as `getMarketMap()` (`source.ts`).
- * The route returns a `MarketMap`, which has the shape `mapFromGlobal` reads, so the same source
- * maps and checks it again. Imports no Payload: that is the point (the cold start of a proxy
+ * The route returns a `MarketMap`, which the same source checks again (`marketMapProblems`). Imports neither Payload nor the Medusa SDK: that is the point (the cold start of a proxy
  * function). `staleWhileRevalidate`: this is on every request's path, and none may wait for a read.
  */
 export function createProxyMarketMap(options: ProxyMarketMapOptions = {}) {
@@ -52,11 +51,11 @@ export function createProxyMarketMap(options: ProxyMarketMapOptions = {}) {
   // NEXT_PUBLIC_* value; a spread of the whole environment would find nothing in this bundle.
   const env: Env = options.env ?? processEnv;
   const fetcher = options.fetcher ?? fetch;
-  // 60 s for the first read in `next dev`, which waits for Payload to start (W2, finding 3); 10 s
+  // 60 s for the first read in `next dev`, which waits for the map route to compile (W2, finding 3); 10 s
   // otherwise. The fetch gets the same, so it is not cut off before the source gives up.
   const timeoutMs = marketLoadTimeoutMs(env);
   return createMarketSource({
-    load: async (): Promise<MarketsGlobal> => {
+    load: async (): Promise<MarketMap> => {
       const url = marketsRouteUrl(env);
       // The URL in every message: a wrong NEXT_PUBLIC_BASE_URL is otherwise a bare "fetch failed".
       const fail = (what: string) => new Error(`${url.href} ${what}`);
@@ -69,13 +68,18 @@ export function createProxyMarketMap(options: ProxyMarketMapOptions = {}) {
       if (!response.ok) {
         throw fail(`answered ${response.status}; the reason is in the server log of that route`);
       }
-      const body = (await response.json().catch(() => null)) as Partial<MarketsGlobal> | null;
+      const body = (await response.json().catch(() => null)) as Partial<MarketMap> | null;
       // The one place the shape is untrusted: another app on the address answers 200 with its own
       // page or JSON. The route always sends both lists.
       if (!Array.isArray(body?.countries) || !Array.isArray(body.languages)) {
         throw fail("did not answer a market map; is NEXT_PUBLIC_BASE_URL this app?");
       }
-      return body;
+      return {
+        countries: body.countries,
+        languages: body.languages,
+        primaryCountry: body.primaryCountry ?? "",
+        fallbackMarket: body.fallbackMarket ?? "",
+      };
     },
     fallback: seededMarkets,
     allowFallback: defaultAllowFallback(env),

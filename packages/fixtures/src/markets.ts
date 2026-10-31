@@ -1,7 +1,8 @@
-// The seeded market map (SPEC §8.5): the editable part of Payload's `markets` global. Tests use it
-// directly; `getMarketMap()` (apps/storefront/src/lib/markets/source.ts) uses it when the global is
-// empty or incomplete, in development and while `next build` runs, never in production; and T13's
-// `bootstrap` seeds the global from it.
+// The seeded market map (SPEC §8.5), and the shape of Medusa's `GET /store/markets` (M4b D94). Tests
+// use it directly; `getMarketMap()` (apps/storefront/src/lib/markets/source.ts) uses it when
+// Medusa's map is empty or incomplete, in development and while `next build` runs, never in
+// production, and when Medusa is not configured while `next build` runs; and `pnpm bootstrap` seeds
+// the markets module from it (`markets.json`, T73).
 // A market is a country plus a language, and its key is `{language}-{country}` (SPEC §8.1), so
 // these seven exist: el-cy, en-us, en-gb, de-de, fr-fr, de-ch and fr-ch.
 

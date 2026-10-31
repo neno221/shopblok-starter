@@ -16,9 +16,9 @@ const settings = {
   storeName: "Kalimera",
   seo: { titleTemplate: "%s · Kalimera", description: "Linen for warm days.", image: 12 },
 };
-const findGlobal = vi.fn(async ({ slug }: { slug: string }) =>
-  slug === "markets" ? seeded : settings,
-);
+// The market map is Medusa's (D95), read through `get-market-map`, lazily.
+vi.mock("../lib/markets/get-market-map", () => ({ getMarketMap: async () => seeded }));
+const findGlobal = vi.fn(async (_args: { slug: string }) => settings);
 const req = { payload: { findGlobal, findByID: vi.fn() } } as unknown as PayloadRequest;
 const args = (doc: Record<string, unknown>, slug = "posts", locale = "en") =>
   ({ doc, locale, req, collectionConfig: { slug } }) as never;

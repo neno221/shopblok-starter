@@ -6,8 +6,8 @@ import { MedusaError } from "@medusajs/framework/utils";
 import { exportAll } from "../lib/payload-sync";
 
 /**
- * `pnpm bootstrap` step 10, first half (D75): Medusa's products, categories, collections and the
- * markets' synced part, mapped as the sync maps them, written to the file `PAYLOAD_SYNC_FILE`
+ * `pnpm bootstrap` step 10, first half (D75): Medusa's products, categories and collections, mapped as
+ * the sync maps them, written to the file `PAYLOAD_SYNC_FILE`
  * names. `apps/storefront/src/scripts/import-from-medusa.ts` then writes them into Payload through
  * the Local API, so neither server has to run.
  *

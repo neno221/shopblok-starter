@@ -10,7 +10,6 @@ function fakePayload() {
     categories: [],
     collections: [],
   };
-  let markets: Record<string, unknown> = { countries: [], synced: {} };
   let next = 1;
   const calls: { op: string; overrideAccess?: unknown; user?: unknown }[] = [];
   const record = (op: string, args: object) =>
@@ -32,28 +31,18 @@ function fakePayload() {
       Object.assign(row, args.data);
       return { ...row };
     },
-    findGlobal: async (args: object) => {
-      record("findGlobal", args);
-      return markets;
-    },
-    updateGlobal: async (args: { data: Record<string, unknown> }) => {
-      record("updateGlobal", args);
-      markets = { ...markets, ...args.data };
-      return markets;
-    },
   };
-  return { payload: payload as unknown as Payload, rows, calls, markets: () => markets };
+  return { payload: payload as unknown as Payload, rows, calls };
 }
 
 const sync = { collection: "integrations", id: 1, role: "medusa-sync" } as unknown as TypedUser;
 const exported: SyncExport = {
   exportedAt: "2026-10-28T12:00:00.000Z",
   documents: fixture.documents as SyncExport["documents"],
-  markets: fixture.markets,
 };
 
 describe("importFromMedusa (bootstrap's first sync)", () => {
-  it("writes the fixture's documents, the parents as Payload ids, and the markets", async () => {
+  it("writes the fixture's documents, the parents as Payload ids", async () => {
     const fake = fakePayload();
     const counts = await importFromMedusa(fake.payload, sync, exported);
     expect(counts).toEqual({
@@ -61,14 +50,19 @@ describe("importFromMedusa (bootstrap's first sync)", () => {
       updated: 0,
       deleted: 0,
       unchanged: 0,
-      markets: "updated",
     });
     const tops = fake.rows.categories!.find((row) => row.medusaId === "pcat_01SYNCTOPS")!;
     const shirts = fake.rows.categories!.find((row) => row.medusaId === "pcat_01SYNCSHIRTS")!;
     expect(shirts.parent).toBe(tops.id);
     expect(tops.parent).toBeUndefined();
     expect(fake.rows.products!.map((row) => row.handle)).toEqual(["linen-shirt", "wool-scarf"]);
-    expect(fake.markets().synced).toMatchObject(fixture.markets);
+  });
+
+  it("does not touch Payload's globals: the market map is Medusa's (D95)", async () => {
+    const fake = fakePayload();
+    await importFromMedusa(fake.payload, sync, exported);
+    expect(fake.calls.map((call) => call.op)).not.toContain("findGlobal");
+    expect(fake.calls.map((call) => call.op)).not.toContain("updateGlobal");
   });
 
   it("writes as the integration, with access control on", async () => {
@@ -86,7 +80,6 @@ describe("importFromMedusa (bootstrap's first sync)", () => {
       updated: 0,
       deleted: 0,
       unchanged: 5,
-      markets: "unchanged",
     });
   });
 

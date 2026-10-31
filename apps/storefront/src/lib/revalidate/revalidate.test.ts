@@ -61,6 +61,7 @@ describe("/api/revalidate", () => {
   });
 
   it.each([
+    // The tag the market map had while Payload held it: nothing carries it any more.
     ["global:markets"],
     ["payload:pages"],
     ["e2e:pages:en"],
@@ -104,6 +105,7 @@ describe("/api/revalidate", () => {
     const tags = [
       "medusa:products",
       "medusa:regions",
+      "medusa:markets",
       "medusa:categories",
       "medusa:collections",
       "search",

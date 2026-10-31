@@ -1,14 +1,16 @@
 import { markets as seeded } from "@shopblok/fixtures";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { MarketsGlobal } from "./global";
+import type { MarketMap } from "./types";
 import { brazil } from "./test-maps";
 
-// A global with nothing in it: unusable, so the fallback rule decides.
-const loadMarketsGlobal = vi.fn(async (): Promise<MarketsGlobal> => ({
+// A map with nothing in it: unusable, so the fallback rule decides.
+const loadMarketMap = vi.fn(async (): Promise<MarketMap> => ({
   countries: [],
   languages: [],
+  primaryCountry: "",
+  fallbackMarket: "",
 }));
-vi.mock("./payload-loader", () => ({ loadMarketsGlobal }));
+vi.mock("./medusa-loader", () => ({ loadMarketMap }));
 
 // Each test needs a new source: it keeps the last good map in the module.
 async function load() {
@@ -18,7 +20,7 @@ async function load() {
 
 beforeEach(() => {
   vi.spyOn(console, "warn").mockImplementation(() => undefined);
-  loadMarketsGlobal.mockClear();
+  loadMarketMap.mockClear();
 });
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -39,7 +41,7 @@ describe("getMarketMap and the environment (lib/env.ts)", () => {
     expect(await getMarketMap()).toEqual(seeded);
   });
 
-  it("has no fallback in production: an empty global is an error", async () => {
+  it("has no fallback in production: an empty map is an error", async () => {
     vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("NEXT_PHASE", "phase-production-server");
     const { getMarketMap } = await load();
@@ -51,16 +53,10 @@ describe("getMarketMap: how long the first read may take (W2, finding 3)", () =>
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => vi.useRealTimers());
 
-  /** Payload starting in `next dev`: the global arrives after `ms`. Brazil, so no fallback hides. */
+  /** A slow first read in `next dev`: the map arrives after `ms`. Brazil, so no fallback hides. */
   function answerAfter(ms: number) {
-    const global: MarketsGlobal = {
-      countries: brazil.countries,
-      languages: brazil.languages,
-      primaryCountry: brazil.primaryCountry,
-      fallbackMarket: brazil.fallbackMarket,
-    };
-    loadMarketsGlobal.mockImplementationOnce(
-      () => new Promise((resolve) => setTimeout(() => resolve(global), ms)),
+    loadMarketMap.mockImplementationOnce(
+      () => new Promise((resolve) => setTimeout(() => resolve(brazil), ms)),
     );
   }
 

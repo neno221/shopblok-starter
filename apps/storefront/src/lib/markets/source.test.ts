@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { MarketsGlobal } from "./global";
+import type { MarketMap } from "./types";
 import {
   createMarketSource,
   defaultAllowFallback,
@@ -12,30 +12,13 @@ import {
 } from "./source";
 import { brazil, seeded } from "./test-maps";
 
-/** The seeded map as the global stores it. */
-const seededGlobal: MarketsGlobal = {
-  countries: seeded.countries,
-  languages: seeded.languages,
-  primaryCountry: seeded.primaryCountry,
-  fallbackMarket: seeded.fallbackMarket,
-};
-const brazilGlobal: MarketsGlobal = {
-  countries: brazil.countries,
-  languages: brazil.languages,
-  primaryCountry: brazil.primaryCountry,
-  fallbackMarket: brazil.fallbackMarket,
-};
 // Half-filled: the countries are there, but no language has a Medusa locale yet.
-const incompleteGlobal: MarketsGlobal = {
-  countries: seeded.countries,
-  languages: [],
-  primaryCountry: seeded.primaryCountry,
-  fallbackMarket: seeded.fallbackMarket,
-};
+const incomplete: MarketMap = { ...seeded, languages: [] };
+const empty: MarketMap = { countries: [], languages: [], primaryCountry: "", fallbackMarket: "" };
 
 /** An answer for a read that never settles (a database host gone silent). */
 const NEVER = new Promise<never>(() => {});
-type Answer = MarketsGlobal | Error | null | Promise<MarketsGlobal>;
+type Answer = MarketMap | Error | Promise<MarketMap>;
 
 /** A source over a fake loader and a clock the test moves. */
 function setup(
@@ -47,7 +30,7 @@ function setup(
   // What the next reads return, in order; the last answer repeats.
   let answers: Answer[] = [first];
   const load = vi.fn(async () => {
-    const answer = answers[0];
+    const answer = answers[0]!;
     if (answers.length > 1) answers = answers.slice(1);
     if (answer instanceof Error) throw answer;
     return answer;
@@ -75,8 +58,8 @@ function setup(
 }
 
 describe("getMarketMap: the 30 s cache (D10)", () => {
-  it("reads the global once and serves the map from memory for 30 s", async () => {
-    const { source, load, advance } = setup(seededGlobal);
+  it("reads the map once and serves the map from memory for 30 s", async () => {
+    const { source, load, advance } = setup(seeded);
     const first = await source.get();
     expect(first).toEqual(seeded);
     advance(29_999);
@@ -86,10 +69,10 @@ describe("getMarketMap: the 30 s cache (D10)", () => {
   });
 
   it("reads again once 30 s are up, and uses what it finds", async () => {
-    const { source, load, advance, next } = setup(seededGlobal);
+    const { source, load, advance, next } = setup(seeded);
     await source.get();
     advance(30_000);
-    next(brazilGlobal);
+    next(brazil);
     expect(await source.get()).toEqual(brazil);
     expect(load).toHaveBeenCalledTimes(2);
     advance(29_999);
@@ -98,15 +81,15 @@ describe("getMarketMap: the 30 s cache (D10)", () => {
   });
 
   it("shares one read between callers that arrive while it runs", async () => {
-    const { source, load } = setup(seededGlobal);
+    const { source, load } = setup(seeded);
     const maps = await Promise.all([source.get(), source.get(), source.get()]);
     expect(load).toHaveBeenCalledTimes(1);
     expect(maps[0]).toBe(maps[1]);
     expect(maps[1]).toBe(maps[2]);
   });
 
-  it("keeps a fallback map for the TTL too, so a bare database isn't read on every request", async () => {
-    const { source, load, advance } = setup(null, () => true);
+  it("keeps a fallback map for the TTL too, so a backend that is down isn't read on every request", async () => {
+    const { source, load, advance } = setup(empty, () => true);
     await source.get();
     advance(10_000);
     await source.get();
@@ -117,20 +100,20 @@ describe("getMarketMap: the 30 s cache (D10)", () => {
   });
 });
 
-describe("fresh: the global as it is now (T71)", () => {
+describe("fresh: the map as it is now (T71)", () => {
   it("reads past the TTL, and `get()` then serves what it read", async () => {
-    const { source, load, advance, next } = setup(seededGlobal);
+    const { source, load, advance, next } = setup(seeded);
     await source.get();
     advance(1_000);
-    next(brazilGlobal);
+    next(brazil);
     expect(await source.fresh()).toEqual(brazil);
     expect(await source.get()).toEqual(brazil);
     expect(load).toHaveBeenCalledTimes(2);
   });
 
-  it("never joins a read that started before it: that one may hold the global before a save", async () => {
-    const { source, load, next } = setup(seededGlobal);
-    next(seededGlobal, brazilGlobal);
+  it("never joins a read that started before it: that one may hold the map before a save", async () => {
+    const { source, load, next } = setup(seeded);
+    next(seeded, brazil);
     const [read, fresh] = await Promise.all([source.get(), source.fresh()]);
     expect(load).toHaveBeenCalledTimes(2);
     expect(read).toEqual(seeded);
@@ -138,21 +121,21 @@ describe("fresh: the global as it is now (T71)", () => {
   });
 
   it("is not overtaken by an earlier read that ends after it", async () => {
-    let answerEarlier: (global: MarketsGlobal) => void = () => {};
-    const earlier = new Promise<MarketsGlobal>((resolve) => (answerEarlier = resolve));
-    const { source, advance, next } = setup(seededGlobal);
+    let answerEarlier: (map: MarketMap) => void = () => {};
+    const earlier = new Promise<MarketMap>((resolve) => (answerEarlier = resolve));
+    const { source, advance, next } = setup(seeded);
     await source.get();
     advance(30_000);
-    next(earlier, brazilGlobal);
+    next(earlier, brazil);
     const stale = source.get();
     expect(await source.fresh()).toEqual(brazil);
-    answerEarlier(seededGlobal);
+    answerEarlier(seeded);
     expect(await stale).toEqual(seeded);
     expect(await source.get()).toEqual(brazil);
   });
 
   it("keeps the last good map when the read fails, as `get()` does", async () => {
-    const { source, warn, next } = setup(seededGlobal);
+    const { source, warn, next } = setup(seeded);
     const first = await source.get();
     next(new Error("connection refused"));
     expect(await source.fresh()).toBe(first);
@@ -162,82 +145,79 @@ describe("fresh: the global as it is now (T71)", () => {
   });
 });
 
-describe("getMarketMap: an empty or incomplete global", () => {
+describe("getMarketMap: an empty or incomplete map", () => {
   it("falls back to the fixtures where allowed, and says so", async () => {
-    const { source, warn, allowFallback } = setup(null, (reason) => reason === "unusable");
+    const { source, warn, allowFallback } = setup(empty, (reason) => reason === "unusable");
     expect(await source.get()).toBe(seeded);
     expect(allowFallback).toHaveBeenCalledWith("unusable");
     expect(warn).toHaveBeenCalledTimes(1);
     expect(warn.mock.calls[0]?.[0]).toMatch(
-      /markets global is empty: no country is enabled.*seeded fixtures/,
+      /market map is empty: no country is enabled.*seeded fixtures/,
     );
   });
 
-  it("treats an empty array and an empty object the same", async () => {
-    for (const doc of [{}, { countries: [], languages: [] }]) {
-      const { source } = setup(doc, () => true);
-      expect(await source.get()).toBe(seeded);
-    }
-  });
-
-  it("falls back for a half-filled global, naming what is missing", async () => {
-    const { source, warn } = setup(incompleteGlobal, () => true);
+  it("falls back for a half-filled map, naming what is missing", async () => {
+    const { source, warn } = setup(incomplete, () => true);
     expect(await source.get()).toBe(seeded);
     const message = String(warn.mock.calls[0]?.[0]);
     expect(message).toContain("incomplete");
-    expect(message).toContain("language el has no Medusa locale under Languages");
+    expect(message).toContain("language el has no Medusa locale");
   });
 
-  it("serves a global with no primary country or fallback market: both have a fallback", async () => {
-    const { source, warn } = setup({ countries: seeded.countries, languages: seeded.languages });
+  it("serves a map with no primary country or fallback market: both have a fallback", async () => {
+    const { source, warn } = setup({
+      ...seeded,
+      primaryCountry: "",
+      fallbackMarket: "",
+    });
     expect(await source.get()).toEqual({ ...seeded, primaryCountry: "", fallbackMarket: "" });
     expect(warn).not.toHaveBeenCalled();
   });
 
   it("is an error where the fallback is not allowed (production), and says what to do", async () => {
-    const { source, warn } = setup(null);
+    const { source, warn } = setup(empty);
     const attempt = source.get();
     await expect(attempt).rejects.toBeInstanceOf(MarketMapError);
     await expect(attempt).rejects.toThrow(
-      /empty.*Fill in Markets in \/admin, or run pnpm bootstrap/,
+      /empty.*Open a country in Medusa Admin.*or run pnpm bootstrap/,
     );
     expect(warn).not.toHaveBeenCalled();
   });
 
-  it("does not cache the error: the next call reads again, and a fixed global is used", async () => {
-    const { source, load, next } = setup(null);
+  it("does not cache the error: the next call reads again, and a fixed map is used", async () => {
+    const { source, load, next } = setup(empty);
     await expect(source.get()).rejects.toBeInstanceOf(MarketMapError);
-    next(seededGlobal);
+    next(seeded);
     expect(await source.get()).toEqual(seeded);
     expect(load).toHaveBeenCalledTimes(2);
   });
 
-  it("keeps serving the last good map when the global is later saved half-filled", async () => {
-    const { source, advance, next, warn } = setup(brazilGlobal);
+  it("keeps serving the last good map when the map is later saved half-filled", async () => {
+    const { source, advance, next, warn } = setup(brazil);
     await source.get();
     advance(30_000);
-    next(incompleteGlobal);
+    next(incomplete);
     expect(await source.get()).toEqual(brazil);
     expect(warn.mock.calls[0]?.[0]).toMatch(/incomplete.*still serving the map read earlier/);
   });
 });
 
-describe("getMarketMap: a global that can't be read", () => {
+describe("getMarketMap: a map that can't be read", () => {
   it("fails where the fallback is not allowed, with the original error", async () => {
-    const down = new Error("connect ECONNREFUSED 127.0.0.1:15432");
+    const down = new Error("connect ECONNREFUSED 127.0.0.1:9000");
     const { source, allowFallback } = setup(down, (reason) => reason === "unusable");
     await expect(source.get()).rejects.toBe(down);
     expect(allowFallback).toHaveBeenCalledWith("unreachable");
   });
 
-  it("falls back where it is allowed (`next build` in CI has no database)", async () => {
-    const { source, warn } = setup(new Error("no database"), (reason) => reason === "unreachable");
+  it("falls back where it is allowed (`next build` in CI has no backend)", async () => {
+    const { source, warn } = setup(new Error("no backend"), (reason) => reason === "unreachable");
     expect(await source.get()).toBe(seeded);
-    expect(warn.mock.calls[0]?.[0]).toMatch(/could not be read \(no database\).*seeded fixtures/);
+    expect(warn.mock.calls[0]?.[0]).toMatch(/could not be read \(no backend\).*seeded fixtures/);
   });
 
   it("keeps serving the last good map through an outage, and recovers", async () => {
-    const { source, advance, next, load, warn } = setup(brazilGlobal);
+    const { source, advance, next, load, warn } = setup(brazil);
     await source.get();
     advance(30_000);
     next(new Error("connection reset"));
@@ -248,7 +228,7 @@ describe("getMarketMap: a global that can't be read", () => {
     await source.get();
     expect(load).toHaveBeenCalledTimes(2);
     advance(30_000);
-    next(seededGlobal);
+    next(seeded);
     expect(await source.get()).toEqual(seeded);
   });
 });
@@ -265,7 +245,7 @@ describe("getMarketMap: a read that never answers", () => {
   }
 
   it("gives up after the timeout and keeps serving the last good map", async () => {
-    const { source, load, warn, advance, next } = setup(brazilGlobal);
+    const { source, load, warn, advance, next } = setup(brazil);
     await source.get();
     next(NEVER);
     advance(30_000);
@@ -280,7 +260,7 @@ describe("getMarketMap: a read that never answers", () => {
   });
 
   it("joins the read still running at the next TTL instead of starting another", async () => {
-    const { source, load, advance, next } = setup(brazilGlobal);
+    const { source, load, advance, next } = setup(brazil);
     await source.get();
     next(NEVER);
     advance(30_000);
@@ -291,13 +271,13 @@ describe("getMarketMap: a read that never answers", () => {
   });
 
   it("reads again once the silent read has ended", async () => {
-    const { source, load, advance, next } = setup(brazilGlobal);
+    const { source, load, advance, next } = setup(brazil);
     await source.get();
     next(new Promise<never>((_, fail) => setTimeout(() => fail(new Error("reset")), 20_000)));
     advance(30_000);
     await getAfterTimeout(source);
     await vi.advanceTimersByTimeAsync(20_000);
-    next(seededGlobal);
+    next(seeded);
     advance(30_000);
     expect(await source.get()).toEqual(seeded);
     expect(load).toHaveBeenCalledTimes(3);
@@ -311,7 +291,7 @@ describe("getMarketMap: a read that never answers", () => {
   });
 
   it("clears its timer when the read answers in time", async () => {
-    const { source } = setup(seededGlobal);
+    const { source } = setup(seeded);
     await source.get();
     expect(vi.getTimerCount()).toBe(0);
   });
@@ -333,10 +313,10 @@ describe("getMarketMap: staleWhileRevalidate (the proxy's choice)", () => {
   });
 
   it("answers with the old map at once past the TTL, and the new one once it is read", async () => {
-    const { source, load, advance, next } = swr(brazilGlobal);
+    const { source, load, advance, next } = swr(brazil);
     await source.get();
     advance(30_000);
-    next(seededGlobal);
+    next(seeded);
     expect(await source.get()).toEqual(brazil);
     await flush();
     expect(await source.get()).toEqual(seeded);
@@ -344,7 +324,7 @@ describe("getMarketMap: staleWhileRevalidate (the proxy's choice)", () => {
   });
 
   it("does not make callers wait for a read that never answers, one read for all of them", async () => {
-    const { source, load, advance, next } = swr(brazilGlobal);
+    const { source, load, advance, next } = swr(brazil);
     await source.get();
     next(NEVER);
     advance(30_000);
@@ -354,7 +334,7 @@ describe("getMarketMap: staleWhileRevalidate (the proxy's choice)", () => {
   });
 
   it("keeps the old map through a failed background read, and says so after the call returns", async () => {
-    const { source, warn, advance, next } = swr(brazilGlobal);
+    const { source, warn, advance, next } = swr(brazil);
     await source.get();
     next(new Error("connection reset"));
     advance(30_000);
@@ -366,7 +346,7 @@ describe("getMarketMap: staleWhileRevalidate (the proxy's choice)", () => {
 });
 
 describe("marketLoadTimeoutMs (W2, finding 3)", () => {
-  it("is 60 s in development, where the first read starts Payload, and D10's 10 s otherwise", () => {
+  it("is 60 s in development, where the first read waits for a compile, and D10's 10 s otherwise", () => {
     expect(marketLoadTimeoutMs({ NODE_ENV: "development" })).toBe(DEV_MARKET_LOAD_TIMEOUT_MS);
     expect(DEV_MARKET_LOAD_TIMEOUT_MS).toBe(60_000);
     for (const NODE_ENV of ["production", "test", undefined]) {
@@ -381,11 +361,9 @@ describe("marketLoadTimeoutMs (W2, finding 3)", () => {
     beforeEach(() => vi.useFakeTimers());
     afterEach(() => vi.useRealTimers());
 
-    /** A first read that answers after 13 s, as Payload's start did on W2's PC. */
+    /** A first read that answers after 13 s, as the dev server's first compile did on W2's PC. */
     const slowFirstRead = (firstLoadTimeoutMs?: number) => {
-      const answer = new Promise<MarketsGlobal>((resolve) =>
-        setTimeout(() => resolve(brazilGlobal), 13_000),
-      );
+      const answer = new Promise<MarketMap>((resolve) => setTimeout(() => resolve(brazil), 13_000));
       const extra = firstLoadTimeoutMs === undefined ? {} : { firstLoadTimeoutMs };
       return setup(answer, undefined, extra);
     };
@@ -405,7 +383,7 @@ describe("marketLoadTimeoutMs (W2, finding 3)", () => {
     });
 
     it("keeps D10's 10 s for the reads after the first, development value or not", async () => {
-      const { source, advance, next, warn } = setup(brazilGlobal, undefined, {
+      const { source, advance, next, warn } = setup(brazil, undefined, {
         firstLoadTimeoutMs: DEV_MARKET_LOAD_TIMEOUT_MS,
       });
       expect(await source.get()).toEqual(brazil);
@@ -419,13 +397,17 @@ describe("marketLoadTimeoutMs (W2, finding 3)", () => {
   });
 });
 
-describe("defaultAllowFallback", () => {
+describe("defaultAllowFallback (D94)", () => {
   const allow = (env: Parameters<typeof defaultAllowFallback>[0]) => {
     const rule = defaultAllowFallback(env);
     return { unusable: rule("unusable"), unreachable: rule("unreachable") };
   };
+  const configured = {
+    MEDUSA_BACKEND_URL: "https://api.example.com",
+    NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY: "pk_abc",
+  };
 
-  it("allows an unusable global in development and test, not in production", () => {
+  it("allows an unusable map in development and test, not in production", () => {
     expect(allow({ NODE_ENV: "development" })).toEqual({ unusable: true, unreachable: false });
     expect(allow({ NODE_ENV: "test" })).toEqual({ unusable: true, unreachable: false });
     expect(allow({ NODE_ENV: "production" })).toEqual({ unusable: false, unreachable: false });
@@ -435,28 +417,36 @@ describe("defaultAllowFallback", () => {
     });
   });
 
-  it("allows both while `next build` runs with no database configured (CI has no .env)", () => {
+  it("allows both while `next build` runs with no Medusa configured (CI has no .env)", () => {
     expect(allow({ NODE_ENV: "production", NEXT_PHASE: "phase-production-build" })).toEqual({
       unusable: true,
       unreachable: true,
     });
-    expect(
-      allow({
-        NODE_ENV: "production",
-        NEXT_PHASE: "phase-production-build",
-        PAYLOAD_DATABASE_URL: "",
-      }),
-    ).toEqual({ unusable: true, unreachable: true });
+    // Blank values are unset, as `medusaEnv()` reads them; one of the two missing is not configured.
+    for (const env of [
+      { MEDUSA_BACKEND_URL: "", NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY: "  " },
+      { MEDUSA_BACKEND_URL: "http://localhost:9000" },
+      { NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY: "pk_abc" },
+    ]) {
+      expect(
+        allow({ NODE_ENV: "production", NEXT_PHASE: "phase-production-build", ...env }),
+      ).toEqual({ unusable: true, unreachable: true });
+    }
   });
 
-  it("does not hide an unreadable global from a build that has a database configured", () => {
-    // A wrong password, a missing table or a bad secret must fail the build, not ship fixtures.
+  it("does not hide an unreadable map from a build that has Medusa configured", () => {
+    // A backend that is down, a wrong key or a missing plugin must fail the build, not ship fixtures.
+    const env = { NODE_ENV: "production", NEXT_PHASE: "phase-production-build", ...configured };
+    expect(allow(env)).toEqual({ unusable: true, unreachable: false });
+  });
+
+  it("does not care whether a database is configured: Payload no longer holds the map", () => {
     const env = {
       NODE_ENV: "production",
       NEXT_PHASE: "phase-production-build",
       PAYLOAD_DATABASE_URL: "postgres://shop:secret@db.example/payload",
     };
-    expect(allow(env)).toEqual({ unusable: true, unreachable: false });
+    expect(allow(env)).toEqual({ unusable: true, unreachable: true });
   });
 
   it("reads the environment when asked, not when it is made", () => {

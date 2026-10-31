@@ -82,7 +82,7 @@ describe("the routes under /next/e2e", () => {
     for (const tag of [
       "",
       "medusa:products",
-      "global:markets",
+      "medusa:markets",
       "pages",
       "pages:",
       "x pages:el",

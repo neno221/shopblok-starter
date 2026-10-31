@@ -2,7 +2,7 @@ import { z } from "@medusajs/framework/zod";
 
 /**
  * A small client for Payload's REST API, in the shape of `@payloadcms/sdk` 3.92.1 (`find`,
- * `create`, `update`, `delete`, `findGlobal`, `updateGlobal`). The SDK itself is not used (T60,
+ * `create`, `update`, `delete`; the market map left Payload with M4b, so no globals). The SDK itself is not used (T60,
  * step 3): its runtime imports of `payload` are type-only, but it is ESM-only (the backend's Jest
  * runs CommonJS through swc), it lists all of `payload` as a dependency, and it is marked
  * experimental. Every answer is parsed with zod, so a Payload that answers something else fails
@@ -56,7 +56,6 @@ const findResult = z.object({
   totalDocs: z.number(),
 });
 const docResult = z.object({ doc });
-const globalResult = z.object({ result: z.looseObject({}) });
 const errorBody = z.object({ errors: z.array(z.object({ message: z.string() })).min(1) });
 
 /** `{ where: { medusaId: { equals: "x" } } }` as Payload's query string: `where[medusaId][equals]=x`. */
@@ -166,8 +165,5 @@ export function createPayloadClient(options: PayloadClientOptions) {
       (await request(docResult, "PATCH", `/${collection}/${id}`, {}, data)).doc,
     delete: async (collection: string, id: number | string) =>
       (await request(docResult, "DELETE", `/${collection}/${id}`)).doc,
-    findGlobal: (slug: string) => request(z.looseObject({}), "GET", `/globals/${slug}`),
-    updateGlobal: async (slug: string, data: Record<string, unknown>) =>
-      (await request(globalResult, "POST", `/globals/${slug}`, {}, data)).result,
   };
 }

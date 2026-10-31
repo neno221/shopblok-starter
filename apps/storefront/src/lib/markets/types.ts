@@ -1,5 +1,5 @@
-// The market map is defined in `@shopblok/fixtures` (the editable part of Payload's `markets`
-// global); the library adds the derived market and the result of resolving a request.
+// The market map is defined in `@shopblok/fixtures` (the shape of Medusa's `GET /store/markets`,
+// M4b D94); the library adds the derived market and the result of resolving a request.
 import type { MarketCountry, MarketLanguage, MarketMap } from "@shopblok/fixtures";
 
 export type { MarketCountry, MarketLanguage, MarketMap };

@@ -1,16 +1,14 @@
-import type { Locale, Payload, PayloadRequest } from "payload";
+import type { Locale, PayloadRequest } from "payload";
+import { enabledCountries } from "../lib/markets/market";
+import type { MarketMap } from "../lib/markets/types";
 import { DEFAULT_LOCALE } from "./locales";
+import { marketMap } from "./market-map";
 
-type MarketsDoc = {
-  countries?: { enabled?: boolean | null; languages?: string[] | null }[] | null;
-};
-
-/** The languages of the enabled countries. */
-export function enabledLanguages(markets: MarketsDoc): Set<string> {
+/** The languages of the open countries. */
+export function enabledLanguages(map: MarketMap): Set<string> {
   const languages = new Set<string>();
-  for (const country of markets.countries ?? []) {
-    if (country.enabled === false) continue;
-    for (const language of country.languages ?? []) languages.add(language);
+  for (const country of enabledCountries(map)) {
+    for (const language of country.languages) languages.add(language);
   }
   return languages;
 }
@@ -18,7 +16,7 @@ export function enabledLanguages(markets: MarketsDoc): Set<string> {
 /**
  * The locales the admin offers: the enabled languages and the default one, in the config's order.
  * It never returns `[]` (an empty list is the edge case Payload's admin does not like), and it
- * never hides the default locale, so a fresh database with no markets still shows English.
+ * never hides the default locale, so a shop with no open market still shows English.
  */
 export function pickAvailableLocales(locales: Locale[], enabled: ReadonlySet<string>): Locale[] {
   const picked = locales.filter(
@@ -27,101 +25,76 @@ export function pickAvailableLocales(locales: Locale[], enabled: ReadonlySet<str
   return picked.length > 0 ? picked : locales.slice(0, 1);
 }
 
-/** Postgres `undefined_table`; drizzle puts the driver's error on `cause`. */
-const UNDEFINED_TABLE = "42P01";
+/**
+ * After a failed read of the map, how long the languages of the last good map (or English alone)
+ * are used without asking Medusa again. A read that fails because Medusa hangs costs the SDK's
+ * timeout (10 s); Payload calls the filter three times for one admin page (S3, L7), and without
+ * this each of the three would wait for it.
+ */
+export const FAILED_READ_TTL_MS = 10_000;
 
-export function isMissingTable(error: unknown): boolean {
-  for (let current = error; current instanceof Error; current = current.cause) {
-    if ((current as { code?: unknown }).code === UNDEFINED_TABLE) return true;
-  }
-  return false;
+type Memory = {
+  /** The open languages of the last map read: what an outage falls back to. */
+  lastGood?: ReadonlySet<string>;
+  /** When the last read failed, if the failure is still fresh. */
+  failedAt?: number;
+};
+const MEMORY = Symbol.for("shopblok.availableLocales");
+const shared = globalThis as typeof globalThis & { [MEMORY]?: Memory };
+const memory = (): Memory => (shared[MEMORY] ??= {});
+
+/** Forgets the last good map and the failure, for a test. */
+export function clearAvailableLocalesMemory(): void {
+  delete shared[MEMORY];
 }
 
-async function readEnabledLanguages(payload: Payload, req?: PayloadRequest) {
-  try {
-    // Not on behalf of the signed-in user: which languages exist is the shop's setting, so an
-    // editor who may not read `markets` still gets the same selector. `req` is given only inside a
-    // write's transaction (`filterAvailableLocales`).
-    const markets = await payload.findGlobal({
-      slug: "markets",
-      depth: 0,
-      overrideAccess: true,
-      req,
-    });
-    return enabledLanguages(markets);
-  } catch (error) {
-    // A missing table (before `payload migrate`) must not take the admin down. Any other error is
-    // not "no markets enabled": it is left to fail the request rather than shrink the selector.
-    if (!isMissingTable(error)) throw error;
-    payload.logger.warn({ err: error }, "markets: the table is missing, run `payload migrate`");
-    return new Set<string>();
-  }
-}
+type Warn = (message: string) => void;
 
 /**
- * How long one read of `markets` serves every call, in milliseconds.
+ * The open languages, from the storefront's market map, which is Medusa's (D95). It never throws:
+ * a Medusa that cannot be read must not take Payload's admin down. Then the languages of the last
+ * map read serve, or, with none yet, nothing is open and `pickAvailableLocales` offers the default
+ * locale alone; either way the log says so, once per `FAILED_READ_TTL_MS`.
  *
- * Payload calls the filter three times for one admin page load (the root layout twice and the page
- * once, S3 L7), and each call gets a `req` of its own: `initReq` hands out a copy of the request,
- * and its `context` with it. What the first call keeps in `req.context` is not there for the
- * others, and a variable in this module is no better, because the layout and the page each load
- * their own instance of it. A memo that works has to live on `globalThis`, and it has to be keyed
- * by time: nothing in the calls says which HTTP request they belong to (`req.headers` is a new
- * Proxy per `headers()` call, and React's `cache()` scope was shared by only two of the three).
- * Two seconds is long enough for one page and short enough that a person who saved `markets`
- * reads the new list on the next page; a save puts the new list in at once
- * (`rememberEnabledLanguages`). Another server process is up to this much behind.
+ * `read` is the lazy import of the map (`marketMap`), a parameter for the test.
  */
-export const ENABLED_LANGUAGES_TTL_MS = 2_000;
-
-type Memo = { payload: Payload; at: number; enabled: Promise<Set<string>> };
-const MEMO = Symbol.for("shopblok.enabledLanguages");
-const shared = globalThis as typeof globalThis & { [MEMO]?: Memo };
-
-/** Forgets the read, so the next call reads `markets` again. */
-export function clearEnabledLanguages(): void {
-  delete shared[MEMO];
-}
-
-/**
- * The `markets` global calls it from `afterChange` with the document it saved. Payload commits the
- * save's transaction only after its `afterChange` hooks, so a page that reads in between would get
- * the old list, and the memo would keep it. The new list is put in the memo instead, which no read
- * can beat. A document without `countries` (a partial `select`) says nothing: the memo is cleared.
- * If the save is rolled back after the hook, the wrong list lasts for the memo's time at most.
- */
-export function rememberEnabledLanguages(payload: Payload, saved: MarketsDoc): void {
-  if (!Array.isArray(saved.countries)) return clearEnabledLanguages();
-  shared[MEMO] = {
-    payload,
-    at: performance.now(),
-    enabled: Promise.resolve(enabledLanguages(saved)),
-  };
-}
-
-function sharedRead(payload: Payload): Promise<Set<string>> {
+export async function openLanguages(
+  warn: Warn,
+  read: () => Promise<MarketMap> = marketMap,
+): Promise<ReadonlySet<string>> {
+  const state = memory();
   // `performance.now()` and not `Date.now()`: the same monotonic clock `lib/markets` uses, because
   // Cache Components refuse `Date.now()` in a render (SETUP.md, T10 item 1).
   const now = performance.now();
-  const memo = shared[MEMO];
-  if (memo?.payload === payload && now - memo.at < ENABLED_LANGUAGES_TTL_MS) return memo.enabled;
-  const entry: Memo = { payload, at: now, enabled: readEnabledLanguages(payload) };
-  shared[MEMO] = entry;
-  // A read that failed is not kept: the next call tries again.
-  entry.enabled.catch(() => {
-    if (shared[MEMO] === entry) delete shared[MEMO];
-  });
-  return entry.enabled;
+  const empty = new Set<string>();
+  if (state.failedAt !== undefined && now - state.failedAt < FAILED_READ_TTL_MS) {
+    return state.lastGood ?? empty;
+  }
+  try {
+    // The map has its own 30 s cache and shares one read between callers (`lib/markets/source.ts`).
+    const languages = enabledLanguages(await read());
+    state.lastGood = languages;
+    delete state.failedAt;
+    return languages;
+  } catch (error) {
+    state.failedAt = now;
+    const why = error instanceof Error ? error.message : String(error);
+    warn(
+      state.lastGood === undefined
+        ? `markets: the market map could not be read (${why}); the language selector offers the default locale only`
+        : `markets: the market map could not be read (${why}); the language selector keeps the languages read earlier`,
+    );
+    return state.lastGood ?? empty;
+  }
 }
 
 /**
  * Payload's `localization.filterAvailableLocales`. It only filters the admin's locale selector,
  * the version view and (experimental) the publish menu; the REST and Local API still accept every
- * preloaded locale, so the storefront enforces markets itself (S3, L8). The read of `markets` is
- * shared between the calls Payload makes for one page (`ENABLED_LANGUAGES_TTL_MS`). A write calls
- * it too (to choose the locales that get a publication status, once `localizeStatus` is on), with
- * its transaction open and holding a connection: that read joins the transaction and is not
- * shared, or each write would wait for a second connection while it holds the first.
+ * preloaded locale, so the storefront enforces markets itself (S3, L8). The open languages are
+ * Medusa's (the market map, through a lazy import: `market-map.ts` says why) and the read never
+ * throws (`openLanguages`). A write calls this too, with its transaction open; nothing here reads
+ * Payload's database, so there is no connection to share.
  */
 export async function filterAvailableLocales({
   locales,
@@ -130,8 +103,8 @@ export async function filterAvailableLocales({
   locales: Locale[];
   req: PayloadRequest;
 }): Promise<Locale[]> {
-  const enabled = req.transactionID
-    ? await readEnabledLanguages(req.payload, req)
-    : await sharedRead(req.payload);
-  return pickAvailableLocales(locales, enabled);
+  return pickAvailableLocales(
+    locales,
+    await openLanguages((message) => req.payload.logger.warn(message)),
+  );
 }

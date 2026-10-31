@@ -326,22 +326,22 @@ describe("revalidateGlobalOnPublish", () => {
     expect(revalidateTag).toHaveBeenCalled();
   });
 
-  it("passes the profile it is given: `markets` expires its read (T71)", async () => {
+  it("passes the profile it is given: a global can expire its read (T71)", async () => {
     await saveGlobal("draft", { _status: "published" });
     expect(revalidateTag).toHaveBeenCalledWith("global:header:en", "max");
     revalidateTag.mockClear();
-    const markets = revalidateGlobalOnPublish({
-      tags: () => ["global:markets"],
+    const expiring = revalidateGlobalOnPublish({
+      tags: () => ["global:expiring"],
       profile: { expire: 0 },
     });
-    const doc = { countries: [] };
-    await markets.afterChange[0]?.({
+    const doc = {};
+    await expiring.afterChange[0]?.({
       doc,
-      global: { slug: "markets" },
+      global: { slug: "expiring" },
       previousDoc: {},
       req: request(),
     } as unknown as GAfter);
-    expect(revalidateTag).toHaveBeenCalledWith("global:markets", { expire: 0 });
+    expect(revalidateTag).toHaveBeenCalledWith("global:expiring", { expire: 0 });
   });
 });
 

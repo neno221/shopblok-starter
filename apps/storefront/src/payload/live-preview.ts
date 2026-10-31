@@ -6,6 +6,7 @@ import { listMarkets, primaryCountryCode } from "../lib/markets/market";
 import type { Market, MarketMap } from "../lib/markets/types";
 import { buildPublicUrl } from "../lib/markets/url";
 import { siteOrigin } from "../lib/site-origin";
+import { marketMap } from "./market-map";
 
 /** D74's three frames: a phone, a tablet and a laptop. */
 export const LIVE_PREVIEW_BREAKPOINTS = [
@@ -53,17 +54,6 @@ export function previewUrl(args: {
   url.searchParams.set("path", target.pathname + target.search);
   url.searchParams.set("secret", secret);
   return url.toString();
-}
-
-/**
- * The shop's own market map (`get-market-map.ts`: the global kept for 30 s, with its development
- * fallback), so the frame, `/next/preview` and `safeRedirect` agree on the markets. Imported when
- * the url function first runs, which is only ever inside Next (the admin): the module is
- * `server-only`, and a static import would load it with the config in `payload run` and the CLI.
- */
-async function marketMap(): Promise<MarketMap> {
-  const { getMarketMap } = await import("../lib/markets/get-market-map");
-  return getMarketMap();
 }
 
 /** The page a content global is previewed on (T61): the market's home, which shows all three. */

@@ -5,7 +5,7 @@ import { payloadModule, reconcile } from "../../../../lib/payload-sync";
 
 /**
  * Settings → Payload (D75): `GET` answers the last run in this process, `POST` writes every synced
- * document and `markets.synced` now and answers its counts. Admin session only (the middleware
+ * document now and answers its counts. Admin session only (the middleware
  * leaves out secret API keys).
  */
 export async function GET(req: MedusaRequest, res: MedusaResponse) {

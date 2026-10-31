@@ -19,7 +19,6 @@ jest.mock("../../workflows/sync-to-payload", () => ({
   markPayloadDeletedWorkflow: () => ({
     run: ({ input }: { input: unknown }) => markDeleted(input),
   }),
-  syncPayloadMarketsWorkflow: () => ({ run: async () => ({ result: { written: true } }) }),
 }));
 
 const UPDATED_AT = "2026-10-28T12:00:00.000Z";
@@ -60,7 +59,6 @@ function race() {
     listDocuments: jest.fn(async (collection: string) =>
       collection === "products" ? [...payload] : [],
     ),
-    readMarkets: jest.fn(async () => null),
     recordRun: jest.fn(),
   };
   const container = {

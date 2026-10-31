@@ -73,7 +73,7 @@ const isPayload = (name: string) =>
   name.startsWith("@payloadcms/") ||
   name === "@payload-config";
 
-describe("the proxy's import graph has no Payload (D10, D82)", () => {
+describe("the proxy's import graph has no Payload and no Medusa SDK (D10, D82, D94)", () => {
   it("reads only the market map and the redirects, over HTTP", () => {
     const { files, packages } = importGraph(path.join(dirname, "proxy.ts"));
     // Forward slashes on Windows too, where `path.relative` gives backslashes (windows-smoke).
@@ -90,6 +90,12 @@ describe("the proxy's import graph has no Payload (D10, D82)", () => {
     // No file of the CMS's either: they are the Local API's.
     expect(
       names.filter((name) => name.startsWith("payload/") || name.startsWith("lib/cms/")),
+    ).toEqual([]);
+    // The map comes from Medusa since T75, but the proxy still reads it from `/next/markets`: the
+    // loader (`lib/markets/medusa-loader.ts`) and the SDK stay out of it.
+    expect([...packages].filter((name) => name.startsWith("@medusajs/"))).toEqual([]);
+    expect(
+      names.filter((name) => name.startsWith("lib/medusa/") || name.endsWith("medusa-loader.ts")),
     ).toEqual([]);
   });
 

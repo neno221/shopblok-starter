@@ -45,8 +45,8 @@ import {
 
 const HELP = `pnpm bootstrap [--ci] [--no-demo] [--verbose]
 
-Sets up a fresh clone: .env files, migrations, seeds, the admin users, the publishable key and the
-\`markets\` global. Needs the compose stack (\`pnpm infra:up\`). Safe to run again.
+Sets up a fresh clone: .env files, migrations, seeds (the markets module among them), the admin
+users and the publishable key. Needs the compose stack (\`pnpm infra:up\`). Safe to run again.
 
   --ci         never prompt: commands get no stdin and CI=true, no live status line
   --no-demo    skip the demo catalog (development only anyway, D7)
@@ -483,14 +483,12 @@ async function payloadMigrations(ctx: Context): Promise<StepResult> {
   return { status: classifyPayloadMigrate(result.output).changed ? "done" : "unchanged" };
 }
 
-// ---- 8. Payload: first users and the markets global -----------------------------------------
+// ---- 8. Payload users (the market map is Medusa's since M4b, D95; step 4 seeds it) ------------
 
 type PayloadOutcome = {
   admin: "created" | "exists";
   generatedAdminPassword?: string;
   integration: "created" | "unchanged" | "rekeyed";
-  markets: "seeded" | "unchanged";
-  problems: string[];
 };
 
 async function payloadBootstrap(ctx: Context): Promise<StepResult> {
@@ -513,9 +511,7 @@ async function payloadBootstrap(ctx: Context): Promise<StepResult> {
     );
   }
 
-  const notes = outcome.problems.map(
-    (problem) => `The markets global is not usable as it is: ${problem}. Left as it is.`,
-  );
+  const notes: string[] = [];
   if (outcome.generatedAdminPassword) {
     notes.push(
       `The Medusa admin already existed without a stored password, so the Payload admin ${ctx.state.admin.email} was created with this password: ${outcome.generatedAdminPassword}`,
@@ -526,7 +522,6 @@ async function payloadBootstrap(ctx: Context): Promise<StepResult> {
   if (outcome.admin === "created") did.push("Payload admin created");
   if (outcome.integration === "created") did.push("integrations user created");
   if (outcome.integration === "rekeyed") did.push("integrations user given a new API key");
-  if (outcome.markets === "seeded") did.push("markets global seeded");
 
   return did.length > 0
     ? { status: "done", detail: did.join(", "), notes }
@@ -606,7 +601,6 @@ async function medusaPayloadSync(ctx: Context): Promise<StepResult> {
       counts.created > 0 ? `${counts.created} created` : "",
       counts.updated > 0 ? `${counts.updated} updated` : "",
       counts.deleted > 0 ? `${counts.deleted} marked deleted` : "",
-      counts.markets === "updated" ? "markets synced" : "",
     ].filter(Boolean);
     return did.length > 0 ? { status: "done", detail: did.join(", ") } : { status: "unchanged" };
   } finally {
@@ -692,7 +686,7 @@ const STEPS: Step[] = [
   { number: 5, name: "Medusa admin user", run: adminUser },
   { number: 6, name: "Publishable key", run: publishableKey },
   { number: 7, name: "Payload migrations", run: payloadMigrations },
-  { number: 8, name: "Payload users and markets", run: payloadBootstrap },
+  { number: 8, name: "Payload users", run: payloadBootstrap },
   { number: 9, name: "Payload key", run: payloadKey },
   { number: 10, name: "Medusa → Payload sync", run: medusaPayloadSync },
   { number: 11, name: "Payload content seed", run: contentSeed },

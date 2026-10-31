@@ -5,9 +5,12 @@ import { redirects, validateCustomUrl, validateFrom } from "./redirects";
 
 const revalidateTag = vi.hoisted(() => vi.fn());
 vi.mock("next/cache", () => ({ revalidateTag }));
+// The market map is Medusa's (D95): the save checks read it through `get-market-map`, lazily.
+const getMarketMap = vi.hoisted(() => vi.fn());
+vi.mock("../lib/markets/get-market-map", () => ({ getMarketMap }));
 
 // D82 (T68): the redirects plugin's collection with the save checks. The Local API is a fake that
-// answers the markets global with the seeded map (Cyprus at `/`, the US at `/us`, Germany at `/de`),
+// answers the market map with the seeded map (Cyprus at `/`, the US at `/us`, Germany at `/de`),
 // the stored redirects, and the published pages and posts in every language.
 
 type Stored = { id: number; from: string; type: string; to: Record<string, unknown> };
@@ -21,14 +24,13 @@ const state = {
 const find = vi.fn(async ({ collection }: { collection: keyof typeof state }) => ({
   docs: state[collection],
 }));
-const findGlobal = vi.fn(async () => seeded);
 
 const req = () =>
   ({
     locale: "en",
     fallbackLocale: "en",
     context: {},
-    payload: { config: {}, find, findGlobal },
+    payload: { config: {}, find },
     t: (key: string) => key,
   }) as unknown as PayloadRequest;
 
@@ -44,6 +46,7 @@ beforeEach(() => {
   state.pages = [];
   state.posts = [];
   find.mockClear();
+  getMarketMap.mockReset().mockResolvedValue(seeded);
   revalidateTag.mockReset();
 });
 

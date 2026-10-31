@@ -6,17 +6,10 @@ import { PAYLOAD_MODULE } from "../modules/payload";
 import {
   ENTITY,
   QUERY_FIELDS,
-  REGION_FIELDS,
-  STORE_FIELDS,
   SYNC_COLLECTIONS,
   documentOf,
   isoTime,
-  marketsSynced,
   parentsFirst,
-  sameMarkets,
-  type MarketsSynced,
-  type MedusaRegion,
-  type MedusaStore,
   type SyncCollection,
   type SyncDocument,
 } from "../modules/payload/mapping";
@@ -25,11 +18,11 @@ import type { Listed, RunCounts, SyncRun } from "../modules/payload/service";
 import {
   markPayloadDeletedWorkflow,
   syncPayloadDocumentWorkflow,
-  syncPayloadMarketsWorkflow,
 } from "../workflows/sync-to-payload";
 
 /**
- * The Medusa side of the Medusa → Payload sync (D75, D76): what to read from Medusa, and when to
+ * The Medusa side of the Medusa → Payload sync (D75; the market map left it with M4b, D95, so it
+ * carries products, categories and collections only): what to read from Medusa, and when to
  * write. The subscriber syncs what an event names; the reconcile job and the bulk route compare
  * everything (`reconcile`); `export-for-payload.ts` writes the same documents to a file for
  * bootstrap. The writes themselves are the workflows in `src/workflows/sync-to-payload.ts`.
@@ -71,15 +64,6 @@ export async function readDocuments(
     ...(ids === undefined ? {} : { filters: { id: ids }, withDeleted: true }),
   });
   return data.map((record) => documentOf(collection, record));
-}
-
-/** The markets' synced part, from the regions and the store. */
-export async function readMarkets(query: Query): Promise<MarketsSynced> {
-  const [{ data: regions }, { data: stores }] = await Promise.all([
-    query.graph({ entity: "region", fields: REGION_FIELDS }),
-    query.graph({ entity: "store", fields: STORE_FIELDS }),
-  ]);
-  return marketsSynced(regions as MedusaRegion[], stores[0] as MedusaStore | undefined);
 }
 
 /** A workflow throws its step's error serialized, `{ message, name, stack }`, not an `Error`. */
@@ -131,20 +115,6 @@ export async function syncRecords(
       logger.warn(`payload-sync: ${collection} ${medusaId} not marked deleted: ${message(error)}`);
     }
   }
-}
-
-/** Writes `markets.synced` when it differs from Medusa (or always, with `force`). */
-export async function syncMarkets(
-  container: MedusaContainer,
-  { force = false }: { force?: boolean } = {},
-): Promise<"updated" | "unchanged"> {
-  const payload = payloadModule(container);
-  if (payload === undefined) return "unchanged";
-  const synced = await readMarkets(queryOf(container));
-  const stored = await payload.readMarkets();
-  if (!force && stored !== null && sameMarkets(stored, synced)) return "unchanged";
-  await syncPayloadMarketsWorkflow(container).run({ input: synced });
-  return "updated";
 }
 
 const sameTime = (a: string | null, b: unknown): boolean =>
@@ -247,20 +217,11 @@ export async function reconcile(
     }
   }
 
-  let markets: SyncRun["markets"];
-  try {
-    markets = await syncMarkets(container, { force });
-  } catch (error) {
-    markets = "failed";
-    errors.push(`markets: ${message(error)}`);
-  }
-
   const run: SyncRun = {
     kind,
     startedAt,
     finishedAt: new Date().toISOString(),
     collections,
-    markets,
     errors: errors.slice(0, 20),
   };
   payload.recordRun(run);
@@ -277,5 +238,5 @@ export async function exportAll(container: MedusaContainer): Promise<SyncExport>
     const read = await readDocuments(query, collection);
     documents[collection] = collection === "categories" ? parentsFirst(read) : read;
   }
-  return { exportedAt: isoTime(new Date()), documents, markets: await readMarkets(query) };
+  return { exportedAt: isoTime(new Date()), documents };
 }

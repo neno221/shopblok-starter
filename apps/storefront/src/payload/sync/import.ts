@@ -5,13 +5,12 @@ import type {
   SyncDocument,
   SyncExport,
 } from "@shopblok/fixtures/sync";
-import { syncedFromGlobal } from "../../lib/markets/synced";
 
 /**
  * Bootstrap's first sync, the Payload half (D75, `pnpm bootstrap` step 10): the documents the
  * backend's `export-for-payload.ts` wrote, upserted by `medusaId` through the Local API as the
  * `medusa-sync` integration (`overrideAccess: false`, so the same field access applies as to the
- * backend's REST writes), then the references, then the soft deletes, then `markets.synced`. A
+ * backend's REST writes), then the references, then the soft deletes. The market map is not part of it (M4b, D95: Medusa holds it). A
  * document that already matches Medusa is not written, so a second bootstrap changes nothing.
  */
 
@@ -49,14 +48,13 @@ const sameValue = (field: string, stored: unknown, wanted: unknown): boolean => 
 export async function importFromMedusa(
   payload: Payload,
   user: TypedUser,
-  exported: Pick<SyncExport, "documents" | "markets">,
+  exported: Pick<SyncExport, "documents">,
 ): Promise<ImportCounts> {
   const counts: ImportCounts = {
     created: 0,
     updated: 0,
     deleted: 0,
     unchanged: 0,
-    markets: "unchanged",
   };
   const access = { user, overrideAccess: false, context: CONTEXT, depth: 0 } as const;
   const syncedAt = new Date().toISOString();
@@ -135,15 +133,5 @@ export async function importFromMedusa(
     }
   }
 
-  const markets = await payload.findGlobal({ slug: "markets", ...access });
-  const stored = syncedFromGlobal((markets as { synced?: never }).synced);
-  if (JSON.stringify(stored) !== JSON.stringify(exported.markets)) {
-    await payload.updateGlobal({
-      slug: "markets",
-      data: { synced: { ...exported.markets, syncedAt } } as never,
-      ...access,
-    });
-    counts.markets = "updated";
-  }
   return counts;
 }

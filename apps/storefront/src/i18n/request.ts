@@ -19,7 +19,7 @@ import { messagesFor } from "./market-messages";
  *   language with no value of its own, and only values that pass the ICU check. So a value comes
  *   from the language's edit, then English's edit, then the code catalog of the language, then
  *   English's. With no database, or while Payload cannot answer, the code catalog alone.
- * - `timeZone` is the market's (the country's zone in the `markets` global, D65, else UTC), so a
+ * - `timeZone` is the market's (the country's zone in Medusa's markets, D65, D96, else UTC), so a
  *   server rendering at build time and a browser agree (without one, next-intl falls back to the
  *   zone of whichever machine renders).
  */

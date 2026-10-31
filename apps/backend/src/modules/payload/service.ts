@@ -1,12 +1,7 @@
 import type { Logger } from "@medusajs/framework/types";
 
 import { createPayloadClient, type PayloadClient, type PayloadDoc } from "./client";
-import {
-  SYNCED_FIELDS,
-  type MarketsSynced,
-  type SyncCollection,
-  type SyncDocument,
-} from "./mapping";
+import { SYNCED_FIELDS, type SyncCollection, type SyncDocument } from "./mapping";
 
 export type PayloadModuleOptions = {
   serverUrl: string;
@@ -40,7 +35,6 @@ export type SyncRun = {
   startedAt: string;
   finishedAt: string;
   collections: Record<SyncCollection, RunCounts>;
-  markets: "updated" | "unchanged" | "failed";
   errors: string[];
 };
 
@@ -64,7 +58,7 @@ const idOf = (value: unknown): number | string | null =>
       : null;
 
 /**
- * The Payload module (D75, SPEC §6.2): writes Medusa's catalog and markets into Payload over REST,
+ * The Payload module (D75, SPEC §6.2): writes Medusa's catalog (products, categories and collections) into Payload over REST,
  * as the `medusa-sync` integration. Steps and jobs call it; it reads nothing from Medusa itself
  * (a module sees only its own container), so the reads are in `src/lib/payload-sync.ts`.
  */
@@ -217,36 +211,6 @@ export default class PayloadModuleService {
     }
   }
 
-  /** `markets.synced` as stored, or null before the first sync. */
-  async readMarkets(): Promise<MarketsSynced | null> {
-    const global = await this.client.findGlobal("markets");
-    const synced = (global.synced ?? {}) as Partial<Record<keyof MarketsSynced, unknown>>;
-    const list = (value: unknown): unknown[] => (Array.isArray(value) ? value : []);
-    const strings = (value: unknown): string[] =>
-      list(value).filter((item): item is string => typeof item === "string");
-    if (list(synced.regions).length === 0 && list(synced.locales).length === 0) return null;
-    return {
-      regions: list(synced.regions).map((region) => {
-        const row = region as Record<string, unknown>;
-        return {
-          medusaId: String(row.medusaId ?? ""),
-          name: String(row.name ?? ""),
-          currency: String(row.currency ?? ""),
-          countries: strings(row.countries),
-        };
-      }),
-      currencies: strings(synced.currencies),
-      defaultCurrency: typeof synced.defaultCurrency === "string" ? synced.defaultCurrency : null,
-      locales: strings(synced.locales),
-    };
-  }
-
-  async writeMarkets(synced: MarketsSynced) {
-    await this.client.updateGlobal("markets", {
-      synced: { ...synced, syncedAt: new Date().toISOString() },
-    });
-  }
-
   /** The last reconcile or bulk run in this process (none after a restart). */
   lastRun(): SyncRun | null {
     return this.lastRun_;
@@ -261,8 +225,8 @@ export default class PayloadModuleService {
       }),
       { written: 0, failed: 0 },
     );
-    const message = `payload-sync: ${run.kind} wrote ${total.written} documents (${total.failed} failed), markets ${run.markets}`;
-    if (total.failed > 0 || run.markets === "failed") this.logger.warn(message);
+    const message = `payload-sync: ${run.kind} wrote ${total.written} documents (${total.failed} failed)`;
+    if (total.failed > 0) this.logger.warn(message);
     else this.logger.info(message);
   }
 }

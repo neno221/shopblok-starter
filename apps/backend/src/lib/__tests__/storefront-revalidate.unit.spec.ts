@@ -69,7 +69,12 @@ describe("batchesFor (the event-to-tags table)", () => {
         },
       ],
     ],
-    ["region.updated", [], [{ tags: ["medusa:regions", "medusa:products", "search"], expire: 0 }]],
+    [
+      "region.updated",
+      [],
+      [{ tags: ["medusa:regions", "medusa:markets", "medusa:products", "search"], expire: 0 }],
+    ],
+    ["shopblok.markets.updated", [], [{ tags: ["medusa:markets"], expire: 0 }]],
     ["order.placed", ["tee"], []],
   ])("%s with %j", (event, handles, expected) => {
     expect(batchesFor(event, handles)).toEqual(expected);
@@ -88,6 +93,27 @@ describe("batchesFor (the event-to-tags table)", () => {
       for (const action of ["created", "updated", "deleted"]) {
         expect(REVALIDATE_EVENTS).toContain(`${family}.${action}`);
       }
+    }
+  });
+
+  it("sends the market map's tag with expire 0 on a saved market and on every region event (D94)", () => {
+    expect(REVALIDATE_EVENTS).toContain("shopblok.markets.updated");
+    for (const event of [
+      "shopblok.markets.updated",
+      "region.created",
+      "region.updated",
+      "region.deleted",
+    ]) {
+      const batches = batchesFor(event, []);
+      const withMap = batches.filter((batch) => batch.tags.includes("medusa:markets"));
+      expect(withMap).toHaveLength(1);
+      expect(withMap[0]!.expire).toBe(0);
+    }
+    // ... and on nothing else: a product or a price list does not change the map.
+    for (const event of ["product.updated", "product-variant.updated", "translation.updated"]) {
+      expect(batchesFor(event, ["tee"]).flatMap((batch) => batch.tags)).not.toContain(
+        "medusa:markets",
+      );
     }
   });
 
