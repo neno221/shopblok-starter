@@ -22,7 +22,7 @@ import { keepRefusalReason } from "./hooks/keep-refusal-reason";
 import { revalidateOnPublish } from "./hooks/revalidate-on-publish";
 import { keepingRequest } from "./keeping-request";
 import { DEFAULT_LOCALE, LANGUAGES } from "./locales";
-import { marketMap } from "./market-map";
+import { marketMapOrUndefined } from "./market-map";
 
 // D82 (T68): the redirects plugin's collection, with the save checks the proxy needs and
 // `revalidateOnPublish`. The plugin only stores redirects; the proxy answers them
@@ -147,6 +147,13 @@ async function loopOf(
 }
 
 /**
+ * What an editor reads when Medusa can't be read and no map was read before. Refusing is safer than
+ * accepting an address that may shadow a market (T75 review, item 2).
+ */
+export const MARKETS_UNREADABLE =
+  "The markets can't be read from Medusa right now; try again in a moment.";
+
+/**
  * `from`: Payload's own checks (required), then D82's: a path the proxy sees (`fromProblem`), and
  * no loop or chain with the other redirects (`loopProblem`).
  */
@@ -155,7 +162,8 @@ export const validateFrom: TextFieldSingleValidation = async (value, options) =>
   if (base !== true) return base;
   if (typeof value !== "string" || value === "") return true;
   const { req, data, id } = options;
-  const map = await marketMap();
+  const map = await marketMapOrUndefined(req, "the redirect was refused");
+  if (map === undefined) return MARKETS_UNREADABLE;
   return (
     fromProblem(value, map) ??
     (await loopOf(req, { ...(data as StoredRedirect), from: value }, id, map)) ??
@@ -168,7 +176,9 @@ export const validateCustomUrl: TextFieldSingleValidation = async (value, option
   const base = text(value, options);
   if (base !== true) return base;
   if (typeof value !== "string" || value === "") return true;
-  return customUrlProblem(value, await marketMap()) ?? true;
+  const map = await marketMapOrUndefined(options.req, "the redirect was refused");
+  if (map === undefined) return MARKETS_UNREADABLE;
+  return customUrlProblem(value, map) ?? true;
 };
 
 const named = (field: Field, name: string) => "name" in field && field.name === name;

@@ -1,7 +1,7 @@
 import { markets as seeded } from "@shopblok/fixtures";
 import type { CollectionConfig, Config, Field, PayloadRequest } from "payload";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { redirects, validateCustomUrl, validateFrom } from "./redirects";
+import { MARKETS_UNREADABLE, redirects, validateCustomUrl, validateFrom } from "./redirects";
 
 const revalidateTag = vi.hoisted(() => vi.fn());
 vi.mock("next/cache", () => ({ revalidateTag }));
@@ -25,12 +25,14 @@ const find = vi.fn(async ({ collection }: { collection: keyof typeof state }) =>
   docs: state[collection],
 }));
 
+const warn = vi.fn();
+
 const req = () =>
   ({
     locale: "en",
     fallbackLocale: "en",
     context: {},
-    payload: { config: {}, find },
+    payload: { config: {}, find, logger: { warn } },
     t: (key: string) => key,
   }) as unknown as PayloadRequest;
 
@@ -46,6 +48,7 @@ beforeEach(() => {
   state.pages = [];
   state.posts = [];
   find.mockClear();
+  warn.mockClear();
   getMarketMap.mockReset().mockResolvedValue(seeded);
   revalidateTag.mockReset();
 });
@@ -181,5 +184,36 @@ describe("validateCustomUrl", () => {
     expect(await check("https://other.example/new")).toBe(true);
     expect(await check("/de/neu")).toMatch(/without \/de/);
     expect(await check("new")).toMatch(/path inside the market/);
+  });
+});
+
+// T75 review, items 2: a server that restarted while Medusa is down has no map to check against.
+describe("when the market map can't be read (Medusa down, nothing read before)", () => {
+  const down = () =>
+    getMarketMap.mockRejectedValue(new Error("Medusa at http://localhost:9000 did not answer"));
+
+  it("validateFrom refuses with a message for the field, and does not throw", async () => {
+    down();
+    const result = await validateFrom("/old", options({ type: "301", to: custom("/new") }));
+    expect(result).toBe(MARKETS_UNREADABLE);
+    expect(result).toMatch(/can't be read from Medusa/);
+    // Nothing else was read for a check that cannot be made.
+    expect(find).not.toHaveBeenCalled();
+    expect(warn.mock.calls[0]?.[0]).toMatch(/did not answer.*the redirect was refused/);
+  });
+
+  it("validateCustomUrl refuses with a message for the field, and does not throw", async () => {
+    down();
+    expect(await validateCustomUrl("/new", options({}))).toBe(MARKETS_UNREADABLE);
+    expect(warn).toHaveBeenCalledOnce();
+  });
+
+  it("Payload's own checks still come first, and Medusa coming back ends the refusal", async () => {
+    down();
+    expect(await validateFrom("", options({}))).toBe("validation:required");
+    expect(await validateCustomUrl("", options({}))).toBe("validation:required");
+    getMarketMap.mockResolvedValue(seeded);
+    expect(await validateFrom("/old", options({ type: "301", to: custom("/new") }))).toBe(true);
+    expect(await validateCustomUrl("/new", options({}))).toBe(true);
   });
 });

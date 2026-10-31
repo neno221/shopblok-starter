@@ -22,7 +22,7 @@ import { text } from "../lib/text";
 import { isStaffField } from "./access/roles";
 import { pagePreviewPath, previewMarket } from "./live-preview";
 import { DEFAULT_LOCALE } from "./locales";
-import { marketMap } from "./market-map";
+import { marketMapOrUndefined } from "./market-map";
 
 // D82 (T68): the SEO plugin's `meta` group (`meta.title`ᴸ, `meta.description`ᴸ, `meta.image`) on
 // the pages and the posts through the plugin, and on the synced collections as their content
@@ -87,7 +87,10 @@ export const generateURL: GenerateURL = async ({ collectionConfig, doc, locale, 
         ? null
         : (CMS_PATHS[slug]?.(data) ?? null);
   if (path === null) return "";
-  const map = await marketMap();
+  // Medusa down on a server that has read no map yet: no suggestion, like an unknown market (T75
+  // review, item 3).
+  const map = await marketMapOrUndefined(req, "the generated URL is left empty");
+  if (map === undefined) return "";
   const market = previewMarket(map, language);
   return market === undefined ? "" : new URL(buildPublicUrl(market, path, map), siteOrigin()).href;
 };
