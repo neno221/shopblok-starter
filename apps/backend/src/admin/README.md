@@ -24,10 +24,10 @@ const ProductWidget = () => {
 
 // The widget's configurations
 export const config = defineWidgetConfig({
-  zone: "product.details.after",
+  zone: "product.details",
 })
 
 export default ProductWidget
 ```
 
-This inserts a widget with the text “Product Widget” at the end of a product’s details page.
+This inserts a widget with the text “Product Widget” on a product’s details page (after Medusa’s own sections; the zone name has no `.before` or `.after`, which Medusa 2.21 still accepts but treats as legacy).

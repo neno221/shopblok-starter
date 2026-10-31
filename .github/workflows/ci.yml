@@ -277,6 +277,8 @@ jobs:
       # and payload-locales (S3: it saves the `markets` global and puts it back) run against the
       # storefront that is up. markets-add (T71) is last, in a project of its own: it adds Austria
       # in Medusa and in Payload's Markets page, waits for /at, and takes both away again.
+      # market-panels (T74) follows it, in a project of its own too: it drives the Markets panels on
+      # Medusa Admin's Region and Store pages (:9000, no storefront) and puts every row back.
       # `--reporter` adds the HTML report that is uploaded below; the config stays as it is.
       # auth.spec.ts (T53) reads the links Medusa's local notification provider prints in the log
       # the start-medusa action writes (the first start's: the outage steps come after).

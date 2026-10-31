@@ -16,7 +16,7 @@ languages (the store's locales, Store → Locales). This plugin stores only the 
 | Workflows | `saveMarketCountryWorkflow`, `saveMarketSettingsWorkflow` (checks, write with compensation, event `shopblok.markets.updated`) |
 | Admin API | `GET /admin/markets`, `POST /admin/markets/countries/:code`, `POST /admin/markets/settings` |
 | Store API | `GET /store/markets` (publishable key) |
-| Admin | `src/admin` (no widgets yet; the panels on the Region and Store pages are T74) |
+| Admin | `src/admin`: the "Markets" panels on Medusa's Region page (`region.details`) and Store page (`store.details`), strings in the i18n namespace `markets` (T74) |
 
 ## In this monorepo
 
