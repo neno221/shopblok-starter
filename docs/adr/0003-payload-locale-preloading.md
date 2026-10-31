@@ -8,6 +8,8 @@
 | Versions | Payload 3.90.2 (`@payloadcms/db-postgres` 3.90.2, drizzle-orm 0.45.2), Next 16.4.0, PostgreSQL 17.11, Node 22.22.0, Playwright 1.64.0 (Chromium) |
 | Prototype | commit `caf63e7` on `claude/sweet-brown-e07eio` (D13: the spike code does not merge; the next commit removes it from the tree). PRs merge with a merge commit (plan G2), so it stays in `main`'s history. Reproduce: SETUP.md, "Payload locale preloading (S3)", row "Reproduce" |
 
+> **Note, 2026-10-31 (M4b):** the `markets` global this ADR talks about is gone. The market map is Medusa's now (the `@shopblok/medusa-markets` plugin, D89 to D95), Payload's selector reads it from the storefront's map, and a language outside the 42 takes three `ALTER TYPE`s instead of five. The decision stands (preload 42 languages; locales only grow); read "the `markets` global" below as "the open markets". SPEC v0.11 §7.1 and SETUP.md, "A language outside the list", have the current steps.
+
 ## Context
 
 D17 says a shop picks its regions, currencies and languages in one place each and they work at once. For Payload that means the admin can write content in any language a shop might sell in, with no migration when a market opens. Payload's locale list is fixed when the server starts and is a Postgres enum, so the choice made in T09 was to **preload 42 languages** (the EU's 24, the 36 languages Medusa has a locale for, and seven more; `apps/storefront/src/payload/locales.ts`) and let `localization.filterAvailableLocales` show the admin only the languages of the countries enabled in the `markets` global, and English.
