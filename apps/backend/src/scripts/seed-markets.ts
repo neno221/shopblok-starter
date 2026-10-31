@@ -24,7 +24,8 @@
  * store's return reasons (T53). The currencies, regions and locales come from
  * `src/config/markets.ts`, which explains how to open another market. Last, it fills the markets
  * plugin's module from the fixtures' market map (open countries, languages, time zones, primary
- * country, fallback market), only while the module has no row.
+ * country, fallback market), only while the module has no row, and sets the store's default region
+ * through the plugin's `saveMarketSettingsWorkflow`.
  */
 import type { ExecArgs, MedusaContainer } from "@medusajs/framework/types";
 import {
@@ -50,6 +51,7 @@ import {
 } from "@medusajs/medusa/core-flows";
 
 import marketsFixture from "@shopblok/fixtures/markets.json";
+import { saveMarketSettingsWorkflow } from "@shopblok/medusa-markets/workflows";
 import type { MarketMap } from "@shopblok/fixtures/markets" with { "resolution-mode": "import" };
 
 import {
@@ -518,32 +520,11 @@ export default async function seedMarkets({ container }: ExecArgs) {
   logger.info("Markets are seeded.");
 }
 
-/**
- * The store's `default_region_id` follows the primary country's region (D91): a settings save
- * sets it, and the seed does the same once, so the two agree from the start.
- */
-async function setDefaultRegion(container: MedusaContainer, primaryCountry: string) {
-  const query = container.resolve(ContainerRegistrationKeys.QUERY);
-  const { data: regions } = await query.graph({
-    entity: "region",
-    fields: ["id", "countries.iso_2"],
-  });
-  const region = regions.find((candidate) =>
-    (candidate.countries ?? []).some((country) => country?.iso_2 === primaryCountry),
-  );
-  if (!region) return;
-  const { data: stores } = await query.graph({ entity: "store", fields: ["id"] });
-  await updateStoresWorkflow(container).run({
-    input: { selector: { id: stores[0]!.id }, update: { default_region_id: region.id } },
-  });
-}
-
 /** The parts of the plugin's `markets` module service that the seed calls. */
 type MarketsModule = {
   isEmpty(): Promise<boolean>;
   createMarketLanguages(rows: unknown[]): Promise<unknown>;
   createMarketCountries(rows: unknown[]): Promise<unknown>;
-  createMarketSettings(row: unknown): Promise<unknown>;
 };
 
 /**
@@ -551,9 +532,10 @@ type MarketsModule = {
  * raw TypeScript) while the module has no row at all, so a second run, and an admin's edits, are
  * left alone. The countries' and languages' `rank` is their place in the fixtures, which keeps the
  * map's order (the switcher and hreflang). Called last: the countries are in the regions by now, and the
- * store has the locales the languages map to. Written through the service, not the save
- * workflows, because the checks would refuse a first save that names the primary country before
- * the countries are open.
+ * store has the locales the languages map to. The languages and countries are written through the
+ * service, not the save workflows, because the checks would refuse a first save that names the
+ * primary country before the countries are open; the settings go through
+ * `saveMarketSettingsWorkflow`, once they are.
  */
 async function seedMarketsModule(container: MedusaContainer) {
   const logger = container.resolve(ContainerRegistrationKeys.LOGGER);
@@ -583,11 +565,12 @@ async function seedMarketsModule(container: MedusaContainer) {
       rank,
     })),
   );
-  await markets.createMarketSettings({
-    primary_country: map.primaryCountry,
-    fallback_market: map.fallbackMarket,
+  // The primary country and the fallback market through the plugin's workflow: the countries are
+  // open by now, so its checks pass, it writes the settings row, and it sets the store's
+  // `default_region_id` to the primary country's region (D91) with the plugin's own rule.
+  await saveMarketSettingsWorkflow(container).run({
+    input: { primary_country: map.primaryCountry, fallback_market: map.fallbackMarket },
   });
-  await setDefaultRegion(container, map.primaryCountry);
   logger.info(
     `Seeded the markets module: ${map.countries.map((country) => country.code).join(", ")}`,
   );
