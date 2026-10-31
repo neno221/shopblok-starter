@@ -36,48 +36,28 @@ export async function snapshot(
   };
 }
 
-async function upsertCountry(service: MarketsModuleService, row: CountryRow) {
-  const [existing] = await service.listMarketCountries({ code: row.code }, { take: 1 });
-  if (existing) await service.updateMarketCountries({ id: existing.id, ...row });
-  else await service.createMarketCountries(row);
-}
-
-async function upsertLanguage(service: MarketsModuleService, row: LanguageRow) {
-  const [existing] = await service.listMarketLanguages({ code: row.code }, { take: 1 });
-  if (existing) await service.updateMarketLanguages({ id: existing.id, ...row });
-  else await service.createMarketLanguages(row);
-}
-
-async function upsertSettings(service: MarketsModuleService, row: SettingsRow) {
-  const [existing] = await service.listMarketSettings(
-    {},
-    { take: 1, order: { created_at: "ASC" } },
-  );
-  if (existing) await service.updateMarketSettings({ id: existing.id, ...row });
-  else await service.createMarketSettings(row);
-}
-
+/**
+ * The rows of one save, written in one transaction by the service (`saveMarkets`): a failure
+ * halfway leaves none of them, which a plain throw in the step could not undo, because a step
+ * that throws never returns the snapshot its compensation needs.
+ */
 export async function write(
   service: MarketsModuleService,
   rows: { countries?: CountryRow[]; languages?: LanguageRow[]; settings?: SettingsRow },
 ) {
-  // The languages first, so a country never names a language that has no row yet.
-  for (const row of rows.languages ?? []) await upsertLanguage(service, row);
-  // One after the other, not in a batch: the map's order is the order the rows were created in.
-  for (const row of rows.countries ?? []) await upsertCountry(service, row);
-  if (rows.settings) await upsertSettings(service, rows.settings);
+  await service.saveMarkets(rows);
 }
 
 export async function restore(service: MarketsModuleService, before: Snapshot) {
   for (const [code, row] of Object.entries(before.countries)) {
-    if (row) await upsertCountry(service, row);
+    if (row) await service.saveMarkets({ countries: [row] });
     else await service.deleteMarketCountries({ code });
   }
   for (const [code, row] of Object.entries(before.languages)) {
-    if (row) await upsertLanguage(service, row);
+    if (row) await service.saveMarkets({ languages: [row] });
     else await service.deleteMarketLanguages({ code });
   }
-  if (before.settings?.row) await upsertSettings(service, before.settings.row);
+  if (before.settings?.row) await service.saveMarkets({ settings: before.settings.row });
   else if (before.settings) {
     const rows = await service.listMarketSettings({});
     if (rows.length > 0) await service.deleteMarketSettings(rows.map((row) => row.id));

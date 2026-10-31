@@ -50,7 +50,9 @@ async function adminToken(container: MedusaContainer): Promise<string> {
 /** The markets module's service, for reading rows the routes do not show. */
 function markets(container: MedusaContainer) {
   return container.resolve<{
-    readCountries(): Promise<{ code: string; enabled: boolean; time_zone: string | null }[]>;
+    readCountries(): Promise<
+      { code: string; enabled: boolean; time_zone: string | null; domain: string | null }[]
+    >;
     readLanguages(): Promise<{ code: string; medusa_locale: string }[]>;
     readSettings(): Promise<{ primary_country: string | null; fallback_market: string | null }>;
   }>("markets");
@@ -409,6 +411,42 @@ medusaIntegrationTestRunner({
           ).rejects.toMatchObject({ message: expect.stringContaining("bus down") });
           mock.mockRestore();
           expect(await markets(container).readCountries()).toEqual(before);
+        });
+
+        it("keeps nothing of a write that fails halfway, with no compensation to undo it", async () => {
+          const container = getContainer();
+          const { regionId } = await seedStore(container);
+          await addAustria(container, regionId);
+          await addStoreLocales(container, ["it-IT"]);
+          // Cyprus takes the domain first, so a second country asking for it hits the unique index.
+          expect((await saveCountry("cy", { domain: "shop.example" })).status).toBe(200);
+          const countriesBefore = await markets(container).readCountries();
+          const languagesBefore = await markets(container).readLanguages();
+
+          // Two admins save at nearly the same time: the plan of the second one read the rows
+          // before the first one's write, so it finds no duplicate. The plan reads the countries
+          // through `readCountries`, once; the answer here is what it would have seen.
+          const service = markets(container);
+          const original = service.readCountries.bind(service);
+          const stale = jest
+            .spyOn(service, "readCountries")
+            .mockImplementationOnce(async () =>
+              (await original()).map((row) => ({ ...row, domain: null })),
+            );
+          // The `it` language row is written first (a new one), the country second, and that fails.
+          const response = await saveCountry("at", {
+            enabled: true,
+            languages: ["de", "it"],
+            domain: "shop.example",
+          });
+          stale.mockRestore();
+
+          // The unique index refuses it, and Medusa answers that as invalid data.
+          expect(response.status).toBe(400);
+          expect(response.data.message).toContain("already exists");
+          // The language row the failed save created before the country is not left behind.
+          expect(await markets(container).readLanguages()).toEqual(languagesBefore);
+          expect(await markets(container).readCountries()).toEqual(countriesBefore);
         });
 
         it("puts the settings, the language rows and the store's default region back", async () => {
