@@ -1,6 +1,6 @@
 # Setup
 
-How to run the starter on your own machine: the quickstart, the ports, the logins, the notes for Windows and for a Claude Code cloud session. Below "The M0 log", "The M1 log", "The M2 log", "The M3 log" and "The M4 log" are what each task found and measured, one section per task and spike, in the order they ran. The log is the evidence behind [SPEC.md](SPEC.md) v0.10 and the [ADRs](adr/README.md); read the section a number or a decision in the spec points to.
+How to run the starter on your own machine: the quickstart, the ports, the logins, the notes for Windows and for a Claude Code cloud session. Below "The M0 log", "The M1 log", "The M2 log", "The M3 log" and "The M4 log" are what each task found and measured, one section per task and spike, in the order they ran. The log is the evidence behind [SPEC.md](SPEC.md) v0.11 and the [ADRs](adr/README.md); read the section a number or a decision in the spec points to.
 
 - [Quickstart](#quickstart-no-keys-no-accounts) · [Prerequisites](#prerequisites-every-os) · [Ports and logins](#ports-urls-and-logins) · [Opening a market](#opening-a-market) · [Adding a market](#adding-a-market) · [The admin: pages, preview, publishing, the sync](#the-admin-build-a-page-preview-publish-and-schedule-m4) · [The design-system page, tokens and the Figma export](#the-design-system-page-tokens-and-the-figma-export-m1) · [Adding a molecule or an organism](#how-to-add-a-molecule-or-an-organism-m2) · [Adding a template or a page](#how-to-add-a-template-or-a-page-m3) · [Adding a block](#how-to-add-a-block-m4) · [Adding a content type](#how-to-add-a-content-type-m4) · [Updating the baselines and the thumbnails](#updating-the-baselines-and-the-thumbnails-m2) · [Windows](#windows-notes) · [Cloud](#working-in-a-claude-code-cloud-environment) · [Checking a clean machine](#checking-a-clean-machine) · [If something fails](#if-something-fails) · [Where we differ from the skills](#where-we-deliberately-differ-from-the-medusa-skills)
 
@@ -7312,7 +7312,7 @@ Checks after the review (Node 22.23.4): `pnpm check:workspace`, `typecheck`, `li
 |---|---|
 | Date | 2026-10-31 |
 | Branch | `t75-storefront-reads-medusa`, from `t74-market-panels`' head `f667a6a` |
-| PR | [107](https://github.com/neno221/shopblok-starter/pull/107) |
+| PR | [107](https://github.com/neno221/shopblok-starter/pull/107) (merged) |
 
 ### What there is now
 
@@ -7383,8 +7383,8 @@ T76 (done, below): the done-when, SPEC v0.11, the runbooks "Adding a market" (Me
 | | |
 |---|---|
 | Date | 2026-10-31 |
-| Branch | `t76-done-when-docs`, from `t75-storefront-reads-medusa`' head `b90c79a` (PR 107, not yet merged) |
-| PR | this PR (T73 is [105](https://github.com/neno221/shopblok-starter/pull/105), T74 [106](https://github.com/neno221/shopblok-starter/pull/106), T75 [107](https://github.com/neno221/shopblok-starter/pull/107), the plan [104](https://github.com/neno221/shopblok-starter/pull/104)) |
+| Branch | `claude/project-thread-9y92wx`, from `main` at `aeadb04` (PR 107's merge) |
+| PR | [108](https://github.com/neno221/shopblok-starter/pull/108) (T73 is [105](https://github.com/neno221/shopblok-starter/pull/105), T74 [106](https://github.com/neno221/shopblok-starter/pull/106), T75 [107](https://github.com/neno221/shopblok-starter/pull/107), the plan [104](https://github.com/neno221/shopblok-starter/pull/104)) |
 
 ### What changed
 
@@ -7419,7 +7419,7 @@ T76 (done, below): the done-when, SPEC v0.11, the runbooks "Adding a market" (Me
 | 2 | Payload has no `markets` global and no `markets*` table; the sync carries products, categories and collections only | Met | The migration `20261031_021246_drop_markets_global` (T75); on the T76 stack's Payload database `information_schema.tables` has no table like `markets%` and `pg_type` no `enum_markets%`; `config-outside-next.test.ts` ("no `markets` global"); `markets.spec.ts` (`/api/globals/markets` is a 404); `sync.spec.ts` and the backend's `payload-sync.spec.ts` (a region or locale change reaches Payload with no request) |
 | 3 | The Markets panels work from the keyboard, with no axe violation; they add or remove no country or locale | Met | `market-panels.spec.ts`: "both panels work from the keyboard" (new, with the focus fix), "the panels have no add or remove of countries or locales", and axe on each panel and each open drawer (D34's tags); 14 passed |
 | 4 | `pnpm bootstrap` on a fresh database and `pnpm doctor` pass; `pnpm build` passes with no `.env` | Met | Bootstrap on new databases (`medusa_t76`, `payload_t76`): 12 steps in 68.7 s, doctor 10 ok, 3 warnings, 0 errors with no server running; `pnpm run doctor --online` with both servers up: 15 ok, 1 warning (the expected Resend one), 0 errors, `markets` "6 open of 6 countries, 4 languages; the map, Medusa's regions and the store's locales agree"; `pnpm build` with the two `.env` files moved aside exits 0 (below) |
-| 5 | Every CI job green on T76's PR, `windows-smoke` included | **Open** | Needs the PR: `e2e-smoke`, `design-system` and `check` run when it is opened, and `windows-smoke` is dispatched by hand (`gh api -X POST repos/stephanos221/shopblok-starter/actions/workflows/ci.yml/dispatches -f ref=<branch>`). This session could not push |
+| 5 | Every CI job green on T76's PR, `windows-smoke` included | **Open** | `gate`, `check`, `backend-integration`, `e2e-smoke` and `design-system` run on PR 108; `windows-smoke` runs only on a dispatch or on `main`, so `ci.yml` is dispatched by hand on `claude/project-thread-9y92wx` after the review fixes. The runs are filled in here before the merge |
 
 ### Checks (cloud VM, Node 22.23.4, the compose stack)
 

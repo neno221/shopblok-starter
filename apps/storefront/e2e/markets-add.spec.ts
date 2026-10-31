@@ -1,5 +1,12 @@
 import { expect, test, type BrowserContext, type Page } from "@playwright/test";
-import { signInToMedusaAdmin } from "./support/admin-ui";
+import {
+  addCountryInRegionForm,
+  europeRegion,
+  openMarketInDrawer,
+  regionMarketsPanel,
+  regionMarketsRow,
+  signInToMedusaAdmin,
+} from "./support/admin-ui";
 import { marketsAdmin, type MarketsAdmin } from "./support/markets-admin";
 import { base, settled } from "./support/server";
 
@@ -46,9 +53,8 @@ const get = (path: string) => fetch(`${base()}${path}`, { redirect: "manual" });
 const heroHeading = (html: string) =>
   /data-slot="hero-heading"[^>]*>([^<]+)</.exec(html)?.[1] ?? null;
 
-/** The panel the plugin puts on the region's page, and its row of a country. */
-const regionPanel = () => page.locator("#markets-region-panel");
-const row = (code: string) => regionPanel().getByTestId(`markets-row-${code}`);
+const regionPanel = () => regionMarketsPanel(page);
+const row = (code: string) => regionMarketsRow(page, code);
 
 test.beforeAll(async ({ browser }) => {
   markets = await marketsAdmin();
@@ -60,14 +66,7 @@ test.beforeAll(async ({ browser }) => {
   expect((await get(`/${COUNTRY}`)).status, "no market at /at yet").toBe(404);
 
   // The Europe region as found, for the restore: the one with Germany.
-  const { regions } = await medusaApi<{
-    regions: { id: string; countries: { iso_2: string }[] }[];
-  }>("GET", "/admin/regions?fields=id,countries.iso_2");
-  const europe = regions.find((candidate) =>
-    candidate.countries.some((country) => country.iso_2 === "de"),
-  );
-  expect(europe, "the seeded Europe region (Germany's)").toBeDefined();
-  region = { id: europe!.id, countries: europe!.countries.map((country) => country.iso_2) };
+  region = await europeRegion(medusaApi);
 
   context = await browser.newContext({
     baseURL: markets.medusa,
@@ -109,19 +108,8 @@ test("Austria added in Medusa's own region form is in the Markets panel, closed"
   await expect(row("cy")).toContainText("Open");
   await expect(row(COUNTRY)).toHaveCount(0);
 
-  // Medusa's Countries section: its action menu, "Add countries", its table and "Add".
-  const countries = page.getByRole("heading", { name: "Countries", exact: true });
-  await countries.locator("xpath=..").getByRole("button").click();
-  await page.getByRole("menuitem", { name: "Add countries" }).click();
-  const form = page.getByRole("dialog");
-  await form.getByPlaceholder("Search").fill("Austria");
-  await form
-    .getByRole("row", { name: /Austria/ })
-    .getByRole("checkbox")
-    .check();
   regionChanged = true;
-  await form.getByRole("button", { name: "Add", exact: true }).click();
-  await expect(form).toBeHidden();
+  await addCountryInRegionForm(page, "Austria");
 
   // The panel reads the markets again when the region's countries change: Austria, closed.
   await expect(row(COUNTRY)).toContainText("Austria");
@@ -143,18 +131,12 @@ test("the admin switches Austria on in German and Europe/Vienna in the Markets p
   await settled("/de");
   await page.goto(`${markets.medusa}/app/settings/regions/${region!.id}`);
   await expect(row(COUNTRY)).toContainText("Closed");
-  await regionPanel().getByRole("button", { name: "Edit the market of Austria" }).click();
-  const drawer = page.getByRole("dialog");
-  await expect(drawer.getByRole("heading", { name: "Austria" })).toBeVisible();
-  await drawer.getByRole("switch", { name: "Open" }).click();
-  await drawer.getByRole("combobox", { name: "Add a language" }).click();
-  await page.getByRole("option", { name: "German" }).click();
-  await expect(drawer.getByRole("listitem").filter({ hasText: "German" })).toContainText("Default");
-  await drawer.getByRole("combobox", { name: "Time zone" }).click();
-  await page.getByRole("option", { name: "Europe/Vienna", exact: true }).click();
   marketChanged = true;
-  await drawer.getByRole("button", { name: "Save" }).click();
-  await expect(drawer).toBeHidden();
+  await openMarketInDrawer(page, {
+    country: "Austria",
+    language: "German",
+    timeZone: "Europe/Vienna",
+  });
 
   await expect(row(COUNTRY)).toContainText("Open");
   await expect(row(COUNTRY)).toContainText("German");

@@ -7,10 +7,7 @@ import { useEffect, useRef } from "react";
  * moves back when `open` turns false and `busy` is false (a save reads the markets again, and the
  * edit buttons are disabled meanwhile, so the focus waits for them).
  */
-export function useFocusReturn(
-  open: boolean,
-  busy: boolean,
-): (opener: HTMLElement) => void {
+export function useFocusReturn(open: boolean, busy: boolean): (opener: HTMLElement) => void {
   const opener = useRef<HTMLElement | null>(null);
   useEffect(() => {
     if (open || busy || opener.current === null) return;

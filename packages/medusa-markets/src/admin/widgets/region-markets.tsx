@@ -18,9 +18,7 @@ import type { OverviewCountry } from "../lib/types";
  * in a drawer. There is no add or remove: a country is added to the region, or taken out of it, in
  * Medusa's own Countries section above, and appears here closed.
  */
-const RegionMarketsPanel = ({
-  data: region,
-}: DetailWidgetProps<AdminRegion>) => {
+const RegionMarketsPanel = ({ data: region }: DetailWidgetProps<AdminRegion>) => {
   const { t, i18n } = useTranslation("markets");
   // The countries of the region as Medusa's form leaves them: a change reads the markets again.
   const signature = (region.countries ?? [])
@@ -66,21 +64,11 @@ const RegionMarketsPanel = ({
           <Table>
             <Table.Header>
               <Table.Row>
-                <Table.HeaderCell>
-                  {t("region.columns.country")}
-                </Table.HeaderCell>
-                <Table.HeaderCell>
-                  {t("region.columns.status")}
-                </Table.HeaderCell>
-                <Table.HeaderCell>
-                  {t("region.columns.languages")}
-                </Table.HeaderCell>
-                <Table.HeaderCell>
-                  {t("region.columns.timeZone")}
-                </Table.HeaderCell>
-                <Table.HeaderCell>
-                  {t("region.columns.domain")}
-                </Table.HeaderCell>
+                <Table.HeaderCell>{t("region.columns.country")}</Table.HeaderCell>
+                <Table.HeaderCell>{t("region.columns.status")}</Table.HeaderCell>
+                <Table.HeaderCell>{t("region.columns.languages")}</Table.HeaderCell>
+                <Table.HeaderCell>{t("region.columns.timeZone")}</Table.HeaderCell>
+                <Table.HeaderCell>{t("region.columns.domain")}</Table.HeaderCell>
                 <Table.HeaderCell className="w-px">
                   <span className="sr-only">{t("region.columns.actions")}</span>
                 </Table.HeaderCell>
@@ -88,10 +76,7 @@ const RegionMarketsPanel = ({
             </Table.Header>
             <Table.Body>
               {countries.map((row) => (
-                <Table.Row
-                  key={row.code}
-                  data-testid={`markets-row-${row.code}`}
-                >
+                <Table.Row key={row.code} data-testid={`markets-row-${row.code}`}>
                   <Table.Cell>
                     <Text size="small" leading="compact" weight="plus">
                       {row.name}
