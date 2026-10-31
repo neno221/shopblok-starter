@@ -33,6 +33,17 @@
       // Next loads it itself.
       "passThroughEnv": ["PAYLOAD_*", "MEDUSA_BACKEND_URL", "STOREFRONT_*"]
     },
+    // The plugin's own `dev` (`medusa plugin:develop`) first deletes `.medusa/server` and builds it
+    // again, as `plugin:build` does. With only `^build` on `dev` they ran at the same time on the
+    // same folder: a failed or half-written build (cached as the build's outputs), or a backend
+    // that started in between and skipped the module (PR 105 review, item 1). So it runs after its
+    // own `build`, and the backend's `dev` (which waits for that `build` too) cannot overlap it.
+    "@shopblok/medusa-markets#dev": {
+      "dependsOn": ["build"],
+      "cache": false,
+      "persistent": true,
+      "passThroughEnv": ["PAYLOAD_*", "MEDUSA_BACKEND_URL", "STOREFRONT_*"]
+    },
     "transit": {
       "dependsOn": ["^transit"]
     },
