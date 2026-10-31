@@ -29,7 +29,7 @@
     "build": "medusa plugin:build",
     "dev": "node scripts/dev.mjs",
     "db:generate": "medusa plugin:db:generate",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.test.json",
     "lint": "eslint .",
     "test": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --silent --runInBand --forceExit"
   },
