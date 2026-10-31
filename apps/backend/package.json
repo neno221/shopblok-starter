@@ -34,6 +34,7 @@
     "@medusajs/js-sdk": "2.21.2",
     "@medusajs/medusa": "2.21.2",
     "@medusajs/ui": "4.2.6",
+    "@shopblok/medusa-markets": "workspace:*",
     "@tanstack/react-query": "5.64.2",
     "react-i18next": "13.5.0",
     "react-router-dom": "7.18.2",
