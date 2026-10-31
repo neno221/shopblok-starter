@@ -95,7 +95,7 @@ T73 → T74 → T75 → T76, one after another (each builds on the last; T74 and
 
 ## 5. Exit criteria
 
-Items 1 to 4 are met; item 5 is checked on T76's PR (every job, and `windows-smoke` started by hand). The evidence, with the PR numbers, is in SETUP.md, "The done-when, docs and SPEC v0.11 (T76)", "M4b's exit criteria".
+Items 1 to 5 are met; item 5 on T76's PR 108 (every job green, and `windows-smoke` started by hand: run 41169238096, 2026-10-31). The evidence, with the PR numbers, is in SETUP.md, "The done-when, docs and SPEC v0.11 (T76)", "M4b's exit criteria".
 
 1. The done-when, in `e2e-smoke`.
 2. Payload has no `markets` global and no `markets*` table; the sync carries products, categories and collections only.
