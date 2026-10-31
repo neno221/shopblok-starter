@@ -7,7 +7,7 @@ import {
 } from "@medusajs/framework/workflows-sdk";
 
 import { PAYLOAD_MODULE } from "../modules/payload";
-import type { MarketsSynced, SyncCollection, SyncDocument } from "../modules/payload/mapping";
+import type { SyncCollection, SyncDocument } from "../modules/payload/mapping";
 import type PayloadModuleService from "../modules/payload/service";
 import type { Snapshot } from "../modules/payload/service";
 
@@ -97,27 +97,4 @@ export const markPayloadDeletedWorkflow = createWorkflow(
   "mark-payload-deleted",
   (input: { collection: SyncCollection; medusaId: string }) =>
     new WorkflowResponse(markPayloadDeletedStep(input)),
-);
-
-/** `markets.synced` (D76), put back as it was if a later step fails. */
-export const writePayloadMarketsStep = createStep(
-  "write-payload-markets",
-  async (synced: MarketsSynced, { container }) => {
-    const payload: PayloadModuleService = container.resolve(PAYLOAD_MODULE);
-    const previous = await payload.readMarkets();
-    await payload.writeMarkets(synced);
-    return new StepResponse({ written: true }, { previous });
-  },
-  async (undo: { previous: MarketsSynced | null } | undefined, { container }) => {
-    if (!undo) return;
-    const payload: PayloadModuleService = container.resolve(PAYLOAD_MODULE);
-    await payload.writeMarkets(
-      undo.previous ?? { regions: [], currencies: [], defaultCurrency: null, locales: [] },
-    );
-  },
-);
-
-export const syncPayloadMarketsWorkflow = createWorkflow(
-  "sync-payload-markets",
-  (input: MarketsSynced) => new WorkflowResponse(writePayloadMarketsStep(input)),
 );

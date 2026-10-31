@@ -6,7 +6,7 @@ import { ContainerRegistrationKeys } from "@medusajs/framework/utils";
  * expire }` to the storefront's `/api/revalidate`, with `REVALIDATE_SECRET` as a bearer token. The
  * storefront's tags are the data layer's (`apps/storefront/src/lib/medusa/`): `medusa:products`
  * marks every product read (the PDP's, the handles', the hits' by id), `product:{handle}` one PDP,
- * `search` the listings, `navigation` the header's menu.
+ * `search` the listings, `navigation` the header's menu, `medusa:markets` the market map (D94).
  *
  * `expire: 0` makes the next request wait for fresh data, `"max"` serves the old page while the
  * new one renders. Prices and stock are `0` (SPEC §8.3) but only for the products the event names,
@@ -86,10 +86,22 @@ const TRANSLATION: Rule["batches"] = () => [
   },
 ];
 
-/** A region's currency or countries change every price in it. */
+/**
+ * A region's currency or countries change every price in it, and its countries decide which
+ * markets exist (the map lists every country of a region, D90), so the market map follows: `0`,
+ * since a map read stale for a request would show a country as unknown.
+ */
 const REGION: Rule["batches"] = () => [
-  { tags: ["medusa:regions", "medusa:products", "search"], expire: 0 },
+  { tags: ["medusa:regions", "medusa:markets", "medusa:products", "search"], expire: 0 },
 ];
+
+/**
+ * A saved market (D94): the markets plugin's workflows emit this after every save of a country or
+ * the settings (`@shopblok/medusa-markets`, `MARKETS_UPDATED_EVENT`). The storefront's next read
+ * waits for the new map (`expire: 0`); its proxy has it within its own 30 s.
+ */
+export const MARKETS_UPDATED = "shopblok.markets.updated";
+const MARKETS: Rule["batches"] = () => [{ tags: ["medusa:markets"], expire: 0 }];
 
 /**
  * The event-to-tags table. A `*.deleted` event's entity can no longer be read by id (a product's
@@ -135,6 +147,7 @@ export const RULES: Record<string, Rule> = {
   "region.created": { batches: REGION },
   "region.updated": { batches: REGION },
   "region.deleted": { batches: REGION },
+  [MARKETS_UPDATED]: { batches: MARKETS },
 };
 
 export const REVALIDATE_EVENTS = Object.keys(RULES);

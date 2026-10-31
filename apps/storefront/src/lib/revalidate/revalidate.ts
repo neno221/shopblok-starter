@@ -1,5 +1,6 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import { env, type RawEnv } from "../env";
+import { expireMarketMap } from "../markets/shared-source";
 
 // `/api/revalidate` (D58, SPEC §6.2 and §8.3): Medusa's subscriber and its ten-minute job POST
 // `{ tags, expire? }` here with `Authorization: Bearer <REVALIDATE_SECRET>`. Prices and stock come
@@ -8,12 +9,15 @@ import { env, type RawEnv } from "../env";
 
 /**
  * The catalog's tags (D58): the ones the data layer's `cached()` reads carry, and the per-handle
- * ones. A handle is Medusa's (lowercase, digits, `-` and `_`); a category's may be nested
- * (`men/shirts`). Nothing else is accepted, so a leaked secret cannot reach the market map
- * (`global:markets`) or the CMS's tags.
+ * ones, and `medusa:markets` (the market map, D94). A handle is Medusa's (lowercase, digits, `-`
+ * and `_`); a category's may be nested (`men/shirts`). Nothing else is accepted, so a leaked
+ * secret cannot reach the CMS's tags. It can expire the market map, as it can already expire
+ * `medusa:regions`, but never write it: the next read asks Medusa again (D94).
  */
 const ALLOWED_TAG =
-  /^(?:medusa:(?:products|regions|categories|collections)|search|navigation|(?:product|category|collection):[a-z0-9][\w-]*(?:\/[a-z0-9][\w-]*)*)$/;
+  /^(?:medusa:(?:products|regions|markets|categories|collections)|search|navigation|(?:product|category|collection):[a-z0-9][\w-]*(?:\/[a-z0-9][\w-]*)*)$/;
+
+const MARKETS_TAG = "medusa:markets";
 
 /** One event names a handful of tags; a request with more than this is not one of Medusa's. */
 const MAX_TAGS = 100;
@@ -64,10 +68,17 @@ export function hasSecret(request: Request, source: RawEnv = env): boolean {
   return timingSafeEqual(digest(given), digest(secret));
 }
 
+/**
+ * `expireMarkets` is for the test. `medusa:markets` also marks the process's in-memory market map
+ * stale (`expireMarketMap`): the tag reaches Next's `use cache` entry only, and Payload's admin
+ * reads the in-memory map, which would otherwise show a save up to 30 s late (T75 review, item 1).
+ * The map held stays the last good one; the next read asks Medusa again.
+ */
 export async function revalidateResponse(
   request: Request,
   revalidate: Revalidate,
   source: RawEnv = env,
+  expireMarkets: () => void = expireMarketMap,
 ): Promise<Response> {
   if (!source.REVALIDATE_SECRET?.trim()) {
     console.error("[revalidate] REVALIDATE_SECRET is not set: every call is refused");
@@ -85,6 +96,7 @@ export async function revalidateResponse(
   if ("error" in body) return Response.json({ error: body.error }, { status: 400 });
   const profile = body.expire === 0 ? { expire: 0 as const } : "max";
   for (const tag of body.tags) revalidate(tag, profile);
+  if (body.tags.includes(MARKETS_TAG)) expireMarkets();
   if (body.skipped.length > 0) {
     console.warn(`[revalidate] skipped unknown tags: ${body.skipped.join(", ")}`);
   }

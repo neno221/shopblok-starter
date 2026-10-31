@@ -4,14 +4,14 @@
 import type { RunResult } from "./exec.ts";
 import { describeUnreachable, jsonOf, type HttpResult } from "./http.ts";
 import { isSet, type AppEnvs, type IntegrationStatus } from "@shopblok/integrations";
-import type { BackendMarkets, MarketMapData } from "./markets-check.ts";
+import type { BackendMarkets } from "./markets-check.ts";
 import type { Check } from "./report.ts";
 
 // What the `--online` checks are called: the table, `--json` and CI key on these.
 const PAYLOAD_AUTH = { id: "payload-auth", title: "Payload accepts the integrations key" } as const;
 const MEDUSA_MARKETS = {
   id: "medusa-markets",
-  title: "Medusa matches the storefront's map",
+  title: "Medusa answers the storefront's key",
 } as const;
 const MEDUSA_ORPHANS = { id: "medusa-orphans", title: "Medusa regions left over" } as const;
 const SEARCH_INDEX = { id: "search-index", title: "Search index currencies" } as const;
@@ -353,40 +353,6 @@ export function readLocales(answer: { status: number; body: unknown }): string[]
 }
 
 /**
- * Medusa's state against the storefront's map (T12 item 9): every open country has a region and
- * every language's Medusa locale is in the store. Offline, `compareMarkets` compares the two files;
- * this compares what the running backend really has, which is what a shopper meets after someone
- * edits the file and forgets `pnpm bootstrap`.
- */
-export function compareWithMedusa(
-  live: { regions: readonly LiveRegion[]; locales?: readonly string[] },
-  map: {
-    countries: readonly { code: string; enabled: boolean; languages: readonly string[] }[];
-    languages: readonly { code: string; medusaLocale: string }[];
-  },
-): string[] {
-  const problems: string[] = [];
-  const served = new Set(live.regions.flatMap((region) => region.countries));
-  for (const country of map.countries.filter((c) => c.enabled)) {
-    if (!served.has(country.code)) {
-      problems.push(`Medusa has no region for the open country "${country.code}"`);
-    }
-  }
-  // Locales that could not be read are not compared (the caller says so), not reported as missing.
-  const { locales } = live;
-  if (locales !== undefined) {
-    const used = new Set(map.countries.filter((c) => c.enabled).flatMap((c) => c.languages));
-    for (const code of used) {
-      const locale = map.languages.find((language) => language.code === code)?.medusaLocale;
-      if (locale && !locales.includes(locale)) {
-        problems.push(`Medusa's store has no locale "${locale}" (language "${code}")`);
-      }
-    }
-  }
-  return problems;
-}
-
-/**
  * Regions that Medusa has and `config/markets.ts` does not list: what is left after a market is taken
  * out of the file (`seed-markets.ts` adds regions and never removes one). They are found by their
  * countries, not their names, so an admin's rename does not hide one. A region with no country is
@@ -465,14 +431,15 @@ function localesOf(answer: HttpResult): string[] | string {
 }
 
 /**
- * Medusa's regions and locales against the storefront's map. `answers` is `undefined` when the
- * storefront has no publishable key to ask with. The regions come back when the later checks (the
- * leftover regions, the search index) can go on.
+ * Whether the running Medusa answers the storefront's publishable key with its regions and locales
+ * (`GET /store/regions`, `/store/locales`). `answers` is `undefined` when the storefront has no key
+ * to ask with. The regions come back when the later checks (the leftover regions, the search index)
+ * can go on. It does not compare them with the market map: `marketsCheck` does that, from the same
+ * Medusa, and a second comparison reported one gap twice in different words (T75 review, item 6).
  */
 export function medusaMarketsCheck(
   medusaUrl: string,
   answers: { regions: HttpResult; locales: HttpResult } | undefined,
-  map: MarketMapData | undefined,
 ): { check: Check; regions?: LiveRegion[] } {
   const check = (c: Omit<Check, "id" | "title">): Check => ({ ...MEDUSA_MARKETS, ...c });
 
@@ -504,46 +471,25 @@ export function medusaMarketsCheck(
       }),
     };
   }
-  if (map === undefined) {
+
+  const locales = localesOf(answers.locales);
+  if (typeof locales === "string") {
     return {
       regions,
       check: check({
         level: "warn",
-        message:
-          "not compared: no market map could be read (the Markets checks above say why), so there is nothing to compare Medusa's regions and locales with.",
-      }),
-    };
-  }
-
-  const locales = localesOf(answers.locales);
-  const readable = typeof locales !== "string";
-  const problems = compareWithMedusa({ regions, locales: readable ? locales : undefined }, map);
-  if (problems.length === 0 && readable) {
-    return {
-      regions,
-      check: check({
-        level: "ok",
-        message: `${regions.length} regions and ${locales.length} locales cover every open country and language.`,
+        message: "Medusa's regions answer, but its locales could not be read.",
+        details: [
+          `could not read Medusa's locales (${locales}); /store/locales is served by the translation feature (MEDUSA_FF_TRANSLATION must not be false)`,
+        ],
       }),
     };
   }
   return {
     regions,
     check: check({
-      level: "warn",
-      message:
-        problems.length > 0
-          ? "the running Medusa does not have what the storefront's map expects (D17)."
-          : "Medusa's regions match the storefront's map, but its locales could not be compared.",
-      details: [
-        ...problems,
-        ...(readable
-          ? []
-          : [
-              `could not read Medusa's locales (${locales}), so the languages were not compared; /store/locales is served by the translation feature (MEDUSA_FF_TRANSLATION must not be false)`,
-            ]),
-      ],
-      fix: "Run `pnpm bootstrap`: it seeds the regions and locales from apps/backend/src/config/markets.ts.",
+      level: "ok",
+      message: `${regions.length} regions and ${locales.length} locales answer the storefront's key.`,
     }),
   };
 }
@@ -635,13 +581,13 @@ export function searchIndexCheck(
 }
 
 // ---------------------------------------------------------------------------------------------
-// From `payload run`
+// From `medusa exec`
 
-/** How long doctor lets `payload run src/scripts/doctor-payload.ts` take. */
-export const PAYLOAD_RUN_TIMEOUT_MS = 60_000;
+/** How long doctor lets `medusa exec src/scripts/doctor-markets.ts` take. */
+export const MEDUSA_RUN_TIMEOUT_MS = 90_000;
 
-/** Why `payload run src/scripts/doctor-payload.ts` did not give its result: the run itself, then its log. */
-export function explainPayloadRun(result: RunResult): { cause: string; fix: string } {
+/** Why `medusa exec src/scripts/doctor-markets.ts` did not give its result: the run itself, then its log. */
+export function explainMedusaRun(result: RunResult): { cause: string; fix: string } {
   if (result.error !== undefined) {
     return {
       cause: `pnpm could not be started (${result.error})`,
@@ -649,45 +595,45 @@ export function explainPayloadRun(result: RunResult): { cause: string; fix: stri
     };
   }
   if (result.prompt !== undefined) {
-    return { cause: `Payload asked "${result.prompt}"`, fix: "Run `pnpm bootstrap`." };
+    return { cause: `Medusa asked "${result.prompt}"`, fix: "Run `pnpm bootstrap`." };
   }
   if (result.timedOut) {
     return {
-      cause: `Payload did not start within ${PAYLOAD_RUN_TIMEOUT_MS / 1000} s`,
-      fix: "Check that the database answers (`pnpm infra:up`).",
+      cause: `Medusa did not start within ${MEDUSA_RUN_TIMEOUT_MS / 1000} s`,
+      fix: "Check that the database and Redis answer (`pnpm infra:up`).",
     };
   }
-  return explainPayloadFailure(result.output, result.code);
+  return explainMedusaFailure(result.output, result.code);
 }
 
-/** Why `payload run src/scripts/doctor-payload.ts` failed, from its log: the known causes, else its last line. */
-export function explainPayloadFailure(
+/** Why `medusa exec src/scripts/doctor-markets.ts` failed, from its log: the known causes, else its last line. */
+export function explainMedusaFailure(
   output: string,
   code?: number | null,
 ): { cause: string; fix: string } {
   const text = output;
+  if (/Cannot find module '@shopblok\/medusa-markets/.test(text)) {
+    return {
+      cause: "the markets plugin is not built",
+      fix: "Run `pnpm bootstrap` (it builds `packages/medusa-markets` first), or `pnpm --filter @shopblok/medusa-markets build`.",
+    };
+  }
   if (/database "[^"]*" does not exist/.test(text)) {
     return {
-      cause: "the payload database does not exist",
-      fix: "Run `pnpm bootstrap`. (Doctor opens Payload as in production, which never creates a missing database.)",
+      cause: "the medusa database does not exist",
+      fix: "Run `pnpm bootstrap`.",
     };
   }
   if (/relation "[^"]*" does not exist/.test(text)) {
     return {
-      cause: "the payload database is not migrated",
-      fix: "Run `pnpm bootstrap` (it runs `payload migrate`).",
+      cause: "the medusa database is not migrated (or the markets module's tables are missing)",
+      fix: "Run `pnpm bootstrap` (it builds the plugin and runs `medusa db:migrate`).",
     };
   }
-  if (/missing secret key/i.test(text)) {
+  if (/(password authentication failed|ECONNREFUSED|Pg connection failed)/i.test(text)) {
     return {
-      cause: "PAYLOAD_SECRET is not set in apps/storefront/.env",
-      fix: "Run `pnpm bootstrap`, which generates it.",
-    };
-  }
-  if (/(password authentication failed|ECONNREFUSED|cannot connect to postgres)/i.test(text)) {
-    return {
-      cause: "Payload could not connect to its database",
-      fix: "Check PAYLOAD_DATABASE_URL in apps/storefront/.env and that `pnpm infra:up` has run.",
+      cause: "Medusa could not connect to its database or Redis",
+      fix: "Check DATABASE_URL and REDIS_URL in apps/backend/.env and that `pnpm infra:up` has run.",
     };
   }
   const last = text
@@ -698,9 +644,7 @@ export function explainPayloadFailure(
   const exit =
     code === undefined ? "" : code === null ? " (stopped by a signal)" : ` (exit code ${code})`;
   return {
-    cause: last
-      ? `Payload failed: ${last.slice(0, 200)}`
-      : `Payload failed without a message${exit}`,
-    fix: "Run `pnpm --filter @shopblok/storefront exec payload run src/scripts/doctor-payload.ts` to see the full log.",
+    cause: last ? `Medusa failed: ${last.slice(0, 200)}` : `Medusa failed without a message${exit}`,
+    fix: "Run `pnpm --filter @shopblok/backend exec medusa exec ./src/scripts/doctor-markets.ts` to see the full log.",
   };
 }

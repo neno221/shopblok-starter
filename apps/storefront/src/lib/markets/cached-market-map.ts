@@ -6,7 +6,7 @@ import type { MarketMap } from "./types";
  * The market map for rendering: layouts, pages and metadata. A prerendered page can't wait on
  * uncached I/O, so with Cache Components its read of the map goes through `use cache`, where the
  * map is filled into the static shell at build and refreshed on request. The proxy has no render
- * to prerender and imports no Payload: it reads this map through `/next/markets`, which returns it
+ * to prerender and imports neither Payload nor the Medusa SDK: it reads this map through `/next/markets`, which returns it
  * (`proxy-market-map.ts`).
  *
  * - `revalidate: 30` keeps the shell as fresh as the 30 s in-process cache beside it (D10).
@@ -15,15 +15,18 @@ import type { MarketMap } from "./types";
  *   the shortest `revalidate` under a layout sets how long its static shell lives, so every page
  *   under `[market]` is regenerated at most every 30 s while traffic arrives, however long its own
  *   content could last.
- * - The tag `global:markets` is for the Payload hook that expires it when the global is saved
- *   (D76). The entry is computed from the global as it is now (`getFreshMarketMap`), not from the
+ * - The tag `medusa:markets` is for the backend's revalidation subscriber, which expires it when
+ *   a market is saved (`shopblok.markets.updated`) or a region changes (D94); the same event also
+ *   marks the in-process map stale (`/api/revalidate`, `shared-source.ts`), which Payload's admin
+ *   reads. The entry is computed
+ *   from the map as it is now (`getFreshMarketMap`), not from the
  *   in-process map, which can be up to 30 s old: re-reading that one kept the old map for another
  *   30 s, so a new market took up to 90 s to reach the proxy (T71). `revalidate` stays 30 s for an
- *   edit no hook saw (a script).
+ *   edit no event announced (a script, a store locale).
  */
 export async function getRenderMarketMap(): Promise<MarketMap> {
   "use cache";
   cacheLife({ stale: 300, revalidate: 30, expire: 3600 });
-  cacheTag("global:markets");
+  cacheTag("medusa:markets");
   return getFreshMarketMap();
 }

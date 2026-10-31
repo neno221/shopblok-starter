@@ -55,7 +55,7 @@ async function fetchRegions(): Promise<Region[]> {
 /**
  * Every region of the store: one call for the whole list, whatever the number of markets, so
  * opening a country is a change in Medusa and nothing here (D17). Regions are the same in every
- * language, so the call takes no locale. `minutes`, so a market opened in the `markets` global does
+ * language, so the call takes no locale. `minutes`, so a market opened in Medusa's markets does
  * not show "no region" for an hour. The backend revalidates tag `medusa:regions` on every
  * `region.*` event (T49), so this life only bounds a call that never arrived.
  */
@@ -76,7 +76,7 @@ export function findRegionForCountry(
 
 /**
  * The region for a market's country. `undefined` when Medusa has no region for it, for example a
- * market opened in the `markets` global before its region exists in Medusa (SETUP.md, T07 item 3).
+ * market opened before its region exists in Medusa (SETUP.md, T07 item 3).
  */
 export async function getRegionForCountry(country: string): Promise<Region | undefined> {
   return findRegionForCountry(await listRegions(), country);

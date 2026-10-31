@@ -3,7 +3,6 @@ import type { Field, PayloadRequest, TextField, TextFieldSingleValidation } from
 import { text } from "payload/shared";
 import { encodePagePath, pagePaths } from "../lib/cms/page-path";
 import { postPath } from "../lib/cms/paths";
-import { mapFromGlobal, type MarketsGlobal } from "../lib/markets/global";
 import type { MarketMap } from "../lib/markets/types";
 import { loopProblem } from "../lib/redirects/match";
 import { REDIRECTS_TAG } from "../lib/cms/tags";
@@ -23,18 +22,11 @@ import { keepRefusalReason } from "./hooks/keep-refusal-reason";
 import { revalidateOnPublish } from "./hooks/revalidate-on-publish";
 import { keepingRequest } from "./keeping-request";
 import { DEFAULT_LOCALE, LANGUAGES } from "./locales";
+import { marketMapOrUndefined } from "./market-map";
 
 // D82 (T68): the redirects plugin's collection, with the save checks the proxy needs and
 // `revalidateOnPublish`. The plugin only stores redirects; the proxy answers them
 // (`lib/redirects/`), from the list `/next/redirects` reads.
-
-/** The market map from the `markets` global, read inside the save (not the visitor's). */
-async function marketMapOf(req: PayloadRequest): Promise<MarketMap> {
-  const global = await keepingRequest(req, () =>
-    req.payload.findGlobal({ slug: "markets", depth: 0, overrideAccess: true, req }),
-  );
-  return mapFromGlobal(global as MarketsGlobal);
-}
 
 /** A localized value read with `locale: "all"`, in one language: its own, else English's. */
 function inLanguage(value: unknown, language: string): string | undefined {
@@ -155,6 +147,13 @@ async function loopOf(
 }
 
 /**
+ * What an editor reads when Medusa can't be read and no map was read before. Refusing is safer than
+ * accepting an address that may shadow a market (T75 review, item 2).
+ */
+export const MARKETS_UNREADABLE =
+  "The markets can't be read from Medusa right now; try again in a moment.";
+
+/**
  * `from`: Payload's own checks (required), then D82's: a path the proxy sees (`fromProblem`), and
  * no loop or chain with the other redirects (`loopProblem`).
  */
@@ -163,7 +162,8 @@ export const validateFrom: TextFieldSingleValidation = async (value, options) =>
   if (base !== true) return base;
   if (typeof value !== "string" || value === "") return true;
   const { req, data, id } = options;
-  const map = await marketMapOf(req);
+  const map = await marketMapOrUndefined(req, "the redirect was refused");
+  if (map === undefined) return MARKETS_UNREADABLE;
   return (
     fromProblem(value, map) ??
     (await loopOf(req, { ...(data as StoredRedirect), from: value }, id, map)) ??
@@ -176,7 +176,9 @@ export const validateCustomUrl: TextFieldSingleValidation = async (value, option
   const base = text(value, options);
   if (base !== true) return base;
   if (typeof value !== "string" || value === "") return true;
-  return customUrlProblem(value, await marketMapOf(options.req)) ?? true;
+  const map = await marketMapOrUndefined(options.req, "the redirect was refused");
+  if (map === undefined) return MARKETS_UNREADABLE;
+  return customUrlProblem(value, map) ?? true;
 };
 
 const named = (field: Field, name: string) => "name" in field && field.name === name;

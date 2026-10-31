@@ -3,11 +3,13 @@
   "extends": ["//"],
   "tasks": {
     "build": {
-      // `next build` reads the `markets` global from Payload's database (the root layout needs the
-      // map to prerender), so the build needs PAYLOAD_DATABASE_URL and PAYLOAD_SECRET, which strict
-      // mode would drop, and a build against another database must not replay this one's cache.
-      // What the database holds can't be hashed: a cached build replays the map it was built with
-      // until a request revalidates it (the layout's `cacheLife` is 30 s).
+      // `next build` reads the market map from Medusa (`GET /store/markets`, D94: the root layout
+      // needs it to prerender; the root `turbo.json` lists MEDUSA_BACKEND_URL and Turborepo's Next.js
+      // inference the publishable key) and the CMS from Payload's database, so the build needs
+      // PAYLOAD_DATABASE_URL and PAYLOAD_SECRET, which strict mode would drop, and a build against
+      // another database must not replay this one's cache. What the two hold can't be hashed: a
+      // cached build replays the map it was built with until a request revalidates it (the
+      // layout's `cacheLife` is 30 s).
       // `DESIGN_SYSTEM_ENABLED` (D33): the design-system pages are static, so the flag is frozen
       // into the build; it is in the hash so that a build with it is never replayed for one without.
       // `STOREFRONT_PRERENDER_PRODUCTS` (D58, D67): how many product pages `generateStaticParams`

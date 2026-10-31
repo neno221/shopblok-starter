@@ -27,6 +27,34 @@ describe("storefront-revalidate subscriber", () => {
   it("subscribes to the table's events", () => {
     expect(config.event).toContain("product-variant.updated");
     expect(config.event).toContain("inventory-level.updated");
+    expect(config.event).toContain("shopblok.markets.updated");
+    expect(config.event).toContain("region.updated");
+  });
+
+  it("expires the market map when the markets plugin saved a market (D94)", async () => {
+    fetchMock.mockResolvedValue(new Response("{}"));
+    const graph = jest.fn();
+    await storefrontRevalidate({
+      event: { name: "shopblok.markets.updated", data: { scope: "country", codes: ["at"] } },
+      container: containerWith(graph),
+    } as never);
+    expect(fetchMock.mock.calls.map(([, init]) => JSON.parse(init.body))).toEqual([
+      { tags: ["medusa:markets"], expire: 0 },
+    ]);
+    expect(fetchMock.mock.calls[0][0].href).toBe("http://localhost:8000/api/revalidate");
+    // No handles to read: the event names no product.
+    expect(graph).not.toHaveBeenCalled();
+  });
+
+  it("expires the market map, with the prices, when a region changes (D94)", async () => {
+    fetchMock.mockResolvedValue(new Response("{}"));
+    await storefrontRevalidate({
+      event: { name: "region.updated", data: { id: "reg_1" } },
+      container: containerWith(jest.fn()),
+    } as never);
+    expect(fetchMock.mock.calls.map(([, init]) => JSON.parse(init.body))).toEqual([
+      { tags: ["medusa:regions", "medusa:markets", "medusa:products", "search"], expire: 0 },
+    ]);
   });
 
   it("turns a variant's change into two POSTs, the expire-0 one last", async () => {

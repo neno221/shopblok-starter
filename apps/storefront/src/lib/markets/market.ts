@@ -47,9 +47,9 @@ export function isTimeZone(value: string): boolean {
 /**
  * The `<html lang>` of a market: the language's own value when the owner wrote one that is a
  * language tag, else the language and the country (`pt` in `br` is `pt-BR`). A value that is not a
- * tag is ignored here, where every reader of the map gets it, because the admin's check
- * (`htmlLang` in `payload/globals/markets.ts`) only stops a save made after it existed, and a
- * stored value outlives a change of rules.
+ * tag is ignored here, where every reader of the map gets it, because the plugin's check
+ * on save (`@shopblok/medusa-markets`) only stops a save made after it existed, and a stored value
+ * outlives a change of rules.
  */
 function htmlLangOf(stored: string | undefined, language: string, country: string): string {
   return stored !== undefined && isLanguageTag(stored)

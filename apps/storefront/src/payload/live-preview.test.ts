@@ -2,10 +2,15 @@ import { describe, expect, it, vi } from "vitest";
 import { greeceOnly, seeded, withDomains } from "../lib/markets/test-maps";
 import {
   LIVE_PREVIEW_BREAKPOINTS,
+  livePreviewUrl,
   pagePreviewPath,
   previewMarket,
   previewUrl,
 } from "./live-preview";
+
+// The market map is Medusa's (D95), read through `get-market-map`, lazily.
+const getMarketMap = vi.hoisted(() => vi.fn());
+vi.mock("../lib/markets/get-market-map", () => ({ getMarketMap }));
 
 const base = { serverURL: "https://shop.example", secret: "s3cret", path: "/about" };
 
@@ -92,5 +97,24 @@ describe("pagePreviewPath", () => {
     expect(
       await pagePreviewPath(payload, { id: 1, slug: "x", parent: { id: 2 } }, "el"),
     ).toBeNull();
+  });
+});
+
+describe("livePreviewUrl", () => {
+  // Like the SEO URL and the redirect checks (T75 review, items 2 and 3): a fresh server with
+  // Medusa down has no map, and the admin's live preview must stay off, not answer an error.
+  it("is null, with a warning, when the markets can't be read", async () => {
+    getMarketMap.mockRejectedValue(new Error("Medusa at http://localhost:9000 did not answer"));
+    const warn = vi.fn();
+    const args = {
+      globalConfig: { slug: "header" },
+      data: {},
+      locale: { code: "en" },
+      req: { payload: { logger: { warn } } },
+    };
+    const url = livePreviewUrl as (a: unknown) => Promise<string | null>;
+    await expect(url(args)).resolves.toBeNull();
+    expect(getMarketMap).toHaveBeenCalled();
+    expect(warn.mock.calls[0]?.[0]).toMatch(/did not answer.*the live preview is off for now/);
   });
 });

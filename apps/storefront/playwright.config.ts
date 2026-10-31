@@ -1,8 +1,8 @@
 import { defineConfig, devices, type Project } from "@playwright/test";
 
 // The suites run against a storefront that is already up: `next build && next start -p 8000`, with
-// the `markets` global filled (production has no fallback; SETUP.md, "Markets library (T10)").
-// Nothing here starts it, so the same specs can run in CI (T16), where bootstrap does the filling.
+// Medusa's market map seeded (production has no fallback; SETUP.md, "Markets library (T10)").
+// Nothing here starts it, so the same specs can run in CI (T16), where bootstrap does the seeding.
 // Build fresh before a run that changes the map: `next start` can serve a page from an earlier
 // map after a restart (SETUP.md, "After a restart").
 // The opt-in projects (PR 44 review, items 6 and 10; T27). Each runs against a server the default
@@ -129,15 +129,16 @@ const defaultProjects: Project[] = [
       ...optInSpecs,
     ],
   },
-  // Save the `markets` global (and put it back), which the other suites read through the proxy:
-  // they run when all of them are done. `ui-strings.spec.ts` (T62) also edits the home's copy.
+  // Open a language in Medusa's markets (and close it again), which the other suites read through
+  // the proxy: they run when all of them are done. `ui-strings.spec.ts` (T62) also edits the home's copy.
   {
     name: "locales",
     use: { ...devices["Desktop Chrome"] },
     testMatch: /(payload-locales|ui-strings)\.spec\.ts/,
     dependencies: ["chromium"],
   },
-  // T71: adds a market (Medusa's region, then Payload's Markets page) and takes it away again, so
+  // T71: adds a market (Medusa's region, then its Markets panel; T75 does the second half through
+  // Medusa's admin API, T76 in the browser) and takes it away again, so
   // it runs after every suite that reads the map, the locales' included.
   {
     name: "markets-add",

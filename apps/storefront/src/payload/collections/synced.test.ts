@@ -2,7 +2,6 @@ import fixture from "@shopblok/fixtures/sync/documents.json";
 import type { AccessArgs, Field, FieldAccess, PayloadRequest } from "payload";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { syncedFieldNames } from "../fields/synced";
-import { Markets } from "../globals/markets";
 import { Categories } from "./categories";
 import { Collections } from "./collections";
 import { Media } from "./media";
@@ -57,20 +56,7 @@ describe("the synced collections take the shared fixture's documents", () => {
       }
     });
   }
-
-  it("the markets global's synced part has the fixture's fields, and syncedAt", () => {
-    const group = named(Markets.fields, "synced");
-    expect(group && "fields" in group).toBe(true);
-    const names = group && "fields" in group ? syncedNames(group.fields) : [];
-    expect(new Set(names)).toEqual(new Set([...Object.keys(fixture.markets), "syncedAt"]));
-    const regions = group && "fields" in group ? named(group.fields, "regions") : undefined;
-    const regionNames = regions && "fields" in regions ? syncedNames(regions.fields) : [];
-    expect(new Set(regionNames)).toEqual(new Set(Object.keys(fixture.markets.regions[0]!)));
-  });
 });
-
-const syncedNames = (fields: readonly Field[]) =>
-  fields.flatMap((field) => ("name" in field ? [field.name] : []));
 
 describe("who writes what (D75)", () => {
   for (const { config } of COLLECTIONS) {
@@ -100,26 +86,6 @@ describe("who writes what (D75)", () => {
       }
     });
   }
-
-  it("markets: the sync writes `synced` and nothing else; an admin writes the rest", () => {
-    const { access } = Markets;
-    expect(access?.update?.(as(admin))).toBe(true);
-    expect(access?.update?.(as(sync))).toBe(true);
-    expect(access?.update?.(as(editor))).toBe(false);
-    expect(access?.read?.(as(sync))).toBe(true);
-    expect(access?.read?.(as(null))).toBe(false);
-    for (const field of Markets.fields) {
-      if (!("name" in field)) continue;
-      const update = "access" in field ? field.access?.update : undefined;
-      if (field.name === "synced") {
-        expect(fieldAs(update, sync)).toBe(true);
-        expect(fieldAs(update, admin)).toBe(false);
-      } else {
-        expect(fieldAs(update, admin), field.name).toBe(true);
-        expect(fieldAs(update, sync), field.name).toBe(false);
-      }
-    }
-  });
 });
 
 describe("the content globals and the pages follow what they embed (T61, PR 94 review item 2; T63, PR 95 review item 2)", () => {

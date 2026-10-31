@@ -3,7 +3,8 @@
  * The events reach Payload through the subscriber, a category's parent arrives as a Payload id,
  * a deleted record is marked and not removed, the workflow's compensation puts a document back
  * when its second write fails, the bulk route answers an admin only, and whether adding a store
- * locale delivers `store.store-locale.created` to a subscriber. SETUP.md, "The Medusa → Payload
+ * locale delivers `store.store-locale.created` to a subscriber, and that regions and store locales
+ * are no longer written to Payload (T75, D95: the market map is Medusa's). SETUP.md, "The Medusa → Payload
  * sync (T60)", lists a mutation that fails each test.
  *
  * Run (the compose stack up, from the repo root):
@@ -48,11 +49,10 @@ type Recorded = { method: string; path: string; auth: string | undefined; body: 
 
 /**
  * Payload's REST API as far as the sync uses it: find by `medusaId` (or a page of everything),
- * create, update, delete, and the `markets` global. `failWhen` makes a request answer 500.
+ * create, update and delete. `failWhen` makes a request answer 500.
  */
 class FakePayload {
   collections: Record<string, Doc[]> = { products: [], categories: [], collections: [] };
-  markets: Record<string, unknown> = { synced: {} };
   requests: Recorded[] = [];
   failWhen: ((request: Recorded) => boolean) | undefined;
   private next = 1;
@@ -101,11 +101,6 @@ class FakePayload {
       return { status: 500, body: { errors: [{ message: "fake failure" }] } };
     }
 
-    if (url.pathname === "/api/globals/markets") {
-      if (req.method === "GET") return { status: 200, body: this.markets };
-      this.markets = { ...this.markets, ...body };
-      return { status: 200, body: { result: this.markets } };
-    }
     const [, , collection, id] = url.pathname.split("/");
     const docs = this.collections[collection!];
     if (docs === undefined) return { status: 404, body: { errors: [{ message: "No such" }] } };
@@ -308,7 +303,7 @@ medusaIntegrationTestRunner({
         expect(fake.find("categories", "pcat_never")).toBeUndefined();
       });
 
-      it("writes markets.synced when a region's countries change", async () => {
+      it("writes nothing to Payload when a region's countries change (T75: the map is Medusa's)", async () => {
         const container = getContainer();
         const seeded = await seedStore(container);
         const query = container.resolve(ContainerRegistrationKeys.QUERY);
@@ -318,23 +313,16 @@ medusaIntegrationTestRunner({
           filters: { id: seeded.regionId },
         });
         const countries = (data[0]!.countries ?? []).flatMap((c) => (c?.iso_2 ? [c.iso_2] : []));
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        const before = fake.requests.length;
         await updateRegionsWorkflow(container).run({
           input: {
             selector: { id: seeded.regionId },
             update: { countries: [...countries, "at"] },
           },
         });
-        await until(
-          async () => {
-            const synced = fake.markets.synced as {
-              regions?: { medusaId: string; countries: string[] }[];
-            };
-            return synced.regions
-              ?.find((region) => region.medusaId === seeded.regionId)
-              ?.countries.includes("at");
-          },
-          { what: "Austria in markets.synced" },
-        );
+        await new Promise((resolve) => setTimeout(resolve, 1_500));
+        expect(fake.requests.slice(before)).toEqual([]);
       });
 
       it("answers the bulk route for an admin's token only, not a secret key or nobody", async () => {
@@ -360,14 +348,15 @@ medusaIntegrationTestRunner({
           { headers: { authorization: `Bearer ${token}` } },
         );
         expect(response.status).toBe(200);
-        expect(response.data.run).toMatchObject({ kind: "bulk", markets: "updated" });
+        expect(response.data.run).toMatchObject({ kind: "bulk" });
+        expect(response.data.run).not.toHaveProperty("markets");
         const last = await api.get("/admin/payload/sync", {
           headers: { authorization: `Bearer ${token}` },
         });
         expect(last.data).toMatchObject({ configured: true, last_run: { kind: "bulk" } });
       });
 
-      it("syncs a new store locale (store.store-locale.created), and the markets seed keeps it", async () => {
+      it("a new store locale (store.store-locale.created) reaches subscribers, writes nothing to Payload, and the markets seed keeps it", async () => {
         const container = getContainer();
         await seedStore(container);
         const bus = container.resolve(Modules.EVENT_BUS);
@@ -381,17 +370,14 @@ medusaIntegrationTestRunner({
             seen.push(name);
           });
         }
+        const before = fake.requests.length;
         await addStoreLocales(container, ["it-IT"]);
         await new Promise((resolve) => setTimeout(resolve, 1_000));
         // Recorded in SETUP.md, "The Medusa → Payload sync (T60)": the store module's own event
         // arrives, once per locale the store then has (its update replaces every row); there is
         // no `store.updated` and no unprefixed name.
         expect(new Set(seen)).toEqual(new Set(["store.store-locale.created"]));
-        await until(
-          async () =>
-            ((fake.markets.synced as { locales?: string[] }).locales ?? []).includes("it-IT"),
-          { what: "it-IT in markets.synced" },
-        );
+        expect(fake.requests.slice(before)).toEqual([]);
 
         // D76: the markets seed (a second `pnpm bootstrap`) adds locales and keeps this one.
         await seedMarkets({ container, args: [] } as never);

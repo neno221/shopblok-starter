@@ -2,7 +2,7 @@
  * Links in the e-mails the backend sends (T44, D64): `STOREFRONT_URL`, the market's prefix, a path
  * and its query. The storefront passes the market's public prefix in the request's `metadata.market`
  * (what `marketPrefix` in `apps/storefront/src/lib/markets/url.ts` gives: `""`, `/us`, `/ch/fr`),
- * because only the storefront has the market map (Payload's `markets` global): the backend cannot
+ * because only the storefront has the market map (Medusa's markets module, read through `GET /store/markets`): the backend cannot
  * turn a market key into a prefix itself.
  *
  * The prefix comes from the client, so only the shape a prefix can have is accepted: up to two

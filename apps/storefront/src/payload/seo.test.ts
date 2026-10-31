@@ -1,6 +1,6 @@
 import { markets as seeded } from "@shopblok/fixtures";
 import type { CollectionConfig, Config, Field, FieldAccess, PayloadRequest } from "payload";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   generateDescription,
   generateImage,
@@ -16,10 +16,18 @@ const settings = {
   storeName: "Kalimera",
   seo: { titleTemplate: "%s · Kalimera", description: "Linen for warm days.", image: 12 },
 };
-const findGlobal = vi.fn(async ({ slug }: { slug: string }) =>
-  slug === "markets" ? seeded : settings,
-);
-const req = { payload: { findGlobal, findByID: vi.fn() } } as unknown as PayloadRequest;
+// The market map is Medusa's (D95), read through `get-market-map`, lazily.
+const getMarketMap = vi.hoisted(() => vi.fn());
+vi.mock("../lib/markets/get-market-map", () => ({ getMarketMap }));
+const findGlobal = vi.fn(async (_args: { slug: string }) => settings);
+const warn = vi.fn();
+const req = {
+  payload: { findGlobal, findByID: vi.fn(), logger: { warn } },
+} as unknown as PayloadRequest;
+beforeEach(() => {
+  getMarketMap.mockReset().mockResolvedValue(seeded);
+  warn.mockClear();
+});
 const args = (doc: Record<string, unknown>, slug = "posts", locale = "en") =>
   ({ doc, locale, req, collectionConfig: { slug } }) as never;
 
@@ -57,6 +65,21 @@ describe("the suggestions", () => {
       "http://localhost:8000/products/tee",
     );
     expect(await generateURL(args({}, "posts"))).toBe("");
+  });
+
+  // T75 review, item 3: a fresh server with Medusa down has no map; "Auto-generate" must not error.
+  it("URL: empty, with a warning, when the markets can't be read", async () => {
+    getMarketMap.mockRejectedValue(new Error("Medusa at http://localhost:9000 did not answer"));
+    await expect(generateURL(args({ slug: "spring" }, "posts", "en"))).resolves.toBe("");
+    expect(warn.mock.calls[0]?.[0]).toMatch(/did not answer.*the generated URL is left empty/);
+    // A document with no address never asks for the map, so nothing is logged for it.
+    warn.mockClear();
+    await expect(generateURL(args({}, "posts"))).resolves.toBe("");
+    expect(warn).not.toHaveBeenCalled();
+    getMarketMap.mockResolvedValue(seeded);
+    expect(await generateURL(args({ slug: "spring" }, "posts", "en"))).toBe(
+      "http://localhost:8000/us/journal/spring",
+    );
   });
 });
 

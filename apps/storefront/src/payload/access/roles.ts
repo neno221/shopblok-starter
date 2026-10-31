@@ -42,8 +42,7 @@ export const staffOrPublished: Access = ({ req }) =>
 
 /**
  * The Medusa sync (D75): an `integrations` user whose role is `medusa-sync`, signed in with its
- * API key. Only it writes what Medusa owns: the synced documents' Medusa fields and
- * `markets.synced`.
+ * API key. Only it writes what Medusa owns: the synced documents' Medusa fields.
  */
 export function isMedusaSyncRequest(req: PayloadRequest): boolean {
   const user = req.user;
@@ -57,6 +56,3 @@ export const isMedusaSyncField: FieldAccess = ({ req }) => isMedusaSyncRequest(r
 
 export const staffOrMedusaSync: Access = ({ req }) =>
   staffUser(req) !== null || isMedusaSyncRequest(req);
-
-export const adminOrMedusaSync: Access = ({ req }) =>
-  isAdminRequest(req) || isMedusaSyncRequest(req);

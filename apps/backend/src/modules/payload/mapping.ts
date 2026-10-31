@@ -1,5 +1,5 @@
 /**
- * What Medusa's records become in Payload (D75, D76). Pure: the records arrive as `query.graph`
+ * What Medusa's records become in Payload (D75; products, categories and collections only since M4b, D95). Pure: the records arrive as `query.graph`
  * returns them, so the mapping is tested without a database, against the shared fixture
  * (`@shopblok/fixtures/sync/documents.json`) that the storefront's collection test reads too.
  *
@@ -7,7 +7,7 @@
  * every update, and a product's thumbnail as its URL (the Medusa × Payload guide's two gaps).
  */
 
-import type { SyncCollection, SyncDocument, SyncedMarkets } from "@shopblok/fixtures/sync" with {
+import type { SyncCollection, SyncDocument } from "@shopblok/fixtures/sync" with {
   "resolution-mode": "import",
 };
 
@@ -53,21 +53,6 @@ export type MedusaCollection = {
   deleted_at?: Timestamp | null;
 };
 
-export type MedusaRegion = {
-  id: string;
-  name: string;
-  currency_code: string;
-  countries?: ({ iso_2?: string | null } | null)[] | null;
-};
-
-export type MedusaStore = {
-  supported_currencies?: ({ currency_code: string; is_default?: boolean | null } | null)[] | null;
-  supported_locales?: ({ locale_code: string } | null)[] | null;
-};
-
-/** The `markets` global's synced part. Medusa 2.21.2's store has no default locale. */
-export type MarketsSynced = SyncedMarkets;
-
 /** Which Medusa entity each collection follows, for `query.graph`. */
 export const ENTITY: Record<SyncCollection, "product" | "product_category" | "product_collection"> =
   {
@@ -82,13 +67,6 @@ export const QUERY_FIELDS: Record<SyncCollection, string[]> = {
   categories: ["id", "handle", "name", "rank", "parent_category_id", "updated_at", "deleted_at"],
   collections: ["id", "handle", "title", "updated_at", "deleted_at"],
 };
-
-export const REGION_FIELDS = ["id", "name", "currency_code", "countries.iso_2"];
-export const STORE_FIELDS = [
-  "supported_currencies.currency_code",
-  "supported_currencies.is_default",
-  "supported_locales.locale_code",
-];
 
 /** The fields the sync writes in each collection, besides `syncedAt`; the rest are the CMS's. */
 export const SYNCED_FIELDS: Record<SyncCollection, string[]> = {
@@ -181,39 +159,4 @@ export function parentsFirst(documents: SyncDocument[]): SyncDocument[] {
     .map((document, index) => ({ document, index, depth: depth(document) }))
     .sort((a, b) => a.depth - b.depth || a.index - b.index)
     .map(({ document }) => document);
-}
-
-/**
- * The markets' synced part from the regions and the store. Sorted, so the same Medusa data always
- * gives the same value and the reconcile job writes only a real change.
- */
-export function marketsSynced(
-  regions: MedusaRegion[],
-  store: MedusaStore | null | undefined,
-): MarketsSynced {
-  const currencies = (store?.supported_currencies ?? []).flatMap((currency) =>
-    currency ? [currency] : [],
-  );
-  return {
-    regions: regions
-      .map((region) => ({
-        medusaId: region.id,
-        name: region.name,
-        currency: region.currency_code,
-        countries: (region.countries ?? [])
-          .flatMap((country) => (country?.iso_2 ? [country.iso_2.toLowerCase()] : []))
-          .sort(),
-      }))
-      .sort((a, b) => a.medusaId.localeCompare(b.medusaId)),
-    currencies: currencies.map((currency) => currency.currency_code).sort(),
-    defaultCurrency: currencies.find((currency) => currency.is_default)?.currency_code ?? null,
-    locales: (store?.supported_locales ?? [])
-      .flatMap((locale) => (locale ? [locale.locale_code] : []))
-      .sort(),
-  };
-}
-
-/** Two synced parts hold the same data (`syncedAt` and Payload's row ids aside). */
-export function sameMarkets(a: MarketsSynced, b: MarketsSynced): boolean {
-  return JSON.stringify(a) === JSON.stringify(b);
 }

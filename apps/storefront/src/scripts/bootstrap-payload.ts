@@ -1,27 +1,25 @@
 /**
- * The Payload half of `pnpm bootstrap` (T13, step 8). Run by bootstrap, with the storefront's `.env`
+ * The Payload half of `pnpm bootstrap` (T13, step 8: "Payload users"). Run by bootstrap, with the storefront's `.env`
  * loaded and the database migrated (`payload migrate`, step 7):
  *
  *   pnpm --filter @shopblok/storefront exec payload run src/scripts/bootstrap-payload.ts
  *
  * It reads three variables, set by bootstrap: BOOTSTRAP_ADMIN_EMAIL, BOOTSTRAP_ADMIN_PASSWORD
- * (optional) and BOOTSTRAP_PAYLOAD_API_KEY. It does three things and each one is safe to repeat:
+ * (optional) and BOOTSTRAP_PAYLOAD_API_KEY. It does two things and each one is safe to repeat:
  *
  * 1. The first Payload admin, with the development credentials, only while `users` is empty. A
  *    `beforeChange` hook makes the first user an admin whatever the data says (T09).
  * 2. The `integrations` user "Medusa sync", whose API key is the one in the backend's `.env`.
  *    Payload keeps a hash of the key and never returns it, so the check is to authenticate with it.
  *    A key that doesn't authenticate (a wiped database, a new PAYLOAD_SECRET) is set again.
- * 3. The `markets` global, from `@shopblok/fixtures`, only while it has no country (T10 item 7:
- *    production has no fallback for an empty global). An editor's map is never overwritten.
+ *
+ * The market map is not Payload's any more (M4b, D95): `pnpm bootstrap` seeds Medusa's markets
+ * module in step 4.
  *
  * Its result is one line of JSON, `{"bootstrapPayload":{…}}`, among Payload's log lines.
  */
 import config from "@payload-config";
-import { markets as seededMarkets } from "@shopblok/fixtures";
 import { getPayload } from "payload";
-import { mapFromGlobal, marketMapProblems } from "../lib/markets/global";
-import { marketsGlobalData } from "./markets-data";
 
 const INTEGRATION_NAME = "Medusa sync";
 
@@ -29,8 +27,6 @@ type Outcome = {
   admin: "created" | "exists";
   generatedAdminPassword?: string;
   integration: "created" | "unchanged" | "rekeyed";
-  markets: "seeded" | "unchanged";
-  problems: string[];
 };
 
 function required(name: string): string {
@@ -49,8 +45,6 @@ const payload = await getPayload({ config });
 const outcome: Outcome = {
   admin: "exists",
   integration: "unchanged",
-  markets: "unchanged",
-  problems: [],
 };
 
 // 1. The first admin. Nobody is signed in, so this is a system call that skips access control.
@@ -98,27 +92,6 @@ if (keyOwner?.collection !== "integrations") {
     });
     outcome.integration = "created";
   }
-}
-
-// 3. The market map. Only an empty global is filled: after that it belongs to the shop's owner.
-const markets = await payload.findGlobal({ slug: "markets", depth: 0, overrideAccess: true });
-if ((markets.countries ?? []).length === 0) {
-  const seeded = marketMapProblems(seededMarkets);
-  if (seeded.length > 0) {
-    throw new Error(
-      `The seeded market map in @shopblok/fixtures is not usable: ${seeded.join("; ")}`,
-    );
-  }
-  await payload.updateGlobal({
-    slug: "markets",
-    data: marketsGlobalData(seededMarkets),
-    overrideAccess: true,
-    // A script has no Next cache to refresh (the hook would only warn).
-    context: { disableRevalidate: true },
-  });
-  outcome.markets = "seeded";
-} else {
-  outcome.problems = marketMapProblems(mapFromGlobal(markets));
 }
 
 console.log(JSON.stringify({ bootstrapPayload: outcome }));

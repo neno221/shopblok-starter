@@ -2,7 +2,7 @@ import { DEFAULT_LOCALE, isLocale, type Locale } from "@shopblok/i18n";
 import type { Market } from "./markets/types";
 
 /**
- * The zone of a market whose country has no `timeZone` in the `markets` global (D65): a fixed
+ * The zone of a market whose country has no `timeZone` in Medusa's markets (D65, D96): a fixed
  * zone, so the server that prerenders a page and the browser that hydrates it print the same time.
  */
 export const DEFAULT_TIME_ZONE = "UTC";

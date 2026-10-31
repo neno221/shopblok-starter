@@ -2,27 +2,24 @@ import { describe, expect, it } from "vitest";
 import {
   compareMarkets,
   MARKETS_FIX,
-  MARKETS_SYNCED_FIX,
-  marketsGlobalCheck,
-  marketsSyncCheck,
+  marketsCheck,
+  readAdminMarkets,
   readBackendMarkets,
   readMarketMap,
-  readSyncedMarkets,
-  type BackendMarkets,
+  readMarketsOverview,
   type MarketMapData,
+  type MarketsOverviewData,
+  type OverviewRegion,
 } from "./markets-check.ts";
 
-/** The committed `config/markets.ts` and the seeded fixtures, as plain data. */
-const backend: BackendMarkets = {
-  currencies: ["eur", "usd", "gbp", "chf"],
-  regions: [
-    { name: "Europe", currency: "eur", countries: ["cy", "de", "fr"] },
-    { name: "United States", currency: "usd", countries: ["us"] },
-    { name: "United Kingdom", currency: "gbp", countries: ["gb"] },
-    { name: "Switzerland", currency: "chf", countries: ["ch"] },
-  ],
-  locales: ["en-US", "el-GR", "de-DE", "fr-FR"],
-};
+/** The seeded markets as the module's map and Medusa's regions and locales hold them. */
+const regions: OverviewRegion[] = [
+  { name: "Europe", currency: "eur", countries: ["cy", "de", "fr"] },
+  { name: "United States", currency: "usd", countries: ["us"] },
+  { name: "United Kingdom", currency: "gbp", countries: ["gb"] },
+  { name: "Switzerland", currency: "chf", countries: ["ch"] },
+];
+const locales = ["en-US", "el-GR", "de-DE", "fr-FR"];
 
 const map: MarketMapData = {
   countries: [
@@ -41,9 +38,11 @@ const map: MarketMapData = {
   ],
 };
 
-describe("compareMarkets", () => {
-  it("finds nothing when the two lists agree", () => {
-    expect(compareMarkets(backend, map)).toEqual([]);
+const live = { regions, locales };
+
+describe("compareMarkets (D97)", () => {
+  it("finds nothing when the map, the regions and the locales agree", () => {
+    expect(compareMarkets(live, map)).toEqual([]);
   });
 
   it("an open country with no region", () => {
@@ -51,59 +50,74 @@ describe("compareMarkets", () => {
       countries: [...map.countries, { code: "br", enabled: true, languages: ["pt"] }],
       languages: [...map.languages, { code: "pt", medusaLocale: "pt-BR" }],
     };
-    const problems = compareMarkets(backend, withBrazil);
-    expect(problems.join("\n")).toContain('country "br" is open in the storefront\'s map');
-    expect(problems.join("\n")).toContain("no region in config/markets.ts has it");
-    // The language is not in SUPPORTED_LOCALES either: both halves of the missing edit show.
-    expect(problems.join("\n")).toContain('"pt-BR", which is not in SUPPORTED_LOCALES');
+    const problems = compareMarkets(live, withBrazil).join("\n");
+    expect(problems).toContain('country "br" is open in the markets map but no region has it');
+    // The language is not among the store's locales either: both halves of the missing edit show.
+    expect(problems).toContain(
+      'language "pt" uses the Medusa locale "pt-BR", which is not one of the store\'s locales',
+    );
   });
 
-  it("a closed country needs no region", () => {
+  it("a closed country needs no region, and a closed country in a region is how a market waits", () => {
     const closed: MarketMapData = {
       ...map,
-      countries: [...map.countries, { code: "br", enabled: false, languages: ["pt"] }],
+      countries: [...map.countries, { code: "br", enabled: false, languages: [] }],
     };
-    expect(compareMarkets(backend, closed)).toEqual([]);
+    expect(compareMarkets(live, closed)).toEqual([]);
+    const austria: OverviewRegion[] = regions.map((region) =>
+      region.name === "Europe" ? { ...region, countries: [...region.countries, "at"] } : region,
+    );
+    const waiting: MarketMapData = {
+      ...map,
+      countries: [...map.countries, { code: "at", enabled: false, languages: [] }],
+    };
+    expect(compareMarkets({ regions: austria, locales }, waiting)).toEqual([]);
   });
 
-  it("a region country the map does not serve, absent or disabled", () => {
-    const absent = compareMarkets(backend, {
+  it("a region's country the map does not list, open or not", () => {
+    const problems = compareMarkets(live, {
       ...map,
       countries: map.countries.filter((c) => c.code !== "gb"),
     });
-    expect(absent).toEqual([
-      'region "United Kingdom" has "gb", which the storefront\'s map does not serve (not listed, or disabled)',
+    expect(problems).toEqual([
+      'region "United Kingdom" has "gb", which the markets map does not list (it lists every country of a region)',
     ]);
-    const disabled = compareMarkets(backend, {
-      ...map,
-      countries: map.countries.map((c) => (c.code === "gb" ? { ...c, enabled: false } : c)),
-    });
-    expect(disabled).toEqual(absent);
+  });
+
+  it("a country in two regions", () => {
+    const twice: OverviewRegion[] = [
+      ...regions,
+      { name: "Germany", currency: "eur", countries: ["de"] },
+    ];
+    expect(compareMarkets({ regions: twice, locales }, map)).toEqual([
+      'country "de" is in two regions, "Europe" and "Germany"',
+    ]);
   });
 
   it("a language whose medusaLocale the store does not have", () => {
-    const problems = compareMarkets(backend, {
+    const problems = compareMarkets(live, {
       ...map,
       languages: map.languages.map((l) =>
         l.code === "el" ? { code: "el", medusaLocale: "el-CY" } : l,
       ),
     });
     expect(problems).toEqual([
-      'language "el" uses the Medusa locale "el-CY", which is not in SUPPORTED_LOCALES in config/markets.ts',
+      'language "el" uses the Medusa locale "el-CY", which is not one of the store\'s locales',
     ]);
   });
 
   it("a language that no open country uses is not checked", () => {
-    const problems = compareMarkets(backend, {
-      ...map,
-      languages: [...map.languages, { code: "pt", medusaLocale: "pt-BR" }],
-    });
-    expect(problems).toEqual([]);
+    expect(
+      compareMarkets(live, {
+        ...map,
+        languages: [...map.languages, { code: "pt", medusaLocale: "pt-BR" }],
+      }),
+    ).toEqual([]);
   });
 
-  it("a language with no Medusa locale is the map's own problem, not this comparison's", () => {
+  it("a language with no Medusa locale is the module's own warning, not this comparison's", () => {
     expect(
-      compareMarkets(backend, {
+      compareMarkets(live, {
         ...map,
         languages: map.languages.map((l) =>
           l.code === "el" ? { code: "el", medusaLocale: "" } : l,
@@ -112,31 +126,18 @@ describe("compareMarkets", () => {
     ).toEqual([]);
   });
 
-  it("the backend list against itself: a region in a currency the store lacks, a country twice", () => {
-    const broken: BackendMarkets = {
-      ...backend,
-      regions: [
-        ...backend.regions,
-        { name: "Brazil", currency: "brl", countries: ["br"] },
-        { name: "Germany", currency: "eur", countries: ["de"] },
-      ],
-    };
-    const problems = compareMarkets(broken, map).join("\n");
-    expect(problems).toContain('region "Brazil" is in "brl", which is not in SUPPORTED_CURRENCIES');
-    expect(problems).toContain('country "de" is in two regions, "Europe" and "Germany"');
-  });
-
-  it("D17: Brazil added on both sides agrees", () => {
-    const brazilBackend: BackendMarkets = {
-      currencies: [...backend.currencies, "brl"],
-      regions: [...backend.regions, { name: "Brazil", currency: "brl", countries: ["br"] }],
-      locales: [...backend.locales, "pt-BR"],
-    };
+  it("D17: Brazil added in Medusa agrees", () => {
+    const brazilRegions: OverviewRegion[] = [
+      ...regions,
+      { name: "Brazil", currency: "brl", countries: ["br"] },
+    ];
     const brazilMap: MarketMapData = {
       countries: [...map.countries, { code: "br", enabled: true, languages: ["pt"] }],
       languages: [...map.languages, { code: "pt", medusaLocale: "pt-BR" }],
     };
-    expect(compareMarkets(brazilBackend, brazilMap)).toEqual([]);
+    expect(
+      compareMarkets({ regions: brazilRegions, locales: [...locales, "pt-BR"] }, brazilMap),
+    ).toEqual([]);
   });
 });
 
@@ -195,208 +196,159 @@ describe("readMarketMap", () => {
   });
 });
 
-describe("marketsGlobalCheck", () => {
-  it("does not read a global when the Postgres check failed", () => {
-    const { check, map: read } = marketsGlobalCheck({ skipped: true });
-    expect(check).toMatchObject({ id: "markets-global", level: "warn" });
-    expect(check.message).toContain("Payload was not started");
-    expect(read).toBeUndefined();
+/** What `GET /admin/markets` answers, as far as doctor reads it. */
+const answer = {
+  map: { ...map, primaryCountry: "cy", fallbackMarket: "en-us" },
+  regions: regions.map((region, index) => ({
+    id: `reg_${index}`,
+    name: region.name,
+    currency_code: region.currency,
+    countries: region.countries,
+  })),
+  locales,
+  default_region_id: "reg_0",
+  problems: [],
+};
+
+describe("readMarketsOverview", () => {
+  it("reads the route's answer and keeps what the comparison needs", () => {
+    expect(readMarketsOverview(answer)).toEqual({ map, regions, locales, problems: [] });
   });
 
-  it("is an error, with the cause and the fix, when Payload could not be read", () => {
-    const { check, map: read } = marketsGlobalCheck({
+  it("keeps the warnings as sentences", () => {
+    const read = readMarketsOverview({
+      ...answer,
+      problems: [{ code: "no_open_country", message: "no country is open", path: "x" }],
+    }) as MarketsOverviewData;
+    expect(read.problems).toEqual(["no country is open"]);
+  });
+
+  it("says which part is not what doctor expects", () => {
+    expect(readMarketsOverview(null)).toBe("the markets overview is not an object");
+    expect(readMarketsOverview({ ...answer, map: 1 })).toBe("the market map is not an object");
+    expect(readMarketsOverview({ ...answer, regions: [{ name: "x" }] })).toContain("regions");
+    expect(readMarketsOverview({ ...answer, locales: "en-US" })).toContain("locales");
+    expect(readMarketsOverview({ ...answer, problems: ["x"] })).toContain("problems");
+  });
+});
+
+describe("marketsCheck (D97)", () => {
+  const overview: MarketsOverviewData = { map, regions, locales, problems: [] };
+  const read = (over: Partial<MarketsOverviewData> = {}, source = "medusa-exec" as const) =>
+    marketsCheck({ ok: true, source, overview: { ...overview, ...over } });
+
+  it("does not read the module when the Postgres check failed", () => {
+    const { check, map: handed } = marketsCheck({ skipped: true });
+    expect(check).toMatchObject({ id: "markets", level: "warn" });
+    expect(check.message).toContain("Medusa was not started");
+    expect(handed).toBeUndefined();
+  });
+
+  it("is an error, with the cause and the fix, when Medusa could not be read", () => {
+    const { check, map: handed } = marketsCheck({
       ok: false,
-      cause: "the payload database does not exist",
+      cause: "the markets plugin is not built",
       fix: "Run `pnpm bootstrap`.",
     });
     expect(check).toMatchObject({
+      id: "markets",
       level: "error",
-      message: "could not read it: the payload database does not exist.",
+      message: "could not read it: the markets plugin is not built.",
       fix: "Run `pnpm bootstrap`.",
     });
-    expect(read).toBeUndefined();
+    expect(handed).toBeUndefined();
   });
 
-  it("warns that an empty global means the fixtures, and gives no map", () => {
-    const { check, map: read } = marketsGlobalCheck({
-      ok: true,
-      map: { countries: [], languages: [] },
-      problems: [],
-    });
+  it("warns that a module with no country means the fixtures, and gives no map", () => {
+    const { check, map: handed } = read({ map: { countries: [], languages: [] } });
     expect(check.level).toBe("warn");
-    expect(check.message).toContain("seeded fixtures");
-    expect(read).toBeUndefined();
+    expect(check.message).toContain("lists no country");
+    expect(check.message).toContain("the markets module (medusa exec)");
+    expect(handed).toBeUndefined();
   });
 
-  it("is ok for a filled global and hands its map on", () => {
-    const { check, map: read } = marketsGlobalCheck({
-      ok: true,
-      map,
-      problems: [],
-    });
+  it("is ok when the module, the regions and the locales agree, and hands the map on", () => {
+    const { check, map: handed } = read();
     expect(check).toMatchObject({
+      id: "markets",
       level: "ok",
-      message: "6 open countries, 4 languages.",
+      message:
+        "6 open of 6 countries, 4 languages; the map, Medusa's regions and the store's locales agree.",
     });
-    expect(read).toBe(map);
+    expect(handed).toBe(map);
   });
 
-  it("warns with the reasons when the map cannot serve a shop, and still hands it on", () => {
-    const { check, map: read } = marketsGlobalCheck({
-      ok: true,
-      map,
-      problems: ["country de has no language"],
+  it("counts a closed country in a region as listed, not as a problem", () => {
+    const { check } = read({
+      map: { ...map, countries: [...map.countries, { code: "at", enabled: false, languages: [] }] },
+      regions: regions.map((region) =>
+        region.name === "Europe" ? { ...region, countries: [...region.countries, "at"] } : region,
+      ),
     });
+    expect(check).toMatchObject({ level: "ok" });
+    expect(check.message).toContain("6 open of 7 countries");
+  });
+
+  it("warns with the module's own warnings, and still hands the map on", () => {
+    const { check, map: handed } = read({ problems: ["country de has no language"] });
     expect(check).toMatchObject({
       level: "warn",
       details: ["country de has no language"],
+      fix: MARKETS_FIX,
     });
-    expect(read).toBe(map);
+    expect(handed).toBe(map);
   });
-});
 
-describe("marketsSyncCheck", () => {
-  const backendFile = {
-    exports: {
-      SUPPORTED_CURRENCIES: backend.currencies.map((currency_code) => ({
-        currency_code,
-      })),
-      MARKET_REGIONS: backend.regions.map((r) => ({
-        name: r.name,
-        currency_code: r.currency,
-        countries: r.countries,
-      })),
-      SUPPORTED_LOCALES: backend.locales,
-    },
-  };
-
-  it("is ok when the backend and the global agree", () => {
-    const result = marketsSyncCheck({
-      backendFile,
-      fixtures: map,
-      global: map,
+  it("warns with what the map and Medusa's regions disagree about, each once", () => {
+    const { check } = read({
+      problems: ['country "br" is open in the markets map but no region has it (module)'],
+      map: {
+        countries: [...map.countries, { code: "br", enabled: true, languages: ["pt"] }],
+        languages: [...map.languages, { code: "pt", medusaLocale: "pt-BR" }],
+      },
     });
-    expect(result.check).toMatchObject({ id: "markets-sync", level: "ok" });
-    expect(result.check.message).toContain("the markets global");
-    expect(result.backend).toEqual(backend);
-    expect(result.map).toBe(map);
-  });
-
-  it("compares with the seeded fixtures when the global is empty or unread", () => {
-    const result = marketsSyncCheck({
-      backendFile,
-      fixtures: map,
-      global: undefined,
-    });
-    expect(result.check.level).toBe("ok");
-    expect(result.check.message).toContain("the seeded fixtures");
-    expect(result.map).toBe(map);
-  });
-
-  it("warns with every difference and the fix when they disagree (D17)", () => {
-    const open = {
-      ...map,
-      countries: [...map.countries, { code: "br", enabled: true, languages: ["en"] }],
-    };
-    const result = marketsSyncCheck({
-      backendFile,
-      fixtures: map,
-      global: open,
-    });
-    expect(result.check).toMatchObject({ level: "warn", fix: MARKETS_FIX });
-    expect(result.check.message).toContain("disagree (D17)");
-    expect(result.check.details?.length).toBeGreaterThan(0);
-  });
-
-  it("warns when the backend's file cannot be read, and still hands on the map for --online", () => {
-    const result = marketsSyncCheck({
-      backendFile: { error: "boom" },
-      fixtures: map,
-      global: undefined,
-    });
-    expect(result.check.message).toBe("could not read apps/backend/src/config/markets.ts (boom).");
-    expect(result.backend).toBeUndefined();
-    expect(result.map).toBe(map);
-  });
-
-  it("warns when the file is not what doctor expects", () => {
-    const result = marketsSyncCheck({
-      backendFile: { exports: {} },
-      fixtures: map,
-      global: map,
-    });
-    expect(result.check.message).toContain("is not what doctor expects");
-    expect(result.backend).toBeUndefined();
-  });
-
-  it("warns with the reason when there is no global and the fixtures cannot be read", () => {
-    const result = marketsSyncCheck({
-      backendFile,
-      fixtures: "could not read packages/fixtures/src/markets.ts (boom)",
-      global: undefined,
-    });
-    expect(result.check.message).toBe("could not read packages/fixtures/src/markets.ts (boom)");
-    expect(result.map).toBeUndefined();
-    expect(result.backend).toEqual(backend);
-  });
-});
-
-describe("readSyncedMarkets (T60)", () => {
-  const synced = {
-    regions: backend.regions.map((region) => ({ medusaId: "reg_x", ...region })),
-    currencies: backend.currencies,
-    defaultCurrency: "eur",
-    locales: backend.locales,
-  };
-
-  it("reads the synced part doctor-payload prints, in the backend list's shape", () => {
-    expect(readSyncedMarkets(synced)).toEqual(backend);
-  });
-
-  it("is undefined before the first sync", () => {
-    expect(readSyncedMarkets(null)).toBeUndefined();
-    expect(readSyncedMarkets(undefined)).toBeUndefined();
-    expect(readSyncedMarkets({ regions: [], currencies: [], locales: [] })).toBeUndefined();
-  });
-
-  it("says so when the shape is not what doctor expects", () => {
-    expect(readSyncedMarkets({ regions: "x" })).toContain("is not { regions");
-  });
-});
-
-describe("marketsSyncCheck with a synced part (D76)", () => {
-  const backendFile = { error: "not needed" };
-
-  it("compares the global's two parts once a sync has run, not the backend's file", () => {
-    const result = marketsSyncCheck({ backendFile, fixtures: map, global: map, synced: backend });
-    expect(result.check).toMatchObject({ id: "markets-sync", level: "ok" });
-    expect(result.check.message).toBe(
-      "Medusa's regions and locales (the synced part) and the markets global's countries agree.",
-    );
-  });
-
-  it("warns with Medusa's words when a country is in no synced region", () => {
-    const withAustria = {
-      ...map,
-      countries: [...map.countries, { code: "at", enabled: true, languages: ["de"] }],
-    };
-    const result = marketsSyncCheck({
-      backendFile,
-      fixtures: map,
-      global: withAustria,
-      synced: backend,
-    });
-    expect(result.check).toMatchObject({ level: "warn", fix: MARKETS_SYNCED_FIX });
-    expect(result.check.details).toEqual([
-      "country \"at\" is open in the storefront's map but no region in Medusa (the markets global's synced part) has it (its pages show the no-region message)",
+    expect(check.level).toBe("warn");
+    expect(check.details).toEqual([
+      'country "br" is open in the markets map but no region has it (module)',
+      'country "br" is open in the markets map but no region has it (its pages show the no-region message)',
+      'language "pt" uses the Medusa locale "pt-BR", which is not one of the store\'s locales',
     ]);
   });
 
-  it("names a locale the store lacks", () => {
-    const lacking = { ...backend, locales: ["en-US", "el-GR", "de-DE"] };
-    const result = marketsSyncCheck({ backendFile, fixtures: map, global: map, synced: lacking });
-    expect(result.check.details).toEqual([
-      'language "fr" uses the Medusa locale "fr-FR", which is not in the store\'s locales in Medusa',
-    ]);
+  it("names where it read, for the admin API", () => {
+    const { check } = read({ map: { countries: [], languages: [] } }, "admin-api" as never);
+    expect(check.message).toContain("GET /admin/markets");
+  });
+});
+
+describe("readAdminMarkets", () => {
+  const response = (status: number, body: unknown): Parameters<typeof readAdminMarkets>[0] => ({
+    kind: "response",
+    status,
+    text: typeof body === "string" ? body : JSON.stringify(body),
+  });
+
+  it("reads the overview of a 200", () => {
+    expect(readAdminMarkets(response(200, answer))).toEqual({
+      ok: true,
+      source: "admin-api",
+      overview: { map, regions, locales, problems: [] },
+    });
+  });
+
+  it("gives way to `medusa exec` when the backend did not answer the overview", () => {
+    expect(readAdminMarkets(undefined)).toBeUndefined();
+    expect(readAdminMarkets({ kind: "refused" })).toBeUndefined();
+    expect(
+      readAdminMarkets({ kind: "unreachable", reason: "no answer within 5 s" }),
+    ).toBeUndefined();
+    expect(readAdminMarkets(response(401, { message: "Unauthorized" }))).toBeUndefined();
+    expect(readAdminMarkets(response(404, "<html>"))).toBeUndefined();
+  });
+
+  it("is an error when a 200 is not the overview: the route and doctor disagree", () => {
+    const read = readAdminMarkets(response(200, { markets: {} }));
+    expect(read).toMatchObject({ ok: false });
+    expect(read && "cause" in read ? read.cause : "").toContain("GET /admin/markets");
   });
 });

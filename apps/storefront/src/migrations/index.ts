@@ -13,6 +13,7 @@ import * as migration_20261029_074259_pages from './20261029_074259_pages';
 import * as migration_20261029_104144_catalog_content from './20261029_104144_catalog_content';
 import * as migration_20261029_130958_posts from './20261029_130958_posts';
 import * as migration_20261029_142450_seo_redirects from './20261029_142450_seo_redirects';
+import * as migration_20261031_021246_drop_markets_global from './20261031_021246_drop_markets_global';
 
 export const migrations = [
   {
@@ -88,6 +89,11 @@ export const migrations = [
   {
     up: migration_20261029_142450_seo_redirects.up,
     down: migration_20261029_142450_seo_redirects.down,
-    name: '20261029_142450_seo_redirects'
+    name: '20261029_142450_seo_redirects',
+  },
+  {
+    up: migration_20261031_021246_drop_markets_global.up,
+    down: migration_20261031_021246_drop_markets_global.down,
+    name: '20261031_021246_drop_markets_global'
   },
 ];

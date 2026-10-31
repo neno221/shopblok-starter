@@ -14,15 +14,15 @@ beforeEach(() => {
 });
 
 describe("getRenderMarketMap (T71)", () => {
-  it("computes its entry from the global as it is now, not the 30 s in-process map", async () => {
+  it("computes its entry from the map as it is now, not the 30 s in-process map", async () => {
     expect(await getRenderMarketMap()).toBe(seeded);
     expect(maps.getFreshMarketMap).toHaveBeenCalledOnce();
     expect(maps.getMarketMap).not.toHaveBeenCalled();
   });
 
-  it("is tagged `global:markets`, which a save of the global expires, and kept 30 s", async () => {
+  it("is tagged `medusa:markets`, which a saved market or a changed region expires, and kept 30 s", async () => {
     await getRenderMarketMap();
-    expect(next.cacheTag).toHaveBeenCalledWith("global:markets");
+    expect(next.cacheTag).toHaveBeenCalledWith("medusa:markets");
     expect(next.cacheLife).toHaveBeenCalledWith(expect.objectContaining({ revalidate: 30 }));
   });
 });
