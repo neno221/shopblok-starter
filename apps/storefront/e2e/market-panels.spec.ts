@@ -169,11 +169,12 @@ test.afterAll(async () => {
       api("POST", "/admin/markets/settings", {
         fallback_market: before!.settings.fallback_market ?? undefined,
         primary_country: before!.settings.primary_country ?? undefined,
-        languages: before!.languages.map(({ code, medusa_locale, html_lang }) => ({
-          code,
-          medusa_locale,
-          html_lang,
-        })),
+        // A language row cannot be deleted, and ui-strings.spec.ts (T75) leaves the unused row of
+        // Italian, whose store locale it took away again: the plugin refuses a row for a locale
+        // the store lacks, so only the rows the store can serve are sent back.
+        languages: before!.languages
+          .filter((language) => store?.locales.includes(language.medusa_locale) ?? true)
+          .map(({ code, medusa_locale, html_lang }) => ({ code, medusa_locale, html_lang })),
       }),
     );
     for (const original of before.countries) {

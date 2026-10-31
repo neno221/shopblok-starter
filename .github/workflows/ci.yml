@@ -206,7 +206,7 @@ jobs:
       # `pnpm bootstrap` builds the markets plugin too (its step 3, T73), before its migration and
       # before any Medusa start, so this job needs no build step of its own.
       # Writes both .env files (with the secrets), migrates, seeds, makes the Medusa and Payload
-      # admins and the publishable key, fills the `markets` global, and ends with `doctor`.
+      # admins and the publishable key, seeds the regions and the markets module, and ends with `doctor`.
       - run: pnpm bootstrap --ci
       # T57 (M4 D87 item 2, D88): every schema change has its saved migration. After bootstrap has
       # applied the committed migrations, `migrate:create --skip-empty` writes a file only when the
@@ -242,7 +242,7 @@ jobs:
       - name: Start Medusa
         uses: ./.github/actions/start-medusa
       # After bootstrap: `next build` writes the publishable key into the bundle (SETUP.md, T12
-      # item 8) and the `markets` global has to be filled for the prerender.
+      # item 8) and Medusa's market map (`GET /store/markets`, T75) has to be seeded for the prerender.
       # STOREFRONT_PRERENDER_PRODUCTS (the job's env, D58, D67 item 2): four of the demo catalog's
       # eight products are prerendered, so the outage test has pages that render on request
       # (apps/storefront/turbo.json lists it for the build).
@@ -274,9 +274,10 @@ jobs:
           E2E_TEST_ROUTES: "true"
       # markets (T11), wiring (T12; the home since T51), payload-admin, payload-cache (ADR 0001's
       # cache, tag and draft checks), editor-homepage (T71: an editor builds the home in the admin)
-      # and payload-locales (S3: it saves the `markets` global and puts it back) run against the
-      # storefront that is up. markets-add (T71) is last, in a project of its own: it adds Austria
-      # in Medusa and in Payload's Markets page, waits for /at, and takes both away again.
+      # and payload-locales (S3: it opens and closes markets through Medusa's markets API and puts
+      # them back) run against the storefront that is up. markets-add (T71) is last, in a project of
+      # its own: it adds Austria to a region and switches it on through the same API, waits for /at,
+      # and takes both away again.
       # market-panels (T74) follows it, in a project of its own too: it drives the Markets panels on
       # Medusa Admin's Region and Store pages (:9000, no storefront) and puts every row back.
       # `--reporter` adds the HTML report that is uploaded below; the config stays as it is.

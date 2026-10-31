@@ -2,16 +2,16 @@ import { expect, test, type APIResponse } from "@playwright/test";
 import { catalogs } from "./support/catalogs";
 
 // T11: the proxy turns public market URLs into the internal `/{key}/…` routes (SPEC §8.1, §8.5).
-// Run against `next start` with the seeded map in the `markets` global (playwright.config.ts).
+// Run against `next start` with the seeded map in Medusa's markets module (playwright.config.ts).
 
 test.beforeAll(async ({ request }) => {
   const response = await request.get("/").catch((error: unknown) => {
     throw new Error(
       `No storefront at ${process.env["E2E_BASE_URL"] ?? "http://localhost:8000"}. Build and start it ` +
-        `(pnpm --filter @shopblok/storefront build && … start) with the markets global filled. ${String(error)}`,
+        `(pnpm --filter @shopblok/storefront build && … start) with Medusa seeded. ${String(error)}`,
     );
   });
-  expect(response.status(), "the storefront answers / (is the markets global filled?)").toBe(200);
+  expect(response.status(), "the storefront answers / (is Medusa seeded?)").toBe(200);
 });
 
 /** The `Location` header as a path and query, whatever the host. */
@@ -176,11 +176,12 @@ test.describe("Payload is not rewritten", () => {
     expect(await response.json()).toMatchObject({ docs: expect.any(Array) as unknown });
   });
 
-  test("Payload's REST API answers its own 403 (the markets global is staff-only)", async ({
+  // M4b D95: the markets global is gone (the map is Medusa's), so Payload answers its own 404.
+  test("Payload's REST API answers its own 404 for the markets global that no longer exists", async ({
     request,
   }) => {
     const response = await request.get("/api/globals/markets", { maxRedirects: 0 });
-    expect(response.status()).toBe(403);
+    expect(response.status()).toBe(404);
     expect(response.headers()["x-middleware-rewrite"]).toBeUndefined();
   });
 

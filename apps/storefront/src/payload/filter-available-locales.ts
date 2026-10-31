@@ -89,11 +89,36 @@ export async function openLanguages(
 }
 
 /**
+ * Waits for a real request when there is one to wait for. Payload's admin page is also rendered by
+ * Next's prerender (Cache Components), where `fetch()` is cut off as the prerender completes: the
+ * read of Medusa's map would fail there, and a failed read renews the map held for another 30 s
+ * (`source.ts`), so an admin whose first call of the three per page lands in the prerender would
+ * never see a change. `connection()` makes the prerender stop here instead (the page's locale
+ * selector is a dynamic part of it, as its database reads were before D95). Outside Next (a script,
+ * `payload run`) there is no request and nothing to wait for.
+ */
+async function waitForRequest(): Promise<void> {
+  let connection: () => Promise<void>;
+  try {
+    ({ connection } = await import("next/server"));
+  } catch {
+    return;
+  }
+  try {
+    await connection();
+  } catch (error) {
+    if (error instanceof Error && error.message.includes("outside a request scope")) return;
+    throw error;
+  }
+}
+
+/**
  * Payload's `localization.filterAvailableLocales`. It only filters the admin's locale selector,
  * the version view and (experimental) the publish menu; the REST and Local API still accept every
  * preloaded locale, so the storefront enforces markets itself (S3, L8). The open languages are
- * Medusa's (the market map, through a lazy import: `market-map.ts` says why) and the read never
- * throws (`openLanguages`). A write calls this too, with its transaction open; nothing here reads
+ * Medusa's (the market map, through a lazy import: `market-map.ts` says why) and a failed read
+ * never throws (`openLanguages`); only Next's own interruption of a prerender passes through
+ * (`waitForRequest`). A write calls this too, with its transaction open; nothing here reads
  * Payload's database, so there is no connection to share.
  */
 export async function filterAvailableLocales({
@@ -103,6 +128,7 @@ export async function filterAvailableLocales({
   locales: Locale[];
   req: PayloadRequest;
 }): Promise<Locale[]> {
+  await waitForRequest();
   return pickAvailableLocales(
     locales,
     await openLanguages((message) => req.payload.logger.warn(message)),

@@ -4,10 +4,10 @@ import { appEnv } from "./support/app-env";
 import { medusaAdminApi, medusaAdminToken, medusaUrl } from "./support/medusa-admin";
 
 // T60 (D75, D76): the Medusa → Payload sync between the running servers. A change made through
-// Medusa's Admin API shows in Payload within 10 s; a deleted product is marked, not removed; a
-// country added to a region reaches `markets.synced`; and who may write what: an editor cannot
-// change a synced field, nobody but the sync writes `markets.synced`, and the sync cannot change
-// the countries.
+// Medusa's Admin API shows in Payload within 10 s; a deleted product is marked, not removed; and
+// who may write what: an editor cannot change a synced field or create a synced document. (The
+// markets are not synced any more: the storefront reads Medusa's map itself, M4b D94, and
+// markets-add.spec.ts and payload-locales.spec.ts cover that side.)
 
 test.describe.configure({ mode: "serial" });
 test.setTimeout(60_000);
@@ -157,30 +157,6 @@ test("a product deleted in Medusa is marked, not removed", async () => {
   expect((await synced("products", id))["title"]).toBe(`Sync renamed ${stamp}`);
 });
 
-test("a country added to a region appears in markets.synced", async () => {
-  const { regions } = (await medusaApi("GET", "/admin/regions?fields=id,countries.iso_2")) as {
-    regions: { id: string; countries: { iso_2: string }[] }[];
-  };
-  const region = regions.find((candidate) =>
-    candidate.countries.some((country) => country.iso_2 === "de"),
-  )!;
-  const countries = region.countries.map((country) => country.iso_2);
-  const syncedRegion = async () => {
-    const response = await payloadApi("GET", "/globals/markets", `JWT ${payloadToken}`);
-    const { synced: part } = (await response.json()) as {
-      synced?: { regions?: { medusaId: string; countries: string[] }[] };
-    };
-    return part?.regions?.find((candidate) => candidate.medusaId === region.id)?.countries ?? [];
-  };
-  try {
-    await medusaApi("POST", `/admin/regions/${region.id}`, { countries: [...countries, "at"] });
-    await expect.poll(syncedRegion, { timeout: SYNC_TIMEOUT }).toContain("at");
-  } finally {
-    await medusaApi("POST", `/admin/regions/${region.id}`, { countries });
-  }
-  await expect.poll(syncedRegion, { timeout: SYNC_TIMEOUT }).not.toContain("at");
-});
-
 test("an editor cannot change a synced field, nor create a synced document", async () => {
   const id = created.categories[0]!;
   const before = await synced("categories", id);
@@ -205,33 +181,4 @@ test("an editor cannot change a synced field, nor create a synced document", asy
     handle: "forged",
   });
   expect(create.status).toBe(403);
-});
-
-test("nobody but the sync writes markets.synced, and the sync cannot change the countries", async () => {
-  const read = async () =>
-    (await (await payloadApi("GET", "/globals/markets", `JWT ${payloadToken}`)).json()) as {
-      countries: unknown[];
-      synced: { locales: string[] };
-    };
-  const before = await read();
-  expect(before.synced.locales.length).toBeGreaterThan(0);
-
-  expect(
-    (
-      await payloadApi("POST", "/globals/markets", `JWT ${editorToken}`, {
-        synced: { locales: [] },
-      })
-    ).status,
-    "an editor may not save the global at all",
-  ).toBe(403);
-  const asAdmin = await payloadApi("POST", "/globals/markets", `JWT ${payloadToken}`, {
-    synced: { locales: [] },
-  });
-  expect(asAdmin.status, await asAdmin.clone().text()).toBe(200);
-  const asSync = await payloadApi("POST", "/globals/markets", integration(), { countries: [] });
-  expect(asSync.status, await asSync.clone().text()).toBe(200);
-
-  const after = await read();
-  expect(after.synced.locales).toEqual(before.synced.locales);
-  expect(after.countries).toEqual(before.countries);
 });

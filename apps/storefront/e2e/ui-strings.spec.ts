@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { adminCredentials } from "./support/admin-credentials";
+import { marketsAdmin, type MarketsAdmin, type MarketsOverview } from "./support/markets-admin";
 import { add } from "./support/purchase";
 
 // T62 (D77): the shop's microcopy from Payload's `ui-strings`, over the code catalogs.
@@ -15,9 +16,10 @@ import { add } from "./support/purchase";
 // - A market switched to a language with no catalog shows English until its strings are
 //   translated, and then the edited value.
 //
-// The last test saves the `markets` global, which the other suites read through the proxy, so
-// playwright.config.ts runs this file in the `locales` project, after every other suite, and
-// `afterAll` puts the global and every value it changed back.
+// The last test switches the US to Italian through Medusa's Admin API (the markets plugin, M4b), which
+// changes the map the other suites read through the proxy, so playwright.config.ts runs this file
+// in the `locales` project, after every other suite, and `afterAll` puts the markets, the store's
+// locales and every value it changed back.
 
 test.describe.configure({ mode: "serial" });
 test.setTimeout(300_000);
@@ -43,7 +45,9 @@ let page: Page;
 let token = "";
 let editorToken = "";
 let editorId: number | undefined;
-let originalMarkets: Record<string, unknown> | undefined;
+let markets: MarketsAdmin;
+let originalMarkets: MarketsOverview | undefined;
+let originalStoreLocales: { id: string; locales: string[] } | undefined;
 /** Every document a test read, as it was before (all languages). */
 const originals = new Map<number, Doc>();
 /** The languages a test changed, by document: what `afterAll` puts back. */
@@ -103,7 +107,7 @@ async function freshWithinTwo(path: string, text: string): Promise<number> {
 }
 
 /**
- * Waits until `path` is a page in `lang`: after a save of `markets` it can be a 404 for a moment,
+ * Waits until `path` is a page in `lang`: after a save of the markets it can be a 404 for a moment,
  * since the proxy's map and the pages' are two caches (`current-market.ts`).
  */
 async function waitForLanguage(path: string, lang: string): Promise<void> {
@@ -209,9 +213,9 @@ test.beforeAll(async ({ browser, baseURL }) => {
   );
   editorToken = ((await editorLogin.json()) as { token: string }).token;
 
-  const markets = await api("GET", "/globals/markets", admin());
-  expect(markets.status).toBe(200);
-  originalMarkets = (await markets.json()) as Record<string, unknown>;
+  markets = await marketsAdmin();
+  originalMarkets = await markets.overview();
+  originalStoreLocales = await markets.store();
 
   // `payload-locales.spec.ts` runs first in this project and puts the markets back as it ends;
   // the pages follow in about 80 s here (the proxy's map first, then the pages', with a 404 between).
@@ -251,15 +255,16 @@ test.afterAll(async () => {
     }
   }
   if (originalMarkets !== undefined) {
-    const {
-      id: _id,
-      createdAt: _c,
-      updatedAt: _u,
-      globalType: _t,
-      synced: _s,
-      ...body
-    } = originalMarkets;
-    await attempt("markets", () => api("POST", "/globals/markets", admin(), body));
+    // The markets first (the US back in English, the fallback market back), then the store's
+    // locales: the Italian row names the locale the store loses.
+    try {
+      await markets.restore(originalMarkets);
+      if (originalStoreLocales !== undefined) {
+        await markets.setStoreLocales(originalStoreLocales.id, originalStoreLocales.locales);
+      }
+    } catch (error) {
+      failures.push(`markets: ${String(error)}`);
+    }
     // The next suites (`outage.spec.ts` reads `/us`) need the restored map served: until both
     // caches have it, `/us` answers its old language or a 404 for up to 80 s.
     try {
@@ -448,17 +453,20 @@ test("an edited quick-cart title shows in the quick cart a server action draws a
 test("a market switched to a language with no catalog shows English, then its edited value", async () => {
   // The US in Italian: the code has no Italian catalog, so the page is English until the strings
   // are translated. The pages follow the save in about 40 s here (`waitForLanguage`).
-  const markets = structuredClone(originalMarkets) as {
-    countries: { code: string; languages: string[] }[];
-    languages: { code: string; medusaLocale: string }[];
-  } & Record<string, unknown>;
-  const us = markets.countries.find((country) => country.code === "us");
+  // In Medusa: Italian is a store locale (Store → Locales), the US offers it, and the fallback
+  // market moves to the UK first, since the plugin refuses to take the fallback market's language
+  // (en-us) away from it.
+  const us = originalMarkets?.countries.find((country) => country.code === "us");
   expect(us, "the US is a seeded market").toBeDefined();
-  if (us !== undefined) us.languages = ["it"];
-  markets.languages.push({ code: "it", medusaLocale: "en-US" });
-  const { id: _id, createdAt: _c, updatedAt: _u, globalType: _t, synced: _s, ...body } = markets;
-  const saved = await api("POST", "/globals/markets", admin(), body);
-  expect(saved.status, await saved.text()).toBe(200);
+  await markets.setStoreLocales(originalStoreLocales!.id, [
+    ...originalStoreLocales!.locales,
+    "it-IT",
+  ]);
+  await markets.saveSettings({
+    fallback_market: "en-gb",
+    languages: [{ code: "it", medusa_locale: "it-IT" }],
+  });
+  await markets.saveCountry("us", { languages: ["it"] });
 
   const shown = await stringDoc(SHOWN);
   await waitForLanguage("/us", "it-US");
