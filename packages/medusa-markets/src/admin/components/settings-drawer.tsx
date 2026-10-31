@@ -1,18 +1,20 @@
-import { Button, Drawer, Input, Label, Select, Text, toast } from "@medusajs/ui";
+import { Button, Checkbox, Drawer, Input, Label, Select, Text, toast } from "@medusajs/ui";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { useSaveSettings } from "../lib/api";
 import { languageName, localesOfLanguage, marketName } from "../lib/format";
 import { failureOf } from "../lib/refusal";
-import type { MarketsOverview, SettingsBody } from "../lib/types";
+import { localeIsGone, settingsBody, showsLocale, startLocale } from "../lib/settings-form";
+import type { MarketsOverview } from "../lib/types";
 import { DrawerHeading, SaveFailure } from "./panel";
 
 /**
  * The drawer of the Store page's panel (D93): the primary country and the fallback market, chosen
  * from what is open, the `<html lang>` override of each language in use, and, only for a language
- * that has two or more store locales, which locale it uses. It adds or removes no locale: the
- * store's locales are Medusa's own, in the Locales section of the page.
+ * that has two or more store locales (or whose saved one is gone), which locale it uses. It adds
+ * or removes no locale: the store's locales are Medusa's own, in the Locales section of the page.
+ * A save sends only what the admin changed (`settingsBody`).
  */
 export const SettingsDrawer = ({
   overview,
@@ -64,26 +66,22 @@ const SettingsForm = ({
     Object.fromEntries(languagesInUse.map((code) => [code, rowOf(code)?.html_lang ?? ""])),
   );
   const [locale, setLocale] = useState<Record<string, string>>(() =>
-    Object.fromEntries(
-      languagesInUse.map((code) => [
-        code,
-        rowOf(code)?.medusa_locale ?? localesOfLanguage(overview.locales, code)[0] ?? "",
-      ]),
-    ),
+    Object.fromEntries(languagesInUse.map((code) => [code, startLocale(overview, code)])),
   );
+  // D91's way to follow a default region that differs from the primary country's: save the
+  // primary country again, which sets Medusa's default region to its region.
+  const regionDiffers = overview.problems.some(
+    (problem) => problem.code === "default_region_differs",
+  );
+  const [matchDefaultRegion, setMatchDefaultRegion] = useState(false);
 
-  const body: SettingsBody = {
-    ...(primary !== "" ? { primary_country: primary } : {}),
-    ...(fallback !== "" ? { fallback_market: fallback } : {}),
-    languages: languagesInUse
-      .filter((code) => locale[code] !== "")
-      .map((code) => ({
-        code,
-        medusa_locale: locale[code]!,
-        html_lang: htmlLang[code]!.trim() === "" ? null : htmlLang[code]!.trim(),
-      })),
-  };
-  if (body.languages!.length === 0) delete body.languages;
+  const body = settingsBody(overview, languagesInUse, {
+    primary,
+    fallback,
+    htmlLang,
+    locale,
+    matchDefaultRegion: regionDiffers && matchDefaultRegion,
+  });
 
   const submit = () =>
     save.mutate(body, {
@@ -134,6 +132,18 @@ const SettingsForm = ({
           >
             {t("store.primaryCountryHint")}
           </Text>
+          {regionDiffers && (
+            <div className="flex items-center gap-x-2">
+              <Checkbox
+                id="markets-match-region"
+                checked={matchDefaultRegion}
+                onCheckedChange={(checked) => setMatchDefaultRegion(checked === true)}
+              />
+              <Label htmlFor="markets-match-region" size="small">
+                {t("store.matchDefaultRegion")}
+              </Label>
+            </div>
+          )}
         </div>
 
         <div className="flex flex-col gap-y-2">
@@ -165,6 +175,7 @@ const SettingsForm = ({
         {languagesInUse.map((code) => {
           const name = languageName(code, i18n.language);
           const choices = localesOfLanguage(overview.locales, code);
+          const gone = localeIsGone(overview, code);
           return (
             <div key={code} className="flex flex-col gap-y-2">
               <Label htmlFor={`markets-html-lang-${code}`} size="small" weight="plus">
@@ -179,7 +190,7 @@ const SettingsForm = ({
                 autoComplete="off"
                 spellCheck={false}
               />
-              {choices.length >= 2 && (
+              {showsLocale(overview, code) && choices.length > 0 && (
                 <>
                   <Label htmlFor={`markets-locale-${code}`} size="small" weight="plus">
                     {t("store.locale", { language: name })}
@@ -201,7 +212,7 @@ const SettingsForm = ({
                     </Select.Content>
                   </Select>
                   <Text size="small" leading="compact" className="text-ui-fg-subtle">
-                    {t("store.localeHint")}
+                    {gone ? t("store.localeGoneHint") : t("store.localeHint")}
                   </Text>
                 </>
               )}

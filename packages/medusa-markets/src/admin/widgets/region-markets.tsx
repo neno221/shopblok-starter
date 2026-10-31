@@ -93,6 +93,8 @@ const RegionMarketsPanel = ({ data: region }: DetailWidgetProps<AdminRegion>) =>
                       size="small"
                       variant="transparent"
                       aria-label={t("region.edit", { country: row.name })}
+                      // The form starts from what was read: not while the markets are read again.
+                      disabled={markets.isFetching}
                       onClick={() => setEditing(row.code)}
                     >
                       <PencilSquare />

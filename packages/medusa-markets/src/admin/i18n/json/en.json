@@ -56,6 +56,8 @@
     "htmlLangDefault": "Language and country",
     "locale": "Store locale for {{language}}",
     "localeHint": "The store has several locales for this language; this one is used for its texts.",
+    "localeGoneHint": "The locale saved for this language is no longer one of the store's. Choose the one to use.",
+    "matchDefaultRegion": "Also set the store's default region to the primary country's region",
     "edit": "Edit the markets settings",
     "drawerTitle": "Markets",
     "drawerDescription": "The primary country, the fallback market and how languages are written in the pages.",

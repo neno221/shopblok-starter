@@ -1,14 +1,16 @@
-/** The language of a store locale: `de-DE` gives `de`. */
-export const languageOf = (locale: string): string => locale.split("-")[0]!.toLowerCase();
+import { languageOfLocale } from "../../lib/formats";
+
+// "The language of a store locale" is the server's rule (`src/lib/formats.ts`, which has no
+// framework import): `de-DE` gives `de`, so the panels never offer a locale the checks refuse.
 
 /** The languages of the store's locales, in the locales' order, each once. */
 export const storeLanguages = (locales: string[]): string[] => [
-  ...new Set(locales.map(languageOf)),
+  ...new Set(locales.map(languageOfLocale)),
 ];
 
 /** The store locales of one language (more than one is D8's ambiguous case). */
 export const localesOfLanguage = (locales: string[], language: string): string[] =>
-  locales.filter((locale) => languageOf(locale) === language);
+  locales.filter((locale) => languageOfLocale(locale) === language);
 
 /** A language's name in the admin's language; the code when `Intl` does not know it. */
 export const languageName = (code: string, displayLanguage: string): string => {
@@ -32,7 +34,9 @@ export const marketName = (
 /** The IANA zones the browser knows, with `current` added when it is not one of them. */
 export const timeZoneOptions = (current: string | null): string[] => {
   // `Intl.supportedValuesOf` is ES2022; the plugin's tsconfigs target ES2020 and ES2021.
-  const intl = Intl as unknown as { supportedValuesOf?: (key: "timeZone") => string[] };
+  const intl = Intl as unknown as {
+    supportedValuesOf?: (key: "timeZone") => string[];
+  };
   let zones: string[] = [];
   try {
     zones = intl.supportedValuesOf?.("timeZone") ?? [];

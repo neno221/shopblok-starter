@@ -16,6 +16,11 @@ import { medusaAdminApi, medusaAdminToken, medusaUrl } from "./support/medusa-ad
 // 6. The panels have no add or remove of countries or locales, the Store panel shows no store-locale
 //    select (each language has one store locale in the seed), and axe finds nothing in either panel.
 //
+// PR 106's review adds, on the Store page: a save sends only what was changed, so Medusa's own
+// Default region and a stored value gone stale are left alone (and "set the default region too"
+// follows the primary country, with Medusa's own section updating at once), and a language whose
+// saved store locale was removed in Medusa can be given another.
+//
 // It reads and writes only the plugin's routes and Medusa's region route, never the storefront, so
 // it runs without one; it changes the market rows the map is made of, so playwright.config.ts runs
 // it in a project of its own after `markets-add`, and `afterAll` puts every row, the region's
@@ -139,9 +144,9 @@ test.beforeAll(async ({ browser }) => {
 });
 
 test.afterAll(async () => {
-  // Not a test: everything as found, whatever failed above. The settings first (a country cannot
-  // be closed while the fallback market names it, and a language row names a store locale), the
-  // store's locales, then the rows the tests saved, then the
+  // Not a test: everything as found, whatever failed above. The store's locales first (a language
+  // row names one), the settings (a country cannot be closed while the fallback market names it;
+  // the primary country also puts Medusa's default region back), then the rows the tests saved, then the
   // region's countries (a row can only be saved while its country is in a region). A country row
   // cannot be deleted (D93: no add or remove of countries), so Austria's is left closed and empty,
   // which is what a country just added to a region gets.
@@ -156,6 +161,10 @@ test.afterAll(async () => {
   await context?.close();
   if (before !== undefined && europe !== undefined) {
     const now = await overview().catch(() => undefined);
+    // The store's locales first: a language row below names one of them.
+    if (store !== undefined) {
+      await attempt("the store's locales", () => setStoreLocales(store!.locales));
+    }
     await attempt("the fallback market", () =>
       api("POST", "/admin/markets/settings", {
         fallback_market: before!.settings.fallback_market ?? undefined,
@@ -167,9 +176,6 @@ test.afterAll(async () => {
         })),
       }),
     );
-    if (store !== undefined) {
-      await attempt("the store's locales", () => setStoreLocales(store!.locales));
-    }
     for (const original of before.countries) {
       await attempt(`the market of ${original.code}`, () =>
         api("POST", `/admin/markets/countries/${original.code}`, {
@@ -326,6 +332,12 @@ test("the Store page's panel changes the fallback market", async () => {
   await expect(drawer().getByLabel(/store locale/i)).toHaveCount(0);
   await drawer().getByRole("combobox", { name: "Fallback market" }).click();
   await page.getByRole("option", { name: "German · Germany" }).click();
+  // A change enables Save (nothing changed, nothing to save); its colour has finished changing.
+  await expect(drawer().getByRole("button", { name: "Save" })).toBeEnabled();
+  await expect(drawer().getByRole("button", { name: "Save" })).toHaveCSS(
+    "background-color",
+    "rgb(39, 39, 42)",
+  );
   await picture("4-store-drawer");
   await drawer().getByRole("button", { name: "Save" }).click();
   await expect(drawer()).toBeHidden();
@@ -361,6 +373,141 @@ test("a language with two store locales gets a store-locale select, and only tha
   await setStoreLocales(store!.locales);
   await openStorePage();
   await expect(storePanel().getByText(/Store locale for/)).toHaveCount(0);
+});
+
+/** The store's default region, from Medusa's own Store route. */
+const defaultRegionId = async () =>
+  (
+    await api<{ stores: { default_region_id: string | null }[] }>(
+      "GET",
+      "/admin/stores?fields=id,default_region_id",
+    )
+  ).stores[0]!.default_region_id;
+
+/** Medusa's own "Default region" row of the Store page's General section: a link to the region. */
+const medusaDefaultRegion = () =>
+  page.getByRole("main").locator('a[href^="/app/settings/regions/"]').first();
+
+const storeEditButton = () =>
+  storePanel().locator('button[aria-label="Edit the markets settings"]');
+
+test("a Store save sends only what changed: Medusa's own Default region is left alone, and 'also set it' follows the primary country", async () => {
+  const { regions } = await api<{ regions: { id: string; name: string }[] }>(
+    "GET",
+    "/admin/regions?fields=id,name",
+  );
+  const home = regions.find((region) => region.id === europe!.id)!;
+  const other = regions.find((region) => region.id !== europe!.id)!;
+  expect(await defaultRegionId(), "seeded: the primary country's region").toBe(home.id);
+  try {
+    // The admin picks another Default region in Medusa's own section of the page.
+    await api("POST", `/admin/stores/${store!.id}`, { default_region_id: other.id });
+    await openStorePage();
+    await expect(medusaDefaultRegion()).toHaveText(other.name);
+    await expect(storePanel().getByText("Needs attention")).toBeVisible();
+    await expect(storePanel()).toContainText("default region is not the primary country's region");
+
+    // Nothing changed, nothing to save; then only an html_lang is edited.
+    await storeEditButton().click();
+    const save = drawer().getByRole("button", { name: "Save" });
+    await expect(save).toBeDisabled();
+    await drawer().getByLabel("HTML language for German").fill("de-AT");
+    await expect(save).toBeEnabled();
+    await save.click();
+    await expect(drawer()).toBeHidden();
+    expect((await overview()).languages.find((language) => language.code === "de")).toMatchObject({
+      html_lang: "de-AT",
+    });
+    expect(await defaultRegionId(), "the unrelated save left Medusa's default region").toBe(
+      other.id,
+    );
+    await expect(medusaDefaultRegion()).toHaveText(other.name);
+
+    // D91's "save the primary country again", as a choice in the drawer. Reading the markets is
+    // slowed down, to see the panel wait for it, and Medusa's own section changes with no reload.
+    await storeEditButton().click();
+    await drawer()
+      .getByRole("checkbox", { name: /default region to the primary country/ })
+      .check();
+    await page.route("**/admin/markets", async (route) => {
+      if (route.request().method() === "GET") await new Promise((done) => setTimeout(done, 1500));
+      await route.continue();
+    });
+    await drawer().getByRole("button", { name: "Save" }).click();
+    await expect(storeEditButton(), "no form starts from the answer being replaced").toBeDisabled();
+    await expect(drawer()).toBeHidden();
+    await expect(medusaDefaultRegion(), "Medusa's section, without a reload").toHaveText(home.name);
+    await expect(storeEditButton()).toBeEnabled();
+    await page.unroute("**/admin/markets");
+    expect(await defaultRegionId()).toBe(home.id);
+    await expect(storePanel().getByText("Needs attention")).toHaveCount(0);
+  } finally {
+    await page.unroute("**/admin/markets").catch(() => undefined);
+    await api("POST", `/admin/stores/${store!.id}`, { default_region_id: home.id });
+    await api("POST", "/admin/markets/settings", {
+      languages: [{ code: "de", medusa_locale: "de-DE", html_lang: null }],
+    });
+  }
+});
+
+test("a stored fallback market that went stale does not block an unrelated edit", async () => {
+  // Austria (open with German since the second test) is the fallback market; then Medusa's own
+  // region form takes Austria out of the region, which the markets do not block (D91).
+  expect((await countryRow(NEW_COUNTRY))?.languages).toEqual(["de"]);
+  await api("POST", "/admin/markets/settings", { fallback_market: "de-at" });
+  try {
+    await api("POST", `/admin/regions/${europe!.id}`, { countries: europe!.countries });
+    await openStorePage();
+    await expect(storePanel().getByText("Needs attention")).toBeVisible();
+    await storeEditButton().click();
+    // Only an html_lang is edited: the stale fallback market is not sent again (the server would
+    // refuse it with `fallback_market_not_open`).
+    await drawer().getByLabel("HTML language for English").fill("en-GB");
+    await drawer().getByRole("button", { name: "Save" }).click();
+    await expect(drawer()).toBeHidden();
+    const saved = await overview();
+    expect(saved.languages.find((language) => language.code === "en")?.html_lang).toBe("en-GB");
+    expect(saved.settings.fallback_market, "left as it was").toBe("de-at");
+  } finally {
+    await api("POST", `/admin/regions/${europe!.id}`, {
+      countries: [...europe!.countries, NEW_COUNTRY],
+    });
+    await api("POST", "/admin/markets/settings", {
+      fallback_market: before!.settings.fallback_market ?? undefined,
+      languages: [{ code: "en", medusa_locale: "en-US", html_lang: null }],
+    });
+  }
+});
+
+test("a language whose saved store locale was removed in Medusa can be given another", async () => {
+  // German uses de-DE; Medusa's Store → Locales replaces it with de-AT, leaving one German locale.
+  expect(
+    (await overview()).languages.find((language) => language.code === "de")?.medusa_locale,
+  ).toBe("de-DE");
+  await setStoreLocales([...store!.locales.filter((locale) => locale !== "de-DE"), "de-AT"]);
+  try {
+    await openStorePage();
+    await expect(storePanel()).toContainText("no longer one of the store's locales");
+    // The panel shows the row, and the drawer the select, though there is one German locale.
+    await expect(storePanel().getByText("Store locale for German")).toBeVisible();
+    await storeEditButton().click();
+    const select = drawer().getByRole("combobox", { name: "Store locale for German" });
+    await expect(select).toContainText("de-AT");
+    await drawer().getByRole("button", { name: "Save" }).click();
+    await expect(drawer()).toBeHidden();
+    // Mended: one German locale and the row names it, so the panel has nothing left to ask.
+    await expect(storePanel().getByText("Store locale for German")).toHaveCount(0);
+    expect((await overview()).languages.find((language) => language.code === "de")).toMatchObject({
+      medusa_locale: "de-AT",
+    });
+    await expect(storePanel().getByText("Needs attention")).toHaveCount(0);
+  } finally {
+    // The locale comes back first, then the language row names it again.
+    await setStoreLocales(store!.locales);
+    await api("POST", "/admin/markets/settings", {
+      languages: [{ code: "de", medusa_locale: "de-DE", html_lang: null }],
+    });
+  }
 });
 
 test("the panels have no add or remove of countries or locales", async () => {

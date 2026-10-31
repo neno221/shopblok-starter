@@ -8,7 +8,8 @@ import { useTranslation } from "react-i18next";
 import { SettingsDrawer } from "../components/settings-drawer";
 import { PanelError, PanelHeader, PanelLoading, Warnings } from "../components/panel";
 import { useMarkets } from "../lib/api";
-import { languageName, localesOfLanguage, marketName } from "../lib/format";
+import { languageName, marketName } from "../lib/format";
+import { showsLocale } from "../lib/settings-form";
 
 const Row = ({ label, value }: { label: string; value: string }) => (
   <div className="text-ui-fg-subtle grid grid-cols-2 items-center px-6 py-4">
@@ -25,7 +26,7 @@ const Row = ({ label, value }: { label: string; value: string }) => (
  * "Markets" on the Store page (D93), beside Medusa's own Locales and Default region: the primary
  * country, the fallback market, the `<html lang>` override of each language in use and the
  * warnings of what is stored. A language's store locale is listed, and chosen, only when the store
- * has two or more locales of it. No locale is added or removed here.
+ * has two or more locales of it or the saved one is gone. No locale is added or removed here.
  */
 const StoreMarketsPanel = ({ data: store }: DetailWidgetProps<AdminStore>) => {
   const { t, i18n } = useTranslation("markets");
@@ -57,6 +58,8 @@ const StoreMarketsPanel = ({ data: store }: DetailWidgetProps<AdminStore>) => {
               size="small"
               variant="transparent"
               aria-label={t("store.edit")}
+              // The form starts from what was read: not while the markets are read again.
+              disabled={markets.isFetching}
               onClick={() => setEditing(true)}
             >
               <PencilSquare />
@@ -95,7 +98,7 @@ const StoreMarketsPanel = ({ data: store }: DetailWidgetProps<AdminStore>) => {
             );
           })}
           {languagesInUse
-            .filter((code) => localesOfLanguage(overview.locales, code).length >= 2)
+            .filter((code) => showsLocale(overview, code))
             .map((code) => (
               <Row
                 key={`locale-${code}`}
