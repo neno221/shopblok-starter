@@ -6,6 +6,8 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./markets": "./src/markets.ts",
+    "./markets.json": "./src/markets.json",
     "./sync": "./src/sync/types.ts",
     "./sync/documents.json": "./src/sync/documents.json",
     "./email/templates.json": "./src/email/templates.json"

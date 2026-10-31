@@ -20,6 +20,9 @@
       "outputs": [".next/**", "!.next/cache/**", ".medusa/server/**", "dist/**"]
     },
     "dev": {
+      // `^build`: the backend loads the markets plugin from its `.medusa/server`, which only a
+      // build makes (T73, D89). Without it a fresh clone starts Medusa without the plugin's module.
+      "dependsOn": ["^build"],
       "cache": false,
       "persistent": true,
       // Strict mode drops variables the task doesn't list, so `PAYLOAD_DB_PUSH=true pnpm dev`, a
@@ -28,6 +31,17 @@
       // `STOREFRONT_URL` to the backend's `medusa develop`, over its `.env`).
       // (`NEXT_PUBLIC_*` is listed by Turborepo's Next.js inference.) A `.env` file worked already:
       // Next loads it itself.
+      "passThroughEnv": ["PAYLOAD_*", "MEDUSA_BACKEND_URL", "STOREFRONT_*"]
+    },
+    // The plugin's own `dev` (`medusa plugin:develop`) first deletes `.medusa/server` and builds it
+    // again, as `plugin:build` does. With only `^build` on `dev` they ran at the same time on the
+    // same folder: a failed or half-written build (cached as the build's outputs), or a backend
+    // that started in between and skipped the module (PR 105 review, item 1). So it runs after its
+    // own `build`, and the backend's `dev` (which waits for that `build` too) cannot overlap it.
+    "@shopblok/medusa-markets#dev": {
+      "dependsOn": ["build"],
+      "cache": false,
+      "persistent": true,
       "passThroughEnv": ["PAYLOAD_*", "MEDUSA_BACKEND_URL", "STOREFRONT_*"]
     },
     "transit": {
@@ -41,6 +55,17 @@
     },
     "test": {
       "dependsOn": ["transit"]
+    },
+    // The backend's tests and type check load the markets plugin, which exists only once built
+    // (T73, D89). This package is the one exception to D3 ("no build step in packages/*").
+    "@shopblok/backend#typecheck": {
+      "dependsOn": ["transit", "@shopblok/medusa-markets#build"]
+    },
+    "@shopblok/backend#lint": {
+      "dependsOn": ["transit", "@shopblok/medusa-markets#build"]
+    },
+    "@shopblok/backend#test": {
+      "dependsOn": ["transit", "@shopblok/medusa-markets#build"]
     },
     "db:migrate": {
       "cache": false

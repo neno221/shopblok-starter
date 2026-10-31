@@ -1,0 +1,9 @@
+{
+  // The unit tests and their fixtures: `tsconfig.json` leaves `src/**/__tests__` out because
+  // `medusa plugin:build` reads that file and must not ship them, and `@swc/jest` strips types
+  // without checking them. `pnpm typecheck` runs this one too (PR 105 review, item 6).
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "noEmit": true, "types": ["jest", "node"] },
+  "include": ["src"],
+  "exclude": ["node_modules", ".medusa", "src/admin"]
+}

@@ -47,6 +47,10 @@ export function buildConfig(env: Env): InputConfigWithArrayModules {
     admin: {
       storefrontUrl: env.STOREFRONT_URL,
     },
+    // The markets plugin (M4b, D89): `packages/medusa-markets`, built before the backend loads it
+    // (`medusa plugin:build`, turbo's `^build`). Medusa registers its `markets` module, routes and
+    // workflows from the package's `.medusa/server/src`; it takes no options.
+    plugins: [{ resolve: "@shopblok/medusa-markets", options: {} }],
     // Translation is always registered (buildModules). MEDUSA_FF_TRANSLATION, when set, wins.
     featureFlags: {
       translation: true,

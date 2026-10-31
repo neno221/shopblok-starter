@@ -1,0 +1,60 @@
+{
+  "countries": [
+    {
+      "code": "cy",
+      "enabled": true,
+      "languages": ["el"],
+      "timeZone": "Europe/Nicosia"
+    },
+    {
+      "code": "us",
+      "enabled": true,
+      "languages": ["en"],
+      "timeZone": "America/New_York"
+    },
+    {
+      "code": "gb",
+      "enabled": true,
+      "languages": ["en"],
+      "timeZone": "Europe/London"
+    },
+    {
+      "code": "de",
+      "enabled": true,
+      "languages": ["de"],
+      "timeZone": "Europe/Berlin"
+    },
+    {
+      "code": "fr",
+      "enabled": true,
+      "languages": ["fr"],
+      "timeZone": "Europe/Paris"
+    },
+    {
+      "code": "ch",
+      "enabled": true,
+      "languages": ["de", "fr"],
+      "timeZone": "Europe/Zurich"
+    }
+  ],
+  "languages": [
+    {
+      "code": "en",
+      "medusaLocale": "en-US"
+    },
+    {
+      "code": "el",
+      "medusaLocale": "el-GR"
+    },
+    {
+      "code": "de",
+      "medusaLocale": "de-DE"
+    },
+    {
+      "code": "fr",
+      "medusaLocale": "fr-FR"
+    }
+  ],
+  "primaryCountry": "cy",
+  "fallbackMarket": "en-us"
+}

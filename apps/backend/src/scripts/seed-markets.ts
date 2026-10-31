@@ -22,9 +22,12 @@
  * one service zone per region and a "Standard" shipping option in each, priced
  * in the region's currency, with a free "Return" option beside it, and the
  * store's return reasons (T53). The currencies, regions and locales come from
- * `src/config/markets.ts`, which explains how to open another market.
+ * `src/config/markets.ts`, which explains how to open another market. Last, it fills the markets
+ * plugin's module from the fixtures' market map (open countries, languages, time zones, primary
+ * country, fallback market), only while the module has no row, and sets the store's default region
+ * through the plugin's `saveMarketSettingsWorkflow`.
  */
-import type { ExecArgs } from "@medusajs/framework/types";
+import type { ExecArgs, MedusaContainer } from "@medusajs/framework/types";
 import {
   ContainerRegistrationKeys,
   FeatureFlag,
@@ -46,6 +49,10 @@ import {
   linkSalesChannelsToStockLocationWorkflow,
   updateStoresWorkflow,
 } from "@medusajs/medusa/core-flows";
+
+import marketsFixture from "@shopblok/fixtures/markets.json";
+import { saveMarketSettingsWorkflow } from "@shopblok/medusa-markets/workflows";
+import type { MarketMap } from "@shopblok/fixtures/markets" with { "resolution-mode": "import" };
 
 import {
   DEFAULT_SHIPPING_PROFILE_TYPE,
@@ -506,5 +513,65 @@ export default async function seedMarkets({ container }: ExecArgs) {
     logger.info("All return reasons exist");
   }
 
+  // ---- The markets plugin's own rows (M4b, T73) ------------------------------
+
+  await seedMarketsModule(container);
+
   logger.info("Markets are seeded.");
+}
+
+/** The parts of the plugin's `markets` module service that the seed calls. */
+type MarketsModule = {
+  isEmpty(): Promise<boolean>;
+  createMarketLanguages(rows: unknown[]): Promise<unknown>;
+  createMarketCountries(rows: unknown[]): Promise<unknown>;
+};
+
+/**
+ * Fills the `markets` module from `@shopblok/fixtures`' map (read as JSON: the package exports
+ * raw TypeScript) while the module has no row at all, so a second run, and an admin's edits, are
+ * left alone. The countries' and languages' `rank` is their place in the fixtures, which keeps the
+ * map's order (the switcher and hreflang). Called last: the countries are in the regions by now, and the
+ * store has the locales the languages map to. The languages and countries are written through the
+ * service, not the save workflows, because the checks would refuse a first save that names the
+ * primary country before the countries are open; the settings go through
+ * `saveMarketSettingsWorkflow`, once they are.
+ */
+async function seedMarketsModule(container: MedusaContainer) {
+  const logger = container.resolve(ContainerRegistrationKeys.LOGGER);
+  const markets = container.resolve<MarketsModule>("markets");
+
+  if (!(await markets.isEmpty())) {
+    logger.info("The markets module has rows already; its seed is skipped");
+    return;
+  }
+
+  const map = marketsFixture as MarketMap;
+  await markets.createMarketLanguages(
+    map.languages.map((language, rank) => ({
+      code: language.code,
+      medusa_locale: language.medusaLocale,
+      html_lang: language.htmlLang ?? null,
+      rank,
+    })),
+  );
+  await markets.createMarketCountries(
+    map.countries.map((country, rank) => ({
+      code: country.code,
+      enabled: country.enabled,
+      languages: country.languages,
+      domain: country.domain ?? null,
+      time_zone: country.timeZone ?? null,
+      rank,
+    })),
+  );
+  // The primary country and the fallback market through the plugin's workflow: the countries are
+  // open by now, so its checks pass, it writes the settings row, and it sets the store's
+  // `default_region_id` to the primary country's region (D91) with the plugin's own rule.
+  await saveMarketSettingsWorkflow(container).run({
+    input: { primary_country: map.primaryCountry, fallback_market: map.fallbackMarket },
+  });
+  logger.info(
+    `Seeded the markets module: ${map.countries.map((country) => country.code).join(", ")}`,
+  );
 }

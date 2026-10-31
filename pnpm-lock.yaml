@@ -221,6 +221,9 @@ importers:
       '@medusajs/ui':
         specifier: 4.2.6
         version: 4.2.6(@types/react-dom@18.3.7(@types/react@18.3.31))(@types/react@18.3.31)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(typescript@5.9.3)
+      '@shopblok/medusa-markets':
+        specifier: workspace:*
+        version: link:../../packages/medusa-markets
       '@tanstack/react-query':
         specifier: 5.64.2
         version: 5.64.2(react@18.3.1)
@@ -520,6 +523,100 @@ importers:
       vitest:
         specifier: 5.0.3
         version: 5.0.3(@opentelemetry/api@1.9.1)(@types/node@22.20.5)(happy-dom@21.0.1)(vite@8.3.3(@types/node@22.20.5)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.77.4)(tsx@4.23.15)(yaml@2.9.1))
+
+  packages/medusa-markets:
+    dependencies:
+      '@shopblok/i18n':
+        specifier: workspace:*
+        version: link:../i18n
+    devDependencies:
+      '@medusajs/admin-sdk':
+        specifier: 2.21.2
+        version: 2.21.2
+      '@medusajs/admin-shared':
+        specifier: 2.21.2
+        version: 2.21.2
+      '@medusajs/cli':
+        specifier: 2.21.2
+        version: 2.21.2(@types/node@20.19.43)(debug@4.4.3(supports-color@7.2.0))(supports-color@7.2.0)
+      '@medusajs/eslint-plugin':
+        specifier: 2.21.2
+        version: 2.21.2(eslint@9.39.5(jiti@2.7.0)(supports-color@7.2.0))(supports-color@7.2.0)(typescript@5.9.3)
+      '@medusajs/framework':
+        specifier: 2.21.2
+        version: 2.21.2(@medusajs/cli@2.21.2(@types/node@20.19.43)(debug@4.4.3(supports-color@7.2.0))(supports-color@7.2.0))(@types/node@20.19.43)(debug@4.4.3(supports-color@7.2.0))(ioredis@5.11.1(supports-color@7.2.0))(supports-color@7.2.0)(vite@7.3.7(@types/node@20.19.43)(jiti@2.7.0)(lightningcss@1.33.0)(sass@1.77.4)(tsx@4.23.15)(yaml@2.9.1))(zod@4.2.0)
+      '@medusajs/icons':
+        specifier: 2.21.2
+        version: 2.21.2(react@18.3.1)
+      '@medusajs/medusa':
+        specifier: 2.21.2
+        version: 2.21.2(3cb4c7c4a473c9ca9052fe27f1feddc7)
+      '@medusajs/test-utils':
+        specifier: 2.21.2
+        version: 2.21.2(@medusajs/core-flows@2.21.2(@medusajs/framework@2.21.2(@medusajs/cli@2.21.2(@types/node@20.19.43)(debug@4.4.3(supports-color@7.2.0))(supports-color@7.2.0))(@types/node@20.19.43)(debug@4.4.3(supports-color@7.2.0))(ioredis@5.11.1(supports-color@7.2.0))(supports-color@7.2.0)(vite@7.3.7(@types/node@20.19.43)(jiti@2.7.0)(lightningcss@1.33.0)(sass@1.77.4)(tsx@4.23.15)(yaml@2.9.1))(zod@4.2.0)))(@medusajs/framework@2.21.2(@medusajs/cli@2.21.2(@types/node@20.19.43)(debug@4.4.3(supports-color@7.2.0))(supports-color@7.2.0))(@types/node@20.19.43)(debug@4.4.3(supports-color@7.2.0))(ioredis@5.11.1(supports-color@7.2.0))(supports-color@7.2.0)(vite@7.3.7(@types/node@20.19.43)(jiti@2.7.0)(lightningcss@1.33.0)(sass@1.77.4)(tsx@4.23.15)(yaml@2.9.1))(zod@4.2.0))(@medusajs/medusa@2.21.2)(debug@4.4.3(supports-color@7.2.0))(supports-color@7.2.0)
+      '@medusajs/ui':
+        specifier: 4.2.6
+        version: 4.2.6(@types/react-dom@18.3.7(@types/react@18.3.31))(@types/react@18.3.31)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(typescript@5.9.3)
+      '@shopblok/fixtures':
+        specifier: workspace:*
+        version: link:../fixtures
+      '@swc/core':
+        specifier: 1.16.13
+        version: 1.16.13(@swc/helpers@0.5.23)
+      '@swc/jest':
+        specifier: 0.2.39
+        version: 0.2.39(@swc/core@1.16.13(@swc/helpers@0.5.23))
+      '@tanstack/react-query':
+        specifier: 5.64.2
+        version: 5.64.2(react@18.3.1)
+      '@types/jest':
+        specifier: 29.5.14
+        version: 29.5.14
+      '@types/node':
+        specifier: 20.19.43
+        version: 20.19.43
+      '@types/react':
+        specifier: ^18.3.2
+        version: 18.3.31
+      '@types/react-dom':
+        specifier: ^18.2.25
+        version: 18.3.7(@types/react@18.3.31)
+      cross-env:
+        specifier: 10.1.0
+        version: 10.1.0
+      eslint:
+        specifier: 9.39.5
+        version: 9.39.5(jiti@2.7.0)(supports-color@7.2.0)
+      jest:
+        specifier: 29.7.0
+        version: 29.7.0(@types/node@20.19.43)(babel-plugin-macros@3.1.0)(supports-color@7.2.0)(ts-node@10.9.2(@swc/core@1.16.13(@swc/helpers@0.5.23))(@types/node@20.19.43)(typescript@5.9.3))
+      jiti:
+        specifier: 2.7.0
+        version: 2.7.0
+      prop-types:
+        specifier: 15.8.1
+        version: 15.8.1
+      react:
+        specifier: 18.3.1
+        version: 18.3.1
+      react-dom:
+        specifier: 18.3.1
+        version: 18.3.1(react@18.3.1)
+      react-i18next:
+        specifier: 13.5.0
+        version: 13.5.0(i18next@23.7.11)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vite:
+        specifier: 7.3.7
+        version: 7.3.7(@types/node@20.19.43)(jiti@2.7.0)(lightningcss@1.33.0)(sass@1.77.4)(tsx@4.23.15)(yaml@2.9.1)
+      yalc:
+        specifier: 1.0.0-pre.53
+        version: 1.0.0-pre.53
+      zod:
+        specifier: 4.2.0
+        version: 4.2.0
 
   packages/registry:
     dependencies:

@@ -165,6 +165,10 @@ jobs:
       - uses: actions/checkout@v7.0.1
       - uses: ./.github/actions/setup
       - run: pnpm install --frozen-lockfile
+      # T73 (D89): Medusa loads the markets plugin from its `.medusa/server`, which only a build
+      # makes; without it the runner starts the app without the plugin's module and routes.
+      - name: Build the markets plugin
+        run: pnpm --filter @shopblok/medusa-markets build
       - name: Start Postgres
         run: docker compose up -d --wait postgres
       - name: Backend integration tests
@@ -199,6 +203,8 @@ jobs:
         run: docker compose up -d --wait
       - name: Install Playwright's Chromium
         run: pnpm --filter @shopblok/storefront exec playwright install --with-deps chromium
+      # `pnpm bootstrap` builds the markets plugin too (its step 3, T73), before its migration and
+      # before any Medusa start, so this job needs no build step of its own.
       # Writes both .env files (with the secrets), migrates, seeds, makes the Medusa and Payload
       # admins and the publishable key, fills the `markets` global, and ends with `doctor`.
       - run: pnpm bootstrap --ci
