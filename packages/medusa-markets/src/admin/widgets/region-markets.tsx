@@ -8,6 +8,7 @@ import { useTranslation } from "react-i18next";
 import { CountryDrawer } from "../components/country-drawer";
 import { PanelError, PanelHeader, PanelLoading } from "../components/panel";
 import { useMarkets } from "../lib/api";
+import { useFocusReturn } from "../lib/focus-return";
 import { languageName } from "../lib/format";
 import type { OverviewCountry } from "../lib/types";
 
@@ -26,6 +27,7 @@ const RegionMarketsPanel = ({ data: region }: DetailWidgetProps<AdminRegion>) =>
     .join(",");
   const markets = useMarkets(`region:${region.id}:${signature}`);
   const [editing, setEditing] = useState<string | null>(null);
+  const remember = useFocusReturn(editing !== null, markets.isFetching);
 
   const countries = (markets.data?.countries ?? []).filter(
     (country) => country.region.id === region.id,
@@ -95,7 +97,10 @@ const RegionMarketsPanel = ({ data: region }: DetailWidgetProps<AdminRegion>) =>
                       aria-label={t("region.edit", { country: row.name })}
                       // The form starts from what was read: not while the markets are read again.
                       disabled={markets.isFetching}
-                      onClick={() => setEditing(row.code)}
+                      onClick={(event) => {
+                        remember(event.currentTarget);
+                        setEditing(row.code);
+                      }}
                     >
                       <PencilSquare />
                     </IconButton>

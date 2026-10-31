@@ -137,12 +137,13 @@ const defaultProjects: Project[] = [
     testMatch: /(payload-locales|ui-strings)\.spec\.ts/,
     dependencies: ["chromium"],
   },
-  // T71: adds a market (Medusa's region, then its Markets panel; T75 does the second half through
-  // Medusa's admin API, T76 in the browser) and takes it away again, so
-  // it runs after every suite that reads the map, the locales' included.
+  // T71, the done-when of M4b (D97, T76): adds a market in Medusa Admin, in the browser (Austria in
+  // Medusa's own region form, then switched on in the region page's Markets panel) and takes it
+  // away again, so it runs after every suite that reads the map, the locales' included.
+  // `PW_CHROMIUM_PATH` as for `design-system`.
   {
     name: "markets-add",
-    use: { ...devices["Desktop Chrome"] },
+    use: { ...devices["Desktop Chrome"], ...launchOptions },
     testMatch: /markets-add\.spec\.ts/,
     dependencies: ["locales"],
   },

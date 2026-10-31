@@ -8,6 +8,7 @@ import { useTranslation } from "react-i18next";
 import { SettingsDrawer } from "../components/settings-drawer";
 import { PanelError, PanelHeader, PanelLoading, Warnings } from "../components/panel";
 import { useMarkets } from "../lib/api";
+import { useFocusReturn } from "../lib/focus-return";
 import { languageName, marketName } from "../lib/format";
 import { showsLocale } from "../lib/settings-form";
 
@@ -37,6 +38,7 @@ const StoreMarketsPanel = ({ data: store }: DetailWidgetProps<AdminStore>) => {
   ].join(",");
   const markets = useMarkets(`store:${signature}`);
   const [editing, setEditing] = useState(false);
+  const remember = useFocusReturn(editing, markets.isFetching);
   const overview = markets.data;
 
   const countryNames = Object.fromEntries(
@@ -60,7 +62,10 @@ const StoreMarketsPanel = ({ data: store }: DetailWidgetProps<AdminStore>) => {
               aria-label={t("store.edit")}
               // The form starts from what was read: not while the markets are read again.
               disabled={markets.isFetching}
-              onClick={() => setEditing(true)}
+              onClick={(event) => {
+                remember(event.currentTarget);
+                setEditing(true);
+              }}
             >
               <PencilSquare />
             </IconButton>

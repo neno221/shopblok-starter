@@ -1,7 +1,14 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type BrowserContext, type Locator, type Page } from "@playwright/test";
 import path from "node:path";
-import { signInToMedusaAdmin } from "./support/admin-ui";
+import {
+  addCountryInRegionForm,
+  europeRegion,
+  openMarketInDrawer,
+  regionMarketsPanel,
+  regionMarketsRow,
+  signInToMedusaAdmin,
+} from "./support/admin-ui";
 import { medusaAdminApi, medusaAdminToken, medusaUrl } from "./support/medusa-admin";
 
 // T74 (M4b D93): the Markets panels the `@shopblok/medusa-markets` plugin puts on Medusa Admin's
@@ -75,7 +82,7 @@ const overview = () => api<Overview>("GET", "/admin/markets");
 const countryRow = async (code: string) =>
   (await overview()).countries.find((country) => country.code === code);
 
-const regionPanel = () => page.locator("#markets-region-panel");
+const regionPanel = () => regionMarketsPanel(page);
 const storePanel = () => page.locator("#markets-store-panel");
 const drawer = () => page.getByRole("dialog");
 
@@ -100,7 +107,7 @@ async function openStorePage() {
 }
 
 /** The panel's row of a country, once the panel has read the markets. */
-const row = (code: string): Locator => regionPanel().getByTestId(`markets-row-${code}`);
+const row = (code: string): Locator => regionMarketsRow(page, code);
 
 async function axeFindings(include: string) {
   const result = await new AxeBuilder({ page }).include(include).withTags(axeTags).analyze();
@@ -118,15 +125,7 @@ test.beforeAll(async ({ browser }) => {
     "the seeded regions have no Austria",
   ).not.toContain(NEW_COUNTRY);
   expect(before.problems, "the seeded markets have no warning").toEqual([]);
-  const { regions } = await api<{ regions: { id: string; countries: { iso_2: string }[] }[] }>(
-    "GET",
-    "/admin/regions?fields=id,countries.iso_2",
-  );
-  const found = regions.find((region) =>
-    region.countries.some((country) => country.iso_2 === "de"),
-  );
-  expect(found, "the seeded Europe region (Germany's)").toBeDefined();
-  europe = { id: found!.id, countries: found!.countries.map((country) => country.iso_2) };
+  europe = await europeRegion(api);
   const { stores } = await api<{
     stores: { id: string; supported_locales: { locale_code: string }[] }[];
   }>("GET", "/admin/stores?fields=id,*supported_locales");
@@ -224,18 +223,7 @@ test("Austria added in Medusa's own region form is closed in the Markets panel",
   await expect(row(NEW_COUNTRY)).toHaveCount(0);
   await picture("1-region-page", regionPanel());
 
-  // Medusa's Countries section: its action menu, "Add countries", its table and "Add".
-  const countries = page.getByRole("heading", { name: "Countries", exact: true });
-  await countries.locator("xpath=..").getByRole("button").click();
-  await page.getByRole("menuitem", { name: "Add countries" }).click();
-  const form = page.getByRole("dialog");
-  await form.getByPlaceholder("Search").fill("Austria");
-  await form
-    .getByRole("row", { name: /Austria/ })
-    .getByRole("checkbox")
-    .check();
-  await form.getByRole("button", { name: "Add", exact: true }).click();
-  await expect(form).toBeHidden();
+  await addCountryInRegionForm(page, "Austria");
 
   // The panel reads the markets again when the region's countries change: Austria, closed.
   await expect(row(NEW_COUNTRY)).toContainText("Austria");
@@ -246,19 +234,11 @@ test("Austria added in Medusa's own region form is closed in the Markets panel",
 
 test("the drawer opens Austria with German and a time zone", async () => {
   await openRegionPage(europe!.id);
-  await regionPanel().getByRole("button", { name: "Edit the market of Austria" }).click();
-  await expect(drawer().getByRole("heading", { name: "Austria" })).toBeVisible();
-  await drawer().getByRole("switch", { name: "Open" }).click();
-  await drawer().getByRole("combobox", { name: "Add a language" }).click();
-  await page.getByRole("option", { name: "German" }).click();
-  await expect(drawer().getByRole("listitem").filter({ hasText: "German" })).toContainText(
-    "Default",
+  await openMarketInDrawer(
+    page,
+    { country: "Austria", language: "German", timeZone: "Europe/Vienna" },
+    () => picture("3-region-drawer"),
   );
-  await drawer().getByRole("combobox", { name: "Time zone" }).click();
-  await page.getByRole("option", { name: "Europe/Vienna", exact: true }).click();
-  await picture("3-region-drawer");
-  await drawer().getByRole("button", { name: "Save" }).click();
-  await expect(drawer()).toBeHidden();
 
   await expect(row(NEW_COUNTRY)).toContainText("Open");
   await expect(row(NEW_COUNTRY)).toContainText("German");
@@ -546,6 +526,46 @@ test("the panels have no add or remove of countries or locales", async () => {
     );
   expect(drawerButtons.filter((name) => /add|remove|delete|new/i.test(name))).toEqual([]);
   await drawer().getByRole("button", { name: "Cancel" }).click();
+});
+
+test("both panels work from the keyboard", async () => {
+  // M4b §5, item 3. No pointer: Enter opens a drawer from its edit button, focus moves into it and
+  // stays in it, Space flips a switch, Escape closes it without saving, and focus goes back to the
+  // button. `Germany` is only opened and closed again, so nothing is saved.
+  const inDrawer = () => drawer().locator(":focus");
+  const germanyBefore = (await countryRow("de"))!;
+  await openRegionPage(europe!.id);
+  const edit = regionPanel().getByRole("button", { name: "Edit the market of Germany" });
+  await edit.focus();
+  await page.keyboard.press("Enter");
+  await expect(drawer()).toBeVisible();
+  await expect(inDrawer()).toHaveCount(1);
+  const open = drawer().getByRole("switch", { name: "Open" });
+  const before = await open.getAttribute("aria-checked");
+  await open.focus();
+  await page.keyboard.press("Space");
+  await expect(open, "Space flips the switch").not.toHaveAttribute("aria-checked", before!);
+  for (let step = 0; step < 12; step += 1) {
+    await page.keyboard.press("Tab");
+    await expect(inDrawer(), `focus stays in the drawer after ${step + 1} Tabs`).toHaveCount(1);
+  }
+  await page.keyboard.press("Escape");
+  await expect(drawer()).toBeHidden();
+  await expect(edit, "focus returns to the edit button").toBeFocused();
+  expect(await countryRow("de"), "Escape saved nothing").toMatchObject({
+    enabled: germanyBefore.enabled,
+    languages: germanyBefore.languages,
+  });
+
+  await openStorePage();
+  const editSettings = storePanel().getByRole("button", { name: "Edit the markets settings" });
+  await editSettings.focus();
+  await page.keyboard.press("Enter");
+  await expect(drawer()).toBeVisible();
+  await expect(inDrawer()).toHaveCount(1);
+  await page.keyboard.press("Escape");
+  await expect(drawer()).toBeHidden();
+  await expect(editSettings).toBeFocused();
 });
 
 test("axe finds nothing in the Region panel and its drawer", async () => {

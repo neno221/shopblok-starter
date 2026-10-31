@@ -275,9 +275,10 @@ jobs:
       # markets (T11), wiring (T12; the home since T51), payload-admin, payload-cache (ADR 0001's
       # cache, tag and draft checks), editor-homepage (T71: an editor builds the home in the admin)
       # and payload-locales (S3: it opens and closes markets through Medusa's markets API and puts
-      # them back) run against the storefront that is up. markets-add (T71) is last, in a project of
-      # its own: it adds Austria to a region and switches it on through the same API, waits for /at,
-      # and takes both away again.
+      # them back) run against the storefront that is up. markets-add (T71, M4b's done-when since T76) is
+      # last, in a project of its own: in Medusa Admin, in the browser, it adds Austria to the Europe
+      # region in Medusa's own region form and opens it in the region page's Markets panel, waits for
+      # /at, and takes both away again through Medusa's Admin API.
       # market-panels (T74) follows it, in a project of its own too: it drives the Markets panels on
       # Medusa Admin's Region and Store pages (:9000, no storefront) and puts every row back.
       # `--reporter` adds the HTML report that is uploaded below; the config stays as it is.

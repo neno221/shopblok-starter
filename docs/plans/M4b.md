@@ -2,6 +2,8 @@
 
 **Status:** written 2026-10-31 at your request ("the settings for the country, language, etc. I would like to be able to set via the Medusa dashboard panel, not via Payload. Payload should only act as the CMS and site builder. Create a Medusa block. Use the Medusa dev plugin"). **You approved the scope as proposed on 2026-10-31**, with one rule added: no duplicate features or look-alike screens next to Medusa's own, and a country is chosen in one place only (Medusa's region form). D90 to D93 follow that rule: the settings hang off Medusa's Region and Store pages as panels, and there is no separate Markets page or country picker.
 
+**Progress:** the plan is [PR 104](https://github.com/neno221/shopblok-starter/pull/104). **T73 is done** (2026-10-31, [PR 105](https://github.com/neno221/shopblok-starter/pull/105), SETUP.md "The markets plugin (T73)"; `getMap()` takes the regions' countries as an argument, since a module cannot read another module's tables, and orders by `rank`; the settings workflow also sets the store's default region). **T74 is done** (2026-10-31, [PR 106](https://github.com/neno221/shopblok-starter/pull/106), SETUP.md "The markets panels (T74)"; a Store save sends only what changed, with a checkbox for the default region; the refusal's reasons come from the 400's `message`). **T75 is done** (2026-10-31, [PR 107](https://github.com/neno221/shopblok-starter/pull/107), SETUP.md "The storefront reads Medusa (T75)"; the admin's language selector waits for a request, since `/admin` is also prerendered; doctor reads the module by `medusa exec` or, with `--online`, `GET /admin/markets`). **T76 is done** (2026-10-31, this PR, SETUP.md "The done-when, docs and SPEC v0.11 (T76)"; `markets-add.spec.ts` drives Medusa Admin in the browser, SPEC v0.11). **M4b is built;** it closes when T76's PR is merged with every CI job green, `windows-smoke` included (§5, item 5), and W6 resumes after that (§0, item 2; NEXT-SESSION.md).
+
 > **M4b:** the market map (which countries are open, each country's languages and default language, the Medusa locale of each language, `<html lang>`, the time zone, a country's own domain, the primary country and the fallback market) moves from Payload's `markets` global into a Medusa plugin whose panels sit on Medusa's own Region and Store pages. The storefront reads it from Medusa. Payload keeps content only.
 > **Done when:** an admin opens Austria entirely in Medusa Admin (adds it to the Europe region in Medusa's own region form, then switches it on with German in the Markets panel on that region's page) and `/at` answers in German with EUR prices; Payload has no `markets` global, and nothing in the sync, doctor or bootstrap reads one.
 
@@ -92,6 +94,8 @@ Medusa 2.21.2 and 2.22.2 have no market, no time zone and no default locale on t
 T73 → T74 → T75 → T76, one after another (each builds on the last; T74 and T75 could run side by side once T73 is merged). W6 after T76, when you say so.
 
 ## 5. Exit criteria
+
+Items 1 to 5 are met; item 5 on T76's PR 108 (every job green, and `windows-smoke` started by hand: run 41169238096, 2026-10-31). The evidence, with the PR numbers, is in SETUP.md, "The done-when, docs and SPEC v0.11 (T76)", "M4b's exit criteria".
 
 1. The done-when, in `e2e-smoke`.
 2. Payload has no `markets` global and no `markets*` table; the sync carries products, categories and collections only.
