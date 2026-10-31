@@ -5,30 +5,31 @@
 //   pnpm run doctor [--online] [--json] [--strict]
 //
 // It writes nothing: no file, no row, no migration. The one command it runs that touches the
-// database is `payload run` (to read the `markets` global), and that runs as production does, which
-// never creates a missing database. The decisions are in scripts/lib/ (doctor-checks.ts,
-// doctor-services.ts, markets-check.ts) and `@shopblok/integrations`, with tests; this file looks
-// at the machine and wires them up.
+// database is `medusa exec src/scripts/doctor-markets.ts` (to read the markets module; M4b D97),
+// which only reads, and with `--online` and a local backend running, `GET /admin/markets` stands in
+// for it. The decisions are in scripts/lib/ (doctor-checks.ts, doctor-services.ts,
+// markets-check.ts) and `@shopblok/integrations`, with tests; this file looks at the machine and
+// wires them up.
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
-import { inspectTargets, targetsFrom } from "./lib/checks.ts";
+import { inspectTargets, isLocalHost, targetsFrom } from "./lib/checks.ts";
 import {
   configChecks,
-  explainPayloadRun,
+  explainMedusaRun,
   medusaMarketsCheck,
+  MEDUSA_RUN_TIMEOUT_MS,
   orphanRegions,
   orphanRegionsCheck,
   payloadAuthCheck,
-  PAYLOAD_RUN_TIMEOUT_MS,
   searchCurrencies,
   searchFieldOf,
   searchIndexCheck,
   type Context,
 } from "./lib/doctor-checks.ts";
-import { payloadDatabaseFailed, serverCheck, serviceChecks } from "./lib/doctor-services.ts";
+import { databaseFailed, serverCheck, serviceChecks } from "./lib/doctor-services.ts";
 import { envValue } from "./lib/env-file.ts";
-import { runPayload } from "./lib/exec.ts";
-import { request, type HttpResult } from "./lib/http.ts";
+import { run } from "./lib/exec.ts";
+import { jsonOf, request, type HttpResult } from "./lib/http.ts";
 import {
   getIntegrationStatus,
   INTEGRATION_KEYS,
@@ -38,13 +39,13 @@ import {
 } from "@shopblok/integrations";
 import { loadExports } from "./lib/load-exports.ts";
 import {
-  marketsGlobalCheck,
-  marketsSyncCheck,
-  readMarketMap,
-  readSyncedMarkets,
+  marketsCheck,
+  readAdminMarkets,
+  readBackendMarkets,
+  readMarketsOverview,
   type BackendMarkets,
   type MarketMapData,
-  type MarketsGlobalRead,
+  type MarketsRead,
 } from "./lib/markets-check.ts";
 import { extractMarker, redact } from "./lib/output.ts";
 import {
@@ -65,7 +66,8 @@ Checks the setup and says which integrations are on. Writes nothing. (Run it as 
 \`pnpm doctor\` is pnpm's own command.)
 
   --online   also call the running servers with the keys: Payload accepts the integrations key, and
-             Medusa's regions, locales and search index match the storefront's market map
+             Medusa's regions, locales and search index match the market map (and, with a local
+             backend running, the markets are read from GET /admin/markets as the bootstrap admin)
   --json     print the result as JSON (no secrets in it) and nothing else
   --strict   a warning fails the run too (the go-live check: SPEC §16, item 8)
   -h, --help this text
@@ -90,7 +92,6 @@ const root = path.resolve(import.meta.dirname, "..");
 const backendEnvFile = path.join(root, "apps", "backend", ".env");
 const storefrontEnvFile = path.join(root, "apps", "storefront", ".env");
 const backendConfigFile = path.join(root, "apps", "backend", "src", "config", "markets.ts");
-const fixturesFile = path.join(root, "packages", "fixtures", "src", "markets.ts");
 
 const readText = (file: string): string => (existsSync(file) ? readFileSync(file, "utf8") : "");
 
@@ -132,40 +133,59 @@ const trimSlash = (url: string): string => url.replace(/\/+$/, "");
 // ---------------------------------------------------------------------------------------------
 // Markets
 
-async function loadFixturesMap(): Promise<MarketMapData | string> {
-  const loaded = await loadExports(fixturesFile, ["markets"]);
-  if ("error" in loaded) return `could not read packages/fixtures/src/markets.ts (${loaded.error})`;
-  return readMarketMap(loaded.exports.markets);
+/**
+ * `medusa exec`: the markets module's overview (what `GET /admin/markets` answers), read from the
+ * database, so no server has to run. It only reads, and Medusa never creates a missing database.
+ */
+async function readMarketsExec(): Promise<MarketsRead> {
+  const result = await run(
+    "pnpm",
+    ["--filter", "@shopblok/backend", "exec", "medusa", "exec", "./src/scripts/doctor-markets.ts"],
+    { cwd: root, env: { NO_COLOR: "1" }, timeoutMs: MEDUSA_RUN_TIMEOUT_MS },
+  );
+  const found = extractMarker<unknown>(result.output, "doctorMarkets");
+  if (result.code === 0 && found !== undefined) {
+    const overview = readMarketsOverview(found);
+    if (typeof overview === "string") {
+      return {
+        ok: false,
+        cause: `the markets module's overview is not what doctor expects (${overview})`,
+        fix: "Doctor and the markets plugin disagree about the overview's shape.",
+      };
+    }
+    return { ok: true, source: "medusa-exec", overview };
+  }
+  return { ok: false, ...explainMedusaRun(result) };
 }
 
-/** `payload run`: the `markets` global, as `getMarketMap()` reads it. Runs as production (no database is created). */
-async function readMarketsGlobal(): Promise<MarketsGlobalRead> {
-  // `runPayload` repeats the run when Payload's CLI exits 0 in silence (see `exitedInSilence`);
-  // this one only reads, so that is safe.
-  const result = await runPayload(["run", "src/scripts/doctor-payload.ts"], {
-    cwd: root,
-    // NODE_ENV=production only to switch off Payload's creation of a missing database
-    // (`disableCreateDatabase` in payload.config.ts): doctor must not write.
-    env: { NODE_ENV: "production", NO_COLOR: "1" },
-    timeoutMs: PAYLOAD_RUN_TIMEOUT_MS,
+/**
+ * `--online`: `GET /admin/markets` of the running backend, as the bootstrap admin whose login is in
+ * `apps/backend/.env` (`DEV_ADMIN_EMAIL`, `DEV_ADMIN_PASSWORD`). Only for a backend on this machine:
+ * that password is a development credential and never goes to a deployed URL. `undefined` when it
+ * cannot be asked (no credentials, not local, a refused login, no answer): `medusa exec` reads then.
+ */
+async function readMarketsApi(
+  medusaUrl: string,
+  backendText: string,
+): Promise<MarketsRead | undefined> {
+  const email = envValue(process.env, backendText, "DEV_ADMIN_EMAIL");
+  const password = envValue(process.env, backendText, "DEV_ADMIN_PASSWORD");
+  if (!email || !password || !isLocalHost(new URL(medusaUrl).hostname)) return undefined;
+  const login = await request(`${medusaUrl}/auth/user/emailpass`, {
+    method: "POST",
+    body: { email, password },
+    timeoutMs: 15_000,
   });
-  const found = extractMarker<{ map: unknown; problems: string[]; synced?: unknown }>(
-    result.output,
-    "doctorPayload",
-  );
-  if (result.code === 0 && found !== undefined) {
-    const shapeError = (cause: string): MarketsGlobalRead => ({
-      ok: false,
-      cause,
-      fix: "Doctor and the storefront disagree about the global's shape.",
-    });
-    const map = readMarketMap(found.map);
-    if (typeof map === "string") return shapeError(map);
-    const synced = readSyncedMarkets(found.synced);
-    if (typeof synced === "string") return shapeError(synced);
-    return { ok: true, map, problems: found.problems, synced };
+  const token = (jsonOf(login) as { token?: unknown } | undefined)?.token;
+  if (login.kind !== "response" || login.status !== 200 || typeof token !== "string") {
+    return undefined;
   }
-  return { ok: false, ...explainPayloadRun(result) };
+  return readAdminMarkets(
+    await request(`${medusaUrl}/admin/markets`, {
+      headers: { authorization: `Bearer ${token}` },
+      timeoutMs: 30_000,
+    }),
+  );
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -215,21 +235,29 @@ async function main(): Promise<number> {
   );
 
   // Looking at the machine, all at once: the services, the two servers, the backend's own file and
-  // the markets global. Payload's read (the slowest, about 2.5 s) waits only for the Postgres
-  // check, not for the storefront, which may take several seconds to compile its first page.
+  // the markets module. Its read (`medusa exec`, about 4 s) waits only for the Postgres check, not
+  // for the storefront, which may take several seconds to compile its first page; with `--online`
+  // and a backend that answers its health check, `GET /admin/markets` is tried first.
   const serviceFindings = inspectTargets(targets, root);
-  const marketsRead = serviceFindings.then(async (findings): Promise<MarketsGlobalRead> =>
-    payloadDatabaseFailed(findings, targets) ? { skipped: true } : readMarketsGlobal(),
+  const medusaHealthRequest = request(`${medusaUrl}/health`, { timeoutMs: 5000 });
+  const marketsRead = Promise.all([serviceFindings, medusaHealthRequest]).then(
+    async ([findings, health]): Promise<MarketsRead> => {
+      if (databaseFailed(findings, targets, "medusa")) return { skipped: true };
+      if (options.online && health.kind === "response" && health.status === 200) {
+        const viaApi = await readMarketsApi(medusaUrl, backendText);
+        if (viaApi !== undefined) return viaApi;
+      }
+      return readMarketsExec();
+    },
   );
   // The `--online` requests need only the env, so they go out now, with the rest.
   const online = options.online ? startOnlineRequests(envs, medusaUrl) : undefined;
-  const [findings, medusaHealth, storefrontHome, backendFile, fixtures, read] = await Promise.all([
+  const [findings, medusaHealth, storefrontHome, backendFile, read] = await Promise.all([
     serviceFindings,
-    request(`${medusaUrl}/health`, { timeoutMs: 5000 }),
+    medusaHealthRequest,
     // The first request to `next dev` compiles the page, which takes several seconds.
     request(storefrontUrl, { timeoutMs: 30_000 }),
     loadExports(backendConfigFile, ["SUPPORTED_CURRENCIES", "MARKET_REGIONS", "SUPPORTED_LOCALES"]),
-    loadFixturesMap(),
     marketsRead,
   ]);
 
@@ -246,17 +274,20 @@ async function main(): Promise<number> {
     ...configChecks(envs, statuses, context),
   );
 
-  const globalMarkets = marketsGlobalCheck(read);
-  const sync = marketsSyncCheck({
-    backendFile,
-    fixtures,
-    global: globalMarkets.map,
-    synced: "ok" in read && read.ok ? read.synced : undefined,
-  });
-  checks.push(globalMarkets.check, sync.check);
+  const markets = marketsCheck(read);
+  checks.push(markets.check);
 
   if (online !== undefined) {
-    checks.push(...(await onlineChecks(online, medusaUrl, sync.map, sync.backend)));
+    // `config/markets.ts` is the regions' seed input: the leftover-regions check reads it.
+    const seeded = "error" in backendFile ? undefined : readBackendMarkets(backendFile.exports);
+    checks.push(
+      ...(await onlineChecks(
+        online,
+        medusaUrl,
+        markets.map,
+        typeof seeded === "object" ? seeded : undefined,
+      )),
+    );
   }
 
   const report: Report = { integrations: statuses, checks };

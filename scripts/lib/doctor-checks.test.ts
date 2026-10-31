@@ -4,8 +4,8 @@ import {
   classifySearchField,
   compareWithMedusa,
   configChecks,
-  explainPayloadFailure,
-  explainPayloadRun,
+  explainMedusaFailure,
+  explainMedusaRun,
   medusaMarketsCheck,
   orphanRegions,
   orphanRegionsCheck,
@@ -452,40 +452,42 @@ describe("classifyPayloadAuth", () => {
   });
 });
 
-describe("explainPayloadFailure", () => {
+describe("explainMedusaFailure", () => {
   it("knows the causes bootstrap fixes", () => {
     expect(
-      explainPayloadFailure(
-        'Error: cannot connect to Postgres. Details: database "payload" does not exist',
+      explainMedusaFailure(
+        "Error: Cannot find module '@shopblok/medusa-markets/lib/overview'\nRequire stack:",
       ).cause,
-    ).toBe("the payload database does not exist");
-    expect(explainPayloadFailure('error: relation "markets" does not exist').cause).toBe(
-      "the payload database is not migrated",
+    ).toBe("the markets plugin is not built");
+    expect(explainMedusaFailure('error: database "medusa" does not exist').cause).toBe(
+      "the medusa database does not exist",
+    );
+    expect(explainMedusaFailure('error: relation "market_country" does not exist').cause).toContain(
+      "not migrated",
     );
     expect(
-      explainPayloadFailure("Error: missing secret key. A secret key is needed to secure Payload.")
-        .cause,
-    ).toContain("PAYLOAD_SECRET");
-    expect(
-      explainPayloadFailure("password authentication failed for user postgres").cause,
+      explainMedusaFailure("password authentication failed for user postgres").cause,
     ).toContain("could not connect");
+    expect(explainMedusaFailure("Error: connect ECONNREFUSED 127.0.0.1:6380").cause).toContain(
+      "database or Redis",
+    );
   });
 
   it("falls back to the last line of the log, without stack frames", () => {
-    const result = explainPayloadFailure("first\nTypeError: boom\n    at foo (bar.ts:1:1)\n");
-    expect(result.cause).toBe("Payload failed: TypeError: boom");
+    const result = explainMedusaFailure("first\nTypeError: boom\n    at foo (bar.ts:1:1)\n");
+    expect(result.cause).toBe("Medusa failed: TypeError: boom");
   });
 
   it("copes with no output", () => {
-    expect(explainPayloadFailure("").cause).toBe("Payload failed without a message");
+    expect(explainMedusaFailure("").cause).toBe("Medusa failed without a message");
   });
 });
 
-describe("explainPayloadRun", () => {
+describe("explainMedusaRun", () => {
   const run = { code: 1, output: "", timedOut: false };
 
   it("says when pnpm could not be started, not 'failed without a message'", () => {
-    const why = explainPayloadRun({
+    const why = explainMedusaRun({
       ...run,
       code: null,
       error: "spawn pnpm ENOENT",
@@ -494,22 +496,22 @@ describe("explainPayloadRun", () => {
     expect(why.fix).toContain("PATH");
   });
 
-  it("says what Payload asked, and that it ran out of time", () => {
-    expect(explainPayloadRun({ ...run, prompt: "Continue? (y/N)" }).cause).toBe(
-      'Payload asked "Continue? (y/N)"',
+  it("says what Medusa asked, and that it ran out of time", () => {
+    expect(explainMedusaRun({ ...run, prompt: "Continue? (y/N)" }).cause).toBe(
+      'Medusa asked "Continue? (y/N)"',
     );
-    expect(explainPayloadRun({ ...run, code: null, timedOut: true }).cause).toBe(
-      "Payload did not start within 60 s",
+    expect(explainMedusaRun({ ...run, code: null, timedOut: true }).cause).toBe(
+      "Medusa did not start within 90 s",
     );
   });
 
   it("reads the log otherwise, and names the exit when the log is empty", () => {
-    expect(explainPayloadRun({ ...run, output: 'database "payload" does not exist' }).cause).toBe(
-      "the payload database does not exist",
+    expect(explainMedusaRun({ ...run, output: 'database "medusa" does not exist' }).cause).toBe(
+      "the medusa database does not exist",
     );
-    expect(explainPayloadRun(run).cause).toBe("Payload failed without a message (exit code 1)");
-    expect(explainPayloadRun({ ...run, code: null }).cause).toBe(
-      "Payload failed without a message (stopped by a signal)",
+    expect(explainMedusaRun(run).cause).toBe("Medusa failed without a message (exit code 1)");
+    expect(explainMedusaRun({ ...run, code: null }).cause).toBe(
+      "Medusa failed without a message (stopped by a signal)",
     );
   });
 });

@@ -1,11 +1,15 @@
-// D17 and D19: the backend's `apps/backend/src/config/markets.ts` and the storefront's market map
-// are two lists edited by hand in M0, and they have to agree (T14). Since T60 (D76) the `markets`
-// global holds what Medusa has as well (its synced part), and doctor compares the global's two
-// parts; the backend's file (the seed's input) stands in for the synced part until the first sync. Pure: both arrive as plain data,
-// read by `doctor.ts` (the file through `loadExports`, the map from the `markets` global or from
-// `@shopblok/fixtures`). The shapes are declared here because `scripts/` cannot import either app
-// (T10 item 8, T13 item 6); `readBackendMarkets` and `readMarketMap` check the real data against them,
-// so a change to either file shows up as an error from doctor, not as a wrong answer.
+// D17, D19 and M4b D97: the market map lives in Medusa's markets module, and the regions and the
+// store's locales it is built on are Medusa's too. Doctor reads the module's overview (what
+// `GET /admin/markets` answers: the map, the regions, the store's locales and the warnings of D91),
+// reports the warnings, and compares the map with the regions and locales itself, so a plugin whose
+// own checks have a gap still shows up. Pure: the overview arrives as plain data, read by
+// `doctor.ts` (through `GET /admin/markets` when the backend runs and `--online` is given, else
+// through `medusa exec src/scripts/doctor-markets.ts`). The shapes are declared here because
+// `scripts/` cannot import either app (T10 item 8, T13 item 6); `readMarketsOverview` and
+// `readMarketMap` check the real data against them, so a change to either side shows up as an error
+// from doctor, not as a wrong answer. `readBackendMarkets` reads `config/markets.ts`, the seed's
+// input, which `--online` compares with the regions the running Medusa has (leftover regions).
+import { jsonOf, type HttpResult } from "./http.ts";
 import type { Check } from "./report.ts";
 
 export type BackendMarkets = {
@@ -68,7 +72,7 @@ export function readBackendMarkets(exports: Record<string, unknown>): BackendMar
   };
 }
 
-/** A `MarketMap` (the fixtures, or `mapFromGlobal`'s result) as far as the comparison reads it. */
+/** A `MarketMap` (the fixtures, or the module's) as far as the comparison reads it. */
 export function readMarketMap(value: unknown): MarketMapData | string {
   if (!isRecord(value)) return "the market map is not an object";
   const { countries, languages } = value;
@@ -110,106 +114,102 @@ export function readMarketMap(value: unknown): MarketMapData | string {
 
 const quoted = (values: readonly string[]): string => values.map((v) => `"${v}"`).join(", ");
 
-/** Where the regions, currencies and locales the map is compared with come from, for the messages. */
-export type MarketsSource = { name: string; currencies: string; locales: string };
+/** One region as the markets overview lists it: its countries are ISO 3166-1 alpha-2, lowercase. */
+export type OverviewRegion = { name: string; currency: string; countries: string[] };
 
-export const FILE_SOURCE: MarketsSource = {
-  name: "config/markets.ts",
-  currencies: "SUPPORTED_CURRENCIES in config/markets.ts",
-  locales: "SUPPORTED_LOCALES in config/markets.ts",
+/** What doctor needs of `GET /admin/markets`. */
+export type MarketsOverviewData = {
+  /** The module's map: every country of a region, closed ones included. */
+  map: MarketMapData;
+  regions: OverviewRegion[];
+  /** The store's locales (Store → Locales). */
+  locales: string[];
+  /** The warnings of D91 (`marketsProblems`), as sentences. */
+  problems: string[];
 };
 
-export const SYNCED_SOURCE: MarketsSource = {
-  name: "Medusa (the markets global's synced part)",
-  currencies: "the store's currencies in Medusa",
-  locales: "the store's locales in Medusa",
-};
-
-/**
- * The global's synced part (T60) as doctor-payload prints it, in the backend list's shape, or
- * undefined while nothing has been synced, or why it is not what doctor expects.
- */
-export function readSyncedMarkets(value: unknown): BackendMarkets | undefined | string {
-  if (value === undefined || value === null) return undefined;
-  if (!isRecord(value)) return "the synced part is not an object";
-  const { regions, currencies, locales } = value;
+/** The overview out of the route's answer (or the doctor script's), or why it is not what doctor expects. */
+export function readMarketsOverview(value: unknown): MarketsOverviewData | string {
+  if (!isRecord(value)) return "the markets overview is not an object";
+  const map = readMarketMap(value.map);
+  if (typeof map === "string") return map;
+  const { regions, locales, problems } = value;
   if (
     !Array.isArray(regions) ||
     !regions.every(
       (r) =>
         isRecord(r) &&
         typeof r.name === "string" &&
-        typeof r.currency === "string" &&
+        typeof r.currency_code === "string" &&
         isStringArray(r.countries),
-    ) ||
-    !isStringArray(currencies) ||
-    !isStringArray(locales)
+    )
   ) {
-    return "the synced part is not { regions: { name, currency, countries }[], currencies, locales }";
+    return "the overview's regions are not a list of { name, currency_code, countries }";
   }
-  if (regions.length === 0 && locales.length === 0) return undefined;
+  if (!isStringArray(locales)) return "the overview's locales are not a list of strings";
+  if (
+    !Array.isArray(problems) ||
+    !problems.every((p) => isRecord(p) && typeof p.message === "string")
+  ) {
+    return "the overview's problems are not a list of { code, message }";
+  }
   return {
-    currencies,
+    map,
     regions: regions.map((r) => {
       const region = r as Record<string, unknown>;
       return {
         name: String(region.name),
-        currency: String(region.currency),
+        currency: String(region.currency_code),
         countries: region.countries as string[],
       };
     }),
     locales,
+    problems: problems.map((p) => String((p as Record<string, unknown>).message)),
   };
 }
 
 /**
- * Where the two lists disagree, as sentences. Empty means they agree. Each is a case from D17:
+ * Where the module's map and Medusa's regions and locales disagree, as sentences. Empty means they
+ * agree. These are the invariants of D90, checked from outside the plugin:
  *
- * - an open country with no region: its pages render the "no region" message, and nothing else warns;
- * - a region country the map does not serve: the shop sells there, nobody can reach it;
- * - a language whose `medusaLocale` the store does not have: Medusa answers in English;
- * - and the backend list against itself (a region in a currency the store lacks, a country in two
- *   regions), which the seed would trip over later.
+ * - an open country with no region: its pages show the "no region" message, and nothing else warns;
+ * - a country in two regions: which one sells there would be a guess;
+ * - a region's country the map does not list: the map is meant to list every country of a region
+ *   (closed until it is switched on), so the storefront could not tell it from an unknown one;
+ * - a language whose `medusaLocale` the store does not have: Medusa answers in English.
+ *
+ * A closed country in a region is not a problem: it is how a market waits to be switched on.
  */
 export function compareMarkets(
-  backend: BackendMarkets,
+  live: { regions: readonly OverviewRegion[]; locales: readonly string[] },
   map: MarketMapData,
-  source: MarketsSource = FILE_SOURCE,
 ): string[] {
   const problems: string[] = [];
   const open = map.countries.filter((country) => country.enabled);
-  const openCodes = new Set(open.map((country) => country.code));
-  const regionCountries = new Map<string, string>();
+  const listed = new Set(map.countries.map((country) => country.code));
+  const regionOf = new Map<string, string>();
 
-  for (const region of backend.regions) {
-    if (!backend.currencies.includes(region.currency)) {
-      problems.push(
-        `region "${region.name}" is in "${region.currency}", which is not in ${source.currencies}`,
-      );
-    }
+  for (const region of live.regions) {
     for (const country of region.countries) {
-      const other = regionCountries.get(country);
+      const other = regionOf.get(country);
       if (other !== undefined && other !== region.name) {
-        problems.push(
-          `country "${country}" is in two regions, "${other}" and "${region.name}", in ${source.name}`,
-        );
+        problems.push(`country "${country}" is in two regions, "${other}" and "${region.name}"`);
       }
-      regionCountries.set(country, region.name);
+      regionOf.set(country, region.name);
     }
   }
-
   for (const country of open) {
-    if (!regionCountries.has(country.code)) {
+    if (!regionOf.has(country.code)) {
       problems.push(
-        `country "${country.code}" is open in the storefront's map but no region in ${source.name} has it (its pages show the no-region message)`,
+        `country "${country.code}" is open in the markets map but no region has it (its pages show the no-region message)`,
       );
     }
   }
-  for (const region of backend.regions) {
-    const unserved = region.countries.filter((country) => !openCodes.has(country));
-    if (unserved.length > 0) {
+  for (const region of live.regions) {
+    const missing = region.countries.filter((country) => !listed.has(country));
+    if (missing.length > 0) {
       problems.push(
-        `region "${region.name}" has ${quoted(unserved)}, which the storefront's map does not serve (not listed, or disabled)`,
+        `region "${region.name}" has ${quoted(missing)}, which the markets map does not list (it lists every country of a region)`,
       );
     }
   }
@@ -217,56 +217,50 @@ export function compareMarkets(
   const used = new Set(open.flatMap((country) => country.languages));
   for (const code of used) {
     const language = map.languages.find((entry) => entry.code === code);
-    // A language with no Medusa locale at all is the map's own problem (marketMapProblems says so).
+    // A language with no Medusa locale at all is the module's own warning (`problems`).
     if (language === undefined || language.medusaLocale === "") continue;
-    if (!backend.locales.includes(language.medusaLocale)) {
+    if (!live.locales.includes(language.medusaLocale)) {
       problems.push(
-        `language "${code}" uses the Medusa locale "${language.medusaLocale}", which is not in ${source.locales}`,
+        `language "${code}" uses the Medusa locale "${language.medusaLocale}", which is not one of the store's locales`,
       );
     }
   }
   return problems;
 }
 
-/** The hint for a synced part that disagrees with the edited part (D76). */
-export const MARKETS_SYNCED_FIX =
-  'Change the regions or the store\'s locales in Medusa Admin, or the countries and languages under Globals → Markets in Payload, until they agree (D76; SETUP.md, "Adding a market").';
-
-/** The hint every mismatch shares: which file to edit, and what applies the edit. */
+/** The hint every mismatch shares: where each thing is edited now (M4b). */
 export const MARKETS_FIX =
-  "Edit apps/backend/src/config/markets.ts and the markets global (Payload admin, or packages/fixtures for the seed) so they list the same countries and languages (D19); then run `pnpm bootstrap`, which applies the backend side.";
+  "Change it in Medusa Admin: countries in the region's form (Settings → Regions), locales under Settings → Store, and a market's languages and the primary country in the Markets panels on those pages. (SETUP.md, \"Adding a market\".)";
 
 // ---------------------------------------------------------------------------------------------
-// The checks
+// The check
 
-const MARKETS_GLOBAL = { id: "markets-global", title: "Markets global" } as const;
-const MARKETS_SYNC = { id: "markets-sync", title: "Markets: backend and storefront" } as const;
+const MARKETS = { id: "markets", title: "Markets (Medusa's map)" } as const;
 
-/** What reading the `markets` global gave. */
-export type MarketsGlobalRead =
-  /** Not attempted: the Postgres check failed, so Payload was not started. */
+/** What reading the markets overview gave. */
+export type MarketsRead =
+  /** Not attempted: the Postgres check for the medusa database failed. */
   | { skipped: true }
   | {
       ok: true;
-      map: MarketMapData;
-      problems: string[];
-      /** The synced part (T60), or undefined before the first sync. */
-      synced?: BackendMarkets;
+      /** Where it was read: `GET /admin/markets` of the running backend, or the database through `medusa exec`. */
+      source: "admin-api" | "medusa-exec";
+      overview: MarketsOverviewData;
     }
   | { ok: false; cause: string; fix: string };
 
-/** The check on the `markets` global, and the map to compare when it is filled in. */
-export function marketsGlobalCheck(read: MarketsGlobalRead): {
-  check: Check;
-  map: MarketMapData | undefined;
-} {
+/**
+ * The check on the markets module (D97): its own warnings, then the map against the regions and
+ * locales. Also hands back the map, for the `--online` comparison with the running Medusa.
+ */
+export function marketsCheck(read: MarketsRead): { check: Check; map: MarketMapData | undefined } {
   if ("skipped" in read) {
     return {
       map: undefined,
       check: {
-        ...MARKETS_GLOBAL,
+        ...MARKETS,
         level: "warn",
-        message: "not read: the Postgres check above failed, so Payload was not started.",
+        message: "not read: the Postgres check above failed, so Medusa was not started.",
       },
     };
   }
@@ -274,128 +268,65 @@ export function marketsGlobalCheck(read: MarketsGlobalRead): {
     return {
       map: undefined,
       check: {
-        ...MARKETS_GLOBAL,
+        ...MARKETS,
         level: "error",
         message: `could not read it: ${read.cause}.`,
         fix: read.fix,
       },
     };
   }
-  if (read.map.countries.length === 0) {
+  const { overview } = read;
+  const { map } = overview;
+  const where =
+    read.source === "admin-api" ? "GET /admin/markets" : "the markets module (medusa exec)";
+  if (map.countries.length === 0) {
     return {
       map: undefined,
       check: {
-        ...MARKETS_GLOBAL,
+        ...MARKETS,
         level: "warn",
-        message:
-          "the `markets` global is empty, so development and `next build` use the seeded fixtures (and say so); a production server answers 500 on every page.",
-        fix: "Run `pnpm bootstrap`, which fills it, or add the countries in the Payload admin.",
+        message: `${where} lists no country: no region has one, so development and \`next build\` use the seeded fixtures (and say so), and a production storefront answers 500 on every page.`,
+        fix: "Run `pnpm bootstrap`, which seeds the regions and the markets, or add countries to a region in Medusa Admin.",
+      },
+    };
+  }
+  const details = [...overview.problems, ...compareMarkets(overview, map)];
+  const open = map.countries.filter((country) => country.enabled).length;
+  if (details.length === 0) {
+    return {
+      map,
+      check: {
+        ...MARKETS,
+        level: "ok",
+        message: `${open} open of ${map.countries.length} countries, ${map.languages.length} languages; the map, Medusa's regions and the store's locales agree.`,
       },
     };
   }
   return {
-    map: read.map,
-    check:
-      read.problems.length === 0
-        ? {
-            ...MARKETS_GLOBAL,
-            level: "ok",
-            message: `${read.map.countries.filter((c) => c.enabled).length} open countries, ${read.map.languages.length} languages.`,
-          }
-        : {
-            ...MARKETS_GLOBAL,
-            level: "warn",
-            message:
-              "the global is filled in but cannot serve a shop as it is (the storefront keeps the last good map, or the fixtures in development).",
-            details: read.problems,
-            fix: "Fix it in the Payload admin under Globals → Markets.",
-          },
+    map,
+    check: {
+      ...MARKETS,
+      level: "warn",
+      message: `the markets in Medusa cannot serve a shop as they are (the storefront keeps the last good map, or the fixtures in development).`,
+      details: [...new Set(details)],
+      fix: MARKETS_FIX,
+    },
   };
 }
 
 /**
- * D17 and D19: the backend's list against the storefront's map. The map is the global's when it is
- * filled in, else the seeded fixtures (what development and `next build` use then). Also hands back
- * what it read, for the `--online` comparison with the running Medusa.
+ * `GET /admin/markets` with the bootstrap admin's token (`--online`, backend running) as a read, or
+ * `undefined` when it did not answer with the overview (no server, a refused login, another app on
+ * the port): doctor then reads the database with `medusa exec` instead.
  */
-export function marketsSyncCheck(input: {
-  backendFile: { exports: Record<string, unknown> } | { error: string };
-  /** The fixtures' map, or why it could not be read. */
-  fixtures: MarketMapData | string;
-  /** The `markets` global's map, when it was read and is filled in. */
-  global: MarketMapData | undefined;
-  /** The global's synced part (T60), when a sync has filled it. */
-  synced?: BackendMarkets;
-}): { check: Check; backend: BackendMarkets | undefined; map: MarketMapData | undefined } {
-  const { backendFile, fixtures, global, synced } = input;
-  const source = global ?? fixtures;
-  const map = typeof source === "string" ? undefined : source;
-  const warn = (message: string): Check => ({ ...MARKETS_SYNC, level: "warn", message });
-
-  // D76: once a sync has run, the global's two parts are compared; the backend's file is still
-  // read, for `--online`.
-  if (synced !== undefined) {
-    const read = "error" in backendFile ? undefined : readBackendMarkets(backendFile.exports);
-    const backend = typeof read === "object" ? read : undefined;
-    if (typeof source === "string") return { map, backend, check: warn(source) };
-    const problems = compareMarkets(synced, source, SYNCED_SOURCE);
-    const where = global === undefined ? "the seeded fixtures" : "the markets global's countries";
-    return {
-      map,
-      backend,
-      check:
-        problems.length === 0
-          ? {
-              ...MARKETS_SYNC,
-              level: "ok",
-              message: `Medusa's regions and locales (the synced part) and ${where} agree.`,
-            }
-          : {
-              ...MARKETS_SYNC,
-              level: "warn",
-              message: `Medusa's regions and locales (the synced part) and ${where} disagree (D76).`,
-              details: problems,
-              fix: MARKETS_SYNCED_FIX,
-            },
-    };
-  }
-
-  if ("error" in backendFile) {
-    return {
-      map,
-      backend: undefined,
-      check: warn(`could not read apps/backend/src/config/markets.ts (${backendFile.error}).`),
-    };
-  }
-  const backend = readBackendMarkets(backendFile.exports);
-  if (typeof backend === "string") {
-    return {
-      map,
-      backend: undefined,
-      check: warn(`apps/backend/src/config/markets.ts is not what doctor expects: ${backend}.`),
-    };
-  }
-  // No global, and the fixtures could not be read: `source` is the reason.
-  if (typeof source === "string") return { map, backend, check: warn(source) };
-
-  const problems = compareMarkets(backend, source);
-  const where = global === undefined ? "the seeded fixtures" : "the markets global";
-  return {
-    map,
-    backend,
-    check:
-      problems.length === 0
-        ? {
-            ...MARKETS_SYNC,
-            level: "ok",
-            message: `apps/backend/src/config/markets.ts and ${where} list the same countries and languages.`,
-          }
-        : {
-            ...MARKETS_SYNC,
-            level: "warn",
-            message: `apps/backend/src/config/markets.ts and ${where} disagree (D17).`,
-            details: problems,
-            fix: MARKETS_FIX,
-          },
-  };
+export function readAdminMarkets(answer: HttpResult | undefined): MarketsRead | undefined {
+  if (answer === undefined || answer.kind !== "response" || answer.status !== 200) return undefined;
+  const overview = readMarketsOverview(jsonOf(answer));
+  return typeof overview === "string"
+    ? {
+        ok: false,
+        cause: `GET /admin/markets answered something doctor does not understand (${overview})`,
+        fix: "Doctor and the markets plugin disagree about the overview's shape.",
+      }
+    : { ok: true, source: "admin-api", overview };
 }

@@ -32,14 +32,16 @@ export function checkIdOf(target: Target, all: readonly Target[]): string {
 }
 
 /**
- * Whether the Postgres check for the payload database failed, so that Payload (which would connect to
- * it, and could create it, D18) is not started.
+ * Whether the Postgres check for an app's database failed, so that the app is not started to read
+ * it (Payload would connect to its database and could create it, D18; `medusa exec` would only fail
+ * after booting).
  */
-export function payloadDatabaseFailed(
+export function databaseFailed(
   findings: readonly Finding[],
   targets: readonly Target[],
+  database: "medusa" | "payload",
 ): boolean {
-  const target = targets.find((t) => t.databases?.includes("payload"));
+  const target = targets.find((t) => t.databases?.includes(database));
   return findings.find((finding) => finding.target === target)?.level === "error";
 }
 

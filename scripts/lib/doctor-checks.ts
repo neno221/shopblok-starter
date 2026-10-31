@@ -635,13 +635,13 @@ export function searchIndexCheck(
 }
 
 // ---------------------------------------------------------------------------------------------
-// From `payload run`
+// From `medusa exec`
 
-/** How long doctor lets `payload run src/scripts/doctor-payload.ts` take. */
-export const PAYLOAD_RUN_TIMEOUT_MS = 60_000;
+/** How long doctor lets `medusa exec src/scripts/doctor-markets.ts` take. */
+export const MEDUSA_RUN_TIMEOUT_MS = 90_000;
 
-/** Why `payload run src/scripts/doctor-payload.ts` did not give its result: the run itself, then its log. */
-export function explainPayloadRun(result: RunResult): { cause: string; fix: string } {
+/** Why `medusa exec src/scripts/doctor-markets.ts` did not give its result: the run itself, then its log. */
+export function explainMedusaRun(result: RunResult): { cause: string; fix: string } {
   if (result.error !== undefined) {
     return {
       cause: `pnpm could not be started (${result.error})`,
@@ -649,45 +649,45 @@ export function explainPayloadRun(result: RunResult): { cause: string; fix: stri
     };
   }
   if (result.prompt !== undefined) {
-    return { cause: `Payload asked "${result.prompt}"`, fix: "Run `pnpm bootstrap`." };
+    return { cause: `Medusa asked "${result.prompt}"`, fix: "Run `pnpm bootstrap`." };
   }
   if (result.timedOut) {
     return {
-      cause: `Payload did not start within ${PAYLOAD_RUN_TIMEOUT_MS / 1000} s`,
-      fix: "Check that the database answers (`pnpm infra:up`).",
+      cause: `Medusa did not start within ${MEDUSA_RUN_TIMEOUT_MS / 1000} s`,
+      fix: "Check that the database and Redis answer (`pnpm infra:up`).",
     };
   }
-  return explainPayloadFailure(result.output, result.code);
+  return explainMedusaFailure(result.output, result.code);
 }
 
-/** Why `payload run src/scripts/doctor-payload.ts` failed, from its log: the known causes, else its last line. */
-export function explainPayloadFailure(
+/** Why `medusa exec src/scripts/doctor-markets.ts` failed, from its log: the known causes, else its last line. */
+export function explainMedusaFailure(
   output: string,
   code?: number | null,
 ): { cause: string; fix: string } {
   const text = output;
+  if (/Cannot find module '@shopblok\/medusa-markets/.test(text)) {
+    return {
+      cause: "the markets plugin is not built",
+      fix: "Run `pnpm bootstrap` (it builds `packages/medusa-markets` first), or `pnpm --filter @shopblok/medusa-markets build`.",
+    };
+  }
   if (/database "[^"]*" does not exist/.test(text)) {
     return {
-      cause: "the payload database does not exist",
-      fix: "Run `pnpm bootstrap`. (Doctor opens Payload as in production, which never creates a missing database.)",
+      cause: "the medusa database does not exist",
+      fix: "Run `pnpm bootstrap`.",
     };
   }
   if (/relation "[^"]*" does not exist/.test(text)) {
     return {
-      cause: "the payload database is not migrated",
-      fix: "Run `pnpm bootstrap` (it runs `payload migrate`).",
+      cause: "the medusa database is not migrated (or the markets module's tables are missing)",
+      fix: "Run `pnpm bootstrap` (it builds the plugin and runs `medusa db:migrate`).",
     };
   }
-  if (/missing secret key/i.test(text)) {
+  if (/(password authentication failed|ECONNREFUSED|Pg connection failed)/i.test(text)) {
     return {
-      cause: "PAYLOAD_SECRET is not set in apps/storefront/.env",
-      fix: "Run `pnpm bootstrap`, which generates it.",
-    };
-  }
-  if (/(password authentication failed|ECONNREFUSED|cannot connect to postgres)/i.test(text)) {
-    return {
-      cause: "Payload could not connect to its database",
-      fix: "Check PAYLOAD_DATABASE_URL in apps/storefront/.env and that `pnpm infra:up` has run.",
+      cause: "Medusa could not connect to its database or Redis",
+      fix: "Check DATABASE_URL and REDIS_URL in apps/backend/.env and that `pnpm infra:up` has run.",
     };
   }
   const last = text
@@ -698,9 +698,7 @@ export function explainPayloadFailure(
   const exit =
     code === undefined ? "" : code === null ? " (stopped by a signal)" : ` (exit code ${code})`;
   return {
-    cause: last
-      ? `Payload failed: ${last.slice(0, 200)}`
-      : `Payload failed without a message${exit}`,
-    fix: "Run `pnpm --filter @shopblok/storefront exec payload run src/scripts/doctor-payload.ts` to see the full log.",
+    cause: last ? `Medusa failed: ${last.slice(0, 200)}` : `Medusa failed without a message${exit}`,
+    fix: "Run `pnpm --filter @shopblok/backend exec medusa exec ./src/scripts/doctor-markets.ts` to see the full log.",
   };
 }

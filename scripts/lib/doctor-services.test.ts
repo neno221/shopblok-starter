@@ -3,7 +3,7 @@ import { judge, targetsFrom, type Finding, type Observation, type Target } from 
 import {
   checkIdOf,
   isRequired,
-  payloadDatabaseFailed,
+  databaseFailed,
   serverCheck,
   serviceChecks,
 } from "./doctor-services.ts";
@@ -76,22 +76,32 @@ describe("checkIdOf", () => {
   });
 });
 
-describe("payloadDatabaseFailed", () => {
+describe("databaseFailed", () => {
   const postgres = targetOf("postgres");
 
-  it("is true when the Postgres that holds the payload database failed", () => {
-    expect(payloadDatabaseFailed([finding(postgres, down)], targets)).toBe(true);
-    expect(payloadDatabaseFailed([finding(postgres)], targets)).toBe(false);
+  it("is true when the Postgres that holds the database failed", () => {
+    for (const database of ["medusa", "payload"] as const) {
+      expect(databaseFailed([finding(postgres, down)], targets, database)).toBe(true);
+      expect(databaseFailed([finding(postgres)], targets, database)).toBe(false);
+    }
   });
 
-  it("looks at the payload database's own server when there are two", () => {
+  it("looks at the database's own server when there are two", () => {
     const two = [medusaDb, payloadDb];
-    expect(payloadDatabaseFailed([finding(medusaDb, down), finding(payloadDb)], two)).toBe(false);
-    expect(payloadDatabaseFailed([finding(medusaDb), finding(payloadDb, down)], two)).toBe(true);
+    expect(databaseFailed([finding(medusaDb, down), finding(payloadDb)], two, "payload")).toBe(
+      false,
+    );
+    expect(databaseFailed([finding(medusaDb, down), finding(payloadDb)], two, "medusa")).toBe(true);
+    expect(databaseFailed([finding(medusaDb), finding(payloadDb, down)], two, "payload")).toBe(
+      true,
+    );
+    expect(databaseFailed([finding(medusaDb), finding(payloadDb, down)], two, "medusa")).toBe(
+      false,
+    );
   });
 
-  it("is false when there is no payload database target to fail", () => {
-    expect(payloadDatabaseFailed([], [targetOf("redis")])).toBe(false);
+  it("is false when there is no such database target to fail", () => {
+    expect(databaseFailed([], [targetOf("redis")], "medusa")).toBe(false);
   });
 });
 
