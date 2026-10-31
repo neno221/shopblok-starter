@@ -5,6 +5,9 @@
 // The markets plugin (CommonJS, built by `medusa plugin:build`) cannot load this raw TypeScript, so
 // it reads `LANGUAGES` as `languages.json`; `languages.test.ts` fails when the two differ.
 
+/** Payload's default locale, and the one the admin never hides (see `filterAvailableLocales`). */
+export const DEFAULT_LOCALE = "en";
+
 /** The 24 official languages of the EU (ISO 639-1). */
 export const EU_LANGUAGES = [
   "bg",
@@ -122,5 +125,5 @@ export const EXTRA_LANGUAGES = ["ar", "ja", "nb", "ru", "tr", "uk", "zh"] as con
  * default locale) comes first, then the rest in order of first appearance.
  */
 export const LANGUAGES: readonly string[] = [
-  ...new Set<string>(["en", ...EU_LANGUAGES, ...MEDUSA_LANGUAGES, ...EXTRA_LANGUAGES]),
+  ...new Set<string>([DEFAULT_LOCALE, ...EU_LANGUAGES, ...MEDUSA_LANGUAGES, ...EXTRA_LANGUAGES]),
 ];

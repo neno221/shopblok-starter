@@ -1,6 +1,12 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { EU_LANGUAGES, EXTRA_LANGUAGES, LANGUAGES, MEDUSA_LOCALES } from "./languages";
+import {
+  DEFAULT_LOCALE,
+  EU_LANGUAGES,
+  EXTRA_LANGUAGES,
+  LANGUAGES,
+  MEDUSA_LOCALES,
+} from "./languages";
 
 describe("languages.json", () => {
   // The markets plugin (CommonJS, built by `medusa plugin:build`) cannot load this package's raw
@@ -13,7 +19,8 @@ describe("languages.json", () => {
   it("holds 42 languages, English first, with no duplicate", () => {
     expect(LANGUAGES).toHaveLength(42);
     expect(new Set(LANGUAGES).size).toBe(LANGUAGES.length);
-    expect(LANGUAGES[0]).toBe("en");
+    expect(DEFAULT_LOCALE).toBe("en");
+    expect(LANGUAGES[0]).toBe(DEFAULT_LOCALE);
   });
 
   it("covers the EU's 24, the language of every Medusa locale and the seven extra", () => {

@@ -1,13 +1,11 @@
 import { LANGUAGES } from "@shopblok/i18n/languages";
 import type { Locale } from "payload";
 
-/** Payload's default locale, and the one the admin never hides (see `filterAvailableLocales`). */
-export const DEFAULT_LOCALE = "en";
-
 // The language lists live in `@shopblok/i18n` (M4b, T73): the markets plugin in Medusa checks a
 // market's languages against the same list Payload preloads here. The doc comments, and the rule
 // that the list only grows, are on `LANGUAGES` there.
-export { EU_LANGUAGES, EXTRA_LANGUAGES, LANGUAGES } from "@shopblok/i18n/languages";
+// `DEFAULT_LOCALE` too: `LANGUAGES` starts from it.
+export { DEFAULT_LOCALE, EU_LANGUAGES, EXTRA_LANGUAGES, LANGUAGES } from "@shopblok/i18n/languages";
 
 /** Right-to-left languages among `LANGUAGES`. */
 const RTL_LANGUAGES: ReadonlySet<string> = new Set(["ar", "he"]);
