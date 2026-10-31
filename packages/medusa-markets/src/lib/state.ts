@@ -80,8 +80,11 @@ export function regionCountries(regions: RegionInfo[]): RegionCountry[] {
   );
 }
 
+/** What `loadState` reads: the state a check reads, and Medusa's regions it was made from. */
+export type LoadedState = { state: MarketsState; regions: RegionInfo[] };
+
 /** Everything a check reads: Medusa's regions and store locales, and the module's own rows. */
-export async function loadState(container: Resolver): Promise<MarketsState> {
+export async function loadStateWithRegions(container: Resolver): Promise<LoadedState> {
   const service = marketsService(container);
   const [regions, store, countries, languages, settings] = await Promise.all([
     readRegions(container),
@@ -91,11 +94,18 @@ export async function loadState(container: Resolver): Promise<MarketsState> {
     service.readSettings(),
   ]);
   return {
-    regionCountries: regionCountries(regions),
-    storeLocales: store.locales,
-    defaultRegionId: store.defaultRegionId,
-    countries,
-    languages,
-    settings,
+    regions,
+    state: {
+      regionCountries: regionCountries(regions),
+      storeLocales: store.locales,
+      defaultRegionId: store.defaultRegionId,
+      countries,
+      languages,
+      settings,
+    },
   };
+}
+
+export async function loadState(container: Resolver): Promise<MarketsState> {
+  return (await loadStateWithRegions(container)).state;
 }

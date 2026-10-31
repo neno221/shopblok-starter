@@ -1,7 +1,8 @@
 import type { MedusaContainer } from "@medusajs/framework/types";
 
 import { marketsProblems } from "./checks";
-import { marketsService, readRegions, readStore, regionCountries, type RegionInfo } from "./state";
+import { buildMarketMap } from "./map";
+import { loadStateWithRegions, marketsService, readRegions, type RegionInfo } from "./state";
 import type { LanguageRow, MarketMap, MarketsState, Problem, SettingsRow } from "./types";
 
 type Resolver = Pick<MedusaContainer, "resolve">;
@@ -69,23 +70,14 @@ export function overviewOf(
 
 /** The answer of `GET /admin/markets`, from Medusa's regions and the store's locales and the rows. */
 export async function readOverview(container: Resolver): Promise<MarketsOverview> {
-  const service = marketsService(container);
-  const [regions, store, countries, languages, settings] = await Promise.all([
-    readRegions(container),
-    readStore(container),
-    service.readCountries(),
-    service.readLanguages(),
-    service.readSettings(),
-  ]);
-  const state: MarketsState = {
-    regionCountries: regionCountries(regions),
-    storeLocales: store.locales,
-    defaultRegionId: store.defaultRegionId,
-    countries,
-    languages,
-    settings,
-  };
-  const map = await service.getMap(state.regionCountries.map((country) => country.code));
+  const { state, regions } = await loadStateWithRegions(container);
+  // The map is built from the rows already read, not from a second `service.getMap()`.
+  const map = buildMarketMap({
+    countries: state.countries,
+    languages: state.languages,
+    settings: state.settings,
+    regionCountryCodes: state.regionCountries.map((country) => country.code),
+  });
   return overviewOf(state, regions, map);
 }
 
