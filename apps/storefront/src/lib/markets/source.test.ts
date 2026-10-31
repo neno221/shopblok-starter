@@ -190,6 +190,26 @@ describe("expire: the map changed in Medusa (T75 review, item 1)", () => {
     expect(await source.get()).toEqual(brazil);
   });
 
+  it("lets callers after the save share the new read, whichever read ends first", async () => {
+    const older = pending();
+    const newer = pending();
+    const { source, load, advance, next } = setup(seeded);
+    await source.get();
+    advance(30_000);
+    next(older.read, newer.read);
+    const before = source.get();
+    source.expire();
+    const first = source.get();
+    // The old read ends while the new one runs: it must not clear the new one's place.
+    older.answer(seeded);
+    await before;
+    const second = source.get();
+    newer.answer(brazil);
+    expect(await first).toEqual(brazil);
+    expect(await second).toEqual(brazil);
+    expect(load).toHaveBeenCalledTimes(3);
+  });
+
   it("does not keep a read that began before the save, even when it ends before any new one", async () => {
     const older = pending();
     const { source, load, advance, next } = setup(seeded);

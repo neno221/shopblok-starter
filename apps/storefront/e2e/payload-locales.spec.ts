@@ -15,12 +15,13 @@ import {
 // markets itself.
 //
 // The markets are opened and closed through Medusa's Admin API (`POST /admin/markets/countries/:code`),
-// which changes the map the proxy serves for up to a minute, so playwright.config.ts runs this suite
-// as its own project after every other suite, and `afterAll` puts the markets, and the admin's
-// remembered locale, back as it found them (and fails the run if it cannot). The plugin refuses to
-// close the primary country, so "no market open" is not a state Medusa can be put in: L5 leaves only
-// English open instead, and an unreadable map (Medusa down) is `filter-available-locales.test.ts`'s
-// and `config-outside-next.test.ts`'s. Run on its own: `playwright test --project=locales --no-deps`.
+// which changes the map the proxy serves for up to a minute (the admin's own within seconds), so
+// playwright.config.ts runs this suite as its own project after every other suite, and `afterAll`
+// puts the markets, and the admin's remembered locale, back as it found them (and fails the run if
+// it cannot). The plugin refuses to close the primary country, so "no market open" is not a state
+// Medusa can be put in: L5 leaves only English open instead, and an unreadable map (Medusa down) is
+// `filter-available-locales.test.ts`'s and `config-outside-next.test.ts`'s. Run on its own:
+// `playwright test --project=locales --no-deps`.
 
 test.describe.configure({ mode: "serial" });
 test.setTimeout(90_000);
@@ -69,9 +70,18 @@ async function setMarkets(countries: Country[]): Promise<void> {
 }
 
 /**
- * The selector once it offers `expected`: the admin reads the map through the same 30 s cache as
- * the storefront, which the save above has already refreshed (the proxy's route reads it fresh),
- * so the first try is usually the answer; a stale one is tried again.
+ * How long the admin's selector may take to show a save. The admin reads the map through the
+ * storefront's 30 s in-process cache, which the save's `medusa:markets` event marks stale through
+ * `/api/revalidate` (the webhook is asynchronous, so a first try can still be early); a try that is
+ * early is repeated. A regression to waiting out the cache (30 s) must fail the run, not add
+ * minutes to it, so the limit is under 30 s (T75 review, item 1).
+ */
+const SELECTOR_TIMEOUT = 15_000;
+
+/**
+ * The selector once it offers `expected`: `setMarkets` has waited for the proxy's route, which
+ * the same event refreshes, and the admin's in-process map is expired by the same webhook, so the
+ * first try is usually the answer.
  */
 async function selectorOffering(expected: string[], url: string): Promise<Selector> {
   let last: Selector | undefined;
@@ -81,7 +91,7 @@ async function selectorOffering(expected: string[], url: string): Promise<Select
         last = await selector(url);
         return last.codes;
       },
-      { message: `the selector at ${url}`, timeout: 60_000, intervals: [1_000] },
+      { message: `the selector at ${url}`, timeout: SELECTOR_TIMEOUT, intervals: [1_000] },
     )
     .toEqual(expected);
   return last!;
@@ -173,8 +183,9 @@ test("L4: only Greek open, the selector shows Greek and the forced English", asy
 });
 
 test("a market opened and closed in Medusa comes and goes in the selector, with no restart", async () => {
-  // The filter reads Medusa's map (30 s in memory, expired by the save's event): no Payload write
-  // announces a change any more, so the next page after it must show it all the same.
+  // The filter reads Medusa's map (30 s in memory, marked stale by the save's event through
+  // `/api/revalidate`): no Payload write announces a change any more, so the next page after it
+  // must show it all the same, within `SELECTOR_TIMEOUT` and not after the 30 s.
   await setMarkets([{ code: "cy", languages: ["el"] }]);
   await selectorOffering(["en", "el"], "/admin/collections/pages");
   await setMarkets([
@@ -235,7 +246,7 @@ test("L6: ?locale=fr while fr is switched off redirects to an allowed locale, an
         enabled = await selector("/admin/collections/pages?locale=fr");
         return new URL(enabled.url).searchParams.get("locale");
       },
-      { timeout: 60_000, intervals: [1_000] },
+      { timeout: SELECTOR_TIMEOUT, intervals: [1_000] },
     )
     .toBe("fr");
   expect(enabled?.current).toBe("fr");

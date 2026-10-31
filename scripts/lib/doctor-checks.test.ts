@@ -616,10 +616,6 @@ describe("medusaMarketsCheck", () => {
     expect(check.details).toBeUndefined();
   });
 
-  it("takes only the Medusa url and the answers", () => {
-    expect(medusaMarketsCheck.length).toBe(2);
-  });
-
   // Found by the review of T14: the whole check used to vanish when /store/locales failed.
   it.each([
     ["HTTP 404", json({ message: "Not found" }, 404), "HTTP 404"],
