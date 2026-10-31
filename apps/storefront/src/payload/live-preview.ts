@@ -6,7 +6,7 @@ import { listMarkets, primaryCountryCode } from "../lib/markets/market";
 import type { Market, MarketMap } from "../lib/markets/types";
 import { buildPublicUrl } from "../lib/markets/url";
 import { siteOrigin } from "../lib/site-origin";
-import { marketMap } from "./market-map";
+import { marketMapOrUndefined } from "./market-map";
 
 /** D74's three frames: a phone, a tablet and a laptop. */
 export const LIVE_PREVIEW_BREAKPOINTS = [
@@ -111,8 +111,11 @@ export const livePreviewUrl: NonNullable<LivePreviewConfig["url"]> = async ({
           ? null
           : (CMS_PATHS[slug]?.(data) ?? null);
   if (path === null) return null;
+  // Medusa unreadable and no map held yet: no preview rather than an error in the admin.
+  const map = await marketMapOrUndefined(req, "the live preview is off for now");
+  if (map === undefined) return null;
   return previewUrl({
-    map: await marketMap(),
+    map,
     language: locale.code,
     path,
     serverURL: siteOrigin(),
