@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
+import { MARKET_SOURCE, clearSharedMarketSource } from "../markets/shared-source";
 import { hasSecret, parseBody, revalidateResponse } from "./revalidate";
 
 const SECRET = "s3cret-0123456789";
@@ -44,6 +45,57 @@ describe("/api/revalidate", () => {
     const response = await revalidateResponse(post({ tags: ["search"] }, auth), revalidate, source);
     expect(response.status).toBe(401);
     expect(revalidate).not.toHaveBeenCalled();
+  });
+
+  describe("the in-memory market map (T75 review, item 1)", () => {
+    const run = (body: unknown, auth?: string | null) => {
+      const expire = vi.fn();
+      const promise = revalidateResponse(post(body, auth), vi.fn(), source, expire);
+      return promise.then((response) => ({ response, expire }));
+    };
+
+    it("is marked stale by medusa:markets, with either expire", async () => {
+      expect((await run({ tags: ["medusa:markets"], expire: 0 })).expire).toHaveBeenCalledOnce();
+      expect((await run({ tags: ["medusa:markets"] })).expire).toHaveBeenCalledOnce();
+    });
+
+    it("is marked stale once when medusa:markets comes with other tags and is repeated", async () => {
+      const { expire } = await run({
+        tags: ["medusa:regions", "medusa:markets", "medusa:markets", "bogus"],
+      });
+      expect(expire).toHaveBeenCalledOnce();
+    });
+
+    it.each([["medusa:regions"], ["medusa:products"], ["search"], ["product:markets"]])(
+      "is left alone by %s",
+      async (tag) => {
+        expect((await run({ tags: [tag] })).expire).not.toHaveBeenCalled();
+      },
+    );
+
+    it("is left alone by a call that is refused", async () => {
+      for (const attempt of [
+        await run({ tags: ["medusa:markets"] }, "Bearer nope"),
+        await run({ tags: ["medusa:markets"] }, null),
+        await run("not json"),
+        await run({ tags: ["medusa:markets"], expire: "soon" }),
+        await run({ tags: ["not-a-tag"] }),
+      ]) {
+        expect(attempt.response.status).toBeGreaterThanOrEqual(400);
+        expect(attempt.expire).not.toHaveBeenCalled();
+      }
+    });
+
+    it("reaches the process's shared market source when nothing is injected", async () => {
+      const expire = vi.fn();
+      (globalThis as Record<symbol, unknown>)[MARKET_SOURCE] = { expire };
+      try {
+        await revalidateResponse(post({ tags: ["medusa:markets"], expire: 0 }), vi.fn(), source);
+        expect(expire).toHaveBeenCalledOnce();
+      } finally {
+        clearSharedMarketSource();
+      }
+    });
   });
 
   it("refuses every call while REVALIDATE_SECRET is unset, even an empty Bearer", async () => {

@@ -4,6 +4,7 @@ import {
   createMarketSource,
   defaultAllowFallback,
   DEV_MARKET_LOAD_TIMEOUT_MS,
+  MARKET_EXPIRE_GAP_MS,
   MARKET_LOAD_TIMEOUT_MS,
   MarketMapError,
   marketLoadTimeoutMs,
@@ -142,6 +143,142 @@ describe("fresh: the map as it is now (T71)", () => {
     expect(warn).toHaveBeenCalledWith(
       expect.stringContaining("still serving the map read earlier"),
     );
+  });
+});
+
+/** A read the test ends itself: `answer` settles it, `fail` makes it an error. */
+function pending() {
+  let answer: (map: MarketMap) => void = () => {};
+  let fail: (error: Error) => void = () => {};
+  const read = new Promise<MarketMap>((resolve, reject) => {
+    answer = resolve;
+    fail = reject;
+  });
+  return { read, answer, fail };
+}
+
+describe("expire: the map changed in Medusa (T75 review, item 1)", () => {
+  it("makes the map held stale at once: the next `get()` reads again, inside the TTL", async () => {
+    const { source, load, advance, next } = setup(seeded);
+    await source.get();
+    advance(1_000);
+    expect(await source.get()).toEqual(seeded);
+    expect(load).toHaveBeenCalledTimes(1);
+    next(brazil);
+    source.expire();
+    expect(await source.get()).toEqual(brazil);
+    expect(load).toHaveBeenCalledTimes(2);
+    // The new map is kept for a TTL of its own.
+    advance(20_000);
+    expect(await source.get()).toEqual(brazil);
+    expect(load).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not join a read that started before the save", async () => {
+    const older = pending();
+    const { source, load, advance, next } = setup(seeded);
+    await source.get();
+    advance(30_000);
+    next(older.read, brazil);
+    const before = source.get();
+    source.expire();
+    expect(await source.get()).toEqual(brazil);
+    expect(load).toHaveBeenCalledTimes(3);
+    // The old read ends last: it answers its own caller and does not replace the new map.
+    older.answer(seeded);
+    expect(await before).toEqual(seeded);
+    expect(await source.get()).toEqual(brazil);
+  });
+
+  it("does not keep a read that began before the save, even when it ends before any new one", async () => {
+    const older = pending();
+    const { source, load, advance, next } = setup(seeded);
+    await source.get();
+    advance(30_000);
+    next(older.read);
+    const before = source.get();
+    source.expire();
+    older.answer(seeded);
+    expect(await before).toEqual(seeded);
+    next(brazil);
+    expect(await source.get()).toEqual(brazil);
+    expect(load).toHaveBeenCalledTimes(3);
+  });
+
+  it("keeps the map held as the last good one: an outage right after a save still serves it", async () => {
+    const { source, warn, next } = setup(seeded);
+    await source.get();
+    next(new Error("connection refused"));
+    source.expire();
+    expect(await source.get()).toEqual(seeded);
+    expect(warn.mock.calls[0]?.[0]).toMatch(/connection refused.*still serving the map read earlier/);
+  });
+
+  it("with no map held yet only stops a read in flight from being kept", async () => {
+    const older = pending();
+    const { source, load, next } = setup(seeded);
+    next(older.read, brazil);
+    const first = source.get();
+    source.expire();
+    older.answer(seeded);
+    expect(await first).toEqual(seeded);
+    expect(await source.get()).toEqual(brazil);
+    expect(load).toHaveBeenCalledTimes(2);
+  });
+
+  it("makes a source that serves stale maps (the proxy's) read again for the next caller", async () => {
+    const { source, load, next } = setup(seeded, () => false, { staleWhileRevalidate: true });
+    await source.get();
+    next(brazil);
+    source.expire();
+    // The caller gets the stale map and the read renews it.
+    expect(await source.get()).toEqual(seeded);
+    await vi.waitFor(async () => expect(await source.get()).toEqual(brazil));
+    expect(load).toHaveBeenCalledTimes(2);
+  });
+
+  describe("a flood of calls (the gap)", () => {
+    it("costs one read: calls inside the gap do not discard the read they follow", async () => {
+      const { source, load, next } = setup(seeded);
+      await source.get();
+      next(brazil);
+      source.expire();
+      const reads = [source.get()];
+      for (let call = 0; call < 50; call++) {
+        source.expire();
+        reads.push(source.get());
+      }
+      expect((await Promise.all(reads)).every((map) => map === brazil)).toBe(true);
+      expect(load).toHaveBeenCalledTimes(2);
+    });
+
+    it("is not lost: a save inside the gap shows once the gap has passed", async () => {
+      const { source, load, advance, next } = setup(seeded);
+      await source.get();
+      next(brazil);
+      source.expire();
+      expect(await source.get()).toEqual(brazil);
+      // A second save a moment later: the read above may have missed it.
+      advance(MARKET_EXPIRE_GAP_MS / 2);
+      source.expire();
+      expect(load).toHaveBeenCalledTimes(2);
+      next(seeded);
+      advance(MARKET_EXPIRE_GAP_MS);
+      expect(await source.get()).toEqual(seeded);
+      expect(load).toHaveBeenCalledTimes(3);
+    });
+
+    it("takes a call after the gap at once", async () => {
+      const { source, load, advance, next } = setup(seeded);
+      await source.get();
+      source.expire();
+      await source.get();
+      advance(MARKET_EXPIRE_GAP_MS);
+      next(brazil);
+      source.expire();
+      expect(await source.get()).toEqual(brazil);
+      expect(load).toHaveBeenCalledTimes(3);
+    });
   });
 });
 

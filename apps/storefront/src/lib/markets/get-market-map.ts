@@ -2,18 +2,21 @@ import { markets as seededMarkets } from "@shopblok/fixtures";
 import "server-only";
 import { env } from "../env";
 import { loadMarketMap } from "./medusa-loader";
-import { createMarketSource, defaultAllowFallback, marketLoadTimeoutMs } from "./source";
+import { sharedMarketSource } from "./shared-source";
+import { createMarketSource, defaultAllowFallback } from "./source";
 
 // The proxy doesn't import this (it would load the Medusa SDK there): it reads the map from
 // `/next/markets` through `proxy-market-map.ts`.
-const source = createMarketSource({
-  load: loadMarketMap,
-  fallback: seededMarkets,
-  allowFallback: defaultAllowFallback(env),
-  // The first read of a fresh `next dev` server can take more than 10 s (W2, finding 3); the reads
-  // after it get 10 s again.
-  firstLoadTimeoutMs: marketLoadTimeoutMs(env),
-});
+// One source per process, on `globalThis`: Payload's admin imports this module lazily and may get a
+// copy of its own, and `/api/revalidate` expires the map through the shared one (`shared-source.ts`).
+// Every read is capped at `MEDUSA_REQUEST_TIMEOUT_MS` by the SDK call, so no first-read timeout.
+const source = sharedMarketSource(() =>
+  createMarketSource({
+    load: loadMarketMap,
+    fallback: seededMarkets,
+    allowFallback: defaultAllowFallback(env),
+  }),
+);
 
 /**
  * The market map (D10, D94): Medusa's `GET /store/markets`, kept in memory for 30 s. Server code only:

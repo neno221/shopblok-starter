@@ -16,7 +16,9 @@ import type { MarketMap } from "./types";
  *   under `[market]` is regenerated at most every 30 s while traffic arrives, however long its own
  *   content could last.
  * - The tag `medusa:markets` is for the backend's revalidation subscriber, which expires it when
- *   a market is saved (`shopblok.markets.updated`) or a region changes (D94). The entry is computed
+ *   a market is saved (`shopblok.markets.updated`) or a region changes (D94); the same event also
+ *   marks the in-process map stale (`/api/revalidate`, `shared-source.ts`), which Payload's admin
+ *   reads. The entry is computed
  *   from the map as it is now (`getFreshMarketMap`), not from the
  *   in-process map, which can be up to 30 s old: re-reading that one kept the old map for another
  *   30 s, so a new market took up to 90 s to reach the proxy (T71). `revalidate` stays 30 s for an

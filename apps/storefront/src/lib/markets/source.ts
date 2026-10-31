@@ -37,16 +37,25 @@ export class MarketMapError extends Error {
 const MARKET_MAP_TTL_MS = 30_000;
 
 /**
+ * The shortest time between two `expire()` calls that each drop the reads in flight. A webhook is
+ * one call per save and a save is several writes, so a burst is normal; a flood of them (a leaked
+ * secret, D94) would otherwise start a read of Medusa per call. Inside the gap an expire still
+ * marks the held map stale, and the next `get()` after the gap discards what was read since.
+ */
+export const MARKET_EXPIRE_GAP_MS = 1_000;
+
+/**
  * How long a caller waits for one read of the map before it counts as failed. The SDK call has a
  * timeout of its own (`MEDUSA_REQUEST_TIMEOUT_MS`); this covers anything else that never settles.
  */
 export const MARKET_LOAD_TIMEOUT_MS = 10_000;
 
 /**
- * The same wait in `next dev`, where the first read of a fresh server starts the dev server's
- * compile of the map route that the proxy's first read waits for (and, once, Payload). That took 8.2 s to over 13 s on the
- * reference Windows PC, so with 10 s the first page after `pnpm dev` started could answer 500 (W2,
- * finding 3). A production server has no such first read: the map route was prerendered.
+ * The same wait in `next dev`, where the proxy's first read starts the dev server's compile of the
+ * map route and waits for it. That took 8.2 s to over 13 s on the reference Windows PC, so with
+ * 10 s the first page after `pnpm dev` started could answer 500 (W2, finding 3). Only the proxy
+ * reads the map over HTTP: `getMarketMap` calls Medusa, whose SDK call is capped at 10 s anyway.
+ * A production server has no such first read: the map route was prerendered.
  */
 export const DEV_MARKET_LOAD_TIMEOUT_MS = 60_000;
 
@@ -106,15 +115,23 @@ export function createMarketSource(options: MarketSourceOptions) {
   // `fresh()` that overtook it) answers its own caller but does not replace that later map.
   let started = 0;
   let kept = 0;
+  // `expire()`: a read numbered up to `staleBefore` began before the change it was told about, so
+  // it answers its own caller and is not kept. `lastExpire` and `pendingExpire` are the gap's.
+  let staleBefore = 0;
+  let lastExpire: number | undefined;
+  let pendingExpire = false;
 
   /** The read in flight. One that timed out is still running, so the next caller joins it. */
-  const loadOnce = () =>
-    (loading ??= load().finally(() => {
-      loading = undefined;
+  const loadOnce = () => {
+    const attempt: Promise<MarketMap> = (loading ??= load().finally(() => {
+      // An expire may have started another read since: only clear our own.
+      if (loading === attempt) loading = undefined;
     }));
+    return attempt;
+  };
 
   const keep = (map: MarketMap, order: number): MarketMap => {
-    if (order < kept) return map;
+    if (order < kept || order <= staleBefore) return map;
     kept = order;
     current = { map, expires: now() + MARKET_MAP_TTL_MS };
     return map;
@@ -170,15 +187,47 @@ export function createMarketSource(options: MarketSourceOptions) {
     );
   }
 
+  /**
+   * Applies an expire that is due: the held map is stale (and stays, as the last good map), and no
+   * read begun so far may be kept or joined, because it may have read the map before the change.
+   */
+  function applyExpire(): void {
+    const time = now();
+    if (!pendingExpire) return;
+    if (lastExpire !== undefined && time - lastExpire < MARKET_EXPIRE_GAP_MS) return;
+    pendingExpire = false;
+    lastExpire = time;
+    // A read that ended inside the gap renewed the map; it may predate the later call.
+    if (current !== undefined) current.expires = 0;
+    staleBefore = started;
+    reading = undefined;
+    loading = undefined;
+  }
+
   return {
     /** The market map, from the cache when it is younger than the TTL. */
     async get(): Promise<MarketMap> {
+      applyExpire();
       if (current !== undefined && now() < current.expires) return current.map;
-      reading ??= read(loadOnce).finally(() => {
-        reading = undefined;
-      });
+      const attempt: Promise<MarketMap> = (reading ??= read(loadOnce).finally(() => {
+        // Only clear our own: an expire may have started another read since.
+        if (reading === attempt) reading = undefined;
+      }));
       // With a map to serve, the caller doesn't wait: the read runs on and renews the map.
-      return staleWhileRevalidate && current !== undefined ? current.map : reading;
+      return staleWhileRevalidate && current !== undefined ? current.map : attempt;
+    },
+    /**
+     * Tells the source the map changed in Medusa (the backend's `medusa:markets` event, through
+     * `/api/revalidate`). The map held becomes stale but is kept as the last good map, so a Medusa
+     * outage right after a save still serves it. The next `get()` starts a read of its own: a read
+     * already running may have begun before the save, and is neither joined nor kept (PR 102
+     * review, item 1). Calls less than `MARKET_EXPIRE_GAP_MS` apart share one such discard, so a
+     * flood of calls costs about one read a second.
+     */
+    expire(): void {
+      if (current !== undefined) current.expires = 0;
+      pendingExpire = true;
+      applyExpire();
     },
     /**
      * The map as it is now, whatever the TTL, with the same last-good-map and fallback rules,
