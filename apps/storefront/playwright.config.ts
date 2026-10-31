@@ -125,6 +125,7 @@ const defaultProjects: Project[] = [
       /payload-locales\.spec\.ts/,
       /ui-strings\.spec\.ts/,
       /markets-add\.spec\.ts/,
+      /market-panels\.spec\.ts/,
       ...optInSpecs,
     ],
   },
@@ -143,6 +144,16 @@ const defaultProjects: Project[] = [
     use: { ...devices["Desktop Chrome"] },
     testMatch: /markets-add\.spec\.ts/,
     dependencies: ["locales"],
+  },
+  // T74 (M4b D93): the Markets panels on Medusa Admin's Region and Store pages. It talks to Medusa
+  // only (no storefront), adds Austria to the Europe region, changes market rows and the fallback
+  // market, and puts them back, so it runs after every suite that reads the map, `markets-add`
+  // (which also changes the Europe region) included. `PW_CHROMIUM_PATH` as for `design-system`.
+  {
+    name: "market-panels",
+    use: { ...devices["Desktop Chrome"], ...launchOptions },
+    testMatch: /market-panels\.spec\.ts/,
+    dependencies: ["markets-add"],
   },
 ];
 

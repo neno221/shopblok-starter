@@ -7217,3 +7217,61 @@ Review: `reviews/pr-105-code-review.md` (must-fix 1 and 2, cleanups 3 to 8; item
 ### What T73 leaves
 
 Payload's `markets` global, its sync and doctor's `markets-sync` are untouched (T75), the panels are T74, and the revalidation subscriber for `shopblok.markets.updated` is T75's (the event is emitted and nothing listens yet). `getMap()` orders by `rank`, not by region and code as D90 wrote: the fixtures' order (cy, us, gb, de, fr, ch) is neither, and it drives the switcher and hreflang.
+
+## The markets panels (T74)
+
+**Result: Medusa Admin's Region page and Store page each have a "Markets" panel from `@shopblok/medusa-markets`. The Region page's lists the countries of that region (the ones Medusa's own Countries section holds) with Open or Closed, languages (the default first), time zone and domain, and edits one in a drawer; the Store page's shows the primary country, the fallback market, the `<html lang>` override of each language in use and the warnings of what is stored, and edits them in a drawer. Neither adds or removes a country or a locale. A Playwright spec drives both in the browser against Medusa (10 tests, about 32 s) and `e2e-smoke` runs it.** M4b plan §3 T74; D93.
+
+| | |
+|---|---|
+| Date | 2026-10-31 |
+| Branch | `t74-market-panels`, from `t73-markets-plugin`'s head `54775d3` (local; not pushed) |
+| PR | not opened |
+
+### What there is now
+
+- **`packages/medusa-markets/src/admin`**: `widgets/region-markets.tsx` (`zone: "region.details"`, id `shopblok-markets-region-panel`) and `widgets/store-markets.tsx` (`zone: "store.details"`, id `shopblok-markets-store-panel`), both arrow-function components with the new zone names (no `.before`/`.after`) and an id with the plugin's prefix; `components/` (`country-drawer.tsx`, `settings-drawer.tsx`, `panel.tsx`); `lib/` (`sdk.ts`, `api.ts`, `types.ts`, `format.ts`, `refusal.ts`); `i18n/` (`index.ts` exports `{ en: { markets } }`, `json/en.json`). `@medusajs/js-sdk` 2.21.2 is a peer and dev dependency of the plugin (the backend's pin; `pnpm-lock.yaml` has the one new entry), `@tanstack/react-query` and `react-i18next` are the admin's own copies as in D89, and `pnpm typecheck` also runs `tsc --noEmit -p src/admin`, which it did not before (the plugin's root `tsconfig` leaves `src/admin` out for `medusa plugin:build`).
+- **The Region panel** reads `GET /admin/markets` on mount, keeps the rows of this region, and shows a table: country (Medusa's display name), a status badge (Open, Closed), languages (`German (default), French`, the default marked only when there are several), time zone, domain, and an edit button per row (`Edit the market of Austria`). The panel reads the markets again when the region's countries change in Medusa's own form (the query key holds the region's country codes, and the widget gets the region as `data`), so a country just added there appears at once, closed, with no language. **An empty region** says it has no markets and points to "Add countries" in the Countries section of the same page. **The drawer** (`Drawer`, Medusa's pattern for editing) has the Open switch, the languages (an ordered list with up, down and remove buttons per language, a "Choose a language" select of the store's other languages, the first marked "Default"; focus stays on a moved language's control), a time zone select (`Intl.supportedValuesOf("timeZone")`, plus "Not set", plus the stored zone when the browser does not list it) and the domain input. Save posts all four fields to `POST /admin/markets/countries/:code`, closes on success with a toast, and on a refusal stays open with the reasons.
+- **The Store panel** shows rows (Medusa's `SectionRow` look): the primary country, the fallback market (`German · Switzerland`), one `HTML language for German` row per language in use (the override, or "Language and country" when empty), and **a `Store locale for German` row only for a language that has two or more store locales** (D8's ambiguous case; none in the seed). The warnings of `problems` are an alert above the rows. The drawer has the primary country (a select of the open countries), the fallback market (a select of the open country and language pairs), an input per language in use and, again only for an ambiguous language, a select of that language's store locales (`de-DE`, `de-CH`). Save posts `POST /admin/markets/settings` with `primary_country`, `fallback_market` and each language's `medusa_locale` and `html_lang`. The panel reads the markets again when the store's locales or default region change in Medusa's own form.
+- **Strings** are in the namespace `markets` (`useTranslation("markets")`), English only. Medusa merges a plugin's `i18nModule` resources by language and namespace (`populateI18n`, `deepMerge`), so the plugin's `en.markets` cannot collide with Medusa's own `translation` namespace.
+- **The backend's `src/admin/README.md` and `src/admin/i18n/README.md`** use `zone: "product.details"` in their examples.
+- **No route changed:** `GET /admin/markets` already answers what the panels read (`countries` with their region, `locales`, `languages`, `settings`, `problems`).
+
+### The test
+
+`apps/storefront/e2e/market-panels.spec.ts`, Playwright project `market-panels` (after `markets-add`, so the other suites that read the map are done; `chromium` ignores the spec). It talks to Medusa only: sign-in through Medusa Admin's login form (`signInToMedusaAdmin` in `e2e/support/admin-ui.ts`), Medusa's Admin API from Node as in `markets-add`. In one serial run:
+
+1. Austria is added to the Europe region in Medusa's own form (Countries, the action menu, Add countries, search, Add); the panel lists it, closed, with no language.
+2. The drawer opens Austria with German and `Europe/Vienna`; the row and `GET /admin/markets` show it.
+3. Switzerland's languages are reordered (French up): `French (default), German` and `["fr","de"]`.
+4. France's time zone is changed to `Europe/Brussels`.
+5. Closing Cyprus (the primary country) is refused: the drawer stays open with "The market was not saved" and the reason ("cy" is the primary country, ...), and nothing changed.
+6. On the Store page the fallback market is changed to `German · Germany` (`de-de`); the drawer has four `HTML language for ...` inputs and no `store locale` control.
+7. **The positive case of that rule:** `de-CH` is added to the store's locales through Medusa's Store route, the panel then shows `Store locale for German` (only that one), the drawer offers `de-DE` and `de-CH`, and saving `de-CH` stores it; the locale is taken away again.
+8. Every button in the Region panel is an edit button and the Store panel has the one edit button; no button of either drawer is named after adding or removing a country, region or locale (the languages' own up, down and remove buttons are not those).
+9. axe (D34's tags) on each panel, and on each panel's open drawer, finds nothing.
+
+`afterAll` puts back, in this order: the fallback market, the primary country and the language rows (one settings save), the store's locales, every country row of the seed (`enabled`, `languages`, time zone, domain), Austria's row (closed, no language) and the Europe region's countries; it fails the run if a row differs afterwards. **A country's row cannot be deleted through the API (D93: no add or remove of countries), so Austria's row stays in `market_country`, closed and empty, after a run.** The map leaves it out while Austria is in no region, and the next run starts from it (the spec does not assert that the row is new). `pnpm infra:reset` clears it, and so does `delete from market_country where code = 'at'`.
+
+Run locally against a running Medusa (`pnpm --filter @shopblok/backend dev`, the plugin built): `pnpm --filter @shopblok/storefront exec playwright test --project=market-panels --no-deps`. `E2E_SCREENSHOTS=<folder>/` also writes the five pictures below, and `PW_CHROMIUM_PATH` names a Chromium that is not the one `playwright install` fetched (the cloud VM's, CLOUD.md), as for `design-system`. In CI, `e2e-smoke`'s "Playwright suites" step runs it with the default projects, after `markets-add`; Medusa is `medusa develop` there, which serves the plugin's admin from the build `pnpm bootstrap` made.
+
+### Deviations from D93, and what to know
+
+| | |
+|---|---|
+| **The refusal's reasons come from the 400's `message`, not its `problems`** | The JS SDK's `FetchError` keeps only the response's `message`; the body's `problems` array is dropped. The plugin's refusal message lists every reason on its own line (T73), so `lib/refusal.ts` reads them from those lines, and `admin.unit.spec.ts` builds a message with `MarketsRefused` and reads it back, so the two cannot drift apart. The route is unchanged |
+| **The drawer's header is our own** | `Drawer.Header` of `@medusajs/ui` 4.2.6 draws an icon-only close button with no accessible name (axe `button-name`, found by the spec's first axe run) and takes no props for it. `panel.tsx`'s `DrawerHeading` is the same markup with `aria-label="Close"` |
+| **Where the panels sit** | In 2.21.2 a widget in a zone with no `.before` or `.after` is placed after Medusa's own sections: on the Region page after Countries, Metadata and JSON. Medusa's page customization (the icon at the top right of the page) can move it. D93 asks for these zone names, so they are used |
+| **`GET /admin/markets` was enough** | No route was extended, so `markets.spec.ts` is unchanged |
+| **A country row stays after the test** | See above |
+
+### Checks (cloud VM, Node 22.23.4, the compose stack, Medusa on :9000)
+
+- `pnpm check:workspace`, `typecheck`, `lint`, `test` and `build` exit 0 (`build` with the two `.env` files moved aside, as T73 ran it). Unit tests: plugin 38 (33 before; the 5 new ones are the refusal reader and the format helpers, plus a type test that the route's answer fits the panels' types), backend 171.
+- Backend integration, as CI runs it: 6 suites, 56 tests, unchanged.
+- `market-panels.spec.ts`: 10 passed in about 32 s against `medusa develop` with the plugin built. A mutation (the Store panel and drawer show the locale select for every language, `>= 1` for `>= 2`) fails "the Store page's panel changes the fallback market"; reverted.
+- Pictures (`/mnt/project-files/screens/t74/`): `1-region-page.png`, `2-store-page.png`, `3-region-drawer.png` (Austria), `4-store-drawer.png`, `5-region-refusal.png` (Cyprus).
+
+### What T74 leaves
+
+The storefront still reads Payload's `markets` global (T75), so a change made in a panel reaches the storefront only after T75, and `shopblok.markets.updated` still has no subscriber. `markets-add.spec.ts` of T71 still drives Payload's Markets page (T76 moves it to these panels).
