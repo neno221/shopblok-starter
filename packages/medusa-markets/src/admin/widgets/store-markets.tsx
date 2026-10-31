@@ -6,8 +6,14 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { SettingsDrawer } from "../components/settings-drawer";
-import { PanelError, PanelHeader, PanelLoading, Warnings } from "../components/panel";
+import {
+  PanelError,
+  PanelHeader,
+  PanelLoading,
+  Warnings,
+} from "../components/panel";
 import { useMarkets } from "../lib/api";
+import { useFocusReturn } from "../lib/focus-return";
 import { languageName, marketName } from "../lib/format";
 import { showsLocale } from "../lib/settings-form";
 
@@ -37,13 +43,16 @@ const StoreMarketsPanel = ({ data: store }: DetailWidgetProps<AdminStore>) => {
   ].join(",");
   const markets = useMarkets(`store:${signature}`);
   const [editing, setEditing] = useState(false);
+  const remember = useFocusReturn(editing, markets.isFetching);
   const overview = markets.data;
 
   const countryNames = Object.fromEntries(
     (overview?.countries ?? []).map((country) => [country.code, country.name]),
   );
   const languagesInUse = [
-    ...new Set((overview?.countries ?? []).flatMap((country) => country.languages)),
+    ...new Set(
+      (overview?.countries ?? []).flatMap((country) => country.languages),
+    ),
   ];
   const primary = overview?.settings.primary_country ?? "";
   const fallback = overview?.settings.fallback_market ?? "";
@@ -60,7 +69,10 @@ const StoreMarketsPanel = ({ data: store }: DetailWidgetProps<AdminStore>) => {
               aria-label={t("store.edit")}
               // The form starts from what was read: not while the markets are read again.
               disabled={markets.isFetching}
-              onClick={() => setEditing(true)}
+              onClick={(event) => {
+                remember(event.currentTarget);
+                setEditing(true);
+              }}
             >
               <PencilSquare />
             </IconButton>
@@ -75,20 +87,33 @@ const StoreMarketsPanel = ({ data: store }: DetailWidgetProps<AdminStore>) => {
         <>
           {overview.problems.length > 0 && (
             <div className="px-6 py-4">
-              <Warnings problems={overview.problems} title={t("store.warnings")} />
+              <Warnings
+                problems={overview.problems}
+                title={t("store.warnings")}
+              />
             </div>
           )}
           <Row
             label={t("store.primaryCountry")}
-            value={primary === "" ? t("none") : (countryNames[primary] ?? primary.toUpperCase())}
+            value={
+              primary === ""
+                ? t("none")
+                : (countryNames[primary] ?? primary.toUpperCase())
+            }
           />
           <Row
             label={t("store.fallbackMarket")}
-            value={fallback === "" ? t("none") : marketName(fallback, countryNames, i18n.language)}
+            value={
+              fallback === ""
+                ? t("none")
+                : marketName(fallback, countryNames, i18n.language)
+            }
           />
           {languagesInUse.map((code) => {
             const name = languageName(code, i18n.language);
-            const row = overview.languages.find((language) => language.code === code);
+            const row = overview.languages.find(
+              (language) => language.code === code,
+            );
             return (
               <Row
                 key={`html-${code}`}
@@ -106,8 +131,8 @@ const StoreMarketsPanel = ({ data: store }: DetailWidgetProps<AdminStore>) => {
                   language: languageName(code, i18n.language),
                 })}
                 value={
-                  overview.languages.find((language) => language.code === code)?.medusa_locale ??
-                  t("none")
+                  overview.languages.find((language) => language.code === code)
+                    ?.medusa_locale ?? t("none")
                 }
               />
             ))}

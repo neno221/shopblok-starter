@@ -20,6 +20,11 @@
  * fills the new index version and makes it live. A fresh database gets all of it from
  * `pnpm bootstrap`.
  *
+ * A country in a region is a closed market until it is switched on, with its languages, in the
+ * Markets panel on the region's page in Medusa Admin (M4b; `@shopblok/medusa-markets`). This file
+ * only seeds the regions, the currencies and the locales; the markets module is seeded once from
+ * `@shopblok/fixtures/markets.json`.
+ *
  * The demo catalog prices itself in every supported currency when it creates its products
  * (`lib/demo-catalog.ts`); products that exist already keep the prices they have, so on a
  * development database reset it or add the prices in the admin. A language without translations

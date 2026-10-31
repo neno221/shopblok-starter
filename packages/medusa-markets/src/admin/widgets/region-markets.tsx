@@ -8,6 +8,7 @@ import { useTranslation } from "react-i18next";
 import { CountryDrawer } from "../components/country-drawer";
 import { PanelError, PanelHeader, PanelLoading } from "../components/panel";
 import { useMarkets } from "../lib/api";
+import { useFocusReturn } from "../lib/focus-return";
 import { languageName } from "../lib/format";
 import type { OverviewCountry } from "../lib/types";
 
@@ -17,7 +18,9 @@ import type { OverviewCountry } from "../lib/types";
  * in a drawer. There is no add or remove: a country is added to the region, or taken out of it, in
  * Medusa's own Countries section above, and appears here closed.
  */
-const RegionMarketsPanel = ({ data: region }: DetailWidgetProps<AdminRegion>) => {
+const RegionMarketsPanel = ({
+  data: region,
+}: DetailWidgetProps<AdminRegion>) => {
   const { t, i18n } = useTranslation("markets");
   // The countries of the region as Medusa's form leaves them: a change reads the markets again.
   const signature = (region.countries ?? [])
@@ -26,6 +29,7 @@ const RegionMarketsPanel = ({ data: region }: DetailWidgetProps<AdminRegion>) =>
     .join(",");
   const markets = useMarkets(`region:${region.id}:${signature}`);
   const [editing, setEditing] = useState<string | null>(null);
+  const remember = useFocusReturn(editing !== null, markets.isFetching);
 
   const countries = (markets.data?.countries ?? []).filter(
     (country) => country.region.id === region.id,
@@ -62,11 +66,21 @@ const RegionMarketsPanel = ({ data: region }: DetailWidgetProps<AdminRegion>) =>
           <Table>
             <Table.Header>
               <Table.Row>
-                <Table.HeaderCell>{t("region.columns.country")}</Table.HeaderCell>
-                <Table.HeaderCell>{t("region.columns.status")}</Table.HeaderCell>
-                <Table.HeaderCell>{t("region.columns.languages")}</Table.HeaderCell>
-                <Table.HeaderCell>{t("region.columns.timeZone")}</Table.HeaderCell>
-                <Table.HeaderCell>{t("region.columns.domain")}</Table.HeaderCell>
+                <Table.HeaderCell>
+                  {t("region.columns.country")}
+                </Table.HeaderCell>
+                <Table.HeaderCell>
+                  {t("region.columns.status")}
+                </Table.HeaderCell>
+                <Table.HeaderCell>
+                  {t("region.columns.languages")}
+                </Table.HeaderCell>
+                <Table.HeaderCell>
+                  {t("region.columns.timeZone")}
+                </Table.HeaderCell>
+                <Table.HeaderCell>
+                  {t("region.columns.domain")}
+                </Table.HeaderCell>
                 <Table.HeaderCell className="w-px">
                   <span className="sr-only">{t("region.columns.actions")}</span>
                 </Table.HeaderCell>
@@ -74,7 +88,10 @@ const RegionMarketsPanel = ({ data: region }: DetailWidgetProps<AdminRegion>) =>
             </Table.Header>
             <Table.Body>
               {countries.map((row) => (
-                <Table.Row key={row.code} data-testid={`markets-row-${row.code}`}>
+                <Table.Row
+                  key={row.code}
+                  data-testid={`markets-row-${row.code}`}
+                >
                   <Table.Cell>
                     <Text size="small" leading="compact" weight="plus">
                       {row.name}
@@ -95,7 +112,10 @@ const RegionMarketsPanel = ({ data: region }: DetailWidgetProps<AdminRegion>) =>
                       aria-label={t("region.edit", { country: row.name })}
                       // The form starts from what was read: not while the markets are read again.
                       disabled={markets.isFetching}
-                      onClick={() => setEditing(row.code)}
+                      onClick={(event) => {
+                        remember(event.currentTarget);
+                        setEditing(row.code);
+                      }}
                     >
                       <PencilSquare />
                     </IconButton>

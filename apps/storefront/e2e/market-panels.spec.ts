@@ -548,6 +548,46 @@ test("the panels have no add or remove of countries or locales", async () => {
   await drawer().getByRole("button", { name: "Cancel" }).click();
 });
 
+test("both panels work from the keyboard", async () => {
+  // M4b §5, item 3. No pointer: Enter opens a drawer from its edit button, focus moves into it and
+  // stays in it, Space flips a switch, Escape closes it without saving, and focus goes back to the
+  // button. `Germany` is only opened and closed again, so nothing is saved.
+  const inDrawer = () => drawer().locator(":focus");
+  const germanyBefore = (await countryRow("de"))!;
+  await openRegionPage(europe!.id);
+  const edit = regionPanel().getByRole("button", { name: "Edit the market of Germany" });
+  await edit.focus();
+  await page.keyboard.press("Enter");
+  await expect(drawer()).toBeVisible();
+  await expect(inDrawer()).toHaveCount(1);
+  const open = drawer().getByRole("switch", { name: "Open" });
+  const before = await open.getAttribute("aria-checked");
+  await open.focus();
+  await page.keyboard.press("Space");
+  expect(await open.getAttribute("aria-checked"), "Space flips the switch").not.toBe(before);
+  for (let step = 0; step < 12; step += 1) {
+    await page.keyboard.press("Tab");
+    await expect(inDrawer(), `focus stays in the drawer after ${step + 1} Tabs`).toHaveCount(1);
+  }
+  await page.keyboard.press("Escape");
+  await expect(drawer()).toBeHidden();
+  await expect(edit, "focus returns to the edit button").toBeFocused();
+  expect(await countryRow("de"), "Escape saved nothing").toMatchObject({
+    enabled: germanyBefore.enabled,
+    languages: germanyBefore.languages,
+  });
+
+  await openStorePage();
+  const editSettings = storePanel().getByRole("button", { name: "Edit the markets settings" });
+  await editSettings.focus();
+  await page.keyboard.press("Enter");
+  await expect(drawer()).toBeVisible();
+  await expect(inDrawer()).toHaveCount(1);
+  await page.keyboard.press("Escape");
+  await expect(drawer()).toBeHidden();
+  await expect(editSettings).toBeFocused();
+});
+
 test("axe finds nothing in the Region panel and its drawer", async () => {
   await openRegionPage(europe!.id);
   expect(await axeFindings("#markets-region-panel")).toEqual([]);
