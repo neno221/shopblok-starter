@@ -203,10 +203,8 @@ jobs:
         run: docker compose up -d --wait
       - name: Install Playwright's Chromium
         run: pnpm --filter @shopblok/storefront exec playwright install --with-deps chromium
-      # T73 (D89): the markets plugin must be built before Medusa starts (`pnpm bootstrap` builds it
-      # too, before its migration; this step makes the order explicit for the later Medusa starts).
-      - name: Build the markets plugin
-        run: pnpm --filter @shopblok/medusa-markets build
+      # `pnpm bootstrap` builds the markets plugin too (its step 3, T73), before its migration and
+      # before any Medusa start, so this job needs no build step of its own.
       # Writes both .env files (with the secrets), migrates, seeds, makes the Medusa and Payload
       # admins and the publishable key, fills the `markets` global, and ends with `doctor`.
       - run: pnpm bootstrap --ci
