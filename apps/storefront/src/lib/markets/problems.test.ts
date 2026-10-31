@@ -1,6 +1,6 @@
 import type { MarketMap } from "@shopblok/fixtures";
 import { describe, expect, it } from "vitest";
-import { marketMapProblems } from "./problems";
+import { marketMapProblems, toMarketMap } from "./problems";
 import {
   brazil,
   brazilAndPortugal,
@@ -84,4 +84,29 @@ describe("marketMapProblems", () => {
     );
     expect(broken({ countries: shared })).toEqual(["the domain shop.com belongs to two countries"]);
   });
+});
+
+describe("toMarketMap (the one shape check of both loaders)", () => {
+  const fail = (what: string) => new Error(`the route ${what}`);
+
+  it("keeps both lists and the two settings of a map", () => {
+    expect(toMarketMap(seeded, fail)).toEqual(seeded);
+  });
+
+  it("turns an unset primary country or fallback market into an empty string, and drops other fields", () => {
+    const body = { countries: seeded.countries, languages: seeded.languages, extra: 1 };
+    expect(toMarketMap(body, fail)).toEqual({
+      countries: seeded.countries,
+      languages: seeded.languages,
+      primaryCountry: "",
+      fallbackMarket: "",
+    });
+  });
+
+  it.each([[null], [undefined], [{}], [{ countries: [] }], [{ languages: [] }], ["x" as never]])(
+    "refuses %j with the caller's error",
+    (body) => {
+      expect(() => toMarketMap(body, fail)).toThrow("the route did not answer a market map");
+    },
+  );
 });

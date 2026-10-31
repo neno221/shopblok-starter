@@ -251,7 +251,7 @@ export type MarketsRead =
 
 /**
  * The check on the markets module (D97): its own warnings, then the map against the regions and
- * locales. Also hands back the map, for the `--online` comparison with the running Medusa.
+ * locales. Also hands back the map it read.
  */
 export function marketsCheck(read: MarketsRead): { check: Check; map: MarketMapData | undefined } {
   if ("skipped" in read) {

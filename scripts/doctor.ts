@@ -44,7 +44,6 @@ import {
   readBackendMarkets,
   readMarketsOverview,
   type BackendMarkets,
-  type MarketMapData,
   type MarketsRead,
 } from "./lib/markets-check.ts";
 import { extractMarker, redact } from "./lib/output.ts";
@@ -281,12 +280,7 @@ async function main(): Promise<number> {
     // `config/markets.ts` is the regions' seed input: the leftover-regions check reads it.
     const seeded = "error" in backendFile ? undefined : readBackendMarkets(backendFile.exports);
     checks.push(
-      ...(await onlineChecks(
-        online,
-        medusaUrl,
-        markets.map,
-        typeof seeded === "object" ? seeded : undefined,
-      )),
+      ...(await onlineChecks(online, medusaUrl, typeof seeded === "object" ? seeded : undefined)),
     );
   }
 
@@ -342,11 +336,10 @@ function startOnlineRequests(envs: AppEnvs, medusaUrl: string): OnlineRequests {
 async function onlineChecks(
   online: OnlineRequests,
   medusaUrl: string,
-  map: MarketMapData | undefined,
   config: BackendMarkets | undefined,
 ): Promise<Check[]> {
   const [payloadAnswer, medusaAnswers] = await Promise.all([online.payload, online.medusa]);
-  const medusa = medusaMarketsCheck(medusaUrl, medusaAnswers, map);
+  const medusa = medusaMarketsCheck(medusaUrl, medusaAnswers);
   const checks = [payloadAuthCheck(online.payloadUrl, payloadAnswer), medusa.check];
   if (medusa.regions === undefined) return checks;
 

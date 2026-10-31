@@ -7,6 +7,7 @@ import {
   marketLoadTimeoutMs,
   type MarketSourceOptions,
 } from "./source";
+import { toMarketMap } from "./problems";
 import type { MarketMap } from "./types";
 
 /** Where the proxy reads the map: `app/next/markets/route.ts`, which the proxy's matcher skips. */
@@ -69,17 +70,7 @@ export function createProxyMarketMap(options: ProxyMarketMapOptions = {}) {
         throw fail(`answered ${response.status}; the reason is in the server log of that route`);
       }
       const body = (await response.json().catch(() => null)) as Partial<MarketMap> | null;
-      // The one place the shape is untrusted: another app on the address answers 200 with its own
-      // page or JSON. The route always sends both lists.
-      if (!Array.isArray(body?.countries) || !Array.isArray(body.languages)) {
-        throw fail("did not answer a market map; is NEXT_PUBLIC_BASE_URL this app?");
-      }
-      return {
-        countries: body.countries,
-        languages: body.languages,
-        primaryCountry: body.primaryCountry ?? "",
-        fallbackMarket: body.fallbackMarket ?? "",
-      };
+      return toMarketMap(body, (what) => fail(`${what}; is NEXT_PUBLIC_BASE_URL this app?`));
     },
     fallback: seededMarkets,
     allowFallback: defaultAllowFallback(env),

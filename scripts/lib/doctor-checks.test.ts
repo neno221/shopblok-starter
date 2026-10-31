@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   classifyPayloadAuth,
   classifySearchField,
-  compareWithMedusa,
   configChecks,
   explainMedusaFailure,
   explainMedusaRun,
@@ -381,47 +380,6 @@ describe("readRegions and readLocales", () => {
   });
 });
 
-describe("compareWithMedusa", () => {
-  const map = {
-    countries: [
-      { code: "cy", enabled: true, languages: ["el"] },
-      { code: "br", enabled: true, languages: ["pt"] },
-      { code: "xx", enabled: false, languages: ["en"] },
-    ],
-    languages: [
-      { code: "el", medusaLocale: "el-GR" },
-      { code: "pt", medusaLocale: "pt-BR" },
-    ],
-  };
-
-  it("agrees when every open country has a region and every language a locale", () => {
-    expect(
-      compareWithMedusa(
-        {
-          regions: [
-            { name: "Europe", currency: "eur", countries: ["cy"] },
-            { name: "Brazil", currency: "brl", countries: ["br"] },
-          ],
-          locales: ["el-GR", "pt-BR"],
-        },
-        map,
-      ),
-    ).toEqual([]);
-  });
-
-  it("a market added to the map but not applied to Medusa (the bootstrap was forgotten)", () => {
-    expect(
-      compareWithMedusa(
-        { regions: [{ name: "Europe", currency: "eur", countries: ["cy"] }], locales: ["el-GR"] },
-        map,
-      ),
-    ).toEqual([
-      'Medusa has no region for the open country "br"',
-      'Medusa\'s store has no locale "pt-BR" (language "pt")',
-    ]);
-  });
-});
-
 describe("classifyPayloadAuth", () => {
   it("the integrations user is ok", () => {
     expect(
@@ -513,18 +471,6 @@ describe("explainMedusaRun", () => {
     expect(explainMedusaRun({ ...run, code: null }).cause).toBe(
       "Medusa failed without a message (stopped by a signal)",
     );
-  });
-});
-
-describe("compareWithMedusa without locales", () => {
-  it("does not call a language missing when the locales could not be read", () => {
-    const map = {
-      countries: [{ code: "cy", enabled: true, languages: ["el"] }],
-      languages: [{ code: "el", medusaLocale: "el-GR" }],
-    };
-    const regions = [{ name: "Europe", currency: "eur", countries: ["cy"] }];
-    expect(compareWithMedusa({ regions }, map)).toEqual([]);
-    expect(compareWithMedusa({ regions, locales: [] }, map)).toHaveLength(1);
   });
 });
 
@@ -624,16 +570,6 @@ describe("payloadAuthCheck", () => {
 
 describe("medusaMarketsCheck", () => {
   const url = "http://localhost:9000";
-  const map = {
-    countries: [
-      { code: "cy", enabled: true, languages: ["el"] },
-      { code: "br", enabled: true, languages: ["pt"] },
-    ],
-    languages: [
-      { code: "el", medusaLocale: "el-GR" },
-      { code: "pt", medusaLocale: "pt-BR" },
-    ],
-  };
   const regions = json({
     regions: [
       { name: "Europe", currency_code: "eur", countries: [{ iso_2: "cy" }] },
@@ -643,42 +579,45 @@ describe("medusaMarketsCheck", () => {
   const locales = json({ locales: [{ code: "el-GR" }, { code: "pt-BR" }] });
 
   it("warns that nothing was asked when the storefront has no publishable key", () => {
-    const { check, regions: live } = medusaMarketsCheck(url, undefined, map);
+    const { check, regions: live } = medusaMarketsCheck(url, undefined);
     expect(check).toMatchObject({ id: "medusa-markets", level: "warn" });
     expect(live).toBeUndefined();
   });
 
   it("warns, and goes no further, when Medusa does not answer", () => {
-    const { check, regions: live } = medusaMarketsCheck(url, { regions: refused, locales }, map);
+    const { check, regions: live } = medusaMarketsCheck(url, { regions: refused, locales });
     expect(check.message).toBe("not checked: Medusa at http://localhost:9000 is not running.");
     expect(live).toBeUndefined();
   });
 
   it("is an error when Medusa refuses the key", () => {
     const refusedKey = json({ message: "x" }, 400);
-    const { check } = medusaMarketsCheck(url, { regions: refusedKey, locales }, map);
+    const { check } = medusaMarketsCheck(url, { regions: refusedKey, locales });
     expect(check.level).toBe("error");
     expect(check.message).toContain("Medusa refused the publishable key");
   });
 
-  it("is ok when every open country has a region and every language a locale", () => {
-    const { check, regions: live } = medusaMarketsCheck(url, { regions, locales }, map);
+  it("is ok when the regions and the locales answer, and hands the regions on", () => {
+    const { check, regions: live } = medusaMarketsCheck(url, { regions, locales });
     expect(check).toEqual({
       id: "medusa-markets",
-      title: "Medusa matches the storefront's map",
+      title: "Medusa answers the storefront's key",
       level: "ok",
-      message: "2 regions and 2 locales cover every open country and language.",
+      message: "2 regions and 2 locales answer the storefront's key.",
     });
     expect(live).toHaveLength(2);
   });
 
-  it("lists what Medusa lacks", () => {
-    const { check } = medusaMarketsCheck(url, { regions, locales: json({ locales: [] }) }, map);
-    expect(check.level).toBe("warn");
-    expect(check.details).toEqual([
-      'Medusa\'s store has no locale "el-GR" (language "el")',
-      'Medusa\'s store has no locale "pt-BR" (language "pt")',
-    ]);
+  // T75 review, item 6: `marketsCheck` compares the map with the regions and the store's locales;
+  // this check no longer takes the map, so a gap is reported once, by that one.
+  it("does not compare with the map: a store with no locales still answers", () => {
+    const { check } = medusaMarketsCheck(url, { regions, locales: json({ locales: [] }) });
+    expect(check).toMatchObject({ level: "ok", message: expect.stringContaining("0 locales") });
+    expect(check.details).toBeUndefined();
+  });
+
+  it("takes only the Medusa url and the answers", () => {
+    expect(medusaMarketsCheck.length).toBe(2);
   });
 
   // Found by the review of T14: the whole check used to vanish when /store/locales failed.
@@ -687,24 +626,9 @@ describe("medusaMarketsCheck", () => {
     ["a timeout", timedOut, "Medusa does not answer (no answer within 15 s)"],
     ["a refusal", refused, "Medusa is not running"],
   ])("still reports, with the reason, when /store/locales fails with %s", (_name, bad, reason) => {
-    const { check } = medusaMarketsCheck(url, { regions, locales: bad }, map);
+    const { check, regions: live } = medusaMarketsCheck(url, { regions, locales: bad });
     expect(check).toMatchObject({ id: "medusa-markets", level: "warn" });
     expect(check.details?.join("\n")).toContain(reason);
-  });
-
-  it("still compares the regions when the locales cannot be read", () => {
-    const onlyEurope = json({
-      regions: [{ name: "Europe", currency_code: "eur", countries: [{ iso_2: "cy" }] }],
-    });
-    const { check } = medusaMarketsCheck(url, { regions: onlyEurope, locales: timedOut }, map);
-    expect(check.message).toContain("does not have what the storefront's map expects");
-    expect(check.details).toContain('Medusa has no region for the open country "br"');
-  });
-
-  it("says so when there is no map to compare with, and still hands back the regions", () => {
-    const { check, regions: live } = medusaMarketsCheck(url, { regions, locales }, undefined);
-    expect(check).toMatchObject({ id: "medusa-markets", level: "warn" });
-    expect(check.message).toContain("no market map could be read");
     expect(live).toHaveLength(2);
   });
 });

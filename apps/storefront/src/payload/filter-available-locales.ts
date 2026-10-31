@@ -1,5 +1,6 @@
 import type { Locale, PayloadRequest } from "payload";
 import { enabledCountries } from "../lib/markets/market";
+import { describeError } from "../lib/markets/source";
 import type { MarketMap } from "../lib/markets/types";
 import { DEFAULT_LOCALE } from "./locales";
 import { marketMap } from "./market-map";
@@ -78,7 +79,7 @@ export async function openLanguages(
     return languages;
   } catch (error) {
     state.failedAt = now;
-    const why = error instanceof Error ? error.message : String(error);
+    const why = describeError(error);
     warn(
       state.lastGood === undefined
         ? `markets: the market map could not be read (${why}); the language selector offers the default locale only`

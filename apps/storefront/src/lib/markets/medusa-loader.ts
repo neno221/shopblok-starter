@@ -1,4 +1,5 @@
 import { medusaRequest } from "../medusa/sdk";
+import { toMarketMap } from "./problems";
 import type { MarketMap } from "./types";
 
 /**
@@ -14,17 +15,8 @@ export async function loadMarketMap(): Promise<MarketMap> {
   const body = await medusaRequest((sdk) =>
     sdk.client.fetch<{ markets?: Partial<MarketMap> | null }>("/store/markets"),
   );
-  const markets = body.markets;
-  // The one place the shape is untrusted: another app on the address answers 200 with its own JSON.
-  if (!Array.isArray(markets?.countries) || !Array.isArray(markets.languages)) {
-    throw new Error(
-      "Medusa's GET /store/markets did not answer a market map; is the markets plugin installed?",
-    );
-  }
-  return {
-    countries: markets.countries,
-    languages: markets.languages,
-    primaryCountry: markets.primaryCountry ?? "",
-    fallbackMarket: markets.fallbackMarket ?? "",
-  };
+  return toMarketMap(
+    body.markets,
+    (what) => new Error(`Medusa's GET /store/markets ${what}; is the markets plugin installed?`),
+  );
 }
