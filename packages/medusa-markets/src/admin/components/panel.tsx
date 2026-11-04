@@ -8,15 +8,12 @@ import type { Problem } from "../lib/types";
 /**
  * A drawer's `onEscapeKeyDown`: Escape in a combobox whose list is open closes that list, not the
  * drawer (the time zone picker, W6 item 6). Radix reads Escape on the document before the input's
- * own handler runs, so the list is still open (`aria-expanded`) when this asks.
+ * own handler runs, so the list is still open when this asks. `data-list-open`, not
+ * `aria-expanded`: with nothing matching the list is open but has no listbox to expand.
  */
-export const keepOpenForExpandedCombobox = (event: KeyboardEvent) => {
+export const keepOpenForOpenCombobox = (event: KeyboardEvent) => {
   const target = event.target;
-  if (
-    target instanceof HTMLElement &&
-    target.getAttribute("role") === "combobox" &&
-    target.getAttribute("aria-expanded") === "true"
-  ) {
+  if (target instanceof HTMLElement && target.dataset["listOpen"] === "true") {
     event.preventDefault();
   }
 };

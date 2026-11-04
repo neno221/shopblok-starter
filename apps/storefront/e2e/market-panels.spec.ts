@@ -317,7 +317,7 @@ test("the time zone picker is searched by typing, with the country's own zones f
   // Escape closes the list and keeps what was chosen; the drawer stays open.
   await picker.press("ArrowDown");
   await expect(list).toBeVisible();
-  await picker.pressSequentially("vien");
+  await picker.pressSequentially("vienna");
   await expect(options).toHaveText(["Europe/Vienna"]);
   await picker.press("Escape");
   await expect(list).toBeHidden();

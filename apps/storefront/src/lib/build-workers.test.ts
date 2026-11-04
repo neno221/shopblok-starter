@@ -3,9 +3,11 @@ import { BUILD_WORKERS_CAP, buildWorkers, isBuildPhase } from "./build-workers";
 
 describe("the build's workers (W6 item 7)", () => {
   it("keeps Next's count (cpus - 1) up to the cap", () => {
+    expect(BUILD_WORKERS_CAP).toBe(3);
     expect(buildWorkers(1, {})).toBe(1);
     expect(buildWorkers(2, {})).toBe(1);
     // CI's runners and the cloud VM: 4 threads, 3 workers, as before.
+    expect(buildWorkers(3, {})).toBe(2);
     expect(buildWorkers(4, {})).toBe(3);
     expect(buildWorkers(5, {})).toBe(BUILD_WORKERS_CAP);
     // The W6 laptop: 12 threads, 11 workers without the cap.

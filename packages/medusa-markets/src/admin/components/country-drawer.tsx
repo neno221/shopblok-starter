@@ -18,7 +18,7 @@ import { useSaveCountry } from "../lib/api";
 import { languageName, storeLanguages } from "../lib/format";
 import { clearsRefusal, failureOf } from "../lib/refusal";
 import type { OverviewCountry } from "../lib/types";
-import { DrawerHeading, SaveFailure, keepOpenForExpandedCombobox } from "./panel";
+import { DrawerHeading, SaveFailure, keepOpenForOpenCombobox } from "./panel";
 import { TimeZonePicker } from "./time-zone-picker";
 
 /**
@@ -38,7 +38,7 @@ export const CountryDrawer = ({
   onOpenChange: (open: boolean) => void;
 }) => (
   <Drawer open={open} onOpenChange={onOpenChange}>
-    <Drawer.Content onEscapeKeyDown={keepOpenForExpandedCombobox}>
+    <Drawer.Content onEscapeKeyDown={keepOpenForOpenCombobox}>
       <CountryForm country={country} locales={locales} onClose={() => onOpenChange(false)} />
     </Drawer.Content>
   </Drawer>

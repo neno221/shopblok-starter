@@ -8,8 +8,11 @@ import { env, type RawEnv } from "./env";
 // have 4 threads, so 3 workers, and never see it. So the build caps the workers (Next's
 // `experimental.cpus`) and, during the build only, Payload's pool.
 
-/** The most static-generation workers a build starts unless `STOREFRONT_BUILD_WORKERS` says. */
-export const BUILD_WORKERS_CAP = 4;
+/**
+ * The most static-generation workers a build starts unless `STOREFRONT_BUILD_WORKERS` says: CI's
+ * count, which the W6 laptop built at against `medusa develop` (more were not tried there).
+ */
+export const BUILD_WORKERS_CAP = 3;
 
 /**
  * Payload's pool per build worker: a worker renders up to eight pages at once, and a query holds

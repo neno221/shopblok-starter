@@ -13,7 +13,7 @@ type Option = { value: string; label: string; index: number };
  * zone; typing filters both (`vienna`, `new york`). `""` is "not set", offered while nothing is
  * typed. @medusajs/ui 4.2.6 has no combobox, so this is the WAI-ARIA one ("list autocomplete"):
  * the focus stays in the input, the arrow keys move the active option, Enter picks it, Escape
- * closes the list (and only the list: the drawer's `onEscapeKeyDown` checks `aria-expanded`).
+ * closes the list (and only the list: the drawer's `onEscapeKeyDown` checks `data-list-open`).
  */
 export const TimeZonePicker = ({
   id,
@@ -176,6 +176,7 @@ export const TimeZonePicker = ({
         role="combobox"
         aria-autocomplete="list"
         aria-expanded={expanded}
+        data-list-open={open}
         aria-controls={listId}
         aria-activedescendant={expanded ? optionId(active) : undefined}
         aria-describedby={describedBy}
