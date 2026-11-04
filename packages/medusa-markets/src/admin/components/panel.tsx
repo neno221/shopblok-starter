@@ -5,19 +5,6 @@ import { useTranslation } from "react-i18next";
 
 import type { Problem } from "../lib/types";
 
-/**
- * A drawer's `onEscapeKeyDown`: Escape in a combobox whose list is open closes that list, not the
- * drawer (the time zone picker, W6 item 6). Radix reads Escape on the document before the input's
- * own handler runs, so the list is still open when this asks. `data-list-open`, not
- * `aria-expanded`: with nothing matching the list is open but has no listbox to expand.
- */
-export const keepOpenForOpenCombobox = (event: KeyboardEvent) => {
-  const target = event.target;
-  if (target instanceof HTMLElement && target.dataset["listOpen"] === "true") {
-    event.preventDefault();
-  }
-};
-
 /** The title row every panel starts with, like Medusa's own sections. */
 export const PanelHeader = ({
   description,

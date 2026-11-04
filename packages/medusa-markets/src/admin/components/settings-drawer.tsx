@@ -1,10 +1,10 @@
 import { Button, Checkbox, Drawer, Input, Label, Select, Text, toast } from "@medusajs/ui";
-import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { useSaveSettings } from "../lib/api";
 import { languageName, localesOfLanguage, marketName } from "../lib/format";
-import { clearsRefusal, failureOf } from "../lib/refusal";
+import { failureOf } from "../lib/refusal";
+import { useRefusalClearing } from "../lib/use-refusal";
 import { localeIsGone, settingsBody, showsLocale, startLocale } from "../lib/settings-form";
 import type { MarketsOverview } from "../lib/types";
 import { DrawerHeading, SaveFailure } from "./panel";
@@ -60,27 +60,22 @@ const SettingsForm = ({
   );
 
   // A change clears a refusal shown (W6 item 5), as in the country drawer.
-  const edited = clearsRefusal(save);
-  const [primary, setPrimaryState] = useState(overview.settings.primary_country ?? "");
-  const [fallback, setFallbackState] = useState(overview.settings.fallback_market ?? "");
-  const setPrimary = edited(setPrimaryState);
-  const setFallback = edited(setFallbackState);
+  const useField = useRefusalClearing(save);
+  const [primary, setPrimary] = useField(overview.settings.primary_country ?? "");
+  const [fallback, setFallback] = useField(overview.settings.fallback_market ?? "");
   const rowOf = (code: string) => overview.languages.find((row) => row.code === code);
-  const [htmlLang, setHtmlLangState] = useState<Record<string, string>>(() =>
+  const [htmlLang, setHtmlLang] = useField<Record<string, string>>(() =>
     Object.fromEntries(languagesInUse.map((code) => [code, rowOf(code)?.html_lang ?? ""])),
   );
-  const [locale, setLocaleState] = useState<Record<string, string>>(() =>
+  const [locale, setLocale] = useField<Record<string, string>>(() =>
     Object.fromEntries(languagesInUse.map((code) => [code, startLocale(overview, code)])),
   );
-  const setHtmlLang = edited(setHtmlLangState);
-  const setLocale = edited(setLocaleState);
   // D91's way to follow a default region that differs from the primary country's: save the
   // primary country again, which sets Medusa's default region to its region.
   const regionDiffers = overview.problems.some(
     (problem) => problem.code === "default_region_differs",
   );
-  const [matchDefaultRegion, setMatchDefaultRegionState] = useState(false);
-  const setMatchDefaultRegion = edited(setMatchDefaultRegionState);
+  const [matchDefaultRegion, setMatchDefaultRegion] = useField(false);
 
   const body = settingsBody(overview, languagesInUse, {
     primary,

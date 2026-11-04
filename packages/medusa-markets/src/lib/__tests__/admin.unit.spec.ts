@@ -7,7 +7,7 @@ import {
   storeLanguages,
   timeZoneOptions,
 } from "../../admin/lib/format";
-import { clearsRefusal, failureOf } from "../../admin/lib/refusal";
+import { failureOf, refusalOnEdit } from "../../admin/lib/refusal";
 import {
   localeIsGone,
   settingsBody,
@@ -117,17 +117,10 @@ describe("the panels' format helpers", () => {
 });
 
 describe("a refused save in a drawer (W6 item 5)", () => {
-  it("is cleared by the first change after it, and only then", () => {
-    const save = { isError: true, reset: jest.fn() };
-    const values: unknown[] = [];
-    const set = clearsRefusal(save)<string>((value) => values.push(value));
-    set("de");
-    expect(save.reset).toHaveBeenCalledTimes(1);
-    expect(values).toEqual(["de"]);
-
-    const ok = { isError: false, reset: jest.fn() };
-    clearsRefusal(ok)<string>(() => undefined)("fr");
-    expect(ok.reset).not.toHaveBeenCalled();
+  it("is cleared by a change after it, or when it comes back after a change made while saving", () => {
+    expect(refusalOnEdit({ isError: true, isPending: false })).toBe("reset");
+    expect(refusalOnEdit({ isError: false, isPending: true })).toBe("remember");
+    expect(refusalOnEdit({ isError: false, isPending: false })).toBe("none");
   });
 });
 

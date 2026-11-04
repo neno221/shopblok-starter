@@ -1,3 +1,4 @@
+import { PHASE_PRODUCTION_BUILD } from "next/constants";
 import { env, type RawEnv } from "./env";
 
 // How hard `next build` leans on the stack it prerenders against (W6 item 7). Next starts one
@@ -36,5 +37,5 @@ export function buildWorkers(cpus: number, source: RawEnv = env): number {
 
 /** Whether this process is part of `next build` (its workers included). */
 export function isBuildPhase(source: RawEnv = env): boolean {
-  return source.NEXT_PHASE === "phase-production-build";
+  return source.NEXT_PHASE === PHASE_PRODUCTION_BUILD;
 }

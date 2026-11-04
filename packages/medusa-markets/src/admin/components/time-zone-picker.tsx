@@ -13,7 +13,7 @@ type Option = { value: string; label: string; index: number };
  * zone; typing filters both (`vienna`, `new york`). `""` is "not set", offered while nothing is
  * typed. @medusajs/ui 4.2.6 has no combobox, so this is the WAI-ARIA one ("list autocomplete"):
  * the focus stays in the input, the arrow keys move the active option, Enter picks it, Escape
- * closes the list (and only the list: the drawer's `onEscapeKeyDown` checks `data-list-open`).
+ * closes the list and only the list, so the drawer around it stays open (the window listener below).
  */
 export const TimeZonePicker = ({
   id,
@@ -35,6 +35,7 @@ export const TimeZonePicker = ({
   const { t } = useTranslation("markets");
   const listId = useId();
   const listRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [active, setActive] = useState(0);
@@ -106,12 +107,6 @@ export const TimeZonePicker = ({
         }
         break;
       }
-      case "Escape":
-        if (open) {
-          event.preventDefault();
-          hide();
-        }
-        break;
       case "Tab":
         if (open) hide();
         break;
@@ -158,25 +153,37 @@ export const TimeZonePicker = ({
       </div>
     );
 
+  // Escape while the list is open closes the list, not a dialog around the picker. A Radix dialog
+  // (the drawer) listens for Escape on the document in the capture phase, before the input's own
+  // handler runs, so the picker listens on the window, one step earlier, and keeps the key there.
+  useEffect(() => {
+    if (!open) return;
+    const onEscape = (event: globalThis.KeyboardEvent) => {
+      if (event.key !== "Escape" || event.target !== inputRef.current) return;
+      event.stopPropagation();
+      event.preventDefault();
+      hide();
+    };
+    window.addEventListener("keydown", onEscape, { capture: true });
+    return () => window.removeEventListener("keydown", onEscape, { capture: true });
+  }, [open]);
+
+  // The dashboard's i18next does not escape (`escapeValue: false`), and React escapes the text.
   const status = !open
     ? ""
     : options.length === 0
-      ? t("drawer.timeZoneNoMatch", {
-          query: query.trim(),
-          // React escapes the text; i18next's own escaping would show `&lt;` for a typed `<`.
-          interpolation: { escapeValue: false },
-        })
+      ? t("drawer.timeZoneNoMatch", { query: query.trim() })
       : t("drawer.timeZoneMatches", { count: ownOptions.length + restOptions.length });
 
   return (
     <div className="relative">
       <Input
+        ref={inputRef}
         id={id}
         size="small"
         role="combobox"
         aria-autocomplete="list"
         aria-expanded={expanded}
-        data-list-open={open}
         aria-controls={listId}
         aria-activedescendant={expanded ? optionId(active) : undefined}
         aria-describedby={describedBy}

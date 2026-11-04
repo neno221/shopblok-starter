@@ -16,9 +16,10 @@ import { useTranslation } from "react-i18next";
 
 import { useSaveCountry } from "../lib/api";
 import { languageName, storeLanguages } from "../lib/format";
-import { clearsRefusal, failureOf } from "../lib/refusal";
+import { failureOf } from "../lib/refusal";
+import { useRefusalClearing } from "../lib/use-refusal";
 import type { OverviewCountry } from "../lib/types";
-import { DrawerHeading, SaveFailure, keepOpenForOpenCombobox } from "./panel";
+import { DrawerHeading, SaveFailure } from "./panel";
 import { TimeZonePicker } from "./time-zone-picker";
 
 /**
@@ -38,7 +39,7 @@ export const CountryDrawer = ({
   onOpenChange: (open: boolean) => void;
 }) => (
   <Drawer open={open} onOpenChange={onOpenChange}>
-    <Drawer.Content onEscapeKeyDown={keepOpenForOpenCombobox}>
+    <Drawer.Content>
       <CountryForm country={country} locales={locales} onClose={() => onOpenChange(false)} />
     </Drawer.Content>
   </Drawer>
@@ -55,15 +56,12 @@ const CountryForm = ({
 }) => {
   const { t, i18n } = useTranslation("markets");
   const save = useSaveCountry(country.code);
-  const edited = clearsRefusal(save);
-  const [enabled, setEnabledState] = useState(country.enabled);
-  const [languages, setLanguagesState] = useState(country.languages);
-  const [timeZone, setTimeZoneState] = useState(country.time_zone ?? "");
-  const [domain, setDomainState] = useState(country.domain ?? "");
-  const setEnabled = edited(setEnabledState);
-  const setLanguages = edited(setLanguagesState);
-  const setTimeZone = edited(setTimeZoneState);
-  const setDomain = edited(setDomainState);
+  // Each field's change clears a refusal shown (W6 item 5).
+  const useField = useRefusalClearing(save);
+  const [enabled, setEnabled] = useField(country.enabled);
+  const [languages, setLanguages] = useField(country.languages);
+  const [timeZone, setTimeZone] = useField(country.time_zone ?? "");
+  const [domain, setDomain] = useField(country.domain ?? "");
   // The control to focus once a move has re-ordered the list (a moved node loses the focus).
   const [refocus, setRefocus] = useState<string | null>(null);
   useEffect(() => {
