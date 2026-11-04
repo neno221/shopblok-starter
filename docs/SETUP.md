@@ -7434,7 +7434,7 @@ The PR's CI (item 5 above) and `windows-smoke`, W6 on the owner's PC (NEXT-SESSI
 
 ## Windows check and editor review (W6)
 
-**Result: step 3 passes on Windows: `typecheck`, `lint`, `test` and `build` in CI's state, the flagged build's DS checks (all 936 pass, `--ignore-snapshots`), the unflagged build's 404s, and `/robots.txt` and `/favicon.ico` in both. Steps 1, 4 and 5 pass too. The market half of the editor review (adding Austria in Medusa Admin) was done for the owner by the session in a browser, at the owner's request, and it works: `/at` answered in German with € prices about 12 s after the Save. It left three small items about the Markets drawer, and step 4 left one about the build. They are rows 4 to 7 of the review table below, for the owner to mark "fix task" or "accepted"; W6 passes when none is open.** W6 ran on two Windows PCs: steps 1 and 2 on the owner's PC (DESKTOP-3V4JTVV, `E:\shopblok-starter`) on 2026-10-30, before M4b, and everything after M4b on the owner's laptop (DESKTOP-K765B9L) on 2026-11-02 and 2026-11-04, with NEXT-SESSION.md's prompt resumed after M4b.
+**Result: step 3 passes on Windows: `typecheck`, `lint`, `test` and `build` in CI's state, the flagged build's DS checks (all 936 pass, `--ignore-snapshots`), the unflagged build's 404s, and `/robots.txt` and `/favicon.ico` in both. Steps 1, 4 and 5 pass too. The market half of the editor review (adding Austria in Medusa Admin) was done for the owner by the session in a browser, at the owner's request, and it works: `/at` answered in German with € prices about 12 s after the Save. It left three small items about the Markets drawer, and step 4 left one about the build. They are rows 4 to 7 of the review table below; the owner marked all four "fix task" on 2026-11-04, so none is open and **W6 passes** (2026-11-04). The four go to one cloud task, "W6 fixes" (NEXT-SESSION.md).** W6 ran on two Windows PCs: steps 1 and 2 on the owner's PC (DESKTOP-3V4JTVV, `E:\shopblok-starter`) on 2026-10-30, before M4b, and everything after M4b on the owner's laptop (DESKTOP-K765B9L) on 2026-11-02 and 2026-11-04, with NEXT-SESSION.md's prompt resumed after M4b.
 
 | | |
 |---|---|
@@ -7472,10 +7472,10 @@ The owner marks each row; add a row for anything seen later.
 | 1. **The Video section logs a duplicate React key** in `next dev` (its caption tracks are keyed by their file). Seen on the owner's PC, 2026-10-30 | accepted (2026-11-01) |
 | 2. **A missing page's tab title is only "Shopblok"**, in every market. Seen on both PCs | accepted (2026-11-01) |
 | 3. **Payload logs "No email adapter" again and again** in `pnpm dev` (there is no e-mail key in development, as doctor's warning says). Seen on the owner's PC | accepted (2026-11-01) |
-| 4. **The Markets drawer's refusal names the country by its code:** `"at" cannot be opened without a language`, where the drawer's title says "Austria" | |
-| 5. **That refusal stays at the top of the drawer after the problem is fixed** (a language picked), until the next Save | |
-| 6. **The time zone picker is the whole IANA list (about 400 zones, from Africa/Abidjan) with no search**, and it does not offer the country's own zone first; Austria has one zone, `Europe/Vienna`, near the end. Typing in the open list does not jump to it | |
-| 7. **`next build` fails on a 12-thread PC against a running stack** (step 4): at 11 workers Postgres runs out of connections (Payload's pool is pg's default 10 per worker), and with more connections `medusa develop` cannot answer the prerender requests within 10 s. CI's runners and the cloud VM build at 3 workers, so they never see it. A fix: cap the build's workers (Next's `experimental.cpus`) or Payload's pool during a build, and say so in "Windows notes" | |
+| 4. **The Markets drawer's refusal names the country by its code:** `"at" cannot be opened without a language`, where the drawer's title says "Austria" | fix task (2026-11-04) |
+| 5. **That refusal stays at the top of the drawer after the problem is fixed** (a language picked), until the next Save | fix task (2026-11-04) |
+| 6. **The time zone picker is the whole IANA list (about 400 zones, from Africa/Abidjan) with no search**, and it does not offer the country's own zone first; Austria has one zone, `Europe/Vienna`, near the end. Typing in the open list does not jump to it | fix task (2026-11-04) |
+| 7. **`next build` fails on a 12-thread PC against a running stack** (step 4): at 11 workers Postgres runs out of connections (Payload's pool is pg's default 10 per worker), and with more connections `medusa develop` cannot answer the prerender requests within 10 s. CI's runners and the cloud VM build at 3 workers, so they never see it. A fix: cap the build's workers (Next's `experimental.cpus`) or Payload's pool during a build, and say so in "Windows notes" | fix task (2026-11-04) |
 
 Also seen, not ours: Medusa's own Add-countries search takes 2 to 4 s to filter and leaves `?ac_q=Austria` in the address after the drawer closes; React Router's `HydrateFallback` warning on Medusa's login page.
 
@@ -7483,5 +7483,5 @@ Also seen, not ours: Medusa's own Add-countries search takes 2 to 4 s to filter 
 
 1. **The DS checks' count.** The prompt said 894 cells; `--list` against the flagged build counts 936 tests: the 894 cells and the file's other checks (step 3). The prompt's number counted the cells only; it now says 936.
 2. **Step 4's build on a PC with many threads** (review item 7): until a fix task caps the workers, a W check's prompt should build the `e2e-smoke` storefront at CI's 3 workers. The W6 prompt now says so.
-3. **W6 passes when the owner has marked items 4 to 7.** The plan's status line, §7 item 14 and NEXT-SESSION.md say so.
+3. **W6 passes when the owner has marked items 4 to 7.** The plan's status line, §7 item 14 and NEXT-SESSION.md say so. The owner marked all four "fix task" on 2026-11-04.
 4. **Step 1's Payload check.** The prompt said `/admin/globals/markets` is a 404; Payload's admin answers any unknown global with 200 and its "Nothing found" view, and the API route `/api/globals/markets` is the real 404 (step 1). The prompt now checks the API route.
