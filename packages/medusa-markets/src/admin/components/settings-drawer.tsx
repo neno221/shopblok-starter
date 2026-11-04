@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 
 import { useSaveSettings } from "../lib/api";
 import { languageName, localesOfLanguage, marketName } from "../lib/format";
-import { failureOf } from "../lib/refusal";
+import { clearsRefusal, failureOf } from "../lib/refusal";
 import { localeIsGone, settingsBody, showsLocale, startLocale } from "../lib/settings-form";
 import type { MarketsOverview } from "../lib/types";
 import { DrawerHeading, SaveFailure } from "./panel";
@@ -59,21 +59,28 @@ const SettingsForm = ({
     country.languages.map((language) => `${language}-${country.code}`),
   );
 
-  const [primary, setPrimary] = useState(overview.settings.primary_country ?? "");
-  const [fallback, setFallback] = useState(overview.settings.fallback_market ?? "");
+  // A change clears a refusal shown (W6 item 5), as in the country drawer.
+  const edited = clearsRefusal(save);
+  const [primary, setPrimaryState] = useState(overview.settings.primary_country ?? "");
+  const [fallback, setFallbackState] = useState(overview.settings.fallback_market ?? "");
+  const setPrimary = edited(setPrimaryState);
+  const setFallback = edited(setFallbackState);
   const rowOf = (code: string) => overview.languages.find((row) => row.code === code);
-  const [htmlLang, setHtmlLang] = useState<Record<string, string>>(() =>
+  const [htmlLang, setHtmlLangState] = useState<Record<string, string>>(() =>
     Object.fromEntries(languagesInUse.map((code) => [code, rowOf(code)?.html_lang ?? ""])),
   );
-  const [locale, setLocale] = useState<Record<string, string>>(() =>
+  const [locale, setLocaleState] = useState<Record<string, string>>(() =>
     Object.fromEntries(languagesInUse.map((code) => [code, startLocale(overview, code)])),
   );
+  const setHtmlLang = edited(setHtmlLangState);
+  const setLocale = edited(setLocaleState);
   // D91's way to follow a default region that differs from the primary country's: save the
   // primary country again, which sets Medusa's default region to its region.
   const regionDiffers = overview.problems.some(
     (problem) => problem.code === "default_region_differs",
   );
-  const [matchDefaultRegion, setMatchDefaultRegion] = useState(false);
+  const [matchDefaultRegion, setMatchDefaultRegionState] = useState(false);
+  const setMatchDefaultRegion = edited(setMatchDefaultRegionState);
 
   const body = settingsBody(overview, languagesInUse, {
     primary,

@@ -4,6 +4,7 @@ import { postgresAdapter } from "@payloadcms/db-postgres";
 import { lexicalEditor } from "@payloadcms/richtext-lexical";
 import { buildConfig } from "payload";
 import sharp from "sharp";
+import { BUILD_DB_POOL_MAX, isBuildPhase } from "./lib/build-workers";
 import { siteOrigin } from "./lib/site-origin";
 import { BLOCKS } from "./payload/blocks";
 import { Categories } from "./payload/collections/categories";
@@ -91,6 +92,9 @@ export default buildConfig({
       // that needs Payload, and `getPayload` would keep awaiting the same attempt. With a limit the
       // attempt fails and the next call starts a new one.
       connectionTimeoutMillis: 10_000,
+      // W6 item 7: each `next build` worker has its own pool, so the build keeps it small (pg's
+      // default, 10, otherwise); src/lib/build-workers.ts says why.
+      ...(isBuildPhase() ? { max: BUILD_DB_POOL_MAX } : {}),
     },
     // D9: schema changes are saved migrations. Dev push is for experiments only.
     push: process.env.PAYLOAD_DB_PUSH === "true",

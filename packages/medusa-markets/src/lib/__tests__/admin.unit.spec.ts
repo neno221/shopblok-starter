@@ -1,11 +1,13 @@
 import {
+  countryTimeZones,
+  filterTimeZones,
   languageName,
   localesOfLanguage,
   marketName,
   storeLanguages,
   timeZoneOptions,
 } from "../../admin/lib/format";
-import { failureOf } from "../../admin/lib/refusal";
+import { clearsRefusal, failureOf } from "../../admin/lib/refusal";
 import {
   localeIsGone,
   settingsBody,
@@ -89,6 +91,43 @@ describe("the panels' format helpers", () => {
     expect(zones).toContain("Europe/Vienna");
     expect(timeZoneOptions("Europe/Vienna")).toEqual(zones);
     expect(timeZoneOptions("Mars/Olympus")).toContain("Mars/Olympus");
+  });
+
+  it("knows a country's own zones (W6 item 6)", () => {
+    expect(countryTimeZones("at")).toEqual(["Europe/Vienna"]);
+    expect(countryTimeZones("cy")).toContain("Asia/Nicosia");
+    expect(countryTimeZones("us")).toContain("America/New_York");
+    expect(countryTimeZones("ch")).toEqual(["Europe/Zurich"]);
+    // An unknown or malformed code has none, and never throws.
+    expect(countryTimeZones("zz")).toEqual([]);
+    expect(countryTimeZones("not a code")).toEqual([]);
+  });
+
+  it("finds a zone by any of its words, in the order given", () => {
+    const zones = ["America/New_York", "Europe/Vienna", "Europe/Vilnius", "Asia/Nicosia"];
+    expect(filterTimeZones(zones, "")).toEqual(zones);
+    expect(filterTimeZones(zones, "  ")).toEqual(zones);
+    expect(filterTimeZones(zones, "vienna")).toEqual(["Europe/Vienna"]);
+    expect(filterTimeZones(zones, "VI")).toEqual(["Europe/Vienna", "Europe/Vilnius"]);
+    expect(filterTimeZones(zones, "europe vil")).toEqual(["Europe/Vilnius"]);
+    expect(filterTimeZones(zones, "new york")).toEqual(["America/New_York"]);
+    expect(filterTimeZones(zones, "America/New_York")).toEqual(["America/New_York"]);
+    expect(filterTimeZones(zones, "mars")).toEqual([]);
+  });
+});
+
+describe("a refused save in a drawer (W6 item 5)", () => {
+  it("is cleared by the first change after it, and only then", () => {
+    const save = { isError: true, reset: jest.fn() };
+    const values: unknown[] = [];
+    const set = clearsRefusal(save)<string>((value) => values.push(value));
+    set("de");
+    expect(save.reset).toHaveBeenCalledTimes(1);
+    expect(values).toEqual(["de"]);
+
+    const ok = { isError: false, reset: jest.fn() };
+    clearsRefusal(ok)<string>(() => undefined)("fr");
+    expect(ok.reset).not.toHaveBeenCalled();
   });
 });
 

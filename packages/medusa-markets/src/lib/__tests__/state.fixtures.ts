@@ -1,5 +1,16 @@
 import type { MarketsState, RegionCountry } from "../types";
 
+/** The countries' names, as Medusa's `display_name` has them. */
+const NAMES: Record<string, string> = {
+  cy: "Cyprus",
+  de: "Germany",
+  fr: "France",
+  at: "Austria",
+  us: "United States",
+  gb: "United Kingdom",
+  ch: "Switzerland",
+};
+
 const region = (
   id: string,
   name: string,
@@ -8,7 +19,7 @@ const region = (
 ): RegionCountry[] =>
   codes.map((code) => ({
     code,
-    name: code.toUpperCase(),
+    name: NAMES[code] ?? code.toUpperCase(),
     region_id: id,
     region_name: name,
     currency_code,
