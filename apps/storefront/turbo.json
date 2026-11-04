@@ -22,7 +22,10 @@
         "DESIGN_SYSTEM_ENABLED",
         "STOREFRONT_PRERENDER_PRODUCTS",
         "STOREFRONT_LISTING_PAGE_SIZE"
-      ]
+      ],
+      // `STOREFRONT_BUILD_WORKERS` (W6 item 7): how many workers prerender, which changes how fast
+      // the build is, not what it builds, so it passes through without entering the hash.
+      "passThroughEnv": ["STOREFRONT_BUILD_WORKERS"]
     },
     "test": {
       // `src/lib/markets/medusa-locales.test.ts` reads Medusa's locale list from the backend's

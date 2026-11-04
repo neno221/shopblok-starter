@@ -48,6 +48,39 @@ export const timeZoneOptions = (current: string | null): string[] => {
     : zones;
 };
 
+/**
+ * A country's own IANA zones (`at` gives `Europe/Vienna`), from the browser's CLDR data:
+ * `Intl.Locale`'s `getTimeZones()` (its current name) or `timeZones` (the older getter, which
+ * Node 22 has). Empty when the browser has neither (the picker then lists every zone, searchable).
+ */
+export const countryTimeZones = (country: string): string[] => {
+  try {
+    const locale = new Intl.Locale(`und-${country.toUpperCase()}`) as Intl.Locale & {
+      getTimeZones?: () => string[] | undefined;
+      timeZones?: string[];
+    };
+    return [...(locale.getTimeZones?.() ?? locale.timeZones ?? [])];
+  } catch {
+    return [];
+  }
+};
+
+/** A zone or a search as the picker compares them: lowercase, `_` and `/` read as spaces. */
+const searchable = (text: string) => text.toLowerCase().replace(/[_/]+/g, " ").trim();
+
+/**
+ * The zones that match what was typed, in the order given: every word of the search is in the
+ * zone's name (`vienna`, `europe vie`, `new york` and `America/New_York` all find theirs).
+ */
+export const filterTimeZones = (zones: readonly string[], query: string): string[] => {
+  const words = searchable(query).split(/\s+/).filter(Boolean);
+  if (words.length === 0) return [...zones];
+  return zones.filter((zone) => {
+    const name = searchable(zone);
+    return words.every((word) => name.includes(word));
+  });
+};
+
 /** `a` and `b` hold the same items in the same order. */
 export const sameList = (a: readonly string[], b: readonly string[]): boolean =>
   a.length === b.length && a.every((item, index) => item === b[index]);

@@ -20,6 +20,7 @@ export type RawEnv = {
   CRON_SECRET?: string | undefined;
   STOREFRONT_PRERENDER_PRODUCTS?: string | undefined;
   STOREFRONT_LISTING_PAGE_SIZE?: string | undefined;
+  STOREFRONT_BUILD_WORKERS?: string | undefined;
 };
 
 /**
@@ -72,6 +73,9 @@ export const env: RawEnv = {
   },
   get STOREFRONT_LISTING_PAGE_SIZE() {
     return process.env.STOREFRONT_LISTING_PAGE_SIZE;
+  },
+  get STOREFRONT_BUILD_WORKERS() {
+    return process.env.STOREFRONT_BUILD_WORKERS;
   },
 };
 

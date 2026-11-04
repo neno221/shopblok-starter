@@ -15,13 +15,12 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { useSaveCountry } from "../lib/api";
-import { languageName, storeLanguages, timeZoneOptions } from "../lib/format";
+import { languageName, storeLanguages } from "../lib/format";
 import { failureOf } from "../lib/refusal";
+import { useRefusalClearing } from "../lib/use-refusal";
 import type { OverviewCountry } from "../lib/types";
 import { DrawerHeading, SaveFailure } from "./panel";
-
-/** `Select.Item` cannot have an empty value, so "no time zone" is this one. */
-const NO_ZONE = "__none__";
+import { TimeZonePicker } from "./time-zone-picker";
 
 /**
  * The drawer that edits one country's market (D93; Medusa's pattern for editing: a Drawer). The
@@ -57,10 +56,12 @@ const CountryForm = ({
 }) => {
   const { t, i18n } = useTranslation("markets");
   const save = useSaveCountry(country.code);
-  const [enabled, setEnabled] = useState(country.enabled);
-  const [languages, setLanguages] = useState(country.languages);
-  const [timeZone, setTimeZone] = useState(country.time_zone ?? "");
-  const [domain, setDomain] = useState(country.domain ?? "");
+  // Each field's change clears a refusal shown (W6 item 5).
+  const useField = useRefusalClearing(save);
+  const [enabled, setEnabled] = useField(country.enabled);
+  const [languages, setLanguages] = useField(country.languages);
+  const [timeZone, setTimeZone] = useField(country.time_zone ?? "");
+  const [domain, setDomain] = useField(country.domain ?? "");
   // The control to focus once a move has re-ordered the list (a moved node loses the focus).
   const [refocus, setRefocus] = useState<string | null>(null);
   useEffect(() => {
@@ -71,7 +72,6 @@ const CountryForm = ({
 
   const nameOf = (code: string) => languageName(code, i18n.language);
   const addable = storeLanguages(locales).filter((code) => !languages.includes(code));
-  const zones = timeZoneOptions(country.time_zone);
   const failure = save.isError ? failureOf(save.error) : null;
 
   const move = (index: number, step: -1 | 1) => {
@@ -235,23 +235,22 @@ const CountryForm = ({
           <Label htmlFor="markets-time-zone" size="small" weight="plus">
             {t("drawer.timeZone")}
           </Label>
-          <Select
+          <TimeZonePicker
+            id="markets-time-zone"
+            value={timeZone}
+            onChange={setTimeZone}
+            country={country.code}
+            countryName={country.name}
+            describedBy="markets-time-zone-hint"
+          />
+          <Text
+            id="markets-time-zone-hint"
             size="small"
-            value={timeZone === "" ? NO_ZONE : timeZone}
-            onValueChange={(zone) => setTimeZone(zone === NO_ZONE ? "" : zone)}
+            leading="compact"
+            className="text-ui-fg-subtle"
           >
-            <Select.Trigger id="markets-time-zone">
-              <Select.Value />
-            </Select.Trigger>
-            <Select.Content>
-              <Select.Item value={NO_ZONE}>{t("drawer.timeZoneNone")}</Select.Item>
-              {zones.map((zone) => (
-                <Select.Item key={zone} value={zone}>
-                  {zone}
-                </Select.Item>
-              ))}
-            </Select.Content>
-          </Select>
+            {t("drawer.timeZoneHint", { country: country.name })}
+          </Text>
         </div>
 
         <div className="flex flex-col gap-y-2">

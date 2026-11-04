@@ -139,6 +139,33 @@ describe("planCountrySave", () => {
     ).toEqual(["fallback_language_removed"]);
   });
 
+  it("names the country by its name in a refusal, as the drawer's title does (W6 item 4)", () => {
+    const plan = planCountrySave(seededState(), { code: "at", enabled: true, languages: [] });
+    expect(codes(plan.problems)).toEqual(["country_open_without_language"]);
+    expect(plan.problems[0]!.message).toBe(
+      "Austria cannot be opened without a language. Pick at least one of the store's languages, the default first.",
+    );
+    expect(planCountrySave(seededState(), { code: "cy", enabled: false }).problems[0]!.message).toMatch(
+      /^Cyprus is the primary country/,
+    );
+    // A domain another country has is named by that country's name.
+    const state = seededState();
+    state.countries.find((row) => row.code === "us")!.domain = "shop.example.com";
+    expect(
+      planCountrySave(state, { code: "gb", domain: "shop.example.com" }).problems[0]!.message,
+    ).toBe("The domain shop.example.com already belongs to United States.");
+  });
+
+  it("names a country by its quoted code when Medusa gives it no name", () => {
+    const state = seededState();
+    state.regionCountries.find((country) => country.code === "at")!.name = "AT";
+    expect(
+      planCountrySave(state, { code: "at", enabled: true, languages: [] }).problems[0]!.message,
+    ).toMatch(/^"at" cannot be opened without a language/);
+    // A country in no region has no name to give.
+    expect(planCountrySave(seededState(), { code: "br" }).problems[0]!.message).toMatch(/^"br"/);
+  });
+
   it("lists every problem, not only the first", () => {
     const plan = planCountrySave(seededState(), {
       code: "cy",

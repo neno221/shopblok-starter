@@ -42,6 +42,15 @@ export function findRegionCountry(state: MarketsState, code: string) {
   return state.regionCountries.find((country) => country.code === code);
 }
 
+/**
+ * A country as a refusal or a warning names it: its name in Medusa's region (`Austria`), as the
+ * Markets drawer's title does, or the quoted code (`"at"`) for one that is in no region.
+ */
+export function countryLabel(state: MarketsState, code: string): string {
+  const name = findRegionCountry(state, code)?.name;
+  return name !== undefined && name !== "" && name.toLowerCase() !== code ? name : `"${code}"`;
+}
+
 export function findCountryRow(state: MarketsState, code: string): CountryRow | undefined {
   return state.countries.find((country) => country.code === code);
 }
@@ -144,6 +153,8 @@ export function planCountrySave(state: MarketsState, input: CountrySaveInput): C
     rank: base.rank,
   };
 
+  const label = countryLabel(state, code);
+
   // The country.
   if (!isCountryCode(code)) {
     problems.push({
@@ -168,7 +179,7 @@ export function planCountrySave(state: MarketsState, input: CountrySaveInput): C
         problems.push({
           code: "language_duplicate",
           path: "languages",
-          message: `The language "${language}" is listed twice for "${code}".`,
+          message: `The language "${language}" is listed twice for ${label}.`,
         });
         return;
       }
@@ -197,7 +208,7 @@ export function planCountrySave(state: MarketsState, input: CountrySaveInput): C
     problems.push({
       code: "country_open_without_language",
       path: "languages",
-      message: `"${code}" cannot be opened without a language. Pick at least one of the store's languages, the default first.`,
+      message: `${label} cannot be opened without a language. Pick at least one of the store's languages, the default first.`,
     });
   }
 
@@ -215,7 +226,7 @@ export function planCountrySave(state: MarketsState, input: CountrySaveInput): C
         problems.push({
           code: "domain_duplicate",
           path: "domain",
-          message: `The domain ${domain} already belongs to "${owner.code}".`,
+          message: `The domain ${domain} already belongs to ${countryLabel(state, owner.code)}.`,
         });
       }
     }
@@ -235,7 +246,7 @@ export function planCountrySave(state: MarketsState, input: CountrySaveInput): C
     problems.push({
       code: "primary_country_closed",
       path: "enabled",
-      message: `"${code}" is the primary country (the shop at /). Make another open country the primary country before closing it.`,
+      message: `${label} is the primary country (the shop at /). Make another open country the primary country before closing it.`,
     });
   }
   if (fallback !== null && isMarketKey(fallback) && fallback.slice(3) === code) {
@@ -243,13 +254,13 @@ export function planCountrySave(state: MarketsState, input: CountrySaveInput): C
       problems.push({
         code: "fallback_country_closed",
         path: "enabled",
-        message: `"${code}" is the fallback market's country (${fallback}, hreflang x-default). Choose another fallback market before closing it.`,
+        message: `${label} is the fallback market's country (${fallback}, hreflang x-default). Choose another fallback market before closing it.`,
       });
     } else if (wasOpen && !languages.includes(fallback.slice(0, 2))) {
       problems.push({
         code: "fallback_language_removed",
         path: "languages",
-        message: `"${code}" would no longer offer "${fallback.slice(0, 2)}", the language of the fallback market ${fallback}. Choose another fallback market first.`,
+        message: `${label} would no longer offer "${fallback.slice(0, 2)}", the language of the fallback market ${fallback}. Choose another fallback market first.`,
       });
     }
   }
@@ -291,7 +302,7 @@ export function planSettingsSave(state: MarketsState, input: SettingsSaveInput):
         code: "primary_country_not_open",
         path: "primary_country",
         message: findRegionCountry(state, primary)
-          ? `The primary country "${primary}" is not open. Open it in its region's Markets panel first.`
+          ? `The primary country ${countryLabel(state, primary)} is not open. Open it in its region's Markets panel first.`
           : `The primary country "${primary}" is in no Medusa region. Add it to a region and open it first.`,
       });
     }
@@ -424,7 +435,7 @@ export function marketsProblems(state: MarketsState): Problem[] {
       problems.push({
         code: "country_open_without_language",
         path: row.code,
-        message: `"${row.code}" is open but has no language.`,
+        message: `${countryLabel(state, row.code)} is open but has no language.`,
       });
     }
   }
@@ -470,7 +481,7 @@ export function marketsProblems(state: MarketsState): Problem[] {
     problems.push({
       code: "primary_country_not_open",
       path: "primary_country",
-      message: `The primary country "${primary}" is not open. Open it, or choose another primary country.`,
+      message: `The primary country ${countryLabel(state, primary)} is not open. Open it, or choose another primary country.`,
     });
   }
   const primaryRegion = primary === null ? undefined : findRegionCountry(state, primary)?.region_id;

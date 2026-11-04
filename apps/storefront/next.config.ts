@@ -1,8 +1,10 @@
+import { availableParallelism } from "node:os";
 import { fileURLToPath } from "node:url";
 import { withPayload } from "@payloadcms/next/withPayload";
 import type { NextConfig } from "next";
-import { PHASE_DEVELOPMENT_SERVER } from "next/constants";
+import { PHASE_DEVELOPMENT_SERVER, PHASE_PRODUCTION_BUILD } from "next/constants";
 import createNextIntlPlugin from "next-intl/plugin";
+import { buildWorkers } from "./src/lib/build-workers";
 import { designSystemBuildFlag } from "./src/lib/env";
 
 // The repo root. The shared packages are linked from `packages/*` and Next compiles their source
@@ -20,6 +22,10 @@ function buildConfig(phase: string): NextConfig {
     experimental: {
       // The app has one root layout per market, so there is no single layout for a 404 page.
       globalNotFound: true,
+      // W6 item 7: at most `BUILD_WORKERS_CAP` (3) static-generation workers (or
+      // `STOREFRONT_BUILD_WORKERS`), so a PC with many threads builds against a running stack
+      // without running Postgres out of connections or Medusa out of time (src/lib/build-workers.ts).
+      ...(phase === PHASE_PRODUCTION_BUILD ? { cpus: buildWorkers(availableParallelism()) } : {}),
     },
     // D33: the design-system flag is read when `next build` runs. `env` replaces every
     // `process.env.DESIGN_SYSTEM_ENABLED` in the bundles with this string, so `next start` never

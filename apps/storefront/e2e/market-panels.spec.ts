@@ -16,8 +16,11 @@ import { medusaAdminApi, medusaAdminToken, medusaUrl } from "./support/medusa-ad
 //
 // 1. Austria is added to the Europe region in Medusa's OWN region form (Countries → Add countries)
 //    and shows in the region page's Markets panel, closed.
-// 2. The panel's drawer opens it with German (and a time zone).
-// 3. Switzerland's languages are reordered; a time zone is changed.
+// 2. The panel's drawer opens it with German (and a time zone). Before that (W6 items 4 and 5),
+//    opening it with no language is refused, naming "Austria", and the refusal goes away as soon as
+//    a language is picked. After it (W6 item 6), the time zone picker is searched by typing and
+//    lists Austria's own zone first.
+// 3. Switzerland's languages are reordered; a time zone is changed (typed into the picker).
 // 4. Closing the primary country (`cy`) is refused, and the drawer shows the reason.
 // 5. On the Store page the fallback market is changed.
 // 6. The panels have no add or remove of countries or locales, the Store panel shows no store-locale
@@ -232,6 +235,33 @@ test("Austria added in Medusa's own region form is closed in the Markets panel",
   expect(await countryRow(NEW_COUNTRY)).toMatchObject({ enabled: false, languages: [] });
 });
 
+test("opening Austria with no language is refused by its name, and the refusal clears once a language is picked", async () => {
+  // W6 items 4 and 5: the refusal names the country as the drawer's title does, not by its code,
+  // and it goes with the first change, not only with the next Save.
+  await openRegionPage(europe!.id);
+  await regionPanel().getByRole("button", { name: "Edit the market of Austria" }).click();
+  await expect(drawer().getByRole("heading", { name: "Austria" })).toBeVisible();
+  await drawer().getByRole("switch", { name: "Open" }).click();
+  await drawer().getByRole("button", { name: "Save" }).click();
+  const refusal = drawer().getByRole("alert");
+  await expect(refusal).toContainText("The market was not saved");
+  await expect(refusal).toContainText("Austria cannot be opened without a language.");
+  await expect(refusal).not.toContainText('"at"');
+
+  await drawer().getByRole("combobox", { name: "Add a language" }).click();
+  await page.getByRole("option", { name: "German" }).click();
+  await expect(drawer().getByRole("listitem").filter({ hasText: "German" })).toContainText(
+    "Default",
+  );
+  await expect(refusal, "the refusal goes with the language picked").toHaveCount(0);
+  await drawer().getByRole("button", { name: "Cancel" }).click();
+  await expect(drawer()).toBeHidden();
+  expect(await countryRow(NEW_COUNTRY), "nothing was saved").toMatchObject({
+    enabled: false,
+    languages: [],
+  });
+});
+
 test("the drawer opens Austria with German and a time zone", async () => {
   await openRegionPage(europe!.id);
   await openMarketInDrawer(
@@ -249,6 +279,78 @@ test("the drawer opens Austria with German and a time zone", async () => {
     time_zone: "Europe/Vienna",
     saved: true,
   });
+});
+
+test("the time zone picker is searched by typing, with the country's own zones first", async () => {
+  // W6 item 6: about 400 IANA zones, so the picker takes what is typed (any word of the zone's
+  // name), lists the country's own zones (Austria: Europe/Vienna) before the rest, and is used
+  // from the keyboard: the arrow keys, Enter to pick, Escape to close the list (not the drawer).
+  await openRegionPage(europe!.id);
+  await regionPanel().getByRole("button", { name: "Edit the market of Austria" }).click();
+  const picker = drawer().getByRole("combobox", { name: "Time zone" });
+  await expect(picker).toHaveValue("Europe/Vienna");
+  await picker.click();
+  const list = page.getByRole("listbox", { name: "Time zone" });
+  const options = list.getByRole("option");
+  await expect(list).toBeVisible();
+  await expect(picker).toHaveAttribute("aria-expanded", "true");
+  await expect(options.nth(0)).toHaveText("Not set");
+  await expect(list.getByRole("group", { name: "Austria" }).getByRole("option")).toHaveText([
+    "Europe/Vienna",
+  ]);
+  await expect(options.nth(1), "Austria's zone first, and chosen").toHaveAttribute(
+    "aria-selected",
+    "true",
+  );
+  await expect(options.nth(2), "then the whole list, from Africa").toHaveText(/^Africa\//);
+  expect(await options.count(), "every zone the browser knows").toBeGreaterThan(300);
+  await picture("6-time-zone-picker");
+  expect(await axeFindings('[role="dialog"]'), "axe, with the list open").toEqual([]);
+
+  // Typing filters by any word of a zone, and Enter picks the first match.
+  await picker.fill("new york");
+  await expect(options).toHaveText(["America/New_York"]);
+  await picker.press("Enter");
+  await expect(list).toBeHidden();
+  await expect(picker).toHaveValue("America/New_York");
+
+  // Escape closes the list and keeps what was chosen; the drawer stays open.
+  await picker.press("ArrowDown");
+  await expect(list).toBeVisible();
+  await picker.pressSequentially("vienna");
+  await expect(options).toHaveText(["Europe/Vienna"]);
+  await picker.press("Escape");
+  await expect(list).toBeHidden();
+  await expect(drawer()).toBeVisible();
+  await expect(picker).toHaveValue("America/New_York");
+
+  // Nothing matches: the list says so, and nothing changes.
+  await picker.fill("Atlantis");
+  await expect(drawer()).toContainText("No time zone matches “Atlantis”.");
+  await expect(picker).toHaveAttribute("aria-expanded", "false");
+  await picker.press("Escape");
+  await expect(picker).toHaveValue("America/New_York");
+
+  // The arrow keys: the list opens at the chosen zone, Down and Up move, Enter picks.
+  const activeOption = async () => {
+    const id = await picker.getAttribute("aria-activedescendant");
+    return id === null ? null : page.locator(`[id="${id}"]`).textContent();
+  };
+  await picker.press("ArrowDown");
+  await expect.poll(activeOption, "the list opens at the chosen zone").toBe("America/New_York");
+  await picker.fill("europe vi");
+  await expect(options.nth(0), "Austria's own zone first").toHaveText("Europe/Vienna");
+  await expect(options.nth(1)).toHaveText("Europe/Vilnius");
+  await expect.poll(activeOption).toBe("Europe/Vienna");
+  await picker.press("ArrowDown");
+  await expect.poll(activeOption).toBe("Europe/Vilnius");
+  await picker.press("ArrowUp");
+  await expect.poll(activeOption).toBe("Europe/Vienna");
+  await picker.press("Enter");
+  await expect(picker).toHaveValue("Europe/Vienna");
+  await drawer().getByRole("button", { name: "Cancel" }).click();
+  await expect(drawer()).toBeHidden();
+  expect((await countryRow(NEW_COUNTRY))?.time_zone, "Cancel saved nothing").toBe("Europe/Vienna");
 });
 
 test("Switzerland's languages are reordered, the first being the default", async () => {
@@ -274,8 +376,10 @@ test("a time zone is changed", async () => {
   expect((await countryRow("fr"))?.time_zone, "the seeded zone of France").toBe("Europe/Paris");
   await openRegionPage(europe!.id);
   await regionPanel().getByRole("button", { name: "Edit the market of France" }).click();
-  await drawer().getByRole("combobox", { name: "Time zone" }).click();
-  await page.getByRole("option", { name: "Europe/Brussels", exact: true }).click();
+  // Typed into the picker (W6 item 6), and picked with Enter.
+  await drawer().getByRole("combobox", { name: "Time zone" }).fill("brussels");
+  await expect(page.getByRole("option")).toHaveText(["Europe/Brussels"]);
+  await drawer().getByRole("combobox", { name: "Time zone" }).press("Enter");
   await drawer().getByRole("button", { name: "Save" }).click();
   await expect(drawer()).toBeHidden();
   await expect(row("fr")).toContainText("Europe/Brussels");
