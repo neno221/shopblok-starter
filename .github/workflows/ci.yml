@@ -1,31 +1,38 @@
 # CI for M0 (plan T16, T17), M1's `design-system` (T24), M2's gate (T27, D53) and baselines (T40, D51),
 # and M3's `e2e-smoke` (T42, D67).
-# Seven jobs:
+# Ten jobs (T77, M5 D110: the design-system checks and the baseline update in three shards each):
 #   check          the root checks, the same ones a contributor runs: no .env, no database.
 #   backend-integration
 #                  the backend's integration tests (`test:integration:http`) on the compose Postgres.
-#   gate           decides which of the next three a pull request needs, from the files it changes
-#                  (scripts/ci-gate.ts and its lib, with the rules and their tests). Any other
-#                  event runs e2e-smoke and design-system, and windows-smoke unless it is a push.
+#   gate           decides which of the jobs behind it a pull request needs, from the files it
+#                  changes (scripts/ci-gate.ts and its lib, with the rules and their tests). Any
+#                  other event runs e2e-smoke and the design-system jobs, and windows-smoke unless it
+#                  is a push.
 #   e2e-smoke      the compose stack, `pnpm bootstrap --ci`, Medusa, a production build (Medusa is
 #                  up first, because the catalog pages' `generateStaticParams` read it: ADR 0004,
 #                  reading 4), the first-load JS budget (SPEC §13), the storefront, the Playwright
 #                  suites, the outage test (ADR 0004; once `e2e/outage.spec.ts` exists), `pnpm run
 #                  doctor` and, last, the storefront's own routes' console in `next dev` (T25).
-#   design-system  the DS cells in English and Greek at 375, 768 and 1440 px: axe, overflow,
-#                  44 px controls, the console (T24, D34), then the DS pages' console in `next dev`
-#                  (T27). No compose: a build with the flag, `next start` and `next dev` are all it
-#                  needs. T40: it runs in Playwright's container, and each English cell and each of the
-#                  40 thumbnails is also compared with its committed baseline (D51, D52).
+#   design-system-shard
+#                  three of them: the DS cells in English and Greek at 375, 768 and 1440 px (axe,
+#                  overflow, 44 px controls, the console; T24, D34), a third each (`--shard`). No
+#                  compose: a build with the flag and `next start` are all it needs. T40: it runs in
+#                  Playwright's container, and each English cell and each thumbnail is also compared
+#                  with its committed baseline (D51, D52).
+#   design-system  merges the shards' blob reports into one HTML report, and fails when a shard
+#                  did: the DS's one check.
+#   dev-console-ds the DS pages' console in `next dev` (T27), in the same container.
 #   update-baselines
-#                  only for a manual run with `update-baselines` on (and then instead of
-#                  design-system): the same build and the same two Playwright projects with
-#                  `--update-snapshots=changed`, and a commit of the PNGs that changed to the branch.
-#                  The only job that can write to the repository.
+#                  three shards, only for a manual run with `update-baselines` on (and then instead
+#                  of the four above): the same build and the same two Playwright projects with
+#                  `--update-snapshots=changed`, each uploading the PNGs it wrote.
+#   update-baselines-commit
+#                  after the three: compresses the PNGs that changed and commits them to the branch,
+#                  once. The only job that can write to the repository.
 #   windows-smoke  install, type check, unit tests, build and a Ctrl-C of `pnpm dev` on NTFS,
 #                  weekly and when dependencies change.
-# Each job but the gate sets up pnpm and Node with .github/actions/setup, and both storefront jobs
-# start the server with .github/actions/start-storefront. e2e-smoke starts and stops Medusa with
+# Each job but the gate and update-baselines-commit sets up pnpm and Node with .github/actions/setup,
+# and every job that runs a server starts it with .github/actions/start-storefront. e2e-smoke starts and stops Medusa with
 # .github/actions/start-medusa, the only thing that starts it (T42).
 #
 # Every command here was run in the same order in the cloud VM before the first push (SETUP.md,
@@ -431,22 +438,32 @@ jobs:
           retention-days: 14
 
   # D34, plan T24: every DS cell (en, el × 375, 768, 1440) against `next start` built with
-  # DESIGN_SYSTEM_ENABLED=true; then (T27) the DS pages' console in `next dev`. The DS pages read no
-  # data and the build falls back to the market map's build-time default (D10), so there is no
-  # compose, no bootstrap and no `.env`: this is the whole of what the job needs, and it runs in
-  # parallel with e2e-smoke. Nothing else runs the `design-system` and `dev-console-ds` projects
-  # (playwright.config.ts).
-  design-system:
+  # DESIGN_SYSTEM_ENABLED=true. The DS pages read no data and the build falls back to the market
+  # map's build-time default (D10), so there is no compose, no bootstrap and no `.env`: this is the
+  # whole of what the job needs, and it runs in parallel with e2e-smoke. Nothing else runs the
+  # `design-system` and `thumbnails` projects (playwright.config.ts).
+  # T77 (M5 D110, item 1): three shards. Each builds the storefront with the flag (about 2 min) and
+  # runs its third of the two projects (`--shard=i/3`, Playwright splits the tests of both, in
+  # order, across the shards; `fullyParallel` makes the unit a test, not a file), writing a blob
+  # report. `design-system`, after them, merges the three into one HTML report and is the one check
+  # that says whether the DS passed. The DS pages' console in `next dev` is `dev-console-ds`.
+  design-system-shard:
+    name: design-system (shard ${{ matrix.shard }}/3)
     needs: gate
-    # A manual run with `update-baselines` makes the baselines in the next job and does not compare
+    # A manual run with `update-baselines` makes the baselines in its own jobs and does not compare
     # them; the run after it does.
     if: ${{ needs.gate.outputs.design-system == 'true' && !inputs.update-baselines }}
     runs-on: ubuntu-latest
+    strategy:
+      # Every shard runs to its end, so the merged report has every failing cell, not one shard's.
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
     # T40 (D51): Playwright's image, so the browser and the fonts are the ones the baselines were
     # made with; `--ipc=host` because Chromium shares memory through /dev/shm (Playwright's Docker
     # page). Bump the tag with `@playwright/test` (Renovate groups them).
     container:
-      image: mcr.microsoft.com/playwright:v1.64.0-noble
+      image: mcr.microsoft.com/playwright:v1.64.1-noble
       options: --ipc=host --init
     # next-intl's plugin loads @swc/core with next.config.ts (T46). SWC's native addon unpacks itself
     # into a cache that it refuses when a parent is writable by others without the sticky bit, which
@@ -454,9 +471,9 @@ jobs:
     # /tmp is sticky, so a root there passes.
     env:
       SWC_NATIVE_BINDING_CACHE: /tmp/swc-native-cache
-    # Two Playwright projects: the DS checks (~17 min on the runner at T37) and the next dev console
-    # check (~10-40 s a page while it compiles). 30 min was reached at T37 (PR 59); room for M2's pages.
-    timeout-minutes: 50
+    # A third of the checks (20.8 min for 894 cells on `main` before M5) and the build; M5 brings
+    # 1,290 cells, about 10 min a shard.
+    timeout-minutes: 30
     steps:
       # Before checkout, which downloads a tarball instead of cloning when git is missing.
       - name: Tools the steps use (T40)
@@ -480,7 +497,7 @@ jobs:
       - uses: actions/checkout@v7.0.1
       - uses: ./.github/actions/setup
       - run: pnpm install --frozen-lockfile
-      # No `playwright install`: the image has the browser that @playwright/test 1.64.0 drives.
+      # No `playwright install`: the image has the browser that @playwright/test 1.64.1 drives.
       # Through `next build` itself (the package's `build` script), not turbo: the flag is read at
       # build time and frozen into the static DS pages (D33).
       - name: Build the storefront with the design system on
@@ -493,87 +510,111 @@ jobs:
         with:
           command: start
           url: http://localhost:8000/design-system/en
-      # The cells (their pixels too, D51) and the 40 thumbnails (D52). A baseline that is missing
-      # fails its cell: only the update-baselines job writes them.
-      - name: Design-system checks
-        id: ds-checks
-        run: pnpm --filter @shopblok/storefront test:e2e --project=design-system --project=thumbnails --reporter=list,html
+      # The cells (their pixels too, D51) and the thumbnails (D52). A baseline that is missing fails
+      # its cell: only the update-baselines jobs write them. The blob reporter writes
+      # `blob-report/report-<shard>.zip`, which the merge below reads; `list` is this log.
+      - name: Design-system checks (shard ${{ matrix.shard }} of 3)
+        run: pnpm --filter @shopblok/storefront test:e2e --project=design-system --project=thumbnails --shard=${{ matrix.shard }}/3 --reporter=list,blob
         env:
           E2E_DESIGN_SYSTEM: "true"
-          PLAYWRIGHT_HTML_OPEN: never
       - name: Stop next start
-        id: stop-start
         if: always()
         run: |
           pid="$(cat "$RUNNER_TEMP/servers/storefront.pid" 2>/dev/null || true)"
           if [ -n "$pid" ]; then bash .github/scripts/stop-tree.sh --port 8000 "$pid"; fi
-      # T27 (D53): the DS pages' console in `next dev`, which e2e-smoke checked before and which needs
-      # no stack. As e2e-smoke's dev-console steps: stop-tree.sh has freed port 8000, and
-      # start-storefront proves the answer comes from a dev server. `next dev` shows the DS without
-      # the flag (development). They run when the DS checks ran, failed ones too, as in e2e-smoke
-      # apart from those checks; only once `next start` is stopped, never while it may still hold
-      # the port; and the check only once `next dev` answers (PR 49 review, item 2).
-      - name: Start next dev
-        id: start-dev
-        if: ${{ !cancelled() && steps.stop-start.outcome == 'success' && (steps.ds-checks.outcome == 'success' || steps.ds-checks.outcome == 'failure') }}
-        uses: ./.github/actions/start-storefront
+      - name: Upload the blob report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7.0.2
         with:
-          command: dev
-          url: http://localhost:8000/design-system/en
-          name: storefront-dev
-      - name: Console of the DS pages in next dev
-        if: ${{ !cancelled() && steps.start-dev.outcome == 'success' }}
-        run: E2E_DEV_CONSOLE=true pnpm --filter @shopblok/storefront test:e2e --project=dev-console-ds --reporter=list,html --output=test-results-dev-console
-        env:
-          PLAYWRIGHT_HTML_OPEN: never
-          PLAYWRIGHT_HTML_OUTPUT_DIR: playwright-report-dev-console
-      - name: Stop next dev
-        if: always()
-        run: |
-          pid="$(cat "$RUNNER_TEMP/servers/storefront-dev.pid" 2>/dev/null || true)"
-          if [ -n "$pid" ]; then bash .github/scripts/stop-tree.sh --port 8000 "$pid"; fi
-      # A cell that differs has its expected, actual and diff images in the report and in
-      # test-results.
-      - name: Upload the Playwright report, with the screenshots
+          name: design-system-blob-${{ matrix.shard }}
+          path: apps/storefront/blob-report
+          if-no-files-found: ignore
+          retention-days: 1
+      # A cell that differs has its expected, actual and diff images here (and in the merged report).
+      - name: Upload the test results, with the screenshots
         if: always()
         uses: actions/upload-artifact@v7.0.2
         with:
-          name: design-system-report
-          path: |
-            apps/storefront/playwright-report
-            apps/storefront/playwright-report-dev-console
-            apps/storefront/test-results
-            apps/storefront/test-results-dev-console
+          name: design-system-results-${{ matrix.shard }}
+          path: apps/storefront/test-results
           if-no-files-found: ignore
           retention-days: 14
       - name: Upload the server log
         if: always()
         uses: actions/upload-artifact@v7.0.2
         with:
-          name: design-system-server-logs
+          name: design-system-server-logs-${{ matrix.shard }}
           path: ${{ runner.temp }}/servers
           if-no-files-found: ignore
           retention-days: 14
 
-  # T40 (D51, D52): `workflow_dispatch` with `update-baselines` on. The same container, build and
-  # server as design-system, then both Playwright projects with `--update-snapshots=changed` (a
-  # snapshot that is missing or differs is written; one that matches is left alone), over every
-  # cell: the whole suite runs, so a failing axe or console check stops the job before anything is
-  # committed. The commit holds the PNGs under apps/storefront/e2e/__screenshots__/ and
-  # apps/storefront/public/registry/ and nothing else. This is the only job with `contents: write`.
-  # A push made with GITHUB_TOKEN starts no workflow, so the session runs CI again by hand.
-  update-baselines:
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.update-baselines }}
+  # T77 (D110, item 1): the shards' blob reports, merged into one HTML report (and a list of every
+  # test in this log, a failing cell's name included). This job's result is the DS's: it fails when
+  # a shard failed or did not finish, so a check that is required by name stays one check.
+  design-system:
+    needs: [gate, design-system-shard]
+    if: ${{ !cancelled() && needs.gate.outputs.design-system == 'true' && !inputs.update-baselines }}
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: ./.github/actions/setup
+      - run: pnpm install --frozen-lockfile
+      - name: Download the shards' blob reports
+        uses: actions/download-artifact@v8.0.2
+        with:
+          pattern: design-system-blob-*
+          path: apps/storefront/all-blob-reports
+          merge-multiple: true
+      # The tests come from the blobs (no server, no collection). A shard that never uploaded is
+      # named here, and the step still writes the report of the others.
+      - name: Merge the reports
+        id: merge
+        working-directory: apps/storefront
+        run: |
+          ls -l all-blob-reports
+          count=$(find all-blob-reports -name 'report-*.zip' | wc -l)
+          if [ "$count" -ne 3 ]; then
+            echo "::error title=Merged report::$count of the 3 shards' blob reports arrived."
+          fi
+          pnpm exec playwright merge-reports --reporter=list,html all-blob-reports
+          [ "$count" -eq 3 ]
+        env:
+          PLAYWRIGHT_HTML_OPEN: never
+      - name: Upload the merged Playwright report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: design-system-report
+          path: apps/storefront/playwright-report
+          if-no-files-found: ignore
+          retention-days: 14
+      - name: Every shard passed
+        if: ${{ !cancelled() }}
+        env:
+          SHARDS: ${{ needs.design-system-shard.result }}
+        run: |
+          echo "The shards: $SHARDS."
+          if [ "$SHARDS" != success ]; then
+            echo "::error title=design-system::A shard did not pass ($SHARDS); the merged report names the cells."
+            exit 1
+          fi
+
+  # T27 (D53): the DS pages' console in `next dev`, which e2e-smoke checked before and which needs no
+  # stack. T77 (D110, item 1): a job of its own, beside the shards, where it was the design-system
+  # job's last steps. `next dev` shows the DS without the flag (development), and start-storefront
+  # proves the answer comes from a dev server. The same container as the shards, for the browser.
+  dev-console-ds:
+    needs: gate
+    if: ${{ needs.gate.outputs.design-system == 'true' && !inputs.update-baselines }}
+    runs-on: ubuntu-latest
     container:
-      image: mcr.microsoft.com/playwright:v1.64.0-noble
+      image: mcr.microsoft.com/playwright:v1.64.1-noble
       options: --ipc=host --init
-    # As in design-system: SWC's native cache under /tmp, not the container's HOME.
     env:
       SWC_NATIVE_BINDING_CACHE: /tmp/swc-native-cache
-    timeout-minutes: 50
+    # ~10-40 s a page while it compiles (8 min at T57).
+    timeout-minutes: 30
     steps:
       # Before checkout, which downloads a tarball instead of cloning when git is missing.
       - name: Tools the steps use (T40)
@@ -594,35 +635,96 @@ jobs:
             echo "The image has git, ps, awk, curl and one of lsof, ss or fuser."
           fi
           git --version
-      # The branch the dispatch names, which the commit goes to. The write token is not kept in
-      # .git/config: install, build and the suite run third-party code, and only the commit step
-      # gets it (PR 63 review).
+      - uses: actions/checkout@v7.0.1
+      - uses: ./.github/actions/setup
+      - run: pnpm install --frozen-lockfile
+      - name: Start next dev
+        uses: ./.github/actions/start-storefront
+        with:
+          command: dev
+          url: http://localhost:8000/design-system/en
+          name: storefront-dev
+      - name: Console of the DS pages in next dev
+        run: E2E_DEV_CONSOLE=true pnpm --filter @shopblok/storefront test:e2e --project=dev-console-ds --reporter=list,html --output=test-results-dev-console
+        env:
+          PLAYWRIGHT_HTML_OPEN: never
+          PLAYWRIGHT_HTML_OUTPUT_DIR: playwright-report-dev-console
+      - name: Stop next dev
+        if: always()
+        run: |
+          pid="$(cat "$RUNNER_TEMP/servers/storefront-dev.pid" 2>/dev/null || true)"
+          if [ -n "$pid" ]; then bash .github/scripts/stop-tree.sh --port 8000 "$pid"; fi
+      - name: Upload the Playwright report
+        if: always()
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: dev-console-ds-report
+          path: |
+            apps/storefront/playwright-report-dev-console
+            apps/storefront/test-results-dev-console
+          if-no-files-found: ignore
+          retention-days: 14
+      - name: Upload the server log
+        if: always()
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: dev-console-ds-server-logs
+          path: ${{ runner.temp }}/servers
+          if-no-files-found: ignore
+          retention-days: 14
+
+  # T40 (D51, D52): `workflow_dispatch` with `update-baselines` on. The same container, build and
+  # server as design-system, then both Playwright projects with `--update-snapshots=changed` (a
+  # snapshot that is missing or differs is written; one that matches is left alone), over every
+  # cell: the whole suite runs, so a failing axe or console check stops the run before anything is
+  # committed. T77 (D110, item 2): in the design-system job's three shards, each uploading the PNGs
+  # it wrote; `update-baselines-commit` puts the three sets together, compresses and commits once.
+  update-baselines:
+    name: update-baselines (shard ${{ matrix.shard }}/3)
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.update-baselines }}
+    runs-on: ubuntu-latest
+    strategy:
+      # One shard's failure stops the others: nothing will be committed.
+      fail-fast: true
+      matrix:
+        shard: [1, 2, 3]
+    container:
+      image: mcr.microsoft.com/playwright:v1.64.1-noble
+      options: --ipc=host --init
+    # As in design-system: SWC's native cache under /tmp, not the container's HOME.
+    env:
+      SWC_NATIVE_BINDING_CACHE: /tmp/swc-native-cache
+    timeout-minutes: 30
+    steps:
+      # Before checkout, which downloads a tarball instead of cloning when git is missing.
+      - name: Tools the steps use (T40)
+        shell: bash
+        run: |
+          missing=()
+          command -v git >/dev/null 2>&1 || missing+=(git)
+          command -v ps >/dev/null 2>&1 || missing+=(procps)
+          command -v awk >/dev/null 2>&1 || missing+=(gawk)
+          command -v curl >/dev/null 2>&1 || missing+=(curl)
+          # stop-tree.sh's port check wants one of the three.
+          if ! command -v lsof >/dev/null 2>&1 && ! command -v ss >/dev/null 2>&1 && ! command -v fuser >/dev/null 2>&1; then missing+=(lsof); fi
+          if [ "${#missing[@]}" -gt 0 ]; then
+            echo "The image lacks: ${missing[*]}. Installing."
+            apt-get update -qq
+            DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "${missing[@]}"
+          else
+            echo "The image has git, ps, awk, curl and one of lsof, ss or fuser."
+          fi
+          git --version
+      # No write token in any shard: they run install, build and the suite (third-party code), and
+      # only upload what they wrote (PR 63 review).
       - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
-      # A clean set: every baseline is written again, so a PNG no cell makes any more (a renamed
-      # entry, a dropped locale) shows as deleted, and an unchanged one is byte for byte the same
-      # file, which git does not count (PR 63 review).
+      # Every PNG of this shard is written again, so the commit job's set is whole. The folders are
+      # emptied, so what is left after the run is exactly what this shard wrote.
       - name: Remove the current baselines and thumbnails
         shell: bash
         run: rm -rf apps/storefront/e2e/__screenshots__/design-system apps/storefront/public/registry
-      # T57 (M4 D72): the lossless PNG optimiser the commit step runs on the PNGs it is about to
-      # commit. A release binary pinned by version and checksum: Ubuntu 24.04, the image's base, has
-      # no package for it. A new version may write other bytes for the same pixels, which would show
-      # every compressed PNG as changed, so bump it only with a baseline update in mind.
-      - name: oxipng (T57)
-        shell: bash
-        env:
-          OXIPNG_VERSION: "10.2.1"
-          OXIPNG_SHA256: 1813750ef592c5350ca79c88f98b2c0876d05c826dc7156245256d4255c1ad17
-        run: |
-          set -euo pipefail
-          name="oxipng-${OXIPNG_VERSION}-x86_64-unknown-linux-musl"
-          curl -fsSL -o "$RUNNER_TEMP/oxipng.tar.gz" "https://github.com/shssoichiro/oxipng/releases/download/v${OXIPNG_VERSION}/${name}.tar.gz"
-          echo "${OXIPNG_SHA256}  $RUNNER_TEMP/oxipng.tar.gz" | sha256sum -c -
-          tar -xzf "$RUNNER_TEMP/oxipng.tar.gz" -C "$RUNNER_TEMP" "${name}/oxipng"
-          echo "$RUNNER_TEMP/${name}" >> "$GITHUB_PATH"
-          "$RUNNER_TEMP/${name}/oxipng" --version
       - uses: ./.github/actions/setup
       - run: pnpm install --frozen-lockfile
       - name: Build the storefront with the design system on
@@ -634,9 +736,8 @@ jobs:
         with:
           command: start
           url: http://localhost:8000/design-system/en
-      - name: Design-system checks and thumbnails, writing the baselines that changed
-        id: update
-        run: pnpm --filter @shopblok/storefront test:e2e --project=design-system --project=thumbnails --update-snapshots=changed --reporter=list,html
+      - name: Design-system checks and thumbnails, writing the baselines (shard ${{ matrix.shard }} of 3)
+        run: pnpm --filter @shopblok/storefront test:e2e --project=design-system --project=thumbnails --shard=${{ matrix.shard }}/3 --update-snapshots=changed --reporter=list,html
         env:
           E2E_DESIGN_SYSTEM: "true"
           PLAYWRIGHT_HTML_OPEN: never
@@ -645,13 +746,89 @@ jobs:
         run: |
           pid="$(cat "$RUNNER_TEMP/servers/storefront.pid" 2>/dev/null || true)"
           if [ -n "$pid" ]; then bash .github/scripts/stop-tree.sh --port 8000 "$pid"; fi
-      # Only when every check passed. D51's numbers are printed here and in the run's summary: the
-      # PNGs that changed, the bytes the commit adds, the size of the whole set. A session stops and
-      # asks when an update adds more than half a set, when the set passes 60 MB or the history
-      # 200 MB (SETUP.md, "Baselines and thumbnails (T40)").
-      - name: Commit the baselines that changed
-        if: ${{ steps.update.outcome == 'success' }}
+      # Uploaded under `apps/storefront`, the two folders' common parent, so the commit job puts them
+      # back where they were.
+      - name: Count the PNGs this shard wrote
         shell: bash
+        run: |
+          n=$(find apps/storefront/e2e/__screenshots__/design-system apps/storefront/public/registry -name '*.png' 2>/dev/null | wc -l)
+          echo "Shard ${{ matrix.shard }} wrote $n PNGs."
+      - uses: actions/upload-artifact@v7.0.2
+        with:
+          name: baselines-${{ matrix.shard }}
+          path: |
+            apps/storefront/e2e/__screenshots__/design-system
+            apps/storefront/public/registry
+          if-no-files-found: ignore
+          retention-days: 1
+      - name: Upload the Playwright report
+        if: always()
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: update-baselines-report-${{ matrix.shard }}
+          path: |
+            apps/storefront/playwright-report
+            apps/storefront/test-results
+          if-no-files-found: ignore
+          retention-days: 14
+      - name: Upload the server log
+        if: always()
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: update-baselines-server-logs-${{ matrix.shard }}
+          path: ${{ runner.temp }}/servers
+          if-no-files-found: ignore
+          retention-days: 14
+
+  # T77 (D110, item 2): runs only when all three shards passed (`needs`). It empties the two folders,
+  # puts the three shards' PNGs in them, compresses what changed with oxipng (D72) and commits once.
+  # This is the only job with `contents: write`. A push made with GITHUB_TOKEN starts no workflow, so
+  # the session runs CI again by hand.
+  update-baselines-commit:
+    needs: update-baselines
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.update-baselines }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    timeout-minutes: 15
+    steps:
+      # The branch the dispatch names, which the commit goes to. The write token is not kept in
+      # .git/config: only the commit step gets it (PR 63 review).
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      # A clean set: every baseline is written again, so a PNG no cell makes any more (a renamed
+      # entry, a dropped locale) shows as deleted, and an unchanged one is byte for byte the same
+      # file, which git does not count (PR 63 review).
+      - name: Remove the current baselines and thumbnails
+        run: rm -rf apps/storefront/e2e/__screenshots__/design-system apps/storefront/public/registry
+      - name: Download the PNGs the shards wrote
+        uses: actions/download-artifact@v8.0.2
+        with:
+          pattern: baselines-*
+          path: apps/storefront
+          merge-multiple: true
+      # T57 (M4 D72): the lossless PNG optimiser the commit step runs on the PNGs it is about to
+      # commit. A release binary pinned by version and checksum: Ubuntu 24.04 has no package for it.
+      # A new version may write other bytes for the same pixels, which would show every compressed
+      # PNG as changed, so bump it only with a baseline update in mind.
+      - name: oxipng (T57)
+        env:
+          OXIPNG_VERSION: "10.2.1"
+          OXIPNG_SHA256: 1813750ef592c5350ca79c88f98b2c0876d05c826dc7156245256d4255c1ad17
+        run: |
+          set -euo pipefail
+          name="oxipng-${OXIPNG_VERSION}-x86_64-unknown-linux-musl"
+          curl -fsSL -o "$RUNNER_TEMP/oxipng.tar.gz" "https://github.com/shssoichiro/oxipng/releases/download/v${OXIPNG_VERSION}/${name}.tar.gz"
+          echo "${OXIPNG_SHA256}  $RUNNER_TEMP/oxipng.tar.gz" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/oxipng.tar.gz" -C "$RUNNER_TEMP" "${name}/oxipng"
+          echo "$RUNNER_TEMP/${name}" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/${name}/oxipng" --version
+      # D51's numbers are printed here and in the run's summary: the PNGs that changed, the bytes the
+      # commit adds, the size of the whole set. A session stops and asks when an update changes more
+      # than half a set, when the set passes 60 MB or the history 200 MB (SETUP.md, "Baselines and
+      # thumbnails (T40)").
+      - name: Commit the baselines that changed
         env:
           BRANCH: ${{ github.ref_name }}
           REF_TYPE: ${{ github.ref_type }}
@@ -660,8 +837,6 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          # The container runs as root over a workspace the runner's user owns.
-          git config --global --add safe.directory "$GITHUB_WORKSPACE"
           if [ "$REF_TYPE" != branch ] || [ "$BRANCH" = "$DEFAULT_BRANCH" ]; then
             echo "::error::update-baselines commits to a feature branch; this run is on '$BRANCH' ($REF_TYPE). Dispatch it on the branch of the change."
             exit 1
@@ -709,6 +884,7 @@ jobs:
           report="PNGs changed: $changed ($added new, $modified changed, $deleted deleted) of $total in the set. Bytes added by this commit: $bytes ($(mb "$bytes")). The set: $(mb "$set_bytes")."
           echo "$report"
           { echo "### Baselines"; echo "$report"; } >> "$GITHUB_STEP_SUMMARY"
+          git diff --cached --name-status | sed 's/^/  /'
           if [ "$changed" -eq 0 ]; then
             echo "Nothing changed: no commit."
             echo "Nothing changed, so there is nothing to commit." >> "$GITHUB_STEP_SUMMARY"
@@ -729,24 +905,6 @@ jobs:
           next="CI must be run again by hand: a push made with GITHUB_TOKEN starts no workflow. Commit $sha is on $BRANCH. Dispatch: gh api -X POST repos/$REPO/actions/workflows/ci.yml/dispatches -f ref=$BRANCH"
           echo "$next"
           echo "$next" >> "$GITHUB_STEP_SUMMARY"
-      - name: Upload the Playwright report
-        if: always()
-        uses: actions/upload-artifact@v7.0.2
-        with:
-          name: update-baselines-report
-          path: |
-            apps/storefront/playwright-report
-            apps/storefront/test-results
-          if-no-files-found: ignore
-          retention-days: 14
-      - name: Upload the server log
-        if: always()
-        uses: actions/upload-artifact@v7.0.2
-        with:
-          name: update-baselines-server-logs
-          path: ${{ runner.temp }}/servers
-          if-no-files-found: ignore
-          retention-days: 14
 
   # Windows minutes cost double on a private repo, so this runs weekly, on request and on PRs that
   # change a dependency (the gate's rule since T16: a package.json at any depth, the lockfile or
