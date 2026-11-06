@@ -7635,4 +7635,6 @@ Read from the installed 2.22.4 sources against the 2.21.2 tarballs, and run (the
 - `pnpm install`, `pnpm dedupe --check`, `check:workspace`, `typecheck`, `lint`: exit 0. `pnpm peers check` lists the same two unmet peers as on `main` (`fdir`'s `picomatch` 3, vite 8's `esbuild`).
 - Unit tests: the backend's 175 and the markets plugin's 57 pass.
 - `test:integration:http` (Postgres from the compose file, the plugin built): 6 suites, 56 tests pass (`markets`, `payload-sync`, `search-locale`, `search-locale-assumptions`, `auth-verification`, `order-claims`), 1 min 47 s.
+- Bootstrap on empty volumes runs Medusa 2.22.4's migrations and seeds as before (68.6 s; doctor 10 ok, 3 warnings for the servers not yet running, 0 errors).
+- Medusa Admin on 2.22.4 (`medusa develop`, Chromium): the region page's Markets panel, its country drawer and the store page's Markets panel look as they did on 2.21.2 (T74's screenshots), with no console errors. The admin bundler still builds the extensions with Tailwind 3.4.
 - The PR's CI runs the rest (`check` with the storefront's build, `backend-integration`, `e2e-smoke` with the admin panels, `design-system`).
