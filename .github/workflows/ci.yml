@@ -702,7 +702,10 @@ jobs:
         run: |
           set -euo pipefail
           manifest="apps/storefront/baselines-manifest-${{ matrix.shard }}.txt"
-          find apps/storefront/e2e/__screenshots__/design-system apps/storefront/public/registry -name '*.png' 2>/dev/null | sort > "$manifest"
+          # A shard may hold no thumbnail (all of them fall in the last third today), so a folder may
+          # be missing, which `find` would fail on.
+          mkdir -p apps/storefront/e2e/__screenshots__/design-system apps/storefront/public/registry
+          find apps/storefront/e2e/__screenshots__/design-system apps/storefront/public/registry -name '*.png' | sort > "$manifest"
           n=$(wc -l < "$manifest")
           echo "Shard ${{ matrix.shard }} wrote $n PNGs."
           if [ "$n" -eq 0 ]; then
@@ -780,6 +783,7 @@ jobs:
           fi
           sort -u "${manifests[@]}" | sed 's|^apps/storefront/||' > "$RUNNER_TEMP/expected.txt"
           listed=$(cat "${manifests[@]}" | wc -l)
+          mkdir -p e2e/__screenshots__/design-system public/registry
           find e2e/__screenshots__/design-system public/registry -name '*.png' | sort > "$RUNNER_TEMP/found.txt"
           if [ "$listed" -ne "$(wc -l < "$RUNNER_TEMP/expected.txt")" ] || ! diff -q "$RUNNER_TEMP/expected.txt" "$RUNNER_TEMP/found.txt" >/dev/null; then
             echo "::error title=update-baselines::The PNGs here are not the ones the shards listed ($listed listed); nothing is committed."
