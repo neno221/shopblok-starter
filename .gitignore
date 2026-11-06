@@ -31,4 +31,5 @@ playwright-report-outage-recovery/
 test-results-outage/
 test-results-outage-recovery/
 blob-report/
+all-blob-reports/
 playwright/.cache/
