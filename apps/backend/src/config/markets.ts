@@ -11,7 +11,7 @@
  *    and sorting in `/store/search` cover it (`min_price_brl`, `max_price_brl`, `on_sale_brl`).
  * 2. `MARKET_REGIONS`: add `{ name: "Brazil", currency_code: "brl", countries: ["br"],
  *    standard_shipping: 20 }`. A country belongs to one region only.
- * 3. `SUPPORTED_LOCALES`: add `"pt-BR"`. It must be one of the 51 BCP 47 codes Medusa ships
+ * 3. `SUPPORTED_LOCALES`: add `"pt-BR"`. It must be one of the 52 BCP 47 codes Medusa ships
  *    (it includes `el-GR`, `pt-BR` and `mn-MN`); one locale per language (D8).
  *
  * On a database that already exists, apply the edit with `medusa db:migrate` (a new currency

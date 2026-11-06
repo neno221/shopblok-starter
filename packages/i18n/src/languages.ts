@@ -37,7 +37,8 @@ export const EU_LANGUAGES = [
 ] as const;
 
 /**
- * Medusa's 51 locale codes (D8, D17): `defaultLocales` in `@medusajs/translation` 2.21.2,
+ * Medusa's 52 locale codes (D8, D17): `defaultLocales` in `@medusajs/translation` 2.22.4 (51 until
+ * 2.22.4 added `fa-IR`),
  * `dist/loaders/defaults.js` (the backend installs it). The storefront can't import that file, so
  * the list is copied here, and the storefront's `medusa-locales.test.ts` reads the installed one
  * and fails when a Medusa release changes it. A `markets` language names one of these as its
@@ -81,6 +82,7 @@ export const MEDUSA_LOCALES = [
   "ar-AE",
   "ar-EG",
   "he-IL",
+  "fa-IR",
   "hi-IN",
   "bn-BD",
   "th-TH",
@@ -98,8 +100,8 @@ export const MEDUSA_LOCALES = [
 ] as const;
 
 /**
- * The language of every locale Medusa ships (D17): the 51 BCP 47 codes in `MEDUSA_LOCALES` give
- * these 36 languages, in order of first appearance. A shop can enable a language in `markets` only
+ * The language of every locale Medusa ships (D17): the 52 BCP 47 codes in `MEDUSA_LOCALES` give
+ * these 37 languages, in order of first appearance. A shop can enable a language in `markets` only
  * if Payload has it, so a language that Medusa can sell in must be in `LANGUAGES`.
  */
 const MEDUSA_LANGUAGES: readonly string[] = [
@@ -110,7 +112,7 @@ const MEDUSA_LANGUAGES: readonly string[] = [
 export const EXTRA_LANGUAGES = ["ar", "ja", "nb", "ru", "tr", "uk", "zh"] as const;
 
 /**
- * Every language Payload preloads: 42 today. They share one `_locales` enum in Postgres (and four
+ * Every language Payload preloads: 43 today (Persian, `fa`, joined with Medusa 2.22.4). They share one `_locales` enum in Postgres (and four
  * more with the same values), so enabling a language in `markets` needs no migration. Country
  * variants such as `de-CH` are not needed, because a market's country comes from the URL. The
  * markets plugin refuses a language outside this list.

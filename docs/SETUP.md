@@ -2188,14 +2188,14 @@ Items 1 and 2 are recorded in the plan (§4, §4a, §6) and in the ADR; **the PA
 
 ### A language outside the list
 
-The runbook, as run in L10 with Icelandic (`is`), as it is since M4b (the markets are Medusa's, so the two `enum_markets_*` types are gone and the list is `@shopblok/i18n`'s). The plan's example `ga` is already one of the 42; check a code against `LANGUAGES` first (`packages/i18n/src/languages.ts`).
+The runbook, as run in L10 with Icelandic (`is`), as it is since M4b (the markets are Medusa's, so the two `enum_markets_*` types are gone and the list is `@shopblok/i18n`'s). The plan's example `ga` is already one of the 43; check a code against `LANGUAGES` first (`packages/i18n/src/languages.ts`).
 
 1. **Edit one line, and its copy.** Add the two-letter ISO 639-1 code to `EXTRA_LANGUAGES` in `packages/i18n/src/languages.ts` and to the end of `packages/i18n/src/languages.json` (the markets plugin reads the list as JSON; `languages.test.ts` fails until they agree). Right-to-left languages also go in `RTL_LANGUAGES` in `apps/storefront/src/payload/locales.ts`. Do nothing else in Payload's config: every list is built from the one.
 2. **Create the migration.** `pnpm --filter @shopblok/storefront exec payload migrate:create add-<language>` (with the compose Postgres up; a run that prints nothing did nothing, run it again). Read the file: the `up` must be three `ALTER TYPE … ADD VALUE '<code>'` statements (`_locales`, `enum__pages_v_published_locale` and, since T62, `enum_exports_locale`, the CSV export's language) and nothing else; the two `enum_markets_*` types went with the `markets` global in M4b. A collection added since the list may add more enums with the same values; they all take the new one.
 3. **Regenerate the types.** `pnpm --filter @shopblok/storefront generate:types` adds the code to the locale unions in `payload-types.ts`; `generate:importmap` changes nothing. Commit the migration (`.ts`, `.json` and the new lines in `index.ts`) and `payload-types.ts` with the list (`languages.ts` and `languages.json`).
 4. **Run the checks.** `pnpm --filter @shopblok/i18n test` and `pnpm --filter @shopblok/storefront test` (`locales.test.ts` compares the list with the newest migration's `_locales` values, so it fails until step 2 is done) and `payload migrate:create sync-check --skip-empty`, which must create no file.
 5. **Deploy the migration before the code.** `payload migrate` is additive and takes milliseconds (4 ms in L10, on a database with 20 pages in four languages). The code first would answer HTTP 500 the moment someone saves a page in the new language, and nothing else would break; the old code on the migrated database works.
-6. **Open the market.** In Medusa Admin: the language needs a store locale (Settings → Store → Locales; D8: one of Medusa's 51; if Medusa has none, as for Icelandic, pick the closest, for example `en-US`), then the country in the region page's Markets panel with that language ("Adding a market"). The plugin refuses a language outside the list, which is why step 1 comes first. Payload's selector offers the language within about 30 s. The storefront's map and the search index follow ["Opening a market"](#opening-a-market) (T08, T10; D17).
+6. **Open the market.** In Medusa Admin: the language needs a store locale (Settings → Store → Locales; D8: one of Medusa's 52; if Medusa has none, as for Icelandic, pick the closest, for example `en-US`), then the country in the region page's Markets panel with that language ("Adding a market"). The plugin refuses a language outside the list, which is why step 1 comes first. Payload's selector offers the language within about 30 s. The storefront's map and the search index follow ["Opening a market"](#opening-a-market) (T08, T10; D17).
 7. **Never go back.** Do not remove the language from the list, even if the market closes: close it in its Markets panel. See "Removing a language" below.
 
 ### Removing a language (do not)
@@ -7590,7 +7590,7 @@ T72 counted 15 on 2026-10-29. On `main` at `e52e6c9` there were 17: three new ad
 
 ## Medusa 2.22.4
 
-**Result: every `@medusajs/*` package moves from 2.21.2 to 2.22.4 (`@medusajs/ui` 4.2.6 to 4.2.11, and the backend's and the markets plugin's `zod` 4.2.0 to 4.6.6, Medusa's own pin), the storefront's `@medusajs/js-sdk` with them. `pnpm audit --prod` lists 8 advisories (1 low, 5 moderate, 2 high, 0 critical), down from 15: the six the audit task named (zod, glob, OpenTelemetry's pg instrumentation, `@graphql-tools/utils` twice, lodash's high one) and lodash's moderate one. None of the custom backend code changed: the verification guard, the verification replay, the order-claim and return routes, the closed `/store/returns` and the markets plugin hold on 2.22.4 as they are.** The audit's ["What stays"](#audit-after-m4) table now holds only its last seven rows, eight advisories: `ajv` and `uuid` (still under Medusa 2.22.4's MikroORM and bullmq), `deepmerge`, `happy-dom` (two), `csv-parse`, `esbuild` and `minimatch`.
+**Result: every `@medusajs/*` package moves from 2.21.2 to 2.22.4 (`@medusajs/ui` 4.2.6 to 4.2.11, and the backend's and the markets plugin's `zod` 4.2.0 to 4.6.6, Medusa's own pin), the storefront's `@medusajs/js-sdk` with them. `pnpm audit --prod` lists 8 advisories (1 low, 5 moderate, 2 high, 0 critical), down from 15: the six the audit task named (zod, glob, OpenTelemetry's pg instrumentation, `@graphql-tools/utils` twice, lodash's high one) and lodash's moderate one. Medusa 2.22.4 adds one locale, Persian (`fa-IR`), so Payload preloads 43 languages (a migration below). None of the custom backend code changed: the verification guard, the verification replay, the order-claim and return routes, the closed `/store/returns` and the markets plugin hold on 2.22.4 as they are.** The audit's ["What stays"](#audit-after-m4) table now holds only its last seven rows, eight advisories: `ajv` and `uuid` (still under Medusa 2.22.4's MikroORM and bullmq), `deepmerge`, `happy-dom` (two), `csv-parse`, `esbuild` and `minimatch`.
 
 | | |
 |---|---|
@@ -7609,6 +7609,14 @@ T72 counted 15 on 2026-10-29. On `main` at `e52e6c9` there were 17: three new ad
 Unchanged: `@tanstack/react-query` 5.64.2, `react-i18next` 13.5.0, `react-router-dom` 7.18.2, React 18.3.1 and vite 7.3.7, which the dashboard 2.22.4 still asks for. Medusa 2.22's Node floor is 22.22.0 (#17107), below `.nvmrc`'s 22.23.4.
 
 **pnpm's one-day `minimumReleaseAge`.** 2.22.4 was published on 2026-11-06 at 09:18 UTC, three hours before this branch, so `pnpm install` refused it and wrote a `minimumReleaseAgeExclude` list of the 75 new packages (74 at 2.22.4, `@medusajs/ui` at 4.2.11) into `pnpm-workspace.yaml`. That list is in the branch only so that CI can install it today; it is taken out before the merge, once the day has passed (from 2026-11-07 09:18 UTC), and the lockfile then installs under the default policy like every earlier version did.
+
+### Persian joins the languages (D17)
+
+`@medusajs/translation` 2.22.4 ships 52 locales, one more than 2.21.2: **`fa-IR`, Persian (Iran)**. The storefront's `medusa-locales.test.ts` compares `MEDUSA_LOCALES` with the installed list and failed in this PR's first CI run, as it is meant to. D17 preloads in Payload every language Medusa has a locale for, so this PR follows the runbook in "A language outside the list" for `fa`:
+
+- `MEDUSA_LOCALES` gains `fa-IR` after `he-IL` (Medusa's order). `fa` is a Medusa language now, so `LANGUAGES` holds 43 (`fa` at Medusa's place in the list, not at the end) and `languages.json` follows. `fa` is right-to-left, like `ar` and `he` (`RTL_LANGUAGES`).
+- **Migration `20261106_122518_add_persian`**: nine `ALTER TYPE … ADD VALUE 'fa' BEFORE 'hi'` (`_locales`, the published-locale enums of pages, posts, header, footer and site settings, `enum_exports_locale` and the video block's two caption-language enums), and nothing else. Run on the local database in 5 ms; `migrate:create --skip-empty` afterwards writes no file. `payload-types.ts` regenerated.
+- Counts in tests and comments go from 42 languages to 43 and from 51 locales to 52. No market opens Persian; it is offered like any other language when a market is set up in Medusa Admin.
 
 ### Overrides
 
@@ -7633,7 +7641,7 @@ Read from the installed 2.22.4 sources against the 2.21.2 tarballs, and run (the
 ### Checks (cloud VM, Node 22.23.4, the compose stack)
 
 - `pnpm install`, `pnpm dedupe --check`, `check:workspace`, `typecheck`, `lint`: exit 0. `pnpm peers check` lists the same two unmet peers as on `main` (`fdir`'s `picomatch` 3, vite 8's `esbuild`).
-- Unit tests: the backend's 175 and the markets plugin's 57 pass.
+- `pnpm test` (every package): passes, with the Persian change; the storefront's 179 files and 3899 tests, the backend's 175 and the markets plugin's 57 among them. Before it, the storefront's `medusa-locales.test.ts` failed on `fa-IR` (CI's first run of this PR, and here).
 - `test:integration:http` (Postgres from the compose file, the plugin built): 6 suites, 56 tests pass (`markets`, `payload-sync`, `search-locale`, `search-locale-assumptions`, `auth-verification`, `order-claims`), 1 min 47 s.
 - Bootstrap on empty volumes runs Medusa 2.22.4's migrations and seeds as before (68.6 s; doctor 10 ok, 3 warnings for the servers not yet running, 0 errors).
 - Medusa Admin on 2.22.4 (`medusa develop`, Chromium): the region page's Markets panel, its country drawer and the store page's Markets panel look as they did on 2.21.2 (T74's screenshots), with no console errors. The admin bundler still builds the extensions with Tailwind 3.4.

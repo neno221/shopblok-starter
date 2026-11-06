@@ -1,7 +1,7 @@
 import { MEDUSA_LOCALES } from "@shopblok/i18n/languages";
 
 /**
- * Medusa's 51 locale codes (D8, D17). The list moved to `@shopblok/i18n/languages` (M4b, T73), where
+ * Medusa's 52 locale codes (D8, D17; 51 until 2.22.4 added `fa-IR`). The list moved to `@shopblok/i18n/languages` (M4b, T73), where
  * the markets plugin reads it too; `medusa-locales.test.ts` still reads the installed
  * `@medusajs/translation` and fails when a Medusa release changes it. A `markets` language names
  * one of these as its `medusaLocale`.
