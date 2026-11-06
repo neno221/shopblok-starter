@@ -260,7 +260,7 @@ export default async function ProductPage({ params }: Props) {
 
   return (
     <>
-      {/* Live preview (the templates global's and the catalog's) without a chunk (T79). */}
+      {/* The templates global's live preview, without a chunk (T79). */}
       {draft ? <ReloadOnSave /> : null}
       <script
         type="application/ld+json"

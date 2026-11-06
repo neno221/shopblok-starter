@@ -15,7 +15,12 @@ const reads = vi.hoisted(() => ({
   templates: vi.fn(),
 }));
 vi.mock("next/root-params", () => ({ market: async () => "en-us" }));
-vi.mock("next/headers", () => ({ draftMode: async () => ({ isEnabled: reads.draft }) }));
+// A Greek browser on `/us`: what the request asks for is never the language a global is read in.
+vi.mock("next/headers", () => ({
+  draftMode: async () => ({ isEnabled: reads.draft }),
+  headers: async () => new Headers({ "accept-language": "el" }),
+  cookies: async () => ({ get: () => undefined }),
+}));
 vi.mock("../../lib/cms/site", () => ({
   readHeader: reads.header,
   readFooter: reads.footer,
@@ -98,7 +103,8 @@ describe("getShellData (D66)", () => {
     expect(reads.header).toHaveBeenLastCalledWith(expect.objectContaining({ draft: true }));
   });
 
-  // The market test (D101): the global is read by the market's language, never the request's.
+  // The market test (D101): the global is read by the market's language, never the request's (the
+  // mocked request asks for Greek).
   it("reads the templates global in the market's language and passes its picks on (D101)", async () => {
     const { TEMPLATE_DEFAULTS } = await import("../../lib/cms/templates");
     expect((await getShellData()).templates).toEqual(TEMPLATE_DEFAULTS);

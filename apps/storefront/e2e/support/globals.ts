@@ -1,13 +1,14 @@
 import { adminHeaders } from "./payload-rest";
 import { base } from "./server";
 
-// T61: the shell's globals (`header`, `footer`, `site-settings`) changed by a test and put back.
+// T61: the shell's globals (`header`, `footer`, `site-settings`, and since T79 `templates`) changed
+// by a test and put back.
 // A test publishes what it needs through Payload's REST API as the bootstrap admin, and puts the
 // published global back afterwards: a snapshot read in every language (`locale=all`) and published
 // again. Publishing the snapshot also replaces any draft the test left, so the next editor opens
 // the global without a pending change.
 
-export type GlobalSlug = "header" | "footer" | "site-settings";
+export type GlobalSlug = "header" | "footer" | "site-settings" | "templates";
 export type GlobalData = Record<string, unknown>;
 
 const headers = (token: string) => ({ ...adminHeaders(token), "content-type": "application/json" });
