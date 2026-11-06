@@ -1,0 +1,26 @@
+# The tools the steps of the jobs in Playwright's container use (T40), in one place since T77 (PR 114
+# review, item 9): `ps` (stop-tree.sh), `awk`, `curl` (start-storefront) and one of `lsof`, `ss` or
+# `fuser` (stop-tree.sh's port check). The image lacks `lsof` today; it has the others.
+# It runs after `actions/checkout`, which a composite action needs. Before T77 the step ran first,
+# because the update job committed from the container and checkout downloads a tarball, not a clone,
+# when git is missing. No job in the container uses git now (update-baselines-commit commits on the
+# runner), so git is not on the list.
+name: Container tools
+description: Installs what the Playwright image lacks of ps, awk, curl and lsof/ss/fuser.
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: |
+        missing=()
+        command -v ps >/dev/null 2>&1 || missing+=(procps)
+        command -v awk >/dev/null 2>&1 || missing+=(gawk)
+        command -v curl >/dev/null 2>&1 || missing+=(curl)
+        if ! command -v lsof >/dev/null 2>&1 && ! command -v ss >/dev/null 2>&1 && ! command -v fuser >/dev/null 2>&1; then missing+=(lsof); fi
+        if [ "${#missing[@]}" -gt 0 ]; then
+          echo "The image lacks: ${missing[*]}. Installing."
+          apt-get update -qq
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "${missing[@]}"
+        else
+          echo "The image has ps, awk, curl and one of lsof, ss or fuser."
+        fi

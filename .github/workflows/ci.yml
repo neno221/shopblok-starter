@@ -475,26 +475,8 @@ jobs:
     # 1,290 cells, about 10 min a shard.
     timeout-minutes: 30
     steps:
-      # Before checkout, which downloads a tarball instead of cloning when git is missing.
-      - name: Tools the steps use (T40)
-        shell: bash
-        run: |
-          missing=()
-          command -v git >/dev/null 2>&1 || missing+=(git)
-          command -v ps >/dev/null 2>&1 || missing+=(procps)
-          command -v awk >/dev/null 2>&1 || missing+=(gawk)
-          command -v curl >/dev/null 2>&1 || missing+=(curl)
-          # stop-tree.sh's port check wants one of the three.
-          if ! command -v lsof >/dev/null 2>&1 && ! command -v ss >/dev/null 2>&1 && ! command -v fuser >/dev/null 2>&1; then missing+=(lsof); fi
-          if [ "${#missing[@]}" -gt 0 ]; then
-            echo "The image lacks: ${missing[*]}. Installing."
-            apt-get update -qq
-            DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "${missing[@]}"
-          else
-            echo "The image has git, ps, awk, curl and one of lsof, ss or fuser."
-          fi
-          git --version
       - uses: actions/checkout@v7.0.1
+      - uses: ./.github/actions/container-tools
       - uses: ./.github/actions/setup
       - run: pnpm install --frozen-lockfile
       # No `playwright install`: the image has the browser that @playwright/test 1.64.1 drives.
@@ -573,6 +555,7 @@ jobs:
         id: merge
         working-directory: apps/storefront
         run: |
+          mkdir -p all-blob-reports
           ls -l all-blob-reports
           count=$(find all-blob-reports -name 'report-*.zip' | wc -l)
           if [ "$count" -ne 3 ]; then
@@ -617,26 +600,8 @@ jobs:
     # ~10-40 s a page while it compiles (8 min at T57).
     timeout-minutes: 30
     steps:
-      # Before checkout, which downloads a tarball instead of cloning when git is missing.
-      - name: Tools the steps use (T40)
-        shell: bash
-        run: |
-          missing=()
-          command -v git >/dev/null 2>&1 || missing+=(git)
-          command -v ps >/dev/null 2>&1 || missing+=(procps)
-          command -v awk >/dev/null 2>&1 || missing+=(gawk)
-          command -v curl >/dev/null 2>&1 || missing+=(curl)
-          # stop-tree.sh's port check wants one of the three.
-          if ! command -v lsof >/dev/null 2>&1 && ! command -v ss >/dev/null 2>&1 && ! command -v fuser >/dev/null 2>&1; then missing+=(lsof); fi
-          if [ "${#missing[@]}" -gt 0 ]; then
-            echo "The image lacks: ${missing[*]}. Installing."
-            apt-get update -qq
-            DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "${missing[@]}"
-          else
-            echo "The image has git, ps, awk, curl and one of lsof, ss or fuser."
-          fi
-          git --version
       - uses: actions/checkout@v7.0.1
+      - uses: ./.github/actions/container-tools
       - uses: ./.github/actions/setup
       - run: pnpm install --frozen-lockfile
       - name: Start next dev
@@ -697,30 +662,12 @@ jobs:
       SWC_NATIVE_BINDING_CACHE: /tmp/swc-native-cache
     timeout-minutes: 30
     steps:
-      # Before checkout, which downloads a tarball instead of cloning when git is missing.
-      - name: Tools the steps use (T40)
-        shell: bash
-        run: |
-          missing=()
-          command -v git >/dev/null 2>&1 || missing+=(git)
-          command -v ps >/dev/null 2>&1 || missing+=(procps)
-          command -v awk >/dev/null 2>&1 || missing+=(gawk)
-          command -v curl >/dev/null 2>&1 || missing+=(curl)
-          # stop-tree.sh's port check wants one of the three.
-          if ! command -v lsof >/dev/null 2>&1 && ! command -v ss >/dev/null 2>&1 && ! command -v fuser >/dev/null 2>&1; then missing+=(lsof); fi
-          if [ "${#missing[@]}" -gt 0 ]; then
-            echo "The image lacks: ${missing[*]}. Installing."
-            apt-get update -qq
-            DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "${missing[@]}"
-          else
-            echo "The image has git, ps, awk, curl and one of lsof, ss or fuser."
-          fi
-          git --version
       # No write token in any shard: they run install, build and the suite (third-party code), and
       # only upload what they wrote (PR 63 review).
       - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
+      - uses: ./.github/actions/container-tools
       # Every PNG of this shard is written again, so the commit job's set is whole. The folders are
       # emptied, so what is left after the run is exactly what this shard wrote.
       - name: Remove the current baselines and thumbnails
@@ -748,19 +695,28 @@ jobs:
           pid="$(cat "$RUNNER_TEMP/servers/storefront.pid" 2>/dev/null || true)"
           if [ -n "$pid" ]; then bash .github/scripts/stop-tree.sh --port 8000 "$pid"; fi
       # Uploaded under `apps/storefront`, the two folders' common parent, so the commit job puts them
-      # back where they were.
-      - name: Count the PNGs this shard wrote
+      # back where they were. The manifest lists every PNG the shard wrote, so the commit job can
+      # tell a whole set from one that lost a shard (PR 114 review, item 2).
+      - name: List the PNGs this shard wrote
         shell: bash
         run: |
-          n=$(find apps/storefront/e2e/__screenshots__/design-system apps/storefront/public/registry -name '*.png' 2>/dev/null | wc -l)
+          set -euo pipefail
+          manifest="apps/storefront/baselines-manifest-${{ matrix.shard }}.txt"
+          find apps/storefront/e2e/__screenshots__/design-system apps/storefront/public/registry -name '*.png' 2>/dev/null | sort > "$manifest"
+          n=$(wc -l < "$manifest")
           echo "Shard ${{ matrix.shard }} wrote $n PNGs."
+          if [ "$n" -eq 0 ]; then
+            echo "::error title=update-baselines::Shard ${{ matrix.shard }} wrote no PNG."
+            exit 1
+          fi
       - uses: actions/upload-artifact@v7.0.2
         with:
           name: baselines-${{ matrix.shard }}
           path: |
+            apps/storefront/baselines-manifest-${{ matrix.shard }}.txt
             apps/storefront/e2e/__screenshots__/design-system
             apps/storefront/public/registry
-          if-no-files-found: ignore
+          if-no-files-found: error
           retention-days: 1
       - name: Upload the Playwright report
         if: always()
@@ -809,6 +765,29 @@ jobs:
           pattern: baselines-*
           path: apps/storefront
           merge-multiple: true
+      # PR 114 review, item 2: the set is whole only if all three shards' artifacts arrived (a re-run
+      # of this job after their one day finds none) and every PNG each manifest lists is here, with
+      # no other. Anything less would commit a third of the set, or all of it, as deleted.
+      - name: The three shards' PNGs arrived
+        working-directory: apps/storefront
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          manifests=(baselines-manifest-*.txt)
+          if [ "${#manifests[@]}" -ne 3 ]; then
+            echo "::error title=update-baselines::${#manifests[@]} of the 3 shards' artifacts arrived; nothing is committed. Dispatch the update again."
+            exit 1
+          fi
+          sort -u "${manifests[@]}" | sed 's|^apps/storefront/||' > "$RUNNER_TEMP/expected.txt"
+          listed=$(cat "${manifests[@]}" | wc -l)
+          find e2e/__screenshots__/design-system public/registry -name '*.png' | sort > "$RUNNER_TEMP/found.txt"
+          if [ "$listed" -ne "$(wc -l < "$RUNNER_TEMP/expected.txt")" ] || ! diff -q "$RUNNER_TEMP/expected.txt" "$RUNNER_TEMP/found.txt" >/dev/null; then
+            echo "::error title=update-baselines::The PNGs here are not the ones the shards listed ($listed listed); nothing is committed."
+            diff "$RUNNER_TEMP/expected.txt" "$RUNNER_TEMP/found.txt" | head -n 40 || true
+            exit 1
+          fi
+          echo "All three shards' PNGs arrived: $listed."
+          rm -f "${manifests[@]}"
       # T57 (M4 D72): the lossless PNG optimiser the commit step runs on the PNGs it is about to
       # commit. A release binary pinned by version and checksum: Ubuntu 24.04 has no package for it.
       # A new version may write other bytes for the same pixels, which would show every compressed

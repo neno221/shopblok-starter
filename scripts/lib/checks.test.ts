@@ -42,6 +42,7 @@ describe("satisfies", () => {
     expect(satisfies("24.22.2", node)).toBe(true);
     // Payload refuses 24.0 to 24.22.0 (PR 103 review, item 8), and 23 is no LTS.
     expect(satisfies("22.23.3", node)).toBe(false);
+    expect(satisfies("23.0.0", node)).toBe(false);
     expect(satisfies("23.5.0", node)).toBe(false);
     expect(satisfies("24.0.0", node)).toBe(false);
     expect(satisfies("24.22.0", node)).toBe(false);

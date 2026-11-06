@@ -116,7 +116,7 @@ for image in postgres:17.11-alpine redis:7.4-alpine getmeili/meilisearch:v1.54.3
 done
 
 # 4. Playwright's Chromium and its system libraries, at the plan's Playwright pin (M0 §2).
-( PLAYWRIGHT_BROWSERS_PATH=/opt/ms-playwright npx -y playwright@1.64.0 install --with-deps chromium \
+( PLAYWRIGHT_BROWSERS_PATH=/opt/ms-playwright npx -y playwright@1.64.1 install --with-deps chromium \
   && chmod -R a+rX /opt/ms-playwright ) & pids+=($!)
 
 # 5. The Medusa agent skills at the commit the plan cites (M0 §3). Plugins don't install in cloud sessions.
