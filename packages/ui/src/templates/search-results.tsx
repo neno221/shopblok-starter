@@ -39,6 +39,7 @@ function SearchResultsTemplate({
   search,
   title,
   results,
+  variant,
   copy,
   locale,
   hrefFor,
@@ -51,7 +52,8 @@ function SearchResultsTemplate({
     <Root
       id={mainId}
       data-slot="search-results-template"
-      data-variant="default"
+      // The listing's variant, as given (D101): one layout until T84 draws the others here.
+      data-variant={variant}
       className={cn(
         "mx-auto flex w-full max-w-7xl min-w-0 flex-col gap-6 px-4 py-6 md:gap-8 md:px-6 md:py-8 lg:px-8",
         className,

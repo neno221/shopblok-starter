@@ -502,6 +502,11 @@ describe("contracts/variants.ts (D99)", () => {
     expect(refused.error?.issues.map((issue) => [issue.path, issue.message])).toEqual([
       [["collections"], 'the "collection-switcher" variant needs collections'],
     ]);
+    // An inherited key is no variant's: the check adds nothing and throws nothing (PR 116, item 6).
+    const check = variantNeeds({ "collection-switcher": ["collections"] });
+    const issues: unknown[] = [];
+    check({ variant: "toString" }, { addIssue: (issue: unknown) => issues.push(issue) } as never);
+    expect(issues).toEqual([]);
   });
 });
 

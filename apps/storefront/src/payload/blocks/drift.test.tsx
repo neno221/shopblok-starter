@@ -59,7 +59,7 @@ describe("the variant fields and their families (D99)", () => {
   it("knows each family's root, and every member's render draws it", () => {
     const families = new Set(pickers.map((picker) => picker.family));
     for (const entry of entries.filter((each) => families.has(each.family ?? "")))
-      expect(familyRoot(entry), entry.id).toBeDefined();
+      expect(familyRoot(entry, entries), entry.id).toBeDefined();
   });
 });
 
@@ -105,6 +105,40 @@ describe("variantDrift's rules", () => {
   it("refuses an entry file that ignores the variant: the second member draws the first", () => {
     expect(variantDrift(fake({ render: () => drawn("standard") }))).toEqual([
       'sections/hero-overlay\'s live render draws [data-slot="hero-section"] as [standard], not "overlay"',
+    ]);
+  });
+
+  it("finds a template member's root at its family's first member's slot", () => {
+    const receipt = entries.find((entry) => entry.id === "templates/order-confirmation");
+    if (receipt === undefined) throw new Error("no templates/order-confirmation");
+    const split: RegistryEntry = { ...receipt, id: "templates/receipt-split", variant: "split" };
+    const withSplit = [...entries, split];
+    expect(familyRoot(split, withSplit)).toBe("order-confirmation-template");
+    const page = (variant: string) =>
+      `<main data-slot="order-confirmation-template" data-variant="${variant}"></main>`;
+    expect(
+      variantDrift(
+        fake({
+          entries: withSplit,
+          pickers: [
+            { where: "templates.receipt.variant", family: "receipt", offered: ["default"] },
+          ],
+          render: (id) => page(id === split.id ? "split" : "default"),
+        }),
+      ),
+    ).toEqual([]);
+    expect(
+      variantDrift(
+        fake({
+          entries: withSplit,
+          pickers: [
+            { where: "templates.receipt.variant", family: "receipt", offered: ["default"] },
+          ],
+          render: () => page("default"),
+        }),
+      ),
+    ).toEqual([
+      'templates/receipt-split\'s live render draws [data-slot="order-confirmation-template"] as [default], not "split"',
     ]);
   });
 

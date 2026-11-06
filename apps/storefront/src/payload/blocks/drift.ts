@@ -87,13 +87,27 @@ export function variantPickers(where: string, fields: readonly Field[]): Variant
 
 /**
  * The `data-slot` of the element each family's member draws `data-variant` on, its root (D99): a
- * section's frame, a template's root, the quick view's and the mini cart's trigger (the dialog and
+ * section's frame, the template root of the family's first member, the quick view's and the mini
+ * cart's trigger (the dialog and
  * the sheet are not in a server render until they open).
  */
-export function familyRoot(entry: RegistryEntry): string | undefined {
+export function familyRoot(
+  entry: RegistryEntry,
+  entries: readonly RegistryEntry[],
+): string | undefined {
   if (entry.group === "sections") return `${entry.family}-section`;
-  if (entry.group === "templates")
-    return `${entry.id.slice(entry.id.lastIndexOf("/") + 1)}-template`;
+  if (entry.group === "templates") {
+    // Every member draws its family's root, which is the first member's (M3's) template slot:
+    // `templates/product-detail-grid` draws `product-detail-template`, the receipt's members
+    // `order-confirmation-template` (PR 116 review, item 1).
+    const first = entries.find(
+      (each) =>
+        each.family === entry.family && each.variant === variantsOf(entry.family ?? "")[0]?.value,
+    );
+    return first === undefined
+      ? undefined
+      : `${first.id.slice(first.id.lastIndexOf("/") + 1)}-template`;
+  }
   if (entry.family === "quick-view") return "quick-view-trigger";
   if (entry.family === "mini-cart") return "cart-drawer-trigger";
   return undefined;
@@ -153,7 +167,7 @@ export function variantDrift(facts: VariantFacts): string[] {
       }
       const thumbnail = `public/registry/${entry.id}.png`;
       if (!facts.hasFile(thumbnail)) problems.push(`${entry.id} has no thumbnail ${thumbnail}`);
-      const root = familyRoot(entry);
+      const root = familyRoot(entry, facts.entries);
       if (root === undefined) {
         problems.push(`${entry.id}: familyRoot() knows no root for the family "${family}"`);
         continue;

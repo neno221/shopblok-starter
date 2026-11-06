@@ -81,7 +81,9 @@ export function variantNeeds<V extends string>(
 ): (value: { variant?: string | undefined }, context: z.RefinementCtx) => void {
   return (value, context) => {
     if (value.variant === undefined) return;
-    for (const field of needs[value.variant as V] ?? []) {
+    // An own key only: `toString` must not read `Object.prototype` (PR 116 review, item 6).
+    const fields = Object.hasOwn(needs, value.variant) ? needs[value.variant as V] : undefined;
+    for (const field of fields ?? []) {
       if ((value as Record<string, unknown>)[field] === undefined)
         context.addIssue({
           code: "custom",
