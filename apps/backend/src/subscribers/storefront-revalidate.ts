@@ -5,6 +5,7 @@ import {
   REVALIDATE_EVENTS,
   batchesFor,
   handlesFor,
+  idsFor,
   postBatch,
   postOptions,
 } from "../lib/storefront-revalidate";
@@ -18,9 +19,9 @@ import {
 export default async function storefrontRevalidate({
   event: { name, data },
   container,
-}: SubscriberArgs<{ id?: string | string[] }>) {
+}: SubscriberArgs<{ id?: string | string[]; price_set_ids?: string[] }>) {
   const options = postOptions(container);
-  const ids = [data?.id ?? []].flat().filter((id): id is string => typeof id === "string");
+  const ids = idsFor(name, data);
   let handles: string[] = [];
   try {
     handles = await handlesFor(container.resolve(ContainerRegistrationKeys.QUERY), name, ids);

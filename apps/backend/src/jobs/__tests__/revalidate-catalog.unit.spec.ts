@@ -1,6 +1,6 @@
 import revalidateCatalog, { config } from "../revalidate-catalog";
 
-describe("revalidate-catalog job (D58: price lists emit no events)", () => {
+describe("revalidate-catalog job (D58, D112: a sale's start and end emit no events)", () => {
   const realFetch = global.fetch;
   const fetchMock = jest.fn();
   const log = { warn: jest.fn(), error: jest.fn() };

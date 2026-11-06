@@ -29,6 +29,7 @@ describe("storefront-revalidate subscriber", () => {
     expect(config.event).toContain("inventory-level.updated");
     expect(config.event).toContain("shopblok.markets.updated");
     expect(config.event).toContain("region.updated");
+    expect(config.event).toContain("price-list.prices_added");
   });
 
   it("expires the market map when the markets plugin saved a market (D94)", async () => {
@@ -64,6 +65,27 @@ describe("storefront-revalidate subscriber", () => {
       event: { name: "product-variant.updated", data: { id: "variant_1" } },
       container: containerWith(graph),
     } as never);
+    expect(fetchMock.mock.calls.map(([, init]) => JSON.parse(init.body))).toEqual([
+      { tags: ["medusa:products", "search"], expire: "max" },
+      { tags: ["product:tee"], expire: 0 },
+    ]);
+  });
+
+  it("reads a price list's price_set_ids, not its id, for a prices_* event (D112)", async () => {
+    fetchMock.mockResolvedValue(new Response("{}"));
+    const graph = jest.fn().mockResolvedValue({
+      data: [{ variant: { product: { handle: "tee" } } }],
+    });
+    await storefrontRevalidate({
+      event: {
+        name: "price-list.prices_added",
+        data: { id: "plist_1", price_set_ids: ["pset_1"] },
+      },
+      container: containerWith(graph),
+    } as never);
+    expect(graph.mock.calls[0][0].filters).toEqual({
+      price_set_id: ["pset_1"],
+    });
     expect(fetchMock.mock.calls.map(([, init]) => JSON.parse(init.body))).toEqual([
       { tags: ["medusa:products", "search"], expire: "max" },
       { tags: ["product:tee"], expire: 0 },

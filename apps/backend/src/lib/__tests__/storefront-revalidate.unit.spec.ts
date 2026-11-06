@@ -1,4 +1,10 @@
-import { REVALIDATE_EVENTS, batchesFor, handlesFor, postBatch } from "../storefront-revalidate";
+import {
+  REVALIDATE_EVENTS,
+  batchesFor,
+  handlesFor,
+  idsFor,
+  postBatch,
+} from "../storefront-revalidate";
 
 const logger = () => ({ warn: jest.fn(), error: jest.fn() });
 
@@ -25,6 +31,15 @@ describe("batchesFor (the event-to-tags table)", () => {
       [{ tags: ["product:cap", "product:tee"], expire: 0 }],
     ],
     ["inventory-level.deleted", [], [{ tags: ["medusa:products"], expire: "max" }]],
+    [
+      "price-list.prices_added",
+      ["tee", "cap"],
+      [
+        { tags: ["medusa:products", "search"], expire: "max" },
+        { tags: ["product:cap", "product:tee"], expire: 0 },
+      ],
+    ],
+    ["price-list.deleted", [], [{ tags: ["medusa:products", "search"], expire: "max" }]],
     [
       "product-category.updated",
       ["apparel"],
@@ -93,6 +108,21 @@ describe("batchesFor (the event-to-tags table)", () => {
       for (const action of ["created", "updated", "deleted"]) {
         expect(REVALIDATE_EVENTS).toContain(`${family}.${action}`);
       }
+    }
+  });
+
+  it("takes Medusa 2.22's six price-list events with the variant's PRICES batches (D112)", () => {
+    for (const action of [
+      "created",
+      "updated",
+      "deleted",
+      "prices_added",
+      "prices_updated",
+      "prices_removed",
+    ]) {
+      const event = `price-list.${action}`;
+      expect(REVALIDATE_EVENTS).toContain(event);
+      expect(batchesFor(event, ["tee"])).toEqual(batchesFor("product-variant.updated", ["tee"]));
     }
   });
 
@@ -169,11 +199,79 @@ describe("handlesFor", () => {
     });
   });
 
+  it("follows a price list's price sets through the variant link (prices_* events)", async () => {
+    const graph = jest.fn().mockResolvedValue({
+      data: [{ variant: { product: { handle: "tee" } } }, { variant: null }],
+    });
+    expect(await handlesFor({ graph }, "price-list.prices_removed", ["pset_1"])).toEqual(["tee"]);
+    expect(graph).toHaveBeenCalledWith({
+      entity: "product_variant_price_set",
+      fields: ["variant.product.handle"],
+      filters: { price_set_id: ["pset_1"] },
+      withDeleted: true,
+    });
+  });
+
+  it("reads a list's prices (a deleted list's too), then their sets' products", async () => {
+    const graph = jest
+      .fn()
+      .mockResolvedValueOnce({
+        data: [{ price_set_id: "pset_1" }, { price_set_id: "pset_1" }, { price_set_id: null }],
+      })
+      .mockResolvedValueOnce({
+        data: [{ variant: { product: { handle: "tee" } } }],
+      });
+    expect(await handlesFor({ graph }, "price-list.deleted", ["plist_1"])).toEqual(["tee"]);
+    expect(graph.mock.calls).toEqual([
+      [
+        {
+          entity: "price",
+          fields: ["price_set_id"],
+          filters: { price_list_id: ["plist_1"] },
+          withDeleted: true,
+        },
+      ],
+      [
+        {
+          entity: "product_variant_price_set",
+          fields: ["variant.product.handle"],
+          filters: { price_set_id: ["pset_1"] },
+          withDeleted: true,
+        },
+      ],
+    ]);
+  });
+
+  it("stops after the list's prices when it has none", async () => {
+    const graph = jest.fn().mockResolvedValue({ data: [] });
+    expect(await handlesFor({ graph }, "price-list.created", ["plist_1"])).toEqual([]);
+    expect(graph).toHaveBeenCalledTimes(1);
+  });
+
   it("reads nothing for an event whose tags need no handle, or without ids", async () => {
     const graph = jest.fn();
     expect(await handlesFor({ graph }, "product.deleted", ["prod_1"])).toEqual([]);
     expect(await handlesFor({ graph }, "product.updated", [])).toEqual([]);
     expect(graph).not.toHaveBeenCalled();
+  });
+});
+
+describe("idsFor", () => {
+  it("takes the event's id, or a price list's price_set_ids for its prices_* events", () => {
+    expect(idsFor("product-variant.updated", { id: "variant_1" })).toEqual(["variant_1"]);
+    expect(idsFor("product.updated", { id: ["prod_1", "prod_2", ""] })).toEqual([
+      "prod_1",
+      "prod_2",
+    ]);
+    expect(idsFor("price-list.updated", { id: "plist_1" })).toEqual(["plist_1"]);
+    expect(
+      idsFor("price-list.prices_added", {
+        id: "plist_1",
+        price_set_ids: ["pset_1", "pset_2"],
+      }),
+    ).toEqual(["pset_1", "pset_2"]);
+    expect(idsFor("price-list.prices_removed", { id: "plist_1" })).toEqual([]);
+    expect(idsFor("region.updated", undefined)).toEqual([]);
   });
 });
 
