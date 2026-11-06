@@ -25,6 +25,7 @@ import { Footer } from "./payload/globals/footer";
 import { Header } from "./payload/globals/header";
 import { importExport } from "./payload/import-export";
 import { SiteSettings } from "./payload/globals/site-settings";
+import { Templates } from "./payload/globals/templates";
 import { LIVE_PREVIEW_BREAKPOINTS, livePreviewUrl } from "./payload/live-preview";
 import { redirects } from "./payload/redirects";
 import { seo } from "./payload/seo";
@@ -74,7 +75,7 @@ export default buildConfig({
     EmailTemplates,
     UiStrings,
   ],
-  globals: [Header, Footer, SiteSettings],
+  globals: [Header, Footer, SiteSettings, Templates],
   // D70, D79: SPEC §7.4's blocks, defined once here; `pages.layout` names them (`blockReferences`).
   blocks: BLOCKS,
   editor: lexicalEditor(),

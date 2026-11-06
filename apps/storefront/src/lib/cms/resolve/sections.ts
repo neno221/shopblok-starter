@@ -358,12 +358,24 @@ export async function resolveLayout(
   context: ResolveContext,
 ): Promise<ResolvedBlock[]> {
   const resolved = await Promise.all(
-    (layout ?? []).map((block) => {
+    (layout ?? []).map(async (block) => {
       const reading = readingBlock(block, context);
-      if (reading === undefined) return resolveBlock(block, context);
+      if (reading === undefined) return withVariant(resolveBlock(block, context), block);
       const { source, read } = reading;
-      return read === null ? null : readOrSkip(block, { source, read });
+      return read === null ? null : withVariant(await readOrSkip(block, { source, read }), block);
     }),
   );
   return resolved.flatMap((block) => block ?? []);
+}
+
+/**
+ * D99: the block's stored `variant` goes on with its section's view model, and the section's export
+ * draws that member. It is not parsed with the contract: a value the registry does not have (one
+ * stored by a later version) still draws the block, as its first variant, and is logged once
+ * (`pickVariant`), rather than leaving the block out.
+ */
+function withVariant(resolved: ResolvedBlock | null, block: LayoutBlock): ResolvedBlock | null {
+  return resolved === null
+    ? null
+    : ({ ...resolved, section: { ...resolved.section, variant: block.variant } } as ResolvedBlock);
 }

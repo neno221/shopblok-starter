@@ -3,6 +3,7 @@ import { greeceOnly, seeded, withDomains } from "../lib/markets/test-maps";
 import {
   LIVE_PREVIEW_BREAKPOINTS,
   livePreviewUrl,
+  templatesPreviewPath,
   pagePreviewPath,
   previewMarket,
   previewUrl,
@@ -116,5 +117,23 @@ describe("livePreviewUrl", () => {
     await expect(url(args)).resolves.toBeNull();
     expect(getMarketMap).toHaveBeenCalled();
     expect(warn.mock.calls[0]?.[0]).toMatch(/did not answer.*the live preview is off for now/);
+  });
+});
+
+describe("templatesPreviewPath (D101)", () => {
+  it("is the newest product's page, read without its deleted products", async () => {
+    const find = vi.fn().mockResolvedValue({ docs: [{ handle: "linen shirt" }] });
+    expect(await templatesPreviewPath({ find } as never)).toBe("/products/linen%20shirt");
+    expect(find.mock.calls[0]?.[0]).toMatchObject({
+      collection: "products",
+      where: { deletedInMedusa: { not_equals: true } },
+      sort: "-createdAt",
+      limit: 1,
+    });
+  });
+
+  it("is the home while the shop has no product", async () => {
+    const find = vi.fn().mockResolvedValue({ docs: [] });
+    expect(await templatesPreviewPath({ find } as never)).toBe("/");
   });
 });

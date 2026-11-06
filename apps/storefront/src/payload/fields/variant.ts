@@ -1,8 +1,15 @@
 import { variantsOf } from "@shopblok/registry";
 import type { SelectField } from "payload";
 
-/** What the picker gets in `admin.custom` (it reaches the client): each option's thumbnail. */
-export type VariantPickerCustom = { thumbnails: Record<string, string> };
+/**
+ * What the picker gets in `admin.custom` (it reaches the client): each option's thumbnail, and for
+ * the drift test (D99) the family and the options that draw no member of it.
+ */
+export type VariantPickerCustom = {
+  thumbnails: Record<string, string>;
+  family: string;
+  drawsNothing: string[];
+};
 
 export type VariantFieldOptions = {
   /** The registry's family (`header`, `footer`, a block's: D46, D79). */
@@ -17,6 +24,13 @@ export type VariantFieldOptions = {
    * page that knows it starts with a hero (T61's SETUP.md, "Globals (T61)").
    */
   exclude?: readonly string[];
+  /**
+   * Options that draw no member of the family (D101): the quick view's "Off" before the variants,
+   * the mini cart's "Cart page" after them. They have no thumbnail, and the drift test leaves them
+   * out.
+   */
+  before?: readonly { value: string; label: string }[];
+  after?: readonly { value: string; label: string }[];
   description?: string;
 };
 
@@ -33,6 +47,8 @@ export function variantField({
   label,
   defaultValue,
   exclude = [],
+  before = [],
+  after = [],
   description,
 }: VariantFieldOptions): SelectField {
   const variants = variantsOf(family).filter((variant) => !exclude.includes(variant.value));
@@ -40,13 +56,19 @@ export function variantField({
   if (first === undefined) throw new Error(`variantField: the registry has no "${family}" family.`);
   const custom: VariantPickerCustom = {
     thumbnails: Object.fromEntries(variants.map((variant) => [variant.value, variant.thumbnail])),
+    family,
+    drawsNothing: [...before, ...after].map((option) => option.value),
   };
   return {
     name,
     type: "select",
     required: true,
     defaultValue: defaultValue ?? first.value,
-    options: variants.map(({ value, label: optionLabel }) => ({ value, label: optionLabel })),
+    options: [
+      ...before,
+      ...variants.map(({ value, label: optionLabel }) => ({ value, label: optionLabel })),
+      ...after,
+    ].map(({ value, label: optionLabel }) => ({ value, label: optionLabel })),
     ...(label === undefined ? {} : { label }),
     admin: {
       custom,

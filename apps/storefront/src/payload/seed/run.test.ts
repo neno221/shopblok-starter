@@ -1,7 +1,8 @@
 import type { Payload } from "payload";
 import { beforeEach, describe, expect, it } from "vitest";
 import { siteText } from "../../lib/site";
-import { footerSeed, headerSeed, SEED_GLOBALS, siteSettingsSeed } from "./globals";
+import { footerSeed, headerSeed, SEED_GLOBALS, siteSettingsSeed, templatesSeed } from "./globals";
+import { TEMPLATE_DEFAULTS } from "../../lib/cms/templates";
 import { inLanguage, runGlobalSeeds, runSeeds } from "./run";
 import type { SeedGlobal, SeedModule } from "./types";
 import { comparable } from "./values";
@@ -457,8 +458,31 @@ describe("runGlobalSeeds (T61)", () => {
 });
 
 describe("the globals' seed (T61 step 6)", () => {
-  it("is the header, the footer and the site settings, in that order", () => {
-    expect(SEED_GLOBALS.map((seed) => seed.global)).toEqual(["header", "footer", "site-settings"]);
+  it("is the header, the footer, the site settings and the templates, in that order", () => {
+    expect(SEED_GLOBALS.map((seed) => seed.global)).toEqual([
+      "header",
+      "footer",
+      "site-settings",
+      "templates",
+    ]);
+  });
+
+  it("writes every family's first variant in the templates, which is M4's shop (T79)", async () => {
+    const fields = await templatesSeed.fields({} as Payload);
+    const values = Object.fromEntries(
+      Object.entries(fields).map(([path, seeded]) => [path, seeded.value]),
+    );
+    const d = TEMPLATE_DEFAULTS;
+    expect(values).toEqual({
+      "productPage.variant": d.productPage,
+      "listing.variant": d.listing,
+      "quickView.variant": d.quickView,
+      "cart.variant": d.cart,
+      "cart.miniCart": d.miniCart,
+      "cart.quickCart": d.quickCart,
+      "checkout.variant": d.checkout,
+      "receipt.variant": d.receipt,
+    });
   });
 
   it("writes M3's shell from site.ts, in the four seeded languages", async () => {

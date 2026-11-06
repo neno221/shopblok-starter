@@ -57,7 +57,9 @@ describe("payload.config.ts outside Next (D95)", () => {
     expect(result.slug).toContain("pages");
     // The markets global is gone (D95): the map is Medusa's.
     expect(result.globals).not.toContain("markets");
-    expect(result.globals).toEqual(expect.arrayContaining(["header", "footer", "site-settings"]));
+    expect(result.globals).toEqual(
+      expect.arrayContaining(["header", "footer", "site-settings", "templates"]),
+    );
   }, 120_000);
 
   it("filterAvailableLocales never throws: with the map unreadable it offers the default locale and warns", async () => {
