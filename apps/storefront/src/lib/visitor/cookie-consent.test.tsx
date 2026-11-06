@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 // Ours (T36, SETUP.md "Footers and site organisms (T36)"). The storefront's tests have no DOM and no
-// Testing Library, so the pragma above runs this file in happy-dom (a peer of the installed Vitest;
-// the app does not list it itself) and the island is driven with react-dom and `act`.
+// Testing Library, so the pragma above runs this file in happy-dom (a dev dependency of the app since
+// SETUP.md "Audit after M4") and the island is driven with react-dom and `act`.
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { commerceFixtures } from "@shopblok/fixtures";

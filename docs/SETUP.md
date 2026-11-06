@@ -7526,7 +7526,7 @@ The PR's /code-review (`reviews/pr-110-code-review.md` in the project's files) h
 
 ## Audit after M4
 
-**Result: `pnpm audit --prod` lists 15 advisories (1 low, 8 moderate, 6 high, 0 critical), down from 17 on `main` at the W6 fixes (`e52e6c9`), through two more overrides in `pnpm-workspace.yaml` in T55's pattern: each on one edge, to a fixed release inside that dependant's own range. The other 15 have no fixed release inside their dependant's range (the table below). Six of them would go with Medusa 2.22.4, a version upgrade rather than an override, so that is a decision for M5's plan.** NEXT-SESSION.md, "After W6"; "Hardening (T55)" for the pattern.
+**Result: `pnpm audit --prod` lists 15 advisories (1 low, 8 moderate, 6 high, 0 critical), down from 17 on `main` at the W6 fixes (`e52e6c9`), through two more overrides in `pnpm-workspace.yaml` in T55's pattern: each on one edge, to a fixed release inside that dependant's own range. A third moves `@smithy/core` off a release npm marks deprecated, and the storefront and `packages/ui` pin happy-dom 21.0.4, out of a dev-only high advisory (the code review's findings 1 and 5). The other 15 have no fixed release inside their dependant's range (the table below). Six of them would go with Medusa 2.22.4, a version upgrade rather than an override, so that is a decision for M5's plan.** NEXT-SESSION.md, "After W6"; "Hardening (T55)" for the pattern.
 
 | | |
 |---|---|
@@ -7544,8 +7544,9 @@ T72 counted 15 on 2026-10-29. On `main` at `e52e6c9` there were 17: three new ad
 |---|---|---|---|---|---|
 | `follow-redirects` | `axios>follow-redirects` | 1.16.1 | **1.16.2** (2026-10-25) | `^1.16.0` (axios 1.20.0, under `@medusajs/telemetry`) | 1 high (GHSA-mrwp-f3q8-3g9p: custom credential headers can follow a redirect) |
 | `happy-dom` | `@lexical/headless>happy-dom` | 20.14.5 | **20.14.6** (2026-10-08) | `^20.9.0` (`@lexical/headless` 0.50.0, under Payload's `richtext-lexical`) | 1 moderate (GHSA-5fpq-26gf-qwcr: cookie scope forgery, no label boundary on `Domain=`); its two high ones are fixed only in 21 (below) |
+| `@smithy/core` (not an advisory) | `"@smithy/core@3.35.1": "3.38.1"` (the version, as T57's `qs`) | 3.35.1 | **3.38.1** (2026-10-30) | `^3.33.2`, `^3.33.3`, `^3.35.0` (the AWS SDK clients under `@medusajs/file-s3` and `@medusajs/framework`'s DynamoDB session store) | none listed: 3.35.1 to 3.38.0 are deprecated on npm for aws/aws-sdk-js-v3#8393 (a custom logger could get data unredacted), which `pnpm audit` does not count. The re-resolve for the first two overrides brought the deprecation notice into the lockfile, and the review asked for it to be handled (finding 5) |
 
-**One side effect, made explicit.** The storefront's unit tests run in happy-dom (`// @vitest-environment happy-dom`, nine files) without declaring it: vitest's optional `happy-dom` peer resolved to Payload's 20.14.5 for the storefront, and to `packages/ui`'s own 21.0.1 for the UI package. With the override that copy became 20.14.6 and pnpm picked 21.0.1 for both, so the storefront now declares `"happy-dom": "21.0.1"` in its dev dependencies, the version `packages/ui` already pins, rather than relying on a peer that a lockfile change can move. Nothing else in the lockfile changed (two vitest snapshots became one; `pnpm dedupe --check` passes).
+**One side effect, made explicit.** The storefront's unit tests run in happy-dom (`// @vitest-environment happy-dom`, 15 files) without declaring it: vitest's optional `happy-dom` peer resolved to Payload's 20.14.5 for the storefront, `packages/i18n` and `scripts`, and to `packages/ui`'s own copy for the UI package. With the override Payload's copy became 20.14.6 and pnpm picked `packages/ui`'s for all four, so the storefront now declares `happy-dom` in its dev dependencies rather than relying on a peer that a lockfile change can move. Both it and `packages/ui` pin **21.0.4**: `packages/ui`'s 21.0.1 (on `main`) has GHSA-834v-8h66-3h79 (high, `>=17.0.0 <=21.0.3`), which only the full `pnpm audit` lists, since it is a dev dependency (finding 1). The lockfile changes nothing else: the vitest snapshots that named happy-dom 20.14.5 or 21.0.1 now name 21.0.4 (two became one), and `@smithy/core` is 3.38.1 (above). `pnpm dedupe --check` passes.
 
 ### What stays, and why
 
@@ -7568,6 +7569,21 @@ T72 counted 15 on 2026-10-29. On `main` at `e52e6c9` there were 17: three new ad
 
 ### Checks (cloud VM, Node 22.23.4, no compose stack)
 
-- `pnpm install` and `pnpm dedupe --check`: only `pnpm-lock.yaml`, `pnpm-workspace.yaml` and the storefront's `package.json` change; `pnpm audit --prod` lists 15.
-- `check:workspace`, `typecheck`, `lint`, `test` and `build` exit 0 in CI's state (no `.env`, no stack). The storefront's unit tests, on happy-dom 21.0.1 now (was 20.14.5): 179 files, 3899 tests pass; `packages/ui`'s 178 files pass as before.
+- `pnpm install` and `pnpm dedupe --check`: only `pnpm-lock.yaml`, `pnpm-workspace.yaml` and the `package.json` files of the storefront and `packages/ui` change; `pnpm audit --prod` and the full `pnpm audit` both list 15.
+- `check:workspace`, `typecheck`, `lint`, `test` and `build` exit 0 in CI's state (no `.env`, no stack), after the review's fixes too (happy-dom 21.0.4, `@smithy/core` 3.38.1). The storefront's unit tests, on happy-dom 21.0.4 now (was 20.14.5): 179 files, 3899 tests pass; `packages/ui`'s 5752 tests (on 21.0.4, was 21.0.1), the backend's 175 and the markets plugin's 57 pass.
 - Not run here: the e2e jobs (no Docker on this VM); the PR's CI runs them. `follow-redirects` is only in Medusa's telemetry client, and Payload's `@lexical/headless` only converts HTML or Markdown to rich text, which the shop's own code never calls.
+
+### Code review (PR 111)
+
+`reviews/pr-111-code-review.md` in the project's files: three must-fix findings, all wording, and five optional ones. All fixed but 8.
+
+| # | Finding | Fix |
+|---|---|---|
+| 1 | (security) The storefront's new pin, happy-dom 21.0.1 (`packages/ui`'s on `main`), has a high advisory fixed in 21.0.4 | Both pin 21.0.4 |
+| 2 | "Nothing else in the lockfile changed" missed the `@smithy/core` deprecation and the vitest peers of `packages/i18n` and `scripts` | Both named above |
+| 3 | "nine files" use the happy-dom pragma; there are 15 | 15 |
+| 4 | README's "Next step" still named the audit task | It names M5's plan |
+| 5 | (security) `@smithy/core` 3.35.1 is deprecated (a logger redaction bug), unrecorded | Moved to 3.38.1, the first release that is not, inside every dependant's range; recorded above |
+| 6 | (cleanup) `cookie-consent.test.tsx` said the app does not list happy-dom | Reworded; no other file says so |
+| 7 | (cleanup) The new overrides had no "drop it once" line, and `^20.14.6` would hold a later `@lexical/headless` that asks `^21.0.4` back at 20.x | The line names both drop points |
+| 8 | (other) happy-dom is pinned in two packages, which can drift apart | Skipped (design; both bumped together here) |
