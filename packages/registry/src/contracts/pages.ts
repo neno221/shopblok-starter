@@ -7,6 +7,7 @@ import { Image } from "./image";
 import { Breadcrumbs, PageState, SearchQuery } from "./listing";
 import { FilterPanel, ProductCarousel, ProductGrid, ProductToolbar } from "./listing-organisms";
 import { ShippingOption } from "./shipping";
+import { variantEnum } from "./variants";
 import { Order } from "./order";
 import {
   BuyBox,
@@ -100,7 +101,7 @@ export const ErrorPage = z.object({ homeHref: Href });
  */
 export const ProductDetailPage = z
   .object({
-    variant: z.literal("default").describe("D57: one variant in M3; M5 adds §9.5's"),
+    variant: variantEnum("product-detail").describe("The `templates` global's pick (D101)"),
     breadcrumbs: Breadcrumbs,
     gallery: ProductGallery,
     buyBox: BuyBox,
@@ -153,7 +154,7 @@ export const ListingResults = z
  * passes as the template's `slots.intro`, so the registry stays free of Payload.
  */
 export const ProductListingPage = z.object({
-  variant: z.literal("default").describe("D57: one variant in M3; M5 adds §9.5's"),
+  variant: variantEnum("product-listing").describe("The `templates` global's pick (D101)"),
   breadcrumbs: Breadcrumbs,
   title: z.string().min(1).describe("The page's one heading: the category's or collection's name"),
   banner: Image.optional().describe("A wide picture under the title, an editor's (T69)"),
@@ -166,7 +167,9 @@ export const ProductListingPage = z.object({
  * listing's filter form lands without JavaScript (D59).
  */
 export const SearchResultsPage = z.object({
-  variant: z.literal("default").describe("D57: one variant in M3"),
+  variant: variantEnum("product-listing").describe(
+    "The listing's filter layout, which search follows (D101)",
+  ),
   search: SearchQuery,
   title: z.string().min(1).describe("The page's one heading: what was searched, or “Search”"),
   results: ListingResults,
@@ -208,7 +211,7 @@ export const HomePage = z.object({
  * the way to the checkout; an empty cart is the way back to the shop.
  */
 export const CartPage = z.object({
-  variant: z.literal("default").describe("D57: one variant in M3; M5 adds §9.5's"),
+  variant: variantEnum("cart").describe("The `templates` global's pick (D101)"),
   cart: Cart,
   promoCode: z
     .string()
@@ -261,7 +264,7 @@ export const CheckoutReviewStep = z.object({
  */
 export const CheckoutPage = z
   .object({
-    variant: z.literal("default").describe("D57: one variant in M3"),
+    variant: variantEnum("checkout").describe("The `templates` global's pick (D101)"),
     checkout: CheckoutSteps,
     step: z.discriminatedUnion("kind", [
       CheckoutContactStep,
@@ -280,7 +283,7 @@ export const CheckoutPage = z
  */
 export const OrderConfirmationPage = z
   .object({
-    variant: z.literal("default").describe("D57: one variant in M3"),
+    variant: variantEnum("receipt").describe("The `templates` global's receipt (D101)"),
     order: Order,
     summary: OrderSummary,
     continueHref: Href,

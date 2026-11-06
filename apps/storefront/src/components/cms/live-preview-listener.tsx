@@ -8,3 +8,7 @@ export default function LivePreviewListener({ serverURL }: { serverURL: string }
   const router = useRouter();
   return <RefreshRouteOnSave refresh={() => router.refresh()} serverURL={serverURL} />;
 }
+
+// The marker `scripts/first-load.ts` finds this module's chunk by (D102): no route may load it at
+// first, since `refresh-on-save.tsx` loads it with `next/dynamic`.
+LivePreviewListener.displayName = "shopblok:live-preview-listener";

@@ -6,6 +6,7 @@ import { EmptyStateContent } from "./listing";
 import { CategoryTile, PostCard } from "./pages";
 import { PriceSummary, ProductCard } from "./product";
 import { AccordionSection, Countdown, DiscountCode, NewsletterSignup } from "./site";
+import { variantEnum, type Family } from "./variants";
 
 // The sections' view models (D70, D79): what each of SPEC §7.4's blocks shows, once Payload's
 // content has been resolved for the market (links as `href`s, uploads as images). Text is the
@@ -47,13 +48,20 @@ export const SectionLink = Link.extend({
 
 const heading = z.string().min(1).optional().describe("The section's heading (an h2)");
 const settings = SectionSettings.optional();
+/**
+ * The block's variant (D99): one of its family's values; none draws the first. `RenderBlocks`
+ * passes the stored one, and the section's export draws that member.
+ */
+const variant = (family: Family) =>
+  variantEnum(family).optional().describe("The block's variant (D99); none: the first");
 
 /** `richText`: the editor's text alone; the text itself is the section's `children`. */
-export const RichTextSection = z.object({ settings });
+export const RichTextSection = z.object({ settings, variant: variant("rich-text") });
 
 /** `mediaWithText`: a picture beside the text, on the side the editor picks, and up to two links. */
 export const MediaWithTextSection = z.object({
   settings,
+  variant: variant("media-with-text"),
   heading,
   image: Image,
   imageSide: z
@@ -77,6 +85,7 @@ export const USP_ICONS = [
 /** `uspBar`: two to six promises in a row (free delivery, returns…). */
 export const UspBarSection = z.object({
   settings,
+  variant: variant("usp-bar"),
   items: z
     .array(
       z.object({
@@ -92,6 +101,7 @@ export const UspBarSection = z.object({
 /** `logoCloud`: the brands a shop sells or the press that wrote about it, each a picture. */
 export const LogoCloudSection = z.object({
   settings,
+  variant: variant("logo-cloud"),
   heading,
   logos: z
     .array(
@@ -111,7 +121,12 @@ export const LogoCloudSection = z.object({
 export const FaqItem = AccordionSection.extend({ answer: z.array(z.string().min(1)).min(1) });
 
 /** `faq`: questions in an accordion; the page's FAQs together are its `FAQPage` JSON-LD. */
-export const FaqSection = z.object({ settings, heading, items: z.array(FaqItem).min(1) });
+export const FaqSection = z.object({
+  settings,
+  variant: variant("faq"),
+  heading,
+  items: z.array(FaqItem).min(1),
+});
 
 /** One customer's words. */
 export const Testimonial = z.object({
@@ -126,6 +141,7 @@ export const Testimonial = z.object({
 /** `testimonials`: quotes from customers, written in Payload until M8's reviews. */
 export const TestimonialsSection = z.object({
   settings,
+  variant: variant("testimonials"),
   heading,
   quotes: z.array(Testimonial).min(1).max(12),
 });
@@ -186,6 +202,7 @@ export const VideoSource = z.discriminatedUnion("kind", [
  */
 export const VideoSection = z.object({
   settings,
+  variant: variant("video"),
   heading,
   /** What the video is: the player's accessible name and the play button's. */
   title: z.string().min(1),
@@ -197,6 +214,7 @@ export const VideoSection = z.object({
 /** `spacer`: room between two sections, with a line or without. */
 export const SpacerSection = z.object({
   settings,
+  variant: variant("spacer"),
   size: z.enum(["small", "medium", "large"]),
   divider: z.boolean(),
 });
@@ -224,6 +242,7 @@ const text = z.array(z.string().min(1)).min(1).optional().describe("Paragraphs")
  */
 export const HeroSection = z.object({
   settings,
+  variant: variant("hero"),
   eyebrow: z.string().min(1).optional().describe("A short line above the heading"),
   heading: z.string().min(1).describe("The hero's heading: the page's h1 when it opens the page"),
   subheading: z.string().min(1).optional(),
@@ -236,6 +255,7 @@ export const HeroSection = z.object({
 /** `categoryShowcase`: categories as tiles, a picture and a name each, from a `categorySource`. */
 export const CategoryShowcaseSection = z.object({
   settings,
+  variant: variant("category-showcase"),
   heading,
   intro: z.string().min(1).optional(),
   link: SectionLink.optional(),
@@ -249,6 +269,7 @@ export const CategoryShowcaseSection = z.object({
 export const ProductCollectionSection = z
   .object({
     settings,
+    variant: variant("product-collection"),
     heading: z.string().min(1).describe("The section's heading, which names the carousel"),
     intro: z.string().min(1).optional(),
     link: SectionLink.optional(),
@@ -264,6 +285,7 @@ export const ProductCollectionSection = z
 /** `featuredProduct`: one product, large, with the editor's words and picture. */
 export const FeaturedProductSection = z.object({
   settings,
+  variant: variant("featured-product"),
   heading,
   product: ProductCard,
   image: Image.describe("The editor's picture, or the product's first"),
@@ -273,6 +295,7 @@ export const FeaturedProductSection = z.object({
 /** `bundle`: products that go together, handpicked; no bundle price in v1 (D79). */
 export const BundleSection = z.object({
   settings,
+  variant: variant("bundle"),
   heading: z.string().min(1),
   text,
   products: products(6).refine((list) => list.length >= 2, "a bundle has two products or more"),
@@ -281,6 +304,7 @@ export const BundleSection = z.object({
 /** `promoBanner`: an offer, with a code to copy (Medusa checks it at the cart) and its end. */
 export const PromoBannerSection = z.object({
   settings,
+  variant: variant("promo-banner"),
   heading: z.string().min(1),
   text,
   code: DiscountCode.shape.code.optional(),
@@ -307,6 +331,7 @@ export const ComparisonProduct = z.object({
 export const ComparisonSection = z
   .object({
     settings,
+    variant: variant("comparison"),
     heading: z.string().min(1).describe("The table's caption"),
     products: z
       .array(ComparisonProduct)
@@ -325,6 +350,7 @@ export const ComparisonSection = z
 /** `collectionSpotlight`: a collection's picture and words beside a few of its products. */
 export const CollectionSpotlightSection = z.object({
   settings,
+  variant: variant("collection-spotlight"),
   heading: z.string().min(1).describe("The editor's, or the collection's title"),
   text,
   image: Image.optional(),
@@ -339,6 +365,7 @@ export const CollectionSpotlightSection = z.object({
  */
 export const RecentlyViewedSection = z.object({
   settings,
+  variant: variant("recently-viewed"),
   heading: z.string().min(1),
   products: products(8),
 });
@@ -346,6 +373,7 @@ export const RecentlyViewedSection = z.object({
 /** `newsletter`: the signup (NewsletterForm) as a section of its own, with the editor's words (D81). */
 export const NewsletterSection = z.object({
   settings,
+  variant: variant("newsletter"),
   heading: heading.describe("The form's heading; the catalog's “Join our newsletter” when empty"),
   text: z.string().min(1).optional().describe("The line under it; the catalog's when empty"),
   newsletter: NewsletterSignup,
@@ -422,6 +450,7 @@ export const FormField = z.discriminatedUnion("kind", [
  */
 export const FormBlockSection = z.object({
   settings,
+  variant: variant("form-block"),
   heading,
   intro: z.string().min(1).optional(),
   form: z.object({
@@ -448,6 +477,7 @@ export const EDITORIAL_LIST_MAX = 12;
 
 export const EditorialListSection = z.object({
   settings,
+  variant: variant("editorial-list"),
   heading,
   posts: z.array(PostCard).min(1).max(EDITORIAL_LIST_MAX),
   link: SectionLink.optional().describe("The journal, when the editor shows the link"),

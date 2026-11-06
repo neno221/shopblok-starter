@@ -15,6 +15,7 @@ import {
   ProductListingPage,
   SearchResultsPage,
 } from "../contracts";
+import { firstVariant, type Family } from "../contracts/variants";
 import type { EntryInput } from "../types";
 
 // SPEC §9.3's templates (D56): a page's `<main>`, drawn in the DS inside the classic header and the
@@ -36,22 +37,53 @@ const template = <const Slug extends string>(
     contract,
   }) as const satisfies EntryInput;
 
+/**
+ * A template the `templates` global picks (D99, D101): the first member of its family, with the
+ * family's first variant. Its id stays M3's, so its baselines do; it gains a thumbnail (D52). T83
+ * to T86 add the other members (`templates/product-detail-grid`, family `product-detail`).
+ */
+const first = <const Slug extends string, const F extends Family>(
+  slug: Slug,
+  family: F,
+  label: string,
+  name: string,
+  contract: EntryInput["contract"],
+) =>
+  ({
+    ...template(slug, label, name, contract),
+    family,
+    variant: firstVariant(family),
+  }) as const satisfies EntryInput;
+
 export const templates = [
   // T48: the two the shell needs.
   template("not-found", "Not found", "NotFoundTemplate", NotFoundPage),
   template("error", "Error", "ErrorTemplate", ErrorPage),
   // T49: the product page.
-  template("product-detail", "Product page", "ProductDetailTemplate", ProductDetailPage),
+  first(
+    "product-detail",
+    "product-detail",
+    "Product page",
+    "ProductDetailTemplate",
+    ProductDetailPage,
+  ),
   // T50: the listing pages and the search page.
-  template("product-listing", "Listing page", "ProductListingTemplate", ProductListingPage),
+  first(
+    "product-listing",
+    "product-listing",
+    "Listing page",
+    "ProductListingTemplate",
+    ProductListingPage,
+  ),
   template("search-results", "Search results", "SearchResultsTemplate", SearchResultsPage),
   // T51: the home page.
   template("home", "Home page", "HomeTemplate", HomePage),
   // T52: the cart, the checkout and the receipt.
-  template("cart", "Cart page", "CartTemplate", CartPage),
-  template("checkout", "Checkout", "CheckoutTemplate", CheckoutPage),
-  template(
+  first("cart", "cart", "Cart page", "CartTemplate", CartPage),
+  first("checkout", "checkout", "Checkout", "CheckoutTemplate", CheckoutPage),
+  first(
     "order-confirmation",
+    "receipt",
     "Order confirmation",
     "OrderConfirmationTemplate",
     OrderConfirmationPage,

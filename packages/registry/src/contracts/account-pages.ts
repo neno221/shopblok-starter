@@ -12,6 +12,7 @@ import { VerificationRequest } from "./checkout";
 import { Href, Id } from "./content";
 import { PageState } from "./listing";
 import { Order } from "./order";
+import { variantEnum } from "./variants";
 
 // The pages of a shopper's account (T53, D64, SPEC §8.4): signing in and up with a verified
 // e-mail, the passwords, the account's screens and the claim of a guest order. Each template draws
@@ -132,6 +133,9 @@ export const AccountOrdersScreen = z
 export const AccountOrderScreen = z
   .object({
     kind: z.literal("order"),
+    variant: variantEnum("receipt")
+      .optional()
+      .describe("The `templates` global's receipt (D101); none: the first"),
     order: Order,
     summary: OrderSummary,
     backHref: Href.describe("The orders"),

@@ -543,8 +543,10 @@ describe("QuickViewDialog: the file (D49)", () => {
       (match) => match[1] ?? "",
     );
 
+  // The dialog is the quick view's first member since T79 (D99); `quick-view-dialog.tsx` is the
+  // family's entry file, which imports the registry's types only.
   it("is a client component that imports no catalog, no registry and no fixture", () => {
-    const text = source("quick-view-dialog.tsx");
+    const text = source("quick-view/default.tsx");
     expect(text).toMatch(/^"use client";?$/m);
     const imported = runtimeImports(text);
     expect(imported.filter((each) => each === "@shopblok/i18n")).toEqual([]);
@@ -553,14 +555,18 @@ describe("QuickViewDialog: the file (D49)", () => {
   });
 
   it("draws the gallery without zoom and with the thumbnails below, as the brief asks", () => {
-    const text = source("quick-view-dialog.tsx");
+    const text = source("quick-view/default.tsx");
     expect(text).toMatch(/<ProductGallery[\s\S]*?zoom=\{false\}/);
     expect(text).toMatch(/<ProductGallery[\s\S]*?thumbnails="below"/);
     expect(text).not.toMatch(/SizeGuide/);
   });
 
   it("writes no em dash", () => {
-    for (const name of ["quick-view-dialog.tsx", "quick-view-dialog.test.tsx"]) {
+    for (const name of [
+      "quick-view-dialog.tsx",
+      "quick-view/default.tsx",
+      "quick-view-dialog.test.tsx",
+    ]) {
       expect(source(name)).not.toContain(EM_DASH);
     }
   });

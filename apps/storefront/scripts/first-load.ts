@@ -16,12 +16,21 @@
 // (`build/index.js`, `build/route-bundle-stats.js`), so the two cannot disagree about a route group, a
 // slot or any other kind of folder (PR 69 review, item 6). Route handlers end in `/route` there.
 //
-// What fails (exit 1): a budgeted route over its budget; a budgeted route that has a page in the
+// What is kept out (D102, T79): the modules in `keptOut` (a variant's island, the live preview's
+// listener) are loaded by `next/dynamic` inside a client component, so their chunk is fetched when
+// they render and is no route's first load. Turbopack's production chunks name no module, so a row
+// names a string literal of its module that minifying keeps and no other source has (a `data-slot`
+// of its own); the chunks under `.next/static/chunks/` that hold it are the module's. The check
+// prints each such chunk with its gzipped size.
+//
+// What fails (exit 1): a kept-out module whose chunk is in a route's `firstLoadChunkPaths` (it was
+// imported statically, or `dynamic()` was called in a server component), or whose marker is in no
+// chunk (the row is stale); a budgeted route over its budget; a budgeted route that has a page in the
 // manifest and no row in the stats (so a change of the stats file's format cannot pass silently); a
 // stats file or manifest that is missing or not in the shape above; a chunk file the stats name that
 // is not on disk (a size that is too small must not pass). A budgeted route Next built no page for
 // yet is said, not failed. The table of every route is always printed.
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { gzipSync } from "node:zlib";
@@ -66,6 +75,31 @@ export const budgets: readonly Budget[] = [
     route: "/[market]/collections/[handle]/page/[n]",
     label: "PLP, collections page n",
     maxKB: 335,
+  },
+];
+
+export type KeptOut = {
+  /** The module, as a path from this package (`src/components/cms/live-preview-listener.tsx`). */
+  module: string;
+  /**
+   * A string literal of the module's own code that minifying keeps and no other source of the
+   * workspace has (`first-load.test.ts` checks both): the chunks that hold it are the module's.
+   */
+  marker: string;
+  /** What the module is, for the messages. */
+  label: string;
+};
+
+/**
+ * The modules no route may load at first (D102): each variant's island, loaded by `next/dynamic`
+ * inside a client component, as SETUP.md "How to add a variant (M5)" says. A variant task adds its
+ * island here; the live preview's listener (D74) is the first row, loaded that way since T61.
+ */
+export const keptOut: readonly KeptOut[] = [
+  {
+    module: "src/components/cms/live-preview-listener.tsx",
+    marker: "shopblok:live-preview-listener",
+    label: "live preview's listener (D74)",
   },
 ];
 
@@ -264,6 +298,71 @@ export function evaluate(
   return { table, failures, notes };
 }
 
+/** A chunk file under `.next/static/chunks/`, as the stats name it, with its text. */
+export type ChunkText = { chunk: string; text: string };
+
+export const chunksDir = ".next/static/chunks";
+
+/** Every JavaScript chunk of the build's client, as `{ chunk, text }`. */
+export function readChunks(root: string): ChunkText[] {
+  const dir = path.join(root, chunksDir);
+  return readdirSync(dir, { recursive: true, encoding: "utf8" })
+    .filter((file) => file.endsWith(".js"))
+    .map((file) => ({
+      chunk: `${chunksDir}/${file.split(path.sep).join("/")}`,
+      text: readFileSync(path.join(dir, file), "utf8"),
+    }));
+}
+
+/**
+ * D102's check: each kept-out module's chunks (the ones holding its marker) with their gzipped
+ * size, and a failure for a chunk that is in a route's first load or a marker in no chunk.
+ */
+export function checkKeptOut(
+  rows: readonly StatsRow[],
+  list: readonly KeptOut[],
+  chunks: readonly ChunkText[],
+  gzipOf: (chunk: string) => number,
+): Report {
+  const failures: string[] = [];
+  const lines: string[][] = [["kept-out module", "chunk", "gzip KB", "result"]];
+  for (const item of list) {
+    const found = chunks.filter((each) => each.text.includes(item.marker));
+    if (found.length === 0) {
+      lines.push([item.module, "-", "-", "NOT FOUND"]);
+      failures.push(
+        `${item.module} (${item.label}): no chunk holds its marker "${item.marker}", so the build has no such module or its marker changed. Fix the row in \`keptOut\`.`,
+      );
+      continue;
+    }
+    for (const { chunk } of found) {
+      const routes = rows.filter((row) => row.firstLoadChunkPaths.includes(chunk));
+      lines.push([
+        item.module,
+        chunk,
+        kb(gzipOf(chunk)),
+        routes.length === 0 ? "kept out" : "FIRST LOAD",
+      ]);
+      if (routes.length > 0)
+        failures.push(
+          `${item.module} (${item.label}): its chunk ${chunk} is in the first load of ${routes.map((row) => row.route).join(", ")}. Load it with next/dynamic inside a client component (D102), never statically or from a server component.`,
+        );
+    }
+  }
+  const widths = lines[0]!.map((_, column) =>
+    Math.max(...lines.map((line) => line[column]!.length)),
+  );
+  const table = lines.map((line) =>
+    line
+      .map((cell, column) =>
+        column < 2 ? cell.padEnd(widths[column]!) : cell.padStart(widths[column]!),
+      )
+      .join("  ")
+      .trimEnd(),
+  );
+  return { table, failures, notes: [] };
+}
+
 /** `--budget "<route>=<KB>"`, repeatable: the budget for that route in this run only. */
 export function parseArgs(argv: readonly string[]): { overrides: Budget[] } | { usage: string } {
   const overrides: Budget[] = [];
@@ -303,6 +402,7 @@ export function run(
   print: (line: string) => void,
   fail: (line: string) => void,
   tableBudgets: readonly Budget[] = budgets,
+  keepOut: readonly KeptOut[] = keptOut,
 ): number {
   const args = parseArgs(argv);
   if ("usage" in args) {
@@ -329,11 +429,32 @@ export function run(
   print("First-load JS per route, each chunk gzipped on its own and summed (SPEC §13):");
   for (const line of report.table) print(line);
   for (const note of report.notes) print(note);
-  if (report.failures.length > 0) {
-    for (const failure of report.failures) fail(`first-load: ${failure}`);
+  let kept: Report = { table: [], failures: [], notes: [] };
+  if (keepOut.length > 0) {
+    let chunks: ChunkText[];
+    try {
+      chunks = readChunks(root);
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      fail(`first-load: cannot read ${chunksDir}: ${reason}\nRun \`pnpm build\` first.`);
+      return 1;
+    }
+    kept = checkKeptOut(rows, keepOut, chunks, (chunk) =>
+      gzipBytes(readFileSync(path.join(root, chunk))),
+    );
+    print("Kept out of every route's first load (D102), each chunk gzipped:");
+    for (const line of kept.table) print(line);
+  }
+  const failures = [...report.failures, ...kept.failures];
+  if (failures.length > 0) {
+    for (const failure of failures) fail(`first-load: ${failure}`);
     return 1;
   }
-  print("first-load: no route is over its budget.");
+  print(
+    keepOut.length > 0
+      ? "first-load: no route is over its budget, and no kept-out module is in a first load."
+      : "first-load: no route is over its budget.",
+  );
   return 0;
 }
 

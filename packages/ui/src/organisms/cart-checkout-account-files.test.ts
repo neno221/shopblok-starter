@@ -15,7 +15,8 @@ const HEADER = '// Ours (T39, SETUP.md "Cart, checkout and account organisms (T3
 const SERVER = [
   "account-nav.tsx",
   "address-book.tsx",
-  "cart-drawer.tsx",
+  // The mini cart's first member since T79 (D99); `cart-drawer.tsx` is its family's entry file.
+  "mini-cart/drawer.tsx",
   "checkout-steps.tsx",
   "order-summary.tsx",
   "order-table.tsx",
@@ -26,7 +27,7 @@ const SERVER = [
   "return-request-form.tsx",
 ];
 const CLIENT = [
-  "cart-drawer-client.tsx",
+  "mini-cart/drawer-client.tsx",
   "order-summary-lines.tsx",
   "quick-cart-dropdown-client.tsx",
 ];
@@ -84,7 +85,7 @@ describe.each(SERVER)("%s, a server part", (name) => {
 });
 
 describe("the server parts of the overlays (D49)", () => {
-  it.each(["cart-drawer.tsx", "quick-cart-dropdown.tsx"])(
+  it.each(["mini-cart/drawer.tsx", "quick-cart-dropdown.tsx"])(
     "%s formats with the client-safe subpath, and its catalog import is types only",
     (name) => {
       const imported = runtimeImports(read(name));
