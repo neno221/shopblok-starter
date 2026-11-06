@@ -5511,7 +5511,7 @@ The first CI run's `design-system` job failed in `next build`: it builds with no
 - **`/next/status`** is S4's variant C: a Store API read with the publishable key and a Payload `count`, 2 s each, side by side; 200 or 503, `no-store`, `{ status, checks: { medusa, payload } }`, the reason in the server log only.
 - **`/api/revalidate`** takes `POST { tags, expire? }` with `Authorization: Bearer <REVALIDATE_SECRET>`, compares SHA-256 digests with `timingSafeEqual`, accepts only the catalog's tags (`medusa:{products,regions,categories,collections}`, `search`, `navigation`, `product|category|collection:{handle}`; never `global:markets` or the CMS's), and calls `revalidateTag(tag, { expire: 0 })` for `expire: 0`, `"max"` otherwise. 401 for a wrong or missing secret (and for every call while the secret is unset, with an error in the log), 400 for a body it does not know or one with no known tag. A tag it does not know beside known ones (a handle with a `.` or a non-ASCII letter, which Medusa allows) is skipped and named in the answer's `skipped`, which the backend logs; the rest are revalidated.
 - **The subscriber** maps the event to tags (`RULES` in `lib/storefront-revalidate.ts`): a product's change refreshes `product:{handle}`, `medusa:products` and `search` with `"max"`; a variant's (the prices) refreshes the lists with `"max"` and its product's page with `expire: 0`, sent last; an inventory level's (the stock) only its products' pages with `expire: 0`, since a level changes on every order, or `medusa:products` with `"max"` when no product can be read; an option's, an option value's and a tag's the same as a product's for every product behind it, and a sales channel's deletion `medusa:products` and `search`; a category's and a collection's their handle, their list tag, `medusa:products` (the breadcrumbs carry their names), `search` (and `navigation` for a category); a translation's every text tag (its id names no product); a region's `medusa:regions`, `medusa:products` and `search` with `expire: 0`. The handles come from `query.graph` by id, deleted rows included; a deleted product or group uses its list tag. A failed read still sends the list tags; a failed POST is logged and never thrown (the event must not retry forever).
-- **The job** `revalidate-catalog` POSTs `{ tags: ["medusa:products", "search"], expire: "max" }` every ten minutes (`*/10 * * * *`), for price lists, which emit no events.
+- **The job** `revalidate-catalog` POSTs `{ tags: ["medusa:products", "search"], expire: "max" }` every ten minutes (`*/10 * * * *`), for price lists, which emit no events. Since T78 (Medusa 2.22's price-list events) it is there only for a sale reaching its start or its end, which still emits nothing ("Leftovers from M4 (T78)").
 
 ### Checks
 
@@ -7658,3 +7658,60 @@ Read from the installed 2.22.4 sources against the 2.21.2 tarballs, and run (the
 | 3 | (cleanup) SPEC.md still says Medusa's Locale table holds 51 codes | 52, with the Persian commit |
 | 4 | (cleanup) `apps/backend/UPSTREAM.md` still states the 2.21.2, ui 4.2.6 and zod 4.2.0 pins | Both lines name the 2.22.4 pins |
 | 5 | (cleanup) Version comments in `panel.tsx`, `time-zone-picker.tsx` and `languages.ts` name 4.2.6 or 2.21.2 | Checked in 4.2.11 (`Drawer.Header` the same, still no combobox) and reworded; `languages.ts` with the Persian commit |
+
+## Leftovers from M4 (T78)
+
+**Result: a price list's change reaches the shop at once.** Medusa 2.22's six price-list events join the revalidation table with the variant's `PRICES` batches, so adding, changing or removing a sale price, and creating, editing or deleting a list with prices, expires the products' `product:<handle>` tags with `expire: 0` (and `medusa:products` and `search` with `"max"`) within the subscriber's run, where it took up to ten minutes before. The ten-minute job stays, because nothing is emitted when a sale reaches its `starts_at` or `ends_at`. CompareTray's notes now point to M8, the Video section keys its caption tracks by language and file, and a missing page's tab title is "Page not found | Shopblok" in the market's language (W6's items 1 and 2, which the owner had accepted; D112 kept them as cleanups and no one asked to leave them).
+
+| | |
+|---|---|
+| Date | 2026-11-06 |
+| Branch | `claude/project-thread-9era32`, on the "Medusa 2.22.4" PR's branch (`claude/project-thread-yk9cym`, PR 112, not merged yet: pnpm's one-day release age holds it to 2026-11-07 09:18 UTC) with `main` at `f0b896b` (PR 113, the M5 plan) merged in. It takes `main` again once PR 112 merges, before its own merge |
+| PR | this PR, "T78: Leftovers from M4" |
+
+### Price-list events (D112)
+
+The events and their payloads, read in `@medusajs/core-flows` 2.22.4 (`dist/price-list/workflows/`); `emitEventStep` with an array emits one event per item:
+
+| Event | Workflow | Payload | How the handles are read |
+|---|---|---|---|
+| `price-list.prices_added` | `createPriceListPricesWorkflow` (and the batch route's `create`) | `{ id, price_set_ids }` per list | `price_set_ids` through the `product_variant_price_set` link: `query.graph({ entity: "product_variant_price_set", fields: ["variant.product.handle"], filters: { price_set_id } })` |
+| `price-list.prices_updated` | `updatePriceListPricesWorkflow` | `{ id, price_set_ids }` | the same |
+| `price-list.prices_removed` | `removePriceListPricesWorkflow` | `{ id, price_set_ids }`, read before the prices are deleted | the same: the price is gone (`removePrices` deletes the rows), but its set still links the variant |
+| `price-list.created` | `createPriceListsWorkflow` | `{ id }` | the list's prices (`entity: "price"`, `filters: { price_list_id }`, `withDeleted`) give the sets, then as above |
+| `price-list.updated` | `updatePriceListsWorkflow` (a title, a status, the dates) | `{ id }` | the same |
+| `price-list.deleted` | `deletePriceListsWorkflow` | `{ id }`, after the list is soft-deleted | the same: `softDeletePriceLists` cascades to the prices, which `withDeleted` still reads, and the variant links are not removed. With none left, only `medusa:products` and `search` (`"max"`) go: `PRICES` with no handle is the list-wide rule the table gives `*.deleted` |
+
+- **What changed.** `lib/storefront-revalidate.ts`: a rule can say where the event keeps its ids (`idsIn: "price_set_ids"`; `idsFor()` reads them, `id` otherwise), two handle sources (`price_set` through the link, `price_list` through its prices first), and the six rows, all `PRICES`. The table's comment says which payload each carries and why the job stays; `jobs/revalidate-catalog.ts`'s comment now says it is there for a sale's start and end. The subscriber calls `idsFor()` instead of reading `data.id`. `search/product.ts`'s TODO no longer says price lists emit nothing: the search index does not follow these events yet (its prices refresh on a product's or variant's change, as before), which is not T78's.
+- **The plan's step said `deleted` takes the list-wide rule because nothing can be read.** The list's prices are soft-deleted with it, not removed, so they still name the sets, and the integration test shows the product's tag expired at once on `deleted` too. The list-wide rule remains for a list whose prices are gone.
+- **A list in draft, or a sale not started yet**, still expires its products when it changes: the subscriber does not read the list's status or dates. The pages then render the same price again; the cost is one fresh read per product of that list.
+
+### W6's items 1 and 2, and CompareTray
+
+- **Item 1, the caption tracks' key** (`packages/ui/src/sections/video.tsx`): `${srclang}:${src}`, since one file can be listed for two languages. The contract already refuses one language twice. A new test renders one file in English and German and finds no "same key" warning.
+- **Item 2, the 404's tab title.** `[market]/not-found.tsx` exports `generateMetadata` with the catalog's existing `templates.notFound.title` (the heading's own message, as the cart and search pages use theirs), inside the layout's title template: "Page not found | Shopblok", "Η σελίδα δεν βρέθηκε | Shopblok", "Seite nicht gefunden | Shopblok", "Page introuvable | Shopblok". **No new message** was needed: the plan asked for one in the four catalogs and in `ui-strings`' seed, but "Page not found" is already there in all four (and an editor's change to it in `ui-strings` now changes the tab too). **That alone changed nothing:** Next reads a `not-found` file's metadata only when the 404 is raised while the metadata is resolved, and the pages returned `{}` from `generateMetadata` and called `notFound()` only in the page. So the five `generateMetadata`s that read the page call `notFound()` for a missing one too: `[...slug]`, `products/[handle]`, `journal/[slug]`, `listingMetadata` (categories and collections) and `journalMetadata` (the journal's pages). Pages that answer 404 for a signed-in visitor's missing order or return keep their own titles, as before.
+- **`curl` shows no title,** as it shows no page: a market's 404 is sent as Next's error shell (`html#__next_error__`) with the page in its RSC payload, which the browser draws (SETUP.md "Pages and the homepage (T65)", as for a missing product since T12). The payload's head now carries `["title","0",{"children":"Page not found | Shopblok"}]`; `markets.spec.ts` checks the title in a browser.
+- **CompareTray's notes** that said M5 say M8 (D112: the shopper's own comparison moves to M8 with SPEC §17.1; M5's `comparison` block is the editor's, with no tray): two in `compare-tray.tsx`, one each in its test, `cookie-consent-reserve.ts`, `compare-tray-demo.tsx` and `organisms-product-lists.tsx` (comments only), and "Listing organisms (T37)"'s item 3 of "How a component task uses them", its observation about the banner, and its review rows 2 and 5. `git grep -nw M5` finds none of them left.
+- **D112 item 4:** SPEC §17.2's `@payloadcms/sdk` row matches the code (no package depends on it, none is in the lockfile; the sync's client is `apps/backend/src/modules/payload/client.ts`), and PR 112's Medusa 2.22 rows (§2's version, §6's verification guard, §8.5's 52 locales and the time-zone note, the risks table) match the installed 2.22.4. SPEC §6.2's "Price lists emit no events" is now out of date; the plan's §8 item 9 leaves it to T92 (SPEC v0.12).
+
+### Checks (cloud VM, Node 22.23.4, the compose stack)
+
+| Check | Result |
+|---|---|
+| `storefront-revalidate.spec.ts` (new, `test:integration:http`, a fake storefront on port 39872 recording every POST) | **2 passed (13.2 s).** One product, a list: `prices_added` sends `{ tags: ["product:sale-linen-shirt"], expire: 0 }` (169 ms after the workflow returns) with the bearer secret, and `medusa:products`/`search` with `"max"`; `prices_updated` the same; `prices_removed` the same (50 ms). A list created in draft with the price, then made active, then deleted: each sends the product's tag with `expire: 0`, and `deleted` also `medusa:products` and `search` |
+| **The mutation:** the six `price-list.*` rows taken out of `RULES` | **Both tests fail:** "Timed out after 15000 ms waiting for the product's tag after prices_added" and "… after created". The product's earlier `product-variant.*` POSTs do not satisfy them |
+| Backend unit tests | **183 passed** (175 before): the six events in the table and their `PRICES` batches, the link read for `prices_*`, the list's prices then the link for `created`/`updated`/`deleted`, no second read for a list with no prices, `idsFor`, and the subscriber reading `price_set_ids` |
+| `test:integration:http`, every suite | **7 suites, 58 tests passed (2 min 6 s)**: the 56 of PR 112 and the two new ones |
+| `video.test.tsx` | 10 passed; with the key back to `track.src` the new test fails (React's "Encountered two children with the same key") |
+| `not-found.test.tsx` | 3 passed: `generateMetadata` gives the catalog's title for `en-us`, `el-cy` and `fr-ch` |
+| The 404's title in a browser (Chromium, `next build` and `next start` as `e2e-smoke` builds them, `STOREFRONT_PRERENDER_PRODUCTS=4`, `STOREFRONT_LISTING_PAGE_SIZE=3`) | Before: "Shopblok" for `/us/does-not-exist`, `/does-not-exist`, `/de/does-not-exist` and a missing product. After: `/us/no-such-page` "Page not found \| Shopblok", `/no-such-page` "Η σελίδα δεν βρέθηκε \| Shopblok" (`el-CY`), `/de/no-such-page` "Seite nicht gefunden \| Shopblok", `/ch/fr/journal/nope` "Page introuvable \| Shopblok"; a missing product, category, collection, post and journal page the same; `/`, `/us/cart` and a product unchanged |
+| `markets.spec.ts` (`--project=chromium`, against that build) | **25 passed (13.7 s)**, six of them new or extended: the market's 404 under `/` has the Greek title, and five missing pages under `/us` have the English one |
+| `pnpm typecheck`, `pnpm lint`, `pnpm test` (every package), `pnpm build` | exit 0; the storefront's 179 files and 3,900 tests (3,899 before) |
+
+`package.json`, the lockfile and `payload-types.ts` are untouched (T77 changes them). No Payload schema change, so no migration.
+
+### For later
+
+- **The search index** (`search/product.ts`) still re-indexes a product's prices only on a product's or variant's event; it could follow the six price-list events the same way (a task of its own, with the index's own tests).
+- **T79** moves `video.tsx` into `sections/video/`: if it starts before this PR merges, the second to merge carries the key fix into the new folder (PR 113 review, item 18).
+
