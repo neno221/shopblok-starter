@@ -7523,3 +7523,51 @@ The PR's /code-review (`reviews/pr-110-code-review.md` in the project's files) h
 |---|---|
 | **The cap is 3, not "more than CI's"** | The prompt asked for a build with more workers than CI's to be checked in the cloud; it was (4, 8 and 11 pass with the pool cap). The default stays at CI's 3 because the laptop's `medusa develop` timed out at 11 and was never tried between 3 and 11; a faster PC can set `STOREFRONT_BUILD_WORKERS` |
 | **Not run on Windows** | Items 4 to 6 are Medusa Admin's, the same in every browser; item 7's numbers are the cloud's. The next W check runs step 4 without the edit |
+
+## Audit after M4
+
+**Result: `pnpm audit --prod` lists 15 advisories (1 low, 8 moderate, 6 high, 0 critical), down from 17 on `main` at the W6 fixes (`e52e6c9`), through two more overrides in `pnpm-workspace.yaml` in T55's pattern: each on one edge, to a fixed release inside that dependant's own range. The other 15 have no fixed release inside their dependant's range (the table below). Six of them would go with Medusa 2.22.4, a version upgrade rather than an override, so that is a decision for M5's plan.** NEXT-SESSION.md, "After W6"; "Hardening (T55)" for the pattern.
+
+| | |
+|---|---|
+| Date | 2026-11-06 |
+| Branch | `claude/project-thread-208im3`, from `main` at `e52e6c9` (PR 110's merge, the W6 fixes) |
+| PR | this PR, "Audit after M4" |
+
+### Since T72
+
+T72 counted 15 on 2026-10-29. On `main` at `e52e6c9` there were 17: three new advisories in packages already installed (`follow-redirects` 1.16.1 through Medusa's telemetry's axios, `glob` 13.0.6 through `@medusajs/framework` and `@medusajs/cli`, `minimatch` 10.2.6 through `typescript-eslint` in `packages/config`), and one gone (`graphql-scalars`, no longer listed). zod's advisory is the same one; its `zod-validation-error` path now resolves Medusa's 4.2.0.
+
+### The overrides
+
+| Package | Edge | Was | Now | Parent's range | Advisories closed |
+|---|---|---|---|---|---|
+| `follow-redirects` | `axios>follow-redirects` | 1.16.1 | **1.16.2** (2026-10-25) | `^1.16.0` (axios 1.20.0, under `@medusajs/telemetry`) | 1 high (GHSA-mrwp-f3q8-3g9p: custom credential headers can follow a redirect) |
+| `happy-dom` | `@lexical/headless>happy-dom` | 20.14.5 | **20.14.6** (2026-10-08) | `^20.9.0` (`@lexical/headless` 0.50.0, under Payload's `richtext-lexical`) | 1 moderate (GHSA-5fpq-26gf-qwcr: cookie scope forgery, no label boundary on `Domain=`); its two high ones are fixed only in 21 (below) |
+
+**One side effect, made explicit.** The storefront's unit tests run in happy-dom (`// @vitest-environment happy-dom`, nine files) without declaring it: vitest's optional `happy-dom` peer resolved to Payload's 20.14.5 for the storefront, and to `packages/ui`'s own 21.0.1 for the UI package. With the override that copy became 20.14.6 and pnpm picked 21.0.1 for both, so the storefront now declares `"happy-dom": "21.0.1"` in its dev dependencies, the version `packages/ui` already pins, rather than relying on a peer that a lockfile change can move. Nothing else in the lockfile changed (two vitest snapshots became one; `pnpm dedupe --check` passes).
+
+### What stays, and why
+
+| Package (installed) | Comes through | Fixed in | Why no override |
+|---|---|---|---|
+| `zod` 4.2.0 (1 high) | `@medusajs/deps`, `@medusajs/dashboard`, `@medusajs/admin-sdk`, `zod-validation-error`, and the backend's own pin, kept at Medusa's | 4.6.6 | Medusa 2.21.2 pins `4.2.0` exactly; **Medusa 2.22.4 pins 4.6.6** |
+| `glob` 13.0.6 (1 moderate, new) | `@medusajs/framework`, `@medusajs/cli` | 14.0.2 | pinned exactly, and a major; **Medusa 2.22.4 pins 14.0.2** |
+| `@opentelemetry/instrumentation-pg` 0.52.0 (1 moderate) | `@medusajs/deps` | 0.73.0 | outside `^0.52`; **Medusa 2.22.4 asks `^0.73.0`** |
+| `@graphql-tools/utils` 10.11.0 (2 high) | `@graphql-codegen/*` under `@medusajs/utils` | 12.0.2 | a major outside `^10`; Medusa 2.22.4's `@medusajs/utils` asks `@graphql-codegen/*` ^6, whose `plugin-helpers` asks `^12.0.3` |
+| `lodash` 4.17.23 (1 high, 1 moderate) | `@graphql-codegen/plugin-helpers` under `@medusajs/utils` | 4.18.1 (the moderate: none released) | its range is `~4.17.0`; the codegen 6 above no longer depends on lodash |
+| `ajv` 8.13.0 (1 moderate) | `@rushstack/node-core-library` 5.13.0 (umzug's CLI under MikroORM's migrations); also `@medusajs/dashboard>@hookform/resolvers`, an optional peer nothing loads | 8.18.0 | `~8.13.0`; the last 4.x of `@rushstack/ts-command-line` (umzug's `^4.12.2`) still ends at that library |
+| `uuid` 9.0.1 (1 moderate) | `bullmq` 5.13.0 (Medusa's Redis event bus and workflow engine) | 11.1.1 | a major outside `^9`; Medusa 2.22.4 keeps bullmq 5.13.0 |
+| `deepmerge` 4.3.1 (1 low) | `payload`, `@sendgrid/helpers` | none released | no fixed release |
+| `happy-dom` 20.14.6 (2 high) | `@lexical/headless` (Payload's rich text) | 21.0.0, 21.0.4 | a major outside `^20.9.0`; Payload 3.93.0 still uses `@lexical/headless` 0.50.0 (0.53.0 asks `^21.0.4`) |
+| `csv-parse` 5.6.0 (1 moderate) | `@payloadcms/plugin-import-export` | 7.0.2 | pinned exactly, and a major; Payload 3.93.0 still pins 5.6.0 |
+| `esbuild` 0.18.20 (1 moderate) | `@esbuild-kit/core-utils` (Payload's drizzle kit) | 0.25.0 | outside `~0.18.20`; and the advisory is about esbuild's dev server, which nothing here starts |
+| `minimatch` 10.2.6 (1 moderate, new) | `@typescript-eslint/typescript-estree` (`typescript-eslint` 8.71.1 in `packages/config`) | 11.0.1 | a major outside `^10.2.2`; the latest `typescript-eslint`, 8.72.1, asks the same range, and no 10.x has the fix |
+
+**For M5's plan: Medusa 2.21.2 → 2.22.4** would close six of the fifteen (zod, glob, OpenTelemetry's pg instrumentation, both `@graphql-tools/utils` and lodash's high one), read from 2.22.4's published `package.json` files, not installed or run. It is a minor upgrade of every `@medusajs/*` package, the markets plugin's included, with its own changelog to read, so it is a task, not an override.
+
+### Checks (cloud VM, Node 22.23.4, no compose stack)
+
+- `pnpm install` and `pnpm dedupe --check`: only `pnpm-lock.yaml`, `pnpm-workspace.yaml` and the storefront's `package.json` change; `pnpm audit --prod` lists 15.
+- `check:workspace`, `typecheck`, `lint`, `test` and `build` exit 0 in CI's state (no `.env`, no stack). The storefront's unit tests, on happy-dom 21.0.1 now (was 20.14.5): 179 files, 3899 tests pass; `packages/ui`'s 178 files pass as before.
+- Not run here: the e2e jobs (no Docker on this VM); the PR's CI runs them. `follow-redirects` is only in Medusa's telemetry client, and Payload's `@lexical/headless` only converts HTML or Markdown to rich text, which the shop's own code never calls.
