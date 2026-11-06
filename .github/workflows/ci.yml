@@ -494,8 +494,8 @@ jobs:
           url: http://localhost:8000/design-system/en
       # The cells (their pixels too, D51) and the thumbnails (D52). A baseline that is missing fails
       # its cell: only the update-baselines jobs write them. The blob reporter writes
-      # `blob-report/report-<projects>-<hash>-<shard>.zip` (one file a shard; 1.64.1 checked in the
-      # cloud), which the merge job reads; `list` is this log.
+      # `blob-report/report-design-system-thumbnails-<shard>.zip` (one file a shard), which the merge
+      # job reads; `list` is this log.
       - name: Design-system checks (shard ${{ matrix.shard }} of 3)
         run: pnpm --filter @shopblok/storefront test:e2e --project=design-system --project=thumbnails --shard=${{ matrix.shard }}/3 --reporter=list,blob
         env:

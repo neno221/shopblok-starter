@@ -1,6 +1,6 @@
 # Setup
 
-How to run the starter on your own machine: the quickstart, the ports, the logins, the notes for Windows and for a Claude Code cloud session. Below "The M0 log", "The M1 log", "The M2 log", "The M3 log" and "The M4 log" are what each task found and measured, one section per task and spike, in the order they ran. The log is the evidence behind [SPEC.md](SPEC.md) v0.11 and the [ADRs](adr/README.md); read the section a number or a decision in the spec points to.
+How to run the starter on your own machine: the quickstart, the ports, the logins, the notes for Windows and for a Claude Code cloud session. Below "The M0 log", "The M1 log", "The M2 log", "The M3 log", "The M4 log" and "The M5 log" are what each task found and measured, one section per task and spike, in the order they ran. The log is the evidence behind [SPEC.md](SPEC.md) v0.11 and the [ADRs](adr/README.md); read the section a number or a decision in the spec points to.
 
 - [Quickstart](#quickstart-no-keys-no-accounts) · [Prerequisites](#prerequisites-every-os) · [Ports and logins](#ports-urls-and-logins) · [Opening a market](#opening-a-market) · [Adding a market](#adding-a-market) · [The admin: pages, preview, publishing, the sync](#the-admin-build-a-page-preview-publish-and-schedule-m4) · [The design-system page, tokens and the Figma export](#the-design-system-page-tokens-and-the-figma-export-m1) · [Adding a molecule or an organism](#how-to-add-a-molecule-or-an-organism-m2) · [Adding a template or a page](#how-to-add-a-template-or-a-page-m3) · [Adding a block](#how-to-add-a-block-m4) · [Adding a content type](#how-to-add-a-content-type-m4) · [Updating the baselines and the thumbnails](#updating-the-baselines-and-the-thumbnails-m2) · [Windows](#windows-notes) · [Cloud](#working-in-a-claude-code-cloud-environment) · [Checking a clean machine](#checking-a-clean-machine) · [If something fails](#if-something-fails) · [Where we differ from the skills](#where-we-deliberately-differ-from-the-medusa-skills)
 
@@ -7658,3 +7658,144 @@ Read from the installed 2.22.4 sources against the 2.21.2 tarballs, and run (the
 | 3 | (cleanup) SPEC.md still says Medusa's Locale table holds 51 codes | 52, with the Persian commit |
 | 4 | (cleanup) `apps/backend/UPSTREAM.md` still states the 2.21.2, ui 4.2.6 and zod 4.2.0 pins | Both lines name the 2.22.4 pins |
 | 5 | (cleanup) Version comments in `panel.tsx`, `time-zone-picker.tsx` and `languages.ts` name 4.2.6 or 2.21.2 | Checked in 4.2.11 (`Drawer.Header` the same, still no combobox) and reworded; `languages.ts` with the Persian commit |
+
+# The M5 log
+
+## Versions and CI for M5 (T77)
+
+**Result: the shop runs on Next 16.4.5 and Payload 3.93.0 (both security releases) and Playwright 1.64.1, with no Payload migration, no change to the generated types or import map, the same first-load table (the product page 334.0 → 333.9 KB) and no changed pixel. CI's design-system checks and its baseline update now run in three shards each, with one merged report and one commit; `dev-console-ds` is a job of its own. D102's premise holds on 16.4.5 for a `next/dynamic` call in a client component, not in a server component, and the first `next/dynamic` on a route costs about 1.4 KB of Next's loader (below).** M5 plan §5 T77; D109 (Playwright), D110 items 1 and 2, D111.
+
+| | |
+|---|---|
+| Date | 2026-11-06 |
+| Branch | `claude/project-thread-z823qp`, from `main` at `f0b896b` (PR 113 merged); {{REBASE}} |
+| PR | [114](https://github.com/neno221/shopblok-starter/pull/114) |
+| Machine | The cloud VM: Node 22.23.4, pnpm 12.10.1, the compose stack (`pnpm bootstrap`; Mailpit 1.31.6 pulled from `mirror.gcr.io` after Docker Hub's 429) |
+
+### Before anything: Medusa 2.22.4 and `main`'s red run
+
+- **PR 112 (Medusa 2.22.4)** could not merge before 2026-11-07 09:18 UTC (pnpm's one-day `minimumReleaseAge`). The coordinator had T77 start on `main` and rebase on PR 112 before merging, so the checks above ran on Medusa 2.21.2 and were run again after the rebase: {{AFTER112}}.
+- **`main`'s last runs:** PR 113's and PR 111's merges were green. PR 110's merge (run 41870806648, 2026-11-04) failed one test of 217 in `e2e-smoke`: `market-panels.spec.ts`, "axe finds nothing in the Region panel and its drawer", with a `color-contrast` finding on the drawer's "Choose a language" placeholder. It passed on PR 110 and on every run before and after it. The cause is timing, not contrast: `toBeVisible()` passes on the first frame of Medusa UI's open animation (the drawer fades and slides in), and axe measured the placeholder at a partial opacity. `axeFindings()` now waits, before axe runs, for every animation under the checked element that has an end (a spinner's is skipped) to finish.
+
+### Versions
+
+| Piece | Was | Now | Notes |
+|---|---|---|---|
+| `next`, `eslint-config-next` | 16.4.3 | **16.4.5** | the storefront's, `packages/ui`'s and `@shopblok/config`'s pins |
+| `payload` and every `@payloadcms/*` (db-postgres, live-preview-react, next, plugin-form-builder, plugin-import-export, plugin-nested-docs, plugin-redirects, plugin-seo, richtext-lexical, ui; and drizzle, graphql, live-preview, translations through them) | 3.92.1 | **3.93.0** | one exact pin for all; the lockfile holds no 3.92.1 |
+| `@playwright/test` | 1.64.0 | **1.64.1** | `playwright-core` 1.64.1's `browsers.json`: Chromium revision 1248 (156.0.8078.4), as 1.64.0's |
+| Playwright's image | `v1.64.0-noble` | **`v1.64.1-noble`** | the three container jobs, `renovate.json`'s note, `scripts/thumbnails.ts`, the baseline recipe above and CLOUD.md's setup script (for you to paste when you like; the browser build is the same, so nothing waits on it) |
+| `engines.node` (root, `packages/medusa-markets`) | `>=22.23.4 <25` | **`>=22.23.4 <23 \|\| >=24.22.1 <25`** | Payload's own floor inside the repo's `<25` (PR 103 review, item 8). `check (Node 24)` runs 24.22.2 |
+
+`pnpm install` changed only these packages (+23 −30); `pnpm dedupe --check` passes and `pnpm peers check` lists the same two unmet peers as before. After the bump, `check:workspace` reported two Payload versions installed until `node_modules/.pnpm` was removed and installed again (the stale-folder case M4 met).
+
+**The engines range broke bootstrap.** `scripts/lib/checks.ts`' `satisfies()` read a range as one set of comparators, so `||` made every Node "outside" it and `pnpm bootstrap` stopped at its preflight (this PR's first `e2e-smoke` run, and the review's must-fix 1). It now splits on `||` and is met when any alternative is; an empty alternative is a broken range. `checks.test.ts` has the new range (22.23.4, 22.99.0, 24.22.1 and 24.22.2 pass; 22.23.3, 23.0.0, 23.5.0, 24.0.0, 24.22.0 and 25.0.0 do not) and this machine's Node against the root `package.json`; with the old function both new tests fail.
+
+### Next 16.4.5 against our code
+
+16.4.4 backports seven fixes (among them the Turbopack shared-runtime bootstrap getting the CSP nonce on a PPR resume, and `fast-jwt` in place of `jsonwebtoken`); 16.4.5 is the seven moderate advisories, each checked:
+
+| Advisory | Our code |
+|---|---|
+| GHSA-mfr8-8qww-v76h, `use cache` through `unstable_cache` | `unstable_cache` is not called anywhere (one comment in `lib/cache.ts` names it) |
+| GHSA-vc7v-qv4w-wrv8, a cache leak across root param values in nested `use cache` | applies: `cached()` entries under the `[market]` root param. Fixed by the upgrade; `payload-cache.spec.ts` and the market suites pass (`e2e-smoke` green in run 42233080727: 217 suites tests, the outage pair and the 18 `next dev` routes) |
+| GHSA-vvgp-ww4w-46vf, fallback shells poisoned through placeholder route params | applies: the catalog pages' fallback shells under `ensureStatic = "navigation"` (and `PLACEHOLDER_HANDLE`). Fixed by the upgrade |
+| GHSA-rhh4-g77r-r9qj, binary arguments of `use cache` | no `use cache` function takes a binary argument (strings and plain objects) |
+| GHSA-pc58-hwjq-p385, self-hosted apps forwarding fetched responses | no route handler returns a fetched `Response` as it is (`/next/visitor` builds its own) |
+| GHSA-7qx7-33qx-rqx2, an SVG check in image optimisation | `next/image` is used; `dangerouslyAllowSVG` is not set. Fixed by the upgrade |
+| GHSA-f3mh-rxg3-f5g2, an HttpOnly cookie in an Edge runtime header | no route sets `runtime = "edge"` |
+
+### Payload 3.93.0 against our code
+
+The release notes list one feature (`auth.passwordHashIterations`) and fifteen fixes, five of them the security ones; no breaking change and no migration.
+
+- **Blocks restricted to each field's configured types, and block child read access enforced in queries:** `pages.layout` names its blocks through `blockReferences` and every block's fields are readable by the public; `editor-homepage.spec.ts` (an editor builds the home from blocks) and `payload-cache.spec.ts` pass (`e2e-smoke` green in run 42233080727: 217 suites tests, the outage pair and the 18 `next dev` routes).
+- **Lexical's HTML converters escape stored values:** we use none. `lib/cms` renders rich text as JSX from its JSON, and the e-mail walker reads the JSON too.
+- **Preserve shared localized draft changes (#17394)** and **no duplicate autosaves from virtual fields (#19096):** `pages` has drafts and autosave; the draft checks in `payload-cache.spec.ts` pass.
+- `generate:types` and `generate:importmap` change nothing. **`payload migrate:create --skip-empty`** against a database bootstrapped on 3.92.1 logged "generating UP statements" and wrote nothing: 3.93 needs no migration.
+- **`pnpm audit --prod`:** 15 (1 low, 8 moderate, 6 high) on Medusa 2.21.2, the same list as "Audit after M4" (Payload 3.93.0 still brings `@lexical/headless` 0.50.0's happy-dom 20, `csv-parse` 5.6.0 and `deepmerge` 4.3.1, as that table says); {{AUDIT112}}.
+
+### First load (D102)
+
+Built as `e2e-smoke` builds (Medusa up, `STOREFRONT_PRERENDER_PRODUCTS=4`, `STOREFRONT_LISTING_PAGE_SIZE=3`), gzipped KB, `main` against this branch: the product page 334.0 → **333.9**, the five listing routes 332.3 → **332.3**, `/[market]` and `[...slug]` 330.5 → 330.5, the search 321.6 → 321.5, the checkout 312.8 → 312.7, the cart 308.2 → 308.1, the admin 828.1 → 828.3 (not budgeted). No route is over 335 KB.
+
+### `next/dynamic` and the first load (D102's premise)
+
+A throw-away probe on the product page, built once and then removed: a client component `BigA` loaded by `dynamic()` inside a `"use client"` loader (`LoaderA`), and a client component `BigB` loaded by `dynamic()` called in the page (a server component). Each module carried a marker string, found in `.next/static/chunks/` afterwards.
+
+| | Chunk | In the route's `firstLoadChunkPaths` |
+|---|---|---|
+| `BigA`, `dynamic()` in a client component | `03z1evfc85luw.js` | **no** (fetched when it renders) |
+| `BigB`, `dynamic()` in a server component | `16244ej9u0z17.js` | **yes** (21 → 22 chunks) |
+
+So the premise holds in the form the variant tasks must use: **a variant's island is loaded by `dynamic()` inside a client component**, as `RefreshOnSave` already does. Called from a server component, `next/dynamic` code-splits nothing the first load can leave out. T79's check in `first-load.ts` is what catches a variant module that slips in.
+
+**The loader's own cost.** With `LoaderA` alone (the client form), the product page went from 333.9 to **335.5 KB, 0.5 KB over its budget**: the loader's chunk is 0.2 KB, and the rest is Next's `next/dynamic` runtime (`loadable`, `BailoutToCSR`, `PreloadChunks`), which joined the chunk that holds `BuyBoxIsland` (9.8 KB gzipped with it) the first time a module of the route imported `next/dynamic`. That is about 1.4 KB, paid once per route, whatever the number of dynamic islands. The product page has 1.1 KB of headroom and the listings 2.7 KB, so **the first variant task to put a dynamic island on the product page (T83) is likely to pass 335 KB and stop and ask** (D102); the listings have room for it. Written into T79's prompt.
+
+### The shards (D110 items 1 and 2)
+
+`ci.yml` now has ten jobs:
+
+- **`design-system-shard`** (three, `design-system (shard i/3)`): the container, the flagged build, `next start`, then `--project=design-system --project=thumbnails --shard=i/3 --reporter=list,blob`, uploading the blob report, the test results (the diff images) and the server log. `fail-fast: false`, so every shard runs to its end.
+- **`design-system`**: downloads the three blob reports, merges them (`playwright merge-reports --reporter=list,html`) into one HTML report, `design-system-report`, and fails when a shard did not pass or a blob is missing. It keeps the check's name, so a check required by name stays one check (G3(d) now lists it with `dev-console-ds`).
+- **`dev-console-ds`**: the DS pages' console in `next dev`, in the same container, beside the shards instead of after the checks.
+- **`update-baselines`** (three): the same build and shard of both projects with `--update-snapshots=changed`, each in emptied folders, uploading its PNGs and a manifest of them (`if-no-files-found: error`; a shard that wrote none fails). `fail-fast: true`: one red shard stops the others, since nothing will be committed.
+- **`update-baselines-commit`**: after all three, on the runner (no container: nothing there needs the image), empties both folders, downloads the three artifacts into them, and **commits only if three manifests arrived and the PNGs present are exactly the ones they list** (PR 114 review, must-fix 2: a lost or expired artifact would otherwise have committed a third of the set, or all of it, as deleted). Then T57's oxipng step, the stray-file guard, D51's numbers and one commit, as before. It is the only job with `contents: write`.
+- The T40 tool check (`ps`, `awk`, `curl`, one of `lsof`, `ss`, `fuser`) is one composite action, `.github/actions/container-tools`, after checkout (review, cleanup 9). It ran before checkout because the update job committed from the container and checkout falls back to a tarball without git; no container job uses git now. The image has git anyway and lacks only `lsof`.
+
+**The split.** With the flagged build up, `--list` gives 978 tests (936 `design-system`, 42 `thumbnails`), and each shard 326: shards 1 and 2 hold only `design-system` tests, shard 3 the last 284 and every thumbnail. The three lists together are the unsharded list, line for line, with no test twice. Playwright splits the tests of both projects, in order, after `fullyParallel` makes the unit a test. A shard with no test of a project passes on 1.64 (1.65 would need `--pass-with-no-tests`, D109): shards 1 and 2 ran green with no thumbnail (run 42233080727: shard 2 passed its 326, and shard 1 failed only the mutation below). The blob reporter on 1.64.1 names its file `report-design-system-thumbnails-<shard>.zip` in CI (a run filtered with `--grep` adds a hash), which the merge job counts.
+
+**The first sharded dispatch failed, and committed nothing** (run 42231746209): shard 1's 326 tests passed, then listing its PNGs failed because `public/registry/` did not exist in a shard with no thumbnail (`find` under `pipefail`). Both folders are now made first. `fail-fast` stopped the other two shards and the commit job did not run.
+
+### Baselines (D109)
+
+The dispatch on the fixed branch (run 42233095154 on `c63c104`; the shards 9 min 0 s, 9 min 0 s and 9 min 28 s, the commit job 43 s): **"PNGs changed: 1 (0 new, 1 changed, 0 deleted) of 488 in the set. Bytes added by this commit: 16076 (0.02 MB). The set: 63.71 MB."** "All three shards' PNGs arrived: 488." The one PNG is the mutation below, put back; every other PNG the three shards wrote was byte for byte the committed one or, for the 98 committed compressed, Playwright's bytes that oxipng turned back into exactly the committed copy (99 PNGs through oxipng, 13,774,967 → 10,559,258 bytes, none of them changed but the one). So **Playwright 1.64.1, Next 16.4.5 and Payload 3.93.0 changed no pixel**, as D109 expected. The commit is `c4a3c37`, by `github-actions[bot]`, one commit. The job's "over 60 MB" warning is the set's size in MiB (63.71 MiB = 66.8 MB), unchanged since M4's end and already recorded there; this update adds nothing to it.
+
+### Mutations
+
+- **A changed baseline fails its shard, and the merged report names it:** commit `b7c5af0` drew a red rectangle into `atoms/badge/en-768.png`. In run 42233080727 (head `c63c104`), `design-system (shard 1/3)` failed `atoms/badge · en · 768` (`toHaveScreenshot` failed) and passed its other 325; shards 2 and 3 passed their 326. The merge job found the three blobs (`report-design-system-thumbnails-1.zip` to `-3.zip`), listed **"1 failed: atoms/badge · en · 768", "977 passed"** (978, every DS test once) and failed with "A shard did not pass (failure); the merged report names the cells." The merged HTML report has the expected, actual and diff images. An earlier run on `b7c5af0` showed the same in shard 1 before a push cancelled it.
+- **One cell changed by hand, one PNG in one commit:** the dispatch above, on a branch where `atoms/badge/en-768.png` was changed by hand, wrote that one PNG and nothing else, in one commit (`c4a3c37`). Its pixels are `main`'s again (decoded, the two images do not differ at any pixel); its bytes are oxipng's (16,076 B, from `main`'s uncompressed 20,865 B), as T57's rule compresses every PNG that differs from the branch's commit.
+- **The engines range:** the old `satisfies()` fails both new tests (above).
+- **The commit job's guard:** its step, run in the cloud on a folder of three fake PNGs and three manifests, passes; with two manifests it fails ("2 of the 3 shards' artifacts arrived"), and with a listed PNG missing it fails and prints the difference.
+
+### Checks (cloud VM)
+
+- `check:workspace`, `typecheck`, `lint` and `test` exit 0 (the storefront's 3899 tests, `scripts`' 423, `ui`'s and the rest); `actionlint` on `ci.yml` is clean.
+- The storefront built as `e2e-smoke` builds it, with Medusa (1 m 5 s), and with the flag and no `.env` (the DS build).
+- Not run here: the e2e suites and the DS cells, which this PR's CI runs (`e2e-smoke` green in run 42233080727: 217 suites tests, the outage pair and the 18 `next dev` routes).
+
+### Code review (PR 114)
+
+`reviews/pr-114-code-review.md` in the project's files: two must-fix findings and eight optional ones.
+
+| # | Finding | Fix |
+|---|---|---|
+| 1 | (must-fix) `satisfies()` cannot read `\|\|`, so bootstrap refuses every Node | Alternatives split on `\|\|`, with tests (above) |
+| 2 | (must-fix) a missing shard artifact makes the commit job delete that third of the set and push | Manifests, `if-no-files-found: error`, and a guard step that fails the job (above) |
+| 3 | `Promise.all` on `animation.finished` rejects on a cancelled animation | Skipped (test robustness, not security or a cleanup) |
+| 4 | the animation wait covers only the first match of `include` | Skipped (as 3) |
+| 5 | the hand-changed baseline must be gone before the merge | A check before the merge: `atoms/badge/en-768.png` on the branch has `main`'s pixels exactly (above); the only baseline in `git diff main` is that file's recompression |
+| 6 | (cleanup) `dev-console-ds` is a check of its own | Named in G3's outcome (d) and SPEC §14 item 4 |
+| 7 | (cleanup) the merge step's `ls` fails before its `::error` | `mkdir -p` first |
+| 8 | (cleanup) live instructions still name Playwright 1.64.0 | The baseline recipe, "Who makes them" and CLOUD.md's setup script |
+| 9 | (cleanup) the tool step copied three times | `.github/actions/container-tools` |
+| 10 | a full install for `merge-reports` | Skipped (efficiency) |
+
+### CI times before M5
+
+This PR's run 42233080727 on `c63c104` (every job ran; shard 1 red only for the mutation, which cost it nothing), against `main`'s last run, 42221050392 on `f0b896b` (PR 113's merge). This is M5's "before" row; T91 compares M5's end with it.
+
+| Job | `main` (`f0b896b`) | This PR | Of which (this PR) |
+|---|---|---|---|
+| `gate` | 8 s | 9 s | |
+| `check` (Node 22) | 5:07 | 5:44 | Node 24's leg 5:06 (was 7:16) |
+| `backend-integration` | 2:33 | 3:30 | |
+| `e2e-smoke` | 15:38 | 12:39 | bootstrap 43 s, build 1:02, the suites 6:19 (217 tests), the outage 34 s, the console in `next dev` 1:52 |
+| `design-system` (one job on `main`) | 30:09 | | `main`: the checks 18:07, the DS console in `next dev` 9:11, the build 1:30 |
+| `design-system-shard` 1, 2, 3 | | 8:34, 11:00, 7:39 | the build 1:50 each; the checks 5:39, 7:44, 5:22 (326 tests each) |
+| `design-system` (the merge) | | 0:43 | after the slowest shard |
+| `dev-console-ds` | | 10:50 | the console 9:20 |
+| `windows-smoke` | (not run) | 8:11 | it ran because `package.json` changed |
+| The run, wall clock | 30:22 | **12:47** | from the first job's start to the merge job's end |
+
+The checks' time was 18:07 for 978 tests in one job; the three shards took 5:22 to 7:44 each, 18:45 together, so sharding costs about 40 s of checks plus two more builds (1:50 each) and gives the wall clock back: **the run now ends with `e2e-smoke` (12:39) or `dev-console-ds` (10:50), not with the DS (30:09)**. Shard 2 is the slowest, since its third holds the templates, whose cells are the largest pages. With M5's 1,290 cells (D110) each shard should take about 10 minutes of checks, inside its 30-minute limit. The `update-baselines` shards took 9:00, 9:00 and 9:28, and the commit job 43 s (run 42233095154), against T57's 20:18 for the one job.
