@@ -19,8 +19,19 @@ runs:
         if ! command -v lsof >/dev/null 2>&1 && ! command -v ss >/dev/null 2>&1 && ! command -v fuser >/dev/null 2>&1; then missing+=(lsof); fi
         if [ "${#missing[@]}" -gt 0 ]; then
           echo "The image lacks: ${missing[*]}. Installing."
-          apt-get update -qq
-          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "${missing[@]}"
+          # Up to three tries: Ubuntu's mirror answered one fetch with an error in PR 114's run
+          # 42235669845 ("Unable to fetch some archives"), which a fresh index and a second try fix.
+          for attempt in 1 2 3; do
+            if apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "${missing[@]}"; then
+              break
+            fi
+            if [ "$attempt" = 3 ]; then
+              echo "::error title=Container tools::apt-get could not install ${missing[*]}, three times."
+              exit 1
+            fi
+            echo "::warning title=Container tools::apt-get failed (attempt $attempt); trying again in 10 s."
+            sleep 10
+          done
         else
           echo "The image has ps, awk, curl and one of lsof, ss or fuser."
         fi
