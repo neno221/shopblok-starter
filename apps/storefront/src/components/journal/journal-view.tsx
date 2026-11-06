@@ -41,7 +41,8 @@ const readJournal = cache(async (page: number | null, draft: boolean) => {
 export async function journalMetadata(page: number | null): Promise<Metadata> {
   const { isEnabled: draft } = await draftMode();
   const data = await readJournal(page, draft);
-  if (data === null) return {};
+  // As the page's: a missing one's metadata is then the not-found file's (its tab title, T78).
+  if (data === null) notFound();
   const { map, url, messages, journal, market } = data;
   const path = journalPath(data.page);
   const title =
