@@ -28,7 +28,7 @@ export const PanelHeader = ({
 };
 
 /**
- * The header of a drawer: `Drawer.Header` as @medusajs/ui 4.2.6 draws it, with a name on the close
+ * The header of a drawer: `Drawer.Header` as @medusajs/ui 4.2.6 to 4.2.11 draws it, with a name on the close
  * button. The library's own has an icon-only close button with no accessible name (axe:
  * `button-name`), and takes no props for it.
  */

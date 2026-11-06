@@ -7590,7 +7590,7 @@ T72 counted 15 on 2026-10-29. On `main` at `e52e6c9` there were 17: three new ad
 
 ## Medusa 2.22.4
 
-**Result: every `@medusajs/*` package moves from 2.21.2 to 2.22.4 (`@medusajs/ui` 4.2.6 to 4.2.11, and the backend's and the markets plugin's `zod` 4.2.0 to 4.6.6, Medusa's own pin), the storefront's `@medusajs/js-sdk` with them. `pnpm audit --prod` lists 8 advisories (1 low, 5 moderate, 2 high, 0 critical), down from 15: the six the audit task named (zod, glob, OpenTelemetry's pg instrumentation, `@graphql-tools/utils` twice, lodash's high one) and lodash's moderate one. Medusa 2.22.4 adds one locale, Persian (`fa-IR`), so Payload preloads 43 languages (a migration below). None of the custom backend code changed: the verification guard, the verification replay, the order-claim and return routes, the closed `/store/returns` and the markets plugin hold on 2.22.4 as they are.** The audit's ["What stays"](#audit-after-m4) table now holds only its last seven rows, eight advisories: `ajv` and `uuid` (still under Medusa 2.22.4's MikroORM and bullmq), `deepmerge`, `happy-dom` (two), `csv-parse`, `esbuild` and `minimatch`.
+**Result: every `@medusajs/*` package moves from 2.21.2 to 2.22.4 (`@medusajs/ui` 4.2.6 to 4.2.11, and the backend's and the markets plugin's `zod` 4.2.0 to 4.6.6, Medusa's own pin), the storefront's `@medusajs/js-sdk` with them. `pnpm audit --prod` lists 8 advisories (1 low, 5 moderate, 2 high, 0 critical), down from 15: the six the audit task named (zod, glob, OpenTelemetry's pg instrumentation, `@graphql-tools/utils` twice, lodash's high one) and lodash's moderate one. Medusa 2.22.4 adds one locale, Persian (`fa-IR`), so Payload preloads 43 languages (a migration below). None of the custom backend code changed: the verification guard, the verification replay, the order-claim and return routes, the closed `/store/returns` and the markets plugin hold on 2.22.4 as they are.** Of the audit's ["What stays"](#audit-after-m4) table (left as written on 2026-11-06), this upgrade closes the first five rows (`zod`, `glob`, `@opentelemetry/instrumentation-pg`, `@graphql-tools/utils`, `lodash`); the last seven remain, eight advisories: `ajv` and `uuid` (still under Medusa 2.22.4's MikroORM and bullmq), `deepmerge`, `happy-dom` (two), `csv-parse`, `esbuild` and `minimatch`.
 
 | | |
 |---|---|
@@ -7646,3 +7646,15 @@ Read from the installed 2.22.4 sources against the 2.21.2 tarballs, and run (the
 - Bootstrap on empty volumes runs Medusa 2.22.4's migrations and seeds as before (68.6 s; doctor 10 ok, 3 warnings for the servers not yet running, 0 errors).
 - Medusa Admin on 2.22.4 (`medusa develop`, Chromium): the region page's Markets panel, its country drawer and the store page's Markets panel look as they did on 2.21.2 (T74's screenshots), with no console errors. The admin bundler still builds the extensions with Tailwind 3.4.
 - The PR's CI runs the rest (`check` with the storefront's build, `backend-integration`, `e2e-smoke` with the admin panels, `design-system`).
+
+### Code review (PR 112)
+
+`reviews/pr-112-code-review.md` in the project's files: one must-fix finding and four optional cleanups, none about security. All fixed.
+
+| # | Finding | Fix |
+|---|---|---|
+| 1 | `@medusajs/translation` 2.22.4 adds `fa-IR`, so `medusa-locales.test.ts` fails (both `check` jobs red) | Persian added (above, "Persian joins the languages"), found by the same CI run |
+| 2 | (cleanup) "The table now holds only its last seven rows", but the audit's table is unchanged | Reworded: this upgrade closes its first five rows |
+| 3 | (cleanup) SPEC.md still says Medusa's Locale table holds 51 codes | 52, with the Persian commit |
+| 4 | (cleanup) `apps/backend/UPSTREAM.md` still states the 2.21.2, ui 4.2.6 and zod 4.2.0 pins | Both lines name the 2.22.4 pins |
+| 5 | (cleanup) Version comments in `panel.tsx`, `time-zone-picker.tsx` and `languages.ts` name 4.2.6 or 2.21.2 | Checked in 4.2.11 (`Drawer.Header` the same, still no combobox) and reworded; `languages.ts` with the Persian commit |
