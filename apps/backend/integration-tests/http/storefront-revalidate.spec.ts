@@ -70,6 +70,19 @@ class FakeStorefront {
     );
   }
 
+  /** Waits until no POST has arrived for `ms`. */
+  async quiet(ms = 500) {
+    let count = -1;
+    await until(
+      async () => {
+        const settled = this.posts.length === count;
+        count = this.posts.length;
+        return settled;
+      },
+      { what: "the POSTs to stop", intervalMs: ms, timeoutMs: 15_000 },
+    );
+  }
+
   /** Waits for a POST, after the `from`th, that matches; returns it with the time it took. */
   waitFor(from: number, what: string, match: (batch: Batch) => boolean) {
     return until(async () => this.posts.slice(from).find(({ batch }) => match(batch)), {
@@ -94,6 +107,7 @@ const refreshesList = (batch: Batch) =>
 
 /** A published product with two variants, and the first variant's id. */
 async function productWithVariant(container: MedusaContainer) {
+  const start = fake.posts.length;
   const seeded = await seedStore(container);
   const categoryId = await createCategory(container, SHIRTS_CATEGORY, "sale-shirts");
   const collectionId = await createCollection(container, "Sale");
@@ -109,6 +123,11 @@ async function productWithVariant(container: MedusaContainer) {
     fields: ["id"],
     filters: { product_id: productId },
   });
+  // The setup's own `product-variant.created` sends the same `product:<handle>` with expire 0, so
+  // a test takes its `from` only once that POST and the rest of the setup's have arrived (PR 115
+  // review): a later match is then the price list's.
+  await fake.waitFor(start, "the setup's own product tag", expiresProduct);
+  await fake.quiet();
   return data[0]!.id as string;
 }
 
@@ -126,7 +145,6 @@ medusaIntegrationTestRunner({
               {
                 title: "Summer sale",
                 description: "Linen for less",
-                type: "sale",
                 status: PriceListStatus.ACTIVE,
               },
             ],
@@ -204,7 +222,6 @@ medusaIntegrationTestRunner({
               {
                 title: "Winter sale",
                 description: "Draft first",
-                type: "sale",
                 status: PriceListStatus.DRAFT,
                 prices: [{ ...SALE, variant_id: variantId }],
               },

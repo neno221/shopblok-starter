@@ -1,4 +1,5 @@
 import {
+  MAX_TAGS_PER_BATCH,
   REVALIDATE_EVENTS,
   batchesFor,
   handlesFor,
@@ -147,6 +148,25 @@ describe("batchesFor (the event-to-tags table)", () => {
     }
   });
 
+  it("splits a batch at the storefront's 100 tags, the expire-0 ones still last (PR 115 review)", () => {
+    const handles = Array.from({ length: 250 }, (_, i) => `p${String(i).padStart(3, "0")}`);
+    const batches = batchesFor("price-list.updated", handles);
+    expect(MAX_TAGS_PER_BATCH).toBe(100);
+    expect(batches.map((batch) => [batch.expire, batch.tags.length])).toEqual([
+      ["max", 2],
+      [0, 100],
+      [0, 100],
+      [0, 50],
+    ]);
+    expect(batches.slice(1).flatMap((batch) => batch.tags)).toEqual(
+      handles.map((handle) => `product:${handle}`),
+    );
+    // A "max" batch with handles is split the same way.
+    const content = batchesFor("product-tag.updated", handles);
+    expect(content.map((batch) => batch.tags.length)).toEqual([100, 100, 52]);
+    expect(content.every((batch) => batch.expire === "max")).toBe(true);
+  });
+
   it("puts the expire-0 batch last, de-duplicates the handles and sorts them", () => {
     const batches = batchesFor("product-variant.updated", ["b", "a", "b"]);
     expect(batches.map((batch) => batch.expire)).toEqual(["max", 0]);
@@ -240,6 +260,18 @@ describe("handlesFor", () => {
         },
       ],
     ]);
+  });
+
+  it("reads a live list's prices without the removed ones; only a deleted list's withDeleted", async () => {
+    for (const [event, withDeleted] of [
+      ["price-list.created", false],
+      ["price-list.updated", false],
+      ["price-list.deleted", true],
+    ] as const) {
+      const graph = jest.fn().mockResolvedValue({ data: [] });
+      await handlesFor({ graph }, event, ["plist_1"]);
+      expect(graph.mock.calls[0][0]).toMatchObject({ entity: "price", withDeleted });
+    }
   });
 
   it("stops after the list's prices when it has none", async () => {

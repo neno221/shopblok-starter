@@ -18,6 +18,13 @@ import { ContainerRegistrationKeys } from "@medusajs/framework/utils";
 export type Expire = 0 | "max";
 export type Batch = { tags: string[]; expire: Expire };
 
+/**
+ * The most tags one POST may carry: the storefront's `/api/revalidate` refuses more with a 400
+ * (`MAX_TAGS` in `apps/storefront/src/lib/revalidate/revalidate.ts`). A sale on hundreds of
+ * products is the usual case, so `batchesFor` splits every batch at this size (PR 115 review).
+ */
+export const MAX_TAGS_PER_BATCH = 100;
+
 /** What each event refreshes, given the handles of the products or the groups it names. */
 type Rule = {
   /** The entity whose handle the tags need, read by id, or none. */
@@ -117,11 +124,12 @@ const MARKETS: Rule["batches"] = () => [{ tags: ["medusa:markets"], expire: 0 }]
  * there (read `withDeleted`).
  *
  * Price lists emit since Medusa 2.22 (#17067, D112): `prices_added`, `prices_updated` and
- * `prices_removed` carry `{ id, price_set_ids }` (a removed price's set still links its variant),
- * `created` and `updated` only the list's `{ id }`, whose prices name the sets. `deleted` is emitted
- * after the list and its prices are soft-deleted: the prices are read `withDeleted`, and if none is
- * left the list-wide half of `PRICES` goes alone. A sale reaching its `starts_at` or `ends_at`
- * emits nothing, so `jobs/revalidate-catalog.ts` still refreshes every ten minutes.
+ * `prices_removed` carry `{ id, price_set_ids }` (a removed price is soft-deleted, and its set
+ * still links its variant), `created` and `updated` only the list's `{ id }`, whose prices name the
+ * sets. `deleted` is emitted after the list and its prices are soft-deleted: only then are the
+ * prices read `withDeleted`, and if none is left the list-wide half of `PRICES` goes alone. A sale
+ * reaching its `starts_at` or `ends_at` emits nothing, so `jobs/revalidate-catalog.ts` still
+ * refreshes every ten minutes.
  */
 export const RULES: Record<string, Rule> = {
   "product.created": { batches: CONTENT },
@@ -184,12 +192,23 @@ export const RULES: Record<string, Rule> = {
 
 export const REVALIDATE_EVENTS = Object.keys(RULES);
 
-/** The batches for one event, `0` last so it wins over a `"max"` on the same entry. */
+/**
+ * The batches for one event, `0` last so it wins over a `"max"` on the same entry, each at most
+ * `MAX_TAGS_PER_BATCH` tags.
+ */
 export function batchesFor(event: string, handles: string[]): Batch[] {
   const rule = RULES[event];
   if (rule === undefined) return [];
   const unique = [...new Set(handles)].sort();
-  return rule.batches(unique).sort((a, b) => (a.expire === b.expire ? 0 : a.expire === 0 ? 1 : -1));
+  return rule
+    .batches(unique)
+    .sort((a, b) => (a.expire === b.expire ? 0 : a.expire === 0 ? 1 : -1))
+    .flatMap(({ tags, expire }) =>
+      Array.from({ length: Math.ceil(tags.length / MAX_TAGS_PER_BATCH) }, (_, i) => ({
+        tags: tags.slice(i * MAX_TAGS_PER_BATCH, (i + 1) * MAX_TAGS_PER_BATCH),
+        expire,
+      })),
+    );
 }
 
 const handlesOf = (products: { handle?: unknown }[] | null | undefined) =>
@@ -250,12 +269,14 @@ export async function handlesFor(query: Query, event: string, ids: string[]): Pr
   let source = RULES[event]?.handlesOf;
   if (source === undefined || ids.length === 0) return [];
   if (source === "price_list") {
-    // A list's prices name its sets; a deleted list's prices are soft-deleted with it.
+    // A list's prices name its sets. A deleted list's prices are soft-deleted with it, so only
+    // then are deleted rows read: a price removed from a live list is soft-deleted too, and its
+    // product has left the sale (`prices_removed` expired it then).
     const { data } = await query.graph({
       entity: "price",
       fields: ["price_set_id"],
       filters: { price_list_id: ids },
-      withDeleted: true,
+      withDeleted: event === "price-list.deleted",
     });
     ids = [...new Set(strings(data.map((row: any) => row?.price_set_id)))];
     if (ids.length === 0) return [];
