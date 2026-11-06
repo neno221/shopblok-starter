@@ -73,3 +73,16 @@ overrides:
   # names the version rather than four edges. Exact, at the first fixed release (2026-10-14): 6.16.2
   # and 6.17.0 were a day old when this was written. Drop it once no dependant resolves 6.16.0.
   "qs@6.16.0": "6.16.1"
+  # Audit task (SETUP.md, "Audit after M4"), the T55 pattern again: a fixed release inside the
+  # dependant's own range, on that edge only. axios's range is `^1.16.0`; @lexical/headless's is
+  # `^20.9.0`, and 20.14.6 closes only the cookie-scope advisory (the other two happy-dom ones are
+  # fixed in 21, a major outside it). Drop each once the dependant's own range starts at the fixed
+  # release: axios at `^1.16.2`; @lexical/headless at 20.14.6 or at 21 (`^21.0.4` from 0.53.0), when
+  # this override would otherwise hold it back at 20.x.
+  "axios>follow-redirects": "^1.16.2"
+  "@lexical/headless>happy-dom": "^20.14.6"
+  # @smithy/core 3.35.1 to 3.38.0 are deprecated on npm (aws/aws-sdk-js-v3#8393: a custom logger could
+  # get data unredacted). Not an advisory, so `pnpm audit` does not list it. Every dependant asks
+  # `^3.33.2`, `^3.33.3` or `^3.35.0`, so the version moves to 3.38.1, the first release after them
+  # (2026-10-30). Drop it once no dependant resolves 3.35.1.
+  "@smithy/core@3.35.1": "3.38.1"
