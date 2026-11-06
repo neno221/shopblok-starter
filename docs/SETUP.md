@@ -4273,7 +4273,7 @@ Finding 5: `build/site.ts`'s `policyHref` (`/pages/cookies`) joins the PR 52 fol
 
 1. M3's listing page renders the toolbar with `<FilterDrawer/>` in its slot, the sidebar beside the products from `lg`, the chips, the grid and Pagination, all from the request's search answer; `loading.tsx` renders the skeleton, whose grid is the grid's.
 2. M3 connects the search: the header's search link becomes the overlay's button where a shop wants it, `onQueryChange` asks `/store/search` (with its own pause between keys) and answers with `result` and `loading`, and the recent queries come from the browser (D44).
-3. M5's comparison section feeds CompareTray from the visitor's choice (an island, D44), and must stack the tray above the cookie banner (for example `bottom` from the banner's measured height) or hold the tray back until consent is answered, before the island can show both (WCAG 2.4.11; PR 59 review).
+3. M8's comparison (the shopper's own choice of products to compare, SPEC §17.1, moved there by D112) feeds CompareTray from the visitor's choice (an island, D44), and must stack the tray above the cookie banner (for example `bottom` from the banner's measured height) or hold the tray back until consent is answered, before the island can show both (WCAG 2.4.11; PR 59 review).
 4. Carousels on the home page and the product page (related, recently viewed) take a `title`, the cards and a `viewAll` link.
 
 ### Measured
@@ -4327,7 +4327,7 @@ Each applied, checked and reverted from a copy.
 - **Autocomplete's list is always rendered,** even empty, so the combobox's `aria-controls` always points at an element (axe's `aria-required-attr`).
 - **embla's `watchFocus`** only acts on a Tab press (it watches for one in the last 10 ms), not on a script's `focus()` or a click.
 - **A flex row breaks lines by `flex-basis`, not by the shrunk size,** so the toolbar's count has a 4rem basis; with a larger one the toggle fell to a third row at 375 px.
-- **CookieConsent's banner and CompareTray are both fixed to the bottom on `--z-overlay`;** together they overlap (the reservation takes the taller). Which goes above is M5's to decide with the comparison section.
+- **CookieConsent's banner and CompareTray are both fixed to the bottom on `--z-overlay`;** together they overlap (the reservation takes the taller). Which goes above is M8's to decide with the shopper's comparison (D112; M5's `comparison` block is the editor's, with no tray).
 - **The Greek, German and French copy** of the new keys was drafted in this session, for W4's read.
 
 ### Review fixes (PR 59)
@@ -4335,10 +4335,10 @@ Each applied, checked and reverted from a copy.
 | Finding | Fix | Test |
 |---|---|---|
 | 1. The search overlay took the last answer as the answer to the text now in the field: "No results for “hoddiex”" and a stale "See all 12 results" while the next answer was on its way | `answers(query, result)` compares the answer's `query` with the field's. An answer for an earlier text with matches keeps them on screen (the loading design), and its foot reads "Search" with no count; one with no matches shows the waiting state, not "No results". The status and the count are said only for a current answer that is not loading | `search-overlay.test.tsx` "does not say the last answer is the answer to the text in the field now"; "does not announce keys" now expects the region emptied, not the old count |
-| 2. CompareTray and the cookie banner share the bottom edge and the layer | M5's item 3 above says to stack them or hold the tray back; `cookie-consent-reserve.ts`'s comment no longer reads as if the overlap were handled | none (M5) |
+| 2. CompareTray and the cookie banner share the bottom edge and the layer | M8's item 3 above (M5 until D112) says to stack them or hold the tray back; `cookie-consent-reserve.ts`'s comment no longer reads as if the overlap were handled | none (M8) |
 | 3. The drawer's submit read "No results" at 0 | the `=0` branch is the sidebar's verb: "Apply filters", "Filter anwenden", "Εφαρμογή φίλτρων", "Appliquer les filtres" | `filter-drawer.test.tsx` |
 | 4. A quick-add listing without `quickAdd` said "Add to cart" on a single-variant card but only opened the product page | without an action, ListingCard draws every card as "Choose options" (no `variantId`); the header says so | `product-grid.test.tsx` checks `data-intent="choose"` and no `variantId` |
-| 5. The tray's status region arrives filled, so the first product is not announced | the header says a change while the tray is shown is said, and the first is M5's compare button's to say | none |
+| 5. The tray's status region arrives filled, so the first product is not announced | the header says a change while the tray is shown is said, and the first is M8's compare button's to say (D112) | none |
 | 6. The DS clip check let off every carousel viewport | scoped to `[data-slot="product-carousel"] [data-slot="carousel-content"]`; a new user of the primitive must show its own way in | DS run |
 | 7. The DS's grid and list links dropped the sort | `viewOf` adds the sort; the contract's `gridHref` and `listHref` say "with its filters and sort" | DS run |
 | 8. The storefront count read 361 new | 362 | |

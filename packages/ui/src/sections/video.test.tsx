@@ -2,7 +2,7 @@ import { sectionFixtures } from "@shopblok/fixtures";
 import { catalogs, LOCALES } from "@shopblok/i18n";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { VideoSection } from "./video";
 import { embedUrl } from "./video-embed";
 
@@ -85,6 +85,39 @@ describe("VideoSection", () => {
     );
     expect(container.querySelectorAll("track")).toHaveLength(2);
     expect(container.querySelectorAll("track[default]")).toHaveLength(0);
+  });
+
+  it("keys a track by its language and file: one file in two languages, no key warning (W6, item 1)", () => {
+    const { file } = sectionFixtures.en.video;
+    if (file.source.kind !== "file") throw new Error("not a file");
+    const shared = "/media/captions-all.vtt";
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const { container } = render(
+        <VideoSection
+          {...file}
+          source={{
+            ...file.source,
+            tracks: [
+              { srclang: "en", label: "English", src: shared },
+              { srclang: "de", label: "Deutsch", src: shared },
+            ],
+          }}
+          copy={{ video: catalogs.en.sections.video }}
+          locale="en-US"
+        />,
+      );
+      const tracks = [...container.querySelectorAll("track")];
+      expect(
+        tracks.map((track) => [track.getAttribute("srclang"), track.getAttribute("src")]),
+      ).toEqual([
+        ["en", shared],
+        ["de", shared],
+      ]);
+      expect(errors.mock.calls.flat().join(" ")).not.toMatch(/same key/);
+    } finally {
+      errors.mockRestore();
+    }
   });
 
   it("adds an unlisted Vimeo video's hash to its player's address (PR 95 review, item 4)", () => {
