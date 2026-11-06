@@ -242,7 +242,7 @@ export async function login(
         ),
       );
     } catch (error) {
-      // T44: the backend answers 403 until the e-mail is verified (Medusa 2.21.2 does not refuse it).
+      // T44: the backend answers 403 until the e-mail is verified (Medusa 2.21.2 and 2.22.4 do not refuse it).
       if (error instanceof MedusaRequestError && error.status === 403) {
         await sendVerification(email, token, mail);
         return { state: "verification-required", email };

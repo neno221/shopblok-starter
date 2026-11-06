@@ -7587,3 +7587,52 @@ T72 counted 15 on 2026-10-29. On `main` at `e52e6c9` there were 17: three new ad
 | 6 | (cleanup) `cookie-consent.test.tsx` said the app does not list happy-dom | Reworded; no other file says so |
 | 7 | (cleanup) The new overrides had no "drop it once" line, and `^20.14.6` would hold a later `@lexical/headless` that asks `^21.0.4` back at 20.x | The line names both drop points |
 | 8 | (other) happy-dom is pinned in two packages, which can drift apart | Skipped (design; both bumped together here) |
+
+## Medusa 2.22.4
+
+**Result: every `@medusajs/*` package moves from 2.21.2 to 2.22.4 (`@medusajs/ui` 4.2.6 to 4.2.11, and the backend's and the markets plugin's `zod` 4.2.0 to 4.6.6, Medusa's own pin), the storefront's `@medusajs/js-sdk` with them. `pnpm audit --prod` lists 8 advisories (1 low, 5 moderate, 2 high, 0 critical), down from 15: the six the audit task named (zod, glob, OpenTelemetry's pg instrumentation, `@graphql-tools/utils` twice, lodash's high one) and lodash's moderate one. None of the custom backend code changed: the verification guard, the verification replay, the order-claim and return routes, the closed `/store/returns` and the markets plugin hold on 2.22.4 as they are.** The audit's ["What stays"](#audit-after-m4) table now holds only its last seven rows, eight advisories: `ajv` and `uuid` (still under Medusa 2.22.4's MikroORM and bullmq), `deepmerge`, `happy-dom` (two), `csv-parse`, `esbuild` and `minimatch`.
+
+| | |
+|---|---|
+| Date | 2026-11-06 |
+| Branch | `claude/project-thread-yk9cym`, from `main` at `a65e020` (PR 111's merge, the audit task) |
+| PR | this PR, "Medusa 2.22.4" |
+
+### Versions
+
+| Package | Was | Now | Why that one |
+|---|---|---|---|
+| `@medusajs/*` (backend, `packages/medusa-markets`' dev and peer pins, the storefront's `js-sdk`) | 2.21.2 | **2.22.4** (2026-11-06) | The release the audit task named and the owner approved (2026-11-06) |
+| `@medusajs/ui` | 4.2.6 | **4.2.11** | `@medusajs/dashboard` 2.22.4 pins it |
+| `zod` (backend, markets plugin) | 4.2.0 | **4.6.6** | Medusa 2.22.4 pins it (#17515); kept equal to Medusa's, as before. The storefront and registry stay on 4.6.7 |
+
+Unchanged: `@tanstack/react-query` 5.64.2, `react-i18next` 13.5.0, `react-router-dom` 7.18.2, React 18.3.1 and vite 7.3.7, which the dashboard 2.22.4 still asks for. Medusa 2.22's Node floor is 22.22.0 (#17107), below `.nvmrc`'s 22.23.4.
+
+**pnpm's one-day `minimumReleaseAge`.** 2.22.4 was published on 2026-11-06 at 09:18 UTC, three hours before this branch, so `pnpm install` refused it and wrote a `minimumReleaseAgeExclude` list of the 75 new packages (74 at 2.22.4, `@medusajs/ui` at 4.2.11) into `pnpm-workspace.yaml`. That list is in the branch only so that CI can install it today; it is taken out before the merge, once the day has passed (from 2026-11-07 09:18 UTC), and the lockfile then installs under the default policy like every earlier version did.
+
+### Overrides
+
+- **Dropped: `"@medusajs/medusa>multer": "^2.5.0"`** (T55). `@medusajs/medusa` 2.22.4 asks `multer` `^2.5.0` itself (#17517), the drop rule T55 wrote. The lockfile keeps 2.5.0.
+- **Kept, rechecked:** `ajv>fast-uri` (ajv 8.18.0 asks `^3.0.1`), `express@4>body-parser` (express 4.22.3 asks `~1.20.5`), both lodash edges (`^4.17.21`), both `postcss-selector-parser` edges (`^6.1.1`, `^6.1.2`), `axios>follow-redirects` (axios 1.20.0 asks `^1.16.0`), `@lexical/headless>happy-dom` (Payload's, unchanged), `monaco-editor>dompurify` (Payload's, unchanged), `qs@6.16.0` (express 4 and body-parser still ask `~6.16.0`; Medusa itself now asks `^6.16.1`) and `@smithy/core@3.35.1` (the AWS SDK clients still admit 3.35.1). None of their dependants' ranges starts at the fixed release yet.
+- `pnpm dedupe` after the upgrade moves every AWS SDK client's `@smithy/core` to 3.39.0 and `@babel/runtime` under the graphql codegen to 8.1.0; `pnpm dedupe --check` passes.
+
+### The custom backend code on 2.22.4
+
+Read from the installed 2.22.4 sources against the 2.21.2 tarballs, and run (the checks below).
+
+| What | 2.22.4 | Kept as is because |
+|---|---|---|
+| `requireVerifiedCustomer` on `POST /store/customers` (T44, D64) | The route is unchanged. `createCustomerAccountWorkflow` gained a first step that refuses a body `email` other than the identity's with a 401 (#17415, #17608) and a `validate` hook, but it still reads no verification | The middleware runs first and answers 403 for an unverified identity, as before; `auth-verification.spec.ts` passes |
+| `confirmVerificationAgain` on `POST /auth/verification/confirm` (W5) | The auth routes changed only for the new opt-in `http.requireActorAssociation` (#17347, refuses a login whose identity has no actor) and RBAC's roles in the token | Not set here: a shopper signs in before their customer exists (register, verify, create) |
+| `POST /store/customers/me/order-transfers` and `/returns`, the closed `POST /store/returns` (T53) | The store `customers`, `returns`, `orders` and `return-reasons` route folders compile to the same code as in 2.21.2; the middleware matchers still apply under path-to-regexp v9 (#17678), as the specs show | `order-claims.spec.ts` passes; 2.22.1's return fixes (#17431 quantity check, #17448 refund amount) sit in the workflow the route calls |
+| The markets plugin's admin panels (M4b) | The `region.details` and `store.details` widget zones are still there; the dashboard's store query key is still `["store", …]`; the admin's custom-field zones are still for products only (D93); regions and the store still have no time-zone field (D96) | `markets.spec.ts` and the plugin's unit tests pass; `market-panels.spec.ts` and `markets-add.spec.ts` run the panels in the browser in CI's `e2e-smoke` |
+| ADR 0002's assumptions about search and translation | | `search-locale-assumptions.spec.ts` passes unchanged on 2.22.4 |
+
+**For M5:** 2.22.0 added the price-list events D58 lacked (`price-list.created`, `.updated`, `.deleted`, `.prices_added`, `.prices_updated`, `.prices_removed`, #17067), so a price-list edit could revalidate the catalog at once rather than at the ten-minute job; a sale crossing its start or end date still emits nothing, so the job stays for that. This PR changes neither `revalidate-catalog.ts` nor `search/product.ts`'s TODOs.
+
+### Checks (cloud VM, Node 22.23.4, the compose stack)
+
+- `pnpm install`, `pnpm dedupe --check`, `check:workspace`, `typecheck`, `lint`: exit 0. `pnpm peers check` lists the same two unmet peers as on `main` (`fdir`'s `picomatch` 3, vite 8's `esbuild`).
+- Unit tests: the backend's 175 and the markets plugin's 57 pass.
+- `test:integration:http` (Postgres from the compose file, the plugin built): 6 suites, 56 tests pass (`markets`, `payload-sync`, `search-locale`, `search-locale-assumptions`, `auth-verification`, `order-claims`), 1 min 47 s.
+- The PR's CI runs the rest (`check` with the storefront's build, `backend-integration`, `e2e-smoke` with the admin panels, `design-system`).
