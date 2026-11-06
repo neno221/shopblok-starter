@@ -113,6 +113,22 @@ async function openStorePage() {
 const row = (code: string): Locator => regionMarketsRow(page, code);
 
 async function axeFindings(include: string) {
+  // T77: wait for Medusa UI's open animations under `include` (the drawer slides and fades in)
+  // to end first. `toBeVisible()` passes at the animation's first frame, and axe then measured the
+  // Select's placeholder at a partial opacity: a color-contrast finding on "Choose a language" that
+  // failed `main`'s run 41870806648 once and passed on every run before and after it.
+  await page
+    .locator(include)
+    .first()
+    .evaluate((root) =>
+      Promise.all(
+        root
+          .getAnimations({ subtree: true })
+          // A spinner runs for ever; only the ones that end are waited for.
+          .filter((animation) => animation.effect?.getComputedTiming().endTime !== Infinity)
+          .map((animation) => animation.finished),
+      ),
+    );
   const result = await new AxeBuilder({ page }).include(include).withTags(axeTags).analyze();
   return result.violations.map(
     (v) => `${v.id}: ${v.help} (${v.nodes.map((node) => node.html.slice(0, 160)).join(" | ")})`,
