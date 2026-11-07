@@ -48,9 +48,15 @@ const LAZY: { readonly [V in Exclude<Layout, "default">]: ComponentType<ListingR
   ),
 };
 
-/** The component that draws `layout`'s results; one the island does not know draws `default`. */
-export function resultsFor(layout: string | undefined): ComponentType<ListingResultsProps> {
-  if (layout === undefined || layout === "default" || !Object.hasOwn(LAZY, layout))
-    return ListingResults;
-  return LAZY[layout as Exclude<Layout, "default">];
+const isLazy = (layout: string | undefined): layout is keyof typeof LAZY =>
+  layout !== undefined && Object.hasOwn(LAZY, layout);
+
+/** `layout`'s results; a layout the island does not know (or none) draws `default`'s. */
+export function LayoutResults({
+  layout,
+  ...props
+}: ListingResultsProps & { layout: string | undefined }) {
+  if (!isLazy(layout)) return <ListingResults {...props} />;
+  const Results = LAZY[layout];
+  return <Results {...props} />;
 }

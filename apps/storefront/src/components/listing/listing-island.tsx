@@ -29,7 +29,7 @@ import {
   parseListingQuery,
   withQuery,
 } from "../../lib/listing/query";
-import { resultsFor } from "./listing-layouts";
+import { LayoutResults } from "./listing-layouts";
 import { RobotsMeta } from "./robots-meta";
 
 /** Where the island asks. */
@@ -107,7 +107,6 @@ export function ListingIsland({
   prefetch,
   fetcher,
 }: ListingIslandProps) {
-  const Results = resultsFor(layout);
   const router = useRouter();
   const search = useSearchParams();
   const query = parseListingQuery(new URLSearchParams(search.toString()));
@@ -199,7 +198,14 @@ export function ListingIsland({
       </p>
       {!active ? null : results !== undefined ? (
         <Suspense fallback={<Loading text={announce.loading} />}>
-          <Results {...results} copy={copy} locale={locale} hrefFor={hrefFor} prefetch={prefetch} />
+          <LayoutResults
+            {...results}
+            layout={layout}
+            copy={copy}
+            locale={locale}
+            hrefFor={hrefFor}
+            prefetch={prefetch}
+          />
         </Suspense>
       ) : current?.kind === "missing" ? (
         <EmptyState
