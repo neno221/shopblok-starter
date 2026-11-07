@@ -72,11 +72,20 @@ function OrderConfirmationNextSteps(props: OrderConfirmationTemplateProps) {
                 <NextStep
                   icon={PackageIcon}
                   title={words.delivery.title}
-                  text={formatMessage(
-                    words.delivery.text,
-                    { method: order.shippingMethod.name, city: order.shippingAddress.city ?? "" },
-                    locale,
-                  )}
+                  text={
+                    // Seven countries' addresses have no city (D65): the line says the method only.
+                    order.shippingAddress.city === undefined || order.shippingAddress.city === ""
+                      ? formatMessage(
+                          words.delivery.textNoCity,
+                          { method: order.shippingMethod.name },
+                          locale,
+                        )
+                      : formatMessage(
+                          words.delivery.text,
+                          { method: order.shippingMethod.name, city: order.shippingAddress.city },
+                          locale,
+                        )
+                  }
                 />
                 {followUp === undefined ? null : (
                   <NextStep

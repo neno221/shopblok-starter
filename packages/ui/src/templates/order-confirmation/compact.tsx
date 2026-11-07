@@ -49,7 +49,10 @@ function OrderConfirmationCompact(props: OrderConfirmationTemplateProps) {
           <div className={row}>
             <dt className="font-medium">{words.delivery}</dt>
             <dd className="min-w-0 text-end wrap-anywhere">
-              {order.shippingMethod.name} · {order.shippingAddress.city}
+              {order.shippingMethod.name}
+              {order.shippingAddress.city === undefined || order.shippingAddress.city === ""
+                ? null
+                : ` · ${order.shippingAddress.city}`}
             </dd>
           </div>
         </dl>

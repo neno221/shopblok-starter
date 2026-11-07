@@ -17,7 +17,7 @@
 // Every form is plain and posts without scripts; an action's failure comes back as `errors`. A
 // server component.
 import { formatDate, formatMessage, type Messages } from "@shopblok/i18n";
-import type { AccountPage } from "@shopblok/registry/contracts";
+import { VARIANTS, type AccountPage } from "@shopblok/registry/contracts";
 import { buttonVariants } from "@shopblok/ui/atoms/button";
 import { Button } from "@shopblok/ui/atoms/button";
 import { Price } from "@shopblok/ui/atoms/price";
@@ -476,11 +476,14 @@ function OrderScreen({
     </div>
   );
   // T86: a layout of the receipt's other than M3's draws the receipt's member, with this screen's
-  // heading and ways on in place of the thanks and the way back to the shop.
-  if (screen.variant !== undefined && screen.variant !== "default")
+  // heading and ways on in place of the thanks and the way back to the shop. Only a layout the
+  // family has: any other value (a stored one from another version) keeps M3's screen, since the
+  // receipt would draw its first member, which is not drawn on the account.
+  const layout = screen.variant;
+  if (layout !== undefined && layout !== "default" && VARIANTS.receipt.includes(layout))
     return (
       <OrderConfirmationTemplate
-        variant={screen.variant}
+        variant={layout}
         order={order}
         summary={screen.summary}
         continueHref={screen.backHref}

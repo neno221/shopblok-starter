@@ -11,12 +11,12 @@
 import { formatDate, formatMessage, type Messages } from "@shopblok/i18n";
 import type { OrderConfirmationPage } from "@shopblok/registry/contracts";
 import { buttonVariants } from "@shopblok/ui/atoms/button";
-import { Price } from "@shopblok/ui/atoms/price";
 import { cn } from "@shopblok/ui/lib/utils";
 import { AddressCard } from "@shopblok/ui/molecules/address-card";
 import { CircleCheckIcon } from "lucide-react";
 import NextLink from "next/link";
 import type * as React from "react";
+import { PaymentLine, ShippingMethodLine } from "../checkout/lines";
 
 // The hrefs are strings the app built; `next/link` takes whatever the app's typed routes allow.
 type LinkHref = React.ComponentProps<typeof NextLink>["href"];
@@ -191,18 +191,7 @@ function ReceiptDelivery({
   return (
     <section data-slot="order-confirmation-delivery" className={cn(partClass, className)}>
       <h2 className={partHeading}>{copy.page.delivery}</h2>
-      <p className="flex flex-wrap justify-between gap-x-3">
-        <span className="wrap-anywhere">{order.shippingMethod.name}</span>
-        {order.shippingMethod.price.amount === 0 ? (
-          <span className="text-success">{copy.free}</span>
-        ) : (
-          <Price
-            amount={order.shippingMethod.price.amount}
-            currency={order.shippingMethod.price.currencyCode}
-            locale={locale}
-          />
-        )}
-      </p>
+      <ShippingMethodLine method={order.shippingMethod} free={copy.free} locale={locale} />
     </section>
   );
 }
@@ -216,10 +205,7 @@ function ReceiptPayment({
   return (
     <section data-slot="order-confirmation-payment" className={cn(partClass, className)}>
       <h2 className={partHeading}>{copy.page.payment}</h2>
-      <p className="wrap-anywhere">
-        {order.payment.name ?? order.payment.brand ?? ""}
-        {order.payment.last4 === undefined ? null : ` •••• ${order.payment.last4}`}
-      </p>
+      <PaymentLine payment={order.payment} />
     </section>
   );
 }

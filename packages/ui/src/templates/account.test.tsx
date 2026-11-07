@@ -584,3 +584,32 @@ describe("AccountTemplate", () => {
     });
   });
 });
+
+// T86: the order screen in a receipt layout draws the receipt's member without the thanks; `default`
+// and a value the family does not have keep M3's screen (the receipt's first member is not drawn on
+// the account: it has its own `<main>` and the thanks).
+describe("the order screen in the receipt's layouts (T86)", () => {
+  const order = (variant: string) => withScreen(pages.order, { variant });
+
+  it.each(["statement", "timeline-first", "split", "compact", "next-steps"])(
+    "%s draws the receipt's layout in the account's column, without the thanks",
+    (variant) => {
+      renderAccount("en", order(variant));
+      const root = slot("account-order-receipt") as HTMLElement;
+      expect(root.getAttribute("data-variant")).toBe(variant);
+      expect(screen.getAllByRole("main")).toHaveLength(1);
+      expect(slot("order-confirmation-template")).toBeNull();
+      expect(slot("order-confirmation-number")).toBeNull();
+      expect(slot("order-confirmation-continue")).toBeNull();
+      expect(slot("account-back")).not.toBeNull();
+    },
+  );
+
+  it.each(["default", "gallery"])("%s keeps M3's order screen", (variant) => {
+    renderAccount("en", order(variant));
+    expect(slot("account-order-receipt")).toBeNull();
+    expect(slot("order-confirmation-template")).toBeNull();
+    expect(slot("account-order-shipping")).not.toBeNull();
+    expect(screen.getAllByRole("main")).toHaveLength(1);
+  });
+});

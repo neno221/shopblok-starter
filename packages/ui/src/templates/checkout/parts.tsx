@@ -18,7 +18,6 @@ import { formatMessage, type Messages } from "@shopblok/i18n";
 import type { CheckoutPage } from "@shopblok/registry/contracts";
 import { Button, buttonVariants } from "@shopblok/ui/atoms/button";
 import { Input } from "@shopblok/ui/atoms/input";
-import { Price } from "@shopblok/ui/atoms/price";
 import { cn } from "@shopblok/ui/lib/utils";
 import { AddressCard } from "@shopblok/ui/molecules/address-card";
 import { AddressForm, type AddressFormErrors } from "@shopblok/ui/molecules/address-form";
@@ -29,6 +28,7 @@ import { CircleAlertIcon } from "lucide-react";
 import NextLink from "next/link";
 import type * as React from "react";
 import { checkoutIds, type CheckoutStepKind } from "./ids";
+import { PaymentLine, ShippingMethodLine } from "./lines";
 
 // The hrefs are strings the app built; `next/link` takes whatever the app's typed routes allow.
 type LinkHref = React.ComponentProps<typeof NextLink>["href"];
@@ -304,38 +304,6 @@ function DeliveryStep({
   );
 }
 
-/** The shipping method's name and its price ("Free" for nothing). */
-function ShippingMethodLine({
-  method,
-  copy,
-  locale,
-}: {
-  method: { name: string; price: { amount: number; currencyCode: string } };
-  copy: CheckoutCopy;
-  locale: string;
-}) {
-  return (
-    <p className="flex flex-wrap justify-between gap-x-3">
-      <span className="wrap-anywhere">{method.name}</span>
-      {method.price.amount === 0 ? (
-        <span className="text-success">{copy.shipping.free}</span>
-      ) : (
-        <Price amount={method.price.amount} currency={method.price.currencyCode} locale={locale} />
-      )}
-    </p>
-  );
-}
-
-/** How the order is paid: the provider's name or the card's brand, and its last four digits. */
-function PaymentLine({ payment }: { payment: { name?: string; brand?: string; last4?: string } }) {
-  return (
-    <p className="wrap-anywhere">
-      {payment.name ?? payment.brand ?? ""}
-      {payment.last4 === undefined ? null : ` •••• ${payment.last4}`}
-    </p>
-  );
-}
-
 /** The form that places the order, with the terms' note above its button. */
 function PlaceOrderForm({ copy, action }: { copy: CheckoutCopy; action?: FormAction }) {
   const words = copy.page;
@@ -390,7 +358,11 @@ function ReviewStep({ step, copy, locale, action, prefetch }: StepProps<"review"
         locale={locale}
         prefetch={prefetch}
       >
-        <ShippingMethodLine method={step.shippingMethod} copy={copy} locale={locale} />
+        <ShippingMethodLine
+          method={step.shippingMethod}
+          free={copy.shipping.free}
+          locale={locale}
+        />
       </ReviewPart>
       <ReviewPart
         title={words.review.payment}
@@ -435,6 +407,36 @@ function CheckoutStepContent({
   );
 }
 
+/** The "Edit" link back to a step, named for its part ("Edit: Delivery"). */
+function ReviewEditLink({
+  href,
+  title,
+  edit,
+  locale,
+  prefetch,
+  slot = "checkout-review-edit",
+}: {
+  href: string;
+  title: string;
+  edit: { label: string; name: string };
+  locale: string;
+  prefetch?: boolean | null;
+  /** `checkout-review-edit` in the review, `checkout-one-page-edit` on a finished step. */
+  slot?: string;
+}) {
+  return (
+    <NextLink
+      href={href as LinkHref}
+      prefetch={prefetch}
+      aria-label={formatMessage(edit.name, { part: title }, locale)}
+      data-slot={slot}
+      className={cn(buttonVariants({ variant: "ghost" }), "shrink-0")}
+    >
+      {edit.label}
+    </NextLink>
+  );
+}
+
 /** One part of the review: its heading, what was chosen, and the link back to its step. */
 function ReviewPart({
   title,
@@ -442,7 +444,6 @@ function ReviewPart({
   href,
   locale,
   prefetch,
-  headingLevel = 3,
   children,
 }: {
   title: string;
@@ -450,26 +451,16 @@ function ReviewPart({
   href: string;
   locale: string;
   prefetch?: boolean | null;
-  headingLevel?: 3 | 4;
   children: React.ReactNode;
 }) {
-  const Heading = `h${headingLevel}` as const;
   return (
     <section
       data-slot="checkout-review-part"
       className="flex min-w-0 flex-col gap-2 border-b pb-4 last-of-type:border-b-0"
     >
       <div className="flex min-w-0 items-center justify-between gap-3">
-        <Heading className="text-base leading-snug font-semibold wrap-anywhere">{title}</Heading>
-        <NextLink
-          href={href as LinkHref}
-          prefetch={prefetch}
-          aria-label={formatMessage(edit.name, { part: title }, locale)}
-          data-slot="checkout-review-edit"
-          className={cn(buttonVariants({ variant: "ghost" }), "shrink-0")}
-        >
-          {edit.label}
-        </NextLink>
+        <h3 className="text-base leading-snug font-semibold wrap-anywhere">{title}</h3>
+        <ReviewEditLink href={href} title={title} edit={edit} locale={locale} prefetch={prefetch} />
       </div>
       <div className="min-w-0 text-sm leading-snug">{children}</div>
     </section>
@@ -484,6 +475,7 @@ export {
   DeliveryStep,
   PaymentLine,
   PlaceOrderForm,
+  ReviewEditLink,
   ReviewPart,
   ShippingMethodLine,
   checkoutCopy,

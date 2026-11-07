@@ -8252,7 +8252,7 @@ After the fixes: `typecheck` and `lint`; the storefront's `lib` tests (337); the
 |---|---|
 | Date | 2026-11-07 |
 | Branch | `claude/project-thread-b695ro`, from `main` at `86d58e5` (T85 merged) |
-| PR | (this PR) |
+| PR | [123](https://github.com/neno221/shopblok-starter/pull/123) |
 | Machine | The cloud VM: Node 22.23.4, pnpm 12.10.1, the compose stack, Medusa 2.22.4 (`medusa develop`) |
 
 ### What changed
@@ -8272,7 +8272,7 @@ After the fixes: `typecheck` and `lint`; the storefront's `lib` tests (337); the
   - `next-steps`: the thanks, then three cards: the e-mail that was sent, the delivery (its method and the city), and an account to create (`register`) or the order in the account (`account-order`, for its owner) with its link (`order-confirmation-follow-up`, `data-kind`); then the summary and the parts. On the account the cards are left out (the shopper is in the account already).
 - **The account's order screen** (`templates/account.tsx`): with a receipt layout other than `default` it draws that layout with `account` (its heading, the order's number and date, and its ways on, the return and back to the orders) in a `div` in the account's column (`account-order-receipt`, `data-variant`); `default` keeps M3's screen. The layouts' columns follow their container (`@container`), so they fit the narrower column beside AccountNav. `AccountCopy` carries the receipt's copy.
 - **The shop:** the checkout's page reads `templates.checkout` from `getShellData()` (the global, for the market) and, for `one-page`, builds `done` from the cart (`toCheckoutDone`) with each step's "Edit" at its anchor. The actions (`lib/actions/forms.ts`) come back at the next step's anchor (`stepAnchor`, the global read for the market, `""` but for `one-page`): a success goes on to `…/checkout/delivery#main-step-delivery`, a refusal back to `…?f=<key>#main-step-contact`; this is the action's redirect, not a page's. The receipt's page passes `templates.receipt`, and for `next-steps` its `followUp` (`account-order` when the signed-in customer owns the order, `register` otherwise); the account's order page passes it as `screen.variant`.
-- **Copy:** `templates.checkout.express.{title, or}`, `templates.orderConfirmation.statement.{caption, product, quantity, price, total}`, `compact.{total, details}` and `nextSteps` (its title, and each card's title, text and action), in the four catalogs and in `ui-strings`' seed: 775 messages.
+- **Copy:** `templates.checkout.express.{title, or}`, `templates.orderConfirmation.statement.{caption, product, quantity, price, total}`, `compact.{total, details}` and `nextSteps` (its title, and each card's title, text and action; the delivery's `textNoCity` for an address without a city), in the four catalogs and in `ui-strings`' seed: 776 messages.
 - **The stories:** the nine entries with the checkout's three steps (and their errors) or the receipt as placed and "In the account"; `one-page`'s live render is its delivery step, with the contact step done.
 - **The migration** `20261107_152954_checkout_receipt_variants`: the new values on the `checkout_variant` and `receipt_variant` enums of `templates` and `_templates_v`.
 
@@ -8316,3 +8316,20 @@ The layouts are server components: only `CheckoutStepFocus` is client code, on t
 ### Baselines (D109)
 
 The dispatch (run [42387161550](https://github.com/neno221/shopblok-starter/actions/runs/42387161550), commit `72f1690`): the nine entries' 27 baselines and 9 thumbnails, 36 PNGs and 7,225,405 bytes, and two rewritten with nothing to see, the same two cells as T85's: `molecules/promo-code-field/en-1440` (8 pixels, 1 of 255) and `templates/product-detail/en-768` (34 pixels, 21 of 255). The set: 599 PNGs, 83.76 MB (83,755,984 bytes). One update well under half a set (D51).
+
+### Changes from the review of this PR (PR 123)
+
+| # | Finding | Done |
+|---|---|---|
+| 1 | Must-fix: a stored receipt value the family does not have went to the receipt's template on the account, which drew its first member (a second `<main>`, the thanks, "Continue shopping") | Fixed: the account draws a receipt member only for one of `VARIANTS.receipt` other than `default`; any other value keeps M3's screen. `account.test.tsx` covers the five layouts, `default` and `gallery` |
+| 2 | Must-fix: `checkVisibility()` unguarded in the one-page focus (it throws before Safari 17.4) | Fixed: the optional call with `getClientRects()` as the fallback, as `organisms/focus-after.ts` does |
+| 3 | Must-fix: `next-steps` and `compact` assumed a city (D65: seven countries have none): "to ." and "Standard · " | Fixed: `nextSteps.delivery.textNoCity` ("It goes by {method}.", in the four catalogs; 776 messages) and `compact` names the city only when there is one; `order-confirmation.test.tsx` covers both with and without a city, and each layout's root |
+| 4 | The print rule also matches a statement Next keeps hidden from an earlier page | Skipped (print only, not security or a cleanup) |
+| 5 | The same failure twice does not move focus again | Skipped (a11y improvement; M3's layouts have the same repeat) |
+| 6 | "Create an account" for a signed-in shopper on a guest receipt | Skipped (UX) |
+| 7 | `stepAnchor` repeats the action's reads | Skipped (efficiency) |
+| 8 | A second `getCustomer()` on the next-steps receipt | Skipped (efficiency) |
+| 9 | Cleanup: `ReviewPart`'s unused `headingLevel`, and one-page's Edit link repeating `ReviewPart`'s | Fixed: `headingLevel` dropped; `ReviewEditLink` in `checkout/parts.tsx`, used by both (its `data-slot` given) |
+| 10 | Cleanup: the delivery and payment lines drawn twice (checkout and receipt) | Fixed: `ShippingMethodLine` and `PaymentLine` in `checkout/lines.tsx` (`free` passed in), used by the review, one-page's finished steps and the receipt's parts; the same markup, so no pixel changes |
+
+After the fixes: `typecheck`, `lint` and `pnpm test` (ui 5897, the storefront 4083, the rest as above); the build and `check:first-load` (the budgeted rows as above; the checkout's pages 320,879 bytes, 19 more for the guard); `checkout-variants`, `checkout-cy` and `checkout-us` against `next start`, 22 passed.

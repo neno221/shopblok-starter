@@ -8,14 +8,10 @@
 // section (the browser's own without scripts, `CheckoutStepFocus` after a navigation by the router).
 // The summary is beside the steps as in M3's layout; the stepper is left out, the sections say where
 // the shopper is. A server component but for the focus.
-import { formatMessage } from "@shopblok/i18n";
-import { buttonVariants } from "@shopblok/ui/atoms/button";
 import { cn } from "@shopblok/ui/lib/utils";
 import { AddressCard } from "@shopblok/ui/molecules/address-card";
 import { CheckoutSteps } from "@shopblok/ui/organisms/checkout-steps";
 import { CheckIcon } from "lucide-react";
-import NextLink from "next/link";
-import type * as React from "react";
 import {
   CheckoutFormError,
   CheckoutRoot,
@@ -23,15 +19,13 @@ import {
   DeliveryStep,
   PaymentLine,
   PlaceOrderForm,
+  ReviewEditLink,
   ShippingMethodLine,
   checkoutIds,
   type CheckoutStepKind,
   type CheckoutTemplateProps,
 } from "./parts";
 import { CheckoutStepFocus } from "./step-focus";
-
-// The hrefs are strings the app built; `next/link` takes whatever the app's typed routes allow.
-type LinkHref = React.ComponentProps<typeof NextLink>["href"];
 
 function CheckoutOnePage(props: CheckoutTemplateProps) {
   const {
@@ -105,11 +99,13 @@ function CheckoutOnePage(props: CheckoutTemplateProps) {
                       {each.label}
                     </h2>
                     {state === "done" ? (
-                      <EditLink
+                      <ReviewEditLink
                         href={editHref(done, kind)}
-                        label={words.review.edit}
-                        name={formatMessage(words.review.editLabel, { part: each.label }, locale)}
+                        title={each.label}
+                        edit={{ label: words.review.edit, name: words.review.editLabel }}
+                        locale={locale}
                         prefetch={prefetch}
+                        slot="checkout-one-page-edit"
                       />
                     ) : null}
                   </div>
@@ -150,30 +146,6 @@ function editHref(done: CheckoutTemplateProps["done"], kind: CheckoutStepKind): 
   return "#";
 }
 
-function EditLink({
-  href,
-  label,
-  name,
-  prefetch,
-}: {
-  href: string;
-  label: string;
-  name: string;
-  prefetch?: boolean | null;
-}) {
-  return (
-    <NextLink
-      href={href as LinkHref}
-      prefetch={prefetch}
-      aria-label={name}
-      data-slot="checkout-one-page-edit"
-      className={cn(buttonVariants({ variant: "ghost" }), "shrink-0")}
-    >
-      {label}
-    </NextLink>
-  );
-}
-
 /** What a finished step chose: the e-mail and the address, or the delivery and the payment. */
 function DoneSummary({ kind, props }: { kind: CheckoutStepKind; props: CheckoutTemplateProps }) {
   const { done, copy, locale } = props;
@@ -206,7 +178,11 @@ function DoneSummary({ kind, props }: { kind: CheckoutStepKind; props: CheckoutT
         <div className="flex min-w-0 flex-col gap-1">
           <dt className={term}>{words.delivery}</dt>
           <dd className={detail}>
-            <ShippingMethodLine method={done.delivery.shippingMethod} copy={copy} locale={locale} />
+            <ShippingMethodLine
+              method={done.delivery.shippingMethod}
+              free={copy.shipping.free}
+              locale={locale}
+            />
           </dd>
         </div>
         <div className="flex min-w-0 flex-col gap-1">

@@ -910,6 +910,7 @@ export const el: Messages = {
         delivery: {
           title: "Ετοιμάζουμε την παραγγελία σας",
           text: "Θα σταλεί με {method} στην πόλη {city}.",
+          textNoCity: "Θα σταλεί με {method}.",
         },
         register: {
           title: "Δημιουργία λογαριασμού",

@@ -1008,6 +1008,7 @@ export const en = {
         delivery: {
           title: "We prepare your order",
           text: "It goes by {method} to {city}.",
+          textNoCity: "It goes by {method}.",
         },
         register: {
           title: "Create an account",

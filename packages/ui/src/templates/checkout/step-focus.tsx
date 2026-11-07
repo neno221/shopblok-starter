@@ -15,8 +15,9 @@ import { useEffect } from "react";
 function CheckoutStepFocus({ id, token }: { id: string; token?: string }) {
   useEffect(() => {
     if (window.location.hash !== `#${id}`) return;
-    const target = [...document.querySelectorAll<HTMLElement>(`[id="${id}"]`)].find((each) =>
-      each.checkVisibility(),
+    // `checkVisibility` is missing before Safari 17.4: there a box means it is drawn.
+    const target = [...document.querySelectorAll<HTMLElement>(`[id="${id}"]`)].find(
+      (each) => each.checkVisibility?.() ?? each.getClientRects().length > 0,
     );
     if (target !== undefined && document.activeElement !== target)
       target.focus({ preventScroll: true });

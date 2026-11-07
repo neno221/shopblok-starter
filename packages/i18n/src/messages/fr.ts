@@ -906,6 +906,7 @@ export const fr: Messages = {
         delivery: {
           title: "Nous préparons votre commande",
           text: "Elle part par {method} à destination de {city}.",
+          textNoCity: "Elle part par {method}.",
         },
         register: {
           title: "Créer un compte",
