@@ -8788,7 +8788,7 @@ The dispatch (run [42379020301](https://github.com/neno221/shopblok-starter/acti
 | | |
 |---|---|
 | Date | 2026-11-07 |
-| Branch | `claude/project-thread-8cyauj`, from `main` at `7d5641e` (PR 117, T88, merged) |
+| Branch | `claude/project-thread-8cyauj`, from `main` at `7d5641e` (PR 117, T88, merged), with `main` at `6957d5b` (T83, PR 120, and the search without scripts, PR 125) merged in |
 | PR | [126](https://github.com/neno221/shopblok-starter/pull/126) |
 | Machine | The cloud VM: Node 22.23.4, pnpm 12.10.1, the compose stack, Medusa 2.22.4 (`medusa develop`) |
 
