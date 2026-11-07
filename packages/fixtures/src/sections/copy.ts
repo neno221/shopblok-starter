@@ -43,7 +43,8 @@ export type SectionCopy = {
     tracks: Record<DesignSystemLocale, string>;
   };
   /** The newsletter block's own heading and line (T67). */
-  newsletter: { heading: string; text: string; longHeading: string };
+  /** T82: `alt` is the `split` member's picture. */
+  newsletter: { heading: string; text: string; longHeading: string; alt: string };
   /** A contact form as an editor builds it (T67): its labels, the topics, the text between. */
   form: {
     heading: string;
@@ -124,6 +125,7 @@ export const sectionCopies: Record<DesignSystemLocale, SectionCopy> = {
       text: "One letter a month: new fabrics, repairs and the people who make our clothes.",
       longHeading:
         "Stories from the mill, the workshop and the people who make, mend and wear our clothes",
+      alt: "Spools of undyed organic cotton thread on a workshop table",
     },
     form: {
       heading: "Write to us",
@@ -198,6 +200,7 @@ export const sectionCopies: Record<DesignSystemLocale, SectionCopy> = {
       text: "Ένα γράμμα τον μήνα: νέα υφάσματα, επιδιορθώσεις και οι άνθρωποι που φτιάχνουν τα ρούχα μας.",
       longHeading:
         "Ιστορίες από το κλωστήριο, το εργαστήριο και τους ανθρώπους που φτιάχνουν, επιδιορθώνουν και φορούν τα ρούχα μας",
+      alt: "Καρούλια με άβαφη βιολογική βαμβακερή κλωστή σε πάγκο εργαστηρίου",
     },
     form: {
       heading: "Γράψτε μας",
@@ -271,6 +274,7 @@ export const sectionCopies: Record<DesignSystemLocale, SectionCopy> = {
       text: "Ein Brief im Monat: neue Stoffe, Reparaturen und die Menschen, die unsere Kleidung machen.",
       longHeading:
         "Geschichten aus der Weberei, der Werkstatt und von den Menschen, die unsere Kleidung machen, flicken und tragen",
+      alt: "Spulen mit ungefärbtem Biobaumwollgarn auf einem Werkstatttisch",
     },
     form: {
       heading: "Schreiben Sie uns",
@@ -346,6 +350,7 @@ export const sectionCopies: Record<DesignSystemLocale, SectionCopy> = {
       text: "Une lettre par mois : nouvelles étoffes, réparations et les personnes qui font nos vêtements.",
       longHeading:
         "Des nouvelles de la filature, de l’atelier et des personnes qui font, réparent et portent nos vêtements",
+      alt: "Bobines de fil de coton bio écru sur une table d’atelier",
     },
     form: {
       heading: "Écrivez-nous",

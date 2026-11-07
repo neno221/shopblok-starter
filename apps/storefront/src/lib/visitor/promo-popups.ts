@@ -1,0 +1,108 @@
+// Ours (T82, SETUP.md "Content and promotion block variants (T82)"; M5 plan §1a, D44). Which promo
+// popups this visitor has seen: an offer (a `promoBanner` block's id) shows once per visitor, so
+// the first time one is shown it is written to `localStorage` (functional storage, D44: it only
+// remembers not to show the offer again, so no consent is asked, SPEC §11.4). Plain data and
+// listeners, read through `useSyncExternalStore` as the visitor store is. An offer is `new` until
+// a popup claims it, then `showing` for that popup alone (its `owner`, one token per mounted
+// popup), then `done` once it is closed. A popup on the next page, a new owner, finds it `showing`
+// or `done` and stays shut, so the offer is gone on the next page as the plan asks, with or without
+// a reload. Storage that cannot be read counts as seen: an offer that cannot be remembered is not
+// shown at all, rather than on every page. One popup shows at a time (PR 122 review, item 2): two
+// on one page would lie on the same corner, the first one's controls focusable under the second
+// (WCAG 2.4.11), so while a mounted popup shows its offer, another stays shut and its offer `new`
+// for a later page. A popup shows only where its block is shown (item 1): a block for phones only
+// or for large screens only is checked against the window before its offer is claimed, since the
+// card, at the end of `<body>`, is outside the section that its visibility hides.
+
+const KEY = "shopblok:promo-popup:";
+
+type Offer = { phase: "new" | "showing" | "done"; owner?: object };
+
+const offers = new Map<string, Offer>();
+const listeners = new Set<() => void>();
+/** The popups mounted now (their owners): an offer shown by one that is gone holds no corner. */
+const mounted = new Set<object>();
+
+/** Tailwind's `lg`, where SectionFrame's `visibility` hides a block (`lg:hidden`, `max-lg:hidden`). */
+const LARGE = "(min-width: 64rem)";
+
+/** Whether a block with this `visibility` is shown in the window now. */
+export function shownHere(visibility: "all" | "mobile" | "desktop" = "all"): boolean {
+  if (visibility === "all") return true;
+  return window.matchMedia(LARGE).matches === (visibility === "desktop");
+}
+
+/** A popup is mounted (its owner); the function it returns says it is gone. */
+export function mountPopup(owner: object): () => void {
+  mounted.add(owner);
+  return () => {
+    mounted.delete(owner);
+  };
+}
+
+function offerOf(id: string): Offer {
+  let offer = offers.get(id);
+  if (offer === undefined) {
+    let seen = true;
+    try {
+      seen = window.localStorage.getItem(KEY + id) !== null;
+    } catch {
+      // Unreadable storage: treated as seen (above).
+    }
+    offer = { phase: seen ? "done" : "new" };
+    offers.set(id, offer);
+  }
+  return offer;
+}
+
+const notify = () => {
+  for (const listener of [...listeners]) listener();
+};
+
+export function subscribePromoPopups(listener: () => void): () => void {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
+
+/** Whether `owner`'s popup shows the offer now. */
+export function isShowing(id: string, owner: object): boolean {
+  const offer = offerOf(id);
+  return offer.phase === "showing" && offer.owner === owner;
+}
+
+/** On the server, and while hydrating: never shown (a prerendered page is the same for all). */
+export function isShowingOnServer(): boolean {
+  return false;
+}
+
+/**
+ * The popup `owner` shows the offer, if it is new and no other mounted popup shows one: it is
+ * written down as seen at once, so a reload or the next page does not show it again even if this
+ * one is never closed.
+ */
+export function claimOffer(id: string, owner: object): void {
+  const offer = offerOf(id);
+  if (offer.phase !== "new") return;
+  for (const other of offers.values())
+    if (other.phase === "showing" && other.owner !== owner && mounted.has(other.owner as object))
+      return;
+  try {
+    window.localStorage.setItem(KEY + id, new Date().toISOString());
+  } catch {
+    // Kept for this page's life.
+  }
+  offers.set(id, { phase: "showing", owner });
+  notify();
+}
+
+/** The visitor closed it (its button or Escape). */
+export function closeOffer(id: string): void {
+  offers.set(id, { phase: "done" });
+  notify();
+}
+
+/** Forgets what this module read (a test, which changes storage under it). */
+export function resetPromoPopups(): void {
+  offers.clear();
+  mounted.clear();
+}

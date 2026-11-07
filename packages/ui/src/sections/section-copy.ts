@@ -27,6 +27,10 @@ export type SectionsCopy = {
   featuredProduct: Messages["sections"]["featuredProduct"];
   promoBanner: Messages["sections"]["promoBanner"];
   comparison: Messages["sections"]["comparison"];
+  /** T82: the carousel's buttons (its other words are the product carousel's). */
+  testimonials: Messages["sections"]["testimonials"];
+  /** T82: the USP strip's name, for the row that scrolls on a phone. */
+  uspBar: Messages["sections"]["uspBar"];
   collectionSpotlight: Messages["sections"]["collectionSpotlight"];
   form: Messages["sections"]["form"];
   newsletter: Messages["molecules"]["newsletterForm"];
@@ -51,6 +55,8 @@ export function sectionsCopy(messages: Messages): SectionsCopy {
     featuredProduct: sections.featuredProduct,
     promoBanner: sections.promoBanner,
     comparison: sections.comparison,
+    testimonials: sections.testimonials,
+    uspBar: sections.uspBar,
     collectionSpotlight: sections.collectionSpotlight,
     form: sections.form,
     newsletter: molecules.newsletterForm,

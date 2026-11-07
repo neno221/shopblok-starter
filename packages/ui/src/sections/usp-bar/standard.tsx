@@ -4,6 +4,7 @@
 // decoration: the title says what each promise is. A server component.
 import type { UspBarSection as UspBarSectionData, UspIcon } from "@shopblok/registry/contracts";
 import { cn } from "@shopblok/ui/lib/utils";
+import type { SectionsCopy } from "@shopblok/ui/sections/section-copy";
 import { SectionFrame } from "@shopblok/ui/sections/section-frame";
 import {
   BadgeCheckIcon,
@@ -32,7 +33,11 @@ const icons: Record<UspIcon, LucideIcon> = {
 /** The columns from `lg` up: as many as there are items, at most four. */
 const columns = ["lg:grid-cols-1", "lg:grid-cols-2", "lg:grid-cols-3", "lg:grid-cols-4"] as const;
 
-type UspBarSectionProps = UspBarSectionData & { className?: string };
+type UspBarSectionProps = UspBarSectionData & {
+  /** T82: the `strip` member's name for its row, which scrolls on a phone; the others draw no word. */
+  copy: Pick<SectionsCopy, "uspBar">;
+  className?: string;
+};
 
 function UspBarStandard({ settings, items, className }: UspBarSectionProps) {
   return (

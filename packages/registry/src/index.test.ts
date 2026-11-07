@@ -30,7 +30,7 @@ const atom = (id: string, extra: Partial<EntryInput> = {}): EntryInput => ({
 });
 
 describe("the registry (D40)", () => {
-  it("lists M1's 8 foundations and 32 atoms, then T32's 15 molecules, T33's 13 and T34's 12, then T35's 4 organisms and 6 headers, T36's 2 organisms and 5 footers, T37's 7 organisms, T38's 7 and T39's 11 (T85's drawer with picks after the drawer), then T63's 8 sections, T64's 9 (T80's 7 hero variants after the hero), T67's 2 and T66's 1, then T48's 2 templates, T49's 1, T50's 2 (T84's six listing layouts after the first), T51's 1, T52's 3 (T85's three cart layouts after the first, T86's four checkout layouts and five receipt layouts after theirs), T53's 3, T65's 1 and T66's 2, in the navigation's order", () => {
+  it("lists M1's 8 foundations and 32 atoms, then T32's 15 molecules, T33's 13 and T34's 12, then T35's 4 organisms and 6 headers, T36's 2 organisms and 5 footers, T37's 7 organisms, T38's 7 and T39's 11 (T85's drawer with picks after the drawer), then T63's 8 sections, T64's 9 (T80's 7 hero variants after the hero; T82's 17 content and promotion variants after their blocks), T67's 2 and T66's 1, then T48's 2 templates, T49's 1, T50's 2 (T84's six listing layouts after the first), T51's 1, T52's 3 (T85's three cart layouts after the first, T86's four checkout layouts and five receipt layouts after theirs), T53's 3, T65's 1 and T66's 2, in the navigation's order", () => {
     expect(byGroup("foundations")).toHaveLength(8);
     expect(byGroup("atoms")).toHaveLength(32);
     expect(byGroup("molecules")).toHaveLength(40);
@@ -39,10 +39,18 @@ describe("the registry (D40)", () => {
     expect(byGroup("sections").map((entry) => entry.id)).toEqual([
       "sections/rich-text",
       "sections/media-with-text",
+      "sections/media-with-text-overlap",
+      "sections/media-with-text-full-bleed",
       "sections/usp-bar",
+      "sections/usp-bar-strip",
       "sections/logo-cloud",
+      "sections/logo-cloud-grid",
       "sections/faq",
+      "sections/faq-side-heading",
       "sections/testimonials",
+      "sections/testimonials-single",
+      "sections/testimonials-carousel",
+      "sections/testimonials-wall",
       "sections/video",
       "sections/spacer",
       "sections/hero",
@@ -58,12 +66,21 @@ describe("the registry (D40)", () => {
       "sections/featured-product",
       "sections/bundle",
       "sections/promo-banner",
+      "sections/promo-banner-strip",
+      "sections/promo-banner-ticket",
+      "sections/promo-banner-full-bleed",
+      "sections/promo-banner-countdown",
+      "sections/promo-banner-popup",
       "sections/comparison",
+      "sections/comparison-cards",
+      "sections/comparison-highlight",
       "sections/collection-spotlight",
       "sections/recently-viewed",
       "sections/newsletter",
+      "sections/newsletter-split",
       "sections/form-block",
       "sections/editorial-list",
+      "sections/editorial-list-featured",
     ]);
     expect(byGroup("templates").map((entry) => entry.id)).toEqual([
       "templates/not-found",
@@ -100,7 +117,7 @@ describe("the registry (D40)", () => {
       "templates/journal",
       "templates/post",
     ]);
-    expect(entries).toHaveLength(183);
+    expect(entries).toHaveLength(200);
     expect(entries.map((entry) => entry.id).slice(0, 2)).toEqual([
       "foundations/colors",
       "foundations/typography",
@@ -420,6 +437,11 @@ describe("variantsOf", () => {
   it("lists each block's variants, `standard` first (D79, D99)", () => {
     expect(variantsOf("faq")).toEqual([
       { value: "standard", label: "FAQ", thumbnail: "/registry/sections/faq.png" },
+      {
+        value: "side-heading",
+        label: "FAQ · Side heading",
+        thumbnail: "/registry/sections/faq-side-heading.png",
+      },
     ]);
     for (const entry of sectionEntries())
       expect(variantsOf(entry.family ?? "")[0]?.value, entry.id).toBe("standard");
@@ -433,6 +455,21 @@ describe("variantsOf", () => {
       "collection-switcher",
       "product",
       "text",
+    ]);
+    // T82: the content and promotion blocks' seventeen more, in §1a's order.
+    expect(variantsOf("promo-banner").map((option) => option.value)).toEqual([
+      "standard",
+      "strip",
+      "ticket",
+      "full-bleed",
+      "countdown",
+      "popup",
+    ]);
+    expect(variantsOf("testimonials").map((option) => option.value)).toEqual([
+      "standard",
+      "single",
+      "carousel",
+      "wall",
     ]);
   });
 
@@ -479,9 +516,10 @@ describe("variantsOf", () => {
     // The 74 variants a shop picks (D46, D52, D79, D99): six headers, five footers, ten cards, the
     // twenty blocks' one each (T63's eight content blocks, T64's nine commerce blocks, T67's two
     // form blocks, T66's editorial list), the first of T79's seven families each, T80's seven
-    // more heroes, T84's six listing layouts, and T85's three cart layouts and the drawer with
-    // picks, and T86's four checkout and five receipt layouts.
-    expect(entries.filter((entry) => entry.family !== undefined)).toHaveLength(74);
+    // more heroes, T84's six listing layouts, T85's three cart layouts and the drawer with picks,
+    // T82's seventeen content and promotion variants, and T86's four checkout and five receipt
+    // layouts.
+    expect(entries.filter((entry) => entry.family !== undefined)).toHaveLength(91);
   });
 
   it("starts T79's seven families with what M2 and M3 built, ids unchanged (D99)", () => {

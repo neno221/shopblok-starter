@@ -42,7 +42,7 @@ export const CmsPage = z.object({
   heading: z
     .enum(["title", "hero"])
     .describe(
-      "`title`: the template draws the title; `hero`: the first block, a hero, has the `<h1>`",
+      "`title`: the template draws the title; `hero`: the first block, a hero or a full-bleed band (T82), has the `<h1>`",
     ),
 });
 

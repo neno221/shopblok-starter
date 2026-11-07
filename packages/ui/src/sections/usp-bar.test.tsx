@@ -1,14 +1,17 @@
 import { sectionFixtures } from "@shopblok/fixtures";
-import { LOCALES } from "@shopblok/i18n";
+import { catalogs, LOCALES } from "@shopblok/i18n";
 import { USP_ICONS } from "@shopblok/registry/contracts";
 import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
+import { sectionsCopy } from "./section-copy";
 import { UspBarSection, uspIcons } from "./usp-bar";
+
+const copy = sectionsCopy(catalogs.en);
 
 describe("UspBarSection", () => {
   it.each(LOCALES)("lists the promises with their titles and lines, in %s", (locale) => {
     const { section } = sectionFixtures[locale].uspBar;
-    render(<UspBarSection {...section} />);
+    render(<UspBarSection {...section} copy={sectionsCopy(catalogs[locale])} />);
     const items = within(screen.getByRole("list")).getAllByRole("listitem");
     expect(items).toHaveLength(section.items.length);
     section.items.forEach((item, index) => {
@@ -20,7 +23,10 @@ describe("UspBarSection", () => {
   it("draws an icon for every USP icon, hidden from assistive technology", () => {
     expect(Object.keys(uspIcons).sort()).toEqual([...USP_ICONS].sort());
     const { container } = render(
-      <UspBarSection items={USP_ICONS.slice(0, 6).map((icon) => ({ icon, title: icon }))} />,
+      <UspBarSection
+        items={USP_ICONS.slice(0, 6).map((icon) => ({ icon, title: icon }))}
+        copy={copy}
+      />,
     );
     const svgs = container.querySelectorAll("svg");
     expect(svgs).toHaveLength(6);
@@ -30,7 +36,10 @@ describe("UspBarSection", () => {
   it("takes as many columns as it has items from lg up, at most four", () => {
     const columns = (count: number) => {
       const { container, unmount } = render(
-        <UspBarSection items={USP_ICONS.slice(0, count).map((icon) => ({ icon, title: icon }))} />,
+        <UspBarSection
+          items={USP_ICONS.slice(0, count).map((icon) => ({ icon, title: icon }))}
+          copy={copy}
+        />,
       );
       const list = container.querySelector("ul")?.className ?? "";
       unmount();

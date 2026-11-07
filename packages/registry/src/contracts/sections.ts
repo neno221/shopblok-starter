@@ -330,18 +330,28 @@ export const BundleSection = z.object({
   products: products(6).refine((list) => list.length >= 2, "a bundle has two products or more"),
 });
 
-/** `promoBanner`: an offer, with a code to copy (Medusa checks it at the cart) and its end. */
-export const PromoBannerSection = z.object({
-  settings,
-  variant: variant("promo-banner"),
-  heading: z.string().min(1),
-  text,
-  code: DiscountCode.shape.code.optional(),
-  terms: z.string().min(1).optional().describe("The small print"),
-  endsAt: IsoDateTime.optional().describe("When the offer ends; past it the block is left out"),
-  image: Image.optional(),
-  link: SectionLink.optional(),
-});
+/**
+ * `promoBanner`: an offer, with a code to copy (Medusa checks it at the cart) and its end. T82 (M5
+ * plan §1a) adds five more variants: `full-bleed` draws the offer over its picture, so it needs one;
+ * `countdown` counts down to the end from the time the page was rendered (D50: the server's `now`),
+ * so it needs both.
+ */
+export const PromoBannerSection = z
+  .object({
+    settings,
+    variant: variant("promo-banner"),
+    heading: z.string().min(1),
+    text,
+    code: DiscountCode.shape.code.optional(),
+    terms: z.string().min(1).optional().describe("The small print"),
+    endsAt: IsoDateTime.optional().describe("When the offer ends; past it the block is left out"),
+    now: IsoDateTime.optional().describe(
+      "`countdown`'s start: when the page was rendered (D50), never the reader's clock",
+    ),
+    image: Image.optional(),
+    link: SectionLink.optional(),
+  })
+  .superRefine(variantNeeds({ "full-bleed": ["image"], countdown: ["endsAt", "now"] }));
 
 /** A product in a comparison's head: its name, its page, a picture and its price. */
 export const ComparisonProduct = z.object({
@@ -370,10 +380,18 @@ export const ComparisonSection = z
     rows: z.array(
       z.object({ label: z.string().min(1), values: z.array(z.string().min(1).nullable()) }),
     ),
+    pick: Id.optional().describe("`highlight`'s pick: the id of one of the products (T82)"),
   })
   .refine(
     (table) => table.rows.every((row) => row.values.length === table.products.length),
     "a row has a value for each product",
+  )
+  // T82: `highlight` sets one product's column apart, so it needs one of the table's products.
+  .superRefine(variantNeeds({ highlight: ["pick"] }))
+  .refine(
+    (table) =>
+      table.pick === undefined || table.products.some((product) => product.id === table.pick),
+    { path: ["pick"], message: "the pick is one of the table's products" },
   );
 
 /** `collectionSpotlight`: a collection's picture and words beside a few of its products. */
@@ -399,14 +417,20 @@ export const RecentlyViewedSection = z.object({
   products: products(8),
 });
 
-/** `newsletter`: the signup (NewsletterForm) as a section of its own, with the editor's words (D81). */
-export const NewsletterSection = z.object({
-  settings,
-  variant: variant("newsletter"),
-  heading: heading.describe("The form's heading; the catalog's “Join our newsletter” when empty"),
-  text: z.string().min(1).optional().describe("The line under it; the catalog's when empty"),
-  newsletter: NewsletterSignup,
-});
+/**
+ * `newsletter`: the signup (NewsletterForm) as a section of its own, with the editor's words (D81).
+ * T82: `split` draws the editor's picture beside the form, so it needs one.
+ */
+export const NewsletterSection = z
+  .object({
+    settings,
+    variant: variant("newsletter"),
+    heading: heading.describe("The form's heading; the catalog's “Join our newsletter” when empty"),
+    text: z.string().min(1).optional().describe("The line under it; the catalog's when empty"),
+    image: Image.optional().describe("`split`'s picture beside the form"),
+    newsletter: NewsletterSignup,
+  })
+  .superRefine(variantNeeds({ split: ["image"] }));
 
 /**
  * A form field's name (D81): what the form posts it under and the submission stores it as. Letters,

@@ -5,6 +5,7 @@ import type {
   SyncDocument,
   SyncExport,
 } from "@shopblok/fixtures/sync";
+import { idOf } from "../id-of";
 
 /**
  * Bootstrap's first sync, the Payload half (D75, `pnpm bootstrap` step 10): the documents the
@@ -26,13 +27,6 @@ type Stored = Record<string, unknown> & { id: number | string; medusaId: string 
 
 /** No revalidation per write: nothing has cached these yet, and a script has no Next cache. */
 const CONTEXT = { disableRevalidate: true };
-
-const idOf = (value: unknown): number | string | null =>
-  typeof value === "number" || typeof value === "string"
-    ? value
-    : value !== null && typeof value === "object" && "id" in value
-      ? ((value as { id: number | string }).id ?? null)
-      : null;
 
 const sameValue = (field: string, stored: unknown, wanted: unknown): boolean => {
   if (field === "medusaUpdatedAt") {
@@ -107,7 +101,7 @@ export async function importFromMedusa(
       const data: Record<string, number | string | null> = {};
       for (const [field, medusaId] of references) {
         const target = medusaId === null ? null : (stored.get(medusaId)?.id ?? null);
-        if (idOf(current[field]) !== target) data[field] = target;
+        if ((idOf(current[field]) ?? null) !== target) data[field] = target;
       }
       if (Object.keys(data).length === 0) continue;
       await payload.update({ collection, id: current.id, data: data as never, ...access });

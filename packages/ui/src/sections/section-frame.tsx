@@ -106,12 +106,16 @@ function SectionFrame({
   );
 }
 
-type SectionHeadingProps = React.ComponentProps<"h2">;
+type SectionHeadingProps = React.ComponentProps<"h2"> & {
+  /** 1 for a full-bleed band that opens the page and takes its `<h1>` (T82); 2 by default. */
+  level?: 1 | 2;
+};
 
 /** A section's heading: an `<h2>`, since a page's `<h1>` is its title. */
-function SectionHeading({ className, ...props }: SectionHeadingProps) {
+function SectionHeading({ className, level = 2, ...props }: SectionHeadingProps) {
+  const Heading = level === 1 ? "h1" : "h2";
   return (
-    <h2
+    <Heading
       data-slot="section-heading"
       className={cn("text-2xl font-semibold text-balance wrap-anywhere md:text-3xl", className)}
       {...props}

@@ -6961,6 +6961,12 @@
           "notNull": false,
           "default": "'standard'"
         },
+        "pick_id": {
+          "name": "pick_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
         "show_options": {
           "name": "show_options",
           "type": "boolean",
@@ -7058,9 +7064,37 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "pages_blocks_comparison_pick_idx": {
+          "name": "pages_blocks_comparison_pick_idx",
+          "columns": [
+            {
+              "expression": "pick_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {
+        "pages_blocks_comparison_pick_id_products_id_fk": {
+          "name": "pages_blocks_comparison_pick_id_products_id_fk",
+          "tableFrom": "pages_blocks_comparison",
+          "tableTo": "products",
+          "columnsFrom": [
+            "pick_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
         "pages_blocks_comparison_parent_id_fk": {
           "name": "pages_blocks_comparison_parent_id_fk",
           "tableFrom": "pages_blocks_comparison",
@@ -7771,6 +7805,12 @@
           "notNull": false,
           "default": "'standard'"
         },
+        "media_id": {
+          "name": "media_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
         "form_id": {
           "name": "form_id",
           "type": "integer",
@@ -7888,6 +7928,21 @@
           "method": "btree",
           "with": {}
         },
+        "pages_blocks_newsletter_media_idx": {
+          "name": "pages_blocks_newsletter_media_idx",
+          "columns": [
+            {
+              "expression": "media_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
         "pages_blocks_newsletter_form_idx": {
           "name": "pages_blocks_newsletter_form_idx",
           "columns": [
@@ -7905,6 +7960,19 @@
         }
       },
       "foreignKeys": {
+        "pages_blocks_newsletter_media_id_media_id_fk": {
+          "name": "pages_blocks_newsletter_media_id_media_id_fk",
+          "tableFrom": "pages_blocks_newsletter",
+          "tableTo": "media",
+          "columnsFrom": [
+            "media_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
         "pages_blocks_newsletter_form_id_forms_id_fk": {
           "name": "pages_blocks_newsletter_form_id_forms_id_fk",
           "tableFrom": "pages_blocks_newsletter",
@@ -15607,6 +15675,12 @@
           "notNull": false,
           "default": "'standard'"
         },
+        "pick_id": {
+          "name": "pick_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
         "show_options": {
           "name": "show_options",
           "type": "boolean",
@@ -15710,9 +15784,37 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "_pages_v_blocks_comparison_pick_idx": {
+          "name": "_pages_v_blocks_comparison_pick_idx",
+          "columns": [
+            {
+              "expression": "pick_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {
+        "_pages_v_blocks_comparison_pick_id_products_id_fk": {
+          "name": "_pages_v_blocks_comparison_pick_id_products_id_fk",
+          "tableFrom": "_pages_v_blocks_comparison",
+          "tableTo": "products",
+          "columnsFrom": [
+            "pick_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
         "_pages_v_blocks_comparison_parent_id_fk": {
           "name": "_pages_v_blocks_comparison_parent_id_fk",
           "tableFrom": "_pages_v_blocks_comparison",
@@ -16435,6 +16537,12 @@
           "notNull": false,
           "default": "'standard'"
         },
+        "media_id": {
+          "name": "media_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
         "form_id": {
           "name": "form_id",
           "type": "integer",
@@ -16558,6 +16666,21 @@
           "method": "btree",
           "with": {}
         },
+        "_pages_v_blocks_newsletter_media_idx": {
+          "name": "_pages_v_blocks_newsletter_media_idx",
+          "columns": [
+            {
+              "expression": "media_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
         "_pages_v_blocks_newsletter_form_idx": {
           "name": "_pages_v_blocks_newsletter_form_idx",
           "columns": [
@@ -16575,6 +16698,19 @@
         }
       },
       "foreignKeys": {
+        "_pages_v_blocks_newsletter_media_id_media_id_fk": {
+          "name": "_pages_v_blocks_newsletter_media_id_media_id_fk",
+          "tableFrom": "_pages_v_blocks_newsletter",
+          "tableTo": "media",
+          "columnsFrom": [
+            "media_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
         "_pages_v_blocks_newsletter_form_id_forms_id_fk": {
           "name": "_pages_v_blocks_newsletter_form_id_forms_id_fk",
           "tableFrom": "_pages_v_blocks_newsletter",
@@ -31430,7 +31566,9 @@
       "name": "enum_pages_blocks_media_with_text_variant",
       "schema": "public",
       "values": [
-        "standard"
+        "standard",
+        "overlap",
+        "full-bleed"
       ]
     },
     "public.enum_pages_blocks_media_with_text_image_side": {
@@ -31497,7 +31635,8 @@
       "name": "enum_pages_blocks_usp_bar_variant",
       "schema": "public",
       "values": [
-        "standard"
+        "standard",
+        "strip"
       ]
     },
     "public.enum_pages_blocks_usp_bar_ss_spacing": {
@@ -31542,7 +31681,8 @@
       "name": "enum_pages_blocks_logo_cloud_variant",
       "schema": "public",
       "values": [
-        "standard"
+        "standard",
+        "grid"
       ]
     },
     "public.enum_pages_blocks_logo_cloud_ss_spacing": {
@@ -31587,7 +31727,8 @@
       "name": "enum_pages_blocks_faq_variant",
       "schema": "public",
       "values": [
-        "standard"
+        "standard",
+        "side-heading"
       ]
     },
     "public.enum_pages_blocks_faq_ss_spacing": {
@@ -31632,7 +31773,10 @@
       "name": "enum_pages_blocks_testimonials_variant",
       "schema": "public",
       "values": [
-        "standard"
+        "standard",
+        "single",
+        "carousel",
+        "wall"
       ]
     },
     "public.enum_pages_blocks_testimonials_ss_spacing": {
@@ -32204,7 +32348,12 @@
       "name": "enum_pages_blocks_promo_banner_variant",
       "schema": "public",
       "values": [
-        "standard"
+        "standard",
+        "strip",
+        "ticket",
+        "full-bleed",
+        "countdown",
+        "popup"
       ]
     },
     "public.enum_pages_blocks_promo_banner_ss_spacing": {
@@ -32249,7 +32398,9 @@
       "name": "enum_pages_blocks_comparison_variant",
       "schema": "public",
       "values": [
-        "standard"
+        "standard",
+        "cards",
+        "highlight"
       ]
     },
     "public.enum_pages_blocks_comparison_ss_spacing": {
@@ -32394,7 +32545,8 @@
       "name": "enum_pages_blocks_newsletter_variant",
       "schema": "public",
       "values": [
-        "standard"
+        "standard",
+        "split"
       ]
     },
     "public.enum_pages_blocks_newsletter_privacy_type": {
@@ -32492,7 +32644,8 @@
       "name": "enum_pages_blocks_editorial_list_variant",
       "schema": "public",
       "values": [
-        "standard"
+        "standard",
+        "featured"
       ]
     },
     "public.enum_pages_blocks_editorial_list_source": {
@@ -32615,7 +32768,9 @@
       "name": "enum__pages_v_blocks_media_with_text_variant",
       "schema": "public",
       "values": [
-        "standard"
+        "standard",
+        "overlap",
+        "full-bleed"
       ]
     },
     "public.enum__pages_v_blocks_media_with_text_image_side": {
@@ -32682,7 +32837,8 @@
       "name": "enum__pages_v_blocks_usp_bar_variant",
       "schema": "public",
       "values": [
-        "standard"
+        "standard",
+        "strip"
       ]
     },
     "public.enum__pages_v_blocks_usp_bar_ss_spacing": {
@@ -32727,7 +32883,8 @@
       "name": "enum__pages_v_blocks_logo_cloud_variant",
       "schema": "public",
       "values": [
-        "standard"
+        "standard",
+        "grid"
       ]
     },
     "public.enum__pages_v_blocks_logo_cloud_ss_spacing": {
@@ -32772,7 +32929,8 @@
       "name": "enum__pages_v_blocks_faq_variant",
       "schema": "public",
       "values": [
-        "standard"
+        "standard",
+        "side-heading"
       ]
     },
     "public.enum__pages_v_blocks_faq_ss_spacing": {
@@ -32817,7 +32975,10 @@
       "name": "enum__pages_v_blocks_testimonials_variant",
       "schema": "public",
       "values": [
-        "standard"
+        "standard",
+        "single",
+        "carousel",
+        "wall"
       ]
     },
     "public.enum__pages_v_blocks_testimonials_ss_spacing": {
@@ -33389,7 +33550,12 @@
       "name": "enum__pages_v_blocks_promo_banner_variant",
       "schema": "public",
       "values": [
-        "standard"
+        "standard",
+        "strip",
+        "ticket",
+        "full-bleed",
+        "countdown",
+        "popup"
       ]
     },
     "public.enum__pages_v_blocks_promo_banner_ss_spacing": {
@@ -33434,7 +33600,9 @@
       "name": "enum__pages_v_blocks_comparison_variant",
       "schema": "public",
       "values": [
-        "standard"
+        "standard",
+        "cards",
+        "highlight"
       ]
     },
     "public.enum__pages_v_blocks_comparison_ss_spacing": {
@@ -33579,7 +33747,8 @@
       "name": "enum__pages_v_blocks_newsletter_variant",
       "schema": "public",
       "values": [
-        "standard"
+        "standard",
+        "split"
       ]
     },
     "public.enum__pages_v_blocks_newsletter_privacy_type": {
@@ -33677,7 +33846,8 @@
       "name": "enum__pages_v_blocks_editorial_list_variant",
       "schema": "public",
       "values": [
-        "standard"
+        "standard",
+        "featured"
       ]
     },
     "public.enum__pages_v_blocks_editorial_list_source": {
@@ -34748,6 +34918,6 @@
     "tables": {},
     "columns": {}
   },
-  "id": "c4e3f25c-5777-4675-be67-64787c88a06a",
+  "id": "ba1e19ef-02e6-452a-90e5-ebcedbd6fd9a",
   "prevId": "00000000-0000-0000-0000-000000000000"
 }

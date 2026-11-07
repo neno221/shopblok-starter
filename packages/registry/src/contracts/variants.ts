@@ -26,11 +26,12 @@ export const VARIANTS = {
   // D79 (T63, T64, T66, T67): each block is a family, its first variant `standard`; T80 to T82 add
   // the others (M5 plan §1a).
   "rich-text": ["standard"],
-  "media-with-text": ["standard"],
-  "usp-bar": ["standard"],
-  "logo-cloud": ["standard"],
-  faq: ["standard"],
-  testimonials: ["standard"],
+  // T82 (M5 plan §1a): the content and promotion blocks' seventeen more.
+  "media-with-text": ["standard", "overlap", "full-bleed"],
+  "usp-bar": ["standard", "strip"],
+  "logo-cloud": ["standard", "grid"],
+  faq: ["standard", "side-heading"],
+  testimonials: ["standard", "single", "carousel", "wall"],
   video: ["standard"],
   spacer: ["standard"],
   // T80 (M5 plan §1a): the hero's seven more.
@@ -48,13 +49,13 @@ export const VARIANTS = {
   "product-collection": ["standard"],
   "featured-product": ["standard"],
   bundle: ["standard"],
-  "promo-banner": ["standard"],
-  comparison: ["standard"],
+  "promo-banner": ["standard", "strip", "ticket", "full-bleed", "countdown", "popup"],
+  comparison: ["standard", "cards", "highlight"],
   "collection-spotlight": ["standard"],
   "recently-viewed": ["standard"],
-  newsletter: ["standard"],
+  newsletter: ["standard", "split"],
   "form-block": ["standard"],
-  "editorial-list": ["standard"],
+  "editorial-list": ["standard", "featured"],
   // D99, D101 (T79): the commerce templates' and organisms' families, each starting with what M2
   // and M3 built, which the `templates` global picks from; T83 to T86 add the others.
   "product-detail": ["default"],
