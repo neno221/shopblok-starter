@@ -11,7 +11,9 @@
 // list is named by the section's heading. Loaded by `next/dynamic` in `tabs-island.tsx`, so its
 // code is no route's first load (D102): its `displayName` is the marker `first-load.ts`' `keptOut`
 // finds its chunk by. Drawn, the tabs hide the section's list of the tabs' links and the first
-// grid through the `:has()` rule on their wrapper, so nothing is drawn twice.
+// grid through the `:has()` rule on their wrapper, so nothing is drawn twice. Its grid is
+// ProductGrid, the module the listing island draws its results with: an island with a card module
+// of its own split the listings' and the product page's first-load chunks, 150 and 570 bytes more.
 "use client";
 
 import type { ProductCard, ProductCollectionTab } from "@shopblok/registry/contracts";
@@ -19,7 +21,7 @@ import { Button } from "@shopblok/ui/atoms/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@shopblok/ui/primitives/tabs";
 import type { SectionProductsCopy, SectionsCopy } from "@shopblok/ui/sections/section-copy";
 import { useEffect, useRef, useState } from "react";
-import { CollectionCards } from "./parts";
+import { ProductGrid } from "@shopblok/ui/organisms/product-grid";
 
 type ProductCollectionTabsPanelsProps = {
   tabs: readonly ProductCollectionTab[];
@@ -144,8 +146,12 @@ function ProductCollectionTabsPanels({
             className="min-w-0"
           >
             {each?.state === "done" ? (
-              <CollectionCards
-                products={each.products}
+              <ProductGrid
+                products={[...each.products]}
+                variant="standard"
+                layout="grid"
+                // Never drawn: a tab's answer has products (the route's 404 says it has none).
+                empty={{ title: tab.label }}
                 copy={copy.products}
                 locale={locale}
                 prefetch={prefetch}

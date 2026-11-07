@@ -9,7 +9,8 @@ import { Image } from "@shopblok/ui/atoms/image";
 import { cn } from "@shopblok/ui/lib/utils";
 import { SectionFrame, SectionHeading } from "@shopblok/ui/sections/section-frame";
 import { overlayTokens } from "../overlay-tokens";
-import { CollectionCards, EmptyCollection, ProductCollectionLink } from "./parts";
+import { ProductGrid } from "@shopblok/ui/organisms/product-grid";
+import { EmptyCollection, ProductCollectionLink } from "./parts";
 import type { ProductCollectionSectionProps } from "./standard";
 
 function ProductCollectionWithBanner(props: ProductCollectionSectionProps) {
@@ -52,8 +53,12 @@ function ProductCollectionWithBanner(props: ProductCollectionSectionProps) {
             </div>
           )}
         </div>
-        <CollectionCards
+        <ProductGrid
           products={products}
+          variant="standard"
+          layout="grid"
+          // Never drawn: the grid has products.
+          empty={{ title: heading }}
           copy={copy.products}
           locale={locale}
           prefetch={prefetch}

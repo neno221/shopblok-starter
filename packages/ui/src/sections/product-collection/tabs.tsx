@@ -13,12 +13,8 @@ import { SectionFrame } from "@shopblok/ui/sections/section-frame";
 import NextLink from "next/link";
 import { useId } from "react";
 import type * as React from "react";
-import {
-  CollectionCards,
-  EmptyCollection,
-  ProductCollectionIntro,
-  ProductCollectionLink,
-} from "./parts";
+import { ProductGrid } from "@shopblok/ui/organisms/product-grid";
+import { EmptyCollection, ProductCollectionIntro, ProductCollectionLink } from "./parts";
 import type { ProductCollectionSectionProps } from "./standard";
 import { ProductCollectionTabsIsland } from "./tabs-island";
 
@@ -41,7 +37,16 @@ function ProductCollectionTabs(props: ProductCollectionSectionProps) {
   const headingId = useId();
   if (products.length === 0) return <EmptyCollection {...props} variant="tabs" />;
   const cards = (
-    <CollectionCards products={products} copy={copy.products} locale={locale} prefetch={prefetch} />
+    <ProductGrid
+      products={products}
+      variant="standard"
+      layout="grid"
+      // Never drawn: the grid has products.
+      empty={{ title: heading }}
+      copy={copy.products}
+      locale={locale}
+      prefetch={prefetch}
+    />
   );
   return (
     <SectionFrame
