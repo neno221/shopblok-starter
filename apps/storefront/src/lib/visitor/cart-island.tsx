@@ -45,18 +45,10 @@ type Shown =
   | { kind: "quick"; parts: QuickParts };
 
 /**
- * Which of the drawer's forms sent a submit: its promotion field's two, a line's quantity or
- * remove, or (T85) a pick's add.
+ * The drawer's forms, by their `data-slot`: a line's quantity and remove, the promotion field's
+ * two and (T85) a pick's add. The slot is what the island sends; the server maps it to a change.
  */
-function intentOf(form: HTMLFormElement): string | null {
-  const slot = form.dataset["slot"];
-  // T85: a pick's form in the `drawer-picks` mini cart.
-  if (slot === "cart-pick-add") return "add";
-  if (slot === "promo-code-remove") return "remove-code";
-  if (slot === "promo-code-apply") return "apply-code";
-  if (form.elements.namedItem("lineId") === null) return null;
-  return form.elements.namedItem("quantity") === null ? "remove" : "update";
-}
+const DRAWER_FORM = /^(cart-line-item|promo-code|cart-pick)-/;
 
 const plain = (event: ReactMouseEvent) =>
   event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey;
@@ -109,13 +101,16 @@ export function CartIsland({ market, miniCart, quickCart, ...button }: CartIslan
 
   const change = (event: FormEvent<HTMLSpanElement>) => {
     const form = event.target;
-    if (shown.kind !== "drawer" || !(form instanceof HTMLFormElement)) return;
-    const intent = intentOf(form);
-    if (intent === null) return;
+    const submit = event.nativeEvent as SubmitEvent;
+    // T85: React hands the drawer's submit to this listener twice (once for the body, once for the
+    // sheet's portal inside it); the first one prevents it, so a pick is added once, not twice.
+    if (shown.kind !== "drawer" || submit.defaultPrevented || !(form instanceof HTMLFormElement))
+      return;
+    const intent = form.dataset["slot"];
+    if (intent === undefined || !DRAWER_FORM.test(intent)) return;
     // Caught before React's own handling of the form's action, which then leaves it.
     event.preventDefault();
-    const submitter = (event.nativeEvent as SubmitEvent).submitter;
-    const data = new FormData(form, submitter);
+    const data = new FormData(form, submit.submitter);
     changeCartInDrawer(market, intent, data).then(
       (answer) => {
         if (answer === null) return;

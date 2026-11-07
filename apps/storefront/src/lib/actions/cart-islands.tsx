@@ -54,9 +54,6 @@ export type QuickParts = Omit<QuickCartDropdownClientProps, "open" | "onOpenChan
 export type DrawerAnswer = { parts: DrawerParts; count: number };
 
 const MAX_KEY = 64;
-const INTENTS = ["update", "remove", "apply-code", "remove-code", "add"] as const;
-type Intent = (typeof INTENTS)[number];
-
 async function contextOf(market: unknown): Promise<MarketContext | null> {
   if (typeof market !== "string" || market.length > MAX_KEY) return null;
   return getMarketContext(market);
@@ -143,16 +140,22 @@ export async function renderCartDrawer(market: unknown): Promise<DrawerAnswer | 
   return drawerFor(context, cart, undefined, choice);
 }
 
-const HANDLERS: Record<Intent, (input: unknown) => Promise<ActionResult<CartAnswer>>> = {
-  update: updateLineAction,
-  remove: removeLineAction,
-  "apply-code": applyPromoAction,
-  "remove-code": removePromoAction,
-  add: addToCartAction,
-};
+/**
+ * The change each of the drawer's forms asks for, by its `data-slot`, which is what the island
+ * sends (T85): a line's quantity (the stepper's form or the one without scripts) and remove, the
+ * promotion field's two, and a pick's add.
+ */
+const HANDLERS = new Map<string, (input: unknown) => Promise<ActionResult<CartAnswer>>>([
+  ["cart-line-item-update", updateLineAction],
+  ["cart-line-item-update-fallback", updateLineAction],
+  ["cart-line-item-remove", removeLineAction],
+  ["promo-code-apply", applyPromoAction],
+  ["promo-code-remove", removePromoAction],
+  ["cart-pick-add", addToCartAction],
+]);
 
 /**
- * A change made in the drawer (`intent` says which of its forms sent `data`), then the drawer
+ * A change made in the drawer (`intent`, the `data-slot` of the form that sent `data`), then the drawer
  * again: the cart the action answered, or the current one with a refused code beside its field.
  */
 export async function changeCartInDrawer(
@@ -162,15 +165,16 @@ export async function changeCartInDrawer(
 ): Promise<DrawerAnswer | null> {
   const context = await contextOf(market);
   if (context === null || !(data instanceof FormData)) return null;
-  if (typeof intent !== "string" || !(INTENTS as readonly string[]).includes(intent)) return null;
-  const result = await HANDLERS[intent as Intent]({
+  const handler = typeof intent === "string" ? HANDLERS.get(intent) : undefined;
+  if (handler === undefined) return null;
+  const result = await handler({
     ...formDataToObject(data),
     market: context.market.key,
   });
   if (result.ok) return drawerFor(context, result.data.cart);
   const cart = await currentCart(context);
   const code = data.get("code");
-  if (intent === "apply-code" && typeof code === "string")
+  if (intent === "promo-code-apply" && typeof code === "string")
     return drawerFor(context, cart, {
       code,
       error: promoErrorOf(result.form),

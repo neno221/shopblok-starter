@@ -2,7 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { catalogs } from "./support/catalogs";
 import { publishGlobal, snapshotGlobal, type GlobalData } from "./support/globals";
 import { medusaAdminApi, medusaAdminToken, medusaUrl } from "./support/medusa-admin";
-import { add, addToCart, HANDLE, withoutScripts } from "./support/purchase";
+import { add, addToCart, HANDLE, variantPath, withoutScripts } from "./support/purchase";
 import { adminToken, base, freshWithinTwo } from "./support/server";
 
 // T85 (D101, SETUP.md "Cart variants (T85)"): the cart page's four layouts and the mini cart's
@@ -47,12 +47,10 @@ const pickersOn = async (miniCart: string, quickCart: string) => {
 
 const publish = async (token: string, cart: GlobalData, fresh: () => Promise<boolean>) => {
   await publishGlobal(token, "templates", templatesWith(cart));
-  expect(await freshWithinTwo(fresh), "the published picks within two requests").toBeGreaterThan(
-    0,
-  );
+  expect(await freshWithinTwo(fresh), "the published picks within two requests").toBeGreaterThan(0);
 };
 
-const count = (page: Page) => page.locator('[data-slot="cart-count"]:visible');
+const count = (page: Page) => page.locator('h1 [data-slot="cart-count"]');
 const items = (n: number) => (n === 1 ? "1 item" : `${n} items`);
 
 /** Applies `code` in the cart page's promotion field (its disclosure opened first). */
@@ -70,7 +68,10 @@ async function openMiniCart(page: Page, variant: string) {
   await expect(async () => {
     if (await drawer.isVisible()) await page.keyboard.press("Escape");
     await expect(drawer).toBeHidden();
-    await page.locator('header [data-slot="cart-island"] button, header a[data-slot="cart-button"]').first().click();
+    await page
+      .locator('header [data-slot="cart-island"] button, header a[data-slot="cart-button"]')
+      .first()
+      .click();
     await expect(drawer).toBeVisible();
     await expect(drawer).toHaveAttribute("data-variant", variant);
   }).toPass({ timeout: 20_000 });
@@ -192,7 +193,7 @@ test.describe("the cart's variants (T85)", () => {
     await page.keyboard.press("Escape");
 
     await publish(token, { quickCart: "off" }, () => pickersOn("drawer", "off"));
-    await page.goto(PRODUCT);
+    await page.goto(await variantPath(page, "/us"));
     const box = page.locator('[data-slot="buy-box-island"] [data-slot="buy-box"]');
     await expect(box.locator('[data-slot="buy-box-add"]')).not.toHaveAttribute("aria-disabled");
     await box.locator('[data-slot="buy-box-add"]').click();
@@ -221,10 +222,21 @@ test.describe("the cart's variants (T85)", () => {
 
     const first = picks.first();
     const title = await first.locator('[data-slot="cart-pick-title"]').innerText();
+    // One request for one add: React hands the drawer's submit to the island twice, and the
+    // island sends it once (the cart's count below would say 3 otherwise).
+    const sent: string[] = [];
+    page.on("request", (request) => {
+      if (request.method() === "POST" && request.headers()["next-action"] !== undefined)
+        sent.push(request.postData() ?? "");
+    });
     await first.getByRole("button", { name: `Add ${title} to your cart` }).click();
     await expect(lines).toHaveCount(2);
-    await expect(drawer.locator('[data-slot="cart-line-item-title"]', { hasText: title })).toBeVisible();
+    await expect(
+      drawer.locator('[data-slot="cart-line-item-title"]', { hasText: title }),
+    ).toBeVisible();
     await expect(picks.filter({ hasText: title })).toHaveCount(0);
-    await expect(page.locator('header [data-slot="cart-badge"]')).toHaveText("2");
+    // The drawer's button, in the header's link's place since it opened, counts the pick too.
+    await expect(page.locator('header [data-slot="cart-drawer-badge"]')).toHaveText("2");
+    expect(sent.filter((body) => body.includes('"cart-pick-add"'))).toHaveLength(1);
   });
 });
