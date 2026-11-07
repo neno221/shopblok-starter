@@ -17,7 +17,11 @@ import {
   type PromoBannerSectionProps,
 } from "./parts";
 
-/** A notch: a circle in the section's fill (its surface), half of it over the card's edge. */
+/**
+ * A notch: a circle in the section's fill (its surface), centred on the card's edge. The
+ * perforation's own box reaches the edges and clips the half outside, so the card clips nothing and
+ * its words are never cut (the DS's clip check).
+ */
 const notch = "absolute size-6 rounded-full border bg-background in-data-[surface=muted]:bg-muted";
 
 function PromoBannerTicket({
@@ -45,7 +49,7 @@ function PromoBannerTicket({
     >
       <div
         data-slot="promo-banner-ticket"
-        className="relative flex w-full max-w-3xl min-w-0 flex-col overflow-hidden rounded-xl border bg-card text-card-foreground md:flex-row"
+        className="relative flex w-full max-w-3xl min-w-0 flex-col rounded-xl border bg-card text-card-foreground md:flex-row"
       >
         <div className="flex min-w-0 flex-1 flex-col items-center gap-3 p-6 text-center md:items-start md:p-8 md:text-start">
           <h2 className="text-2xl font-semibold text-balance wrap-anywhere md:text-3xl">
@@ -57,11 +61,12 @@ function PromoBannerTicket({
         <div
           aria-hidden="true"
           data-slot="promo-banner-perforation"
-          className="relative mx-6 border-t-2 border-dashed md:mx-0 md:my-6 md:border-t-0 md:border-s-2"
+          className="pointer-events-none relative -my-3 h-6 shrink-0 overflow-hidden md:my-0 md:-mx-3 md:h-auto md:w-6"
         >
-          <span className={cn(notch, "-start-9 -top-3 md:-start-3 md:-top-9")} />
+          <span className="absolute inset-x-6 top-[11px] h-0 border-t-2 border-dashed md:inset-x-auto md:inset-y-6 md:start-[11px] md:h-auto md:w-0 md:border-t-0 md:border-s-2" />
+          <span className={cn(notch, "-start-3 top-0 md:start-0 md:-top-3")} />
           <span
-            className={cn(notch, "-end-9 -top-3 md:-start-3 md:end-auto md:top-auto md:-bottom-9")}
+            className={cn(notch, "-end-3 top-0 md:end-auto md:start-0 md:top-auto md:-bottom-3")}
           />
         </div>
         <div className="flex min-w-0 flex-col items-center justify-center gap-3 p-6 md:p-8">

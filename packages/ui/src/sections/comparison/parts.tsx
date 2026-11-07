@@ -64,11 +64,14 @@ function ComparisonValue({ value, missing }: { value: string | null; missing: st
 }
 
 /** The pick's badge, inside its column's header so a screen reader says it with the product. */
-function PickBadge({ label }: { label: string }) {
+function PickBadge({ label, className }: { label: string; className?: string }) {
   return (
     <span
       data-slot="comparison-pick"
-      className="inline-flex rounded-full bg-primary px-2.5 py-0.5 text-xs font-semibold text-primary-foreground"
+      className={cn(
+        "inline-flex rounded-full bg-primary px-2.5 py-0.5 text-xs font-semibold text-primary-foreground",
+        className,
+      )}
     >
       {label}
     </span>
@@ -117,11 +120,15 @@ function ComparisonTable({
                 scope="col"
                 className={cn(
                   CELL,
+                  // With a pick, every header keeps the badge's row, so the pictures line up.
+                  pick !== undefined && "relative pt-10",
                   picked(product) && cn(PICKED, "rounded-t-lg border-t-2 border-t-primary"),
                 )}
               >
+                {picked(product) ? (
+                  <PickBadge label={copy.comparison.pick} className="absolute start-3 top-3" />
+                ) : null}
                 <span className="flex flex-col items-start gap-2">
-                  {picked(product) ? <PickBadge label={copy.comparison.pick} /> : null}
                   {product.image === undefined ? null : (
                     <Image
                       src={product.image.src}

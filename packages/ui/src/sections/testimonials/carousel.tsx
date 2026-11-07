@@ -1,9 +1,10 @@
 // Ours (T82, SETUP.md "Content and promotion block variants (T82)"; M5 plan §1a, D100; WCAG 2.2.2;
 // the WAI-ARIA carousel pattern). The testimonials' `carousel` member: a row of quote cards that
 // scrolls, one on a phone, two from `md`, three from `lg`, with previous and next buttons in the
-// heading's row. Nothing moves by itself: only the buttons, the arrow keys, a swipe or Tab into a
-// card out of view do (the carousel primitive's embla, as ProductCarousel uses it, with its
-// reduced-motion jump). The carousel is one region named by the heading, or by the cards' name when
+// heading's row. Nothing moves by itself: only the buttons, the arrow keys (from the buttons) or a
+// swipe do; the cards hold no controls (the carousel primitive's embla, as ProductCarousel uses it,
+// with its reduced-motion jump). Those are its ways in, so the DS's clip check lets its viewport
+// off as it does ProductCarousel's (T37). The carousel is one region named by the heading, or by the cards' name when
 // there is none; each card is a slide named "2 of 5". The buttons are 44 x 44, inside the box, and
 // stay focusable at the ends (`aria-disabled`). A server component; the carousel primitive is its
 // island.

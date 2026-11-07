@@ -2,7 +2,8 @@
 // `strip` member: a thin row of small icons and titles, for under the header, centred on a wide
 // screen and scrolling sideways on a phone when it does not fit (its own box, never the page). The
 // editor's lines under the titles are left out: the strip is one line. The scrolling row is a list
-// named "What we promise" that takes the focus, so the keyboard can scroll it too; the icons are
+// named "What we promise" that takes the focus, so the keyboard can scroll it too (so the DS's
+// sideways-scroll check lets it off, as it does a scroll area's viewport); the icons are
 // decoration. A server component.
 import { cn } from "@shopblok/ui/lib/utils";
 import { SectionFrame } from "@shopblok/ui/sections/section-frame";
@@ -23,7 +24,8 @@ function UspBarStrip({ settings, items, copy, className }: UspBarSectionProps) {
         tabIndex={copy === undefined ? undefined : 0}
         className={cn(
           "-mx-1 flex snap-x items-center gap-x-8 overflow-x-auto rounded-md px-1 py-1 outline-none focus-visible:ring-3 focus-visible:ring-ring",
-          "md:justify-center",
+          // Centred only while it fits: a plain centre pushes the first promises out of reach.
+          "md:justify-center-safe",
         )}
       >
         {items.map((item) => {
