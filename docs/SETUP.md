@@ -8252,7 +8252,7 @@ After the fixes: `typecheck` and `lint`; the storefront's `lib` tests (337); the
 |---|---|
 | Date | 2026-11-07 |
 | Branch | `claude/project-thread-37ckbh`, from `main` at `dedc5fa` (T80, PR 119); `main` at `86d58e5` (T85, PR 121) merged in |
-| PR | PR_NUMBER |
+| PR | [122](https://github.com/neno221/shopblok-starter/pull/122) |
 | Machine | The cloud VM: Node 22.23.4, pnpm 12.10.1, the compose stack, Medusa 2.22.4 (`medusa develop`) |
 
 ### What changed
