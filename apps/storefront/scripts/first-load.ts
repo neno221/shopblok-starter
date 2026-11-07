@@ -107,6 +107,12 @@ export const keptOut: readonly KeptOut[] = [
     marker: "shopblok:hero-collection-tabs",
     label: "the collection switcher hero's tabs (T80)",
   },
+  {
+    // T82: the promo banner's popup card, loaded by its island's `next/dynamic`.
+    module: "src/components/cms/promo-popup-card.tsx",
+    marker: "shopblok:promo-popup-card",
+    label: "the promo banner's popup card (T82)",
+  },
   // T84: the listing's filter layouts other than M3's, which the listing island loads on their
   // branch (`src/components/listing/listing-layouts.tsx`, `React.lazy`).
   ...(

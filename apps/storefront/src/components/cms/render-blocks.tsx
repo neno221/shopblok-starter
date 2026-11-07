@@ -32,6 +32,7 @@ import { FormHoneypot } from "./form-honeypot";
 import { FormBlockIsland } from "./form-block-island";
 import { NewsletterSectionIsland } from "./newsletter-section-island";
 import { OfferEnd } from "./offer-end";
+import { PromoPopup } from "./promo-popup";
 import { RecentlyViewedBlock } from "./recently-viewed-block";
 import { CmsRichText } from "./rich-text";
 
@@ -45,7 +46,8 @@ type RenderBlocksProps = {
   messages: Messages;
   /**
    * The page has no `<h1>` of its own: a hero that opens it takes the page's heading (and its
-   * picture is preloaded). Otherwise every hero's heading is an `<h2>`.
+   * picture is preloaded), as does a full-bleed band that opens it (T82, `pageHeading`). Otherwise
+   * every hero's heading is an `<h2>`.
    */
   heroTitle?: boolean;
 };
@@ -89,14 +91,19 @@ export async function RenderBlocks({
             );
           case "mediaWithText":
             return (
-              <MediaWithTextSection key={block.key} {...block.section} copy={copy}>
+              <MediaWithTextSection
+                key={block.key}
+                {...block.section}
+                copy={copy}
+                headingLevel={heroTitle && index === 0 ? 1 : 2}
+              >
                 {block.content === null ? undefined : (
                   <CmsRichText data={block.content} context={context} />
                 )}
               </MediaWithTextSection>
             );
           case "uspBar":
-            return <UspBarSection key={block.key} {...block.section} />;
+            return <UspBarSection key={block.key} {...block.section} copy={copy} />;
           case "logoCloud":
             return <LogoCloudSection key={block.key} {...block.section} copy={copy} />;
           case "faq":
@@ -169,6 +176,17 @@ export async function RenderBlocks({
                 locale={locale}
                 timeZone={timeZone}
                 prefetch={prefetch}
+                headingLevel={heroTitle && index === 0 ? 1 : 2}
+                popup={({ body, labelledBy, visibility }) => (
+                  <PromoPopup
+                    offer={block.key}
+                    labelledBy={labelledBy}
+                    closeLabel={copy.promoBanner.close}
+                    visibility={visibility}
+                  >
+                    {body}
+                  </PromoPopup>
+                )}
               />
             );
             const { endsAt } = block.section;

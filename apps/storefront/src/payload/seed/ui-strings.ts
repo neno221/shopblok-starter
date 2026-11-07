@@ -41,7 +41,7 @@ export type StringChange = {
 
 /**
  * Every message of the code catalogs, 718 at T62, 721 at T63, 733 at T67, 741 at T64, 747 at T66
- * and 755 at T85, in the four catalog languages (D77).
+ * then 755 at T85 and 761 at T82, in the four catalog languages (D77).
  */
 export function codeStrings(): CodeString[] {
   const english = codeMessages(DEFAULT_LOCALE);

@@ -41,11 +41,11 @@ const state = (children: unknown[]) => ({
   root: { type: "root", version: 1, direction: null, format: "", indent: 0, children },
 });
 
-const faq = (id: string, question: string) =>
+const faq = (id: string, question: string, variant = "standard") =>
   ({
     blockType: "faq",
     id,
-    variant: "standard",
+    variant,
     heading: "Questions",
     items: [{ id: `${id}-q`, question, answer: "An answer." }],
   }) as unknown as LayoutBlock;
@@ -144,6 +144,15 @@ describe("RenderBlocks (T63)", () => {
     expect(data["@type"]).toBe("FAQPage");
     expect(data.mainEntity.map((question) => question.name)).toEqual(["Shipping?", "Returns?"]);
     expect(await render([])).not.toContain("application/ld+json");
+  });
+
+  it("keeps one FAQPage JSON-LD with a side-heading FAQ among them (T82)", async () => {
+    const html = await render([faq("a", "Shipping?", "side-heading"), faq("b", "Returns?")]);
+    expect(html).toContain('data-variant="side-heading"');
+    const scripts = [...html.matchAll(/<script type="application\/ld\+json">(.*?)<\/script>/g)];
+    expect(scripts).toHaveLength(1);
+    const data = JSON.parse(scripts[0]?.[1] ?? "{}") as { mainEntity: { name: string }[] };
+    expect(data.mainEntity.map((question) => question.name)).toEqual(["Shipping?", "Returns?"]);
   });
 
   it("escapes the editor's text in the JSON-LD", async () => {

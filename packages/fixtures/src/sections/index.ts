@@ -64,7 +64,12 @@ export type SectionFixtures = {
   uspBar: { section: UspBarSection; long: UspBarSection };
   logoCloud: { section: LogoCloudSection };
   faq: { section: FaqSection; long: FaqSection };
-  testimonials: { section: TestimonialsSection; long: TestimonialsSection };
+  /** T82: `wall` is every review, of different lengths, for the columns of different heights. */
+  testimonials: {
+    section: TestimonialsSection;
+    long: TestimonialsSection;
+    wall: TestimonialsSection;
+  };
   /** An embed (the live render), an upload with captions in the four languages, a long title. */
   video: { embed: VideoSection; file: VideoSection; long: VideoSection };
   spacer: { section: SpacerSection };
@@ -96,15 +101,30 @@ export type SectionFixtures = {
   /** Three products that go together; six, the most. */
   bundle: { section: BundleSection; full: BundleSection };
   /** An offer with a picture, a code, its end, the small print and a link; one with words only. */
-  promoBanner: { section: PromoBannerSection; plain: PromoBannerSection };
+  promoBanner: {
+    section: PromoBannerSection;
+    plain: PromoBannerSection;
+    /** T82: the offer with the fixtures' `now`, for the `countdown` member (D50). */
+    countdown: PromoBannerSection;
+  };
   /** Three hoodies over the colours, a material and a care row; two products, one value missing. */
-  comparison: { section: ComparisonSection; two: ComparisonSection };
+  comparison: {
+    section: ComparisonSection;
+    two: ComparisonSection;
+    /** T82: the three hoodies with the second as the pick, for the `highlight` member. */
+    highlight: ComparisonSection;
+  };
   /** A collection's picture and words beside four products; a long heading with no product. */
   collectionSpotlight: { section: CollectionSpotlightSection; long: CollectionSpotlightSection };
   /** Six products the visitor saw (the browser's list, D44). */
   recentlyViewed: { section: RecentlyViewedSection };
   /** The newsletter with the editor's words, and with a heading that wraps (T67). */
-  newsletter: { section: NewsletterSection; long: NewsletterSection };
+  newsletter: {
+    section: NewsletterSection;
+    long: NewsletterSection;
+    /** T82: the editor's words and picture, for the `split` member. */
+    split: NewsletterSection;
+  };
   /**
    * A contact form (T67): every kind of field, two halves on a row, the editor's note between the
    * fields (`note`, drawn as the `message` field's text) and the confirmation the form shows when it
@@ -120,7 +140,12 @@ export type SectionFixtures = {
    * The journal's three newest posts with the link to the journal (T66); `long` is one post with a
    * title that wraps and no picture, under no heading.
    */
-  editorialList: { section: EditorialListSection; long: EditorialListSection };
+  editorialList: {
+    section: EditorialListSection;
+    long: EditorialListSection;
+    /** T82: the journal's four posts (the last without a picture), for the `featured` member. */
+    featured: EditorialListSection;
+  };
 };
 
 /** Every node of a category tree, parents before their children. */
@@ -354,6 +379,16 @@ function build(locale: DesignSystemLocale): SectionFixtures {
           },
         ],
       },
+      wall: {
+        heading: words.testimonials.heading,
+        quotes: reviews.map((review, index) => ({
+          id: `review-${index + 1}`,
+          quote: review.body,
+          author: review.author,
+          role: words.testimonials.roles[index % 3],
+          rating: [5, 4, 5, 4, 3, 5][index],
+        })),
+      },
     },
     video: {
       embed,
@@ -382,6 +417,11 @@ function build(locale: DesignSystemLocale): SectionFixtures {
         ...newsletter,
         heading: words.newsletter.longHeading,
         newsletter: commerceFixtures[locale].marketing.newsletter.long,
+      },
+      split: {
+        ...newsletter,
+        variant: "split",
+        image: fixtureImage({ seed: 27, ratio: "4:3", alt: words.newsletter.alt }),
       },
     },
     editorialList: editorialList(locale, words.editorialList),
@@ -421,6 +461,12 @@ function editorialList(
     },
     long: {
       posts: [{ ...plain, id: "post-long", title: copies[locale].journal.longTitle }],
+    },
+    featured: {
+      heading: words.heading,
+      variant: "featured",
+      posts: posts.slice(0, 4),
+      link: { label: words.all, href: journalHref(locale), appearance: "outline" },
     },
   };
 }
@@ -498,6 +544,22 @@ function commerceSections(
     ...(product.images[0] === undefined ? {} : { image: { ...product.images[0], alt: "" } }),
     price: product.price,
   });
+  const comparison: ComparisonSection = {
+    heading: words.comparison.heading,
+    products: hoodies.map(column),
+    rows: [
+      { label: colourLabel[locale], values: hoodies.map(colours) },
+      {
+        label: words.comparison.material,
+        values: [
+          words.comparison.materials[0],
+          words.comparison.materials[1],
+          words.comparison.materials[0],
+        ],
+      },
+      { label: words.comparison.care, values: words.comparison.cares },
+    ],
+  };
   const spotlight: CollectionSpotlightSection = {
     heading: words.collectionSpotlight.heading,
     text: [words.collectionSpotlight.text],
@@ -599,29 +661,16 @@ function commerceSections(
     promoBanner: {
       section: promo,
       plain: { heading: promo.heading, text: promo.text, code: promo.code },
+      countdown: { ...promo, variant: "countdown", endsAt: daysAfterNow(3), now: fixtureNow },
     },
     comparison: {
-      section: {
-        heading: words.comparison.heading,
-        products: hoodies.map(column),
-        rows: [
-          { label: colourLabel[locale], values: hoodies.map(colours) },
-          {
-            label: words.comparison.material,
-            values: [
-              words.comparison.materials[0],
-              words.comparison.materials[1],
-              words.comparison.materials[0],
-            ],
-          },
-          { label: words.comparison.care, values: words.comparison.cares },
-        ],
-      },
+      section: comparison,
       two: {
         heading: words.comparison.heading,
         products: [column(card(0)), column(card(5))],
         rows: [{ label: words.comparison.material, values: [words.comparison.materials[0], null] }],
       },
+      highlight: { ...comparison, variant: "highlight", pick: card(2).id },
     },
     collectionSpotlight: {
       section: spotlight,

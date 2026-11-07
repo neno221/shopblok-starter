@@ -20,7 +20,8 @@ import { adminToken, base, freshWithinTwo } from "./support/server";
 // T80 (D103): the transparent header, published in the global. Over a page whose `<main>` opens
 // with the `overlay` hero (a picture behind its words) it lies over the picture, its words light on
 // its scrim; on a page that opens with the `text` hero, the cart and a product page it is solid and
-// takes its row's height; scrolling makes it solid. All of it with scripts off too, at 375 and
+// takes its row's height; scrolling makes it solid. T82: a page that opens with the full-bleed
+// promo banner has the header over its picture too. All of it with scripts off too, at 375 and
 // 1440 px, since the page tells the header nothing and the stylesheet decides.
 
 /** The seed's three categories (`apps/backend/src/scripts/seed.ts`), flat: three links. */
@@ -282,6 +283,8 @@ test.describe("the transparent header (D103, T80)", () => {
     // An overlay hero shown from `lg` only: on a phone the page opens with nothing under the
     // header (PR 119 review, item 1).
     desktop: `e2e-overlay-desktop-${stamp}`,
+    // T82 (D103): a full-bleed promo banner opening the page, its picture under the header too.
+    promo: `e2e-promo-full-bleed-${stamp}`,
   };
   let token = "";
   let published: GlobalData | undefined;
@@ -289,7 +292,12 @@ test.describe("the transparent header (D103, T80)", () => {
   const axeTags = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"];
   /** Where it is solid: a page that opens with the text hero, the cart, a product page. */
   const solidPaths = () => [`/us/${slugs.text}`, "/us/cart", `/us/products/${HANDLE}`];
-  const paths = () => [`/us/${slugs.overlay}`, `/us/${slugs.desktop}`, ...solidPaths()];
+  const paths = () => [
+    `/us/${slugs.overlay}`,
+    `/us/${slugs.desktop}`,
+    `/us/${slugs.promo}`,
+    ...solidPaths(),
+  ];
 
   /** A published page whose layout is one hero of `variant`, with a picture. */
   async function heroPage(
@@ -324,6 +332,22 @@ test.describe("the transparent header (D103, T80)", () => {
     await heroPage(slugs.overlay, "overlay", picture.id);
     await heroPage(slugs.text, "text", picture.id);
     await heroPage(slugs.desktop, "overlay", picture.id, "desktop");
+    const { doc } = await api<{ doc: { id: number } }>(token, "POST", "/api/pages?locale=en", {
+      title: `Promo full bleed ${stamp}`,
+      slug: slugs.promo,
+      _status: "published",
+      layout: [
+        {
+          blockType: "promoBanner",
+          variant: "full-bleed",
+          heading: `The full-bleed offer ${stamp}`,
+          text: "Ten percent off your first order.",
+          code: "WELCOME10",
+          media: picture.id,
+        },
+      ],
+    });
+    pageIds.push(doc.id);
     await publishGlobal(token, "header", {
       design: "transparent",
       sticky: true,
@@ -389,6 +413,17 @@ test.describe("the transparent header (D103, T80)", () => {
             .withTags(axeTags)
             .include("header")
             .include('[data-slot="hero-section"]')
+            .analyze();
+          expect(axe.violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
+        }
+        // T82: a full-bleed promo banner opening the page lies under the header as the hero does.
+        await page.goto(`/us/${slugs.promo}`);
+        expect(await look(page), "over the full-bleed promo banner").toMatchObject(transparent);
+        if (scripts) {
+          const axe = await new AxeBuilder({ page })
+            .withTags(axeTags)
+            .include("header")
+            .include('[data-slot="promo-banner-section"]')
             .analyze();
           expect(axe.violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
         }

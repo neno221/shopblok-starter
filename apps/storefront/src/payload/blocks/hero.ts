@@ -3,15 +3,10 @@ import { select, upload } from "payload/shared";
 import { CATALOG_COLLECTIONS } from "../../lib/cms/paths";
 import { hideDeletedExceptHeld, link } from "../fields/link";
 import { productSource } from "../fields/product-source";
-import { imageField, sectionBlock } from "./section-block";
+import { imageField, isVariant, requiredFor, sectionBlock } from "./section-block";
 
 /** The hero's variants that draw their words over or beside the picture, so they need it (T80). */
 export const HERO_NEEDS_PICTURE: readonly string[] = ["overlay", "editorial"];
-
-const isVariant =
-  (...variants: string[]) =>
-  (_: unknown, sibling: { variant?: unknown } | undefined) =>
-    variants.includes(String(sibling?.variant));
 
 /**
  * The picture, required for the variants that draw their words on or around it (T80): Payload's
@@ -19,14 +14,11 @@ const isVariant =
  * section's contract refuses the same block (`variantNeeds`), so a block saved before this check
  * is left out of the page rather than drawn without its picture.
  */
-const validateMedia: UploadFieldSingleValidation = async (value, args) => {
-  const base = await upload(value, args);
-  if (base !== true) return base;
-  const variant = String((args.siblingData as { variant?: unknown } | undefined)?.variant);
-  return value == null && HERO_NEEDS_PICTURE.includes(variant)
-    ? "This design draws its words on the picture: choose one."
-    : true;
-};
+const validateMedia: UploadFieldSingleValidation = requiredFor(
+  HERO_NEEDS_PICTURE,
+  "This design draws its words on the picture: choose one.",
+  upload,
+);
 
 /**
  * The source's mode, required to be a source for the `product` design (PR 119 review, item 2):
