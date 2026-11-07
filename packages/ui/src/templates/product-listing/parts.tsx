@@ -12,10 +12,7 @@
 // - The root carries the member's `data-variant` (D99); the members differ only in their results'
 //   layout (`Results`), so every layout has the same breadcrumbs, title, banner and introduction.
 import type { Messages } from "@shopblok/i18n";
-import type {
-  ProductListingPage,
-  VariantOf,
-} from "@shopblok/registry/contracts";
+import type { ProductListingPage, VariantOf } from "@shopblok/registry/contracts";
 import { Image } from "@shopblok/ui/atoms/image";
 import { cn } from "@shopblok/ui/lib/utils";
 import { Breadcrumbs } from "@shopblok/ui/molecules/breadcrumbs";
@@ -34,10 +31,7 @@ type ProductListingCopy = {
 
 /** The listing page's words from a whole catalog. */
 function productListingCopy(messages: Messages): ProductListingCopy {
-  return {
-    breadcrumbs: messages.molecules.breadcrumbs,
-    results: listingResultsCopy(messages),
-  };
+  return { breadcrumbs: messages.molecules.breadcrumbs, results: listingResultsCopy(messages) };
 }
 
 type ProductListingTemplateProps = ProductListingPage & {
@@ -114,10 +108,7 @@ function ProductListingFrame({
           />
         )}
         {slots.intro == null ? null : (
-          <Prose
-            data-slot="product-listing-intro"
-            className="text-muted-foreground"
-          >
+          <Prose data-slot="product-listing-intro" className="text-muted-foreground">
             {slots.intro}
           </Prose>
         )}

@@ -128,9 +128,7 @@ function ProductToolbar({
       >
         {formatMessage(copy.count, { count }, locale)}
       </p>
-      {view === undefined ? null : (
-        <ViewToggle view={view} copy={copy} prefetch={prefetch} />
-      )}
+      {view === undefined ? null : <ViewToggle view={view} copy={copy} prefetch={prefetch} />}
       <SortSelect {...sort} copy={sortCopy} className="w-full sm:w-auto" />
     </div>
   );

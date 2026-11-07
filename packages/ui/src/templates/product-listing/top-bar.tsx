@@ -5,13 +5,7 @@ import { ListingResultsTopBar } from "../listing-layouts/top-bar";
 import { ProductListingFrame, type ProductListingTemplateProps } from "./parts";
 
 function ProductListingTopBar(props: ProductListingTemplateProps) {
-  return (
-    <ProductListingFrame
-      {...props}
-      member="top-bar"
-      Results={ListingResultsTopBar}
-    />
-  );
+  return <ProductListingFrame {...props} member="top-bar" Results={ListingResultsTopBar} />;
 }
 
 export { ProductListingTopBar };

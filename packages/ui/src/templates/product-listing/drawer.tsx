@@ -5,13 +5,7 @@ import { ListingResultsDrawer } from "../listing-layouts/drawer";
 import { ProductListingFrame, type ProductListingTemplateProps } from "./parts";
 
 function ProductListingDrawer(props: ProductListingTemplateProps) {
-  return (
-    <ProductListingFrame
-      {...props}
-      member="drawer"
-      Results={ListingResultsDrawer}
-    />
-  );
+  return <ProductListingFrame {...props} member="drawer" Results={ListingResultsDrawer} />;
 }
 
 export { ProductListingDrawer };

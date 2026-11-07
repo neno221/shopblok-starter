@@ -124,19 +124,8 @@ function ListingResults({
             className="lg:hidden"
           />
         )}
-        <ProductGrid
-          {...grid}
-          copy={copy.grid}
-          locale={locale}
-          heading="h2"
-          prefetch={prefetch}
-        />
-        <Pagination
-          {...page}
-          hrefFor={hrefFor}
-          copy={copy.pagination}
-          locale={locale}
-        />
+        <ProductGrid {...grid} copy={copy.grid} locale={locale} heading="h2" prefetch={prefetch} />
+        <Pagination {...page} hrefFor={hrefFor} copy={copy.pagination} locale={locale} />
       </div>
     </div>
   );

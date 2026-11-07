@@ -16,17 +16,10 @@ import {
 } from "./parts";
 
 function ProductListingDefault(props: ProductListingTemplateProps) {
-  return (
-    <ProductListingFrame {...props} member="default" Results={ListingResults} />
-  );
+  return <ProductListingFrame {...props} member="default" Results={ListingResults} />;
 }
 
-export {
-  ListingResults,
-  listingResultsCopy,
-  ProductListingDefault,
-  productListingCopy,
-};
+export { ListingResults, listingResultsCopy, ProductListingDefault, productListingCopy };
 export type {
   ListingResultsCopy,
   ListingResultsProps,

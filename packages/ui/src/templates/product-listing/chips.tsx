@@ -5,13 +5,7 @@ import { ListingResultsChips } from "../listing-layouts/chips";
 import { ProductListingFrame, type ProductListingTemplateProps } from "./parts";
 
 function ProductListingChips(props: ProductListingTemplateProps) {
-  return (
-    <ProductListingFrame
-      {...props}
-      member="chips"
-      Results={ListingResultsChips}
-    />
-  );
+  return <ProductListingFrame {...props} member="chips" Results={ListingResultsChips} />;
 }
 
 export { ProductListingChips };

@@ -31,10 +31,7 @@ import { ChevronDownIcon, SlidersHorizontalIcon } from "lucide-react";
 import NextLink from "next/link";
 import { useId } from "react";
 import type * as React from "react";
-import type {
-  ListingResultsCopy,
-  ListingResultsProps,
-} from "../listing-results";
+import type { ListingResultsCopy, ListingResultsProps } from "../listing-results";
 
 // `next/link` takes whatever an app with typed routes narrows its `href` to; ours are strings the
 // app built.
@@ -82,8 +79,7 @@ function ResultsProducts({
   /** Drawn before the toolbar: the top bar's popovers, the toggles, the inline panel. */
   lead?: React.ReactNode;
 }) {
-  const { toolbar, filters, grid, page, copy, locale, hrefFor, prefetch } =
-    results;
+  const { toolbar, filters, grid, page, copy, locale, hrefFor, prefetch } = results;
   return (
     <div data-slot="listing-products" className="flex min-w-0 flex-col gap-6">
       {lead}
@@ -114,19 +110,8 @@ function ResultsProducts({
           prefetch={prefetch}
         />
       )}
-      <ProductGrid
-        {...grid}
-        copy={copy.grid}
-        locale={locale}
-        heading="h2"
-        prefetch={prefetch}
-      />
-      <Pagination
-        {...page}
-        hrefFor={hrefFor}
-        copy={copy.pagination}
-        locale={locale}
-      />
+      <ProductGrid {...grid} copy={copy.grid} locale={locale} heading="h2" prefetch={prefetch} />
+      <Pagination {...page} hrefFor={hrefFor} copy={copy.pagination} locale={locale} />
     </div>
   );
 }
@@ -134,12 +119,7 @@ function ResultsProducts({
 /** The listing's other parameters (its scope, the sort), which every filter form carries. */
 function HiddenParams({ params }: Pick<FilterPanel, "params">) {
   return params.map((param, index) => (
-    <input
-      key={`${param.name}-${index}`}
-      type="hidden"
-      name={param.name}
-      value={param.value}
-    />
+    <input key={`${param.name}-${index}`} type="hidden" name={param.name} value={param.value} />
   ));
 }
 
@@ -164,9 +144,7 @@ function ChosenCount({
   if (count === 0) return null;
   return (
     <>
-      <VisuallyHidden>
-        , {formatMessage(copy.chosen, { count }, locale)}
-      </VisuallyHidden>
+      <VisuallyHidden>, {formatMessage(copy.chosen, { count }, locale)}</VisuallyHidden>
       <Badge variant="secondary" aria-hidden="true" className="min-w-5">
         {formatNumber(count, locale)}
       </Badge>
@@ -175,8 +153,7 @@ function ChosenCount({
 }
 
 /** A dashed ident for CSS from React's id, which may hold characters an ident may not. */
-const anchorFor = (id: string) =>
-  `--filter-${id.replace(/[^A-Za-z0-9_-]/g, "")}`;
+const anchorFor = (id: string) => `--filter-${id.replace(/[^A-Za-z0-9_-]/g, "")}`;
 
 /**
  * Each group a button that opens its values in a popover (T84's `top-bar` and `rail`): one form,
@@ -214,10 +191,7 @@ function PopoverFilters({
             <div
               key={group.id}
               data-slot="filter-popover-toggle"
-              className={cn(
-                "min-w-0",
-                rail ? "border-y" : "rounded-md border px-3",
-              )}
+              className={cn("min-w-0", rail ? "border-y" : "rounded-md border px-3")}
             >
               <FilterGroup facet={group} copy={copy.group} locale={locale} />
             </div>
@@ -239,16 +213,9 @@ function PopoverFilters({
             >
               <span className="min-w-0 wrap-anywhere">
                 {group.label}
-                <ChosenCount
-                  count={chosenIn(group)}
-                  copy={copy.drawer}
-                  locale={locale}
-                />
+                <ChosenCount count={chosenIn(group)} copy={copy.drawer} locale={locale} />
               </span>
-              <Icon
-                icon={ChevronDownIcon}
-                className={cn(rail && "-rotate-90 rtl:rotate-90")}
-              />
+              <Icon icon={ChevronDownIcon} className={cn(rail && "-rotate-90 rtl:rotate-90")} />
             </button>
             <div
               id={id}
@@ -266,11 +233,7 @@ function PopoverFilters({
             >
               <div className="flex flex-col gap-4">
                 <FilterGroup facet={group} copy={copy.group} locale={locale} />
-                <Button
-                  type="submit"
-                  data-slot="filter-popover-apply"
-                  className="w-full"
-                >
+                <Button type="submit" data-slot="filter-popover-apply" className="w-full">
                   {copy.sidebar.apply}
                 </Button>
               </div>
@@ -297,9 +260,7 @@ function OptionCount({
       <span aria-hidden="true" className="text-muted-foreground tabular-nums">
         {formatNumber(count, locale)}
       </span>
-      <VisuallyHidden>
-        , {formatMessage(copy.group.products, { count }, locale)}
-      </VisuallyHidden>
+      <VisuallyHidden>, {formatMessage(copy.group.products, { count }, locale)}</VisuallyHidden>
     </>
   );
 }
@@ -307,8 +268,8 @@ function OptionCount({
 /**
  * Each group's values as toggles in a row (T84's `chips`, for a shop with few filters): a box and
  * a swatch option are a native box in a 44 px pill, named and valued as FilterGroup's, so the same
- * query is sent; a range and an on/off filter are FilterGroup's own fields in their row. "Apply
- * filters" sends them (a tick never reloads the page, WCAG 3.2.2, as the sidebar's rule says).
+ * query is sent; the price range and the on/off filters are FilterGroup's own fields, in one row
+ * with "Apply filters", which sends them (a tick never reloads the page, WCAG 3.2.2, as the sidebar's rule says).
  */
 function ToggleFilters({ action, groups, params, copy, locale }: FiltersProps) {
   return (
@@ -321,15 +282,9 @@ function ToggleFilters({ action, groups, params, copy, locale }: FiltersProps) {
     >
       <HiddenParams params={params} />
       {groups.map((group) =>
-        group.kind === "checkbox" || group.kind === "swatch" ? (
-          <fieldset
-            key={group.id}
-            data-slot="filter-toggle-group"
-            className="min-w-0"
-          >
-            <legend className="mb-2 text-sm font-medium wrap-anywhere">
-              {group.label}
-            </legend>
+        group.kind !== "checkbox" && group.kind !== "swatch" ? null : (
+          <fieldset key={group.id} data-slot="filter-toggle-group" className="min-w-0">
+            <legend className="mb-2 text-sm font-medium wrap-anywhere">{group.label}</legend>
             <ul className="flex flex-wrap gap-2">
               {group.options.map((option) => {
                 const dead = option.count === 0 && !option.selected;
@@ -347,40 +302,36 @@ function ToggleFilters({ action, groups, params, copy, locale }: FiltersProps) {
                         disabled={dead}
                         className="sr-only"
                       />
-                      {group.kind === "swatch" &&
-                      "hex" in option &&
-                      option.hex !== undefined ? (
+                      {group.kind === "swatch" && "hex" in option && option.hex !== undefined ? (
                         <span
                           aria-hidden="true"
                           className="size-4 shrink-0 rounded-full border border-border"
                           style={{ backgroundColor: option.hex }}
                         />
                       ) : null}
-                      <span className="min-w-0 wrap-anywhere">
-                        {option.label}
-                      </span>
-                      <OptionCount
-                        count={option.count}
-                        copy={copy}
-                        locale={locale}
-                      />
+                      <span className="min-w-0 wrap-anywhere">{option.label}</span>
+                      <OptionCount count={option.count} copy={copy} locale={locale} />
                     </label>
                   </li>
                 );
               })}
             </ul>
           </fieldset>
-        ) : (
-          <div
-            key={group.id}
-            data-slot="filter-toggle-field"
-            className={cn("min-w-0", group.kind === "range" && "max-w-sm")}
-          >
-            <FilterGroup facet={group} copy={copy.group} locale={locale} />
-          </div>
         ),
       )}
-      <div>
+      {/* The price range and the on/off filters in one row with the submit, in the facets' order. */}
+      <div className="flex min-w-0 flex-wrap items-end gap-x-6 gap-y-4">
+        {groups.map((group) =>
+          group.kind === "checkbox" || group.kind === "swatch" ? null : (
+            <div
+              key={group.id}
+              data-slot="filter-toggle-field"
+              className={cn("min-w-0", group.kind === "range" ? "w-full sm:w-80" : "w-full sm:w-56")}
+            >
+              <FilterGroup facet={group} copy={copy.group} locale={locale} />
+            </div>
+          ),
+        )}
         <Button type="submit" data-slot="filter-toggles-apply">
           {copy.sidebar.apply}
         </Button>
@@ -394,21 +345,10 @@ function ToggleFilters({ action, groups, params, copy, locale }: FiltersProps) {
  * how many are chosen) whose form holds every group in columns, opened and closed as one, with
  * "Clear all" (when something is chosen) and "Apply filters".
  */
-function InlineFilters({
-  action,
-  groups,
-  params,
-  active,
-  copy,
-  locale,
-  prefetch,
-}: FiltersProps) {
+function InlineFilters({ action, groups, params, active, copy, locale, prefetch }: FiltersProps) {
   const count = active?.filters.length ?? 0;
   return (
-    <details
-      data-slot="filter-inline"
-      className="group/inline min-w-0 rounded-lg border"
-    >
+    <details data-slot="filter-inline" className="group/inline min-w-0 rounded-lg border">
       <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
         <Icon icon={SlidersHorizontalIcon} />
         <span className="min-w-0 flex-1 wrap-anywhere">
@@ -438,11 +378,7 @@ function InlineFilters({
       >
         <HiddenParams params={params} />
         {groups.map((group) => (
-          <div
-            key={group.id}
-            data-slot="filter-inline-group"
-            className="min-w-0"
-          >
+          <div key={group.id} data-slot="filter-inline-group" className="min-w-0">
             <FilterGroup facet={group} copy={copy.group} locale={locale} />
           </div>
         ))}
@@ -452,10 +388,7 @@ function InlineFilters({
               href={active.clearHref as LinkHref}
               prefetch={prefetch}
               data-slot="filter-inline-clear"
-              className={cn(
-                buttonVariants({ variant: "outline" }),
-                "max-w-full",
-              )}
+              className={cn(buttonVariants({ variant: "outline" }), "max-w-full")}
             >
               <span className="min-w-0 wrap-anywhere">{copy.drawer.clear}</span>
             </NextLink>
@@ -469,12 +402,5 @@ function InlineFilters({
   );
 }
 
-export {
-  HiddenParams,
-  InlineFilters,
-  PopoverFilters,
-  ResultsProducts,
-  ResultsRoot,
-  ToggleFilters,
-};
+export { HiddenParams, InlineFilters, PopoverFilters, ResultsProducts, ResultsRoot, ToggleFilters };
 export type { FiltersProps };

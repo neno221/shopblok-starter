@@ -15,12 +15,7 @@ function ListingResultsInline(props: ListingResultsProps) {
         chips
         lead={
           filters === undefined ? undefined : (
-            <InlineFilters
-              {...filters}
-              copy={copy}
-              locale={locale}
-              prefetch={prefetch}
-            />
+            <InlineFilters {...filters} copy={copy} locale={locale} prefetch={prefetch} />
           )
         }
       />

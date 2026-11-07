@@ -5,13 +5,7 @@ import { ListingResultsAccordion } from "../listing-layouts/accordion";
 import { ProductListingFrame, type ProductListingTemplateProps } from "./parts";
 
 function ProductListingAccordion(props: ProductListingTemplateProps) {
-  return (
-    <ProductListingFrame
-      {...props}
-      member="accordion"
-      Results={ListingResultsAccordion}
-    />
-  );
+  return <ProductListingFrame {...props} member="accordion" Results={ListingResultsAccordion} />;
 }
 
 export { ProductListingAccordion };

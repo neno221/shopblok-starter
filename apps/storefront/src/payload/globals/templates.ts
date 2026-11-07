@@ -1,10 +1,6 @@
 import type { Condition, Field } from "payload";
 import { variantField } from "../fields/variant";
-import {
-  MINI_CART_PAGE,
-  QUICK_CART_OPTIONS,
-  QUICK_VIEW_OFF,
-} from "../../lib/cms/template-options";
+import { MINI_CART_PAGE, QUICK_CART_OPTIONS, QUICK_VIEW_OFF } from "../../lib/cms/template-options";
 import { contentGlobal } from "./content-global";
 
 /**
@@ -22,8 +18,7 @@ export const QUICK_VIEW_CARD = "quick-add";
 
 /** The quick view's picker shows only when the listing's card is `quick-add` (D101, T84). */
 export const withQuickAddCard: Condition = (data) =>
-  (data as { listing?: { card?: unknown } } | undefined)?.listing?.card ===
-  QUICK_VIEW_CARD;
+  (data as { listing?: { card?: unknown } } | undefined)?.listing?.card === QUICK_VIEW_CARD;
 export const Templates = contentGlobal({
   slug: "templates",
   label: "Templates",
@@ -45,8 +40,7 @@ export const Templates = contentGlobal({
             variantField({
               family: "product-listing",
               label: "Filter layout",
-              description:
-                "The category, collection and store pages, and the search page.",
+              description: "The category, collection and store pages, and the search page.",
             }),
             // T84: the grid's card, one of ProductCard's ten (D46), on the listings and the search.
             variantField({
@@ -93,10 +87,7 @@ export const Templates = contentGlobal({
               required: true,
               defaultValue: QUICK_CART_OPTIONS[0],
               options: [
-                {
-                  value: QUICK_CART_OPTIONS[0],
-                  label: "The quick cart, on the line just added",
-                },
+                { value: QUICK_CART_OPTIONS[0], label: "The quick cart, on the line just added" },
                 { value: QUICK_CART_OPTIONS[1], label: "Off" },
               ],
             } satisfies Field,
@@ -114,8 +105,7 @@ export const Templates = contentGlobal({
             variantField({
               family: "receipt",
               label: "Layout",
-              description:
-                "The order confirmation and the order's page in the account.",
+              description: "The order confirmation and the order's page in the account.",
             }),
           ],
         },

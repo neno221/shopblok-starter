@@ -37,10 +37,7 @@ function draw(layout: Layout, over: Partial<typeof results> = {}) {
       prefetch={false}
     />,
   );
-  const doc = new DOMParser().parseFromString(
-    `<body>${html}</body>`,
-    "text/html",
-  );
+  const doc = new DOMParser().parseFromString(`<body>${html}</body>`, "text/html");
   return { html, doc };
 }
 
@@ -56,11 +53,10 @@ const names = (form: Element) =>
 
 /** The forms of a layout that GET the listing's `action` with its filters (not the sort's). */
 function filterForms(doc: Document): Element[] {
-  return [...doc.querySelectorAll(`form[action="${filters.action}"]`)].filter(
-    (form) =>
-      filters.groups.some((group) =>
-        form.querySelector(`[name="${group.id}"], [name^="${group.id}."]`),
-      ),
+  return [...doc.querySelectorAll(`form[action="${filters.action}"]`)].filter((form) =>
+    filters.groups.some((group) =>
+      form.querySelector(`[name="${group.id}"], [name^="${group.id}."]`),
+    ),
   );
 }
 
@@ -75,9 +71,7 @@ const expected = names(filterForms(draw("default").doc)[0]!);
 describe("the listing's filter layouts (T84)", () => {
   it("has a layout for each of the family's values, each marking its root", () => {
     for (const layout of LAYOUTS) {
-      const root = draw(layout).doc.querySelector(
-        '[data-slot="listing-results"]',
-      );
+      const root = draw(layout).doc.querySelector('[data-slot="listing-results"]');
       expect(root?.getAttribute("data-layout"), layout).toBe(layout);
     }
   });
@@ -102,24 +96,17 @@ describe("the listing's filter layouts (T84)", () => {
   });
 
   it("sends each option's own value under its group's name, ticked as the listing has it", () => {
-    const group = filters.groups.find(
-      (g) => g.kind === "checkbox" || g.kind === "swatch",
-    )!;
-    if (group.kind !== "checkbox" && group.kind !== "swatch")
-      throw new Error("no box group");
+    const group = filters.groups.find((g) => g.kind === "checkbox" || g.kind === "swatch")!;
+    if (group.kind !== "checkbox" && group.kind !== "swatch") throw new Error("no box group");
     for (const layout of LAYOUTS) {
       const { html, doc } = draw(layout);
-      const form = filterForms(
-        layout === "drawer" ? noscriptDoc(html) : doc,
-      )[0]!;
+      const form = filterForms(layout === "drawer" ? noscriptDoc(html) : doc)[0]!;
       for (const option of group.options) {
         const box = form.querySelector<HTMLInputElement>(
           `input[name="${group.id}"][value="${option.value}"]`,
         );
         expect(box, `${layout} ${option.value}`).not.toBeNull();
-        expect(box?.hasAttribute("checked"), `${layout} ${option.value}`).toBe(
-          option.selected,
-        );
+        expect(box?.hasAttribute("checked"), `${layout} ${option.value}`).toBe(option.selected);
       }
     }
   });
@@ -128,18 +115,10 @@ describe("the listing's filter layouts (T84)", () => {
     for (const layout of ["top-bar", "rail"] as const) {
       const { doc } = draw(layout);
       const form = doc.querySelector(`[data-slot="filter-popovers"]`);
-      expect(form?.getAttribute("data-orientation")).toBe(
-        layout === "rail" ? "rail" : "bar",
-      );
-      const triggers = [
-        ...doc.querySelectorAll('[data-slot="filter-popover-trigger"]'),
-      ];
-      const popovers = [
-        ...doc.querySelectorAll('[data-slot="filter-popover"]'),
-      ];
-      expect(triggers.length).toBe(
-        filters.groups.filter((g) => g.kind !== "toggle").length,
-      );
+      expect(form?.getAttribute("data-orientation")).toBe(layout === "rail" ? "rail" : "bar");
+      const triggers = [...doc.querySelectorAll('[data-slot="filter-popover-trigger"]')];
+      const popovers = [...doc.querySelectorAll('[data-slot="filter-popover"]')];
+      expect(triggers.length).toBe(filters.groups.filter((g) => g.kind !== "toggle").length);
       expect(popovers.map((p) => p.id)).toEqual(
         triggers.map((t) => t.getAttribute("popovertarget")),
       );
@@ -148,14 +127,12 @@ describe("the listing's filter layouts (T84)", () => {
         expect(popover.getAttribute("popover")).toBe("auto");
         // Inside the form, so its fields are the form's.
         expect(form?.contains(popover)).toBe(true);
-        expect(
-          popover.querySelector('button[type="submit"]')?.textContent,
-        ).toBe(catalogs.en.organisms.filterSidebar.apply);
+        expect(popover.querySelector('button[type="submit"]')?.textContent).toBe(
+          catalogs.en.organisms.filterSidebar.apply,
+        );
       }
       // Below `lg`, the drawer's button.
-      expect(
-        doc.querySelector('[data-slot="filter-drawer-trigger"]'),
-      ).not.toBeNull();
+      expect(doc.querySelector('[data-slot="filter-drawer-trigger"]')).not.toBeNull();
     }
   });
 
@@ -175,9 +152,7 @@ describe("the listing's filter layouts (T84)", () => {
         ))}
       </>,
     );
-    const ids = [...html.matchAll(/ id="([^"]+)" popover/g)].map(
-      (match) => match[1],
-    );
+    const ids = [...html.matchAll(/ id="([^"]+)" popover/g)].map((match) => match[1]);
     expect(ids.length).toBeGreaterThan(2);
     expect(new Set(ids).size).toBe(ids.length);
   });
@@ -185,31 +160,20 @@ describe("the listing's filter layouts (T84)", () => {
   it("accordion: native disclosures, the first open and the others closed but still in the form", () => {
     const { doc } = draw("accordion");
     const groups = [...doc.querySelectorAll('[data-slot="filter-disclosure"]')];
-    expect(groups.length).toBe(
-      filters.groups.filter((g) => g.kind !== "toggle").length,
+    expect(groups.length).toBe(filters.groups.filter((g) => g.kind !== "toggle").length);
+    expect(groups.map((group) => group.hasAttribute("open"))).toEqual(
+      groups.map((_, index) => index === 0),
     );
-    expect(groups[0]?.hasAttribute("open")).toBe(true);
-    const chosen = (index: number) => {
-      const group = filters.groups.filter((g) => g.kind !== "toggle")[index]!;
-      return group.kind === "checkbox" || group.kind === "swatch"
-        ? group.options.some((o) => o.selected)
-        : group.kind === "range" && group.selected !== undefined;
-    };
-    groups.slice(1).forEach((group, index) => {
-      expect(group.hasAttribute("open"), `group ${index + 1}`).toBe(
-        chosen(index + 1),
-      );
-    });
+    // A closed group's chosen box is still the form's, ticked.
+    const closed = groups[1]!;
+    expect(closed.closest("form")).not.toBeNull();
+    expect(closed.querySelector("input[checked]")).not.toBeNull();
     // The chips are above the grid, not in the sidebar.
     expect(
-      doc.querySelector(
-        '[data-slot="filter-sidebar"] [data-slot="active-filter-chips"]',
-      ),
+      doc.querySelector('[data-slot="filter-sidebar"] [data-slot="active-filter-chips"]'),
     ).toBeNull();
     expect(
-      doc.querySelector(
-        '[data-slot="listing-products"] [data-slot="active-filter-chips"]',
-      ),
+      doc.querySelector('[data-slot="listing-products"] [data-slot="active-filter-chips"]'),
     ).not.toBeNull();
   });
 
@@ -231,14 +195,12 @@ describe("the listing's filter layouts (T84)", () => {
     const { doc } = draw("inline");
     const panel = doc.querySelector('details[data-slot="filter-inline"]');
     expect(panel?.hasAttribute("open")).toBe(false);
-    expect(
-      panel?.querySelectorAll('[data-slot="filter-inline-group"]'),
-    ).toHaveLength(filters.groups.length);
-    expect(
-      panel
-        ?.querySelector('[data-slot="filter-inline-clear"]')
-        ?.getAttribute("href"),
-    ).toBe(filters.active?.clearHref);
+    expect(panel?.querySelectorAll('[data-slot="filter-inline-group"]')).toHaveLength(
+      filters.groups.length,
+    );
+    expect(panel?.querySelector('[data-slot="filter-inline-clear"]')?.getAttribute("href")).toBe(
+      filters.active?.clearHref,
+    );
     expect(doc.querySelector('[data-slot="filter-drawer-trigger"]')).toBeNull();
   });
 
@@ -248,16 +210,10 @@ describe("the listing's filter layouts (T84)", () => {
     expect(wrap?.className).not.toContain("lg:hidden");
     // Every sidebar is inside the noscript (which a browser with scripts reads as text).
     const sidebars = [...doc.querySelectorAll('[data-slot="filter-sidebar"]')];
-    expect(
-      sidebars.every((sidebar) => sidebar.closest("noscript") !== null),
-    ).toBe(true);
-    expect(
-      noscriptDoc(html).querySelector('[data-slot="filter-sidebar"]'),
-    ).not.toBeNull();
+    expect(sidebars.every((sidebar) => sidebar.closest("noscript") !== null)).toBe(true);
+    expect(noscriptDoc(html).querySelector('[data-slot="filter-sidebar"]')).not.toBeNull();
     // The default layout hides the button from `lg`, where its sidebar stands.
-    const standard = draw("default").doc.querySelector(
-      '[data-slot="product-toolbar-filters"]',
-    );
+    const standard = draw("default").doc.querySelector('[data-slot="product-toolbar-filters"]');
     expect(standard?.className).toContain("lg:hidden");
   });
 
@@ -274,10 +230,7 @@ describe("the listing's filter layouts (T84)", () => {
           prefetch={false}
         />,
       );
-      const doc = new DOMParser().parseFromString(
-        `<body>${html}</body>`,
-        "text/html",
-      );
+      const doc = new DOMParser().parseFromString(`<body>${html}</body>`, "text/html");
       expect(filterForms(doc), layout).toHaveLength(0);
       expect(html, layout).not.toContain("filter-popover");
       expect(html, layout).not.toContain("filter-toggles");
@@ -301,16 +254,11 @@ describe("the members and the search page (T84)", () => {
           prefetch={false}
         />,
       );
-      const doc = new DOMParser().parseFromString(
-        `<body>${html}</body>`,
-        "text/html",
-      );
+      const doc = new DOMParser().parseFromString(`<body>${html}</body>`, "text/html");
       const root = doc.querySelector('[data-slot="product-listing-template"]');
       expect(root?.getAttribute("data-variant"), layout).toBe(layout);
       expect(
-        root
-          ?.querySelector('[data-slot="listing-results"]')
-          ?.getAttribute("data-layout"),
+        root?.querySelector('[data-slot="listing-results"]')?.getAttribute("data-layout"),
       ).toBe(layout);
     }
   });

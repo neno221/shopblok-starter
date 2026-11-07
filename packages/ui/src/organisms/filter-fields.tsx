@@ -21,8 +21,7 @@
 //   accordion cannot do that without scripts (a closed panel's trigger is a button that needs
 //   them), so those groups are native disclosures (`<details>` and `<summary>`, as the FAQ's):
 //   they open with the keyboard and without JavaScript, and a closed one's fields are still the
-//   form's, so it posts what is chosen in it. A closed group with something chosen in it starts
-//   open, so a visitor sees why the listing is filtered.
+//   form's, so it posts what is chosen in it. What is chosen shows as the chips above the products.
 import type { Messages } from "@shopblok/i18n";
 import type { FacetGroup, QueryParam } from "@shopblok/registry/contracts";
 import { AccordionItem } from "@shopblok/ui/molecules/accordion-item";
@@ -40,16 +39,9 @@ type FilterFieldsProps = {
   locale: string;
   /** The level of the headings the sections sit in, under the shell's own title. Default 3. */
   headingLevel?: 2 | 3 | 4 | 5 | 6;
-  /** Which groups start open: every one (the default), or the first and any with a choice in it. */
+  /** Which groups start open: every one (the default), or the first only. */
   open?: "all" | "first";
 };
-
-/** Whether anything is chosen in a group. */
-function hasChoice(group: FacetGroup): boolean {
-  if (group.kind === "checkbox" || group.kind === "swatch")
-    return group.options.some((option) => option.selected);
-  return group.kind === "range" ? group.selected !== undefined : group.selected;
-}
 
 /** The groups as native disclosures, the first open (T84's `accordion` layout). */
 function DisclosureFields({
@@ -59,25 +51,17 @@ function DisclosureFields({
 }: Pick<FilterFieldsProps, "groups" | "copy" | "locale">) {
   const first = groups.find((group) => group.kind !== "toggle");
   return (
-    <div
-      data-slot="filter-fields"
-      data-open="first"
-      className="flex w-full flex-col"
-    >
+    <div data-slot="filter-fields" data-open="first" className="flex w-full flex-col">
       {groups.map((group) =>
         group.kind === "toggle" ? (
-          <div
-            key={group.id}
-            data-slot="filter-toggle-row"
-            className="border-b py-1"
-          >
+          <div key={group.id} data-slot="filter-toggle-row" className="border-b py-1">
             <FilterGroup facet={group} copy={copy} locale={locale} />
           </div>
         ) : (
           <details
             key={group.id}
             data-slot="filter-disclosure"
-            open={group === first || hasChoice(group)}
+            open={group === first}
             className="group/filter not-last:border-b"
           >
             <summary className="flex min-h-11 cursor-pointer list-none items-start justify-between gap-2 rounded-md py-4 text-start text-sm font-medium outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
@@ -88,12 +72,7 @@ function DisclosureFields({
               />
             </summary>
             <div className="pb-4 text-sm">
-              <FilterGroup
-                facet={group}
-                copy={copy}
-                locale={locale}
-                hideLegend
-              />
+              <FilterGroup facet={group} copy={copy} locale={locale} hideLegend />
             </div>
           </details>
         ),
@@ -127,28 +106,17 @@ function FilterFields({
   return (
     <>
       {params.map((param, index) => (
-        <input
-          key={`${param.name}-${index}`}
-          type="hidden"
-          name={param.name}
-          value={param.value}
-        />
+        <input key={`${param.name}-${index}`} type="hidden" name={param.name} value={param.value} />
       ))}
       <Accordion
         multiple
         keepMounted
-        defaultValue={groups
-          .filter((group) => group.kind !== "toggle")
-          .map((group) => group.id)}
+        defaultValue={groups.filter((group) => group.kind !== "toggle").map((group) => group.id)}
         data-slot="filter-fields"
       >
         {groups.map((group) =>
           group.kind === "toggle" ? (
-            <div
-              key={group.id}
-              data-slot="filter-toggle-row"
-              className="border-b py-1"
-            >
+            <div key={group.id} data-slot="filter-toggle-row" className="border-b py-1">
               <FilterGroup facet={group} copy={copy} locale={locale} />
             </div>
           ) : (
@@ -158,12 +126,7 @@ function FilterFields({
               title={group.label}
               headingLevel={headingLevel}
             >
-              <FilterGroup
-                facet={group}
-                copy={copy}
-                locale={locale}
-                hideLegend
-              />
+              <FilterGroup facet={group} copy={copy} locale={locale} hideLegend />
             </AccordionItem>
           ),
         )}

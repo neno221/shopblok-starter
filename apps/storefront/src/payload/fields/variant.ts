@@ -54,16 +54,11 @@ export function variantField({
   description,
   condition,
 }: VariantFieldOptions): SelectField {
-  const variants = variantsOf(family).filter(
-    (variant) => !exclude.includes(variant.value),
-  );
+  const variants = variantsOf(family).filter((variant) => !exclude.includes(variant.value));
   const [first] = variants;
-  if (first === undefined)
-    throw new Error(`variantField: the registry has no "${family}" family.`);
+  if (first === undefined) throw new Error(`variantField: the registry has no "${family}" family.`);
   const custom: VariantPickerCustom = {
-    thumbnails: Object.fromEntries(
-      variants.map((variant) => [variant.value, variant.thumbnail]),
-    ),
+    thumbnails: Object.fromEntries(variants.map((variant) => [variant.value, variant.thumbnail])),
     family,
     drawsNothing: [...before, ...after].map((option) => option.value),
   };
@@ -74,10 +69,7 @@ export function variantField({
     defaultValue: defaultValue ?? first.value,
     options: [
       ...before,
-      ...variants.map(({ value, label: optionLabel }) => ({
-        value,
-        label: optionLabel,
-      })),
+      ...variants.map(({ value, label: optionLabel }) => ({ value, label: optionLabel })),
       ...after,
     ].map(({ value, label: optionLabel }) => ({ value, label: optionLabel })),
     ...(label === undefined ? {} : { label }),

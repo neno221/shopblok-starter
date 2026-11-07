@@ -92,9 +92,7 @@ describe("the registry (D40)", () => {
     expect(byGroup("molecules").at(15)?.id).toBe("molecules/search-field");
     expect(byGroup("molecules").at(27)?.id).toBe("molecules/countdown-timer");
     expect(byGroup("molecules").at(28)?.id).toBe("molecules/cart-line-item");
-    expect(byGroup("molecules").at(-1)?.id).toBe(
-      "molecules/verification-notice",
-    );
+    expect(byGroup("molecules").at(-1)?.id).toBe("molecules/verification-notice");
     expect(byGroup("organisms").map((entry) => entry.id)).toEqual([
       "organisms/announcement-bar",
       "organisms/mega-menu",
@@ -128,12 +126,8 @@ describe("the registry (D40)", () => {
       "organisms/payment-methods-manager",
       "organisms/return-request-form",
     ]);
-    expect(byGroup("headers-footers").at(5)?.id).toBe(
-      "headers-footers/header-transparent",
-    );
-    expect(byGroup("headers-footers").at(-1)?.id).toBe(
-      "headers-footers/footer-two-tier",
-    );
+    expect(byGroup("headers-footers").at(5)?.id).toBe("headers-footers/header-transparent");
+    expect(byGroup("headers-footers").at(-1)?.id).toBe("headers-footers/footer-two-tier");
     expect(entries.at(-1)?.id).toBe("templates/post");
   });
 
@@ -142,9 +136,7 @@ describe("the registry (D40)", () => {
     expect(new Set(ids).size).toBe(ids.length);
     for (const entry of entries) {
       expect(GROUPS, entry.id).toContain(entry.group);
-      expect(entry.id, entry.id).toMatch(
-        new RegExp(`^${entry.group}/[a-z0-9]+(-[a-z0-9]+)*$`),
-      );
+      expect(entry.id, entry.id).toMatch(new RegExp(`^${entry.group}/[a-z0-9]+(-[a-z0-9]+)*$`));
       expect(entry.label.trim(), entry.id).not.toBe("");
     }
   });
@@ -152,9 +144,7 @@ describe("the registry (D40)", () => {
   it("names the @shopblok/ui export of every atom, and none for a foundation", () => {
     for (const entry of byGroup("atoms")) {
       expect(entry.kind, entry.id).toBe("atom");
-      expect(entry.component?.module, entry.id).toBe(
-        `@shopblok/ui/${entry.id}`,
-      );
+      expect(entry.component?.module, entry.id).toBe(`@shopblok/ui/${entry.id}`);
       expect(entry.component?.name, entry.id).toMatch(/^[A-Z][A-Za-z]+$/);
     }
     for (const entry of byGroup("foundations")) {
@@ -175,10 +165,7 @@ describe("the registry (D40)", () => {
   });
 
   it("names the @shopblok/ui/organisms export of every organism, header and footer, and its contract (D41)", () => {
-    for (const entry of [
-      ...byGroup("organisms"),
-      ...byGroup("headers-footers"),
-    ]) {
+    for (const entry of [...byGroup("organisms"), ...byGroup("headers-footers")]) {
       expect(entry.kind, entry.id).toBe("organism");
       expect(entry.component?.module, entry.id).toMatch(
         /^@shopblok\/ui\/organisms\/[a-z-]+(\/[a-z-]+)?$/,
@@ -191,12 +178,8 @@ describe("the registry (D40)", () => {
   it("names the @shopblok/ui/sections export of every section, its contract and its Payload block (D70)", () => {
     for (const entry of byGroup("sections")) {
       expect(entry.kind, entry.id).toBe("section");
-      expect(entry.component?.module, entry.id).toBe(
-        `@shopblok/ui/${entry.id}`,
-      );
-      expect(entry.component?.name, entry.id).toMatch(
-        /^[A-Z][A-Za-z]+Section$/,
-      );
+      expect(entry.component?.module, entry.id).toBe(`@shopblok/ui/${entry.id}`);
+      expect(entry.component?.name, entry.id).toMatch(/^[A-Z][A-Za-z]+Section$/);
       expect(entry.contract, entry.id).toBeDefined();
       // One family per block, with one member until M5 (D79).
       expect(entry.family, entry.id).toBe(entry.id.slice("sections/".length));
@@ -224,9 +207,7 @@ describe("the registry (D40)", () => {
       "formBlock",
       "editorialList",
     ]);
-    expect(entries.filter((entry) => entry.block !== undefined)).toEqual(
-      byGroup("sections"),
-    );
+    expect(entries.filter((entry) => entry.block !== undefined)).toEqual(byGroup("sections"));
   });
 
   it("finds an entry by id, and nothing else", () => {
@@ -264,18 +245,12 @@ describe("defineEntries", () => {
   });
 
   it("rejects an entry without a label", () => {
-    expect(() => defineEntries([atom("atoms/a", { label: " " })])).toThrow(
-      "has no label",
-    );
+    expect(() => defineEntries([atom("atoms/a", { label: " " })])).toThrow("has no label");
   });
 
   it("wants a family and a variant together, with a variant unique in its family", () => {
-    expect(() => defineEntries([atom("atoms/a", { family: "card" })])).toThrow(
-      "both",
-    );
-    expect(() => defineEntries([atom("atoms/a", { variant: "x" })])).toThrow(
-      "both",
-    );
+    expect(() => defineEntries([atom("atoms/a", { family: "card" })])).toThrow("both");
+    expect(() => defineEntries([atom("atoms/a", { variant: "x" })])).toThrow("both");
     expect(() =>
       defineEntries([
         atom("atoms/a", { family: "card", variant: "x" }),
@@ -292,10 +267,7 @@ describe("defineEntries", () => {
   });
 
   it("wants a block on a section and on nothing else, one family per block (D70, D79)", () => {
-    const section = (
-      id: string,
-      extra: Partial<EntryInput> = {},
-    ): EntryInput => ({
+    const section = (id: string, extra: Partial<EntryInput> = {}): EntryInput => ({
       id,
       group: "sections",
       kind: "section",
@@ -305,38 +277,28 @@ describe("defineEntries", () => {
       block: "faq",
       ...extra,
     });
-    expect(() =>
-      defineEntries([section("sections/faq", { block: undefined })]),
-    ).toThrow("a section names its Payload block, and only a section");
+    expect(() => defineEntries([section("sections/faq", { block: undefined })])).toThrow(
+      "a section names its Payload block, and only a section",
+    );
     expect(() => defineEntries([atom("atoms/a", { block: "faq" })])).toThrow(
       "a section names its Payload block, and only a section",
     );
+    expect(() => defineEntries([section("sections/faq", { block: "Faq" })])).toThrow(
+      'the block "Faq" is not a camelCase slug',
+    );
     expect(() =>
-      defineEntries([section("sections/faq", { block: "Faq" })]),
-    ).toThrow('the block "Faq" is not a camelCase slug');
-    expect(() =>
-      defineEntries([
-        section("sections/faq", { family: undefined, variant: undefined }),
-      ]),
+      defineEntries([section("sections/faq", { family: undefined, variant: undefined })]),
     ).toThrow("a section is a family member");
     // Two families drawn by one block, or one family by two blocks.
-    expect(() =>
-      defineEntries([section("sections/faq"), section("sections/questions")]),
-    ).toThrow(
+    expect(() => defineEntries([section("sections/faq"), section("sections/questions")])).toThrow(
       'the block "faq" and the family "questions" belong to other sections',
     );
     expect(() =>
       defineEntries([
         section("sections/faq"),
-        section("sections/faq-split", {
-          family: "faq",
-          variant: "split",
-          block: "questions",
-        }),
+        section("sections/faq-split", { family: "faq", variant: "split", block: "questions" }),
       ]),
-    ).toThrow(
-      'the block "questions" and the family "faq" belong to other sections',
-    );
+    ).toThrow('the block "questions" and the family "faq" belong to other sections');
     // M5's variants: more members of the block's family.
     expect(
       defineEntries([
@@ -421,16 +383,10 @@ describe("variantsOf", () => {
 
   it("lists each content block's one variant (D79)", () => {
     expect(variantsOf("faq")).toEqual([
-      {
-        value: "standard",
-        label: "FAQ",
-        thumbnail: "/registry/sections/faq.png",
-      },
+      { value: "standard", label: "FAQ", thumbnail: "/registry/sections/faq.png" },
     ]);
     for (const entry of byGroup("sections"))
-      expect(
-        variantsOf(entry.family ?? "").map((option) => option.value),
-      ).toEqual(["standard"]);
+      expect(variantsOf(entry.family ?? "").map((option) => option.value)).toEqual(["standard"]);
   });
 
   it("lists a family's variants as a Payload picker needs them (value, label, thumbnail)", () => {
@@ -477,9 +433,7 @@ describe("variantsOf", () => {
     // twenty blocks' one each (T63's eight content blocks, T64's nine commerce blocks, T67's two
     // form blocks, T66's editorial list), the first of T79's seven families each and T84's six
     // listing layouts.
-    expect(entries.filter((entry) => entry.family !== undefined)).toHaveLength(
-      54,
-    );
+    expect(entries.filter((entry) => entry.family !== undefined)).toHaveLength(54);
   });
 
   it("starts T79's seven families with what M2 and M3 built, ids unchanged (D99)", () => {
@@ -518,9 +472,7 @@ describe("variantsOf", () => {
 
 describe("contracts/variants.ts (D99)", () => {
   it("lists every family of the registry, each with variantsOf()'s values in order", () => {
-    const families = [
-      ...new Set(entries.flatMap((entry) => entry.family ?? [])),
-    ];
+    const families = [...new Set(entries.flatMap((entry) => entry.family ?? []))];
     expect(Object.keys(VARIANTS).sort()).toEqual(families.sort());
     for (const family of families)
       expect(
@@ -534,17 +486,12 @@ describe("contracts/variants.ts (D99)", () => {
       expect(firstVariant(family)).toBe(variantsOf(family)[0]?.value);
       const schema = variantEnum(family);
       expect(schema.safeParse(firstVariant(family)).success, family).toBe(true);
-      expect(schema.safeParse("from-a-later-version").success, family).toBe(
-        false,
-      );
+      expect(schema.safeParse("from-a-later-version").success, family).toBe(false);
     }
   });
 
   it("is a leaf module: it imports nothing from entries/ (D99)", () => {
-    const source = readFileSync(
-      new URL("./contracts/variants.ts", import.meta.url),
-      "utf8",
-    );
+    const source = readFileSync(new URL("./contracts/variants.ts", import.meta.url), "utf8");
     expect(source.match(/from\s+["']([^"']+)["']/g)).toEqual([`from "zod"`]);
   });
 
@@ -557,22 +504,17 @@ describe("contracts/variants.ts (D99)", () => {
       .superRefine(variantNeeds({ "collection-switcher": ["collections"] }));
     expect(Hero.safeParse({ variant: "standard" }).success).toBe(true);
     expect(Hero.safeParse({}).success).toBe(true);
-    expect(
-      Hero.safeParse({ variant: "collection-switcher", collections: ["a"] })
-        .success,
-    ).toBe(true);
+    expect(Hero.safeParse({ variant: "collection-switcher", collections: ["a"] }).success).toBe(
+      true,
+    );
     const refused = Hero.safeParse({ variant: "collection-switcher" });
-    expect(
-      refused.error?.issues.map((issue) => [issue.path, issue.message]),
-    ).toEqual([
+    expect(refused.error?.issues.map((issue) => [issue.path, issue.message])).toEqual([
       [["collections"], 'the "collection-switcher" variant needs collections'],
     ]);
     // An inherited key is no variant's: the check adds nothing and throws nothing (PR 116, item 6).
     const check = variantNeeds({ "collection-switcher": ["collections"] });
     const issues: unknown[] = [];
-    check({ variant: "toString" }, {
-      addIssue: (issue: unknown) => issues.push(issue),
-    } as never);
+    check({ variant: "toString" }, { addIssue: (issue: unknown) => issues.push(issue) } as never);
     expect(issues).toEqual([]);
   });
 });
@@ -597,14 +539,8 @@ describe("the thumbnails (D52)", () => {
       }
       const png = readFileSync(file);
       // The IHDR chunk: width and height are the big-endian words at bytes 16 and 20.
-      expect(
-        png.subarray(1, 4).toString("latin1"),
-        `${entry.id} is a PNG`,
-      ).toBe("PNG");
-      expect(
-        [png.readUInt32BE(16), png.readUInt32BE(20)],
-        `${entry.id}: size`,
-      ).toEqual([600, 400]);
+      expect(png.subarray(1, 4).toString("latin1"), `${entry.id} is a PNG`).toBe("PNG");
+      expect([png.readUInt32BE(16), png.readUInt32BE(20)], `${entry.id}: size`).toEqual([600, 400]);
     }
     expect(
       missing,
@@ -614,9 +550,7 @@ describe("the thumbnails (D52)", () => {
 
   it("has no PNG that no family entry points to", () => {
     const wanted = new Set(
-      entries.flatMap((entry) =>
-        entry.thumbnail === undefined ? [] : [`${entry.id}.png`],
-      ),
+      entries.flatMap((entry) => (entry.thumbnail === undefined ? [] : [`${entry.id}.png`])),
     );
     const found = readdirSync(thumbnailDir, {
       recursive: true,

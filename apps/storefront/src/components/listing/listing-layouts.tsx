@@ -10,19 +10,12 @@
 "use client";
 
 import type { VariantOf } from "@shopblok/registry/contracts";
-import {
-  ListingResults,
-  type ListingResultsProps,
-} from "@shopblok/ui/templates/listing-results";
+import { ListingResults, type ListingResultsProps } from "@shopblok/ui/templates/listing-results";
 import { lazy, type ComponentType } from "react";
 
 type Layout = VariantOf<"product-listing">;
 
-const LAZY: {
-  readonly [
-    V in Exclude<Layout, "default">
-  ]: ComponentType<ListingResultsProps>;
-} = {
+const LAZY: { readonly [V in Exclude<Layout, "default">]: ComponentType<ListingResultsProps> } = {
   "top-bar": lazy(() =>
     import("@shopblok/ui/templates/listing-layouts/top-bar").then((m) => ({
       default: m.ListingResultsTopBar,
@@ -56,14 +49,8 @@ const LAZY: {
 };
 
 /** The component that draws `layout`'s results; one the island does not know draws `default`. */
-export function resultsFor(
-  layout: string | undefined,
-): ComponentType<ListingResultsProps> {
-  if (
-    layout === undefined ||
-    layout === "default" ||
-    !Object.hasOwn(LAZY, layout)
-  )
+export function resultsFor(layout: string | undefined): ComponentType<ListingResultsProps> {
+  if (layout === undefined || layout === "default" || !Object.hasOwn(LAZY, layout))
     return ListingResults;
   return LAZY[layout as Exclude<Layout, "default">];
 }

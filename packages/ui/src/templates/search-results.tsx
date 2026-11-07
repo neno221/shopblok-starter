@@ -22,10 +22,7 @@ type SearchResultsCopy = {
 
 /** The search page's words from a whole catalog. */
 function searchResultsCopy(messages: Messages): SearchResultsCopy {
-  return {
-    field: messages.molecules.searchField,
-    results: listingResultsCopy(messages),
-  };
+  return { field: messages.molecules.searchField, results: listingResultsCopy(messages) };
 }
 
 type SearchResultsTemplateProps = SearchResultsPage & {

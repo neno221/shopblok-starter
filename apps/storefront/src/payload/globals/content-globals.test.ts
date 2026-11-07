@@ -4,17 +4,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { LANGUAGES } from "../locales";
 
 const revalidateTag = vi.fn();
-vi.mock("next/cache", () => ({
-  revalidateTag: (...args: unknown[]) => revalidateTag(...args),
-}));
+vi.mock("next/cache", () => ({ revalidateTag: (...args: unknown[]) => revalidateTag(...args) }));
 
 import { Footer, oneProfilePerNetwork, profileUrl } from "./footer";
 import { Header, HEADER_EXCLUDED_VARIANTS } from "./header";
 import { SiteSettings, titleTemplate } from "./site-settings";
 import { Templates } from "./templates";
 
-const as = (user: unknown) =>
-  ({ req: { user } as PayloadRequest }) as AccessArgs;
+const as = (user: unknown) => ({ req: { user } as PayloadRequest }) as AccessArgs;
 const admin = { collection: "users", id: 1, role: "admin" };
 const editor = { collection: "users", id: 2, role: "editor" };
 const integration = { collection: "integrations", id: 1, role: "medusa-sync" };
@@ -44,17 +41,13 @@ function field(global: GlobalConfig, name: string): Field | undefined {
 }
 
 const options = (select: Field | undefined) =>
-  (
-    (select as { options?: { value: string }[] } | undefined)?.options ?? []
-  ).map((o) => o.value);
+  ((select as { options?: { value: string }[] } | undefined)?.options ?? []).map((o) => o.value);
 
 describe.each(GLOBALS)("the %s global (D78)", (slug, global) => {
   it("is read by anyone once published, and as a draft by staff only", () => {
     const read = global.access?.read;
     expect(read?.(as(null))).toEqual({ _status: { equals: "published" } });
-    expect(read?.(as(integration))).toEqual({
-      _status: { equals: "published" },
-    });
+    expect(read?.(as(integration))).toEqual({ _status: { equals: "published" } });
     expect(read?.(as(editor))).toBe(true);
     expect(read?.(as(admin))).toBe(true);
   });
@@ -75,10 +68,7 @@ describe.each(GLOBALS)("the %s global (D78)", (slug, global) => {
   });
 
   it("has drafts with autosave", () => {
-    expect(global.versions).toMatchObject({
-      drafts: { autosave: expect.anything() },
-      max: 50,
-    });
+    expect(global.versions).toMatchObject({ drafts: { autosave: expect.anything() }, max: 50 });
   });
 
   describe("revalidation", () => {
@@ -90,15 +80,10 @@ describe.each(GLOBALS)("the %s global (D78)", (slug, global) => {
       payload: { logger: { warn: vi.fn() }, db: { findGlobal } },
     });
 
-    async function save(
-      rowBefore: string,
-      doc: { _status: string },
-      rowAfter?: string,
-    ) {
+    async function save(rowBefore: string, doc: { _status: string }, rowAfter?: string) {
       const request = req();
       findGlobal.mockReset().mockResolvedValueOnce({ _status: rowBefore });
-      if (rowAfter !== undefined)
-        findGlobal.mockResolvedValueOnce({ _status: rowAfter });
+      if (rowAfter !== undefined) findGlobal.mockResolvedValueOnce({ _status: rowAfter });
       for (const hook of global.hooks?.beforeChange ?? [])
         await hook({ data: doc, global, req: request } as never);
       for (const hook of global.hooks?.afterChange ?? [])
@@ -107,9 +92,9 @@ describe.each(GLOBALS)("the %s global (D78)", (slug, global) => {
 
     it(`revalidates global:${slug}:<locale> in every language on a publish`, async () => {
       await save("draft", { _status: "published" });
-      expect(
-        revalidateTag.mock.calls.map(([tag]) => tag as string).sort(),
-      ).toEqual(LANGUAGES.map((locale) => `global:${slug}:${locale}`).sort());
+      expect(revalidateTag.mock.calls.map(([tag]) => tag as string).sort()).toEqual(
+        LANGUAGES.map((locale) => `global:${slug}:${locale}`).sort(),
+      );
     });
 
     it("revalidates an unpublish, and nothing for a draft save over the published text", async () => {
@@ -138,24 +123,17 @@ describe("the design fields (D85)", () => {
 });
 
 /** A field of the named tab `tab` (the `templates` global's: D101). */
-function tabField(
-  global: GlobalConfig,
-  tab: string,
-  name: string,
-): Field | undefined {
+function tabField(global: GlobalConfig, tab: string, name: string): Field | undefined {
   for (const each of global.fields)
     if (each.type === "tabs")
       for (const one of each.tabs)
         if ("name" in one && one.name === tab)
-          return one.fields.find(
-            (inner) => "name" in inner && inner.name === name,
-          );
+          return one.fields.find((inner) => "name" in inner && inner.name === name);
   return undefined;
 }
 
 describe("the templates global's pickers (D101)", () => {
-  const values = (family: string) =>
-    variantsOf(family).map((variant) => variant.value);
+  const values = (family: string) => variantsOf(family).map((variant) => variant.value);
 
   it("offers each template's family, the first variant chosen, and is not localized", () => {
     for (const [tab, family] of [
@@ -167,10 +145,7 @@ describe("the templates global's pickers (D101)", () => {
     ] as const) {
       const picker = tabField(Templates, tab, "variant");
       expect(options(picker), tab).toEqual(values(family));
-      expect(picker, tab).toMatchObject({
-        required: true,
-        defaultValue: values(family)[0],
-      });
+      expect(picker, tab).toMatchObject({ required: true, defaultValue: values(family)[0] });
       expect((picker as { localized?: boolean }).localized, tab).toBeFalsy();
     }
   });
@@ -180,23 +155,14 @@ describe("the templates global's pickers (D101)", () => {
       "off",
       ...values("quick-view"),
     ]);
-    expect(tabField(Templates, "quickView", "variant")).toMatchObject({
-      defaultValue: "off",
-    });
+    expect(tabField(Templates, "quickView", "variant")).toMatchObject({ defaultValue: "off" });
     expect(options(tabField(Templates, "cart", "miniCart"))).toEqual([
       ...values("mini-cart"),
       "page",
     ]);
-    expect(tabField(Templates, "cart", "miniCart")).toMatchObject({
-      defaultValue: "drawer",
-    });
-    expect(options(tabField(Templates, "cart", "quickCart"))).toEqual([
-      "dropdown",
-      "off",
-    ]);
-    expect(tabField(Templates, "cart", "quickCart")).toMatchObject({
-      defaultValue: "dropdown",
-    });
+    expect(tabField(Templates, "cart", "miniCart")).toMatchObject({ defaultValue: "drawer" });
+    expect(options(tabField(Templates, "cart", "quickCart"))).toEqual(["dropdown", "off"]);
+    expect(tabField(Templates, "cart", "quickCart")).toMatchObject({ defaultValue: "dropdown" });
   });
 
   it("offers ProductCard's ten for the listing's card, the first chosen (T84)", () => {
@@ -206,18 +172,12 @@ describe("the templates global's pickers (D101)", () => {
   });
 
   it("shows the quick view's picker only when the listing's card is quick add (D101, T84)", () => {
-    const condition = (
-      tabField(Templates, "quickView", "variant") as {
-        admin: {
-          condition: (data: unknown, sibling: unknown, ctx: unknown) => boolean;
-        };
-      }
-    ).admin.condition;
-    const shows = (data: unknown) => condition(data, {}, {});
+    const picker = tabField(Templates, "quickView", "variant") as {
+      admin: { condition: (data: unknown, sibling: unknown, ctx: unknown) => boolean };
+    };
+    const shows = (data: unknown) => picker.admin.condition(data, {}, {});
     expect(shows({ listing: { card: "quick-add" } })).toBe(true);
-    for (const card of values("product-card").filter(
-      (value) => value !== "quick-add",
-    ))
+    for (const card of values("product-card").filter((value) => value !== "quick-add"))
       expect(shows({ listing: { card } }), card).toBe(false);
     expect(shows({})).toBe(false);
     expect(shows(undefined)).toBe(false);
@@ -234,26 +194,18 @@ describe("the templates global's pickers (D101)", () => {
 });
 
 describe("the footer's checks", () => {
-  const args = {
-    req: { payload: { config: {} }, t: (key: string) => key },
-  } as never;
+  const args = { req: { payload: { config: {} }, t: (key: string) => key } } as never;
 
   it("takes an https profile only", () => {
     expect(profileUrl("https://instagram.com/shop", args)).toBe(true);
-    expect(profileUrl("http://instagram.com/shop", args)).toBe(
-      "Use the profile's https address.",
-    );
-    expect(profileUrl("javascript:alert(1)", args)).toBe(
-      "Use the profile's https address.",
-    );
+    expect(profileUrl("http://instagram.com/shop", args)).toBe("Use the profile's https address.");
+    expect(profileUrl("javascript:alert(1)", args)).toBe("Use the profile's https address.");
   });
 
   it("takes each network once, and keeps Payload's row limit", () => {
     const row = (network: string) => ({ network, url: "https://example.com" });
     expect(oneProfilePerNetwork([row("x"), row("threads")], args)).toBe(true);
-    expect(oneProfilePerNetwork([row("x"), row("x")], args)).toBe(
-      "Add each network once.",
-    );
+    expect(oneProfilePerNetwork([row("x"), row("x")], args)).toBe("Add each network once.");
     expect(
       oneProfilePerNetwork([row("x"), row("threads")], {
         ...(args as object),
@@ -264,18 +216,12 @@ describe("the footer's checks", () => {
 });
 
 describe("the site settings' title template", () => {
-  const args = {
-    req: { payload: { config: {} }, t: (key: string) => key },
-  } as never;
+  const args = { req: { payload: { config: {} }, t: (key: string) => key } } as never;
 
   it("needs %s once, or nothing", () => {
     expect(titleTemplate("%s · Shopblok", args)).toBe(true);
     expect(titleTemplate("", args)).toBe(true);
-    expect(titleTemplate("Shopblok", args)).toBe(
-      "Put %s, once, where the page's title goes.",
-    );
-    expect(titleTemplate("%s %s", args)).toBe(
-      "Put %s, once, where the page's title goes.",
-    );
+    expect(titleTemplate("Shopblok", args)).toBe("Put %s, once, where the page's title goes.");
+    expect(titleTemplate("%s %s", args)).toBe("Put %s, once, where the page's title goes.");
   });
 });

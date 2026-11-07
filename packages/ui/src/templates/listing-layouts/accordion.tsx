@@ -12,10 +12,7 @@ function ListingResultsAccordion(props: ListingResultsProps) {
   return (
     <ResultsRoot
       layout="accordion"
-      className={cn(
-        filters !== undefined && "lg:grid-cols-[16rem_minmax(0,1fr)]",
-        className,
-      )}
+      className={cn(filters !== undefined && "lg:grid-cols-[16rem_minmax(0,1fr)]", className)}
     >
       {filters === undefined ? null : (
         <div data-slot="listing-filters" className="min-w-0 max-lg:hidden">

@@ -8,9 +8,7 @@ vi.mock("next/cache", () => ({
 }));
 vi.mock("next/headers", () => ({ headers: async () => new Headers() }));
 const findGlobal = vi.fn();
-vi.mock("./payload", () => ({
-  getPayloadClient: async () => ({ findGlobal }),
-}));
+vi.mock("./payload", () => ({ getPayloadClient: async () => ({ findGlobal }) }));
 
 import type { Template } from "../../payload-types";
 import { readTemplates, TEMPLATE_DEFAULTS, templatesFrom } from "./templates";
@@ -80,9 +78,7 @@ describe("readTemplates", () => {
 
   it("is null without a database, and reads nothing", async () => {
     vi.stubEnv("PAYLOAD_DATABASE_URL", "");
-    expect(
-      await readTemplates({ market: { language: "en" }, draft: false }),
-    ).toBeNull();
+    expect(await readTemplates({ market: { language: "en" }, draft: false })).toBeNull();
     expect(findGlobal).not.toHaveBeenCalled();
   });
 });

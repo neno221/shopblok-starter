@@ -5,13 +5,7 @@ import { ListingResultsRail } from "../listing-layouts/rail";
 import { ProductListingFrame, type ProductListingTemplateProps } from "./parts";
 
 function ProductListingRail(props: ProductListingTemplateProps) {
-  return (
-    <ProductListingFrame
-      {...props}
-      member="rail"
-      Results={ListingResultsRail}
-    />
-  );
+  return <ProductListingFrame {...props} member="rail" Results={ListingResultsRail} />;
 }
 
 export { ProductListingRail };

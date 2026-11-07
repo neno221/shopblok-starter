@@ -3,13 +3,10 @@ import type { Block, Field } from "payload";
 
 const variantOptions = (block: Block): string[] | undefined => {
   const field = block.fields.find(
-    (each: Field) =>
-      "name" in each && each.name === "variant" && each.type === "select",
+    (each: Field) => "name" in each && each.name === "variant" && each.type === "select",
   );
   return field !== undefined && "options" in field
-    ? field.options.map((option) =>
-        typeof option === "string" ? option : option.value,
-      )
+    ? field.options.map((option) => (typeof option === "string" ? option : option.value))
     : undefined;
 };
 
@@ -18,10 +15,7 @@ const variantOptions = (block: Block): string[] | undefined => {
  * entry without a block of its `block` slug, a block without an entry, and a block whose `variant`
  * options are not `variantsOf(family)`'s values, in order. Empty when they agree.
  */
-export function blockDrift(
-  entries: readonly RegistryEntry[],
-  blocks: readonly Block[],
-): string[] {
+export function blockDrift(entries: readonly RegistryEntry[], blocks: readonly Block[]): string[] {
   const problems: string[] = [];
   const slugs = new Set(blocks.map((block) => block.slug));
   const named = new Set(entries.map((entry) => entry.block));
@@ -32,15 +26,11 @@ export function blockDrift(
       );
   for (const block of blocks) {
     if (!named.has(block.slug)) {
-      problems.push(
-        `the block "${block.slug}" has no Sections entry in the registry`,
-      );
+      problems.push(`the block "${block.slug}" has no Sections entry in the registry`);
       continue;
     }
     const entry = entries.find((each) => each.block === block.slug);
-    const wanted = variantsOf(entry?.family ?? "").map(
-      (option) => option.value,
-    );
+    const wanted = variantsOf(entry?.family ?? "").map((option) => option.value);
     const offered = variantOptions(block);
     if (offered === undefined || offered.join() !== wanted.join())
       problems.push(
@@ -61,12 +51,9 @@ export type VariantPicker = {
 
 const pickerOf = (where: string, field: Field): VariantPicker | undefined => {
   if (field.type !== "select") return undefined;
-  const custom = field.admin?.custom as
-    { family?: unknown; drawsNothing?: unknown } | undefined;
+  const custom = field.admin?.custom as { family?: unknown; drawsNothing?: unknown } | undefined;
   if (typeof custom?.family !== "string") return undefined;
-  const nothing = Array.isArray(custom.drawsNothing)
-    ? (custom.drawsNothing as string[])
-    : [];
+  const nothing = Array.isArray(custom.drawsNothing) ? (custom.drawsNothing as string[]) : [];
   return {
     where,
     family: custom.family,
@@ -80,17 +67,11 @@ const pickerOf = (where: string, field: Field): VariantPicker | undefined => {
  * The variant fields among `fields` (the variant field's `admin.custom` names its family), through
  * tabs, groups, rows and collapsibles, each named by its path under `where`.
  */
-export function variantPickers(
-  where: string,
-  fields: readonly Field[],
-): VariantPicker[] {
+export function variantPickers(where: string, fields: readonly Field[]): VariantPicker[] {
   return fields.flatMap((field): VariantPicker[] => {
     if (field.type === "tabs")
       return field.tabs.flatMap((tab) =>
-        variantPickers(
-          "name" in tab && tab.name ? `${where}.${tab.name}` : where,
-          tab.fields,
-        ),
+        variantPickers("name" in tab && tab.name ? `${where}.${tab.name}` : where, tab.fields),
       );
     if (field.type === "row" || field.type === "collapsible")
       return variantPickers(where, field.fields);
@@ -99,8 +80,7 @@ export function variantPickers(
         "name" in field && field.name ? `${where}.${field.name}` : where,
         field.fields,
       );
-    const picker =
-      "name" in field ? pickerOf(`${where}.${field.name}`, field) : undefined;
+    const picker = "name" in field ? pickerOf(`${where}.${field.name}`, field) : undefined;
     return picker === undefined ? [] : [picker];
   });
 }
@@ -122,8 +102,7 @@ export function familyRoot(
     // `order-confirmation-template` (PR 116 review, item 1).
     const first = entries.find(
       (each) =>
-        each.family === entry.family &&
-        each.variant === variantsOf(entry.family ?? "")[0]?.value,
+        each.family === entry.family && each.variant === variantsOf(entry.family ?? "")[0]?.value,
     );
     return first === undefined
       ? undefined
@@ -178,26 +157,20 @@ export function variantDrift(facts: VariantFacts): string[] {
       );
   }
   for (const family of families) {
-    for (const entry of facts.entries.filter(
-      (each) => each.family === family,
-    )) {
+    for (const entry of facts.entries.filter((each) => each.family === family)) {
       if (!facts.hasStory(entry.id)) {
         problems.push(`${entry.id} has no story in src/design-system/stories/`);
         continue;
       }
       for (const width of BASELINE_WIDTHS) {
         const path = `e2e/__screenshots__/design-system/${entry.id}/en-${width}.png`;
-        if (!facts.hasFile(path))
-          problems.push(`${entry.id} has no baseline ${path}`);
+        if (!facts.hasFile(path)) problems.push(`${entry.id} has no baseline ${path}`);
       }
       const thumbnail = `public/registry/${entry.id}.png`;
-      if (!facts.hasFile(thumbnail))
-        problems.push(`${entry.id} has no thumbnail ${thumbnail}`);
+      if (!facts.hasFile(thumbnail)) problems.push(`${entry.id} has no thumbnail ${thumbnail}`);
       const root = familyRoot(entry, facts.entries);
       if (root === undefined) {
-        problems.push(
-          `${entry.id}: familyRoot() knows no root for the family "${family}"`,
-        );
+        problems.push(`${entry.id}: familyRoot() knows no root for the family "${family}"`);
         continue;
       }
       const drawn = variantsAt(facts.render(entry.id), root);

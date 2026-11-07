@@ -5,13 +5,7 @@ import { ListingResultsInline } from "../listing-layouts/inline";
 import { ProductListingFrame, type ProductListingTemplateProps } from "./parts";
 
 function ProductListingInline(props: ProductListingTemplateProps) {
-  return (
-    <ProductListingFrame
-      {...props}
-      member="inline"
-      Results={ListingResultsInline}
-    />
-  );
+  return <ProductListingFrame {...props} member="inline" Results={ListingResultsInline} />;
 }
 
 export { ProductListingInline };

@@ -22,30 +22,23 @@ import { ProductListingInline } from "./product-listing/inline";
 import { ProductListingRail } from "./product-listing/rail";
 import { ProductListingTopBar } from "./product-listing/top-bar";
 
-const MEMBERS: Members<
-  "product-listing",
-  (props: ProductListingTemplateProps) => React.ReactNode
-> = {
-  default: ProductListingDefault,
-  "top-bar": ProductListingTopBar,
-  drawer: ProductListingDrawer,
-  accordion: ProductListingAccordion,
-  chips: ProductListingChips,
-  rail: ProductListingRail,
-  inline: ProductListingInline,
-};
+const MEMBERS: Members<"product-listing", (props: ProductListingTemplateProps) => React.ReactNode> =
+  {
+    default: ProductListingDefault,
+    "top-bar": ProductListingTopBar,
+    drawer: ProductListingDrawer,
+    accordion: ProductListingAccordion,
+    chips: ProductListingChips,
+    rail: ProductListingRail,
+    inline: ProductListingInline,
+  };
 
 function ProductListingTemplate(props: ProductListingTemplateProps) {
   const Member = pickVariant("product-listing", MEMBERS, props.variant);
   return <Member {...props} />;
 }
 
-export {
-  ProductListingTemplate,
-  ListingResults,
-  listingResultsCopy,
-  productListingCopy,
-};
+export { ProductListingTemplate, ListingResults, listingResultsCopy, productListingCopy };
 export type {
   ListingResultsCopy,
   ListingResultsProps,

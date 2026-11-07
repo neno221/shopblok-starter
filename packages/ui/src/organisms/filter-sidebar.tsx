@@ -78,19 +78,11 @@ function FilterSidebar({
       className={cn("flex min-w-0 flex-col gap-4", className)}
       {...props}
     >
-      <Heading
-        id={headingId}
-        className="text-lg leading-snug font-semibold wrap-anywhere"
-      >
+      <Heading id={headingId} className="text-lg leading-snug font-semibold wrap-anywhere">
         {copy.title}
       </Heading>
       {active === undefined || !chips ? null : (
-        <ActiveFilterChips
-          active={active}
-          copy={chipsCopy}
-          locale={locale}
-          prefetch={prefetch}
-        />
+        <ActiveFilterChips active={active} copy={chipsCopy} locale={locale} prefetch={prefetch} />
       )}
       <FilterFields
         groups={groups}

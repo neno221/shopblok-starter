@@ -15,12 +15,7 @@ function ListingResultsChips(props: ListingResultsProps) {
         chips
         lead={
           filters === undefined ? undefined : (
-            <ToggleFilters
-              {...filters}
-              copy={copy}
-              locale={locale}
-              prefetch={prefetch}
-            />
+            <ToggleFilters {...filters} copy={copy} locale={locale} prefetch={prefetch} />
           )
         }
       />

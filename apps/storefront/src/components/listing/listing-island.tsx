@@ -83,18 +83,13 @@ function isResults(body: unknown): body is ListingResultsContent {
 
 /** The same address, wherever `href` is written: a path or a whole URL. */
 const sameAddress = (a: string, b: string) =>
-  new URL(a, window.location.href).href ===
-  new URL(b, window.location.href).href;
+  new URL(a, window.location.href).href === new URL(b, window.location.href).href;
 
 /** A submitted form's fields as the listing's query: no scope, no empty field. */
-function formQuery(
-  form: HTMLFormElement,
-  submitter: HTMLElement | null,
-): URLSearchParams {
+function formQuery(form: HTMLFormElement, submitter: HTMLElement | null): URLSearchParams {
   const params = new URLSearchParams();
   for (const [name, value] of new FormData(form, submitter)) {
-    if (typeof value === "string" && name !== "scope" && value !== "")
-      params.append(name, value);
+    if (typeof value === "string" && name !== "scope" && value !== "") params.append(name, value);
   }
   return filterParams(params);
 }
@@ -136,12 +131,9 @@ export function ListingIsland({
     ]);
     (fetcher ?? fetch)(`${LISTING_ROUTE}?${params}`, { signal: abort.signal })
       .then(async (response): Promise<Answer> => {
-        if (response.status === 404 || response.status === 400)
-          return { key, kind: "missing" };
+        if (response.status === 404 || response.status === 400) return { key, kind: "missing" };
         const body: unknown = response.ok ? await response.json() : undefined;
-        return isResults(body)
-          ? { key, kind: "results", results: body }
-          : { key, kind: "failed" };
+        return isResults(body) ? { key, kind: "results", results: body } : { key, kind: "failed" };
       })
       .catch((): Answer => ({ key, kind: "failed" }))
       .then((next) => {
@@ -157,18 +149,11 @@ export function ListingIsland({
     function onSubmit(event: SubmitEvent) {
       const form = event.target;
       if (!(form instanceof HTMLFormElement) || event.defaultPrevented) return;
-      if (
-        form.method.toLowerCase() !== "get" ||
-        !sameAddress(form.action, action)
-      )
-        return;
+      if (form.method.toLowerCase() !== "get" || !sameAddress(form.action, action)) return;
       if (new FormData(form).get("scope") !== scope) return;
       event.preventDefault();
       const target = withQuery(base, formQuery(form, event.submitter));
-      if (
-        new URL(target, window.location.href).pathname ===
-        window.location.pathname
-      )
+      if (new URL(target, window.location.href).pathname === window.location.pathname)
         window.history.pushState(null, "", target);
       else router.push(target as Route, { scroll: false });
     }
@@ -188,20 +173,13 @@ export function ListingIsland({
   const hrefFor = (n: number) =>
     withQuery(
       base,
-      new URLSearchParams([
-        ...chosen.entries(),
-        ...(n === 1 ? [] : [["page", String(n)]]),
-      ]),
+      new URLSearchParams([...chosen.entries(), ...(n === 1 ? [] : [["page", String(n)]])]),
     );
 
   const status = loading
     ? announce.loading
     : current?.kind === "results"
-      ? formatMessage(
-          announce.found,
-          { count: current.results.toolbar.count },
-          locale,
-        )
+      ? formatMessage(announce.found, { count: current.results.toolbar.count }, locale)
       : current?.kind === "missing"
         ? announce.noMatch.title
         : current?.kind === "failed"
@@ -221,13 +199,7 @@ export function ListingIsland({
       </p>
       {!active ? null : results !== undefined ? (
         <Suspense fallback={<Loading text={announce.loading} />}>
-          <Results
-            {...results}
-            copy={copy}
-            locale={locale}
-            hrefFor={hrefFor}
-            prefetch={prefetch}
-          />
+          <Results {...results} copy={copy} locale={locale} hrefFor={hrefFor} prefetch={prefetch} />
         </Suspense>
       ) : current?.kind === "missing" ? (
         <EmptyState
@@ -238,19 +210,9 @@ export function ListingIsland({
           prefetch={prefetch}
         />
       ) : current?.kind === "failed" ? (
-        <div
-          data-slot="listing-island-failed"
-          className="flex flex-col items-center gap-4"
-        >
-          <EmptyState
-            title={announce.failed.title}
-            text={announce.failed.text}
-          />
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => setAttempt((n) => n + 1)}
-          >
+        <div data-slot="listing-island-failed" className="flex flex-col items-center gap-4">
+          <EmptyState title={announce.failed.title} text={announce.failed.text} />
+          <Button type="button" variant="outline" onClick={() => setAttempt((n) => n + 1)}>
             {announce.failed.retry}
           </Button>
         </div>

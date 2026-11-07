@@ -16,10 +16,7 @@ import { ListingResultsInline } from "./listing-layouts/inline";
 import { ListingResultsRail } from "./listing-layouts/rail";
 import { ListingResultsTopBar } from "./listing-layouts/top-bar";
 
-const LAYOUTS: Members<
-  "product-listing",
-  (props: ListingResultsProps) => React.ReactNode
-> = {
+const LAYOUTS: Members<"product-listing", (props: ListingResultsProps) => React.ReactNode> = {
   default: ListingResults,
   "top-bar": ListingResultsTopBar,
   drawer: ListingResultsDrawer,

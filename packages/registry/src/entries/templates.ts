@@ -15,11 +15,7 @@ import {
   ProductListingPage,
   SearchResultsPage,
 } from "../contracts";
-import {
-  firstVariant,
-  type Family,
-  type VariantOf,
-} from "../contracts/variants";
+import { firstVariant, type Family, type VariantOf } from "../contracts/variants";
 import type { EntryInput } from "../types";
 
 // SPEC §9.3's templates (D56): a page's `<main>`, drawn in the DS inside the classic header and the
@@ -63,11 +59,7 @@ const first = <const Slug extends string, const F extends Family>(
  * A later member of a template's family (D99, T83 to T86): its own id (`templates/<family's
  * slug>-<variant>`), its module in the family's folder and the family's contract.
  */
-const member = <
-  const Slug extends string,
-  const F extends Family,
-  const V extends VariantOf<F>,
->(
+const member = <const Slug extends string, const F extends Family, const V extends VariantOf<F>>(
   slug: Slug,
   family: F,
   variant: V,
@@ -128,12 +120,7 @@ export const templates = [
   listing("chips", "Chips", "ProductListingChips"),
   listing("rail", "Rail", "ProductListingRail"),
   listing("inline", "Inline", "ProductListingInline"),
-  template(
-    "search-results",
-    "Search results",
-    "SearchResultsTemplate",
-    SearchResultsPage,
-  ),
+  template("search-results", "Search results", "SearchResultsTemplate", SearchResultsPage),
   // T51: the home page.
   template("home", "Home page", "HomeTemplate", HomePage),
   // T52: the cart, the checkout and the receipt.
@@ -149,12 +136,7 @@ export const templates = [
   // T53: signing in and up, the account and the claim of a guest order.
   template("auth", "Sign in and register", "AuthTemplate", AuthPage),
   template("account", "Account", "AccountTemplate", AccountPage),
-  template(
-    "order-lookup",
-    "Order lookup",
-    "OrderLookupTemplate",
-    OrderLookupPage,
-  ),
+  template("order-lookup", "Order lookup", "OrderLookupTemplate", OrderLookupPage),
   // T65: the CMS pages (and the homepage when the site settings name one).
   template("cms-page", "CMS page", "CmsPageTemplate", CmsPage),
   // T66: the journal and its posts.

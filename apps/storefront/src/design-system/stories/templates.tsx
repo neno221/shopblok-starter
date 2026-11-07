@@ -5,27 +5,14 @@
 // and its words from `catalogs[ctx.locale].templates`. The states draw the template alone. The DS
 // frame is the page's `<main>`, so a template is drawn as a `div` here (`as="div"`) with an id of
 // its own, which the live header's skip link targets. Every link is drawn with `prefetch={false}`.
-import {
-  commerceFixtures,
-  fixtureNow,
-  markets,
-  pageFixtures,
-} from "@shopblok/fixtures";
+import { commerceFixtures, fixtureNow, markets, pageFixtures } from "@shopblok/fixtures";
 import { catalogs } from "@shopblok/i18n";
 import type { EntryId } from "@shopblok/registry";
 import { Button } from "@shopblok/ui/atoms/button";
 import { FooterMultiColumn } from "@shopblok/ui/organisms/footer/multi-column";
 import { HeaderClassic } from "@shopblok/ui/organisms/header/classic";
-import {
-  AccountTemplate,
-  accountCopy,
-  type AccountErrors,
-} from "@shopblok/ui/templates/account";
-import {
-  AuthTemplate,
-  authCopy,
-  type AuthErrors,
-} from "@shopblok/ui/templates/auth";
+import { AccountTemplate, accountCopy, type AccountErrors } from "@shopblok/ui/templates/account";
+import { AuthTemplate, authCopy, type AuthErrors } from "@shopblok/ui/templates/auth";
 import { CartTemplate, cartCopy } from "@shopblok/ui/templates/cart";
 import {
   CheckoutTemplate,
@@ -41,24 +28,15 @@ import {
   OrderConfirmationTemplate,
   orderConfirmationCopy,
 } from "@shopblok/ui/templates/order-confirmation";
-import {
-  OrderLookupTemplate,
-  orderLookupCopy,
-} from "@shopblok/ui/templates/order-lookup";
+import { OrderLookupTemplate, orderLookupCopy } from "@shopblok/ui/templates/order-lookup";
 import { PostTemplate, postCopy } from "@shopblok/ui/templates/post";
 import {
   ProductDetailTemplate,
   productDetailCopy,
   type ProductDetailIds,
 } from "@shopblok/ui/templates/product-detail";
-import {
-  ProductListingTemplate,
-  productListingCopy,
-} from "@shopblok/ui/templates/product-listing";
-import {
-  SearchResultsTemplate,
-  searchResultsCopy,
-} from "@shopblok/ui/templates/search-results";
+import { ProductListingTemplate, productListingCopy } from "@shopblok/ui/templates/product-listing";
+import { SearchResultsTemplate, searchResultsCopy } from "@shopblok/ui/templates/search-results";
 import type {
   ProductDetailPage,
   ProductListingPage,
@@ -98,14 +76,9 @@ function page(ctx: DsContext, mainId: string, content: ReactNode) {
   );
 }
 
-const notFound = (
-  ctx: DsContext,
-  mainId: string,
-  over: { searchHref?: string | null } = {},
-) => {
+const notFound = (ctx: DsContext, mainId: string, over: { searchHref?: string | null } = {}) => {
   const { searchHref, ...fixture } = pageFixtures[ctx.locale].notFound;
-  const search =
-    over.searchHref === null ? undefined : (over.searchHref ?? searchHref);
+  const search = over.searchHref === null ? undefined : (over.searchHref ?? searchHref);
   return (
     <NotFoundTemplate
       {...fixture}
@@ -146,14 +119,10 @@ const idsFor = (prefix: string): ProductDetailIds => ({
   reviews: `${prefix}-reviews`,
 });
 
-type ProductDetailVariant =
-  "default" | "chosen" | "long" | "no-related" | "rich";
+type ProductDetailVariant = "default" | "chosen" | "long" | "no-related" | "rich";
 
 /** The fixture's product page, changed for a state. */
-function productDetailContent(
-  ctx: DsContext,
-  state: ProductDetailVariant,
-): ProductDetailPage {
+function productDetailContent(ctx: DsContext, state: ProductDetailVariant): ProductDetailPage {
   const base = pageFixtures[ctx.locale].productDetail;
   const fixtures = commerceFixtures[ctx.locale];
   if (state === "chosen") {
@@ -181,9 +150,7 @@ function productDetailContent(
   }
   if (state === "rich") {
     const sections = base.info.sections.map((section) =>
-      section.id === "description"
-        ? { ...section, blocks: [{ kind: "rich" as const }] }
-        : section,
+      section.id === "description" ? { ...section, blocks: [{ kind: "rich" as const }] } : section,
     );
     return { ...base, info: { sections } };
   }
@@ -198,16 +165,11 @@ function richDescription(ctx: DsContext): ReactNode {
   const { sections } = pageFixtures[ctx.locale].productDetail.info;
   const paragraphs = sections.flatMap((section) =>
     section.id === "description"
-      ? section.blocks.flatMap((block) =>
-          block.kind === "text" ? block.paragraphs : [],
-        )
+      ? section.blocks.flatMap((block) => (block.kind === "text" ? block.paragraphs : []))
       : [],
   );
   const details = sections.find((section) => section.id === "details");
-  const care =
-    details?.blocks.flatMap((block) =>
-      block.kind === "list" ? block.items : [],
-    ) ?? [];
+  const care = details?.blocks.flatMap((block) => (block.kind === "list" ? block.items : [])) ?? [];
   const [first, ...rest] = paragraphs;
   return (
     <>
@@ -227,11 +189,7 @@ function richDescription(ctx: DsContext): ReactNode {
   );
 }
 
-const productDetail = (
-  ctx: DsContext,
-  mainId: string,
-  state: ProductDetailVariant,
-) => {
+const productDetail = (ctx: DsContext, mainId: string, state: ProductDetailVariant) => {
   const content = productDetailContent(ctx, state);
   const href = content.buyBox.product.href;
   return (
@@ -244,9 +202,7 @@ const productDetail = (
       prefetch={false}
       as="div"
       mainId={mainId}
-      {...(state === "rich"
-        ? { slots: { richText: { description: richDescription(ctx) } } }
-        : {})}
+      {...(state === "rich" ? { slots: { richText: { description: richDescription(ctx) } } } : {})}
     />
   );
 };
@@ -254,10 +210,7 @@ const productDetail = (
 type ProductListingVariant = "default" | "no-filters" | "empty" | "content";
 
 /** The fixture's listing page, changed for a state. */
-function productListingContent(
-  ctx: DsContext,
-  state: ProductListingVariant,
-): ProductListingPage {
+function productListingContent(ctx: DsContext, state: ProductListingVariant): ProductListingPage {
   const base = pageFixtures[ctx.locale].productListing;
   const { listing } = commerceFixtures[ctx.locale];
   if (state === "no-filters") {
@@ -276,14 +229,12 @@ function productListingContent(
       },
     };
   }
-  if (state === "content")
-    return pageFixtures[ctx.locale].productListingContent.page;
+  if (state === "content") return pageFixtures[ctx.locale].productListingContent.page;
   return base;
 }
 
 /** A page of the listing: the first at its own address, the others by path (D59). */
-const listingHrefFor = (base: string) => (n: number) =>
-  n === 1 ? base : `${base}/page/${n}`;
+const listingHrefFor = (base: string) => (n: number) => (n === 1 ? base : `${base}/page/${n}`);
 
 const productListing = (
   ctx: DsContext,
@@ -304,13 +255,7 @@ const productListing = (
       as="div"
       mainId={mainId}
       {...(state === "content"
-        ? {
-            slots: {
-              intro: (
-                <p>{pageFixtures[ctx.locale].productListingContent.intro}</p>
-              ),
-            },
-          }
+        ? { slots: { intro: <p>{pageFixtures[ctx.locale].productListingContent.intro}</p> } }
         : {})}
     />
   );
@@ -338,9 +283,7 @@ const searchResults = (ctx: DsContext, mainId: string, empty: boolean) => {
       {...content}
       copy={searchResultsCopy(catalogs[ctx.locale])}
       locale={lang(ctx)}
-      hrefFor={(n) =>
-        n === 1 ? `${action}?q=${query}` : `${action}?q=${query}&page=${n}`
-      }
+      hrefFor={(n) => (n === 1 ? `${action}?q=${query}` : `${action}?q=${query}&page=${n}`)}
       prefetch={false}
       as="div"
       mainId={mainId}
@@ -350,8 +293,7 @@ const searchResults = (ctx: DsContext, mainId: string, empty: boolean) => {
 
 const home = (ctx: DsContext, mainId: string, variant: "default" | "bare") => {
   const { categories, newArrivals, ...base } = pageFixtures[ctx.locale].home;
-  const content =
-    variant === "bare" ? base : { ...base, categories, newArrivals };
+  const content = variant === "bare" ? base : { ...base, categories, newArrivals };
   return (
     <HomeTemplate
       {...content}
@@ -364,19 +306,11 @@ const home = (ctx: DsContext, mainId: string, variant: "default" | "bare") => {
   );
 };
 
-const cart = (
-  ctx: DsContext,
-  mainId: string,
-  state: "full" | "empty" | "error",
-) => (
+const cart = (ctx: DsContext, mainId: string, state: "full" | "empty" | "error") => (
   <CartTemplate
     {...pageFixtures[ctx.locale].cart[state === "empty" ? "empty" : "full"]}
     {...(state === "error"
-      ? {
-          error: "rejected" as const,
-          promoError: "invalid" as const,
-          promoCode: "WELCOME5",
-        }
+      ? { error: "rejected" as const, promoError: "invalid" as const, promoCode: "WELCOME5" }
       : {})}
     copy={cartCopy(catalogs[ctx.locale])}
     locale={lang(ctx)}
@@ -406,9 +340,7 @@ const checkout = (
 
 /** The DS market's country's time zone (D65), as the shop's markets global seeds it. */
 const timeZone = (ctx: DsContext) =>
-  markets.countries.find(
-    (country) => country.code === ctx.fixture.market.country,
-  )?.timeZone;
+  markets.countries.find((country) => country.code === ctx.fixture.market.country)?.timeZone;
 
 const orderConfirmation = (ctx: DsContext, mainId: string) => (
   <OrderConfirmationTemplate
@@ -424,12 +356,7 @@ const orderConfirmation = (ctx: DsContext, mainId: string) => (
 
 type AuthScreen = keyof (typeof pageFixtures)["en"]["auth"];
 
-const auth = (
-  ctx: DsContext,
-  mainId: string,
-  screen: AuthScreen,
-  errors?: AuthErrors,
-) => (
+const auth = (ctx: DsContext, mainId: string, screen: AuthScreen, errors?: AuthErrors) => (
   <AuthTemplate
     {...pageFixtures[ctx.locale].auth[screen]}
     copy={authCopy(catalogs[ctx.locale])}
@@ -443,12 +370,7 @@ const auth = (
 
 type AccountScreen = keyof (typeof pageFixtures)["en"]["account"];
 
-const account = (
-  ctx: DsContext,
-  mainId: string,
-  screen: AccountScreen,
-  errors?: AccountErrors,
-) => (
+const account = (ctx: DsContext, mainId: string, screen: AccountScreen, errors?: AccountErrors) => (
   <AccountTemplate
     {...pageFixtures[ctx.locale].account[screen]}
     copy={accountCopy(catalogs[ctx.locale])}
@@ -487,13 +409,7 @@ function cmsPage(ctx: DsContext, mainId: string, state: CmsPageState) {
   const copy = catalogs[ctx.locale].molecules.breadcrumbs;
   if (state === "hero") {
     return (
-      <CmsPageTemplate
-        {...fixture}
-        heading="hero"
-        copy={copy}
-        as="div"
-        mainId={mainId}
-      >
+      <CmsPageTemplate {...fixture} heading="hero" copy={copy} as="div" mainId={mainId}>
         {hero(ctx, "section", undefined, 1)}
         {richText(ctx)}
       </CmsPageTemplate>
@@ -516,8 +432,7 @@ function cmsPage(ctx: DsContext, mainId: string, state: CmsPageState) {
 type JournalState = "first" | "second" | "empty";
 
 /** The journal's address in the DS market, and a later page's (`/journal/page/2`, D59). */
-const journalHrefFor = (base: string) => (n: number) =>
-  n === 1 ? base : `${base}/page/${n}`;
+const journalHrefFor = (base: string) => (n: number) => (n === 1 ? base : `${base}/page/${n}`);
 
 function journal(ctx: DsContext, mainId: string, state: JournalState) {
   const { first, empty } = pageFixtures[ctx.locale].journal;
@@ -526,11 +441,7 @@ function journal(ctx: DsContext, mainId: string, state: JournalState) {
     state === "empty"
       ? empty
       : state === "second"
-        ? {
-            ...first,
-            posts: first.posts.slice(2),
-            page: { page: 2, pageCount: 2 },
-          }
+        ? { ...first, posts: first.posts.slice(2), page: { page: 2, pageCount: 2 } }
         : first;
   return (
     <JournalTemplate
@@ -591,18 +502,15 @@ function listingLayoutStory(
       {
         id: "default",
         label: "Filters chosen",
-        description:
-          "The first of two pages, two filters chosen, newest first.",
-        render: (ctx) =>
-          productListing(ctx, `${id}-default`, "default", variant),
+        description: "The first of two pages, two filters chosen, newest first.",
+        render: (ctx) => productListing(ctx, `${id}-default`, "default", variant),
       },
       {
         id: "no-filters",
         label: "Nothing to filter",
         description:
           "No product has anything to filter by: no filters, and the grid takes the width.",
-        render: (ctx) =>
-          productListing(ctx, `${id}-no-filters`, "no-filters", variant),
+        render: (ctx) => productListing(ctx, `${id}-no-filters`, "no-filters", variant),
       },
     ],
     statesLayout: "stack",
@@ -623,8 +531,7 @@ export const templateStories = {
       waysNote,
       "Next answers the page with the 404 status, so a crawler drops it; the words are the catalog's in the market's language.",
     ],
-    live: (ctx) =>
-      page(ctx, "template-not-found", notFound(ctx, "template-not-found")),
+    live: (ctx) => page(ctx, "template-not-found", notFound(ctx, "template-not-found")),
     states: [
       {
         id: "default",
@@ -635,10 +542,8 @@ export const templateStories = {
       {
         id: "no-search",
         label: "Without search",
-        description:
-          "A shop with no search page: the home page is the only way on.",
-        render: (ctx) =>
-          notFound(ctx, "template-not-found-no-search", { searchHref: null }),
+        description: "A shop with no search page: the home page is the only way on.",
+        render: (ctx) => notFound(ctx, "template-not-found-no-search", { searchHref: null }),
       },
     ],
     statesLayout: "stack",
@@ -651,8 +556,7 @@ export const templateStories = {
       waysNote,
       "The page says nothing about the error: a server error's message never reaches the browser, and its digest means nothing to a shopper. “Try again” is a button (the error boundary's retry), and the home page a link.",
     ],
-    live: (ctx) =>
-      page(ctx, "template-error", error(ctx, "template-error", true)),
+    live: (ctx) => page(ctx, "template-error", error(ctx, "template-error", true)),
     states: [
       {
         id: "default",
@@ -663,8 +567,7 @@ export const templateStories = {
       {
         id: "no-retry",
         label: "Without “Try again”",
-        description:
-          "Where nothing can be retried, the home page is the primary button.",
+        description: "Where nothing can be retried, the home page is the primary button.",
         render: (ctx) => error(ctx, "template-error-no-retry", false),
       },
     ],
@@ -688,45 +591,34 @@ export const templateStories = {
       {
         id: "default",
         label: "Nothing chosen",
-        description:
-          "What the server renders: the buy box asks for a colour and a size.",
-        render: (ctx) =>
-          productDetail(ctx, "template-product-detail-default", "default"),
+        description: "What the server renders: the buy box asks for a colour and a size.",
+        render: (ctx) => productDetail(ctx, "template-product-detail-default", "default"),
       },
       {
         id: "chosen",
         label: "A variant chosen",
         description:
           "`?variant=` named a colour and a size: its picture first, its price, “Add to cart”.",
-        render: (ctx) =>
-          productDetail(ctx, "template-product-detail-chosen", "chosen"),
+        render: (ctx) => productDetail(ctx, "template-product-detail-chosen", "chosen"),
       },
       {
         id: "long",
         label: "Long name",
-        description:
-          "The longest name the copy allows wraps in the breadcrumbs and the title.",
-        render: (ctx) =>
-          productDetail(ctx, "template-product-detail-long", "long"),
+        description: "The longest name the copy allows wraps in the breadcrumbs and the title.",
+        render: (ctx) => productDetail(ctx, "template-product-detail-long", "long"),
       },
       {
         id: "no-related",
         label: "No related products",
         description: "A product alone in its category: no carousel.",
-        render: (ctx) =>
-          productDetail(
-            ctx,
-            "template-product-detail-no-related",
-            "no-related",
-          ),
+        render: (ctx) => productDetail(ctx, "template-product-detail-no-related", "no-related"),
       },
       {
         id: "rich",
         label: "The shop's description",
         description:
           "An editor's rich description replaces Medusa's plain one (T69): a heading under the section's, a list, a strong word, in the editor's text's look.",
-        render: (ctx) =>
-          productDetail(ctx, "template-product-detail-rich", "rich"),
+        render: (ctx) => productDetail(ctx, "template-product-detail-rich", "rich"),
       },
     ],
     statesLayout: "stack",
@@ -749,38 +641,28 @@ export const templateStories = {
       {
         id: "default",
         label: "Filters chosen",
-        description:
-          "The first of two pages, two filters chosen, newest first.",
-        render: (ctx) =>
-          productListing(ctx, "template-product-listing-default", "default"),
+        description: "The first of two pages, two filters chosen, newest first.",
+        render: (ctx) => productListing(ctx, "template-product-listing-default", "default"),
       },
       {
         id: "no-filters",
         label: "Nothing to filter",
         description:
           "No product has anything to filter by: no sidebar, and the grid takes the width.",
-        render: (ctx) =>
-          productListing(
-            ctx,
-            "template-product-listing-no-filters",
-            "no-filters",
-          ),
+        render: (ctx) => productListing(ctx, "template-product-listing-no-filters", "no-filters"),
       },
       {
         id: "empty",
         label: "No products",
-        description:
-          "A category with no products yet: the empty state, and no pages.",
-        render: (ctx) =>
-          productListing(ctx, "template-product-listing-empty", "empty"),
+        description: "A category with no products yet: the empty state, and no pages.",
+        render: (ctx) => productListing(ctx, "template-product-listing-empty", "empty"),
       },
       {
         id: "content",
         label: "A banner and an introduction",
         description:
           "The category's own content (T69): an editor's banner under the title (16:9 on a phone, 3:1 from `md`) and a few lines of introduction.",
-        render: (ctx) =>
-          productListing(ctx, "template-product-listing-content", "content"),
+        render: (ctx) => productListing(ctx, "template-product-listing-content", "content"),
       },
     ],
     statesLayout: "stack",
@@ -823,14 +705,12 @@ export const templateStories = {
       "The hero's title is the page's one `<h1>`; the categories and the new arrivals each have an `<h2>` that names their section. A category tile is one link, its name and picture together; the picture is decoration (`alt=\"\"`), so the link's name is the category's.",
       "The hero's picture is preloaded (it is the first screen's largest). Below `md` the hero is one column, the words before the picture.",
     ],
-    live: (ctx) =>
-      page(ctx, "template-home", home(ctx, "template-home", "default")),
+    live: (ctx) => page(ctx, "template-home", home(ctx, "template-home", "default")),
     states: [
       {
         id: "default",
         label: "Default",
-        description:
-          "The hero, the categories, the new arrivals and the link to every product.",
+        description: "The hero, the categories, the new arrivals and the link to every product.",
         render: (ctx) => home(ctx, "template-home-default", "default"),
       },
       {
@@ -851,26 +731,19 @@ export const templateStories = {
       "The search field is a `search` landmark with a GET form of its own, so a new query starts without the last one's filters. The heading says what was searched; the results are a listing's, with the same headings and forms.",
     ],
     live: (ctx) =>
-      page(
-        ctx,
-        "template-search-results",
-        searchResults(ctx, "template-search-results", false),
-      ),
+      page(ctx, "template-search-results", searchResults(ctx, "template-search-results", false)),
     states: [
       {
         id: "default",
         label: "Results",
         description: "The query's results, by relevance.",
-        render: (ctx) =>
-          searchResults(ctx, "template-search-results-default", false),
+        render: (ctx) => searchResults(ctx, "template-search-results-default", false),
       },
       {
         id: "empty",
         label: "No results",
-        description:
-          "A query that finds nothing: the empty state, no filters and no pages.",
-        render: (ctx) =>
-          searchResults(ctx, "template-search-results-empty", true),
+        description: "A query that finds nothing: the empty state, no filters and no pages.",
+        render: (ctx) => searchResults(ctx, "template-search-results-empty", true),
       },
     ],
     statesLayout: "stack",
@@ -883,8 +756,7 @@ export const templateStories = {
       "Every change is a plain form that posts without JavaScript (the shop's server actions redirect back to the page). A line's controls are named for the line with its options. The summary is a section named by its `<h2>`; its rows are one `<dl>`.",
       "An action's failure is said at the top in an alert, and a promotion code's beside its field.",
     ],
-    live: (ctx) =>
-      page(ctx, "template-cart", cart(ctx, "template-cart", "full")),
+    live: (ctx) => page(ctx, "template-cart", cart(ctx, "template-cart", "full")),
     states: [
       {
         id: "default",
@@ -901,8 +773,7 @@ export const templateStories = {
       {
         id: "error",
         label: "After a failed change",
-        description:
-          "Medusa refused a change, and a code that does not exist was typed.",
+        description: "Medusa refused a change, and a code that does not exist was typed.",
         render: (ctx) => cart(ctx, "template-cart-error", "error"),
       },
     ],
@@ -917,12 +788,7 @@ export const templateStories = {
       "The email field belongs to the address's form by its id, and the delivery options to the payment's, so each step sends one form. An error is text beside its field, and a step's failure an alert at the top.",
       "In the review each part's “Edit” link is named for its part (“Edit: Contact”), the visible word first.",
     ],
-    live: (ctx) =>
-      page(
-        ctx,
-        "template-checkout",
-        checkout(ctx, "template-checkout", "contact"),
-      ),
+    live: (ctx) => page(ctx, "template-checkout", checkout(ctx, "template-checkout", "contact")),
     states: [
       {
         id: "contact",
@@ -944,16 +810,13 @@ export const templateStories = {
       {
         id: "delivery",
         label: "Delivery and payment",
-        description:
-          "Every shipping option (one not available) and the system payment.",
-        render: (ctx) =>
-          checkout(ctx, "template-checkout-delivery", "delivery"),
+        description: "Every shipping option (one not available) and the system payment.",
+        render: (ctx) => checkout(ctx, "template-checkout-delivery", "delivery"),
       },
       {
         id: "review",
         label: "Review",
-        description:
-          "What will be ordered, each part with its way back, and “Place order”.",
+        description: "What will be ordered, each part with its way back, and “Place order”.",
         render: (ctx) => checkout(ctx, "template-checkout-review", "review"),
       },
     ],
@@ -977,8 +840,7 @@ export const templateStories = {
         id: "default",
         label: "Placed",
         description: "The order placed and paid.",
-        render: (ctx) =>
-          orderConfirmation(ctx, "template-order-confirmation-default"),
+        render: (ctx) => orderConfirmation(ctx, "template-order-confirmation-default"),
       },
     ],
     statesLayout: "stack",
@@ -992,28 +854,24 @@ export const templateStories = {
       "The fields carry `autocomplete` (`username`, `current-password`, `new-password`, `given-name`), so a password manager fills them; the new password's rule is its hint.",
       "The reset answer says the same whether or not an account uses the address.",
     ],
-    live: (ctx) =>
-      page(ctx, "template-auth", auth(ctx, "template-auth", "login")),
+    live: (ctx) => page(ctx, "template-auth", auth(ctx, "template-auth", "login")),
     states: [
       {
         id: "login",
         label: "Sign in",
         description: "After a wrong password: the form's alert.",
-        render: (ctx) =>
-          auth(ctx, "template-auth-login", "login", { form: "credentials" }),
+        render: (ctx) => auth(ctx, "template-auth-login", "login", { form: "credentials" }),
       },
       {
         id: "verified",
         label: "Verified",
-        description:
-          "Back from the e-mail's link: the address filled in and “verified, sign in”.",
+        description: "Back from the e-mail's link: the address filled in and “verified, sign in”.",
         render: (ctx) => auth(ctx, "template-auth-verified", "verified"),
       },
       {
         id: "register",
         label: "Register",
-        description:
-          "No e-mail and a short password, as the action hands them back.",
+        description: "No e-mail and a short password, as the action hands them back.",
         render: (ctx) =>
           auth(ctx, "template-auth-register", "register", {
             fields: { email: "required", password: "short" },
@@ -1043,12 +901,7 @@ export const templateStories = {
       "AccountNav marks the page the customer is on (`aria-current`); “Sign out” is a form's button, never a link a prefetch could follow.",
       "The dates are in the market's time zone.",
     ],
-    live: (ctx) =>
-      page(
-        ctx,
-        "template-account",
-        account(ctx, "template-account", "overview"),
-      ),
+    live: (ctx) => page(ctx, "template-account", account(ctx, "template-account", "overview")),
     states: [
       {
         id: "overview",
@@ -1059,16 +912,14 @@ export const templateStories = {
       {
         id: "order",
         label: "An order",
-        description:
-          "The placed order: where it goes, its history and its summary.",
+        description: "The placed order: where it goes, its history and its summary.",
         render: (ctx) => account(ctx, "template-account-order", "order"),
       },
       {
         id: "addresses",
         label: "Addresses",
         description: "The address book.",
-        render: (ctx) =>
-          account(ctx, "template-account-addresses", "addresses"),
+        render: (ctx) => account(ctx, "template-account-addresses", "addresses"),
       },
       {
         id: "address",
@@ -1103,32 +954,25 @@ export const templateStories = {
       "The claim's answer never says whether the details matched an order. Accept and decline are two buttons of one form, so a visit alone changes nothing.",
     ],
     live: (ctx) =>
-      page(
-        ctx,
-        "template-order-lookup",
-        orderLookup(ctx, "template-order-lookup", "lookup"),
-      ),
+      page(ctx, "template-order-lookup", orderLookup(ctx, "template-order-lookup", "lookup")),
     states: [
       {
         id: "sent",
         label: "Claim sent",
-        description:
-          "The details typed, and the status that the link went out.",
+        description: "The details typed, and the status that the link went out.",
         render: (ctx) => orderLookup(ctx, "template-order-lookup-sent", "sent"),
       },
       {
         id: "sign-in",
         label: "Not signed in",
         description: "Claiming needs an account.",
-        render: (ctx) =>
-          orderLookup(ctx, "template-order-lookup-sign-in", "signIn"),
+        render: (ctx) => orderLookup(ctx, "template-order-lookup-sign-in", "signIn"),
       },
       {
         id: "transfer",
         label: "The e-mail's link",
         description: "Accept or decline.",
-        render: (ctx) =>
-          orderLookup(ctx, "template-order-lookup-transfer", "transfer"),
+        render: (ctx) => orderLookup(ctx, "template-order-lookup-transfer", "transfer"),
       },
     ],
     statesLayout: "stack",
@@ -1141,32 +985,24 @@ export const templateStories = {
       "The title is the page's one `<h1>`, and every block's heading an `<h2>`; a page that opens with a hero gives the hero the `<h1>` instead and draws no title, so there is still one.",
       'The breadcrumbs are a `navigation` landmark named by the catalog, Home first and the page itself last as text (`aria-current="page"`); a top-level page has none.',
     ],
-    live: (ctx) =>
-      page(
-        ctx,
-        "template-cms-page",
-        cmsPage(ctx, "template-cms-page", "nested"),
-      ),
+    live: (ctx) => page(ctx, "template-cms-page", cmsPage(ctx, "template-cms-page", "nested")),
     states: [
       {
         id: "nested",
         label: "Under a parent",
-        description:
-          "The breadcrumbs, the title, a rich text and a media with text.",
+        description: "The breadcrumbs, the title, a rich text and a media with text.",
         render: (ctx) => cmsPage(ctx, "template-cms-page-nested", "nested"),
       },
       {
         id: "top-level",
         label: "Top level",
         description: "A page with no parent: no breadcrumbs.",
-        render: (ctx) =>
-          cmsPage(ctx, "template-cms-page-top-level", "top-level"),
+        render: (ctx) => cmsPage(ctx, "template-cms-page-top-level", "top-level"),
       },
       {
         id: "hero",
         label: "Opening with a hero",
-        description:
-          "The hero's title is the page's heading; the page's own is not drawn.",
+        description: "The hero's title is the page's heading; the page's own is not drawn.",
         render: (ctx) => cmsPage(ctx, "template-cms-page-hero", "hero"),
       },
     ],
@@ -1181,14 +1017,12 @@ export const templateStories = {
       "Each date is a `<time>` with the instant, written in the market's time zone and language.",
       "The pager is a `navigation` landmark of links (SPEC §8.4), the current page marked `aria-current`.",
     ],
-    live: (ctx) =>
-      page(ctx, "template-journal", journal(ctx, "template-journal", "first")),
+    live: (ctx) => page(ctx, "template-journal", journal(ctx, "template-journal", "first")),
     states: [
       {
         id: "first",
         label: "First page",
-        description:
-          "Four posts, the last without a picture, and the pager to page 2.",
+        description: "Four posts, the last without a picture, and the pager to page 2.",
         render: (ctx) => journal(ctx, "template-journal-first", "first"),
       },
       {
@@ -1200,8 +1034,7 @@ export const templateStories = {
       {
         id: "empty",
         label: "No post yet",
-        description:
-          "What the journal says before the first post, with the way to the shop.",
+        description: "What the journal says before the first post, with the way to the shop.",
         render: (ctx) => journal(ctx, "template-journal-empty", "empty"),
       },
     ],
@@ -1216,8 +1049,7 @@ export const templateStories = {
       "The date is a `<time>` with the instant, in the market's time zone; the hero picture has the editor's alternative text.",
       'The breadcrumbs are a `navigation` landmark: Home, the journal, and the post itself as text (`aria-current="page"`).',
     ],
-    live: (ctx) =>
-      page(ctx, "template-post", post(ctx, "template-post", "page")),
+    live: (ctx) => page(ctx, "template-post", post(ctx, "template-post", "page")),
     states: [
       {
         id: "post",
@@ -1228,8 +1060,7 @@ export const templateStories = {
       {
         id: "long",
         label: "Long title, no picture",
-        description:
-          "A title that wraps over several lines; no picture and no lead.",
+        description: "A title that wraps over several lines; no picture and no lead.",
         render: (ctx) => post(ctx, "template-post-long", "long"),
       },
     ],

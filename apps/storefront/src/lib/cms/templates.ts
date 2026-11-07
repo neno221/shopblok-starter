@@ -2,11 +2,7 @@ import "server-only";
 import { firstVariant, type VariantOf } from "@shopblok/registry/contracts";
 import type { Payload } from "payload";
 import type { Template } from "../../payload-types";
-import {
-  QUICK_CART_OPTIONS,
-  QUICK_VIEW_OFF,
-  type MINI_CART_PAGE,
-} from "./template-options";
+import { QUICK_CART_OPTIONS, QUICK_VIEW_OFF, type MINI_CART_PAGE } from "./template-options";
 import { globalTag } from "./globals";
 import { cmsRead, type CmsQuery } from "./read";
 
@@ -82,8 +78,5 @@ export const readTemplates = cmsRead(
       locale: query.locale as never,
       depth: 0,
     })) as Template,
-  {
-    name: "cms:global:templates",
-    tags: (locale) => [globalTag("templates", locale)],
-  },
+  { name: "cms:global:templates", tags: (locale) => [globalTag("templates", locale)] },
 );
