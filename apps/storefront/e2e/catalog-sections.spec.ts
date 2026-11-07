@@ -92,8 +92,14 @@ test("a product without its own sections shows the templates global's uspBar, in
 });
 
 test("a product's own FAQ shows on its page in / and /us by the second request, in place of the default", async () => {
-  await settled(`/us/products/${OWN}`);
-  await settled(`/products/${OWN}`);
+  // A save first, so both pages are drawn again by this server and its reads are in its cache: a
+  // page built by `next build` has none of them in memory, and its next drawing would read the
+  // sections afresh whatever their tags (the mutation in SETUP.md would pass unseen).
+  await api(token, "PATCH", `/api/products/${productId}?locale=en`, { sectionsMode: "default" });
+  for (const path of [`/us/products/${OWN}`, `/products/${OWN}`]) {
+    await fetch(`${base()}${path}`).then((answer) => answer.text());
+    await settled(path);
+  }
   // Before: the default sections, as on every product.
   expect(productSections(await html(`/us/products/${OWN}`))).toContain(PROMISES.en[0]);
 
