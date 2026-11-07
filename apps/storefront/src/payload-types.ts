@@ -3053,13 +3053,16 @@ export interface Template {
     quickCart: "dropdown" | "off";
   };
   checkout: {
-    variant: "default";
+    /**
+     * Express rail: the rail for express payment buttons fills in M6, with Stripe; until then the checkout looks like the default.
+     */
+    variant: "default" | "one-page" | "summary-first" | "focused" | "express-rail";
   };
   receipt: {
     /**
      * The order confirmation and the order's page in the account.
      */
-    variant: "default";
+    variant: "default" | "statement" | "timeline-first" | "split" | "compact" | "next-steps";
   };
   _status?: ("draft" | "published") | null;
   updatedAt?: string | null;

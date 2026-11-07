@@ -8333,3 +8333,99 @@ The budgeted rows are 59 bytes smaller (the listings now have 70 bytes left, 11 
 | 11 | A `highlight` comparison whose pick is not sold in a market is left out there | Skipped (a design choice the comment states) |
 
 After the fixes: `typecheck` and `lint`; `test`: `ui` 5955 and the storefront 4138; the build and the first load (the listings 342,970 bytes and the product page 342,363, unchanged; the popup's card 1,101 bytes, kept out); `content-variants`, `cms-blocks`, `cms-commerce-blocks`, `cms-pages` and `shell` against `next start`, 47 passed.
+
+## Checkout and receipt variants (T86)
+
+**Result: the checkout has five layouts, M3's and four new ones (`one-page`, `summary-first`, `focused`, `express-rail`), and the receipt six, M3's and five new ones (`statement`, `timeline-first`, `split`, `compact`, `next-steps`). The `templates` global's Checkout and Receipt tabs pick them, read on the server for the market. Every checkout layout keeps M3's forms and actions, so each step posts without scripts; `one-page` draws the three steps on one page, each still its own form, and each action comes back to the page at the next step's anchor with focus on it. The receipt's layouts also draw the account's order screen, without the thanks. A purchase from `/` and `/us` with `default`, `one-page` and `focused`, with scripts and without, ends on the receipt in the picked layout, and the account's order screen draws it too (`checkout-variants.spec.ts`, 13 tests). No budgeted route's first load changes: the listings stay at 343,029 of 343,040 bytes and the product page at 342,421 (342,422: gzip's noise); the checkout's pages carry 130 bytes more (the focus on the landing step).** M5 plan §5 T86; D99, D101, D102.
+
+| | |
+|---|---|
+| Date | 2026-11-07 |
+| Branch | `claude/project-thread-b695ro`, from `main` at `86d58e5` (T85 merged); `main` at `b6b2d02` (T82, PR 122) merged in |
+| PR | [123](https://github.com/neno221/shopblok-starter/pull/123) |
+| Machine | The cloud VM: Node 22.23.4, pnpm 12.10.1, the compose stack, Medusa 2.22.4 (`medusa develop`) |
+
+### What changed
+
+- **The registry** (D99): `VARIANTS.checkout` is `default`, `one-page`, `summary-first`, `focused` and `express-rail`; `VARIANTS.receipt` is `default`, `statement`, `timeline-first`, `split`, `compact` and `next-steps`. Nine entries through `member()` in `entries/templates.ts` (`templates/checkout-<layout>`, contract `CheckoutPage`; `templates/order-confirmation-<layout>`, contract `OrderConfirmationPage`): 183 entries, 74 of them family members.
+- **The contracts** (`contracts/pages.ts`): `CheckoutDone`, the finished steps `one-page` sums up (the contact step's e-mail and address, the delivery's method and payment, each with its `editHref`), on `CheckoutPage` as the optional `done`; a refinement makes `one-page` need every step before the current one. `ReceiptFollowUp` (`kind` `register` or `account-order`, and its `href`) on `OrderConfirmationPage` as the optional `followUp`, which `next-steps` needs (`variantNeeds`). Fixtures: `checkoutDone` and the receipt's `followUp` (`register`).
+- **The checkout's members** (`packages/ui/src/templates/checkout/`): `parts.tsx` holds what they share, moved from M3's `default.tsx` with no change to its pixels: `CheckoutRoot` (the root with `data-variant` and `data-step`), the copy, the errors, `ContactStep`, `DeliveryStep`, `PlaceOrderForm`, `ReviewStep`, `CheckoutStepContent` and their lines. The ids are in `ids.ts` (`checkoutIds`, with `step(kind)`, a step's anchor: `main-step-delivery`), a module with no component, because the server actions import it (below). CheckoutSteps takes `summaryAt` (`end`, M3's; `start`; `top`, a disclosure bar), `stepper` and `section`; OrderSummary takes `lines` (`toggle`, M3's disclosure, or `open`).
+  - `one-page`: an ordered list of the three steps, each a `section` at its anchor that can take focus (`tabIndex={-1}`), with its number, its heading and `data-state` (`done`, `current`, `later`). A finished step is summed up (`checkout-one-page-done`) with its "Edit" link to its page at its anchor; the current one is M3's form, with its errors where M3 draws them; the later ones are their headings. The summary is beside them as in M3's layout, and the stepper is left out (the sections say where the shopper is). `CheckoutStepFocus` (`step-focus.tsx`, a client component that draws nothing) moves focus to the step at the address's anchor after a navigation by the router, which scrolls to an anchor but leaves focus where it was; without scripts the browser focuses it itself. It takes the visible one, since Next keeps the pages a visitor came from in the document with the same ids.
+  - `summary-first`: the summary first in the document and, from `lg`, in the column at the start; on a phone its lines are M3's disclosure.
+  - `focused`: one column, 42 rem wide, no aside, the summary as a `<details>` bar at the top (the count and the total in its `summary`, the lines open inside).
+  - `express-rail`: M3's layout with a rail above the contact step (`checkout-express`: its heading, the buttons and "Or continue below"), drawn only when `slots.express` is given. Nothing gives it in M5, so the shop draws M3's layout with `data-variant="express-rail"`; the DS story gives it three payment marks. The Checkout tab's description says the rail fills in M6, with Stripe.
+- **The receipt's members** (`packages/ui/src/templates/order-confirmation/`): `parts.tsx` holds what they share, moved from M3's `default.tsx` with no change to its pixels: `ReceiptRoot` (the `<main>` with the family's slot and `data-variant`, a `@container`), `ReceiptThanks`, `placedOn`, `ReceiptShipping`, `ReceiptDelivery`, `ReceiptPayment`, `ReceiptContinue`, and `ReceiptTop` and `ReceiptEnd`, which draw the thanks and the way back on the receipt, or the account's heading and ways on in their place.
+  - `statement`: a document. The lines as a `<table>` with a caption (product, quantity, unit price from `@lg`, total), the totals in a `<dl>` at the inline end, the parts in three columns from `@2xl`; `data-print="statement"` on the root, and `globals.css` hides the shell's header, footer, navigation, skip link and cookie banner when a page with it prints (`:has()`); the way back is `print:hidden`.
+  - `timeline-first`: OrderTimeline first, then the lines, the totals and the parts.
+  - `split`: from `@3xl` two columns, the lines and the totals, and beside them a card with the delivery, the payment, the address and the timeline.
+  - `compact`: one card: the thanks, the total (`order-confirmation-total`), the delivery, and a `<details>` with the lines, the parts and the timeline (`order-confirmation-more`).
+  - `next-steps`: the thanks, then three cards: the e-mail that was sent, the delivery (its method and the city), and an account to create (`register`) or the order in the account (`account-order`, for its owner) with its link (`order-confirmation-follow-up`, `data-kind`); then the summary and the parts. On the account the cards are left out (the shopper is in the account already).
+- **The account's order screen** (`templates/account.tsx`): with a receipt layout other than `default` it draws that layout with `account` (its heading, the order's number and date, and its ways on, the return and back to the orders) in a `div` in the account's column (`account-order-receipt`, `data-variant`); `default` keeps M3's screen. The layouts' columns follow their container (`@container`), so they fit the narrower column beside AccountNav. `AccountCopy` carries the receipt's copy.
+- **The shop:** the checkout's page reads `templates.checkout` from `getShellData()` (the global, for the market) and, for `one-page`, builds `done` from the cart (`toCheckoutDone`) with each step's "Edit" at its anchor. The actions (`lib/actions/forms.ts`) come back at the next step's anchor (`stepAnchor`, the global read for the market, `""` but for `one-page`): a success goes on to `…/checkout/delivery#main-step-delivery`, a refusal back to `…?f=<key>#main-step-contact`; this is the action's redirect, not a page's. The receipt's page passes `templates.receipt`, and for `next-steps` its `followUp` (`account-order` when the signed-in customer owns the order, `register` otherwise); the account's order page passes it as `screen.variant`.
+- **Copy:** `templates.checkout.express.{title, or}`, `templates.orderConfirmation.statement.{caption, product, quantity, price, total}`, `compact.{total, details}` and `nextSteps` (its title, and each card's title, text and action; the delivery's `textNoCity` for an address without a city), in the four catalogs and in `ui-strings`' seed: 776 messages.
+- **The stories:** the nine entries with the checkout's three steps (and their errors) or the receipt as placed and "In the account"; `one-page`'s live render is its delivery step, with the contact step done.
+- **The migration** `20261107_163728_checkout_receipt_variants` (re-created after T82's, below): the new values on the `checkout_variant` and `receipt_variant` enums of `templates` and `_templates_v`.
+
+### Where it differs from the plan
+
+- **`default` on the account keeps M3's order screen,** which is the receipt's `default` without the thanks already (its own markup since T53); the five new layouts draw the screen through the receipt's members.
+- **`one-page`'s step is still in the path** (`/checkout/contact`, `/delivery`, `/review`): the page draws the three steps there, the one in the path open. Each step's action keeps its own route, its flash and its refusals, and the stepper's and "Edit"'s links stay plain links.
+- **Without scripts, the receipt's address keeps the review's anchor** (`…/confirmed#main-step-review`): a redirect whose `Location` has no fragment takes the request's, and the review's form posts to its page at its anchor. The receipt has no such id, so nothing moves.
+- **The express rail has no buttons in the shop until M6:** `slots.express` is the place; the DS shows Apple Pay, Google Pay and PayPal marks as the fixtures' buttons.
+
+### First load (D102)
+
+Built as `e2e-smoke` builds (Medusa up, `STOREFRONT_PRERENDER_PRODUCTS=4`, `STOREFRONT_LISTING_PAGE_SIZE=3`), gzipped bytes, `main` with T85 against T86 (both built on the cloud VM; `main`'s rows match its CI run):
+
+| Route | T85 | T86 | Budget |
+|---|---|---|---|
+| The five listing routes | 343,029 (335.0 KB) | **343,029 (335.0 KB)** | 343,040 (335 KB) |
+| `/[market]/products/[handle]` | 342,422 (334.4) | 342,421 (334.4) | 343,040 |
+| `/[market]`, `/[market]/[...slug]` | 339,243 (331.3) | 339,243 (331.3) | |
+| `/[market]/search` | 329,805 (322.1) | 329,805 (322.1) | |
+| `/[market]/account/orders/[id]` | 321,842 (314.3) | 321,842 (314.3) | |
+| `/[market]/checkout/[step]` | 320,730 (313.2) | 320,860 (313.3) | |
+| `/[market]/order/[id]/confirmed` | 317,635 (310.2) | 317,635 (310.2) | |
+| `/[market]/cart` | 316,032 (308.6) | 316,032 (308.6) | |
+
+The layouts are server components: only `CheckoutStepFocus` is client code, on the checkout's pages. **The first build put 0.7 KB on every route** (the listings 335.7 KB, over; the cart 3.8 KB): `lib/actions/forms.ts` imported `checkoutIds` from `checkout/parts.tsx`, and a server action's module brings the client components its imports reach (the address form's fields, the payment step's islands) into the first load of every page whose tree imports the actions (the shell's, so all). `checkoutIds` moved to `checkout/ids.ts`, which imports no component (its own `exports` row in `@shopblok/ui`), and the rows went back to `main`'s. The kept-out rows are T80's and T84's, unchanged.
+
+### Mutations (each fails a test)
+
+- **`one-page`'s delivery posting to the contact step's action** (one action for the page's steps; the done contact step has no fields, so the address is not sent): `checkout-variants.spec.ts`' one-page purchase fails at the review's address (`…/checkout/contact?f=…#main-step-contact`: the address refused). The test also opens the delivery again from its "Edit", sends it again and checks the address is still on the review.
+
+### Checks (cloud VM)
+
+- `pnpm typecheck` and `pnpm lint` exit 0. `pnpm test` with the dispatch's PNGs: `packages/ui` 5883, the storefront 4083, the registry 234, fixtures 479, scripts 425, i18n 111, integrations 14, every one passing (the drift test and the registry's thumbnail test among them). New: the contracts' `one-page` and `next-steps` rules (`fixtures/src/pages/pages.test.ts`), the drift test's template members (a receipt member that draws `default`'s root fails it).
+- The migration applied with `payload migrate`, and `migrate:create --skip-empty` afterwards writes nothing.
+- The DS built without a backend and served by `next start`: the nine entries at 375 and 1440 px with no overflow; `design-system.spec.ts` with `--ignore-snapshots` for them and the entries next to them: 78 passed.
+- The storefront built as `e2e-smoke` builds it; `check:first-load` passes with the rows above.
+- Against `next start` (`E2E_TEST_ROUTES=true`, `STOREFRONT_LISTING_PAGE_SIZE=3`, `STOREFRONT_PRERENDER_PRODUCTS=4`, `E2E_MEDUSA_LOG` the Medusa's log): `checkout-variants.spec.ts` (13), `checkout-cy.spec.ts`, `checkout-us.spec.ts`, `auth.spec.ts`, `cart-variants.spec.ts`, `templates-global.spec.ts` and `markets-switch.spec.ts`: 38 passed.
+- **Each page keeps its own read of the global:** after a publish, `/checkout/contact` showed the new layout while `/checkout/delivery`, asked for the first time since, still drew the old one. `checkout-variants.spec.ts` therefore asks every page a purchase draws (the three steps and a receipt, in both markets) after each publish, all of them each time, as `freshWithinTwo` wants.
+
+### Baselines (D109)
+
+The dispatch (run [42387161550](https://github.com/neno221/shopblok-starter/actions/runs/42387161550), commit `72f1690`): the nine entries' 27 baselines and 9 thumbnails, 36 PNGs and 7,225,405 bytes, and two rewritten with nothing to see, the same two cells as T85's: `molecules/promo-code-field/en-1440` (8 pixels, 1 of 255) and `templates/product-detail/en-768` (34 pixels, 21 of 255). The set: 599 PNGs, 83.76 MB (83,755,984 bytes). One update well under half a set (D51).
+
+### Changes from the review of this PR (PR 123)
+
+| # | Finding | Done |
+|---|---|---|
+| 1 | Must-fix: a stored receipt value the family does not have went to the receipt's template on the account, which drew its first member (a second `<main>`, the thanks, "Continue shopping") | Fixed: the account draws a receipt member only for one of `VARIANTS.receipt` other than `default`; any other value keeps M3's screen. `account.test.tsx` covers the five layouts, `default` and `gallery` |
+| 2 | Must-fix: `checkVisibility()` unguarded in the one-page focus (it throws before Safari 17.4) | Fixed: the optional call with `getClientRects()` as the fallback, as `organisms/focus-after.ts` does |
+| 3 | Must-fix: `next-steps` and `compact` assumed a city (D65: seven countries have none): "to ." and "Standard · " | Fixed: `nextSteps.delivery.textNoCity` ("It goes by {method}.", in the four catalogs; 776 messages) and `compact` names the city only when there is one; `order-confirmation.test.tsx` covers both with and without a city, and each layout's root |
+| 4 | The print rule also matches a statement Next keeps hidden from an earlier page | Skipped (print only, not security or a cleanup) |
+| 5 | The same failure twice does not move focus again | Skipped (a11y improvement; M3's layouts have the same repeat) |
+| 6 | "Create an account" for a signed-in shopper on a guest receipt | Skipped (UX) |
+| 7 | `stepAnchor` repeats the action's reads | Skipped (efficiency) |
+| 8 | A second `getCustomer()` on the next-steps receipt | Skipped (efficiency) |
+| 9 | Cleanup: `ReviewPart`'s unused `headingLevel`, and one-page's Edit link repeating `ReviewPart`'s | Fixed: `headingLevel` dropped; `ReviewEditLink` in `checkout/parts.tsx`, used by both (its `data-slot` given) |
+| 10 | Cleanup: the delivery and payment lines drawn twice (checkout and receipt) | Fixed: `ShippingMethodLine` and `PaymentLine` in `checkout/lines.tsx` (`free` passed in), used by the review, one-page's finished steps and the receipt's parts; the same markup, so no pixel changes |
+
+After the fixes: `typecheck`, `lint` and `pnpm test` (ui 5897, the storefront 4083, the rest as above); the build and `check:first-load` (the budgeted rows as above; the checkout's pages 320,879 bytes, 19 more for the guard); `checkout-variants`, `checkout-cy` and `checkout-us` against `next start`, 22 passed.
+
+### After merging `main` (T82, PR 122)
+
+- **The merge:** `main` at `b6b2d02` merged in (a merge commit). Conflicts: `migrations/index.ts`, the message counts (782 with T82's 6: `messages.test.ts`, `ui-strings.test.ts`, `ui-strings.spec.ts`, the seed's comment), `registry/src/index.test.ts` (200 entries, 91 family members) and the docs (T82's SETUP.md section before this one; the plan's status line and NEXT-SESSION.md name both, with T81's prompt from T82).
+- **The migration, re-created (D88):** `20261107_152954_checkout_receipt_variants` removed, T82's `20261107_152528_content_variants` applied, then `migrate:create` wrote `20261107_163728_checkout_receipt_variants` with the same `up` and `down` SQL (the enum values only); the local database's row was renamed to it, and `migrate:status` shows every migration applied.
+- **Checks:** `typecheck`, `lint` and `pnpm test` (ui 5969, the storefront 4174, registry 234, fixtures 479, scripts 425, i18n 111, integrations 14); the build and `check:first-load`: the listings 342,970 bytes and the product page 342,362, `main`'s with T82 (342,970 and 342,363); the checkout's pages 320,820.
