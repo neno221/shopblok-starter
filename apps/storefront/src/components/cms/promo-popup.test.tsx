@@ -21,9 +21,10 @@ vi.mock("next/dynamic", async () => {
 
 const roots: Root[] = [];
 const card = () => document.querySelector<HTMLElement>("[data-slot=promo-popup]");
+const cards = () => document.querySelectorAll<HTMLElement>("[data-slot=promo-popup]");
 const answered = { cartCount: 0, consent: { analytics: false, marketing: false } };
 
-async function mount(offer = "offer-1") {
+async function mount(offer = "offer-1", visibility?: "all" | "mobile" | "desktop") {
   if (document.getElementById("before") === null)
     document.body.insertAdjacentHTML("afterbegin", '<a href="/x" id="before">Before</a>');
   const holder = document.body.appendChild(document.createElement("div"));
@@ -32,7 +33,12 @@ async function mount(offer = "offer-1") {
   await act(async () =>
     root.render(
       <Suspense>
-        <PromoPopup offer={offer} labelledBy="offer-heading" closeLabel="Close">
+        <PromoPopup
+          offer={offer}
+          labelledBy="offer-heading"
+          closeLabel="Close"
+          visibility={visibility}
+        >
           <h2 id="offer-heading">Ten off</h2>
           <button type="button">Copy the code</button>
         </PromoPopup>
@@ -149,6 +155,43 @@ describe("the promo popup's island (T82)", () => {
     await mount("offer-2");
     await shows();
   });
+
+  it("shows one popup at a time: a second offer on the page waits for a later page (PR 122 review, item 2)", async () => {
+    await mount("offer-1");
+    await mount("offer-2");
+    await act(async () => setVisitor(answered));
+    await shows();
+    expect(cards()).toHaveLength(1);
+    // The second offer was not written down as seen, so a later page shows it.
+    expect(window.localStorage.getItem("shopblok:promo-popup:offer-2")).toBeNull();
+    unmountAll();
+    await mount("offer-1");
+    await mount("offer-2");
+    await shows();
+    expect(cards()).toHaveLength(1);
+    expect(window.localStorage.getItem("shopblok:promo-popup:offer-2")).not.toBeNull();
+  });
+
+  it.each([
+    ["desktop", false],
+    ["mobile", true],
+  ] as const)(
+    "a block shown on %s only is not claimed where it is hidden (PR 122 review, item 1)",
+    async (visibility, large) => {
+      const matchMedia = vi
+        .spyOn(window, "matchMedia")
+        .mockImplementation((query) => ({ matches: large, media: query }) as MediaQueryList);
+      await mount("offer-1", visibility);
+      await act(async () => setVisitor(answered));
+      // Given time for the card's module, nothing shows and the offer is not burnt.
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      });
+      expect(card()).toBeNull();
+      expect(window.localStorage.length).toBe(0);
+      matchMedia.mockRestore();
+    },
+  );
 
   it("shows nothing when storage cannot be read", async () => {
     const getItem = vi.spyOn(window, "localStorage", "get").mockImplementation(() => {

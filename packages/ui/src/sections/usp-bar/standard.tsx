@@ -35,7 +35,7 @@ const columns = ["lg:grid-cols-1", "lg:grid-cols-2", "lg:grid-cols-3", "lg:grid-
 
 type UspBarSectionProps = UspBarSectionData & {
   /** T82: the `strip` member's name for its row, which scrolls on a phone; the others draw no word. */
-  copy?: Pick<SectionsCopy, "uspBar">;
+  copy: Pick<SectionsCopy, "uspBar">;
   className?: string;
 };
 

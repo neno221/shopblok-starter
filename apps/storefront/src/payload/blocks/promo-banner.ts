@@ -6,36 +6,24 @@ import type {
 import { date, text, upload } from "payload/shared";
 import { CATALOG_COLLECTIONS } from "../../lib/cms/paths";
 import { link } from "../fields/link";
-import { imageField, sectionBlock } from "./section-block";
+import { imageField, requiredFor, sectionBlock } from "./section-block";
 
 /** A promotion code as Medusa takes one at the cart: letters, digits, `-` and `_`, 40 at most. */
 export const PROMO_CODE_PATTERN = /^[A-Za-z0-9_-]{1,40}$/;
 
-/** The design the field's block is in (`siblingData`: the block's own fields). */
-const designOf = (args: { siblingData?: unknown }) =>
-  String((args.siblingData as { variant?: unknown } | undefined)?.variant);
-
-/**
- * The picture, required for the `full-bleed` design (T82), which draws the offer on it: Payload's
- * own check first, then the design's need. The section's contract refuses the same block
- * (`variantNeeds`), so a block saved before this check is left out of the page.
- */
-const validateMedia: UploadFieldSingleValidation = async (value, args) => {
-  const base = await upload(value, args);
-  if (base !== true) return base;
-  return value == null && designOf(args) === "full-bleed"
-    ? "This design draws the offer on the picture: choose one."
-    : true;
-};
+/** The picture, required for the `full-bleed` design (T82), which draws the offer on it. */
+const validateMedia: UploadFieldSingleValidation = requiredFor(
+  ["full-bleed"],
+  "This design draws the offer on the picture: choose one.",
+  upload,
+);
 
 /** The end, required for the `countdown` design (T82), which counts down to it. */
-const validateEnd: DateFieldValidation = (value, args) => {
-  const base = date(value, args);
-  if (base !== true) return base;
-  return value == null && designOf(args) === "countdown"
-    ? "This design counts down to the offer's end: set one."
-    : true;
-};
+const validateEnd: DateFieldValidation = requiredFor(
+  ["countdown"],
+  "This design counts down to the offer's end: set one.",
+  date,
+);
 
 /**
  * `promoBanner` (SPEC §7.4, D79): an offer with a code to copy, its end and the small print. The

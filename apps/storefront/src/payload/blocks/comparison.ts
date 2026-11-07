@@ -1,13 +1,8 @@
 import type { RelationshipFieldSingleValidation, Where } from "payload";
 import { relationship } from "payload/shared";
 import { hideDeletedExceptHeld } from "../fields/link";
-import { sectionBlock } from "./section-block";
-
-/** A relationship's value as its id (a number, or a populated document's). */
-const idOf = (value: unknown): unknown =>
-  value !== null && typeof value === "object" && "id" in value
-    ? (value as { id: unknown }).id
-    : value;
+import { idOf } from "../id-of";
+import { isVariant, sectionBlock } from "./section-block";
 
 /** The products the block compares, by id. */
 const comparedIds = (sibling: unknown): unknown[] => {
@@ -64,8 +59,7 @@ export const ComparisonBlock = sectionBlock({
       }),
       validate: validatePick,
       admin: {
-        condition: (_: unknown, sibling: { variant?: unknown } | undefined) =>
-          sibling?.variant === "highlight",
+        condition: isVariant("highlight"),
         description: "Its column is set apart and named “Our pick”.",
       },
     },

@@ -85,7 +85,7 @@ function PromoBannerPopup(props: PromoBannerSectionProps) {
       >
         <PromoBannerCard {...props} />
       </SectionFrame>
-      {popup({ body, labelledBy: headingId })}
+      {popup({ body, labelledBy: headingId, visibility: settings?.visibility ?? "all" })}
     </>
   );
 }

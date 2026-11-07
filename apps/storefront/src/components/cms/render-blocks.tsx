@@ -177,11 +177,12 @@ export async function RenderBlocks({
                 timeZone={timeZone}
                 prefetch={prefetch}
                 headingLevel={heroTitle && index === 0 ? 1 : 2}
-                popup={({ body, labelledBy }) => (
+                popup={({ body, labelledBy, visibility }) => (
                   <PromoPopup
                     offer={block.key}
                     labelledBy={labelledBy}
                     closeLabel={copy.promoBanner.close}
+                    visibility={visibility}
                   >
                     {body}
                   </PromoPopup>

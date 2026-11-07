@@ -11,7 +11,7 @@
 
 import { reserveSpaceFor } from "@shopblok/ui/organisms/cookie-consent-reserve";
 import { PromoPopupFrame } from "@shopblok/ui/sections/promo-banner/popup-frame";
-import { useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 
 type PromoPopupCardProps = {
@@ -27,16 +27,21 @@ const inModal = (target: EventTarget | null) =>
 
 function PromoPopupCard({ labelledBy, closeLabel, onClose, children }: PromoPopupCardProps) {
   const [card, setCard] = useState<HTMLElement | null>(null);
+  // Where focus came from when it entered the card, to give it back when the card goes.
+  const cameFrom = useRef<HTMLElement | null>(null);
+  const close = useCallback(() => {
+    const from = cameFrom.current;
+    if (card?.contains(document.activeElement) === true && from?.isConnected === true) from.focus();
+    onClose();
+  }, [card, onClose]);
   // WCAG 2.4.11: its height is kept clear at the end of the page while it is there.
   useEffect(() => (card === null ? undefined : reserveSpaceFor(card)), [card]);
   useEffect(() => {
     if (card === null) return;
-    // Where focus came from when it entered the card, to give it back when the card goes: the
-    // event's `relatedTarget`, or the last element focused outside the card when the browser gives
-    // none (a focus that started where the browser has no element to name, such as the page).
+    // The event's `relatedTarget`, or the last element focused outside the card when the browser
+    // gives none (a focus that started where the browser has no element to name, such as the page).
     const active = document.activeElement;
     let outside = active instanceof HTMLElement && !card.contains(active) ? active : null;
-    let cameFrom: HTMLElement | null = null;
     const onFocusIn = (event: FocusEvent) => {
       const target = event.target;
       if (!(target instanceof Node) || !card.contains(target)) {
@@ -45,26 +50,21 @@ function PromoPopupCard({ labelledBy, closeLabel, onClose, children }: PromoPopu
       }
       const from = event.relatedTarget;
       if (from instanceof Node && card.contains(from)) return;
-      cameFrom = from instanceof HTMLElement ? from : outside;
+      cameFrom.current = from instanceof HTMLElement ? from : outside;
     };
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== "Escape" || event.defaultPrevented || inModal(event.target)) return;
       close();
     };
-    const close = () => {
-      if (card.contains(document.activeElement) && cameFrom?.isConnected === true) cameFrom.focus();
-      onClose();
-    };
-    const button = card.querySelector<HTMLButtonElement>('[data-slot="promo-popup-close"]');
     document.addEventListener("focusin", onFocusIn);
     document.addEventListener("keydown", onKeyDown);
-    button?.addEventListener("click", close);
     return () => {
       document.removeEventListener("focusin", onFocusIn);
       document.removeEventListener("keydown", onKeyDown);
-      button?.removeEventListener("click", close);
     };
-  }, [card, onClose]);
+  }, [card, close]);
+  // In a fragment: `react-dom`'s portal type comes from another copy of `@types/react` than this
+  // component's, and `next/dynamic` refuses it as the component's return type otherwise.
   return (
     <>
       {createPortal(
@@ -72,6 +72,7 @@ function PromoPopupCard({ labelledBy, closeLabel, onClose, children }: PromoPopu
           ref={setCard}
           labelledBy={labelledBy}
           closeLabel={closeLabel}
+          onClose={close}
           placement="corner"
         >
           {children}

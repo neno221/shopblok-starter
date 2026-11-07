@@ -19,9 +19,9 @@ function UspBarStrip({ settings, items, copy, className }: UspBarSectionProps) {
     >
       <ul
         data-slot="usp-strip"
-        aria-label={copy?.uspBar.label}
-        // Focusable only with its name: a scrolling list the keyboard can reach (axe's rule).
-        tabIndex={copy === undefined ? undefined : 0}
+        aria-label={copy.uspBar.label}
+        // A scrolling list the keyboard can reach, named (axe's scrollable-region-focusable).
+        tabIndex={0}
         className={cn(
           "-mx-1 flex snap-x items-center gap-x-8 overflow-x-auto rounded-md px-1 py-1 outline-none focus-visible:ring-3 focus-visible:ring-ring",
           // Centred only while it fits: a plain centre pushes the first promises out of reach.

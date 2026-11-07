@@ -55,6 +55,46 @@ describe("the content blocks' members (T82)", () => {
     expect(container.querySelector("[data-slot=media-with-text-scrim]")).not.toBeNull();
   });
 
+  it.each([1, 2] as const)(
+    "the full-bleed bands preload their picture only when they hold the page's <h1> (PR 122 review, item 3): level %s",
+    (level) => {
+      // next/image leaves `loading="lazy"` off the picture it preloads (and off any `data:` URL,
+      // so the pictures get a path).
+      const loading = level === 1 ? null : "lazy";
+      const withPath = <T extends { image?: { src: string; alt: string } | undefined }>(
+        data: T,
+      ) => ({
+        ...data,
+        image: { alt: data.image?.alt ?? "", src: "/media/band.jpg" },
+      });
+      const media = render(
+        <MediaWithTextSection
+          {...withPath(f.mediaWithText.section)}
+          variant="full-bleed"
+          headingLevel={level}
+          copy={copy}
+        />,
+      ).container;
+      expect(screen.getByRole("heading", { level }).textContent).toBe(
+        f.mediaWithText.section.heading,
+      );
+      expect(media.querySelector("img")?.getAttribute("loading")).toBe(loading);
+      document.body.innerHTML = "";
+      const promo = render(
+        <PromoBannerSection
+          {...withPath(f.promoBanner.section)}
+          variant="full-bleed"
+          headingLevel={level}
+          copy={copy}
+          locale="en-US"
+          timeZone="UTC"
+          frozen
+        />,
+      ).container;
+      expect(promo.querySelector("img")?.getAttribute("loading")).toBe(loading);
+    },
+  );
+
   it("media with text, overlap: is not under the header", () => {
     const { container } = render(
       <MediaWithTextSection {...f.mediaWithText.section} variant="overlap" copy={copy} />,

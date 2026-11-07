@@ -16,6 +16,8 @@ import {
   closeOffer,
   isShowing,
   isShowingOnServer,
+  mountPopup,
+  shownHere,
   subscribePromoPopups,
 } from "../../lib/visitor/promo-popups";
 import { useVisitor } from "../../lib/visitor/use-visitor";
@@ -29,11 +31,19 @@ export type PromoPopupProps = {
   labelledBy: string;
   /** "Close", the close button's name. */
   closeLabel: string;
+  /** The block's `visibility`: the offer is claimed only where the block is shown. */
+  visibility?: "all" | "mobile" | "desktop" | undefined;
   /** The card's contents, drawn on the server. */
   children: ReactNode;
 };
 
-export function PromoPopup({ offer, labelledBy, closeLabel, children }: PromoPopupProps) {
+export function PromoPopup({
+  offer,
+  labelledBy,
+  closeLabel,
+  visibility,
+  children,
+}: PromoPopupProps) {
   const visitor = useVisitor();
   // Only once the cookie banner is answered (it is shown while `consent` is null).
   const answered = visitor !== "unknown" && visitor.consent !== null;
@@ -44,9 +54,10 @@ export function PromoPopup({ offer, labelledBy, closeLabel, children }: PromoPop
     () => isShowing(offer, owner),
     isShowingOnServer,
   );
+  useEffect(() => mountPopup(owner), [owner]);
   useEffect(() => {
-    if (answered) claimOffer(offer, owner);
-  }, [answered, offer, owner]);
+    if (answered && shownHere(visibility)) claimOffer(offer, owner);
+  }, [answered, offer, owner, visibility]);
   const close = useCallback(() => closeOffer(offer), [offer]);
   return open ? (
     <PromoPopupCard labelledBy={labelledBy} closeLabel={closeLabel} onClose={close}>

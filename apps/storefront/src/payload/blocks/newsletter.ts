@@ -1,5 +1,5 @@
 import { formReference, privacyLink } from "../fields/form-reference";
-import { headingField, imageField, sectionBlock } from "./section-block";
+import { headingField, imageField, isVariant, sectionBlock } from "./section-block";
 
 /**
  * `newsletter` (SPEC §7.4, D81): the signup as a band of a page, the editor's heading and line over
@@ -28,8 +28,7 @@ export const NewsletterBlock = sectionBlock({
       ...imageField("media", { required: true }),
       label: "Picture",
       admin: {
-        condition: (_: unknown, sibling: { variant?: unknown } | undefined) =>
-          sibling?.variant === "split",
+        condition: isVariant("split"),
         description: "Beside the form.",
       },
     },

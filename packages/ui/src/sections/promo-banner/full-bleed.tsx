@@ -64,6 +64,8 @@ function PromoBannerFullBleed({
             alt={image.alt}
             radius="none"
             sizes="100vw"
+            // The page's first picture when the band holds its `<h1>` (its LCP), as the overlay hero.
+            priority={headingLevel === 1}
             className="absolute inset-0 -z-10 aspect-auto h-full"
             data-slot="promo-banner-image"
           />

@@ -417,14 +417,14 @@ export const sectionStories = {
       "A list: a screen reader says how many promises there are.",
       "The icons are decoration (aria-hidden); the title says what each promise is.",
     ],
-    live: (ctx) => <UspBarSection {...fixtures(ctx).uspBar.section} />,
+    live: (ctx) => <UspBarSection {...fixtures(ctx).uspBar.section} copy={copy(ctx)} />,
     statesLayout: "stack",
     states: [
       {
         id: "long",
         label: "Long text, three items",
         description: "Three columns from lg up; a long title and line wrap.",
-        render: (ctx) => <UspBarSection {...fixtures(ctx).uspBar.long} />,
+        render: (ctx) => <UspBarSection {...fixtures(ctx).uspBar.long} copy={copy(ctx)} />,
       },
       {
         id: "muted",
@@ -434,6 +434,7 @@ export const sectionStories = {
           <UspBarSection
             {...fixtures(ctx).uspBar.section}
             settings={{ surface: "muted", spacing: "small" }}
+            copy={copy(ctx)}
           />
         ),
       },

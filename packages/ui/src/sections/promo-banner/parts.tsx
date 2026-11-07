@@ -13,9 +13,14 @@ import type * as React from "react";
 /**
  * The `popup` member's island (T82): the shop's, which shows the card at the window's end corner
  * once per offer, after the cookie choice (`components/cms/promo-popup.tsx`). It gets the card's
- * contents and the id of its heading. Without it (the design system) the card is drawn in place.
+ * contents, the id of its heading and the block's `visibility` (the card, at the end of `<body>`,
+ * is outside the section that hides it). Without it (the design system) the card is drawn in place.
  */
-type PromoPopupSlot = (card: { body: React.ReactNode; labelledBy: string }) => React.ReactNode;
+type PromoPopupSlot = (card: {
+  body: React.ReactNode;
+  labelledBy: string;
+  visibility: "all" | "mobile" | "desktop";
+}) => React.ReactNode;
 
 type PromoBannerSectionProps = PromoBannerSectionData & {
   copy: Pick<SectionsCopy, "newTab" | "copyCode" | "promoBanner" | "countdown">;
