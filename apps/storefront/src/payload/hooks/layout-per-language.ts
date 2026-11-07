@@ -52,7 +52,7 @@ async function readLatest(
   id: Id,
   language: string,
 ): Promise<{ layout: unknown; own: unknown } | null> {
-  const read = (fallbackLocale: string | false) =>
+  const read = (field: "layout" | "localizedLayout", fallbackLocale: string | false) =>
     keepingRequest(req, () =>
       req.payload.findByID({
         collection: "pages",
@@ -61,15 +61,15 @@ async function readLatest(
         fallbackLocale: fallbackLocale as never,
         draft: true,
         depth: 0,
-        select: { layout: true, localizedLayout: true },
+        select: { [field]: true },
         disableErrors: true,
         overrideAccess: true,
         req,
       }),
     ) as Promise<Data | null>;
   // One after another: each call sets `req.locale` to its own while it runs, and they share `req`.
-  const withFallback = await read(DEFAULT_LOCALE);
-  const own = await read(false);
+  const withFallback = await read("layout", DEFAULT_LOCALE);
+  const own = await read("localizedLayout", false);
   if (withFallback === null || own === null) return null;
   return { layout: withFallback["layout"] ?? [], own: own["localizedLayout"] };
 }

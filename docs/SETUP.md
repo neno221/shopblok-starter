@@ -8041,3 +8041,21 @@ In the default project (serial, 5 tests, about 12 s locally): a page made throug
 - `typecheck`, `lint` and `test` exit 0 for every workspace with no `.env` (CI's state): the storefront 3951 tests, ui 5802, `scripts` 425, the fixtures 470, the registry 234, i18n 111, `@shopblok/integrations` 14, the backend 185, `@shopblok/medusa-markets` 57 (the first `lint` run failed only on the throw-away probe's folder, deleted before the commit). `generate:types` adds the two fields, `generate:importmap` reorders its imports, and `migrate:create --skip-empty` after the migration writes nothing.
 - The storefront built as `e2e-smoke` builds it, with Medusa up: `check:first-load` passes with the rows unchanged (the product page 333.9 KB, the listings 332.3, `/[market]` and `/[market]/[...slug]` 330.7) and the listener kept out.
 - **Every e2e project** against `next start` (`E2E_TEST_ROUTES=true`, the job's `STOREFRONT_*`, `E2E_MEDUSA_LOG`): **230 passed**, `localized-layout.spec.ts` 5 of 5.
+
+### Changes from the review of this PR (PR 117)
+
+The review is in the Library (`reviews/pr-117-code-review.md`). Finding 0 (the switch's JSDoc in `payload-types.ts`) was already fixed in `d02179a`.
+
+| # | Finding | Done |
+|---|---|---|
+| 1 | Must-fix: in English, a switch-on save that leaves `localizedLayout` out overwrote the blocks English kept from an earlier time the switch was on | Fixed: `copyLayoutOnSwitch` checks `originalDoc.localizedLayout` in English too; a unit test (it fails with the old check) |
+| 2 | Cleanup: `readLatest` rebuilt nested-pages' `ownLanguages` and made a `locale: "all"` read per language, and one in beforeChange it did not use | Fixed: `copyLayoutIntoOtherLanguages` reads the languages once with nested-pages' `latest` (now exported); `readLatest` reads only the two layouts |
+| 3 | Switched on in Greek, Greek's copy comes from the version before the save, so the same save's edits are missing from it | Skipped (an edge, not security or a cleanup) |
+| 4 | Check: the admin flow with autosave (ticking the box) is not tested | Skipped here; added to W7's design review (the plan's §4a, step 2): tick the box in the admin in English and in Greek, type in the title, and after the next autosave check Greek's layout |
+| 5 | "Translated" means "has a slug of its own" (D80's meaning) | Skipped (design) |
+| 6 | One version per language on every switch, against `maxPerDoc: 50` | Skipped (robustness) |
+| 7 | Page reads load both layouts | Skipped (efficiency) |
+| 8 | `readLatest`'s wide reads | Folded into 2: each read selects only the field it uses |
+| 9 | `down` leaves `localizedLayout`'s relationship rows | Skipped (Payload's generated `down`) |
+
+After the fixes: `layout-per-language.test.ts` 8 of 8, `typecheck` and `lint` clean, and `localized-layout.spec.ts` and `cms-pages.spec.ts` against a new `next start` build (the machine had restarted, so `pnpm bootstrap` first): 23 passed.
