@@ -64,6 +64,10 @@ export const UiStrings: CollectionConfig = {
     description:
       "The shop's microcopy, one message per document. Placeholders such as {count} must stay as the English text has them; a save that changes one is refused.",
     pagination: { defaultLimit: 50 },
+    // D107 (T89): "Not translated in …", the messages English has and one language lacks.
+    components: {
+      beforeListTable: ["/payload/components/not-translated-filter#NotTranslatedFilter"],
+    },
   },
   access: {
     read: () => true,

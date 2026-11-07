@@ -1,6 +1,7 @@
 import type { CollectionConfig } from "payload";
 import { isStaff, staffOrPublished } from "../access/roles";
 import { seedKey } from "../fields/seed-key";
+import { translationStatusField } from "../fields/translation-status";
 import { slugField } from "../fields/slug";
 import { keepRefusalReason } from "../hooks/keep-refusal-reason";
 import { revalidateOnPublish } from "../hooks/revalidate-on-publish";
@@ -25,7 +26,7 @@ const revalidate = revalidateOnPublish({ tags: pageTags });
  */
 export const Pages: CollectionConfig = {
   slug: "pages",
-  admin: { useAsTitle: "title", defaultColumns: ["title", "slug", "_status", "updatedAt"] },
+  admin: { useAsTitle: "title", defaultColumns: ["title", "slug", "_status", "translationStatus", "updatedAt"] },
   access: {
     // A visitor sees published pages only; staff see drafts as well.
     read: staffOrPublished,
@@ -60,6 +61,8 @@ export const Pages: CollectionConfig = {
     maxPerDoc: 50,
   },
   fields: [
+    // D107 (T89): what each open language has still to translate, in the sidebar and the list.
+    translationStatusField({ collection: "pages" }),
     { name: "title", type: "text", localized: true, required: true },
     slugField(),
     // D105 (T88): off, every language shares `layout`; on, each draws its own `localizedLayout`.
