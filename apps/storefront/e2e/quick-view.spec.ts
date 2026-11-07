@@ -15,7 +15,12 @@ import { adminToken, base, freshWithinTwo, settled } from "./support/server";
 // market's product and a 404 for anything else. Every product page layout draws the product in `/`
 // and `/us` with no axe violation. `afterAll` publishes the global as it was, in every language.
 
-const LISTING = "/us/store";
+/**
+ * The page of `/us/store` that lists the purchase's product: the listing shows the newest first, a
+ * few to a page (`STOREFRONT_LISTING_PAGE_SIZE=3`), and the seed's order of creation decides which
+ * page that is (in CI it is not the first). `beforeAll` finds it.
+ */
+let LISTING = "/us/store";
 const PRODUCT = `/us/products/${HANDLE}`;
 const axeTags = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"];
 const LAYOUTS = ["default", "thumbnails-below", "grid", "stacked", "wide", "centered"] as const;
@@ -50,6 +55,14 @@ test.describe("the quick view and the product page's layouts (T83)", () => {
 
   test.beforeAll(async () => {
     token = await adminToken();
+    for (let n = 1; n <= 8; n++) {
+      const path = n === 1 ? "/us/store" : `/us/store/page/${n}`;
+      if (await holds(path, `href="/us/products/${HANDLE}"`)) {
+        LISTING = path;
+        break;
+      }
+      if (n === 8) throw new Error(`no page of /us/store lists ${HANDLE}`);
+    }
     published = await snapshotGlobal(token, "templates");
   });
 
