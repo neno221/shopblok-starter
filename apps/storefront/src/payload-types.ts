@@ -879,11 +879,36 @@ export interface SpacerBlock {
  * via the `definition` "HeroBlock".
  */
 export interface HeroBlock {
-  variant: "standard";
+  variant:
+    | "standard"
+    | "overlay"
+    | "centered"
+    | "editorial"
+    | "bento"
+    | "collection-switcher"
+    | "product"
+    | "text";
   eyebrow?: string | null;
   heading: string;
   subheading?: string | null;
+  /**
+   * The Overlay and Editorial designs need one; the Text design shows none.
+   */
   media?: (number | null) | Media;
+  /**
+   * The smaller second picture.
+   */
+  secondMedia?: (number | null) | Media;
+  /**
+   * Two to four collections, each a tab with its own picture. A collection gone from Medusa is left out.
+   */
+  collections?:
+    | {
+        collection: number | ProductCollection;
+        media: number | Media;
+        id?: string | null;
+      }[]
+    | null;
   links?:
     | {
         link: {
@@ -2507,6 +2532,14 @@ export interface HeroBlockSelect<T extends boolean = true> {
   heading?: T;
   subheading?: T;
   media?: T;
+  secondMedia?: T;
+  collections?:
+    | T
+    | {
+        collection?: T;
+        media?: T;
+        id?: T;
+      };
   links?:
     | T
     | {
@@ -3262,7 +3295,7 @@ export interface PayloadMigrationsSelect<T extends boolean = true> {
  */
 export interface Header {
   id: number;
-  design: "classic" | "centered" | "two-tier" | "mega-menu" | "minimal";
+  design: "classic" | "centered" | "two-tier" | "mega-menu" | "minimal" | "transparent";
   /**
    * The bar above the header. Without a message there is no bar.
    */
@@ -3612,17 +3645,54 @@ export interface Template {
     /**
      * The category, collection and store pages, and the search page.
      */
-    variant: "default";
-  };
-  quickView: {
+    variant: "default" | "top-bar" | "drawer" | "accordion" | "chips" | "rail" | "inline";
     /**
-     * Not shown in the shop yet: the quick view will open from the listing's quick-add card. Off: the card adds to the cart, or opens the product page when the product has options.
+     * The card of every product in the listings' and the search page's grids. Quick add puts a button on it; the Quick view tab says what it does.
      */
-    variant: "off" | "default";
+    card:
+      | "standard"
+      | "swatches"
+      | "quick-add"
+      | "overlay"
+      | "minimal"
+      | "horizontal"
+      | "compact"
+      | "editorial"
+      | "bordered"
+      | "image-swap";
+  };
+  quickView?: {
+    /**
+     * Not shown in the shop yet: the quick view will open from the listing's quick-add card. Off: the card's button opens the product page.
+     */
+    variant?: ("off" | "default") | null;
   };
   cart: {
-    variant: "default";
-    miniCart: "drawer" | "page";
+    variant: "default" | "table" | "sticky-summary" | "focused";
+    miniCart: "drawer" | "drawer-picks" | "page";
+    /**
+     * Up to four products under the lines of the drawer with picks. A product the cart already holds is left out.
+     */
+    picks?: {
+      mode: "collection" | "category" | "handpicked" | "newest" | "onSale" | "tag" | "type";
+      collection?: (number | null) | ProductCollection;
+      category?: (number | null) | Category;
+      descendants?: boolean | null;
+      /**
+       * Shown in this order.
+       */
+      products?: (number | Product)[] | null;
+      /**
+       * The tag's value, as Medusa Admin shows it (summer).
+       */
+      tag?: string | null;
+      /**
+       * The product type's value, as Medusa Admin shows it (Hoodie).
+       */
+      type?: string | null;
+      limit?: number | null;
+      sort?: ("newest" | "priceAsc" | "priceDesc" | "title") | null;
+    };
     quickCart: "dropdown" | "off";
   };
   checkout: {
@@ -3847,6 +3917,7 @@ export interface TemplatesSelect<T extends boolean = true> {
     | T
     | {
         variant?: T;
+        card?: T;
       };
   quickView?:
     | T
@@ -3858,6 +3929,19 @@ export interface TemplatesSelect<T extends boolean = true> {
     | {
         variant?: T;
         miniCart?: T;
+        picks?:
+          | T
+          | {
+              mode?: T;
+              collection?: T;
+              category?: T;
+              descendants?: T;
+              products?: T;
+              tag?: T;
+              type?: T;
+              limit?: T;
+              sort?: T;
+            };
         quickCart?: T;
       };
   checkout?:

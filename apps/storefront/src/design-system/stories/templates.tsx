@@ -37,7 +37,11 @@ import {
 } from "@shopblok/ui/templates/product-detail";
 import { ProductListingTemplate, productListingCopy } from "@shopblok/ui/templates/product-listing";
 import { SearchResultsTemplate, searchResultsCopy } from "@shopblok/ui/templates/search-results";
-import type { ProductDetailPage, ProductListingPage } from "@shopblok/registry/contracts";
+import type {
+  ProductDetailPage,
+  ProductListingPage,
+  VariantOf,
+} from "@shopblok/registry/contracts";
 import type { ReactNode } from "react";
 import type { DsContext, DsStory } from "../types";
 import { hero, mediaWithText, richText } from "./sections";
@@ -232,12 +236,18 @@ function productListingContent(ctx: DsContext, state: ProductListingVariant): Pr
 /** A page of the listing: the first at its own address, the others by path (D59). */
 const listingHrefFor = (base: string) => (n: number) => (n === 1 ? base : `${base}/page/${n}`);
 
-const productListing = (ctx: DsContext, mainId: string, state: ProductListingVariant) => {
+const productListing = (
+  ctx: DsContext,
+  mainId: string,
+  state: ProductListingVariant,
+  variant: VariantOf<"product-listing"> = "default",
+) => {
   const content = productListingContent(ctx, state);
   const base = content.breadcrumbs.trail.at(-1)?.href ?? "/";
   return (
     <ProductListingTemplate
       {...content}
+      variant={variant}
       copy={productListingCopy(catalogs[ctx.locale])}
       locale={lang(ctx)}
       hrefFor={listingHrefFor(base)}
@@ -296,9 +306,15 @@ const home = (ctx: DsContext, mainId: string, variant: "default" | "bare") => {
   );
 };
 
-const cart = (ctx: DsContext, mainId: string, state: "full" | "empty" | "error") => (
+const cart = (
+  ctx: DsContext,
+  mainId: string,
+  state: "full" | "empty" | "error" | "long",
+  variant: VariantOf<"cart"> = "default",
+) => (
   <CartTemplate
-    {...pageFixtures[ctx.locale].cart[state === "empty" ? "empty" : "full"]}
+    {...cartContent(ctx, state)}
+    variant={variant}
     {...(state === "error"
       ? { error: "rejected" as const, promoError: "invalid" as const, promoCode: "WELCOME5" }
       : {})}
@@ -309,6 +325,68 @@ const cart = (ctx: DsContext, mainId: string, state: "full" | "empty" | "error")
     mainId={mainId}
   />
 );
+
+/** The cart page's content: the fixture's, or (`long`) its three lines and a fourth (T85). */
+function cartContent(ctx: DsContext, state: "full" | "empty" | "error" | "long") {
+  const content = pageFixtures[ctx.locale].cart[state === "empty" ? "empty" : "full"];
+  if (state !== "long") return content;
+  const [first] = content.cart.lines;
+  if (first === undefined) return content;
+  const fourth = { ...first, id: `${first.id}-4`, variantId: `${first.variantId}-4` };
+  const lines = [...content.cart.lines, fourth];
+  return {
+    ...content,
+    cart: {
+      ...content.cart,
+      lines,
+      itemCount: lines.reduce((sum, line) => sum + line.quantity, 0),
+    },
+  };
+}
+
+/**
+ * T85: a layout of the cart page (M5 plan §1a), a member of `cart`. Its live render is the cart
+ * with three lines and a code applied; its states are that cart, four lines (where the focused
+ * layout puts the way to the checkout at the top too) and the empty cart, which every layout draws
+ * as the default does.
+ */
+function cartLayoutStory(
+  variant: Exclude<VariantOf<"cart">, "default">,
+  summary: string,
+  a11y: string,
+): DsStory {
+  const id = `template-cart-${variant}`;
+  return {
+    summary,
+    a11y: [
+      pageNote,
+      a11y,
+      "Every change is the default layout's plain form, posting to the same actions without JavaScript, so a shop can change the layout without changing what a shopper can do.",
+    ],
+    live: (ctx) => page(ctx, id, cart(ctx, id, "full", variant)),
+    states: [
+      {
+        id: "default",
+        label: "A cart",
+        description: "Three lines with a promotion code applied.",
+        render: (ctx) => cart(ctx, `${id}-default`, "full", variant),
+      },
+      {
+        id: "long",
+        label: "Four lines",
+        description: "One line more than the fixture's three.",
+        render: (ctx) => cart(ctx, `${id}-long`, "long", variant),
+      },
+      {
+        id: "empty",
+        label: "Empty",
+        description: "No line: the empty state and the way back to the shop, as in every layout.",
+        render: (ctx) => cart(ctx, `${id}-empty`, "empty", variant),
+      },
+    ],
+    statesLayout: "stack",
+  };
+}
 
 const checkout = (
   ctx: DsContext,
@@ -468,6 +546,45 @@ function post(ctx: DsContext, mainId: string, which: "page" | "long") {
 const formsNote =
   "Every form is plain and posts without JavaScript (the shop's server actions redirect back). Each field has a visible label; an error is text beside its field, named in its `aria-describedby` before the hint, and a form's failure an alert at the top. A step just done is a polite status.";
 
+/**
+ * T84: a filter layout of the listing page (M5 plan §1a), a member of `product-listing`. Its live
+ * render is the page with the fixture's two filters chosen, the popovers and panels closed (they
+ * open on a press, with no script); its states are the same page with nothing to filter, where
+ * every layout draws the products alone.
+ */
+function listingLayoutStory(
+  variant: Exclude<VariantOf<"product-listing">, "default">,
+  summary: string,
+  a11y: string,
+): DsStory {
+  const id = `template-product-listing-${variant}`;
+  return {
+    summary,
+    a11y: [
+      pageNote,
+      a11y,
+      "Every layout is the same GET form as the default's sidebar, with the same field names, so the shop's listing island applies it in place and, without JavaScript, it lands on the search page with the same results (D59).",
+    ],
+    live: (ctx) => page(ctx, id, productListing(ctx, id, "default", variant)),
+    states: [
+      {
+        id: "default",
+        label: "Filters chosen",
+        description: "The first of two pages, two filters chosen, newest first.",
+        render: (ctx) => productListing(ctx, `${id}-default`, "default", variant),
+      },
+      {
+        id: "no-filters",
+        label: "Nothing to filter",
+        description:
+          "No product has anything to filter by: no filters, and the grid takes the width.",
+        render: (ctx) => productListing(ctx, `${id}-no-filters`, "no-filters", variant),
+      },
+    ],
+    statesLayout: "stack",
+  };
+}
+
 const pageNote =
   "The template is the page between the header and the footer: in a shop it is the page's one `<main>`, the skip link's target, with the page's only `<h1>`. The icon is decoration and hidden from assistive technology.";
 const waysNote =
@@ -618,6 +735,36 @@ export const templateStories = {
     ],
     statesLayout: "stack",
   },
+  "templates/product-listing-top-bar": listingLayoutStory(
+    "top-bar",
+    "The listing page with each filter group a button in a bar above the products from `lg`, opening its values in a popover under it, and the chosen filters as chips under the bar; below `lg` the drawer, as the default layout.",
+    "Each group's button opens HTML's own popover (no script): the browser exposes the button as expanded, Tab moves from the button into its values, and Escape or a click outside closes it. Each popover has its own “Apply filters”. Where the browser has no anchor positioning the popover opens in the middle of the window.",
+  ),
+  "templates/product-listing-drawer": listingLayoutStory(
+    "drawer",
+    "The listing page with no sidebar: the grid takes the page and “Filters” opens the drawer at every width, the chosen filters as chips above the grid.",
+    "The drawer is the same sheet as the default layout's below `lg` (focus trapped, Escape closes). Without JavaScript the sheet cannot open, so the same form is drawn in the page instead (`<noscript>`).",
+  ),
+  "templates/product-listing-accordion": listingLayoutStory(
+    "accordion",
+    "The listing page with the sidebar from `lg`, every group closed but the first (and any with a choice in it), and the chosen filters as chips above the grid at every width.",
+    "The groups are native disclosures (`<details>`), so they open with the keyboard and without JavaScript, and a closed group's choices are still sent with the form.",
+  ),
+  "templates/product-listing-chips": listingLayoutStory(
+    "chips",
+    "The listing page for a shop with few filters: each group's values as toggles in a row above the grid at every width, the price range and the on/off filters as their own fields, then “Apply filters”.",
+    "Each toggle is a native checkbox in a 44 px pill, named and valued as the sidebar's; a group is a fieldset named by its legend, and a chosen toggle is filled, not told apart by colour alone (its count stays beside it).",
+  ),
+  "templates/product-listing-rail": listingLayoutStory(
+    "rail",
+    "The listing page with a narrow rail of the groups' buttons that stays beside the products from `lg`, each opening its values in a popover beside it; below `lg` the drawer.",
+    "The rail's buttons open HTML's own popovers, as the top bar's do: expanded state, Tab into the values, Escape or a click outside to close, and its own “Apply filters” in each.",
+  ),
+  "templates/product-listing-inline": listingLayoutStory(
+    "inline",
+    "The listing page with the filters as one panel above the grid, its groups in columns, opened and closed as one (“Filters”, and how many are chosen), then the chosen filters as chips.",
+    "The panel is a native disclosure (`<details>`) named “Filters” with the count of chosen filters read after it; inside it every group has its visible name and the form has “Clear all” and “Apply filters”.",
+  ),
   "templates/home": {
     summary:
       "The home page: the hero (a line, the way into the shop and a picture), the top-level categories as tiles, the newest products as a carousel and a link to every product. The hero's words are the shop's; the rest is read from Medusa. A published CMS homepage replaces this template (T65).",
@@ -700,6 +847,21 @@ export const templateStories = {
     ],
     statesLayout: "stack",
   },
+  "templates/cart-table": cartLayoutStory(
+    "table",
+    "The cart page with its lines as a table from 768 px: the product, the price of one, the quantity and the line's total, one column header each, and the summary under the table at the end. On a phone the lines are the default layout's list.",
+    "From 768 px the lines are one `<table>` with a hidden caption and a column header for each part; each row's product name is its `<h2>`, and its quantity and remove forms are named for the line with its options. Below 768 px the list stands in, and the table is not drawn there (`display: none`), so a reader meets one of them.",
+  ),
+  "templates/cart-sticky-summary": cartLayoutStory(
+    "sticky-summary",
+    "The cart page with the summary beside the lines from 768 px, sticking while they scroll, and opening with the bar to free shipping.",
+    "The summary keeps its place in the reading order, after the lines; it sticks below where a sticky header ends and scrolls inside itself when it is taller than the window, so nothing in it is out of reach.",
+  ),
+  "templates/cart-focused": cartLayoutStory(
+    "focused",
+    "The cart page in one narrow column: the lines, then the summary with the way to the checkout full width, and that way at the top too when the cart has more than three lines.",
+    "A long cart has two links to the checkout, named alike because they go to the same page; the first comes right after the heading, so a shopper ready to pay reaches it first.",
+  ),
   "templates/checkout": {
     summary:
       "The checkout: CheckoutSteps with the order summary, and the current step as its own page and form: contact and address, delivery and payment (Pay later in M3), and the review that places the order.",

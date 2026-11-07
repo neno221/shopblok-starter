@@ -91,7 +91,10 @@ const readListingPage = cache(
     if (resolved === null) return null;
     const pageSize = listingPageSize();
     const contentRead = readScopeContent({ market, draft }, scope);
+    // D101 (T84): the grid's card from the `templates` global, read in the shell as the layout is.
+    const { templates } = await getShellData();
     const results = await readListing({
+      card: templates.card,
       context,
       messages,
       resolved,
@@ -221,6 +224,7 @@ export async function ListingPage({
                 pathPage={data.page}
                 action={context.url("/search")}
                 copy={copy.results}
+                layout={templates.listing}
                 announce={listingCopy}
                 locale={market.htmlLang}
                 prefetch={SHELL_PREFETCH}

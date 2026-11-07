@@ -167,7 +167,10 @@ async function undersizedControls(page: Page, min: number): Promise<Finding[]> {
       right: rect.right,
       bottom: rect.bottom,
     });
-    const size = (box: Box) => ({ w: box.right - box.left, h: box.bottom - box.top });
+    const size = (box: Box) => ({
+      w: box.right - box.left,
+      h: box.bottom - box.top,
+    });
 
     // The element's box and its `::after`'s, when that is an absolutely positioned hit area. The
     // `::after`'s offsets are from its containing block, which is the element only when the
@@ -211,7 +214,10 @@ async function undersizedControls(page: Page, min: number): Promise<Finding[]> {
           el.closest("label") ??
           (el.id ? document.querySelector(`label[for="${CSS.escape(el.id)}"]`) : null);
         if (label)
-          candidates.push({ name: "its label", box: boxOf(label.getBoundingClientRect()) });
+          candidates.push({
+            name: "its label",
+            box: boxOf(label.getBoundingClientRect()),
+          });
       }
       const ok = candidates.some(({ box }) => {
         const { w, h } = size(box);
@@ -262,7 +268,10 @@ async function nestedControls(page: Page): Promise<Finding[]> {
         if (!nested.matches(inner) && (nested as HTMLElement).tabIndex < 0) continue;
         // Not there for people: hidden, inert, or out of the accessibility tree.
         if (nested.closest('[aria-hidden="true"], [hidden], [inert]')) continue;
-        findings.push({ selector: describe(nested), detail: `inside ${describe(el)}` });
+        findings.push({
+          selector: describe(nested),
+          detail: `inside ${describe(el)}`,
+        });
       }
     return findings;
   });
@@ -361,7 +370,9 @@ for (const id of ids) {
         const failedRequests: FailedRequest[] = [];
         collectConsole(page, consoleMessages, failedRequests);
 
-        const response = await page.goto(framePath(locale, id), { waitUntil: "load" });
+        const response = await page.goto(framePath(locale, id), {
+          waitUntil: "load",
+        });
         expect(response?.status(), `${framePath(locale, id)} answers 200`).toBe(200);
         await page.waitForLoadState("networkidle");
         // Fonts change a box's size, and pictures their boxes' content, so both are in before
@@ -473,7 +484,10 @@ if (problem === undefined) {
           return inside ? "inside" : `${JSON.stringify(inner)} outside ${JSON.stringify(outer)}`;
         };
         await expect.soft
-          .poll(placement, { message: `the ${slot} lies inside its box`, timeout: 5_000 })
+          .poll(placement, {
+            message: `the ${slot} lies inside its box`,
+            timeout: 5_000,
+          })
           .toBe("inside");
       }
       const axe = await axeScan(page);
@@ -521,7 +535,9 @@ if (problem === undefined) {
         const consoleMessages: Message[] = [];
         const failedRequests: FailedRequest[] = [];
         collectConsole(page, consoleMessages, failedRequests);
-        const response = await page.goto(previewPath("en", id), { waitUntil: "load" });
+        const response = await page.goto(previewPath("en", id), {
+          waitUntil: "load",
+        });
         expect(response?.status(), `${previewPath("en", id)} answers 200`).toBe(200);
         await page.waitForLoadState("networkidle");
 
@@ -549,7 +565,9 @@ if (problem === undefined) {
 
         if (interaction.focus === "inside") {
           await expect
-            .poll(() => popup.evaluate(holdsFocus), { message: "focus moves into the popup" })
+            .poll(() => popup.evaluate(holdsFocus), {
+              message: "focus moves into the popup",
+            })
             .toBe(true);
           if (interaction.trap === true) {
             const stops = await popup.evaluate(
@@ -570,13 +588,32 @@ if (problem === undefined) {
           await page.keyboard.press("Escape");
           await expect(popup, "Escape closes it").toBeHidden();
           await expect(trigger, "focus is back on the trigger").toBeFocused();
+        } else if (interaction.focus === "tabs") {
+          // T80: the tab's panel is there from the start; the right arrow moves to the next tab,
+          // which is then selected, and its panel is the one shown.
+          const tabs = page.locator(interaction.trigger).filter({ visible: true });
+          const first = tabs.first();
+          const second = tabs.nth(1);
+          await expect(first, "the first tab is selected").toHaveAttribute("aria-selected", "true");
+          const shown = await popup.getAttribute("id");
+          await first.focus();
+          await page.keyboard.press("ArrowRight");
+          await expect(second, "the right arrow moves to the next tab").toBeFocused();
+          await expect(second, "and selects it").toHaveAttribute("aria-selected", "true");
+          await expect(first).toHaveAttribute("aria-selected", "false");
+          const now = page.locator(interaction.opens).filter({ visible: true });
+          await expect(now, "one panel is shown").toHaveCount(1);
+          expect(await now.getAttribute("id"), "the next tab's panel is shown").not.toBe(shown);
+          expect(await now.getAttribute("id")).toBe(await second.getAttribute("aria-controls"));
         } else if (interaction.focus === "menu") {
           // T35: a navigation menu's panel is no dialog. Focus stays on the trigger, Tab goes into
           // the panel, Escape gives it back to the trigger, and Tab past the last link closes it.
           await expect(trigger, "focus stays on the trigger").toBeFocused();
           await page.keyboard.press("Tab");
           await expect
-            .poll(() => popup.evaluate(holdsFocus), { message: "Tab moves into the panel" })
+            .poll(() => popup.evaluate(holdsFocus), {
+              message: "Tab moves into the panel",
+            })
             .toBe(true);
           await page.keyboard.press("Escape");
           await expect(popup, "Escape closes it").toBeHidden();

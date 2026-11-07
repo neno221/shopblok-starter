@@ -107,12 +107,12 @@ describe.each(GLOBALS)("the %s global (D78)", (slug, global) => {
 });
 
 describe("the design fields (D85)", () => {
-  it("offer the registry's header variants but the transparent one", () => {
+  it("offer every header variant, the transparent one too since T80 (D103)", () => {
+    expect(HEADER_EXCLUDED_VARIANTS).toEqual([]);
     expect(options(field(Header, "design"))).toEqual(
-      variantsOf("header")
-        .map((variant) => variant.value)
-        .filter((value) => !HEADER_EXCLUDED_VARIANTS.includes(value)),
+      variantsOf("header").map((variant) => variant.value),
     );
+    expect(options(field(Header, "design"))).toContain("transparent");
   });
 
   it("offer every footer variant", () => {
@@ -163,6 +163,42 @@ describe("the templates global's pickers (D101)", () => {
     expect(tabField(Templates, "cart", "miniCart")).toMatchObject({ defaultValue: "drawer" });
     expect(options(tabField(Templates, "cart", "quickCart"))).toEqual(["dropdown", "off"]);
     expect(tabField(Templates, "cart", "quickCart")).toMatchObject({ defaultValue: "dropdown" });
+  });
+
+  it("offers ProductCard's ten for the listing's card, the first chosen (T84)", () => {
+    const picker = tabField(Templates, "listing", "card");
+    expect(options(picker)).toEqual(values("product-card"));
+    expect(picker).toMatchObject({ required: true, defaultValue: "standard" });
+  });
+
+  it("shows the quick view's picker only when the listing's card is quick add (D101, T84)", () => {
+    const picker = tabField(Templates, "quickView", "variant") as {
+      admin: { condition: (data: unknown, sibling: unknown, ctx: unknown) => boolean };
+    };
+    const shows = (data: unknown) => picker.admin.condition(data, {}, {});
+    expect(shows({ listing: { card: "quick-add" } })).toBe(true);
+    for (const card of values("product-card").filter((value) => value !== "quick-add"))
+      expect(shows({ listing: { card } }), card).toBe(false);
+    expect(shows({})).toBe(false);
+    expect(shows(undefined)).toBe(false);
+  });
+
+  it("shows the picks, a source of at most four with no empty behaviour, only for the drawer with picks (T85)", () => {
+    const picks = tabField(Templates, "cart", "picks") as {
+      type: string;
+      fields: { name?: string; max?: number; defaultValue?: unknown }[];
+      admin: { condition: (data: unknown, sibling: unknown, ctx: unknown) => boolean };
+    };
+    expect(picks.type).toBe("group");
+    const names = picks.fields.map((field) => field.name);
+    expect(names).toContain("mode");
+    expect(names).not.toContain("emptyBehavior");
+    const limit = picks.fields.find((field) => field.name === "limit");
+    expect(limit).toMatchObject({ max: 4, defaultValue: 4 });
+    expect(picks.fields.find((field) => field.name === "mode")?.defaultValue).toBe("newest");
+    const shows = (miniCart: unknown) => picks.admin.condition({}, { miniCart }, {});
+    expect(shows("drawer-picks")).toBe(true);
+    for (const other of ["drawer", "page", undefined]) expect(shows(other), String(other)).toBe(false);
   });
 
   it("draws every family picker with the registry's thumbnails, none for an option with no member", () => {

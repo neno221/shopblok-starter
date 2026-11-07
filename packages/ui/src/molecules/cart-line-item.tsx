@@ -85,21 +85,24 @@ function joinOptions(items: string[], locale: string): string {
   return format.format(items);
 }
 
-function CartLineItem({
-  line,
-  copy,
-  locale,
-  updateAction,
-  removeAction,
-  pending = false,
-  heading: Heading = "h3",
-  prefetch,
-  className,
-  ...props
-}: CartLineItemProps) {
-  const titleId = useId();
+/** What a line's parts say: its name for its controls, its options, its stock, its unit price. */
+type CartLineWords = {
+  /** The product, and which of it when it has options: what the controls are named after. */
+  name: string;
+  optionTexts: string[];
+  stockText?: string;
+  quantityLabel: string;
+  unitBefore: string;
+  unitAfter: string;
+};
+
+/** A line's words (T85: the cart page's table draws the parts one per cell). */
+function cartLineWords(
+  line: CartLine,
+  copy: CartLineItemProps["copy"],
+  locale: string,
+): CartLineWords {
   const optionTexts = line.options.map((option) => formatMessage(copy.option, option, locale));
-  // What the line's controls are named after: the product, and which of it when it has options.
   const name =
     optionTexts.length === 0
       ? line.title
@@ -113,6 +116,219 @@ function CartLineItem({
     { price: PRICE_SLOT },
     locale,
   ).split(PRICE_SLOT);
+  const { stock } = line;
+  const stockText =
+    stock.status === "out"
+      ? copy.stock.out
+      : stock.status === "low"
+        ? stock.quantity === undefined
+          ? copy.stock.lowNoCount
+          : formatMessage(copy.stock.low, { count: stock.quantity }, locale)
+        : undefined;
+  return {
+    name,
+    optionTexts,
+    ...(stockText === undefined ? {} : { stockText }),
+    quantityLabel: formatMessage(copy.quantity, { line: name }, locale),
+    unitBefore,
+    unitAfter,
+  };
+}
+
+type PartProps = {
+  line: CartLine;
+  copy: CartLineItemProps["copy"];
+  locale: string;
+  words: CartLineWords;
+};
+
+// A URL is posted; a function is left to React, which posts it as a server action.
+const method = (action: FormAction) => (typeof action === "function" ? undefined : "post");
+
+/** The line's picture (decoration: the title says what it is), or a box with a crossed picture. */
+function CartLineMedia({ line, className }: { line: CartLine; className?: string }) {
+  const { image } = line;
+  return (
+    <div data-slot="cart-line-item-media" className={cn("w-20 @lg:w-24", className)}>
+      {image === undefined ? (
+        <div
+          data-slot="cart-line-item-no-image"
+          aria-hidden="true"
+          className="flex aspect-[4/5] w-full items-center justify-center rounded-md bg-muted text-muted-foreground"
+        >
+          <ImageOffIcon className="size-6" />
+        </div>
+      ) : (
+        <Image
+          src={image.src}
+          alt=""
+          sizes="(min-width: 32rem) 96px, 80px"
+          ratio="portrait"
+          radius="md"
+        />
+      )}
+    </div>
+  );
+}
+
+/** The title as its link, every option, and the stock warning. */
+function CartLineDetails({
+  line,
+  words,
+  titleId,
+  heading: Heading = "h3",
+  prefetch,
+}: Pick<PartProps, "line" | "words"> & {
+  titleId: string;
+  heading?: HeadingElement;
+  prefetch?: boolean | null;
+}) {
+  const { optionTexts, stockText } = words;
+  return (
+    <>
+      <Heading
+        id={titleId}
+        data-slot="cart-line-item-title"
+        className="-my-1.5 min-w-0 text-sm leading-snug font-medium text-foreground"
+      >
+        <Link
+          href={line.href as LinkHref}
+          prefetch={prefetch}
+          className="flex min-h-11 items-center text-foreground no-underline hover:underline"
+        >
+          <span data-truncate="" className="line-clamp-2 min-w-0 wrap-anywhere">
+            {line.title}
+          </span>
+        </Link>
+      </Heading>
+      {optionTexts.length > 0 ? (
+        <ul
+          role="list"
+          data-slot="cart-line-item-options"
+          className="flex min-w-0 flex-col gap-0.5 text-sm leading-snug text-muted-foreground"
+        >
+          {optionTexts.map((text, index) => (
+            <li key={`${line.options[index]?.option ?? ""}-${index}`} className="wrap-anywhere">
+              {text}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {stockText === undefined ? null : (
+        <StockIndicator status={line.stock.status} text={stockText} className="items-start" />
+      )}
+    </>
+  );
+}
+
+/** The quantity's form (the stepper, or without scripts a number field and "Update") and Remove. */
+function CartLineControls({
+  line,
+  copy,
+  locale,
+  words,
+  updateAction,
+  removeAction,
+  pending = false,
+  className,
+}: PartProps &
+  Pick<CartLineItemProps, "updateAction" | "removeAction" | "pending"> & { className?: string }) {
+  const { name, quantityLabel } = words;
+  const soldOut = line.stock.status === "out";
+  return (
+    <div className={cn("flex flex-wrap items-center gap-x-1 gap-y-2", className)}>
+      <form
+        data-slot="cart-line-item-update"
+        action={updateAction}
+        method={method(updateAction)}
+        className="min-w-0 noscript:hidden"
+      >
+        <input type="hidden" name="lineId" value={line.id} />
+        <CartLineQuantity
+          name="quantity"
+          quantity={line.quantity}
+          max={line.maxQuantity}
+          disabled={soldOut}
+          pending={pending}
+          locale={locale}
+          label={quantityLabel}
+          decrementLabel={formatMessage(copy.decrease, { line: name }, locale)}
+          incrementLabel={formatMessage(copy.increase, { line: name }, locale)}
+        />
+      </form>
+      {/* Without a script the stepper cannot work, so a native number field and a button
+          stand in for it; with one, this form is not drawn. */}
+      <form
+        data-slot="cart-line-item-update-fallback"
+        action={updateAction}
+        method={method(updateAction)}
+        className="hidden items-center gap-2 noscript:flex"
+      >
+        <input type="hidden" name="lineId" value={line.id} />
+        <Input
+          type="number"
+          name="quantity"
+          inputMode="numeric"
+          min={1}
+          max={line.maxQuantity}
+          step={1}
+          defaultValue={line.quantity}
+          required
+          disabled={soldOut}
+          aria-label={quantityLabel}
+          className="w-20"
+        />
+        <Button
+          type={pending ? "button" : "submit"}
+          variant="outline"
+          disabled={soldOut || pending}
+          focusableWhenDisabled={pending && !soldOut}
+          aria-label={formatMessage(copy.updateLabel, { line: name }, locale)}
+          className="aria-disabled:pointer-events-none aria-disabled:opacity-50"
+        >
+          {copy.update}
+        </Button>
+      </form>
+      <form data-slot="cart-line-item-remove" action={removeAction} method={method(removeAction)}>
+        <input type="hidden" name="lineId" value={line.id} />
+        <IconButton
+          type={pending ? "button" : "submit"}
+          variant="ghost"
+          label={formatMessage(copy.remove, { line: name }, locale)}
+          disabled={pending}
+          focusableWhenDisabled={pending}
+          className="aria-disabled:pointer-events-none aria-disabled:opacity-50"
+        >
+          <Trash2Icon />
+        </IconButton>
+      </form>
+    </div>
+  );
+}
+
+/** The line's total, with its hidden label. */
+function CartLineTotal({
+  line,
+  copy,
+  locale,
+  className,
+}: Omit<PartProps, "words"> & { className?: string }) {
+  return (
+    <p data-slot="cart-line-item-total" className={cn("font-medium", className)}>
+      <VisuallyHidden>{copy.lineTotalLabel} </VisuallyHidden>
+      <Price amount={line.total.amount} currency={line.total.currencyCode} locale={locale} />
+    </p>
+  );
+}
+
+/** The price of one ("€49.00 each"), the price before a sale struck through. */
+function CartLineUnitPrice({
+  line,
+  copy,
+  locale,
+  words,
+  className,
+}: PartProps & { className?: string }) {
   // The words around the price are flex items, which draw their gap but carry no space for a
   // reader of the text, so a space is written beside each (a flex container draws none of it).
   const unitText = (text: string, before: boolean) =>
@@ -123,24 +339,75 @@ function CartLineItem({
         {before ? " " : null}
       </>
     );
-  const { stock } = line;
-  const soldOut = stock.status === "out";
-  const stockText =
-    stock.status === "out"
-      ? copy.stock.out
-      : stock.status === "low"
-        ? stock.quantity === undefined
-          ? copy.stock.lowNoCount
-          : formatMessage(copy.stock.low, { count: stock.quantity }, locale)
-        : undefined;
-  // A URL is posted; a function is left to React, which posts it as a server action.
-  const method = (action: FormAction) => (typeof action === "function" ? undefined : "post");
-  const quantityLabel = formatMessage(copy.quantity, { line: name }, locale);
-  const { image } = line;
+  return (
+    <p
+      data-slot="cart-line-item-unit"
+      className={cn(
+        "flex flex-wrap items-baseline justify-end gap-x-1.5 text-sm text-muted-foreground",
+        className,
+      )}
+    >
+      <VisuallyHidden>{copy.unitPriceLabel} </VisuallyHidden>
+      {unitText(words.unitBefore, true)}
+      {line.compareAtUnitPrice === undefined ? (
+        <Price
+          size="sm"
+          amount={line.unitPrice.amount}
+          currency={line.unitPrice.currencyCode}
+          locale={locale}
+        />
+      ) : (
+        <Price
+          size="sm"
+          amount={line.unitPrice.amount}
+          original={line.compareAtUnitPrice.amount}
+          currency={line.unitPrice.currencyCode}
+          locale={locale}
+          saleLabel={copy.sale}
+          originalLabel={copy.original}
+        />
+      )}
+      {unitText(words.unitAfter, false)}
+    </p>
+  );
+}
+
+/** The always-present polite region that says "Updating…" while the line is on its way. */
+function CartLineStatus({
+  copy,
+  pending = false,
+}: Pick<CartLineItemProps, "copy" | "pending">) {
+  return (
+    <div role="status" aria-live="polite" data-slot="cart-line-item-status">
+      {pending ? (
+        <p className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Spinner aria-hidden="true" label={copy.updating} />
+          <span>{copy.updating}</span>
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+function CartLineItem({
+  line,
+  copy,
+  locale,
+  updateAction,
+  removeAction,
+  pending = false,
+  heading,
+  prefetch,
+  className,
+  ...props
+}: CartLineItemProps) {
+  const titleId = useId();
+  const words = cartLineWords(line, copy, locale);
+  const parts = { line, copy, locale, words };
   return (
     <article
       data-slot="cart-line-item"
-      data-stock={stock.status}
+      data-stock={line.stock.status}
       data-pending={pending ? "" : undefined}
       aria-labelledby={titleId}
       aria-busy={pending ? true : undefined}
@@ -148,182 +415,45 @@ function CartLineItem({
       {...props}
     >
       <div className="grid grid-cols-1 gap-3 @xs:grid-cols-[5rem_minmax(0,1fr)] @xs:gap-x-4 @lg:grid-cols-[6rem_minmax(0,1fr)]">
-        <div data-slot="cart-line-item-media" className="w-20 @lg:w-24">
-          {image === undefined ? (
-            <div
-              data-slot="cart-line-item-no-image"
-              aria-hidden="true"
-              className="flex aspect-[4/5] w-full items-center justify-center rounded-md bg-muted text-muted-foreground"
-            >
-              <ImageOffIcon className="size-6" />
-            </div>
-          ) : (
-            <Image
-              src={image.src}
-              alt=""
-              sizes="(min-width: 32rem) 96px, 80px"
-              ratio="portrait"
-              radius="md"
-            />
-          )}
-        </div>
+        <CartLineMedia line={line} />
         <div className="flex min-w-0 flex-col gap-1.5">
-          <Heading
-            id={titleId}
-            data-slot="cart-line-item-title"
-            className="-my-1.5 min-w-0 text-sm leading-snug font-medium text-foreground"
-          >
-            <Link
-              href={line.href as LinkHref}
-              prefetch={prefetch}
-              className="flex min-h-11 items-center text-foreground no-underline hover:underline"
-            >
-              <span data-truncate="" className="line-clamp-2 min-w-0 wrap-anywhere">
-                {line.title}
-              </span>
-            </Link>
-          </Heading>
-          {optionTexts.length > 0 ? (
-            <ul
-              role="list"
-              data-slot="cart-line-item-options"
-              className="flex min-w-0 flex-col gap-0.5 text-sm leading-snug text-muted-foreground"
-            >
-              {optionTexts.map((text, index) => (
-                <li key={`${line.options[index]?.option ?? ""}-${index}`} className="wrap-anywhere">
-                  {text}
-                </li>
-              ))}
-            </ul>
-          ) : null}
-          {stockText === undefined ? null : (
-            <StockIndicator status={stock.status} text={stockText} className="items-start" />
-          )}
+          <CartLineDetails
+            line={line}
+            words={words}
+            titleId={titleId}
+            heading={heading}
+            prefetch={prefetch}
+          />
           <div className="mt-1 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-            <div className="flex flex-wrap items-center gap-x-1 gap-y-2">
-              <form
-                data-slot="cart-line-item-update"
-                action={updateAction}
-                method={method(updateAction)}
-                className="min-w-0 noscript:hidden"
-              >
-                <input type="hidden" name="lineId" value={line.id} />
-                <CartLineQuantity
-                  name="quantity"
-                  quantity={line.quantity}
-                  max={line.maxQuantity}
-                  disabled={soldOut}
-                  pending={pending}
-                  locale={locale}
-                  label={quantityLabel}
-                  decrementLabel={formatMessage(copy.decrease, { line: name }, locale)}
-                  incrementLabel={formatMessage(copy.increase, { line: name }, locale)}
-                />
-              </form>
-              {/* Without a script the stepper cannot work, so a native number field and a button
-                  stand in for it; with one, this form is not drawn. */}
-              <form
-                data-slot="cart-line-item-update-fallback"
-                action={updateAction}
-                method={method(updateAction)}
-                className="hidden items-center gap-2 noscript:flex"
-              >
-                <input type="hidden" name="lineId" value={line.id} />
-                <Input
-                  type="number"
-                  name="quantity"
-                  inputMode="numeric"
-                  min={1}
-                  max={line.maxQuantity}
-                  step={1}
-                  defaultValue={line.quantity}
-                  required
-                  disabled={soldOut}
-                  aria-label={quantityLabel}
-                  className="w-20"
-                />
-                <Button
-                  type={pending ? "button" : "submit"}
-                  variant="outline"
-                  disabled={soldOut || pending}
-                  focusableWhenDisabled={pending && !soldOut}
-                  aria-label={formatMessage(copy.updateLabel, { line: name }, locale)}
-                  className="aria-disabled:pointer-events-none aria-disabled:opacity-50"
-                >
-                  {copy.update}
-                </Button>
-              </form>
-              <form
-                data-slot="cart-line-item-remove"
-                action={removeAction}
-                method={method(removeAction)}
-              >
-                <input type="hidden" name="lineId" value={line.id} />
-                <IconButton
-                  type={pending ? "button" : "submit"}
-                  variant="ghost"
-                  label={formatMessage(copy.remove, { line: name }, locale)}
-                  disabled={pending}
-                  focusableWhenDisabled={pending}
-                  className="aria-disabled:pointer-events-none aria-disabled:opacity-50"
-                >
-                  <Trash2Icon />
-                </IconButton>
-              </form>
-            </div>
+            <CartLineControls
+              {...parts}
+              updateAction={updateAction}
+              removeAction={removeAction}
+              pending={pending}
+            />
             <div
               data-slot="cart-line-item-prices"
               className="ms-auto flex min-w-0 flex-col items-end gap-0.5 text-end"
             >
-              <p data-slot="cart-line-item-total" className="font-medium">
-                <VisuallyHidden>{copy.lineTotalLabel} </VisuallyHidden>
-                <Price
-                  amount={line.total.amount}
-                  currency={line.total.currencyCode}
-                  locale={locale}
-                />
-              </p>
-              <p
-                data-slot="cart-line-item-unit"
-                className="flex flex-wrap items-baseline justify-end gap-x-1.5 text-sm text-muted-foreground"
-              >
-                <VisuallyHidden>{copy.unitPriceLabel} </VisuallyHidden>
-                {unitText(unitBefore, true)}
-                {line.compareAtUnitPrice === undefined ? (
-                  <Price
-                    size="sm"
-                    amount={line.unitPrice.amount}
-                    currency={line.unitPrice.currencyCode}
-                    locale={locale}
-                  />
-                ) : (
-                  <Price
-                    size="sm"
-                    amount={line.unitPrice.amount}
-                    original={line.compareAtUnitPrice.amount}
-                    currency={line.unitPrice.currencyCode}
-                    locale={locale}
-                    saleLabel={copy.sale}
-                    originalLabel={copy.original}
-                  />
-                )}
-                {unitText(unitAfter, false)}
-              </p>
+              <CartLineTotal line={line} copy={copy} locale={locale} />
+              <CartLineUnitPrice {...parts} />
             </div>
           </div>
-          <div role="status" aria-live="polite" data-slot="cart-line-item-status">
-            {pending ? (
-              <p className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Spinner aria-hidden="true" label={copy.updating} />
-                <span>{copy.updating}</span>
-              </p>
-            ) : null}
-          </div>
+          <CartLineStatus copy={copy} pending={pending} />
         </div>
       </div>
     </article>
   );
 }
 
-export { CartLineItem };
-export type { CartLineItemProps };
+export {
+  CartLineControls,
+  CartLineDetails,
+  CartLineItem,
+  CartLineMedia,
+  CartLineStatus,
+  CartLineTotal,
+  CartLineUnitPrice,
+  cartLineWords,
+};
+export type { CartLineItemProps, CartLineWords };

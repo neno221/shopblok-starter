@@ -115,17 +115,22 @@ export const siteSettingsSeed: SeedGlobal = {
 /**
  * The templates (D101, T79): every family's first variant, the quick view off, the drawer on a
  * click on the header's cart and the quick cart after an add, which is M4's shop
- * (`TEMPLATE_DEFAULTS` holds the same values for a build with no database).
+ * (`TEMPLATE_DEFAULTS` holds the same values for a build with no database), and the newest four
+ * as the picks of the drawer with picks (T85).
  */
 export const templatesSeed: SeedGlobal = {
   global: "templates",
   fields: () => ({
     "productPage.variant": seeded(firstVariant("product-detail")),
     "listing.variant": seeded(firstVariant("product-listing")),
+    "listing.card": seeded(firstVariant("product-card")),
     "quickView.variant": seeded(QUICK_VIEW_OFF),
     "cart.variant": seeded(firstVariant("cart")),
     "cart.miniCart": seeded(firstVariant("mini-cart")),
     "cart.quickCart": seeded(QUICK_CART_OPTIONS[0]),
+    // T85: the drawer with picks offers the newest four (D101's default).
+    "cart.picks.mode": seeded("newest"),
+    "cart.picks.limit": seeded(4),
     "checkout.variant": seeded(firstVariant("checkout")),
     "receipt.variant": seeded(firstVariant("receipt")),
   }),

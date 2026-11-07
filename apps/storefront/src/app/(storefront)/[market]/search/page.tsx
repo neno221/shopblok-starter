@@ -101,6 +101,8 @@ async function SearchResults({ searchParams }: Props) {
     params,
     pathPage: 1,
     pageSize: listingPageSize(),
+    // The listing's card (D101, T84), as the listing a filter form came from draws it.
+    card: templates.card,
     links: {
       base: { path: action, params: own },
       formAction: action,

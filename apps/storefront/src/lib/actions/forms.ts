@@ -5,6 +5,7 @@ import { getMarketContext } from "../market-context";
 import type { ActionResult } from "./action";
 import { formDataToObject } from "./action";
 import {
+  addToCartAction,
   applyPromoAction,
   removeLineAction,
   removePromoAction,
@@ -82,6 +83,13 @@ export const applyPromoForm = (market: string, data: FormData) =>
   cartForm(applyPromoAction, market, data, ["code"]);
 export const removePromoForm = (market: string, data: FormData) =>
   cartForm(removePromoAction, market, data);
+/**
+ * A pick's form (T85, the `drawer-picks` mini cart): its variant into the cart, then the cart page.
+ * The header's island sends it to the drawer's action instead, so this runs only for a form the
+ * island did not catch.
+ */
+export const addPickForm = (market: string, data: FormData) =>
+  cartForm(addToCartAction, market, data);
 
 // --- The checkout --------------------------------------------------------------------------------
 

@@ -173,6 +173,124 @@ describe("the commerce blocks (T64)", () => {
     ]);
   });
 
+  // T80 (M5 plan §1a): what only some members take, resolved only for them, and the contract's
+  // refusal of a member without what it needs.
+  describe("hero's members (T80)", () => {
+    const picture = (name: string) => ({
+      url: `/api/media/file/${name}.webp`,
+      width: 1600,
+      height: 900,
+      alt: name,
+    });
+    const base = {
+      blockType: "hero",
+      heading: "Autumn",
+      media: picture("first"),
+      secondMedia: picture("second"),
+      collections: [
+        { collection: synced("col_summer"), media: picture("summer") },
+        { collection: synced("col_basics"), media: picture("basics") },
+      ],
+      productSource: {
+        mode: "handpicked",
+        products: [synced("prod_cap"), synced("prod_mug")],
+      },
+    };
+    const section = async (block: Record<string, unknown>, market?: FakeMarket) => {
+      const resolved = await resolve(block, market);
+      return resolved?.blockType === "hero" ? resolved.section : undefined;
+    };
+
+    it("passes the variant on and parses with it", async () => {
+      expect((await section({ ...base, variant: "centered" }))?.variant).toBe("centered");
+    });
+
+    it("the second picture and the collections only for their members", async () => {
+      const standard = await section({ ...base, variant: "standard" });
+      expect(standard?.secondImage).toBeUndefined();
+      expect(standard?.collections).toBeUndefined();
+      expect((await section({ ...base, variant: "editorial" }))?.secondImage?.src).toBe(
+        "/api/media/file/second.webp",
+      );
+    });
+
+    it("collection-switcher: each collection's translated title, its listing and picture; no products read", async () => {
+      const { catalog, context } = commerce(cyprus);
+      const [resolved] = await resolveLayout(
+        [
+          {
+            id: "b1",
+            ...base,
+            variant: "collection-switcher",
+          } as unknown as LayoutBlock,
+        ],
+        { market: us, map: seeded, commerce: context },
+      );
+      const hero = resolved?.blockType === "hero" ? resolved.section : undefined;
+      expect(hero?.collections).toEqual([
+        {
+          title: "Καλοκαίρι",
+          href: "/us/collections/summer-edit",
+          image: expect.objectContaining({
+            src: "/api/media/file/summer.webp",
+          }),
+        },
+        {
+          title: "Βασικά",
+          href: "/us/collections/everyday-basics",
+          image: expect.objectContaining({
+            src: "/api/media/file/basics.webp",
+          }),
+        },
+      ]);
+      expect(hero?.products).toEqual([]);
+      // The source is not read: no search, no product.
+      expect(catalog.calls.map((call) => call.read)).toEqual(["collections"]);
+    });
+
+    it("collection-switcher: a deleted or repeated collection is left out, and fewer than two leave the block out", async () => {
+      const one = await section({
+        ...base,
+        variant: "collection-switcher",
+        collections: [
+          { collection: synced("col_summer"), media: picture("summer") },
+          { collection: synced("col_summer"), media: picture("again") },
+          { collection: synced("col_basics", true), media: picture("basics") },
+        ],
+      });
+      expect(one).toBeUndefined();
+    });
+
+    it("text: no picture; overlay and editorial without theirs are left out", async () => {
+      expect((await section({ ...base, variant: "text" }))?.image).toBeUndefined();
+      expect(await section({ ...base, variant: "overlay", media: null })).toBeUndefined();
+      expect(await section({ ...base, variant: "editorial", secondMedia: null })).toBeUndefined();
+      expect((await section({ ...base, variant: "overlay" }))?.image?.src).toBe(
+        "/api/media/file/first.webp",
+      );
+    });
+
+    it("product: the source's first product, and left out without one", async () => {
+      expect((await section({ ...base, variant: "product" }))?.products[0]?.id).toBe("prod_cap");
+      expect(
+        await section({
+          ...base,
+          variant: "product",
+          productSource: {
+            mode: "handpicked",
+            products: [synced("prod_cap", true)],
+          },
+        }),
+      ).toBeUndefined();
+    });
+
+    it("draws a value from another version as the first member, not leaving the block out", async () => {
+      const later = await section({ ...base, variant: "split-screen" });
+      expect(later?.variant).toBe("split-screen");
+      expect(later?.heading).toBe("Autumn");
+    });
+  });
+
   it("collectionSpotlight: the collection's translated title and page, or nothing once deleted", async () => {
     const resolved = await resolve(
       {

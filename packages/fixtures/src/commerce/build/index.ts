@@ -113,6 +113,7 @@ export function buildCommerceFixture(locale: DesignSystemLocale, copy: Copy): Co
       paymentMethods,
       savedPaymentMethods,
       orders,
+      products,
     ),
     account: buildAccount(ctx, orders, addresses, savedPaymentMethods),
     long: buildLong(ctx),

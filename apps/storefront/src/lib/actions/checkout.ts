@@ -1,6 +1,7 @@
 "use server";
 
 import {
+  addPickForm,
   applyPromoForm,
   contactForm,
   deliveryForm,
@@ -40,4 +41,8 @@ export async function submitDelivery(market: string, data: FormData) {
 
 export async function placeOrder(market: string, data: FormData) {
   return placeOrderForm(market, data);
+}
+
+export async function addPickFromCart(market: string, data: FormData) {
+  return addPickForm(market, data);
 }

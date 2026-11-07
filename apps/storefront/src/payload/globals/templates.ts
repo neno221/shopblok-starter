@@ -1,6 +1,13 @@
-import type { Field } from "payload";
+import type { Condition, Field } from "payload";
+import { productSource } from "../fields/product-source";
 import { variantField } from "../fields/variant";
-import { MINI_CART_PAGE, QUICK_CART_OPTIONS, QUICK_VIEW_OFF } from "../../lib/cms/template-options";
+import {
+  MINI_CART_PICKS,
+  MINI_CART_PAGE,
+  QUICK_CART_OPTIONS,
+  QUICK_VIEW_CARD,
+  QUICK_VIEW_OFF,
+} from "../../lib/cms/template-options";
 import { contentGlobal } from "./content-global";
 
 /**
@@ -12,6 +19,34 @@ import { contentGlobal } from "./content-global";
  * the fields below; T84 adds the listing's `card`, T85 the mini cart's `drawer-picks` and its
  * `picks`, T87 the default `sections`.
  */
+
+/** The quick view's picker shows only when the listing's card is `quick-add` (D101, T84). */
+export const withQuickAddCard: Condition = (data) =>
+  (data as { listing?: { card?: unknown } } | undefined)?.listing?.card === QUICK_VIEW_CARD;
+/** The picks show with the mini cart that draws them (T85, D101). */
+export const withDrawerPicks: Condition = (_, sibling) =>
+  (sibling as { miniCart?: unknown } | undefined)?.miniCart === MINI_CART_PICKS;
+
+/**
+ * The `drawer-picks` mini cart's products (T85, D101): a `productSource` of at most four, the newest
+ * four unless an editor says, with no empty behaviour (nothing found is no picks). The shop leaves
+ * out what the cart already holds.
+ */
+const picks: Field = (() => {
+  const source = productSource({ max: 4, defaultLimit: 4, empty: false });
+  return {
+    ...source,
+    name: "picks",
+    label: "You may also like",
+    admin: {
+      ...source.admin,
+      condition: withDrawerPicks,
+      description:
+        "Up to four products under the lines of the drawer with picks. A product the cart already holds is left out.",
+    },
+  };
+})();
+
 export const Templates = contentGlobal({
   slug: "templates",
   label: "Templates",
@@ -35,6 +70,14 @@ export const Templates = contentGlobal({
               label: "Filter layout",
               description: "The category, collection and store pages, and the search page.",
             }),
+            // T84: the grid's card, one of ProductCard's ten (D46), on the listings and the search.
+            variantField({
+              family: "product-card",
+              name: "card",
+              label: "Product card",
+              description:
+                "The card of every product in the listings' and the search page's grids. Quick add puts a button on it; the Quick view tab says what it does.",
+            }),
           ],
         },
         {
@@ -46,9 +89,11 @@ export const Templates = contentGlobal({
               label: "Quick view",
               before: [{ value: QUICK_VIEW_OFF, label: "Off" }],
               defaultValue: QUICK_VIEW_OFF,
-              // T83 opens it, from the listing's quick-add card (T84's card picker).
+              // D101: it opens from the quick-add card's button only, so it shows with that card.
+              condition: withQuickAddCard,
+              // T83 opens it from the card's button.
               description:
-                "Not shown in the shop yet: the quick view will open from the listing's quick-add card. Off: the card adds to the cart, or opens the product page when the product has options.",
+                "Not shown in the shop yet: the quick view will open from the listing's quick-add card. Off: the card's button opens the product page.",
             }),
           ],
         },
@@ -63,6 +108,7 @@ export const Templates = contentGlobal({
               label: "A click on the header's cart opens",
               after: [{ value: MINI_CART_PAGE, label: "Cart page" }],
             }),
+            picks,
             {
               name: "quickCart",
               type: "radio",

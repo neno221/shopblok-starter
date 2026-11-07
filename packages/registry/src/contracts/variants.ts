@@ -33,7 +33,17 @@ export const VARIANTS = {
   testimonials: ["standard"],
   video: ["standard"],
   spacer: ["standard"],
-  hero: ["standard"],
+  // T80 (M5 plan §1a): the hero's seven more.
+  hero: [
+    "standard",
+    "overlay",
+    "centered",
+    "editorial",
+    "bento",
+    "collection-switcher",
+    "product",
+    "text",
+  ],
   "category-showcase": ["standard"],
   "product-collection": ["standard"],
   "featured-product": ["standard"],
@@ -48,10 +58,12 @@ export const VARIANTS = {
   // D99, D101 (T79): the commerce templates' and organisms' families, each starting with what M2
   // and M3 built, which the `templates` global picks from; T83 to T86 add the others.
   "product-detail": ["default"],
-  "product-listing": ["default"],
+  // T84: the listing's filter layouts (M5 plan §1a), which the search page follows.
+  "product-listing": ["default", "top-bar", "drawer", "accordion", "chips", "rail", "inline"],
   "quick-view": ["default"],
-  cart: ["default"],
-  "mini-cart": ["drawer"],
+  // T85: the cart page's layouts and the mini cart's drawer with picks (M5 plan §1a).
+  cart: ["default", "table", "sticky-summary", "focused"],
+  "mini-cart": ["drawer", "drawer-picks"],
   checkout: ["default"],
   receipt: ["default"],
 } as const satisfies Record<string, readonly [string, ...string[]]>;

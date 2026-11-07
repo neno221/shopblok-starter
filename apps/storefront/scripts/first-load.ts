@@ -101,6 +101,28 @@ export const keptOut: readonly KeptOut[] = [
     marker: "shopblok:live-preview-listener",
     label: "live preview's listener (D74)",
   },
+  {
+    // T80: the `collection-switcher` hero's tabs, loaded by its island's `next/dynamic`.
+    module: "../../packages/ui/src/sections/hero/collection-tabs.tsx",
+    marker: "shopblok:hero-collection-tabs",
+    label: "the collection switcher hero's tabs (T80)",
+  },
+  // T84: the listing's filter layouts other than M3's, which the listing island loads on their
+  // branch (`src/components/listing/listing-layouts.tsx`, `React.lazy`).
+  ...(
+    [
+      ["top-bar", "top bar"],
+      ["drawer", "drawer"],
+      ["accordion", "accordion"],
+      ["chips", "chips"],
+      ["rail", "rail"],
+      ["inline", "inline"],
+    ] as const
+  ).map(([layout, name]) => ({
+    module: `../../packages/ui/src/templates/listing-layouts/${layout}.tsx`,
+    marker: `shopblok:listing-${layout}`,
+    label: `the listing's ${name} layout (T84)`,
+  })),
 ];
 
 export type StatsRow = {

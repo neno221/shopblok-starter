@@ -15,7 +15,7 @@ import {
   ProductListingPage,
   SearchResultsPage,
 } from "../contracts";
-import { firstVariant, type Family } from "../contracts/variants";
+import { firstVariant, type Family, type VariantOf } from "../contracts/variants";
 import type { EntryInput } from "../types";
 
 // SPEC §9.3's templates (D56): a page's `<main>`, drawn in the DS inside the classic header and the
@@ -55,6 +55,44 @@ const first = <const Slug extends string, const F extends Family>(
     variant: firstVariant(family),
   }) as const satisfies EntryInput;
 
+/**
+ * A later member of a template's family (D99, T83 to T86): its own id (`templates/<family's
+ * slug>-<variant>`), its module in the family's folder and the family's contract.
+ */
+const member = <const Slug extends string, const F extends Family, const V extends VariantOf<F>>(
+  slug: Slug,
+  family: F,
+  variant: V,
+  label: string,
+  name: string,
+  contract: EntryInput["contract"],
+) =>
+  ({
+    id: `templates/${slug}-${variant}`,
+    group: "templates",
+    kind: "template",
+    label,
+    component: { module: `@shopblok/ui/templates/${slug}/${variant}`, name },
+    contract,
+    family,
+    variant,
+  }) as const satisfies EntryInput;
+
+/** T84: a listing layout (M5 plan §1a), a member of `product-listing`. */
+const listing = <const V extends VariantOf<"product-listing">>(
+  variant: V,
+  label: string,
+  name: string,
+) =>
+  member(
+    "product-listing",
+    "product-listing",
+    variant,
+    `Listing page · ${label}`,
+    name,
+    ProductListingPage,
+  );
+
 export const templates = [
   // T48: the two the shell needs.
   template("not-found", "Not found", "NotFoundTemplate", NotFoundPage),
@@ -75,11 +113,29 @@ export const templates = [
     "ProductListingTemplate",
     ProductListingPage,
   ),
+  // T84: the listing's six other filter layouts, which the search page follows (D101).
+  listing("top-bar", "Top bar", "ProductListingTopBar"),
+  listing("drawer", "Drawer", "ProductListingDrawer"),
+  listing("accordion", "Accordion", "ProductListingAccordion"),
+  listing("chips", "Chips", "ProductListingChips"),
+  listing("rail", "Rail", "ProductListingRail"),
+  listing("inline", "Inline", "ProductListingInline"),
   template("search-results", "Search results", "SearchResultsTemplate", SearchResultsPage),
   // T51: the home page.
   template("home", "Home page", "HomeTemplate", HomePage),
   // T52: the cart, the checkout and the receipt.
   first("cart", "cart", "Cart page", "CartTemplate", CartPage),
+  // T85: the cart page's three other layouts (M5 plan §1a).
+  member("cart", "cart", "table", "Cart page · Table", "CartTable", CartPage),
+  member(
+    "cart",
+    "cart",
+    "sticky-summary",
+    "Cart page · Sticky summary",
+    "CartStickySummary",
+    CartPage,
+  ),
+  member("cart", "cart", "focused", "Cart page · Focused", "CartFocused", CartPage),
   first("checkout", "checkout", "Checkout", "CheckoutTemplate", CheckoutPage),
   first(
     "order-confirmation",

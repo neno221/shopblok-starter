@@ -10,22 +10,26 @@
 // search page without scripts; with them, their `submit` is caught here and becomes the listing's
 // own URL (`history.pushState`, which Next keeps `useSearchParams` in step with). The new count is
 // announced (WCAG 4.1.3), and more than two facets add `noindex,follow` (`robots-meta.tsx`).
+// T84: its results are drawn in the page's filter layout (`layout`, the `templates` global's pick,
+// which the server's results have too); a layout other than M3's is loaded on its branch
+// (`listing-layouts.tsx`, D102), and while it loads the island says it is loading.
 "use client";
 
 import { formatMessage } from "@shopblok/i18n";
 import type { ListingResults as ListingResultsContent } from "@shopblok/registry/contracts";
 import { Button } from "@shopblok/ui/atoms/button";
 import { EmptyState } from "@shopblok/ui/molecules/empty-state";
-import { ListingResults, type ListingResultsCopy } from "@shopblok/ui/templates/listing-results";
+import type { ListingResultsCopy } from "@shopblok/ui/templates/listing-results";
 import type { Route } from "next";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import {
   changesListing,
   filterParams,
   parseListingQuery,
   withQuery,
 } from "../../lib/listing/query";
+import { LayoutResults } from "./listing-layouts";
 import { RobotsMeta } from "./robots-meta";
 
 /** Where the island asks. */
@@ -43,6 +47,8 @@ export type ListingIslandProps = {
   /** The search page, where the filter and sort forms GET without scripts. */
   action: string;
   copy: ListingResultsCopy;
+  /** The filter layout the server's results are drawn in (the `templates` global's, D101). */
+  layout?: string;
   /** The listing's own words (`templates.productListing`); `found` is ICU with `{count}`. */
   announce: {
     found: string;
@@ -95,6 +101,7 @@ export function ListingIsland({
   pathPage,
   action,
   copy,
+  layout,
   announce,
   locale,
   prefetch,
@@ -190,13 +197,16 @@ export function ListingIsland({
         {status}
       </p>
       {!active ? null : results !== undefined ? (
-        <ListingResults
-          {...results}
-          copy={copy}
-          locale={locale}
-          hrefFor={hrefFor}
-          prefetch={prefetch}
-        />
+        <Suspense fallback={<Loading text={announce.loading} />}>
+          <LayoutResults
+            {...results}
+            layout={layout}
+            copy={copy}
+            locale={locale}
+            hrefFor={hrefFor}
+            prefetch={prefetch}
+          />
+        </Suspense>
       ) : current?.kind === "missing" ? (
         <EmptyState
           data-slot="listing-island-missing"
@@ -213,14 +223,21 @@ export function ListingIsland({
           </Button>
         </div>
       ) : (
-        <p
-          data-slot="listing-island-loading"
-          aria-hidden="true"
-          className="py-12 text-center text-muted-foreground"
-        >
-          {announce.loading}
-        </p>
+        <Loading text={announce.loading} />
       )}
     </div>
+  );
+}
+
+/** What the island draws while results or their layout load (the status line says it aloud). */
+function Loading({ text }: { text: string }) {
+  return (
+    <p
+      data-slot="listing-island-loading"
+      aria-hidden="true"
+      className="py-12 text-center text-muted-foreground"
+    >
+      {text}
+    </p>
   );
 }

@@ -1,9 +1,11 @@
 import type {
   Cart,
+  CartPick,
   CheckoutSteps,
   Order,
   OrderSummary,
   PaymentMethod,
+  ProductCard,
   ReturnRequest,
   SavedPaymentMethod,
   ShippingOption,
@@ -65,6 +67,41 @@ function cartSummary(ctx: Context, cart: Cart, shipping?: ShippingOption): Order
   };
 }
 
+/**
+ * The `drawer-picks` mini cart's products (T85): four of the catalog's that the cart does not hold,
+ * each with its colours that can be bought as its choices. The cap is offered in one colour only,
+ * the shop's case of a product with one variant (a hidden field and "Add", no select).
+ */
+export const PICK_HANDLES = [
+  "heritage-hoodie",
+  "canvas-tote-bag",
+  "organic-cotton-cap",
+  "waxed-field-jacket",
+] as const;
+
+function buildPicks(cart: Cart, products: readonly ProductCard[]): CartPick[] {
+  const held = new Set(cart.lines.map((line) => line.productId));
+  return PICK_HANDLES.map((handle) => {
+    const card = products.find((product) => product.handle === handle);
+    if (card === undefined || held.has(card.id)) throw new Error(`no pick ${handle}`);
+    const choices = card.swatches
+      .filter((swatch) => swatch.available)
+      .map((swatch) => ({
+        variantId: `var_${handle.replaceAll("-", "_")}_${swatch.id.replace(/^colour-/, "")}`,
+        label: swatch.label,
+      }));
+    const [image] = card.images;
+    return {
+      id: card.id,
+      title: card.title,
+      href: card.href,
+      ...(image !== undefined && { image }),
+      price: card.price,
+      choices: handle === "organic-cotton-cap" ? choices.slice(0, 1) : choices,
+    };
+  });
+}
+
 /** A placed order's summary: what it cost, as the confirmation and the order page show it. */
 export function orderSummary(order: Order): OrderSummary {
   return {
@@ -95,6 +132,7 @@ export function buildCartCheckout(
   paymentMethods: PaymentMethod[],
   savedPaymentMethods: SavedPaymentMethod[],
   orders: Order[],
+  products: readonly ProductCard[],
 ): CommerceFixture["cartCheckout"] {
   const [first] = cart.lines;
   const [delivered] = orders;
@@ -130,6 +168,7 @@ export function buildCartCheckout(
         continueHref: ctx.href("/store"),
       },
     },
+    picks: buildPicks(cart, products),
     quickCart: {
       added: first,
       itemCount: cart.itemCount,

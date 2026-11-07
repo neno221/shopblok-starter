@@ -51,7 +51,7 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   CREATE TYPE "public"."enum_pages_blocks_spacer_2_ss_visibility" AS ENUM('all', 'mobile', 'desktop');
   CREATE TYPE "public"."enum_pages_blocks_hero_2_links_link_type" AS ENUM('reference', 'custom');
   CREATE TYPE "public"."enum_pages_blocks_hero_2_links_link_appearance" AS ENUM('default', 'outline', 'text');
-  CREATE TYPE "public"."enum_pages_blocks_hero_2_variant" AS ENUM('standard');
+  CREATE TYPE "public"."enum_pages_blocks_hero_2_variant" AS ENUM('standard', 'overlay', 'centered', 'editorial', 'bento', 'collection-switcher', 'product', 'text');
   CREATE TYPE "public"."enum_pages_blocks_hero_2_ps_mode" AS ENUM('none', 'collection', 'category', 'handpicked', 'newest', 'onSale', 'tag', 'type');
   CREATE TYPE "public"."enum_pages_blocks_hero_2_ps_sort" AS ENUM('newest', 'priceAsc', 'priceDesc', 'title');
   CREATE TYPE "public"."enum_pages_blocks_hero_2_ss_spacing" AS ENUM('none', 'small', 'medium', 'large');
@@ -176,7 +176,7 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   CREATE TYPE "public"."enum__pages_v_blocks_spacer_2_ss_visibility" AS ENUM('all', 'mobile', 'desktop');
   CREATE TYPE "public"."enum__pages_v_blocks_hero_2_links_link_type" AS ENUM('reference', 'custom');
   CREATE TYPE "public"."enum__pages_v_blocks_hero_2_links_link_appearance" AS ENUM('default', 'outline', 'text');
-  CREATE TYPE "public"."enum__pages_v_blocks_hero_2_variant" AS ENUM('standard');
+  CREATE TYPE "public"."enum__pages_v_blocks_hero_2_variant" AS ENUM('standard', 'overlay', 'centered', 'editorial', 'bento', 'collection-switcher', 'product', 'text');
   CREATE TYPE "public"."enum__pages_v_blocks_hero_2_ps_mode" AS ENUM('none', 'collection', 'category', 'handpicked', 'newest', 'onSale', 'tag', 'type');
   CREATE TYPE "public"."enum__pages_v_blocks_hero_2_ps_sort" AS ENUM('newest', 'priceAsc', 'priceDesc', 'title');
   CREATE TYPE "public"."enum__pages_v_blocks_hero_2_ss_spacing" AS ENUM('none', 'small', 'medium', 'large');
@@ -451,6 +451,15 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   	"block_name" varchar
   );
   
+  CREATE TABLE "pages_blocks_hero_2_collections" (
+  	"_order" integer NOT NULL,
+  	"_parent_id" varchar NOT NULL,
+  	"_locale" "_locales" NOT NULL,
+  	"id" varchar PRIMARY KEY NOT NULL,
+  	"collection_id" integer,
+  	"media_id" integer
+  );
+  
   CREATE TABLE "pages_blocks_hero_2_links" (
   	"_order" integer NOT NULL,
   	"_parent_id" varchar NOT NULL,
@@ -474,6 +483,7 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   	"heading" varchar,
   	"subheading" varchar,
   	"media_id" integer,
+  	"second_media_id" integer,
   	"countdown_end" timestamp(3) with time zone,
   	"product_source_mode" "enum_pages_blocks_hero_2_ps_mode" DEFAULT 'none',
   	"product_source_collection_id" integer,
@@ -975,6 +985,16 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   	"block_name" varchar
   );
   
+  CREATE TABLE "_pages_v_blocks_hero_2_collections" (
+  	"_order" integer NOT NULL,
+  	"_parent_id" integer NOT NULL,
+  	"_locale" "_locales" NOT NULL,
+  	"id" serial PRIMARY KEY NOT NULL,
+  	"collection_id" integer,
+  	"media_id" integer,
+  	"_uuid" varchar
+  );
+  
   CREATE TABLE "_pages_v_blocks_hero_2_links" (
   	"_order" integer NOT NULL,
   	"_parent_id" integer NOT NULL,
@@ -999,6 +1019,7 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   	"heading" varchar,
   	"subheading" varchar,
   	"media_id" integer,
+  	"second_media_id" integer,
   	"countdown_end" timestamp(3) with time zone,
   	"product_source_mode" "enum__pages_v_blocks_hero_2_ps_mode" DEFAULT 'none',
   	"product_source_collection_id" integer,
@@ -1336,8 +1357,12 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   ALTER TABLE "pages_blocks_video_2" ADD CONSTRAINT "pages_blocks_video_2_poster_id_media_id_fk" FOREIGN KEY ("poster_id") REFERENCES "public"."media"("id") ON DELETE set null ON UPDATE no action;
   ALTER TABLE "pages_blocks_video_2" ADD CONSTRAINT "pages_blocks_video_2_parent_id_fk" FOREIGN KEY ("_parent_id") REFERENCES "public"."pages"("id") ON DELETE cascade ON UPDATE no action;
   ALTER TABLE "pages_blocks_spacer_2" ADD CONSTRAINT "pages_blocks_spacer_2_parent_id_fk" FOREIGN KEY ("_parent_id") REFERENCES "public"."pages"("id") ON DELETE cascade ON UPDATE no action;
+  ALTER TABLE "pages_blocks_hero_2_collections" ADD CONSTRAINT "pages_blocks_hero_2_collections_collection_id_collections_id_fk" FOREIGN KEY ("collection_id") REFERENCES "public"."collections"("id") ON DELETE set null ON UPDATE no action;
+  ALTER TABLE "pages_blocks_hero_2_collections" ADD CONSTRAINT "pages_blocks_hero_2_collections_media_id_media_id_fk" FOREIGN KEY ("media_id") REFERENCES "public"."media"("id") ON DELETE set null ON UPDATE no action;
+  ALTER TABLE "pages_blocks_hero_2_collections" ADD CONSTRAINT "pages_blocks_hero_2_collections_parent_id_fk" FOREIGN KEY ("_parent_id") REFERENCES "public"."pages_blocks_hero_2"("id") ON DELETE cascade ON UPDATE no action;
   ALTER TABLE "pages_blocks_hero_2_links" ADD CONSTRAINT "pages_blocks_hero_2_links_parent_id_fk" FOREIGN KEY ("_parent_id") REFERENCES "public"."pages_blocks_hero_2"("id") ON DELETE cascade ON UPDATE no action;
   ALTER TABLE "pages_blocks_hero_2" ADD CONSTRAINT "pages_blocks_hero_2_media_id_media_id_fk" FOREIGN KEY ("media_id") REFERENCES "public"."media"("id") ON DELETE set null ON UPDATE no action;
+  ALTER TABLE "pages_blocks_hero_2" ADD CONSTRAINT "pages_blocks_hero_2_second_media_id_media_id_fk" FOREIGN KEY ("second_media_id") REFERENCES "public"."media"("id") ON DELETE set null ON UPDATE no action;
   ALTER TABLE "pages_blocks_hero_2" ADD CONSTRAINT "pages_blocks_hero_2_product_source_collection_id_collections_id_fk" FOREIGN KEY ("product_source_collection_id") REFERENCES "public"."collections"("id") ON DELETE set null ON UPDATE no action;
   ALTER TABLE "pages_blocks_hero_2" ADD CONSTRAINT "pages_blocks_hero_2_product_source_category_id_categories_id_fk" FOREIGN KEY ("product_source_category_id") REFERENCES "public"."categories"("id") ON DELETE set null ON UPDATE no action;
   ALTER TABLE "pages_blocks_hero_2" ADD CONSTRAINT "pages_blocks_hero_2_parent_id_fk" FOREIGN KEY ("_parent_id") REFERENCES "public"."pages"("id") ON DELETE cascade ON UPDATE no action;
@@ -1389,8 +1414,12 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   ALTER TABLE "_pages_v_blocks_video_2" ADD CONSTRAINT "_pages_v_blocks_video_2_poster_id_media_id_fk" FOREIGN KEY ("poster_id") REFERENCES "public"."media"("id") ON DELETE set null ON UPDATE no action;
   ALTER TABLE "_pages_v_blocks_video_2" ADD CONSTRAINT "_pages_v_blocks_video_2_parent_id_fk" FOREIGN KEY ("_parent_id") REFERENCES "public"."_pages_v"("id") ON DELETE cascade ON UPDATE no action;
   ALTER TABLE "_pages_v_blocks_spacer_2" ADD CONSTRAINT "_pages_v_blocks_spacer_2_parent_id_fk" FOREIGN KEY ("_parent_id") REFERENCES "public"."_pages_v"("id") ON DELETE cascade ON UPDATE no action;
+  ALTER TABLE "_pages_v_blocks_hero_2_collections" ADD CONSTRAINT "_pages_v_blocks_hero_2_collections_collection_id_collections_id_fk" FOREIGN KEY ("collection_id") REFERENCES "public"."collections"("id") ON DELETE set null ON UPDATE no action;
+  ALTER TABLE "_pages_v_blocks_hero_2_collections" ADD CONSTRAINT "_pages_v_blocks_hero_2_collections_media_id_media_id_fk" FOREIGN KEY ("media_id") REFERENCES "public"."media"("id") ON DELETE set null ON UPDATE no action;
+  ALTER TABLE "_pages_v_blocks_hero_2_collections" ADD CONSTRAINT "_pages_v_blocks_hero_2_collections_parent_id_fk" FOREIGN KEY ("_parent_id") REFERENCES "public"."_pages_v_blocks_hero_2"("id") ON DELETE cascade ON UPDATE no action;
   ALTER TABLE "_pages_v_blocks_hero_2_links" ADD CONSTRAINT "_pages_v_blocks_hero_2_links_parent_id_fk" FOREIGN KEY ("_parent_id") REFERENCES "public"."_pages_v_blocks_hero_2"("id") ON DELETE cascade ON UPDATE no action;
   ALTER TABLE "_pages_v_blocks_hero_2" ADD CONSTRAINT "_pages_v_blocks_hero_2_media_id_media_id_fk" FOREIGN KEY ("media_id") REFERENCES "public"."media"("id") ON DELETE set null ON UPDATE no action;
+  ALTER TABLE "_pages_v_blocks_hero_2" ADD CONSTRAINT "_pages_v_blocks_hero_2_second_media_id_media_id_fk" FOREIGN KEY ("second_media_id") REFERENCES "public"."media"("id") ON DELETE set null ON UPDATE no action;
   ALTER TABLE "_pages_v_blocks_hero_2" ADD CONSTRAINT "_pages_v_blocks_hero_2_product_source_collection_id_collections_id_fk" FOREIGN KEY ("product_source_collection_id") REFERENCES "public"."collections"("id") ON DELETE set null ON UPDATE no action;
   ALTER TABLE "_pages_v_blocks_hero_2" ADD CONSTRAINT "_pages_v_blocks_hero_2_product_source_category_id_categories_id_fk" FOREIGN KEY ("product_source_category_id") REFERENCES "public"."categories"("id") ON DELETE set null ON UPDATE no action;
   ALTER TABLE "_pages_v_blocks_hero_2" ADD CONSTRAINT "_pages_v_blocks_hero_2_parent_id_fk" FOREIGN KEY ("_parent_id") REFERENCES "public"."_pages_v"("id") ON DELETE cascade ON UPDATE no action;
@@ -1478,6 +1507,11 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   CREATE INDEX "pages_blocks_spacer_2_parent_id_idx" ON "pages_blocks_spacer_2" USING btree ("_parent_id");
   CREATE INDEX "pages_blocks_spacer_2_path_idx" ON "pages_blocks_spacer_2" USING btree ("_path");
   CREATE INDEX "pages_blocks_spacer_2_locale_idx" ON "pages_blocks_spacer_2" USING btree ("_locale");
+  CREATE INDEX "pages_blocks_hero_2_collections_order_idx" ON "pages_blocks_hero_2_collections" USING btree ("_order");
+  CREATE INDEX "pages_blocks_hero_2_collections_parent_id_idx" ON "pages_blocks_hero_2_collections" USING btree ("_parent_id");
+  CREATE INDEX "pages_blocks_hero_2_collections_locale_idx" ON "pages_blocks_hero_2_collections" USING btree ("_locale");
+  CREATE INDEX "pages_blocks_hero_2_collections_collection_idx" ON "pages_blocks_hero_2_collections" USING btree ("collection_id");
+  CREATE INDEX "pages_blocks_hero_2_collections_media_idx" ON "pages_blocks_hero_2_collections" USING btree ("media_id");
   CREATE INDEX "pages_blocks_hero_2_links_order_idx" ON "pages_blocks_hero_2_links" USING btree ("_order");
   CREATE INDEX "pages_blocks_hero_2_links_parent_id_idx" ON "pages_blocks_hero_2_links" USING btree ("_parent_id");
   CREATE INDEX "pages_blocks_hero_2_links_locale_idx" ON "pages_blocks_hero_2_links" USING btree ("_locale");
@@ -1486,6 +1520,7 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   CREATE INDEX "pages_blocks_hero_2_path_idx" ON "pages_blocks_hero_2" USING btree ("_path");
   CREATE INDEX "pages_blocks_hero_2_locale_idx" ON "pages_blocks_hero_2" USING btree ("_locale");
   CREATE INDEX "pages_blocks_hero_2_media_idx" ON "pages_blocks_hero_2" USING btree ("media_id");
+  CREATE INDEX "pages_blocks_hero_2_second_media_idx" ON "pages_blocks_hero_2" USING btree ("second_media_id");
   CREATE INDEX "pages_blocks_hero_2_product_source_product_source_collec_idx" ON "pages_blocks_hero_2" USING btree ("product_source_collection_id");
   CREATE INDEX "pages_blocks_hero_2_product_source_product_source_catego_idx" ON "pages_blocks_hero_2" USING btree ("product_source_category_id");
   CREATE INDEX "pages_blocks_category_showcase_2_links_order_idx" ON "pages_blocks_category_showcase_2_links" USING btree ("_order");
@@ -1615,6 +1650,11 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   CREATE INDEX "_pages_v_blocks_spacer_2_parent_id_idx" ON "_pages_v_blocks_spacer_2" USING btree ("_parent_id");
   CREATE INDEX "_pages_v_blocks_spacer_2_path_idx" ON "_pages_v_blocks_spacer_2" USING btree ("_path");
   CREATE INDEX "_pages_v_blocks_spacer_2_locale_idx" ON "_pages_v_blocks_spacer_2" USING btree ("_locale");
+  CREATE INDEX "_pages_v_blocks_hero_2_collections_order_idx" ON "_pages_v_blocks_hero_2_collections" USING btree ("_order");
+  CREATE INDEX "_pages_v_blocks_hero_2_collections_parent_id_idx" ON "_pages_v_blocks_hero_2_collections" USING btree ("_parent_id");
+  CREATE INDEX "_pages_v_blocks_hero_2_collections_locale_idx" ON "_pages_v_blocks_hero_2_collections" USING btree ("_locale");
+  CREATE INDEX "_pages_v_blocks_hero_2_collections_collection_idx" ON "_pages_v_blocks_hero_2_collections" USING btree ("collection_id");
+  CREATE INDEX "_pages_v_blocks_hero_2_collections_media_idx" ON "_pages_v_blocks_hero_2_collections" USING btree ("media_id");
   CREATE INDEX "_pages_v_blocks_hero_2_links_order_idx" ON "_pages_v_blocks_hero_2_links" USING btree ("_order");
   CREATE INDEX "_pages_v_blocks_hero_2_links_parent_id_idx" ON "_pages_v_blocks_hero_2_links" USING btree ("_parent_id");
   CREATE INDEX "_pages_v_blocks_hero_2_links_locale_idx" ON "_pages_v_blocks_hero_2_links" USING btree ("_locale");
@@ -1623,6 +1663,7 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   CREATE INDEX "_pages_v_blocks_hero_2_path_idx" ON "_pages_v_blocks_hero_2" USING btree ("_path");
   CREATE INDEX "_pages_v_blocks_hero_2_locale_idx" ON "_pages_v_blocks_hero_2" USING btree ("_locale");
   CREATE INDEX "_pages_v_blocks_hero_2_media_idx" ON "_pages_v_blocks_hero_2" USING btree ("media_id");
+  CREATE INDEX "_pages_v_blocks_hero_2_second_media_idx" ON "_pages_v_blocks_hero_2" USING btree ("second_media_id");
   CREATE INDEX "_pages_v_blocks_hero_2_product_source_product_source_col_idx" ON "_pages_v_blocks_hero_2" USING btree ("product_source_collection_id");
   CREATE INDEX "_pages_v_blocks_hero_2_product_source_product_source_cat_idx" ON "_pages_v_blocks_hero_2" USING btree ("product_source_category_id");
   CREATE INDEX "_pages_v_blocks_category_showcase_2_links_order_idx" ON "_pages_v_blocks_category_showcase_2_links" USING btree ("_order");
@@ -1724,6 +1765,7 @@ export async function down({ db, payload, req }: MigrateDownArgs): Promise<void>
   ALTER TABLE "pages_blocks_video_2_captions" DISABLE ROW LEVEL SECURITY;
   ALTER TABLE "pages_blocks_video_2" DISABLE ROW LEVEL SECURITY;
   ALTER TABLE "pages_blocks_spacer_2" DISABLE ROW LEVEL SECURITY;
+  ALTER TABLE "pages_blocks_hero_2_collections" DISABLE ROW LEVEL SECURITY;
   ALTER TABLE "pages_blocks_hero_2_links" DISABLE ROW LEVEL SECURITY;
   ALTER TABLE "pages_blocks_hero_2" DISABLE ROW LEVEL SECURITY;
   ALTER TABLE "pages_blocks_category_showcase_2_links" DISABLE ROW LEVEL SECURITY;
@@ -1756,6 +1798,7 @@ export async function down({ db, payload, req }: MigrateDownArgs): Promise<void>
   ALTER TABLE "_pages_v_blocks_video_2_captions" DISABLE ROW LEVEL SECURITY;
   ALTER TABLE "_pages_v_blocks_video_2" DISABLE ROW LEVEL SECURITY;
   ALTER TABLE "_pages_v_blocks_spacer_2" DISABLE ROW LEVEL SECURITY;
+  ALTER TABLE "_pages_v_blocks_hero_2_collections" DISABLE ROW LEVEL SECURITY;
   ALTER TABLE "_pages_v_blocks_hero_2_links" DISABLE ROW LEVEL SECURITY;
   ALTER TABLE "_pages_v_blocks_hero_2" DISABLE ROW LEVEL SECURITY;
   ALTER TABLE "_pages_v_blocks_category_showcase_2_links" DISABLE ROW LEVEL SECURITY;
@@ -1788,6 +1831,7 @@ export async function down({ db, payload, req }: MigrateDownArgs): Promise<void>
   DROP TABLE "pages_blocks_video_2_captions" CASCADE;
   DROP TABLE "pages_blocks_video_2" CASCADE;
   DROP TABLE "pages_blocks_spacer_2" CASCADE;
+  DROP TABLE "pages_blocks_hero_2_collections" CASCADE;
   DROP TABLE "pages_blocks_hero_2_links" CASCADE;
   DROP TABLE "pages_blocks_hero_2" CASCADE;
   DROP TABLE "pages_blocks_category_showcase_2_links" CASCADE;
@@ -1820,6 +1864,7 @@ export async function down({ db, payload, req }: MigrateDownArgs): Promise<void>
   DROP TABLE "_pages_v_blocks_video_2_captions" CASCADE;
   DROP TABLE "_pages_v_blocks_video_2" CASCADE;
   DROP TABLE "_pages_v_blocks_spacer_2" CASCADE;
+  DROP TABLE "_pages_v_blocks_hero_2_collections" CASCADE;
   DROP TABLE "_pages_v_blocks_hero_2_links" CASCADE;
   DROP TABLE "_pages_v_blocks_hero_2" CASCADE;
   DROP TABLE "_pages_v_blocks_category_showcase_2_links" CASCADE;
