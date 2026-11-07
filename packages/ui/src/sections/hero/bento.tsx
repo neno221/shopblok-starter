@@ -15,6 +15,18 @@ import {
   type HeroSectionProps,
 } from "./parts";
 
+/**
+ * The products tile's columns by count (PR 119 review, item 3): one card fills the tile, two and
+ * four sit two across, and of three the first spans both columns, so no quarter stays empty.
+ * They replace HeroProducts' own per-count columns, which fit a full-width row, not a half tile.
+ */
+const bentoColumns = [
+  "grid-cols-1 md:grid-cols-1",
+  "md:grid-cols-2",
+  "md:grid-cols-2 *:first:col-span-2",
+  "md:grid-cols-2",
+];
+
 function HeroBento({
   settings,
   eyebrow,
@@ -32,14 +44,15 @@ function HeroBento({
   prefetch,
   className,
 }: HeroSectionProps) {
-  const second = products.length > 0 ? "products" : image === undefined ? null : "image";
+  // The second tile: the products if the source has any, else the picture, else none.
+  const tile = products.length > 0 ? "products" : image === undefined ? null : image;
   return (
     <SectionFrame
       data-variant="bento"
       settings={settings}
       slot="hero-section"
       className={className}
-      innerClassName={cn("grid grid-cols-1 gap-4 md:gap-6", second !== null && "md:grid-cols-2")}
+      innerClassName={cn("grid grid-cols-1 gap-4 md:gap-6", tile !== null && "md:grid-cols-2")}
     >
       <div
         data-slot="hero-bento-message"
@@ -58,19 +71,19 @@ function HeroBento({
           prefetch={prefetch}
         />
       </div>
-      {second === "products" ? (
+      {tile === "products" ? (
         <HeroProducts
           products={products}
           copy={copy}
           locale={locale}
           headingLevel={headingLevel}
           prefetch={prefetch}
-          className="gap-4 md:grid-cols-2 md:gap-x-6"
+          className={cn("gap-4 md:gap-x-6", bentoColumns[products.length - 1])}
         />
-      ) : second === "image" && image !== undefined ? (
+      ) : tile !== null ? (
         <Image
-          src={image.src}
-          alt={image.alt}
+          src={tile.src}
+          alt={tile.alt}
           ratio="square"
           radius="xl"
           sizes="(min-width: 1280px) 600px, (min-width: 768px) 50vw, 100vw"

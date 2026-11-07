@@ -5,8 +5,8 @@
 // the transparent header remaps them, so the links, the countdown and the focus ring keep their
 // own contrast pairing with no class of ours on them. The band starts at the section's top edge
 // (the section's space is under it): when the hero opens a page, the transparent header lies over
-// its picture, which the section says with `data-under-header` and the shell's CSS rule reads
-// (D103). The products, if any, follow the band on the section's surface. A server component.
+// its picture, which the section says with `data-under-header` (`SectionFrame`'s `underHeader`,
+// with the widths the section shows at) and the shell's CSS rule reads (D103). The products, if any, follow the band on the section's surface. A server component.
 import { Image } from "@shopblok/ui/atoms/image";
 import { cn } from "@shopblok/ui/lib/utils";
 import { SectionFrame, sectionFrameClasses } from "@shopblok/ui/sections/section-frame";
@@ -48,7 +48,7 @@ function HeroOverlay({
     <SectionFrame
       data-variant="overlay"
       // Only a picture behind the words lets the transparent header lie over the hero (D103).
-      data-under-header={image === undefined ? undefined : ""}
+      underHeader={image !== undefined}
       settings={settings}
       slot="hero-section"
       // The band starts at the section's top edge; the section's space stays under it.

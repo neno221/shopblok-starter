@@ -2,11 +2,12 @@
 // side only, or a variant added to a family without the block's `variant` field offering it, fails
 // here with the reason.
 import { entries, sectionEntries, variantsOf } from "@shopblok/registry";
-import type { ArrayField, BlocksField, Block } from "payload";
+import type { ArrayField, BlocksField, Block, GroupField, SelectField, UploadField } from "payload";
 import { describe, expect, it } from "vitest";
 import { Pages } from "../collections/pages";
 import { BLOCKS, LAYOUT_BLOCKS } from ".";
 import { describeBlock } from "./describe";
+import { HeroBlock } from "./hero";
 import { VideoBlock } from "./video";
 import { blockDrift } from "./drift";
 
@@ -249,5 +250,40 @@ describe("productSource (T64)", () => {
     };
     expect(sourceOf("productCollection")).toContain("emptyBehavior");
     expect(sourceOf("hero")).not.toContain("emptyBehavior");
+  });
+});
+
+describe("the hero's designs that need a picture or a product (T80, PR 119 review, item 2)", () => {
+  const media = field(HeroBlock, "media") as UploadField;
+  const source = (field(HeroBlock, "productSource") as GroupField).fields.find(
+    (each) => "name" in each && each.name === "mode",
+  ) as SelectField;
+  const req = { t: (key: string) => key };
+  const pictureFor = (variant: string) =>
+    media.validate?.(null as never, { required: false, siblingData: { variant }, req } as never);
+  const sourceFor = (variant: string, mode: string) =>
+    source.validate?.(
+      mode as never,
+      { required: true, options: source.options, blockData: { variant }, req } as never,
+    );
+
+  it("refuses the Overlay and Editorial designs without a picture", async () => {
+    expect(await pictureFor("overlay")).toBe(
+      "This design draws its words on the picture: choose one.",
+    );
+    expect(await pictureFor("editorial")).toBe(
+      "This design draws its words on the picture: choose one.",
+    );
+    expect(await pictureFor("standard")).toBe(true);
+    expect(await pictureFor("text")).toBe(true);
+  });
+
+  it("refuses the Product design with no product source, and takes any other", async () => {
+    expect(await sourceFor("product", "none")).toBe(
+      "This design shows a product: choose where it comes from.",
+    );
+    expect(await sourceFor("product", "newest")).toBe(true);
+    expect(await sourceFor("standard", "none")).toBe(true);
+    expect(await sourceFor("bento", "none")).toBe(true);
   });
 });

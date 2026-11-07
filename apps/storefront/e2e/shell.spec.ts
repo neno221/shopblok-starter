@@ -276,17 +276,28 @@ test.describe("the header global (T61)", () => {
 test.describe("the transparent header (D103, T80)", () => {
   test.describe.configure({ mode: "serial" });
   const stamp = Date.now().toString(36);
-  const slugs = { overlay: `e2e-overlay-${stamp}`, text: `e2e-text-${stamp}` };
+  const slugs = {
+    overlay: `e2e-overlay-${stamp}`,
+    text: `e2e-text-${stamp}`,
+    // An overlay hero shown from `lg` only: on a phone the page opens with nothing under the
+    // header (PR 119 review, item 1).
+    desktop: `e2e-overlay-desktop-${stamp}`,
+  };
   let token = "";
   let published: GlobalData | undefined;
   const pageIds: number[] = [];
   const axeTags = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"];
   /** Where it is solid: a page that opens with the text hero, the cart, a product page. */
   const solidPaths = () => [`/us/${slugs.text}`, "/us/cart", `/us/products/${HANDLE}`];
-  const paths = () => [`/us/${slugs.overlay}`, ...solidPaths()];
+  const paths = () => [`/us/${slugs.overlay}`, `/us/${slugs.desktop}`, ...solidPaths()];
 
   /** A published page whose layout is one hero of `variant`, with a picture. */
-  async function heroPage(slug: string, variant: string, media: number) {
+  async function heroPage(
+    slug: string,
+    variant: string,
+    media: number,
+    visibility: "all" | "mobile" | "desktop" = "all",
+  ) {
     const { doc } = await api<{ doc: { id: number } }>(token, "POST", "/api/pages?locale=en", {
       title: `Hero ${variant} ${stamp}`,
       slug,
@@ -298,6 +309,7 @@ test.describe("the transparent header (D103, T80)", () => {
           heading: `The ${variant} hero ${stamp}`,
           subheading: "Warm layers for cooler days.",
           media,
+          sectionSettings: { visibility },
           links: [{ link: { type: "custom", url: "/store", label: "Shop now" } }],
         },
       ],
@@ -311,6 +323,7 @@ test.describe("the transparent header (D103, T80)", () => {
     const picture = await upload(token, `hero-${stamp}.png`, "image/png", PNG, "A white wall");
     await heroPage(slugs.overlay, "overlay", picture.id);
     await heroPage(slugs.text, "text", picture.id);
+    await heroPage(slugs.desktop, "overlay", picture.id, "desktop");
     await publishGlobal(token, "header", {
       design: "transparent",
       sticky: true,
@@ -378,6 +391,16 @@ test.describe("the transparent header (D103, T80)", () => {
             .include('[data-slot="hero-section"]')
             .analyze();
           expect(axe.violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
+        }
+        // The hero shown from `lg` only: under the header there, solid on a phone, where it is
+        // hidden and the page opens with nothing under the header.
+        await page.goto(`/us/${slugs.desktop}`);
+        if (width >= 1024)
+          expect(await look(page), "over the desktop-only hero").toMatchObject(transparent);
+        else {
+          const seen = await look(page);
+          expect(seen, "the desktop-only hero, hidden on a phone").toMatchObject(solid);
+          expect(seen?.height, "the header takes its row's height").toBeGreaterThan(40);
         }
         for (const path of solidPaths()) {
           await page.goto(path);

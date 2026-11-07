@@ -86,13 +86,21 @@ describe("HeroSection's members (T80)", () => {
 
   it("overlay: the picture under the words, which sit on the overlay scrim, and says a picture is behind them (D103)", () => {
     const container = draw(f.overlay, { headingLevel: 1 });
-    expect(root(container).hasAttribute("data-under-header")).toBe(true);
+    expect(root(container).getAttribute("data-under-header")).toBe("all");
     const scrim = container.querySelector("[data-slot=hero-scrim]") as HTMLElement;
     expect(scrim.className).toContain("bg-overlay");
     expect(scrim.className).toContain("text-overlay-foreground");
     expect(within(scrim).getByRole("heading", { level: 1 })).toBeTruthy();
     expect(screen.getByRole("img", { name: f.overlay.image?.alt })).toBeTruthy();
   });
+
+  it.each(["mobile", "desktop"] as const)(
+    "overlay shown on %s only says so, so the header's rule reads it only there (PR 119 review, item 1)",
+    (visibility) => {
+      const container = draw({ ...f.overlay, settings: { visibility } });
+      expect(root(container).getAttribute("data-under-header")).toBe(visibility);
+    },
+  );
 
   it("overlay without a picture does not say one is behind its words", () => {
     const { image: _, ...rest } = f.overlay;
@@ -122,6 +130,19 @@ describe("HeroSection's members (T80)", () => {
     const list = screen.getByRole("list", { name: catalogs.en.organisms.productGrid.label });
     expect(within(list).getAllByRole("listitem")).toHaveLength(4);
     expect(within(list).getAllByRole("heading", { level: 3 })).toHaveLength(4);
+    // Its columns follow the count, not HeroProducts' full-width ones (PR 119 review, item 3).
+    expect(list.className).toContain("md:grid-cols-2");
+    expect(list.className).not.toContain("md:grid-cols-4");
+    const one = draw({ ...f.bento, products: f.bento.products.slice(0, 1) });
+    const oneList = one.querySelector("[data-slot=hero-products]") as HTMLElement;
+    expect(oneList.className).toContain("md:grid-cols-1");
+    expect(oneList.className).not.toContain("md:grid-cols-2");
+    expect(oneList.className.split(" ")).toContain("grid-cols-1");
+    const three = draw({ ...f.bento, products: f.bento.products.slice(0, 3) });
+    const threeList = three.querySelector("[data-slot=hero-products]") as HTMLElement;
+    expect(threeList.className).toContain("md:grid-cols-2");
+    expect(threeList.className).toContain("*:first:col-span-2");
+    expect(threeList.className).not.toContain("md:grid-cols-3");
     const alone = draw({ ...f.section, variant: "bento" });
     expect(alone.querySelector("[data-slot=hero-products]")).toBeNull();
     expect(alone.querySelector("[data-slot=hero-image]")).not.toBeNull();

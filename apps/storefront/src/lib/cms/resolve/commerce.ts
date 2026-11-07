@@ -8,10 +8,11 @@ import {
   ProductCollectionSection,
   PromoBannerSection,
   RecentlyViewedSection,
-  VARIANTS,
+  variantEnum,
   type ComparisonProduct,
   type HeroCollection,
   type ProductCard,
+  type VariantOf,
 } from "@shopblok/registry/contracts";
 import type { ProductDto } from "../../medusa/products";
 import type { Hrefs } from "../../view-models/common";
@@ -80,11 +81,10 @@ export type ResolvedCommerceBlock = { key: string } & (
 );
 
 /** The hero's stored variant when its family has it (T80); `undefined` for none or another's. */
-function heroVariant(value: unknown): HeroVariant | undefined {
-  return (VARIANTS.hero as readonly unknown[]).includes(value) ? (value as HeroVariant) : undefined;
+function heroVariant(value: unknown): VariantOf<"hero"> | undefined {
+  const parsed = variantEnum("hero").safeParse(value);
+  return parsed.success ? parsed.data : undefined;
 }
-
-type HeroVariant = (typeof VARIANTS.hero)[number];
 
 /**
  * The `collection-switcher` hero's collections (T80): each row's collection as Medusa has it for
