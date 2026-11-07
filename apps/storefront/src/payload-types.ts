@@ -2991,13 +2991,27 @@ export interface Template {
     /**
      * The category, collection and store pages, and the search page.
      */
-    variant: "default";
-  };
-  quickView: {
+    variant: "default" | "top-bar" | "drawer" | "accordion" | "chips" | "rail" | "inline";
     /**
-     * Not shown in the shop yet: the quick view will open from the listing's quick-add card. Off: the card adds to the cart, or opens the product page when the product has options.
+     * The card of every product in the listings' and the search page's grids. Quick add puts a button on it; the Quick view tab says what it does.
      */
-    variant: "off" | "default";
+    card:
+      | "standard"
+      | "swatches"
+      | "quick-add"
+      | "overlay"
+      | "minimal"
+      | "horizontal"
+      | "compact"
+      | "editorial"
+      | "bordered"
+      | "image-swap";
+  };
+  quickView?: {
+    /**
+     * Not shown in the shop yet: the quick view will open from the listing's quick-add card. Off: the card's button opens the product page.
+     */
+    variant?: ("off" | "default") | null;
   };
   cart: {
     variant: "default";
@@ -3226,6 +3240,7 @@ export interface TemplatesSelect<T extends boolean = true> {
     | T
     | {
         variant?: T;
+        card?: T;
       };
   quickView?:
     | T

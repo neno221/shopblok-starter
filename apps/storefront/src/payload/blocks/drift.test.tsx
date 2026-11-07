@@ -36,13 +36,34 @@ const facts: VariantFacts = {
 };
 
 describe("the variant fields and their families (D99)", () => {
-  it("finds every block's picker and the templates global's seven", () => {
+  it("finds every block's picker and the templates global's eight", () => {
     expect(pickers.filter((picker) => !picker.where.startsWith("templates."))).toHaveLength(
       BLOCKS.length,
     );
     expect(pickers.filter((picker) => picker.where.startsWith("templates."))).toEqual([
       { where: "templates.productPage.variant", family: "product-detail", offered: ["default"] },
-      { where: "templates.listing.variant", family: "product-listing", offered: ["default"] },
+      {
+        where: "templates.listing.variant",
+        family: "product-listing",
+        offered: ["default", "top-bar", "drawer", "accordion", "chips", "rail", "inline"],
+      },
+      // T84: the listing's grid's card, ProductCard's ten (D46).
+      {
+        where: "templates.listing.card",
+        family: "product-card",
+        offered: [
+          "standard",
+          "swatches",
+          "quick-add",
+          "overlay",
+          "minimal",
+          "horizontal",
+          "compact",
+          "editorial",
+          "bordered",
+          "image-swap",
+        ],
+      },
       // "Off" and "Cart page" draw no member, so they are left out (D101).
       { where: "templates.quickView.variant", family: "quick-view", offered: ["default"] },
       { where: "templates.cart.variant", family: "cart", offered: ["default"] },

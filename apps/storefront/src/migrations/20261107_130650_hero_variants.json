@@ -30457,6 +30457,14 @@
           "notNull": false,
           "default": "'default'"
         },
+        "listing_card": {
+          "name": "listing_card",
+          "type": "enum_templates_listing_card",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'standard'"
+        },
         "quick_view_variant": {
           "name": "quick_view_variant",
           "type": "enum_templates_quick_view_variant",
@@ -30575,6 +30583,14 @@
           "primaryKey": false,
           "notNull": false,
           "default": "'default'"
+        },
+        "version_listing_card": {
+          "name": "version_listing_card",
+          "type": "enum__templates_v_version_listing_card",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'standard'"
         },
         "version_quick_view_variant": {
           "name": "version_quick_view_variant",
@@ -33949,7 +33965,29 @@
       "name": "enum_templates_listing_variant",
       "schema": "public",
       "values": [
-        "default"
+        "default",
+        "top-bar",
+        "drawer",
+        "accordion",
+        "chips",
+        "rail",
+        "inline"
+      ]
+    },
+    "public.enum_templates_listing_card": {
+      "name": "enum_templates_listing_card",
+      "schema": "public",
+      "values": [
+        "standard",
+        "swatches",
+        "quick-add",
+        "overlay",
+        "minimal",
+        "horizontal",
+        "compact",
+        "editorial",
+        "bordered",
+        "image-swap"
       ]
     },
     "public.enum_templates_quick_view_variant": {
@@ -34016,7 +34054,29 @@
       "name": "enum__templates_v_version_listing_variant",
       "schema": "public",
       "values": [
-        "default"
+        "default",
+        "top-bar",
+        "drawer",
+        "accordion",
+        "chips",
+        "rail",
+        "inline"
+      ]
+    },
+    "public.enum__templates_v_version_listing_card": {
+      "name": "enum__templates_v_version_listing_card",
+      "schema": "public",
+      "values": [
+        "standard",
+        "swatches",
+        "quick-add",
+        "overlay",
+        "minimal",
+        "horizontal",
+        "compact",
+        "editorial",
+        "bordered",
+        "image-swap"
       ]
     },
     "public.enum__templates_v_version_quick_view_variant": {
@@ -34132,6 +34192,6 @@
     "tables": {},
     "columns": {}
   },
-  "id": "e0650baf-2e24-44c4-b3d9-98bc786d0b6b",
+  "id": "0155d36b-97b4-4cbc-a336-f14021968af1",
   "prevId": "00000000-0000-0000-0000-000000000000"
 }

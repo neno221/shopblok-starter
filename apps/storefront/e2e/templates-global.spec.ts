@@ -22,10 +22,13 @@ const ADDRESS = {
   postalCode: "10118",
 };
 
-/** Every picker on its family's first member, the quick view off: M4's shop (the seed's values). */
+/**
+ * Every picker on its family's first member, the quick view off: M4's shop (the seed's values).
+ * T84's card picker too: its first card is M3's.
+ */
 const FIRST_VARIANTS: GlobalData = {
   productPage: { variant: "default" },
-  listing: { variant: "default" },
+  listing: { variant: "default", card: "standard" },
   quickView: { variant: "off" },
   cart: { variant: "default", miniCart: "drawer", quickCart: "dropdown" },
   checkout: { variant: "default" },

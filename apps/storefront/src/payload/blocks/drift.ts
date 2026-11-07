@@ -88,8 +88,8 @@ export function variantPickers(where: string, fields: readonly Field[]): Variant
 /**
  * The `data-slot` of the element each family's member draws `data-variant` on, its root (D99): a
  * section's frame, the template root of the family's first member, the quick view's and the mini
- * cart's trigger (the dialog and
- * the sheet are not in a server render until they open).
+ * cart's trigger (the dialog and the sheet are not in a server render until they open), and the
+ * product card's own root (the listing's `card` picker, T84).
  */
 export function familyRoot(
   entry: RegistryEntry,
@@ -110,6 +110,7 @@ export function familyRoot(
   }
   if (entry.family === "quick-view") return "quick-view-trigger";
   if (entry.family === "mini-cart") return "cart-drawer-trigger";
+  if (entry.family === "product-card") return "product-card";
   return undefined;
 }
 

@@ -58,7 +58,8 @@ export const VARIANTS = {
   // D99, D101 (T79): the commerce templates' and organisms' families, each starting with what M2
   // and M3 built, which the `templates` global picks from; T83 to T86 add the others.
   "product-detail": ["default"],
-  "product-listing": ["default"],
+  // T84: the listing's filter layouts (M5 plan §1a), which the search page follows.
+  "product-listing": ["default", "top-bar", "drawer", "accordion", "chips", "rail", "inline"],
   "quick-view": ["default"],
   cart: ["default"],
   "mini-cart": ["drawer"],

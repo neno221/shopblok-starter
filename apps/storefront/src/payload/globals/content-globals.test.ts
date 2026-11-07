@@ -165,6 +165,24 @@ describe("the templates global's pickers (D101)", () => {
     expect(tabField(Templates, "cart", "quickCart")).toMatchObject({ defaultValue: "dropdown" });
   });
 
+  it("offers ProductCard's ten for the listing's card, the first chosen (T84)", () => {
+    const picker = tabField(Templates, "listing", "card");
+    expect(options(picker)).toEqual(values("product-card"));
+    expect(picker).toMatchObject({ required: true, defaultValue: "standard" });
+  });
+
+  it("shows the quick view's picker only when the listing's card is quick add (D101, T84)", () => {
+    const picker = tabField(Templates, "quickView", "variant") as {
+      admin: { condition: (data: unknown, sibling: unknown, ctx: unknown) => boolean };
+    };
+    const shows = (data: unknown) => picker.admin.condition(data, {}, {});
+    expect(shows({ listing: { card: "quick-add" } })).toBe(true);
+    for (const card of values("product-card").filter((value) => value !== "quick-add"))
+      expect(shows({ listing: { card } }), card).toBe(false);
+    expect(shows({})).toBe(false);
+    expect(shows(undefined)).toBe(false);
+  });
+
   it("draws every family picker with the registry's thumbnails, none for an option with no member", () => {
     const picker = tabField(Templates, "quickView", "variant") as {
       admin: { custom: { thumbnails: Record<string, string> } };

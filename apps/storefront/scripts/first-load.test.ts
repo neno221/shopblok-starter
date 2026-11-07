@@ -586,6 +586,16 @@ describe("the kept-out modules (D102)", () => {
     },
   );
 
+  it("keeps out the listing's six filter layouts other than M3's (T84)", () => {
+    expect(keptOut.map((item) => item.marker)).toEqual(
+      expect.arrayContaining(
+        ["top-bar", "drawer", "accordion", "chips", "rail", "inline"].map(
+          (layout) => `shopblok:listing-${layout}`,
+        ),
+      ),
+    );
+  });
+
   it("starts with the live preview's listener (D74, T61)", () => {
     expect(keptOut.map((item) => item.module)).toContain(
       "src/components/cms/live-preview-listener.tsx",

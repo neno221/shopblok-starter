@@ -122,6 +122,7 @@ export const templatesSeed: SeedGlobal = {
   fields: () => ({
     "productPage.variant": seeded(firstVariant("product-detail")),
     "listing.variant": seeded(firstVariant("product-listing")),
+    "listing.card": seeded(firstVariant("product-card")),
     "quickView.variant": seeded(QUICK_VIEW_OFF),
     "cart.variant": seeded(firstVariant("cart")),
     "cart.miniCart": seeded(firstVariant("mini-cart")),
