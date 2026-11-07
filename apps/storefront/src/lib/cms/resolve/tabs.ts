@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { documentRef, type SectionsDocument } from "../catalog-sections";
 import type { ProductCard } from "@shopblok/registry/contracts";
 import { categoryPaths } from "../../medusa/categories";
 import type { Hrefs } from "../../view-models/common";
@@ -118,21 +119,22 @@ export function tabVersion(tab: StoredTab): string {
 }
 
 /**
- * A tab's endpoint: the market, the published page that holds the block, the block's id, the
+ * A tab's endpoint: the market, the published document that holds the block (a page, a synced
+ * document's own sections or the `templates` global's defaults, T87), the block's id, the
  * tab's place among the block's stored tabs and the stored tab's fingerprint (`tabVersion`). The
  * route reads nothing else from the query (no source, no limit, no region), so a forged parameter
  * changes nothing.
  */
 export function tabEndpoint(
   market: string,
-  doc: number,
+  doc: SectionsDocument,
   block: string,
   tab: number,
   stored: StoredTab,
 ): string {
   const query = new URLSearchParams({
     market,
-    doc: String(doc),
+    doc: documentRef(doc),
     block,
     tab: String(tab),
     v: tabVersion(stored),

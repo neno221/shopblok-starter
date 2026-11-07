@@ -1,4 +1,5 @@
 import { listingContentFields } from "../fields/catalog-content";
+import { catalogSectionFields } from "../fields/catalog-sections";
 import { metaContentField } from "../seo";
 import { syncedCollection } from "./synced-collection";
 
@@ -7,5 +8,5 @@ export const Collections = syncedCollection({
   slug: "collections",
   labels: { singular: "Collection", plural: "Collections" },
   interfaceName: "ProductCollection",
-  content: [...listingContentFields(), metaContentField()],
+  content: [...listingContentFields(), ...catalogSectionFields("listing"), metaContentField()],
 });

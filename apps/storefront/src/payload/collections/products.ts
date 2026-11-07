@@ -1,6 +1,7 @@
 import type { TextField } from "payload";
 import { productContentFields } from "../fields/catalog-content";
 import { synced } from "../fields/synced";
+import { catalogSectionFields } from "../fields/catalog-sections";
 import { metaContentField } from "../seo";
 import { syncedCollection } from "./synced-collection";
 
@@ -13,5 +14,5 @@ export const Products = syncedCollection({
     // The URL Medusa stores (the guide's second gap: it never synced one).
     synced<TextField>({ name: "thumbnail", type: "text" }),
   ],
-  content: [...productContentFields(), metaContentField()],
+  content: [...productContentFields(), ...catalogSectionFields("product"), metaContentField()],
 });

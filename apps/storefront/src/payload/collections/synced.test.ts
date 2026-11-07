@@ -137,10 +137,11 @@ const contentFieldNames = (fields: readonly Field[]) =>
   );
 
 describe("the shop's own content on the synced documents (T69, D83)", () => {
+  // T87 (D104): the sections' mode and blocks are content too.
   const CONTENT = {
-    products: ["richDescription", "gallery", "meta"],
-    categories: ["image", "banner", "intro", "meta"],
-    collections: ["image", "banner", "intro", "meta"],
+    products: ["richDescription", "gallery", "sectionsMode", "sections", "meta"],
+    categories: ["image", "banner", "intro", "sectionsMode", "sections", "meta"],
+    collections: ["image", "banner", "intro", "sectionsMode", "sections", "meta"],
   } as const;
 
   for (const { config } of COLLECTIONS) {
@@ -248,4 +249,53 @@ describe("a save of a synced document refreshes its content read (T69, D73)", ()
     } as never);
     expect(tags()).toContain("cms:catalog");
   });
+});
+
+describe("the sections of the synced documents (T87, D104)", () => {
+  for (const { config } of COLLECTIONS) {
+    it(`${config.slug}: sectionsMode is default, own or none, "default" to start, not localized`, () => {
+      const mode = named(config.fields, "sectionsMode") as
+        | { type: string; options: { value: string }[]; defaultValue: unknown; localized?: boolean }
+        | undefined;
+      expect(mode?.type).toBe("radio");
+      expect(mode?.options.map((option) => option.value)).toEqual(["default", "own", "none"]);
+      expect(mode?.defaultValue).toBe("default");
+      expect(mode?.localized).toBeUndefined();
+    });
+
+    it(`${config.slug}: sections are the pages' blocks but the hero, recently viewed and the journal's`, () => {
+      const sections = named(config.fields, "sections") as
+        | { type: string; blockReferences: string[]; localized?: boolean }
+        | undefined;
+      expect(sections?.type).toBe("blocks");
+      // Shared by every language, as a page's `layout`: the texts inside are localized.
+      expect(sections?.localized).toBeUndefined();
+      expect(sections?.blockReferences).not.toContain("hero");
+      expect(sections?.blockReferences).not.toContain("recentlyViewed");
+      expect(sections?.blockReferences).not.toContain("editorialList");
+      expect(sections?.blockReferences).toEqual(
+        expect.arrayContaining(["faq", "uspBar", "productCollection", "formBlock", "newsletter"]),
+      );
+    });
+
+    it(`${config.slug}: the integration can never write them, staff can`, () => {
+      for (const name of ["sectionsMode", "sections"]) {
+        const field = named(config.fields, name);
+        const fieldAccess = field && "access" in field ? field.access : undefined;
+        expect(fieldAs(fieldAccess?.update, sync), `${name} update`).toBe(false);
+        expect(fieldAs(fieldAccess?.create, sync), `${name} create`).toBe(false);
+        expect(fieldAs(fieldAccess?.update, editor), `${name} update`).toBe(true);
+      }
+    });
+
+    it(`${config.slug}: the sections show in the admin only while the mode is own`, () => {
+      const sections = named(config.fields, "sections");
+      const condition = sections?.admin?.condition as
+        | ((data: unknown, sibling: unknown) => boolean)
+        | undefined;
+      expect(condition?.({}, { sectionsMode: "own" })).toBe(true);
+      expect(condition?.({}, { sectionsMode: "default" })).toBe(false);
+      expect(condition?.({}, { sectionsMode: "none" })).toBe(false);
+    });
+  }
 });

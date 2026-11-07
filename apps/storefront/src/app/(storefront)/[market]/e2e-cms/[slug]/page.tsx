@@ -51,7 +51,7 @@ export default async function E2eCmsPage({ params }: PageProps<"/[market]/e2e-cm
           commerce,
           posts: postsContext({ market, draft }, messages),
           // T81: the `tabs` collections' other tabs are read from the published page.
-          ...(draft ? {} : { document: { id: page.id } }),
+          ...(draft ? {} : { document: { kind: "page" as const, id: page.id } }),
         }}
         messages={messages}
       />

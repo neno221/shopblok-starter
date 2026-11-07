@@ -17,8 +17,16 @@ export const embeddingTags = (locale: string) => [
   ...postTags(locale),
 ];
 
-/** What a change to a form refreshes in one language (T67): its own reads, and what embeds it. */
-export const formTags = (locale: string) => [`forms:${locale}`, ...embeddingTags(locale)];
+/**
+ * What a change to a form refreshes in one language (T67): its own reads, and what embeds it: the
+ * content globals (the `templates` global's default sections among them), the pages, the posts and,
+ * since T87, the catalog's content (`cms:catalog`), whose sections may hold a form (D104).
+ */
+export const formTags = (locale: string) => [
+  `forms:${locale}`,
+  ...embeddingTags(locale),
+  CATALOG_CONTENT_TAG,
+];
 
 /** The synced collections whose documents carry the shop's own content (D83, T69). */
 export type CatalogContentSlug = "products" | "categories" | "collections";

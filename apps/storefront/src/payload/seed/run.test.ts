@@ -473,7 +473,8 @@ describe("the globals' seed (T61 step 6)", () => {
       Object.entries(fields).map(([path, seeded]) => [path, seeded.value]),
     );
     const d = TEMPLATE_DEFAULTS;
-    expect(values).toEqual({
+    const { ["productPage.sections"]: sections, ...pickers } = values;
+    expect(pickers).toEqual({
       "productPage.variant": d.productPage,
       "listing.variant": d.listing,
       "listing.card": d.card,
@@ -487,6 +488,30 @@ describe("the globals' seed (T61 step 6)", () => {
       "checkout.variant": d.checkout,
       "receipt.variant": d.receipt,
     });
+    // T87 (D104): the product page's default sections, a USP bar with the shop's promises.
+    expect(sections).toEqual([expect.objectContaining({ blockType: "uspBar" })]);
+  });
+
+  it("gives the product page a USP bar with site.ts's promises in the four seeded languages (T87)", async () => {
+    const fields = await templatesSeed.fields({} as Payload);
+    const [bar] = fields["productPage.sections"]?.value as {
+      id: string;
+      blockType: string;
+      items: { id: string; icon: string; title: Record<string, string>; text: Record<string, string> }[];
+    }[];
+    expect(bar?.id).toBe("seed-product-usps");
+    const items = bar?.items ?? [];
+    expect(items.map((item) => item.icon)).toEqual(["delivery", "returns", "secure"]);
+    for (const language of ["en", "el", "de", "fr"]) {
+      expect(items.map((item) => item.title[language])).toEqual(
+        siteText(language).promises.map((promise) => promise.title),
+      );
+      expect(items.map((item) => item.text[language])).toEqual(
+        siteText(language).promises.map((promise) => promise.text),
+      );
+    }
+    // Fixed row ids, so each language's texts are the same rows' and a second run changes nothing.
+    expect(new Set(items.map((item) => item.id)).size).toBe(3);
   });
 
   it("writes M3's shell from site.ts, in the four seeded languages", async () => {

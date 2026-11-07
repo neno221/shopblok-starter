@@ -1,6 +1,7 @@
 import type { NumberField } from "payload";
 import { listingContentFields } from "../fields/catalog-content";
 import { synced, syncedReference } from "../fields/synced";
+import { catalogSectionFields } from "../fields/catalog-sections";
 import { metaContentField } from "../seo";
 import { syncedCollection } from "./synced-collection";
 
@@ -14,5 +15,5 @@ export const Categories = syncedCollection({
     syncedReference("parent", "categories"),
     synced<NumberField>({ name: "rank", type: "number" }),
   ],
-  content: [...listingContentFields(), metaContentField()],
+  content: [...listingContentFields(), ...catalogSectionFields("listing"), metaContentField()],
 });

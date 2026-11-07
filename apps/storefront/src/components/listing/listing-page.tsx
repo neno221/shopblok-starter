@@ -37,6 +37,7 @@ import { listingJsonLd } from "../../lib/seo/listing";
 import { withSeo } from "../../lib/seo/meta";
 import { jsonLdText } from "../../lib/seo/product";
 import { SHELL_PREFETCH } from "../../lib/site";
+import { catalogSections } from "../cms/catalog-sections";
 import { CmsRichText } from "../cms/rich-text";
 import { getShellData } from "../shell/shell-data";
 import { ListingIsland } from "./listing-island";
@@ -51,6 +52,7 @@ import { ListingIsland } from "./listing-island";
 // T69 (D83): a category's or collection's banner and introduction from its Payload document, read
 // by its handle in the market's language, on every page of the listing; none for the store, and
 // none without a database or before the sync has written the document.
+// T87 (D104): its sections after the results and their pagination, on every page of the listing.
 
 type ListingPageData = {
   context: MarketContext;
@@ -121,6 +123,23 @@ async function introText(intro: NonNullable<ListingContent["intro"]>, context: M
   return <CmsRichText data={intro} context={{ market: context.market, map: context.map, paths }} />;
 }
 
+/**
+ * A category's or collection's sections (T87, D104), on every page of its listing: its own, the
+ * `templates` global's for the listings, or none. The store's page is no document's, and has none.
+ */
+async function scopeSections({ context, messages, resolved }: ListingPageData) {
+  const { scope } = resolved;
+  const owner =
+    scope.kind === "category"
+      ? { kind: "categories" as const, handle: scope.path.at(-1) ?? "" }
+      : scope.kind === "collection"
+        ? { kind: "collections" as const, handle: scope.handle }
+        : null;
+  if (owner === null) return undefined;
+  const { isEnabled: draft } = await draftMode();
+  return catalogSections({ owner, context, messages, draft });
+}
+
 /** The address of a page of the listing: the first at the listing's own, the others by path. */
 const pageHref = (base: string, page: number) => (page === 1 ? base : `${base}/page/${page}`);
 
@@ -177,7 +196,10 @@ export async function ListingPage({
   const { context, messages, resolved, results, content } = data;
   const { market } = context;
   const base = context.url(resolved.path);
-  const intro = content?.intro == null ? undefined : await introText(content.intro, context);
+  const [intro, sections] = await Promise.all([
+    content?.intro == null ? undefined : introText(content.intro, context),
+    scopeSections(data),
+  ]);
   // D101: the `templates` global's filter layout, read in the shell like the header (T79).
   const { templates } = await getShellData();
   const copy = productListingCopy(messages);
@@ -213,6 +235,7 @@ export async function ListingPage({
         prefetch={SHELL_PREFETCH}
         slots={{
           ...(intro === undefined ? {} : { intro }),
+          ...(sections === undefined ? {} : { sections }),
           // D59: beside the server's results, never around them, in a `Suspense` of its own with no
           // fallback: the static HTML holds the first page's products, and the island draws nothing
           // until the URL has a filter, a sort or a page in its query.
