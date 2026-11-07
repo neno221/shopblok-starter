@@ -1704,6 +1704,38 @@ describe.each(designSystemLocales)("the %s fixtures", (locale) => {
       }
     });
 
+    it("pick four products the cart does not hold for drawer-picks, in the cart's currency (T85)", () => {
+      expectParses(
+        CartDrawer,
+        { ...samples.drawer.full, variant: "drawer-picks", picks: samples.picks },
+        `${locale}.cartCheckout.picks`,
+      );
+      expect(samples.picks).toHaveLength(4);
+      const held = new Set(cart.lines.map((line) => line.productId));
+      for (const pick of samples.picks) {
+        expect(held.has(pick.id), pick.id).toBe(false);
+        expect(pick.href).toBe(`${prefix}/products/${pick.href.split("/").at(-1)}`);
+      }
+      // One of them has one variant: its form is a hidden field and "Add".
+      expect(samples.picks.filter((pick) => pick.choices.length === 1)).toHaveLength(1);
+    });
+
+    it("refuse a drawer-picks without picks, or with a pick the cart holds (T85)", () => {
+      expect(CartDrawer.safeParse({ ...samples.drawer.full, variant: "drawer-picks" }).success).toBe(
+        false,
+      );
+      const [line] = cart.lines;
+      const [pick] = samples.picks;
+      if (line === undefined || pick === undefined) throw new Error("no line or pick");
+      expect(
+        CartDrawer.safeParse({
+          ...samples.drawer.full,
+          variant: "drawer-picks",
+          picks: [{ ...pick, id: line.productId }],
+        }).success,
+      ).toBe(false);
+    });
+
     it("add the cart's first line in the dropdown, with the cart's count and subtotal", () => {
       expect(samples.quickCart.added).toBe(cart.lines[0]);
       expect(samples.quickCart.itemCount).toBe(cart.itemCount);

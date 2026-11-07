@@ -30,11 +30,11 @@ const atom = (id: string, extra: Partial<EntryInput> = {}): EntryInput => ({
 });
 
 describe("the registry (D40)", () => {
-  it("lists M1's 8 foundations and 32 atoms, then T32's 15 molecules, T33's 13 and T34's 12, then T35's 4 organisms and 6 headers, T36's 2 organisms and 5 footers, T37's 7 organisms, T38's 7 (T83's two quick views after the first) and T39's 11, then T63's 8 sections, T64's 9 (T80's 7 hero variants after the hero), T67's 2 and T66's 1, then T48's 2 templates, T49's 1 (T83's five product page layouts after it), T50's 2 (T84's six listing layouts after the first), T51's 1, T52's 3, T53's 3, T65's 1 and T66's 2, in the navigation's order", () => {
+  it("lists M1's 8 foundations and 32 atoms, then T32's 15 molecules, T33's 13 and T34's 12, then T35's 4 organisms and 6 headers, T36's 2 organisms and 5 footers, T37's 7 organisms, T38's 7 (T83's two quick views after the first) and T39's 11 (T85's drawer with picks after the drawer), then T63's 8 sections, T64's 9 (T80's 7 hero variants after the hero), T67's 2 and T66's 1, then T48's 2 templates, T49's 1 (T83's five product page layouts after it), T50's 2 (T84's six listing layouts after the first), T51's 1, T52's 3 (T85's three cart layouts after the first), T53's 3, T65's 1 and T66's 2, in the navigation's order", () => {
     expect(byGroup("foundations")).toHaveLength(8);
     expect(byGroup("atoms")).toHaveLength(32);
     expect(byGroup("molecules")).toHaveLength(40);
-    expect(byGroup("organisms")).toHaveLength(33);
+    expect(byGroup("organisms")).toHaveLength(34);
     expect(byGroup("headers-footers")).toHaveLength(11);
     expect(byGroup("sections").map((entry) => entry.id)).toEqual([
       "sections/rich-text",
@@ -84,6 +84,9 @@ describe("the registry (D40)", () => {
       "templates/search-results",
       "templates/home",
       "templates/cart",
+      "templates/cart-table",
+      "templates/cart-sticky-summary",
+      "templates/cart-focused",
       "templates/checkout",
       "templates/order-confirmation",
       "templates/auth",
@@ -93,7 +96,7 @@ describe("the registry (D40)", () => {
       "templates/journal",
       "templates/post",
     ]);
-    expect(entries).toHaveLength(177);
+    expect(entries).toHaveLength(181);
     expect(entries.map((entry) => entry.id).slice(0, 2)).toEqual([
       "foundations/colors",
       "foundations/typography",
@@ -129,6 +132,7 @@ describe("the registry (D40)", () => {
       "organisms/quick-view-dialog-compact",
       "organisms/size-guide-dialog",
       "organisms/cart-drawer",
+      "organisms/cart-drawer-picks",
       "organisms/quick-cart-dropdown",
       "organisms/checkout-steps",
       "organisms/payment-step",
@@ -470,11 +474,12 @@ describe("variantsOf", () => {
       },
     ]);
     expect(variantsOf("nope", list)).toEqual([]);
-    // The 68 variants a shop picks (D46, D52, D79, D99): six headers, five footers, ten cards, the
+    // The 72 variants a shop picks (D46, D52, D79, D99): six headers, five footers, ten cards, the
     // twenty blocks' one each (T63's eight content blocks, T64's nine commerce blocks, T67's two
     // form blocks, T66's editorial list), the first of T79's seven families each, T80's seven
-    // more heroes, T84's six listing layouts, T83's five product page layouts and two quick views.
-    expect(entries.filter((entry) => entry.family !== undefined)).toHaveLength(68);
+    // more heroes, T84's six listing layouts, T83's five product page layouts and two quick views,
+    // and T85's three cart layouts and the drawer with picks.
+    expect(entries.filter((entry) => entry.family !== undefined)).toHaveLength(72);
   });
 
   it("starts T79's seven families with what M2 and M3 built, ids unchanged (D99)", () => {

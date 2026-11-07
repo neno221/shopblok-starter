@@ -119,11 +119,22 @@ export const organisms = [
   quickView("compact", "QuickViewDialog · Compact", "QuickViewCompact"),
   organism("size-guide-dialog", "SizeGuideDialog", "SizeGuideDialog", SizeGuide),
   // T39: the cart, the checkout and the account.
-  // What a click on the header's cart opens (D101; `mini-cart`, T85 adds `drawer-picks`).
+  // What a click on the header's cart opens (D101; `mini-cart`): the drawer, and (T85) the drawer
+  // with products to add under the lines, from the `templates` global's `picks`.
   {
     ...organism("cart-drawer", "CartDrawer", "CartDrawer", CartDrawer),
     family: "mini-cart",
     variant: firstVariant("mini-cart"),
+  },
+  {
+    id: "organisms/cart-drawer-picks",
+    group: "organisms",
+    kind: "organism",
+    label: "CartDrawer · Picks",
+    component: { module: "@shopblok/ui/organisms/mini-cart/drawer-picks", name: "MiniCartDrawerPicks" },
+    contract: CartDrawer,
+    family: "mini-cart",
+    variant: "drawer-picks",
   },
   organism("quick-cart-dropdown", "QuickCartDropdown", "QuickCartDropdown", QuickCart),
   organism("checkout-steps", "CheckoutSteps", "CheckoutSteps", CheckoutSteps),

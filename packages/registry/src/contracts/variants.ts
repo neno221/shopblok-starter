@@ -62,8 +62,9 @@ export const VARIANTS = {
   // T84: the listing's filter layouts (M5 plan §1a), which the search page follows.
   "product-listing": ["default", "top-bar", "drawer", "accordion", "chips", "rail", "inline"],
   "quick-view": ["default", "drawer", "compact"],
-  cart: ["default"],
-  "mini-cart": ["drawer"],
+  // T85: the cart page's layouts and the mini cart's drawer with picks (M5 plan §1a).
+  cart: ["default", "table", "sticky-summary", "focused"],
+  "mini-cart": ["drawer", "drawer-picks"],
   checkout: ["default"],
   receipt: ["default"],
 } as const satisfies Record<string, readonly [string, ...string[]]>;

@@ -75,8 +75,16 @@ describe("the variant fields and their families (D99)", () => {
         family: "quick-view",
         offered: ["default", "drawer", "compact"],
       },
-      { where: "templates.cart.variant", family: "cart", offered: ["default"] },
-      { where: "templates.cart.miniCart", family: "mini-cart", offered: ["drawer"] },
+      {
+        where: "templates.cart.variant",
+        family: "cart",
+        offered: ["default", "table", "sticky-summary", "focused"],
+      },
+      {
+        where: "templates.cart.miniCart",
+        family: "mini-cart",
+        offered: ["drawer", "drawer-picks"],
+      },
       { where: "templates.checkout.variant", family: "checkout", offered: ["default"] },
       { where: "templates.receipt.variant", family: "receipt", offered: ["default"] },
     ]);

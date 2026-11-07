@@ -146,6 +146,17 @@ export const templates = [
   template("home", "Home page", "HomeTemplate", HomePage),
   // T52: the cart, the checkout and the receipt.
   first("cart", "cart", "Cart page", "CartTemplate", CartPage),
+  // T85: the cart page's three other layouts (M5 plan §1a).
+  member("cart", "cart", "table", "Cart page · Table", "CartTable", CartPage),
+  member(
+    "cart",
+    "cart",
+    "sticky-summary",
+    "Cart page · Sticky summary",
+    "CartStickySummary",
+    CartPage,
+  ),
+  member("cart", "cart", "focused", "Cart page · Focused", "CartFocused", CartPage),
   first("checkout", "checkout", "Checkout", "CheckoutTemplate", CheckoutPage),
   first(
     "order-confirmation",

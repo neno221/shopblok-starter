@@ -10,6 +10,9 @@
 // the drawer is read again each time it opens. A failed read opens the cart page.
 // T79 (D101): the `templates` global decides both: `miniCart` "page" leaves the link to the cart
 // page alone, and `quickCart` "off" shows nothing after an add (the count still follows it).
+// T85: which mini cart a click opens (the drawer, or the drawer with picks) is the action's to
+// read on the server; the island draws the parts it answers, whose `variant` says which member
+// they are, and sends a pick's form to it like the drawer's other forms.
 "use client";
 
 import { CartDrawerClient } from "@shopblok/ui/organisms/cart-drawer-client";
@@ -25,7 +28,7 @@ import {
 import { VisitorCartButton, type VisitorCartButtonProps } from "./cart-button";
 import { onAdded } from "./cart-events";
 import { setCartCount } from "./store";
-import { MINI_CART_PAGE } from "../cms/template-options";
+import { DRAWER_FORMS, MINI_CART_PAGE } from "../cms/template-options";
 
 export type CartIslandProps = VisitorCartButtonProps & {
   /** The market's key, for the actions. */
@@ -40,15 +43,6 @@ type Shown =
   | { kind: "link" }
   | { kind: "drawer"; parts: DrawerParts; open: boolean }
   | { kind: "quick"; parts: QuickParts };
-
-/** Which of the drawer's forms sent a submit: its promotion field's two, a line's quantity or remove. */
-function intentOf(form: HTMLFormElement): string | null {
-  const slot = form.dataset["slot"];
-  if (slot === "promo-code-remove") return "remove-code";
-  if (slot === "promo-code-apply") return "apply-code";
-  if (form.elements.namedItem("lineId") === null) return null;
-  return form.elements.namedItem("quantity") === null ? "remove" : "update";
-}
 
 const plain = (event: ReactMouseEvent) =>
   event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey;
@@ -101,13 +95,16 @@ export function CartIsland({ market, miniCart, quickCart, ...button }: CartIslan
 
   const change = (event: FormEvent<HTMLSpanElement>) => {
     const form = event.target;
-    if (shown.kind !== "drawer" || !(form instanceof HTMLFormElement)) return;
-    const intent = intentOf(form);
-    if (intent === null) return;
+    const submit = event.nativeEvent as SubmitEvent;
+    // T85: React hands the drawer's submit to this listener twice (once for the body, once for the
+    // sheet's portal inside it); the first one prevents it, so a pick is added once, not twice.
+    if (shown.kind !== "drawer" || submit.defaultPrevented || !(form instanceof HTMLFormElement))
+      return;
+    const intent = form.dataset["slot"];
+    if (!(DRAWER_FORMS as readonly (string | undefined)[]).includes(intent)) return;
     // Caught before React's own handling of the form's action, which then leaves it.
     event.preventDefault();
-    const submitter = (event.nativeEvent as SubmitEvent).submitter;
-    const data = new FormData(form, submitter);
+    const data = new FormData(form, submit.submitter);
     changeCartInDrawer(market, intent, data).then(
       (answer) => {
         if (answer === null) return;

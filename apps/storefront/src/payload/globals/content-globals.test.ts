@@ -183,6 +183,24 @@ describe("the templates global's pickers (D101)", () => {
     expect(shows(undefined)).toBe(false);
   });
 
+  it("shows the picks, a source of at most four with no empty behaviour, only for the drawer with picks (T85)", () => {
+    const picks = tabField(Templates, "cart", "picks") as {
+      type: string;
+      fields: { name?: string; max?: number; defaultValue?: unknown }[];
+      admin: { condition: (data: unknown, sibling: unknown, ctx: unknown) => boolean };
+    };
+    expect(picks.type).toBe("group");
+    const names = picks.fields.map((field) => field.name);
+    expect(names).toContain("mode");
+    expect(names).not.toContain("emptyBehavior");
+    const limit = picks.fields.find((field) => field.name === "limit");
+    expect(limit).toMatchObject({ max: 4, defaultValue: 4 });
+    expect(picks.fields.find((field) => field.name === "mode")?.defaultValue).toBe("newest");
+    const shows = (miniCart: unknown) => picks.admin.condition({}, { miniCart }, {});
+    expect(shows("drawer-picks")).toBe(true);
+    for (const other of ["drawer", "page", undefined]) expect(shows(other), String(other)).toBe(false);
+  });
+
   it("draws every family picker with the registry's thumbnails, none for an option with no member", () => {
     const picker = tabField(Templates, "quickView", "variant") as {
       admin: { custom: { thumbnails: Record<string, string> } };
