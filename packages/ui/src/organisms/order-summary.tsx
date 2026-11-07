@@ -36,6 +36,11 @@ type OrderSummaryProps = Omit<React.ComponentProps<"section">, "children"> &
     headingLevel?: HeadingLevel;
     /** The lines open at first below `lg` (the confirmation page, the design system's states). */
     defaultOpen?: boolean;
+    /**
+     * `open`: the lines always shown, with no toggle at any width (T86: inside a disclosure of its
+     * own, the focused checkout's bar and the compact receipt's details). `toggle` unless given.
+     */
+    lines?: "toggle" | "open";
   };
 
 function OrderSummary({
@@ -48,11 +53,66 @@ function OrderSummary({
   locale,
   headingLevel = 2,
   defaultOpen,
+  lines = "toggle",
   className,
   ...props
 }: OrderSummaryProps) {
   const titleId = useId();
   const Heading = `h${headingLevel}` as const;
+  const list = (
+    <ul
+      role="list"
+      aria-label={copy.items}
+      data-slot="order-summary-items"
+      className="flex min-w-0 flex-col gap-4"
+    >
+      {items.map((item) => (
+        <li
+          key={item.id}
+          data-slot="order-summary-item"
+          className="grid min-w-0 grid-cols-[3.5rem_minmax(0,1fr)] gap-3"
+        >
+          <div className="w-14">
+            {item.image === undefined ? (
+              <div
+                aria-hidden="true"
+                className="flex aspect-[4/5] w-full items-center justify-center rounded-md bg-muted text-muted-foreground"
+              >
+                <ImageOffIcon className="size-5" />
+              </div>
+            ) : (
+              <Image src={item.image.src} alt="" sizes="56px" ratio="portrait" radius="md" />
+            )}
+          </div>
+          <div className="flex min-w-0 flex-wrap items-start justify-between gap-x-3 gap-y-1">
+            <div className="flex min-w-0 flex-1 basis-40 flex-col gap-0.5 text-sm leading-snug">
+              <p className="font-medium wrap-anywhere">{item.title}</p>
+              {item.options.map((option, index) => (
+                <p
+                  key={`${option.option}-${index}`}
+                  className="text-muted-foreground wrap-anywhere"
+                >
+                  {formatMessage(copy.option, option, locale)}
+                </p>
+              ))}
+              <p className="text-muted-foreground">
+                {formatMessage(copy.quantity, { count: item.quantity }, locale)}
+              </p>
+            </div>
+            <p className="ms-auto text-sm font-medium">
+              <VisuallyHidden>{copy.lineTotal} </VisuallyHidden>
+              <Price
+                size="sm"
+                amount={item.total.amount}
+                currency={item.total.currencyCode}
+                locale={locale}
+              />
+            </p>
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
   return (
     <section
       data-slot="order-summary"
@@ -66,67 +126,20 @@ function OrderSummary({
       <Heading id={titleId} className="text-base leading-snug font-semibold wrap-anywhere">
         {copy.title}
       </Heading>
-      <OrderSummaryLines
-        copy={{
-          show: copy.show,
-          hide: copy.hide,
-          count: formatMessage(copy.count, { count: itemCount }, locale),
-        }}
-        defaultOpen={defaultOpen}
-      >
-        <ul
-          role="list"
-          aria-label={copy.items}
-          data-slot="order-summary-items"
-          className="flex min-w-0 flex-col gap-4"
+      {lines === "open" ? (
+        list
+      ) : (
+        <OrderSummaryLines
+          copy={{
+            show: copy.show,
+            hide: copy.hide,
+            count: formatMessage(copy.count, { count: itemCount }, locale),
+          }}
+          defaultOpen={defaultOpen}
         >
-          {items.map((item) => (
-            <li
-              key={item.id}
-              data-slot="order-summary-item"
-              className="grid min-w-0 grid-cols-[3.5rem_minmax(0,1fr)] gap-3"
-            >
-              <div className="w-14">
-                {item.image === undefined ? (
-                  <div
-                    aria-hidden="true"
-                    className="flex aspect-[4/5] w-full items-center justify-center rounded-md bg-muted text-muted-foreground"
-                  >
-                    <ImageOffIcon className="size-5" />
-                  </div>
-                ) : (
-                  <Image src={item.image.src} alt="" sizes="56px" ratio="portrait" radius="md" />
-                )}
-              </div>
-              <div className="flex min-w-0 flex-wrap items-start justify-between gap-x-3 gap-y-1">
-                <div className="flex min-w-0 flex-1 basis-40 flex-col gap-0.5 text-sm leading-snug">
-                  <p className="font-medium wrap-anywhere">{item.title}</p>
-                  {item.options.map((option, index) => (
-                    <p
-                      key={`${option.option}-${index}`}
-                      className="text-muted-foreground wrap-anywhere"
-                    >
-                      {formatMessage(copy.option, option, locale)}
-                    </p>
-                  ))}
-                  <p className="text-muted-foreground">
-                    {formatMessage(copy.quantity, { count: item.quantity }, locale)}
-                  </p>
-                </div>
-                <p className="ms-auto text-sm font-medium">
-                  <VisuallyHidden>{copy.lineTotal} </VisuallyHidden>
-                  <Price
-                    size="sm"
-                    amount={item.total.amount}
-                    currency={item.total.currencyCode}
-                    locale={locale}
-                  />
-                </p>
-              </div>
-            </li>
-          ))}
-        </ul>
-      </OrderSummaryLines>
+          {list}
+        </OrderSummaryLines>
+      )}
       <dl data-slot="order-summary-rows" className="flex min-w-0 flex-col border-t pt-2">
         {rows.map((row, index) => (
           <OrderSummaryRow key={`${row.kind}-${index}`} {...row} copy={rowCopy} locale={locale} />

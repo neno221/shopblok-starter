@@ -20,7 +20,8 @@ import * as migration_20261107_113348_listing_variants from './20261107_113348_l
 import * as migration_20261107_130650_hero_variants from './20261107_130650_hero_variants';
 import * as migration_20261107_135645_cart_variants from './20261107_135645_cart_variants';
 import * as migration_20261107_152528_content_variants from './20261107_152528_content_variants';
-import * as migration_20261107_163736_product_page_variants from './20261107_163736_product_page_variants';
+import * as migration_20261107_163728_checkout_receipt_variants from './20261107_163728_checkout_receipt_variants';
+import * as migration_20261107_170759_product_page_variants from './20261107_170759_product_page_variants';
 
 export const migrations = [
   {
@@ -134,8 +135,13 @@ export const migrations = [
     name: '20261107_152528_content_variants',
   },
   {
-    up: migration_20261107_163736_product_page_variants.up,
-    down: migration_20261107_163736_product_page_variants.down,
-    name: '20261107_163736_product_page_variants'
+    up: migration_20261107_163728_checkout_receipt_variants.up,
+    down: migration_20261107_163728_checkout_receipt_variants.down,
+    name: '20261107_163728_checkout_receipt_variants',
+  },
+  {
+    up: migration_20261107_170759_product_page_variants.up,
+    down: migration_20261107_170759_product_page_variants.down,
+    name: '20261107_170759_product_page_variants'
   },
 ];

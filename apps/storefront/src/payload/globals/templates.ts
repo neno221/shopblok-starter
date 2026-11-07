@@ -131,7 +131,16 @@ export const Templates = contentGlobal({
         {
           name: "checkout",
           label: "Checkout",
-          fields: [variantField({ family: "checkout", label: "Layout" })],
+          fields: [
+            variantField({
+              family: "checkout",
+              label: "Layout",
+              // T86 (D101): the express rail is M6's; until Stripe fills it, the shop has no button
+              // to put in it.
+              description:
+                "Express rail: the rail for express payment buttons fills in M6, with Stripe; until then the checkout looks like the default.",
+            }),
+          ],
         },
         {
           name: "receipt",

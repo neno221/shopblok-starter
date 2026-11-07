@@ -108,6 +108,21 @@ const detail = <const V extends VariantOf<"product-detail">>(
     ProductDetailPage,
   );
 
+/** T86: a checkout layout (M5 plan §1a), a member of `checkout`. */
+const checkout = <const V extends VariantOf<"checkout">>(variant: V, label: string, name: string) =>
+  member("checkout", "checkout", variant, `Checkout · ${label}`, name, CheckoutPage);
+
+/** T86: a receipt layout (M5 plan §1a), a member of `receipt`, in `order-confirmation/`. */
+const receipt = <const V extends VariantOf<"receipt">>(variant: V, label: string, name: string) =>
+  member(
+    "order-confirmation",
+    "receipt",
+    variant,
+    `Order confirmation · ${label}`,
+    name,
+    OrderConfirmationPage,
+  );
+
 export const templates = [
   // T48: the two the shell needs.
   template("not-found", "Not found", "NotFoundTemplate", NotFoundPage),
@@ -158,6 +173,11 @@ export const templates = [
   ),
   member("cart", "cart", "focused", "Cart page · Focused", "CartFocused", CartPage),
   first("checkout", "checkout", "Checkout", "CheckoutTemplate", CheckoutPage),
+  // T86: the checkout's four other layouts (M5 plan §1a).
+  checkout("one-page", "One page", "CheckoutOnePage"),
+  checkout("summary-first", "Summary first", "CheckoutSummaryFirst"),
+  checkout("focused", "Focused", "CheckoutFocused"),
+  checkout("express-rail", "Express rail", "CheckoutExpressRail"),
   first(
     "order-confirmation",
     "receipt",
@@ -165,6 +185,12 @@ export const templates = [
     "OrderConfirmationTemplate",
     OrderConfirmationPage,
   ),
+  // T86: the receipt's five other layouts (M5 plan §1a), also the account's order screen's.
+  receipt("statement", "Statement", "OrderConfirmationStatement"),
+  receipt("timeline-first", "Timeline first", "OrderConfirmationTimelineFirst"),
+  receipt("split", "Split", "OrderConfirmationSplit"),
+  receipt("compact", "Compact", "OrderConfirmationCompact"),
+  receipt("next-steps", "Next steps", "OrderConfirmationNextSteps"),
   // T53: signing in and up, the account and the claim of a guest order.
   template("auth", "Sign in and register", "AuthTemplate", AuthPage),
   template("account", "Account", "AccountTemplate", AccountPage),

@@ -13,6 +13,7 @@
     "./organisms/buy-box-choice": "./src/organisms/buy-box-choice.ts",
     "./organisms/cookie-consent-reserve": "./src/organisms/cookie-consent-reserve.ts",
     "./organisms/*": "./src/organisms/*.tsx",
+    "./templates/checkout/ids": "./src/templates/checkout/ids.ts",
     "./templates/*": "./src/templates/*.tsx",
     "./sections/section-copy": "./src/sections/section-copy.ts",
     "./sections/*": "./src/sections/*.tsx",

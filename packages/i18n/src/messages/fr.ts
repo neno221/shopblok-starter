@@ -879,6 +879,10 @@ export const fr: Messages = {
         text: "Ajoutez un article à votre panier, puis revenez pour commander.",
         continue: "Continuer mes achats",
       },
+      express: {
+        title: "Paiement express",
+        or: "Ou continuez ci-dessous",
+      },
     },
     orderConfirmation: {
       title: "Merci pour votre commande",
@@ -889,6 +893,39 @@ export const fr: Messages = {
       delivery: "Livraison",
       payment: "Paiement",
       continue: "Continuer mes achats",
+      statement: {
+        caption: "Articles commandés",
+        product: "Produit",
+        quantity: "Quantité",
+        price: "Prix",
+        total: "Total",
+      },
+      compact: {
+        total: "Total",
+        details: "Détails de la commande",
+      },
+      nextSteps: {
+        title: "Et maintenant",
+        email: {
+          title: "Consultez vos e-mails",
+          text: "La confirmation est en route vers {email}.",
+        },
+        delivery: {
+          title: "Nous préparons votre commande",
+          text: "Elle part par {method} à destination de {city}.",
+          textNoCity: "Elle part par {method}.",
+        },
+        register: {
+          title: "Créer un compte",
+          text: "Suivez cette commande et commandez plus vite la prochaine fois.",
+          action: "Créer un compte",
+        },
+        "account-order": {
+          title: "Suivre votre commande",
+          text: "Votre compte indique où elle en est et la suite.",
+          action: "Voir la commande",
+        },
+      },
     },
     auth: {
       fields: {

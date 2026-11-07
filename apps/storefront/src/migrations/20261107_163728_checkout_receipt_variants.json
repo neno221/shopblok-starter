@@ -34612,12 +34612,7 @@
       "name": "enum_templates_product_page_variant",
       "schema": "public",
       "values": [
-        "default",
-        "thumbnails-below",
-        "grid",
-        "stacked",
-        "wide",
-        "centered"
+        "default"
       ]
     },
     "public.enum_templates_listing_variant": {
@@ -34654,9 +34649,7 @@
       "schema": "public",
       "values": [
         "off",
-        "default",
-        "drawer",
-        "compact"
+        "default"
       ]
     },
     "public.enum_templates_cart_variant": {
@@ -34713,14 +34706,23 @@
       "name": "enum_templates_checkout_variant",
       "schema": "public",
       "values": [
-        "default"
+        "default",
+        "one-page",
+        "summary-first",
+        "focused",
+        "express-rail"
       ]
     },
     "public.enum_templates_receipt_variant": {
       "name": "enum_templates_receipt_variant",
       "schema": "public",
       "values": [
-        "default"
+        "default",
+        "statement",
+        "timeline-first",
+        "split",
+        "compact",
+        "next-steps"
       ]
     },
     "public.enum_templates_status": {
@@ -34735,12 +34737,7 @@
       "name": "enum__templates_v_version_product_page_variant",
       "schema": "public",
       "values": [
-        "default",
-        "thumbnails-below",
-        "grid",
-        "stacked",
-        "wide",
-        "centered"
+        "default"
       ]
     },
     "public.enum__templates_v_version_listing_variant": {
@@ -34777,9 +34774,7 @@
       "schema": "public",
       "values": [
         "off",
-        "default",
-        "drawer",
-        "compact"
+        "default"
       ]
     },
     "public.enum__templates_v_version_cart_variant": {
@@ -34836,14 +34831,23 @@
       "name": "enum__templates_v_version_checkout_variant",
       "schema": "public",
       "values": [
-        "default"
+        "default",
+        "one-page",
+        "summary-first",
+        "focused",
+        "express-rail"
       ]
     },
     "public.enum__templates_v_version_receipt_variant": {
       "name": "enum__templates_v_version_receipt_variant",
       "schema": "public",
       "values": [
-        "default"
+        "default",
+        "statement",
+        "timeline-first",
+        "split",
+        "compact",
+        "next-steps"
       ]
     },
     "public.enum__templates_v_version_status": {
@@ -34914,6 +34918,6 @@
     "tables": {},
     "columns": {}
   },
-  "id": "43c4e08f-0e3a-47ef-9108-3da22b31ea86",
+  "id": "ba1e19ef-02e6-452a-90e5-ebcedbd6fd9a",
   "prevId": "00000000-0000-0000-0000-000000000000"
 }

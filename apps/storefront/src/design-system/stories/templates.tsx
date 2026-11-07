@@ -9,6 +9,7 @@ import { commerceFixtures, fixtureNow, markets, pageFixtures } from "@shopblok/f
 import { catalogs } from "@shopblok/i18n";
 import type { EntryId } from "@shopblok/registry";
 import { Button } from "@shopblok/ui/atoms/button";
+import { PaymentIcon } from "@shopblok/ui/atoms/payment-icon";
 import { FooterMultiColumn } from "@shopblok/ui/organisms/footer/multi-column";
 import { HeaderClassic } from "@shopblok/ui/organisms/header/classic";
 import { AccountTemplate, accountCopy, type AccountErrors } from "@shopblok/ui/templates/account";
@@ -404,9 +405,14 @@ const checkout = (
   mainId: string,
   step: "contact" | "delivery" | "review",
   errors?: CheckoutErrors,
+  variant: VariantOf<"checkout"> = "default",
+  express?: boolean,
 ) => (
   <CheckoutTemplate
     {...pageFixtures[ctx.locale].checkout[step]}
+    variant={variant}
+    {...(variant === "one-page" ? { done: onePageDone(ctx, step, mainId) } : {})}
+    {...(express === true ? { slots: { express: <ExpressButtons ctx={ctx} /> } } : {})}
     copy={checkoutCopy(catalogs[ctx.locale])}
     locale={lang(ctx)}
     now={fixtureNow}
@@ -417,13 +423,112 @@ const checkout = (
   />
 );
 
+/**
+ * T86: the `one-page` checkout's finished steps for `step` (each before it), their "Edit" links to
+ * the steps' anchors under this frame's id.
+ */
+function onePageDone(ctx: DsContext, step: "contact" | "delivery" | "review", mainId: string) {
+  const { contact, delivery } = pageFixtures[ctx.locale].checkoutDone;
+  const anchor = (href: string, kind: string) =>
+    `${href.split("#")[0] ?? href}#${mainId}-step-${kind}`;
+  return {
+    ...(step === "contact"
+      ? {}
+      : { contact: { ...contact, editHref: anchor(contact.editHref, "contact") } }),
+    ...(step === "review"
+      ? { delivery: { ...delivery, editHref: anchor(delivery.editHref, "delivery") } }
+      : {}),
+  };
+}
+
+/**
+ * T86: the express payment buttons the design system puts in the `express-rail` checkout's rail,
+ * which M6's Stripe fills in the shop. Each is a button named by its mark; they do nothing here.
+ */
+function ExpressButtons({ ctx }: { ctx: DsContext }) {
+  const brands = catalogs[ctx.locale].atoms.payment;
+  return (
+    <>
+      {(["applepay", "googlepay", "paypal"] as const).map((brand) => (
+        <Button key={brand} type="button" variant="outline" size="lg" className="w-full">
+          <PaymentIcon brand={brand} label={brands[brand]} size="lg" />
+        </Button>
+      ))}
+    </>
+  );
+}
+
+/**
+ * T86: a layout of the checkout (M5 plan §1a), a member of `checkout`. Its live render and its
+ * states are M3's three steps in the layout (`one-page` with the steps before each done).
+ */
+function checkoutLayoutStory(
+  variant: Exclude<VariantOf<"checkout">, "default">,
+  summary: string,
+  a11y: string[],
+  extra: DsStory["states"] = [],
+): DsStory {
+  const id = `template-checkout-${variant}`;
+  const express = variant === "express-rail";
+  return {
+    summary,
+    a11y: [
+      pageNote,
+      ...a11y,
+      "Every step is the default layout's plain form, posting to the same actions without JavaScript, so a shop can change the layout without changing what a shopper can do.",
+    ],
+    live: (ctx) =>
+      page(
+        ctx,
+        id,
+        checkout(
+          ctx,
+          id,
+          variant === "one-page" ? "delivery" : "contact",
+          undefined,
+          variant,
+          express,
+        ),
+      ),
+    states: [
+      {
+        id: "contact",
+        label: "Contact and address",
+        description: express
+          ? "The first step with the rail's express buttons above it (the design system's: M6 fills them)."
+          : "The email and the shipping address, typed.",
+        render: (ctx) => checkout(ctx, `${id}-contact`, "contact", undefined, variant, express),
+      },
+      {
+        id: "delivery",
+        label: "Delivery and payment",
+        description: "Every shipping option (one not available) and the system payment.",
+        render: (ctx) => checkout(ctx, `${id}-delivery`, "delivery", undefined, variant),
+      },
+      {
+        id: "review",
+        label: "Review",
+        description: "What will be ordered, each part with its way back, and “Place order”.",
+        render: (ctx) => checkout(ctx, `${id}-review`, "review", undefined, variant),
+      },
+      ...extra,
+    ],
+    statesLayout: "stack",
+  };
+}
+
 /** The DS market's country's time zone (D65), as the shop's markets global seeds it. */
 const timeZone = (ctx: DsContext) =>
   markets.countries.find((country) => country.code === ctx.fixture.market.country)?.timeZone;
 
-const orderConfirmation = (ctx: DsContext, mainId: string) => (
+const orderConfirmation = (
+  ctx: DsContext,
+  mainId: string,
+  variant: VariantOf<"receipt"> = "default",
+) => (
   <OrderConfirmationTemplate
     {...pageFixtures[ctx.locale].orderConfirmation}
+    variant={variant}
     copy={orderConfirmationCopy(catalogs[ctx.locale])}
     locale={lang(ctx)}
     timeZone={timeZone(ctx)}
@@ -432,6 +537,59 @@ const orderConfirmation = (ctx: DsContext, mainId: string) => (
     mainId={mainId}
   />
 );
+
+/**
+ * T86: a layout of the receipt (M5 plan §1a), a member of `receipt`. Its live render is the
+ * order placed; its states are that receipt and the account's order screen in the same layout,
+ * which leaves out the thanks.
+ */
+function receiptLayoutStory(
+  variant: Exclude<VariantOf<"receipt">, "default">,
+  summary: string,
+  a11y: string[],
+): DsStory {
+  const id = `template-order-confirmation-${variant}`;
+  return {
+    summary,
+    a11y: [pageNote, ...a11y],
+    live: (ctx) => page(ctx, id, orderConfirmation(ctx, id, variant)),
+    states: [
+      {
+        id: "placed",
+        label: "Placed",
+        description: "The order placed and paid.",
+        render: (ctx) => orderConfirmation(ctx, `${id}-placed`, variant),
+      },
+      {
+        id: "account",
+        label: "In the account",
+        description:
+          "The account's order screen in this layout: its own heading and ways on, without the thanks.",
+        render: (ctx) => accountOrder(ctx, `${id}-account`, variant),
+      },
+    ],
+    statesLayout: "stack",
+  };
+}
+
+/** T86: the account's order screen in a receipt's layout. */
+function accountOrder(ctx: DsContext, mainId: string, variant: VariantOf<"receipt">) {
+  const fixture = pageFixtures[ctx.locale].account.order;
+  if (fixture.screen.kind !== "order") throw new Error("the account's order fixture is no order");
+  return (
+    <AccountTemplate
+      {...fixture}
+      screen={{ ...fixture.screen, variant }}
+      copy={accountCopy(catalogs[ctx.locale])}
+      locale={lang(ctx)}
+      timeZone={timeZone(ctx)}
+      now={fixtureNow}
+      prefetch={false}
+      as="div"
+      mainId={mainId}
+    />
+  );
+}
 
 type AuthScreen = keyof (typeof pageFixtures)["en"]["auth"];
 
@@ -980,6 +1138,51 @@ export const templateStories = {
     ],
     statesLayout: "stack",
   },
+  "templates/checkout-one-page": checkoutLayoutStory(
+    "one-page",
+    "The checkout's three steps on one page: the steps done summed up, each with “Edit”, the current one open with its form, the steps to come closed. Each step is still its own form, and its action comes back to the page at the next step.",
+    [
+      'Each step is a section named by its `<h2>`, in an ordered list; the current one is marked `aria-current="step"`. A step\'s section can take focus (`tabindex="-1"`), and a step\'s action lands on its anchor, so focus goes to the step the shopper is on, with scripts and without.',
+      "A finished step's “Edit” is named for its step (“Edit: Contact and address”), the visible word first, and opens that step again.",
+    ],
+    [
+      {
+        id: "contact-errors",
+        label: "Contact with errors",
+        description: "No email, and the address's first line missing, in the open step.",
+        render: (ctx) =>
+          checkout(
+            ctx,
+            "template-checkout-one-page-contact-errors",
+            "contact",
+            { email: "required", address: { address1: "required" } },
+            "one-page",
+          ),
+      },
+    ],
+  ),
+  "templates/checkout-summary-first": checkoutLayoutStory(
+    "summary-first",
+    "The checkout with the order summary first: at the top on a phone, its lines behind the toggle and the total always shown, and the first column from 1024 px, beside the steps.",
+    [
+      "The summary comes before the page's heading in the reading order as it does on screen; its heading is an `<h2>`, and the toggle of its lines (below 1024 px) says whether they are shown.",
+    ],
+  ),
+  "templates/checkout-focused": checkoutLayoutStory(
+    "focused",
+    "The checkout in one narrow column with no aside: the order summary is a bar at the top with the count and the total, which opens to the lines and the rows.",
+    [
+      "The bar is a native disclosure (`<details>`): its 44 px row says “Show order summary” or “Hide order summary”, the count and the total, and it opens and closes without JavaScript.",
+    ],
+  ),
+  "templates/checkout-express-rail": checkoutLayoutStory(
+    "express-rail",
+    "The checkout with a rail for express payment buttons above the first step. M6's Stripe fills it; until then the shop has none and draws the default layout. Here the rail holds the design system's buttons.",
+    [
+      "The rail is a section named by its heading (“Express checkout”); each button is named by its mark's label, and “Or continue below” leads to the steps.",
+      "With no button to show (the shop in M5) the rail is not drawn at all, so nothing empty is read out.",
+    ],
+  ),
   "templates/order-confirmation": {
     summary:
       "The receipt: the thanks, the order's number, date and e-mail, where it goes, how it is delivered and paid, the summary with its lines open, its history, and the way back to the shop.",
@@ -1003,6 +1206,43 @@ export const templateStories = {
     ],
     statesLayout: "stack",
   },
+  "templates/order-confirmation-statement": receiptLayoutStory(
+    "statement",
+    "The receipt as a document: the lines as a table (the product, the quantity, the price of one where there is room, the line's total), the totals in a column at its end, then where it goes, how and how it is paid. It prints with no header, footer or navigation.",
+    [
+      "The lines are one `<table>` with a caption and a column header for each part; each row's product is its row header. The price of one is not drawn in a narrow column (`display: none`), so a reader meets the columns that are shown.",
+      "On paper the shop's header, footer and every navigation are left out, and so is the way back to the shop.",
+    ],
+  ),
+  "templates/order-confirmation-timeline-first": receiptLayoutStory(
+    "timeline-first",
+    "The receipt with where the order is first: the thanks, the order's history in a card, then where it goes, how and how it is paid, the summary with its lines open, and the way back.",
+    [
+      'The history is an ordered list with the latest event marked `aria-current="step"`; it comes right after the heading, so it is the first thing read.',
+    ],
+  ),
+  "templates/order-confirmation-split": receiptLayoutStory(
+    "split",
+    "The receipt in two columns from a wide container: the lines and the totals at the start, and beside them where it goes, how, how it is paid and its history.",
+    [
+      "The summary comes before the details in the reading order, as it does on screen; below the wide container they stack in that order.",
+    ],
+  ),
+  "templates/order-confirmation-compact": receiptLayoutStory(
+    "compact",
+    "The receipt as one card: the thanks, the total and the delivery, and “Order details”, which opens to the lines, the address, the payment and the history.",
+    [
+      "“Order details” is a native disclosure (`<details>`) with a 44 px row: it opens and closes without JavaScript, and the summary's lines inside it are shown with no toggle of their own.",
+    ],
+  ),
+  "templates/order-confirmation-next-steps": receiptLayoutStory(
+    "next-steps",
+    "The receipt with what happens next as three cards (the e-mail on its way, the order being prepared, and an account to create for a guest or the order in the account for its owner), then the details beside the summary.",
+    [
+      "The cards are an ordered list under “What happens next”, an `<h2>`; each card's heading is an `<h3>`, and its icon is decoration. The account card's link says where it goes (“Create an account”).",
+      "On the account's order screen the cards are part of the thanks and are left out with it.",
+    ],
+  ),
   "templates/auth": {
     summary:
       "Signing in and up (D64): sign in, create an account, the e-mail to verify before the account exists, the password reset asked for and chosen, and a link that no longer works. One narrow column, one form per page.",

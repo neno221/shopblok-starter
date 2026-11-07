@@ -200,3 +200,57 @@ describe("OrderConfirmationTemplate", () => {
     expect(root.id).toBe("receipt");
   });
 });
+
+// T86: the receipt's other layouts, and the delivery's words when the address has no city (D65:
+// seven countries' formats have none).
+describe("the receipt's layouts (T86)", () => {
+  const words = catalogs.en.templates.orderConfirmation;
+  const page = pageFixtures.en.orderConfirmation;
+  const withoutCity = () => {
+    const { city: _city, ...address } = page.order.shippingAddress;
+    return { order: { ...page.order, shippingAddress: address } };
+  };
+
+  it.each(["statement", "timeline-first", "split", "compact", "next-steps"] as const)(
+    "%s is the page's main with its own data-variant and the thanks as its one h1",
+    (variant) => {
+      renderConfirmation("en", { variant });
+      const main = screen.getByRole("main");
+      expect(main.getAttribute("data-slot")).toBe("order-confirmation-template");
+      expect(main.getAttribute("data-variant")).toBe(variant);
+      expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
+      expect(slot("order-confirmation-number")).not.toBeNull();
+    },
+  );
+
+  it("next-steps says where the order goes, and only the method without a city", () => {
+    const { name } = page.order.shippingMethod;
+    const { unmount } = renderConfirmation("en", { variant: "next-steps" });
+    const withCity = formatMessage(
+      words.nextSteps.delivery.text,
+      { method: name, city: page.order.shippingAddress.city ?? "" },
+      "en-US",
+    );
+    expect(screen.getByText(withCity)).not.toBeNull();
+    unmount();
+    renderConfirmation("en", { variant: "next-steps", ...withoutCity() });
+    expect(
+      screen.getByText(
+        formatMessage(words.nextSteps.delivery.textNoCity, { method: name }, "en-US"),
+      ),
+    ).not.toBeNull();
+    expect(document.body.textContent).not.toContain(" to .");
+  });
+
+  it("compact's delivery row names the city only when there is one", () => {
+    const row = () =>
+      [...document.querySelectorAll("dd")].find((dd) =>
+        dd.textContent?.startsWith(page.order.shippingMethod.name),
+      )?.textContent;
+    const { unmount } = renderConfirmation("en", { variant: "compact" });
+    expect(row()).toBe(`${page.order.shippingMethod.name} · ${page.order.shippingAddress.city}`);
+    unmount();
+    renderConfirmation("en", { variant: "compact", ...withoutCity() });
+    expect(row()).toBe(page.order.shippingMethod.name);
+  });
+});

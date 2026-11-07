@@ -106,3 +106,16 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* T86: the `statement` receipt prints as a document (M5 plan §1a). On paper a page that draws one
+   (`data-print="statement"`) is the statement alone: the shop's header, footer and every navigation
+   around it (the skip link, the account's menu, the cookie banner) are left out, and so is what the
+   statement marks as screen-only (`print:hidden`). Nothing changes on screen. */
+@media print {
+  :root:has([data-print="statement"])
+    :is(header, footer, nav, [data-slot="skip-link"], [data-slot="cookie-consent"]):not(
+      [data-print="statement"] *
+    ) {
+    display: none !important;
+  }
+}
