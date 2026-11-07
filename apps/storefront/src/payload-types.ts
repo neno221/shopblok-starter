@@ -1668,7 +1668,35 @@ export interface Page {
    * The page's address under its parent: lower-case letters, digits and hyphens (about-us).
    */
   slug: string;
+  /**
+   * Off: every language shows the same blocks and translates their texts. On: each language has blocks of its own, and one without any shows English's. Switching it on copies the shared blocks into each language, with its texts, so nothing changes until you edit a language's blocks.
+   */
+  layoutPerLanguage?: boolean | null;
   layout?:
+    | (
+        | RichTextBlock
+        | MediaWithTextBlock
+        | UspBarBlock
+        | LogoCloudBlock
+        | FaqBlock
+        | TestimonialsBlock
+        | VideoBlock
+        | SpacerBlock
+        | HeroBlock
+        | CategoryShowcaseBlock
+        | ProductCollectionBlock
+        | FeaturedProductBlock
+        | BundleBlock
+        | PromoBannerBlock
+        | ComparisonBlock
+        | CollectionSpotlightBlock
+        | RecentlyViewedBlock
+        | NewsletterBlock
+        | FormBlockBlock
+        | EditorialListBlock
+      )[]
+    | null;
+  localizedLayout?:
     | (
         | RichTextBlock
         | MediaWithTextBlock
@@ -2283,7 +2311,32 @@ export interface MediaSelect<T extends boolean = true> {
 export interface PagesSelect<T extends boolean = true> {
   title?: T;
   slug?: T;
+  layoutPerLanguage?: T;
   layout?: T | {};
+  localizedLayout?:
+    | T
+    | {
+        richText?: T | RichTextBlockSelect<T>;
+        mediaWithText?: T | MediaWithTextBlockSelect<T>;
+        uspBar?: T | UspBarBlockSelect<T>;
+        logoCloud?: T | LogoCloudBlockSelect<T>;
+        faq?: T | FaqBlockSelect<T>;
+        testimonials?: T | TestimonialsBlockSelect<T>;
+        video?: T | VideoBlockSelect<T>;
+        spacer?: T | SpacerBlockSelect<T>;
+        hero?: T | HeroBlockSelect<T>;
+        categoryShowcase?: T | CategoryShowcaseBlockSelect<T>;
+        productCollection?: T | ProductCollectionBlockSelect<T>;
+        featuredProduct?: T | FeaturedProductBlockSelect<T>;
+        bundle?: T | BundleBlockSelect<T>;
+        promoBanner?: T | PromoBannerBlockSelect<T>;
+        comparison?: T | ComparisonBlockSelect<T>;
+        collectionSpotlight?: T | CollectionSpotlightBlockSelect<T>;
+        recentlyViewed?: T | RecentlyViewedBlockSelect<T>;
+        newsletter?: T | NewsletterBlockSelect<T>;
+        formBlock?: T | FormBlockBlockSelect<T>;
+        editorialList?: T | EditorialListBlockSelect<T>;
+      };
   parent?: T;
   breadcrumbs?:
     | T
@@ -2304,6 +2357,629 @@ export interface PagesSelect<T extends boolean = true> {
   updatedAt?: T;
   createdAt?: T;
   _status?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "RichTextBlock_select".
+ */
+export interface RichTextBlockSelect<T extends boolean = true> {
+  variant?: T;
+  content?: T;
+  sectionSettings?:
+    | T
+    | {
+        anchor?: T;
+        spacing?: T;
+        surface?: T;
+        container?: T;
+        visibility?: T;
+      };
+  id?: T;
+  blockName?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "MediaWithTextBlock_select".
+ */
+export interface MediaWithTextBlockSelect<T extends boolean = true> {
+  variant?: T;
+  media?: T;
+  imageSide?: T;
+  heading?: T;
+  content?: T;
+  links?:
+    | T
+    | {
+        link?:
+          | T
+          | {
+              type?: T;
+              reference?: T;
+              url?: T;
+              label?: T;
+              newTab?: T;
+              appearance?: T;
+            };
+        id?: T;
+      };
+  sectionSettings?:
+    | T
+    | {
+        anchor?: T;
+        spacing?: T;
+        surface?: T;
+        container?: T;
+        visibility?: T;
+      };
+  id?: T;
+  blockName?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "UspBarBlock_select".
+ */
+export interface UspBarBlockSelect<T extends boolean = true> {
+  variant?: T;
+  items?:
+    | T
+    | {
+        icon?: T;
+        title?: T;
+        text?: T;
+        id?: T;
+      };
+  sectionSettings?:
+    | T
+    | {
+        anchor?: T;
+        spacing?: T;
+        surface?: T;
+        container?: T;
+        visibility?: T;
+      };
+  id?: T;
+  blockName?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "LogoCloudBlock_select".
+ */
+export interface LogoCloudBlockSelect<T extends boolean = true> {
+  variant?: T;
+  heading?: T;
+  logos?:
+    | T
+    | {
+        name?: T;
+        image?: T;
+        url?: T;
+        id?: T;
+      };
+  sectionSettings?:
+    | T
+    | {
+        anchor?: T;
+        spacing?: T;
+        surface?: T;
+        container?: T;
+        visibility?: T;
+      };
+  id?: T;
+  blockName?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "FaqBlock_select".
+ */
+export interface FaqBlockSelect<T extends boolean = true> {
+  variant?: T;
+  heading?: T;
+  items?:
+    | T
+    | {
+        question?: T;
+        answer?: T;
+        id?: T;
+      };
+  sectionSettings?:
+    | T
+    | {
+        anchor?: T;
+        spacing?: T;
+        surface?: T;
+        container?: T;
+        visibility?: T;
+      };
+  id?: T;
+  blockName?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "TestimonialsBlock_select".
+ */
+export interface TestimonialsBlockSelect<T extends boolean = true> {
+  variant?: T;
+  heading?: T;
+  quotes?:
+    | T
+    | {
+        quote?: T;
+        author?: T;
+        role?: T;
+        rating?: T;
+        avatar?: T;
+        id?: T;
+      };
+  sectionSettings?:
+    | T
+    | {
+        anchor?: T;
+        spacing?: T;
+        surface?: T;
+        container?: T;
+        visibility?: T;
+      };
+  id?: T;
+  blockName?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "VideoBlock_select".
+ */
+export interface VideoBlockSelect<T extends boolean = true> {
+  variant?: T;
+  heading?: T;
+  title?: T;
+  source?: T;
+  url?: T;
+  file?: T;
+  captions?:
+    | T
+    | {
+        language?: T;
+        file?: T;
+        id?: T;
+      };
+  poster?: T;
+  caption?: T;
+  sectionSettings?:
+    | T
+    | {
+        anchor?: T;
+        spacing?: T;
+        surface?: T;
+        container?: T;
+        visibility?: T;
+      };
+  id?: T;
+  blockName?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "SpacerBlock_select".
+ */
+export interface SpacerBlockSelect<T extends boolean = true> {
+  variant?: T;
+  size?: T;
+  divider?: T;
+  sectionSettings?:
+    | T
+    | {
+        anchor?: T;
+        spacing?: T;
+        surface?: T;
+        container?: T;
+        visibility?: T;
+      };
+  id?: T;
+  blockName?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "HeroBlock_select".
+ */
+export interface HeroBlockSelect<T extends boolean = true> {
+  variant?: T;
+  eyebrow?: T;
+  heading?: T;
+  subheading?: T;
+  media?: T;
+  secondMedia?: T;
+  collections?:
+    | T
+    | {
+        collection?: T;
+        media?: T;
+        id?: T;
+      };
+  links?:
+    | T
+    | {
+        link?:
+          | T
+          | {
+              type?: T;
+              reference?: T;
+              url?: T;
+              label?: T;
+              newTab?: T;
+              appearance?: T;
+            };
+        id?: T;
+      };
+  countdownEnd?: T;
+  productSource?:
+    | T
+    | {
+        mode?: T;
+        collection?: T;
+        category?: T;
+        descendants?: T;
+        products?: T;
+        tag?: T;
+        type?: T;
+        limit?: T;
+        sort?: T;
+      };
+  sectionSettings?:
+    | T
+    | {
+        anchor?: T;
+        spacing?: T;
+        surface?: T;
+        container?: T;
+        visibility?: T;
+      };
+  id?: T;
+  blockName?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "CategoryShowcaseBlock_select".
+ */
+export interface CategoryShowcaseBlockSelect<T extends boolean = true> {
+  variant?: T;
+  heading?: T;
+  intro?: T;
+  links?:
+    | T
+    | {
+        link?:
+          | T
+          | {
+              type?: T;
+              reference?: T;
+              url?: T;
+              label?: T;
+              newTab?: T;
+              appearance?: T;
+            };
+        id?: T;
+      };
+  categorySource?:
+    | T
+    | {
+        mode?: T;
+        parent?: T;
+        items?:
+          | T
+          | {
+              category?: T;
+              label?: T;
+              image?: T;
+              id?: T;
+            };
+        limit?: T;
+      };
+  sectionSettings?:
+    | T
+    | {
+        anchor?: T;
+        spacing?: T;
+        surface?: T;
+        container?: T;
+        visibility?: T;
+      };
+  id?: T;
+  blockName?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "ProductCollectionBlock_select".
+ */
+export interface ProductCollectionBlockSelect<T extends boolean = true> {
+  variant?: T;
+  heading?: T;
+  intro?: T;
+  display?: T;
+  media?: T;
+  links?:
+    | T
+    | {
+        link?:
+          | T
+          | {
+              type?: T;
+              reference?: T;
+              url?: T;
+              label?: T;
+              newTab?: T;
+              appearance?: T;
+            };
+        id?: T;
+      };
+  productSource?:
+    | T
+    | {
+        mode?: T;
+        collection?: T;
+        category?: T;
+        descendants?: T;
+        products?: T;
+        tag?: T;
+        type?: T;
+        limit?: T;
+        sort?: T;
+        emptyBehavior?: T;
+      };
+  tabs?:
+    | T
+    | {
+        label?: T;
+        productSource?:
+          | T
+          | {
+              mode?: T;
+              collection?: T;
+              category?: T;
+              descendants?: T;
+              products?: T;
+              tag?: T;
+              type?: T;
+              limit?: T;
+              sort?: T;
+            };
+        id?: T;
+      };
+  sectionSettings?:
+    | T
+    | {
+        anchor?: T;
+        spacing?: T;
+        surface?: T;
+        container?: T;
+        visibility?: T;
+      };
+  id?: T;
+  blockName?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "FeaturedProductBlock_select".
+ */
+export interface FeaturedProductBlockSelect<T extends boolean = true> {
+  variant?: T;
+  heading?: T;
+  product?: T;
+  text?: T;
+  media?: T;
+  sectionSettings?:
+    | T
+    | {
+        anchor?: T;
+        spacing?: T;
+        surface?: T;
+        container?: T;
+        visibility?: T;
+      };
+  id?: T;
+  blockName?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "BundleBlock_select".
+ */
+export interface BundleBlockSelect<T extends boolean = true> {
+  variant?: T;
+  heading?: T;
+  text?: T;
+  products?: T;
+  sectionSettings?:
+    | T
+    | {
+        anchor?: T;
+        spacing?: T;
+        surface?: T;
+        container?: T;
+        visibility?: T;
+      };
+  id?: T;
+  blockName?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "PromoBannerBlock_select".
+ */
+export interface PromoBannerBlockSelect<T extends boolean = true> {
+  variant?: T;
+  heading?: T;
+  text?: T;
+  code?: T;
+  terms?: T;
+  endsAt?: T;
+  media?: T;
+  links?:
+    | T
+    | {
+        link?:
+          | T
+          | {
+              type?: T;
+              reference?: T;
+              url?: T;
+              label?: T;
+              newTab?: T;
+              appearance?: T;
+            };
+        id?: T;
+      };
+  sectionSettings?:
+    | T
+    | {
+        anchor?: T;
+        spacing?: T;
+        surface?: T;
+        container?: T;
+        visibility?: T;
+      };
+  id?: T;
+  blockName?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "ComparisonBlock_select".
+ */
+export interface ComparisonBlockSelect<T extends boolean = true> {
+  variant?: T;
+  heading?: T;
+  products?: T;
+  pick?: T;
+  showOptions?: T;
+  rows?:
+    | T
+    | {
+        label?: T;
+        key?: T;
+        id?: T;
+      };
+  sectionSettings?:
+    | T
+    | {
+        anchor?: T;
+        spacing?: T;
+        surface?: T;
+        container?: T;
+        visibility?: T;
+      };
+  id?: T;
+  blockName?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "CollectionSpotlightBlock_select".
+ */
+export interface CollectionSpotlightBlockSelect<T extends boolean = true> {
+  variant?: T;
+  collection?: T;
+  heading?: T;
+  text?: T;
+  media?: T;
+  limit?: T;
+  sort?: T;
+  sectionSettings?:
+    | T
+    | {
+        anchor?: T;
+        spacing?: T;
+        surface?: T;
+        container?: T;
+        visibility?: T;
+      };
+  id?: T;
+  blockName?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "RecentlyViewedBlock_select".
+ */
+export interface RecentlyViewedBlockSelect<T extends boolean = true> {
+  variant?: T;
+  heading?: T;
+  sectionSettings?:
+    | T
+    | {
+        anchor?: T;
+        spacing?: T;
+        surface?: T;
+        container?: T;
+        visibility?: T;
+      };
+  id?: T;
+  blockName?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "NewsletterBlock_select".
+ */
+export interface NewsletterBlockSelect<T extends boolean = true> {
+  variant?: T;
+  heading?: T;
+  text?: T;
+  media?: T;
+  form?: T;
+  privacy?:
+    | T
+    | {
+        type?: T;
+        reference?: T;
+        url?: T;
+        newTab?: T;
+      };
+  sectionSettings?:
+    | T
+    | {
+        anchor?: T;
+        spacing?: T;
+        surface?: T;
+        container?: T;
+        visibility?: T;
+      };
+  id?: T;
+  blockName?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "FormBlockBlock_select".
+ */
+export interface FormBlockBlockSelect<T extends boolean = true> {
+  variant?: T;
+  heading?: T;
+  intro?: T;
+  form?: T;
+  sectionSettings?:
+    | T
+    | {
+        anchor?: T;
+        spacing?: T;
+        surface?: T;
+        container?: T;
+        visibility?: T;
+      };
+  id?: T;
+  blockName?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "EditorialListBlock_select".
+ */
+export interface EditorialListBlockSelect<T extends boolean = true> {
+  variant?: T;
+  heading?: T;
+  source?: T;
+  limit?: T;
+  posts?: T;
+  showLink?: T;
+  sectionSettings?:
+    | T
+    | {
+        anchor?: T;
+        spacing?: T;
+        surface?: T;
+        container?: T;
+        visibility?: T;
+      };
+  id?: T;
+  blockName?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

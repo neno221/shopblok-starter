@@ -107,7 +107,7 @@ const resave = (req: PayloadRequest, id: Id, locale: string) =>
     }),
   );
 
-type Saved = { id: Id; published: boolean; languages: string[] };
+export type Saved = { id: Id; published: boolean; languages: string[] };
 
 /** The languages a page has a slug of its own in (`locale: "all"`'s `{ en: "about", el: … }`). */
 const ownLanguages = (slug: unknown): string[] => {
@@ -119,7 +119,7 @@ const ownLanguages = (slug: unknown): string[] => {
  * Pages' latest versions in every language: whether each is published (`false`: an editor's draft
  * is newer, or it never was published) and the languages it has a slug of its own in.
  */
-async function latest(req: PayloadRequest, where: Where): Promise<Saved[]> {
+export async function latest(req: PayloadRequest, where: Where): Promise<Saved[]> {
   const { docs } = await keepingRequest(req, () =>
     req.payload.find({
       collection: "pages",

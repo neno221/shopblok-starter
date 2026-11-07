@@ -74,4 +74,33 @@ describe("payload.config.ts outside Next (D95)", () => {
     expect(result.warnings).toHaveLength(1);
     expect(result.warnings[0]).toMatch(/market map could not be read.*default locale only/);
   }, 120_000);
+
+  it("keeps the shared layout's texts localized beside the layout per language (D105, T88)", async () => {
+    const result = await inPlainNode<{
+      shared: boolean | undefined;
+      ownBlock: boolean;
+      ownHeading: boolean | undefined;
+      localized: boolean | undefined;
+    }>(`
+      const pages = config.collections.find((collection) => collection.slug === "pages");
+      const own = pages.fields.find((field) => field.name === "localizedLayout");
+      const root = config.blocks.find((block) => block.slug === "faq");
+      const copy = own.blocks.find((block) => block.slug === "faq");
+      const heading = (block) => block.fields.find((field) => field.name === "heading");
+      console.log(JSON.stringify({
+        shared: heading(root).localized,
+        ownBlock: copy !== root && heading(copy) !== heading(root),
+        ownHeading: heading(copy).localized,
+        localized: own.localized,
+      }));
+    `);
+    // Sanitizing takes `localized` off the fields inside a localized blocks field: on a copy that
+    // shared its fields with the root block, the shared layout's FAQ heading would lose it too.
+    expect(result).toEqual({
+      shared: true,
+      ownBlock: true,
+      ownHeading: undefined,
+      localized: true,
+    });
+  }, 120_000);
 });
