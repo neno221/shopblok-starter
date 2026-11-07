@@ -245,7 +245,7 @@ test.describe("the catalog blocks' members (T81)", () => {
       expect(response.status()).toBe(200);
       // The island asks for the tab by its place, and nothing else.
       const query = new URL(response.url()).searchParams;
-      expect([...query.keys()]).toEqual(["market", "doc", "block", "tab"]);
+      expect([...query.keys()]).toEqual(["market", "doc", "block", "tab", "v"]);
       expect([query.get("doc"), query.get("tab")]).toEqual([String(pageId), "1"]);
       const panel = section.getByRole("tabpanel");
       await expect

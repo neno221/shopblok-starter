@@ -6,9 +6,9 @@ import { readPageById, type CmsPage } from "./pages";
 import type { CatalogReads } from "./resolve/catalog";
 import { catalogReads } from "./resolve/market";
 import { storedVariant } from "./resolve/shared";
-import { MAX_TABS, resolveTab, type StoredTab } from "./resolve/tabs";
+import { MAX_TABS, resolveTab, tabVersion, type StoredTab } from "./resolve/tabs";
 
-// `GET /next/block-tab?market=&doc=&block=&tab=` (T81, M5 plan §5 T81, PR 113's review): one tab's
+// `GET /next/block-tab?market=&doc=&block=&tab=&v=` (T81, M5 plan §5 T81, PR 113's review): one tab's
 // products of a `tabs` product collection, for its island. The route is the catalog's, as
 // `/next/listing` is: the answer is the same for every visitor of the market, so a shared cache may
 // keep it a minute. What it trusts is only what an editor published:
@@ -16,7 +16,9 @@ import { MAX_TABS, resolveTab, type StoredTab } from "./resolve/tabs";
 //   `templates` global's sections), read **published** only, never a draft whatever cookies come
 //   with the request: the read is `draft: false`, so no cookie is read at all;
 // - `block` is the block's id in that page's layout, which must be a `productCollection` whose
-//   stored design is `tabs`, and `tab` the tab's place among its stored tabs;
+//   stored design is `tabs`, `tab` the tab's place among its stored tabs, and `v` that stored
+//   tab's fingerprint (`tabVersion`, its label and source): a tab moved, edited or removed since
+//   the page was drawn is a 404, never another tab's products under its label from a cache;
 // - the tab's **stored** source is resolved in the market's region (`getMarketContext`, as the
 //   listing's route does) through the catalog's cached reads, the same entries the page's first
 //   tab is read through. No region, source, limit or sort is read from the query.
@@ -70,7 +72,7 @@ export async function blockTabResponse(
     )
       return nothing(404);
     const stored = ((found.tabs ?? []) as StoredTab[]).slice(0, MAX_TABS)[tab];
-    if (stored === undefined) return nothing(404);
+    if (stored === undefined || params.get("v") !== tabVersion(stored)) return nothing(404);
     const resolved = await resolveTab(
       stored,
       deps.reads(context),

@@ -131,7 +131,7 @@ function galleryOf(first: Image, others: readonly Image[]): Image[] {
  * The `tabs` product collection's tabs (T81): every stored tab resolved for the market (each its
  * own cached reads, as a source is), those with nothing the market sells left out. The first left
  * gives the section its `products`, the HTML's; the others go to the tab island by their endpoint,
- * which names their stored place, when the page is a published document the route can read
+ * which names their stored place and the stored tab's fingerprint, when the page is a published document the route can read
  * (`context.document`), and else (Draft Mode, a page with no document) with their products, so a
  * tab is never one that cannot load.
  */
@@ -144,7 +144,7 @@ async function collectionTabs(
   const resolved = await Promise.all(
     stored.map(async (tab, index) => {
       const found = await resolveTab(tab, commerce.reads, commerce.hrefs, commerce.storeHref);
-      return found === null ? [] : [{ ...found, index }];
+      return found === null ? [] : [{ ...found, index, tab }];
     }),
   );
   const tabs = resolved.flat();
@@ -153,14 +153,14 @@ async function collectionTabs(
   const doc = context.document?.id;
   return {
     products: first.products,
-    tabs: tabs.map(({ label, href, products, index }, place) => ({
+    tabs: tabs.map(({ label, href, products, index, tab }, place) => ({
       label,
       href,
       ...(place === 0
         ? {}
         : doc === undefined || block.id == null
           ? { products }
-          : { endpoint: tabEndpoint(commerce.market, doc, block.id, index) }),
+          : { endpoint: tabEndpoint(commerce.market, doc, block.id, index, tab) }),
     })),
   };
 }

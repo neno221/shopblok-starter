@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import type { ProductCard } from "@shopblok/registry/contracts";
 import { categoryPaths } from "../../medusa/categories";
 import type { Hrefs } from "../../view-models/common";
@@ -85,12 +86,56 @@ export async function resolveTab(
 /** Where the tab island asks for a tab's products (`src/app/next/block-tab/route.ts`). */
 export const BLOCK_TAB_ROUTE = "/next/block-tab";
 
+/** A reference as Payload stores it, by its own id: populated (an object) or not (the id). */
+function referenceId(value: unknown): unknown {
+  if (value === null || typeof value !== "object") return value ?? null;
+  return (value as { id?: unknown }).id ?? null;
+}
+
 /**
- * A tab's endpoint: the market, the published page that holds the block, the block's id and the
- * tab's place among the block's stored tabs. The route reads nothing else from the query (no
- * source, no limit, no region), so a forged parameter changes nothing.
+ * A stored tab's fingerprint: its label and its source as the editor set them (the references by
+ * their Payload ids, so a synced document's own changes leave it as it is), 12 characters. The
+ * endpoint carries it as `v` and the route answers only the tab it still names: an answer is
+ * cached a minute (`CATALOG_HEADERS`), and a tab moved, edited or removed since must never get
+ * another tab's products under its label (PR 124's review, finding 2). A republished page whose
+ * tab changed asks a new URL; a page drawn before the change gets a 404, which no cache keeps.
  */
-export function tabEndpoint(market: string, doc: number, block: string, tab: number): string {
-  const query = new URLSearchParams({ market, doc: String(doc), block, tab: String(tab) });
+export function tabVersion(tab: StoredTab): string {
+  const source = tab.productSource ?? {};
+  const key = JSON.stringify([
+    text(tab.label) ?? null,
+    source.mode ?? null,
+    referenceId(source.collection),
+    referenceId(source.category),
+    source.descendants ?? null,
+    (source.products ?? []).map(referenceId),
+    source.tag ?? null,
+    source.type ?? null,
+    source.limit ?? null,
+    source.sort ?? null,
+  ]);
+  return createHash("sha256").update(key).digest("base64url").slice(0, 12);
+}
+
+/**
+ * A tab's endpoint: the market, the published page that holds the block, the block's id, the
+ * tab's place among the block's stored tabs and the stored tab's fingerprint (`tabVersion`). The
+ * route reads nothing else from the query (no source, no limit, no region), so a forged parameter
+ * changes nothing.
+ */
+export function tabEndpoint(
+  market: string,
+  doc: number,
+  block: string,
+  tab: number,
+  stored: StoredTab,
+): string {
+  const query = new URLSearchParams({
+    market,
+    doc: String(doc),
+    block,
+    tab: String(tab),
+    v: tabVersion(stored),
+  });
   return `${BLOCK_TAB_ROUTE}?${query.toString()}`;
 }

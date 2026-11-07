@@ -10,6 +10,7 @@ import {
 } from "../../../test-support/fake-catalog";
 import type { CommerceContext } from "./commerce";
 import { resolveLayout, type LayoutBlock } from "./sections";
+import { tabVersion } from "./tabs";
 
 // The commerce blocks resolved for a market (T64): their sources through a fake data layer, their
 // view models parsed by the contracts, and left out when they cannot be drawn.
@@ -412,6 +413,10 @@ describe("the commerce blocks (T64)", () => {
       return resolved?.blockType === "productCollection" ? resolved.section : undefined;
     }
 
+    /** The endpoint of stored tab `index`, with its fingerprint. */
+    const at = (place: number, index = place) =>
+      `/next/block-tab?market=us&doc=7&block=b1&tab=${place}&v=${tabVersion(tabbed.tabs[index] ?? {})}`;
+
     it("tabs: the first tab's products in the page, the others by their stored place, those the market does not sell left out", async () => {
       const section = await collection(tabbed, { document: { id: 7 } });
       expect(section?.variant).toBe("tabs");
@@ -421,24 +426,22 @@ describe("the commerce blocks (T64)", () => {
         {
           label: "On sale",
           href: "/us/store?sale=1",
-          endpoint: "/next/block-tab?market=us&doc=7&block=b1&tab=1",
+          endpoint: at(1),
         },
       ]);
       const cy = await collection(tabbed, { market: cyprus, document: { id: 7 } });
       expect(cy?.tabs?.map((tab) => [tab.label, tab.endpoint])).toEqual([
         ["Basics", undefined],
-        ["On sale", "/next/block-tab?market=us&doc=7&block=b1&tab=1"],
-        ["Lamps", "/next/block-tab?market=us&doc=7&block=b1&tab=2"],
+        ["On sale", at(1)],
+        ["Lamps", at(2)],
       ]);
-      // A tab left out keeps the others' places: the route reads the stored tab by its place.
+      // A tab left out keeps the others' places: the route reads the stored tab by its place. A tab
+      // moved keeps its fingerprint, so a reorder is a new URL for the tabs that moved.
       const gone = await collection(
         { ...tabbed, tabs: [tabbed.tabs[2], ...tabbed.tabs] },
         { document: { id: 7 } },
       );
-      expect(gone?.tabs?.map((tab) => tab.endpoint)).toEqual([
-        undefined,
-        "/next/block-tab?market=us&doc=7&block=b1&tab=2",
-      ]);
+      expect(gone?.tabs?.map((tab) => tab.endpoint)).toEqual([undefined, at(2, 1)]);
     });
 
     it("tabs: without a published document (Draft Mode), every tab with its products", async () => {
