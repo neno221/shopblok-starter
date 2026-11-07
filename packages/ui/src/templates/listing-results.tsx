@@ -8,6 +8,8 @@
 //   links (`hrefFor(page)`, the page's: `/page/2` on a listing, `?page=2` once a filter is set).
 // - The cards' titles are `h2`: the page's name is its one `h1`, and the filters' heading, beside
 //   them, is an `h2` too.
+// - This is the `default` filter layout (`data-layout`); T84's six others are in `listing-layouts/`,
+//   and `listing-layouts.tsx` picks one on the server.
 import type { Messages } from "@shopblok/i18n";
 import type { ListingResults as ListingResultsContent } from "@shopblok/registry/contracts";
 import { cn } from "@shopblok/ui/lib/utils";
@@ -75,6 +77,7 @@ function ListingResults({
   return (
     <div
       data-slot="listing-results"
+      data-layout="default"
       className={cn(
         "grid min-w-0 gap-8",
         filters !== undefined && "lg:grid-cols-[16rem_minmax(0,1fr)]",
@@ -121,8 +124,19 @@ function ListingResults({
             className="lg:hidden"
           />
         )}
-        <ProductGrid {...grid} copy={copy.grid} locale={locale} heading="h2" prefetch={prefetch} />
-        <Pagination {...page} hrefFor={hrefFor} copy={copy.pagination} locale={locale} />
+        <ProductGrid
+          {...grid}
+          copy={copy.grid}
+          locale={locale}
+          heading="h2"
+          prefetch={prefetch}
+        />
+        <Pagination
+          {...page}
+          hrefFor={hrefFor}
+          copy={copy.pagination}
+          locale={locale}
+        />
       </div>
     </div>
   );

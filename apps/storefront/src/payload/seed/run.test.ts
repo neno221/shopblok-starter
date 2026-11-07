@@ -1,7 +1,13 @@
 import type { Payload } from "payload";
 import { beforeEach, describe, expect, it } from "vitest";
 import { siteText } from "../../lib/site";
-import { footerSeed, headerSeed, SEED_GLOBALS, siteSettingsSeed, templatesSeed } from "./globals";
+import {
+  footerSeed,
+  headerSeed,
+  SEED_GLOBALS,
+  siteSettingsSeed,
+  templatesSeed,
+} from "./globals";
 import { TEMPLATE_DEFAULTS } from "../../lib/cms/templates";
 import { inLanguage, runGlobalSeeds, runSeeds } from "./run";
 import type { SeedGlobal, SeedModule } from "./types";
@@ -13,7 +19,11 @@ import { comparable } from "./values";
  */
 function fakePayload() {
   const rows = new Map<number, Record<string, unknown>>();
-  const versions: { parent: number; updatedAt: string; version: { _status: string } }[] = [];
+  const versions: {
+    parent: number;
+    updatedAt: string;
+    version: { _status: string };
+  }[] = [];
   let clock = Date.parse("2026-10-28T12:00:00Z");
   const stamp = () => new Date((clock += 1000)).toISOString();
   const calls: {
@@ -23,15 +33,25 @@ function fakePayload() {
     context?: unknown;
   }[] = [];
   let next = 1;
-  const write = (row: Record<string, unknown>, locale: string, data: Record<string, unknown>) => {
+  const write = (
+    row: Record<string, unknown>,
+    locale: string,
+    data: Record<string, unknown>,
+  ) => {
     for (const [field, value] of Object.entries(data)) {
       if (field === "seedKey" || field === "_status") row[field] = value;
       else row[field] = { ...(row[field] as object), [locale]: value };
     }
   };
   const payload = {
-    collections: { pages: { config: { slug: "pages", versions: { drafts: true } } } },
-    findVersions: async ({ where }: { where: { parent: { equals: number } } }) => {
+    collections: {
+      pages: { config: { slug: "pages", versions: { drafts: true } } },
+    },
+    findVersions: async ({
+      where,
+    }: {
+      where: { parent: { equals: number } };
+    }) => {
       calls.push({ op: "findVersions" });
       const docs = versions
         .filter((version) => version.parent === where.parent.equals)
@@ -39,7 +59,9 @@ function fakePayload() {
       return { docs: docs.slice(0, 1) };
     },
     find: async ({ where }: { where: { seedKey: { equals: string } } }) => ({
-      docs: [...rows.values()].filter((row) => row["seedKey"] === where.seedKey.equals),
+      docs: [...rows.values()].filter(
+        (row) => row["seedKey"] === where.seedKey.equals,
+      ),
     }),
     findByID: async ({ id }: { id: number }) => rows.get(id),
     create: async ({
@@ -76,11 +98,18 @@ function fakePayload() {
   };
   /** An editor's draft save: a new version, the row untouched. */
   const saveDraft = (parent: number) =>
-    versions.push({ parent, updatedAt: stamp(), version: { _status: "draft" } });
+    versions.push({
+      parent,
+      updatedAt: stamp(),
+      version: { _status: "draft" },
+    });
   return { payload: payload as unknown as Payload, rows, calls, saveDraft };
 }
 
-const home = (title: { en: string; el: string }, before: string[] = []): SeedModule => ({
+const home = (
+  title: { en: string; el: string },
+  before: string[] = [],
+): SeedModule => ({
   collection: "pages",
   documents: () => [
     {
@@ -101,7 +130,9 @@ beforeEach(() => {
 
 describe("runSeeds", () => {
   it("creates a missing document, published, in English first and then each language", async () => {
-    const counts = await runSeeds(fake.payload, [home({ en: "Home", el: "Αρχική" })]);
+    const counts = await runSeeds(fake.payload, [
+      home({ en: "Home", el: "Αρχική" }),
+    ]);
     expect(counts).toEqual({ created: 1, updated: 0, unchanged: 0, kept: [] });
     const row = [...fake.rows.values()][0];
     expect(row).toMatchObject({
@@ -119,7 +150,9 @@ describe("runSeeds", () => {
   it("changes nothing on a second run", async () => {
     await runSeeds(fake.payload, [home({ en: "Home", el: "Αρχική" })]);
     fake.calls.length = 0;
-    expect(await runSeeds(fake.payload, [home({ en: "Home", el: "Αρχική" })])).toEqual({
+    expect(
+      await runSeeds(fake.payload, [home({ en: "Home", el: "Αρχική" })]),
+    ).toEqual({
       created: 0,
       updated: 0,
       unchanged: 1,
@@ -153,8 +186,15 @@ describe("runSeeds", () => {
     const row = [...fake.rows.values()][0]!;
     fake.saveDraft(row["id"] as number);
     fake.calls.length = 0;
-    const counts = await runSeeds(fake.payload, [home({ en: "Home", el: "Αρχική" }, ["Welcome"])]);
-    expect(counts).toEqual({ created: 0, updated: 0, unchanged: 0, kept: ["pages:home"] });
+    const counts = await runSeeds(fake.payload, [
+      home({ en: "Home", el: "Αρχική" }, ["Welcome"]),
+    ]);
+    expect(counts).toEqual({
+      created: 0,
+      updated: 0,
+      unchanged: 0,
+      kept: ["pages:home"],
+    });
     expect(fake.calls.map(({ op }) => op)).toEqual(["findVersions"]);
     expect(row["title"]).toEqual({ en: "Welcome", el: "Αρχική" });
   });
@@ -164,8 +204,12 @@ describe("runSeeds", () => {
     const row = [...fake.rows.values()][0]!;
     fake.saveDraft(row["id"] as number);
     // A publish writes the row after the draft.
-    row["updatedAt"] = new Date(Date.parse("2026-10-29T00:00:00Z")).toISOString();
-    const counts = await runSeeds(fake.payload, [home({ en: "Home", el: "Αρχική" }, ["Welcome"])]);
+    row["updatedAt"] = new Date(
+      Date.parse("2026-10-29T00:00:00Z"),
+    ).toISOString();
+    const counts = await runSeeds(fake.payload, [
+      home({ en: "Home", el: "Αρχική" }, ["Welcome"]),
+    ]);
     expect(counts).toMatchObject({ updated: 1, kept: [] });
     expect(row["title"]).toEqual({ en: "Home", el: "Αρχική" });
   });
@@ -174,7 +218,9 @@ describe("runSeeds", () => {
     await runSeeds(fake.payload, [home({ en: "Home", el: "Αρχική" })]);
     fake.saveDraft([...fake.rows.values()][0]!["id"] as number);
     fake.calls.length = 0;
-    expect(await runSeeds(fake.payload, [home({ en: "Home", el: "Αρχική" })])).toMatchObject({
+    expect(
+      await runSeeds(fake.payload, [home({ en: "Home", el: "Αρχική" })]),
+    ).toMatchObject({
       unchanged: 1,
       kept: [],
     });
@@ -182,14 +228,24 @@ describe("runSeeds", () => {
   });
 
   it("writes a field with every language's texts one language at a time, English first (T65)", async () => {
-    const layout = [{ id: "b1", blockType: "hero", heading: { en: "Hi", el: "Γεια" }, media: 3 }];
+    const layout = [
+      {
+        id: "b1",
+        blockType: "hero",
+        heading: { en: "Hi", el: "Γεια" },
+        media: 3,
+      },
+    ];
     const pages: SeedModule = {
       collection: "pages",
       documents: () => [
         {
           key: "home",
           publish: true,
-          localized: { title: { en: { value: "Home" } }, slug: { en: { value: "home" } } },
+          localized: {
+            title: { en: { value: "Home" } },
+            slug: { en: { value: "home" } },
+          },
           allLanguages: { layout: { value: layout } },
         },
       ],
@@ -199,8 +255,16 @@ describe("runSeeds", () => {
       (call) => call.op === "update" && "layout" in (call.data ?? {}),
     );
     expect(writes.map(({ locale, data }) => [locale, data])).toEqual([
-      ["en", { layout: [{ id: "b1", blockType: "hero", heading: "Hi", media: 3 }] }],
-      ["el", { layout: [{ id: "b1", blockType: "hero", heading: "Γεια", media: 3 }] }],
+      [
+        "en",
+        { layout: [{ id: "b1", blockType: "hero", heading: "Hi", media: 3 }] },
+      ],
+      [
+        "el",
+        {
+          layout: [{ id: "b1", blockType: "hero", heading: "Γεια", media: 3 }],
+        },
+      ],
     ]);
     // Stored as a `locale: "all"` read gives it, it is what the seed writes: nothing to do.
     fake.rows.get(1)!["layout"] = layout;
@@ -213,7 +277,8 @@ describe("runSeeds", () => {
     await runSeeds(fake.payload, [home({ en: "Home", el: "Αρχική" })]);
     expect(
       fake.calls.every(
-        ({ context }) => (context as { disableRevalidate?: boolean })?.disableRevalidate,
+        ({ context }) =>
+          (context as { disableRevalidate?: boolean })?.disableRevalidate,
       ),
     ).toBe(true);
   });
@@ -228,7 +293,11 @@ function fakeGlobal() {
   let saved = false;
   let clock = Date.parse("2026-10-28T12:00:00Z");
   const versions: { updatedAt: string; version: { _status: string } }[] = [];
-  const writes: { locale: string; data: Record<string, unknown>; context: unknown }[] = [];
+  const writes: {
+    locale: string;
+    data: Record<string, unknown>;
+    context: unknown;
+  }[] = [];
   let ids = 0;
   const withIds = (value: unknown): unknown =>
     Array.isArray(value)
@@ -238,9 +307,14 @@ function fakeGlobal() {
             : row,
         )
       : value !== null && typeof value === "object"
-        ? Object.fromEntries(Object.entries(value).map(([k, v]) => [k, withIds(v)]))
+        ? Object.fromEntries(
+            Object.entries(value).map(([k, v]) => [k, withIds(v)]),
+          )
         : value;
-  const merge = (into: Record<string, unknown>, data: Record<string, unknown>) => {
+  const merge = (
+    into: Record<string, unknown>,
+    data: Record<string, unknown>,
+  ) => {
     for (const [key, value] of Object.entries(data)) {
       const current = into[key];
       if (
@@ -251,15 +325,23 @@ function fakeGlobal() {
         typeof current === "object" &&
         !Array.isArray(current)
       ) {
-        merge(current as Record<string, unknown>, value as Record<string, unknown>);
+        merge(
+          current as Record<string, unknown>,
+          value as Record<string, unknown>,
+        );
       } else into[key] = withIds(value);
     }
   };
   const payload = {
-    globals: { config: [{ slug: "site-settings", versions: { drafts: true } }] },
-    findGlobal: async () => structuredClone(saved ? stored : { ...stored, updatedAt: undefined }),
+    globals: {
+      config: [{ slug: "site-settings", versions: { drafts: true } }],
+    },
+    findGlobal: async () =>
+      structuredClone(saved ? stored : { ...stored, updatedAt: undefined }),
     findGlobalVersions: async () => ({
-      docs: [...versions].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0, 1),
+      docs: [...versions]
+        .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+        .slice(0, 1),
     }),
     updateGlobal: async ({
       locale,
@@ -275,7 +357,10 @@ function fakeGlobal() {
       else {
         // One language of a localized array: `{ productNotes: [...] }` under that language.
         for (const [key, value] of Object.entries(data)) {
-          stored[key] = { ...(stored[key] as object), [locale]: withIds(value) };
+          stored[key] = {
+            ...(stored[key] as object),
+            [locale]: withIds(value),
+          };
         }
       }
       saved = true;
@@ -299,13 +384,19 @@ function fakeGlobal() {
   };
 }
 
-const settingsSeed = (storeName: string, before: string[] = []): SeedGlobal => ({
+const settingsSeed = (
+  storeName: string,
+  before: string[] = [],
+): SeedGlobal => ({
   global: "site-settings",
   fields: () => ({
     storeName: { value: storeName, before },
     "seo.description": { value: { en: "Basics", el: "Βασικά" } },
     productNotes: {
-      value: { en: [{ note: "Ships fast" }], el: [{ note: "Γρήγορη αποστολή" }] },
+      value: {
+        en: [{ note: "Ships fast" }],
+        el: [{ note: "Γρήγορη αποστολή" }],
+      },
     },
   }),
   perLocale: ["productNotes"],
@@ -315,7 +406,12 @@ describe("inLanguage", () => {
   it("takes one language's text from each `{ en: …, el: … }`, leaving everything else", () => {
     const value = {
       heading: { en: "Hi", el: "Γεια" },
-      links: [{ id: "r1", link: { url: "/store", label: { en: "Shop", el: "Αγορά" } } }],
+      links: [
+        {
+          id: "r1",
+          link: { url: "/store", label: { en: "Shop", el: "Αγορά" } },
+        },
+      ],
       content: { root: { children: [] } },
       media: 3,
     };
@@ -325,7 +421,9 @@ describe("inLanguage", () => {
       content: { root: { children: [] } },
       media: 3,
     });
-    expect(inLanguage({ heading: { en: "Hi" } }, "de")).toEqual({ heading: undefined });
+    expect(inLanguage({ heading: { en: "Hi" } }, "de")).toEqual({
+      heading: undefined,
+    });
   });
 });
 
@@ -362,7 +460,9 @@ describe("runGlobalSeeds (T61)", () => {
     const { payload, writes } = fakeGlobal();
     await runGlobalSeeds(payload, [settingsSeed("Shopblok")]);
     writes.length = 0;
-    expect(await runGlobalSeeds(payload, [settingsSeed("Shopblok")])).toMatchObject({
+    expect(
+      await runGlobalSeeds(payload, [settingsSeed("Shopblok")]),
+    ).toMatchObject({
       unchanged: 1,
     });
     expect(writes).toEqual([]);
@@ -373,14 +473,18 @@ describe("runGlobalSeeds (T61)", () => {
     await runGlobalSeeds(payload, [settingsSeed("Shopblok")]);
     edit({ seo: { description: { en: "Our own words", el: "Βασικά" } } });
     writes.length = 0;
-    expect(await runGlobalSeeds(payload, [settingsSeed("Shopblok 2", ["Shopblok"])])).toMatchObject(
-      {
-        updated: 1,
-      },
-    );
+    expect(
+      await runGlobalSeeds(payload, [settingsSeed("Shopblok 2", ["Shopblok"])]),
+    ).toMatchObject({
+      updated: 1,
+    });
     // The store's name is in no language of its own: written in English (T65).
     expect(writes).toEqual([
-      { locale: "en", data: { storeName: "Shopblok 2" }, context: { disableRevalidate: true } },
+      {
+        locale: "en",
+        data: { storeName: "Shopblok 2" },
+        context: { disableRevalidate: true },
+      },
     ]);
   });
 
@@ -394,12 +498,22 @@ describe("runGlobalSeeds (T61)", () => {
       fields: async (p) => ({
         ...(await first.fields(p)),
         productNotes: {
-          value: { en: [{ note: "Ships today" }], el: [{ note: "Αποστολή σήμερα" }] },
-          before: [{ en: [{ note: "Ships fast" }], el: [{ note: "Γρήγορη αποστολή" }] }],
+          value: {
+            en: [{ note: "Ships today" }],
+            el: [{ note: "Αποστολή σήμερα" }],
+          },
+          before: [
+            {
+              en: [{ note: "Ships fast" }],
+              el: [{ note: "Γρήγορη αποστολή" }],
+            },
+          ],
         },
       }),
     };
-    expect(await runGlobalSeeds(payload, [newNotes])).toMatchObject({ updated: 1 });
+    expect(await runGlobalSeeds(payload, [newNotes])).toMatchObject({
+      updated: 1,
+    });
     expect(writes.map((write) => write.locale)).toEqual(["en", "el"]);
   });
 
@@ -416,7 +530,11 @@ describe("runGlobalSeeds (T61)", () => {
     };
     await runGlobalSeeds(payload, [withHomepage]);
     expect(writes).toEqual([
-      { locale: "en", data: { homepage: 4 }, context: { disableRevalidate: true } },
+      {
+        locale: "en",
+        data: { homepage: 4 },
+        context: { disableRevalidate: true },
+      },
     ]);
   });
 
@@ -435,7 +553,9 @@ describe("runGlobalSeeds (T61)", () => {
         },
       }),
     };
-    expect(await runGlobalSeeds(payload, [newWords])).toMatchObject({ updated: 1 });
+    expect(await runGlobalSeeds(payload, [newWords])).toMatchObject({
+      updated: 1,
+    });
     // Payload refuses a `locale: "all"` write of site-settings, which holds a localized array.
     expect(writes.map((write) => [write.locale, write.data])).toEqual([
       ["en", { seo: { description: "Basics, again" } }],
@@ -448,11 +568,11 @@ describe("runGlobalSeeds (T61)", () => {
     await runGlobalSeeds(payload, [settingsSeed("Shopblok")]);
     saveDraft();
     writes.length = 0;
-    expect(await runGlobalSeeds(payload, [settingsSeed("Shopblok 2", ["Shopblok"])])).toMatchObject(
-      {
-        kept: ["site-settings"],
-      },
-    );
+    expect(
+      await runGlobalSeeds(payload, [settingsSeed("Shopblok 2", ["Shopblok"])]),
+    ).toMatchObject({
+      kept: ["site-settings"],
+    });
     expect(writes).toEqual([]);
   });
 });
@@ -476,6 +596,7 @@ describe("the globals' seed (T61 step 6)", () => {
     expect(values).toEqual({
       "productPage.variant": d.productPage,
       "listing.variant": d.listing,
+      "listing.card": d.card,
       "quickView.variant": d.quickView,
       "cart.variant": d.cart,
       "cart.miniCart": d.miniCart,
@@ -499,7 +620,9 @@ describe("the globals' seed (T61 step 6)", () => {
     const noForms = { find: async () => ({ docs: [] }) } as unknown as Payload;
     const footer = await footerSeed.fields(noForms);
     expect(footer).not.toHaveProperty(["newsletter.form"]);
-    const withForm = { find: async () => ({ docs: [{ id: 5 }] }) } as unknown as Payload;
+    const withForm = {
+      find: async () => ({ docs: [{ id: 5 }] }),
+    } as unknown as Payload;
     expect(await footerSeed.fields(withForm)).toMatchObject({
       "newsletter.form": { value: 5 },
       "newsletter.privacy": { value: { type: "custom", url: "/privacy" } },
@@ -514,12 +637,9 @@ describe("the globals' seed (T61 step 6)", () => {
       siteText("el").help,
     ]);
     expect(columns[0]?.categories).toBe(true);
-    expect(columns.flatMap((column) => column.links.map((row) => row.link.url))).toEqual([
-      "/store",
-      "/account",
-      "/cart",
-      "/order/lookup",
-    ]);
+    expect(
+      columns.flatMap((column) => column.links.map((row) => row.link.url)),
+    ).toEqual(["/store", "/account", "/cart", "/order/lookup"]);
     const settings = await siteSettingsSeed.fields(noForms);
     expect(settings["productNotes"]?.value).toMatchObject({
       de: siteText("de").productNotes.map((note) => ({ note })),
@@ -527,6 +647,8 @@ describe("the globals' seed (T61 step 6)", () => {
     expect(siteSettingsSeed.perLocale).toEqual(["productNotes"]);
     // T65: the seeded Home is the homepage once the pages' seed made it; nothing before.
     expect(settings).not.toHaveProperty("homepage");
-    expect((await siteSettingsSeed.fields(withForm))["homepage"]).toEqual({ value: 5 });
+    expect((await siteSettingsSeed.fields(withForm))["homepage"]).toEqual({
+      value: 5,
+    });
   });
 });

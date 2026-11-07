@@ -43,6 +43,10 @@ type FilterSidebarProps = Omit<
     prefetch?: boolean | null;
     /** The panel's heading level; its sections sit one level under it. Default 2. */
     headingLevel?: 2 | 3 | 4;
+    /** Which groups start open (FilterFields' `open`): every one, or the first (T84). */
+    open?: "all" | "first";
+    /** `false` leaves the chosen filters' chips out: the page draws them above its products (T84). */
+    chips?: boolean;
   };
 
 function FilterSidebar({
@@ -58,6 +62,8 @@ function FilterSidebar({
   locale,
   prefetch,
   headingLevel = 2,
+  open = "all",
+  chips = true,
   className,
   ...props
 }: FilterSidebarProps) {
@@ -72,11 +78,19 @@ function FilterSidebar({
       className={cn("flex min-w-0 flex-col gap-4", className)}
       {...props}
     >
-      <Heading id={headingId} className="text-lg leading-snug font-semibold wrap-anywhere">
+      <Heading
+        id={headingId}
+        className="text-lg leading-snug font-semibold wrap-anywhere"
+      >
         {copy.title}
       </Heading>
-      {active === undefined ? null : (
-        <ActiveFilterChips active={active} copy={chipsCopy} locale={locale} prefetch={prefetch} />
+      {active === undefined || !chips ? null : (
+        <ActiveFilterChips
+          active={active}
+          copy={chipsCopy}
+          locale={locale}
+          prefetch={prefetch}
+        />
       )}
       <FilterFields
         groups={groups}
@@ -84,6 +98,7 @@ function FilterSidebar({
         copy={groupCopy}
         locale={locale}
         headingLevel={(headingLevel + 1) as 3 | 4 | 5}
+        open={open}
       />
       <Button type="submit" data-slot="filter-sidebar-apply" className="w-full">
         {copy.apply}

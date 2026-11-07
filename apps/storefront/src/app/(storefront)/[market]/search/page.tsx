@@ -1,6 +1,9 @@
 import type { Messages } from "@shopblok/i18n";
 import { formatMessage } from "@shopblok/i18n";
-import { SearchResultsTemplate, searchResultsCopy } from "@shopblok/ui/templates/search-results";
+import {
+  SearchResultsTemplate,
+  searchResultsCopy,
+} from "@shopblok/ui/templates/search-results";
 import { SearchField } from "@shopblok/ui/molecules/search-field";
 import type { Metadata } from "next";
 import { getMessages } from "next-intl/server";
@@ -14,7 +17,11 @@ import {
   resolveScope,
   scopeField,
 } from "../../../../lib/listing/listing";
-import { filterParams, parseListingQuery, withQuery } from "../../../../lib/listing/query";
+import {
+  filterParams,
+  parseListingQuery,
+  withQuery,
+} from "../../../../lib/listing/query";
 import { getMarketContext } from "../../../../lib/market-context";
 import { SHELL_PREFETCH } from "../../../../lib/site";
 
@@ -24,7 +31,9 @@ import { SHELL_PREFETCH } from "../../../../lib/site";
 // JavaScript, with the listing in `scope`. Every result is `noindex`; the metadata reads nothing
 // from the URL, so it is static.
 
-type Props = { searchParams: Promise<Record<string, string | string[] | undefined>> };
+type Props = {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
 
 export async function generateMetadata(): Promise<Metadata> {
   const messages = await getMessages();
@@ -34,10 +43,16 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-function toParams(raw: Record<string, string | string[] | undefined>): URLSearchParams {
+function toParams(
+  raw: Record<string, string | string[] | undefined>,
+): URLSearchParams {
   const params = new URLSearchParams();
   for (const [name, value] of Object.entries(raw))
-    for (const each of Array.isArray(value) ? value : value === undefined ? [] : [value])
+    for (const each of Array.isArray(value)
+      ? value
+      : value === undefined
+        ? []
+        : [value])
       params.append(name, each);
   return params;
 }
@@ -45,16 +60,27 @@ function toParams(raw: Record<string, string | string[] | undefined>): URLSearch
 export default async function SearchPage({ searchParams }: Props) {
   // The shell's map, not the market's context: the static part reads no region, so a build
   // without Medusa (the stand-in, D10) renders it too.
-  const [{ url }, messages] = await Promise.all([getShellData(), getMessages()]);
+  const [{ url }, messages] = await Promise.all([
+    getShellData(),
+    getMessages(),
+  ]);
   return (
-    <Suspense fallback={<SearchFallback messages={messages} action={url("/search")} />}>
+    <Suspense
+      fallback={<SearchFallback messages={messages} action={url("/search")} />}
+    >
       <SearchResults searchParams={searchParams} />
     </Suspense>
   );
 }
 
 /** Until the results stream in: the field and the heading, where the page will have them. */
-function SearchFallback({ messages, action }: { messages: Messages; action: string }) {
+function SearchFallback({
+  messages,
+  action,
+}: {
+  messages: Messages;
+  action: string;
+}) {
   return (
     <main
       id="main"
@@ -85,13 +111,17 @@ async function SearchResults({ searchParams }: Props) {
   const query = parseListingQuery(params);
   // A filter form from a listing keeps to it; a scope that is not one is the whole store.
   const resolved =
-    (query.scope === null ? null : await resolveScope(context, messages, query.scope)) ??
+    (query.scope === null
+      ? null
+      : await resolveScope(context, messages, query.scope)) ??
     (await resolveScope(context, messages, { kind: "store" }));
   if (resolved === null) return null;
   const action = context.url("/search");
   const own = new URLSearchParams([
     ...(query.query === "" ? [] : [["q", query.query]]),
-    ...(query.scope === null ? [] : [["scope", scopeField(resolved.scope).value]]),
+    ...(query.scope === null
+      ? []
+      : [["scope", scopeField(resolved.scope).value]]),
   ]);
   const input = {
     context,
@@ -101,6 +131,8 @@ async function SearchResults({ searchParams }: Props) {
     params,
     pathPage: 1,
     pageSize: listingPageSize(),
+    // The listing's card (D101, T84), as the listing a filter form came from draws it.
+    card: templates.card,
     links: {
       base: { path: action, params: own },
       formAction: action,

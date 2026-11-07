@@ -32,6 +32,8 @@ export type VariantFieldOptions = {
   before?: readonly { value: string; label: string }[];
   after?: readonly { value: string; label: string }[];
   description?: string;
+  /** When the picker shows (Payload's `admin.condition`): the quick view's only with `quick-add` (T84). */
+  condition?: NonNullable<SelectField["admin"]>["condition"];
 };
 
 /**
@@ -50,12 +52,18 @@ export function variantField({
   before = [],
   after = [],
   description,
+  condition,
 }: VariantFieldOptions): SelectField {
-  const variants = variantsOf(family).filter((variant) => !exclude.includes(variant.value));
+  const variants = variantsOf(family).filter(
+    (variant) => !exclude.includes(variant.value),
+  );
   const [first] = variants;
-  if (first === undefined) throw new Error(`variantField: the registry has no "${family}" family.`);
+  if (first === undefined)
+    throw new Error(`variantField: the registry has no "${family}" family.`);
   const custom: VariantPickerCustom = {
-    thumbnails: Object.fromEntries(variants.map((variant) => [variant.value, variant.thumbnail])),
+    thumbnails: Object.fromEntries(
+      variants.map((variant) => [variant.value, variant.thumbnail]),
+    ),
     family,
     drawsNothing: [...before, ...after].map((option) => option.value),
   };
@@ -66,13 +74,17 @@ export function variantField({
     defaultValue: defaultValue ?? first.value,
     options: [
       ...before,
-      ...variants.map(({ value, label: optionLabel }) => ({ value, label: optionLabel })),
+      ...variants.map(({ value, label: optionLabel }) => ({
+        value,
+        label: optionLabel,
+      })),
       ...after,
     ].map(({ value, label: optionLabel }) => ({ value, label: optionLabel })),
     ...(label === undefined ? {} : { label }),
     admin: {
       custom,
       ...(description === undefined ? {} : { description }),
+      ...(condition === undefined ? {} : { condition }),
       components: { Field: "/payload/components/variant-picker#VariantPicker" },
     },
   };

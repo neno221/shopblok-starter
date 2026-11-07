@@ -1,22 +1,36 @@
 import "server-only";
-import { formatMessage, formatNumberRange, type Messages } from "@shopblok/i18n";
-import type {
-  ActiveFilter,
-  ActiveFilters,
-  Breadcrumbs,
-  EmptyStateContent,
-  FacetGroup,
-  ListingResults,
-  Link,
-  QueryParam,
-  SortState,
+import {
+  formatMessage,
+  formatNumberRange,
+  type Messages,
+} from "@shopblok/i18n";
+import {
+  firstVariant,
+  type ActiveFilter,
+  type ActiveFilters,
+  type Breadcrumbs,
+  type EmptyStateContent,
+  type FacetGroup,
+  type ListingResults,
+  type Link,
+  type QueryParam,
+  type SortState,
+  type VariantOf,
 } from "@shopblok/registry/contracts";
 import { env, type RawEnv } from "../env";
 import type { MarketContext } from "../market-context";
-import { flattenCategories, listCategories, type CategoryNode } from "../medusa/categories";
+import {
+  flattenCategories,
+  listCategories,
+  type CategoryNode,
+} from "../medusa/categories";
 import { listCollections } from "../medusa/collections";
 import { listOptionValueLabels, listProductsByIds } from "../medusa/products";
-import { searchProducts, type SearchFilters, type SearchSort } from "../medusa/search";
+import {
+  searchProducts,
+  type SearchFilters,
+  type SearchSort,
+} from "../medusa/search";
 import { FACET_PARAM, toFacetGroups } from "../view-models/facets";
 import { toProductCard } from "../view-models/product";
 import {
@@ -61,7 +75,10 @@ export type ResolvedScope = {
   filters: SearchFilters;
 };
 
-function categoryAt(tree: readonly CategoryNode[], path: readonly string[]): CategoryNode[] | null {
+function categoryAt(
+  tree: readonly CategoryNode[],
+  path: readonly string[],
+): CategoryNode[] | null {
   const nodes: CategoryNode[] = [];
   let level = tree;
   for (const handle of path) {
@@ -83,9 +100,17 @@ export async function resolveScope(
   const home: Link = { label: copy.home, href: context.url("/") };
   const locale = context.market.medusaLocale;
   if (scope.kind === "store")
-    return { scope, title: copy.store, trail: [home], path: "/store", filters: {} };
+    return {
+      scope,
+      title: copy.store,
+      trail: [home],
+      path: "/store",
+      filters: {},
+    };
   if (scope.kind === "collection") {
-    const collection = (await listCollections(locale)).find((each) => each.handle === scope.handle);
+    const collection = (await listCollections(locale)).find(
+      (each) => each.handle === scope.handle,
+    );
     if (collection === undefined) return null;
     return {
       scope,
@@ -138,9 +163,14 @@ export type ReadListingInput = {
   pathPage: number;
   pageSize: number;
   links: ListingLinks;
+  /** The grid's card (D101, T84): the `templates` global's listing `card`; ProductCard's first unset. */
+  card?: VariantOf<"product-card">;
 };
 
-const SORT_LABEL: Record<ListingSort, keyof Messages["molecules"]["sortSelect"]["options"]> = {
+const SORT_LABEL: Record<
+  ListingSort,
+  keyof Messages["molecules"]["sortSelect"]["options"]
+> = {
   relevance: "relevance",
   newest: "newest",
   "price-asc": "priceAsc",
@@ -177,11 +207,21 @@ function chipsFor(
       chips.push({
         id: group.id,
         group: group.label,
-        label: formatNumberRange(group.selected.min, group.selected.max, locale, {
-          style: "currency",
-          currency: group.currencyCode,
-        }),
-        removeHref: link(withoutParam(withoutParam(params, `${group.id}.min`), `${group.id}.max`)),
+        label: formatNumberRange(
+          group.selected.min,
+          group.selected.max,
+          locale,
+          {
+            style: "currency",
+            currency: group.currencyCode,
+          },
+        ),
+        removeHref: link(
+          withoutParam(
+            withoutParam(params, `${group.id}.min`),
+            `${group.id}.max`,
+          ),
+        ),
       });
     } else if (group.kind === "toggle" && group.selected) {
       chips.push({
@@ -195,7 +235,10 @@ function chipsFor(
 }
 
 /** The search's filters: the URL's, with the scope's own in place of the group it fixes. */
-function searchFilters(resolved: ResolvedScope, query: ListingQuery): SearchFilters {
+function searchFilters(
+  resolved: ResolvedScope,
+  query: ListingQuery,
+): SearchFilters {
   return { ...query.filters, ...resolved.filters };
 }
 
@@ -203,7 +246,9 @@ function searchFilters(resolved: ResolvedScope, query: ListingQuery): SearchFilt
  * One page of a listing's results with its labels, or `null` for a page past the last (a 404 on a
  * listing's path, the first page on the search).
  */
-export async function readListing(input: ReadListingInput): Promise<ListingResults | null> {
+export async function readListing(
+  input: ReadListingInput,
+): Promise<ListingResults | null> {
   const { context, messages, resolved, query, links } = input;
   const { market, region } = context;
   const locale = market.medusaLocale;
@@ -229,7 +274,9 @@ export async function readListing(input: ReadListingInput): Promise<ListingResul
     listCollections(locale),
     listOptionValueLabels(locale),
   ]);
-  const cards = products.flatMap((product) => toProductCard(product, context.hrefs) ?? []);
+  const cards = products.flatMap(
+    (product) => toProductCard(product, context.hrefs) ?? [],
+  );
 
   // The group the scope fixes is not offered: a category's page filters by its own categories.
   const fixed: string | null =
@@ -250,10 +297,15 @@ export async function readListing(input: ReadListingInput): Promise<ListingResul
   const link = (params: URLSearchParams) =>
     withQuery(
       base.path,
-      new URLSearchParams([...base.params.entries(), ...filterParams(params).entries()]),
+      new URLSearchParams([
+        ...base.params.entries(),
+        ...filterParams(params).entries(),
+      ]),
     );
   const chips = chipsFor(groups, chosen, link, market.htmlLang);
-  const sortOnly = new URLSearchParams([...chosen.entries()].filter(([name]) => name === "sort"));
+  const sortOnly = new URLSearchParams(
+    [...chosen.entries()].filter(([name]) => name === "sort"),
+  );
   const clearHref = link(sortOnly);
   const active: ActiveFilters | undefined =
     chips.length === 0 ? undefined : { filters: chips, clearHref };
@@ -292,7 +344,8 @@ export async function readListing(input: ReadListingInput): Promise<ListingResul
             text: copy.empty.text,
             action: { label: copy.empty.browse, href: context.url("/store") },
           };
-  const sortParam = query.sort === null ? [] : [{ name: "sort", value: query.sort }];
+  const sortParam =
+    query.sort === null ? [] : [{ name: "sort", value: query.sort }];
   return {
     toolbar: { count: result.total, sort: sortState },
     ...(groups.length === 0
@@ -306,8 +359,16 @@ export async function readListing(input: ReadListingInput): Promise<ListingResul
             resultCount: result.total,
           },
         }),
-    grid: { products: cards, variant: "standard", layout: "grid", empty },
-    page: { page: Math.min(page, result.pageCount), pageCount: result.pageCount },
+    grid: {
+      products: cards,
+      variant: input.card ?? firstVariant("product-card"),
+      layout: "grid",
+      empty,
+    },
+    page: {
+      page: Math.min(page, result.pageCount),
+      pageCount: result.pageCount,
+    },
   };
 }
 

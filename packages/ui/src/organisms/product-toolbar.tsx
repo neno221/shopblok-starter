@@ -16,6 +16,7 @@
 //   wrap. Nothing is cut.
 // - `filters` is drawn only below `lg` (`lg:hidden` around the slot): from `lg` the page puts
 //   FilterSidebar beside the products, and the button would open a second copy of the same form.
+//   A listing layout with no form in the page at any width (T84's `drawer`) sets `filtersAlways`.
 // - The toggle is a group named by the catalog's "View" holding two 44 px links, "Grid" and "List",
 //   each an icon with its name for assistive technology. The current one carries
 //   `aria-current="true"` and is drawn pressed: a darker border and a filled background, which are
@@ -45,6 +46,8 @@ type ProductToolbarProps = Omit<React.ComponentProps<"div">, "children"> &
     prefetch?: boolean | null;
     /** The filters button (FilterDrawer), drawn below `lg` only. Nothing: no button. */
     filters?: React.ReactNode;
+    /** Draws `filters` at every width: the page has no other form for them (T84's `drawer`). */
+    filtersAlways?: boolean;
   };
 
 // `next/link` takes whatever an app with typed routes narrows its `href` to; ours are strings the
@@ -101,6 +104,7 @@ function ProductToolbar({
   locale,
   prefetch,
   filters,
+  filtersAlways = false,
   className,
   ...props
 }: ProductToolbarProps) {
@@ -111,7 +115,10 @@ function ProductToolbar({
       {...props}
     >
       {filters === undefined ? null : (
-        <div data-slot="product-toolbar-filters" className="max-w-full lg:hidden">
+        <div
+          data-slot="product-toolbar-filters"
+          className={cn("max-w-full", !filtersAlways && "lg:hidden")}
+        >
           {filters}
         </div>
       )}
@@ -121,7 +128,9 @@ function ProductToolbar({
       >
         {formatMessage(copy.count, { count }, locale)}
       </p>
-      {view === undefined ? null : <ViewToggle view={view} copy={copy} prefetch={prefetch} />}
+      {view === undefined ? null : (
+        <ViewToggle view={view} copy={copy} prefetch={prefetch} />
+      )}
       <SortSelect {...sort} copy={sortCopy} className="w-full sm:w-auto" />
     </div>
   );

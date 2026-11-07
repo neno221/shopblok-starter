@@ -2,7 +2,11 @@ import "server-only";
 import { firstVariant, type VariantOf } from "@shopblok/registry/contracts";
 import type { Payload } from "payload";
 import type { Template } from "../../payload-types";
-import { QUICK_CART_OPTIONS, QUICK_VIEW_OFF, type MINI_CART_PAGE } from "./template-options";
+import {
+  QUICK_CART_OPTIONS,
+  QUICK_VIEW_OFF,
+  type MINI_CART_PAGE,
+} from "./template-options";
 import { globalTag } from "./globals";
 import { cmsRead, type CmsQuery } from "./read";
 
@@ -16,6 +20,8 @@ import { cmsRead, type CmsQuery } from "./read";
 export type TemplateChoice = {
   productPage: VariantOf<"product-detail">;
   listing: VariantOf<"product-listing">;
+  /** The listing's grid's card (T84): one of ProductCard's ten. */
+  card: VariantOf<"product-card">;
   quickView: typeof QUICK_VIEW_OFF | VariantOf<"quick-view">;
   cart: VariantOf<"cart">;
   miniCart: typeof MINI_CART_PAGE | VariantOf<"mini-cart">;
@@ -32,6 +38,7 @@ export type TemplateChoice = {
 export const TEMPLATE_DEFAULTS: TemplateChoice = {
   productPage: firstVariant("product-detail"),
   listing: firstVariant("product-listing"),
+  card: firstVariant("product-card"),
   quickView: QUICK_VIEW_OFF,
   cart: firstVariant("cart"),
   miniCart: firstVariant("mini-cart"),
@@ -51,6 +58,7 @@ export function templatesFrom(doc: Template | null): TemplateChoice {
   return {
     productPage: doc.productPage?.variant ?? d.productPage,
     listing: doc.listing?.variant ?? d.listing,
+    card: doc.listing?.card ?? d.card,
     quickView: doc.quickView?.variant ?? d.quickView,
     cart: doc.cart?.variant ?? d.cart,
     miniCart: doc.cart?.miniCart ?? d.miniCart,
@@ -74,5 +82,8 @@ export const readTemplates = cmsRead(
       locale: query.locale as never,
       depth: 0,
     })) as Template,
-  { name: "cms:global:templates", tags: (locale) => [globalTag("templates", locale)] },
+  {
+    name: "cms:global:templates",
+    tags: (locale) => [globalTag("templates", locale)],
+  },
 );

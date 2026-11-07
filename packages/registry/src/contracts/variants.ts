@@ -9,8 +9,21 @@ import { z } from "zod";
 // in `entries/` (SETUP.md, "How to add a variant (M5)").
 export const VARIANTS = {
   // D46 (T35, T36, T32): the six headers, the five footers and the ten product cards.
-  header: ["classic", "centered", "two-tier", "mega-menu", "minimal", "transparent"],
-  footer: ["multi-column", "newsletter-first", "minimal", "wordmark", "two-tier"],
+  header: [
+    "classic",
+    "centered",
+    "two-tier",
+    "mega-menu",
+    "minimal",
+    "transparent",
+  ],
+  footer: [
+    "multi-column",
+    "newsletter-first",
+    "minimal",
+    "wordmark",
+    "two-tier",
+  ],
   "product-card": [
     "standard",
     "swatches",
@@ -48,7 +61,16 @@ export const VARIANTS = {
   // D99, D101 (T79): the commerce templates' and organisms' families, each starting with what M2
   // and M3 built, which the `templates` global picks from; T83 to T86 add the others.
   "product-detail": ["default"],
-  "product-listing": ["default"],
+  // T84: the listing's filter layouts (M5 plan §1a), which the search page follows.
+  "product-listing": [
+    "default",
+    "top-bar",
+    "drawer",
+    "accordion",
+    "chips",
+    "rail",
+    "inline",
+  ],
   "quick-view": ["default"],
   cart: ["default"],
   "mini-cart": ["drawer"],
@@ -64,7 +86,9 @@ export type VariantOf<F extends Family> = (typeof VARIANTS)[F][number];
 
 /** A family's variant as a contract's field: one of its values (D99). */
 export const variantEnum = <F extends Family>(family: F) =>
-  z.enum(VARIANTS[family] as unknown as readonly [VariantOf<F>, ...VariantOf<F>[]]);
+  z.enum(
+    VARIANTS[family] as unknown as readonly [VariantOf<F>, ...VariantOf<F>[]],
+  );
 
 /** The family's default: its first variant. */
 export const firstVariant = <F extends Family>(family: F): VariantOf<F> =>
@@ -82,7 +106,9 @@ export function variantNeeds<V extends string>(
   return (value, context) => {
     if (value.variant === undefined) return;
     // An own key only: `toString` must not read `Object.prototype` (PR 116 review, item 6).
-    const fields = Object.hasOwn(needs, value.variant) ? needs[value.variant as V] : undefined;
+    const fields = Object.hasOwn(needs, value.variant)
+      ? needs[value.variant as V]
+      : undefined;
     for (const field of fields ?? []) {
       if ((value as Record<string, unknown>)[field] === undefined)
         context.addIssue({

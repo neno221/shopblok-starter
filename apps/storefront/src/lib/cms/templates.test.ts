@@ -8,7 +8,9 @@ vi.mock("next/cache", () => ({
 }));
 vi.mock("next/headers", () => ({ headers: async () => new Headers() }));
 const findGlobal = vi.fn();
-vi.mock("./payload", () => ({ getPayloadClient: async () => ({ findGlobal }) }));
+vi.mock("./payload", () => ({
+  getPayloadClient: async () => ({ findGlobal }),
+}));
 
 import type { Template } from "../../payload-types";
 import { readTemplates, TEMPLATE_DEFAULTS, templatesFrom } from "./templates";
@@ -29,6 +31,7 @@ describe("templatesFrom", () => {
     expect(TEMPLATE_DEFAULTS).toEqual({
       productPage: "default",
       listing: "default",
+      card: "standard",
       quickView: "off",
       cart: "default",
       miniCart: "drawer",
@@ -43,12 +46,15 @@ describe("templatesFrom", () => {
   it("takes a saved global's picks, and passes on a value from a later version as it is", () => {
     const choice = templatesFrom(
       saved({
+        listing: { variant: "rail", card: "quick-add" },
         cart: { variant: "default", miniCart: "page", quickCart: "off" },
         checkout: { variant: "one-page" as never },
       }),
     );
     expect(choice).toEqual({
       ...TEMPLATE_DEFAULTS,
+      listing: "rail",
+      card: "quick-add",
       miniCart: "page",
       quickCart: "off",
       checkout: "one-page",
@@ -74,7 +80,9 @@ describe("readTemplates", () => {
 
   it("is null without a database, and reads nothing", async () => {
     vi.stubEnv("PAYLOAD_DATABASE_URL", "");
-    expect(await readTemplates({ market: { language: "en" }, draft: false })).toBeNull();
+    expect(
+      await readTemplates({ market: { language: "en" }, draft: false }),
+    ).toBeNull();
     expect(findGlobal).not.toHaveBeenCalled();
   });
 });

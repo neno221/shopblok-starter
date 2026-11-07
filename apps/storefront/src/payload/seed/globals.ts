@@ -1,5 +1,8 @@
 import { firstVariant } from "@shopblok/registry/contracts";
-import { QUICK_CART_OPTIONS, QUICK_VIEW_OFF } from "../../lib/cms/template-options";
+import {
+  QUICK_CART_OPTIONS,
+  QUICK_VIEW_OFF,
+} from "../../lib/cms/template-options";
 import { siteText } from "../../lib/site";
 import { lexicalParagraphs } from "./email-templates";
 import { seededNewsletterId } from "./forms";
@@ -14,7 +17,9 @@ type Text = ReturnType<typeof siteText>;
 
 /** A localized value in every seeded language, from `site.ts`'s texts. */
 const localized = <T>(pick: (text: Text) => T): Record<string, T> =>
-  Object.fromEntries(SEEDED_LANGUAGES.map((language) => [language, pick(siteText(language))]));
+  Object.fromEntries(
+    SEEDED_LANGUAGES.map((language) => [language, pick(siteText(language))]),
+  );
 
 const seeded = <T>(value: T): Seeded<T> => ({ value });
 
@@ -104,8 +109,12 @@ export const siteSettingsSeed: SeedGlobal = {
     const home = await seededHomeId(payload);
     return {
       storeName: seeded("Shopblok"),
-      productNotes: seeded(localized((text) => text.productNotes.map((note) => ({ note })))),
-      deliveryAndReturns: seeded(localized((text) => lexicalParagraphs(text.delivery))),
+      productNotes: seeded(
+        localized((text) => text.productNotes.map((note) => ({ note }))),
+      ),
+      deliveryAndReturns: seeded(
+        localized((text) => lexicalParagraphs(text.delivery)),
+      ),
       ...(home === undefined ? {} : { homepage: seeded(home) }),
     };
   },
@@ -122,6 +131,7 @@ export const templatesSeed: SeedGlobal = {
   fields: () => ({
     "productPage.variant": seeded(firstVariant("product-detail")),
     "listing.variant": seeded(firstVariant("product-listing")),
+    "listing.card": seeded(firstVariant("product-card")),
     "quickView.variant": seeded(QUICK_VIEW_OFF),
     "cart.variant": seeded(firstVariant("cart")),
     "cart.miniCart": seeded(firstVariant("mini-cart")),
@@ -132,4 +142,9 @@ export const templatesSeed: SeedGlobal = {
 };
 
 /** Every global's seed, in the order they run. */
-export const SEED_GLOBALS: SeedGlobal[] = [headerSeed, footerSeed, siteSettingsSeed, templatesSeed];
+export const SEED_GLOBALS: SeedGlobal[] = [
+  headerSeed,
+  footerSeed,
+  siteSettingsSeed,
+  templatesSeed,
+];

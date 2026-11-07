@@ -12,7 +12,12 @@ import { createContext } from "../../design-system/context";
 import { stories } from "../../design-system/stories";
 import { Templates } from "../globals/templates";
 import { BLOCKS } from ".";
-import { familyRoot, variantDrift, variantPickers, type VariantFacts } from "./drift";
+import {
+  familyRoot,
+  variantDrift,
+  variantPickers,
+  type VariantFacts,
+} from "./drift";
 
 const storefront = fileURLToPath(new URL("../../../", import.meta.url));
 
@@ -36,19 +41,70 @@ const facts: VariantFacts = {
 };
 
 describe("the variant fields and their families (D99)", () => {
-  it("finds every block's picker and the templates global's seven", () => {
-    expect(pickers.filter((picker) => !picker.where.startsWith("templates."))).toHaveLength(
-      BLOCKS.length,
-    );
-    expect(pickers.filter((picker) => picker.where.startsWith("templates."))).toEqual([
-      { where: "templates.productPage.variant", family: "product-detail", offered: ["default"] },
-      { where: "templates.listing.variant", family: "product-listing", offered: ["default"] },
+  it("finds every block's picker and the templates global's eight", () => {
+    expect(
+      pickers.filter((picker) => !picker.where.startsWith("templates.")),
+    ).toHaveLength(BLOCKS.length);
+    expect(
+      pickers.filter((picker) => picker.where.startsWith("templates.")),
+    ).toEqual([
+      {
+        where: "templates.productPage.variant",
+        family: "product-detail",
+        offered: ["default"],
+      },
+      {
+        where: "templates.listing.variant",
+        family: "product-listing",
+        offered: [
+          "default",
+          "top-bar",
+          "drawer",
+          "accordion",
+          "chips",
+          "rail",
+          "inline",
+        ],
+      },
+      // T84: the listing's grid's card, ProductCard's ten (D46).
+      {
+        where: "templates.listing.card",
+        family: "product-card",
+        offered: [
+          "standard",
+          "swatches",
+          "quick-add",
+          "overlay",
+          "minimal",
+          "horizontal",
+          "compact",
+          "editorial",
+          "bordered",
+          "image-swap",
+        ],
+      },
       // "Off" and "Cart page" draw no member, so they are left out (D101).
-      { where: "templates.quickView.variant", family: "quick-view", offered: ["default"] },
+      {
+        where: "templates.quickView.variant",
+        family: "quick-view",
+        offered: ["default"],
+      },
       { where: "templates.cart.variant", family: "cart", offered: ["default"] },
-      { where: "templates.cart.miniCart", family: "mini-cart", offered: ["drawer"] },
-      { where: "templates.checkout.variant", family: "checkout", offered: ["default"] },
-      { where: "templates.receipt.variant", family: "receipt", offered: ["default"] },
+      {
+        where: "templates.cart.miniCart",
+        family: "mini-cart",
+        offered: ["drawer"],
+      },
+      {
+        where: "templates.checkout.variant",
+        family: "checkout",
+        offered: ["default"],
+      },
+      {
+        where: "templates.receipt.variant",
+        family: "receipt",
+        offered: ["default"],
+      },
     ]);
   });
 
@@ -58,7 +114,9 @@ describe("the variant fields and their families (D99)", () => {
 
   it("knows each family's root, and every member's render draws it", () => {
     const families = new Set(pickers.map((picker) => picker.family));
-    for (const entry of entries.filter((each) => families.has(each.family ?? "")))
+    for (const entry of entries.filter((each) =>
+      families.has(each.family ?? ""),
+    ))
       expect(familyRoot(entry, entries), entry.id).toBeDefined();
   });
 });
@@ -68,7 +126,11 @@ describe("the variant fields and their families (D99)", () => {
 describe("variantDrift's rules", () => {
   const hero = entries.find((entry) => entry.id === "sections/hero");
   if (hero === undefined) throw new Error("no sections/hero");
-  const overlay: RegistryEntry = { ...hero, id: "sections/hero-overlay", variant: "overlay" };
+  const overlay: RegistryEntry = {
+    ...hero,
+    id: "sections/hero-overlay",
+    variant: "overlay",
+  };
   const twoMembers = [...entries, overlay];
   const drawn = (variant: string) =>
     `<section data-slot="hero-section" data-variant="${variant}"><h2>x</h2></section>`;
@@ -83,20 +145,30 @@ describe("variantDrift's rules", () => {
 
   it("refuses a picker that differs from its family (the registry's members come from variantsOf)", () => {
     expect(
-      variantDrift(fake({ pickers: [{ where: "hero", family: "hero", offered: ["overlay"] }] })),
-    ).toEqual(['hero offers [overlay] of the family "hero", whose members are [standard]']);
+      variantDrift(
+        fake({
+          pickers: [{ where: "hero", family: "hero", offered: ["overlay"] }],
+        }),
+      ),
+    ).toEqual([
+      'hero offers [overlay] of the family "hero", whose members are [standard]',
+    ]);
   });
 
   it("refuses a member without a story, a baseline or a thumbnail", () => {
-    expect(variantDrift(fake({ hasStory: (id) => id !== overlay.id }))).toEqual([
-      "sections/hero-overlay has no story in src/design-system/stories/",
-    ]);
+    expect(variantDrift(fake({ hasStory: (id) => id !== overlay.id }))).toEqual(
+      ["sections/hero-overlay has no story in src/design-system/stories/"],
+    );
     expect(
-      variantDrift(fake({ hasFile: (path) => !path.endsWith("hero-overlay/en-768.png") })),
+      variantDrift(
+        fake({ hasFile: (path) => !path.endsWith("hero-overlay/en-768.png") }),
+      ),
     ).toEqual([
       "sections/hero-overlay has no baseline e2e/__screenshots__/design-system/sections/hero-overlay/en-768.png",
     ]);
-    expect(variantDrift(fake({ hasFile: (path) => !path.startsWith("public/") }))).toEqual([
+    expect(
+      variantDrift(fake({ hasFile: (path) => !path.startsWith("public/") })),
+    ).toEqual([
       "sections/hero has no thumbnail public/registry/sections/hero.png",
       "sections/hero-overlay has no thumbnail public/registry/sections/hero-overlay.png",
     ]);
@@ -109,9 +181,16 @@ describe("variantDrift's rules", () => {
   });
 
   it("finds a template member's root at its family's first member's slot", () => {
-    const receipt = entries.find((entry) => entry.id === "templates/order-confirmation");
-    if (receipt === undefined) throw new Error("no templates/order-confirmation");
-    const split: RegistryEntry = { ...receipt, id: "templates/receipt-split", variant: "split" };
+    const receipt = entries.find(
+      (entry) => entry.id === "templates/order-confirmation",
+    );
+    if (receipt === undefined)
+      throw new Error("no templates/order-confirmation");
+    const split: RegistryEntry = {
+      ...receipt,
+      id: "templates/receipt-split",
+      variant: "split",
+    };
     const withSplit = [...entries, split];
     expect(familyRoot(split, withSplit)).toBe("order-confirmation-template");
     const page = (variant: string) =>
@@ -121,7 +200,11 @@ describe("variantDrift's rules", () => {
         fake({
           entries: withSplit,
           pickers: [
-            { where: "templates.receipt.variant", family: "receipt", offered: ["default"] },
+            {
+              where: "templates.receipt.variant",
+              family: "receipt",
+              offered: ["default"],
+            },
           ],
           render: (id) => page(id === split.id ? "split" : "default"),
         }),
@@ -132,7 +215,11 @@ describe("variantDrift's rules", () => {
         fake({
           entries: withSplit,
           pickers: [
-            { where: "templates.receipt.variant", family: "receipt", offered: ["default"] },
+            {
+              where: "templates.receipt.variant",
+              family: "receipt",
+              offered: ["default"],
+            },
           ],
           render: () => page("default"),
         }),
@@ -144,7 +231,9 @@ describe("variantDrift's rules", () => {
 
   it("refuses a member whose root does not say which it is, or is not drawn", () => {
     expect(
-      variantDrift(fake({ render: () => '<section data-slot="hero-section"></section>' })),
+      variantDrift(
+        fake({ render: () => '<section data-slot="hero-section"></section>' }),
+      ),
     ).toEqual([
       'sections/hero\'s live render draws [data-slot="hero-section"] as [no data-variant], not "standard"',
       'sections/hero-overlay\'s live render draws [data-slot="hero-section"] as [no data-variant], not "overlay"',

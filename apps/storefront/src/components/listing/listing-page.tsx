@@ -1,13 +1,19 @@
 import type { Messages } from "@shopblok/i18n";
 import { formatMessage } from "@shopblok/i18n";
 import type { ListingResults } from "@shopblok/registry/contracts";
-import { ProductListingTemplate, productListingCopy } from "@shopblok/ui/templates/product-listing";
+import {
+  ProductListingTemplate,
+  productListingCopy,
+} from "@shopblok/ui/templates/product-listing";
 import type { Metadata } from "next";
 import { draftMode } from "next/headers";
 import { notFound } from "next/navigation";
 import { getMessages } from "next-intl/server";
 import { cache, Suspense } from "react";
-import { readCategoryContent, readCollectionContent } from "../../lib/cms/catalog";
+import {
+  readCategoryContent,
+  readCollectionContent,
+} from "../../lib/cms/catalog";
 import type { ListingContent } from "../../lib/cms/catalog-content";
 import { cmsOrNull, type CmsReader } from "../../lib/cms/read";
 import { shellPaths } from "../../lib/cms/shell";
@@ -79,19 +85,36 @@ function readScopeContent(reader: CmsReader, scope: ListingScope) {
  * `cache()` keys by value, so the scope travels as its string (`parseScope` reads it back).
  */
 const readListingPage = cache(
-  async (scopeKey: string, page: number | null): Promise<ListingPageData | null> => {
+  async (
+    scopeKey: string,
+    page: number | null,
+  ): Promise<ListingPageData | null> => {
     // The stand-in (no Medusa, D10), its placeholder and `/page/1` ask Medusa nothing: a 404.
-    if (page === null || !buildReadsMedusa() || scopeKey.includes(PLACEHOLDER_HANDLE)) return null;
+    if (
+      page === null ||
+      !buildReadsMedusa() ||
+      scopeKey.includes(PLACEHOLDER_HANDLE)
+    )
+      return null;
     const scope = parseScope(scopeKey);
     if (scope === null) return null;
-    const [market, { isEnabled: draft }] = await Promise.all([getCurrentMarket(), draftMode()]);
-    const [context, messages] = await Promise.all([getMarketContext(market.key), getMessages()]);
+    const [market, { isEnabled: draft }] = await Promise.all([
+      getCurrentMarket(),
+      draftMode(),
+    ]);
+    const [context, messages] = await Promise.all([
+      getMarketContext(market.key),
+      getMessages(),
+    ]);
     if (context === null) return null;
     const resolved = await resolveScope(context, messages, scope);
     if (resolved === null) return null;
     const pageSize = listingPageSize();
     const contentRead = readScopeContent({ market, draft }, scope);
+    // D101 (T84): the grid's card from the `templates` global, read in the shell as the layout is.
+    const { templates } = await getShellData();
     const results = await readListing({
+      card: templates.card,
       context,
       messages,
       resolved,
@@ -100,28 +123,49 @@ const readListingPage = cache(
       pathPage: page,
       pageSize,
       links: {
-        base: { path: context.url(resolved.path), params: new URLSearchParams() },
+        base: {
+          path: context.url(resolved.path),
+          params: new URLSearchParams(),
+        },
         formAction: context.url("/search"),
         hidden: [scopeField(scope)],
       },
     });
     if (results === null) return null;
-    return { context, messages, resolved, results, page, pageSize, content: await contentRead };
+    return {
+      context,
+      messages,
+      resolved,
+      results,
+      page,
+      pageSize,
+      content: await contentRead,
+    };
   },
 );
 
 /** The introduction, its links resolved in this market (a category's to its whole path). */
-async function introText(intro: NonNullable<ListingContent["intro"]>, context: MarketContext) {
+async function introText(
+  intro: NonNullable<ListingContent["intro"]>,
+  context: MarketContext,
+) {
   const { categories, pages } = await getShellData();
   const paths = shellPaths(categories, pages);
-  return <CmsRichText data={intro} context={{ market: context.market, map: context.map, paths }} />;
+  return (
+    <CmsRichText
+      data={intro}
+      context={{ market: context.market, map: context.map, paths }}
+    />
+  );
 }
 
 /** The address of a page of the listing: the first at the listing's own, the others by path. */
-const pageHref = (base: string, page: number) => (page === 1 ? base : `${base}/page/${page}`);
+const pageHref = (base: string, page: number) =>
+  page === 1 ? base : `${base}/page/${page}`;
 
 /** The key of a listing for `readListingPage`: empty, a 404, for a scope the URL did not make. */
-const keyOf = (scope: ListingScope | null) => (scope === null ? "" : scopeValue(scope));
+const keyOf = (scope: ListingScope | null) =>
+  scope === null ? "" : scopeValue(scope);
 
 export async function listingMetadata(
   scope: ListingScope | null,
@@ -145,7 +189,10 @@ export async function listingMetadata(
   // D82: the category's or collection's own SEO fields (T69's content) first, its title on the
   // first page only (a later page keeps its number), then the listing's, then the site's.
   const meta = content?.meta;
-  const own = data.page === 1 || meta === undefined ? meta : { ...meta, title: undefined };
+  const own =
+    data.page === 1 || meta === undefined
+      ? meta
+      : { ...meta, title: undefined };
   return withSeo(
     {
       title,
@@ -173,7 +220,10 @@ export async function ListingPage({
   const { context, messages, resolved, results, content } = data;
   const { market } = context;
   const base = context.url(resolved.path);
-  const intro = content?.intro == null ? undefined : await introText(content.intro, context);
+  const intro =
+    content?.intro == null
+      ? undefined
+      : await introText(content.intro, context);
   // D101: the `templates` global's filter layout, read in the shell like the header (T79).
   const { templates } = await getShellData();
   const copy = productListingCopy(messages);
@@ -221,6 +271,7 @@ export async function ListingPage({
                 pathPage={data.page}
                 action={context.url("/search")}
                 copy={copy.results}
+                layout={templates.listing}
                 announce={listingCopy}
                 locale={market.htmlLang}
                 prefetch={SHELL_PREFETCH}
@@ -237,21 +288,29 @@ export async function ListingPage({
  * D58: the build renders every category's and collection's first page with Medusa set; without it
  * (the stand-in, D10) one placeholder that answers 404, since Cache Components refuse an empty list.
  */
-export async function categoryStaticParams(market: string): Promise<{ handle: string[] }[]> {
+export async function categoryStaticParams(
+  market: string,
+): Promise<{ handle: string[] }[]> {
   if (!buildReadsMedusa()) return [{ handle: [PLACEHOLDER_HANDLE] }];
   const context = await getMarketContext(market);
   if (context === null) return [{ handle: [PLACEHOLDER_HANDLE] }];
-  const paths = categoryPaths(await listCategories(context.market.medusaLocale));
+  const paths = categoryPaths(
+    await listCategories(context.market.medusaLocale),
+  );
   return paths.length === 0
     ? [{ handle: [PLACEHOLDER_HANDLE] }]
     : paths.map(({ path }) => ({ handle: path }));
 }
 
-export async function collectionStaticParams(market: string): Promise<{ handle: string }[]> {
+export async function collectionStaticParams(
+  market: string,
+): Promise<{ handle: string }[]> {
   if (!buildReadsMedusa()) return [{ handle: PLACEHOLDER_HANDLE }];
   const context = await getMarketContext(market);
   if (context === null) return [{ handle: PLACEHOLDER_HANDLE }];
-  const handles = (await listCollections(context.market.medusaLocale)).map((each) => each.handle);
+  const handles = (await listCollections(context.market.medusaLocale)).map(
+    (each) => each.handle,
+  );
   return handles.length === 0
     ? [{ handle: PLACEHOLDER_HANDLE }]
     : handles.map((handle) => ({ handle }));
@@ -266,6 +325,9 @@ export function categorySegments(segments: readonly string[]): {
   page: number | null;
 } {
   if (segments.length >= 3 && segments.at(-2) === "page")
-    return { scope: categoryScope(segments.slice(0, -2)), page: pathPage(segments.at(-1)) };
+    return {
+      scope: categoryScope(segments.slice(0, -2)),
+      page: pathPage(segments.at(-1)),
+    };
   return { scope: categoryScope(segments), page: 1 };
 }

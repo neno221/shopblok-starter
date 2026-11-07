@@ -125,14 +125,17 @@ export interface Config {
     exports: ExportsSelect<false> | ExportsSelect<true>;
     imports: ImportsSelect<false> | ImportsSelect<true>;
     forms: FormsSelect<false> | FormsSelect<true>;
-    "form-submissions": FormSubmissionsSelect<false> | FormSubmissionsSelect<true>;
+    "form-submissions":
+      FormSubmissionsSelect<false> | FormSubmissionsSelect<true>;
     redirects: RedirectsSelect<false> | RedirectsSelect<true>;
     "payload-kv": PayloadKvSelect<false> | PayloadKvSelect<true>;
     "payload-jobs": PayloadJobsSelect<false> | PayloadJobsSelect<true>;
     "payload-locked-documents":
       PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
-    "payload-preferences": PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
-    "payload-migrations": PayloadMigrationsSelect<false> | PayloadMigrationsSelect<true>;
+    "payload-preferences":
+      PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
+    "payload-migrations":
+      PayloadMigrationsSelect<false> | PayloadMigrationsSelect<true>;
   };
   db: {
     defaultIDType: number;
@@ -662,7 +665,14 @@ export interface UspBarBlock {
   variant: "standard";
   items: {
     icon:
-      "delivery" | "returns" | "secure" | "support" | "sustainable" | "gift" | "quality" | "fast";
+      | "delivery"
+      | "returns"
+      | "secure"
+      | "support"
+      | "sustainable"
+      | "gift"
+      | "quality"
+      | "fast";
     title: string;
     text?: string | null;
     id?: string | null;
@@ -914,7 +924,15 @@ export interface HeroBlock {
    */
   countdownEnd?: string | null;
   productSource: {
-    mode: "none" | "collection" | "category" | "handpicked" | "newest" | "onSale" | "tag" | "type";
+    mode:
+      | "none"
+      | "collection"
+      | "category"
+      | "handpicked"
+      | "newest"
+      | "onSale"
+      | "tag"
+      | "type";
     collection?: (number | null) | ProductCollection;
     category?: (number | null) | Category;
     descendants?: boolean | null;
@@ -1048,7 +1066,14 @@ export interface ProductCollectionBlock {
       }[]
     | null;
   productSource: {
-    mode: "collection" | "category" | "handpicked" | "newest" | "onSale" | "tag" | "type";
+    mode:
+      | "collection"
+      | "category"
+      | "handpicked"
+      | "newest"
+      | "onSale"
+      | "tag"
+      | "type";
     collection?: (number | null) | ProductCollection;
     category?: (number | null) | Category;
     descendants?: boolean | null;
@@ -1362,7 +1387,8 @@ export interface Form {
               [k: string]: unknown;
             }[];
             direction: ("ltr" | "rtl") | null;
-            format: "left" | "start" | "center" | "right" | "end" | "justify" | "";
+            format:
+              "left" | "start" | "center" | "right" | "end" | "justify" | "";
             indent: number;
             version: number;
           };
@@ -1945,7 +1971,10 @@ export interface PayloadJob {
         executedAt: string;
         completedAt: string;
         taskSlug:
-          "inline" | "createCollectionExport" | "createCollectionImport" | "schedulePublish";
+          | "inline"
+          | "createCollectionExport"
+          | "createCollectionImport"
+          | "schedulePublish";
         taskID: string;
         input?:
           | {
@@ -1979,7 +2008,13 @@ export interface PayloadJob {
       }[]
     | null;
   taskSlug?:
-    ("inline" | "createCollectionExport" | "createCollectionImport" | "schedulePublish") | null;
+    | (
+        | "inline"
+        | "createCollectionExport"
+        | "createCollectionImport"
+        | "schedulePublish"
+      )
+    | null;
   queue?: string | null;
   waitUntil?: string | null;
   processing?: boolean | null;
@@ -2754,7 +2789,8 @@ export interface Header {
  */
 export interface Footer {
   id: number;
-  design: "multi-column" | "newsletter-first" | "minimal" | "wordmark" | "two-tier";
+  design:
+    "multi-column" | "newsletter-first" | "minimal" | "wordmark" | "two-tier";
   columns?:
     | {
         title: string;
@@ -2966,13 +3002,34 @@ export interface Template {
     /**
      * The category, collection and store pages, and the search page.
      */
-    variant: "default";
-  };
-  quickView: {
+    variant:
+      | "default"
+      | "top-bar"
+      | "drawer"
+      | "accordion"
+      | "chips"
+      | "rail"
+      | "inline";
     /**
-     * Not shown in the shop yet: the quick view will open from the listing's quick-add card. Off: the card adds to the cart, or opens the product page when the product has options.
+     * The card of every product in the listings' and the search page's grids. Quick add puts a button on it; the Quick view tab says what it does.
      */
-    variant: "off" | "default";
+    card:
+      | "standard"
+      | "swatches"
+      | "quick-add"
+      | "overlay"
+      | "minimal"
+      | "horizontal"
+      | "compact"
+      | "editorial"
+      | "bordered"
+      | "image-swap";
+  };
+  quickView?: {
+    /**
+     * Not shown in the shop yet: the quick view will open from the listing's quick-add card. Off: the card's button opens the product page.
+     */
+    variant?: ("off" | "default") | null;
   };
   cart: {
     variant: "default";
@@ -3201,6 +3258,7 @@ export interface TemplatesSelect<T extends boolean = true> {
     | T
     | {
         variant?: T;
+        card?: T;
       };
   quickView?:
     | T

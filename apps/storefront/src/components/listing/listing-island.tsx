@@ -10,22 +10,26 @@
 // search page without scripts; with them, their `submit` is caught here and becomes the listing's
 // own URL (`history.pushState`, which Next keeps `useSearchParams` in step with). The new count is
 // announced (WCAG 4.1.3), and more than two facets add `noindex,follow` (`robots-meta.tsx`).
+// T84: its results are drawn in the page's filter layout (`layout`, the `templates` global's pick,
+// which the server's results have too); a layout other than M3's is loaded on its branch
+// (`listing-layouts.tsx`, D102), and while it loads the island says it is loading.
 "use client";
 
 import { formatMessage } from "@shopblok/i18n";
 import type { ListingResults as ListingResultsContent } from "@shopblok/registry/contracts";
 import { Button } from "@shopblok/ui/atoms/button";
 import { EmptyState } from "@shopblok/ui/molecules/empty-state";
-import { ListingResults, type ListingResultsCopy } from "@shopblok/ui/templates/listing-results";
+import type { ListingResultsCopy } from "@shopblok/ui/templates/listing-results";
 import type { Route } from "next";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import {
   changesListing,
   filterParams,
   parseListingQuery,
   withQuery,
 } from "../../lib/listing/query";
+import { resultsFor } from "./listing-layouts";
 import { RobotsMeta } from "./robots-meta";
 
 /** Where the island asks. */
@@ -43,6 +47,8 @@ export type ListingIslandProps = {
   /** The search page, where the filter and sort forms GET without scripts. */
   action: string;
   copy: ListingResultsCopy;
+  /** The filter layout the server's results are drawn in (the `templates` global's, D101). */
+  layout?: string;
   /** The listing's own words (`templates.productListing`); `found` is ICU with `{count}`. */
   announce: {
     found: string;
@@ -77,13 +83,18 @@ function isResults(body: unknown): body is ListingResultsContent {
 
 /** The same address, wherever `href` is written: a path or a whole URL. */
 const sameAddress = (a: string, b: string) =>
-  new URL(a, window.location.href).href === new URL(b, window.location.href).href;
+  new URL(a, window.location.href).href ===
+  new URL(b, window.location.href).href;
 
 /** A submitted form's fields as the listing's query: no scope, no empty field. */
-function formQuery(form: HTMLFormElement, submitter: HTMLElement | null): URLSearchParams {
+function formQuery(
+  form: HTMLFormElement,
+  submitter: HTMLElement | null,
+): URLSearchParams {
   const params = new URLSearchParams();
   for (const [name, value] of new FormData(form, submitter)) {
-    if (typeof value === "string" && name !== "scope" && value !== "") params.append(name, value);
+    if (typeof value === "string" && name !== "scope" && value !== "")
+      params.append(name, value);
   }
   return filterParams(params);
 }
@@ -95,11 +106,13 @@ export function ListingIsland({
   pathPage,
   action,
   copy,
+  layout,
   announce,
   locale,
   prefetch,
   fetcher,
 }: ListingIslandProps) {
+  const Results = resultsFor(layout);
   const router = useRouter();
   const search = useSearchParams();
   const query = parseListingQuery(new URLSearchParams(search.toString()));
@@ -123,9 +136,12 @@ export function ListingIsland({
     ]);
     (fetcher ?? fetch)(`${LISTING_ROUTE}?${params}`, { signal: abort.signal })
       .then(async (response): Promise<Answer> => {
-        if (response.status === 404 || response.status === 400) return { key, kind: "missing" };
+        if (response.status === 404 || response.status === 400)
+          return { key, kind: "missing" };
         const body: unknown = response.ok ? await response.json() : undefined;
-        return isResults(body) ? { key, kind: "results", results: body } : { key, kind: "failed" };
+        return isResults(body)
+          ? { key, kind: "results", results: body }
+          : { key, kind: "failed" };
       })
       .catch((): Answer => ({ key, kind: "failed" }))
       .then((next) => {
@@ -141,11 +157,18 @@ export function ListingIsland({
     function onSubmit(event: SubmitEvent) {
       const form = event.target;
       if (!(form instanceof HTMLFormElement) || event.defaultPrevented) return;
-      if (form.method.toLowerCase() !== "get" || !sameAddress(form.action, action)) return;
+      if (
+        form.method.toLowerCase() !== "get" ||
+        !sameAddress(form.action, action)
+      )
+        return;
       if (new FormData(form).get("scope") !== scope) return;
       event.preventDefault();
       const target = withQuery(base, formQuery(form, event.submitter));
-      if (new URL(target, window.location.href).pathname === window.location.pathname)
+      if (
+        new URL(target, window.location.href).pathname ===
+        window.location.pathname
+      )
         window.history.pushState(null, "", target);
       else router.push(target as Route, { scroll: false });
     }
@@ -165,13 +188,20 @@ export function ListingIsland({
   const hrefFor = (n: number) =>
     withQuery(
       base,
-      new URLSearchParams([...chosen.entries(), ...(n === 1 ? [] : [["page", String(n)]])]),
+      new URLSearchParams([
+        ...chosen.entries(),
+        ...(n === 1 ? [] : [["page", String(n)]]),
+      ]),
     );
 
   const status = loading
     ? announce.loading
     : current?.kind === "results"
-      ? formatMessage(announce.found, { count: current.results.toolbar.count }, locale)
+      ? formatMessage(
+          announce.found,
+          { count: current.results.toolbar.count },
+          locale,
+        )
       : current?.kind === "missing"
         ? announce.noMatch.title
         : current?.kind === "failed"
@@ -190,13 +220,15 @@ export function ListingIsland({
         {status}
       </p>
       {!active ? null : results !== undefined ? (
-        <ListingResults
-          {...results}
-          copy={copy}
-          locale={locale}
-          hrefFor={hrefFor}
-          prefetch={prefetch}
-        />
+        <Suspense fallback={<Loading text={announce.loading} />}>
+          <Results
+            {...results}
+            copy={copy}
+            locale={locale}
+            hrefFor={hrefFor}
+            prefetch={prefetch}
+          />
+        </Suspense>
       ) : current?.kind === "missing" ? (
         <EmptyState
           data-slot="listing-island-missing"
@@ -206,21 +238,38 @@ export function ListingIsland({
           prefetch={prefetch}
         />
       ) : current?.kind === "failed" ? (
-        <div data-slot="listing-island-failed" className="flex flex-col items-center gap-4">
-          <EmptyState title={announce.failed.title} text={announce.failed.text} />
-          <Button type="button" variant="outline" onClick={() => setAttempt((n) => n + 1)}>
+        <div
+          data-slot="listing-island-failed"
+          className="flex flex-col items-center gap-4"
+        >
+          <EmptyState
+            title={announce.failed.title}
+            text={announce.failed.text}
+          />
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setAttempt((n) => n + 1)}
+          >
             {announce.failed.retry}
           </Button>
         </div>
       ) : (
-        <p
-          data-slot="listing-island-loading"
-          aria-hidden="true"
-          className="py-12 text-center text-muted-foreground"
-        >
-          {announce.loading}
-        </p>
+        <Loading text={announce.loading} />
       )}
     </div>
+  );
+}
+
+/** What the island draws while results or their layout load (the status line says it aloud). */
+function Loading({ text }: { text: string }) {
+  return (
+    <p
+      data-slot="listing-island-loading"
+      aria-hidden="true"
+      className="py-12 text-center text-muted-foreground"
+    >
+      {text}
+    </p>
   );
 }

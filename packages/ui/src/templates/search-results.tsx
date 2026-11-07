@@ -4,11 +4,16 @@
 // and sort on the server, so there is no island here: it is also where a listing's filter form lands
 // without JavaScript (D59). The field is a GET form of its own (`q`), so a new query starts without
 // the filters of the last one.
+// - The results follow the listing's filter layout (D101, T84): `variant` is the `templates`
+//   global's listing pick, and `ListingResultsFor` draws that layout, so a filter form posted from
+//   a listing without scripts lands on a page that looks like it. The search page is not a member
+//   of the `product-listing` family (one DS entry, drawn with the first layout).
 import type { Messages } from "@shopblok/i18n";
 import type { SearchResultsPage } from "@shopblok/registry/contracts";
 import { cn } from "@shopblok/ui/lib/utils";
 import { SearchField } from "@shopblok/ui/molecules/search-field";
-import { ListingResults, listingResultsCopy, type ListingResultsCopy } from "./listing-results";
+import { ListingResultsFor } from "./listing-layouts";
+import { listingResultsCopy, type ListingResultsCopy } from "./listing-results";
 
 type SearchResultsCopy = {
   field: Messages["molecules"]["searchField"];
@@ -17,7 +22,10 @@ type SearchResultsCopy = {
 
 /** The search page's words from a whole catalog. */
 function searchResultsCopy(messages: Messages): SearchResultsCopy {
-  return { field: messages.molecules.searchField, results: listingResultsCopy(messages) };
+  return {
+    field: messages.molecules.searchField,
+    results: listingResultsCopy(messages),
+  };
 }
 
 type SearchResultsTemplateProps = SearchResultsPage & {
@@ -52,7 +60,7 @@ function SearchResultsTemplate({
     <Root
       id={mainId}
       data-slot="search-results-template"
-      // The listing's variant, as given (D101): one layout until T84 draws the others here.
+      // The listing's variant, as given (D101), which its results' layout follows.
       data-variant={variant}
       className={cn(
         "mx-auto flex w-full max-w-7xl min-w-0 flex-col gap-6 px-4 py-6 md:gap-8 md:px-6 md:py-8 lg:px-8",
@@ -68,8 +76,9 @@ function SearchResultsTemplate({
           {title}
         </h1>
       </div>
-      <ListingResults
+      <ListingResultsFor
         {...results}
+        layout={variant}
         copy={copy.results}
         locale={locale}
         hrefFor={hrefFor}

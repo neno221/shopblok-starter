@@ -2,13 +2,20 @@ import "server-only";
 import type { Link, SearchResult } from "@shopblok/registry/contracts";
 import { messagesFor } from "../../i18n/market-messages";
 import { cached } from "../cache";
+import { cmsOrNull } from "../cms/read";
+import { readTemplates, templatesFrom } from "../cms/templates";
 import { getMarketContext } from "../market-context";
 import { categoryPaths, listCategories } from "../medusa/categories";
 import { listOptionValueLabels, listProductsByIds } from "../medusa/products";
 import { searchProducts } from "../medusa/search";
 import { MedusaRequestError } from "../medusa/sdk";
 import { toProductCard } from "../view-models/product";
-import { listingPageSize, readListing, resolveScope, scopeField } from "./listing";
+import {
+  listingPageSize,
+  readListing,
+  resolveScope,
+  scopeField,
+} from "./listing";
 import { parseListingQuery, parseScope } from "./query";
 
 // The listing island's and the search overlay's questions (D59, D63, T50). Neither answer is a
@@ -42,10 +49,18 @@ export async function listingResponse(request: Request): Promise<Response> {
   try {
     const context = await getMarketContext(params.get("market") ?? "");
     if (context === null) return nothing(404);
-    const messages = await messagesFor(context.market);
+    const [messages, templates] = await Promise.all([
+      messagesFor(context.market),
+      // The grid's card (D101, T84): the published global's, read on the server for the market.
+      cmsOrNull(
+        readTemplates({ market: context.market, draft: false }),
+        "listing island: the cards are ProductCard's first",
+      ),
+    ]);
     const resolved = await resolveScope(context, messages, scope);
     if (resolved === null) return nothing(404);
     const results = await readListing({
+      card: templatesFrom(templates).card,
       context,
       messages,
       resolved,
@@ -55,7 +70,10 @@ export async function listingResponse(request: Request): Promise<Response> {
       pathPage: 1,
       pageSize: listingPageSize(),
       links: {
-        base: { path: context.url(resolved.path), params: new URLSearchParams() },
+        base: {
+          path: context.url(resolved.path),
+          params: new URLSearchParams(),
+        },
         formAction: context.url("/search"),
         hidden: [scopeField(scope)],
       },
@@ -71,7 +89,10 @@ export async function listingResponse(request: Request): Promise<Response> {
 export const OVERLAY_PRODUCTS = 8;
 const OVERLAY_LINKS = 4;
 
-async function overlayResult(market: string, query: string): Promise<SearchResult | null> {
+async function overlayResult(
+  market: string,
+  query: string,
+): Promise<SearchResult | null> {
   const context = await getMarketContext(market);
   if (context === null) return null;
   const { region } = context;
@@ -94,19 +115,28 @@ async function overlayResult(market: string, query: string): Promise<SearchResul
   ]);
   const byCount = <T extends { count: number }>(rows: readonly T[]) =>
     rows.filter((row) => row.count > 0).toSorted((a, b) => b.count - a.count);
-  const byId = new Map(categoryPaths(categories).map((entry) => [entry.node.id, entry]));
+  const byId = new Map(
+    categoryPaths(categories).map((entry) => [entry.node.id, entry]),
+  );
   const categoryLinks: Link[] = byCount(result.facets.categoryIds)
     .flatMap(({ value }) => {
       const entry = byId.get(value);
       return entry === undefined
         ? []
-        : [{ label: entry.node.name, href: context.hrefs.category(entry.path.join("/")) }];
+        : [
+            {
+              label: entry.node.name,
+              href: context.hrefs.category(entry.path.join("/")),
+            },
+          ];
     })
     .slice(0, OVERLAY_LINKS);
   // The suggestions are the matches' option values, which the index searches too: a word that
   // narrows the query ("Black"), never one shorter than three letters (a size).
   const lower = query.toLocaleLowerCase(context.market.htmlLang);
-  const values = new Map(optionValues.map((each) => [each.valueId, each.value]));
+  const values = new Map(
+    optionValues.map((each) => [each.valueId, each.value]),
+  );
   const suggestions = [
     ...new Set(
       byCount(result.facets.optionValueIds).flatMap(({ value }) => {
@@ -122,7 +152,9 @@ async function overlayResult(market: string, query: string): Promise<SearchResul
   return {
     query,
     total: result.total,
-    products: products.flatMap((product) => toProductCard(product, context.hrefs) ?? []),
+    products: products.flatMap(
+      (product) => toProductCard(product, context.hrefs) ?? [],
+    ),
     categories: categoryLinks,
     suggestions,
   };
@@ -142,7 +174,9 @@ export async function searchResponse(request: Request): Promise<Response> {
   if (query === "") return nothing(400);
   try {
     const result = await cachedOverlayResult(params.get("market") ?? "", query);
-    return result === null ? nothing(404) : Response.json(result, { headers: CATALOG_HEADERS });
+    return result === null
+      ? nothing(404)
+      : Response.json(result, { headers: CATALOG_HEADERS });
   } catch (error) {
     return failure(error);
   }
