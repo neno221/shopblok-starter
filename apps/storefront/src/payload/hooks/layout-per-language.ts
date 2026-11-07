@@ -4,8 +4,9 @@ import type {
   CollectionBeforeChangeHook,
   PayloadRequest,
 } from "payload";
-import { DEFAULT_LOCALE, LANGUAGES } from "../locales";
+import { DEFAULT_LOCALE } from "../locales";
 import { keepingRequest } from "../keeping-request";
+import { latest } from "../nested-pages";
 
 /** `req.context` key: this save is one of the copies, so it starts nothing. */
 const COPYING = "copyingLayoutPerLanguage";
@@ -43,40 +44,34 @@ const switchesOn = (data: Data, originalDoc: Data | undefined) =>
 
 /**
  * The page's latest version in `language`: its shared layout as a visitor of that language reads it
- * (English's text where it has none, `layout`), its own layout without the fallback
- * (`localizedLayout`, empty when it has none), and its slugs in every language (`slug`).
+ * (English's text where it has none, `layout`) and its own layout without the fallback
+ * (`localizedLayout`, empty when it has none).
  */
 async function readLatest(
   req: PayloadRequest,
   id: Id,
   language: string,
-): Promise<{ layout: unknown; own: unknown; languages: string[] } | null> {
-  const read = (locale: string, fallbackLocale: string | false) =>
+): Promise<{ layout: unknown; own: unknown } | null> {
+  const read = (fallbackLocale: string | false) =>
     keepingRequest(req, () =>
       req.payload.findByID({
         collection: "pages",
         id,
-        locale: locale as never,
+        locale: language as never,
         fallbackLocale: fallbackLocale as never,
         draft: true,
         depth: 0,
-        select: { slug: true, layout: true, localizedLayout: true },
+        select: { layout: true, localizedLayout: true },
         disableErrors: true,
         overrideAccess: true,
         req,
       }),
     ) as Promise<Data | null>;
   // One after another: each call sets `req.locale` to its own while it runs, and they share `req`.
-  const withFallback = await read(language, DEFAULT_LOCALE);
-  const own = await read(language, false);
-  const all = await read("all", false);
-  if (withFallback === null || own === null || all === null) return null;
-  const slugs = (all["slug"] ?? {}) as Record<string, unknown>;
-  return {
-    layout: withFallback["layout"] ?? [],
-    own: own["localizedLayout"],
-    languages: LANGUAGES.filter((each) => Boolean(slugs[each])),
-  };
+  const withFallback = await read(DEFAULT_LOCALE);
+  const own = await read(false);
+  if (withFallback === null || own === null) return null;
+  return { layout: withFallback["layout"] ?? [], own: own["localizedLayout"] };
 }
 
 /**
@@ -100,15 +95,19 @@ export const copyLayoutOnSwitch: CollectionBeforeChangeHook = async ({
 }) => {
   if (req.context[COPYING] === true || !switchesOn(data, originalDoc)) return data;
   req.context[COPY_OTHERS] = true;
-  if (hasBlocks(data["localizedLayout"])) return data;
   const language = req.locale ?? DEFAULT_LOCALE;
+  // English's own blocks kept from an earlier time the switch was on, when this save leaves them out
+  // (the admin's form hides the field while the switch is off). Another language's come from the
+  // latest version below: `originalDoc` is read in the language being saved only.
+  const kept = language === DEFAULT_LOCALE ? originalDoc?.["localizedLayout"] : undefined;
+  if (hasBlocks(data["localizedLayout"] ?? kept)) return data;
   if (language === DEFAULT_LOCALE || originalDoc?.["id"] == null) {
     data["localizedLayout"] = copyBlocks(data["layout"] ?? originalDoc?.["layout"] ?? []);
     return data;
   }
-  const latest = await readLatest(req, originalDoc["id"] as Id, language);
-  if (latest !== null && !hasBlocks(latest.own))
-    data["localizedLayout"] = copyBlocks(latest.layout);
+  const version = await readLatest(req, originalDoc["id"] as Id, language);
+  if (version !== null && !hasBlocks(version.own))
+    data["localizedLayout"] = copyBlocks(version.layout);
   return data;
 };
 
@@ -117,13 +116,13 @@ export const copyLayoutIntoOtherLanguages: CollectionAfterChangeHook = async ({ 
   if (req.context[COPY_OTHERS] !== true) return doc;
   delete req.context[COPY_OTHERS];
   const saved = req.locale ?? DEFAULT_LOCALE;
-  const first = await readLatest(req, doc.id, DEFAULT_LOCALE);
-  if (first === null) return doc;
-  const others = [DEFAULT_LOCALE, ...first.languages.filter((each) => each !== DEFAULT_LOCALE)];
+  const [page] = await latest(req, { id: { equals: doc.id } });
+  if (page === undefined) return doc;
+  const others = [DEFAULT_LOCALE, ...page.languages.filter((each) => each !== DEFAULT_LOCALE)];
   for (const language of others) {
     if (language === saved) continue;
-    const latest = language === DEFAULT_LOCALE ? first : await readLatest(req, doc.id, language);
-    if (latest === null || hasBlocks(latest.own)) continue;
+    const version = await readLatest(req, doc.id, language);
+    if (version === null || hasBlocks(version.own)) continue;
     await keepingRequest(req, () =>
       req.payload.update({
         collection: "pages",
@@ -131,7 +130,7 @@ export const copyLayoutIntoOtherLanguages: CollectionAfterChangeHook = async ({ 
         locale: language as never,
         // A draft stays a draft: a copy must not publish what the editor has only saved.
         draft: doc._status !== "published",
-        data: { localizedLayout: copyBlocks(latest.layout) } as never,
+        data: { localizedLayout: copyBlocks(version.layout) } as never,
         overrideAccess: true,
         context: { ...req.context, [COPYING]: true },
         req,

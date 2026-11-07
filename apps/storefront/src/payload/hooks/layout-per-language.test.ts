@@ -23,15 +23,17 @@ const block = (heading: string) => ({
  */
 function payloadFor(own: Record<string, unknown[]> = {}) {
   const findByID = vi.fn(
-    async ({ locale, fallbackLocale }: { locale: string; fallbackLocale: string | false }) => {
-      if (locale === "all") return { slug: { en: "about", el: "sxetika", de: "uber" } };
-      return {
-        layout: [block(`Heading ${locale}${fallbackLocale === false ? "" : "+fallback"}`)],
-        localizedLayout: own[locale] ?? [],
-      };
-    },
+    async ({ locale, fallbackLocale }: { locale: string; fallbackLocale: string | false }) => ({
+      layout: [block(`Heading ${locale}${fallbackLocale === false ? "" : "+fallback"}`)],
+      localizedLayout: own[locale] ?? [],
+    }),
   );
+  // The page's slugs in every language, read once (`locale: "all"`).
+  const find = vi.fn(async (_call: Record<string, unknown>) => ({
+    docs: [{ id: 1, _status: "draft", slug: { en: "about", el: "sxetika", de: "uber" } }],
+  }));
   return {
+    find,
     findByID,
     update: vi.fn(async (_call: Record<string, unknown>) => ({ id: _call["id"] })),
   };
@@ -116,12 +118,27 @@ describe("copyLayoutOnSwitch (D105)", () => {
     );
     expect(greek["localizedLayout"]).toBeUndefined();
   });
+
+  it("keeps English's own blocks from an earlier time when the switch goes on again without them", async () => {
+    const own = [{ blockType: "spacer", id: "6aef08318c2a371af14e86c5" }];
+    const req = request("en");
+    const data = await before(
+      { layoutPerLanguage: true, layout: [block("Q")] },
+      { id: 1, layoutPerLanguage: false, localizedLayout: own },
+      req,
+    );
+    // Not in the save, so the stored blocks stay as they are.
+    expect(data["localizedLayout"]).toBeUndefined();
+    // The other languages are still copied into where they have none.
+    expect(req.context["copyLayoutIntoOtherLanguages"]).toBe(true);
+  });
 });
 
 describe("copyLayoutIntoOtherLanguages (D105)", () => {
   it("does nothing unless the switch went on in this save", async () => {
     const payload = payloadFor();
     await after({ id: 1, _status: "draft" }, request("el", payload));
+    expect(payload.find).not.toHaveBeenCalled();
     expect(payload.findByID).not.toHaveBeenCalled();
   });
 
@@ -146,6 +163,9 @@ describe("copyLayoutIntoOtherLanguages (D105)", () => {
         "Heading en+fallback",
         "Heading de+fallback",
       ]);
+      // The slugs are read once, and each language's layout without a locale "all" read.
+      expect(payload.find).toHaveBeenCalledTimes(1);
+      expect(payload.findByID.mock.calls.every(([call]) => call.locale !== "all")).toBe(true);
       // The language being edited is put back on the request for the hooks after this one.
       expect(req.locale).toBe("el");
       expect(req.context["copyLayoutIntoOtherLanguages"]).toBeUndefined();
