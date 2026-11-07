@@ -153,6 +153,26 @@ async function readSource(
 }
 
 /**
+ * A `productSource`'s product DTOs for the market, in the source's order, and how many to show:
+ * the editor's limit (else `defaultLimit`, up to `max`), or a handpicked list's up to `max`. It reads
+ * `extra` products more, for a caller that leaves some out. No fallback: the caller decides what
+ * nothing found means. The mini cart's picks (T85) need the variants, which the cards leave out.
+ */
+export async function sourceProducts(
+  value: ProductSourceValue,
+  reads: CatalogReads,
+  { max, defaultLimit, extra = 0 }: { max: number; defaultLimit: number; extra?: number },
+): Promise<{ products: ProductDto[]; limit: number }> {
+  const limit = limitOf(value.limit, max, defaultLimit);
+  // A handpicked list's limit is its length, up to `max`.
+  const shown = value.mode === "handpicked" ? max : limit;
+  return {
+    products: await readSource(value, reads, { limit: limit + extra, max: max + extra }),
+    limit: shown,
+  };
+}
+
+/**
  * A `productSource`'s products as cards for the market, at most `max` (the block's own most), or
  * `null` for a source that asks for none (the hero's "No products"). With no product found, the
  * `newest` behaviour is applied here (the newest products instead); `hide` and `message` are the

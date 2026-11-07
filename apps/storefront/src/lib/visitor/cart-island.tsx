@@ -10,6 +10,9 @@
 // the drawer is read again each time it opens. A failed read opens the cart page.
 // T79 (D101): the `templates` global decides both: `miniCart` "page" leaves the link to the cart
 // page alone, and `quickCart` "off" shows nothing after an add (the count still follows it).
+// T85: which mini cart a click opens (the drawer, or the drawer with picks) is the action's to
+// read on the server; the island draws the parts it answers, whose `variant` says which member
+// they are, and sends a pick's form to it like the drawer's other forms.
 "use client";
 
 import { CartDrawerClient } from "@shopblok/ui/organisms/cart-drawer-client";
@@ -41,9 +44,14 @@ type Shown =
   | { kind: "drawer"; parts: DrawerParts; open: boolean }
   | { kind: "quick"; parts: QuickParts };
 
-/** Which of the drawer's forms sent a submit: its promotion field's two, a line's quantity or remove. */
+/**
+ * Which of the drawer's forms sent a submit: its promotion field's two, a line's quantity or
+ * remove, or (T85) a pick's add.
+ */
 function intentOf(form: HTMLFormElement): string | null {
   const slot = form.dataset["slot"];
+  // T85: a pick's form in the `drawer-picks` mini cart.
+  if (slot === "cart-pick-add") return "add";
   if (slot === "promo-code-remove") return "remove-code";
   if (slot === "promo-code-apply") return "apply-code";
   if (form.elements.namedItem("lineId") === null) return null;

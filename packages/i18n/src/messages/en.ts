@@ -636,6 +636,11 @@ export const en = {
       emptyTitle: "Your cart is empty",
       emptyText: "Add something you like and it will wait for you here.",
       continue: "Continue shopping",
+      // T85: the `drawer-picks` mini cart's products to add under the lines, each its own form.
+      picksTitle: "You may also like",
+      pickAdd: "Add",
+      pickAddLabel: "Add {product} to your cart",
+      pickChoice: "Options for {product}",
     },
     quickCartDropdown: {
       open: "Cart",
@@ -900,6 +905,8 @@ export const en = {
       note: "Shipping and taxes are calculated at checkout.",
       checkout: "Go to checkout",
       continue: "Continue shopping",
+      // T85: the `table` layout's column headers.
+      table: { product: "Product", price: "Price", quantity: "Quantity", total: "Total" },
       empty: {
         title: "Your cart is empty",
         text: "Add something you like and it will wait for you here.",

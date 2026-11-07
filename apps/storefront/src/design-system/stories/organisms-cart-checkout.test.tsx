@@ -25,6 +25,7 @@ const EM_DASH = String.fromCharCode(0x2014);
 type Id = keyof typeof cartCheckoutOrganismStories;
 
 const drawerId = "organisms/cart-drawer" as const;
+const picksId = "organisms/cart-drawer-picks" as const;
 const quickId = "organisms/quick-cart-dropdown" as const;
 const stepsId = "organisms/checkout-steps" as const;
 const paymentId = "organisms/payment-step" as const;
@@ -61,6 +62,7 @@ function propsOf<Props>(node: ReactNode, type: unknown): Props {
 
 const stateIds = {
   [drawerId]: ["open", "empty", "line-updating", "code-refused", "many", "long"],
+  [picksId]: ["open", "empty", "no-picks"],
   [quickId]: ["open", "no-picture", "many", "long"],
   [stepsId]: ["contact", "delivery", "review", "long"],
   [paymentId]: [
@@ -144,6 +146,7 @@ describe("the cart and checkout organisms' stories", () => {
               "removeAction",
               "applyCodeAction",
               "removeCodeAction",
+              "addAction",
             ])
               expect(each.props[key], `${id} ${stateId} ${key}`).toBe("#");
           }
@@ -156,6 +159,7 @@ describe("the cart and checkout organisms' stories", () => {
     for (const locale of LOCALES) {
       for (const [id, type] of [
         [drawerId, CartDrawer],
+        [picksId, CartDrawer],
         [quickId, QuickCartDropdown],
       ] as const) {
         expect(
@@ -218,6 +222,23 @@ describe("the cart and checkout organisms' stories", () => {
 });
 
 describe("the states give their components what their descriptions say", () => {
+  it.each(LOCALES)(
+    "the drawer with picks (T85): the four picks full and empty, none when all are picked, in %s",
+    (locale) => {
+      type P = { variant?: string; picks?: unknown[]; cart: { lines: unknown[] } };
+      const props = (stateId: string | undefined) =>
+        propsOf<P>(nodeOf(picksId, stateId, locale), CartDrawer);
+      for (const stateId of [undefined, "open", "empty", "no-picks"])
+        expect(props(stateId).variant, String(stateId)).toBe("drawer-picks");
+      expect(props("open").picks).toEqual(samples(locale).picks);
+      expect(props("empty").picks).toEqual(samples(locale).picks);
+      expect(props("empty").cart.lines).toEqual([]);
+      expect(props("no-picks").picks).toEqual([]);
+      const markup = html(picksId, undefined, locale);
+      expect(markup).toContain('data-variant="drawer-picks"');
+    },
+  );
+
   it.each(LOCALES)(
     "the drawer: full, empty, a line held, a code refused, 120 items, in %s",
     (locale) => {

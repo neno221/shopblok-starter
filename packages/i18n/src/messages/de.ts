@@ -547,6 +547,10 @@ export const de: Messages = {
       emptyTitle: "Ihr Warenkorb ist leer",
       emptyText: "Legen Sie etwas hinein, das Ihnen gefällt; es wartet hier auf Sie.",
       continue: "Weiter einkaufen",
+      picksTitle: "Das könnte Ihnen auch gefallen",
+      pickAdd: "Hinzufügen",
+      pickAddLabel: "{product} in den Warenkorb legen",
+      pickChoice: "Ausführung von {product}",
     },
     quickCartDropdown: {
       open: "Warenkorb",
@@ -799,6 +803,7 @@ export const de: Messages = {
       note: "Versand und Steuern werden an der Kasse berechnet.",
       checkout: "Zur Kasse",
       continue: "Weiter einkaufen",
+      table: { product: "Produkt", price: "Preis", quantity: "Menge", total: "Summe" },
       empty: {
         title: "Ihr Warenkorb ist leer",
         text: "Legen Sie etwas hinein, das Ihnen gefällt; es wartet hier auf Sie.",

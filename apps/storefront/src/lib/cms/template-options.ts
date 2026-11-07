@@ -7,5 +7,7 @@ export const QUICK_VIEW_OFF = "off";
 export const QUICK_VIEW_CARD = "quick-add";
 /** The mini cart's option that draws none: a click on the header's cart opens the cart page. */
 export const MINI_CART_PAGE = "page";
+/** The mini cart with picks under its lines (T85): its picker shows the `picks` source. */
+export const MINI_CART_PICKS = "drawer-picks";
 /** What an add on a product page shows: QuickCartDropdown on the line just added, or nothing. */
 export const QUICK_CART_OPTIONS = ["dropdown", "off"] as const;

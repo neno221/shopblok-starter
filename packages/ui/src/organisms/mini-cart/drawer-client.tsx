@@ -18,6 +18,8 @@
 // - The sheet is 90 % of the window up to 28 rem, wide enough for a line's picture beside its words.
 //   Nothing slides under reduced motion. A sheet drawn open at first render (`defaultOpen`, the
 //   design system's states) takes no focus until a reader opens it again.
+// - T85: it draws both members of `mini-cart` (`variant`, on the button and the sheet): the
+//   `drawer-picks` member's picks are part of the body the server rendered.
 "use client";
 
 import { buttonVariants, Button } from "@shopblok/ui/atoms/button";
@@ -37,6 +39,8 @@ import NextLink from "next/link";
 import { useState, type MouseEvent, type ReactNode } from "react";
 
 type CartDrawerClientProps = {
+  /** The mini cart's member (D99) it draws for: its trigger and its sheet say so. */
+  variant?: "drawer" | "drawer-picks";
   copy: {
     /** The button's name. */
     open: string;
@@ -73,6 +77,7 @@ type CartDrawerClientProps = {
 type LinkHref = React.ComponentProps<typeof NextLink>["href"];
 
 function CartDrawerClient({
+  variant = "drawer",
   copy,
   badge,
   body,
@@ -103,7 +108,7 @@ function CartDrawerClient({
     <Sheet open={open} onOpenChange={setOpen} modal={modal ?? true}>
       <SheetTrigger
         data-slot="cart-drawer-trigger"
-        data-variant="drawer"
+        data-variant={variant}
         render={<Button variant="ghost" size="icon" className={cn("relative", triggerClassName)} />}
       >
         <Icon icon={ShoppingBagIcon} />
@@ -120,7 +125,7 @@ function CartDrawerClient({
         side="inline-end"
         showCloseButton={false}
         data-slot="cart-drawer"
-        data-variant="drawer"
+        data-variant={variant}
         initialFocus={defaultOpen === true ? takesFocusWhenOpenedByAReader : undefined}
         className={cn(
           "gap-0 motion-reduce:transition-none data-[side=inline-end]:w-[90%] data-[side=inline-end]:sm:max-w-md",

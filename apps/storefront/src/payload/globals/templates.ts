@@ -1,6 +1,8 @@
 import type { Condition, Field } from "payload";
+import { productSource } from "../fields/product-source";
 import { variantField } from "../fields/variant";
 import {
+  MINI_CART_PICKS,
   MINI_CART_PAGE,
   QUICK_CART_OPTIONS,
   QUICK_VIEW_CARD,
@@ -21,6 +23,30 @@ import { contentGlobal } from "./content-global";
 /** The quick view's picker shows only when the listing's card is `quick-add` (D101, T84). */
 export const withQuickAddCard: Condition = (data) =>
   (data as { listing?: { card?: unknown } } | undefined)?.listing?.card === QUICK_VIEW_CARD;
+/** The picks show with the mini cart that draws them (T85, D101). */
+export const withDrawerPicks: Condition = (_, sibling) =>
+  (sibling as { miniCart?: unknown } | undefined)?.miniCart === MINI_CART_PICKS;
+
+/**
+ * The `drawer-picks` mini cart's products (T85, D101): a `productSource` of at most four, the newest
+ * four unless an editor says, with no empty behaviour (nothing found is no picks). The shop leaves
+ * out what the cart already holds.
+ */
+const picks: Field = (() => {
+  const source = productSource({ max: 4, defaultLimit: 4, empty: false });
+  return {
+    ...source,
+    name: "picks",
+    label: "You may also like",
+    admin: {
+      ...source.admin,
+      condition: withDrawerPicks,
+      description:
+        "Up to four products under the lines of the drawer with picks. A product the cart already holds is left out.",
+    },
+  };
+})();
+
 export const Templates = contentGlobal({
   slug: "templates",
   label: "Templates",
@@ -82,6 +108,7 @@ export const Templates = contentGlobal({
               label: "A click on the header's cart opens",
               after: [{ value: MINI_CART_PAGE, label: "Cart page" }],
             }),
+            picks,
             {
               name: "quickCart",
               type: "radio",

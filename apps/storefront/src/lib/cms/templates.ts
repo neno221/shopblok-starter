@@ -3,11 +3,12 @@ import { firstVariant, type VariantOf } from "@shopblok/registry/contracts";
 import type { Payload } from "payload";
 import type { Template } from "../../payload-types";
 import {
+  MINI_CART_PAGE,
   QUICK_CART_OPTIONS,
   QUICK_VIEW_CARD,
   QUICK_VIEW_OFF,
-  type MINI_CART_PAGE,
 } from "./template-options";
+import type { ProductSourceValue } from "./resolve/products";
 import { globalTag } from "./globals";
 import { cmsRead, type CmsQuery } from "./read";
 
@@ -86,4 +87,47 @@ export const readTemplates = cmsRead(
       depth: 0,
     })) as Template,
   { name: "cms:global:templates", tags: (locale) => [globalTag("templates", locale)] },
+);
+
+/**
+ * What the header's mini cart draws (T85): the member a click opens (`null` for "Cart page") and
+ * the `drawer-picks` member's source. Pure, from the cart tab as `readCartTemplate` reads it; no
+ * document, or one never saved, is the drawer (M4's) and no source (the picks' default).
+ */
+export function miniCartFrom(doc: Pick<Template, "cart" | "updatedAt"> | null): {
+  member: VariantOf<"mini-cart"> | null;
+  picks: ProductSourceValue | null;
+} {
+  const saved = doc !== null && Boolean(doc.updatedAt);
+  const miniCart = (saved ? doc.cart?.miniCart : undefined) ?? TEMPLATE_DEFAULTS.miniCart;
+  const picks = saved ? (doc.cart as { picks?: ProductSourceValue | null } | undefined)?.picks : null;
+  return {
+    member: miniCart === MINI_CART_PAGE ? null : miniCart,
+    picks: picks ?? null,
+  };
+}
+
+/**
+ * The `templates` global's cart tab, its references populated (depth 1: the picks' collection,
+ * category or products, so a product Medusa deleted is no pick), in the market's language, for the
+ * header's mini cart (T85). Published only: the drawer's action is a shopper's, never Draft
+ * Mode's. Tagged as the global (`global:templates:<locale>`), which a change to a catalog document
+ * also refreshes (`linkedTags`, through the content globals' tags). `null` with no database.
+ */
+export const readCartTemplate = cmsRead(
+  async (payload: Payload, query: CmsQuery): Promise<Pick<Template, "cart" | "updatedAt">> =>
+    (await payload.findGlobal({
+      slug: "templates",
+      ...query,
+      locale: query.locale as never,
+      depth: 1,
+      select: { cart: true, updatedAt: true },
+      // Only what `liveMedusaId` reads of a referenced document.
+      populate: {
+        products: { medusaId: true, deletedInMedusa: true },
+        collections: { medusaId: true, deletedInMedusa: true },
+        categories: { medusaId: true, deletedInMedusa: true },
+      },
+    })) as Template,
+  { name: "cms:global:templates:cart", tags: (locale) => [globalTag("templates", locale)] },
 );

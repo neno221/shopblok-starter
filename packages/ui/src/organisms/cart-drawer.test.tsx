@@ -28,6 +28,7 @@ const copyOf = (locale: Locale): CartDrawerProps["copy"] => ({
   promo: catalogs[locale].molecules.promoCodeField,
   freeShipping: catalogs[locale].molecules.freeShippingProgress,
   rows: catalogs[locale].molecules.orderSummaryRow,
+  price: catalogs[locale].molecules.priceBlock,
 });
 const drawerOf = (locale: Locale, which: "full" | "empty" = "full"): CartDrawerContent =>
   commerceFixtures[locale].cartCheckout.drawer[which];

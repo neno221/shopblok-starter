@@ -69,6 +69,7 @@ function drawerCopy(ctx: DsContext, state?: string, words: Partial<DrawerCopy["d
     promo: m.molecules.promoCodeField,
     freeShipping: m.molecules.freeShippingProgress,
     rows: m.molecules.orderSummaryRow,
+    price: m.molecules.priceBlock,
   } satisfies DrawerCopy;
 }
 
@@ -90,6 +91,7 @@ function drawer(
       removeAction="#"
       applyCodeAction="#"
       removeCodeAction="#"
+      addAction="#"
       prefetch={false}
       {...rest}
     />
@@ -205,6 +207,52 @@ const cartDrawerStates: readonly DsState[] = [
         words: { title: fieldLabel, note: helpText, checkout: action, viewCart: linkLabel },
       });
     },
+  },
+];
+
+// --- CartDrawer · Picks (T85) ---
+
+/** The drawer's content with the fixture's four picks, as the `drawer-picks` member takes it. */
+function withPicks(ctx: DsContext, content: CartDrawerContent): CartDrawerContent {
+  return { ...content, variant: "drawer-picks", picks: samples(ctx).picks };
+}
+
+const cartDrawerPicksStates: readonly DsState[] = [
+  {
+    id: "open",
+    label: "Open",
+    description:
+      "Three lines, the bar to free shipping and the applied code, then four products to add, each with its picture, its price, its colours (the cap has one, so no select) and Add.",
+    render: (ctx) =>
+      drawerOpen(ctx, {
+        label: "Open",
+        height: 1100,
+        content: withPicks(ctx, samples(ctx).drawer.full),
+      }),
+  },
+  {
+    id: "empty",
+    label: "Empty",
+    description:
+      "No line: the empty state, then the picks, so an empty cart still offers a way into the shop.",
+    render: (ctx) =>
+      drawerOpen(ctx, {
+        label: "Empty",
+        height: 900,
+        content: withPicks(ctx, samples(ctx).drawer.empty),
+      }),
+  },
+  {
+    id: "no-picks",
+    label: "Nothing to pick",
+    description:
+      "Every pick is in the cart already, or none was found: the drawer alone, as the first member draws it.",
+    render: (ctx) =>
+      drawerOpen(ctx, {
+        label: "Nothing to pick",
+        height: 900,
+        content: { ...samples(ctx).drawer.full, variant: "drawer-picks", picks: [] },
+      }),
   },
 ];
 
@@ -633,6 +681,18 @@ export const cartCheckoutOrganismStories = {
     live: (ctx) => drawer(ctx, samples(ctx).drawer.full),
     states: cartDrawerStates,
     // The sheet is 90 % of its box up to 28 rem: in a 14 rem card it would be 12 rem wide.
+    statesLayout: "stack",
+  },
+  "organisms/cart-drawer-picks": {
+    summary:
+      "The cart drawer with up to four products to add under the lines (“You may also like”), from the templates global's picks; none is one the cart holds.",
+    a11y: [
+      "Everything the drawer has (its button, its modal sheet, its lines, its summary and its foot) is the first member's, unchanged.",
+      "The picks are a section named by its heading, after the promotion field in the body that scrolls. Each pick's name is the link to its page, its price is PriceBlock's, and its picture is decoration (its name says what it is).",
+      "Each pick is its own plain form: a product with more than one variant has a native select named for the product (“Options for Heritage Hoodie”), and the 44 px Add button is named for the product (“Add Heritage Hoodie to your cart”). In the shop the drawer then answers again with the new line in it and the pick gone.",
+    ],
+    live: (ctx) => drawer(ctx, withPicks(ctx, samples(ctx).drawer.full)),
+    states: cartDrawerPicksStates,
     statesLayout: "stack",
   },
   "organisms/quick-cart-dropdown": {
