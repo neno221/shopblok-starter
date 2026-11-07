@@ -20,7 +20,7 @@
 // the tray its products and no handlers, so a click does nothing. The live render is the real
 // thing, with its products in state (`CompareTrayDemo`): the remove buttons and "Remove all" work,
 // the tray goes with the last product, and a button brings them back. In a shop the tray is per
-// visitor (D44) and is drawn after hydration from the visitor store (M5); the DS draws it with its
+// visitor (D44) and is drawn after hydration from the visitor store (M8); the DS draws it with its
 // products from the first render. The reservation of the tray's height at the end of the page
 // (WCAG 2.4.11) is the organism's own and runs here as it does in a shop, so this page ends with
 // the height of its tallest tray in blank space.

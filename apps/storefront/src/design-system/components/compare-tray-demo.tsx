@@ -15,7 +15,7 @@ type CompareTrayDemoProps = Omit<CompareTrayProps, "items" | "onRemove" | "onCle
 
 /**
  * Ours (T37, SETUP.md "Listing organisms (T37)"). The compare tray with its products in state, for
- * the DS page, as a shop's page will have them once M5's island reads them from the visitor store:
+ * the DS page, as a shop's page will have them once M8's island reads them from the visitor store:
  * the tray's remove buttons and "Remove all" work, and the tray goes when the last product does. A
  * server component cannot hand the tray a function, so the handlers are made here, on the client;
  * the props that reach this component are plain data.

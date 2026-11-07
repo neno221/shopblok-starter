@@ -82,7 +82,9 @@ const readPage = cache(async (segments: readonly string[], draft: boolean) => {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const [{ slug }, { isEnabled: draft }] = await Promise.all([params, draftMode()]);
   const data = await readPage(slug, draft);
-  if (data === null) return {};
+  // A missing page's metadata is the not-found file's (its tab title, T78): Next reads it only when
+  // `notFound()` is called here too, not when the page alone calls it.
+  if (data === null) notFound();
   const { page, isHomepage, address } = data;
   const { map, url, settings } = await getShellData();
   const languages = [...new Set(listMarkets(map).map((each) => each.language))];

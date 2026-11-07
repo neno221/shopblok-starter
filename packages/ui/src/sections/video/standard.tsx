@@ -59,7 +59,8 @@ function VideoStandard({
             <source src={source.src} type={source.type} />
             {source.tracks.map((track) => (
               <track
-                key={track.src}
+                // One file can be listed for two languages (W6, item 1), so the language is in it.
+                key={`${track.srclang}:${track.src}`}
                 kind="captions"
                 src={track.src}
                 srcLang={track.srclang}

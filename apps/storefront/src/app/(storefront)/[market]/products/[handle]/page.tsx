@@ -145,7 +145,9 @@ async function readRelated({ context, product }: PageData): Promise<ProductCard[
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { handle } = await params;
   const page = await readPage(handle);
-  if (page === null) return {};
+  // A missing product's metadata is the not-found file's (its tab title, T78): Next reads it only
+  // when `notFound()` is called here too, not when the page alone calls it.
+  if (page === null) notFound();
   const { context, detail, content } = page;
   const { settings } = await getShellData();
   const path = `/products/${encodeURIComponent(detail.handle)}`;

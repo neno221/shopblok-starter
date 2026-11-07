@@ -7,8 +7,9 @@
 //   package's index carries the four catalogs, which the browser has no use for).
 // - Per visitor (D44). The chosen products are the visitor's, so a prerendered page cannot hold
 //   them: with no `items` nothing is drawn, and the page passes the visitor's products once the
-//   browser has them, from an island that reads the visitor store (M5's comparison section and its
-//   island will feed it; in M2 only the DS does). Without JavaScript the tray is never drawn.
+//   browser has them, from an island that reads the visitor store (M8's comparison, the shopper's
+//   own choice of products, and its island will feed it, D112; until then only the DS does).
+//   Without JavaScript the tray is never drawn.
 // - A region, not a dialog: a `<section>` named by the catalog's `region`, which takes no focus
 //   when it appears and leaves the page behind it usable. It is `fixed inset-x-0 bottom-0` on the
 //   `--z-overlay` layer, as CookieConsent's banner is, with padding that keeps its controls clear
@@ -19,9 +20,10 @@
 //   last links scroll above it and a control the visitor tabs to is not left behind it.
 // - The count and the "choose N more" line are one polite live region (`role="status"`), so a
 //   removal or an addition while the tray is shown is said (WCAG 4.1.3). The first product is not:
-//   the region arrives with its text, so M5's compare button says "Added to compare" itself. The compare link is outside it, and is drawn only
-//   when two products are chosen: until then the line says how many more to choose, as text, in
-//   its place, rather than a link that goes nowhere or a disabled one.
+//   the region arrives with its text, so M8's compare button says "Added to compare" itself. The
+//   compare link is outside it, and is drawn only when two products are chosen: until then the
+//   line says how many more to choose, as text, in its place, rather than a link that goes nowhere
+//   or a disabled one.
 // - Focus after a removal. The removed item's button leaves the page, and an element removed while
 //   it has focus drops focus on `<body>`. So focus goes to the next item's remove button, or the
 //   previous one's when the last item went, and when it was the only one (the tray goes) to where the

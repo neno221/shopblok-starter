@@ -128,7 +128,8 @@ export async function listingMetadata(
   page: number | null,
 ): Promise<Metadata> {
   const data = await readListingPage(keyOf(scope), page);
-  if (data === null) return {};
+  // As the page's: a missing one's metadata is then the not-found file's (its tab title, T78).
+  if (data === null) notFound();
   const { context, messages, resolved, content } = data;
   const { settings } = await getShellData();
   const path = pageHref(resolved.path, data.page);

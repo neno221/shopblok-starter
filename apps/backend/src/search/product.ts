@@ -171,7 +171,9 @@ function resolveIds(
  * script) ends with `searchModule.reindex({ index: "product" })` instead of
  * waiting for the backlog (SETUP.md, "Search on Postgres (T43)").
  *
- * TODO: price lists emit no events (create, update, delete, batch prices).
+ * TODO: price lists' events (Medusa 2.22: created, updated, deleted, prices_added,
+ * prices_updated, prices_removed) are not followed here yet; the storefront's
+ * revalidation follows them (`lib/storefront-revalidate.ts`, D112).
  * TODO: price lists crossing their start or end date change prices silently.
  * TODO: linkProductsToSalesChannelWorkflow emits nothing.
  * TODO: batchLinkProductsToCategoryWorkflow emits nothing.
