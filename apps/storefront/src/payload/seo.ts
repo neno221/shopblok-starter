@@ -23,6 +23,7 @@ import { isStaffField } from "./access/roles";
 import { pagePreviewPath, previewMarket } from "./live-preview";
 import { DEFAULT_LOCALE } from "./locales";
 import { marketMapOrUndefined } from "./market-map";
+import { idOf } from "./id-of";
 
 // D82 (T68): the SEO plugin's `meta` group (`meta.title`ᴸ, `meta.description`ᴸ, `meta.image`) on
 // the pages and the posts through the plugin, and on the synced collections as their content
@@ -46,11 +47,6 @@ async function siteSettings(req: PayloadRequest, locale: string | undefined) {
     req,
   })) as SiteSettingsSeo;
 }
-
-const idOf = (value: unknown): number | string | undefined => {
-  const id = typeof value === "object" && value !== null ? (value as { id?: unknown }).id : value;
-  return typeof id === "number" || (typeof id === "string" && id !== "") ? id : undefined;
-};
 
 /** The document's title in the site's title template: what the page's `<title>` would be. */
 export const generateTitle: GenerateTitle = async ({ doc, locale, req }) => {

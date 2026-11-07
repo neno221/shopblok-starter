@@ -9,6 +9,7 @@
 // with the widths the section shows at) and the shell's CSS rule reads (D103). The products, if any, follow the band on the section's surface. A server component.
 import { Image } from "@shopblok/ui/atoms/image";
 import { cn } from "@shopblok/ui/lib/utils";
+import { overlayTokens } from "../overlay-tokens";
 import { SectionFrame, sectionFrameClasses } from "@shopblok/ui/sections/section-frame";
 import {
   HeroActions,
@@ -18,13 +19,6 @@ import {
   HeroSubheading,
   type HeroSectionProps,
 } from "./parts";
-
-/**
- * The tokens inside the scrim: light text and ring, a light button with dark text, an outline
- * button on no fill, the countdown's boxes a darker scrim. Written in full so Tailwind finds them.
- */
-const overlayTokens =
-  "text-overlay-foreground [--foreground:var(--overlay-foreground)] [--muted-foreground:var(--overlay-foreground)] [--muted:var(--overlay)] [--background:transparent] [--border:var(--overlay-foreground)] [--ring:var(--overlay-foreground)] [--primary:var(--overlay-foreground)] [--primary-foreground:var(--neutral-950)]";
 
 function HeroOverlay({
   settings,

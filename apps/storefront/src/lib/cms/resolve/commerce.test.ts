@@ -291,6 +291,90 @@ describe("the commerce blocks (T64)", () => {
     });
   });
 
+  // T82 (M5 plan §1a): the promo banner's and the comparison's members, what only some take
+  // resolved only for them, and the contract's refusal of a member without what it needs.
+  describe("the promo banner's and the comparison's members (T82)", () => {
+    const picture = {
+      url: "/api/media/file/offer.webp",
+      width: 1600,
+      height: 900,
+      alt: "The offer",
+    };
+    const banner = {
+      blockType: "promoBanner",
+      heading: "Ten off",
+      code: "WELCOME10",
+      endsAt: "2026-11-30T00:00:00.000Z",
+      media: picture,
+    };
+    const promo = async (block: Record<string, unknown>) => {
+      const resolved = await resolve(block);
+      return resolved?.blockType === "promoBanner" ? resolved.section : undefined;
+    };
+
+    it("passes the promo banner's variant on, with the picture only for the designs that draw it", async () => {
+      for (const variant of ["standard", "full-bleed", "popup"]) {
+        const section = await promo({ ...banner, variant });
+        expect(section?.variant, variant).toBe(variant);
+        expect(section?.image?.src, variant).toBe("/api/media/file/offer.webp");
+      }
+      for (const variant of ["strip", "ticket", "countdown"]) {
+        const section = await promo({ ...banner, variant });
+        expect(section?.variant, variant).toBe(variant);
+        expect(section?.image, variant).toBeUndefined();
+      }
+    });
+
+    it("countdown: counts from the request's now; the others take none", async () => {
+      expect((await promo({ ...banner, variant: "countdown" }))?.now).toBe(now);
+      expect((await promo({ ...banner, variant: "standard" }))?.now).toBeUndefined();
+    });
+
+    it("leaves out a full-bleed banner without its picture and a countdown without its end", async () => {
+      expect(await promo({ ...banner, variant: "full-bleed", media: null })).toBeUndefined();
+      expect(await promo({ ...banner, variant: "countdown", endsAt: null })).toBeUndefined();
+      expect(await promo({ ...banner, variant: "standard", media: null })).toBeDefined();
+    });
+
+    const table = {
+      blockType: "comparison",
+      heading: "Which one?",
+      products: [synced("prod_hoodie"), synced("prod_cap")],
+      rows: [],
+    };
+    const comparison = async (block: Record<string, unknown>) => {
+      const resolved = await resolve(block);
+      return resolved?.blockType === "comparison" ? resolved.section : undefined;
+    };
+
+    it("highlight: the pick's column, when it is one of the table's", async () => {
+      const section = await comparison({
+        ...table,
+        variant: "highlight",
+        pick: synced("prod_cap"),
+      });
+      expect(section?.variant).toBe("highlight");
+      expect(section?.pick).toBe("prod_cap");
+    });
+
+    it("highlight: left out with a pick gone from Medusa or not in the table", async () => {
+      expect(
+        await comparison({ ...table, variant: "highlight", pick: synced("prod_cap", true) }),
+      ).toBeUndefined();
+      expect(
+        await comparison({ ...table, variant: "highlight", pick: synced("prod_mug") }),
+      ).toBeUndefined();
+    });
+
+    it("the other designs take no pick, even one stored", async () => {
+      for (const variant of ["standard", "cards"]) {
+        const section = await comparison({ ...table, variant, pick: synced("prod_cap") });
+        expect(section?.variant, variant).toBe(variant);
+        expect(section?.pick, variant).toBeUndefined();
+      }
+    });
+  });
+
   it("collectionSpotlight: the collection's translated title and page, or nothing once deleted", async () => {
     const resolved = await resolve(
       {

@@ -36,6 +36,7 @@ import { VideoSection } from "@shopblok/ui/sections/video";
 import type { DsContext, DsStory } from "../types";
 
 const fixtures = (ctx: DsContext) => sectionFixtures[ctx.locale];
+type MediaWithTextVariant = "overlap" | "full-bleed";
 const copy = (ctx: DsContext) => sectionsCopy(catalogs[ctx.locale]);
 const lang = (ctx: DsContext) => ctx.fixture.market.htmlLang;
 const commerce = (ctx: DsContext) => commerceFixtures[ctx.locale];
@@ -74,10 +75,18 @@ export function mediaWithText(
   ctx: DsContext,
   which: "section" | "long",
   settings?: SectionSettings,
+  /** T82: the member to draw (`standard` when none). */
+  variant?: MediaWithTextVariant,
 ) {
   const { body, ...samples } = fixtures(ctx).mediaWithText;
   return (
-    <MediaWithTextSection {...samples[which]} settings={settings} copy={copy(ctx)} prefetch={false}>
+    <MediaWithTextSection
+      {...samples[which]}
+      {...(variant === undefined ? {} : { variant })}
+      settings={settings}
+      copy={copy(ctx)}
+      prefetch={false}
+    >
       {body.map((paragraph) => (
         <p key={paragraph}>{paragraph}</p>
       ))}
@@ -90,12 +99,15 @@ function faq(
   which: "section" | "long",
   open: "none" | "first",
   settings?: SectionSettings,
+  /** T82: the member to draw (`standard` when none). */
+  variant?: "side-heading",
 ) {
   const section = fixtures(ctx).faq[which];
   const first = section.items[0]?.value;
   return (
     <FaqSection
       {...section}
+      {...(variant === undefined ? {} : { variant })}
       settings={settings}
       defaultOpen={open === "first" && first !== undefined ? [first] : []}
     />
@@ -109,6 +121,7 @@ function video(ctx: DsContext, which: "embed" | "file" | "long", settings?: Sect
 
 type Fixtures = ReturnType<typeof fixtures>;
 type HeroVariant = NonNullable<Fixtures["hero"]["section"]["variant"]>;
+type PromoBannerVariant = NonNullable<Fixtures["promoBanner"]["section"]["variant"]>;
 
 export function hero(
   ctx: DsContext,
@@ -197,11 +210,15 @@ function promoBanner(
   ctx: DsContext,
   which: keyof Fixtures["promoBanner"],
   settings?: SectionSettings,
+  /** T82: the member to draw, over the fixture's own (`standard` when it has none). */
+  variant?: PromoBannerVariant,
 ) {
   return (
     <PromoBannerSection
       {...fixtures(ctx).promoBanner[which]}
+      {...(variant === undefined ? {} : { variant })}
       {...(settings === undefined ? {} : { settings })}
+      frozen
       copy={copy(ctx)}
       locale={lang(ctx)}
       timeZone={timeZone(ctx)}
@@ -214,10 +231,13 @@ function comparison(
   ctx: DsContext,
   which: keyof Fixtures["comparison"],
   settings?: SectionSettings,
+  /** T82: the member to draw, over the fixture's own (`standard` when it has none). */
+  variant?: "cards" | "highlight",
 ) {
   return (
     <ComparisonSection
       {...fixtures(ctx).comparison[which]}
+      {...(variant === undefined ? {} : { variant })}
       {...(settings === undefined ? {} : { settings })}
       copy={copy(ctx)}
       locale={lang(ctx)}
@@ -256,7 +276,7 @@ function recentlyViewed(ctx: DsContext, settings?: SectionSettings) {
 
 function newsletter(
   ctx: DsContext,
-  which: "section" | "long",
+  which: keyof Fixtures["newsletter"],
   status?: "sending" | "done" | "error",
   settings?: SectionSettings,
 ) {
@@ -295,15 +315,40 @@ function contactForm(
   );
 }
 
-function editorialList(ctx: DsContext, which: "section" | "long", settings?: SectionSettings) {
+function editorialList(
+  ctx: DsContext,
+  which: keyof Fixtures["editorialList"],
+  settings?: SectionSettings,
+  /** T82: the member to draw, over the fixture's own (`standard` when it has none). */
+  variant?: "featured",
+) {
   return (
     <EditorialListSection
       {...fixtures(ctx).editorialList[which]}
+      {...(variant === undefined ? {} : { variant })}
       {...(settings === undefined ? {} : { settings })}
       copy={copy(ctx)}
       locale={lang(ctx)}
       timeZone={timeZone(ctx)}
       prefetch={false}
+    />
+  );
+}
+
+/** T82: the testimonials, drawn by the member `variant`. */
+function testimonials(
+  ctx: DsContext,
+  which: keyof Fixtures["testimonials"],
+  variant: "single" | "carousel" | "wall",
+  settings?: SectionSettings,
+) {
+  return (
+    <TestimonialsSection
+      {...fixtures(ctx).testimonials[which]}
+      variant={variant}
+      {...(settings === undefined ? {} : { settings })}
+      copy={copy(ctx)}
+      locale={lang(ctx)}
     />
   );
 }
@@ -372,14 +417,14 @@ export const sectionStories = {
       "A list: a screen reader says how many promises there are.",
       "The icons are decoration (aria-hidden); the title says what each promise is.",
     ],
-    live: (ctx) => <UspBarSection {...fixtures(ctx).uspBar.section} />,
+    live: (ctx) => <UspBarSection {...fixtures(ctx).uspBar.section} copy={copy(ctx)} />,
     statesLayout: "stack",
     states: [
       {
         id: "long",
         label: "Long text, three items",
         description: "Three columns from lg up; a long title and line wrap.",
-        render: (ctx) => <UspBarSection {...fixtures(ctx).uspBar.long} />,
+        render: (ctx) => <UspBarSection {...fixtures(ctx).uspBar.long} copy={copy(ctx)} />,
       },
       {
         id: "muted",
@@ -389,6 +434,7 @@ export const sectionStories = {
           <UspBarSection
             {...fixtures(ctx).uspBar.section}
             settings={{ surface: "muted", spacing: "small" }}
+            copy={copy(ctx)}
           />
         ),
       },
@@ -1055,6 +1101,385 @@ export const sectionStories = {
         label: "Inverse surface",
         description: "The cards on the theme turned over; the dates keep their contrast.",
         render: (ctx) => editorialList(ctx, "section", inverse),
+      },
+    ],
+  },
+  // T82 (M5 plan §1a): the content and promotion blocks' seventeen more members, each from its
+  // family's fixtures with what it needs. Their Payload fields are their block's.
+  "sections/media-with-text-overlap": {
+    summary:
+      "The text on a card that overlaps the picture's edge: beside it from lg, rising over its bottom edge on a phone.",
+    a11y: [
+      "The card is on the card fill, never on the picture, so the text keeps the theme's contrast.",
+      "The order in the markup is the reading order at every width; the side is set with grid columns from lg.",
+    ],
+    live: (ctx) => mediaWithText(ctx, "section", undefined, "overlap"),
+    statesLayout: "stack",
+    states: [
+      {
+        id: "start",
+        label: "Picture first, long heading",
+        description: "`imageSide: start`, the card on the end side, and a heading that wraps.",
+        render: (ctx) => mediaWithText(ctx, "long", undefined, "overlap"),
+      },
+      {
+        id: "muted",
+        label: "Muted surface",
+        description: "The card on the muted section; its own fill keeps it apart.",
+        render: (ctx) => mediaWithText(ctx, "section", muted, "overlap"),
+      },
+    ],
+  },
+  "sections/media-with-text-full-bleed": {
+    summary:
+      "The picture fills the band and the text lies over it on the overlay scrim; when it opens a page, the transparent header lies over the picture.",
+    a11y: [
+      "Text on the picture only on the overlay token's scrim (60 % black): light text keeps 5.7:1 on a white photo (D100); the links and the focus ring are turned light inside it.",
+      "The section says it has a picture behind its words (`data-under-header`), so the shell's rule may lay the transparent header over it (D103).",
+    ],
+    live: (ctx) => mediaWithText(ctx, "section", undefined, "full-bleed"),
+    statesLayout: "stack",
+    states: [
+      {
+        id: "start",
+        label: "Picture's side start, long heading",
+        description: "`imageSide: start` puts the text at the end; the heading wraps on the scrim.",
+        render: (ctx) => mediaWithText(ctx, "long", undefined, "full-bleed"),
+      },
+    ],
+  },
+  "sections/usp-bar-strip": {
+    summary:
+      "A thin row of small icons and titles for under the header, centred on a wide screen and scrolling sideways on a phone.",
+    a11y: [
+      "A list named “What we promise”: on a phone it scrolls in its own box, which takes the focus so the keyboard can scroll it.",
+      "The icons are decoration; the titles say what each promise is. The lines under them are left out.",
+    ],
+    live: (ctx) => (
+      <UspBarSection {...fixtures(ctx).uspBar.section} variant="strip" copy={copy(ctx)} />
+    ),
+    statesLayout: "stack",
+    states: [
+      {
+        id: "muted",
+        label: "Muted surface, small spacing",
+        description: "As a band under the header: `surface: muted`, `spacing: small`.",
+        render: (ctx) => (
+          <UspBarSection
+            {...fixtures(ctx).uspBar.section}
+            variant="strip"
+            settings={{ surface: "muted", spacing: "small" }}
+            copy={copy(ctx)}
+          />
+        ),
+      },
+      {
+        id: "long",
+        label: "Long titles",
+        description: "Three promises with a long title: the row scrolls on a phone.",
+        render: (ctx) => (
+          <UspBarSection {...fixtures(ctx).uspBar.long} variant="strip" copy={copy(ctx)} />
+        ),
+      },
+    ],
+  },
+  "sections/logo-cloud-grid": {
+    summary:
+      "The logos in equal cells of a ruled grid: two across on a phone, three from md, four from lg.",
+    a11y: [
+      "Each logo's alternative text is the brand's name.",
+      "A logo with a link makes its whole cell the target (well over 44 px), which opens the brand's site in a new tab and says so.",
+    ],
+    live: (ctx) => (
+      <LogoCloudSection {...fixtures(ctx).logoCloud.section} variant="grid" copy={copy(ctx)} />
+    ),
+    statesLayout: "stack",
+    states: [
+      {
+        id: "muted",
+        label: "Muted surface, no heading",
+        description: "`surface: muted`, and the heading left empty.",
+        render: (ctx) => {
+          const { heading: _heading, ...section } = fixtures(ctx).logoCloud.section;
+          return <LogoCloudSection {...section} variant="grid" settings={muted} copy={copy(ctx)} />;
+        },
+      },
+    ],
+  },
+  "sections/faq-side-heading": {
+    summary:
+      "The heading in a column of its own beside the questions from lg, held in view while they scroll past; the questions are native disclosures.",
+    a11y: [
+      "The questions are the first design's details and summaries: 44 px rows that open with Enter or Space without JavaScript.",
+      "Like every FAQ, its questions join the page's one FAQPage JSON-LD, which the shop writes once for the page.",
+    ],
+    live: (ctx) => faq(ctx, "section", "none", undefined, "side-heading"),
+    statesLayout: "stack",
+    states: [
+      {
+        id: "open",
+        label: "One open",
+        description: "The first question open: its chevron turned, its answer below.",
+        render: (ctx) => faq(ctx, "section", "first", undefined, "side-heading"),
+      },
+      {
+        id: "long",
+        label: "Long question, muted",
+        description: "A long question wraps beside its chevron, on the muted fill.",
+        render: (ctx) => faq(ctx, "long", "first", muted, "side-heading"),
+      },
+    ],
+  },
+  "sections/testimonials-single": {
+    summary:
+      "One quote, large and centred under the heading: its stars, its words in display type and who said them.",
+    a11y: [
+      "The quote is a figure: the words a blockquote, its author the figcaption.",
+      "It draws the editor's first quote; the stars are one image named in the page's language.",
+    ],
+    live: (ctx) => testimonials(ctx, "section", "single"),
+    statesLayout: "stack",
+    states: [
+      {
+        id: "long",
+        label: "Long quote",
+        description: "The longest review and a long name, wrapping in the centre.",
+        render: (ctx) => testimonials(ctx, "long", "single"),
+      },
+      {
+        id: "inverse",
+        label: "Inverse surface",
+        description: "`surface: inverse`: the words and the stars keep their contrast.",
+        render: (ctx) => testimonials(ctx, "section", "single", inverse),
+      },
+    ],
+  },
+  "sections/testimonials-carousel": {
+    summary:
+      "A row of quote cards that scrolls, with previous and next buttons; nothing moves by itself.",
+    a11y: [
+      "One region named by the heading, described as a carousel; each card is a slide named “2 of 6”.",
+      "Only the visitor moves it: the 44 px buttons, the arrow keys, a swipe, or Tab into a card out of view (WCAG 2.2.2). The buttons stay focusable at the ends.",
+    ],
+    live: (ctx) => testimonials(ctx, "wall", "carousel"),
+    statesLayout: "stack",
+    states: [
+      {
+        id: "three",
+        label: "Three quotes, muted",
+        description: "Three quotes on the muted fill: all in view from lg, the buttons off.",
+        render: (ctx) => testimonials(ctx, "section", "carousel", muted),
+      },
+    ],
+  },
+  "sections/testimonials-wall": {
+    summary:
+      "Short quotes in columns of different heights: one on a phone, two from md, three from lg.",
+    a11y: [
+      "A list of figures; the reading order is the editor's, down the first column and then the next.",
+      "A card is never split between two columns.",
+    ],
+    live: (ctx) => testimonials(ctx, "wall", "wall"),
+    statesLayout: "stack",
+    states: [
+      {
+        id: "inverse",
+        label: "Inverse surface",
+        description: "`surface: inverse`: the cards and the stars keep their contrast.",
+        render: (ctx) => testimonials(ctx, "wall", "wall", inverse),
+      },
+    ],
+  },
+  "sections/promo-banner-strip": {
+    summary:
+      "A thin band with the offer on one line where it fits: the heading, its words, the code to copy and the link; the end and the small print under it.",
+    a11y: [
+      "The heading is an h2; the code's copy button is named “Copy code WELCOME10” and says when it has copied.",
+      "The band is on the muted fill: its text keeps the theme's contrast pairing. No picture.",
+    ],
+    live: (ctx) => promoBanner(ctx, "section", undefined, "strip"),
+    statesLayout: "stack",
+    states: [
+      {
+        id: "plain",
+        label: "Words and code only",
+        description: "No end, link or small print.",
+        render: (ctx) => promoBanner(ctx, "plain", undefined, "strip"),
+      },
+      {
+        id: "inverse",
+        label: "Inverse surface",
+        description: "`surface: inverse`: the band and the code's box turn with the theme.",
+        render: (ctx) => promoBanner(ctx, "section", inverse, "strip"),
+      },
+    ],
+  },
+  "sections/promo-banner-ticket": {
+    summary:
+      "A coupon card centred in the section: the offer on one side of a perforated line, the code to copy and the link on the other.",
+    a11y: [
+      "The perforation and its notches are decoration (hidden from assistive technology).",
+      "Reading order: the heading, the words and the end, then the code and the link, then the small print.",
+    ],
+    live: (ctx) => promoBanner(ctx, "section", undefined, "ticket"),
+    statesLayout: "stack",
+    states: [
+      {
+        id: "plain",
+        label: "Words and code only",
+        description: "No end, link or small print.",
+        render: (ctx) => promoBanner(ctx, "plain", undefined, "ticket"),
+      },
+      {
+        id: "muted",
+        label: "Muted surface",
+        description: "The notches are cut in the muted fill.",
+        render: (ctx) => promoBanner(ctx, "section", muted, "ticket"),
+      },
+    ],
+  },
+  "sections/promo-banner-full-bleed": {
+    summary:
+      "The picture fills the band and the offer lies over it on the overlay scrim; when it opens a page, the transparent header lies over the picture.",
+    a11y: [
+      "Text on the picture only on the overlay token's scrim (D100); the code's box, the link and the focus ring are turned light inside it.",
+      "The section says it has a picture behind its words (`data-under-header`), D103.",
+    ],
+    live: (ctx) => promoBanner(ctx, "section", undefined, "full-bleed"),
+    statesLayout: "stack",
+    states: [
+      {
+        id: "muted",
+        label: "Muted surface",
+        description: "The band is the picture's; the section's space under it is muted.",
+        render: (ctx) => promoBanner(ctx, "section", muted, "full-bleed"),
+      },
+    ],
+  },
+  "sections/promo-banner-countdown": {
+    summary:
+      "The offer around a large countdown to its end, centred in a card, then the code to copy and the link.",
+    a11y: [
+      "The countdown is CountdownTimer's: a timer that is not announced every second, its sentence saying when the offer ends; its end is announced once (WCAG 4.1.3).",
+      "It counts from the time the server rendered at (D50), frozen here at the fixtures' time.",
+    ],
+    live: (ctx) => promoBanner(ctx, "countdown"),
+    statesLayout: "stack",
+    states: [
+      {
+        id: "inverse",
+        label: "Inverse surface",
+        description: "`surface: inverse`: the card and the digits turn with the theme.",
+        render: (ctx) => promoBanner(ctx, "countdown", inverse),
+      },
+    ],
+  },
+  "sections/promo-banner-popup": {
+    summary:
+      "The offer as a card at the window's end corner, once per visitor and after the cookie choice; it takes no focus and goes with Close or Escape. Drawn here in place.",
+    a11y: [
+      "A region named by the offer's heading, not a dialog: it takes no focus and leaves the page usable; its height is kept clear at the page's end while it is shown (WCAG 2.4.11).",
+      "It never opens before the cookie banner is answered, nor over it; the close button is a 44 px icon button named “Close”.",
+      "Without scripts the offer is drawn in its place as the first design.",
+    ],
+    live: (ctx) => promoBanner(ctx, "section", undefined, "popup"),
+    statesLayout: "stack",
+    states: [
+      {
+        id: "plain",
+        label: "Words and code only",
+        description: "No end, link or small print.",
+        render: (ctx) => promoBanner(ctx, "plain", undefined, "popup"),
+      },
+    ],
+  },
+  "sections/comparison-cards": {
+    summary:
+      "A card per product with its price and the table's rows stacked under it, side by side from md; nothing scrolls sideways.",
+    a11y: [
+      "The heading is an h2 and each product's name an h3 link to its page; the rows are a description list.",
+      "A missing value is a dash read as “Not specified”.",
+    ],
+    live: (ctx) => comparison(ctx, "section", undefined, "cards"),
+    statesLayout: "stack",
+    states: [
+      {
+        id: "two",
+        label: "Two products, one value missing",
+        description: "Two cards side by side from md.",
+        render: (ctx) => comparison(ctx, "two", undefined, "cards"),
+      },
+      {
+        id: "muted",
+        label: "Muted surface",
+        description: "The cards on the muted fill.",
+        render: (ctx) => comparison(ctx, "section", muted, "cards"),
+      },
+    ],
+  },
+  "sections/comparison-highlight": {
+    summary:
+      "The table with one product the editor marks as the pick: its column set apart and named “Our pick”.",
+    a11y: [
+      "“Our pick” is in the column's header, so a screen reader says it with the product as it reads that column's cells.",
+      "The column is set apart by its rules and its fill, not by colour alone: the badge names it.",
+    ],
+    live: (ctx) => comparison(ctx, "highlight"),
+    statesLayout: "stack",
+    states: [
+      {
+        id: "inverse",
+        label: "Inverse surface",
+        description: "`surface: inverse`: the pick's rules and badge turn with the theme.",
+        render: (ctx) => comparison(ctx, "highlight", inverse),
+      },
+    ],
+  },
+  "sections/newsletter-split": {
+    summary:
+      "The editor's picture beside the signup, the form on the end side from md and under the picture on a phone.",
+    a11y: [
+      "The form is NewsletterForm: one email field, the consent sentence with the privacy link and the four states, posting without a script.",
+      "The picture has the editor's alternative text.",
+    ],
+    live: (ctx) => newsletter(ctx, "split"),
+    statesLayout: "stack",
+    states: [
+      {
+        id: "done",
+        label: "Signed up",
+        description: "The answer after the form was sent.",
+        render: (ctx) => newsletter(ctx, "split", "done"),
+      },
+      {
+        id: "error",
+        label: "Not sent",
+        description: "The form's answer when it could not be sent.",
+        render: (ctx) => newsletter(ctx, "split", "error"),
+      },
+    ],
+  },
+  "sections/editorial-list-featured": {
+    summary:
+      "The journal's first post large, with its summary, and the others as a list beside it from lg.",
+    a11y: [
+      "Each post is an article whose title is its one link, stretched over it; the titles are h3s under the section's heading.",
+      "The pictures are decoration; each date is a `<time>` in the market's time zone and language.",
+    ],
+    live: (ctx) => editorialList(ctx, "featured"),
+    statesLayout: "stack",
+    states: [
+      {
+        id: "one",
+        label: "One post, long title",
+        description: "One post alone is drawn large, with no list beside it.",
+        render: (ctx) => editorialList(ctx, "long", undefined, "featured"),
+      },
+      {
+        id: "muted",
+        label: "Muted surface",
+        description: "The posts on the muted fill.",
+        render: (ctx) => editorialList(ctx, "featured", muted),
       },
     ],
   },

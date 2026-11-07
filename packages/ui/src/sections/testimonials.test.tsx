@@ -2,6 +2,7 @@ import { sectionFixtures } from "@shopblok/fixtures";
 import { catalogs, LOCALES } from "@shopblok/i18n";
 import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
+import { sectionsCopy } from "./section-copy";
 import { TestimonialsSection } from "./testimonials";
 
 const htmlLang = { en: "en-US", el: "el-CY", de: "de-DE", fr: "fr-CH" } as const;
@@ -12,7 +13,7 @@ describe("TestimonialsSection", () => {
     render(
       <TestimonialsSection
         {...section}
-        copy={{ rating: catalogs[locale].atoms.rating.label }}
+        copy={sectionsCopy(catalogs[locale])}
         locale={htmlLang[locale]}
       />,
     );
@@ -45,7 +46,7 @@ describe("TestimonialsSection", () => {
             avatar: { src: "/a.png", alt: "Ana", width: 80, height: 80 },
           },
         ]}
-        copy={{ rating: "{value} out of {max}" }}
+        copy={{ ...sectionsCopy(catalogs.en), rating: "{value} out of {max}" }}
         locale="en-US"
       />,
     );
