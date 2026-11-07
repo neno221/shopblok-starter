@@ -7608,7 +7608,7 @@ T72 counted 15 on 2026-10-29. On `main` at `e52e6c9` there were 17: three new ad
 
 Unchanged: `@tanstack/react-query` 5.64.2, `react-i18next` 13.5.0, `react-router-dom` 7.18.2, React 18.3.1 and vite 7.3.7, which the dashboard 2.22.4 still asks for. Medusa 2.22's Node floor is 22.22.0 (#17107), below `.nvmrc`'s 22.23.4.
 
-**pnpm's one-day `minimumReleaseAge`.** 2.22.4 was published on 2026-11-06 at 09:18 UTC, three hours before this branch, so `pnpm install` refused it and wrote a `minimumReleaseAgeExclude` list of the 75 new packages (74 at 2.22.4, `@medusajs/ui` at 4.2.11) into `pnpm-workspace.yaml`. That list is in the branch only so that CI can install it today; it is taken out before the merge, once the day has passed (from 2026-11-07 09:18 UTC), and the lockfile then installs under the default policy like every earlier version did.
+**pnpm's one-day `minimumReleaseAge`.** 2.22.4 was published on 2026-11-06 at 09:18 UTC, three hours before this branch, so `pnpm install` refused it and wrote a `minimumReleaseAgeExclude` list of the 75 new packages (74 at 2.22.4, `@medusajs/ui` at 4.2.11) into `pnpm-workspace.yaml`. That list was in the branch only so that CI could install it that day. **It is gone** (2026-11-07, after the day had passed): `pnpm install --frozen-lockfile` from an empty store passes pnpm's supply-chain check ("Lockfile passes supply-chain policies", 2012 entries) and `pnpm install` writes nothing back, so the lockfile installs under the default policy like every earlier version did.
 
 ### Persian joins the languages (D17)
 
