@@ -7819,9 +7819,9 @@ The checks' time was 18:07 for 978 tests in one job; the three shards took 5:22 
 | | |
 |---|---|
 | Date | 2026-11-06 |
-| Branch | `claude/project-thread-8oxym4`, on T77's branch (PR 114, not merged when T79 started); {{REBASE}} |
+| Branch | `claude/project-thread-8oxym4`, built on T77's branch (PR 114, not merged when T79 started), then rebased on `main` at `cfd9e3a` (PR 114 merged, PR 112's Medusa 2.22.4 in it) on 2026-11-07 |
 | PR | [116](https://github.com/neno221/shopblok-starter/pull/116) |
-| Machine | The cloud VM: Node 22.23.4, pnpm 12.10.1, the compose stack, Medusa 2.21.2 (`medusa develop`) |
+| Machine | The cloud VM: Node 22.23.4, pnpm 12.10.1, the compose stack, Medusa 2.21.2 (`medusa develop`); 2.22.4 after the rebase |
 
 ### What changed
 
@@ -7833,7 +7833,7 @@ The checks' time was 18:07 for 978 tests in one job; the three shards took 5:22 
 - **The reads**: `lib/cms/templates.ts` has `readTemplates` (`cmsRead`, the market's language, `cms:global:templates`) and `templatesFrom(doc)`, which gives `TEMPLATE_DEFAULTS` (every first variant, the quick view off, the drawer, the quick cart: M4's shop) for no document or one never saved, and each empty field its default. `getShellData()` reads it beside the other globals (one cached read per render, as the header's), so the static shells of the product and listing pages, the search, the cart, the checkout, the receipt and the account's order page all take their `variant` from it, and the header's `CartIsland` takes `miniCart` (a click opens the drawer unless it is "Cart page") and `quickCart` (an add opens the quick cart unless it is "Off").
 - **`RenderBlocks`**: `resolveLayout` passes each stored block's `variant` onto its section's view model (`withVariant`), and the section's entry file picks the member.
 - **The seed**: `templatesSeed` writes every first variant; a second run changes nothing (`seed-content` here: created 1, then 13 unchanged).
-- **The migration** `20261106_154203_templates_global`: the `templates` and `_templates_v` tables and their enums.
+- **The migration** `20261107_102559_templates_global`: the `templates` and `_templates_v` tables and their enums.
 
 ### The drift test (D99)
 
@@ -7875,6 +7875,12 @@ Built as `e2e-smoke` builds (Medusa up, `STOREFRONT_PRERENDER_PRODUCTS=4`, `STOR
 - The storefront built as `e2e-smoke` builds it, with Medusa up; `check:first-load` passes with the kept-out row.
 - **The e2e suites** against `next start` (`E2E_TEST_ROUTES=true`), the default project: 179 passed. Four failed on the first run because the server was started without the job's `STOREFRONT_LISTING_PAGE_SIZE=3` (the catalog's paging) and with posts left from an earlier run (the journal's order); with the job's environment `catalog.spec.ts` (21) and `cms-pages.spec.ts` pass, and `templates-global.spec.ts`'s three pass.
 - **The baseline update** (dispatch run [42246625786](https://github.com/neno221/shopblok-starter/actions/runs/42246625786), commit `1477dd3`): the seven new thumbnails (`organisms/cart-drawer`, `organisms/quick-view-dialog` and the five templates, 124,975 bytes), and three baselines rewritten with nothing to see: `molecules/promo-code-field/en-1440` (8 pixels), `templates/product-detail/en-375` (16 pixels of the market's flag) and `en-768` (34 pixels along one column's edge), no channel more than 21 of 255 apart. The PR's own run had passed every baseline on the old files (shard 3 failed only on the seven missing thumbnails), so those three are the renderer's noise, not T79's. The set: 495 PNGs, 63.83 MiB.
+
+### After the rebase on `main` (2026-11-07)
+
+- **The rebase:** the T79 commits went onto `main` at `cfd9e3a` with `git rebase --onto` (T77's own commits had been rebased on PR 112 before they merged, so the branch's copies of them were left out). One conflict, `src/migrations/index.ts`, where PR 112 had added `20261106_122518_add_persian`.
+- **The migration, re-created last (D88):** `20261106_154203_templates_global` deleted and `payload migrate:create templates_global` run again, giving `20261107_102559_templates_global`. It differs from the old one in one line: the versions' `published_locale` enum lists Persian (`fa`). `migrate:fresh` applies every migration, and `migrate:create --skip-empty` afterwards writes nothing. `generate:types` and `generate:importmap` change nothing.
+- **The checks again**, on Medusa 2.22.4 after `rm -rf node_modules/.pnpm && pnpm install --frozen-lockfile`: `pnpm typecheck`, `lint` and `test` exit 0 (`test`: 10 tasks); `pnpm bootstrap --ci` (10 checks ok, 3 warnings); the build as `e2e-smoke` builds it, and `check:first-load` passes with the same rows as before the rebase (the product page 333.9, the listings 332.3, `/[market]` 330.7) and the listener kept out (`3ea2xhs0awjyf.js`, 0.6 KB); `templates-global.spec.ts`, `catalog.spec.ts` and `cms-pages.spec.ts` against `next start`: 42 passed. The PR's CI runs every suite.
 
 ### Changes from the review of this PR (PR 116)
 
