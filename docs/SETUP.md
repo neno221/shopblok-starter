@@ -7668,13 +7668,13 @@ Read from the installed 2.22.4 sources against the 2.21.2 tarballs, and run (the
 | | |
 |---|---|
 | Date | 2026-11-06 |
-| Branch | `claude/project-thread-z823qp`, from `main` at `f0b896b` (PR 113 merged); {{REBASE}} |
+| Branch | `claude/project-thread-z823qp`, from `main` at `f0b896b` (PR 113 merged); rebased on 2026-11-07 onto `main` at `d4ae2b5` (PR 112 merged, Medusa 2.22.4) |
 | PR | [114](https://github.com/neno221/shopblok-starter/pull/114) |
 | Machine | The cloud VM: Node 22.23.4, pnpm 12.10.1, the compose stack (`pnpm bootstrap`; Mailpit 1.31.6 pulled from `mirror.gcr.io` after Docker Hub's 429) |
 
 ### Before anything: Medusa 2.22.4 and `main`'s red run
 
-- **PR 112 (Medusa 2.22.4)** could not merge before 2026-11-07 09:18 UTC (pnpm's one-day `minimumReleaseAge`). The coordinator had T77 start on `main` and rebase on PR 112 before merging, so the checks above ran on Medusa 2.21.2 and were run again after the rebase: {{AFTER112}}.
+- **PR 112 (Medusa 2.22.4)** could not merge before 2026-11-07 09:18 UTC (pnpm's one-day `minimumReleaseAge`). The coordinator had T77 start on `main` and rebase on PR 112 before merging, so the checks above ran on Medusa 2.21.2 and were run again after the rebase: the rebase onto `d4ae2b5` stopped twice, on the storefront's `package.json` (PR 112's `@medusajs/js-sdk` 2.22.4 beside this branch's Payload pins; both kept) and on SETUP.md (PR 112's section and this one both end the file; PR 112's closes the M4 log, this one opens the M5 log). The lockfile merged without a hand edit: `pnpm install --frozen-lockfile` from an empty store passes pnpm's supply-chain check, and `pnpm install --lockfile-only` and `pnpm dedupe --check` change nothing. `check:workspace`, `typecheck`, `lint` and `pnpm test` pass (the storefront's 3899 tests with Persian's 43 languages); `generate:types` and `generate:importmap` change nothing, so PR 112's `payload-types.ts` already matches 3.93.0; `pnpm audit --prod` lists 8 (below). The e2e, design-system and first-load checks ran again in PR 114's CI on the rebased head, before the merge.
 - **`main`'s last runs:** PR 113's and PR 111's merges were green. PR 110's merge (run 41870806648, 2026-11-04) failed one test of 217 in `e2e-smoke`: `market-panels.spec.ts`, "axe finds nothing in the Region panel and its drawer", with a `color-contrast` finding on the drawer's "Choose a language" placeholder. It passed on PR 110 and on every run before and after it. The cause is timing, not contrast: `toBeVisible()` passes on the first frame of Medusa UI's open animation (the drawer fades and slides in), and axe measured the placeholder at a partial opacity. `axeFindings()` now waits, before axe runs, for every animation under the checked element that has an end (a spinner's is skipped) to finish.
 
 ### Versions
@@ -7713,7 +7713,7 @@ The release notes list one feature (`auth.passwordHashIterations`) and fifteen f
 - **Lexical's HTML converters escape stored values:** we use none. `lib/cms` renders rich text as JSX from its JSON, and the e-mail walker reads the JSON too.
 - **Preserve shared localized draft changes (#17394)** and **no duplicate autosaves from virtual fields (#19096):** `pages` has drafts and autosave; the draft checks in `payload-cache.spec.ts` pass.
 - `generate:types` and `generate:importmap` change nothing. **`payload migrate:create --skip-empty`** against a database bootstrapped on 3.92.1 logged "generating UP statements" and wrote nothing: 3.93 needs no migration.
-- **`pnpm audit --prod`:** 15 (1 low, 8 moderate, 6 high) on Medusa 2.21.2, the same list as "Audit after M4" (Payload 3.93.0 still brings `@lexical/headless` 0.50.0's happy-dom 20, `csv-parse` 5.6.0 and `deepmerge` 4.3.1, as that table says); {{AUDIT112}}.
+- **`pnpm audit --prod`:** 15 (1 low, 8 moderate, 6 high) on Medusa 2.21.2, the same list as "Audit after M4" (Payload 3.93.0 still brings `@lexical/headless` 0.50.0's happy-dom 20, `csv-parse` 5.6.0 and `deepmerge` 4.3.1, as that table says); after the rebase on Medusa 2.22.4, **8** (1 low, 5 moderate, 2 high, 0 critical), exactly the list "Medusa 2.22.4" leaves: `esbuild`, `ajv`, `uuid`, `csv-parse`, `happy-dom` twice, `deepmerge` and `minimatch`. Payload 3.93.0 adds none and closes none.
 
 ### First load (D102)
 
