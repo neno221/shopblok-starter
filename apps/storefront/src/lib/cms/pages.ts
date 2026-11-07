@@ -2,6 +2,7 @@ import "server-only";
 import type { Page } from "../../payload-types";
 import type { SeoFields } from "../seo/meta";
 import { metaOf } from "./meta";
+import { pageLayout, type PageRow } from "./page-layout";
 import { pageIdOf, pagePaths, type PageNode, type PagePaths } from "./page-path";
 import { cmsRead } from "./read";
 import { readSiteSettings } from "./site";
@@ -17,22 +18,28 @@ export type CmsPage = {
   meta: SeoFields;
 };
 
-const toCmsPage = (
-  page: Pick<Page, "id" | "title" | "slug" | "parent" | "layout"> & Partial<Pick<Page, "meta">>,
-): CmsPage => ({
+const toCmsPage = (page: PageRow): CmsPage => ({
   id: page.id,
   title: page.title,
   slug: page.slug,
   parent: pageIdOf(page.parent),
-  layout: page.layout ?? [],
+  layout: pageLayout(page),
   meta: metaOf(page.meta),
 });
 
 /**
  * The page fields a page read selects; the blocks' uploads and internal links, and the SEO
- * picture, come populated.
+ * picture, come populated. Both layouts, since the switch says which one the page draws.
  */
-const PAGE_SELECT = { title: true, slug: true, parent: true, layout: true, meta: true } as const;
+const PAGE_SELECT = {
+  title: true,
+  slug: true,
+  parent: true,
+  layoutPerLanguage: true,
+  layout: true,
+  localizedLayout: true,
+  meta: true,
+} as const;
 
 /**
  * Every page's address in the market's language (D80): the pages a visitor can read (in Draft Mode,

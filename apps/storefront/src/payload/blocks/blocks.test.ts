@@ -82,6 +82,26 @@ describe("the blocks and the registry (D70)", () => {
     expect("localized" in (layout ?? {}) && layout?.localized).toBeFalsy();
   });
 
+  it("are the blocks pages.localizedLayout offers too, as copies of their own (D105, T88)", () => {
+    const own = Pages.fields.find((each) => "name" in each && each.name === "localizedLayout") as
+      BlocksField | undefined;
+    expect(own?.type).toBe("blocks");
+    expect(own?.localized).toBe(true);
+    // Not by reference: Payload's Postgres adapter would then write the shared layout's rows into
+    // the localized field's tables (T88's check).
+    expect(own?.blockReferences).toBeUndefined();
+    expect(own?.blocks.map((block) => block.slug)).toEqual(LAYOUT_BLOCKS);
+    own?.blocks.forEach((copy, index) => {
+      const block = BLOCKS[index];
+      expect(copy, copy.slug).not.toBe(block);
+      expect(copy.fields[0], copy.slug).not.toBe(block?.fields[0]);
+      expect({ ...copy, fields: copy.fields.length }).toEqual({
+        ...block,
+        fields: block?.fields.length,
+      });
+    });
+  });
+
   it("localize the text and nothing else of the structure", () => {
     const rows = BLOCKS.flatMap((block) =>
       (describeBlock(block.slug) ?? []).map((row) => ({

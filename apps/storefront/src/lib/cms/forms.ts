@@ -2,6 +2,7 @@ import "server-only";
 import type { FormField } from "@shopblok/registry/contracts";
 import type { Payload } from "payload";
 import { formFields, type StoredFormField } from "../forms/fields";
+import { pageLayout } from "./page-layout";
 import { getPayloadClient } from "./payload";
 import { CMS_FALLBACK_LOCALE, cmsRead, type CmsQuery, type CmsReader } from "./read";
 import { embeddingTags } from "./tags";
@@ -50,7 +51,8 @@ async function loadPlacedForms(payload: Payload, query: CmsQuery): Promise<numbe
       ...query,
       locale: query.locale as never,
       depth: 0,
-      select: { layout: true },
+      // Both layouts: a page with a layout per language places its forms in `localizedLayout`.
+      select: { layoutPerLanguage: true, layout: true, localizedLayout: true },
       pagination: false,
     }),
     payload.findGlobal({
@@ -64,7 +66,7 @@ async function loadPlacedForms(payload: Payload, query: CmsQuery): Promise<numbe
   const placed = [
     idOf(footer.newsletter?.form),
     ...pages.docs.flatMap((page) =>
-      (page.layout ?? []).flatMap((block) =>
+      pageLayout(page).flatMap((block) =>
         block.blockType === "newsletter" || block.blockType === "formBlock"
           ? [idOf(block.form)]
           : [],
