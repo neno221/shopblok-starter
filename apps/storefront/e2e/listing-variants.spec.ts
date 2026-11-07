@@ -6,8 +6,8 @@ import { adminToken, base, freshWithinTwo, settled } from "./support/server";
 // `next start` and the seeded Medusa. An admin publishes each layout on the templates global's
 // Listing tab; on `/us/store` the visitor then filters by a colour and a top price from the
 // keyboard: with scripts the listing's URL takes the query and the island draws the results in the
-// same layout; without scripts the form lands on `/search`, which follows the listing's layout,
-// with the same products. Every layout's results are the same products as the default layout's.
+// same layout; without scripts the form lands on `/search`, which follows the listing's layout and
+// shows the same products. Every layout's results are the same products as the default layout's.
 // The Listing tab's card picker puts its card in the listing's grid, the island's and the search
 // page's. `afterAll` publishes the global as it was, in every language.
 //
@@ -203,14 +203,19 @@ test.describe("the listing's filter layouts (T84)", () => {
     expect(query.get("scope"), layout).toBe("store");
     expect(query.getAll(colour.name), layout).toEqual([colour.value]);
     expect(query.get("price.max"), layout).toBe(TOP_PRICE);
-    // The search page streams its results after its shell, each part in its own hidden block until
-    // a script puts it in place (so a browser without scripts does not show them yet: SETUP.md,
-    // "Listing variants (T84)"). The answer is the page's, read once the whole page is in.
-    await page.waitForLoadState("load");
-    await expect(
-      page.locator('[data-slot="search-results-template"] [data-slot="listing-results"]'),
-    ).toHaveAttribute("data-layout", layout);
-    const products = await productsIn(page.locator("body"));
+    // The search page is blocking (SETUP.md, "Search without scripts"): its results are where it
+    // shows them, so a browser without scripts sees them, not just the field and the heading.
+    const results = page.locator(
+      '[data-slot="search-results-template"] [data-slot="listing-results"]',
+    );
+    await expect(results).toBeVisible();
+    await expect(results).toHaveAttribute("data-layout", layout);
+    const products = await productsIn(results);
+    await expect(results.locator('[data-slot="product-card"]').first()).toBeVisible();
+    expect(
+      await results.locator('[data-slot="product-card-title"] a:visible').count(),
+      `${layout}: every result on /search is shown`,
+    ).toBe(products.length);
     await context.close();
     return products;
   };
