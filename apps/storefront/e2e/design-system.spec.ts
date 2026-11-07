@@ -5,9 +5,17 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 import { commerceFixtures, fixtureNow } from "@shopblok/fixtures";
 import { entries } from "@shopblok/registry";
-import { interactions, type DsInteraction } from "../src/design-system/interactions";
+import {
+  interactions,
+  type DsInteraction,
+} from "../src/design-system/interactions";
 import { viewportWidths } from "../src/design-system/viewport-widths";
-import { collectConsole, judgeConsole, type FailedRequest, type Message } from "./support/console";
+import {
+  collectConsole,
+  judgeConsole,
+  type FailedRequest,
+  type Message,
+} from "./support/console";
 import { settle, withPageSizedViewport } from "./support/settle";
 
 // T24 (D32, D34): every component entry's frame, in two locales and at three widths, against
@@ -49,7 +57,10 @@ const axeTags = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"];
  * can take focus is still reported.
  */
 const axeScan = (page: Page) =>
-  new AxeBuilder({ page }).withTags(axeTags).exclude("[data-base-ui-focus-guard]").analyze();
+  new AxeBuilder({ page })
+    .withTags(axeTags)
+    .exclude("[data-base-ui-focus-guard]")
+    .analyze();
 
 // The size D32 asks of an interactive element, in CSS px.
 const MIN_SIZE = 44;
@@ -81,13 +92,16 @@ const problem = await problemWithServer();
 // Every entry that renders a component: the atoms now, the molecules and organisms as M2 adds them.
 const ids =
   problem === undefined
-    ? entries.filter((entry) => entry.component !== undefined).map((entry) => entry.id)
+    ? entries
+        .filter((entry) => entry.component !== undefined)
+        .map((entry) => entry.id)
     : [];
 
 // The folder of the cells' baselines under `__screenshots__` (the config's snapshotPathTemplate).
 const snapshotDir = ["design-system"];
 
-const framePath = (locale: string, id: string) => `/design-system/${locale}/frame/${id}`;
+const framePath = (locale: string, id: string) =>
+  `/design-system/${locale}/frame/${id}`;
 
 if (problem !== undefined) {
   test("the build serves the design system", () => {
@@ -96,7 +110,9 @@ if (problem !== undefined) {
 } else if (ids.length === 0) {
   // The old overview scan failed on an empty list; the registry filter keeps that guarantee.
   test("the registry has entries that render a component", () => {
-    throw new Error("No registry entry has a component, so the suite would check nothing.");
+    throw new Error(
+      "No registry entry has a component, so the suite would check nothing.",
+    );
   });
 }
 
@@ -156,7 +172,9 @@ async function undersizedControls(page: Page, min: number): Promise<Finding[]> {
       const parent = el.parentElement;
       if (!parent) return false;
       return [...parent.childNodes].some(
-        (node) => node.nodeType === Node.TEXT_NODE && /[\p{L}\p{N}]/u.test(node.textContent ?? ""),
+        (node) =>
+          node.nodeType === Node.TEXT_NODE &&
+          /[\p{L}\p{N}]/u.test(node.textContent ?? ""),
       );
     };
 
@@ -167,7 +185,10 @@ async function undersizedControls(page: Page, min: number): Promise<Finding[]> {
       right: rect.right,
       bottom: rect.bottom,
     });
-    const size = (box: Box) => ({ w: box.right - box.left, h: box.bottom - box.top });
+    const size = (box: Box) => ({
+      w: box.right - box.left,
+      h: box.bottom - box.top,
+    });
 
     // The element's box and its `::after`'s, when that is an absolutely positioned hit area. The
     // `::after`'s offsets are from its containing block, which is the element only when the
@@ -199,19 +220,27 @@ async function undersizedControls(page: Page, min: number): Promise<Finding[]> {
       const own = el.getBoundingClientRect();
       // Base UI's hidden inputs and their like: 1 × 1 px, there for forms and not for people.
       if (own.width <= 1 && own.height <= 1) continue;
-      const candidates: { name: string; box: Box }[] = [{ name: "its hit area", box: hitArea(el) }];
+      const candidates: { name: string; box: Box }[] = [
+        { name: "its hit area", box: hitArea(el) },
+      ];
       const role = el.getAttribute("role");
       const isToggle =
-        (el instanceof HTMLInputElement && ["checkbox", "radio"].includes(el.type)) ||
+        (el instanceof HTMLInputElement &&
+          ["checkbox", "radio"].includes(el.type)) ||
         role === "checkbox" ||
         role === "radio" ||
         role === "switch";
       if (isToggle) {
         const label =
           el.closest("label") ??
-          (el.id ? document.querySelector(`label[for="${CSS.escape(el.id)}"]`) : null);
+          (el.id
+            ? document.querySelector(`label[for="${CSS.escape(el.id)}"]`)
+            : null);
         if (label)
-          candidates.push({ name: "its label", box: boxOf(label.getBoundingClientRect()) });
+          candidates.push({
+            name: "its label",
+            box: boxOf(label.getBoundingClientRect()),
+          });
       }
       const ok = candidates.some(({ box }) => {
         const { w, h } = size(box);
@@ -246,9 +275,16 @@ async function nestedControls(page: Page): Promise<Finding[]> {
       "textarea",
       "summary",
       '[contenteditable="true"]',
-      ...["button", "link", "checkbox", "radio", "switch", "tab", "menuitem", "slider"].map(
-        (role) => `[role="${role}"]`,
-      ),
+      ...[
+        "button",
+        "link",
+        "checkbox",
+        "radio",
+        "switch",
+        "tab",
+        "menuitem",
+        "slider",
+      ].map((role) => `[role="${role}"]`),
     ].join(", ");
     const describe = (el: Element) => {
       const slot = el.getAttribute("data-slot");
@@ -259,10 +295,14 @@ async function nestedControls(page: Page): Promise<Finding[]> {
     for (const el of document.querySelectorAll(outer))
       for (const nested of el.querySelectorAll(`${inner}, [tabindex]`)) {
         // A `tabindex` alone makes a control only when it is a Tab stop (0 or more, not -1 or -2).
-        if (!nested.matches(inner) && (nested as HTMLElement).tabIndex < 0) continue;
+        if (!nested.matches(inner) && (nested as HTMLElement).tabIndex < 0)
+          continue;
         // Not there for people: hidden, inert, or out of the accessibility tree.
         if (nested.closest('[aria-hidden="true"], [hidden], [inert]')) continue;
-        findings.push({ selector: describe(nested), detail: `inside ${describe(el)}` });
+        findings.push({
+          selector: describe(nested),
+          detail: `inside ${describe(el)}`,
+        });
       }
     return findings;
   });
@@ -277,21 +317,36 @@ async function clippedElements(page: Page): Promise<Finding[]> {
       const style = getComputedStyle(el);
       // Each axis on its own: `overflow-y: hidden` alone computes `overflow-x` to `auto`, and a
       // `line-clamp` or a fixed height clips lines, not width. 1 px for sub-pixel rounding.
-      const overX = clips(style.overflowX) && el.scrollWidth > el.clientWidth + 1;
-      const overY = clips(style.overflowY) && el.scrollHeight > el.clientHeight + 1;
+      const overX =
+        clips(style.overflowX) && el.scrollWidth > el.clientWidth + 1;
+      const overY =
+        clips(style.overflowY) && el.scrollHeight > el.clientHeight + 1;
       if (!overX && !overY) continue;
       if (el.closest("[data-truncate]")) continue;
       // T37: ProductCarousel's viewport hides the slides that are not in view, which its arrows, its
       // arrow keys and a swipe bring in (and focus, too: embla scrolls a focused slide into view).
       // Its viewport alone is let off; what is inside a slide is checked like everything else. A new
       // user of the carousel primitive (a gallery, a hero) must show its own way in before it is added.
-      if (el.matches('[data-slot="product-carousel"] [data-slot="carousel-content"]')) continue;
+      if (
+        el.matches(
+          '[data-slot="product-carousel"] [data-slot="carousel-content"]',
+        )
+      )
+        continue;
       // Visually hidden text is clipped on purpose: `sr-only`, and Base UI's own (a 1 px box with
       // `clip-path`) for its live regions and hidden inputs.
-      if (el.closest(".sr-only") || (el.clientWidth <= 1 && el.clientHeight <= 1)) continue;
+      if (
+        el.closest(".sr-only") ||
+        (el.clientWidth <= 1 && el.clientHeight <= 1)
+      )
+        continue;
       // A clip that holds no text loses no words: the Rating's mask that shows a part of a star.
       // An input's value is text, whatever its `textContent`.
-      if (!(el instanceof HTMLInputElement) && (el.textContent ?? "").trim() === "") continue;
+      if (
+        !(el instanceof HTMLInputElement) &&
+        (el.textContent ?? "").trim() === ""
+      )
+        continue;
       const slot = el.getAttribute("data-slot");
       findings.push({
         selector: `${el.tagName.toLowerCase()}${slot ? `[data-slot=${slot}]` : ""}${
@@ -322,9 +377,17 @@ async function sidewaysScrollers(page: Page): Promise<Finding[]> {
     const findings: { selector: string; detail: string }[] = [];
     const scrolls = (value: string) => value === "auto" || value === "scroll";
     for (const el of document.body.querySelectorAll("*")) {
-      if (!scrolls(getComputedStyle(el).overflowX) || el.scrollWidth <= el.clientWidth + 1)
+      if (
+        !scrolls(getComputedStyle(el).overflowX) ||
+        el.scrollWidth <= el.clientWidth + 1
+      )
         continue;
-      if (el.closest('[data-slot="table-container"], [data-slot="scroll-area-viewport"]')) continue;
+      if (
+        el.closest(
+          '[data-slot="table-container"], [data-slot="scroll-area-viewport"]',
+        )
+      )
+        continue;
       const slot = el.getAttribute("data-slot");
       findings.push({
         selector: `${el.tagName.toLowerCase()}${slot ? `[data-slot=${slot}]` : ""}${
@@ -361,8 +424,12 @@ for (const id of ids) {
         const failedRequests: FailedRequest[] = [];
         collectConsole(page, consoleMessages, failedRequests);
 
-        const response = await page.goto(framePath(locale, id), { waitUntil: "load" });
-        expect(response?.status(), `${framePath(locale, id)} answers 200`).toBe(200);
+        const response = await page.goto(framePath(locale, id), {
+          waitUntil: "load",
+        });
+        expect(response?.status(), `${framePath(locale, id)} answers 200`).toBe(
+          200,
+        );
         await page.waitForLoadState("networkidle");
         // Fonts change a box's size, and pictures their boxes' content, so both are in before
         // anything is measured or captured (support/settle.ts).
@@ -377,9 +444,12 @@ for (const id of ids) {
           await withPageSizedViewport(page, width, 900, () =>
             expect
               .soft(page)
-              .toHaveScreenshot([...snapshotDir, ...id.split("/"), `${locale}-${width}.png`], {
-                fullPage: true,
-              }),
+              .toHaveScreenshot(
+                [...snapshotDir, ...id.split("/"), `${locale}-${width}.png`],
+                {
+                  fullPage: true,
+                },
+              ),
           );
 
         const axe = await axeScan(page);
@@ -411,13 +481,22 @@ for (const id of ids) {
           )
           .toBeLessThanOrEqual(horizontal.innerWidth);
         expect
-          .soft(lines(await clippedElements(page)), "elements clip content without data-truncate")
+          .soft(
+            lines(await clippedElements(page)),
+            "elements clip content without data-truncate",
+          )
           .toEqual([]);
         expect
-          .soft(lines(await sidewaysScrollers(page)), "content scrolls sideways in its box")
+          .soft(
+            lines(await sidewaysScrollers(page)),
+            "content scrolls sideways in its box",
+          )
           .toEqual([]);
         expect
-          .soft(lines(await nestedControls(page)), "interactive elements inside a link or a button")
+          .soft(
+            lines(await nestedControls(page)),
+            "interactive elements inside a link or a button",
+          )
           .toEqual([]);
 
         expect
@@ -427,7 +506,11 @@ for (const id of ids) {
           )
           .toEqual([]);
 
-        const { local, summary } = judgeConsole(consoleMessages, failedRequests, baseURL);
+        const { local, summary } = judgeConsole(
+          consoleMessages,
+          failedRequests,
+          baseURL,
+        );
         expect
           .soft(
             local.map((r) => `${r.url} ${r.error}`),
@@ -470,10 +553,15 @@ if (problem === undefined) {
             inner.y >= outer.y - 1 &&
             inner.x + inner.width <= outer.x + outer.width + 1 &&
             inner.y + inner.height <= outer.y + outer.height + 1;
-          return inside ? "inside" : `${JSON.stringify(inner)} outside ${JSON.stringify(outer)}`;
+          return inside
+            ? "inside"
+            : `${JSON.stringify(inner)} outside ${JSON.stringify(outer)}`;
         };
         await expect.soft
-          .poll(placement, { message: `the ${slot} lies inside its box`, timeout: 5_000 })
+          .poll(placement, {
+            message: `the ${slot} lies inside its box`,
+            timeout: 5_000,
+          })
           .toBe("inside");
       }
       const axe = await axeScan(page);
@@ -491,7 +579,8 @@ if (problem === undefined) {
 // entry's preview page, from the keyboard, at 375 and 1440 px in `en`: axe on the open state, then
 // focus. A popup that takes focus has it inside, keeps it there under Tab when it traps it, and
 // gives it back to the trigger on Escape; a toast leaves it on the trigger and is announced.
-const previewPath = (locale: string, id: string) => `/design-system/${locale}/preview/${id}`;
+const previewPath = (locale: string, id: string) =>
+  `/design-system/${locale}/preview/${id}`;
 
 /** Whether the element holds the focused element. Runs in the page. */
 const holdsFocus = (el: Element) => el.contains(document.activeElement);
@@ -513,7 +602,10 @@ const settlesInside = (el: Element) =>
   });
 
 if (problem === undefined) {
-  for (const [id, interaction] of Object.entries(interactions) as [string, DsInteraction][]) {
+  for (const [id, interaction] of Object.entries(interactions) as [
+    string,
+    DsInteraction,
+  ][]) {
     for (const width of [375, 1440]) {
       test(`interaction · ${id} · en · ${width}`, async ({ page, baseURL }) => {
         await page.setViewportSize({ width, height: 900 });
@@ -521,13 +613,26 @@ if (problem === undefined) {
         const consoleMessages: Message[] = [];
         const failedRequests: FailedRequest[] = [];
         collectConsole(page, consoleMessages, failedRequests);
-        const response = await page.goto(previewPath("en", id), { waitUntil: "load" });
-        expect(response?.status(), `${previewPath("en", id)} answers 200`).toBe(200);
+        const response = await page.goto(previewPath("en", id), {
+          waitUntil: "load",
+        });
+        expect(response?.status(), `${previewPath("en", id)} answers 200`).toBe(
+          200,
+        );
         await page.waitForLoadState("networkidle");
 
-        const trigger = page.locator(interaction.trigger).filter({ visible: true }).first();
-        const popup = page.locator(interaction.opens).filter({ visible: true }).first();
-        await expect(trigger, "the live render draws the trigger").toBeVisible();
+        const trigger = page
+          .locator(interaction.trigger)
+          .filter({ visible: true })
+          .first();
+        const popup = page
+          .locator(interaction.opens)
+          .filter({ visible: true })
+          .first();
+        await expect(
+          trigger,
+          "the live render draws the trigger",
+        ).toBeVisible();
         // A press before hydration does nothing, so press again until it opens.
         await expect(async () => {
           if (!(await popup.isVisible())) {
@@ -541,7 +646,8 @@ if (problem === undefined) {
         expect
           .soft(
             axe.violations.map(
-              (v) => `${v.id}: ${v.help} (${v.nodes.map((n) => n.target.join(" ")).join(", ")})`,
+              (v) =>
+                `${v.id}: ${v.help} (${v.nodes.map((n) => n.target.join(" ")).join(", ")})`,
             ),
             "axe violations, open",
           )
@@ -549,7 +655,9 @@ if (problem === undefined) {
 
         if (interaction.focus === "inside") {
           await expect
-            .poll(() => popup.evaluate(holdsFocus), { message: "focus moves into the popup" })
+            .poll(() => popup.evaluate(holdsFocus), {
+              message: "focus moves into the popup",
+            })
             .toBe(true);
           if (interaction.trap === true) {
             const stops = await popup.evaluate(
@@ -560,23 +668,64 @@ if (problem === undefined) {
             );
             for (const key of ["Tab", "Shift+Tab"]) {
               let left = 0;
-              for (let press = 1; press <= stops + 2 && left === 0; press += 1) {
+              for (
+                let press = 1;
+                press <= stops + 2 && left === 0;
+                press += 1
+              ) {
                 await page.keyboard.press(key);
                 if (!(await popup.evaluate(settlesInside))) left = press;
               }
-              expect.soft(left, `${key} leaves the popup after ${left} presses`).toBe(0);
+              expect
+                .soft(left, `${key} leaves the popup after ${left} presses`)
+                .toBe(0);
             }
           }
           await page.keyboard.press("Escape");
           await expect(popup, "Escape closes it").toBeHidden();
           await expect(trigger, "focus is back on the trigger").toBeFocused();
+        } else if (interaction.focus === "tabs") {
+          // T80: the tab's panel is there from the start; the right arrow moves to the next tab,
+          // which is then selected, and its panel is the one shown.
+          const tabs = page
+            .locator(interaction.trigger)
+            .filter({ visible: true });
+          const first = tabs.first();
+          const second = tabs.nth(1);
+          await expect(first, "the first tab is selected").toHaveAttribute(
+            "aria-selected",
+            "true",
+          );
+          const shown = await popup.getAttribute("id");
+          await first.focus();
+          await page.keyboard.press("ArrowRight");
+          await expect(
+            second,
+            "the right arrow moves to the next tab",
+          ).toBeFocused();
+          await expect(second, "and selects it").toHaveAttribute(
+            "aria-selected",
+            "true",
+          );
+          await expect(first).toHaveAttribute("aria-selected", "false");
+          const now = page.locator(interaction.opens).filter({ visible: true });
+          await expect(now, "one panel is shown").toHaveCount(1);
+          expect(
+            await now.getAttribute("id"),
+            "the next tab's panel is shown",
+          ).not.toBe(shown);
+          expect(await now.getAttribute("id")).toBe(
+            await second.getAttribute("aria-controls"),
+          );
         } else if (interaction.focus === "menu") {
           // T35: a navigation menu's panel is no dialog. Focus stays on the trigger, Tab goes into
           // the panel, Escape gives it back to the trigger, and Tab past the last link closes it.
           await expect(trigger, "focus stays on the trigger").toBeFocused();
           await page.keyboard.press("Tab");
           await expect
-            .poll(() => popup.evaluate(holdsFocus), { message: "Tab moves into the panel" })
+            .poll(() => popup.evaluate(holdsFocus), {
+              message: "Tab moves into the panel",
+            })
             .toBe(true);
           await page.keyboard.press("Escape");
           await expect(popup, "Escape closes it").toBeHidden();
@@ -584,10 +733,14 @@ if (problem === undefined) {
           await page.keyboard.press("Enter");
           await expect(popup, "Enter opens it again").toBeVisible();
           const stops = await popup.evaluate(
-            (el) => el.querySelectorAll("a[href], button:not([disabled])").length,
+            (el) =>
+              el.querySelectorAll("a[href], button:not([disabled])").length,
           );
-          for (let press = 0; press <= stops; press += 1) await page.keyboard.press("Tab");
-          await expect.soft(popup, "Tab past the panel's last link closes it").toBeHidden();
+          for (let press = 0; press <= stops; press += 1)
+            await page.keyboard.press("Tab");
+          await expect
+            .soft(popup, "Tab past the panel's last link closes it")
+            .toBeHidden();
         } else {
           await expect(trigger, "focus stays on the trigger").toBeFocused();
           const announcer = await popup.evaluate((el) => {
@@ -595,18 +748,26 @@ if (problem === undefined) {
               '[aria-live="polite"], [aria-live="assertive"], [role="status"], [role="alert"]';
             const region = el.closest(live);
             if (region !== null)
-              return region.getAttribute("aria-live") ?? region.getAttribute("role");
+              return (
+                region.getAttribute("aria-live") ?? region.getAttribute("role")
+              );
             // A live region elsewhere that says the popup's words.
             const text = (el.textContent ?? "").trim().slice(0, 30);
             for (const other of document.querySelectorAll(live))
               if (text !== "" && (other.textContent ?? "").includes(text))
-                return other.getAttribute("aria-live") ?? other.getAttribute("role");
+                return (
+                  other.getAttribute("aria-live") ?? other.getAttribute("role")
+                );
             return null;
           });
           expect(announcer, "a live region announces it").not.toBeNull();
         }
 
-        const { local, summary } = judgeConsole(consoleMessages, failedRequests, baseURL);
+        const { local, summary } = judgeConsole(
+          consoleMessages,
+          failedRequests,
+          baseURL,
+        );
         expect
           .soft(
             local.map((r) => `${r.url} ${r.error}`),
@@ -623,7 +784,9 @@ if (problem === undefined) {
 // runs the real island: VisitorCartButton, fed by VisitorFixture after hydration) is prerendered, and
 // its HTML, read as a crawler or `curl` reads it, has the cart's placeholder: an empty live region and
 // no badge. In a browser the fixtures' count arrives once the page has hydrated.
-const headerIds = entries.filter((entry) => entry.family === "header").map((entry) => entry.id);
+const headerIds = entries
+  .filter((entry) => entry.family === "header")
+  .map((entry) => entry.id);
 
 if (problem === undefined) {
   test("the headers are in the registry (D46)", () => {
@@ -633,16 +796,27 @@ if (problem === undefined) {
   for (const id of headerIds) {
     test(`the cart count · ${id}`, async ({ page }) => {
       const url = `${base}${previewPath("en", id)}`;
-      const html = await (await fetch(url, { signal: AbortSignal.timeout(30_000) })).text();
-      const buttons = [...html.matchAll(/<a[^>]*data-slot="cart-button"[^>]*>([\s\S]*?)<\/a>/g)];
+      const html = await (
+        await fetch(url, { signal: AbortSignal.timeout(30_000) })
+      ).text();
+      const buttons = [
+        ...html.matchAll(
+          /<a[^>]*data-slot="cart-button"[^>]*>([\s\S]*?)<\/a>/g,
+        ),
+      ];
       expect(buttons, "one cart button in the HTML").toHaveLength(1);
       const inner = buttons[0]?.[1] ?? "";
       // The live region sits beside the link, empty (PR 57 review: a page load announces nothing).
       expect(html, "the HTML has the count's empty live region").toMatch(
         /data-slot="cart-count"[^>]*><\/span>/,
       );
-      expect(inner, "the HTML has no badge").not.toContain('data-slot="cart-badge"');
-      expect(inner.replace(/<[^>]*>/g, ""), "the HTML names the cart alone").toBe("Cart");
+      expect(inner, "the HTML has no badge").not.toContain(
+        'data-slot="cart-badge"',
+      );
+      expect(
+        inner.replace(/<[^>]*>/g, ""),
+        "the HTML names the cart alone",
+      ).toBe("Cart");
 
       const count = commerceFixtures.en.header.cartCount;
       await page.goto(previewPath("en", id), { waitUntil: "load" });
@@ -651,9 +825,10 @@ if (problem === undefined) {
         button.locator('[data-slot="cart-badge"]'),
         "the count after hydration",
       ).toHaveText(String(count));
-      await expect(button, "the link's name after hydration").toHaveAccessibleName(
-        `Cart ${count} ${count === 1 ? "item" : "items"}`,
-      );
+      await expect(
+        button,
+        "the link's name after hydration",
+      ).toHaveAccessibleName(`Cart ${count} ${count === 1 ? "item" : "items"}`);
       await expect(
         page.locator('[data-slot="cart-count"]'),
         "the first count is not announced",
@@ -690,7 +865,9 @@ if (problem === undefined) {
           signal: AbortSignal.timeout(30_000),
         })
       ).text();
-      expect(html, "the HTML has no banner").not.toContain('data-slot="cookie-consent"');
+      expect(html, "the HTML has no banner").not.toContain(
+        'data-slot="cookie-consent"',
+      );
       expect(html, "the HTML has no accept button").not.toContain(
         'data-slot="cookie-consent-accept"',
       );
@@ -704,7 +881,10 @@ if (problem === undefined) {
       await expect(accept).toBeVisible();
       await expect(reject).toBeVisible();
       expect
-        .soft(await reject.evaluate(prominence), "reject all is drawn as accept all is")
+        .soft(
+          await reject.evaluate(prominence),
+          "reject all is drawn as accept all is",
+        )
         .toEqual(await accept.evaluate(prominence));
       await accept.click();
       await expect(banner, "accepting removes the banner").toBeHidden();
@@ -730,16 +910,24 @@ function scripts(dir: string): string[] {
 
 if (problem === undefined) {
   test("no client chunk holds a flag (D49)", () => {
-    const requireFromUi = createRequire(path.resolve(appDir, "../../packages/ui/package.json"));
-    const codes = [...new Set(commerceFixtures.en.markets.map((market) => market.flagCode))];
+    const requireFromUi = createRequire(
+      path.resolve(appDir, "../../packages/ui/package.json"),
+    );
+    const codes = [
+      ...new Set(commerceFixtures.en.markets.map((market) => market.flagCode)),
+    ];
     const needles = codes.flatMap((code) => {
       const svg = readFileSync(
         requireFromUi.resolve(`country-flag-icons/string/3x2/${code}`),
         "utf8",
       );
-      const paths = [...svg.matchAll(/ d="([^"]+)"/g)].map((match) => match[1] ?? "");
+      const paths = [...svg.matchAll(/ d="([^"]+)"/g)].map(
+        (match) => match[1] ?? "",
+      );
       const longest = paths.sort((a, b) => b.length - a.length)[0] ?? "";
-      return longest.length >= 50 ? [{ code, needle: longest.slice(0, 48) }] : [];
+      return longest.length >= 50
+        ? [{ code, needle: longest.slice(0, 48) }]
+        : [];
     });
     expect(
       needles.map((needle) => needle.code),
@@ -747,7 +935,10 @@ if (problem === undefined) {
     ).toEqual(expect.arrayContaining(["CY", "US"]));
 
     const chunks = scripts(path.join(appDir, ".next", "static"));
-    expect(chunks.length, "the build's client chunks (.next/static)").toBeGreaterThan(0);
+    expect(
+      chunks.length,
+      "the build's client chunks (.next/static)",
+    ).toBeGreaterThan(0);
     const found = chunks.flatMap((file) => {
       const source = readFileSync(file, "utf8");
       return needles

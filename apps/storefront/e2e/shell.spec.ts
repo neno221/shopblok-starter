@@ -1,6 +1,13 @@
-import { expect, test, type APIResponse } from "@playwright/test";
-import { publishGlobal, snapshotGlobal, type GlobalData } from "./support/globals";
+import AxeBuilder from "@axe-core/playwright";
+import { expect, test, type APIResponse, type Page } from "@playwright/test";
+import {
+  publishGlobal,
+  snapshotGlobal,
+  type GlobalData,
+} from "./support/globals";
 import { appEnv } from "./support/app-env";
+import { api, PNG, upload } from "./support/payload-rest";
+import { HANDLE } from "./support/purchase";
 import { adminToken, base, freshWithinTwo } from "./support/server";
 
 // T48 (D66): the shell around every market page, against `next start` with the seeded map and the
@@ -13,6 +20,12 @@ import { adminToken, base, freshWithinTwo } from "./support/server";
 // T61 (D78): the header is the `header` global's. A design published in the admin shows within two
 // requests, and the announcement is the market's language, not the visitor's: Greek on `/` (Cyprus)
 // while `/us` keeps English, whatever the browser asks for.
+//
+// T80 (D103): the transparent header, published in the global. Over a page whose `<main>` opens
+// with the `overlay` hero (a picture behind its words) it lies over the picture, its words light on
+// its scrim; on a page that opens with the `text` hero, the cart and a product page it is solid and
+// takes its row's height; scrolling makes it solid. All of it with scripts off too, at 375 and
+// 1440 px, since the page tells the header nothing and the stylesheet decides.
 
 /** The seed's three categories (`apps/backend/src/scripts/seed.ts`), flat: three links. */
 const SEED_CATEGORIES = 3;
@@ -28,13 +41,16 @@ const SWITCHER_HOMES = ["/", "/us", "/gb", "/de", "/fr", "/ch", "/ch/fr"];
 
 function locationOf(response: APIResponse): string {
   const location = response.headers()["location"];
-  if (location === undefined) throw new Error(`no Location header on ${response.status()}`);
+  if (location === undefined)
+    throw new Error(`no Location header on ${response.status()}`);
   const url = new URL(location, response.url());
   return url.pathname + url.search;
 }
 
 test.describe("the shell (D66)", () => {
-  test("the server's HTML holds no cart count and no suggestion banner", async ({ request }) => {
+  test("the server's HTML holds no cart count and no suggestion banner", async ({
+    request,
+  }) => {
     const html = await (
       await request.get("/us", { headers: { "x-vercel-ip-country": "DE" } })
     ).text();
@@ -43,15 +59,23 @@ test.describe("the shell (D66)", () => {
     expect(html).not.toContain('data-slot="market-suggestion-banner"');
   });
 
-  test("the header shows the cart's count once the browser knows it", async ({ page }) => {
-    const made = await page.request.post("/next/e2e/cart?market=en-us&quantity=2");
-    expect(made.status(), "the cart hook is open (E2E_TEST_ROUTES=true)").toBe(200);
+  test("the header shows the cart's count once the browser knows it", async ({
+    page,
+  }) => {
+    const made = await page.request.post(
+      "/next/e2e/cart?market=en-us&quantity=2",
+    );
+    expect(made.status(), "the cart hook is open (E2E_TEST_ROUTES=true)").toBe(
+      200,
+    );
     expect(await made.json()).toEqual({ count: 2 });
     await page.goto("/us");
     const badge = page.locator('header [data-slot="cart-badge"]');
     await expect(badge).toHaveText("2");
     // The live region speaks changes only; the link's name carries the count.
-    await expect(page.getByRole("link", { name: "Cart 2 items" })).toHaveCount(1);
+    await expect(page.getByRole("link", { name: "Cart 2 items" })).toHaveCount(
+      1,
+    );
   });
 
   test("the navigation is Medusa's category tree", async ({ page }) => {
@@ -83,43 +107,61 @@ test.describe("the shell (D66)", () => {
   }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/ch/fr?utm=1");
-    await page.locator('header [data-slot="market-switcher-trigger"]').first().click();
+    await page
+      .locator('header [data-slot="market-switcher-trigger"]')
+      .first()
+      .click();
     const links = page.locator('[data-slot="market-switcher-link"]');
     await expect(links).toHaveCount(SWITCHER_HOMES.length);
-    const hrefs = await links.evaluateAll((all) => all.map((link) => link.getAttribute("href")));
+    const hrefs = await links.evaluateAll((all) =>
+      all.map((link) => link.getAttribute("href")),
+    );
     expect(hrefs).toEqual(SWITCHER_HOMES);
-    await page.locator('[data-slot="market-switcher-link"][href="/us"]').click();
+    await page
+      .locator('[data-slot="market-switcher-link"][href="/us"]')
+      .click();
     await page.waitForURL("**/us?utm=1");
-    const cookie = (await context.cookies()).find((each) => each.name === "_shopblok_market");
+    const cookie = (await context.cookies()).find(
+      (each) => each.name === "_shopblok_market",
+    );
     expect(cookie?.value).toBe("en-us");
 
     // `/` alone now redirects to that market; every other URL stays where it is.
     const root = await page.request.get("/", { maxRedirects: 0 });
     expect(root.status()).toBe(307);
     expect(locationOf(root)).toBe("/us");
-    expect((await page.request.get("/de", { maxRedirects: 0 })).status()).toBe(200);
+    expect((await page.request.get("/de", { maxRedirects: 0 })).status()).toBe(
+      200,
+    );
   });
 
   test("the banner suggests the visitor's market, and staying records the current one", async ({
     browser,
   }) => {
-    const context = await browser.newContext({ extraHTTPHeaders: { "x-vercel-ip-country": "US" } });
+    const context = await browser.newContext({
+      extraHTTPHeaders: { "x-vercel-ip-country": "US" },
+    });
     const page = await context.newPage();
     await page.goto("/");
     const banner = page.locator('[data-slot="market-suggestion-banner"]');
     await expect(banner).toBeVisible();
-    await expect(banner.locator('[data-slot="market-suggestion-go"]')).toHaveAttribute(
-      "href",
-      "/us",
-    );
+    await expect(
+      banner.locator('[data-slot="market-suggestion-go"]'),
+    ).toHaveAttribute("href", "/us");
     await banner.locator('[data-slot="market-suggestion-stay"]').click();
     await expect(banner).toBeHidden();
     await expect
-      .poll(async () => (await context.cookies()).find((c) => c.name === "_shopblok_market")?.value)
+      .poll(
+        async () =>
+          (await context.cookies()).find((c) => c.name === "_shopblok_market")
+            ?.value,
+      )
       .toBe("el-cy");
     await page.reload();
     await expect(page.locator("header")).toBeVisible();
-    await expect(page.locator('[data-slot="market-suggestion-banner"]')).toHaveCount(0);
+    await expect(
+      page.locator('[data-slot="market-suggestion-banner"]'),
+    ).toHaveCount(0);
     await context.close();
   });
 
@@ -143,7 +185,8 @@ const showsWithinTwo = (
   headers: Record<string, string> = {},
 ) => freshWithinTwo(async () => matches(await html(path, headers)), 1500);
 
-const headerVariant = (html: string) => /<header[^>]*data-variant="([\w-]+)"/.exec(html)?.[1];
+const headerVariant = (html: string) =>
+  /<header[^>]*data-variant="([\w-]+)"/.exec(html)?.[1];
 const announcement = (html: string) =>
   /data-slot="announcement-bar-text"[^>]*>([^<]*)</.exec(html)?.[1];
 
@@ -177,10 +220,15 @@ test.describe("the header global (T61)", () => {
     if (published !== undefined) {
       await publishGlobal(token, "header", published, "all");
       // Settle: the next spec reads the old header from its first request.
-      await showsWithinTwo("/us", (html) => headerVariant(html) === published?.["design"]);
+      await showsWithinTwo(
+        "/us",
+        (html) => headerVariant(html) === published?.["design"],
+      );
     }
     if (productId !== undefined)
-      await integrationApi("DELETE", `/products/${productId}`).catch(() => undefined);
+      await integrationApi("DELETE", `/products/${productId}`).catch(
+        () => undefined,
+      );
   });
 
   test("a design published in the admin shows within two requests", async () => {
@@ -195,8 +243,18 @@ test.describe("the header global (T61)", () => {
   test("the announcement is the market's language: Greek on /, English on /us", async () => {
     const greek = `Ανακοίνωση ${stamp}`;
     const english = `Notice ${stamp}`;
-    await publishGlobal(token, "header", { announcement: { message: english } }, "en");
-    await publishGlobal(token, "header", { announcement: { message: greek } }, "el");
+    await publishGlobal(
+      token,
+      "header",
+      { announcement: { message: english } },
+      "en",
+    );
+    await publishGlobal(
+      token,
+      "header",
+      { announcement: { message: greek } },
+      "el",
+    );
     expect(
       await showsWithinTwo("/", (html) => announcement(html) === greek),
       "the Greek announcement on / within two requests",
@@ -206,7 +264,9 @@ test.describe("the header global (T61)", () => {
       "the English announcement on /us within two requests",
     ).toBeGreaterThan(0);
     // A Greek browser on /us still reads the market's language.
-    expect(announcement(await html("/us", { "accept-language": "el" }))).toBe(english);
+    expect(announcement(await html("/us", { "accept-language": "el" }))).toBe(
+      english,
+    );
   });
 
   test("a menu link follows its product: renamed, deleted in Medusa, and the header still publishes", async () => {
@@ -227,20 +287,27 @@ test.describe("the header global (T61)", () => {
         source: "manual",
         items: [
           { kind: "link", link: { ...reference, label: "Shirt" } },
-          { kind: "link", link: { type: "custom", url: "/store", label: "All" } },
+          {
+            kind: "link",
+            link: { type: "custom", url: "/store", label: "All" },
+          },
         ],
       },
     });
     const linksTo = (handle: string) => (page: string) =>
       page.includes(`href="/us/products/${handle}"`);
-    expect(await showsWithinTwo("/us", linksTo(`e2e-shirt-${stamp}`))).toBeGreaterThan(0);
+    expect(
+      await showsWithinTwo("/us", linksTo(`e2e-shirt-${stamp}`)),
+    ).toBeGreaterThan(0);
 
     // Renamed in Medusa: the cached header follows within two requests (PR 94 review, item 2).
     const renamed = await integrationApi("PATCH", `/products/${productId}`, {
       handle: `e2e-tee-${stamp}`,
     });
     expect(renamed.status, await renamed.clone().text()).toBe(200);
-    expect(await showsWithinTwo("/us", linksTo(`e2e-tee-${stamp}`))).toBeGreaterThan(0);
+    expect(
+      await showsWithinTwo("/us", linksTo(`e2e-tee-${stamp}`)),
+    ).toBeGreaterThan(0);
 
     // Deleted in Medusa: the link is left out, the rest of the menu stays.
     const deleted = await integrationApi("PATCH", `/products/${productId}`, {
@@ -250,11 +317,184 @@ test.describe("the header global (T61)", () => {
     expect(
       await showsWithinTwo(
         "/us",
-        (page) => !linksTo(`e2e-tee-${stamp}`)(page) && page.includes('href="/us/store"'),
+        (page) =>
+          !linksTo(`e2e-tee-${stamp}`)(page) &&
+          page.includes('href="/us/store"'),
       ),
     ).toBeGreaterThan(0);
 
     // The header still holds that link, and an unrelated change still publishes (item 1).
     await publishGlobal(token, "header", { sticky: false });
+  });
+});
+
+test.describe("the transparent header (D103, T80)", () => {
+  test.describe.configure({ mode: "serial" });
+  const stamp = Date.now().toString(36);
+  const slugs = { overlay: `e2e-overlay-${stamp}`, text: `e2e-text-${stamp}` };
+  let token = "";
+  let published: GlobalData | undefined;
+  const pageIds: number[] = [];
+  const axeTags = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"];
+  /** Where it is solid: a page that opens with the text hero, the cart, a product page. */
+  const solidPaths = () => [
+    `/us/${slugs.text}`,
+    "/us/cart",
+    `/us/products/${HANDLE}`,
+  ];
+  const paths = () => [`/us/${slugs.overlay}`, ...solidPaths()];
+
+  /** A published page whose layout is one hero of `variant`, with a picture. */
+  async function heroPage(slug: string, variant: string, media: number) {
+    const { doc } = await api<{ doc: { id: number } }>(
+      token,
+      "POST",
+      "/api/pages?locale=en",
+      {
+        title: `Hero ${variant} ${stamp}`,
+        slug,
+        _status: "published",
+        layout: [
+          {
+            blockType: "hero",
+            variant,
+            heading: `The ${variant} hero ${stamp}`,
+            subheading: "Warm layers for cooler days.",
+            media,
+            links: [
+              { link: { type: "custom", url: "/store", label: "Shop now" } },
+            ],
+          },
+        ],
+      },
+    );
+    pageIds.push(doc.id);
+  }
+
+  test.beforeAll(async () => {
+    token = await adminToken();
+    published = await snapshotGlobal(token, "header");
+    const picture = await upload(
+      token,
+      `hero-${stamp}.png`,
+      "image/png",
+      PNG,
+      "A white wall",
+    );
+    await heroPage(slugs.overlay, "overlay", picture.id);
+    await heroPage(slugs.text, "text", picture.id);
+    await publishGlobal(token, "header", {
+      design: "transparent",
+      sticky: true,
+    });
+    // Each page is its own cache entry: every one the tests visit shows the new header first.
+    for (const path of paths())
+      expect(
+        await showsWithinTwo(
+          path,
+          (page) => headerVariant(page) === "transparent",
+        ),
+        `${path}: the transparent header within two requests`,
+      ).toBeGreaterThan(0);
+  });
+
+  test.afterAll(async () => {
+    // Not a test: the header as it was, in every language, settled on every page the tests saw;
+    // then the test's pages.
+    if (published !== undefined) {
+      await publishGlobal(token, "header", published, "all");
+      for (const path of ["/us", ...paths()])
+        await showsWithinTwo(
+          path,
+          (page) => headerVariant(page) === published?.["design"],
+        );
+    }
+    for (const id of pageIds)
+      await api(token, "DELETE", `/api/pages/${id}`).catch(() => undefined);
+  });
+
+  /** What the header looks like on the page now: its height, its row's fill and the scrim. */
+  const look = (page: Page) =>
+    page.evaluate(() => {
+      const header = document.querySelector<HTMLElement>(
+        'header[data-variant="transparent"]',
+      );
+      const surface = header?.querySelector<HTMLElement>(
+        '[data-slot="header-surface"]',
+      );
+      const scrim = header?.querySelector<HTMLElement>(
+        '[data-slot="header-scrim"]',
+      );
+      const main = document.querySelector("main");
+      if (!header || !surface || !scrim || !main) return null;
+      const fill = getComputedStyle(surface).backgroundColor;
+      return {
+        solid: header.dataset["solid"],
+        height: header.getBoundingClientRect().height,
+        filled: fill !== "rgba(0, 0, 0, 0)" && fill !== "transparent",
+        scrim: getComputedStyle(scrim).display !== "none",
+        // The page's top edge against the row's bottom: under the row, or below it.
+        underRow:
+          main.getBoundingClientRect().top <
+          surface.getBoundingClientRect().bottom - 1,
+      };
+    });
+
+  const transparent = { height: 0, filled: false, scrim: true, underRow: true };
+  const solid = { filled: true, scrim: false, underRow: false };
+
+  for (const scripts of [true, false])
+    for (const width of [375, 1440])
+      test(`over the overlay hero, solid elsewhere · ${width} px · scripts ${scripts ? "on" : "off"}`, async ({
+        browser,
+      }) => {
+        const context = await browser.newContext({
+          baseURL: base(),
+          javaScriptEnabled: scripts,
+          viewport: { width, height: 900 },
+        });
+        const page = await context.newPage();
+        await page.goto(`/us/${slugs.overlay}`);
+        expect(await look(page), "over the overlay hero").toMatchObject(
+          transparent,
+        );
+        // Its words are readable on its scrim, and the hero's on theirs (axe runs as a script, so
+        // only with scripts on; the look is the same either way).
+        if (scripts) {
+          const axe = await new AxeBuilder({ page })
+            .withTags(axeTags)
+            .include("header")
+            .include('[data-slot="hero-section"]')
+            .analyze();
+          expect(axe.violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
+        }
+        for (const path of solidPaths()) {
+          await page.goto(path);
+          const seen = await look(page);
+          expect(seen, path).toMatchObject(solid);
+          expect(
+            seen?.height,
+            `${path}: the header takes its row's height`,
+          ).toBeGreaterThan(40);
+        }
+        await context.close();
+      });
+
+  test("turns solid once the page scrolls, and transparent again at the top", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(`/us/${slugs.overlay}`);
+    await expect
+      .poll(() => look(page))
+      .toMatchObject({ ...transparent, solid: "auto" });
+    await page.mouse.wheel(0, 600);
+    await expect
+      .poll(() => look(page))
+      .toMatchObject({ solid: "true", filled: true, scrim: false });
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await expect
+      .poll(() => look(page))
+      .toMatchObject({ ...transparent, solid: "auto" });
   });
 });
