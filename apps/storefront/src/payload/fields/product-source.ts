@@ -73,6 +73,11 @@ export type ProductSourceOptions = {
   max?: number;
   /** How many it shows unless the editor says. */
   defaultLimit?: number;
+  /**
+   * Whether the editor picks what happens when nothing is found (`emptyBehavior`). The mini cart's
+   * picks (T85) have none to pick: no product found is no picks.
+   */
+  empty?: boolean;
 };
 
 /**
@@ -84,6 +89,7 @@ export function productSource({
   optional = false,
   max = 24,
   defaultLimit = Math.min(8, max),
+  empty = true,
 }: ProductSourceOptions = {}): GroupField {
   const modes = optional ? (["none", ...PRODUCT_SOURCE_MODES] as const) : PRODUCT_SOURCE_MODES;
   const off = optional ? ["none"] : [];
@@ -169,7 +175,7 @@ export function productSource({
       admin: { condition: unless("handpicked", "newest", ...off) },
     },
     // The hero stands without its products, so an optional source has no empty behaviour to pick.
-    ...(optional
+    ...(optional || !empty
       ? []
       : [
           {

@@ -557,6 +557,10 @@ export const fr: Messages = {
       emptyTitle: "Votre panier est vide",
       emptyText: "Ajoutez ce qui vous plaît : vos articles vous attendront ici.",
       continue: "Continuer mes achats",
+      picksTitle: "Vous aimerez aussi",
+      pickAdd: "Ajouter",
+      pickAddLabel: "Ajouter {product} au panier",
+      pickChoice: "Options de {product}",
     },
     quickCartDropdown: {
       open: "Panier",
@@ -814,6 +818,7 @@ export const fr: Messages = {
       note: "La livraison et les taxes sont calculées au paiement.",
       checkout: "Passer la commande",
       continue: "Continuer mes achats",
+      table: { product: "Produit", price: "Prix", quantity: "Quantité", total: "Total" },
       empty: {
         title: "Votre panier est vide",
         text: "Ajoutez ce qui vous plaît : vos articles vous attendront ici.",

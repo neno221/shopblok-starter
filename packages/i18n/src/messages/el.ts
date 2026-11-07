@@ -561,6 +561,10 @@ export const el: Messages = {
       emptyTitle: "Το καλάθι σας είναι άδειο",
       emptyText: "Προσθέστε ό,τι σας αρέσει και θα σας περιμένει εδώ.",
       continue: "Συνέχεια αγορών",
+      picksTitle: "Μπορεί επίσης να σας αρέσουν",
+      pickAdd: "Προσθήκη",
+      pickAddLabel: "Προσθήκη του {product} στο καλάθι",
+      pickChoice: "Επιλογές για {product}",
     },
     quickCartDropdown: {
       open: "Καλάθι",
@@ -818,6 +822,7 @@ export const el: Messages = {
       note: "Τα μεταφορικά και οι φόροι υπολογίζονται στην ολοκλήρωση αγοράς.",
       checkout: "Ολοκλήρωση αγοράς",
       continue: "Συνέχεια αγορών",
+      table: { product: "Προϊόν", price: "Τιμή", quantity: "Ποσότητα", total: "Σύνολο" },
       empty: {
         title: "Το καλάθι σας είναι άδειο",
         text: "Προσθέστε ό,τι σας αρέσει και θα σας περιμένει εδώ.",

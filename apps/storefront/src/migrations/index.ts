@@ -18,7 +18,8 @@ import * as migration_20261106_122518_add_persian from './20261106_122518_add_pe
 import * as migration_20261107_102559_templates_global from './20261107_102559_templates_global';
 import * as migration_20261107_113348_listing_variants from './20261107_113348_listing_variants';
 import * as migration_20261107_130650_hero_variants from './20261107_130650_hero_variants';
-import * as migration_20261107_140521_content_variants from './20261107_140521_content_variants';
+import * as migration_20261107_135645_cart_variants from './20261107_135645_cart_variants';
+import * as migration_20261107_152528_content_variants from './20261107_152528_content_variants';
 
 export const migrations = [
   {
@@ -122,8 +123,13 @@ export const migrations = [
     name: '20261107_130650_hero_variants',
   },
   {
-    up: migration_20261107_140521_content_variants.up,
-    down: migration_20261107_140521_content_variants.down,
-    name: '20261107_140521_content_variants'
+    up: migration_20261107_135645_cart_variants.up,
+    down: migration_20261107_135645_cart_variants.down,
+    name: '20261107_135645_cart_variants',
+  },
+  {
+    up: migration_20261107_152528_content_variants.up,
+    down: migration_20261107_152528_content_variants.down,
+    name: '20261107_152528_content_variants'
   },
 ];

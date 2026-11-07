@@ -44,6 +44,7 @@ import type {
   AccountNav,
   AddressBook,
   CartDrawer,
+  CartPick,
   CheckoutSteps,
   OrderSummary,
   OrderTable,
@@ -202,6 +203,8 @@ export type CommerceFixture = {
    */
   cartCheckout: {
     drawer: { full: CartDrawer; empty: CartDrawer };
+    /** The `drawer-picks` mini cart's products (T85): four the cart does not hold. */
+    picks: CartPick[];
     quickCart: QuickCart;
     summary: { cart: OrderSummary; order: OrderSummary };
     checkout: { contact: CheckoutSteps; delivery: CheckoutSteps; review: CheckoutSteps };

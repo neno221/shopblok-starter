@@ -12,7 +12,13 @@ const findGlobal = vi.fn();
 vi.mock("./payload", () => ({ getPayloadClient: async () => ({ findGlobal }) }));
 
 import type { Template } from "../../payload-types";
-import { readTemplates, TEMPLATE_DEFAULTS, templatesFrom } from "./templates";
+import {
+  miniCartFrom,
+  readCartTemplate,
+  readTemplates,
+  TEMPLATE_DEFAULTS,
+  templatesFrom,
+} from "./templates";
 
 // D101 (T79): the `templates` global, read in the market's language and passed on by the pages.
 
@@ -94,5 +100,47 @@ describe("readTemplates", () => {
     vi.stubEnv("PAYLOAD_DATABASE_URL", "");
     expect(await readTemplates({ market: { language: "en" }, draft: false })).toBeNull();
     expect(findGlobal).not.toHaveBeenCalled();
+  });
+});
+
+// T85: what the header's mini cart draws, read on the server by the drawer's action.
+describe("miniCartFrom (T85)", () => {
+  it("is the drawer and no picks' source until the global is saved", () => {
+    expect(miniCartFrom(null)).toEqual({ member: "drawer", picks: null });
+    expect(miniCartFrom({ updatedAt: "" } as Template)).toEqual({ member: "drawer", picks: null });
+  });
+
+  it("takes the saved member and source; the cart page is no member", () => {
+    const picks = { mode: "handpicked" as const, products: [] };
+    expect(
+      miniCartFrom(saved({ cart: { variant: "default", miniCart: "drawer-picks", quickCart: "dropdown", picks } })),
+    ).toEqual({ member: "drawer-picks", picks });
+    expect(miniCartFrom(saved({ cart: { miniCart: "page" } as Template["cart"] }))).toEqual({
+      member: null,
+      picks: null,
+    });
+    expect(miniCartFrom(saved({ cart: {} as Template["cart"] })).member).toBe("drawer");
+  });
+});
+
+describe("readCartTemplate (T85)", () => {
+  it("reads the published cart tab at depth 1, only what the picks need of a reference", async () => {
+    findGlobal.mockResolvedValue(saved({}));
+    await readCartTemplate({ market: { language: "de" }, draft: false });
+    expect(findGlobal.mock.calls[0]?.[0]).toMatchObject({
+      slug: "templates",
+      locale: "de",
+      user: null,
+      draft: false,
+      depth: 1,
+      select: { cart: true, updatedAt: true },
+      populate: {
+        products: { medusaId: true, deletedInMedusa: true },
+        collections: { medusaId: true, deletedInMedusa: true },
+        categories: { medusaId: true, deletedInMedusa: true },
+      },
+    });
+    // The global's tag, which a publish and a change to a referenced catalog document refresh.
+    expect(cacheTag.mock.calls).toEqual([["global:templates:de"]]);
   });
 });

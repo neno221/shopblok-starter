@@ -3025,8 +3025,31 @@ export interface Template {
     variant?: ("off" | "default") | null;
   };
   cart: {
-    variant: "default";
-    miniCart: "drawer" | "page";
+    variant: "default" | "table" | "sticky-summary" | "focused";
+    miniCart: "drawer" | "drawer-picks" | "page";
+    /**
+     * Up to four products under the lines of the drawer with picks. A product the cart already holds is left out.
+     */
+    picks?: {
+      mode: "collection" | "category" | "handpicked" | "newest" | "onSale" | "tag" | "type";
+      collection?: (number | null) | ProductCollection;
+      category?: (number | null) | Category;
+      descendants?: boolean | null;
+      /**
+       * Shown in this order.
+       */
+      products?: (number | Product)[] | null;
+      /**
+       * The tag's value, as Medusa Admin shows it (summer).
+       */
+      tag?: string | null;
+      /**
+       * The product type's value, as Medusa Admin shows it (Hoodie).
+       */
+      type?: string | null;
+      limit?: number | null;
+      sort?: ("newest" | "priceAsc" | "priceDesc" | "title") | null;
+    };
     quickCart: "dropdown" | "off";
   };
   checkout: {
@@ -3263,6 +3286,19 @@ export interface TemplatesSelect<T extends boolean = true> {
     | {
         variant?: T;
         miniCart?: T;
+        picks?:
+          | T
+          | {
+              mode?: T;
+              collection?: T;
+              category?: T;
+              descendants?: T;
+              products?: T;
+              tag?: T;
+              type?: T;
+              limit?: T;
+              sort?: T;
+            };
         quickCart?: T;
       };
   checkout?:

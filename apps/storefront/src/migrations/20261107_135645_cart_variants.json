@@ -6961,12 +6961,6 @@
           "notNull": false,
           "default": "'standard'"
         },
-        "pick_id": {
-          "name": "pick_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
         "show_options": {
           "name": "show_options",
           "type": "boolean",
@@ -7064,37 +7058,9 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
-        },
-        "pages_blocks_comparison_pick_idx": {
-          "name": "pages_blocks_comparison_pick_idx",
-          "columns": [
-            {
-              "expression": "pick_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
         }
       },
       "foreignKeys": {
-        "pages_blocks_comparison_pick_id_products_id_fk": {
-          "name": "pages_blocks_comparison_pick_id_products_id_fk",
-          "tableFrom": "pages_blocks_comparison",
-          "tableTo": "products",
-          "columnsFrom": [
-            "pick_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
         "pages_blocks_comparison_parent_id_fk": {
           "name": "pages_blocks_comparison_parent_id_fk",
           "tableFrom": "pages_blocks_comparison",
@@ -7805,12 +7771,6 @@
           "notNull": false,
           "default": "'standard'"
         },
-        "media_id": {
-          "name": "media_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
         "form_id": {
           "name": "form_id",
           "type": "integer",
@@ -7928,21 +7888,6 @@
           "method": "btree",
           "with": {}
         },
-        "pages_blocks_newsletter_media_idx": {
-          "name": "pages_blocks_newsletter_media_idx",
-          "columns": [
-            {
-              "expression": "media_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
         "pages_blocks_newsletter_form_idx": {
           "name": "pages_blocks_newsletter_form_idx",
           "columns": [
@@ -7960,19 +7905,6 @@
         }
       },
       "foreignKeys": {
-        "pages_blocks_newsletter_media_id_media_id_fk": {
-          "name": "pages_blocks_newsletter_media_id_media_id_fk",
-          "tableFrom": "pages_blocks_newsletter",
-          "tableTo": "media",
-          "columnsFrom": [
-            "media_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
         "pages_blocks_newsletter_form_id_forms_id_fk": {
           "name": "pages_blocks_newsletter_form_id_forms_id_fk",
           "tableFrom": "pages_blocks_newsletter",
@@ -15675,12 +15607,6 @@
           "notNull": false,
           "default": "'standard'"
         },
-        "pick_id": {
-          "name": "pick_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
         "show_options": {
           "name": "show_options",
           "type": "boolean",
@@ -15784,37 +15710,9 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
-        },
-        "_pages_v_blocks_comparison_pick_idx": {
-          "name": "_pages_v_blocks_comparison_pick_idx",
-          "columns": [
-            {
-              "expression": "pick_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
         }
       },
       "foreignKeys": {
-        "_pages_v_blocks_comparison_pick_id_products_id_fk": {
-          "name": "_pages_v_blocks_comparison_pick_id_products_id_fk",
-          "tableFrom": "_pages_v_blocks_comparison",
-          "tableTo": "products",
-          "columnsFrom": [
-            "pick_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
         "_pages_v_blocks_comparison_parent_id_fk": {
           "name": "_pages_v_blocks_comparison_parent_id_fk",
           "tableFrom": "_pages_v_blocks_comparison",
@@ -16537,12 +16435,6 @@
           "notNull": false,
           "default": "'standard'"
         },
-        "media_id": {
-          "name": "media_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
         "form_id": {
           "name": "form_id",
           "type": "integer",
@@ -16666,21 +16558,6 @@
           "method": "btree",
           "with": {}
         },
-        "_pages_v_blocks_newsletter_media_idx": {
-          "name": "_pages_v_blocks_newsletter_media_idx",
-          "columns": [
-            {
-              "expression": "media_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
         "_pages_v_blocks_newsletter_form_idx": {
           "name": "_pages_v_blocks_newsletter_form_idx",
           "columns": [
@@ -16698,19 +16575,6 @@
         }
       },
       "foreignKeys": {
-        "_pages_v_blocks_newsletter_media_id_media_id_fk": {
-          "name": "_pages_v_blocks_newsletter_media_id_media_id_fk",
-          "tableFrom": "_pages_v_blocks_newsletter",
-          "tableTo": "media",
-          "columnsFrom": [
-            "media_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
         "_pages_v_blocks_newsletter_form_id_forms_id_fk": {
           "name": "_pages_v_blocks_newsletter_form_id_forms_id_fk",
           "tableFrom": "_pages_v_blocks_newsletter",
@@ -30625,6 +30489,60 @@
           "notNull": false,
           "default": "'drawer'"
         },
+        "cart_picks_mode": {
+          "name": "cart_picks_mode",
+          "type": "enum_templates_cart_picks_ps_mode",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'newest'"
+        },
+        "cart_picks_collection_id": {
+          "name": "cart_picks_collection_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cart_picks_category_id": {
+          "name": "cart_picks_category_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cart_picks_descendants": {
+          "name": "cart_picks_descendants",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": true
+        },
+        "cart_picks_tag": {
+          "name": "cart_picks_tag",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cart_picks_type": {
+          "name": "cart_picks_type",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cart_picks_limit": {
+          "name": "cart_picks_limit",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false,
+          "default": 4
+        },
+        "cart_picks_sort": {
+          "name": "cart_picks_sort",
+          "type": "enum_templates_cart_picks_ps_sort",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'newest'"
+        },
         "cart_quick_cart": {
           "name": "cart_quick_cart",
           "type": "enum_templates_cart_quick_cart",
@@ -30671,6 +30589,36 @@
         }
       },
       "indexes": {
+        "templates_cart_picks_cart_picks_collection_idx": {
+          "name": "templates_cart_picks_cart_picks_collection_idx",
+          "columns": [
+            {
+              "expression": "cart_picks_collection_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "templates_cart_picks_cart_picks_category_idx": {
+          "name": "templates_cart_picks_cart_picks_category_idx",
+          "columns": [
+            {
+              "expression": "cart_picks_category_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
         "templates__status_idx": {
           "name": "templates__status_idx",
           "columns": [
@@ -30687,7 +30635,165 @@
           "with": {}
         }
       },
-      "foreignKeys": {},
+      "foreignKeys": {
+        "templates_cart_picks_collection_id_collections_id_fk": {
+          "name": "templates_cart_picks_collection_id_collections_id_fk",
+          "tableFrom": "templates",
+          "tableTo": "collections",
+          "columnsFrom": [
+            "cart_picks_collection_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "templates_cart_picks_category_id_categories_id_fk": {
+          "name": "templates_cart_picks_category_id_categories_id_fk",
+          "tableFrom": "templates",
+          "tableTo": "categories",
+          "columnsFrom": [
+            "cart_picks_category_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.templates_rels": {
+      "name": "templates_rels",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "order": {
+          "name": "order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "parent_id": {
+          "name": "parent_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "path": {
+          "name": "path",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "products_id": {
+          "name": "products_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "templates_rels_order_idx": {
+          "name": "templates_rels_order_idx",
+          "columns": [
+            {
+              "expression": "order",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "templates_rels_parent_idx": {
+          "name": "templates_rels_parent_idx",
+          "columns": [
+            {
+              "expression": "parent_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "templates_rels_path_idx": {
+          "name": "templates_rels_path_idx",
+          "columns": [
+            {
+              "expression": "path",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "templates_rels_products_id_idx": {
+          "name": "templates_rels_products_id_idx",
+          "columns": [
+            {
+              "expression": "products_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "templates_rels_parent_fk": {
+          "name": "templates_rels_parent_fk",
+          "tableFrom": "templates_rels",
+          "tableTo": "templates",
+          "columnsFrom": [
+            "parent_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "templates_rels_products_fk": {
+          "name": "templates_rels_products_fk",
+          "tableFrom": "templates_rels",
+          "tableTo": "products",
+          "columnsFrom": [
+            "products_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
@@ -30751,6 +30857,60 @@
           "primaryKey": false,
           "notNull": false,
           "default": "'drawer'"
+        },
+        "version_cart_picks_mode": {
+          "name": "version_cart_picks_mode",
+          "type": "enum__templates_v_version_cart_picks_ps_mode",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'newest'"
+        },
+        "version_cart_picks_collection_id": {
+          "name": "version_cart_picks_collection_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_cart_picks_category_id": {
+          "name": "version_cart_picks_category_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_cart_picks_descendants": {
+          "name": "version_cart_picks_descendants",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": true
+        },
+        "version_cart_picks_tag": {
+          "name": "version_cart_picks_tag",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_cart_picks_type": {
+          "name": "version_cart_picks_type",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_cart_picks_limit": {
+          "name": "version_cart_picks_limit",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false,
+          "default": 4
+        },
+        "version_cart_picks_sort": {
+          "name": "version_cart_picks_sort",
+          "type": "enum__templates_v_version_cart_picks_ps_sort",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'newest'"
         },
         "version_cart_quick_cart": {
           "name": "version_cart_quick_cart",
@@ -30837,6 +30997,36 @@
         }
       },
       "indexes": {
+        "_templates_v_version_cart_picks_version_cart_picks_colle_idx": {
+          "name": "_templates_v_version_cart_picks_version_cart_picks_colle_idx",
+          "columns": [
+            {
+              "expression": "version_cart_picks_collection_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "_templates_v_version_cart_picks_version_cart_picks_categ_idx": {
+          "name": "_templates_v_version_cart_picks_version_cart_picks_categ_idx",
+          "columns": [
+            {
+              "expression": "version_cart_picks_category_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
         "_templates_v_version_version__status_idx": {
           "name": "_templates_v_version_version__status_idx",
           "columns": [
@@ -30943,7 +31133,165 @@
           "with": {}
         }
       },
-      "foreignKeys": {},
+      "foreignKeys": {
+        "_templates_v_version_cart_picks_collection_id_collections_id_fk": {
+          "name": "_templates_v_version_cart_picks_collection_id_collections_id_fk",
+          "tableFrom": "_templates_v",
+          "tableTo": "collections",
+          "columnsFrom": [
+            "version_cart_picks_collection_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "_templates_v_version_cart_picks_category_id_categories_id_fk": {
+          "name": "_templates_v_version_cart_picks_category_id_categories_id_fk",
+          "tableFrom": "_templates_v",
+          "tableTo": "categories",
+          "columnsFrom": [
+            "version_cart_picks_category_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public._templates_v_rels": {
+      "name": "_templates_v_rels",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "order": {
+          "name": "order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "parent_id": {
+          "name": "parent_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "path": {
+          "name": "path",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "products_id": {
+          "name": "products_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "_templates_v_rels_order_idx": {
+          "name": "_templates_v_rels_order_idx",
+          "columns": [
+            {
+              "expression": "order",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "_templates_v_rels_parent_idx": {
+          "name": "_templates_v_rels_parent_idx",
+          "columns": [
+            {
+              "expression": "parent_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "_templates_v_rels_path_idx": {
+          "name": "_templates_v_rels_path_idx",
+          "columns": [
+            {
+              "expression": "path",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "_templates_v_rels_products_id_idx": {
+          "name": "_templates_v_rels_products_id_idx",
+          "columns": [
+            {
+              "expression": "products_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "_templates_v_rels_parent_fk": {
+          "name": "_templates_v_rels_parent_fk",
+          "tableFrom": "_templates_v_rels",
+          "tableTo": "_templates_v",
+          "columnsFrom": [
+            "parent_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "_templates_v_rels_products_fk": {
+          "name": "_templates_v_rels_products_fk",
+          "tableFrom": "_templates_v_rels",
+          "tableTo": "products",
+          "columnsFrom": [
+            "products_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
@@ -31082,9 +31430,7 @@
       "name": "enum_pages_blocks_media_with_text_variant",
       "schema": "public",
       "values": [
-        "standard",
-        "overlap",
-        "full-bleed"
+        "standard"
       ]
     },
     "public.enum_pages_blocks_media_with_text_image_side": {
@@ -31151,8 +31497,7 @@
       "name": "enum_pages_blocks_usp_bar_variant",
       "schema": "public",
       "values": [
-        "standard",
-        "strip"
+        "standard"
       ]
     },
     "public.enum_pages_blocks_usp_bar_ss_spacing": {
@@ -31197,8 +31542,7 @@
       "name": "enum_pages_blocks_logo_cloud_variant",
       "schema": "public",
       "values": [
-        "standard",
-        "grid"
+        "standard"
       ]
     },
     "public.enum_pages_blocks_logo_cloud_ss_spacing": {
@@ -31243,8 +31587,7 @@
       "name": "enum_pages_blocks_faq_variant",
       "schema": "public",
       "values": [
-        "standard",
-        "side-heading"
+        "standard"
       ]
     },
     "public.enum_pages_blocks_faq_ss_spacing": {
@@ -31289,10 +31632,7 @@
       "name": "enum_pages_blocks_testimonials_variant",
       "schema": "public",
       "values": [
-        "standard",
-        "single",
-        "carousel",
-        "wall"
+        "standard"
       ]
     },
     "public.enum_pages_blocks_testimonials_ss_spacing": {
@@ -31864,12 +32204,7 @@
       "name": "enum_pages_blocks_promo_banner_variant",
       "schema": "public",
       "values": [
-        "standard",
-        "strip",
-        "ticket",
-        "full-bleed",
-        "countdown",
-        "popup"
+        "standard"
       ]
     },
     "public.enum_pages_blocks_promo_banner_ss_spacing": {
@@ -31914,9 +32249,7 @@
       "name": "enum_pages_blocks_comparison_variant",
       "schema": "public",
       "values": [
-        "standard",
-        "cards",
-        "highlight"
+        "standard"
       ]
     },
     "public.enum_pages_blocks_comparison_ss_spacing": {
@@ -32061,8 +32394,7 @@
       "name": "enum_pages_blocks_newsletter_variant",
       "schema": "public",
       "values": [
-        "standard",
-        "split"
+        "standard"
       ]
     },
     "public.enum_pages_blocks_newsletter_privacy_type": {
@@ -32160,8 +32492,7 @@
       "name": "enum_pages_blocks_editorial_list_variant",
       "schema": "public",
       "values": [
-        "standard",
-        "featured"
+        "standard"
       ]
     },
     "public.enum_pages_blocks_editorial_list_source": {
@@ -32284,9 +32615,7 @@
       "name": "enum__pages_v_blocks_media_with_text_variant",
       "schema": "public",
       "values": [
-        "standard",
-        "overlap",
-        "full-bleed"
+        "standard"
       ]
     },
     "public.enum__pages_v_blocks_media_with_text_image_side": {
@@ -32353,8 +32682,7 @@
       "name": "enum__pages_v_blocks_usp_bar_variant",
       "schema": "public",
       "values": [
-        "standard",
-        "strip"
+        "standard"
       ]
     },
     "public.enum__pages_v_blocks_usp_bar_ss_spacing": {
@@ -32399,8 +32727,7 @@
       "name": "enum__pages_v_blocks_logo_cloud_variant",
       "schema": "public",
       "values": [
-        "standard",
-        "grid"
+        "standard"
       ]
     },
     "public.enum__pages_v_blocks_logo_cloud_ss_spacing": {
@@ -32445,8 +32772,7 @@
       "name": "enum__pages_v_blocks_faq_variant",
       "schema": "public",
       "values": [
-        "standard",
-        "side-heading"
+        "standard"
       ]
     },
     "public.enum__pages_v_blocks_faq_ss_spacing": {
@@ -32491,10 +32817,7 @@
       "name": "enum__pages_v_blocks_testimonials_variant",
       "schema": "public",
       "values": [
-        "standard",
-        "single",
-        "carousel",
-        "wall"
+        "standard"
       ]
     },
     "public.enum__pages_v_blocks_testimonials_ss_spacing": {
@@ -33066,12 +33389,7 @@
       "name": "enum__pages_v_blocks_promo_banner_variant",
       "schema": "public",
       "values": [
-        "standard",
-        "strip",
-        "ticket",
-        "full-bleed",
-        "countdown",
-        "popup"
+        "standard"
       ]
     },
     "public.enum__pages_v_blocks_promo_banner_ss_spacing": {
@@ -33116,9 +33434,7 @@
       "name": "enum__pages_v_blocks_comparison_variant",
       "schema": "public",
       "values": [
-        "standard",
-        "cards",
-        "highlight"
+        "standard"
       ]
     },
     "public.enum__pages_v_blocks_comparison_ss_spacing": {
@@ -33263,8 +33579,7 @@
       "name": "enum__pages_v_blocks_newsletter_variant",
       "schema": "public",
       "values": [
-        "standard",
-        "split"
+        "standard"
       ]
     },
     "public.enum__pages_v_blocks_newsletter_privacy_type": {
@@ -33362,8 +33677,7 @@
       "name": "enum__pages_v_blocks_editorial_list_variant",
       "schema": "public",
       "values": [
-        "standard",
-        "featured"
+        "standard"
       ]
     },
     "public.enum__pages_v_blocks_editorial_list_source": {
@@ -34172,7 +34486,10 @@
       "name": "enum_templates_cart_variant",
       "schema": "public",
       "values": [
-        "default"
+        "default",
+        "table",
+        "sticky-summary",
+        "focused"
       ]
     },
     "public.enum_templates_cart_mini_cart": {
@@ -34180,7 +34497,31 @@
       "schema": "public",
       "values": [
         "drawer",
+        "drawer-picks",
         "page"
+      ]
+    },
+    "public.enum_templates_cart_picks_ps_mode": {
+      "name": "enum_templates_cart_picks_ps_mode",
+      "schema": "public",
+      "values": [
+        "collection",
+        "category",
+        "handpicked",
+        "newest",
+        "onSale",
+        "tag",
+        "type"
+      ]
+    },
+    "public.enum_templates_cart_picks_ps_sort": {
+      "name": "enum_templates_cart_picks_ps_sort",
+      "schema": "public",
+      "values": [
+        "newest",
+        "priceAsc",
+        "priceDesc",
+        "title"
       ]
     },
     "public.enum_templates_cart_quick_cart": {
@@ -34261,7 +34602,10 @@
       "name": "enum__templates_v_version_cart_variant",
       "schema": "public",
       "values": [
-        "default"
+        "default",
+        "table",
+        "sticky-summary",
+        "focused"
       ]
     },
     "public.enum__templates_v_version_cart_mini_cart": {
@@ -34269,7 +34613,31 @@
       "schema": "public",
       "values": [
         "drawer",
+        "drawer-picks",
         "page"
+      ]
+    },
+    "public.enum__templates_v_version_cart_picks_ps_mode": {
+      "name": "enum__templates_v_version_cart_picks_ps_mode",
+      "schema": "public",
+      "values": [
+        "collection",
+        "category",
+        "handpicked",
+        "newest",
+        "onSale",
+        "tag",
+        "type"
+      ]
+    },
+    "public.enum__templates_v_version_cart_picks_ps_sort": {
+      "name": "enum__templates_v_version_cart_picks_ps_sort",
+      "schema": "public",
+      "values": [
+        "newest",
+        "priceAsc",
+        "priceDesc",
+        "title"
       ]
     },
     "public.enum__templates_v_version_cart_quick_cart": {
@@ -34362,6 +34730,6 @@
     "tables": {},
     "columns": {}
   },
-  "id": "7842be8d-c659-4118-acd2-afc7358569b4",
+  "id": "408fb0b3-503d-4db6-9507-60dc98c6c27d",
   "prevId": "00000000-0000-0000-0000-000000000000"
 }
