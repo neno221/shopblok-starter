@@ -1,6 +1,7 @@
 import type { Field, GlobalConfig } from "payload";
 import { globalTag, type ContentGlobalSlug } from "../../lib/cms/globals";
 import { isStaff, staffOrPublished } from "../access/roles";
+import { translationStatusField } from "../fields/translation-status";
 import { revalidateGlobalOnPublish } from "../hooks/revalidate-on-publish";
 
 export { CONTENT_GLOBALS } from "../../lib/cms/globals";
@@ -9,7 +10,8 @@ export { CONTENT_GLOBALS } from "../../lib/cms/globals";
  * What the three content globals share (D78): read by anyone once published (a draft only by
  * staff, as `pages`), edited by staff, with drafts, autosave and up to 50 versions, live preview
  * (the root config lists them) and `revalidateGlobalOnPublish` with `global:<slug>:<locale>` in
- * every language. A draft save or an autosave revalidates nothing; a publish does.
+ * every language. A draft save or an autosave revalidates nothing; a publish does. The sidebar
+ * shows the translation status (D107, T89).
  */
 export function contentGlobal({
   slug,
@@ -34,7 +36,7 @@ export function contentGlobal({
     },
     versions: { drafts: { autosave: { showSaveDraftButton: true } }, max: 50 },
     hooks: { beforeChange: revalidate.beforeChange, afterChange: revalidate.afterChange },
-    fields,
+    fields: [translationStatusField({ global: slug }), ...fields],
   };
 }
 

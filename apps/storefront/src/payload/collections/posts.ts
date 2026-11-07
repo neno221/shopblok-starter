@@ -3,6 +3,7 @@ import { isStaff, staffOrPublished } from "../access/roles";
 import { imageField } from "../blocks/section-block";
 import { sectionEditor } from "../fields/section-editor";
 import { seedKey } from "../fields/seed-key";
+import { translationStatusField } from "../fields/translation-status";
 import { postSlugField } from "../fields/slug";
 import { keepRefusalReason } from "../hooks/keep-refusal-reason";
 import { revalidateOnPublish } from "../hooks/revalidate-on-publish";
@@ -23,7 +24,7 @@ export const Posts: CollectionConfig = {
   slug: "posts",
   admin: {
     useAsTitle: "title",
-    defaultColumns: ["title", "slug", "publishedAt", "_status", "updatedAt"],
+    defaultColumns: ["title", "slug", "publishedAt", "_status", "translationStatus", "updatedAt"],
   },
   defaultSort: "-publishedAt",
   access: {
@@ -48,6 +49,8 @@ export const Posts: CollectionConfig = {
     maxPerDoc: 50,
   },
   fields: [
+    // D107 (T89): what each open language has still to translate, in the sidebar and the list.
+    translationStatusField({ collection: "posts" }),
     { name: "title", type: "text", localized: true, required: true },
     postSlugField(),
     {

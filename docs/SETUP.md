@@ -8780,3 +8780,81 @@ The dispatch (run [42379020301](https://github.com/neno221/shopblok-starter/acti
 | 8 | Cleanup: `galleryLayoutFor` re-implemented `pickVariant` | Fixed: it is `pickVariant("product-detail", GALLERY_LAYOUT, variant)` |
 | 9 | Cleanup: `first-load.ts` re-wrapped at 80 columns | Fixed: Prettier with the repo's preset (`packages/config/prettier.config.mjs`) on the two files |
 | 10 | Cleanup: a dead `action` on the quick view card | Fixed: `ProductCardQuickAdd` takes either an add's `action` or a `quickView`, and ListingCard passes no action with the trigger |
+
+## Translation status (T89)
+
+**Result: each page, post and content global shows in its sidebar, for every open language, "complete", "n to translate" (the texts named, each a link to it in that language's form) or "not started", counted from one read of the document in every language without the fallback (D107). A page with its own layout per language (T88) is counted over the blocks each language draws. The `pages` and `posts` lists show the same count as a "Translation" column, which one read per list page covers, and the UI strings list has "Not translated in …", one language at a time. Nothing is stored: no migration, and D106 is off, so there is no published state per language to show.** M5 plan §5 T89; D107, D85, SPEC §7.6.
+
+| | |
+|---|---|
+| Date | 2026-11-07 |
+| Branch | `claude/project-thread-8cyauj`, from `main` at `7d5641e` (PR 117, T88, merged), with `main` at `6957d5b` (T83, PR 120, and the search without scripts, PR 125) merged in |
+| PR | [126](https://github.com/neno221/shopblok-starter/pull/126) |
+| Machine | The cloud VM: Node 22.23.4, pnpm 12.10.1, the compose stack, Medusa 2.22.4 (`medusa develop`) |
+
+### What there is now
+
+- **The field** (`src/payload/fields/translation-status.ts`): `translationStatusField(target)`, a `ui` field named `translationStatus` in the sidebar, first in the sidebar's order, with its target (`{ collection }` or `{ global }`) in `admin.custom`, since a field's server component gets the collection's slug but not a global's. `pages` and `posts` have it as their first field and in `defaultColumns`; `contentGlobal` puts it first in `header`, `footer`, `site-settings` and `templates`. A `ui` field has no column and no type: `payload-types.ts` is unchanged, `importMap.js` gains the three components, and `migrate:create --skip-empty` writes nothing.
+- **The count** (`src/payload/translation-status.ts`, `translationStatus`): it walks the collection's or global's sanitized fields over the document as `locale: "all"` gives it (`{ en, el, … }` at each localized field), once per language:
+  - a **localized field** (text, textarea, rich text, an upload or a relationship) counts when English has filled it, and is missing in the language when the language's own value is empty (`null`, `""` or whitespace, an empty list, or a rich text with no text and no node of its own: an editor's cleared editor is not a translation);
+  - a **localized group, list or blocks field** (`localizedLayout`, D105; the product page's `productNotes`) is the language's own when it has rows of its own, and then its texts count as translated; a language without rows draws English's (Payload's fallback), so each text in English's rows is missing, linked to the field itself (the language has no row to link to). Which of the copy's fields are texts comes from the root config's block of the same slug, because Payload takes `localized` off the fields inside a localized field's blocks and `localizedLayout`'s blocks are copies of the root ones (T88); inside a localized list or group without a root block, the text, textarea and rich-text fields are its texts;
+  - **what the form does not show** is left out: `hidden`, `admin.hidden`, `admin.disabled` and `admin.readOnly` fields (the breadcrumbs, which the hook writes), and a field whose `admin.condition` is off, evaluated with the document as read. So a page with "Own layout per language" off counts the shared `layout` and one with it on counts `localizedLayout` (the two conditions are `pageLayout`'s switch), and a block's texts for another variant (T80, T82) do not count. The conditions read only shared settings (a block's `variant`, a link's `type`, the page's switch), which a read in every language gives as they are.
+  - A language is "not started" when it lacks every text English has, "complete" when it lacks none; with nothing in English to translate (the `templates` global, whose fields are not localized; T87's default sections will be counted by the same walk) the sidebar says "English has no texts to translate yet".
+- **The read** (`readEveryLanguage`): one `findByID` (or `findGlobal`) with `locale: "all"`, `fallbackLocale: false`, `draft: true` (the latest version, which the form edits) and `depth: 0`, as the signed-in editor (`overrideAccess: false`, `user`), without the form's `req` (a Local API call sets `req.locale` on the request it is given, and the form is still being rendered with it: T88's `keepingRequest` note). With `locale: "all"` Payload applies no fallback at all; `fallbackLocale: false` says so in the code.
+- **The languages** are the ones the admin's language selector offers (`openLanguages` and `pickAvailableLocales`, D95), without English: the open markets' languages, in the config's order. Here (the seeded markets) that is French, German and Greek.
+- **The sidebar** (`src/payload/components/translation-status.tsx`, a server component, with its CSS on Payload's theme variables): a "Translation" heading and a list, one row per language with its name in itself (`lang` set) and its state; a language with something left has a `<details>` with the missing texts, open for "n to translate" and closed for "not started". Each text is a link, `?locale=<language>#field-<path>` (Payload's own ids, `field-layout__0__heading`): the form opens in that language, and `FocusLinkedField` (`translation-status-client.tsx`) scrolls to the field and focuses it once the form has drawn it (the browser's own jump to the anchor finds nothing: the form draws after the page loads). A field on a tab that is not open is not drawn, so the link opens the form at the top; its label names the tab (`General › Free shipping message`).
+- **Computed when the form opens** (D107): a save or an autosave does not count again (a `ui` field's server component is rendered with the form's first state only; a count on every save would mean an endpoint and a fetch from the browser, D107's alternative). After a save the status says "Saved since this count." with a "Count again" link to the form, in a live region (`CountedWhenOpened`, from `useDocumentInfo().lastUpdateTime`).
+- **The list column** (`TranslationStatusCell`, `pages` and `posts`): "Complete", or what is left per language ("Ελληνικά: 1 to translate; français: not started"), or "—" with nothing to translate. Payload renders each row's cell on its own and gives a cell no request, so the rows' reads are gathered: `gatherReads` collects the ids the cells ask for in one turn of the event loop and makes one `find` (`where: { id: { in: ids } }`, `locale: "all"`, `fallbackLocale: false`, `draft: true`, `pagination: false`), once per list render through React's `cache`; the editor comes from the list's own cookie (`payload.auth` with `headers()`, once per render), so the rows are read with the editor's access as the list's are.
+- **"Not translated in …"** (`src/payload/components/not-translated-filter.tsx`, the UI strings list's `beforeListTable`): a link per open language, and "Every message" while one is chosen (`aria-current` on the chosen one). A link is the list in that language with `value` not set (`?locale=el&where[or][0][and][0][value][exists]=false`): an emptied message is stored as `null` (T62) and a language never written has no row, and `exists: false` finds both. Every message has its English (the seed writes it from the code's catalog), so "no value in Greek" is "not translated in Greek". The list then shows Greek's (empty) values, a row opens its form in Greek, and Payload's Filters panel shows the condition ("Value", "exists", "false") and can change it.
+
+### Measured: one read per list page
+
+The plan says to add the column only if one `locale: "all"` read per list page covers it.
+
+- **The reads:** with a log line in `readManyInEveryLanguage` (removed before the commit), a visit to the pages list on the production build (`next start`) made **one** read, with every row's id (`pages 6,4,2,1`), and no other read for the column. On `next dev` the admin's list is rendered two or three times per visit (two requests and Next's own render check; "Payload locale preloading (S3)" found the same of the locale filter, L7), one read each.
+- **The cost:** the same rows read in every language and in English alone, through the REST API on `next dev` (three pages with their blocks, warm): 63 to 73 ms against 67 to 87 ms. A `locale: "all"` read joins the same tables and returns every language's rows, so the column costs about one more list read per list page.
+
+### Where it differs from the plan
+
+- **The filter's query names the list's language, not the field's.** Payload's API also takes a language in a field's path (`where[value.el][exists]=false`, and `value.en` beside it for "English has it"), and that query works, but the admin's Filters panel cannot draw such a path: the list page threw (`Cannot read properties of undefined (reading 'field')`) and drew no rows. The `locale` with a plain `value` condition is the form the panel writes itself.
+- **The status says "Saved since this count"** after a save (above): D107 computes the count when the form opens, and an editor who has just written the Greek heading would otherwise read "1 to translate" until reopening the form.
+- **No published state per language:** D106 is off since T88, as the prompt says.
+- **A language's own blocks count as translated.** With "Own layout per language" on, Greek's blocks are Greek's own content, so nothing in them is compared with English. When the switch was turned on, T88 copied the shared blocks into each translated language with the texts its visitors read then, English's where it had none; those copied English texts are not told apart from Greek ones.
+
+### `e2e/payload-admin.spec.ts`
+
+Two tests in the serial suite, before the console check:
+
+- **The status:** a page made through the API with English and Greek titles and slugs and an English promotion heading only. Its form in English shows Greek "1 to translate", the link named "… Promo banner 1 › Heading" to `?locale=el#field-layout__0__heading`; the pages list, searched for it, shows "Ελληνικά: 1 to translate" in its column; the link opens the Greek form with the heading focused; written and saved as a draft, "Count again" shows Greek "complete". The cleanup deletes the page by its slug.
+- **The filter:** a message with a Greek text, emptied in Greek through the API, is not in the list's first page in English and is listed after "Ελληνικά" under "Not translated in" (marked current); its Greek text is put back (in `afterAll` too, if the test fails between).
+
+### Mutations (each fails a test)
+
+| Mutation | Fails |
+|---|---|
+| The count reading a language's value with the fallback (`byLanguage[language] ?? byLanguage.en`, what a read with the fallback on gives) | `translation-status.test.ts`: 5 of its 12 tests (Greek's heading reads as English's, so Greek is complete); `payload-admin.spec.ts`, "the translation status names the text Greek lacks …": Greek reads "Ελληνικά complete" where "1 to translate" is expected (built as `e2e-smoke` builds it, against `next start`) |
+| `languagesBesidesEnglish` without `waitForRequest()` (review finding 1) | `filter-available-locales.test.ts`, both `languagesBesidesEnglish` tests: the map is read before (or without) the request |
+| `gatherReads` without its `catch` (review finding 2) | `translation-status.test.ts`, "gives every row of a failed read nothing …": the read's error reaches the cells |
+
+### Checks (cloud VM)
+
+- `typecheck` exits 0 for every workspace and `test` for the storefront (4286 tests, 191 files) with no `.env` (CI's state), and `lint` for every workspace. The new unit tests: `translation-status.test.ts` (12: the empty values, the states, conditions, the layout per language on and off, a localized list, tabs and groups, nothing to count, the real `pages` config, the reads' arguments and the gathering) and `components/translation-status.test.tsx` (5: the sidebar's markup and links, its notes, the column's text, the filter's query and its current language).
+- The storefront built as `e2e-smoke` builds it, with Medusa up: `check:first-load` passes with every shop route as on `main` (the listings 334.7 KB, the product page 334.3, `/[market]` 332.0); the admin's route (not budgeted) is 828.6 KB.
+- Against `next start` (`E2E_TEST_ROUTES=true`, the job's `STOREFRONT_*`): `payload-admin.spec.ts`, `localized-layout.spec.ts`, `templates-global.spec.ts` and `cms-pages.spec.ts`, 40 passed; every e2e project (`E2E_MEDUSA_LOG` set): **277 passed** in 11.3 min. After the review's fixes, on a new build: the chromium project with `payload-admin`, `localized-layout`, `templates-global`, `cms-pages` and `ui-strings` (which runs the whole project), 241 passed and 2 failed only for want of `E2E_MEDUSA_LOG` (`auth.spec.ts` and the account's receipt in `checkout-variants.spec.ts`), both passing on the rerun with it (31 passed with `payload-admin.spec.ts`); `check:first-load` unchanged.
+
+### Changes from the review of this PR (PR 126)
+
+The review is in the Library (`reviews/pr-126-code-review.md`): 3 must-fix findings, 2 cleanups and 5 other optional findings, none about security.
+
+| # | Finding | Done |
+|---|---|---|
+| 1 | Must-fix: the sidebar and the filter read Medusa's map without `waitForRequest()`, so the admin's prerender could cut the read off and keep it failed for 30 s | Fixed: `languagesBesidesEnglish` in `filter-available-locales.ts` waits for the request (`connection()`) first, as `filterAvailableLocales` does; two unit tests (they fail without the wait) |
+| 2 | Must-fix: one failed batched read broke the whole pages or posts list | Fixed: `gatherReads` takes a `failed` callback; a failed read logs once (`payload.logger.warn`) and every cell of its batch shows "—"; a unit test |
+| 3 | Must-fix: the docs' placeholders | Fixed: the PR's number, the e2e mutation's result and the e2e run's |
+| 4 | Cleanup: the filter repeated the sidebar's open-languages rule | Fixed: both use `languagesBesidesEnglish` |
+| 5 | Cleanup: NEXT-SESSION.md listed T89 as built and still to come | Fixed |
+| 6 | A global the editor cannot read throws instead of showing nothing | Skipped (an editor who opens a global's form can read it; not security or a cleanup) |
+| 7 | "Count again" may keep `/create` after a new page's first save | Skipped (timing not shown; not security or a cleanup) |
+| 8 | A localized group, list or blocks field counts as translated once the language has any value; a layout per language copied at the switch reads "complete" | Skipped under the rule, and named to Steven: it is the limit "Where it differs from the plan" states |
+| 9 | The list cell counts without the user, so a user-dependent condition could differ from the sidebar | Skipped (no condition reads the user) |
+| 10 | A link into the language already open does not focus (the hash is read on mount only) | Skipped (not security or a cleanup) |
