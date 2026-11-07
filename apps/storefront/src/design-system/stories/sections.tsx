@@ -108,16 +108,20 @@ function video(ctx: DsContext, which: "embed" | "file" | "long", settings?: Sect
 }
 
 type Fixtures = ReturnType<typeof fixtures>;
+type HeroVariant = NonNullable<Fixtures["hero"]["section"]["variant"]>;
 
 export function hero(
   ctx: DsContext,
   which: keyof Fixtures["hero"],
   settings?: SectionSettings,
   headingLevel: 1 | 2 = 2,
+  /** T80: the member to draw, over the fixture's own (`standard` when it has none). */
+  variant?: HeroVariant,
 ) {
   return (
     <HeroSection
       {...fixtures(ctx).hero[which]}
+      {...(variant === undefined ? {} : { variant })}
       {...(settings === undefined ? {} : { settings })}
       copy={copy(ctx)}
       locale={lang(ctx)}
@@ -574,6 +578,178 @@ export const sectionStories = {
         label: "Inverse surface",
         description: "`surface: inverse`: the links swap their colours with the theme.",
         render: (ctx) => hero(ctx, "offer", inverse),
+      },
+    ],
+  },
+  // T80 (M5 plan §1a): the hero's seven more members, each from the family's fixtures with what it
+  // needs. Their Payload fields are the hero block's.
+  "sections/hero-overlay": {
+    summary:
+      "The editor's picture fills the band and the words lie over it at the start, on the overlay scrim; when it opens a page, the transparent header lies over the picture.",
+    a11y: [
+      "Text on the picture only on the overlay token's scrim (60 % black): light text keeps 5.7:1 on a white photo (D100). Inside it the tokens are turned light, so the links, the countdown and the focus ring keep their contrast.",
+      "The section says it has a picture behind its words (`data-under-header`); the shell's rule lays the transparent header over it only then, and draws it solid on every other page (D103).",
+      "The heading is the page's h1 when the hero opens it; the products follow the band, their names one level below.",
+    ],
+    live: (ctx) => hero(ctx, "overlay"),
+    statesLayout: "stack",
+    states: [
+      {
+        id: "offer",
+        label: "Countdown and products",
+        description: "The offer's countdown on the scrim, and four products under the band.",
+        render: (ctx) => hero(ctx, "offer", undefined, 2, "overlay"),
+      },
+      {
+        id: "long",
+        label: "Long heading, page title",
+        description: "A heading that wraps on the scrim, drawn as the page's h1.",
+        render: (ctx) => hero(ctx, "overlay", undefined, 1),
+      },
+    ],
+  },
+  "sections/hero-centered": {
+    summary:
+      "The words centred above a wide picture across the content's width, then the source's products.",
+    a11y: [
+      "The text never sits on the picture: the words come first, the picture under them.",
+      "The links stay a row that wraps, centred, each at least 44 px high.",
+    ],
+    live: (ctx) => hero(ctx, "section", undefined, 2, "centered"),
+    statesLayout: "stack",
+    states: [
+      {
+        id: "offer",
+        label: "Countdown and products",
+        description: "An offer with its end and four products, frozen at the fixtures' time.",
+        render: (ctx) => hero(ctx, "offer", undefined, 2, "centered"),
+      },
+      {
+        id: "long",
+        label: "Long heading, no picture",
+        description: "A heading that wraps and one link, drawn as the page's h1.",
+        render: (ctx) => hero(ctx, "long", undefined, 1, "centered"),
+      },
+    ],
+  },
+  "sections/hero-editorial": {
+    summary:
+      "A large heading across both columns, then a tall picture beside a smaller second one, with the line and the links under it.",
+    a11y: [
+      "Both pictures are described; the reading order is the heading, the tall picture, the second, then the words and links.",
+      "The heading is set large but stays one heading: the page's h1 when the hero opens it, otherwise an h2.",
+    ],
+    live: (ctx) => hero(ctx, "editorial"),
+    statesLayout: "stack",
+    states: [
+      {
+        id: "muted",
+        label: "Muted surface, page title",
+        description: "On the muted fill, drawn as the page's h1.",
+        render: (ctx) => hero(ctx, "editorial", muted, 1),
+      },
+    ],
+  },
+  "sections/hero-bento": {
+    summary:
+      "The message in one tile beside up to four products from its source, as a grid of cards; without products, the picture takes the second tile.",
+    a11y: [
+      "The products are a list named as a grid of products; their names are one level below the heading.",
+      "The message tile is the muted fill: the text keeps the theme's contrast pairing.",
+    ],
+    live: (ctx) => hero(ctx, "bento"),
+    statesLayout: "stack",
+    states: [
+      {
+        id: "picture",
+        label: "No products: the picture",
+        description: "A source with nothing: the editor's picture beside the message.",
+        render: (ctx) => hero(ctx, "section", undefined, 2, "bento"),
+      },
+      {
+        id: "inverse",
+        label: "Inverse surface, countdown",
+        description: "`surface: inverse` with the offer's countdown and four products.",
+        render: (ctx) => hero(ctx, "offer", inverse, 2, "bento"),
+      },
+    ],
+  },
+  "sections/hero-collection-switcher": {
+    summary:
+      "Two to four collections as tabs that switch the picture and the way into the collection; without scripts, a list of the collections' links over the first one's picture.",
+    a11y: [
+      "The tabs are Base UI's: one tab stop, the arrow keys move between them and show each panel as they reach it; nothing changes by itself.",
+      "The tab list is named by the hero's heading. Each panel's link says which collection it opens (Shop the collection, then its name, to a screen reader).",
+      "Without scripts, and for a crawler, the collections are a list of links (the tabs' code is loaded only in the browser, D102).",
+    ],
+    live: (ctx) => hero(ctx, "collections"),
+    statesLayout: "stack",
+    states: [
+      {
+        id: "muted",
+        label: "Muted surface, page title",
+        description: "On the muted fill, drawn as the page's h1 (its first picture preloaded).",
+        render: (ctx) => hero(ctx, "collections", muted, 1),
+      },
+    ],
+  },
+  "sections/hero-product": {
+    summary:
+      "The source's first product as the page's opening: its picture, its name and price in the market's currency, and the way to its page.",
+    a11y: [
+      "The product's name is one level below the hero's heading; the price is PriceBlock's, with its hidden labels.",
+      "The way to the product is a 44 px button; the editor's links follow it in the same row.",
+    ],
+    live: (ctx) => hero(ctx, "product"),
+    statesLayout: "stack",
+    states: [
+      {
+        id: "picture",
+        label: "The editor's picture, countdown",
+        description:
+          "The editor's picture in place of the product's, and the offer's countdown under the price.",
+        render: (ctx) => (
+          <HeroSection
+            {...fixtures(ctx).hero.offer}
+            variant="product"
+            copy={copy(ctx)}
+            locale={lang(ctx)}
+            timeZone={timeZone(ctx)}
+            frozen
+            prefetch={false}
+          />
+        ),
+      },
+      {
+        id: "inverse",
+        label: "Inverse surface",
+        description:
+          "`surface: inverse`: the price and the button swap their colours with the theme.",
+        render: (ctx) => hero(ctx, "product", inverse),
+      },
+    ],
+  },
+  "sections/hero-text": {
+    summary:
+      "Words only, the heading in display type, no picture; the source's products under them.",
+    a11y: [
+      "No picture is drawn, so nothing lies under the transparent header: the section has no `data-under-header` (D103).",
+      "The display heading wraps anywhere, so a long word in German or Greek does not overflow a phone.",
+    ],
+    live: (ctx) => hero(ctx, "section", undefined, 2, "text"),
+    statesLayout: "stack",
+    states: [
+      {
+        id: "long",
+        label: "Long heading, page title",
+        description: "A heading that wraps, drawn as the page's h1.",
+        render: (ctx) => hero(ctx, "long", undefined, 1, "text"),
+      },
+      {
+        id: "inverse",
+        label: "Inverse surface, products",
+        description: "`surface: inverse` with the offer's countdown and four products.",
+        render: (ctx) => hero(ctx, "offer", inverse, 2, "text"),
       },
     ],
   },

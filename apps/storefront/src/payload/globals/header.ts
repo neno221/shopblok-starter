@@ -8,12 +8,13 @@ import { contentGlobal, shownWhen } from "./content-global";
 export const SHELL_LINK_TARGETS = [...CATALOG_COLLECTIONS];
 
 /**
- * The header variants the global offers: the registry's `header` family without `transparent`.
- * The transparent header lies over the page's hero, and the shell draws it on every page of the
- * market (the cart and the account have none), so it needs a page that says it starts with a hero:
- * T65's CMS pages are the first that can, and M5 offers it then (SETUP.md, "Globals (T61)").
+ * The header variants the global leaves out: none since T80. The transparent header was held back
+ * in T61 because the shell draws it on every page of the market (the cart and the account have no
+ * hero); since D103 the shell draws it transparent only over a page whose `<main>` opens with a
+ * section that has a picture behind its words (`data-under-header`, the `overlay` hero), and solid
+ * on every other page (SETUP.md, "Hero variants and the transparent header (T80)").
  */
-export const HEADER_EXCLUDED_VARIANTS = ["transparent"];
+export const HEADER_EXCLUDED_VARIANTS: readonly string[] = [];
 
 const isKind = (kind: string) => (sibling: Record<string, unknown>) => sibling["kind"] === kind;
 

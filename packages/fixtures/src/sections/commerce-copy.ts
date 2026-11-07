@@ -14,6 +14,9 @@ export type CommerceSectionCopy = {
     secondary: string;
     alt: string;
     longHeading: string;
+    /** T80: the `editorial` hero's second picture, and the `collection-switcher` hero's three. */
+    secondAlt: string;
+    collections: [string, string, string];
   };
   categoryShowcase: { heading: string; intro: string; link: string; label: string };
   productCollection: { heading: string; intro: string; link: string; gridHeading: string };
@@ -42,6 +45,8 @@ export const commerceSectionCopies: Record<DesignSystemLocale, CommerceSectionCo
       alt: "Knitwear folded on a wooden bench",
       longHeading:
         "Everything you need for the cold months ahead, from heavyweight hoodies to the softest recycled wool",
+      secondAlt: "A wool scarf on a coat hook",
+      collections: ["Autumn layers", "Heritage", "Linen essentials"],
     },
     categoryShowcase: {
       heading: "Shop by category",
@@ -97,6 +102,8 @@ export const commerceSectionCopies: Record<DesignSystemLocale, CommerceSectionCo
       alt: "Πλεκτά διπλωμένα σε ξύλινο πάγκο",
       longHeading:
         "Όλα όσα χρειάζεστε για τους κρύους μήνες που έρχονται, από βαριά φούτερ ως το πιο απαλό ανακυκλωμένο μαλλί",
+      secondAlt: "Ένα μάλλινο κασκόλ σε κρεμάστρα",
+      collections: ["Φθινοπωρινές στρώσεις", "Heritage", "Βασικά λινά"],
     },
     categoryShowcase: {
       heading: "Αγορές ανά κατηγορία",
@@ -155,6 +162,8 @@ export const commerceSectionCopies: Record<DesignSystemLocale, CommerceSectionCo
       alt: "Gefaltete Strickwaren auf einer Holzbank",
       longHeading:
         "Alles, was Sie für die kommenden kalten Monate brauchen, von schweren Kapuzenpullovern bis zur weichsten recycelten Wolle",
+      secondAlt: "Ein Wollschal an einem Garderobenhaken",
+      collections: ["Herbstlagen", "Heritage", "Leinen-Basics"],
     },
     categoryShowcase: {
       heading: "Nach Kategorie einkaufen",
@@ -215,6 +224,8 @@ export const commerceSectionCopies: Record<DesignSystemLocale, CommerceSectionCo
       alt: "Des pulls pliés sur un banc en bois",
       longHeading:
         "Tout ce qu’il vous faut pour les mois froids à venir, des sweats épais à la laine recyclée la plus douce",
+      secondAlt: "Une écharpe en laine sur un portemanteau",
+      collections: ["Couches d’automne", "Heritage", "Essentiels en lin"],
     },
     categoryShowcase: {
       heading: "Acheter par catégorie",

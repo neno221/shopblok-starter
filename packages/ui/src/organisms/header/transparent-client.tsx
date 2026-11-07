@@ -3,9 +3,11 @@
 // look solid. It is solid once the page has scrolled (a header over a hero is transparent only at
 // the top, where the picture is), and while a menu, a switcher or the drawer is open (a panel under
 // a see-through bar would show the picture through its edge). `data-solid` says which, and the
-// surface inside (`transparent.tsx`, drawn on the server) styles itself from it with
-// `group-data-[solid=...]/header`. `solid` pins the look: `true` for a page with no hero under the
-// header (and the design system's solid state), `false` for the picture of the transparent state.
+// surface inside (`transparent.tsx`, drawn on the server) styles itself from it with the
+// `header-solid:` and `header-clear:` variants of `globals.css` (T80). `solid` pins the look: `true`
+// for a page with no hero under the header (and the design system's solid state), `false` for the
+// picture of the transparent state, and `"auto"` (D103, the shop's) leaves it to the stylesheet,
+// which asks whether the page's `<main>` opens with a picture behind its words.
 // Both facts are read with `useSyncExternalStore`, as AnnouncementBar reads reduced motion: the
 // server snapshot is "not scrolled, nothing open", so the server render and the first client render
 // are the same markup (no hydration mismatch) and no state is set in an effect. The browser then
@@ -54,8 +56,12 @@ function useAnythingOpen(header: HTMLElement | null): boolean {
 }
 
 type HeaderTransparentFrameProps = {
-  /** `true`: solid whatever the page does. `false`: transparent whatever it does. Unset: follows the page. */
-  solid?: boolean;
+  /**
+   * `true`: solid whatever the page does. `false`: transparent whatever it does. Unset: follows the
+   * page's scroll. `"auto"` (D103, T80): as unset, but on a page with no picture under the header
+   * the CSS draws it solid and gives it its row's height (`data-solid="auto"`, `data-pinned="auto"`).
+   */
+  solid?: boolean | "auto";
   sticky: boolean;
   className?: string;
   children: ReactNode;
@@ -71,19 +77,23 @@ function HeaderTransparentFrame({
   const [element, setElement] = useState<HTMLElement | null>(null);
   const scrolled = useSyncExternalStore(subscribeToScroll, readScrolled, notScrolled);
   const open = useAnythingOpen(element);
-  const solid = pinned ?? (scrolled || open);
+  const auto = pinned === "auto";
+  const solid = auto ? scrolled || open : (pinned ?? (scrolled || open));
   return (
     <header
       ref={setElement}
       data-slot="header"
       data-variant="transparent"
-      data-solid={solid ? "true" : "false"}
-      data-pinned={pinned === true ? "solid" : undefined}
+      // `auto` until the page scrolls or a menu opens: the stylesheet asks the page (D103).
+      data-solid={solid ? "true" : auto ? "auto" : "false"}
+      data-pinned={pinned === true ? "solid" : auto ? "auto" : undefined}
       className={cn(
         // Pinned solid (a page with no hero under it), the header takes its row's height, as the
         // classic one does, so it covers nothing (PR 57 review); otherwise it lies over the hero.
+        // With `auto` the stylesheet gives it that height on a page with nothing under it.
         "group/header w-full z-(--z-header)",
         pinned === true ? undefined : "h-0",
+        auto && "header-alone:h-auto",
         sticky ? "sticky top-0" : "relative",
         className,
       )}

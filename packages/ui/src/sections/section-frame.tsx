@@ -72,6 +72,13 @@ type SectionFrameProps = Omit<React.HTMLAttributes<HTMLElement>, "id"> & {
   as?: "section" | "div";
   /** The content's own classes (its grid, its alignment). */
   innerClassName?: string;
+  /**
+   * The section has a picture behind its words, so the transparent header may lie over it when it
+   * opens the page (D103, T80). It says so as `data-under-header` with the widths it is shown at
+   * (`all`, `mobile` or `desktop`, its `visibility`), so the shell's rule in `globals.css` reads it
+   * only where the section is drawn: a hero hidden on a phone leaves the header solid there.
+   */
+  underHeader?: boolean;
 };
 
 function SectionFrame({
@@ -80,6 +87,7 @@ function SectionFrame({
   as: Root = "section",
   className,
   innerClassName,
+  underHeader = false,
   children,
   ...props
 }: SectionFrameProps) {
@@ -89,6 +97,7 @@ function SectionFrame({
       id={settings?.anchor}
       data-slot={slot}
       data-surface={settings?.surface ?? "default"}
+      data-under-header={underHeader ? (settings?.visibility ?? "all") : undefined}
       className={cn(classes.outer, className)}
       {...props}
     >

@@ -68,8 +68,21 @@ export type SectionFixtures = {
   /** An embed (the live render), an upload with captions in the four languages, a long title. */
   video: { embed: VideoSection; file: VideoSection; long: VideoSection };
   spacer: { section: SpacerSection };
-  /** A hero with a picture and two links; one with a countdown and four products; a long one alone. */
-  hero: { section: HeroSection; offer: HeroSection; long: HeroSection };
+  /**
+   * A hero with a picture and two links; one with a countdown and four products; a long one alone.
+   * T80: what the other members need besides (§1a): the overlay's picture, the editorial's two, the
+   * bento's four products, the collection switcher's three collections, the product hero's one.
+   */
+  hero: {
+    section: HeroSection;
+    offer: HeroSection;
+    long: HeroSection;
+    overlay: HeroSection;
+    editorial: HeroSection;
+    bento: HeroSection;
+    collections: HeroSection;
+    product: HeroSection;
+  };
   /** The tree's first eight categories as tiles; three, the editor's label and picture on one. */
   categoryShowcase: { section: CategoryShowcaseSection; edited: CategoryShowcaseSection };
   /** Eight products as a carousel, four as a grid, and a source with no product that says so. */
@@ -505,6 +518,33 @@ function commerceSections(
         subheading: words.hero.subheading,
         links: hero.links.slice(0, 1),
         products: [],
+      },
+      overlay: { ...hero, variant: "overlay" },
+      editorial: {
+        ...hero,
+        variant: "editorial",
+        image: fixtureImage({ seed: 22, ratio: "3:4", alt: words.hero.alt }),
+        secondImage: fixtureImage({ seed: 23, ratio: "1:1", alt: words.hero.secondAlt }),
+      },
+      bento: { ...hero, variant: "bento", products: products.slice(0, 4) },
+      collections: {
+        ...hero,
+        variant: "collection-switcher",
+        links: [],
+        // Decorative: each picture's link names its collection.
+        collections: (["autumn", "heritage", "linen"] as const).map((handle, index) => ({
+          title: words.hero.collections[index] ?? handle,
+          href: href(`/collections/${handle}`),
+          image: fixtureImage({ seed: 24 + index, ratio: "16:9", alt: "" }),
+        })),
+      },
+      product: {
+        eyebrow: words.hero.eyebrow,
+        heading: words.hero.heading,
+        subheading: words.hero.subheading,
+        variant: "product",
+        links: hero.links.slice(1),
+        products: [card(0)],
       },
     },
     categoryShowcase: {

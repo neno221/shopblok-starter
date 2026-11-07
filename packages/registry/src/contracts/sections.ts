@@ -6,7 +6,7 @@ import { EmptyStateContent } from "./listing";
 import { CategoryTile, PostCard } from "./pages";
 import { PriceSummary, ProductCard } from "./product";
 import { AccordionSection, Countdown, DiscountCode, NewsletterSignup } from "./site";
-import { variantEnum, type Family } from "./variants";
+import { variantEnum, variantNeeds, type Family } from "./variants";
 
 // The sections' view models (D70, D79): what each of SPEC §7.4's blocks shows, once Payload's
 // content has been resolved for the market (links as `href`s, uploads as images). Text is the
@@ -235,22 +235,51 @@ const products = (max: number) =>
 /** Text in paragraphs (an editor's blank line ends one). */
 const text = z.array(z.string().min(1)).min(1).optional().describe("Paragraphs");
 
+/** One of the `collection-switcher` hero's collections: its name, its listing and its picture. */
+export const HeroCollection = z.object({
+  title: z.string().min(1).describe("The collection's name, in the market's language"),
+  href: Href.describe("The collection's listing in the market"),
+  image: Image.describe("The editor's picture for the collection"),
+});
+
 /**
  * `hero`: the page's opening band. An eyebrow, the heading, a line, up to two calls to action and
  * a picture beside them; optionally a countdown to an offer's end (D50: the server renders `now`)
- * and up to four products from a source.
+ * and up to four products from a source. T80 (M5 plan §1a) adds its seven more variants: what only
+ * some of them take is optional here and refused when missing for them (D99's `variantNeeds`):
+ * `overlay` draws its words over its picture, so it needs one; `editorial` needs both pictures,
+ * `collection-switcher` two to four collections, and `product` the source's first product.
  */
-export const HeroSection = z.object({
-  settings,
-  variant: variant("hero"),
-  eyebrow: z.string().min(1).optional().describe("A short line above the heading"),
-  heading: z.string().min(1).describe("The hero's heading: the page's h1 when it opens the page"),
-  subheading: z.string().min(1).optional(),
-  image: Image.optional(),
-  links: z.array(SectionLink).max(2),
-  countdown: Countdown.optional(),
-  products: products(4),
-});
+export const HeroSection = z
+  .object({
+    settings,
+    variant: variant("hero"),
+    eyebrow: z.string().min(1).optional().describe("A short line above the heading"),
+    heading: z.string().min(1).describe("The hero's heading: the page's h1 when it opens the page"),
+    subheading: z.string().min(1).optional(),
+    image: Image.optional(),
+    secondImage: Image.optional().describe("`editorial`'s smaller second picture"),
+    collections: z
+      .array(HeroCollection)
+      .min(2)
+      .max(4)
+      .optional()
+      .describe("`collection-switcher`'s collections, each a tab"),
+    links: z.array(SectionLink).max(2),
+    countdown: Countdown.optional(),
+    products: products(4),
+  })
+  .superRefine(
+    variantNeeds({
+      overlay: ["image"],
+      editorial: ["image", "secondImage"],
+      "collection-switcher": ["collections"],
+    }),
+  )
+  .refine((section) => section.variant !== "product" || section.products.length > 0, {
+    path: ["products"],
+    message: 'the "product" variant needs a product from its source',
+  });
 
 /** `categoryShowcase`: categories as tiles, a picture and a name each, from a `categorySource`. */
 export const CategoryShowcaseSection = z.object({
@@ -499,6 +528,7 @@ export type VideoProvider = (typeof VIDEO_PROVIDERS)[number];
 export type VideoSource = z.infer<typeof VideoSource>;
 export type VideoSection = z.infer<typeof VideoSection>;
 export type SpacerSection = z.infer<typeof SpacerSection>;
+export type HeroCollection = z.infer<typeof HeroCollection>;
 export type HeroSection = z.infer<typeof HeroSection>;
 export type CategoryShowcaseSection = z.infer<typeof CategoryShowcaseSection>;
 export type ProductCollectionSection = z.infer<typeof ProductCollectionSection>;
