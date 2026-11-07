@@ -345,7 +345,7 @@ describe("the reads (D107)", () => {
 
   it("gathers a list page's rows into one read", async () => {
     const read = vi.fn(async (ids: (number | string)[]) => ids.map((id) => ({ id })));
-    const load = gatherReads(read);
+    const load = gatherReads(read, () => undefined);
     const rows = await Promise.all([load(1), load(2), load(3)]);
     expect(rows).toEqual([{ id: 1 }, { id: 2 }, { id: 3 }]);
     expect(read).toHaveBeenCalledTimes(1);
@@ -353,5 +353,15 @@ describe("the reads (D107)", () => {
     // A row asked for after the read started gets a read of its own.
     expect(await load(9)).toEqual({ id: 9 });
     expect(read).toHaveBeenCalledTimes(2);
+  });
+
+  it("gives every row of a failed read nothing, and reports the failure once", async () => {
+    const failed = vi.fn();
+    const load = gatherReads(async () => {
+      throw new Error("connection refused");
+    }, failed);
+    expect(await Promise.all([load(1), load(2)])).toEqual([undefined, undefined]);
+    expect(failed).toHaveBeenCalledTimes(1);
+    expect(failed).toHaveBeenCalledWith(new Error("connection refused"));
   });
 });

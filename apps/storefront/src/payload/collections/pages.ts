@@ -26,7 +26,10 @@ const revalidate = revalidateOnPublish({ tags: pageTags });
  */
 export const Pages: CollectionConfig = {
   slug: "pages",
-  admin: { useAsTitle: "title", defaultColumns: ["title", "slug", "_status", "translationStatus", "updatedAt"] },
+  admin: {
+    useAsTitle: "title",
+    defaultColumns: ["title", "slug", "_status", "translationStatus", "updatedAt"],
+  },
   access: {
     // A visitor sees published pages only; staff see drafts as well.
     read: staffOrPublished,

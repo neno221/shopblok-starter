@@ -450,10 +450,13 @@ export async function readManyInEveryLanguage(
 /**
  * Gathers the ids asked for in one turn of the event loop and reads them together: the list
  * view's cells are rendered side by side, each asking for its own row. One gatherer per list
- * render (`react`'s `cache` in the cell).
+ * render (`react`'s `cache` in the cell). A read that fails is reported once (`failed`) and gives
+ * every row of its batch nothing, so the cells show "—" and the list stays usable (before T89 it
+ * did not depend on this read).
  */
 export function gatherReads(
   read: (ids: (number | string)[]) => Promise<Data[]>,
+  failed: (error: unknown) => void,
 ): (id: number | string) => Promise<Data | undefined> {
   let open: { ids: Set<number | string>; docs: Promise<Data[]> } | null = null;
   return (id) => {
@@ -464,7 +467,10 @@ export function gatherReads(
       };
       batch.docs = new Promise<void>((resolve) => setTimeout(resolve, 0)).then(() => {
         open = null;
-        return read([...batch.ids]);
+        return read([...batch.ids]).catch((error: unknown) => {
+          failed(error);
+          return [];
+        });
       });
       open = batch;
     }

@@ -1,6 +1,6 @@
 import type { Payload } from "payload";
-import { openLanguages, pickAvailableLocales } from "../filter-available-locales";
-import { DEFAULT_LOCALE, languageLabel, LOCALES } from "../locales";
+import { languagesBesidesEnglish } from "../filter-available-locales";
+import { DEFAULT_LOCALE, languageLabel } from "../locales";
 import "./translation-status.css";
 
 type SearchParams = Record<string, string | string[] | undefined | unknown>;
@@ -49,10 +49,7 @@ export async function NotTranslatedFilter({
   payload: Payload;
   searchParams?: SearchParams;
 }) {
-  const open = await openLanguages((message) => payload.logger.warn(message));
-  const languages = pickAvailableLocales(LOCALES, open)
-    .map((locale) => locale.code)
-    .filter((code) => code !== DEFAULT_LOCALE);
+  const languages = await languagesBesidesEnglish((message) => payload.logger.warn(message));
   if (languages.length === 0) return null;
   const current = filteredLanguage(searchParams);
   return (

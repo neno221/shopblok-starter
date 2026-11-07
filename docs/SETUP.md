@@ -8636,7 +8636,7 @@ After the fixes: `layout-per-language.test.ts` 8 of 8, `typecheck` and `lint` cl
 |---|---|
 | Date | 2026-11-07 |
 | Branch | `claude/project-thread-8cyauj`, from `main` at `7d5641e` (PR 117, T88, merged) |
-| PR | [PR_NUMBER](https://github.com/neno221/shopblok-starter/pull/PR_NUMBER) |
+| PR | [126](https://github.com/neno221/shopblok-starter/pull/126) |
 | Machine | The cloud VM: Node 22.23.4, pnpm 12.10.1, the compose stack, Medusa 2.22.4 (`medusa develop`) |
 
 ### What there is now
@@ -8658,7 +8658,7 @@ After the fixes: `layout-per-language.test.ts` 8 of 8, `typecheck` and `lint` cl
 
 The plan says to add the column only if one `locale: "all"` read per list page covers it.
 
-- **The reads:** with a log line in `readManyInEveryLanguage` (removed before the commit), each render of the pages list made one read with every row's id (`pages 4,2,1`) and no other read for the column. `next dev` renders the admin's list two or three times per visit (its prerender check and the request; "Payload locale preloading (S3)" found the same of the locale filter, L7), one read each.
+- **The reads:** with a log line in `readManyInEveryLanguage` (removed before the commit), a visit to the pages list on the production build (`next start`) made **one** read, with every row's id (`pages 6,4,2,1`), and no other read for the column. On `next dev` the admin's list is rendered two or three times per visit (two requests and Next's own render check; "Payload locale preloading (S3)" found the same of the locale filter, L7), one read each.
 - **The cost:** the same rows read in every language and in English alone, through the REST API on `next dev` (three pages with their blocks, warm): 63 to 73 ms against 67 to 87 ms. A `locale: "all"` read joins the same tables and returns every language's rows, so the column costs about one more list read per list page.
 
 ### Where it differs from the plan
@@ -8679,10 +8679,29 @@ Two tests in the serial suite, before the console check:
 
 | Mutation | Fails |
 |---|---|
-| The count reading a language's value with the fallback (`byLanguage[language] ?? byLanguage.en`, what a read with the fallback on gives) | `translation-status.test.ts`: 5 of its 12 tests (Greek's heading reads as English's, so Greek is complete); `payload-admin.spec.ts`, "the translation status names the text Greek lacks …": MUTATION_E2E |
+| The count reading a language's value with the fallback (`byLanguage[language] ?? byLanguage.en`, what a read with the fallback on gives) | `translation-status.test.ts`: 5 of its 12 tests (Greek's heading reads as English's, so Greek is complete); `payload-admin.spec.ts`, "the translation status names the text Greek lacks …": Greek reads "Ελληνικά complete" where "1 to translate" is expected (built as `e2e-smoke` builds it, against `next start`) |
+| `languagesBesidesEnglish` without `waitForRequest()` (review finding 1) | `filter-available-locales.test.ts`, both `languagesBesidesEnglish` tests: the map is read before (or without) the request |
+| `gatherReads` without its `catch` (review finding 2) | `translation-status.test.ts`, "gives every row of a failed read nothing …": the read's error reaches the cells |
 
 ### Checks (cloud VM)
 
 - `typecheck` exits 0 for every workspace and `test` for the storefront (4286 tests, 191 files) with no `.env` (CI's state), and `lint` for every workspace. The new unit tests: `translation-status.test.ts` (12: the empty values, the states, conditions, the layout per language on and off, a localized list, tabs and groups, nothing to count, the real `pages` config, the reads' arguments and the gathering) and `components/translation-status.test.tsx` (5: the sidebar's markup and links, its notes, the column's text, the filter's query and its current language).
 - The storefront built as `e2e-smoke` builds it, with Medusa up: `check:first-load` passes with every shop route as on `main` (the listings 334.7 KB, the product page 334.3, `/[market]` 332.0); the admin's route (not budgeted) is 828.6 KB.
-- Against `next start` (`E2E_TEST_ROUTES=true`, the job's `STOREFRONT_*`): `payload-admin.spec.ts`, `localized-layout.spec.ts`, `templates-global.spec.ts` and `cms-pages.spec.ts`, 40 passed; every e2e project: E2E_ALL.
+- Against `next start` (`E2E_TEST_ROUTES=true`, the job's `STOREFRONT_*`): `payload-admin.spec.ts`, `localized-layout.spec.ts`, `templates-global.spec.ts` and `cms-pages.spec.ts`, 40 passed; every e2e project (`E2E_MEDUSA_LOG` set): **277 passed** in 11.3 min. After the review's fixes, on a new build: the chromium project with `payload-admin`, `localized-layout`, `templates-global`, `cms-pages` and `ui-strings` (which runs the whole project), 241 passed and 2 failed only for want of `E2E_MEDUSA_LOG` (`auth.spec.ts` and the account's receipt in `checkout-variants.spec.ts`), both passing on the rerun with it (31 passed with `payload-admin.spec.ts`); `check:first-load` unchanged.
+
+### Changes from the review of this PR (PR 126)
+
+The review is in the Library (`reviews/pr-126-code-review.md`): 3 must-fix findings, 2 cleanups and 5 other optional findings, none about security.
+
+| # | Finding | Done |
+|---|---|---|
+| 1 | Must-fix: the sidebar and the filter read Medusa's map without `waitForRequest()`, so the admin's prerender could cut the read off and keep it failed for 30 s | Fixed: `languagesBesidesEnglish` in `filter-available-locales.ts` waits for the request (`connection()`) first, as `filterAvailableLocales` does; two unit tests (they fail without the wait) |
+| 2 | Must-fix: one failed batched read broke the whole pages or posts list | Fixed: `gatherReads` takes a `failed` callback; a failed read logs once (`payload.logger.warn`) and every cell of its batch shows "—"; a unit test |
+| 3 | Must-fix: the docs' placeholders | Fixed: the PR's number, the e2e mutation's result and the e2e run's |
+| 4 | Cleanup: the filter repeated the sidebar's open-languages rule | Fixed: both use `languagesBesidesEnglish` |
+| 5 | Cleanup: NEXT-SESSION.md listed T89 as built and still to come | Fixed |
+| 6 | A global the editor cannot read throws instead of showing nothing | Skipped (an editor who opens a global's form can read it; not security or a cleanup) |
+| 7 | "Count again" may keep `/create` after a new page's first save | Skipped (timing not shown; not security or a cleanup) |
+| 8 | A localized group, list or blocks field counts as translated once the language has any value; a layout per language copied at the switch reads "complete" | Skipped under the rule, and named to Steven: it is the limit "Where it differs from the plan" states |
+| 9 | The list cell counts without the user, so a user-dependent condition could differ from the sidebar | Skipped (no condition reads the user) |
+| 10 | A link into the language already open does not focus (the hash is read on mount only) | Skipped (not security or a cleanup) |

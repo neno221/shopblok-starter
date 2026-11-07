@@ -1,9 +1,9 @@
 import type { DefaultServerCellComponentProps, Field, Payload, UIFieldServerProps } from "payload";
 import { headers } from "next/headers";
 import { cache } from "react";
-import { openLanguages, pickAvailableLocales } from "../filter-available-locales";
+import { languagesBesidesEnglish } from "../filter-available-locales";
 import type { TranslationStatusCustom } from "../fields/translation-status";
-import { DEFAULT_LOCALE, languageLabel, LOCALES } from "../locales";
+import { languageLabel } from "../locales";
 import {
   fieldAnchor,
   gatherReads,
@@ -23,16 +23,9 @@ function targetOf(field: Field): TranslationTarget | null {
   return custom.translationStatus ?? null;
 }
 
-/**
- * The open languages other than English, in the config's order: the ones the admin's language
- * selector offers (the open markets' languages, D95), so the status reports on what visitors read.
- */
-async function languagesToReport(payload: Payload): Promise<string[]> {
-  const open = await openLanguages((message) => payload.logger.warn(message));
-  return pickAvailableLocales(LOCALES, open)
-    .map((locale) => locale.code)
-    .filter((code) => code !== DEFAULT_LOCALE);
-}
+/** The open languages other than English: the ones the admin's language selector offers (D95). */
+const languagesToReport = (payload: Payload) =>
+  languagesBesidesEnglish((message) => payload.logger.warn(message));
 
 /** The fields the status walks: the collection's or the global's, as Payload sanitized them. */
 function fieldsOf(payload: Payload, target: TranslationTarget): Field[] {
@@ -152,8 +145,12 @@ const listUser = cache(
 );
 /** One gatherer per list render and collection, so a list page's cells share one read. */
 const listReads = cache((payload: Payload, collection: "pages" | "posts") =>
-  gatherReads(async (ids) =>
-    readManyInEveryLanguage(payload, collection, ids, await listUser(payload)),
+  gatherReads(
+    async (ids) => readManyInEveryLanguage(payload, collection, ids, await listUser(payload)),
+    (error) =>
+      payload.logger.warn(
+        `translation status: the ${collection} list's read failed (${error instanceof Error ? error.message : String(error)}); its column shows "—"`,
+      ),
   ),
 );
 const listLanguages = cache((payload: Payload) => languagesToReport(payload));
