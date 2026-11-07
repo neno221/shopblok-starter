@@ -7967,7 +7967,7 @@ Built as `e2e-smoke` builds (Medusa up, `STOREFRONT_PRERENDER_PRODUCTS=4`, `STOR
 
 ## Listing variants (T84)
 
-**Result: the listing has seven filter layouts, M3's sidebar and six new ones (`top-bar`, `drawer`, `accordion`, `chips`, `rail`, `inline`), and the `templates` global's Listing tab picks one for every listing page and the search page. Every layout draws the same filter form, with the same field names and the same `action`, so the listing island and `/search` read it unchanged (D59): `listing-variants.spec.ts` filters by a colour and a top price from the keyboard in each layout, with scripts (the listing's URL takes the query) and without (the form lands on `/search` with the same products). The Listing tab's new `card` picker puts one of M2's ten product cards in the listing's, the island's and the search page's grids. The listings' first load is 334.2 of 335 KB (332.3 at T79); the six layouts' code is in no route's first load.** M5 plan §5 T84; D59, D99, D101, D102.
+**Result: the listing has seven filter layouts, M3's sidebar and six new ones (`top-bar`, `drawer`, `accordion`, `chips`, `rail`, `inline`), and the `templates` global's Listing tab picks one for every listing page and the search page. Every layout draws the same filter form, with the same field names and the same `action`, so the listing island and `/search` read it unchanged (D59): `listing-variants.spec.ts` filters by a colour and a top price from the keyboard in each layout, with scripts (the listing's URL takes the query) and without (the form lands on `/search` with the same products). The Listing tab's new `card` picker puts one of M2's ten product cards in the listing's, the island's and the search page's grids. The listings' first load is 334.5 of 335 KB (332.3 at T79); the six layouts' code is in no route's first load.** M5 plan §5 T84; D59, D99, D101, D102.
 
 | | |
 |---|---|
@@ -8009,22 +8009,22 @@ Built as `e2e-smoke` builds (Medusa up, `STOREFRONT_PRERENDER_PRODUCTS=4`, `STOR
 
 | Route | T79 | T84 | Budget |
 |---|---|---|---|
-| The five listing routes (`categories`, `collections` and its pages, `store` and its pages) | 332.3 | **334.2** | 335 |
+| The five listing routes (`categories`, `collections` and its pages, `store` and its pages) | 332.3 | **334.5** | 335 |
 | `/[market]/products/[handle]` | 333.9 | 333.9 | 335 |
 | `/[market]`, `/[market]/[...slug]` | 330.7 | 330.7 | |
 | `/[market]/search` | 321.6 | 321.6 | |
 
-The listings' 1.9 KB are the island's layout map and its `Suspense` (six `React.lazy` loaders). **0.8 KB are left** on the listings: the next task that adds code to them (T83's quick view trigger) measures first. The kept-out rows, each its own chunk, in no route's first load:
+The listings' 2.2 KB are the island's layout map, its `Suspense` and the error boundary (six `React.lazy` loaders; 334.2 before the review's fixes, which also moved the shared products column into the island's own chunk). **0.5 KB are left** on the listings: the next task that adds code to them (T83's quick view trigger) measures first. The kept-out rows after the review's fixes, each its own chunk, in no route's first load:
 
 | Module | Chunk | gzip KB |
 |---|---|---|
 | `src/components/cms/live-preview-listener.tsx` | `3ea2xhs0awjyf.js` | 0.6 |
-| `listing-layouts/top-bar.tsx` | `3pyfvtmzru0_u.js` | 2.7 |
-| `listing-layouts/drawer.tsx` | `07wv02wwxlfs9.js` | 2.7 |
-| `listing-layouts/accordion.tsx` | `1lov09smr78-m.js` | 2.7 |
-| `listing-layouts/chips.tsx` | `23mst6tlsgydo.js` | 2.6 |
-| `listing-layouts/rail.tsx` | `3vwcz-l0jfd0t.js` | 2.7 |
-| `listing-layouts/inline.tsx` | `06_md1oest5e9.js` | 2.6 |
+| `listing-layouts/top-bar.tsx` | `0_6l0tstra_x4.js` | 2.3 |
+| `listing-layouts/drawer.tsx` | `2ovlmz3uj5uxj.js` | 2.3 |
+| `listing-layouts/accordion.tsx` | `3cy7dgbawd_qu.js` | 2.4 |
+| `listing-layouts/chips.tsx` | `13oj2pj48tajm.js` | 2.3 |
+| `listing-layouts/rail.tsx` | `06x2e9igfl8k0.js` | 2.4 |
+| `listing-layouts/inline.tsx` | `18i0qisy9dehd.js` | 2.3 |
 
 ### Mutations (each fails a test)
 
@@ -8036,6 +8036,7 @@ The listings' 1.9 KB are the island's layout map and its `Suspense` (six `React.
 - `pnpm typecheck` and `pnpm lint` exit 0. `turbo run test --continue`: every suite passes (`packages/ui` 5814, the storefront 3970, the registry 233) except the two tests that wait for the dispatch's PNGs: the registry's thumbnail test and the drift test, which names exactly the six layouts' 18 baselines and 6 thumbnails. `generate:types` adds `card`.
 - The migration applied with `payload migrate`, and `migrate:create --skip-empty` afterwards writes nothing; the seed's unit test (`run.test.ts`) covers `listing.card`.
 - The storefront built as `e2e-smoke` builds it, with Medusa up; `check:first-load` passes with the rows above.
+- **After the review's fixes:** `typecheck`, `lint`, the ui (5814) and storefront (3976) tests; the build and `check:first-load` as above; `listing-variants`, `templates-global` and `catalog` against `next start`, 32 passed.
 - **The e2e suites** against `next start` (`E2E_TEST_ROUTES=true`, `STOREFRONT_LISTING_PAGE_SIZE=3`): `listing-variants.spec.ts` (8), `templates-global.spec.ts` (3), `catalog.spec.ts` and `cms-pages.spec.ts`: 50 passed; `listing-variants.spec.ts` and `templates-global.spec.ts` twice more in a row (`--repeat-each=2`), 22 passed.
 
 ### Baselines (D109)
