@@ -67,17 +67,15 @@ describe("the commerce blocks (T64)", () => {
       endsAt: "2026-11-01T00:00:00.000Z",
       now,
     });
-    expect(
-      running?.blockType === "hero" &&
-        running.section.products.map((p) => p.id),
-    ).toEqual(["prod_cap", "prod_mug"]);
+    expect(running?.blockType === "hero" && running.section.products.map((p) => p.id)).toEqual([
+      "prod_cap",
+      "prod_mug",
+    ]);
     const ended = await resolve({
       ...hero,
       countdownEnd: "2026-10-01T00:00:00.000Z",
     });
-    expect(
-      ended?.blockType === "hero" && ended.section.countdown,
-    ).toBeUndefined();
+    expect(ended?.blockType === "hero" && ended.section.countdown).toBeUndefined();
     const alone = await resolve({
       blockType: "hero",
       heading: "Hi",
@@ -98,9 +96,7 @@ describe("the commerce blocks (T64)", () => {
       ...block,
       productSource: { ...block.productSource, emptyBehavior: "message" },
     });
-    expect(
-      message?.blockType === "productCollection" && message.section.empty,
-    ).toEqual({
+    expect(message?.blockType === "productCollection" && message.section.empty).toEqual({
       title: "Nothing here yet",
       text: "Look again soon.",
       action: { label: "Shop everything", href: "/us/store" },
@@ -118,9 +114,9 @@ describe("the commerce blocks (T64)", () => {
       blockType: "featuredProduct",
       product: synced("prod_hoodie"),
     });
-    expect(
-      featured?.blockType === "featuredProduct" && featured.section.image.src,
-    ).toBe("https://cdn.example/hoodie.jpg");
+    expect(featured?.blockType === "featuredProduct" && featured.section.image.src).toBe(
+      "https://cdn.example/hoodie.jpg",
+    );
     const bundle = {
       blockType: "bundle",
       heading: "Together",
@@ -129,9 +125,10 @@ describe("the commerce blocks (T64)", () => {
     // The lamp is not sold in the US: one product is not a bundle.
     expect(await resolve(bundle, unitedStates)).toBeUndefined();
     const cy = await resolve(bundle, cyprus);
-    expect(
-      cy?.blockType === "bundle" && cy.section.products.map((p) => p.id),
-    ).toEqual(["prod_cap", "prod_lamp"]);
+    expect(cy?.blockType === "bundle" && cy.section.products.map((p) => p.id)).toEqual([
+      "prod_cap",
+      "prod_lamp",
+    ]);
   });
 
   it("promoBanner: left out once its offer has ended", async () => {
@@ -140,9 +137,7 @@ describe("the commerce blocks (T64)", () => {
       heading: "Ten off",
       code: "WELCOME10",
     };
-    expect(
-      await resolve({ ...banner, endsAt: "2026-10-29T11:59:59.000Z" }),
-    ).toBeUndefined();
+    expect(await resolve({ ...banner, endsAt: "2026-10-29T11:59:59.000Z" })).toBeUndefined();
     const running = await resolve({
       ...banner,
       endsAt: "2026-11-30T00:00:00.000Z",
@@ -167,12 +162,10 @@ describe("the commerce blocks (T64)", () => {
       cyprus,
     );
     if (resolved?.blockType !== "comparison") throw new Error("no comparison");
-    expect(resolved.section.products.map((p) => [p.id, p.price.price])).toEqual(
-      [
-        ["prod_hoodie", { amount: 59, currencyCode: "EUR" }],
-        ["prod_cap", { amount: 19, currencyCode: "EUR" }],
-      ],
-    );
+    expect(resolved.section.products.map((p) => [p.id, p.price.price])).toEqual([
+      ["prod_hoodie", { amount: 59, currencyCode: "EUR" }],
+      ["prod_cap", { amount: 19, currencyCode: "EUR" }],
+    ]);
     expect(resolved.section.rows).toEqual([
       { label: "Χρώμα", values: ["Black, Navy", null] },
       { label: "Material", values: ["Cotton", "Canvas"] },
@@ -203,27 +196,22 @@ describe("the commerce blocks (T64)", () => {
         products: [synced("prod_cap"), synced("prod_mug")],
       },
     };
-    const section = async (
-      block: Record<string, unknown>,
-      market?: FakeMarket,
-    ) => {
+    const section = async (block: Record<string, unknown>, market?: FakeMarket) => {
       const resolved = await resolve(block, market);
       return resolved?.blockType === "hero" ? resolved.section : undefined;
     };
 
     it("passes the variant on and parses with it", async () => {
-      expect((await section({ ...base, variant: "centered" }))?.variant).toBe(
-        "centered",
-      );
+      expect((await section({ ...base, variant: "centered" }))?.variant).toBe("centered");
     });
 
     it("the second picture and the collections only for their members", async () => {
       const standard = await section({ ...base, variant: "standard" });
       expect(standard?.secondImage).toBeUndefined();
       expect(standard?.collections).toBeUndefined();
-      expect(
-        (await section({ ...base, variant: "editorial" }))?.secondImage?.src,
-      ).toBe("/api/media/file/second.webp");
+      expect((await section({ ...base, variant: "editorial" }))?.secondImage?.src).toBe(
+        "/api/media/file/second.webp",
+      );
     });
 
     it("collection-switcher: each collection's translated title, its listing and picture; no products read", async () => {
@@ -238,8 +226,7 @@ describe("the commerce blocks (T64)", () => {
         ],
         { market: us, map: seeded, commerce: context },
       );
-      const hero =
-        resolved?.blockType === "hero" ? resolved.section : undefined;
+      const hero = resolved?.blockType === "hero" ? resolved.section : undefined;
       expect(hero?.collections).toEqual([
         {
           title: "Καλοκαίρι",
@@ -275,24 +262,16 @@ describe("the commerce blocks (T64)", () => {
     });
 
     it("text: no picture; overlay and editorial without theirs are left out", async () => {
-      expect(
-        (await section({ ...base, variant: "text" }))?.image,
-      ).toBeUndefined();
-      expect(
-        await section({ ...base, variant: "overlay", media: null }),
-      ).toBeUndefined();
-      expect(
-        await section({ ...base, variant: "editorial", secondMedia: null }),
-      ).toBeUndefined();
+      expect((await section({ ...base, variant: "text" }))?.image).toBeUndefined();
+      expect(await section({ ...base, variant: "overlay", media: null })).toBeUndefined();
+      expect(await section({ ...base, variant: "editorial", secondMedia: null })).toBeUndefined();
       expect((await section({ ...base, variant: "overlay" }))?.image?.src).toBe(
         "/api/media/file/first.webp",
       );
     });
 
     it("product: the source's first product, and left out without one", async () => {
-      expect(
-        (await section({ ...base, variant: "product" }))?.products[0]?.id,
-      ).toBe("prod_cap");
+      expect((await section({ ...base, variant: "product" }))?.products[0]?.id).toBe("prod_cap");
       expect(
         await section({
           ...base,
@@ -321,8 +300,7 @@ describe("the commerce blocks (T64)", () => {
       },
       cyprus,
     );
-    if (resolved?.blockType !== "collectionSpotlight")
-      throw new Error("no spotlight");
+    if (resolved?.blockType !== "collectionSpotlight") throw new Error("no spotlight");
     expect(resolved.section.heading).toBe("Καλοκαίρι");
     expect(resolved.section.href).toBe("/us/collections/summer-edit");
     expect(resolved.section.products.map((p) => p.id)).toEqual(["prod_tee"]);
@@ -343,17 +321,14 @@ describe("the commerce blocks (T64)", () => {
       },
       cyprus,
     );
-    expect(
-      resolved?.blockType === "collectionSpotlight" &&
-        resolved.section.products,
-    ).toHaveLength(1);
+    expect(resolved?.blockType === "collectionSpotlight" && resolved.section.products).toHaveLength(
+      1,
+    );
   });
 
   it("recentlyViewed: the heading only, the catalog's when the editor wrote none", async () => {
     const resolved = await resolve({ blockType: "recentlyViewed" });
-    expect(
-      resolved?.blockType === "recentlyViewed" && resolved.section,
-    ).toEqual({
+    expect(resolved?.blockType === "recentlyViewed" && resolved.section).toEqual({
       settings: {},
       // The block's stored variant, passed on (D99).
       variant: "standard",

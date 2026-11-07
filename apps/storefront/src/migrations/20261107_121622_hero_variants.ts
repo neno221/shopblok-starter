@@ -1,4 +1,4 @@
-import { MigrateUpArgs, MigrateDownArgs, sql } from "@payloadcms/db-postgres";
+import { MigrateUpArgs, MigrateDownArgs, sql } from '@payloadcms/db-postgres'
 
 export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   await db.execute(sql`
@@ -54,14 +54,10 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   ALTER TABLE "pages_blocks_hero" ADD CONSTRAINT "pages_blocks_hero_second_media_id_media_id_fk" FOREIGN KEY ("second_media_id") REFERENCES "public"."media"("id") ON DELETE set null ON UPDATE no action;
   ALTER TABLE "_pages_v_blocks_hero" ADD CONSTRAINT "_pages_v_blocks_hero_second_media_id_media_id_fk" FOREIGN KEY ("second_media_id") REFERENCES "public"."media"("id") ON DELETE set null ON UPDATE no action;
   CREATE INDEX "pages_blocks_hero_second_media_idx" ON "pages_blocks_hero" USING btree ("second_media_id");
-  CREATE INDEX "_pages_v_blocks_hero_second_media_idx" ON "_pages_v_blocks_hero" USING btree ("second_media_id");`);
+  CREATE INDEX "_pages_v_blocks_hero_second_media_idx" ON "_pages_v_blocks_hero" USING btree ("second_media_id");`)
 }
 
-export async function down({
-  db,
-  payload,
-  req,
-}: MigrateDownArgs): Promise<void> {
+export async function down({ db, payload, req }: MigrateDownArgs): Promise<void> {
   await db.execute(sql`
    ALTER TABLE "pages_blocks_hero_collections" DISABLE ROW LEVEL SECURITY;
   ALTER TABLE "_pages_v_blocks_hero_collections" DISABLE ROW LEVEL SECURITY;
@@ -98,5 +94,5 @@ export async function down({
   DROP INDEX "pages_blocks_hero_second_media_idx";
   DROP INDEX "_pages_v_blocks_hero_second_media_idx";
   ALTER TABLE "pages_blocks_hero" DROP COLUMN "second_media_id";
-  ALTER TABLE "_pages_v_blocks_hero" DROP COLUMN "second_media_id";`);
+  ALTER TABLE "_pages_v_blocks_hero" DROP COLUMN "second_media_id";`)
 }
