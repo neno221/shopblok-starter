@@ -1,5 +1,5 @@
 // Ours (T84, SETUP.md "Listing variants (T84)"; M5 plan §1a). The `accordion` layout's results: the
-// sidebar beside the products from `lg`, as M3's, with every group closed but the first (native
+// sidebar beside the products from `lg`, as M3's, with every group closed but the first and the chosen ones (native
 // disclosures, FilterFields' `open="first"`, so they open without scripts); the chosen filters'
 // chips above the grid at every width instead of in the sidebar. Below `lg`, FilterDrawer.
 import { cn } from "@shopblok/ui/lib/utils";

@@ -1,6 +1,11 @@
 import type { Condition, Field } from "payload";
 import { variantField } from "../fields/variant";
-import { MINI_CART_PAGE, QUICK_CART_OPTIONS, QUICK_VIEW_OFF } from "../../lib/cms/template-options";
+import {
+  MINI_CART_PAGE,
+  QUICK_CART_OPTIONS,
+  QUICK_VIEW_CARD,
+  QUICK_VIEW_OFF,
+} from "../../lib/cms/template-options";
 import { contentGlobal } from "./content-global";
 
 /**
@@ -12,9 +17,6 @@ import { contentGlobal } from "./content-global";
  * the fields below; T84 adds the listing's `card`, T85 the mini cart's `drawer-picks` and its
  * `picks`, T87 the default `sections`.
  */
-
-/** The card that opens the quick view (D101): the listing's `quick-add`, the only one with its button. */
-export const QUICK_VIEW_CARD = "quick-add";
 
 /** The quick view's picker shows only when the listing's card is `quick-add` (D101, T84). */
 export const withQuickAddCard: Condition = (data) =>

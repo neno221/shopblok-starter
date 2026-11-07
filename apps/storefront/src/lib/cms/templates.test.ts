@@ -1,3 +1,4 @@
+import { QUICK_VIEW_OFF } from "./template-options";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
@@ -57,6 +58,19 @@ describe("templatesFrom", () => {
       quickCart: "off",
       checkout: "one-page",
     });
+  });
+
+  it("turns the quick view off unless the card is quick-add (D101), whatever the tab still holds", () => {
+    const quickView = { variant: "default" as const };
+    expect(
+      templatesFrom(saved({ listing: { variant: "default", card: "quick-add" }, quickView }))
+        .quickView,
+    ).toBe("default");
+    expect(
+      templatesFrom(saved({ listing: { variant: "default", card: "standard" }, quickView }))
+        .quickView,
+    ).toBe(QUICK_VIEW_OFF);
+    expect(templatesFrom(saved({ quickView })).quickView).toBe(QUICK_VIEW_OFF);
   });
 });
 

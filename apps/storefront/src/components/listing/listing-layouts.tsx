@@ -6,12 +6,15 @@
 // line. `React.lazy` rather than `next/dynamic`: the island renders in the browser only (its
 // `useSearchParams` puts it under a `Suspense` with no fallback in the static shell), so there is
 // nothing for `next/dynamic`'s server-side preload to do, and its runtime would cost the listings
-// about 1.4 KB of a first load that had 2.7 KB left (T77's probe).
+// about 1.4 KB of a first load that had 2.7 KB left (T77's probe). A layout's chunk that does not
+// load (a deploy took the old build's files away, the visitor went offline) draws `default`'s
+// results instead (`LayoutBoundary`), not the route's error page: `React.lazy` keeps a rejected
+// import, so a retry could not load it either, and the default layout is the island's own code.
 "use client";
 
 import type { VariantOf } from "@shopblok/registry/contracts";
 import { ListingResults, type ListingResultsProps } from "@shopblok/ui/templates/listing-results";
-import { lazy, type ComponentType } from "react";
+import { Component, lazy, type ComponentType, type ReactNode } from "react";
 
 type Layout = VariantOf<"product-listing">;
 
@@ -51,12 +54,35 @@ const LAZY: { readonly [V in Exclude<Layout, "default">]: ComponentType<ListingR
 const isLazy = (layout: string | undefined): layout is keyof typeof LAZY =>
   layout !== undefined && Object.hasOwn(LAZY, layout);
 
-/** `layout`'s results; a layout the island does not know (or none) draws `default`'s. */
+/** Draws `fallback` instead of its children once one of them throws (a layout that cannot load). */
+class LayoutBoundary extends Component<
+  { fallback: ReactNode; children: ReactNode },
+  { failed: boolean }
+> {
+  override state = { failed: false };
+
+  static getDerivedStateFromError(): { failed: boolean } {
+    return { failed: true };
+  }
+
+  override render() {
+    return this.state.failed ? this.props.fallback : this.props.children;
+  }
+}
+
+/**
+ * `layout`'s results; a layout the island does not know (or none) draws `default`'s, and so does a
+ * layout whose code does not load.
+ */
 export function LayoutResults({
   layout,
   ...props
 }: ListingResultsProps & { layout: string | undefined }) {
   if (!isLazy(layout)) return <ListingResults {...props} />;
   const Results = LAZY[layout];
-  return <Results {...props} />;
+  return (
+    <LayoutBoundary key={layout} fallback={<ListingResults {...props} />}>
+      <Results {...props} />
+    </LayoutBoundary>
+  );
 }

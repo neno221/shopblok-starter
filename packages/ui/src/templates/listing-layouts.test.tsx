@@ -157,17 +157,34 @@ describe("the listing's filter layouts (T84)", () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it("accordion: native disclosures, the first open and the others closed but still in the form", () => {
+  it("accordion: native disclosures, the first and the chosen ones open, every one in the form", () => {
     const { doc } = draw("accordion");
     const groups = [...doc.querySelectorAll('[data-slot="filter-disclosure"]')];
-    expect(groups.length).toBe(filters.groups.filter((g) => g.kind !== "toggle").length);
+    const boxed = filters.groups.filter((g) => g.kind !== "toggle");
+    expect(groups.length).toBe(boxed.length);
+    const chosen = (group: (typeof boxed)[number]) =>
+      group.kind === "range"
+        ? group.selected !== undefined
+        : "options" in group && group.options.some((option) => option.selected);
     expect(groups.map((group) => group.hasAttribute("open"))).toEqual(
-      groups.map((_, index) => index === 0),
+      boxed.map((group, index) => index === 0 || chosen(group)),
     );
-    // A closed group's chosen box is still the form's, ticked.
-    const closed = groups[1]!;
+    // The fixture has a choice past the first group, which is open.
+    expect(boxed.slice(1).some(chosen)).toBe(true);
+    // A later group with nothing chosen stays closed, and its fields are still the form's.
+    const unchosen = filters.groups.map((group, index) =>
+      index === filters.groups.indexOf(boxed[1]!) && "options" in group
+        ? { ...group, options: group.options.map((option) => ({ ...option, selected: false })) }
+        : group,
+    ) as typeof filters.groups;
+    const closed = draw("accordion", {
+      filters: { ...filters, groups: unchosen },
+    }).doc.querySelectorAll('[data-slot="filter-disclosure"]')[1]!;
+    expect(closed.hasAttribute("open")).toBe(false);
     expect(closed.closest("form")).not.toBeNull();
-    expect(closed.querySelector("input[checked]")).not.toBeNull();
+    expect(closed.querySelector('input[type="checkbox"]')).not.toBeNull();
+    for (const box of doc.querySelectorAll('[data-slot="filter-disclosure"] input[checked]'))
+      expect(box.closest("details")?.hasAttribute("open")).toBe(true);
     // The chips are above the grid, not in the sidebar.
     expect(
       doc.querySelector('[data-slot="filter-sidebar"] [data-slot="active-filter-chips"]'),

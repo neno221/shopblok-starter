@@ -2,7 +2,12 @@ import "server-only";
 import { firstVariant, type VariantOf } from "@shopblok/registry/contracts";
 import type { Payload } from "payload";
 import type { Template } from "../../payload-types";
-import { QUICK_CART_OPTIONS, QUICK_VIEW_OFF, type MINI_CART_PAGE } from "./template-options";
+import {
+  QUICK_CART_OPTIONS,
+  QUICK_VIEW_CARD,
+  QUICK_VIEW_OFF,
+  type MINI_CART_PAGE,
+} from "./template-options";
 import { globalTag } from "./globals";
 import { cmsRead, type CmsQuery } from "./read";
 
@@ -46,16 +51,18 @@ export const TEMPLATE_DEFAULTS: TemplateChoice = {
 /**
  * The global as the pages take it (pure): `TEMPLATE_DEFAULTS` for no document or one never saved
  * (Payload answers that without `updatedAt`, as `shell.ts`'s rule for the other globals says), and
- * each empty field its default.
+ * each empty field its default. The quick view is off unless the card is `quick-add` (D101: the only
+ * card with its button), whatever the Quick view tab still holds from before the card changed.
  */
 export function templatesFrom(doc: Template | null): TemplateChoice {
   if (doc === null || !doc.updatedAt) return TEMPLATE_DEFAULTS;
   const d = TEMPLATE_DEFAULTS;
+  const card = doc.listing?.card ?? d.card;
   return {
     productPage: doc.productPage?.variant ?? d.productPage,
     listing: doc.listing?.variant ?? d.listing,
-    card: doc.listing?.card ?? d.card,
-    quickView: doc.quickView?.variant ?? d.quickView,
+    card,
+    quickView: card === QUICK_VIEW_CARD ? (doc.quickView?.variant ?? d.quickView) : QUICK_VIEW_OFF,
     cart: doc.cart?.variant ?? d.cart,
     miniCart: doc.cart?.miniCart ?? d.miniCart,
     quickCart: doc.cart?.quickCart ?? d.quickCart,

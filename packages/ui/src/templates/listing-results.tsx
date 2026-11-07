@@ -9,7 +9,8 @@
 // - The cards' titles are `h2`: the page's name is its one `h1`, and the filters' heading, beside
 //   them, is an `h2` too.
 // - This is the `default` filter layout (`data-layout`); T84's six others are in `listing-layouts/`,
-//   and `listing-layouts.tsx` picks one on the server.
+//   and `listing-layouts.tsx` picks one on the server. Every layout draws its products' column with
+//   `ResultsProducts` and its root with `ResultsRoot`, so the column is written once.
 import type { Messages } from "@shopblok/i18n";
 import type { ListingResults as ListingResultsContent } from "@shopblok/registry/contracts";
 import { cn } from "@shopblok/ui/lib/utils";
@@ -20,6 +21,7 @@ import { FilterDrawer } from "@shopblok/ui/organisms/filter-drawer";
 import { FilterSidebar } from "@shopblok/ui/organisms/filter-sidebar";
 import { ProductGrid } from "@shopblok/ui/organisms/product-grid";
 import { ProductToolbar } from "@shopblok/ui/organisms/product-toolbar";
+import type * as React from "react";
 
 /** The words of a listing's results: the organisms' and molecules' own, picked from a catalog. */
 type ListingResultsCopy = {
@@ -63,26 +65,87 @@ type ListingResultsProps = ListingResultsContent & {
   className?: string;
 };
 
-function ListingResults({
-  toolbar,
-  filters,
-  grid,
-  page,
-  copy,
-  locale,
-  hrefFor,
-  prefetch,
+/** The results' root: the products alone, or the filters' column and the products. */
+function ResultsRoot({
+  layout,
   className,
-}: ListingResultsProps) {
+  children,
+}: {
+  layout: string;
+  className?: string;
+  children: React.ReactNode;
+}) {
   return (
     <div
       data-slot="listing-results"
-      data-layout="default"
-      className={cn(
-        "grid min-w-0 gap-8",
-        filters !== undefined && "lg:grid-cols-[16rem_minmax(0,1fr)]",
-        className,
+      data-layout={layout}
+      className={cn("grid min-w-0 gap-8", className)}
+    >
+      {children}
+    </div>
+  );
+}
+
+/** The products' column: what `lead` puts first, the toolbar, the chips, the grid and the pages. */
+function ResultsProducts({
+  results,
+  drawer,
+  chips,
+  lead,
+}: {
+  results: ListingResultsProps;
+  /** Where the toolbar draws FilterDrawer's button: below `lg`, at every width, or nowhere. */
+  drawer: "below-lg" | "always" | "none";
+  /** Whether the chosen filters' chips are drawn above the grid: at every width, or below `lg`. */
+  chips: boolean | "below-lg";
+  /** Drawn before the toolbar: the top bar's popovers, the toggles, the inline panel. */
+  lead?: React.ReactNode;
+}) {
+  const { toolbar, filters, grid, page, copy, locale, hrefFor, prefetch } = results;
+  return (
+    <div data-slot="listing-products" className="flex min-w-0 flex-col gap-6">
+      {lead}
+      <ProductToolbar
+        {...toolbar}
+        copy={copy.toolbar}
+        sortCopy={copy.sort}
+        locale={locale}
+        prefetch={prefetch}
+        filtersAlways={drawer === "always"}
+        filters={
+          filters === undefined || drawer === "none" ? undefined : (
+            <FilterDrawer
+              {...filters}
+              copy={copy.drawer}
+              groupCopy={copy.group}
+              locale={locale}
+              prefetch={prefetch}
+            />
+          )
+        }
+      />
+      {!chips || filters?.active === undefined ? null : (
+        <ActiveFilterChips
+          active={filters.active}
+          copy={copy.chips}
+          locale={locale}
+          prefetch={prefetch}
+          className={chips === "below-lg" ? "lg:hidden" : undefined}
+        />
       )}
+      <ProductGrid {...grid} copy={copy.grid} locale={locale} heading="h2" prefetch={prefetch} />
+      <Pagination {...page} hrefFor={hrefFor} copy={copy.pagination} locale={locale} />
+    </div>
+  );
+}
+
+/** M3's sidebar beside the products from `lg`; below it, the drawer's button and the chips. */
+function ListingResults({ className, ...results }: ListingResultsProps) {
+  const { filters, copy, locale, prefetch } = results;
+  return (
+    <ResultsRoot
+      layout="default"
+      className={cn(filters !== undefined && "lg:grid-cols-[16rem_minmax(0,1fr)]", className)}
     >
       {filters === undefined ? null : (
         <div data-slot="listing-filters" className="min-w-0 max-lg:hidden">
@@ -96,40 +159,10 @@ function ListingResults({
           />
         </div>
       )}
-      <div data-slot="listing-products" className="flex min-w-0 flex-col gap-6">
-        <ProductToolbar
-          {...toolbar}
-          copy={copy.toolbar}
-          sortCopy={copy.sort}
-          locale={locale}
-          prefetch={prefetch}
-          filters={
-            filters === undefined ? undefined : (
-              <FilterDrawer
-                {...filters}
-                copy={copy.drawer}
-                groupCopy={copy.group}
-                locale={locale}
-                prefetch={prefetch}
-              />
-            )
-          }
-        />
-        {filters?.active === undefined ? null : (
-          <ActiveFilterChips
-            active={filters.active}
-            copy={copy.chips}
-            locale={locale}
-            prefetch={prefetch}
-            className="lg:hidden"
-          />
-        )}
-        <ProductGrid {...grid} copy={copy.grid} locale={locale} heading="h2" prefetch={prefetch} />
-        <Pagination {...page} hrefFor={hrefFor} copy={copy.pagination} locale={locale} />
-      </div>
-    </div>
+      <ResultsProducts results={results} drawer="below-lg" chips="below-lg" />
+    </ResultsRoot>
   );
 }
 
-export { ListingResults, listingResultsCopy };
+export { ListingResults, listingResultsCopy, ResultsProducts, ResultsRoot };
 export type { ListingResultsCopy, ListingResultsProps };

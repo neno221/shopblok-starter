@@ -17,7 +17,8 @@
 //   switch labelled "In stock" would say it twice and hide one control behind another. It keeps its
 //   place in the facets' order. The other kinds hide their legend (`hideLegend`) because the
 //   section's trigger already shows the name; the legend stays for assistive technology.
-// - `open="first"` (T84's `accordion` listing layout) closes every group but the first. Base UI's
+// - `open="first"` (T84's `accordion` listing layout) closes every group but the first and those
+//   with something chosen in it (so a chosen box is in sight, to untick by keyboard). Base UI's
 //   accordion cannot do that without scripts (a closed panel's trigger is a button that needs
 //   them), so those groups are native disclosures (`<details>` and `<summary>`, as the FAQ's):
 //   they open with the keyboard and without JavaScript, and a closed one's fields are still the
@@ -43,7 +44,22 @@ type FilterFieldsProps = {
   open?: "all" | "first";
 };
 
-/** The groups as native disclosures, the first open (T84's `accordion` layout). */
+/** The listing's other parameters (the sort, the scope) as the form's hidden inputs. */
+function HiddenParams({ params }: { params: QueryParam[] }) {
+  return params.map((param, index) => (
+    <input key={`${param.name}-${index}`} type="hidden" name={param.name} value={param.value} />
+  ));
+}
+
+/** How many of a group's values are chosen: a box each, a range or a toggle one. */
+function chosenIn(group: FacetGroup): number {
+  if (group.kind === "checkbox" || group.kind === "swatch")
+    return group.options.filter((option) => option.selected).length;
+  if (group.kind === "range") return group.selected === undefined ? 0 : 1;
+  return group.selected ? 1 : 0;
+}
+
+/** The groups as native disclosures: the first open, and any with a choice in it (T84). */
 function DisclosureFields({
   groups,
   copy,
@@ -61,7 +77,7 @@ function DisclosureFields({
           <details
             key={group.id}
             data-slot="filter-disclosure"
-            open={group === first}
+            open={group === first || chosenIn(group) > 0}
             className="group/filter not-last:border-b"
           >
             <summary className="flex min-h-11 cursor-pointer list-none items-start justify-between gap-2 rounded-md py-4 text-start text-sm font-medium outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
@@ -92,22 +108,13 @@ function FilterFields({
   if (open === "first")
     return (
       <>
-        {params.map((param, index) => (
-          <input
-            key={`${param.name}-${index}`}
-            type="hidden"
-            name={param.name}
-            value={param.value}
-          />
-        ))}
+        <HiddenParams params={params} />
         <DisclosureFields groups={groups} copy={copy} locale={locale} />
       </>
     );
   return (
     <>
-      {params.map((param, index) => (
-        <input key={`${param.name}-${index}`} type="hidden" name={param.name} value={param.value} />
-      ))}
+      <HiddenParams params={params} />
       <Accordion
         multiple
         keepMounted
@@ -135,5 +142,5 @@ function FilterFields({
   );
 }
 
-export { FilterFields };
+export { chosenIn, FilterFields, HiddenParams };
 export type { FilterFieldsProps };

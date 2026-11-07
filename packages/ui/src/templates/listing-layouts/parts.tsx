@@ -15,23 +15,19 @@
 // - Server components; `useId` names each popover, so the server's results and the island's, both
 //   in the page, never share an id.
 import { formatMessage, formatNumber, type Messages } from "@shopblok/i18n";
-import type { FacetGroup, FilterPanel } from "@shopblok/registry/contracts";
+import type { FilterPanel } from "@shopblok/registry/contracts";
 import { Badge } from "@shopblok/ui/atoms/badge";
 import { Button, buttonVariants } from "@shopblok/ui/atoms/button";
 import { Icon } from "@shopblok/ui/atoms/icon";
 import { VisuallyHidden } from "@shopblok/ui/atoms/visually-hidden";
 import { cn } from "@shopblok/ui/lib/utils";
-import { ActiveFilterChips } from "@shopblok/ui/molecules/active-filter-chips";
 import { FilterGroup } from "@shopblok/ui/molecules/filter-group";
-import { Pagination } from "@shopblok/ui/molecules/pagination";
-import { FilterDrawer } from "@shopblok/ui/organisms/filter-drawer";
-import { ProductGrid } from "@shopblok/ui/organisms/product-grid";
-import { ProductToolbar } from "@shopblok/ui/organisms/product-toolbar";
+import { chosenIn, HiddenParams } from "@shopblok/ui/organisms/filter-fields";
 import { ChevronDownIcon, SlidersHorizontalIcon } from "lucide-react";
 import NextLink from "next/link";
 import { useId } from "react";
 import type * as React from "react";
-import type { ListingResultsCopy, ListingResultsProps } from "../listing-results";
+import type { ListingResultsCopy } from "../listing-results";
 
 // `next/link` takes whatever an app with typed routes narrows its `href` to; ours are strings the
 // app built.
@@ -43,94 +39,7 @@ type FiltersProps = FilterPanel & {
   prefetch?: boolean | null;
 };
 
-/** The results' root: the products alone, or the filters' column and the products. */
-function ResultsRoot({
-  layout,
-  className,
-  children,
-}: {
-  layout: string;
-  className?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div
-      data-slot="listing-results"
-      data-layout={layout}
-      className={cn("grid min-w-0 gap-8", className)}
-    >
-      {children}
-    </div>
-  );
-}
-
-/** The products' column: what `lead` puts first, the toolbar, the chips, the grid and the pages. */
-function ResultsProducts({
-  results,
-  drawer,
-  chips,
-  lead,
-}: {
-  results: ListingResultsProps;
-  /** Where the toolbar draws FilterDrawer's button: below `lg`, at every width, or nowhere. */
-  drawer: "below-lg" | "always" | "none";
-  /** Whether the chosen filters' chips are drawn above the grid (at every width). */
-  chips: boolean;
-  /** Drawn before the toolbar: the top bar's popovers, the toggles, the inline panel. */
-  lead?: React.ReactNode;
-}) {
-  const { toolbar, filters, grid, page, copy, locale, hrefFor, prefetch } = results;
-  return (
-    <div data-slot="listing-products" className="flex min-w-0 flex-col gap-6">
-      {lead}
-      <ProductToolbar
-        {...toolbar}
-        copy={copy.toolbar}
-        sortCopy={copy.sort}
-        locale={locale}
-        prefetch={prefetch}
-        filtersAlways={drawer === "always"}
-        filters={
-          filters === undefined || drawer === "none" ? undefined : (
-            <FilterDrawer
-              {...filters}
-              copy={copy.drawer}
-              groupCopy={copy.group}
-              locale={locale}
-              prefetch={prefetch}
-            />
-          )
-        }
-      />
-      {!chips || filters?.active === undefined ? null : (
-        <ActiveFilterChips
-          active={filters.active}
-          copy={copy.chips}
-          locale={locale}
-          prefetch={prefetch}
-        />
-      )}
-      <ProductGrid {...grid} copy={copy.grid} locale={locale} heading="h2" prefetch={prefetch} />
-      <Pagination {...page} hrefFor={hrefFor} copy={copy.pagination} locale={locale} />
-    </div>
-  );
-}
-
 /** The listing's other parameters (its scope, the sort), which every filter form carries. */
-function HiddenParams({ params }: Pick<FilterPanel, "params">) {
-  return params.map((param, index) => (
-    <input key={`${param.name}-${index}`} type="hidden" name={param.name} value={param.value} />
-  ));
-}
-
-/** How many of a group's values are chosen: a box each, a range or a toggle one. */
-function chosenIn(group: FacetGroup): number {
-  if (group.kind === "checkbox" || group.kind === "swatch")
-    return group.options.filter((option) => option.selected).length;
-  if (group.kind === "range") return group.selected === undefined ? 0 : 1;
-  return group.selected ? 1 : 0;
-}
-
 /** A group's button's count: a badge for the eye, the drawer's sentence for the ear. */
 function ChosenCount({
   count,
@@ -326,7 +235,10 @@ function ToggleFilters({ action, groups, params, copy, locale }: FiltersProps) {
             <div
               key={group.id}
               data-slot="filter-toggle-field"
-              className={cn("min-w-0", group.kind === "range" ? "w-full sm:w-80" : "w-full sm:w-56")}
+              className={cn(
+                "min-w-0",
+                group.kind === "range" ? "w-full sm:w-80" : "w-full sm:w-56",
+              )}
             >
               <FilterGroup facet={group} copy={copy.group} locale={locale} />
             </div>
@@ -402,5 +314,6 @@ function InlineFilters({ action, groups, params, active, copy, locale, prefetch 
   );
 }
 
-export { HiddenParams, InlineFilters, PopoverFilters, ResultsProducts, ResultsRoot, ToggleFilters };
+export { InlineFilters, PopoverFilters, ToggleFilters };
+export { ResultsProducts, ResultsRoot } from "../listing-results";
 export type { FiltersProps };
