@@ -107,12 +107,12 @@ describe.each(GLOBALS)("the %s global (D78)", (slug, global) => {
 });
 
 describe("the design fields (D85)", () => {
-  it("offer the registry's header variants but the transparent one", () => {
+  it("offer every header variant, the transparent one too since T80 (D103)", () => {
+    expect(HEADER_EXCLUDED_VARIANTS).toEqual([]);
     expect(options(field(Header, "design"))).toEqual(
-      variantsOf("header")
-        .map((variant) => variant.value)
-        .filter((value) => !HEADER_EXCLUDED_VARIANTS.includes(value)),
+      variantsOf("header").map((variant) => variant.value),
     );
+    expect(options(field(Header, "design"))).toContain("transparent");
   });
 
   it("offer every footer variant", () => {

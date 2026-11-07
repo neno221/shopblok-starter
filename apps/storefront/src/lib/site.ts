@@ -7,7 +7,8 @@ import type { AnnouncementBar, FooterColumn, Link } from "@shopblok/registry/con
 // are per language, with English for a language the shop has no text in.
 
 /** A header variant of the registry's `header` family (`headers-footers/header-{variant}`). */
-export type HeaderVariant = "classic" | "centered" | "two-tier" | "mega-menu" | "minimal";
+export type HeaderVariant =
+  "classic" | "centered" | "two-tier" | "mega-menu" | "minimal" | "transparent";
 /** A footer variant of the registry's `footer` family. */
 export type FooterVariant =
   "multi-column" | "newsletter-first" | "minimal" | "wordmark" | "two-tier";

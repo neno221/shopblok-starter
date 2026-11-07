@@ -67,18 +67,18 @@ describe("HeaderTransparent: its look", () => {
     const scrim = slot("header-scrim") as HTMLElement;
     expect(scrim.getAttribute("aria-hidden")).toBe("true");
     expect(scrim.className).toContain("bg-overlay");
-    expect(scrim.className).toContain("group-data-[solid=true]/header:hidden");
+    expect(scrim.className).toContain("header-solid:hidden");
     const surface = slot("header-surface") as HTMLElement;
-    expect(surface.className).toContain("group-data-[solid=false]/header:text-overlay-foreground");
-    expect(surface.className).toContain("group-data-[solid=true]/header:bg-background");
-    expect(surface.className).toContain("group-data-[solid=true]/header:border-b");
+    expect(surface.className).toContain("header-clear:text-overlay-foreground");
+    expect(surface.className).toContain("header-solid:bg-background");
+    expect(surface.className).toContain("header-solid:border-b");
   });
 
   it("remaps the tokens of everything inside it, so a component keeps its own contrast pairing", () => {
     render(<HeaderTransparent {...props()} />);
     const surface = slot("header-surface") as HTMLElement;
     for (const token of ["--foreground", "--muted-foreground", "--muted", "--ring"]) {
-      expect(surface.className).toContain(`group-data-[solid=false]/header:[${token}:var(`);
+      expect(surface.className).toContain(`header-clear:[${token}:var(`);
     }
   });
 
@@ -137,7 +137,7 @@ describe("HeaderTransparent: solid once the page has scrolled", () => {
     expect(header().className).not.toContain("h-0");
     expect(header().getAttribute("data-pinned")).toBe("solid");
     const surface = container.querySelector("[data-slot=header-surface]") as HTMLElement;
-    expect(surface.className).toContain("group-data-[pinned=solid]/header:relative");
+    expect(surface.className).toContain("header-pinned:relative");
   });
 
   it("lies over the page, with no height, when it only turns solid", () => {
@@ -155,6 +155,52 @@ describe("HeaderTransparent: solid once the page has scrolled", () => {
     await userEvent.setup().click(menuButton() as HTMLButtonElement);
     await waitFor(() => expect(menuButton()?.getAttribute("aria-expanded")).toBe("true"));
     expect(solid()).toBe("false");
+  });
+});
+
+describe('HeaderTransparent: `solid="auto"`, the page decides (D103, T80)', () => {
+  it("says `auto` at the top of the page, and leaves its height and look to the stylesheet", () => {
+    render(<HeaderTransparent {...props({ solid: "auto" })} />);
+    expect(solid()).toBe("auto");
+    expect(header().getAttribute("data-pinned")).toBe("auto");
+    // Lying over the page by default; `header-alone:` (globals.css) gives it its row's height on a
+    // page whose `<main>` does not open with a picture behind its words.
+    expect(header().className).toContain("h-0");
+    expect(header().className).toContain("header-alone:h-auto");
+  });
+
+  it("turns solid once the page scrolls or a menu opens, as unset does", async () => {
+    render(<HeaderTransparent {...props({ solid: "auto" })} />);
+    scrollTo(SCROLL_THRESHOLD + 1);
+    expect(solid()).toBe("true");
+    scrollTo(0);
+    expect(solid()).toBe("auto");
+    await userEvent.setup().click(menuButton() as HTMLButtonElement);
+    await waitFor(() => expect(solid()).toBe("true"));
+  });
+
+  it("renders `auto` on the server and hydrates with no mismatch", async () => {
+    const element = <HeaderTransparent {...props({ solid: "auto" })} />;
+    const markup = renderToString(element);
+    expect(markup).toContain('data-solid="auto"');
+    const container = document.createElement("div");
+    document.body.append(container);
+    container.innerHTML = markup;
+    const onRecoverableError = vi.fn();
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    await act(async () => {
+      hydrateRoot(container, element, { onRecoverableError });
+    });
+    expect(onRecoverableError).not.toHaveBeenCalled();
+    expect(error).not.toHaveBeenCalled();
+    container.remove();
+  });
+
+  it("keeps the other values' markup: no `auto` without it", () => {
+    const { unmount } = render(<HeaderTransparent {...props()} />);
+    expect(header().className).not.toContain("header-alone");
+    expect(header().hasAttribute("data-pinned")).toBe(false);
+    unmount();
   });
 });
 

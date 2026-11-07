@@ -45,6 +45,8 @@ const HEADER_VARIANTS: readonly HeaderVariant[] = [
   "two-tier",
   "mega-menu",
   "minimal",
+  // T80 (D103): transparent over a page that opens with a picture behind its words, else solid.
+  "transparent",
 ];
 const FOOTER_VARIANTS: readonly FooterVariant[] = [
   "multi-column",

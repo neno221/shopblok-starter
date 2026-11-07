@@ -101,6 +101,12 @@ export const keptOut: readonly KeptOut[] = [
     marker: "shopblok:live-preview-listener",
     label: "live preview's listener (D74)",
   },
+  {
+    // T80: the `collection-switcher` hero's tabs, loaded by its island's `next/dynamic`.
+    module: "../../packages/ui/src/sections/hero/collection-tabs.tsx",
+    marker: "shopblok:hero-collection-tabs",
+    label: "the collection switcher hero's tabs (T80)",
+  },
 ];
 
 export type StatsRow = {

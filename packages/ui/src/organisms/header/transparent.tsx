@@ -32,17 +32,20 @@ type HeaderTransparentProps = HeaderProps & {
    * Pins the look. `true`: solid from the start, for a page with no hero under the header, and the
    * header then takes its row's height instead of lying over the page. `false`:
    * transparent whatever the page does (the design system's picture). Unset: transparent at the top
-   * of the page, solid once it scrolls or a menu or the drawer opens.
+   * of the page, solid once it scrolls or a menu or the drawer opens. `"auto"` (the shop's, D103):
+   * as unset over a page whose `<main>` opens with a picture behind its words
+   * (`data-under-header`), and solid with its row's height on any other page, by CSS alone.
    */
-  solid?: boolean;
+  solid?: boolean | "auto";
 };
 
 // The classes that make the row solid or transparent, one group each, from the frame's
 // `data-solid`. Written in full so that Tailwind finds each class.
-const solidLook =
-  "group-data-[solid=true]/header:border-b group-data-[solid=true]/header:bg-background group-data-[solid=true]/header:text-foreground";
+// `header-solid:` and `header-clear:` are `@shopblok/ui/globals.css`' variants (D103, T80): the
+// frame's `data-solid` of `true` or `false`, or `auto` with the page deciding.
+const solidLook = "header-solid:border-b header-solid:bg-background header-solid:text-foreground";
 const transparentLook =
-  "group-data-[solid=false]/header:text-overlay-foreground group-data-[solid=false]/header:[--foreground:var(--overlay-foreground)] group-data-[solid=false]/header:[--muted-foreground:var(--overlay-foreground)] group-data-[solid=false]/header:[--muted:var(--overlay)] group-data-[solid=false]/header:[--ring:var(--overlay-foreground)]";
+  "header-clear:text-overlay-foreground header-clear:[--foreground:var(--overlay-foreground)] header-clear:[--muted-foreground:var(--overlay-foreground)] header-clear:[--muted:var(--overlay)] header-clear:[--ring:var(--overlay-foreground)]";
 
 function HeaderTransparent({ solid, ...props }: HeaderTransparentProps) {
   return (
@@ -52,7 +55,7 @@ function HeaderTransparent({ solid, ...props }: HeaderTransparentProps) {
         <div
           data-slot="header-surface"
           className={cn(
-            "absolute inset-x-0 top-0 group-data-[pinned=solid]/header:relative transition-colors duration-(--duration-base) motion-reduce:transition-none",
+            "absolute inset-x-0 top-0 header-pinned:relative transition-colors duration-(--duration-base) motion-reduce:transition-none",
             solidLook,
             transparentLook,
           )}
@@ -60,7 +63,7 @@ function HeaderTransparent({ solid, ...props }: HeaderTransparentProps) {
           <div
             aria-hidden="true"
             data-slot="header-scrim"
-            className="pointer-events-none absolute inset-0 bg-overlay group-data-[solid=true]/header:hidden"
+            className="pointer-events-none absolute inset-0 bg-overlay header-solid:hidden"
           >
             <div className="absolute inset-x-0 top-full h-8 bg-linear-to-b from-overlay to-transparent" />
           </div>

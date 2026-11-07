@@ -8,7 +8,9 @@ import {
   ProductCollectionSection,
   PromoBannerSection,
   RecentlyViewedSection,
+  VARIANTS,
   type ComparisonProduct,
+  type HeroCollection,
   type ProductCard,
 } from "@shopblok/registry/contracts";
 import type { ProductDto } from "../../medusa/products";
@@ -77,6 +79,39 @@ export type ResolvedCommerceBlock = { key: string } & (
   | { blockType: "recentlyViewed"; section: RecentlyViewedSection }
 );
 
+/** The hero's stored variant when its family has it (T80); `undefined` for none or another's. */
+function heroVariant(value: unknown): HeroVariant | undefined {
+  return (VARIANTS.hero as readonly unknown[]).includes(value) ? (value as HeroVariant) : undefined;
+}
+
+type HeroVariant = (typeof VARIANTS.hero)[number];
+
+/**
+ * The `collection-switcher` hero's collections (T80): each row's collection as Medusa has it for
+ * the market (its translated title and its listing), with the row's picture. A row whose
+ * collection is gone from Medusa, whose picture is missing or that repeats one is left out, so
+ * the contract's two to four count what the market can draw; `undefined` when none is left.
+ */
+async function heroCollections(
+  rows: readonly { collection?: unknown; media?: unknown }[] | null | undefined,
+  reads: CatalogReads,
+  hrefs: Required<Hrefs>,
+): Promise<HeroCollection[] | undefined> {
+  if (rows === null || rows === undefined || rows.length === 0) return undefined;
+  const all = await reads.collections();
+  const seen = new Set<string>();
+  const found = rows.flatMap((row) => {
+    const id = liveMedusaId(row.collection);
+    const collection = id === null ? undefined : all.find((each) => each.id === id);
+    const image = mediaImage(row.media);
+    // A collection picked twice is one tab.
+    if (collection === undefined || image === undefined || seen.has(collection.id)) return [];
+    seen.add(collection.id);
+    return [{ title: collection.title, href: hrefs.collection(collection.handle), image }];
+  });
+  return found.length === 0 ? undefined : found;
+}
+
 /** A time after `now`, as the contracts write it; `undefined` when it is missing or past. */
 function future(value: string | null | undefined, now: string): string | undefined {
   if (typeof value !== "string" || value === "") return undefined;
@@ -123,20 +158,34 @@ export async function resolveCommerceBlock(
 
   switch (block.blockType) {
     case "hero": {
-      const source = await resolveProductSource(block.productSource, reads, hrefs, {
-        max: 4,
-        defaultLimit: 4,
-      });
+      // T80: the stored variant is parsed with the rest when the family has it, so the contract
+      // refuses a member without what it needs (`variantNeeds`); a value from another version is
+      // left to `withVariant`, which draws the first member.
+      const variant = heroVariant(block.variant);
+      const [source, collections] = await Promise.all([
+        // The collection switcher draws no products, so it reads none.
+        variant === "collection-switcher"
+          ? undefined
+          : resolveProductSource(block.productSource, reads, hrefs, { max: 4, defaultLimit: 4 }),
+        variant === "collection-switcher"
+          ? heroCollections(block.collections, reads, hrefs)
+          : undefined,
+      ]);
       const endsAt = future(block.countdownEnd, now);
       const section = parsed(HeroSection, {
         settings,
+        ...(variant === undefined ? {} : { variant }),
         eyebrow: text(block.eyebrow),
         heading: text(block.heading),
         subheading: text(block.subheading),
-        image: mediaImage(block.media),
+        // The text hero draws no picture.
+        image: variant === "text" ? undefined : mediaImage(block.media),
+        secondImage: variant === "editorial" ? mediaImage(block.secondMedia) : undefined,
+        collections,
         links: links(block.links),
         countdown: endsAt === undefined ? undefined : { endsAt, now },
-        // The hero stands without its products: an empty source leaves only them out.
+        // The hero stands without its products: an empty source leaves only them out (but the
+        // product hero is its first product, and the contract leaves it out without one).
         products: source?.products ?? [],
       });
       return section === undefined ? null : { key, blockType: "hero", section };

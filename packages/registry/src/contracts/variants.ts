@@ -33,7 +33,17 @@ export const VARIANTS = {
   testimonials: ["standard"],
   video: ["standard"],
   spacer: ["standard"],
-  hero: ["standard"],
+  // T80 (M5 plan §1a): the hero's seven more.
+  hero: [
+    "standard",
+    "overlay",
+    "centered",
+    "editorial",
+    "bento",
+    "collection-switcher",
+    "product",
+    "text",
+  ],
   "category-showcase": ["standard"],
   "product-collection": ["standard"],
   "featured-product": ["standard"],
