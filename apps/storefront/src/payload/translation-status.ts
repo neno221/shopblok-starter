@@ -426,12 +426,13 @@ export async function readEveryLanguage(
 
 /**
  * The documents of a list page in every language, in one read (the list column, measured in T89):
- * `ids` are the page's rows.
+ * `ids` are the page's rows, read as the signed-in editor, as the list itself is.
  */
 export async function readManyInEveryLanguage(
   payload: Reader,
   collection: "pages" | "posts",
   ids: readonly (number | string)[],
+  user: PayloadRequest["user"],
 ): Promise<Data[]> {
   if (ids.length === 0) return [];
   const { docs } = await payload.find({
@@ -440,8 +441,8 @@ export async function readManyInEveryLanguage(
     ...EVERY_LANGUAGE,
     limit: ids.length,
     pagination: false,
-    // The list's cells have no request to read as; the list itself is staff's (`isStaff`).
-    overrideAccess: true,
+    overrideAccess: false,
+    user,
   });
   return docs as unknown as Data[];
 }

@@ -329,7 +329,7 @@ describe("the reads (D107)", () => {
     expect(
       await readEveryLanguage(payload as never, { collection: "pages" }, undefined, user),
     ).toBeNull();
-    await readManyInEveryLanguage(payload as never, "posts", [4, 5]);
+    await readManyInEveryLanguage(payload as never, "posts", [4, 5], user);
     expect(payload.find).toHaveBeenCalledWith(
       expect.objectContaining({
         collection: "posts",
@@ -337,6 +337,8 @@ describe("the reads (D107)", () => {
         locale: "all",
         fallbackLocale: false,
         pagination: false,
+        overrideAccess: false,
+        user,
       }),
     );
   });

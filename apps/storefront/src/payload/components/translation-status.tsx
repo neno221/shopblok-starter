@@ -1,4 +1,5 @@
 import type { DefaultServerCellComponentProps, Field, Payload, UIFieldServerProps } from "payload";
+import { headers } from "next/headers";
 import { cache } from "react";
 import { openLanguages, pickAvailableLocales } from "../filter-available-locales";
 import type { TranslationStatusCustom } from "../fields/translation-status";
@@ -142,9 +143,18 @@ export async function TranslationStatusField({ field, id, payload, req }: UIFiel
   return <TranslationStatusView status={status} languages={languages} />;
 }
 
+/**
+ * The signed-in editor, once per list render: a cell gets no request, so the list's own cookie
+ * says who reads (the rows are read with their access, as the list's are).
+ */
+const listUser = cache(
+  async (payload: Payload) => (await payload.auth({ headers: await headers() })).user,
+);
 /** One gatherer per list render and collection, so a list page's cells share one read. */
 const listReads = cache((payload: Payload, collection: "pages" | "posts") =>
-  gatherReads((ids) => readManyInEveryLanguage(payload, collection, ids)),
+  gatherReads(async (ids) =>
+    readManyInEveryLanguage(payload, collection, ids, await listUser(payload)),
+  ),
 );
 const listLanguages = cache((payload: Payload) => languagesToReport(payload));
 
