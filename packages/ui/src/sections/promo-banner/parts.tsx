@@ -29,6 +29,11 @@ type PromoBannerSectionProps = PromoBannerSectionData & {
   frozen?: boolean;
   /** `popup`: the shop's island (above). */
   popup?: PromoPopupSlot;
+  /**
+   * 1 when the band opens the page and its heading is the page's title (the `full-bleed` member
+   * only, T82); 2 by default.
+   */
+  headingLevel?: 1 | 2;
   className?: string;
 };
 

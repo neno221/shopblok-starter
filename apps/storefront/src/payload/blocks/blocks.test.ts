@@ -2,12 +2,24 @@
 // side only, or a variant added to a family without the block's `variant` field offering it, fails
 // here with the reason.
 import { entries, sectionEntries, variantsOf } from "@shopblok/registry";
-import type { ArrayField, BlocksField, Block, GroupField, SelectField, UploadField } from "payload";
+import type {
+  ArrayField,
+  BlocksField,
+  Block,
+  DateField,
+  GroupField,
+  RelationshipField,
+  SelectField,
+  UploadField,
+} from "payload";
 import { describe, expect, it } from "vitest";
 import { Pages } from "../collections/pages";
 import { BLOCKS, LAYOUT_BLOCKS } from ".";
 import { describeBlock } from "./describe";
+import { ComparisonBlock } from "./comparison";
 import { HeroBlock } from "./hero";
+import { NewsletterBlock } from "./newsletter";
+import { PromoBannerBlock } from "./promo-banner";
 import { VideoBlock } from "./video";
 import { blockDrift } from "./drift";
 
@@ -163,7 +175,7 @@ describe("describeBlock (the DS's Payload block panel)", () => {
       localized: false,
       required: true,
       conditional: false,
-      options: ["standard"],
+      options: ["standard", "side-heading"],
     });
     expect(rows?.find((row) => row.path === "items.answer")).toMatchObject({
       type: "textarea",
@@ -285,5 +297,67 @@ describe("the hero's designs that need a picture or a product (T80, PR 119 revie
     expect(await sourceFor("product", "newest")).toBe(true);
     expect(await sourceFor("standard", "none")).toBe(true);
     expect(await sourceFor("bento", "none")).toBe(true);
+  });
+});
+
+describe("the content and promotion designs that need a field (T82)", () => {
+  const req = { t: (key: string) => key };
+  const shown = (block: Block, name: string, variant: string) => {
+    const each = field(block, name) as { admin?: { condition?: (...args: unknown[]) => boolean } };
+    return each.admin?.condition?.({}, { variant }, {}) ?? true;
+  };
+
+  it("refuses the promo banner's Full bleed design without a picture, and takes the others without one", async () => {
+    const media = field(PromoBannerBlock, "media") as UploadField;
+    const pictureFor = (variant: string) =>
+      media.validate?.(null as never, { required: false, siblingData: { variant }, req } as never);
+    expect(await pictureFor("full-bleed")).toBe(
+      "This design draws the offer on the picture: choose one.",
+    );
+    for (const variant of ["standard", "strip", "ticket", "countdown", "popup"])
+      expect(await pictureFor(variant), variant).toBe(true);
+  });
+
+  it("refuses the promo banner's Countdown design without an end, and takes the others without one", async () => {
+    const end = field(PromoBannerBlock, "endsAt") as DateField;
+    const endFor = (variant: string, value: unknown = null) =>
+      end.validate?.(value as never, { required: false, siblingData: { variant }, req } as never);
+    expect(await endFor("countdown")).toBe("This design counts down to the offer's end: set one.");
+    expect(await endFor("countdown", "2026-12-01T00:00:00.000Z")).toBe(true);
+    for (const variant of ["standard", "strip", "ticket", "full-bleed", "popup"])
+      expect(await endFor(variant), variant).toBe(true);
+  });
+
+  it("shows and requires the comparison's pick only for Highlight, among the products it compares", async () => {
+    const pick = field(ComparisonBlock, "pick") as RelationshipField;
+    expect(pick.required).toBe(true);
+    expect(shown(ComparisonBlock, "pick", "highlight")).toBe(true);
+    expect(shown(ComparisonBlock, "pick", "standard")).toBe(false);
+    expect(shown(ComparisonBlock, "pick", "cards")).toBe(false);
+    const products = [{ id: 1 }, 2];
+    const pickFor = (variant: string, value: unknown) =>
+      pick.validate?.(
+        value as never,
+        {
+          required: true,
+          relationTo: "products",
+          siblingData: { variant, products },
+          req: { ...req, payload: { collections: {}, db: { defaultIDType: "number" } } },
+        } as never,
+      );
+    expect(await pickFor("highlight", 2)).toBe(true);
+    expect(await pickFor("highlight", 1)).toBe(true);
+    expect(await pickFor("highlight", 3)).toBe("Choose one of the products the table compares.");
+    expect(await pickFor("highlight", null)).not.toBe(true);
+    expect(await pickFor("standard", null)).toBe(true);
+    const filter = pick.filterOptions as (args: { siblingData: unknown }) => unknown;
+    expect(filter({ siblingData: { products } })).toEqual({ id: { in: ["1", "2"] } });
+  });
+
+  it("shows and requires the newsletter's picture only for Split", () => {
+    const media = field(NewsletterBlock, "media") as UploadField;
+    expect(media.required).toBe(true);
+    expect(shown(NewsletterBlock, "media", "split")).toBe(true);
+    expect(shown(NewsletterBlock, "media", "standard")).toBe(false);
   });
 });

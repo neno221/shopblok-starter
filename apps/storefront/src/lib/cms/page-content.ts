@@ -33,10 +33,29 @@ export function cmsPageContent(
   };
 }
 
+/** The blocks whose `full-bleed` member draws its heading on a picture from edge to edge (T82). */
+const BANDS: readonly string[] = ["mediaWithText", "promoBanner"];
+
 /**
  * Who has the page's `<h1>`: the first block when it is a hero that is drawn (`RenderBlocks`'
  * `heroTitle`), else the title. From the resolved layout, not the stored one: a hero left out
  * (no catalog for the market, a failed read) leaves the title to the template (PR 98 review, item 1).
+ * T82: a full-bleed band (the media with text's or the promo banner's) with a heading and a picture
+ * takes it too, as the hero does, so it is `<main>`'s first child and the transparent header lies
+ * over its picture (D103); a title drawn above it would push it down.
  */
-export const pageHeading = (blocks: readonly Pick<ResolvedBlock, "blockType">[]) =>
-  blocks[0]?.blockType === "hero" ? ("hero" as const) : ("title" as const);
+export function pageHeading(
+  blocks: readonly (Pick<ResolvedBlock, "blockType"> & {
+    section?: { variant?: string | undefined; heading?: string | undefined; image?: unknown };
+  })[],
+): "hero" | "title" {
+  const first = blocks[0];
+  if (first?.blockType === "hero") return "hero";
+  const band =
+    first !== undefined &&
+    BANDS.includes(first.blockType) &&
+    first.section?.variant === "full-bleed" &&
+    first.section.heading !== undefined &&
+    first.section.image !== undefined;
+  return band ? "hero" : "title";
+}

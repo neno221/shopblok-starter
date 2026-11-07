@@ -43,6 +43,28 @@ describe("pageHeading", () => {
     expect(pageHeading([])).toBe("title");
   });
 
+  it("gives it to a full-bleed band that opens the page, with its heading and picture (T82)", () => {
+    const image = { src: "/a.webp", alt: "", width: 1, height: 1 };
+    for (const blockType of ["mediaWithText", "promoBanner"] as const) {
+      expect(
+        pageHeading([{ blockType, section: { variant: "full-bleed", heading: "Sale", image } }]),
+        blockType,
+      ).toBe("hero");
+      expect(pageHeading([{ blockType, section: { variant: "full-bleed", image } }])).toBe("title");
+      expect(
+        pageHeading([{ blockType, section: { variant: "full-bleed", heading: "Sale" } }]),
+      ).toBe("title");
+      expect(
+        pageHeading([{ blockType, section: { variant: "standard", heading: "Sale", image } }]),
+      ).toBe("title");
+    }
+    expect(
+      pageHeading([
+        { blockType: "faq", section: { variant: "full-bleed", heading: "Sale", image } },
+      ]),
+    ).toBe("title");
+  });
+
   it("gives it to the title when the opening hero is not drawn (PR 98 review, item 1)", async () => {
     // Without the market's catalog the commerce blocks, the hero among them, are left out.
     const hero = [

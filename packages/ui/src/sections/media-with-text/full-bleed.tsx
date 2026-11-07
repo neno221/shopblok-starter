@@ -27,6 +27,7 @@ function MediaWithTextFullBleed({
   children,
   copy,
   prefetch,
+  headingLevel,
   className,
 }: MediaWithTextSectionProps) {
   const { inner } = sectionFrameClasses(settings);
@@ -62,7 +63,9 @@ function MediaWithTextFullBleed({
               overlayTokens,
             )}
           >
-            {heading === undefined ? null : <SectionHeading>{heading}</SectionHeading>}
+            {heading === undefined ? null : (
+              <SectionHeading level={headingLevel}>{heading}</SectionHeading>
+            )}
             {children === undefined ? null : <Prose>{children}</Prose>}
             <SectionLinks links={links} newTabLabel={copy.newTab} prefetch={prefetch} />
           </div>

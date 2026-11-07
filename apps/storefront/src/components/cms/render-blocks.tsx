@@ -46,7 +46,8 @@ type RenderBlocksProps = {
   messages: Messages;
   /**
    * The page has no `<h1>` of its own: a hero that opens it takes the page's heading (and its
-   * picture is preloaded). Otherwise every hero's heading is an `<h2>`.
+   * picture is preloaded), as does a full-bleed band that opens it (T82, `pageHeading`). Otherwise
+   * every hero's heading is an `<h2>`.
    */
   heroTitle?: boolean;
 };
@@ -90,7 +91,12 @@ export async function RenderBlocks({
             );
           case "mediaWithText":
             return (
-              <MediaWithTextSection key={block.key} {...block.section} copy={copy}>
+              <MediaWithTextSection
+                key={block.key}
+                {...block.section}
+                copy={copy}
+                headingLevel={heroTitle && index === 0 ? 1 : 2}
+              >
                 {block.content === null ? undefined : (
                   <CmsRichText data={block.content} context={context} />
                 )}
@@ -170,6 +176,7 @@ export async function RenderBlocks({
                 locale={locale}
                 timeZone={timeZone}
                 prefetch={prefetch}
+                headingLevel={heroTitle && index === 0 ? 1 : 2}
                 popup={({ body, labelledBy }) => (
                   <PromoPopup
                     offer={block.key}

@@ -297,11 +297,23 @@ describe("resolveBlock: the forms (T67, D81)", () => {
       blockType: "newsletter",
       section: {
         settings: {},
+        variant: "standard",
         heading: "Letters",
         newsletter: { email: "", privacyHref: "/us/privacy" },
       },
       form: { id: "3", fieldName: "email" },
     });
+  });
+
+  it("split: the newsletter's picture, only for it, and left out without one (T82)", () => {
+    const picture = media(6, "image/webp");
+    const split = { ...(newsletter(signup) as object), variant: "split", media: picture };
+    const drawn = resolveBlock(split as LayoutBlock, context);
+    expect(drawn?.blockType === "newsletter" && drawn.section.variant).toBe("split");
+    expect(drawn?.blockType === "newsletter" && drawn.section.image?.src).toBe("/api/media/file/6");
+    const standard = resolveBlock({ ...split, variant: "standard" } as LayoutBlock, context);
+    expect(standard?.blockType === "newsletter" && standard.section.image).toBeUndefined();
+    expect(resolveBlock({ ...split, media: null } as LayoutBlock, context)).toBeNull();
   });
 
   it("leaves out a newsletter whose form is not one email field, is not populated, or has no privacy page", () => {

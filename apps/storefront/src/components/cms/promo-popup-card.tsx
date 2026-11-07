@@ -31,16 +31,21 @@ function PromoPopupCard({ labelledBy, closeLabel, onClose, children }: PromoPopu
   useEffect(() => (card === null ? undefined : reserveSpaceFor(card)), [card]);
   useEffect(() => {
     if (card === null) return;
-    // Where focus came from when it entered the card, to give it back when the card goes.
+    // Where focus came from when it entered the card, to give it back when the card goes: the
+    // event's `relatedTarget`, or the last element focused outside the card when the browser gives
+    // none (a focus that started where the browser has no element to name, such as the page).
+    const active = document.activeElement;
+    let outside = active instanceof HTMLElement && !card.contains(active) ? active : null;
     let cameFrom: HTMLElement | null = null;
     const onFocusIn = (event: FocusEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node) || !card.contains(target)) {
+        if (target instanceof HTMLElement) outside = target;
+        return;
+      }
       const from = event.relatedTarget;
-      if (
-        card.contains(event.target as Node) &&
-        from instanceof HTMLElement &&
-        !card.contains(from)
-      )
-        cameFrom = from;
+      if (from instanceof Node && card.contains(from)) return;
+      cameFrom = from instanceof HTMLElement ? from : outside;
     };
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== "Escape" || event.defaultPrevented || inModal(event.target)) return;

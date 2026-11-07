@@ -38,6 +38,7 @@ function PromoBannerFullBleed({
   locale,
   timeZone,
   prefetch,
+  headingLevel,
   className,
 }: PromoBannerSectionProps) {
   const { inner } = sectionFrameClasses(settings);
@@ -75,7 +76,7 @@ function PromoBannerFullBleed({
               overlayTokens,
             )}
           >
-            <SectionHeading>{heading}</SectionHeading>
+            <SectionHeading level={headingLevel}>{heading}</SectionHeading>
             <PromoText text={text} />
             <PromoCode code={code} copy={copy} locale={locale} />
             <PromoEnds ends={ends} />
