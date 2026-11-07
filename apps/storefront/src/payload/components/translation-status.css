@@ -1,0 +1,85 @@
+/* The translation status (D107), on Payload's theme variables. */
+
+.translation-status {
+  margin-bottom: var(--base);
+}
+
+.translation-status__title {
+  margin: 0 0 calc(var(--base) / 2);
+  font-size: 1rem;
+}
+
+.translation-status__note {
+  margin: 0;
+  color: var(--theme-elevation-650);
+}
+
+.translation-status__languages,
+.translation-status__missing {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.translation-status__languages > li {
+  padding-block: calc(var(--base) / 4);
+  border-bottom: 1px solid var(--theme-elevation-100);
+}
+
+.translation-status__language {
+  font-weight: 600;
+}
+
+.translation-status__languages > li[data-state="complete"] .translation-status__count {
+  color: var(--theme-success-750);
+}
+
+.translation-status summary {
+  cursor: pointer;
+}
+
+.translation-status__missing {
+  padding-block-start: calc(var(--base) / 4);
+  padding-inline-start: var(--base);
+}
+
+.translation-status__missing a {
+  display: inline-block;
+  min-block-size: 24px;
+  color: var(--theme-elevation-800);
+}
+
+/* "Not translated in …" above the UI strings list. */
+
+.not-translated {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: calc(var(--base) / 2);
+  margin-bottom: var(--base);
+}
+
+.not-translated__languages {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(var(--base) / 2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.not-translated__languages a {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: 24px;
+  padding-inline: calc(var(--base) / 2);
+  border: 1px solid var(--theme-elevation-150);
+  border-radius: var(--style-radius-s);
+  color: var(--theme-elevation-800);
+  text-decoration: none;
+}
+
+.not-translated__languages a[aria-current="true"] {
+  border-color: var(--theme-elevation-800);
+  font-weight: 600;
+}

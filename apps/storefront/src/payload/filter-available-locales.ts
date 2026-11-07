@@ -2,7 +2,7 @@ import type { Locale, PayloadRequest } from "payload";
 import { enabledCountries } from "../lib/markets/market";
 import { describeError } from "../lib/markets/source";
 import type { MarketMap } from "../lib/markets/types";
-import { DEFAULT_LOCALE } from "./locales";
+import { DEFAULT_LOCALE, LOCALES } from "./locales";
 import { marketMap } from "./market-map";
 
 /** The languages of the open countries. */
@@ -98,7 +98,7 @@ export async function openLanguages(
  * selector is a dynamic part of it, as its database reads were before D95). Outside Next (a script,
  * `payload run`) there is no request and nothing to wait for.
  */
-async function waitForRequest(): Promise<void> {
+export async function waitForRequest(): Promise<void> {
   let connection: () => Promise<void>;
   try {
     ({ connection } = await import("next/server"));
@@ -134,4 +134,20 @@ export async function filterAvailableLocales({
     locales,
     await openLanguages((message) => req.payload.logger.warn(message)),
   );
+}
+
+/**
+ * The languages the translation status reports on (D107, T89): the ones the admin's language
+ * selector offers, English left out, in the config's order. It waits for the request first, as
+ * `filterAvailableLocales` does (`waitForRequest`), so a prerender of the admin page never starts the
+ * read of Medusa's map that it would cut off.
+ */
+export async function languagesBesidesEnglish(
+  warn: Warn,
+  read: () => Promise<MarketMap> = marketMap,
+): Promise<string[]> {
+  await waitForRequest();
+  return pickAvailableLocales(LOCALES, await openLanguages(warn, read))
+    .map((locale) => locale.code)
+    .filter((code) => code !== DEFAULT_LOCALE);
 }

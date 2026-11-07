@@ -87,6 +87,18 @@ test.describe("the admin bootstrap made", () => {
   const failedRequests: FailedRequest[] = [];
   const english = { title: `E2E page ${stamp}`, slug: `e2e-page-${stamp}` };
   const greek = { title: `Δοκιμαστική σελίδα ${stamp}`, slug: `dokimastiki-${stamp}` };
+  // The translation status's page (T89) and the message the "not translated" filter test empties.
+  const statusPage: {
+    id?: number;
+    english: { title: string; slug: string; heading: string };
+    greek: { title: string; slug: string };
+    greekHeading: string;
+  } = {
+    english: { title: `E2E status ${stamp}`, slug: `e2e-status-${stamp}`, heading: "Half price" },
+    greek: { title: `Κατάσταση ${stamp}`, slug: `katastasi-${stamp}` },
+    greekHeading: "Μισή τιμή",
+  };
+  let emptied: { id: number; key: string; value: string } | undefined;
 
   test.beforeAll(async ({ browser, baseURL }) => {
     page = await browser.newPage({ baseURL: baseURL ?? "http://localhost:8000" });
@@ -106,6 +118,24 @@ test.describe("the admin bootstrap made", () => {
     await deleteAs(page, `/api/pages?where[slug][contains]=e2e-bulk-${stamp}&locale=en`).catch(
       () => undefined,
     );
+    await deleteAs(
+      page,
+      `/api/pages?where[slug][equals]=${statusPage.english.slug}&locale=en`,
+    ).catch(() => undefined);
+    if (emptied !== undefined) {
+      const { id, value } = emptied;
+      await page
+        .evaluate(
+          ({ id, value }) =>
+            fetch(`/api/ui-strings/${id}?locale=el`, {
+              method: "PATCH",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({ value }),
+            }),
+          { id, value },
+        )
+        .catch(() => undefined);
+    }
     // Not a test: leave the database as found, whatever failed above. By slug and not by `pageId`,
     // which is unknown when the draft was saved and the redirect to it then failed.
     await deleteAs(page, `/api/pages?where[slug][equals]=${english.slug}&locale=en`).catch(
@@ -332,6 +362,117 @@ test.describe("the admin bootstrap made", () => {
     await page.waitForURL(/page=2/);
     await expect(page.locator("tbody tr").first()).not.toHaveText(firstRow);
     expect(await marked(page), "pagination is a client navigation").toBe(true);
+  });
+
+  // D107 (T89): the translation status in the sidebar and the list, from one read in every
+  // language without the fallback. The page has English and Greek titles and slugs, and an English
+  // promotion heading with no Greek one: Greek has that heading left to translate.
+  test("the translation status names the text Greek lacks, and is complete once it is written", async () => {
+    const created = await page.evaluate(
+      async ({ english, greek }) => {
+        const post = await fetch("/api/pages?locale=en&draft=true", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            ...english,
+            layout: [{ blockType: "promoBanner", variant: "standard", heading: english.heading }],
+          }),
+        });
+        const { doc } = (await post.json()) as { doc: { id: number } };
+        const patch = await fetch(`/api/pages/${doc.id}?locale=el&draft=true`, {
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(greek),
+        });
+        return { id: doc.id, post: post.status, patch: patch.status };
+      },
+      { english: statusPage.english, greek: statusPage.greek },
+    );
+    expect(created).toMatchObject({ post: 201, patch: 200 });
+    statusPage.id = created.id;
+
+    await page.goto(`/admin/collections/pages/${created.id}?locale=en`);
+    const greekStatus = page.locator('.translation-status [data-language="el"]');
+    await expect(greekStatus).toContainText("1 to translate");
+    const link = greekStatus.getByRole("link", { name: /Promo banner 1 › Heading$/ });
+    await expect(link).toHaveAttribute("href", "?locale=el#field-layout__0__heading");
+
+    // The list's column, from one read of the list page in every language.
+    await page.goto(
+      `/admin/collections/pages?locale=en&search=${encodeURIComponent(statusPage.english.title)}`,
+    );
+    await expect(page.locator("tbody tr")).toHaveCount(1);
+    await expect(page.locator("tbody tr .translation-status__cell")).toContainText(
+      "Ελληνικά: 1 to translate",
+    );
+
+    // The link opens the Greek form at the heading.
+    await page.goto(`/admin/collections/pages/${created.id}?locale=en`);
+    await page.locator('.translation-status [data-language="el"]').getByRole("link").click();
+    await page.waitForURL(/locale=el#field-layout__0__heading/);
+    const heading = page.locator("#field-layout__0__heading");
+    await expect(heading).toBeFocused();
+    await heading.fill(statusPage.greekHeading);
+    await Promise.all([
+      page.waitForResponse(
+        (r) =>
+          r.request().method() === "PATCH" &&
+          new URL(r.url()).pathname === `/api/pages/${created.id}` &&
+          !new URL(r.url()).searchParams.has("autosave"),
+        { timeout: 30_000 },
+      ),
+      page.getByRole("button", { name: "Save Draft" }).click(),
+    ]);
+    // The count is the one the form opened with (D107); the note opens the form again.
+    await page.getByRole("link", { name: "Count again" }).click();
+    await expect(page.locator('.translation-status [data-language="el"]')).toHaveAttribute(
+      "data-state",
+      "complete",
+    );
+    await expect(page.locator('.translation-status [data-language="el"]')).toContainText(
+      "complete",
+    );
+  });
+
+  test("lists a message emptied in Greek under “Not translated in Ελληνικά”", async () => {
+    const message = await page.evaluate(async () => {
+      const response = await fetch(
+        "/api/ui-strings?locale=el&fallback-locale=none&depth=0&limit=1&sort=key&where[value][exists]=true",
+      );
+      const { docs } = (await response.json()) as {
+        docs: { id: number; key: string; value: string }[];
+      };
+      return docs[0];
+    });
+    expect(message, "a message with a Greek text").toBeDefined();
+    emptied = message;
+    const empty = async (value: string | null) =>
+      page.evaluate(
+        async ({ id, value }) =>
+          (
+            await fetch(`/api/ui-strings/${id}?locale=el`, {
+              method: "PATCH",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({ value }),
+            })
+          ).status,
+        { id: message!.id, value },
+      );
+    expect(await empty("")).toBe(200);
+
+    await page.goto("/admin/collections/ui-strings?locale=en");
+    const filter = page.getByRole("navigation", { name: "Not translated in" });
+    await expect(page.getByRole("link", { name: message!.key })).toHaveCount(0);
+    await filter.getByRole("link", { name: "Ελληνικά" }).click();
+    await page.waitForURL(/locale=el/);
+    await expect(filter.getByRole("link", { name: "Ελληνικά" })).toHaveAttribute(
+      "aria-current",
+      "true",
+    );
+    await expect(page.getByRole("link", { name: message!.key, exact: true })).toBeVisible();
+
+    expect(await empty(message!.value)).toBe(200);
+    emptied = undefined;
   });
 
   // Last: it judges everything the admin logged since the first test. A failed request to another

@@ -7,6 +7,7 @@ import {
   clearAvailableLocalesMemory,
   enabledLanguages,
   filterAvailableLocales,
+  languagesBesidesEnglish,
   openLanguages,
   pickAvailableLocales,
 } from "./filter-available-locales";
@@ -14,6 +15,9 @@ import {
 // The map is Medusa's (D95); `market-map.ts` reaches it through a lazy import of `get-market-map`.
 const getMarketMap = vi.hoisted(() => vi.fn());
 vi.mock("../lib/markets/get-market-map", () => ({ getMarketMap }));
+// Next's `connection()`: a prerender stops here, before the map is read (`waitForRequest`).
+const connection = vi.hoisted(() => vi.fn(async () => undefined));
+vi.mock("next/server", () => ({ connection }));
 
 const locales: Locale[] = ["en", "el", "de", "fr", "pt"].map((code) => ({ code, label: code }));
 const codes = (list: Locale[]) => list.map((locale) => locale.code);
@@ -157,5 +161,26 @@ describe("filterAvailableLocales (D95)", () => {
     getMarketMap.mockRejectedValue(new Error("down"));
     const result = await other.filterAvailableLocales({ locales, req: requestOf() });
     expect(codes(result)).toEqual(["en", "el"]);
+  });
+});
+
+describe("languagesBesidesEnglish (D107, T89)", () => {
+  beforeEach(() => clearAvailableLocalesMemory());
+
+  it("waits for the request, then gives the open languages without English, in the config's order", async () => {
+    const read = vi.fn(async () => mapOf(["de", true, ["de"]], ["cy", true, ["el", "en"]]));
+    connection.mockClear();
+    expect(await languagesBesidesEnglish(() => undefined, read)).toEqual(["de", "el"]);
+    expect(connection).toHaveBeenCalledTimes(1);
+    expect(connection.mock.invocationCallOrder[0]).toBeLessThan(
+      read.mock.invocationCallOrder[0] ?? 0,
+    );
+  });
+
+  it("does not read the map when the prerender stops at the request", async () => {
+    const read = vi.fn(async () => mapOf(["de", true, ["de"]]));
+    connection.mockRejectedValueOnce(new Error("prerender interrupted"));
+    await expect(languagesBesidesEnglish(() => undefined, read)).rejects.toThrow("prerender");
+    expect(read).not.toHaveBeenCalled();
   });
 });
