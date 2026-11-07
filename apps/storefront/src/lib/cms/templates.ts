@@ -73,20 +73,36 @@ export function templatesFrom(doc: Partial<Template> | null): TemplateChoice {
   };
 }
 
+/** What `templatesFrom` takes of the global: its pickers, never the sections. */
+const TEMPLATE_PICKERS = {
+  productPage: { variant: true },
+  listing: { variant: true, card: true },
+  quickView: { variant: true },
+  cart: { variant: true, miniCart: true, quickCart: true },
+  checkout: { variant: true },
+  receipt: { variant: true },
+  updatedAt: true,
+} as const;
+
 /**
  * The `templates` global in the market's language (D73: the cached entry is per language and
  * tagged `global:templates:<locale>`, which a publish refreshes in every language), as a draft in
  * Draft Mode. Its pickers are not localized, so every language reads the same values; the read
  * still goes by the market, never the request (ADR 0003). `null` with no database.
+ *
+ * Only the pickers, selected: the shell reads this on every page, and the global's sections
+ * (T87) are a few hundred block tables a full read joins (PR 127's CI: every templates save and
+ * read four times slower, live previews late). `readTemplateSections` reads those.
  */
 export const readTemplates = cmsRead(
-  async (payload: Payload, query: CmsQuery): Promise<Template> =>
+  async (payload: Payload, query: CmsQuery): Promise<Partial<Template>> =>
     (await payload.findGlobal({
       slug: "templates",
       ...query,
       locale: query.locale as never,
       depth: 0,
-    })) as Template,
+      select: TEMPLATE_PICKERS as never,
+    })) as Partial<Template>,
   { name: "cms:global:templates", tags: (locale) => [globalTag("templates", locale)] },
 );
 

@@ -93,6 +93,18 @@ describe("readTemplates", () => {
       draft: false,
       depth: 0,
     });
+    // The pickers only: never the sections' block tables (PR 127's CI).
+    const select = findGlobal.mock.calls[0]?.[0].select;
+    expect(Object.keys(select).sort()).toEqual([
+      "cart",
+      "checkout",
+      "listing",
+      "productPage",
+      "quickView",
+      "receipt",
+      "updatedAt",
+    ]);
+    expect(JSON.stringify(select)).not.toContain("sections");
     expect(cacheTag.mock.calls).toEqual([["global:templates:el"]]);
   });
 
@@ -113,7 +125,11 @@ describe("miniCartFrom (T85)", () => {
   it("takes the saved member and source; the cart page is no member", () => {
     const picks = { mode: "handpicked" as const, products: [] };
     expect(
-      miniCartFrom(saved({ cart: { variant: "default", miniCart: "drawer-picks", quickCart: "dropdown", picks } })),
+      miniCartFrom(
+        saved({
+          cart: { variant: "default", miniCart: "drawer-picks", quickCart: "dropdown", picks },
+        }),
+      ),
     ).toEqual({ member: "drawer-picks", picks });
     expect(miniCartFrom(saved({ cart: { miniCart: "page" } as Template["cart"] }))).toEqual({
       member: null,

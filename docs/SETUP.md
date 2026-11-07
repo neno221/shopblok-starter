@@ -8942,7 +8942,7 @@ The review is in the Library (`reviews/pr-127-code-review.md`): 2 must-fix findi
 | 6 | Tabs in own sections 404 for a handle outside `[A-Za-z0-9_-]{1,128}` | Skipped (not security or a cleanup) |
 | 7 | After a client-side navigation, a section with an island was blank until its chunk loaded | Skipped (not security or a cleanup); the `Activity` (item 2) happens to change it: the navigation now waits for the module instead |
 | 8 | Product and listing pages expire after 5 minutes (`commerceContext`'s `renderTime`) | Skipped (efficiency) |
-| 9 | `readTemplates` has no `select` and loads both default sections | Skipped (efficiency) |
+| 9 | `readTemplates` has no `select` and loads both default sections | Skipped at first (efficiency), then fixed because CI failed on it: the shell reads the global on every page, and the full read joins the sections' block tables, so `e2e-smoke` timed out in `cart-variants.spec.ts` and two live previews (`cms-pages.spec.ts`, `editor-homepage.spec.ts`) were late. `readTemplates` selects the pickers only (a unit test checks no `sections`); a local read went from about 40 ms to about 12 ms |
 | 10 | `commerceContext` awaited after the other reads | Skipped (efficiency) |
 | 11 | Two reads of the same catalog document | Skipped (efficiency; deliberate, "Where it differs from the plan") |
 
