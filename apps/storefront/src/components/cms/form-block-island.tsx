@@ -17,3 +17,6 @@ export function FormBlockIsland({
     <FormBlockSection {...section} {...shown(state, pending)} formId={formId} action={action} />
   );
 }
+
+// T87: what `first-load.ts`' `keptOut` finds this module's chunks by (it loads with its block).
+FormBlockIsland.displayName = "shopblok:form-block-island";

@@ -14,7 +14,7 @@ import type { CatalogContentSlug } from "../../lib/cms/tags";
 import { readTemplateSections } from "../../lib/cms/templates";
 import type { MarketContext } from "../../lib/market-context";
 import { getShellData } from "../shell/shell-data";
-import { RenderBlocks } from "./render-blocks";
+import { SectionBlocks } from "./section-blocks";
 
 const OWN_SECTIONS = {
   products: readProductSections,
@@ -27,8 +27,9 @@ const OWN_SECTIONS = {
  * `undefined` when it shows none: its own (`sectionsMode: own`), the `templates` global's for its
  * page (`default`, also a document the sync has not written yet), or none. The blocks resolve as a
  * page's do (`resolveLayout`: the links in the shell's paths, the commerce blocks in the market's
- * region through the catalog's cached reads and tags) and are drawn by `RenderBlocks`, with every
- * heading an `<h2>` (the page's `<h1>` is the product's or the listing's name). Both reads are
+ * region through the catalog's cached reads and tags) and are drawn by `SectionBlocks`
+ * (`section-blocks.tsx`, which leaves out the three blocks the sections cannot hold, so their code
+ * is not in these pages' first load), with every heading an `<h2>` (the page's `<h1>` is the product's or the listing's name). Both reads are
  * cached entries with the document's or the global's tags, so the route stays in the static shell;
  * a failed read draws no sections rather than taking the page down. In Draft Mode (the `templates`
  * global's live preview) the global is read as its draft, and a `tabs` collection's other tabs come
@@ -66,5 +67,5 @@ export async function catalogSections({
   };
   const blocks = await resolveLayout(chosen.blocks, resolveContext);
   if (blocks.length === 0) return undefined;
-  return <RenderBlocks resolved={blocks} context={resolveContext} messages={messages} />;
+  return <SectionBlocks resolved={blocks} context={resolveContext} messages={messages} />;
 }

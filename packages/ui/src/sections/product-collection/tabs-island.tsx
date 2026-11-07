@@ -6,10 +6,16 @@
 // links and the first tab's products, which the tabs replace once they are drawn.
 "use client";
 
-import dynamic from "next/dynamic";
+import { lazyIsland } from "@shopblok/ui/lib/lazy-island";
 import type { ProductCollectionTabsPanelsProps } from "./tabs-panels";
 
-const ProductCollectionTabsPanels = dynamic(() => import("./tabs-panels"), { ssr: false });
+// T87: `lazyIsland` rather than `next/dynamic`, whose loader runtime the product page, which now
+// draws a product's sections, could not spend (`lib/lazy-island.ts`). The same behaviour: nothing
+// on the server, the module fetched once the island has mounted.
+const ProductCollectionTabsPanels = lazyIsland<ProductCollectionTabsPanelsProps>(
+  () => import("./tabs-panels").then((module) => module.default),
+  { ssr: false },
+);
 
 function ProductCollectionTabsIsland(props: ProductCollectionTabsPanelsProps) {
   return <ProductCollectionTabsPanels {...props} />;

@@ -5,7 +5,7 @@
 // (`pickVariant`).
 import { pickVariant, type Members } from "@shopblok/ui/lib/variant";
 import type * as React from "react";
-import { TestimonialsCarousel } from "./testimonials/carousel";
+import { TestimonialsCarousel } from "./testimonials/carousel-island";
 import { TestimonialsSingle } from "./testimonials/single";
 import { TestimonialsStandard, type TestimonialsSectionProps } from "./testimonials/standard";
 import { TestimonialsWall } from "./testimonials/wall";

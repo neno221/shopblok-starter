@@ -24,3 +24,6 @@ export function NewsletterSectionIsland({
     />
   );
 }
+
+// T87: what `first-load.ts`' `keptOut` finds this module's chunks by (it loads with its block).
+NewsletterSectionIsland.displayName = "shopblok:newsletter-section-island";

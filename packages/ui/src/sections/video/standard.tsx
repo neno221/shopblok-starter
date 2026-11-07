@@ -9,7 +9,7 @@ import { formatMessage } from "@shopblok/i18n";
 import type { VideoSection as VideoSectionData } from "@shopblok/registry/contracts";
 import type { SectionsCopy } from "@shopblok/ui/sections/section-copy";
 import { SectionFrame, SectionHeading } from "@shopblok/ui/sections/section-frame";
-import { VideoEmbed } from "@shopblok/ui/sections/video-embed";
+import { VideoEmbed } from "@shopblok/ui/sections/video-embed-island";
 
 /** How a provider is named on the page. Brand names, the same in every language. */
 const providerNames = { youtube: "YouTube", vimeo: "Vimeo" } as const;

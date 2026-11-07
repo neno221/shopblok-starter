@@ -35,6 +35,8 @@ export default defineConfig({
   },
   test: {
     exclude: [...configDefaults.exclude, "e2e/**/*.spec.ts"],
+    // T87: the blocks' islands drawn eagerly (their loaders use `next/dynamic`).
+    setupFiles: ["./src/test-support/eager-islands.ts"],
     testTimeout: 20_000,
     server: {
       deps: {

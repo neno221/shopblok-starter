@@ -35,3 +35,6 @@ export function RecentlyViewedBlock({
     />
   );
 }
+
+// T87: what `first-load.ts`' `keptOut` finds this module's chunks by (it loads with its block).
+RecentlyViewedBlock.displayName = "shopblok:recently-viewed-block";

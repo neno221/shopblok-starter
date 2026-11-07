@@ -18,5 +18,8 @@ export function OfferEnd({ endsAt, children }: { endsAt: string; children: React
     const timer = setTimeout(() => setEnded(true), Math.max(0, left));
     return () => clearTimeout(timer);
   }, [endsAt]);
-  return ended ? null : children;
+  return ended ? null : <>{children}</>;
 }
+
+// T87: what `first-load.ts`' `keptOut` finds this module's chunks by (it loads with its block).
+OfferEnd.displayName = "shopblok:offer-end";

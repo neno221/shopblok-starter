@@ -157,6 +157,52 @@ export const keptOut: readonly KeptOut[] = [
     marker: `shopblok:quick-view-${member}`,
     label: `the quick view's ${member} member (T83)`,
   })),
+  // T87: the blocks' islands, which a page's blocks and, since T87, a product's or a listing's
+  // sections draw, each loaded when its block is drawn (`lib/lazy-island.ts`, React's `lazy`): the
+  // storefront's (`src/components/cms/lazy-islands.tsx`) and `@shopblok/ui`'s `*-island.tsx`
+  // loaders. Not here: the countdown's clock, which the account's e-mail check imports too
+  // (`createClock`), and ProductCarousel, which the product page's own rows draw.
+  ...(
+    [
+      ["src/components/cms/form-block-island.tsx", "form-block-island", "the form block's island"],
+      [
+        "src/components/cms/newsletter-section-island.tsx",
+        "newsletter-section-island",
+        "the newsletter block's island",
+      ],
+      ["src/components/cms/offer-end.tsx", "offer-end", "the promo banner's end"],
+      [
+        "src/components/cms/promo-popup.tsx",
+        "promo-banner-popup",
+        "the promo banner's popup island",
+      ],
+      [
+        "src/components/cms/recently-viewed-block.tsx",
+        "recently-viewed-block",
+        "the recently viewed block's island",
+      ],
+      ["../../packages/ui/src/sections/video-embed.tsx", "video-embed", "the video's player"],
+      [
+        "../../packages/ui/src/molecules/copy-code-control.tsx",
+        "copy-code-control",
+        "the promo code's copy button",
+      ],
+      [
+        "../../packages/ui/src/sections/testimonials/carousel.tsx",
+        "testimonials-carousel",
+        "the testimonials' carousel",
+      ],
+      [
+        "../../packages/ui/src/sections/category-showcase/carousel.tsx",
+        "category-showcase-carousel",
+        "the category showcase's carousel",
+      ],
+    ] as const
+  ).map(([module, marker, label]) => ({
+    module,
+    marker: `shopblok:${marker}`,
+    label: `${label} (T87)`,
+  })),
 ];
 
 export type StatsRow = {
