@@ -2,6 +2,7 @@ import type {
   Address,
   AddressFormState,
   Cart,
+  CheckoutDone,
   CheckoutPage,
   CheckoutSteps,
   Order,
@@ -224,6 +225,37 @@ export function toReviewStep(
     payment: { name: paymentName(cart.paymentProviderId, systemName) },
     editHrefs,
   };
+}
+
+/**
+ * The `one-page` checkout's finished steps (T86) from the cart: each step before `current`, with its
+ * "Edit" link (the step's page at its anchor). `undefined` for a step the cart has not done, which
+ * `canOpen` keeps from happening for a step before the one shown.
+ */
+export function toCheckoutDone(
+  cart: CartDto,
+  current: CheckoutStepId,
+  systemName: string,
+  editHrefs: { contact: string; delivery: string },
+): CheckoutDone {
+  const before = CHECKOUT_STEP_IDS.slice(0, CHECKOUT_STEP_IDS.indexOf(current));
+  const done: CheckoutDone = {};
+  if (before.includes("contact") && cart.email !== null && cart.shippingAddress !== null)
+    done.contact = {
+      email: cart.email,
+      shippingAddress: toContractAddress(cart.shippingAddress),
+      editHref: editHrefs.contact,
+    };
+  if (before.includes("delivery") && cart.shippingMethod !== null)
+    done.delivery = {
+      shippingMethod: {
+        name: cart.shippingMethod.name,
+        price: toMoney(cart.shippingMethod.amount),
+      },
+      payment: { name: paymentName(cart.paymentProviderId, systemName) },
+      editHref: editHrefs.delivery,
+    };
+  return done;
 }
 
 const orderStatus = (status: string): Order["status"] =>

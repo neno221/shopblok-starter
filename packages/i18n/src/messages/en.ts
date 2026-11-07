@@ -986,6 +986,11 @@ export const en = {
         text: "Add something to your cart, then come back to check out.",
         continue: "Continue shopping",
       },
+      // T86: the `express-rail` layout's rail above the first step (its buttons are M6's).
+      express: {
+        title: "Express checkout",
+        or: "Or continue below",
+      },
     },
     orderConfirmation: {
       // The receipt (T52): the thanks, the order's number and date, where updates go, its parts'
@@ -998,6 +1003,41 @@ export const en = {
       delivery: "Delivery",
       payment: "Payment",
       continue: "Continue shopping",
+      // T86: the `statement` layout's table of lines, the `compact` card's total and its details,
+      // and the `next-steps` layout's three cards (the third for a guest or for the account's owner).
+      statement: {
+        caption: "Items ordered",
+        product: "Product",
+        quantity: "Quantity",
+        price: "Price",
+        total: "Total",
+      },
+      compact: {
+        total: "Total",
+        details: "Order details",
+      },
+      nextSteps: {
+        title: "What happens next",
+        email: {
+          title: "Check your e-mail",
+          text: "The confirmation is on its way to {email}.",
+        },
+        delivery: {
+          title: "We prepare your order",
+          text: "It goes by {method} to {city}.",
+          textNoCity: "It goes by {method}.",
+        },
+        register: {
+          title: "Create an account",
+          text: "Follow this order and check out faster next time.",
+          action: "Create an account",
+        },
+        "account-order": {
+          title: "Follow your order",
+          text: "Your account shows where it is and what comes next.",
+          action: "View the order",
+        },
+      },
     },
     auth: {
       // Signing in and up (T53, D64): each screen's heading and lead, the fields, the buttons, the

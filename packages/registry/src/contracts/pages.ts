@@ -1,13 +1,18 @@
 import { z } from "zod";
 import { Address, AddressFormState } from "./address";
 import { Cart } from "./cart";
-import { CheckoutSteps, OrderSummary, PaymentStep } from "./cart-checkout-account";
+import {
+  CHECKOUT_STEP_IDS,
+  CheckoutSteps,
+  OrderSummary,
+  PaymentStep,
+} from "./cart-checkout-account";
 import { Href, Id, IsoDateTime, Link } from "./content";
 import { Image } from "./image";
 import { Breadcrumbs, PageState, SearchQuery } from "./listing";
 import { FilterPanel, ProductCarousel, ProductGrid, ProductToolbar } from "./listing-organisms";
 import { ShippingOption } from "./shipping";
-import { variantEnum } from "./variants";
+import { variantEnum, variantNeeds } from "./variants";
 import { Order } from "./order";
 import {
   BuyBox,
@@ -259,8 +264,31 @@ export const CheckoutReviewStep = z.object({
 });
 
 /**
+ * The `one-page` checkout's finished steps (T86): what each chose, summed up above the open step
+ * with its "Edit" link back to it. A step is here only once it is done.
+ */
+export const CheckoutDone = z.object({
+  contact: z
+    .object({
+      email: z.email(),
+      shippingAddress: Address,
+      editHref: Href.describe("The first step, opened: its anchor on the page"),
+    })
+    .optional(),
+  delivery: z
+    .object({
+      shippingMethod: Order.shape.shippingMethod,
+      payment: Order.shape.payment,
+      editHref: Href.describe("The second step, opened: its anchor on the page"),
+    })
+    .optional(),
+});
+
+/**
  * The checkout (`checkout`, T52, D65): CheckoutSteps with the summary, and the current step's
  * content. Each step is its own page and its own form, so the checkout posts without scripts.
+ * `one-page` (T86) draws the three on one page and needs `done`: every step before the current
+ * one, summed up.
  */
 export const CheckoutPage = z
   .object({
@@ -271,15 +299,37 @@ export const CheckoutPage = z
       CheckoutDeliveryStep,
       CheckoutReviewStep,
     ]),
+    done: CheckoutDone.optional().describe("one-page: the finished steps, summed up"),
   })
   .refine((page) => page.checkout.steps.current === page.step.kind, {
     message: "the stepper is on another step than the content",
     path: ["step", "kind"],
+  })
+  .superRefine((page, context) => {
+    if (page.variant !== "one-page") return;
+    const before = CHECKOUT_STEP_IDS.slice(0, CHECKOUT_STEP_IDS.indexOf(page.step.kind));
+    for (const kind of before)
+      if (page.done?.[kind as "contact" | "delivery"] === undefined)
+        context.addIssue({
+          code: "custom",
+          path: ["done", kind],
+          message: `the "one-page" variant needs the finished ${kind} step`,
+        });
   });
 
 /**
+ * What the `next-steps` receipt's third card offers (T86): the order in the account, for the
+ * customer who placed it signed in, or an account to create, for a guest.
+ */
+export const ReceiptFollowUp = z.object({
+  kind: z.enum(["account-order", "register"]),
+  href: Href,
+});
+
+/**
  * The receipt (`order-confirmation`, T52, D65): the thanks, the order's number, date and e-mail,
- * where it goes and how, its summary and its history, and the way back to the shop.
+ * where it goes and how, its summary and its history, and the way back to the shop. `next-steps`
+ * (T86) needs `followUp`.
  */
 export const OrderConfirmationPage = z
   .object({
@@ -287,11 +337,13 @@ export const OrderConfirmationPage = z
     order: Order,
     summary: OrderSummary,
     continueHref: Href,
+    followUp: ReceiptFollowUp.optional().describe("next-steps: the account's way on"),
   })
   .refine((page) => page.summary.currencyCode === page.order.currencyCode, {
     message: "the summary is in another currency than the order",
     path: ["summary", "currencyCode"],
-  });
+  })
+  .superRefine(variantNeeds({ "next-steps": ["followUp"] }));
 
 export type NotFoundPage = z.infer<typeof NotFoundPage>;
 export type CmsPage = z.infer<typeof CmsPage>;
@@ -309,5 +361,7 @@ export type CartPage = z.infer<typeof CartPage>;
 export type CheckoutContactStep = z.infer<typeof CheckoutContactStep>;
 export type CheckoutDeliveryStep = z.infer<typeof CheckoutDeliveryStep>;
 export type CheckoutReviewStep = z.infer<typeof CheckoutReviewStep>;
+export type CheckoutDone = z.infer<typeof CheckoutDone>;
 export type CheckoutPage = z.infer<typeof CheckoutPage>;
+export type ReceiptFollowUp = z.infer<typeof ReceiptFollowUp>;
 export type OrderConfirmationPage = z.infer<typeof OrderConfirmationPage>;

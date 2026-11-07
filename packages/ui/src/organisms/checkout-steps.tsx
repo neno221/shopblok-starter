@@ -11,10 +11,16 @@
 // pointer only, so the checkout works by keyboard alone (SPEC §2). The current step is marked by
 // Stepper (`aria-current="step"`, "Step 2 of 3:" before its name). A server component: it holds no
 // state; each step is its own page (M3), so the browser's back and forward walk the steps.
-import type { Messages } from "@shopblok/i18n";
+// T86's checkout layouts (M5 plan §1a) place the summary elsewhere (`summaryAt`): `start` puts it
+// first, the first column from `lg` and above the heading on a phone; `top` puts it in a bar at the
+// top of one column, a native disclosure (`<details>`, so it opens without scripts) with the total
+// on it. `one-page` draws its three steps itself (`stepper` and `section` off).
+import { formatMessage, type Messages } from "@shopblok/i18n";
 import type { CheckoutSteps as CheckoutStepsContent } from "@shopblok/registry/contracts";
+import { Price } from "@shopblok/ui/atoms/price";
 import { cn } from "@shopblok/ui/lib/utils";
 import { Stepper } from "@shopblok/ui/molecules/stepper";
+import { ChevronDownIcon } from "lucide-react";
 import { useId } from "react";
 import type * as React from "react";
 import { OrderSummary } from "./order-summary";
@@ -36,6 +42,12 @@ type CheckoutStepsProps = Omit<React.ComponentProps<"div">, "children"> &
     prefetch?: boolean | null;
     /** The summary's lines open at first below `lg`. */
     summaryOpen?: boolean;
+    /** Where the summary goes (T86): beside the step at the end (M3's), at the start, or a bar on top. */
+    summaryAt?: "end" | "start" | "top";
+    /** Draw the Stepper under the heading (T86's `one-page` draws its steps as sections instead). */
+    stepper?: boolean;
+    /** Put the children in the current step's section under its heading; off: they are the steps. */
+    section?: boolean;
     /** The current step's content: its form. */
     children: React.ReactNode;
   };
@@ -48,6 +60,9 @@ function CheckoutSteps({
   headingLevel = 1,
   prefetch,
   summaryOpen,
+  summaryAt = "end",
+  stepper = true,
+  section = true,
   children,
   className,
   ...props
@@ -56,46 +71,151 @@ function CheckoutSteps({
   const Heading = `h${headingLevel}` as const;
   const StepHeading = `h${headingLevel + 1}` as "h2" | "h3" | "h4" | "h5" | "h6";
   const current = steps.steps.find((step) => step.id === steps.current);
-  return (
+  const summaryLevel = (headingLevel + 1) as 2 | 3 | 4 | 5 | 6;
+  const header = (
     <div
-      data-slot="checkout-steps"
-      data-step={steps.current}
-      className={cn(
-        "grid min-w-0 grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,24rem)] lg:items-start lg:gap-x-10",
-        className,
-      )}
-      {...props}
+      data-slot="checkout-steps-header"
+      className={cn("flex min-w-0 flex-col gap-4", summaryAt === "start" && "lg:col-start-2")}
     >
-      <div data-slot="checkout-steps-header" className="flex min-w-0 flex-col gap-4">
-        <Heading className="text-2xl leading-tight font-semibold wrap-anywhere">
-          {copy.steps.title}
-        </Heading>
+      <Heading className="text-2xl leading-tight font-semibold wrap-anywhere">
+        {copy.steps.title}
+      </Heading>
+      {stepper ? (
         <Stepper {...steps} copy={copy.stepper} locale={locale} prefetch={prefetch} />
-      </div>
+      ) : null}
+    </div>
+  );
+  const aside =
+    summaryAt === "top" ? (
+      <SummaryBar summary={summary} copy={copy} locale={locale} headingLevel={summaryLevel} />
+    ) : (
       <div
         data-slot="checkout-steps-summary"
-        className="min-w-0 lg:sticky lg:top-4 lg:col-start-2 lg:row-span-2 lg:row-start-1"
+        className={cn(
+          "min-w-0 lg:sticky lg:top-4 lg:row-span-2 lg:row-start-1",
+          summaryAt === "start" ? "lg:col-start-1" : "lg:col-start-2",
+        )}
       >
         <OrderSummary
           {...summary}
           copy={copy.summary}
           rowCopy={copy.rows}
           locale={locale}
-          headingLevel={(headingLevel + 1) as 2 | 3 | 4 | 5 | 6}
+          headingLevel={summaryLevel}
           defaultOpen={summaryOpen}
         />
       </div>
-      <section
-        data-slot="checkout-steps-step"
-        aria-labelledby={stepTitleId}
-        className="flex min-w-0 flex-col gap-4 lg:col-start-1"
-      >
-        <StepHeading id={stepTitleId} className="text-lg leading-snug font-semibold wrap-anywhere">
-          {current?.label}
-        </StepHeading>
-        {children}
-      </section>
+    );
+  const body = section ? (
+    <section
+      data-slot="checkout-steps-step"
+      aria-labelledby={stepTitleId}
+      className={cn(
+        "flex min-w-0 flex-col gap-4",
+        summaryAt === "start" ? "lg:col-start-2" : "lg:col-start-1",
+      )}
+    >
+      <StepHeading id={stepTitleId} className="text-lg leading-snug font-semibold wrap-anywhere">
+        {current?.label}
+      </StepHeading>
+      {children}
+    </section>
+  ) : (
+    <div
+      data-slot="checkout-steps-steps"
+      className={cn(
+        "flex min-w-0 flex-col gap-4",
+        summaryAt === "start" ? "lg:col-start-2" : "lg:col-start-1",
+      )}
+    >
+      {children}
     </div>
+  );
+  return (
+    <div
+      data-slot="checkout-steps"
+      data-step={steps.current}
+      data-summary={summaryAt === "end" ? undefined : summaryAt}
+      className={cn(
+        "grid min-w-0 grid-cols-1 gap-6",
+        summaryAt === "end" &&
+          "lg:grid-cols-[minmax(0,1fr)_minmax(18rem,24rem)] lg:items-start lg:gap-x-10",
+        summaryAt === "start" &&
+          "lg:grid-cols-[minmax(18rem,24rem)_minmax(0,1fr)] lg:items-start lg:gap-x-10",
+        className,
+      )}
+      {...props}
+    >
+      {summaryAt === "end" ? (
+        <>
+          {header}
+          {aside}
+        </>
+      ) : (
+        <>
+          {aside}
+          {header}
+        </>
+      )}
+      {body}
+    </div>
+  );
+}
+
+/**
+ * The summary as a bar on top (T86's `focused` checkout): a native disclosure whose closed row says
+ * "Show order summary", the items' count and the total, and whose open panel is the summary with
+ * its lines (no toggle of its own). It works without scripts; the bar is 44 px high.
+ */
+function SummaryBar({
+  summary,
+  copy,
+  locale,
+  headingLevel,
+}: {
+  summary: CheckoutStepsContent["summary"];
+  copy: CheckoutStepsProps["copy"];
+  locale: string;
+  headingLevel: 2 | 3 | 4 | 5 | 6;
+}) {
+  const total = summary.rows.find((row) => row.kind === "total");
+  return (
+    <details
+      data-slot="checkout-steps-summary-bar"
+      className="group min-w-0 rounded-xl border bg-card text-card-foreground"
+    >
+      <summary className="flex min-h-11 min-w-0 cursor-pointer list-none items-center justify-between gap-3 rounded-xl px-4 py-2 text-sm font-medium outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
+        <span className="flex min-w-0 items-center gap-2">
+          <ChevronDownIcon
+            aria-hidden="true"
+            className="size-4 shrink-0 transition-transform group-open:rotate-180 motion-reduce:transition-none"
+          />
+          <span className="min-w-0 wrap-anywhere">
+            <span className="group-open:hidden">{copy.summary.show}</span>
+            <span className="hidden group-open:inline">{copy.summary.hide}</span>
+            <span className="text-muted-foreground">
+              , {formatMessage(copy.summary.count, { count: summary.itemCount }, locale)}
+            </span>
+          </span>
+        </span>
+        {total?.amount === undefined ? null : (
+          <Price
+            amount={total.amount.amount}
+            currency={total.amount.currencyCode}
+            locale={locale}
+          />
+        )}
+      </summary>
+      <OrderSummary
+        {...summary}
+        copy={copy.summary}
+        rowCopy={copy.rows}
+        locale={locale}
+        headingLevel={headingLevel}
+        lines="open"
+        className="rounded-t-none border-x-0 border-b-0"
+      />
+    </details>
   );
 }
 
