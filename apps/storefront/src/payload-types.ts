@@ -1592,7 +1592,7 @@ export interface Page {
    */
   slug: string;
   /**
-   * Off: every language shows the same blocks and translates their texts. On: each language has blocks of its own; a language without any shows English's. Switching it on copies the blocks into English's layout.
+   * Off: every language shows the same blocks and translates their texts. On: each language has blocks of its own, and one without any shows English's. Switching it on copies the shared blocks into each language, with its texts, so nothing changes until you edit a language's blocks.
    */
   layoutPerLanguage?: boolean | null;
   layout?:
