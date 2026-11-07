@@ -55,9 +55,21 @@ test.describe("the quick view and the product page's layouts (T83)", () => {
 
   test.afterAll(async () => {
     if (published === undefined) return;
+    const pages = [LISTING, PRODUCT, `/products/${HANDLE}`];
+    // Settled first, as `publish` does, so no regeneration that started before keeps the old pick.
+    for (const path of pages) await settled(path);
     await publishGlobal(token, "templates", published, "all");
     const card = ((published["listing"] ?? {}) as { card?: string }).card ?? "standard";
-    await freshWithinTwo(() => holds(LISTING, `data-variant="${card}"`), 1_500);
+    const layout = ((published["productPage"] ?? {}) as { variant?: string }).variant ?? "default";
+    // The next file finds the shop as it was: the listing's card and the product page's layout.
+    const restored = [
+      [LISTING, `data-variant="${card}"`],
+      ...pages
+        .slice(1)
+        .map((path) => [path, `data-slot="product-detail-template" data-variant="${layout}"`]),
+    ] as const;
+    for (const [path, text] of restored)
+      expect(await freshWithinTwo(() => holds(path, text), 1_500), path).toBeGreaterThan(0);
   });
 
   const publish = async (changes: GlobalData, path: string, text: string) => {
