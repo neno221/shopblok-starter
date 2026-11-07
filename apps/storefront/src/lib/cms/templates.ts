@@ -55,7 +55,7 @@ export const TEMPLATE_DEFAULTS: TemplateChoice = {
  * each empty field its default. The quick view is off unless the card is `quick-add` (D101: the only
  * card with its button), whatever the Quick view tab still holds from before the card changed.
  */
-export function templatesFrom(doc: Template | null): TemplateChoice {
+export function templatesFrom(doc: Partial<Template> | null): TemplateChoice {
   if (doc === null || !doc.updatedAt) return TEMPLATE_DEFAULTS;
   const d = TEMPLATE_DEFAULTS;
   const card = doc.listing?.card ?? d.card;
@@ -98,9 +98,9 @@ export function miniCartFrom(doc: Pick<Template, "cart" | "updatedAt"> | null): 
   member: VariantOf<"mini-cart"> | null;
   picks: ProductSourceValue | null;
 } {
-  const saved = doc !== null && Boolean(doc.updatedAt);
-  const miniCart = (saved ? doc.cart?.miniCart : undefined) ?? TEMPLATE_DEFAULTS.miniCart;
-  const picks = saved ? (doc.cart as { picks?: ProductSourceValue | null } | undefined)?.picks : null;
+  // The saved-or-default rule is `templatesFrom`'s (PR 121 review, item 9).
+  const { miniCart } = templatesFrom(doc);
+  const picks: ProductSourceValue | null | undefined = doc?.updatedAt ? doc.cart?.picks : null;
   return {
     member: miniCart === MINI_CART_PAGE ? null : miniCart,
     picks: picks ?? null,

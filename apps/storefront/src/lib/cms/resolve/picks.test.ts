@@ -1,5 +1,5 @@
 import { CartPick } from "@shopblok/registry/contracts";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   cyprus,
   fakeCatalog,
@@ -82,6 +82,21 @@ describe("resolvePicks (T85)", () => {
   });
 });
 
+// PR 121 review, item 1: a failed read is no picks, so the drawer still answers.
+describe("resolvePicks when the catalog fails (T85)", () => {
+  it("is no picks, not a rejection", async () => {
+    const catalog = fakeCatalog(unitedStates);
+    const reads = {
+      ...catalog.reads,
+      search: () => Promise.reject(new Error("search timed out")),
+    };
+    const quiet = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    await expect(resolvePicks(null, reads, hrefs, new Set())).resolves.toEqual([]);
+    expect(quiet).toHaveBeenCalledOnce();
+    quiet.mockRestore();
+  });
+});
+
 describe("toPick (T85)", () => {
   const product: ProductDto = {
     id: "prod_x",
@@ -119,6 +134,22 @@ describe("toPick (T85)", () => {
       // A variant without a title is named for its product.
       { variantId: "var_l", label: "X" },
     ]);
+  });
+
+  // PR 121 review, item 2: the price is the offered variants', not a sold-out one's lower price.
+  it("is priced from the variants it offers, and has no picture when the product has none", () => {
+    const cheapSoldOut = {
+      ...product,
+      variants: product.variants.map((v) =>
+        v.id === "var_m" && v.price !== null ? { ...v, price: { ...v.price, amount: 5 } } : v,
+      ),
+    };
+    const pick = toPick(cheapSoldOut, hrefs);
+    expect(pick?.price.price.amount).toBe(10);
+    expect(pick?.price.varies).toBe(true);
+    expect(pick?.image).toBeUndefined();
+    expect(pick?.href).toBe("/us/products/x");
+    expect(CartPick.parse(pick)).toEqual(pick);
   });
 
   it("is no pick when no variant can be bought, or none has a price", () => {

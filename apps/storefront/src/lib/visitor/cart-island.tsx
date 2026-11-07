@@ -28,7 +28,7 @@ import {
 import { VisitorCartButton, type VisitorCartButtonProps } from "./cart-button";
 import { onAdded } from "./cart-events";
 import { setCartCount } from "./store";
-import { MINI_CART_PAGE } from "../cms/template-options";
+import { DRAWER_FORMS, MINI_CART_PAGE } from "../cms/template-options";
 
 export type CartIslandProps = VisitorCartButtonProps & {
   /** The market's key, for the actions. */
@@ -43,12 +43,6 @@ type Shown =
   | { kind: "link" }
   | { kind: "drawer"; parts: DrawerParts; open: boolean }
   | { kind: "quick"; parts: QuickParts };
-
-/**
- * The drawer's forms, by their `data-slot`: a line's quantity and remove, the promotion field's
- * two and (T85) a pick's add. The slot is what the island sends; the server maps it to a change.
- */
-const DRAWER_FORM = /^(cart-line-item|promo-code|cart-pick)-/;
 
 const plain = (event: ReactMouseEvent) =>
   event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey;
@@ -107,7 +101,7 @@ export function CartIsland({ market, miniCart, quickCart, ...button }: CartIslan
     if (shown.kind !== "drawer" || submit.defaultPrevented || !(form instanceof HTMLFormElement))
       return;
     const intent = form.dataset["slot"];
-    if (intent === undefined || !DRAWER_FORM.test(intent)) return;
+    if (!(DRAWER_FORMS as readonly (string | undefined)[]).includes(intent)) return;
     // Caught before React's own handling of the form's action, which then leaves it.
     event.preventDefault();
     const data = new FormData(form, submit.submitter);

@@ -11,6 +11,7 @@ import { cartView, emptyCart, promoErrorOf } from "../cart-view";
 import { cmsOrNull } from "../cms/read";
 import { catalogReads } from "../cms/resolve/market";
 import { resolvePicks } from "../cms/resolve/picks";
+import { DRAWER_FORMS, MINI_CART_PICKS, type DrawerForm } from "../cms/template-options";
 import { miniCartFrom, readCartTemplate } from "../cms/templates";
 import { getMarketContext, type MarketContext } from "../market-context";
 import { getCart } from "../medusa/cart";
@@ -86,7 +87,7 @@ async function drawerFor(
   // "Cart page" while the drawer is open (the global changed since): the first member's drawer.
   const variant = member ?? "drawer";
   const picks =
-    variant === "drawer-picks"
+    variant === MINI_CART_PICKS
       ? await resolvePicks(
           source,
           catalogReads(context),
@@ -140,19 +141,15 @@ export async function renderCartDrawer(market: unknown): Promise<DrawerAnswer | 
   return drawerFor(context, cart, undefined, choice);
 }
 
-/**
- * The change each of the drawer's forms asks for, by its `data-slot`, which is what the island
- * sends (T85): a line's quantity (the stepper's form or the one without scripts) and remove, the
- * promotion field's two, and a pick's add.
- */
-const HANDLERS = new Map<string, (input: unknown) => Promise<ActionResult<CartAnswer>>>([
-  ["cart-line-item-update", updateLineAction],
-  ["cart-line-item-update-fallback", updateLineAction],
-  ["cart-line-item-remove", removeLineAction],
-  ["promo-code-apply", applyPromoAction],
-  ["promo-code-remove", removePromoAction],
-  ["cart-pick-add", addToCartAction],
-]);
+/** The change each of the drawer's forms asks for (`DRAWER_FORMS`, what the island sends). */
+const HANDLERS: Record<DrawerForm, (input: unknown) => Promise<ActionResult<CartAnswer>>> = {
+  "cart-line-item-update": updateLineAction,
+  "cart-line-item-update-fallback": updateLineAction,
+  "cart-line-item-remove": removeLineAction,
+  "promo-code-apply": applyPromoAction,
+  "promo-code-remove": removePromoAction,
+  "cart-pick-add": addToCartAction,
+};
 
 /**
  * A change made in the drawer (`intent`, the `data-slot` of the form that sent `data`), then the drawer
@@ -165,9 +162,8 @@ export async function changeCartInDrawer(
 ): Promise<DrawerAnswer | null> {
   const context = await contextOf(market);
   if (context === null || !(data instanceof FormData)) return null;
-  const handler = typeof intent === "string" ? HANDLERS.get(intent) : undefined;
-  if (handler === undefined) return null;
-  const result = await handler({
+  if (!(DRAWER_FORMS as readonly unknown[]).includes(intent)) return null;
+  const result = await HANDLERS[intent as DrawerForm]({
     ...formDataToObject(data),
     market: context.market.key,
   });

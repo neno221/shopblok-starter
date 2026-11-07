@@ -22,6 +22,7 @@
 //   `drawer-picks` member's picks are part of the body the server rendered.
 "use client";
 
+import type { VariantOf } from "@shopblok/registry/contracts";
 import { buttonVariants, Button } from "@shopblok/ui/atoms/button";
 import { Icon } from "@shopblok/ui/atoms/icon";
 import { cartBadgeClassName } from "@shopblok/ui/lib/cart-badge-class";
@@ -40,7 +41,7 @@ import { useState, type MouseEvent, type ReactNode } from "react";
 
 type CartDrawerClientProps = {
   /** The mini cart's member (D99) it draws for: its trigger and its sheet say so. */
-  variant?: "drawer" | "drawer-picks";
+  variant?: VariantOf<"mini-cart">;
   copy: {
     /** The button's name. */
     open: string;
