@@ -31,7 +31,10 @@ function payloadFor(own: Record<string, unknown[]> = {}) {
       };
     },
   );
-  return { findByID, update: vi.fn(async () => ({})) };
+  return {
+    findByID,
+    update: vi.fn(async (_call: Record<string, unknown>) => ({ id: _call["id"] })),
+  };
 }
 
 const request = (locale: string, payload: unknown = payloadFor()) => ({
@@ -154,8 +157,6 @@ describe("copyLayoutIntoOtherLanguages (D105)", () => {
     const req = request("el", payload);
     req.context["copyLayoutIntoOtherLanguages"] = true;
     await after({ id: 1, _status: "draft" }, req);
-    expect(payload.update.mock.calls.map(([call]) => (call as { locale: string }).locale)).toEqual([
-      "de",
-    ]);
+    expect(payload.update.mock.calls.map(([call]) => call["locale"])).toEqual(["de"]);
   });
 });
