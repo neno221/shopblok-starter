@@ -247,12 +247,11 @@ test.describe("the listing pages and the search (T50)", () => {
     await expect(page.locator('[data-slot="search-results-title"]')).toHaveText("Apparel");
     await expect(page.locator('[data-slot="search-results-title"]')).toBeVisible();
     await expect(page.locator('[data-slot="active-filter-chips"]').first()).toBeVisible();
-    const cards = page.locator(
-      '[data-slot="search-results-template"] [data-slot="product-card"]',
-    );
-    await expect(cards.first()).toBeVisible();
-    expect(await page.locator('[data-slot="product-card"]:visible').count()).toBe(
-      await cards.count(),
+    // Both sides in the results: every card the search drew is shown.
+    const cards = '[data-slot="search-results-template"] [data-slot="product-card"]';
+    await expect(page.locator(cards).first()).toBeVisible();
+    expect(await page.locator(`${cards}:visible`).count()).toBe(
+      await page.locator(cards).count(),
     );
     await expect(page.locator("main")).toHaveCount(1);
     await context.close();
