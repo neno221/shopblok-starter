@@ -4,6 +4,7 @@ import { HeaderClassic } from "@shopblok/ui/organisms/header/classic";
 import { HeaderMegaMenu } from "@shopblok/ui/organisms/header/mega-menu";
 import { HeaderMinimal } from "@shopblok/ui/organisms/header/minimal";
 import type { HeaderProps } from "@shopblok/ui/organisms/header/parts";
+import { HeaderTransparent } from "@shopblok/ui/organisms/header/transparent";
 import { HeaderTwoTier } from "@shopblok/ui/organisms/header/two-tier";
 import { getMessages } from "next-intl/server";
 import type { ReactElement } from "react";
@@ -20,6 +21,12 @@ import { getShellData } from "./shell-data";
 // button, which draws the count once the visitor store has it and opens the cart drawer and the
 // quick cart (T52) as the `templates` global says (T79, D101), and the search overlay. The menu's
 // panels stay unmounted (T35's item 8): their links are in the footer.
+//
+// T80 (D103): the transparent header is drawn with `solid="auto"`. The layout cannot know the page
+// under it, so the page tells it nothing: the CSS rule in `@shopblok/ui/globals.css` lays it over a
+// page whose `<main>` opens with a section that has a picture behind its words
+// (`data-under-header`, the `overlay` hero) and draws it solid, taking its row's height, on every
+// other page, before any script runs.
 
 const HEADERS: Record<HeaderVariant, (props: HeaderProps) => ReactElement> = {
   classic: HeaderClassic,
@@ -27,6 +34,7 @@ const HEADERS: Record<HeaderVariant, (props: HeaderProps) => ReactElement> = {
   "two-tier": HeaderTwoTier,
   "mega-menu": HeaderMegaMenu,
   minimal: HeaderMinimal,
+  transparent: (props) => <HeaderTransparent {...props} solid="auto" />,
 };
 
 export async function SiteHeader() {

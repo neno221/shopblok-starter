@@ -17,6 +17,7 @@ import * as migration_20261031_021246_drop_markets_global from './20261031_02124
 import * as migration_20261106_122518_add_persian from './20261106_122518_add_persian';
 import * as migration_20261107_102559_templates_global from './20261107_102559_templates_global';
 import * as migration_20261107_113348_listing_variants from './20261107_113348_listing_variants';
+import * as migration_20261107_130650_hero_variants from './20261107_130650_hero_variants';
 
 export const migrations = [
   {
@@ -112,6 +113,11 @@ export const migrations = [
   {
     up: migration_20261107_113348_listing_variants.up,
     down: migration_20261107_113348_listing_variants.down,
-    name: '20261107_113348_listing_variants'
+    name: '20261107_113348_listing_variants',
+  },
+  {
+    up: migration_20261107_130650_hero_variants.up,
+    down: migration_20261107_130650_hero_variants.down,
+    name: '20261107_130650_hero_variants'
   },
 ];
