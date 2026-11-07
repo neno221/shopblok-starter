@@ -41,7 +41,12 @@ describe("the variant fields and their families (D99)", () => {
       BLOCKS.length,
     );
     expect(pickers.filter((picker) => picker.where.startsWith("templates."))).toEqual([
-      { where: "templates.productPage.variant", family: "product-detail", offered: ["default"] },
+      // T83: the product page's six layouts and the quick view's three looks.
+      {
+        where: "templates.productPage.variant",
+        family: "product-detail",
+        offered: ["default", "thumbnails-below", "grid", "stacked", "wide", "centered"],
+      },
       {
         where: "templates.listing.variant",
         family: "product-listing",
@@ -65,7 +70,11 @@ describe("the variant fields and their families (D99)", () => {
         ],
       },
       // "Off" and "Cart page" draw no member, so they are left out (D101).
-      { where: "templates.quickView.variant", family: "quick-view", offered: ["default"] },
+      {
+        where: "templates.quickView.variant",
+        family: "quick-view",
+        offered: ["default", "drawer", "compact"],
+      },
       { where: "templates.cart.variant", family: "cart", offered: ["default"] },
       { where: "templates.cart.miniCart", family: "mini-cart", offered: ["drawer"] },
       { where: "templates.checkout.variant", family: "checkout", offered: ["default"] },

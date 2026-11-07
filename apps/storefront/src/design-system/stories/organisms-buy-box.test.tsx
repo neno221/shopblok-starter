@@ -45,6 +45,11 @@ type Id = keyof typeof buyBoxOrganismStories;
 const box = "organisms/buy-box";
 const bar = "organisms/mobile-sticky-atc";
 const quickView = "organisms/quick-view-dialog";
+/** T83: the quick view's two other members, each drawn open as its live render. */
+const quickMembers = [
+  "organisms/quick-view-dialog-drawer",
+  "organisms/quick-view-dialog-compact",
+] as const;
 
 const story = (id: Id) => buyBoxOrganismStories[id];
 const state = (id: Id, stateId: string) => {
@@ -131,8 +136,10 @@ const quickStateIds = ["trigger", "open-empty", "open-chosen", "open-long"];
 const openQuickStateIds = ["open-empty", "open-chosen", "open-long"];
 
 describe("the buy box organisms' stories", () => {
-  it("are one for each of the three entries, each with a summary and a11y notes", () => {
-    expect(Object.keys(buyBoxOrganismStories).sort()).toEqual([box, bar, quickView].sort());
+  it("are one for each of the five entries, each with a summary and a11y notes", () => {
+    expect(Object.keys(buyBoxOrganismStories).sort()).toEqual(
+      [box, bar, quickView, ...quickMembers].sort(),
+    );
     for (const [id, each] of Object.entries(buyBoxOrganismStories)) {
       expect(each.summary.trim(), id).not.toBe("");
       expect(each.summary.trim().endsWith("."), id).toBe(true);
@@ -262,7 +269,7 @@ describe("the buy box organisms' stories", () => {
   it.each(LOCALES)(
     "keep every id of a page its own, and every reference resolves, in %s",
     (locale) => {
-      for (const id of [box, bar, quickView] as const) {
+      for (const id of [box, bar, quickView, ...quickMembers] as const) {
         const markup = pageMarkup(id, locale);
         const ids = idsIn(markup);
         // The bar names itself with `aria-label` and points at the box's ids (`form`, `href`), so it holds

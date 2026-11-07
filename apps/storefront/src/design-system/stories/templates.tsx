@@ -119,7 +119,7 @@ const idsFor = (prefix: string): ProductDetailIds => ({
   reviews: `${prefix}-reviews`,
 });
 
-type ProductDetailVariant = "default" | "chosen" | "long" | "no-related" | "rich";
+type ProductDetailVariant = "default" | "chosen" | "long" | "no-related" | "rich" | "single";
 
 /** The fixture's product page, changed for a state. */
 function productDetailContent(ctx: DsContext, state: ProductDetailVariant): ProductDetailPage {
@@ -147,6 +147,11 @@ function productDetailContent(ctx: DsContext, state: ProductDetailVariant): Prod
   if (state === "no-related") {
     const { related: _related, ...rest } = base;
     return rest;
+  }
+  if (state === "single") {
+    const gallery = fixtures.productPage.gallery.single;
+    const product = { ...base.buyBox.product, media: gallery.media };
+    return { ...base, gallery, buyBox: { ...base.buyBox, product } };
   }
   if (state === "rich") {
     const sections = base.info.sections.map((section) =>
@@ -189,12 +194,18 @@ function richDescription(ctx: DsContext): ReactNode {
   );
 }
 
-const productDetail = (ctx: DsContext, mainId: string, state: ProductDetailVariant) => {
+const productDetail = (
+  ctx: DsContext,
+  mainId: string,
+  state: ProductDetailVariant,
+  variant: VariantOf<"product-detail"> = "default",
+) => {
   const content = productDetailContent(ctx, state);
   const href = content.buyBox.product.href;
   return (
     <ProductDetailTemplate
       {...content}
+      variant={variant}
       copy={productDetailCopy(catalogs[ctx.locale])}
       locale={lang(ctx)}
       reviewsHrefFor={(n) => (n === 1 ? href : `${href}?reviews=${n}`)}
@@ -517,6 +528,45 @@ function listingLayoutStory(
   };
 }
 
+/**
+ * T83: a product page layout (M5 plan §1a), a member of `product-detail`. Its live render is the
+ * page with nothing chosen; its states are a variant chosen (its colour's picture first in the
+ * gallery, the pictures unchanged from `md` where they are all drawn) and a product with one
+ * picture.
+ */
+function productDetailStory(
+  variant: Exclude<VariantOf<"product-detail">, "default">,
+  summary: string,
+  a11y: string,
+): DsStory {
+  const id = `template-product-detail-${variant}`;
+  return {
+    summary,
+    a11y: [
+      pageNote,
+      "The product's name is the page's one `<h1>`, in the buy box; every section under it has an `<h2>`. The buy box's rating links to the reviews, and the sticky bar's button submits the buy box's form, so both add the same choice.",
+      a11y,
+    ],
+    live: (ctx) => page(ctx, id, productDetail(ctx, id, "default", variant)),
+    states: [
+      {
+        id: "chosen",
+        label: "A variant chosen",
+        description:
+          "`?variant=` named a colour and a size: its picture first in the gallery, its price, “Add to cart”.",
+        render: (ctx) => productDetail(ctx, `${id}-chosen`, "chosen", variant),
+      },
+      {
+        id: "single",
+        label: "One picture",
+        description: "A product with one picture: no carousel, no thumbnails, one picture drawn.",
+        render: (ctx) => productDetail(ctx, `${id}-single`, "single", variant),
+      },
+    ],
+    statesLayout: "stack",
+  };
+}
+
 const pageNote =
   "The template is the page between the header and the footer: in a shop it is the page's one `<main>`, the skip link's target, with the page's only `<h1>`. The icon is decoration and hidden from assistive technology.";
 const waysNote =
@@ -623,6 +673,31 @@ export const templateStories = {
     ],
     statesLayout: "stack",
   },
+  "templates/product-detail-thumbnails-below": productDetailStory(
+    "thumbnails-below",
+    "The product page with the main picture over a row of its thumbnails, the gallery and the buy box in two equal columns from `md`, the buy box sticking under the header while the page scrolls.",
+    "The thumbnails are buttons that move the gallery, each named by its picture; below `md` they are not drawn (the carousel's own buttons and swipe move it), so a phone's reader meets the pictures once.",
+  ),
+  "templates/product-detail-grid": productDetailStory(
+    "grid",
+    "The product page with every picture in a two-column grid from `md`, which scrolls past the buy box sticking beside it; below `md` the gallery's carousel.",
+    "From `md` the pictures are plain images in a list, each with its own alternative text, and the carousel is not drawn; below `md` the list is not drawn. A reader meets one set at every width.",
+  ),
+  "templates/product-detail-stacked": productDetailStory(
+    "stacked",
+    "The product page with the pictures one under another in a wide column from `md`, the buy box sticking beside them; below `md` the gallery's carousel.",
+    "From `md` the pictures are plain images in a list, each with its own alternative text, and the carousel is not drawn; below `md` the list is not drawn. A reader meets one set at every width.",
+  ),
+  "templates/product-detail-wide": productDetailStory(
+    "wide",
+    "The product page with a band of every picture across its width first (from `md`), then the buy box sticking beside the product's information, then the reviews and the related products.",
+    "The buy box comes before the information in the page's order, so the `<h1>` is read before the sections it heads; one column below `md`, the gallery's carousel first.",
+  ),
+  "templates/product-detail-centered": productDetailStory(
+    "centered",
+    "The product page for a product with one picture: the picture in a narrow column centred on the page, the buy box under it in the same column, then the information and the reviews.",
+    "One column at every width, in reading order. A product with several pictures shows them through the gallery's carousel and its thumbnails under it.",
+  ),
   "templates/product-listing": {
     summary:
       "A listing page (a category, a collection, every product): the breadcrumbs, its name, the filters beside the products from `lg` (a drawer below it), the toolbar with the count and the sort, the grid and the pages, which are paths (`/page/2`). In a shop the listing island draws the results again for a URL with filters (D59); the server draws this, the first page.",

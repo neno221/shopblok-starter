@@ -31,7 +31,10 @@ type ListingResultsCopy = {
   drawer: Messages["organisms"]["filterDrawer"];
   group: Messages["molecules"]["filterGroup"];
   chips: Messages["molecules"]["activeFilterChips"];
-  grid: ProductCardCopy & { grid: Messages["organisms"]["productGrid"] };
+  grid: ProductCardCopy & {
+    grid: Messages["organisms"]["productGrid"];
+    quickView: Messages["organisms"]["quickViewDialog"];
+  };
   pagination: Messages["molecules"]["pagination"];
 };
 
@@ -49,6 +52,7 @@ function listingResultsCopy(messages: Messages): ListingResultsCopy {
       card: molecules.productCard,
       priceBlock: molecules.priceBlock,
       grid: organisms.productGrid,
+      quickView: organisms.quickViewDialog,
     },
     pagination: molecules.pagination,
   };

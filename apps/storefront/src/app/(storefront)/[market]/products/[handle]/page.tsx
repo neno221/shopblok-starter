@@ -1,9 +1,9 @@
 import type { Messages } from "@shopblok/i18n";
 import type { ProductCard } from "@shopblok/registry/contracts";
 import {
-  GALLERY_SIZES,
   PRODUCT_DETAIL_IDS,
   ProductDetailTemplate,
+  galleryLayoutFor,
   productDetailCopy,
 } from "@shopblok/ui/templates/product-detail";
 import { BuyBox } from "@shopblok/ui/organisms/buy-box";
@@ -250,13 +250,17 @@ export default async function ProductPage({ params }: Props) {
       />
     </>
   );
+  // T83: the gallery as the `templates` global's layout draws it (its column, its thumbnails, and
+  // whether its first picture is the one to preload).
+  const galleryLayout = galleryLayoutFor(templates.productPage);
   const serverGallery = (
     <ProductGallery
       {...content.gallery}
       copy={copy.gallery}
       locale={locale}
-      sizes={GALLERY_SIZES}
-      priority
+      sizes={galleryLayout.sizes}
+      thumbnails={galleryLayout.thumbnails}
+      priority={galleryLayout.priority}
     />
   );
 
@@ -304,7 +308,7 @@ export default async function ProductPage({ params }: Props) {
                 }}
                 copy={copy.gallery}
                 locale={locale}
-                sizes={GALLERY_SIZES}
+                layout={galleryLayout}
               />
             </Suspense>
           ),

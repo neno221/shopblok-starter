@@ -9,9 +9,13 @@
 //   is what "Choose options" means anyway, so a listing that forgot to pass one still works (a GET to
 //   the page, with no JavaScript) rather than posting nowhere. That card is always drawn as "Choose
 //   options" (no `variantId`), because "Add to cart" would promise an addition the page does not make.
+// - T83: with the `templates` global's quick view on, a listing passes it (`quickView`) and the
+//   quick-add card's button is the quick view's trigger instead (QuickViewTrigger: a link to the
+//   product page without scripts, the dialog with them).
 // - The other variants take the card's props alone; `swapped` (image swap, for the DS) is not
 //   passed, because a listing never holds a hover.
-import type { ProductCardVariant } from "@shopblok/registry/contracts";
+import type { Messages } from "@shopblok/i18n";
+import type { ProductCardVariant, VariantOf } from "@shopblok/registry/contracts";
 import { ProductCardBordered } from "@shopblok/ui/molecules/product-card/bordered";
 import { ProductCardCompact } from "@shopblok/ui/molecules/product-card/compact";
 import { ProductCardEditorial } from "@shopblok/ui/molecules/product-card/editorial";
@@ -27,6 +31,7 @@ import type {
 import { ProductCardQuickAdd } from "@shopblok/ui/molecules/product-card/quick-add";
 import { ProductCardStandard } from "@shopblok/ui/molecules/product-card/standard";
 import { ProductCardSwatches } from "@shopblok/ui/molecules/product-card/swatches";
+import { QuickViewTrigger } from "@shopblok/ui/organisms/quick-view/trigger";
 import type * as React from "react";
 
 /** What a listing says about quick add, for all its cards. */
@@ -37,11 +42,19 @@ type ListingQuickAdd = {
   status?: Readonly<Record<string, QuickAddStatus>>;
 };
 
+/** What a listing says about its quick view (T83): the member its cards' buttons open. */
+type ListingQuickView = {
+  variant: VariantOf<"quick-view">;
+  copy: Pick<Messages["organisms"]["quickViewDialog"], "open" | "openLabel">;
+};
+
 type ListingCardProps = ProductCardProps & {
   /** Which of the ten looks to draw (ProductCard's `variant`s, D46). */
   variant: ProductCardVariant;
   /** Used by the `quick-add` variant only. */
   quickAdd?: ListingQuickAdd;
+  /** Used by the `quick-add` variant only: its button opens this quick view (T83). */
+  quickView?: ListingQuickView;
 };
 
 /** Every variant that takes the card's props alone. */
@@ -60,7 +73,22 @@ const PLAIN = {
   (props: ProductCardProps) => React.ReactNode
 >;
 
-function ListingCard({ variant, quickAdd, ...props }: ListingCardProps) {
+function ListingCard({ variant, quickAdd, quickView, ...props }: ListingCardProps) {
+  if (variant === "quick-add" && quickView !== undefined)
+    return (
+      <ProductCardQuickAdd
+        {...props}
+        action={props.product.href}
+        quickView={
+          <QuickViewTrigger
+            product={props.product}
+            variant={quickView.variant}
+            copy={quickView.copy}
+            locale={props.locale}
+          />
+        }
+      />
+    );
   if (variant === "quick-add") {
     // Without an action the form only opens the product's page: it chooses, it never adds.
     const { variantId: _adds, ...choosing } = props.product;
@@ -78,4 +106,4 @@ function ListingCard({ variant, quickAdd, ...props }: ListingCardProps) {
 }
 
 export { ListingCard };
-export type { ListingCardProps, ListingQuickAdd };
+export type { ListingCardProps, ListingQuickAdd, ListingQuickView };

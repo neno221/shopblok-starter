@@ -189,6 +189,8 @@ describe("the templates global's pickers (D101)", () => {
     };
     expect(picker.admin.custom.thumbnails).toEqual({
       default: "/registry/organisms/quick-view-dialog.png",
+      drawer: "/registry/organisms/quick-view-dialog-drawer.png",
+      compact: "/registry/organisms/quick-view-dialog-compact.png",
     });
   });
 });

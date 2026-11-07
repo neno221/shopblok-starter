@@ -36,7 +36,11 @@ import { PRODUCT_GRID, PRODUCT_GRID_SIZES } from "./product-grid-layout";
 
 type ProductGridProps = ProductGridContent & {
   /** The list's name, and the cards' words: `organisms.productGrid` and `molecules`'. */
-  copy: ProductCardCopy & { grid: Messages["organisms"]["productGrid"] };
+  copy: ProductCardCopy & {
+    grid: Messages["organisms"]["productGrid"];
+    /** The quick view's trigger's words, for a grid whose `quickView` is on (T83). */
+    quickView?: Messages["organisms"]["quickViewDialog"];
+  };
   /** The market's `<html lang>`. */
   locale: string;
   /** The cards' title element: `h3` by default, for a listing whose heading is an `h2`. */
@@ -72,6 +76,7 @@ function ProductGrid({
   emptyHeading = 2,
   emptyIcon = PackageOpenIcon,
   quickAdd,
+  quickView,
   prefetch,
   className,
 }: ProductGridProps) {
@@ -101,6 +106,9 @@ function ProductGrid({
           <ListingCard
             variant={list ? "horizontal" : variant}
             quickAdd={quickAdd}
+            {...(quickView === undefined || copy.quickView === undefined
+              ? {}
+              : { quickView: { variant: quickView, copy: copy.quickView } })}
             product={product}
             copy={copy}
             locale={locale}

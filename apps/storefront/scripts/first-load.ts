@@ -117,6 +117,18 @@ export const keptOut: readonly KeptOut[] = [
     marker: `shopblok:listing-${layout}`,
     label: `the listing's ${name} layout (T84)`,
   })),
+  // T83: the quick view, which the listing's opener loads on a card's first press
+  // (`src/components/listing/quick-view-opener.tsx`, `import()`), and its three members.
+  {
+    module: "src/components/listing/quick-view-island.tsx",
+    marker: "shopblok:quick-view-island",
+    label: "the quick view's island (T83)",
+  },
+  ...(["default", "drawer", "compact"] as const).map((member) => ({
+    module: `../../packages/ui/src/organisms/quick-view/${member}.tsx`,
+    marker: `shopblok:quick-view-${member}`,
+    label: `the quick view's ${member} member (T83)`,
+  })),
 ];
 
 export type StatsRow = {

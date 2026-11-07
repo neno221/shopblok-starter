@@ -40,6 +40,7 @@ import type {
   BuyBox as BuyBoxContent,
   MobileStickyATC as MobileStickyATCContent,
   ProductOption,
+  VariantOf,
 } from "@shopblok/registry/contracts";
 import { BuyBox, type BuyBoxCopy, type BuyBoxProps } from "@shopblok/ui/organisms/buy-box";
 import {
@@ -387,24 +388,90 @@ const stillDialog = `${cappedDialog} duration-0`;
 /** The open dialog's box: tall enough for the picture and the top of the buy box, which scrolls. */
 const DIALOG_BOX = 760;
 
+/** The drawer member's sheet in a state: still (a sheet is as tall as its box already). */
+const stillSheet = "duration-0";
+
 /** The quick view drawn open in a box, with its trigger in the corner behind the popup. */
-function quickViewOpen(ctx: DsContext, spec: { label: string; content: BuyBoxContent }) {
-  const { label, content } = spec;
+function quickViewOpen(
+  ctx: DsContext,
+  spec: { label: string; content: BuyBoxContent; variant?: VariantOf<"quick-view"> },
+) {
+  const { label, content, variant = "default" } = spec;
   return (
     <OverlayBox name={label} height={DIALOG_BOX}>
       <div className="p-4">
         <QuickViewDialog
           {...content}
+          variant={variant}
           copy={quickViewCopy(ctx)}
           locale={lang(ctx)}
           prefetch={false}
           defaultOpen
           modal={false}
-          popupClassName={stillDialog}
+          popupClassName={variant === "drawer" ? stillSheet : stillDialog}
         />
       </div>
     </OverlayBox>
   );
+}
+
+/**
+ * T83: a later member of the quick view (M5 plan §1a). Its live render is the dialog drawn open with
+ * nothing chosen (so its thumbnail shows its look, not the trigger every member shares); its states
+ * are the trigger alone, a variant chosen and the longest labels.
+ */
+function quickViewStory(
+  variant: Exclude<VariantOf<"quick-view">, "default">,
+  summary: string,
+  a11y: string,
+): DsStory {
+  return {
+    summary,
+    a11y: [
+      "The trigger is the first member's: a 44 px button that says “Quick view” and is named “Quick view: Heritage Hoodie” (WCAG 2.5.3). In a shop the listing's card draws it as a form to the product's page, so without JavaScript it opens the page, and the dialog's code and the product load on its first press.",
+      "The popup is a modal dialog (the page behind is inert, focus moves in and stays, Escape closes it with focus back on the trigger), named by the buy box's own heading, an h2, through aria-labelledby. It stays open after the product is added, so the shopper sees the confirmation.",
+      a11y,
+    ],
+    live: (ctx) =>
+      quickViewOpen(ctx, { label: "Open, nothing chosen", content: boxOf(ctx, "empty"), variant }),
+    states: [
+      {
+        id: "trigger",
+        label: "Trigger alone",
+        description: "What a card holds: the 44 px “Quick view” button, named after the product.",
+        render: (ctx) => (
+          <QuickViewDialog
+            {...boxOf(ctx, "ready")}
+            variant={variant}
+            copy={quickViewCopy(ctx)}
+            locale={lang(ctx)}
+            prefetch={false}
+          />
+        ),
+      },
+      {
+        id: "open-chosen",
+        label: "Open, a variant chosen",
+        description:
+          "A full choice: the picture is the chosen colour's, the price and the stock line are the variant's, and the button is live.",
+        render: (ctx) =>
+          quickViewOpen(ctx, {
+            label: "Open, a variant chosen",
+            content: boxOf(ctx, "ready"),
+            variant,
+          }),
+      },
+      {
+        id: "open-long",
+        label: "Open, long labels",
+        description:
+          "The longest title and option names the shop's copy allows: they wrap, and the body scrolls under the close button when it is taller than its box.",
+        render: (ctx) =>
+          quickViewOpen(ctx, { label: "Open, long labels", content: longBox(ctx), variant }),
+      },
+    ],
+    statesLayout: "stack",
+  };
 }
 
 const quickViewStates: readonly DsState[] = [
@@ -512,4 +579,14 @@ export const buyBoxOrganismStories = {
     states: quickViewStates,
     statesLayout: "stack",
   },
+  "organisms/quick-view-dialog-drawer": quickViewStory(
+    "drawer",
+    "The quick view in a side sheet from the end edge: the product's pictures, the buy box under them in one column, and the link to the full page.",
+    "The sheet takes the window's height at the end edge (the left in a right-to-left language), three quarters of a phone's width and 28 rem from 640 px; its body scrolls under the close button's strip, so the button stays in the corner.",
+  ),
+  "organisms/quick-view-dialog-compact": quickViewStory(
+    "compact",
+    "A small quick view: one picture (the chosen colour's), the options and “Add to cart”, and the link to the full page, beside each other from 640 px.",
+    "One picture with its own alternative text and no carousel; the buy box without the shop's notes. One column below 640 px, the picture first.",
+  ),
 } satisfies Partial<Record<EntryId, DsStory>>;
