@@ -359,6 +359,17 @@ describe("resolveLayout", () => {
     expect(await resolveLayout(null, context)).toEqual([]);
   });
 
+  it("passes each block's stored variant on with its section, a value from a later version too (D99)", async () => {
+    const layout = [
+      { blockType: "spacer", id: "a", variant: "standard", size: "small" },
+      { blockType: "spacer", id: "b", variant: "from-a-later-version", size: "large" },
+    ] as unknown as LayoutBlock[];
+    expect((await resolveLayout(layout, context)).map((block) => block.section)).toEqual([
+      expect.objectContaining({ variant: "standard", size: "small" }),
+      expect.objectContaining({ variant: "from-a-later-version", size: "large" }),
+    ]);
+  });
+
   it("leaves the commerce blocks out without the market's catalog", async () => {
     const layout = [
       { blockType: "recentlyViewed", id: "a", variant: "standard", heading: "Seen" },

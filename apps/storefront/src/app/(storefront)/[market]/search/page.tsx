@@ -75,7 +75,11 @@ function SearchFallback({ messages, action }: { messages: Messages; action: stri
 
 async function SearchResults({ searchParams }: Props) {
   const params = toParams(await searchParams);
-  const [market, messages] = await Promise.all([getCurrentMarket(), getMessages()]);
+  const [market, messages, { templates }] = await Promise.all([
+    getCurrentMarket(),
+    getMessages(),
+    getShellData(),
+  ]);
   const context = await getMarketContext(market.key);
   if (context === null) return null;
   const query = parseListingQuery(params);
@@ -120,7 +124,8 @@ async function SearchResults({ searchParams }: Props) {
     <>
       <RememberSearch query={query.query} />
       <SearchResultsTemplate
-        variant="default"
+        // D101: the search page follows the listing's filter layout.
+        variant={templates.listing}
         search={{ action, query: query.query }}
         title={title}
         results={results}

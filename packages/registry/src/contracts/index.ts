@@ -31,3 +31,4 @@ export * from "./search";
 export * from "./sections";
 export * from "./shipping";
 export * from "./site";
+export * from "./variants";

@@ -9,6 +9,7 @@ import {
 } from "../../../../../../lib/account-page";
 import { getOrder } from "../../../../../../lib/medusa/orders";
 import { toAccountOrder } from "../../../../../../lib/view-models/account";
+import { getShellData } from "../../../../../../components/shell/shell-data";
 
 // D64 (T53): one of the customer's orders, with its history and the way to return it. Only the
 // customer's own: `getOrder` checks the order's customer against the signed-in one, and another's
@@ -27,9 +28,10 @@ export default async function AccountOrderPage({ params }: Props) {
   const { customer, context, market, messages } = page;
   const path = `/account/orders/${encodeURIComponent(id)}`;
   if (customer === null) return <SignInFirst page={page} path={path} />;
-  const [{ signOut, ...common }, order] = await Promise.all([
+  const [{ signOut, ...common }, order, { templates }] = await Promise.all([
     accountProps(page, "orders"),
     getOrder(id, market.medusaLocale),
+    getShellData(),
   ]);
   if (order === null) notFound();
   const screen = toAccountOrder(
@@ -40,5 +42,12 @@ export default async function AccountOrderPage({ params }: Props) {
     context.url(`/account/returns/${encodeURIComponent(order.id)}`),
   );
   if (screen === null) notFound();
-  return <AccountTemplate {...common} screen={screen} actions={{ signOut }} />;
+  // D101: the order's page takes the receipt's variant from the `templates` global.
+  return (
+    <AccountTemplate
+      {...common}
+      screen={{ ...screen, variant: templates.receipt }}
+      actions={{ signOut }}
+    />
+  );
 }

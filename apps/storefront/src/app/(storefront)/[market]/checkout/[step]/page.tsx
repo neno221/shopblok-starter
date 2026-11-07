@@ -17,6 +17,7 @@ import { placeOrder, submitContact, submitDelivery } from "../../../../../lib/ac
 import { readCheckoutCart } from "../../../../../lib/checkout-cart";
 import { getCurrentMarket } from "../../../../../lib/current-market";
 import { readFlash, type Flash } from "../../../../../lib/flash";
+import { getShellData } from "../../../../../components/shell/shell-data";
 import { getMarketContext, type MarketContext } from "../../../../../lib/market-context";
 import type { CartDto } from "../../../../../lib/medusa/cart";
 import { getCustomer } from "../../../../../lib/medusa/customer";
@@ -90,11 +91,12 @@ function errorsOf(flash: Flash | null): CheckoutErrors {
 }
 
 export default async function CheckoutStepPage({ params, searchParams }: Props) {
-  const [{ step: requested }, query, market, messages] = await Promise.all([
+  const [{ step: requested }, query, market, messages, { templates }] = await Promise.all([
     params,
     searchParams,
     getCurrentMarket(),
     getMessages(),
+    getShellData(),
   ]);
   if (!isStep(requested)) notFound();
   const context = await getMarketContext(market.key);
@@ -133,7 +135,7 @@ export default async function CheckoutStepPage({ params, searchParams }: Props) 
   const now = new Date().toISOString();
   return (
     <CheckoutTemplate
-      variant="default"
+      variant={templates.checkout}
       checkout={checkout}
       step={content}
       copy={checkoutCopy(messages)}

@@ -15,6 +15,7 @@ import * as migration_20261029_130958_posts from './20261029_130958_posts';
 import * as migration_20261029_142450_seo_redirects from './20261029_142450_seo_redirects';
 import * as migration_20261031_021246_drop_markets_global from './20261031_021246_drop_markets_global';
 import * as migration_20261106_122518_add_persian from './20261106_122518_add_persian';
+import * as migration_20261107_102559_templates_global from './20261107_102559_templates_global';
 
 export const migrations = [
   {
@@ -100,6 +101,11 @@ export const migrations = [
   {
     up: migration_20261106_122518_add_persian.up,
     down: migration_20261106_122518_add_persian.down,
-    name: '20261106_122518_add_persian'
+    name: '20261106_122518_add_persian',
+  },
+  {
+    up: migration_20261107_102559_templates_global.up,
+    down: migration_20261107_102559_templates_global.down,
+    name: '20261107_102559_templates_global'
   },
 ];

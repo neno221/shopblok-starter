@@ -30,6 +30,7 @@ import {
   SizeGuide,
 } from "../contracts";
 import type { z } from "zod";
+import { firstVariant } from "../contracts/variants";
 import type { EntryInput } from "../types";
 
 // SPEC §9.3's organisms, in the navigation's order, each task's after the last (M2 plan, T35 to
@@ -87,10 +88,20 @@ export const organisms = [
   ),
   organism("reviews-section", "ReviewsSection", "ReviewsSection", ReviewsSection),
   // The quick view shows a buy box's data in a dialog, with the gallery beside it.
-  organism("quick-view-dialog", "QuickViewDialog", "QuickViewDialog", BuyBox),
+  // The quick view's first member (D99, D101; `quick-view`, T83 adds two more).
+  {
+    ...organism("quick-view-dialog", "QuickViewDialog", "QuickViewDialog", BuyBox),
+    family: "quick-view",
+    variant: firstVariant("quick-view"),
+  },
   organism("size-guide-dialog", "SizeGuideDialog", "SizeGuideDialog", SizeGuide),
   // T39: the cart, the checkout and the account.
-  organism("cart-drawer", "CartDrawer", "CartDrawer", CartDrawer),
+  // What a click on the header's cart opens (D101; `mini-cart`, T85 adds `drawer-picks`).
+  {
+    ...organism("cart-drawer", "CartDrawer", "CartDrawer", CartDrawer),
+    family: "mini-cart",
+    variant: firstVariant("mini-cart"),
+  },
   organism("quick-cart-dropdown", "QuickCartDropdown", "QuickCartDropdown", QuickCart),
   organism("checkout-steps", "CheckoutSteps", "CheckoutSteps", CheckoutSteps),
   organism("payment-step", "PaymentStep", "PaymentStep", PaymentStep),

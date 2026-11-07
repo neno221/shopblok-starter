@@ -12,6 +12,14 @@ import {
   variantsOf,
   type EntryInput,
 } from ".";
+import { z } from "zod";
+import {
+  firstVariant,
+  VARIANTS,
+  variantEnum,
+  variantNeeds,
+  type Family,
+} from "./contracts/variants";
 
 const atom = (id: string, extra: Partial<EntryInput> = {}): EntryInput => ({
   id,
@@ -415,10 +423,90 @@ describe("variantsOf", () => {
       },
     ]);
     expect(variantsOf("nope", list)).toEqual([]);
-    // The 41 variants a shop picks (D46, D52, D79): six headers, five footers, ten cards and the
+    // The 48 variants a shop picks (D46, D52, D79, D99): six headers, five footers, ten cards, the
     // twenty blocks' one each (T63's eight content blocks, T64's nine commerce blocks, T67's two
-    // form blocks, T66's editorial list).
-    expect(entries.filter((entry) => entry.family !== undefined)).toHaveLength(41);
+    // form blocks, T66's editorial list) and the first of T79's seven families each.
+    expect(entries.filter((entry) => entry.family !== undefined)).toHaveLength(48);
+  });
+
+  it("starts T79's seven families with what M2 and M3 built, ids unchanged (D99)", () => {
+    const firsts = Object.fromEntries(
+      [
+        "product-detail",
+        "product-listing",
+        "quick-view",
+        "cart",
+        "mini-cart",
+        "checkout",
+        "receipt",
+      ].map((family) => [
+        family,
+        entries
+          .filter((entry) => entry.family === family)
+          .map((entry) => `${entry.id} ${entry.variant}`),
+      ]),
+    );
+    expect(firsts).toEqual({
+      "product-detail": ["templates/product-detail default"],
+      "product-listing": ["templates/product-listing default"],
+      "quick-view": ["organisms/quick-view-dialog default"],
+      cart: ["templates/cart default"],
+      "mini-cart": ["organisms/cart-drawer drawer"],
+      checkout: ["templates/checkout default"],
+      receipt: ["templates/order-confirmation default"],
+    });
+    // The popup after an add has its own contract and no family (D100); the `templates` global
+    // turns it on or off.
+    expect(findEntry("organisms/quick-cart-dropdown")?.family).toBeUndefined();
+  });
+});
+
+describe("contracts/variants.ts (D99)", () => {
+  it("lists every family of the registry, each with variantsOf()'s values in order", () => {
+    const families = [...new Set(entries.flatMap((entry) => entry.family ?? []))];
+    expect(Object.keys(VARIANTS).sort()).toEqual(families.sort());
+    for (const family of families)
+      expect(
+        [...(VARIANTS[family as Family] ?? [])],
+        `contracts/variants.ts lists other variants of "${family}" than its entries`,
+      ).toEqual(variantsOf(family).map((option) => option.value));
+  });
+
+  it("makes a family's first member its default, which a contract's variant field takes", () => {
+    for (const family of Object.keys(VARIANTS) as Family[]) {
+      expect(firstVariant(family)).toBe(variantsOf(family)[0]?.value);
+      const schema = variantEnum(family);
+      expect(schema.safeParse(firstVariant(family)).success, family).toBe(true);
+      expect(schema.safeParse("from-a-later-version").success, family).toBe(false);
+    }
+  });
+
+  it("is a leaf module: it imports nothing from entries/ (D99)", () => {
+    const source = readFileSync(new URL("./contracts/variants.ts", import.meta.url), "utf8");
+    expect(source.match(/from\s+["']([^"']+)["']/g)).toEqual([`from "zod"`]);
+  });
+
+  it("refuses a view model whose variant needs a field it lacks (D99)", () => {
+    const Hero = z
+      .object({
+        variant: z.enum(["standard", "collection-switcher"]).optional(),
+        collections: z.array(z.string()).optional(),
+      })
+      .superRefine(variantNeeds({ "collection-switcher": ["collections"] }));
+    expect(Hero.safeParse({ variant: "standard" }).success).toBe(true);
+    expect(Hero.safeParse({}).success).toBe(true);
+    expect(Hero.safeParse({ variant: "collection-switcher", collections: ["a"] }).success).toBe(
+      true,
+    );
+    const refused = Hero.safeParse({ variant: "collection-switcher" });
+    expect(refused.error?.issues.map((issue) => [issue.path, issue.message])).toEqual([
+      [["collections"], 'the "collection-switcher" variant needs collections'],
+    ]);
+    // An inherited key is no variant's: the check adds nothing and throws nothing (PR 116, item 6).
+    const check = variantNeeds({ "collection-switcher": ["collections"] });
+    const issues: unknown[] = [];
+    check({ variant: "toString" }, { addIssue: (issue: unknown) => issues.push(issue) } as never);
+    expect(issues).toEqual([]);
   });
 });
 

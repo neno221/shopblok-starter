@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { randomBytes } from "node:crypto";
@@ -7,10 +7,12 @@ import {
   type Budget,
   KB,
   budgets,
+  checkKeptOut,
   errorLine,
   escapeData,
   evaluate,
   gzipBytes,
+  keptOut,
   measure,
   pageRoutes,
   parseArgs,
@@ -394,6 +396,7 @@ describe("a package on disk", () => {
           { route: "/[market]", label: "home", maxKB: 200 },
           { route: "/[market]/products/[handle]", label: "PDP", maxKB: 170 },
         ],
+        [],
       );
     };
 
@@ -419,6 +422,8 @@ describe("a package on disk", () => {
         root,
         () => undefined,
         (line) => errors.push(line),
+        budgets,
+        [],
       );
 
     expect(exec()).toBe(1);
@@ -469,5 +474,119 @@ describe("a package on disk", () => {
       ),
     ).toBe(2);
     expect(errors[0]).toMatch(/--budget needs <route>=<KB>/);
+  });
+
+  it("run: fails when a kept-out module's chunk is in a route's first load, and prints each chunk's size (D102)", () => {
+    write(".next/static/chunks/shell.js", "shell();");
+    write(".next/static/chunks/island.js", `island("shopblok:island");`);
+    pagesBuilt({ "/(storefront)/[market]/page": "/[market]" });
+    const first = (chunks: string[]) =>
+      stats([{ route: "/[market]", firstLoadUncompressedJsBytes: 8, firstLoadChunkPaths: chunks }]);
+    const lines: string[] = [];
+    const errors: string[] = [];
+    const island = { module: "src/island.tsx", marker: "shopblok:island", label: "an island" };
+    const exec = () => {
+      lines.length = 0;
+      errors.length = 0;
+      return run(
+        [],
+        root,
+        (line) => lines.push(line),
+        (line) => errors.push(line),
+        [],
+        [island],
+      );
+    };
+
+    first([".next/static/chunks/shell.js"]);
+    expect(exec()).toBe(0);
+    expect(errors).toEqual([]);
+    expect(lines.join("\n")).toMatch(
+      /src\/island\.tsx\s+\.next\/static\/chunks\/island\.js\s+0\.0\s+kept out/,
+    );
+
+    // The mutation: the island imported statically joins the shell's first load.
+    first([".next/static/chunks/shell.js", ".next/static/chunks/island.js"]);
+    expect(exec()).toBe(1);
+    expect(errors.join("\n")).toContain(
+      "first-load: src/island.tsx (an island): its chunk .next/static/chunks/island.js is in the first load of /[market].",
+    );
+
+    write(".next/static/chunks/island.js", "island();");
+    expect(exec()).toBe(1);
+    expect(errors.join("\n")).toContain('no chunk holds its marker "shopblok:island"');
+  });
+});
+
+describe("the kept-out modules (D102)", () => {
+  const chunks = [
+    { chunk: market.firstLoadChunkPaths[0]!, text: "shell" },
+    {
+      chunk: ".next/static/chunks/listener.js",
+      text: `x.displayName="shopblok:live-preview-listener"`,
+    },
+  ];
+  const sizes = () => 1234;
+
+  it("passes a module whose chunk no route loads at first, with its size", () => {
+    const report = checkKeptOut(rows, keptOut, chunks, sizes);
+    expect(report.failures).toEqual([]);
+    expect(report.table.join("\n")).toMatch(/listener\.js\s+1\.2\s+kept out/);
+  });
+
+  it("fails one in a first load, naming each route, and one whose marker is in no chunk", () => {
+    const loaded = [{ ...chunks[1]!, chunk: market.firstLoadChunkPaths[0]! }];
+    expect(checkKeptOut(rows, keptOut, loaded, sizes).failures).toEqual([
+      expect.stringContaining(
+        `is in the first load of ${rows
+          .filter((row) => row.firstLoadChunkPaths.includes(market.firstLoadChunkPaths[0]!))
+          .map((row) => row.route)
+          .join(", ")}.`,
+      ),
+    ]);
+    expect(checkKeptOut(rows, keptOut, [chunks[0]!], sizes).failures).toEqual([
+      expect.stringContaining("no chunk holds its marker"),
+    ]);
+  });
+
+  // The marker finds the module's chunk only if the module has it and nothing else does.
+  const workspace = path.resolve(import.meta.dirname, "../../..");
+  const sourceFiles = (dir: string): string[] =>
+    readdirSync(dir, { recursive: true, encoding: "utf8" })
+      .filter(
+        (file) =>
+          /\.(?:ts|tsx)$/.test(file) &&
+          !/\.test\.tsx?$/.test(file) &&
+          !file.includes("node_modules"),
+      )
+      .map((file) => path.join(dir, file));
+  const sources = [
+    ...sourceFiles(path.join(workspace, "apps/storefront/src")),
+    ...readdirSync(path.join(workspace, "packages")).flatMap((name) => {
+      const dir = path.join(workspace, "packages", name, "src");
+      try {
+        return sourceFiles(dir);
+      } catch {
+        return [];
+      }
+    }),
+  ];
+
+  it.each(keptOut.map((item) => [item.module, item]))(
+    "%s has its marker, and no other source does",
+    (_, item) => {
+      const own = path.join(workspace, "apps/storefront", item.module);
+      expect(readFileSync(own, "utf8")).toContain(item.marker);
+      const others = sources.filter(
+        (file) => file !== own && readFileSync(file, "utf8").includes(item.marker),
+      );
+      expect(others.map((file) => path.relative(workspace, file))).toEqual([]);
+    },
+  );
+
+  it("starts with the live preview's listener (D74, T61)", () => {
+    expect(keptOut.map((item) => item.module)).toContain(
+      "src/components/cms/live-preview-listener.tsx",
+    );
   });
 });

@@ -5,6 +5,7 @@ import { Image } from "./image";
 import { ActiveFilters, EmptyStateContent, QueryParam, SearchQuery, SortState } from "./listing";
 import { ProductCard } from "./product";
 import { SearchResult } from "./search";
+import { variantEnum } from "./variants";
 
 // T37: what a listing page's organisms show (SPEC §8.4: search-backed listings, filters and sort in
 // the URL, the search overlay). They are built from T33's molecules and T32's cards, so these
@@ -14,18 +15,7 @@ import { SearchResult } from "./search";
 // where they come from: the page passes them once the browser has them.
 
 /** The ten looks of ProductCard (D46), as a grid or a carousel takes one: the family's `variant`s. */
-export const ProductCardVariant = z.enum([
-  "standard",
-  "swatches",
-  "quick-add",
-  "overlay",
-  "minimal",
-  "horizontal",
-  "compact",
-  "editorial",
-  "bordered",
-  "image-swap",
-]);
+export const ProductCardVariant = variantEnum("product-card");
 
 const uniqueIds = (items: { id: string }[]) =>
   new Set(items.map((item) => item.id)).size === items.length;

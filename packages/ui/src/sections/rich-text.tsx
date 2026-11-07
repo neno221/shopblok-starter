@@ -1,24 +1,18 @@
-// Ours (T63, SETUP.md "Blocks (T63)"; SPEC §7.4 `richText`). The editor's text in the page's
-// column: the text is the section's children, which the storefront renders from Lexical (Payload's
-// `RichText`, its internal links resolved for the market), so this package never sees Payload. A
-// server component.
-import type { RichTextSection as RichTextSectionData } from "@shopblok/registry/contracts";
+// Ours (T79, SETUP.md "Variant plumbing (T79)"; D99). The `richText` block's entry file: this file
+// is what `@shopblok/ui/sections/rich-text` reaches, and it draws the member of the block's
+// `variant`, each in its own file in `./rich-text/` (`standard.tsx`, M4's, is the first). A value
+// the family does not have draws the first (`pickVariant`).
+import { pickVariant, type Members } from "@shopblok/ui/lib/variant";
 import type * as React from "react";
-import { Prose } from "@shopblok/ui/sections/prose";
-import { SectionFrame } from "@shopblok/ui/sections/section-frame";
+import { RichTextStandard, type RichTextSectionProps } from "./rich-text/standard";
 
-type RichTextSectionProps = RichTextSectionData & {
-  /** The text: headings, paragraphs, lists, links. */
-  children: React.ReactNode;
-  className?: string;
+const MEMBERS: Members<"rich-text", (props: RichTextSectionProps) => React.ReactNode> = {
+  standard: RichTextStandard,
 };
 
-function RichTextSection({ settings, children, className }: RichTextSectionProps) {
-  return (
-    <SectionFrame settings={settings} slot="rich-text-section" className={className}>
-      <Prose>{children}</Prose>
-    </SectionFrame>
-  );
+function RichTextSection(props: RichTextSectionProps) {
+  const Member = pickVariant("rich-text", MEMBERS, props.variant);
+  return <Member {...props} />;
 }
 
 export { RichTextSection };

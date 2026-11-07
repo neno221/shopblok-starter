@@ -10,6 +10,7 @@ import { getMarketContext } from "../../../../../../lib/market-context";
 import { getReceiptOrder } from "../../../../../../lib/medusa/orders";
 import { SHELL_PREFETCH } from "../../../../../../lib/site";
 import { toOrderConfirmation } from "../../../../../../lib/view-models/checkout";
+import { getShellData } from "../../../../../../components/shell/shell-data";
 
 // D65 (T52): the receipt. Only for the order's owner: the signed-in customer whose order it is, or
 // the browser that placed it (the signed receipt cookie the order action set); any other visitor
@@ -30,7 +31,12 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function OrderConfirmedPage({ params }: Props) {
-  const [{ id }, market, messages] = await Promise.all([params, getCurrentMarket(), getMessages()]);
+  const [{ id }, market, messages, { templates }] = await Promise.all([
+    params,
+    getCurrentMarket(),
+    getMessages(),
+    getShellData(),
+  ]);
   const context = await getMarketContext(market.key);
   if (context === null) notFound();
   const order = await getReceiptOrder(decodeURIComponent(id), market.medusaLocale);
@@ -45,6 +51,7 @@ export default async function OrderConfirmedPage({ params }: Props) {
   return (
     <OrderConfirmationTemplate
       {...page}
+      variant={templates.receipt}
       copy={orderConfirmationCopy(messages)}
       locale={market.htmlLang}
       timeZone={market.timeZone}

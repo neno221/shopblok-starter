@@ -8,6 +8,8 @@
 // popup stands in the header's cart link (its button looks the same): the quick cart while it is
 // open, the drawer from its first opening on, so focus goes back to its button when it closes, and
 // the drawer is read again each time it opens. A failed read opens the cart page.
+// T79 (D101): the `templates` global decides both: `miniCart` "page" leaves the link to the cart
+// page alone, and `quickCart` "off" shows nothing after an add (the count still follows it).
 "use client";
 
 import { CartDrawerClient } from "@shopblok/ui/organisms/cart-drawer-client";
@@ -23,10 +25,15 @@ import {
 import { VisitorCartButton, type VisitorCartButtonProps } from "./cart-button";
 import { onAdded } from "./cart-events";
 import { setCartCount } from "./store";
+import { MINI_CART_PAGE } from "../cms/template-options";
 
 export type CartIslandProps = VisitorCartButtonProps & {
   /** The market's key, for the actions. */
   market: string;
+  /** What a click opens (the `templates` global's `miniCart`): a mini cart, or the cart page. */
+  miniCart: string;
+  /** What an add on a product page shows (`quickCart`): the quick cart, or nothing. */
+  quickCart: "dropdown" | "off";
 };
 
 type Shown =
@@ -46,20 +53,23 @@ function intentOf(form: HTMLFormElement): string | null {
 const plain = (event: ReactMouseEvent) =>
   event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey;
 
-export function CartIsland({ market, ...button }: CartIslandProps) {
+export function CartIsland({ market, miniCart, quickCart, ...button }: CartIslandProps) {
   const [shown, setShown] = useState<Shown>({ kind: "link" });
+  const drawer = miniCart !== MINI_CART_PAGE;
 
   useEffect(
     () =>
-      onAdded((lineId) => {
-        renderQuickCart(market, lineId).then(
-          (parts) => {
-            if (parts !== null) setShown({ kind: "quick", parts });
-          },
-          () => undefined,
-        );
-      }),
-    [market],
+      quickCart === "off"
+        ? undefined
+        : onAdded((lineId) => {
+            renderQuickCart(market, lineId).then(
+              (parts) => {
+                if (parts !== null) setShown({ kind: "quick", parts });
+              },
+              () => undefined,
+            );
+          }),
+    [market, quickCart],
   );
 
   /** The drawer, read again and drawn open; the cart page when it cannot be read. */
@@ -114,7 +124,7 @@ export function CartIsland({ market, ...button }: CartIslandProps) {
     <span
       data-slot="cart-island"
       className="contents"
-      onClickCapture={shown.kind === "link" ? openDrawer : undefined}
+      onClickCapture={drawer && shown.kind === "link" ? openDrawer : undefined}
       onSubmitCapture={change}
     >
       {shown.kind === "drawer" ? (

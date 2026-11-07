@@ -1,6 +1,6 @@
 import { catalogs } from "@shopblok/i18n";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { findMarket } from "../../lib/markets/market";
 import { seeded } from "../../lib/markets/test-maps";
 import type { LayoutBlock } from "../../lib/cms/resolve/sections";
@@ -74,6 +74,30 @@ describe("RenderBlocks (T63)", () => {
     );
     expect(html).toContain('id="gap"');
     expect(html).toContain('data-surface="muted"');
+  });
+
+  it("draws each block's variant, and the first for a value it does not have, logged once (D99)", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const spacer = (id: string, variant: string) => ({
+      blockType: "spacer",
+      id,
+      variant,
+      size: "small",
+      divider: false,
+    });
+    const html = await render([
+      spacer("a", "standard"),
+      spacer("b", "from-a-later-version"),
+      spacer("c", "from-a-later-version"),
+    ] as unknown as LayoutBlock[]);
+    expect(html.match(/data-slot="spacer-section"/g)).toHaveLength(3);
+    expect(html.match(/data-variant="standard"/g)).toHaveLength(3);
+    expect(warn.mock.calls).toEqual([
+      [
+        'spacer: no variant "from-a-later-version" (a value from another version?); drawing "standard".',
+      ],
+    ]);
+    warn.mockRestore();
   });
 
   it("renders rich text with the market's link rule: internal to the market, unsafe as text", async () => {

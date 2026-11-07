@@ -16,6 +16,7 @@ import { getMessages } from "next-intl/server";
 import { cache, Suspense } from "react";
 import { BuyBoxIsland } from "../../../../../components/pdp/buy-box-island";
 import { GalleryIsland } from "../../../../../components/pdp/gallery-island";
+import { ReloadOnSave } from "../../../../../components/cms/reload-on-save";
 import { CmsRichText } from "../../../../../components/cms/rich-text";
 import { RecentlyViewed } from "../../../../../components/pdp/recently-viewed";
 import { getShellData } from "../../../../../components/shell/shell-data";
@@ -193,7 +194,7 @@ export default async function ProductPage({ params }: Props) {
   if (page === null) notFound();
   const { context, messages, product, detail, draft } = page;
   const { market } = context;
-  const [related, settings, { categories, pages }] = await Promise.all([
+  const [related, settings, { categories, pages, templates }] = await Promise.all([
     readRelated(page),
     cmsOrNull(readSiteSettings({ market, draft }), "product page: site.ts's notes"),
     getShellData(),
@@ -261,6 +262,8 @@ export default async function ProductPage({ params }: Props) {
 
   return (
     <>
+      {/* The templates global's live preview, without a chunk (T79). */}
+      {draft ? <ReloadOnSave /> : null}
       <script
         type="application/ld+json"
         // A product's own texts, escaped by `jsonLdText` so they cannot close the element.
@@ -268,6 +271,8 @@ export default async function ProductPage({ params }: Props) {
       />
       <ProductDetailTemplate
         {...content}
+        // D101: the `templates` global's layout, read in the static shell (T79).
+        variant={templates.productPage}
         copy={copy}
         locale={locale}
         reviewsHrefFor={(n) => (n === 1 ? detail.href : `${detail.href}?reviews=${n}`)}

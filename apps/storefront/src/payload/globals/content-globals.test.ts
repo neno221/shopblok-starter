@@ -9,6 +9,7 @@ vi.mock("next/cache", () => ({ revalidateTag: (...args: unknown[]) => revalidate
 import { Footer, oneProfilePerNetwork, profileUrl } from "./footer";
 import { Header, HEADER_EXCLUDED_VARIANTS } from "./header";
 import { SiteSettings, titleTemplate } from "./site-settings";
+import { Templates } from "./templates";
 
 const as = (user: unknown) => ({ req: { user } as PayloadRequest }) as AccessArgs;
 const admin = { collection: "users", id: 1, role: "admin" };
@@ -19,6 +20,7 @@ const GLOBALS: [string, GlobalConfig][] = [
   ["header", Header],
   ["footer", Footer],
   ["site-settings", SiteSettings],
+  ["templates", Templates],
 ];
 
 /** A top-level field (inside tabs too) by name. */
@@ -117,6 +119,59 @@ describe("the design fields (D85)", () => {
     expect(options(field(Footer, "design"))).toEqual(
       variantsOf("footer").map((variant) => variant.value),
     );
+  });
+});
+
+/** A field of the named tab `tab` (the `templates` global's: D101). */
+function tabField(global: GlobalConfig, tab: string, name: string): Field | undefined {
+  for (const each of global.fields)
+    if (each.type === "tabs")
+      for (const one of each.tabs)
+        if ("name" in one && one.name === tab)
+          return one.fields.find((inner) => "name" in inner && inner.name === name);
+  return undefined;
+}
+
+describe("the templates global's pickers (D101)", () => {
+  const values = (family: string) => variantsOf(family).map((variant) => variant.value);
+
+  it("offers each template's family, the first variant chosen, and is not localized", () => {
+    for (const [tab, family] of [
+      ["productPage", "product-detail"],
+      ["listing", "product-listing"],
+      ["cart", "cart"],
+      ["checkout", "checkout"],
+      ["receipt", "receipt"],
+    ] as const) {
+      const picker = tabField(Templates, tab, "variant");
+      expect(options(picker), tab).toEqual(values(family));
+      expect(picker, tab).toMatchObject({ required: true, defaultValue: values(family)[0] });
+      expect((picker as { localized?: boolean }).localized, tab).toBeFalsy();
+    }
+  });
+
+  it("keeps the quick view off, a click on the cart the drawer and an add the quick cart, as M4 did", () => {
+    expect(options(tabField(Templates, "quickView", "variant"))).toEqual([
+      "off",
+      ...values("quick-view"),
+    ]);
+    expect(tabField(Templates, "quickView", "variant")).toMatchObject({ defaultValue: "off" });
+    expect(options(tabField(Templates, "cart", "miniCart"))).toEqual([
+      ...values("mini-cart"),
+      "page",
+    ]);
+    expect(tabField(Templates, "cart", "miniCart")).toMatchObject({ defaultValue: "drawer" });
+    expect(options(tabField(Templates, "cart", "quickCart"))).toEqual(["dropdown", "off"]);
+    expect(tabField(Templates, "cart", "quickCart")).toMatchObject({ defaultValue: "dropdown" });
+  });
+
+  it("draws every family picker with the registry's thumbnails, none for an option with no member", () => {
+    const picker = tabField(Templates, "quickView", "variant") as {
+      admin: { custom: { thumbnails: Record<string, string> } };
+    };
+    expect(picker.admin.custom.thumbnails).toEqual({
+      default: "/registry/organisms/quick-view-dialog.png",
+    });
   });
 });
 

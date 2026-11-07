@@ -174,6 +174,8 @@ export async function ListingPage({
   const { market } = context;
   const base = context.url(resolved.path);
   const intro = content?.intro == null ? undefined : await introText(content.intro, context);
+  // D101: the `templates` global's filter layout, read in the shell like the header (T79).
+  const { templates } = await getShellData();
   const copy = productListingCopy(messages);
   const breadcrumbs = listingBreadcrumbs(resolved);
   const listingCopy = messages.templates.productListing;
@@ -196,7 +198,7 @@ export async function ListingPage({
         }}
       />
       <ProductListingTemplate
-        variant="default"
+        variant={templates.listing}
         breadcrumbs={breadcrumbs}
         title={resolved.title}
         {...(content?.banner === undefined ? {} : { banner: content.banner })}

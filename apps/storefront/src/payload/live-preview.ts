@@ -56,8 +56,29 @@ export function previewUrl(args: {
   return url.toString();
 }
 
-/** The page a content global is previewed on (T61): the market's home, which shows all three. */
+/** The page a content global is previewed on (T61): the market's home, which shows the shell's. */
 const GLOBAL_PREVIEW_PATH = "/";
+
+/**
+ * Where the `templates` global is previewed (D101): the newest product's page, the one template
+ * every shop has a page of; the home while the sync has written no product yet.
+ */
+export async function templatesPreviewPath(payload: Pick<Payload, "find">): Promise<string> {
+  const { docs } = await payload.find({
+    collection: "products",
+    where: { deletedInMedusa: { not_equals: true } },
+    sort: "-createdAt",
+    limit: 1,
+    depth: 0,
+    select: { handle: true },
+    pagination: false,
+    overrideAccess: true,
+  });
+  const handle = (docs[0] as { handle?: unknown } | undefined)?.handle;
+  return typeof handle === "string" && handle !== ""
+    ? `/products/${encodeURIComponent(handle)}`
+    : GLOBAL_PREVIEW_PATH;
+}
 
 /**
  * A page's address in the language being edited (D80): its parents' slugs and its own, each as
@@ -103,13 +124,15 @@ export const livePreviewUrl: NonNullable<LivePreviewConfig["url"]> = async ({
 }) => {
   const slug = collectionConfig?.slug;
   const path =
-    globalConfig !== undefined
-      ? GLOBAL_PREVIEW_PATH
-      : slug === "pages"
-        ? await pagePreviewPath(req.payload, data, locale.code)
-        : slug === undefined
-          ? null
-          : (CMS_PATHS[slug]?.(data) ?? null);
+    globalConfig?.slug === "templates"
+      ? await templatesPreviewPath(req.payload)
+      : globalConfig !== undefined
+        ? GLOBAL_PREVIEW_PATH
+        : slug === "pages"
+          ? await pagePreviewPath(req.payload, data, locale.code)
+          : slug === undefined
+            ? null
+            : (CMS_PATHS[slug]?.(data) ?? null);
   if (path === null) return null;
   // Medusa unreadable and no map held yet: no preview rather than an error in the admin.
   const map = await marketMapOrUndefined(req, "the live preview is off for now");

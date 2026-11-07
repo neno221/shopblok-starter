@@ -1,45 +1,22 @@
-// Ours (T64, SETUP.md "Commerce blocks (T64)"; SPEC §7.4 `recentlyViewed`, D61, ADR 0004). The
-// visitor's recently viewed products as a carousel under the editor's heading. The list is the
-// visitor's (D44): the server knows only the heading, and the storefront's island reads the
-// browser's store (T49's, the one the product page fills) and passes the cards in. With no card
-// the section draws nothing, not even its frame, so a first visit shows no empty band. No hooks and
-// no events of its own: the island renders it, and so does the design system.
-import type { RecentlyViewedSection as RecentlyViewedSectionData } from "@shopblok/registry/contracts";
-import { ProductCarousel } from "@shopblok/ui/organisms/product-carousel";
-import type { SectionsCopy } from "@shopblok/ui/sections/section-copy";
-import { SectionFrame } from "@shopblok/ui/sections/section-frame";
+// Ours (T79, SETUP.md "Variant plumbing (T79)"; D99). The `recentlyViewed` block's entry file: this
+// file is what `@shopblok/ui/sections/recently-viewed` reaches, and it draws the member of the
+// block's `variant`, each in its own file in `./recently-viewed/` (`standard.tsx`, M4's, is the
+// first). A value the family does not have draws the first (`pickVariant`).
+import { pickVariant, type Members } from "@shopblok/ui/lib/variant";
+import type * as React from "react";
+import {
+  RecentlyViewedStandard,
+  type RecentlyViewedSectionProps,
+} from "./recently-viewed/standard";
 
-type RecentlyViewedSectionProps = RecentlyViewedSectionData & {
-  copy: Pick<SectionsCopy, "products">;
-  /** A BCP 47 tag such as `el-CY`: the market's `<html lang>`. */
-  locale: string;
-  /** next/link's `prefetch`; the design system passes `false`. */
-  prefetch?: boolean | null;
-  className?: string;
-};
+const MEMBERS: Members<"recently-viewed", (props: RecentlyViewedSectionProps) => React.ReactNode> =
+  {
+    standard: RecentlyViewedStandard,
+  };
 
-function RecentlyViewedSection({
-  settings,
-  heading,
-  products,
-  copy,
-  locale,
-  prefetch,
-  className,
-}: RecentlyViewedSectionProps) {
-  if (products.length === 0) return null;
-  return (
-    <SectionFrame settings={settings} slot="recently-viewed-section" className={className}>
-      <ProductCarousel
-        title={heading}
-        products={products}
-        variant="standard"
-        copy={copy.products}
-        locale={locale}
-        prefetch={prefetch}
-      />
-    </SectionFrame>
-  );
+function RecentlyViewedSection(props: RecentlyViewedSectionProps) {
+  const Member = pickVariant("recently-viewed", MEMBERS, props.variant);
+  return <Member {...props} />;
 }
 
 export { RecentlyViewedSection };

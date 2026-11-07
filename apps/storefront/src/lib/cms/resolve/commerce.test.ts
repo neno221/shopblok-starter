@@ -212,6 +212,8 @@ describe("the commerce blocks (T64)", () => {
     const resolved = await resolve({ blockType: "recentlyViewed" });
     expect(resolved?.blockType === "recentlyViewed" && resolved.section).toEqual({
       settings: {},
+      // The block's stored variant, passed on (D99).
+      variant: "standard",
       heading: "Recently viewed",
       products: [],
     });

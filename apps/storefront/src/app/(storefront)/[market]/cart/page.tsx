@@ -16,6 +16,7 @@ import { getCurrentMarket } from "../../../../lib/current-market";
 import { readFlash, type Flash } from "../../../../lib/flash";
 import { getMarketContext } from "../../../../lib/market-context";
 import { SHELL_PREFETCH } from "../../../../lib/site";
+import { getShellData } from "../../../../components/shell/shell-data";
 
 // D65 (T52): the cart page. Dynamic and blocking (`instant = false`, no `Suspense`): the cart is
 // the visitor's, read from the cookie (`readCheckoutCart`, `"use cache: private"`), and it is in
@@ -62,10 +63,11 @@ function errorsOf(flash: Flash | null): {
 }
 
 export default async function CartPage({ searchParams }: Props) {
-  const [market, messages, params] = await Promise.all([
+  const [market, messages, params, { templates }] = await Promise.all([
     getCurrentMarket(),
     getMessages(),
     searchParams,
+    getShellData(),
   ]);
   const context = await getMarketContext(market.key);
   if (context === null) return <CartFallback messages={messages} />;
@@ -76,7 +78,7 @@ export default async function CartPage({ searchParams }: Props) {
   const { error, promoError, promoCode } = errorsOf(flash);
   return (
     <CartTemplate
-      variant="default"
+      variant={templates.cart}
       cart={read?.view ?? emptyCart(context)}
       promoCode={promoCode}
       checkoutHref={context.url("/checkout")}

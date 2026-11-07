@@ -13,6 +13,7 @@ import type { PagePaths } from "../../lib/cms/page-path";
 import { readPagePaths } from "../../lib/cms/pages";
 import { cmsOrNull } from "../../lib/cms/read";
 import { readFooter, readHeader, readSiteSettings } from "../../lib/cms/site";
+import { readTemplates, templatesFrom, type TemplateChoice } from "../../lib/cms/templates";
 import { getCurrentMarket } from "../../lib/current-market";
 import { hrefsFor } from "../../lib/market-context";
 import type { CurrentMarket } from "../../lib/market-locale";
@@ -74,6 +75,11 @@ export type ShellData = {
   settings: ShellSettings;
   header: ShellHeader;
   footer: ShellFooter;
+  /**
+   * The `templates` global's picks (D101), for the commerce pages' templates and the header's cart;
+   * every first variant until it is saved, or without a database (`TEMPLATE_DEFAULTS`).
+   */
+  templates: TemplateChoice;
 };
 
 const orNothing = async <T>(read: Promise<T>, nothing: T): Promise<T> => {
@@ -100,7 +106,7 @@ export const getShellData = cache(async (): Promise<ShellData> => {
   ]);
   const url = (path: string) => buildPublicUrl(market, path, map);
   const reader = { market, draft };
-  const [[tree, regions], header, footer, siteSettings, pages] = await Promise.all([
+  const [[tree, regions], header, footer, siteSettings, pages, templates] = await Promise.all([
     medusaConfigured().then(
       (configured): Promise<[CategoryNode[], Region[]]> | [CategoryNode[], Region[]] =>
         configured
@@ -114,6 +120,7 @@ export const getShellData = cache(async (): Promise<ShellData> => {
     cmsOrNull(readFooter(reader), SHELL_DEFAULTS),
     cmsOrNull(readSiteSettings(reader), SHELL_DEFAULTS),
     cmsOrNull(readPagePaths(reader), SHELL_DEFAULTS),
+    cmsOrNull(readTemplates(reader), "shell: the templates are M4's"),
   ]);
   const choice = toMarketChoice(map, market, currencyForCountry(regions));
   const categories = toCategories(tree, hrefsFor(url));
@@ -130,6 +137,7 @@ export const getShellData = cache(async (): Promise<ShellData> => {
     settings,
     header: headerFrom(header, context, settings),
     footer: footerFrom(footer, context, settings, YEAR),
+    templates: templatesFrom(templates),
     homes: listMarkets(map).map((each) => ({
       key: each.key,
       home: buildPublicUrl(each, "/", map),

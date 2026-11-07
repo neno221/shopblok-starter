@@ -235,11 +235,13 @@ export interface Config {
     header: Header;
     footer: Footer;
     "site-settings": SiteSetting;
+    templates: Template;
   };
   globalsSelect: {
     header: HeaderSelect<false> | HeaderSelect<true>;
     footer: FooterSelect<false> | FooterSelect<true>;
     "site-settings": SiteSettingsSelect<false> | SiteSettingsSelect<true>;
+    templates: TemplatesSelect<false> | TemplatesSelect<true>;
   };
   locale:
     | "en"
@@ -2950,6 +2952,47 @@ export interface SiteSetting {
   createdAt?: string | null;
 }
 /**
+ * How the product page, the listings, the cart, the checkout and the receipt look, in every market.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "templates".
+ */
+export interface Template {
+  id: number;
+  productPage: {
+    variant: "default";
+  };
+  listing: {
+    /**
+     * The category, collection and store pages, and the search page.
+     */
+    variant: "default";
+  };
+  quickView: {
+    /**
+     * Not shown in the shop yet: the quick view will open from the listing's quick-add card. Off: the card adds to the cart, or opens the product page when the product has options.
+     */
+    variant: "off" | "default";
+  };
+  cart: {
+    variant: "default";
+    miniCart: "drawer" | "page";
+    quickCart: "dropdown" | "off";
+  };
+  checkout: {
+    variant: "default";
+  };
+  receipt: {
+    /**
+     * The order confirmation and the order's page in the account.
+     */
+    variant: "default";
+  };
+  _status?: ("draft" | "published") | null;
+  updatedAt?: string | null;
+  createdAt?: string | null;
+}
+/**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "header_select".
  */
@@ -3139,6 +3182,48 @@ export interface SiteSettingsSelect<T extends boolean = true> {
         id?: T;
       };
   deliveryAndReturns?: T;
+  _status?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  globalType?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "templates_select".
+ */
+export interface TemplatesSelect<T extends boolean = true> {
+  productPage?:
+    | T
+    | {
+        variant?: T;
+      };
+  listing?:
+    | T
+    | {
+        variant?: T;
+      };
+  quickView?:
+    | T
+    | {
+        variant?: T;
+      };
+  cart?:
+    | T
+    | {
+        variant?: T;
+        miniCart?: T;
+        quickCart?: T;
+      };
+  checkout?:
+    | T
+    | {
+        variant?: T;
+      };
+  receipt?:
+    | T
+    | {
+        variant?: T;
+      };
   _status?: T;
   updatedAt?: T;
   createdAt?: T;

@@ -18,7 +18,8 @@ import { getShellData } from "./shell-data";
 // tree unless an editor built one), utilities and logo (T61, D78; `site.ts`'s until the global is
 // saved), the market switcher, and the visitor's parts as islands in its slots (D44): the cart
 // button, which draws the count once the visitor store has it and opens the cart drawer and the
-// quick cart (T52), and the search overlay. The menu's panels stay unmounted (T35's item 8): their links are in the footer.
+// quick cart (T52) as the `templates` global says (T79, D101), and the search overlay. The menu's
+// panels stay unmounted (T35's item 8): their links are in the footer.
 
 const HEADERS: Record<HeaderVariant, (props: HeaderProps) => ReactElement> = {
   classic: HeaderClassic,
@@ -29,7 +30,7 @@ const HEADERS: Record<HeaderVariant, (props: HeaderProps) => ReactElement> = {
 };
 
 export async function SiteHeader() {
-  const [{ market, url, choice, header, settings }, messages] = await Promise.all([
+  const [{ market, url, choice, header, settings, templates }, messages] = await Promise.all([
     getShellData(),
     getMessages() as Promise<Messages>,
   ]);
@@ -60,6 +61,8 @@ export async function SiteHeader() {
           <CartIslandParts />
           <CartIsland
             market={market.key}
+            miniCart={templates.miniCart}
+            quickCart={templates.quickCart}
             href={cartHref}
             copy={messages.organisms.header}
             locale={market.htmlLang}
