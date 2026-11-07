@@ -19,6 +19,7 @@ import { describeBlock } from "./describe";
 import { ComparisonBlock } from "./comparison";
 import { HeroBlock } from "./hero";
 import { NewsletterBlock } from "./newsletter";
+import { ProductCollectionBlock } from "./product-collection";
 import { PromoBannerBlock } from "./promo-banner";
 import { VideoBlock } from "./video";
 import { blockDrift } from "./drift";
@@ -151,6 +152,7 @@ describe("the blocks and the registry (D70)", () => {
       "productCollection.heading",
       "productCollection.intro",
       "productCollection.links.link.label",
+      "productCollection.tabs.label",
       "featuredProduct.heading",
       "featuredProduct.text",
       "bundle.heading",
@@ -379,5 +381,46 @@ describe("the content and promotion designs that need a field (T82)", () => {
     expect(media.required).toBe(true);
     expect(shown(NewsletterBlock, "media", "split")).toBe(true);
     expect(shown(NewsletterBlock, "media", "standard")).toBe(false);
+  });
+});
+
+describe("the catalog designs that need a field (T81)", () => {
+  const req = { t: (key: string) => key };
+  const shown = (name: string, variant: string) => {
+    const each = field(ProductCollectionBlock, name) as {
+      admin?: { condition?: (...args: unknown[]) => boolean };
+    };
+    return each.admin?.condition?.({}, { variant }, {}) ?? true;
+  };
+  const designs = variantsOf("product-collection").map((option) => option.value);
+
+  it("refuses the With banner and Lookbook designs without a picture, and shows it only to them", async () => {
+    expect(designs).toHaveLength(8);
+    const media = field(ProductCollectionBlock, "media") as UploadField;
+    const pictureFor = (variant: string) =>
+      media.validate?.(null as never, { required: false, siblingData: { variant }, req } as never);
+    for (const variant of designs) {
+      const needs = variant === "with-banner" || variant === "lookbook";
+      expect(shown("media", variant), variant).toBe(needs);
+      expect(await pictureFor(variant), variant).toBe(
+        needs ? "This design draws a picture beside the products: choose one." : true,
+      );
+    }
+  });
+
+  it("asks the Tabs design for two to four tabs, each a label and a source, in place of the block's source", () => {
+    const tabs = field(ProductCollectionBlock, "tabs") as ArrayField;
+    expect([tabs.required, tabs.minRows, tabs.maxRows]).toEqual([true, 2, 4]);
+    expect(names(tabs.fields)).toEqual(["label", "productSource"]);
+    for (const variant of designs) {
+      expect(shown("tabs", variant), variant).toBe(variant === "tabs");
+      expect(shown("productSource", variant), variant).toBe(variant !== "tabs");
+      expect(shown("display", variant), variant).toBe(variant === "standard");
+    }
+    // A tab is never empty: a tab with nothing to show is left out, so it has no "when empty".
+    const source = tabs.fields.find(
+      (each) => "name" in each && each.name === "productSource",
+    ) as GroupField;
+    expect(names(source.fields)).not.toContain("emptyBehavior");
   });
 });

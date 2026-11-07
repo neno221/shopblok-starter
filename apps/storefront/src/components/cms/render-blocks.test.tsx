@@ -179,6 +179,7 @@ describe("RenderBlocks (T63)", () => {
 
 describe("RenderBlocks, the commerce blocks (T64)", () => {
   const commerce: CommerceContext = {
+    market: "us",
     reads: fakeCatalog(unitedStates).reads,
     hrefs: {
       product: (handle) => `/us/products/${handle}`,

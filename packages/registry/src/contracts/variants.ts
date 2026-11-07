@@ -45,13 +45,23 @@ export const VARIANTS = {
     "product",
     "text",
   ],
-  "category-showcase": ["standard"],
-  "product-collection": ["standard"],
-  "featured-product": ["standard"],
-  bundle: ["standard"],
+  // T81 (M5 plan §1a): the catalog blocks' sixteen more.
+  "category-showcase": ["standard", "circles", "bento", "carousel", "list", "banner"],
+  "product-collection": [
+    "standard",
+    "featured-first",
+    "editorial",
+    "tabs",
+    "ranked",
+    "with-banner",
+    "compact",
+    "lookbook",
+  ],
+  "featured-product": ["standard", "overlay", "gallery"],
+  bundle: ["standard", "list"],
   "promo-banner": ["standard", "strip", "ticket", "full-bleed", "countdown", "popup"],
   comparison: ["standard", "cards", "highlight"],
-  "collection-spotlight": ["standard"],
+  "collection-spotlight": ["standard", "stacked"],
   "recently-viewed": ["standard"],
   newsletter: ["standard", "split"],
   "form-block": ["standard"],
@@ -71,6 +81,12 @@ export const VARIANTS = {
 } as const satisfies Record<string, readonly [string, ...string[]]>;
 
 /** A family of the registry: a key of `VARIANTS`. */
+/**
+ * The product collection's designs that draw the editor's picture (T81): the contract needs it for
+ * them, Payload asks for it for them, and the shop resolves it only for them (PR 124 review, item 8).
+ */
+export const COLLECTION_PICTURE_DESIGNS = ["with-banner", "lookbook"] as const;
+
 export type Family = keyof typeof VARIANTS;
 
 /** The values of `family`'s variants, as a type. */

@@ -4,10 +4,12 @@
 // not have draws the first (`pickVariant`).
 import { pickVariant, type Members } from "@shopblok/ui/lib/variant";
 import type * as React from "react";
+import { BundleList } from "./bundle/list";
 import { BundleStandard, type BundleSectionProps } from "./bundle/standard";
 
 const MEMBERS: Members<"bundle", (props: BundleSectionProps) => React.ReactNode> = {
   standard: BundleStandard,
+  list: BundleList,
 };
 
 function BundleSection(props: BundleSectionProps) {

@@ -6,16 +6,14 @@
 // product; when the editor asked to hide it, the storefront leaves the block out. A server
 // component; the carousel's primitive is the only island.
 import type { ProductCollectionSection as ProductCollectionSectionData } from "@shopblok/registry/contracts";
-import { EmptyState } from "@shopblok/ui/molecules/empty-state";
 import { ProductCarousel } from "@shopblok/ui/organisms/product-carousel";
 import { ProductGrid } from "@shopblok/ui/organisms/product-grid";
 import type { SectionsCopy } from "@shopblok/ui/sections/section-copy";
-import { SectionFrame, SectionHeading } from "@shopblok/ui/sections/section-frame";
-import { SectionLinks } from "@shopblok/ui/sections/section-links";
-import { PackageOpenIcon } from "lucide-react";
+import { SectionFrame } from "@shopblok/ui/sections/section-frame";
+import { ProductCollectionEmpty, ProductCollectionIntro, ProductCollectionLink } from "./parts";
 
 type ProductCollectionSectionProps = ProductCollectionSectionData & {
-  copy: Pick<SectionsCopy, "newTab" | "products">;
+  copy: Pick<SectionsCopy, "newTab" | "products" | "productCollection" | "tabs">;
   /** A BCP 47 tag such as `el-CY`: the market's `<html lang>`. */
   locale: string;
   /** next/link's `prefetch`; the design system passes `false`. */
@@ -66,18 +64,9 @@ function ProductCollectionStandard({
       className={className}
       innerClassName="flex flex-col gap-6 md:gap-8"
     >
-      <div className="flex min-w-0 flex-col gap-3">
-        <SectionHeading>{heading}</SectionHeading>
-        {intro === undefined ? null : (
-          <p className="max-w-prose text-base text-pretty wrap-anywhere text-muted-foreground">
-            {intro}
-          </p>
-        )}
-      </div>
+      <ProductCollectionIntro heading={heading} intro={intro} />
       {products.length === 0 ? (
-        empty === undefined ? null : (
-          <EmptyState {...empty} icon={PackageOpenIcon} headingLevel={3} prefetch={prefetch} />
-        )
+        <ProductCollectionEmpty empty={empty} prefetch={prefetch} />
       ) : (
         <>
           <ProductGrid
@@ -90,9 +79,7 @@ function ProductCollectionStandard({
             locale={locale}
             prefetch={prefetch}
           />
-          {link === undefined ? null : (
-            <SectionLinks links={[link]} newTabLabel={copy.newTab} prefetch={prefetch} />
-          )}
+          <ProductCollectionLink link={link} copy={copy} prefetch={prefetch} />
         </>
       )}
     </SectionFrame>

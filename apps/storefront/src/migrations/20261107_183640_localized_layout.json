@@ -5339,6 +5339,281 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.pages_blocks_product_collection_tabs": {
+      "name": "pages_blocks_product_collection_tabs",
+      "schema": "",
+      "columns": {
+        "_order": {
+          "name": "_order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "_parent_id": {
+          "name": "_parent_id",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "id": {
+          "name": "id",
+          "type": "varchar",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "product_source_mode": {
+          "name": "product_source_mode",
+          "type": "enum_pages_blocks_product_collection_tabs_ps_mode",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'newest'"
+        },
+        "product_source_collection_id": {
+          "name": "product_source_collection_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "product_source_category_id": {
+          "name": "product_source_category_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "product_source_descendants": {
+          "name": "product_source_descendants",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": true
+        },
+        "product_source_tag": {
+          "name": "product_source_tag",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "product_source_type": {
+          "name": "product_source_type",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "product_source_limit": {
+          "name": "product_source_limit",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false,
+          "default": 8
+        },
+        "product_source_sort": {
+          "name": "product_source_sort",
+          "type": "enum_pages_blocks_product_collection_tabs_ps_sort",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'newest'"
+        }
+      },
+      "indexes": {
+        "pages_blocks_product_collection_tabs_order_idx": {
+          "name": "pages_blocks_product_collection_tabs_order_idx",
+          "columns": [
+            {
+              "expression": "_order",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "pages_blocks_product_collection_tabs_parent_id_idx": {
+          "name": "pages_blocks_product_collection_tabs_parent_id_idx",
+          "columns": [
+            {
+              "expression": "_parent_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "pages_blocks_product_collection_tabs_product_source_prod_idx": {
+          "name": "pages_blocks_product_collection_tabs_product_source_prod_idx",
+          "columns": [
+            {
+              "expression": "product_source_collection_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "pages_blocks_product_collection_tabs_product_source_pr_1_idx": {
+          "name": "pages_blocks_product_collection_tabs_product_source_pr_1_idx",
+          "columns": [
+            {
+              "expression": "product_source_category_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "pages_blocks_product_collection_tabs_product_source_collection_id_collections_id_fk": {
+          "name": "pages_blocks_product_collection_tabs_product_source_collection_id_collections_id_fk",
+          "tableFrom": "pages_blocks_product_collection_tabs",
+          "tableTo": "collections",
+          "columnsFrom": [
+            "product_source_collection_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "pages_blocks_product_collection_tabs_product_source_category_id_categories_id_fk": {
+          "name": "pages_blocks_product_collection_tabs_product_source_category_id_categories_id_fk",
+          "tableFrom": "pages_blocks_product_collection_tabs",
+          "tableTo": "categories",
+          "columnsFrom": [
+            "product_source_category_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "pages_blocks_product_collection_tabs_parent_id_fk": {
+          "name": "pages_blocks_product_collection_tabs_parent_id_fk",
+          "tableFrom": "pages_blocks_product_collection_tabs",
+          "tableTo": "pages_blocks_product_collection",
+          "columnsFrom": [
+            "_parent_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.pages_blocks_product_collection_tabs_locales": {
+      "name": "pages_blocks_product_collection_tabs_locales",
+      "schema": "",
+      "columns": {
+        "label": {
+          "name": "label",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "_locale": {
+          "name": "_locale",
+          "type": "_locales",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "_parent_id": {
+          "name": "_parent_id",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "pages_blocks_product_collection_tabs_locales_locale_parent_i": {
+          "name": "pages_blocks_product_collection_tabs_locales_locale_parent_i",
+          "columns": [
+            {
+              "expression": "_locale",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "_parent_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "pages_blocks_product_collection_tabs_locales_parent_id_idx": {
+          "name": "pages_blocks_product_collection_tabs_locales_parent_id_idx",
+          "columns": [
+            {
+              "expression": "_parent_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "pages_blocks_product_collection_tabs_locales_parent_id_fk": {
+          "name": "pages_blocks_product_collection_tabs_locales_parent_id_fk",
+          "tableFrom": "pages_blocks_product_collection_tabs_locales",
+          "tableTo": "pages_blocks_product_collection_tabs",
+          "columnsFrom": [
+            "_parent_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.pages_blocks_product_collection": {
       "name": "pages_blocks_product_collection",
       "schema": "",
@@ -5382,6 +5657,12 @@
           "primaryKey": false,
           "notNull": false,
           "default": "'carousel'"
+        },
+        "media_id": {
+          "name": "media_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
         },
         "product_source_mode": {
           "name": "product_source_mode",
@@ -5536,6 +5817,21 @@
           "method": "btree",
           "with": {}
         },
+        "pages_blocks_product_collection_media_idx": {
+          "name": "pages_blocks_product_collection_media_idx",
+          "columns": [
+            {
+              "expression": "media_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
         "pages_blocks_product_collection_product_source_product_s_idx": {
           "name": "pages_blocks_product_collection_product_source_product_s_idx",
           "columns": [
@@ -5568,6 +5864,19 @@
         }
       },
       "foreignKeys": {
+        "pages_blocks_product_collection_media_id_media_id_fk": {
+          "name": "pages_blocks_product_collection_media_id_media_id_fk",
+          "tableFrom": "pages_blocks_product_collection",
+          "tableTo": "media",
+          "columnsFrom": [
+            "media_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
         "pages_blocks_product_collection_product_source_collection_id_collections_id_fk": {
           "name": "pages_blocks_product_collection_product_source_collection_id_collections_id_fk",
           "tableFrom": "pages_blocks_product_collection",
@@ -12337,6 +12646,220 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.pages_blocks_product_collection_2_tabs": {
+      "name": "pages_blocks_product_collection_2_tabs",
+      "schema": "",
+      "columns": {
+        "_order": {
+          "name": "_order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "_parent_id": {
+          "name": "_parent_id",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "_locale": {
+          "name": "_locale",
+          "type": "_locales",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "id": {
+          "name": "id",
+          "type": "varchar",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "label": {
+          "name": "label",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "product_source_mode": {
+          "name": "product_source_mode",
+          "type": "enum_pages_blocks_product_collection_2_tabs_ps_mode",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'newest'"
+        },
+        "product_source_collection_id": {
+          "name": "product_source_collection_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "product_source_category_id": {
+          "name": "product_source_category_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "product_source_descendants": {
+          "name": "product_source_descendants",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": true
+        },
+        "product_source_tag": {
+          "name": "product_source_tag",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "product_source_type": {
+          "name": "product_source_type",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "product_source_limit": {
+          "name": "product_source_limit",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false,
+          "default": 8
+        },
+        "product_source_sort": {
+          "name": "product_source_sort",
+          "type": "enum_pages_blocks_product_collection_2_tabs_ps_sort",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'newest'"
+        }
+      },
+      "indexes": {
+        "pages_blocks_product_collection_2_tabs_order_idx": {
+          "name": "pages_blocks_product_collection_2_tabs_order_idx",
+          "columns": [
+            {
+              "expression": "_order",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "pages_blocks_product_collection_2_tabs_parent_id_idx": {
+          "name": "pages_blocks_product_collection_2_tabs_parent_id_idx",
+          "columns": [
+            {
+              "expression": "_parent_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "pages_blocks_product_collection_2_tabs_locale_idx": {
+          "name": "pages_blocks_product_collection_2_tabs_locale_idx",
+          "columns": [
+            {
+              "expression": "_locale",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "pages_blocks_product_collection_2_tabs_product_source_pr_idx": {
+          "name": "pages_blocks_product_collection_2_tabs_product_source_pr_idx",
+          "columns": [
+            {
+              "expression": "product_source_collection_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "pages_blocks_product_collection_2_tabs_product_source__1_idx": {
+          "name": "pages_blocks_product_collection_2_tabs_product_source__1_idx",
+          "columns": [
+            {
+              "expression": "product_source_category_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "pages_blocks_product_collection_2_tabs_product_source_collection_id_collections_id_fk": {
+          "name": "pages_blocks_product_collection_2_tabs_product_source_collection_id_collections_id_fk",
+          "tableFrom": "pages_blocks_product_collection_2_tabs",
+          "tableTo": "collections",
+          "columnsFrom": [
+            "product_source_collection_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "pages_blocks_product_collection_2_tabs_product_source_category_id_categories_id_fk": {
+          "name": "pages_blocks_product_collection_2_tabs_product_source_category_id_categories_id_fk",
+          "tableFrom": "pages_blocks_product_collection_2_tabs",
+          "tableTo": "categories",
+          "columnsFrom": [
+            "product_source_category_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "pages_blocks_product_collection_2_tabs_parent_id_fk": {
+          "name": "pages_blocks_product_collection_2_tabs_parent_id_fk",
+          "tableFrom": "pages_blocks_product_collection_2_tabs",
+          "tableTo": "pages_blocks_product_collection_2",
+          "columnsFrom": [
+            "_parent_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.pages_blocks_product_collection_2": {
       "name": "pages_blocks_product_collection_2",
       "schema": "",
@@ -12399,6 +12922,12 @@
           "primaryKey": false,
           "notNull": false,
           "default": "'carousel'"
+        },
+        "media_id": {
+          "name": "media_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
         },
         "product_source_mode": {
           "name": "product_source_mode",
@@ -12568,6 +13097,21 @@
           "method": "btree",
           "with": {}
         },
+        "pages_blocks_product_collection_2_media_idx": {
+          "name": "pages_blocks_product_collection_2_media_idx",
+          "columns": [
+            {
+              "expression": "media_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
         "pages_blocks_product_collection_2_product_source_product_idx": {
           "name": "pages_blocks_product_collection_2_product_source_product_idx",
           "columns": [
@@ -12600,6 +13144,19 @@
         }
       },
       "foreignKeys": {
+        "pages_blocks_product_collection_2_media_id_media_id_fk": {
+          "name": "pages_blocks_product_collection_2_media_id_media_id_fk",
+          "tableFrom": "pages_blocks_product_collection_2",
+          "tableTo": "media",
+          "columnsFrom": [
+            "media_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
         "pages_blocks_product_collection_2_product_source_collection_id_collections_id_fk": {
           "name": "pages_blocks_product_collection_2_product_source_collection_id_collections_id_fk",
           "tableFrom": "pages_blocks_product_collection_2",
@@ -20336,6 +20893,287 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public._pages_v_blocks_product_collection_tabs": {
+      "name": "_pages_v_blocks_product_collection_tabs",
+      "schema": "",
+      "columns": {
+        "_order": {
+          "name": "_order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "_parent_id": {
+          "name": "_parent_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "product_source_mode": {
+          "name": "product_source_mode",
+          "type": "enum__pages_v_blocks_product_collection_tabs_ps_mode",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'newest'"
+        },
+        "product_source_collection_id": {
+          "name": "product_source_collection_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "product_source_category_id": {
+          "name": "product_source_category_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "product_source_descendants": {
+          "name": "product_source_descendants",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": true
+        },
+        "product_source_tag": {
+          "name": "product_source_tag",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "product_source_type": {
+          "name": "product_source_type",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "product_source_limit": {
+          "name": "product_source_limit",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false,
+          "default": 8
+        },
+        "product_source_sort": {
+          "name": "product_source_sort",
+          "type": "enum__pages_v_blocks_product_collection_tabs_ps_sort",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'newest'"
+        },
+        "_uuid": {
+          "name": "_uuid",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "_pages_v_blocks_product_collection_tabs_order_idx": {
+          "name": "_pages_v_blocks_product_collection_tabs_order_idx",
+          "columns": [
+            {
+              "expression": "_order",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "_pages_v_blocks_product_collection_tabs_parent_id_idx": {
+          "name": "_pages_v_blocks_product_collection_tabs_parent_id_idx",
+          "columns": [
+            {
+              "expression": "_parent_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "_pages_v_blocks_product_collection_tabs_product_source_p_idx": {
+          "name": "_pages_v_blocks_product_collection_tabs_product_source_p_idx",
+          "columns": [
+            {
+              "expression": "product_source_collection_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "_pages_v_blocks_product_collection_tabs_product_source_1_idx": {
+          "name": "_pages_v_blocks_product_collection_tabs_product_source_1_idx",
+          "columns": [
+            {
+              "expression": "product_source_category_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "_pages_v_blocks_product_collection_tabs_product_source_collection_id_collections_id_fk": {
+          "name": "_pages_v_blocks_product_collection_tabs_product_source_collection_id_collections_id_fk",
+          "tableFrom": "_pages_v_blocks_product_collection_tabs",
+          "tableTo": "collections",
+          "columnsFrom": [
+            "product_source_collection_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "_pages_v_blocks_product_collection_tabs_product_source_category_id_categories_id_fk": {
+          "name": "_pages_v_blocks_product_collection_tabs_product_source_category_id_categories_id_fk",
+          "tableFrom": "_pages_v_blocks_product_collection_tabs",
+          "tableTo": "categories",
+          "columnsFrom": [
+            "product_source_category_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "_pages_v_blocks_product_collection_tabs_parent_id_fk": {
+          "name": "_pages_v_blocks_product_collection_tabs_parent_id_fk",
+          "tableFrom": "_pages_v_blocks_product_collection_tabs",
+          "tableTo": "_pages_v_blocks_product_collection",
+          "columnsFrom": [
+            "_parent_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public._pages_v_blocks_product_collection_tabs_locales": {
+      "name": "_pages_v_blocks_product_collection_tabs_locales",
+      "schema": "",
+      "columns": {
+        "label": {
+          "name": "label",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "_locale": {
+          "name": "_locale",
+          "type": "_locales",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "_parent_id": {
+          "name": "_parent_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "_pages_v_blocks_product_collection_tabs_locales_locale_paren": {
+          "name": "_pages_v_blocks_product_collection_tabs_locales_locale_paren",
+          "columns": [
+            {
+              "expression": "_locale",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "_parent_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "_pages_v_blocks_product_collection_tabs_locales_parent_i_idx": {
+          "name": "_pages_v_blocks_product_collection_tabs_locales_parent_i_idx",
+          "columns": [
+            {
+              "expression": "_parent_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "_pages_v_blocks_product_collection_tabs_locales_parent_id_fk": {
+          "name": "_pages_v_blocks_product_collection_tabs_locales_parent_id_fk",
+          "tableFrom": "_pages_v_blocks_product_collection_tabs_locales",
+          "tableTo": "_pages_v_blocks_product_collection_tabs",
+          "columnsFrom": [
+            "_parent_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public._pages_v_blocks_product_collection": {
       "name": "_pages_v_blocks_product_collection",
       "schema": "",
@@ -20379,6 +21217,12 @@
           "primaryKey": false,
           "notNull": false,
           "default": "'carousel'"
+        },
+        "media_id": {
+          "name": "media_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
         },
         "product_source_mode": {
           "name": "product_source_mode",
@@ -20539,6 +21383,21 @@
           "method": "btree",
           "with": {}
         },
+        "_pages_v_blocks_product_collection_media_idx": {
+          "name": "_pages_v_blocks_product_collection_media_idx",
+          "columns": [
+            {
+              "expression": "media_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
         "_pages_v_blocks_product_collection_product_source_produc_idx": {
           "name": "_pages_v_blocks_product_collection_product_source_produc_idx",
           "columns": [
@@ -20571,6 +21430,19 @@
         }
       },
       "foreignKeys": {
+        "_pages_v_blocks_product_collection_media_id_media_id_fk": {
+          "name": "_pages_v_blocks_product_collection_media_id_media_id_fk",
+          "tableFrom": "_pages_v_blocks_product_collection",
+          "tableTo": "media",
+          "columnsFrom": [
+            "media_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
         "_pages_v_blocks_product_collection_product_source_collection_id_collections_id_fk": {
           "name": "_pages_v_blocks_product_collection_product_source_collection_id_collections_id_fk",
           "tableFrom": "_pages_v_blocks_product_collection",
@@ -27532,6 +28404,226 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public._pages_v_blocks_product_collection_2_tabs": {
+      "name": "_pages_v_blocks_product_collection_2_tabs",
+      "schema": "",
+      "columns": {
+        "_order": {
+          "name": "_order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "_parent_id": {
+          "name": "_parent_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "_locale": {
+          "name": "_locale",
+          "type": "_locales",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "label": {
+          "name": "label",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "product_source_mode": {
+          "name": "product_source_mode",
+          "type": "enum__pages_v_blocks_product_collection_2_tabs_ps_mode",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'newest'"
+        },
+        "product_source_collection_id": {
+          "name": "product_source_collection_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "product_source_category_id": {
+          "name": "product_source_category_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "product_source_descendants": {
+          "name": "product_source_descendants",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": true
+        },
+        "product_source_tag": {
+          "name": "product_source_tag",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "product_source_type": {
+          "name": "product_source_type",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "product_source_limit": {
+          "name": "product_source_limit",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false,
+          "default": 8
+        },
+        "product_source_sort": {
+          "name": "product_source_sort",
+          "type": "enum__pages_v_blocks_product_collection_2_tabs_ps_sort",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'newest'"
+        },
+        "_uuid": {
+          "name": "_uuid",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "_pages_v_blocks_product_collection_2_tabs_order_idx": {
+          "name": "_pages_v_blocks_product_collection_2_tabs_order_idx",
+          "columns": [
+            {
+              "expression": "_order",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "_pages_v_blocks_product_collection_2_tabs_parent_id_idx": {
+          "name": "_pages_v_blocks_product_collection_2_tabs_parent_id_idx",
+          "columns": [
+            {
+              "expression": "_parent_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "_pages_v_blocks_product_collection_2_tabs_locale_idx": {
+          "name": "_pages_v_blocks_product_collection_2_tabs_locale_idx",
+          "columns": [
+            {
+              "expression": "_locale",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "_pages_v_blocks_product_collection_2_tabs_product_source_idx": {
+          "name": "_pages_v_blocks_product_collection_2_tabs_product_source_idx",
+          "columns": [
+            {
+              "expression": "product_source_collection_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "_pages_v_blocks_product_collection_2_tabs_product_sour_1_idx": {
+          "name": "_pages_v_blocks_product_collection_2_tabs_product_sour_1_idx",
+          "columns": [
+            {
+              "expression": "product_source_category_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "_pages_v_blocks_product_collection_2_tabs_product_source_collection_id_collections_id_fk": {
+          "name": "_pages_v_blocks_product_collection_2_tabs_product_source_collection_id_collections_id_fk",
+          "tableFrom": "_pages_v_blocks_product_collection_2_tabs",
+          "tableTo": "collections",
+          "columnsFrom": [
+            "product_source_collection_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "_pages_v_blocks_product_collection_2_tabs_product_source_category_id_categories_id_fk": {
+          "name": "_pages_v_blocks_product_collection_2_tabs_product_source_category_id_categories_id_fk",
+          "tableFrom": "_pages_v_blocks_product_collection_2_tabs",
+          "tableTo": "categories",
+          "columnsFrom": [
+            "product_source_category_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "_pages_v_blocks_product_collection_2_tabs_parent_id_fk": {
+          "name": "_pages_v_blocks_product_collection_2_tabs_parent_id_fk",
+          "tableFrom": "_pages_v_blocks_product_collection_2_tabs",
+          "tableTo": "_pages_v_blocks_product_collection_2",
+          "columnsFrom": [
+            "_parent_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public._pages_v_blocks_product_collection_2": {
       "name": "_pages_v_blocks_product_collection_2",
       "schema": "",
@@ -27594,6 +28686,12 @@
           "primaryKey": false,
           "notNull": false,
           "default": "'carousel'"
+        },
+        "media_id": {
+          "name": "media_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
         },
         "product_source_mode": {
           "name": "product_source_mode",
@@ -27769,6 +28867,21 @@
           "method": "btree",
           "with": {}
         },
+        "_pages_v_blocks_product_collection_2_media_idx": {
+          "name": "_pages_v_blocks_product_collection_2_media_idx",
+          "columns": [
+            {
+              "expression": "media_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
         "_pages_v_blocks_product_collection_2_product_source_prod_idx": {
           "name": "_pages_v_blocks_product_collection_2_product_source_prod_idx",
           "columns": [
@@ -27801,6 +28914,19 @@
         }
       },
       "foreignKeys": {
+        "_pages_v_blocks_product_collection_2_media_id_media_id_fk": {
+          "name": "_pages_v_blocks_product_collection_2_media_id_media_id_fk",
+          "tableFrom": "_pages_v_blocks_product_collection_2",
+          "tableTo": "media",
+          "columnsFrom": [
+            "media_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
         "_pages_v_blocks_product_collection_2_product_source_collection_id_collections_id_fk": {
           "name": "_pages_v_blocks_product_collection_2_product_source_collection_id_collections_id_fk",
           "tableFrom": "_pages_v_blocks_product_collection_2",
@@ -44923,7 +46049,12 @@
       "name": "enum_pages_blocks_category_showcase_variant",
       "schema": "public",
       "values": [
-        "standard"
+        "standard",
+        "circles",
+        "bento",
+        "carousel",
+        "list",
+        "banner"
       ]
     },
     "public.enum_pages_blocks_category_showcase_cs_mode": {
@@ -44988,11 +46119,41 @@
         "text"
       ]
     },
+    "public.enum_pages_blocks_product_collection_tabs_ps_mode": {
+      "name": "enum_pages_blocks_product_collection_tabs_ps_mode",
+      "schema": "public",
+      "values": [
+        "collection",
+        "category",
+        "handpicked",
+        "newest",
+        "onSale",
+        "tag",
+        "type"
+      ]
+    },
+    "public.enum_pages_blocks_product_collection_tabs_ps_sort": {
+      "name": "enum_pages_blocks_product_collection_tabs_ps_sort",
+      "schema": "public",
+      "values": [
+        "newest",
+        "priceAsc",
+        "priceDesc",
+        "title"
+      ]
+    },
     "public.enum_pages_blocks_product_collection_variant": {
       "name": "enum_pages_blocks_product_collection_variant",
       "schema": "public",
       "values": [
-        "standard"
+        "standard",
+        "featured-first",
+        "editorial",
+        "tabs",
+        "ranked",
+        "with-banner",
+        "compact",
+        "lookbook"
       ]
     },
     "public.enum_pages_blocks_product_collection_display": {
@@ -45077,7 +46238,9 @@
       "name": "enum_pages_blocks_featured_product_variant",
       "schema": "public",
       "values": [
-        "standard"
+        "standard",
+        "overlay",
+        "gallery"
       ]
     },
     "public.enum_pages_blocks_featured_product_ss_spacing": {
@@ -45122,7 +46285,8 @@
       "name": "enum_pages_blocks_bundle_variant",
       "schema": "public",
       "values": [
-        "standard"
+        "standard",
+        "list"
       ]
     },
     "public.enum_pages_blocks_bundle_ss_spacing": {
@@ -45281,7 +46445,8 @@
       "name": "enum_pages_blocks_collection_spotlight_variant",
       "schema": "public",
       "values": [
-        "standard"
+        "standard",
+        "stacked"
       ]
     },
     "public.enum_pages_blocks_collection_spotlight_sort": {
@@ -46117,7 +47282,12 @@
       "name": "enum_pages_blocks_category_showcase_2_variant",
       "schema": "public",
       "values": [
-        "standard"
+        "standard",
+        "circles",
+        "bento",
+        "carousel",
+        "list",
+        "banner"
       ]
     },
     "public.enum_pages_blocks_category_showcase_2_cs_mode": {
@@ -46182,11 +47352,41 @@
         "text"
       ]
     },
+    "public.enum_pages_blocks_product_collection_2_tabs_ps_mode": {
+      "name": "enum_pages_blocks_product_collection_2_tabs_ps_mode",
+      "schema": "public",
+      "values": [
+        "collection",
+        "category",
+        "handpicked",
+        "newest",
+        "onSale",
+        "tag",
+        "type"
+      ]
+    },
+    "public.enum_pages_blocks_product_collection_2_tabs_ps_sort": {
+      "name": "enum_pages_blocks_product_collection_2_tabs_ps_sort",
+      "schema": "public",
+      "values": [
+        "newest",
+        "priceAsc",
+        "priceDesc",
+        "title"
+      ]
+    },
     "public.enum_pages_blocks_product_collection_2_variant": {
       "name": "enum_pages_blocks_product_collection_2_variant",
       "schema": "public",
       "values": [
-        "standard"
+        "standard",
+        "featured-first",
+        "editorial",
+        "tabs",
+        "ranked",
+        "with-banner",
+        "compact",
+        "lookbook"
       ]
     },
     "public.enum_pages_blocks_product_collection_2_display": {
@@ -46271,7 +47471,9 @@
       "name": "enum_pages_blocks_featured_product_2_variant",
       "schema": "public",
       "values": [
-        "standard"
+        "standard",
+        "overlay",
+        "gallery"
       ]
     },
     "public.enum_pages_blocks_featured_product_2_ss_spacing": {
@@ -46316,7 +47518,8 @@
       "name": "enum_pages_blocks_bundle_2_variant",
       "schema": "public",
       "values": [
-        "standard"
+        "standard",
+        "list"
       ]
     },
     "public.enum_pages_blocks_bundle_2_ss_spacing": {
@@ -46475,7 +47678,8 @@
       "name": "enum_pages_blocks_collection_spotlight_2_variant",
       "schema": "public",
       "values": [
-        "standard"
+        "standard",
+        "stacked"
       ]
     },
     "public.enum_pages_blocks_collection_spotlight_2_sort": {
@@ -47319,7 +48523,12 @@
       "name": "enum__pages_v_blocks_category_showcase_variant",
       "schema": "public",
       "values": [
-        "standard"
+        "standard",
+        "circles",
+        "bento",
+        "carousel",
+        "list",
+        "banner"
       ]
     },
     "public.enum__pages_v_blocks_category_showcase_cs_mode": {
@@ -47384,11 +48593,41 @@
         "text"
       ]
     },
+    "public.enum__pages_v_blocks_product_collection_tabs_ps_mode": {
+      "name": "enum__pages_v_blocks_product_collection_tabs_ps_mode",
+      "schema": "public",
+      "values": [
+        "collection",
+        "category",
+        "handpicked",
+        "newest",
+        "onSale",
+        "tag",
+        "type"
+      ]
+    },
+    "public.enum__pages_v_blocks_product_collection_tabs_ps_sort": {
+      "name": "enum__pages_v_blocks_product_collection_tabs_ps_sort",
+      "schema": "public",
+      "values": [
+        "newest",
+        "priceAsc",
+        "priceDesc",
+        "title"
+      ]
+    },
     "public.enum__pages_v_blocks_product_collection_variant": {
       "name": "enum__pages_v_blocks_product_collection_variant",
       "schema": "public",
       "values": [
-        "standard"
+        "standard",
+        "featured-first",
+        "editorial",
+        "tabs",
+        "ranked",
+        "with-banner",
+        "compact",
+        "lookbook"
       ]
     },
     "public.enum__pages_v_blocks_product_collection_display": {
@@ -47473,7 +48712,9 @@
       "name": "enum__pages_v_blocks_featured_product_variant",
       "schema": "public",
       "values": [
-        "standard"
+        "standard",
+        "overlay",
+        "gallery"
       ]
     },
     "public.enum__pages_v_blocks_featured_product_ss_spacing": {
@@ -47518,7 +48759,8 @@
       "name": "enum__pages_v_blocks_bundle_variant",
       "schema": "public",
       "values": [
-        "standard"
+        "standard",
+        "list"
       ]
     },
     "public.enum__pages_v_blocks_bundle_ss_spacing": {
@@ -47677,7 +48919,8 @@
       "name": "enum__pages_v_blocks_collection_spotlight_variant",
       "schema": "public",
       "values": [
-        "standard"
+        "standard",
+        "stacked"
       ]
     },
     "public.enum__pages_v_blocks_collection_spotlight_sort": {
@@ -48513,7 +49756,12 @@
       "name": "enum__pages_v_blocks_category_showcase_2_variant",
       "schema": "public",
       "values": [
-        "standard"
+        "standard",
+        "circles",
+        "bento",
+        "carousel",
+        "list",
+        "banner"
       ]
     },
     "public.enum__pages_v_blocks_category_showcase_2_cs_mode": {
@@ -48578,11 +49826,41 @@
         "text"
       ]
     },
+    "public.enum__pages_v_blocks_product_collection_2_tabs_ps_mode": {
+      "name": "enum__pages_v_blocks_product_collection_2_tabs_ps_mode",
+      "schema": "public",
+      "values": [
+        "collection",
+        "category",
+        "handpicked",
+        "newest",
+        "onSale",
+        "tag",
+        "type"
+      ]
+    },
+    "public.enum__pages_v_blocks_product_collection_2_tabs_ps_sort": {
+      "name": "enum__pages_v_blocks_product_collection_2_tabs_ps_sort",
+      "schema": "public",
+      "values": [
+        "newest",
+        "priceAsc",
+        "priceDesc",
+        "title"
+      ]
+    },
     "public.enum__pages_v_blocks_product_collection_2_variant": {
       "name": "enum__pages_v_blocks_product_collection_2_variant",
       "schema": "public",
       "values": [
-        "standard"
+        "standard",
+        "featured-first",
+        "editorial",
+        "tabs",
+        "ranked",
+        "with-banner",
+        "compact",
+        "lookbook"
       ]
     },
     "public.enum__pages_v_blocks_product_collection_2_display": {
@@ -48667,7 +49945,9 @@
       "name": "enum__pages_v_blocks_featured_product_2_variant",
       "schema": "public",
       "values": [
-        "standard"
+        "standard",
+        "overlay",
+        "gallery"
       ]
     },
     "public.enum__pages_v_blocks_featured_product_2_ss_spacing": {
@@ -48712,7 +49992,8 @@
       "name": "enum__pages_v_blocks_bundle_2_variant",
       "schema": "public",
       "values": [
-        "standard"
+        "standard",
+        "list"
       ]
     },
     "public.enum__pages_v_blocks_bundle_2_ss_spacing": {
@@ -48871,7 +50152,8 @@
       "name": "enum__pages_v_blocks_collection_spotlight_2_variant",
       "schema": "public",
       "values": [
-        "standard"
+        "standard",
+        "stacked"
       ]
     },
     "public.enum__pages_v_blocks_collection_spotlight_2_sort": {
@@ -50142,6 +51424,6 @@
     "tables": {},
     "columns": {}
   },
-  "id": "dc2a642e-bfdf-4d6a-a3d5-0a14b69200d5",
+  "id": "8fa8583e-6408-440b-a12c-ffbbac7caf84",
   "prevId": "00000000-0000-0000-0000-000000000000"
 }

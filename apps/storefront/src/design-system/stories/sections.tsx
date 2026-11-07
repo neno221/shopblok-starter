@@ -122,6 +122,8 @@ function video(ctx: DsContext, which: "embed" | "file" | "long", settings?: Sect
 type Fixtures = ReturnType<typeof fixtures>;
 type HeroVariant = NonNullable<Fixtures["hero"]["section"]["variant"]>;
 type PromoBannerVariant = NonNullable<Fixtures["promoBanner"]["section"]["variant"]>;
+type CategoryShowcaseVariant = NonNullable<Fixtures["categoryShowcase"]["section"]["variant"]>;
+type ProductCollectionVariant = NonNullable<Fixtures["productCollection"]["grid"]["variant"]>;
 
 export function hero(
   ctx: DsContext,
@@ -151,12 +153,16 @@ function categoryShowcase(
   ctx: DsContext,
   which: keyof Fixtures["categoryShowcase"],
   settings?: SectionSettings,
+  /** T81: the member to draw (`standard` when none). */
+  variant?: CategoryShowcaseVariant,
 ) {
   return (
     <CategoryShowcaseSection
       {...fixtures(ctx).categoryShowcase[which]}
+      {...(variant === undefined ? {} : { variant })}
       {...(settings === undefined ? {} : { settings })}
       copy={copy(ctx)}
+      locale={lang(ctx)}
       prefetch={false}
     />
   );
@@ -166,10 +172,13 @@ function productCollection(
   ctx: DsContext,
   which: keyof Fixtures["productCollection"],
   settings?: SectionSettings,
+  /** T81: the member to draw, over the fixture's own (`standard` when it has none). */
+  variant?: ProductCollectionVariant,
 ) {
   return (
     <ProductCollectionSection
       {...fixtures(ctx).productCollection[which]}
+      {...(variant === undefined ? {} : { variant })}
       {...(settings === undefined ? {} : { settings })}
       copy={copy(ctx)}
       locale={lang(ctx)}
@@ -182,10 +191,13 @@ function featuredProduct(
   ctx: DsContext,
   which: keyof Fixtures["featuredProduct"],
   settings?: SectionSettings,
+  /** T81: the member to draw, over the fixture's own (`standard` when it has none). */
+  variant?: "overlay" | "gallery",
 ) {
   return (
     <FeaturedProductSection
       {...fixtures(ctx).featuredProduct[which]}
+      {...(variant === undefined ? {} : { variant })}
       {...(settings === undefined ? {} : { settings })}
       copy={copy(ctx)}
       locale={lang(ctx)}
@@ -194,10 +206,17 @@ function featuredProduct(
   );
 }
 
-function bundle(ctx: DsContext, which: keyof Fixtures["bundle"], settings?: SectionSettings) {
+function bundle(
+  ctx: DsContext,
+  which: keyof Fixtures["bundle"],
+  settings?: SectionSettings,
+  /** T81: the member to draw (`standard` when none). */
+  variant?: "list",
+) {
   return (
     <BundleSection
       {...fixtures(ctx).bundle[which]}
+      {...(variant === undefined ? {} : { variant })}
       {...(settings === undefined ? {} : { settings })}
       copy={copy(ctx)}
       locale={lang(ctx)}
@@ -250,10 +269,13 @@ function collectionSpotlight(
   ctx: DsContext,
   which: keyof Fixtures["collectionSpotlight"],
   settings?: SectionSettings,
+  /** T81: the member to draw, over the fixture's own (`standard` when it has none). */
+  variant?: "stacked",
 ) {
   return (
     <CollectionSpotlightSection
       {...fixtures(ctx).collectionSpotlight[which]}
+      {...(variant === undefined ? {} : { variant })}
       {...(settings === undefined ? {} : { settings })}
       copy={copy(ctx)}
       locale={lang(ctx)}
@@ -823,6 +845,127 @@ export const sectionStories = {
       },
     ],
   },
+  "sections/category-showcase-circles": {
+    summary:
+      "Each category a round picture with its name under it: one row that scrolls sideways on a phone, wrapped and centred from md up.",
+    a11y: [
+      "A list of links named by the heading (or “Shop by category”), each a whole circle and name of at least 44 px; the pictures are decoration.",
+      "On a phone the row scrolls inside its own box, which takes the focus so the keyboard can scroll it too; the page never scrolls sideways.",
+    ],
+    live: (ctx) => categoryShowcase(ctx, "section", undefined, "circles"),
+    statesLayout: "stack",
+    states: [
+      {
+        id: "edited",
+        label: "Three, edited",
+        description:
+          "A handpicked list of three, one with the editor's label and picture; no heading's line.",
+        render: (ctx) => categoryShowcase(ctx, "edited", undefined, "circles"),
+      },
+      {
+        id: "muted",
+        label: "Muted surface",
+        description: "The circles on the muted fill.",
+        render: (ctx) => categoryShowcase(ctx, "section", muted, "circles"),
+      },
+    ],
+  },
+  "sections/category-showcase-bento": {
+    summary:
+      "The first category as one large tile and up to four more beside it, smaller, each name on its picture's foot over a dark scrim.",
+    a11y: [
+      "Each tile is one link named by its category; the names sit on the overlay scrim, so light text keeps 5.7:1 on any picture.",
+      "Tiles past the fifth are not drawn; on a phone the large tile takes the width and the others go two across.",
+    ],
+    live: (ctx) => categoryShowcase(ctx, "section", undefined, "bento"),
+    statesLayout: "stack",
+    states: [
+      {
+        id: "edited",
+        label: "Three",
+        description: "Three categories: the large tile and two small ones.",
+        render: (ctx) => categoryShowcase(ctx, "edited", undefined, "bento"),
+      },
+      {
+        id: "inverse",
+        label: "Inverse surface",
+        description: "`surface: inverse`: the tiles' scrim keeps its contrast on the dark end.",
+        render: (ctx) => categoryShowcase(ctx, "section", inverse, "bento"),
+      },
+    ],
+  },
+  "sections/category-showcase-carousel": {
+    summary:
+      "The category tiles in a row that scrolls, two on a phone, three from md and four from lg, with previous and next buttons beside the heading.",
+    a11y: [
+      "The carousel is a region named by the heading (or “Shop by category”); each tile is a slide named “2 of 8”, and nothing moves by itself.",
+      "The buttons are 44 px, say where they go and stay focusable at the ends; a swipe and the arrow keys move it too.",
+    ],
+    live: (ctx) => categoryShowcase(ctx, "section", undefined, "carousel"),
+    statesLayout: "stack",
+    states: [
+      {
+        id: "edited",
+        label: "Three, no line",
+        description: "Three tiles, fewer than a row: the buttons stay, switched off.",
+        render: (ctx) => categoryShowcase(ctx, "edited", undefined, "carousel"),
+      },
+      {
+        id: "muted",
+        label: "Muted surface",
+        description: "The tiles on the muted fill.",
+        render: (ctx) => categoryShowcase(ctx, "section", muted, "carousel"),
+      },
+    ],
+  },
+  "sections/category-showcase-list": {
+    summary:
+      "An index of the shop: the categories' names in columns, each beside a small round picture, between two rules.",
+    a11y: [
+      "A list of links named by the heading (or “Shop by category”), each row at least 44 px high; the pictures are decoration.",
+      "One column on a phone, up to four from lg; a row never breaks across two columns.",
+    ],
+    live: (ctx) => categoryShowcase(ctx, "section", undefined, "list"),
+    statesLayout: "stack",
+    states: [
+      {
+        id: "edited",
+        label: "Three, edited",
+        description: "A handpicked list of three.",
+        render: (ctx) => categoryShowcase(ctx, "edited", undefined, "list"),
+      },
+      {
+        id: "inverse",
+        label: "Inverse surface",
+        description: "`surface: inverse`: the rules and the names turn with the theme.",
+        render: (ctx) => categoryShowcase(ctx, "section", inverse, "list"),
+      },
+    ],
+  },
+  "sections/category-showcase-banner": {
+    summary:
+      "Wide tiles, one across on a phone and two from md, each category's name large on its picture over a dark scrim; an odd last tile takes the row.",
+    a11y: [
+      "Each tile is one link named by its category; the names sit on the overlay scrim, so light text keeps 5.7:1 on any picture.",
+      "The pictures are decoration: the names say where each tile goes.",
+    ],
+    live: (ctx) => categoryShowcase(ctx, "edited", undefined, "banner"),
+    statesLayout: "stack",
+    states: [
+      {
+        id: "all",
+        label: "Eight categories",
+        description: "The tree's first eight, in four rows of two.",
+        render: (ctx) => categoryShowcase(ctx, "section", undefined, "banner"),
+      },
+      {
+        id: "muted",
+        label: "Muted surface",
+        description: "The banners on the muted fill.",
+        render: (ctx) => categoryShowcase(ctx, "edited", muted, "banner"),
+      },
+    ],
+  },
   "sections/product-collection": {
     summary:
       "Products from a source (a collection, a category, a tag, a type, the newest, those on sale, or the editor's list) as a carousel or a grid, in the market's prices.",
@@ -853,6 +996,188 @@ export const sectionStories = {
       },
     ],
   },
+  "sections/product-collection-featured-first": {
+    summary:
+      "The source's first product as one large card, two columns wide and two rows high from md, then the others in the listing's columns around it.",
+    a11y: [
+      "One list of product cards, the large one first; the heading is an h2 and the cards' names h3.",
+      "On a phone the large card takes the first row and the others go two across.",
+    ],
+    live: (ctx) => productCollection(ctx, "carousel", undefined, "featured-first"),
+    statesLayout: "stack",
+    states: [
+      {
+        id: "four",
+        label: "Four products",
+        description: "The large card and three beside it.",
+        render: (ctx) => productCollection(ctx, "grid", undefined, "featured-first"),
+      },
+      {
+        id: "empty",
+        label: "Nothing found, message",
+        description: "`emptyBehavior: message`: the empty state and a link to every product.",
+        render: (ctx) => productCollection(ctx, "empty", undefined, "featured-first"),
+      },
+    ],
+  },
+  "sections/product-collection-editorial": {
+    summary:
+      "The heading, the line and the link in a column of their own beside a two-column grid of products from lg; above it on a phone and a tablet.",
+    a11y: [
+      "The column comes first in the reading order; it stays in view while the grid scrolls past (sticky), and nothing in it moves.",
+      "The cards are the standard look; their names are h3 under the heading's h2.",
+    ],
+    live: (ctx) => productCollection(ctx, "carousel", undefined, "editorial"),
+    statesLayout: "stack",
+    states: [
+      {
+        id: "four",
+        label: "Four products, no line",
+        description: "A heading without its line or link.",
+        render: (ctx) => productCollection(ctx, "grid", undefined, "editorial"),
+      },
+      {
+        id: "muted",
+        label: "Muted surface",
+        description: "On the muted fill.",
+        render: (ctx) => productCollection(ctx, "carousel", muted, "editorial"),
+      },
+    ],
+  },
+  "sections/product-collection-tabs": {
+    summary:
+      "Up to four sources as tabs (“New in”, “On sale”), each over a grid of products; the first tab's products are in the page, the others' are fetched when their tab is chosen.",
+    a11y: [
+      "The tabs are Base UI's: one tab stop, the arrow keys move between them and show each panel as they reach it; nothing changes by itself.",
+      "The tab list is named by the heading. A panel that is loading says so in a polite live region, and one that could not load says so with “Try again”.",
+      "Without scripts, and for a crawler, the tabs are a list of links to their listings over the first tab's products (the tabs' code is loaded only in the browser, D102).",
+    ],
+    live: (ctx) => productCollection(ctx, "tabs"),
+    statesLayout: "stack",
+    states: [
+      {
+        id: "one",
+        label: "One tab left",
+        description:
+          "The other tabs' sources have nothing in the market: the heading over the one grid, no tab list.",
+        render: (ctx) => (
+          <ProductCollectionSection
+            {...fixtures(ctx).productCollection.tabs}
+            tabs={fixtures(ctx).productCollection.tabs.tabs?.slice(0, 1)}
+            copy={copy(ctx)}
+            locale={lang(ctx)}
+            prefetch={false}
+          />
+        ),
+      },
+      {
+        id: "muted",
+        label: "Muted surface",
+        description: "The tabs on the muted fill.",
+        render: (ctx) => productCollection(ctx, "tabs", muted),
+      },
+    ],
+  },
+  "sections/product-collection-ranked": {
+    summary:
+      "A numbered list (“Our top five”): each product a row with its number large at the start, then its picture, name and price; two columns from md.",
+    a11y: [
+      "An ordered list; each product's link is named with its number first (“Number 1: Heritage Hoodie”), and the large number is drawn for the eye only, so it is not read twice.",
+      "The whole row is the link's target, and its focus ring is the row's.",
+    ],
+    live: (ctx) => productCollection(ctx, "ranked"),
+    statesLayout: "stack",
+    states: [
+      {
+        id: "eight",
+        label: "Eight products",
+        description: "A longer list, in four rows of two from md.",
+        render: (ctx) => productCollection(ctx, "carousel", undefined, "ranked"),
+      },
+      {
+        id: "inverse",
+        label: "Inverse surface",
+        description: "`surface: inverse`: the numbers and the rules turn with the theme.",
+        render: (ctx) => productCollection(ctx, "ranked", inverse),
+      },
+    ],
+  },
+  "sections/product-collection-with-banner": {
+    summary:
+      "The editor's picture in the grid's first cells, with its line and link over it on a dark scrim, and the products two across beside it.",
+    a11y: [
+      "The words on the picture sit on the overlay scrim, so light text, the link and its focus ring keep their contrast on any picture.",
+      "The picture has the editor's alternative text; the products are a list of cards under the heading's h2.",
+    ],
+    live: (ctx) => productCollection(ctx, "banner"),
+    statesLayout: "stack",
+    states: [
+      {
+        id: "plain",
+        label: "No line or link",
+        description: "The picture alone beside the products.",
+        render: (ctx) => {
+          const { intro: _intro, link: _link, ...banner } = fixtures(ctx).productCollection.banner;
+          return (
+            <ProductCollectionSection
+              {...banner}
+              copy={copy(ctx)}
+              locale={lang(ctx)}
+              prefetch={false}
+            />
+          );
+        },
+      },
+      {
+        id: "muted",
+        label: "Muted surface",
+        description: "On the muted fill.",
+        render: (ctx) => productCollection(ctx, "banner", muted),
+      },
+    ],
+  },
+  "sections/product-collection-compact": {
+    summary:
+      "Horizontal cards (a narrow picture, the name and the price beside it) in two columns from md, a rule under each row, so many products fit in little height.",
+    a11y: [
+      "One list of product cards; each card is one link named by the product, at least 44 px high.",
+      "One column on a phone.",
+    ],
+    live: (ctx) => productCollection(ctx, "carousel", undefined, "compact"),
+    statesLayout: "stack",
+    states: [
+      {
+        id: "four",
+        label: "Four products",
+        description: "Two rows of two.",
+        render: (ctx) => productCollection(ctx, "grid", undefined, "compact"),
+      },
+      {
+        id: "inverse",
+        label: "Inverse surface",
+        description: "`surface: inverse`.",
+        render: (ctx) => productCollection(ctx, "carousel", inverse, "compact"),
+      },
+    ],
+  },
+  "sections/product-collection-lookbook": {
+    summary:
+      "The editor's large picture of a look with up to four of its products listed beside it from lg (under it on a phone and a tablet); no hotspots.",
+    a11y: [
+      "The picture has the editor's alternative text; the products are a list of horizontal cards, each one link.",
+      "The heading, its line and the link come before the list in the reading order.",
+    ],
+    live: (ctx) => productCollection(ctx, "look"),
+    statesLayout: "stack",
+    states: [
+      {
+        id: "muted",
+        label: "Muted surface",
+        description: "On the muted fill.",
+        render: (ctx) => productCollection(ctx, "look", muted),
+      },
+    ],
+  },
   "sections/featured-product": {
     summary:
       "One product beside a large picture and the editor's words: its price in the market's currency and a link to its page.",
@@ -877,6 +1202,65 @@ export const sectionStories = {
       },
     ],
   },
+  "sections/featured-product-overlay": {
+    summary:
+      "The picture across the band, the product's name, price, the editor's words and the way to its page on a card over the picture's foot.",
+    a11y: [
+      "The card is the page's own surface, so its words keep the theme's contrast; on a phone it overlaps the picture's edge and runs on below it.",
+      "With the editor's heading it is the h2 and the product's name an h3; without one the name is the h2.",
+    ],
+    live: (ctx) => featuredProduct(ctx, "section", undefined, "overlay"),
+    statesLayout: "stack",
+    states: [
+      {
+        id: "sale",
+        label: "On sale, no words",
+        description: "The product's own picture and its sale price, without heading or text.",
+        render: (ctx) => featuredProduct(ctx, "sale", undefined, "overlay"),
+      },
+      {
+        id: "inverse",
+        label: "Inverse surface",
+        description: "`surface: inverse`: the card turns with the theme.",
+        render: (ctx) => featuredProduct(ctx, "section", inverse, "overlay"),
+      },
+    ],
+  },
+  "sections/featured-product-gallery": {
+    summary:
+      "The product's pictures as a small gallery (the editor's large, then up to four of the product's under it) beside its name, price, the editor's words and the way to its page.",
+    a11y: [
+      "Every picture is drawn at once: nothing has to be pressed to see them, so it needs no script; each keeps its alternative text.",
+      "The words stay in view beside the gallery from md (sticky); on a phone they follow it.",
+    ],
+    live: (ctx) => featuredProduct(ctx, "gallery"),
+    statesLayout: "stack",
+    states: [
+      {
+        id: "two",
+        label: "Two pictures",
+        description: "The editor's picture and one of the product's.",
+        render: (ctx) => {
+          const section = fixtures(ctx).featuredProduct.gallery;
+          return (
+            <FeaturedProductSection
+              {...section}
+              gallery={section.gallery?.slice(0, 2)}
+              copy={copy(ctx)}
+              locale={lang(ctx)}
+              prefetch={false}
+            />
+          );
+        },
+      },
+      {
+        id: "muted",
+        label: "Muted surface",
+        description: "On the muted fill.",
+        render: (ctx) => featuredProduct(ctx, "gallery", muted),
+      },
+    ],
+  },
   "sections/bundle": {
     summary:
       "Products that go together, side by side with a plus between them: the editor's list, in its order.",
@@ -898,6 +1282,30 @@ export const sectionStories = {
         label: "Muted surface",
         description: "The cards on the muted fill.",
         render: (ctx) => bundle(ctx, "section", muted),
+      },
+    ],
+  },
+  "sections/bundle-list": {
+    summary:
+      "The products that go together as compact rows, each its picture, name, price and own way to its page, and the sum of the listed prices under them.",
+    a11y: [
+      "A list of rows, each one link named by the product; the price is PriceBlock's, with its hidden labels.",
+      "The sum is text (“Together €95.00”), with “from” when a price depends on the options: v1 has no bundle price (D79).",
+    ],
+    live: (ctx) => bundle(ctx, "section", undefined, "list"),
+    statesLayout: "stack",
+    states: [
+      {
+        id: "full",
+        label: "Six products",
+        description: "The most a bundle holds.",
+        render: (ctx) => bundle(ctx, "full", undefined, "list"),
+      },
+      {
+        id: "muted",
+        label: "Muted surface",
+        description: "The rows on the muted fill.",
+        render: (ctx) => bundle(ctx, "section", muted, "list"),
       },
     ],
   },
@@ -971,6 +1379,30 @@ export const sectionStories = {
         label: "Inverse surface",
         description: "`surface: inverse`.",
         render: (ctx) => collectionSpotlight(ctx, "section", inverse),
+      },
+    ],
+  },
+  "sections/collection-spotlight-stacked": {
+    summary:
+      "A wide picture across the section, the heading, the editor's words and the way to the collection under it, and a row of the collection's products under them.",
+    a11y: [
+      "The heading is an h2 (the collection's translated title when the editor leaves it empty); the link names the collection.",
+      "The products are a list of cards, two across on a phone and four from md.",
+    ],
+    live: (ctx) => collectionSpotlight(ctx, "section", undefined, "stacked"),
+    statesLayout: "stack",
+    states: [
+      {
+        id: "long",
+        label: "Long heading, no products",
+        description: "`limit: 0`: the picture, the words and the link only.",
+        render: (ctx) => collectionSpotlight(ctx, "long", undefined, "stacked"),
+      },
+      {
+        id: "inverse",
+        label: "Inverse surface",
+        description: "`surface: inverse`.",
+        render: (ctx) => collectionSpotlight(ctx, "section", inverse, "stacked"),
       },
     ],
   },

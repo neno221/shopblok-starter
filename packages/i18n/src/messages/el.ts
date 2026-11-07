@@ -713,7 +713,17 @@ export const el: Messages = {
       emptyTitle: "Τίποτα εδώ ακόμη",
       emptyText: "Αυτά τα προϊόντα δεν είναι διαθέσιμα αυτή τη στιγμή.",
       emptyAction: "Όλα τα προϊόντα",
+      // T81: the ranked collection's number, read before each product's name.
+      rank: "Αριθμός {rank, number}",
     },
+    // T81: the category showcase's name, when it has no heading (the circles' row that scrolls,
+    // the carousel), and the carousel's buttons; the bundle list's sum of its prices.
+    categoryShowcase: {
+      label: "Αγορές ανά κατηγορία",
+      previous: "Προηγούμενες κατηγορίες",
+      next: "Επόμενες κατηγορίες",
+    },
+    bundle: { total: "Όλα μαζί" },
     featuredProduct: { view: "Δείτε το προϊόν" },
     promoBanner: { ends: "Η προσφορά λήγει {date}", close: "Κλείσιμο" },
     comparison: { price: "Τιμή", missing: "Δεν αναφέρεται", pick: "Η επιλογή μας" },

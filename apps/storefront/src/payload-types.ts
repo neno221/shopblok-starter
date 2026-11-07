@@ -974,7 +974,7 @@ export interface HeroBlock {
  * via the `definition` "CategoryShowcaseBlock".
  */
 export interface CategoryShowcaseBlock {
-  variant: "standard";
+  variant: "standard" | "circles" | "bento" | "carousel" | "list" | "banner";
   heading?: string | null;
   intro?: string | null;
   links?:
@@ -1040,10 +1040,22 @@ export interface CategoryShowcaseBlock {
  * via the `definition` "ProductCollectionBlock".
  */
 export interface ProductCollectionBlock {
-  variant: "standard";
+  variant:
+    | "standard"
+    | "featured-first"
+    | "editorial"
+    | "tabs"
+    | "ranked"
+    | "with-banner"
+    | "compact"
+    | "lookbook";
   heading: string;
   intro?: string | null;
-  display: "carousel" | "grid";
+  display?: ("carousel" | "grid") | null;
+  /**
+   * The With banner and Lookbook designs draw it beside the products.
+   */
+  media?: (number | null) | Media;
   /**
    * The listing the products come from.
    */
@@ -1072,7 +1084,7 @@ export interface ProductCollectionBlock {
         id?: string | null;
       }[]
     | null;
-  productSource: {
+  productSource?: {
     mode: "collection" | "category" | "handpicked" | "newest" | "onSale" | "tag" | "type";
     collection?: (number | null) | ProductCollection;
     category?: (number | null) | Category;
@@ -1096,6 +1108,35 @@ export interface ProductCollectionBlock {
      */
     emptyBehavior: "hide" | "message" | "newest";
   };
+  /**
+   * Two to four tabs, each with its own products. Only the first tab's are in the page; a tab whose products are not sold in a market is left out there.
+   */
+  tabs?:
+    | {
+        label: string;
+        productSource: {
+          mode: "collection" | "category" | "handpicked" | "newest" | "onSale" | "tag" | "type";
+          collection?: (number | null) | ProductCollection;
+          category?: (number | null) | Category;
+          descendants?: boolean | null;
+          /**
+           * Shown in this order.
+           */
+          products?: (number | Product)[] | null;
+          /**
+           * The tag's value, as Medusa Admin shows it (summer).
+           */
+          tag?: string | null;
+          /**
+           * The product type's value, as Medusa Admin shows it (Hoodie).
+           */
+          type?: string | null;
+          limit?: number | null;
+          sort?: ("newest" | "priceAsc" | "priceDesc" | "title") | null;
+        };
+        id?: string | null;
+      }[]
+    | null;
   sectionSettings?: {
     anchor?: string | null;
     spacing?: ("none" | "small" | "medium" | "large") | null;
@@ -1112,7 +1153,7 @@ export interface ProductCollectionBlock {
  * via the `definition` "FeaturedProductBlock".
  */
 export interface FeaturedProductBlock {
-  variant: "standard";
+  variant: "standard" | "overlay" | "gallery";
   heading?: string | null;
   product: number | Product;
   /**
@@ -1139,7 +1180,7 @@ export interface FeaturedProductBlock {
  * via the `definition` "BundleBlock".
  */
 export interface BundleBlock {
-  variant: "standard";
+  variant: "standard" | "list";
   heading: string;
   /**
    * A blank line starts a new paragraph.
@@ -1262,7 +1303,7 @@ export interface ComparisonBlock {
  * via the `definition` "CollectionSpotlightBlock".
  */
 export interface CollectionSpotlightBlock {
-  variant: "standard";
+  variant: "standard" | "stacked";
   collection: number | ProductCollection;
   /**
    * The collection's name unless you write one.
@@ -2651,6 +2692,7 @@ export interface ProductCollectionBlockSelect<T extends boolean = true> {
   heading?: T;
   intro?: T;
   display?: T;
+  media?: T;
   links?:
     | T
     | {
@@ -2679,6 +2721,25 @@ export interface ProductCollectionBlockSelect<T extends boolean = true> {
         limit?: T;
         sort?: T;
         emptyBehavior?: T;
+      };
+  tabs?:
+    | T
+    | {
+        label?: T;
+        productSource?:
+          | T
+          | {
+              mode?: T;
+              collection?: T;
+              category?: T;
+              descendants?: T;
+              products?: T;
+              tag?: T;
+              type?: T;
+              limit?: T;
+              sort?: T;
+            };
+        id?: T;
       };
   sectionSettings?:
     | T

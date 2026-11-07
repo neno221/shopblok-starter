@@ -60,7 +60,7 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   CREATE TYPE "public"."enum_pages_blocks_hero_2_ss_visibility" AS ENUM('all', 'mobile', 'desktop');
   CREATE TYPE "public"."enum_pages_blocks_category_showcase_2_links_link_type" AS ENUM('reference', 'custom');
   CREATE TYPE "public"."enum_pages_blocks_category_showcase_2_links_link_appearance" AS ENUM('text', 'default', 'outline');
-  CREATE TYPE "public"."enum_pages_blocks_category_showcase_2_variant" AS ENUM('standard');
+  CREATE TYPE "public"."enum_pages_blocks_category_showcase_2_variant" AS ENUM('standard', 'circles', 'bento', 'carousel', 'list', 'banner');
   CREATE TYPE "public"."enum_pages_blocks_category_showcase_2_cs_mode" AS ENUM('topLevel', 'childrenOf', 'handpicked');
   CREATE TYPE "public"."enum_pages_blocks_category_showcase_2_ss_spacing" AS ENUM('none', 'small', 'medium', 'large');
   CREATE TYPE "public"."enum_pages_blocks_category_showcase_2_ss_surface" AS ENUM('default', 'muted', 'inverse');
@@ -68,7 +68,9 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   CREATE TYPE "public"."enum_pages_blocks_category_showcase_2_ss_visibility" AS ENUM('all', 'mobile', 'desktop');
   CREATE TYPE "public"."enum_pages_blocks_product_collection_2_links_link_type" AS ENUM('reference', 'custom');
   CREATE TYPE "public"."enum_pages_blocks_product_collection_2_links_link_appearance" AS ENUM('text');
-  CREATE TYPE "public"."enum_pages_blocks_product_collection_2_variant" AS ENUM('standard');
+  CREATE TYPE "public"."enum_pages_blocks_product_collection_2_tabs_ps_mode" AS ENUM('collection', 'category', 'handpicked', 'newest', 'onSale', 'tag', 'type');
+  CREATE TYPE "public"."enum_pages_blocks_product_collection_2_tabs_ps_sort" AS ENUM('newest', 'priceAsc', 'priceDesc', 'title');
+  CREATE TYPE "public"."enum_pages_blocks_product_collection_2_variant" AS ENUM('standard', 'featured-first', 'editorial', 'tabs', 'ranked', 'with-banner', 'compact', 'lookbook');
   CREATE TYPE "public"."enum_pages_blocks_product_collection_2_display" AS ENUM('carousel', 'grid');
   CREATE TYPE "public"."enum_pages_blocks_product_collection_2_ps_mode" AS ENUM('collection', 'category', 'handpicked', 'newest', 'onSale', 'tag', 'type');
   CREATE TYPE "public"."enum_pages_blocks_product_collection_2_ps_sort" AS ENUM('newest', 'priceAsc', 'priceDesc', 'title');
@@ -77,12 +79,12 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   CREATE TYPE "public"."enum_pages_blocks_product_collection_2_ss_surface" AS ENUM('default', 'muted', 'inverse');
   CREATE TYPE "public"."enum_pages_blocks_product_collection_2_ss_container" AS ENUM('narrow', 'default', 'wide', 'full');
   CREATE TYPE "public"."enum_pages_blocks_product_collection_2_ss_visibility" AS ENUM('all', 'mobile', 'desktop');
-  CREATE TYPE "public"."enum_pages_blocks_featured_product_2_variant" AS ENUM('standard');
+  CREATE TYPE "public"."enum_pages_blocks_featured_product_2_variant" AS ENUM('standard', 'overlay', 'gallery');
   CREATE TYPE "public"."enum_pages_blocks_featured_product_2_ss_spacing" AS ENUM('none', 'small', 'medium', 'large');
   CREATE TYPE "public"."enum_pages_blocks_featured_product_2_ss_surface" AS ENUM('default', 'muted', 'inverse');
   CREATE TYPE "public"."enum_pages_blocks_featured_product_2_ss_container" AS ENUM('narrow', 'default', 'wide', 'full');
   CREATE TYPE "public"."enum_pages_blocks_featured_product_2_ss_visibility" AS ENUM('all', 'mobile', 'desktop');
-  CREATE TYPE "public"."enum_pages_blocks_bundle_2_variant" AS ENUM('standard');
+  CREATE TYPE "public"."enum_pages_blocks_bundle_2_variant" AS ENUM('standard', 'list');
   CREATE TYPE "public"."enum_pages_blocks_bundle_2_ss_spacing" AS ENUM('none', 'small', 'medium', 'large');
   CREATE TYPE "public"."enum_pages_blocks_bundle_2_ss_surface" AS ENUM('default', 'muted', 'inverse');
   CREATE TYPE "public"."enum_pages_blocks_bundle_2_ss_container" AS ENUM('narrow', 'default', 'wide', 'full');
@@ -99,7 +101,7 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   CREATE TYPE "public"."enum_pages_blocks_comparison_2_ss_surface" AS ENUM('default', 'muted', 'inverse');
   CREATE TYPE "public"."enum_pages_blocks_comparison_2_ss_container" AS ENUM('narrow', 'default', 'wide', 'full');
   CREATE TYPE "public"."enum_pages_blocks_comparison_2_ss_visibility" AS ENUM('all', 'mobile', 'desktop');
-  CREATE TYPE "public"."enum_pages_blocks_collection_spotlight_2_variant" AS ENUM('standard');
+  CREATE TYPE "public"."enum_pages_blocks_collection_spotlight_2_variant" AS ENUM('standard', 'stacked');
   CREATE TYPE "public"."enum_pages_blocks_collection_spotlight_2_sort" AS ENUM('newest', 'priceAsc', 'priceDesc', 'title');
   CREATE TYPE "public"."enum_pages_blocks_collection_spotlight_2_ss_spacing" AS ENUM('none', 'small', 'medium', 'large');
   CREATE TYPE "public"."enum_pages_blocks_collection_spotlight_2_ss_surface" AS ENUM('default', 'muted', 'inverse');
@@ -185,7 +187,7 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   CREATE TYPE "public"."enum__pages_v_blocks_hero_2_ss_visibility" AS ENUM('all', 'mobile', 'desktop');
   CREATE TYPE "public"."enum__pages_v_blocks_category_showcase_2_links_link_type" AS ENUM('reference', 'custom');
   CREATE TYPE "public"."enum__pages_v_blocks_category_showcase_2_links_link_appearance" AS ENUM('text', 'default', 'outline');
-  CREATE TYPE "public"."enum__pages_v_blocks_category_showcase_2_variant" AS ENUM('standard');
+  CREATE TYPE "public"."enum__pages_v_blocks_category_showcase_2_variant" AS ENUM('standard', 'circles', 'bento', 'carousel', 'list', 'banner');
   CREATE TYPE "public"."enum__pages_v_blocks_category_showcase_2_cs_mode" AS ENUM('topLevel', 'childrenOf', 'handpicked');
   CREATE TYPE "public"."enum__pages_v_blocks_category_showcase_2_ss_spacing" AS ENUM('none', 'small', 'medium', 'large');
   CREATE TYPE "public"."enum__pages_v_blocks_category_showcase_2_ss_surface" AS ENUM('default', 'muted', 'inverse');
@@ -193,7 +195,9 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   CREATE TYPE "public"."enum__pages_v_blocks_category_showcase_2_ss_visibility" AS ENUM('all', 'mobile', 'desktop');
   CREATE TYPE "public"."enum__pages_v_blocks_product_collection_2_links_link_type" AS ENUM('reference', 'custom');
   CREATE TYPE "public"."enum__pages_v_blocks_product_collection_2_links_link_appearance" AS ENUM('text');
-  CREATE TYPE "public"."enum__pages_v_blocks_product_collection_2_variant" AS ENUM('standard');
+  CREATE TYPE "public"."enum__pages_v_blocks_product_collection_2_tabs_ps_mode" AS ENUM('collection', 'category', 'handpicked', 'newest', 'onSale', 'tag', 'type');
+  CREATE TYPE "public"."enum__pages_v_blocks_product_collection_2_tabs_ps_sort" AS ENUM('newest', 'priceAsc', 'priceDesc', 'title');
+  CREATE TYPE "public"."enum__pages_v_blocks_product_collection_2_variant" AS ENUM('standard', 'featured-first', 'editorial', 'tabs', 'ranked', 'with-banner', 'compact', 'lookbook');
   CREATE TYPE "public"."enum__pages_v_blocks_product_collection_2_display" AS ENUM('carousel', 'grid');
   CREATE TYPE "public"."enum__pages_v_blocks_product_collection_2_ps_mode" AS ENUM('collection', 'category', 'handpicked', 'newest', 'onSale', 'tag', 'type');
   CREATE TYPE "public"."enum__pages_v_blocks_product_collection_2_ps_sort" AS ENUM('newest', 'priceAsc', 'priceDesc', 'title');
@@ -202,12 +206,12 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   CREATE TYPE "public"."enum__pages_v_blocks_product_collection_2_ss_surface" AS ENUM('default', 'muted', 'inverse');
   CREATE TYPE "public"."enum__pages_v_blocks_product_collection_2_ss_container" AS ENUM('narrow', 'default', 'wide', 'full');
   CREATE TYPE "public"."enum__pages_v_blocks_product_collection_2_ss_visibility" AS ENUM('all', 'mobile', 'desktop');
-  CREATE TYPE "public"."enum__pages_v_blocks_featured_product_2_variant" AS ENUM('standard');
+  CREATE TYPE "public"."enum__pages_v_blocks_featured_product_2_variant" AS ENUM('standard', 'overlay', 'gallery');
   CREATE TYPE "public"."enum__pages_v_blocks_featured_product_2_ss_spacing" AS ENUM('none', 'small', 'medium', 'large');
   CREATE TYPE "public"."enum__pages_v_blocks_featured_product_2_ss_surface" AS ENUM('default', 'muted', 'inverse');
   CREATE TYPE "public"."enum__pages_v_blocks_featured_product_2_ss_container" AS ENUM('narrow', 'default', 'wide', 'full');
   CREATE TYPE "public"."enum__pages_v_blocks_featured_product_2_ss_visibility" AS ENUM('all', 'mobile', 'desktop');
-  CREATE TYPE "public"."enum__pages_v_blocks_bundle_2_variant" AS ENUM('standard');
+  CREATE TYPE "public"."enum__pages_v_blocks_bundle_2_variant" AS ENUM('standard', 'list');
   CREATE TYPE "public"."enum__pages_v_blocks_bundle_2_ss_spacing" AS ENUM('none', 'small', 'medium', 'large');
   CREATE TYPE "public"."enum__pages_v_blocks_bundle_2_ss_surface" AS ENUM('default', 'muted', 'inverse');
   CREATE TYPE "public"."enum__pages_v_blocks_bundle_2_ss_container" AS ENUM('narrow', 'default', 'wide', 'full');
@@ -224,7 +228,7 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   CREATE TYPE "public"."enum__pages_v_blocks_comparison_2_ss_surface" AS ENUM('default', 'muted', 'inverse');
   CREATE TYPE "public"."enum__pages_v_blocks_comparison_2_ss_container" AS ENUM('narrow', 'default', 'wide', 'full');
   CREATE TYPE "public"."enum__pages_v_blocks_comparison_2_ss_visibility" AS ENUM('all', 'mobile', 'desktop');
-  CREATE TYPE "public"."enum__pages_v_blocks_collection_spotlight_2_variant" AS ENUM('standard');
+  CREATE TYPE "public"."enum__pages_v_blocks_collection_spotlight_2_variant" AS ENUM('standard', 'stacked');
   CREATE TYPE "public"."enum__pages_v_blocks_collection_spotlight_2_sort" AS ENUM('newest', 'priceAsc', 'priceDesc', 'title');
   CREATE TYPE "public"."enum__pages_v_blocks_collection_spotlight_2_ss_spacing" AS ENUM('none', 'small', 'medium', 'large');
   CREATE TYPE "public"."enum__pages_v_blocks_collection_spotlight_2_ss_surface" AS ENUM('default', 'muted', 'inverse');
@@ -555,6 +559,22 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   	"link_appearance" "enum_pages_blocks_product_collection_2_links_link_appearance" DEFAULT 'text'
   );
   
+  CREATE TABLE "pages_blocks_product_collection_2_tabs" (
+  	"_order" integer NOT NULL,
+  	"_parent_id" varchar NOT NULL,
+  	"_locale" "_locales" NOT NULL,
+  	"id" varchar PRIMARY KEY NOT NULL,
+  	"label" varchar,
+  	"product_source_mode" "enum_pages_blocks_product_collection_2_tabs_ps_mode" DEFAULT 'newest',
+  	"product_source_collection_id" integer,
+  	"product_source_category_id" integer,
+  	"product_source_descendants" boolean DEFAULT true,
+  	"product_source_tag" varchar,
+  	"product_source_type" varchar,
+  	"product_source_limit" numeric DEFAULT 8,
+  	"product_source_sort" "enum_pages_blocks_product_collection_2_tabs_ps_sort" DEFAULT 'newest'
+  );
+  
   CREATE TABLE "pages_blocks_product_collection_2" (
   	"_order" integer NOT NULL,
   	"_parent_id" integer NOT NULL,
@@ -565,6 +585,7 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   	"heading" varchar,
   	"intro" varchar,
   	"display" "enum_pages_blocks_product_collection_2_display" DEFAULT 'carousel',
+  	"media_id" integer,
   	"product_source_mode" "enum_pages_blocks_product_collection_2_ps_mode" DEFAULT 'newest',
   	"product_source_collection_id" integer,
   	"product_source_category_id" integer,
@@ -1098,6 +1119,23 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   	"_uuid" varchar
   );
   
+  CREATE TABLE "_pages_v_blocks_product_collection_2_tabs" (
+  	"_order" integer NOT NULL,
+  	"_parent_id" integer NOT NULL,
+  	"_locale" "_locales" NOT NULL,
+  	"id" serial PRIMARY KEY NOT NULL,
+  	"label" varchar,
+  	"product_source_mode" "enum__pages_v_blocks_product_collection_2_tabs_ps_mode" DEFAULT 'newest',
+  	"product_source_collection_id" integer,
+  	"product_source_category_id" integer,
+  	"product_source_descendants" boolean DEFAULT true,
+  	"product_source_tag" varchar,
+  	"product_source_type" varchar,
+  	"product_source_limit" numeric DEFAULT 8,
+  	"product_source_sort" "enum__pages_v_blocks_product_collection_2_tabs_ps_sort" DEFAULT 'newest',
+  	"_uuid" varchar
+  );
+  
   CREATE TABLE "_pages_v_blocks_product_collection_2" (
   	"_order" integer NOT NULL,
   	"_parent_id" integer NOT NULL,
@@ -1108,6 +1146,7 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   	"heading" varchar,
   	"intro" varchar,
   	"display" "enum__pages_v_blocks_product_collection_2_display" DEFAULT 'carousel',
+  	"media_id" integer,
   	"product_source_mode" "enum__pages_v_blocks_product_collection_2_ps_mode" DEFAULT 'newest',
   	"product_source_collection_id" integer,
   	"product_source_category_id" integer,
@@ -1377,6 +1416,10 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   ALTER TABLE "pages_blocks_category_showcase_2" ADD CONSTRAINT "pages_blocks_category_showcase_2_category_source_parent_id_categories_id_fk" FOREIGN KEY ("category_source_parent_id") REFERENCES "public"."categories"("id") ON DELETE set null ON UPDATE no action;
   ALTER TABLE "pages_blocks_category_showcase_2" ADD CONSTRAINT "pages_blocks_category_showcase_2_parent_id_fk" FOREIGN KEY ("_parent_id") REFERENCES "public"."pages"("id") ON DELETE cascade ON UPDATE no action;
   ALTER TABLE "pages_blocks_product_collection_2_links" ADD CONSTRAINT "pages_blocks_product_collection_2_links_parent_id_fk" FOREIGN KEY ("_parent_id") REFERENCES "public"."pages_blocks_product_collection_2"("id") ON DELETE cascade ON UPDATE no action;
+  ALTER TABLE "pages_blocks_product_collection_2_tabs" ADD CONSTRAINT "pages_blocks_product_collection_2_tabs_product_source_collection_id_collections_id_fk" FOREIGN KEY ("product_source_collection_id") REFERENCES "public"."collections"("id") ON DELETE set null ON UPDATE no action;
+  ALTER TABLE "pages_blocks_product_collection_2_tabs" ADD CONSTRAINT "pages_blocks_product_collection_2_tabs_product_source_category_id_categories_id_fk" FOREIGN KEY ("product_source_category_id") REFERENCES "public"."categories"("id") ON DELETE set null ON UPDATE no action;
+  ALTER TABLE "pages_blocks_product_collection_2_tabs" ADD CONSTRAINT "pages_blocks_product_collection_2_tabs_parent_id_fk" FOREIGN KEY ("_parent_id") REFERENCES "public"."pages_blocks_product_collection_2"("id") ON DELETE cascade ON UPDATE no action;
+  ALTER TABLE "pages_blocks_product_collection_2" ADD CONSTRAINT "pages_blocks_product_collection_2_media_id_media_id_fk" FOREIGN KEY ("media_id") REFERENCES "public"."media"("id") ON DELETE set null ON UPDATE no action;
   ALTER TABLE "pages_blocks_product_collection_2" ADD CONSTRAINT "pages_blocks_product_collection_2_product_source_collection_id_collections_id_fk" FOREIGN KEY ("product_source_collection_id") REFERENCES "public"."collections"("id") ON DELETE set null ON UPDATE no action;
   ALTER TABLE "pages_blocks_product_collection_2" ADD CONSTRAINT "pages_blocks_product_collection_2_product_source_category_id_categories_id_fk" FOREIGN KEY ("product_source_category_id") REFERENCES "public"."categories"("id") ON DELETE set null ON UPDATE no action;
   ALTER TABLE "pages_blocks_product_collection_2" ADD CONSTRAINT "pages_blocks_product_collection_2_parent_id_fk" FOREIGN KEY ("_parent_id") REFERENCES "public"."pages"("id") ON DELETE cascade ON UPDATE no action;
@@ -1436,6 +1479,10 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   ALTER TABLE "_pages_v_blocks_category_showcase_2" ADD CONSTRAINT "_pages_v_blocks_category_showcase_2_category_source_parent_id_categories_id_fk" FOREIGN KEY ("category_source_parent_id") REFERENCES "public"."categories"("id") ON DELETE set null ON UPDATE no action;
   ALTER TABLE "_pages_v_blocks_category_showcase_2" ADD CONSTRAINT "_pages_v_blocks_category_showcase_2_parent_id_fk" FOREIGN KEY ("_parent_id") REFERENCES "public"."_pages_v"("id") ON DELETE cascade ON UPDATE no action;
   ALTER TABLE "_pages_v_blocks_product_collection_2_links" ADD CONSTRAINT "_pages_v_blocks_product_collection_2_links_parent_id_fk" FOREIGN KEY ("_parent_id") REFERENCES "public"."_pages_v_blocks_product_collection_2"("id") ON DELETE cascade ON UPDATE no action;
+  ALTER TABLE "_pages_v_blocks_product_collection_2_tabs" ADD CONSTRAINT "_pages_v_blocks_product_collection_2_tabs_product_source_collection_id_collections_id_fk" FOREIGN KEY ("product_source_collection_id") REFERENCES "public"."collections"("id") ON DELETE set null ON UPDATE no action;
+  ALTER TABLE "_pages_v_blocks_product_collection_2_tabs" ADD CONSTRAINT "_pages_v_blocks_product_collection_2_tabs_product_source_category_id_categories_id_fk" FOREIGN KEY ("product_source_category_id") REFERENCES "public"."categories"("id") ON DELETE set null ON UPDATE no action;
+  ALTER TABLE "_pages_v_blocks_product_collection_2_tabs" ADD CONSTRAINT "_pages_v_blocks_product_collection_2_tabs_parent_id_fk" FOREIGN KEY ("_parent_id") REFERENCES "public"."_pages_v_blocks_product_collection_2"("id") ON DELETE cascade ON UPDATE no action;
+  ALTER TABLE "_pages_v_blocks_product_collection_2" ADD CONSTRAINT "_pages_v_blocks_product_collection_2_media_id_media_id_fk" FOREIGN KEY ("media_id") REFERENCES "public"."media"("id") ON DELETE set null ON UPDATE no action;
   ALTER TABLE "_pages_v_blocks_product_collection_2" ADD CONSTRAINT "_pages_v_blocks_product_collection_2_product_source_collection_id_collections_id_fk" FOREIGN KEY ("product_source_collection_id") REFERENCES "public"."collections"("id") ON DELETE set null ON UPDATE no action;
   ALTER TABLE "_pages_v_blocks_product_collection_2" ADD CONSTRAINT "_pages_v_blocks_product_collection_2_product_source_category_id_categories_id_fk" FOREIGN KEY ("product_source_category_id") REFERENCES "public"."categories"("id") ON DELETE set null ON UPDATE no action;
   ALTER TABLE "_pages_v_blocks_product_collection_2" ADD CONSTRAINT "_pages_v_blocks_product_collection_2_parent_id_fk" FOREIGN KEY ("_parent_id") REFERENCES "public"."_pages_v"("id") ON DELETE cascade ON UPDATE no action;
@@ -1547,10 +1594,16 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   CREATE INDEX "pages_blocks_product_collection_2_links_order_idx" ON "pages_blocks_product_collection_2_links" USING btree ("_order");
   CREATE INDEX "pages_blocks_product_collection_2_links_parent_id_idx" ON "pages_blocks_product_collection_2_links" USING btree ("_parent_id");
   CREATE INDEX "pages_blocks_product_collection_2_links_locale_idx" ON "pages_blocks_product_collection_2_links" USING btree ("_locale");
+  CREATE INDEX "pages_blocks_product_collection_2_tabs_order_idx" ON "pages_blocks_product_collection_2_tabs" USING btree ("_order");
+  CREATE INDEX "pages_blocks_product_collection_2_tabs_parent_id_idx" ON "pages_blocks_product_collection_2_tabs" USING btree ("_parent_id");
+  CREATE INDEX "pages_blocks_product_collection_2_tabs_locale_idx" ON "pages_blocks_product_collection_2_tabs" USING btree ("_locale");
+  CREATE INDEX "pages_blocks_product_collection_2_tabs_product_source_pr_idx" ON "pages_blocks_product_collection_2_tabs" USING btree ("product_source_collection_id");
+  CREATE INDEX "pages_blocks_product_collection_2_tabs_product_source__1_idx" ON "pages_blocks_product_collection_2_tabs" USING btree ("product_source_category_id");
   CREATE INDEX "pages_blocks_product_collection_2_order_idx" ON "pages_blocks_product_collection_2" USING btree ("_order");
   CREATE INDEX "pages_blocks_product_collection_2_parent_id_idx" ON "pages_blocks_product_collection_2" USING btree ("_parent_id");
   CREATE INDEX "pages_blocks_product_collection_2_path_idx" ON "pages_blocks_product_collection_2" USING btree ("_path");
   CREATE INDEX "pages_blocks_product_collection_2_locale_idx" ON "pages_blocks_product_collection_2" USING btree ("_locale");
+  CREATE INDEX "pages_blocks_product_collection_2_media_idx" ON "pages_blocks_product_collection_2" USING btree ("media_id");
   CREATE INDEX "pages_blocks_product_collection_2_product_source_product_idx" ON "pages_blocks_product_collection_2" USING btree ("product_source_collection_id");
   CREATE INDEX "pages_blocks_product_collection_2_product_source_produ_1_idx" ON "pages_blocks_product_collection_2" USING btree ("product_source_category_id");
   CREATE INDEX "pages_blocks_featured_product_2_order_idx" ON "pages_blocks_featured_product_2" USING btree ("_order");
@@ -1692,10 +1745,16 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   CREATE INDEX "_pages_v_blocks_product_collection_2_links_order_idx" ON "_pages_v_blocks_product_collection_2_links" USING btree ("_order");
   CREATE INDEX "_pages_v_blocks_product_collection_2_links_parent_id_idx" ON "_pages_v_blocks_product_collection_2_links" USING btree ("_parent_id");
   CREATE INDEX "_pages_v_blocks_product_collection_2_links_locale_idx" ON "_pages_v_blocks_product_collection_2_links" USING btree ("_locale");
+  CREATE INDEX "_pages_v_blocks_product_collection_2_tabs_order_idx" ON "_pages_v_blocks_product_collection_2_tabs" USING btree ("_order");
+  CREATE INDEX "_pages_v_blocks_product_collection_2_tabs_parent_id_idx" ON "_pages_v_blocks_product_collection_2_tabs" USING btree ("_parent_id");
+  CREATE INDEX "_pages_v_blocks_product_collection_2_tabs_locale_idx" ON "_pages_v_blocks_product_collection_2_tabs" USING btree ("_locale");
+  CREATE INDEX "_pages_v_blocks_product_collection_2_tabs_product_source_idx" ON "_pages_v_blocks_product_collection_2_tabs" USING btree ("product_source_collection_id");
+  CREATE INDEX "_pages_v_blocks_product_collection_2_tabs_product_sour_1_idx" ON "_pages_v_blocks_product_collection_2_tabs" USING btree ("product_source_category_id");
   CREATE INDEX "_pages_v_blocks_product_collection_2_order_idx" ON "_pages_v_blocks_product_collection_2" USING btree ("_order");
   CREATE INDEX "_pages_v_blocks_product_collection_2_parent_id_idx" ON "_pages_v_blocks_product_collection_2" USING btree ("_parent_id");
   CREATE INDEX "_pages_v_blocks_product_collection_2_path_idx" ON "_pages_v_blocks_product_collection_2" USING btree ("_path");
   CREATE INDEX "_pages_v_blocks_product_collection_2_locale_idx" ON "_pages_v_blocks_product_collection_2" USING btree ("_locale");
+  CREATE INDEX "_pages_v_blocks_product_collection_2_media_idx" ON "_pages_v_blocks_product_collection_2" USING btree ("media_id");
   CREATE INDEX "_pages_v_blocks_product_collection_2_product_source_prod_idx" ON "_pages_v_blocks_product_collection_2" USING btree ("product_source_collection_id");
   CREATE INDEX "_pages_v_blocks_product_collection_2_product_source_pr_1_idx" ON "_pages_v_blocks_product_collection_2" USING btree ("product_source_category_id");
   CREATE INDEX "_pages_v_blocks_featured_product_2_order_idx" ON "_pages_v_blocks_featured_product_2" USING btree ("_order");
@@ -1784,6 +1843,7 @@ export async function down({ db, payload, req }: MigrateDownArgs): Promise<void>
   ALTER TABLE "pages_blocks_category_showcase_2_cs_items" DISABLE ROW LEVEL SECURITY;
   ALTER TABLE "pages_blocks_category_showcase_2" DISABLE ROW LEVEL SECURITY;
   ALTER TABLE "pages_blocks_product_collection_2_links" DISABLE ROW LEVEL SECURITY;
+  ALTER TABLE "pages_blocks_product_collection_2_tabs" DISABLE ROW LEVEL SECURITY;
   ALTER TABLE "pages_blocks_product_collection_2" DISABLE ROW LEVEL SECURITY;
   ALTER TABLE "pages_blocks_featured_product_2" DISABLE ROW LEVEL SECURITY;
   ALTER TABLE "pages_blocks_bundle_2" DISABLE ROW LEVEL SECURITY;
@@ -1817,6 +1877,7 @@ export async function down({ db, payload, req }: MigrateDownArgs): Promise<void>
   ALTER TABLE "_pages_blocks_category_showcase_2_cs_items_v" DISABLE ROW LEVEL SECURITY;
   ALTER TABLE "_pages_v_blocks_category_showcase_2" DISABLE ROW LEVEL SECURITY;
   ALTER TABLE "_pages_v_blocks_product_collection_2_links" DISABLE ROW LEVEL SECURITY;
+  ALTER TABLE "_pages_v_blocks_product_collection_2_tabs" DISABLE ROW LEVEL SECURITY;
   ALTER TABLE "_pages_v_blocks_product_collection_2" DISABLE ROW LEVEL SECURITY;
   ALTER TABLE "_pages_v_blocks_featured_product_2" DISABLE ROW LEVEL SECURITY;
   ALTER TABLE "_pages_v_blocks_bundle_2" DISABLE ROW LEVEL SECURITY;
@@ -1850,6 +1911,7 @@ export async function down({ db, payload, req }: MigrateDownArgs): Promise<void>
   DROP TABLE "pages_blocks_category_showcase_2_cs_items" CASCADE;
   DROP TABLE "pages_blocks_category_showcase_2" CASCADE;
   DROP TABLE "pages_blocks_product_collection_2_links" CASCADE;
+  DROP TABLE "pages_blocks_product_collection_2_tabs" CASCADE;
   DROP TABLE "pages_blocks_product_collection_2" CASCADE;
   DROP TABLE "pages_blocks_featured_product_2" CASCADE;
   DROP TABLE "pages_blocks_bundle_2" CASCADE;
@@ -1883,6 +1945,7 @@ export async function down({ db, payload, req }: MigrateDownArgs): Promise<void>
   DROP TABLE "_pages_blocks_category_showcase_2_cs_items_v" CASCADE;
   DROP TABLE "_pages_v_blocks_category_showcase_2" CASCADE;
   DROP TABLE "_pages_v_blocks_product_collection_2_links" CASCADE;
+  DROP TABLE "_pages_v_blocks_product_collection_2_tabs" CASCADE;
   DROP TABLE "_pages_v_blocks_product_collection_2" CASCADE;
   DROP TABLE "_pages_v_blocks_featured_product_2" CASCADE;
   DROP TABLE "_pages_v_blocks_bundle_2" CASCADE;
@@ -1983,6 +2046,8 @@ export async function down({ db, payload, req }: MigrateDownArgs): Promise<void>
   DROP TYPE "public"."enum_pages_blocks_category_showcase_2_ss_visibility";
   DROP TYPE "public"."enum_pages_blocks_product_collection_2_links_link_type";
   DROP TYPE "public"."enum_pages_blocks_product_collection_2_links_link_appearance";
+  DROP TYPE "public"."enum_pages_blocks_product_collection_2_tabs_ps_mode";
+  DROP TYPE "public"."enum_pages_blocks_product_collection_2_tabs_ps_sort";
   DROP TYPE "public"."enum_pages_blocks_product_collection_2_variant";
   DROP TYPE "public"."enum_pages_blocks_product_collection_2_display";
   DROP TYPE "public"."enum_pages_blocks_product_collection_2_ps_mode";
@@ -2108,6 +2173,8 @@ export async function down({ db, payload, req }: MigrateDownArgs): Promise<void>
   DROP TYPE "public"."enum__pages_v_blocks_category_showcase_2_ss_visibility";
   DROP TYPE "public"."enum__pages_v_blocks_product_collection_2_links_link_type";
   DROP TYPE "public"."enum__pages_v_blocks_product_collection_2_links_link_appearance";
+  DROP TYPE "public"."enum__pages_v_blocks_product_collection_2_tabs_ps_mode";
+  DROP TYPE "public"."enum__pages_v_blocks_product_collection_2_tabs_ps_sort";
   DROP TYPE "public"."enum__pages_v_blocks_product_collection_2_variant";
   DROP TYPE "public"."enum__pages_v_blocks_product_collection_2_display";
   DROP TYPE "public"."enum__pages_v_blocks_product_collection_2_ps_mode";
