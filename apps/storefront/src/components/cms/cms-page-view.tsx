@@ -45,6 +45,8 @@ export async function CmsPageView({ page, content, market, paths, draft }: CmsPa
     ...(commerce === undefined ? {} : { commerce }),
     // T66: the journal's posts for the editorial lists, as this page reads (Draft Mode included).
     posts: postsContext({ market, draft }, messages),
+    // T81: the `tabs` collections' other tabs are read from the published page, so not in Draft Mode.
+    ...(draft ? {} : { document: { id: page.id } }),
   };
   const blocks = await resolveLayout(page.layout, resolveContext);
   const heading = pageHeading(blocks);

@@ -95,9 +95,22 @@ export type SectionFixtures = {
     carousel: ProductCollectionSection;
     grid: ProductCollectionSection;
     empty: ProductCollectionSection;
+    /** T81: three tabs, each with its products (the shop fetches all but the first's). */
+    tabs: ProductCollectionSection;
+    /** T81: five products under "Our top five", for the `ranked` member. */
+    ranked: ProductCollectionSection;
+    /** T81: the editor's picture, line and link with six products, for `with-banner`. */
+    banner: ProductCollectionSection;
+    /** T81: a tall picture of a look and four products, for `lookbook`. */
+    look: ProductCollectionSection;
   };
   /** The hoodie with the editor's heading, words and picture; the sale product on its own. */
-  featuredProduct: { section: FeaturedProductSection; sale: FeaturedProductSection };
+  featuredProduct: {
+    section: FeaturedProductSection;
+    sale: FeaturedProductSection;
+    /** T81: the editor's picture and the product's own, for the `gallery` member. */
+    gallery: FeaturedProductSection;
+  };
   /** Three products that go together; six, the most. */
   bundle: { section: BundleSection; full: BundleSection };
   /** An offer with a picture, a code, its end, the small print and a link; one with words only. */
@@ -645,10 +658,63 @@ function commerceSections(
           action: { label: words.productCollection.link, href: href("/store") },
         },
       },
+      tabs: {
+        heading: words.productCollection.tabsHeading,
+        variant: "tabs",
+        display: "grid",
+        products: products.slice(0, 4),
+        tabs: [
+          { label: words.productCollection.tabs[0], href: href("/collections/new-in") },
+          {
+            label: words.productCollection.tabs[1],
+            href: href("/store"),
+            products: [sale, ...products.slice(6, 9).filter((each) => each.id !== sale.id)],
+          },
+          {
+            label: words.productCollection.tabs[2],
+            href: href("/store"),
+            products: products.slice(4, 8),
+          },
+        ],
+      },
+      ranked: {
+        heading: words.productCollection.rankedHeading,
+        variant: "ranked",
+        display: "grid",
+        products: products.slice(0, 5),
+        link: { label: words.productCollection.link, href: href("/store"), appearance: "text" },
+      },
+      banner: {
+        ...collection,
+        variant: "with-banner",
+        display: "grid",
+        image: fixtureImage({ seed: 51, ratio: "4:3", alt: words.productCollection.bannerAlt }),
+        products: products.slice(2, 6),
+      },
+      look: {
+        heading: words.productCollection.lookHeading,
+        intro: words.productCollection.intro,
+        link: { label: words.productCollection.link, href: href("/collections/autumn") },
+        variant: "lookbook",
+        display: "grid",
+        image: fixtureImage({ seed: 52, ratio: "3:4", alt: words.productCollection.lookAlt }),
+        products: [card(0), card(2), card(9), card(6)],
+      },
     },
     featuredProduct: {
       section: featured,
       sale: { product: sale, image: { ...(sale.images[0] ?? featured.image) } },
+      gallery: {
+        ...featured,
+        variant: "gallery",
+        // The editor's picture first, then the product's own and two more of it.
+        gallery: [
+          featured.image,
+          ...card(0).images,
+          fixtureImage({ seed: 53, ratio: "1:1", alt: card(0).title }),
+          fixtureImage({ seed: 54, ratio: "1:1", alt: card(0).title }),
+        ].slice(0, 5),
+      },
     },
     bundle: {
       section: {

@@ -20,6 +20,7 @@ const us = findMarket(seeded, "en-us")!;
 function commerce(market: FakeMarket = unitedStates) {
   const catalog = fakeCatalog(market);
   const context: CommerceContext = {
+    market: "us",
     reads: catalog.reads,
     hrefs: {
       product: (handle) => `/us/products/${handle}`,
