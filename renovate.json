@@ -22,7 +22,7 @@
       "labels": ["next"]
     },
     {
-      "description": "D51 and T40: the design-system job runs in mcr.microsoft.com/playwright:v1.64.0-noble, whose browser must be the one @playwright/test drives, so the image tag and the package move in one PR. Merging it changes the browser the baselines were made with: dispatch CI with update-baselines on that PR's branch (SETUP.md, 'Baselines and thumbnails (T40)').",
+      "description": "D51 and T40: the design-system job runs in mcr.microsoft.com/playwright:v1.64.1-noble, whose browser must be the one @playwright/test drives, so the image tag and the package move in one PR. Merging it changes the browser the baselines were made with: dispatch CI with update-baselines on that PR's branch (SETUP.md, 'Baselines and thumbnails (T40)').",
       "matchPackageNames": ["@playwright/test", "mcr.microsoft.com/playwright"],
       "groupName": "playwright",
       "labels": ["playwright"]
