@@ -49930,14 +49930,23 @@
       "name": "enum_templates_checkout_variant",
       "schema": "public",
       "values": [
-        "default"
+        "default",
+        "one-page",
+        "summary-first",
+        "focused",
+        "express-rail"
       ]
     },
     "public.enum_templates_receipt_variant": {
       "name": "enum_templates_receipt_variant",
       "schema": "public",
       "values": [
-        "default"
+        "default",
+        "statement",
+        "timeline-first",
+        "split",
+        "compact",
+        "next-steps"
       ]
     },
     "public.enum_templates_status": {
@@ -50046,14 +50055,23 @@
       "name": "enum__templates_v_version_checkout_variant",
       "schema": "public",
       "values": [
-        "default"
+        "default",
+        "one-page",
+        "summary-first",
+        "focused",
+        "express-rail"
       ]
     },
     "public.enum__templates_v_version_receipt_variant": {
       "name": "enum__templates_v_version_receipt_variant",
       "schema": "public",
       "values": [
-        "default"
+        "default",
+        "statement",
+        "timeline-first",
+        "split",
+        "compact",
+        "next-steps"
       ]
     },
     "public.enum__templates_v_version_status": {
@@ -50124,6 +50142,6 @@
     "tables": {},
     "columns": {}
   },
-  "id": "e6427098-9d5a-4198-93c3-b38a2355bfad",
+  "id": "dc2a642e-bfdf-4d6a-a3d5-0a14b69200d5",
   "prevId": "00000000-0000-0000-0000-000000000000"
 }
