@@ -8,13 +8,13 @@
 import { commerceFixtures } from "@shopblok/fixtures";
 import { catalogs, formatMessage, formatMoney, LOCALES, type Locale } from "@shopblok/i18n";
 import type { CartDrawer as CartDrawerContent } from "@shopblok/registry/contracts";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { renderToString } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CLIPPING_CLASSES, longLabels } from "../test-support/long-labels";
 import { useState } from "react";
-import { CartDrawer, cartDrawerParts, type CartDrawerProps } from "./cart-drawer";
+import { CartDrawer, cartDrawerParts, miniCartParts, type CartDrawerProps } from "./cart-drawer";
 import { CartDrawerClient } from "./cart-drawer-client";
 
 vi.mock("next/link", async () =>
@@ -370,5 +370,100 @@ describe("CartDrawer: long labels", () => {
     expect(
       within(slot("cart-drawer-view") as HTMLElement).getByText(long.linkLabel).className,
     ).toContain("wrap-anywhere");
+  });
+});
+
+// T85 (SETUP.md "Cart variants (T85)"): the `drawer-picks` member, the drawer with up to four
+// products to add under the lines. Its button and sheet say which member they are, each pick has
+// its own form to the cart (a select named for the product when it has more than one variant, a
+// hidden field when it has one), what the cart holds is never a pick, and with no picks it is the
+// drawer alone. `miniCartParts` gives the shop's island the same member's parts.
+describe("CartDrawer: drawer-picks (T85)", () => {
+  const picksOf = (locale: Locale) => commerceFixtures[locale].cartCheckout.picks;
+
+  it.each(LOCALES)("says which member it is on its button and its sheet, in %s", async (locale) => {
+    await openSheet(locale, "full", {
+      variant: "drawer-picks",
+      picks: picksOf(locale),
+      addAction: "/add",
+    });
+    expect(trigger().getAttribute("data-variant")).toBe("drawer-picks");
+    expect(sheet()?.getAttribute("data-variant")).toBe("drawer-picks");
+    const words = copyOf(locale).drawer;
+    const section = screen.getByRole("region", { name: words.picksTitle });
+    expect(within(section).getAllByRole("listitem")).toHaveLength(4);
+  });
+
+  it("gives each pick its own form to the cart: the variant, one of it, Add named for it", async () => {
+    await openSheet("en", "full", {
+      variant: "drawer-picks",
+      picks: picksOf("en"),
+      addAction: "/add",
+    });
+    const words = copyOf("en").drawer;
+    for (const pick of picksOf("en")) {
+      const row = document.querySelector(`[data-slot="cart-pick"][data-product="${pick.id}"]`);
+      const form = row?.querySelector('form[data-slot="cart-pick-add"]') as HTMLFormElement;
+      expect(form.getAttribute("action")).toBe("/add");
+      expect(form.getAttribute("method")).toBe("post");
+      const data = new FormData(form);
+      expect(data.get("quantity")).toBe("1");
+      expect(pick.choices.map((choice) => choice.variantId)).toContain(data.get("variantId"));
+      const add = within(form).getByRole("button", {
+        name: formatMessage(words.pickAddLabel, { product: pick.title }, "en-US"),
+      });
+      expect(add.getAttribute("type")).toBe("submit");
+      const select = form.querySelector("select");
+      if (pick.choices.length === 1) {
+        expect(select).toBeNull();
+        expect(form.querySelector('input[type="hidden"][name="variantId"]')).not.toBeNull();
+      } else {
+        expect(select?.getAttribute("aria-label")).toBe(
+          formatMessage(words.pickChoice, { product: pick.title }, "en-US"),
+        );
+        expect([...(select?.options ?? [])].map((option) => option.value)).toEqual(
+          pick.choices.map((choice) => choice.variantId),
+        );
+      }
+      // Its name is the link to its page.
+      expect(within(row as HTMLElement).getByRole("link", { name: pick.title })).toBeTruthy();
+    }
+  });
+
+  it("leaves out a pick the cart holds, and is the drawer alone with none", async () => {
+    const [line] = drawerOf("en").cart.lines;
+    const [first, ...rest] = picksOf("en");
+    if (line === undefined || first === undefined) throw new Error("no line or pick");
+    await openSheet("en", "full", {
+      variant: "drawer-picks",
+      picks: [{ ...first, id: line.productId }, ...rest],
+    });
+    expect(document.querySelectorAll('[data-slot="cart-pick"]')).toHaveLength(rest.length);
+    cleanup();
+    await openSheet("en", "full", { variant: "drawer-picks", picks: [] });
+    expect(slot("cart-picks")).toBeNull();
+    expect(slot("cart-drawer-foot")).not.toBeNull();
+  });
+
+  it("draws the picks under an empty cart's empty state too", async () => {
+    await openSheet("en", "empty", { variant: "drawer-picks", picks: picksOf("en") });
+    const body = slot("cart-drawer-body") as HTMLElement;
+    expect(body.querySelector('[data-slot="empty-state"]')).not.toBeNull();
+    expect(body.querySelectorAll('[data-slot="cart-pick"]')).toHaveLength(4);
+  });
+
+  it("miniCartParts: the member of the variant, the first for none or an unknown value", () => {
+    const base = {
+      ...drawerOf("en"),
+      copy: copyOf("en"),
+      locale: "en-US",
+      picks: picksOf("en"),
+    };
+    expect(miniCartParts({ ...base, variant: "drawer-picks" }).variant).toBe("drawer-picks");
+    expect(miniCartParts({ ...base, variant: "drawer" }).variant).toBe("drawer");
+    expect(miniCartParts(base).variant).toBe("drawer");
+    expect(
+      miniCartParts({ ...base, variant: "split" as unknown as "drawer" }).variant,
+    ).toBe("drawer");
   });
 });

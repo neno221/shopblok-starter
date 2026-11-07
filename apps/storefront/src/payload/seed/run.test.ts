@@ -481,6 +481,9 @@ describe("the globals' seed (T61 step 6)", () => {
       "cart.variant": d.cart,
       "cart.miniCart": d.miniCart,
       "cart.quickCart": d.quickCart,
+      // T85: the drawer with picks offers the newest four (D101).
+      "cart.picks.mode": "newest",
+      "cart.picks.limit": 4,
       "checkout.variant": d.checkout,
       "receipt.variant": d.receipt,
     });
