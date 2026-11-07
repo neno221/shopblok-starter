@@ -1,5 +1,5 @@
 import "server-only";
-import { checkoutIds, type CheckoutStepKind } from "@shopblok/ui/templates/checkout/parts";
+import { checkoutIds, type CheckoutStepKind } from "@shopblok/ui/templates/checkout/ids";
 import { draftMode } from "next/headers";
 import { redirect } from "next/navigation";
 import { cmsOrNull } from "../cms/read";

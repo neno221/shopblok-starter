@@ -8,7 +8,7 @@ import {
   type CheckoutErrors,
 } from "@shopblok/ui/templates/checkout";
 import type { AddressFormErrors } from "@shopblok/ui/molecules/address-form";
-import { checkoutIds } from "@shopblok/ui/templates/checkout/parts";
+import { checkoutIds } from "@shopblok/ui/templates/checkout/ids";
 import { ShoppingBagIcon } from "lucide-react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";

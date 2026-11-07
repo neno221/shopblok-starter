@@ -105,6 +105,27 @@ describe("the page fixtures (T48)", () => {
     ).toBe(false);
   });
 
+  it("refuse a one-page checkout without its finished steps, and next steps without one (T86)", () => {
+    const { checkout, checkoutDone, orderConfirmation } = pageFixtures.en;
+    const review = { ...checkout.review, variant: "one-page" as const };
+    expect(CheckoutPage.safeParse({ ...review, done: checkoutDone }).success).toBe(true);
+    expect(
+      CheckoutPage.safeParse({ ...review, done: { contact: checkoutDone.contact } }).success,
+    ).toBe(false);
+    // The contact step has nothing before it, so it needs nothing done.
+    expect(CheckoutPage.safeParse({ ...checkout.contact, variant: "one-page" }).success).toBe(true);
+    // Another layout ignores `done`.
+    expect(CheckoutPage.safeParse(checkout.review).success).toBe(true);
+    const { followUp, ...withoutFollowUp } = orderConfirmation;
+    expect(followUp).toBeDefined();
+    const nextSteps = { ...withoutFollowUp, variant: "next-steps" as const };
+    expect(OrderConfirmationPage.safeParse(nextSteps).success).toBe(false);
+    expect(OrderConfirmationPage.safeParse({ ...nextSteps, followUp }).success).toBe(true);
+    expect(OrderConfirmationPage.safeParse({ ...withoutFollowUp, variant: "split" }).success).toBe(
+      true,
+    );
+  });
+
   it("refuse results whose filters and toolbar count different listings", () => {
     const { results } = pageFixtures.en.productListing;
     const filters = results.filters;

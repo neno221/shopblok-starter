@@ -12,6 +12,7 @@
     "./molecules/*": "./src/molecules/*.tsx",
     "./organisms/buy-box-choice": "./src/organisms/buy-box-choice.ts",
     "./organisms/*": "./src/organisms/*.tsx",
+    "./templates/checkout/ids": "./src/templates/checkout/ids.ts",
     "./templates/*": "./src/templates/*.tsx",
     "./sections/section-copy": "./src/sections/section-copy.ts",
     "./sections/*": "./src/sections/*.tsx",

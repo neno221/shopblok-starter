@@ -28,6 +28,7 @@ import { PaymentStep } from "@shopblok/ui/organisms/payment-step";
 import { CircleAlertIcon } from "lucide-react";
 import NextLink from "next/link";
 import type * as React from "react";
+import { checkoutIds, type CheckoutStepKind } from "./ids";
 
 // The hrefs are strings the app built; `next/link` takes whatever the app's typed routes allow.
 type LinkHref = React.ComponentProps<typeof NextLink>["href"];
@@ -78,24 +79,6 @@ type CheckoutErrors = {
   /** No payment chosen, or Medusa refused it. */
   payment?: "required" | "failed";
 };
-
-type CheckoutStepKind = CheckoutPage["step"]["kind"];
-
-/**
- * The ids the steps' forms and fields go by, from the root's id; `step(kind)` is the `one-page`
- * layout's section of a step, the anchor its actions come back to (T86).
- */
-function checkoutIds(mainId: string) {
-  return {
-    address: `${mainId}-address`,
-    email: `${mainId}-email`,
-    emailHint: `${mainId}-email-hint`,
-    emailError: `${mainId}-email-error`,
-    payment: `${mainId}-payment`,
-    shippingError: `${mainId}-shipping-error`,
-    step: (kind: CheckoutStepKind) => `${mainId}-step-${kind}`,
-  };
-}
 
 type CheckoutTemplateProps = CheckoutPage & {
   copy: CheckoutCopy;
