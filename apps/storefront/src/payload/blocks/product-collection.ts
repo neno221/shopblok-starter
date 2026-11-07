@@ -1,3 +1,4 @@
+import { COLLECTION_PICTURE_DESIGNS, VARIANTS } from "@shopblok/registry/contracts";
 import type { UploadFieldSingleValidation } from "payload";
 import { upload } from "payload/shared";
 import { CATALOG_COLLECTIONS } from "../../lib/cms/paths";
@@ -6,18 +7,10 @@ import { productSource } from "../fields/product-source";
 import { imageField, isVariant, requiredFor, sectionBlock } from "./section-block";
 
 /** The designs that draw the editor's picture beside or among the products (T81). */
-export const COLLECTION_NEEDS_PICTURE: readonly string[] = ["with-banner", "lookbook"];
+export const COLLECTION_NEEDS_PICTURE: readonly string[] = COLLECTION_PICTURE_DESIGNS;
 
 /** Every design but `tabs`, which takes its products from its tabs' sources. */
-const NOT_TABS = [
-  "standard",
-  "featured-first",
-  "editorial",
-  "ranked",
-  "with-banner",
-  "compact",
-  "lookbook",
-];
+const NOT_TABS = VARIANTS["product-collection"].filter((design) => design !== "tabs");
 
 /**
  * The picture, required for the designs that draw it (T81): Payload's own check first (a picture of

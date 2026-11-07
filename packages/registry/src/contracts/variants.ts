@@ -81,6 +81,12 @@ export const VARIANTS = {
 } as const satisfies Record<string, readonly [string, ...string[]]>;
 
 /** A family of the registry: a key of `VARIANTS`. */
+/**
+ * The product collection's designs that draw the editor's picture (T81): the contract needs it for
+ * them, Payload asks for it for them, and the shop resolves it only for them (PR 124 review, item 8).
+ */
+export const COLLECTION_PICTURE_DESIGNS = ["with-banner", "lookbook"] as const;
+
 export type Family = keyof typeof VARIANTS;
 
 /** The values of `family`'s variants, as a type. */

@@ -13,6 +13,7 @@ import {
   type Image,
   type ProductCard,
   type ProductCollectionTab,
+  COLLECTION_PICTURE_DESIGNS,
 } from "@shopblok/registry/contracts";
 import type { ProductDto } from "../../medusa/products";
 import type { Hrefs } from "../../view-models/common";
@@ -117,7 +118,7 @@ async function heroCollections(
 }
 
 /** The product collection's designs that draw the editor's picture (T81); the others show none. */
-const COLLECTION_PICTURE: readonly string[] = ["with-banner", "lookbook"];
+const COLLECTION_PICTURE: readonly string[] = COLLECTION_PICTURE_DESIGNS;
 
 /** The featured product's `gallery` (T81): the first picture, then the product's others, five at most. */
 function galleryOf(first: Image, others: readonly Image[]): Image[] {

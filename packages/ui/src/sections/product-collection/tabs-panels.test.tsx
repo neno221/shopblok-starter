@@ -122,4 +122,61 @@ describe("the tabs product collection's island (T81)", () => {
     expect(two).toBe(document.activeElement);
     expect(two!.getAttribute("aria-selected")).toBe("true");
   });
+
+  it("draws what a refreshed page gives at once: a new tab, new products, a tab taken away (PR 124 review, item 1)", async () => {
+    // Draft Mode: every tab comes with its products, and live preview refreshes the page.
+    const given = [first!, { label: second!.label, href: second!.href, products: sold }, third!];
+    const panels = (each: typeof given, products = section.products) => (
+      <>
+        <h2 id="collection-heading">{section.heading}</h2>
+        <ProductCollectionTabsPanels
+          tabs={each}
+          first={products}
+          labelledBy="collection-heading"
+          copy={{ products: copy.products, tabs: copy.tabs }}
+          locale={locale}
+          prefetch={false}
+          fetcher={vi.fn<typeof fetch>()}
+        />
+      </>
+    );
+    const titles = () =>
+      within(screen.getByRole("tabpanel"))
+        .getAllByRole("article")
+        .map((card) => within(card).getAllByRole("link")[0]?.textContent);
+    const { rerender } = render(panels(given.slice(0, 2)));
+    const user = userEvent.setup();
+    // A tab added by the editor: its products, not "Loading…".
+    rerender(panels(given));
+    await user.click(screen.getByRole("tab", { name: third!.label }));
+    expect(titles()).toEqual((third!.products ?? []).map((p) => p.title));
+    // The tab shown taken away: the last one left is shown, not an empty section.
+    rerender(panels(given.slice(0, 2)));
+    expect(screen.getByRole("tab", { name: second!.label }).getAttribute("aria-selected")).toBe(
+      "true",
+    );
+    expect(titles()).toEqual(sold.map((p) => p.title));
+    // The first tab's products edited: the new ones.
+    await user.click(screen.getByRole("tab", { name: first!.label }));
+    rerender(panels(given.slice(0, 2), sold));
+    expect(titles()).toEqual(sold.map((p) => p.title));
+  });
+
+  it("says a tab with neither products nor an endpoint could not be loaded, never loading forever", async () => {
+    const fetcher = vi.fn<typeof fetch>();
+    render(
+      <ProductCollectionTabsPanels
+        tabs={[first!, { label: second!.label, href: second!.href }]}
+        first={section.products}
+        labelledBy="collection-heading"
+        copy={{ products: copy.products, tabs: copy.tabs }}
+        locale={locale}
+        prefetch={false}
+        fetcher={fetcher}
+      />,
+    );
+    await userEvent.setup().click(screen.getByRole("tab", { name: second!.label }));
+    expect(within(screen.getByRole("tabpanel")).getByRole("alert")).toBeTruthy();
+    expect(fetcher).not.toHaveBeenCalled();
+  });
 });

@@ -59,15 +59,12 @@ function ProductCollectionTabsPanels({
   fetcher,
 }: ProductCollectionTabsPanelsProps) {
   const [active, setActive] = useState(0);
-  // Each tab's products by index: the first's from the page, the others' as they come.
-  const [loaded, setLoaded] = useState<Partial<Record<number, Loaded>>>(() => {
-    const given: Partial<Record<number, Loaded>> = { 0: { state: "done", products: first } };
-    tabs.forEach((tab, index) => {
-      if (index > 0 && tab.products !== undefined)
-        given[index] = { state: "done", products: tab.products };
-    });
-    return given;
-  });
+  // The fetched answers, by endpoint. What the page gives (the first tab's products, and each
+  // tab's in Draft Mode) is read from the props on every render, so a refreshed page (live
+  // preview's `router.refresh()` after a save) draws its new tabs and products at once.
+  const [fetched, setFetched] = useState<Partial<Record<string, Loaded>>>({});
+  // A tab taken away while it was shown: the last one is shown instead.
+  const shown = Math.min(active, tabs.length - 1);
 
   // The fetches on their way, stopped if the section goes before they answer.
   const pending = useRef(new Set<AbortController>());
@@ -78,19 +75,29 @@ function ProductCollectionTabsPanels({
     };
   }, []);
 
-  /** Fetches tab `index`'s products from its endpoint, once at a time. */
+  /** Tab `index`'s products: the page's, or its endpoint's answer (`undefined`: not asked yet). */
+  function stateOf(index: number): Loaded | undefined {
+    const tab = tabs[index];
+    const given = index === 0 ? first : tab?.products;
+    if (given !== undefined) return { state: "done", products: given };
+    // A tab with neither products nor an endpoint has nothing to load.
+    if (tab?.endpoint === undefined) return { state: "failed" };
+    return fetched[tab.endpoint];
+  }
+
+  /** Fetches tab `index`'s products from its endpoint. */
   function load(index: number) {
     const endpoint = tabs[index]?.endpoint;
     if (endpoint === undefined) return;
     const controller = new AbortController();
     pending.current.add(controller);
-    setLoaded((all) => ({ ...all, [index]: { state: "loading" } }));
+    setFetched((all) => ({ ...all, [endpoint]: { state: "loading" } }));
     (fetcher ?? fetch)(endpoint, { signal: controller.signal })
       .then(async (response) => {
         const body: unknown = response.ok ? await response.json() : null;
-        setLoaded((all) => ({
+        setFetched((all) => ({
           ...all,
-          [index]:
+          [endpoint]:
             isAnswer(body) && body.products.length > 0
               ? { state: "done", products: body.products }
               : { state: "failed" },
@@ -99,7 +106,7 @@ function ProductCollectionTabsPanels({
       .catch((error: unknown) => {
         if (controller.signal.aborted) return;
         console.error("product collection tabs: a tab's products could not be loaded", error);
-        setLoaded((all) => ({ ...all, [index]: { state: "failed" } }));
+        setFetched((all) => ({ ...all, [endpoint]: { state: "failed" } }));
       })
       .finally(() => pending.current.delete(controller));
   }
@@ -108,13 +115,13 @@ function ProductCollectionTabsPanels({
   function choose(value: unknown) {
     const index = Number(value);
     setActive(index);
-    if (loaded[index] === undefined) load(index);
+    if (stateOf(index) === undefined) load(index);
   }
 
   return (
     <Tabs
       data-slot="product-collection-tabs"
-      value={active}
+      value={shown}
       onValueChange={choose}
       className="gap-6"
     >
@@ -136,7 +143,7 @@ function ProductCollectionTabsPanels({
         ))}
       </TabsList>
       {tabs.map((tab, index) => {
-        const each = loaded[index];
+        const each = stateOf(index);
         return (
           <TabsContent
             key={`${index} ${tab.href}`}

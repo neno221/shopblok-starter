@@ -6,7 +6,7 @@ import { EmptyStateContent } from "./listing";
 import { CategoryTile, PostCard } from "./pages";
 import { PriceSummary, ProductCard } from "./product";
 import { AccordionSection, Countdown, DiscountCode, NewsletterSignup } from "./site";
-import { variantEnum, variantNeeds, type Family } from "./variants";
+import { COLLECTION_PICTURE_DESIGNS, variantEnum, variantNeeds, type Family } from "./variants";
 
 // The sections' view models (D70, D79): what each of SPEC §7.4's blocks shows, once Payload's
 // content has been resolved for the market (links as `href`s, uploads as images). Text is the
@@ -336,7 +336,10 @@ export const ProductCollectionSection = z
     "no products and nothing to say instead",
   )
   .superRefine(
-    variantNeeds({ "with-banner": ["image"], lookbook: ["image"], tabs: ["tabs"] }),
+    variantNeeds({
+      ...Object.fromEntries(COLLECTION_PICTURE_DESIGNS.map((design) => [design, ["image"]])),
+      tabs: ["tabs"],
+    }),
   )
   .refine((section) => section.tabs?.[0]?.products === undefined, {
     path: ["tabs", 0, "products"],
