@@ -879,11 +879,36 @@ export interface SpacerBlock {
  * via the `definition` "HeroBlock".
  */
 export interface HeroBlock {
-  variant: "standard";
+  variant:
+    | "standard"
+    | "overlay"
+    | "centered"
+    | "editorial"
+    | "bento"
+    | "collection-switcher"
+    | "product"
+    | "text";
   eyebrow?: string | null;
   heading: string;
   subheading?: string | null;
+  /**
+   * The Overlay and Editorial designs need one; the Text design shows none.
+   */
   media?: (number | null) | Media;
+  /**
+   * The smaller second picture.
+   */
+  secondMedia?: (number | null) | Media;
+  /**
+   * Two to four collections, each a tab with its own picture. A collection gone from Medusa is left out.
+   */
+  collections?:
+    | {
+        collection: number | ProductCollection;
+        media: number | Media;
+        id?: string | null;
+      }[]
+    | null;
   links?:
     | {
         link: {
@@ -2616,7 +2641,7 @@ export interface PayloadMigrationsSelect<T extends boolean = true> {
  */
 export interface Header {
   id: number;
-  design: "classic" | "centered" | "two-tier" | "mega-menu" | "minimal";
+  design: "classic" | "centered" | "two-tier" | "mega-menu" | "minimal" | "transparent";
   /**
    * The bar above the header. Without a message there is no bar.
    */

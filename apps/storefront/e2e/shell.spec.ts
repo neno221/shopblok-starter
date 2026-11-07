@@ -1,6 +1,9 @@
-import { expect, test, type APIResponse } from "@playwright/test";
+import AxeBuilder from "@axe-core/playwright";
+import { expect, test, type APIResponse, type Page } from "@playwright/test";
 import { publishGlobal, snapshotGlobal, type GlobalData } from "./support/globals";
 import { appEnv } from "./support/app-env";
+import { api, PNG, upload } from "./support/payload-rest";
+import { HANDLE } from "./support/purchase";
 import { adminToken, base, freshWithinTwo } from "./support/server";
 
 // T48 (D66): the shell around every market page, against `next start` with the seeded map and the
@@ -13,6 +16,12 @@ import { adminToken, base, freshWithinTwo } from "./support/server";
 // T61 (D78): the header is the `header` global's. A design published in the admin shows within two
 // requests, and the announcement is the market's language, not the visitor's: Greek on `/` (Cyprus)
 // while `/us` keeps English, whatever the browser asks for.
+//
+// T80 (D103): the transparent header, published in the global. Over a page whose `<main>` opens
+// with the `overlay` hero (a picture behind its words) it lies over the picture, its words light on
+// its scrim; on a page that opens with the `text` hero, the cart and a product page it is solid and
+// takes its row's height; scrolling makes it solid. All of it with scripts off too, at 375 and
+// 1440 px, since the page tells the header nothing and the stylesheet decides.
 
 /** The seed's three categories (`apps/backend/src/scripts/seed.ts`), flat: three links. */
 const SEED_CATEGORIES = 3;
@@ -103,7 +112,9 @@ test.describe("the shell (D66)", () => {
   test("the banner suggests the visitor's market, and staying records the current one", async ({
     browser,
   }) => {
-    const context = await browser.newContext({ extraHTTPHeaders: { "x-vercel-ip-country": "US" } });
+    const context = await browser.newContext({
+      extraHTTPHeaders: { "x-vercel-ip-country": "US" },
+    });
     const page = await context.newPage();
     await page.goto("/");
     const banner = page.locator('[data-slot="market-suggestion-banner"]');
@@ -227,7 +238,10 @@ test.describe("the header global (T61)", () => {
         source: "manual",
         items: [
           { kind: "link", link: { ...reference, label: "Shirt" } },
-          { kind: "link", link: { type: "custom", url: "/store", label: "All" } },
+          {
+            kind: "link",
+            link: { type: "custom", url: "/store", label: "All" },
+          },
         ],
       },
     });
@@ -256,5 +270,156 @@ test.describe("the header global (T61)", () => {
 
     // The header still holds that link, and an unrelated change still publishes (item 1).
     await publishGlobal(token, "header", { sticky: false });
+  });
+});
+
+test.describe("the transparent header (D103, T80)", () => {
+  test.describe.configure({ mode: "serial" });
+  const stamp = Date.now().toString(36);
+  const slugs = {
+    overlay: `e2e-overlay-${stamp}`,
+    text: `e2e-text-${stamp}`,
+    // An overlay hero shown from `lg` only: on a phone the page opens with nothing under the
+    // header (PR 119 review, item 1).
+    desktop: `e2e-overlay-desktop-${stamp}`,
+  };
+  let token = "";
+  let published: GlobalData | undefined;
+  const pageIds: number[] = [];
+  const axeTags = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"];
+  /** Where it is solid: a page that opens with the text hero, the cart, a product page. */
+  const solidPaths = () => [`/us/${slugs.text}`, "/us/cart", `/us/products/${HANDLE}`];
+  const paths = () => [`/us/${slugs.overlay}`, `/us/${slugs.desktop}`, ...solidPaths()];
+
+  /** A published page whose layout is one hero of `variant`, with a picture. */
+  async function heroPage(
+    slug: string,
+    variant: string,
+    media: number,
+    visibility: "all" | "mobile" | "desktop" = "all",
+  ) {
+    const { doc } = await api<{ doc: { id: number } }>(token, "POST", "/api/pages?locale=en", {
+      title: `Hero ${variant} ${stamp}`,
+      slug,
+      _status: "published",
+      layout: [
+        {
+          blockType: "hero",
+          variant,
+          heading: `The ${variant} hero ${stamp}`,
+          subheading: "Warm layers for cooler days.",
+          media,
+          sectionSettings: { visibility },
+          links: [{ link: { type: "custom", url: "/store", label: "Shop now" } }],
+        },
+      ],
+    });
+    pageIds.push(doc.id);
+  }
+
+  test.beforeAll(async () => {
+    token = await adminToken();
+    published = await snapshotGlobal(token, "header");
+    const picture = await upload(token, `hero-${stamp}.png`, "image/png", PNG, "A white wall");
+    await heroPage(slugs.overlay, "overlay", picture.id);
+    await heroPage(slugs.text, "text", picture.id);
+    await heroPage(slugs.desktop, "overlay", picture.id, "desktop");
+    await publishGlobal(token, "header", {
+      design: "transparent",
+      sticky: true,
+    });
+    // Each page is its own cache entry: every one the tests visit shows the new header first.
+    for (const path of paths())
+      expect(
+        await showsWithinTwo(path, (page) => headerVariant(page) === "transparent"),
+        `${path}: the transparent header within two requests`,
+      ).toBeGreaterThan(0);
+  });
+
+  test.afterAll(async () => {
+    // Not a test: the header as it was, in every language, settled on every page the tests saw;
+    // then the test's pages.
+    if (published !== undefined) {
+      await publishGlobal(token, "header", published, "all");
+      for (const path of ["/us", ...paths()])
+        await showsWithinTwo(path, (page) => headerVariant(page) === published?.["design"]);
+    }
+    for (const id of pageIds) await api(token, "DELETE", `/api/pages/${id}`).catch(() => undefined);
+  });
+
+  /** What the header looks like on the page now: its height, its row's fill and the scrim. */
+  const look = (page: Page) =>
+    page.evaluate(() => {
+      const header = document.querySelector<HTMLElement>('header[data-variant="transparent"]');
+      const surface = header?.querySelector<HTMLElement>('[data-slot="header-surface"]');
+      const scrim = header?.querySelector<HTMLElement>('[data-slot="header-scrim"]');
+      const main = document.querySelector("main");
+      if (!header || !surface || !scrim || !main) return null;
+      const fill = getComputedStyle(surface).backgroundColor;
+      return {
+        solid: header.dataset["solid"],
+        height: header.getBoundingClientRect().height,
+        filled: fill !== "rgba(0, 0, 0, 0)" && fill !== "transparent",
+        scrim: getComputedStyle(scrim).display !== "none",
+        // The page's top edge against the row's bottom: under the row, or below it.
+        underRow: main.getBoundingClientRect().top < surface.getBoundingClientRect().bottom - 1,
+      };
+    });
+
+  const transparent = { height: 0, filled: false, scrim: true, underRow: true };
+  const solid = { filled: true, scrim: false, underRow: false };
+
+  for (const scripts of [true, false])
+    for (const width of [375, 1440])
+      test(`over the overlay hero, solid elsewhere · ${width} px · scripts ${scripts ? "on" : "off"}`, async ({
+        browser,
+      }) => {
+        const context = await browser.newContext({
+          baseURL: base(),
+          javaScriptEnabled: scripts,
+          viewport: { width, height: 900 },
+        });
+        const page = await context.newPage();
+        await page.goto(`/us/${slugs.overlay}`);
+        expect(await look(page), "over the overlay hero").toMatchObject(transparent);
+        // Its words are readable on its scrim, and the hero's on theirs (axe runs as a script, so
+        // only with scripts on; the look is the same either way).
+        if (scripts) {
+          const axe = await new AxeBuilder({ page })
+            .withTags(axeTags)
+            .include("header")
+            .include('[data-slot="hero-section"]')
+            .analyze();
+          expect(axe.violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
+        }
+        // The hero shown from `lg` only: under the header there, solid on a phone, where it is
+        // hidden and the page opens with nothing under the header.
+        await page.goto(`/us/${slugs.desktop}`);
+        if (width >= 1024)
+          expect(await look(page), "over the desktop-only hero").toMatchObject(transparent);
+        else {
+          const seen = await look(page);
+          expect(seen, "the desktop-only hero, hidden on a phone").toMatchObject(solid);
+          expect(seen?.height, "the header takes its row's height").toBeGreaterThan(40);
+        }
+        for (const path of solidPaths()) {
+          await page.goto(path);
+          const seen = await look(page);
+          expect(seen, path).toMatchObject(solid);
+          expect(seen?.height, `${path}: the header takes its row's height`).toBeGreaterThan(40);
+        }
+        await context.close();
+      });
+
+  test("turns solid once the page scrolls, and transparent again at the top", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(`/us/${slugs.overlay}`);
+    await expect.poll(() => look(page)).toMatchObject({ ...transparent, solid: "auto" });
+    await page.mouse.wheel(0, 600);
+    await expect
+      .poll(() => look(page))
+      .toMatchObject({ solid: "true", filled: true, scrim: false });
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await expect.poll(() => look(page)).toMatchObject({ ...transparent, solid: "auto" });
   });
 });

@@ -93,48 +93,49 @@ describe("the variant fields and their families (D99)", () => {
   });
 });
 
-// The rules on a family of two members, `hero` with `standard` and a made-up `overlay`, and the
+// The rules on a family of two members, `spacer` with `standard` and a made-up `dotted` (T80 made
+// the hero's `overlay` real; the spacer gets no other member in M5), and the
 // facts as a test wants them: everything there unless the test takes it away.
 describe("variantDrift's rules", () => {
-  const hero = entries.find((entry) => entry.id === "sections/hero");
-  if (hero === undefined) throw new Error("no sections/hero");
-  const overlay: RegistryEntry = { ...hero, id: "sections/hero-overlay", variant: "overlay" };
-  const twoMembers = [...entries, overlay];
+  const spacer = entries.find((entry) => entry.id === "sections/spacer");
+  if (spacer === undefined) throw new Error("no sections/spacer");
+  const dotted: RegistryEntry = { ...spacer, id: "sections/spacer-dotted", variant: "dotted" };
+  const twoMembers = [...entries, dotted];
   const drawn = (variant: string) =>
-    `<section data-slot="hero-section" data-variant="${variant}"><h2>x</h2></section>`;
+    `<section data-slot="spacer-section" data-variant="${variant}"><h2>x</h2></section>`;
   const fake = (overrides: Partial<VariantFacts> = {}): VariantFacts => ({
     entries: twoMembers,
-    pickers: [{ where: "hero", family: "hero", offered: ["standard"] }],
+    pickers: [{ where: "spacer", family: "spacer", offered: ["standard"] }],
     hasStory: () => true,
     hasFile: () => true,
-    render: (id) => drawn(id === overlay.id ? "overlay" : "standard"),
+    render: (id) => drawn(id === dotted.id ? "dotted" : "standard"),
     ...overrides,
   });
 
   it("refuses a picker that differs from its family (the registry's members come from variantsOf)", () => {
     expect(
-      variantDrift(fake({ pickers: [{ where: "hero", family: "hero", offered: ["overlay"] }] })),
-    ).toEqual(['hero offers [overlay] of the family "hero", whose members are [standard]']);
+      variantDrift(fake({ pickers: [{ where: "spacer", family: "spacer", offered: ["dotted"] }] })),
+    ).toEqual(['spacer offers [dotted] of the family "spacer", whose members are [standard]']);
   });
 
   it("refuses a member without a story, a baseline or a thumbnail", () => {
-    expect(variantDrift(fake({ hasStory: (id) => id !== overlay.id }))).toEqual([
-      "sections/hero-overlay has no story in src/design-system/stories/",
+    expect(variantDrift(fake({ hasStory: (id) => id !== dotted.id }))).toEqual([
+      "sections/spacer-dotted has no story in src/design-system/stories/",
     ]);
     expect(
-      variantDrift(fake({ hasFile: (path) => !path.endsWith("hero-overlay/en-768.png") })),
+      variantDrift(fake({ hasFile: (path) => !path.endsWith("spacer-dotted/en-768.png") })),
     ).toEqual([
-      "sections/hero-overlay has no baseline e2e/__screenshots__/design-system/sections/hero-overlay/en-768.png",
+      "sections/spacer-dotted has no baseline e2e/__screenshots__/design-system/sections/spacer-dotted/en-768.png",
     ]);
     expect(variantDrift(fake({ hasFile: (path) => !path.startsWith("public/") }))).toEqual([
-      "sections/hero has no thumbnail public/registry/sections/hero.png",
-      "sections/hero-overlay has no thumbnail public/registry/sections/hero-overlay.png",
+      "sections/spacer has no thumbnail public/registry/sections/spacer.png",
+      "sections/spacer-dotted has no thumbnail public/registry/sections/spacer-dotted.png",
     ]);
   });
 
   it("refuses an entry file that ignores the variant: the second member draws the first", () => {
     expect(variantDrift(fake({ render: () => drawn("standard") }))).toEqual([
-      'sections/hero-overlay\'s live render draws [data-slot="hero-section"] as [standard], not "overlay"',
+      'sections/spacer-dotted\'s live render draws [data-slot="spacer-section"] as [standard], not "dotted"',
     ]);
   });
 
@@ -174,14 +175,14 @@ describe("variantDrift's rules", () => {
 
   it("refuses a member whose root does not say which it is, or is not drawn", () => {
     expect(
-      variantDrift(fake({ render: () => '<section data-slot="hero-section"></section>' })),
+      variantDrift(fake({ render: () => '<section data-slot="spacer-section"></section>' })),
     ).toEqual([
-      'sections/hero\'s live render draws [data-slot="hero-section"] as [no data-variant], not "standard"',
-      'sections/hero-overlay\'s live render draws [data-slot="hero-section"] as [no data-variant], not "overlay"',
+      'sections/spacer\'s live render draws [data-slot="spacer-section"] as [no data-variant], not "standard"',
+      'sections/spacer-dotted\'s live render draws [data-slot="spacer-section"] as [no data-variant], not "dotted"',
     ]);
     expect(variantDrift(fake({ render: () => "<div></div>" }))).toEqual([
-      'sections/hero\'s live render has no [data-slot="hero-section"]',
-      'sections/hero-overlay\'s live render has no [data-slot="hero-section"]',
+      'sections/spacer\'s live render has no [data-slot="spacer-section"]',
+      'sections/spacer-dotted\'s live render has no [data-slot="spacer-section"]',
     ]);
   });
 });

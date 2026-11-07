@@ -107,9 +107,19 @@ export function findEntry(
   return list.find((entry) => entry.id === id);
 }
 
-/** The Sections entries, one per Payload block (D70), in the navigation's order. */
+/**
+ * The Sections entries, one per Payload block (D70), in the navigation's order: each block's first
+ * member (D99), whose id is the block's (`sections/hero`). The block's other variants (M5's
+ * `sections/hero-overlay`) name the same block and are its picker's options (`variantsOf`), not
+ * blocks of their own.
+ */
 export function sectionEntries(list: readonly RegistryEntry[] = entries): RegistryEntry[] {
-  return list.filter((entry) => entry.block !== undefined);
+  const seen = new Set<string>();
+  return list.filter((entry) => {
+    if (entry.block === undefined || seen.has(entry.block)) return false;
+    seen.add(entry.block);
+    return true;
+  });
 }
 
 /** What the Payload pickers list for `family` (D46): each variant's value, label and thumbnail. */

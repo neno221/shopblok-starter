@@ -7,6 +7,93 @@
    scanned here (relative to this file); each app adds its own `@source` in its stylesheet. */
 @source "../";
 
+/* D103 (T80): the transparent header's looks, keyed on its frame's `data-solid` and `data-pinned`
+   (`organisms/header/transparent-client.tsx`). `true` and `false` are T35's: solid, or transparent
+   over what follows. `auto` (the shop's header, `solid="auto"`) leaves the choice to the page: the
+   header is transparent and lies over the page only when the page's `<main>` opens with a section
+   that has a picture behind its words (`data-under-header`, the `overlay` hero) and that section is
+   drawn at this width: its value is the widths it shows at (`all`, or its `visibility`'s `mobile`,
+   below `lg`, or `desktop`, from `lg`, the same line as `sectionFrameClasses`' `lg:hidden`), so a
+   hero hidden on a phone leaves the header solid there (PR 119 review, item 1). On every other page
+   it is solid and takes its row's height. The page tells the header nothing and no script runs for
+   it, so the first paint is right with scripts off. Once the page scrolls or a menu opens, the
+   frame says `true`, as before. Each look is written for both halves of the `lg` line. */
+@custom-variant header-solid {
+  &:is(:where(.group\/header)[data-solid="true"] *) {
+    @slot;
+  }
+  @media (width < 64rem) {
+    :root:not(:has(main > :is([data-under-header="all"], [data-under-header="mobile"]):first-child))
+      &:is(:where(.group\/header)[data-solid="auto"] *) {
+      @slot;
+    }
+  }
+  @media (width >= 64rem) {
+    :root:not(
+        :has(main > :is([data-under-header="all"], [data-under-header="desktop"]):first-child)
+      )
+      &:is(:where(.group\/header)[data-solid="auto"] *) {
+      @slot;
+    }
+  }
+}
+
+@custom-variant header-clear {
+  &:is(:where(.group\/header)[data-solid="false"] *) {
+    @slot;
+  }
+  @media (width < 64rem) {
+    :root:has(main > :is([data-under-header="all"], [data-under-header="mobile"]):first-child)
+      &:is(:where(.group\/header)[data-solid="auto"] *) {
+      @slot;
+    }
+  }
+  @media (width >= 64rem) {
+    :root:has(main > :is([data-under-header="all"], [data-under-header="desktop"]):first-child)
+      &:is(:where(.group\/header)[data-solid="auto"] *) {
+      @slot;
+    }
+  }
+}
+
+@custom-variant header-pinned {
+  &:is(:where(.group\/header)[data-pinned="solid"] *) {
+    @slot;
+  }
+  @media (width < 64rem) {
+    :root:not(:has(main > :is([data-under-header="all"], [data-under-header="mobile"]):first-child))
+      &:is(:where(.group\/header)[data-pinned="auto"] *) {
+      @slot;
+    }
+  }
+  @media (width >= 64rem) {
+    :root:not(
+        :has(main > :is([data-under-header="all"], [data-under-header="desktop"]):first-child)
+      )
+      &:is(:where(.group\/header)[data-pinned="auto"] *) {
+      @slot;
+    }
+  }
+}
+
+/* The frame itself (`data-pinned="auto"`): its row's height on a page with nothing under it. */
+@custom-variant header-alone {
+  @media (width < 64rem) {
+    :root:not(:has(main > :is([data-under-header="all"], [data-under-header="mobile"]):first-child))
+      & {
+      @slot;
+    }
+  }
+  @media (width >= 64rem) {
+    :root:not(
+        :has(main > :is([data-under-header="all"], [data-under-header="desktop"]):first-child)
+      )
+      & {
+      @slot;
+    }
+  }
+}
+
 /* `tokens.css` (generated, T19) holds the theme: the colours, the radius, the type scale and
    `--font-sans`, which reads the variable `next/font` sets on <html> (apps/storefront/src/lib/
    fonts.ts, D28). Tailwind's preflight sets <html>'s font-family from `--font-sans`. */

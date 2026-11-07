@@ -22,9 +22,11 @@ export type DsInteraction = {
    * dialog, a drawer, a popover). `stays`: focus stays on the trigger and the popup is announced by
    * a live region (a toast). `menu` (T35): a navigation menu's panel, which is not a dialog: focus
    * stays on the trigger, Tab goes into the panel, Escape closes it with focus back on the trigger,
-   * and Tab past the panel's last link closes it.
+   * and Tab past the panel's last link closes it. `tabs` (T80): a tab set, not an overlay: the
+   * trigger is a tab and `opens` its panel, shown from the start; the right arrow moves focus to the
+   * next tab, which is then selected and its panel the one shown (automatic activation).
    */
-  focus: "inside" | "stays" | "menu";
+  focus: "inside" | "stays" | "menu" | "tabs";
   /** With `inside`: the popup traps focus, so Tab and Shift+Tab never leave it. */
   trap?: boolean;
   /**
@@ -132,5 +134,13 @@ export const interactions = {
     opens: '[data-slot="quick-cart"]',
     focus: "inside",
     trap: true,
+  },
+  // T80: the collection switcher hero's tabs, the browser's (its island loads with next/dynamic,
+  // D102), so the server's render has the list of links and no tab.
+  "sections/hero-collection-switcher": {
+    trigger: '[data-slot="hero-collection-tab"]',
+    opens: '[data-slot="hero-collection-panel"]',
+    focus: "tabs",
+    afterHydration: true,
   },
 } as const satisfies Partial<Record<EntryId, DsInteraction>>;

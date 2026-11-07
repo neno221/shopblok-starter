@@ -333,8 +333,14 @@ describe("headerFrom", () => {
   });
 
   it("draws the default design for a value the shell has no header for", () => {
-    expect(headerFrom(header({ design: "transparent" as never }), context(), settings).design).toBe(
+    expect(headerFrom(header({ design: "split" as never }), context(), settings).design).toBe(
       SITE.header,
+    );
+  });
+
+  it("draws the transparent header it is given since T80 (D103)", () => {
+    expect(headerFrom(header({ design: "transparent" }), context(), settings).design).toBe(
+      "transparent",
     );
   });
 });

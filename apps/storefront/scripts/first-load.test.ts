@@ -519,26 +519,26 @@ describe("a package on disk", () => {
 });
 
 describe("the kept-out modules (D102)", () => {
+  // A chunk of its own for each listed module (the listener's, T80's tabs'), as a build has them.
   const chunks = [
     { chunk: market.firstLoadChunkPaths[0]!, text: "shell" },
-    {
-      chunk: ".next/static/chunks/listener.js",
-      text: `x.displayName="shopblok:live-preview-listener"`,
-    },
+    ...keptOut.map((item, index) => ({
+      chunk: `.next/static/chunks/kept-${index}.js`,
+      text: `x.displayName="${item.marker}"`,
+    })),
   ];
   const sizes = () => 1234;
-  // The listener's row alone: the chunks above hold its marker only.
-  const listener = keptOut.filter((item) => item.marker === "shopblok:live-preview-listener");
 
   it("passes a module whose chunk no route loads at first, with its size", () => {
-    const report = checkKeptOut(rows, listener, chunks, sizes);
+    const report = checkKeptOut(rows, keptOut, chunks, sizes);
     expect(report.failures).toEqual([]);
-    expect(report.table.join("\n")).toMatch(/listener\.js\s+1\.2\s+kept out/);
+    expect(report.table.join("\n")).toMatch(/kept-0\.js\s+1\.2\s+kept out/);
+    expect(report.table.filter((line) => /kept out$/.test(line))).toHaveLength(keptOut.length);
   });
 
   it("fails one in a first load, naming each route, and one whose marker is in no chunk", () => {
-    const loaded = [{ ...chunks[1]!, chunk: market.firstLoadChunkPaths[0]! }];
-    expect(checkKeptOut(rows, listener, loaded, sizes).failures).toEqual([
+    const loaded = [{ ...chunks[1]!, chunk: market.firstLoadChunkPaths[0]! }, ...chunks.slice(2)];
+    expect(checkKeptOut(rows, keptOut, loaded, sizes).failures).toEqual([
       expect.stringContaining(
         `is in the first load of ${rows
           .filter((row) => row.firstLoadChunkPaths.includes(market.firstLoadChunkPaths[0]!))
@@ -546,9 +546,9 @@ describe("the kept-out modules (D102)", () => {
           .join(", ")}.`,
       ),
     ]);
-    expect(checkKeptOut(rows, listener, [chunks[0]!], sizes).failures).toEqual([
-      expect.stringContaining("no chunk holds its marker"),
-    ]);
+    expect(checkKeptOut(rows, keptOut, [chunks[0]!], sizes).failures).toEqual(
+      keptOut.map(() => expect.stringContaining("no chunk holds its marker")),
+    );
   });
 
   // The marker finds the module's chunk only if the module has it and nothing else does.

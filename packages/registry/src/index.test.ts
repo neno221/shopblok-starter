@@ -30,7 +30,7 @@ const atom = (id: string, extra: Partial<EntryInput> = {}): EntryInput => ({
 });
 
 describe("the registry (D40)", () => {
-  it("lists M1's 8 foundations and 32 atoms, then T32's 15 molecules, T33's 13 and T34's 12, then T35's 4 organisms and 6 headers, T36's 2 organisms and 5 footers, T37's 7 organisms, T38's 7 (T83's two quick views after the first) and T39's 11, then T63's 8 sections, T64's 9, T67's 2 and T66's 1, then T48's 2 templates, T49's 1 (T83's five product page layouts after it), T50's 2 (T84's six listing layouts after the first), T51's 1, T52's 3, T53's 3, T65's 1 and T66's 2, in the navigation's order", () => {
+  it("lists M1's 8 foundations and 32 atoms, then T32's 15 molecules, T33's 13 and T34's 12, then T35's 4 organisms and 6 headers, T36's 2 organisms and 5 footers, T37's 7 organisms, T38's 7 (T83's two quick views after the first) and T39's 11, then T63's 8 sections, T64's 9 (T80's 7 hero variants after the hero), T67's 2 and T66's 1, then T48's 2 templates, T49's 1 (T83's five product page layouts after it), T50's 2 (T84's six listing layouts after the first), T51's 1, T52's 3, T53's 3, T65's 1 and T66's 2, in the navigation's order", () => {
     expect(byGroup("foundations")).toHaveLength(8);
     expect(byGroup("atoms")).toHaveLength(32);
     expect(byGroup("molecules")).toHaveLength(40);
@@ -46,6 +46,13 @@ describe("the registry (D40)", () => {
       "sections/video",
       "sections/spacer",
       "sections/hero",
+      "sections/hero-overlay",
+      "sections/hero-centered",
+      "sections/hero-editorial",
+      "sections/hero-bento",
+      "sections/hero-collection-switcher",
+      "sections/hero-product",
+      "sections/hero-text",
       "sections/category-showcase",
       "sections/product-collection",
       "sections/featured-product",
@@ -86,7 +93,7 @@ describe("the registry (D40)", () => {
       "templates/journal",
       "templates/post",
     ]);
-    expect(entries).toHaveLength(170);
+    expect(entries).toHaveLength(177);
     expect(entries.map((entry) => entry.id).slice(0, 2)).toEqual([
       "foundations/colors",
       "foundations/typography",
@@ -183,14 +190,30 @@ describe("the registry (D40)", () => {
   });
 
   it("names the @shopblok/ui/sections export of every section, its contract and its Payload block (D70)", () => {
-    for (const entry of byGroup("sections")) {
+    for (const entry of sectionEntries()) {
       expect(entry.kind, entry.id).toBe("section");
       expect(entry.component?.module, entry.id).toBe(`@shopblok/ui/${entry.id}`);
       expect(entry.component?.name, entry.id).toMatch(/^[A-Z][A-Za-z]+Section$/);
       expect(entry.contract, entry.id).toBeDefined();
-      // One family per block, with one member until M5 (D79).
+      // One family per block, its first member `standard` (D79), with the block's id.
       expect(entry.family, entry.id).toBe(entry.id.slice("sections/".length));
       expect(entry.variant, entry.id).toBe("standard");
+    }
+    // M5's members (D99): `sections/<family>-<variant>`, the module in the family's folder, the
+    // first member's block and contract.
+    const first = new Map(sectionEntries().map((entry) => [entry.family, entry]));
+    const members = byGroup("sections").filter((entry) => !sectionEntries().includes(entry));
+    expect(members.length).toBeGreaterThan(0);
+    for (const entry of members) {
+      const family = entry.family ?? "";
+      expect(entry.kind, entry.id).toBe("section");
+      expect(entry.id, entry.id).toBe(`sections/${family}-${entry.variant ?? ""}`);
+      expect(entry.component?.module, entry.id).toBe(
+        `@shopblok/ui/sections/${family}/${entry.variant ?? ""}`,
+      );
+      expect(entry.component?.name, entry.id).toMatch(/^[A-Z][A-Za-z]+$/);
+      expect(entry.block, entry.id).toBe(first.get(family)?.block);
+      expect(entry.contract, entry.id).toBe(first.get(family)?.contract);
     }
     expect(sectionEntries().map((entry) => entry.block)).toEqual([
       "richText",
@@ -388,12 +411,23 @@ describe("variantsOf", () => {
     });
   });
 
-  it("lists each content block's one variant (D79)", () => {
+  it("lists each block's variants, `standard` first (D79, D99)", () => {
     expect(variantsOf("faq")).toEqual([
       { value: "standard", label: "FAQ", thumbnail: "/registry/sections/faq.png" },
     ]);
-    for (const entry of byGroup("sections"))
-      expect(variantsOf(entry.family ?? "").map((option) => option.value)).toEqual(["standard"]);
+    for (const entry of sectionEntries())
+      expect(variantsOf(entry.family ?? "")[0]?.value, entry.id).toBe("standard");
+    // T80: the hero's eight, in §1a's order.
+    expect(variantsOf("hero").map((option) => option.value)).toEqual([
+      "standard",
+      "overlay",
+      "centered",
+      "editorial",
+      "bento",
+      "collection-switcher",
+      "product",
+      "text",
+    ]);
   });
 
   it("lists a family's variants as a Payload picker needs them (value, label, thumbnail)", () => {
@@ -436,11 +470,11 @@ describe("variantsOf", () => {
       },
     ]);
     expect(variantsOf("nope", list)).toEqual([]);
-    // The 61 variants a shop picks (D46, D52, D79, D99): six headers, five footers, ten cards, the
+    // The 68 variants a shop picks (D46, D52, D79, D99): six headers, five footers, ten cards, the
     // twenty blocks' one each (T63's eight content blocks, T64's nine commerce blocks, T67's two
-    // form blocks, T66's editorial list), the first of T79's seven families each, T84's six
-    // listing layouts, T83's five product page layouts and two quick views.
-    expect(entries.filter((entry) => entry.family !== undefined)).toHaveLength(61);
+    // form blocks, T66's editorial list), the first of T79's seven families each, T80's seven
+    // more heroes, T84's six listing layouts, T83's five product page layouts and two quick views.
+    expect(entries.filter((entry) => entry.family !== undefined)).toHaveLength(68);
   });
 
   it("starts T79's seven families with what M2 and M3 built, ids unchanged (D99)", () => {
