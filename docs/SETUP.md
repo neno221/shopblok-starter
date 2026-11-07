@@ -8867,7 +8867,7 @@ The review is in the Library (`reviews/pr-126-code-review.md`): 3 must-fix findi
 |---|---|
 | Date | 2026-11-07 |
 | Branch | `claude/project-thread-857imh`, from `main` at `6957d5b` (T83, PR 120), with `main` at `45eb7c2` (T89, PR 126) merged in |
-| PR | PR_NUMBER |
+| PR | [127](https://github.com/neno221/shopblok-starter/pull/127) |
 | Machine | The cloud VM: Node 22.23.4, pnpm 12.10.1, the compose stack, Medusa 2.22.4 (`medusa develop`) |
 
 ### What changed
