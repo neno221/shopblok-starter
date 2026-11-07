@@ -8225,4 +8225,4 @@ The 15 bytes are the island's: the `variant` prop on the drawer's button and she
 
 ### Baselines (D109)
 
-BASELINES
+The dispatch (run [42379413753](https://github.com/neno221/shopblok-starter/actions/runs/42379413753), commit `6ad6b25`): the four entries' 12 baselines and 4 thumbnails, 16 PNGs and 2,500,152 bytes, and three rewritten with nothing to see: `templates/product-detail/en-375` and `en-768` (8 and 34 pixels, no channel more than 21 of 255 apart, the same two T79 and T84 saw) and `molecules/promo-code-field/en-1440` (8 pixels, 1 of 255). `organisms/cart-drawer-picks`' thumbnail is the closed drawer's button, as `cart-drawer`'s is (700 bytes each). The set: 563 PNGs, 76.53 MB (76,530,246 bytes).
