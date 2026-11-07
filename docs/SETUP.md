@@ -8858,3 +8858,95 @@ The review is in the Library (`reviews/pr-126-code-review.md`): 3 must-fix findi
 | 8 | A localized group, list or blocks field counts as translated once the language has any value; a layout per language copied at the switch reads "complete" | Skipped under the rule, and named to Steven: it is the limit "Where it differs from the plan" states |
 | 9 | The list cell counts without the user, so a user-dependent condition could differ from the sidebar | Skipped (no condition reads the user) |
 | 10 | A link into the language already open does not focus (the hash is read on mount only) | Skipped (not security or a cleanup) |
+
+## Catalog sections (T87)
+
+**Result: every product, category and collection has "Sections" in Payload: the `templates` global's default sections for its page (the default), its own, or none. The product page draws them after the product's information and before the reviews, a category's or a collection's listing after its results, each block resolved for the market as on a page (its links, its uploads, the commerce blocks' products and prices in the market's region). The seed gives the product page's defaults a `uspBar` with the shop's three promises in four languages, so every demo product shows it. Only staff write the sections, never the Medusa integration, so a sync or a reconcile keeps them. The blocks' islands now load when a block is drawn, so the first load of every route stays within its budget.** M5 plan §5 T87; D104, D83, D73, D102.
+
+| | |
+|---|---|
+| Date | 2026-11-07 |
+| Branch | `claude/project-thread-857imh`, from `main` at `6957d5b` (T83, PR 120), with `main` at `45eb7c2` (T89, PR 126) merged in |
+| PR | PR_NUMBER |
+| Machine | The cloud VM: Node 22.23.4, pnpm 12.10.1, the compose stack, Medusa 2.22.4 (`medusa develop`) |
+
+### What changed
+
+- **The fields** (`src/payload/fields/catalog-sections.ts`, `catalogSectionFields(page)`), on `products`, `categories` and `collections` after the T69 content and before `meta`:
+  - `sectionsMode`, a radio labelled "Sections": "The default sections" (`default`, the default value), "Its own sections" (`own`) or "None" (`none`). It is not `required`: the sync creates a document with its synced fields only, and Payload's default value fills it; a document written before T87 has none and reads as `default` (`sectionsModeOf`).
+  - `sections`, a blocks field shown only with `own` (`admin.condition`). Its blocks are `CATALOG_SECTION_BLOCKS` (`src/payload/blocks/index.ts`) through `blockReferences`: a page's blocks without the hero, the recently viewed row and the journal's list (the product page has its own `<h1>` and recently viewed row; the journal's list belongs on a page). The field is not localized; the texts inside are, as on a page (T88's rule holds: no localized blocks field shares these blocks).
+  - Both are `custom.content` and their `create` and `update` access is `isStaffField`, so the integration's writes drop them: the sync and the reconcile never touch them (`synced.test.ts`: the integration's key cannot write them, staff can; `catalog-sections.spec.ts` sends them with the key).
+- **The `templates` global** (`src/payload/globals/templates.ts`): `sections` in the Product page tab after its layout, and in the Listing tab after the card (`sectionsBlocks`, the same blocks). The Listing tab's description says they show on every category's and collection's listing, not on the store's or the search's pages, which belong to no document.
+- **The choice** (`src/lib/cms/catalog-sections.ts`, pure): `chooseSections(stored, defaults, owner)` gives `own`'s blocks (nothing if it has none), nothing for `none`, and the global's for `default`, which is also what a product the sync has not written yet shows. It also says which document holds the blocks (`SectionsDocument`), for the tabs (below).
+- **The reads** (cached, D73):
+  - `readProductSections`, `readCategorySections` and `readCollectionSections` (`src/lib/cms/catalog.ts`): the document's `sectionsMode` and `sections` by its handle, at depth 1 with every reference populated, as a page's layout is read. A read of its own beside T69's content read, because the blocks' resolvers need more of an upload, a form or a catalog document than the content read's `POPULATE` keeps. Its tags are the content read's: `cms:<kind>:<handle>` (a save of the document) and `cms:catalog` (a replaced upload, a renamed or deleted linked document, or a changed form: `linkedTags`, `formTags`).
+  - `readTemplateSections(page)` (`src/lib/cms/templates.ts`): the global's `productPage.sections` or `listing.sections`, tagged `global:templates:<locale>`, read as a draft in Draft Mode (the global's live preview).
+  - `formTags` (`src/lib/cms/tags.ts`) now ends in `cms:catalog`, so a changed form refreshes a section that embeds it (D104; `tags.test.ts`).
+  - **The texts fall back to English** (D73), as a page's blocks do; T69's content texts do not (D83), since there Medusa's own text shows instead, and a block has none.
+- **The pages:** `catalogSections` (`src/components/cms/catalog-sections.tsx`) reads both, chooses, resolves the blocks with `resolveLayout` (the shell's paths, the market's commerce context) and draws them with `SectionBlocks`, every heading an `<h2>`. A failed read draws no sections (`cmsOrNull`), never a 500. The product page passes them to `ProductDetailTemplate`'s `slots.sections`; the listing page (`listing-page.tsx`, `scopeSections`) to `ProductListingTemplate`'s, for a category (its last handle) or a collection. Every layout of both templates draws the slot in the same place: `data-slot="product-detail-sections"` between the information and the reviews, `data-slot="product-listing-sections"` after the results, each full width.
+- **A tab inside the sections** (T81's `tabs` collection): `/next/block-tab`'s `doc` now also names a product's, a category's or a collection's own sections (`product:<handle>`, `category:<handle>`, `collection:<handle>`) and the global's defaults (`templates:product`, `templates:listing`), besides a page's id (`documentRef`, `parseDocumentRef`). The route reads the document's saved sections (the synced collections have no drafts) only while its mode is `own`, or the global's published sections, and finds the block there as before; anything else is a 404. In Draft Mode every tab's products come with the page, as on a page.
+- **The seed** (`src/payload/seed/globals.ts`): `productPage.sections` is one `uspBar` (`seed-product-usps`, its first variant, small spacing) with three items (`delivery`, `returns`, `secure`), their titles and lines from `site.ts`' new `promises` in English, Greek, German and French. Written with `seeded()` like the other defaults, so an editor's change is kept on the next seed. The listing's defaults stay empty.
+- **The renderers:** `render-blocks.tsx` is split. `section-blocks.tsx` draws every block a section may hold (`sectionBlock`, `SectionBlocks`, the FAQ JSON-LD) and `render-blocks.tsx` adds the hero, the recently viewed row and the journal's list for pages, so the product and listing pages do not import those three.
+- **Enum names** (`src/payload/fields/link.ts`): a product collection's links inside the sections make Payload's appearance enum names 64 and 65 characters long in `collections` and in the global's versions, past Postgres's 63. Those three end in `_look` instead (`enumName`); every name that fits is Payload's own, so no other enum is renamed.
+- **The migration** `20261107_203523_catalog_sections`: `sections_mode` on the three collections, the sections' block tables for them and for `templates` and `_templates_v` (272 tables, the blocks' own arrays included), and their enums. Nothing on `pages`.
+
+### First load (D102)
+
+Every client module a route's server graph can reach is in its first load, so the sections' blocks first put every block's island on the product page and the listings: 352.0 KB for the listings and 343.1 for the product page. Each island now loads when its block is drawn:
+
+- **`lazyIsland(load, { ssr, server })`** (`packages/ui/src/lib/lazy-island.ts`): React's `lazy`, as a plain function component, without `next/dynamic`'s 1.4 KB runtime (T77's probe). **No `Suspense` on the server or while hydrating:** the server draws the island in place from its own copy (`server`, passed as `typeof window === "undefined" ? { server: require(…) } : {}`; Next's builds replace `typeof window`, so the browser's build drops the branch and its `require`), and the browser keeps the server's HTML while it fetches the module, then hydrates it. An island first drawn after the page hydrated (a popup's copy button) is drawn in a `Suspense` with no fallback. With `ssr: false` it draws nothing until mounted, for an island that needs the browser.
+- **Why no `Suspense` on the server:** the first version wrapped every island in one. In a page rendered per request, React sent what waited inside it (the module, or a prop the server streamed later) after the page, hidden until a script moved it in: without scripts the form's answer showed no form (`forms.spec.ts`), and a commerce block in Greek showed no cards in one run (`cms-commerce-blocks.spec.ts`). Prerendered pages were unaffected, since a prerender waits for everything. `lazy-island.test.tsx` checks the server's HTML has no boundary (`<!--$`) and that hydration keeps it.
+- **The storefront's islands** (`src/components/cms/lazy-islands.tsx`): the form, the newsletter's form, the offer's end and the promo popup; the pages' recently viewed block has its own loader (`lazy-page-islands.tsx`), which the product and listing pages do not import.
+- **The ui's islands**, each a small loader beside its component (`*-island.tsx`): the countdown's clock, the copy-code button, the video's play button, ProductCarousel's buttons, the category showcase's and the testimonials' carousels, and T81's tabs panels (`tabs-island.tsx`, now `ssr: false` through `lazyIsland`).
+- The unit tests import the real modules (`src/test-support/eager-islands.ts` in the storefront, `test-support/setup.ts` in the ui), so a render test sees the island at once.
+- **`scripts/first-load.ts`** keeps nine more modules out of every first load, each found by its `displayName` marker (`shopblok:form-block-island`, `newsletter-section-island`, `offer-end`, `promo-banner-popup`, `recently-viewed-block`, `video-embed`, `copy-code-control`, `testimonials-carousel`, `category-showcase-carousel`; a marker that is a prefix of another, such as `promo-popup` of `promo-popup-card`, would catch both). Not listed: the countdown's clock, which the account's e-mail check imports too, and ProductCarousel, which the product page's own rows draw.
+
+Built as `e2e-smoke` builds (Medusa up, `STOREFRONT_PRERENDER_PRODUCTS=4`, `STOREFRONT_LISTING_PAGE_SIZE=3`), gzipped, `main` at `45eb7c2` (T89) against this branch with it merged:
+
+| Route | `main` | T87 | Budget |
+|---|---|---|---|
+| The five listing routes | 334.8 (342,832 bytes) | **335.7** (343,768) | 336 (344,064): 296 bytes left |
+| `/[market]/products/[handle]` | 334.0 (342,066) | **334.95** (342,990) | 335 (343,040): **50 bytes left** |
+| `/[market]` | 331.7 (339,682) | 319.9 (327,579) | |
+| `/[market]/[...slug]` | 331.7 | 311.6 | |
+| `/[market]/search` | 322.0 | 322.0 (+19 bytes) | |
+| `/[market]/cart` | 308.1 | 308.1 (+21 bytes) | |
+
+The listings and the product page grow by about 0.9 KB each: the loaders (`lazyIsland`, six ui loaders, `lazy-islands.tsx` and T81's tabs loader now through `lazyIsland`); the islands themselves are kept out. The home page and the CMS pages lose 11.8 KB and 20.1 KB, the islands of the blocks they do not draw. In the first version (every island in the first load) the listings measured 352.0 KB and the product page 343.1. The new kept-out rows, in no route's first load:
+
+| Module | Chunks | gzip KB |
+|---|---|---|
+| `src/components/cms/form-block-island.tsx` | 2 | 3.0, 3.4 |
+| `src/components/cms/newsletter-section-island.tsx` | 1 | 1.7 |
+| `src/components/cms/offer-end.tsx` | 1 | 0.4 |
+| `src/components/cms/promo-popup.tsx` | 2 | 2.3, 0.9 |
+| `src/components/cms/recently-viewed-block.tsx` | 1 | 1.9 |
+| `sections/video-embed.tsx` | 1 | 1.0 |
+| `molecules/copy-code-control.tsx` | 1 | 1.2 |
+| `sections/testimonials/carousel.tsx` | 3 | 1.3, 2.5, 1.8 |
+| `sections/category-showcase/carousel.tsx` | 2 | 1.6, 2.1 |
+
+
+### Where it differs from the plan
+
+- **The sections have a read of their own,** not a field more in T69's content read ("the sections in the document's read"): they need depth 1 and every reference populated, and the content read's texts have no English fallback (D83) while the blocks' have it (D73). The two reads carry the same tags, so a save refreshes both at once.
+- **The store's and the search's pages show no sections:** they belong to no document. The listing's defaults show on every category's and collection's listing.
+- **The first load is not unchanged,** as the Verify list says, but within both budgets: the islands' loaders cost a little on every page that has blocks, and the home page lost 11.8 KB (it no longer loads the blocks' islands it does not draw).
+- **The sync keeps the sections because the integration cannot write them,** which `synced.test.ts` and the spec's integration case check; no code of the sync changed (`apps/backend`).
+
+### Mutations (each fails a test)
+
+Each built as `e2e-smoke` builds, against `next start`, or as a unit test:
+
+- **The integration allowed to write the sections** (`staffOnly`'s `update` returning `true`): `synced.test.ts` fails six tests, "staff write the content, the sync and anonymous visitors cannot" and "the integration can never write them, staff can", for each of the three collections.
+- **A read without the product's tag** (`readSections`' tags only `cms:catalog`): `catalog-sections.spec.ts` fails "a product's own FAQ shows on its page in / and /us by the second request" (`/us/products/demo-dotted-notebook`: expected > 0, received 0). Before its save the case draws both pages once more on this server: a page that `next build` drew has none of its reads in the server's memory, and its next drawing would read the sections afresh whatever their tags, so the first run of the mutation passed that case and failed only the `none` case.
+- **A `Suspense` on the server** (`lazyIsland` wrapping every island): `lazy-island.test.tsx` fails "draws the server's copy in place" (the HTML starts `<!--$-->`) and "keeps the server's HTML while the browser fetches the module" (the text emptied). Built that way, `forms.spec.ts` fails "sends the contact form without scripts" (the form is not visible).
+
+
+### Checks (cloud VM)
+
+- `pnpm typecheck` and `pnpm lint` exit 0; `turbo run test --continue` passes with no `.env` (CI's state): the ui 6105 tests (187 files), the storefront 4359 (193), the registry 234, the fixtures 479, the scripts 425, i18n 111, the integrations 14. New: `lazy-island.test.tsx` (4), `catalog-sections` cases in `synced.test.ts`, `block-tab.test.ts` (a product's own sections, the global's, and the refused `doc`s), `tags.test.ts` (a form refreshes the catalog's sections), `run.test.ts` (the seed's default sections), `fields.test.ts` (the enum's name).
+- The migration applied with `payload migrate`; after merging `main` (T89 adds no migration) `migrate:create --skip-empty` writes nothing, `generate:types` and `generate:importmap` change nothing.
+- The storefront built as `e2e-smoke` builds it, with Medusa up; `check:first-load` with the rows above.
+- **The e2e suites** against `next start` (`E2E_TEST_ROUTES=true`, the job's `STOREFRONT_*`): `catalog-sections.spec.ts` (6), twice in a row (`--repeat-each=2`, 12 passed); then `forms`, `cms-commerce-blocks`, `catalog-sections`, `cms-blocks`, `content-variants`, `catalog-variants`, `catalog`, `sync`, `templates-global`, `listing-variants`, `quick-view`, `payload-admin`, `cms-pages` and `shell`: 119 passed, and `cms-pages.spec.ts`' live preview case missed its 3 s once, late in the run; the file alone passed (18). On the final build, `catalog-sections`, `forms` and `cms-commerce-blocks`: 17 passed.
+- `catalog-sections.spec.ts` joins `e2e-smoke` with no change to the workflow (the default project takes every `*.spec.ts`); it takes about 15 s.
