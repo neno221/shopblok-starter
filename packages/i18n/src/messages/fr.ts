@@ -709,7 +709,17 @@ export const fr: Messages = {
       emptyTitle: "Rien ici pour l’instant",
       emptyText: "Ces produits ne sont pas disponibles pour le moment.",
       emptyAction: "Voir tous les produits",
+      // T81: the ranked collection's number, read before each product's name.
+      rank: "Numéro {rank, number}",
     },
+    // T81: the category showcase's name, when it has no heading (the circles' row that scrolls,
+    // the carousel), and the carousel's buttons; the bundle list's sum of its prices.
+    categoryShowcase: {
+      label: "Acheter par catégorie",
+      previous: "Catégories précédentes",
+      next: "Catégories suivantes",
+    },
+    bundle: { total: "Ensemble" },
     featuredProduct: { view: "Voir le produit" },
     promoBanner: { ends: "L’offre se termine le {date}", close: "Fermer" },
     comparison: { price: "Prix", missing: "Non précisé", pick: "Notre choix" },

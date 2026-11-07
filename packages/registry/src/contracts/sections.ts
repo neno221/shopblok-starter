@@ -292,8 +292,26 @@ export const CategoryShowcaseSection = z.object({
 });
 
 /**
+ * One of the `tabs` product collection's tabs (T81): its label, the listing its products come from
+ * (the tab's link without scripts) and where the tab island fetches its products
+ * (`/next/block-tab?…`, the shop's) or, in the design system, the products themselves. The first
+ * tab's products are the section's `products`, so the HTML holds only those.
+ */
+export const ProductCollectionTab = z.object({
+  label: z.string().min(1).describe("The tab's label, in the page's language"),
+  href: Href.describe("The listing the tab's products come from: its link without scripts"),
+  endpoint: Href.optional().describe("Where the tab island fetches the tab's products (the shop)"),
+  products: products(24)
+    .optional()
+    .describe("The tab's products, when they come with it (the design system); never the first's"),
+});
+
+/**
  * `productCollection`: products from a `productSource` as a grid or a carousel. With no product
- * the editor chose to say so (`emptyBehavior: message`), it draws `empty` instead.
+ * the editor chose to say so (`emptyBehavior: message`), it draws `empty` instead. T81 (M5 plan
+ * §1a) adds its seven more variants: `with-banner` and `lookbook` draw the editor's picture, so they
+ * need one; `tabs` needs its tabs (one to four: a tab whose source has nothing in the market is
+ * left out, and with one left the section draws no tab list), whose first is `products`.
  */
 export const ProductCollectionSection = z
   .object({
@@ -305,21 +323,46 @@ export const ProductCollectionSection = z
     display: z.enum(["grid", "carousel"]),
     products: products(24),
     empty: EmptyStateContent.optional().describe("What it says when the source has no product"),
+    image: Image.optional().describe("`with-banner`'s and `lookbook`'s picture (T81)"),
+    tabs: z
+      .array(ProductCollectionTab)
+      .min(1)
+      .max(4)
+      .optional()
+      .describe("`tabs`' tabs, the first holding `products` (T81)"),
   })
   .refine(
     (section) => section.products.length > 0 || section.empty !== undefined,
     "no products and nothing to say instead",
-  );
+  )
+  .superRefine(
+    variantNeeds({ "with-banner": ["image"], lookbook: ["image"], tabs: ["tabs"] }),
+  )
+  .refine((section) => section.tabs?.[0]?.products === undefined, {
+    path: ["tabs", 0, "products"],
+    message: "the first tab's products are the section's",
+  });
 
-/** `featuredProduct`: one product, large, with the editor's words and picture. */
-export const FeaturedProductSection = z.object({
-  settings,
-  variant: variant("featured-product"),
-  heading,
-  product: ProductCard,
-  image: Image.describe("The editor's picture, or the product's first"),
-  text,
-});
+/**
+ * `featuredProduct`: one product, large, with the editor's words and picture. T81 (M5 plan §1a):
+ * `gallery` draws the product's own pictures, so it needs them (the editor's picture first).
+ */
+export const FeaturedProductSection = z
+  .object({
+    settings,
+    variant: variant("featured-product"),
+    heading,
+    product: ProductCard,
+    image: Image.describe("The editor's picture, or the product's first"),
+    text,
+    gallery: z
+      .array(Image)
+      .min(1)
+      .max(5)
+      .optional()
+      .describe("`gallery`'s pictures: the editor's, then the product's (T81)"),
+  })
+  .superRefine(variantNeeds({ gallery: ["gallery"] }));
 
 /** `bundle`: products that go together, handpicked; no bundle price in v1 (D79). */
 export const BundleSection = z.object({
@@ -556,6 +599,7 @@ export type HeroCollection = z.infer<typeof HeroCollection>;
 export type HeroSection = z.infer<typeof HeroSection>;
 export type CategoryShowcaseSection = z.infer<typeof CategoryShowcaseSection>;
 export type ProductCollectionSection = z.infer<typeof ProductCollectionSection>;
+export type ProductCollectionTab = z.infer<typeof ProductCollectionTab>;
 export type FeaturedProductSection = z.infer<typeof FeaturedProductSection>;
 export type BundleSection = z.infer<typeof BundleSection>;
 export type PromoBannerSection = z.infer<typeof PromoBannerSection>;

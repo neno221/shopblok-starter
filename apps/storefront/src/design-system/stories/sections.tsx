@@ -151,12 +151,16 @@ function categoryShowcase(
   ctx: DsContext,
   which: keyof Fixtures["categoryShowcase"],
   settings?: SectionSettings,
+  /** T81: the member to draw (`standard` when none). */
+  variant?: CategoryShowcaseVariant,
 ) {
   return (
     <CategoryShowcaseSection
       {...fixtures(ctx).categoryShowcase[which]}
+      {...(variant === undefined ? {} : { variant })}
       {...(settings === undefined ? {} : { settings })}
       copy={copy(ctx)}
+      locale={lang(ctx)}
       prefetch={false}
     />
   );

@@ -700,7 +700,17 @@ export const de: Messages = {
       emptyTitle: "Hier ist noch nichts",
       emptyText: "Diese Produkte sind gerade nicht verfügbar.",
       emptyAction: "Alle Produkte ansehen",
+      // T81: the ranked collection's number, read before each product's name.
+      rank: "Platz {rank, number}",
     },
+    // T81: the category showcase's name, when it has no heading (the circles' row that scrolls,
+    // the carousel), and the carousel's buttons; the bundle list's sum of its prices.
+    categoryShowcase: {
+      label: "Nach Kategorie einkaufen",
+      previous: "Vorherige Kategorien",
+      next: "Nächste Kategorien",
+    },
+    bundle: { total: "Zusammen" },
     featuredProduct: { view: "Produkt ansehen" },
     promoBanner: { ends: "Angebot endet am {date}", close: "Schließen" },
     comparison: { price: "Preis", missing: "Keine Angabe", pick: "Unsere Empfehlung" },

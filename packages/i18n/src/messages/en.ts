@@ -800,7 +800,17 @@ export const en = {
       emptyTitle: "Nothing here yet",
       emptyText: "These products are not available right now.",
       emptyAction: "Shop all products",
+      // T81: the ranked collection's number, read before each product's name.
+      rank: "Number {rank, number}",
     },
+    // T81: the category showcase's name, when it has no heading (the circles' row that scrolls,
+    // the carousel), and the carousel's buttons; the bundle list's sum of its prices.
+    categoryShowcase: {
+      label: "Shop by category",
+      previous: "Previous categories",
+      next: "Next categories",
+    },
+    bundle: { total: "Together" },
     featuredProduct: { view: "View product" },
     promoBanner: { ends: "Offer ends {date}", close: "Close" },
     comparison: { price: "Price", missing: "Not specified", pick: "Our pick" },

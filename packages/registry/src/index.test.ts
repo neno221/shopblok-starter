@@ -62,9 +62,24 @@ describe("the registry (D40)", () => {
       "sections/hero-product",
       "sections/hero-text",
       "sections/category-showcase",
+      "sections/category-showcase-circles",
+      "sections/category-showcase-bento",
+      "sections/category-showcase-carousel",
+      "sections/category-showcase-list",
+      "sections/category-showcase-banner",
       "sections/product-collection",
+      "sections/product-collection-featured-first",
+      "sections/product-collection-editorial",
+      "sections/product-collection-tabs",
+      "sections/product-collection-ranked",
+      "sections/product-collection-with-banner",
+      "sections/product-collection-compact",
+      "sections/product-collection-lookbook",
       "sections/featured-product",
+      "sections/featured-product-overlay",
+      "sections/featured-product-gallery",
       "sections/bundle",
+      "sections/bundle-list",
       "sections/promo-banner",
       "sections/promo-banner-strip",
       "sections/promo-banner-ticket",
@@ -75,6 +90,7 @@ describe("the registry (D40)", () => {
       "sections/comparison-cards",
       "sections/comparison-highlight",
       "sections/collection-spotlight",
+      "sections/collection-spotlight-stacked",
       "sections/recently-viewed",
       "sections/newsletter",
       "sections/newsletter-split",
@@ -108,7 +124,7 @@ describe("the registry (D40)", () => {
       "templates/journal",
       "templates/post",
     ]);
-    expect(entries).toHaveLength(191);
+    expect(entries).toHaveLength(207);
     expect(entries.map((entry) => entry.id).slice(0, 2)).toEqual([
       "foundations/colors",
       "foundations/typography",
@@ -508,8 +524,8 @@ describe("variantsOf", () => {
     // twenty blocks' one each (T63's eight content blocks, T64's nine commerce blocks, T67's two
     // form blocks, T66's editorial list), the first of T79's seven families each, T80's seven
     // more heroes, T84's six listing layouts, T85's three cart layouts and the drawer with picks,
-    // and T82's seventeen content and promotion variants.
-    expect(entries.filter((entry) => entry.family !== undefined)).toHaveLength(82);
+    // T82's seventeen content and promotion variants and T81's sixteen catalog variants.
+    expect(entries.filter((entry) => entry.family !== undefined)).toHaveLength(98);
   });
 
   it("starts T79's seven families with what M2 and M3 built, ids unchanged (D99)", () => {

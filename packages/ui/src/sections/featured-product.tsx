@@ -4,6 +4,8 @@
 // the first). A value the family does not have draws the first (`pickVariant`).
 import { pickVariant, type Members } from "@shopblok/ui/lib/variant";
 import type * as React from "react";
+import { FeaturedProductGallery } from "./featured-product/gallery";
+import { FeaturedProductOverlay } from "./featured-product/overlay";
 import {
   FeaturedProductStandard,
   type FeaturedProductSectionProps,
@@ -14,6 +16,8 @@ const MEMBERS: Members<
   (props: FeaturedProductSectionProps) => React.ReactNode
 > = {
   standard: FeaturedProductStandard,
+  overlay: FeaturedProductOverlay,
+  gallery: FeaturedProductGallery,
 };
 
 function FeaturedProductSection(props: FeaturedProductSectionProps) {
