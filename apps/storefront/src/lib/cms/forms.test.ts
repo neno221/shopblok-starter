@@ -49,6 +49,26 @@ describe("isFormPlaced", () => {
     );
   });
 
+  it("finds a form in a page's own layout per language, and not in the shared one it no longer draws (T88)", async () => {
+    findGlobal.mockResolvedValue({ newsletter: { form: null } });
+    find.mockResolvedValue({
+      docs: [
+        {
+          layoutPerLanguage: true,
+          layout: [{ blockType: "formBlock", form: 4 }],
+          localizedLayout: [{ blockType: "formBlock", form: 5 }],
+        },
+      ],
+    });
+    expect(await isFormPlaced(reader, 5)).toBe(true);
+    expect(await isFormPlaced(reader, 4)).toBe(false);
+    expect(find).toHaveBeenCalledWith(
+      expect.objectContaining({
+        select: { layoutPerLanguage: true, layout: true, localizedLayout: true },
+      }),
+    );
+  });
+
   it("finds no form with no footer signup and no page with a form", async () => {
     findGlobal.mockResolvedValue({ newsletter: { form: null } });
     find.mockResolvedValue({ docs: [{ layout: [{ blockType: "spacer" }] }] });

@@ -11,7 +11,8 @@ import {
   resaveInEveryLanguage,
 } from "../nested-pages";
 import { pageTags } from "../../lib/cms/tags";
-import { LAYOUT_BLOCKS } from "../blocks";
+import { LAYOUT_BLOCKS, localizedLayoutBlocks } from "../blocks";
+import { copyLayoutIntoOtherLanguages, copyLayoutOnSwitch } from "../hooks/layout-per-language";
 
 // `pages:<locale>` for the reads of one language, `payload:pages` for every reader.
 const revalidate = revalidateOnPublish({ tags: pageTags });
@@ -19,7 +20,8 @@ const revalidate = revalidateOnPublish({ tags: pageTags });
 /**
  * A page (D12, D80): its title and slug, and its `layout`, the blocks between the header and the
  * footer (T63, D79), and its `parent` and `breadcrumbs` (`payload/nested-pages.ts`): its address is
- * the parents' slugs and its own, at `{m}/[...slug]` (T65).
+ * the parents' slugs and its own, at `{m}/[...slug]` (T65). With `layoutPerLanguage` on, each
+ * language draws its own `localizedLayout` instead (D105, T88).
  */
 export const Pages: CollectionConfig = {
   slug: "pages",
@@ -34,13 +36,14 @@ export const Pages: CollectionConfig = {
     update: isStaff,
     delete: isStaff,
   },
-  // The breadcrumbs (T65), with the re-save in every language last, once this save's own
-  // revalidation is done. A page with pages under it is not deleted, and a refused save says why
-  // (a slug's reason) in a production build too.
+  // The breadcrumbs (T65) and the layout's copy when a page gets a layout per language (T88), with
+  // the re-save in every language last, once this save's own revalidation is done. A page with
+  // pages under it is not deleted, and a refused save says why (a slug's reason) in a production
+  // build too.
   hooks: {
     ...revalidate,
-    beforeChange: [populateBreadcrumbs, ...revalidate.beforeChange],
-    afterChange: [...revalidate.afterChange, resaveInEveryLanguage],
+    beforeChange: [populateBreadcrumbs, copyLayoutOnSwitch, ...revalidate.beforeChange],
+    afterChange: [...revalidate.afterChange, copyLayoutIntoOtherLanguages, resaveInEveryLanguage],
     beforeDelete: [keepPageWithChildren],
     afterError: [keepRefusalReason],
   },
@@ -59,9 +62,39 @@ export const Pages: CollectionConfig = {
   fields: [
     { name: "title", type: "text", localized: true, required: true },
     slugField(),
-    // SPEC §7.4: every language shares the blocks and their order, and localizes their text (a
-    // fully localized layout is M5's). The blocks are the root config's (`payload/blocks/`).
-    { name: "layout", type: "blocks", blocks: [], blockReferences: LAYOUT_BLOCKS },
+    // D105 (T88): off, every language shares `layout`; on, each draws its own `localizedLayout`.
+    // Not localized itself: it says which of the two fields the page uses in every language.
+    {
+      name: "layoutPerLanguage",
+      type: "checkbox",
+      defaultValue: false,
+      label: "Own layout per language",
+      admin: {
+        position: "sidebar",
+        description:
+          "Off: every language shows the same blocks and translates their texts. On: each language has blocks of its own, and one without any shows English's. Switching it on copies the shared blocks into each language, with its texts, so nothing changes until you edit a language's blocks.",
+      },
+    },
+    // SPEC §7.4: every language shares the blocks and their order, and localizes their text. The
+    // blocks are the root config's (`payload/blocks/`).
+    {
+      name: "layout",
+      type: "blocks",
+      blocks: [],
+      blockReferences: LAYOUT_BLOCKS,
+      admin: { condition: (data) => data?.["layoutPerLanguage"] !== true },
+    },
+    // D105: the language's own blocks, the same as `layout`'s but copies of them
+    // (`localizedLayoutBlocks` says why they cannot be `blockReferences`). Payload's fallback gives
+    // a language without blocks of its own English's.
+    {
+      name: "localizedLayout",
+      label: "Layout (this language)",
+      type: "blocks",
+      localized: true,
+      blocks: localizedLayoutBlocks(),
+      admin: { condition: (data) => data?.["layoutPerLanguage"] === true },
+    },
     ...nestedPageFields(),
     seedKey(),
   ],
