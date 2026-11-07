@@ -15,8 +15,8 @@ export type Words = (typeof catalogs)[keyof typeof catalogs];
 export const HANDLE = "demo-heritage-hoodie";
 
 /** The product's first variant's URL in the market, from the page's JSON-LD (as catalog.spec.ts does). */
-export async function variantPath(page: Page, prefix = ""): Promise<string> {
-  const html = await (await page.request.get(`${prefix}/products/${HANDLE}`)).text();
+export async function variantPath(page: Page, prefix = "", handle = HANDLE): Promise<string> {
+  const html = await (await page.request.get(`${prefix}/products/${handle}`)).text();
   const text = /<script type="application\/ld\+json">([^<]*)<\/script>/.exec(html)?.[1] ?? "";
   const graph = (
     JSON.parse(text) as { "@graph": { "@type": string; offers?: { url: string }[] }[] }

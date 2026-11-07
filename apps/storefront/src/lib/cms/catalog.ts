@@ -110,3 +110,10 @@ function readSections(slug: CatalogContentSlug) {
 export const readProductSections = readSections("products");
 export const readCategorySections = readSections("categories");
 export const readCollectionSections = readSections("collections");
+
+/** Each synced collection's sections read, for the pages (`catalog-sections.tsx`) and the tab route (`block-tab.ts`). */
+export const OWN_SECTIONS = {
+  products: readProductSections,
+  categories: readCategorySections,
+  collections: readCollectionSections,
+} as const satisfies Record<CatalogContentSlug, unknown>;

@@ -8,7 +8,7 @@
 // products (the design system's) fetches nothing. The arrow keys move between the tabs and show
 // each one's panel as it is reached (automatic activation: the answer is the catalog's, cached a
 // minute, so a panel is there almost at once); nothing changes by itself (D100, WCAG 2.2.2). The tab
-// list is named by the section's heading. Loaded by `next/dynamic` in `tabs-island.tsx`, so its
+// list is named by the section's heading. Loaded by `lazyIsland` in `tabs-island.tsx`, so its
 // code is no route's first load (D102): its `displayName` is the marker `first-load.ts`' `keptOut`
 // finds its chunk by. Drawn, the tabs hide the section's list of the tabs' links and the first
 // grid through the `:has()` rule on their wrapper, so nothing is drawn twice. Its grid is

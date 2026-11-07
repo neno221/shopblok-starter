@@ -1,10 +1,6 @@
 import type { Messages } from "@shopblok/i18n";
 import type * as React from "react";
-import {
-  readCategorySections,
-  readCollectionSections,
-  readProductSections,
-} from "../../lib/cms/catalog";
+import { OWN_SECTIONS } from "../../lib/cms/catalog";
 import { chooseSections, SECTIONS_PAGE } from "../../lib/cms/catalog-sections";
 import { cmsOrNull } from "../../lib/cms/read";
 import { commerceContext } from "../../lib/cms/resolve/market";
@@ -15,12 +11,6 @@ import { readTemplateSections } from "../../lib/cms/templates";
 import type { MarketContext } from "../../lib/market-context";
 import { getShellData } from "../shell/shell-data";
 import { SectionBlocks } from "./section-blocks";
-
-const OWN_SECTIONS = {
-  products: readProductSections,
-  categories: readCategorySections,
-  collections: readCollectionSections,
-} as const;
 
 /**
  * A product's, a category's or a collection's sections, drawn for the market (D104, T87), or

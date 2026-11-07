@@ -4,23 +4,32 @@
 // none, T77's probe), which the product page could not spend. Call it at a client module's top
 // level (a `"use client"` loader), never in a server component, which would put the module back in
 // the first load.
-// - **No `Suspense` on the server or while hydrating.** A `Suspense` there would send what waits
-//   inside it (the module, or a prop the server streams later) after the page in a page rendered
-//   per request, hidden until a script moves it in: a form's answer without scripts would show no
-//   form. Without one the server sends the island in place, as before T87, and the browser keeps
-//   the server's HTML while it fetches the module, then hydrates it. An island first drawn after
-//   the page hydrated (a popup's copy button) is drawn in a `Suspense` with no fallback.
-// - `server`: the component itself, which the server draws without waiting for the module. A
-//   loader passes it as `typeof window === "undefined" ? { server: require(…) } : {}`: Next's
-//   builds replace `typeof window`, so the browser's build drops the branch and its `require`.
+// - **Its own hydration boundary, an `Activity`:** while the browser fetches the module, React
+//   hydrates the rest of the page and keeps the island's server HTML (with no boundary, the whole
+//   page would wait for the module, PR 127 review, item 2).
+// - **Not a `Suspense`:** React sends a `Suspense` boundary's content after the page, hidden until a
+//   script moves it in, when its content waited past the page's start (a per-request page, where a
+//   form's `useActionState` waits for its action's encoding the first time) and also when it is
+//   large and comes after the page's first 12.8 KB (React's outlining, prerendered pages too), so
+//   without scripts the island would show nothing. An `Activity` is a hydration boundary that the
+//   server writes in place: what waits in it holds the page, as with no boundary.
+// - **No hook in the island:** an update that reaches the island while the browser waits for its
+//   module (its props or a context above it changing during hydration) gives up the server's HTML
+//   and suspends the nearest `Suspense` above, so the island stays a plain function of its props.
+//   Drawn after hydration (a navigation, which Next runs as a transition), it suspends that
+//   transition, so the page it is on shows once the module is in.
+// - `server`: the component itself, which the server draws in place of the module (no `lazy` to
+//   wait for there). A loader passes it as `typeof window === "undefined" ? { server: require(…) }
+//   : {}`; Next's builds replace `typeof window`, so the browser's build drops the branch and its
+//   `require`.
 // - `ssr: false`: the server and the browser's first render draw nothing, and the module is
-//   fetched once the island has mounted (an island that only adds behaviour, such as a tab list
-//   that replaces the server's links).
+//   fetched once the island has mounted, in a `Suspense` of its own with no fallback (an island
+//   that only adds behaviour, such as a tab list that replaces the server's links).
 import {
+  Activity,
   createElement,
   lazy,
   Suspense,
-  useState,
   useSyncExternalStore,
   type ComponentType,
   type ReactElement,
@@ -50,25 +59,19 @@ function lazyIsland<P extends Record<string, any>>(
   load: () => Promise<ComponentType<P>>,
   { ssr = true, server }: LazyIslandOptions<P> = {},
 ): (props: P) => ReactElement | null {
-  const Lazy = lazy(async () => ({ default: await load() }));
+  const Lazy = lazy(async () => ({ default: await load() })) as ComponentType<P>;
   function Island(props: P) {
-    const mounted = useMounted();
-    // Whether the island's first render was in the browser after hydration: kept, so a later render
-    // keeps the same tree (`false` on the server and while hydrating).
-    const [drawnLate] = useState(mounted);
-    if (!ssr) {
-      return mounted
-        ? createElement(
-            Suspense,
-            { fallback: null },
-            createElement(Lazy as ComponentType<P>, props),
-          )
-        : null;
-    }
-    const island = createElement(server ?? (Lazy as ComponentType<P>), props);
-    return drawnLate ? createElement(Suspense, { fallback: null }, island) : island;
+    return createElement(Activity, {
+      mode: "visible",
+      children: createElement(server ?? Lazy, props),
+    });
   }
-  return Island;
+  function ClientOnlyIsland(props: P) {
+    return useMounted()
+      ? createElement(Suspense, { fallback: null }, createElement(Lazy, props))
+      : null;
+  }
+  return ssr ? Island : ClientOnlyIsland;
 }
 
 export { lazyIsland };

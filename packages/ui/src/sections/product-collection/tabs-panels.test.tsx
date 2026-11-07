@@ -2,7 +2,7 @@
 // Base UI's tabs in happy-dom: the tab list named by the heading, the first tab's products drawn
 // with nothing fetched, a tab's products fetched once from its endpoint the first time it is
 // chosen, the loading and failed states, and the arrow keys showing the next tab at once. In its
-// own file: importing the module here would load it before `next/dynamic` asks for it, so the
+// own file: importing the module here would load it before the island's `lazyIsland` asks for it, so the
 // section's server markup in `catalog-variants.test.tsx` would hold the tabs.
 import { sectionFixtures } from "@shopblok/fixtures";
 import { catalogs } from "@shopblok/i18n";

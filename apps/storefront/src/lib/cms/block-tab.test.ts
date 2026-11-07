@@ -20,9 +20,7 @@ const readProductSections = vi.hoisted(() => vi.fn());
 const readTemplateSections = vi.hoisted(() => vi.fn());
 vi.mock("./pages", () => ({ readPageById }));
 vi.mock("./catalog", () => ({
-  readProductSections,
-  readCategorySections: vi.fn(),
-  readCollectionSections: vi.fn(),
+  OWN_SECTIONS: { products: readProductSections, categories: vi.fn(), collections: vi.fn() },
 }));
 vi.mock("./templates", () => ({ readTemplateSections }));
 vi.mock("../market-context", () => ({ getMarketContext: vi.fn() }));
@@ -285,7 +283,9 @@ describe("GET /next/block-tab (T81)", () => {
       "brand:demo",
       `product:${"a".repeat(129)}`,
     ]) {
-      const { response } = await answer(`market=en-us&doc=${encodeURIComponent(doc)}&block=b1&tab=1&v=${v(1)}`);
+      const { response } = await answer(
+        `market=en-us&doc=${encodeURIComponent(doc)}&block=b1&tab=1&v=${v(1)}`,
+      );
       expect(response.status, doc).toBe(404);
     }
   });

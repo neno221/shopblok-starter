@@ -20,6 +20,7 @@
     "./providers": "./src/providers.tsx",
     "./lib/*": "./src/lib/*.ts",
     "./hooks/*": "./src/hooks/*.ts",
+    "./test-support/eager-islands": "./src/test-support/eager-islands.ts",
     "./globals.css": "./src/styles/globals.css",
     "./tokens": "./src/tokens.ts"
   },

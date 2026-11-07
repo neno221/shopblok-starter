@@ -1,7 +1,9 @@
 import { expect, test } from "@playwright/test";
 import { appEnv } from "./support/app-env";
+import { catalogs } from "./support/catalogs";
 import { medusaAdminApi, medusaAdminToken, medusaUrl } from "./support/medusa-admin";
 import { api, syncedId } from "./support/payload-rest";
+import { variantPath } from "./support/purchase";
 import { adminToken, base, freshWithinTwo, settled } from "./support/server";
 
 // T87 (D104): a product's, a category's or a collection's own sections, or the `templates`
@@ -10,7 +12,8 @@ import { adminToken, base, freshWithinTwo, settled } from "./support/server";
 // (its texts are English only, so `/` shows them through the English fallback, D73); another product
 // shows the global's default `uspBar` (the seed's, in the market's language); `none` shows neither;
 // a category's sections follow its results; a sync of the product, and the reconcile, keep them;
-// and the integration cannot write them.
+// the integration cannot write them; and while a section's island is still loading, the rest of the
+// page works (PR 127 review, item 2), and a form placed in the sections can be sent (item 1).
 
 test.describe.configure({ mode: "serial" });
 test.setTimeout(90_000);
@@ -165,6 +168,78 @@ test("a sync of the product from Medusa, and the reconcile, keep its sections", 
   const shows = async () =>
     (productSections(await html(`/us/products/${OWN}`)) ?? "").includes(QUESTION);
   expect(await seenWithinTwo(shows)).toBeGreaterThan(0);
+});
+
+test("the page works while a section's island loads, and a form in the sections can be sent", async ({
+  page,
+}) => {
+  const en = catalogs.en.molecules.newsletterForm;
+  const { docs } = await api<{ docs: { id: number }[] }>(
+    token,
+    "GET",
+    "/api/forms?where[seedKey][equals]=newsletter&limit=1&depth=0",
+  );
+  const form = docs[0]?.id;
+  if (form === undefined) throw new Error('no seeded "newsletter" form: run seed-content first');
+  await settled(`/us/products/${OWN}`);
+  // A form on no page: only the product's sections place it (`loadPlacedForms`).
+  await api(token, "PATCH", `/api/products/${productId}?locale=en`, {
+    sectionsMode: "own",
+    sections: [{ blockType: "newsletter", form, privacy: { type: "custom", url: "/privacy" } }],
+  });
+  const shows = async () =>
+    (productSections(await html(`/us/products/${OWN}`)) ?? "").includes(
+      'data-slot="newsletter-form"',
+    );
+  expect(await seenWithinTwo(shows)).toBeGreaterThan(0);
+
+  // The newsletter island's module (its chunk has the island's `displayName`) is held back.
+  let release = () => {};
+  const released = new Promise<void>((done) => (release = done));
+  const held: string[] = [];
+  await page.route("**/_next/static/chunks/*.js", async (route) => {
+    const answer = await route.fetch();
+    const body = await answer.text();
+    if (body.includes("shopblok:newsletter-section-island")) {
+      held.push(route.request().url());
+      await released;
+    }
+    await route.fulfill({ status: answer.status(), contentType: "text/javascript", body });
+  });
+  await page.goto(await variantPath(page, "/us", OWN));
+  await expect.poll(() => held.length, { message: "the island's chunk is asked for" }).toBe(1);
+  const sections = page.locator('[data-slot="product-detail-sections"]');
+  // The island keeps the server's HTML, and the page around it is hydrated: the buy box adds, the
+  // header's count follows, and the header's cart opens the drawer rather than the cart page.
+  await expect(sections.locator('[data-slot="newsletter-form"]')).toBeVisible();
+  const box = page.locator('[data-slot="buy-box-island"] [data-slot="buy-box"]');
+  await expect(box.locator('[data-slot="buy-box-add"]')).not.toHaveAttribute("aria-disabled");
+  await box.locator('[data-slot="buy-box-add"]').click();
+  await expect(page.locator('[data-slot="quick-cart"]')).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.locator('header [data-slot="cart-badge"]')).toHaveText("1");
+  await page.locator('header a[data-slot="cart-button"]').click();
+  const drawer = page.locator('[data-slot="cart-drawer"]');
+  await expect(drawer).toBeVisible();
+  await expect(page).not.toHaveURL(/\/cart$/);
+  await expect(drawer.locator('[data-slot="cart-line-item"]')).toHaveCount(1);
+  await page.keyboard.press("Escape");
+  await expect(drawer).toBeHidden();
+  expect(held).toHaveLength(1);
+
+  // Once the module is in, the form in the sections is sent and accepted.
+  release();
+  const signup = sections.locator('[data-slot="newsletter-form"]');
+  const email = `sections-${stamp}@example.com`;
+  await signup.getByLabel(en.emailLabel).fill(email);
+  await signup.getByRole("button", { name: en.submit }).click();
+  await expect(signup.locator("[data-slot=newsletter-form-status]")).toContainText(en.done);
+  const { docs: sent } = await api<{
+    docs: { id: number; submissionData: { value: string }[] }[];
+  }>(token, "GET", `/api/form-submissions?where[form][equals]=${form}&sort=-createdAt&limit=50`);
+  const mine = sent.filter((doc) => doc.submissionData.some((row) => row.value === email));
+  expect(mine).toHaveLength(1);
+  for (const doc of mine) await api(token, "DELETE", `/api/form-submissions/${doc.id}`);
 });
 
 test("a product set to none shows neither its own sections nor the default", async () => {

@@ -2,11 +2,7 @@ import "server-only";
 import { CATALOG_HEADERS } from "../listing/handlers";
 import { getMarketContext, type MarketContext } from "../market-context";
 import { MedusaRequestError } from "../medusa/sdk";
-import {
-  readCategorySections,
-  readCollectionSections,
-  readProductSections,
-} from "./catalog";
+import { OWN_SECTIONS } from "./catalog";
 import { parseDocumentRef, type SectionBlocks, type SectionsDocument } from "./catalog-sections";
 import { readPageById } from "./pages";
 import type { CatalogReads } from "./resolve/catalog";
@@ -47,12 +43,6 @@ export type BlockTabDeps = {
   ) => Promise<SectionBlocks | null>;
   reads: (context: TabContext) => CatalogReads;
 };
-
-const OWN_SECTIONS = {
-  products: readProductSections,
-  categories: readCategorySections,
-  collections: readCollectionSections,
-} as const;
 
 /** The blocks a published document holds, as its page draws them: none for anything else. */
 async function publishedBlocks(

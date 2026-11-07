@@ -5,7 +5,7 @@ import { formFields, type StoredFormField } from "../forms/fields";
 import { pageLayout } from "./page-layout";
 import { getPayloadClient } from "./payload";
 import { CMS_FALLBACK_LOCALE, cmsRead, type CmsQuery, type CmsReader } from "./read";
-import { embeddingTags } from "./tags";
+import { CATALOG_CONTENT_TAG, embeddingTags, type CatalogContentSlug } from "./tags";
 
 /** A form as the server action checks a post against it (D81): its id and the fields it draws. */
 export type CmsForm = { id: number; fields: FormField[] };
@@ -39,17 +39,33 @@ export const readForm = cmsRead(
 const idOf = (value: unknown): unknown =>
   typeof value === "object" && value !== null ? (value as { id?: unknown }).id : value;
 
+/** The synced collections whose documents may hold sections of their own (D104, T87). */
+const CATALOG_COLLECTIONS: CatalogContentSlug[] = ["products", "categories", "collections"];
+
+/** The forms a list of blocks shows: each `newsletter`'s and `formBlock`'s. */
+const formsIn = (blocks: unknown): unknown[] =>
+  Array.isArray(blocks)
+    ? blocks.flatMap((block: { blockType?: unknown; form?: unknown }) =>
+        block.blockType === "newsletter" || block.blockType === "formBlock"
+          ? [idOf(block.form)]
+          : [],
+      )
+    : [];
+
 /**
- * The forms a visitor can reach (D81): the footer's newsletter and each form in a published page's
- * blocks. The server action takes posts to these only, so a form no page shows (a draft, one kept
- * for later) is no door for spam.
+ * The forms a visitor can reach (D81): the footer's newsletter, each form in a published page's
+ * blocks and, since T87 (D104), each form in a product's, a category's or a collection's own
+ * sections (while it shows them, and Medusa has not deleted it) and in the `templates` global's
+ * default sections. The server action takes posts to these only, so a form no page shows (a draft,
+ * one kept for later) is no door for spam.
  */
 async function loadPlacedForms(payload: Payload, query: CmsQuery): Promise<number[]> {
-  const [pages, footer] = await Promise.all([
+  const locale = query.locale as never;
+  const [pages, footer, templates, ...catalog] = await Promise.all([
     payload.find({
       collection: "pages",
       ...query,
-      locale: query.locale as never,
+      locale,
       depth: 0,
       // Both layouts: a page with a layout per language places its forms in `localizedLayout`.
       select: { layoutPerLanguage: true, layout: true, localizedLayout: true },
@@ -58,28 +74,56 @@ async function loadPlacedForms(payload: Payload, query: CmsQuery): Promise<numbe
     payload.findGlobal({
       slug: "footer",
       ...query,
-      locale: query.locale as never,
+      locale,
       depth: 0,
       select: { newsletter: true },
     }),
+    payload.findGlobal({
+      slug: "templates",
+      ...query,
+      locale,
+      depth: 0,
+      select: { productPage: { sections: true }, listing: { sections: true } } as never,
+    }),
+    ...CATALOG_COLLECTIONS.map((collection) =>
+      payload.find({
+        collection,
+        ...query,
+        locale,
+        depth: 0,
+        where: {
+          and: [{ sectionsMode: { equals: "own" } }, { deletedInMedusa: { not_equals: true } }],
+        },
+        select: { sections: true } as never,
+        pagination: false,
+      }),
+    ),
   ]);
+  const defaults = templates as {
+    productPage?: { sections?: unknown };
+    listing?: { sections?: unknown };
+  };
   const placed = [
     idOf(footer.newsletter?.form),
-    ...pages.docs.flatMap((page) =>
-      pageLayout(page).flatMap((block) =>
-        block.blockType === "newsletter" || block.blockType === "formBlock"
-          ? [idOf(block.form)]
-          : [],
-      ),
+    ...pages.docs.flatMap((page) => formsIn(pageLayout(page))),
+    ...formsIn(defaults.productPage?.sections),
+    ...formsIn(defaults.listing?.sections),
+    ...catalog.flatMap(({ docs }) =>
+      docs.flatMap((doc) => formsIn((doc as { sections?: unknown }).sections)),
     ),
   ];
   return [...new Set(placed.filter((id): id is number => typeof id === "number"))];
 }
 
-/** `loadPlacedForms`, cached and tagged as the pages and the content globals are (`embeddingTags`). */
+/**
+ * `loadPlacedForms`, cached and tagged as the pages and the content globals are (`embeddingTags`,
+ * the `templates` global among them), and as the catalog's content (`cms:catalog`, T87). A save of
+ * one product's sections refreshes its own tag only, so a form placed there is found by the
+ * uncached look below until the list is next refreshed.
+ */
 const readPlacedForms = cmsRead(loadPlacedForms, {
   name: "cms:placed-forms",
-  tags: (locale) => embeddingTags(locale),
+  tags: (locale) => [...embeddingTags(locale), CATALOG_CONTENT_TAG],
 });
 
 /**

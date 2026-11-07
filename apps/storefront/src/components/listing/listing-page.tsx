@@ -63,16 +63,31 @@ type ListingPageData = {
   pageSize: number;
   /** The category's or collection's content (T69); `null` for the store or without one. */
   content: ListingContent | null;
+  /** Draft Mode is on (an editor's preview). */
+  draft: boolean;
 };
 
-/** The scope's Payload document's content: a category's (its last handle) or a collection's. */
+/**
+ * The scope's Payload document: a category's (by its last handle) or a collection's; `null` for
+ * the store, which is no document's. The content (T69) and the sections (T87) read the same one.
+ */
+function scopeDocument(
+  scope: ListingScope,
+): { kind: "categories" | "collections"; handle: string } | null {
+  if (scope.kind === "category") return { kind: "categories", handle: scope.path.at(-1) ?? "" };
+  if (scope.kind === "collection") return { kind: "collections", handle: scope.handle };
+  return null;
+}
+
+/** The scope's Payload document's content (`scopeDocument`). */
 function readScopeContent(reader: CmsReader, scope: ListingScope) {
+  const owner = scopeDocument(scope);
   const read =
-    scope.kind === "category"
-      ? readCategoryContent(reader, scope.path.at(-1) ?? "")
-      : scope.kind === "collection"
-        ? readCollectionContent(reader, scope.handle)
-        : Promise.resolve(null);
+    owner === null
+      ? Promise.resolve(null)
+      : owner.kind === "categories"
+        ? readCategoryContent(reader, owner.handle)
+        : readCollectionContent(reader, owner.handle);
   return cmsOrNull(read, "listing page: no banner or introduction");
 }
 
@@ -112,7 +127,8 @@ const readListingPage = cache(
       },
     });
     if (results === null) return null;
-    return { context, messages, resolved, results, page, pageSize, content: await contentRead };
+    const content = await contentRead;
+    return { context, messages, resolved, results, page, pageSize, content, draft };
   },
 );
 
@@ -127,17 +143,9 @@ async function introText(intro: NonNullable<ListingContent["intro"]>, context: M
  * A category's or collection's sections (T87, D104), on every page of its listing: its own, the
  * `templates` global's for the listings, or none. The store's page is no document's, and has none.
  */
-async function scopeSections({ context, messages, resolved }: ListingPageData) {
-  const { scope } = resolved;
-  const owner =
-    scope.kind === "category"
-      ? { kind: "categories" as const, handle: scope.path.at(-1) ?? "" }
-      : scope.kind === "collection"
-        ? { kind: "collections" as const, handle: scope.handle }
-        : null;
-  if (owner === null) return undefined;
-  const { isEnabled: draft } = await draftMode();
-  return catalogSections({ owner, context, messages, draft });
+async function scopeSections({ context, messages, resolved, draft }: ListingPageData) {
+  const owner = scopeDocument(resolved.scope);
+  return owner === null ? undefined : catalogSections({ owner, context, messages, draft });
 }
 
 /** The address of a page of the listing: the first at the listing's own, the others by path. */

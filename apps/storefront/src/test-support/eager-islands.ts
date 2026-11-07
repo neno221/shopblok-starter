@@ -1,10 +1,11 @@
 import { vi } from "vitest";
+import "@shopblok/ui/test-support/eager-islands";
 
-// T87 (D102): the blocks' islands load through `next/dynamic` once they render in a browser
-// (`components/cms/lazy-islands.tsx` and `lazy-page-islands.tsx`, and `@shopblok/ui`'s `*-island.tsx` loaders), which a test's
-// render would not wait for, and which `renderToStaticMarkup` cannot render at all. Tests draw the
-// modules themselves in their place; the loaders are checked by the build (`first-load.ts`'
-// `keptOut`) and by the e2e suites.
+// T87 (D102): the blocks' islands (`components/cms/lazy-islands.tsx` and `lazy-page-islands.tsx`)
+// load their module through `lazyIsland` (`React.lazy`) once they render in a browser, which a
+// test's render would not wait for. Tests draw the modules themselves in their place, as
+// `@shopblok/ui`'s list above does for its loaders; the loaders are checked by the build
+// (`first-load.ts`' `keptOut`) and by the e2e suites.
 vi.mock("../components/cms/lazy-islands", async () => ({
   ...(await import("../components/cms/form-block-island")),
   ...(await import("../components/cms/newsletter-section-island")),
@@ -14,28 +15,4 @@ vi.mock("../components/cms/lazy-islands", async () => ({
 vi.mock(
   "../components/cms/lazy-page-islands",
   () => import("../components/cms/recently-viewed-block"),
-);
-vi.mock(
-  "@shopblok/ui/molecules/countdown-clock-island",
-  () => import("@shopblok/ui/molecules/countdown-clock"),
-);
-vi.mock(
-  "@shopblok/ui/molecules/copy-code-control-island",
-  () => import("@shopblok/ui/molecules/copy-code-control"),
-);
-vi.mock(
-  "@shopblok/ui/sections/video-embed-island",
-  () => import("@shopblok/ui/sections/video-embed"),
-);
-vi.mock(
-  "@shopblok/ui/organisms/product-carousel-island",
-  () => import("@shopblok/ui/organisms/product-carousel"),
-);
-vi.mock(
-  "@shopblok/ui/sections/category-showcase/carousel-island",
-  () => import("@shopblok/ui/sections/category-showcase/carousel"),
-);
-vi.mock(
-  "@shopblok/ui/sections/testimonials/carousel-island",
-  () => import("@shopblok/ui/sections/testimonials/carousel"),
 );
