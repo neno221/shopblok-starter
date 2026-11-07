@@ -8171,7 +8171,7 @@ After the fixes: `typecheck` and `lint` exit 0; `test`: `ui` 5849, storefront 39
 |---|---|
 | Date | 2026-11-07 |
 | Branch | `claude/project-thread-vfiy51`, from `main` at `66fcc1c` (T84 merged), `main` at `dedc5fa` (T80 merged) merged in |
-| PR | PR_NUMBER |
+| PR | [121](https://github.com/neno221/shopblok-starter/pull/121) |
 | Machine | The cloud VM: Node 22.23.4, pnpm 12.10.1, the compose stack, Medusa 2.22.4 (`medusa develop`) |
 
 ### What changed
