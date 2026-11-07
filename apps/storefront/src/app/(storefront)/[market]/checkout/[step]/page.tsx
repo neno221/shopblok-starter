@@ -8,6 +8,7 @@ import {
   type CheckoutErrors,
 } from "@shopblok/ui/templates/checkout";
 import type { AddressFormErrors } from "@shopblok/ui/molecules/address-form";
+import { checkoutIds } from "@shopblok/ui/templates/checkout/parts";
 import { ShoppingBagIcon } from "lucide-react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
@@ -29,6 +30,7 @@ import {
   formCountries,
   savedAddressFor,
   toAddressFormState,
+  toCheckoutDone,
   toCheckoutSteps,
   toPaymentStep,
   toReviewStep,
@@ -44,7 +46,9 @@ import {
 // anything is read. Nothing here redirects (under Cache Components a page's `redirect()` reaches
 // the browser in the RSC payload, which needs scripts): a step whose steps before it are not done
 // draws the first one that is not, saying so, and an empty cart draws the way back to the shop.
-// `noindex`.
+// `noindex`. The layout is the `templates` global's (D101, T86): `one-page` draws the three steps
+// here, the step in the path open and the ones before it summed up (`done`), each with its "Edit"
+// link to its step's anchor; each action comes back at the next step's anchor (`stepAnchor`).
 
 export const instant = false;
 
@@ -126,6 +130,16 @@ export default async function CheckoutStepPage({ params, searchParams }: Props) 
   const flash = shown === requested ? await readFlash(stepHref(shown), key) : null;
   const content = await stepOf(shown, cart, context, messages, flash);
   if (content === null) notFound();
+  const variant = templates.checkout;
+  // T86: `one-page` sums up the steps done, each "Edit" opening its step at its anchor.
+  const anchor = (id: CheckoutStepId) => `${stepHref(id)}#${checkoutIds("main").step(id)}`;
+  const done =
+    variant === "one-page"
+      ? toCheckoutDone(cart, shown, messages.organisms.paymentStep.systemName, {
+          contact: anchor("contact"),
+          delivery: anchor("delivery"),
+        })
+      : undefined;
   const checkout = toCheckoutSteps(view, cart, shown, words.steps, stepHref);
   const action =
     shown === "contact" ? submitContact : shown === "delivery" ? submitDelivery : placeOrder;
@@ -135,9 +149,10 @@ export default async function CheckoutStepPage({ params, searchParams }: Props) 
   const now = new Date().toISOString();
   return (
     <CheckoutTemplate
-      variant={templates.checkout}
+      variant={variant}
       checkout={checkout}
       step={content}
+      {...(done === undefined ? {} : { done })}
       copy={checkoutCopy(messages)}
       locale={market.htmlLang}
       now={now}

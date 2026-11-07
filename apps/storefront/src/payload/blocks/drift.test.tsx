@@ -76,8 +76,16 @@ describe("the variant fields and their families (D99)", () => {
         family: "mini-cart",
         offered: ["drawer", "drawer-picks"],
       },
-      { where: "templates.checkout.variant", family: "checkout", offered: ["default"] },
-      { where: "templates.receipt.variant", family: "receipt", offered: ["default"] },
+      {
+        where: "templates.checkout.variant",
+        family: "checkout",
+        offered: ["default", "one-page", "summary-first", "focused", "express-rail"],
+      },
+      {
+        where: "templates.receipt.variant",
+        family: "receipt",
+        offered: ["default", "statement", "timeline-first", "split", "compact", "next-steps"],
+      },
     ]);
   });
 
@@ -139,36 +147,34 @@ describe("variantDrift's rules", () => {
   });
 
   it("finds a template member's root at its family's first member's slot", () => {
-    const receipt = entries.find((entry) => entry.id === "templates/order-confirmation");
-    if (receipt === undefined) throw new Error("no templates/order-confirmation");
-    const split: RegistryEntry = { ...receipt, id: "templates/receipt-split", variant: "split" };
-    const withSplit = [...entries, split];
-    expect(familyRoot(split, withSplit)).toBe("order-confirmation-template");
+    // T86's receipt members: each draws the first member's root with its own `data-variant`.
+    const members = entries.filter((entry) => entry.family === "receipt");
+    const split = members.find((entry) => entry.variant === "split");
+    if (split === undefined) throw new Error("no templates/order-confirmation-split");
+    expect(familyRoot(split, entries)).toBe("order-confirmation-template");
     const page = (variant: string) =>
       `<main data-slot="order-confirmation-template" data-variant="${variant}"></main>`;
+    const picker = {
+      where: "templates.receipt.variant",
+      family: "receipt",
+      offered: members.map((entry) => entry.variant ?? ""),
+    };
+    const variantOf = (id: string) => members.find((entry) => entry.id === id)?.variant ?? "";
     expect(
       variantDrift(
-        fake({
-          entries: withSplit,
-          pickers: [
-            { where: "templates.receipt.variant", family: "receipt", offered: ["default"] },
-          ],
-          render: (id) => page(id === split.id ? "split" : "default"),
-        }),
+        fake({ entries: members, pickers: [picker], render: (id) => page(variantOf(id)) }),
       ),
     ).toEqual([]);
     expect(
       variantDrift(
         fake({
-          entries: withSplit,
-          pickers: [
-            { where: "templates.receipt.variant", family: "receipt", offered: ["default"] },
-          ],
-          render: () => page("default"),
+          entries: members,
+          pickers: [picker],
+          render: (id) => page(id === split.id ? "default" : variantOf(id)),
         }),
       ),
     ).toEqual([
-      'templates/receipt-split\'s live render draws [data-slot="order-confirmation-template"] as [default], not "split"',
+      'templates/order-confirmation-split\'s live render draws [data-slot="order-confirmation-template"] as [default], not "split"',
     ]);
   });
 

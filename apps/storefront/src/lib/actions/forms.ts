@@ -1,5 +1,9 @@
 import "server-only";
+import { checkoutIds, type CheckoutStepKind } from "@shopblok/ui/templates/checkout/parts";
+import { draftMode } from "next/headers";
 import { redirect } from "next/navigation";
+import { cmsOrNull } from "../cms/read";
+import { readTemplates, templatesFrom } from "../cms/templates";
 import { leaveFlash } from "../flash";
 import { getMarketContext } from "../market-context";
 import type { ActionResult } from "./action";
@@ -47,7 +51,12 @@ async function run(
   return handler({ ...formDataToObject(data), market });
 }
 
-async function back(path: string, result: ActionResult<unknown>, values?: Record<string, string>) {
+async function back(
+  path: string,
+  result: ActionResult<unknown>,
+  values?: Record<string, string>,
+  anchor = "",
+) {
   if (result.ok) throw new Error("back() is for a failure");
   const errors: Record<string, string> = {};
   for (const [name, kind] of Object.entries(result.errors))
@@ -57,7 +66,7 @@ async function back(path: string, result: ActionResult<unknown>, values?: Record
     errors,
     ...(values === undefined ? {} : { values }),
   });
-  go(`${path}?f=${key}`);
+  go(`${path}?f=${key}${anchor}`);
 }
 
 // --- The cart page ------------------------------------------------------------------------------
@@ -108,25 +117,50 @@ export const CONTACT_FIELDS = [
   "phone",
 ] as const;
 
+/**
+ * Where a checkout action lands on `step` (T86): the `one-page` layout's section of the step
+ * (`#main-step-delivery`, `checkoutIds`), so the browser comes back to the page at that step and
+ * focus goes there; nothing for M3's layouts, whose step is the page. The layout is the `templates`
+ * global's for the market, read on the server as the page reads it (a draft in Draft Mode), never
+ * taken from the form.
+ */
+export async function stepAnchor(market: string, step: CheckoutStepKind): Promise<string> {
+  const context = await getMarketContext(market);
+  if (context === null) return "";
+  const { isEnabled: draft } = await draftMode();
+  const doc = await cmsOrNull(
+    readTemplates({ market: context.market, draft }),
+    "checkout: the steps' own pages",
+  );
+  return templatesFrom(doc).checkout === "one-page" ? `#${checkoutIds("main").step(step)}` : "";
+}
+
 export async function contactForm(market: string, data: FormData): Promise<void> {
   const path = await pageOf(market, "/checkout/contact");
   const result = await run(contactAction, market, data);
-  if (!result.ok) await back(path, result, typed(data, CONTACT_FIELDS));
-  go(await pageOf(market, "/checkout/delivery"));
+  if (!result.ok)
+    await back(path, result, typed(data, CONTACT_FIELDS), await stepAnchor(market, "contact"));
+  go((await pageOf(market, "/checkout/delivery")) + (await stepAnchor(market, "delivery")));
 }
 
 export async function deliveryForm(market: string, data: FormData): Promise<void> {
   const path = await pageOf(market, "/checkout/delivery");
   const result = await run(deliveryAction, market, data);
-  if (!result.ok) await back(path, result, typed(data, ["shippingOption", "paymentMethod"]));
-  go(await pageOf(market, "/checkout/review"));
+  if (!result.ok)
+    await back(
+      path,
+      result,
+      typed(data, ["shippingOption", "paymentMethod"]),
+      await stepAnchor(market, "delivery"),
+    );
+  go((await pageOf(market, "/checkout/review")) + (await stepAnchor(market, "review")));
 }
 
 export async function placeOrderForm(market: string, data: FormData): Promise<void> {
   const path = await pageOf(market, "/checkout/review");
   const result = await run(placeOrderAction, market, data);
   if (!result.ok) {
-    await back(path, result);
+    await back(path, result, undefined, await stepAnchor(market, "review"));
     return;
   }
   const { orderId } = result.data as { orderId: string };

@@ -2,6 +2,7 @@ import type {
   AccountPage,
   AuthPage,
   CartPage,
+  CheckoutDone,
   CheckoutPage,
   CmsPage,
   ErrorPage,
@@ -67,6 +68,11 @@ export type PageFixtures = {
    * review of the standard delivery to that address.
    */
   checkout: { contact: CheckoutPage; delivery: CheckoutPage; review: CheckoutPage };
+  /**
+   * T86: the `one-page` checkout's finished steps, as the review has them: the e-mail and the
+   * address, then the standard delivery and the system payment, each with its step's anchor.
+   */
+  checkoutDone: Required<CheckoutDone>;
   /** The receipt (T52): the order placed and paid, with its summary. */
   orderConfirmation: OrderConfirmationPage;
   /**
@@ -323,11 +329,25 @@ function pagesFor(locale: DesignSystemLocale): PageFixtures {
         },
       },
     },
+    checkoutDone: {
+      contact: {
+        email: placed.email,
+        shippingAddress: placed.shippingAddress,
+        editHref: `${contactHref}#main-step-contact`,
+      },
+      delivery: {
+        shippingMethod: { name: standard.name, price: standard.price },
+        payment: placed.payment,
+        editHref: `${deliveryHref}#main-step-delivery`,
+      },
+    },
     orderConfirmation: {
       variant: "default",
       order: placed,
       summary: orderSummary(placed),
       continueHref: storeHref,
+      // T86: the `next-steps` layout's third card, for a guest: an account to create.
+      followUp: { kind: "register", href: `${home}/register` },
     },
     auth: {
       login: { variant: "default", screen: login({ email: "" }) },

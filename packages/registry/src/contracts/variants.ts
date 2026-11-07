@@ -64,8 +64,9 @@ export const VARIANTS = {
   // T85: the cart page's layouts and the mini cart's drawer with picks (M5 plan §1a).
   cart: ["default", "table", "sticky-summary", "focused"],
   "mini-cart": ["drawer", "drawer-picks"],
-  checkout: ["default"],
-  receipt: ["default"],
+  // T86: the checkout's and the receipt's layouts (M5 plan §1a).
+  checkout: ["default", "one-page", "summary-first", "focused", "express-rail"],
+  receipt: ["default", "statement", "timeline-first", "split", "compact", "next-steps"],
 } as const satisfies Record<string, readonly [string, ...string[]]>;
 
 /** A family of the registry: a key of `VARIANTS`. */

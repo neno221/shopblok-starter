@@ -6,7 +6,9 @@
 //   profile and the claim of a guest order.
 // - **Orders:** OrderTable, a page at a time (Pagination's links, `?page=n`), and the claim.
 // - **Order:** its number and date in the market's time zone, where it went, how it was delivered
-//   and paid, its history (OrderTimeline), its summary (OrderSummary, open) and the return.
+//   and paid, its history (OrderTimeline), its summary (OrderSummary, open) and the return. In the
+//   receipt's layout the `templates` global picks (D101, T86): M3's screen for `default`, and for the
+//   others the receipt's member without the thanks, this screen's heading and ways on in its place.
 // - **Addresses / address:** AddressBook with its remove and default forms; AddressForm with the
 //   "default shipping address" checkbox inside its form.
 // - **Payment methods:** PaymentMethodsManager (its empty state until M6's Stripe).
@@ -37,6 +39,11 @@ import { ChevronRightIcon } from "lucide-react";
 import NextLink from "next/link";
 import type * as React from "react";
 import { FormAlert, FormStatus, TextField } from "./form-parts";
+import {
+  OrderConfirmationTemplate,
+  orderConfirmationCopy,
+  type OrderConfirmationCopy,
+} from "./order-confirmation";
 
 // The hrefs are strings the app built; `next/link` takes whatever the app's typed routes allow.
 type LinkHref = React.ComponentProps<typeof NextLink>["href"];
@@ -58,6 +65,8 @@ type AccountCopy = {
   returnForm: Messages["organisms"]["returnRequestForm"];
   fields: Messages["templates"]["auth"]["fields"];
   fieldErrors: Messages["templates"]["auth"]["errors"];
+  /** The receipt's words, for the order screen in a layout of the receipt's (T86). */
+  receipt: OrderConfirmationCopy;
 };
 
 /** The account's words from a whole catalog: its own and its organisms' and molecules'. */
@@ -82,6 +91,7 @@ function accountCopy(messages: Messages): AccountCopy {
     returnForm: organisms.returnRequestForm,
     fields: templates.auth.fields,
     fieldErrors: templates.auth.errors,
+    receipt: orderConfirmationCopy(messages),
   };
 }
 
@@ -430,26 +440,60 @@ function OrderScreen({
   const words = copy.page.order;
   const { order } = screen;
   const part = "flex min-w-0 flex-col gap-2 text-sm leading-snug";
+  const header = (
+    <header className="flex min-w-0 flex-col gap-1">
+      <h1 className={titleClass}>
+        {formatMessage(words.title, { number: String(order.displayId) }, locale)}
+      </h1>
+      <p data-slot="account-order-placed" className="text-muted-foreground">
+        {formatMessage(
+          words.placed,
+          {
+            date: formatDate(order.placedAt, locale, {
+              dateStyle: "long",
+              timeStyle: "short",
+              timeZone,
+            }),
+          },
+          locale,
+        )}
+      </p>
+    </header>
+  );
+  const actions = (
+    <div className="flex min-w-0 flex-wrap items-center gap-x-6 gap-y-3">
+      {screen.returnHref === undefined ? null : (
+        <NextLink
+          href={screen.returnHref as LinkHref}
+          prefetch={prefetch}
+          data-slot="account-order-return"
+          className={cn(buttonVariants({ variant: "outline" }), "max-w-full")}
+        >
+          {words.return}
+        </NextLink>
+      )}
+      {link(screen.backHref, words.back, "account-back", "text-sm")}
+    </div>
+  );
+  // T86: a layout of the receipt's other than M3's draws the receipt's member, with this screen's
+  // heading and ways on in place of the thanks and the way back to the shop.
+  if (screen.variant !== undefined && screen.variant !== "default")
+    return (
+      <OrderConfirmationTemplate
+        variant={screen.variant}
+        order={order}
+        summary={screen.summary}
+        continueHref={screen.backHref}
+        copy={copy.receipt}
+        locale={locale}
+        timeZone={timeZone}
+        prefetch={prefetch}
+        account={{ header, actions }}
+      />
+    );
   return (
     <>
-      <header className="flex min-w-0 flex-col gap-1">
-        <h1 className={titleClass}>
-          {formatMessage(words.title, { number: String(order.displayId) }, locale)}
-        </h1>
-        <p data-slot="account-order-placed" className="text-muted-foreground">
-          {formatMessage(
-            words.placed,
-            {
-              date: formatDate(order.placedAt, locale, {
-                dateStyle: "long",
-                timeStyle: "short",
-                timeZone,
-              }),
-            },
-            locale,
-          )}
-        </p>
-      </header>
+      {header}
       <div className="grid min-w-0 gap-6 sm:grid-cols-3">
         <section data-slot="account-order-shipping" className={part}>
           <h2 className={partHeading}>{words.shipping}</h2>
@@ -496,19 +540,7 @@ function OrderScreen({
         locale={locale}
         defaultOpen
       />
-      <div className="flex min-w-0 flex-wrap items-center gap-x-6 gap-y-3">
-        {screen.returnHref === undefined ? null : (
-          <NextLink
-            href={screen.returnHref as LinkHref}
-            prefetch={prefetch}
-            data-slot="account-order-return"
-            className={cn(buttonVariants({ variant: "outline" }), "max-w-full")}
-          >
-            {words.return}
-          </NextLink>
-        )}
-        {link(screen.backHref, words.back, "account-back", "text-sm")}
-      </div>
+      {actions}
     </>
   );
 }
