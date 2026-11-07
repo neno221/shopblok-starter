@@ -4,6 +4,7 @@
 // M4's, is the first). A value the family does not have draws the first (`pickVariant`).
 import { pickVariant, type Members } from "@shopblok/ui/lib/variant";
 import type * as React from "react";
+import { CollectionSpotlightStacked } from "./collection-spotlight/stacked";
 import {
   CollectionSpotlightStandard,
   type CollectionSpotlightSectionProps,
@@ -14,6 +15,7 @@ const MEMBERS: Members<
   (props: CollectionSpotlightSectionProps) => React.ReactNode
 > = {
   standard: CollectionSpotlightStandard,
+  stacked: CollectionSpotlightStacked,
 };
 
 function CollectionSpotlightSection(props: CollectionSpotlightSectionProps) {

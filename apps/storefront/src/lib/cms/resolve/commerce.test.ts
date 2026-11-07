@@ -10,6 +10,7 @@ import {
 } from "../../../test-support/fake-catalog";
 import type { CommerceContext } from "./commerce";
 import { resolveLayout, type LayoutBlock } from "./sections";
+import { tabVersion } from "./tabs";
 
 // The commerce blocks resolved for a market (T64): their sources through a fake data layer, their
 // view models parsed by the contracts, and left out when they cannot be drawn.
@@ -20,6 +21,7 @@ const us = findMarket(seeded, "en-us")!;
 function commerce(market: FakeMarket = unitedStates) {
   const catalog = fakeCatalog(market);
   const context: CommerceContext = {
+    market: "us",
     reads: catalog.reads,
     hrefs: {
       product: (handle) => `/us/products/${handle}`,
@@ -372,6 +374,152 @@ describe("the commerce blocks (T64)", () => {
         expect(section?.variant, variant).toBe(variant);
         expect(section?.pick, variant).toBeUndefined();
       }
+    });
+  });
+
+  describe("the catalog blocks' members (T81)", () => {
+    const picture = {
+      url: "/api/media/file/look.webp",
+      width: 1200,
+      height: 1600,
+      alt: "The look",
+    };
+    const tabbed = {
+      blockType: "productCollection",
+      variant: "tabs",
+      heading: "Shop the edit",
+      tabs: [
+        {
+          label: "Basics",
+          productSource: { mode: "collection", collection: synced("col_basics") },
+        },
+        { label: "On sale", productSource: { mode: "onSale" } },
+        // Sold in Cyprus only.
+        {
+          label: "Lamps",
+          productSource: { mode: "handpicked", products: [synced("prod_lamp")] },
+        },
+      ],
+    };
+    async function collection(
+      block: Record<string, unknown>,
+      { market, document }: { market?: FakeMarket; document?: { id: number } } = {},
+    ) {
+      const { context } = commerce(market);
+      const [resolved] = await resolveLayout(
+        [{ id: "b1", variant: "standard", ...block } as unknown as LayoutBlock],
+        { market: us, map: seeded, commerce: context, document },
+      );
+      return resolved?.blockType === "productCollection" ? resolved.section : undefined;
+    }
+
+    /** The endpoint of stored tab `index`, with its fingerprint. */
+    const at = (place: number, index = place) =>
+      `/next/block-tab?market=us&doc=7&block=b1&tab=${place}&v=${tabVersion(tabbed.tabs[index] ?? {})}`;
+
+    it("tabs: the first tab's products in the page, the others by their stored place, those the market does not sell left out", async () => {
+      const section = await collection(tabbed, { document: { id: 7 } });
+      expect(section?.variant).toBe("tabs");
+      expect(section?.products.map((p) => p.id)).toEqual(["prod_hoodie"]);
+      expect(section?.tabs).toEqual([
+        { label: "Basics", href: "/us/collections/everyday-basics" },
+        {
+          label: "On sale",
+          href: "/us/store?sale=1",
+          endpoint: at(1),
+        },
+      ]);
+      const cy = await collection(tabbed, { market: cyprus, document: { id: 7 } });
+      expect(cy?.tabs?.map((tab) => [tab.label, tab.endpoint])).toEqual([
+        ["Basics", undefined],
+        ["On sale", at(1)],
+        ["Lamps", at(2)],
+      ]);
+      // A tab left out keeps the others' places: the route reads the stored tab by its place. A tab
+      // moved keeps its fingerprint, so a reorder is a new URL for the tabs that moved.
+      const gone = await collection(
+        { ...tabbed, tabs: [tabbed.tabs[2], ...tabbed.tabs] },
+        { document: { id: 7 } },
+      );
+      expect(gone?.tabs?.map((tab) => tab.endpoint)).toEqual([undefined, at(2, 1)]);
+    });
+
+    it("tabs: without a published document (Draft Mode), every tab with its products", async () => {
+      const section = await collection(tabbed);
+      expect(section?.tabs?.[1]).toEqual({
+        label: "On sale",
+        href: "/us/store?sale=1",
+        products: [expect.objectContaining({ id: "prod_tee" })],
+      });
+      expect(section?.tabs?.[1]?.endpoint).toBeUndefined();
+    });
+
+    it("tabs: one tab left is the products alone, none left leaves the block out", async () => {
+      const one = await collection({ ...tabbed, tabs: [tabbed.tabs[0], tabbed.tabs[2]] });
+      expect(one?.tabs).toEqual([{ label: "Basics", href: "/us/collections/everyday-basics" }]);
+      expect(await collection({ ...tabbed, tabs: [tabbed.tabs[2]] })).toBeUndefined();
+      expect(await collection({ ...tabbed, tabs: [] })).toBeUndefined();
+      // The block's own source is not the tabs' fallback.
+      expect(
+        await collection({ ...tabbed, tabs: [tabbed.tabs[2]], productSource: { mode: "newest" } }),
+      ).toBeUndefined();
+    });
+
+    it("the other designs read the block's source and take no tab, even one stored", async () => {
+      const section = await collection({
+        ...tabbed,
+        variant: "ranked",
+        productSource: { mode: "newest" },
+      });
+      expect(section?.variant).toBe("ranked");
+      expect(section?.tabs).toBeUndefined();
+      expect(section?.products.map((p) => p.id)).toEqual([
+        "prod_hoodie",
+        "prod_tee",
+        "prod_cap",
+        "prod_mug",
+      ]);
+    });
+
+    it("with-banner and lookbook: the picture, and left out without one; the others take none", async () => {
+      const block = {
+        blockType: "productCollection",
+        heading: "The look",
+        productSource: { mode: "newest" },
+        media: picture,
+      };
+      for (const variant of ["with-banner", "lookbook"]) {
+        expect((await collection({ ...block, variant }))?.image?.src, variant).toBe(
+          "/api/media/file/look.webp",
+        );
+        expect(await collection({ ...block, variant, media: null }), variant).toBeUndefined();
+      }
+      for (const variant of ["standard", "featured-first", "compact"]) {
+        const section = await collection({ ...block, variant });
+        expect(section?.variant, variant).toBe(variant);
+        expect(section?.image, variant).toBeUndefined();
+      }
+    });
+
+    it("featuredProduct gallery: the editor's picture, then the product's, each once", async () => {
+      const featured = async (block: Record<string, unknown>) => {
+        const resolved = await resolve({
+          blockType: "featuredProduct",
+          product: synced("prod_hoodie"),
+          ...block,
+        });
+        return resolved?.blockType === "featuredProduct" ? resolved.section : undefined;
+      };
+      const own = await featured({ variant: "gallery", media: picture });
+      expect(own?.gallery?.map((image) => image.src)).toEqual([
+        "/api/media/file/look.webp",
+        "https://cdn.example/hoodie.jpg",
+      ]);
+      const product = await featured({ variant: "gallery" });
+      expect(product?.gallery?.map((image) => image.src)).toEqual([
+        "https://cdn.example/hoodie.jpg",
+      ]);
+      expect((await featured({ variant: "overlay" }))?.gallery).toBeUndefined();
     });
   });
 

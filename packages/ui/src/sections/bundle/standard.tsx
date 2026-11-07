@@ -11,7 +11,7 @@ import { SectionFrame, SectionHeading } from "@shopblok/ui/sections/section-fram
 import { PlusIcon } from "lucide-react";
 
 type BundleSectionProps = BundleSectionData & {
-  copy: Pick<SectionsCopy, "products">;
+  copy: Pick<SectionsCopy, "products" | "bundle">;
   /** A BCP 47 tag such as `el-CY`: the market's `<html lang>`. */
   locale: string;
   /** next/link's `prefetch`; the design system passes `false`. */

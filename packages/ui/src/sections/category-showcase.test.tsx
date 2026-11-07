@@ -11,7 +11,7 @@ describe("CategoryShowcaseSection", () => {
     (locale) => {
       const { section } = sectionFixtures[locale].categoryShowcase;
       const { container } = render(
-        <CategoryShowcaseSection {...section} copy={sectionsCopy(catalogs[locale])} />,
+        <CategoryShowcaseSection {...section} copy={sectionsCopy(catalogs[locale])} locale="en" />,
       );
       expect(screen.getByRole("heading", { level: 2, name: section.heading })).toBeTruthy();
       expect(container.textContent).toContain(section.intro);
@@ -32,7 +32,7 @@ describe("CategoryShowcaseSection", () => {
 
   it("draws an editor's label instead of the category's name", () => {
     const { edited } = sectionFixtures.en.categoryShowcase;
-    render(<CategoryShowcaseSection {...edited} copy={sectionsCopy(catalogs.en)} />);
+    render(<CategoryShowcaseSection {...edited} copy={sectionsCopy(catalogs.en)} locale="en" />);
     expect(screen.getByRole("link", { name: edited.tiles[2]?.label })).toBeTruthy();
   });
 });

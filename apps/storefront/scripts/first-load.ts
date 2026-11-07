@@ -108,6 +108,12 @@ export const keptOut: readonly KeptOut[] = [
     label: "the collection switcher hero's tabs (T80)",
   },
   {
+    // T81: the `tabs` product collection's tabs, loaded by its island's `next/dynamic`.
+    module: "../../packages/ui/src/sections/product-collection/tabs-panels.tsx",
+    marker: "shopblok:product-collection-tabs",
+    label: "the tabs product collection's tabs (T81)",
+  },
+  {
     // T82: the promo banner's popup card, loaded by its island's `next/dynamic`.
     module: "src/components/cms/promo-popup-card.tsx",
     marker: "shopblok:promo-popup-card",

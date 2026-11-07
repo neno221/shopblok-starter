@@ -134,6 +134,7 @@ export async function RenderBlocks({
                 key={block.key}
                 {...block.section}
                 copy={copy}
+                locale={locale}
                 prefetch={prefetch}
               />
             );

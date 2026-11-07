@@ -61,6 +61,13 @@ export type ResolveContext = {
    * out (a read with no page around it, such as a test page's).
    */
   posts?: PostsContext;
+  /**
+   * The published document that holds the blocks (T81): a page, by its id. The `tabs` product
+   * collection's other tabs are fetched from `/next/block-tab`, which reads this document's
+   * published version; without it (Draft Mode, a read with no document) their products come with
+   * the page instead.
+   */
+  document?: { id: number };
 };
 
 /** A block resolved for its section; `key` is the block's id, for React's list. */
