@@ -11,7 +11,7 @@ type Option = { value: string; label: string; index: number };
  * The time zone of a market (W6 item 6): a combobox to type into, since the IANA list has about
  * 400 zones. The country's own zones come first (`Europe/Vienna` for Austria), then every other
  * zone; typing filters both (`vienna`, `new york`). `""` is "not set", offered while nothing is
- * typed. @medusajs/ui 4.2.6 has no combobox, so this is the WAI-ARIA one ("list autocomplete"):
+ * typed. @medusajs/ui 4.2.11 (like 4.2.6) has no combobox, so this is the WAI-ARIA one ("list autocomplete"):
  * the focus stays in the input, the arrow keys move the active option, Enter picks it, Escape
  * closes the list and only the list, so the drawer around it stays open (the window listener below).
  */

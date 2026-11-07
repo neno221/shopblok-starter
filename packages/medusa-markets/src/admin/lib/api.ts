@@ -44,7 +44,7 @@ export const useSaveCountry = (code: string) => {
 };
 
 /**
- * The dashboard's own store query (`["store", "detail"]` in @medusajs/dashboard 2.21.2) feeds
+ * The dashboard's own store query (`["store", "detail"]` in @medusajs/dashboard 2.21.2 and 2.22.4) feeds
  * Medusa's General section and the widget's `store` prop. Its key starts with this.
  */
 const DASHBOARD_STORE_KEY = ["store"] as const;

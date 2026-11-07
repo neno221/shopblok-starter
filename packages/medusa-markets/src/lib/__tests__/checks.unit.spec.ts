@@ -95,7 +95,7 @@ describe("planCountrySave", () => {
     ]);
   });
 
-  it("refuses a language outside Payload's 42, a bad code and a duplicate", () => {
+  it("refuses a language outside Payload's 43, a bad code and a duplicate", () => {
     const state = seededState({ storeLocales: ["en-US", "is-IS", "de-DE"] });
     const plan = planCountrySave(state, { code: "at", languages: ["is", "DE!", "de", "de"] });
     expect(codes(plan.problems)).toEqual([

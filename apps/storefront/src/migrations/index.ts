@@ -14,6 +14,7 @@ import * as migration_20261029_104144_catalog_content from './20261029_104144_ca
 import * as migration_20261029_130958_posts from './20261029_130958_posts';
 import * as migration_20261029_142450_seo_redirects from './20261029_142450_seo_redirects';
 import * as migration_20261031_021246_drop_markets_global from './20261031_021246_drop_markets_global';
+import * as migration_20261106_122518_add_persian from './20261106_122518_add_persian';
 
 export const migrations = [
   {
@@ -94,6 +95,11 @@ export const migrations = [
   {
     up: migration_20261031_021246_drop_markets_global.up,
     down: migration_20261031_021246_drop_markets_global.down,
-    name: '20261031_021246_drop_markets_global'
+    name: '20261031_021246_drop_markets_global',
+  },
+  {
+    up: migration_20261106_122518_add_persian.up,
+    down: migration_20261106_122518_add_persian.down,
+    name: '20261106_122518_add_persian'
   },
 ];

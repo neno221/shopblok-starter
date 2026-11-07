@@ -77,7 +77,7 @@ describe("LOCALES", () => {
     expect(LOCALES.map((locale) => locale.code)).toEqual([...LANGUAGES]);
   });
 
-  it("labels each language in itself, and marks Arabic and Hebrew right-to-left", () => {
+  it("labels each language in itself, and marks Arabic, Persian and Hebrew right-to-left", () => {
     const byCode = Object.fromEntries(LOCALES.map((locale) => [locale.code, locale]));
     expect(byCode["en"]?.label).toBe("English");
     expect(byCode["el"]?.label).toBe("Ελληνικά");
@@ -85,6 +85,7 @@ describe("LOCALES", () => {
     expect(LOCALES.filter((locale) => locale.rtl).map((locale) => locale.code)).toEqual([
       "ar",
       "he",
+      "fa",
     ]);
   });
 });

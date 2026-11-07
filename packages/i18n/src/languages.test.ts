@@ -16,8 +16,8 @@ describe("languages.json", () => {
     expect(json).toEqual([...LANGUAGES]);
   });
 
-  it("holds 42 languages, English first, with no duplicate", () => {
-    expect(LANGUAGES).toHaveLength(42);
+  it("holds 43 languages, English first, with no duplicate", () => {
+    expect(LANGUAGES).toHaveLength(43);
     expect(new Set(LANGUAGES).size).toBe(LANGUAGES.length);
     expect(DEFAULT_LOCALE).toBe("en");
     expect(LANGUAGES[0]).toBe(DEFAULT_LOCALE);

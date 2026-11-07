@@ -9,7 +9,7 @@ import {
 } from "./support/markets-admin";
 
 // S3 (ADR 0003, M4b D95): the admin's locale selector follows Medusa's market map. Payload preloads
-// 42 languages; `filterAvailableLocales` (src/payload/filter-available-locales.ts) offers the admin
+// 43 languages; `filterAvailableLocales` (src/payload/filter-available-locales.ts) offers the admin
 // the languages of the open countries and English. It filters the selector only, so the REST API
 // still answers for a language that is switched off (L8), and the storefront has to enforce its
 // markets itself.

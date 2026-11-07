@@ -8,7 +8,7 @@ import type { Locale } from "payload";
 export { DEFAULT_LOCALE, EU_LANGUAGES, EXTRA_LANGUAGES, LANGUAGES } from "@shopblok/i18n/languages";
 
 /** Right-to-left languages among `LANGUAGES`. */
-const RTL_LANGUAGES: ReadonlySet<string> = new Set(["ar", "he"]);
+const RTL_LANGUAGES: ReadonlySet<string> = new Set(["ar", "fa", "he"]);
 
 /** The language's name in itself ("Ελληνικά", "Deutsch"), from the runtime's ICU data. */
 export function languageLabel(code: string): string {

@@ -8,9 +8,9 @@ describe("MEDUSA_LOCALES", () => {
     expect([...MEDUSA_LOCALES]).toEqual(medusaLocaleCodes());
   });
 
-  it("has 51 locales, each written language-REGION", () => {
-    expect(MEDUSA_LOCALES).toHaveLength(51);
-    expect(new Set(MEDUSA_LOCALES).size).toBe(51);
+  it("has 52 locales, each written language-REGION", () => {
+    expect(MEDUSA_LOCALES).toHaveLength(52);
+    expect(new Set(MEDUSA_LOCALES).size).toBe(52);
     for (const code of MEDUSA_LOCALES) expect(code).toMatch(/^[a-z]{2}-[A-Z]{2}$/);
   });
 });
