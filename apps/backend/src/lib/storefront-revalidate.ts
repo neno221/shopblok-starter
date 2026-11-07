@@ -18,10 +18,19 @@ import { ContainerRegistrationKeys } from "@medusajs/framework/utils";
 export type Expire = 0 | "max";
 export type Batch = { tags: string[]; expire: Expire };
 
+/**
+ * The most tags one POST may carry: the storefront's `/api/revalidate` refuses more with a 400
+ * (`MAX_TAGS` in `apps/storefront/src/lib/revalidate/revalidate.ts`). A sale on hundreds of
+ * products is the usual case, so `batchesFor` splits every batch at this size (PR 115 review).
+ */
+export const MAX_TAGS_PER_BATCH = 100;
+
 /** What each event refreshes, given the handles of the products or the groups it names. */
 type Rule = {
   /** The entity whose handle the tags need, read by id, or none. */
   handlesOf?: HandleSource;
+  /** Where the event's data holds those ids: `id` (the default) or a price list's `price_set_ids`. */
+  idsIn?: "id" | "price_set_ids";
   batches: (handles: string[]) => Batch[];
 };
 
@@ -33,7 +42,9 @@ type HandleSource =
   | "product_tag"
   | "inventory_level"
   | "product_category"
-  | "product_collection";
+  | "product_collection"
+  | "price_set"
+  | "price_list";
 
 const productTags = (handles: string[]) => handles.map((handle) => `product:${handle}`);
 
@@ -44,7 +55,11 @@ const CONTENT: Rule["batches"] = (handles) => [
   },
 ];
 
-/** A variant carries the prices: its product's page now, the rest stale-while-revalidate. */
+/**
+ * A variant carries the prices, and a price list's prices are its variants': the products' pages
+ * now, the rest stale-while-revalidate. With no handle (a deleted list whose prices could not be
+ * read) only the second half goes, the list-wide rule of a `*.deleted` event.
+ */
 const PRICES: Rule["batches"] = (handles) => [
   { tags: ["medusa:products", "search"], expire: "max" },
   ...(handles.length > 0 ? [{ tags: productTags(handles), expire: 0 as const }] : []),
@@ -106,8 +121,15 @@ const MARKETS: Rule["batches"] = () => [{ tags: ["medusa:markets"], expire: 0 }]
 /**
  * The event-to-tags table. A `*.deleted` event's entity can no longer be read by id (a product's
  * or a group's), so its list tag stands in for the handle; a deleted variant's product is still
- * there (read `withDeleted`). Price lists emit nothing (D58): `jobs/revalidate-catalog.ts` covers
- * them every ten minutes.
+ * there (read `withDeleted`).
+ *
+ * Price lists emit since Medusa 2.22 (#17067, D112): `prices_added`, `prices_updated` and
+ * `prices_removed` carry `{ id, price_set_ids }` (a removed price is soft-deleted, and its set
+ * still links its variant), `created` and `updated` only the list's `{ id }`, whose prices name the
+ * sets. `deleted` is emitted after the list and its prices are soft-deleted: only then are the
+ * prices read `withDeleted`, and if none is left the list-wide half of `PRICES` goes alone. A sale
+ * reaching its `starts_at` or `ends_at` emits nothing, so `jobs/revalidate-catalog.ts` still
+ * refreshes every ten minutes.
  */
 export const RULES: Record<string, Rule> = {
   "product.created": { batches: CONTENT },
@@ -116,6 +138,24 @@ export const RULES: Record<string, Rule> = {
   "product-variant.created": { handlesOf: "product_variant", batches: PRICES },
   "product-variant.updated": { handlesOf: "product_variant", batches: PRICES },
   "product-variant.deleted": { handlesOf: "product_variant", batches: PRICES },
+  "price-list.created": { handlesOf: "price_list", batches: PRICES },
+  "price-list.updated": { handlesOf: "price_list", batches: PRICES },
+  "price-list.deleted": { handlesOf: "price_list", batches: PRICES },
+  "price-list.prices_added": {
+    handlesOf: "price_set",
+    idsIn: "price_set_ids",
+    batches: PRICES,
+  },
+  "price-list.prices_updated": {
+    handlesOf: "price_set",
+    idsIn: "price_set_ids",
+    batches: PRICES,
+  },
+  "price-list.prices_removed": {
+    handlesOf: "price_set",
+    idsIn: "price_set_ids",
+    batches: PRICES,
+  },
   // An option can be shared by many products since 2.16; the search index follows the same events
   // (`search/product.ts`). A sales channel's deletion unlinks its products, so none can be read.
   "product-option.created": { handlesOf: "product_option", batches: CONTENT },
@@ -152,19 +192,35 @@ export const RULES: Record<string, Rule> = {
 
 export const REVALIDATE_EVENTS = Object.keys(RULES);
 
-/** The batches for one event, `0` last so it wins over a `"max"` on the same entry. */
+/**
+ * The batches for one event, `0` last so it wins over a `"max"` on the same entry, each at most
+ * `MAX_TAGS_PER_BATCH` tags.
+ */
 export function batchesFor(event: string, handles: string[]): Batch[] {
   const rule = RULES[event];
   if (rule === undefined) return [];
   const unique = [...new Set(handles)].sort();
-  return rule.batches(unique).sort((a, b) => (a.expire === b.expire ? 0 : a.expire === 0 ? 1 : -1));
+  return rule
+    .batches(unique)
+    .sort((a, b) => (a.expire === b.expire ? 0 : a.expire === 0 ? 1 : -1))
+    .flatMap(({ tags, expire }) =>
+      Array.from({ length: Math.ceil(tags.length / MAX_TAGS_PER_BATCH) }, (_, i) => ({
+        tags: tags.slice(i * MAX_TAGS_PER_BATCH, (i + 1) * MAX_TAGS_PER_BATCH),
+        expire,
+      })),
+    );
 }
 
 const handlesOf = (products: { handle?: unknown }[] | null | undefined) =>
   (products ?? []).map((product) => product?.handle);
 
-/** What `query.graph` returns for each entity, and where the handle sits in it. */
-const HANDLE_FIELDS: Record<HandleSource, { field: string; pick: (row: any) => unknown[] }> = {
+/**
+ * What `query.graph` reads for each entity (`entity` and the ids' `key` when they differ from the
+ * source and `id`), and where the handle sits in it.
+ */
+type HandleRead = { entity?: string; key?: string; field: string; pick: (row: any) => unknown[] };
+
+const HANDLE_FIELDS: Record<Exclude<HandleSource, "price_list">, HandleRead> = {
   product: { field: "handle", pick: (row) => [row.handle] },
   product_variant: {
     field: "product.handle",
@@ -185,26 +241,55 @@ const HANDLE_FIELDS: Record<HandleSource, { field: string; pick: (row: any) => u
   },
   product_category: { field: "handle", pick: (row) => [row.handle] },
   product_collection: { field: "handle", pick: (row) => [row.handle] },
+  // A price set's variant is a link (`product_variant_price_set`), not a field of the set.
+  price_set: {
+    entity: "product_variant_price_set",
+    key: "price_set_id",
+    field: "variant.product.handle",
+    pick: (row) => [row.variant?.product?.handle],
+  },
 };
 
 type Query = {
   graph: (options: Record<string, unknown>) => Promise<{ data: unknown[] }>;
 };
 
+/** The ids the event names for its rule's handle read: its `id`, or the field the rule names. */
+export function idsFor(event: string, data: unknown): string[] {
+  const key = RULES[event]?.idsIn ?? "id";
+  const value = (data as Record<string, unknown> | null | undefined)?.[key];
+  return [value ?? []].flat().filter((id): id is string => typeof id === "string" && id !== "");
+}
+
+const strings = (values: unknown[]) =>
+  values.filter((value): value is string => typeof value === "string" && value !== "");
+
 /** The handles the event's ids lead to; a read that fails gives none (the list tags still go). */
 export async function handlesFor(query: Query, event: string, ids: string[]): Promise<string[]> {
-  const source = RULES[event]?.handlesOf;
+  let source = RULES[event]?.handlesOf;
   if (source === undefined || ids.length === 0) return [];
-  const { field, pick } = HANDLE_FIELDS[source];
+  if (source === "price_list") {
+    // A list's prices name its sets. A deleted list's prices are soft-deleted with it, so only
+    // then are deleted rows read: a price removed from a live list is soft-deleted too, and its
+    // product has left the sale (`prices_removed` expired it then).
+    const { data } = await query.graph({
+      entity: "price",
+      fields: ["price_set_id"],
+      filters: { price_list_id: ids },
+      withDeleted: event === "price-list.deleted",
+    });
+    ids = [...new Set(strings(data.map((row: any) => row?.price_set_id)))];
+    if (ids.length === 0) return [];
+    source = "price_set";
+  }
+  const { entity = source, key = "id", field, pick } = HANDLE_FIELDS[source];
   const { data } = await query.graph({
-    entity: source,
+    entity,
     fields: [field],
-    filters: { id: ids },
+    filters: { [key]: ids },
     withDeleted: true,
   });
-  return data
-    .flatMap((row) => pick(row))
-    .filter((handle): handle is string => typeof handle === "string" && handle !== "");
+  return strings(data.flatMap((row) => pick(row)));
 }
 
 export type Logger = {

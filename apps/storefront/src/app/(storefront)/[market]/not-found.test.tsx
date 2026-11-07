@@ -21,7 +21,7 @@ vi.mock("../../../components/shell/shell-data", async () => {
   };
 });
 
-import MarketNotFound from "./not-found";
+import MarketNotFound, { generateMetadata } from "./not-found";
 
 afterEach(() => {
   state.key = "";
@@ -52,4 +52,18 @@ it("is in English for a language with no catalog", async () => {
   const html = await render(mongolia, "mn-mn");
   expect(html).toContain(catalogs.en.templates.notFound.title);
   expect(html).toContain(catalogs.en.templates.notFound.body);
+});
+
+it("titles the tab with the heading in the market's language (W6's item 2, D112)", async () => {
+  state.map = seeded;
+  for (const [key, language] of [
+    ["en-us", "en"],
+    ["el-cy", "el"],
+    ["fr-ch", "fr"],
+  ] as const) {
+    state.key = key;
+    expect(await generateMetadata()).toEqual({
+      title: catalogs[language].templates.notFound.title,
+    });
+  }
 });

@@ -1,8 +1,8 @@
-# M5: T77 is merged; T79 and T88 are next
+# M5: T77 and T78 are merged; T79 and T88 are next
 
 **The M5 plan is ready:** [plans/M5.md](plans/M5.md), the section library (SPEC §17.1), in the "M5 plan" PR. **You approved its scope as planned on 2026-11-06** (the plan's §0, item 1): sixteen cloud tasks, T77 to T92, and the Windows check W7 at the end. Its decisions D99 to D113 are defaults that stand, as M3's and M4's did, and you can change any of them at any time. Five are worth a look first: **D100** (the 66 new designs and their names, listed in the plan's §1a: 40 for the blocks and 26 for the page templates, the quick view and the mini cart), **D109** (Playwright moves only to 1.64.1, which keeps the same browser, so M5's roughly 270 new pictures don't redraw the 488 there are), **D105** (a page can have its own layout per language), **D106** (publishing one language at a time, a beta feature of Payload's, kept only if six checks pass) and **D108** (Payload's admin in Medusa Admin's look; say "drop T90" to leave it out). **The two security releases** (§0, item 2), Next 16.4.5 and Payload 3.93.0, come with T77, as the default says; a small PR can still take them sooner if you ask.
 
-**Next:** T77 is merged (PR 114, SETUP.md "Versions and CI for M5 (T77)"): Next 16.4.5, Payload 3.93.0 and Playwright 1.64.1 on Medusa 2.22.4, and the DS checks and the baseline update in three shards. **T79 and T88 can start now, one session each, side by side** (their prompts are below); T78 runs in its own session if it is not merged yet. After T79 the plan's §4 gives the order: the seven variant tasks (T80 to T86) at most two at a time, T88 beside them, then T87, T89, T90, T91 and T92. Nothing waits on your PC until W7, and W7 runs only when you say so.
+**Next:** T77 is merged (PR 114, SETUP.md "Versions and CI for M5 (T77)"): Next 16.4.5, Payload 3.93.0 and Playwright 1.64.1 on Medusa 2.22.4, and the DS checks and the baseline update in three shards. **T79 and T88 can start now, one session each, side by side** (their prompts are below); **T78 is merged too** (the "T78: Leftovers from M4" PR, SETUP.md ["Leftovers from M4 (T78)"](SETUP.md#leftovers-from-m4-t78)): a price list's change now expires its products' pages at once (Medusa 2.22's six price-list events; the ten-minute job stays for a sale's start and end), CompareTray's notes point to M8, the Video section's caption tracks are keyed by language and file, and a missing page's tab title is "Page not found | Shopblok" in the market's language. After T79 the plan's §4 gives the order: the seven variant tasks (T80 to T86) at most two at a time, T88 beside them, then T87, T89, T90, T91 and T92. Nothing waits on your PC until W7, and W7 runs only when you say so.
 
 Every M5 task runs the same way (D113, as D88 in M4): a cloud session in the `shopblok-starter` environment, on `main`; a PR; a code review of it in a separate thread, with its findings in `reviews/pr-N-code-review.md` in the project's files; the session fixes them and merges with a merge commit once CI is green. A task that adds DS entries dispatches `update-baselines` on its branch, prints the PNGs and bytes it added, stops and asks past D51's lines, and starts CI again by hand before merging. A task that changes Payload's schema creates its migration last, on a branch rebased on `main`, and creates it again if another schema task merged first.
 
@@ -10,7 +10,9 @@ Every M5 task runs the same way (D113, as D88 in M4): a cloud session in the `sh
 
 Merged as PR 114; the results are in SETUP.md, "Versions and CI for M5 (T77)".
 
-## T78 · Leftovers (in a cloud session)
+## T78 · Leftovers (done)
+
+Merged as PR 115; the results are in SETUP.md, "Leftovers from M4 (T78)".
 
 Start a cloud session in the `shopblok-starter` environment, on `main`, and paste:
 

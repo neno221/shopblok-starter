@@ -5,7 +5,7 @@
 // the box (fixed to the bottom, on the overlay layer, clear of the home indicator), the 44 px
 // buttons, a long German and Greek title, the prefetch every link takes, and the file's classes.
 // - The page owns the products, so most tests render the tray inside `Page`, which keeps them in
-//   state and removes one when `onRemove` says so, as the page's island will (M5).
+//   state and removes one when `onRemove` says so, as the page's island will (M8).
 // - Pixels are not measurable here: the tray's height and wrapping at 375, 768 and 1440 px in
 //   English, German and Greek were measured in headless Chromium, and the design system's own
 //   browser checks (axe, 44 px targets, no sideways scroll) are the lead's.

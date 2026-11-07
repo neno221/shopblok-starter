@@ -152,7 +152,25 @@ test.describe("the internal key is not public: 404 from global-not-found", () =>
       catalogs.el.templates.notFound.title,
     );
     await expect(page.locator('[data-slot="not-found-home"]')).toHaveAttribute("href", "/");
+    // T78 (W6's item 2): the tab says so too, in the site's title template, not the store's name.
+    await expect(page).toHaveTitle(`${catalogs.el.templates.notFound.title} | Shopblok`);
   });
+
+  // T78: a page whose metadata calls `notFound()` too gets the not-found file's title.
+  for (const path of [
+    "/us/products/does-not-exist",
+    "/us/categories/does-not-exist",
+    "/us/collections/does-not-exist",
+    "/us/journal/does-not-exist",
+    "/us/journal/page/99",
+  ]) {
+    test(`${path}'s tab title is the 404's, in the market's language (T78)`, async ({ page }) => {
+      const response = await page.goto(path);
+      expect(response?.status()).toBe(404);
+      await expect(page.locator("html")).toHaveAttribute("lang", "en-US");
+      await expect(page).toHaveTitle(`${catalogs.en.templates.notFound.title} | Shopblok`);
+    });
+  }
 });
 
 test.describe("the map route the proxy reads", () => {
