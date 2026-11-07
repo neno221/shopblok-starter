@@ -7,7 +7,7 @@ import {
   type ResolveContext,
   type ResolvedBlock,
 } from "../../lib/cms/resolve/sections";
-import { RecentlyViewedBlock } from "./lazy-islands";
+import { RecentlyViewedBlock } from "./lazy-page-islands";
 import { BlocksFaqJsonLd, blockEnv, sectionBlock } from "./section-blocks";
 
 type RenderBlocksProps = {

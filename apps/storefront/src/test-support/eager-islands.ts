@@ -1,7 +1,7 @@
 import { vi } from "vitest";
 
 // T87 (D102): the blocks' islands load through `next/dynamic` once they render in a browser
-// (`components/cms/lazy-islands.tsx`, and `@shopblok/ui`'s `*-island.tsx` loaders), which a test's
+// (`components/cms/lazy-islands.tsx` and `lazy-page-islands.tsx`, and `@shopblok/ui`'s `*-island.tsx` loaders), which a test's
 // render would not wait for, and which `renderToStaticMarkup` cannot render at all. Tests draw the
 // modules themselves in their place; the loaders are checked by the build (`first-load.ts`'
 // `keptOut`) and by the e2e suites.
@@ -10,8 +10,11 @@ vi.mock("../components/cms/lazy-islands", async () => ({
   ...(await import("../components/cms/newsletter-section-island")),
   ...(await import("../components/cms/offer-end")),
   ...(await import("../components/cms/promo-popup")),
-  ...(await import("../components/cms/recently-viewed-block")),
 }));
+vi.mock(
+  "../components/cms/lazy-page-islands",
+  () => import("../components/cms/recently-viewed-block"),
+);
 vi.mock(
   "@shopblok/ui/molecules/countdown-clock-island",
   () => import("@shopblok/ui/molecules/countdown-clock"),
