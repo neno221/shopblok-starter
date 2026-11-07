@@ -1,5 +1,9 @@
-import type { TextFieldSingleValidation } from "payload";
-import { text } from "payload/shared";
+import type {
+  DateFieldValidation,
+  TextFieldSingleValidation,
+  UploadFieldSingleValidation,
+} from "payload";
+import { date, text, upload } from "payload/shared";
 import { CATALOG_COLLECTIONS } from "../../lib/cms/paths";
 import { link } from "../fields/link";
 import { imageField, sectionBlock } from "./section-block";
@@ -7,9 +11,37 @@ import { imageField, sectionBlock } from "./section-block";
 /** A promotion code as Medusa takes one at the cart: letters, digits, `-` and `_`, 40 at most. */
 export const PROMO_CODE_PATTERN = /^[A-Za-z0-9_-]{1,40}$/;
 
+/** The design the field's block is in (`siblingData`: the block's own fields). */
+const designOf = (args: { siblingData?: unknown }) =>
+  String((args.siblingData as { variant?: unknown } | undefined)?.variant);
+
+/**
+ * The picture, required for the `full-bleed` design (T82), which draws the offer on it: Payload's
+ * own check first, then the design's need. The section's contract refuses the same block
+ * (`variantNeeds`), so a block saved before this check is left out of the page.
+ */
+const validateMedia: UploadFieldSingleValidation = async (value, args) => {
+  const base = await upload(value, args);
+  if (base !== true) return base;
+  return value == null && designOf(args) === "full-bleed"
+    ? "This design draws the offer on the picture: choose one."
+    : true;
+};
+
+/** The end, required for the `countdown` design (T82), which counts down to it. */
+const validateEnd: DateFieldValidation = (value, args) => {
+  const base = date(value, args);
+  if (base !== true) return base;
+  return value == null && designOf(args) === "countdown"
+    ? "This design counts down to the offer's end: set one."
+    : true;
+};
+
 /**
  * `promoBanner` (SPEC §7.4, D79): an offer with a code to copy, its end and the small print. The
- * code is not checked against Medusa here: Medusa validates it at the cart.
+ * code is not checked against Medusa here: Medusa validates it at the cart. T82 (M5 plan §1a): the
+ * `full-bleed` design needs the picture and `countdown` the end; `popup` shows the offer once per
+ * visitor at the window's corner after the cookie choice (in its place without scripts).
  */
 export const PromoBannerBlock = sectionBlock({
   slug: "promoBanner",
@@ -40,12 +72,20 @@ export const PromoBannerBlock = sectionBlock({
     {
       name: "endsAt",
       type: "date",
+      validate: validateEnd,
       admin: {
         date: { pickerAppearance: "dayAndTime" },
-        description: "When the offer ends; after it, the banner is not shown.",
+        description:
+          "When the offer ends; after it, the banner is not shown. The Countdown design needs one.",
       },
     },
-    imageField("media"),
+    {
+      ...imageField("media", {
+        description:
+          "The Full bleed design needs one; the Strip, Ticket and Countdown designs show none.",
+      }),
+      validate: validateMedia,
+    },
     {
       name: "links",
       type: "array",

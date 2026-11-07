@@ -1,13 +1,18 @@
 // Ours (T79, SETUP.md "Variant plumbing (T79)"; D99). The `comparison` block's entry file: this
 // file is what `@shopblok/ui/sections/comparison` reaches, and it draws the member of the block's
-// `variant`, each in its own file in `./comparison/` (`standard.tsx`, M4's, is the first). A value
-// the family does not have draws the first (`pickVariant`).
+// `variant`, each in its own file in `./comparison/` (`standard.tsx`, M4's, is the first; T82 adds
+// `cards` and `highlight`, M5 plan §1a). A value the family does not have draws the first
+// (`pickVariant`).
 import { pickVariant, type Members } from "@shopblok/ui/lib/variant";
 import type * as React from "react";
+import { ComparisonCards } from "./comparison/cards";
+import { ComparisonHighlight } from "./comparison/highlight";
 import { ComparisonStandard, type ComparisonSectionProps } from "./comparison/standard";
 
 const MEMBERS: Members<"comparison", (props: ComparisonSectionProps) => React.ReactNode> = {
   standard: ComparisonStandard,
+  cards: ComparisonCards,
+  highlight: ComparisonHighlight,
 };
 
 function ComparisonSection(props: ComparisonSectionProps) {

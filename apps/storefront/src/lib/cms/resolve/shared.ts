@@ -1,4 +1,11 @@
-import { Href, type SectionLink, type SectionSettings } from "@shopblok/registry/contracts";
+import {
+  Href,
+  variantEnum,
+  type Family,
+  type SectionLink,
+  type SectionSettings,
+  type VariantOf,
+} from "@shopblok/registry/contracts";
 import type { z } from "zod";
 import { text } from "../../text";
 import { resolveLink, type LinkValue } from "../link";
@@ -70,4 +77,17 @@ export function parsed<T extends z.ZodType>(
 ): z.infer<T> | undefined {
   const result = contract.safeParse(candidate);
   return result.success ? result.data : undefined;
+}
+
+/**
+ * A block's stored variant when its family has it (T80, T82); `undefined` for none or another
+ * version's. A resolver parses it with the rest of the view model, so the contract refuses a member
+ * without what it needs (`variantNeeds`); `withVariant` passes the stored value on to the section.
+ */
+export function storedVariant<F extends Family>(
+  family: F,
+  value: unknown,
+): VariantOf<F> | undefined {
+  const parsed = variantEnum(family).safeParse(value);
+  return parsed.success ? parsed.data : undefined;
 }

@@ -711,8 +711,15 @@ export const el: Messages = {
       emptyAction: "Όλα τα προϊόντα",
     },
     featuredProduct: { view: "Δείτε το προϊόν" },
-    promoBanner: { ends: "Η προσφορά λήγει {date}" },
-    comparison: { price: "Τιμή", missing: "Δεν αναφέρεται" },
+    promoBanner: { ends: "Η προσφορά λήγει {date}", close: "Κλείσιμο" },
+    comparison: { price: "Τιμή", missing: "Δεν αναφέρεται", pick: "Η επιλογή μας" },
+    // T82: the testimonials carousel's buttons and the USP strip's name, as it scrolls on a phone.
+    testimonials: {
+      label: "Τι λένε οι πελάτες μας",
+      previous: "Προηγούμενες κριτικές",
+      next: "Επόμενες κριτικές",
+    },
+    uspBar: { label: "Οι δεσμεύσεις μας" },
     collectionSpotlight: { shop: "Δείτε τη συλλογή" },
     editorialList: { all: "Όλα τα άρθρα" },
     form: {

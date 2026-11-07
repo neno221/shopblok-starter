@@ -32,6 +32,7 @@ import { FormHoneypot } from "./form-honeypot";
 import { FormBlockIsland } from "./form-block-island";
 import { NewsletterSectionIsland } from "./newsletter-section-island";
 import { OfferEnd } from "./offer-end";
+import { PromoPopup } from "./promo-popup";
 import { RecentlyViewedBlock } from "./recently-viewed-block";
 import { CmsRichText } from "./rich-text";
 
@@ -96,7 +97,7 @@ export async function RenderBlocks({
               </MediaWithTextSection>
             );
           case "uspBar":
-            return <UspBarSection key={block.key} {...block.section} />;
+            return <UspBarSection key={block.key} {...block.section} copy={copy} />;
           case "logoCloud":
             return <LogoCloudSection key={block.key} {...block.section} copy={copy} />;
           case "faq":
@@ -169,6 +170,15 @@ export async function RenderBlocks({
                 locale={locale}
                 timeZone={timeZone}
                 prefetch={prefetch}
+                popup={({ body, labelledBy }) => (
+                  <PromoPopup
+                    offer={block.key}
+                    labelledBy={labelledBy}
+                    closeLabel={copy.promoBanner.close}
+                  >
+                    {body}
+                  </PromoPopup>
+                )}
               />
             );
             const { endsAt } = block.section;
