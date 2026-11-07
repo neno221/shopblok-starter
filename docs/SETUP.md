@@ -8525,7 +8525,7 @@ The dispatch (run [42397767579](https://github.com/neno221/shopblok-starter/acti
 |---|---|
 | Date | 2026-11-07 |
 | Branch | `claude/project-thread-jga2br`, from `main` at `19551f7` (T81 merged) |
-| PR | PR_NUMBER |
+| PR | [125](https://github.com/neno221/shopblok-starter/pull/125) |
 | Machine | The cloud VM: Node 22.23.4, pnpm 12.10.1, the compose stack, Medusa 2.22.4 (`medusa develop`) |
 
 ### What changed
