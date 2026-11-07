@@ -63,9 +63,7 @@ describe("resolvePicks (T85)", () => {
       "prod_tee",
     ]);
     expect(
-      ids(
-        (await picks({ mode: "collection", collection: synced("col_summer"), limit: 4 })).picks,
-      ),
+      ids((await picks({ mode: "collection", collection: synced("col_summer"), limit: 4 })).picks),
     ).toEqual(["prod_tee", "prod_cap"]);
     const handpicked = await picks(
       {
@@ -153,7 +151,10 @@ describe("toPick (T85)", () => {
   });
 
   it("is no pick when no variant can be bought, or none has a price", () => {
-    const sold = { ...product, variants: product.variants.map((v) => ({ ...v, available: false })) };
+    const sold = {
+      ...product,
+      variants: product.variants.map((v) => ({ ...v, available: false })),
+    };
     expect(toPick(sold, hrefs)).toBeNull();
     const unpriced = { ...product, variants: product.variants.map((v) => ({ ...v, price: null })) };
     expect(toPick(unpriced, hrefs)).toBeNull();
