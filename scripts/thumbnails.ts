@@ -13,7 +13,7 @@ const host = args.includes("--host");
 if (!host && process.env["PLAYWRIGHT_BROWSERS_PATH"] !== "/ms-playwright") {
   console.error(
     "pnpm thumbnails writes the committed thumbnails, which only Playwright's image makes (D51).\n" +
-      "Run it in mcr.microsoft.com/playwright:v1.64.0-noble (SETUP.md, 'Baselines and thumbnails (T40)'),\n" +
+      "Run it in mcr.microsoft.com/playwright:v1.64.1-noble (SETUP.md, 'Baselines and thumbnails (T40)'),\n" +
       "dispatch CI with update-baselines, or pass --host to write host pixels you will not commit.",
   );
   process.exit(1);

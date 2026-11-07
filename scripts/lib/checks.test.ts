@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import http from "node:http";
 import net from "node:net";
 import { afterEach, describe, expect, it } from "vitest";
@@ -31,6 +32,31 @@ describe("satisfies", () => {
     expect(satisfies("12.10.1", ">=12.10.1 <13")).toBe(true);
     expect(satisfies("12.10.0", ">=12.10.1 <13")).toBe(false);
     expect(satisfies("13.0.0", ">=12.10.1 <13")).toBe(false);
+  });
+
+  it("takes alternatives joined by ||, as the root's engines.node since T77", () => {
+    const node = ">=22.23.4 <23 || >=24.22.1 <25";
+    expect(satisfies("22.23.4", node)).toBe(true);
+    expect(satisfies("22.99.0", node)).toBe(true);
+    expect(satisfies("24.22.1", node)).toBe(true);
+    expect(satisfies("24.22.2", node)).toBe(true);
+    // Payload refuses 24.0 to 24.22.0 (PR 103 review, item 8), and 23 is no LTS.
+    expect(satisfies("22.23.3", node)).toBe(false);
+    expect(satisfies("23.0.0", node)).toBe(false);
+    expect(satisfies("23.5.0", node)).toBe(false);
+    expect(satisfies("24.0.0", node)).toBe(false);
+    expect(satisfies("24.22.0", node)).toBe(false);
+    expect(satisfies("25.0.0", node)).toBe(false);
+    // An empty alternative is a broken range, not "anything".
+    expect(satisfies("22.23.4", ">=22.23.4 ||")).toBe(false);
+    expect(satisfies("22.23.4", "|| >=22")).toBe(false);
+  });
+
+  it("accepts this machine's Node against the root package.json", () => {
+    const { engines } = JSON.parse(
+      readFileSync(new URL("../../package.json", import.meta.url), "utf8"),
+    ) as { engines: { node: string } };
+    expect(satisfies(process.versions.node, engines.node)).toBe(true);
   });
 
   it("knows each operator", () => {

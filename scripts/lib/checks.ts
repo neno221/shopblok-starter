@@ -32,14 +32,21 @@ function compare(a: Version, b: Version): number {
 }
 
 /**
- * Whether `version` meets `range`, for the one shape `package.json`'s `engines` uses here: space
- * separated comparators such as `>=22.22.0 <25`. A comparator without an operator means "equal".
- * An unreadable range or version is not satisfied.
+ * Whether `version` meets `range`, for the shapes `package.json`'s `engines` uses here: space
+ * separated comparators such as `>=22.22.0 <25`, and alternatives of them joined by `||` (T77:
+ * `>=22.23.4 <23 || >=24.22.1 <25`), met when any one alternative is. A comparator without an
+ * operator means "equal". An unreadable range or version, or an empty alternative, is not satisfied.
  */
 export function satisfies(version: string, range: string): boolean {
   const actual = parseVersion(version);
   if (!actual) return false;
-  const comparators = range.trim().split(/\s+/).filter(Boolean);
+  const alternatives = range.split("||").map((alternative) => alternative.trim());
+  if (alternatives.some((alternative) => alternative === "")) return false;
+  return alternatives.some((alternative) => meetsAll(actual, alternative));
+}
+
+function meetsAll(actual: Version, comparatorSet: string): boolean {
+  const comparators = comparatorSet.split(/\s+/).filter(Boolean);
   if (comparators.length === 0) return false;
 
   return comparators.every((comparator) => {
