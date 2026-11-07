@@ -4,6 +4,11 @@
 // the first). A value the family does not have draws the first (`pickVariant`).
 import { pickVariant, type Members } from "@shopblok/ui/lib/variant";
 import type * as React from "react";
+import { CategoryShowcaseBanner } from "./category-showcase/banner";
+import { CategoryShowcaseBento } from "./category-showcase/bento";
+import { CategoryShowcaseCarousel } from "./category-showcase/carousel";
+import { CategoryShowcaseCircles } from "./category-showcase/circles";
+import { CategoryShowcaseList } from "./category-showcase/list";
 import {
   CategoryShowcaseStandard,
   type CategoryShowcaseSectionProps,
@@ -14,6 +19,11 @@ const MEMBERS: Members<
   (props: CategoryShowcaseSectionProps) => React.ReactNode
 > = {
   standard: CategoryShowcaseStandard,
+  circles: CategoryShowcaseCircles,
+  bento: CategoryShowcaseBento,
+  carousel: CategoryShowcaseCarousel,
+  list: CategoryShowcaseList,
+  banner: CategoryShowcaseBanner,
 };
 
 function CategoryShowcaseSection(props: CategoryShowcaseSectionProps) {

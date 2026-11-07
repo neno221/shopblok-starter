@@ -63,6 +63,7 @@ export async function commerceContext(
 ): Promise<CommerceContext> {
   const words = messages.sections.productCollection;
   return {
+    market: context.market.key,
     reads: catalogReads(context),
     hrefs: context.hrefs,
     now: await renderTime(),

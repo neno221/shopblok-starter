@@ -143,4 +143,12 @@ export const interactions = {
     focus: "tabs",
     afterHydration: true,
   },
+  // T81: the tabs product collection's tabs, the browser's as the collection switcher's are (its
+  // island loads with next/dynamic, D102), so the server's render has the tabs' links and no tab.
+  "sections/product-collection-tabs": {
+    trigger: '[data-slot="product-collection-tab"]',
+    opens: '[data-slot="product-collection-panel"]',
+    focus: "tabs",
+    afterHydration: true,
+  },
 } as const satisfies Partial<Record<EntryId, DsInteraction>>;

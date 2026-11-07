@@ -19,7 +19,19 @@ export type CommerceSectionCopy = {
     collections: [string, string, string];
   };
   categoryShowcase: { heading: string; intro: string; link: string; label: string };
-  productCollection: { heading: string; intro: string; link: string; gridHeading: string };
+  productCollection: {
+    heading: string;
+    intro: string;
+    link: string;
+    gridHeading: string;
+    /** T81: the `tabs` member's heading and three tabs, `ranked`'s heading, the pictures' words. */
+    tabsHeading: string;
+    tabs: [string, string, string];
+    rankedHeading: string;
+    bannerAlt: string;
+    lookHeading: string;
+    lookAlt: string;
+  };
   featuredProduct: { heading: string; text: [string, string]; alt: string };
   bundle: { heading: string; text: string };
   promoBanner: { heading: string; text: string; terms: string; link: string; alt: string };
@@ -59,6 +71,12 @@ export const commerceSectionCopies: Record<DesignSystemLocale, CommerceSectionCo
       intro: "The latest pieces, as they arrive from the mills.",
       link: "Shop all new in",
       gridHeading: "Bestsellers",
+      tabsHeading: "Shop the edit",
+      tabs: ["New in", "On sale", "Bestsellers"],
+      rankedHeading: "Our top five",
+      bannerAlt: "Folded knitwear on a wooden shelf",
+      lookHeading: "The autumn look",
+      lookAlt: "A model in a hoodie and a cap on a windy beach",
     },
     featuredProduct: {
       heading: "Product of the month",
@@ -116,6 +134,12 @@ export const commerceSectionCopies: Record<DesignSystemLocale, CommerceSectionCo
       intro: "Τα πιο πρόσφατα κομμάτια, όπως φτάνουν από τα υφαντήρια.",
       link: "Όλες οι νέες αφίξεις",
       gridHeading: "Τα πιο δημοφιλή",
+      tabsHeading: "Η επιλογή μας",
+      tabs: ["Νέες αφίξεις", "Σε προσφορά", "Τα πιο δημοφιλή"],
+      rankedHeading: "Τα πέντε κορυφαία",
+      bannerAlt: "Διπλωμένα πλεκτά σε ξύλινο ράφι",
+      lookHeading: "Το φθινοπωρινό σύνολο",
+      lookAlt: "Ένα μοντέλο με φούτερ και καπέλο σε μια παραλία με αέρα",
     },
     featuredProduct: {
       heading: "Το προϊόν του μήνα",
@@ -177,6 +201,12 @@ export const commerceSectionCopies: Record<DesignSystemLocale, CommerceSectionCo
       intro: "Die neuesten Stücke, so wie sie aus den Webereien kommen.",
       link: "Alle Neuheiten ansehen",
       gridHeading: "Bestseller",
+      tabsHeading: "Unsere Auswahl",
+      tabs: ["Neuheiten", "Im Angebot", "Bestseller"],
+      rankedHeading: "Unsere Top 5",
+      bannerAlt: "Gefaltete Strickwaren auf einem Holzregal",
+      lookHeading: "Der Herbst-Look",
+      lookAlt: "Ein Model in Hoodie und Kappe an einem windigen Strand",
     },
     featuredProduct: {
       heading: "Produkt des Monats",
@@ -238,6 +268,12 @@ export const commerceSectionCopies: Record<DesignSystemLocale, CommerceSectionCo
       intro: "Les dernières pièces, à leur arrivée des filatures.",
       link: "Voir toutes les nouveautés",
       gridHeading: "Meilleures ventes",
+      tabsHeading: "Notre sélection",
+      tabs: ["Nouveautés", "En promotion", "Meilleures ventes"],
+      rankedHeading: "Notre top 5",
+      bannerAlt: "Des pulls pliés sur une étagère en bois",
+      lookHeading: "Le look d’automne",
+      lookAlt: "Un mannequin en sweat à capuche et casquette sur une plage venteuse",
     },
     featuredProduct: {
       heading: "Le produit du mois",

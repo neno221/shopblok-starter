@@ -5,17 +5,10 @@
 // without one the name is the `<h2>`. The name, the price and the stock are Medusa's, read in the
 // market's region and language; the words and the picture are Payload's. A server component.
 import type { FeaturedProductSection as FeaturedProductSectionData } from "@shopblok/registry/contracts";
-import { buttonVariants } from "@shopblok/ui/atoms/button";
 import { Image } from "@shopblok/ui/atoms/image";
-import { cn } from "@shopblok/ui/lib/utils";
-import { PriceBlock } from "@shopblok/ui/molecules/price-block";
 import type { SectionsCopy } from "@shopblok/ui/sections/section-copy";
-import { SectionFrame, SectionHeading } from "@shopblok/ui/sections/section-frame";
-import NextLink from "next/link";
-import type * as React from "react";
-
-// The hrefs are strings the app built; `next/link` takes whatever the app's typed routes allow.
-type LinkHref = React.ComponentProps<typeof NextLink>["href"];
+import { SectionFrame } from "@shopblok/ui/sections/section-frame";
+import { FeaturedProductDetails } from "./parts";
 
 type FeaturedProductSectionProps = FeaturedProductSectionData & {
   copy: Pick<SectionsCopy, "products" | "featuredProduct">;
@@ -37,7 +30,6 @@ function FeaturedProductStandard({
   prefetch,
   className,
 }: FeaturedProductSectionProps) {
-  const Name = heading === undefined ? "h2" : "h3";
   return (
     <SectionFrame
       data-variant="standard"
@@ -54,39 +46,14 @@ function FeaturedProductStandard({
         sizes="(min-width: 1280px) 600px, (min-width: 768px) 50vw, 100vw"
         className="w-full"
       />
-      <div className="flex min-w-0 flex-col items-start gap-4">
-        {heading === undefined ? null : <SectionHeading>{heading}</SectionHeading>}
-        <Name
-          data-slot="featured-product-name"
-          className={cn(
-            "font-semibold text-balance wrap-anywhere",
-            heading === undefined ? "text-2xl md:text-3xl" : "text-xl md:text-2xl",
-          )}
-        >
-          {product.title}
-        </Name>
-        <PriceBlock
-          price={product.price}
-          copy={copy.products.priceBlock}
-          locale={locale}
-          size="lg"
-        />
-        {text === undefined ? null : (
-          <div className="flex max-w-prose flex-col gap-3 text-base text-pretty wrap-anywhere text-muted-foreground">
-            {text.map((paragraph, index) => (
-              <p key={index}>{paragraph}</p>
-            ))}
-          </div>
-        )}
-        <NextLink
-          href={product.href as LinkHref}
-          prefetch={prefetch}
-          data-slot="featured-product-link"
-          className={cn(buttonVariants({ size: "lg" }), "max-w-full wrap-anywhere")}
-        >
-          {copy.featuredProduct.view}
-        </NextLink>
-      </div>
+      <FeaturedProductDetails
+        heading={heading}
+        product={product}
+        text={text}
+        copy={copy}
+        locale={locale}
+        prefetch={prefetch}
+      />
     </SectionFrame>
   );
 }
