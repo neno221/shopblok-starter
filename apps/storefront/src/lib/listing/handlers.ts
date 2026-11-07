@@ -46,7 +46,8 @@ export async function listingResponse(request: Request): Promise<Response> {
     if (context === null) return nothing(404);
     const [messages, templates] = await Promise.all([
       messagesFor(context.market),
-      // The grid's card (D101, T84): the published global's, read on the server for the market.
+      // The grid's card and its quick view (D101, T84, T83): the published global's, read on the
+      // server for the market.
       cmsOrNull(
         readTemplates({ market: context.market, draft: false }),
         "listing island: the cards are ProductCard's first",
@@ -54,8 +55,10 @@ export async function listingResponse(request: Request): Promise<Response> {
     ]);
     const resolved = await resolveScope(context, messages, scope);
     if (resolved === null) return nothing(404);
+    const choice = templatesFrom(templates);
     const results = await readListing({
-      card: templatesFrom(templates).card,
+      card: choice.card,
+      quickView: choice.quickView,
       context,
       messages,
       resolved,

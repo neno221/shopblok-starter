@@ -4,6 +4,7 @@ import { SearchResultsTemplate, searchResultsCopy } from "@shopblok/ui/templates
 import { SearchField } from "@shopblok/ui/molecules/search-field";
 import type { Metadata } from "next";
 import { getMessages } from "next-intl/server";
+import { QuickViewOpener } from "../../../../components/listing/quick-view-opener";
 import { RememberSearch } from "../../../../components/listing/remember-search";
 import { getShellData } from "../../../../components/shell/shell-data";
 import { getCurrentMarket } from "../../../../lib/current-market";
@@ -95,8 +96,10 @@ export default async function SearchPage({ searchParams }: Props) {
     params,
     pathPage: 1,
     pageSize: listingPageSize(),
-    // The listing's card (D101, T84), as the listing a filter form came from draws it.
+    // The listing's card and its quick view (D101, T84, T83), as the listing a filter form came
+    // from draws them.
     card: templates.card,
+    quickView: templates.quickView,
     links: {
       base: { path: action, params: own },
       formAction: action,
@@ -119,6 +122,7 @@ export default async function SearchPage({ searchParams }: Props) {
   return (
     <>
       <RememberSearch query={query.query} />
+      <QuickViewOpener market={market.key} />
       <SearchResultsTemplate
         // D101: the search page follows the listing's filter layout.
         variant={templates.listing}

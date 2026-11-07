@@ -30,7 +30,7 @@ import {
   SizeGuide,
 } from "../contracts";
 import type { z } from "zod";
-import { firstVariant } from "../contracts/variants";
+import { firstVariant, type VariantOf } from "../contracts/variants";
 import type { EntryInput } from "../types";
 
 // SPEC §9.3's organisms, in the navigation's order, each task's after the last (M2 plan, T35 to
@@ -52,6 +52,26 @@ const organism = <const Slug extends string>(
     label,
     component: { module: `@shopblok/ui/organisms/${slug}`, name },
     contract,
+  }) as const satisfies EntryInput;
+
+/**
+ * T83: a later member of the `quick-view` family (D99): `organisms/quick-view-dialog-<variant>`, its
+ * module in `organisms/quick-view/`, the family's contract (the buy box's data).
+ */
+const quickView = <const V extends VariantOf<"quick-view">>(
+  variant: V,
+  label: string,
+  name: string,
+) =>
+  ({
+    id: `organisms/quick-view-dialog-${variant}`,
+    group: "organisms",
+    kind: "organism",
+    label,
+    component: { module: `@shopblok/ui/organisms/quick-view/${variant}`, name },
+    contract: BuyBox,
+    family: "quick-view",
+    variant,
   }) as const satisfies EntryInput;
 
 export const organisms = [
@@ -94,6 +114,9 @@ export const organisms = [
     family: "quick-view",
     variant: firstVariant("quick-view"),
   },
+  // T83: the quick view's two other looks (M5 plan §1a), each in `organisms/quick-view/`.
+  quickView("drawer", "QuickViewDialog · Drawer", "QuickViewDrawer"),
+  quickView("compact", "QuickViewDialog · Compact", "QuickViewCompact"),
   organism("size-guide-dialog", "SizeGuideDialog", "SizeGuideDialog", SizeGuide),
   // T39: the cart, the checkout and the account.
   // What a click on the header's cart opens (D101; `mini-cart`): the drawer, and (T85) the drawer
