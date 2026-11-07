@@ -39,6 +39,8 @@ type CartDrawerProps = CartDrawerContent & {
     promo: Messages["molecules"]["promoCodeField"];
     freeShipping: Messages["molecules"]["freeShippingProgress"];
     rows: Messages["molecules"]["orderSummaryRow"];
+    /** The picks' prices (`drawer-picks`, T85). */
+    price: Messages["molecules"]["priceBlock"];
   };
   /** A BCP 47 tag such as `el-CY`: the market's `<html lang>`. */
   locale: string;
@@ -48,6 +50,8 @@ type CartDrawerProps = CartDrawerContent & {
   /** PromoCodeField's actions: applying a code, and taking one off. */
   applyCodeAction?: FormAction;
   removeCodeAction?: FormAction;
+  /** A pick's form's action (`drawer-picks`, T85): it receives `variantId` and `quantity`. */
+  addAction?: FormAction;
   /** The line being updated: it cannot be changed again until the cart answers. */
   pendingLineId?: string;
   promoError?: PromoCodeError;
@@ -148,6 +152,7 @@ function cartDrawerParts({
     </dl>
   );
   return {
+    variant: "drawer",
     copy: {
       open: words.open,
       items: formatMessage(words.items, { count }, locale),

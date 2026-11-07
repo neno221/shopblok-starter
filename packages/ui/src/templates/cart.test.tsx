@@ -217,3 +217,95 @@ describe("CartTemplate", () => {
     expect(root.querySelector(`#${cartIds("cart").summary}`)).toBeTruthy();
   });
 });
+
+// T85 (SETUP.md "Cart variants (T85)"): the cart page's three other members. Each says which it
+// is on the root, keeps the default member's forms posting to the same actions, and draws an empty
+// cart as the default does; the table puts the lines in a table from `md` (the list below it), the
+// sticky summary opens with the bar to free shipping, and the focused page has the way to the
+// checkout at the top too once the cart has more than three lines.
+describe("CartTemplate's members (T85)", () => {
+  const MEMBERS = ["table", "sticky-summary", "focused"] as const;
+  const actions = {
+    updateAction: "/update",
+    removeAction: "/remove",
+    applyCodeAction: "/apply",
+    removeCodeAction: "/take-off",
+  };
+  const posted = () =>
+    [...document.querySelectorAll("form")].map((form) => form.getAttribute("action")).sort();
+
+  it.each(MEMBERS)("%s says which member it is on the page's root", (variant) => {
+    renderCart("en", "full", { variant });
+    expect(screen.getByRole("main").getAttribute("data-variant")).toBe(variant);
+    expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
+  });
+
+  it.each(MEMBERS)("%s posts to the same actions as the default member", (variant) => {
+    const { unmount } = renderCart("en", "full", actions);
+    const first = new Set(posted());
+    unmount();
+    renderCart("en", "full", { ...actions, variant });
+    expect(new Set(posted())).toEqual(first);
+    // Every line can be changed and removed, and every code applied and taken off.
+    for (const action of Object.values(actions)) expect(posted()).toContain(action);
+  });
+
+  it.each(MEMBERS)("%s draws an empty cart as the default does", (variant) => {
+    renderCart("en", "empty", { variant });
+    expect(slot("cart-summary")).toBeNull();
+    expect(slot("cart-lines")).toBeNull();
+    expect(screen.getByRole("link", { name: catalogs.en.templates.cart.continue })).toBeTruthy();
+  });
+
+  it("table: the lines in a table with a header per column from md, the list below it", () => {
+    renderCart("en", "full", { ...actions, variant: "table" });
+    const words = catalogs.en.templates.cart.table;
+    const table = slot("cart-table");
+    expect(table?.tagName).toBe("TABLE");
+    expect(table?.className).toContain("max-md:hidden");
+    expect(slot("cart-lines")?.className).toContain("md:hidden");
+    const headers = within(table as HTMLElement)
+      .getAllByRole("columnheader")
+      .map((cell) => cell.textContent);
+    expect(headers).toEqual([words.product, words.price, words.quantity, words.total]);
+    const lines = pageFixtures.en.cart.full.cart.lines;
+    expect(slots("cart-table-row")).toHaveLength(lines.length);
+    // Each row has its own quantity and remove forms, posting the line's id.
+    for (const [index, row] of slots("cart-table-row").entries()) {
+      const ids = [...row.querySelectorAll<HTMLInputElement>('input[name="lineId"]')].map(
+        (input) => input.value,
+      );
+      expect(new Set(ids)).toEqual(new Set([lines[index]?.id]));
+    }
+    // The summary comes after the lines, at the end.
+    expect(slot("cart-summary")?.className).toContain("md:ms-auto");
+  });
+
+  it("sticky-summary: the summary sticks beside the lines and opens with the bar to free shipping", () => {
+    renderCart("en", "full", { variant: "sticky-summary" });
+    const summary = slot("cart-summary") as HTMLElement;
+    expect(summary.className).toContain("md:sticky");
+    const bar = summary.querySelector('[data-slot="free-shipping-progress"]');
+    expect(bar).not.toBeNull();
+    // Right after the summary's heading.
+    expect(summary.querySelector("h2")?.nextElementSibling).toBe(bar);
+    expect(slots("free-shipping-progress")).toHaveLength(1);
+  });
+
+  it("focused: one way to the checkout for three lines, a second at the top for four", () => {
+    const page = pageFixtures.en.cart.full;
+    expect(page.cart.lines).toHaveLength(3);
+    const { unmount } = renderCart("en", "full", { variant: "focused" });
+    expect(slots("cart-checkout")).toHaveLength(1);
+    expect(slot("cart-checkout-top")).toBeNull();
+    unmount();
+    const [first] = page.cart.lines;
+    if (first === undefined) throw new Error("no line");
+    const four = { ...page.cart, lines: [...page.cart.lines, { ...first, id: "line_04" }] };
+    renderCart("en", "full", { variant: "focused", cart: four });
+    const top = slot("cart-checkout-top");
+    expect(top?.getAttribute("href")).toBe(page.checkoutHref);
+    // It comes right after the heading, before the lines.
+    expect(screen.getByRole("heading", { level: 1 }).nextElementSibling).toBe(top);
+  });
+});

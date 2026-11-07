@@ -8162,3 +8162,84 @@ After the fixes: `typecheck` and `lint` exit 0; `test`: `ui` 5849, storefront 39
 - **The migration, re-created (D88):** `20261107_121622_hero_variants` deleted and `payload migrate:create hero_variants` run again on T84's snapshot, giving `20261107_130650_hero_variants` with the same SQL. `migrate:fresh` applies every migration and `pnpm bootstrap --ci` passes (11 checks ok); `migrate:create --skip-empty` afterwards writes nothing; `generate:types` and `generate:importmap` change nothing.
 - **The first load with both** (built as `e2e-smoke` builds): the five listing routes **335.0 KB of 335** (T84's 334.5 plus the shell's 0.5; under the budget by less than 0.05 KB, so `check:first-load` passes), the product page 334.4, `/[market]` 331.3, the search 322.0. Kept out: the listener (0.6 KB), the collection tabs (4.2 KB) and T84's six layouts (2.3 to 2.4 KB each). **The listings have nothing left:** T83's quick view trigger and T85's cart pieces must save what they add or ask for a higher budget.
 - **The checks again:** `typecheck`, `lint` and `test` for the four packages exit 0 (`ui` 5861, storefront 4015, registry 234, fixtures 470 tests); against `next start`, `shell.spec.ts` and `templates-global.spec.ts` (18) and T84's `listing-variants.spec.ts` (8) pass. The PR's CI runs every suite, the DS job with T84's and T80's entries together.
+
+## Cart variants (T85)
+
+**Result: the cart page has four layouts, M3's and three new ones (`table`, `sticky-summary`, `focused`), and the mini cart has its second member, `drawer-picks`: the drawer with up to four products to add under the lines ("You may also like"). The `templates` global's Cart tab picks the layout, offers "Drawer with picks" on `miniCart` and, only then, a `picks` source (the product source the commerce blocks use). Every layout keeps M3's forms, so each changes a quantity and applies a code with scripts and without (`cart-variants.spec.ts`). A click on the header's cart opens the member the global names, read on the server for the market; the picks are resolved there too, in the market's region and language, and leave out what the cart holds. T85 adds 36 bytes to every route's first load: the listings are at 343,029 of 343,040 bytes (11 left), the product page at 342,422.** M5 plan §5 T85; D99, D101, D102.
+
+| | |
+|---|---|
+| Date | 2026-11-07 |
+| Branch | `claude/project-thread-vfiy51`, from `main` at `66fcc1c` (T84 merged), `main` at `dedc5fa` (T80 merged) merged in |
+| PR | [121](https://github.com/neno221/shopblok-starter/pull/121) |
+| Machine | The cloud VM: Node 22.23.4, pnpm 12.10.1, the compose stack, Medusa 2.22.4 (`medusa develop`) |
+
+### What changed
+
+- **The registry** (D99): `VARIANTS.cart` is `default`, `table`, `sticky-summary` and `focused`; `VARIANTS["mini-cart"]` is `drawer` and `drawer-picks`. Three entries after `templates/cart` (`templates/cart-<layout>`, contract `CartPage`, `member()` in `entries/templates.ts`) and `organisms/cart-drawer-picks` after the drawer (contract `CartDrawer`, `MiniCartDrawerPicks` in `@shopblok/ui/organisms/mini-cart/drawer-picks`). 174 entries with T80's, 65 of them family members.
+- **The contract** (`contracts/cart-checkout-account.ts`): `CartPick` (the product's id, title, `href`, picture, `PriceSummary`, and 1 to 100 `choices`, each a variant id and its label, none twice) and `CartDrawer`'s optional `variant` and `picks` (at most `MAX_CART_PICKS`, 4). `variantNeeds` makes `drawer-picks` need `picks`, and a refinement refuses a pick the cart holds, a pick in another currency than the cart's, and the same product twice.
+- **The cart page's members** (`packages/ui/src/templates/cart/`): `parts.tsx` holds what they share, moved from `default.tsx` with no change to its pixels: `CartFrame` (the root with `data-variant`, the `<h1>` with the count, the alert of a failed change, the empty state), `CartFreeShipping`, `CartLines`, `CartSummary` (PromoCodeField, the rows in one `<dl>`, the note, the checkout and "Continue shopping") and `CartCheckoutLink`. CartLineItem's own parts are exported (`cartLineWords`, `CartLineMedia`, `CartLineDetails`, `CartLineControls`, `CartLineTotal`, `CartLineUnitPrice`, `CartLineStatus`) with its DOM unchanged.
+  - `table`: from `md`, a `<table>` with a caption for readers and the columns product, price, quantity and total, each row drawn from the line's parts (the same forms); below `md`, M3's list. The summary under it, at most 24 rem wide, at the inline end.
+  - `sticky-summary`: two columns from `md`, the summary sticky beside the lines (its own scroll when it is taller than the window), with the bar to free shipping at its top.
+  - `focused`: one column, 42 rem wide, the summary after the lines, and a second checkout link above the lines when the cart has more than three (`cart-checkout-top`).
+- **The mini cart's `drawer-picks`** (`organisms/mini-cart/drawer-picks.tsx`, a server component): the drawer's parts with a `section` of picks after the body, each a row with its picture, its name as the link to its page, its price and its own form to the cart: the variant (a hidden field, or a native select named for the product when it has more than one), one of it, and "Add" named for the product. The form posts `variantId` and `quantity` to `addAction`. No picks (none found, or each one in the cart) draws the drawer alone. `CartDrawerClient` takes `variant` for its button's and its sheet's `data-variant`; `cart-drawer.tsx`'s `miniCartParts` picks the member's parts (`pickVariant`).
+- **The global** (`payload/globals/templates.ts`): `picks` on the Cart tab, after `miniCart`, `productSource({ max: 4, defaultLimit: 4, empty: false })` (no "show nothing" choice; `productSource` takes `empty`), shown only for "Drawer with picks" (`withDrawerPicks`). The seed sets it to the newest four.
+- **The shop:** `lib/cms/templates.ts`' `readCartTemplate` (the global's Cart tab at depth 1, its products' `medusaId` only, cached under `global:templates:<locale>`) and `miniCartFrom` (the member, `null` for the cart page, and the picks' source). `lib/actions/cart-islands.tsx`: `renderCartDrawer` and `changeCartInDrawer` read the member there for the market; for `drawer-picks`, `resolvePicks` (`lib/cms/resolve/picks.ts`) reads the source through `catalogReads` (the market's region and language, the catalog's tags), skips what the cart holds and keeps the first four that have a variant with a price. A pick's form posts to `addPickFromCart` (the add action, then the cart page) without scripts; with scripts the island sends it to `changeCartInDrawer`, which answers the drawer again with the line in it and the pick gone.
+- **The island** (`lib/visitor/cart-island.tsx`) sends a drawer form's `data-slot` as its intent and the server maps the slot to the change (`HANDLERS`); before, the island worked the intent out from the form's fields. Same behaviour, fewer bytes (the listings had none left). The slots are one list, `DRAWER_FORMS` in `lib/cms/template-options.ts`, which the island checks and `HANDLERS` is keyed by (a `Record`, so a slot without a change is a type error).
+- **A pick was added twice, and every drawer change was sent twice** (found here, there since T52): React hands the drawer's submit to the island's capture listener twice, once for the `<body>` and once for the sheet's portal inside it (the same native event, `eventPhase` 1 both times). M3's drawer forms set a quantity, take a line or a code off, or apply a code, so a second send changed nothing and no test saw it; an add is not like that. The island now skips a submit that is already prevented, so each change is sent once; `cart-variants.spec.ts` counts the requests.
+- **Copy:** `organisms.cartDrawer.picksTitle`, `pickAdd`, `pickAddLabel` ("Add {product} to your cart"), `pickChoice` ("Options for {product}") and `templates.cart.table.{product, price, quantity, total}`, in the four catalogs and in `ui-strings`' seed: 755 messages.
+- **The stories:** `templates/cart-table`, `cart-sticky-summary` and `cart-focused` with the states "A cart", "Four lines" (so `focused` draws its top link) and "Empty"; `organisms/cart-drawer-picks` with "Open", "Empty" and "Nothing to pick". The fixtures' `cartCheckout.picks` are four demo products the cart does not hold.
+- **The migration** `20261107_135645_cart_variants`: the three layouts on both `cart_variant` enums and `drawer-picks` on both `cart_mini_cart` enums, the `picks` columns on `templates` and `_templates_v`, and their `_rels` tables (the handpicked products).
+
+### Where it differs from the plan
+
+- **The picks are resolved in the drawer's action, not in the layout's cached read.** The drawer is drawn by the action each time it opens (T52), so the picks are resolved there, for the market and the cart as they are then: the cart's lines are known only there, and the layout stays the same for every visitor. Each read under it is cached with the catalog's tags (`catalogReads`), so a change to a product reaches the picks as it reaches the blocks. The member adds no client code: its picks come in the action's answer, drawn on the server.
+- **A pick's way to the cart is a select of its variants and "Add",** because every demo product has more than one. A product with one variant has the hidden field and the button only.
+- **The cart page while the drawer is open** draws the first member of the mini cart: `miniCart` "page" is no member, and the action answers `null` (the island then opens the cart page).
+
+### First load (D102)
+
+Built as `e2e-smoke` builds (Medusa up, `STOREFRONT_PRERENDER_PRODUCTS=4`, `STOREFRONT_LISTING_PAGE_SIZE=3`), gzipped bytes, `main` with T80 against T85:
+
+| Route | T80 | T85 | Budget |
+|---|---|---|---|
+| The five listing routes | 342,993 (335.0 KB) | **343,029 (335.0 KB)** | 343,040 (335 KB) |
+| `/[market]/products/[handle]` | 342,386 (334.4) | 342,422 (334.4) | 343,040 |
+| `/[market]`, `/[market]/[...slug]` | 339,207 (331.3) | 339,243 (331.3) | |
+| `/[market]/search` | 329,769 (322.0) | 329,805 (322.0) | |
+| `/[market]/cart` | 315,996 (308.6) | 316,032 (308.6) | |
+
+The 36 bytes are the island's: the `variant` prop on the drawer's button and sheet, the guard against the second send and the review's one list of drawer forms (21 of them), less what the island saved by sending the form's slot (before that saving the listings were 21 bytes over). **11 bytes are left on the listings** (32 before the review's fixes). The kept-out rows are T80's and T84's, unchanged: the live preview listener (0.6), the collection tabs (4.2) and the six listing layouts (2.3 to 2.4 each), in no route's first load.
+
+### Mutations (each fails a test)
+
+- **Picks read in the request's region, not the market's:** `catalogReads({ market, region: Germany's })` in `drawerFor`, built as above: `cart-variants.spec.ts`' pick test fails on "a /us pick's price" (`€22.00`, expected `$`).
+- **The island sending a drawer submit twice** (the guard taken out): the pick test fails, the cart's count 3, expected 2.
+
+### Checks (cloud VM)
+
+- `pnpm typecheck` and `pnpm lint` exit 0 (22 tasks). Tests: `packages/ui` 5883, the storefront 3745, the registry 234, fixtures 478, every one passing except the two that wait for the dispatch's PNGs (the registry's thumbnail test and the drift test, which name exactly the four entries' 12 baselines and 4 thumbnails). `generate:types` adds `picks`.
+- The migration applied with `payload migrate`, and `migrate:create --skip-empty` afterwards writes nothing.
+- The storefront built as `e2e-smoke` builds it; `check:first-load` passes with the rows above.
+- Against `next start` (`E2E_TEST_ROUTES=true`, `STOREFRONT_LISTING_PAGE_SIZE=3`, `STOREFRONT_PRERENDER_PRODUCTS=4`): `cart-variants.spec.ts` (7), `checkout-cy.spec.ts` (6, T52's drawer included) and `templates-global.spec.ts` (3): 16 passed.
+
+### Baselines (D109)
+
+The dispatch (run [42379413753](https://github.com/neno221/shopblok-starter/actions/runs/42379413753), commit `6ad6b25`): the four entries' 12 baselines and 4 thumbnails, 16 PNGs and 2,500,152 bytes, and three rewritten with nothing to see: `templates/product-detail/en-375` and `en-768` (8 and 34 pixels, no channel more than 21 of 255 apart, the same two T79 and T84 saw) and `molecules/promo-code-field/en-1440` (8 pixels, 1 of 255). `organisms/cart-drawer-picks`' thumbnail is the closed drawer's button, as `cart-drawer`'s is (700 bytes each). The set: 563 PNGs, 76.53 MB (76,530,246 bytes).
+
+### Changes from the review of this PR (PR 121)
+
+| # | Finding | Done |
+|---|---|---|
+| 1 | Must-fix: a failed picks read rejected the drawer's answer after the cart's change had gone through (a stale drawer and count; a second Add added twice; on opening, the cart page instead) | Fixed: `resolvePicks` answers no picks when the catalog cannot be read, and logs it; `picks.test.ts` rejects the search and gets `[]` |
+| 2 | Must-fix: a pick's price came from every priced variant, its choices only from the ones that can be bought | Fixed: `toPick` prices the offered variants (`toPriceSummary`), with a test where a sold-out variant is cheaper; it takes the picture from `toImages`, so a product with none gets the row's empty box (the branch was dead behind the card's placeholder) |
+| 3 | A refused pick add redraws the drawer with no message | Skipped (UX, not security or a cleanup; the line forms behave so on `main`) |
+| 4 | Cleanup: the island's pattern and the server's map had to agree | Fixed: `DRAWER_FORMS`, one list both import; `HANDLERS` is a `Record` keyed by it |
+| 5 | The drawer reads the published global, so a drafted mini cart cannot be previewed | Skipped (editor preview; the action reads published data, as PR 113's review asked) |
+| 6 | `down()` cannot cast a row with a new value back | Skipped (the generated `down()`, as PR 118's and PR 119's) |
+| 7 | The `table` layout renders each line twice | Skipped (efficiency) |
+| 8 | The picks' read grows with the cart | Skipped (efficiency) |
+| 9 | Cleanup: `miniCartFrom` repeated `templatesFrom`'s saved-or-default rule and cast `cart.picks` | Fixed: it takes `miniCart` from `templatesFrom` (which now takes a partial document) and `cart.picks` as `payload-types.ts` types it |
+| 10 | Cleanup: the mini cart's members spelled by hand | Fixed: `CartDrawerClient`'s `variant` is `VariantOf<"mini-cart">`, and `MINI_CART_PICKS` is checked against it (`satisfies`) and used in `drawerFor` |
+
+After the fixes: `typecheck` and `lint`; the storefront's `lib` tests (337); the build and `check:first-load` (the rows above); `cart-variants`, `checkout-cy` and `templates-global` against `next start`, 16 passed.

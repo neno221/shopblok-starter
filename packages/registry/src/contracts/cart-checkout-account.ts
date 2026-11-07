@@ -8,6 +8,8 @@ import { Image } from "./image";
 import { CurrencyCode, Money } from "./money";
 import { OrderEvent } from "./order";
 import { PaymentMethod, SavedPaymentMethod } from "./payment";
+import { PriceSummary } from "./product";
+import { variantEnum, variantNeeds } from "./variants";
 
 // T39: what the cart's, the checkout's and the account's organisms show (SPEC §8.4: the cart drawer,
 // the three checkout steps, the payment step, the account pages). They are built from T34's
@@ -20,16 +22,78 @@ import { PaymentMethod, SavedPaymentMethod } from "./payment";
 const uniqueIds = (items: { id: string }[]) =>
   new Set(items.map((item) => item.id)).size === items.length;
 
-/** The cart drawer (CartDrawer, a sheet): the cart, the field's code, and the ways on. */
-export const CartDrawer = z.object({
-  cart: Cart,
-  promoCode: z
-    .string()
-    .describe("What the promotion field holds: kept after an error, empty at first"),
-  cartHref: Href.describe("The cart page: 'View cart'"),
-  checkoutHref: Href.describe("The checkout's first step"),
-  continueHref: Href.describe("Where 'Continue shopping' goes from an empty cart"),
+/** One variant a pick can go into the cart as (T85): its id, its name ("M / Navy"). */
+export const PickChoice = z.object({
+  variantId: Id,
+  label: z.string().min(1).describe("The variant's name, as the product page's options say it"),
 });
+
+const uniqueVariants = (choices: { variantId: string }[]) =>
+  new Set(choices.map((choice) => choice.variantId)).size === choices.length;
+
+/**
+ * A product the `drawer-picks` mini cart offers under the lines (T85, D101: the `templates`
+ * global's `picks`): its picture, its name as a link to its page, its price, and the variants it
+ * can be added as (only those in stock or sold on backorder), so its own form puts it in the cart.
+ */
+export const CartPick = z
+  .object({
+    id: Id,
+    title: z.string().min(1),
+    href: Href,
+    image: Image.optional(),
+    price: PriceSummary,
+    choices: z.array(PickChoice).min(1).max(100),
+  })
+  .refine((pick) => uniqueVariants(pick.choices), {
+    path: ["choices"],
+    message: "a variant is offered twice",
+  });
+
+/** The most picks the drawer shows (M5 plan §1a: "up to four products"). */
+export const MAX_CART_PICKS = 4;
+
+/**
+ * The cart drawer (CartDrawer, a sheet): the cart, the field's code, and the ways on. `variant` is
+ * the mini cart's member (D99, D101); `drawer-picks` takes the picks too, none of them already in
+ * the cart (an empty list is drawn as no picks).
+ */
+export const CartDrawer = z
+  .object({
+    cart: Cart,
+    promoCode: z
+      .string()
+      .describe("What the promotion field holds: kept after an error, empty at first"),
+    cartHref: Href.describe("The cart page: 'View cart'"),
+    checkoutHref: Href.describe("The checkout's first step"),
+    continueHref: Href.describe("Where 'Continue shopping' goes from an empty cart"),
+    variant: variantEnum("mini-cart").optional(),
+    picks: z
+      .array(CartPick)
+      .max(MAX_CART_PICKS)
+      .optional()
+      .describe("drawer-picks: the products to add under the lines, none of them in the cart"),
+  })
+  .superRefine(variantNeeds({ "drawer-picks": ["picks"] }))
+  .superRefine((drawer, context) => {
+    const held = new Set(drawer.cart.lines.map((line) => line.productId));
+    for (const [index, pick] of (drawer.picks ?? []).entries()) {
+      if (held.has(pick.id))
+        context.addIssue({
+          code: "custom",
+          path: ["picks", index, "id"],
+          message: `the cart already holds ${pick.id}`,
+        });
+      if (pick.price.price.currencyCode !== drawer.cart.currencyCode)
+        context.addIssue({
+          code: "custom",
+          path: ["picks", index, "price"],
+          message: "a pick is priced in another currency than the cart",
+        });
+    }
+    if (!uniqueIds(drawer.picks ?? []))
+      context.addIssue({ code: "custom", path: ["picks"], message: "a product is picked twice" });
+  });
 
 /**
  * The dropdown under the header's cart button after a product is added (QuickCartDropdown): the
@@ -322,6 +386,8 @@ export const ReturnRequest = z
   );
 
 export type CartDrawer = z.infer<typeof CartDrawer>;
+export type CartPick = z.infer<typeof CartPick>;
+export type PickChoice = z.infer<typeof PickChoice>;
 export type QuickCart = z.infer<typeof QuickCart>;
 export type SummaryItem = z.infer<typeof SummaryItem>;
 export type OrderSummary = z.infer<typeof OrderSummary>;
