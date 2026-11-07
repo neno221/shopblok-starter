@@ -76,7 +76,11 @@ function ProductCollectionRanked(props: ProductCollectionSectionProps) {
                       <VisuallyHidden>
                         {formatMessage(copy.productCollection.rank, { rank }, locale)}:{" "}
                       </VisuallyHidden>
-                      <span className="line-clamp-2 wrap-anywhere group-hover/card:underline">
+                      {/* Clamped as the card's title is (CardTitle); the link's name is the whole. */}
+                      <span
+                        data-truncate=""
+                        className="line-clamp-2 wrap-anywhere group-hover/card:underline"
+                      >
                         {product.title}
                       </span>
                     </NextLink>
