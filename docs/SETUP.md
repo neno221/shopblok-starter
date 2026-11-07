@@ -7973,7 +7973,7 @@ Built as `e2e-smoke` builds (Medusa up, `STOREFRONT_PRERENDER_PRODUCTS=4`, `STOR
 |---|---|
 | Date | 2026-11-07 |
 | Branch | `claude/project-thread-kuusiv`, from `main` at `89e26c7` (PR 116, T79, merged) |
-| PR | {{PR}} |
+| PR | [117](https://github.com/neno221/shopblok-starter/pull/117) |
 | Machine | The cloud VM: Node 22.23.4, pnpm 12.10.1, the compose stack, Medusa 2.22.4 (`medusa develop`) |
 
 ### Step 1: D105's check (failed)
