@@ -802,8 +802,15 @@ export const en = {
       emptyAction: "Shop all products",
     },
     featuredProduct: { view: "View product" },
-    promoBanner: { ends: "Offer ends {date}" },
-    comparison: { price: "Price", missing: "Not specified" },
+    promoBanner: { ends: "Offer ends {date}", close: "Close" },
+    comparison: { price: "Price", missing: "Not specified", pick: "Our pick" },
+    // T82: the testimonials carousel's buttons and the USP strip's name, as it scrolls on a phone.
+    testimonials: {
+      label: "What our customers say",
+      previous: "Previous quotes",
+      next: "Next quotes",
+    },
+    uspBar: { label: "What we promise" },
     collectionSpotlight: { shop: "Shop the collection" },
     editorialList: { all: "See all posts" },
     form: {

@@ -377,7 +377,7 @@ export interface RichTextBlock {
  * via the `definition` "MediaWithTextBlock".
  */
 export interface MediaWithTextBlock {
-  variant: "standard";
+  variant: "standard" | "overlap" | "full-bleed";
   media: number | Media;
   /**
    * From wide screens up; on a phone the picture is above the text.
@@ -659,7 +659,7 @@ export interface Product {
  * via the `definition` "UspBarBlock".
  */
 export interface UspBarBlock {
-  variant: "standard";
+  variant: "standard" | "strip";
   items: {
     icon:
       "delivery" | "returns" | "secure" | "support" | "sustainable" | "gift" | "quality" | "fast";
@@ -683,7 +683,7 @@ export interface UspBarBlock {
  * via the `definition` "LogoCloudBlock".
  */
 export interface LogoCloudBlock {
-  variant: "standard";
+  variant: "standard" | "grid";
   heading?: string | null;
   logos: {
     name: string;
@@ -710,7 +710,7 @@ export interface LogoCloudBlock {
  * via the `definition` "FaqBlock".
  */
 export interface FaqBlock {
-  variant: "standard";
+  variant: "standard" | "side-heading";
   heading?: string | null;
   items: {
     question: string;
@@ -736,7 +736,7 @@ export interface FaqBlock {
  * via the `definition` "TestimonialsBlock".
  */
 export interface TestimonialsBlock {
-  variant: "standard";
+  variant: "standard" | "single" | "carousel" | "wall";
   heading?: string | null;
   quotes: {
     quote: string;
@@ -1165,7 +1165,7 @@ export interface BundleBlock {
  * via the `definition` "PromoBannerBlock".
  */
 export interface PromoBannerBlock {
-  variant: "standard";
+  variant: "standard" | "strip" | "ticket" | "full-bleed" | "countdown" | "popup";
   heading: string;
   /**
    * A blank line starts a new paragraph.
@@ -1177,9 +1177,12 @@ export interface PromoBannerBlock {
   code?: string | null;
   terms?: string | null;
   /**
-   * When the offer ends; after it, the banner is not shown.
+   * When the offer ends; after it, the banner is not shown. The Countdown design needs one.
    */
   endsAt?: string | null;
+  /**
+   * The Full bleed design needs one; the Strip, Ticket and Countdown designs show none.
+   */
   media?: (number | null) | Media;
   links?:
     | {
@@ -1222,12 +1225,16 @@ export interface PromoBannerBlock {
  * via the `definition` "ComparisonBlock".
  */
 export interface ComparisonBlock {
-  variant: "standard";
+  variant: "standard" | "cards" | "highlight";
   heading: string;
   /**
    * A column each, in this order.
    */
   products: (number | Product)[];
+  /**
+   * Its column is set apart and named “Our pick”.
+   */
+  pick?: (number | null) | Product;
   showOptions?: boolean | null;
   rows?:
     | {
@@ -1305,7 +1312,7 @@ export interface RecentlyViewedBlock {
  * via the `definition` "NewsletterBlock".
  */
 export interface NewsletterBlock {
-  variant: "standard";
+  variant: "standard" | "split";
   /**
    * Empty: the shop's “Join our newsletter”, in each language.
    */
@@ -1314,6 +1321,10 @@ export interface NewsletterBlock {
    * The line under the heading. Empty: the shop's own.
    */
   text?: string | null;
+  /**
+   * Beside the form.
+   */
+  media?: (number | null) | Media;
   /**
    * A form whose only field is an email field, such as “Newsletter”.
    */
@@ -1484,7 +1495,7 @@ export interface FormBlockBlock {
  * via the `definition` "EditorialListBlock".
  */
 export interface EditorialListBlock {
-  variant: "standard";
+  variant: "standard" | "featured";
   heading?: string | null;
   source: "newest" | "handpicked";
   limit?: number | null;
@@ -2771,6 +2782,7 @@ export interface ComparisonBlockSelect<T extends boolean = true> {
   variant?: T;
   heading?: T;
   products?: T;
+  pick?: T;
   showOptions?: T;
   rows?:
     | T
@@ -2842,6 +2854,7 @@ export interface NewsletterBlockSelect<T extends boolean = true> {
   variant?: T;
   heading?: T;
   text?: T;
+  media?: T;
   form?: T;
   privacy?:
     | T

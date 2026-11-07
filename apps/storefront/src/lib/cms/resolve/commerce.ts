@@ -8,11 +8,9 @@ import {
   ProductCollectionSection,
   PromoBannerSection,
   RecentlyViewedSection,
-  variantEnum,
   type ComparisonProduct,
   type HeroCollection,
   type ProductCard,
-  type VariantOf,
 } from "@shopblok/registry/contracts";
 import type { ProductDto } from "../../medusa/products";
 import type { Hrefs } from "../../view-models/common";
@@ -28,7 +26,14 @@ import {
   resolveProductSource,
 } from "./products";
 import type { LayoutBlock, ResolveContext } from "./sections";
-import { paragraphs as split, parsed, sectionLink, settingsOf, text } from "./shared";
+import {
+  paragraphs as split,
+  parsed,
+  sectionLink,
+  settingsOf,
+  storedVariant,
+  text,
+} from "./shared";
 
 // SPEC §7.5's resolution rule for the commerce blocks (D79, T64): each block's references become
 // its section's view model for the market, through `CatalogReads` (the market's region and
@@ -80,12 +85,6 @@ export type ResolvedCommerceBlock = { key: string } & (
   | { blockType: "recentlyViewed"; section: RecentlyViewedSection }
 );
 
-/** The hero's stored variant when its family has it (T80); `undefined` for none or another's. */
-function heroVariant(value: unknown): VariantOf<"hero"> | undefined {
-  const parsed = variantEnum("hero").safeParse(value);
-  return parsed.success ? parsed.data : undefined;
-}
-
 /**
  * The `collection-switcher` hero's collections (T80): each row's collection as Medusa has it for
  * the market (its translated title and its listing), with the row's picture. A row whose
@@ -111,6 +110,9 @@ async function heroCollections(
   });
   return found.length === 0 ? undefined : found;
 }
+
+/** The promo banner's designs that draw the editor's picture (T82); the others show none. */
+const PROMO_PICTURE: readonly string[] = ["standard", "full-bleed", "popup"];
 
 /** A time after `now`, as the contracts write it; `undefined` when it is missing or past. */
 function future(value: string | null | undefined, now: string): string | undefined {
@@ -161,7 +163,7 @@ export async function resolveCommerceBlock(
       // T80: the stored variant is parsed with the rest when the family has it, so the contract
       // refuses a member without what it needs (`variantNeeds`); a value from another version is
       // left to `withVariant`, which draws the first member.
-      const variant = heroVariant(block.variant);
+      const variant = storedVariant("hero", block.variant);
       const [source, collections] = await Promise.all([
         // The collection switcher draws no products, so it reads none.
         variant === "collection-switcher"
@@ -248,14 +250,20 @@ export async function resolveCommerceBlock(
     case "promoBanner": {
       // An offer that has ended is not drawn; one without an end runs until the editor removes it.
       if (typeof block.endsAt === "string" && future(block.endsAt, now) === undefined) return null;
+      // T82: the stored variant is parsed with the rest, so the contract refuses a `full-bleed`
+      // without its picture and a `countdown` without its end. The picture is resolved only for
+      // the designs that draw it, and `now` (the countdown's start, D50) only for `countdown`.
+      const variant = storedVariant("promo-banner", block.variant);
       const section = parsed(PromoBannerSection, {
         settings,
+        ...(variant === undefined ? {} : { variant }),
         heading: text(block.heading),
         text: paragraphs(block.text),
         code: text(block.code),
         terms: text(block.terms),
         endsAt: future(block.endsAt, now),
-        image: mediaImage(block.media),
+        now: variant === "countdown" ? now : undefined,
+        image: PROMO_PICTURE.includes(variant ?? "standard") ? mediaImage(block.media) : undefined,
         link: links(block.links)[0],
       });
       return section === undefined ? null : { key, blockType: "promoBanner", section };
@@ -279,10 +287,17 @@ export async function resolveCommerceBlock(
         ...(card.images[0] === undefined ? {} : { image: { ...card.images[0], alt: "" } }),
         price: card.price,
       }));
+      // T82: `highlight`'s pick, resolved only for it: the picked product's column, when it is
+      // still one of the table's (a pick gone from Medusa leaves the block out, as the contract says).
+      const variant = storedVariant("comparison", block.variant);
+      const picked = variant === "highlight" ? liveMedusaId(block.pick) : null;
+      const pick = products.find(({ product }) => product.id === picked)?.card.id;
       const section = parsed(ComparisonSection, {
         settings,
+        ...(variant === undefined ? {} : { variant }),
         heading: text(block.heading),
         products: columns,
+        pick,
         rows: [
           ...(block.showOptions === false
             ? []

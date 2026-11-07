@@ -293,8 +293,14 @@ async function clippedElements(page: Page): Promise<Finding[]> {
       // T37: ProductCarousel's viewport hides the slides that are not in view, which its arrows, its
       // arrow keys and a swipe bring in (and focus, too: embla scrolls a focused slide into view).
       // Its viewport alone is let off; what is inside a slide is checked like everything else. A new
-      // user of the carousel primitive (a gallery, a hero) must show its own way in before it is added.
-      if (el.matches('[data-slot="product-carousel"] [data-slot="carousel-content"]')) continue;
+      // user of the carousel primitive (a gallery, a hero) must show its own way in before it is added:
+      // T82's testimonials carousel has the same arrows, arrow keys and swipe.
+      if (
+        el.matches(
+          ':is([data-slot="product-carousel"], [data-slot="testimonials-carousel"]) [data-slot="carousel-content"]',
+        )
+      )
+        continue;
       // Visually hidden text is clipped on purpose: `sr-only`, and Base UI's own (a 1 px box with
       // `clip-path`) for its live regions and hidden inputs.
       if (el.closest(".sr-only") || (el.clientWidth <= 1 && el.clientHeight <= 1)) continue;
@@ -324,7 +330,8 @@ async function clippedElements(page: Page): Promise<Finding[]> {
  * too, so content wider than a box that scrolls down (a dialog) scrolls sideways instead of being
  * clipped, and `clippedElements` does not see it: SavedPaymentMethodCard's confirmation did, its
  * two buttons side by side in the DS's 200 px box. The boxes that are there to scroll sideways
- * are left out: a table's container and a scroll area's viewport. Runs in the page.
+ * are left out: a table's container, a scroll area's viewport and the USP strip (T82). Runs in
+ * the page.
  */
 async function sidewaysScrollers(page: Page): Promise<Finding[]> {
   return page.evaluate(() => {
@@ -333,7 +340,13 @@ async function sidewaysScrollers(page: Page): Promise<Finding[]> {
     for (const el of document.body.querySelectorAll("*")) {
       if (!scrolls(getComputedStyle(el).overflowX) || el.scrollWidth <= el.clientWidth + 1)
         continue;
-      if (el.closest('[data-slot="table-container"], [data-slot="scroll-area-viewport"]')) continue;
+      // T82: the USP strip is a list that scrolls on a phone on purpose, named and reachable by Tab.
+      if (
+        el.closest(
+          '[data-slot="table-container"], [data-slot="scroll-area-viewport"], [data-slot="usp-strip"]',
+        )
+      )
+        continue;
       const slot = el.getAttribute("data-slot");
       findings.push({
         selector: `${el.tagName.toLowerCase()}${slot ? `[data-slot=${slot}]` : ""}${

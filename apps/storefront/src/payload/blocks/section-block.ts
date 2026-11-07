@@ -41,6 +41,38 @@ export function sectionBlock({
   };
 }
 
+/** The design (`variant`) of the block a field is in, from its `siblingData`. */
+const designOf = (sibling: unknown): string =>
+  String((sibling as { variant?: unknown } | undefined)?.variant);
+
+/**
+ * A field's `admin.condition`: shown, and checked, only for these designs of its block (T80,
+ * T82). Payload skips a field's validation while its condition is false, so the other designs
+ * save without it.
+ */
+export const isVariant =
+  (...variants: string[]) =>
+  (_: unknown, sibling: { variant?: unknown } | undefined): boolean =>
+    variants.includes(designOf(sibling));
+
+/**
+ * A field's `validate` when only some designs need it (T80, T82): Payload's own check (`base`,
+ * which a custom `validate` replaces) first, then `message`, in the editor's words, when the field
+ * is empty and the block is in one of `variants`. The section's contract refuses the same block
+ * (`variantNeeds`), so a block saved before the check is left out of the page.
+ */
+export function requiredFor<Value, Args extends { siblingData?: unknown }>(
+  variants: readonly string[],
+  message: string,
+  base: (value: Value, args: Args) => string | true | Promise<string | true>,
+): (value: Value, args: Args) => Promise<string | true> {
+  return async (value, args) => {
+    const checked = await base(value, args);
+    if (checked !== true) return checked;
+    return value == null && variants.includes(designOf(args.siblingData)) ? message : true;
+  };
+}
+
 /** The mime types a field of `media` may pick, as Payload's `filterOptions` (also checked on save). */
 export function mediaOfType(prefixes: readonly string[]): UploadField["filterOptions"] {
   return { or: prefixes.map((prefix) => ({ mimeType: { like: `${prefix}%` } })) };

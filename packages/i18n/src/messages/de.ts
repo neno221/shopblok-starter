@@ -702,8 +702,15 @@ export const de: Messages = {
       emptyAction: "Alle Produkte ansehen",
     },
     featuredProduct: { view: "Produkt ansehen" },
-    promoBanner: { ends: "Angebot endet am {date}" },
-    comparison: { price: "Preis", missing: "Keine Angabe" },
+    promoBanner: { ends: "Angebot endet am {date}", close: "Schließen" },
+    comparison: { price: "Preis", missing: "Keine Angabe", pick: "Unsere Empfehlung" },
+    // T82: the testimonials carousel's buttons and the USP strip's name, as it scrolls on a phone.
+    testimonials: {
+      label: "Was unsere Kundschaft sagt",
+      previous: "Vorherige Stimmen",
+      next: "Nächste Stimmen",
+    },
+    uspBar: { label: "Unsere Versprechen" },
     collectionSpotlight: { shop: "Zur Kollektion" },
     editorialList: { all: "Alle Beiträge" },
     form: {

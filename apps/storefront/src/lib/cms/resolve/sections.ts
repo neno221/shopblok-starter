@@ -28,7 +28,7 @@ import {
 } from "./commerce";
 import { resolveEditorialList, type PostsContext, type ResolvedEditorialList } from "./editorial";
 import { newsletterTarget, populatedForm } from "./forms";
-import { paragraphs, parsed, sectionLink, settingsOf, text } from "./shared";
+import { paragraphs, parsed, sectionLink, settingsOf, storedVariant, text } from "./shared";
 
 export { paragraphs, sectionLink };
 
@@ -251,10 +251,15 @@ export function resolveBlock(block: LayoutBlock, context: ResolveContext): Resol
     case "newsletter": {
       const target = newsletterTarget(block.form, block.privacy as LinkValue, context);
       if (target === undefined) return null;
+      // T82: `split`'s picture, resolved only for it; the stored variant goes into the parse, so
+      // the contract refuses a `split` without one.
+      const variant = storedVariant("newsletter", block.variant);
       const section = parsed(NewsletterSection, {
         settings,
+        ...(variant === undefined ? {} : { variant }),
         heading: text(block.heading),
         text: text(block.text),
+        image: variant === "split" ? mediaImage(block.media) : undefined,
         newsletter: { email: "", privacyHref: target.privacyHref },
       });
       return section === undefined

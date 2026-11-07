@@ -2,25 +2,13 @@
 // words in cards: the stars when the editor gave a rating, the quote, and who said it, with a small
 // picture of them if there is one (decoration: their name is beside it). One column on a phone, two
 // from `md`, three from `lg`. Written in Payload until M8's reviews module. A server component.
-import { formatMessage, formatNumber } from "@shopblok/i18n";
-import type { TestimonialsSection as TestimonialsSectionData } from "@shopblok/registry/contracts";
-import { Rating } from "@shopblok/ui/atoms/rating";
+// T82 moved the card to `parts.tsx`, which the other members share.
 import { cn } from "@shopblok/ui/lib/utils";
-import type { SectionsCopy } from "@shopblok/ui/sections/section-copy";
 import { SectionFrame, SectionHeading } from "@shopblok/ui/sections/section-frame";
-import NextImage from "next/image";
-
-const MAX_STARS = 5;
+import { TestimonialCard, type TestimonialsSectionProps } from "./parts";
 
 /** The columns from `lg` up: as many as there are quotes, at most three. */
 const columns = ["lg:grid-cols-1", "lg:grid-cols-2", "lg:grid-cols-3"] as const;
-
-type TestimonialsSectionProps = TestimonialsSectionData & {
-  copy: Pick<SectionsCopy, "rating">;
-  /** A BCP 47 tag such as `el-CY`: the market's `<html lang>`. */
-  locale: string;
-  className?: string;
-};
 
 function TestimonialsStandard({
   settings,
@@ -48,49 +36,7 @@ function TestimonialsStandard({
       >
         {quotes.map((quote) => (
           <li key={quote.id} className="min-w-0">
-            <figure
-              data-slot="testimonial"
-              className="flex h-full flex-col gap-4 rounded-lg border bg-card p-6 text-card-foreground"
-            >
-              {quote.rating === undefined ? null : (
-                <Rating
-                  size="sm"
-                  value={quote.rating}
-                  max={MAX_STARS}
-                  label={formatMessage(
-                    copy.rating,
-                    {
-                      value: formatNumber(quote.rating, locale),
-                      max: formatNumber(MAX_STARS, locale),
-                    },
-                    locale,
-                  )}
-                />
-              )}
-              <blockquote className="flex-1 text-base leading-7 wrap-anywhere">
-                <p>{quote.quote}</p>
-              </blockquote>
-              <figcaption className="flex min-w-0 items-center gap-3">
-                {quote.avatar === undefined ? null : (
-                  <NextImage
-                    src={quote.avatar.src}
-                    alt=""
-                    width={40}
-                    height={40}
-                    sizes="40px"
-                    className="size-10 shrink-0 rounded-full object-cover"
-                  />
-                )}
-                <span className="flex min-w-0 flex-col">
-                  <span className="font-medium wrap-anywhere">{quote.author}</span>
-                  {quote.role === undefined ? null : (
-                    <span className="text-sm text-muted-foreground wrap-anywhere">
-                      {quote.role}
-                    </span>
-                  )}
-                </span>
-              </figcaption>
-            </figure>
+            <TestimonialCard quote={quote} copy={copy} locale={locale} />
           </li>
         ))}
       </ul>
