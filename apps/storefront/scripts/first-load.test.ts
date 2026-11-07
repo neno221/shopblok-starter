@@ -527,16 +527,18 @@ describe("the kept-out modules (D102)", () => {
     },
   ];
   const sizes = () => 1234;
+  // The listener's row alone: the chunks above hold its marker only.
+  const listener = keptOut.filter((item) => item.marker === "shopblok:live-preview-listener");
 
   it("passes a module whose chunk no route loads at first, with its size", () => {
-    const report = checkKeptOut(rows, keptOut, chunks, sizes);
+    const report = checkKeptOut(rows, listener, chunks, sizes);
     expect(report.failures).toEqual([]);
     expect(report.table.join("\n")).toMatch(/listener\.js\s+1\.2\s+kept out/);
   });
 
   it("fails one in a first load, naming each route, and one whose marker is in no chunk", () => {
     const loaded = [{ ...chunks[1]!, chunk: market.firstLoadChunkPaths[0]! }];
-    expect(checkKeptOut(rows, keptOut, loaded, sizes).failures).toEqual([
+    expect(checkKeptOut(rows, listener, loaded, sizes).failures).toEqual([
       expect.stringContaining(
         `is in the first load of ${rows
           .filter((row) => row.firstLoadChunkPaths.includes(market.firstLoadChunkPaths[0]!))
@@ -544,7 +546,7 @@ describe("the kept-out modules (D102)", () => {
           .join(", ")}.`,
       ),
     ]);
-    expect(checkKeptOut(rows, keptOut, [chunks[0]!], sizes).failures).toEqual([
+    expect(checkKeptOut(rows, listener, [chunks[0]!], sizes).failures).toEqual([
       expect.stringContaining("no chunk holds its marker"),
     ]);
   });
@@ -583,6 +585,16 @@ describe("the kept-out modules (D102)", () => {
       expect(others.map((file) => path.relative(workspace, file))).toEqual([]);
     },
   );
+
+  it("keeps out the listing's six filter layouts other than M3's (T84)", () => {
+    expect(keptOut.map((item) => item.marker)).toEqual(
+      expect.arrayContaining(
+        ["top-bar", "drawer", "accordion", "chips", "rail", "inline"].map(
+          (layout) => `shopblok:listing-${layout}`,
+        ),
+      ),
+    );
+  });
 
   it("starts with the live preview's listener (D74, T61)", () => {
     expect(keptOut.map((item) => item.module)).toContain(

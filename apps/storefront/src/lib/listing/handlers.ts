@@ -2,6 +2,8 @@ import "server-only";
 import type { Link, SearchResult } from "@shopblok/registry/contracts";
 import { messagesFor } from "../../i18n/market-messages";
 import { cached } from "../cache";
+import { cmsOrNull } from "../cms/read";
+import { readTemplates, templatesFrom } from "../cms/templates";
 import { getMarketContext } from "../market-context";
 import { categoryPaths, listCategories } from "../medusa/categories";
 import { listOptionValueLabels, listProductsByIds } from "../medusa/products";
@@ -42,10 +44,18 @@ export async function listingResponse(request: Request): Promise<Response> {
   try {
     const context = await getMarketContext(params.get("market") ?? "");
     if (context === null) return nothing(404);
-    const messages = await messagesFor(context.market);
+    const [messages, templates] = await Promise.all([
+      messagesFor(context.market),
+      // The grid's card (D101, T84): the published global's, read on the server for the market.
+      cmsOrNull(
+        readTemplates({ market: context.market, draft: false }),
+        "listing island: the cards are ProductCard's first",
+      ),
+    ]);
     const resolved = await resolveScope(context, messages, scope);
     if (resolved === null) return nothing(404);
     const results = await readListing({
+      card: templatesFrom(templates).card,
       context,
       messages,
       resolved,

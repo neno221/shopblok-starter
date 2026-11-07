@@ -201,7 +201,7 @@ A variant is **a member of a family** (D99): one more look for a block, a commer
 1. **Its value**, in `packages/registry/src/contracts/variants.ts` (`VARIANTS[family]`, after the first: the first is the default and keeps M4's look). The module imports nothing from `entries/`. Every contract's `variant` is `variantEnum(family)` from it, so a page or a block can only pass a value the family has.
 2. **Its registry entry**, beside the first member's (`entries/sections.ts`, `templates.ts` or `organisms.ts`): id `<group>/<family>-<variant>` (`sections/hero-overlay`; the first member keeps its id, and so its baselines), the same `family` and `contract`, `variant`, and `component: { module: "@shopblok/ui/<dir>/<folder>/<variant>", name }`. A field only this variant needs is an optional field of the family's contract, refused when missing for it by `variantNeeds({ overlay: ["image"] })` in the contract's `superRefine`, so the data layer keeps one shape per block. `index.test.ts` checks the list in `variants.ts` against `variantsOf()`.
 3. **The member**, `packages/ui/src/<dir>/<folder>/<variant>.tsx` on D42's rules, with `data-variant="<variant>"` on the family's root (the element `familyRoot()` in `apps/storefront/src/payload/blocks/drift.ts` names: a section's `SectionFrame`, a template's root, the quick view's and the mini cart's trigger). What it shares with the first member moves to `<folder>/parts.tsx`, with no change of the first member's pixels (the dispatch in step 7 proves it: only the new member's PNGs are written). Then its line in the entry file's `MEMBERS` map (`sections/<block>.tsx`, `templates/<template>.tsx`, `organisms/{quick-view-dialog,cart-drawer}.tsx`): `Members<F, …>` makes a family value without a component a type error, and `pickVariant` draws it.
-4. **Its client code, if any**, loaded by `next/dynamic` inside a client component (never from a server component: T77's probe), and its module listed in `keptOut` in `apps/storefront/scripts/first-load.ts` with a `displayName` marker string, as `live-preview-listener.tsx` has: `check:first-load` fails if the chunk is in a route's first load and prints its gzipped size, which the task records.
+4. **Its client code, if any**, loaded by `next/dynamic` inside a client component (never from a server component: T77's probe), or by `React.lazy` inside a client island that renders only in the browser (T84's listing layouts: `next/dynamic`'s own code costs 1.4 KB), and its module listed in `keptOut` in `apps/storefront/scripts/first-load.ts` with a `displayName` marker string, as `live-preview-listener.tsx` has: `check:first-load` fails if the chunk is in a route's first load and prints its gzipped size, which the task records.
 5. **Its fixtures, story and copy**: fixtures in the four locales (`packages/fixtures`), the story beside the family's (`apps/storefront/src/design-system/stories/`), each new fixed word in the four catalogs and a `ui-strings` row (the counts in the tests follow).
 6. **Payload**: nothing to add for the option itself, since the block's `variant` field and the `templates` global's picker list `variantsOf(family)`; a variant-only field goes behind `admin.condition` on the variant, with a short `enumName` for a `select`, and its resolver step runs only for its variant (`resolve/sections.ts`; `withVariant` passes the stored value on). Then `generate:types`, `generate:importmap`, and the migration last on a branch rebased on `main` (D88): a new value is a new enum value.
 7. **The pixels and the checks**: dispatch `update-baselines` on the branch (three `en` baselines and a thumbnail; nothing else may change). Until they are there, the drift test (`apps/storefront/src/payload/blocks/drift.test.tsx`) and the registry's thumbnail test fail, naming the files. The drift test also fails for a picker whose options differ from the family, a member with no story, and a member whose live render does not carry its `data-variant` on the family's root, which is what an entry file that ignores `variant` draws. A variant that changes what a shopper can do gets its e2e case (a template's in `templates-global.spec.ts` or its own spec), and the first-load table goes in the task's SETUP.md section.
@@ -7964,3 +7964,96 @@ Built as `e2e-smoke` builds (Medusa up, `STOREFRONT_PRERENDER_PRODUCTS=4`, `STOR
 | 5 | Docs: `variantNeeds({ overlay: "image" })` should take a list; "48 families" are 48 members in 30 families | Fixed |
 | 6 | `variantNeeds` read its map without `Object.hasOwn`, so a `variant` of `"toString"` threw instead of adding an issue | Fixed: `Object.hasOwn`, with a test |
 | 7 | The templates preview can open on a product with no page in the editing market | Skipped (robustness, not security or a cleanup) |
+
+## Listing variants (T84)
+
+**Result: the listing has seven filter layouts, M3's sidebar and six new ones (`top-bar`, `drawer`, `accordion`, `chips`, `rail`, `inline`), and the `templates` global's Listing tab picks one for every listing page and the search page. Every layout draws the same filter form, with the same field names and the same `action`, so the listing island and `/search` read it unchanged (D59): `listing-variants.spec.ts` filters by a colour and a top price from the keyboard in each layout, with scripts (the listing's URL takes the query) and without (the form lands on `/search` with the same products). The Listing tab's new `card` picker puts one of M2's ten product cards in the listing's, the island's and the search page's grids. The listings' first load is 334.5 of 335 KB (332.3 at T79); the six layouts' code is in no route's first load.** M5 plan §5 T84; D59, D99, D101, D102.
+
+| | |
+|---|---|
+| Date | 2026-11-07 |
+| Branch | `claude/project-thread-my4yee`, from `main` at `89e26c7` (T79 merged) |
+| PR | [118](https://github.com/neno221/shopblok-starter/pull/118) |
+| Machine | The cloud VM: Node 22.23.4, pnpm 12.10.1, the compose stack, Medusa 2.22.4 (`medusa develop`) |
+
+### What changed
+
+- **The registry** (D99): `VARIANTS["product-listing"]` is `default` and the six layouts, in §1a's order. Six entries after `templates/product-listing`: `templates/product-listing-<layout>`, family `product-listing`, contract `ProductListingPage`, component `ProductListing<Layout>` in `@shopblok/ui/templates/product-listing/<layout>` (a `member()` helper in `entries/templates.ts` builds them). 163 entries, 54 of them family members.
+- **The members** (`packages/ui/src/templates/product-listing/`): `parts.tsx` holds the page's frame, moved from `default.tsx` with no change (`ProductListingFrame`: the heading, the breadcrumbs, the region with the island; `data-variant={member}` on `product-listing-template`), and each member is the frame with its layout's results. `default.tsx` keeps its exports.
+- **The layouts' results** (`packages/ui/src/templates/listing-layouts/`, one module each, server components with no client code of their own): each draws `ListingResults`' parts (the toolbar, the active filters, the grid, the pages) around its own arrangement of the filter form, with `data-layout` on `listing-results` (M3's `listing-results.tsx` now says `data-layout="default"`). `listing-layouts.tsx`'s `ListingResultsFor` picks one by the family's value (`pickVariant`). Every layout's products column (the toolbar, the chips, the grid, the pages) is `ResultsProducts` and its root `ResultsRoot`, both in `listing-results.tsx`, which M3's `ListingResults` draws too (PR 118 review, item 4; the default layout's baselines unchanged). The filters' own parts are in `listing-layouts/parts.tsx`, with `HiddenParams` and `chosenIn` from `organisms/filter-fields.tsx` (item 5):
+  - `top-bar`: one form above the grid, each group a button that opens its own popover (`popover="auto"` and `popovertarget`, so it opens and closes with no script, Escape included; placed under its button by CSS anchor positioning where the browser has it, centred on the screen where it has not), each popover with an Apply button; the toggles stay in the bar. Below `lg`, M3's drawer button.
+  - `rail`: the same popovers in a narrow sticky column beside the grid (`data-orientation="rail"`); below `lg`, the drawer button.
+  - `drawer`: the drawer button at every width (ProductToolbar's new `filtersAlways`) and no sidebar; without scripts the sidebar's form is in a `<noscript>` above the grid.
+  - `accordion`: the sidebar with each group a native disclosure (`<details>`, FilterSidebar's new `open="first"`): the first open and every group with a choice in it (PR 118 review, item 3), the others closed but still in the form. The active filters move above the grid (FilterSidebar's new `chips={false}`).
+  - `chips`: every box and swatch option a 44 px pill holding a native checkbox (so the keyboard and a form without scripts tick it), then the price and the toggles in one row with Apply; no drawer at any width.
+  - `inline`: one native panel above the grid (`<details>`, closed at first) holding the whole form in a grid of up to four columns, with Clear all and Apply; no drawer.
+- **The island** (`components/listing/listing-island.tsx`): it takes the global's `layout` and draws its results through `LayoutResults` (`components/listing/listing-layouts.tsx`), which keeps `default` as the island's static import and loads each other layout with `React.lazy` the first time the island draws results in it, under a `Suspense` whose fallback is the island's loading line. A layout whose chunk does not load (a deploy took the old build's files away, the visitor went offline) draws the default layout's results through an error boundary, not the route's error page (PR 118 review, item 1).
+- **The search page** follows the listing's picker: `templates/search-results` draws `ListingResultsFor` with the `variant` it is given (the page passes the global's `listing`), so its filters are the listing's layout. It is not a member of the family and keeps its one DS entry.
+- **The card picker** (D101): the Listing tab's `card` (family `product-card`, M2's ten, `standard` first). `lib/cms/templates.ts`' `TemplateChoice` has `card`, `TEMPLATE_DEFAULTS.card` is `standard`, and `readListing` takes `card` (the listing pages' static shell, `/next/listing`'s answer, which reads the global for the market in parallel with the messages, and the search page). The Quick view tab's picker is shown only when `card` is `quick-add` (`admin.condition`, `withQuickAddCard` in `globals/templates.ts`; `variantField` takes a `condition`), and `templatesFrom` gives the quick view "Off" for any other card, whatever the tab still holds (PR 118 review, item 2; `QUICK_VIEW_CARD` in `lib/cms/template-options.ts`). The seed writes `listing.card: standard`.
+- **The drift test**: `familyRoot("product-card")` is `product-card`, so the new picker is checked against ProductCard's ten members (their stories, baselines, thumbnails and roots); the templates global's eight pickers, `listing.variant` with seven options.
+- **The stories**: six `templates/product-listing-<layout>` entries, each with the states "Filters chosen" and "No filters".
+- **First load** (`scripts/first-load.ts`): six `keptOut` rows, one per layout module, each found by its `displayName` marker (`shopblok:listing-<layout>`).
+- **The migration** `20261107_113348_listing_variants`: the six values on both `listing_variant` enums, and the `listing_card` column and its enums on `templates` and `_templates_v`.
+
+### Where it differs from the plan
+
+- **The popovers and the rail are native HTML, not islands loaded by `next/dynamic`.** `popover`, `<details>` and plain checkboxes open, close and send the form with no script, the keyboard and Escape included, so every layout works without JavaScript the way D100 asks, and none adds client code to the first load. What is kept out instead is each layout's module in the island (the `keptOut` rows below): the island renders in the browser only, under a `Suspense` with no server fallback, so `React.lazy` does what `next/dynamic` would, without the 1.4 KB `next/dynamic` costs (T77's probe), which the listings did not have.
+- **"How to add a variant (M5)", step 4** now says a client island that renders only in the browser can load a member with `React.lazy`.
+- **The quick-add card adds nothing yet.** D101 says the quick view's "Off" leaves "the quick-add card [that] adds, or opens the product page when it has options, as M3 built it". M3 never passed a listing's add action to the grid (`ProductGrid`'s `quickAdd` is unused), so ListingCard's quick-add button is "Choose options", a link to the product page, for every product. The Quick view picker's description says so; T83 wires the button (the quick view when it is on, the cart's add when it is off and the product has one variant).
+- **Without scripts, the search page's results are in the HTML but not shown** (found here, there since T50, for every layout and M3's sidebar alike): `/search` reads its URL inside a `Suspense`, so Next streams its results after the shell into hidden blocks that a script puts in place. A browser without scripts shows the search box and the heading only. The filter forms are right (the query `/search` gets is the listing's), so `listing-variants.spec.ts` reads the products from the page once it has loaded, as T50's spec does, rather than from what is visible. Steven decides whether it is fixed as its own task.
+- **Without scripts a Base UI swatch cannot be ticked** (M2's FilterGroup: the disc is a button); the form still sends the hidden box beside it, which the spec ticks directly. The `chips` layout's boxes are native, and there the keyboard ticks them without scripts too.
+
+### First load (D102)
+
+Built as `e2e-smoke` builds (Medusa up, `STOREFRONT_PRERENDER_PRODUCTS=4`, `STOREFRONT_LISTING_PAGE_SIZE=3`), gzipped KB, T79 against T84:
+
+| Route | T79 | T84 | Budget |
+|---|---|---|---|
+| The five listing routes (`categories`, `collections` and its pages, `store` and its pages) | 332.3 | **334.5** | 335 |
+| `/[market]/products/[handle]` | 333.9 | 333.9 | 335 |
+| `/[market]`, `/[market]/[...slug]` | 330.7 | 330.7 | |
+| `/[market]/search` | 321.6 | 321.6 | |
+
+The listings' 2.2 KB are the island's layout map, its `Suspense` and the error boundary (six `React.lazy` loaders; 334.2 before the review's fixes, which also moved the shared products column into the island's own chunk). **0.5 KB are left** on the listings: the next task that adds code to them (T83's quick view trigger) measures first. The kept-out rows after the review's fixes, each its own chunk, in no route's first load:
+
+| Module | Chunk | gzip KB |
+|---|---|---|
+| `src/components/cms/live-preview-listener.tsx` | `3ea2xhs0awjyf.js` | 0.6 |
+| `listing-layouts/top-bar.tsx` | `0_6l0tstra_x4.js` | 2.3 |
+| `listing-layouts/drawer.tsx` | `2ovlmz3uj5uxj.js` | 2.3 |
+| `listing-layouts/accordion.tsx` | `3cy7dgbawd_qu.js` | 2.4 |
+| `listing-layouts/chips.tsx` | `13oj2pj48tajm.js` | 2.3 |
+| `listing-layouts/rail.tsx` | `06x2e9igfl8k0.js` | 2.4 |
+| `listing-layouts/inline.tsx` | `18i0qisy9dehd.js` | 2.3 |
+
+### Mutations (each fails a test)
+
+- **A layout whose form names a field differently:** the `chips` pills' `name={group.id}` changed to `` `${group.id}-x` ``, built as above: `listing-variants.spec.ts`'s chips case fails (on `/search` the colour's values are `[]`, expected the Navy value: the filter is lost), and `listing-layouts.test.tsx` fails "posts the same fields to the same action in every layout" and "sends each option's own value under its group's name".
+- **The search page not following the listing:** `search-results` drawing `layout="default"` instead of its `variant`: `listing-layouts.test.tsx` fails "the search page follows the listing's layout (D101)".
+
+### Checks (cloud VM)
+
+- `pnpm typecheck` and `pnpm lint` exit 0. `turbo run test --continue`: every suite passes (`packages/ui` 5814, the storefront 3970, the registry 233) except the two tests that wait for the dispatch's PNGs: the registry's thumbnail test and the drift test, which names exactly the six layouts' 18 baselines and 6 thumbnails. `generate:types` adds `card`.
+- The migration applied with `payload migrate`, and `migrate:create --skip-empty` afterwards writes nothing; the seed's unit test (`run.test.ts`) covers `listing.card`.
+- The storefront built as `e2e-smoke` builds it, with Medusa up; `check:first-load` passes with the rows above.
+- **After the review's fixes:** `typecheck`, `lint`, the ui (5814) and storefront (3976) tests; the build and `check:first-load` as above; `listing-variants`, `templates-global` and `catalog` against `next start`, 32 passed.
+- **The e2e suites** against `next start` (`E2E_TEST_ROUTES=true`, `STOREFRONT_LISTING_PAGE_SIZE=3`): `listing-variants.spec.ts` (8), `templates-global.spec.ts` (3), `catalog.spec.ts` and `cms-pages.spec.ts`: 50 passed; `listing-variants.spec.ts` and `templates-global.spec.ts` twice more in a row (`--repeat-each=2`), 22 passed.
+
+### Baselines (D109)
+
+The first dispatch (run [42370759759](https://github.com/neno221/shopblok-starter/actions/runs/42370759759), commit `670ef0c`): the six layouts' 18 baselines and 6 thumbnails, 24 PNGs and 5,307,398 bytes, and three rewritten with nothing to see, `molecules/saved-payment-method-card/en-375` (3 pixels) and `templates/product-detail/en-375` and `en-768` (16 and 34 pixels, the same two T79 saw), no channel more than 21 of 255 apart. The set: 519 PNGs, 72.18 MB (72,179,866 bytes). The review's item 3 redraws the accordion's open groups, so a second dispatch followed the fixes (run [42371944432](https://github.com/neno221/shopblok-starter/actions/runs/42371944432), commit `8588bf8`): `templates/product-listing-accordion/en-1440` and the accordion's thumbnail (the narrow widths show the drawer, unchanged), and `saved-payment-method-card/en-375` again (noise, 6 bytes); 53,245 bytes more. The PR's run at `b451956` had failed only those two accordion cells, so the shared products column (item 4) changed no default pixel. The set: 519 PNGs, 72.23 MB (72,233,111 bytes).
+
+### Changes from the review of this PR (PR 118)
+
+| # | Finding | Done |
+|---|---|---|
+| 1 | Must-fix: a layout's chunk that fails to load threw to the `[market]` error page (`React.lazy` keeps the rejection, nothing caught it) | Fixed: `LayoutBoundary` in `LayoutResults` draws the default layout's results instead; `listing-layouts.test.tsx` (storefront) rejects `top-bar`'s import and fails without the boundary |
+| 2 | Must-fix: `templatesFrom` passed a stored quick view through whatever the card, so D101's rule lived only in the admin's condition | Fixed: the quick view is "Off" unless the card is `quick-add`, with a test |
+| 3 | Must-fix: the accordion opened only the first group, its story said "and any with a choice in it" | Fixed in the code: a group with a choice opens too (a chosen box is in sight to untick by keyboard); the unit test draws a later group with and without a choice |
+| 4 | Cleanup: `ResultsProducts` re-implemented `ListingResults`' products column | Fixed: one column and one root in `listing-results.tsx`, which `ListingResults` and the six layouts draw |
+| 5 | Cleanup: the hidden-params loop in three places | Fixed: `HiddenParams` (and `chosenIn`) exported from `filter-fields.tsx`, used by both of its branches and by `parts.tsx` |
+| 6 | The island's card is the published one, the page's first render the draft one in Draft Mode | Skipped (not security or a cleanup; the route reads published data only, as PR 113's review asked) |
+| 7 | The accordion's group names are `<summary>` text, not headings | Skipped (accessibility nicety, not a WCAG failure) |
+| 8 | Image-only swatches lose their picture in the chips layout | Skipped (the demo's swatches all have a colour) |
+| 9 | `down()` cannot cast a row with a new layout back | Skipped (the generated `down()`, as the Persian migration's) |
+| 10 | `getShellData()` awaited before `readListing` | Skipped (efficiency; usually warm) |

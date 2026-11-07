@@ -1,15 +1,17 @@
 import "server-only";
 import { formatMessage, formatNumberRange, type Messages } from "@shopblok/i18n";
-import type {
-  ActiveFilter,
-  ActiveFilters,
-  Breadcrumbs,
-  EmptyStateContent,
-  FacetGroup,
-  ListingResults,
-  Link,
-  QueryParam,
-  SortState,
+import {
+  firstVariant,
+  type ActiveFilter,
+  type ActiveFilters,
+  type Breadcrumbs,
+  type EmptyStateContent,
+  type FacetGroup,
+  type ListingResults,
+  type Link,
+  type QueryParam,
+  type SortState,
+  type VariantOf,
 } from "@shopblok/registry/contracts";
 import { env, type RawEnv } from "../env";
 import type { MarketContext } from "../market-context";
@@ -138,6 +140,8 @@ export type ReadListingInput = {
   pathPage: number;
   pageSize: number;
   links: ListingLinks;
+  /** The grid's card (D101, T84): the `templates` global's listing `card`; ProductCard's first unset. */
+  card?: VariantOf<"product-card">;
 };
 
 const SORT_LABEL: Record<ListingSort, keyof Messages["molecules"]["sortSelect"]["options"]> = {
@@ -306,7 +310,12 @@ export async function readListing(input: ReadListingInput): Promise<ListingResul
             resultCount: result.total,
           },
         }),
-    grid: { products: cards, variant: "standard", layout: "grid", empty },
+    grid: {
+      products: cards,
+      variant: input.card ?? firstVariant("product-card"),
+      layout: "grid",
+      empty,
+    },
     page: { page: Math.min(page, result.pageCount), pageCount: result.pageCount },
   };
 }

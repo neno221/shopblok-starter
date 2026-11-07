@@ -476,6 +476,7 @@ describe("the globals' seed (T61 step 6)", () => {
     expect(values).toEqual({
       "productPage.variant": d.productPage,
       "listing.variant": d.listing,
+      "listing.card": d.card,
       "quickView.variant": d.quickView,
       "cart.variant": d.cart,
       "cart.miniCart": d.miniCart,

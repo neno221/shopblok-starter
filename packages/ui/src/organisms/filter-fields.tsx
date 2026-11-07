@@ -17,11 +17,18 @@
 //   switch labelled "In stock" would say it twice and hide one control behind another. It keeps its
 //   place in the facets' order. The other kinds hide their legend (`hideLegend`) because the
 //   section's trigger already shows the name; the legend stays for assistive technology.
+// - `open="first"` (T84's `accordion` listing layout) closes every group but the first and those
+//   with something chosen in it (so a chosen box is in sight, to untick by keyboard). Base UI's
+//   accordion cannot do that without scripts (a closed panel's trigger is a button that needs
+//   them), so those groups are native disclosures (`<details>` and `<summary>`, as the FAQ's):
+//   they open with the keyboard and without JavaScript, and a closed one's fields are still the
+//   form's, so it posts what is chosen in it. What is chosen shows as the chips above the products.
 import type { Messages } from "@shopblok/i18n";
 import type { FacetGroup, QueryParam } from "@shopblok/registry/contracts";
 import { AccordionItem } from "@shopblok/ui/molecules/accordion-item";
 import { FilterGroup } from "@shopblok/ui/molecules/filter-group";
 import { Accordion } from "@shopblok/ui/primitives/accordion";
+import { ChevronDownIcon } from "lucide-react";
 
 type FilterFieldsProps = {
   groups: FacetGroup[];
@@ -33,14 +40,81 @@ type FilterFieldsProps = {
   locale: string;
   /** The level of the headings the sections sit in, under the shell's own title. Default 3. */
   headingLevel?: 2 | 3 | 4 | 5 | 6;
+  /** Which groups start open: every one (the default), or the first only. */
+  open?: "all" | "first";
 };
 
-function FilterFields({ groups, params, copy, locale, headingLevel = 3 }: FilterFieldsProps) {
+/** The listing's other parameters (the sort, the scope) as the form's hidden inputs. */
+function HiddenParams({ params }: { params: QueryParam[] }) {
+  return params.map((param, index) => (
+    <input key={`${param.name}-${index}`} type="hidden" name={param.name} value={param.value} />
+  ));
+}
+
+/** How many of a group's values are chosen: a box each, a range or a toggle one. */
+function chosenIn(group: FacetGroup): number {
+  if (group.kind === "checkbox" || group.kind === "swatch")
+    return group.options.filter((option) => option.selected).length;
+  if (group.kind === "range") return group.selected === undefined ? 0 : 1;
+  return group.selected ? 1 : 0;
+}
+
+/** The groups as native disclosures: the first open, and any with a choice in it (T84). */
+function DisclosureFields({
+  groups,
+  copy,
+  locale,
+}: Pick<FilterFieldsProps, "groups" | "copy" | "locale">) {
+  const first = groups.find((group) => group.kind !== "toggle");
+  return (
+    <div data-slot="filter-fields" data-open="first" className="flex w-full flex-col">
+      {groups.map((group) =>
+        group.kind === "toggle" ? (
+          <div key={group.id} data-slot="filter-toggle-row" className="border-b py-1">
+            <FilterGroup facet={group} copy={copy} locale={locale} />
+          </div>
+        ) : (
+          <details
+            key={group.id}
+            data-slot="filter-disclosure"
+            open={group === first || chosenIn(group) > 0}
+            className="group/filter not-last:border-b"
+          >
+            <summary className="flex min-h-11 cursor-pointer list-none items-start justify-between gap-2 rounded-md py-4 text-start text-sm font-medium outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
+              <span className="min-w-0 wrap-anywhere">{group.label}</span>
+              <ChevronDownIcon
+                aria-hidden="true"
+                className="size-4 shrink-0 text-muted-foreground transition-transform duration-150 group-open/filter:rotate-180 motion-reduce:transition-none"
+              />
+            </summary>
+            <div className="pb-4 text-sm">
+              <FilterGroup facet={group} copy={copy} locale={locale} hideLegend />
+            </div>
+          </details>
+        ),
+      )}
+    </div>
+  );
+}
+
+function FilterFields({
+  groups,
+  params,
+  copy,
+  locale,
+  headingLevel = 3,
+  open = "all",
+}: FilterFieldsProps) {
+  if (open === "first")
+    return (
+      <>
+        <HiddenParams params={params} />
+        <DisclosureFields groups={groups} copy={copy} locale={locale} />
+      </>
+    );
   return (
     <>
-      {params.map((param, index) => (
-        <input key={`${param.name}-${index}`} type="hidden" name={param.name} value={param.value} />
-      ))}
+      <HiddenParams params={params} />
       <Accordion
         multiple
         keepMounted
@@ -68,5 +142,5 @@ function FilterFields({ groups, params, copy, locale, headingLevel = 3 }: Filter
   );
 }
 
-export { FilterFields };
+export { chosenIn, FilterFields, HiddenParams };
 export type { FilterFieldsProps };

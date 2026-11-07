@@ -30,7 +30,7 @@ const atom = (id: string, extra: Partial<EntryInput> = {}): EntryInput => ({
 });
 
 describe("the registry (D40)", () => {
-  it("lists M1's 8 foundations and 32 atoms, then T32's 15 molecules, T33's 13 and T34's 12, then T35's 4 organisms and 6 headers, T36's 2 organisms and 5 footers, T37's 7 organisms, T38's 7 and T39's 11, then T63's 8 sections, T64's 9, T67's 2 and T66's 1, then T48's 2 templates, T49's 1, T50's 2, T51's 1, T52's 3, T53's 3, T65's 1 and T66's 2, in the navigation's order", () => {
+  it("lists M1's 8 foundations and 32 atoms, then T32's 15 molecules, T33's 13 and T34's 12, then T35's 4 organisms and 6 headers, T36's 2 organisms and 5 footers, T37's 7 organisms, T38's 7 and T39's 11, then T63's 8 sections, T64's 9, T67's 2 and T66's 1, then T48's 2 templates, T49's 1, T50's 2 (T84's six listing layouts after the first), T51's 1, T52's 3, T53's 3, T65's 1 and T66's 2, in the navigation's order", () => {
     expect(byGroup("foundations")).toHaveLength(8);
     expect(byGroup("atoms")).toHaveLength(32);
     expect(byGroup("molecules")).toHaveLength(40);
@@ -63,6 +63,12 @@ describe("the registry (D40)", () => {
       "templates/error",
       "templates/product-detail",
       "templates/product-listing",
+      "templates/product-listing-top-bar",
+      "templates/product-listing-drawer",
+      "templates/product-listing-accordion",
+      "templates/product-listing-chips",
+      "templates/product-listing-rail",
+      "templates/product-listing-inline",
       "templates/search-results",
       "templates/home",
       "templates/cart",
@@ -75,7 +81,7 @@ describe("the registry (D40)", () => {
       "templates/journal",
       "templates/post",
     ]);
-    expect(entries).toHaveLength(157);
+    expect(entries).toHaveLength(163);
     expect(entries.map((entry) => entry.id).slice(0, 2)).toEqual([
       "foundations/colors",
       "foundations/typography",
@@ -425,8 +431,9 @@ describe("variantsOf", () => {
     expect(variantsOf("nope", list)).toEqual([]);
     // The 48 variants a shop picks (D46, D52, D79, D99): six headers, five footers, ten cards, the
     // twenty blocks' one each (T63's eight content blocks, T64's nine commerce blocks, T67's two
-    // form blocks, T66's editorial list) and the first of T79's seven families each.
-    expect(entries.filter((entry) => entry.family !== undefined)).toHaveLength(48);
+    // form blocks, T66's editorial list), the first of T79's seven families each and T84's six
+    // listing layouts.
+    expect(entries.filter((entry) => entry.family !== undefined)).toHaveLength(54);
   });
 
   it("starts T79's seven families with what M2 and M3 built, ids unchanged (D99)", () => {
@@ -441,8 +448,10 @@ describe("variantsOf", () => {
         "receipt",
       ].map((family) => [
         family,
+        // The first member of each (T83 to T86 add the others after it).
         entries
           .filter((entry) => entry.family === family)
+          .slice(0, 1)
           .map((entry) => `${entry.id} ${entry.variant}`),
       ]),
     );
