@@ -23,8 +23,9 @@
 // of its own); the chunks under `.next/static/chunks/` that hold it are the module's. The check
 // prints each such chunk with its gzipped size.
 //
-// What fails (exit 1): a kept-out module whose chunk is in a route's `firstLoadChunkPaths` (it was
-// imported statically, or `dynamic()` was called in a server component), or whose marker is in no
+// What fails (exit 1): a kept-out module whose chunk is in a shop route's `firstLoadChunkPaths` (it
+// was imported statically, or `dynamic()` was called in a server component; the design system's
+// routes draw every member at once and are not judged, `shopRoute`), or whose marker is in no
 // chunk (the row is stale); a budgeted route over its budget; a budgeted route that has a page in the
 // manifest and no row in the stats (so a change of the stats file's format cannot pass silently); a
 // stats file or manifest that is missing or not in the shape above; a chunk file the stats name that
@@ -65,16 +66,25 @@ export const budgets: readonly Budget[] = [
   // Steven's decisions on PR 77 (T49), in T50 and in T52: the shell's layout alone is ~293 KB, so
   // SPEC §13's 170 KB cannot hold; the PDP measured 322.9 KB and the listing pages 318.6 KB (330 KB
   // each), then the header's cart drawer and quick cart (T52) brought them to 332.4 and 331.5 KB,
-  // and both have 335 KB.
+  // and both have 335 KB. T83: the listings have 336 KB (Steven, 2026-11-07), for the quick view's
+  // opener on their cards (D101, D102), the dialog itself kept out.
   { route: "/[market]/products/[handle]", label: "PDP", maxKB: 335 },
-  { route: "/[market]/categories/[...handle]", label: "PLP, categories", maxKB: 335 },
-  { route: "/[market]/store", label: "PLP, store", maxKB: 335 },
-  { route: "/[market]/store/page/[n]", label: "PLP, store page n", maxKB: 335 },
-  { route: "/[market]/collections/[handle]", label: "PLP, collections", maxKB: 335 },
+  {
+    route: "/[market]/categories/[...handle]",
+    label: "PLP, categories",
+    maxKB: 336,
+  },
+  { route: "/[market]/store", label: "PLP, store", maxKB: 336 },
+  { route: "/[market]/store/page/[n]", label: "PLP, store page n", maxKB: 336 },
+  {
+    route: "/[market]/collections/[handle]",
+    label: "PLP, collections",
+    maxKB: 336,
+  },
   {
     route: "/[market]/collections/[handle]/page/[n]",
     label: "PLP, collections page n",
-    maxKB: 335,
+    maxKB: 336,
   },
 ];
 
@@ -134,6 +144,18 @@ export const keptOut: readonly KeptOut[] = [
     module: `../../packages/ui/src/templates/listing-layouts/${layout}.tsx`,
     marker: `shopblok:listing-${layout}`,
     label: `the listing's ${name} layout (T84)`,
+  })),
+  // T83: the quick view, which the listing's opener loads on a card's first press
+  // (`src/components/listing/quick-view-opener.tsx`, `import()`), and its three members.
+  {
+    module: "src/components/listing/quick-view-island.tsx",
+    marker: "shopblok:quick-view-island",
+    label: "the quick view's island (T83)",
+  },
+  ...(["default", "drawer", "compact"] as const).map((member) => ({
+    module: `../../packages/ui/src/organisms/quick-view/${member}.tsx`,
+    marker: `shopblok:quick-view-${member}`,
+    label: `the quick view's ${member} member (T83)`,
   })),
 ];
 
@@ -349,6 +371,15 @@ export function readChunks(root: string): ChunkText[] {
 }
 
 /**
+ * Whether D102's kept-out check judges a route: every route but the design system's (T83). The design
+ * system draws every member of a family on one page, so it imports each member statically, and a
+ * client member's chunk (the quick view's three) is in its first load by design; it is a tool for the
+ * shop's makers, never a page a shopper loads.
+ */
+export const shopRoute = (route: string) =>
+  route !== "/design-system" && !route.startsWith("/design-system/");
+
+/**
  * D102's check: each kept-out module's chunks (the ones holding its marker) with their gzipped
  * size, and a failure for a chunk that is in a route's first load or a marker in no chunk.
  */
@@ -370,7 +401,9 @@ export function checkKeptOut(
       continue;
     }
     for (const { chunk } of found) {
-      const routes = rows.filter((row) => row.firstLoadChunkPaths.includes(chunk));
+      const routes = rows.filter(
+        (row) => shopRoute(row.route) && row.firstLoadChunkPaths.includes(chunk),
+      );
       lines.push([
         item.module,
         chunk,

@@ -13,6 +13,7 @@ import {
   type SortState,
   type VariantOf,
 } from "@shopblok/registry/contracts";
+import { QUICK_VIEW_OFF } from "../cms/template-options";
 import { env, type RawEnv } from "../env";
 import type { MarketContext } from "../market-context";
 import { flattenCategories, listCategories, type CategoryNode } from "../medusa/categories";
@@ -142,6 +143,8 @@ export type ReadListingInput = {
   links: ListingLinks;
   /** The grid's card (D101, T84): the `templates` global's listing `card`; ProductCard's first unset. */
   card?: VariantOf<"product-card">;
+  /** The quick view the `quick-add` card opens (D101, T83): the global's; "off" or unset, none. */
+  quickView?: typeof QUICK_VIEW_OFF | VariantOf<"quick-view">;
 };
 
 const SORT_LABEL: Record<ListingSort, keyof Messages["molecules"]["sortSelect"]["options"]> = {
@@ -315,6 +318,9 @@ export async function readListing(input: ReadListingInput): Promise<ListingResul
       variant: input.card ?? firstVariant("product-card"),
       layout: "grid",
       empty,
+      ...(input.quickView === undefined || input.quickView === QUICK_VIEW_OFF
+        ? {}
+        : { quickView: input.quickView }),
     },
     page: { page: Math.min(page, result.pageCount), pageCount: result.pageCount },
   };

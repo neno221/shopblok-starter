@@ -93,6 +93,21 @@ const listing = <const V extends VariantOf<"product-listing">>(
     ProductListingPage,
   );
 
+/** T83: a product page layout (M5 plan §1a), a member of `product-detail`. */
+const detail = <const V extends VariantOf<"product-detail">>(
+  variant: V,
+  label: string,
+  name: string,
+) =>
+  member(
+    "product-detail",
+    "product-detail",
+    variant,
+    `Product page · ${label}`,
+    name,
+    ProductDetailPage,
+  );
+
 /** T86: a checkout layout (M5 plan §1a), a member of `checkout`. */
 const checkout = <const V extends VariantOf<"checkout">>(variant: V, label: string, name: string) =>
   member("checkout", "checkout", variant, `Checkout · ${label}`, name, CheckoutPage);
@@ -120,6 +135,12 @@ export const templates = [
     "ProductDetailTemplate",
     ProductDetailPage,
   ),
+  // T83: the product page's five other layouts (D101).
+  detail("thumbnails-below", "Thumbnails below", "ProductDetailThumbnailsBelow"),
+  detail("grid", "Grid", "ProductDetailGrid"),
+  detail("stacked", "Stacked", "ProductDetailStacked"),
+  detail("wide", "Wide", "ProductDetailWide"),
+  detail("centered", "Centred", "ProductDetailCentered"),
   // T50: the listing pages and the search page.
   first(
     "product-listing",

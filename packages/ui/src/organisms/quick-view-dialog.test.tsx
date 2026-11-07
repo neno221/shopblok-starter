@@ -544,14 +544,24 @@ describe("QuickViewDialog: the file (D49)", () => {
     );
 
   // The dialog is the quick view's first member since T79 (D99); `quick-view-dialog.tsx` is the
-  // family's entry file, which imports the registry's types only.
-  it("is a client component that imports no catalog, no registry and no fixture", () => {
-    const text = source("quick-view/default.tsx");
-    expect(text).toMatch(/^"use client";?$/m);
-    const imported = runtimeImports(text);
-    expect(imported.filter((each) => each === "@shopblok/i18n")).toEqual([]);
-    expect(imported.filter((each) => /@shopblok\/(?:registry|fixtures)/.test(each))).toEqual([]);
-    expect(imported).toContain("@shopblok/i18n/format");
+  // family's entry file, which imports the registry's types only. T83: the members share
+  // `quick-view/parts.tsx` (the trigger's name is formatted there), and the listing card's trigger
+  // is `quick-view/trigger.tsx`, a server component.
+  it.each(["default", "drawer", "compact", "parts"])(
+    "quick-view/%s.tsx is a client component that imports no catalog, no registry and no fixture",
+    (file) => {
+      const text = source(`quick-view/${file}.tsx`);
+      expect(text).toMatch(/^"use client";?$/m);
+      const imported = runtimeImports(text);
+      expect(imported.filter((each) => each === "@shopblok/i18n")).toEqual([]);
+      expect(imported.filter((each) => /@shopblok\/(?:registry|fixtures)/.test(each))).toEqual([]);
+    },
+  );
+
+  it("formats the trigger's name with the format module, not the catalogs", () => {
+    expect(runtimeImports(source("quick-view/parts.tsx"))).toContain("@shopblok/i18n/format");
+    expect(runtimeImports(source("quick-view/trigger.tsx"))).toContain("@shopblok/i18n/format");
+    expect(source("quick-view/trigger.tsx")).not.toMatch(/^"use client"/m);
   });
 
   it("draws the gallery without zoom and with the thumbnails below, as the brief asks", () => {

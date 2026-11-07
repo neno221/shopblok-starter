@@ -95,6 +95,7 @@ const readListingPage = cache(
     const { templates } = await getShellData();
     const results = await readListing({
       card: templates.card,
+      quickView: templates.quickView,
       context,
       messages,
       resolved,

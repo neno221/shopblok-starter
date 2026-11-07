@@ -4,7 +4,7 @@ import { SearchResultsTemplate, searchResultsCopy } from "@shopblok/ui/templates
 import { SearchField } from "@shopblok/ui/molecules/search-field";
 import type { Metadata } from "next";
 import { getMessages } from "next-intl/server";
-import { Suspense } from "react";
+import { QuickViewOpener } from "../../../../components/listing/quick-view-opener";
 import { RememberSearch } from "../../../../components/listing/remember-search";
 import { getShellData } from "../../../../components/shell/shell-data";
 import { getCurrentMarket } from "../../../../lib/current-market";
@@ -19,10 +19,14 @@ import { getMarketContext } from "../../../../lib/market-context";
 import { SHELL_PREFETCH } from "../../../../lib/site";
 
 // D59, D63 (T50): the search page. It is the one listing page drawn for each request: the query,
-// the filters and the sort are all in its URL (`searchParams`, read inside the `Suspense`, so the
-// shell around it stays static), and it is where a listing's filter and sort forms land without
-// JavaScript, with the listing in `scope`. Every result is `noindex`; the metadata reads nothing
-// from the URL, so it is static.
+// the filters and the sort are all in its URL (`searchParams`), and it is where a listing's filter
+// and sort forms land without JavaScript, with the listing in `scope`. Dynamic and blocking
+// (`instant = false`, no `Suspense`, as the cart page): the results are in the HTML where the page
+// shows them, which a browser without scripts needs (a streamed part waits in a hidden block for a
+// script to put it in place; SETUP.md, "Search without scripts"). Every result is `noindex`; the
+// metadata reads nothing from the URL, so it is static.
+
+export const instant = false;
 
 type Props = { searchParams: Promise<Record<string, string | string[] | undefined>> };
 
@@ -42,18 +46,7 @@ function toParams(raw: Record<string, string | string[] | undefined>): URLSearch
   return params;
 }
 
-export default async function SearchPage({ searchParams }: Props) {
-  // The shell's map, not the market's context: the static part reads no region, so a build
-  // without Medusa (the stand-in, D10) renders it too.
-  const [{ url }, messages] = await Promise.all([getShellData(), getMessages()]);
-  return (
-    <Suspense fallback={<SearchFallback messages={messages} action={url("/search")} />}>
-      <SearchResults searchParams={searchParams} />
-    </Suspense>
-  );
-}
-
-/** Until the results stream in: the field and the heading, where the page will have them. */
+/** Without the market's context or the store's scope: the field and the heading only. */
 function SearchFallback({ messages, action }: { messages: Messages; action: string }) {
   return (
     <main
@@ -73,21 +66,23 @@ function SearchFallback({ messages, action }: { messages: Messages; action: stri
   );
 }
 
-async function SearchResults({ searchParams }: Props) {
-  const params = toParams(await searchParams);
-  const [market, messages, { templates }] = await Promise.all([
+export default async function SearchPage({ searchParams }: Props) {
+  const [raw, market, messages, { templates, url }] = await Promise.all([
+    searchParams,
     getCurrentMarket(),
     getMessages(),
     getShellData(),
   ]);
+  const params = toParams(raw);
+  const fallback = <SearchFallback messages={messages} action={url("/search")} />;
   const context = await getMarketContext(market.key);
-  if (context === null) return null;
+  if (context === null) return fallback;
   const query = parseListingQuery(params);
   // A filter form from a listing keeps to it; a scope that is not one is the whole store.
   const resolved =
     (query.scope === null ? null : await resolveScope(context, messages, query.scope)) ??
     (await resolveScope(context, messages, { kind: "store" }));
-  if (resolved === null) return null;
+  if (resolved === null) return fallback;
   const action = context.url("/search");
   const own = new URLSearchParams([
     ...(query.query === "" ? [] : [["q", query.query]]),
@@ -101,8 +96,10 @@ async function SearchResults({ searchParams }: Props) {
     params,
     pathPage: 1,
     pageSize: listingPageSize(),
-    // The listing's card (D101, T84), as the listing a filter form came from draws it.
+    // The listing's card and its quick view (D101, T84, T83), as the listing a filter form came
+    // from draws them.
     card: templates.card,
+    quickView: templates.quickView,
     links: {
       base: { path: action, params: own },
       formAction: action,
@@ -113,7 +110,7 @@ async function SearchResults({ searchParams }: Props) {
   const results =
     (await readListing(input)) ??
     (await readListing({ ...input, query: { ...query, page: null } }));
-  if (results === null) return null;
+  if (results === null) return fallback;
   const copy = messages.templates.searchResults;
   const title =
     query.query === ""
@@ -125,6 +122,7 @@ async function SearchResults({ searchParams }: Props) {
   return (
     <>
       <RememberSearch query={query.query} />
+      <QuickViewOpener market={market.key} />
       <SearchResultsTemplate
         // D101: the search page follows the listing's filter layout.
         variant={templates.listing}

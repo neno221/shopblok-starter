@@ -1,9 +1,9 @@
 import type { Messages } from "@shopblok/i18n";
 import type { ProductCard } from "@shopblok/registry/contracts";
 import {
-  GALLERY_SIZES,
   PRODUCT_DETAIL_IDS,
   ProductDetailTemplate,
+  galleryLayoutFor,
   productDetailCopy,
 } from "@shopblok/ui/templates/product-detail";
 import { BuyBox } from "@shopblok/ui/organisms/buy-box";
@@ -20,8 +20,6 @@ import { ReloadOnSave } from "../../../../../components/cms/reload-on-save";
 import { CmsRichText } from "../../../../../components/cms/rich-text";
 import { RecentlyViewed } from "../../../../../components/pdp/recently-viewed";
 import { getShellData } from "../../../../../components/shell/shell-data";
-import { readProductContent } from "../../../../../lib/cms/catalog";
-import type { ProductContent } from "../../../../../lib/cms/catalog-content";
 import { productPageShopText } from "../../../../../lib/cms/product-page";
 import { cmsOrNull } from "../../../../../lib/cms/read";
 import { shellPaths } from "../../../../../lib/cms/shell";
@@ -29,13 +27,10 @@ import { readSiteSettings } from "../../../../../lib/cms/site";
 import { getCurrentMarket } from "../../../../../lib/current-market";
 import { getMarketContext, type MarketContext } from "../../../../../lib/market-context";
 import { hreflangAlternates } from "../../../../../lib/markets/hreflang";
-import {
-  getProduct,
-  listProductHandles,
-  listProductsByIds,
-} from "../../../../../lib/medusa/products";
+import { listProductHandles, listProductsByIds } from "../../../../../lib/medusa/products";
 import { searchProducts } from "../../../../../lib/medusa/search";
 import { PLACEHOLDER_HANDLE, productHandlesToPrerender } from "../../../../../lib/prerender";
+import { readMarketProduct, type MarketProduct } from "../../../../../lib/product-read";
 import {
   jsonLdText,
   metaDescription,
@@ -45,13 +40,12 @@ import {
 } from "../../../../../lib/seo/product";
 import { withSeo } from "../../../../../lib/seo/meta";
 import { SHELL_PREFETCH } from "../../../../../lib/site";
-import { toProductCard, toProductDetail } from "../../../../../lib/view-models/product";
+import { toProductCard } from "../../../../../lib/view-models/product";
 import {
   INFO_SECTION,
   RELATED_PRODUCTS,
   toProductDetailPage,
 } from "../../../../../lib/view-models/product-page";
-import { withShopPictures } from "../../../../../lib/view-models/product-pictures";
 
 // D58, D61 (T49): the product page, in the static shell. Everything the server draws comes from
 // `cached()` entries (the product, the related products, the map, the region), so the route is
@@ -78,13 +72,9 @@ export async function generateStaticParams(): Promise<{ handle: string }[]> {
   return handles.map((handle) => ({ handle }));
 }
 
-type PageData = {
+type PageData = MarketProduct & {
   context: MarketContext;
   messages: Messages;
-  product: NonNullable<Awaited<ReturnType<typeof getProduct>>>;
-  detail: NonNullable<ReturnType<typeof toProductDetail>>;
-  /** The shop's content on the product (T69); `null` without one. */
-  content: ProductContent | null;
   /** Draft Mode is on: an editor's preview, where `site-settings` is read as its draft. */
   draft: boolean;
 };
@@ -96,27 +86,8 @@ const readPage = cache(async (handle: string): Promise<PageData | null> => {
   const [market, { isEnabled: draft }] = await Promise.all([getCurrentMarket(), draftMode()]);
   const [context, messages] = await Promise.all([getMarketContext(market.key), getMessages()]);
   if (context === null) return null;
-  const [product, content] = await Promise.all([
-    getProduct(handle, { regionId: context.region.id, locale: market.medusaLocale }),
-    cmsOrNull(readProductContent({ market, draft }, handle), "product page: Medusa's text alone"),
-  ]);
-  if (product === null) return null;
-  const detail = toProductDetail(product, {
-    hrefs: context.hrefs,
-    home: {
-      label: messages.templates.productDetail.home,
-      href: context.url("/"),
-    },
-  });
-  if (detail === null) return null;
-  return {
-    context,
-    messages,
-    product,
-    detail: withShopPictures(detail, content?.gallery ?? []),
-    content,
-    draft,
-  };
+  const read = await readMarketProduct(context, messages, handle, { draft, from: "product page" });
+  return read === null ? null : { ...read, context, messages, draft };
 });
 
 /** The same category's first products, without this one (D61). */
@@ -250,13 +221,17 @@ export default async function ProductPage({ params }: Props) {
       />
     </>
   );
+  // T83: the gallery as the `templates` global's layout draws it (its column, its thumbnails, and
+  // whether its first picture is the one to preload).
+  const galleryLayout = galleryLayoutFor(templates.productPage);
   const serverGallery = (
     <ProductGallery
       {...content.gallery}
       copy={copy.gallery}
       locale={locale}
-      sizes={GALLERY_SIZES}
-      priority
+      sizes={galleryLayout.sizes}
+      thumbnails={galleryLayout.thumbnails}
+      priority={galleryLayout.priority}
     />
   );
 
@@ -304,7 +279,7 @@ export default async function ProductPage({ params }: Props) {
                 }}
                 copy={copy.gallery}
                 locale={locale}
-                sizes={GALLERY_SIZES}
+                layout={galleryLayout}
               />
             </Suspense>
           ),

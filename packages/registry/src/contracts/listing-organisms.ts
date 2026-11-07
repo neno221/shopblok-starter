@@ -101,6 +101,11 @@ export const ProductGrid = z
     variant: ProductCardVariant,
     layout: z.enum(["grid", "list"]),
     empty: EmptyStateContent.describe("What the grid says when it has no products"),
+    quickView: variantEnum("quick-view")
+      .optional()
+      .describe(
+        "The quick view a `quick-add` card's button opens (the `templates` global's, D101, T83); none: the button opens the product page",
+      ),
   })
   .refine((grid) => uniqueIds(grid.products), "a product is listed twice");
 

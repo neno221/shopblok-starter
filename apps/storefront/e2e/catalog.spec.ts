@@ -242,8 +242,18 @@ test.describe("the listing pages and the search (T50)", () => {
     await sidebar.locator('[data-slot="filter-sidebar-apply"]').click();
     await expect(page).toHaveURL(/\/us\/search\?(.*&)?scope=category%3Aapparel/);
     expect(new URL(page.url()).searchParams.getAll("collection")).toHaveLength(1);
+    // Shown, not only in the HTML (SETUP.md, "Search without scripts"): the page is blocking, so
+    // its results are where it draws them, with nothing streamed into a hidden block.
     await expect(page.locator('[data-slot="search-results-title"]')).toHaveText("Apparel");
-    await expect(page.locator('[data-slot="active-filter-chips"]').first()).toBeAttached();
+    await expect(page.locator('[data-slot="search-results-title"]')).toBeVisible();
+    await expect(page.locator('[data-slot="active-filter-chips"]').first()).toBeVisible();
+    // Both sides in the results: every card the search drew is shown.
+    const cards = '[data-slot="search-results-template"] [data-slot="product-card"]';
+    await expect(page.locator(cards).first()).toBeVisible();
+    expect(await page.locator(`${cards}:visible`).count()).toBe(
+      await page.locator(cards).count(),
+    );
+    await expect(page.locator("main")).toHaveCount(1);
     await context.close();
   });
 
@@ -266,6 +276,22 @@ test.describe("the listing pages and the search (T50)", () => {
       page.locator(`${island} [data-slot="active-filter-chips"]`).first(),
     ).toBeAttached();
     await expect(page.getByRole("status").filter({ hasText: /products? found/ })).toBeAttached();
+  });
+
+  test("without scripts, /search?q= shows its results", async ({ browser }) => {
+    const context = await browser.newContext({ javaScriptEnabled: false });
+    const page = await context.newPage();
+    await page.goto("/us/search?q=hoodie");
+    const title = page.locator('[data-slot="search-results-title"]');
+    await expect(title).toHaveText("Results for “hoodie”");
+    await expect(title).toBeVisible();
+    const titles = page.locator('[data-slot="product-card-title"] a:visible');
+    await expect(titles).toHaveCount(1);
+    await expect(titles).toHaveAttribute("href", "/us/products/demo-heritage-hoodie");
+    // One page: no fallback beside the results, and no part waiting in a hidden block.
+    await expect(page.locator("main")).toHaveCount(1);
+    await expect(page.locator('[hidden] [data-slot="search-results-template"]')).toHaveCount(0);
+    await context.close();
   });
 
   test("/search?q= is server-rendered and noindex", async ({ request }) => {
