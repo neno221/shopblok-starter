@@ -356,7 +356,7 @@ test("the CSV export has every language's column and imports back by key; a refu
     expect(header, column).toContain(column);
   }
   expect(header).not.toContain("seeded_en");
-  expect(records).toHaveLength(761);
+  expect(records).toHaveLength(766);
   const at = (name: string) => header.indexOf(name);
   const row = (key: string) => {
     const found = records.find((record) => record[at("key")] === key);

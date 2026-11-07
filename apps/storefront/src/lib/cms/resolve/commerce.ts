@@ -271,7 +271,8 @@ export async function resolveCommerceBlock(
         heading: text(block.heading),
         intro: text(block.intro),
         link: links(block.links)[0],
-        display: block.display,
+        // The display is the first design's alone (hidden for the others): Payload's default stands.
+        display: block.display ?? "carousel",
         products,
         image: COLLECTION_PICTURE.includes(variant ?? "standard")
           ? mediaImage(block.media)
