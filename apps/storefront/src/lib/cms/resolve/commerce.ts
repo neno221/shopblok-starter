@@ -10,11 +10,14 @@ import {
   RecentlyViewedSection,
   type ComparisonProduct,
   type HeroCollection,
+  type Image,
   type ProductCard,
+  type ProductCollectionTab,
+  COLLECTION_PICTURE_DESIGNS,
 } from "@shopblok/registry/contracts";
 import type { ProductDto } from "../../medusa/products";
 import type { Hrefs } from "../../view-models/common";
-import { toProductCard } from "../../view-models/product";
+import { toImages, toProductCard } from "../../view-models/product";
 import type { LinkValue } from "../link";
 import { mediaImage } from "../shell";
 import type { CatalogReads } from "./catalog";
@@ -26,6 +29,7 @@ import {
   resolveProductSource,
 } from "./products";
 import type { LayoutBlock, ResolveContext } from "./sections";
+import { MAX_TABS, resolveTab, tabEndpoint, type StoredTab } from "./tabs";
 import {
   paragraphs as split,
   parsed,
@@ -44,6 +48,8 @@ import {
 
 /** What the commerce blocks need besides the links' context: the market's catalog and words. */
 export type CommerceContext = {
+  /** The market's key (`us`), which the `tabs` collection's endpoints name (T81). */
+  market: string;
   reads: CatalogReads;
   hrefs: Required<Hrefs>;
   /** The render's time (`renderTime`, D50): the countdown's `now` and the banners' expiry. */
@@ -109,6 +115,54 @@ async function heroCollections(
     return [{ title: collection.title, href: hrefs.collection(collection.handle), image }];
   });
   return found.length === 0 ? undefined : found;
+}
+
+/** The product collection's designs that draw the editor's picture (T81); the others show none. */
+const COLLECTION_PICTURE: readonly string[] = COLLECTION_PICTURE_DESIGNS;
+
+/** The featured product's `gallery` (T81): the first picture, then the product's others, five at most. */
+function galleryOf(first: Image, others: readonly Image[]): Image[] {
+  const seen = new Set([first.src]);
+  const rest = others.filter((each) => !seen.has(each.src) && seen.add(each.src));
+  return [first, ...rest].slice(0, 5);
+}
+
+/**
+ * The `tabs` product collection's tabs (T81): every stored tab resolved for the market (each its
+ * own cached reads, as a source is), those with nothing the market sells left out. The first left
+ * gives the section its `products`, the HTML's; the others go to the tab island by their endpoint,
+ * which names their stored place and the stored tab's fingerprint, when the page is a published document the route can read
+ * (`context.document`), and else (Draft Mode, a page with no document) with their products, so a
+ * tab is never one that cannot load.
+ */
+async function collectionTabs(
+  block: Extract<LayoutBlock, { blockType: "productCollection" }>,
+  context: ResolveContext,
+  commerce: CommerceContext,
+): Promise<{ products: ProductCard[]; tabs: ProductCollectionTab[] | undefined }> {
+  const stored = ((block.tabs ?? []) as StoredTab[]).slice(0, MAX_TABS);
+  const resolved = await Promise.all(
+    stored.map(async (tab, index) => {
+      const found = await resolveTab(tab, commerce.reads, commerce.hrefs, commerce.storeHref);
+      return found === null ? [] : [{ ...found, index, tab }];
+    }),
+  );
+  const tabs = resolved.flat();
+  const [first] = tabs;
+  if (first === undefined) return { products: [], tabs: undefined };
+  const doc = context.document?.id;
+  return {
+    products: first.products,
+    tabs: tabs.map(({ label, href, products, index, tab }, place) => ({
+      label,
+      href,
+      ...(place === 0
+        ? {}
+        : doc === undefined || block.id == null
+          ? { products }
+          : { endpoint: tabEndpoint(commerce.market, doc, block.id, index, tab) }),
+    })),
+  };
 }
 
 /** The promo banner's designs that draw the editor's picture (T82); the others show none. */
@@ -203,16 +257,28 @@ export async function resolveCommerceBlock(
       return section === undefined ? null : { key, blockType: "categoryShowcase", section };
     }
     case "productCollection": {
-      const source = await resolveProductSource(block.productSource, reads, hrefs);
-      const products = source?.products ?? [];
+      // T81: the stored variant is parsed with the rest, so the contract refuses a `with-banner`
+      // or a `lookbook` without its picture and a `tabs` without a tab; the picture is resolved
+      // only for them, and `tabs` reads its tabs' sources instead of the block's.
+      const variant = storedVariant("product-collection", block.variant);
+      const tabbed = variant === "tabs" ? await collectionTabs(block, context, commerce) : null;
+      const source =
+        tabbed === null ? await resolveProductSource(block.productSource, reads, hrefs) : null;
+      const products = tabbed?.products ?? source?.products ?? [];
       const { empty } = commerce.words;
       const section = parsed(ProductCollectionSection, {
         settings,
+        ...(variant === undefined ? {} : { variant }),
         heading: text(block.heading),
         intro: text(block.intro),
         link: links(block.links)[0],
-        display: block.display,
+        // The display is the first design's alone (hidden for the others): Payload's default stands.
+        display: block.display ?? "carousel",
         products,
+        image: COLLECTION_PICTURE.includes(variant ?? "standard")
+          ? mediaImage(block.media)
+          : undefined,
+        tabs: tabbed?.tabs,
         // `hide`: no `empty`, so the contract leaves the block out when there is no product.
         ...(products.length === 0 && source?.empty === "message"
           ? {
@@ -227,14 +293,23 @@ export async function resolveCommerceBlock(
       return section === undefined ? null : { key, blockType: "productCollection", section };
     }
     case "featuredProduct": {
-      const [card] = await handpickedCards([block.product], reads, hrefs);
-      const image = mediaImage(block.media) ?? card?.images[0];
+      // T81: `gallery` draws the product's own pictures after the editor's, so it reads them.
+      const variant = storedVariant("featured-product", block.variant);
+      const [product] = await handpickedProducts([block.product], reads);
+      const card = product === undefined ? undefined : (toProductCard(product, hrefs) ?? undefined);
+      const editors = mediaImage(block.media);
+      const image = editors ?? card?.images[0];
       const section = parsed(FeaturedProductSection, {
         settings,
+        ...(variant === undefined ? {} : { variant }),
         heading: text(block.heading),
         product: card,
         image,
         text: paragraphs(block.text),
+        gallery:
+          variant === "gallery" && product !== undefined && image !== undefined
+            ? galleryOf(image, toImages(product))
+            : undefined,
       });
       return section === undefined ? null : { key, blockType: "featuredProduct", section };
     }

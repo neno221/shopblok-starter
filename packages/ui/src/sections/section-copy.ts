@@ -24,6 +24,18 @@ export type SectionsCopy = {
   countdown: Messages["molecules"]["countdownTimer"];
   copyCode: Messages["molecules"]["copyCodeChip"];
   productCollection: Messages["sections"]["productCollection"];
+  /**
+   * T81: the `tabs` collection's words while a tab's products load and when they could not be
+   * loaded: the listing island's (`templates.productListing`), since it is the same wait.
+   */
+  tabs: {
+    loading: string;
+    failed: Messages["templates"]["productListing"]["failed"];
+  };
+  /** T81: the category showcase's name without a heading, and its carousel's buttons. */
+  categoryShowcase: Messages["sections"]["categoryShowcase"];
+  /** T81: the bundle list's sum of its prices. */
+  bundle: Messages["sections"]["bundle"];
   featuredProduct: Messages["sections"]["featuredProduct"];
   promoBanner: Messages["sections"]["promoBanner"];
   comparison: Messages["sections"]["comparison"];
@@ -52,6 +64,12 @@ export function sectionsCopy(messages: Messages): SectionsCopy {
     countdown: molecules.countdownTimer,
     copyCode: molecules.copyCodeChip,
     productCollection: sections.productCollection,
+    tabs: {
+      loading: templates.productListing.loading,
+      failed: templates.productListing.failed,
+    },
+    categoryShowcase: sections.categoryShowcase,
+    bundle: sections.bundle,
     featuredProduct: sections.featuredProduct,
     promoBanner: sections.promoBanner,
     comparison: sections.comparison,

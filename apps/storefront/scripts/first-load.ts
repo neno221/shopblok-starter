@@ -66,24 +66,25 @@ export const budgets: readonly Budget[] = [
   // Steven's decisions on PR 77 (T49), in T50 and in T52: the shell's layout alone is ~293 KB, so
   // SPEC §13's 170 KB cannot hold; the PDP measured 322.9 KB and the listing pages 318.6 KB (330 KB
   // each), then the header's cart drawer and quick cart (T52) brought them to 332.4 and 331.5 KB,
-  // and both have 335 KB.
+  // and both have 335 KB. T83: the listings have 336 KB (Steven, 2026-11-07), for the quick view's
+  // opener on their cards (D101, D102), the dialog itself kept out.
   { route: "/[market]/products/[handle]", label: "PDP", maxKB: 335 },
   {
     route: "/[market]/categories/[...handle]",
     label: "PLP, categories",
-    maxKB: 335,
+    maxKB: 336,
   },
-  { route: "/[market]/store", label: "PLP, store", maxKB: 335 },
-  { route: "/[market]/store/page/[n]", label: "PLP, store page n", maxKB: 335 },
+  { route: "/[market]/store", label: "PLP, store", maxKB: 336 },
+  { route: "/[market]/store/page/[n]", label: "PLP, store page n", maxKB: 336 },
   {
     route: "/[market]/collections/[handle]",
     label: "PLP, collections",
-    maxKB: 335,
+    maxKB: 336,
   },
   {
     route: "/[market]/collections/[handle]/page/[n]",
     label: "PLP, collections page n",
-    maxKB: 335,
+    maxKB: 336,
   },
 ];
 
@@ -115,6 +116,12 @@ export const keptOut: readonly KeptOut[] = [
     module: "../../packages/ui/src/sections/hero/collection-tabs.tsx",
     marker: "shopblok:hero-collection-tabs",
     label: "the collection switcher hero's tabs (T80)",
+  },
+  {
+    // T81: the `tabs` product collection's tabs, loaded by its island's `next/dynamic`.
+    module: "../../packages/ui/src/sections/product-collection/tabs-panels.tsx",
+    marker: "shopblok:product-collection-tabs",
+    label: "the tabs product collection's tabs (T81)",
   },
   {
     // T82: the promo banner's popup card, loaded by its island's `next/dynamic`.

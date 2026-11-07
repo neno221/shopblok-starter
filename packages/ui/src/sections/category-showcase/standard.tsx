@@ -7,16 +7,14 @@
 import type { CategoryShowcaseSection as CategoryShowcaseSectionData } from "@shopblok/registry/contracts";
 import { Image } from "@shopblok/ui/atoms/image";
 import type { SectionsCopy } from "@shopblok/ui/sections/section-copy";
-import { SectionFrame, SectionHeading } from "@shopblok/ui/sections/section-frame";
-import { SectionLinks } from "@shopblok/ui/sections/section-links";
+import { SectionFrame } from "@shopblok/ui/sections/section-frame";
 import NextLink from "next/link";
-import type * as React from "react";
-
-// The hrefs are strings the app built; `next/link` takes whatever the app's typed routes allow.
-type LinkHref = React.ComponentProps<typeof NextLink>["href"];
+import { CategoryShowcaseIntro, CategoryShowcaseLink, type LinkHref } from "./parts";
 
 type CategoryShowcaseSectionProps = CategoryShowcaseSectionData & {
-  copy: Pick<SectionsCopy, "newTab">;
+  copy: Pick<SectionsCopy, "newTab" | "categoryShowcase" | "products">;
+  /** A BCP 47 tag such as `el-CY`: the market's `<html lang>` (T81: the carousel's slide names). */
+  locale: string;
   /** next/link's `prefetch`; the design system passes `false`. */
   prefetch?: boolean | null;
   className?: string;
@@ -40,16 +38,7 @@ function CategoryShowcaseStandard({
       className={className}
       innerClassName="flex flex-col gap-6 md:gap-8"
     >
-      {heading === undefined && intro === undefined ? null : (
-        <div className="flex min-w-0 flex-col gap-3">
-          {heading === undefined ? null : <SectionHeading>{heading}</SectionHeading>}
-          {intro === undefined ? null : (
-            <p className="max-w-prose text-base text-pretty wrap-anywhere text-muted-foreground">
-              {intro}
-            </p>
-          )}
-        </div>
-      )}
+      <CategoryShowcaseIntro heading={heading} intro={intro} />
       <ul className="grid grid-cols-2 gap-4 md:grid-cols-4 md:gap-6">
         {tiles.map((tile) => (
           <li key={tile.href} className="min-w-0">
@@ -78,9 +67,7 @@ function CategoryShowcaseStandard({
           </li>
         ))}
       </ul>
-      {link === undefined ? null : (
-        <SectionLinks links={[link]} newTabLabel={copy.newTab} prefetch={prefetch} />
-      )}
+      <CategoryShowcaseLink link={link} copy={copy} prefetch={prefetch} />
     </SectionFrame>
   );
 }
