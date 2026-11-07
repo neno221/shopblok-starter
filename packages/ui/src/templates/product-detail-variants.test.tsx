@@ -97,8 +97,10 @@ describe("the product page's members (T83)", () => {
       expect(list?.querySelectorAll("img")).toHaveLength(page.gallery.media.length);
       expect(tokens(list)).toEqual(expect.arrayContaining(["hidden", "md:grid"]));
       expect(tokens(slot("product-gallery")?.parentElement ?? null)).toContain("md:hidden");
-      // The list's first picture is the one preloaded from `md`; the gallery's is not.
-      expect(GALLERY_LAYOUT[variant].priority).toBe(false);
+      // Each preloads its starting picture, at full size only where it is drawn (PR 120 review,
+      // item 1): the gallery's below `md`, the list's first from `md`; elsewhere the smallest file.
+      expect(GALLERY_LAYOUT[variant].priority).toBe(true);
+      expect(GALLERY_LAYOUT[variant].sizes).toBe("(min-width: 768px) 1px, 100vw");
     },
   );
 

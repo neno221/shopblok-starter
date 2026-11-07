@@ -39,10 +39,8 @@ function ProductDetailTemplate(props: ProductDetailTemplateProps) {
 }
 
 /** How the page's variant draws its gallery; a value the family does not have, the first's. */
-function galleryLayoutFor(variant: string): GalleryLayout {
-  return Object.hasOwn(GALLERY_LAYOUT, variant)
-    ? GALLERY_LAYOUT[variant as keyof typeof GALLERY_LAYOUT]
-    : GALLERY_LAYOUT.default;
+function galleryLayoutFor(variant: string | undefined): GalleryLayout {
+  return pickVariant("product-detail", GALLERY_LAYOUT, variant);
 }
 
 export {

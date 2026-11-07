@@ -18,6 +18,10 @@ vi.mock("../../lib/actions/cart", () => ({
     return { ok: true, data: { count: 2, line: { id: "line_1" } } };
   }),
 }));
+const announced = vi.hoisted(() => [] as string[]);
+vi.mock("../../lib/visitor/cart-events", () => ({
+  announceAdded: (lineId: string) => announced.push(lineId),
+}));
 vi.mock("next/link", async () => {
   const { createElement } = await import("react");
   return {
@@ -210,6 +214,33 @@ describe("the quick view's island (T83)", () => {
     ]);
     const { getSnapshot } = await import("../../lib/visitor/store");
     expect(getSnapshot()).toMatchObject({ cartCount: 2 });
+    // The header's quick cart hears of the line, as after the product page's add (PR 120, item 2).
+    expect(announced).toEqual(["line_1"]);
+    const status = (within: Element | null) =>
+      within?.querySelector('[data-slot="buy-box-status"]')?.textContent ?? "";
+    expect(status(dialog)).toContain(catalog.organisms.buyBox.added);
+    // Closed and opened again by another press: this opening has no add in it yet (item 3).
+    await act(async () => {
+      dialog?.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    });
+    await flush();
+    expect(document.querySelector('[data-slot="quick-view"]')).toBeNull();
+    await act(async () =>
+      root.render(
+        <QuickViewIsland
+          market="en-us"
+          handle={box.product.handle}
+          href={box.product.href}
+          variant="compact"
+          from={button}
+          press={2}
+        />,
+      ),
+    );
+    await flush();
+    const again = document.querySelector('[data-slot="quick-view"]');
+    expect(again).not.toBeNull();
+    expect(status(again)).not.toContain(catalog.organisms.buyBox.added);
     button.closest("form")?.remove();
   });
 

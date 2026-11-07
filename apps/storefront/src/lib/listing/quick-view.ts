@@ -3,23 +3,20 @@ import type { BuyBox } from "@shopblok/registry/contracts";
 import type { QuickViewDialogProps } from "@shopblok/ui/organisms/quick-view-dialog";
 import { productDetailCopy } from "@shopblok/ui/templates/product-detail";
 import { messagesFor } from "../../i18n/market-messages";
-import { readProductContent } from "../cms/catalog";
 import { productPageShopText } from "../cms/product-page";
 import { cmsOrNull } from "../cms/read";
 import { readSiteSettings } from "../cms/site";
 import { getMarketContext } from "../market-context";
-import { getProduct } from "../medusa/products";
 import { MedusaRequestError } from "../medusa/sdk";
-import { toProductDetail } from "../view-models/product";
-import { defaultSelection, PDP_MAX_QUANTITY } from "../view-models/product-page";
-import { withShopPictures } from "../view-models/product-pictures";
+import { readMarketProduct } from "../product-read";
+import { productBuyBox } from "../view-models/product-page";
 import { CATALOG_HEADERS } from "./handlers";
 
 // D101, D102 (T83): the quick view's product, for the listing's dialog, which asks for it on the
 // first press of a card's button. The catalog's answer, never a visitor's: the market's region and
 // language only, from the market's key (`getMarketContext`; never a region or a language from the
-// query or a cookie, PR 113's review), the product as its page reads it (`getProduct`, tagged
-// `product:<handle>`, with the shop's pictures after Medusa's and the shop's notes, published), so
+// query or a cookie, PR 113's review), the product as its page reads it (`readMarketProduct`, the
+// same reader, tagged `product:<handle>`, with the shop's pictures and notes, published), so
 // a shared cache may keep it a minute, as `/next/listing`'s. No cookie is read, and anything that is
 // not a product this market sells (no market, no handle, a product with no price in the region) is
 // a 404, the answer the product's page gives.
@@ -44,29 +41,18 @@ export async function readQuickView(
   const context = await getMarketContext(market);
   if (context === null) return null;
   const current = context.market;
-  const reader = { market: current, draft: false };
-  const [product, messages, content, settings] = await Promise.all([
-    getProduct(handle, { regionId: context.region.id, locale: current.medusaLocale }),
+  const [messages, settings] = await Promise.all([
     messagesFor(current),
-    cmsOrNull(readProductContent(reader, handle), "quick view: Medusa's pictures alone"),
-    cmsOrNull(readSiteSettings(reader), "quick view: site.ts's notes"),
+    cmsOrNull(readSiteSettings({ market: current, draft: false }), "quick view: site.ts's notes"),
   ]);
-  if (product === null) return null;
-  const detail = toProductDetail(product, {
-    hrefs: context.hrefs,
-    home: { label: messages.templates.productDetail.home, href: context.url("/") },
+  const read = await readMarketProduct(context, messages, handle, {
+    draft: false,
+    from: "quick view",
   });
-  if (detail === null) return null;
-  const shown = withShopPictures(detail, content?.gallery ?? []);
+  if (read === null) return null;
   const { organisms } = messages;
   return {
-    box: {
-      product: shown,
-      selection: defaultSelection(shown),
-      quantity: 1,
-      maxQuantity: PDP_MAX_QUANTITY,
-      notes: productPageShopText(settings, current.language).notes.slice(0, 3),
-    },
+    box: productBuyBox(read.detail, productPageShopText(settings, current.language).notes),
     copy: {
       ...productDetailCopy(messages).buyBox,
       quickViewDialog: organisms.quickViewDialog,

@@ -1,4 +1,5 @@
 import type {
+  BuyBox,
   ProductCard,
   ProductDetail,
   ProductDetailPage,
@@ -72,6 +73,17 @@ export type ProductPageText = {
 
 const RICH: ProductInfoBlock[] = [{ kind: "rich" }];
 
+/** The buy box on the default choice: the product page's and the quick view's (T83). */
+export function productBuyBox(detail: ProductDetail, notes: readonly string[]): BuyBox {
+  return {
+    product: detail,
+    selection: defaultSelection(detail),
+    quantity: 1,
+    maxQuantity: PDP_MAX_QUANTITY,
+    notes: notes.slice(0, 3),
+  };
+}
+
 export function toProductDetailPage(
   detail: ProductDetail,
   related: readonly ProductCard[],
@@ -99,13 +111,7 @@ export function toProductDetailPage(
     variant: "default",
     breadcrumbs: { trail: detail.breadcrumbs, current: detail.title },
     gallery: { title: detail.title, media: detail.media, selectedValueIds: [] },
-    buyBox: {
-      product: detail,
-      selection,
-      quantity: 1,
-      maxQuantity: PDP_MAX_QUANTITY,
-      notes: notes.slice(0, 3),
-    },
+    buyBox: productBuyBox(detail, notes),
     sticky: stickyFor(detail, selection),
     info: { sections },
     reviews: {

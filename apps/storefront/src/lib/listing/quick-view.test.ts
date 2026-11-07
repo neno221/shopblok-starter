@@ -95,6 +95,15 @@ describe("GET /next/quick-view (T83)", () => {
     }
   });
 
+  it("answers 404 for the stand-in's placeholder and asks Medusa for no product, as its page does", async () => {
+    const { PLACEHOLDER_HANDLE } = await import("../prerender");
+    const calls = stub();
+    const { quickViewResponse } = await import("./quick-view");
+    const response = await quickViewResponse(get(`market=en-us&handle=${PLACEHOLDER_HANDLE}`));
+    expect(response.status).toBe(404);
+    expect(calls.filter((call) => call.url.pathname === "/store/products")).toEqual([]);
+  });
+
   it("answers 503 while Medusa is down", async () => {
     vi.stubGlobal(
       "fetch",

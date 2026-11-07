@@ -119,19 +119,33 @@ test.describe("the quick view and the product page's layouts (T83)", () => {
       await expect(add).not.toHaveAttribute("aria-disabled");
       await add.focus();
       await page.keyboard.press("Enter");
-      await expect(page.locator('header [data-slot="cart-badge"]')).toHaveText("1", {
-        timeout: 20_000,
-      });
-      await expect(dialog).toBeVisible();
+      // The quick cart the shop chose (`dropdown`) opens on the line, as after the product page's
+      // add (PR 120 review, item 2), over the quick view, which stays open on "Added to cart".
+      const quickCart = page.locator('[data-slot="quick-cart"]');
+      await expect(quickCart).toBeVisible({ timeout: 20_000 });
+      await expect(page.locator('header [data-slot="quick-cart-badge"]')).toHaveText("1");
+      const quickView = page.locator('[data-slot="quick-view"]');
+      await expect(quickView.locator('[data-slot="buy-box-status"]')).not.toBeEmpty();
       // "View full details" opens the product's page on the choice.
-      await expect(dialog.locator('[data-slot="quick-view-details"]')).toHaveAttribute(
+      await expect(quickView.locator('[data-slot="quick-view-details"]')).toHaveAttribute(
         "href",
         new RegExp(`/products/${HANDLE}\\?variant=`),
       );
 
+      // Escape closes the quick cart, then the quick view, and focus is back on the card's button.
       await page.keyboard.press("Escape");
-      await expect(dialog).toBeHidden();
+      await expect(quickCart).toBeHidden();
+      await expect(quickView).toBeVisible();
+      await page.keyboard.press("Escape");
+      await expect(quickView).toBeHidden();
       await expect(trigger).toBeFocused();
+
+      // Opened again: no add in this opening yet (PR 120 review, item 3).
+      await page.keyboard.press("Enter");
+      await expect(quickView).toBeVisible();
+      await expect(quickView.locator('[data-slot="buy-box-status"]')).toBeEmpty();
+      await page.keyboard.press("Escape");
+      await expect(quickView).toBeHidden();
     });
 
   test("off: the quick-add card is M3's, and without scripts the quick view's button opens the page", async ({

@@ -1,11 +1,4 @@
-import {
-  mkdirSync,
-  mkdtempSync,
-  readdirSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { randomBytes } from "node:crypto";
@@ -35,10 +28,7 @@ import {
 // its eight rows. It pins the shape the script reads; a Next that renames a key fails the first
 // test here and then, in CI, the script itself.
 const fixture = JSON.parse(
-  readFileSync(
-    path.join(import.meta.dirname, "route-bundle-stats.fixture.json"),
-    "utf8",
-  ),
+  readFileSync(path.join(import.meta.dirname, "route-bundle-stats.fixture.json"), "utf8"),
 );
 const rows = parseStats(fixture);
 const market = rows.find((row) => row.route === "/[market]")!;
@@ -47,15 +37,11 @@ const market = rows.find((row) => row.route === "/[market]")!;
 // entries of the three rows above, an admin and a design-system page with a route group in their
 // path, and two route handlers (`…/route`).
 const manifest: unknown = JSON.parse(
-  readFileSync(
-    path.join(import.meta.dirname, "app-path-routes-manifest.fixture.json"),
-    "utf8",
-  ),
+  readFileSync(path.join(import.meta.dirname, "app-path-routes-manifest.fixture.json"), "utf8"),
 );
 
 /** The chunk path the stats name, from the absolute path `measure` asks about (Windows spells it with backslashes). */
-const chunkOf = (file: string): string =>
-  path.relative("/pkg", file).split(path.sep).join("/");
+const chunkOf = (file: string): string => path.relative("/pkg", file).split(path.sep).join("/");
 
 const pdp: Budget = { route: "/[market]", label: "PDP stand-in", maxKB: 170 };
 
@@ -68,11 +54,7 @@ function sizesAdding(total: number): Map<string, number> {
   return sizes;
 }
 
-const judged = (
-  total: number,
-  budget: Budget = pdp,
-  pages = new Set<string>(),
-) =>
+const judged = (total: number, budget: Budget = pdp, pages = new Set<string>()) =>
   evaluate(
     measure([market], "/pkg", (file) => sizesAdding(total).get(chunkOf(file))),
     [budget],
@@ -88,9 +70,7 @@ describe("parseStats", () => {
     ]);
     expect(market.firstLoadChunkPaths).toHaveLength(12);
     expect(
-      market.firstLoadChunkPaths.every((chunk) =>
-        chunk.startsWith(".next/static/chunks/"),
-      ),
+      market.firstLoadChunkPaths.every((chunk) => chunk.startsWith(".next/static/chunks/")),
     ).toBe(true);
     expect(market.firstLoadUncompressedJsBytes).toBe(740704);
   });
@@ -211,12 +191,8 @@ describe("the budget", () => {
       const measured = measure([market], "/pkg", () => 1);
       const withPage = evaluate(measured, budgets, new Set([route]));
       expect(withPage.failures).toHaveLength(1);
-      expect(withPage.failures[0]).toContain(
-        `${route} (${budget.label}) is a page in`,
-      );
-      expect(
-        withPage.table.filter((line) => line.endsWith("NO ROW")),
-      ).toHaveLength(1);
+      expect(withPage.failures[0]).toContain(`${route} (${budget.label}) is a page in`);
+      expect(withPage.table.filter((line) => line.endsWith("NO ROW"))).toHaveLength(1);
 
       const withoutPage = evaluate(measured, budgets, new Set(["/[market]"]));
       expect(withoutPage.failures).toEqual([]);
@@ -225,26 +201,23 @@ describe("the budget", () => {
   );
 
   // Each budgeted route, the page/[n] ones included, fails 1 KB over its budget (335 KB each, T52).
-  it.each(
-    budgets.map(
-      (budget) => [budget.route, budget.label, budget.maxKB] as const,
-    ),
-  )("%s: passes at its budget and fails 1 KB over", (route, label, max) => {
-    const failuresAt = (total: number) => {
-      const sizes = sizesAdding(total);
-      return evaluate(
-        measure([{ ...market, route }], "/pkg", (file) =>
-          sizes.get(chunkOf(file)),
-        ),
-        budgets,
-        new Set([route]),
-      ).failures;
-    };
-    expect(failuresAt(max * KB)).toEqual([]);
-    expect(failuresAt((max + 1) * KB)).toEqual([
-      `${route} (${label}): ${max + 1}.0 KB gzipped, over its ${max} KB budget by 1.0 KB.`,
-    ]);
-  });
+  it.each(budgets.map((budget) => [budget.route, budget.label, budget.maxKB] as const))(
+    "%s: passes at its budget and fails 1 KB over",
+    (route, label, max) => {
+      const failuresAt = (total: number) => {
+        const sizes = sizesAdding(total);
+        return evaluate(
+          measure([{ ...market, route }], "/pkg", (file) => sizes.get(chunkOf(file))),
+          budgets,
+          new Set([route]),
+        ).failures;
+      };
+      expect(failuresAt(max * KB)).toEqual([]);
+      expect(failuresAt((max + 1) * KB)).toEqual([
+        `${route} (${label}): ${max + 1}.0 KB gzipped, over its ${max} KB budget by 1.0 KB.`,
+      ]);
+    },
+  );
 
   it("says, and does not fail, when a budgeted route has no page yet", () => {
     const report = evaluate(
@@ -268,9 +241,7 @@ describe("the budget", () => {
       new Set(),
     );
     expect(report.failures).toHaveLength(1);
-    expect(report.failures[0]).toContain(
-      "1 chunk file(s) that are not on disk",
-    );
+    expect(report.failures[0]).toContain("1 chunk file(s) that are not on disk");
     expect(report.failures[0]).toContain(market.firstLoadChunkPaths[3]);
   });
 
@@ -281,9 +252,7 @@ describe("the budget", () => {
       return 100;
     });
     expect(new Set(reads).size).toBe(reads.length);
-    expect(measured.every((row) => row.gzipBytes === row.chunks * 100)).toBe(
-      true,
-    );
+    expect(measured.every((row) => row.gzipBytes === row.chunks * 100)).toBe(true);
   });
 });
 
@@ -294,18 +263,14 @@ describe("withOverrides and parseArgs", () => {
       { route: "/[market]", label: "overridden", maxKB: 1 },
     ]);
     expect(merged).toEqual([
-      ...budgets.filter(
-        (budget) => budget.route !== "/[market]/products/[handle]",
-      ),
+      ...budgets.filter((budget) => budget.route !== "/[market]/products/[handle]"),
       { route: "/[market]/products/[handle]", label: "overridden", maxKB: 1 },
       { route: "/[market]", label: "overridden", maxKB: 1 },
     ]);
   });
 
   it("reads --budget <route>=<KB>, repeatable", () => {
-    expect(
-      parseArgs(["--budget", "/[market]=1", "--budget", "/x/[y]=0.5"]),
-    ).toEqual({
+    expect(parseArgs(["--budget", "/[market]=1", "--budget", "/x/[y]=0.5"])).toEqual({
       overrides: [
         { route: "/[market]", label: "overridden", maxKB: 1 },
         { route: "/x/[y]", label: "overridden", maxKB: 0.5 },
@@ -376,12 +341,8 @@ describe("the ::error:: annotation", () => {
   });
 
   it("is written under GitHub Actions only", () => {
-    expect(errorLine("first-load: x\ny 50%", true)).toBe(
-      "::error::first-load: x%0Ay 50%25",
-    );
-    expect(errorLine("first-load: x\ny 50%", false)).toBe(
-      "first-load: x\ny 50%",
-    );
+    expect(errorLine("first-load: x\ny 50%", true)).toBe("::error::first-load: x%0Ay 50%25");
+    expect(errorLine("first-load: x\ny 50%", false)).toBe("first-load: x\ny 50%");
   });
 });
 
@@ -398,8 +359,7 @@ describe("a package on disk", () => {
     mkdirSync(path.dirname(path.join(root, file)), { recursive: true });
     writeFileSync(path.join(root, file), content);
   };
-  const stats = (rowList: unknown[]) =>
-    write(statsFile, JSON.stringify(rowList));
+  const stats = (rowList: unknown[]) => write(statsFile, JSON.stringify(rowList));
   const pagesBuilt = (appPaths: Record<string, string>) =>
     write(routesManifestFile, JSON.stringify(appPaths));
 
@@ -413,10 +373,7 @@ describe("a package on disk", () => {
         {
           route: "/x",
           firstLoadUncompressedJsBytes: 2048 * KB,
-          firstLoadChunkPaths: [
-            ".next/static/chunks/a.js",
-            ".next/static/chunks/b.js",
-          ],
+          firstLoadChunkPaths: [".next/static/chunks/a.js", ".next/static/chunks/b.js"],
         },
       ],
       root,
@@ -435,10 +392,7 @@ describe("a package on disk", () => {
       {
         route: "/[market]",
         firstLoadUncompressedJsBytes: 180 * KB,
-        firstLoadChunkPaths: [
-          ".next/static/chunks/a.js",
-          ".next/static/chunks/b.js",
-        ],
+        firstLoadChunkPaths: [".next/static/chunks/a.js", ".next/static/chunks/b.js"],
       },
     ]);
     const lines: string[] = [];
@@ -461,17 +415,13 @@ describe("a package on disk", () => {
 
     expect(exec([])).toBe(0);
     expect(errors).toEqual([]);
-    expect(lines.join("\n")).toMatch(
-      /\/\[market\]\s+2\s+180\.0\s+18[0-9]\.\d\s+200\s+ok/,
-    );
+    expect(lines.join("\n")).toMatch(/\/\[market\]\s+2\s+180\.0\s+18[0-9]\.\d\s+200\s+ok/);
     expect(lines.join("\n")).toContain(
       "/[market]/products/[handle] (PDP): Next built no page for it yet",
     );
 
     expect(exec(["--budget", "/[market]=1"])).toBe(1);
-    expect(lines.join("\n")).toMatch(
-      /\/\[market\]\s+2\s+180\.0\s+18[0-9]\.\d\s+1\s+OVER/,
-    );
+    expect(lines.join("\n")).toMatch(/\/\[market\]\s+2\s+180\.0\s+18[0-9]\.\d\s+1\s+OVER/);
     expect(errors.join("\n")).toMatch(
       /first-load: \/\[market\] \(overridden\): 18[0-9]\.\d KB gzipped, over its 1 KB budget by 17[0-9]\.\d KB\./,
     );
@@ -506,25 +456,19 @@ describe("a package on disk", () => {
       },
     ]);
     expect(exec()).toBe(1);
-    expect(errors.pop()).toMatch(
-      /cannot use \.next\/app-path-routes-manifest\.json: .*ENOENT/,
-    );
+    expect(errors.pop()).toMatch(/cannot use \.next\/app-path-routes-manifest\.json: .*ENOENT/);
 
     write(routesManifestFile, JSON.stringify(["/[market]"]));
     expect(exec()).toBe(1);
     expect(errors.pop()).toMatch(/expected an object from each app path/);
 
-    write(
-      routesManifestFile,
-      JSON.stringify({ "/next/status/route": "/next/status" }),
-    );
+    write(routesManifestFile, JSON.stringify({ "/next/status/route": "/next/status" }));
     expect(exec()).toBe(1);
     expect(errors.pop()).toMatch(/no app path ends in `\/page`/);
 
     pagesBuilt({
       "/(storefront)/[market]/page": "/[market]",
-      "/(storefront)/[market]/products/[handle]/page":
-        "/[market]/products/[handle]",
+      "/(storefront)/[market]/products/[handle]/page": "/[market]/products/[handle]",
     });
     expect(exec()).toBe(1);
     expect(errors.pop()).toMatch(
@@ -593,9 +537,7 @@ describe("a package on disk", () => {
 
     write(".next/static/chunks/island.js", "island();");
     expect(exec()).toBe(1);
-    expect(errors.join("\n")).toContain(
-      'no chunk holds its marker "shopblok:island"',
-    );
+    expect(errors.join("\n")).toContain('no chunk holds its marker "shopblok:island"');
   });
 });
 
@@ -614,16 +556,11 @@ describe("the kept-out modules (D102)", () => {
     const report = checkKeptOut(rows, keptOut, chunks, sizes);
     expect(report.failures).toEqual([]);
     expect(report.table.join("\n")).toMatch(/kept-0\.js\s+1\.2\s+kept out/);
-    expect(report.table.filter((line) => /kept out$/.test(line))).toHaveLength(
-      keptOut.length,
-    );
+    expect(report.table.filter((line) => /kept out$/.test(line))).toHaveLength(keptOut.length);
   });
 
   it("fails one in a first load, naming each route, and one whose marker is in no chunk", () => {
-    const loaded = [
-      { ...chunks[1]!, chunk: market.firstLoadChunkPaths[0]! },
-      ...chunks.slice(2),
-    ];
+    const loaded = [{ ...chunks[1]!, chunk: market.firstLoadChunkPaths[0]! }, ...chunks.slice(2)];
     expect(checkKeptOut(rows, keptOut, loaded, sizes).failures).toEqual([
       expect.stringContaining(
         `is in the first load of ${rows
@@ -651,13 +588,8 @@ describe("the kept-out modules (D102)", () => {
         firstLoadChunkPaths: [own],
       },
     ];
-    const inDesignSystem = [
-      { chunk: own, text: chunks[1]!.text },
-      ...chunks.slice(2),
-    ];
-    expect(
-      checkKeptOut(withDesignSystem, keptOut, inDesignSystem, sizes).failures,
-    ).toEqual([]);
+    const inDesignSystem = [{ chunk: own, text: chunks[1]!.text }, ...chunks.slice(2)];
+    expect(checkKeptOut(withDesignSystem, keptOut, inDesignSystem, sizes).failures).toEqual([]);
     // The same chunk in a shop route's first load fails.
     const inShop = [
       ...rows,
@@ -667,9 +599,7 @@ describe("the kept-out modules (D102)", () => {
         firstLoadChunkPaths: [own],
       },
     ];
-    expect(
-      checkKeptOut(inShop, keptOut, inDesignSystem, sizes).failures,
-    ).toEqual([
+    expect(checkKeptOut(inShop, keptOut, inDesignSystem, sizes).failures).toEqual([
       expect.stringContaining("is in the first load of /[market]/store."),
     ]);
     expect(shopRoute("/design-system")).toBe(false);
@@ -706,8 +636,7 @@ describe("the kept-out modules (D102)", () => {
       const own = path.join(workspace, "apps/storefront", item.module);
       expect(readFileSync(own, "utf8")).toContain(item.marker);
       const others = sources.filter(
-        (file) =>
-          file !== own && readFileSync(file, "utf8").includes(item.marker),
+        (file) => file !== own && readFileSync(file, "utf8").includes(item.marker),
       );
       expect(others.map((file) => path.relative(workspace, file))).toEqual([]);
     },

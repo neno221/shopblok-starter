@@ -16,7 +16,9 @@
 //   pictures (`PictureList`, server-rendered, no script) and keep the gallery for phones, where it
 //   is the carousel: each is `display: none` at the other widths, so a reader meets one set and a
 //   browser loads one (a lazy picture that is not drawn is not fetched). The list's first picture
-//   is the one preloaded from `md`; below it the gallery's own is, with the same `srcset`.
+//   is the one preloaded from `md`; below it the gallery's starting one is. Each says `1px` in its
+//   `sizes` where it is not drawn, so its preload there is the smallest file
+//   (`PHONE_GALLERY_SIZES`).
 // - The buy box, the sticky bar and the reviews link to each other by the ids in
 //   `PRODUCT_DETAIL_IDS`, so an island that draws them passes the same ones.
 // - The information's rich texts (an editor's description, the shop's delivery text, T69) are the
@@ -74,6 +76,15 @@ type GalleryLayout = {
  * fallback, so the shop's gallery is the one the member lays out. `grid`, `stacked` and `wide` show
  * the gallery below `md` only (their picture list from `md`), so its picture is the window's width.
  */
+/**
+ * The `sizes` of a gallery shown below `md` only (`grid`, `stacked`, `wide`; PR 120 review, item 1).
+ * Its starting picture is preloaded, as every gallery's is, so a phone gets the picture the gallery
+ * opens on (the default choice's) early. From `md` the gallery is not drawn, and `1px` makes the
+ * browser's preload pick the smallest file there instead of a full-width one; `PictureList` does
+ * the same below `md`, so each width preloads one picture at its size.
+ */
+const PHONE_GALLERY_SIZES = "(min-width: 768px) 1px, 100vw";
+
 const GALLERY_LAYOUT: Record<VariantOf<"product-detail">, GalleryLayout> = {
   default: { sizes: GALLERY_SIZES, thumbnails: "side", priority: true },
   "thumbnails-below": {
@@ -81,9 +92,9 @@ const GALLERY_LAYOUT: Record<VariantOf<"product-detail">, GalleryLayout> = {
     thumbnails: "below",
     priority: true,
   },
-  grid: { sizes: "100vw", thumbnails: "below", priority: false },
-  stacked: { sizes: "100vw", thumbnails: "below", priority: false },
-  wide: { sizes: "100vw", thumbnails: "below", priority: false },
+  grid: { sizes: PHONE_GALLERY_SIZES, thumbnails: "below", priority: true },
+  stacked: { sizes: PHONE_GALLERY_SIZES, thumbnails: "below", priority: true },
+  wide: { sizes: PHONE_GALLERY_SIZES, thumbnails: "below", priority: true },
   centered: { sizes: "(min-width: 640px) 36rem, 100vw", thumbnails: "below", priority: true },
 };
 
@@ -333,7 +344,8 @@ function PictureList({
           <Image
             src={item.src}
             alt={item.alt}
-            sizes={`(min-width: 768px) ${sizes}, 100vw`}
+            // Not drawn below `md`: `1px` keeps its preload there to the smallest file.
+            sizes={`(min-width: 768px) ${sizes}, 1px`}
             priority={index === 0}
             radius="lg"
             className="absolute inset-0 aspect-auto h-full"

@@ -162,25 +162,22 @@ export function parseStats(json: unknown): StatsRow[] {
   }
   return json.map((row: unknown, index): StatsRow => {
     const at = `row ${index}`;
-    if (typeof row !== "object" || row === null)
-      throw new Error(`${at} is not an object.`);
-    const { route, firstLoadUncompressedJsBytes, firstLoadChunkPaths } =
-      row as Record<string, unknown>;
+    if (typeof row !== "object" || row === null) throw new Error(`${at} is not an object.`);
+    const { route, firstLoadUncompressedJsBytes, firstLoadChunkPaths } = row as Record<
+      string,
+      unknown
+    >;
     if (typeof route !== "string" || route === "") {
       throw new Error(`${at} has no \`route\` string.`);
     }
     if (typeof firstLoadUncompressedJsBytes !== "number") {
-      throw new Error(
-        `${at} (${route}) has no \`firstLoadUncompressedJsBytes\` number.`,
-      );
+      throw new Error(`${at} (${route}) has no \`firstLoadUncompressedJsBytes\` number.`);
     }
     if (
       !Array.isArray(firstLoadChunkPaths) ||
       firstLoadChunkPaths.some((chunk) => typeof chunk !== "string")
     ) {
-      throw new Error(
-        `${at} (${route}) has no \`firstLoadChunkPaths\` array of strings.`,
-      );
+      throw new Error(`${at} (${route}) has no \`firstLoadChunkPaths\` array of strings.`);
     }
     return { route, firstLoadUncompressedJsBytes, firstLoadChunkPaths };
   });
@@ -257,8 +254,7 @@ export function pageRoutes(json: unknown): Set<string> {
       throw new Error(`\`${appPath}\` is not mapped to a route string.`);
     if (appPath.endsWith("/page")) routes.add(route);
   }
-  if (routes.size === 0)
-    throw new Error("no app path ends in `/page`: Next wrote no page.");
+  if (routes.size === 0) throw new Error("no app path ends in `/page`: Next wrote no page.");
   return routes;
 }
 
@@ -285,9 +281,7 @@ export function evaluate(
   const failures: string[] = [];
   const notes: string[] = [];
   const budgetOf = new Map(budgetList.map((budget) => [budget.route, budget]));
-  const lines: string[][] = [
-    ["route", "chunks", "raw KB", "gzip KB", "budget KB", "result"],
-  ];
+  const lines: string[][] = [["route", "chunks", "raw KB", "gzip KB", "budget KB", "result"]];
 
   for (const row of [...measured].sort((a, b) => b.gzipBytes - a.gzipBytes)) {
     const budget = budgetOf.get(row.route);
@@ -326,14 +320,7 @@ export function evaluate(
         `${budget.route} (${budget.label}) is a page in ${routesManifestFile} and has no row in route-bundle-stats.json: the stats file's format may have changed, or Next skipped the route. Not passing without a size.`,
       );
     } else {
-      lines.push([
-        budget.route,
-        "-",
-        "-",
-        "-",
-        String(budget.maxKB),
-        "no page yet",
-      ]);
+      lines.push([budget.route, "-", "-", "-", String(budget.maxKB), "no page yet"]);
       notes.push(
         `${budget.route} (${budget.label}): Next built no page for it yet (not in ${routesManifestFile}), so its ${budget.maxKB} KB budget is not checked.`,
       );
@@ -346,9 +333,7 @@ export function evaluate(
   const table = lines.map((line) =>
     line
       .map((cell, column) =>
-        column === 0
-          ? cell.padEnd(widths[column]!)
-          : cell.padStart(widths[column]!),
+        column === 0 ? cell.padEnd(widths[column]!) : cell.padStart(widths[column]!),
       )
       .join("  ")
       .trimEnd(),
@@ -404,8 +389,7 @@ export function checkKeptOut(
     }
     for (const { chunk } of found) {
       const routes = rows.filter(
-        (row) =>
-          shopRoute(row.route) && row.firstLoadChunkPaths.includes(chunk),
+        (row) => shopRoute(row.route) && row.firstLoadChunkPaths.includes(chunk),
       );
       lines.push([
         item.module,
@@ -425,9 +409,7 @@ export function checkKeptOut(
   const table = lines.map((line) =>
     line
       .map((cell, column) =>
-        column < 2
-          ? cell.padEnd(widths[column]!)
-          : cell.padStart(widths[column]!),
+        column < 2 ? cell.padEnd(widths[column]!) : cell.padStart(widths[column]!),
       )
       .join("  ")
       .trimEnd(),
@@ -436,9 +418,7 @@ export function checkKeptOut(
 }
 
 /** `--budget "<route>=<KB>"`, repeatable: the budget for that route in this run only. */
-export function parseArgs(
-  argv: readonly string[],
-): { overrides: Budget[] } | { usage: string } {
+export function parseArgs(argv: readonly string[]): { overrides: Budget[] } | { usage: string } {
   const overrides: Budget[] = [];
   for (let index = 0; index < argv.length; index++) {
     const flag = argv[index];
@@ -447,12 +427,7 @@ export function parseArgs(
     const cut = value?.lastIndexOf("=") ?? -1;
     const route = value?.slice(0, cut);
     const limit = Number(value?.slice(cut + 1));
-    if (
-      value === undefined ||
-      cut < 1 ||
-      !route?.startsWith("/") ||
-      !(limit > 0)
-    ) {
+    if (value === undefined || cut < 1 || !route?.startsWith("/") || !(limit > 0)) {
       return {
         usage: `--budget needs <route>=<KB>, for example --budget "/[market]=1" (got '${value ?? ""}').`,
       };
@@ -463,20 +438,13 @@ export function parseArgs(
 }
 
 /** The budgets with the run's overrides: an override replaces the table's row for its route. */
-export function withOverrides(
-  table: readonly Budget[],
-  overrides: readonly Budget[],
-): Budget[] {
+export function withOverrides(table: readonly Budget[], overrides: readonly Budget[]): Budget[] {
   const replaced = new Set(overrides.map((budget) => budget.route));
-  return [
-    ...table.filter((budget) => !replaced.has(budget.route)),
-    ...overrides,
-  ];
+  return [...table.filter((budget) => !replaced.has(budget.route)), ...overrides];
 }
 
 export const statsFile = ".next/diagnostics/route-bundle-stats.json";
-const usageText =
-  "usage: node scripts/first-load.ts [--budget <route>=<KB>]...";
+const usageText = "usage: node scripts/first-load.ts [--budget <route>=<KB>]...";
 
 /**
  * Runs the check for the package at `root`. Returns the exit code: 0 passed, 1 failed, 2 usage.
@@ -511,14 +479,8 @@ export function run(
     );
     return 1;
   }
-  const report = evaluate(
-    measure(rows, root),
-    withOverrides(tableBudgets, args.overrides),
-    pages,
-  );
-  print(
-    "First-load JS per route, each chunk gzipped on its own and summed (SPEC §13):",
-  );
+  const report = evaluate(measure(rows, root), withOverrides(tableBudgets, args.overrides), pages);
+  print("First-load JS per route, each chunk gzipped on its own and summed (SPEC §13):");
   for (const line of report.table) print(line);
   for (const note of report.notes) print(note);
   let kept: Report = { table: [], failures: [], notes: [] };
@@ -528,9 +490,7 @@ export function run(
       chunks = readChunks(root);
     } catch (error) {
       const reason = error instanceof Error ? error.message : String(error);
-      fail(
-        `first-load: cannot read ${chunksDir}: ${reason}\nRun \`pnpm build\` first.`,
-      );
+      fail(`first-load: cannot read ${chunksDir}: ${reason}\nRun \`pnpm build\` first.`);
       return 1;
     }
     kept = checkKeptOut(rows, keepOut, chunks, (chunk) =>
@@ -558,10 +518,7 @@ export function run(
  * path or a JSON parse error stays as written in the annotation.
  */
 export function escapeData(text: string): string {
-  return text
-    .replaceAll("%", "%25")
-    .replaceAll("\r", "%0D")
-    .replaceAll("\n", "%0A");
+  return text.replaceAll("%", "%25").replaceAll("\r", "%0D").replaceAll("\n", "%0A");
 }
 
 /** A line for stderr: an `::error::` annotation under GitHub Actions, the line itself elsewhere. */

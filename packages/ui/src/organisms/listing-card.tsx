@@ -78,7 +78,6 @@ function ListingCard({ variant, quickAdd, quickView, ...props }: ListingCardProp
     return (
       <ProductCardQuickAdd
         {...props}
-        action={props.product.href}
         quickView={
           <QuickViewTrigger
             product={props.product}

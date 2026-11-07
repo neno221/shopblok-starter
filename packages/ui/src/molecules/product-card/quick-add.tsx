@@ -31,10 +31,15 @@ function ProductCardQuickAdd({
   className,
   ...props
 }: ProductCardProps &
-  QuickAddProps & {
-    /** The quick view's trigger (T83), drawn instead of the add's form. */
-    quickView?: React.ReactNode;
-  }) {
+  (
+    | (QuickAddProps & { quickView?: undefined })
+    | {
+        /** The quick view's trigger (T83), drawn instead of the add's form, which then has none. */
+        quickView: React.ReactNode;
+        action?: undefined;
+        status?: undefined;
+      }
+  )) {
   return (
     <CardRoot
       product={product}
@@ -53,7 +58,9 @@ function ProductCardQuickAdd({
         <CardPrice product={product} copy={copy} locale={locale} />
         <CardRating product={product} copy={copy} locale={locale} />
       </div>
-      {quickView ?? (
+      {quickView !== undefined ? (
+        quickView
+      ) : (
         <CardQuickAdd
           product={product}
           copy={copy}
