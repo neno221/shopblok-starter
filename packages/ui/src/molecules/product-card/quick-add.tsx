@@ -2,7 +2,8 @@
 // form below it: the product's id and a submit button, outside the card's link and above its
 // stretched area. `action` is what a `<form action>` takes (M3 passes a server action) and
 // `status` is idle, adding, added or error; the button says "Choose options" for a product with
-// more than one variant. A server component: the status comes from the caller.
+// more than one variant. A server component: the status comes from the caller. T83: a listing whose
+// quick view is on passes its trigger (`quickView`), drawn in the form's place.
 import { cn } from "@shopblok/ui/lib/utils";
 import {
   CardMedia,
@@ -15,6 +16,7 @@ import {
   type ProductCardProps,
   type QuickAddProps,
 } from "./parts";
+import type * as React from "react";
 
 function ProductCardQuickAdd({
   product,
@@ -25,9 +27,19 @@ function ProductCardQuickAdd({
   prefetch,
   action,
   status,
+  quickView,
   className,
   ...props
-}: ProductCardProps & QuickAddProps) {
+}: ProductCardProps &
+  (
+    | (QuickAddProps & { quickView?: undefined })
+    | {
+        /** The quick view's trigger (T83), drawn instead of the add's form, which then has none. */
+        quickView: React.ReactNode;
+        action?: undefined;
+        status?: undefined;
+      }
+  )) {
   return (
     <CardRoot
       product={product}
@@ -46,7 +58,17 @@ function ProductCardQuickAdd({
         <CardPrice product={product} copy={copy} locale={locale} />
         <CardRating product={product} copy={copy} locale={locale} />
       </div>
-      <CardQuickAdd product={product} copy={copy} locale={locale} action={action} status={status} />
+      {quickView !== undefined ? (
+        quickView
+      ) : (
+        <CardQuickAdd
+          product={product}
+          copy={copy}
+          locale={locale}
+          action={action}
+          status={status}
+        />
+      )}
     </CardRoot>
   );
 }

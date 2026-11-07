@@ -13,6 +13,8 @@
 // T84: its results are drawn in the page's filter layout (`layout`, the `templates` global's pick,
 // which the server's results have too); a layout other than M3's is loaded on its branch
 // (`listing-layouts.tsx`, D102), and while it loads the island says it is loading.
+// T83: it also opens the quick view from a `quick-add` card's button, the server's cards' and its
+// own (`quick-view-opener.tsx`, which loads the dialog on the first press, D102).
 "use client";
 
 import { formatMessage } from "@shopblok/i18n";
@@ -30,6 +32,7 @@ import {
   withQuery,
 } from "../../lib/listing/query";
 import { LayoutResults } from "./listing-layouts";
+import { QuickViewOpener } from "./quick-view-opener";
 import { RobotsMeta } from "./robots-meta";
 
 /** Where the island asks. */
@@ -193,6 +196,7 @@ export function ListingIsland({
       aria-busy={loading || undefined}
     >
       {active ? <RobotsMeta filters={query.filters} /> : null}
+      <QuickViewOpener market={market} />
       <p role="status" className="sr-only">
         {status}
       </p>

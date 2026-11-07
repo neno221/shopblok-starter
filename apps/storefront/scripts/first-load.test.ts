@@ -8,6 +8,7 @@ import {
   KB,
   budgets,
   checkKeptOut,
+  shopRoute,
   errorLine,
   escapeData,
   evaluate,
@@ -136,10 +137,22 @@ describe("the budget", () => {
   it("budgets the PDP at 335 KB and the three listing pages at 335 KB, with the page/[n] routes T50 makes explicit", () => {
     expect(budgets).toEqual([
       { route: "/[market]/products/[handle]", label: "PDP", maxKB: 335 },
-      { route: "/[market]/categories/[...handle]", label: "PLP, categories", maxKB: 335 },
+      {
+        route: "/[market]/categories/[...handle]",
+        label: "PLP, categories",
+        maxKB: 335,
+      },
       { route: "/[market]/store", label: "PLP, store", maxKB: 335 },
-      { route: "/[market]/store/page/[n]", label: "PLP, store page n", maxKB: 335 },
-      { route: "/[market]/collections/[handle]", label: "PLP, collections", maxKB: 335 },
+      {
+        route: "/[market]/store/page/[n]",
+        label: "PLP, store page n",
+        maxKB: 335,
+      },
+      {
+        route: "/[market]/collections/[handle]",
+        label: "PLP, collections",
+        maxKB: 335,
+      },
       {
         route: "/[market]/collections/[handle]/page/[n]",
         label: "PLP, collections page n",
@@ -481,10 +494,20 @@ describe("a package on disk", () => {
     write(".next/static/chunks/island.js", `island("shopblok:island");`);
     pagesBuilt({ "/(storefront)/[market]/page": "/[market]" });
     const first = (chunks: string[]) =>
-      stats([{ route: "/[market]", firstLoadUncompressedJsBytes: 8, firstLoadChunkPaths: chunks }]);
+      stats([
+        {
+          route: "/[market]",
+          firstLoadUncompressedJsBytes: 8,
+          firstLoadChunkPaths: chunks,
+        },
+      ]);
     const lines: string[] = [];
     const errors: string[] = [];
-    const island = { module: "src/island.tsx", marker: "shopblok:island", label: "an island" };
+    const island = {
+      module: "src/island.tsx",
+      marker: "shopblok:island",
+      label: "an island",
+    };
     const exec = () => {
       lines.length = 0;
       errors.length = 0;
@@ -541,7 +564,11 @@ describe("the kept-out modules (D102)", () => {
     expect(checkKeptOut(rows, keptOut, loaded, sizes).failures).toEqual([
       expect.stringContaining(
         `is in the first load of ${rows
-          .filter((row) => row.firstLoadChunkPaths.includes(market.firstLoadChunkPaths[0]!))
+          .filter(
+            (row) =>
+              shopRoute(row.route) &&
+              row.firstLoadChunkPaths.includes(market.firstLoadChunkPaths[0]!),
+          )
           .map((row) => row.route)
           .join(", ")}.`,
       ),
@@ -549,6 +576,35 @@ describe("the kept-out modules (D102)", () => {
     expect(checkKeptOut(rows, keptOut, [chunks[0]!], sizes).failures).toEqual(
       keptOut.map(() => expect.stringContaining("no chunk holds its marker")),
     );
+  });
+
+  it("does not judge the design system's routes, which draw every member at once (T83)", () => {
+    const own = ".next/static/chunks/design-system-only.js";
+    const withDesignSystem = [
+      ...rows,
+      {
+        route: "/design-system/[locale]/[...entry]",
+        firstLoadUncompressedJsBytes: 1,
+        firstLoadChunkPaths: [own],
+      },
+    ];
+    const inDesignSystem = [{ chunk: own, text: chunks[1]!.text }, ...chunks.slice(2)];
+    expect(checkKeptOut(withDesignSystem, keptOut, inDesignSystem, sizes).failures).toEqual([]);
+    // The same chunk in a shop route's first load fails.
+    const inShop = [
+      ...rows,
+      {
+        route: "/[market]/store",
+        firstLoadUncompressedJsBytes: 1,
+        firstLoadChunkPaths: [own],
+      },
+    ];
+    expect(checkKeptOut(inShop, keptOut, inDesignSystem, sizes).failures).toEqual([
+      expect.stringContaining("is in the first load of /[market]/store."),
+    ]);
+    expect(shopRoute("/design-system")).toBe(false);
+    expect(shopRoute("/design-systems")).toBe(true);
+    expect(shopRoute("/[market]")).toBe(true);
   });
 
   // The marker finds the module's chunk only if the module has it and nothing else does.

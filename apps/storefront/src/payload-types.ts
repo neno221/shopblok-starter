@@ -2996,7 +2996,10 @@ export interface SiteSetting {
 export interface Template {
   id: number;
   productPage: {
-    variant: "default";
+    /**
+     * Where the pictures, the buy box and the product's information go.
+     */
+    variant: "default" | "thumbnails-below" | "grid" | "stacked" | "wide" | "centered";
   };
   listing: {
     /**
@@ -3020,9 +3023,9 @@ export interface Template {
   };
   quickView?: {
     /**
-     * Not shown in the shop yet: the quick view will open from the listing's quick-add card. Off: the card's button opens the product page.
+     * What the quick-add card's button opens in the listings and the search page: the product's pictures and buy box over the page. Off: the button opens the product page.
      */
-    variant?: ("off" | "default") | null;
+    variant?: ("off" | "default" | "drawer" | "compact") | null;
   };
   cart: {
     variant: "default" | "table" | "sticky-summary" | "focused";

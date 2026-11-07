@@ -143,6 +143,7 @@ describe("readListing", () => {
       pageSize?: number;
       scope?: Parameters<Awaited<ReturnType<typeof load>>["resolveScope"]>[2];
       withWords?: boolean;
+      quickView?: "off" | "default" | "drawer" | "compact";
     } = {},
   ) {
     const { readListing, resolveScope, scopeField, context } = await load();
@@ -163,6 +164,7 @@ describe("readListing", () => {
         params: urlParams,
         pathPage: options.pathPage ?? 1,
         pageSize: options.pageSize ?? 24,
+        ...(options.quickView === undefined ? {} : { quickView: options.quickView }),
         links: words
           ? {
               base: { path: context.url("/search"), params: params(`q=${query.query}`) },
@@ -177,6 +179,13 @@ describe("readListing", () => {
       }),
     };
   }
+
+  it("gives the grid the templates global's quick view, and none when it is off (T83)", async () => {
+    stubListingMedusa();
+    expect((await read("")).results?.grid.quickView).toBeUndefined();
+    expect((await read("", { quickView: "off" })).results?.grid.quickView).toBeUndefined();
+    expect((await read("", { quickView: "drawer" })).results?.grid.quickView).toBe("drawer");
+  });
 
   it("answers the store's first page: the cards, the count, the groups and one page", async () => {
     const calls = stubListingMedusa();

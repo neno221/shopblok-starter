@@ -59,7 +59,13 @@ export const Templates = contentGlobal({
         {
           name: "productPage",
           label: "Product page",
-          fields: [variantField({ family: "product-detail", label: "Layout" })],
+          fields: [
+            variantField({
+              family: "product-detail",
+              label: "Layout",
+              description: "Where the pictures, the buy box and the product's information go.",
+            }),
+          ],
         },
         {
           name: "listing",
@@ -91,9 +97,9 @@ export const Templates = contentGlobal({
               defaultValue: QUICK_VIEW_OFF,
               // D101: it opens from the quick-add card's button only, so it shows with that card.
               condition: withQuickAddCard,
-              // T83 opens it from the card's button.
+              // T83: the card's button opens it, in the listings and the search page.
               description:
-                "Not shown in the shop yet: the quick view will open from the listing's quick-add card. Off: the card's button opens the product page.",
+                "What the quick-add card's button opens in the listings and the search page: the product's pictures and buy box over the page. Off: the button opens the product page.",
             }),
           ],
         },
