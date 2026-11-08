@@ -123,7 +123,9 @@ test.describe("the admin bootstrap made", () => {
   let emptied: { id: number; key: string; value: string } | undefined;
 
   test.beforeAll(async ({ browser, baseURL }) => {
-    page = await browser.newPage({ baseURL: baseURL ?? "http://localhost:8000" });
+    // A context of its own, not `browser.newPage()`: axe (T90) needs to open frames in it.
+    const context = await browser.newContext({ baseURL: baseURL ?? "http://localhost:8000" });
+    page = await context.newPage();
     collectConsole(page, consoleMessages, failedRequests);
     token = await adminToken();
     header = await snapshotGlobal(token, "header");
@@ -165,7 +167,7 @@ test.describe("the admin bootstrap made", () => {
     );
     // A `?locale=` in the URL is also what Payload stores as the admin's language.
     await page.goto("/admin/collections/pages?locale=en").catch(() => undefined);
-    await page.close();
+    await page.context().close();
   });
 
   test("an admin exists, so /admin asks for a login, not for a first user", async ({ request }) => {
@@ -574,10 +576,28 @@ test.describe("the admin bootstrap made", () => {
     // Publishing without a title: Payload marks the field and says so in a toast. Nothing is
     // published (the form is refused), and the page is the suite's own, deleted at the end.
     await field(page, "title").fill("");
-    await page.getByRole("button", { name: /^Publish/ }).click();
+    const logged = consoleMessages.length;
+    const [refused] = await Promise.all([
+      page.waitForResponse(
+        (r) =>
+          r.request().method() === "PATCH" &&
+          new URL(r.url()).pathname === `/api/pages/${statusPage.id}` &&
+          !new URL(r.url()).searchParams.has("autosave"),
+      ),
+      page.getByRole("button", { name: /^Publish/ }).click(),
+    ]);
+    expect(refused.status(), "Payload refuses a page without a title").toBe(400);
     await expect(page.locator(".field-type.text.error").first()).toBeVisible();
     await expect(page.locator(".payload-toast-item").first()).toBeVisible();
     expect(await contrastViolations(page), "the field's error and the toast").toEqual([]);
+    // The browser logs the refusal's 400; it is this test's doing, so the console check below
+    // does not judge it. Any other message stays.
+    const own = () =>
+      consoleMessages
+        .slice(logged)
+        .filter((message) => /status of 400 \(Bad Request\)/.test(message.text));
+    await expect.poll(() => own().length, { message: "the refusal is logged once" }).toBe(1);
+    consoleMessages.splice(consoleMessages.indexOf(own()[0]!), 1);
   });
 
   // axe has no rule for a focus ring's colour: this measures it (3:1 against what is behind it).

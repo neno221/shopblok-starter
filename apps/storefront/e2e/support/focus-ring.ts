@@ -20,10 +20,17 @@ export type FocusIndicator = {
  * inside it (the variant picker's card).
  */
 export function focusIndicator(target: Locator, card?: string): Promise<FocusIndicator> {
-  return target.evaluate((element, card) => {
+  return target.evaluate(async (element, card) => {
     if (document.activeElement !== element) throw new Error("the element does not have focus");
     const ringOwner = card ? (element.closest(card) as HTMLElement | null) : element;
     if (ringOwner === null) throw new Error(`no ${card} around the focused element`);
+    // Payload's fields fade their border in (a CSS transition): measure the colour it ends at.
+    await Promise.all(
+      document
+        .getAnimations()
+        .filter((animation) => animation instanceof CSSTransition)
+        .map((animation) => animation.finished.catch(() => undefined)),
+    );
     type Rgba = [number, number, number, number];
     const parse = (value: string): Rgba => {
       const parts = value.match(/[\d.]+/g)?.map(Number) ?? [];
