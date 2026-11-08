@@ -193,7 +193,7 @@ export const CategoryTile = z.object({
  * product. A published CMS homepage (`site-settings.homepage`, T65) replaces it with its blocks.
  */
 export const HomePage = z.object({
-  variant: z.literal("default").describe("D57: one variant in M3; M5 adds §9.5's"),
+  variant: z.literal("default").describe("D57: one variant; a CMS homepage's blocks have M5's"),
   hero: z.object({
     title: z.string().min(1).describe("The page's one heading"),
     text: z.string().min(1).optional(),

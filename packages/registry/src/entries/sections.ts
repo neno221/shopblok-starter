@@ -23,9 +23,10 @@ import {
 import type { EntryInput } from "../types";
 
 // SPEC §7.4's blocks (D70, D79): each a section in `@shopblok/ui/sections`, drawn by Payload's
-// block of the same `block` slug. A block is a family with one member until M5, the `standard`
-// variant, so it has a thumbnail (D52) for Payload's block drawer and `variantsOf(family)` lists it
-// for the block's `variant` field; M5 adds the other variants as more members of the family.
+// block of the same `block` slug. A block is a family whose first member is the `standard`
+// variant (M4's one look), with a thumbnail (D52) for Payload's block drawer, and
+// `variantsOf(family)` lists every member for the block's `variant` field; M5's 40 other variants
+// are more members (D99).
 
 const section = <const Slug extends string>(
   slug: Slug,

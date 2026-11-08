@@ -1180,7 +1180,7 @@ export const templateStories = {
     "The checkout with a rail for express payment buttons above the first step. M6's Stripe fills it; until then the shop has none and draws the default layout. Here the rail holds the design system's buttons.",
     [
       "The rail is a section named by its heading (“Express checkout”); each button is named by its mark's label, and “Or continue below” leads to the steps.",
-      "With no button to show (the shop in M5) the rail is not drawn at all, so nothing empty is read out.",
+      "With no button to show (the shop until M6) the rail is not drawn at all, so nothing empty is read out.",
     ],
   ),
   "templates/order-confirmation": {
