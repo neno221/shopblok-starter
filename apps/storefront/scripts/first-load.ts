@@ -101,9 +101,10 @@ export type KeptOut = {
 };
 
 /**
- * The modules no route may load at first (D102): each variant's island, loaded by `next/dynamic`
- * inside a client component, as SETUP.md "How to add a variant (M5)" says. A variant task adds its
- * island here; the live preview's listener (D74) is the first row, loaded that way since T61.
+ * The modules no route may load at first (D102): each variant's island, loaded by `lazyIsland`,
+ * `next/dynamic` in a client component, `React.lazy` or `import()`, as SETUP.md "How to add a
+ * variant (M5)", step 4, says. A variant task adds its island here; the live preview's listener
+ * (D74) is the first row, loaded by `next/dynamic` since T61.
  */
 export const keptOut: readonly KeptOut[] = [
   {
