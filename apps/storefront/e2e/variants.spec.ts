@@ -1,19 +1,20 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 import { entries } from "@shopblok/registry";
+import { familyRoot, variantsAt } from "../src/payload/blocks/drift";
 import { signInToAdmin } from "./support/admin-ui";
 import { catalogs } from "./support/catalogs";
 import { collectConsole, judgeConsole, type FailedRequest, type Message } from "./support/console";
 import { BLOCK_MEMBERS, everyBlockLayout, type BlockIds } from "./support/every-block";
 import { publishGlobal, snapshotGlobal, type GlobalData } from "./support/globals";
 import { headerLook, SOLID, TRANSPARENT } from "./support/header-look";
+import { openMiniCart } from "./support/mini-cart";
 import { api, PNG, rest, syncedId, upload } from "./support/payload-rest";
 import {
+  add,
   addToCart,
   checkOut,
-  checkOutOnOnePage,
   HANDLE,
-  variantPath,
   type AddressInput,
   type Words,
 } from "./support/purchase";
@@ -126,13 +127,6 @@ const http = <T>(method: string, path: string, body?: unknown) =>
 /** A GET of the shop from Node, no cookies. */
 const html = async (path: string) => (await fetch(`${base()}${path}`)).text();
 
-/** Each opening tag with `data-slot="<slot>"`, by its `data-variant` (null for none), as drift.ts. */
-const variantsAt = (markup: string, slot: string): (string | null)[] =>
-  [...markup.matchAll(/<[a-z][^>]*>/g)]
-    .map((match) => match[0])
-    .filter((tag) => tag.includes(` data-slot="${slot}"`))
-    .map((tag) => / data-variant="([^"]*)"/.exec(tag)?.[1] ?? null);
-
 /** Whether the markup draws `slot` and every one of them says it is `variant`. */
 const draws = (markup: string, slot: string, variant: string) => {
   const found = variantsAt(markup, slot);
@@ -182,38 +176,27 @@ async function listingWith(prefix: string): Promise<string> {
   throw new Error(`no page of ${prefix}/store lists ${HANDLE}`);
 }
 
-/** The product's first variant added from its page with the quick cart off: the header counts it. */
-async function addWithoutQuickCart(page: Page, prefix: string, count = 1) {
-  await page.goto(await variantPath(page, prefix));
-  const box = page.locator('[data-slot="buy-box-island"] [data-slot="buy-box"]');
-  await expect(box.locator('[data-slot="buy-box-add"]')).not.toHaveAttribute("aria-disabled");
-  await box.locator('[data-slot="buy-box-add"]').click();
-  await expect(page.locator('header [data-slot="cart-badge"]:visible').first()).toHaveText(
-    String(count),
-  );
+/**
+ * Polls `path`'s HTML (as `request` reads it, with its cookies) until it draws `slot` as `variant`:
+ * the first request after a publish may still read the global as it was (`max`), and each page,
+ * and each checkout step, is its own read.
+ */
+async function untilDrawn(
+  request: { get: (path: string) => Promise<{ text: () => Promise<string> }> },
+  pages: readonly (readonly [path: string, slot: string, variant: string])[],
+) {
+  for (const [path, slot, variant] of pages)
+    await expect
+      .poll(async () => draws(await (await request.get(path)).text(), slot, variant), {
+        message: `${path} draws ${slot} as ${variant}`,
+        timeout: 30_000,
+      })
+      .toBe(true);
 }
 
-/**
- * The header's cart, clicked until the drawer it opens says it is `variant` (as
- * `cart-variants.spec.ts` does): the island draws its trigger, and the drawer's code loads, on the
- * first press.
- */
-async function openMiniCart(page: Page, variant: string) {
-  const drawer = page.locator('[data-slot="cart-drawer"]');
-  await expect(async () => {
-    if (await drawer.isVisible()) await page.keyboard.press("Escape");
-    await expect(drawer).toBeHidden();
-    await page
-      .locator(
-        'header [data-slot="cart-island"] button:visible, header a[data-slot="cart-button"]:visible',
-      )
-      .first()
-      .click();
-    await expect(drawer).toBeVisible();
-    await expect(drawer).toHaveAttribute("data-variant", variant);
-  }).toPass({ timeout: 20_000 });
-  return drawer;
-}
+/** The checkout's three steps, each its own route with its own read of the global. */
+const checkoutSteps = (prefix: string) =>
+  (["contact", "delivery", "review"] as const).map((step) => `${prefix}/checkout/${step}`);
 
 // ---- The template families (step 3) ---------------------------------------------------------
 
@@ -222,6 +205,14 @@ const membersOf = (family: string): string[] =>
   entries.flatMap((entry) =>
     entry.family === family && entry.variant !== undefined ? [entry.variant] : [],
   );
+
+/** The slot a family's members draw and say their variant on (drift.ts's, as the DS checks it). */
+function rootOf(family: string): string {
+  const entry = entries.find((each) => each.family === family);
+  const slot = entry === undefined ? undefined : familyRoot(entry, entries);
+  if (slot === undefined) throw new Error(`the registry has no root slot for the family ${family}`);
+  return slot;
+}
 
 /** Every picker on its family's first member, the quick view off: M4's shop (the seed's values). */
 const FIRST_MEMBERS: Record<string, GlobalData> = {
@@ -232,6 +223,9 @@ const FIRST_MEMBERS: Record<string, GlobalData> = {
   checkout: { variant: "default" },
   receipt: { variant: "default" },
 };
+
+/** The header cart island's props with the quick cart on (`dropdown`), as the HTML carries them. */
+const QUICK_CART_ON = /\\?"quickCart\\?":\\?"dropdown\\?"/;
 
 /** The mini carts the HTML gives the header's cart island (its props, as T79's spec reads them). */
 const miniCartsIn = (markup: string): string[] => [
@@ -272,16 +266,16 @@ const TEMPLATE_FAMILIES: readonly TemplateFamily[] = [
     tab: "productPage",
     field: "variant",
     path: (market) => `${market.prefix}/products/${HANDLE}`,
-    drawn: drawnAs("product-detail-template"),
-    check: rootIs("product-detail-template"),
+    drawn: drawnAs(rootOf("product-detail")),
+    check: rootIs(rootOf("product-detail")),
   },
   {
     family: "product-listing",
     tab: "listing",
     field: "variant",
     path: (market) => `${market.prefix}/store`,
-    drawn: drawnAs("product-listing-template"),
-    check: rootIs("product-listing-template"),
+    drawn: drawnAs(rootOf("product-listing")),
+    check: rootIs(rootOf("product-listing")),
   },
   {
     family: "quick-view",
@@ -289,10 +283,12 @@ const TEMPLATE_FAMILIES: readonly TemplateFamily[] = [
     field: "variant",
     with: { listing: { variant: "default", card: "quick-add" } },
     path: (market) => `${market.prefix}/store`,
-    drawn: drawnAs("quick-view-trigger"),
+    drawn: drawnAs(rootOf("quick-view")),
     check: async (page, variant) => {
       const trigger = page
-        .locator('[data-slot="product-listing-region"] [data-slot="quick-view-trigger"]:visible')
+        .locator(
+          `[data-slot="product-listing-region"] [data-slot="${rootOf("quick-view")}"]:visible`,
+        )
         .first();
       await expect(trigger).toHaveAttribute("data-variant", variant);
       await trigger.click();
@@ -306,17 +302,21 @@ const TEMPLATE_FAMILIES: readonly TemplateFamily[] = [
     tab: "cart",
     field: "variant",
     path: (market) => `${market.prefix}/cart`,
-    drawn: drawnAs("cart-template"),
-    check: rootIs("cart-template"),
+    drawn: drawnAs(rootOf("cart")),
+    check: rootIs(rootOf("cart")),
   },
   {
     family: "mini-cart",
     tab: "cart",
     field: "miniCart",
     path: (market) => `${market.prefix}/products/${HANDLE}`,
+    // The island draws its trigger in the browser: the HTML has the mini cart in its props.
     drawn: miniCartsIn,
     check: async (page, variant) => {
       await openMiniCart(page, variant);
+      await expect(
+        page.locator(`header [data-slot="${rootOf("mini-cart")}"]:visible`).first(),
+      ).toHaveAttribute("data-variant", variant);
     },
   },
   {
@@ -324,16 +324,16 @@ const TEMPLATE_FAMILIES: readonly TemplateFamily[] = [
     tab: "checkout",
     field: "variant",
     path: (market) => `${market.prefix}/checkout/contact`,
-    drawn: drawnAs("checkout-template"),
-    check: rootIs("checkout-template"),
+    drawn: drawnAs(rootOf("checkout")),
+    check: rootIs(rootOf("checkout")),
   },
   {
     family: "receipt",
     tab: "receipt",
     field: "variant",
     path: (_, receipt) => receipt,
-    drawn: drawnAs("order-confirmation-template"),
-    check: rootIs("order-confirmation-template"),
+    drawn: drawnAs(rootOf("receipt")),
+    check: rootIs(rootOf("receipt")),
   },
 ];
 
@@ -407,13 +407,20 @@ test.afterAll(async () => {
     const answer = await call;
     if (answer.status !== 200) problems.push(`${what}: ${answer.status} ${answer.text}`);
   };
-  // A lock the editor's closed browser left would refuse the restore (423).
-  const locks = await http<{ docs: { id: number }[] }>(
-    "GET",
-    "/api/payload-locked-documents?depth=0&limit=100",
-  );
-  for (const lock of locks.json().docs ?? [])
-    await http("DELETE", `/api/payload-locked-documents/${lock.id}`);
+  // A lock the editor's closed browser left would refuse the restore (423): the editor's only.
+  if (editorId !== undefined) {
+    const locks = await http<{ docs: { id: number }[] }>(
+      "GET",
+      `/api/payload-locked-documents?depth=0&limit=100&where[user.value][equals]=${editorId}`,
+    );
+    if (locks.status !== 200) problems.push(`the editor's locks: ${locks.status} ${locks.text}`);
+    else
+      for (const lock of locks.json().docs ?? [])
+        await note(
+          `the editor's lock ${lock.id}`,
+          http("DELETE", `/api/payload-locked-documents/${lock.id}`),
+        );
+  }
   if (homeId !== undefined)
     for (const language of LANGUAGES) {
       const layout = originalHome[language];
@@ -614,21 +621,15 @@ test.describe("selectable in Payload: an editor picks, the shop draws it", () =>
       const product = `${market.prefix}/products/${HANDLE}`;
       const listing = await listingWith(market.prefix);
       // Each page is its own cache entry; each shows the picks once it is read again.
-      for (const [path, slot, variant] of [
+      await untilDrawn(page.request, [
         [product, "product-detail-template", PICKED.productPage],
         [listing, "product-listing-template", PICKED.listing],
         [listing, "quick-view-trigger", PICKED.quickView],
         [`${market.prefix}/search?q=hoodie`, "search-results-template", PICKED.listing],
-      ] as const)
-        await expect
-          .poll(async () => draws(await html(path), slot, variant), {
-            message: `${path} draws ${slot} as ${variant}`,
-            timeout: 30_000,
-          })
-          .toBe(true);
+      ]);
 
       // The product page: its layout, and an add opens no quick cart (it is off).
-      await addWithoutQuickCart(page, market.prefix);
+      await add(page, market.prefix, { quickCart: false });
       await expect(page.locator('[data-slot="product-detail-template"]:visible')).toHaveAttribute(
         "data-variant",
         PICKED.productPage,
@@ -671,16 +672,10 @@ test.describe("selectable in Payload: an editor picks, the shop draws it", () =>
 
       // The cart page and the checkout, drawn per request for this visitor's cart: the first
       // request after the publish may still read the global as it was (`max`), as a page does.
-      for (const [path, slot, variant] of [
+      await untilDrawn(page.request, [
         [`${market.prefix}/cart`, "cart-template", PICKED.cart],
         [`${market.prefix}/checkout/contact`, "checkout-template", PICKED.checkout],
-      ] as const)
-        await expect
-          .poll(async () => draws(await (await page.request.get(path)).text(), slot, variant), {
-            message: `${path} draws ${slot} as ${variant}`,
-            timeout: 30_000,
-          })
-          .toBe(true);
+      ]);
       await page.goto(`${market.prefix}/cart`);
       await expect(page.locator('[data-slot="cart-template"]:visible')).toHaveAttribute(
         "data-variant",
@@ -699,10 +694,20 @@ test.describe("selectable in Payload: an editor picks, the shop draws it", () =>
   test("a purchase from /us on the one-page checkout ends on the statement receipt", async ({
     page,
   }) => {
-    await addWithoutQuickCart(page, US.prefix);
+    await add(page, US.prefix, { quickCart: false });
+    // Each step's own read of the global: all three in the one-page layout before the walk.
+    await untilDrawn(
+      page.request,
+      checkoutSteps(US.prefix).map((step) => [step, "checkout-template", PICKED.checkout] as const),
+    );
     await page.goto(`${US.prefix}/checkout/contact`);
     const email = `t91-${stamp}@example.com`;
-    const path = await checkOutOnOnePage(page, { words: US.words, email, address: US.address });
+    const path = await checkOut(page, {
+      words: US.words,
+      email,
+      address: US.address,
+      onePage: true,
+    });
     // The receipt's route reads the global as every page does: its first request since the publish
     // may still draw the layout as it was (`max`), as `checkout-variants.spec.ts`'s probes show.
     await expect
@@ -733,20 +738,20 @@ test.describe("every variant draws on the shop", () => {
   test.beforeAll(async () => {
     picture = (await upload(token, `every-block-${stamp}.png`, "image/png", PNG, "A white wall"))
       .id;
-    const contact = await api<{ docs: { id: number }[] }>(
-      token,
-      "GET",
-      "/api/forms?where[seedKey][equals]=contact&limit=1&depth=0",
-    );
-    const newsletter = await api<{ docs: { id: number }[] }>(
-      token,
-      "GET",
-      "/api/forms?where[seedKey][equals]=newsletter&limit=1&depth=0",
-    );
+    const form = async (seedKey: string) => {
+      const found = await api<{ docs: { id: number }[] }>(
+        token,
+        "GET",
+        `/api/forms?where[seedKey][equals]=${seedKey}&limit=1&depth=0`,
+      );
+      const id = found.docs[0]?.id;
+      if (id === undefined) throw new Error(`the seed has no form with the seedKey ${seedKey}`);
+      return id;
+    };
     const ids: BlockIds = {
       picture,
-      contact: contact.docs[0]?.id ?? 0,
-      newsletter: newsletter.docs[0]?.id ?? 0,
+      contact: await form("contact"),
+      newsletter: await form("newsletter"),
       basics: await syncedId("collections", "everyday-basics"),
       summer: await syncedId("collections", "summer-edit"),
       accessories: await syncedId("categories", "accessories"),
@@ -820,30 +825,35 @@ test.describe("every variant draws on the shop", () => {
       await publishGlobal(token, "templates", first);
       for (const market of MARKETS) {
         const context = await browser.newContext({ baseURL: base() });
+        // Closed by `afterAll` even when a step below fails; its receipt comes with the order.
+        const probe = { market, context, receipt: "" };
+        probes.push(probe);
         const page = await context.newPage();
-        // The quick cart is back on (`FIRST_MEMBERS`): `addToCart` waits for it, so the product
-        // page reads the first members before the purchase starts.
-        await expect(async () => addToCart(page, market.prefix)).toPass({ timeout: 30_000 });
-        // Each step is its own route with its own read of the global: all three in M3's layout.
-        for (const step of ["contact", "delivery", "review"])
-          await expect
-            .poll(async () =>
-              draws(
-                await (await page.request.get(`${market.prefix}/checkout/${step}`)).text(),
-                "checkout-template",
-                "default",
-              ),
-            )
-            .toBe(true);
+        // The product page in M4's layout with the quick cart on, then one add (a retried add
+        // would put the product in the cart again); then each checkout step in M3's layout.
+        const product = `${market.prefix}/products/${HANDLE}`;
+        await untilDrawn(page.request, [[product, "product-detail-template", "default"]]);
+        await expect
+          .poll(async () => (await (await page.request.get(product)).text()).match(QUICK_CART_ON), {
+            message: `${product} has the quick cart on`,
+            timeout: 30_000,
+          })
+          .not.toBeNull();
+        await addToCart(page, market.prefix);
+        await untilDrawn(
+          page.request,
+          checkoutSteps(market.prefix).map(
+            (step) => [step, "checkout-template", "default"] as const,
+          ),
+        );
         await page.goto(`${market.prefix}/checkout/contact`);
-        const receipt = await checkOut(page, {
+        probe.receipt = await checkOut(page, {
           words: market.words,
           email: `t91-probe-${market.lang}-${stamp}@example.com`,
           address: market.address,
         });
         await addToCart(page, market.prefix);
         await page.close();
-        probes.push({ market, context, receipt });
       }
     });
 
