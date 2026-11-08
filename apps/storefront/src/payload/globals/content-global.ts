@@ -35,7 +35,61 @@ export function contentGlobal({
       update: isStaff,
     },
     versions: { drafts: { autosave: { showSaveDraftButton: true } }, max: 50 },
-    hooks: { beforeChange: revalidate.beforeChange, afterChange: revalidate.afterChange },
+    // DIAG (temporary, to be reverted): each phase of a save, in the server's log.
+    hooks: {
+      beforeOperation: [
+        ({ req, operation }) => {
+          req.context["diag"] = performance.now();
+          console.log(`DIAG-SRV ${slug} ${operation} start`);
+        },
+      ],
+      beforeValidate: [
+        ({ req }) => {
+          console.log(
+            `DIAG-SRV ${slug} beforeValidate ${Math.round(performance.now() - Number(req.context["diag"]))}`,
+          );
+        },
+      ],
+      beforeChange: [
+        ({ req, data }) => {
+          console.log(
+            `DIAG-SRV ${slug} beforeChange ${Math.round(performance.now() - Number(req.context["diag"]))}`,
+          );
+          return data;
+        },
+        ...revalidate.beforeChange,
+        ({ req, data }) => {
+          console.log(
+            `DIAG-SRV ${slug} beforeChange-end ${Math.round(performance.now() - Number(req.context["diag"]))}`,
+          );
+          return data;
+        },
+      ],
+      afterChange: [
+        ({ req, doc }) => {
+          console.log(
+            `DIAG-SRV ${slug} afterChange ${Math.round(performance.now() - Number(req.context["diag"]))}`,
+          );
+          return doc;
+        },
+        ...revalidate.afterChange,
+        ({ req, doc }) => {
+          console.log(
+            `DIAG-SRV ${slug} afterChange-end ${Math.round(performance.now() - Number(req.context["diag"]))}`,
+          );
+          return doc;
+        },
+      ],
+      afterRead: [
+        ({ req, doc }) => {
+          if (req.context["diag"] !== undefined)
+            console.log(
+              `DIAG-SRV ${slug} afterRead ${Math.round(performance.now() - Number(req.context["diag"]))}`,
+            );
+          return doc;
+        },
+      ],
+    },
     fields: [translationStatusField({ global: slug }), ...fields],
   };
 }
