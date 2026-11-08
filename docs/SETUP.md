@@ -9177,7 +9177,7 @@ Built as `e2e-smoke` builds, against `next start`:
 |---|---|
 | Date | 2026-11-08 |
 | Branch | `claude/project-thread-jef3cv`, from `main` at `e050bfd` (PR 128, T91, merged) |
-| PR | PR_NUMBER |
+| PR | [130](https://github.com/neno221/shopblok-starter/pull/130) |
 
 ### What changed
 
