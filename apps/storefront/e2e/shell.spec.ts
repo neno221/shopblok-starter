@@ -1,7 +1,8 @@
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test, type APIResponse, type Page } from "@playwright/test";
+import { expect, test, type APIResponse } from "@playwright/test";
 import { publishGlobal, snapshotGlobal, type GlobalData } from "./support/globals";
 import { appEnv } from "./support/app-env";
+import { headerLook, SOLID, TRANSPARENT } from "./support/header-look";
 import { api, PNG, upload } from "./support/payload-rest";
 import { HANDLE } from "./support/purchase";
 import { adminToken, base, freshWithinTwo } from "./support/server";
@@ -371,28 +372,6 @@ test.describe("the transparent header (D103, T80)", () => {
     for (const id of pageIds) await api(token, "DELETE", `/api/pages/${id}`).catch(() => undefined);
   });
 
-  /** What the header looks like on the page now: its height, its row's fill and the scrim. */
-  const look = (page: Page) =>
-    page.evaluate(() => {
-      const header = document.querySelector<HTMLElement>('header[data-variant="transparent"]');
-      const surface = header?.querySelector<HTMLElement>('[data-slot="header-surface"]');
-      const scrim = header?.querySelector<HTMLElement>('[data-slot="header-scrim"]');
-      const main = document.querySelector("main");
-      if (!header || !surface || !scrim || !main) return null;
-      const fill = getComputedStyle(surface).backgroundColor;
-      return {
-        solid: header.dataset["solid"],
-        height: header.getBoundingClientRect().height,
-        filled: fill !== "rgba(0, 0, 0, 0)" && fill !== "transparent",
-        scrim: getComputedStyle(scrim).display !== "none",
-        // The page's top edge against the row's bottom: under the row, or below it.
-        underRow: main.getBoundingClientRect().top < surface.getBoundingClientRect().bottom - 1,
-      };
-    });
-
-  const transparent = { height: 0, filled: false, scrim: true, underRow: true };
-  const solid = { filled: true, scrim: false, underRow: false };
-
   for (const scripts of [true, false])
     for (const width of [375, 1440])
       test(`over the overlay hero, solid elsewhere · ${width} px · scripts ${scripts ? "on" : "off"}`, async ({
@@ -405,7 +384,7 @@ test.describe("the transparent header (D103, T80)", () => {
         });
         const page = await context.newPage();
         await page.goto(`/us/${slugs.overlay}`);
-        expect(await look(page), "over the overlay hero").toMatchObject(transparent);
+        expect(await headerLook(page), "over the overlay hero").toMatchObject(TRANSPARENT);
         // Its words are readable on its scrim, and the hero's on theirs (axe runs as a script, so
         // only with scripts on; the look is the same either way).
         if (scripts) {
@@ -418,7 +397,9 @@ test.describe("the transparent header (D103, T80)", () => {
         }
         // T82: a full-bleed promo banner opening the page lies under the header as the hero does.
         await page.goto(`/us/${slugs.promo}`);
-        expect(await look(page), "over the full-bleed promo banner").toMatchObject(transparent);
+        expect(await headerLook(page), "over the full-bleed promo banner").toMatchObject(
+          TRANSPARENT,
+        );
         if (scripts) {
           const axe = await new AxeBuilder({ page })
             .withTags(axeTags)
@@ -431,16 +412,16 @@ test.describe("the transparent header (D103, T80)", () => {
         // hidden and the page opens with nothing under the header.
         await page.goto(`/us/${slugs.desktop}`);
         if (width >= 1024)
-          expect(await look(page), "over the desktop-only hero").toMatchObject(transparent);
+          expect(await headerLook(page), "over the desktop-only hero").toMatchObject(TRANSPARENT);
         else {
-          const seen = await look(page);
-          expect(seen, "the desktop-only hero, hidden on a phone").toMatchObject(solid);
+          const seen = await headerLook(page);
+          expect(seen, "the desktop-only hero, hidden on a phone").toMatchObject(SOLID);
           expect(seen?.height, "the header takes its row's height").toBeGreaterThan(40);
         }
         for (const path of solidPaths()) {
           await page.goto(path);
-          const seen = await look(page);
-          expect(seen, path).toMatchObject(solid);
+          const seen = await headerLook(page);
+          expect(seen, path).toMatchObject(SOLID);
           expect(seen?.height, `${path}: the header takes its row's height`).toBeGreaterThan(40);
         }
         await context.close();
@@ -449,12 +430,12 @@ test.describe("the transparent header (D103, T80)", () => {
   test("turns solid once the page scrolls, and transparent again at the top", async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto(`/us/${slugs.overlay}`);
-    await expect.poll(() => look(page)).toMatchObject({ ...transparent, solid: "auto" });
+    await expect.poll(() => headerLook(page)).toMatchObject({ ...TRANSPARENT, solid: "auto" });
     await page.mouse.wheel(0, 600);
     await expect
-      .poll(() => look(page))
+      .poll(() => headerLook(page))
       .toMatchObject({ solid: "true", filled: true, scrim: false });
     await page.evaluate(() => window.scrollTo(0, 0));
-    await expect.poll(() => look(page)).toMatchObject({ ...transparent, solid: "auto" });
+    await expect.poll(() => headerLook(page)).toMatchObject({ ...TRANSPARENT, solid: "auto" });
   });
 });

@@ -108,6 +108,29 @@ export async function checkOut(page: Page, { words, email, address }: CheckOut):
   return new URL(page.url()).pathname;
 }
 
+/**
+ * The `one-page` checkout (T86) from its contact step (where `page` is) to the receipt: each step's
+ * action comes back at the next step's anchor on the same page. `checkout-variants.spec.ts` checks
+ * the steps on the way; this only walks them (T91). Answers the receipt's path.
+ */
+export async function checkOutOnOnePage(
+  page: Page,
+  { words, email, address }: CheckOut,
+): Promise<string> {
+  await expect(page).toHaveURL(/\/checkout\/contact$/);
+  await fillContact(page, words, email, address);
+  await page.getByRole("button", { name: words.templates.checkout.contact.submit }).click();
+  await expect(page).toHaveURL(/\/checkout\/delivery#main-step-delivery$/);
+  const shipping = page.locator('[data-slot="checkout-shipping"]:visible input[type="radio"]');
+  await expect(shipping).toHaveCount(1);
+  await shipping.first().check({ force: true });
+  await page.getByRole("button", { name: words.organisms.paymentStep.submit }).click();
+  await expect(page).toHaveURL(/\/checkout\/review#main-step-review$/);
+  await page.getByRole("button", { name: words.templates.checkout.review.place }).click();
+  await expect(page).toHaveURL(/\/order\/order_[^/]+\/confirmed$/);
+  return new URL(page.url()).pathname;
+}
+
 /** The order's id in a receipt's path. */
 export const orderIdOf = (receipt: string) =>
   /\/order\/([^/]+)\/confirmed/.exec(receipt)?.[1] ?? "";
