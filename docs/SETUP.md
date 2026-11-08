@@ -8981,7 +8981,7 @@ Each built as `e2e-smoke` builds, against `next start`, or as a unit test:
 |---|---|
 | Date | 2026-11-08 |
 | Branch | `claude/project-thread-lrjbyy`, from `main` at `bb4aa6e` (PR 127, T87, merged) |
-| PR | [PR_NUMBER](https://github.com/neno221/shopblok-starter/pull/PR_NUMBER) |
+| PR | [129](https://github.com/neno221/shopblok-starter/pull/129) |
 | Machine | The cloud VM: Node 22.23.4, pnpm 12.10.1, the compose stack, Medusa 2.22.4 (`medusa develop`) |
 
 ### What there is now
