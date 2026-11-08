@@ -19,8 +19,8 @@ import { firstVariant, type Family, type VariantOf } from "../contracts/variants
 import type { EntryInput } from "../types";
 
 // SPEC §9.3's templates (D56): a page's `<main>`, drawn in the DS inside the classic header and the
-// multi-column footer so the picture is a page. M3 builds them task by task (T48 to T54); M5's
-// sections compose the home and the CMS pages from them.
+// multi-column footer so the picture is a page. M3 built them task by task (T48 to T54); M5's
+// tasks (T83 to T86) added the other members of the commerce templates' families.
 
 const template = <const Slug extends string>(
   slug: Slug,

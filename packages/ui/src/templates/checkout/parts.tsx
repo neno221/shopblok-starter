@@ -91,8 +91,8 @@ type CheckoutTemplateProps = CheckoutPage & {
   errors?: CheckoutErrors;
   /**
    * The parts a provider fills (D42's per-visitor parts): `express`, the `express-rail` layout's
-   * buttons above the first step (M6's Stripe; none in M5, so the shop passes none and the rail is
-   * not drawn).
+   * buttons above the first step (M6's Stripe; none until then, so the shop passes none and the
+   * rail is not drawn).
    */
   slots?: { express?: React.ReactNode };
   /** next/link's `prefetch` for every link; the design system passes `false`. */
