@@ -8945,6 +8945,7 @@ The review is in the Library (`reviews/pr-127-code-review.md`): 2 must-fix findi
 | 9 | `readTemplates` has no `select` and loads both default sections | Skipped at first (efficiency), then fixed because CI failed on it: the shell reads the global on every page, and the full read joins the sections' block tables, so `e2e-smoke` timed out in `cart-variants.spec.ts` and two live previews (`cms-pages.spec.ts`, `editor-homepage.spec.ts`) were late. `readTemplates` selects the pickers only (a unit test checks no `sections`); a local read went from about 40 ms to about 12 ms |
 | 10 | `commerceContext` awaited after the other reads | Skipped (efficiency) |
 | 11 | Two reads of the same catalog document | Skipped (efficiency; deliberate, "Where it differs from the plan") |
+| CI | `e2e-smoke` still timed out after item 9: every templates save took about 4.3 s in CI and 0.2 s locally (timed in CI with temporary logs, since reverted) | Fixed: the full read of the global, which a save makes three times, is one query over about 270 block tables. On CI's fresh database (tables never analyzed) its estimated cost passes Postgres' JIT threshold, and compiling it took about 4 s for a query that runs in 10 ms. Payload's pool now connects with `-c jit=off` (`src/payload.config.ts`). Against a database with JIT forced on every query, a save went from 28 s to 0.2 s, and `cart-variants`, `templates-global`, `checkout-variants`, `quick-view`, `catalog-sections`, `forms`, `cms-pages` and `shell` pass |
 
 ### Where it differs from the plan
 
