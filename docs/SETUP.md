@@ -9263,3 +9263,19 @@ Built as `e2e-smoke` builds (`main` at `e050bfd`, gzipped KB), against `main` at
 | 14 | SETUP has a section for each task; SPEC v0.12 with "Changes in v0.12" applies §1 and §8 | Met | T77 to T91's sections above, and this one; SPEC v0.12 |
 
 **Left open:** W7 (item 13), on the owner's PC only when the owner says so. Recorded for later, none blocking M5: per-language publishing (Payload 4 may make `localizeStatus` stable), Playwright 1.65 and Chromium 158's redraw (D109), the first load's headroom (less than 1 KB on the listings and the product page), the search index without price lists (PR 115's review, item 5), and the M6, M7 and M8 items SPEC §17.1 lists.
+
+### Changes from the review of this PR
+
+The review (`reviews/pr-130-code-review.md` in the project's files) found six must-fix items and three cleanups, all in what the docs and comments say; none concerns security. All nine are fixed.
+
+| # | Finding | Fixed |
+|---|---|---|
+| 1 | `windows-smoke`'s time, item 12's state and its evidence were still placeholders | Filled from the dispatched run (42484215225, green in 11:55) |
+| 2 | Item 12 was recorded as met before `windows-smoke` had finished | It was recorded only once the run above was green |
+| 3 | `first-load.ts`' `keptOut` comment said each island is loaded by `next/dynamic`, while step 4 of the variant how-to says `lazyIsland` | The comment names the four ways step 4 lists |
+| 4 | Step 4 lost the warning against `next/dynamic` in a server component, and no longer named `next/dynamic` in a client component, which the hero's switcher and the promo popup still use | Both are back in step 4 |
+| 5 | SPEC §7.3, the decisions log and the admin section said every picker defaults to its family's first member, but the quick view defaults to "Off" and stays off unless the card is Quick add | All three say so |
+| 6 | The baselines' history was read against D51's 200 MB in two ways, and SPEC §14 still called 60 MB a line the set had passed | One reading: D51's 60 MB was the first set's line, and the history line is growth since before the first set (about 105 MiB, 111 MB, of 200 MB) |
+| 7 | The coverage sentence under "Changes in v0.12" put D100 in §4 | D100 is in §7.4 and §9.3 |
+| 8 | "Five re-pointed" listed six | Six |
+| 9 | "The comments changed no code", but two edits are text the DS page shows | The Checks say which two, and that the baselines' frame draws neither |
