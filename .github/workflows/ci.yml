@@ -286,6 +286,8 @@ jobs:
       # last, in a project of its own: in Medusa Admin, in the browser, it adds Austria to the Europe
       # region in Medusa's own region form and opens it in the region page's Markets panel, waits for
       # /at, and takes both away again through Medusa's Admin API.
+      # variants (T91, M5's done-when) runs in the default project too: an editor picks the variants
+      # in the admin, then every block and template variant is drawn, and everything is put back.
       # market-panels (T74) follows it, in a project of its own too: it drives the Markets panels on
       # Medusa Admin's Region and Store pages (:9000, no storefront) and puts every row back.
       # `--reporter` adds the HTML report that is uploaded below; the config stays as it is.
@@ -493,7 +495,9 @@ jobs:
           command: start
           url: http://localhost:8000/design-system/en
       # The cells (their pixels too, D51) and the thumbnails (D52). A baseline that is missing fails
-      # its cell: only the update-baselines jobs write them. The blob reporter writes
+      # its cell: only the update-baselines jobs write them. The `design-system` project also runs
+      # `variants-ds.spec.ts` (T91, M5's done-when): every family member's page in four languages
+      # and its thumbnail. The blob reporter writes
       # `blob-report/report-design-system-thumbnails-<shard>.zip` (one file a shard), which the merge
       # job reads; `list` is this log.
       - name: Design-system checks (shard ${{ matrix.shard }} of 3)

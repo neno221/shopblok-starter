@@ -2,6 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { catalogs } from "./support/catalogs";
 import { publishGlobal, snapshotGlobal, type GlobalData } from "./support/globals";
 import { medusaAdminApi, medusaAdminToken, medusaUrl } from "./support/medusa-admin";
+import { openMiniCart } from "./support/mini-cart";
 import { add, addToCart, HANDLE, variantPath, withoutScripts } from "./support/purchase";
 import { adminToken, base, freshWithinTwo } from "./support/server";
 
@@ -60,22 +61,6 @@ async function applyCode(page: Page, code: string) {
   await summary.getByLabel(en.molecules.promoCodeField.label).fill(code);
   await summary.getByRole("button", { name: en.molecules.promoCodeField.apply }).click();
   await expect(summary.locator('[data-slot="promo-code-chip"]')).toContainText(code);
-}
-
-/** The header's cart, clicked until the drawer it opens says it is `variant` (a stale read). */
-async function openMiniCart(page: Page, variant: string) {
-  const drawer = page.locator('[data-slot="cart-drawer"]');
-  await expect(async () => {
-    if (await drawer.isVisible()) await page.keyboard.press("Escape");
-    await expect(drawer).toBeHidden();
-    await page
-      .locator('header [data-slot="cart-island"] button, header a[data-slot="cart-button"]')
-      .first()
-      .click();
-    await expect(drawer).toBeVisible();
-    await expect(drawer).toHaveAttribute("data-variant", variant);
-  }).toPass({ timeout: 20_000 });
-  return drawer;
 }
 
 test.describe("the cart's variants (T85)", () => {

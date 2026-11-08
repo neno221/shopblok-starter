@@ -132,7 +132,7 @@ export type VariantFacts = {
 };
 
 /** Each opening tag that carries `data-slot="<slot>"`, and its `data-variant` (null for none). */
-const variantsAt = (markup: string, slot: string): (string | null)[] =>
+export const variantsAt = (markup: string, slot: string): (string | null)[] =>
   [...markup.matchAll(/<[a-z][^>]*>/g)]
     .map((match) => match[0])
     .filter((tag) => tag.includes(` data-slot="${slot}"`))

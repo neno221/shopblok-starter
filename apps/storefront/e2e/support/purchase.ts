@@ -27,13 +27,28 @@ export async function variantPath(page: Page, prefix = "", handle = HANDLE): Pro
   return parsed.pathname + parsed.search;
 }
 
-/** Adds the product's first variant from its page: the quick cart opens on it. */
-export async function add(page: Page, prefix = ""): Promise<void> {
+/**
+ * Adds the product's first variant from its page: the quick cart opens on it. With the quick cart
+ * off in the `templates` global (T91: `quickCart: false`), none opens and the header's count reads
+ * `count` instead.
+ */
+export async function add(
+  page: Page,
+  prefix = "",
+  { quickCart = true, count = 1 }: { quickCart?: boolean; count?: number } = {},
+): Promise<void> {
   await page.goto(await variantPath(page, prefix));
   const box = page.locator('[data-slot="buy-box-island"] [data-slot="buy-box"]');
   await expect(box.locator('[data-slot="buy-box-add"]')).not.toHaveAttribute("aria-disabled");
   await box.locator('[data-slot="buy-box-add"]').click();
-  await expect(page.locator('[data-slot="quick-cart"]')).toBeVisible();
+  if (quickCart) {
+    await expect(page.locator('[data-slot="quick-cart"]')).toBeVisible();
+    return;
+  }
+  await expect(page.locator('header [data-slot="cart-badge"]:visible').first()).toHaveText(
+    String(count),
+  );
+  await expect(page.locator('[data-slot="quick-cart"]')).toBeHidden();
 }
 
 /** Adds, closes the quick cart and waits for the header's count to read `count`. */
@@ -76,35 +91,61 @@ export type CheckOut = {
   /** Typed in the contact step; what is left out is already filled (a signed-in customer's). */
   email?: string;
   address?: AddressInput;
+  /**
+   * The `one-page` checkout (T86): each step's action comes back at the next step's anchor
+   * (`#main-step-<step>`) on the same page, and the review is the steps done, summed up.
+   */
+  onePage?: boolean;
+  /** Runs once the walk has arrived at a step, before it fills or sends it (a spec's own checks). */
+  onStep?: (step: CheckoutStep) => Promise<void>;
 };
+
+export type CheckoutStep = "contact" | "delivery" | "review";
 
 /**
  * The three steps from the contact page (where `page` is) to the receipt: the seeded shipping
  * option, "Pay later", the review with what was typed, and "Place order". Answers the receipt's path.
  */
-export async function checkOut(page: Page, { words, email, address }: CheckOut): Promise<string> {
-  await expect(page).toHaveURL(/\/checkout\/contact$/);
+export async function checkOut(
+  page: Page,
+  { words, email, address, onePage = false, onStep }: CheckOut,
+): Promise<string> {
+  const at = (step: CheckoutStep) =>
+    new RegExp(`/checkout/${step}${onePage && step !== "contact" ? `#main-step-${step}` : ""}$`);
+  await expect(page).toHaveURL(at("contact"));
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
     words.organisms.checkoutSteps.title,
   );
+  await onStep?.("contact");
   await fillContact(page, words, email, address);
   await page.getByRole("button", { name: words.templates.checkout.contact.submit }).click();
 
-  await expect(page).toHaveURL(/\/checkout\/delivery$/);
+  await expect(page).toHaveURL(at("delivery"));
+  await onStep?.("delivery");
   const shipping = page.locator('[data-slot="checkout-shipping"]:visible input[type="radio"]');
   await expect(shipping).toHaveCount(1);
   await shipping.first().check({ force: true });
-  await expect(page.getByText(words.organisms.paymentStep.systemName)).toBeVisible();
+  await expect(page.getByText(words.organisms.paymentStep.systemName).first()).toBeVisible();
   await page.getByRole("button", { name: words.organisms.paymentStep.submit }).click();
 
-  await expect(page).toHaveURL(/\/checkout\/review$/);
-  const review = page.locator('[data-slot="checkout-review"]:visible');
+  await expect(page).toHaveURL(at("review"));
+  await onStep?.("review");
+  // One page sums the steps done up in their own sections; the review step is the button.
+  const review = onePage
+    ? page.getByRole("main")
+    : page.locator('[data-slot="checkout-review"]:visible');
   if (email !== undefined) await expect(review).toContainText(email);
   if (address?.["address1"] !== undefined) await expect(review).toContainText(address["address1"]);
   await expect(review).toContainText(words.organisms.paymentStep.systemName);
   await page.getByRole("button", { name: words.templates.checkout.review.place }).click();
 
-  await expect(page).toHaveURL(/\/order\/order_[^/]+\/confirmed$/);
+  // Without scripts the browser keeps the one-page review's anchor across the action's redirect (a
+  // `Location` without a fragment takes the request's): the receipt has no such id.
+  await expect(page).toHaveURL(
+    onePage
+      ? /\/order\/order_[^/]+\/confirmed(#main-step-review)?$/
+      : /\/order\/order_[^/]+\/confirmed$/,
+  );
   return new URL(page.url()).pathname;
 }
 

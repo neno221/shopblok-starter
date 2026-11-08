@@ -4,11 +4,11 @@ import { publishGlobal, snapshotGlobal, type GlobalData } from "./support/global
 import {
   addToCart,
   checkOut,
-  fillContact,
   mailedLink,
   orderIdOf,
   withoutScripts,
   type AddressInput,
+  type CheckoutStep,
   type Words,
 } from "./support/purchase";
 import { adminToken, freshWithinTwo } from "./support/server";
@@ -146,67 +146,59 @@ const stepOf = (page: Page, kind: "contact" | "delivery" | "review") =>
   page.locator(`[id="main-step-${kind}"]:visible`);
 
 /**
- * The one-page checkout from its contact step (where `page` is) to the receipt: each step's action
- * comes back at the next step's anchor, focused, with the steps done summed up; the delivery is
- * opened again from its "Edit" and sent again, and the address stays. Answers the receipt's path.
+ * The one-page checkout's own checks, at each step of the shared walk (`checkOut` with `onePage`):
+ * each step's action comes back at the next step's anchor, focused, with the steps done summed up;
+ * the delivery is opened again from its "Edit" and sent again, and the address stays.
  */
-async function checkOutOnOnePage(
-  page: Page,
-  { words, address }: Market,
-  email: string,
-): Promise<string> {
-  const steps = words.templates.checkout;
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-    words.organisms.checkoutSteps.title,
-  );
-  await expect(stepOf(page, "contact")).toHaveAttribute("data-state", "current");
-  await expect(stepOf(page, "delivery")).toHaveAttribute("data-state", "later");
-  await expect(stepOf(page, "review")).toHaveAttribute("data-state", "later");
-  await fillContact(page, words, email, address);
-  await page.getByRole("button", { name: steps.contact.submit }).click();
+const onePageChecks =
+  (page: Page, { words, address }: Market, email: string) =>
+  async (step: CheckoutStep): Promise<void> => {
+    if (step === "contact") {
+      await expect(stepOf(page, "contact")).toHaveAttribute("data-state", "current");
+      await expect(stepOf(page, "delivery")).toHaveAttribute("data-state", "later");
+      await expect(stepOf(page, "review")).toHaveAttribute("data-state", "later");
+      return;
+    }
+    if (step === "delivery") {
+      await expect(stepOf(page, "delivery")).toHaveAttribute("data-state", "current");
+      await expect(stepOf(page, "delivery")).toBeFocused();
+      const contact = stepOf(page, "contact");
+      await expect(contact).toHaveAttribute("data-state", "done");
+      const done = contact.locator('[data-slot="checkout-one-page-done"]');
+      await expect(done).toContainText(email);
+      await expect(done).toContainText(address["address1"] ?? "");
+      await expect(contact.locator('[data-slot="checkout-one-page-edit"]')).toHaveAttribute(
+        "href",
+        /\/checkout\/contact#main-step-contact$/,
+      );
+      return;
+    }
+    await expect(stepOf(page, "review")).toBeFocused();
+    await expect(stepOf(page, "delivery")).toHaveAttribute("data-state", "done");
+    await expect(stepOf(page, "delivery")).toContainText(words.organisms.paymentStep.systemName);
+    // The delivery again, from its "Edit": sent on its own, it leaves the address as it was.
+    await stepOf(page, "delivery").locator('[data-slot="checkout-one-page-edit"]').click();
+    await expect(page).toHaveURL(/\/checkout\/delivery#main-step-delivery$/);
+    await expect(stepOf(page, "delivery")).toHaveAttribute("data-state", "current");
+    await expect(stepOf(page, "delivery")).toBeFocused();
+    const shipping = page.locator('[data-slot="checkout-shipping"]:visible input[type="radio"]');
+    await expect(shipping.first()).toBeChecked();
+    await page.getByRole("button", { name: words.organisms.paymentStep.submit }).click();
+    await expect(page).toHaveURL(/\/checkout\/review#main-step-review$/);
+    // The review is the steps done, summed up, and the order's button.
+    await expect(stepOf(page, "contact")).toContainText(email);
+    await expect(stepOf(page, "contact")).toContainText(address["address1"] ?? "");
+  };
 
-  await expect(page).toHaveURL(/\/checkout\/delivery#main-step-delivery$/);
-  await expect(stepOf(page, "delivery")).toHaveAttribute("data-state", "current");
-  await expect(stepOf(page, "delivery")).toBeFocused();
-  const contact = stepOf(page, "contact");
-  await expect(contact).toHaveAttribute("data-state", "done");
-  await expect(contact.locator('[data-slot="checkout-one-page-done"]')).toContainText(email);
-  await expect(contact.locator('[data-slot="checkout-one-page-done"]')).toContainText(
-    address["address1"] ?? "",
-  );
-  await expect(contact.locator('[data-slot="checkout-one-page-edit"]')).toHaveAttribute(
-    "href",
-    /\/checkout\/contact#main-step-contact$/,
-  );
-  const shipping = page.locator('[data-slot="checkout-shipping"]:visible input[type="radio"]');
-  await expect(shipping).toHaveCount(1);
-  await shipping.first().check({ force: true });
-  await page.getByRole("button", { name: words.organisms.paymentStep.submit }).click();
-
-  await expect(page).toHaveURL(/\/checkout\/review#main-step-review$/);
-  await expect(stepOf(page, "review")).toBeFocused();
-  await expect(stepOf(page, "delivery")).toHaveAttribute("data-state", "done");
-  await expect(stepOf(page, "delivery")).toContainText(words.organisms.paymentStep.systemName);
-
-  // The delivery again, from its "Edit": sent on its own, it leaves the address as it was.
-  await stepOf(page, "delivery").locator('[data-slot="checkout-one-page-edit"]').click();
-  await expect(page).toHaveURL(/\/checkout\/delivery#main-step-delivery$/);
-  await expect(stepOf(page, "delivery")).toHaveAttribute("data-state", "current");
-  await expect(stepOf(page, "delivery")).toBeFocused();
-  await expect(shipping.first()).toBeChecked();
-  await page.getByRole("button", { name: words.organisms.paymentStep.submit }).click();
-  await expect(page).toHaveURL(/\/checkout\/review#main-step-review$/);
-  // The review is the steps done, summed up, and the order's button.
-  await expect(stepOf(page, "contact")).toContainText(email);
-  await expect(stepOf(page, "contact")).toContainText(address["address1"] ?? "");
-  await expect(stepOf(page, "delivery")).toContainText(words.organisms.paymentStep.systemName);
-  await page.getByRole("button", { name: steps.review.place }).click();
-
-  // Without scripts the browser keeps the review's anchor across the action's redirect (a
-  // `Location` without a fragment takes the request's): the receipt has no such id, so it stays put.
-  await expect(page).toHaveURL(/\/order\/order_[^/]+\/confirmed(#main-step-review)?$/);
-  return new URL(page.url()).pathname;
-}
+/** The one-page checkout from its contact step (where `page` is) to the receipt's path. */
+const checkOutOnOnePage = (page: Page, market: Market, email: string) =>
+  checkOut(page, {
+    words: market.words,
+    email,
+    address: market.address,
+    onePage: true,
+    onStep: onePageChecks(page, market, email),
+  });
 
 /** A purchase in `market` from its contact step in `checkout`'s layout, scripted or not. */
 async function purchase(

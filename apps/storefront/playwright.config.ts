@@ -15,6 +15,7 @@ import { defineConfig, devices, type Project } from "@playwright/test";
 //   design-system   (T24, D34) every DS cell against `next start` built with
 //                   DESIGN_SYSTEM_ENABLED=true; no backend. T40 (D51): each `en` cell is also a
 //                   pixel comparison against a committed baseline (`el` keeps the other checks).
+//                   T91: also `variants-ds.spec.ts`, every family member's page in four locales.
 //   thumbnails      (T40, D52) the previews of the 21 family entries at 1200 × 800 at half scale,
 //                   compared with (or, on an update, written as) `public/registry/{id}.png`. It
 //                   runs against the same server as `design-system`, so the one flag enables both.
@@ -82,7 +83,8 @@ const optIns: OptIn[] = [
           // picture and the next.
           contextOptions: { reducedMotion: "reduce" },
         },
-        testMatch: /design-system\.spec\.ts/,
+        // T91: `variants-ds.spec.ts`, M5's done-when on the DS page (each member in four languages).
+        testMatch: /(design-system|variants-ds)\.spec\.ts/,
       },
       {
         name: "thumbnails",
