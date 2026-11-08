@@ -296,9 +296,6 @@ jobs:
         env:
           PLAYWRIGHT_HTML_OPEN: never
           E2E_MEDUSA_LOG: ${{ runner.temp }}/servers/medusa.log
-      - name: DIAG server timings (temporary, to be reverted)
-        if: always()
-        run: grep -E "DIAG-SRV" "$RUNNER_TEMP/servers/storefront.log" | head -400 || true
       # T42, D67 item 2 (the specs are T49's): ADR 0004's outage test. Skipped while
       # `e2e/outage.spec.ts` does not exist. The spec stops Medusa through
       # `.github/scripts/stop-tree.sh --port 9000` on the PID file (`E2E_MEDUSA_PID`,
