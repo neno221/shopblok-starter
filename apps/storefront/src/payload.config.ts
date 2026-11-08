@@ -52,8 +52,19 @@ export default buildConfig({
   admin: {
     user: Users.slug,
     importMap: { baseDir: dirname },
-    // D85: the integrations (SPEC §10) and whether each is on, above the collections.
-    components: { beforeDashboard: ["/payload/components/integrations-status#IntegrationsStatus"] },
+    // D108 (T90): Medusa Admin's look, light only (the shop has no dark mode, Q22): the colours,
+    // typeface and corners in `app/(payload)/custom.scss`, Inter through a provider, and the shop's
+    // logo and icon from the site settings in place of Payload's.
+    theme: "light",
+    components: {
+      // D85: the integrations (SPEC §10) and whether each is on, above the collections.
+      beforeDashboard: ["/payload/components/integrations-status#IntegrationsStatus"],
+      graphics: {
+        Logo: "/payload/components/logo#AdminLogo",
+        Icon: "/payload/components/icon#AdminIcon",
+      },
+      providers: ["/payload/components/admin-font#AdminFont"],
+    },
     // D74: the edited language's market in three frames, through `/next/preview`. The globals show
     // the market's home (T61), a post its page in the journal (T66).
     livePreview: {
