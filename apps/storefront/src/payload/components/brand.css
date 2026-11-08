@@ -1,0 +1,45 @@
+/* The admin's logo and icon (D108), on Payload's theme variables. */
+
+.admin-logo--name {
+  display: inline-block;
+  font-size: 1.75rem;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  color: var(--theme-text);
+  overflow-wrap: anywhere;
+}
+
+.admin-logo--image {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  height: auto;
+  max-height: calc(var(--base) * 3);
+}
+
+/* Medusa Admin's store avatar: a small rounded square with the store's first letter, the size of
+   the breadcrumbs' home link (18 px in Payload's StepNav). */
+.admin-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  vertical-align: middle;
+}
+
+.admin-icon--letter {
+  background: var(--theme-elevation-0);
+  /* A border, not Medusa's outer shadow: the breadcrumbs clip what lies outside the link. */
+  border: 1px solid var(--theme-elevation-200);
+  color: var(--theme-elevation-650);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.admin-icon--image {
+  object-fit: cover;
+}

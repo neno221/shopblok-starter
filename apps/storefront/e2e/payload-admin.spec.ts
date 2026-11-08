@@ -1,6 +1,8 @@
+import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 import { adminCredentials } from "./support/admin-credentials";
 import { collectConsole, judgeConsole, type FailedRequest, type Message } from "./support/console";
+import { focusIndicator } from "./support/focus-ring";
 import { draftOf, publishGlobal, snapshotGlobal, type GlobalData } from "./support/globals";
 import { adminToken } from "./support/server";
 
@@ -53,6 +55,26 @@ const marked = (page: Page) =>
  * (Cache Components), so right after a redirect `input[name="title"]` matches the old form too.
  */
 const field = (page: Page, name: "title" | "slug") => page.locator(`input[name="${name}"]:visible`);
+
+/**
+ * axe's contrast check on the screen (T90, D108: Medusa Admin's colours on Payload's screens). Only
+ * `color-contrast`: the rest of axe's rules judge Payload's own markup (its react-select inputs
+ * without a label, icon buttons without a name, sort buttons under 24 px), which the theme does
+ * not touch (SETUP.md, "Payload's admin theme (T90)"). The SEO plugin's inline colours are left
+ * out: it writes `#9A9A9A`, `red` and `green` into `style`, which no variable reaches.
+ */
+async function contrastViolations(page: Page): Promise<string[]> {
+  const { violations } = await new AxeBuilder({ page })
+    .withRules(["color-contrast"])
+    .exclude('#field-meta [style*="color"]')
+    .analyze();
+  return violations.flatMap((violation) =>
+    violation.nodes.map((node) => `${node.target.join(" ")}: ${node.failureSummary ?? ""}`),
+  );
+}
+
+/** The viewport the suite's page opens with; the theme's checks put it back. */
+const DEFAULT_VIEWPORT = { width: 1280, height: 720 };
 
 type PageDoc = { id?: number; title?: string | null; slug?: string | null; _status?: string };
 
@@ -152,6 +174,15 @@ test.describe("the admin bootstrap made", () => {
     await page.goto("/admin");
     await page.waitForURL(/\/admin\/login/);
     await expect(page.locator('input[name="email"]')).toBeVisible();
+    // D108 (T90): the shop's logo where Payload's was: the site settings' store name, as text
+    // while the settings have no logo (the seed's).
+    const settings = (await (await request.get("/api/globals/site-settings?depth=0")).json()) as {
+      storeName: string;
+      logo: unknown;
+    };
+    expect(settings.logo ?? null, "the seed's site settings have no logo").toBeNull();
+    await expect(page.locator(".login__brand .admin-logo")).toHaveText(settings.storeName);
+    await expect(page.locator(".login__brand svg")).toHaveCount(0);
   });
 
   test("logs in with the credentials bootstrap wrote, and is an admin", async () => {
@@ -170,6 +201,31 @@ test.describe("the admin bootstrap made", () => {
     );
     expect(me.user?.email).toBe(email);
     expect(me.user?.role).toBe("admin");
+  });
+
+  test("wears Medusa Admin's look: light, Inter, and the store's letter as the icon", async () => {
+    await page.goto("/admin");
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+    // The theme is fixed: the account page has no theme picker.
+    const look = await page.evaluate(async () => {
+      await document.fonts.ready;
+      const body = getComputedStyle(document.body);
+      const family = body.fontFamily.split(",")[0]!.trim();
+      return {
+        family,
+        loaded: document.fonts.check(`13px ${family}`),
+        text: body.color,
+        primary: getComputedStyle(document.documentElement).getPropertyValue("--theme-success-500"),
+      };
+    });
+    // `next/font`'s family for Inter (`lib/fonts.ts`), loaded from this server.
+    expect(look.family).toMatch(/Inter/);
+    expect(look.loaded, "Inter's file loaded").toBe(true);
+    expect(look.text, "Medusa's --fg-base").toBe("rgb(24, 24, 27)");
+    expect(look.primary.trim()).not.toBe("");
+    const home = page.locator(".step-nav__home");
+    await expect(home.locator(".admin-icon--letter")).toHaveText("S");
+    await expect(home.locator("svg")).toHaveCount(0);
   });
 
   test("creates a page with an English title, as a draft that visitors cannot read", async ({
@@ -473,6 +529,77 @@ test.describe("the admin bootstrap made", () => {
 
     expect(await empty(message!.value)).toBe(200);
     emptied = undefined;
+  });
+
+  // D108 (T90): Medusa Admin's colours keep Payload's screens readable, on a desktop and a phone:
+  // the dashboard, a list, an edit form with the translation status in its sidebar (the page the
+  // status test made: Greek complete, the other open languages not), and the variant picker.
+  test("every screen passes axe's contrast check at 1440 and 375 px", async () => {
+    test.setTimeout(120_000);
+    expect(statusPage.id, "the page the translation status test made").toBeDefined();
+    const screens = [
+      { name: "the dashboard", url: "/admin", ready: page.locator(".integrations-status") },
+      {
+        name: "a list",
+        url: "/admin/collections/pages?locale=en",
+        ready: page.locator("tbody tr").first(),
+      },
+      {
+        name: "an edit form",
+        url: `/admin/collections/pages/${statusPage.id}?locale=en`,
+        ready: page.locator('.translation-status [data-language="el"][data-state="complete"]'),
+      },
+      {
+        name: "the variant picker",
+        url: "/admin/globals/header?locale=en",
+        ready: page.getByRole("radiogroup", { name: "Design" }).getByRole("radio").first(),
+      },
+    ];
+    try {
+      for (const width of [1440, 375]) {
+        await page.setViewportSize({ width, height: 900 });
+        for (const screen of screens) {
+          await page.goto(screen.url);
+          await expect(screen.ready).toBeAttached();
+          expect(await contrastViolations(page), `${screen.name} at ${width} px`).toEqual([]);
+        }
+      }
+    } finally {
+      await page.setViewportSize(DEFAULT_VIEWPORT);
+    }
+  });
+
+  test("an error on the edit form stays readable", async () => {
+    await page.goto(`/admin/collections/pages/${statusPage.id}?locale=en`);
+    // Publishing without a title: Payload marks the field and says so in a toast. Nothing is
+    // published (the form is refused), and the page is the suite's own, deleted at the end.
+    await field(page, "title").fill("");
+    await page.getByRole("button", { name: /^Publish/ }).click();
+    await expect(page.locator(".field-type.text.error").first()).toBeVisible();
+    await expect(page.locator(".payload-toast-item").first()).toBeVisible();
+    expect(await contrastViolations(page), "the field's error and the toast").toEqual([]);
+  });
+
+  // axe has no rule for a focus ring's colour: this measures it (3:1 against what is behind it).
+  test("the focus ring stands out from its background on the edit form", async () => {
+    await page.goto(`/admin/collections/pages/${statusPage.id}?locale=en`);
+    const title = field(page, "title");
+    await title.focus();
+    const titleRing = await focusIndicator(title);
+    expect(
+      titleRing.ratio,
+      `the title field's focus edge ${JSON.stringify(titleRing)}`,
+    ).toBeGreaterThanOrEqual(3);
+    // The block's variant picker, reached by keyboard: its card draws Payload's focus outline.
+    const picker = page.locator(".variant-picker__options").first();
+    for (let presses = 0; presses < 200; presses += 1) {
+      await page.keyboard.press("Tab");
+      if (await picker.evaluate((group) => group.contains(document.activeElement))) break;
+    }
+    const card = await focusIndicator(page.locator(":focus"), ".variant-picker__card");
+    expect(card.kind).toBe("outline");
+    expect(card.width).toBeGreaterThanOrEqual(2);
+    expect(card.ratio, `the variant card's ring ${JSON.stringify(card)}`).toBeGreaterThanOrEqual(3);
   });
 
   // Last: it judges everything the admin logged since the first test. A failed request to another

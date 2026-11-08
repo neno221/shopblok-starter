@@ -1,0 +1,133 @@
+// T90 (D108): Payload's admin in Medusa Admin's look, light only (`admin.theme: "light"`).
+// Only Payload's own CSS variables change, never a screen: the colours, the typeface and the corners.
+//
+// Source: `@medusajs/ui-preset` 2.22.4 (MIT), read with `npm pack` (not installed):
+// `src/theme/tokens/colors.ts` (the light theme's tokens) and `src/theme/tokens/typography.ts`.
+//
+// - Greys: Payload's shades by role on Medusa's zinc tokens (named in the comments): the
+//   backgrounds, the borders, then the text from muted to base; a step between two tokens is mixed
+//   halfway. Medusa's muted and subtle text are darker than Payload's, which is what lets the
+//   descriptions, the sort labels and the locale button pass axe's contrast check (Payload's own
+//   400 and 500 fail it on white: 2.8:1 and 3.9:1).
+// - Success (Payload's accent: selection, focus, "published"), error and warning: Medusa's blue,
+//   rose and orange, the preset's colours as the anchors of each scale (white before, black after):
+//     blue   #eff6ff #dbeafe #bfdbfe #93c5fd #60a5fa #3b82f6 #2563eb #1e40af #1e3a8a #172554
+//     rose   #ffe4e6 #fecdd3 #fda4af #fb7185 #f43f5e #e11d48 #be123c #9f1239 #881337 #4c0519
+//     orange #ffedd5 #fed7aa #fdba74 #fb923c #f97316 #9a3412 #7c2d12 #431407
+//   Each of Payload's shades is the colour on its scale with the same relative luminance as
+//   Payload's own (in the comment), so their contrasts stay what Payload made them; only the hue is
+//   Medusa's.
+// SETUP.md, "Payload's admin theme (T90)", has the script that computed them; a new preset release
+// is copied the same way.
+//
+// Payload puts its own CSS in `@layer payload-default`; `@layer payload` is the layer its docs
+// (admin/customizing-css) give for overrides that keep the specificity rules.
+
+@layer payload {
+  :root {
+    /* Greys: Medusa's zinc. --theme-text is shade 800, Medusa's --fg-base. */
+    --color-base-0: #ffffff; /* --bg-base */
+    --color-base-50: #fafafa; /* --bg-subtle */
+    --color-base-100: #f4f4f5; /* --bg-base-hover */
+    --color-base-150: #e4e4e7; /* --border-base */
+    --color-base-200: #d4d4d8; /* --border-strong */
+    --color-base-250: #bbbbc1;
+    --color-base-300: #a1a1aa; /* --fg-disabled */
+    --color-base-350: #898992;
+    --color-base-400: #71717a; /* --fg-muted */
+    --color-base-450: #62626b;
+    --color-base-500: #52525b; /* --fg-subtle */
+    --color-base-550: #494951;
+    --color-base-600: #3f3f46; /* zinc 700 */
+    --color-base-650: #333338;
+    --color-base-700: #27272a; /* --button-inverted */
+    --color-base-750: #202023;
+    --color-base-800: #18181b; /* --fg-base */
+    --color-base-850: #121214;
+    --color-base-900: #0c0c0e;
+    --color-base-950: #060607;
+    --color-base-1000: #000000;
+
+    /* Success: Medusa's interactive blue. */
+    --color-success-50: #edf5ff; /* Payload: #edf5f9 */
+    --color-success-100: #ddebfe; /* Payload: #daedf8 */
+    --color-success-150: #c5defe; /* Payload: #bce1f8 */
+    --color-success-200: #b0d4fe; /* Payload: #9cd8fd */
+    --color-success-250: #96c7fd; /* Payload: #7dccf8 */
+    --color-success-300: #7eb8fc; /* Payload: #61bef1 */
+    --color-success-350: #69abfb; /* Payload: #41b2ec */
+    --color-success-400: #569bf9; /* Payload: #24a4df */
+    --color-success-450: #4289f7; /* Payload: #1294cc */
+    --color-success-500: #357af3; /* Payload: #1587ba */
+    --color-success-550: #2968ed; /* Payload: #0c79a8 */
+    --color-success-600: #245de0; /* Payload: #0b6e99 */
+    --color-success-650: #2150cb; /* Payload: #0b6187 */
+    --color-success-700: #1f47bc; /* Payload: #115879 */
+    --color-success-750: #1e3ea2; /* Payload: #114c69 */
+    --color-success-800: #1d3885; /* Payload: #12425a */
+    --color-success-850: #1b3070; /* Payload: #12384c */
+    --color-success-900: #172656; /* Payload: #132c3a */
+    --color-success-950: #121d42; /* Payload: #162127 */
+
+    /* Error: Medusa's rose (--fg-error, --button-danger, --tag-red-*). */
+    --color-error-50: #ffeff1; /* Payload: #faf1f0 */
+    --color-error-100: #ffe4e6; /* Payload: #fce5e3 */
+    --color-error-150: #fecdd3; /* Payload: #f7d0cc */
+    --color-error-200: #fec0c8; /* Payload: #fec1bc */
+    --color-error-250: #fdafb9; /* Payload: #fdb1aa */
+    --color-error-300: #fd98a5; /* Payload: #fd9a92 */
+    --color-error-350: #fc8193; /* Payload: #fd837b */
+    --color-error-400: #fa677d; /* Payload: #f66d67 */
+    --color-error-450: #f64b67; /* Payload: #ea5a56 */
+    --color-error-500: #eb2f54; /* Payload: #da4b48 */
+    --color-error-550: #da1b45; /* Payload: #c83e3d */
+    --color-error-600: #c6143f; /* Payload: #b63636 */
+    --color-error-650: #af123b; /* Payload: #a12f2f */
+    --color-error-700: #9d1239; /* Payload: #902c2b */
+    --color-error-750: #881337; /* Payload: #7b2927 */
+    --color-error-800: #780f2f; /* Payload: #692725 */
+    --color-error-850: #680c27; /* Payload: #562421 */
+    --color-error-900: #56071e; /* Payload: #40201d */
+    --color-error-950: #430416; /* Payload: #2c1a18 */
+
+    /* Warning: Medusa's orange (--tag-orange-*). */
+    --color-warning-50: #fff1df; /* Payload: #f9f2ed */
+    --color-warning-100: #ffe7ca; /* Payload: #f8e8db */
+    --color-warning-150: #fed2a1; /* Payload: #f3d4ba */
+    --color-warning-200: #fdc68a; /* Payload: #f3c8a2 */
+    --color-warning-250: #fdb56d; /* Payload: #f0b988 */
+    --color-warning-300: #fca050; /* Payload: #eea662 */
+    --color-warning-350: #fb8b33; /* Payload: #ea943a */
+    --color-warning-400: #f87316; /* Payload: #df8411 */
+    --color-warning-450: #e56615; /* Payload: #cc780f */
+    --color-warning-500: #d35a14; /* Payload: #b96c0d */
+    --color-warning-550: #c14e14; /* Payload: #a7610a */
+    --color-warning-600: #b04313; /* Payload: #96570b */
+    --color-warning-650: #a13912; /* Payload: #864e0b */
+    --color-warning-700: #923212; /* Payload: #78460d */
+    --color-warning-750: #7e2d12; /* Payload: #693d0d */
+    --color-warning-800: #702810; /* Payload: #5a3713 */
+    --color-warning-850: #5f200c; /* Payload: #492f15 */
+    --color-warning-900: #4d1809; /* Payload: #382614 */
+    --color-warning-950: #3b1106; /* Payload: #261d15 */
+
+    --theme-overlay: rgba(24, 24, 27, 0.4); /* --bg-overlay */
+
+    /* Focus: Medusa's focus colour (--borders-interactive-with-focus, blue 600), solid, so the
+       ring is 5.2:1 on white and 4.9:1 on the grey panels (WCAG 2.4.13 asks 3:1). */
+    --accessibility-outline: 2px solid #2563eb;
+
+    /* Medusa Admin's typeface: Inter, the shop's own files (admin-font.tsx sets --font-inter), then
+       the preset's fallbacks. The rich text editor's serif is Inter too: Medusa Admin has no serif. */
+    --font-body:
+      var(--font-inter, Inter), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+      "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+    --font-serif: var(--font-body);
+
+    /* Medusa UI's corners (Tailwind's): fields and buttons rounded-md, panels rounded-lg, dialogs
+       rounded-xl. Payload's are 3, 4 and 8 px. */
+    --style-radius-s: 6px;
+    --style-radius-m: 8px;
+    --style-radius-l: 12px;
+  }
+}
