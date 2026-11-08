@@ -233,9 +233,17 @@ const FIRST_MEMBERS: Record<string, GlobalData> = {
   receipt: { variant: "default" },
 };
 
-/** Whether the HTML gives the header's cart island this mini cart (its props, as T79's spec reads them). */
-const miniCartIn = (markup: string, variant: string) =>
-  new RegExp(`\\\\?"miniCart\\\\?":\\\\?"${variant}\\\\?"`).test(markup);
+/** The mini carts the HTML gives the header's cart island (its props, as T79's spec reads them). */
+const miniCartsIn = (markup: string): string[] => [
+  ...new Set(
+    [...markup.matchAll(/\\?"miniCart\\?":\\?"([\w-]+)\\?"/g)].map((match) => match[1] ?? ""),
+  ),
+];
+
+/** The variants the HTML draws `slot` as, each once (`[]` when it draws none). */
+const drawnAs = (slot: string) => (markup: string) => [
+  ...new Set(variantsAt(markup, slot).map((each) => each ?? "no data-variant")),
+];
 
 type TemplateFamily = {
   family: string;
@@ -246,8 +254,8 @@ type TemplateFamily = {
   with?: Record<string, GlobalData>;
   /** Where a shopper meets it in the market; `receipt` is the probe's order's. */
   path: (market: Market, receipt: string) => string;
-  /** Whether the page's HTML draws `variant`. */
-  drawn: (markup: string, variant: string) => boolean;
+  /** The members the page's HTML draws: the one set, or (a member missing) the family's first. */
+  drawn: (markup: string) => string[];
   /** The member in the browser: its root says it is `variant`, opened where it opens. */
   check: (page: Page, variant: string) => Promise<void>;
 };
@@ -264,7 +272,7 @@ const TEMPLATE_FAMILIES: readonly TemplateFamily[] = [
     tab: "productPage",
     field: "variant",
     path: (market) => `${market.prefix}/products/${HANDLE}`,
-    drawn: (markup, variant) => draws(markup, "product-detail-template", variant),
+    drawn: drawnAs("product-detail-template"),
     check: rootIs("product-detail-template"),
   },
   {
@@ -272,7 +280,7 @@ const TEMPLATE_FAMILIES: readonly TemplateFamily[] = [
     tab: "listing",
     field: "variant",
     path: (market) => `${market.prefix}/store`,
-    drawn: (markup, variant) => draws(markup, "product-listing-template", variant),
+    drawn: drawnAs("product-listing-template"),
     check: rootIs("product-listing-template"),
   },
   {
@@ -281,7 +289,7 @@ const TEMPLATE_FAMILIES: readonly TemplateFamily[] = [
     field: "variant",
     with: { listing: { variant: "default", card: "quick-add" } },
     path: (market) => `${market.prefix}/store`,
-    drawn: (markup, variant) => draws(markup, "quick-view-trigger", variant),
+    drawn: drawnAs("quick-view-trigger"),
     check: async (page, variant) => {
       const trigger = page
         .locator('[data-slot="product-listing-region"] [data-slot="quick-view-trigger"]:visible')
@@ -298,7 +306,7 @@ const TEMPLATE_FAMILIES: readonly TemplateFamily[] = [
     tab: "cart",
     field: "variant",
     path: (market) => `${market.prefix}/cart`,
-    drawn: (markup, variant) => draws(markup, "cart-template", variant),
+    drawn: drawnAs("cart-template"),
     check: rootIs("cart-template"),
   },
   {
@@ -306,7 +314,7 @@ const TEMPLATE_FAMILIES: readonly TemplateFamily[] = [
     tab: "cart",
     field: "miniCart",
     path: (market) => `${market.prefix}/products/${HANDLE}`,
-    drawn: miniCartIn,
+    drawn: miniCartsIn,
     check: async (page, variant) => {
       await openMiniCart(page, variant);
     },
@@ -316,7 +324,7 @@ const TEMPLATE_FAMILIES: readonly TemplateFamily[] = [
     tab: "checkout",
     field: "variant",
     path: (market) => `${market.prefix}/checkout/contact`,
-    drawn: (markup, variant) => draws(markup, "checkout-template", variant),
+    drawn: drawnAs("checkout-template"),
     check: rootIs("checkout-template"),
   },
   {
@@ -324,7 +332,7 @@ const TEMPLATE_FAMILIES: readonly TemplateFamily[] = [
     tab: "receipt",
     field: "variant",
     path: (_, receipt) => receipt,
-    drawn: (markup, variant) => draws(markup, "order-confirmation-template", variant),
+    drawn: drawnAs("order-confirmation-template"),
     check: rootIs("order-confirmation-template"),
   },
 ];
@@ -855,14 +863,11 @@ test.describe("every variant draws on the shop", () => {
             const path = family.path(market, receipt);
             // A missing member draws the family's first, which says so: the poll names the pair.
             await expect
-              .poll(
-                async () => family.drawn(await (await context.request.get(path)).text(), variant),
-                {
-                  message: `${path} draws the ${family.family} family's ${variant}`,
-                  timeout: 30_000,
-                },
-              )
-              .toBe(true);
+              .poll(async () => family.drawn(await (await context.request.get(path)).text()), {
+                message: `${path} draws the ${family.family} family's ${variant}`,
+                timeout: 30_000,
+              })
+              .toEqual([variant]);
             const page = await context.newPage();
             const judge = watch(page);
             try {
