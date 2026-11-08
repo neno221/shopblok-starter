@@ -28,6 +28,40 @@ beforeEach(() => {
 });
 
 describe("isFormPlaced", () => {
+  it("finds a form in a catalog document's own sections and in the templates' defaults (T87)", async () => {
+    findGlobal.mockImplementation(async ({ slug }: { slug: string }) =>
+      slug === "templates"
+        ? {
+            productPage: { sections: [{ blockType: "newsletter", form: 6 }] },
+            listing: { sections: [{ blockType: "formBlock", form: { id: 7 } }] },
+          }
+        : { newsletter: { form: null } },
+    );
+    find.mockImplementation(async ({ collection }: { collection: string }) => ({
+      docs:
+        collection === "products"
+          ? [{ sections: [{ blockType: "formBlock", form: 8 }, { blockType: "faq" }] }]
+          : collection === "collections"
+            ? [{ sections: [{ blockType: "newsletter", form: 9 }] }]
+            : [],
+    }));
+    for (const id of [6, 7, 8, 9]) expect(await isFormPlaced(reader, id)).toBe(true);
+    expect(await isFormPlaced(reader, 10)).toBe(false);
+    // Only documents that show their own sections, and that Medusa has not deleted.
+    for (const collection of ["products", "categories", "collections"]) {
+      expect(find).toHaveBeenCalledWith(
+        expect.objectContaining({
+          collection,
+          where: {
+            and: [{ sectionsMode: { equals: "own" } }, { deletedInMedusa: { not_equals: true } }],
+          },
+          draft: false,
+          user: null,
+        }),
+      );
+    }
+  });
+
   it("finds the footer's newsletter and each form in a page's blocks", async () => {
     findGlobal.mockResolvedValue({ newsletter: { form: 1 } });
     find.mockResolvedValue({

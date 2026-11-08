@@ -1,4 +1,5 @@
 import type { Condition, Field } from "payload";
+import { sectionsBlocks } from "../fields/catalog-sections";
 import { productSource } from "../fields/product-source";
 import { variantField } from "../fields/variant";
 import {
@@ -17,7 +18,8 @@ import { contentGlobal } from "./content-global";
  * and 50 versions, `revalidateGlobalOnPublish` with `global:templates:<locale>` in every language
  * (`contentGlobal`), and live preview on the newest product's page (`live-preview.ts`). T79 creates
  * the fields below; T84 adds the listing's `card`, T85 the mini cart's `drawer-picks` and its
- * `picks`, T87 the default `sections`.
+ * `picks`, T87 the default `sections` of the product page and the listings (D104), whose texts are
+ * localized while the blocks are every language's.
  */
 
 /** The quick view's picker shows only when the listing's card is `quick-add` (D101, T84). */
@@ -65,6 +67,10 @@ export const Templates = contentGlobal({
               label: "Layout",
               description: "Where the pictures, the buy box and the product's information go.",
             }),
+            // T87 (D104): what a product whose Sections say "The default sections" shows.
+            sectionsBlocks(
+              "Shown on every product page after the product's information, before the reviews, unless a product has its own sections or none (its Sections, in Catalog → Products).",
+            ),
           ],
         },
         {
@@ -84,6 +90,11 @@ export const Templates = contentGlobal({
               description:
                 "The card of every product in the listings' and the search page's grids. Quick add puts a button on it; the Quick view tab says what it does.",
             }),
+            // T87 (D104): what a category or collection whose Sections say "The default sections"
+            // shows. Not on the store's page or the search page, which are no document's.
+            sectionsBlocks(
+              "Shown on every category's and collection's listing after its results and their pagination, unless it has its own sections or none (its Sections, in Catalog). Not on the store's page or the search page.",
+            ),
           ],
         },
         {

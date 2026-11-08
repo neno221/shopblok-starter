@@ -42,6 +42,11 @@ type SiteText = {
   delivery: string[];
   /** The home page's hero (T51; the seeded Home's `hero` block, T65): title, line, button. */
   hero: { title: string; text: string; action: string };
+  /**
+   * The shop's promises (T87): the `templates` global's default product sections, a `uspBar` the
+   * seed writes, each with its icon (`USP_ICONS`), a title and a line.
+   */
+  promises: { icon: "delivery" | "returns" | "secure"; title: string; text: string }[];
 };
 
 const TEXT: Record<"en" | "el" | "de" | "fr", SiteText> = {
@@ -63,6 +68,11 @@ const TEXT: Record<"en" | "el" | "de" | "fr", SiteText> = {
       text: "Soft basics, linen for warm days and a few things for home.",
       action: "Shop the collection",
     },
+    promises: [
+      { icon: "delivery", title: "Fast delivery", text: "Ships in 2 to 4 business days" },
+      { icon: "returns", title: "Free returns", text: "Return anything unworn within 30 days" },
+      { icon: "secure", title: "Secure checkout", text: "Your payment details stay encrypted" },
+    ],
   },
   el: {
     announcement: "Δωρεάν επιστροφές εντός 30 ημερών",
@@ -82,6 +92,11 @@ const TEXT: Record<"en" | "el" | "de" | "fr", SiteText> = {
       text: "Μαλακά βασικά, λινά για τις ζεστές μέρες και μερικά πράγματα για το σπίτι.",
       action: "Δείτε τη συλλογή",
     },
+    promises: [
+      { icon: "delivery", title: "Γρήγορη αποστολή", text: "Αποστολή σε 2 έως 4 εργάσιμες ημέρες" },
+      { icon: "returns", title: "Δωρεάν επιστροφές", text: "Επιστρέψτε ό,τι δεν έχετε φορέσει εντός 30 ημερών" },
+      { icon: "secure", title: "Ασφαλής πληρωμή", text: "Τα στοιχεία πληρωμής σας μένουν κρυπτογραφημένα" },
+    ],
   },
   de: {
     announcement: "Kostenlose Rücksendung innerhalb von 30 Tagen",
@@ -101,6 +116,11 @@ const TEXT: Record<"en" | "el" | "de" | "fr", SiteText> = {
       text: "Weiche Basics, Leinen für warme Tage und ein paar Dinge fürs Zuhause.",
       action: "Zur Kollektion",
     },
+    promises: [
+      { icon: "delivery", title: "Schneller Versand", text: "Versand in 2 bis 4 Werktagen" },
+      { icon: "returns", title: "Kostenlose Rückgabe", text: "Ungetragene Artikel innerhalb von 30 Tagen zurückgeben" },
+      { icon: "secure", title: "Sicher bezahlen", text: "Ihre Zahlungsdaten bleiben verschlüsselt" },
+    ],
   },
   fr: {
     announcement: "Retours gratuits sous 30 jours",
@@ -120,6 +140,11 @@ const TEXT: Record<"en" | "el" | "de" | "fr", SiteText> = {
       text: "Des basiques tout doux, du lin pour les beaux jours et quelques pièces pour la maison.",
       action: "Découvrir la collection",
     },
+    promises: [
+      { icon: "delivery", title: "Livraison rapide", text: "Expédition sous 2 à 4 jours ouvrés" },
+      { icon: "returns", title: "Retours gratuits", text: "Retournez tout article non porté sous 30 jours" },
+      { icon: "secure", title: "Paiement sécurisé", text: "Vos données de paiement restent chiffrées" },
+    ],
   },
 };
 

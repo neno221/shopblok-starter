@@ -65,3 +65,6 @@ export function PromoPopup({
     </PromoPopupCard>
   ) : null;
 }
+
+// T87: what `first-load.ts`' `keptOut` finds this module's chunks by (it loads with its block).
+PromoPopup.displayName = "shopblok:promo-banner-popup";

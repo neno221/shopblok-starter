@@ -2,6 +2,7 @@ import "server-only";
 import type { Payload } from "payload";
 import { cmsRead, type CmsQuery } from "./read";
 import { catalogContent, type CatalogContent } from "./catalog-content";
+import { blocksOf, sectionsModeOf, type StoredSections } from "./catalog-sections";
 import { CATALOG_CONTENT_TAG, catalogContentTag, type CatalogContentSlug } from "./tags";
 
 // The catalog's content (D83, T69): the shop's own fields on Medusa's synced documents, read by
@@ -68,3 +69,51 @@ function readContent<S extends CatalogContentSlug>(slug: S) {
 export const readProductContent = readContent("products");
 export const readCategoryContent = readContent("categories");
 export const readCollectionContent = readContent("collections");
+
+/**
+ * The sections of a product, a category or a collection (D104, T87): its `sectionsMode` and its own
+ * blocks, by its handle, in the market's language. A read of its own, at depth 1 with every
+ * reference populated as a page's `layout` is (`pages.ts`): the blocks' resolvers need more of an
+ * upload, a form or a catalog document than the content read's `POPULATE` keeps. Unlike that
+ * read's texts, a block's texts fall back to English (D73), as a page's blocks do: there is no
+ * Medusa text to show instead. The same tags as the content read: a save of the document
+ * (`cms:<kind>:<handle>`), and a replaced upload, a renamed or deleted linked document or a changed
+ * form (`cms:catalog`: `linkedTags`, `formTags`). `null` when Payload has no live document with
+ * that handle, or with no database.
+ */
+function readSections(slug: CatalogContentSlug) {
+  return cmsRead(
+    async (payload: Payload, query: CmsQuery, handle: string): Promise<StoredSections | null> => {
+      const { docs } = await payload.find({
+        collection: slug,
+        ...query,
+        locale: query.locale as never,
+        where: { and: [{ handle: { equals: handle } }, { deletedInMedusa: { not_equals: true } }] },
+        depth: 1,
+        select: { sectionsMode: true, sections: true } as never,
+        sort: "-updatedAt",
+        limit: 1,
+        pagination: false,
+      });
+      const doc = docs[0] as Record<string, unknown> | undefined;
+      return doc === undefined
+        ? null
+        : { mode: sectionsModeOf(doc["sectionsMode"]), sections: blocksOf(doc["sections"]) };
+    },
+    {
+      name: `cms:catalog:${slug}:sections`,
+      tags: (_locale, handle) => [catalogContentTag(slug, handle), CATALOG_CONTENT_TAG],
+    },
+  );
+}
+
+export const readProductSections = readSections("products");
+export const readCategorySections = readSections("categories");
+export const readCollectionSections = readSections("collections");
+
+/** Each synced collection's sections read, for the pages (`catalog-sections.tsx`) and the tab route (`block-tab.ts`). */
+export const OWN_SECTIONS = {
+  products: readProductSections,
+  categories: readCategorySections,
+  collections: readCollectionSections,
+} as const satisfies Record<CatalogContentSlug, unknown>;

@@ -6,7 +6,7 @@ import { pickVariant, type Members } from "@shopblok/ui/lib/variant";
 import type * as React from "react";
 import { CategoryShowcaseBanner } from "./category-showcase/banner";
 import { CategoryShowcaseBento } from "./category-showcase/bento";
-import { CategoryShowcaseCarousel } from "./category-showcase/carousel";
+import { CategoryShowcaseCarousel } from "./category-showcase/carousel-island";
 import { CategoryShowcaseCircles } from "./category-showcase/circles";
 import { CategoryShowcaseList } from "./category-showcase/list";
 import {

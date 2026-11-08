@@ -133,4 +133,7 @@ function CategoryShowcaseCarousel({
   );
 }
 
+// T87: what `first-load.ts`' `keptOut` finds this module's chunks by (it loads with its block).
+CategoryShowcaseCarousel.displayName = "shopblok:category-showcase-carousel";
+
 export { CategoryShowcaseCarousel };

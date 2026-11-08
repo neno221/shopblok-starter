@@ -6,7 +6,8 @@
 // hydrates the code is plain text a reader can select and the button does nothing.
 import { formatMessage, type Messages } from "@shopblok/i18n";
 import type { DiscountCode } from "@shopblok/registry/contracts";
-import { CopyCodeControl, type CopyStatus } from "@shopblok/ui/molecules/copy-code-control";
+import type { CopyStatus } from "@shopblok/ui/molecules/copy-code-control";
+import { CopyCodeControl } from "@shopblok/ui/molecules/copy-code-control-island";
 import type * as React from "react";
 
 type CopyCodeChipProps = Omit<React.ComponentProps<"div">, "children"> & {

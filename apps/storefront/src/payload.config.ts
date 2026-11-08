@@ -93,6 +93,12 @@ export default buildConfig({
       // that needs Payload, and `getPayload` would keep awaiting the same attempt. With a limit the
       // attempt fails and the next call starts a new one.
       connectionTimeoutMillis: 10_000,
+      // No JIT on Payload's connections: a read of a document with many blocks fields (the
+      // `templates` global since T87 joins about 270 block tables) is one large query whose
+      // estimated cost passes Postgres' JIT threshold on tables never analyzed yet (a fresh
+      // database), and compiling it took about 4 s for a query that runs in 10 ms (PR 127's CI:
+      // every templates save and read). Payload's queries are short, so JIT never pays off here.
+      options: "-c jit=off",
       // W6 item 7: each `next build` worker has its own pool, so the build keeps it small (pg's
       // default, 10, otherwise); src/lib/build-workers.ts says why.
       ...(isBuildPhase() ? { max: BUILD_DB_POOL_MAX } : {}),

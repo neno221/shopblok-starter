@@ -72,6 +72,20 @@ export function hideDeletedExceptHeld(
   };
 }
 
+/** Postgres's longest identifier (an enum's name among them), in bytes. */
+const MAX_IDENTIFIER = 63;
+
+/**
+ * The appearance's enum name (T87). Payload names it `enum_<tableName>_appearance` (the table's
+ * name ends in the link group's), and an empty answer keeps that name (`createTableName` in
+ * `@payloadcms/drizzle`). The catalog's sections pass Postgres's 63 characters with it (D104: a
+ * product collection's links in `collections`' and in the `templates` global's versions' tables
+ * are 64 and 65); those end in `_look` instead. Every name that fits is left as it was, so no other
+ * table's enum is renamed.
+ */
+const appearanceEnumName = ({ tableName = "" }: { tableName?: string }): string =>
+  `enum_${tableName}_appearance`.length <= MAX_IDENTIFIER ? "" : `enum_${tableName}_look`;
+
 /**
  * The reusable `link` field (SPEC §7.5, D79): an internal reference or a custom URL, a label in
  * each language, `newTab` and an appearance. It stores a reference, never a URL, for anything
@@ -138,6 +152,7 @@ export function link({
             type: "select",
             defaultValue: appearances[0],
             options: appearances,
+            enumName: appearanceEnumName,
           } satisfies Field,
         ]
       : []),

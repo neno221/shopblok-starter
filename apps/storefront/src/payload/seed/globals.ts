@@ -113,10 +113,38 @@ export const siteSettingsSeed: SeedGlobal = {
 };
 
 /**
+ * The product page's default sections (D104, T87): one `uspBar` with the shop's promises in four
+ * languages (`site.ts`), as Payload stores the block's defaults (`variant`, `sectionSettings`) so a
+ * second run compares equal. The ids are fixed, so each language's texts are the same rows'.
+ */
+function productSections() {
+  const promises = siteText("en").promises;
+  return [
+    {
+      id: "seed-product-usps",
+      blockType: "uspBar",
+      variant: firstVariant("usp-bar"),
+      items: promises.map((promise, index) => ({
+        id: `seed-product-usps-${promise.icon}`,
+        icon: promise.icon,
+        title: localized((text) => text.promises[index]?.title ?? promise.title),
+        text: localized((text) => text.promises[index]?.text ?? promise.text),
+      })),
+      sectionSettings: {
+        spacing: "small",
+        surface: "default",
+        container: "default",
+        visibility: "all",
+      },
+    },
+  ];
+}
+
+/**
  * The templates (D101, T79): every family's first variant, the quick view off, the drawer on a
  * click on the header's cart and the quick cart after an add, which is M4's shop
  * (`TEMPLATE_DEFAULTS` holds the same values for a build with no database), and the newest four
- * as the picks of the drawer with picks (T85).
+ * as the picks of the drawer with picks (T85), and since T87 the product page's default sections.
  */
 export const templatesSeed: SeedGlobal = {
   global: "templates",
@@ -133,6 +161,8 @@ export const templatesSeed: SeedGlobal = {
     "cart.picks.limit": seeded(4),
     "checkout.variant": seeded(firstVariant("checkout")),
     "receipt.variant": seeded(firstVariant("receipt")),
+    // T87 (D104): what every product shows after its information until an editor says otherwise.
+    "productPage.sections": seeded(productSections()),
   }),
 };
 

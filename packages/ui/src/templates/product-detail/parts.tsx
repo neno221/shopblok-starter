@@ -22,7 +22,9 @@
 // - The buy box, the sticky bar and the reviews link to each other by the ids in
 //   `PRODUCT_DETAIL_IDS`, so an island that draws them passes the same ones.
 // - The information's rich texts (an editor's description, the shop's delivery text, T69) are the
-//   page's too, `slots.richText`, since the registry holds no rich text. A product with no section
+//   page's too, `slots.richText`, since the registry holds no rich text; so are the product's
+//   sections (T87, D104: an editor's blocks), `slots.sections`, after the information and before
+//   the reviews. A product with no section
 //   at all (no description, and the shop emptied its delivery text) draws no information.
 import type { Messages } from "@shopblok/i18n";
 import type { ProductDetailPage, ProductMedia, VariantOf } from "@shopblok/registry/contracts";
@@ -162,6 +164,11 @@ type ProductDetailTemplateProps = ProductDetailPage & {
      * rendered by the shop, drawn where the section has its `rich` block.
      */
     richText?: Readonly<Record<string, React.ReactNode>>;
+    /**
+     * The product's sections (D104, T87): an editor's blocks, the product's own or the `templates`
+     * global's defaults, drawn by the shop after the information and before the reviews.
+     */
+    sections?: React.ReactNode;
   };
   /** The ids the parts link each other by: `PRODUCT_DETAIL_IDS` unless given (one per DS state). */
   ids?: ProductDetailIds;
@@ -270,7 +277,26 @@ function DetailInfo({ info, copy, locale, prefetch, slots = {} }: ProductDetailT
   );
 }
 
-/** What follows: the information (unless the member draws it elsewhere), the reviews, the rest. */
+/**
+ * The product's sections (T87), between the information and the reviews in every member. Each
+ * section is a band with its own spacing, surface and container (`SectionFrame`), so the page's
+ * side padding is taken off around them: a section's content lines up with the page's.
+ */
+function DetailSections({ children }: { children: React.ReactNode }) {
+  return (
+    <div
+      data-slot="product-detail-sections"
+      className="-mx-4 flex min-w-0 flex-col md:-mx-6 lg:-mx-8"
+    >
+      {children}
+    </div>
+  );
+}
+
+/**
+ * What follows: the information (unless the member draws it elsewhere), the product's sections
+ * (T87), the reviews, the rest.
+ */
 function DetailRest({
   withInfo = true,
   ...props
@@ -288,6 +314,7 @@ function DetailRest({
   return (
     <>
       {withInfo ? <DetailInfo {...props} /> : null}
+      {slots.sections == null ? null : <DetailSections>{slots.sections}</DetailSections>}
       <ReviewsSection
         {...reviews}
         id={ids.reviews}

@@ -9,6 +9,8 @@
 //   title, 16:9 on a phone and 3:1 from `md`, preloaded as the page's largest picture; the
 //   introduction under it with the editor's text's look (`Prose`). The introduction is rich text the
 //   shop renders (`slots.intro`), since the registry holds none.
+// - A category's or collection's sections (T87, D104: an editor's blocks) are the shop's too,
+//   `slots.sections`, after the results and their pagination, whatever the filter layout.
 // - The root carries the member's `data-variant` (D99); the members differ only in their results'
 //   layout (`Results`), so every layout has the same breadcrumbs, title, banner and introduction.
 import type { Messages } from "@shopblok/i18n";
@@ -46,6 +48,11 @@ type ProductListingTemplateProps = ProductListingPage & {
     island?: React.ReactNode;
     /** The category's or collection's introduction (an editor's rich text, rendered by the shop). */
     intro?: React.ReactNode;
+    /**
+     * The category's or collection's sections (D104, T87): an editor's blocks, its own or the
+     * `templates` global's defaults, drawn by the shop after the results and their pagination.
+     */
+    sections?: React.ReactNode;
   };
   /** next/link's `prefetch` for every link; the design system passes `false`. */
   prefetch?: boolean | null;
@@ -124,6 +131,16 @@ function ProductListingFrame({
           className="peer-data-active:hidden"
         />
       </div>
+      {slots.sections == null ? null : (
+        // Bands with their own spacing, surface and container (`SectionFrame`): the page's side
+        // padding is taken off around them, so a section's content lines up with the page's.
+        <div
+          data-slot="product-listing-sections"
+          className="-mx-4 flex min-w-0 flex-col md:-mx-6 lg:-mx-8"
+        >
+          {slots.sections}
+        </div>
+      )}
     </Root>
   );
 }

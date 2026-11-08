@@ -11,6 +11,7 @@ import {
 import type { CommerceContext } from "./commerce";
 import { resolveLayout, type LayoutBlock } from "./sections";
 import { tabVersion } from "./tabs";
+import type { SectionsDocument } from "../catalog-sections";
 
 // The commerce blocks resolved for a market (T64): their sources through a fake data layer, their
 // view models parsed by the contracts, and left out when they cannot be drawn.
@@ -403,7 +404,7 @@ describe("the commerce blocks (T64)", () => {
     };
     async function collection(
       block: Record<string, unknown>,
-      { market, document }: { market?: FakeMarket; document?: { id: number } } = {},
+      { market, document }: { market?: FakeMarket; document?: SectionsDocument } = {},
     ) {
       const { context } = commerce(market);
       const [resolved] = await resolveLayout(
@@ -418,7 +419,7 @@ describe("the commerce blocks (T64)", () => {
       `/next/block-tab?market=us&doc=7&block=b1&tab=${place}&v=${tabVersion(tabbed.tabs[index] ?? {})}`;
 
     it("tabs: the first tab's products in the page, the others by their stored place, those the market does not sell left out", async () => {
-      const section = await collection(tabbed, { document: { id: 7 } });
+      const section = await collection(tabbed, { document: { kind: "page", id: 7 } });
       expect(section?.variant).toBe("tabs");
       expect(section?.products.map((p) => p.id)).toEqual(["prod_hoodie"]);
       expect(section?.tabs).toEqual([
@@ -429,7 +430,7 @@ describe("the commerce blocks (T64)", () => {
           endpoint: at(1),
         },
       ]);
-      const cy = await collection(tabbed, { market: cyprus, document: { id: 7 } });
+      const cy = await collection(tabbed, { market: cyprus, document: { kind: "page", id: 7 } });
       expect(cy?.tabs?.map((tab) => [tab.label, tab.endpoint])).toEqual([
         ["Basics", undefined],
         ["On sale", at(1)],
@@ -439,7 +440,7 @@ describe("the commerce blocks (T64)", () => {
       // moved keeps its fingerprint, so a reorder is a new URL for the tabs that moved.
       const gone = await collection(
         { ...tabbed, tabs: [tabbed.tabs[2], ...tabbed.tabs] },
-        { document: { id: 7 } },
+        { document: { kind: "page", id: 7 } },
       );
       expect(gone?.tabs?.map((tab) => tab.endpoint)).toEqual([undefined, at(2, 1)]);
     });

@@ -132,5 +132,8 @@ function CopyCodeControl({
   );
 }
 
+// T87: what `first-load.ts`' `keptOut` finds this module's chunks by (it loads with its block).
+CopyCodeControl.displayName = "shopblok:copy-code-control";
+
 export { CopyCodeControl, COPIED_MS };
 export type { CopyCodeControlProps, CopyStatus };

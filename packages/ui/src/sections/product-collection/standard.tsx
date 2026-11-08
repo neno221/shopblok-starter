@@ -6,7 +6,7 @@
 // product; when the editor asked to hide it, the storefront leaves the block out. A server
 // component; the carousel's primitive is the only island.
 import type { ProductCollectionSection as ProductCollectionSectionData } from "@shopblok/registry/contracts";
-import { ProductCarousel } from "@shopblok/ui/organisms/product-carousel";
+import { ProductCarousel } from "@shopblok/ui/organisms/product-carousel-island";
 import { ProductGrid } from "@shopblok/ui/organisms/product-grid";
 import type { SectionsCopy } from "@shopblok/ui/sections/section-copy";
 import { SectionFrame } from "@shopblok/ui/sections/section-frame";

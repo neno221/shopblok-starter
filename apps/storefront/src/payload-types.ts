@@ -533,110 +533,33 @@ export interface Category {
     [k: string]: unknown;
   } | null;
   /**
-   * The title, description and picture search engines and shared links show. Empty: the page's own.
+   * Sections shown after the listing's results and their pagination. The default sections are the Templates' (its Listing tab).
    */
-  meta?: {
-    title?: string | null;
-    description?: string | null;
-    /**
-     * Maximum upload file size: 12MB. Recommended file size for images is <500KB.
-     */
-    image?: (number | null) | Media;
-  };
-  deletedInMedusa?: boolean | null;
-  medusaUpdatedAt?: string | null;
-  syncedAt?: string | null;
-  updatedAt: string;
-  createdAt: string;
-}
-/**
- * Follows Medusa: its name, handle and the other greyed-out fields are edited in Medusa Admin, and the sync writes them here. The fields below them are the shop's own content, and a save shows on the shop at once.
- *
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "collections".
- */
-export interface ProductCollection {
-  id: number;
-  medusaId: string;
-  title: string;
-  handle: string;
+  sectionsMode?: ("default" | "own" | "none") | null;
   /**
-   * The tile's picture on the home's category tiles. Empty: its newest product's.
+   * Shown after the listing's results and their pagination, in every language; each block's texts are translated.
    */
-  image?: (number | null) | Media;
-  /**
-   * A wide picture at the top of its listing page, under the title.
-   */
-  banner?: (number | null) | Media;
-  /**
-   * A few lines under the title of its listing page.
-   */
-  intro?: {
-    root: {
-      type: string;
-      children: {
-        type: any;
-        version: number;
-        [k: string]: unknown;
-      }[];
-      direction: ("ltr" | "rtl") | null;
-      format: "left" | "start" | "center" | "right" | "end" | "justify" | "";
-      indent: number;
-      version: number;
-    };
-    [k: string]: unknown;
-  } | null;
-  /**
-   * The title, description and picture search engines and shared links show. Empty: the page's own.
-   */
-  meta?: {
-    title?: string | null;
-    description?: string | null;
-    /**
-     * Maximum upload file size: 12MB. Recommended file size for images is <500KB.
-     */
-    image?: (number | null) | Media;
-  };
-  deletedInMedusa?: boolean | null;
-  medusaUpdatedAt?: string | null;
-  syncedAt?: string | null;
-  updatedAt: string;
-  createdAt: string;
-}
-/**
- * Follows Medusa: its name, handle and the other greyed-out fields are edited in Medusa Admin, and the sync writes them here. The fields below them are the shop's own content, and a save shows on the shop at once.
- *
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "products".
- */
-export interface Product {
-  id: number;
-  medusaId: string;
-  title: string;
-  handle: string;
-  thumbnail?: string | null;
-  /**
-   * Shown on the product page instead of Medusa's description. Empty: Medusa's description.
-   */
-  richDescription?: {
-    root: {
-      type: string;
-      children: {
-        type: any;
-        version: number;
-        [k: string]: unknown;
-      }[];
-      direction: ("ltr" | "rtl") | null;
-      format: "left" | "start" | "center" | "right" | "end" | "justify" | "";
-      indent: number;
-      version: number;
-    };
-    [k: string]: unknown;
-  } | null;
-  /**
-   * More pictures, shown after Medusa's in the product page's gallery.
-   */
-  gallery?: (number | Media)[] | null;
+  sections?:
+    | (
+        | RichTextBlock
+        | MediaWithTextBlock
+        | UspBarBlock
+        | LogoCloudBlock
+        | FaqBlock
+        | TestimonialsBlock
+        | VideoBlock
+        | SpacerBlock
+        | CategoryShowcaseBlock
+        | ProductCollectionBlock
+        | FeaturedProductBlock
+        | BundleBlock
+        | PromoBannerBlock
+        | ComparisonBlock
+        | CollectionSpotlightBlock
+        | NewsletterBlock
+        | FormBlockBlock
+      )[]
+    | null;
   /**
    * The title, description and picture search engines and shared links show. Empty: the page's own.
    */
@@ -876,101 +799,6 @@ export interface SpacerBlock {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "HeroBlock".
- */
-export interface HeroBlock {
-  variant:
-    | "standard"
-    | "overlay"
-    | "centered"
-    | "editorial"
-    | "bento"
-    | "collection-switcher"
-    | "product"
-    | "text";
-  eyebrow?: string | null;
-  heading: string;
-  subheading?: string | null;
-  /**
-   * The Overlay and Editorial designs need one; the Text design shows none.
-   */
-  media?: (number | null) | Media;
-  /**
-   * The smaller second picture.
-   */
-  secondMedia?: (number | null) | Media;
-  /**
-   * Two to four collections, each a tab with its own picture. A collection gone from Medusa is left out.
-   */
-  collections?:
-    | {
-        collection: number | ProductCollection;
-        media: number | Media;
-        id?: string | null;
-      }[]
-    | null;
-  links?:
-    | {
-        link: {
-          type?: ("reference" | "custom") | null;
-          reference?:
-            | ({
-                relationTo: "categories";
-                value: number | Category;
-              } | null)
-            | ({
-                relationTo: "collections";
-                value: number | ProductCollection;
-              } | null)
-            | ({
-                relationTo: "products";
-                value: number | Product;
-              } | null);
-          url?: string | null;
-          label: string;
-          newTab?: boolean | null;
-          appearance?: ("default" | "outline" | "text") | null;
-        };
-        id?: string | null;
-      }[]
-    | null;
-  /**
-   * A countdown to this time; once it has passed, the countdown is not shown.
-   */
-  countdownEnd?: string | null;
-  productSource: {
-    mode: "none" | "collection" | "category" | "handpicked" | "newest" | "onSale" | "tag" | "type";
-    collection?: (number | null) | ProductCollection;
-    category?: (number | null) | Category;
-    descendants?: boolean | null;
-    /**
-     * Shown in this order.
-     */
-    products?: (number | Product)[] | null;
-    /**
-     * The tag's value, as Medusa Admin shows it (summer).
-     */
-    tag?: string | null;
-    /**
-     * The product type's value, as Medusa Admin shows it (Hoodie).
-     */
-    type?: string | null;
-    limit?: number | null;
-    sort?: ("newest" | "priceAsc" | "priceDesc" | "title") | null;
-  };
-  sectionSettings?: {
-    anchor?: string | null;
-    spacing?: ("none" | "small" | "medium" | "large") | null;
-    surface?: ("default" | "muted" | "inverse") | null;
-    container?: ("narrow" | "default" | "wide" | "full") | null;
-    visibility?: ("all" | "mobile" | "desktop") | null;
-  };
-  id?: string | null;
-  blockName?: string | null;
-  blockType: "hero";
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "CategoryShowcaseBlock".
  */
 export interface CategoryShowcaseBlock {
@@ -1034,6 +862,88 @@ export interface CategoryShowcaseBlock {
   id?: string | null;
   blockName?: string | null;
   blockType: "categoryShowcase";
+}
+/**
+ * Follows Medusa: its name, handle and the other greyed-out fields are edited in Medusa Admin, and the sync writes them here. The fields below them are the shop's own content, and a save shows on the shop at once.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "collections".
+ */
+export interface ProductCollection {
+  id: number;
+  medusaId: string;
+  title: string;
+  handle: string;
+  /**
+   * The tile's picture on the home's category tiles. Empty: its newest product's.
+   */
+  image?: (number | null) | Media;
+  /**
+   * A wide picture at the top of its listing page, under the title.
+   */
+  banner?: (number | null) | Media;
+  /**
+   * A few lines under the title of its listing page.
+   */
+  intro?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ("ltr" | "rtl") | null;
+      format: "left" | "start" | "center" | "right" | "end" | "justify" | "";
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  /**
+   * Sections shown after the listing's results and their pagination. The default sections are the Templates' (its Listing tab).
+   */
+  sectionsMode?: ("default" | "own" | "none") | null;
+  /**
+   * Shown after the listing's results and their pagination, in every language; each block's texts are translated.
+   */
+  sections?:
+    | (
+        | RichTextBlock
+        | MediaWithTextBlock
+        | UspBarBlock
+        | LogoCloudBlock
+        | FaqBlock
+        | TestimonialsBlock
+        | VideoBlock
+        | SpacerBlock
+        | CategoryShowcaseBlock
+        | ProductCollectionBlock
+        | FeaturedProductBlock
+        | BundleBlock
+        | PromoBannerBlock
+        | ComparisonBlock
+        | CollectionSpotlightBlock
+        | NewsletterBlock
+        | FormBlockBlock
+      )[]
+    | null;
+  /**
+   * The title, description and picture search engines and shared links show. Empty: the page's own.
+   */
+  meta?: {
+    title?: string | null;
+    description?: string | null;
+    /**
+     * Maximum upload file size: 12MB. Recommended file size for images is <500KB.
+     */
+    image?: (number | null) | Media;
+  };
+  deletedInMedusa?: boolean | null;
+  medusaUpdatedAt?: string | null;
+  syncedAt?: string | null;
+  updatedAt: string;
+  createdAt: string;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -1147,6 +1057,85 @@ export interface ProductCollectionBlock {
   id?: string | null;
   blockName?: string | null;
   blockType: "productCollection";
+}
+/**
+ * Follows Medusa: its name, handle and the other greyed-out fields are edited in Medusa Admin, and the sync writes them here. The fields below them are the shop's own content, and a save shows on the shop at once.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "products".
+ */
+export interface Product {
+  id: number;
+  medusaId: string;
+  title: string;
+  handle: string;
+  thumbnail?: string | null;
+  /**
+   * Shown on the product page instead of Medusa's description. Empty: Medusa's description.
+   */
+  richDescription?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ("ltr" | "rtl") | null;
+      format: "left" | "start" | "center" | "right" | "end" | "justify" | "";
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  /**
+   * More pictures, shown after Medusa's in the product page's gallery.
+   */
+  gallery?: (number | Media)[] | null;
+  /**
+   * Sections shown after the product's information, before the reviews. The default sections are the Templates' (its Product page tab).
+   */
+  sectionsMode?: ("default" | "own" | "none") | null;
+  /**
+   * Shown after the product's information, before the reviews, in every language; each block's texts are translated.
+   */
+  sections?:
+    | (
+        | RichTextBlock
+        | MediaWithTextBlock
+        | UspBarBlock
+        | LogoCloudBlock
+        | FaqBlock
+        | TestimonialsBlock
+        | VideoBlock
+        | SpacerBlock
+        | CategoryShowcaseBlock
+        | ProductCollectionBlock
+        | FeaturedProductBlock
+        | BundleBlock
+        | PromoBannerBlock
+        | ComparisonBlock
+        | CollectionSpotlightBlock
+        | NewsletterBlock
+        | FormBlockBlock
+      )[]
+    | null;
+  /**
+   * The title, description and picture search engines and shared links show. Empty: the page's own.
+   */
+  meta?: {
+    title?: string | null;
+    description?: string | null;
+    /**
+     * Maximum upload file size: 12MB. Recommended file size for images is <500KB.
+     */
+    image?: (number | null) | Media;
+  };
+  deletedInMedusa?: boolean | null;
+  medusaUpdatedAt?: string | null;
+  syncedAt?: string | null;
+  updatedAt: string;
+  createdAt: string;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -1332,24 +1321,6 @@ export interface CollectionSpotlightBlock {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "RecentlyViewedBlock".
- */
-export interface RecentlyViewedBlock {
-  variant: "standard";
-  heading?: string | null;
-  sectionSettings?: {
-    anchor?: string | null;
-    spacing?: ("none" | "small" | "medium" | "large") | null;
-    surface?: ("default" | "muted" | "inverse") | null;
-    container?: ("narrow" | "default" | "wide" | "full") | null;
-    visibility?: ("all" | "mobile" | "desktop") | null;
-  };
-  id?: string | null;
-  blockName?: string | null;
-  blockType: "recentlyViewed";
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "NewsletterBlock".
  */
 export interface NewsletterBlock {
@@ -1530,6 +1501,119 @@ export interface FormBlockBlock {
   id?: string | null;
   blockName?: string | null;
   blockType: "formBlock";
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "HeroBlock".
+ */
+export interface HeroBlock {
+  variant:
+    | "standard"
+    | "overlay"
+    | "centered"
+    | "editorial"
+    | "bento"
+    | "collection-switcher"
+    | "product"
+    | "text";
+  eyebrow?: string | null;
+  heading: string;
+  subheading?: string | null;
+  /**
+   * The Overlay and Editorial designs need one; the Text design shows none.
+   */
+  media?: (number | null) | Media;
+  /**
+   * The smaller second picture.
+   */
+  secondMedia?: (number | null) | Media;
+  /**
+   * Two to four collections, each a tab with its own picture. A collection gone from Medusa is left out.
+   */
+  collections?:
+    | {
+        collection: number | ProductCollection;
+        media: number | Media;
+        id?: string | null;
+      }[]
+    | null;
+  links?:
+    | {
+        link: {
+          type?: ("reference" | "custom") | null;
+          reference?:
+            | ({
+                relationTo: "categories";
+                value: number | Category;
+              } | null)
+            | ({
+                relationTo: "collections";
+                value: number | ProductCollection;
+              } | null)
+            | ({
+                relationTo: "products";
+                value: number | Product;
+              } | null);
+          url?: string | null;
+          label: string;
+          newTab?: boolean | null;
+          appearance?: ("default" | "outline" | "text") | null;
+        };
+        id?: string | null;
+      }[]
+    | null;
+  /**
+   * A countdown to this time; once it has passed, the countdown is not shown.
+   */
+  countdownEnd?: string | null;
+  productSource: {
+    mode: "none" | "collection" | "category" | "handpicked" | "newest" | "onSale" | "tag" | "type";
+    collection?: (number | null) | ProductCollection;
+    category?: (number | null) | Category;
+    descendants?: boolean | null;
+    /**
+     * Shown in this order.
+     */
+    products?: (number | Product)[] | null;
+    /**
+     * The tag's value, as Medusa Admin shows it (summer).
+     */
+    tag?: string | null;
+    /**
+     * The product type's value, as Medusa Admin shows it (Hoodie).
+     */
+    type?: string | null;
+    limit?: number | null;
+    sort?: ("newest" | "priceAsc" | "priceDesc" | "title") | null;
+  };
+  sectionSettings?: {
+    anchor?: string | null;
+    spacing?: ("none" | "small" | "medium" | "large") | null;
+    surface?: ("default" | "muted" | "inverse") | null;
+    container?: ("narrow" | "default" | "wide" | "full") | null;
+    visibility?: ("all" | "mobile" | "desktop") | null;
+  };
+  id?: string | null;
+  blockName?: string | null;
+  blockType: "hero";
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "RecentlyViewedBlock".
+ */
+export interface RecentlyViewedBlock {
+  variant: "standard";
+  heading?: string | null;
+  sectionSettings?: {
+    anchor?: string | null;
+    spacing?: ("none" | "small" | "medium" | "large") | null;
+    surface?: ("default" | "muted" | "inverse") | null;
+    container?: ("narrow" | "default" | "wide" | "full") | null;
+    visibility?: ("all" | "mobile" | "desktop") | null;
+  };
+  id?: string | null;
+  blockName?: string | null;
+  blockType: "recentlyViewed";
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -3016,6 +3100,8 @@ export interface ProductsSelect<T extends boolean = true> {
   thumbnail?: T;
   richDescription?: T;
   gallery?: T;
+  sectionsMode?: T;
+  sections?: T | {};
   meta?:
     | T
     | {
@@ -3042,6 +3128,8 @@ export interface CategoriesSelect<T extends boolean = true> {
   image?: T;
   banner?: T;
   intro?: T;
+  sectionsMode?: T;
+  sections?: T | {};
   meta?:
     | T
     | {
@@ -3066,6 +3154,8 @@ export interface CollectionsSelect<T extends boolean = true> {
   image?: T;
   banner?: T;
   intro?: T;
+  sectionsMode?: T;
+  sections?: T | {};
   meta?:
     | T
     | {
@@ -3717,6 +3807,30 @@ export interface Template {
      * Where the pictures, the buy box and the product's information go.
      */
     variant: "default" | "thumbnails-below" | "grid" | "stacked" | "wide" | "centered";
+    /**
+     * Shown on every product page after the product's information, before the reviews, unless a product has its own sections or none (its Sections, in Catalog → Products).
+     */
+    sections?:
+      | (
+          | RichTextBlock
+          | MediaWithTextBlock
+          | UspBarBlock
+          | LogoCloudBlock
+          | FaqBlock
+          | TestimonialsBlock
+          | VideoBlock
+          | SpacerBlock
+          | CategoryShowcaseBlock
+          | ProductCollectionBlock
+          | FeaturedProductBlock
+          | BundleBlock
+          | PromoBannerBlock
+          | ComparisonBlock
+          | CollectionSpotlightBlock
+          | NewsletterBlock
+          | FormBlockBlock
+        )[]
+      | null;
   };
   listing: {
     /**
@@ -3737,6 +3851,30 @@ export interface Template {
       | "editorial"
       | "bordered"
       | "image-swap";
+    /**
+     * Shown on every category's and collection's listing after its results and their pagination, unless it has its own sections or none (its Sections, in Catalog). Not on the store's page or the search page.
+     */
+    sections?:
+      | (
+          | RichTextBlock
+          | MediaWithTextBlock
+          | UspBarBlock
+          | LogoCloudBlock
+          | FaqBlock
+          | TestimonialsBlock
+          | VideoBlock
+          | SpacerBlock
+          | CategoryShowcaseBlock
+          | ProductCollectionBlock
+          | FeaturedProductBlock
+          | BundleBlock
+          | PromoBannerBlock
+          | ComparisonBlock
+          | CollectionSpotlightBlock
+          | NewsletterBlock
+          | FormBlockBlock
+        )[]
+      | null;
   };
   quickView?: {
     /**
@@ -3992,12 +4130,14 @@ export interface TemplatesSelect<T extends boolean = true> {
     | T
     | {
         variant?: T;
+        sections?: T | {};
       };
   listing?:
     | T
     | {
         variant?: T;
         card?: T;
+        sections?: T | {};
       };
   quickView?:
     | T

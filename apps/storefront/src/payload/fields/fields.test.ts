@@ -51,6 +51,14 @@ describe("link field", () => {
     expect(condition({}, { type: "reference" })).toBe(false);
     expect(condition({}, { type: "custom" })).toBe(true);
   });
+
+  it("keeps Payload's enum name for an appearance, unless it passes Postgres's 63 characters (T87)", () => {
+    const field = link({ appearances: ["default", "text"] });
+    const select = named(field.fields, "appearance") as { enumName: (args: unknown) => string };
+    expect(select.enumName({ tableName: "pages_blocks_hero_links_link" })).toBe("");
+    const long = "_templates_v_version_listing_sections_product_collection_link";
+    expect(select.enumName({ tableName: long })).toBe(`enum_${long}_look`);
+  });
 });
 
 describe("sectionSettings", () => {

@@ -150,7 +150,7 @@ async function collectionTabs(
   const tabs = resolved.flat();
   const [first] = tabs;
   if (first === undefined) return { products: [], tabs: undefined };
-  const doc = context.document?.id;
+  const doc = context.document;
   return {
     products: first.products,
     tabs: tabs.map(({ label, href, products, index, tab }, place) => ({

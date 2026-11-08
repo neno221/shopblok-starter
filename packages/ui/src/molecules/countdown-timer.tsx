@@ -14,7 +14,7 @@
 // The timer is not announced every second (`aria-live="off"`), and its end is, once (WCAG 4.1.3).
 import { formatDate, formatMessage, type Messages } from "@shopblok/i18n";
 import type { Countdown } from "@shopblok/registry/contracts";
-import { CountdownClock } from "@shopblok/ui/molecules/countdown-clock";
+import { CountdownClock } from "@shopblok/ui/molecules/countdown-clock-island";
 import type * as React from "react";
 
 type CountdownTimerProps = Omit<React.ComponentProps<"div">, "children"> & {

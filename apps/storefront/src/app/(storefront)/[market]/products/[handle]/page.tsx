@@ -14,6 +14,7 @@ import { draftMode } from "next/headers";
 import { notFound } from "next/navigation";
 import { getMessages } from "next-intl/server";
 import { cache, Suspense } from "react";
+import { catalogSections } from "../../../../../components/cms/catalog-sections";
 import { BuyBoxIsland } from "../../../../../components/pdp/buy-box-island";
 import { GalleryIsland } from "../../../../../components/pdp/gallery-island";
 import { ReloadOnSave } from "../../../../../components/cms/reload-on-save";
@@ -58,6 +59,8 @@ import {
 // Medusa's) and the shop's notes and delivery text from `site-settings`, read by the market's
 // language in the same shell; without a database, or before the sync has written the product,
 // the page is Medusa's and `site.ts`'s as in M3.
+// T87 (D104): the product's sections (its own, the `templates` global's or none) after the
+// information and before the reviews, from cached reads tagged with the product and the global.
 
 export const ensureStatic = "navigation";
 // W5: no instant-navigation check for a page that reads its path first (SETUP.md, "W5 fixes").
@@ -165,10 +168,17 @@ export default async function ProductPage({ params }: Props) {
   if (page === null) notFound();
   const { context, messages, product, detail, draft } = page;
   const { market } = context;
-  const [related, settings, { categories, pages, templates }] = await Promise.all([
+  const [related, settings, { categories, pages, templates }, sections] = await Promise.all([
     readRelated(page),
     cmsOrNull(readSiteSettings({ market, draft }), "product page: site.ts's notes"),
     getShellData(),
+    // T87 (D104): the product's own sections, the `templates` global's or none.
+    catalogSections({
+      owner: { kind: "products", handle: detail.handle },
+      context,
+      messages,
+      draft,
+    }),
   ]);
   const shop = productPageShopText(settings, market.language);
   const description = page.content?.description ?? null;
@@ -284,6 +294,7 @@ export default async function ProductPage({ params }: Props) {
             </Suspense>
           ),
           richText,
+          ...(sections === undefined ? {} : { sections }),
           recentlyViewed: (
             <RecentlyViewed
               market={market.key}

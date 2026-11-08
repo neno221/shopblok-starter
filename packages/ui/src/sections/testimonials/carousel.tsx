@@ -102,4 +102,7 @@ function TestimonialsCarousel({
   );
 }
 
+// T87: what `first-load.ts`' `keptOut` finds this module's chunks by (it loads with its block).
+TestimonialsCarousel.displayName = "shopblok:testimonials-carousel";
+
 export { TestimonialsCarousel };

@@ -91,5 +91,8 @@ function VideoEmbed({ provider, videoId, hash, title, poster, copy, className }:
   );
 }
 
+// T87: what `first-load.ts`' `keptOut` finds this module's chunks by (it loads with its block).
+VideoEmbed.displayName = "shopblok:video-embed";
+
 export { VideoEmbed, embedUrl };
 export type { VideoEmbedProps };

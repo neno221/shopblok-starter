@@ -9,6 +9,7 @@ import {
   QUICK_VIEW_OFF,
 } from "./template-options";
 import type { ProductSourceValue } from "./resolve/products";
+import { blocksOf, type SectionBlocks, type SectionsPage } from "./catalog-sections";
 import { globalTag } from "./globals";
 import { cmsRead, type CmsQuery } from "./read";
 
@@ -72,20 +73,36 @@ export function templatesFrom(doc: Partial<Template> | null): TemplateChoice {
   };
 }
 
+/** What `templatesFrom` takes of the global: its pickers, never the sections. */
+const TEMPLATE_PICKERS = {
+  productPage: { variant: true },
+  listing: { variant: true, card: true },
+  quickView: { variant: true },
+  cart: { variant: true, miniCart: true, quickCart: true },
+  checkout: { variant: true },
+  receipt: { variant: true },
+  updatedAt: true,
+} as const;
+
 /**
  * The `templates` global in the market's language (D73: the cached entry is per language and
  * tagged `global:templates:<locale>`, which a publish refreshes in every language), as a draft in
  * Draft Mode. Its pickers are not localized, so every language reads the same values; the read
  * still goes by the market, never the request (ADR 0003). `null` with no database.
+ *
+ * Only the pickers, selected: the shell reads this on every page, and the global's sections
+ * (T87) are a few hundred block tables a full read joins (PR 127's CI: every templates save and
+ * read four times slower, live previews late). `readTemplateSections` reads those.
  */
 export const readTemplates = cmsRead(
-  async (payload: Payload, query: CmsQuery): Promise<Template> =>
+  async (payload: Payload, query: CmsQuery): Promise<Partial<Template>> =>
     (await payload.findGlobal({
       slug: "templates",
       ...query,
       locale: query.locale as never,
       depth: 0,
-    })) as Template,
+      select: TEMPLATE_PICKERS as never,
+    })) as Partial<Template>,
   { name: "cms:global:templates", tags: (locale) => [globalTag("templates", locale)] },
 );
 
@@ -130,4 +147,26 @@ export const readCartTemplate = cmsRead(
       },
     })) as Template,
   { name: "cms:global:templates:cart", tags: (locale) => [globalTag("templates", locale)] },
+);
+
+/**
+ * The `templates` global's default sections for one page (D104, T87): the product page's or the
+ * listings', at depth 1 with every reference populated as a page's `layout` is, in the market's
+ * language (a block's texts fall back to English, D73), as a draft in Draft Mode (the global's live
+ * preview). Tagged as the global (`global:templates:<locale>`), which a publish refreshes and which
+ * a change to an upload, a catalog document or a form refreshes too (`embeddingTags`). `null` with
+ * no database; no blocks for a global never saved.
+ */
+export const readTemplateSections = cmsRead(
+  async (payload: Payload, query: CmsQuery, page: SectionsPage): Promise<SectionBlocks> => {
+    const doc = (await payload.findGlobal({
+      slug: "templates",
+      ...query,
+      locale: query.locale as never,
+      depth: 1,
+      select: { [page]: { sections: true }, updatedAt: true } as never,
+    })) as unknown as Record<string, { sections?: unknown } | undefined> & { updatedAt?: unknown };
+    return doc.updatedAt ? blocksOf(doc[page]?.sections) : [];
+  },
+  { name: "cms:global:templates:sections", tags: (locale) => [globalTag("templates", locale)] },
 );

@@ -86,3 +86,13 @@ function copyConfig<T>(value: T): T {
 export function localizedLayoutBlocks(): Block[] {
   return BLOCKS.map(copyConfig);
 }
+
+/**
+ * The blocks a product's, a category's or a collection's `sections` offer, and the `templates`
+ * global's default sections (D104, T87): every block but the `hero` (the page's `<h1>` is the
+ * product's or the listing's name), `recentlyViewed` (the product page draws its own row) and
+ * `editorialList` (the journal's posts are read for pages only).
+ */
+export const CATALOG_SECTION_BLOCKS = LAYOUT_BLOCKS.filter(
+  (slug) => !["hero", "recentlyViewed", "editorialList"].includes(slug),
+);
