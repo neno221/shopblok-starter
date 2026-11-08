@@ -33,9 +33,13 @@ export async function freshWithinTwo(
   shows: () => Promise<boolean>,
   pauseMs = 500,
 ): Promise<number> {
-  if (await shows()) return 1;
+  const diag = performance.now();
+  if (await shows())
+    return (console.log(`DIAG fresh 1 ${Math.round(performance.now() - diag)} ms`), 1);
   await new Promise((resolve) => setTimeout(resolve, pauseMs));
-  return (await shows()) ? 2 : 0;
+  const second = (await shows()) ? 2 : 0;
+  console.log(`DIAG fresh ${second} ${Math.round(performance.now() - diag)} ms`);
+  return second;
 }
 
 /**
@@ -45,10 +49,14 @@ export async function freshWithinTwo(
  * up to 30 s later (T65). `path` is sent as it is, so a caller encodes what needs it.
  */
 export async function settled(path: string): Promise<void> {
+  const diag = performance.now();
   for (let attempt = 0; attempt < 40; attempt++) {
     const response = await fetch(`${base()}${path}`, { redirect: "manual" });
     await response.text();
-    if (response.headers.get("x-nextjs-cache") === "HIT") return;
+    if (response.headers.get("x-nextjs-cache") === "HIT")
+      return void console.log(
+        `DIAG settled ${path} ${attempt} ${Math.round(performance.now() - diag)} ms`,
+      );
     await new Promise((resolve) => setTimeout(resolve, 500));
   }
   throw new Error(`${path} never answered from a settled entry`);

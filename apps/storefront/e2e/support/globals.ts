@@ -31,6 +31,7 @@ export async function publishGlobal(
   data: GlobalData,
   locale = "en",
 ): Promise<void> {
+  const diag = performance.now();
   const response = await fetch(`${base()}/api/globals/${slug}?locale=${locale}&depth=0`, {
     method: "POST",
     headers: headers(token),
@@ -40,6 +41,8 @@ export async function publishGlobal(
     throw new Error(
       `POST /api/globals/${slug} answered ${response.status}: ${await response.text()}`,
     );
+  await response.text();
+  console.log(`DIAG publish ${slug} ${locale} ${Math.round(performance.now() - diag)} ms`);
 }
 
 /** The newest draft of the global, as the admin reads it. */

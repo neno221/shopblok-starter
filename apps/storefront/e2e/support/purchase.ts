@@ -29,11 +29,19 @@ export async function variantPath(page: Page, prefix = "", handle = HANDLE): Pro
 
 /** Adds the product's first variant from its page: the quick cart opens on it. */
 export async function add(page: Page, prefix = ""): Promise<void> {
-  await page.goto(await variantPath(page, prefix));
+  const diag = performance.now();
+  const lap = (what: string) =>
+    console.log(`DIAG add ${what} ${Math.round(performance.now() - diag)} ms`);
+  const path = await variantPath(page, prefix);
+  lap("variantPath");
+  await page.goto(path);
+  lap("goto");
   const box = page.locator('[data-slot="buy-box-island"] [data-slot="buy-box"]');
   await expect(box.locator('[data-slot="buy-box-add"]')).not.toHaveAttribute("aria-disabled");
+  lap("enabled");
   await box.locator('[data-slot="buy-box-add"]').click();
   await expect(page.locator('[data-slot="quick-cart"]')).toBeVisible();
+  lap("quick cart");
 }
 
 /** Adds, closes the quick cart and waits for the header's count to read `count`. */
