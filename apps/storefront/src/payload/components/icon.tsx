@@ -21,7 +21,7 @@ async function StoreIcon({ payload }: Pick<ServerProps, "payload">) {
   const { storeName, icon } = await readStoreBrand(payload);
   if (icon === null) return <Letter name={storeName} />;
   // eslint-disable-next-line @next/next/no-img-element -- an uploaded square of any size.
-  return <img className="admin-icon admin-icon--image" src={icon.url} alt="" />;
+  return <img className="admin-icon admin-icon--image" src={icon.src} alt="" />;
 }
 
 function Letter({ name }: { name: string }) {

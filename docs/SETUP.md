@@ -8991,10 +8991,10 @@ Each built as `e2e-smoke` builds, against `next start`, or as a unit test:
   - **Success, error, warning:** Medusa's blue (Payload's "success" is its accent: selection, focus, the checked variant card), rose and orange. The preset's colours of each hue are the anchors of a scale from white to black, and each of Payload's 19 shades is the colour on that scale with the same relative luminance as Payload's own shade, so every contrast Payload gave these colours stays the same. The script that computed them is below.
   - **Focus:** `--accessibility-outline: 2px solid #2563eb`, Medusa's focus blue (`--borders-interactive-with-focus`) drawn solid: 5.2:1 on white. Medusa draws it at 60 % opacity, which on white is 2.3:1, under WCAG's 3:1. The variant picker's card now uses this outline too (`variant-picker.css`; it used `--theme-text`).
   - **Type:** `--font-body` is Inter (`var(--font-inter)`) with the preset's fallbacks; `--font-serif` (the rich text editor's) is the same, since Medusa Admin has no serif. The base size stays Payload's 13 px, Medusa's `txt-compact-small` too.
-  - **Corners:** 6, 8 and 12 px (Tailwind's `rounded-md`, `-lg`, `-xl`, which Medusa UI's fields, panels and dialogs use) for Payload's 3, 4 and 8.
+  - **Corners:** 6, 8 and 12 px (Tailwind's `rounded-md`, `-lg`, `-xl`, which Medusa UI's fields, panels and dialogs use) for Payload's 3, 4 and 8. `@payloadcms/ui` compiled its SCSS constants straight into some of its rules (`dist/styles.css`: the pill, banner, popup, collapsible, the document's menu button, the cells and others), so the same file sets those rules' corners from the variables too, with Payload's own exceptions (the split button's square side, the rounded pill). The date picker's day overlays and the version diff's highlights keep Payload's 4 px.
 - **`payload.config.ts`:** `admin.theme: "light"` (the shop has no dark mode, Q22; Payload then drops its theme picker from the account page and always sets `data-theme="light"`), `admin.components.graphics` (`Logo`, `Icon`) and `admin.components.providers` (`AdminFont`). `importMap.js` gains the three.
 - **Inter** (`src/payload/components/admin-font.tsx`): a provider (Payload renders providers as server components) that imports the shop's own `next/font` Inter from `lib/fonts.ts` (D28: the same self-hosted files, fetched per `unicode-range`) and writes one hoisted `<style>` with `:root{--font-inter:…}`, the family name `next/font` generated. Payload's root layout is generated and takes no class of ours on `<html>`, so the font's own `variable` class could not reach `:root`, where `--font-body` is resolved.
-- **The logo and the icon** (`src/payload/components/{logo,icon}.tsx`, `store-brand.ts`, `brand.css`): one read of the published `site-settings` (`storeName`, `logo`, `icon`, depth 1, the media's `url`, `width` and `height` only) per request through React's `cache`. The logo is an `<img>` named by the store's name, or the name as text (as the shop's header does without a logo). The icon is an `<img alt="">` or the first letter, `aria-hidden`: Payload wraps it in the dashboard link with `title="Dashboard"`, which names the link. A failed read gives `SITE.storeName` and no picture. Payload's Open Graph picture (`/api/og`) renders the icon with no `payload` in a renderer that cannot wait, so then the icon is the letter of `SITE.storeName`, drawn at once.
+- **The logo and the icon** (`src/payload/components/{logo,icon}.tsx`, `store-brand.ts`, `brand.css`): the shop's own read of the published `site-settings` (`readSiteSettings` in `lib/cms/site.ts`, cached until a publish refreshes `global:site-settings:<locale>`, in the default language, since the name and pictures are not localized) and the shell's rules (`settingsFrom`, `mediaImage`), so the admin names the store as the shop's header does: a blank name is the code's, an upload without its file or size is no picture. The logo is an `<img>` named by the store's name, or the name as text (as the shop's header does without a logo). The icon is an `<img alt="">` or the first letter, `aria-hidden`: Payload wraps it in the dashboard link with `title="Dashboard"`, which names the link. A failed read is logged and gives `SITE.storeName` and no picture. Payload's Open Graph picture (`/api/og`) renders the icon with no `payload` in a renderer that cannot wait, so then the icon is the letter of `SITE.storeName`, drawn at once.
 
 ### What axe found, and what it checks now
 
@@ -9009,12 +9009,14 @@ The suite runs **only axe's `color-contrast` rule** on Payload's screens. axe's 
 The suite's page now opens in a context of its own (`browser.newContext()`), which axe needs. New or grown tests:
 
 - **The login screen** shows the site settings' store name as the logo (the seed has no logo) and no Payload logo.
-- **"wears Medusa Admin's look"**: `data-theme="light"`, the body's font is `next/font`'s Inter and loaded (`document.fonts.check`), the text colour is Medusa's `--fg-base` (`rgb(24, 24, 27)`), and the breadcrumbs start with the letter icon, not Payload's.
+- **"wears Medusa Admin's look"**: `data-theme="light"`, the body's font is `next/font`'s Inter, declared (`document.fonts.load` gives a face) and loaded (a face of that family has `status: "loaded"`), the text colour is Medusa's `--fg-base` (`rgb(24, 24, 27)`), the accent is Medusa's blue (`--theme-success-500` drawn as `rgb(53, 122, 243)`), and the breadcrumbs start with the store name's first letter, not Payload's icon.
+- **"draws the site settings' uploaded logo and icon as pictures"**: the site settings published with the image the media test uploaded as logo and icon; the login screen (signed out) shows it as an `<img>` named by the store, the breadcrumbs as the icon, both files loaded; the settings are put back after.
 - **"every screen passes axe's contrast check at 1440 and 375 px"**: the dashboard (with the integrations panel), the pages list, the edit form of the page the translation status test made (its sidebar showing Greek complete and the other open languages not started) and the header global's variant picker, each at both widths.
-- **"an error on the edit form stays readable"**: the title emptied and Publish pressed; Payload answers 400, marks the field and shows its toast, and axe finds nothing. The browser logs that 400; the test takes that one message out of the console check (it is the test's doing).
+- **"an error on the edit form stays readable"**: the title emptied, its autosave waited for (a draft needs no title, so it saves), then Publish pressed; Payload answers 400, marks the field and shows its toast, and axe finds nothing. The browser logs each refused request's 400; the test takes those out of the console check (they are its doing) and puts the title back.
+- **"Payload's buttons take Medusa's corners"**: on the edit form, the document's menu button (a compiled 4 px in Payload) has 8 px corners, the Publish button's arrow 8 px with its square side against the button, and a button 6 px.
 - **"the focus ring stands out from its background on the edit form"** (`e2e/support/focus-ring.ts`): the focused title field's edge and, reached with Tab, the block's variant card's outline each measure at least 3:1 against what is behind them (after Payload's border transition ends). axe has no rule for a focus ring's colour, so this is the check the plan's mutation fails.
 
-18 tests, about 29 s against `next start`.
+20 tests, about 36 s against `next start`.
 
 ### Mutations (each fails a test)
 
@@ -9024,6 +9026,10 @@ Each was made in the built stylesheet (`.next/static/chunks/*.css`) and put back
 |---|---|
 | `--accessibility-outline: 2px solid #bfdbfe` (a ring too light for white: 1.4:1) | "the focus ring stands out …": the variant card's ring, 1.42 for at least 3. axe's contrast test still passes, which is why the ring has its own check |
 | `--color-base-400` back to Payload's `#9a9a9a` | "every screen passes axe's contrast check …": the list at 1440 px, the sort labels at 2.81:1 |
+| Inter's `@font-face` renamed (`font-family:Xnter`), so nothing declares the body's family | "wears Medusa Admin's look": "an @font-face for Inter", 0 faces |
+| `--color-success-500` back to Payload's `#1587ba` | "wears Medusa Admin's look": the accent, `rgb(21, 135, 186)` for `rgb(53, 122, 243)` |
+| `.doc-controls__dots` taken out of the compiled corners' rule | "Payload's buttons take Medusa's corners": the menu button at 4 px |
+| The split button's exception taken out (its selector renamed) | "Payload's buttons take Medusa's corners": the Publish arrow `8px 8px 8px 8px` for `0px 8px 8px 0px` |
 
 ### Where it differs from the plan
 
@@ -9078,7 +9084,24 @@ for (const name of Object.keys(scales))
 
 ### Checks (cloud VM)
 
-- `typecheck` and `lint` exit 0 for the storefront; its unit tests pass with no `.env` (CI's state): 4367 tests in 194 files, with `components/brand.test.tsx` new (7: the logo as a picture, as text and when the read fails; the icon as a picture, as a letter and with no Local API; the font's `<style>`).
+- `typecheck` and `lint` exit 0 for the storefront; its unit tests pass with no `.env` (CI's state): 4368 tests in 194 files, with `components/brand.test.tsx` new (8: the logo as a picture, as text, with a blank name and when the read fails; the icon as a picture, as a letter and with no Local API; the font's `<style>`).
 - `generate:importmap` adds the three components; no field changed, so no migration and `payload-types.ts` is unchanged.
 - The storefront built as `e2e-smoke` builds it (the job's `STOREFRONT_*`), with Medusa up: `check:first-load` passes with every row as on `main` (above).
-- Against `next start` (`E2E_TEST_ROUTES=true`, `E2E_MEDUSA_LOG` set): `payload-admin.spec.ts` 18 passed (29 s); every default project: 258 passed, then `locales`, `markets-add` and `market-panels` 31 passed. `quick-view.spec.ts`'s first test failed in its setup on this VM, on `main`'s code paths the change does not reach: no page of `/us/store` listed `demo-heritage-hoodie`, because the demo products share one `created_at` and the store's pages, three products each, came back in an order that showed the tote bag twice and the hoodie on none. That is the order the seed gives, not the admin's theme; CI's run decides it as before.
+- Against `next start` (`E2E_TEST_ROUTES=true`, `E2E_MEDUSA_LOG` set): `payload-admin.spec.ts` 18 passed (29 s), and after the review's fixes 20 passed (36 s) on a fresh build; every default project: 258 passed, then `locales`, `markets-add` and `market-panels` 31 passed. `quick-view.spec.ts`'s first test failed in its setup on this VM, on `main`'s code paths the change does not reach: no page of `/us/store` listed `demo-heritage-hoodie`, because the demo products share one `created_at` and the store's pages, three products each, came back in an order that showed the tote bag twice and the hoodie on none. That is the order the seed gives, not the admin's theme; CI's run decides it as before.
+
+### Changes from the review of this PR (PR 129)
+
+The review is in the Library (`reviews/pr-129-code-review.md`): 5 must-fix findings, 4 cleanups and 1 other optional finding, none about security.
+
+| # | Finding | Done |
+|---|---|---|
+| 1 | Must-fix: an uploaded logo and icon never showed: the admin's own read selected the media's `url`, `width` and `height` but not `filename`, and Payload builds a local file's URL from it | Fixed: `store-brand.ts` reads through the shop's `readSiteSettings` (its `POPULATE` has `filename`) and `settingsFrom`/`mediaImage` (item 7). `payload-admin.spec.ts` "draws the site settings' uploaded logo and icon as pictures" publishes an uploaded image as both and checks the login's `<img>` and the breadcrumbs' `<img>` load |
+| 2 | Must-fix: the error test raced the pages' 375 ms autosave, which could add a second 400 to the console or leave an empty title | Fixed: the test waits for the autosave of the emptied title before it presses Publish, takes out of the console check one 400 per refused request, and puts the title back in a `finally` |
+| 3 | Must-fix: `@payloadcms/ui` compiled 3 and 4 px corners into 27 rules that the variables do not reach | Fixed: `custom.scss` sets those rules' corners from the variables, with Payload's two exceptions (the split button's square side, the rounded pill); "Payload's buttons take Medusa's corners" checks the menu button, the Publish arrow and a button (two mutations above) |
+| 4 | Must-fix: "Inter's file loaded" could not fail (`fonts.check()` is true with no `@font-face`) | Fixed: `document.fonts.load()` must give a face of the body's family, and one of them must be `loaded` (mutation above) |
+| 5 | Must-fix: the primary colour check could not fail | Fixed: `--theme-success-500` drawn as a colour must be `rgb(53, 122, 243)`, `#357af3` (mutation above) |
+| 6 | A whitespace-only store name drew an empty logo and icon | Fixed by item 7 (`settingsFrom` treats a blank name as missing); a unit test |
+| 7 | Cleanup: a second site-settings read and media parser beside `lib/cms` | Fixed: the shop's cached read and the shell's rules, in the default language (the name and pictures are not localized) |
+| 8 | Cleanup: a bare `catch {}` logged nothing | Fixed: `payload.logger.error` once, then the code's name; a unit test |
+| 9 | Cleanup: the icon test expected "S" | Fixed: the store name's first letter, read from the API, taken as `icon.tsx` takes it |
+| 10 | Cleanup: the axe test restored a fixed viewport; the error and focus tests had no guard for the status page | Fixed: the viewport the page had is put back; the axe, error, corners and focus tests skip when the translation status test made no page |

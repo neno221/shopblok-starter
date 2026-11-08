@@ -4,6 +4,8 @@ import type { Payload } from "payload";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("./brand.css", () => ({}));
+const readSiteSettings = vi.hoisted(() => vi.fn());
+vi.mock("../../lib/cms/site", () => ({ readSiteSettings }));
 vi.mock("../../lib/fonts", () => ({
   inter: { style: { fontFamily: "'Inter', 'Inter Fallback'" } },
 }));
@@ -12,16 +14,17 @@ import { AdminFont } from "./admin-font";
 import { AdminIcon } from "./icon";
 import { AdminLogo } from "./logo";
 
-/** A Local API with `site-settings` only; `findGlobal`'s arguments are kept to check the read. */
+/** The published settings `readSiteSettings` gives (or the error it throws), and a logger. */
 function payloadWith(settings: Record<string, unknown> | Error) {
-  const findGlobal = vi.fn(async () => {
+  readSiteSettings.mockImplementation(async () => {
     if (settings instanceof Error) throw settings;
-    return settings;
+    return { updatedAt: "2026-11-08T00:00:00.000Z", ...settings };
   });
-  return { payload: { findGlobal } as unknown as Payload, findGlobal };
+  const error = vi.fn();
+  return { payload: { logger: { error } } as unknown as Payload, error };
 }
 
-const picture = { url: "/api/media/file/logo.svg", width: 240, height: 60 };
+const picture = { url: "/api/media/file/logo.png", width: 240, height: 60 };
 
 /** The icon draws its store's mark in an inner async component: render that one. */
 async function iconHtml(payload?: Payload) {
@@ -37,18 +40,12 @@ async function iconHtml(payload?: Payload) {
 
 describe("the admin's logo (D108)", () => {
   it("is the site settings' logo, named by the store's name", async () => {
-    const { payload, findGlobal } = payloadWith({ storeName: "Acme", logo: picture, icon: null });
+    const { payload } = payloadWith({ storeName: "Acme", logo: picture, icon: null });
     const html = renderToStaticMarkup(await AdminLogo({ payload }));
-    expect(html).toContain('src="/api/media/file/logo.svg"');
+    expect(html).toContain('src="/api/media/file/logo.png"');
     expect(html).toContain('alt="Acme"');
-    // The published settings, their name and pictures only.
-    expect(findGlobal).toHaveBeenCalledWith(
-      expect.objectContaining({
-        slug: "site-settings",
-        draft: false,
-        select: { storeName: true, logo: true, icon: true },
-      }),
-    );
+    // The shop's cached read of the published settings, in the default language.
+    expect(readSiteSettings).toHaveBeenCalledWith({ market: { language: "en" }, draft: false });
   });
 
   it("is the store's name as text while there is no logo", async () => {
@@ -57,10 +54,16 @@ describe("the admin's logo (D108)", () => {
     expect(html).toBe('<span class="admin-logo admin-logo--name">Acme</span>');
   });
 
-  it("is the code's store name when the settings cannot be read", async () => {
-    const { payload } = payloadWith(new Error("connection refused"));
+  it("is the code's store name for a blank one, as the shop's header", async () => {
+    const { payload } = payloadWith({ storeName: "   ", logo: null, icon: null });
+    expect(renderToStaticMarkup(await AdminLogo({ payload }))).toContain(">Shopblok</span>");
+  });
+
+  it("is the code's store name when the settings cannot be read, and says why in the log", async () => {
+    const { payload, error } = payloadWith(new Error("connection refused"));
     const html = renderToStaticMarkup(await AdminLogo({ payload }));
     expect(html).toContain(">Shopblok</span>");
+    expect(error).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -68,7 +71,7 @@ describe("the admin's icon (D108)", () => {
   it("is the site settings' icon, decorative inside Payload's named link", async () => {
     const { payload } = payloadWith({ storeName: "Acme", logo: null, icon: picture });
     const html = await iconHtml(payload);
-    expect(html).toContain('src="/api/media/file/logo.svg"');
+    expect(html).toContain('src="/api/media/file/logo.png"');
     expect(html).toContain('alt=""');
   });
 

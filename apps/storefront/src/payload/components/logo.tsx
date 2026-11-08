@@ -14,10 +14,10 @@ export async function AdminLogo({ payload }: Pick<ServerProps, "payload">) {
     // eslint-disable-next-line @next/next/no-img-element -- an uploaded file of any size, drawn by height.
     <img
       className="admin-logo admin-logo--image"
-      src={logo.url}
+      src={logo.src}
       alt={storeName}
-      width={logo.width ?? undefined}
-      height={logo.height ?? undefined}
+      width={logo.width}
+      height={logo.height}
     />
   );
 }

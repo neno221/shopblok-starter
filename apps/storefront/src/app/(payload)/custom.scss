@@ -125,9 +125,67 @@
     --font-serif: var(--font-body);
 
     /* Medusa UI's corners (Tailwind's): fields and buttons rounded-md, panels rounded-lg, dialogs
-       rounded-xl. Payload's are 3, 4 and 8 px. */
+       rounded-xl. Payload's are 3, 4 and 8 px. The rules below the variables take the rest. */
     --style-radius-s: 6px;
     --style-radius-m: 8px;
     --style-radius-l: 12px;
+  }
+
+  /* The same corners where @payloadcms/ui 3.93 compiled its SCSS constants ($style-radius-s and
+     -m, 3 and 4 px) into a rule instead of reading the variable (its dist/styles.css). Only the
+     corner changes; the selectors are Payload's own. The date picker's day overlays and the
+     version diff's highlights keep theirs. */
+  .pill,
+  .popup-button-list__button,
+  .bool-cell,
+  .edit-many-bulk-uploads__toggle,
+  .file-details-draggable,
+  .hamburger,
+  .collection-list__list-selection .btn {
+    border-radius: var(--style-radius-s);
+  }
+
+  .banner,
+  .popup__content,
+  .btn--withPopup .popup-button,
+  .collapsible,
+  .code-cell,
+  .json-cell,
+  .file-details__edit,
+  .doc-controls__dots,
+  .dots,
+  .id-label,
+  .live-preview-toolbar--draggable {
+    border-radius: var(--style-radius-m);
+  }
+
+  .collapsible__toggle-wrap,
+  .collapsible__toggle {
+    border-top-left-radius: var(--style-radius-m);
+    border-top-right-radius: var(--style-radius-m);
+  }
+
+  .collapsible--collapsed .collapsible__toggle-wrap,
+  .collapsible__content,
+  .nav-group--collapsed .collapsible__toggle {
+    border-bottom-left-radius: var(--style-radius-m);
+    border-bottom-right-radius: var(--style-radius-m);
+  }
+
+  /* Payload's own exceptions to the rules above, repeated here because this layer wins over
+     payload-default whatever the selector: the split button's arrow joins its button, and a
+     rounded pill stays round. */
+  html:not([dir="RTL"]) .btn--withPopup .popup-button {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+  }
+
+  html[dir="RTL"] .btn--withPopup .popup-button {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+  }
+
+  .pill--rounded {
+    border-radius: var(--style-radius-l);
   }
 }

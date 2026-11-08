@@ -73,9 +73,6 @@ async function contrastViolations(page: Page): Promise<string[]> {
   );
 }
 
-/** The viewport the suite's page opens with; the theme's checks put it back. */
-const DEFAULT_VIEWPORT = { width: 1280, height: 720 };
-
 type PageDoc = { id?: number; title?: string | null; slug?: string | null; _status?: string };
 
 /** A `pages` document in one language, read as the signed-in admin. `fetch` inside the page, because
@@ -205,7 +202,9 @@ test.describe("the admin bootstrap made", () => {
     expect(me.user?.role).toBe("admin");
   });
 
-  test("wears Medusa Admin's look: light, Inter, and the store's letter as the icon", async () => {
+  test("wears Medusa Admin's look: light, Inter, and the store's letter as the icon", async ({
+    request,
+  }) => {
     await page.goto("/admin");
     await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
     // The theme is fixed: the account page has no theme picker.
@@ -213,20 +212,38 @@ test.describe("the admin bootstrap made", () => {
       await document.fonts.ready;
       const body = getComputedStyle(document.body);
       const family = body.fontFamily.split(",")[0]!.trim();
+      const name = family.replace(/^["']|["']$/g, "");
+      // A face of that family that the browser fetched: `fonts.check()` would say true with no
+      // `@font-face` at all, and `load()` gives no face for a family nothing declares.
+      const faces = await document.fonts.load(`13px ${family}`, "Aa");
+      const probe = document.body.appendChild(document.createElement("span"));
+      probe.style.color = "var(--theme-success-500)";
+      const primary = getComputedStyle(probe).color;
+      probe.remove();
       return {
         family,
-        loaded: document.fonts.check(`13px ${family}`),
+        faces: faces.filter((face) => face.family.replace(/^["']|["']$/g, "") === name).length,
+        loaded: [...document.fonts].some(
+          (face) => face.family.replace(/^["']|["']$/g, "") === name && face.status === "loaded",
+        ),
         text: body.color,
-        primary: getComputedStyle(document.documentElement).getPropertyValue("--theme-success-500"),
+        primary,
       };
     });
     // `next/font`'s family for Inter (`lib/fonts.ts`), loaded from this server.
     expect(look.family).toMatch(/Inter/);
+    expect(look.faces, "an @font-face for Inter").toBeGreaterThan(0);
     expect(look.loaded, "Inter's file loaded").toBe(true);
     expect(look.text, "Medusa's --fg-base").toBe("rgb(24, 24, 27)");
-    expect(look.primary.trim()).not.toBe("");
+    expect(look.primary, "Medusa's --fg-interactive, #357af3").toBe("rgb(53, 122, 243)");
+    const { storeName } = (await (
+      await request.get("/api/globals/site-settings?depth=0")
+    ).json()) as { storeName: string };
     const home = page.locator(".step-nav__home");
-    await expect(home.locator(".admin-icon--letter")).toHaveText("S");
+    // The store name's first letter, as `icon.tsx` takes it (a run may have renamed the store).
+    await expect(home.locator(".admin-icon--letter")).toHaveText(
+      Array.from(storeName.trim())[0]!.toLocaleUpperCase(),
+    );
     await expect(home.locator("svg")).toHaveCount(0);
   });
 
@@ -344,6 +361,52 @@ test.describe("the admin bootstrap made", () => {
     expect(await marked(page), "opening a document from the list is a client navigation").toBe(
       true,
     );
+  });
+
+  // D108 (T90): an uploaded logo and icon are drawn as pictures (the review of PR 129 found them
+  // missing: the read lacked the upload's `filename`, so Payload gave no URL). The site settings
+  // are published with the image above for this test only and put back.
+  test("draws the site settings' uploaded logo and icon as pictures", async ({
+    browser,
+    baseURL,
+  }) => {
+    expect(mediaId, "the image uploaded above").toBeDefined();
+    const settings = await snapshotGlobal(token, "site-settings");
+    const visitor = await browser.newContext({ baseURL: baseURL ?? "http://localhost:8000" });
+    const drawn = (image: ReturnType<Page["locator"]>) =>
+      image.evaluate((img: HTMLImageElement) => (img.complete ? img.naturalWidth : 0));
+    try {
+      // Only the two pictures, which are not localized: a publish keeps the fields it is not
+      // given (a whole snapshot in every language is refused, its localized notes' rows).
+      await publishGlobal(token, "site-settings", { logo: mediaId, icon: mediaId });
+      // The login page, as someone signed out sees it: the logo instead of the name.
+      const login = await visitor.newPage();
+      const logo = login.locator(".login__brand img.admin-logo--image");
+      // A publish marks the cached read stale; the next request may still get the old one.
+      await expect(async () => {
+        await login.goto("/admin/login");
+        await expect(logo).toBeVisible({ timeout: 2_000 });
+      }).toPass({ timeout: 20_000 });
+      await expect(logo).toHaveAttribute("src", new RegExp(`e2e-${stamp}\\.png`));
+      await expect(logo).toHaveAttribute("alt", String(settings["storeName"]));
+      await expect
+        .poll(() => drawn(logo), { message: "the logo's file loaded" })
+        .toBeGreaterThan(0);
+      // Signed in: the icon instead of the letter.
+      await page.goto("/admin");
+      const icon = page.locator(".step-nav__home img.admin-icon--image");
+      await expect(icon).toHaveAttribute("src", new RegExp(`e2e-${stamp}\\.png`));
+      await expect
+        .poll(() => drawn(icon), { message: "the icon's file loaded" })
+        .toBeGreaterThan(0);
+      await expect(page.locator(".step-nav__home .admin-icon--letter")).toHaveCount(0);
+    } finally {
+      await publishGlobal(token, "site-settings", {
+        logo: settings["logo"] ?? null,
+        icon: settings["icon"] ?? null,
+      });
+      await visitor.close();
+    }
   });
 
   test("chooses the header's logo in the upload field's drawer, and saves a draft", async () => {
@@ -538,7 +601,8 @@ test.describe("the admin bootstrap made", () => {
   // status test made: Greek complete, the other open languages not), and the variant picker.
   test("every screen passes axe's contrast check at 1440 and 375 px", async () => {
     test.setTimeout(120_000);
-    expect(statusPage.id, "the page the translation status test made").toBeDefined();
+    test.skip(!statusPage.id, "the translation status test did not make its page");
+    const viewport = page.viewportSize();
     const screens = [
       { name: "the dashboard", url: "/admin", ready: page.locator(".integrations-status") },
       {
@@ -567,41 +631,94 @@ test.describe("the admin bootstrap made", () => {
         }
       }
     } finally {
-      await page.setViewportSize(DEFAULT_VIEWPORT);
+      if (viewport) await page.setViewportSize(viewport);
     }
   });
 
   test("an error on the edit form stays readable", async () => {
-    await page.goto(`/admin/collections/pages/${statusPage.id}?locale=en`);
-    // Publishing without a title: Payload marks the field and says so in a toast. Nothing is
-    // published (the form is refused), and the page is the suite's own, deleted at the end.
-    await field(page, "title").fill("");
+    test.skip(!statusPage.id, "the translation status test did not make its page");
+    const id = statusPage.id as number;
+    const patch = (autosave: boolean) => (r: { request(): { method(): string }; url(): string }) =>
+      r.request().method() === "PATCH" &&
+      new URL(r.url()).pathname === `/api/pages/${id}` &&
+      new URL(r.url()).searchParams.has("autosave") === autosave;
+    await page.goto(`/admin/collections/pages/${id}?locale=en`);
     const logged = consoleMessages.length;
-    const [refused] = await Promise.all([
-      page.waitForResponse(
-        (r) =>
-          r.request().method() === "PATCH" &&
-          new URL(r.url()).pathname === `/api/pages/${statusPage.id}` &&
-          !new URL(r.url()).searchParams.has("autosave"),
-      ),
-      page.getByRole("button", { name: /^Publish/ }).click(),
-    ]);
-    expect(refused.status(), "Payload refuses a page without a title").toBe(400);
-    await expect(page.locator(".field-type.text.error").first()).toBeVisible();
-    await expect(page.locator(".payload-toast-item").first()).toBeVisible();
-    expect(await contrastViolations(page), "the field's error and the toast").toEqual([]);
-    // The browser logs the refusal's 400; it is this test's doing, so the console check below
-    // does not judge it. Any other message stays.
-    const own = () =>
-      consoleMessages
-        .slice(logged)
-        .filter((message) => /status of 400 \(Bad Request\)/.test(message.text));
-    await expect.poll(() => own().length, { message: "the refusal is logged once" }).toBe(1);
-    consoleMessages.splice(consoleMessages.indexOf(own()[0]!), 1);
+    try {
+      // Publishing without a title: Payload marks the field and says so in a toast. Pages autosave
+      // 375 ms after a change, and a draft needs no title, so the emptied title is first saved as
+      // the page's draft; that autosave is waited for, so it cannot run beside the Publish.
+      const autosaved = page.waitForResponse(patch(true));
+      await field(page, "title").fill("");
+      const autosave = await autosaved;
+      const [refused] = await Promise.all([
+        page.waitForResponse(patch(false)),
+        page.getByRole("button", { name: /^Publish/ }).click(),
+      ]);
+      expect(refused.status(), "Payload refuses to publish a page without a title").toBe(400);
+      await expect(page.locator(".field-type.text.error").first()).toBeVisible();
+      await expect(page.locator(".payload-toast-item").first()).toBeVisible();
+      expect(await contrastViolations(page), "the field's error and the toast").toEqual([]);
+      // The browser logs each refused request's 400; they are this test's doing, so the console
+      // check below does not judge them. Any other message stays.
+      const refusals = 1 + (autosave.status() === 400 ? 1 : 0);
+      const own = () =>
+        consoleMessages
+          .slice(logged)
+          .filter((message) => /status of 400 \(Bad Request\)/.test(message.text));
+      await expect
+        .poll(() => own().length, { message: "each refusal is logged once" })
+        .toBe(refusals);
+      for (const message of own()) consoleMessages.splice(consoleMessages.indexOf(message), 1);
+    } finally {
+      // The title back in the page's draft, so the tests after this one open the page as it was.
+      await page
+        .evaluate(
+          ({ id, title }) =>
+            fetch(`/api/pages/${id}?locale=en&draft=true`, {
+              method: "PATCH",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({ title }),
+            }),
+          { id, title: statusPage.english.title },
+        )
+        .catch(() => undefined);
+    }
+  });
+
+  // D108 (T90): Medusa's corners (6, 8 and 12 px) also where Payload compiled its own 3 and 4 px
+  // into a rule (the review of PR 129): the document's menu button, and the Publish button's arrow,
+  // which keeps its square side against the button.
+  test("Payload's buttons take Medusa's corners", async () => {
+    test.skip(!statusPage.id, "the translation status test did not make its page");
+    await page.goto(`/admin/collections/pages/${statusPage.id}?locale=en`);
+    const corners = (selector: string) =>
+      page
+        .locator(selector)
+        .first()
+        .evaluate((element) => {
+          const style = getComputedStyle(element);
+          return [
+            style.borderTopLeftRadius,
+            style.borderTopRightRadius,
+            style.borderBottomRightRadius,
+            style.borderBottomLeftRadius,
+          ].join(" ");
+        });
+    expect(await corners(".doc-controls__dots"), "the document's menu button").toBe(
+      "8px 8px 8px 8px",
+    );
+    expect(await corners(".btn--withPopup .popup-button"), "the Publish button's arrow").toBe(
+      "0px 8px 8px 0px",
+    );
+    expect(await corners(".doc-controls .btn"), "a button reads the variable").toBe(
+      "6px 6px 6px 6px",
+    );
   });
 
   // axe has no rule for a focus ring's colour: this measures it (3:1 against what is behind it).
   test("the focus ring stands out from its background on the edit form", async () => {
+    test.skip(!statusPage.id, "the translation status test did not make its page");
     await page.goto(`/admin/collections/pages/${statusPage.id}?locale=en`);
     const title = field(page, "title");
     await title.focus();
