@@ -16,24 +16,27 @@ const COPY_OTHERS = "copyLayoutIntoOtherLanguages";
 type Data = Record<string, unknown>;
 type Id = number | string;
 
-/** A block's or an array row's id, as Payload makes them (24 hex digits, like a Mongo ObjectId). */
-const ROW_ID = /^[0-9a-f]{24}$/;
+/** A new id in Payload's own shape (24 hex digits, like a Mongo ObjectId). */
+export const newRowId = () => randomBytes(12).toString("hex");
 
 /**
  * A copy of blocks with new ids for the blocks and their array rows (Payload's own "copy to locale"
  * does the same): a localized blocks field keeps every language's rows in one table, whose key is
- * the row's id, so copies that kept them would clash. Relationship ids are numbers and stay.
+ * the row's id, so copies that kept them would clash. Every object in a list that has a string id
+ * is a block or a row and gets a new one, whatever its id looks like: the seed's blocks have ids of
+ * their own (`seed-privacy-text`), and copies that kept them could not be published (W7 review
+ * item 1). Relationship ids are numbers and stay.
  */
 export function copyBlocks(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map(copyBlocks);
+  if (Array.isArray(value))
+    return value.map((each: unknown) => {
+      const copy = copyBlocks(each);
+      if (copy === null || typeof copy !== "object" || Array.isArray(copy)) return copy;
+      const row = copy as Data;
+      return typeof row["id"] === "string" ? { ...row, id: newRowId() } : row;
+    });
   if (value === null || typeof value !== "object") return value;
-  return Object.fromEntries(
-    Object.entries(value).map(([key, each]) =>
-      key === "id" && typeof each === "string" && ROW_ID.test(each)
-        ? [key, randomBytes(12).toString("hex")]
-        : [key, copyBlocks(each)],
-    ),
-  );
+  return Object.fromEntries(Object.entries(value).map(([key, each]) => [key, copyBlocks(each)]));
 }
 
 const hasBlocks = (value: unknown) => Array.isArray(value) && value.length > 0;

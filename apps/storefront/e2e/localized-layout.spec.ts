@@ -174,3 +174,62 @@ test("switched off again: the shared layout in every language, and the Greek one
     GREEK_DRAFT,
   ]);
 });
+
+test("a page whose blocks have ids of their own, as the seed's, publishes with the switch on and off (W7 item 1)", async () => {
+  const own = `seed-like-${stamp}`;
+  const created = await api<{ doc: { id: number } }>("POST", "/api/pages?locale=en", {
+    title: `Seeded ${stamp}`,
+    slug: `seeded-${stamp}`,
+    layout: [
+      {
+        id: own,
+        blockType: "uspBar",
+        items: [{ id: `${own}-row`, icon: "delivery", title: SHARED.en }],
+      },
+    ],
+    _status: "published",
+  });
+  expect(created.status, created.text).toBe(201);
+  const seeded = created.json().doc.id;
+  const call = (locale: string, data: Record<string, unknown>, draft = false) =>
+    api(
+      "PATCH",
+      `/api/pages/${seeded}?locale=${locale}${draft ? "&draft=true" : ""}`,
+      draft ? data : { ...data, _status: "published" },
+    );
+  try {
+    const greek = await call("el", {
+      title: `Σπορά ${stamp}`,
+      slug: `spora-${stamp}`,
+      layout: [
+        {
+          id: own,
+          blockType: "uspBar",
+          items: [{ id: `${own}-row`, icon: "delivery", title: SHARED.el }],
+        },
+      ],
+    });
+    expect(greek.status, greek.text).toBe(200);
+    // As in the admin: the switch is saved as a draft (autosave), then published.
+    const draft = await call("en", { layoutPerLanguage: true }, true);
+    expect(draft.status, draft.text).toBe(200);
+    const ids: string[] = [];
+    for (const locale of ["en", "el"]) {
+      const read = await api<{ localizedLayout?: { id: string; items: { id: string }[] }[] }>(
+        "GET",
+        `/api/pages/${seeded}?locale=${locale}&fallback-locale=none&draft=true&depth=0`,
+      );
+      for (const block of read.json().localizedLayout ?? [])
+        ids.push(block.id, ...block.items.map((row) => row.id));
+    }
+    // Each language's copy of the block and of its row has an id of its own.
+    expect(ids).toHaveLength(4);
+    expect(new Set([own, `${own}-row`, ...ids]).size).toBe(6);
+    const published = await call("en", {});
+    expect(published.status, published.text).toBe(200);
+    const off = await call("en", { layoutPerLanguage: false });
+    expect(off.status, off.text).toBe(200);
+  } finally {
+    await api("DELETE", `/api/pages/${seeded}`).catch(() => undefined);
+  }
+});
