@@ -526,7 +526,7 @@ describe("variantsOf", () => {
         id: "headers-footers/header-classic",
         group: "headers-footers",
         kind: "organism",
-        label: "Classic",
+        label: "Header · Classic",
         family: "header",
         variant: "classic",
       },
