@@ -327,6 +327,36 @@ test.describe("the admin bootstrap made", () => {
     expect(await fallback.json()).toMatchObject({ title: english.title });
   });
 
+  test("switching on its own layout per language shows the copied blocks at once (W7 item 2)", async () => {
+    const id = pageId as number;
+    const usp = "Free delivery, both ways";
+    const added = await page.evaluate(
+      ({ id, usp }) =>
+        fetch(`/api/pages/${id}?locale=en`, {
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            layout: [{ blockType: "uspBar", items: [{ icon: "delivery", title: usp }] }],
+            _status: "published",
+          }),
+        }).then((r) => r.status),
+      { id, usp },
+    );
+    expect(added, "the shared layout gets a block").toBe(200);
+    await page.goto(`/admin/collections/pages/${id}?locale=el`);
+    await expect(field(page, "title")).toHaveValue(greek.title);
+    await page.locator("#field-layoutPerLanguage").check();
+    // The autosave copies the block into Greek's own layout on the server, with English's text
+    // (Greek has none); the form shows it without a reload, and keeps it.
+    const copied = page.locator(
+      '#field-localizedLayout input[name="localizedLayout.0.items.0.title"]',
+    );
+    await expect(copied).toHaveValue(usp, { timeout: 15_000 });
+    await page.waitForTimeout(1_500);
+    await expect(copied).toHaveValue(usp);
+    await expect(field(page, "title")).toHaveValue(greek.title);
+  });
+
   test("deletes the page again", async () => {
     const id = pageId as number;
     expect(await deleteAs(page, `/api/pages/${id}`)).toBe(200);

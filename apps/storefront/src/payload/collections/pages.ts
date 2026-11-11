@@ -79,6 +79,10 @@ export const Pages: CollectionConfig = {
       label: "Own layout per language",
       admin: {
         position: "sidebar",
+        // W7 review item 2: the copied blocks appear in the form without a reload.
+        components: {
+          Field: "/payload/components/layout-per-language-field#LayoutPerLanguageField",
+        },
         description:
           "Off: every language shows the same blocks and translates their texts. On: each language has blocks of its own, and one without any shows English's. Switching it on copies the shared blocks into each language, with its texts, so nothing changes until you edit a language's blocks.",
       },
