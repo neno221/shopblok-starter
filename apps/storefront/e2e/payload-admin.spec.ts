@@ -346,6 +346,9 @@ test.describe("the admin bootstrap made", () => {
     await page.goto(`/admin/collections/pages/${id}?locale=el`);
     await expect(field(page, "title")).toHaveValue(greek.title);
     await page.locator("#field-layoutPerLanguage").check();
+    // Typing on while the copy is on its way: the text stays (W7 fixes' review, item 3).
+    const retitled = `${greek.title} ·`;
+    await field(page, "title").fill(retitled);
     // The autosave copies the block into Greek's own layout on the server, with English's text
     // (Greek has none); the form shows it without a reload, and keeps it.
     const copied = page.locator(
@@ -356,7 +359,7 @@ test.describe("the admin bootstrap made", () => {
     await expect(copied).toHaveValue(usp);
     // The autosave rewrote the breadcrumbs with the ids they had, so the form has no empty row.
     await expect(page.locator("[id^='breadcrumbs-row-']")).toHaveCount(1);
-    await expect(field(page, "title")).toHaveValue(greek.title);
+    await expect(field(page, "title")).toHaveValue(retitled);
   });
 
   test("deletes the page again", async () => {

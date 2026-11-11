@@ -69,15 +69,12 @@ describe("the suggestions", () => {
   });
 
   it("URL: the homepage's is the market's home, not its slug's (W7 review item 16)", async () => {
-    expect(await generateURL(args({ id: 3, slug: "home" }, "pages", "en"))).toBe(
-      "http://localhost:8000/us",
-    );
-    expect(await generateURL(args({ id: 3, slug: "arxiki" }, "pages", "el"))).toBe(
-      "http://localhost:8000/",
-    );
-    expect(await generateURL(args({ id: 4, slug: "about" }, "pages", "en"))).toBe(
-      "http://localhost:8000/us/about",
-    );
+    // As the plugin's preview sends it: the id beside the form's data, which has none.
+    const page = (id: number, slug: string, locale: string) =>
+      ({ doc: { slug }, id, locale, req, collectionConfig: { slug: "pages" } }) as never;
+    expect(await generateURL(page(3, "home", "en"))).toBe("http://localhost:8000/us");
+    expect(await generateURL(page(3, "arxiki", "el"))).toBe("http://localhost:8000/");
+    expect(await generateURL(page(4, "about", "en"))).toBe("http://localhost:8000/us/about");
   });
 
   // T75 review, item 3: a fresh server with Medusa down has no map; "Auto-generate" must not error.

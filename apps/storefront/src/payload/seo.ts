@@ -13,7 +13,6 @@ import type {
   GenerateURL,
 } from "@payloadcms/plugin-seo/types";
 import type { Field, GroupField, PayloadRequest } from "payload";
-import { pageIdOf } from "../lib/cms/page-path";
 import { CMS_PATHS } from "../lib/cms/paths";
 import { buildPublicUrl } from "../lib/markets/url";
 import { applyTitleTemplate, titleTemplateOf } from "../lib/seo/meta";
@@ -35,7 +34,6 @@ import { idOf } from "./id-of";
 
 type SiteSettingsSeo = {
   storeName?: unknown;
-  homepage?: unknown;
   seo?: { titleTemplate?: unknown; description?: unknown; image?: unknown } | null;
 };
 
@@ -73,26 +71,19 @@ export const generateImage: GenerateImage = async ({ doc, locale, req }) => {
   return idOf((await siteSettings(req, locale)).seo?.image) ?? "";
 };
 
-/** Whether `data` is the page the site settings name as the homepage, which lives at `{m}/`. */
-async function isHomepage(req: PayloadRequest, data: Record<string, unknown>, language: string) {
-  if (data["id"] === undefined || data["id"] === null) return false;
-  const home = pageIdOf((await siteSettings(req, language)).homepage);
-  return home !== null && String(home) === String(data["id"]);
-}
-
 /**
- * The document's address in the market the language is previewed in (live preview's, D74); the
- * homepage's is the market's home (`/`, `/us`), not its slug's (W7 review item 16).
+ * The document's address in the market the language is previewed in (live preview's, D74, which
+ * gives the homepage the market's home). The plugin's preview sends the document's id beside the
+ * form's data, which has none (W7 fixes' review, item 1).
  */
-export const generateURL: GenerateURL = async ({ collectionConfig, doc, locale, req }) => {
+export const generateURL: GenerateURL = async ({ collectionConfig, doc, id, locale, req }) => {
   const slug = collectionConfig?.slug;
   const language = locale ?? DEFAULT_LOCALE;
-  const data = (doc ?? {}) as Record<string, unknown>;
+  const form = (doc ?? {}) as Record<string, unknown>;
+  const data = { ...form, id: id ?? form["id"] };
   const path =
     slug === "pages"
-      ? (await isHomepage(req, data, language))
-        ? "/"
-        : await pagePreviewPath(req.payload, data, language)
+      ? await pagePreviewPath(req.payload, data, language)
       : slug === undefined
         ? null
         : (CMS_PATHS[slug]?.(data) ?? null);

@@ -78,7 +78,15 @@ describe("pagePreviewPath", () => {
   };
   const payload = {
     findByID: vi.fn(async ({ id }: { id: number }) => parents[id] ?? null),
+    findGlobal: vi.fn(async () => ({ homepage: 7 })),
   } as unknown as Parameters<typeof pagePreviewPath>[0];
+
+  it("is the market's home for the page the site settings name as the homepage", async () => {
+    expect(await pagePreviewPath(payload, { id: 7, slug: "home", parent: null }, "en")).toBe("/");
+    expect(await pagePreviewPath(payload, { id: 4, slug: "home", parent: null }, "en")).toBe(
+      "/home",
+    );
+  });
 
   it("is the parents' slugs and the page's own, as the language edited reads them", async () => {
     expect(await pagePreviewPath(payload, { id: 3, slug: "theseis", parent: 2 }, "el")).toBe(
