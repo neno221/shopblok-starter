@@ -1,11 +1,11 @@
 // Ours (T81, SETUP.md "Catalog block variants (T81)"; M5 plan §1a, D100). The category showcase's
 // `circles` member: each category a round picture with its name under it. On a phone the circles
 // are one row that scrolls sideways inside its own box (never the page), snapping to a circle; from
-// `md` they wrap, centred while they fit, and from `lg` in even rows (`circlesPerRow`). The scrolling row is a list named by the heading (or
-// "Shop by category") that takes the focus, so the keyboard can scroll it too (axe's
-// scrollable-region-focusable; the DS's sideways-scroll check lets it off as it does the USP
-// strip). Each circle is one link of at least 44 px named by the category; the picture is
-// decoration. A server component.
+// `md` they wrap, centred while they fit, and from `lg` in even rows (`circlesPerRow`). The
+// scrolling row is a list named by the heading (or "Shop by category") that takes the focus, so the
+// keyboard can scroll it too (axe's scrollable-region-focusable; the DS's sideways-scroll check
+// lets it off as it does the USP strip). Each circle is one link of at least 44 px named by the
+// category; the picture is decoration. A server component.
 import { Image } from "@shopblok/ui/atoms/image";
 import { cn } from "@shopblok/ui/lib/utils";
 import { SectionFrame } from "@shopblok/ui/sections/section-frame";

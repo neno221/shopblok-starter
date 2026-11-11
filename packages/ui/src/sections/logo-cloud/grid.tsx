@@ -1,8 +1,8 @@
 // Ours (T82, SETUP.md "Content and promotion block variants (T82)"; M5 plan §1a). The logo cloud's
 // `grid` member: the logos in equal cells of a ruled grid, two across on a phone, three from `md`,
-// four from `lg` (fewer or another count where that fills every row: `logoGridColumns`), each logo centred in its cell at the first member's size. A logo with a link
-// makes its whole cell the 44 px target, which opens the brand's site in a new tab and says so. A
-// server component.
+// four from `lg` (fewer or another count where that fills every row: `logoGridColumns`), each logo
+// centred in its cell at the first member's size. A logo with a link makes its whole cell the 44 px
+// target, which opens the brand's site in a new tab and says so. A server component.
 import { VisuallyHidden } from "@shopblok/ui/atoms/visually-hidden";
 import { SectionFrame, SectionHeading } from "@shopblok/ui/sections/section-frame";
 import { cn } from "@shopblok/ui/lib/utils";

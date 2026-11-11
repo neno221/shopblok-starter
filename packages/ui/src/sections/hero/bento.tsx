@@ -3,8 +3,8 @@
 // two-by-two grid of cards (under it on a phone). With products, the editor's picture fills the
 // message's tile and the words lie on the `overlay` scrim over it, as the overlay member's do (W7
 // review item 11: the large tile was a grey panel); without a picture the tile is the muted fill.
-// Without products the picture takes the second tile; with neither, the message runs across. The products are a list
-// named as a grid, their names one level below the heading. A server component.
+// Without products the picture takes the second tile; with neither, the message runs across. The
+// products are a list named as a grid, their names one level below the heading. A server component.
 import { Image } from "@shopblok/ui/atoms/image";
 import { cn } from "@shopblok/ui/lib/utils";
 import { SectionFrame } from "@shopblok/ui/sections/section-frame";
