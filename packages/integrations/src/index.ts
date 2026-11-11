@@ -52,6 +52,12 @@ const S3_KEYS = [
   "S3_PUBLIC_URL",
 ] as const;
 
+/**
+ * R2's region is always `auto`, which both apps use when it is blank (M6 D127). Another S3-compatible
+ * store may need it.
+ */
+const S3_OPTIONAL = ["S3_REGION"] as const;
+
 /** SPEC §10's table, one row each. Edit this when an integration gets wired or its keys change. */
 const SPECS: readonly Spec[] = [
   {
@@ -85,6 +91,9 @@ const SPECS: readonly Spec[] = [
         app: "storefront",
         what: "Payload email adapter",
         keys: ["RESEND_API_KEY", "RESEND_FROM_EMAIL"],
+        // The newsletter's segment (M6 D122): without it a confirmed address is kept as a form
+        // submission, as with no key.
+        optional: ["RESEND_NEWSLETTER_SEGMENT_ID"],
       },
     ],
     live: "Resend",
@@ -102,7 +111,13 @@ const SPECS: readonly Spec[] = [
         what: "Analytics Module provider",
         keys: ["POSTHOG_EVENTS_API_KEY", "POSTHOG_HOST"],
       },
-      { app: "storefront", what: "posthog-js", keys: ["NEXT_PUBLIC_POSTHOG_KEY"] },
+      {
+        app: "storefront",
+        what: "posthog-js",
+        keys: ["NEXT_PUBLIC_POSTHOG_KEY"],
+        // The EU host is the default (M6 D124); only another region's project sets it.
+        optional: ["NEXT_PUBLIC_POSTHOG_HOST"],
+      },
     ],
     live: "PostHog",
     fallback: "analytics-local (no client script)",
@@ -114,13 +129,25 @@ const SPECS: readonly Spec[] = [
     name: "Sentry",
     kind: "third-party",
     parts: [
-      { app: "backend", what: "instrumentation.ts", keys: ["SENTRY_DSN"] },
+      {
+        app: "backend",
+        what: "instrumentation.ts",
+        keys: ["SENTRY_DSN"],
+        // M6 D125: `environment` and the traces' sample rate (0 when blank).
+        optional: ["SENTRY_ENVIRONMENT", "SENTRY_TRACES_SAMPLE_RATE"],
+      },
       {
         app: "storefront",
         what: "@sentry/nextjs",
         keys: ["NEXT_PUBLIC_SENTRY_DSN"],
-        // Only the build uses it, to upload source maps; errors are reported without it.
-        optional: ["SENTRY_AUTH_TOKEN"],
+        // Only the build uses the last three, to upload source maps; errors are reported without them.
+        optional: [
+          "SENTRY_ENVIRONMENT",
+          "SENTRY_TRACES_SAMPLE_RATE",
+          "SENTRY_AUTH_TOKEN",
+          "SENTRY_ORG",
+          "SENTRY_PROJECT",
+        ],
       },
     ],
     live: "Sentry",
@@ -164,8 +191,15 @@ const SPECS: readonly Spec[] = [
     name: "Cloudflare R2",
     kind: "third-party",
     parts: [
-      { app: "backend", what: "Medusa file provider", keys: S3_KEYS },
-      { app: "storefront", what: "Payload media storage", keys: S3_KEYS },
+      // Medusa's private files (CSV imports and exports) go to a second bucket with no public access
+      // (M6 D127); Payload's media are all public, so the storefront has no private bucket.
+      {
+        app: "backend",
+        what: "Medusa file provider",
+        keys: [...S3_KEYS, "S3_PRIVATE_BUCKET"],
+        optional: S3_OPTIONAL,
+      },
+      { app: "storefront", what: "Payload media storage", keys: S3_KEYS, optional: S3_OPTIONAL },
     ],
     live: "Cloudflare R2 (S3 API)",
     fallback: "local disk (development only; Vercel needs R2)",

@@ -132,6 +132,9 @@ jobs:
           node-version: ${{ matrix.node-version }}
       - run: pnpm install --frozen-lockfile
       - run: pnpm check:workspace
+      # M6 D115 (T93): no Stripe, Resend or AWS-style key in any tracked file. It reads every file git
+      # tracks, a pull request's changed files among them, and prints where a key is, never the key.
+      - run: pnpm check:keys
       # T57 (M4 D87 item 2): Payload's generated files are what the config makes. `generate:types`
       # writes `payload-types.ts` and formats it with the repo's Prettier preset; `generate:importmap`
       # rewrites the admin's import map. Neither needs a database or a .env. A Payload change

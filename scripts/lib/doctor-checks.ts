@@ -247,6 +247,45 @@ function previewAndCronSecrets(envs: AppEnvs, context: Context): Check {
   };
 }
 
+/**
+ * Stripe's live keys, by their prefix (M6 D115): a secret key `sk_live_`, a restricted key
+ * `rk_live_`, a publishable key `pk_live_`. The test ones start `sk_test_`, `rk_test_`, `pk_test_`.
+ */
+const STRIPE_LIVE_PREFIXES = ["sk_live_", "rk_live_", "pk_live_"] as const;
+const STRIPE_KEYS: readonly { app: keyof AppEnvs; name: string }[] = [
+  { app: "backend", name: "STRIPE_API_KEY" },
+  { app: "storefront", name: "NEXT_PUBLIC_STRIPE_KEY" },
+];
+
+/**
+ * Test mode only, outside production (M6 D115): a live Stripe key in development, in a test run or in
+ * a cloud session charges real cards. Each app is judged by its own `NODE_ENV` (the shell's, else its
+ * `.env`'s), so a production backend beside a development storefront is still caught. The value is
+ * never printed, only the variable's name and the kind of key.
+ */
+function stripeLiveKeys(envs: AppEnvs): Check[] {
+  const live = STRIPE_KEYS.filter(({ app, name }) => {
+    const value = (envs[app][name] ?? "").trim();
+    const nodeEnv = (envs[app].NODE_ENV ?? "").trim();
+    return nodeEnv !== "production" && STRIPE_LIVE_PREFIXES.some((p) => value.startsWith(p));
+  });
+  if (live.length === 0) return [];
+  return [
+    {
+      id: "stripe-live-key",
+      title: "Stripe test mode",
+      level: "error",
+      message:
+        "A live Stripe key is set outside NODE_ENV=production. Development, tests and cloud sessions use test keys only, so that no real card is charged.",
+      details: live.map(({ app, name }) => {
+        const nodeEnv = (envs[app].NODE_ENV ?? "").trim();
+        return `apps/${app}: ${name} is a live key (NODE_ENV ${nodeEnv === "" ? "not set" : nodeEnv})`;
+      }),
+      fix: "Use the test keys from Stripe's Dashboard in test mode (sk_test_…, pk_test_…); live keys belong only in production's environment.",
+    },
+  ];
+}
+
 /** Everything the environment alone can tell, in the order the table shows it. */
 export function configChecks(
   envs: AppEnvs,
@@ -254,6 +293,7 @@ export function configChecks(
   context: Context,
 ): Check[] {
   return [
+    ...stripeLiveKeys(envs),
     secrets(envs, context),
     previewAndCronSecrets(envs, context),
     publishableKey(envs),

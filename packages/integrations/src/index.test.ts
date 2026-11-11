@@ -127,12 +127,34 @@ describe("getIntegrationStatus", () => {
       S3_BUCKET: "bucket",
       S3_PUBLIC_URL: "https://media.example.com",
     };
-    const r2 = byId(getIntegrationStatus({ backend: keys, storefront: {} }), "r2");
+    const r2 = byId(
+      getIntegrationStatus({
+        backend: { ...keys, S3_PRIVATE_BUCKET: "bucket-private" },
+        storefront: {},
+      }),
+      "r2",
+    );
     expect(r2.half).toBe(true);
     expect(r2.parts.find((p) => p.app === "backend")?.configured).toBe(true);
     expect(r2.parts.find((p) => p.app === "storefront")?.configured).toBe(false);
     expect(describeMissing(r2)).toContain("(apps/storefront)");
     expect(describeMissing(r2)).not.toContain("apps/backend");
+  });
+
+  it("the backend's R2 part also needs the private bucket (M6 D127); the storefront's does not", () => {
+    const keys = {
+      S3_ENDPOINT: "https://x.r2.cloudflarestorage.com",
+      S3_ACCESS_KEY_ID: "id",
+      S3_SECRET_ACCESS_KEY: "secret",
+      S3_BUCKET: "bucket",
+      S3_PUBLIC_URL: "https://media.example.com",
+    };
+    const r2 = byId(getIntegrationStatus({ backend: keys, storefront: keys }), "r2");
+    expect(r2.configured).toBe(false);
+    expect(r2.half).toBe(true);
+    expect(describeMissing(r2)).toBe("S3_PRIVATE_BUCKET (apps/backend)");
+    expect(r2.parts.find((p) => p.app === "storefront")?.configured).toBe(true);
+    expect(r2.parts.every((p) => p.optionalMissing.join() === "S3_REGION")).toBe(true);
   });
 
   it("every key set in both apps is configured, and still on the fallback until the code exists", () => {
@@ -153,7 +175,11 @@ describe("getIntegrationStatus", () => {
     );
     expect(sentry.configured).toBe(true);
     expect(sentry.parts.find((p) => p.app === "storefront")?.optionalMissing).toEqual([
+      "SENTRY_ENVIRONMENT",
+      "SENTRY_TRACES_SAMPLE_RATE",
       "SENTRY_AUTH_TOKEN",
+      "SENTRY_ORG",
+      "SENTRY_PROJECT",
     ]);
   });
 
@@ -189,6 +215,15 @@ describe("INTEGRATION_KEYS", () => {
       "MEILISEARCH_API_KEY",
       "REDIS_URL",
       "S3_PUBLIC_URL",
+      // M6's names (D115, T93).
+      "S3_PRIVATE_BUCKET",
+      "S3_REGION",
+      "RESEND_NEWSLETTER_SEGMENT_ID",
+      "NEXT_PUBLIC_POSTHOG_HOST",
+      "SENTRY_ENVIRONMENT",
+      "SENTRY_TRACES_SAMPLE_RATE",
+      "SENTRY_ORG",
+      "SENTRY_PROJECT",
     ]) {
       expect(INTEGRATION_KEYS).toContain(key);
     }
