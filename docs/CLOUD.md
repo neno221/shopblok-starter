@@ -157,6 +157,55 @@ When C0 or a later task changes this script, it updates this page in its PR, and
 
 **Step 6 was added by C0 and first ran in T03's session (2026-10-09).** Both folders were there, `/opt/payload-templates` held exactly `blank`, `ecommerce` and `with-postgres`, the log had no `step 6 FAILED`, and the whole script took 40 s (SETUP.md, "Follow-up checks (T03)"). T04's session found both folders still there, from the saved copy ("Follow-up checks (T04)"). Step 6 can't be tested from inside a session, because a session can't download the two repos; it was only ever checked by running the setup script. T05 needs `/opt/dtc-starter`; T09 needs `/opt/payload-templates`.
 
+## Keys and hosts for M6
+
+M6 (plan §4a, G10; D115) is the first milestone with keys. **You enter every key yourself, and only test keys.** Nobody asks for one in a chat, a PR or a file, and no session sets one (it can read names, never values).
+
+**The names** (both apps read them from their environment over their `.env` file; `.env.example` lists each with what it turns on):
+
+| Where | Secrets (values hidden) | Variables (not secret) |
+|---|---|---|
+| **Needed** (T100 to T102, T98, T99) | `STRIPE_API_KEY` (`sk_test_…`), `NEXT_PUBLIC_STRIPE_KEY` (`pk_test_…`), `RESEND_API_KEY` | `RESEND_FROM_EMAIL` (`onboarding@resend.dev` until your domain is verified), `RESEND_NEWSLETTER_SEGMENT_ID` |
+| Optional: R2 (T95) | `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` | `S3_ENDPOINT`, `S3_BUCKET`, `S3_PRIVATE_BUCKET`, `S3_PUBLIC_URL` |
+| Optional: Sentry (T96) | `SENTRY_DSN`, `NEXT_PUBLIC_SENTRY_DSN` | |
+| Optional: PostHog (T97) | `POSTHOG_EVENTS_API_KEY`, `NEXT_PUBLIC_POSTHOG_KEY` | `POSTHOG_HOST` (`https://eu.i.posthog.com`) |
+
+`STRIPE_WEBHOOK_SECRET` is **not** one of yours: CI and the cloud sessions use a fixed stand-in that does not look like a Stripe secret (`ci-stand-in-webhook-secret`; D115), and a PC uses `stripe listen` (SETUP.md).
+
+**Where you put them, twice:**
+
+1. **GitHub**, for CI's `integrations-live` job: repository → Settings → Secrets and variables → Actions. The left column under **Secrets**, the right one under **Variables**. An empty or missing secret is an unset key: the job's specs skip themselves and name what is missing.
+2. **The cloud environment**, for the sessions that build Stripe and Resend: [Project settings](#project-settings/environment), the environment's gear. Measured in T93 (2026-11-11): this environment has **no** variables or secrets but the six telemetry and timeout values above, and a session sees its environment's variables as ordinary environment variables (`env` lists their names). The environment's variables are visible to anyone who uses the environment (see "Environment variables" above), so a key there is readable by every session of it; that is acceptable for **test** keys only, which is why D115 allows nothing else. A task that needs a key leaves it where it is: the servers it starts inherit the session's environment, and both apps read their environment over their `.env` file, so the key never goes into a file (D131), a command line or a log. T93 also found `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` already set in a session by the platform (names only were read): the AWS SDK's default credential chain would pick them up, so T95's R2 code must pass `S3_ACCESS_KEY_ID` and `S3_SECRET_ACCESS_KEY` explicitly and never rely on the default chain.
+
+**Hosts.** The environment's network is a list (see "Network access"). M6's tasks need these, asked for on a card in T93's thread (you approve or decline; nothing changes until you do):
+
+```text
+api.stripe.com
+js.stripe.com
+m.stripe.network
+b.stripecdn.com
+hooks.stripe.com
+pm-redirects.stripe.com
+r.stripe.com
+docs.stripe.com
+api.resend.com
+resend.com
+eu.i.posthog.com
+eu-assets.i.posthog.com
+posthog.com
+docs.sentry.io
+developers.cloudflare.com
+react.email
+```
+
+- **Stripe** (T100 to T102): the API (`api`), Stripe.js and the Elements (`js`, `b.stripecdn.com`, `m.stripe.network`), the test 3-D Secure and redirect pages (`hooks`, `pm-redirects`), Stripe.js's telemetry (`r`), and the docs.
+- **Resend** (T98, T99): the API and the docs (`resend.com/docs`).
+- **PostHog** (T97): the EU ingestion and assets hosts the `/ingest` rewrite forwards to, and the docs.
+- **Sentry** (T96), **R2** (T95), **React Email** (T98): the docs. Their service hosts depend on your accounts: Sentry's ingest is `o<org>.ingest.de.sentry.io`, R2's endpoint `<account>.r2.cloudflarestorage.com` and its public URL `pub-<id>.r2.dev`. The task that needs one asks for that exact host once your key is in (the list takes exact names, not `*.sentry.io`).
+- **Meilisearch** (T94): `www.meilisearch.com` is on the list already.
+
+CI has internet access and needs none of this.
+
 ## What every cloud session does first
 
 Each prompt in NEXT-SESSION.md says this, and C0 checks that it works.
