@@ -1,7 +1,7 @@
 // Ours (T81, SETUP.md "Catalog block variants (T81)"; M5 plan §1a, D100). The category showcase's
 // `circles` member: each category a round picture with its name under it. On a phone the circles
 // are one row that scrolls sideways inside its own box (never the page), snapping to a circle; from
-// `md` they wrap, centred while they fit. The scrolling row is a list named by the heading (or
+// `md` they wrap, centred while they fit, and from `lg` in even rows (`circlesPerRow`). The scrolling row is a list named by the heading (or
 // "Shop by category") that takes the focus, so the keyboard can scroll it too (axe's
 // scrollable-region-focusable; the DS's sideways-scroll check lets it off as it does the USP
 // strip). Each circle is one link of at least 44 px named by the category; the picture is
@@ -10,9 +10,15 @@ import { Image } from "@shopblok/ui/atoms/image";
 import { cn } from "@shopblok/ui/lib/utils";
 import { SectionFrame } from "@shopblok/ui/sections/section-frame";
 import NextLink from "next/link";
-import { useId } from "react";
+import { useId, type CSSProperties } from "react";
 import { CategoryShowcaseIntro, CategoryShowcaseLink, namedBy, type LinkHref } from "./parts";
 import type { CategoryShowcaseSectionProps } from "./standard";
+
+/** The circles in each row from `lg`: at most eight, the rows as even as they can be. */
+export function circlesPerRow(count: number): number {
+  const rows = Math.max(1, Math.ceil(count / 8));
+  return Math.max(1, Math.ceil(count / rows));
+}
 
 function CategoryShowcaseCircles({
   settings,
@@ -42,7 +48,12 @@ function CategoryShowcaseCircles({
         className={cn(
           "-mx-1 flex snap-x gap-4 overflow-x-auto rounded-md px-1 pt-1 pb-2 outline-none focus-visible:ring-3 focus-visible:ring-ring",
           "md:flex-wrap md:justify-center md:gap-x-8 md:gap-y-6 md:overflow-visible",
+          // From `lg`, the rows are balanced: at most eight circles a row, as many in each row as
+          // can be, so eight are one row and nine are five and four, never one alone on a second
+          // row (W7 review item 10).
+          "lg:mx-auto lg:max-w-[calc(var(--circles-row)*8rem+(var(--circles-row)-1)*1.5rem+0.5rem)] lg:gap-x-6",
         )}
+        style={{ "--circles-row": circlesPerRow(tiles.length) } as CSSProperties}
       >
         {tiles.map((tile) => (
           <li key={tile.href} className="w-24 shrink-0 snap-start md:w-32">

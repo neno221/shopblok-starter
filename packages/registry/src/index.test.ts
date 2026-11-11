@@ -415,7 +415,11 @@ describe("variantsOf", () => {
         expect(option.label, `${family}/${option.value}`).not.toMatch(/[a-z][A-Z]/);
       }
     const labels = (family: string) => variantsOf(family).map((option) => option.label);
-    expect(labels("hero").slice(0, 3)).toEqual(["Hero · Standard", "Hero · Overlay", "Hero · Centered"]);
+    expect(labels("hero").slice(0, 3)).toEqual([
+      "Hero · Standard",
+      "Hero · Overlay",
+      "Hero · Centered",
+    ]);
     expect(labels("product-detail")).toContain("Product page · Centered");
     expect(labels("product-card")).toContain("Product card · Quick add");
     expect(labels("quick-view")).toEqual([

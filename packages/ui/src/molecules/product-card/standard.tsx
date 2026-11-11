@@ -19,6 +19,7 @@ function ProductCardStandard({
   sizes,
   heading,
   prefetch,
+  titleLines = 2,
   className,
   ...props
 }: ProductCardProps) {
@@ -36,7 +37,7 @@ function ProductCardStandard({
         badges={cardBadges(product, copy.card)}
       />
       <div className="flex min-w-0 flex-col gap-1.5">
-        <CardTitle product={product} heading={heading} prefetch={prefetch} />
+        <CardTitle product={product} heading={heading} prefetch={prefetch} lines={titleLines} />
         <CardPrice product={product} copy={copy} locale={locale} />
         <CardRating product={product} copy={copy} locale={locale} />
       </div>

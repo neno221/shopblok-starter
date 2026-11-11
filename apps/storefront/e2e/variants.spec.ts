@@ -467,7 +467,11 @@ test.afterAll(async () => {
     ]);
     // The search page and the (empty) cart read the global too, each on its own (W7 review item
     // 18); the checkout and the receipt need a cart, so `templates-global.spec.ts` reads them again.
-    restored.push([`${market.prefix}/search?q=hoodie`, "search-results-template", variantOf("listing")]);
+    restored.push([
+      `${market.prefix}/search?q=hoodie`,
+      "search-results-template",
+      variantOf("listing"),
+    ]);
     restored.push([`${market.prefix}/cart`, "cart-template", variantOf("cart")]);
   }
   for (const [path, slot, variant] of restored)

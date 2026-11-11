@@ -45,6 +45,11 @@ type ProductCardProps = Omit<React.ComponentProps<"article">, "children"> & {
    * do not exist before M3 and each prefetch would answer 404.
    */
   prefetch?: boolean | null;
+  /**
+   * The standard card's title lines (two unless given): a section of narrow columns gives three,
+   * so a long name is not cut after a few words (W7 review item 9).
+   */
+  titleLines?: 2 | 3;
 };
 
 type QuickAddStatus = "idle" | "adding" | "added" | "error";
@@ -240,7 +245,8 @@ function CardTitle({
   product: ProductCard;
   heading?: HeadingElement;
   prefetch?: boolean | null;
-  lines?: 1 | 2;
+  /** Three where a row or a narrow column cuts most names after a few words (W7 review item 9). */
+  lines?: 1 | 2 | 3;
   className?: string;
   /** The radius of the focus ring, which has to be the card's (`after:rounded-xl`). */
   linkClassName?: string;
@@ -262,7 +268,7 @@ function CardTitle({
           data-truncate=""
           className={cn(
             "wrap-anywhere group-hover/card:underline",
-            lines === 1 ? "line-clamp-1" : "line-clamp-2",
+            lines === 1 ? "line-clamp-1" : lines === 3 ? "line-clamp-3" : "line-clamp-2",
           )}
         >
           {product.title}

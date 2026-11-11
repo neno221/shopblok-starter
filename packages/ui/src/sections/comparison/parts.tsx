@@ -102,14 +102,17 @@ function ComparisonTable({
       role="group"
       tabIndex={0}
       aria-labelledby={captionId}
-      className="relative w-full overflow-x-auto rounded-md outline-none focus-visible:ring-3 focus-visible:ring-ring"
+      className="@container relative w-full overflow-x-auto rounded-md outline-none focus-visible:ring-3 focus-visible:ring-ring"
     >
       <table data-slot="comparison-table" className="w-full min-w-xl table-fixed text-sm">
         <caption
           id={captionId}
           className="mb-6 text-start text-2xl font-semibold text-balance wrap-anywhere md:text-3xl"
         >
-          {heading}
+          {/* The caption is as wide as the table, which is wider than a phone: its words keep to
+              the box's visible width and stay in view while the table scrolls (W7 review item 7,
+              the Greek heading cut at 375 px). */}
+          <span className="sticky start-0 block max-w-[100cqw]">{heading}</span>
         </caption>
         <thead>
           <tr>
