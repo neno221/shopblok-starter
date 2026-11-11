@@ -1,4 +1,4 @@
-import { expect, test, type BrowserContext, type Page } from "@playwright/test";
+import type { BrowserContext, Page } from "@playwright/test";
 import { catalogs } from "./support/catalogs";
 import {
   add,
@@ -9,6 +9,8 @@ import {
   orderIdOf,
   withoutScripts,
 } from "./support/purchase";
+// M6 D114 (T93): fails a test on any request to a third party an integration talks to.
+import { expect, test } from "./support/third-party";
 
 // T52 (D65, SPEC §8.4): a purchase in Cyprus against `next start` and the seeded Medusa. From the
 // product page on `/`: the add and the header's count, the cart page, the three checkout steps with

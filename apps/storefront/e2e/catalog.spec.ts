@@ -1,7 +1,8 @@
-import { expect, test } from "@playwright/test";
 import { publishGlobal, snapshotGlobal, type GlobalData } from "./support/globals";
 import { api, PNG, syncedId, upload } from "./support/payload-rest";
 import { adminToken, base, freshWithinTwo, settled } from "./support/server";
+// M6 D114 (T93): fails a test on any request to a third party an integration talks to.
+import { expect, test } from "./support/third-party";
 
 // T49 (D58, D61, SPEC §8.4, §12): the product page against `next start` with the demo catalog. The
 // shell's HTML holds the product in the market's language and currency (what `curl` gets: the

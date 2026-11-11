@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ALLOWED_FAKE_KEYS, describeFindings, findKeys, isBinary } from "./no-keys.ts";
+import { ALLOWED_FAKE_KEYS, describeFindings, findKeys, isBinary, maskKeys } from "./no-keys.ts";
 
 // The keys below are built from parts, so this file itself never holds one for `pnpm check:keys`
 // to find (but the allowed fake, which it must let through).
@@ -65,5 +65,21 @@ describe("isBinary", () => {
   it("is a NUL byte in the first 8 KB", () => {
     expect(isBinary(new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x00]))).toBe(true);
     expect(isBinary(new TextEncoder().encode("plain text"))).toBe(false);
+  });
+});
+
+describe("maskKeys", () => {
+  it("masks every key-shaped string and every given value, and nothing else", () => {
+    const stripe = key("sk_test_");
+    const dsn = "https://abc123def456@o1.ingest.de.sentry.io/42";
+    const text = `start STRIPE_API_KEY=${stripe}\nSentry ${dsn} ready\nkey re_${fill(8)}_${fill(24)} ok`;
+    expect(maskKeys(text, [dsn, "", "short"])).toBe(
+      "start STRIPE_API_KEY=***\nSentry *** ready\nkey *** ok",
+    );
+  });
+
+  it("masks a value that holds a key-shaped part as a whole", () => {
+    const value = `prefix-${key("whsec_")}`;
+    expect(maskKeys(`a ${value} b`, [value])).toBe("a *** b");
   });
 });

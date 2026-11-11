@@ -25,6 +25,10 @@ import { defineConfig, devices, type Project } from "@playwright/test";
 //                   `outage-recovery.spec.ts` runs after the workflow has started Medusa again, through
 //                   the same action. One project for both: the command line names the spec, and the
 //                   specs are not run together (the first leaves Medusa down). T49 writes them.
+//   integrations    (M6 D114, T93) `e2e/integrations/*.spec.ts`, the live checks against the real
+//                   services, run by CI's `integrations-live` job on a stack started with the test
+//                   keys. Each spec skips itself, naming the missing secret, when its keys are not set.
+//                   The keyless suites are the default projects' (`support/third-party.ts`).
 // A browser that is not the one `playwright install` fetched (the cloud VM's, CLOUD.md), for the
 // `design-system` project. Unset in CI.
 const chromiumPath = process.env["PW_CHROMIUM_PATH"];
@@ -60,6 +64,20 @@ const optIns: OptIn[] = [
         retries: 0,
         use: { ...devices["Desktop Chrome"] },
         testMatch: /outage(?:-recovery)?\.spec\.ts$/,
+      },
+    ],
+  },
+  {
+    flag: "E2E_INTEGRATIONS",
+    // One worker, no retry: the specs talk to the services' test accounts, and a flaky answer from
+    // one is worth seeing rather than retrying past.
+    workers: 1,
+    projects: [
+      {
+        name: "integrations",
+        retries: 0,
+        use: { ...devices["Desktop Chrome"] },
+        testMatch: /integrations\/[^/]+\.spec\.ts$/,
       },
     ],
   },

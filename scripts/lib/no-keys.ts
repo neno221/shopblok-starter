@@ -93,3 +93,23 @@ export function isBinary(head: Uint8Array): boolean {
 export function describeFindings(findings: readonly Finding[]): string[] {
   return findings.map((f) => `${f.file}:${f.line}: a ${f.name} (${f.kind})`);
 }
+
+/** What a masked key reads as in a log. */
+export const MASK = "***";
+
+/**
+ * `text` with every key-shaped string (the patterns above, allowed fakes included) and every one of
+ * `values` replaced by `***` (M6 D114: the logs `integrations-live` uploads). `values` are the keys
+ * themselves, from the job's environment: a key whose shape no pattern knows (a Sentry DSN, a
+ * PostHog key) is masked by its value. Values shorter than 8 characters are left alone, since such a
+ * value is no key and would mask ordinary words.
+ */
+export function maskKeys(text: string, values: readonly string[] = []): string {
+  let masked = text;
+  for (const value of [...values].sort((a, b) => b.length - a.length)) {
+    if (value.trim().length < 8) continue;
+    masked = masked.split(value).join(MASK);
+  }
+  for (const kind of KEY_KINDS) masked = masked.replace(kind.pattern, MASK);
+  return masked;
+}
