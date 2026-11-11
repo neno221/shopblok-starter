@@ -156,7 +156,7 @@ export const el: Messages = {
       fallback: "Επιλέξτε τον κωδικό και αντιγράψτε τον",
     },
     countdownTimer: {
-      label: "Η προσφορά λήγει στις {date}",
+      label: "Η προσφορά λήγει {date}",
       ended: "Η προσφορά έχει λήξει",
     },
     // T34: cart, checkout and account.

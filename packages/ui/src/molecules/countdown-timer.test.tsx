@@ -108,7 +108,7 @@ describe("CountdownTimer on the server (D50)", () => {
       });
       expect(labels[0]).toBe(labels[1]);
       expect(labels[1]).toBe(labels[2]);
-      expect(labels[0]).toContain("Offer ends Oct 4, 2026, 1:30 PM UTC");
+      expect(labels[0]).toContain("Offer ends October 4, 2026 at 1:30 PM UTC");
     } finally {
       if (zone === undefined) delete process.env["TZ"];
       else process.env["TZ"] = zone;
@@ -292,7 +292,7 @@ describe("CountdownTimer in the browser", () => {
       const { container, onRecoverableError } = await hydrate(fixtures("de").countdown.days, "de");
       expect(onRecoverableError).not.toHaveBeenCalled();
       expect(container.querySelector("[data-slot=countdown-timer-label]")?.textContent).toBe(
-        "Das Angebot endet am 4. Okt. 2026, 13:30 UTC",
+        "Das Angebot endet am 4. Oktober 2026 um 13:30 UTC",
       );
       container.remove();
     });
@@ -302,7 +302,7 @@ describe("CountdownTimer in the browser", () => {
 describe("what a reader is told", () => {
   it("names the timer for what it counts down to, with the end time as text", () => {
     setup("en", fixtures("en").countdown.days);
-    const timer = screen.getByRole("timer", { name: "Offer ends Oct 4, 2026, 1:30 PM UTC" });
+    const timer = screen.getByRole("timer", { name: "Offer ends October 4, 2026 at 1:30 PM UTC" });
     // The name is the visible line above it.
     expect(timer.getAttribute("aria-labelledby")).toBe(
       document.querySelector("[data-slot=countdown-timer-label]")?.id,
@@ -411,7 +411,7 @@ describe("in each language", () => {
     const copy = catalogs[locale].molecules.countdownTimer;
     const date = formatDate(fixtures(locale).countdown.days.endsAt, htmlLang[locale], {
       year: "numeric",
-      month: "short",
+      month: "long",
       day: "numeric",
       hour: "numeric",
       minute: "2-digit",
@@ -424,8 +424,8 @@ describe("in each language", () => {
   });
 
   it.each([
-    ["en", "Offer ends Oct 4, 2026, 1:30 PM UTC"],
-    ["de", "Das Angebot endet am 4. Okt. 2026, 13:30 UTC"],
+    ["en", "Offer ends October 4, 2026 at 1:30 PM UTC"],
+    ["de", "Das Angebot endet am 4. Oktober 2026 um 13:30 UTC"],
   ] as const)("reads the label in %s", (locale, label) => {
     setup(locale, fixtures(locale).countdown.days);
     expect(screen.getByRole("timer", { name: label })).toBeTruthy();
@@ -434,7 +434,7 @@ describe("in each language", () => {
   it("writes the end time in the time zone it is given, not the reader's", () => {
     setup("en", fixtures("en").countdown.days, { timeZone: "America/New_York" });
     expect(document.querySelector("[data-slot=countdown-timer-label]")?.textContent).toBe(
-      "Offer ends Oct 4, 2026, 9:30 AM EDT",
+      "Offer ends October 4, 2026 at 9:30 AM EDT",
     );
   });
 

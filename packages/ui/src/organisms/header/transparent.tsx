@@ -60,13 +60,14 @@ function HeaderTransparent({ solid, ...props }: HeaderTransparentProps) {
             transparentLook,
           )}
         >
+          {/* One gradient from the top: the `overlay` scrim behind the row's words, then fading
+              out over 6rem below the row, so over a light picture there is no grey band ending in
+              a line (W7 review item 15). The row's words stay on the full scrim. */}
           <div
             aria-hidden="true"
             data-slot="header-scrim"
-            className="pointer-events-none absolute inset-0 bg-overlay header-solid:hidden"
-          >
-            <div className="absolute inset-x-0 top-full h-8 bg-linear-to-b from-overlay to-transparent" />
-          </div>
+            className="pointer-events-none absolute inset-x-0 top-0 h-[calc(100%+6rem)] bg-[linear-gradient(to_bottom,var(--color-overlay)_0%,var(--color-overlay)_40%,color-mix(in_srgb,var(--color-overlay)_55%,transparent)_62%,color-mix(in_srgb,var(--color-overlay)_20%,transparent)_82%,transparent_100%)] header-solid:hidden"
+          />
           <div
             data-slot="header-row"
             className="relative mx-auto grid w-full max-w-page grid-cols-[1fr_minmax(0,auto)_1fr] items-center gap-x-2 px-2 py-1 sm:px-4 lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:gap-x-6 lg:px-6 lg:py-2"

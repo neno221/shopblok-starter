@@ -40,9 +40,10 @@ function CountdownTimer({
   ...props
 }: CountdownTimerProps) {
   const { endsAt, now } = countdown;
+  // The month in full, as the promo banner's other designs write the end (W7 review item 14).
   const date = formatDate(endsAt, locale, {
     year: "numeric",
-    month: "short",
+    month: "long",
     day: "numeric",
     hour: "numeric",
     minute: "2-digit",
