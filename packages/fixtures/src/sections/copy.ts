@@ -179,7 +179,7 @@ export const sectionCopies: Record<DesignSystemLocale, SectionCopy> = {
         text: "Για κάθε παραγγελία άνω των 75 €, μαζί με τις προσφορές και τις δωροκάρτες",
       },
     },
-    logoCloud: { heading: "Μας είδατε στα" },
+    logoCloud: { heading: "Έγραψαν για εμάς" },
     editorialList: { heading: "Από το ιστολόγιο", all: "Όλα τα άρθρα" },
     faq: { heading: "Συχνές ερωτήσεις" },
     testimonials: {

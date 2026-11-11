@@ -14,6 +14,7 @@ import {
 import { pageTags } from "../../lib/cms/tags";
 import { LAYOUT_BLOCKS, localizedLayoutBlocks } from "../blocks";
 import { copyLayoutIntoOtherLanguages, copyLayoutOnSwitch } from "../hooks/layout-per-language";
+import { PUBLISH_ALL_BUTTON } from "../publish-all";
 
 // `pages:<locale>` for the reads of one language, `payload:pages` for every reader.
 const revalidate = revalidateOnPublish({ tags: pageTags });
@@ -29,6 +30,7 @@ export const Pages: CollectionConfig = {
   admin: {
     useAsTitle: "title",
     defaultColumns: ["title", "slug", "_status", "translationStatus", "updatedAt"],
+    components: { edit: { PublishButton: PUBLISH_ALL_BUTTON } },
   },
   access: {
     // A visitor sees published pages only; staff see drafts as well.
@@ -77,6 +79,10 @@ export const Pages: CollectionConfig = {
       label: "Own layout per language",
       admin: {
         position: "sidebar",
+        // W7 review item 2: the copied blocks appear in the form without a reload.
+        components: {
+          Field: "/payload/components/layout-per-language-field#LayoutPerLanguageField",
+        },
         description:
           "Off: every language shows the same blocks and translates their texts. On: each language has blocks of its own, and one without any shows English's. Switching it on copies the shared blocks into each language, with its texts, so nothing changes until you edit a language's blocks.",
       },

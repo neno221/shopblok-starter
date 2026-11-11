@@ -79,7 +79,13 @@ function BundleList({
                   aspect="square"
                   className="w-16 shrink-0 md:w-20"
                 />
-                <CardTitle product={product} prefetch={prefetch} className="flex-1 text-base" />
+                <CardTitle
+                  product={product}
+                  prefetch={prefetch}
+                  // The row leaves the name a narrow column on a phone (W7 review item 9).
+                  lines={3}
+                  className="flex-1 text-base"
+                />
                 <CardPrice
                   product={product}
                   copy={copy.products}

@@ -284,11 +284,11 @@ describe("CountdownTimer's states", () => {
   });
 
   it("writes the end time in UTC unless the story gives a zone, and then in that zone", () => {
-    expect(text(html(id, "days", "en"))).toContain("Offer ends Oct 4, 2026, 1:30 PM UTC");
-    expect(text(html(id, "days", "de"))).toContain("Das Angebot endet am 4. Okt. 2026, 13:30 UTC");
+    expect(text(html(id, "days", "en"))).toContain("Offer ends October 4, 2026 at 1:30 PM UTC");
+    expect(text(html(id, "days", "de"))).toContain("Das Angebot endet am 4. Oktober 2026 um 13:30 UTC");
     // The same instant in the market's zone (New York, EDT in October).
     expect(text(html(id, "market-time-zone", "en"))).toContain(
-      "Offer ends Oct 4, 2026, 9:30 AM EDT",
+      "Offer ends October 4, 2026 at 9:30 AM EDT",
     );
     expect(text(html(id, "market-time-zone", "de"))).toContain("15:30 MESZ");
   });

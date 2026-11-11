@@ -3,6 +3,7 @@ import { globalTag, type ContentGlobalSlug } from "../../lib/cms/globals";
 import { isStaff, staffOrPublished } from "../access/roles";
 import { translationStatusField } from "../fields/translation-status";
 import { revalidateGlobalOnPublish } from "../hooks/revalidate-on-publish";
+import { PUBLISH_ALL_BUTTON } from "../publish-all";
 
 export { CONTENT_GLOBALS } from "../../lib/cms/globals";
 
@@ -28,7 +29,11 @@ export function contentGlobal({
   return {
     slug,
     label,
-    admin: { group: "Site", description },
+    admin: {
+      group: "Site",
+      description,
+      components: { elements: { PublishButton: PUBLISH_ALL_BUTTON } },
+    },
     access: {
       read: staffOrPublished,
       readVersions: isStaff,

@@ -43,6 +43,9 @@ function ProductCollectionFeaturedFirst(props: ProductCollectionSectionProps) {
                   : "(min-width: 1024px) 25vw, (min-width: 768px) 33vw, 50vw"
               }
               prefetch={prefetch}
+              // The small cards are half a phone wide: three lines keep the names apart (W7
+              // review item 9).
+              titleLines={index === 0 ? 2 : 3}
             />
           </li>
         ))}

@@ -1,12 +1,31 @@
 // Ours (T82, SETUP.md "Content and promotion block variants (T82)"; M5 plan §1a). The logo cloud's
 // `grid` member: the logos in equal cells of a ruled grid, two across on a phone, three from `md`,
-// four from `lg`, each logo centred in its cell at the first member's size. A logo with a link
-// makes its whole cell the 44 px target, which opens the brand's site in a new tab and says so. A
-// server component.
+// four from `lg` (fewer or another count where that fills every row: `logoGridColumns`), each logo
+// centred in its cell at the first member's size. A logo with a link makes its whole cell the 44 px
+// target, which opens the brand's site in a new tab and says so. A server component.
 import { VisuallyHidden } from "@shopblok/ui/atoms/visually-hidden";
 import { SectionFrame, SectionHeading } from "@shopblok/ui/sections/section-frame";
+import { cn } from "@shopblok/ui/lib/utils";
 import NextImage from "next/image";
 import type { LogoCloudSectionProps } from "./standard";
+
+/**
+ * The grid's columns from `md` and from `lg` for `count` logos: three and four, unless fewer or
+ * another count fills every row, so six logos are two rows of three, not a row of four and two
+ * empty cells (W7 review item 10). The classes are written out for Tailwind to find.
+ */
+export function logoGridColumns(count: number): string {
+  const md = count % 3 !== 0 && count % 2 === 0 ? "md:grid-cols-2" : "md:grid-cols-3";
+  const lg =
+    count <= 2
+      ? "lg:grid-cols-2"
+      : count === 3 || (count % 4 !== 0 && count % 3 === 0)
+        ? "lg:grid-cols-3"
+        : count === 5 || (count % 4 !== 0 && count % 5 === 0)
+          ? "lg:grid-cols-5"
+          : "lg:grid-cols-4";
+  return cn(md, lg);
+}
 
 function LogoCloudGrid({ settings, heading, logos, copy, className }: LogoCloudSectionProps) {
   return (
@@ -20,7 +39,7 @@ function LogoCloudGrid({ settings, heading, logos, copy, className }: LogoCloudS
       {heading === undefined ? null : (
         <SectionHeading className="text-lg md:text-xl">{heading}</SectionHeading>
       )}
-      <ul className="grid grid-cols-2 border-s border-t md:grid-cols-3 lg:grid-cols-4">
+      <ul className={cn("grid grid-cols-2 border-s border-t", logoGridColumns(logos.length))}>
         {logos.map((logo) => {
           const picture = (
             <NextImage

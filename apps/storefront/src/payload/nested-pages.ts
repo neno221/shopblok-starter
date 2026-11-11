@@ -88,8 +88,23 @@ export const populateBreadcrumbs: CollectionBeforeChangeHook = async ({
     title: data["title"] || stored?.title,
     parent: "parent" in data ? data["parent"] : (originalDoc as PageRef | undefined)?.parent,
   };
-  return { ...data, breadcrumbs: await breadcrumbsOf(req, page) };
+  const kept = (originalDoc as { breadcrumbs?: unknown } | undefined)?.breadcrumbs;
+  return { ...data, breadcrumbs: keepRowIds(await breadcrumbsOf(req, page), kept) };
 };
+
+/**
+ * The breadcrumbs with the ids the language's rows already have, row by row. New ids on every
+ * save made the admin's form, which keeps its own rows on an autosave and adds the server's new
+ * ones, gain an empty row with each autosave (W7 review item 2). `originalDoc` is the language's
+ * own (Payload reads it without the fallback on an update), so no two languages share an id.
+ */
+export function keepRowIds<Row extends object>(rows: Row[], previous: unknown): Row[] {
+  if (!Array.isArray(previous)) return rows;
+  return rows.map((row, index) => {
+    const id = (previous[index] as { id?: unknown } | null | undefined)?.id;
+    return typeof id === "string" ? { ...row, id } : row;
+  });
+}
 
 /** Saves a page again in one language with no changes, so `populateBreadcrumbs` rewrites them. */
 const resave = (req: PayloadRequest, id: Id, locale: string) =>

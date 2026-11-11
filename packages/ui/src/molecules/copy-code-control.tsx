@@ -91,7 +91,10 @@ function CopyCodeControl({
       className={cn("flex w-fit max-w-full min-w-0 flex-col", className)}
       {...props}
     >
-      <div className="inline-flex max-w-full min-w-0 items-center gap-1 rounded-lg border border-dashed border-input bg-background p-1 ps-3">
+      {/* The button goes under the code when both do not fit, so a short code is never broken
+          (W7 review item 6: "WELCOME1" / "0" in the Greek popup at 375 px); only a code too long
+          for the line on its own breaks. */}
+      <div className="inline-flex max-w-full min-w-0 flex-wrap items-center gap-1 rounded-lg border border-dashed border-input bg-background p-1 ps-3">
         <code
           ref={codeRef}
           data-slot="copy-code-chip-code"

@@ -81,15 +81,32 @@ export async function templatesPreviewPath(payload: Pick<Payload, "find">): Prom
 }
 
 /**
+ * Whether `id` is the page the site settings name as the homepage, which lives at the market's home
+ * (`/`, `/us`), not at its slug's (W7 review item 16).
+ */
+async function isHomepage(payload: Pick<Payload, "findGlobal">, id: unknown): Promise<boolean> {
+  if (id === undefined || id === null) return false;
+  const settings = (await payload.findGlobal({
+    slug: "site-settings",
+    depth: 0,
+    select: { homepage: true },
+    overrideAccess: true,
+  })) as { homepage?: unknown } | null;
+  const home = pageIdOf(settings?.homepage);
+  return home !== null && String(home) === String(id);
+}
+
+/**
  * A page's address in the language being edited (D80): its parents' slugs and its own, each as
  * that language reads it, from the parents' latest versions, as the preview's Draft Mode reads
  * them. `null` while the page has no slug yet.
  */
 export async function pagePreviewPath(
-  payload: Pick<Payload, "findByID">,
+  payload: Pick<Payload, "findByID" | "findGlobal">,
   data: Record<string, unknown>,
   locale: string,
 ): Promise<string | null> {
+  if (await isHomepage(payload, data["id"])) return "/";
   const slugs: unknown[] = [data["slug"]];
   const seen = new Set<unknown>([data["id"]]);
   let id = pageIdOf(data["parent"]);

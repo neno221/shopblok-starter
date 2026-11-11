@@ -3,6 +3,7 @@ import { catalogs, LOCALES } from "@shopblok/i18n";
 import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { CategoryShowcaseSection } from "./category-showcase";
+import { circlesPerRow } from "./category-showcase/circles";
 import { sectionsCopy } from "./section-copy";
 
 describe("CategoryShowcaseSection", () => {
@@ -34,5 +35,11 @@ describe("CategoryShowcaseSection", () => {
     const { edited } = sectionFixtures.en.categoryShowcase;
     render(<CategoryShowcaseSection {...edited} copy={sectionsCopy(catalogs.en)} locale="en" />);
     expect(screen.getByRole("link", { name: edited.tiles[2]?.label })).toBeTruthy();
+  });
+});
+
+describe("circlesPerRow (W7 review item 10)", () => {
+  it("puts at most eight in a row, the rows as even as they can be", () => {
+    expect([1, 7, 8, 9, 12, 16, 17].map(circlesPerRow)).toEqual([1, 7, 8, 5, 6, 8, 6]);
   });
 });

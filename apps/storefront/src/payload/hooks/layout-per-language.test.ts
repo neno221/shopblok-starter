@@ -64,6 +64,23 @@ describe("copyBlocks", () => {
     expect(copy?.items[0]?.id).not.toBe(original.items[0]?.id);
     expect(copy?.items[0]?.question).toBe("Why?");
   });
+
+  it("gives new ids whatever the old ones look like, as the seed's (W7 review item 1)", () => {
+    const seeded = {
+      ...block("Privacy"),
+      id: "seed-privacy-text",
+      items: [{ id: "seed-privacy-text-row", question: "Why?" }],
+      content: { root: { children: [{ type: "paragraph", text: "Kept" }] } },
+    };
+    const [copy] = copyBlocks([seeded]) as (typeof seeded)[];
+    expect(copy?.id).toMatch(ID);
+    expect(copy?.items[0]?.id).toMatch(ID);
+    expect(copy?.content).toEqual(seeded.content);
+    // Two copies (two languages) never share an id.
+    const [other] = copyBlocks([seeded]) as (typeof seeded)[];
+    expect(other?.id).not.toBe(copy?.id);
+    expect(other?.items[0]?.id).not.toBe(copy?.items[0]?.id);
+  });
 });
 
 describe("copyLayoutOnSwitch (D105)", () => {

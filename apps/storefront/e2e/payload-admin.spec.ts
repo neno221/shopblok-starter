@@ -292,6 +292,12 @@ test.describe("the admin bootstrap made", () => {
     await expect(field(page, "title")).toHaveValue("");
     await field(page, "title").fill(greek.title);
     await field(page, "slug").fill(greek.slug);
+    // Publishing is every language at once (D106 off): the button's menu schedules, but offers
+    // no "Publish in Ελληνικά" (W7 review item 17).
+    await page.locator(".btn--withPopup .popup-button").first().click();
+    await expect(page.locator("#schedule-publish")).toBeVisible();
+    await expect(page.locator("#publish-locale")).toHaveCount(0);
+    await page.keyboard.press("Escape");
     await page.getByRole("button", { name: /^Publish/ }).click();
     await expect(page.getByText(/updated successfully/i).first()).toBeVisible();
 
@@ -319,6 +325,41 @@ test.describe("the admin bootstrap made", () => {
     // The config's `fallback: true`: a language with no text shows the English one.
     const fallback = await request.get(`/api/pages/${id}?locale=de`);
     expect(await fallback.json()).toMatchObject({ title: english.title });
+  });
+
+  test("switching on its own layout per language shows the copied blocks at once (W7 item 2)", async () => {
+    const id = pageId as number;
+    const usp = "Free delivery, both ways";
+    const added = await page.evaluate(
+      ({ id, usp }) =>
+        fetch(`/api/pages/${id}?locale=en`, {
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            layout: [{ blockType: "uspBar", items: [{ icon: "delivery", title: usp }] }],
+            _status: "published",
+          }),
+        }).then((r) => r.status),
+      { id, usp },
+    );
+    expect(added, "the shared layout gets a block").toBe(200);
+    await page.goto(`/admin/collections/pages/${id}?locale=el`);
+    await expect(field(page, "title")).toHaveValue(greek.title);
+    await page.locator("#field-layoutPerLanguage").check();
+    // Typing on while the copy is on its way: the text stays (W7 fixes' review, item 3).
+    const retitled = `${greek.title} ·`;
+    await field(page, "title").fill(retitled);
+    // The autosave copies the block into Greek's own layout on the server, with English's text
+    // (Greek has none); the form shows it without a reload, and keeps it.
+    const copied = page.locator(
+      '#field-localizedLayout input[name="localizedLayout.0.items.0.title"]',
+    );
+    await expect(copied).toHaveValue(usp, { timeout: 15_000 });
+    await page.waitForTimeout(1_500);
+    await expect(copied).toHaveValue(usp);
+    // The autosave rewrote the breadcrumbs with the ids they had, so the form has no empty row.
+    await expect(page.locator("[id^='breadcrumbs-row-']")).toHaveCount(1);
+    await expect(field(page, "title")).toHaveValue(retitled);
   });
 
   test("deletes the page again", async () => {

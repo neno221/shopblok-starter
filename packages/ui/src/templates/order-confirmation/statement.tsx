@@ -44,13 +44,15 @@ function OrderConfirmationStatement(props: OrderConfirmationTemplateProps) {
                 <th scope="col" className={cn(head, "text-start")}>
                   {words.product}
                 </th>
-                <th scope="col" className={cn(head, "w-20 text-end")}>
+                {/* Below `@md` the quantity is a line under the product, so the product's column
+                    keeps a readable width on a phone (W7 review item 8). */}
+                <th scope="col" className={cn(head, "hidden w-20 text-end @md:table-cell")}>
                   {words.quantity}
                 </th>
                 <th scope="col" className={cn(head, "hidden w-28 text-end @lg:table-cell")}>
                   {words.price}
                 </th>
-                <th scope="col" className={cn(head, "w-28 text-end")}>
+                <th scope="col" className={cn(head, "w-24 text-end @md:w-28")}>
                   {words.total}
                 </th>
               </tr>
@@ -68,8 +70,13 @@ function OrderConfirmationStatement(props: OrderConfirmationTemplateProps) {
                         {formatMessage(copy.summary.option, option, locale)}
                       </span>
                     ))}
+                    <span className="block text-muted-foreground @md:hidden">
+                      {formatMessage(copy.summary.quantity, { count: line.quantity }, locale)}
+                    </span>
                   </th>
-                  <td className={cn(cell, "text-end tabular-nums")}>{line.quantity}</td>
+                  <td className={cn(cell, "hidden text-end tabular-nums @md:table-cell")}>
+                    {line.quantity}
+                  </td>
                   <td className={cn(cell, "hidden text-end @lg:table-cell")}>
                     <Price
                       size="sm"

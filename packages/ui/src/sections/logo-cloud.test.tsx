@@ -3,6 +3,7 @@ import { catalogs, LOCALES } from "@shopblok/i18n";
 import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { LogoCloudSection } from "./logo-cloud";
+import { logoGridColumns } from "./logo-cloud/grid";
 
 describe("LogoCloudSection", () => {
   it.each(LOCALES)("names each logo by its brand, under its heading, in %s", (locale) => {
@@ -28,5 +29,15 @@ describe("LogoCloudSection", () => {
       expect(link.textContent).toContain("Opens in a new tab");
       expect(link.className).toContain("min-h-11");
     }
+  });
+});
+
+describe("logoGridColumns (W7 review item 10)", () => {
+  it("fills every row where a count allows it", () => {
+    expect(logoGridColumns(6)).toBe("md:grid-cols-3 lg:grid-cols-3");
+    expect(logoGridColumns(8)).toBe("md:grid-cols-2 lg:grid-cols-4");
+    expect(logoGridColumns(5)).toBe("md:grid-cols-3 lg:grid-cols-5");
+    expect(logoGridColumns(12)).toBe("md:grid-cols-3 lg:grid-cols-4");
+    expect(logoGridColumns(2)).toBe("md:grid-cols-2 lg:grid-cols-2");
   });
 });

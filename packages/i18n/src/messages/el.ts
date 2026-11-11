@@ -156,7 +156,7 @@ export const el: Messages = {
       fallback: "Επιλέξτε τον κωδικό και αντιγράψτε τον",
     },
     countdownTimer: {
-      label: "Η προσφορά λήγει στις {date}",
+      label: "Η προσφορά λήγει {date}",
       ended: "Η προσφορά έχει λήξει",
     },
     // T34: cart, checkout and account.
@@ -563,7 +563,7 @@ export const el: Messages = {
       continue: "Συνέχεια αγορών",
       picksTitle: "Μπορεί επίσης να σας αρέσουν",
       pickAdd: "Προσθήκη",
-      pickAddLabel: "Προσθήκη του {product} στο καλάθι",
+      pickAddLabel: "Προσθήκη στο καλάθι: {product}",
       pickChoice: "Επιλογές για {product}",
     },
     quickCartDropdown: {
@@ -926,8 +926,8 @@ export const el: Messages = {
         },
         delivery: {
           title: "Ετοιμάζουμε την παραγγελία σας",
-          text: "Θα σταλεί με {method} στην πόλη {city}.",
-          textNoCity: "Θα σταλεί με {method}.",
+          text: "Αποστολή προς {city}: {method}",
+          textNoCity: "Τρόπος αποστολής: {method}",
         },
         register: {
           title: "Δημιουργία λογαριασμού",

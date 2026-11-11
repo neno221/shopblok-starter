@@ -226,7 +226,7 @@ export const marketingMoleculeStories = {
     summary:
       "The time left to an offer in days, hours, minutes and seconds, counted from the server's `now` and ticking in the browser, with its end time as text and a line when it is over.",
     a11y: [
-      "A `role=timer` named by the line above it, which says what ends and when as text (“Offer ends Oct 4, 2026, 1:30 PM UTC”), in the time zone it is given and not the reader's. It has `aria-live=off`: it is not announced every second.",
+      "A `role=timer` named by the line above it, which says what ends and when as text (“Offer ends October 4, 2026 at 1:30 PM UTC”), in the time zone it is given and not the reader's. It has `aria-live=off`: it is not announced every second.",
       "The digits are hidden from assistive technology and one sentence says the time (“3 days, 4 hours, 30 minutes, 45 seconds”, from `Intl.ListFormat`, leaving out zeros); the unit names come from `Intl.NumberFormat`'s unit style.",
       "When it reaches zero the timer is replaced by “This offer has ended” in a `role=status` line that was there all along, so it is announced once; the timer stops asking the clock. The end time stays readable as static text for anyone who does not want to watch the seconds (WCAG 2.2.2).",
       "The server renders from the contract's `now`, never the clock (D50); after hydration the browser's clock takes over, so the DS checks set it to the fixtures' now. The boxes are 4 equal columns that keep their size as the digits change.",

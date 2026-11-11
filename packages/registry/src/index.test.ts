@@ -390,7 +390,7 @@ describe("defineEntries", () => {
         id: "organisms/header-classic",
         group: "organisms",
         kind: "organism",
-        label: "Classic",
+        label: "Header · Classic",
         family: "header",
         variant: "classic",
       },
@@ -406,6 +406,30 @@ describe("defineEntries", () => {
 });
 
 describe("variantsOf", () => {
+  it("names every option in words, the first design too (W7 review items 3 and 5)", () => {
+    const families = new Set(entries.flatMap((entry) => (entry.family ? [entry.family] : [])));
+    for (const family of families)
+      for (const option of variantsOf(family)) {
+        expect(option.label, `${family}/${option.value}`).toMatch(/^[^·]+ · [^·]+$/);
+        // No component's name (`ProductCard`, `QuickViewDialog`): no capital inside a word.
+        expect(option.label, `${family}/${option.value}`).not.toMatch(/[a-z][A-Z]/);
+      }
+    const labels = (family: string) => variantsOf(family).map((option) => option.label);
+    expect(labels("hero").slice(0, 3)).toEqual([
+      "Hero · Standard",
+      "Hero · Overlay",
+      "Hero · Centered",
+    ]);
+    expect(labels("product-detail")).toContain("Product page · Centered");
+    expect(labels("product-card")).toContain("Product card · Quick add");
+    expect(labels("quick-view")).toEqual([
+      "Quick view · Dialog",
+      "Quick view · Drawer",
+      "Quick view · Compact",
+    ]);
+    expect(labels("mini-cart")).toEqual(["Mini cart · Drawer", "Mini cart · Picks"]);
+  });
+
   it("lists the six headers of SPEC §9.4 (D46), in its order", () => {
     expect(variantsOf("header").map((option) => option.value)).toEqual([
       "classic",
@@ -452,14 +476,14 @@ describe("variantsOf", () => {
     ]);
     expect(variantsOf("product-card")[0]).toEqual({
       value: "standard",
-      label: "ProductCard · Standard",
+      label: "Product card · Standard",
       thumbnail: "/registry/molecules/product-card-standard.png",
     });
   });
 
   it("lists each block's variants, `standard` first (D79, D99)", () => {
     expect(variantsOf("faq")).toEqual([
-      { value: "standard", label: "FAQ", thumbnail: "/registry/sections/faq.png" },
+      { value: "standard", label: "FAQ · Standard", thumbnail: "/registry/sections/faq.png" },
       {
         value: "side-heading",
         label: "FAQ · Side heading",
@@ -502,7 +526,7 @@ describe("variantsOf", () => {
         id: "headers-footers/header-classic",
         group: "headers-footers",
         kind: "organism",
-        label: "Classic",
+        label: "Header · Classic",
         family: "header",
         variant: "classic",
       },
@@ -518,7 +542,7 @@ describe("variantsOf", () => {
         id: "headers-footers/header-centered",
         group: "headers-footers",
         kind: "organism",
-        label: "Centered",
+        label: "Header · Centered",
         family: "header",
         variant: "centered",
       },
@@ -526,12 +550,12 @@ describe("variantsOf", () => {
     expect(variantsOf("header", list)).toEqual([
       {
         value: "classic",
-        label: "Classic",
+        label: "Header · Classic",
         thumbnail: "/registry/headers-footers/header-classic.png",
       },
       {
         value: "centered",
-        label: "Centered",
+        label: "Header · Centered",
         thumbnail: "/registry/headers-footers/header-centered.png",
       },
     ]);

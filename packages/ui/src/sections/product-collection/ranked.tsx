@@ -53,7 +53,7 @@ function ProductCollectionRanked(props: ProductCollectionSectionProps) {
                 <span
                   aria-hidden="true"
                   data-slot="product-rank-number"
-                  className="w-12 shrink-0 text-center text-4xl font-semibold text-muted-foreground tabular-nums md:w-16 md:text-5xl"
+                  className="w-8 shrink-0 text-center text-3xl font-semibold text-muted-foreground tabular-nums md:w-16 md:text-5xl"
                 >
                   {rank}
                 </span>
@@ -61,7 +61,7 @@ function ProductCollectionRanked(props: ProductCollectionSectionProps) {
                   product={product}
                   sizes="96px"
                   aspect="tall"
-                  className="w-20 shrink-0 md:w-24"
+                  className="w-16 shrink-0 md:w-24"
                 />
                 <div className="flex min-w-0 flex-1 flex-col gap-1.5">
                   <h3
@@ -76,10 +76,12 @@ function ProductCollectionRanked(props: ProductCollectionSectionProps) {
                       <VisuallyHidden>
                         {formatMessage(copy.productCollection.rank, { rank }, locale)}:{" "}
                       </VisuallyHidden>
-                      {/* Clamped as the card's title is (CardTitle); the link's name is the whole. */}
+                      {/* Clamped as the card's title is (CardTitle), to three lines, since the row
+                          leaves a narrow column on a phone (W7 review item 9); the link's name is
+                          the whole. */}
                       <span
                         data-truncate=""
-                        className="line-clamp-2 wrap-anywhere group-hover/card:underline"
+                        className="line-clamp-3 wrap-anywhere group-hover/card:underline"
                       >
                         {product.title}
                       </span>

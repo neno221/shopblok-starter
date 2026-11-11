@@ -43,12 +43,22 @@ const CART_PAGE: GlobalData = {
 
 const PRODUCT = `/us/products/${HANDLE}`;
 
-/** The template root on the page, and the member it says it is. */
-const expectRoot = async (page: Page, template: string) =>
-  expect(page.locator(`[data-slot="${template}-template"]:visible`)).toHaveAttribute(
-    "data-variant",
-    "default",
-  );
+/**
+ * The template root on the page, and the member it says it is, by the page's second read (T61's
+ * rule): a page's first read after a publish may still draw what an earlier spec published last
+ * (`variants.spec.ts` publishes every family's last member before its restore; W7 review item 18),
+ * and starts the refresh, so a page that draws another member is read once more after a pause. Each
+ * page here is a GET that changes nothing, so reading it again is safe.
+ */
+const expectRoot = async (page: Page, template: string) => {
+  const root = page.locator(`[data-slot="${template}-template"]:visible`);
+  await expect(root).toHaveAttribute("data-variant", /.+/);
+  if ((await root.getAttribute("data-variant")) !== "default") {
+    await new Promise((resolve) => setTimeout(resolve, 1_500));
+    await page.reload();
+  }
+  await expect(root).toHaveAttribute("data-variant", "default");
+};
 
 /** Whether the product page's HTML gives the header's cart these pickers (its island's props). */
 const pickersOn = async (miniCart: string, quickCart: string) => {

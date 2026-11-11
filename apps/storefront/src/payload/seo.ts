@@ -71,11 +71,16 @@ export const generateImage: GenerateImage = async ({ doc, locale, req }) => {
   return idOf((await siteSettings(req, locale)).seo?.image) ?? "";
 };
 
-/** The document's address in the market the language is previewed in (live preview's, D74). */
-export const generateURL: GenerateURL = async ({ collectionConfig, doc, locale, req }) => {
+/**
+ * The document's address in the market the language is previewed in (live preview's, D74, which
+ * gives the homepage the market's home). The plugin's preview sends the document's id beside the
+ * form's data, which has none (W7 fixes' review, item 1).
+ */
+export const generateURL: GenerateURL = async ({ collectionConfig, doc, id, locale, req }) => {
   const slug = collectionConfig?.slug;
   const language = locale ?? DEFAULT_LOCALE;
-  const data = (doc ?? {}) as Record<string, unknown>;
+  const form = (doc ?? {}) as Record<string, unknown>;
+  const data = { ...form, id: id ?? form["id"] };
   const path =
     slug === "pages"
       ? await pagePreviewPath(req.payload, data, language)
