@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   breadcrumbsOf,
   keepPageWithChildren,
+  keepRowIds,
   nestedPageFields,
   populateBreadcrumbs,
   resaveInEveryLanguage,
@@ -99,6 +100,21 @@ describe("breadcrumbsOf", () => {
     ];
     const { req } = fakeRequest(loop);
     expect(await breadcrumbsOf(req, { id: 1, slug: "a", title: "A", parent: 2 })).toHaveLength(2);
+  });
+});
+
+describe("keepRowIds", () => {
+  it("gives each row the id its language's row in that place had, and new rows none", () => {
+    const rows = [
+      { doc: 1, label: "A" },
+      { doc: 2, label: "B" },
+    ];
+    expect(keepRowIds(rows, [{ id: "a1", doc: 1, label: "Old" }])).toEqual([
+      { id: "a1", doc: 1, label: "A" },
+      { doc: 2, label: "B" },
+    ]);
+    expect(keepRowIds(rows, undefined)).toEqual(rows);
+    expect(keepRowIds(rows, [null, { label: "no id" }])).toEqual(rows);
   });
 });
 

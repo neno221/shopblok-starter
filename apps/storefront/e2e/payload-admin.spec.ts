@@ -354,6 +354,8 @@ test.describe("the admin bootstrap made", () => {
     await expect(copied).toHaveValue(usp, { timeout: 15_000 });
     await page.waitForTimeout(1_500);
     await expect(copied).toHaveValue(usp);
+    // The autosave rewrote the breadcrumbs with the ids they had, so the form has no empty row.
+    await expect(page.locator("[id^='breadcrumbs-row-']")).toHaveCount(1);
     await expect(field(page, "title")).toHaveValue(greek.title);
   });
 
