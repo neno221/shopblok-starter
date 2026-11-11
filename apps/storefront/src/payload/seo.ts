@@ -13,6 +13,7 @@ import type {
   GenerateURL,
 } from "@payloadcms/plugin-seo/types";
 import type { Field, GroupField, PayloadRequest } from "payload";
+import { pageIdOf } from "../lib/cms/page-path";
 import { CMS_PATHS } from "../lib/cms/paths";
 import { buildPublicUrl } from "../lib/markets/url";
 import { applyTitleTemplate, titleTemplateOf } from "../lib/seo/meta";
@@ -34,6 +35,7 @@ import { idOf } from "./id-of";
 
 type SiteSettingsSeo = {
   storeName?: unknown;
+  homepage?: unknown;
   seo?: { titleTemplate?: unknown; description?: unknown; image?: unknown } | null;
 };
 
@@ -71,14 +73,26 @@ export const generateImage: GenerateImage = async ({ doc, locale, req }) => {
   return idOf((await siteSettings(req, locale)).seo?.image) ?? "";
 };
 
-/** The document's address in the market the language is previewed in (live preview's, D74). */
+/** Whether `data` is the page the site settings name as the homepage, which lives at `{m}/`. */
+async function isHomepage(req: PayloadRequest, data: Record<string, unknown>, language: string) {
+  if (data["id"] === undefined || data["id"] === null) return false;
+  const home = pageIdOf((await siteSettings(req, language)).homepage);
+  return home !== null && String(home) === String(data["id"]);
+}
+
+/**
+ * The document's address in the market the language is previewed in (live preview's, D74); the
+ * homepage's is the market's home (`/`, `/us`), not its slug's (W7 review item 16).
+ */
 export const generateURL: GenerateURL = async ({ collectionConfig, doc, locale, req }) => {
   const slug = collectionConfig?.slug;
   const language = locale ?? DEFAULT_LOCALE;
   const data = (doc ?? {}) as Record<string, unknown>;
   const path =
     slug === "pages"
-      ? await pagePreviewPath(req.payload, data, language)
+      ? (await isHomepage(req, data, language))
+        ? "/"
+        : await pagePreviewPath(req.payload, data, language)
       : slug === undefined
         ? null
         : (CMS_PATHS[slug]?.(data) ?? null);

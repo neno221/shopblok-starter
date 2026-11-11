@@ -14,6 +14,7 @@ import {
 import { pageTags } from "../../lib/cms/tags";
 import { LAYOUT_BLOCKS, localizedLayoutBlocks } from "../blocks";
 import { copyLayoutIntoOtherLanguages, copyLayoutOnSwitch } from "../hooks/layout-per-language";
+import { PUBLISH_ALL_BUTTON } from "../publish-all";
 
 // `pages:<locale>` for the reads of one language, `payload:pages` for every reader.
 const revalidate = revalidateOnPublish({ tags: pageTags });
@@ -29,6 +30,7 @@ export const Pages: CollectionConfig = {
   admin: {
     useAsTitle: "title",
     defaultColumns: ["title", "slug", "_status", "translationStatus", "updatedAt"],
+    components: { edit: { PublishButton: PUBLISH_ALL_BUTTON } },
   },
   access: {
     // A visitor sees published pages only; staff see drafts as well.

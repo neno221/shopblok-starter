@@ -8,6 +8,7 @@ import { postSlugField } from "../fields/slug";
 import { keepRefusalReason } from "../hooks/keep-refusal-reason";
 import { revalidateOnPublish } from "../hooks/revalidate-on-publish";
 import { postTags } from "../../lib/cms/tags";
+import { PUBLISH_ALL_BUTTON } from "../publish-all";
 
 // `posts:<locale>` for the reads of one language, `payload:posts` for every reader. A page whose
 // `editorialList` block lists posts reads them through the same tagged reads (`lib/cms/posts.ts`),
@@ -25,6 +26,7 @@ export const Posts: CollectionConfig = {
   admin: {
     useAsTitle: "title",
     defaultColumns: ["title", "slug", "publishedAt", "_status", "translationStatus", "updatedAt"],
+    components: { edit: { PublishButton: PUBLISH_ALL_BUTTON } },
   },
   defaultSort: "-publishedAt",
   access: {

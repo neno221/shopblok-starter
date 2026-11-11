@@ -104,9 +104,9 @@ async function switchLocale(page: Page, code: string) {
 }
 
 /**
- * "Publish changes": Payload 3.92 publishes every language at once and checks each language's
- * required fields, its "Publish in English" too (`publishAllLocales` without `localizeStatus`), so
- * the new blocks' required texts are written in German and French as well (SETUP.md, T63, T71).
+ * "Publish changes": Payload publishes every language at once and checks each language's required
+ * fields (the button has no "Publish in English" since the W7 fixes, D106 being off), so the new
+ * blocks' required texts are written in German and French as well (SETUP.md, T63, T71).
  */
 async function publish(page: Page) {
   await page.locator("#action-save").click();

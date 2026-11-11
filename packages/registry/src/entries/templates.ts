@@ -140,7 +140,7 @@ export const templates = [
   detail("grid", "Grid", "ProductDetailGrid"),
   detail("stacked", "Stacked", "ProductDetailStacked"),
   detail("wide", "Wide", "ProductDetailWide"),
-  detail("centered", "Centred", "ProductDetailCentered"),
+  detail("centered", "Centered", "ProductDetailCentered"),
   // T50: the listing pages and the search page.
   first(
     "product-listing",

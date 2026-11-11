@@ -292,6 +292,12 @@ test.describe("the admin bootstrap made", () => {
     await expect(field(page, "title")).toHaveValue("");
     await field(page, "title").fill(greek.title);
     await field(page, "slug").fill(greek.slug);
+    // Publishing is every language at once (D106 off): the button's menu schedules, but offers
+    // no "Publish in Ελληνικά" (W7 review item 17).
+    await page.locator(".btn--withPopup .popup-button").first().click();
+    await expect(page.locator("#schedule-publish")).toBeVisible();
+    await expect(page.locator("#publish-locale")).toHaveCount(0);
+    await page.keyboard.press("Escape");
     await page.getByRole("button", { name: /^Publish/ }).click();
     await expect(page.getByText(/updated successfully/i).first()).toBeVisible();
 

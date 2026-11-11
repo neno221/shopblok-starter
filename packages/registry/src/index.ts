@@ -122,6 +122,36 @@ export function sectionEntries(list: readonly RegistryEntry[] = entries): Regist
   });
 }
 
+/**
+ * A family's name in the pickers where the DS names its entries by their component
+ * (`ProductCard · Quick add`): an editor reads words (W7 review item 3).
+ */
+const PICKER_FAMILY_NAMES: Readonly<Record<string, string>> = {
+  "product-card": "Product card",
+  "quick-view": "Quick view",
+  "mini-cart": "Mini cart",
+};
+
+/**
+ * The first member's design in the pickers, whose DS label is the family's name alone (`Hero`):
+ * "Standard", or a word that says what it is where "Standard" would not (W7 review item 5).
+ */
+const PICKER_FIRST_NAMES: Readonly<Record<string, string>> = {
+  "quick-view": "Dialog",
+  "mini-cart": "Drawer",
+};
+
+/**
+ * An entry's name in the Payload pickers: "<family> · <design>" for every member, the first too
+ * (`Hero · Standard`, `Header · Classic`), with the family in words (`Product card · Quick add`).
+ * The DS keeps its own labels (`Hero`, `ProductCard · Quick add`), which name its pages.
+ */
+export function pickerLabel(entry: RegistryEntry): string {
+  const [name = entry.label, design] = entry.label.split(" · ");
+  const family = (entry.family && PICKER_FAMILY_NAMES[entry.family]) ?? name;
+  return `${family} · ${design ?? (entry.family && PICKER_FIRST_NAMES[entry.family]) ?? "Standard"}`;
+}
+
 /** What the Payload pickers list for `family` (D46): each variant's value, label and thumbnail. */
 export function variantsOf(
   family: string,
@@ -129,7 +159,7 @@ export function variantsOf(
 ): VariantOption[] {
   return list.flatMap((entry) =>
     entry.family === family && entry.variant !== undefined && entry.thumbnail !== undefined
-      ? [{ value: entry.variant, label: entry.label, thumbnail: entry.thumbnail }]
+      ? [{ value: entry.variant, label: pickerLabel(entry), thumbnail: entry.thumbnail }]
       : [],
   );
 }
