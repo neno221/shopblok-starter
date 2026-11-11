@@ -66,7 +66,8 @@ describe("HeaderTransparent: its look", () => {
     expect(solid()).toBe("false");
     const scrim = slot("header-scrim") as HTMLElement;
     expect(scrim.getAttribute("aria-hidden")).toBe("true");
-    expect(scrim.className).toContain("bg-overlay");
+    // The `overlay` scrim behind the row, fading out below it (W7 review item 15).
+    expect(scrim.className).toContain("from-overlay");
     expect(scrim.className).toContain("header-solid:hidden");
     const surface = slot("header-surface") as HTMLElement;
     expect(surface.className).toContain("header-clear:text-overlay-foreground");

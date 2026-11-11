@@ -66,7 +66,7 @@ function HeaderTransparent({ solid, ...props }: HeaderTransparentProps) {
           <div
             aria-hidden="true"
             data-slot="header-scrim"
-            className="pointer-events-none absolute inset-x-0 top-0 h-[calc(100%+6rem)] bg-[linear-gradient(to_bottom,var(--color-overlay)_0%,var(--color-overlay)_40%,color-mix(in_srgb,var(--color-overlay)_55%,transparent)_62%,color-mix(in_srgb,var(--color-overlay)_20%,transparent)_82%,transparent_100%)] header-solid:hidden"
+            className="pointer-events-none absolute inset-x-0 top-0 h-[calc(100%+6rem)] bg-linear-to-b from-overlay from-40% via-overlay/45 via-65% to-transparent header-solid:hidden"
           />
           <div
             data-slot="header-row"

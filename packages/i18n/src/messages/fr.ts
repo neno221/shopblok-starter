@@ -719,7 +719,7 @@ export const fr: Messages = {
       previous: "Catégories précédentes",
       next: "Catégories suivantes",
     },
-    bundle: { total: "Ensemble" },
+    bundle: { total: "Total du lot" },
     featuredProduct: { view: "Voir le produit" },
     promoBanner: { ends: "L’offre se termine le {date}", close: "Fermer" },
     comparison: { price: "Prix", missing: "Non précisé", pick: "Notre choix" },
@@ -922,8 +922,8 @@ export const fr: Messages = {
         },
         delivery: {
           title: "Nous préparons votre commande",
-          text: "Elle part par {method} à destination de {city}.",
-          textNoCity: "Elle part par {method}.",
+          text: "Livraison à {city} : {method}",
+          textNoCity: "Mode de livraison : {method}",
         },
         register: {
           title: "Créer un compte",
@@ -932,7 +932,7 @@ export const fr: Messages = {
         },
         "account-order": {
           title: "Suivre votre commande",
-          text: "Votre compte indique où elle en est et la suite.",
+          text: "Votre compte montre où en est votre commande et ce qui vient ensuite.",
           action: "Voir la commande",
         },
       },

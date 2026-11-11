@@ -912,13 +912,13 @@ export const de: Messages = {
       nextSteps: {
         title: "So geht es weiter",
         email: {
-          title: "Sehen Sie in Ihr E-Mail-Postfach",
+          title: "Sehen Sie in Ihrem Postfach nach",
           text: "Die Bestätigung ist unterwegs an {email}.",
         },
         delivery: {
           title: "Wir bereiten Ihre Bestellung vor",
-          text: "Sie geht per {method} nach {city}.",
-          textNoCity: "Sie geht per {method}.",
+          text: "Lieferung nach {city}: {method}",
+          textNoCity: "Versandart: {method}",
         },
         register: {
           title: "Konto anlegen",
