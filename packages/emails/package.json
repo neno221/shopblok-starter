@@ -2,18 +2,46 @@
   "name": "@shopblok/emails",
   "version": "0.0.0",
   "private": true,
-  "description": "React Email layouts; the copy comes from Payload. Exports TypeScript source: no build step (D3). A placeholder in M0.",
+  "description": "The e-mails' HTML (M6 D121): React Email layouts in one frame, Payload's rich text as React elements, and render() with HTML and a plain-text part. Built with tsup, CommonJS and ESM in dist/, for the backend (CommonJS) and the storefront: the second exception to D3, after the markets plugin.",
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
   },
+  "files": [
+    "dist"
+  ],
   "scripts": {
+    "prepare": "tsup",
+    "build": "tsup",
+    "dev": "tsup --watch",
     "typecheck": "tsc",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@react-email/render": "2.3.1",
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
   },
   "devDependencies": {
     "@shopblok/config": "workspace:*",
+    "@shopblok/fixtures": "workspace:*",
+    "@shopblok/ui": "workspace:*",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
     "eslint": "9.39.5",
-    "typescript": "5.9.3"
+    "tsup": "9.0.0",
+    "typescript": "5.9.3",
+    "vite": "8.3.3",
+    "vitest": "5.0.3"
   }
 }

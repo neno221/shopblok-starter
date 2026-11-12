@@ -25,6 +25,7 @@ const kinds = {
   "headers-footers": "organism",
   sections: "section",
   templates: "template",
+  emails: "email",
 } as const;
 
 const testEntry = (id: string, group: DsEntry["group"] = "atoms"): DsEntry => ({
@@ -145,6 +146,7 @@ describe("navigation", () => {
       "headers-footers",
       "sections",
       "templates",
+      "emails",
     ]);
     const foundationsOnly = navigation([testEntry("foundations/b", "foundations")]);
     expect(foundationsOnly.map((section) => section.group)).toEqual(["foundations"]);

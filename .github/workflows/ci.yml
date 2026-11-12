@@ -551,6 +551,9 @@ jobs:
           command: start
           url: http://localhost:8000/
         env:
+          # T98: resend.spec.ts sends Payload's e-mail through `/next/e2e/email` (Resend's test
+          # addresses only).
+          E2E_TEST_ROUTES: "true"
           NEXT_PUBLIC_STRIPE_KEY: ${{ secrets.NEXT_PUBLIC_STRIPE_KEY }}
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           RESEND_FROM_EMAIL: ${{ vars.RESEND_FROM_EMAIL }}

@@ -22,9 +22,11 @@ import {
   orphanRegions,
   orphanRegionsCheck,
   payloadAuthCheck,
+  resendDomainCheck,
   searchCurrencies,
   searchFieldOf,
   searchIndexCheck,
+  senderDomain,
   type Context,
 } from "./lib/doctor-checks.ts";
 import { databaseFailed, serverCheck, serviceChecks } from "./lib/doctor-services.ts";
@@ -36,6 +38,7 @@ import {
   INTEGRATION_KEYS,
   isSet,
   type AppEnvs,
+  type AppName,
   type EnvLike,
   type IntegrationStatus,
 } from "@shopblok/integrations";
@@ -68,7 +71,8 @@ Checks the setup and says which integrations are on. Writes nothing. (Run it as 
 
   --online   also call the running servers with the keys: Payload accepts the integrations key, and
              Medusa's regions, locales and search index match the market map (and, with a local
-             backend running, the markets are read from GET /admin/markets as the bootstrap admin)
+             backend running, the markets are read from GET /admin/markets as the bootstrap admin);
+             with Resend's keys, RESEND_FROM_EMAIL's domain is verified with Resend
   --json     print the result as JSON (no secrets in it) and nothing else
   --strict   a warning fails the run too (the go-live check: SPEC §16, item 8)
   -h, --help this text
@@ -283,6 +287,9 @@ async function main(): Promise<number> {
     const seeded = "error" in backendFile ? undefined : readBackendMarkets(backendFile.exports);
     checks.push(
       ...(await onlineChecks(online, medusaUrl, typeof seeded === "object" ? seeded : undefined)),
+      ...(await online.resend).map(({ apps, from, answer }) =>
+        resendDomainCheck(apps, from, answer, envs),
+      ),
     );
   }
 
@@ -303,6 +310,8 @@ type OnlineRequests = {
   medusa: Promise<{ regions: HttpResult; locales: HttpResult } | undefined>;
   /** Meilisearch's `GET /stats`, when the backend searches with it (T94). */
   meilisearch: { host: string; prefix: string | undefined; stats: Promise<HttpResult> } | undefined;
+  /** Resend's domains, per app whose Resend keys are set (T98); `undefined` for its test sender. */
+  resend: Promise<{ apps: AppName[]; from: string | undefined; answer: HttpResult | undefined }[]>;
 };
 
 /**
@@ -351,7 +360,44 @@ function startOnlineRequests(
             }),
             request(`${medusaUrl}/store/locales`, { headers, timeoutMs: 15_000 }),
           ]).then(([regions, locales]) => ({ regions, locales })),
+    resend: resendDomains(envs, statuses),
   };
+}
+
+/**
+ * Resend's `GET /domains`, for the apps whose Resend part is set (both apps send e-mail: Medusa's
+ * notifications, Payload's adapter). Apps with the same key and sender share one request and one
+ * check; Resend's test sender, which is no account's domain, needs none. `RESEND_BASE_URL` points it
+ * at a fake.
+ */
+function resendDomains(
+  envs: AppEnvs,
+  statuses: readonly IntegrationStatus[],
+): OnlineRequests["resend"] {
+  const base = trimSlash(process.env.RESEND_BASE_URL?.trim() || "https://api.resend.com");
+  const parts = statuses.find((status) => status.id === "resend")?.parts ?? [];
+  const senders = new Map<string, { apps: AppName[]; key: string; from: string | undefined }>();
+  for (const { app } of parts.filter((part) => part.configured)) {
+    const key = (envs[app].RESEND_API_KEY ?? "").trim();
+    const from = envs[app].RESEND_FROM_EMAIL?.trim();
+    const id = JSON.stringify([key, from]);
+    const sender = senders.get(id) ?? { apps: [], key, from };
+    sender.apps.push(app);
+    senders.set(id, sender);
+  }
+  return Promise.all(
+    [...senders.values()].map(async ({ apps, key, from }) => {
+      const domain = senderDomain(from);
+      const answer =
+        domain === undefined || domain === "resend.dev"
+          ? undefined
+          : await request(`${base}/domains`, {
+              headers: { Authorization: `Bearer ${key}` },
+              timeoutMs: 15_000,
+            });
+      return { apps, from, answer };
+    }),
+  );
 }
 
 async function onlineChecks(

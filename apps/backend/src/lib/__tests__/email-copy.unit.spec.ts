@@ -13,6 +13,7 @@ import {
   type TemplateSource,
 } from "../email-copy";
 import { sendStorefrontLink } from "../storefront-mail";
+import { paragraphs } from "@shopblok/emails";
 
 /**
  * T70 (D84): the e-mails' copy from Payload, the built-in English when Payload does not answer,
@@ -163,7 +164,18 @@ describe("createEmailCopy", () => {
       cta: "Επιβεβαίωση",
       language: "el",
       source: "payload",
+      // The copy as written, for the HTML layouts (M6 D121): the variables are not filled here.
+      template: { ...greek, body: greek.body },
     });
+  });
+
+  it("hands the layouts the built-in English body as paragraphs when Payload's is empty (D121)", async () => {
+    const source = async () => ({ ...greek, body: lexical(paragraph(text("  "))) });
+    const copy = await createEmailCopy({ source }).copyFor("verify-email", "el", values);
+    expect(copy.template.body).toEqual(paragraphs(BUILT_IN["verify-email"].body));
+    expect(copy.text).toBe(
+      "Hello,\n\nPlease confirm that anna@example.com is your address by opening the link below. The link works once.",
+    );
   });
 
   it("asks Payload once for e-mails that miss the same key at the same time", async () => {
@@ -274,7 +286,9 @@ describe("sendStorefrontLink with Payload down (T70)", () => {
           ? { admin: { storefrontUrl: "https://shop.example" } }
           : key === Modules.NOTIFICATION
             ? { createNotifications }
-            : logger,
+            : key === Modules.STORE
+              ? { listStores: async () => [{ name: "Shopbloks Starter" }] }
+              : logger,
     };
     await sendStorefrontLink(container as never, {
       to: "anna@example.com",
@@ -294,6 +308,14 @@ describe("sendStorefrontLink with Payload down (T70)", () => {
           subject: "Reset your password",
           heading: "Reset your password",
           language: "en",
+        }),
+        // M6 (D121): the same copy laid out by @shopblok/emails, for the Resend provider.
+        content: expect.objectContaining({
+          subject: "Reset your password",
+          html: expect.stringContaining('href="https://shop.example/us/reset-password?token=t"'),
+          text: expect.stringContaining(
+            "Choose a new password:\nhttps://shop.example/us/reset-password?token=t",
+          ),
         }),
       }),
     );

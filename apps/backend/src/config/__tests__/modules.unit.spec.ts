@@ -119,6 +119,41 @@ describe("buildModules", () => {
         ]);
       }
     });
+
+    describe("Resend (M6 D121)", () => {
+      const RESEND_ENV = {
+        RESEND_API_KEY: " re_test_key ",
+        RESEND_FROM_EMAIL: " shop@example.com ",
+      };
+
+      it("takes the email channel from the local provider with both keys, trimmed", () => {
+        expect(entry(RESEND_ENV, NOTIFICATION).options.providers).toEqual([
+          {
+            resolve: "@medusajs/medusa/notification-local",
+            id: "local",
+            options: { name: "Local Notification Provider", channels: ["feed"] },
+          },
+          {
+            resolve: "./src/modules/resend",
+            id: "resend",
+            options: { channels: ["email"], api_key: "re_test_key", from: "shop@example.com" },
+          },
+        ]);
+      });
+
+      it.each([
+        { RESEND_API_KEY: "re_test_key" },
+        { RESEND_FROM_EMAIL: "shop@example.com" },
+        { RESEND_API_KEY: "re_test_key", RESEND_FROM_EMAIL: " " },
+      ])("leaves email on the console without both keys (%j)", (env) => {
+        const providers = entry(env, NOTIFICATION).options.providers ?? [];
+        expect(providers.map((provider) => provider.id)).toEqual(["local"]);
+        expect(providers[0]?.options).toEqual({
+          name: "Local Notification Provider",
+          channels: ["email", "feed"],
+        });
+      });
+    });
   });
 
   describe("payload (D75)", () => {

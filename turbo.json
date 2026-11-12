@@ -44,6 +44,14 @@
       "persistent": true,
       "passThroughEnv": ["PAYLOAD_*", "MEDUSA_BACKEND_URL", "STOREFRONT_*"]
     },
+    // PR 135 review, item 3: the e-mails' `tsup --watch` starts after their own build, so the two
+    // never write `dist/` at once (the build cleans it first) while the apps wait on `^build`.
+    "@shopblok/emails#dev": {
+      "dependsOn": ["build"],
+      "cache": false,
+      "persistent": true,
+      "passThroughEnv": ["PAYLOAD_*", "MEDUSA_BACKEND_URL", "STOREFRONT_*"]
+    },
     "transit": {
       "dependsOn": ["^transit"]
     },
@@ -57,15 +65,25 @@
       "dependsOn": ["transit"]
     },
     // The backend's tests and type check load the markets plugin, which exists only once built
-    // (T73, D89). This package is the one exception to D3 ("no build step in packages/*").
+    // (T73, D89). This package was the one exception to D3 ("no build step in packages/*"); the
+    // e-mails package is the second (M6 D121): both apps load it from its `dist/`.
     "@shopblok/backend#typecheck": {
-      "dependsOn": ["transit", "@shopblok/medusa-markets#build"]
+      "dependsOn": ["transit", "@shopblok/medusa-markets#build", "@shopblok/emails#build"]
     },
     "@shopblok/backend#lint": {
-      "dependsOn": ["transit", "@shopblok/medusa-markets#build"]
+      "dependsOn": ["transit", "@shopblok/medusa-markets#build", "@shopblok/emails#build"]
     },
     "@shopblok/backend#test": {
-      "dependsOn": ["transit", "@shopblok/medusa-markets#build"]
+      "dependsOn": ["transit", "@shopblok/medusa-markets#build", "@shopblok/emails#build"]
+    },
+    "@shopblok/storefront#typecheck": {
+      "dependsOn": ["transit", "@shopblok/emails#build"]
+    },
+    "@shopblok/storefront#lint": {
+      "dependsOn": ["transit", "@shopblok/emails#build"]
+    },
+    "@shopblok/storefront#test": {
+      "dependsOn": ["transit", "@shopblok/emails#build"]
     },
     "db:migrate": {
       "cache": false
