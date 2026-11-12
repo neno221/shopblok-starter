@@ -1,5 +1,12 @@
-import type { MedusaNextFunction, MedusaRequest, MedusaResponse } from "@medusajs/framework/http";
-import { ContainerRegistrationKeys, Modules } from "@medusajs/framework/utils";
+import type {
+  MedusaNextFunction,
+  MedusaRequest,
+  MedusaResponse,
+} from "@medusajs/framework/http";
+import {
+  ContainerRegistrationKeys,
+  Modules,
+} from "@medusajs/framework/utils";
 
 import { DEFAULT_LOCALE, storeLocales } from "../../../search/helpers/translations";
 
@@ -65,7 +72,8 @@ export async function localizeStoreSearch(
 
   if (body) {
     const search = req.scope.resolve(Modules.SEARCH, { allowUnregistered: true }) as
-      { getIndex(entity: string): { provider: string } } | undefined;
+      | { getIndex(entity: string): { provider: string } }
+      | undefined;
     const locale = chooseSearchLocale(
       (req as { locale?: string }).locale,
       await storeLocales(req.scope.resolve(ContainerRegistrationKeys.QUERY)),

@@ -95,13 +95,7 @@ describe("storeLocales", () => {
 describe("readTexts", () => {
   it("reads each locale once for the batch, selecting the nested objects' ids", async () => {
     const graph = jest.fn(async (_input: unknown, { locale }: { locale: string }) => ({
-      data: [
-        {
-          id: "prod_1",
-          title: `title ${locale}`,
-          categories: [{ id: "c", name: `cat ${locale}` }],
-        },
-      ],
+      data: [{ id: "prod_1", title: `title ${locale}`, categories: [{ id: "c", name: `cat ${locale}` }] }],
     }));
 
     const result = await readTexts({ graph } as never, ["prod_1", "prod_2"], ["en-US", "el-GR"]);
@@ -110,13 +104,7 @@ describe("readTexts", () => {
     // Without the ids, `query.graph(…, { locale })` leaves nested objects untranslated.
     const fields = (graph.mock.calls[0]![0] as { fields: string[] }).fields;
     expect(fields).toEqual(
-      expect.arrayContaining([
-        "categories.id",
-        "collection.id",
-        "tags.id",
-        "options.id",
-        "options.values.id",
-      ]),
+      expect.arrayContaining(["categories.id", "collection.id", "tags.id", "options.id", "options.values.id"]),
     );
     expect(result.get("prod_1")?.get("el-GR")).toMatchObject({
       title: "title el-GR",
@@ -137,9 +125,7 @@ describe("resolveTranslationProductIds", () => {
   /** A context whose `query.graph` answers per entity and records its calls. */
   function contextWith(rows: Record<string, unknown[]>) {
     const graph = jest.fn(async ({ entity }: { entity: string }) => ({ data: rows[entity] ?? [] }));
-    const context = {
-      container: { query: { graph } },
-    } as unknown as SearchTypes.SearchIngestionContext;
+    const context = { container: { query: { graph } } } as unknown as SearchTypes.SearchIngestionContext;
 
     return { context, graph };
   }

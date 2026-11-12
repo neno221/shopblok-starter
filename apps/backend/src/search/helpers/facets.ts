@@ -8,16 +8,16 @@ export type FacetRow = {
   categories?: ({ id?: string | null } | null)[] | null;
   tags?: ({ id?: string | null } | null)[] | null;
   collection_id?: string | null;
-  options?:
-    | ({
-        values?: ({ id?: string | null } | null)[] | null;
-      } | null)[]
-    | null;
+  options?: ({
+    values?: ({ id?: string | null } | null)[] | null;
+  } | null)[] | null;
 };
 
 /** The values that are there, trimmed. */
 export const trimmed = (values: (string | null | undefined)[]) =>
-  values.map((value) => value?.trim()).filter((value): value is string => Boolean(value));
+  values
+    .map((value) => value?.trim())
+    .filter((value): value is string => Boolean(value));
 
 const ids = (values: (string | null | undefined)[]) => [...new Set(trimmed(values))];
 
@@ -27,7 +27,9 @@ export function toFacetIds(row: FacetRow) {
     collection_ids: ids([row.collection_id]),
     tag_ids: ids((row.tags ?? []).map((tag) => tag?.id)),
     option_value_ids: ids(
-      (row.options ?? []).flatMap((option) => (option?.values ?? []).map((value) => value?.id)),
+      (row.options ?? []).flatMap((option) =>
+        (option?.values ?? []).map((value) => value?.id),
+      ),
     ),
   };
 }

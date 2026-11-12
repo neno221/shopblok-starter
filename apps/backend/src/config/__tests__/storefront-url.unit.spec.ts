@@ -28,9 +28,9 @@ describe("marketPrefixFrom", () => {
 
 describe("storefrontLink", () => {
   it("joins the storefront's URL, the market's prefix, the path and the query", () => {
-    expect(
-      storefrontLink("http://localhost:8000", { market: "/us" }, "/verify", { code: "123 456" }),
-    ).toBe("http://localhost:8000/us/verify?code=123+456");
+    expect(storefrontLink("http://localhost:8000", { market: "/us" }, "/verify", { code: "123 456" })).toBe(
+      "http://localhost:8000/us/verify?code=123+456",
+    );
     expect(storefrontLink("https://shop.example/", {}, "/verify", { code: "1" })).toBe(
       "https://shop.example/verify?code=1",
     );

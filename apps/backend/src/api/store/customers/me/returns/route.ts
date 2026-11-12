@@ -42,13 +42,7 @@ export async function POST(
   const country = order.shipping_address?.country_code?.toLowerCase();
   const { data: options } = (await query.graph({
     entity: "shipping_option",
-    fields: [
-      "id",
-      "type.code",
-      "rules.attribute",
-      "rules.value",
-      "service_zone.geo_zones.country_code",
-    ],
+    fields: ["id", "type.code", "rules.attribute", "rules.value", "service_zone.geo_zones.country_code"],
   })) as { data: OptionRow[] };
   const option = options.find(
     (each) =>
