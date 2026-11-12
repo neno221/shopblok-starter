@@ -1,4 +1,4 @@
-import templates from "@shopblok/fixtures/email/templates.json" with { type: "json" };
+import templates from "@shopblok/fixtures/email/templates.json";
 import { describe, expect, it } from "vitest";
 import { EMAIL_TYPES, EMAIL_VARIABLES, paragraphs, render, type EmailInput } from ".";
 

@@ -165,6 +165,18 @@ describe("getIntegrationStatus", () => {
     expect(status.state).toBe("fallback");
   });
 
+  it("Resend is live with its keys in both apps (T98), and its segment is optional", () => {
+    const keys = { RESEND_API_KEY: "re_x", RESEND_FROM_EMAIL: "onboarding@resend.dev" };
+    const resend = byId(getIntegrationStatus({ backend: keys, storefront: keys }), "resend");
+    expect(resend.wired).toBe(true);
+    expect(resend.state).toBe("live");
+    expect(resend.using).toBe("Resend");
+    expect(resend.arrives).toBeUndefined();
+    const half = byId(getIntegrationStatus({ backend: keys, storefront: {} }), "resend");
+    expect(half.state).toBe("fallback");
+    expect(half.half).toBe(true);
+  });
+
   it("the Sentry auth token is optional: the DSNs turn it on, and the token's absence is named", () => {
     const sentry = byId(
       getIntegrationStatus({

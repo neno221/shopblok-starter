@@ -2,6 +2,7 @@ import type { EntryId } from "@shopblok/registry";
 import type { DsStory } from "../types";
 import { atomStories } from "./atoms";
 import { commerceAtomStories } from "./atoms-commerce";
+import { emailStories } from "./emails";
 import { footerStories } from "./footers";
 import { foundationStories } from "./foundations";
 import { headerStories } from "./headers";
@@ -59,4 +60,5 @@ export const stories: Record<EntryId, DsStory> = {
   ...footerStories,
   ...sectionStories,
   ...templateStories,
+  ...emailStories,
 };

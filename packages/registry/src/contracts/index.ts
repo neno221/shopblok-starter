@@ -12,6 +12,7 @@ export * from "./cart";
 export * from "./cart-checkout-account";
 export * from "./checkout";
 export * from "./content";
+export * from "./emails";
 export * from "./facets";
 export * from "./footer";
 export * from "./header";

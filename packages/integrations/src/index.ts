@@ -98,8 +98,8 @@ const SPECS: readonly Spec[] = [
     ],
     live: "Resend",
     fallback: "notification-local (console) and Mailpit",
-    wired: false,
-    arrives: "M6",
+    // T98 (M6 D121): Medusa's `email` channel and Payload's adapter.
+    wired: true,
   },
   {
     id: "posthog",

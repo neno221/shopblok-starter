@@ -30,6 +30,7 @@ import { LIVE_PREVIEW_BREAKPOINTS, livePreviewUrl } from "./payload/live-preview
 import { redirects } from "./payload/redirects";
 import { seo } from "./payload/seo";
 import { DEFAULT_LOCALE, LOCALES } from "./payload/locales";
+import { emailAdapter } from "./payload/email";
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -90,6 +91,8 @@ export default buildConfig({
   // D70, D79: SPEC §7.4's blocks, defined once here; `pages.layout` names them (`blockReferences`).
   blocks: BLOCKS,
   editor: lexicalEditor(),
+  // M6 D121 (T98): Resend with its keys, else Mailpit with SMTP_HOST, else none (`payload/email.ts`).
+  email: emailAdapter(),
   graphQL: { disable: true },
   localization: {
     locales: LOCALES,
