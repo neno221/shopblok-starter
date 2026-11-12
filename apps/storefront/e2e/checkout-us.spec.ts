@@ -1,4 +1,3 @@
-import { expect, test } from "@playwright/test";
 import { catalogs } from "./support/catalogs";
 import {
   addToCart,
@@ -7,6 +6,8 @@ import {
   fillContact,
   withoutScripts,
 } from "./support/purchase";
+// M6 D114 (T93): fails a test on any request to a third party an integration talks to.
+import { expect, test } from "./support/third-party";
 
 // T54 (SPEC §17.1, M3's "keyless E2E in US and CY"): the purchase of `checkout-cy.spec.ts` from
 // `/us`, against `next start` and the seeded Medusa: English copy, a US address (the state and the

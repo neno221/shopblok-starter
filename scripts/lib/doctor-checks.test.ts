@@ -65,6 +65,71 @@ describe("configChecks: a keyless setup after bootstrap", () => {
   });
 });
 
+describe("configChecks: Stripe's live keys outside production (M6 D115)", () => {
+  // Short on purpose: `pnpm check:keys` matches a key of 16 characters or more after its prefix.
+  const withStripe = (backend: Record<string, string>, storefront: Record<string, string>) =>
+    run({
+      backend: { ...bootstrapped.backend, ...backend },
+      storefront: { ...bootstrapped.storefront, ...storefront },
+    });
+
+  it("says nothing about test keys", () => {
+    const checks = withStripe(
+      { STRIPE_API_KEY: "sk_test_fake", STRIPE_WEBHOOK_SECRET: "stand-in" },
+      { NEXT_PUBLIC_STRIPE_KEY: "pk_test_fake" },
+    );
+    expect(find(checks, "stripe-live-key")).toBeUndefined();
+  });
+
+  it("errors on a live secret, restricted or publishable key in development, naming only the variable", () => {
+    for (const [backend, storefront, named] of [
+      [{ STRIPE_API_KEY: "sk_live_fake" }, {}, "apps/backend: STRIPE_API_KEY"],
+      [{ STRIPE_API_KEY: " rk_live_fake" }, {}, "apps/backend: STRIPE_API_KEY"],
+      [{}, { NEXT_PUBLIC_STRIPE_KEY: "pk_live_fake" }, "apps/storefront: NEXT_PUBLIC_STRIPE_KEY"],
+    ] as const) {
+      const check = find(withStripe(backend, storefront), "stripe-live-key");
+      expect(check?.level).toBe("error");
+      expect(check?.details).toEqual([`${named} is a live key (NODE_ENV not set)`]);
+      expect(JSON.stringify(check)).not.toContain("_live_fake");
+    }
+  });
+
+  it("errors in a test run, and allows live keys where that app's NODE_ENV is production", () => {
+    expect(
+      find(withStripe({ STRIPE_API_KEY: "sk_live_fake", NODE_ENV: "test" }, {}), "stripe-live-key")
+        ?.level,
+    ).toBe("error");
+    const production = withStripe(
+      { STRIPE_API_KEY: "sk_live_fake", NODE_ENV: "production" },
+      { NEXT_PUBLIC_STRIPE_KEY: "pk_live_fake" },
+    );
+    expect(find(production, "stripe-live-key")?.details).toEqual([
+      "apps/storefront: NEXT_PUBLIC_STRIPE_KEY is a live key (NODE_ENV not set)",
+    ]);
+    const both = withStripe(
+      { STRIPE_API_KEY: "sk_live_fake", NODE_ENV: "production" },
+      { NEXT_PUBLIC_STRIPE_KEY: "pk_live_fake", NODE_ENV: "production" },
+    );
+    expect(find(both, "stripe-live-key")).toBeUndefined();
+  });
+
+  it("on Vercel, allows live keys only where VERCEL_ENV is production, whatever NODE_ENV says", () => {
+    const preview = withStripe(
+      { STRIPE_API_KEY: "sk_live_fake", NODE_ENV: "production", VERCEL_ENV: "preview" },
+      { NEXT_PUBLIC_STRIPE_KEY: "pk_live_fake", NODE_ENV: "production", VERCEL_ENV: "preview" },
+    );
+    expect(find(preview, "stripe-live-key")?.details).toEqual([
+      "apps/backend: STRIPE_API_KEY is a live key (VERCEL_ENV preview)",
+      "apps/storefront: NEXT_PUBLIC_STRIPE_KEY is a live key (VERCEL_ENV preview)",
+    ]);
+    const production = withStripe(
+      { STRIPE_API_KEY: "sk_live_fake", NODE_ENV: "production", VERCEL_ENV: "production" },
+      { NEXT_PUBLIC_STRIPE_KEY: "pk_live_fake", NODE_ENV: "production", VERCEL_ENV: "production" },
+    );
+    expect(find(production, "stripe-live-key")).toBeUndefined();
+  });
+});
+
 describe("configChecks: email verification", () => {
   const resendKeys = { RESEND_API_KEY: "re_x", RESEND_FROM_EMAIL: "shop@example.com" };
 

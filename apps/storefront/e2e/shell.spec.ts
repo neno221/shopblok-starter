@@ -1,11 +1,13 @@
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test, type APIResponse } from "@playwright/test";
+import type { APIResponse } from "@playwright/test";
 import { publishGlobal, snapshotGlobal, type GlobalData } from "./support/globals";
 import { appEnv } from "./support/app-env";
 import { headerLook, SOLID, TRANSPARENT } from "./support/header-look";
 import { api, PNG, upload } from "./support/payload-rest";
 import { HANDLE } from "./support/purchase";
 import { adminToken, base, freshWithinTwo } from "./support/server";
+// M6 D114 (T93): fails a test on any request to a third party an integration talks to.
+import { expect, test } from "./support/third-party";
 
 // T48 (D66): the shell around every market page, against `next start` with the seeded map and the
 // demo catalog. What is the visitor's is never in the server's HTML (D44): the cart's count and the

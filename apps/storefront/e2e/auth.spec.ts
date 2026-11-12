@@ -1,4 +1,4 @@
-import { expect, test, type BrowserContext, type Page } from "@playwright/test";
+import type { BrowserContext, Page } from "@playwright/test";
 import { catalogs } from "./support/catalogs";
 import emailCopy from "@shopblok/fixtures/email/templates.json" with { type: "json" };
 import {
@@ -10,6 +10,8 @@ import {
   orderIdOf,
   type Words,
 } from "./support/purchase";
+// M6 D114 (T93): fails a test on any request to a third party an integration talks to.
+import { expect, test } from "./support/third-party";
 
 // T53 (D64, SPEC §8.2): the account in `/us`, against `next start` and the seeded Medusa, whose
 // e-mails the local notification provider prints in its log (`E2E_MEDUSA_LOG`: CI's

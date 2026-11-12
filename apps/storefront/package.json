@@ -18,7 +18,7 @@
     "generate:importmap": "payload generate:importmap"
   },
   "dependencies": {
-    "@medusajs/js-sdk": "2.22.4",
+    "@medusajs/js-sdk": "2.22.6",
     "@payloadcms/db-postgres": "3.93.0",
     "@payloadcms/live-preview-react": "3.93.0",
     "@payloadcms/next": "3.93.0",

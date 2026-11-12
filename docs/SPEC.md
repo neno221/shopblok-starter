@@ -1242,6 +1242,7 @@ Apple Pay and Google Pay **don't need saving**: the wallet already stores the sh
 ### 10.6 Redis
 
 - One Railway Redis to start. The caching module needs `MEDUSA_FF_CACHING=true` and is gated on `REDIS_URL`.
+- **The caching module is off (M6 T93, D128).** With `MEDUSA_FF_CACHING=true` it does not start beside the markets plugin (its schema build fails on two copies of `graphql`), so it caches nothing; the flag stays out of `.env.example` until a task gives Medusa and the plugin one `graphql` and T93's stale-read check passes. SETUP.md, "Versions, keys and CI for M6 (T93)".
 
 ### 10.7 Object storage: Cloudflare R2 everywhere [Decided]
 

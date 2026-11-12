@@ -1,13 +1,23 @@
-// The CI gate (M2 plan, D53; T27): which of `e2e-smoke`, `design-system` and `windows-smoke` a run
-// of `.github/workflows/ci.yml` needs. `check` and `backend-integration` always run. On a pull
-// request the answer comes from the files it changes; any other event (a push to `main`, the
-// weekly schedule, a dispatch) runs `e2e-smoke` and `design-system`, and `windows-smoke` on every
-// event but a push (its rule since T16). `scripts/ci-gate.ts` reads the PR's files and the
-// checkout, and writes the answer for the workflow. Nothing here reads a file or the network.
+// The CI gate (M2 plan, D53; T27): which of `e2e-smoke`, `design-system`, `windows-smoke` and (M6
+// D114, T93) `integrations-live` a run of `.github/workflows/ci.yml` needs. `check` and
+// `backend-integration` always run, but on the nightly schedule. On a pull request the answer comes
+// from the files it changes; any other event (a push to `main`, the weekly schedule, a dispatch)
+// runs `e2e-smoke`, `design-system` and `integrations-live`, and `windows-smoke` on every event but
+// a push (its rule since T16). The nightly schedule runs `integrations-live` alone. Whether the
+// keys may reach a run (a fork's pull request, a Renovate branch) is the job's own `if`, not the
+// gate's. `scripts/ci-gate.ts` reads the PR's files and the checkout, and writes the answer for the
+// workflow. Nothing here reads a file or the network.
 import path from "node:path";
 
-/** The three jobs the gate decides. */
-export type Jobs = { e2e: boolean; designSystem: boolean; windows: boolean };
+/** The four jobs the gate decides. */
+export type Jobs = { e2e: boolean; designSystem: boolean; windows: boolean; integrations: boolean };
+
+/**
+ * The nightly schedule (M6 D114): `integrations-live` alone, so a change at a service (an API
+ * version, a test account's settings) shows within a day. The same string is `on.schedule`'s second
+ * cron in ci.yml, and `check` and `backend-integration` compare `github.event.schedule` with it.
+ */
+export const NIGHTLY_SCHEDULE = "29 2 * * *";
 
 /** The decision, with one line per job that says why. */
 export type Decision = Jobs & { reasons: string[] };
@@ -188,6 +198,8 @@ export function decideJobs(input: {
   importers?: readonly Importer[];
   /** A dispatch with `update-baselines` on (T40): its own job does the work. */
   updateBaselines?: boolean;
+  /** `github.event.schedule` (the cron that fired) on a `schedule` event. */
+  schedule?: string;
 }): Decision {
   const { event, files } = input;
   if (input.updateBaselines === true) {
@@ -198,8 +210,20 @@ export function decideJobs(input: {
       e2e: false,
       designSystem: false,
       windows: false,
+      integrations: false,
       reasons: [
-        `${event} with update-baselines: e2e-smoke, design-system and windows-smoke are skipped (the update-baselines job runs instead)`,
+        `${event} with update-baselines: e2e-smoke, design-system, windows-smoke and integrations-live are skipped (the update-baselines job runs instead)`,
+      ],
+    };
+  }
+  if (event === "schedule" && input.schedule === NIGHTLY_SCHEDULE) {
+    return {
+      e2e: false,
+      designSystem: false,
+      windows: false,
+      integrations: true,
+      reasons: [
+        `schedule ${NIGHTLY_SCHEDULE} (nightly): integrations-live runs alone (e2e-smoke, design-system and windows-smoke are skipped)`,
       ],
     };
   }
@@ -212,8 +236,9 @@ export function decideJobs(input: {
       e2e: true,
       designSystem: true,
       windows,
+      integrations: true,
       reasons: [
-        `${event}: e2e-smoke and design-system run (only a pull request is gated)`,
+        `${event}: e2e-smoke, design-system and integrations-live run (only a pull request is gated)`,
         windows
           ? "windows-smoke: runs (every event but a push and a pull request)"
           : "windows-smoke: skipped (a push: the pull request ran it if it changed a dependency file)",
@@ -227,6 +252,7 @@ export function decideJobs(input: {
       e2e: true,
       designSystem: true,
       windows: true,
+      integrations: true,
       reasons: ["pull_request: no changed files were listed, so every job runs"],
     };
   }
@@ -266,11 +292,17 @@ export function decideJobs(input: {
     dependency === undefined
       ? "windows-smoke: skipped (no dependency file)"
       : `windows-smoke: runs (${dependency})`,
+    // M6 D114: e2e-smoke's rule. A change that can reach the pages, the servers or a dependency can
+    // reach what the integrations send; docs, tooling and the DS's own files cannot.
+    e2eFile === undefined
+      ? "integrations-live: skipped (as e2e-smoke)"
+      : `integrations-live: runs (as e2e-smoke: ${e2eFile})`,
   );
   return {
     e2e: e2eFile !== undefined,
     designSystem: dsFile !== undefined,
     windows: dependency !== undefined,
+    integrations: e2eFile !== undefined,
     reasons,
   };
 }
@@ -303,5 +335,10 @@ export function runtimeImports(source: string): string[] {
 
 /** The workflow's outputs, as `$GITHUB_OUTPUT` lines. */
 export function outputLines(jobs: Jobs): string[] {
-  return [`e2e=${jobs.e2e}`, `design-system=${jobs.designSystem}`, `windows=${jobs.windows}`];
+  return [
+    `e2e=${jobs.e2e}`,
+    `design-system=${jobs.designSystem}`,
+    `windows=${jobs.windows}`,
+    `integrations=${jobs.integrations}`,
+  ];
 }

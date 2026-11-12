@@ -19,6 +19,7 @@ import {
   type Words,
 } from "./support/purchase";
 import { adminToken, base, freshWithinTwo, settled } from "./support/server";
+import { finishAnimations } from "./support/settle";
 
 // T91 (SPEC §17.1, M5's done-when; M5 plan §5 T91, D99 to D104, D110): every variant is on the DS
 // page and selectable in Payload, and the shop draws what an editor selects. Against `next start`
@@ -134,10 +135,12 @@ const draws = (markup: string, slot: string, variant: string) => {
 };
 
 /** axe with D34's tags, without Base UI's focus guards (as `design-system.spec.ts` explains). */
-const axeViolations = async (page: Page) =>
-  (
+const axeViolations = async (page: Page) => {
+  await finishAnimations(page);
+  return (
     await new AxeBuilder({ page }).withTags(axeTags).exclude("[data-base-ui-focus-guard]").analyze()
   ).violations.map((v) => `${v.id}: ${v.help} (${v.nodes.length}: ${v.nodes[0]?.target})`);
+};
 
 /** A page's console and failed requests, judged by `support/console.ts`'s rules. */
 function watch(page: Page) {

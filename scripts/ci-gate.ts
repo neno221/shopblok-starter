@@ -1,7 +1,7 @@
 // The `gate` job of `.github/workflows/ci.yml` (M2 plan, D53; T27): decides which of `e2e-smoke`,
-// `design-system` and `windows-smoke` run, through `lib/ci-gate.ts`, and writes the answer to
-// `$GITHUB_OUTPUT`. Run with plain `node scripts/ci-gate.ts` from the repo root, with the event in
-// `EVENT`; a pull request also needs `PULL`, `REPO` and `GH_TOKEN`, because its files come from the
+// `design-system`, `windows-smoke` and `integrations-live` run, through `lib/ci-gate.ts`, and writes
+// the answer to `$GITHUB_OUTPUT`. Run with plain `node scripts/ci-gate.ts` from the repo root, with
+// the event in `EVENT` (and, on a schedule, the cron in `SCHEDULE`); a pull request also needs `PULL`, `REPO` and `GH_TOKEN`, because its files come from the
 // API (`gh api --paginate`, as `windows-gate` did). Without `GITHUB_OUTPUT` (a local run) it only
 // prints. `node scripts/ci-gate.ts --files a b c` decides for a list of files instead of a PR.
 import { execFileSync } from "node:child_process";
@@ -82,6 +82,7 @@ const decision = decideJobs({
   files,
   importers: event === "pull_request" ? importers() : [],
   updateBaselines: process.env["UPDATE_BASELINES"] === "true",
+  ...(process.env["SCHEDULE"] ? { schedule: process.env["SCHEDULE"] } : {}),
 });
 if (event === "pull_request") console.log(`${files.length} changed files`);
 for (const reason of decision.reasons) console.log(reason);

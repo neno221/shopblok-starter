@@ -1,6 +1,9 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   decideJobs,
+  NIGHTLY_SCHEDULE,
   isDependencyFile,
   isDocs,
   outputLines,
@@ -209,17 +212,34 @@ describe("decideJobs on a pull request", () => {
       "e2e-smoke: runs (apps/storefront/src/lib/env.ts is not docs, tooling or the design system's own)",
       "design-system: runs (apps/storefront/src/lib/env.ts)",
       "windows-smoke: skipped (no dependency file)",
+      "integrations-live: runs (as e2e-smoke: apps/storefront/src/lib/env.ts)",
     ]);
     expect(pr(["packages/registry/package.json"]).reasons).toEqual([
       "e2e-smoke: runs (packages/registry/package.json, a dependency file)",
       "design-system: runs (packages/registry/package.json)",
       "windows-smoke: runs (packages/registry/package.json)",
+      "integrations-live: runs (as e2e-smoke: packages/registry/package.json)",
     ]);
     expect(pr(["docs/SETUP.md"]).reasons).toEqual([
       "e2e-smoke: skipped (every file is docs, tooling or the design system's own)",
       "design-system: skipped (every file is docs, tooling or one the DS pages cannot reach)",
       "windows-smoke: skipped (no dependency file)",
+      "integrations-live: skipped (as e2e-smoke)",
     ]);
+  });
+
+  it("runs integrations-live exactly when e2e-smoke runs (M6 D114)", () => {
+    for (const files of [
+      ["docs/SETUP.md"],
+      ["apps/storefront/src/lib/env.ts"],
+      ["packages/ui/src/molecules/x.tsx"],
+      ["apps/backend/src/modules.ts"],
+      ["renovate.json"],
+      [],
+    ]) {
+      const decision = pr(files);
+      expect(decision.integrations, files.join()).toBe(decision.e2e);
+    }
   });
 });
 
@@ -292,7 +312,9 @@ describe("decideJobs and the importers of the DS-only folders", () => {
   });
 
   it("runs both jobs for a thumbnail, which Payload's admin shows (T57, D87 item 1)", () => {
-    expect(jobs(pr(["apps/storefront/public/registry/molecules/product-card-minimal.png"]))).toEqual({
+    expect(
+      jobs(pr(["apps/storefront/public/registry/molecules/product-card-minimal.png"])),
+    ).toEqual({
       e2e: true,
       designSystem: true,
       windows: false,
@@ -413,10 +435,37 @@ describe("decideJobs on other events", () => {
       designSystem: true,
       windows: true,
     });
+    expect(decision.integrations).toBe(true);
     expect(decision.reasons).toEqual([
-      `${event}: e2e-smoke and design-system run (only a pull request is gated)`,
+      `${event}: e2e-smoke, design-system and integrations-live run (only a pull request is gated)`,
       "windows-smoke: runs (every event but a push and a pull request)",
     ]);
+  });
+
+  it("the nightly schedule runs integrations-live alone; the weekly one runs everything", () => {
+    const nightly = decideJobs({ event: "schedule", files: [], schedule: NIGHTLY_SCHEDULE });
+    expect(nightly).toMatchObject({
+      e2e: false,
+      designSystem: false,
+      windows: false,
+      integrations: true,
+    });
+    const weekly = decideJobs({ event: "schedule", files: [], schedule: "43 5 * * 1" });
+    expect(weekly).toMatchObject({
+      e2e: true,
+      designSystem: true,
+      windows: true,
+      integrations: true,
+    });
+  });
+
+  it("the nightly cron is the one ci.yml schedules, and check and backend-integration skip it", () => {
+    const workflow = readFileSync(
+      path.join(import.meta.dirname, "..", "..", ".github", "workflows", "ci.yml"),
+      "utf8",
+    );
+    expect(workflow).toContain(`- cron: "${NIGHTLY_SCHEDULE}"`);
+    expect(workflow.split(`github.event.schedule != '${NIGHTLY_SCHEDULE}'`).length - 1).toBe(2);
   });
 
   it("a push to main runs e2e-smoke and design-system, and not windows-smoke (T16's rule)", () => {
@@ -434,8 +483,9 @@ describe("decideJobs on other events", () => {
   it("a dispatch with update-baselines runs none of the three (PR 63 review)", () => {
     const decision = decideJobs({ event: "workflow_dispatch", files: [], updateBaselines: true });
     expect(jobs(decision)).toEqual({ e2e: false, designSystem: false, windows: false });
+    expect(decision.integrations).toBe(false);
     expect(decision.reasons).toEqual([
-      "workflow_dispatch with update-baselines: e2e-smoke, design-system and windows-smoke are skipped (the update-baselines job runs instead)",
+      "workflow_dispatch with update-baselines: e2e-smoke, design-system, windows-smoke and integrations-live are skipped (the update-baselines job runs instead)",
     ]);
   });
 
@@ -545,10 +595,8 @@ describe("the path helpers", () => {
   });
 
   it("outputLines: the names ci.yml reads", () => {
-    expect(outputLines({ e2e: false, designSystem: true, windows: false })).toEqual([
-      "e2e=false",
-      "design-system=true",
-      "windows=false",
-    ]);
+    expect(
+      outputLines({ e2e: false, designSystem: true, windows: false, integrations: true }),
+    ).toEqual(["e2e=false", "design-system=true", "windows=false", "integrations=true"]);
   });
 });

@@ -31,6 +31,11 @@
 #                  once. The only job that can write to the repository.
 #   windows-smoke  install, type check, unit tests, build and a Ctrl-C of `pnpm dev` on NTFS,
 #                  weekly and when dependencies change.
+#   integrations-live
+#                  M6 (D114, T93): the stack started with the integrations' test keys from GitHub's
+#                  secrets and the `integrations` Playwright project (`e2e/integrations/*.spec.ts`);
+#                  a spec whose keys are not set skips itself and names them. Never on a fork's pull
+#                  request or a Renovate branch, and nightly on its own.
 # Each job but the gate and update-baselines-commit sets up pnpm and Node with .github/actions/setup,
 # and every job that runs a server starts it with .github/actions/start-storefront. e2e-smoke starts and stops Medusa with
 # .github/actions/start-medusa, the only thing that starts it (T42).
@@ -44,8 +49,12 @@ on:
     branches: [main]
   pull_request:
   # windows-smoke runs weekly (Monday, off the hour on purpose: GitHub delays the busy ones).
+  # integrations-live also runs nightly, alone (M6 D114): the gate runs nothing else on that cron,
+  # and check and backend-integration compare `github.event.schedule` with it. The string is
+  # NIGHTLY_SCHEDULE in scripts/lib/ci-gate.ts, whose test holds the two to it.
   schedule:
     - cron: "43 5 * * 1"
+    - cron: "29 2 * * *"
   # Starts every job, windows-smoke included. In the cloud:
   #   gh api -X POST repos/stephanos221/shopblok-starter/actions/workflows/ci.yml/dispatches -f ref=<branch>
   workflow_dispatch:
@@ -90,6 +99,7 @@ jobs:
       e2e: ${{ steps.decide.outputs.e2e }}
       design-system: ${{ steps.decide.outputs.design-system }}
       windows: ${{ steps.decide.outputs.windows }}
+      integrations: ${{ steps.decide.outputs.integrations }}
     steps:
       - uses: actions/checkout@v7.0.1
       # Node from .nvmrc: 22.18 and newer run TypeScript files as they are.
@@ -104,12 +114,15 @@ jobs:
           REPO: ${{ github.repository }}
           # Empty on every event but a dispatch.
           UPDATE_BASELINES: ${{ inputs.update-baselines }}
+          # The cron that fired, on a schedule (M6: the nightly one runs integrations-live alone).
+          SCHEDULE: ${{ github.event.schedule }}
         run: node scripts/ci-gate.ts
 
   check:
     name: check (${{ matrix.label }})
-    # A baseline update runs its own job only; the dispatch after it runs this (PR 63 review).
-    if: ${{ !inputs.update-baselines }}
+    # A baseline update runs its own job only; the dispatch after it runs this (PR 63 review). The
+    # nightly schedule runs integrations-live alone (M6 D114).
+    if: ${{ !inputs.update-baselines && github.event.schedule != '29 2 * * *' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     # Node 24 is informational (Payload v4 readiness): a failure there shows as a red check and
@@ -132,6 +145,9 @@ jobs:
           node-version: ${{ matrix.node-version }}
       - run: pnpm install --frozen-lockfile
       - run: pnpm check:workspace
+      # M6 D115 (T93): no Stripe, Resend or AWS-style key in any tracked file. It reads every file git
+      # tracks, a pull request's changed files among them, and prints where a key is, never the key.
+      - run: pnpm check:keys
       # T57 (M4 D87 item 2): Payload's generated files are what the config makes. `generate:types`
       # writes `payload-types.ts` and formats it with the repo's Prettier preset; `generate:importmap`
       # rewrites the admin's import map. Neither needs a database or a .env. A Payload change
@@ -165,7 +181,7 @@ jobs:
   # databases on the compose Postgres (`apps/backend/.env.test` names port 15432), so only Postgres
   # is started. It needs no `.env` and no bootstrap.
   backend-integration:
-    if: ${{ !inputs.update-baselines }}
+    if: ${{ !inputs.update-baselines && github.event.schedule != '29 2 * * *' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -436,6 +452,180 @@ jobs:
           path: |
             ${{ runner.temp }}/servers
             ${{ runner.temp }}/doctor.json
+          if-no-files-found: ignore
+          retention-days: 14
+
+  # M6 D114 (T93): the integrations against their real services, with the test keys you enter as
+  # GitHub's secrets and variables (M6 §4a, G10; D115: test keys only). The same stack as e2e-smoke
+  # (compose, `pnpm bootstrap --ci`, `medusa develop`, a production build, `next start`), then the
+  # `integrations` Playwright project (`e2e/integrations/*.spec.ts`). Each spec runs when its keys
+  # are there and skips itself, naming the missing secret, when they are not, so the job is green
+  # before a key is added; `doctor.spec.ts` says which keys it found.
+  # Where the keys go: an empty secret is an unset key (doctor and the apps read blank as unset).
+  # They reach only the steps that start the servers, run the specs and mask the logs; `pnpm
+  # install`, bootstrap and the build never see a secret (the build gets the public NEXT_PUBLIC_*
+  # values it writes into the bundle, which are public by design). And the job never runs where code
+  # nobody here reviewed could read them: a fork's pull request (GitHub gives it no secrets anyway)
+  # or a Renovate branch, whose new packages would run with the keys in reach (PR 133 review, 11).
+  # The webhook secret is a fixed stand-in (D115: not `whsec_`-shaped), set only when Stripe's key
+  # is, so a keyless run stays without a half-set Stripe.
+  integrations-live:
+    needs: gate
+    if: >-
+      needs.gate.outputs.integrations == 'true' &&
+      (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) &&
+      !startsWith(github.head_ref || github.ref_name, 'renovate/')
+    runs-on: ubuntu-latest
+    # The stack, a build and the specs: about e2e-smoke's start without its suites.
+    timeout-minutes: 30
+    env:
+      STOREFRONT_PRERENDER_PRODUCTS: "4"
+      # The names whose values the log mask replaces (scripts/mask-keys.ts); names only, not values.
+      MASK_KEYS_FROM: STRIPE_API_KEY,NEXT_PUBLIC_STRIPE_KEY,RESEND_API_KEY,S3_ACCESS_KEY_ID,S3_SECRET_ACCESS_KEY,SENTRY_DSN,NEXT_PUBLIC_SENTRY_DSN,POSTHOG_EVENTS_API_KEY,NEXT_PUBLIC_POSTHOG_KEY
+    steps:
+      # D115: a live Stripe key refuses the job before anything runs. The prefix is compared in the
+      # shell; the value is never printed (and GitHub would mask it if it were).
+      - name: Refuse a live Stripe key
+        env:
+          STRIPE_API_KEY: ${{ secrets.STRIPE_API_KEY }}
+          NEXT_PUBLIC_STRIPE_KEY: ${{ secrets.NEXT_PUBLIC_STRIPE_KEY }}
+        # Matched with the white space taken out, as doctor and the apps read a key (trimmed): a
+        # secret saved as " sk_live_…" is still a live key (PR 134 review, item 5).
+        run: |
+          secret="$(printf '%s' "$STRIPE_API_KEY" | tr -d '[:space:]')"
+          publishable="$(printf '%s' "$NEXT_PUBLIC_STRIPE_KEY" | tr -d '[:space:]')"
+          case "$secret" in sk_live_* | rk_live_*) echo "::error title=Live Stripe key::The STRIPE_API_KEY secret is a live key. CI uses test keys only (M6 D115): replace it with the test mode's secret key (sk_test_…)."; exit 1 ;; esac
+          case "$publishable" in pk_live_*) echo "::error title=Live Stripe key::The NEXT_PUBLIC_STRIPE_KEY secret is a live key. CI uses test keys only (M6 D115): replace it with the test mode's publishable key (pk_test_…)."; exit 1 ;; esac
+          if [ -n "$secret" ]; then echo "STRIPE_API_KEY: set (a test key)"; else echo "STRIPE_API_KEY: not set"; fi
+          if [ -n "$publishable" ]; then echo "NEXT_PUBLIC_STRIPE_KEY: set (a test key)"; else echo "NEXT_PUBLIC_STRIPE_KEY: not set"; fi
+      - uses: actions/checkout@v7.0.1
+      - uses: ./.github/actions/setup
+      - run: pnpm install --frozen-lockfile
+      - name: Start the stack
+        run: docker compose up -d --wait
+      - name: Install Playwright's Chromium
+        run: pnpm --filter @shopblok/storefront exec playwright install --with-deps chromium
+      - run: pnpm bootstrap --ci
+      # The stand-in webhook secret (D115), only beside a Stripe key. Not a secret: the stand-in
+      # events of `backend-integration` are signed with it, and a real one comes from `stripe listen`.
+      - name: Stripe's stand-in webhook secret
+        env:
+          STRIPE_API_KEY: ${{ secrets.STRIPE_API_KEY }}
+        run: |
+          if [ -n "$STRIPE_API_KEY" ]; then
+            echo "STRIPE_WEBHOOK_SECRET=ci-stand-in-webhook-secret" >> "$GITHUB_ENV"
+            echo "STRIPE_WEBHOOK_SECRET: the CI stand-in"
+          else
+            echo "STRIPE_WEBHOOK_SECRET: not set (no Stripe key)"
+          fi
+      - name: Start Medusa (with the backend's keys)
+        uses: ./.github/actions/start-medusa
+        env:
+          STRIPE_API_KEY: ${{ secrets.STRIPE_API_KEY }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          RESEND_FROM_EMAIL: ${{ vars.RESEND_FROM_EMAIL }}
+          POSTHOG_EVENTS_API_KEY: ${{ secrets.POSTHOG_EVENTS_API_KEY }}
+          POSTHOG_HOST: ${{ vars.POSTHOG_HOST }}
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+          S3_ENDPOINT: ${{ vars.S3_ENDPOINT }}
+          S3_BUCKET: ${{ vars.S3_BUCKET }}
+          S3_PRIVATE_BUCKET: ${{ vars.S3_PRIVATE_BUCKET }}
+          S3_PUBLIC_URL: ${{ vars.S3_PUBLIC_URL }}
+          S3_ACCESS_KEY_ID: ${{ secrets.S3_ACCESS_KEY_ID }}
+          S3_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET_ACCESS_KEY }}
+      # Only the public values the build writes into the bundle (and S3_PUBLIC_URL, whose host goes
+      # into the image settings, D127); no secret.
+      - name: Build the storefront (with the public keys only)
+        run: pnpm exec turbo run build --filter=@shopblok/storefront
+        env:
+          NEXT_PUBLIC_STRIPE_KEY: ${{ secrets.NEXT_PUBLIC_STRIPE_KEY }}
+          NEXT_PUBLIC_POSTHOG_KEY: ${{ secrets.NEXT_PUBLIC_POSTHOG_KEY }}
+          NEXT_PUBLIC_SENTRY_DSN: ${{ secrets.NEXT_PUBLIC_SENTRY_DSN }}
+          S3_PUBLIC_URL: ${{ vars.S3_PUBLIC_URL }}
+      - name: Start the storefront (with the storefront's keys)
+        uses: ./.github/actions/start-storefront
+        with:
+          command: start
+          url: http://localhost:8000/
+        env:
+          NEXT_PUBLIC_STRIPE_KEY: ${{ secrets.NEXT_PUBLIC_STRIPE_KEY }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          RESEND_FROM_EMAIL: ${{ vars.RESEND_FROM_EMAIL }}
+          RESEND_NEWSLETTER_SEGMENT_ID: ${{ vars.RESEND_NEWSLETTER_SEGMENT_ID }}
+          NEXT_PUBLIC_POSTHOG_KEY: ${{ secrets.NEXT_PUBLIC_POSTHOG_KEY }}
+          NEXT_PUBLIC_SENTRY_DSN: ${{ secrets.NEXT_PUBLIC_SENTRY_DSN }}
+          S3_ENDPOINT: ${{ vars.S3_ENDPOINT }}
+          S3_BUCKET: ${{ vars.S3_BUCKET }}
+          S3_PUBLIC_URL: ${{ vars.S3_PUBLIC_URL }}
+          S3_ACCESS_KEY_ID: ${{ secrets.S3_ACCESS_KEY_ID }}
+          S3_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET_ACCESS_KEY }}
+      # Every key of both apps: the specs talk to the services, and doctor (doctor.spec.ts) reads both
+      # apps' variables from this step's environment over the .env files bootstrap wrote.
+      # The list reporter and no traces: an HTML report and a trace pack the pages' text into
+      # archives the log mask below cannot read, and a page here may show a key's effects.
+      - name: Integration specs
+        run: E2E_INTEGRATIONS=true pnpm --filter @shopblok/storefront test:e2e --project=integrations --reporter=list --trace=off --output=test-results-integrations
+        env:
+          E2E_MEDUSA_LOG: ${{ runner.temp }}/servers/medusa.log
+          STRIPE_API_KEY: ${{ secrets.STRIPE_API_KEY }}
+          NEXT_PUBLIC_STRIPE_KEY: ${{ secrets.NEXT_PUBLIC_STRIPE_KEY }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          RESEND_FROM_EMAIL: ${{ vars.RESEND_FROM_EMAIL }}
+          RESEND_NEWSLETTER_SEGMENT_ID: ${{ vars.RESEND_NEWSLETTER_SEGMENT_ID }}
+          POSTHOG_EVENTS_API_KEY: ${{ secrets.POSTHOG_EVENTS_API_KEY }}
+          POSTHOG_HOST: ${{ vars.POSTHOG_HOST }}
+          NEXT_PUBLIC_POSTHOG_KEY: ${{ secrets.NEXT_PUBLIC_POSTHOG_KEY }}
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+          NEXT_PUBLIC_SENTRY_DSN: ${{ secrets.NEXT_PUBLIC_SENTRY_DSN }}
+          S3_ENDPOINT: ${{ vars.S3_ENDPOINT }}
+          S3_BUCKET: ${{ vars.S3_BUCKET }}
+          S3_PRIVATE_BUCKET: ${{ vars.S3_PRIVATE_BUCKET }}
+          S3_PUBLIC_URL: ${{ vars.S3_PUBLIC_URL }}
+          S3_ACCESS_KEY_ID: ${{ secrets.S3_ACCESS_KEY_ID }}
+          S3_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET_ACCESS_KEY }}
+      - name: Stop the servers
+        if: always()
+        run: |
+          pid="$(cat "$RUNNER_TEMP/servers/storefront.pid" 2>/dev/null || true)"
+          if [ -n "$pid" ]; then bash .github/scripts/stop-tree.sh --port 8000 "$pid"; fi
+      - name: Stop Medusa
+        if: always()
+        uses: ./.github/actions/start-medusa
+        with:
+          stop: "true"
+      - name: Diagnostics (on failure)
+        if: failure()
+        run: |
+          mkdir -p "$RUNNER_TEMP/servers"
+          docker compose logs --no-color > "$RUNNER_TEMP/servers/compose.log" || true
+          docker compose ps --all || true
+      # D114: every key-shaped string, and the value of every key the job holds, is masked in the
+      # files that are uploaded: GitHub masks secrets in a step's output, not in an artifact.
+      - name: Mask the keys in the logs and reports
+        id: mask
+        if: always()
+        env:
+          STRIPE_API_KEY: ${{ secrets.STRIPE_API_KEY }}
+          NEXT_PUBLIC_STRIPE_KEY: ${{ secrets.NEXT_PUBLIC_STRIPE_KEY }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          S3_ACCESS_KEY_ID: ${{ secrets.S3_ACCESS_KEY_ID }}
+          S3_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET_ACCESS_KEY }}
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+          NEXT_PUBLIC_SENTRY_DSN: ${{ secrets.NEXT_PUBLIC_SENTRY_DSN }}
+          POSTHOG_EVENTS_API_KEY: ${{ secrets.POSTHOG_EVENTS_API_KEY }}
+          NEXT_PUBLIC_POSTHOG_KEY: ${{ secrets.NEXT_PUBLIC_POSTHOG_KEY }}
+        run: node scripts/mask-keys.ts "$RUNNER_TEMP/servers" apps/storefront/test-results-integrations
+      # Screenshots are not text the mask can read: the upload takes only text files (the servers'
+      # logs, the failures' error-context.md). Only after the mask succeeded: a mask that failed
+      # partway, or never ran, would upload logs that were not masked (D114; PR 134 review, item 1).
+      - name: Upload the masked server logs and failures
+        if: ${{ always() && steps.mask.outcome == 'success' }}
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: integrations-live
+          path: |
+            ${{ runner.temp }}/servers/*.log
+            apps/storefront/test-results-integrations/**/*.md
           if-no-files-found: ignore
           retention-days: 14
 
