@@ -15,7 +15,7 @@ import { SHELL_PREFETCH } from "../../../../../lib/site";
 // with a "Confirm" button, whose form posts the token to `confirmNewsletter`; a GET (a mail
 // scanner's, a prefetch) confirms nothing and writes nothing. The action redirects back here with
 // `?state=` (done, used, expired; failed comes back with the token, to try again). The token is
-// in the URL, so the page sends no referrer. Dynamic and blocking; `noindex`.
+// in the URL, so the page sends a referrer only to its own site. Dynamic and blocking; `noindex`.
 
 export const instant = false;
 
@@ -24,7 +24,9 @@ type Props = { searchParams: Promise<Record<string, string | string[] | undefine
 export async function generateMetadata(): Promise<Metadata> {
   return {
     ...(await noindexMetadata((templates) => templates.newsletterConfirm.title)),
-    referrer: "no-referrer",
+    // Never to another site; `no-referrer` would also make a form post's `Origin` `null`, which
+    // Next refuses as a cross-site action (the confirmation without scripts).
+    referrer: "same-origin",
   };
 }
 

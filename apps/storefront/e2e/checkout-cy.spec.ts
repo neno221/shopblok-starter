@@ -51,6 +51,11 @@ test.describe("a purchase in Cyprus (T52)", () => {
     const email = `cy-${Date.now()}@example.com`;
     const receipt = await buy(page, email);
     await expectReceipt(page, CY, email, "€");
+    // The receipt again, as the browser that placed the order.
+    await page.goto(receipt);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+      el.templates.orderConfirmation.title,
+    );
     // T99 (D122): the order e-mail, in the market's language (no Resend key: the log's line), with
     // the order's number in its subject and, for a guest, the order lookup in this market as its link.
     const number = /\d+/.exec(
@@ -65,11 +70,6 @@ test.describe("a purchase in Cyprus (T52)", () => {
       .toMatch(/^https?:\/\/[^/]+\/order\/lookup$/);
     expect(mailed?.language).toBe("el");
     expect(mailed?.subject).toContain(String(number));
-    // The receipt again, as the browser that placed the order.
-    await page.goto(receipt);
-    await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-      el.templates.orderConfirmation.title,
-    );
   });
 
   test("the same purchase without scripts", async ({ browser }) => {

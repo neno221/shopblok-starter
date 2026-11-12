@@ -9565,3 +9565,73 @@ The review (`reviews/pr-135-code-review.md` in the project's files) found 3 must
 8. The check's unreachable "not checked: Resend was not asked" message is gone; a missing answer for a domain doctor should have asked about is an error in doctor itself.
 9. `render()` prepares an e-mail once: the layouts take the prepared e-mail (`LAYOUTS`), and the exported `VerifyEmail` and the others prepare it for the DS.
 10. `emailFixtures` is built in one map over the DS locales.
+
+## Order e-mails and the newsletter (T99)
+
+**Result: Medusa now sends the order's e-mails (placed, shipped, canceled, return requested, refund issued), the welcome after verification, Medusa Admin's invite and an admin's password reset, each laid out by `@shopblok/emails` in the order's or the customer's language; a Payload form's e-mails to the shop are rebuilt in the shop's frame with every answer as text and recipients that only an editor writes; and the newsletter has double opt-in: the sign-up e-mails a signed link valid 48 hours, the link opens a page with the address and a "Confirm" button, and only that button's POST uses the token, once, putting the address in Resend's segment `RESEND_NEWSLETTER_SEGMENT_ID` (or, without Resend's key or segment, into a submission marked confirmed). The nine new types have their copy in four languages and their DS entries. No Resend key is in GitHub yet, so the two new live tests skip themselves with the other Resend tests.** D121, D122, D130, D131 (plans/M6.md §5 T99).
+
+| | |
+|---|---|
+| Date | 2026-11-12 |
+| Branch | `claude/project-thread-yg92mo`, from `main` at `db913e4` (PR 135's merge, T98) |
+| PR | this PR, "T99: Order e-mails, form e-mails and the newsletter" |
+
+### The new types (`@shopblok/emails`, `templates.json`, the DS)
+
+- **Types:** `order-placed`, `order-shipped`, `order-canceled`, `return-requested`, `refund-issued`, `welcome`, `admin-invite`, `newsletter-confirm` and `form-message`, twelve with M3's three. Their variables: `email` for each, `orderNumber` for the five order e-mails, `total` for `order-placed`, `amount` for `refund-issued`, `form` (the form's title) for `form-message`. The copy is in `packages/fixtures/src/email/templates.json` in English, Greek, German and French; the seed writes it into `email-templates` (all twelve types, once each), and the backend's built-in English (`BUILT_IN` in `email-copy.ts`) is the same English, checked by a test.
+- **The order's summary:** the order e-mails take `order` (`EmailOrder`: the number, the date, the lines with their quantity and total, the sums, the address shipped to, and tracking numbers with their links), drawn under the body (`data-slot="email-order"`) and written out in the text part. `render()` throws for an order type without it. A tracking link that is not `http(s)` is drawn as its number. **The labels** ("Order", "Placed", "Qty", "Subtotal", "Shipping", "Refunded", "Ship to", "Tracking", "Your answers") are a code table in four languages (`labels.ts`, English for any other language), not copy in Payload: they are the summary's structure, as the receipt's are code catalogs.
+- **`form-message`:** takes `form` (`EmailForm`: the title, the answers with their labels, and the form's own subject and message when it has them). The form's subject and message have their `{{field}}` filled in once, as text, from the answers (and `{{form}}`); form-builder's `{{*}}` and `{{*:table}}` are dropped, since the answers are always listed under the message (`data-slot="email-answers"`).
+- **The DS:** nine new entries in "E-mails" (`emails/order-placed` to `emails/form-message`, 235 entries in all), each with the seed's copy in the DS locale and an order or a form from the fixtures (the English form's answer holds `<b>`, drawn as text).
+
+### Medusa's subscribers (D122, SPEC §6.2)
+
+Checked against Medusa 2.22.6's events:
+
+| Event (payload) | Template | Type | Sent to, link | Once per |
+|---|---|---|---|---|
+| `order.placed` (`{ id }`) | `order-placed` | `order-placed` | the order's address; the order in the account for a customer with an account, else `/order/lookup` | order |
+| `shipment.created` (`{ id: fulfillment, no_notification }`) | `order-shipped` | `order-shipped` | the shipped lines and the fulfillment's tracking numbers and links; nothing when `no_notification` | fulfillment |
+| `order.canceled` (`{ id }`) | `order-canceled` | `order-canceled` | the order's lines, no sums | order |
+| `order.return_requested` (`{ order_id, return_id }`) | `return-requested` | `return-requested` | the return's lines and quantities | return |
+| `payment.refunded` (`{ id: payment }`) | `refund-issued` | `refund-issued` | the newest refund's amount | refund |
+| `customer.created` (`{ id }`) | `customer-welcome` | `welcome` | a customer with an account only (one exists only once verified, D64); the market's `/store` | customer |
+| `invite.created`, `invite.resent` (`{ id }`) | `admin-invite` | `admin-invite` | English; `MEDUSA_BACKEND_URL/app/invite?token=` | token |
+| `auth.password_reset` (`actor_type: "user"`) | `admin-password-reset` | `password-reset` | English; `MEDUSA_BACKEND_URL/app/reset-password?token=` | token |
+
+- **The order's market and language:** the storefront writes `{ market, language }` (the market's public prefix and its language, `mailTarget`) into the cart's `metadata` just before it places the order (merged with what is there: Medusa replaces `metadata` whole), and Medusa copies the cart's `metadata` and `locale` to the order. An order without it (placed in Medusa Admin, or before T99) takes the language of its locale (`el-GR` is `el`) and the primary market. The customer's create (`lib/medusa/customer.ts`) sends the same `metadata`, which the welcome reads.
+- **Amounts and dates** are written with `Intl` in the order's locale and currency; the date in the time zone of the market the order ships to (the markets plugin's country row, D65), UTC when it has none.
+- **A guest's link:** the receipt opens only in the browser that placed the order, so a guest's e-mail links to the order lookup (where a shopper who signs in adds the order to an account, T53), not to the receipt.
+- **Admin e-mails** are in English (Medusa Admin's users have no market) and their links go to Medusa Admin's own pages; an invalid `MEDUSA_BACKEND_URL` logs an error and sends nothing.
+- Every e-mail carries an `idempotency_key`, so an event delivered twice sends once.
+
+### Form e-mails made safe (`payload/form-emails.ts`)
+
+Checked in form-builder 3.93.0: its `{{field}}` replacement escapes a value once in the HTML (`escapeHTML` in `replaceDoubleCurlys`), but it also escapes the subject (`o'brien` reads `o&#39;brien`), lets an answer choose the recipient (`{{email}}` in "To" turns a contact form into a way to e-mail anyone) and draws the message bare. So:
+- **The `emails` field** is ours: To, CC and BCC take addresses only (a `{{field}}` is refused with "A form's answers cannot choose who the e-mail goes to"; an empty To is the shop's sender), Reply to takes an address or one field (`{{email}}`), there is no From (every e-mail goes from the adapter's sender, the address Resend has verified), and the subject (default "New answer to {{form}}") and the message are localized. Only a signed-in admin user reads the field, as form-builder's own.
+- **`beforeEmail`** (`formMessages`) makes each of the form's e-mails again as `form-message`: the shop's frame, the form's subject and message with every `{{field}}` filled in as text, the answers listed, a button to the submission in the admin; reply-to is the visitor's answer when it is one address, else the shop. An e-mail whose recipients are not addresses as written (a form saved before this check) is not sent, and the log says so without the addresses.
+- **The seed:** the seeded "Contact" form e-mails the shop (its sender's address) with "New message from {{name}}" in four languages, replies to the visitor. A form that exists already is left as it is.
+
+### The newsletter's double opt-in (D122)
+
+- **The sign-up** (`subscribeNewsletter`, the footer's and the `newsletter` block's action, in place of `submitForm`): the spam trap, the market, a form a visitor can reach whose one field is an e-mail, then no submission but an e-mail (`newsletter-confirm`, through Payload's adapter) with the link `<origin><market>/newsletter/confirm?token=…`. The answer is the same for any address, one already subscribed included: "Thank you. Check your inbox: we sent you a link to confirm your subscription." (`molecules.newsletterForm.done`, in four languages).
+- **The token** (`lib/newsletter/token.ts`): the address, the form, the market, its language, an expiry 48 hours on and a random id, as base64url JSON signed with HMAC-SHA256 under a key derived from `PAYLOAD_SECRET` by HKDF with its own `info` (so it signs nothing else). A token changed, cut, signed with another key or expired is refused; without `PAYLOAD_SECRET` the sign-up answers "unavailable".
+- **The page** (`[market]/newsletter/confirm`, dynamic and blocking, `noindex`, `referrer: same-origin` since the token is in its URL: `no-referrer` would make the no-script POST's `Origin` `null`, which Next refuses) shows the address and "Confirm"; a GET writes nothing, so mail scanners and prefetchers confirm nobody. It is the shop's own page in the auth pages' narrow column, built from DS atoms (Button, FormAlert, FormStatus), not a DS entry. Its copy is `templates.newsletterConfirm` (11 messages in four languages; `ui-strings` holds 798).
+- **The POST** (`confirmNewsletter`) records the token's id in the new collection `newsletter-confirmations` (unique `tokenId`) before anything else, so a second POST, or two at once, find it taken ("Already confirmed"); then the address goes to Resend (`POST /contacts` with the segment; for an existing contact `PATCH` it subscribed and add it to the segment) or, without `RESEND_API_KEY` and `RESEND_NEWSLETTER_SEGMENT_ID`, into a submission to the form with `confirmed` (the time). If that step fails the record is removed again and the page shows the button with "We could not confirm…", so the same link can be tried again. The action redirects to the page with `?state=`, with and without scripts.
+- **`newsletter-confirmations`** (Forms group): who confirmed, when, in which market and language, and where the address went: the consent's record. Staff read it; nobody writes it through the API; an admin deletes a row (an erasure: the contact in Resend is removed there).
+- **The language property** is left out of Resend's contact: Resend's custom contact properties must be created in its dashboard first, and the language is in our record.
+
+### The migration
+
+`20261112_135006_email_types_newsletter`: the nine values of `enum_email_templates_type`, the forms' `emails` tables (`forms_emails`, `forms_emails_locales`) and `newsletter_confirmations`. Created last, on the branch with `main` unchanged since it started (T94 has not merged); `migrate:create --skip-empty` afterwards writes nothing.
+
+### Checks (cloud VM)
+
+- `@shopblok/emails`: 40 tests (every type in four languages, the summary's labels and their English fallback, tracking links, each order type refusing without its order, the form's answers escaped, its own subject and message, `{{*}}` dropped).
+- **The subscribers against a fake Resend** (`integration-tests/http/order-emails.spec.ts`, 9 tests, `pnpm --filter @shopblok/backend test:integration:http order-emails.spec`): a server on a free port plays both Payload (the copy in the asked language) and Resend (it records each e-mail), so each subscriber is followed from Medusa's event to the e-mail Resend would get: placed (Greek, euros, the lookup link for a guest, the account's order page for a customer), shipped with tracking (and nothing with `no_notification`), canceled, return requested, refund issued, welcome (only with an account), invite and the admin's reset (English, Medusa Admin's links).
+- The storefront: 200 files, 4,46x tests, among them `form-emails.test.ts` (the hook), `lib/newsletter/newsletter.test.ts` (19: the token, Resend's contacts against a stand-in `fetch`, the sign-up, the confirmation) and the page's test (3).
+- **Mutations (each fails its test):**
+  - a form answer drawn as HTML (`dangerouslySetInnerHTML={{ __html: answer.value }}` in the answers' table) fails "draws every answer as text: a value with <img onerror> never reaches the HTML" (`expected '<!DOCTYPE html …' not to match /<img/i`);
+  - the POST without its one-use check (no lookup of the token's id, and a record that never collides) fails "refuses the same link a second time" and "lets one of two POSTs at once through";
+  - the page's GET that confirms (`confirmSubscription(token)` before it reads the link) fails "shows the address and a Confirm form posting the token, and a GET confirms nothing" and the outcome test;
+  - earlier in the task: the shipped e-mail without its `no_notification` check and a guest's link to the receipt fail three of the integration tests.
+- `pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm check:keys` and `pnpm check:workspace`: pass.

@@ -315,9 +315,10 @@ test.describe("the forms (T67)", () => {
     await page.getByRole("button", { name: confirm.submit }).click();
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(confirm.doneTitle);
     expect(new URL(page.url()).search).toBe("?state=done");
+    // The link once more: already confirmed, and no button to post it again.
     await page.goto(links[withJs] ?? "");
-    await page.getByRole("button", { name: confirm.submit }).click();
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(confirm.usedTitle);
+    await expect(page.getByRole("button", { name: confirm.submit })).toHaveCount(0);
     await withoutScripts(browser, async (noScripts) => {
       await noScripts.goto(links[noJs] ?? "");
       await noScripts.getByRole("button", { name: confirm.submit }).click();
