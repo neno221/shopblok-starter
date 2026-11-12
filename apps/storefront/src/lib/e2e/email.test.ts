@@ -2,12 +2,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const sent = vi.hoisted(() => ({
   emails: [] as unknown[],
-  adapter: "resend-rest" as string | null,
+  adapter: "resend-rest",
 }));
 vi.mock("next/server", () => ({ connection: async () => undefined }));
 vi.mock("../cms/payload", () => ({
   getPayloadClient: async () => ({
-    email: sent.adapter === null ? undefined : { name: sent.adapter },
+    email: { name: sent.adapter },
     sendEmail: async (message: unknown) => {
       sent.emails.push(message);
       return { id: "4ef9a417-02e9-4d39-ad75-9611e0fcc33c" };
@@ -53,14 +53,16 @@ describe("/next/e2e/email (T98)", () => {
     "someone@example.com",
     "delivered@resend.dev.example.com",
     "delivered@resend.dev, someone@example.com",
+    "support@resend.dev",
+    "Delivered@resend.dev",
     "",
   ])("refuses %j: only Resend's test addresses", async (to) => {
     expect((await post(to)).status).toBe(400);
     expect(sent.emails).toEqual([]);
   });
 
-  it("answers 409 without an adapter (no key and no SMTP_HOST)", async () => {
-    sent.adapter = null;
+  it("answers 409 on Payload's console adapter (no key and no SMTP_HOST): nothing would be sent", async () => {
+    sent.adapter = "console";
     expect((await post("delivered@resend.dev")).status).toBe(409);
     expect(sent.emails).toEqual([]);
   });

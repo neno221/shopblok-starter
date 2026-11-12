@@ -9523,7 +9523,7 @@ Before: `main` at `95b6c7a` (the W7 fixes merged, run [43004859507](https://gith
 
 ### Payload: the e-mail adapter by env
 
-`apps/storefront/src/payload/email.ts` chooses the adapter from the environment: `@payloadcms/email-resend` 3.93.0 with `RESEND_API_KEY` and `RESEND_FROM_EMAIL` (from name "Shopblok"); else `@payloadcms/email-nodemailer` 3.93.0 to `SMTP_HOST` (`SMTP_PORT`, 1025 by default, no TLS, no verify at start; the from address `payload@localhost.test`), which `.env.example` sets to Mailpit; else none, as before. Payload's Resend adapter always calls `api.resend.com`, so it has no fake; its live check is the spec's second test.
+`apps/storefront/src/payload/email.ts` chooses the adapter from the environment: `@payloadcms/email-resend` 3.93.0 with `RESEND_API_KEY` and `RESEND_FROM_EMAIL` (`Shop <shop@example.com>` is split into the name and the address, since the adapter writes `name <address>` itself; a bare address gets the name "Shopblok"); else `@payloadcms/email-nodemailer` 3.93.0 to `SMTP_HOST` (`SMTP_PORT`, 1025 by default, no TLS, no verify at start; the from address `payload@localhost.test`), which `.env.example` sets to Mailpit; else none, as before. Payload's Resend adapter always calls `api.resend.com`, so it has no fake; its live check is the spec's second test.
 
 ### `doctor`
 
@@ -9551,3 +9551,17 @@ Two tests, skipped with `skipWithoutKeys(test, "resend")` while `RESEND_API_KEY`
 - **The mutation:** a renderer that writes a text node as HTML (`dangerouslySetInnerHTML={{ __html: text }}` in `rich-text.tsx`) fails "escapes a value with ', & and <script> once…" (`expected … not to contain '<script>'`) and the variables test.
 - `doctor --online` with a fake key and `onboarding@resend.dev`: one warning, "Resend sender domain (apps/backend and apps/storefront)".
 - `pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm check:keys` and `pnpm check:workspace`: see the PR.
+
+### Changes from the review of this PR (PR 135)
+
+The review (`reviews/pr-135-code-review.md` in the project's files) found 3 must-fix items, 1 security item and 6 cleanups, all fixed; items 11 to 15 skipped (optional, neither security nor cleanup).
+1. Payload's Resend adapter got `RESEND_FROM_EMAIL` as its address, and writes `Shopblok <address>` itself, so a named sender (`Shop <shop@example.com>`, which Medusa's provider and doctor take) became `Shopblok <Shop <…>>` and Resend would refuse it. `senderParts` splits the name and the address; both forms are tested.
+2. The live spec stopped polling at Medusa's first status, which can be `pending` (Medusa writes the row before it calls the provider); it now waits for `success` or `failure`.
+3. `@shopblok/emails#dev` (`tsup --watch`) depends on its own `build` in `turbo.json`, so the watch and the build (which empties `dist/` first) never write `dist/` at once.
+4. (Security) `/next/e2e/email` takes only Resend's test inboxes (`delivered`, `bounced`, `complained`, `suppressed`, with or without a `+label`); `support@resend.dev` is a 400.
+5. Payload falls back to its `console` adapter, never to none: the route answers 409 for it (nothing would be sent), and its test mocks it so.
+6. `doctor`'s sender-domain check takes production from each app's stage (`productionStage`: `VERCEL_ENV` on Vercel), so a Vercel preview is development; a test with `VERCEL_ENV=preview`.
+7. The Resend section of `doctor-checks.ts` no longer splits `explainMedusaRun` from its comment.
+8. The check's unreachable "not checked: Resend was not asked" message is gone; a missing answer for a domain doctor should have asked about is an error in doctor itself.
+9. `render()` prepares an e-mail once: the layouts take the prepared e-mail (`LAYOUTS`), and the exported `VerifyEmail` and the others prepare it for the DS.
+10. `emailFixtures` is built in one map over the DS locales.

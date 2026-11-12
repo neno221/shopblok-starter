@@ -643,13 +643,6 @@ export function searchIndexCheck(
 }
 
 // ---------------------------------------------------------------------------------------------
-// From `medusa exec`
-
-/** How long doctor lets `medusa exec src/scripts/doctor-markets.ts` take. */
-export const MEDUSA_RUN_TIMEOUT_MS = 90_000;
-
-/** Why `medusa exec src/scripts/doctor-markets.ts` did not give its result: the run itself, then its log. */
-// ---------------------------------------------------------------------------------------------
 // --online: Resend's sender domain (T98, M6 D121)
 
 /** Resend's shared test domain: it sends only to the account's own address and Resend's test ones. */
@@ -696,17 +689,19 @@ export function resendDomainState(
 /**
  * `doctor --online`: is `RESEND_FROM_EMAIL`'s domain verified with Resend, so the shop can e-mail its
  * customers (M6 D121)? A warning in development, an error in production (sign-ups need the
- * verification e-mail, SPEC §16 item 2). `answer` is Resend's `GET /domains` with the key, or
- * `undefined` when the sender is Resend's test domain (nothing to ask). One check per sender and
- * key: `apps` are the apps that send with them (both, when their `.env` files agree).
+ * verification e-mail, SPEC §16 item 2): production as `productionStage` says for any of `apps`, so
+ * a Vercel preview is development (PR 135 review, item 6). One check per sender and key: `apps` are
+ * the apps that send with them (both, when their `.env` files agree). `answer` is Resend's
+ * `GET /domains` with the key; doctor asks nothing (`undefined`) only for a sender without an
+ * address or at Resend's test domain, which this check settles before it reads the answer.
  */
 export function resendDomainCheck(
   apps: readonly AppName[],
   from: string | undefined,
   answer: HttpResult | undefined,
-  context: Context,
+  envs: Readonly<Partial<Record<AppName, Record<string, string | undefined>>>>,
 ): Check {
-  const production = context.nodeEnv === "production";
+  const production = apps.some((app) => productionStage(envs[app] ?? {}).production);
   const notReady = production ? "error" : "warn";
   const check = (c: Omit<Check, "id" | "title">): Check => ({
     id: [RESEND_DOMAIN.id, ...apps].join("-"),
@@ -715,7 +710,7 @@ export function resendDomainCheck(
   });
   const domain = senderDomain(from);
   const fix =
-    'Add your domain in Resend (Domains), publish its DNS records, and set RESEND_FROM_EMAIL to an address of it (SETUP.md, "Turning on an integration").';
+    'Add your domain in Resend (Domains), publish its DNS records, and set RESEND_FROM_EMAIL to an address of it (SETUP.md, "E-mails and Resend (T98)").';
   if (domain === undefined)
     return check({
       level: "error",
@@ -729,7 +724,7 @@ export function resendDomainCheck(
       fix: production ? fix : `Fine for development. ${fix}`,
     });
   if (answer === undefined)
-    return check({ level: "warn", message: `not checked: Resend was not asked about ${domain}.` });
+    throw new Error(`resendDomainCheck: doctor did not ask Resend about ${domain}.`);
   const state = resendDomainState(domain, answer);
   switch (state.kind) {
     case "verified":
@@ -763,6 +758,13 @@ export function resendDomainCheck(
   }
 }
 
+// ---------------------------------------------------------------------------------------------
+// From `medusa exec`
+
+/** How long doctor lets `medusa exec src/scripts/doctor-markets.ts` take. */
+export const MEDUSA_RUN_TIMEOUT_MS = 90_000;
+
+/** Why `medusa exec src/scripts/doctor-markets.ts` did not give its result: the run itself, then its log. */
 export function explainMedusaRun(result: RunResult): { cause: string; fix: string } {
   if (result.error !== undefined) {
     return {

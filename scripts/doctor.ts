@@ -287,7 +287,7 @@ async function main(): Promise<number> {
     checks.push(
       ...(await onlineChecks(online, medusaUrl, typeof seeded === "object" ? seeded : undefined)),
       ...(await online.resend).map(({ apps, from, answer }) =>
-        resendDomainCheck(apps, from, answer, context),
+        resendDomainCheck(apps, from, answer, envs),
       ),
     );
   }

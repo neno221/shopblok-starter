@@ -1,6 +1,10 @@
 import type { EmailView } from "@shopblok/registry/contracts";
 import { commerceFixtures } from "../commerce";
-import { designSystemFixtures, type DesignSystemLocale } from "../design-system";
+import {
+  designSystemFixtures,
+  designSystemLocales,
+  type DesignSystemLocale,
+} from "../design-system";
 import seed from "./templates.json" with { type: "json" };
 
 // The e-mails' DS fixtures (M6 D130): each layout of `@shopblok/emails` with the seed's copy (the
@@ -67,21 +71,9 @@ function view(locale: DesignSystemLocale, type: EmailFixtureType): EmailView {
 const types = Object.keys(seed.templates) as EmailFixtureType[];
 
 /** Each e-mail type's layout input in each DS locale. */
-export const emailFixtures: Record<DesignSystemLocale, Record<EmailFixtureType, EmailView>> = {
-  en: Object.fromEntries(types.map((type) => [type, view("en", type)])) as Record<
-    EmailFixtureType,
-    EmailView
-  >,
-  el: Object.fromEntries(types.map((type) => [type, view("el", type)])) as Record<
-    EmailFixtureType,
-    EmailView
-  >,
-  de: Object.fromEntries(types.map((type) => [type, view("de", type)])) as Record<
-    EmailFixtureType,
-    EmailView
-  >,
-  fr: Object.fromEntries(types.map((type) => [type, view("fr", type)])) as Record<
-    EmailFixtureType,
-    EmailView
-  >,
-};
+export const emailFixtures = Object.fromEntries(
+  designSystemLocales.map((locale) => [
+    locale,
+    Object.fromEntries(types.map((type) => [type, view(locale, type)])),
+  ]),
+) as Record<DesignSystemLocale, Record<EmailFixtureType, EmailView>>;

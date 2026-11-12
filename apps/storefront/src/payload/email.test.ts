@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { emailAdapter, emailTransport } from "./email";
+import { emailAdapter, emailTransport, senderParts } from "./email";
 
 describe("Payload's e-mail adapter by env (T98, D121)", () => {
   it("is Resend with both of its keys, trimmed, even beside SMTP_HOST", () => {
@@ -9,7 +9,30 @@ describe("Payload's e-mail adapter by env (T98, D121)", () => {
         RESEND_FROM_EMAIL: " shop@example.com ",
         SMTP_HOST: "localhost",
       }),
-    ).toEqual({ kind: "resend", apiKey: "re_key", from: "shop@example.com" });
+    ).toEqual({
+      kind: "resend",
+      apiKey: "re_key",
+      fromName: "Shopblok",
+      fromAddress: "shop@example.com",
+    });
+  });
+
+  it("splits a named sender, so Payload's adapter never sends `Shopblok <Shop <…>>` (PR 135 review, item 1)", () => {
+    expect(
+      emailTransport({ RESEND_API_KEY: "re_key", RESEND_FROM_EMAIL: "Shop <shop@example.com>" }),
+    ).toMatchObject({ fromName: "Shop", fromAddress: "shop@example.com" });
+    expect(senderParts('"Papadopoulou & Söhne" <hello@shop.example>')).toEqual({
+      name: "Papadopoulou & Söhne",
+      address: "hello@shop.example",
+    });
+    expect(senderParts("<hello@shop.example>")).toEqual({
+      name: "Shopblok",
+      address: "hello@shop.example",
+    });
+    expect(senderParts(" onboarding@resend.dev ")).toEqual({
+      name: "Shopblok",
+      address: "onboarding@resend.dev",
+    });
   });
 
   it("is Mailpit with SMTP_HOST, without both Resend keys", () => {

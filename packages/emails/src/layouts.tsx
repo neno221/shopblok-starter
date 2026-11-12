@@ -16,6 +16,9 @@ export type PreparedEmail = {
   url: string;
 };
 
+/** What a layout draws: the prepared e-mail, and the input for its frame (shop, language). */
+export type PreparedLayoutProps = { email: PreparedEmail; input: EmailInput };
+
 /**
  * Fills the type's `{{variables}}` into each text of the copy (the subject, the preheader, the
  * heading, each text node of the body and the button's label) as text, and checks the link: it
@@ -46,8 +49,7 @@ export function plainText(email: PreparedEmail, input: EmailInput): string {
  * and the link written out under it for a client that draws no button. The link written out is a
  * block of its own, 44 px high (D32), and breaks anywhere, so a long token never widens the card.
  */
-function LinkLayout({ type, input }: { type: EmailType; input: EmailInput }) {
-  const email = prepareEmail(type, input);
+function LinkLayout({ email, input }: PreparedLayoutProps) {
   return (
     <EmailFrame shop={input.shop} language={input.language}>
       <h1
@@ -110,24 +112,28 @@ function LinkLayout({ type, input }: { type: EmailType; input: EmailInput }) {
   );
 }
 
+/**
+ * Each type's layout, drawn from the copy `prepareEmail` filled in: `render()` prepares an e-mail
+ * once, for its subject, its text part and this (PR 135 review, item 9).
+ */
+export const LAYOUTS: Readonly<Record<EmailType, (props: PreparedLayoutProps) => ReactElement>> = {
+  "verify-email": LinkLayout,
+  "password-reset": LinkLayout,
+  "order-transfer": LinkLayout,
+};
+
+/** The type's layout from the copy as written: what the DS draws (D130). */
+const layoutOf = (type: EmailType) =>
+  function Email(input: EmailInput) {
+    const Layout = LAYOUTS[type];
+    return <Layout email={prepareEmail(type, input)} input={input} />;
+  };
+
 /** The e-mail a new customer's address is confirmed with (`auth.verification_requested`). */
-export function VerifyEmail(input: EmailInput) {
-  return <LinkLayout type="verify-email" input={input} />;
-}
+export const VerifyEmail = layoutOf("verify-email");
 
 /** The link that sets a new password (`auth.password_reset`). */
-export function PasswordResetEmail(input: EmailInput) {
-  return <LinkLayout type="password-reset" input={input} />;
-}
+export const PasswordResetEmail = layoutOf("password-reset");
 
 /** The request to move a guest's order to an account (`order.transfer_requested`). */
-export function OrderTransferEmail(input: EmailInput) {
-  return <LinkLayout type="order-transfer" input={input} />;
-}
-
-/** Each type's layout. */
-export const LAYOUTS: Readonly<Record<EmailType, (input: EmailInput) => ReactElement>> = {
-  "verify-email": VerifyEmail,
-  "password-reset": PasswordResetEmail,
-  "order-transfer": OrderTransferEmail,
-};
+export const OrderTransferEmail = layoutOf("order-transfer");

@@ -48,6 +48,8 @@ test("Medusa sends the verification e-mail through Resend and keeps Resend's id"
   expect(requested.status, "verification request").toBeLessThan(300);
 
   // The notification Medusa wrote: sent (`success`) with the id Resend answered (`external_id`).
+  // Medusa commits it as `pending` before it calls the provider, so the poll waits for the end
+  // state, `success` or `failure` (PR 135 review, item 2).
   const admin = await medusaAdminToken(medusa);
   const query = new URLSearchParams({
     to: email,
@@ -66,9 +68,12 @@ test("Medusa sends the verification e-mail through Resend and keeps Resend's id"
         found = notifications.find((n) => n.template === "customer-verification");
         return found?.status ?? "none yet";
       },
-      { timeout: 30_000, message: "the verification e-mail's notification in Medusa" },
+      {
+        timeout: 30_000,
+        message: "the verification e-mail's notification in Medusa, sent or failed",
+      },
     )
-    .not.toBe("none yet");
+    .toMatch(/^(success|failure)$/);
   expect(found?.status, "the notification's status").toBe("success");
   expect(found?.external_id ?? "", "Resend's id").toMatch(RESEND_ID);
   console.log(`Medusa → Resend: customer-verification sent, Resend id ${found?.external_id}`);

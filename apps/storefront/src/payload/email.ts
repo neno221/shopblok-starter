@@ -20,16 +20,34 @@ const MAILPIT_FROM = "payload@localhost.test";
 
 const value = (env: EmailEnv, key: string): string | undefined => env[key]?.trim() || undefined;
 
+/**
+ * `RESEND_FROM_EMAIL` as a name and an address: `Shop <shop@example.com>` (the form Medusa's provider
+ * and doctor take too) or a bare address, whose name is `EMAIL_FROM_NAME`. Payload's Resend adapter
+ * writes `name <address>` itself, so it must get the two apart (PR 135 review, item 1).
+ */
+export function senderParts(from: string): { name: string; address: string } {
+  const named = /^(.*?)\s*<\s*([^<>\s]+)\s*>$/.exec(from.trim());
+  if (named === null) return { name: EMAIL_FROM_NAME, address: from.trim() };
+  const name = (named[1] ?? "")
+    .trim()
+    .replace(/^"(.*)"$/, "$1")
+    .trim();
+  return { name: name || EMAIL_FROM_NAME, address: named[2] ?? "" };
+}
+
 /** Which adapter `env` turns on, for the config and its test. */
 export function emailTransport(
   env: EmailEnv,
 ):
-  | { kind: "resend"; apiKey: string; from: string }
+  | { kind: "resend"; apiKey: string; fromName: string; fromAddress: string }
   | { kind: "smtp"; host: string; port: number }
   | { kind: "none" } {
   const apiKey = value(env, "RESEND_API_KEY");
   const from = value(env, "RESEND_FROM_EMAIL");
-  if (apiKey !== undefined && from !== undefined) return { kind: "resend", apiKey, from };
+  if (apiKey !== undefined && from !== undefined) {
+    const sender = senderParts(from);
+    return { kind: "resend", apiKey, fromName: sender.name, fromAddress: sender.address };
+  }
   const host = value(env, "SMTP_HOST");
   if (host !== undefined) {
     const port = Number(value(env, "SMTP_PORT") ?? "1025");
@@ -46,8 +64,8 @@ export function emailAdapter(
   if (transport.kind === "resend")
     return resendAdapter({
       apiKey: transport.apiKey,
-      defaultFromAddress: transport.from,
-      defaultFromName: EMAIL_FROM_NAME,
+      defaultFromAddress: transport.fromAddress,
+      defaultFromName: transport.fromName,
     });
   if (transport.kind === "smtp")
     return nodemailerAdapter({

@@ -807,8 +807,8 @@ describe("--online: Resend's sender domain (T98)", () => {
       { id: "3", name: "half.example", status: "partially_verified" },
     ],
   });
-  const dev = { nodeEnv: "development", vercel: false };
-  const prod = { nodeEnv: "production", vercel: false };
+  const dev = { backend: { NODE_ENV: "development" }, storefront: { NODE_ENV: "development" } };
+  const prod = { backend: { NODE_ENV: "production" }, storefront: { NODE_ENV: "production" } };
 
   it("reads the domain of an address, with or without a name", () => {
     expect(senderDomain("orders@Shop.Example")).toBe("shop.example");
@@ -852,6 +852,20 @@ describe("--online: Resend's sender domain (T98)", () => {
     expect(resendDomainCheck(["backend"], "onboarding@resend.dev", undefined, prod).level).toBe(
       "error",
     );
+  });
+
+  it("takes production as the apps' stage says: a Vercel preview is development (PR 135 review, item 6)", () => {
+    const preview = { storefront: { NODE_ENV: "production", VERCEL_ENV: "preview" } };
+    expect(resendDomainCheck(["storefront"], "o@news.example", domains, preview).level).toBe(
+      "warn",
+    );
+    const live = { storefront: { NODE_ENV: "production", VERCEL_ENV: "production" } };
+    expect(resendDomainCheck(["storefront"], "o@news.example", domains, live).level).toBe("error");
+    // One of two apps in production is enough.
+    const mixed = { backend: { NODE_ENV: "production" }, storefront: { NODE_ENV: "development" } };
+    expect(
+      resendDomainCheck(["backend", "storefront"], "onboarding@resend.dev", undefined, mixed).level,
+    ).toBe("error");
   });
 
   it("is an error for a sender that is not an address", () => {

@@ -11,6 +11,7 @@ export {
   prepareEmail,
   VerifyEmail,
   type PreparedEmail,
+  type PreparedLayoutProps,
 } from "./layouts";
 export { buttonLink, safeLink } from "./links";
 export { render } from "./render";

@@ -14,7 +14,7 @@ export async function render(type: EmailType, input: EmailInput): Promise<Render
   const Layout = LAYOUTS[type];
   const html = await renderReactEmail(
     <EmailDocument language={input.language} subject={email.subject} preheader={email.preheader}>
-      <Layout {...input} />
+      <Layout email={email} input={input} />
     </EmailDocument>,
   );
   return { subject: email.subject, html, text: plainText(email, input) };

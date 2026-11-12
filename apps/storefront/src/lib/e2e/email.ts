@@ -2,8 +2,15 @@ import "server-only";
 import { getPayloadClient } from "../cms/payload";
 import { e2eGate } from "./gate";
 
-/** Resend's test addresses (`delivered@resend.dev`, `bounced+label@resend.dev`…): nobody's inbox. */
-const RESEND_TEST_ADDRESS = /^[a-z]+(\+[a-z0-9-]+)?@resend\.dev$/;
+/**
+ * Resend's test inboxes (`delivered@resend.dev`, `bounced+label@resend.dev`…), and only those: other
+ * addresses at `resend.dev` are people's (PR 135 review, item 4).
+ */
+const RESEND_TEST_ADDRESS =
+  /^(delivered|bounced|complained|suppressed)(\+[a-z0-9-]+)?@resend\.dev$/;
+
+/** The adapter Payload falls back to without one: it writes e-mails to its log and sends nothing. */
+const CONSOLE_ADAPTER = "console";
 
 /**
  * `POST ?to=<address>` (T98, M6 D121): sends one e-mail through Payload's e-mail adapter, as a
@@ -19,8 +26,8 @@ export async function sendTestEmail(request: Request): Promise<Response> {
     return Response.json({ error: "to must be one of Resend's test addresses" }, { status: 400 });
   }
   const payload = await getPayloadClient();
-  const adapter = payload.email?.name ?? null;
-  if (adapter === null) return Response.json({ adapter, id: null }, { status: 409 });
+  const adapter = payload.email?.name ?? CONSOLE_ADAPTER;
+  if (adapter === CONSOLE_ADAPTER) return Response.json({ adapter, id: null }, { status: 409 });
   const answer: unknown = await payload.sendEmail({
     to,
     subject: "Shopblok: live check of Payload's e-mail (T98)",
