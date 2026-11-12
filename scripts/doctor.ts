@@ -26,6 +26,10 @@ import {
   emptyEnvelope,
   parseSentryDsn,
   sentryEnvelopeCheck,
+  POSTHOG_KEYS,
+  POSTHOG_PROJECT_KEY,
+  posthogFlagsCheck,
+  posthogHost,
   searchCurrencies,
   searchFieldOf,
   searchIndexCheck,
@@ -77,7 +81,8 @@ Checks the setup and says which integrations are on. Writes nothing. (Run it as 
              Medusa's regions, locales and search index match the market map (and, with a local
              backend running, the markets are read from GET /admin/markets as the bootstrap admin);
              with Resend's keys, RESEND_FROM_EMAIL's domain is verified with Resend; with a
-             Sentry DSN, Sentry accepts an empty envelope with it
+             Sentry DSN, Sentry accepts an empty envelope with it; with a PostHog key, PostHog
+             takes it (a feature-flags request, which records no event)
   --json     print the result as JSON (no secrets in it) and nothing else
   --strict   a warning fails the run too (the go-live check: SPEC §16, item 8)
   -h, --help this text
@@ -298,6 +303,9 @@ async function main(): Promise<number> {
       ...(await online.sentry).map(({ apps, dsn, answer }) =>
         sentryEnvelopeCheck(apps, dsn, answer),
       ),
+      ...(await online.posthog).map(({ apps, host, answer }) =>
+        posthogFlagsCheck(apps, host, answer),
+      ),
     );
   }
 
@@ -320,6 +328,8 @@ type OnlineRequests = {
   resend: Promise<{ apps: AppName[]; from: string | undefined; answer: HttpResult | undefined }[]>;
   /** Sentry's answer to an empty envelope, per DSN (T96). */
   sentry: Promise<{ apps: AppName[]; dsn: SentryDsn; answer: HttpResult }[]>;
+  /** PostHog's answer to a feature-flags request, per project key and host (T97). */
+  posthog: Promise<{ apps: AppName[]; host: string; answer: HttpResult }[]>;
 };
 
 /**
@@ -357,7 +367,39 @@ function startOnlineRequests(
           ]).then(([regions, locales]) => ({ regions, locales })),
     resend: resendDomains(envs, statuses),
     sentry: sentryEnvelopes(envs),
+    posthog: posthogFlags(envs),
   };
+}
+
+/**
+ * A feature-flags request with each project key the apps have (T97): PostHog answers 200 for its
+ * project's key and 401 for any other, and records no event. Apps with the same key and host share
+ * one request; a key that is not a project key is the offline check's (`posthogKeyChecks`), and is
+ * never sent.
+ */
+function posthogFlags(envs: AppEnvs): OnlineRequests["posthog"] {
+  const asks = new Map<string, { apps: AppName[]; host: string; key: string }>();
+  for (const { app, key: name } of POSTHOG_KEYS) {
+    const key = (envs[app][name] ?? "").trim();
+    if (!POSTHOG_PROJECT_KEY.test(key)) continue;
+    const host = posthogHost(envs, app);
+    if (!/^https?:\/\/[^/\s]+$/.test(host)) continue;
+    const entry = asks.get(`${host} ${key}`) ?? { apps: [], host, key };
+    entry.apps.push(app);
+    asks.set(`${host} ${key}`, entry);
+  }
+  return Promise.all(
+    [...asks.values()].map(async ({ apps, host, key }) => ({
+      apps,
+      host,
+      answer: await request(`${host}/flags/?v=2`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        text: JSON.stringify({ api_key: key, distinct_id: "shopblok-doctor" }),
+        timeoutMs: 15_000,
+      }),
+    })),
+  );
 }
 
 /**

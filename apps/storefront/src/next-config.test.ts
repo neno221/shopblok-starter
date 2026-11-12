@@ -6,7 +6,7 @@ import {
   unstable_getResponseFromNextConfig,
 } from "next/experimental/testing/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import config from "../next.config";
+import config, { posthogRewrites } from "../next.config";
 import { pathsLeftAlone, storefrontPaths } from "./test-support/proxy-urls";
 
 afterEach(() => vi.unstubAllEnvs());
@@ -94,4 +94,42 @@ describe("next.config.ts sends a root file that nothing serves to /next/missing-
       expect(await rewriteOf(url)).toBe(rootFile ? "/next/missing-file" : undefined);
     },
   );
+});
+
+// M6 D124 (T97): PostHog behind `/ingest`, only in a build with its key. That `posthog-js`'s
+// trailing-slash paths (`/ingest/e/`) reach PostHog as they are, with no redirect first, is
+// `posthog.spec.ts`'s check on `next start` (the helper here cannot run an external rewrite).
+describe("next.config.ts puts PostHog behind /ingest (T97)", () => {
+  it("has no /ingest rewrite without a key, so nothing goes to PostHog", () => {
+    expect(posthogRewrites({})).toEqual([]);
+    expect(posthogRewrites({ NEXT_PUBLIC_POSTHOG_KEY: " " })).toEqual([]);
+  });
+
+  it("sends /ingest/static to the EU assets host and the rest to the EU ingest host", () => {
+    expect(posthogRewrites({ NEXT_PUBLIC_POSTHOG_KEY: "phc_test" })).toEqual([
+      { source: "/ingest/static/:path*", destination: "https://eu-assets.i.posthog.com/static/:path*" },
+      { source: "/ingest/:path*", destination: "https://eu.i.posthog.com/:path*" },
+    ]);
+  });
+
+  it("follows another region's host, and a host of the shop's own for both", () => {
+    expect(
+      posthogRewrites({
+        NEXT_PUBLIC_POSTHOG_KEY: "phc_test",
+        NEXT_PUBLIC_POSTHOG_HOST: "https://us.i.posthog.com/",
+      }).map((rule) => rule.destination),
+    ).toEqual(["https://us-assets.i.posthog.com/static/:path*", "https://us.i.posthog.com/:path*"]);
+    expect(
+      posthogRewrites({
+        NEXT_PUBLIC_POSTHOG_KEY: "phc_test",
+        NEXT_PUBLIC_POSTHOG_HOST: "http://127.0.0.1:8971",
+      }).map((rule) => rule.destination),
+    ).toEqual(["http://127.0.0.1:8971/static/:path*", "http://127.0.0.1:8971/:path*"]);
+  });
+
+  it("is in `beforeFiles`, ahead of every page", async () => {
+    vi.stubEnv("NEXT_PUBLIC_POSTHOG_KEY", "phc_test");
+    const rewrites = await config(PHASE_PRODUCTION_BUILD).rewrites?.();
+    expect(rewrites).toMatchObject({ beforeFiles: posthogRewrites(process.env) });
+  });
 });

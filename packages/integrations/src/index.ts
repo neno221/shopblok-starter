@@ -109,7 +109,9 @@ const SPECS: readonly Spec[] = [
       {
         app: "backend",
         what: "Analytics Module provider",
-        keys: ["POSTHOG_EVENTS_API_KEY", "POSTHOG_HOST"],
+        keys: ["POSTHOG_EVENTS_API_KEY"],
+        // The EU host is the default (M6 D124), as in the storefront.
+        optional: ["POSTHOG_HOST"],
       },
       {
         app: "storefront",
@@ -121,8 +123,9 @@ const SPECS: readonly Spec[] = [
     ],
     live: "PostHog",
     fallback: "analytics-local (no client script)",
-    wired: false,
-    arrives: "M6",
+    // T97 (M6 D124): Medusa's Analytics Module with the PostHog provider and its three
+    // subscribers, and `posthog-js` after the visitor's analytics consent.
+    wired: true,
   },
   {
     id: "sentry",

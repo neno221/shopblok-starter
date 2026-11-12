@@ -2,6 +2,7 @@ import { buildModules, getRedisUrl, has, type Env } from "../modules";
 
 const TRANSLATION = "@medusajs/medusa/translation";
 const NOTIFICATION = "@medusajs/medusa/notification";
+const ANALYTICS = "@medusajs/medusa/analytics";
 const EVENT_BUS = "@medusajs/medusa/event-bus-redis";
 const WORKFLOW_ENGINE = "@medusajs/medusa/workflow-engine-redis";
 const LOCKING = "@medusajs/medusa/locking";
@@ -25,14 +26,15 @@ const entry = (env: Env, resolve: string) => {
 
 describe("buildModules", () => {
   describe("env cases from the plan", () => {
-    it("registers translation and notification only when the env is empty", () => {
-      expect(resolves({})).toEqual([TRANSLATION, NOTIFICATION]);
+    it("registers translation, notification and analytics only when the env is empty", () => {
+      expect(resolves({})).toEqual([TRANSLATION, NOTIFICATION, ANALYTICS]);
     });
 
     it("adds the three Redis modules when REDIS_URL is set", () => {
       expect(resolves({ REDIS_URL })).toEqual([
         TRANSLATION,
         NOTIFICATION,
+        ANALYTICS,
         EVENT_BUS,
         WORKFLOW_ENGINE,
         LOCKING,
@@ -43,6 +45,7 @@ describe("buildModules", () => {
       expect(resolves({ REDIS_URL, MEDUSA_FF_CACHING: "true" })).toEqual([
         TRANSLATION,
         NOTIFICATION,
+        ANALYTICS,
         EVENT_BUS,
         WORKFLOW_ENGINE,
         LOCKING,
@@ -53,8 +56,8 @@ describe("buildModules", () => {
 
   describe("Redis", () => {
     it("treats a blank REDIS_URL as unset", () => {
-      expect(resolves({ REDIS_URL: "" })).toEqual([TRANSLATION, NOTIFICATION]);
-      expect(resolves({ REDIS_URL: "   " })).toEqual([TRANSLATION, NOTIFICATION]);
+      expect(resolves({ REDIS_URL: "" })).toEqual([TRANSLATION, NOTIFICATION, ANALYTICS]);
+      expect(resolves({ REDIS_URL: "   " })).toEqual([TRANSLATION, NOTIFICATION, ANALYTICS]);
     });
 
     it("passes the URL to every Redis module in the shape its module expects", () => {
@@ -89,7 +92,7 @@ describe("buildModules", () => {
 
   describe("caching", () => {
     it("stays off without REDIS_URL, so it never registers without a provider", () => {
-      expect(resolves({ MEDUSA_FF_CACHING: "true" })).toEqual([TRANSLATION, NOTIFICATION]);
+      expect(resolves({ MEDUSA_FF_CACHING: "true" })).toEqual([TRANSLATION, NOTIFICATION, ANALYTICS]);
     });
 
     it("stays off unless MEDUSA_FF_CACHING is the string true, as Medusa reads the flag", () => {
@@ -155,11 +158,38 @@ describe("buildModules", () => {
     });
   });
 
+  describe("analytics (M6 D124)", () => {
+    it("always registers the module, with analytics-local without PostHog's key", () => {
+      for (const env of [{}, { REDIS_URL }, { POSTHOG_HOST: "https://eu.i.posthog.com" }]) {
+        expect(entry(env, ANALYTICS).options.providers).toEqual([
+          { resolve: "@medusajs/medusa/analytics-local", id: "local" },
+        ]);
+      }
+    });
+
+    it("takes PostHog with the key, trimmed, on the EU host unless POSTHOG_HOST says otherwise", () => {
+      expect(entry({ POSTHOG_EVENTS_API_KEY: " phc_key " }, ANALYTICS).options.providers).toEqual([
+        {
+          resolve: "@medusajs/medusa/analytics-posthog",
+          id: "posthog",
+          options: { posthogEventsKey: "phc_key", posthogHost: "https://eu.i.posthog.com" },
+        },
+      ]);
+      expect(
+        entry({ POSTHOG_EVENTS_API_KEY: "phc_key", POSTHOG_HOST: " http://127.0.0.1:8971 " }, ANALYTICS)
+          .options.providers?.[0]?.options,
+      ).toEqual({ posthogEventsKey: "phc_key", posthogHost: "http://127.0.0.1:8971" });
+      expect(
+        entry({ POSTHOG_EVENTS_API_KEY: " " }, ANALYTICS).options.providers?.[0]?.id,
+      ).toBe("local");
+    });
+  });
+
   describe("payload (D75)", () => {
     const PAYLOAD_ENV = { PAYLOAD_SERVER_URL: " http://localhost:8000 ", PAYLOAD_API_KEY: "key-1" };
 
     it("registers the sync only with both the server URL and the API key", () => {
-      expect(resolves(PAYLOAD_ENV)).toEqual([TRANSLATION, PAYLOAD, NOTIFICATION]);
+      expect(resolves(PAYLOAD_ENV)).toEqual([TRANSLATION, PAYLOAD, NOTIFICATION, ANALYTICS]);
       expect(resolves({ PAYLOAD_SERVER_URL: "http://localhost:8000" })).not.toContain(PAYLOAD);
       expect(resolves({ PAYLOAD_API_KEY: "key-1" })).not.toContain(PAYLOAD);
       expect(resolves({ ...PAYLOAD_ENV, PAYLOAD_API_KEY: " " })).not.toContain(PAYLOAD);
@@ -183,7 +213,7 @@ describe("buildModules", () => {
       const before = process.env.REDIS_URL;
       process.env.REDIS_URL = REDIS_URL;
       try {
-        expect(resolves({})).toEqual([TRANSLATION, NOTIFICATION]);
+        expect(resolves({})).toEqual([TRANSLATION, NOTIFICATION, ANALYTICS]);
       } finally {
         if (before === undefined) {
           delete process.env.REDIS_URL;

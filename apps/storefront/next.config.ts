@@ -59,7 +59,7 @@ function buildConfig(phase: string): NextConfig {
     // out (PR 50 review): a deployment adapter can address a dynamic page's RSC payload as
     // `/us.rsc`, and that must still reach `[market]`.
     rewrites: async () => ({
-      beforeFiles: [],
+      beforeFiles: posthogRewrites(process.env),
       afterFiles: [
         {
           source: "/:file([^/]*\\.(?![Rr][Ss][Cc]$)[A-Za-z][A-Za-z0-9]*)",
@@ -77,6 +77,26 @@ function buildConfig(phase: string): NextConfig {
 // `[market]` root param (`src/i18n/request.ts`). The path is relative to this folder, which is where
 // `next build` and `next dev` run; Turbopack refuses an absolute one.
 const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
+
+/**
+ * M6 D124 (T97): PostHog behind the site's own `/ingest`, so the browser talks to this origin only
+ * (PostHog's Next.js guide): `/ingest/static/*` to the region's assets host, the rest to its ingest
+ * host (`NEXT_PUBLIC_POSTHOG_HOST`, the EU's when blank). In `beforeFiles`, ahead of every page,
+ * `[market]` among them; the proxy's matcher skips `/ingest`. Only in a build with
+ * `NEXT_PUBLIC_POSTHOG_KEY`: without it `/ingest` is no route and nothing goes to PostHog.
+ */
+export function posthogRewrites(source: NodeJS.ProcessEnv) {
+  if (!source.NEXT_PUBLIC_POSTHOG_KEY?.trim()) return [];
+  const host = (source.NEXT_PUBLIC_POSTHOG_HOST?.trim() || POSTHOG_EU).replace(/\/+$/, "");
+  const assets = host.replace(/^https:\/\/(eu|us)\.i\.posthog\.com$/, "https://$1-assets.i.posthog.com");
+  return [
+    { source: "/ingest/static/:path*", destination: `${assets}/static/:path*` },
+    { source: "/ingest/:path*", destination: `${host}/:path*` },
+  ];
+}
+
+/** PostHog's EU ingest host (D124). */
+const POSTHOG_EU = "https://eu.i.posthog.com";
 
 /**
  * T96 (M6 D125): the values `lib/sentry/options.ts` reads, fixed at build. The release is
