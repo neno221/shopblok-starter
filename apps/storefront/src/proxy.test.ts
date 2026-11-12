@@ -6,8 +6,8 @@ import {
 } from "next/experimental/testing/server";
 import { describe, expect, it, vi } from "vitest";
 import { seeded } from "./lib/markets/test-maps";
-import { pathsLeftAlone, storefrontPaths } from "./test-support/proxy-urls";
-import { config, proxy } from "./proxy";
+import { pathsLeftAlone, slashRedirects, storefrontPaths } from "./test-support/proxy-urls";
+import { config, proxy, withoutTrailingSlash } from "./proxy";
 
 // The map comes from `/next/markets` (a fetch); the glue test below gives it directly.
 vi.mock("./lib/markets/proxy-market-map", () => ({
@@ -31,6 +31,22 @@ describe("the proxy matcher", () => {
 
   it.each(pathsLeftAlone)("leaves %s alone", (url) => {
     expect(runsOn(url)).toBe(false);
+  });
+
+  it.each(slashRedirects)("runs on %s, which ends in a slash (T97)", (url) => {
+    expect(runsOn(url)).toBe(true);
+  });
+});
+
+describe("the trailing-slash redirect, which Next no longer makes (T97)", () => {
+  it.each(slashRedirects)("sends %s to %s with a 308", async (from, to) => {
+    const response = await proxy(new NextRequest(`https://example.com${from}`));
+    expect([response.status, getRedirectUrl(response)]).toEqual([308, `https://example.com${to}`]);
+  });
+
+  it("leaves PostHog's paths, the root and a path without a slash alone", () => {
+    for (const path of ["/", "/us", "/ingest/", "/ingest/e/", "/ingest/static/array.js"])
+      expect(withoutTrailingSlash(path), path).toBeNull();
   });
 });
 

@@ -31,23 +31,23 @@ export const storefrontPaths = [
  */
 export const pathsLeftAlone = [
   "/admin",
-  "/admin/",
   "/admin/collections/pages",
   "/admin/login",
   "/api",
   "/api/pages",
   "/api/users/first-register",
   "/design-system",
-  "/design-system/",
   "/design-system/en",
   "/design-system/el/foundations/colors",
   "/design-system/de/frame/atoms/button",
   "/next/preview",
   "/next/exit-preview",
   "/monitoring", // Sentry's tunnel (T96)
-  "/monitoring/",
   "/ingest", // PostHog's way in (M6 D124, T97)
+  "/ingest/", // PostHog's paths keep their slash (T97): no redirect before the rewrite
   "/ingest/e/",
+  "/ingest/flags/?v=2",
+  "/ingest/batch/",
   "/ingest/static/array.js",
   "/_next/static/chunks/main.js",
   "/_next/image",
@@ -67,4 +67,21 @@ export const pathsLeftAlone = [
   "/.well-known/security.txt",
   "/.well-known/apple-app-site-association", // no extension: only the /.well-known/ rule
   "/cy/evil.example", // the last segment is a file name to the matcher
+];
+
+/**
+ * Paths that end in a slash, outside the storefront's too (T97): the proxy runs on each and answers
+ * the trailing-slash redirect Next no longer makes (`skipTrailingSlashRedirect`), so they lose the
+ * slash as before. PostHog's `/ingest/…` is in `pathsLeftAlone`.
+ */
+export const slashRedirects: readonly [string, string][] = [
+  ["/us/", "/us"],
+  ["/ch/fr/store/?page=2", "/ch/fr/store?page=2"],
+  ["/admin/", "/admin"],
+  ["/admin/collections/pages/", "/admin/collections/pages"],
+  ["/api/pages/", "/api/pages"],
+  ["/design-system/", "/design-system"],
+  ["/monitoring/", "/monitoring"],
+  ["/ingestion/", "/ingestion"],
+  ["/products/shirt//", "/products/shirt"],
 ];

@@ -1007,7 +1007,8 @@ describe("PostHog's keys (T97)", () => {
   it("errors on a key that is not a project key, and never prints it", () => {
     const checks = posthog(
       withKeys(
-        { POSTHOG_EVENTS_API_KEY: "phx_PersonalSecretKeyValue0001" },
+        // Built here, so `check:keys` does not read a personal key's shape in this file.
+        { POSTHOG_EVENTS_API_KEY: `phx_${"FAKE".repeat(6)}` },
         { NEXT_PUBLIC_POSTHOG_KEY: "nope", NEXT_PUBLIC_POSTHOG_HOST: "eu.i.posthog.com" },
       ),
     );
@@ -1022,7 +1023,7 @@ describe("PostHog's keys (T97)", () => {
         ],
       ],
     ]);
-    expect(JSON.stringify(checks)).not.toContain("PersonalSecretKeyValue");
+    expect(JSON.stringify(checks)).not.toContain("FAKEFAKE");
   });
 
   it("warns when the two apps send to two projects", () => {

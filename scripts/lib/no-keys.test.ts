@@ -17,6 +17,9 @@ describe("findKeys", () => {
     expect(kinds(`NEXT_PUBLIC_STRIPE_KEY=${key("pk_live_")}`)).toEqual(["stripe-publishable-live"]);
     expect(kinds(`STRIPE_WEBHOOK_SECRET=${key("whsec_", 32)}`)).toEqual(["stripe-webhook"]);
     expect(kinds(`RESEND_API_KEY=re_${fill(8)}_${fill(24)}`)).toEqual(["resend"]);
+    // T97: a PostHog personal key; the project key (public) is not one.
+    expect(kinds(`POSTHOG_PERSONAL=phx_${fill(40)}`)).toEqual(["posthog-personal"]);
+    expect(kinds(`NEXT_PUBLIC_POSTHOG_KEY=phc_${fill(40)}`)).toEqual([]);
     expect(kinds(`id: ${"AKIA"}${"ABCDEFGHIJKLMNOP"}`)).toEqual(["aws-access-key"]);
     expect(kinds(`S3_SECRET_ACCESS_KEY=${hex(64)}`)).toEqual(["s3-key"]);
     expect(kinds(`  S3_ACCESS_KEY_ID: "${hex(32)}"`)).toEqual(["s3-key"]);

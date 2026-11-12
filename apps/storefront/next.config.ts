@@ -20,6 +20,11 @@ function buildConfig(phase: string): NextConfig {
     partialPrefetching: true,
     typedRoutes: true,
     poweredByHeader: false,
+    // T97 (M6 D124): Next's own trailing-slash redirect would answer `posthog-js`'s `/ingest/e/`
+    // with a 308 before the `/ingest` rewrite (checked on `next start`). It is off, and the proxy
+    // makes the same redirect for every other path (`src/proxy.ts`, its matcher's second entry), so
+    // `/us/` and `/admin/` still lose their slash and only `/ingest/…` keeps it.
+    skipTrailingSlashRedirect: true,
     experimental: {
       // The app has one root layout per market, so there is no single layout for a 404 page.
       globalNotFound: true,
