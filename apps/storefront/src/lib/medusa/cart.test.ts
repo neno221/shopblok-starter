@@ -10,7 +10,7 @@ import { wireCart } from "../../test-support/medusa-wire";
 const jar = createCookieJar();
 vi.mock("next/headers", () => ({ cookies: jar.cookies }));
 
-const { consentMetadata, toCartDto } = await import("./cart");
+const { consentKeys, consentMetadata, toCartDto } = await import("./cart");
 
 describe("toCartDto", () => {
   it("keeps the lines, the totals and each code's discount, in major units", () => {
@@ -223,26 +223,31 @@ describe("the analytics consent in the cart's metadata (T97, D124)", () => {
   const id = "019a0c2e-7f3b-7c1d-9a3e-123456789abc";
   const yes = { consent: true, distinctId: id };
 
-  it("adds the consent and the id, keeping the other keys", () => {
+  it("adds the consent and the id, and only those keys (Medusa merges metadata)", () => {
     expect(consentMetadata({ market: "/cy", language: "el" }, yes)).toEqual({
-      market: "/cy",
-      language: "el",
       analytics_consent: true,
       posthog_distinct_id: id,
     });
-    // Consent without an id (a build with no PostHog key): the consent alone.
+    // Consent without an id (a build with no PostHog key): the consent, and no id.
     expect(consentMetadata({}, { consent: true, distinctId: null })).toEqual({
       analytics_consent: true,
+      posthog_distinct_id: "",
     });
   });
 
-  it("removes both when there is no consent, whatever the cart held before", () => {
+  it('removes both when there is no consent: `""` is Medusa\'s delete', () => {
     expect(
       consentMetadata(
         { market: "/cy", analytics_consent: true, posthog_distinct_id: id },
         { consent: false, distinctId: null },
       ),
-    ).toEqual({ market: "/cy" });
+    ).toEqual({ analytics_consent: "", posthog_distinct_id: "" });
+  });
+
+  it("gives a new cart the keys alone, with nothing to delete", () => {
+    expect(consentKeys(yes)).toEqual({ analytics_consent: true, posthog_distinct_id: id });
+    expect(consentKeys({ consent: true, distinctId: null })).toEqual({ analytics_consent: true });
+    expect(consentKeys({ consent: false, distinctId: id })).toEqual({});
   });
 
   it("answers null when the metadata says so already: no write", () => {
@@ -285,7 +290,11 @@ describe("the analytics consent in the cart's metadata (T97, D124)", () => {
       await completeCart();
       expect(calls.map((call) => [call.method, call.url.pathname, call.body])).toEqual([
         ["GET", "/store/carts/cart_1", undefined],
-        ["POST", "/store/carts/cart_1", { metadata: { market: "/cy" } }],
+        [
+          "POST",
+          "/store/carts/cart_1",
+          { metadata: { analytics_consent: "", posthog_distinct_id: "" } },
+        ],
         ["POST", "/store/carts/cart_1/complete", undefined],
       ]);
     });

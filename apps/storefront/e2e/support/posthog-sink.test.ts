@@ -12,6 +12,8 @@ describe("the PostHog sink", () => {
     const form = `data=${encodeURIComponent(Buffer.from(json).toString("base64"))}`;
     expect(decodeBody("/e/?compression=base64", {}, Buffer.from(form))).toEqual(batch);
     expect(decodeBody("/e/", {}, Buffer.from(json))).toEqual(batch);
+    // posthog-js 1.447: gzip with no header and no query, `text/plain`.
+    expect(decodeBody("/e/", { "content-type": "text/plain" }, gzipSync(json))).toEqual(batch);
     expect(
       decodeBody("/batch/", { "content-encoding": "gzip" }, gzipSync(JSON.stringify({ batch }))),
     ).toEqual({ batch });

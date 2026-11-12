@@ -73,12 +73,14 @@ export function MarketChoiceIsland({ current, markets, navigate }: MarketChoiceI
       event.preventDefault();
       const chosen = key;
       // D124: only with a PostHog key and the visitor's consent; PostHog sends its queue as the
-      // page unloads.
-      track("market_switched", {
-        from: current.key,
-        to: chosen,
-        source: slot === "market-switcher-link" ? "switcher" : "suggestion",
-      });
+      // page unloads. The literal guard leaves the call out of a keyless build.
+      if (process.env.NEXT_PUBLIC_POSTHOG_KEY) {
+        track("market_switched", {
+          from: current.key,
+          to: chosen,
+          source: slot === "market-switcher-link" ? "switcher" : "suggestion",
+        });
+      }
       void rememberMarket({ market: chosen })
         .catch(() => undefined)
         .then(() => go(destination));

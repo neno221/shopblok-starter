@@ -28,6 +28,24 @@ import { addToCart, checkOut, orderIdOf } from "../support/purchase";
 skipWithoutKeys(test, "posthog");
 test.describe.configure({ mode: "serial" });
 
+// posthog-js drops every event from a browser it takes for a bot: a user agent or a brand that says
+// `HeadlessChrome`, or `navigator.webdriver`, which Playwright sets. The shop keeps that filter (bots
+// are not visitors); the spec's browser looks like the same Chromium a visitor runs.
+test.use({
+  userAgent: async ({ browser }, provide) => {
+    const page = await browser.newPage();
+    const agent = await page.evaluate(() => navigator.userAgent);
+    await page.close();
+    await provide(agent.replace("HeadlessChrome", "Chrome"));
+  },
+});
+test.beforeEach(async ({ context }) => {
+  await context.addInitScript(() => {
+    Object.defineProperty(Navigator.prototype, "webdriver", { get: () => false });
+    Object.defineProperty(Navigator.prototype, "userAgentData", { get: () => undefined });
+  });
+});
+
 const en = catalogs.en;
 const ADDRESS = {
   firstName: "Ada",

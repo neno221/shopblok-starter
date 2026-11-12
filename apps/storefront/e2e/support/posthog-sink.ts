@@ -32,7 +32,10 @@ type Raw = Record<string, unknown> & {
 export function decodeBody(path: string, headers: IncomingHttpHeaders, raw: Buffer): unknown {
   const query = new URL(path, SINK_HOST).searchParams;
   let body = raw;
-  if (headers["content-encoding"] === "gzip" || query.get("compression") === "gzip-js")
+  // gzip by its header, its query, or its first two bytes: posthog-js 1.447 sends a gzipped body
+  // to `/e/` with neither (`text/plain`).
+  const gzipped = body.length > 1 && body[0] === 0x1f && body[1] === 0x8b;
+  if (headers["content-encoding"] === "gzip" || query.get("compression") === "gzip-js" || gzipped)
     body = gunzipSync(body);
   let text = body.toString("utf8");
   if (text.startsWith("data=")) {

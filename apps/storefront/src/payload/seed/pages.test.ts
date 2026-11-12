@@ -23,7 +23,9 @@ describe("the privacy page's seed (T65, T97)", () => {
   });
 
   it("is T65's text with one paragraph more, so a shop that kept T65's gets it", () => {
-    const [before] = privacyLayout(false) as unknown as [{ content: Record<string, { root: Node }> }];
+    const [before] = privacyLayout(false) as unknown as [
+      { content: Record<string, { root: Node }> },
+    ];
     for (const language of LOCALES) {
       const was = before.content[language]!.root.children!;
       const now = block.content[language]!.root.children!;

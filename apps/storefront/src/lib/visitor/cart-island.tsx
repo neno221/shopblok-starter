@@ -74,8 +74,11 @@ export function CartIsland({ market, miniCart, quickCart, ...button }: CartIslan
       if (answer === null) toCartPage();
       else {
         setShown({ kind: "drawer", parts: answer.parts, open: true });
-        // D124: only with a PostHog key and the visitor's consent (`track`).
-        track("cart_viewed", { source: "drawer", items: answer.count });
+        // D124: only with a PostHog key and the visitor's consent (`track`); the literal guard
+        // leaves the call out of a keyless build.
+        if (process.env.NEXT_PUBLIC_POSTHOG_KEY) {
+          track("cart_viewed", { source: "drawer", items: answer.count });
+        }
       }
     }, toCartPage);
   };

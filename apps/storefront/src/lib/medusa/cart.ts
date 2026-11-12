@@ -279,23 +279,31 @@ export const DISTINCT_ID_KEY = "posthog_distinct_id";
 export const MARKET_KEY_KEY = "market_key";
 
 /**
- * `metadata` saying what `consent` says: `analytics_consent: true` and the distinct id when there
- * is one, neither otherwise; the other keys kept (Medusa replaces `metadata` whole on an update).
- * `null` when it says so already, so a write that changes nothing is not made.
+ * The keys that say what `consent` says: `analytics_consent: true` and the distinct id when there
+ * is one, neither otherwise (a new cart's metadata).
+ */
+export function consentKeys(consent: AnalyticsConsent): Record<string, unknown> {
+  if (!consent.consent) return {};
+  return {
+    [ANALYTICS_CONSENT_KEY]: true,
+    ...(consent.distinctId === null ? {} : { [DISTINCT_ID_KEY]: consent.distinctId }),
+  };
+}
+
+/**
+ * The update that makes a cart's `metadata` say what `consent` says, or `null` when it says so
+ * already, so a write that changes nothing is not made. Medusa merges an update's `metadata` into
+ * the cart's and deletes a key sent as `""`, so the update holds the two keys only: each as wanted,
+ * or `""` to remove it (a withdrawal). Checked against Medusa 2.22.6's store API.
  */
 export function consentMetadata(
   metadata: Record<string, unknown>,
   consent: AnalyticsConsent,
 ): Record<string, unknown> | null {
-  const { [ANALYTICS_CONSENT_KEY]: hadConsent, [DISTINCT_ID_KEY]: hadId, ...rest } = metadata;
-  const wanted = consent.consent ? true : undefined;
-  const wantedId = (consent.consent ? consent.distinctId : null) ?? undefined;
-  if (hadConsent === wanted && hadId === wantedId) return null;
-  return {
-    ...rest,
-    ...(wanted === undefined ? {} : { [ANALYTICS_CONSENT_KEY]: wanted }),
-    ...(wantedId === undefined ? {} : { [DISTINCT_ID_KEY]: wantedId }),
-  };
+  const wanted = consentKeys(consent);
+  const keys = [ANALYTICS_CONSENT_KEY, DISTINCT_ID_KEY];
+  if (keys.every((key) => metadata[key] === wanted[key])) return null;
+  return Object.fromEntries(keys.map((key) => [key, wanted[key] ?? ""]));
 }
 
 /**
@@ -387,7 +395,7 @@ export async function getOrCreateCart(context: CartContext): Promise<CartDto> {
   if (existing === null) {
     // Made with the consent and the market already in it (D124), so `cart.created` sees them.
     const base = context.market === undefined ? {} : { [MARKET_KEY_KEY]: context.market };
-    const consented = consentMetadata(base, await getAnalyticsConsent()) ?? base;
+    const consented = { ...base, ...consentKeys(await getAnalyticsConsent()) };
     const metadata = Object.keys(consented).length === 0 ? null : consented;
     const { cart } = await medusaRequest((sdk) =>
       sdk.store.cart.create(
@@ -615,7 +623,7 @@ export async function initiatePayment(
  * Stores where the order's e-mails point (T99, D122): the market's public prefix and its language
  * in the cart's `metadata`, as `{ market, language }`, which Medusa copies to the order when it is
  * placed; and, with `key`, the market's key for the order's analytics events (D124, `market_key`).
- * Medusa replaces `metadata` whole on an update, so the cart's other keys are read and kept.
+ * Medusa merges an update's `metadata` into the cart's, so the update holds these keys only.
  */
 export async function setMailTarget(
   target: { market: string; language: string; key?: string },
@@ -637,7 +645,6 @@ export async function setMailTarget(
       id,
       {
         metadata: {
-          ...metadata,
           market: target.market,
           language: target.language,
           ...(key === undefined ? {} : { [MARKET_KEY_KEY]: key }),

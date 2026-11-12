@@ -28,7 +28,11 @@ function customerId(): string | null | undefined {
  */
 export function watchAnalytics(
   context: AnalyticsContext,
-  load: () => Promise<Loader> = () => import("./loader"),
+  // The literal guard: a keyless build has no loader chunk at all (`first-load.ts`'s "not built").
+  load: () => Promise<Loader> = () =>
+    process.env.NEXT_PUBLIC_POSTHOG_KEY
+      ? import("./loader")
+      : Promise.reject(new Error("No PostHog key in this build")),
 ): () => void {
   let loader: Promise<Loader> | null = null;
   let on = false;

@@ -127,7 +127,7 @@ const cookieConsentStates: readonly DsState[] = [
     id: "dialog-analytics",
     label: "Dialog, analytics on",
     description:
-      "The dialog as a visitor who chose analytics before would see it when they open it again: the analytics switch is on, marketing is off.",
+      "The dialog as a visitor who chose analytics before sees it when they open it again from “Cookie settings” at the foot of every page or on the cookie policy: the analytics switch is on, marketing is off, and the banner does not come back.",
     height: DIALOG_BOX,
     props: (ctx) => ({
       defaultDialogOpen: true,
@@ -213,6 +213,7 @@ export const siteOrganismStories = {
       "Opening the dialog moves focus to its first switch and Tab stays inside it. While it is open the page behind it is hidden from assistive technology, and Escape or the close button closes it and puts focus back on “Choose cookies”. The dialog's “Accept all” and “Reject all” are the banner's two buttons again, and “Save my choices” records the switches as they stand.",
       "After a choice the banner goes and keyboard focus moves to the control that follows it in the page, where the next Tab would have gone, and not to the top of the page. A choice made in the dialog waits until the dialog has left the page, so focus never lands on the dialog's own buttons as they go.",
       "WCAG 2.4.11 (Focus Not Obscured): the banner is fixed to the bottom of the window, so while it is shown its height is reserved at the end of the page, as padding and as scroll padding on the root element, measured again whenever the banner changes size. A control the reader tabs to is scrolled clear of the banner and the page's last links can scroll above it; the reservation is given back when the banner goes. Here the banners sit in boxes, but the reservation is the real one, so this page ends with some blank space.",
+      "“Cookie settings” (M6 D123), at the foot of every page and in the cookie policy, opens this dialog again for a visitor who has chosen, with the switches as they were left, so withdrawing is as easy as agreeing. It is a link to the cookie policy at `#cookie-settings`: without JavaScript it opens the policy page, and with it the dialog opens in place and focus goes back to the link when it closes. The choice is kept in a cookie for twelve months, and a new version of the consent asks again.",
       "Every button, switch and link is at least 44 px. The words wrap in every language and are never cut. A banner taller than 60 % of the window scrolls inside itself rather than cover a short window or a page zoomed to 400 %, and the dialog does the same.",
     ],
     live: (ctx) => (

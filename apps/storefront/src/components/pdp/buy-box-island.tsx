@@ -76,6 +76,7 @@ export function BuyBoxIsland({
 
   // D124: the product page seen (only with a PostHog key and the visitor's consent).
   useEffect(() => {
+    if (!process.env.NEXT_PUBLIC_POSTHOG_KEY) return;
     track("product_viewed", { product_id: product.id, product: product.handle });
   }, [product.id, product.handle]);
 
