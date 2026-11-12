@@ -66,7 +66,7 @@ beforeEach(() => {
 const logger = { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() };
 const provider = () =>
   new ResendNotificationProviderService({ logger } as never, {
-    api_key: "re_fake_key_for_the_fake",
+    api_key: "fake-key-for-the-fake-resend",
     from: "Shop <onboarding@resend.dev>",
     base_url: baseUrl,
   });
@@ -131,7 +131,7 @@ describe("the Resend provider with a fake Resend (D121)", () => {
       const request = await verify(language);
       expect(request.method).toBe("POST");
       expect(request.path).toBe("/emails");
-      expect(request.headers.authorization).toBe("Bearer re_fake_key_for_the_fake");
+      expect(request.headers.authorization).toBe("Bearer fake-key-for-the-fake-resend");
       expect(request.body.from).toBe("Shop <onboarding@resend.dev>");
       expect(request.body.to).toEqual([ADDRESS]);
       expect(request.body.subject).toBe(seeded.subject);
