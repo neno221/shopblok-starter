@@ -348,11 +348,12 @@ test.describe("the content and promotion blocks' members (T82)", () => {
         .analyze();
       expect(axe.violations.map((v) => `${v.id}: ${v.help} (${v.nodes.length})`)).toEqual([]);
 
-      // Escape closes it, and the next page does not show it again.
+      // Escape closes it, and the next page does not show it again. The choice is kept in its
+      // cookie (T97, D123), so the banner does not come back either.
       await page.keyboard.press("Escape");
       await expect(card(page)).toHaveCount(0);
       await page.reload({ waitUntil: "networkidle" });
-      await banner(page).locator('[data-slot="cookie-consent-accept"]').click();
+      await expect(banner(page)).toHaveCount(0);
       await page.waitForTimeout(500);
       await expect(card(page)).toHaveCount(0);
       await context.close();
