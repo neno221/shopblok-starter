@@ -1,7 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Browser, type Page } from "@playwright/test";
 import { catalogs } from "./support/catalogs";
-import { linkIn, mailTo } from "./support/mailpit";
+import { linkIn, mailTo, mailWhere } from "./support/mailpit";
 import { adminToken, base } from "./support/server";
 
 // T67 (D81): the forms an editor builds in the admin, posted to the shop's server action. The
@@ -173,6 +173,14 @@ test.describe("the forms (T67)", () => {
     expect(violations.map((violation) => violation.id)).toEqual([]);
     await form.getByRole("button", { name: "Send message" }).click();
     await expect(form.locator("[data-slot=form-block-status]")).toContainText(CONFIRMATION);
+    // T99 (D122): the seeded form's e-mail to the shop (Mailpit, no Resend key), rebuilt in the
+    // shop's frame: the form's subject with the answer as text, the answers listed, replies to the
+    // visitor.
+    const mail = await mailWhere(`"A question from ${email}."`);
+    expect(mail.Subject).toBe("New message from Ann Example");
+    expect(mail.ReplyTo.map((each) => each.Address)).toEqual([email]);
+    expect(mail.Text).toContain(`Your message: A question from ${email}.`);
+    expect(mail.HTML).toContain("/admin/collections/form-submissions/");
     const stored = await submissionsWith(token, contact, email);
     expect(stored).toHaveLength(1);
     expect(stored[0]?.submissionData).toEqual([
@@ -324,7 +332,10 @@ test.describe("the forms (T67)", () => {
       expect(stored).toHaveLength(1);
       expect(stored[0]?.submissionData).toEqual([
         { field: "email", value: email },
-        { field: "confirmed", value: expect.stringMatching(/^\d{4}-\d\d-\d\dT/) as unknown as string },
+        {
+          field: "confirmed",
+          value: expect.stringMatching(/^\d{4}-\d\d-\d\dT/) as unknown as string,
+        },
       ]);
     }
   });

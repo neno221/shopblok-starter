@@ -7,28 +7,35 @@ import { expect } from "@playwright/test";
 const base = () => (process.env["E2E_MAILPIT_URL"] || "http://localhost:8025").replace(/\/+$/, "");
 
 type Found = { messages: { ID: string; Created: string }[] };
-export type Mail = { Subject: string; Text: string; HTML: string };
+export type Mail = {
+  Subject: string;
+  Text: string;
+  HTML: string;
+  ReplyTo: { Address: string }[];
+};
 
-/** The newest e-mail to `to`, waiting up to 30 s for it to arrive. */
-export async function mailTo(to: string): Promise<Mail> {
+/** The newest e-mail Mailpit's search `query` finds, waiting up to 30 s for it to arrive. */
+export async function mailWhere(query: string): Promise<Mail> {
   let id: string | undefined;
   await expect
     .poll(
       async () => {
-        const query = new URLSearchParams({ query: `to:"${to}"` });
-        const response = await fetch(`${base()}/api/v1/search?${query}`);
+        const response = await fetch(`${base()}/api/v1/search?${new URLSearchParams({ query })}`);
         if (!response.ok) return `Mailpit answered ${response.status}`;
         const { messages } = (await response.json()) as Found;
         id = messages[0]?.ID;
         return id === undefined ? "none yet" : "found";
       },
-      { timeout: 30_000, message: `an e-mail to ${to} in Mailpit (${base()})` },
+      { timeout: 30_000, message: `an e-mail for ${query} in Mailpit (${base()})` },
     )
     .toBe("found");
   const response = await fetch(`${base()}/api/v1/message/${id}`);
   expect(response.status, "Mailpit's message").toBe(200);
   return (await response.json()) as Mail;
 }
+
+/** The newest e-mail to `to`. */
+export const mailTo = (to: string) => mailWhere(`to:"${to}"`);
 
 /** The first link in `mail`'s text part that matches `pattern`, as a path to open on the server under test. */
 export function linkIn(mail: Mail, pattern: RegExp): string {
