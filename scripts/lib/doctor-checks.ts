@@ -16,6 +16,8 @@ const MEDUSA_MARKETS = {
 const MEDUSA_ORPHANS = { id: "medusa-orphans", title: "Medusa regions left over" } as const;
 const SEARCH_INDEX = { id: "search-index", title: "Search index currencies" } as const;
 const RESEND_DOMAIN = { id: "resend-domain", title: "Resend sender domain" } as const;
+const SENTRY_DSN = { id: "sentry-dsn", title: "Sentry DSN" } as const;
+const SENTRY_ONLINE = { id: "sentry-envelope", title: "Sentry accepts the DSN" } as const;
 
 // ---------------------------------------------------------------------------------------------
 // From the environment alone
@@ -324,6 +326,7 @@ export function configChecks(
     ...vercelStorage(statuses, context),
     ...redisInProduction(statuses, context),
     ...halfConfigured(statuses),
+    ...sentryDsnChecks(envs),
   ];
 }
 
@@ -756,6 +759,120 @@ export function resendDomainCheck(
         message: `not checked: ${state.reason}.`,
       });
   }
+}
+
+// ---------------------------------------------------------------------------------------------
+// Sentry's DSN (T96, M6 D125)
+
+/** Where each app reads its DSN. */
+export const SENTRY_DSN_KEYS: readonly { app: AppName; name: string }[] = [
+  { app: "backend", name: "SENTRY_DSN" },
+  { app: "storefront", name: "NEXT_PUBLIC_SENTRY_DSN" },
+];
+
+export type SentryDsn = {
+  publicKey: string;
+  /** Where the envelopes go: `<scheme>://<host><path>api/<project>/envelope/`. */
+  envelopeUrl: string;
+  /** Host and project only: what doctor may print (the key is a credential). */
+  label: string;
+};
+
+/**
+ * A Sentry DSN, `https://<public key>@<host>[/<path>]/<project id>`, or `undefined` when `value` is
+ * not one (Sentry's SDKs then send nothing, silently).
+ */
+export function parseSentryDsn(value: string | undefined): SentryDsn | undefined {
+  const match =
+    /^(https?):\/\/([A-Za-z0-9]+)(?::[A-Za-z0-9]*)?@([^/?#@\s]+)((?:\/[^/?#\s]+)*)\/(\d+)\/?$/.exec(
+      (value ?? "").trim(),
+    );
+  if (match === null) return undefined;
+  const [, scheme, publicKey, host, path, project] = match as unknown as string[];
+  return {
+    publicKey: publicKey!,
+    envelopeUrl: `${scheme}://${host}${path}/api/${project}/envelope/`,
+    label: `${host}, project ${project}`,
+  };
+}
+
+/**
+ * From the environment alone: each DSN that is set is a DSN (an error otherwise: the app reports
+ * nothing, and says nothing about it), and a traces' rate that is set is a number from 0 to 1 (a
+ * warning: the apps read anything else as 0, no tracing). Never prints a DSN.
+ */
+export function sentryDsnChecks(envs: AppEnvs): Check[] {
+  const checks: Check[] = [];
+  const bad = SENTRY_DSN_KEYS.filter(
+    ({ app, name }) => isSet(envs[app], name) && parseSentryDsn(envs[app][name]) === undefined,
+  );
+  if (bad.length > 0)
+    checks.push({
+      ...SENTRY_DSN,
+      level: "error",
+      message: "A Sentry DSN is set but is not a DSN, so that app reports no error at all.",
+      details: bad.map(
+        ({ app, name }) => `apps/${app}: ${name} is not https://<key>@<host>/<project>`,
+      ),
+      fix: "Copy the DSN from Sentry (Settings → Projects → your project → Client Keys (DSN)).",
+    });
+  const rates = (["backend", "storefront"] as const).filter((app) => {
+    const value = (envs[app].SENTRY_TRACES_SAMPLE_RATE ?? "").trim();
+    const rate = Number(value);
+    return value !== "" && !(Number.isFinite(rate) && rate >= 0 && rate <= 1);
+  });
+  if (rates.length > 0)
+    checks.push({
+      id: "sentry-traces-rate",
+      title: "Sentry traces' sample rate",
+      level: "warn",
+      message:
+        "SENTRY_TRACES_SAMPLE_RATE is not a number from 0 to 1, so it is read as 0: no tracing.",
+      details: rates.map((app) => `apps/${app}`),
+      fix: "Set a rate such as 0.1, or leave it blank for none.",
+    });
+  return checks;
+}
+
+/** The envelope `doctor --online` posts: a header and no item, which Sentry accepts and stores nothing of. */
+export function emptyEnvelope(dsn: string): string {
+  return `${JSON.stringify({ dsn: dsn.trim(), sent_at: new Date(0).toISOString() })}\n`;
+}
+
+/**
+ * `doctor --online`: does Sentry take envelopes with this DSN (T96)? One check per DSN, naming the
+ * apps that use it; `answer` is Sentry's answer to `emptyEnvelope` posted to the DSN's envelope URL.
+ */
+export function sentryEnvelopeCheck(
+  apps: readonly AppName[],
+  dsn: SentryDsn,
+  answer: HttpResult,
+): Check {
+  const check = (c: Omit<Check, "id" | "title">): Check => ({
+    id: [SENTRY_ONLINE.id, ...apps].join("-"),
+    title: `${SENTRY_ONLINE.title} (${apps.map((app) => `apps/${app}`).join(" and ")})`,
+    ...c,
+  });
+  if (answer.kind !== "response")
+    return check({
+      level: "warn",
+      message: `not checked: Sentry (${dsn.label}) ${describeUnreachable(answer)}.`,
+    });
+  if (answer.status >= 200 && answer.status < 300)
+    return check({
+      level: "ok",
+      message: `Sentry (${dsn.label}) accepts envelopes with this DSN.`,
+    });
+  if ([401, 403, 404].includes(answer.status))
+    return check({
+      level: "error",
+      message: `Sentry (${dsn.label}) refuses this DSN (HTTP ${answer.status}): the key was revoked, or the project is gone, so no error is reported.`,
+      fix: "Copy the DSN again from Sentry (Settings → Projects → your project → Client Keys (DSN)).",
+    });
+  return check({
+    level: "warn",
+    message: `not checked: Sentry (${dsn.label}) answered HTTP ${answer.status}.`,
+  });
 }
 
 // ---------------------------------------------------------------------------------------------

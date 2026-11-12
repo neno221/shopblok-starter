@@ -13,6 +13,8 @@ export type HttpOptions = {
   method?: "GET" | "POST";
   headers?: Readonly<Record<string, string>>;
   body?: unknown;
+  /** A body sent as it is, in place of `body`'s JSON (T96: a Sentry envelope); set its type in `headers`. */
+  text?: string;
   timeoutMs?: number;
 };
 
@@ -43,6 +45,7 @@ export async function request(url: string, options: HttpOptions = {}): Promise<H
         ...options.headers,
       },
       ...(options.body === undefined ? {} : { body: JSON.stringify(options.body) }),
+      ...(options.text === undefined ? {} : { body: options.text }),
       // A redirect is an answer (the storefront may send `/` somewhere); following it would test another page.
       redirect: "manual",
       signal: AbortSignal.timeout(timeoutMs),

@@ -33,7 +33,20 @@ let cached: DoctorReport | undefined;
  */
 export function doctorReport(): DoctorReport {
   if (cached !== undefined) return cached;
-  const run = spawnSync(process.execPath, [path.join("scripts", "doctor.ts"), "--json"], {
+  cached = runDoctor(["--json"]);
+  return cached;
+}
+
+/**
+ * Doctor's report with `--online` (T96: Sentry's DSN check), run each time it is asked for: the
+ * services it calls may have changed since.
+ */
+export function doctorOnline(): DoctorReport {
+  return runDoctor(["--json", "--online"]);
+}
+
+function runDoctor(args: readonly string[]): DoctorReport {
+  const run = spawnSync(process.execPath, [path.join("scripts", "doctor.ts"), ...args], {
     cwd: repoRoot,
     encoding: "utf8",
     timeout: 180_000,
@@ -41,7 +54,7 @@ export function doctorReport(): DoctorReport {
   });
   const failed = (why: string) =>
     new Error(
-      `doctor --json ${why} (exit ${run.status ?? "none"}): ${(run.stderr ?? "").slice(-400)}`,
+      `doctor ${args.join(" ")} ${why} (exit ${run.status ?? "none"}): ${(run.stderr ?? "").slice(-400)}`,
     );
   if (run.error !== undefined) throw failed(`did not run: ${run.error.message}`);
   if (!run.stdout?.trim()) throw failed("printed nothing");
@@ -52,8 +65,7 @@ export function doctorReport(): DoctorReport {
     throw failed("printed no JSON");
   }
   if (!isReport(parsed)) throw failed("printed JSON without an integrations list");
-  cached = parsed;
-  return cached;
+  return parsed;
 }
 
 function isReport(value: unknown): value is DoctorReport {
