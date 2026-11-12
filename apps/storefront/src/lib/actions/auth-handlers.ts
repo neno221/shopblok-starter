@@ -12,6 +12,7 @@ import {
   resetPassword,
   type LoginResult,
 } from "../medusa/customer";
+import { markSignedUp } from "../medusa/cookies";
 import { MedusaRequestError } from "../medusa/sdk";
 import { action, ActionError, type FormError } from "./action";
 import { contextFor, formText as text, marketKey } from "./inputs";
@@ -85,6 +86,8 @@ export const registerAction = action(
     );
     const outcome = outcomeOf(result);
     if (outcome.state === "signed-in") signedInOrOut();
+    // D124: `signed_up` from the page this browser lands on (only with a key and consent).
+    await markSignedUp();
     return outcome;
   },
 );

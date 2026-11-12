@@ -9,10 +9,11 @@ import { syncCartConsent } from "../actions/consent";
 import { onConsentChange } from "../visitor/consent";
 import { readConsentCookie } from "../visitor/consent-cookie";
 import { getSnapshot, subscribe } from "../visitor/store";
+import type * as LoaderModule from "./loader";
 import type { AnalyticsContext } from "./loader";
 import { clearPosthogStorage, hasPosthogStorage } from "./storage";
 
-type Loader = typeof import("./loader");
+type Loader = typeof LoaderModule;
 
 /** The store's customer: their id, `null` for a guest, `undefined` while the store does not know. */
 function customerId(): string | null | undefined {

@@ -1,7 +1,7 @@
 import "server-only";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
-import { CONSENT_COOKIE, COOKIE, type CookieName } from "../cookie-names";
+import { CONSENT_COOKIE, COOKIE, SIGNED_UP_COOKIE, type CookieName } from "../cookie-names";
 import { env, isProduction } from "../env";
 import { parseConsent } from "../visitor/consent-cookie";
 
@@ -224,7 +224,23 @@ export async function getAnalyticsConsent(): Promise<AnalyticsConsent> {
   const jar = await cookies();
   const consent = parseConsent(jar.get(CONSENT_COOKIE)?.value)?.choice.analytics === true;
   const key = process.env.NEXT_PUBLIC_POSTHOG_KEY?.trim();
-  const distinctId =
-    consent && key ? distinctIdFrom(jar.get(`ph_${key}_posthog`)?.value) : null;
+  const distinctId = consent && key ? distinctIdFrom(jar.get(`ph_${key}_posthog`)?.value) : null;
   return { consent, distinctId };
+}
+
+/**
+ * The register action's mark for the `signed_up` event (D124): a cookie the next page's consent
+ * island reads and removes (`lib/analytics/events.ts`), so not httpOnly. Only with a PostHog key in
+ * the build and the visitor's analytics consent: otherwise nothing would send it.
+ */
+export async function markSignedUp(): Promise<void> {
+  if (!process.env.NEXT_PUBLIC_POSTHOG_KEY?.trim()) return;
+  if (!(await getAnalyticsConsent()).consent) return;
+  (await cookies()).set(SIGNED_UP_COOKIE, "1", {
+    httpOnly: false,
+    secure: isProduction(),
+    sameSite: "lax",
+    path: "/",
+    maxAge: 300,
+  });
 }

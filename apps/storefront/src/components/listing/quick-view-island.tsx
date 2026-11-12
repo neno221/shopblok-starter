@@ -6,6 +6,7 @@ import { variantFor } from "@shopblok/ui/organisms/buy-box-choice";
 import { QuickViewDialog } from "@shopblok/ui/organisms/quick-view-dialog";
 import { useActionState, useEffect, useState } from "react";
 import { addToCart } from "../../lib/actions/cart";
+import { trackAdded } from "../../lib/analytics/events";
 import type { QuickViewAnswer } from "../../lib/listing/quick-view";
 import { announceAdded } from "../../lib/visitor/cart-events";
 import { setCartCount } from "../../lib/visitor/store";
@@ -116,6 +117,7 @@ function QuickViewOpening({
       setCartCount(result.data.count);
       // As the product page's buy box does: the header's quick cart follows (PR 120 review, item 2).
       announceAdded(result.data.line.id);
+      trackAdded(result.data.line, form.get("quantity"), "quick_view");
       return "added";
     },
     "idle",

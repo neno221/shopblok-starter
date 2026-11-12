@@ -21,7 +21,7 @@ export function clearPosthogStorage(): void {
   for (const part of document.cookie.split(";")) {
     const name = part.split("=")[0]?.trim() ?? "";
     if (!isPosthogs(name)) continue;
-    const expired = `${name}=; Path=/; Max-Age=0; SameSite=Lax`;
+    const expired = `${name}=; Path=/; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax`;
     document.cookie = expired;
     // A cookie PostHog set for the site's parent domain (`cross_subdomain_cookie`).
     const parts = window.location.hostname.split(".");

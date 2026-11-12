@@ -137,25 +137,25 @@ describe("seedUiStrings", () => {
     const { payload, docs } = fakePayload();
     const strings = codeStrings();
     expect(await seedUiStrings(payload, strings)).toEqual({
-      created: 798,
+      created: 799,
       updated: 0,
       unchanged: 0,
       deleted: 0,
     });
-    expect(payload.create).toHaveBeenCalledTimes(798);
+    expect(payload.create).toHaveBeenCalledTimes(799);
     const call = payload.create.mock.calls[0]?.[0] as unknown as Record<string, unknown>;
     expect(call).toMatchObject({ locale: "all", overrideAccess: true });
     expect(call["context"]).toEqual({ disableRevalidate: true });
     expect(payload.find).toHaveBeenCalledWith(
       expect.objectContaining({ locale: "all", pagination: false, overrideAccess: true }),
     );
-    expect(docs.size).toBe(798);
+    expect(docs.size).toBe(799);
 
     payload.create.mockClear();
     expect(await seedUiStrings(payload, strings)).toEqual({
       created: 0,
       updated: 0,
-      unchanged: 798,
+      unchanged: 799,
       deleted: 0,
     });
     expect(payload.create).not.toHaveBeenCalled();

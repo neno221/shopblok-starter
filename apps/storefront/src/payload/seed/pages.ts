@@ -157,7 +157,7 @@ function privacyText(language: Locale, withCookies: boolean) {
 }
 
 /** The privacy page's layout: one rich text block (T65), with the cookies paragraph since T97. */
-const privacyLayout = (withCookies: boolean) => [
+export const privacyLayout = (withCookies: boolean) => [
   {
     id: "seed-privacy-text",
     blockType: "richText",

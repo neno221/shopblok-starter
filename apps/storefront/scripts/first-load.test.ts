@@ -552,7 +552,10 @@ describe("the kept-out modules (D102)", () => {
   ];
   const sizes = () => 1234;
   // A build with Sentry's DSN (T96): Sentry's browser SDK exists only then.
-  const withDsn = { NEXT_PUBLIC_SENTRY_DSN: "https://public@o1.ingest.sentry.io/1" };
+  const withDsn = {
+    NEXT_PUBLIC_SENTRY_DSN: "https://public@o1.ingest.sentry.io/1",
+    NEXT_PUBLIC_POSTHOG_KEY: "phc_test",
+  };
 
   it("passes a module whose chunk no route loads at first, with its size", () => {
     const report = checkKeptOut(rows, keptOut, chunks, sizes, withDsn);
@@ -590,6 +593,21 @@ describe("the kept-out modules (D102)", () => {
     // With the DSN, a build without the SDK's chunk fails, as any stale row does.
     expect(checkKeptOut(rows, sentry, [chunks[0]!], sizes, withDsn).failures).toEqual([
       expect.stringContaining("no chunk holds its marker"),
+    ]);
+  });
+
+  it("keeps PostHog's loader out, judged only in a build with a key (T97)", () => {
+    const posthog = keptOut.filter((item) => item.onlyWith === "NEXT_PUBLIC_POSTHOG_KEY");
+    expect(posthog.map((item) => [item.module, item.marker])).toEqual([
+      ["src/lib/analytics/loader.ts", "shopblok:posthog-loader"],
+    ]);
+    expect(checkKeptOut(rows, posthog, [chunks[0]!], sizes, {}).failures).toEqual([]);
+    const inFirstLoad = [
+      chunks[0]!,
+      { chunk: market.firstLoadChunkPaths[0]!, text: `x="${posthog[0]!.marker}"` },
+    ];
+    expect(checkKeptOut(rows, posthog, inFirstLoad, sizes, {}).failures).toEqual([
+      expect.stringContaining("is in the first load of"),
     ]);
   });
 

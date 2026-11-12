@@ -31,7 +31,7 @@ export type AnalyticsContext = {
   key: string;
   /** The ingest host the site's `/ingest` forwards to; the app's link to PostHog follows it. */
   host: string;
-  /** The page's market key and its `<html lang>`, sent with every event. */
+  /** The page's market key and its Medusa locale (`el-GR`), sent with every event, as Medusa's. */
   market: string;
   locale: string;
 };

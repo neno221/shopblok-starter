@@ -26,6 +26,7 @@ import {
   type QuickParts,
 } from "../actions/cart-islands";
 import { VisitorCartButton, type VisitorCartButtonProps } from "./cart-button";
+import { track } from "../analytics/track";
 import { onAdded } from "./cart-events";
 import { setCartCount } from "./store";
 import { DRAWER_FORMS, MINI_CART_PAGE } from "../cms/template-options";
@@ -71,7 +72,11 @@ export function CartIsland({ market, miniCart, quickCart, ...button }: CartIslan
     const toCartPage = () => window.location.assign(button.href);
     renderCartDrawer(market).then((answer) => {
       if (answer === null) toCartPage();
-      else setShown({ kind: "drawer", parts: answer.parts, open: true });
+      else {
+        setShown({ kind: "drawer", parts: answer.parts, open: true });
+        // D124: only with a PostHog key and the visitor's consent (`track`).
+        track("cart_viewed", { source: "drawer", items: answer.count });
+      }
     }, toCartPage);
   };
 

@@ -10,6 +10,7 @@ import {
   updateLineFromCart,
 } from "../../../../lib/actions/checkout";
 import { MAX_LINE_QUANTITY } from "../../../../lib/actions/cart-handlers";
+import { TrackOnView } from "../../../../lib/analytics/track-on-view";
 import { emptyCart, promoErrorOf } from "../../../../lib/cart-view";
 import { readCheckoutCart } from "../../../../lib/checkout-cart";
 import { getCurrentMarket } from "../../../../lib/current-market";
@@ -76,23 +77,36 @@ export default async function CartPage({ searchParams }: Props) {
   const key = typeof params.f === "string" ? params.f : undefined;
   const flash = await readFlash(cartHref, key);
   const { error, promoError, promoCode } = errorsOf(flash);
+  const cart = read?.view ?? emptyCart(context);
   return (
-    <CartTemplate
-      variant={templates.cart}
-      cart={read?.view ?? emptyCart(context)}
-      promoCode={promoCode}
-      checkoutHref={context.url("/checkout")}
-      continueHref={context.url("/store")}
-      copy={cartCopy(messages)}
-      locale={market.htmlLang}
-      updateAction={updateLineFromCart.bind(null, market.key)}
-      removeAction={removeLineFromCart.bind(null, market.key)}
-      applyCodeAction={applyPromoFromCart.bind(null, market.key)}
-      removeCodeAction={removePromoFromCart.bind(null, market.key)}
-      {...(error === undefined ? {} : { error })}
-      {...(promoError === undefined ? {} : { promoError })}
-      maxQuantity={MAX_LINE_QUANTITY}
-      prefetch={SHELL_PREFETCH}
-    />
+    <>
+      {/* D124: `cart_viewed`, sent only with a PostHog key and the visitor's consent. */}
+      <TrackOnView
+        event="cart_viewed"
+        properties={{
+          source: "page",
+          items: cart.itemCount,
+          total: cart.total.amount,
+          currency: cart.currencyCode,
+        }}
+      />
+      <CartTemplate
+        variant={templates.cart}
+        cart={cart}
+        promoCode={promoCode}
+        checkoutHref={context.url("/checkout")}
+        continueHref={context.url("/store")}
+        copy={cartCopy(messages)}
+        locale={market.htmlLang}
+        updateAction={updateLineFromCart.bind(null, market.key)}
+        removeAction={removeLineFromCart.bind(null, market.key)}
+        applyCodeAction={applyPromoFromCart.bind(null, market.key)}
+        removeCodeAction={removePromoFromCart.bind(null, market.key)}
+        {...(error === undefined ? {} : { error })}
+        {...(promoError === undefined ? {} : { promoError })}
+        maxQuantity={MAX_LINE_QUANTITY}
+        prefetch={SHELL_PREFETCH}
+      />
+    </>
   );
 }

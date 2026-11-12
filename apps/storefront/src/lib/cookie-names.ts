@@ -19,3 +19,10 @@ export type CookieName = (typeof COOKIE)[keyof typeof COOKIE];
  * only reads it, in the cart's writes (D124).
  */
 export const CONSENT_COOKIE = "_shopblok_consent";
+
+/**
+ * M6 D124 (T97): "this browser has just registered", for the `signed_up` event. The register action
+ * sets it (only with a PostHog key and analytics consent) and the next page's consent island reads
+ * and removes it (`lib/analytics/events.ts`); five minutes at most.
+ */
+export const SIGNED_UP_COOKIE = "_shopblok_signed_up";

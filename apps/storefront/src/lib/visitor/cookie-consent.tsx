@@ -23,6 +23,7 @@
 import { CookieConsent, type CookieConsentProps } from "@shopblok/ui/organisms/cookie-consent";
 import { useEffect, useSyncExternalStore } from "react";
 import { syncCartConsent } from "../actions/consent";
+import { trackSignedUp } from "../analytics/events";
 import { watchAnalytics } from "../analytics/gate";
 import {
   chooseConsent,
@@ -88,9 +89,10 @@ export function VisitorCookieConsent({
     [],
   );
 
-  // PostHog, only in a build with its key (D124, D129).
+  // PostHog, only in a build with its key (D124, D129); and `signed_up` after a registration.
   useEffect(() => {
     if (!process.env.NEXT_PUBLIC_POSTHOG_KEY) return;
+    trackSignedUp();
     return watchAnalytics({
       key: process.env.NEXT_PUBLIC_POSTHOG_KEY,
       host: process.env.NEXT_PUBLIC_POSTHOG_HOST?.trim() || "https://eu.i.posthog.com",

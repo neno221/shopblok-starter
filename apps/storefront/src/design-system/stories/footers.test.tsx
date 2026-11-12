@@ -120,6 +120,7 @@ const contractOf = (props: FooterProps) => ({
   marketSwitcher: props.marketSwitcher,
   market: props.market,
   copyright: props.copyright,
+  cookieSettingsHref: props.cookieSettingsHref,
 });
 
 describe("the five footers' stories", () => {

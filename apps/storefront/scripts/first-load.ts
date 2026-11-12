@@ -221,6 +221,14 @@ export const keptOut: readonly KeptOut[] = [
     label: "Sentry's browser SDK (T96)",
     onlyWith: "NEXT_PUBLIC_SENTRY_DSN",
   },
+  // T97 (M6 D124, D129): `posthog-js`, which the consent island imports only after analytics
+  // consent, and only in a build with a key (`integrations-live` builds one).
+  {
+    module: "src/lib/analytics/loader.ts",
+    marker: "shopblok:posthog-loader",
+    label: "PostHog's loader (T97)",
+    onlyWith: "NEXT_PUBLIC_POSTHOG_KEY",
+  },
 ];
 
 export type StatsRow = {
