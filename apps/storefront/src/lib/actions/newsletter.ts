@@ -1,5 +1,6 @@
 "use server";
 
+import type { Route } from "next";
 import { redirect } from "next/navigation";
 import { getRenderMarketMap } from "../markets/cached-market-map";
 import { findMarket } from "../markets/market";
@@ -43,5 +44,5 @@ export async function confirmNewsletter(market: unknown, data: FormData): Promis
       ? `&token=${encodeURIComponent(token)}`
       : "";
   const path = `/newsletter/confirm?state=${outcome}${retry}`;
-  redirect(found === undefined ? path : buildPublicUrl(found, path, map));
+  redirect(found === undefined ? (path as Route) : buildPublicUrl(found, path, map));
 }

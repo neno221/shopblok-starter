@@ -234,12 +234,12 @@ describe("NewsletterForm", () => {
       rerender(<NewsletterForm {...props} status="done" />);
       // The same element, so a screen reader sees its text change rather than a new region.
       expect(statusRegion()).toBe(region);
-      expect(region.textContent).toBe("Thank you, you are subscribed.");
+      expect(region.textContent).toBe("Thank you. Check your inbox: we sent you a link to confirm your subscription.");
     });
 
     it("says it is done in the region, in words", () => {
       setup("en", { status: "done" });
-      expect(within(statusRegion()).getByText("Thank you, you are subscribed.")).toBeTruthy();
+      expect(within(statusRegion()).getByText("Thank you. Check your inbox: we sent you a link to confirm your subscription.")).toBeTruthy();
       expect(field().getAttribute("aria-invalid")).toBeNull();
       // Still a form that can be used again.
       expect((submit() as HTMLButtonElement).type).toBe("submit");
