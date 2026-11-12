@@ -1,6 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Browser, type Page } from "@playwright/test";
 import { catalogs } from "./support/catalogs";
+import { linkIn, mailTo, mailWhere } from "./support/mailpit";
 import { adminToken, base } from "./support/server";
 
 // T67 (D81): the forms an editor builds in the admin, posted to the shop's server action. The
@@ -9,7 +10,10 @@ import { adminToken, base } from "./support/server";
 // on the US home. Each is sent with scripts and without, and the submission is read back through
 // the REST API as the bootstrap admin. The REST `create` is closed (403, even for an admin), a
 // form with submissions cannot be deleted, a filled spam trap answers "thank you" and stores
-// nothing, and an e-mail the server refuses is marked on its field. The page and the submissions are deleted afterwards.
+// nothing, and an e-mail the server refuses is marked on its field. T99 (D122): the newsletter
+// stores nothing until its confirmation e-mail's link (read from Mailpit) is opened and "Confirm"
+// posted, with scripts and without; the link works once. The page, the submissions and the
+// confirmations are deleted afterwards.
 
 const stamp = Date.now().toString(36);
 const slug = `e2e-forms-${stamp}`;
@@ -127,6 +131,12 @@ test.describe("the forms (T67)", () => {
       for (const doc of await submissionsWith(token, form, stamp).catch(() => []))
         await api(token, "DELETE", `/api/form-submissions/${doc.id}`).catch(() => undefined);
     }
+    // The newsletter's confirmations (T99), as an admin erases them.
+    await api(
+      token,
+      "DELETE",
+      `/api/newsletter-confirmations?where[email][contains]=${stamp}`,
+    ).catch(() => undefined);
   });
 
   test("closes the REST create: POST /api/form-submissions answers 403, for an admin too", async () => {
@@ -163,6 +173,14 @@ test.describe("the forms (T67)", () => {
     expect(violations.map((violation) => violation.id)).toEqual([]);
     await form.getByRole("button", { name: "Send message" }).click();
     await expect(form.locator("[data-slot=form-block-status]")).toContainText(CONFIRMATION);
+    // T99 (D122): the seeded form's e-mail to the shop (Mailpit, no Resend key), rebuilt in the
+    // shop's frame: the form's subject with the answer as text, the answers listed, replies to the
+    // visitor.
+    const mail = await mailWhere(`"A question from ${email}."`);
+    expect(mail.Subject).toBe("New message from Ann Example");
+    expect(mail.ReplyTo.map((each) => each.Address)).toEqual([email]);
+    expect(mail.Text).toContain(`Your message: A question from ${email}.`);
+    expect(mail.HTML).toContain("/admin/collections/form-submissions/");
     const stored = await submissionsWith(token, contact, email);
     expect(stored).toHaveLength(1);
     expect(stored[0]?.submissionData).toEqual([
@@ -249,10 +267,11 @@ test.describe("the forms (T67)", () => {
     expect(await submissionsWith(token, newsletter, marker)).toHaveLength(0);
   });
 
-  test("subscribes from the footer's newsletter, with scripts and without", async ({
+  test("subscribes from the footer's newsletter, with scripts and without, confirmed by the e-mail's link (T99)", async ({
     page,
     browser,
   }) => {
+    const confirm = en.templates.newsletterConfirm;
     await page.goto("/us");
     const footer = page.locator("footer [data-slot=newsletter-form]");
     await expect(
@@ -278,9 +297,47 @@ test.describe("the forms (T67)", () => {
         en.molecules.newsletterForm.done,
       );
     });
+    // D122: nothing is kept until the address confirms. Each gets the confirmation e-mail (Mailpit,
+    // no Resend key); its link opens the page with the address and "Confirm", and opening it
+    // (twice, as a mail scanner and then a person would) confirms nothing.
+    const links: Record<string, string> = {};
+    for (const email of [withJs, noJs]) {
+      const mail = await mailTo(email);
+      links[email] = linkIn(mail, /\/us\/newsletter\/confirm\?token=/);
+      await page.goto(links[email]);
+      await page.goto(links[email]);
+      await expect(page.getByRole("heading", { level: 1 })).toHaveText(confirm.title);
+      await expect(page.getByRole("main")).toContainText(email);
+      expect(await submissionsWith(token, newsletter, email)).toHaveLength(0);
+    }
+    // "Confirm" with scripts, and without.
+    await page.goto(links[withJs] ?? "");
+    await page.getByRole("button", { name: confirm.submit }).click();
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(confirm.doneTitle);
+    expect(new URL(page.url()).search).toBe("?state=done");
+    // The link once more: already confirmed, and no button to post it again.
+    await page.goto(links[withJs] ?? "");
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(confirm.usedTitle);
+    await expect(page.getByRole("button", { name: confirm.submit })).toHaveCount(0);
+    await withoutScripts(browser, async (noScripts) => {
+      await noScripts.goto(links[noJs] ?? "");
+      await noScripts.getByRole("button", { name: confirm.submit }).click();
+      await noScripts.waitForLoadState("load");
+      await expect(noScripts.getByRole("heading", { level: 1 })).toHaveText(confirm.doneTitle);
+      // The link once more: already confirmed.
+      await noScripts.goto(links[noJs] ?? "");
+      await expect(noScripts.getByRole("heading", { level: 1 })).toHaveText(confirm.usedTitle);
+    });
     for (const email of [withJs, noJs]) {
       const stored = await submissionsWith(token, newsletter, email);
-      expect(stored.map((doc) => doc.submissionData)).toEqual([[{ field: "email", value: email }]]);
+      expect(stored).toHaveLength(1);
+      expect(stored[0]?.submissionData).toEqual([
+        { field: "email", value: email },
+        {
+          field: "confirmed",
+          value: expect.stringMatching(/^\d{4}-\d\d-\d\dT/) as unknown as string,
+        },
+      ]);
     }
   });
 });

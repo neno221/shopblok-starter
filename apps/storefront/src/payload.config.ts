@@ -11,6 +11,7 @@ import { Categories } from "./payload/collections/categories";
 import { Collections } from "./payload/collections/collections";
 import { Integrations } from "./payload/collections/integrations";
 import { Media } from "./payload/collections/media";
+import { NewsletterConfirmations } from "./payload/collections/newsletter-confirmations";
 import { EmailTemplates } from "./payload/collections/email-templates";
 import { Pages } from "./payload/collections/pages";
 import { Posts } from "./payload/collections/posts";
@@ -86,6 +87,7 @@ export default buildConfig({
     Collections,
     EmailTemplates,
     UiStrings,
+    NewsletterConfirmations,
   ],
   globals: [Header, Footer, SiteSettings, Templates],
   // D70, D79: SPEC §7.4's blocks, defined once here; `pages.layout` names them (`blockReferences`).

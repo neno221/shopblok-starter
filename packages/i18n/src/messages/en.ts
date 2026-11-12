@@ -154,7 +154,7 @@ export const en = {
       // `{privacy}` is where the link goes; its text is `privacyLink`.
       consent: "By subscribing you agree to our {privacy}. You can unsubscribe at any time.",
       privacyLink: "privacy policy",
-      done: "Thank you, you are subscribed.",
+      done: "Thank you. Check your inbox: we sent you a link to confirm your subscription.",
       error: "We could not subscribe this address. Check it and try again.",
     },
     accordionItem: {},
@@ -1240,6 +1240,22 @@ export const en = {
         text: "Stories from the shop will appear here soon.",
         action: "Shop all products",
       },
+    },
+    newsletterConfirm: {
+      // The newsletter's confirmation page (T99, D122): the e-mail's link opens it, and only its
+      // button confirms. `{email}` is the address the link was sent to.
+      title: "Confirm your subscription",
+      lead: "Confirm that {email} should receive our newsletter.",
+      submit: "Confirm",
+      doneTitle: "You are subscribed",
+      done: "Thank you for confirming. Our newsletter will reach you about once a month. You can unsubscribe at any time.",
+      usedTitle: "Already confirmed",
+      used: "This link has already been used, and the address is on our list.",
+      expiredTitle: "This link no longer works",
+      expired:
+        "Confirmation links work for 48 hours. Sign up again with the form at the bottom of any page and we will send you a new one.",
+      failed: "We could not confirm your subscription just now. Please try again in a moment.",
+      home: "Continue shopping",
     },
   },
 };

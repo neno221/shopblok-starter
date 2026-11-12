@@ -508,6 +508,30 @@ export async function initiatePayment(
   return { sessionId: session.id, providerId, status: session.status };
 }
 
+/**
+ * Stores where the order's e-mails point (T99, D122): the market's public prefix and its language
+ * in the cart's `metadata`, as `{ market, language }`, which Medusa copies to the order when it is
+ * placed. Medusa replaces `metadata` whole on an update, so the cart's other keys are read and kept.
+ */
+export async function setMailTarget(
+  target: { market: string; language: string },
+  locale?: string,
+): Promise<void> {
+  const id = await requireCartId();
+  const headers = await headersFor(locale);
+  await medusaRequest(async (sdk) => {
+    const { cart } = await sdk.store.cart.retrieve(id, { fields: "id,metadata" }, headers);
+    const metadata = (cart.metadata ?? {}) as Record<string, unknown>;
+    if (metadata["market"] === target.market && metadata["language"] === target.language) return;
+    await sdk.store.cart.update(
+      id,
+      { metadata: { ...metadata, market: target.market, language: target.language } },
+      { fields: "id" },
+      headers,
+    );
+  });
+}
+
 export type CompletedCart =
   | { kind: "order"; orderId: string; countryCode: string | null }
   | { kind: "cart"; error: string; cart: CartDto };

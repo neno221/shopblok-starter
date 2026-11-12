@@ -10,10 +10,12 @@ import {
   moveCart,
   setAddresses,
   setEmail,
+  setMailTarget,
   setShippingMethod,
   type CartDto,
 } from "../medusa/cart";
 import { setReceipt } from "../medusa/cookies";
+import { mailTarget } from "../markets";
 import { listShippingOptions } from "../medusa/fulfillment";
 import { listPaymentProviders, SYSTEM_PAYMENT_PROVIDER } from "../medusa/payment";
 import { toAddressInput } from "../view-models/address";
@@ -181,6 +183,8 @@ export const placeOrderAction = action(placeOrderSchema, async ({ market }) => {
     cart.paymentProviderId === null
   )
     throw new ActionError("incomplete", "a step before the review is not done");
+  // The order's e-mails link to this market, in its language (T99, D122).
+  await setMailTarget(mailTarget(context.market, context.map), context.market.medusaLocale);
   const answer = await completeCart(context.market.medusaLocale);
   if (answer.kind === "cart") throw new ActionError("rejected", answer.error);
   await setReceipt(answer.orderId);

@@ -7,7 +7,7 @@ import { FooterTwoTier } from "@shopblok/ui/organisms/footer/two-tier";
 import { FooterWordmark } from "@shopblok/ui/organisms/footer/wordmark";
 import { getMessages } from "next-intl/server";
 import type { ReactElement } from "react";
-import { submitForm } from "../../lib/actions/form";
+import { subscribeNewsletter } from "../../lib/actions/newsletter";
 import type { NewsletterTarget } from "../../lib/cms/resolve/forms";
 import type { Market } from "../../lib/markets/types";
 import { SHELL_PREFETCH, type FooterVariant } from "../../lib/site";
@@ -53,7 +53,7 @@ function newsletterProps(
         prefetch={SHELL_PREFETCH}
         fieldName={signup.fieldName}
         hiddenFields={<FormHoneypot label={messages.sections.form.honeypot} />}
-        submit={submitForm.bind(null, { market: market.key, form: signup.formId })}
+        submit={subscribeNewsletter.bind(null, { market: market.key, form: signup.formId })}
         formId="footer-newsletter"
         permalink={`${homeHref}#footer-newsletter`}
       />

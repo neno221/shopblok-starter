@@ -131,7 +131,10 @@ export const organisms = [
     group: "organisms",
     kind: "organism",
     label: "CartDrawer · Picks",
-    component: { module: "@shopblok/ui/organisms/mini-cart/drawer-picks", name: "MiniCartDrawerPicks" },
+    component: {
+      module: "@shopblok/ui/organisms/mini-cart/drawer-picks",
+      name: "MiniCartDrawerPicks",
+    },
     contract: CartDrawer,
     family: "mini-cart",
     variant: "drawer-picks",

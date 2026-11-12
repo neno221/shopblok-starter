@@ -4,7 +4,8 @@ import { lexicalParagraphs } from "./email-templates";
 import type { SeedCounts } from "./types";
 
 // The seeded forms (T67, D81): "Newsletter", the footer's signup (one email field, the shape a
-// newsletter needs), and "Contact", a contact form with every kind D81 offers. Created once, in the
+// newsletter needs), and "Contact", a contact form with every kind D81 offers and, since T99, one
+// e-mail to the shop (its sender's address, replies to the visitor). Created once, in the
 // seeded markets' four languages; after that a form is the editors' own, so a second run leaves an
 // existing one alone, whatever it holds now (a form's fields are its structure, which no seed rule
 // can merge with an editor's change).
@@ -23,6 +24,8 @@ type Words = {
   consent: string;
   submit: string;
   confirmation: string;
+  /** The contact form's e-mail to the shop (T99, D122): its subject, `{{name}}` the answer. */
+  mailSubject: string;
 };
 
 const WORDS: Record<Language, Words> = {
@@ -37,6 +40,7 @@ const WORDS: Record<Language, Words> = {
     consent: "I agree that you may keep my message to answer it.",
     submit: "Send message",
     confirmation: "Thank you for writing. We will answer within one working day.",
+    mailSubject: "New message from {{name}}",
   },
   el: {
     email: "Διεύθυνση email",
@@ -49,6 +53,7 @@ const WORDS: Record<Language, Words> = {
     consent: "Συμφωνώ να κρατήσετε το μήνυμά μου για να μου απαντήσετε.",
     submit: "Αποστολή μηνύματος",
     confirmation: "Ευχαριστούμε που μας γράψατε. Θα απαντήσουμε μέσα σε μία εργάσιμη ημέρα.",
+    mailSubject: "Νέο μήνυμα από {{name}}",
   },
   de: {
     email: "E-Mail-Adresse",
@@ -61,6 +66,7 @@ const WORDS: Record<Language, Words> = {
     consent: "Ich bin einverstanden, dass Sie meine Nachricht speichern, um sie zu beantworten.",
     submit: "Nachricht senden",
     confirmation: "Danke für Ihre Nachricht. Wir antworten innerhalb eines Werktags.",
+    mailSubject: "Neue Nachricht von {{name}}",
   },
   fr: {
     email: "Adresse e-mail",
@@ -73,6 +79,7 @@ const WORDS: Record<Language, Words> = {
     consent: "J’accepte que vous conserviez mon message pour y répondre.",
     submit: "Envoyer le message",
     confirmation: "Merci de nous avoir écrit. Nous répondrons en un jour ouvré.",
+    mailSubject: "Nouveau message de {{name}}",
   },
 };
 
@@ -86,6 +93,8 @@ export type FormSeed = {
     fields: Row[];
     submitButtonLabel?: string;
     confirmationMessage?: unknown;
+    /** The e-mails to the shop (T99): to the shop's sender (no `emailTo`), replies to the visitor. */
+    emails?: Row[];
   };
 };
 
@@ -136,6 +145,7 @@ export const FORM_SEEDS: readonly FormSeed[] = [
       ],
       submitButtonLabel: words.submit,
       confirmationMessage: lexicalParagraphs([words.confirmation]),
+      emails: [{ replyTo: "{{email}}", subject: words.mailSubject }],
     }),
   },
 ];
@@ -189,14 +199,17 @@ export async function seedForms(
       context: CONTEXT,
     });
     const stored = (created.fields ?? []) as Row[];
+    const storedEmails = ((created as { emails?: Row[] | null }).emails ?? []) as Row[];
     for (const language of LANGUAGES) {
       if (language === DEFAULT_LOCALE) continue;
       const data = seed.data(WORDS[language]);
+      const emails =
+        data.emails === undefined ? {} : { emails: withIds(data.emails, storedEmails) };
       await payload.update({
         collection: "forms",
         id: created.id,
         locale: language,
-        data: { ...data, fields: withIds(data.fields, stored) } as never,
+        data: { ...data, fields: withIds(data.fields, stored), ...emails } as never,
         depth: 0,
         overrideAccess: true,
         context: CONTEXT,

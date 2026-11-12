@@ -1,13 +1,20 @@
 import { expect, test } from "@playwright/test";
+import { addToSegment, removeContact } from "../../src/lib/newsletter/resend-contacts";
+import { signToken, tokenKey } from "../../src/lib/newsletter/token";
+import { appEnv } from "../support/app-env";
+import { catalogs } from "../support/catalogs";
 import { skipWithoutKeys } from "../support/integration-keys";
 import { medusaAdminApi, medusaAdminToken, medusaUrl } from "../support/medusa-admin";
+import { addToCart, checkOut } from "../support/purchase";
 
 // M6 D121, D131 (T98): Resend, live. With `RESEND_API_KEY` and `RESEND_FROM_EMAIL` in both apps,
 // Medusa's `email` channel and Payload's e-mail adapter send through Resend. The spec sends one
 // verification e-mail from Medusa and one e-mail from Payload, each to Resend's test address
 // `delivered@resend.dev` (with a label, so the two runs' e-mails tell apart), and holds each to the
 // id Resend answered. Without the keys it is skipped, naming them. It never prints the key, and the
-// only address it uses is Resend's own.
+// only address it uses is Resend's own. T99 (D122): a purchase in `/` sends the order e-mail through
+// Resend; and the newsletter's confirmation, posted on its page, puts the address in the segment
+// `RESEND_NEWSLETTER_SEGMENT_ID` (skipped without it), read back from Resend and then removed.
 
 skipWithoutKeys(test, "resend");
 
@@ -89,4 +96,96 @@ test("Payload sends an e-mail through its Resend adapter and gets Resend's id", 
   expect(adapter, "Payload's e-mail adapter").toBe("resend-rest");
   expect(id ?? "", "Resend's id").toMatch(RESEND_ID);
   console.log(`Payload → Resend: e-mail sent, Resend id ${id}`);
+});
+
+/** Notifications Medusa wrote to `to` with `template`, once one has its end state. */
+async function sentNotification(to: string, template: string): Promise<Notification | undefined> {
+  const medusa = medusaUrl();
+  const admin = await medusaAdminToken(medusa);
+  const query = new URLSearchParams({ to, fields: "id,to,template,status,external_id" });
+  let found: Notification | undefined;
+  await expect
+    .poll(
+      async () => {
+        const { notifications } = await medusaAdminApi<{ notifications: Notification[] }>(
+          medusa,
+          admin,
+          "GET",
+          `/admin/notifications?${query}`,
+        );
+        found = notifications.find((n) => n.template === template);
+        return found?.status ?? "none yet";
+      },
+      {
+        timeout: 60_000,
+        message: `the ${template} e-mail's notification in Medusa, sent or failed`,
+      },
+    )
+    .toMatch(/^(success|failure)$/);
+  return found;
+}
+
+test("Medusa sends the order e-mail through Resend after a purchase in / (T99)", async ({
+  page,
+}) => {
+  const email = testAddress("order");
+  await addToCart(page);
+  await page.goto("/cart");
+  await page.locator('[data-slot="cart-checkout"]:visible').click();
+  await checkOut(page, {
+    words: catalogs.el,
+    email,
+    address: {
+      firstName: "Μαρία",
+      lastName: "Γεωργίου",
+      address1: "Λεωφόρος Μακαρίου 10",
+      city: "Λευκωσία",
+    },
+  });
+  const found = await sentNotification(email, "order-placed");
+  expect(found?.status, "the notification's status").toBe("success");
+  expect(found?.external_id ?? "", "Resend's id").toMatch(RESEND_ID);
+  console.log(`Medusa → Resend: order-placed sent, Resend id ${found?.external_id}`);
+});
+
+test("the newsletter's confirmation puts the address in Resend's segment (T99)", async ({
+  page,
+}) => {
+  let segmentId = "";
+  try {
+    segmentId = appEnv("storefront", "RESEND_NEWSLETTER_SEGMENT_ID");
+  } catch {
+    test.skip(true, "RESEND_NEWSLETTER_SEGMENT_ID is not set (a Resend segment's id, G10)");
+  }
+  const apiKey = appEnv("storefront", "RESEND_API_KEY");
+  const email = testAddress("newsletter");
+  // The link the sign-up e-mails (Resend's test inbox cannot be read), signed as the shop signs it.
+  const { token } = signToken(
+    { email, form: 1, market: "en-us", language: "en" },
+    tokenKey(appEnv("storefront", "PAYLOAD_SECRET")),
+  );
+  const confirm = catalogs.en.templates.newsletterConfirm;
+  try {
+    await page.goto(`/us/newsletter/confirm?token=${encodeURIComponent(token)}`);
+    await expect(page.getByRole("main")).toContainText(email);
+    await page.getByRole("button", { name: confirm.submit }).click();
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(confirm.doneTitle);
+    // The contact, read back from Resend: in the segment, subscribed.
+    const headers = { Authorization: `Bearer ${apiKey}` };
+    const base = (process.env["RESEND_BASE_URL"] || "https://api.resend.com").replace(/\/+$/, "");
+    const contact = await fetch(`${base}/contacts/${encodeURIComponent(email)}`, { headers });
+    expect(contact.status, "the contact in Resend").toBe(200);
+    expect(((await contact.json()) as { unsubscribed?: boolean }).unsubscribed).toBe(false);
+    const segments = await fetch(`${base}/contacts/${encodeURIComponent(email)}/segments`, {
+      headers,
+    });
+    expect(segments.status, "the contact's segments").toBe(200);
+    const { data } = (await segments.json()) as { data: { id: string }[] };
+    expect(data.map((segment) => segment.id)).toContain(segmentId);
+    // A second confirmation of an address already there takes the other path, and holds too.
+    await addToSegment({ apiKey, segmentId }, email);
+    console.log("Payload → Resend: the confirmed address is a contact in the segment");
+  } finally {
+    await removeContact({ apiKey, segmentId }, email);
+  }
 });

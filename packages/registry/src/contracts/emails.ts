@@ -21,7 +21,58 @@ export const EmailCopy = z.object({
   cta: z.string().min(1).describe("The button's label"),
 });
 
-/** What an e-mail layout draws (VerifyEmail, PasswordResetEmail, OrderTransferEmail). */
+/**
+ * An order as its e-mails show it (T99, D122): every value written already, in the order's
+ * language, currency and time zone (the backend formats them; the layout lays them out as text).
+ */
+export const EmailOrder = z.object({
+  number: z.string().min(1).describe("The order's display number"),
+  date: z.string().min(1).describe("When it was placed, formatted in the market's time zone"),
+  lines: z.array(
+    z.object({
+      title: z.string().min(1),
+      detail: z.string().min(1).optional().describe("The variant's options"),
+      quantity: z.int().positive(),
+      total: z.string().min(1).describe("The line's total, formatted"),
+    }),
+  ),
+  totals: z
+    .array(
+      z.object({
+        kind: z.enum(["subtotal", "discount", "shipping", "tax", "total", "refunded"]),
+        amount: z.string().min(1),
+      }),
+    )
+    .describe("The sums under the lines; total and refunded are drawn bold"),
+  shipTo: z.array(z.string().min(1)).optional().describe("The shipping address, a line each"),
+  tracking: z
+    .array(
+      z.object({
+        number: z.string().min(1),
+        url: z
+          .url({ protocol: /^https?$/ })
+          .optional()
+          .describe("The carrier's page, http(s) only"),
+      }),
+    )
+    .optional(),
+});
+
+/** A Payload form's e-mail (`form-message`): the form, its answers as text, its own subject and message. */
+export const EmailForm = z.object({
+  title: z.string().min(1),
+  answers: z.array(
+    z.object({
+      name: z.string().min(1),
+      label: z.string().min(1),
+      value: z.string().describe("As the visitor sent it: a text node, never HTML"),
+    }),
+  ),
+  subject: z.string().optional(),
+  message: EmailCopy.shape.body.optional(),
+});
+
+/** What an e-mail layout draws (VerifyEmail, OrderPlacedEmail, FormMessageEmail…). */
 export const EmailView = z.object({
   copy: EmailCopy,
   variables: z
@@ -35,5 +86,7 @@ export const EmailView = z.object({
     .regex(/^[a-z]{2,3}(?:-[A-Za-z0-9]+)*$/)
     .describe("lang of the e-mail; dir is rtl for Persian or Arabic"),
   shop: z.object({ name: z.string().min(1).describe("Settings → Store in Medusa") }),
+  order: EmailOrder.optional().describe("The order e-mails' summary"),
+  form: EmailForm.optional().describe("form-message's form and answers"),
 });
 export type EmailView = z.infer<typeof EmailView>;

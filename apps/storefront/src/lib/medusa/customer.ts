@@ -236,6 +236,9 @@ export async function login(
             ...(pending?.firstName ? { first_name: pending.firstName } : {}),
             ...(pending?.lastName ? { last_name: pending.lastName } : {}),
             ...(pending?.phone ? { phone: pending.phone } : {}),
+            // The welcome e-mail's market and language (T99, D122): the customer's own, which the
+            // backend's `customer.created` subscriber reads.
+            metadata: { ...mail },
           },
           {},
           bearer,

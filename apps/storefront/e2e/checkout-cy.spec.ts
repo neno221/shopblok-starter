@@ -6,8 +6,10 @@ import {
   checkOut,
   expectReceipt,
   fillContact,
+  mailedData,
   orderIdOf,
   withoutScripts,
+  type MailedData,
 } from "./support/purchase";
 // M6 D114 (T93): fails a test on any request to a third party an integration talks to.
 import { expect, test } from "./support/third-party";
@@ -21,7 +23,8 @@ import { expect, test } from "./support/third-party";
 // visitor without the browser's receipt, and one with a forged one, get the not-found page. T58: a
 // first name typed before the page hydrates is kept (W5's finding). Next keeps the
 // pages a visitor came from in the document, hidden (`<Activity>`), so the locators take the
-// visible ones: roles, or `:visible`. The steps are `support/purchase.ts`'s (T54).
+// visible ones: roles, or `:visible`. The steps are `support/purchase.ts`'s (T54). T99: the order
+// e-mail's line in Medusa's log (`E2E_MEDUSA_LOG`), in Greek, linking a guest to the order lookup.
 
 const el = catalogs.el;
 const CY = { prefix: "", words: el, htmlLang: "el-CY", timeZone: "Europe/Nicosia" };
@@ -53,6 +56,20 @@ test.describe("a purchase in Cyprus (T52)", () => {
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(
       el.templates.orderConfirmation.title,
     );
+    // T99 (D122): the order e-mail, in the market's language (no Resend key: the log's line), with
+    // the order's number in its subject and, for a guest, the order lookup in this market as its link.
+    const number = /\d+/.exec(
+      (await page.locator('[data-slot="order-confirmation-number"]:visible').textContent()) ?? "",
+    )?.[0];
+    let mailed: MailedData | undefined;
+    await expect
+      .poll(() => (mailed = mailedData(email, "order-placed").at(-1))?.url ?? "", {
+        timeout: 30_000,
+        message: `order-placed to ${email} in ${process.env["E2E_MEDUSA_LOG"]}`,
+      })
+      .toMatch(/^https?:\/\/[^/]+\/order\/lookup$/);
+    expect(mailed?.language).toBe("el");
+    expect(mailed?.subject).toContain(String(number));
   });
 
   test("the same purchase without scripts", async ({ browser }) => {
