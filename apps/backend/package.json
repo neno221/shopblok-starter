@@ -34,6 +34,8 @@
     "@medusajs/js-sdk": "2.22.6",
     "@medusajs/medusa": "2.22.6",
     "@medusajs/ui": "4.2.13",
+    "@opentelemetry/exporter-trace-otlp-http": "0.220.0",
+    "@sentry/node": "11.12.0",
     "@shopblok/emails": "workspace:*",
     "@shopblok/medusa-markets": "workspace:*",
     "@tanstack/react-query": "5.64.2",

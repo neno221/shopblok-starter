@@ -2,6 +2,7 @@ import {
   authenticate,
   configureStoreSearch,
   defineMiddlewares,
+  errorHandler,
   validateAndTransformBody,
   type MedusaNextFunction,
   type MedusaRequest,
@@ -9,6 +10,7 @@ import {
 } from '@medusajs/framework/http'
 import { MedusaError } from '@medusajs/framework/utils'
 
+import { reportRequestError } from '../lib/sentry'
 import { confirmVerificationAgain } from './auth/verification-again'
 import { StoreCreateCustomerReturn, StoreRequestOrderClaim } from './store/customers/me/validators'
 import { requireVerifiedCustomer } from './store/customers/verified'
@@ -18,7 +20,16 @@ import { localizeStoreSearch } from './store/search/locale'
 // the route narrows it to published products in the key's sales channels.
 // `localizeStoreSearch` then gives the index the request's locale, checked
 // against the store's (D63).
+//
+// M6 D125 (T96): Medusa's own error handler answers every error; before it, a 5xx goes to Sentry
+// when `SENTRY_DSN` is set (`lib/sentry.ts`; without it nothing is sent).
+const medusaErrorHandler = errorHandler()
+
 export default defineMiddlewares({
+  errorHandler: (error, req, res, next) => {
+    reportRequestError(error, req)
+    return medusaErrorHandler(error, req, res, next)
+  },
   routes: [
     {
       method: ['POST'],

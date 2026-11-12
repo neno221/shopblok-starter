@@ -186,9 +186,12 @@ describe("getIntegrationStatus", () => {
       "sentry",
     );
     expect(sentry.configured).toBe(true);
+    // T96: wired, so live with both DSNs.
+    expect([sentry.wired, sentry.state, sentry.arrives]).toEqual([true, "live", undefined]);
     expect(sentry.parts.find((p) => p.app === "storefront")?.optionalMissing).toEqual([
       "SENTRY_ENVIRONMENT",
       "SENTRY_TRACES_SAMPLE_RATE",
+      "SENTRY_RELEASE",
       "SENTRY_AUTH_TOKEN",
       "SENTRY_ORG",
       "SENTRY_PROJECT",

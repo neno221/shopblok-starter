@@ -1,4 +1,7 @@
-// The one module that reads `process.env` (T12), besides `payload.config.ts` and `src/scripts/`.
+// The one module that reads `process.env` (T12), besides `payload.config.ts` and `src/scripts/`, and
+// Sentry's build-time values (T96: `NEXT_PUBLIC_SENTRY_DSN` and what `next.config.ts` inlines), which
+// `lib/sentry/`, `instrumentation*.ts` and the tunnel read as literals so that a build without a DSN
+// drops their code (a getter here would keep it).
 // Nothing here is `server-only`: the proxy imports `env` and has no Payload, and a client module
 // must not import it for a secret. Nothing is parsed when this file is imported, so `next build`
 // works with no `.env` (CI has none); a value is checked where it is first needed. zod is loaded

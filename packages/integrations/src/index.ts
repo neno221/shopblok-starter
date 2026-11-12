@@ -133,8 +133,9 @@ const SPECS: readonly Spec[] = [
         app: "backend",
         what: "instrumentation.ts",
         keys: ["SENTRY_DSN"],
-        // M6 D125: `environment` and the traces' sample rate (0 when blank).
-        optional: ["SENTRY_ENVIRONMENT", "SENTRY_TRACES_SAMPLE_RATE"],
+        // M6 D125: `environment` and the traces' sample rate (0 when blank); T96: the release, else
+        // the commit Railway or GitHub Actions runs.
+        optional: ["SENTRY_ENVIRONMENT", "SENTRY_TRACES_SAMPLE_RATE", "SENTRY_RELEASE"],
       },
       {
         app: "storefront",
@@ -144,6 +145,7 @@ const SPECS: readonly Spec[] = [
         optional: [
           "SENTRY_ENVIRONMENT",
           "SENTRY_TRACES_SAMPLE_RATE",
+          "SENTRY_RELEASE",
           "SENTRY_AUTH_TOKEN",
           "SENTRY_ORG",
           "SENTRY_PROJECT",
@@ -152,8 +154,9 @@ const SPECS: readonly Spec[] = [
     ],
     live: "Sentry",
     fallback: "not initialised",
-    wired: false,
-    arrives: "M6",
+    // T96 (M6 D125): Medusa's `instrumentation.ts`, the storefront's server and browser SDKs, and
+    // Payload's `afterError` hook.
+    wired: true,
   },
   {
     id: "meilisearch",
