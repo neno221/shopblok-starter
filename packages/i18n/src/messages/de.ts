@@ -137,7 +137,7 @@ export const de: Messages = {
       consent:
         "Mit Ihrer Anmeldung stimmen Sie unserer {privacy} zu. Sie können sich jederzeit wieder abmelden.",
       privacyLink: "Datenschutzerklärung",
-      done: "Vielen Dank, Sie sind angemeldet.",
+      done: "Vielen Dank. Bitte prüfen Sie Ihr Postfach: Wir haben Ihnen einen Link zur Bestätigung Ihrer Anmeldung geschickt.",
       error:
         "Diese Adresse konnte nicht angemeldet werden. Bitte prüfen Sie die Eingabe und versuchen Sie es erneut.",
     },
@@ -1130,6 +1130,21 @@ export const de: Messages = {
         text: "Geschichten aus dem Shop erscheinen bald hier.",
         action: "Alle Produkte ansehen",
       },
+    },
+    newsletterConfirm: {
+      title: "Anmeldung bestätigen",
+      lead: "Bestätigen Sie, dass {email} unseren Newsletter erhalten soll.",
+      submit: "Bestätigen",
+      doneTitle: "Sie sind angemeldet",
+      done: "Danke für Ihre Bestätigung. Unser Newsletter kommt etwa einmal im Monat. Sie können sich jederzeit abmelden.",
+      usedTitle: "Bereits bestätigt",
+      used: "Dieser Link wurde bereits verwendet, und die Adresse steht auf unserer Liste.",
+      expiredTitle: "Dieser Link funktioniert nicht mehr",
+      expired:
+        "Bestätigungslinks gelten 48 Stunden. Melden Sie sich über das Formular unten auf jeder Seite erneut an, dann senden wir Ihnen einen neuen.",
+      failed:
+        "Wir konnten Ihre Anmeldung gerade nicht bestätigen. Bitte versuchen Sie es gleich noch einmal.",
+      home: "Weiter einkaufen",
     },
   },
 };

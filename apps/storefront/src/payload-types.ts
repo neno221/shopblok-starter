@@ -99,6 +99,7 @@ export interface Config {
     collections: ProductCollection;
     "email-templates": EmailTemplate;
     "ui-strings": UiString;
+    "newsletter-confirmations": NewsletterConfirmation;
     exports: Export;
     imports: Import;
     forms: Form;
@@ -122,6 +123,8 @@ export interface Config {
     collections: CollectionsSelect<false> | CollectionsSelect<true>;
     "email-templates": EmailTemplatesSelect<false> | EmailTemplatesSelect<true>;
     "ui-strings": UiStringsSelect<false> | UiStringsSelect<true>;
+    "newsletter-confirmations":
+      NewsletterConfirmationsSelect<false> | NewsletterConfirmationsSelect<true>;
     exports: ExportsSelect<false> | ExportsSelect<true>;
     imports: ImportsSelect<false> | ImportsSelect<true>;
     forms: FormsSelect<false> | FormsSelect<true>;
@@ -1478,6 +1481,46 @@ export interface Form {
     };
     [k: string]: unknown;
   } | null;
+  /**
+   * E-mails to the shop when the form is sent, in the shop's frame with the answers listed. In the subject and the message, {{field}} is the answer to that field, written as text.
+   */
+  emails?:
+    | {
+        /**
+         * Empty: the shop's sender address.
+         */
+        emailTo?: string | null;
+        cc?: string | null;
+        bcc?: string | null;
+        /**
+         * So a reply goes to the visitor.
+         */
+        replyTo?: string | null;
+        /**
+         * {{form}} is the form's title.
+         */
+        subject: string;
+        /**
+         * Empty: the shop's own line. The answers are listed under it.
+         */
+        message?: {
+          root: {
+            type: string;
+            children: {
+              type: any;
+              version: number;
+              [k: string]: unknown;
+            }[];
+            direction: ("ltr" | "rtl") | null;
+            format: "left" | "start" | "center" | "right" | "end" | "justify" | "";
+            indent: number;
+            version: number;
+          };
+          [k: string]: unknown;
+        } | null;
+        id?: string | null;
+      }[]
+    | null;
   seedKey?: string | null;
   updatedAt: string;
   createdAt: string;
@@ -1827,14 +1870,26 @@ export interface Page {
   _status?: ("draft" | "published") | null;
 }
 /**
- * Variables in double braces are filled in when the e-mail is sent. Verify the e-mail address: {{email}}, {{code}}. Password reset: {{email}}. Order transfer to an account: {{email}}, {{orderNumber}}. Anything else in braces stays as it is.
+ * Variables in double braces are filled in when the e-mail is sent. Verify the e-mail address: {{email}}, {{code}}. Password reset: {{email}}. Order transfer to an account: {{email}}, {{orderNumber}}. Order placed: {{email}}, {{orderNumber}}, {{total}}. Order shipped: {{email}}, {{orderNumber}}. Order canceled: {{email}}, {{orderNumber}}. Return requested: {{email}}, {{orderNumber}}. Refund issued: {{email}}, {{orderNumber}}, {{amount}}. Welcome (after the address is verified): {{email}}. Medusa Admin invite (English): {{email}}. Newsletter: confirm the subscription: {{email}}. A form's e-mail to the shop: {{form}}. Anything else in braces stays as it is.
  *
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "email-templates".
  */
 export interface EmailTemplate {
   id: number;
-  type: "verify-email" | "password-reset" | "order-transfer";
+  type:
+    | "verify-email"
+    | "password-reset"
+    | "order-transfer"
+    | "order-placed"
+    | "order-shipped"
+    | "order-canceled"
+    | "return-requested"
+    | "refund-issued"
+    | "welcome"
+    | "admin-invite"
+    | "newsletter-confirm"
+    | "form-message";
   subject: string;
   /**
    * The line inboxes show after the subject.
@@ -1887,6 +1942,23 @@ export interface UiString {
    */
   note?: string | null;
   seeded?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * Addresses that confirmed the newsletter through the link in their e-mail (double opt-in). With Resend's key and segment the address is a contact there; otherwise it is kept as a submission to the form.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "newsletter-confirmations".
+ */
+export interface NewsletterConfirmation {
+  id: number;
+  tokenId: string;
+  email: string;
+  form?: number | null;
+  market: string;
+  language: string;
+  destination?: ("resend" | "submission") | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -2221,6 +2293,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: "ui-strings";
         value: number | UiString;
+      } | null)
+    | ({
+        relationTo: "newsletter-confirmations";
+        value: number | NewsletterConfirmation;
       } | null)
     | ({
         relationTo: "forms";
@@ -3205,6 +3281,20 @@ export interface UiStringsSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "newsletter-confirmations_select".
+ */
+export interface NewsletterConfirmationsSelect<T extends boolean = true> {
+  tokenId?: T;
+  email?: T;
+  form?: T;
+  market?: T;
+  language?: T;
+  destination?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "exports_select".
  */
 export interface ExportsSelect<T extends boolean = true> {
@@ -3343,6 +3433,17 @@ export interface FormsSelect<T extends boolean = true> {
       };
   submitButtonLabel?: T;
   confirmationMessage?: T;
+  emails?:
+    | T
+    | {
+        emailTo?: T;
+        cc?: T;
+        bcc?: T;
+        replyTo?: T;
+        subject?: T;
+        message?: T;
+        id?: T;
+      };
   seedKey?: T;
   updatedAt?: T;
   createdAt?: T;
@@ -4209,6 +4310,7 @@ export interface TaskCreateCollectionExport {
       | "collections"
       | "email-templates"
       | "ui-strings"
+      | "newsletter-confirmations"
       | "exports"
       | "imports";
     drafts?: ("yes" | "no") | null;
