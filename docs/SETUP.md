@@ -9477,13 +9477,13 @@ This PR's second `e2e-smoke` run failed two tests that the PR does not touch, bo
 
 ### CI times before M6, and the history
 
-Before: `main` at `95b6c7a` (the W7 fixes merged, run [43004859507](https://github.com/neno221/shopblok-starter/actions/runs/43004859507)); its `e2e-smoke` failed one flaky `variants.spec.ts` test after 13:40 of suites, so its full time is the last green one, T92's 22:17. The M6 plan's own merge (`50bef34`) failed on two runner downloads (Playwright's Chromium, the DS container's tools), not on a test. After: this PR's branch.
+Before: `main` at `95b6c7a` (the W7 fixes merged, run [43004859507](https://github.com/neno221/shopblok-starter/actions/runs/43004859507)); its `e2e-smoke` failed one flaky `variants.spec.ts` test after 13:40 of suites, so its full time is the last green one, T92's 22:17. The M6 plan's own merge (`50bef34`) failed on two runner downloads (Playwright's Chromium, the DS container's tools), not on a test. After: this PR's branch (run 43058410167's second attempt, and run 43201641092 for `e2e-smoke`).
 
 | Job | Before M6 | This PR |
 |---|---|---|
 | `check` (Node 22) | 7:10 | 7:04 (with `check:keys`, 2 s) |
 | `backend-integration` | 2:10 | 2:48 |
-| `e2e-smoke` | 22:17 (T92) | pending: this PR's last run |
+| `e2e-smoke` | 22:17 (T92) | 21:01 (run [43201641092](https://github.com/neno221/shopblok-starter/actions/runs/43201641092), at the review fixes; the keyless check on five suites) |
 | `integrations-live` | none | 3:49 (no key set: `doctor.spec.ts` alone, 4 s; run 43058410167, attempt 2) |
 | `design-system` shards | 11:04, 13:03, 11:01, then the merge 0:44 | 13:31, 11:11, 13:19, then the merge 0:38 |
 | `dev-console-ds` | 8:36 | 10:19 |
