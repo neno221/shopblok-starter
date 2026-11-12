@@ -34,6 +34,7 @@
 //   (`trigger={false}`) it is drawn on its own, with no "choose" button, its switches as the
 //   visitor chose them (`defaultSwitches`), and focus going back to the control that opened it
 //   (`finalFocus`) when it closes. Withdrawing takes as many clicks as giving (GDPR Art. 7(3)).
+//   The caller gives each opening its own `key`, so the switches start as chosen at that moment.
 "use client";
 
 import type { Messages } from "@shopblok/i18n";
@@ -176,13 +177,9 @@ function CookieConsentDialog({
     setOwnOpen(next);
     onOpenChange?.(next);
   }
+  // Each opening by "Cookie settings" is a new dialog (its caller's `key`), so the switches start
+  // from the choice as it is then.
   const [switches, setSwitches] = useState<ConsentChoice>(() => defaultSwitches ?? rejectAll());
-  // Opened from outside again ("Cookie settings"): the switches start from the choice as it is now.
-  const [outsideOpen, setOutsideOpen] = useState(openFromOutside === true);
-  if ((openFromOutside === true) !== outsideOpen) {
-    setOutsideOpen(openFromOutside === true);
-    if (openFromOutside === true) setSwitches(defaultSwitches ?? rejectAll());
-  }
   // The answer waits here while the dialog closes, then in state until the popup is out of the page.
   const pending = useRef<ConsentChoice | null>(null);
   const [answered, setAnswered] = useState<ConsentChoice | null>(null);

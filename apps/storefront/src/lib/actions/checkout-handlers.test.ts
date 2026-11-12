@@ -14,9 +14,7 @@ const setAddresses = vi.fn();
 const setShippingMethod = vi.fn();
 const initiatePayment = vi.fn();
 const completeCart = vi.fn();
-const setMailTarget = vi.fn();
 vi.mock("../medusa/cart", () => ({
-  setMailTarget,
   getCart,
   moveCart,
   setEmail,
@@ -231,7 +229,6 @@ describe("placeOrderAction (step 3)", () => {
       });
     }
     expect(completeCart).not.toHaveBeenCalled();
-    expect(setMailTarget).not.toHaveBeenCalled();
     expect(setReceipt).not.toHaveBeenCalled();
   });
 
@@ -239,13 +236,11 @@ describe("placeOrderAction (step 3)", () => {
     moveCart.mockResolvedValue(deliveryDone);
     completeCart.mockResolvedValue({ kind: "order", orderId: "order_1", countryCode: "de" });
     await placeOrderAction({ market: "en-de" });
-    expect(setMailTarget).toHaveBeenCalledWith(
-      { market: "/de/en", language: "en", key: "en-de" },
-      "en-US",
-    );
-    expect(setMailTarget.mock.invocationCallOrder[0]).toBeLessThan(
-      completeCart.mock.invocationCallOrder[0]!,
-    );
+    expect(completeCart).toHaveBeenCalledWith("en-US", {
+      market: "/de/en",
+      language: "en",
+      key: "en-de",
+    });
   });
 
   it("keeps the receipt for the order Medusa placed", async () => {

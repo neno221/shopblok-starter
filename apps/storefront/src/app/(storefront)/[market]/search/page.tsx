@@ -124,8 +124,10 @@ export default async function SearchPage({ searchParams }: Props) {
     <>
       <RememberSearch query={query.query} />
       {query.query === "" ? null : (
-        // D124: `search_performed`, only with a PostHog key and the visitor's consent.
+        // D124: `search_performed`, only with a PostHog key and the visitor's consent; one per
+        // query and page (the key: another search on this page is a new view).
         <TrackOnView
+          key={`${query.query}\n${results.page.page}`}
           event="search_performed"
           properties={{
             query: query.query,

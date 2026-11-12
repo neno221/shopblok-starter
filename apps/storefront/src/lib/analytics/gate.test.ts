@@ -27,13 +27,13 @@ afterEach(() => {
   document.cookie = "ph_phc_test_posthog=; Path=/; Max-Age=0";
 });
 
-async function setup() {
+async function setup(givenHere = false) {
   const { watchAnalytics } = await import("./gate");
   const { chooseConsent } = await import("../visitor/consent");
   const store = await import("../visitor/store");
   const { syncCartConsent } = await import("../actions/consent");
   const load = vi.fn(async () => loader as never);
-  const stop = watchAnalytics(context, load);
+  const stop = watchAnalytics(context, vi.mocked(syncCartConsent), givenHere, load);
   return { load, stop, chooseConsent, store, syncCartConsent: vi.mocked(syncCartConsent) };
 }
 
@@ -53,6 +53,15 @@ describe("watchAnalytics (D124)", () => {
     expect(load).toHaveBeenCalledTimes(1);
     expect(loader.startAnalytics).toHaveBeenCalledWith(context);
     expect(syncCartConsent).toHaveBeenCalled();
+  });
+
+  it("imported for a yes given on this page, starts and tells the cart its id", async () => {
+    document.cookie = "_shopblok_consent=v1.1.0.2026-11-12; Path=/";
+    const { load, syncCartConsent } = await setup(true);
+    await flush();
+    expect(load).toHaveBeenCalledTimes(1);
+    expect(loader.startAnalytics).toHaveBeenCalledWith(context);
+    expect(syncCartConsent).toHaveBeenCalledTimes(1);
   });
 
   it("starts at once on a page opened with consent, without a cart write", async () => {

@@ -299,11 +299,52 @@ describe("the analytics consent in the cart's metadata (T97, D124)", () => {
       ]);
     });
 
+    it("writes the e-mails' target and the consent in one update before the order (T99, D124)", async () => {
+      jar.reset({ _medusa_cart_id: "cart_1", _shopblok_consent: withdrawn });
+      const calls = stubMedusaFetch((call) =>
+        call.method === "GET"
+          ? {
+              body: {
+                cart: {
+                  id: "cart_1",
+                  metadata: { market: "/cy", language: "el", analytics_consent: true },
+                },
+              },
+            }
+          : call.url.pathname.endsWith("/complete")
+            ? { body: { type: "order", order: { id: "order_1" } } }
+            : { body: { cart: { id: "cart_1" } } },
+      );
+      const { completeCart } = await import("./cart");
+      await completeCart("en-US", { market: "/us", language: "en", key: "en-us" });
+      expect(calls.map((call) => [call.method, call.body])).toEqual([
+        ["GET", undefined],
+        [
+          "POST",
+          {
+            metadata: {
+              analytics_consent: "",
+              posthog_distinct_id: "",
+              market: "/us",
+              language: "en",
+              market_key: "en-us",
+            },
+          },
+        ],
+        ["POST", undefined],
+      ]);
+    });
+
     it("writes the consent and PostHog's id after a cart write that left them out", async () => {
       jar.reset({
         _medusa_cart_id: "cart_1",
         _shopblok_consent: given,
-        ph_phc_test_posthog: encodeURIComponent(JSON.stringify({ distinct_id: id })),
+        // As Next's `cookies()` hands it: decoded once, with the first URL PostHog keeps, whose
+        // quoted search (`%22`) a second decode would break.
+        ph_phc_test_posthog: JSON.stringify({
+          distinct_id: id,
+          $initial_person_info: { u: "https://shop.test/us/search?q=%22shirt%22%5C" },
+        }),
       });
       const calls = stubMedusaFetch(() => ({ body: { cart: wireCart } }));
       const { applyPromoCode } = await import("./cart");
@@ -320,5 +361,20 @@ describe("the analytics consent in the cart's metadata (T97, D124)", () => {
       await applyPromoCode("WELCOME10");
       expect(calls).toHaveLength(1);
     });
+  });
+});
+
+describe("the analytics keys agree with the backend's (D124)", () => {
+  it("names the same metadata keys and the same distinct-id pattern as Medusa's subscribers", async () => {
+    const { readFileSync } = await import("node:fs");
+    const backend = readFileSync(
+      new URL("../../../../backend/src/lib/analytics.ts", import.meta.url),
+      "utf8",
+    );
+    const { ANALYTICS_CONSENT_KEY, DISTINCT_ID_KEY } = await import("./cart");
+    const { DISTINCT_ID } = await import("./cookies");
+    expect(backend).toContain(`ANALYTICS_CONSENT_KEY = "${ANALYTICS_CONSENT_KEY}"`);
+    expect(backend).toContain(`DISTINCT_ID_KEY = "${DISTINCT_ID_KEY}"`);
+    expect(backend).toContain(`DISTINCT_ID = ${String(DISTINCT_ID)}`);
   });
 });

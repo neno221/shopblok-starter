@@ -11,7 +11,6 @@ import { createRoot, hydrateRoot, type Root } from "react-dom/client";
 import { renderToString } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { VisitorCookieConsent, type VisitorCookieConsentProps } from "./cookie-consent";
-import { closeConsentSettings } from "./consent";
 import { readConsentCookie } from "./consent-cookie";
 import { getSnapshot, resetVisitor, setVisitor } from "./store";
 
@@ -301,7 +300,6 @@ describe("Cookie settings and the kept choice (M6 D123, T97)", () => {
   afterEach(() => {
     document.cookie = "_shopblok_consent=; Path=/; Max-Age=0";
     syncCartConsent.mockClear();
-    closeConsentSettings();
   });
 
   /** A footer's "Cookie settings" link on the page. */

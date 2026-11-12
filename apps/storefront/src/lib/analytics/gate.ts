@@ -1,11 +1,12 @@
-// M6 D124 (T97): what starts and stops PostHog in the browser. The consent island runs it only in a
-// build with a key (`cookie-consent.tsx`, behind the literal `process.env.NEXT_PUBLIC_POSTHOG_KEY`),
-// so a keyless build holds none of it. It reads the consent cookie after hydration and after each
-// choice (`onConsentChange`): with analytics consent it imports the loader (`loader.ts`, the chunk
-// with `posthog-js`, D129) once and starts it; without, or once withdrawn, it stops it at once, which
-// clears PostHog's cookie and storage. It also follows the visitor store's customer: a signed-in
-// customer is identified by their Medusa id, and a sign-out starts a new anonymous visitor.
-import { syncCartConsent } from "../actions/consent";
+// M6 D124 (T97): what starts and stops PostHog in the browser, a chunk of its own (D129). The consent
+// island imports it only in a build with a key (`cookie-consent.tsx`, behind the literal
+// `process.env.NEXT_PUBLIC_POSTHOG_KEY`), and only after analytics consent (given on this page, or
+// before) or to clear PostHog's cookies left after a withdrawal elsewhere. From then on it reads the
+// consent cookie after each choice (`onConsentChange`): with analytics consent it imports the loader
+// (`loader.ts`, the chunk with `posthog-js`) once and starts it; without, or once withdrawn, it stops
+// it at once, which clears PostHog's cookie and storage. It also follows the visitor store's
+// customer: a signed-in customer is identified by their Medusa id, and a sign-out starts a new
+// anonymous visitor.
 import { onConsentChange } from "../visitor/consent";
 import { readConsentCookie } from "../visitor/consent-cookie";
 import { getSnapshot, subscribe } from "../visitor/store";
@@ -23,11 +24,16 @@ function customerId(): string | null | undefined {
 }
 
 /**
- * Starts watching; returns the function that stops watching. `load` is the
- * loader's import, a parameter for the test.
+ * Starts watching; returns the function that stops watching. `syncCart` is the consent island's
+ * server action (`syncCartConsent`), passed in: imported here, it would split React's server-action
+ * client out of the first load into a chunk of its own, a few hundred bytes more (D129).
+ * `givenHere`: the island imported the gate for a "yes" given on this page (the cart then learns
+ * PostHog's distinct id). `load` is the loader's import, a parameter for the test.
  */
 export function watchAnalytics(
   context: AnalyticsContext,
+  syncCart: () => Promise<unknown>,
+  givenHere = false,
   // The literal guard: a keyless build has no loader chunk at all (`first-load.ts`'s "not built").
   load: () => Promise<Loader> = () =>
     process.env.NEXT_PUBLIC_POSTHOG_KEY
@@ -54,7 +60,7 @@ export function watchAnalytics(
         identify(module);
         // A yes given on this page: the cart learns the distinct id PostHog has just made (D124).
         // A page opened with consent needs none; every cart write carries the id from its cookie.
-        if (chosen) void syncCartConsent().catch(() => undefined);
+        if (chosen) void syncCart().catch(() => undefined);
       });
     } else if (!wanted && on) {
       on = false;
@@ -67,7 +73,7 @@ export function watchAnalytics(
     }
   };
 
-  apply();
+  apply(givenHere);
   const stops = [onConsentChange(() => apply(true)), subscribe(() => apply())];
   // Stops watching only: PostHog keeps running for the page (React mounts an effect twice in
   // development, and a withdrawal is the only thing that stops it).

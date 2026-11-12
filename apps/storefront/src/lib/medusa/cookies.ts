@@ -1,7 +1,13 @@
 import "server-only";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
-import { CONSENT_COOKIE, COOKIE, SIGNED_UP_COOKIE, type CookieName } from "../cookie-names";
+import {
+  CONSENT_COOKIE,
+  COOKIE,
+  SIGNED_UP_COOKIE,
+  VISITOR_CHANGED_COOKIE,
+  type CookieName,
+} from "../cookie-names";
 import { env, isProduction } from "../env";
 import { parseConsent } from "../visitor/consent-cookie";
 
@@ -197,14 +203,19 @@ export const getFlash = () => read(COOKIE.flash);
 /** The analytics answer of this request: consent, and PostHog's id for the visitor when it has one. */
 export type AnalyticsConsent = { consent: boolean; distinctId: string | null };
 
-/** A distinct id as `posthog-js` makes them (a UUID) or as `identify` sets them (a Medusa id). */
-const DISTINCT_ID = /^[A-Za-z0-9_.:-]{1,128}$/;
+/**
+ * A distinct id as `posthog-js` makes them (a UUID) or as `identify` sets them (a Medusa id). The
+ * backend's twin is `apps/backend/src/lib/analytics.ts`.
+ */
+export const DISTINCT_ID = /^[A-Za-z0-9_.:-]{1,128}$/;
 
 /** PostHog's distinct id in its cookie's value, or `null`. */
 export function distinctIdFrom(value: string | undefined): string | null {
   if (value === undefined || value === "") return null;
   try {
-    const parsed: unknown = JSON.parse(decodeURIComponent(value));
+    // Next's `cookies()` hands the value decoded already (`@edge-runtime/cookies`); decoding it again
+    // breaks on a `%22` in the first URL PostHog keeps in the cookie (`$initial_person_info.u`).
+    const parsed: unknown = JSON.parse(value);
     const id =
       typeof parsed === "object" && parsed !== null
         ? (parsed as Record<string, unknown>)["distinct_id"]
@@ -228,19 +239,34 @@ export async function getAnalyticsConsent(): Promise<AnalyticsConsent> {
   return { consent, distinctId };
 }
 
-/**
- * The register action's mark for the `signed_up` event (D124): a cookie the next page's consent
- * island reads and removes (`lib/analytics/events.ts`), so not httpOnly. Only with a PostHog key in
- * the build and the visitor's analytics consent: otherwise nothing would send it.
- */
-export async function markSignedUp(): Promise<void> {
-  if (!process.env.NEXT_PUBLIC_POSTHOG_KEY?.trim()) return;
-  if (!(await getAnalyticsConsent()).consent) return;
-  (await cookies()).set(SIGNED_UP_COOKIE, "1", {
+/** A five-minute cookie the browser reads and removes (`lib/analytics/events.ts`), so not httpOnly. */
+async function markForTheBrowser(name: string): Promise<void> {
+  (await cookies()).set(name, "1", {
     httpOnly: false,
     secure: isProduction(),
     sameSite: "lax",
     path: "/",
     maxAge: 300,
   });
+}
+
+/**
+ * After a sign-in, a registration or a sign-out (D124): the next page asks for the visitor again,
+ * so PostHog follows the customer (`VISITOR_CHANGED_COOKIE`). Only with a PostHog key in the build.
+ */
+export async function markVisitorChanged(): Promise<void> {
+  if (!process.env.NEXT_PUBLIC_POSTHOG_KEY?.trim()) return;
+  await markForTheBrowser(VISITOR_CHANGED_COOKIE);
+}
+
+/**
+ * The register action's mark for the `signed_up` event (D124), which the page it lands on sends
+ * (`VisitorSource`, `lib/analytics/events.ts`). Only with a PostHog key in the build and the
+ * visitor's analytics consent: otherwise nothing would send it.
+ */
+export async function markSignedUp(): Promise<void> {
+  if (!process.env.NEXT_PUBLIC_POSTHOG_KEY?.trim()) return;
+  await markVisitorChanged();
+  if (!(await getAnalyticsConsent()).consent) return;
+  await markForTheBrowser(SIGNED_UP_COOKIE);
 }

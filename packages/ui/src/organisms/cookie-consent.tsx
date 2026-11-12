@@ -82,6 +82,8 @@ type CookieConsentProps = CookieConsentContent & {
   onSettingsOpenChange?: (open: boolean) => void;
   /** The control that opened the settings, where focus goes back when the dialog closes. */
   settingsFinalFocus?: HTMLElement | null;
+  /** Which opening of the settings this is: a new one starts from the switches as chosen then. */
+  settingsKey?: number;
   /** The class of the dialog's popup: the design system's states cap it to their box. */
   popupClassName?: string;
   className?: string;
@@ -107,6 +109,7 @@ function CookieConsent({
   settingsOpen,
   onSettingsOpenChange,
   settingsFinalFocus,
+  settingsKey,
 }: CookieConsentProps) {
   const bannerRef = useRef<HTMLElement>(null);
   const shown = choice === null;
@@ -124,6 +127,7 @@ function CookieConsent({
     if (onSettingsOpenChange === undefined && settingsOpen === undefined) return null;
     return (
       <CookieConsentDialog
+        key={settingsKey}
         copy={copy}
         locale={locale}
         policyHref={policyHref}
@@ -210,6 +214,7 @@ function CookieConsent({
             {copy.rejectAll}
           </Button>
           <CookieConsentDialog
+            key={settingsKey}
             copy={copy}
             locale={locale}
             policyHref={policyHref}

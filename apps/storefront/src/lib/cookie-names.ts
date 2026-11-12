@@ -26,3 +26,12 @@ export const CONSENT_COOKIE = "_shopblok_consent";
  * and removes it (`lib/analytics/events.ts`); five minutes at most.
  */
 export const SIGNED_UP_COOKIE = "_shopblok_signed_up";
+
+/**
+ * M6 D124 (T97, PR 138 review): "the visitor has just signed in, signed up or signed out". The auth
+ * actions set it (only with a PostHog key) and end in a redirect, a soft navigation inside the same
+ * layout, so the page asks `/next/visitor` only once; `VisitorSource` sees it on the next page,
+ * removes it and asks again, so PostHog identifies the customer, starts a new visitor after a
+ * sign-out, and sends `signed_up`. Five minutes at most.
+ */
+export const VISITOR_CHANGED_COOKIE = "_shopblok_visitor_changed";

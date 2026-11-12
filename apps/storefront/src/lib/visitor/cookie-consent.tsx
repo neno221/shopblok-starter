@@ -13,35 +13,38 @@
 //   page's) is this island's control. Without scripts it is a link to the policy page; with them a
 //   click here opens the dialog with the switches as chosen, and focus goes back to the link. A page
 //   opened at `#cookie-settings` (a click before the page hydrated) opens it too. No new island.
-// - Each choice goes to the cart (`syncCartConsent`, a server action): a withdrawal takes the
-//   consent and PostHog's id out of the cart's metadata, so Medusa sends nothing about its order.
+// - A choice goes to the cart (`syncCartConsent`, a server action): a withdrawal takes the consent
+//   and PostHog's id out of the cart's metadata, so Medusa sends nothing about its order. With a
+//   PostHog key a "yes" is the gate's to send, once PostHog has made the distinct id.
 // - PostHog (D124): with a key in the build (the literal below, so a keyless build has none of it),
-//   the gate (`analytics/gate.ts`) starts PostHog after analytics consent and stops it at once when
-//   it is withdrawn; `posthog-js` itself is a chunk the gate imports only then.
+//   the island imports the gate (`analytics/gate.ts`, its own chunk, D129) only after analytics
+//   consent, or to clear PostHog's cookies left after a withdrawal; the gate then starts and stops
+//   PostHog itself, and `posthog-js` is a further chunk the gate imports.
+// - The dialog's state is this island's (`useState`): only it opens and closes the dialog. Each
+//   opening is a new `settingsKey`, so the dialog starts from the switches as chosen now.
 "use client";
 
 import { CookieConsent, type CookieConsentProps } from "@shopblok/ui/organisms/cookie-consent";
-import { useEffect, useSyncExternalStore } from "react";
+import { useEffect, useState } from "react";
 import { syncCartConsent } from "../actions/consent";
-import { trackSignedUp } from "../analytics/events";
-import { watchAnalytics } from "../analytics/gate";
+import { POSTHOG_EU } from "../site";
 import {
   chooseConsent,
-  closeConsentSettings,
   COOKIE_SETTINGS_HASH,
-  getServerSettings,
-  getSettings,
   isCookieSettingsLink,
   onConsentChange,
-  openConsentSettings,
-  subscribeSettings,
 } from "./consent";
 import { readConsentCookie } from "./consent-cookie";
 import { useVisitor } from "./use-visitor";
 
 export type VisitorCookieConsentProps = Omit<
   CookieConsentProps,
-  "choice" | "onChoose" | "settingsOpen" | "onSettingsOpenChange" | "settingsFinalFocus"
+  | "choice"
+  | "onChoose"
+  | "settingsOpen"
+  | "onSettingsOpenChange"
+  | "settingsFinalFocus"
+  | "settingsKey"
 > & {
   /** The page's market key, sent with every analytics event (D124). */
   market?: string;
@@ -57,48 +60,77 @@ function isPlainClick(event: MouseEvent): boolean {
   return event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey;
 }
 
+/** PostHog's cookie (`ph_<key>_posthog`) or its opt-in flag left in this browser. */
+const POSTHOG_COOKIE = /(^|;\s*)(ph_|__ph)/;
+
+/** The settings dialog: open with the control that opened it, and which opening this is. */
+type Settings = { open: boolean; opener: HTMLElement | null; key: number };
+
 export function VisitorCookieConsent({
   market = "",
   analyticsLocale = "",
   ...props
 }: VisitorCookieConsentProps) {
   const visitor = useVisitor();
-  const settings = useSyncExternalStore(subscribeSettings, getSettings, getServerSettings);
+  const [settings, setSettings] = useState<Settings>({ open: false, opener: null, key: 0 });
 
   // "Cookie settings": a click on any link to `#cookie-settings` opens the dialog. In the capture
   // phase, before next/link's own handler, which leaves an event it finds prevented alone.
   useEffect(() => {
+    const open = (opener: HTMLElement | null) =>
+      setSettings((now) => (now.open ? now : { open: true, opener, key: now.key + 1 }));
     function onClick(event: MouseEvent) {
       if (event.defaultPrevented || !isPlainClick(event)) return;
       const anchor = event.target instanceof Element ? event.target.closest("a") : null;
       if (anchor === null || !isCookieSettingsLink(anchor, window.location.origin)) return;
       event.preventDefault();
-      openConsentSettings(anchor);
+      open(anchor);
     }
     document.addEventListener("click", onClick, { capture: true });
-    if (window.location.hash === COOKIE_SETTINGS_HASH) openConsentSettings(null);
+    if (window.location.hash === COOKIE_SETTINGS_HASH) open(null);
     return () => document.removeEventListener("click", onClick, { capture: true });
   }, []);
 
-  // Each choice goes to the cart's metadata (D124); the server reads the cookie just written.
+  // A choice goes to the cart's metadata (D124); the server reads the cookie just written. With a
+  // PostHog key, a "yes" waits for the gate, which sends it with PostHog's distinct id.
   useEffect(
     () =>
-      onConsentChange(() => {
-        void syncCartConsent().catch(() => undefined);
+      onConsentChange((choice) => {
+        if (!process.env.NEXT_PUBLIC_POSTHOG_KEY || !choice.analytics)
+          void syncCartConsent().catch(() => undefined);
       }),
     [],
   );
 
-  // PostHog, only in a build with its key (D124, D129); and `signed_up` after a registration.
+  // PostHog, only in a build with its key (D124, D129): the gate's chunk after analytics consent,
+  // given on this page or before, or to clear PostHog's cookies left after a withdrawal elsewhere.
   useEffect(() => {
     if (!process.env.NEXT_PUBLIC_POSTHOG_KEY) return;
-    trackSignedUp();
-    return watchAnalytics({
+    const context = {
       key: process.env.NEXT_PUBLIC_POSTHOG_KEY,
-      host: process.env.NEXT_PUBLIC_POSTHOG_HOST?.trim() || "https://eu.i.posthog.com",
+      host: process.env.NEXT_PUBLIC_POSTHOG_HOST?.trim() || POSTHOG_EU,
       market,
       locale: analyticsLocale,
+    };
+    let stop: (() => void) | undefined;
+    let gone = false;
+    const watch = (chosen: boolean) => {
+      if (stop !== undefined) return;
+      stop = () => undefined;
+      void import("../analytics/gate").then((gate) => {
+        if (!gone) stop = gate.watchAnalytics(context, syncCartConsent, chosen);
+      });
+    };
+    if (readConsentCookie()?.analytics === true || POSTHOG_COOKIE.test(document.cookie))
+      watch(false);
+    const off = onConsentChange((choice) => {
+      if (choice.analytics) watch(true);
     });
+    return () => {
+      gone = true;
+      off();
+      stop?.();
+    };
   }, [market, analyticsLocale]);
 
   const known = visitor === "unknown" ? undefined : visitor.consent;
@@ -108,8 +140,9 @@ export function VisitorCookieConsent({
       choice={known}
       onChoose={chooseConsent}
       settingsOpen={settings.open}
+      settingsKey={settings.key}
       onSettingsOpenChange={(open) => {
-        if (!open) closeConsentSettings();
+        if (!open) setSettings((now) => ({ ...now, open: false }));
       }}
       settingsFinalFocus={settings.open ? settings.opener : null}
       {...(settings.open && known !== null

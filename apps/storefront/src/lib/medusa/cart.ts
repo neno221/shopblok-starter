@@ -272,7 +272,11 @@ async function headersFor(locale?: string | null): Promise<Record<string, string
 
 // --- Analytics consent in the cart's metadata (M6 D124, T97) --------------------------------------
 
-/** The cart's (and so the order's) metadata keys that Medusa's analytics subscribers read. */
+/**
+ * The cart's (and so the order's) metadata keys that Medusa's analytics subscribers read. Their
+ * twin is `apps/backend/src/lib/analytics.ts` (Medusa cannot import this app); `cart.test.ts` checks
+ * the two agree, with the distinct id's pattern in `cookies.ts`.
+ */
 export const ANALYTICS_CONSENT_KEY = "analytics_consent";
 export const DISTINCT_ID_KEY = "posthog_distinct_id";
 /** The market's internal key (`el-cy`), the `market` of Medusa's analytics events, as the browser's. */
@@ -336,19 +340,35 @@ export async function syncCartConsent(): Promise<boolean> {
   }
 }
 
-/** Reads cart `id`'s metadata and writes the request's consent into it when it says otherwise. */
-async function syncConsentOf(id: string, headers: Record<string, string>): Promise<boolean> {
+/**
+ * Reads cart `id`'s metadata and, in one update when anything differs, writes the request's consent
+ * into it and, before an order, where its e-mails point (`target`). `false` for a completed cart.
+ */
+async function syncConsentOf(
+  id: string,
+  headers: Record<string, string>,
+  target?: MailTarget,
+): Promise<boolean> {
   const { cart } = await medusaRequest((sdk) =>
     sdk.store.cart.retrieve(id, { fields: "id,completed_at,metadata" }, headers),
   );
   if ((cart as unknown as WireCart).completed_at) return false;
-  const metadata = consentMetadata(
-    (cart.metadata ?? {}) as Record<string, unknown>,
-    await getAnalyticsConsent(),
-  );
-  if (metadata !== null)
+  const metadata = (cart.metadata ?? {}) as Record<string, unknown>;
+  const update: Record<string, unknown> = {
+    ...consentMetadata(metadata, await getAnalyticsConsent()),
+  };
+  if (target !== undefined) {
+    const wanted = {
+      market: target.market,
+      language: target.language,
+      [MARKET_KEY_KEY]: target.key ?? metadata[MARKET_KEY_KEY],
+    };
+    for (const [name, value] of Object.entries(wanted))
+      if (value !== undefined && metadata[name] !== value) update[name] = value;
+  }
+  if (Object.keys(update).length > 0)
     await medusaRequest((sdk) =>
-      sdk.store.cart.update(id, { metadata }, { fields: "id" }, headers),
+      sdk.store.cart.update(id, { metadata: update }, { fields: "id" }, headers),
     );
   return true;
 }
@@ -620,41 +640,11 @@ export async function initiatePayment(
 }
 
 /**
- * Stores where the order's e-mails point (T99, D122): the market's public prefix and its language
- * in the cart's `metadata`, as `{ market, language }`, which Medusa copies to the order when it is
+ * Where the order's e-mails point (T99, D122): the market's public prefix and its language, kept in
+ * the cart's `metadata` as `{ market, language }`, which Medusa copies to the order when it is
  * placed; and, with `key`, the market's key for the order's analytics events (D124, `market_key`).
- * Medusa merges an update's `metadata` into the cart's, so the update holds these keys only.
  */
-export async function setMailTarget(
-  target: { market: string; language: string; key?: string },
-  locale?: string,
-): Promise<void> {
-  const id = await requireCartId();
-  const headers = await headersFor(locale);
-  await medusaRequest(async (sdk) => {
-    const { cart } = await sdk.store.cart.retrieve(id, { fields: "id,metadata" }, headers);
-    const metadata = (cart.metadata ?? {}) as Record<string, unknown>;
-    const key = target.key ?? metadata[MARKET_KEY_KEY];
-    if (
-      metadata["market"] === target.market &&
-      metadata["language"] === target.language &&
-      metadata[MARKET_KEY_KEY] === key
-    )
-      return;
-    await sdk.store.cart.update(
-      id,
-      {
-        metadata: {
-          market: target.market,
-          language: target.language,
-          ...(key === undefined ? {} : { [MARKET_KEY_KEY]: key }),
-        },
-      },
-      { fields: "id" },
-      headers,
-    );
-  });
-}
+export type MailTarget = { market: string; language: string; key?: string };
 
 export type CompletedCart =
   | { kind: "order"; orderId: string; countryCode: string | null }
@@ -665,12 +655,13 @@ export type CompletedCart =
  * the cart cookie is cleared (a new add starts a new cart) and the order's id comes back for the confirmation page; when Medusa refuses (a payment that needs more,
  * stock gone), the cart and Medusa's reason come back instead.
  */
-export async function completeCart(locale?: string): Promise<CompletedCart> {
+export async function completeCart(locale?: string, target?: MailTarget): Promise<CompletedCart> {
   const id = await requireCartId();
   const headers = await headersFor(locale);
-  // D124: the order is made from the cart's metadata, so it says what the cookies say now (a
-  // withdrawal on the review page counts), whatever the cart said before.
-  await syncConsentOf(id, headers);
+  // The order is made from the cart's metadata, so first, in one write: where its e-mails point
+  // (T99), and the analytics consent the cookies say now (D124: a withdrawal on the review page
+  // counts), whatever the cart said before.
+  await syncConsentOf(id, headers, target);
   const answer = await medusaRequest((sdk) => sdk.store.cart.complete(id, {}, headers));
   if (answer.type === "order") {
     await removeCartId();

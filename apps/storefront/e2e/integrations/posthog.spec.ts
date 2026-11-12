@@ -10,7 +10,7 @@ import {
   type Sink,
   type SinkEvent,
 } from "../support/posthog-sink";
-import { addToCart, checkOut, orderIdOf } from "../support/purchase";
+import { addToCart, checkOut, mailedLink, orderIdOf } from "../support/purchase";
 
 // M6 D124 (T97): PostHog, live. Nothing is sent before analytics consent; after it, page views and
 // the shop's events go through the site's own `/ingest` (a POST to `/ingest/e/` with its body, which
@@ -306,6 +306,59 @@ test("Medusa sends nothing for an order placed without consent, or withdrawn on 
       sink!.events.filter((event) => event.properties["order_id"] === orderId),
       orderId,
     ).toEqual([]);
+});
+
+// PR 138 review: the register, sign-in and sign-out forms end in a redirect inside the same layout
+// (a soft navigation), and PostHog still follows: `signed_up` on the page registering lands on,
+// `$identify` with the Medusa id after the sign-in, a new anonymous visitor after the sign-out.
+test("follows a registration, a sign-in and a sign-out without a full page load", async ({
+  page,
+  context,
+}) => {
+  const auth = en.templates.auth;
+  const email = `posthog-auth-${Date.now()}@example.com`;
+  const password = "posthog-pass-1";
+  const ingest = watchIngest(context);
+  await page.goto("/us");
+  await consentToAnalytics(page);
+
+  await page.goto("/us/register");
+  const register = page.locator('[data-slot="auth-register-form"]');
+  await register.locator('input[name="email"]').fill(email);
+  await register.locator('input[name="password"]').fill(password);
+  await register.locator('input[name="firstName"]').fill("Ada");
+  await register.locator('input[name="lastName"]').fill("Tester");
+  await register.getByRole("button", { name: auth.register.submit }).click();
+  await expect(page).toHaveURL(/\/us\/verify$/);
+  await expect.poll(() => named(ingest.events, "signed_up").length, { timeout: 20_000 }).toBe(1);
+
+  await page.goto(await mailedLink(email, "customer-verification"));
+  const login = page.locator('[data-slot="auth-login"]');
+  await login.locator('input[name="email"]').fill(email);
+  await login.locator('input[name="password"]').fill(password);
+  await login.getByRole("button", { name: auth.login.submit }).click();
+  await expect(page).toHaveURL(/\/us\/account$/);
+  let customer = "";
+  await expect
+    .poll(
+      () => {
+        customer = named(ingest.events, "$identify").at(-1)?.distinctId ?? "";
+        return customer;
+      },
+      { timeout: 20_000 },
+    )
+    .toMatch(/^cus_/);
+
+  await page.locator('[data-slot="account-nav-sign-out"]').first().click();
+  await expect(page).toHaveURL(/\/us\/login\?notice=signed-out$/);
+  // Reset on this page already: PostHog's cookie holds a new anonymous id before any full load.
+  await expect.poll(() => distinctIdOf(context), { timeout: 20_000 }).not.toBe(customer);
+  const before = ingest.events.length;
+  await page.goto("/us/store");
+  await expect
+    .poll(() => named(ingest.events.slice(before), "$pageview").length, { timeout: 20_000 })
+    .toBeGreaterThan(0);
+  for (const event of ingest.events.slice(before)) expect(event.distinctId).not.toBe(customer);
 });
 
 test("doctor --online finds the keys accepted", async () => {

@@ -7,6 +7,7 @@ import { PHASE_DEVELOPMENT_SERVER, PHASE_PRODUCTION_BUILD } from "next/constants
 import createNextIntlPlugin from "next-intl/plugin";
 import { buildWorkers } from "./src/lib/build-workers";
 import { designSystemBuildFlag } from "./src/lib/env";
+import { POSTHOG_EU } from "./src/lib/site";
 
 // The repo root. The shared packages are linked from `packages/*` and Next compiles their source
 // (D3), so Turbopack and the file tracing must see outside this folder. The Payload templates point
@@ -102,9 +103,6 @@ export function posthogRewrites(source: Record<string, string | undefined>) {
     { source: "/ingest/:path*", destination: `${host}/:path*` },
   ];
 }
-
-/** PostHog's EU ingest host (D124). */
-const POSTHOG_EU = "https://eu.i.posthog.com";
 
 /**
  * T96 (M6 D125): the values `lib/sentry/options.ts` reads, fixed at build. The release is

@@ -993,14 +993,24 @@ describe('CookieConsent\'s settings, reopened from "Cookie settings" (M6 D123, T
     finalFocus?: HTMLElement | null;
   }) {
     const [open, setOpen] = useState(initial);
+    // Each opening is a new key, as the shop's island gives it.
+    const [key, setKey] = useState(0);
     return (
       <>
-        <button type="button" data-testid="opener" onClick={() => setOpen(true)}>
+        <button
+          type="button"
+          data-testid="opener"
+          onClick={() => {
+            setOpen(true);
+            setKey((now) => now + 1);
+          }}
+        >
           Cookie settings
         </button>
         {element("en", {
           choice: chosen,
           settingsOpen: open,
+          settingsKey: key,
           onSettingsOpenChange: setOpen,
           settingsFinalFocus: finalFocus,
           ...(onChoose === undefined ? {} : { onChoose }),
@@ -1044,6 +1054,24 @@ describe('CookieConsent\'s settings, reopened from "Cookie settings" (M6 D123, T
     await waitFor(() => expect(dialogOf()).toBeNull());
     await waitFor(() => expect(document.activeElement).toBe(opener));
     opener.remove();
+  });
+
+  it("opens again with the switches as chosen, not as left before Escape", async () => {
+    const user = userEvent.setup();
+    render(<Settings chosen={{ analytics: true, marketing: false }} />);
+    const analyticsSwitch = async () =>
+      within(await screen.findByRole("dialog"))
+        .getAllByRole("switch")
+        .filter(
+          (each) => !each.hasAttribute("disabled") && each.getAttribute("aria-disabled") !== "true",
+        )[0]!;
+    await user.click(screen.getByTestId("opener"));
+    await user.click(await analyticsSwitch());
+    expect((await analyticsSwitch()).getAttribute("aria-checked")).toBe("false");
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(dialogOf()).toBeNull());
+    await user.click(screen.getByTestId("opener"));
+    expect((await analyticsSwitch()).getAttribute("aria-checked")).toBe("true");
   });
 
   it("closes on Escape and tells the page", async () => {

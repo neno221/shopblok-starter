@@ -84,4 +84,8 @@ export const slashRedirects: readonly [string, string][] = [
   ["/monitoring/", "/monitoring"],
   ["/ingestion/", "/ingestion"],
   ["/products/shirt//", "/products/shirt"],
+  // Never to another host (PR 138 review): the leading slashes collapse to one.
+  ["//evil.example/", "/evil.example"],
+  ["///evil.example/path/", "/evil.example/path"],
+  ["/\\evil.example/", "/evil.example"],
 ];

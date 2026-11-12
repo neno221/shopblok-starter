@@ -20,7 +20,10 @@ export async function proxy(req: NextRequest) {
   const slashless = withoutTrailingSlash(req.nextUrl.pathname);
   if (slashless !== null) {
     // A plain URL: `nextUrl` keeps a trailing slash it was parsed with.
-    return NextResponse.redirect(new URL(`${slashless}${req.nextUrl.search}`, req.url), 308);
+    return NextResponse.redirect(
+      new URL(`${slashless}${req.nextUrl.search}`, req.nextUrl.origin),
+      308,
+    );
   }
   if (!decodes(req.nextUrl.pathname))
     return new NextResponse("Not Found", {
@@ -48,7 +51,9 @@ export async function proxy(req: NextRequest) {
 export function withoutTrailingSlash(pathname: string): string | null {
   if (pathname === "/" || !pathname.endsWith("/")) return null;
   if (pathname === "/ingest/" || pathname.startsWith("/ingest/")) return null;
-  return pathname.replace(/\/+$/, "") || "/";
+  // Leading slashes and backslashes collapse to one: `//evil.example/` would otherwise be a
+  // protocol-relative target on another host (PR 138 review), which Next's own redirect never made.
+  return `/${pathname.replace(/\/+$/, "").replace(/^[/\\]+/, "")}`;
 }
 
 function decodes(path: string): boolean {
