@@ -9391,3 +9391,97 @@ Also seen: the backend's first reconcile after a start logs `payload-sync: recon
 ### Review fixes
 
 The PR's /code-review (`reviews/pr-132-code-review.md` in the project's files) had three must-fix findings and six optional ones. Fixed: **1**, Home's SEO preview read the id from the form's data, which has none (the plugin sends it beside), so the admin still showed `/us/home`: `generateURL` takes the plugin's `id`, and its test passes the id as the plugin does; **2**, the switch's wait ended only when a copy was applied, so after a switch-on that copied nothing, deleting every row of "Layout (this language)" could bring the blocks back: the first save after the switch ends it; **3**, Payload's `reset` replaced the whole form with a snapshot taken before its server call and marked it unmodified, so text typed meanwhile was lost: only the language's own layout is replaced now, and `payload-admin.spec.ts` types in the title right after ticking; and the cleanup **4**, the homepage rule moved into `pagePreviewPath`, so live preview and the SEO preview agree on Home's address. Skipped as optional and not cleanups: 5 (the logo grid with one logo at `md`), 6 (`expectRoot`'s one fixed pause), 7 (the header scrim's full part under a tall logo), 8 (a note on the publish button's config for Payload upgrades) and 9 (one more read of the site settings per SEO preview). After the fixes, on a new production build: `localized-layout`, `payload-admin` and `editor-homepage` **30 passed**.
+
+## Versions, keys and CI for M6 (T93)
+
+**Result: every `@medusajs/*` package moves from 2.22.4 to 2.22.6 (`@medusajs/ui` 4.2.11 to 4.2.13), Next stays on 16.4.5, and M6's keys have their names, their guards and their CI job before any integration is built. Every M6 variable is named in both `.env.example` files and in `@shopblok/integrations`; `doctor` refuses a live Stripe key outside production; `pnpm check:keys` fails CI's `check` job on a key written into any tracked file; the `integrations-live` job runs the new `integrations` Playwright project with the keys from GitHub's secrets and variables, and uploads only masked logs; the keyless suites (shell, catalog, both checkouts, account) fail a test on any request the browser sends to an integration's host or to the shop's own `/monitoring` and `/ingest` tunnels. CLOUD.md's "Keys and hosts for M6" says where the keys go and how a session sees them, and the cloud environment has M6's hosts (you approved the card on 2026-11-12). Medusa's Redis caching (D128) stays off: the module does not start with the markets plugin (below), so it caches nothing.** D114, D115, D116, D128 (plans/M6.md §5 T93).
+
+| | |
+|---|---|
+| Date | 2026-11-11 and 2026-11-12 |
+| Branch | `claude/project-thread-w020zv`, from `main` at `50bef34` (PR 133's merge, the M6 plan) |
+| PR | this PR, "T93: Versions, keys and the integrations' CI" |
+
+### Medusa 2.22.6
+
+Every `@medusajs/*` in `apps/backend`, the markets plugin's peers and dev dependencies, and the storefront's `@medusajs/js-sdk` move to 2.22.6 (`@medusajs/ui` 4.2.13). No custom backend code changes. The three changes the plan names, checked against our code:
+
+- **#17712** (dotted `fields` and filter paths): Medusa now refuses only a path segment named `__proto__`, `constructor` or `prototype` (a `400`), and walks own keys. Our dotted fields (`lib/medusa`'s `*variants.calculated_price`, `+metadata`, the markets plugin's `query.graph` fields, the sync's) use none of them; `backend-integration` and `e2e-smoke` pass.
+- **#17719** (the order list's item fields): the account's order list asks for `*items` and `*items.detail` itself (`ORDER_FIELDS`), so the thumbnails come back as before.
+- **#17710** (shipping options): the seed's options and both checkouts (`checkout-us`, `checkout-cy`) pass.
+
+`pnpm audit --prod` lists **8** (1 low, 5 moderate, 2 high, 0 critical), the same list as "Medusa 2.22.4" left (`esbuild`, `ajv`, `uuid`, `csv-parse`, `happy-dom` twice, `deepmerge`, `minimatch`): 2.22.6 adds none and closes none, so T55's "What stays" table is as "Medusa 2.22.4" updated it. The peer warnings at install are the ones 2.22.4 had.
+
+**Next 16.4.6** is not taken. Between the `v16.4.5` and `v16.4.6` tags: Turbopack's garbage collection fixes, route handlers' responses compressed automatically, a Tailwind pin in `create-next-app`, and docs. No security fix and nothing this shop needs, so the storefront stays on 16.4.5 (the plan takes it only for a fix we need).
+
+### The names (D115)
+
+Both `.env.example` files end with an "Integrations (M6)" section that lists every key empty, with what it turns on: the backend's `STRIPE_API_KEY`, `STRIPE_WEBHOOK_SECRET`, `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `POSTHOG_EVENTS_API_KEY`, `POSTHOG_HOST`, `SENTRY_DSN`, `SENTRY_ENVIRONMENT`, `SENTRY_TRACES_SAMPLE_RATE` and the R2 names (`S3_ENDPOINT`, `S3_REGION`, `S3_BUCKET`, `S3_PRIVATE_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_PUBLIC_URL`); the storefront's `NEXT_PUBLIC_STRIPE_KEY`, Resend's three (with `RESEND_NEWSLETTER_SEGMENT_ID`), `SMTP_HOST`/`SMTP_PORT` (Mailpit's, for Payload in development), PostHog's two public names, Sentry's (`NEXT_PUBLIC_SENTRY_DSN` and the build's optional `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT`) and R2's without the private bucket. `@shopblok/integrations` lists the same: `S3_PRIVATE_BUCKET` is a key of the backend's R2 part only (D127), and the optional names (`S3_REGION`, `RESEND_NEWSLETTER_SEGMENT_ID`, `NEXT_PUBLIC_POSTHOG_HOST`, Sentry's environment, sample rate and build names) are optional, so doctor never calls an integration "half configured" for one of them. `S3_FILE_URL` is in no file but SPEC's §15 (and the plan, which says so); T104 fixes SPEC.
+
+### The guards
+
+- **`doctor`'s "Stripe test mode"** (`scripts/lib/doctor-checks.ts`, `stripeLiveKeys`): a `sk_live_`, `rk_live_` or `pk_live_` value in `STRIPE_API_KEY` (backend) or `NEXT_PUBLIC_STRIPE_KEY` (storefront) is an error unless that app's own `NODE_ENV` is `production`. It names the app and the variable, never the value.
+- **`pnpm check:keys`** (`scripts/check-no-keys.ts`, its rules and tests in `scripts/lib/no-keys.ts`): reads every file `git ls-files` lists (binary files, a NUL in the first 8 KB, and files over 5 MB skipped) and fails on a key-shaped string: Stripe's `sk_` and `rk_` (test or live), `pk_live_` and `whsec_` with at least 16 characters after the prefix, Resend's `re_` with 20, and AWS's `AKIA` with exactly 16. Each pattern starts a word (`(?<![A-Za-z0-9_])`), so `task_test_…`, `store_…` or `are_…` never match, and asks for a real key's length, so the docs' `sk_test_…` and the tests' `sk_live_fake` do not either. A finding prints the file, the line and the kind, never the key, and is a GitHub annotation in CI. `ALLOWED_FAKE_KEYS` lets one fixture through (`sk_test_FAKEFAKEFAKEFAKE0000`, the check's own test). It runs in CI's `check` job after `check:workspace` (about 2 s on 1,750 files) and before any key is in reach. The plan says "the PR's changed files"; the whole tree costs the same and also covers what is already merged.
+- **`scripts/mask-keys.ts`**: rewrites log files in place with every key-shaped string (the patterns above) and the value of every variable named in `MASK_KEYS_FROM` replaced by `***`, values under 8 characters left alone. `integrations-live` runs it on its server logs and its failures before uploading them; it is how a Sentry DSN or a PostHog key, which no pattern knows, is masked too.
+
+### `integrations-live` (D114)
+
+A new job in `ci.yml`, after `gate`, and a nightly cron for it alone (`29 2 * * *`, beside the weekly one; `scripts/lib/ci-gate.ts`'s `NIGHTLY_SCHEDULE`, whose test reads the workflow so the two cannot drift).
+
+- **When:** on pushes to `main`, nightly, on a dispatch, and on a pull request from this repository when `e2e-smoke` runs for it (the gate's rule, failing open as the others do). Never from a fork, never on a `renovate/*` branch (its new packages would run with the keys in reach), never in an `update-baselines` dispatch. The nightly run runs it alone: `check`, `backend-integration`, `e2e-smoke` and the DS jobs skip it.
+- **The steps:** a first step refuses a live Stripe key (it prints only "set" or "not set" per name); then the compose stack, `pnpm bootstrap --ci`, Medusa started with the backend's keys, the storefront built with the public names only (`NEXT_PUBLIC_*` and `S3_PUBLIC_URL`, which the build inlines) and started with its server keys, and `E2E_INTEGRATIONS=true` with `--project=integrations`. The secrets reach those steps and the masking step only, never `pnpm install` or the build. With `STRIPE_API_KEY` set and no `STRIPE_WEBHOOK_SECRET`, the job sets a fixed stand-in (`ci-stand-in-webhook-secret`; CLOUD.md) so Medusa registers the provider. The report is the list reporter, no traces and no HTML report (a zip or base64 cannot be masked); the job uploads the masked server logs and the failures' `.md` files.
+- **The project** (`apps/storefront/playwright.config.ts`): `integrations`, opt-in with `E2E_INTEGRATIONS=true` like the outage and dev-console projects, `e2e/integrations/*.spec.ts`, one worker, no retries (a live service's flake should show). `e2e/support/integration-keys.ts` gives the specs `doctor --json`'s report and `skipWithoutKeys(test, id)`, which skips a spec naming the secrets it lacks (G10).
+- **Its first spec, `e2e/integrations/doctor.spec.ts`:** prints which integrations it found keys for (an annotation, names only) and checks `doctor --json`: each integration is `live` exactly when it is configured and wired, `fallback` otherwise; no "Stripe test mode" error and no error at all. Until M6's tasks mark them wired, every integration but Redis is `fallback` whatever keys are set.
+
+### The keyless check (D114)
+
+`apps/storefront/e2e/support/third-party-hosts.ts` holds the rule: the hosts (`stripe.com`, `stripe.network`, `api.resend.com`, `sentry.io`, `sentry-cdn.com`, `posthog.com`, `r2.cloudflarestorage.com`, `r2.dev`, each with every host below it) and the shop's own tunnels, `/monitoring` and `/ingest` and every path below them, on the site's origin only. `e2e/support/third-party.ts` is a Playwright `test` with an automatic fixture that watches the test's context and every context the test opens itself (`browser.newContext()`, `browser.newPage()`), lets each request go (the page behaves as it would), and fails the test at its end listing each request by method, origin and path (never the query, which can carry a token). The shell, catalog, `checkout-us`, `checkout-cy` and auth suites import `test` and `expect` from it. The `integrations` project's specs use `@playwright/test` itself, since the requests are their point.
+
+### Redis caching (D128): stays off
+
+With `MEDUSA_FF_CACHING=true` and the caching module on Redis, the backend starts but **caches nothing**. The caching module's `onApplicationStart` builds a GraphQL schema of the entities to know what to invalidate, and fails: `Cannot use GraphQLObjectType "MarketCountry" from another module or realm` (the markets plugin's link type; the tree has two copies of `graphql`, 16.14.2 and 17.1.0). Medusa's loader swallows a module's start-up error, so nothing is printed at start; every later cache write then fails (`Cannot read properties of undefined (reading 'parseObjectForEntities')`, about 1,000 times in the run below) and every read goes to Postgres. The check itself: 20 title changes and 20 price changes on `demo-heritage-hoodie`, each followed by the product page in `/us` and `/store/products` once the revalidation landed: **0 stale answers in 40**, which says nothing, since nothing was cached. **So the flag stays off**: it is not in `.env.example`, `e2e-smoke` does not set it, and doctor does not report it. Making it work means one `graphql` for Medusa and the plugin (a `pnpm` override or the plugin's peer range) and the 40 changes again; that is a task of its own, which M6 does not need. SPEC §10.6 says so too.
+
+### CLOUD.md and the hosts
+
+"Keys and hosts for M6" lists the names (secrets and variables, needed and optional), says where you enter them (GitHub's Actions secrets and variables; the cloud environment), and what T93 measured: the environment has no variables or secrets but its six telemetry and timeout values, a session sees an environment's variables as ordinary environment variables, and the servers a session starts inherit them, so a key never goes into a file. A session also has `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` set by the platform (names read, not values), so T95's R2 code must pass `S3_*` explicitly and never use the AWS SDK's default chain. The 16 hosts are on the `shopblok-starter` environment's list since 2026-11-12; Sentry's ingest and R2's account hosts depend on your accounts and are asked for by their tasks.
+
+### Mutations (each fails a check)
+
+| Mutation | Result |
+|---|---|
+| A keyless spec that loads `https://js.stripe.com/v3/` | fails on the fixture: "GET https://js.stripe.com/v3/: a third-party host (stripe.com)" |
+| The same spec posting to the same-origin `/ingest/e/` from a page opened with `browser.newPage()` | fails: "POST http://localhost:8000/ingest/e/: the site's /ingest tunnel"; a clean page in the same spec passes |
+| `STRIPE_API_KEY=sk_live_fake` in `apps/backend/.env` | `pnpm run doctor`: "✗ Stripe test mode … apps/backend: STRIPE_API_KEY is a live key", exit 1; restored, exit 0 |
+| A real-length `sk_test_` string appended to `apps/backend/.env.example` | `pnpm check:keys` names the file, line and kind, exit 1 |
+| Redis's `wired: false` in `@shopblok/integrations` (T14's mutation, run again) | `scripts/lib/backend-gates.test.ts`: "redis is switched on by buildModules: expected false to be true", 2 tests fail |
+
+The mutation specs were deleted after their run; no key or key-shaped string was committed (CI's own `check:keys` passes on the branch).
+
+### Checks (cloud VM)
+
+| Check | Result |
+|---|---|
+| `check:workspace`, `check:keys`, `typecheck`, `lint` | Pass |
+| Unit tests | `scripts` 439 (21 files; new: `no-keys.test.ts`, the gate's `integrations` and nightly cases, the live-key checks), `@shopblok/integrations` 15, the storefront's `third-party-hosts.test.ts` 4 |
+| `backend-integration` on 2.22.6 | 58 of 58 (and in CI) |
+| The keyless suites on a production build | shell, catalog, `checkout-us`, `checkout-cy`, auth: 50 passed |
+| `doctor.spec.ts` with no keys | passes, locally and in this PR's `integrations-live` (every integration `fallback`, Redis `live`; GitHub has no M6 secret or variable yet) |
+
+### Two axe checks measured an entrance animation
+
+This PR's second `e2e-smoke` run failed two tests that the PR does not touch, both on axe's `color-contrast`: Payload's error toast (`payload-admin.spec.ts`, "an error on the edit form stays readable": 3.48:1, `#b16e81` on `#ffeff1`, the toast's text halfway through its fade) and the drawer mini cart (`variants.spec.ts`, "each commerce page draws what the editor picked, in the US"). `main` failed the same way on `0bf1f62` (the cart line's options, also in `variants.spec.ts`). **The cause:** both helpers ran axe as soon as the toast or the drawer was visible, while its entrance transition still blended the text with the background. Measured on the cloud VM: opening the drawer six times and running axe at once found 4 or 5 contrast violations in five of the six rounds (1.88:1 to 4.44:1, with 17 or 18 animations running); waiting for the page's finite animations first found none in all six. **The fix:** `finishAnimations(page)` (`e2e/support/settle.ts`) waits until every finite animation and transition has ended (endless ones, a spinner or a pulse, are left out; at most 5 s), and `contrastViolations` (`payload-admin.spec.ts`) and `axeViolations` (`variants.spec.ts`) call it before axe. Afterwards `payload-admin.spec.ts` passes 21 of 21 and `variants.spec.ts`'s "selectable in Payload" 6 of 6, twice.
+
+### CI times before M6, and the history
+
+Before: `main` at `95b6c7a` (the W7 fixes merged, run [43004859507](https://github.com/neno221/shopblok-starter/actions/runs/43004859507)); its `e2e-smoke` failed one flaky `variants.spec.ts` test after 13:40 of suites, so its full time is the last green one, T92's 22:17. The M6 plan's own merge (`50bef34`) failed on two runner downloads (Playwright's Chromium, the DS container's tools), not on a test. After: this PR's branch.
+
+| Job | Before M6 | This PR |
+|---|---|---|
+| `check` (Node 22) | 7:10 | 7:04 (with `check:keys`, 2 s) |
+| `backend-integration` | 2:10 | 2:48 |
+| `e2e-smoke` | 22:17 (T92) | pending: this PR's last run |
+| `integrations-live` | none | 3:49 (no key set: `doctor.spec.ts` alone, 4 s; run 43058410167, attempt 2) |
+| `design-system` shards | 11:04, 13:03, 11:01, then the merge 0:44 | 13:31, 11:11, 13:19, then the merge 0:38 |
+| `dev-console-ds` | 8:36 | 10:19 |
+
+**The history:** a full clone of `main` at `50bef34` (`git clone --bare --single-branch`, 782 commits) has a `size-pack` of **112.08 MiB**, 4.7 MiB more than T92's 107.39 (the W7 fixes' 53 changed PNGs).

@@ -5,6 +5,7 @@ import { collectConsole, judgeConsole, type FailedRequest, type Message } from "
 import { focusIndicator } from "./support/focus-ring";
 import { draftOf, publishGlobal, snapshotGlobal, type GlobalData } from "./support/globals";
 import { adminToken } from "./support/server";
+import { finishAnimations } from "./support/settle";
 
 // T16: Payload's admin inside the storefront, end to end: the admin that `pnpm bootstrap` made
 // logs in, creates a page with a title per language, and the API serves each language. It is the
@@ -64,6 +65,7 @@ const field = (page: Page, name: "title" | "slug") => page.locator(`input[name="
  * out: it writes `#9A9A9A`, `red` and `green` into `style`, which no variable reaches.
  */
 async function contrastViolations(page: Page): Promise<string[]> {
+  await finishAnimations(page);
   const { violations } = await new AxeBuilder({ page })
     .withRules(["color-contrast"])
     .exclude('#field-meta [style*="color"]')

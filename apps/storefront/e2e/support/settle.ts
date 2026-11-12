@@ -59,3 +59,22 @@ export async function withPageSizedViewport<T>(
     await page.waitForTimeout(300);
   }
 }
+
+/**
+ * Waits until every finite animation and transition on the page has ended (at most `timeout` ms),
+ * so a check that measures colours does not catch an element halfway through its entrance. A
+ * toast or a drawer fading in has its text blended with the background for a few frames, and axe's
+ * `color-contrast` measured that blend (3.48:1 for Payload's error toast, M6 T93's CI). Endless
+ * animations (a spinner, a skeleton's pulse) are left out: they never end.
+ */
+export async function finishAnimations(page: Page, timeout = 5_000): Promise<void> {
+  await page.evaluate(async (timeout) => {
+    const finite = document
+      .getAnimations()
+      .filter((animation) => animation.effect?.getComputedTiming().endTime !== Infinity);
+    await Promise.race([
+      Promise.all(finite.map((animation) => animation.finished.catch(() => undefined))),
+      new Promise((resolve) => setTimeout(resolve, timeout)),
+    ]);
+  }, timeout);
+}
