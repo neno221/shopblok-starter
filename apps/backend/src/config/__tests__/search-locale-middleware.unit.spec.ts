@@ -1,7 +1,4 @@
-import {
-  chooseSearchLocale,
-  localizeSearchBody,
-} from "../../api/store/search/locale";
+import { chooseSearchLocale, localizeSearchBody } from "../../api/store/search/locale";
 
 const SUPPORTED = ["en-US", "el-GR", "de-DE", "fr-FR"];
 
@@ -51,10 +48,7 @@ describe("localizeSearchBody", () => {
 
   it("handles every query of a multi-query body, each by its own index", () => {
     const body = {
-      queries: [
-        { entity: "product" },
-        { entity: "meili", search_options: { locales: ["fr-FR"] } },
-      ],
+      queries: [{ entity: "product" }, { entity: "meili", search_options: { locales: ["fr-FR"] } }],
     };
 
     localizeSearchBody(body, "de-DE", (entity) => entity === "meili");

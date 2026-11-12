@@ -1,7 +1,4 @@
-import type {
-  RemoteQueryFunction,
-  SearchTypes,
-} from "@medusajs/framework/types";
+import type { RemoteQueryFunction, SearchTypes } from "@medusajs/framework/types";
 
 import { SUPPORTED_LOCALES } from "../../config/markets";
 import { trimmed } from "./facets";
@@ -58,18 +55,14 @@ const TEXT_GRAPH_FIELDS = [
  * the same list to check a request's locale. A locale added in the admin
  * is picked up by the next write, with no restart (D17, ADR 0002 decision 2).
  */
-export async function storeLocales(
-  query: Pick<RemoteQueryFunction, "graph">,
-): Promise<string[]> {
+export async function storeLocales(query: Pick<RemoteQueryFunction, "graph">): Promise<string[]> {
   const { data } = await query.graph({
     entity: "store",
     fields: ["supported_locales.locale_code"],
   });
   const fromStore = (
     data as { supported_locales?: ({ locale_code?: string | null } | null)[] }[]
-  ).flatMap((store) =>
-    trimmed((store.supported_locales ?? []).map((l) => l?.locale_code)),
-  );
+  ).flatMap((store) => trimmed((store.supported_locales ?? []).map((l) => l?.locale_code)));
 
   return [...new Set([DEFAULT_LOCALE, ...fromStore])];
 }
@@ -183,10 +176,7 @@ export async function resolveTranslationProductIds(
 
   for (const row of data as ({ reference?: string; reference_id?: string } | null)[]) {
     if (row?.reference && row.reference_id) {
-      byReference.set(row.reference, [
-        ...(byReference.get(row.reference) ?? []),
-        row.reference_id,
-      ]);
+      byReference.set(row.reference, [...(byReference.get(row.reference) ?? []), row.reference_id]);
     }
   }
 

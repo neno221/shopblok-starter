@@ -1,7 +1,4 @@
-import type {
-  RemoteQueryFunction,
-  SearchTypes,
-} from "@medusajs/framework/types";
+import type { RemoteQueryFunction, SearchTypes } from "@medusajs/framework/types";
 
 const RESOLVE_BATCH_SIZE = 200;
 
@@ -38,9 +35,7 @@ async function relatedProductIds(
 }
 
 /** The ids of the products behind a to-many relation read as `[{ id }, …]`. */
-function relationIds(
-  relation: ({ id?: string | null } | null)[] | null | undefined,
-) {
+function relationIds(relation: ({ id?: string | null } | null)[] | null | undefined) {
   return (relation ?? []).map((product) => product?.id);
 }
 

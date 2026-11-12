@@ -3,11 +3,7 @@ import type {
   MedusaNextFunction,
   MedusaResponse,
 } from "@medusajs/framework/http";
-import {
-  ContainerRegistrationKeys,
-  MedusaError,
-  Modules,
-} from "@medusajs/framework/utils";
+import { ContainerRegistrationKeys, MedusaError, Modules } from "@medusajs/framework/utils";
 
 type VerificationRule = { entity_type: string; auth_provider: string };
 
@@ -27,8 +23,9 @@ export async function requireVerifiedCustomer(
   next: MedusaNextFunction,
 ) {
   const { projectConfig } = req.scope.resolve(ContainerRegistrationKeys.CONFIG_MODULE);
-  const rules = ((projectConfig.http as { authVerificationsPerActor?: Record<string, VerificationRule[]> })
-    .authVerificationsPerActor?.customer ?? []) as VerificationRule[];
+  const rules = ((
+    projectConfig.http as { authVerificationsPerActor?: Record<string, VerificationRule[]> }
+  ).authVerificationsPerActor?.customer ?? []) as VerificationRule[];
   const authIdentityId = req.auth_context?.auth_identity_id;
 
   // No identity: `authenticate` has already answered 401, or the route will.

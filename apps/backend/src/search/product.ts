@@ -1,10 +1,5 @@
 import type { SearchTypes } from "@medusajs/framework/types";
-import {
-  defineSearchIndex,
-  graphConsume,
-  graphSeed,
-  search,
-} from "@medusajs/framework/utils";
+import { defineSearchIndex, graphConsume, graphSeed, search } from "@medusajs/framework/utils";
 
 import { toFacetIds, trimmed } from "./helpers/facets";
 import { type ProductOptionRow, toOptionValues } from "./helpers/option-values";
@@ -50,10 +45,12 @@ type ProductRow = {
   sales_channels?: ({ id?: string | null } | null)[] | null;
   categories?: ({ id?: string | null; name?: string | null } | null)[] | null;
   tags?: ({ id?: string | null; value?: string | null } | null)[] | null;
-  options?: (ProductOptionRow & {
-    id?: string | null;
-    values?: ({ id?: string | null; value?: string | null } | null)[] | null;
-  })[] | null;
+  options?:
+    | (ProductOptionRow & {
+        id?: string | null;
+        values?: ({ id?: string | null; value?: string | null } | null)[] | null;
+      })[]
+    | null;
 };
 
 /**
@@ -79,26 +76,14 @@ const productFields = search.define({
   category: search.keyword().array().retrievable(),
   option_values: search.keyword().array().retrievable(),
   category_ids: search.keyword().array().filterable().facetable().retrievable(),
-  collection_ids: search
-    .keyword()
-    .array()
-    .filterable()
-    .facetable()
-    .retrievable(),
-  option_value_ids: search
-    .keyword()
-    .array()
-    .filterable()
-    .facetable()
-    .retrievable(),
+  collection_ids: search.keyword().array().filterable().facetable().retrievable(),
+  option_value_ids: search.keyword().array().filterable().facetable().retrievable(),
   tag_ids: search.keyword().array().filterable().facetable().retrievable(),
   labels: search.keyword().array().retrievable(),
   ...priceFields,
 });
 
-type ProductDocument = SearchTypes.InferSearchDocumentType<
-  typeof productFields
->;
+type ProductDocument = SearchTypes.InferSearchDocumentType<typeof productFields>;
 
 function toDocument(
   product: ProductRow,
@@ -132,10 +117,7 @@ function toDocument(
  */
 const source = {
   fields: PRODUCT_GRAPH_FIELDS,
-  transform: async (
-    rows: ProductRow[],
-    context: SearchTypes.SearchIngestionContext,
-  ) => {
+  transform: async (rows: ProductRow[], context: SearchTypes.SearchIngestionContext) => {
     const { query } = context.container;
     const ids = rows.map((row) => row.id);
     const [pricing, texts] = await Promise.all([
@@ -143,9 +125,7 @@ const source = {
       storeLocales(query).then((locales) => readTexts(query, ids, locales)),
     ]);
 
-    return rows.map((row) =>
-      toDocument(row, pricing.get(row.id), toSearchText(texts.get(row.id))),
-    );
+    return rows.map((row) => toDocument(row, pricing.get(row.id), toSearchText(texts.get(row.id))));
   },
 };
 

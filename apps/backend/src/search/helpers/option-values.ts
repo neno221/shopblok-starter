@@ -8,9 +8,7 @@ export type ProductOptionRow = {
  * `["Size:S", "Color:Red"]`. One field keeps the index simple; the storefront
  * splits on the first `:` to group the facet by option name.
  */
-export function toOptionValues(
-  options: ProductOptionRow[] | null | undefined,
-): string[] {
+export function toOptionValues(options: ProductOptionRow[] | null | undefined): string[] {
   const flattened = (options ?? []).flatMap((option) => {
     const title = option?.title?.trim();
 
