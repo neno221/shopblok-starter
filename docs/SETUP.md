@@ -9622,7 +9622,7 @@ Checked in form-builder 3.93.0: its `{{field}}` replacement escapes a value once
 
 ### The migration
 
-`20261112_135006_email_types_newsletter`: the nine values of `enum_email_templates_type`, the forms' `emails` tables (`forms_emails`, `forms_emails_locales`) and `newsletter_confirmations`. Created last, on the branch with `main` unchanged since it started (T94 has not merged); `migrate:create --skip-empty` afterwards writes nothing.
+`20261112_135006_email_types_newsletter`: the nine values of `enum_email_templates_type`, the forms' `emails` tables (`forms_emails`, `forms_emails_locales`) and `newsletter_confirmations`. Created last, on the branch with `main` unchanged since it started (T94 has not merged); `migrate:create --skip-empty` afterwards writes nothing. Its `down()` drops the lock table's key with `IF EXISTS` (the table's `CASCADE` already took it) and deletes the nine new types' templates before the enum goes back to three values; after the seed, `migrate:down` and `migrate` ran once each on the seeded database (the first `down()` failed there with "constraint … does not exist", PR 136 review, item 1).
 
 ### Checks (cloud VM)
 
@@ -9646,3 +9646,13 @@ Checked in form-builder 3.93.0: its `{{field}}` replacement escapes a value once
 - **The newsletter's "done" line changed** in the four catalogs ("check your inbox" in place of "you are subscribed"), since nothing is subscribed until the link is confirmed. The DS draws that line in the NewsletterForm molecule and the newsletter sections' "done" cells, so those nine baselines are redrawn too (the Checks' baselines line).
 - **The seeded Contact form now e-mails the shop** (the plan's "safe form e-mails" needed a form that sends one, for the e2e and W8's review).
 - **The language is not a property of Resend's contact** (above); it is in `newsletter-confirmations`.
+- **No rate limit on the sign-up yet:** the sign-up e-mails whatever address is typed, with only the spam trap in front of it, so a script could send many confirmation e-mails to one address through the shop's Resend account (fixed copy, so the risk is volume, not content). The forms' rate limit is M7's (D81, SPEC §11.3); the newsletter sign-up is now on M7's rate-limit lists in SPEC (PR 136 review, item 2).
+
+### Changes from the review of this PR (PR 136)
+
+The review (`reviews/pr-136-code-review.md` in the project's files) found 1 must-fix item, 1 security item and 3 cleanups, all fixed; items 6 to 11 skipped (optional, neither security nor cleanup).
+1. The migration's `down()` could not run: `DROP TABLE … CASCADE` had already removed the lock table's key, so `DROP CONSTRAINT` failed, and after the seed the enum's recast failed on the new types' rows. It drops the key with `IF EXISTS` and deletes those templates first; `migrate:down` and `migrate` ran once on the seeded database ("The migration", above). The unchanged `down()` fails there with "constraint … does not exist".
+2. (Security, docs only) The sign-up sends an e-mail to the address typed, with no rate limit until M7: the newsletter sign-up is on M7's rate-limit lists in SPEC (§11 and M7's row) and in "Where it differs" above.
+3. `confirmSubscription` reads Payload (the client and the first "already used?") inside the `try` that answers `failed`, so a database error keeps the token and the button instead of an error page; a test with `payload.count` throwing (it fails on the old code with "connection refused"). The GET page's read leaves a database error to the page's error boundary on purpose, said in its comment.
+4. The text part's tracking lines use `safeLink` as the HTML does: a parcel whose link is not http(s) is its number only; the tracking test now reads the text part too (it fails on the old `orderText`).
+5. The rule that makes an e-mail's copy from its stored template (each empty field the seed's English, the body only with text, the language the asked one only when Payload has the subject) is one function, `copyFromTemplate` in `@shopblok/emails` (`src/copy.ts`, 3 tests), used by the backend's `email-copy.ts` and the storefront's `payload/send-email.ts`; each keeps its own way of reading Payload.

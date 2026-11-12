@@ -2,11 +2,10 @@ import type { MedusaContainer } from "@medusajs/framework/types";
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils";
 
 import {
+  copyFromTemplate,
   EMAIL_VARIABLES,
   fillVariables,
   lexicalToText,
-  paragraphs,
-  richTextHasText,
   type EmailCopy as LayoutCopy,
   type EmailType,
 } from "@shopblok/emails";
@@ -188,9 +187,6 @@ export function languageFrom(metadata: unknown): string {
   return typeof language === "string" && LANGUAGE.test(language) ? language : DEFAULT_LANGUAGE;
 }
 
-const textOf = (value: unknown): string | undefined =>
-  typeof value === "string" && value.trim() !== "" ? value : undefined;
-
 /** Reads a type's template in a language; `null` when Payload has none. */
 export type TemplateSource = (
   type: EmailType,
@@ -274,27 +270,21 @@ export function createEmailCopy({
       values: Record<string, string | undefined>,
     ): Promise<EmailCopy> {
       const stored = await template(type, language);
-      const builtIn = BUILT_IN[type];
       const fill = (text: string) => fillVariables(text, EMAIL_VARIABLES[type], values);
-      const subject = textOf(stored?.subject);
-      const fromPayload = stored !== null && subject !== undefined;
-      // A field Payload leaves empty takes the built-in English one.
-      const body = stored?.body;
-      const written: LayoutCopy = {
-        subject: subject ?? builtIn.subject,
-        preheader: textOf(stored?.preheader) ?? builtIn.preheader,
-        heading: textOf(stored?.heading) ?? builtIn.heading,
-        body: richTextHasText(body) ? body : paragraphs(builtIn.body),
-        cta: textOf(stored?.cta) ?? builtIn.cta,
-      };
+      // A field Payload leaves empty takes the built-in English one (`@shopblok/emails`' rule).
+      const {
+        copy: written,
+        language: copyLanguage,
+        source,
+      } = copyFromTemplate(stored, BUILT_IN[type], language);
       return {
         subject: fill(written.subject),
         preheader: fill(written.preheader),
         heading: fill(written.heading),
         text: fill(lexicalToText(written.body)),
         cta: fill(written.cta),
-        language: fromPayload ? language : DEFAULT_LANGUAGE,
-        source: fromPayload ? "payload" : "built-in",
+        language: copyLanguage,
+        source,
         template: written,
       };
     },

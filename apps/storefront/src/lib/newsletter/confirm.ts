@@ -39,6 +39,8 @@ export async function readConfirmation(token: unknown): Promise<LinkState> {
     return { kind: "expired" };
   }
   if (claims === null) return { kind: "expired" };
+  // A database error here is left to the page's error boundary on purpose: without the record the
+  // page cannot tell a link already used from one to confirm, and it writes nothing either way.
   return (await isUsed(claims.id)) ? { kind: "used" } : { kind: "valid", claims };
 }
 
@@ -85,10 +87,13 @@ export async function confirmSubscription(token: unknown): Promise<ConfirmOutcom
     return "failed";
   }
   if (claims === null) return "expired";
-  const payload = await getPayloadClient();
-  if (await isUsed(claims.id)) return "used";
+  let payload: Awaited<ReturnType<typeof getPayloadClient>>;
   let record: { id: number | string };
+  // A database error anywhere before the record exists is "failed": the page keeps the token and
+  // the button, so the same link can be tried again, instead of an error page.
   try {
+    payload = await getPayloadClient();
+    if (await isUsed(claims.id)) return "used";
     record = await payload.create({
       collection: COLLECTION,
       data: {
@@ -104,6 +109,7 @@ export async function confirmSubscription(token: unknown): Promise<ConfirmOutcom
     });
   } catch (error) {
     // Two POSTs at once: the unique `tokenId` lets one through, and the other lands here.
+    // (Or the database did not answer, and this second look fails too.)
     if (await isUsed(claims.id).catch(() => false)) return "used";
     console.error(
       `newsletter: the confirmation could not be recorded (${error instanceof Error ? error.name : "error"})`,

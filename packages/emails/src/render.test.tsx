@@ -177,7 +177,7 @@ describe("the order e-mails (T99, D122)", () => {
     expect(email.text).toContain("Subtotal: €102.00");
   });
 
-  it("links a tracking number only to an http(s) page", async () => {
+  it("links a tracking number only to an http(s) page, in the HTML and the text", async () => {
     const email = await render(
       "order-shipped",
       input({
@@ -194,9 +194,8 @@ describe("the order e-mails (T99, D122)", () => {
     expect(email.html).toContain('href="https://carrier.example/1Z1"');
     expect(email.html).not.toContain("javascript:");
     expect(email.html.match(/data-slot="email-tracking"/g)?.length).toBe(1);
-    expect(email.text).toContain(
-      "Tracking:\n1Z1 (https://carrier.example/1Z1)\nBAD (javascript:alert(1))\nPLAIN",
-    );
+    expect(email.text).toContain("Tracking:\n1Z1 (https://carrier.example/1Z1)\nBAD\nPLAIN");
+    expect(email.text).not.toContain("javascript:");
   });
 
   it.each([

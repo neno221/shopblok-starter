@@ -124,7 +124,11 @@ function orderText(order: EmailOrder, labels: EmailLabels): string {
     order.totals.map((row) => `${labels.totals[row.kind]}: ${row.amount}`).join("\n"),
     order.tracking?.length
       ? `${labels.tracking}:\n${order.tracking
-          .map((parcel) => (parcel.url ? `${parcel.number} (${parcel.url})` : parcel.number))
+          .map((parcel) => {
+            // The same rule as the HTML: a link that is not http(s) is printed as its number only.
+            const href = safeLink(parcel.url, ["http:", "https:"]);
+            return href === undefined ? parcel.number : `${parcel.number} (${href})`;
+          })
           .join("\n")}`
       : "",
     order.shipTo?.length ? `${labels.shipTo}:\n${order.shipTo.join("\n")}` : "",

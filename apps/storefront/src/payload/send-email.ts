@@ -1,7 +1,6 @@
 import {
-  paragraphs,
+  copyFromTemplate,
   render,
-  richTextHasText,
   type EmailCopy,
   type EmailForm,
   type EmailType,
@@ -33,8 +32,9 @@ const text = (value: unknown): string | undefined =>
 
 /**
  * The copy of `type` in `language`, as written (`{{variables}}` not filled in): Payload's document,
- * each field it leaves empty the seed's English. `language` is the copy's language when Payload
- * has the subject in it, else `en`.
+ * each field it leaves empty the seed's English, by `@shopblok/emails`' `copyFromTemplate` (the
+ * backend's rule too). `language` is the copy's language when Payload has the subject in it, else
+ * `en`.
  */
 export async function copyFor(
   payload: Payload,
@@ -57,17 +57,8 @@ export async function copyFor(
   } catch (error) {
     payload.logger.warn({ err: error, msg: `email: the ${type} copy could not be read; English` });
   }
-  const subject = text(stored?.["subject"]);
-  return {
-    copy: {
-      subject: subject ?? english.subject,
-      preheader: text(stored?.["preheader"]) ?? english.preheader,
-      heading: text(stored?.["heading"]) ?? english.heading,
-      body: richTextHasText(stored?.["body"]) ? stored["body"] : paragraphs(english.body),
-      cta: text(stored?.["cta"]) ?? english.cta,
-    },
-    language: subject === undefined ? "en" : language,
-  };
+  const { copy, language: copyLanguage } = copyFromTemplate(stored, english, language);
+  return { copy, language: copyLanguage };
 }
 
 /** The shop's name in the e-mail's frame: Payload's site settings, or `Shopblok`. */

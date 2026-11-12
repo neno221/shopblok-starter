@@ -64,13 +64,14 @@ export async function down({ db, payload, req }: MigrateDownArgs): Promise<void>
   DROP TABLE "newsletter_confirmations" CASCADE;
   DROP TABLE "forms_emails" CASCADE;
   DROP TABLE "forms_emails_locales" CASCADE;
-  ALTER TABLE "payload_locked_documents_rels" DROP CONSTRAINT "payload_locked_documents_rels_newsletter_confirmations_fk";
+  ALTER TABLE "payload_locked_documents_rels" DROP CONSTRAINT IF EXISTS "payload_locked_documents_rels_newsletter_confirmations_fk";
   
+  DELETE FROM "email_templates" WHERE "type" NOT IN ('verify-email', 'password-reset', 'order-transfer');
   ALTER TABLE "email_templates" ALTER COLUMN "type" SET DATA TYPE text;
   DROP TYPE "public"."enum_email_templates_type";
   CREATE TYPE "public"."enum_email_templates_type" AS ENUM('verify-email', 'password-reset', 'order-transfer');
   ALTER TABLE "email_templates" ALTER COLUMN "type" SET DATA TYPE "public"."enum_email_templates_type" USING "type"::"public"."enum_email_templates_type";
-  DROP INDEX "payload_locked_documents_rels_newsletter_confirmations_i_idx";
+  DROP INDEX IF EXISTS "payload_locked_documents_rels_newsletter_confirmations_i_idx";
   ALTER TABLE "payload_locked_documents_rels" DROP COLUMN "newsletter_confirmations_id";
   DROP TYPE "public"."enum_newsletter_confirmations_destination";`)
 }

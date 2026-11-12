@@ -1,6 +1,7 @@
 // @shopblok/emails (M6 D121): the e-mails' HTML for both apps. The backend (CommonJS, Medusa's
 // notifications) and the storefront (Payload's form and newsletter e-mails, and the DS's "E-mails"
 // group, D130) read the same layouts, so one look and one escaping rule hold for every e-mail.
+export { copyFromTemplate, type CopyFromTemplate, type EnglishCopy, type StoredCopy } from "./copy";
 export { directionOf } from "./direction";
 export { EmailDocument, EmailFrame } from "./frame";
 export { labelsFor, type EmailLabels } from "./labels";

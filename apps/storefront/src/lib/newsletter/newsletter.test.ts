@@ -349,4 +349,14 @@ describe("the confirmation: only the POST uses the token, once (D122)", () => {
     );
     expect(await confirmSubscription(link)).toBe("done");
   });
+
+  it("answers failed, not an error, when the database does not answer, so the link stays usable", async () => {
+    payload.count.mockRejectedValueOnce(new Error("connection refused"));
+    const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const link = token();
+    expect(await confirmSubscription(link)).toBe("failed");
+    expect(store.confirmations).toEqual([]);
+    log.mockRestore();
+    expect(await confirmSubscription(link)).toBe("done");
+  });
 });
