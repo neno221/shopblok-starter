@@ -9489,3 +9489,79 @@ Before: `main` at `95b6c7a` (the W7 fixes merged, run [43004859507](https://gith
 | `dev-console-ds` | 8:36 | 10:19 |
 
 **The history:** a full clone of `main` at `50bef34` (`git clone --bare --single-branch`, 782 commits) has a `size-pack` of **112.08 MiB**, 4.7 MiB more than T92's 107.39 (the W7 fixes' 53 changed PNGs).
+
+## E-mails and Resend (T98)
+
+**Result: the three e-mails M3 sends (verify the address, reset the password, move a guest order into an account) are HTML e-mails now, laid out by a new package, `@shopblok/emails`, and sent by Resend when its key is set. Medusa's `email` channel goes to a new Resend provider with `RESEND_API_KEY` and `RESEND_FROM_EMAIL` (the console provider keeps the channel without them, so development and `e2e-smoke` are as before); Payload's e-mail goes through Resend with the key, or through nodemailer to Mailpit with `SMTP_HOST` (so the "No email adapter" warning is gone locally); `doctor --online` checks Resend's sender domain; the design system has a new group, "E-mails", with the three layouts; and the live spec `e2e/integrations/resend.spec.ts` sends one e-mail from each app to Resend's test address. `RESEND_API_KEY` is not in GitHub's secrets yet, so the live spec skips itself in `integrations-live`, naming the key; the same spec passed locally against a fake Resend (below).** D121, D130, D131 (plans/M6.md §5 T98).
+
+| | |
+|---|---|
+| Date | 2026-11-12 |
+| Branch | `claude/project-thread-nbz7ed`, from `main` at `2f2ece9` (PR 134's merge, T93) |
+| PR | this PR, "T98: E-mail layouts and Resend" |
+
+### `@shopblok/emails`
+
+- **What it holds:** `EmailFrame` (the shop's name above and below a white card on a muted background, in layout tables with `role="presentation"`, `lang` and `dir`), `EmailDocument` (the `<html>`, the `<head>`, the hidden preheader), the rich-text renderer `RichText` (Payload's Lexical: headings, paragraphs, lists, quotes, links, bold, italic and underline), the three layouts `VerifyEmail`, `PasswordResetEmail` and `OrderTransferEmail` (a heading, the body, a button and the same link written out under it, for a client that drops the button's styles), and `render(type, input)`, which answers `{ subject, html, text }`. `fillVariables`, `lexicalToText` and the e-mail types moved here from `apps/backend/src/lib/email-copy.ts`, which re-exports them.
+- **Escaping, once (PR 92's review, item 1):** the variables are filled into the copy's text nodes, the subject, the preheader, the heading and the button's label as plain strings, and React escapes them when it writes the HTML. So `o'brien&co<script>` is `o&#x27;brien&amp;co&lt;script&gt;` in the HTML, and as written in the subject and the text part. A variable never reaches a link's URL.
+- **Links:** the button's link must be an absolute `http(s)` URL, or `render()` throws (`buttonLink`); a rich-text link that is not `http`, `https` or `mailto` is drawn as its text.
+- **Direction:** `directionOf(language)` is `rtl` for Arabic, Persian, Hebrew, Urdu, Pashto, Yiddish, Dhivehi, Sorani, Sindhi and Uyghur; `<html>` and the frame carry it.
+- **The theme:** the light tokens of `@shopblok/ui` as hex values (an e-mail client reads no CSS variables), checked against `@shopblok/ui/tokens` by `theme.test.ts`, so a token change shows here.
+- **The text part:** the heading, the body as text, the button's label with the link, and the shop's name, each separated by an empty line.
+- **The build:** `tsup` 9.0.0 writes CommonJS for Medusa and ES modules for the storefront, with types (`dist/`, about 16 KB each). The package's `prepare` script builds it on every `pnpm install`, so a job or a PC that starts an app without turbo finds `dist/`; turbo's `typecheck`, `lint` and `test` of both apps depend on `@shopblok/emails#build` too, and `pnpm dev` runs `tsup --watch` beside the apps.
+
+**Where it differs from the plan:**
+- **No React Email components.** `@react-email/components` 1.0.12 is marked "no longer supported" on npm (React Email 6 moved into the `react-email` package, which brings its CLI and preview server). The package has its own table-based primitives (a few dozen lines) and takes only `@react-email/render` **2.3.1** for the document: the XHTML doctype and the HTML that clients expect. Its other dependencies are `react` and `react-dom` 19.3.0.
+- **React 19 in the backend.** pnpm resolves a workspace package's `react` from that package, so Medusa renders with the e-mail package's React 19.3.0, beside Medusa Admin's own React 18.3.1; the two never meet.
+- **The DS draws the layouts inline**, not as `render()`'s HTML in an iframe: React's string renderer cannot run in a server component, and the elements are the same ones `render()` writes. The DS frame's own styles do not reach them (the layouts set every style inline).
+
+### Medusa: the Resend provider
+
+`apps/backend/src/modules/resend/` is a notification provider (`notification-resend`, registered as `resend`) on the `email` channel when `RESEND_API_KEY` and `RESEND_FROM_EMAIL` are both set (`src/config/modules.ts`; the local provider then keeps only `feed`). It sends the notification's `content` (the subject, the HTML and the text) with Resend's SDK **6.38.0**, from `RESEND_FROM_EMAIL` unless the notification names its own `from`, and returns Resend's id, which Medusa keeps as the notification's `external_id`. It logs `resend: <template> sent, Resend id <id>`, never the address; a refusal is an error with Resend's reason, every address in it replaced with `<address>`, so Medusa marks the notification `failure` and its log names no one. The SDK reads `RESEND_BASE_URL` for its API's origin, which the tests use for the fake Resend.
+
+`src/lib/storefront-mail.ts` renders the e-mail with the copy as written (`emailCopyFor(...).copyFor` now returns it as `template` beside the filled fields), the variables, the link, the language and the shop's name from Medusa's store (Settings → Store; `Shopblok` when it has none), and passes it as the notification's `content`. The notification's `data` keeps the link and the filled copy as T70 left them, so the console provider prints the same lines and `e2e-smoke`'s link reading (`E2E_MEDUSA_LOG`) is unchanged. The three subscribers send what they sent before.
+
+### Payload: the e-mail adapter by env
+
+`apps/storefront/src/payload/email.ts` chooses the adapter from the environment: `@payloadcms/email-resend` 3.93.0 with `RESEND_API_KEY` and `RESEND_FROM_EMAIL` (`Shop <shop@example.com>` is split into the name and the address, since the adapter writes `name <address>` itself; a bare address gets the name "Shopblok"); else `@payloadcms/email-nodemailer` 3.93.0 to `SMTP_HOST` (`SMTP_PORT`, 1025 by default, no TLS, no verify at start; the from address `payload@localhost.test`), which `.env.example` sets to Mailpit; else none, as before. Payload's Resend adapter always calls `api.resend.com`, so it has no fake; its live check is the spec's second test.
+
+### `doctor`
+
+- **Resend's part:** "Email verification" is `ok` ("Resend delivers the verification emails") when the backend's Resend keys are set, and warns that the console provider keeps them otherwise. `@shopblok/integrations` marks Resend `wired`, so it is `live` with its keys in both apps.
+- **`--online`, "Resend sender domain (apps/…)":** for each key and sender (one check when both apps share them), `GET /domains` with the key, and the sender's domain must be `verified` (or `partially_verified`). Not verified or not on the account: a warning in development, an error in production. `onboarding@resend.dev`, Resend's own test sender, is a warning in development ("Fine for development") and an error in production. A sending-only key cannot list domains (Resend answers `restricted_api_key`): a warning that says so. A sender that is not an address is an error. Nothing is printed of the key.
+
+### The design system: "E-mails" (D130)
+
+A new group after "Templates", with a new kind (`email`) and three entries, `emails/verify-email`, `emails/password-reset` and `emails/order-transfer`, each drawn with the seed's copy in the DS locale (`@shopblok/fixtures`' `emailFixtures`, from `templates.json`; the English address `o'brien@example.com` shows the apostrophe escaped once). The contract is `EmailView` (`packages/registry/src/contracts/emails.ts`). Each entry has two states, a long shop name and the copy without its body. No family: an e-mail is not picked in Payload, so there is no thumbnail. Locally all 18 cells of the three entries (`design-system.spec.ts`: axe, overflow, the 44 px targets) pass with `--ignore-snapshots`. **The baselines:** `update-baselines` (run 43213637042, commit `6b89163`) added the nine expected PNGs, 647,909 bytes (59 to 83 KB each), and rewrote three cells this PR does not touch by a few bytes (`molecules/promo-code-field` en-1440, `templates/product-detail` en-375 and en-768: 1,823,578 bytes, a rendering difference of a few pixels that the job's "write what changed" picks up). 12 files, 2,471,487 bytes in all: far under D51's "half a set" (the set is 768 PNGs, 99.8 MB), and the history (112.08 MiB at T93) stays far under 200 MB.
+
+### The live spec (`e2e/integrations/resend.spec.ts`)
+
+Two tests, skipped with `skipWithoutKeys(test, "resend")` while `RESEND_API_KEY` and `RESEND_FROM_EMAIL` are not set for both apps:
+1. **Medusa:** registers a customer as `delivered+medusa-<time>@resend.dev`, signs in (verification required) and asks for the link as the storefront does; Medusa's notification must be `success` with a Resend id (a UUID) as its `external_id` (read through the Admin API's `/admin/notifications?to=…`).
+2. **Payload:** `POST /next/e2e/email?to=delivered+payload-<time>@resend.dev` sends one e-mail through Payload's adapter and answers the adapter's name (`resend-rest`) and Resend's id. The route is test-only (404 without `E2E_TEST_ROUTES=true`, which `integrations-live` now sets on the storefront it starts) and refuses any address that is not one of Resend's test addresses (D131); its answer never repeats the address.
+
+**The keys are not in yet:** with no `RESEND_API_KEY` in GitHub's secrets (and no `RESEND_FROM_EMAIL` variable), `integrations-live` skips both tests with "Resend: not checked, because these keys are not set: RESEND_API_KEY (apps/backend), RESEND_FROM_EMAIL (apps/backend), RESEND_API_KEY (apps/storefront), RESEND_FROM_EMAIL (apps/storefront)". To turn it on: a Resend API key with full access (a sending-only key works for sending, but `doctor --online` cannot check the domain with it) as the secret `RESEND_API_KEY`, and `RESEND_FROM_EMAIL` as a variable (`onboarding@resend.dev` until a domain is verified), in GitHub (repository → Settings → Secrets and variables → Actions) and in the cloud environment.
+
+### Checks (cloud VM)
+
+- `@shopblok/emails`: 29 tests (rendering, escaping, links, rich text, the four languages' seed copy, Persian `rtl`, the theme against the tokens).
+- The backend: 200 unit tests, among them the provider's against a fake Resend (an HTTP server on a free port, through `RESEND_BASE_URL`): from, to, subject, HTML and text in English, Greek, German and French; the built-in English when Payload is down; the id logged without the address; a refusal's message without addresses; and the `email` channel with and without the keys (`modules.unit.spec.ts`).
+- **The whole flow against the fake Resend:** Medusa started with a fake key, `RESEND_FROM_EMAIL=onboarding@resend.dev` and `RESEND_BASE_URL` pointing at a fake server, and the spec's Medusa test run with the same names: passed; the fake received one `POST /emails` ("Confirm your e-mail address", 3,139 bytes of HTML), Medusa logged `resend: customer-verification sent, Resend id …`, and its log holds the address nowhere.
+- **Payload with Mailpit:** `next dev` with `.env`'s `SMTP_HOST`: no "No email adapter" line; `POST /next/e2e/email` answered `nodemailer`, and Mailpit received the e-mail.
+- **The mutation:** a renderer that writes a text node as HTML (`dangerouslySetInnerHTML={{ __html: text }}` in `rich-text.tsx`) fails "escapes a value with ', & and <script> once…" (`expected … not to contain '<script>'`) and the variables test.
+- `doctor --online` with a fake key and `onboarding@resend.dev`: one warning, "Resend sender domain (apps/backend and apps/storefront)".
+- `pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm check:keys` and `pnpm check:workspace`: see the PR.
+
+### Changes from the review of this PR (PR 135)
+
+The review (`reviews/pr-135-code-review.md` in the project's files) found 3 must-fix items, 1 security item and 6 cleanups, all fixed; items 11 to 15 skipped (optional, neither security nor cleanup).
+1. Payload's Resend adapter got `RESEND_FROM_EMAIL` as its address, and writes `Shopblok <address>` itself, so a named sender (`Shop <shop@example.com>`, which Medusa's provider and doctor take) became `Shopblok <Shop <…>>` and Resend would refuse it. `senderParts` splits the name and the address; both forms are tested.
+2. The live spec stopped polling at Medusa's first status, which can be `pending` (Medusa writes the row before it calls the provider); it now waits for `success` or `failure`.
+3. `@shopblok/emails#dev` (`tsup --watch`) depends on its own `build` in `turbo.json`, so the watch and the build (which empties `dist/` first) never write `dist/` at once.
+4. (Security) `/next/e2e/email` takes only Resend's test inboxes (`delivered`, `bounced`, `complained`, `suppressed`, with or without a `+label`); `support@resend.dev` is a 400.
+5. Payload falls back to its `console` adapter, never to none: the route answers 409 for it (nothing would be sent), and its test mocks it so.
+6. `doctor`'s sender-domain check takes production from each app's stage (`productionStage`: `VERCEL_ENV` on Vercel), so a Vercel preview is development; a test with `VERCEL_ENV=preview`.
+7. The Resend section of `doctor-checks.ts` no longer splits `explainMedusaRun` from its comment.
+8. The check's unreachable "not checked: Resend was not asked" message is gone; a missing answer for a domain doctor should have asked about is an error in doctor itself.
+9. `render()` prepares an e-mail once: the layouts take the prepared e-mail (`LAYOUTS`), and the exported `VerifyEmail` and the others prepare it for the DS.
+10. `emailFixtures` is built in one map over the DS locales.

@@ -20,6 +20,8 @@
   "dependencies": {
     "@medusajs/js-sdk": "2.22.6",
     "@payloadcms/db-postgres": "3.93.0",
+    "@payloadcms/email-nodemailer": "3.93.0",
+    "@payloadcms/email-resend": "3.93.0",
     "@payloadcms/live-preview-react": "3.93.0",
     "@payloadcms/next": "3.93.0",
     "@payloadcms/plugin-form-builder": "3.93.0",
@@ -29,6 +31,7 @@
     "@payloadcms/plugin-seo": "3.93.0",
     "@payloadcms/richtext-lexical": "3.93.0",
     "@payloadcms/ui": "3.93.0",
+    "@shopblok/emails": "workspace:*",
     "@shopblok/fixtures": "workspace:*",
     "@shopblok/i18n": "workspace:*",
     "@shopblok/integrations": "workspace:*",

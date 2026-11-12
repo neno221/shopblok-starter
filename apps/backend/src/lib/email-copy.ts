@@ -1,6 +1,16 @@
 import type { MedusaContainer } from "@medusajs/framework/types";
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils";
 
+import {
+  EMAIL_VARIABLES,
+  fillVariables,
+  lexicalToText,
+  paragraphs,
+  richTextHasText,
+  type EmailCopy as LayoutCopy,
+  type EmailType,
+} from "@shopblok/emails";
+
 import { payloadModule } from "./payload-sync";
 
 /**
@@ -8,21 +18,15 @@ import { payloadModule } from "./payload-sync";
  * shopper's language, read as the `medusa-sync` integration and kept 5 minutes in memory, with
  * the `{{variables}}` filled in. When Payload does not answer within 2 s (or is not configured),
  * the e-mail goes out with the built-in English below, so a CMS outage never stops a link. Until
- * M6 the body is plain text (`lexicalToText`); M6 renders the same copy as HTML.
+ * M6 the body was plain text only (`lexicalToText`); since M6 (D121) the copy as written goes to
+ * `@shopblok/emails`, which lays it out as HTML, and the plain text stays in the notification's
+ * `data` for the console provider.
  */
 
-export const EMAIL_TYPES = ["verify-email", "password-reset", "order-transfer"] as const;
-export type EmailType = (typeof EMAIL_TYPES)[number];
-
-/**
- * The variables each type's copy may use, as the storefront's collection lists them (both match
- * `@shopblok/fixtures/email/templates.json`, which the tests on each side read).
- */
-export const EMAIL_VARIABLES: Record<EmailType, readonly string[]> = {
-  "verify-email": ["email", "code"],
-  "password-reset": ["email"],
-  "order-transfer": ["email", "orderNumber"],
-};
+// The types, their variables, the variables' rule and the rich text's plain text live in
+// `@shopblok/emails` since M6 (D121), so the HTML layouts and this module read one list.
+export { EMAIL_TYPES, EMAIL_VARIABLES, fillVariables, lexicalToText } from "@shopblok/emails";
+export type { EmailType } from "@shopblok/emails";
 
 type Copy = { subject: string; preheader: string; heading: string; body: string[]; cta: string };
 
@@ -71,6 +75,11 @@ export type EmailCopy = {
   /** The language the copy is in (`en` for the built-in copy). */
   language: string;
   source: "payload" | "built-in";
+  /**
+   * The same copy as written, `{{variables}}` not filled in and the body as rich text, for the HTML
+   * layouts (`render()` of `@shopblok/emails` fills the variables in as text nodes, D121).
+   */
+  template: LayoutCopy;
 };
 
 /** A template as Payload answers it, in one language (fields Payload has none for are missing). */
@@ -90,78 +99,6 @@ const LANGUAGE = /^[a-z]{2,3}$/;
 export function languageFrom(metadata: unknown): string {
   const language = (metadata as { language?: unknown } | null | undefined)?.language;
   return typeof language === "string" && LANGUAGE.test(language) ? language : DEFAULT_LANGUAGE;
-}
-
-type LexicalNode = {
-  type?: unknown;
-  text?: unknown;
-  children?: unknown;
-  listType?: unknown;
-  fields?: { url?: unknown } | null;
-  url?: unknown;
-};
-
-const childrenOf = (node: LexicalNode): LexicalNode[] =>
-  Array.isArray(node.children) ? (node.children as LexicalNode[]) : [];
-
-function inline(node: LexicalNode): string {
-  if (node.type === "text" && typeof node.text === "string") return node.text;
-  if (node.type === "linebreak") return "\n";
-  if (node.type === "tab") return "\t";
-  const text = childrenOf(node).map(inline).join("");
-  if (node.type === "link" || node.type === "autolink") {
-    const url = typeof node.fields?.url === "string" ? node.fields.url : node.url;
-    return typeof url === "string" && url !== "" && url !== text ? `${text} (${url})` : text;
-  }
-  return text;
-}
-
-function list(node: LexicalNode, depth: number): string[] {
-  const indent = "  ".repeat(depth);
-  let number = 0;
-  return childrenOf(node).flatMap((item) => {
-    const nested = childrenOf(item).filter((child) => child.type === "list");
-    const own = childrenOf(item).filter((child) => child.type !== "list");
-    const lines = nested.flatMap((child) => list(child, depth + 1));
-    // A list item that holds only a nested list is Lexical's way to indent; it gets no marker.
-    if (own.length === 0) return lines;
-    number++;
-    const marker = node.listType === "number" ? `${number}.` : "-";
-    return [`${indent}${marker} ${own.map(inline).join("")}`, ...lines];
-  });
-}
-
-/**
- * A Lexical document (Payload's `richText` JSON) as plain text: each paragraph, heading or quote
- * a block, lists as `-` or `1.` lines, a link as its text followed by its URL. Anything else
- * gives its text. Not Lexical JSON gives `""`.
- */
-export function lexicalToText(value: unknown): string {
-  const root = (value as { root?: LexicalNode } | null | undefined)?.root;
-  if (root === undefined || root === null || typeof root !== "object") return "";
-  return childrenOf(root)
-    .map((block) => (block.type === "list" ? list(block, 0).join("\n") : inline(block).trim()))
-    .filter((block) => block !== "")
-    .join("\n\n");
-}
-
-const VARIABLE = /\{\{\s*([A-Za-z][A-Za-z0-9_]*)\s*\}\}/g;
-
-/**
- * `{{name}}` replaced by its value for each name the type allows; any other `{{…}}` stays as it is
- * written. One pass, so a value that itself contains `{{…}}` is not filled again. The values go in
- * as they are: the copy is plain text (a subject, a text body), and whatever turns it into HTML
- * (M6's renderer) escapes it there, once (PR 92 review, item 1).
- */
-export function fillVariables(
-  text: string,
-  allowed: readonly string[],
-  values: Record<string, string | undefined>,
-): string {
-  return text.replace(VARIABLE, (match, name: string) => {
-    const value = allowed.includes(name) ? values[name] : undefined;
-    return value ?? match;
-  });
 }
 
 const textOf = (value: unknown): string | undefined =>
@@ -255,15 +192,23 @@ export function createEmailCopy({
       const subject = textOf(stored?.subject);
       const fromPayload = stored !== null && subject !== undefined;
       // A field Payload leaves empty takes the built-in English one.
-      const body = stored === null ? "" : lexicalToText(stored.body);
+      const body = stored?.body;
+      const written: LayoutCopy = {
+        subject: subject ?? builtIn.subject,
+        preheader: textOf(stored?.preheader) ?? builtIn.preheader,
+        heading: textOf(stored?.heading) ?? builtIn.heading,
+        body: richTextHasText(body) ? body : paragraphs(builtIn.body),
+        cta: textOf(stored?.cta) ?? builtIn.cta,
+      };
       return {
-        subject: fill(subject ?? builtIn.subject),
-        preheader: fill(textOf(stored?.preheader) ?? builtIn.preheader),
-        heading: fill(textOf(stored?.heading) ?? builtIn.heading),
-        text: fill(body !== "" ? body : builtIn.body.join("\n\n")),
-        cta: fill(textOf(stored?.cta) ?? builtIn.cta),
+        subject: fill(written.subject),
+        preheader: fill(written.preheader),
+        heading: fill(written.heading),
+        text: fill(lexicalToText(written.body)),
+        cta: fill(written.cta),
         language: fromPayload ? language : DEFAULT_LANGUAGE,
         source: fromPayload ? "payload" : "built-in",
+        template: written,
       };
     },
     /** How many answers are kept (tests). */

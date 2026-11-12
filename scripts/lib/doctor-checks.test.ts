@@ -16,6 +16,9 @@ import {
   searchIndexCheck,
   type Context,
   type LiveRegion,
+  resendDomainCheck,
+  resendDomainState,
+  senderDomain,
 } from "./doctor-checks.ts";
 import type { HttpResult } from "./http.ts";
 import { getIntegrationStatus, type AppEnvs } from "@shopblok/integrations";
@@ -133,17 +136,30 @@ describe("configChecks: Stripe's live keys outside production (M6 D115)", () => 
 describe("configChecks: email verification", () => {
   const resendKeys = { RESEND_API_KEY: "re_x", RESEND_FROM_EMAIL: "shop@example.com" };
 
-  it("with the keys set but no provider yet, says the provider is still to come", () => {
+  it("with the backend's keys, Resend delivers them (T98), whatever the storefront has", () => {
+    for (const storefront of [
+      { ...bootstrapped.storefront, ...resendKeys },
+      bootstrapped.storefront,
+    ]) {
+      const check = find(
+        run({ backend: { ...bootstrapped.backend, ...resendKeys }, storefront }),
+        "email-verification",
+      );
+      expect(check?.level).toBe("ok");
+      expect(check?.message).toContain("Resend delivers");
+    }
+  });
+
+  it("without the backend's keys, the links are only in the console", () => {
     const check = find(
       run({
-        backend: { ...bootstrapped.backend, ...resendKeys },
+        backend: bootstrapped.backend,
         storefront: { ...bootstrapped.storefront, ...resendKeys },
       }),
       "email-verification",
     );
     expect(check?.level).toBe("warn");
-    expect(check?.message).toContain("keys are set");
-    expect(check?.message).toContain("arrives in M6");
+    expect(check?.message).toContain("no Resend key");
   });
 });
 
@@ -773,5 +789,108 @@ describe("searchFieldOf and searchIndexCheck", () => {
     expect(check.level).toBe("warn");
     expect(check.message).toContain("not checked");
     expect(check.message).not.toContain("exists for");
+  });
+});
+
+describe("--online: Resend's sender domain (T98)", () => {
+  const ok = (body: unknown, status = 200): HttpResult => ({
+    kind: "response",
+    status,
+    text: JSON.stringify(body),
+  });
+  const domains = ok({
+    object: "list",
+    has_more: false,
+    data: [
+      { id: "1", name: "shop.example", status: "verified" },
+      { id: "2", name: "news.example", status: "pending" },
+      { id: "3", name: "half.example", status: "partially_verified" },
+    ],
+  });
+  const dev = { backend: { NODE_ENV: "development" }, storefront: { NODE_ENV: "development" } };
+  const prod = { backend: { NODE_ENV: "production" }, storefront: { NODE_ENV: "production" } };
+
+  it("reads the domain of an address, with or without a name", () => {
+    expect(senderDomain("orders@Shop.Example")).toBe("shop.example");
+    expect(senderDomain("Shop <orders@shop.example>")).toBe("shop.example");
+    expect(senderDomain(" onboarding@resend.dev ")).toBe("resend.dev");
+    expect(senderDomain("not an address")).toBeUndefined();
+    expect(senderDomain("a@localhost")).toBeUndefined();
+    expect(senderDomain(undefined)).toBeUndefined();
+  });
+
+  it("is ok for a verified domain, and for one whose sending is verified", () => {
+    for (const from of ["orders@shop.example", "x@half.example"]) {
+      const check = resendDomainCheck(["backend"], from, domains, prod);
+      expect(check.level, from).toBe("ok");
+      expect(check.id).toBe("resend-domain-backend");
+      expect(resendDomainCheck(["backend", "storefront"], from, domains, prod)).toMatchObject({
+        id: "resend-domain-backend-storefront",
+        title: "Resend sender domain (apps/backend and apps/storefront)",
+      });
+    }
+  });
+
+  it("warns in development and fails in production for a domain not verified or not there", () => {
+    for (const from of ["orders@news.example", "orders@other.example"]) {
+      expect(resendDomainCheck(["storefront"], from, domains, dev).level).toBe("warn");
+      expect(resendDomainCheck(["storefront"], from, domains, prod).level).toBe("error");
+    }
+    expect(resendDomainCheck(["backend"], "o@news.example", domains, dev).message).toContain(
+      "not verified (pending)",
+    );
+    expect(resendDomainCheck(["backend"], "o@other.example", domains, dev).message).toContain(
+      "not a domain of this Resend account",
+    );
+  });
+
+  it("calls Resend's test sender out without asking Resend: a warning in development, an error in production", () => {
+    const check = resendDomainCheck(["backend"], "onboarding@resend.dev", undefined, dev);
+    expect(check.level).toBe("warn");
+    expect(check.message).toContain("test sender");
+    expect(check.fix).toMatch(/^Fine for development/);
+    expect(resendDomainCheck(["backend"], "onboarding@resend.dev", undefined, prod).level).toBe(
+      "error",
+    );
+  });
+
+  it("takes production as the apps' stage says: a Vercel preview is development (PR 135 review, item 6)", () => {
+    const preview = { storefront: { NODE_ENV: "production", VERCEL_ENV: "preview" } };
+    expect(resendDomainCheck(["storefront"], "o@news.example", domains, preview).level).toBe(
+      "warn",
+    );
+    const live = { storefront: { NODE_ENV: "production", VERCEL_ENV: "production" } };
+    expect(resendDomainCheck(["storefront"], "o@news.example", domains, live).level).toBe("error");
+    // One of two apps in production is enough.
+    const mixed = { backend: { NODE_ENV: "production" }, storefront: { NODE_ENV: "development" } };
+    expect(
+      resendDomainCheck(["backend", "storefront"], "onboarding@resend.dev", undefined, mixed).level,
+    ).toBe("error");
+  });
+
+  it("is an error for a sender that is not an address", () => {
+    expect(resendDomainCheck(["backend"], "Shop", domains, dev).level).toBe("error");
+  });
+
+  it("does not guess when the key can only send, or Resend does not answer", () => {
+    const restricted = ok(
+      {
+        statusCode: 401,
+        name: "restricted_api_key",
+        message: "This API key is restricted to only send emails",
+      },
+      401,
+    );
+    expect(resendDomainState("shop.example", restricted)).toEqual({ kind: "restricted" });
+    expect(resendDomainCheck(["backend"], "o@shop.example", restricted, prod).level).toBe("warn");
+    const down: HttpResult = { kind: "unreachable", reason: "no answer within 15 s" };
+    expect(resendDomainCheck(["backend"], "o@shop.example", down, prod)).toMatchObject({
+      level: "warn",
+      message: "not checked: Resend does not answer (no answer within 15 s).",
+    });
+    expect(resendDomainState("shop.example", ok({ error: "x" }, 500))).toEqual({
+      kind: "unknown",
+      reason: "Resend answered HTTP 500",
+    });
   });
 });

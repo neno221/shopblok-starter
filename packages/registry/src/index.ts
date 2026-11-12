@@ -1,4 +1,5 @@
 import { atoms } from "./entries/atoms";
+import { emails } from "./entries/emails";
 import { foundations } from "./entries/foundations";
 import { headersFooters } from "./entries/headers-footers";
 import { molecules } from "./entries/molecules";
@@ -86,6 +87,7 @@ const all = [
   ...headersFooters,
   ...sections,
   ...templates,
+  ...emails,
 ] as const;
 
 /** The id of an entry of the registry, as a type: a story keyed by anything else is an error. */

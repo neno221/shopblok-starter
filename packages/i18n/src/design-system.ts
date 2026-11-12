@@ -18,6 +18,7 @@ export const designSystem = {
     "headers-footers": "Headers and footers",
     sections: "Sections",
     templates: "Templates",
+    emails: "E-mails",
   },
   locale: {
     label: "Locale",

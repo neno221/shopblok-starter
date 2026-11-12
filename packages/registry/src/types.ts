@@ -2,8 +2,8 @@ import type { z } from "zod";
 
 /**
  * The groups of the DS navigation, in SPEC §9.6's order: the ones M2 and M3 fill, and the
- * Sections (D70, T63), the blocks' components, between the headers and footers and the templates.
- * SPEC §9.3's "Pages" are the app itself (D56).
+ * Sections (D70, T63), the blocks' components, between the headers and footers and the templates,
+ * and the e-mails' layouts (M6 D130) last. SPEC §9.3's "Pages" are the app itself (D56).
  */
 export const GROUPS = [
   "foundations",
@@ -13,6 +13,7 @@ export const GROUPS = [
   "headers-footers",
   "sections",
   "templates",
+  "emails",
 ] as const;
 export type Group = (typeof GROUPS)[number];
 
@@ -20,10 +21,17 @@ export type Group = (typeof GROUPS)[number];
  * What an entry is, which its group does not always say: the headers and footers are organisms in
  * a group of their own.
  */
-export type Kind = "foundation" | "atom" | "molecule" | "organism" | "section" | "template";
+export type Kind =
+  "foundation" | "atom" | "molecule" | "organism" | "section" | "template" | "email";
 
-/** The `@shopblok/ui` export an entry renders: its module, as an import path, and its name. */
-export type ComponentRef = { module: `@shopblok/ui/${string}`; name: string };
+/**
+ * The export an entry renders: its module, as an import path, and its name. A component of
+ * `@shopblok/ui`, or an e-mail layout of `@shopblok/emails` (M6 D130).
+ */
+export type ComponentRef = {
+  module: `@shopblok/ui/${string}` | "@shopblok/emails";
+  name: string;
+};
 
 /** An entry as it is written in `entries/` (D40); `defineEntries` checks it and derives the rest. */
 export type EntryInput = {

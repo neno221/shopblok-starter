@@ -3,7 +3,7 @@
 // sockets, calls the servers); every decision that can be wrong lives here, with a test.
 import type { RunResult } from "./exec.ts";
 import { describeUnreachable, jsonOf, type HttpResult } from "./http.ts";
-import { isSet, type AppEnvs, type IntegrationStatus } from "@shopblok/integrations";
+import { isSet, type AppEnvs, type AppName, type IntegrationStatus } from "@shopblok/integrations";
 import type { BackendMarkets } from "./markets-check.ts";
 import type { Check } from "./report.ts";
 
@@ -15,6 +15,7 @@ const MEDUSA_MARKETS = {
 } as const;
 const MEDUSA_ORPHANS = { id: "medusa-orphans", title: "Medusa regions left over" } as const;
 const SEARCH_INDEX = { id: "search-index", title: "Search index currencies" } as const;
+const RESEND_DOMAIN = { id: "resend-domain", title: "Resend sender domain" } as const;
 
 // ---------------------------------------------------------------------------------------------
 // From the environment alone
@@ -47,27 +48,26 @@ function halfConfigured(statuses: readonly IntegrationStatus[]): Check[] {
 
 /**
  * Sign-up requires email verification (SPEC §10.2, M3), so the Medusa notification provider has to
- * deliver mail. Without Resend the verification link is only printed in the backend's console.
+ * deliver mail. Medusa sends through Resend whenever the backend has its two keys (T98, D121: the
+ * `email` channel); without them the verification link is only printed in the backend's console.
  */
 function emailVerification(statuses: readonly IntegrationStatus[]): Check {
   const resend = statusOf(statuses, "resend");
   const backend = resend?.parts.find((part) => part.app === "backend");
-  if (resend?.state === "live") {
+  if (backend?.configured === true && resend?.wired === true) {
     return {
       id: "email-verification",
       title: "Email verification",
       level: "ok",
-      message: "Resend delivers the verification emails.",
+      message: "Resend delivers the verification emails (Medusa's email channel).",
     };
   }
-  const keysSet = backend?.configured === true;
   return {
     id: "email-verification",
     title: "Email verification",
     level: "warn",
-    message: keysSet
-      ? `Sign-up requires email verification, and the Resend keys are set, but the Resend provider arrives in ${resend?.arrives ?? "a later milestone"}: verification links are only printed in the backend's console (notification-local).`
-      : "Sign-up requires email verification, but there is no Resend key: verification links are only printed in the backend's console (notification-local).",
+    message:
+      "Sign-up requires email verification, but the backend has no Resend key: verification links are only printed in the backend's console (notification-local).",
     fix: "Fine for development. Before opening sign-ups, verify a sending domain with Resend and set RESEND_API_KEY and RESEND_FROM_EMAIL in both apps (SPEC §16, item 2).",
   };
 }
@@ -640,6 +640,122 @@ export function searchIndexCheck(
     level: "ok",
     message: `min_price_<currency> exists for ${entries.map((e) => e.currency).join(", ")}.`,
   };
+}
+
+// ---------------------------------------------------------------------------------------------
+// --online: Resend's sender domain (T98, M6 D121)
+
+/** Resend's shared test domain: it sends only to the account's own address and Resend's test ones. */
+const RESEND_TEST_DOMAIN = "resend.dev";
+
+/**
+ * The domain of a sender as `RESEND_FROM_EMAIL` holds it (`shop@example.com` or
+ * `Shop <shop@example.com>`), in lower case, or `undefined` when it holds no address.
+ */
+export function senderDomain(from: string | undefined): string | undefined {
+  const value = (from ?? "").trim();
+  const address = /<([^<>]+)>\s*$/.exec(value)?.[1] ?? value;
+  const domain = /^[^\s@]+@([^\s@]+\.[^\s@]+)$/.exec(address.trim())?.[1];
+  return domain?.toLowerCase();
+}
+
+/** The state of `domain` in Resend's `GET /domains`, or why it could not be read. */
+export function resendDomainState(
+  domain: string,
+  answer: HttpResult,
+):
+  | { kind: "verified" | "not-verified"; status: string }
+  | { kind: "missing" }
+  | { kind: "restricted" }
+  | { kind: "unknown"; reason: string } {
+  if (answer.kind !== "response")
+    return { kind: "unknown", reason: `Resend ${describeUnreachable(answer)}` };
+  const body = jsonOf(answer) as { name?: unknown; data?: unknown } | undefined;
+  // A key with sending access only (Resend's "restricted_api_key") cannot list the domains.
+  if (answer.status === 401 && body?.name === "restricted_api_key") return { kind: "restricted" };
+  if (answer.status !== 200 || !Array.isArray(body?.data))
+    return { kind: "unknown", reason: `Resend answered HTTP ${answer.status}` };
+  const found = (body.data as { name?: unknown; status?: unknown }[]).find(
+    (entry) => typeof entry?.name === "string" && entry.name.toLowerCase() === domain,
+  );
+  if (found === undefined) return { kind: "missing" };
+  const status = typeof found.status === "string" ? found.status : "unknown";
+  // `partially_verified`: sending works (only receiving, or a second record, waits).
+  return status === "verified" || status === "partially_verified"
+    ? { kind: "verified", status }
+    : { kind: "not-verified", status };
+}
+
+/**
+ * `doctor --online`: is `RESEND_FROM_EMAIL`'s domain verified with Resend, so the shop can e-mail its
+ * customers (M6 D121)? A warning in development, an error in production (sign-ups need the
+ * verification e-mail, SPEC §16 item 2): production as `productionStage` says for any of `apps`, so
+ * a Vercel preview is development (PR 135 review, item 6). One check per sender and key: `apps` are
+ * the apps that send with them (both, when their `.env` files agree). `answer` is Resend's
+ * `GET /domains` with the key; doctor asks nothing (`undefined`) only for a sender without an
+ * address or at Resend's test domain, which this check settles before it reads the answer.
+ */
+export function resendDomainCheck(
+  apps: readonly AppName[],
+  from: string | undefined,
+  answer: HttpResult | undefined,
+  envs: Readonly<Partial<Record<AppName, Record<string, string | undefined>>>>,
+): Check {
+  const production = apps.some((app) => productionStage(envs[app] ?? {}).production);
+  const notReady = production ? "error" : "warn";
+  const check = (c: Omit<Check, "id" | "title">): Check => ({
+    id: [RESEND_DOMAIN.id, ...apps].join("-"),
+    title: `${RESEND_DOMAIN.title} (${apps.map((app) => `apps/${app}`).join(" and ")})`,
+    ...c,
+  });
+  const domain = senderDomain(from);
+  const fix =
+    'Add your domain in Resend (Domains), publish its DNS records, and set RESEND_FROM_EMAIL to an address of it (SETUP.md, "E-mails and Resend (T98)").';
+  if (domain === undefined)
+    return check({
+      level: "error",
+      message: "RESEND_FROM_EMAIL is not an e-mail address, so Resend refuses every e-mail.",
+      fix,
+    });
+  if (domain === RESEND_TEST_DOMAIN)
+    return check({
+      level: notReady,
+      message: `RESEND_FROM_EMAIL is Resend's test sender (@${RESEND_TEST_DOMAIN}): Resend delivers only to the account's own address and its test addresses, so customers get no e-mail.`,
+      fix: production ? fix : `Fine for development. ${fix}`,
+    });
+  if (answer === undefined)
+    throw new Error(`resendDomainCheck: doctor did not ask Resend about ${domain}.`);
+  const state = resendDomainState(domain, answer);
+  switch (state.kind) {
+    case "verified":
+      return check({
+        level: "ok",
+        message: `${domain} is verified with Resend (${state.status}).`,
+      });
+    case "not-verified":
+      return check({
+        level: notReady,
+        message: `${domain} is in Resend but not verified (${state.status}), so Resend refuses e-mails from it.`,
+        fix: "Publish the DNS records Resend shows for the domain and press Verify DNS Records.",
+      });
+    case "missing":
+      return check({
+        level: notReady,
+        message: `${domain} is not a domain of this Resend account, so Resend refuses e-mails from it.`,
+        fix,
+      });
+    case "restricted":
+      return check({
+        level: "warn",
+        message: `not checked: this RESEND_API_KEY can only send, so it cannot list the domains to find ${domain}.`,
+        fix: "Look in Resend's Domains page, or run doctor once with a full-access key.",
+      });
+    default:
+      return check({
+        level: "warn",
+        message: `not checked: ${state.reason}.`,
+      });
+  }
 }
 
 // ---------------------------------------------------------------------------------------------
