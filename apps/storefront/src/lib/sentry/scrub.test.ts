@@ -1,15 +1,7 @@
 import { readFileSync } from "node:fs";
 import type { Breadcrumb, ErrorEvent, Event } from "@sentry/nextjs";
 import { describe, expect, it } from "vitest";
-import {
-  FILTERED,
-  scrubBreadcrumb,
-  scrubEvent,
-  scrubHooks,
-  scrubSpan,
-  scrubText,
-  scrubUrl,
-} from "./scrub";
+import { FILTERED, scrubBreadcrumb, scrubEvent, scrubHooks, scrubText, scrubUrl } from "./scrub";
 
 // The cases both apps run (the backend's copy of the rules reads the same file).
 const cases = JSON.parse(
@@ -128,7 +120,7 @@ describe("beforeBreadcrumb", () => {
 });
 
 describe("transactions and spans", () => {
-  it("beforeSendTransaction scrubs a transaction named after such a URL", () => {
+  it("scrubEvent scrubs a transaction named after such a URL", () => {
     const transaction: Event = {
       type: "transaction",
       transaction: "GET /verify?code=c0de-42",
@@ -144,7 +136,15 @@ describe("transactions and spans", () => {
         },
       ],
     };
-    expect(leaks(scrubHooks.beforeSendTransaction(transaction))).toEqual([]);
+    expect(leaks(scrubEvent(transaction))).toEqual([]);
+  });
+
+  it("passes no beforeSendTransaction, which v11's streamed spans ignore", () => {
+    expect(Object.keys(scrubHooks).sort()).toEqual([
+      "beforeBreadcrumb",
+      "beforeSend",
+      "beforeSendSpan",
+    ]);
   });
 
   it("beforeSendSpan scrubs a streamed span's name and attributes", () => {
@@ -156,7 +156,7 @@ describe("transactions and spans", () => {
         "sentry.op": "http.server",
       },
     };
-    const out = scrubSpan(span);
+    const out = scrubHooks.beforeSendSpan(span);
     expect(leaks(out)).toEqual([]);
     expect(out.attributes["sentry.op"]).toBe("http.server");
   });

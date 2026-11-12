@@ -7,8 +7,10 @@ import { connection } from "next/server";
 // matcher skips this path. Without a DSN at build the route is a 404 and loads nothing.
 export async function POST(request: Request): Promise<Response> {
   await connection();
-  const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN?.trim();
-  if (!dsn) return new Response("Not Found", { status: 404 });
+  // The literal first: a build without a DSN drops the import below with it.
+  if (!process.env.NEXT_PUBLIC_SENTRY_DSN) return new Response("Not Found", { status: 404 });
   const { createSentryTunnelRoute } = await import("@sentry/nextjs/tunnel");
-  return createSentryTunnelRoute({ allowedDsns: [dsn] }).POST(request);
+  return createSentryTunnelRoute({
+    allowedDsns: [process.env.NEXT_PUBLIC_SENTRY_DSN.trim()],
+  }).POST(request);
 }

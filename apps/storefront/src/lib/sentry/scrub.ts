@@ -177,8 +177,9 @@ export function scrubSpan<T extends SpanLike>(span: T): T {
 /** The hooks every `Sentry.init` of the storefront passes (server, browser, Payload's). */
 export const scrubHooks = {
   beforeSend: (event: ErrorEvent) => scrubEvent(event),
-  beforeSendTransaction: <T extends Event>(event: T) => scrubEvent(event),
   beforeBreadcrumb: (breadcrumb: Breadcrumb) => scrubBreadcrumb(breadcrumb),
+  // v11 streams spans (`traceLifecycle: "stream"`, the default) and ignores `beforeSendTransaction`
+  // with a warning: a transaction's name and URLs are scrubbed here, span by span, instead.
   beforeSendSpan: <T extends SpanLike>(span: T) => scrubSpan(span),
 };
 
