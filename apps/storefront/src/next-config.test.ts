@@ -107,7 +107,10 @@ describe("next.config.ts puts PostHog behind /ingest (T97)", () => {
 
   it("sends /ingest/static to the EU assets host and the rest to the EU ingest host", () => {
     expect(posthogRewrites({ NEXT_PUBLIC_POSTHOG_KEY: "phc_test" })).toEqual([
-      { source: "/ingest/static/:path*", destination: "https://eu-assets.i.posthog.com/static/:path*" },
+      {
+        source: "/ingest/static/:path*",
+        destination: "https://eu-assets.i.posthog.com/static/:path*",
+      },
       { source: "/ingest/:path*", destination: "https://eu.i.posthog.com/:path*" },
     ]);
   });

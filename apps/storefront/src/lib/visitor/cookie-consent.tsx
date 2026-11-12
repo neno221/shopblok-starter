@@ -44,16 +44,23 @@ export type VisitorCookieConsentProps = Omit<
 > & {
   /** The page's market key, sent with every analytics event (D124). */
   market?: string;
+  /**
+   * The market's Medusa locale (`el-GR`), the `locale` of every analytics event (D124): the one
+   * Medusa's events read from the cart and the order, so the browser's and the server's agree.
+   */
+  analyticsLocale?: string;
 };
 
 /** A plain left click, which the link would follow in this tab. */
 function isPlainClick(event: MouseEvent): boolean {
-  return (
-    event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey
-  );
+  return event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey;
 }
 
-export function VisitorCookieConsent({ market = "", ...props }: VisitorCookieConsentProps) {
+export function VisitorCookieConsent({
+  market = "",
+  analyticsLocale = "",
+  ...props
+}: VisitorCookieConsentProps) {
   const visitor = useVisitor();
   const settings = useSyncExternalStore(subscribeSettings, getSettings, getServerSettings);
 
@@ -88,9 +95,9 @@ export function VisitorCookieConsent({ market = "", ...props }: VisitorCookieCon
       key: process.env.NEXT_PUBLIC_POSTHOG_KEY,
       host: process.env.NEXT_PUBLIC_POSTHOG_HOST?.trim() || "https://eu.i.posthog.com",
       market,
-      locale: props.locale,
+      locale: analyticsLocale,
     });
-  }, [market, props.locale]);
+  }, [market, analyticsLocale]);
 
   const known = visitor === "unknown" ? undefined : visitor.consent;
   return (

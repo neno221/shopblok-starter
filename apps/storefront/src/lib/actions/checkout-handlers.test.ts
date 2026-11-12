@@ -239,7 +239,10 @@ describe("placeOrderAction (step 3)", () => {
     moveCart.mockResolvedValue(deliveryDone);
     completeCart.mockResolvedValue({ kind: "order", orderId: "order_1", countryCode: "de" });
     await placeOrderAction({ market: "en-de" });
-    expect(setMailTarget).toHaveBeenCalledWith({ market: "/de/en", language: "en" }, "en-US");
+    expect(setMailTarget).toHaveBeenCalledWith(
+      { market: "/de/en", language: "en", key: "en-de" },
+      "en-US",
+    );
     expect(setMailTarget.mock.invocationCallOrder[0]).toBeLessThan(
       completeCart.mock.invocationCallOrder[0]!,
     );

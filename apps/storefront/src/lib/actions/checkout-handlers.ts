@@ -184,7 +184,11 @@ export const placeOrderAction = action(placeOrderSchema, async ({ market }) => {
   )
     throw new ActionError("incomplete", "a step before the review is not done");
   // The order's e-mails link to this market, in its language (T99, D122).
-  await setMailTarget(mailTarget(context.market, context.map), context.market.medusaLocale);
+  // The market's key goes with it, for the order's analytics events (D124).
+  await setMailTarget(
+    { ...mailTarget(context.market, context.map), key: context.market.key },
+    context.market.medusaLocale,
+  );
   const answer = await completeCart(context.market.medusaLocale);
   if (answer.kind === "cart") throw new ActionError("rejected", answer.error);
   await setReceipt(answer.orderId);

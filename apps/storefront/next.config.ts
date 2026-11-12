@@ -85,10 +85,13 @@ const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
  * `[market]` among them; the proxy's matcher skips `/ingest`. Only in a build with
  * `NEXT_PUBLIC_POSTHOG_KEY`: without it `/ingest` is no route and nothing goes to PostHog.
  */
-export function posthogRewrites(source: NodeJS.ProcessEnv) {
+export function posthogRewrites(source: Record<string, string | undefined>) {
   if (!source.NEXT_PUBLIC_POSTHOG_KEY?.trim()) return [];
   const host = (source.NEXT_PUBLIC_POSTHOG_HOST?.trim() || POSTHOG_EU).replace(/\/+$/, "");
-  const assets = host.replace(/^https:\/\/(eu|us)\.i\.posthog\.com$/, "https://$1-assets.i.posthog.com");
+  const assets = host.replace(
+    /^https:\/\/(eu|us)\.i\.posthog\.com$/,
+    "https://$1-assets.i.posthog.com",
+  );
   return [
     { source: "/ingest/static/:path*", destination: `${assets}/static/:path*` },
     { source: "/ingest/:path*", destination: `${host}/:path*` },

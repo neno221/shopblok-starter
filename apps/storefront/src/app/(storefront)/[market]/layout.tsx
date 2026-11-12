@@ -97,6 +97,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
             <SiteFooter />
             <VisitorCookieConsent
               market={market.key}
+              analyticsLocale={market.medusaLocale}
               policyHref={shell.url(COOKIE_POLICY_PATH)}
               copy={messages.organisms.cookieConsent}
               locale={market.htmlLang}

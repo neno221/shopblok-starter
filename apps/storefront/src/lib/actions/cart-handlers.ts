@@ -56,7 +56,11 @@ export const addToCartAction = action(
         `a line holds at most ${MAX_LINE_QUANTITY}; this one has ${existing.quantity}`,
       );
     const cart = await addLine(
-      { regionId: context.region.id, locale: context.market.medusaLocale },
+      {
+        regionId: context.region.id,
+        locale: context.market.medusaLocale,
+        market: context.market.key,
+      },
       variantId,
       quantity,
     );

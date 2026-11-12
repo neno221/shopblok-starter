@@ -299,7 +299,7 @@ describe("the file", () => {
 
   it("wraps the ui organism and the store, and nothing else of ours", () => {
     expect(source).toContain('from "@shopblok/ui/organisms/cookie-consent"');
-    expect(source).toContain('from "./store"');
+    expect(source).toContain('from "./consent"');
     expect(source).toContain('from "./use-visitor"');
     expect(source).not.toMatch(
       /@shopblok\/(?:fixtures|registry\/(?!contracts)|i18n["'/](?!format))/,
