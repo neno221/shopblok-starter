@@ -1,16 +1,17 @@
 {
   "variables": {
-    "verify-email": [
-      "email",
-      "code"
-    ],
-    "password-reset": [
-      "email"
-    ],
-    "order-transfer": [
-      "email",
-      "orderNumber"
-    ]
+    "verify-email": ["email", "code"],
+    "password-reset": ["email"],
+    "order-transfer": ["email", "orderNumber"],
+    "order-placed": ["email", "orderNumber", "total"],
+    "order-shipped": ["email", "orderNumber"],
+    "order-canceled": ["email", "orderNumber"],
+    "return-requested": ["email", "orderNumber"],
+    "refund-issued": ["email", "orderNumber", "amount"],
+    "welcome": ["email"],
+    "admin-invite": ["email"],
+    "newsletter-confirm": ["email"],
+    "form-message": ["form"]
   },
   "templates": {
     "verify-email": {
@@ -137,6 +138,374 @@
           "Si c’est vous, ouvrez le lien ci-dessous pour accepter. Sinon, vous pouvez refuser la demande sur cette page ou ignorer cet e-mail."
         ],
         "cta": "Voir la demande"
+      }
+    },
+    "order-placed": {
+      "en": {
+        "subject": "Order {{orderNumber}} confirmed",
+        "preheader": "Thank you for your order. Here is what you ordered.",
+        "heading": "Thank you for your order",
+        "body": [
+          "We have received order {{orderNumber}} and are getting it ready. You will get another e-mail when it ships.",
+          "The order comes to {{total}}. Here is a summary:"
+        ],
+        "cta": "View your order"
+      },
+      "el": {
+        "subject": "Η παραγγελία {{orderNumber}} επιβεβαιώθηκε",
+        "preheader": "Σας ευχαριστούμε για την παραγγελία σας. Δείτε τι παραγγείλατε.",
+        "heading": "Σας ευχαριστούμε για την παραγγελία σας",
+        "body": [
+          "Λάβαμε την παραγγελία {{orderNumber}} και την ετοιμάζουμε. Θα λάβετε νέο e-mail όταν αποσταλεί.",
+          "Το σύνολο της παραγγελίας είναι {{total}}. Ακολουθεί η σύνοψη:"
+        ],
+        "cta": "Προβολή παραγγελίας"
+      },
+      "de": {
+        "subject": "Bestellung {{orderNumber}} bestätigt",
+        "preheader": "Vielen Dank für Ihre Bestellung. Hier ist, was Sie bestellt haben.",
+        "heading": "Vielen Dank für Ihre Bestellung",
+        "body": [
+          "Wir haben die Bestellung {{orderNumber}} erhalten und bereiten sie vor. Sie erhalten eine weitere E-Mail, sobald sie versandt wird.",
+          "Die Bestellung beläuft sich auf {{total}}. Hier ist die Übersicht:"
+        ],
+        "cta": "Bestellung ansehen"
+      },
+      "fr": {
+        "subject": "Commande {{orderNumber}} confirmée",
+        "preheader": "Merci pour votre commande. Voici ce que vous avez commandé.",
+        "heading": "Merci pour votre commande",
+        "body": [
+          "Nous avons bien reçu la commande {{orderNumber}} et la préparons. Vous recevrez un autre e-mail lors de son expédition.",
+          "Le montant de la commande est de {{total}}. En voici le récapitulatif :"
+        ],
+        "cta": "Voir la commande"
+      }
+    },
+    "order-shipped": {
+      "en": {
+        "subject": "Order {{orderNumber}} is on its way",
+        "preheader": "Your order has shipped.",
+        "heading": "Your order is on its way",
+        "body": [
+          "Good news: order {{orderNumber}} has left our warehouse.",
+          "Follow the parcel with the tracking number below."
+        ],
+        "cta": "View your order"
+      },
+      "el": {
+        "subject": "Η παραγγελία {{orderNumber}} είναι καθ’ οδόν",
+        "preheader": "Η παραγγελία σας απεστάλη.",
+        "heading": "Η παραγγελία σας είναι καθ’ οδόν",
+        "body": [
+          "Καλά νέα: η παραγγελία {{orderNumber}} έφυγε από την αποθήκη μας.",
+          "Παρακολουθήστε το δέμα με τον παρακάτω αριθμό αποστολής."
+        ],
+        "cta": "Προβολή παραγγελίας"
+      },
+      "de": {
+        "subject": "Bestellung {{orderNumber}} ist unterwegs",
+        "preheader": "Ihre Bestellung wurde versandt.",
+        "heading": "Ihre Bestellung ist unterwegs",
+        "body": [
+          "Gute Nachrichten: Die Bestellung {{orderNumber}} hat unser Lager verlassen.",
+          "Verfolgen Sie das Paket mit der Sendungsnummer unten."
+        ],
+        "cta": "Bestellung ansehen"
+      },
+      "fr": {
+        "subject": "La commande {{orderNumber}} est en route",
+        "preheader": "Votre commande a été expédiée.",
+        "heading": "Votre commande est en route",
+        "body": [
+          "Bonne nouvelle : la commande {{orderNumber}} a quitté notre entrepôt.",
+          "Suivez le colis grâce au numéro de suivi ci-dessous."
+        ],
+        "cta": "Voir la commande"
+      }
+    },
+    "order-canceled": {
+      "en": {
+        "subject": "Order {{orderNumber}} canceled",
+        "preheader": "Your order has been canceled.",
+        "heading": "Your order has been canceled",
+        "body": [
+          "Order {{orderNumber}} has been canceled. If you paid for it, the payment is returned to you.",
+          "If you did not ask for this, reply to this e-mail and we will help."
+        ],
+        "cta": "View your order"
+      },
+      "el": {
+        "subject": "Η παραγγελία {{orderNumber}} ακυρώθηκε",
+        "preheader": "Η παραγγελία σας ακυρώθηκε.",
+        "heading": "Η παραγγελία σας ακυρώθηκε",
+        "body": [
+          "Η παραγγελία {{orderNumber}} ακυρώθηκε. Αν την πληρώσατε, το ποσό θα σας επιστραφεί.",
+          "Αν δεν το ζητήσατε εσείς, απαντήστε σε αυτό το e-mail και θα σας βοηθήσουμε."
+        ],
+        "cta": "Προβολή παραγγελίας"
+      },
+      "de": {
+        "subject": "Bestellung {{orderNumber}} storniert",
+        "preheader": "Ihre Bestellung wurde storniert.",
+        "heading": "Ihre Bestellung wurde storniert",
+        "body": [
+          "Die Bestellung {{orderNumber}} wurde storniert. Wenn Sie sie bezahlt haben, erhalten Sie den Betrag zurück.",
+          "Wenn Sie das nicht veranlasst haben, antworten Sie auf diese E-Mail, und wir helfen Ihnen."
+        ],
+        "cta": "Bestellung ansehen"
+      },
+      "fr": {
+        "subject": "Commande {{orderNumber}} annulée",
+        "preheader": "Votre commande a été annulée.",
+        "heading": "Votre commande a été annulée",
+        "body": [
+          "La commande {{orderNumber}} a été annulée. Si vous l’avez payée, le paiement vous est restitué.",
+          "Si vous n’en êtes pas à l’origine, répondez à cet e-mail et nous vous aiderons."
+        ],
+        "cta": "Voir la commande"
+      }
+    },
+    "return-requested": {
+      "en": {
+        "subject": "Return for order {{orderNumber}} received",
+        "preheader": "We have your return request.",
+        "heading": "We have your return request",
+        "body": [
+          "We have received your request to return items from order {{orderNumber}}. These are the items:",
+          "Send them back as the return's instructions say. We refund you once they arrive."
+        ],
+        "cta": "View your order"
+      },
+      "el": {
+        "subject": "Λάβαμε την επιστροφή για την παραγγελία {{orderNumber}}",
+        "preheader": "Λάβαμε το αίτημα επιστροφής σας.",
+        "heading": "Λάβαμε το αίτημα επιστροφής σας",
+        "body": [
+          "Λάβαμε το αίτημά σας να επιστρέψετε προϊόντα από την παραγγελία {{orderNumber}}. Τα προϊόντα είναι:",
+          "Στείλτε τα πίσω όπως λένε οι οδηγίες της επιστροφής. Θα σας επιστρέψουμε τα χρήματα μόλις φτάσουν."
+        ],
+        "cta": "Προβολή παραγγελίας"
+      },
+      "de": {
+        "subject": "Rücksendung für Bestellung {{orderNumber}} erhalten",
+        "preheader": "Wir haben Ihre Rücksendeanfrage.",
+        "heading": "Wir haben Ihre Rücksendeanfrage",
+        "body": [
+          "Wir haben Ihre Anfrage erhalten, Artikel aus der Bestellung {{orderNumber}} zurückzusenden. Es geht um diese Artikel:",
+          "Senden Sie sie wie in der Anleitung zur Rücksendung beschrieben zurück. Sobald sie ankommen, erstatten wir den Betrag."
+        ],
+        "cta": "Bestellung ansehen"
+      },
+      "fr": {
+        "subject": "Retour pour la commande {{orderNumber}} reçu",
+        "preheader": "Nous avons reçu votre demande de retour.",
+        "heading": "Nous avons reçu votre demande de retour",
+        "body": [
+          "Nous avons reçu votre demande de retour d’articles de la commande {{orderNumber}}. Voici les articles :",
+          "Renvoyez-les comme l’indiquent les instructions du retour. Nous vous remboursons dès leur arrivée."
+        ],
+        "cta": "Voir la commande"
+      }
+    },
+    "refund-issued": {
+      "en": {
+        "subject": "Refund for order {{orderNumber}}",
+        "preheader": "We have refunded {{amount}}.",
+        "heading": "Your refund is on its way",
+        "body": [
+          "We have refunded {{amount}} for order {{orderNumber}} to the way you paid.",
+          "It can take a few working days to show on your statement."
+        ],
+        "cta": "View your order"
+      },
+      "el": {
+        "subject": "Επιστροφή χρημάτων για την παραγγελία {{orderNumber}}",
+        "preheader": "Σας επιστρέψαμε {{amount}}.",
+        "heading": "Η επιστροφή χρημάτων είναι καθ’ οδόν",
+        "body": [
+          "Επιστρέψαμε {{amount}} για την παραγγελία {{orderNumber}} στον τρόπο πληρωμής που χρησιμοποιήσατε.",
+          "Μπορεί να χρειαστούν μερικές εργάσιμες ημέρες για να εμφανιστεί στον λογαριασμό σας."
+        ],
+        "cta": "Προβολή παραγγελίας"
+      },
+      "de": {
+        "subject": "Erstattung für Bestellung {{orderNumber}}",
+        "preheader": "Wir haben {{amount}} erstattet.",
+        "heading": "Ihre Erstattung ist unterwegs",
+        "body": [
+          "Wir haben {{amount}} für die Bestellung {{orderNumber}} auf Ihr Zahlungsmittel erstattet.",
+          "Es kann einige Werktage dauern, bis der Betrag auf Ihrem Konto erscheint."
+        ],
+        "cta": "Bestellung ansehen"
+      },
+      "fr": {
+        "subject": "Remboursement de la commande {{orderNumber}}",
+        "preheader": "Nous avons remboursé {{amount}}.",
+        "heading": "Votre remboursement est en cours",
+        "body": [
+          "Nous avons remboursé {{amount}} pour la commande {{orderNumber}} sur votre moyen de paiement.",
+          "Il peut falloir quelques jours ouvrés pour qu’il apparaisse sur votre relevé."
+        ],
+        "cta": "Voir la commande"
+      }
+    },
+    "welcome": {
+      "en": {
+        "subject": "Welcome to the shop",
+        "preheader": "Your account is ready.",
+        "heading": "Welcome",
+        "body": [
+          "Your address {{email}} is confirmed and your account is ready.",
+          "Sign in to see your orders, keep your addresses and check out faster."
+        ],
+        "cta": "Start shopping"
+      },
+      "el": {
+        "subject": "Καλώς ήρθατε στο κατάστημα",
+        "preheader": "Ο λογαριασμός σας είναι έτοιμος.",
+        "heading": "Καλώς ήρθατε",
+        "body": [
+          "Η διεύθυνση {{email}} επιβεβαιώθηκε και ο λογαριασμός σας είναι έτοιμος.",
+          "Συνδεθείτε για να βλέπετε τις παραγγελίες σας, να αποθηκεύετε τις διευθύνσεις σας και να ολοκληρώνετε τις αγορές πιο γρήγορα."
+        ],
+        "cta": "Ξεκινήστε τις αγορές"
+      },
+      "de": {
+        "subject": "Willkommen im Shop",
+        "preheader": "Ihr Konto ist bereit.",
+        "heading": "Willkommen",
+        "body": [
+          "Ihre Adresse {{email}} ist bestätigt und Ihr Konto ist bereit.",
+          "Melden Sie sich an, um Ihre Bestellungen zu sehen, Adressen zu speichern und schneller zu bezahlen."
+        ],
+        "cta": "Jetzt einkaufen"
+      },
+      "fr": {
+        "subject": "Bienvenue dans la boutique",
+        "preheader": "Votre compte est prêt.",
+        "heading": "Bienvenue",
+        "body": [
+          "Votre adresse {{email}} est confirmée et votre compte est prêt.",
+          "Connectez-vous pour voir vos commandes, enregistrer vos adresses et payer plus vite."
+        ],
+        "cta": "Commencer mes achats"
+      }
+    },
+    "admin-invite": {
+      "en": {
+        "subject": "You are invited to the shop's admin",
+        "preheader": "Accept the invite to manage the shop.",
+        "heading": "You are invited",
+        "body": [
+          "You have been invited to manage the shop in Medusa Admin as {{email}}.",
+          "Open the link below to choose a password and accept. The invite expires after a day."
+        ],
+        "cta": "Accept the invite"
+      },
+      "el": {
+        "subject": "Πρόσκληση στη διαχείριση του καταστήματος",
+        "preheader": "Αποδεχτείτε την πρόσκληση για να διαχειρίζεστε το κατάστημα.",
+        "heading": "Έχετε πρόσκληση",
+        "body": [
+          "Σας προσκάλεσαν να διαχειρίζεστε το κατάστημα στο Medusa Admin ως {{email}}.",
+          "Ανοίξτε τον παρακάτω σύνδεσμο για να επιλέξετε κωδικό και να αποδεχτείτε. Η πρόσκληση λήγει σε μία ημέρα."
+        ],
+        "cta": "Αποδοχή πρόσκλησης"
+      },
+      "de": {
+        "subject": "Einladung in die Verwaltung des Shops",
+        "preheader": "Nehmen Sie die Einladung an, um den Shop zu verwalten.",
+        "heading": "Sie sind eingeladen",
+        "body": [
+          "Sie wurden eingeladen, den Shop in Medusa Admin als {{email}} zu verwalten.",
+          "Öffnen Sie den Link unten, um ein Passwort zu wählen und anzunehmen. Die Einladung läuft nach einem Tag ab."
+        ],
+        "cta": "Einladung annehmen"
+      },
+      "fr": {
+        "subject": "Invitation à l’administration de la boutique",
+        "preheader": "Acceptez l’invitation pour gérer la boutique.",
+        "heading": "Vous êtes invité",
+        "body": [
+          "Vous avez été invité à gérer la boutique dans Medusa Admin en tant que {{email}}.",
+          "Ouvrez le lien ci-dessous pour choisir un mot de passe et accepter. L’invitation expire au bout d’un jour."
+        ],
+        "cta": "Accepter l’invitation"
+      }
+    },
+    "newsletter-confirm": {
+      "en": {
+        "subject": "Confirm your subscription",
+        "preheader": "One click to start getting our newsletter.",
+        "heading": "Confirm your subscription",
+        "body": [
+          "Someone, hopefully you, asked to send our newsletter to {{email}}.",
+          "Open the link below and press “Confirm” to subscribe. If it was not you, ignore this e-mail: nothing is sent until you confirm. The link works for 48 hours."
+        ],
+        "cta": "Confirm my subscription"
+      },
+      "el": {
+        "subject": "Επιβεβαιώστε την εγγραφή σας",
+        "preheader": "Ένα κλικ για να λαμβάνετε το ενημερωτικό μας δελτίο.",
+        "heading": "Επιβεβαιώστε την εγγραφή σας",
+        "body": [
+          "Κάποιος, ελπίζουμε εσείς, ζήτησε να στέλνουμε το ενημερωτικό μας δελτίο στο {{email}}.",
+          "Ανοίξτε τον παρακάτω σύνδεσμο και πατήστε «Επιβεβαίωση» για να εγγραφείτε. Αν δεν ήσασταν εσείς, αγνοήστε αυτό το e-mail: δεν θα σας στείλουμε τίποτα αν δεν επιβεβαιώσετε. Ο σύνδεσμος ισχύει για 48 ώρες."
+        ],
+        "cta": "Επιβεβαίωση εγγραφής"
+      },
+      "de": {
+        "subject": "Bestätigen Sie Ihr Abonnement",
+        "preheader": "Ein Klick, und Sie erhalten unseren Newsletter.",
+        "heading": "Bestätigen Sie Ihr Abonnement",
+        "body": [
+          "Jemand, hoffentlich Sie, möchte unseren Newsletter an {{email}} erhalten.",
+          "Öffnen Sie den Link unten und klicken Sie auf „Bestätigen“, um ihn zu abonnieren. Wenn Sie das nicht waren, ignorieren Sie diese E-Mail: Ohne Bestätigung senden wir nichts. Der Link gilt 48 Stunden."
+        ],
+        "cta": "Abonnement bestätigen"
+      },
+      "fr": {
+        "subject": "Confirmez votre inscription",
+        "preheader": "Un clic pour recevoir notre newsletter.",
+        "heading": "Confirmez votre inscription",
+        "body": [
+          "Quelqu’un, sans doute vous, a demandé à recevoir notre newsletter à l’adresse {{email}}.",
+          "Ouvrez le lien ci-dessous et appuyez sur « Confirmer » pour vous inscrire. Si ce n’est pas vous, ignorez cet e-mail : nous n’envoyons rien sans confirmation. Le lien est valable 48 heures."
+        ],
+        "cta": "Confirmer mon inscription"
+      }
+    },
+    "form-message": {
+      "en": {
+        "subject": "New answer to “{{form}}”",
+        "preheader": "A visitor sent the form.",
+        "heading": "New answer to “{{form}}”",
+        "body": ["A visitor sent the form “{{form}}”. Their answers are below."],
+        "cta": "Open it in the admin"
+      },
+      "el": {
+        "subject": "Νέα απάντηση στη φόρμα «{{form}}»",
+        "preheader": "Ένας επισκέπτης έστειλε τη φόρμα.",
+        "heading": "Νέα απάντηση στη φόρμα «{{form}}»",
+        "body": ["Ένας επισκέπτης έστειλε τη φόρμα «{{form}}». Οι απαντήσεις του είναι παρακάτω."],
+        "cta": "Άνοιγμα στη διαχείριση"
+      },
+      "de": {
+        "subject": "Neue Antwort auf „{{form}}“",
+        "preheader": "Jemand hat das Formular gesendet.",
+        "heading": "Neue Antwort auf „{{form}}“",
+        "body": ["Jemand hat das Formular „{{form}}“ gesendet. Die Antworten stehen unten."],
+        "cta": "In der Verwaltung öffnen"
+      },
+      "fr": {
+        "subject": "Nouvelle réponse à « {{form}} »",
+        "preheader": "Un visiteur a envoyé le formulaire.",
+        "heading": "Nouvelle réponse à « {{form}} »",
+        "body": [
+          "Un visiteur a envoyé le formulaire « {{form}} ». Ses réponses figurent ci-dessous."
+        ],
+        "cta": "Ouvrir dans l’administration"
       }
     }
   }

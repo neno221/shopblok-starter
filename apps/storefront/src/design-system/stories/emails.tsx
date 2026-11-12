@@ -6,9 +6,18 @@
 // apostrophe, which the e-mail shows once, escaped once.
 import { emailFixtures, type EmailFixtureType } from "@shopblok/fixtures";
 import {
+  AdminInviteEmail,
+  FormMessageEmail,
+  NewsletterConfirmEmail,
+  OrderCanceledEmail,
+  OrderPlacedEmail,
+  OrderShippedEmail,
   OrderTransferEmail,
   PasswordResetEmail,
+  RefundIssuedEmail,
+  ReturnRequestedEmail,
   VerifyEmail,
+  WelcomeEmail,
   type EmailInput,
 } from "@shopblok/emails";
 import type { EntryId } from "@shopblok/registry";
@@ -82,5 +91,50 @@ export const emailStories = {
     "order-transfer",
     OrderTransferEmail,
     "The e-mail that asks an order's owner to confirm moving a guest order into an account.",
+  ),
+  "emails/order-placed": story(
+    "order-placed",
+    OrderPlacedEmail,
+    "The order's confirmation: its lines, the sums and where it ships, in the market's currency and time zone.",
+  ),
+  "emails/order-shipped": story(
+    "order-shipped",
+    OrderShippedEmail,
+    "A shipment of the order: its lines and the tracking number, linked to the carrier's page.",
+  ),
+  "emails/order-canceled": story(
+    "order-canceled",
+    OrderCanceledEmail,
+    "The order canceled from Medusa Admin, with what it held.",
+  ),
+  "emails/return-requested": story(
+    "return-requested",
+    ReturnRequestedEmail,
+    "A return requested from the account: the lines going back.",
+  ),
+  "emails/refund-issued": story(
+    "refund-issued",
+    RefundIssuedEmail,
+    "A refund made in Medusa Admin: the amount, and the order it is for.",
+  ),
+  "emails/welcome": story(
+    "welcome",
+    WelcomeEmail,
+    "The welcome a new customer gets once the address is verified and the account exists.",
+  ),
+  "emails/admin-invite": story(
+    "admin-invite",
+    AdminInviteEmail,
+    "An invite to Medusa Admin, in English: a button to the admin's invite page.",
+  ),
+  "emails/newsletter-confirm": story(
+    "newsletter-confirm",
+    NewsletterConfirmEmail,
+    "The newsletter's double opt-in: a button to the page whose “Confirm” subscribes the address.",
+  ),
+  "emails/form-message": story(
+    "form-message",
+    FormMessageEmail,
+    "A form built in Payload, e-mailed to the shop: the answers as the visitor sent them, as text.",
   ),
 } satisfies Partial<Record<EntryId, DsStory>>;
