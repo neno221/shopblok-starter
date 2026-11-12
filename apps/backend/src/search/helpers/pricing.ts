@@ -68,7 +68,7 @@ export const priceFields = Object.fromEntries(
         .float()
         .filterable()
         .sortable()
-        .facetable({ types: ["stats"] })
+        .facetable({ types: ["stats", "range"] })
         .retrievable(),
     ],
     [
@@ -77,7 +77,7 @@ export const priceFields = Object.fromEntries(
         .float()
         .filterable()
         .sortable()
-        .facetable({ types: ["stats"] })
+        .facetable({ types: ["stats", "range"] })
         .retrievable(),
     ],
     [`original_price_${currency}`, search.float().retrievable()],

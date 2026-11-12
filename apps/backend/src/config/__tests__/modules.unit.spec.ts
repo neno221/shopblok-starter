@@ -7,6 +7,7 @@ const WORKFLOW_ENGINE = "@medusajs/medusa/workflow-engine-redis";
 const LOCKING = "@medusajs/medusa/locking";
 const CACHING = "@medusajs/medusa/caching";
 const PAYLOAD = "./src/modules/payload";
+const SEARCH = "@medusajs/medusa/search";
 
 const REDIS_URL = "redis://localhost:6380";
 
@@ -140,6 +141,56 @@ describe("buildModules", () => {
         entry({ ...PAYLOAD_ENV, PAYLOAD_USER_COLLECTION: "machines" }, PAYLOAD).options
           .userCollection,
       ).toBe("machines");
+    });
+  });
+
+  describe("search (T94)", () => {
+    const MEILI = { MEILISEARCH_HOST: " http://localhost:7701 ", MEILISEARCH_API_KEY: "test-key" };
+
+    it("registers the Search Module only with both the host and the key", () => {
+      expect(resolves(MEILI)).toEqual([TRANSLATION, NOTIFICATION, SEARCH]);
+      expect(resolves({ MEILISEARCH_HOST: "http://localhost:7701" })).not.toContain(SEARCH);
+      expect(resolves({ MEILISEARCH_API_KEY: "test-key" })).not.toContain(SEARCH);
+      expect(resolves({ ...MEILI, MEILISEARCH_API_KEY: " " })).not.toContain(SEARCH);
+    });
+
+    it("makes Meilisearch the default and keeps Postgres registered beside it", () => {
+      expect(entry(MEILI, SEARCH).options).toEqual({
+        default_provider: "meilisearch",
+        providers: [
+          {
+            resolve: "@medusajs/medusa/search-postgres",
+            id: "postgres",
+            options: { engine: "native" },
+          },
+          {
+            resolve: "./src/modules/meilisearch-search",
+            id: "meilisearch",
+            options: { host: "http://localhost:7701", api_key: "test-key" },
+          },
+        ],
+      });
+    });
+
+    it("passes MEILISEARCH_INDEX_PREFIX as the module's index_prefix, trimmed", () => {
+      expect(entry({ ...MEILI, MEILISEARCH_INDEX_PREFIX: " shop_1 " }, SEARCH).options).toMatchObject({
+        index_prefix: "shop_1",
+      });
+      expect(entry({ ...MEILI, MEILISEARCH_INDEX_PREFIX: "" }, SEARCH).options).not.toHaveProperty(
+        "index_prefix",
+      );
+    });
+
+    it("refuses a prefix Meilisearch or the locale indexes could not use", () => {
+      for (const prefix of ["Shop", "shop-1", "_shop", "shop.1", "a".repeat(41)]) {
+        expect(() => buildModules({ ...MEILI, MEILISEARCH_INDEX_PREFIX: prefix })).toThrow(
+          /MEILISEARCH_INDEX_PREFIX/,
+        );
+      }
+    });
+
+    it("ignores the prefix without the keys", () => {
+      expect(resolves({ MEILISEARCH_INDEX_PREFIX: "Not Valid" })).toEqual([TRANSLATION, NOTIFICATION]);
     });
   });
 

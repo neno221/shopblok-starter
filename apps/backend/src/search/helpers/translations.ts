@@ -124,22 +124,37 @@ export async function readTexts(
   return texts;
 }
 
+/** One locale's texts as lines, in the order `search_text` holds them. */
+function linesOf(texts: ProductTexts): string[] {
+  return [
+    texts.title,
+    texts.description,
+    ...texts.categories,
+    texts.collection,
+    ...texts.tags,
+    ...texts.option_values,
+  ];
+}
+
+const joinLines = (lines: string[]) => [...new Set(lines.filter(Boolean))].join("\n");
+
 /**
  * `search_text`: every locale's title, description, category names, collection
  * title, tags and option values, each line once. A text shared by two locales
  * (an untranslated field) is written once.
  */
 export function toSearchText(byLocale: Map<string, ProductTexts> | undefined) {
-  const lines = [...(byLocale?.values() ?? [])].flatMap((t) => [
-    t.title,
-    t.description,
-    ...t.categories,
-    t.collection,
-    ...t.tags,
-    ...t.option_values,
-  ]);
+  return joinLines([...(byLocale?.values() ?? [])].flatMap(linesOf));
+}
 
-  return [...new Set(lines.filter(Boolean))].join("\n");
+/**
+ * One locale's `search_text`, for a provider with an index per locale
+ * (Meilisearch, ADR 0002's B): only that locale's words, so `Leinenhemd` is
+ * not found in Greek (T3). An untranslated field is the default text, as the
+ * shop shows it.
+ */
+export function toLocaleSearchText(texts: ProductTexts) {
+  return joinLines(linesOf(texts));
 }
 
 /** What a translation row translates, mapped to the event that entity emits. */

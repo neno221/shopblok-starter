@@ -35,6 +35,11 @@ import {
 
 jest.setTimeout(180_000);
 
+// M3's suite stays on `search-postgres` (T94): without Meilisearch's keys the Search Module keeps
+// Medusa's default provider. `.env.test` blanks them too; this holds whatever the shell sets.
+process.env.MEILISEARCH_HOST = "";
+process.env.MEILISEARCH_API_KEY = "";
+
 type Hit = { id: string; document: Record<string, unknown> };
 type Facet = { values: { value: string; count: number }[] };
 

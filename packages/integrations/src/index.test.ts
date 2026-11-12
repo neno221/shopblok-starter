@@ -60,10 +60,12 @@ describe("getIntegrationStatus", () => {
     });
   });
 
-  it("after bootstrap: Redis is live, the third-party ones are on their fallbacks", () => {
+  it("after bootstrap: Redis and Meilisearch are live, the third-party ones are on their fallbacks", () => {
     const list = getIntegrationStatus(bootstrapped);
     expect(byId(list, "redis").state).toBe("live");
     expect(byId(list, "redis").using).toBe("Redis");
+    expect(byId(list, "meilisearch").state).toBe("live");
+    expect(byId(list, "meilisearch").using).toBe("Meilisearch");
     for (const id of ["stripe", "resend", "posthog", "sentry", "r2"] as const) {
       expect(byId(list, id).state).toBe("fallback");
     }
@@ -72,14 +74,16 @@ describe("getIntegrationStatus", () => {
     );
   });
 
-  it("keys that are set for a provider that is not built yet change nothing (Meilisearch in M0)", () => {
-    const meilisearch = byId(getIntegrationStatus(bootstrapped), "meilisearch");
-    expect(meilisearch.configured).toBe(true);
-    expect(meilisearch.wired).toBe(false);
+  it("Meilisearch without its keys runs on search-postgres (T94)", () => {
+    const meilisearch = byId(
+      getIntegrationStatus({ backend: { MEILISEARCH_HOST: "http://localhost:7701" }, storefront: {} }),
+      "meilisearch",
+    );
+    expect(meilisearch.wired).toBe(true);
+    expect(meilisearch.configured).toBe(false);
     expect(meilisearch.state).toBe("fallback");
     expect(meilisearch.using).toBe("search-postgres");
-    expect(meilisearch.arrives).toBe("M6");
-    expect(describeIntegration(meilisearch).why).toContain("arrives in M6");
+    expect(meilisearch.arrives).toBeUndefined();
   });
 
   it("a blank or whitespace value is not set", () => {

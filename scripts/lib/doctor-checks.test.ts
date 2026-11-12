@@ -6,10 +6,12 @@ import {
   explainMedusaFailure,
   explainMedusaRun,
   medusaMarketsCheck,
+  meilisearchLocalesCheck,
   orphanRegions,
   orphanRegionsCheck,
   payloadAuthCheck,
   readLocales,
+  readMeilisearchStats,
   readRegions,
   searchCurrencies,
   searchFieldOf,
@@ -773,5 +775,74 @@ describe("searchFieldOf and searchIndexCheck", () => {
     expect(check.level).toBe("warn");
     expect(check.message).toContain("not checked");
     expect(check.message).not.toContain("exists for");
+  });
+});
+
+describe("meilisearchLocalesCheck (T94)", () => {
+  const host = "http://localhost:7701";
+  const locales = json({ locales: [{ code: "en-US" }, { code: "el-GR" }] });
+  const stats = (indexes: Record<string, number>) =>
+    json({
+      indexes: Object.fromEntries(
+        Object.entries(indexes).map(([uid, n]) => [uid, { numberOfDocuments: n }]),
+      ),
+    });
+  const run = (over: Partial<Parameters<typeof meilisearchLocalesCheck>[0]>) =>
+    meilisearchLocalesCheck({ host, prefix: undefined, locales, stats: stats({}), ...over });
+
+  it("is ok when the newest version has documents for every store locale", () => {
+    const check = run({
+      stats: stats({
+        "product_v2__en-US": 8,
+        "product_v2__el-GR": 8,
+        // The previous version, kept by Medusa after the swap, does not count.
+        "product_v1__en-US": 8,
+      }),
+    });
+    expect(check).toMatchObject({ id: "search-locales", level: "ok" });
+    expect(check.message).toContain("product_v2");
+  });
+
+  it("warns for a store locale with no index, or an empty one, in the newest version", () => {
+    const missing = run({ stats: stats({ "product_v3__en-US": 8, "product_v2__el-GR": 8 }) });
+    expect(missing.level).toBe("warn");
+    expect(missing.message).toContain("el-GR");
+    expect(missing.details).toEqual(["no index product_v3__el-GR"]);
+
+    const empty = run({ stats: stats({ "product_v3__en-US": 8, "product_v3__el-GR": 0 }) });
+    expect(empty.details).toEqual(["product_v3__el-GR is empty"]);
+  });
+
+  it("reads only the indexes of MEILISEARCH_INDEX_PREFIX", () => {
+    const indexes = stats({ "shop_product_v1__en-US": 3, "shop_product_v1__el-GR": 3, "product_v9__en-US": 1 });
+    expect(run({ prefix: "shop", stats: indexes }).level).toBe("ok");
+    expect(run({ stats: indexes }).details).toEqual(["no index product_v9__el-GR"]);
+  });
+
+  it("warns when there is no product index at all", () => {
+    const check = run({ stats: stats({ movies: 4 }) });
+    expect(check.level).toBe("warn");
+    expect(check.message).toContain("no product index");
+  });
+
+  it("is an error when Meilisearch refuses the key, and a warning when it does not answer", () => {
+    expect(run({ stats: { kind: "response", status: 403, text: "{}" } })).toMatchObject({
+      level: "error",
+    });
+    expect(run({ stats: { kind: "refused" } }).message).toContain("not checked");
+  });
+
+  it("does not guess the store's locales", () => {
+    expect(run({ locales: undefined }).message).toContain("not checked");
+    expect(run({ locales: { kind: "refused" } }).message).toContain("not checked");
+  });
+
+  it("reads Meilisearch's stats", () => {
+    expect(readMeilisearchStats({ status: 200, body: { indexes: { a: { numberOfDocuments: 2 }, b: {} } } })).toEqual({
+      a: 2,
+      b: 0,
+    });
+    expect(readMeilisearchStats({ status: 401, body: {} })).toContain("refused");
+    expect(readMeilisearchStats({ status: 200, body: {} })).toContain("no `indexes`");
   });
 });

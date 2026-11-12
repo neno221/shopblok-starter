@@ -25,6 +25,7 @@ import {
   saveMarketSettingsWorkflow,
 } from "@shopblok/medusa-markets/workflows";
 
+import seedMarkets from "../../src/scripts/seed-markets";
 import { addStoreLocales, seedStore } from "./search-locale.fixtures";
 
 jest.setTimeout(180_000);
@@ -135,7 +136,6 @@ medusaIntegrationTestRunner({
         const container = getContainer();
         await seedStore(container);
         await saveCountry("ch", { time_zone: "Europe/Berlin" });
-        const { default: seedMarkets } = await import("../../src/scripts/seed-markets");
         await seedMarkets({ container, args: [] } as never);
         expect(
           (await markets(container).readCountries()).find((c) => c.code === "ch")?.time_zone,

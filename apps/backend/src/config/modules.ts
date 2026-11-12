@@ -1,6 +1,8 @@
 import type { InputConfigModules } from "@medusajs/framework/types";
 import { isTruthy } from "@medusajs/framework/utils";
 
+import { MEILISEARCH_PROVIDER_ID } from "../modules/meilisearch-search/locales";
+
 /**
  * The environment `buildModules` reads. `process.env` fits. Nothing in this file reads
  * `process.env` itself, so a unit test can pass any object.
@@ -26,6 +28,27 @@ export function getRedisUrl(env: Env): string | undefined {
 }
 
 /**
+ * `MEILISEARCH_INDEX_PREFIX`, checked: it becomes the Search Module's `index_prefix`, the start of
+ * every physical index name (`<prefix>_product_v<N>__<locale>`), so it may hold only what a
+ * Meilisearch index uid and a Postgres table name both take.
+ */
+export function getIndexPrefix(env: Env): string | undefined {
+  const prefix = env.MEILISEARCH_INDEX_PREFIX?.trim();
+
+  if (!prefix) {
+    return undefined;
+  }
+
+  if (!/^[a-z0-9][a-z0-9_]{0,39}$/.test(prefix)) {
+    throw new Error(
+      `MEILISEARCH_INDEX_PREFIX "${prefix}" may hold only lowercase letters, digits and underscores (at most 40, starting with a letter or digit)`,
+    );
+  }
+
+  return prefix;
+}
+
+/**
  * The module registry for `medusa-config.ts` (M0 plan, T06). Entries here replace Medusa's
  * defaults of the same module (the last one wins), so each one is listed in full.
  *
@@ -43,12 +66,21 @@ export function getRedisUrl(env: Env): string | undefined {
  *   `PAYLOAD_API_KEY` (`pnpm bootstrap` writes both). Without it the sync's subscriber, jobs and
  *   route do nothing and say so once.
  *
- * Search (`search-postgres`), `file-local`, `analytics-local` and `pp_system_default` are
- * Medusa defaults and stay unregistered here. M6 adds Stripe, Resend, PostHog, S3/R2,
- * Sentry and Meilisearch behind `has(env, ...)` gates in this function.
+ * - Search (D126, T94): with `MEILISEARCH_HOST` and `MEILISEARCH_API_KEY`, the Search Module
+ *   gets the Meilisearch provider (`src/modules/meilisearch-search`, one index per locale) as its
+ *   `default_provider`, beside `search-postgres`, which stays registered so a switch between the
+ *   two can drop the other's indexes at `db:migrate` (as Medusa's own default does), and
+ *   `MEILISEARCH_INDEX_PREFIX` as its `index_prefix` (two environments on one server). Without
+ *   the keys the module keeps Medusa's default: `search-postgres` alone (M3's index, D63).
+ *
+ * `file-local`, `analytics-local` and `pp_system_default` are Medusa defaults and stay
+ * unregistered here. M6 adds Stripe, Resend, PostHog, S3/R2 and Sentry behind `has(env, ...)`
+ * gates in this function.
  */
 export function buildModules(env: Env): InputConfigModules {
   const redisUrl = getRedisUrl(env);
+  const meilisearch = has(env, "MEILISEARCH_HOST", "MEILISEARCH_API_KEY");
+  const indexPrefix = meilisearch ? getIndexPrefix(env) : undefined;
 
   const modules: (ModuleEntry | false)[] = [
     { resolve: "@medusajs/medusa/translation" },
@@ -72,6 +104,29 @@ export function buildModules(env: Env): InputConfigModules {
             options: {
               name: "Local Notification Provider",
               channels: ["email", "feed"],
+            },
+          },
+        ],
+      },
+    },
+
+    meilisearch && {
+      resolve: "@medusajs/medusa/search",
+      options: {
+        default_provider: MEILISEARCH_PROVIDER_ID,
+        ...(indexPrefix ? { index_prefix: indexPrefix } : {}),
+        providers: [
+          {
+            resolve: "@medusajs/medusa/search-postgres",
+            id: "postgres",
+            options: { engine: "native" },
+          },
+          {
+            resolve: "./src/modules/meilisearch-search",
+            id: MEILISEARCH_PROVIDER_ID,
+            options: {
+              host: env.MEILISEARCH_HOST?.trim(),
+              api_key: env.MEILISEARCH_API_KEY?.trim(),
             },
           },
         ],

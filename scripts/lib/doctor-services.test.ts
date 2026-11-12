@@ -56,10 +56,10 @@ describe("isRequired", () => {
     expect(isRequired(targetOf("mailpit-ui"), statuses)).toBe(false);
   });
 
-  it("makes Meilisearch required only once its code is live (M6), not before", () => {
+  it("makes Meilisearch required once its keys are set (T94), and not without them", () => {
+    // Without the keys `/store/search` runs on search-postgres, and Meilisearch is not needed.
     expect(isRequired(targetOf("meilisearch"), statuses)).toBe(false);
-    // Keys alone change nothing in M0: `wired` is false for it.
-    expect(isRequired(targetOf("meilisearch"), getIntegrationStatus(meilisearchLive))).toBe(false);
+    expect(isRequired(targetOf("meilisearch"), getIntegrationStatus(meilisearchLive))).toBe(true);
   });
 });
 

@@ -42,9 +42,12 @@ describe("wired", () => {
     }
   });
 
-  it("holds for Redis, the one integration wired in M0", () => {
+  it("holds for Meilisearch (T94) and Redis, the integrations wired so far", () => {
     const live = getIntegrationStatus(none).filter((status) => status.wired);
-    expect(live.map((status) => status.id)).toEqual(["redis"]);
+    expect(live.map((status) => status.id)).toEqual(["meilisearch", "redis"]);
+    expect(
+      JSON.stringify(buildModules({ MEILISEARCH_HOST: "http://x", MEILISEARCH_API_KEY: "x" })),
+    ).not.toBe(JSON.stringify(buildModules({})));
     expect(JSON.stringify(buildModules({ REDIS_URL: "redis://x" }))).not.toBe(
       JSON.stringify(buildModules({})),
     );

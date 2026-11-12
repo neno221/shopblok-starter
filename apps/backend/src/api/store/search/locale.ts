@@ -8,6 +8,7 @@ import {
   Modules,
 } from "@medusajs/framework/utils";
 
+import { MEILISEARCH_PROVIDER_ID } from "../../../modules/meilisearch-search/locales";
 import { DEFAULT_LOCALE, storeLocales } from "../../../search/helpers/translations";
 
 type SearchQuery = { entity: string; search_options?: Record<string, unknown> };
@@ -53,11 +54,12 @@ export function localizeSearchBody(
 }
 
 /**
- * The providers that take `search_options.locales` (M6's Meilisearch, by its
- * registration id). Any other gets none: `search-postgres` answers a query
+ * The providers that take `search_options.locales`: Meilisearch (D126), by the
+ * identifier the Search Module registers it under, which is what an index's
+ * `provider` holds. Any other gets none: `search-postgres` answers a query
  * with `locales` with an HTTP 400, so an unknown provider fails safe.
  */
-const QUERY_TIME_LOCALE_PROVIDERS = ["meilisearch"];
+const QUERY_TIME_LOCALE_PROVIDERS: readonly string[] = [MEILISEARCH_PROVIDER_ID];
 
 /**
  * `POST /store/search`, after `configureStoreSearch` (whose validator fills
@@ -83,7 +85,7 @@ export async function localizeStoreSearch(
       try {
         const provider = search?.getIndex(entity).provider ?? "";
 
-        return QUERY_TIME_LOCALE_PROVIDERS.some((id) => provider.startsWith(id));
+        return QUERY_TIME_LOCALE_PROVIDERS.includes(provider);
       } catch {
         // An unknown index: the route answers it with a 404.
         return false;

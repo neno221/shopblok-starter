@@ -15,6 +15,10 @@ const MEDUSA_MARKETS = {
 } as const;
 const MEDUSA_ORPHANS = { id: "medusa-orphans", title: "Medusa regions left over" } as const;
 const SEARCH_INDEX = { id: "search-index", title: "Search index currencies" } as const;
+const SEARCH_LOCALES = {
+  id: "search-locales",
+  title: "Meilisearch index per store locale",
+} as const;
 
 // ---------------------------------------------------------------------------------------------
 // From the environment alone
@@ -640,6 +644,108 @@ export function searchIndexCheck(
     level: "ok",
     message: `min_price_<currency> exists for ${entries.map((e) => e.currency).join(", ")}.`,
   };
+}
+
+// ---------------------------------------------------------------------------------------------
+// Meilisearch (T94)
+
+/** Documents per index out of Meilisearch's `GET /stats`, or why they are not there. */
+export function readMeilisearchStats(answer: {
+  status: number;
+  body: unknown;
+}): Record<string, number> | string {
+  if (answer.status === 401 || answer.status === 403) {
+    return `Meilisearch refused MEILISEARCH_API_KEY (HTTP ${answer.status})`;
+  }
+  if (answer.status !== 200) return `HTTP ${answer.status}`;
+  const indexes = (answer.body as { indexes?: unknown } | undefined)?.indexes;
+  if (indexes === null || typeof indexes !== "object") return "the answer has no `indexes`";
+  return Object.fromEntries(
+    Object.entries(indexes as Record<string, { numberOfDocuments?: unknown } | null>).map(
+      ([uid, stats]) => [uid, typeof stats?.numberOfDocuments === "number" ? stats.numberOfDocuments : 0],
+    ),
+  );
+}
+
+const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/**
+ * Whether each store locale has its own Meilisearch index with documents (ADR 0002's B, T94): the
+ * product index is `<MEILISEARCH_INDEX_PREFIX>_product_v<N>__<locale>`, made on a locale's first
+ * write. A locale with none still searches, in the default locale's index, so it is a warning. The
+ * version looked at is the highest one there: Medusa keeps the previous version after a swap, and
+ * during a reindex the newest one may still be filling, so run doctor again after it.
+ */
+export function meilisearchLocalesCheck(input: {
+  host: string;
+  prefix: string | undefined;
+  /** `GET /store/locales`, or `undefined` when the storefront has no key to ask with. */
+  locales: HttpResult | undefined;
+  stats: HttpResult;
+}): Check {
+  const check = (c: Omit<Check, "id" | "title">): Check => ({ ...SEARCH_LOCALES, ...c });
+
+  if (input.stats.kind !== "response") {
+    return check({
+      level: "warn",
+      message: `not checked: Meilisearch at ${input.host} ${describeUnreachable(input.stats)}.`,
+      fix: "Start it with `docker compose -f infra/docker-compose.yml up -d meilisearch`.",
+    });
+  }
+  const stats = readMeilisearchStats({ status: input.stats.status, body: jsonOf(input.stats) });
+  if (typeof stats === "string") {
+    return check({
+      level: input.stats.status === 401 || input.stats.status === 403 ? "error" : "warn",
+      message: `GET /stats failed: ${stats}.`,
+      fix: "MEILISEARCH_API_KEY in apps/backend/.env must be the server's master key: for the local stack, the one in infra/docker-compose.yml and apps/backend/.env.example.",
+    });
+  }
+  if (input.locales === undefined) {
+    return check({
+      level: "warn",
+      message: "not checked: the storefront has no publishable key to read the store's locales with.",
+      fix: "Run `pnpm bootstrap`.",
+    });
+  }
+  const locales = localesOf(input.locales);
+  if (typeof locales === "string") {
+    return check({ level: "warn", message: `not checked: the store's locales could not be read (${locales}).` });
+  }
+
+  const root = input.prefix ? `${input.prefix}_product` : "product";
+  const pattern = new RegExp(`^${escapeRegExp(root)}_v(\\d+)__(.+)$`);
+  const found = Object.entries(stats).flatMap(([uid, documents]) => {
+    const match = pattern.exec(uid);
+    return match ? [{ version: Number(match[1]), locale: match[2]!, documents }] : [];
+  });
+  if (found.length === 0) {
+    return check({
+      level: "warn",
+      message: `Meilisearch has no product index named ${root}_v<N>__<locale> yet.`,
+      fix: "Start the backend (`pnpm dev`): after `medusa db:migrate` it fills the index on its first start.",
+    });
+  }
+
+  const version = Math.max(...found.map((entry) => entry.version));
+  const physical = `${root}_v${version}`;
+  const documents = new Map(
+    found.filter((entry) => entry.version === version).map((entry) => [entry.locale, entry.documents]),
+  );
+  const empty = locales.filter((locale) => (documents.get(locale) ?? 0) === 0);
+  if (empty.length > 0) {
+    return check({
+      level: "warn",
+      message: `${physical} has no documents for ${empty.join(", ")}, so ${empty.length === 1 ? "that locale searches" : "those locales search"} the default locale's index.`,
+      details: empty.map((locale) =>
+        documents.has(locale) ? `${physical}__${locale} is empty` : `no index ${physical}__${locale}`,
+      ),
+      fix: "A locale's index is made on its first write: save a product or a translation, or rebuild the index (`POST /admin/search-indexes/product/reindex`).",
+    });
+  }
+  return check({
+    level: "ok",
+    message: `${physical} has an index with documents for each of the ${locales.length} store locales.`,
+  });
 }
 
 // ---------------------------------------------------------------------------------------------
