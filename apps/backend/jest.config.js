@@ -9,6 +9,10 @@ module.exports = {
         jsc: {
           parser: { syntax: "typescript", decorators: true },
         },
+        // Keep `import()` as it is (swc would turn it into `require`): the Meilisearch provider loads
+        // its client, an ES module, that way, and Jest's ESM support (`--experimental-vm-modules`,
+        // set by the test scripts) can load it only through `import()` (T94).
+        module: { type: "commonjs", ignoreDynamic: true },
       },
     ],
   },

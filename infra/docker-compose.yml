@@ -56,13 +56,17 @@ services:
       start_period: 5s
 
   meilisearch:
-    image: getmeili/meilisearch:v1.54.3
+    image: getmeili/meilisearch:v1.56.2
     environment:
       MEILI_ENV: development
       # Fixed local dev key: no account needed, and not a secret. Production uses
       # its own (SPEC §10.5). Apps read it as MEILISEARCH_API_KEY.
       MEILI_MASTER_KEY: shopblok-local-dev-master-key
       MEILI_NO_ANALYTICS: "true"
+      # A volume written by an older engine (v1.54.3 until T94) refuses to start without it
+      # ("Your database version (1.54.3) is incompatible"): upgrade it in place on start. A no-op
+      # when the versions match. Search data is rebuilt from Postgres anyway (`pnpm infra:reset`).
+      MEILI_UPGRADE_DB: "true"
     ports:
       - "${MEILI_PORT:-7701}:7700"
     volumes:
