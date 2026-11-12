@@ -1,6 +1,8 @@
 import type { MedusaContainer } from "@medusajs/framework/types";
 import { ContainerRegistrationKeys, Modules } from "@medusajs/framework/utils";
 
+import { render } from "@shopblok/emails";
+
 import { emailCopyFor, languageFrom, type EmailType } from "./email-copy";
 import { storefrontLink } from "./storefront-url";
 
@@ -12,6 +14,10 @@ import { storefrontLink } from "./storefront-url";
  * `values` (and the recipient as `email`) filled in, or the built-in English (T70, D84); it goes in
  * the notification's `data` with the link, so the local provider prints the subject, the heading
  * and the link. `idempotencyKey` keeps a redelivered event from sending the e-mail twice.
+ *
+ * Since M6 (D121) the same copy is laid out by `@shopblok/emails` and goes in the notification's
+ * `content` (the subject, the HTML and the text): the Resend provider sends that, and the local
+ * provider (no key) prints `data` as before.
  */
 export async function sendStorefrontLink(
   container: MedusaContainer,
@@ -47,9 +53,14 @@ export async function sendStorefrontLink(
     return;
   }
 
-  const copy = await emailCopyFor(container).copyFor(type, languageFrom(metadata), {
-    ...values,
-    email: to,
+  const variables = { ...values, email: to };
+  const copy = await emailCopyFor(container).copyFor(type, languageFrom(metadata), variables);
+  const content = await render(type, {
+    copy: copy.template,
+    variables,
+    url,
+    language: copy.language,
+    shop: { name: await shopName(container) },
   });
 
   await container.resolve(Modules.NOTIFICATION).createNotifications({
@@ -66,6 +77,18 @@ export async function sendStorefrontLink(
       cta: copy.cta,
       language: copy.language,
     },
+    content,
     idempotency_key: idempotencyKey,
   });
+}
+
+/** The name in the e-mail's frame when the store has none (a store Medusa created without one). */
+const FALLBACK_SHOP_NAME = "Shopblok";
+
+/** The store's name in Medusa (Settings → Store), which the e-mail's frame shows. */
+async function shopName(container: MedusaContainer): Promise<string> {
+  const [store] = await container
+    .resolve(Modules.STORE)
+    .listStores({}, { select: ["name"], take: 1 });
+  return store?.name?.trim() || FALLBACK_SHOP_NAME;
 }

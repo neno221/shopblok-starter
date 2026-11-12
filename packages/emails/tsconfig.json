@@ -1,4 +1,4 @@
 {
   "extends": "@shopblok/config/tsconfig.library.json",
-  "include": ["src"]
+  "include": ["src", "tsup.config.ts", "vitest.config.ts"]
 }

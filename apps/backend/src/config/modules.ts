@@ -31,9 +31,11 @@ export function getRedisUrl(env: Env): string | undefined {
  *
  * - Translation: always on. `featureFlags.translation` and `MEDUSA_FF_TRANSLATION` (which
  *   wins over the config) only decide whether its routes answer.
- * - Notification: the local provider logs to the console. It serves `email` (verification
- *   links in M3) and `feed`, because Medusa's own product import/export workflows notify
- *   on `feed` and fail without a provider for it.
+ * - Notification: the local provider logs to the console. It serves `feed`, because Medusa's
+ *   own product import/export workflows notify on `feed` and fail without a provider for it,
+ *   and `email` (verification links since M3) unless Resend has it: with `RESEND_API_KEY` and
+ *   `RESEND_FROM_EMAIL` set, `src/modules/resend` sends `email` (M6 D121). A channel has one
+ *   provider, so the local one then keeps `feed` alone.
  * - Event bus, workflow engine and locking: Redis when `REDIS_URL` is set, otherwise
  *   Medusa's in-memory defaults (dev only).
  * - Caching: only with `REDIS_URL` and `MEDUSA_FF_CACHING=true`. There is no in-memory
@@ -44,11 +46,12 @@ export function getRedisUrl(env: Env): string | undefined {
  *   route do nothing and say so once.
  *
  * Search (`search-postgres`), `file-local`, `analytics-local` and `pp_system_default` are
- * Medusa defaults and stay unregistered here. M6 adds Stripe, Resend, PostHog, S3/R2,
+ * Medusa defaults and stay unregistered here. M6 adds Stripe, Resend (T98), PostHog, S3/R2,
  * Sentry and Meilisearch behind `has(env, ...)` gates in this function.
  */
 export function buildModules(env: Env): InputConfigModules {
   const redisUrl = getRedisUrl(env);
+  const resend = has(env, "RESEND_API_KEY", "RESEND_FROM_EMAIL");
 
   const modules: (ModuleEntry | false)[] = [
     { resolve: "@medusajs/medusa/translation" },
@@ -71,9 +74,22 @@ export function buildModules(env: Env): InputConfigModules {
             id: "local",
             options: {
               name: "Local Notification Provider",
-              channels: ["email", "feed"],
+              channels: resend ? ["feed"] : ["email", "feed"],
             },
           },
+          ...(resend
+            ? [
+                {
+                  resolve: "./src/modules/resend",
+                  id: "resend",
+                  options: {
+                    channels: ["email"],
+                    api_key: env.RESEND_API_KEY?.trim(),
+                    from: env.RESEND_FROM_EMAIL?.trim(),
+                  },
+                },
+              ]
+            : []),
         ],
       },
     },
