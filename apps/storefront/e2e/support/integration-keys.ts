@@ -6,7 +6,7 @@
 // A spec under `e2e/integrations/` calls `skipWithoutKeys(test, "stripe")` first: without the
 // integration's keys the test is skipped with a notice that names the missing secrets, so the job is
 // green on a fork or before a key is added, and says what it did not check.
-import { spawnSync } from "node:child_process";
+import { execFile, spawnSync } from "node:child_process";
 import path from "node:path";
 import type { TestType } from "@playwright/test";
 import type { IntegrationId, IntegrationStatus } from "@shopblok/integrations";
@@ -39,11 +39,37 @@ export function doctorReport(): DoctorReport {
 
 /**
  * Doctor's report with `--online` (T96: Sentry's DSN check), run each time it is asked for: the
- * services it calls may have changed since.
+ * services it calls may have changed since. Asynchronous, unlike `doctorReport`: the service it
+ * calls can be this very process (the Sentry spec's local sink), which must keep answering.
  */
-export function doctorOnline(): DoctorReport {
-  return runDoctor(["--json", "--online"]);
+export function doctorOnline(): Promise<DoctorReport> {
+  const args = ["--json", "--online"];
+  return new Promise((resolve, reject) => {
+    execFile(
+      process.execPath,
+      [path.join("scripts", "doctor.ts"), ...args],
+      { cwd: repoRoot, encoding: "utf8", timeout: 180_000, maxBuffer: 16 * 1024 * 1024 },
+      (error, stdout, stderr) => {
+        // Doctor exits 1 when a check fails: the report says which, so only a missing one is an error.
+        const status = typeof error?.code === "number" ? error.code : error === null ? 0 : null;
+        try {
+          resolve(
+            readReport(args, { stdout, stderr, status, error: status === null ? error : null }),
+          );
+        } catch (failure) {
+          reject(failure);
+        }
+      },
+    );
+  });
 }
+
+type DoctorRun = {
+  stdout: string | undefined;
+  stderr: string | undefined;
+  status: number | null;
+  error?: Error | null;
+};
 
 function runDoctor(args: readonly string[]): DoctorReport {
   const run = spawnSync(process.execPath, [path.join("scripts", "doctor.ts"), ...args], {
@@ -52,11 +78,16 @@ function runDoctor(args: readonly string[]): DoctorReport {
     timeout: 180_000,
     maxBuffer: 16 * 1024 * 1024,
   });
+  return readReport(args, run);
+}
+
+function readReport(args: readonly string[], run: DoctorRun): DoctorReport {
   const failed = (why: string) =>
     new Error(
       `doctor ${args.join(" ")} ${why} (exit ${run.status ?? "none"}): ${(run.stderr ?? "").slice(-400)}`,
     );
-  if (run.error !== undefined) throw failed(`did not run: ${run.error.message}`);
+  if (run.error !== undefined && run.error !== null)
+    throw failed(`did not run: ${run.error.message}`);
   if (!run.stdout?.trim()) throw failed("printed nothing");
   let parsed: unknown;
   try {

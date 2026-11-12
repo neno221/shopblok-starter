@@ -137,8 +137,10 @@ test("a browser error thrown before the SDK loaded reaches Sentry once, through 
   expect(events[0]!.tags).toMatchObject({ loader: "shopblok:sentry-browser" });
 });
 
-test("doctor --online finds both DSNs accepted", () => {
-  const checks = doctorOnline().checks.filter((check) => check.id.startsWith("sentry-envelope"));
+test("doctor --online finds both DSNs accepted", async () => {
+  const checks = (await doctorOnline()).checks.filter((check) =>
+    check.id.startsWith("sentry-envelope"),
+  );
   expect(checks.map((check) => [check.level, check.message])).toEqual(
     checks.map((check) => ["ok", check.message]),
   );
