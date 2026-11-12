@@ -7,8 +7,13 @@ import type { Instrumentation } from "next";
 export async function register() {
   if (process.env.NEXT_RUNTIME !== "nodejs") return;
   if (process.env.NEXT_PUBLIC_SENTRY_DSN) {
-    const { startServerSentry } = await import("./lib/sentry/server");
-    startServerSentry();
+    // An optional integration that cannot start must not stop the jobs timer below.
+    try {
+      const { startServerSentry } = await import("./lib/sentry/server");
+      startServerSentry();
+    } catch (error) {
+      console.error("sentry: could not start:", error);
+    }
   }
   const { env } = await import("./lib/env");
   const { startJobsTimer } = await import("./lib/cms/jobs-timer");

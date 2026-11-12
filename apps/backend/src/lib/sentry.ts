@@ -15,12 +15,13 @@
  * (`getOtlpTracesEndpoint`), as Sentry's "use your own OpenTelemetry pipeline" says; the spans are
  * scrubbed before they leave, since Sentry's `beforeSendSpan` never sees spans sent that way.
  */
+import path from "node:path"
 import { getHttpResponseFromError } from "@medusajs/framework/http"
 import { TransactionOrchestrator } from "@medusajs/framework/orchestration"
 import { SubscriberLoader } from "@medusajs/framework/subscribers"
 import { MedusaError } from "@medusajs/framework/utils"
 import type * as SentryNode from "@sentry/node"
-import { dataCollection, scrubAttributes, scrubHooks, scrubUrl } from "./sentry-scrub"
+import { dataCollection, scrubAttributes, scrubHooks, scrubText, scrubUrl } from "./sentry-scrub"
 
 type Env = Readonly<Record<string, string | undefined>>
 type Sentry = Pick<typeof SentryNode, "captureException" | "withScope">
@@ -42,10 +43,7 @@ export function tracesRate(value: string | undefined): number {
 
 /** The release: `SENTRY_RELEASE`, else the commit Railway or GitHub Actions runs. */
 export const sentryRelease = (env: Env): string | undefined =>
-  env.SENTRY_RELEASE?.trim() ||
-  env.RAILWAY_GIT_COMMIT_SHA?.trim() ||
-  env.GITHUB_SHA?.trim() ||
-  undefined
+  env.SENTRY_RELEASE?.trim() || env.RAILWAY_GIT_COMMIT_SHA?.trim() || env.GITHUB_SHA?.trim() || undefined
 
 /** The options of Medusa's `Sentry.init`, without the SDK's own integrations. */
 export function sentryOptions(env: Env) {
@@ -67,7 +65,11 @@ export function isServerError(error: unknown): boolean {
 
 export type ReportContext = {
   tags?: Record<string, string | number | boolean | undefined>
-  request?: { method?: string; url?: string; headers?: Record<string, unknown> }
+  request?: {
+    method?: string
+    url?: string
+    headers?: Record<string, unknown>
+  }
 }
 
 /** The SDK `report` sends through (`startSentry` sets it; a test sets a fake). */
@@ -75,10 +77,33 @@ export function useSentry(sentry: Sentry | undefined): void {
   state[STATE] = sentry
 }
 
-/** Sends `error` to Sentry with `context`; nothing without a started SDK. */
+/**
+ * The mark of an error already sent. A string key, not a symbol: when a workflow step fails, Medusa
+ * keeps a copy made by `serializeError` (every own property name, but no symbol) and `workflow.run()`
+ * throws that copy, which the route's error handler or the subscriber's wrapper would send again.
+ */
+export const REPORTED = "__shopblokSentryReported"
+
+/** Whether `error`, or the copy Medusa made of it, was sent already. */
+export function wasReported(error: unknown): boolean {
+  return typeof error === "object" && error !== null && (error as Record<string, unknown>)[REPORTED] === true
+}
+
+function markReported(error: unknown): void {
+  if (typeof error !== "object" || error === null || !Object.isExtensible(error)) return
+  // Not enumerable, so it is in no event; `serializeError` copies it all the same.
+  Object.defineProperty(error, REPORTED, {
+    value: true,
+    enumerable: false,
+    configurable: true,
+  })
+}
+
+/** Sends `error` to Sentry with `context`, once; nothing without a started SDK. */
 export function report(error: unknown, context: ReportContext = {}): void {
   const sentry = state[STATE]
-  if (sentry === undefined) return
+  if (sentry === undefined || wasReported(error)) return
+  markReported(error)
   sentry.withScope((scope) => {
     scope.setTag("app", "medusa")
     for (const [name, value] of Object.entries(context.tags ?? {}))
@@ -93,8 +118,8 @@ export function report(error: unknown, context: ReportContext = {}): void {
           url: request.url,
           headers: Object.fromEntries(
             Object.entries(request.headers ?? {}).flatMap(([name, value]) =>
-              typeof value === "string" ? [[name, value]] : [],
-            ),
+              typeof value === "string" ? [[name, value]] : []
+            )
           ),
         },
       }))
@@ -114,44 +139,71 @@ type RequestLike = {
 export function reportRequestError(error: unknown, req: RequestLike): void {
   if (!isServerError(error)) return
   report(error, {
-    tags: { "medusa.route": typeof req.route?.path === "string" ? req.route.path : undefined },
+    tags: {
+      "medusa.route": typeof req.route?.path === "string" ? req.route.path : undefined,
+    },
     // The scrubber (`beforeSend`) keeps only the harmless headers and no value of a key.
-    request: { method: req.method, url: req.originalUrl ?? req.url, headers: req.headers },
+    request: {
+      method: req.method,
+      url: req.originalUrl ?? req.url,
+      headers: req.headers,
+    },
   })
 }
 
-type StepTrace = NonNullable<typeof TransactionOrchestrator.traceStep>
-type StepMetadata = Parameters<StepTrace>[1]
-
-/**
- * A failed workflow step: wraps the step's handler (inside Medusa's own tracing span when
- * `registerOtel` set one), reports a server error and throws it on unchanged. The orchestrator's
- * expected errors (a step skipped, a transaction already moving on) are control flow, not failures.
- */
-export function hookWorkflowSteps(orchestrator: { traceStep?: StepTrace } = TransactionOrchestrator) {
-  const previous = orchestrator.traceStep
-  const traced: StepTrace = (handler, metadata) => {
-    const reported = async (...args: unknown[]) => {
-      try {
-        return await handler(...args)
-      } catch (error) {
-        reportStepFailure(error, metadata)
-        throw error
-      }
-    }
-    return previous ? previous(reported, metadata) : reported()
-  }
-  orchestrator.traceStep = traced
+type StepLike = {
+  failures: number
+  attempts?: number
+  definition: { action?: string }
+  isCompensating?: () => boolean
+}
+type SetStepFailure = (
+  this: unknown,
+  transaction: unknown,
+  step: StepLike,
+  error?: unknown,
+  maxRetries?: number,
+  ...rest: unknown[]
+) => Promise<unknown>
+type OrchestratorLike = {
+  setStepFailure?: SetStepFailure
+  DEFAULT_RETRIES?: number
 }
 
-export function reportStepFailure(error: unknown, metadata: StepMetadata): void {
+/**
+ * A failed workflow step, reported once, on its last attempt: Medusa's orchestrator records every
+ * failure through `setStepFailure` (a step with `maxRetries` fails that many times more before it
+ * gives up), so the wrapper reports when this failure is the permanent one, before Medusa stores
+ * its copy of the error (which then carries the mark, see `REPORTED`). A scheduled job is a
+ * workflow of one step, so its failure is reported here too. The orchestrator's expected errors (a
+ * step skipped, a transaction already moving on) are control flow, and a 4xx is the caller's.
+ */
+export function hookWorkflowSteps(
+  orchestrator: OrchestratorLike = TransactionOrchestrator as unknown as OrchestratorLike
+) {
+  const original = orchestrator.setStepFailure
+  if (typeof original !== "function")
+    throw new MedusaError(
+      MedusaError.Types.UNEXPECTED_STATE,
+      "sentry: Medusa's TransactionOrchestrator has no setStepFailure to wrap"
+    )
+  orchestrator.setStepFailure = async function (transaction, step, error, maxRetries, ...rest) {
+    const retries = maxRetries ?? orchestrator.DEFAULT_RETRIES ?? 0
+    // Medusa counts this failure first (`failures++`), then gives up past `maxRetries`.
+    if (error !== undefined && step.failures + 1 > retries) reportStepFailure(error, step)
+    return original.call(this, transaction, step, error, maxRetries, ...rest)
+  }
+}
+
+export function reportStepFailure(error: unknown, step: StepLike): void {
   if (error instanceof Error && TransactionOrchestrator.isExpectedError(error)) return
   if (!isServerError(error)) return
   report(error, {
     tags: {
-      "medusa.step": metadata.action,
-      "medusa.step_type": metadata.type,
-      "medusa.step_attempt": metadata.attempts,
+      "medusa.step": step.definition.action,
+      "medusa.step_type": step.isCompensating?.() ? "compensate" : "invoke",
+      // This failure included (Medusa counts it right after).
+      "medusa.step_failures": step.failures + 1,
     },
   })
 }
@@ -161,7 +213,9 @@ type SubscriberArgs = {
   config: { event: string | string[]; context?: { subscriberId?: string } }
   handler: (input: { event: { name: string } }) => unknown
 }
-type LoaderLike = { createSubscriber?: (this: unknown, args: SubscriberArgs) => void }
+type LoaderLike = {
+  createSubscriber?: (this: unknown, args: SubscriberArgs) => void
+}
 
 /**
  * A failed subscriber: Medusa's event bus catches what a subscriber throws and only logs a warning,
@@ -174,7 +228,7 @@ export function hookSubscribers(loader: LoaderLike = SubscriberLoader.prototype 
   if (typeof original !== "function")
     throw new MedusaError(
       MedusaError.Types.UNEXPECTED_STATE,
-      "sentry: Medusa's SubscriberLoader has no createSubscriber to wrap",
+      "sentry: Medusa's SubscriberLoader has no createSubscriber to wrap"
     )
   loader.createSubscriber = function (this: unknown, args: SubscriberArgs) {
     const { handler } = args
@@ -184,7 +238,8 @@ export function hookSubscribers(loader: LoaderLike = SubscriberLoader.prototype 
       } catch (error) {
         report(error, {
           tags: {
-            "medusa.subscriber": args.config.context?.subscriberId ?? args.fileName,
+            "medusa.subscriber":
+              args.config.context?.subscriberId ?? path.basename(args.fileName, path.extname(args.fileName)),
             "medusa.event": input?.event?.name,
           },
         })
@@ -196,12 +251,24 @@ export function hookSubscribers(loader: LoaderLike = SubscriberLoader.prototype 
   }
 }
 
-type ReadableSpanLike = { name: string; attributes: Record<string, unknown> }
+type ReadableSpanLike = {
+  name: string
+  attributes: Record<string, unknown>
+  status?: { code?: number; message?: string }
+  events?: { name: string; attributes?: Record<string, unknown> }[]
+}
 
-/** A span on its way out over OTLP, scrubbed in place (its name and every text attribute). */
+/**
+ * A span on its way out over OTLP, scrubbed in place: its name, every text attribute, its status's
+ * message (Medusa's instrumentations put a failed request's or step's `error.message` there) and
+ * its events' attributes (an exception's message and stack).
+ */
 export function scrubOtelSpan(span: ReadableSpanLike): void {
   ;(span as { name: string }).name = scrubUrl(span.name)
   Object.assign(span.attributes, scrubAttributes(span.attributes))
+  if (typeof span.status?.message === "string") span.status.message = scrubText(span.status.message)
+  for (const event of span.events ?? [])
+    if (event.attributes !== undefined) Object.assign(event.attributes, scrubAttributes(event.attributes))
 }
 
 /**
@@ -228,10 +295,7 @@ export async function startSentry(env: Env): Promise<boolean> {
 async function startTracing(dsn: string, rate: number, Sentry: typeof SentryNode) {
   const endpoint = Sentry.getOtlpTracesEndpoint(dsn)
   if (endpoint === undefined)
-    throw new MedusaError(
-      MedusaError.Types.INVALID_DATA,
-      "sentry: SENTRY_DSN is not a DSN Sentry can read",
-    )
+    throw new MedusaError(MedusaError.Types.INVALID_DATA, "sentry: SENTRY_DSN is not a DSN Sentry can read")
   const [{ registerOtel }, { OTLPTraceExporter }, { BatchSpanProcessor, TraceIdRatioBasedSampler }] =
     await Promise.all([
       import("@medusajs/medusa"),

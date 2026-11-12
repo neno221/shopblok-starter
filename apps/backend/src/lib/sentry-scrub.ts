@@ -90,31 +90,51 @@ function scrubRequest(request: Request): Request {
   return out;
 }
 
-/** `beforeBreadcrumb`: navigation `from`/`to`, fetch and xhr `url`, and the message, scrubbed. */
+/** A key whose text value is a URL (or a path), so its fragment goes too. */
+const URL_NAME = /url|from|^to$|href|path|referer|target|route|query/i;
+/** How deep `scrubValue` walks: Sentry's own normalisation stops at 3 levels by default. */
+const MAX_DEPTH = 8;
+
+/**
+ * Any value as it can sit in a breadcrumb's `data`, a context or `extra`, scrubbed all the way
+ * down: text through `scrubText` (or `scrubUrl` under a URL's name), the value under a sensitive
+ * name dropped, arrays and objects walked, an `Error` (a console breadcrumb's arguments hold them)
+ * turned into its scrubbed name and message. A copy: nothing given is changed.
+ */
+export function scrubValue(value: unknown, name = "", depth = 0): unknown {
+  if (typeof value === "string") return URL_NAME.test(name) ? scrubUrl(value) : scrubText(value);
+  if (value === null || typeof value !== "object") return value;
+  if (depth >= MAX_DEPTH) return "[Filtered]";
+  if (value instanceof Error) return scrubText(`${value.name}: ${value.message}`);
+  if (Array.isArray(value)) return value.map((item) => scrubValue(item, name, depth + 1));
+  return Object.fromEntries(
+    Object.entries(value).map(([key, item]) => [
+      key,
+      sensitiveName(key) && item !== null && item !== undefined && typeof item !== "boolean"
+        ? FILTERED
+        : scrubValue(item, key, depth + 1),
+    ]),
+  );
+}
+
+/**
+ * `beforeBreadcrumb`: the message and the whole of `data` (navigation `from`/`to`, fetch and xhr
+ * `url`, and a console breadcrumb's `arguments`, the raw values the shop logged).
+ */
 export function scrubBreadcrumb(breadcrumb: Breadcrumb): Breadcrumb {
   const data = breadcrumb.data;
   return {
     ...breadcrumb,
     ...(breadcrumb.message === undefined ? {} : { message: scrubText(breadcrumb.message) }),
-    ...(data === undefined
-      ? {}
-      : {
-          data: Object.fromEntries(
-            Object.entries(data).map(([name, value]) => [
-              name,
-              /url|from|to|href|path/i.test(name)
-                ? scrubMaybe(value, scrubUrl)
-                : scrubMaybe(value, scrubText),
-            ]),
-          ),
-        }),
+    ...(data === undefined ? {} : { data: scrubValue(data) as Record<string, unknown> }),
   };
 }
 
 /**
  * Every part of an error or a transaction that can carry a URL, a key or an address: the request
  * (cookies, body and headers but the harmless ones dropped), the user (only an id), the messages,
- * the exceptions' values, the transaction's name, the tags and the breadcrumbs.
+ * the exceptions' values, the transaction's name, the tags, the breadcrumbs, the contexts and
+ * `extra`.
  */
 export function scrubEvent<T extends Event>(event: T): T {
   const out: T = { ...event };
@@ -140,6 +160,10 @@ export function scrubEvent<T extends Event>(event: T): T {
       Object.entries(out.tags).map(([name, value]) => [name, scrubMaybe(value, scrubText)]),
     );
   if (out.breadcrumbs !== undefined) out.breadcrumbs = out.breadcrumbs.map(scrubBreadcrumb);
+  // `contexts.nextjs.request_path` (the storefront's `onRequestError`), the runtime's and the
+  // trace's: all walked, as `extra` is.
+  if (out.contexts !== undefined) out.contexts = scrubValue(out.contexts) as T["contexts"];
+  if (out.extra !== undefined) out.extra = scrubValue(out.extra) as T["extra"];
   if (out.spans !== undefined)
     out.spans = out.spans.map((span) => ({
       ...span,
@@ -173,7 +197,7 @@ export function scrubSpan<T extends SpanLike>(span: T): T {
   };
 }
 
-/** The hooks Medusa's `Sentry.init` passes. */
+/** The hooks every `Sentry.init` passes (the storefront's server, browser and Payload; Medusa's). */
 export const scrubHooks = {
   beforeSend: (event: ErrorEvent) => scrubEvent(event),
   beforeBreadcrumb: (breadcrumb: Breadcrumb) => scrubBreadcrumb(breadcrumb),

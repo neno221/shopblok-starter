@@ -110,12 +110,69 @@ describe("beforeBreadcrumb", () => {
     expect(leaks(scrubHooks.beforeBreadcrumb(breadcrumb))).toEqual([]);
   });
 
+  it("scrubs a console breadcrumb's raw arguments, an Error among them, all the way down", () => {
+    const crumb = scrubHooks.beforeBreadcrumb({
+      category: "console",
+      level: "error",
+      message: "form: the submission could not be stored",
+      data: {
+        logger: "console",
+        arguments: [
+          "form: the submission could not be stored",
+          new Error("No customer for ann@example.com"),
+          { link: "/reset-password?token=s3cr3t-token", nested: [{ password: "s3cr3t-token" }] },
+        ],
+      },
+    });
+    expect(leaks(crumb)).toEqual([]);
+    expect(crumb.data?.arguments).toEqual([
+      "form: the submission could not be stored",
+      "Error: No customer for [email]",
+      { link: `/reset-password?token=${FILTERED}`, nested: [{ password: FILTERED }] },
+    ]);
+  });
+
   it("keeps what is harmless", () => {
     const crumb = scrubBreadcrumb({
       category: "fetch",
       data: { url: "/us/store?page=2", status_code: 500 },
     });
     expect(crumb.data).toEqual({ url: "/us/store?page=2", status_code: 500 });
+  });
+});
+
+describe("contexts and extra", () => {
+  it("scrubs Next's request path, under a name the deny list does not hold, and extra", () => {
+    const out = scrubHooks.beforeSend({
+      type: undefined,
+      contexts: {
+        nextjs: {
+          request_path: "/us/search?q=ann@example.com",
+          router_kind: "App Router",
+        },
+        trace: { trace_id: "t", span_id: "s" },
+      },
+      extra: { lookup: { by: "ann%40example.com", session: "sid=abc" } },
+    });
+    expect(leaks(out)).toEqual([]);
+    expect(out.contexts?.nextjs).toEqual({
+      request_path: "/us/search?q=[email]",
+      router_kind: "App Router",
+    });
+    expect(out.contexts?.trace).toEqual({ trace_id: "t", span_id: "s" });
+    expect(out.extra).toEqual({ lookup: { by: "[email]", session: FILTERED } });
+  });
+});
+
+// The backend's copy (`apps/backend/src/lib/sentry-scrub.ts`, which Medusa's CommonJS build cannot
+// import from here) must be this file but for its opening comment and the SDK it takes types from.
+describe("the backend's copy", () => {
+  const body = (file: string) =>
+    readFileSync(new URL(file, import.meta.url), "utf8")
+      .replace(/^(\/\/.*\n)+/, "")
+      .replace(/^import type .* from "@sentry\/(nextjs|node)";\n/m, "");
+  it("holds the same rules", () => {
+    expect(body("../../../../backend/src/lib/sentry-scrub.ts")).toBe(body("./scrub.ts"));
   });
 });
 

@@ -20,17 +20,25 @@
       // build freezes (T95's `remotePatterns`); without it strict mode would drop the value CI's
       // `integrations-live` passes, and `next build` would read the blank one in `.env` (PR 134
       // review, item 2). In the hash, since another URL is another build.
+      // `SENTRY_ENVIRONMENT`, `SENTRY_RELEASE` and `SENTRY_TRACES_SAMPLE_RATE` (M6 D125, T96):
+      // `next.config.ts` writes them into the bundles, so they are in the hash (the DSN is a
+      // `NEXT_PUBLIC_*` name, which Turborepo's Next.js inference hashes already).
       "env": [
         "$TURBO_EXTENDS$",
         "PAYLOAD_*",
         "DESIGN_SYSTEM_ENABLED",
         "STOREFRONT_PRERENDER_PRODUCTS",
         "STOREFRONT_LISTING_PAGE_SIZE",
-        "S3_PUBLIC_URL"
+        "S3_PUBLIC_URL",
+        "SENTRY_ENVIRONMENT",
+        "SENTRY_RELEASE",
+        "SENTRY_TRACES_SAMPLE_RATE"
       ],
       // `STOREFRONT_BUILD_WORKERS` (W6 item 7): how many workers prerender, which changes how fast
       // the build is, not what it builds, so it passes through without entering the hash.
-      "passThroughEnv": ["STOREFRONT_BUILD_WORKERS"]
+      // `SENTRY_AUTH_TOKEN`, `SENTRY_ORG` and `SENTRY_PROJECT` (T96): only the source maps' upload
+      // reads them (they change nothing in the build), and the token is a secret, kept out of the hash.
+      "passThroughEnv": ["STOREFRONT_BUILD_WORKERS", "SENTRY_AUTH_TOKEN", "SENTRY_ORG", "SENTRY_PROJECT"]
     },
     "test": {
       // `src/lib/markets/medusa-locales.test.ts` reads Medusa's locale list from the backend's

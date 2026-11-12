@@ -102,8 +102,9 @@ export type KeptOut = {
   label: string;
   /**
    * The build variable without which the module is not built at all (T96: Sentry's browser SDK
-   * exists only in a build with `NEXT_PUBLIC_SENTRY_DSN`). When the check runs without it, the row
-   * is said, not judged; with it, the row is checked as any other.
+   * exists only in a build with `NEXT_PUBLIC_SENTRY_DSN`). A module the build holds is checked as
+   * any other; one it does not hold is "not built" when this run lacks the variable too, and a
+   * failure when the run has it (the marker changed).
    */
   onlyWith?: string;
 };
@@ -457,14 +458,16 @@ export function checkKeptOut(
   const notes: string[] = [];
   const lines: string[][] = [["kept-out module", "chunk", "gzip KB", "result"]];
   for (const item of list) {
-    if (item.onlyWith !== undefined && !buildEnv[item.onlyWith]?.trim()) {
+    const found = chunks.filter((each) => each.text.includes(item.marker));
+    // The build decides: a module whose marker is there is judged whatever this run's environment
+    // says (the build may have read the variable from `.env`, which this check does not).
+    if (found.length === 0 && item.onlyWith !== undefined && !buildEnv[item.onlyWith]?.trim()) {
       lines.push([item.module, "-", "-", "not built"]);
       notes.push(
-        `${item.module} (${item.label}) is built only with ${item.onlyWith}, which this run does not have: not checked.`,
+        `${item.module} (${item.label}) is built only with ${item.onlyWith}: neither the build nor this run has it, so there is nothing to check.`,
       );
       continue;
     }
-    const found = chunks.filter((each) => each.text.includes(item.marker));
     if (found.length === 0) {
       lines.push([item.module, "-", "-", "NOT FOUND"]);
       failures.push(

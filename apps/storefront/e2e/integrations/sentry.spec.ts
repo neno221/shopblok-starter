@@ -105,14 +105,17 @@ test("a Payload 500 reaches Sentry once, scrubbed", async () => {
   if (event) expect(event.tags).toMatchObject({ app: "payload" });
 });
 
-/** Throws `text` in the page as soon as its HTML is parsed, and notes whether Sentry was there. */
+/**
+ * Throws `text` in the page's `load` event and notes whether Sentry was there. `load` waits for every
+ * script, so `instrumentation-client.ts`'s queue is listening by then (an error at
+ * `DOMContentLoaded` can come before the async script runs, and nothing would catch it), while the
+ * SDK comes only after the browser is idle; this listener is added first, so it runs first.
+ */
 async function throwBeforeTheSdk(page: Page, text: string) {
   await page.addInitScript((message) => {
-    addEventListener("DOMContentLoaded", () => {
+    addEventListener("load", () => {
       (window as { sdkBefore?: boolean }).sdkBefore = "__SENTRY__" in window;
-      setTimeout(() => {
-        throw new Error(message);
-      });
+      throw new Error(message);
     });
   }, text);
 }
@@ -122,9 +125,12 @@ test("a browser error thrown before the SDK loaded reaches Sentry once, through 
 }) => {
   const text = `${marker}-browser`;
   await throwBeforeTheSdk(page, text);
+  // The envelope that holds this error: the SDK's first one is the session's, which says nothing.
   const tunnel = page.waitForResponse(
     (response) =>
-      new URL(response.url()).pathname === "/monitoring" && response.request().method() === "POST",
+      new URL(response.url()).pathname === "/monitoring" &&
+      response.request().method() === "POST" &&
+      (response.request().postDataBuffer()?.toString("utf8") ?? "").includes(text),
     { timeout: 30_000 },
   );
   await page.goto(`/us?${query}#email=ann@example.com`);

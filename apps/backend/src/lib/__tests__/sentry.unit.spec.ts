@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs"
 import path from "node:path"
-import { MedusaError } from "@medusajs/framework/utils"
+import { MedusaError, serializeError } from "@medusajs/framework/utils"
 import { SubscriberLoader } from "@medusajs/framework/subscribers"
 import { TransactionOrchestrator } from "@medusajs/framework/orchestration"
 import {
@@ -28,12 +28,19 @@ const leaks = (value: unknown) => SECRETS.filter((secret) => JSON.stringify(valu
 
 /** A fake SDK: each report as the event Sentry would build from its scope, scrubbed. */
 function fakeSentry() {
-  const events: { error: unknown; tags: Record<string, unknown>; request?: unknown }[] = []
+  const events: {
+    error: unknown
+    tags: Record<string, unknown>
+    request?: unknown
+  }[] = []
   type Processor = (event: Record<string, unknown>) => Record<string, unknown>
   let scope: { tags: Record<string, unknown>; processors: Processor[] } | undefined
   const sentry = {
     withScope(run: (scope: unknown) => void) {
-      const current = { tags: {} as Record<string, unknown>, processors: [] as Processor[] }
+      const current = {
+        tags: {} as Record<string, unknown>,
+        processors: [] as Processor[],
+      }
       scope = current
       run({
         setTag: (name: string, value: unknown) => (current.tags[name] = value),
@@ -46,7 +53,11 @@ function fakeSentry() {
         (built, processor) => processor(built),
         {}
       )
-      events.push({ error, tags: scope?.tags ?? {}, request: scrubEvent(event).request })
+      events.push({
+        error,
+        tags: scope?.tags ?? {},
+        request: scrubEvent(event).request,
+      })
       return ""
     },
   }
@@ -67,11 +78,17 @@ describe("the scrubber (the shared cases)", () => {
       request: {
         url: "/store/customers?token=s3cr3t-token&email=ann%40example.com",
         cookies: { connect: "sid=abc" },
-        headers: { cookie: "sid=abc", authorization: "Bearer s3cr3t-token", "user-agent": "jest" },
+        headers: {
+          cookie: "sid=abc",
+          authorization: "Bearer s3cr3t-token",
+          "user-agent": "jest",
+        },
         data: { password: "s3cr3t-token" },
       },
       user: { id: "cus_1", email: "ann@example.com" },
-      exception: { values: [{ value: "GET /auth/verify?code=c0de-42 failed" }] },
+      exception: {
+        values: [{ value: "GET /auth/verify?code=c0de-42 failed" }],
+      },
       breadcrumbs: [{ category: "http", data: { url: "/x?code=c0de-42" } }],
     })
     expect(leaks(out)).toEqual([])
@@ -80,10 +97,40 @@ describe("the scrubber (the shared cases)", () => {
     expect(out.user).toEqual({ id: "cus_1" })
   })
 
+  it("scrubs nested values: a console breadcrumb's arguments, the contexts and extra", () => {
+    const out = scrubHooks.beforeSend({
+      type: undefined,
+      breadcrumbs: [
+        {
+          category: "console",
+          data: { arguments: ["failed", new Error("No customer for ann@example.com")] },
+        },
+      ],
+      contexts: { request: { path: "/customers/ann%40example.com" } },
+      extra: { body: { password: "s3cr3t-token" } },
+    })
+    expect(leaks(out)).toEqual([])
+    expect(out.extra).toEqual({ body: { password: FILTERED } })
+  })
+
   it("scrubs a span sent over OTLP, in place", () => {
     const span = {
       name: "GET /auth/verify?code=c0de-42",
-      attributes: { "http.url": "/reset?token=s3cr3t-token", "query.fields": "id,title" },
+      attributes: {
+        "http.url": "/reset?token=s3cr3t-token",
+        "query.fields": "id,title",
+      },
+      // Medusa's instrumentations set a failed request's message as the status's.
+      status: {
+        code: 2,
+        message: "No customer for ann@example.com (token=s3cr3t-token)",
+      },
+      events: [
+        {
+          name: "exception",
+          attributes: { "exception.message": "code=c0de-42 is wrong" },
+        },
+      ],
     }
     scrubOtelSpan(span)
     expect(leaks(span)).toEqual([])
@@ -104,7 +151,12 @@ describe("the options", () => {
       environment: "staging",
       release: "abc123",
       enableOpenTelemetrySetup: false,
-      dataCollection: { userInfo: false, cookies: false, httpBodies: [], stackFrameVariables: false },
+      dataCollection: {
+        userInfo: false,
+        cookies: false,
+        httpBodies: [],
+        stackFrameVariables: false,
+      },
     })
   })
 
@@ -135,14 +187,21 @@ describe("what is reported", () => {
     const req = {
       method: "GET",
       originalUrl: "/e2e/throw?marker=m1&token=s3cr3t-token",
-      headers: { cookie: "sid=abc", authorization: "Bearer s3cr3t-token", "user-agent": "jest" },
+      headers: {
+        cookie: "sid=abc",
+        authorization: "Bearer s3cr3t-token",
+        "user-agent": "jest",
+      },
       route: { path: "/e2e/throw" },
     }
     reportRequestError(new Error("boom"), req)
     reportRequestError(new MedusaError(MedusaError.Types.INVALID_DATA, "bad"), req)
     reportRequestError(new MedusaError(MedusaError.Types.NOT_FOUND, "none"), req)
     expect(events).toHaveLength(1)
-    expect(events[0]!.tags).toMatchObject({ app: "medusa", "medusa.route": "/e2e/throw" })
+    expect(events[0]!.tags).toMatchObject({
+      app: "medusa",
+      "medusa.route": "/e2e/throw",
+    })
     expect(events[0]!.request).toEqual({
       method: "GET",
       url: `/e2e/throw?marker=m1&token=${FILTERED}`,
@@ -151,45 +210,56 @@ describe("what is reported", () => {
     expect(isServerError(new MedusaError(MedusaError.Types.DB_ERROR, "db"))).toBe(true)
   })
 
-  it("a workflow step's server error, inside Medusa's own tracing when it has one", async () => {
+  it("a workflow step's server error, once, on its last attempt, and not again from Medusa's copy", async () => {
     const { sentry, events } = fakeSentry()
     useSentry(sentry)
-    const traced: string[] = []
-    const orchestrator: { traceStep?: NonNullable<typeof TransactionOrchestrator.traceStep> } = {
-      traceStep: async (handler, metadata) => {
-        traced.push(metadata.action)
-        return handler()
+    const stored: unknown[] = []
+    const orchestrator = {
+      DEFAULT_RETRIES: 0,
+      // Medusa's: counts the failure, then keeps `serializeError`'s copy of the error.
+      async setStepFailure(
+        _transaction: unknown,
+        step: { failures: number },
+        error?: unknown,
+        _retries?: number
+      ) {
+        step.failures++
+        stored.push(serializeError(error))
+        return {}
       },
     }
-    hookWorkflowSteps(orchestrator)
-    const metadata = {
-      action: "payload-reconcile-as-step",
-      type: "invoke" as const,
-      step_id: "s",
-      step_uuid: "u",
-      attempts: 1,
+    hookWorkflowSteps(orchestrator as never)
+    const step = () => ({
       failures: 0,
-      async: false,
-      idempotency_key: "k",
-    }
-    await expect(orchestrator.traceStep!(async () => "done", metadata)).resolves.toBe("done")
-    const boom = new Error("job failed")
-    await expect(orchestrator.traceStep!(async () => Promise.reject(boom), metadata)).rejects.toBe(boom)
-    await expect(
-      orchestrator.traceStep!(
-        async () => Promise.reject(new MedusaError(MedusaError.Types.INVALID_DATA, "no")),
-        metadata
-      )
-    ).rejects.toThrow("no")
-    expect(traced).toHaveLength(3)
-    expect(events.map((event) => event.error)).toEqual([boom])
-    expect(events[0]!.tags).toMatchObject({ "medusa.step": "payload-reconcile-as-step" })
+      definition: { action: "payload-reconcile-as-step" },
+      isCompensating: () => false,
+    })
+    // A step with two retries: its first two failures are not the last.
+    const retried = step()
+    const flaky = new Error("job failed")
+    for (let attempt = 0; attempt < 3; attempt++) await orchestrator.setStepFailure({}, retried, flaky, 2)
+    expect(events.map((event) => event.error)).toEqual([flaky])
+    expect(events[0]!.tags).toMatchObject({
+      "medusa.step": "payload-reconcile-as-step",
+      "medusa.step_type": "invoke",
+      "medusa.step_failures": 3,
+    })
+    // `workflow.run()` throws Medusa's copy: the route's error handler sends it no second time.
+    reportRequestError(stored.at(-1), { method: "POST", url: "/store/x" })
+    expect(events).toHaveLength(1)
+    // A step's 4xx is the caller's; no retries given means Medusa's default (none).
+    await orchestrator.setStepFailure({}, step(), new MedusaError(MedusaError.Types.INVALID_DATA, "no"))
+    const once = new Error("no retries")
+    await orchestrator.setStepFailure({}, step(), once, undefined)
+    expect(events.map((event) => event.error)).toEqual([flaky, once])
   })
 
   it("a subscriber that failed, keeping the handler's name (Medusa's subscriber id)", async () => {
     const { sentry, events } = fakeSentry()
     useSentry(sentry)
-    const registered: { handler: (input: { event: { name: string } }) => unknown }[] = []
+    const registered: {
+      handler: (input: { event: { name: string } }) => unknown
+    }[] = []
     const loader = {
       createSubscriber(args: { handler: (input: { event: { name: string } }) => unknown }) {
         registered.push(args)
@@ -200,7 +270,7 @@ describe("what is reported", () => {
       throw new Error("subscriber failed")
     }
     loader.createSubscriber({
-      fileName: "order-placed.ts",
+      fileName: "/app/.medusa/server/src/subscribers/order-placed.js",
       config: { event: "order.placed" },
       handler: orderPlacedHandler,
     } as never)
@@ -209,7 +279,7 @@ describe("what is reported", () => {
       "subscriber failed"
     )
     expect(events[0]!.tags).toMatchObject({
-      "medusa.subscriber": "order-placed.ts",
+      "medusa.subscriber": "order-placed",
       "medusa.event": "order.placed",
     })
   })
@@ -219,8 +289,9 @@ describe("what is reported", () => {
       "function"
     )
     expect(typeof TransactionOrchestrator.isExpectedError).toBe("function")
-    expect("traceStep" in TransactionOrchestrator || TransactionOrchestrator.traceStep === undefined).toBe(
-      true
+    expect(typeof (TransactionOrchestrator as unknown as { setStepFailure?: unknown }).setStepFailure).toBe(
+      "function"
     )
+    expect((TransactionOrchestrator as unknown as { DEFAULT_RETRIES?: unknown }).DEFAULT_RETRIES).toBe(0)
   })
 })

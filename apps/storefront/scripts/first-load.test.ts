@@ -593,6 +593,18 @@ describe("the kept-out modules (D102)", () => {
     ]);
   });
 
+  it("judges such a module whenever the build holds it, even if this run lacks the variable", () => {
+    // The DSN only in `.env`: `next build` read it, the check's own environment did not.
+    const sentry = keptOut.filter((item) => item.onlyWith === "NEXT_PUBLIC_SENTRY_DSN");
+    const inFirstLoad = [
+      chunks[0]!,
+      { chunk: market.firstLoadChunkPaths[0]!, text: `x="${sentry[0]!.marker}"` },
+    ];
+    expect(checkKeptOut(rows, sentry, inFirstLoad, sizes, {}).failures).toEqual([
+      expect.stringContaining("is in the first load of"),
+    ]);
+  });
+
   it("does not judge the design system's routes, which draw every member at once (T83)", () => {
     const own = ".next/static/chunks/design-system-only.js";
     const withDesignSystem = [
