@@ -291,14 +291,19 @@ const appPath = (app: AppName): string => `apps/${app}`;
 export function describeMissing(status: IntegrationStatus): string {
   const missing = status.parts.filter((part) => part.missing.length > 0);
   const [first] = missing;
-  // The same keys in both apps (R2, Resend): say it once.
-  if (
-    first !== undefined &&
-    status.parts.length > 1 &&
-    missing.length === status.parts.length &&
-    missing.every((part) => part.missing.join() === first.missing.join())
-  ) {
-    return `${first.missing.join(", ")} (each app)`;
+  // Keys missing in every app (Resend's, R2's shared ones): said once, then each app's own extra
+  // ones (R2's `S3_PRIVATE_BUCKET`, the backend's only: M6 D127).
+  if (first !== undefined && status.parts.length > 1 && missing.length === status.parts.length) {
+    const common = first.missing.filter((key) =>
+      missing.every((part) => part.missing.includes(key)),
+    );
+    if (common.length > 0) {
+      const extras = missing
+        .map((part) => ({ part, own: part.missing.filter((key) => !common.includes(key)) }))
+        .filter(({ own }) => own.length > 0)
+        .map(({ part, own }) => `${own.join(", ")} (${appPath(part.app)})`);
+      return [`${common.join(", ")} (each app)`, ...extras].join("; ");
+    }
   }
   return missing.map((part) => `${part.missing.join(", ")} (${appPath(part.app)})`).join("; ");
 }

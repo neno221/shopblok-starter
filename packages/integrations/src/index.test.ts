@@ -231,6 +231,13 @@ describe("INTEGRATION_KEYS", () => {
 });
 
 describe("describeMissing", () => {
+  it("says R2's shared keys once and the backend's private bucket on its own", () => {
+    const r2 = getIntegrationStatus({ backend: {}, storefront: {} }).find((s) => s.id === "r2")!;
+    expect(describeMissing(r2)).toBe(
+      "S3_ENDPOINT, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY, S3_BUCKET, S3_PUBLIC_URL (each app); S3_PRIVATE_BUCKET (apps/backend)",
+    );
+  });
+
   it("does not say 'each app' about an integration that lives in one", () => {
     const meilisearch = byId(getIntegrationStatus(none), "meilisearch");
     expect(describeMissing(meilisearch)).toBe(

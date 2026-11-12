@@ -489,12 +489,15 @@ jobs:
         env:
           STRIPE_API_KEY: ${{ secrets.STRIPE_API_KEY }}
           NEXT_PUBLIC_STRIPE_KEY: ${{ secrets.NEXT_PUBLIC_STRIPE_KEY }}
+        # Matched with the white space taken out, as doctor and the apps read a key (trimmed): a
+        # secret saved as " sk_live_…" is still a live key (PR 134 review, item 5).
         run: |
-          case "$STRIPE_API_KEY" in sk_live_* | rk_live_*) echo "::error title=Live Stripe key::The STRIPE_API_KEY secret is a live key. CI uses test keys only (M6 D115): replace it with the test mode's secret key (sk_test_…)."; exit 1 ;; esac
-          case "$NEXT_PUBLIC_STRIPE_KEY" in pk_live_*) echo "::error title=Live Stripe key::The NEXT_PUBLIC_STRIPE_KEY secret is a live key. CI uses test keys only (M6 D115): replace it with the test mode's publishable key (pk_test_…)."; exit 1 ;; esac
-          for name in STRIPE_API_KEY NEXT_PUBLIC_STRIPE_KEY; do
-            if [ -n "${!name}" ]; then echo "$name: set (a test key)"; else echo "$name: not set"; fi
-          done
+          secret="$(printf '%s' "$STRIPE_API_KEY" | tr -d '[:space:]')"
+          publishable="$(printf '%s' "$NEXT_PUBLIC_STRIPE_KEY" | tr -d '[:space:]')"
+          case "$secret" in sk_live_* | rk_live_*) echo "::error title=Live Stripe key::The STRIPE_API_KEY secret is a live key. CI uses test keys only (M6 D115): replace it with the test mode's secret key (sk_test_…)."; exit 1 ;; esac
+          case "$publishable" in pk_live_*) echo "::error title=Live Stripe key::The NEXT_PUBLIC_STRIPE_KEY secret is a live key. CI uses test keys only (M6 D115): replace it with the test mode's publishable key (pk_test_…)."; exit 1 ;; esac
+          if [ -n "$secret" ]; then echo "STRIPE_API_KEY: set (a test key)"; else echo "STRIPE_API_KEY: not set"; fi
+          if [ -n "$publishable" ]; then echo "NEXT_PUBLIC_STRIPE_KEY: set (a test key)"; else echo "NEXT_PUBLIC_STRIPE_KEY: not set"; fi
       - uses: actions/checkout@v7.0.1
       - uses: ./.github/actions/setup
       - run: pnpm install --frozen-lockfile
@@ -599,6 +602,7 @@ jobs:
       # D114: every key-shaped string, and the value of every key the job holds, is masked in the
       # files that are uploaded: GitHub masks secrets in a step's output, not in an artifact.
       - name: Mask the keys in the logs and reports
+        id: mask
         if: always()
         env:
           STRIPE_API_KEY: ${{ secrets.STRIPE_API_KEY }}
@@ -612,9 +616,10 @@ jobs:
           NEXT_PUBLIC_POSTHOG_KEY: ${{ secrets.NEXT_PUBLIC_POSTHOG_KEY }}
         run: node scripts/mask-keys.ts "$RUNNER_TEMP/servers" apps/storefront/test-results-integrations
       # Screenshots are not text the mask can read: the upload takes only text files (the servers'
-      # logs, the failures' error-context.md).
+      # logs, the failures' error-context.md). Only after the mask succeeded: a mask that failed
+      # partway, or never ran, would upload logs that were not masked (D114; PR 134 review, item 1).
       - name: Upload the masked server logs and failures
-        if: always()
+        if: ${{ always() && steps.mask.outcome == 'success' }}
         uses: actions/upload-artifact@v7.0.2
         with:
           name: integrations-live

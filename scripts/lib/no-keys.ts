@@ -1,4 +1,4 @@
-// What `pnpm check:keys` looks for (M6 D115, T93): a key of Stripe, Resend or AWS written into a
+// What `pnpm check:keys` looks for (M6 D115, T93): a key of Stripe, Resend, R2 or AWS written into a
 // file. Pure: the files' text comes in, the findings go out, and `scripts/check-no-keys.ts` does the
 // reading. A finding never holds the key itself, only where it is and what kind it is, so the check's
 // output (CI's log) does not repeat the leak.
@@ -44,6 +44,18 @@ export const KEY_KINDS: readonly KeyKind[] = [
     id: "resend",
     name: "Resend API key",
     pattern: new RegExp(`${word}re_[A-Za-z0-9_]{20,}`, "g"),
+  },
+  {
+    // R2's key pair is plain hex (32 and 64 characters), which no prefix tells apart from a hash, so
+    // it is looked for only as the value of its own name (`S3_SECRET_ACCESS_KEY=…`, `: "…"`). The
+    // lookbehind keeps the name out of the match, so a masked log still says which key it was
+    // (PR 134 review, item 6). An empty `S3_SECRET_ACCESS_KEY=` in `.env.example` does not match.
+    id: "s3-key",
+    name: "S3/R2 access key",
+    pattern: new RegExp(
+      `(?<=${word}S3_(?:ACCESS_KEY_ID|SECRET_ACCESS_KEY)[ \\t]*[=:][ \\t]*["']?)[A-Za-z0-9/+]{20,}`,
+      "g",
+    ),
   },
   {
     id: "aws-access-key",

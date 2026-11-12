@@ -258,16 +258,38 @@ const STRIPE_KEYS: readonly { app: keyof AppEnvs; name: string }[] = [
 ];
 
 /**
- * Test mode only, outside production (M6 D115): a live Stripe key in development, in a test run or in
- * a cloud session charges real cards. Each app is judged by its own `NODE_ENV` (the shell's, else its
- * `.env`'s), so a production backend beside a development storefront is still caught. The value is
- * never printed, only the variable's name and the kind of key.
+ * Whether an app runs as production, and what says so. On Vercel `VERCEL_ENV` decides: Vercel builds
+ * and runs every deployment, previews included, with `NODE_ENV=production`, so only
+ * `VERCEL_ENV=production` counts there (PR 134 review, item 4). Elsewhere `NODE_ENV` does.
+ */
+function productionStage(env: Record<string, string | undefined>): {
+  production: boolean;
+  said: string;
+} {
+  const vercelEnv = (env.VERCEL_ENV ?? "").trim();
+  if (vercelEnv !== "")
+    return { production: vercelEnv === "production", said: `VERCEL_ENV ${vercelEnv}` };
+  const nodeEnv = (env.NODE_ENV ?? "").trim();
+  return {
+    production: nodeEnv === "production",
+    said: `NODE_ENV ${nodeEnv === "" ? "not set" : nodeEnv}`,
+  };
+}
+
+/**
+ * Test mode only, outside production (M6 D115): a live Stripe key in development, in a test run, in a
+ * cloud session or in a Vercel preview charges real cards. Each app is judged by its own environment
+ * (the shell's, else its `.env`'s; `productionStage`), so a production backend beside a development
+ * storefront is still caught. The value is never printed, only the variable's name and the kind of
+ * key.
  */
 function stripeLiveKeys(envs: AppEnvs): Check[] {
   const live = STRIPE_KEYS.filter(({ app, name }) => {
     const value = (envs[app][name] ?? "").trim();
-    const nodeEnv = (envs[app].NODE_ENV ?? "").trim();
-    return nodeEnv !== "production" && STRIPE_LIVE_PREFIXES.some((p) => value.startsWith(p));
+    return (
+      !productionStage(envs[app]).production &&
+      STRIPE_LIVE_PREFIXES.some((p) => value.startsWith(p))
+    );
   });
   if (live.length === 0) return [];
   return [
@@ -276,11 +298,11 @@ function stripeLiveKeys(envs: AppEnvs): Check[] {
       title: "Stripe test mode",
       level: "error",
       message:
-        "A live Stripe key is set outside NODE_ENV=production. Development, tests and cloud sessions use test keys only, so that no real card is charged.",
-      details: live.map(({ app, name }) => {
-        const nodeEnv = (envs[app].NODE_ENV ?? "").trim();
-        return `apps/${app}: ${name} is a live key (NODE_ENV ${nodeEnv === "" ? "not set" : nodeEnv})`;
-      }),
+        "A live Stripe key is set outside production (NODE_ENV=production, or VERCEL_ENV=production on Vercel). Development, tests, cloud sessions and previews use test keys only, so that no real card is charged.",
+      details: live.map(
+        ({ app, name }) =>
+          `apps/${app}: ${name} is a live key (${productionStage(envs[app]).said})`,
+      ),
       fix: "Use the test keys from Stripe's Dashboard in test mode (sk_test_…, pk_test_…); live keys belong only in production's environment.",
     },
   ];

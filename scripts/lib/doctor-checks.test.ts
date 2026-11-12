@@ -112,6 +112,22 @@ describe("configChecks: Stripe's live keys outside production (M6 D115)", () => 
     );
     expect(find(both, "stripe-live-key")).toBeUndefined();
   });
+
+  it("on Vercel, allows live keys only where VERCEL_ENV is production, whatever NODE_ENV says", () => {
+    const preview = withStripe(
+      { STRIPE_API_KEY: "sk_live_fake", NODE_ENV: "production", VERCEL_ENV: "preview" },
+      { NEXT_PUBLIC_STRIPE_KEY: "pk_live_fake", NODE_ENV: "production", VERCEL_ENV: "preview" },
+    );
+    expect(find(preview, "stripe-live-key")?.details).toEqual([
+      "apps/backend: STRIPE_API_KEY is a live key (VERCEL_ENV preview)",
+      "apps/storefront: NEXT_PUBLIC_STRIPE_KEY is a live key (VERCEL_ENV preview)",
+    ]);
+    const production = withStripe(
+      { STRIPE_API_KEY: "sk_live_fake", NODE_ENV: "production", VERCEL_ENV: "production" },
+      { NEXT_PUBLIC_STRIPE_KEY: "pk_live_fake", NODE_ENV: "production", VERCEL_ENV: "production" },
+    );
+    expect(find(production, "stripe-live-key")).toBeUndefined();
+  });
 });
 
 describe("configChecks: email verification", () => {

@@ -1,5 +1,5 @@
-// What the live checks know about the keys (M6 D114, T93): `pnpm run doctor --json`, run once per
-// worker from the repo root. Doctor reads each app's variables from the shell over its `.env` file,
+// What the live checks know about the keys (M6 D114, T93): `doctor --json`, run once per worker
+// from the repo root. Doctor reads each app's variables from the shell over its `.env` file,
 // so the same answer holds in CI's `integrations-live` job (the keys exported from GitHub's secrets)
 // and on a PC (the keys in the `.env` files). Its JSON holds names and states only, never a value.
 //
@@ -26,23 +26,43 @@ export type DoctorReport = {
 const repoRoot = path.resolve(import.meta.dirname, "..", "..", "..", "..");
 let cached: DoctorReport | undefined;
 
-/** Doctor's report, as JSON. Its exit code is not the point here: an error is in the report. */
+/**
+ * Doctor's report, as JSON. Its exit code is not the point here: an error is in the report. Doctor is
+ * started as `pnpm run doctor` starts it (`node scripts/doctor.ts`), with this process's own Node:
+ * `spawnSync("pnpm")` finds no `pnpm` on Windows, where it is `pnpm.cmd` (PR 134 review, item 3).
+ */
 export function doctorReport(): DoctorReport {
   if (cached !== undefined) return cached;
-  const run = spawnSync("pnpm", ["--silent", "run", "doctor", "--json"], {
+  const run = spawnSync(process.execPath, [path.join("scripts", "doctor.ts"), "--json"], {
     cwd: repoRoot,
     encoding: "utf8",
     timeout: 180_000,
     maxBuffer: 16 * 1024 * 1024,
   });
-  try {
-    cached = JSON.parse(run.stdout) as DoctorReport;
-  } catch {
-    throw new Error(
-      `pnpm run doctor --json printed no JSON (exit ${run.status ?? "none"}): ${run.stderr.slice(-400)}`,
+  const failed = (why: string) =>
+    new Error(
+      `doctor --json ${why} (exit ${run.status ?? "none"}): ${(run.stderr ?? "").slice(-400)}`,
     );
+  if (run.error !== undefined) throw failed(`did not run: ${run.error.message}`);
+  if (!run.stdout?.trim()) throw failed("printed nothing");
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(run.stdout);
+  } catch {
+    throw failed("printed no JSON");
   }
+  if (!isReport(parsed)) throw failed("printed JSON without an integrations list");
+  cached = parsed;
   return cached;
+}
+
+function isReport(value: unknown): value is DoctorReport {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    Array.isArray((value as { integrations?: unknown }).integrations) &&
+    Array.isArray((value as { checks?: unknown }).checks)
+  );
 }
 
 /** The integration's status out of doctor's report. */

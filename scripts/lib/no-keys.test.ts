@@ -6,6 +6,7 @@ import { ALLOWED_FAKE_KEYS, describeFindings, findKeys, isBinary, maskKeys } fro
 const fill = (n: number, chars = "aB3dE5gH7jK9mN1pQ") => chars.repeat(4).slice(0, n);
 const key = (prefix: string, n = 24) => `${prefix}${fill(n)}`;
 
+const hex = (n: number) => "0123456789abcdef".repeat(8).slice(0, n);
 const kinds = (text: string) => findKeys("f.ts", text).map((f) => f.kind);
 
 describe("findKeys", () => {
@@ -17,6 +18,21 @@ describe("findKeys", () => {
     expect(kinds(`STRIPE_WEBHOOK_SECRET=${key("whsec_", 32)}`)).toEqual(["stripe-webhook"]);
     expect(kinds(`RESEND_API_KEY=re_${fill(8)}_${fill(24)}`)).toEqual(["resend"]);
     expect(kinds(`id: ${"AKIA"}${"ABCDEFGHIJKLMNOP"}`)).toEqual(["aws-access-key"]);
+    expect(kinds(`S3_SECRET_ACCESS_KEY=${hex(64)}`)).toEqual(["s3-key"]);
+    expect(kinds(`  S3_ACCESS_KEY_ID: "${hex(32)}"`)).toEqual(["s3-key"]);
+  });
+
+  it("finds R2's hex keys only as the value of their own names", () => {
+    for (const text of [
+      "S3_SECRET_ACCESS_KEY=",
+      "S3_ACCESS_KEY_ID=",
+      "S3_ACCESS_KEY_ID: ${{ secrets.S3_ACCESS_KEY_ID }}",
+      `checksum=${hex(64)}`,
+      `MY_S3_SECRET_ACCESS_KEY=${hex(64)}`,
+      `S3_SECRET_ACCESS_KEY=${hex(12)}`,
+    ]) {
+      expect(kinds(text), text).toEqual([]);
+    }
   });
 
   it("finds two keys on one line, and gives the line", () => {
@@ -76,6 +92,10 @@ describe("maskKeys", () => {
     expect(maskKeys(text, [dsn, "", "short"])).toBe(
       "start STRIPE_API_KEY=***\nSentry *** ready\nkey *** ok",
     );
+  });
+
+  it("masks R2's key but keeps its name", () => {
+    expect(maskKeys(`S3_SECRET_ACCESS_KEY=${hex(64)} ok`)).toBe("S3_SECRET_ACCESS_KEY=*** ok");
   });
 
   it("masks a value that holds a key-shaped part as a whole", () => {

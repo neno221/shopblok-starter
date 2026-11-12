@@ -16,12 +16,17 @@
       // returns, so it is frozen into the build too, and strict mode would drop it from `pnpm build`
       // without this line. CI sets it to 4 (T42); T49 is the first code that reads it.
       // `STOREFRONT_LISTING_PAGE_SIZE` (T50): the listing pages' first pages are built with it.
+      // `S3_PUBLIC_URL` (M6 D127): R2's public URL, whose host goes into the image settings the
+      // build freezes (T95's `remotePatterns`); without it strict mode would drop the value CI's
+      // `integrations-live` passes, and `next build` would read the blank one in `.env` (PR 134
+      // review, item 2). In the hash, since another URL is another build.
       "env": [
         "$TURBO_EXTENDS$",
         "PAYLOAD_*",
         "DESIGN_SYSTEM_ENABLED",
         "STOREFRONT_PRERENDER_PRODUCTS",
-        "STOREFRONT_LISTING_PAGE_SIZE"
+        "STOREFRONT_LISTING_PAGE_SIZE",
+        "S3_PUBLIC_URL"
       ],
       // `STOREFRONT_BUILD_WORKERS` (W6 item 7): how many workers prerender, which changes how fast
       // the build is, not what it builds, so it passes through without entering the hash.
