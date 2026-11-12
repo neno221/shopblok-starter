@@ -98,6 +98,12 @@ export type KeptOut = {
   marker: string;
   /** What the module is, for the messages. */
   label: string;
+  /**
+   * The build variable without which the module is not built at all (T96: Sentry's browser SDK
+   * exists only in a build with `NEXT_PUBLIC_SENTRY_DSN`). When the check runs without it, the row
+   * is said, not judged; with it, the row is checked as any other.
+   */
+  onlyWith?: string;
 };
 
 /**
@@ -204,6 +210,14 @@ export const keptOut: readonly KeptOut[] = [
     marker: `shopblok:${marker}`,
     label: `${label} (T87)`,
   })),
+  // T96 (M6 D129): Sentry's browser SDK, imported by `instrumentation-client.ts` once the page is
+  // idle, and only in a build with a DSN (`integrations-live` builds one).
+  {
+    module: "src/lib/sentry/browser.ts",
+    marker: "shopblok:sentry-browser",
+    label: "Sentry's browser SDK (T96)",
+    onlyWith: "NEXT_PUBLIC_SENTRY_DSN",
+  },
 ];
 
 export type StatsRow = {
@@ -435,10 +449,19 @@ export function checkKeptOut(
   list: readonly KeptOut[],
   chunks: readonly ChunkText[],
   gzipOf: (chunk: string) => number,
+  buildEnv: Readonly<Record<string, string | undefined>> = {},
 ): Report {
   const failures: string[] = [];
+  const notes: string[] = [];
   const lines: string[][] = [["kept-out module", "chunk", "gzip KB", "result"]];
   for (const item of list) {
+    if (item.onlyWith !== undefined && !buildEnv[item.onlyWith]?.trim()) {
+      lines.push([item.module, "-", "-", "not built"]);
+      notes.push(
+        `${item.module} (${item.label}) is built only with ${item.onlyWith}, which this run does not have: not checked.`,
+      );
+      continue;
+    }
     const found = chunks.filter((each) => each.text.includes(item.marker));
     if (found.length === 0) {
       lines.push([item.module, "-", "-", "NOT FOUND"]);
@@ -474,7 +497,7 @@ export function checkKeptOut(
       .join("  ")
       .trimEnd(),
   );
-  return { table, failures, notes: [] };
+  return { table, failures, notes };
 }
 
 /** `--budget "<route>=<KB>"`, repeatable: the budget for that route in this run only. */
@@ -517,6 +540,7 @@ export function run(
   fail: (line: string) => void,
   tableBudgets: readonly Budget[] = budgets,
   keepOut: readonly KeptOut[] = keptOut,
+  buildEnv: Readonly<Record<string, string | undefined>> = {},
 ): number {
   const args = parseArgs(argv);
   if ("usage" in args) {
@@ -553,11 +577,16 @@ export function run(
       fail(`first-load: cannot read ${chunksDir}: ${reason}\nRun \`pnpm build\` first.`);
       return 1;
     }
-    kept = checkKeptOut(rows, keepOut, chunks, (chunk) =>
-      gzipBytes(readFileSync(path.join(root, chunk))),
+    kept = checkKeptOut(
+      rows,
+      keepOut,
+      chunks,
+      (chunk) => gzipBytes(readFileSync(path.join(root, chunk))),
+      buildEnv,
     );
     print("Kept out of every route's first load (D102), each chunk gzipped:");
     for (const line of kept.table) print(line);
+    for (const note of kept.notes) print(note);
   }
   const failures = [...report.failures, ...kept.failures];
   if (failures.length > 0) {
@@ -597,5 +626,9 @@ if (
     root,
     (line) => console.log(line),
     (line) => console.error(errorLine(line, github)),
+    budgets,
+    keptOut,
+    // The environment of the build: the check runs right after it, in the same job (T96).
+    process.env,
   );
 }

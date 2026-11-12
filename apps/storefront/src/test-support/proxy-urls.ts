@@ -13,6 +13,7 @@ export const storefrontPaths = [
   "/administrator", // starts like /admin, is a storefront path
   "/apis",
   "/nextstep",
+  "/monitoringx", // starts like /monitoring, is a storefront path
   "/design-systems", // starts like /design-system, is a storefront path
   "/design-system-2/en",
   "/_not-found",
@@ -23,7 +24,10 @@ export const storefrontPaths = [
   "/cy/evil.example/x", // the dot is not in the last segment
 ];
 
-/** Paths the proxy leaves alone: Payload's, the DS pages, `/next`, Next's and Vercel's, and files. */
+/**
+ * Paths the proxy leaves alone: Payload's, the DS pages, `/next`, Sentry's tunnel (`/monitoring`,
+ * T96), Next's and Vercel's, and files.
+ */
 export const pathsLeftAlone = [
   "/admin",
   "/admin/",
@@ -39,6 +43,8 @@ export const pathsLeftAlone = [
   "/design-system/de/frame/atoms/button",
   "/next/preview",
   "/next/exit-preview",
+  "/monitoring", // Sentry's tunnel (T96)
+  "/monitoring/",
   "/_next/static/chunks/main.js",
   "/_next/image",
   "/_next/data/build/index.json",

@@ -1,6 +1,7 @@
 import { availableParallelism } from "node:os";
 import { fileURLToPath } from "node:url";
 import { withPayload } from "@payloadcms/next/withPayload";
+import { withSentryConfig } from "@sentry/nextjs/config";
 import type { NextConfig } from "next";
 import { PHASE_DEVELOPMENT_SERVER, PHASE_PRODUCTION_BUILD } from "next/constants";
 import createNextIntlPlugin from "next-intl/plugin";
@@ -32,7 +33,10 @@ function buildConfig(phase: string): NextConfig {
     // reads it. Without this, a build without the flag would still prerender one DS path and render
     // the others on request, reading the runtime environment (`dynamicParams = false` is a build
     // error under Cache Components). It is always `"true"` or `"false"`, never undefined.
-    env: { DESIGN_SYSTEM_ENABLED: designSystemBuildFlag() },
+    //
+    // T96 (M6 D125): Sentry's environment, release (the commit) and traces' rate, written into the
+    // server's and the browser's bundles alike, so both report the same; blank without them.
+    env: { DESIGN_SYSTEM_ENABLED: designSystemBuildFlag(), ...sentryBuildEnv(process.env) },
     turbopack: { root: repoRoot },
     outputFileTracingRoot: repoRoot,
     // `/design-system` has no page of its own; the locale is a path segment (D33). Not permanent: the
@@ -74,7 +78,51 @@ function buildConfig(phase: string): NextConfig {
 // `next build` and `next dev` run; Turbopack refuses an absolute one.
 const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 
+/**
+ * T96 (M6 D125): the values `lib/sentry/options.ts` reads, fixed at build. The release is
+ * `SENTRY_RELEASE`, else the commit Vercel or GitHub Actions builds.
+ */
+export function sentryBuildEnv(source: NodeJS.ProcessEnv): Record<string, string> {
+  return {
+    SENTRY_ENVIRONMENT: source.SENTRY_ENVIRONMENT?.trim() ?? "",
+    SENTRY_RELEASE:
+      source.SENTRY_RELEASE?.trim() ||
+      source.VERCEL_GIT_COMMIT_SHA?.trim() ||
+      source.GITHUB_SHA?.trim() ||
+      "",
+    SENTRY_TRACES_SAMPLE_RATE: source.SENTRY_TRACES_SAMPLE_RATE?.trim() ?? "",
+  };
+}
+
+/**
+ * T96 (M6 D125): Sentry's build step, outermost, only for a build with `NEXT_PUBLIC_SENTRY_DSN`; a
+ * build without one is exactly what it was before M6. It uploads the source maps only with
+ * `SENTRY_AUTH_TOKEN` (and `SENTRY_ORG`, `SENTRY_PROJECT`), and deletes them after, so the site
+ * never serves them. The rest is off: no route manifest in the browser's bundle (D129's first load),
+ * no build-time instrumentation of server packages (the shop traces nothing by default), no
+ * telemetry to Sentry about the build. The tunnel is the shop's own route (`app/monitoring`), not
+ * the SDK's rewrite.
+ */
+export function withSentry<C>(nextConfig: C, source: NodeJS.ProcessEnv): C {
+  if (!source.NEXT_PUBLIC_SENTRY_DSN?.trim()) return nextConfig;
+  const authToken = source.SENTRY_AUTH_TOKEN?.trim() || undefined;
+  return withSentryConfig(nextConfig, {
+    org: source.SENTRY_ORG?.trim() || undefined,
+    project: source.SENTRY_PROJECT?.trim() || undefined,
+    authToken,
+    silent: true,
+    telemetry: false,
+    sourcemaps: { disable: authToken === undefined, deleteSourcemapsAfterUpload: true },
+    useRunAfterProductionCompileHook: authToken !== undefined,
+    routeManifestInjection: false,
+    buildTimeInstrumentation: false,
+  });
+}
+
 // `withPayload` takes the config object, so it wraps what the function returns for each phase.
 export default function config(phase: string): NextConfig {
-  return withNextIntl(withPayload(buildConfig(phase), { devBundleServerPackages: false }));
+  return withSentry(
+    withNextIntl(withPayload(buildConfig(phase), { devBundleServerPackages: false })),
+    process.env,
+  );
 }

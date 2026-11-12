@@ -551,9 +551,11 @@ describe("the kept-out modules (D102)", () => {
     })),
   ];
   const sizes = () => 1234;
+  // A build with Sentry's DSN (T96): Sentry's browser SDK exists only then.
+  const withDsn = { NEXT_PUBLIC_SENTRY_DSN: "https://public@o1.ingest.sentry.io/1" };
 
   it("passes a module whose chunk no route loads at first, with its size", () => {
-    const report = checkKeptOut(rows, keptOut, chunks, sizes);
+    const report = checkKeptOut(rows, keptOut, chunks, sizes, withDsn);
     expect(report.failures).toEqual([]);
     expect(report.table.join("\n")).toMatch(/kept-0\.js\s+1\.2\s+kept out/);
     expect(report.table.filter((line) => /kept out$/.test(line))).toHaveLength(keptOut.length);
@@ -561,7 +563,7 @@ describe("the kept-out modules (D102)", () => {
 
   it("fails one in a first load, naming each route, and one whose marker is in no chunk", () => {
     const loaded = [{ ...chunks[1]!, chunk: market.firstLoadChunkPaths[0]! }, ...chunks.slice(2)];
-    expect(checkKeptOut(rows, keptOut, loaded, sizes).failures).toEqual([
+    expect(checkKeptOut(rows, keptOut, loaded, sizes, withDsn).failures).toEqual([
       expect.stringContaining(
         `is in the first load of ${rows
           .filter(
@@ -573,9 +575,22 @@ describe("the kept-out modules (D102)", () => {
           .join(", ")}.`,
       ),
     ]);
-    expect(checkKeptOut(rows, keptOut, [chunks[0]!], sizes).failures).toEqual(
+    expect(checkKeptOut(rows, keptOut, [chunks[0]!], sizes, withDsn).failures).toEqual(
       keptOut.map(() => expect.stringContaining("no chunk holds its marker")),
     );
+  });
+
+  it("says, and does not judge, a module the build has only with a variable it lacks (T96)", () => {
+    const sentry = keptOut.filter((item) => item.onlyWith === "NEXT_PUBLIC_SENTRY_DSN");
+    expect(sentry.map((item) => item.module)).toEqual(["src/lib/sentry/browser.ts"]);
+    const report = checkKeptOut(rows, sentry, [chunks[0]!], sizes, { NEXT_PUBLIC_SENTRY_DSN: " " });
+    expect(report.failures).toEqual([]);
+    expect(report.table.join("\n")).toMatch(/browser\.ts\s+-\s+-\s+not built/);
+    expect(report.notes).toEqual([expect.stringContaining("only with NEXT_PUBLIC_SENTRY_DSN")]);
+    // With the DSN, a build without the SDK's chunk fails, as any stale row does.
+    expect(checkKeptOut(rows, sentry, [chunks[0]!], sizes, withDsn).failures).toEqual([
+      expect.stringContaining("no chunk holds its marker"),
+    ]);
   });
 
   it("does not judge the design system's routes, which draw every member at once (T83)", () => {
