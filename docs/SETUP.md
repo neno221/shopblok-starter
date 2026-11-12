@@ -9750,3 +9750,87 @@ The review (`reviews/pr-137-code-review.md` in the project's files) found 4 must
 8. A subscriber's tag is its id or its file's base name, not the absolute path.
 9. `first-load.ts` decides `onlyWith` from the build (the marker), not from the check's environment; a test with the SDK in a first load and no DSN in the run.
 11. The storefront's `scrub.test.ts` checks the backend's copy of the scrubber is the same file but for its opening comment and its import.
+
+## Consent and PostHog (T97)
+
+**Result: the visitor's cookie choice is kept in the `_shopblok_consent` cookie (`v1.<analytics>.<marketing>.<date>`; a new `CONSENT_VERSION` asks again) and reopened from "Cookie settings" in the five footers and on the policy page, a link to `/<market>/privacy#cookie-settings` without scripts and the dialog with the switches as chosen with them. With `NEXT_PUBLIC_POSTHOG_KEY` and analytics consent, `posthog-js` (its own 52 KB chunk, in no first load) starts and sends page views and the shop's six events, each with `market` and `locale`, through the site's own `/ingest`; a withdrawal stops it at once and removes PostHog's cookie and storage. Every cart write and place-order put the cookies' consent and PostHog's distinct id into the cart's `metadata` (or delete them), and Medusa's Analytics Module sends `cart_created`, `order_placed` and `order_canceled` only for a consented cart or order. Without the keys nothing changes: the build holds no event call and no loader, `/ingest` is no route and no request goes out (the keyless fixture). `doctor` checks the keys and, `--online`, that PostHog takes them. The live spec runs in `integrations-live` against a local PostHog stand-in while the PostHog secrets are not set, and passed locally (5 of 5). The first load grows by about 1.8 KB without a key (the consent cookie and the settings control) and 2.8 KB with one; see "The first load" for the budgets.** D123, D124, D129, D130 (plans/M6.md §5 T97).
+
+| | |
+|---|---|
+| Date | 2026-11-12 |
+| Branch | `claude/project-thread-ls26xy`, from `main` at `8a9013a` (PR 137's merge, T96) |
+| PR | this PR, "T97: consent and PostHog" |
+| Packages | `posthog-js` **1.447.12** (the storefront; the slim build without external scripts, `posthog-js/dist/module.slim.no-external`); the backend uses Medusa's own `@medusajs/medusa/analytics-posthog` (it brings `posthog-node` 5.61.3) |
+
+### The cookie and "Cookie settings" (D123)
+
+- **`src/lib/visitor/consent-cookie.ts`:** the value `v<version>.<analytics>.<marketing>.<YYYY-MM-DD>` (the day of the choice, UTC); a cookie of another version, or one we did not write, is no choice. Twelve months, `Path=/`, `SameSite=Lax`, `Secure` on https, written by the browser (`document.cookie`), so a prerendered page stays the same for everyone (ADR 0004). The visitor store's source reads it after hydration, and the server's cart actions read it from the request.
+- **`src/lib/visitor/consent.ts`:** `chooseConsent` writes the cookie, puts the choice in the store and tells its listeners (the analytics gate and the cart's action); the settings dialog's small store (open, and the control that opened it).
+- **The control:** any link on the site to `#cookie-settings`. The footers' contract has `cookieSettingsHref` (the fixtures give `<policy>#cookie-settings`), drawn in the legal row of all five footers with `prefetch={false}` and a 44 px row (D32); the privacy page's seed has its own link in the text. The consent island takes a plain click on such a link (in the capture phase, ahead of next/link), opens the dialog with the switches as chosen and gives focus back to the link when it closes; a page opened at `#cookie-settings` (a click before hydration) opens it too. No new island.
+- **The ui organism:** `CookieConsent` takes `settingsOpen`, `onSettingsOpenChange`, `settingsFinalFocus` and `defaultSwitches`; the DS story "dialog-analytics" draws it reopened with analytics on.
+
+### PostHog in the browser (D124, D129)
+
+- **`track(event, properties)`** (`src/lib/analytics/track.ts`, in the first load only with a key): nothing without the literal `process.env.NEXT_PUBLIC_POSTHOG_KEY`, nothing without analytics consent in the cookie at the moment of the call; otherwise a queue of at most 20 events until the loader takes them. **Every call site checks the literal itself** (the islands, `TrackOnView`, `trackAdded`, `trackSignedUp`): a guard inside `track()` alone left the calls and their strings in the keyless first load.
+- **The gate** (`gate.ts`, started by the consent island only with a key): after hydration and after each choice it reads the cookie; with analytics consent it imports the loader once and starts it; without, it stops it, which clears PostHog's storage; with no consent but PostHog's storage left (a withdrawal in another tab) it removes it. It follows the store's customer: `identify(<Medusa id>)` on sign-in, `reset()` on sign-out. Its `import("./loader")` is behind the literal too, so a keyless build has no loader chunk at all.
+- **The loader** (`loader.ts`, its own chunk, marker `shopblok:posthog-loader`): `posthog.init` with `api_host: "/ingest"`, opted out and without storage until consent (`opt_out_capturing_by_default`, `opt_out_persistence_by_default`), `person_profiles: "identified_only"`, page views on history changes, and autocapture, session recording, surveys, heatmaps, flags, the toolbar and external scripts off; `register({ market, locale })` (the market's key and its Medusa locale, such as `en-us` and `en-US`, the same values Medusa's events carry).
+- **The events:** `product_viewed` (the buy box), `product_added_to_cart` (the buy box and the quick view: product, variant, quantity, price, currency, `source`), `cart_viewed` (the cart page and the drawer), `checkout_started` (the checkout's first step, once per tab per cart), `search_performed` (query, results, page), `market_switched` (from, to, `source`), and `signed_up` (the register action leaves a five-minute cookie, `_shopblok_signed_up`, only with a key and consent; the next page's island sends the event and removes it).
+- **PostHog drops headless browsers:** `posthog-js` takes a user agent or brand that says `HeadlessChrome`, or `navigator.webdriver`, for a bot and sends nothing. The shop keeps the filter; the live spec browses as Chromium's ordinary user agent without the webdriver flag.
+
+### `/ingest` and the trailing slash
+
+`next.config.ts` puts two rewrites in `beforeFiles`, only in a build with the key: `/ingest/static/:path*` to the region's assets host and `/ingest/:path*` to its ingest host (`NEXT_PUBLIC_POSTHOG_HOST`, the EU's when blank; another host, such as the sink, takes both). The proxy's matcher skips `/ingest`. **Next's own trailing-slash redirect answered `posthog-js`'s `POST /ingest/e/` with a 308 before any rewrite** (checked on `next start` with a probe app), so, as the plan's step 3 offers: `skipTrailingSlashRedirect: true`, and `src/proxy.ts` makes the same 308 for every other path (`withoutTrailingSlash`; a second matcher entry, `/((?!ingest/).*/)`, reaches the paths the first one skips, so `/admin/` and `/api/x/` still lose their slash). `proxy-urls.ts` lists the pairs, and `next-config.test.ts` and `proxy.test.ts` check both sides; the live spec checks `POST /ingest/e/` answers 200 with no redirect.
+
+### The server: the cart's metadata and Medusa's events (D124)
+
+- **The cart's `metadata`:** `analytics_consent: true` and `posthog_distinct_id` (from PostHog's cookie) when the request's consent cookie says analytics, neither otherwise; and `market_key` (the market's key). Every cart write compares and writes once more when they differ (`withConsent`), a new cart is created with them, place-order makes them the request's before `complete` (`syncConsentOf`), and the consent island's action (`syncCartConsent`) does it after each choice and once PostHog has made the distinct id. **Medusa merges an update's `metadata` into the cart's and deletes a key sent as `""`** (checked against Medusa 2.22.6's store API), so the update holds the two keys only, `""` to remove one. Medusa copies the cart's metadata to the order.
+- **Medusa:** the Analytics Module is always registered (`src/config/modules.ts`): PostHog with `POSTHOG_EVENTS_API_KEY` (host `POSTHOG_HOST`, the EU's when blank), Medusa's local provider otherwise. Three subscribers (`src/subscribers/analytics-{cart-created,order-placed,order-canceled}.ts`, through `src/lib/analytics.ts`) send only when the cart's or order's `metadata.analytics_consent` is `true`, as the visitor's distinct id (else the customer, else the cart or order with `$process_person_profile: false`), with `market` and `locale`; an error is logged and swallowed.
+
+### `doctor`
+
+- **Offline, "PostHog keys":** an error when a key is set but is not a project key (`phc_…`; a personal key, `phx_…`, is named as a secret that must not go into the browser's bundle) or a host is not an http(s) host; a warning when the two apps send to two projects (Medusa's order events would not join the visitor's). `@shopblok/integrations` marks PostHog `wired`.
+- **`--online`, "PostHog accepts the key":** one check per key and host, a `POST <host>/flags/?v=2` with the key and a fixed distinct id (`shopblok-doctor`), which records no event: 2xx `ok`, 401 or 403 an error, anything else a warning. No key is printed.
+- **`pnpm check:keys`** also refuses a PostHog personal key (`phx_` and 20 or more characters) in any file.
+
+### The specs and CI
+
+- **`e2e/consent.spec.ts`** (keyless, `e2e-smoke`, on the third-party fixture that fails a test on any request to PostHog or `/ingest`): the choice kept across a reload and reopened from the footer as chosen; reopened from the keyboard, withdrawn, focus back on the control; the policy page's own link and a page opened at `#cookie-settings`; without scripts the control is a link to the policy page; a cookie of version 0 asks again.
+- **`e2e/integrations/posthog.spec.ts`:** nothing before consent; after analytics consent a page view, `product_viewed` and `product_added_to_cart` with `market: en-us` and `locale: en-US`, each `POST /ingest/e/` answered 200 with no redirect; withdrawn, PostHog's cookie and storage gone and no request more; with the sink, `cart_created` and `order_placed` from Medusa as the visitor's distinct id; nothing for an order placed without consent, nor for one whose consent was withdrawn on the review page; `doctor --online` finds the keys accepted.
+- **How it differs from the plan:** a local PostHog stand-in (`e2e/support/posthog-sink.ts`, `http://127.0.0.1:8971`, key `phc_ShopblokE2eSinkStandIn`; not a key, the sink takes any) instead of Playwright's routing when the secrets are missing. Routing answers the browser before Next's rewrite, so it could not show the 308 or the rewrite, and Medusa's events need an HTTP server anyway. The sink reads bodies gzipped (by header, query or first bytes), base64 or plain.
+- **`integrations-live`:** without the secrets `NEXT_PUBLIC_POSTHOG_KEY` and `POSTHOG_EVENTS_API_KEY`, both apps get the sink's key and host, so the spec always runs; with them, the real key and `vars.NEXT_PUBLIC_POSTHOG_HOST`/`vars.POSTHOG_HOST`. The first-load step with the public keys gets the PostHog key too. Set both secrets or neither.
+
+### The first load (D129)
+
+Each chunk gzipped on its own and summed (`check:first-load`), in bytes. "With the keys" is `integrations-live`'s build: the Sentry and PostHog sinks' DSN and key.
+
+| Route | `main` (`8a9013a`), no keys | This PR, no keys | `main`, with a DSN | This PR, with the keys | Budget |
+|---|---|---|---|---|---|
+| `/[market]/products/[handle]` | 343,451 | 345,309 (+1,858) | 343,888 | 346,741 (+2,853) | 337 KB (345,088) |
+| `/[market]/store` (and the other listings) | 344,225 | 346,037 (+1,812) | 344,663 | 347,446 (+2,783) | 338 KB (346,112) |
+| `/[market]` | 328,003 | 329,815 (+1,812) | 328,439 | 331,224 (+2,785) | not budgeted |
+| `/[market]/search` | 330,139 | 332,024 (+1,885) | 330,575 | 333,569 (+2,994) | not budgeted |
+
+Without a key the growth is the consent cookie's code, the settings store, the click handler and the dialog's reopened state, which every build needs (D123). With a key, `track()`, the gate and PostHog's storage cleanup add about 1 KB. `posthog-js` is in no first load: `first-load.ts` keeps `src/lib/analytics/loader.ts` out (marker `shopblok:posthog-loader`, `onlyWith: NEXT_PUBLIC_POSTHOG_KEY`; 52.4 KB gzipped with a key, "not built" without). BUDGET_DECISION
+
+### The baselines (D51)
+
+`update-baselines` on the branch (run 43295238970, commit `63eae25`): **138 PNGs changed, none new or deleted, 37,746,056 bytes (36.00 MB) added; the set is 795 PNGs, 94.21 MB.** They are the five footers (15 cells and their five thumbnails, the "Cookie settings" link in the legal row), every template that draws a footer (39 templates × 3 widths, English), `organisms/cookie-consent` (3, the dialog-analytics story) and `molecules/promo-code-field` en-1440 (a few bytes, unrelated, as in T99). Within D51's lines: under half a set per update (47 MB), and the baselines' history (every version of every PNG under `e2e/__screenshots__/` and `public/registry/`, summed from a full clone) is 158.0 MB (150.6 MiB) of 200 MB, up from 123.1 MB on `main`. That leaves about 42 MB: an update that redraws every template again (a footer or header change) would take most of it.
+
+### Checks (cloud VM)
+
+- The live spec against the sink, with Medusa (`POSTHOG_EVENTS_API_KEY` and `POSTHOG_HOST` the sink's) and the storefront built and started with the sink's key and host and the Sentry sink's DSN: 5 of 5 pass. With them, `consent.spec.ts`, `shell.spec.ts`, `markets.spec.ts`, `redirects.spec.ts`, `checkout-us.spec.ts`, `checkout-cy.spec.ts`, `markets-switch.spec.ts` and `auth.spec.ts`: 86 of 86.
+- The keyless build: `consent.spec.ts`, `shell.spec.ts`, `checkout-us.spec.ts`, `quick-view.spec.ts` and `cms-pages.spec.ts` pass (no request to `/ingest`); `check:first-load` lists the loader as not built.
+- Unit tests: the consent cookie and store, the island (settings reopened, focus back), `track()`, the gate, the loader's options, the events, `TrackOnView`, the cart's metadata (through the SDK), the proxy's redirects and `next.config.ts`'s rewrites, the five footers' "Cookie settings", doctor's PostHog checks, `check:keys`' `phx_`, `first-load.test.ts`, `posthog-sink.test.ts`, and the backend's analytics (10) and modules tests.
+- **The mutations** (each fails a check):
+  1. `track()` sending without consent (the cookie check removed) fails two of `track.test.ts`'s tests.
+  2. Place-order keeping the cart's earlier consent (no `syncConsentOf` before `complete`) fails "places the order only after taking a withdrawn consent out of the cart" in `cart.test.ts`; and the update that left the keys out instead of sending `""` (this PR's first version) failed the live spec's "withdrawn on the review page" case: Medusa kept the consent and sent `order_placed`.
+  3. The backend's consent check removed (`analyticsActor` without `metadata.analytics_consent === true`) fails three of `analytics.unit.spec.ts`'s tests.
+- `pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm check:keys`: green.
+
+### Turning on PostHog
+
+1. In PostHog (EU cloud by default), the project's API key: Settings → Project → Project API key (`phc_…`). Never the personal API key (`phx_…`): `doctor` and `check:keys` refuse it.
+2. The storefront: `NEXT_PUBLIC_POSTHOG_KEY` (Vercel's variables, or `apps/storefront/.env`), and `NEXT_PUBLIC_POSTHOG_HOST` only for the US cloud (`https://us.i.posthog.com`). Both are read when `next build` runs (the rewrites too), so a new key needs a new build.
+3. The backend: `POSTHOG_EVENTS_API_KEY` with the same key, and `POSTHOG_HOST` only for the US cloud.
+4. For CI's live check: the secrets `NEXT_PUBLIC_POSTHOG_KEY` and `POSTHOG_EVENTS_API_KEY` (both), and the variables for a US host. Without them `integrations-live` checks against its sink.
+5. `pnpm doctor --online` finds the key accepted; PostHog's Activity page shows the events after a consented visit and order.
