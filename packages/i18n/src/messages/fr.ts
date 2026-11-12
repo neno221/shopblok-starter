@@ -397,6 +397,7 @@ export const fr: Messages = {
       socialLink: "{store} sur {network}",
       payment: "Moyens de paiement",
       newTab: "S’ouvre dans un nouvel onglet",
+      cookieSettings: "Paramètres des cookies",
     },
     cookieConsent: {
       region: "Consentement aux cookies",
@@ -409,7 +410,7 @@ export const fr: Messages = {
       choose: "Choisir les cookies",
       dialogTitle: "Préférences de cookies",
       dialogDescription:
-        "Choisissez les cookies que nous pouvons utiliser. Rien n’est activé avant que vous enregistriez.",
+        "Choisissez les cookies que nous pouvons utiliser. Rien n’est activé avant que vous enregistriez, et vous pouvez modifier votre choix à tout moment depuis « Paramètres des cookies » en bas de chaque page.",
       necessary: "Nécessaires",
       necessaryDescription:
         "Font fonctionner la boutique : ils retiennent votre panier, votre connexion, votre pays et votre langue, et ce choix.",

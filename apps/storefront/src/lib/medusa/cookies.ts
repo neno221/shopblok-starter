@@ -1,8 +1,9 @@
 import "server-only";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
-import { COOKIE, type CookieName } from "../cookie-names";
+import { CONSENT_COOKIE, COOKIE, type CookieName } from "../cookie-names";
 import { env, isProduction } from "../env";
+import { parseConsent } from "../visitor/consent-cookie";
 
 export { COOKIE };
 
@@ -187,3 +188,43 @@ export async function getReceiptOrderId(): Promise<string | undefined> {
  */
 export const setFlash = (value: string) => write(COOKIE.flash, value);
 export const getFlash = () => read(COOKIE.flash);
+
+// M6 D124 (T97): what this request says about analytics, for the cart's `metadata`. The consent
+// cookie is the browser's (`lib/visitor/consent-cookie.ts`), and so is PostHog's own, which holds
+// the visitor's distinct id as URL-encoded JSON (`ph_<key>_posthog`, `posthog-js`'s persistence
+// with the project's key in its name); only a server read, never a write.
+
+/** The analytics answer of this request: consent, and PostHog's id for the visitor when it has one. */
+export type AnalyticsConsent = { consent: boolean; distinctId: string | null };
+
+/** A distinct id as `posthog-js` makes them (a UUID) or as `identify` sets them (a Medusa id). */
+const DISTINCT_ID = /^[A-Za-z0-9_.:-]{1,128}$/;
+
+/** PostHog's distinct id in its cookie's value, or `null`. */
+export function distinctIdFrom(value: string | undefined): string | null {
+  if (value === undefined || value === "") return null;
+  try {
+    const parsed: unknown = JSON.parse(decodeURIComponent(value));
+    const id =
+      typeof parsed === "object" && parsed !== null
+        ? (parsed as Record<string, unknown>)["distinct_id"]
+        : undefined;
+    return typeof id === "string" && DISTINCT_ID.test(id) ? id : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The request's analytics consent (the `_shopblok_consent` cookie, D123) and, with it and a PostHog
+ * key in the build, the visitor's distinct id. No consent, no id: a refusal or a withdrawal leaves
+ * nothing to join an order to.
+ */
+export async function getAnalyticsConsent(): Promise<AnalyticsConsent> {
+  const jar = await cookies();
+  const consent = parseConsent(jar.get(CONSENT_COOKIE)?.value)?.choice.analytics === true;
+  const key = process.env.NEXT_PUBLIC_POSTHOG_KEY?.trim();
+  const distinctId =
+    consent && key ? distinctIdFrom(jar.get(`ph_${key}_posthog`)?.value) : null;
+  return { consent, distinctId };
+}

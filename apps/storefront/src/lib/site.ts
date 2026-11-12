@@ -182,3 +182,14 @@ export function footerColumns(
     },
   ];
 }
+
+/**
+ * M6 D123 (T97): the cookie policy, the page the banner, the dialog and "Cookie settings" link to:
+ * the privacy policy the seed makes in every market (`payload/seed/pages.ts`), which says how to
+ * change the choice and holds a "Cookie settings" link of its own. Until M6 the banner linked
+ * `/cookies`, a page nothing made.
+ */
+export const COOKIE_POLICY_PATH = "/privacy";
+
+/** "Cookie settings": the policy page at this fragment, which the consent island opens as the dialog. */
+export const cookieSettingsHref = (policyHref: string) => `${policyHref}#cookie-settings`;

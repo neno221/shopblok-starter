@@ -12,3 +12,10 @@ export const COOKIE = {
 } as const;
 
 export type CookieName = (typeof COOKIE)[keyof typeof COOKIE];
+
+/**
+ * M6 D123 (T97): the visitor's cookie choice. Not one of `COOKIE`, which the server sets httpOnly:
+ * the browser writes and reads this one itself (`lib/visitor/consent-cookie.ts`), and the server
+ * only reads it, in the cart's writes (D124).
+ */
+export const CONSENT_COOKIE = "_shopblok_consent";

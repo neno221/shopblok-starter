@@ -388,6 +388,7 @@ export const de: Messages = {
       socialLink: "{store} auf {network}",
       payment: "Zahlungsarten",
       newTab: "Öffnet in einem neuen Tab",
+      cookieSettings: "Cookie-Einstellungen",
     },
     cookieConsent: {
       region: "Cookie-Einwilligung",
@@ -400,7 +401,7 @@ export const de: Messages = {
       choose: "Cookies auswählen",
       dialogTitle: "Cookie-Einstellungen",
       dialogDescription:
-        "Wählen Sie, welche Cookies wir verwenden dürfen. Nichts wird eingeschaltet, bevor Sie speichern.",
+        "Wählen Sie, welche Cookies wir verwenden dürfen. Nichts wird eingeschaltet, bevor Sie speichern, und Sie können Ihre Wahl jederzeit unter „Cookie-Einstellungen“ am Ende jeder Seite ändern.",
       necessary: "Notwendig",
       necessaryDescription:
         "Sorgen dafür, dass der Shop funktioniert, und merken sich Ihren Warenkorb, Ihre Anmeldung, Ihr Land, Ihre Sprache und diese Auswahl.",

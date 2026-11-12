@@ -29,6 +29,11 @@
 //   the design system's states) takes no focus until a reader opens it again. The link to the
 //   cookie policy is after the switches, a 44 px link of its own, so that focus starts on the first
 //   switch and not on a link in the description.
+// - M6 D123 (T97): opened from elsewhere too, by "Cookie settings" (a footer's link, the policy
+//   page's). The dialog then takes `open` and `onOpenChange` from its caller, and without the banner
+//   (`trigger={false}`) it is drawn on its own, with no "choose" button, its switches as the
+//   visitor chose them (`defaultSwitches`), and focus going back to the control that opened it
+//   (`finalFocus`) when it closes. Withdrawing takes as many clicks as giving (GDPR Art. 7(3)).
 "use client";
 
 import type { Messages } from "@shopblok/i18n";
@@ -71,6 +76,14 @@ type CookieConsentDialogProps = {
   popupClassName?: string;
   /** What the visitor chose, called once the dialog has gone from the page. */
   onAnswer: (choice: ConsentChoice) => void;
+  /** Open from outside ("Cookie settings", D123); unset, the dialog keeps its own state. */
+  open?: boolean;
+  /** Called when the dialog opens or closes, by its trigger, an answer, Escape or the close button. */
+  onOpenChange?: (open: boolean) => void;
+  /** `false`: no "choose" button (the dialog opened by "Cookie settings", without the banner). */
+  trigger?: boolean;
+  /** Where focus goes when the dialog closes; the trigger, by default. */
+  finalFocus?: HTMLElement | null;
 };
 
 // `Link` takes whatever `next/link` takes, which an app with typed routes narrows to its own
@@ -152,9 +165,24 @@ function CookieConsentDialog({
   defaultSwitches,
   popupClassName,
   onAnswer,
+  open: openFromOutside,
+  onOpenChange,
+  trigger = true,
+  finalFocus,
 }: CookieConsentDialogProps) {
-  const [open, setOpen] = useState(defaultOpen);
+  const [ownOpen, setOwnOpen] = useState(defaultOpen);
+  const open = openFromOutside ?? ownOpen;
+  function setOpen(next: boolean) {
+    setOwnOpen(next);
+    onOpenChange?.(next);
+  }
   const [switches, setSwitches] = useState<ConsentChoice>(() => defaultSwitches ?? rejectAll());
+  // Opened from outside again ("Cookie settings"): the switches start from the choice as it is now.
+  const [outsideOpen, setOutsideOpen] = useState(openFromOutside === true);
+  if ((openFromOutside === true) !== outsideOpen) {
+    setOutsideOpen(openFromOutside === true);
+    if (openFromOutside === true) setSwitches(defaultSwitches ?? rejectAll());
+  }
   // The answer waits here while the dialog closes, then in state until the popup is out of the page.
   const pending = useRef<ConsentChoice | null>(null);
   const [answered, setAnswered] = useState<ConsentChoice | null>(null);
@@ -183,16 +211,19 @@ function CookieConsentDialog({
         pending.current = null;
       }}
     >
-      <DialogTrigger
-        data-slot="cookie-consent-choose"
-        render={<Button variant="outline" className="w-full wrap-anywhere sm:w-auto" />}
-      >
-        {copy.choose}
-      </DialogTrigger>
+      {trigger ? (
+        <DialogTrigger
+          data-slot="cookie-consent-choose"
+          render={<Button variant="outline" className="w-full wrap-anywhere sm:w-auto" />}
+        >
+          {copy.choose}
+        </DialogTrigger>
+      ) : null}
       <DialogContent
         data-slot="cookie-consent-dialog"
         closeLabel={copy.close}
         initialFocus={defaultOpen ? takesFocusWhenOpenedByAReader : undefined}
+        {...(finalFocus ? { finalFocus: () => (finalFocus.isConnected ? finalFocus : true) } : {})}
         className={cn("sm:max-w-lg", popupClassName)}
       >
         <DialogHeader>

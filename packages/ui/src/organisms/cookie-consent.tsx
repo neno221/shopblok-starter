@@ -27,6 +27,12 @@
 // - WCAG 2.4.11 Focus Not Obscured: while the banner is shown its height is reserved at the end of
 //   the page's scrollport, on the root element (`cookie-consent-reserve.ts`), so a control the
 //   visitor tabs to is scrolled clear of the banner and the page's last links can scroll above it.
+// - "Cookie settings" (M6 D123, T97): `settingsOpen` opens the dialog from outside the banner (a
+//   footer's link, the policy page's), its switches as the visitor chose them (`defaultSwitches`,
+//   else the choice). For a visitor who has chosen there is no banner, so the dialog is drawn on its
+//   own, without "choose"; for one who has not, it is the banner's own dialog. Focus goes back to
+//   the control that opened it (`settingsFinalFocus`). On the server and in the first render
+//   nothing is drawn either way: the dialog is closed, and a closed dialog draws nothing.
 // - The sentence is the shop's own `message` when it has one, and then the policy link follows it,
 //   or the copy's, whose `{policy}` is the link. The words wrap at every width and in every
 //   language and are never cut; the banner grows with them, and scrolls inside itself (to 60 % of
@@ -70,6 +76,12 @@ type CookieConsentProps = CookieConsentContent & {
   defaultSwitches?: ConsentChoice;
   /** next/link's prefetch for the policy link; the DS passes false. */
   prefetch?: boolean | null;
+  /** D123: the dialog opened by "Cookie settings", with the switches as chosen. */
+  settingsOpen?: boolean;
+  /** Called when that dialog opens or closes (an answer, Escape, the close button). */
+  onSettingsOpenChange?: (open: boolean) => void;
+  /** The control that opened the settings, where focus goes back when the dialog closes. */
+  settingsFinalFocus?: HTMLElement | null;
   /** The class of the dialog's popup: the design system's states cap it to their box. */
   popupClassName?: string;
   className?: string;
@@ -92,6 +104,9 @@ function CookieConsent({
   prefetch,
   popupClassName,
   className,
+  settingsOpen,
+  onSettingsOpenChange,
+  settingsFinalFocus,
 }: CookieConsentProps) {
   const bannerRef = useRef<HTMLElement>(null);
   const shown = choice === null;
@@ -103,7 +118,27 @@ function CookieConsent({
     return reserveSpaceFor(banner);
   }, [shown]);
 
-  if (!shown) return null;
+  if (!shown) {
+    // A visitor who has chosen (or one the browser does not know yet): no banner; "Cookie
+    // settings" opens the dialog alone. Closed, it draws nothing, on the server too.
+    if (onSettingsOpenChange === undefined && settingsOpen === undefined) return null;
+    return (
+      <CookieConsentDialog
+        copy={copy}
+        locale={locale}
+        policyHref={policyHref}
+        prefetch={prefetch}
+        modal={modal}
+        defaultSwitches={defaultSwitches ?? choice ?? undefined}
+        popupClassName={popupClassName}
+        onAnswer={(next) => onChoose?.(next)}
+        open={settingsOpen === true}
+        onOpenChange={onSettingsOpenChange}
+        trigger={false}
+        finalFocus={settingsFinalFocus}
+      />
+    );
+  }
 
   /** Moves focus on to where the next Tab would have gone, then tells the page what was chosen. */
   function choose(next: ConsentChoice) {
@@ -184,6 +219,9 @@ function CookieConsent({
             defaultSwitches={defaultSwitches}
             popupClassName={popupClassName}
             onAnswer={choose}
+            {...(settingsOpen ? { open: true } : {})}
+            onOpenChange={onSettingsOpenChange}
+            finalFocus={settingsFinalFocus}
           />
         </div>
       </div>

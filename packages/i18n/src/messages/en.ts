@@ -448,6 +448,8 @@ export const en = {
       payment: "Ways to pay",
       // Read after a link that opens another site in a new tab.
       newTab: "Opens in a new tab",
+      // M6 D123: the last of the legal links; it opens the cookie dialog with the choice as made.
+      cookieSettings: "Cookie settings",
     },
     cookieConsent: {
       // The banner's landmark.
@@ -462,7 +464,8 @@ export const en = {
       choose: "Choose cookies",
       // The dialog "choose" opens.
       dialogTitle: "Cookie preferences",
-      dialogDescription: "Choose which cookies we may use. Nothing is switched on until you save.",
+      dialogDescription:
+        "Choose which cookies we may use. Nothing is switched on until you save, and you can change your choice at any time under “Cookie settings” at the foot of every page.",
       necessary: "Necessary",
       necessaryDescription:
         "Keep the store working: they remember your cart, your sign-in, your country and language, and this choice.",

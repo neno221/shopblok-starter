@@ -24,7 +24,8 @@ const json = (body: unknown, status = 200) =>
 /** What `GET /next/visitor` answers (D60). */
 export type VisitorAnswer = {
   cartCount: number;
-  customer: { firstName: string | null } | null;
+  /** The signed-in customer's first name, and (M6 D124) their Medusa id, which PostHog identifies. */
+  customer: { id: string; firstName: string | null } | null;
   suggestion: (MarketSuggestion & { market: string }) | null;
 };
 
@@ -80,7 +81,7 @@ export async function visitorResponse(request: Request): Promise<Response> {
         : await suggestionFor(context, chosen, request.headers, params.get("path") ?? "/");
     const answer: VisitorAnswer = {
       cartCount: cart?.itemCount ?? 0,
-      customer: customer === null ? null : { firstName: customer.firstName },
+      customer: customer === null ? null : { id: customer.id, firstName: customer.firstName },
       suggestion,
     };
     return json(answer);

@@ -2,9 +2,10 @@
 // (D44), so after hydration the island asks `/next/visitor`, which reads the httpOnly cookies, and
 // hands the answer to the store. Once per page: a later change comes from the action that made it
 // (`addToCart` answers the new count, which the caller gives `setCartCount`, and an answer that was
-// out meanwhile keeps it). The consent choice is not the server's: the store keeps the one the
-// visitor made on this page. A failed request leaves the store "unknown", so the header keeps its
+// out meanwhile keeps it). The consent choice is not the server's: it is the consent cookie's, which
+// the browser reads (M6 D123), or the one the visitor made on this page while the request was out. A failed request leaves the store "unknown", so the header keeps its
 // placeholder rather than showing a wrong 0.
+import { readConsentCookie } from "./consent-cookie";
 import { getCartCountChanges, getSnapshot, setVisitor, type Visitor } from "./store";
 
 /** Where the island asks. */
@@ -46,7 +47,7 @@ export async function loadVisitor(
     const newer = known !== "unknown" && getCartCountChanges() !== changes;
     setVisitor({
       cartCount: newer ? known.cartCount : body.cartCount,
-      consent: known === "unknown" ? null : known.consent,
+      consent: known === "unknown" ? readConsentCookie() : known.consent,
       customer: body.customer,
       suggestion: body.suggestion,
     });

@@ -44,6 +44,7 @@
     "next": "16.4.5",
     "next-intl": "4.14.9",
     "payload": "3.93.0",
+    "posthog-js": "1.447.12",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "server-only": "0.0.1",

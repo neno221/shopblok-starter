@@ -37,9 +37,9 @@ const stored = (overrides: Partial<StoredString> = {}): StoredString => {
 };
 
 describe("codeStrings", () => {
-  it("has every message of the code catalogs, 798, in the four languages, and no design-system chrome", () => {
+  it("has every message of the code catalogs, 799, in the four languages, and no design-system chrome", () => {
     const strings = codeStrings();
-    expect(strings).toHaveLength(798);
+    expect(strings).toHaveLength(799);
     expect(strings.some((string) => string.key.startsWith("designSystem."))).toBe(false);
     const low = strings.find((string) => string.key === "atoms.stock.low");
     expect(low).toEqual({
