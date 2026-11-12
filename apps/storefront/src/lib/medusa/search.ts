@@ -110,15 +110,20 @@ export function searchBody(input: SearchInput): Record<string, unknown> {
   if (filters.onSale === true) clauses.push({ [onSale]: true });
 
   const query = input.query.trim();
+  // Every sort ends with a second key, so equal values keep one order from page to page: products
+  // made together (a seed, an import) share `created_at` to the millisecond, and with that key
+  // alone the database may answer each page in another order, so one product shows on two pages
+  // and another on none (PR 136, e2e). `title` is the index's other sortable field (`id` is not).
+  const newest = { created_at: "DESC", title: "ASC" } as const;
   const order: Record<string, "ASC" | "DESC"> | undefined = {
     relevance: undefined,
-    newest: { created_at: "DESC" as const },
-    "price-asc": { [minPrice]: "ASC" as const },
-    "price-desc": { [minPrice]: "DESC" as const },
-    title: { title: "ASC" as const },
+    newest,
+    "price-asc": { [minPrice]: "ASC" as const, title: "ASC" as const },
+    "price-desc": { [minPrice]: "DESC" as const, title: "ASC" as const },
+    title: { title: "ASC" as const, created_at: "DESC" as const },
   }[input.sort];
   // Without a query there is no ranking: the newest first, so a listing's order is stable.
-  const effectiveOrder = order ?? (query === "" ? { created_at: "DESC" as const } : undefined);
+  const effectiveOrder = order ?? (query === "" ? newest : undefined);
 
   return {
     entity: "product",

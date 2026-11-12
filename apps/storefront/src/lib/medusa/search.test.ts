@@ -23,7 +23,7 @@ describe("searchBody", () => {
       entity: "product",
       fields: ["id"],
       filters: {},
-      pagination: { skip: 0, take: 12, order: { created_at: "DESC" } },
+      pagination: { skip: 0, take: 12, order: { created_at: "DESC", title: "ASC" } },
       search_options: {
         facets: [
           { field: "category_ids", type: "value", limit: 100 },
@@ -36,6 +36,18 @@ describe("searchBody", () => {
         disjunctive_facets: true,
       },
     });
+  });
+
+  it("ends every sort with a second key, so products made together keep one order across pages", () => {
+    const orders = (["newest", "price-asc", "price-desc", "title"] as const).map(
+      (sort) => (searchBody(input({ sort })).pagination as { order?: unknown }).order,
+    );
+    expect(orders).toEqual([
+      { created_at: "DESC", title: "ASC" },
+      { min_price_eur: "ASC", title: "ASC" },
+      { min_price_eur: "DESC", title: "ASC" },
+      { title: "ASC", created_at: "DESC" },
+    ]);
   });
 
   it("never sends search_options.locales: the backend's middleware owns the locale (T43)", () => {
@@ -69,7 +81,7 @@ describe("searchBody", () => {
         { on_sale_eur: true },
       ],
     });
-    expect(body.pagination).toMatchObject({ order: { min_price_eur: "DESC" } });
+    expect(body.pagination).toMatchObject({ order: { min_price_eur: "DESC", title: "ASC" } });
   });
 
   it("keeps to the given products by id, and to none when the list is empty (T64)", () => {
