@@ -1,4 +1,4 @@
-# T93, T98, T99, T96 and T97 are done; T94 is running, and T100 waits for the Stripe keys
+# T93, T98, T99, T96, T97 and T94 are done; T100 waits for the Stripe keys
 
 **T93 is built** (PR 134; SETUP.md ["Versions, keys and CI for M6 (T93)"](SETUP.md#versions-keys-and-ci-for-m6-t93)): Medusa 2.22.6 (Next stays 16.4.5), every M6 variable named in both `.env.example` files and in `@shopblok/integrations`, `doctor`'s refusal of a live Stripe key, `pnpm check:keys` in CI's `check` job, the `integrations-live` job (on `main`, nightly, on a dispatch and on this repository's PRs; never on a fork or Renovate's branches) and the keyless check in the shell, catalog, checkout and account suites. The cloud environment has M6's hosts (you approved them on 2026-11-12). **Medusa's Redis caching stays off** (D128): with `MEDUSA_FF_CACHING=true` the module cannot start beside the markets plugin (two copies of `graphql`), so it caches nothing; making it work is a task of its own, which M6 does not need.
 
@@ -12,7 +12,9 @@
 
 **T97 is built** (SETUP.md ["Consent and PostHog (T97)"](SETUP.md#consent-and-posthog-t97)): the visitor's cookie choice is kept in `_shopblok_consent` and reopened from "Cookie settings" in every footer and on the policy page (a link without scripts, the dialog with the switches as chosen with them); with `NEXT_PUBLIC_POSTHOG_KEY` and analytics consent, PostHog gets page views and the shop's six events through the site's own `/ingest`, a withdrawal stops it and clears its storage, and Medusa sends `cart_created`, `order_placed` and `order_canceled` only for consented carts and orders (`POSTHOG_EVENTS_API_KEY`). Without the keys nothing loads and nothing is sent. The first-load budgets are now **339 KB for the product page and 340 KB for the listings** (your choice on 2026-11-13, for a build with PostHog's key). **No PostHog secret is in GitHub yet**, so `integrations-live` checks PostHog against a local stand-in; add both `NEXT_PUBLIC_POSTHOG_KEY` and `POSTHOG_EVENTS_API_KEY` (the project's `phc_…` key, never a personal `phx_…` key; optional, G10) to check against PostHog itself. **Next:** T94 (running) finishes; T100 starts once the Stripe test keys are in, then T101, T102 and T95 in the plan's pairs; T103 and T104 last.
 
-## T94 · Meilisearch (in a cloud session)
+**T94 is built** (SETUP.md ["Meilisearch (T94)"](SETUP.md#meilisearch-t94)): with `MEILISEARCH_HOST` and `MEILISEARCH_API_KEY` (the local stack's values are in `apps/backend/.env.example`), `/store/search` runs on Meilisearch, one index per locale; blank either and it runs on Postgres. A locale added in the store searches the default locale's index, with one warning, until its first write. `doctor --online` checks that each store locale has an index with documents. The compose image is v1.56.2, and the cloud environment's setup script pulls it (changed on 2026-11-13 with your OK). **Next:** T100 once the Stripe test keys are in, then T101, T102 and T95 in the plan's pairs; T103 and T104 last.
+
+## T94 · Meilisearch (done)
 
 Start a cloud session in the `shopblok-starter` environment, on `main`, and paste:
 
