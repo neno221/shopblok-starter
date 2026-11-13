@@ -14,7 +14,7 @@ import path from "node:path";
 import { commerceFixtures } from "@shopblok/fixtures";
 import { catalogs, formatMessage, LOCALES, type Locale } from "@shopblok/i18n";
 import type { ConsentChoice } from "@shopblok/registry/contracts";
-import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { StrictMode, useState } from "react";
 import { hydrateRoot } from "react-dom/client";
@@ -968,6 +968,131 @@ describe("CookieConsent's dialog", () => {
       await act(async () => root.unmount());
       container.remove();
     });
+  });
+});
+
+describe('CookieConsent\'s settings, reopened from "Cookie settings" (M6 D123, T97)', () => {
+  // A modal dialog left open locks the page's scroll; it is given back after the unmount.
+  afterEach(async () => {
+    cleanup();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    document.documentElement.removeAttribute("style");
+    document.body.removeAttribute("style");
+  });
+
+  /** A visitor who chose: no banner, the dialog the page opens and closes. */
+  function Settings({
+    chosen = { analytics: true, marketing: false },
+    initial = false,
+    onChoose,
+    finalFocus = null,
+  }: {
+    chosen?: ConsentChoice;
+    initial?: boolean;
+    onChoose?: (choice: ConsentChoice) => void;
+    finalFocus?: HTMLElement | null;
+  }) {
+    const [open, setOpen] = useState(initial);
+    // Each opening is a new key, as the shop's island gives it.
+    const [key, setKey] = useState(0);
+    return (
+      <>
+        <button
+          type="button"
+          data-testid="opener"
+          onClick={() => {
+            setOpen(true);
+            setKey((now) => now + 1);
+          }}
+        >
+          Cookie settings
+        </button>
+        {element("en", {
+          choice: chosen,
+          settingsOpen: open,
+          settingsKey: key,
+          onSettingsOpenChange: setOpen,
+          settingsFinalFocus: finalFocus,
+          ...(onChoose === undefined ? {} : { onChoose }),
+        })}
+      </>
+    );
+  }
+
+  it("draws nothing for a visitor who chose until the page opens the settings", () => {
+    render(<Settings />);
+    expect(banner()).toBeNull();
+    expect(dialogOf()).toBeNull();
+    // No "choose" button of its own: the page's control opens it.
+    expect(choose()).toBeNull();
+  });
+
+  it("opens with the switches as the visitor chose them", async () => {
+    render(<Settings initial chosen={{ analytics: true, marketing: false }} />);
+    const dialog = await screen.findByRole("dialog");
+    const [analytics, marketing] = within(dialog)
+      .getAllByRole("switch")
+      .filter(
+        (each) => !each.hasAttribute("disabled") && each.getAttribute("aria-disabled") !== "true",
+      );
+    expect(analytics?.getAttribute("aria-checked")).toBe("true");
+    expect(marketing?.getAttribute("aria-checked")).toBe("false");
+  });
+
+  it("sends a new choice and closes, with focus back on the control that opened it", async () => {
+    const user = userEvent.setup();
+    const onChoose = vi.fn();
+    const opener = document.createElement("a");
+    opener.href = "#cookie-settings";
+    opener.textContent = "Cookie settings";
+    document.body.append(opener);
+    render(<Settings onChoose={onChoose} finalFocus={opener} />);
+    await user.click(screen.getByTestId("opener"));
+    const dialog = await screen.findByRole("dialog");
+    await user.click(within(dialog).getByRole("button", { name: copyOf("en").rejectAll }));
+    expect(onChoose).toHaveBeenCalledWith(REJECTED);
+    await waitFor(() => expect(dialogOf()).toBeNull());
+    await waitFor(() => expect(document.activeElement).toBe(opener));
+    opener.remove();
+  });
+
+  it("opens again with the switches as chosen, not as left before Escape", async () => {
+    const user = userEvent.setup();
+    render(<Settings chosen={{ analytics: true, marketing: false }} />);
+    const analyticsSwitch = async () =>
+      within(await screen.findByRole("dialog"))
+        .getAllByRole("switch")
+        .filter(
+          (each) => !each.hasAttribute("disabled") && each.getAttribute("aria-disabled") !== "true",
+        )[0]!;
+    await user.click(screen.getByTestId("opener"));
+    await user.click(await analyticsSwitch());
+    expect((await analyticsSwitch()).getAttribute("aria-checked")).toBe("false");
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(dialogOf()).toBeNull());
+    await user.click(screen.getByTestId("opener"));
+    expect((await analyticsSwitch()).getAttribute("aria-checked")).toBe("true");
+  });
+
+  it("closes on Escape and tells the page", async () => {
+    const user = userEvent.setup();
+    const onSettingsOpenChange = vi.fn();
+    render(
+      element("en", {
+        choice: ACCEPTED,
+        settingsOpen: true,
+        onSettingsOpenChange,
+      }),
+    );
+    await screen.findByRole("dialog");
+    await user.keyboard("{Escape}");
+    expect(onSettingsOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  it("opens the banner's own dialog when a visitor who has not chosen asks for the settings", async () => {
+    render(element("en", { choice: null, settingsOpen: true, onSettingsOpenChange: () => {} }));
+    expect(banner()).not.toBeNull();
+    await screen.findByRole("dialog");
   });
 });
 

@@ -85,6 +85,7 @@ describe("FooterTwoTier: the two tiers", () => {
           newsletter: undefined,
           social: [],
           legalLinks: [],
+          cookieSettingsHref: undefined,
           paymentIcons: [],
           marketSwitcher: false,
         })}

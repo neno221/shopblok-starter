@@ -10,7 +10,7 @@ import { wireCart } from "../../test-support/medusa-wire";
 const jar = createCookieJar();
 vi.mock("next/headers", () => ({ cookies: jar.cookies }));
 
-const { toCartDto } = await import("./cart");
+const { consentKeys, consentMetadata, toCartDto } = await import("./cart");
 
 describe("toCartDto", () => {
   it("keeps the lines, the totals and each code's discount, in major units", () => {
@@ -176,9 +176,16 @@ describe("the cart through the SDK", () => {
 
   it("clears the cookie when the order is placed", async () => {
     jar.reset({ _medusa_cart_id: "cart_1" });
-    stubMedusaFetch(() => ({
-      body: { type: "order", order: { id: "order_1", shipping_address: { country_code: "CY" } } },
-    }));
+    stubMedusaFetch((call) =>
+      call.method === "GET"
+        ? { body: { cart: { id: "cart_1", metadata: {} } } }
+        : {
+            body: {
+              type: "order",
+              order: { id: "order_1", shipping_address: { country_code: "CY" } },
+            },
+          },
+    );
     const { completeCart } = await import("./cart");
     expect(await completeCart()).toEqual({ kind: "order", orderId: "order_1", countryCode: "cy" });
     expect(jar.writes.map((write) => [write.name, write.options.maxAge])).toEqual([
@@ -209,5 +216,165 @@ describe("the cart through the SDK", () => {
       providerId: "pp_system_default",
       status: "pending",
     });
+  });
+});
+
+describe("the analytics consent in the cart's metadata (T97, D124)", () => {
+  const id = "019a0c2e-7f3b-7c1d-9a3e-123456789abc";
+  const yes = { consent: true, distinctId: id };
+
+  it("adds the consent and the id, and only those keys (Medusa merges metadata)", () => {
+    expect(consentMetadata({ market: "/cy", language: "el" }, yes)).toEqual({
+      analytics_consent: true,
+      posthog_distinct_id: id,
+    });
+    // Consent without an id (a build with no PostHog key): the consent, and no id.
+    expect(consentMetadata({}, { consent: true, distinctId: null })).toEqual({
+      analytics_consent: true,
+      posthog_distinct_id: "",
+    });
+  });
+
+  it('removes both when there is no consent: `""` is Medusa\'s delete', () => {
+    expect(
+      consentMetadata(
+        { market: "/cy", analytics_consent: true, posthog_distinct_id: id },
+        { consent: false, distinctId: null },
+      ),
+    ).toEqual({ analytics_consent: "", posthog_distinct_id: "" });
+  });
+
+  it("gives a new cart the keys alone, with nothing to delete", () => {
+    expect(consentKeys(yes)).toEqual({ analytics_consent: true, posthog_distinct_id: id });
+    expect(consentKeys({ consent: true, distinctId: null })).toEqual({ analytics_consent: true });
+    expect(consentKeys({ consent: false, distinctId: id })).toEqual({});
+  });
+
+  it("answers null when the metadata says so already: no write", () => {
+    expect(consentMetadata({ market: "/cy" }, { consent: false, distinctId: null })).toBeNull();
+    expect(consentMetadata({ analytics_consent: true, posthog_distinct_id: id }, yes)).toBeNull();
+  });
+
+  describe("through the SDK", () => {
+    const withdrawn = "v1.0.0.2026-11-12";
+    const given = "v1.1.0.2026-11-12";
+    beforeEach(() => {
+      vi.resetModules();
+      jar.reset();
+      vi.stubEnv("MEDUSA_BACKEND_URL", "http://medusa.test:9000");
+      vi.stubEnv("NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY", PUBLISHABLE_KEY);
+      vi.stubEnv("NEXT_PUBLIC_POSTHOG_KEY", "phc_test");
+    });
+    afterEach(() => {
+      vi.unstubAllEnvs();
+      vi.unstubAllGlobals();
+    });
+
+    it("places the order only after taking a withdrawn consent out of the cart", async () => {
+      jar.reset({ _medusa_cart_id: "cart_1", _shopblok_consent: withdrawn });
+      const calls = stubMedusaFetch((call) =>
+        call.method === "GET"
+          ? {
+              body: {
+                cart: {
+                  id: "cart_1",
+                  metadata: { market: "/cy", analytics_consent: true, posthog_distinct_id: id },
+                },
+              },
+            }
+          : call.url.pathname.endsWith("/complete")
+            ? { body: { type: "order", order: { id: "order_1" } } }
+            : { body: { cart: { id: "cart_1" } } },
+      );
+      const { completeCart } = await import("./cart");
+      await completeCart();
+      expect(calls.map((call) => [call.method, call.url.pathname, call.body])).toEqual([
+        ["GET", "/store/carts/cart_1", undefined],
+        [
+          "POST",
+          "/store/carts/cart_1",
+          { metadata: { analytics_consent: "", posthog_distinct_id: "" } },
+        ],
+        ["POST", "/store/carts/cart_1/complete", undefined],
+      ]);
+    });
+
+    it("writes the e-mails' target and the consent in one update before the order (T99, D124)", async () => {
+      jar.reset({ _medusa_cart_id: "cart_1", _shopblok_consent: withdrawn });
+      const calls = stubMedusaFetch((call) =>
+        call.method === "GET"
+          ? {
+              body: {
+                cart: {
+                  id: "cart_1",
+                  metadata: { market: "/cy", language: "el", analytics_consent: true },
+                },
+              },
+            }
+          : call.url.pathname.endsWith("/complete")
+            ? { body: { type: "order", order: { id: "order_1" } } }
+            : { body: { cart: { id: "cart_1" } } },
+      );
+      const { completeCart } = await import("./cart");
+      await completeCart("en-US", { market: "/us", language: "en", key: "en-us" });
+      expect(calls.map((call) => [call.method, call.body])).toEqual([
+        ["GET", undefined],
+        [
+          "POST",
+          {
+            metadata: {
+              analytics_consent: "",
+              posthog_distinct_id: "",
+              market: "/us",
+              language: "en",
+              market_key: "en-us",
+            },
+          },
+        ],
+        ["POST", undefined],
+      ]);
+    });
+
+    it("writes the consent and PostHog's id after a cart write that left them out", async () => {
+      jar.reset({
+        _medusa_cart_id: "cart_1",
+        _shopblok_consent: given,
+        // As Next's `cookies()` hands it: decoded once, with the first URL PostHog keeps, whose
+        // quoted search (`%22`) a second decode would break.
+        ph_phc_test_posthog: JSON.stringify({
+          distinct_id: id,
+          $initial_person_info: { u: "https://shop.test/us/search?q=%22shirt%22%5C" },
+        }),
+      });
+      const calls = stubMedusaFetch(() => ({ body: { cart: wireCart } }));
+      const { applyPromoCode } = await import("./cart");
+      await applyPromoCode("WELCOME10");
+      expect(calls.at(-1)?.body).toEqual({
+        metadata: { analytics_consent: true, posthog_distinct_id: id },
+      });
+    });
+
+    it("makes no extra write when the cart already says what the cookies say", async () => {
+      jar.reset({ _medusa_cart_id: "cart_1", _shopblok_consent: withdrawn });
+      const calls = stubMedusaFetch(() => ({ body: { cart: wireCart } }));
+      const { applyPromoCode } = await import("./cart");
+      await applyPromoCode("WELCOME10");
+      expect(calls).toHaveLength(1);
+    });
+  });
+});
+
+describe("the analytics keys agree with the backend's (D124)", () => {
+  it("names the same metadata keys and the same distinct-id pattern as Medusa's subscribers", async () => {
+    const { readFileSync } = await import("node:fs");
+    const backend = readFileSync(
+      new URL("../../../../backend/src/lib/analytics.ts", import.meta.url),
+      "utf8",
+    );
+    const { ANALYTICS_CONSENT_KEY, DISTINCT_ID_KEY } = await import("./cart");
+    const { DISTINCT_ID } = await import("./cookies");
+    expect(backend).toContain(`ANALYTICS_CONSENT_KEY = "${ANALYTICS_CONSENT_KEY}"`);
+    expect(backend).toContain(`DISTINCT_ID_KEY = "${DISTINCT_ID_KEY}"`);
+    expect(backend).toContain(`DISTINCT_ID = ${String(DISTINCT_ID)}`);
   });
 });

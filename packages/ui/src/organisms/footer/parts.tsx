@@ -86,6 +86,10 @@ type FooterProps = Footer & {
 // strings the app built (the same cast as the headers').
 type LinkHref = React.ComponentProps<typeof NextLink>["href"];
 
+/** A footer link's look: a 44 px row of small text that wraps rather than overflow. */
+const FOOTER_LINK =
+  "flex w-fit max-w-full min-w-11 py-1 text-sm text-foreground wrap-anywhere hover:decoration-2";
+
 /** The page's width and gutters, as the headers have them. */
 const CONTAINER = "mx-auto w-full max-w-page px-4 sm:px-6 lg:px-8";
 
@@ -168,10 +172,7 @@ function FooterLink({
       target={link.external === true ? "_blank" : undefined}
       newTabLabel={link.external === true ? copy.newTab : undefined}
       data-slot="footer-link"
-      className={cn(
-        "flex w-fit max-w-full min-w-11 py-1 text-sm text-foreground wrap-anywhere hover:decoration-2",
-        className,
-      )}
+      className={cn(FOOTER_LINK, className)}
     >
       {link.label}
     </Link>
@@ -334,14 +335,26 @@ function FooterSocial({
   );
 }
 
+/** Whether the legal row has anything to draw: a legal link, or "Cookie settings". */
+function hasLegal(footer: FooterProps): boolean {
+  return footer.legalLinks.length > 0 || footer.cookieSettingsHref !== undefined;
+}
+
 /**
  * The legal links (terms, privacy, cookies, the legal notice) in a navigation landmark of their own,
  * named by the catalog's "Legal": they stand apart from the columns, in the bottom row or bar. A list
  * of text links that wrap onto more rows when the room is short. Nothing without links.
+ *
+ * M6 D123 (T97): "Cookie settings" closes the list when the shop gives `cookieSettingsHref` (the
+ * cookie policy at `#cookie-settings`): a plain link, so without scripts it opens the policy page,
+ * and with them the consent island takes the click and opens the dialog with the switches as
+ * chosen. Withdrawing consent is then one click away on every page, as giving it was (GDPR Art.
+ * 7(3)). Not prefetched: the island's handler, in the capture phase, prevents the click before
+ * next/link would navigate.
  */
 function FooterLegal({ footer, className }: { footer: FooterProps; className?: string }) {
-  const { legalLinks, copy } = footer;
-  if (legalLinks.length === 0) return null;
+  const { legalLinks, copy, cookieSettingsHref } = footer;
+  if (!hasLegal(footer)) return null;
   return (
     <nav aria-label={copy.legal} data-slot="footer-legal" className={cn("min-w-0", className)}>
       <ul className="m-0 flex list-none flex-wrap gap-x-6 p-0">
@@ -350,6 +363,19 @@ function FooterLegal({ footer, className }: { footer: FooterProps; className?: s
             <FooterLink link={link} footer={footer} />
           </li>
         ))}
+        {cookieSettingsHref === undefined ? null : (
+          <li className="max-w-full min-w-0">
+            <Link
+              href={cookieSettingsHref as LinkHref}
+              prefetch={false}
+              variant="standalone"
+              data-slot="footer-cookie-settings"
+              className={FOOTER_LINK}
+            >
+              {copy.cookieSettings}
+            </Link>
+          </li>
+        )}
       </ul>
     </nav>
   );
@@ -435,7 +461,7 @@ function FooterCopyright({ footer, className }: { footer: FooterProps; className
  */
 function FooterBottom({ footer, className }: { footer: FooterProps; className?: string }) {
   const first = footer.social.length > 0 || hasSwitcher(footer);
-  const second = footer.legalLinks.length > 0 || footer.paymentIcons.length > 0;
+  const second = hasLegal(footer) || footer.paymentIcons.length > 0;
   return (
     <div data-slot="footer-bottom" className={cn("flex flex-col gap-6 border-t pt-8", className)}>
       {first ? (

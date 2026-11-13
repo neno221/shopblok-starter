@@ -9,7 +9,7 @@
 import { commerceFixtures, designSystemFixtures } from "@shopblok/fixtures";
 import { catalogs, formatMessage, LOCALES, type Locale } from "@shopblok/i18n";
 import { SocialNetwork } from "@shopblok/registry/contracts";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import type { ReactElement } from "react";
 import { describe, expect, it } from "vitest";
@@ -147,7 +147,7 @@ export function describeFooter(variant: FooterUnderTest) {
     });
 
     it("has no legal navigation when the shop has no legal links", () => {
-      view("en", { legalLinks: [] });
+      view("en", { legalLinks: [], cookieSettingsHref: undefined });
       expect(slot("footer-legal")).toBeNull();
       expect(screen.queryByRole("navigation", { name: copyOf("en").legal })).toBeNull();
     });
@@ -535,11 +535,36 @@ export function describeFooter(variant: FooterUnderTest) {
       const nav = screen.getByRole("navigation", { name: copyOf(locale).legal });
       expect(nav).toBe(slot("footer-legal"));
       const items = within(nav).getAllByRole("listitem");
-      expect(items).toHaveLength(legalLinks.length);
+      // The shop's links, then "Cookie settings" (M6 D123, T97).
+      expect(items).toHaveLength(legalLinks.length + 1);
       for (const [index, link] of legalLinks.entries()) {
         const anchor = within(items[index] as HTMLElement).getByRole("link", { name: link.label });
         expect(anchor.getAttribute("href")).toBe(link.href);
       }
+      const settings = within(items.at(-1) as HTMLElement).getByRole("link", {
+        name: copyOf(locale).cookieSettings,
+      });
+      expect(settings.getAttribute("href")).toBe(
+        fixturesOf(locale).footer.content.cookieSettingsHref,
+      );
+      expect(settings.getAttribute("href")).toMatch(/#cookie-settings$/);
+    });
+
+    it('closes with "Cookie settings": a plain link, never prefetched, in a 44 px row (T97)', () => {
+      view("en", { prefetch: undefined });
+      const settings = slot("footer-cookie-settings") as HTMLAnchorElement;
+      expect(settings.tagName).toBe("A");
+      expect(settings.getAttribute("data-prefetch")).toBe("false");
+      expect(settings.className).toContain("min-h-11");
+      expect((slot("footer-legal") as HTMLElement).contains(settings)).toBe(true);
+    });
+
+    it('draws the legal navigation for "Cookie settings" alone, and none without it', () => {
+      view("en", { legalLinks: [] });
+      expect(slot("footer-cookie-settings")).not.toBeNull();
+      cleanup();
+      view("en", { cookieSettingsHref: undefined });
+      expect(slot("footer-cookie-settings")).toBeNull();
     });
 
     it("gives each a 44 px row, and the list wraps onto more rows when the room is short", () => {
@@ -729,7 +754,10 @@ export function describeFooter(variant: FooterUnderTest) {
 
     it("leaves `prefetch` to Next when the page says nothing", () => {
       view("en", { prefetch: undefined });
-      for (const anchor of links()) expect(anchor.getAttribute("data-prefetch")).toBe("undefined");
+      // But "Cookie settings", which the consent island takes before next/link would navigate.
+      for (const anchor of links())
+        if (anchor.dataset["slot"] !== "footer-cookie-settings")
+          expect(anchor.getAttribute("data-prefetch")).toBe("undefined");
     });
 
     it.each(longLabels)(

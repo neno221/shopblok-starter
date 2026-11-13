@@ -11,6 +11,8 @@ import type { ProductDetailIds } from "@shopblok/ui/templates/product-detail";
 import { useSearchParams } from "next/navigation";
 import { useActionState, useEffect, useState } from "react";
 import { addToCart } from "../../lib/actions/cart";
+import { trackAdded } from "../../lib/analytics/events";
+import { track } from "../../lib/analytics/track";
 import { defaultSelection, selectionForVariant } from "../../lib/view-models/product-page";
 import { announceAdded } from "../../lib/visitor/cart-events";
 import { setCartCount } from "../../lib/visitor/store";
@@ -72,6 +74,12 @@ export function BuyBoxIsland({
     publishChoice(product.id, current);
   }, [product.id, current]);
 
+  // D124: the product page seen (only with a PostHog key and the visitor's consent).
+  useEffect(() => {
+    if (!process.env.NEXT_PUBLIC_POSTHOG_KEY) return;
+    track("product_viewed", { product_id: product.id, product: product.handle });
+  }, [product.id, product.handle]);
+
   const [status, submit, pending] = useActionState(
     async (_previous: AddStatus, form: FormData): Promise<AddStatus> => {
       const result = await addToCart({
@@ -82,6 +90,7 @@ export function BuyBoxIsland({
       if (!result.ok) return "error";
       setCartCount(result.data.count);
       announceAdded(result.data.line.id);
+      trackAdded(result.data.line, form.get("quantity"), "product_page");
       return "added";
     },
     "idle",

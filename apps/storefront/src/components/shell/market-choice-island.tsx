@@ -13,6 +13,7 @@
 
 import { useEffect } from "react";
 import { rememberMarket } from "../../lib/actions/market";
+import { track } from "../../lib/analytics/track";
 import { getSnapshot } from "../../lib/visitor/store";
 
 export type MarketChoiceIslandProps = {
@@ -53,6 +54,7 @@ export function MarketChoiceIsland({ current, markets, navigate }: MarketChoiceI
       if (control === null) return;
       const slot = control.dataset["slot"];
       if (slot === "market-suggestion-stay") {
+        // Staying is no switch: nothing is tracked.
         void rememberMarket({ market: current.key }).catch(() => undefined);
         return;
       }
@@ -70,6 +72,15 @@ export function MarketChoiceIsland({ current, markets, navigate }: MarketChoiceI
       if (key === undefined) return;
       event.preventDefault();
       const chosen = key;
+      // D124: only with a PostHog key and the visitor's consent; PostHog sends its queue as the
+      // page unloads. The literal guard leaves the call out of a keyless build.
+      if (process.env.NEXT_PUBLIC_POSTHOG_KEY) {
+        track("market_switched", {
+          from: current.key,
+          to: chosen,
+          source: slot === "market-switcher-link" ? "switcher" : "suggestion",
+        });
+      }
       void rememberMarket({ market: chosen })
         .catch(() => undefined)
         .then(() => go(destination));

@@ -12,6 +12,7 @@ import {
   resetPassword,
   type LoginResult,
 } from "../medusa/customer";
+import { markSignedUp, markVisitorChanged } from "../medusa/cookies";
 import { MedusaRequestError } from "../medusa/sdk";
 import { action, ActionError, type FormError } from "./action";
 import { contextFor, formText as text, marketKey } from "./inputs";
@@ -47,9 +48,13 @@ function outcomeOf(result: LoginResult): SignInOutcome {
   );
 }
 
-/** After a sign-in or a sign-out the cart is another (the customer's, or none). */
-function signedInOrOut() {
+/**
+ * After a sign-in or a sign-out the cart is another (the customer's, or none), and the next page
+ * asks for the visitor again (D124: PostHog identifies the customer, or starts a new visitor).
+ */
+async function signedInOrOut() {
   updateTag("cart");
+  await markVisitorChanged();
 }
 
 export const loginSchema = z.object({
@@ -61,7 +66,7 @@ export const loginSchema = z.object({
 export const loginAction = action(loginSchema, async ({ market, email, password }) => {
   const context = await contextFor(market);
   const outcome = outcomeOf(await login(email, password, mailOf(context)));
-  if (outcome.state === "signed-in") signedInOrOut();
+  if (outcome.state === "signed-in") await signedInOrOut();
   return outcome;
 });
 
@@ -84,7 +89,10 @@ export const registerAction = action(
       mailOf(context),
     );
     const outcome = outcomeOf(result);
-    if (outcome.state === "signed-in") signedInOrOut();
+    if (outcome.state === "signed-in") await signedInOrOut();
+    // D124: `signed_up` from the page this browser lands on (only with a key and consent), which
+    // asks for the visitor again.
+    await markSignedUp();
     return outcome;
   },
 );
@@ -138,7 +146,7 @@ export const logoutSchema = z.object({ market: marketKey });
 export const logoutAction = action(logoutSchema, async ({ market }) => {
   await contextFor(market);
   await logout();
-  signedInOrOut();
+  await signedInOrOut();
   return { signedOut: true };
 });
 

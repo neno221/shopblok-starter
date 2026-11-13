@@ -84,6 +84,7 @@ describe("FooterMinimal: the one row", () => {
           marketSwitcher: false,
           market: undefined,
           legalLinks: [{ label: "Terms", href: "/us/terms" }],
+          cookieSettingsHref: undefined,
         })}
       />,
     );

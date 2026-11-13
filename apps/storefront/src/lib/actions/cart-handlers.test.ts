@@ -80,6 +80,8 @@ describe("addToCart (D61)", () => {
     expect(calls.find((call) => call.url.pathname === "/store/carts")?.body).toEqual({
       region_id: "reg_eu",
       locale: "el-GR",
+      // The market's key, for Medusa's `cart.created` event (D124).
+      metadata: { market_key: "el-cy" },
     });
     expect(jar.values.get("_medusa_cart_id")).toBe("cart_1");
     expect(updateTag).toHaveBeenCalledWith("cart");

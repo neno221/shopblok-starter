@@ -483,6 +483,11 @@ jobs:
       # T96 (D114's stand-in): without the Sentry secrets, both DSNs are the local envelope sink that
       # sentry.spec.ts starts on this port and reads back. Not a key: the sink accepts any.
       SENTRY_SINK_DSN: http://e2esink@127.0.0.1:8970/1
+      # T97 (the same stand-in for PostHog): without the PostHog secrets, both apps get this stand-in
+      # project key and send to the local sink posthog.spec.ts starts on this port (the browser through
+      # Next's `/ingest` rewrite). Not a key: the sink takes any, and PostHog would refuse it.
+      POSTHOG_SINK_KEY: phc_ShopblokE2eSinkStandIn
+      POSTHOG_SINK_HOST: http://127.0.0.1:8971
       # The names whose values the log mask replaces (scripts/mask-keys.ts); names only, not values.
       MASK_KEYS_FROM: STRIPE_API_KEY,NEXT_PUBLIC_STRIPE_KEY,RESEND_API_KEY,S3_ACCESS_KEY_ID,S3_SECRET_ACCESS_KEY,SENTRY_DSN,NEXT_PUBLIC_SENTRY_DSN,POSTHOG_EVENTS_API_KEY,NEXT_PUBLIC_POSTHOG_KEY
     steps:
@@ -529,8 +534,8 @@ jobs:
           STRIPE_API_KEY: ${{ secrets.STRIPE_API_KEY }}
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           RESEND_FROM_EMAIL: ${{ vars.RESEND_FROM_EMAIL }}
-          POSTHOG_EVENTS_API_KEY: ${{ secrets.POSTHOG_EVENTS_API_KEY }}
-          POSTHOG_HOST: ${{ vars.POSTHOG_HOST }}
+          POSTHOG_EVENTS_API_KEY: ${{ secrets.POSTHOG_EVENTS_API_KEY || env.POSTHOG_SINK_KEY }}
+          POSTHOG_HOST: ${{ secrets.POSTHOG_EVENTS_API_KEY != '' && vars.POSTHOG_HOST || secrets.POSTHOG_EVENTS_API_KEY == '' && env.POSTHOG_SINK_HOST || '' }}
           SENTRY_DSN: ${{ secrets.SENTRY_DSN || env.SENTRY_SINK_DSN }}
           S3_ENDPOINT: ${{ vars.S3_ENDPOINT }}
           S3_BUCKET: ${{ vars.S3_BUCKET }}
@@ -544,15 +549,19 @@ jobs:
         run: pnpm exec turbo run build --filter=@shopblok/storefront
         env:
           NEXT_PUBLIC_STRIPE_KEY: ${{ secrets.NEXT_PUBLIC_STRIPE_KEY }}
-          NEXT_PUBLIC_POSTHOG_KEY: ${{ secrets.NEXT_PUBLIC_POSTHOG_KEY }}
+          NEXT_PUBLIC_POSTHOG_KEY: ${{ secrets.NEXT_PUBLIC_POSTHOG_KEY || env.POSTHOG_SINK_KEY }}
+          # `/ingest`'s rewrites are written at build time (next.config.ts), so the host is here too.
+          NEXT_PUBLIC_POSTHOG_HOST: ${{ secrets.NEXT_PUBLIC_POSTHOG_KEY != '' && vars.NEXT_PUBLIC_POSTHOG_HOST || secrets.NEXT_PUBLIC_POSTHOG_KEY == '' && env.POSTHOG_SINK_HOST || '' }}
           NEXT_PUBLIC_SENTRY_DSN: ${{ secrets.NEXT_PUBLIC_SENTRY_DSN || env.SENTRY_SINK_DSN }}
           S3_PUBLIC_URL: ${{ vars.S3_PUBLIC_URL }}
-      # D129 with a DSN (T96): the budgets hold and Sentry's browser SDK stays out of every first
-      # load; e2e-smoke checks the keyless build.
+      # D129 with a DSN (T96) and a PostHog key (T97): the budgets hold, and Sentry's browser SDK and
+      # PostHog's loader stay out of every first load; e2e-smoke checks the keyless build.
       - name: First-load JS with the public keys
         run: pnpm --filter @shopblok/storefront check:first-load
         env:
           NEXT_PUBLIC_SENTRY_DSN: ${{ secrets.NEXT_PUBLIC_SENTRY_DSN || env.SENTRY_SINK_DSN }}
+          # T97: with a key, PostHog's loader is built, and judged out of every first load.
+          NEXT_PUBLIC_POSTHOG_KEY: ${{ secrets.NEXT_PUBLIC_POSTHOG_KEY || env.POSTHOG_SINK_KEY }}
       - name: Start the storefront (with the storefront's keys)
         uses: ./.github/actions/start-storefront
         with:
@@ -566,7 +575,8 @@ jobs:
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           RESEND_FROM_EMAIL: ${{ vars.RESEND_FROM_EMAIL }}
           RESEND_NEWSLETTER_SEGMENT_ID: ${{ vars.RESEND_NEWSLETTER_SEGMENT_ID }}
-          NEXT_PUBLIC_POSTHOG_KEY: ${{ secrets.NEXT_PUBLIC_POSTHOG_KEY }}
+          NEXT_PUBLIC_POSTHOG_KEY: ${{ secrets.NEXT_PUBLIC_POSTHOG_KEY || env.POSTHOG_SINK_KEY }}
+          NEXT_PUBLIC_POSTHOG_HOST: ${{ secrets.NEXT_PUBLIC_POSTHOG_KEY != '' && vars.NEXT_PUBLIC_POSTHOG_HOST || secrets.NEXT_PUBLIC_POSTHOG_KEY == '' && env.POSTHOG_SINK_HOST || '' }}
           NEXT_PUBLIC_SENTRY_DSN: ${{ secrets.NEXT_PUBLIC_SENTRY_DSN || env.SENTRY_SINK_DSN }}
           S3_ENDPOINT: ${{ vars.S3_ENDPOINT }}
           S3_BUCKET: ${{ vars.S3_BUCKET }}
@@ -586,9 +596,10 @@ jobs:
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           RESEND_FROM_EMAIL: ${{ vars.RESEND_FROM_EMAIL }}
           RESEND_NEWSLETTER_SEGMENT_ID: ${{ vars.RESEND_NEWSLETTER_SEGMENT_ID }}
-          POSTHOG_EVENTS_API_KEY: ${{ secrets.POSTHOG_EVENTS_API_KEY }}
-          POSTHOG_HOST: ${{ vars.POSTHOG_HOST }}
-          NEXT_PUBLIC_POSTHOG_KEY: ${{ secrets.NEXT_PUBLIC_POSTHOG_KEY }}
+          POSTHOG_EVENTS_API_KEY: ${{ secrets.POSTHOG_EVENTS_API_KEY || env.POSTHOG_SINK_KEY }}
+          POSTHOG_HOST: ${{ secrets.POSTHOG_EVENTS_API_KEY != '' && vars.POSTHOG_HOST || secrets.POSTHOG_EVENTS_API_KEY == '' && env.POSTHOG_SINK_HOST || '' }}
+          NEXT_PUBLIC_POSTHOG_KEY: ${{ secrets.NEXT_PUBLIC_POSTHOG_KEY || env.POSTHOG_SINK_KEY }}
+          NEXT_PUBLIC_POSTHOG_HOST: ${{ secrets.NEXT_PUBLIC_POSTHOG_KEY != '' && vars.NEXT_PUBLIC_POSTHOG_HOST || secrets.NEXT_PUBLIC_POSTHOG_KEY == '' && env.POSTHOG_SINK_HOST || '' }}
           SENTRY_DSN: ${{ secrets.SENTRY_DSN || env.SENTRY_SINK_DSN }}
           NEXT_PUBLIC_SENTRY_DSN: ${{ secrets.NEXT_PUBLIC_SENTRY_DSN || env.SENTRY_SINK_DSN }}
           S3_ENDPOINT: ${{ vars.S3_ENDPOINT }}

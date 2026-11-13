@@ -18,6 +18,8 @@ const SEARCH_INDEX = { id: "search-index", title: "Search index currencies" } as
 const RESEND_DOMAIN = { id: "resend-domain", title: "Resend sender domain" } as const;
 const SENTRY_DSN = { id: "sentry-dsn", title: "Sentry DSN" } as const;
 const SENTRY_ONLINE = { id: "sentry-envelope", title: "Sentry accepts the DSN" } as const;
+const POSTHOG_KEY = { id: "posthog-key", title: "PostHog keys" } as const;
+const POSTHOG_ONLINE = { id: "posthog-flags", title: "PostHog accepts the key" } as const;
 
 // ---------------------------------------------------------------------------------------------
 // From the environment alone
@@ -327,6 +329,7 @@ export function configChecks(
     ...redisInProduction(statuses, context),
     ...halfConfigured(statuses),
     ...sentryDsnChecks(envs),
+    ...posthogKeyChecks(envs),
   ];
 }
 
@@ -872,6 +875,105 @@ export function sentryEnvelopeCheck(
   return check({
     level: "warn",
     message: `not checked: Sentry (${dsn.label}) answered HTTP ${answer.status}.`,
+  });
+}
+
+// ---------------------------------------------------------------------------------------------
+// PostHog's keys (T97, M6 D124)
+
+/** Where each app reads its PostHog key and host. */
+export const POSTHOG_KEYS: readonly { app: AppName; key: string; host: string }[] = [
+  { app: "backend", key: "POSTHOG_EVENTS_API_KEY", host: "POSTHOG_HOST" },
+  { app: "storefront", key: "NEXT_PUBLIC_POSTHOG_KEY", host: "NEXT_PUBLIC_POSTHOG_HOST" },
+];
+
+/** PostHog's EU ingest host, both apps' default (D124). */
+export const POSTHOG_EU = "https://eu.i.posthog.com";
+
+/** A project API key: `phc_` and its characters. A personal key (`phx_`) is a secret. */
+export const POSTHOG_PROJECT_KEY = /^phc_[A-Za-z0-9_-]{8,}$/;
+
+/** An app's PostHog host: its own, else the EU's, without a trailing slash. */
+export function posthogHost(envs: AppEnvs, app: AppName): string {
+  const entry = POSTHOG_KEYS.find((each) => each.app === app)!;
+  return (envs[app][entry.host]?.trim() || POSTHOG_EU).replace(/\/+$/, "");
+}
+
+/**
+ * From the environment alone (never printing a key): each key that is set is a project key (an
+ * error otherwise: PostHog drops every event, and a personal key in `NEXT_PUBLIC_POSTHOG_KEY` would
+ * be published in the browser's bundle); each host that is set is an http(s) URL; and the two apps
+ * send to one project (a warning otherwise: Medusa's order events would not join the visitor's).
+ */
+export function posthogKeyChecks(envs: AppEnvs): Check[] {
+  const checks: Check[] = [];
+  const details: string[] = [];
+  for (const { app, key, host } of POSTHOG_KEYS) {
+    const value = envs[app][key]?.trim() ?? "";
+    if (value !== "" && !POSTHOG_PROJECT_KEY.test(value))
+      details.push(
+        value.startsWith("phx_")
+          ? `apps/${app}: ${key} is a personal API key (phx_…), a secret: use the project's key (phc_…)`
+          : `apps/${app}: ${key} is not a project API key (phc_…)`,
+      );
+    const url = envs[app][host]?.trim() ?? "";
+    if (url !== "" && !/^https?:\/\/[^/\s]+\/?$/.test(url))
+      details.push(`apps/${app}: ${host} is not a host such as ${POSTHOG_EU}`);
+  }
+  if (details.length > 0)
+    checks.push({
+      ...POSTHOG_KEY,
+      level: "error",
+      message:
+        "A PostHog key or host is set but is not one, so PostHog gets nothing from that app.",
+      details,
+      fix: "Copy the project API key from PostHog (Settings → Project → Project API key) and leave the hosts blank for the EU.",
+    });
+  const keys = POSTHOG_KEYS.map(({ app, key }) => envs[app][key]?.trim() ?? "");
+  if (details.length === 0 && keys.every((key) => key !== "") && new Set(keys).size > 1)
+    checks.push({
+      ...POSTHOG_KEY,
+      id: "posthog-projects",
+      level: "warn",
+      message:
+        "The backend and the storefront send to two PostHog projects, so the server's order events do not join the visitor's.",
+      fix: "Use the same project API key in POSTHOG_EVENTS_API_KEY and NEXT_PUBLIC_POSTHOG_KEY.",
+    });
+  return checks;
+}
+
+/**
+ * `doctor --online`: does PostHog take this key (T97)? One check per key and host, naming the apps
+ * that use it; `answer` is PostHog's answer to a feature-flags request (`/flags/?v=2`), which
+ * checks the key and records no event: 200 takes it, 401 refuses it.
+ */
+export function posthogFlagsCheck(
+  apps: readonly AppName[],
+  host: string,
+  answer: HttpResult,
+): Check {
+  const check = (c: Omit<Check, "id" | "title">): Check => ({
+    id: [POSTHOG_ONLINE.id, ...apps].join("-"),
+    title: `${POSTHOG_ONLINE.title} (${apps.map((app) => `apps/${app}`).join(" and ")})`,
+    ...c,
+  });
+  const where = new URL(host).host;
+  if (answer.kind !== "response")
+    return check({
+      level: "warn",
+      message: `not checked: PostHog (${where}) ${describeUnreachable(answer)}.`,
+    });
+  if (answer.status >= 200 && answer.status < 300)
+    return check({ level: "ok", message: `PostHog (${where}) accepts the project key.` });
+  if (answer.status === 401 || answer.status === 403)
+    return check({
+      level: "error",
+      message: `PostHog (${where}) refuses the key (HTTP ${answer.status}): it is not this host's project key, or it was revoked, so no event is recorded.`,
+      fix: "Copy the project API key again from PostHog (Settings → Project), and set the host of the project's region (blank for the EU).",
+    });
+  return check({
+    level: "warn",
+    message: `not checked: PostHog (${where}) answered HTTP ${answer.status}.`,
   });
 }
 

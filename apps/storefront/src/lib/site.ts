@@ -94,8 +94,16 @@ const TEXT: Record<"en" | "el" | "de" | "fr", SiteText> = {
     },
     promises: [
       { icon: "delivery", title: "Γρήγορη αποστολή", text: "Αποστολή σε 2 έως 4 εργάσιμες ημέρες" },
-      { icon: "returns", title: "Δωρεάν επιστροφές", text: "Επιστρέψτε ό,τι δεν έχετε φορέσει εντός 30 ημερών" },
-      { icon: "secure", title: "Ασφαλής πληρωμή", text: "Τα στοιχεία πληρωμής σας μένουν κρυπτογραφημένα" },
+      {
+        icon: "returns",
+        title: "Δωρεάν επιστροφές",
+        text: "Επιστρέψτε ό,τι δεν έχετε φορέσει εντός 30 ημερών",
+      },
+      {
+        icon: "secure",
+        title: "Ασφαλής πληρωμή",
+        text: "Τα στοιχεία πληρωμής σας μένουν κρυπτογραφημένα",
+      },
     ],
   },
   de: {
@@ -118,8 +126,16 @@ const TEXT: Record<"en" | "el" | "de" | "fr", SiteText> = {
     },
     promises: [
       { icon: "delivery", title: "Schneller Versand", text: "Versand in 2 bis 4 Werktagen" },
-      { icon: "returns", title: "Kostenlose Rückgabe", text: "Ungetragene Artikel innerhalb von 30 Tagen zurückgeben" },
-      { icon: "secure", title: "Sicher bezahlen", text: "Ihre Zahlungsdaten bleiben verschlüsselt" },
+      {
+        icon: "returns",
+        title: "Kostenlose Rückgabe",
+        text: "Ungetragene Artikel innerhalb von 30 Tagen zurückgeben",
+      },
+      {
+        icon: "secure",
+        title: "Sicher bezahlen",
+        text: "Ihre Zahlungsdaten bleiben verschlüsselt",
+      },
     ],
   },
   fr: {
@@ -142,8 +158,16 @@ const TEXT: Record<"en" | "el" | "de" | "fr", SiteText> = {
     },
     promises: [
       { icon: "delivery", title: "Livraison rapide", text: "Expédition sous 2 à 4 jours ouvrés" },
-      { icon: "returns", title: "Retours gratuits", text: "Retournez tout article non porté sous 30 jours" },
-      { icon: "secure", title: "Paiement sécurisé", text: "Vos données de paiement restent chiffrées" },
+      {
+        icon: "returns",
+        title: "Retours gratuits",
+        text: "Retournez tout article non porté sous 30 jours",
+      },
+      {
+        icon: "secure",
+        title: "Paiement sécurisé",
+        text: "Vos données de paiement restent chiffrées",
+      },
     ],
   },
 };
@@ -182,3 +206,22 @@ export function footerColumns(
     },
   ];
 }
+
+/**
+ * M6 D123 (T97): the cookie policy, the page the banner, the dialog and "Cookie settings" link to:
+ * the privacy policy the seed makes in every market (`payload/seed/pages.ts`), which says how to
+ * change the choice and holds a "Cookie settings" link of its own. Until M6 the banner linked
+ * `/cookies`, a page nothing made.
+ */
+export const COOKIE_POLICY_PATH = "/privacy";
+
+/** "Cookie settings": the policy page at this fragment, which the consent island opens as the dialog. */
+export const cookieSettingsHref = (policyHref: string) => `${policyHref}#cookie-settings`;
+
+/**
+ * PostHog's EU ingest host (M6 D124), the default when `NEXT_PUBLIC_POSTHOG_HOST` is blank: the
+ * `/ingest` rewrites (`next.config.ts`) and the consent island's context. The backend
+ * (`apps/backend/src/config/modules.ts`) and `doctor` (`scripts/lib/doctor-checks.ts`) keep their
+ * own copy, since neither can import this app.
+ */
+export const POSTHOG_EU = "https://eu.i.posthog.com";
