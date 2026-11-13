@@ -72,6 +72,7 @@ class FakeClient {
 
         return this.enqueued();
       },
+      getStats: async () => ({ numberOfDocuments: this.need(uid).docs.size, isIndexing: false }),
       search: async (q: string, params: Record<string, unknown>) => {
         this.need(uid);
         this.searches.push({ uid, params: { q, ...params } });
@@ -225,35 +226,44 @@ describe("MeilisearchSearchService", () => {
       );
     });
 
-    it("makes a locale's index only in a seed: a live write leaves a new locale to the default's", async () => {
+    it("makes a locale's index in a seed, or in a live write while the version is empty", async () => {
       const { fake, service } = setup();
-      const doc = (title: string) => ({
-        id: "prod_1",
-        _locales: { "en-US": { title: "Linen shirt" }, "it-IT": { title } },
+      const doc = (id: string, locales: Record<string, string>) => ({
+        id,
+        _locales: Object.fromEntries(Object.entries(locales).map(([l, title]) => [l, { title }])),
       });
 
-      // A live write names the active version in both: no it-IT index appears.
+      // A new store's first products, live: the version is empty, so each locale gets its index.
       await service.upsertIndex({ index: definition() });
       await service.upsertDocuments({
         index: "product_v2",
         definition: definition(),
-        documents: [doc("Camicia di lino")],
+        documents: [doc("prod_1", { "en-US": "Linen shirt", "it-IT": "Camicia di lino" })],
       });
-      expect([...fake.indexes.keys()]).toEqual(["product_v2__en-US"]);
+      expect([...fake.indexes.keys()].sort()).toEqual(["product_v2__en-US", "product_v2__it-IT"]);
+
+      // A locale added since, in a live write: it would hold one product, so the default's answers.
+      await service.upsertDocuments({
+        index: "product_v2",
+        definition: definition(),
+        documents: [doc("prod_2", { "en-US": "Hoodie", "it-IT": "Felpa", "fr-FR": "Sweat" })],
+      });
+      expect(fake.indexes.has("product_v2__fr-FR")).toBe(false);
+      expect(fake.indexes.get("product_v2__it-IT")!.docs.get("prod_2")).toMatchObject({ title: "Felpa" });
 
       // A seed makes it, and a live write then keeps it up to date.
       await service.upsertDocuments({
         index: "product_v2",
         definition: seeding(),
-        documents: [doc("Camicia di lino")],
+        documents: [doc("prod_1", { "en-US": "Linen shirt", "fr-FR": "Chemise en lin" })],
       });
       await service.upsertDocuments({
         index: "product_v2",
         definition: definition(),
-        documents: [doc("Camicia leggera")],
+        documents: [doc("prod_1", { "en-US": "Linen shirt", "fr-FR": "Chemise légère" })],
       });
-      expect(fake.indexes.get("product_v2__it-IT")!.docs.get("prod_1")).toMatchObject({
-        title: "Camicia leggera",
+      expect(fake.indexes.get("product_v2__fr-FR")!.docs.get("prod_1")).toMatchObject({
+        title: "Chemise légère",
       });
     });
 

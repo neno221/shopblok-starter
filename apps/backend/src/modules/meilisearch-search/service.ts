@@ -7,8 +7,9 @@
  * `<physical name>__<locale>`, where the physical name is the one Medusa hands over (`index` on a
  * write, `physical_name` on a query: never the definition's own root, ADR 0002 "Found on the way"
  * 5). Each document carries every locale's texts under that key; the provider writes one copy per
- * locale, each into its locale's index, which only a seed creates (with its settings; a live
- * write skips a locale whose index is not there), and removes the copy from a locale the document
+ * locale, each into its locale's index, which a seed creates (with its settings; a live write
+ * creates one only while the version holds no documents, else skips a locale whose index is not
+ * there), and removes the copy from a locale the document
  * no longer has. A query names its locales in
  * `search_options.locales` (the `/store/search` middleware writes the request's, checked against
  * the store's); one locale searches its index, several are one federated search. A locale with no
@@ -312,15 +313,34 @@ export class MeilisearchSearchService extends AbstractSearchProviderService {
     // Medusa's seed (a reindex, a start's seed, the catch-up) hands over the configured definition,
     // named with the unversioned root, beside the version it fills; a live write hands over the
     // active version's, whose name is `index` (`@medusajs/search` 2.22.6, `seeding.js` and
-    // `ingestion.js`). Only a seed makes a locale's index, so an index always holds the whole
-    // catalog: a live write for a locale the version has no index for (one the store added since)
-    // leaves it to the default locale's index, and the `search-locale-indexes` job rebuilds.
+    // `ingestion.js`). A locale's index must hold the whole catalog, so a live write makes one
+    // only while the version holds no documents yet (a new store's first products: every document
+    // carries every store locale, so nothing is missed); otherwise a locale the version has no
+    // index for (one the store added since) is left to the default locale's index, and the
+    // `search-locale-indexes` job rebuilds.
+    // Decided before this write adds any document.
     const seeding = definition.physical_name !== index;
+    const leftToDefault = new Set<string>();
+
+    if (!seeding) {
+      for (const locale of byLocale.keys()) {
+        if (locale !== own.default_locale && !(await this.indexExists(localeIndexUid(index, locale)))) {
+          leftToDefault.add(locale);
+        }
+      }
+
+      if (
+        leftToDefault.size &&
+        (await this.holdsNoDocuments(localeIndexUid(index, own.default_locale!)))
+      ) {
+        leftToDefault.clear();
+      }
+    }
 
     for (const [locale, rows] of byLocale) {
       const uid = localeIndexUid(index, locale);
 
-      if (!seeding && locale !== own.default_locale && !(await this.indexExists(uid))) {
+      if (leftToDefault.has(locale)) {
         continue;
       }
 
@@ -408,6 +428,20 @@ export class MeilisearchSearchService extends AbstractSearchProviderService {
   // ---- Search -----------------------------------------------------------------------------------
 
   /** Whether an index exists. Only an existing one is remembered: a missing one may appear later. */
+  /**
+   * Whether an index holds no documents and has none on the way: a missing index holds none; one
+   * still indexing may be about to.
+   */
+  protected async holdsNoDocuments(uid: string): Promise<boolean> {
+    if (!(await this.indexExists(uid))) {
+      return true;
+    }
+
+    const stats = await (await this.client()).index(uid).getStats();
+
+    return stats.numberOfDocuments === 0 && !stats.isIndexing;
+  }
+
   protected async indexExists(uid: string): Promise<boolean> {
     if (this.knownIndexes_.has(uid)) {
       return true;
