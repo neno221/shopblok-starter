@@ -70,23 +70,25 @@ export const budgets: readonly Budget[] = [
   // opener on their cards (D101, D102), the dialog itself kept out. M6 D129 (approved with M6's
   // scope, 2026-11-11): 337 and 338 KB, for what M6 puts in every first load; T96 took the first
   // 433 bytes (the root `global-error.tsx`, which every page loads; Sentry's queue only with a DSN).
-  { route: "/[market]/products/[handle]", label: "PDP", maxKB: 337 },
+  // T97: 339 and 340 KB (Steven, 2026-11-13), for the consent cookie and "Cookie settings" in every
+  // build and PostHog's `track()`, events and gate trigger in a build with its key (D123, D124).
+  { route: "/[market]/products/[handle]", label: "PDP", maxKB: 339 },
   {
     route: "/[market]/categories/[...handle]",
     label: "PLP, categories",
-    maxKB: 338,
+    maxKB: 340,
   },
-  { route: "/[market]/store", label: "PLP, store", maxKB: 338 },
-  { route: "/[market]/store/page/[n]", label: "PLP, store page n", maxKB: 338 },
+  { route: "/[market]/store", label: "PLP, store", maxKB: 340 },
+  { route: "/[market]/store/page/[n]", label: "PLP, store page n", maxKB: 340 },
   {
     route: "/[market]/collections/[handle]",
     label: "PLP, collections",
-    maxKB: 338,
+    maxKB: 340,
   },
   {
     route: "/[market]/collections/[handle]/page/[n]",
     label: "PLP, collections page n",
-    maxKB: 338,
+    maxKB: 340,
   },
 ];
 
