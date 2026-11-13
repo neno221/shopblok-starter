@@ -177,6 +177,9 @@ describe("MeilisearchSearchService", () => {
     ).toThrow(/MEILISEARCH_HOST/);
   });
 
+  /** The definition Medusa's seed hands over: the configured one, named with the unversioned root. */
+  const seeding = () => definition({ physical_name: "product" });
+
   describe("writes (ADR 0002, B)", () => {
     it("creates only the default locale's index for a new version, settings first", async () => {
       const { fake, service } = setup();
@@ -222,12 +225,44 @@ describe("MeilisearchSearchService", () => {
       );
     });
 
+    it("makes a locale's index only in a seed: a live write leaves a new locale to the default's", async () => {
+      const { fake, service } = setup();
+      const doc = (title: string) => ({
+        id: "prod_1",
+        _locales: { "en-US": { title: "Linen shirt" }, "it-IT": { title } },
+      });
+
+      // A live write names the active version in both: no it-IT index appears.
+      await service.upsertIndex({ index: definition() });
+      await service.upsertDocuments({
+        index: "product_v2",
+        definition: definition(),
+        documents: [doc("Camicia di lino")],
+      });
+      expect([...fake.indexes.keys()]).toEqual(["product_v2__en-US"]);
+
+      // A seed makes it, and a live write then keeps it up to date.
+      await service.upsertDocuments({
+        index: "product_v2",
+        definition: seeding(),
+        documents: [doc("Camicia di lino")],
+      });
+      await service.upsertDocuments({
+        index: "product_v2",
+        definition: definition(),
+        documents: [doc("Camicia leggera")],
+      });
+      expect(fake.indexes.get("product_v2__it-IT")!.docs.get("prod_1")).toMatchObject({
+        title: "Camicia leggera",
+      });
+    });
+
     it("removes the copy from a locale the document no longer has", async () => {
       const { fake, service } = setup();
       const write = (locales: string[]) =>
         service.upsertDocuments({
           index: "product_v2",
-          definition: definition(),
+          definition: seeding(),
           documents: [
             { id: "a", _locales: Object.fromEntries(locales.map((l) => [l, { title: l }])) },
             { id: "b", _locales: { "en-US": { title: "b" }, "de-DE": { title: "b" } } },
@@ -247,7 +282,7 @@ describe("MeilisearchSearchService", () => {
       await expect(
         service.upsertDocuments({
           index: "product_v2",
-          definition: definition(),
+          definition: seeding(),
           documents: [{ id: "a", _locales: { "../x": {} } }],
         }),
       ).rejects.toThrow(/not a locale code/);
@@ -258,7 +293,7 @@ describe("MeilisearchSearchService", () => {
       const write = () =>
         service.upsertDocuments({
           index: "product_v2",
-          definition: definition(),
+          definition: seeding(),
           documents: [{ id: "a", _locales: { "mn-MN": { title: "Маалинган цамц" } } }],
         });
 
@@ -274,7 +309,7 @@ describe("MeilisearchSearchService", () => {
 
       await service.upsertDocuments({
         index: "product_v2",
-        definition: definition(),
+        definition: seeding(),
         documents: [{ id: "a", _locales: { "en-US": {}, "fr-FR": {} } }],
       });
       await service.deleteDocuments({ index: "product_v2", filters: { id: ["a"] } });
@@ -288,7 +323,7 @@ describe("MeilisearchSearchService", () => {
 
       await service.upsertDocuments({
         index: "product_v2",
-        definition: definition(),
+        definition: seeding(),
         documents: [
           { id: "a", _locales: { "en-US": {}, "de-DE": {} } },
           { id: "b", _locales: { "en-US": {} } },
@@ -305,7 +340,7 @@ describe("MeilisearchSearchService", () => {
 
       await service.upsertDocuments({
         index: "product_v1",
-        definition: definition(),
+        definition: seeding(),
         documents: [{ id: "a", _locales: { "en-US": {}, "de-DE": {} } }],
       });
       await service.upsertIndex({ index: definition({ physical_name: "product_v2" }) });
@@ -321,7 +356,7 @@ describe("MeilisearchSearchService", () => {
 
       await context.service.upsertDocuments({
         index: "product_v2",
-        definition: definition(),
+        definition: seeding(),
         documents: [{ id: "a", _locales: { "en-US": {}, "el-GR": {} } }],
       });
       context.fake.searches.length = 0;
@@ -352,22 +387,27 @@ describe("MeilisearchSearchService", () => {
     it("answers a locale with no index from the default locale's, warning once", async () => {
       const { fake, service, warnings } = await seeded();
 
-      await service.search(query({ search_options: { locales: ["it-IT"] } }));
+      const fellBack = await service.search(query({ search_options: { locales: ["it-IT"] } }));
       await service.search(query({ search_options: { locales: ["it-IT"] } }));
 
       expect(fake.searches.map((s) => s.uid)).toEqual(["product_v2__en-US", "product_v2__en-US"]);
+      // The result says which locale answered (the job that rebuilds the index reads it).
+      expect(fellBack.provider_metadata).toEqual({ locales: ["en-US"] });
       expect(fake.searches[0]!.params.locales).toEqual(["en"]);
       expect(warnings.filter((w) => w.includes("it-IT"))).toHaveLength(1);
 
       // Once the locale has an index, it is searched there.
       await service.upsertDocuments({
         index: "product_v2",
-        definition: definition(),
+        definition: seeding(),
         documents: [{ id: "a", _locales: { "en-US": {}, "el-GR": {}, "it-IT": {} } }],
       });
       await service.search(query({ search_options: { locales: ["it-IT"] } }));
 
       expect(fake.searches.at(-1)!.uid).toBe("product_v2__it-IT");
+      expect(
+        (await service.search(query({ search_options: { locales: ["it-IT"] } }))).provider_metadata,
+      ).toEqual({ locales: ["it-IT"] });
     });
 
     it("says NOT_FOUND when the version itself is gone, so the module reads the live one again", async () => {

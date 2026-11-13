@@ -746,17 +746,31 @@ export function meilisearchLocalesCheck(input: {
       .filter((entry) => entry.version === version)
       .map((entry) => [entry.locale, entry.documents]),
   );
-  const empty = locales.filter((locale) => (documents.get(locale) ?? 0) === 0);
-  if (empty.length > 0) {
+  // Every locale's index holds the whole catalog (the provider makes one only in a seed): the
+  // fullest one is the catalog's size.
+  const full = Math.max(0, ...documents.values());
+  const missing = locales.filter((locale) => !documents.has(locale));
+  const short = locales.filter((locale) => documents.has(locale) && documents.get(locale)! < full);
+  const rebuild =
+    "The backend's `search-locale-indexes` job rebuilds the index within five minutes while it runs; or rebuild it now (`POST /admin/search-indexes/product/reindex`).";
+  if (short.length > 0) {
     return check({
       level: "warn",
-      message: `${physical} has no documents for ${empty.join(", ")}, so ${empty.length === 1 ? "that locale searches" : "those locales search"} the default locale's index.`,
-      details: empty.map((locale) =>
-        documents.has(locale)
-          ? `${physical}__${locale} is empty`
-          : `no index ${physical}__${locale}`,
-      ),
-      fix: "A locale's index is made on its first write: save a product or a translation, or rebuild the index (`POST /admin/search-indexes/product/reindex`).",
+      message: `${physical} has fewer documents for ${short.join(", ")} than for its fullest locale (${full}), so searches in ${short.length === 1 ? "that locale" : "those locales"} miss products.`,
+      details: [
+        ...short.map((locale) => `${physical}__${locale}: ${documents.get(locale)} of ${full}`),
+        ...missing.map((locale) => `no index ${physical}__${locale}`),
+      ],
+      fix: rebuild,
+    });
+  }
+  if (missing.length > 0) {
+    const one = missing.length === 1;
+    return check({
+      level: "warn",
+      message: `${physical} has no index for ${missing.join(", ")}, so ${one ? "that locale searches" : "those locales search"} the default locale's index, with its texts, until the index is rebuilt.`,
+      details: missing.map((locale) => `no index ${physical}__${locale}`),
+      fix: rebuild,
     });
   }
   return check({

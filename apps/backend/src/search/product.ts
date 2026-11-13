@@ -73,8 +73,8 @@ const LOCALIZED_FIELD = "_locales";
  * in any language finds the product, and a language added in the store needs
  * no restart or migration; on Meilisearch each locale's copy holds only that
  * locale's `search_text`, `title`, `category`, `option_values` and `labels`
- * (`toDocument`'s `_locales`), and a new locale's index appears with its first
- * write. `title` is the default
+ * (`toDocument`'s `_locales`), and a new locale gets its index from the
+ * `search-locale-indexes` job's rebuild. `title` is the default
  * language's: sortable, and searched with more weight, so a title match ranks
  * above a word in a description; `category`, `option_values` and `labels` are
  * the default language's labels for the hits. The facets are ids, which the
@@ -253,8 +253,9 @@ export default defineSearchIndex({
   settings: {
     typo_tolerance: { enabled: true },
     // What the Meilisearch provider needs to hold one index per locale, and no
-    // list of locales (ADR 0002, T7): a locale's index appears with its first
-    // write, so a language added in the store changes nothing here (D126).
+    // list of locales (ADR 0002, T7): the seed makes each store locale's index
+    // and a job rebuilds for a new one, so a language added in the store
+    // changes nothing here (D126).
     // `search-postgres` ignores it.
     provider_options: {
       meilisearch: {

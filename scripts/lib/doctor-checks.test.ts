@@ -831,8 +831,15 @@ describe("meilisearchLocalesCheck (T94)", () => {
     expect(missing.message).toContain("el-GR");
     expect(missing.details).toEqual(["no index product_v3__el-GR"]);
 
+    expect(missing.message).toContain("searches the default locale's index");
+
+    // An index that exists answers alone: empty or short, it misses products (PR 139's review, 3).
     const empty = run({ stats: stats({ "product_v3__en-US": 8, "product_v3__el-GR": 0 }) });
-    expect(empty.details).toEqual(["product_v3__el-GR is empty"]);
+    expect(empty.details).toEqual(["product_v3__el-GR: 0 of 8"]);
+    expect(empty.message).toContain("miss products");
+    expect(empty.message).not.toContain("default locale");
+    const short = run({ stats: stats({ "product_v3__en-US": 8, "product_v3__el-GR": 1 }) });
+    expect(short).toMatchObject({ level: "warn", details: ["product_v3__el-GR: 1 of 8"] });
   });
 
   it("reads only the indexes of MEILISEARCH_INDEX_PREFIX", () => {

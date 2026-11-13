@@ -7,13 +7,15 @@
  * `<physical name>__<locale>`, where the physical name is the one Medusa hands over (`index` on a
  * write, `physical_name` on a query: never the definition's own root, ADR 0002 "Found on the way"
  * 5). Each document carries every locale's texts under that key; the provider writes one copy per
- * locale, each into its locale's index, created with its settings on the locale's first write, and
- * removes the copy from a locale the document no longer has. A query names its locales in
+ * locale, each into its locale's index, which only a seed creates (with its settings; a live
+ * write skips a locale whose index is not there), and removes the copy from a locale the document
+ * no longer has. A query names its locales in
  * `search_options.locales` (the `/store/search` middleware writes the request's, checked against
  * the store's); one locale searches its index, several are one federated search. A locale with no
- * index yet (added in the store after the last write) searches the default locale's index and logs
- * a warning, once per locale and process: the shop then shows the default texts, which is what an
- * untranslated language shows anyway (ADR 0002 decision 1). Any other definition is one plain
+ * index yet (added in the store since the last rebuild) searches the default locale's index and
+ * logs a warning, once per locale and process: the shop then shows the default texts, which is what
+ * an untranslated language shows anyway (ADR 0002 decision 1), until the `search-locale-indexes`
+ * job rebuilds the index (`src/lib/search-locale-indexes.ts`). Any other definition is one plain
  * Meilisearch index.
  *
  * Writes are enqueued by Meilisearch and waited for in `waitForTask`, so the module can make a new
@@ -167,8 +169,13 @@ export class MeilisearchSearchService extends AbstractSearchProviderService {
     const own = indexOptionsOf(index);
 
     if (own.localized) {
+      // Medusa calls this for a new version only, and never reuses a version's number, so nothing
+      // of this name should exist: anything that does (left by a database restored to an older
+      // state, as the integration runner does before each test) would mix old copies into the new
+      // version, so it goes first.
+      await this.deleteIndex({ index: index.physical_name });
       // The default locale's index exists from the start, so a query always has an index to fall
-      // back on; every other locale's appears with its first write.
+      // back on; every other locale's is made by the seed that fills the version.
       await this.ensureLocaleIndex(index.physical_name, index, own.default_locale!);
     } else {
       await this.applySettings(index.physical_name, index);
@@ -302,10 +309,22 @@ export class MeilisearchSearchService extends AbstractSearchProviderService {
     }
 
     const tasks: number[] = [];
+    // Medusa's seed (a reindex, a start's seed, the catch-up) hands over the configured definition,
+    // named with the unversioned root, beside the version it fills; a live write hands over the
+    // active version's, whose name is `index` (`@medusajs/search` 2.22.6, `seeding.js` and
+    // `ingestion.js`). Only a seed makes a locale's index, so an index always holds the whole
+    // catalog: a live write for a locale the version has no index for (one the store added since)
+    // leaves it to the default locale's index, and the `search-locale-indexes` job rebuilds.
+    const seeding = definition.physical_name !== index;
 
     for (const [locale, rows] of byLocale) {
-      const uid = await this.ensureLocaleIndex(index, definition, locale);
+      const uid = localeIndexUid(index, locale);
 
+      if (!seeding && locale !== own.default_locale && !(await this.indexExists(uid))) {
+        continue;
+      }
+
+      await this.ensureLocaleIndex(index, definition, locale);
       tasks.push((await client.index(uid).addDocuments(rows, { primaryKey })).taskUid);
     }
 
@@ -427,8 +446,8 @@ export class MeilisearchSearchService extends AbstractSearchProviderService {
     if (locale !== defaultLocale && (await this.indexExists(fallback))) {
       this.warnOnce(
         `fallback:${locale}`,
-        `no index for ${locale} yet (it was added after the last write to "${definition.name}"), ` +
-          `so its searches use ${defaultLocale}'s index until a product or translation is written, ` +
+        `no index for ${locale} yet (it was added to the store after "${definition.name}" was last built), ` +
+          `so its searches use ${defaultLocale}'s index until the search-locale-indexes job rebuilds it, ` +
           `or the index is rebuilt`,
       );
 
@@ -609,7 +628,16 @@ export class MeilisearchSearchService extends AbstractSearchProviderService {
         this.countRanges(targets, built.params, ranges, input.index.primary_key),
       ]);
 
-      return this.toResult(input, response, { facets, rangeCounts, skip, take, ...built });
+      const locales = targets.flatMap((target) => target.locale ?? []);
+
+      return this.toResult(input, response, {
+        facets,
+        rangeCounts,
+        skip,
+        take,
+        ...built,
+        ...(locales.length ? { locales } : {}),
+      });
     } catch (error) {
       throw this.translateError(error, targets);
     }
@@ -795,6 +823,7 @@ export class MeilisearchSearchService extends AbstractSearchProviderService {
       highlightFields: string[];
       retrieve: string[];
       preTag: string;
+      locales?: string[];
     },
   ): SearchTypes.SearchResult {
     const options = input.search_options ?? {};
@@ -856,6 +885,9 @@ export class MeilisearchSearchService extends AbstractSearchProviderService {
         count: total,
         processing_time_ms: response.processingTimeMs,
       },
+      // The locales whose indexes answered: a locale with no index yet shows as the default's
+      // (the `search-locale-indexes` job reads it).
+      ...(context.locales ? { provider_metadata: { locales: context.locales } } : {}),
     };
   }
 

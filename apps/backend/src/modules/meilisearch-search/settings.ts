@@ -13,14 +13,15 @@ type Field = SearchTypes.SearchFieldDefinition;
  * What a definition says to this provider, under `settings.provider_options.meilisearch`.
  *
  * - `localized_field` (ADR 0002's B): the document key that holds `{ [locale]: { ...texts } }`.
- *   Each locale's copy of a document goes into its own index, `<version>__<locale>`, created on its
- *   first write; a query picks the index by `search_options.locales`. Without it the index is one
+ *   Each locale's copy of a document goes into its own index, `<version>__<locale>`, created by the
+ *   seed that fills the version; a query picks the index by `search_options.locales`. Without it the index is one
  *   Meilisearch index, as Medusa's own providers keep it.
  * - `default_locale`: the locale whose index answers a query without one, and a query for a locale
  *   that has no index yet. Required with `localized_field`.
  *
- * There is no list of locales (ADR 0002, T7): a locale's index appears with its first write, so
- * adding a language to the store changes neither the definition nor its hash.
+ * There is no list of locales (ADR 0002, T7): the seed makes an index for each store locale, and
+ * the `search-locale-indexes` job rebuilds when the store gains one, so adding a language to the
+ * store changes neither the definition nor its hash.
  */
 export type MeilisearchIndexOptions = {
   localized_field?: string;

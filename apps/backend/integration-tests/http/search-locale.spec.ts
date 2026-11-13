@@ -15,6 +15,7 @@
 import { medusaIntegrationTestRunner } from "@medusajs/test-utils";
 import { ContainerRegistrationKeys, Modules } from "@medusajs/framework/utils";
 import { deleteTranslationsWorkflow } from "@medusajs/medusa/core-flows";
+import { forgetActiveProviders } from "../../src/api/store/search/locale";
 
 import {
   addStoreLocales,
@@ -338,16 +339,19 @@ medusaIntegrationTestRunner({
         });
 
         describe("for a provider that takes query-time locales (M6's Meilisearch)", () => {
-          // What the route hands `query.search`, with the product index reported as served by a
-          // provider other than search-postgres. The answer is faked: Postgres would refuse it.
+          // What the route hands `query.search`, with the product index's active version reported
+          // as served by a provider other than search-postgres (the middleware reads `listIndexes`). The answer is faked: Postgres would refuse it.
           const sent = async (locale: string | undefined, searchOptions?: object) => {
             const container = getContainer();
             const searchModule = container.resolve(Modules.SEARCH);
             const query = container.resolve(ContainerRegistrationKeys.QUERY);
-            const getIndex = searchModule.getIndex.bind(searchModule);
+            const listIndexes = searchModule.listIndexes.bind(searchModule);
             const indexSpy = jest
-              .spyOn(searchModule, "getIndex")
-              .mockImplementation((name) => ({ ...getIndex(name), provider: "meilisearch" }));
+              .spyOn(searchModule, "listIndexes")
+              .mockImplementation(async () =>
+                (await listIndexes()).map((index) => ({ ...index, provider: "meilisearch" })),
+              );
+            forgetActiveProviders();
             const searchSpy = jest
               .spyOn(query, "search")
               .mockResolvedValue([{ search_result: { hits: [] } }] as never);
@@ -366,6 +370,7 @@ medusaIntegrationTestRunner({
             } finally {
               indexSpy.mockRestore();
               searchSpy.mockRestore();
+              forgetActiveProviders();
             }
           };
 

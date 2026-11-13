@@ -35,6 +35,7 @@ import {
   until,
   WOOL_SWEATER,
 } from "./search-locale.fixtures";
+import { rebuildIncompleteLocaleIndexes } from "../../src/lib/search-locale-indexes";
 
 jest.setTimeout(180_000);
 
@@ -472,17 +473,26 @@ medusaIntegrationTestRunner({
       });
 
       describe("T7 and T9: a language added in the store, no restart", () => {
+        /** The `search-locale-indexes` job's work, run now instead of within five minutes. */
+        const rebuild = () => rebuildIncompleteLocaleIndexes(getContainer());
+        const liveIndexOf = async (locale: string) =>
+          (await indexUids()).includes(`${await liveVersion()}__${locale}`);
+
+        // The runner restores the database before each test while Meilisearch keeps every index,
+        // and a rebuild's cleanup can drop the version the restored database names: each test
+        // starts from a version rebuilt from its own database.
+        beforeEach(reindex);
+
         it("a locale added after the last write answers from the default locale's index, with a warning", async () => {
           const container = getContainer();
           const logger = container.resolve(ContainerRegistrationKeys.LOGGER);
           const warn = jest.spyOn(logger, "warn");
 
-          await reindex();
           await addStoreLocales(container, ["nl-NL"]);
 
           try {
-            // Nothing has been written since the locale was added: it has no index.
-            expect((await indexUids()).filter((uid) => uid.endsWith("__nl-NL"))).toEqual([]);
+            // Nothing has rebuilt the index since the locale was added: it has no index.
+            expect(await liveIndexOf("nl-NL")).toBe(false);
             expect(await hitIds("shirt", "nl-NL")).toEqual([linenId]);
             expect(await hitIds("shirt", "nl-NL")).toEqual([linenId]);
 
@@ -495,6 +505,28 @@ medusaIntegrationTestRunner({
           } finally {
             warn.mockRestore();
           }
+
+          // The job gives it an index of its own with the whole catalog.
+          expect(await rebuild()).toEqual(["nl-NL"]);
+          expect(await liveIndexOf("nl-NL")).toBe(true);
+          expect((await hitIds("", "nl-NL")).sort()).toEqual([linenId, sweaterId].sort());
+          expect(await rebuild()).toEqual([]);
+        });
+
+        it("a write for the new locale makes no index of one product: the catalog stays whole (review item 1)", async () => {
+          const container = getContainer();
+
+          await addStoreLocales(container, ["it-IT"]);
+          await translate(container, "product", linenId, {
+            "it-IT": { title: "Camicia di lino", description: "Una camicia leggera di puro lino." },
+          });
+          await container
+            .resolve(Modules.SEARCH)
+            .ingest({ name: "product.updated", data: [{ id: linenId }] });
+
+          // Until the rebuild, Italian searches the default locale's index: every product is there.
+          expect(await liveIndexOf("it-IT")).toBe(false);
+          expect((await hitIds("", "it-IT")).sort()).toEqual([linenId, sweaterId].sort());
         });
 
         it("it-IT is searchable once translated, with no restart (T7)", async () => {
@@ -504,11 +536,14 @@ medusaIntegrationTestRunner({
           await translate(container, "product", linenId, {
             "it-IT": { title: "Camicia di lino", description: "Una camicia leggera di puro lino." },
           });
+          expect(await rebuild()).toEqual(["it-IT"]);
 
           await until(async () => (await hitIds("Camicia", "it-IT")).includes(linenId), {
             what: "the Italian title to be found",
           });
           expect(await hitIds("Camicia", "en-US")).toEqual([]);
+          // The sweater, untranslated, is in the Italian index too, with its default texts.
+          expect((await hitIds("", "it-IT")).sort()).toEqual([linenId, sweaterId].sort());
         });
 
         it("pt-BR and mn-MN are found by their own words once translated (T9)", async () => {
@@ -516,6 +551,7 @@ medusaIntegrationTestRunner({
 
           await addStoreLocales(container, Object.keys(MORE_LOCALES));
           await translate(container, "product", linenId, MORE_LOCALES);
+          expect((await rebuild()).sort()).toEqual(Object.keys(MORE_LOCALES).sort());
 
           for (const [locale, q] of [
             ["pt-BR", "Camisa"],
@@ -542,6 +578,7 @@ medusaIntegrationTestRunner({
           await translate(container, "product", linenId, {
             "it-IT": { title: "Camicia di lino", description: "Una camicia leggera di puro lino." },
           });
+          await rebuild();
 
           const italian = `/indexes/${await liveVersion()}__it-IT/documents/${linenId}`;
 
@@ -560,9 +597,7 @@ medusaIntegrationTestRunner({
               selector: { id: store.id },
               update: {
                 supported_locales: (store.supported_locales ?? []).flatMap((l) =>
-                  l?.locale_code && l.locale_code !== "it-IT"
-                    ? [{ locale_code: l.locale_code }]
-                    : [],
+                  l?.locale_code && l.locale_code !== "it-IT" ? [{ locale_code: l.locale_code }] : [],
                 ),
               },
             },
@@ -572,6 +607,11 @@ medusaIntegrationTestRunner({
             .ingest({ name: "product.updated", data: [{ id: linenId }] });
 
           expect(await meilisearch("GET", italian)).toBeUndefined();
+
+          // Added back, Italian has fewer documents than the default: the job rebuilds it whole.
+          await addStoreLocales(container, ["it-IT"]);
+          expect(await rebuild()).toEqual(["it-IT"]);
+          expect((await hitIds("", "it-IT")).sort()).toEqual([linenId, sweaterId].sort());
         });
       });
     });
