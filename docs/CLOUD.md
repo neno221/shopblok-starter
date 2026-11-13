@@ -111,7 +111,7 @@ if ! docker info >/dev/null 2>&1; then
   for _ in $(seq 30); do docker info >/dev/null 2>&1 && break; sleep 1; done
 fi
 pids=()
-for image in postgres:17.11-alpine redis:7.4-alpine getmeili/meilisearch:v1.54.3 axllent/mailpit:v1.31.6; do
+for image in postgres:17.11-alpine redis:7.4-alpine getmeili/meilisearch:v1.56.2 axllent/mailpit:v1.31.6; do
   docker pull -q "$image" & pids+=($!)
 done
 

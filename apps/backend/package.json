@@ -39,6 +39,7 @@
     "@shopblok/emails": "workspace:*",
     "@shopblok/medusa-markets": "workspace:*",
     "@tanstack/react-query": "5.64.2",
+    "meilisearch": "0.63.0",
     "react-i18next": "13.5.0",
     "react-router-dom": "7.18.2",
     "resend": "6.38.0",

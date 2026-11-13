@@ -8,6 +8,7 @@ import {
   Modules,
 } from "@medusajs/framework/utils";
 
+import { MEILISEARCH_PROVIDER_ID } from "../../../modules/meilisearch-search/locales";
 import { DEFAULT_LOCALE, storeLocales } from "../../../search/helpers/translations";
 
 type SearchQuery = { entity: string; search_options?: Record<string, unknown> };
@@ -53,11 +54,54 @@ export function localizeSearchBody(
 }
 
 /**
- * The providers that take `search_options.locales` (M6's Meilisearch, by its
- * registration id). Any other gets none: `search-postgres` answers a query
+ * The providers that take `search_options.locales`: Meilisearch (D126), by the
+ * identifier the Search Module registers it under, which is what an index's
+ * `provider` holds. Any other gets none: `search-postgres` answers a query
  * with `locales` with an HTTP 400, so an unknown provider fails safe.
  */
-const QUERY_TIME_LOCALE_PROVIDERS = ["meilisearch"];
+const QUERY_TIME_LOCALE_PROVIDERS: readonly string[] = [MEILISEARCH_PROVIDER_ID];
+
+type SearchModule = {
+  listIndexes(): Promise<{ name: string; entity?: string; provider: string }[]>;
+};
+
+/** How long the indexes' active providers are kept: `listIndexes` reads two tables. */
+export const ACTIVE_PROVIDERS_TTL_MS = 5_000;
+
+let cached: { search: SearchModule; at: number; providers: Map<string, string> } | undefined;
+
+/**
+ * The provider each index's *active version* runs on, by index name and entity. That is the one
+ * that answers a search: the registered definition names `default_provider`, which differs while
+ * a switch's new version is being filled, and for as long as its seed keeps failing (Meilisearch
+ * down at the start) the old version (Postgres) serves on (PR 139's review, item 2).
+ */
+export async function activeProviders(
+  search: SearchModule,
+  now: number = Date.now(),
+): Promise<Map<string, string>> {
+  if (cached?.search === search && now - cached.at < ACTIVE_PROVIDERS_TTL_MS) {
+    return cached.providers;
+  }
+
+  const providers = new Map<string, string>();
+
+  for (const index of await search.listIndexes()) {
+    providers.set(index.name, index.provider);
+    if (index.entity) {
+      providers.set(index.entity, index.provider);
+    }
+  }
+
+  cached = { search, at: now, providers };
+
+  return providers;
+}
+
+/** Forgets the cached providers, so the next request reads them again (tests). */
+export function forgetActiveProviders(): void {
+  cached = undefined;
+}
 
 /**
  * `POST /store/search`, after `configureStoreSearch` (whose validator fills
@@ -72,23 +116,19 @@ export async function localizeStoreSearch(
 
   if (body) {
     const search = req.scope.resolve(Modules.SEARCH, { allowUnregistered: true }) as
-      | { getIndex(entity: string): { provider: string } }
+      | SearchModule
       | undefined;
-    const locale = chooseSearchLocale(
-      (req as { locale?: string }).locale,
-      await storeLocales(req.scope.resolve(ContainerRegistrationKeys.QUERY)),
+    const [locale, providers] = await Promise.all([
+      storeLocales(req.scope.resolve(ContainerRegistrationKeys.QUERY)).then((supported) =>
+        chooseSearchLocale((req as { locale?: string }).locale, supported),
+      ),
+      search ? activeProviders(search) : new Map<string, string>(),
+    ]);
+
+    // An unknown index gets no locales: the route answers it with a 404.
+    localizeSearchBody(body, locale, (entity) =>
+      QUERY_TIME_LOCALE_PROVIDERS.includes(providers.get(entity) ?? ""),
     );
-
-    localizeSearchBody(body, locale, (entity) => {
-      try {
-        const provider = search?.getIndex(entity).provider ?? "";
-
-        return QUERY_TIME_LOCALE_PROVIDERS.some((id) => provider.startsWith(id));
-      } catch {
-        // An unknown index: the route answers it with a 404.
-        return false;
-      }
-    });
   }
 
   next();

@@ -16,12 +16,12 @@ Plain `docker compose up -d --wait` does the same as `pnpm infra:up`. Docker has
 |---|---|---|---|---|
 | `postgres` | `postgres:17.11-alpine` | **15432** → 5432 | `postgres-data` | Medusa (`medusa` database), Payload (`payload` database) |
 | `redis` | `redis:7.4-alpine` | **6380** → 6379 | `redis-data` | Medusa modules and sessions |
-| `meilisearch` | `getmeili/meilisearch:v1.54.3` | **7701** → 7700 | `meili-data` | Medusa's Search provider (M6) |
+| `meilisearch` | `getmeili/meilisearch:v1.56.2` | **7701** → 7700 | `meili-data` | Medusa's Search provider (T94) |
 | `mailpit` | `axllent/mailpit:v1.31.6` | 1025 (SMTP) and 8025 (web UI), the same inside | `mailpit-data` | Local inbox for Payload's email |
 
 Every service has a healthcheck, which is what `--wait` waits for: a `psql` query for Postgres, `redis-cli ping` (it has to answer `PONG`), `curl -fsS localhost:7700/health` and `/mailpit readyz`. The checks run inside the containers, so they use the standard ports. Postgres's check goes over TCP on purpose: while the entrypoint runs the init scripts, a temporary server listens on the unix socket only, and a socket check would report healthy before the databases exist. It also counts the `medusa` and `payload` databases, so a start on a volume whose init script failed earlier (the script is then skipped) stays unhealthy instead of looking ready.
 
-The images are pinned to exact tags. The cloud setup script pulls the same four ([docs/CLOUD.md](../docs/CLOUD.md), script step 3), so change a tag in both places. Existing volumes may not survive a bump: a new Postgres major version can't read the data directory of the old one, and Meilisearch can't open data written by another version without a dump. After changing either tag, run `pnpm infra:reset` (which deletes the data), or dump and re-import first.
+The images are pinned to exact tags. The cloud setup script pulls the same four ([docs/CLOUD.md](../docs/CLOUD.md), script step 3), so change a tag in both places. Existing volumes may not survive a bump: a new Postgres major version can't read the data directory of the old one; Meilisearch upgrades an older volume in place (`MEILI_UPGRADE_DB`, below) but can't go back to an older version. After changing a Postgres tag, or if Meilisearch's upgrade fails, run `pnpm infra:reset` (which deletes the data; Medusa rebuilds the search index from Postgres on its next start), or dump and re-import first.
 
 ## Why the host ports are not the standard ones
 
@@ -58,7 +58,7 @@ These are local development values, not secrets: the Meilisearch master key is f
 
 ## Other settings
 
-- **Meilisearch** runs with `MEILI_ENV=development` and its anonymous telemetry off. Without the master key every request except `/health` is refused (401).
+- **Meilisearch** runs with `MEILI_ENV=development` and its anonymous telemetry off. Without the master key every request except `/health` is refused (401). It runs with `MEILI_UPGRADE_DB=true`, so a volume written by an older version (v1.54.3 until T94) is upgraded in place on start instead of refusing to open.
 - **Mailpit** keeps its inbox in a database on its volume (`MP_DATABASE=/data/mailpit.db`) and skips its version check, which calls out to GitHub. It logs a warning that its UI has no authentication; that is fine on a development machine.
 - There is no object-storage container (SPEC §5): files stay on local disk until `S3_*` keys are set.
 - Volumes are named volumes, not folders in the checkout, so `git status` stays clean. They belong to the Compose project, which is named after the repo folder; a second checkout in a folder with another name gets its own containers and volumes, and the two can't run together because they publish the same ports.

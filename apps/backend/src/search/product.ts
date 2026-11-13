@@ -11,11 +11,15 @@ import { type ProductOptionRow, toOptionValues } from "./helpers/option-values";
 import { loadPricing, priceFields, toProductPricing } from "./helpers/pricing";
 import { resolveProductIds } from "./helpers/resolve-product-ids";
 import {
+  DEFAULT_LOCALE,
+  type ProductTexts,
   readTexts,
   resolveTranslationProductIds,
   storeLocales,
+  toLocaleSearchText,
   toSearchText,
 } from "./helpers/translations";
+import { MEILISEARCH_PROVIDER_ID } from "../modules/meilisearch-search/locales";
 
 // The ids of categories, options and values are the facets, and selecting them
 // is also what makes `query.graph(…, { locale })` translate those objects.
@@ -57,9 +61,20 @@ type ProductRow = {
 };
 
 /**
- * One multilingual index (ADR 0002's A′, D63): `search_text` holds every store
- * locale's text, so a query in any language finds the product, and a language
- * added in the store needs no restart or migration. `title` is the default
+ * The key under which a document carries each locale's texts for the
+ * Meilisearch provider, which writes one copy per locale (ADR 0002's B, D126).
+ */
+const LOCALIZED_FIELD = "_locales";
+
+/**
+ * One multilingual index (ADR 0002's A′, D63) on `search-postgres`, one index
+ * per locale on Meilisearch (B, D126), from the same fields and the same
+ * reads: on Postgres `search_text` holds every store locale's text, so a query
+ * in any language finds the product, and a language added in the store needs
+ * no restart or migration; on Meilisearch each locale's copy holds only that
+ * locale's `search_text`, `title`, `category`, `option_values` and `labels`
+ * (`toDocument`'s `_locales`), and a new locale gets its index from the
+ * `search-locale-indexes` job's rebuild. `title` is the default
  * language's: sortable, and searched with more weight, so a title match ranks
  * above a word in a description; `category`, `option_values` and `labels` are
  * the default language's labels for the hits. The facets are ids, which the
@@ -100,11 +115,25 @@ type ProductDocument = SearchTypes.InferSearchDocumentType<
   typeof productFields
 >;
 
+/** The fields a locale's copy replaces on Meilisearch: what is written in a language. */
+function localizedTexts(texts: ProductTexts) {
+  return {
+    search_text: toLocaleSearchText(texts),
+    title: texts.title || null,
+    category: texts.categories,
+    option_values: texts.option_values,
+    labels: texts.tags,
+  };
+}
+
 function toDocument(
   product: ProductRow,
   pricing: Parameters<typeof toProductPricing>[0],
-  searchText: string,
+  texts: Map<string, ProductTexts> | undefined,
+  perLocale: boolean,
 ): ProductDocument {
+  const searchText = toSearchText(texts);
+
   return {
     id: product.id,
     status: product.status ?? null,
@@ -121,7 +150,16 @@ function toDocument(
     ...toFacetIds(product),
     labels: trimmed((product.tags ?? []).map((tag) => tag?.value)),
     ...toProductPricing(pricing),
-  };
+    // Not a field: the Meilisearch provider fans it out and never stores it.
+    // Postgres keeps every document as it is given, so it gets none.
+    ...(perLocale && texts
+      ? {
+          [LOCALIZED_FIELD]: Object.fromEntries(
+            [...texts].map(([locale, t]) => [locale, localizedTexts(t)]),
+          ),
+        }
+      : {}),
+  } as ProductDocument;
 }
 
 /**
@@ -143,8 +181,12 @@ const source = {
       storeLocales(query).then((locales) => readTexts(query, ids, locales)),
     ]);
 
+    // The provider of the index being written: Medusa hands the definition
+    // over with it (`default_provider`, or Meilisearch's once its keys are set).
+    const perLocale = context.index.provider === MEILISEARCH_PROVIDER_ID;
+
     return rows.map((row) =>
-      toDocument(row, pricing.get(row.id), toSearchText(texts.get(row.id))),
+      toDocument(row, pricing.get(row.id), texts.get(row.id), perLocale),
     );
   },
 };
@@ -210,6 +252,17 @@ export default defineSearchIndex({
   fields: productFields,
   settings: {
     typo_tolerance: { enabled: true },
+    // What the Meilisearch provider needs to hold one index per locale, and no
+    // list of locales (ADR 0002, T7): the seed makes each store locale's index
+    // and a job rebuilds for a new one, so a language added in the store
+    // changes nothing here (D126).
+    // `search-postgres` ignores it.
+    provider_options: {
+      meilisearch: {
+        localized_field: LOCALIZED_FIELD,
+        default_locale: DEFAULT_LOCALE,
+      },
+    },
   },
   events: PRODUCT_EVENTS,
   consume: graphConsume<typeof productFields, ProductRow>({

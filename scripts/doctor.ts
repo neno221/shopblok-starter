@@ -17,6 +17,7 @@ import {
   configChecks,
   explainMedusaRun,
   medusaMarketsCheck,
+  meilisearchLocalesCheck,
   MEDUSA_RUN_TIMEOUT_MS,
   orphanRegions,
   orphanRegionsCheck,
@@ -324,6 +325,8 @@ type OnlineRequests = {
   /** `undefined` when there was no URL or key to ask with. */
   payload: Promise<HttpResult | undefined>;
   medusa: Promise<{ regions: HttpResult; locales: HttpResult } | undefined>;
+  /** Meilisearch's `GET /stats`, when the backend searches with it (T94). */
+  meilisearch: { host: string; prefix: string | undefined; stats: Promise<HttpResult> } | undefined;
   /** Resend's domains, per app whose Resend keys are set (T98); `undefined` for its test sender. */
   resend: Promise<{ apps: AppName[]; from: string | undefined; answer: HttpResult | undefined }[]>;
   /** Sentry's answer to an empty envelope, per DSN (T96). */
@@ -345,9 +348,22 @@ function startOnlineRequests(
   const payloadKey = (envs.backend.PAYLOAD_API_KEY ?? "").trim();
   const key = (envs.storefront.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY ?? "").trim();
   const headers = { "x-publishable-api-key": key };
+  const meiliHost = trimSlash((envs.backend.MEILISEARCH_HOST ?? "").trim());
+  const meiliKey = (envs.backend.MEILISEARCH_API_KEY ?? "").trim();
+  const meiliLive = statuses.find((status) => status.id === "meilisearch")?.state === "live";
   return {
     payloadUrl,
     headers,
+    meilisearch: meiliLive
+      ? {
+          host: meiliHost,
+          prefix: (envs.backend.MEILISEARCH_INDEX_PREFIX ?? "").trim() || undefined,
+          stats: request(`${meiliHost}/stats`, {
+            headers: { Authorization: `Bearer ${meiliKey}` },
+            timeoutMs: 15_000,
+          }),
+        }
+      : undefined,
     payload:
       payloadUrl === "" || payloadKey === ""
         ? Promise.resolve(undefined)
@@ -475,9 +491,23 @@ async function onlineChecks(
   medusaUrl: string,
   config: BackendMarkets | undefined,
 ): Promise<Check[]> {
-  const [payloadAnswer, medusaAnswers] = await Promise.all([online.payload, online.medusa]);
+  const [payloadAnswer, medusaAnswers, meiliStats] = await Promise.all([
+    online.payload,
+    online.medusa,
+    online.meilisearch?.stats,
+  ]);
   const medusa = medusaMarketsCheck(medusaUrl, medusaAnswers);
   const checks = [payloadAuthCheck(online.payloadUrl, payloadAnswer), medusa.check];
+  if (online.meilisearch !== undefined && meiliStats !== undefined) {
+    checks.push(
+      meilisearchLocalesCheck({
+        host: online.meilisearch.host,
+        prefix: online.meilisearch.prefix,
+        locales: medusaAnswers?.locales,
+        stats: meiliStats,
+      }),
+    );
+  }
   if (medusa.regions === undefined) return checks;
 
   // Regions left behind by a market that was taken out of the file: not a search-index problem.
