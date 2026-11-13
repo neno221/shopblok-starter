@@ -309,6 +309,21 @@ test.describe("the listing pages and the search (T50)", () => {
     await overlay.getByRole("combobox").pressSequentially("hoodie");
     await expect(overlay.getByRole("option", { name: /Heritage Hoodie/ })).toBeVisible();
   });
+
+  // T94 (D126): on Meilisearch the overlay finds a product by the first letters of a word, in the
+  // market's own language: English under /us, Greek under / (Cyprus), each in its locale's index.
+  for (const { market, path, typed, title } of [
+    { market: "/us", path: "/us/categories/apparel", typed: "hoo", title: TITLE.en },
+    { market: "/ (Cyprus)", path: "/categories/apparel", typed: "Φούτ", title: TITLE.el },
+  ]) {
+    test(`the overlay finds the hoodie by a prefix of its title · ${market}`, async ({ page }) => {
+      await page.goto(path);
+      await page.locator('[data-slot="search-overlay-trigger"]').click();
+      const overlay = page.locator('[data-slot="search-overlay"]');
+      await overlay.getByRole("combobox").pressSequentially(typed);
+      await expect(overlay.getByRole("option", { name: title })).toBeVisible();
+    });
+  }
 });
 
 // T69 (D83, D78): the shop's own content on Medusa's synced documents, written through Payload's
