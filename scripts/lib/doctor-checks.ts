@@ -668,7 +668,10 @@ export function readMeilisearchStats(answer: {
   if (indexes === null || typeof indexes !== "object") return "the answer has no `indexes`";
   return Object.fromEntries(
     Object.entries(indexes as Record<string, { numberOfDocuments?: unknown } | null>).map(
-      ([uid, stats]) => [uid, typeof stats?.numberOfDocuments === "number" ? stats.numberOfDocuments : 0],
+      ([uid, stats]) => [
+        uid,
+        typeof stats?.numberOfDocuments === "number" ? stats.numberOfDocuments : 0,
+      ],
     ),
   );
 }
@@ -709,13 +712,17 @@ export function meilisearchLocalesCheck(input: {
   if (input.locales === undefined) {
     return check({
       level: "warn",
-      message: "not checked: the storefront has no publishable key to read the store's locales with.",
+      message:
+        "not checked: the storefront has no publishable key to read the store's locales with.",
       fix: "Run `pnpm bootstrap`.",
     });
   }
   const locales = localesOf(input.locales);
   if (typeof locales === "string") {
-    return check({ level: "warn", message: `not checked: the store's locales could not be read (${locales}).` });
+    return check({
+      level: "warn",
+      message: `not checked: the store's locales could not be read (${locales}).`,
+    });
   }
 
   const root = input.prefix ? `${input.prefix}_product` : "product";
@@ -735,7 +742,9 @@ export function meilisearchLocalesCheck(input: {
   const version = Math.max(...found.map((entry) => entry.version));
   const physical = `${root}_v${version}`;
   const documents = new Map(
-    found.filter((entry) => entry.version === version).map((entry) => [entry.locale, entry.documents]),
+    found
+      .filter((entry) => entry.version === version)
+      .map((entry) => [entry.locale, entry.documents]),
   );
   const empty = locales.filter((locale) => (documents.get(locale) ?? 0) === 0);
   if (empty.length > 0) {
@@ -743,7 +752,9 @@ export function meilisearchLocalesCheck(input: {
       level: "warn",
       message: `${physical} has no documents for ${empty.join(", ")}, so ${empty.length === 1 ? "that locale searches" : "those locales search"} the default locale's index.`,
       details: empty.map((locale) =>
-        documents.has(locale) ? `${physical}__${locale} is empty` : `no index ${physical}__${locale}`,
+        documents.has(locale)
+          ? `${physical}__${locale} is empty`
+          : `no index ${physical}__${locale}`,
       ),
       fix: "A locale's index is made on its first write: save a product or a translation, or rebuild the index (`POST /admin/search-indexes/product/reindex`).",
     });

@@ -25,7 +25,9 @@ function literal(value: unknown): string {
   }
 
   if (typeof value === "number") {
-    return Number.isFinite(value) ? String(value) : refuse(`"${value}" is not a number it can filter on`);
+    return Number.isFinite(value)
+      ? String(value)
+      : refuse(`"${value}" is not a number it can filter on`);
   }
 
   if (typeof value === "boolean") {
@@ -85,7 +87,9 @@ function operatorClause(field: string, operator: string, operand: unknown): stri
         : refuse(`"$contains" on "${field}" needs at least one value`);
     }
     default:
-      return refuse(`the filter operator "${operator}" (on "${field}") has no Meilisearch equivalent`);
+      return refuse(
+        `the filter operator "${operator}" (on "${field}") has no Meilisearch equivalent`,
+      );
   }
 }
 
@@ -118,7 +122,10 @@ function fieldClause(field: string, value: unknown): string {
  * field every document has, for the one expression Meilisearch has no literal for: "nothing"
  * (`$or` with no alternatives), written as `<primary key> IN []`.
  */
-export function compileFilters(filters: Filters | undefined, primaryKey = "id"): string | undefined {
+export function compileFilters(
+  filters: Filters | undefined,
+  primaryKey = "id",
+): string | undefined {
   if (!filters) {
     return undefined;
   }
@@ -182,9 +189,9 @@ export function idsOnly(filters: Filters, primaryKey: string): string[] | undefi
 
   const operand = (value as { $in?: unknown } | null)?.$in;
 
-  return Array.isArray(operand) && operand.every((id) => typeof id === "string") &&
+  return Array.isArray(operand) &&
+    operand.every((id) => typeof id === "string") &&
     Object.keys(value as object).length === 1
     ? (operand as string[])
     : undefined;
 }
-

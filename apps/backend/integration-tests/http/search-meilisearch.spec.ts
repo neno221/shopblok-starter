@@ -91,10 +91,15 @@ medusaIntegrationTestRunner({
 
       /** A `q` search's first result. A status other than 200 fails at once, with the body. */
       const result = async (q: string, locale?: string, extra: object = {}) => {
-        const response = await search({ entity: "product", filters: q ? { q } : {}, ...extra }, locale);
+        const response = await search(
+          { entity: "product", filters: q ? { q } : {}, ...extra },
+          locale,
+        );
 
         if (response.status !== 200) {
-          throw new Error(`q=${q} locale=${locale}: HTTP ${response.status} ${JSON.stringify(response.data)}`);
+          throw new Error(
+            `q=${q} locale=${locale}: HTTP ${response.status} ${JSON.stringify(response.data)}`,
+          );
         }
 
         return response.data.results[0] as {
@@ -173,9 +178,9 @@ medusaIntegrationTestRunner({
         it("is served by Meilisearch, with Postgres still registered beside it", async () => {
           const searchModule = getContainer().resolve(Modules.SEARCH);
 
-          expect((await searchModule.listIndexes()).map((index) => [index.name, index.provider])).toEqual([
-            ["product", "meilisearch"],
-          ]);
+          expect(
+            (await searchModule.listIndexes()).map((index) => [index.name, index.provider]),
+          ).toEqual([["product", "meilisearch"]]);
         });
 
         it("is one Meilisearch index per store locale, named with MEILISEARCH_INDEX_PREFIX", async () => {
@@ -205,7 +210,12 @@ medusaIntegrationTestRunner({
           ] as const) {
             const ids = await hitIds(q, locale);
 
-            expect({ locale, q, hit: ids.includes(linenId), sweater: ids.includes(sweaterId) }).toEqual({
+            expect({
+              locale,
+              q,
+              hit: ids.includes(linenId),
+              sweater: ids.includes(sweaterId),
+            }).toEqual({
               locale,
               q,
               hit: true,
@@ -247,7 +257,10 @@ medusaIntegrationTestRunner({
             ["fr-FR", "legere"],
             ["fr-FR", "LÉGÈRE"],
           ] as const) {
-            expect({ q, hit: (await hitIds(q, locale)).includes(linenId) }).toEqual({ q, hit: true });
+            expect({ q, hit: (await hitIds(q, locale)).includes(linenId) }).toEqual({
+              q,
+              hit: true,
+            });
           }
         });
       });
@@ -265,11 +278,16 @@ medusaIntegrationTestRunner({
           const word = "Καλοκαιρινό";
 
           expect(await hitIds(word, "el-GR")).toEqual([]);
-          await changeTranslation(getContainer(), linenId, "el-GR", { title: `${word} λινό πουκάμισο` });
-
-          const { elapsedMs } = await until(async () => (await hitIds(word, "el-GR")).includes(linenId), {
-            what: "the updated Greek title to be found",
+          await changeTranslation(getContainer(), linenId, "el-GR", {
+            title: `${word} λινό πουκάμισο`,
           });
+
+          const { elapsedMs } = await until(
+            async () => (await hitIds(word, "el-GR")).includes(linenId),
+            {
+              what: "the updated Greek title to be found",
+            },
+          );
 
           console.log(`T4 translation.updated (product): ${elapsedMs} ms`);
           // Only in Greek.
@@ -298,7 +316,9 @@ medusaIntegrationTestRunner({
           });
 
           expect(data).toHaveLength(1);
-          await deleteTranslationsWorkflow(container).run({ input: { ids: data.map((t) => t.id) } });
+          await deleteTranslationsWorkflow(container).run({
+            input: { ids: data.map((t) => t.id) },
+          });
           await until(async () => !(await hitIds("Leinenhemd", "de-DE")).includes(linenId), {
             what: "the deleted German title to stop hitting",
           });
@@ -325,11 +345,15 @@ medusaIntegrationTestRunner({
               [knitwearId, 1],
             ].sort(),
           );
-          expect((facets!.collection_ids as Facet).values).toEqual([{ value: collectionId, count: 2 }]);
+          expect((facets!.collection_ids as Facet).values).toEqual([
+            { value: collectionId, count: 2 },
+          ]);
         });
 
         it("a facet id narrows the hits", async () => {
-          expect(await hitIds("", "fr-FR", { filters: { category_ids: [knitwearId] } })).toEqual([sweaterId]);
+          expect(await hitIds("", "fr-FR", { filters: { category_ids: [knitwearId] } })).toEqual([
+            sweaterId,
+          ]);
         });
       });
 
@@ -391,7 +415,9 @@ medusaIntegrationTestRunner({
         it("highlights the matched words of a retrievable field, in the locale's text", async () => {
           const { hits } = await result("πουκάμισο", "el-GR", {
             fields: ["id"],
-            search_options: { highlight: { fields: ["title"], pre_tag: "<mark>", post_tag: "</mark>" } },
+            search_options: {
+              highlight: { fields: ["title"], pre_tag: "<mark>", post_tag: "</mark>" },
+            },
           });
           const hit = hits.find((h) => h.id === linenId)!;
 
@@ -426,7 +452,11 @@ medusaIntegrationTestRunner({
       describe("T10: the request's locale reaches the search through the middleware", () => {
         it("overwrites a caller's search_options.locales with the request's", async () => {
           const response = await search(
-            { entity: "product", filters: { q: "Leinenhemd" }, search_options: { locales: ["de-DE"] } },
+            {
+              entity: "product",
+              filters: { q: "Leinenhemd" },
+              search_options: { locales: ["de-DE"] },
+            },
             "el-GR",
           );
 
@@ -456,7 +486,9 @@ medusaIntegrationTestRunner({
             expect(await hitIds("shirt", "nl-NL")).toEqual([linenId]);
             expect(await hitIds("shirt", "nl-NL")).toEqual([linenId]);
 
-            const warnings = warn.mock.calls.map(([message]) => String(message)).filter((m) => m.includes("nl-NL"));
+            const warnings = warn.mock.calls
+              .map(([message]) => String(message))
+              .filter((m) => m.includes("nl-NL"));
 
             expect(warnings).toHaveLength(1);
             expect(warnings[0]).toMatch(/no index for nl-NL/);
@@ -528,12 +560,16 @@ medusaIntegrationTestRunner({
               selector: { id: store.id },
               update: {
                 supported_locales: (store.supported_locales ?? []).flatMap((l) =>
-                  l?.locale_code && l.locale_code !== "it-IT" ? [{ locale_code: l.locale_code }] : [],
+                  l?.locale_code && l.locale_code !== "it-IT"
+                    ? [{ locale_code: l.locale_code }]
+                    : [],
                 ),
               },
             },
           });
-          await container.resolve(Modules.SEARCH).ingest({ name: "product.updated", data: [{ id: linenId }] });
+          await container
+            .resolve(Modules.SEARCH)
+            .ingest({ name: "product.updated", data: [{ id: linenId }] });
 
           expect(await meilisearch("GET", italian)).toBeUndefined();
         });

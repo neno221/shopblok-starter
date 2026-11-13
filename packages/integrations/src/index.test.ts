@@ -76,7 +76,10 @@ describe("getIntegrationStatus", () => {
 
   it("Meilisearch without its keys runs on search-postgres (T94)", () => {
     const meilisearch = byId(
-      getIntegrationStatus({ backend: { MEILISEARCH_HOST: "http://localhost:7701" }, storefront: {} }),
+      getIntegrationStatus({
+        backend: { MEILISEARCH_HOST: "http://localhost:7701" },
+        storefront: {},
+      }),
       "meilisearch",
     );
     expect(meilisearch.wired).toBe(true);

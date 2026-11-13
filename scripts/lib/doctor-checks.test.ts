@@ -836,7 +836,11 @@ describe("meilisearchLocalesCheck (T94)", () => {
   });
 
   it("reads only the indexes of MEILISEARCH_INDEX_PREFIX", () => {
-    const indexes = stats({ "shop_product_v1__en-US": 3, "shop_product_v1__el-GR": 3, "product_v9__en-US": 1 });
+    const indexes = stats({
+      "shop_product_v1__en-US": 3,
+      "shop_product_v1__el-GR": 3,
+      "product_v9__en-US": 1,
+    });
     expect(run({ prefix: "shop", stats: indexes }).level).toBe("ok");
     expect(run({ stats: indexes }).details).toEqual(["no index product_v9__el-GR"]);
   });
@@ -860,7 +864,12 @@ describe("meilisearchLocalesCheck (T94)", () => {
   });
 
   it("reads Meilisearch's stats", () => {
-    expect(readMeilisearchStats({ status: 200, body: { indexes: { a: { numberOfDocuments: 2 }, b: {} } } })).toEqual({
+    expect(
+      readMeilisearchStats({
+        status: 200,
+        body: { indexes: { a: { numberOfDocuments: 2 }, b: {} } },
+      }),
+    ).toEqual({
       a: 2,
       b: 0,
     });

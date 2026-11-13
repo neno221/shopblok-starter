@@ -2,6 +2,7 @@
  * An index definition as Meilisearch settings, and what a definition says to this provider. Pure.
  */
 import type { SearchTypes } from "@medusajs/framework/types";
+import { MedusaError } from "@medusajs/framework/utils";
 
 import { isLocaleCode } from "./locales";
 
@@ -33,7 +34,8 @@ export function indexOptionsOf(definition: Definition): MeilisearchIndexOptions 
 
   if (own.localized_field !== undefined) {
     if (!isLocaleCode(own.default_locale)) {
-      throw new Error(
+      throw new MedusaError(
+        MedusaError.Types.INVALID_DATA,
         `Search index "${definition.name}": provider_options.meilisearch.localized_field needs a default_locale`,
       );
     }
@@ -48,7 +50,9 @@ function flatten(fields: Record<string, Field>, prefix = ""): { path: string; fi
   return Object.entries(fields).flatMap(([name, field]) => {
     const path = prefix ? `${prefix}.${name}` : name;
 
-    return field.type === "object" && field.fields ? flatten(field.fields, path) : [{ path, field }];
+    return field.type === "object" && field.fields
+      ? flatten(field.fields, path)
+      : [{ path, field }];
   });
 }
 

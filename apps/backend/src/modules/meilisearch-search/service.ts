@@ -220,7 +220,10 @@ export class MeilisearchSearchService extends AbstractSearchProviderService {
       (await this.indexesOf(index)).map((uid) => client.index(uid).deleteAllDocuments()),
     );
 
-    return this.taskOf(index, tasks.map((task) => task.taskUid));
+    return this.taskOf(
+      index,
+      tasks.map((task) => task.taskUid),
+    );
   }
 
   /**
@@ -229,7 +232,10 @@ export class MeilisearchSearchService extends AbstractSearchProviderService {
    * has a copy in each store locale, so they are normally equal).
    */
   async listIndexes(): Promise<SearchTypes.SearchIndexInfo[]> {
-    const [uids, stats] = await Promise.all([this.allIndexUids(), this.client().then((client) => client.getStats())]);
+    const [uids, stats] = await Promise.all([
+      this.allIndexUids(),
+      this.client().then((client) => client.getStats()),
+    ]);
     const counts = new Map<string, number>();
 
     for (const uid of uids) {
@@ -311,9 +317,7 @@ export class MeilisearchSearchService extends AbstractSearchProviderService {
         continue;
       }
 
-      const stale = [...localesOf]
-        .filter(([, locales]) => !locales.has(locale))
-        .map(([id]) => id);
+      const stale = [...localesOf].filter(([, locales]) => !locales.has(locale)).map(([id]) => id);
 
       if (stale.length) {
         tasks.push((await client.index(uid).deleteDocuments(stale)).taskUid);
@@ -346,17 +350,17 @@ export class MeilisearchSearchService extends AbstractSearchProviderService {
       ),
     );
 
-    return this.taskOf(index, tasks.map((task) => task.taskUid));
+    return this.taskOf(
+      index,
+      tasks.map((task) => task.taskUid),
+    );
   }
 
   async waitForTask(
     task: SearchTypes.SearchTask,
     options?: { timeout_ms?: number },
   ): Promise<SearchTypes.SearchTask> {
-    const uids = (task.id ?? "")
-      .split(",")
-      .filter(Boolean)
-      .map(Number);
+    const uids = (task.id ?? "").split(",").filter(Boolean).map(Number);
 
     try {
       const client = await this.client();
@@ -453,7 +457,9 @@ export class MeilisearchSearchService extends AbstractSearchProviderService {
     }
 
     if (!own.localized) {
-      return [{ uid: definition.physical_name, locale: locales.length === 1 ? locales[0] : undefined }];
+      return [
+        { uid: definition.physical_name, locale: locales.length === 1 ? locales[0] : undefined },
+      ];
     }
 
     const asked = locales.length ? [...new Set(locales)] : [own.default_locale!];
@@ -525,7 +531,10 @@ export class MeilisearchSearchService extends AbstractSearchProviderService {
       matchingStrategy: options.match_strategy === "last" ? "last" : "all",
     };
 
-    const filter = compileFilters(filters as Record<string, unknown> | undefined, index.primary_key);
+    const filter = compileFilters(
+      filters as Record<string, unknown> | undefined,
+      index.primary_key,
+    );
 
     if (filter) {
       params.filter = filter;
@@ -578,10 +587,12 @@ export class MeilisearchSearchService extends AbstractSearchProviderService {
     const pagination = input.pagination ?? {};
     const targets = await this.targetsOf(input);
     const built = this.buildParams(input);
-    const facets = (options.facets ?? []).map(
-      (facet): FacetRequest => (typeof facet === "string" ? { field: facet, type: "value" } : facet),
+    const facets = (options.facets ?? []).map((facet): FacetRequest =>
+      typeof facet === "string" ? { field: facet, type: "value" } : facet,
     );
-    const distributed = facets.filter((facet) => facet.type !== "range").map((facet) => facet.field);
+    const distributed = facets
+      .filter((facet) => facet.type !== "range")
+      .map((facet) => facet.field);
     const ranges = facets.filter((facet): facet is RangeRequest => facet.type === "range");
     const skip = pagination.skip ?? 0;
     const take = pagination.take ?? 20;
@@ -664,7 +675,9 @@ export class MeilisearchSearchService extends AbstractSearchProviderService {
     }
 
     if (params.distinct) {
-      throw notAllowed("distinct cannot be combined with several locales (their merge is distinct by id)");
+      throw notAllowed(
+        "distinct cannot be combined with several locales (their merge is distinct by id)",
+      );
     }
 
     const request: FederatedMultiSearchParams = {
@@ -708,14 +721,21 @@ export class MeilisearchSearchService extends AbstractSearchProviderService {
           range.to !== undefined ? `${facet.field} < ${Number(range.to)}` : undefined,
         ].filter((clause): clause is string => clause !== undefined);
 
-        if ([range.from, range.to].some((bound) => bound !== undefined && !Number.isFinite(Number(bound)))) {
+        if (
+          [range.from, range.to].some(
+            (bound) => bound !== undefined && !Number.isFinite(Number(bound)),
+          )
+        ) {
           throw new MedusaError(
             MedusaError.Types.INVALID_DATA,
             `Meilisearch: the range bounds of "${facet.field}" must be numbers`,
           );
         }
 
-        const filter = [params.filter, ...bounds].filter(Boolean).map((clause) => `(${clause})`).join(" AND ");
+        const filter = [params.filter, ...bounds]
+          .filter(Boolean)
+          .map((clause) => `(${clause})`)
+          .join(" AND ");
 
         return { field: facet.field, filter };
       }),
@@ -725,21 +745,34 @@ export class MeilisearchSearchService extends AbstractSearchProviderService {
       return counts;
     }
 
-    const base = { q: params.q, matchingStrategy: params.matchingStrategy, ...(params.attributesToSearchOn ? { attributesToSearchOn: params.attributesToSearchOn } : {}) };
+    const base = {
+      q: params.q,
+      matchingStrategy: params.matchingStrategy,
+      ...(params.attributesToSearchOn ? { attributesToSearchOn: params.attributesToSearchOn } : {}),
+    };
     const client = await this.client();
     const totals = await Promise.all(
       asks.map(async ({ filter }) => {
         if (targets.length === 1) {
           const response = await client
             .index(targets[0]!.uid)
-            .search(base.q ?? "", { ...base, ...(filter ? { filter } : {}), page: 1, hitsPerPage: 0 });
+            .search(base.q ?? "", {
+              ...base,
+              ...(filter ? { filter } : {}),
+              page: 1,
+              hitsPerPage: 0,
+            });
 
           return response.totalHits ?? 0;
         }
 
         const response = (await client.multiSearch({
           federation: { limit: 0, distinct: primaryKey },
-          queries: targets.map(({ uid }) => ({ indexUid: uid, ...base, ...(filter ? { filter } : {}) })),
+          queries: targets.map(({ uid }) => ({
+            indexUid: uid,
+            ...base,
+            ...(filter ? { filter } : {}),
+          })),
         })) as unknown as SearchResponse;
 
         return response.estimatedTotalHits ?? 0;
@@ -767,9 +800,7 @@ export class MeilisearchSearchService extends AbstractSearchProviderService {
     const options = input.search_options ?? {};
     const primaryKey = input.index.primary_key;
     const total =
-      options.count === "none"
-        ? null
-        : (response.totalHits ?? response.estimatedTotalHits ?? null);
+      options.count === "none" ? null : (response.totalHits ?? response.estimatedTotalHits ?? null);
     const resultFacets: Record<string, SearchTypes.SearchFacetResult> = {};
 
     for (const facet of context.facets) {

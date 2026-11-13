@@ -1,5 +1,5 @@
 import type { InputConfigModules } from "@medusajs/framework/types";
-import { isTruthy } from "@medusajs/framework/utils";
+import { isTruthy, MedusaError } from "@medusajs/framework/utils";
 
 import { MEILISEARCH_PROVIDER_ID } from "../modules/meilisearch-search/locales";
 
@@ -43,7 +43,8 @@ export function getIndexPrefix(env: Env): string | undefined {
   }
 
   if (!/^[a-z0-9][a-z0-9_]{0,39}$/.test(prefix)) {
-    throw new Error(
+    throw new MedusaError(
+      MedusaError.Types.INVALID_DATA,
       `MEILISEARCH_INDEX_PREFIX "${prefix}" may hold only lowercase letters, digits and underscores (at most 40, starting with a letter or digit)`,
     );
   }

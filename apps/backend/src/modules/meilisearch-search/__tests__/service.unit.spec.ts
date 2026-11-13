@@ -217,7 +217,9 @@ describe("MeilisearchSearchService", () => {
         search_text: "Λινό πουκάμισο",
       });
       // The per-locale texts never reach an index as a field.
-      expect(fake.indexes.get("product_v3__en-US")!.docs.get("prod_1")).not.toHaveProperty("_locales");
+      expect(fake.indexes.get("product_v3__en-US")!.docs.get("prod_1")).not.toHaveProperty(
+        "_locales",
+      );
     });
 
     it("removes the copy from a locale the document no longer has", async () => {
@@ -412,7 +414,13 @@ describe("MeilisearchSearchService", () => {
         query({
           filters: { status: "published" },
           search_options: {
-            facets: [{ field: "min_price_eur", type: "range", ranges: [{ to: 50 }, { from: 50, key: "high" }] }],
+            facets: [
+              {
+                field: "min_price_eur",
+                type: "range",
+                ranges: [{ to: 50 }, { from: 50, key: "high" }],
+              },
+            ],
           },
         }),
       );
@@ -429,11 +437,15 @@ describe("MeilisearchSearchService", () => {
     it("refuses what it cannot answer exactly", async () => {
       const { service } = await seeded();
 
-      await expect(service.search(query({ search_options: { match_strategy: "any" } }))).rejects.toThrow(/any/);
-      await expect(service.search(query({ search_options: { vector: { value: [1] } } }))).rejects.toThrow(/vector/);
       await expect(
-        service.search(query({ pagination: { take: 5, cursor: "x" } })),
-      ).rejects.toThrow(/cursor/);
+        service.search(query({ search_options: { match_strategy: "any" } })),
+      ).rejects.toThrow(/any/);
+      await expect(
+        service.search(query({ search_options: { vector: { value: [1] } } })),
+      ).rejects.toThrow(/vector/);
+      await expect(service.search(query({ pagination: { take: 5, cursor: "x" } }))).rejects.toThrow(
+        /cursor/,
+      );
       await expect(
         service.search(query({ pagination: { take: 5, order: { _score: "DESC", title: "ASC" } } })),
       ).rejects.toThrow(/_score/);
@@ -448,7 +460,9 @@ describe("MeilisearchSearchService", () => {
       await service.search(
         query({
           pagination: { skip: 0, take: 5, order: { min_price_eur: "ASC", _score: "DESC" } },
-          search_options: { highlight: { fields: ["title", "search_text"], pre_tag: "<b>", post_tag: "</b>" } },
+          search_options: {
+            highlight: { fields: ["title", "search_text"], pre_tag: "<b>", post_tag: "</b>" },
+          },
         }),
       );
 

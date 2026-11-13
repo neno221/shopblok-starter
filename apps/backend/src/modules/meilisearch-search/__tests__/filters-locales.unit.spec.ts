@@ -1,10 +1,5 @@
 import { compileFilters, idsOnly } from "../filters";
-import {
-  isLocaleCode,
-  localeIndexUid,
-  meilisearchLanguage,
-  splitLocaleIndex,
-} from "../locales";
+import { isLocaleCode, localeIndexUid, meilisearchLanguage, splitLocaleIndex } from "../locales";
 
 describe("compileFilters", () => {
   it("writes the storefront's listing filters (T50) as Meilisearch expressions", () => {
