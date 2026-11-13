@@ -11,6 +11,7 @@ import { Categories } from "./payload/collections/categories";
 import { Collections } from "./payload/collections/collections";
 import { Integrations } from "./payload/collections/integrations";
 import { Media } from "./payload/collections/media";
+import { NewsletterConfirmations } from "./payload/collections/newsletter-confirmations";
 import { EmailTemplates } from "./payload/collections/email-templates";
 import { Pages } from "./payload/collections/pages";
 import { Posts } from "./payload/collections/posts";
@@ -31,6 +32,8 @@ import { redirects } from "./payload/redirects";
 import { seo } from "./payload/seo";
 import { DEFAULT_LOCALE, LOCALES } from "./payload/locales";
 import { emailAdapter } from "./payload/email";
+import { e2eThrowEndpoint } from "./payload/e2e-throw";
+import { reportToSentry } from "./payload/sentry";
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -86,6 +89,7 @@ export default buildConfig({
     Collections,
     EmailTemplates,
     UiStrings,
+    NewsletterConfirmations,
   ],
   globals: [Header, Footer, SiteSettings, Templates],
   // D70, D79: SPEC §7.4's blocks, defined once here; `pages.layout` names them (`blockReferences`).
@@ -94,6 +98,10 @@ export default buildConfig({
   // M6 D121 (T98): Resend with its keys, else Mailpit with SMTP_HOST, else none (`payload/email.ts`).
   email: emailAdapter(),
   graphQL: { disable: true },
+  // M6 D125 (T96): a server error to Sentry with the DSN (`payload/sentry.ts`), and the test-only
+  // endpoint that throws one (`payload/e2e-throw.ts`, 404 unless E2E_TEST_ROUTES=true).
+  hooks: { afterError: [reportToSentry] },
+  endpoints: [e2eThrowEndpoint],
   localization: {
     locales: LOCALES,
     defaultLocale: DEFAULT_LOCALE,

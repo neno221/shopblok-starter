@@ -109,7 +109,9 @@ const SPECS: readonly Spec[] = [
       {
         app: "backend",
         what: "Analytics Module provider",
-        keys: ["POSTHOG_EVENTS_API_KEY", "POSTHOG_HOST"],
+        keys: ["POSTHOG_EVENTS_API_KEY"],
+        // The EU host is the default (M6 D124), as in the storefront.
+        optional: ["POSTHOG_HOST"],
       },
       {
         app: "storefront",
@@ -121,8 +123,9 @@ const SPECS: readonly Spec[] = [
     ],
     live: "PostHog",
     fallback: "analytics-local (no client script)",
-    wired: false,
-    arrives: "M6",
+    // T97 (M6 D124): Medusa's Analytics Module with the PostHog provider and its three
+    // subscribers, and `posthog-js` after the visitor's analytics consent.
+    wired: true,
   },
   {
     id: "sentry",
@@ -133,8 +136,9 @@ const SPECS: readonly Spec[] = [
         app: "backend",
         what: "instrumentation.ts",
         keys: ["SENTRY_DSN"],
-        // M6 D125: `environment` and the traces' sample rate (0 when blank).
-        optional: ["SENTRY_ENVIRONMENT", "SENTRY_TRACES_SAMPLE_RATE"],
+        // M6 D125: `environment` and the traces' sample rate (0 when blank); T96: the release, else
+        // the commit Railway or GitHub Actions runs.
+        optional: ["SENTRY_ENVIRONMENT", "SENTRY_TRACES_SAMPLE_RATE", "SENTRY_RELEASE"],
       },
       {
         app: "storefront",
@@ -144,6 +148,7 @@ const SPECS: readonly Spec[] = [
         optional: [
           "SENTRY_ENVIRONMENT",
           "SENTRY_TRACES_SAMPLE_RATE",
+          "SENTRY_RELEASE",
           "SENTRY_AUTH_TOKEN",
           "SENTRY_ORG",
           "SENTRY_PROJECT",
@@ -152,8 +157,9 @@ const SPECS: readonly Spec[] = [
     ],
     live: "Sentry",
     fallback: "not initialised",
-    wired: false,
-    arrives: "M6",
+    // T96 (M6 D125): Medusa's `instrumentation.ts`, the storefront's server and browser SDKs, and
+    // Payload's `afterError` hook.
+    wired: true,
   },
   {
     id: "meilisearch",

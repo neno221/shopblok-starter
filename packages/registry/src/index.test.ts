@@ -30,7 +30,7 @@ const atom = (id: string, extra: Partial<EntryInput> = {}): EntryInput => ({
 });
 
 describe("the registry (D40)", () => {
-  it("lists M1's 8 foundations and 32 atoms, then T32's 15 molecules, T33's 13 and T34's 12, then T35's 4 organisms and 6 headers, T36's 2 organisms and 5 footers, T37's 7 organisms, T38's 7 (T83's two quick views after the first) and T39's 11 (T85's drawer with picks after the drawer), then T63's 8 sections, T64's 9 (T80's 7 hero variants after the hero; T82's 17 content and promotion variants and T81's 16 catalog variants after their blocks), T67's 2 and T66's 1, then T48's 2 templates, T49's 1 (T83's five product page layouts after it), T50's 2 (T84's six listing layouts after the first), T51's 1, T52's 3 (T85's three cart layouts after the first, T86's four checkout layouts and five receipt layouts after theirs), T53's 3, T65's 1 and T66's 2, then T98's 3 e-mails, in the navigation's order", () => {
+  it("lists M1's 8 foundations and 32 atoms, then T32's 15 molecules, T33's 13 and T34's 12, then T35's 4 organisms and 6 headers, T36's 2 organisms and 5 footers, T37's 7 organisms, T38's 7 (T83's two quick views after the first) and T39's 11 (T85's drawer with picks after the drawer), then T63's 8 sections, T64's 9 (T80's 7 hero variants after the hero; T82's 17 content and promotion variants and T81's 16 catalog variants after their blocks), T67's 2 and T66's 1, then T48's 2 templates, T49's 1 (T83's five product page layouts after it), T50's 2 (T84's six listing layouts after the first), T51's 1, T52's 3 (T85's three cart layouts after the first, T86's four checkout layouts and five receipt layouts after theirs), T53's 3, T65's 1 and T66's 2, then T98's 3 e-mails and T99's 9, in the navigation's order", () => {
     expect(byGroup("foundations")).toHaveLength(8);
     expect(byGroup("atoms")).toHaveLength(32);
     expect(byGroup("molecules")).toHaveLength(40);
@@ -138,13 +138,22 @@ describe("the registry (D40)", () => {
       "templates/journal",
       "templates/post",
     ]);
-    // M6 D130: one entry per e-mail type (T98's three; T99 adds the rest).
+    // M6 D130: one entry per e-mail type of D122 (T98's three, T99's nine).
     expect(byGroup("emails").map((entry) => entry.id)).toEqual([
       "emails/verify-email",
       "emails/password-reset",
       "emails/order-transfer",
+      "emails/order-placed",
+      "emails/order-shipped",
+      "emails/order-canceled",
+      "emails/return-requested",
+      "emails/refund-issued",
+      "emails/welcome",
+      "emails/admin-invite",
+      "emails/newsletter-confirm",
+      "emails/form-message",
     ]);
-    expect(entries).toHaveLength(226);
+    expect(entries).toHaveLength(235);
     expect(entries.map((entry) => entry.id).slice(0, 2)).toEqual([
       "foundations/colors",
       "foundations/typography",
@@ -194,7 +203,7 @@ describe("the registry (D40)", () => {
     ]);
     expect(byGroup("headers-footers").at(5)?.id).toBe("headers-footers/header-transparent");
     expect(byGroup("headers-footers").at(-1)?.id).toBe("headers-footers/footer-two-tier");
-    expect(entries.at(-1)?.id).toBe("emails/order-transfer");
+    expect(entries.at(-1)?.id).toBe("emails/form-message");
   });
 
   it("gives every entry a unique `{group}/{slug}` id in a known group, and a label", () => {

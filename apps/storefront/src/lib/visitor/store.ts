@@ -7,14 +7,18 @@
 // system feeds it from fixtures (`design-system/components/visitor-fixture.tsx`), so its pages run
 // the real island. Plain data and listeners, with no React: a snapshot stays the same object until
 // the value changes, because `useSyncExternalStore` compares snapshots with `Object.is` and a new
-// object on every read would render forever. The consent choice will live in a cookie the browser
-// can read (M6 wires PostHog to it, SPEC §8.4); until then the store holds it for the page's life.
+// object on every read would render forever. The consent choice lives in a cookie the browser reads
+// and writes (M6 D123, `consent-cookie.ts`): the source reads it, `chooseConsent` writes it.
 // M3 (T47, D60) gives the store its source, `source.ts`, which asks `/next/visitor` once after
 // hydration: the count, the signed-in customer's first name and the market suggestion.
 import type { ConsentChoice, MarketSuggestion } from "@shopblok/registry/contracts";
+import { readConsentCookie } from "./consent-cookie";
 
-/** The signed-in customer, as far as a page shows them (the header's greeting). */
-export type VisitorCustomer = { firstName: string | null };
+/**
+ * The signed-in customer, as far as a page shows them (the header's greeting), and their Medusa id,
+ * which PostHog identifies them by (M6 D124; never their e-mail).
+ */
+export type VisitorCustomer = { id?: string; firstName: string | null };
 
 /** The market the banner suggests (D66), with its key for the `rememberMarket` action. */
 export type VisitorSuggestion = MarketSuggestion & { market: string };
@@ -109,12 +113,16 @@ export function getCartCountChanges(): number {
  */
 export function setCartCount(cartCount: number): void {
   cartCountChanges += 1;
-  setVisitor(current === "unknown" ? { cartCount, consent: null } : { ...current, cartCount });
+  setVisitor(
+    current === "unknown"
+      ? { cartCount, consent: readConsentCookie() }
+      : { ...current, cartCount },
+  );
 }
 
 function sameCustomer(a: VisitorCustomer | null, b: VisitorCustomer | null): boolean {
   if (a === null || b === null) return a === b;
-  return a.firstName === b.firstName;
+  return a.firstName === b.firstName && a.id === b.id;
 }
 
 function sameSuggestion(a: VisitorSuggestion | null, b: VisitorSuggestion | null): boolean {

@@ -7,10 +7,15 @@ import { FooterTwoTier } from "@shopblok/ui/organisms/footer/two-tier";
 import { FooterWordmark } from "@shopblok/ui/organisms/footer/wordmark";
 import { getMessages } from "next-intl/server";
 import type { ReactElement } from "react";
-import { submitForm } from "../../lib/actions/form";
+import { subscribeNewsletter } from "../../lib/actions/newsletter";
 import type { NewsletterTarget } from "../../lib/cms/resolve/forms";
 import type { Market } from "../../lib/markets/types";
-import { SHELL_PREFETCH, type FooterVariant } from "../../lib/site";
+import {
+  COOKIE_POLICY_PATH,
+  cookieSettingsHref,
+  SHELL_PREFETCH,
+  type FooterVariant,
+} from "../../lib/site";
 import { FormHoneypot } from "../cms/form-honeypot";
 import { NewsletterFormIsland } from "../cms/newsletter-form-island";
 import { ShellLogo } from "./logo";
@@ -20,7 +25,9 @@ import { getShellData } from "./shell-data";
 // marks and copyright (T61, D78; until it is saved, `site.ts`'s columns: the top-level categories
 // and the help links), the market switcher and the logo. A footer draws nothing for an empty list.
 // The newsletter (T67, D81) is the footer global's form, drawn by the island that keeps the forms'
-// server action's answer; the footer draws none without one.
+// server action's answer; the footer draws none without one. "Cookie settings" (M6 D123) closes the
+// legal links in every design: the policy page at `#cookie-settings`, which the consent island opens
+// as the dialog.
 
 const FOOTERS: Record<FooterVariant, (props: FooterProps) => ReactElement> = {
   "multi-column": FooterMultiColumn,
@@ -53,7 +60,7 @@ function newsletterProps(
         prefetch={SHELL_PREFETCH}
         fieldName={signup.fieldName}
         hiddenFields={<FormHoneypot label={messages.sections.form.honeypot} />}
-        submit={submitForm.bind(null, { market: market.key, form: signup.formId })}
+        submit={subscribeNewsletter.bind(null, { market: market.key, form: signup.formId })}
         formId="footer-newsletter"
         permalink={`${homeHref}#footer-newsletter`}
       />
@@ -75,6 +82,7 @@ export async function SiteFooter() {
       columns={footer.columns}
       social={footer.social}
       legalLinks={footer.legalLinks}
+      cookieSettingsHref={cookieSettingsHref(url(COOKIE_POLICY_PATH))}
       paymentIcons={footer.paymentIcons}
       marketSwitcher={switcher !== undefined}
       {...(switcher === undefined ? {} : { market: switcher })}

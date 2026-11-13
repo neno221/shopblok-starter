@@ -17,7 +17,7 @@ import { getMarketMap } from "../../../lib/markets/get-market-map";
 import { listMarkets } from "../../../lib/markets/market";
 import { withSeo } from "../../../lib/seo/meta";
 import { siteBase } from "../../../lib/seo/product";
-import { SHELL_PREFETCH } from "../../../lib/site";
+import { COOKIE_POLICY_PATH, SHELL_PREFETCH } from "../../../lib/site";
 import { VisitorCookieConsent } from "../../../lib/visitor/cookie-consent";
 import { VisitorSource } from "../../../lib/visitor/visitor-source";
 import "../../../styles/globals.css";
@@ -96,7 +96,9 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
             </ShellLinksProvider>
             <SiteFooter />
             <VisitorCookieConsent
-              policyHref={shell.url("/cookies")}
+              market={market.key}
+              analyticsLocale={market.medusaLocale}
+              policyHref={shell.url(COOKIE_POLICY_PATH)}
               copy={messages.organisms.cookieConsent}
               locale={market.htmlLang}
               prefetch={SHELL_PREFETCH}

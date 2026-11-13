@@ -22,6 +22,9 @@ export function has(env: Env, ...keys: string[]): boolean {
   return keys.length > 0 && keys.every((key) => (env[key] ?? "").trim() !== "");
 }
 
+/** PostHog's EU ingest host (M6 D124), when `POSTHOG_HOST` is blank. */
+export const POSTHOG_EU = "https://eu.i.posthog.com";
+
 /** `REDIS_URL` without surrounding blanks, or `undefined` when it isn't set. */
 export function getRedisUrl(env: Env): string | undefined {
   return has(env, "REDIS_URL") ? env.REDIS_URL?.trim() : undefined;
@@ -75,15 +78,21 @@ export function getIndexPrefix(env: Env): string | undefined {
  *   `MEILISEARCH_INDEX_PREFIX` as its `index_prefix` (two environments on one server). Without
  *   the keys the module keeps Medusa's default: `search-postgres` alone (M3's index, D63).
  *
- * `file-local`, `analytics-local` and `pp_system_default` are Medusa defaults and stay
- * unregistered here. M6 adds Stripe, Resend (T98), PostHog, S3/R2 and Sentry behind
- * `has(env, ...)` gates in this function.
+ * - Analytics (M6 D124, SPEC §10.3): always registered, so the analytics subscribers always have
+ *   it. PostHog with `POSTHOG_EVENTS_API_KEY` (the host `POSTHOG_HOST`, the EU's when blank),
+ *   `analytics-local` otherwise, which only logs at debug level. The subscribers send only for a
+ *   cart or order that carries the visitor's consent (`src/subscribers/analytics-*.ts`).
+ *
+ * `file-local` and `pp_system_default` are Medusa defaults and stay unregistered here. M6 adds
+ * Stripe, Resend (T98), PostHog (T97), S3/R2 and Sentry behind `has(env, ...)` gates in this
+ * function.
  */
 export function buildModules(env: Env): InputConfigModules {
   const redisUrl = getRedisUrl(env);
   const resend = has(env, "RESEND_API_KEY", "RESEND_FROM_EMAIL");
   const meilisearch = has(env, "MEILISEARCH_HOST", "MEILISEARCH_API_KEY");
   const indexPrefix = meilisearch ? getIndexPrefix(env) : undefined;
+  const posthog = has(env, "POSTHOG_EVENTS_API_KEY");
 
   const modules: (ModuleEntry | false)[] = [
     { resolve: "@medusajs/medusa/translation" },
@@ -145,6 +154,27 @@ export function buildModules(env: Env): InputConfigModules {
               api_key: env.MEILISEARCH_API_KEY?.trim(),
             },
           },
+        ],
+      },
+    },
+
+    {
+      resolve: "@medusajs/medusa/analytics",
+      options: {
+        providers: [
+          posthog
+            ? {
+                resolve: "@medusajs/medusa/analytics-posthog",
+                id: "posthog",
+                options: {
+                  posthogEventsKey: env.POSTHOG_EVENTS_API_KEY?.trim(),
+                  posthogHost: env.POSTHOG_HOST?.trim() || POSTHOG_EU,
+                },
+              }
+            : {
+                resolve: "@medusajs/medusa/analytics-local",
+                id: "local",
+              },
         ],
       },
     },

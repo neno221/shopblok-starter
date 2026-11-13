@@ -26,6 +26,7 @@ import * as migration_20261107_183640_localized_layout from './20261107_183640_l
 import * as migration_20261107_193458_product_page_variants from './20261107_193458_product_page_variants';
 import * as migration_20261107_203523_catalog_sections from './20261107_203523_catalog_sections';
 import * as migration_20261111_090000_renew_layout_copy_ids from './20261111_090000_renew_layout_copy_ids';
+import * as migration_20261112_135006_email_types_newsletter from './20261112_135006_email_types_newsletter';
 
 export const migrations = [
   {
@@ -166,6 +167,11 @@ export const migrations = [
   {
     up: migration_20261111_090000_renew_layout_copy_ids.up,
     down: migration_20261111_090000_renew_layout_copy_ids.down,
-    name: '20261111_090000_renew_layout_copy_ids'
+    name: '20261111_090000_renew_layout_copy_ids',
+  },
+  {
+    up: migration_20261112_135006_email_types_newsletter.up,
+    down: migration_20261112_135006_email_types_newsletter.down,
+    name: '20261112_135006_email_types_newsletter'
   },
 ];

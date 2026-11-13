@@ -37,6 +37,7 @@ import {
   toShippingOption,
   type CheckoutStepId,
 } from "../../../../../lib/view-models/checkout";
+import { TrackOnView } from "../../../../../lib/analytics/track-on-view";
 
 // D65 (T52): one checkout step per page (`contact`, `delivery`, `review`), each a plain form that
 // posts to a server action bound to the market (`lib/actions/forms.ts`), which goes on to the next
@@ -148,18 +149,30 @@ export default async function CheckoutStepPage({ params, searchParams }: Props) 
   await connection();
   const now = new Date().toISOString();
   return (
-    <CheckoutTemplate
-      variant={variant}
-      checkout={checkout}
-      step={content}
-      {...(done === undefined ? {} : { done })}
-      copy={checkoutCopy(messages)}
-      locale={market.htmlLang}
-      now={now}
-      action={action.bind(null, market.key)}
-      errors={errors}
-      prefetch={SHELL_PREFETCH}
-    />
+    <>
+      {/* D124: `checkout_started`, once per cart in a tab, only with a key and consent. */}
+      <TrackOnView
+        event="checkout_started"
+        once={view.id}
+        properties={{
+          items: view.itemCount,
+          total: view.total.amount,
+          currency: view.currencyCode,
+        }}
+      />
+      <CheckoutTemplate
+        variant={variant}
+        checkout={checkout}
+        step={content}
+        {...(done === undefined ? {} : { done })}
+        copy={checkoutCopy(messages)}
+        locale={market.htmlLang}
+        now={now}
+        action={action.bind(null, market.key)}
+        errors={errors}
+        prefetch={SHELL_PREFETCH}
+      />
+    </>
   );
 }
 

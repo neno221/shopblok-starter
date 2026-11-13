@@ -1,3 +1,4 @@
+import { EMAIL_TYPES as LAYOUT_TYPES } from "@shopblok/emails";
 import emailCopy from "@shopblok/fixtures/email/templates.json";
 import type { AccessArgs, Field, FieldAccess, PayloadRequest } from "payload";
 import { describe, expect, it } from "vitest";
@@ -71,6 +72,8 @@ describe("the e-mail templates seed", () => {
 
   it("uses only each type's variables, which the collection's description lists", () => {
     expect(EMAIL_VARIABLES).toEqual(emailCopy.variables);
+    // The layouts' types and the collection's are one list (T99, D122).
+    expect([...EMAIL_TYPES]).toEqual([...LAYOUT_TYPES]);
     for (const type of EMAIL_TYPES) {
       for (const name of EMAIL_VARIABLES[type]) {
         expect(EmailTemplates.admin?.description).toContain(`{{${name}}}`);

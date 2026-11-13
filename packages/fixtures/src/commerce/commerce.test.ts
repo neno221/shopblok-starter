@@ -980,6 +980,8 @@ describe.each(designSystemLocales)("the %s fixtures", (locale) => {
         `${prefix}/cookies`,
         `${prefix}/legal-notice`,
       ]);
+      // M6 D123 (T97): "Cookie settings" opens the cookie policy at the consent dialog.
+      expect(fixture.footer.content.cookieSettingsHref).toBe(`${prefix}/cookies#cookie-settings`);
     });
   });
 
@@ -1501,6 +1503,7 @@ describe.each(designSystemLocales)("the %s fixtures", (locale) => {
       expect(bare.marketSwitcher).toBe(false);
       expect(bare.market).toBeUndefined();
       expect(bare.legalLinks).toEqual(content.legalLinks.slice(0, 2));
+      expect(bare.cookieSettingsHref).toBeUndefined();
     });
   });
 
@@ -1721,9 +1724,9 @@ describe.each(designSystemLocales)("the %s fixtures", (locale) => {
     });
 
     it("refuse a drawer-picks without picks, or with a pick the cart holds (T85)", () => {
-      expect(CartDrawer.safeParse({ ...samples.drawer.full, variant: "drawer-picks" }).success).toBe(
-        false,
-      );
+      expect(
+        CartDrawer.safeParse({ ...samples.drawer.full, variant: "drawer-picks" }).success,
+      ).toBe(false);
       const [line] = cart.lines;
       const [pick] = samples.picks;
       if (line === undefined || pick === undefined) throw new Error("no line or pick");

@@ -26,19 +26,28 @@ export const FormPost = z.object({
 export type FormAnswer = { stored: boolean };
 
 /** Whether the spam trap holds anything: posted twice, it arrives as a list (`formDataToObject`). */
-const filled = (trap: unknown): boolean =>
+export const filled = (trap: unknown): boolean =>
   Array.isArray(trap) ? trap.some(filled) : typeof trap === "string" && trap.trim() !== "";
 
-/** The form a post names, in the market's language, when a visitor can reach it; else `null`. */
-async function placedForm(market: string, form: string) {
-  const found = findMarket(await getRenderMarketMap(), market);
+/**
+ * The form a post names, in the market's language, when a visitor can reach it, with the market
+ * and its map (the newsletter's link is built from them); else `null`.
+ */
+export async function reachableForm(market: string, form: string) {
+  const map = await getRenderMarketMap();
+  const found = findMarket(map, market);
   if (found === undefined) return null;
   const reader = { market: found, draft: false };
   const [read, placed] = await Promise.all([
     readForm(reader, Number(form)),
     isFormPlaced(reader, Number(form)),
   ]);
-  return placed ? read : null;
+  return placed && read !== null ? { form: read, market: found, map } : null;
+}
+
+/** The form a post names, in the market's language, when a visitor can reach it; else `null`. */
+async function placedForm(market: string, form: string) {
+  return (await reachableForm(market, form))?.form ?? null;
 }
 
 export const submitFormAction = action(FormPost, async ({ market, form, answers }) => {
@@ -94,7 +103,7 @@ function typedBack(
  * refusal, what was typed in `names`, the form's own fields (`postedFieldNames`).
  */
 export function formState(
-  result: ActionResult<FormAnswer>,
+  result: ActionResult<unknown>,
   answers: Record<string, unknown>,
   names: readonly string[],
 ): FormState {

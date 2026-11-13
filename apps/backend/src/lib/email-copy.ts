@@ -2,11 +2,10 @@ import type { MedusaContainer } from "@medusajs/framework/types";
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils";
 
 import {
+  copyFromTemplate,
   EMAIL_VARIABLES,
   fillVariables,
   lexicalToText,
-  paragraphs,
-  richTextHasText,
   type EmailCopy as LayoutCopy,
   type EmailType,
 } from "@shopblok/emails";
@@ -62,6 +61,93 @@ export const BUILT_IN: Record<EmailType, Copy> = {
     ],
     cta: "See the request",
   },
+  "order-placed": {
+    subject: "Order {{orderNumber}} confirmed",
+    preheader: "Thank you for your order. Here is what you ordered.",
+    heading: "Thank you for your order",
+    body: [
+      "We have received order {{orderNumber}} and are getting it ready. You will get another e-mail when it ships.",
+      "The order comes to {{total}}. Here is a summary:",
+    ],
+    cta: "View your order",
+  },
+  "order-shipped": {
+    subject: "Order {{orderNumber}} is on its way",
+    preheader: "Your order has shipped.",
+    heading: "Your order is on its way",
+    body: [
+      "Good news: order {{orderNumber}} has left our warehouse.",
+      "Follow the parcel with the tracking number below.",
+    ],
+    cta: "View your order",
+  },
+  "order-canceled": {
+    subject: "Order {{orderNumber}} canceled",
+    preheader: "Your order has been canceled.",
+    heading: "Your order has been canceled",
+    body: [
+      "Order {{orderNumber}} has been canceled. If you paid for it, the payment is returned to you.",
+      "If you did not ask for this, reply to this e-mail and we will help.",
+    ],
+    cta: "View your order",
+  },
+  "return-requested": {
+    subject: "Return for order {{orderNumber}} received",
+    preheader: "We have your return request.",
+    heading: "We have your return request",
+    body: [
+      "We have received your request to return items from order {{orderNumber}}. These are the items:",
+      "Send them back as the return's instructions say. We refund you once they arrive.",
+    ],
+    cta: "View your order",
+  },
+  "refund-issued": {
+    subject: "Refund for order {{orderNumber}}",
+    preheader: "We have refunded {{amount}}.",
+    heading: "Your refund is on its way",
+    body: [
+      "We have refunded {{amount}} for order {{orderNumber}} to the way you paid.",
+      "It can take a few working days to show on your statement.",
+    ],
+    cta: "View your order",
+  },
+  welcome: {
+    subject: "Welcome to the shop",
+    preheader: "Your account is ready.",
+    heading: "Welcome",
+    body: [
+      "Your address {{email}} is confirmed and your account is ready.",
+      "Sign in to see your orders, keep your addresses and check out faster.",
+    ],
+    cta: "Start shopping",
+  },
+  "admin-invite": {
+    subject: "You are invited to the shop's admin",
+    preheader: "Accept the invite to manage the shop.",
+    heading: "You are invited",
+    body: [
+      "You have been invited to manage the shop in Medusa Admin as {{email}}.",
+      "Open the link below to choose a password and accept. The invite expires after a day.",
+    ],
+    cta: "Accept the invite",
+  },
+  "newsletter-confirm": {
+    subject: "Confirm your subscription",
+    preheader: "One click to start getting our newsletter.",
+    heading: "Confirm your subscription",
+    body: [
+      "Someone, hopefully you, asked to send our newsletter to {{email}}.",
+      "Open the link below and press “Confirm” to subscribe. If it was not you, ignore this e-mail: nothing is sent until you confirm. The link works for 48 hours.",
+    ],
+    cta: "Confirm my subscription",
+  },
+  "form-message": {
+    subject: "New answer to “{{form}}”",
+    preheader: "A visitor sent the form.",
+    heading: "New answer to “{{form}}”",
+    body: ["A visitor sent the form “{{form}}”. Their answers are below."],
+    cta: "Open it in the admin",
+  },
 };
 
 /** What an e-mail's copy came to, ready for the notification's `data`. */
@@ -100,9 +186,6 @@ export function languageFrom(metadata: unknown): string {
   const language = (metadata as { language?: unknown } | null | undefined)?.language;
   return typeof language === "string" && LANGUAGE.test(language) ? language : DEFAULT_LANGUAGE;
 }
-
-const textOf = (value: unknown): string | undefined =>
-  typeof value === "string" && value.trim() !== "" ? value : undefined;
 
 /** Reads a type's template in a language; `null` when Payload has none. */
 export type TemplateSource = (
@@ -187,27 +270,21 @@ export function createEmailCopy({
       values: Record<string, string | undefined>,
     ): Promise<EmailCopy> {
       const stored = await template(type, language);
-      const builtIn = BUILT_IN[type];
       const fill = (text: string) => fillVariables(text, EMAIL_VARIABLES[type], values);
-      const subject = textOf(stored?.subject);
-      const fromPayload = stored !== null && subject !== undefined;
-      // A field Payload leaves empty takes the built-in English one.
-      const body = stored?.body;
-      const written: LayoutCopy = {
-        subject: subject ?? builtIn.subject,
-        preheader: textOf(stored?.preheader) ?? builtIn.preheader,
-        heading: textOf(stored?.heading) ?? builtIn.heading,
-        body: richTextHasText(body) ? body : paragraphs(builtIn.body),
-        cta: textOf(stored?.cta) ?? builtIn.cta,
-      };
+      // A field Payload leaves empty takes the built-in English one (`@shopblok/emails`' rule).
+      const {
+        copy: written,
+        language: copyLanguage,
+        source,
+      } = copyFromTemplate(stored, BUILT_IN[type], language);
       return {
         subject: fill(written.subject),
         preheader: fill(written.preheader),
         heading: fill(written.heading),
         text: fill(lexicalToText(written.body)),
         cta: fill(written.cta),
-        language: fromPayload ? language : DEFAULT_LANGUAGE,
-        source: fromPayload ? "payload" : "built-in",
+        language: copyLanguage,
+        source,
         template: written,
       };
     },

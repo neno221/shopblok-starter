@@ -1,6 +1,6 @@
-// What `pnpm check:keys` looks for (M6 D115, T93): a key of Stripe, Resend, R2 or AWS written into a
-// file. Pure: the files' text comes in, the findings go out, and `scripts/check-no-keys.ts` does the
-// reading. A finding never holds the key itself, only where it is and what kind it is, so the check's
+// What `pnpm check:keys` looks for (M6 D115, T93): a key of Stripe, Resend, R2 or AWS, or (T97) a
+// PostHog personal key, written into a file. Pure: the files' text comes in, the findings go out,
+// and `scripts/check-no-keys.ts` does the reading. A finding never holds the key itself, only where it is and what kind it is, so the check's
 // output (CI's log) does not repeat the leak.
 //
 // Each pattern is anchored at the start of a word, so an ordinary identifier that happens to end in a
@@ -56,6 +56,13 @@ export const KEY_KINDS: readonly KeyKind[] = [
       `(?<=${word}S3_(?:ACCESS_KEY_ID|SECRET_ACCESS_KEY)[ \\t]*[=:][ \\t]*["']?)[A-Za-z0-9/+]{20,}`,
       "g",
     ),
+  },
+  {
+    // T97: a PostHog personal API key reads and changes the whole account; the project key (`phc_`)
+    // is public (it is in the browser's bundle) and is not looked for.
+    id: "posthog-personal",
+    name: "PostHog personal API key",
+    pattern: new RegExp(`${word}phx_[A-Za-z0-9]{20,}`, "g"),
   },
   {
     id: "aws-access-key",

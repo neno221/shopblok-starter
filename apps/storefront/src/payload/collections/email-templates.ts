@@ -3,8 +3,24 @@ import type { CollectionConfig } from "payload";
 import { isAdmin, isStaff, staffOrMedusaSync } from "../access/roles";
 import { seedKey } from "../fields/seed-key";
 
-/** The e-mails whose copy Payload holds (D84); M6 adds the order e-mails. */
-export const EMAIL_TYPES = ["verify-email", "password-reset", "order-transfer"] as const;
+/**
+ * The e-mails whose copy Payload holds (D84, D122): M3's three and T99's order, account, newsletter
+ * and form e-mails, the types `@shopblok/emails` lays out.
+ */
+export const EMAIL_TYPES = [
+  "verify-email",
+  "password-reset",
+  "order-transfer",
+  "order-placed",
+  "order-shipped",
+  "order-canceled",
+  "return-requested",
+  "refund-issued",
+  "welcome",
+  "admin-invite",
+  "newsletter-confirm",
+  "form-message",
+] as const;
 export type EmailType = (typeof EMAIL_TYPES)[number];
 
 /** The `{{variables}}` each type's copy may use; the backend fills them (`email-copy.ts`). */
@@ -14,6 +30,15 @@ const LABELS: Record<EmailType, string> = {
   "verify-email": "Verify the e-mail address",
   "password-reset": "Password reset",
   "order-transfer": "Order transfer to an account",
+  "order-placed": "Order placed",
+  "order-shipped": "Order shipped",
+  "order-canceled": "Order canceled",
+  "return-requested": "Return requested",
+  "refund-issued": "Refund issued",
+  welcome: "Welcome (after the address is verified)",
+  "admin-invite": "Medusa Admin invite (English)",
+  "newsletter-confirm": "Newsletter: confirm the subscription",
+  "form-message": "A form's e-mail to the shop",
 };
 
 const variablesHelp = EMAIL_TYPES.map(
@@ -26,7 +51,8 @@ const variablesHelp = EMAIL_TYPES.map(
  * falls back to its built-in English when Payload does not answer; nothing is revalidated, so an
  * edit reaches the next e-mail within those 5 minutes. The link itself is not in the copy: the
  * backend adds it, and `cta` is its label. Until M6 the body goes out as plain text (headings,
- * paragraphs, lists and links); M6 renders it in `packages/emails`' layouts.
+ * paragraphs, lists and links); M6 renders it in `packages/emails`' layouts. The newsletter's and
+ * the forms' e-mails are Payload's own (T99): the storefront reads their copy here directly.
  */
 export const EmailTemplates: CollectionConfig = {
   slug: "email-templates",

@@ -6,6 +6,7 @@ import type { Metadata } from "next";
 import { getMessages } from "next-intl/server";
 import { QuickViewOpener } from "../../../../components/listing/quick-view-opener";
 import { RememberSearch } from "../../../../components/listing/remember-search";
+import { TrackOnView } from "../../../../lib/analytics/track-on-view";
 import { getShellData } from "../../../../components/shell/shell-data";
 import { getCurrentMarket } from "../../../../lib/current-market";
 import {
@@ -122,6 +123,19 @@ export default async function SearchPage({ searchParams }: Props) {
   return (
     <>
       <RememberSearch query={query.query} />
+      {query.query === "" ? null : (
+        // D124: `search_performed`, only with a PostHog key and the visitor's consent; one per
+        // query and page (the key: another search on this page is a new view).
+        <TrackOnView
+          key={`${query.query}\n${results.page.page}`}
+          event="search_performed"
+          properties={{
+            query: query.query,
+            results: results.toolbar.count,
+            page: results.page.page,
+          }}
+        />
+      )}
       <QuickViewOpener market={market.key} />
       <SearchResultsTemplate
         // D101: the search page follows the listing's filter layout.

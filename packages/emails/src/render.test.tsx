@@ -1,6 +1,14 @@
 import templates from "@shopblok/fixtures/email/templates.json";
 import { describe, expect, it } from "vitest";
-import { EMAIL_TYPES, EMAIL_VARIABLES, paragraphs, render, type EmailInput } from ".";
+import { emailFixtures } from "@shopblok/fixtures";
+import {
+  EMAIL_TYPES,
+  EMAIL_VARIABLES,
+  paragraphs,
+  render,
+  type EmailInput,
+  type EmailOrder,
+} from ".";
 
 const copy = (body: string[]) => ({
   subject: "Order {{orderNumber}} for {{email}}",
@@ -122,20 +130,125 @@ describe("render (D121)", () => {
 
   it("lays out every type with the seed's copy in its four languages", async () => {
     expect(Object.keys(templates.variables)).toEqual([...EMAIL_TYPES]);
+    expect(Object.keys(templates.templates)).toEqual([...EMAIL_TYPES]);
     for (const type of EMAIL_TYPES) {
       expect(templates.variables[type]).toEqual(EMAIL_VARIABLES[type]);
-      for (const [language, seeded] of Object.entries(templates.templates[type])) {
-        const email = await render(type, {
-          copy: { ...seeded, body: paragraphs(seeded.body) },
-          variables: { email: "ana@example.com", code: "c0de", orderNumber: "37" },
-          url: "https://shop.example/x",
-          language,
-          shop: { name: "Shopblok" },
-        });
+      for (const language of ["en", "el", "de", "fr"] as const) {
+        const fixture = emailFixtures[language][type];
+        const email = await render(type, fixture);
         expect(email.html, `${type} ${language}`).not.toContain("{{");
-        expect(email.text).toContain(seeded.cta.replace("{{orderNumber}}", "37"));
-        expect(email.subject).not.toContain("{{");
+        expect(email.subject, `${type} ${language}`).not.toContain("{{");
+        expect(email.text).toContain(new URL(fixture.url).href);
       }
     }
+  });
+});
+
+const order: EmailOrder = {
+  number: "1042",
+  date: "28 September 2026 at 09:00",
+  lines: [
+    { title: "Linen shirt <b>", detail: "Size: M", quantity: 2, total: "€90.00" },
+    { title: "Socks", quantity: 1, total: "€12.00" },
+  ],
+  totals: [
+    { kind: "subtotal", amount: "€102.00" },
+    { kind: "discount", amount: "−€10.00" },
+    { kind: "total", amount: "€92.00" },
+  ],
+  shipTo: ["Ana Pérez", "1 Main St", "1010 Nicosia", "CY"],
+};
+
+describe("the order e-mails (T99, D122)", () => {
+  it("draws the order's lines and sums as text, in the copy's language", async () => {
+    const email = await render("order-placed", input({ order, language: "de" }));
+    expect(email.html).toContain('data-slot="email-order"');
+    expect(email.html).toContain("Linen shirt &lt;b&gt;");
+    expect(email.html).not.toContain("<b>");
+    expect(email.html).toContain("Zwischensumme");
+    expect(email.html).toContain("Gesamt");
+    expect(email.text).toContain("2 × Linen shirt <b> (Size: M): €90.00");
+    expect(email.text).toContain("Rabatt: −€10.00");
+    expect(email.text).toContain("Lieferadresse:\nAna Pérez\n1 Main St");
+  });
+
+  it("reads English labels for a language the layout has none for", async () => {
+    const email = await render("order-placed", input({ order, language: "mn" }));
+    expect(email.text).toContain("Subtotal: €102.00");
+  });
+
+  it("links a tracking number only to an http(s) page, in the HTML and the text", async () => {
+    const email = await render(
+      "order-shipped",
+      input({
+        order: {
+          ...order,
+          tracking: [
+            { number: "1Z1", url: "https://carrier.example/1Z1" },
+            { number: "BAD", url: "javascript:alert(1)" },
+            { number: "PLAIN" },
+          ],
+        },
+      }),
+    );
+    expect(email.html).toContain('href="https://carrier.example/1Z1"');
+    expect(email.html).not.toContain("javascript:");
+    expect(email.html.match(/data-slot="email-tracking"/g)?.length).toBe(1);
+    expect(email.text).toContain("Tracking:\n1Z1 (https://carrier.example/1Z1)\nBAD\nPLAIN");
+    expect(email.text).not.toContain("javascript:");
+  });
+
+  it.each([
+    "order-placed",
+    "order-shipped",
+    "order-canceled",
+    "return-requested",
+    "refund-issued",
+  ] as const)("refuses %s without its order", async (type) => {
+    await expect(render(type, input())).rejects.toThrow(/order's summary/);
+  });
+});
+
+describe("the form e-mail (T99, D122)", () => {
+  const form = {
+    title: "Contact",
+    answers: [
+      { name: "name", label: "Name", value: "Ana" },
+      { name: "message", label: "Message", value: '<img src=x onerror="alert(1)">' },
+    ],
+  };
+  const formInput = (overrides: Partial<EmailInput["form"]> = {}) =>
+    input({
+      copy: { ...copy(["A visitor sent {{form}}."]), subject: "New answer to {{form}}" },
+      variables: { form: "Contact" },
+      url: "https://shop.example/admin/collections/form-submissions/42",
+      form: { ...form, ...overrides },
+    });
+
+  it("draws every answer as text: markup a visitor sends never reaches the HTML", async () => {
+    const email = await render("form-message", formInput());
+    expect(email.html).not.toMatch(/<img/i);
+    expect(email.html).toContain("&lt;img src=x onerror=&quot;alert(1)&quot;&gt;");
+    expect(email.subject).toBe("New answer to Contact");
+    expect(email.text).toContain('Answers:\nName: Ana\nMessage: <img src=x onerror="alert(1)">');
+  });
+
+  it("takes the form's own subject and message, its {{fields}} filled in as text, {{*}} dropped", async () => {
+    const email = await render(
+      "form-message",
+      formInput({
+        subject: "{{name}} wrote on {{form}}",
+        message: paragraphs(["From {{name}}: {{message}}", "{{*:table}}", "{{*}}"]),
+      }),
+    );
+    expect(email.subject).toBe("Ana wrote on Contact");
+    expect(email.html).not.toMatch(/<img/i);
+    expect(email.html).toContain("From Ana: &lt;img");
+    expect(email.html).not.toContain("{{*");
+    expect(email.html).not.toContain("A visitor sent");
+  });
+
+  it("refuses form-message without its form", async () => {
+    await expect(render("form-message", input())).rejects.toThrow(/needs the form/);
   });
 });

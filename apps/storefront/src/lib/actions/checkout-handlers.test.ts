@@ -34,6 +34,9 @@ vi.mock("../medusa/payment", () => ({
 }));
 const getMarketContext = vi.fn();
 vi.mock("../market-context", () => ({ getMarketContext }));
+// The market's prefix and language for the order's e-mails (T99): the URL module's own tests cover it.
+const mailTarget = vi.fn(() => ({ market: "/de/en", language: "en" }));
+vi.mock("../markets", () => ({ mailTarget }));
 
 const {
   addressErrors,
@@ -227,6 +230,17 @@ describe("placeOrderAction (step 3)", () => {
     }
     expect(completeCart).not.toHaveBeenCalled();
     expect(setReceipt).not.toHaveBeenCalled();
+  });
+
+  it("stores the market and language of the order's e-mails on the cart before placing it (T99)", async () => {
+    moveCart.mockResolvedValue(deliveryDone);
+    completeCart.mockResolvedValue({ kind: "order", orderId: "order_1", countryCode: "de" });
+    await placeOrderAction({ market: "en-de" });
+    expect(completeCart).toHaveBeenCalledWith("en-US", {
+      market: "/de/en",
+      language: "en",
+      key: "en-de",
+    });
   });
 
   it("keeps the receipt for the order Medusa placed", async () => {

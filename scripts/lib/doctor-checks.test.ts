@@ -21,6 +21,12 @@ import {
   resendDomainCheck,
   resendDomainState,
   senderDomain,
+  emptyEnvelope,
+  parseSentryDsn,
+  sentryEnvelopeCheck,
+  POSTHOG_EU,
+  posthogFlagsCheck,
+  posthogHost,
 } from "./doctor-checks.ts";
 import type { HttpResult } from "./http.ts";
 import { getIntegrationStatus, type AppEnvs } from "@shopblok/integrations";
@@ -963,5 +969,160 @@ describe("--online: Resend's sender domain (T98)", () => {
       kind: "unknown",
       reason: "Resend answered HTTP 500",
     });
+  });
+});
+
+describe("Sentry's DSN (T96)", () => {
+  const dsn = "https://0123abcd@o42.ingest.de.sentry.io/4507";
+  const withDsn = (backend: string | undefined, storefront: string | undefined): AppEnvs => ({
+    backend: backend === undefined ? {} : { SENTRY_DSN: backend },
+    storefront: storefront === undefined ? {} : { NEXT_PUBLIC_SENTRY_DSN: storefront },
+  });
+
+  it("reads a DSN, its envelope URL and what may be printed (never the key)", () => {
+    expect(parseSentryDsn(` ${dsn} `)).toEqual({
+      publicKey: "0123abcd",
+      envelopeUrl: "https://o42.ingest.de.sentry.io/api/4507/envelope/",
+      label: "o42.ingest.de.sentry.io, project 4507",
+    });
+    // A self-hosted Sentry under a path, and the local sink the live spec uses.
+    expect(parseSentryDsn("https://k@sentry.example.com/errors/7")?.envelopeUrl).toBe(
+      "https://sentry.example.com/errors/api/7/envelope/",
+    );
+    expect(parseSentryDsn("http://e2e@127.0.0.1:8970/1")?.envelopeUrl).toBe(
+      "http://127.0.0.1:8970/api/1/envelope/",
+    );
+    for (const value of [
+      undefined,
+      "",
+      "sentry",
+      "https://o42.ingest.sentry.io/4507",
+      "https://k@host/abc",
+    ])
+      expect(parseSentryDsn(value)).toBeUndefined();
+  });
+
+  it("says nothing without a DSN or with good ones, and errors on one that is not a DSN", () => {
+    const ids = (envs: AppEnvs) =>
+      configChecks(envs, getIntegrationStatus(envs), { nodeEnv: undefined, vercel: false })
+        .filter((check) => check.id.startsWith("sentry"))
+        .map((check) => [check.id, check.level, check.details]);
+    expect(ids(withDsn(undefined, undefined))).toEqual([]);
+    expect(ids(withDsn(dsn, dsn))).toEqual([]);
+    const checks = ids(withDsn("https://o42.ingest.sentry.io/4507", dsn));
+    expect(checks).toEqual([
+      ["sentry-dsn", "error", ["apps/backend: SENTRY_DSN is not https://<key>@<host>/<project>"]],
+    ]);
+    expect(JSON.stringify(checks)).not.toContain("o42.ingest.sentry.io/4507");
+  });
+
+  it("warns about a traces' rate that is not a rate", () => {
+    const envs: AppEnvs = {
+      backend: { SENTRY_TRACES_SAMPLE_RATE: "10%" },
+      storefront: { SENTRY_TRACES_SAMPLE_RATE: "0.2" },
+    };
+    const check = configChecks(envs, getIntegrationStatus(envs), {
+      nodeEnv: undefined,
+      vercel: false,
+    }).find((c) => c.id === "sentry-traces-rate");
+    expect([check?.level, check?.details]).toEqual(["warn", ["apps/backend"]]);
+  });
+
+  it("--online: Sentry accepts the empty envelope, refuses the key, or does not answer", () => {
+    const parsed = parseSentryDsn(dsn)!;
+    const answer = (status: number): HttpResult => ({ kind: "response", status, text: "{}" });
+    const ok = sentryEnvelopeCheck(["backend", "storefront"], parsed, answer(200));
+    expect([ok.id, ok.level, ok.title]).toEqual([
+      "sentry-envelope-backend-storefront",
+      "ok",
+      "Sentry accepts the DSN (apps/backend and apps/storefront)",
+    ]);
+    expect(sentryEnvelopeCheck(["backend"], parsed, answer(403)).level).toBe("error");
+    expect(sentryEnvelopeCheck(["backend"], parsed, answer(404)).level).toBe("error");
+    expect(sentryEnvelopeCheck(["backend"], parsed, answer(429)).level).toBe("warn");
+    expect(sentryEnvelopeCheck(["backend"], parsed, { kind: "refused" }).level).toBe("warn");
+    for (const status of [200, 403, 429])
+      expect(
+        JSON.stringify(sentryEnvelopeCheck(["backend"], parsed, answer(status))),
+      ).not.toContain("0123abcd");
+  });
+
+  it("posts an envelope with a header and no item", () => {
+    const envelope = emptyEnvelope(` ${dsn} `);
+    expect(envelope.endsWith("\n")).toBe(true);
+    expect(envelope.trim().split("\n")).toHaveLength(1);
+    expect(JSON.parse(envelope)).toMatchObject({ dsn });
+  });
+});
+
+describe("PostHog's keys (T97)", () => {
+  // Made-up keys of the right shape: not a project of anyone's.
+  const key = "phc_TestOnlyNotARealProjectKey0001";
+  const other = "phc_TestOnlyNotARealProjectKey0002";
+  const withKeys = (
+    backend: Record<string, string>,
+    storefront: Record<string, string>,
+  ): AppEnvs => ({ backend, storefront });
+  const posthog = (envs: AppEnvs) =>
+    configChecks(envs, getIntegrationStatus(envs), dev)
+      .filter((check) => check.id.startsWith("posthog"))
+      .map((check) => [check.id, check.level, check.details]);
+
+  it("says nothing without keys or with one project's key in both apps", () => {
+    expect(posthog(withKeys({}, {}))).toEqual([]);
+    expect(
+      posthog(withKeys({ POSTHOG_EVENTS_API_KEY: key }, { NEXT_PUBLIC_POSTHOG_KEY: ` ${key} ` })),
+    ).toEqual([]);
+  });
+
+  it("errors on a key that is not a project key, and never prints it", () => {
+    const checks = posthog(
+      withKeys(
+        // Built here, so `check:keys` does not read a personal key's shape in this file.
+        { POSTHOG_EVENTS_API_KEY: `phx_${"FAKE".repeat(6)}` },
+        { NEXT_PUBLIC_POSTHOG_KEY: "nope", NEXT_PUBLIC_POSTHOG_HOST: "eu.i.posthog.com" },
+      ),
+    );
+    expect(checks).toEqual([
+      [
+        "posthog-key",
+        "error",
+        [
+          "apps/backend: POSTHOG_EVENTS_API_KEY is a personal API key (phx_…), a secret: use the project's key (phc_…)",
+          "apps/storefront: NEXT_PUBLIC_POSTHOG_KEY is not a project API key (phc_…)",
+          "apps/storefront: NEXT_PUBLIC_POSTHOG_HOST is not a host such as https://eu.i.posthog.com",
+        ],
+      ],
+    ]);
+    expect(JSON.stringify(checks)).not.toContain("FAKEFAKE");
+  });
+
+  it("warns when the two apps send to two projects", () => {
+    expect(
+      posthog(withKeys({ POSTHOG_EVENTS_API_KEY: key }, { NEXT_PUBLIC_POSTHOG_KEY: other })),
+    ).toEqual([["posthog-projects", "warn", undefined]]);
+  });
+
+  it("reads each app's host, else the EU's, without a trailing slash", () => {
+    const envs = withKeys(
+      { POSTHOG_HOST: "https://us.i.posthog.com/" },
+      { NEXT_PUBLIC_POSTHOG_HOST: " " },
+    );
+    expect(posthogHost(envs, "backend")).toBe("https://us.i.posthog.com");
+    expect(posthogHost(envs, "storefront")).toBe(POSTHOG_EU);
+  });
+
+  it("--online: PostHog takes the key, refuses it, or does not answer", () => {
+    const answer = (status: number): HttpResult => ({ kind: "response", status, text: "{}" });
+    const ok = posthogFlagsCheck(["backend", "storefront"], POSTHOG_EU, answer(200));
+    expect([ok.id, ok.level, ok.title]).toEqual([
+      "posthog-flags-backend-storefront",
+      "ok",
+      "PostHog accepts the key (apps/backend and apps/storefront)",
+    ]);
+    expect(posthogFlagsCheck(["backend"], POSTHOG_EU, answer(401)).level).toBe("error");
+    expect(posthogFlagsCheck(["backend"], POSTHOG_EU, answer(403)).level).toBe("error");
+    expect(posthogFlagsCheck(["backend"], POSTHOG_EU, answer(500)).level).toBe("warn");
+    expect(posthogFlagsCheck(["backend"], POSTHOG_EU, { kind: "refused" }).level).toBe("warn");
   });
 });

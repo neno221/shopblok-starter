@@ -11,6 +11,7 @@ import { createRoot, hydrateRoot, type Root } from "react-dom/client";
 import { renderToString } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { VisitorCookieConsent, type VisitorCookieConsentProps } from "./cookie-consent";
+import { readConsentCookie } from "./consent-cookie";
 import { getSnapshot, resetVisitor, setVisitor } from "./store";
 
 // D44 (T36): the cookie banner as an island. The storefront's tests have no Testing Library, so this
@@ -20,6 +21,10 @@ import { getSnapshot, resetVisitor, setVisitor } from "./store";
 // after hydration when the visitor has not chosen, and each answer recorded and the banner gone.
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
+// The cart's server action (D124): each choice is sent to it.
+const syncCartConsent = vi.hoisted(() => vi.fn(async () => true));
+vi.mock("../actions/consent", () => ({ syncCartConsent }));
 
 const { site } = commerceFixtures.en;
 const props: VisitorCookieConsentProps = {
@@ -290,6 +295,76 @@ describe("VisitorCookieConsent", () => {
   });
 });
 
+describe("Cookie settings and the kept choice (M6 D123, T97)", () => {
+  const chosen = { analytics: true, marketing: false };
+  afterEach(() => {
+    document.cookie = "_shopblok_consent=; Path=/; Max-Age=0";
+    syncCartConsent.mockClear();
+  });
+
+  /** A footer's "Cookie settings" link on the page. */
+  function settingsLink() {
+    const link = document.createElement("a");
+    link.href = `${window.location.origin}/us/privacy#cookie-settings`;
+    link.textContent = "Cookie settings";
+    document.body.append(link);
+    return link;
+  }
+  const dialogOpen = () => slot("cookie-consent-dialog") !== null;
+
+  it("keeps a choice in the cookie and sends it to the cart", async () => {
+    await mount();
+    await act(async () => setVisitor({ cartCount: 0, consent: null }));
+    await click(slot("cookie-consent-accept"));
+    expect(readConsentCookie()).toEqual({ analytics: true, marketing: true });
+    expect(syncCartConsent).toHaveBeenCalledTimes(1);
+  });
+
+  it('opens the dialog from a "Cookie settings" link, with the switches as chosen', async () => {
+    await mount();
+    await act(async () => setVisitor({ cartCount: 0, consent: chosen }));
+    expect(banner()).toBeNull();
+    const link = settingsLink();
+    const event = new MouseEvent("click", { bubbles: true, cancelable: true, button: 0 });
+    await act(async () => link.dispatchEvent(event));
+    expect(event.defaultPrevented).toBe(true);
+    await settle(dialogOpen);
+    const switches = [...document.querySelectorAll<HTMLElement>('[role="switch"]')].map((each) =>
+      each.getAttribute("aria-checked"),
+    );
+    // Necessary (always on), analytics as chosen, marketing as chosen.
+    expect(switches).toEqual(["true", "true", "false"]);
+  });
+
+  it("leaves a click with a modifier to the browser (a new tab opens the policy page)", async () => {
+    await mount();
+    await act(async () => setVisitor({ cartCount: 0, consent: chosen }));
+    const link = settingsLink();
+    const event = new MouseEvent("click", {
+      bubbles: true,
+      cancelable: true,
+      button: 0,
+      ctrlKey: true,
+    });
+    link.addEventListener("click", (each) => each.preventDefault());
+    await act(async () => link.dispatchEvent(event));
+    expect(dialogOpen()).toBe(false);
+  });
+
+  it("withdraws from the dialog: the cookie says no, and the cart is told", async () => {
+    await mount();
+    await act(async () => setVisitor({ cartCount: 0, consent: chosen }));
+    await act(async () =>
+      settingsLink().dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true })),
+    );
+    await settle(dialogOpen);
+    await click(slot("cookie-consent-dialog-reject") ?? slot("cookie-consent-reject"));
+    expect(readConsentCookie()).toEqual({ analytics: false, marketing: false });
+    expect(getSnapshot()).toMatchObject({ consent: { analytics: false, marketing: false } });
+    expect(syncCartConsent).toHaveBeenCalled();
+  });
+});
+
 describe("the file", () => {
   const source = readFileSync(path.join(import.meta.dirname, "cookie-consent.tsx"), "utf8");
 
@@ -299,7 +374,7 @@ describe("the file", () => {
 
   it("wraps the ui organism and the store, and nothing else of ours", () => {
     expect(source).toContain('from "@shopblok/ui/organisms/cookie-consent"');
-    expect(source).toContain('from "./store"');
+    expect(source).toContain('from "./consent"');
     expect(source).toContain('from "./use-visitor"');
     expect(source).not.toMatch(
       /@shopblok\/(?:fixtures|registry\/(?!contracts)|i18n["'/](?!format))/,

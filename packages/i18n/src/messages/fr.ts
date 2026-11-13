@@ -145,7 +145,7 @@ export const fr: Messages = {
       consent:
         "En vous inscrivant, vous acceptez notre {privacy}. Vous pouvez vous désinscrire à tout moment.",
       privacyLink: "politique de confidentialité",
-      done: "Merci, votre inscription est confirmée.",
+      done: "Merci. Consultez votre boîte de réception : nous vous avons envoyé un lien pour confirmer votre inscription.",
       error: "Nous n’avons pas pu inscrire cette adresse. Vérifiez-la et réessayez.",
     },
     accordionItem: {},
@@ -397,6 +397,7 @@ export const fr: Messages = {
       socialLink: "{store} sur {network}",
       payment: "Moyens de paiement",
       newTab: "S’ouvre dans un nouvel onglet",
+      cookieSettings: "Paramètres des cookies",
     },
     cookieConsent: {
       region: "Consentement aux cookies",
@@ -409,7 +410,7 @@ export const fr: Messages = {
       choose: "Choisir les cookies",
       dialogTitle: "Préférences de cookies",
       dialogDescription:
-        "Choisissez les cookies que nous pouvons utiliser. Rien n’est activé avant que vous enregistriez.",
+        "Choisissez les cookies que nous pouvons utiliser. Rien n’est activé avant que vous enregistriez, et vous pouvez modifier votre choix à tout moment depuis « Paramètres des cookies » en bas de chaque page.",
       necessary: "Nécessaires",
       necessaryDescription:
         "Font fonctionner la boutique : ils retiennent votre panier, votre connexion, votre pays et votre langue, et ce choix.",
@@ -1129,6 +1130,21 @@ export const fr: Messages = {
         text: "Les histoires de la boutique apparaîtront bientôt ici.",
         action: "Voir tous les produits",
       },
+    },
+    newsletterConfirm: {
+      title: "Confirmez votre inscription",
+      lead: "Confirmez que {email} doit recevoir notre newsletter.",
+      submit: "Confirmer",
+      doneTitle: "Votre inscription est confirmée",
+      done: "Merci de votre confirmation. Notre newsletter vous parviendra environ une fois par mois. Vous pouvez vous désinscrire à tout moment.",
+      usedTitle: "Déjà confirmée",
+      used: "Ce lien a déjà été utilisé et l’adresse figure sur notre liste.",
+      expiredTitle: "Ce lien ne fonctionne plus",
+      expired:
+        "Les liens de confirmation sont valables 48 heures. Inscrivez-vous à nouveau avec le formulaire en bas de n’importe quelle page et nous vous en enverrons un nouveau.",
+      failed:
+        "Nous n’avons pas pu confirmer votre inscription pour le moment. Veuillez réessayer dans un instant.",
+      home: "Continuer mes achats",
     },
   },
 };

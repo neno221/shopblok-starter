@@ -44,7 +44,13 @@ describe("wired", () => {
 
   it("holds for Redis, wired in M0, and the integrations M6 has wired so far", () => {
     const live = getIntegrationStatus(none).filter((status) => status.wired);
-    expect(live.map((status) => status.id)).toEqual(["resend", "meilisearch", "redis"]);
+    expect(live.map((status) => status.id)).toEqual([
+      "resend",
+      "posthog",
+      "sentry",
+      "meilisearch",
+      "redis",
+    ]);
     expect(
       JSON.stringify(buildModules({ MEILISEARCH_HOST: "http://x", MEILISEARCH_API_KEY: "x" })),
     ).not.toBe(JSON.stringify(buildModules({})));
@@ -54,6 +60,9 @@ describe("wired", () => {
     expect(
       JSON.stringify(buildModules({ RESEND_API_KEY: "x", RESEND_FROM_EMAIL: "shop@example.com" })),
     ).not.toBe(JSON.stringify(buildModules({})));
+    expect(JSON.stringify(buildModules({ POSTHOG_EVENTS_API_KEY: "x" }))).not.toBe(
+      JSON.stringify(buildModules({})),
+    );
   });
 });
 

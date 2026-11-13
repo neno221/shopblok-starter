@@ -181,6 +181,35 @@ describe("getIntegrationStatus", () => {
     expect(half.half).toBe(true);
   });
 
+  it("PostHog is live with its two keys (T97), and both hosts are optional (the EU's)", () => {
+    const posthog = byId(
+      getIntegrationStatus({
+        backend: { POSTHOG_EVENTS_API_KEY: "phc_x" },
+        storefront: { NEXT_PUBLIC_POSTHOG_KEY: "phc_x" },
+      }),
+      "posthog",
+    );
+    expect([posthog.wired, posthog.state, posthog.using, posthog.arrives]).toEqual([
+      true,
+      "live",
+      "PostHog",
+      undefined,
+    ]);
+    expect(posthog.parts.map((part) => part.optionalMissing)).toEqual([
+      ["POSTHOG_HOST"],
+      ["NEXT_PUBLIC_POSTHOG_HOST"],
+    ]);
+    const half = byId(
+      getIntegrationStatus({ backend: {}, storefront: { NEXT_PUBLIC_POSTHOG_KEY: "phc_x" } }),
+      "posthog",
+    );
+    expect([half.state, half.half, describeMissing(half)]).toEqual([
+      "fallback",
+      true,
+      "POSTHOG_EVENTS_API_KEY (apps/backend)",
+    ]);
+  });
+
   it("the Sentry auth token is optional: the DSNs turn it on, and the token's absence is named", () => {
     const sentry = byId(
       getIntegrationStatus({
@@ -190,9 +219,12 @@ describe("getIntegrationStatus", () => {
       "sentry",
     );
     expect(sentry.configured).toBe(true);
+    // T96: wired, so live with both DSNs.
+    expect([sentry.wired, sentry.state, sentry.arrives]).toEqual([true, "live", undefined]);
     expect(sentry.parts.find((p) => p.app === "storefront")?.optionalMissing).toEqual([
       "SENTRY_ENVIRONMENT",
       "SENTRY_TRACES_SAMPLE_RATE",
+      "SENTRY_RELEASE",
       "SENTRY_AUTH_TOKEN",
       "SENTRY_ORG",
       "SENTRY_PROJECT",

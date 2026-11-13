@@ -4,6 +4,7 @@ import { APIError, type BlocksField, type CollectionBeforeDeleteHook, type Field
 import { blocks } from "payload/shared";
 import { formTags } from "../lib/cms/tags";
 import { checkFields, type StoredFormField } from "../lib/forms/fields";
+import { formEmailsField, formMessages } from "./form-emails";
 import { isAdmin, isStaff } from "./access/roles";
 import { seedKey } from "./fields/seed-key";
 import { revalidateOnPublish } from "./hooks/revalidate-on-publish";
@@ -55,9 +56,9 @@ export const keepFormWithSubmissions: CollectionBeforeDeleteHook = async ({ id, 
 
 /**
  * The plugin's `forms` fields, as D81 keeps them: the title, the fields (at most 20, their names
- * checked), the submit button's label and the confirmation message. Left out: the redirect after a
- * submission (`confirmationType` and `redirect`; the form always answers with its message, in
- * place) and the e-mails on submission (`emails`; M6 sends them through Resend).
+ * checked), the submit button's label, the confirmation message and, since T99, the e-mails to the
+ * shop (`emails`, D122's own version, `form-emails.ts`). Left out: the redirect after a submission
+ * (`confirmationType` and `redirect`; the form always answers with its message, in place).
  */
 function formFields({ defaultFields }: { defaultFields: Field[] }): Field[] {
   return [
@@ -80,8 +81,8 @@ function formFields({ defaultFields }: { defaultFields: Field[] }): Field[] {
             admin: { description: "Shown when the form is sent. Empty: the shop's thank-you." },
           } as Field,
         ];
-      if (named(field, "confirmationType") || named(field, "redirect") || named(field, "emails"))
-        return [];
+      if (named(field, "emails")) return [formEmailsField];
+      if (named(field, "confirmationType") || named(field, "redirect")) return [];
       return [field];
     }),
     seedKey(),
@@ -91,13 +92,15 @@ function formFields({ defaultFields }: { defaultFields: Field[] }): Field[] {
 /**
  * D81: Payload's form builder, hardened. Forms are built in the admin by staff and read by anyone
  * (the shop reads them anonymously, as it reads every published document; a form holds labels, not
- * secrets). A change revalidates the pages and globals that embed a form, and the form reads
+ * secrets; where its e-mails go is read only in the admin). A change revalidates the pages and globals that embed a form, and the form reads
  * (`formTags`); one with submissions is kept (`keepFormWithSubmissions`). Submissions arrive only through the shop's server action (`lib/actions/form.ts`):
  * the plugin's REST `create` is closed, so `POST /api/form-submissions` answers 403 and is no door
  * for spam. Staff read submissions; nobody edits one; admins may delete them.
  */
 export const formBuilder = formBuilderPlugin({
   fields: FORM_FIELD_BLOCKS,
+  // D122 (T99): each e-mail form-builder made, made again as `form-message` (`form-emails.ts`).
+  beforeEmail: formMessages,
   formOverrides: {
     admin: { group: "Forms", defaultColumns: ["title", "updatedAt"] },
     access: { read: () => true, create: isStaff, update: isStaff, delete: isStaff },

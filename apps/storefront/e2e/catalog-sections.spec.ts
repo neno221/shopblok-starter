@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { linkIn, mailTo } from "./support/mailpit";
 import { appEnv } from "./support/app-env";
 import { catalogs } from "./support/catalogs";
 import { medusaAdminApi, medusaAdminToken, medusaUrl } from "./support/medusa-admin";
@@ -234,12 +235,13 @@ test("the page works while a section's island loads, and a form in the sections 
   await signup.getByLabel(en.emailLabel).fill(email);
   await signup.getByRole("button", { name: en.submit }).click();
   await expect(signup.locator("[data-slot=newsletter-form-status]")).toContainText(en.done);
+  // T99 (D122): the newsletter keeps nothing yet; it e-mails the link that confirms the address.
+  const mail = await mailTo(email);
+  expect(linkIn(mail, /\/us\/newsletter\/confirm\?token=/)).toMatch(/^\/us\/newsletter\/confirm/);
   const { docs: sent } = await api<{
     docs: { id: number; submissionData: { value: string }[] }[];
   }>(token, "GET", `/api/form-submissions?where[form][equals]=${form}&sort=-createdAt&limit=50`);
-  const mine = sent.filter((doc) => doc.submissionData.some((row) => row.value === email));
-  expect(mine).toHaveLength(1);
-  for (const doc of mine) await api(token, "DELETE", `/api/form-submissions/${doc.id}`);
+  expect(sent.filter((doc) => doc.submissionData.some((row) => row.value === email))).toEqual([]);
 });
 
 test("a product set to none shows neither its own sections nor the default", async () => {

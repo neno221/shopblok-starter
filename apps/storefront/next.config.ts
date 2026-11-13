@@ -1,11 +1,13 @@
 import { availableParallelism } from "node:os";
 import { fileURLToPath } from "node:url";
 import { withPayload } from "@payloadcms/next/withPayload";
+import { withSentryConfig } from "@sentry/nextjs/config";
 import type { NextConfig } from "next";
 import { PHASE_DEVELOPMENT_SERVER, PHASE_PRODUCTION_BUILD } from "next/constants";
 import createNextIntlPlugin from "next-intl/plugin";
 import { buildWorkers } from "./src/lib/build-workers";
 import { designSystemBuildFlag } from "./src/lib/env";
+import { POSTHOG_EU } from "./src/lib/site";
 
 // The repo root. The shared packages are linked from `packages/*` and Next compiles their source
 // (D3), so Turbopack and the file tracing must see outside this folder. The Payload templates point
@@ -19,6 +21,11 @@ function buildConfig(phase: string): NextConfig {
     partialPrefetching: true,
     typedRoutes: true,
     poweredByHeader: false,
+    // T97 (M6 D124): Next's own trailing-slash redirect would answer `posthog-js`'s `/ingest/e/`
+    // with a 308 before the `/ingest` rewrite (checked on `next start`). It is off, and the proxy
+    // makes the same redirect for every other path (`src/proxy.ts`, its matcher's second entry), so
+    // `/us/` and `/admin/` still lose their slash and only `/ingest/…` keeps it.
+    skipTrailingSlashRedirect: true,
     experimental: {
       // The app has one root layout per market, so there is no single layout for a 404 page.
       globalNotFound: true,
@@ -32,7 +39,10 @@ function buildConfig(phase: string): NextConfig {
     // reads it. Without this, a build without the flag would still prerender one DS path and render
     // the others on request, reading the runtime environment (`dynamicParams = false` is a build
     // error under Cache Components). It is always `"true"` or `"false"`, never undefined.
-    env: { DESIGN_SYSTEM_ENABLED: designSystemBuildFlag() },
+    //
+    // T96 (M6 D125): Sentry's environment, release (the commit) and traces' rate, written into the
+    // server's and the browser's bundles alike, so both report the same; blank without them.
+    env: { DESIGN_SYSTEM_ENABLED: designSystemBuildFlag(), ...sentryBuildEnv(process.env) },
     turbopack: { root: repoRoot },
     outputFileTracingRoot: repoRoot,
     // `/design-system` has no page of its own; the locale is a path segment (D33). Not permanent: the
@@ -55,7 +65,7 @@ function buildConfig(phase: string): NextConfig {
     // out (PR 50 review): a deployment adapter can address a dynamic page's RSC payload as
     // `/us.rsc`, and that must still reach `[market]`.
     rewrites: async () => ({
-      beforeFiles: [],
+      beforeFiles: posthogRewrites(process.env),
       afterFiles: [
         {
           source: "/:file([^/]*\\.(?![Rr][Ss][Cc]$)[A-Za-z][A-Za-z0-9]*)",
@@ -74,7 +84,71 @@ function buildConfig(phase: string): NextConfig {
 // `next build` and `next dev` run; Turbopack refuses an absolute one.
 const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 
+/**
+ * M6 D124 (T97): PostHog behind the site's own `/ingest`, so the browser talks to this origin only
+ * (PostHog's Next.js guide): `/ingest/static/*` to the region's assets host, the rest to its ingest
+ * host (`NEXT_PUBLIC_POSTHOG_HOST`, the EU's when blank). In `beforeFiles`, ahead of every page,
+ * `[market]` among them; the proxy's matcher skips `/ingest`. Only in a build with
+ * `NEXT_PUBLIC_POSTHOG_KEY`: without it `/ingest` is no route and nothing goes to PostHog.
+ */
+export function posthogRewrites(source: Record<string, string | undefined>) {
+  if (!source.NEXT_PUBLIC_POSTHOG_KEY?.trim()) return [];
+  const host = (source.NEXT_PUBLIC_POSTHOG_HOST?.trim() || POSTHOG_EU).replace(/\/+$/, "");
+  const assets = host.replace(
+    /^https:\/\/(eu|us)\.i\.posthog\.com$/,
+    "https://$1-assets.i.posthog.com",
+  );
+  return [
+    { source: "/ingest/static/:path*", destination: `${assets}/static/:path*` },
+    { source: "/ingest/:path*", destination: `${host}/:path*` },
+  ];
+}
+
+/**
+ * T96 (M6 D125): the values `lib/sentry/options.ts` reads, fixed at build. The release is
+ * `SENTRY_RELEASE`, else the commit Vercel or GitHub Actions builds.
+ */
+export function sentryBuildEnv(source: NodeJS.ProcessEnv): Record<string, string> {
+  return {
+    SENTRY_ENVIRONMENT: source.SENTRY_ENVIRONMENT?.trim() ?? "",
+    SENTRY_RELEASE:
+      source.SENTRY_RELEASE?.trim() ||
+      source.VERCEL_GIT_COMMIT_SHA?.trim() ||
+      source.GITHUB_SHA?.trim() ||
+      "",
+    SENTRY_TRACES_SAMPLE_RATE: source.SENTRY_TRACES_SAMPLE_RATE?.trim() ?? "",
+  };
+}
+
+/**
+ * T96 (M6 D125): Sentry's build step, outermost, only for a build with `NEXT_PUBLIC_SENTRY_DSN`; a
+ * build without one is exactly what it was before M6. It uploads the source maps only with
+ * `SENTRY_AUTH_TOKEN` (and `SENTRY_ORG`, `SENTRY_PROJECT`), and deletes them after, so the site
+ * never serves them. The rest is off: no route manifest in the browser's bundle (D129's first load),
+ * no build-time instrumentation of server packages (the shop traces nothing by default), no
+ * telemetry to Sentry about the build. The tunnel is the shop's own route (`app/monitoring`), not
+ * the SDK's rewrite.
+ */
+export function withSentry<C>(nextConfig: C, source: NodeJS.ProcessEnv): C {
+  if (!source.NEXT_PUBLIC_SENTRY_DSN?.trim()) return nextConfig;
+  const authToken = source.SENTRY_AUTH_TOKEN?.trim() || undefined;
+  return withSentryConfig(nextConfig, {
+    org: source.SENTRY_ORG?.trim() || undefined,
+    project: source.SENTRY_PROJECT?.trim() || undefined,
+    authToken,
+    silent: true,
+    telemetry: false,
+    sourcemaps: { disable: authToken === undefined, deleteSourcemapsAfterUpload: true },
+    useRunAfterProductionCompileHook: authToken !== undefined,
+    routeManifestInjection: false,
+    buildTimeInstrumentation: false,
+  });
+}
+
 // `withPayload` takes the config object, so it wraps what the function returns for each phase.
 export default function config(phase: string): NextConfig {
-  return withNextIntl(withPayload(buildConfig(phase), { devBundleServerPackages: false }));
+  return withSentry(
+    withNextIntl(withPayload(buildConfig(phase), { devBundleServerPackages: false })),
+    process.env,
+  );
 }

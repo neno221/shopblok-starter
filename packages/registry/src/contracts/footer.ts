@@ -37,6 +37,9 @@ export const Footer = z
     newsletter: NewsletterSignup.optional().describe("The signup form, when the shop has one"),
     social: z.array(SocialLink).max(8),
     legalLinks: z.array(Link).max(6).describe("Terms, privacy, cookies, the legal notice"),
+    cookieSettingsHref: Href.optional().describe(
+      "M6 D123: \"Cookie settings\" after the legal links: the cookie policy with `#cookie-settings`, which the consent island opens as the dialog",
+    ),
     paymentIcons: z.array(PaymentBrand).max(8).describe("The marks of the ways to pay, in order"),
     marketSwitcher: z.boolean(),
     market: MarketChoice.optional(),

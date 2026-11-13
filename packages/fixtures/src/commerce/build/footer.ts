@@ -66,6 +66,7 @@ export function buildFooter(
   ];
   const terms = page(footer.terms, "/terms");
   const privacy = page(footer.privacy, "/privacy");
+  const cookies = page(footer.cookies, "/cookies");
   const storeName = ctx.ds.ordinary.storeName;
   const copyright = footer.copyright(storeName, new Date(fixtureNow).getUTCFullYear());
   return {
@@ -75,12 +76,9 @@ export function buildFooter(
       columns,
       newsletter: { email: "", privacyHref: privacy.href },
       social: socialProfiles.map((profile) => ({ ...profile })),
-      legalLinks: [
-        terms,
-        privacy,
-        page(footer.cookies, "/cookies"),
-        page(footer.imprint, "/legal-notice"),
-      ],
+      legalLinks: [terms, privacy, cookies, page(footer.imprint, "/legal-notice")],
+      // M6 D123 (T97): "Cookie settings", the cookie policy at `#cookie-settings`.
+      cookieSettingsHref: `${cookies.href}#cookie-settings`,
       paymentIcons: [...new Set(paymentMethods.flatMap((method) => method.brands))],
       marketSwitcher: true,
       market: { markets },

@@ -1,0 +1,34 @@
+{
+  "$comment": "M6 D125 (T96): the URL scrubber's cases. Both apps run them: apps/storefront/src/lib/sentry/scrub.test.ts and apps/backend/src/lib/__tests__/sentry-scrub.unit.spec.ts. `url` goes through scrubUrl, `text` through scrubText.",
+  "url": [
+    ["/us/verify?code=8f2c1a", "/us/verify?code=[Filtered]"],
+    [
+      "/reset-password?token=abc.def-123&email=ann%40example.com",
+      "/reset-password?token=[Filtered]&email=[Filtered]"
+    ],
+    [
+      "https://shop.example/gr/newsletter/confirm?token=v1.eyJ0Ijoi.sig",
+      "https://shop.example/gr/newsletter/confirm?token=[Filtered]"
+    ],
+    ["/us/store?page=2&sort=price", "/us/store?page=2&sort=price"],
+    ["/us/search?q=ann@example.com", "/us/search?q=[email]"],
+    ["/customers/ann.lee%40example.co.uk/orders", "/customers/[email]/orders"],
+    [
+      "/next/e2e/throw?marker=m1&reset_token=x&api_key=y",
+      "/next/e2e/throw?marker=m1&reset_token=[Filtered]&api_key=[Filtered]"
+    ],
+    ["/account#access_token=abc", "/account"],
+    ["/x?Code=ABC&CODE=DEF", "/x?Code=[Filtered]&CODE=[Filtered]"],
+    ["/x?ids[]=1&token[a]=2", "/x?ids[]=1&token[a]=[Filtered]"],
+    ["", ""]
+  ],
+  "text": [
+    [
+      "fetch failed: GET http://localhost:9000/store/x?token=abc (500)",
+      "fetch failed: GET http://localhost:9000/store/x?token=[Filtered] (500)"
+    ],
+    ["No customer for ann@example.com", "No customer for [email]"],
+    ["Expected code=42 to be a number", "Expected code=[Filtered] to be a number"],
+    ["Plain message", "Plain message"]
+  ]
+}
