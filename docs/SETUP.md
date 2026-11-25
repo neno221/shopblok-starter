@@ -10034,3 +10034,70 @@ The review (`reviews/pr-140-code-review.md` in the project's files) found 3 must
 6. **Ship within about 7 days:** a card's authorisation lapses then; marking a fulfillment shipped in Medusa Admin captures the payment, and the backend's log names any order left uncaptured for 6 days.
 7. `pnpm doctor --online` (in production also the webhook endpoint and the domains).
 8. For CI's live checks: the secrets `STRIPE_API_KEY` and `NEXT_PUBLIC_STRIPE_KEY` in GitHub's Actions secrets (test keys only, D115).
+
+## Saved payment methods (T101)
+
+**Result: with Stripe on, a signed-in customer can save a card or a Revolut Pay account at checkout ("Save this card for next time") or in the account ("Add a payment method", Stripe's Payment Element for a SetupIntent), pay a later order with it from its saved radio, and remove it in the account, with or without scripts. A guest's method is never saved, also not on a guest checkout with an account's e-mail. Revolut Pay is kept (§0, 3a): it saves, and a second order pays with it after Revolut's approval page. The backend's ownership suite (6 of 6 with the test key, 3 of 3 without it), the live spec (3 of 3) and T100's live spec (6 of 6) pass locally, and the plan's mutation fails the suite.** D119 (plans/M6.md §5 T101); PR 140's review, item 5.
+
+| | |
+|---|---|
+| Date | 2026-11-25 |
+| Branch | `claude/project-thread-7el08k`, from `main` at `833100a` (PR 140's merge, T100) |
+| PR | this PR, "T101: saved payment methods" |
+| Packages | none new |
+
+### The backend
+
+- **`/store/customers/me/payment-methods`** (new; Medusa authenticates `/store/customers/me*`, so no session is a 401 and the caller is the only customer there is). Medusa's tutorial put its list under `/store/payment-methods/:account_holder_id` with a middleware matcher that never matched (so its authentication never ran); under `me` no matcher of ours is needed.
+  - `GET`: the caller's saved methods from their Stripe account holder (`listPaymentMethods`), cleaned by `toSavedMethod` (`src/lib/saved-methods.ts`: only `pm_…` ids, only `card` and `revolut_pay`, a card's brand, last four, expiry and wallet). No holder, or Stripe off: `[]` without a request to Stripe.
+  - `POST`: the caller's Stripe customer the first time (`createAccountHolder` and Medusa's customer ↔ account holder link; Stripe's idempotency key is the customer's id, so two first requests make one), then a SetupIntent (`usage: off_session`, `payment_method_types: card, revolut_pay`); answers its id and client secret. Refused while Stripe is off.
+  - `DELETE :id`: only a method among the caller's own (another's, or none, answers 404, SPEC §11.1), detached from their Stripe customer.
+  - The writes run in workflows (`src/workflows/saved-payment-methods.ts`), as Medusa's lint asks.
+- **The token route** (`POST /store/carts/:id/payment-token`, T100's) takes either a ConfirmationToken or a saved `payment_method`:
+  - a saved method only from the cart's own signed-in customer and only one of theirs (else 400, or 404 for another's), kept as `metadata.stripe_payment_method` with its preview;
+  - a token that saves its method (Stripe's `setup_future_usage` on the token, which the Element sets from the checkbox) only from the cart's own signed-in customer, kept as `metadata.stripe_setup_future_usage: off_session`; `judgeToken` refuses any other `setup_future_usage`.
+  - Each clears the other's keys (Medusa merges `metadata`; `""` deletes a key).
+- **The session guard** (T100's) now reads the caller's methods through the same `listSavedMethods`. **PR 140's review, item 5:** Medusa's `ApiLoader` puts `authenticate("customer", ["bearer", "session"], { allowUnauthenticated: true })` on every `/store` route before the project's middlewares, so `req.auth_context` is set when the guard runs; the suite shows a signed-in customer's `setup_future_usage: "off_session"` and own saved `payment_method` pass it and a guest's are refused.
+- **Medusa 2.22.6 and a guest with an account's e-mail:** `findOrCreateCustomerStep` (with `hasAccount: false`) gives such a cart a guest customer of its own, not the account (T53's note said Medusa attached it; that is no longer so). The rule holds either way: the cart's customer is not the caller.
+- **`integration-tests/http/payment-methods.spec.ts`** (new), with a stand-in key without the secret (the Stripe cases skip, saying so):
+  1. 401 without a session (`GET`, `POST`, `DELETE`).
+  2. A customer with no Stripe customer lists nothing without asking Stripe; `DELETE` answers 404.
+  3. A guest's saving and saved method are refused by the guard and the token route, also on a guest cart with an account's e-mail.
+  4. (Key) The cart's signed-in customer's `setup_future_usage` passes the guard, and the card is saved after the order (PR 140, item 5).
+  5. (Key) Pays a second order with the customer's own saved card; another customer's `DELETE` answers 404, the guard refuses their session with it and the token route answers 404; then the owner removes it.
+  6. (Key) No card is kept from a guest checkout with an account's e-mail.
+- **The mutation:** the `DELETE` route without its ownership check: case 5 fails (another customer's `DELETE` answers 200 and detaches the card), and case 2 fails (a 500 for an id nobody has).
+
+### The storefront
+
+- **The data layer** (`src/lib/medusa/payment-methods.ts`, new): `listSavedMethods` (`[]` without a session or on a 401; read again by `toSavedMethodDto`), `startSetup`, `removeSavedMethod`. `regionStripeKey` (`payment.ts`): the publishable key when the region offers Stripe. The cart reads `savedMethod`, `paymentSave` and `customerId` (`customer.id`; Medusa's store cart answers no `customer_id`), and `sessionDataOf` is what a session asks for; `ensurePaymentSession` makes a new session when the kept one asks for something else (`sessionMatches`).
+- **The checkout** (step 2): for the cart's own signed-in customer (`getCustomer().id === cart.customerId`), PaymentStep lists their saved methods above the Element and shows "Save this card for next time"; a guest, or a cart that is not theirs, gets neither. The island tells the Element when the box changes (`elements.update({ setupFutureUsage })`), since the token must carry it. A saved method's radio sends `pm_…` and no token: the delivery action keeps it through the token route and initiates the session with `payment_method`; a saving token's session gets `setup_future_usage`. At "Place order" the island confirms the PaymentIntent with only the `return_url` for a saved method (the intent holds it). `stepsDone` and the review's payment line count a kept saved method.
+- **The account** (`/account/payment-methods`): the list from Stripe (cards of a brand the design system marks, Visa, Mastercard and American Express, and Revolut Pay by its name; others are not listed), "Add a payment method" only where the market takes Stripe, "added" (the return from Stripe, `?added=1`, failed with `redirect_status=failed`) and "removed" statuses.
+  - `new/`: Stripe's Payment Element for a SetupIntent the island asks for when it mounts (`SetupElementIsland`, `src/components/account/`; `stripe-client.ts`'s `mountSetupElement`, loaded with `import()`), "Save" confirms it and comes back to the list; a method with its own page (Revolut Pay, 3-D Secure) leaves for it and comes back. A 404 where the market does not take Stripe; without scripts it says adding needs them.
+  - `remove/?paymentMethodId=`: the remove button's question as a page, for a browser without scripts (the button is then a GET form there), posting the same action. Another's id is the 404.
+  - Actions (`account-handlers.ts`): `removePaymentMethodAction` checks the id is among the customer's own first; `startSetupAction` only for a signed-in customer where the market takes Stripe.
+- **UI:** the contract's `SavedPaymentMethod` is a card or a saved Revolut Pay (`kind: "revolut_pay"`, no expiry, no holder); `savedMethodName` names either; AccountTemplate has the screens `payment-method-new` (slot `setupElement`) and `payment-method-remove`, and the payment methods screen's status and `removeHref`. 8 new strings in en, de, fr and el (`templates.account.paymentMethods`); `ui-strings` 803 → 811.
+- **DS:** templates/account gains three states: payment methods with saved methods (two cards and Revolut Pay), "Add a payment method" and the remove page.
+
+### Revolut Pay (§0, 3a)
+
+Kept. In test mode it saves through the checkout (`setup_future_usage: off_session` on the token and the session; Stripe's test page authorises it) and through the account's SetupIntent; Stripe lists it on the customer as `revolut_pay`; a second order with the saved account goes to Revolut's approval page again and comes back through `/api/payment-return` to the receipt (a payment with the shopper present asks for approval; an off-session charge would not, and the shop makes none). SPEC §10.1's risk and §17.2's row now say so. The wording "Save this card for next time" also covers Revolut Pay (strings unchanged).
+
+### The live spec
+
+`e2e/integrations/stripe-saved.spec.ts` (skips itself without the Stripe keys), 3 tests, all passed against `next start` and `medusa develop`. Each registers its own customer at a Resend test address (`delivered+…@resend.dev`: with Resend on, nobody is mailed) and opens the verification link from Medusa's notification through the Admin API, whichever provider sent it.
+1. A card saved during a purchase in `/us`, listed in the account, a second order paid from its saved radio (nothing typed), and removed through the dialog.
+2. A card added in the account (setup mode), then removed without scripts (the page that asks).
+3. Revolut Pay saved during a purchase in `/` (EUR), listed by its name, and a second order paid with it through Stripe's test page.
+
+T100's `stripe-checkout.spec.ts` passed again (6 of 6). Its 3-D Secure case failed one run in two on this VM (a press on the test page's button while it was loading did nothing): `answerChallenge` now presses until the page leaves the review (4 of 4 after).
+
+### Checks (cloud VM)
+
+- `payment-methods.spec.ts`: 6 of 6 with the test key, 3 passed and 3 skipped without it; the mutation above.
+- Unit tests: the backend's (`saved-methods`, `stripe-token`, the guard), the storefront's (the delivery and prepare actions with a saved method and saving, the account's remove and setup actions, `toSavedMethodDto`, `sessionDataOf`, `sessionMatches`, `toSavedPaymentMethods`, `toPaymentStep`, `stepsDone`), ui (PaymentStep with a saved Revolut Pay, the account's three screens), registry (Revolut Pay in the contract), fixtures.
+- `check:first-load` with the publishable key: no route over its budget, `stripe-client.ts` kept out; the product page 336.5 KB and the listings 337.2 KB (unchanged), `/account/payment-methods/new` 316.0 KB (not budgeted).
+
+### Baselines
+
+The three new states of templates/account (saved methods, "Add a payment method", the remove page) changed its cells. `update-baselines` (run 45654061363, commit `e30b158`) changed **4 PNGs**: the account template at 375, 768 and 1440 px, and PromoCodeField at 1440 px (118 bytes more, an anti-aliasing difference; the field is unchanged). **1,426,780 bytes** (1.43 MB) of new blobs, so the baselines' history is about 169.2 MB of D51's 200 MB, and 4 PNGs are far from half a set.
