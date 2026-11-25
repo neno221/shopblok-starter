@@ -82,13 +82,8 @@ export function r2KeyChecks(envs: AppEnvs): Check[] {
         errors.push(`apps/${app}: ${key} is not a URL such as https://media.example.com`);
     }
     const publicUrl = value(env, "S3_PUBLIC_URL");
-    const endpoint = value(env, "S3_ENDPOINT");
     try {
-      if (
-        publicUrl !== "" &&
-        (/\.r2\.cloudflarestorage\.com$/i.test(new URL(publicUrl).hostname) ||
-          (endpoint !== "" && new URL(publicUrl).host === new URL(endpoint).host))
-      )
+      if (publicUrl !== "" && /\.r2\.cloudflarestorage\.com$/i.test(new URL(publicUrl).hostname))
         errors.push(
           `apps/${app}: S3_PUBLIC_URL is the S3 API's endpoint, which serves no file without a signature`,
         );

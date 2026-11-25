@@ -206,26 +206,27 @@ test.describe("R2 (T95)", () => {
       .toBe(true);
 
     const link = new URL(exported!.url);
-    const privateBucket = appEnv("backend", "S3_PRIVATE_BUCKET").trim();
-    const endpoint = new URL(appEnv("backend", "S3_ENDPOINT").trim());
-    expect(link.host, "the link is on the S3 API, not the public domain").toBe(endpoint.host);
     const [bucket, ...rest] = link.pathname.slice(1).split("/");
     const key = decodeURIComponent(rest.join("/"));
-    expect(bucket).toBe(privateBucket);
-    expect(key).toMatch(/^private\/\d+-product-exports-[0-9A-Z]{26}\.csv$/);
-    expect(link.searchParams.get("X-Amz-Signature")).toBeTruthy();
     made.medusaFiles.push(key);
 
-    const download = await fetch(link);
-    expect(download.status, "the presigned link downloads the export").toBe(200);
-    expect(await download.text()).toContain("Product Id");
-
+    // Not served on the public domain, nor read without a signature on the S3 API (the mutation
+    // that sends a private file to the public bucket fails here first).
     const onPublicDomain = await fetch(`${publicUrl()}/${rest.join("/")}`);
     expect(onPublicDomain.status, "the export on S3_PUBLIC_URL").toBe(404);
     const unsigned = await fetch(`${link.origin}${link.pathname}`);
     expect([400, 401, 403], `an unsigned read on the S3 API (HTTP ${unsigned.status})`).toContain(
       unsigned.status,
     );
+
+    const download = await fetch(link);
+    expect(download.status, "the presigned link downloads the export").toBe(200);
+    expect(await download.text()).toContain("Product Id");
+    const endpoint = new URL(appEnv("backend", "S3_ENDPOINT").trim());
+    expect(link.host, "the link is on the S3 API, not the public domain").toBe(endpoint.host);
+    expect(bucket).toBe(appEnv("backend", "S3_PRIVATE_BUCKET").trim());
+    expect(key).toMatch(/^private\/\d+-product-exports-[0-9A-Z]{26}\.csv$/);
+    expect(link.searchParams.get("X-Amz-Signature")).toBeTruthy();
   });
 });
 
