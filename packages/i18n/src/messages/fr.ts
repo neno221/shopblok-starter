@@ -899,6 +899,11 @@ export const fr: Messages = {
       express: {
         title: "Paiement express",
         or: "Ou continuez ci-dessous",
+        address:
+          "L’adresse du portefeuille ne peut pas être utilisée ici. Choisissez-en une autre ou remplissez le formulaire ci-dessous.",
+        changed: "Le total a changé. Vérifiez-le dans le portefeuille et payez à nouveau.",
+        failed:
+          "Le paiement express n’a pas abouti. Réessayez ou remplissez le formulaire ci-dessous.",
       },
     },
     orderConfirmation: {

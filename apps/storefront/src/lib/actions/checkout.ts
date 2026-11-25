@@ -11,6 +11,12 @@ import {
   updateLineForm,
 } from "./forms";
 import { preparePaymentAction } from "./checkout-handlers";
+import {
+  expressAddressAction,
+  expressConfirmAction,
+  expressRateAction,
+  expressTotalAction,
+} from "./checkout-express";
 
 // The cart page's and the checkout's form actions (T52). The bodies are in `forms.ts`; a
 // `"use server"` file exports async functions only. Each takes the market's key (bound by the page)
@@ -54,4 +60,25 @@ export async function addPickFromCart(market: string, data: FormData) {
  */
 export async function preparePayment(market: string) {
   return preparePaymentAction({ market });
+}
+
+/**
+ * The express rail's wallet events (M6 T102, D120), each on the visitor's own cart: the address the
+ * wallet shows, the shipping option picked in it, the payment, and the total after a refused one.
+ * Each answers the action's result; none redirects.
+ */
+export async function expressAddress(input: unknown) {
+  return expressAddressAction(input);
+}
+
+export async function expressRate(input: unknown) {
+  return expressRateAction(input);
+}
+
+export async function expressConfirm(input: unknown) {
+  return expressConfirmAction(input);
+}
+
+export async function expressTotal(market: string) {
+  return expressTotalAction({ market });
 }
