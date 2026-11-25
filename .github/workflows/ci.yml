@@ -197,7 +197,11 @@ jobs:
         run: pnpm --filter @shopblok/medusa-markets build
       - name: Start Postgres and Meilisearch
         run: docker compose up -d --wait postgres meilisearch
+      # T100: `stripe.spec.ts` calls Stripe's test mode with the test key (GitHub's secret), and skips
+      # those tests without it: on a fork, and on Renovate's branches, which get no key (D114).
       - name: Backend integration tests
+        env:
+          STRIPE_API_KEY: ${{ github.actor != 'renovate[bot]' && secrets.STRIPE_API_KEY || '' }}
         run: pnpm --filter @shopblok/backend test:integration:http
       - name: Diagnostics (on failure)
         if: failure()

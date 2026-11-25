@@ -45,6 +45,7 @@ describe("wired", () => {
   it("holds for Redis, wired in M0, and the integrations M6 has wired so far", () => {
     const live = getIntegrationStatus(none).filter((status) => status.wired);
     expect(live.map((status) => status.id)).toEqual([
+      "stripe",
       "resend",
       "posthog",
       "sentry",
@@ -63,6 +64,9 @@ describe("wired", () => {
     expect(JSON.stringify(buildModules({ POSTHOG_EVENTS_API_KEY: "x" }))).not.toBe(
       JSON.stringify(buildModules({})),
     );
+    expect(
+      JSON.stringify(buildModules({ STRIPE_API_KEY: "x", STRIPE_WEBHOOK_SECRET: "x" })),
+    ).not.toBe(JSON.stringify(buildModules({})));
   });
 });
 

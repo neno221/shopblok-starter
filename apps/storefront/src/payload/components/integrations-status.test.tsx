@@ -19,11 +19,12 @@ describe("the integrations panel (D85)", () => {
       "redis",
       "r2",
     ]);
+    // T100: Stripe's code is built.
     expect(rows.find((row) => row.id === "stripe")).toMatchObject({
-      wired: false,
-      arrives: "M6",
+      wired: true,
       storefront: { state: "configured" },
     });
+    expect(rows.find((row) => row.id === "r2")).toMatchObject({ wired: false, arrives: "M6" });
     expect(rows.find((row) => row.id === "redis")).toMatchObject({
       wired: true,
       storefront: { state: "none" },

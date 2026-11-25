@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type * as IntentModule from "../../../lib/stripe/intent";
 
 // M6 D117 (T100): the return from Stripe. The cart, the flash, the cookies and Stripe's answer are
 // stand-ins: these tests are about what the route completes and where it sends the shopper.
@@ -21,7 +22,7 @@ vi.mock("../../../lib/medusa/payment", () => ({
 }));
 const readIntent = vi.fn();
 vi.mock("../../../lib/stripe/intent", async (actual) => ({
-  ...(await actual<typeof import("../../../lib/stripe/intent")>()),
+  ...(await actual<typeof IntentModule>()),
   readIntent,
 }));
 

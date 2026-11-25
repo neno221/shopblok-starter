@@ -1,3 +1,5 @@
+import { MedusaError } from "@medusajs/framework/utils";
+
 /**
  * What the shop keeps of a ConfirmationToken (M6 D117): the method's type and, for a card, its brand,
  * last four digits and wallet. Never a card's number or anything else of the token.
@@ -82,6 +84,9 @@ export async function retrieveToken(apiKey: string, id: string): Promise<TokenOb
   );
   if (response.status === 404) return null;
   if (!response.ok)
-    throw new Error(`Stripe answered ${response.status} for the confirmation token`);
+    throw new MedusaError(
+      MedusaError.Types.UNEXPECTED_STATE,
+      `Stripe answered ${response.status} for the confirmation token`,
+    );
   return (await response.json()) as TokenObject;
 }
