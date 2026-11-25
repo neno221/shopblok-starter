@@ -25,6 +25,19 @@ export function has(env: Env, ...keys: string[]): boolean {
 /** PostHog's EU ingest host (M6 D124), when `POSTHOG_HOST` is blank. */
 export const POSTHOG_EU = "https://eu.i.posthog.com";
 
+/**
+ * Stripe's provider (M6 D117, T100): `@medusajs/medusa/payment-stripe` with the id `stripe`, so its
+ * card-and-wallet service is `pp_stripe_stripe`. The module registers its other services too (iDEAL,
+ * Bancontact, BLIK and the like, each `pp_stripe-<method>_stripe`); the shop uses only the first,
+ * whose Payment Element shows every method the Dashboard switches on.
+ */
+export const STRIPE_PROVIDER_ID = "pp_stripe_stripe";
+
+/** True when both of Stripe's backend keys are set (D117): the provider is registered. */
+export function stripeEnabled(env: Env): boolean {
+  return has(env, "STRIPE_API_KEY", "STRIPE_WEBHOOK_SECRET");
+}
+
 /** `REDIS_URL` without surrounding blanks, or `undefined` when it isn't set. */
 export function getRedisUrl(env: Env): string | undefined {
   return has(env, "REDIS_URL") ? env.REDIS_URL?.trim() : undefined;
@@ -84,9 +97,15 @@ export function getIndexPrefix(env: Env): string | undefined {
  *   `analytics-local` otherwise, which only logs at debug level. The subscribers send only for a
  *   cart or order that carries the visitor's consent (`src/subscribers/analytics-*.ts`).
  *
- * `file-local` and `pp_system_default` are Medusa defaults and stay unregistered here. M6 adds
- * Stripe, Resend (T98), PostHog (T97), S3/R2 and Sentry behind `has(env, ...)` gates in this
- * function.
+ * - Payment (M6 D117, D118, T100): with `STRIPE_API_KEY` and `STRIPE_WEBHOOK_SECRET`, Stripe's
+ *   provider (`pp_stripe_stripe`) with `capture: false` (authorised at the order, captured when it
+ *   ships: `subscribers/capture-on-shipment.ts`) and automatic payment methods (the Dashboard's
+ *   switches decide what the Payment Element shows). The payment module always keeps its system
+ *   provider (`pp_system_default`, "Pay later"), which every region keeps (`lib/stripe-regions.ts`).
+ *   Without the keys the module keeps Medusa's default: the system provider alone.
+ *
+ * `file-local` is a Medusa default and stays unregistered here. M6 adds S3/R2 behind a
+ * `has(env, ...)` gate in this function.
  */
 export function buildModules(env: Env): InputConfigModules {
   const redisUrl = getRedisUrl(env);
@@ -94,6 +113,7 @@ export function buildModules(env: Env): InputConfigModules {
   const meilisearch = has(env, "MEILISEARCH_HOST", "MEILISEARCH_API_KEY");
   const indexPrefix = meilisearch ? getIndexPrefix(env) : undefined;
   const posthog = has(env, "POSTHOG_EVENTS_API_KEY");
+  const stripe = stripeEnabled(env);
 
   const modules: (ModuleEntry | false)[] = [
     { resolve: "@medusajs/medusa/translation" },
@@ -153,6 +173,24 @@ export function buildModules(env: Env): InputConfigModules {
             options: {
               host: env.MEILISEARCH_HOST?.trim(),
               api_key: env.MEILISEARCH_API_KEY?.trim(),
+            },
+          },
+        ],
+      },
+    },
+
+    stripe && {
+      resolve: "@medusajs/medusa/payment",
+      options: {
+        providers: [
+          {
+            resolve: "@medusajs/medusa/payment-stripe",
+            id: "stripe",
+            options: {
+              apiKey: env.STRIPE_API_KEY?.trim(),
+              webhookSecret: env.STRIPE_WEBHOOK_SECRET?.trim(),
+              capture: false,
+              automaticPaymentMethods: true,
             },
           },
         ],

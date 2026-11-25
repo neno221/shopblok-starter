@@ -298,7 +298,7 @@ describe("CheckoutTemplate", () => {
       );
       const payment = page.step.payment;
       expect(parts[3]?.textContent).toContain(
-        payment.last4 === undefined ? (payment.name ?? "") : `•••• ${payment.last4}`,
+        payment.last4 === undefined ? (payment.name ?? "") : `ending in ${payment.last4}`,
       );
     });
 

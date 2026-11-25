@@ -14,6 +14,8 @@ import { reportRequestError } from '../lib/sentry'
 import { confirmVerificationAgain } from './auth/verification-again'
 import { StoreCreateCustomerReturn, StoreRequestOrderClaim } from './store/customers/me/validators'
 import { requireVerifiedCustomer } from './store/customers/verified'
+import { StorePaymentToken } from './store/carts/[id]/payment-token/route'
+import { guardPaymentSession } from './store/payment-sessions/guard'
 import { localizeStoreSearch } from './store/search/locale'
 
 // The product index declares filterable `status` and `sales_channel_ids`, so
@@ -72,6 +74,18 @@ export default defineMiddlewares({
     {
       matcher: '/admin/payload/sync',
       middlewares: [authenticate('user', ['session', 'bearer'])],
+    },
+    // M6 D117 (T100): "Pay later" only for a zero total while Stripe is on, and only the session
+    // `data` the shop sends (`store/payment-sessions/guard.ts`).
+    {
+      method: ['POST'],
+      matcher: '/store/payment-collections/:id/payment-sessions',
+      middlewares: [guardPaymentSession],
+    },
+    {
+      method: ['POST'],
+      matcher: '/store/carts/:id/payment-token',
+      middlewares: [validateAndTransformBody(StorePaymentToken)],
     },
     // Medusa's own return route answers anyone who has an order's id (SPEC §11.1); returns go
     // through `/store/customers/me/returns`, which checks the order is the customer's.

@@ -686,12 +686,20 @@ export const en = {
       // The box Stripe's Payment Element goes in (M6), shown while a card is chosen.
       details: "Card details",
       save: "Save this card for next time",
+      // The provider's way to pay (M6 T100: Stripe's Payment Element, which shows the methods the
+      // shop switched on: cards, wallets, Revolut Pay).
+      stripeName: "Pay online",
+      // Where the Payment Element goes, without scripts: Stripe cannot take a payment there.
+      noScript: "Paying online needs JavaScript. Turn it on in your browser to pay here.",
       // The system payment (Medusa's pp_system_default), when the region has no provider.
       systemName: "Pay later",
       systemText: "Place your order now; the store will tell you how to pay.",
       submit: "Continue to review",
       submitting: "Saving…",
       errors: {
+        // A payment Stripe refused, with Stripe's own reason (already in the market's language).
+        declined: "Your payment did not go through: {reason}",
+        unpaid: "Your payment did not go through. Please try again or choose another way to pay.",
         required: "Choose how you would like to pay.",
         failed: "We could not save your payment choice. Please try again.",
       },

@@ -1,4 +1,5 @@
 import "server-only";
+import { toPaymentPreview, type PaymentPreview } from "./payment-preview";
 import type { Money } from "./products";
 import {
   getAnalyticsConsent,
@@ -80,6 +81,12 @@ export type CartDto = {
   shippingMethod: { optionId: string; name: string; amount: Money } | null;
   /** The provider of the cart's pending payment session, once the delivery step started one. */
   paymentProviderId: string | null;
+  /**
+   * The ConfirmationToken the delivery step kept (M6 D117, `metadata.stripe_confirmation_token`)
+   * and what the review shows of it (`metadata.payment_preview`, read from Stripe by the backend).
+   */
+  paymentToken: string | null;
+  paymentPreview: PaymentPreview | null;
   completed: boolean;
 };
 
@@ -261,6 +268,11 @@ export function toCartDto(cart: WireCart): CartDto {
         }
       : null,
     paymentProviderId: session?.provider_id ?? null,
+    paymentToken:
+      typeof cart.metadata?.stripe_confirmation_token === "string"
+        ? cart.metadata.stripe_confirmation_token
+        : null,
+    paymentPreview: toPaymentPreview(cart.metadata?.payment_preview),
     completed: Boolean(cart.completed_at),
   };
 }
@@ -620,7 +632,7 @@ export async function setShippingMethod(optionId: string, locale?: string): Prom
 export async function initiatePayment(
   providerId: string,
   locale?: string,
-): Promise<{ sessionId: string; providerId: string; status: string }> {
+): Promise<{ sessionId: string; providerId: string; status: string; clientSecret?: string }> {
   const id = await requireCartId();
   const headers = await headersFor(locale);
   const { payment_collection: collection } = await medusaRequest(async (sdk) => {
@@ -636,7 +648,128 @@ export async function initiatePayment(
   );
   if (session === undefined)
     throw new MedusaRequestError(`Medusa started no ${providerId} session`, "rejected");
-  return { sessionId: session.id, providerId, status: session.status };
+  const secret = (session.data as { client_secret?: unknown } | undefined)?.client_secret;
+  return {
+    sessionId: session.id,
+    providerId,
+    status: session.status,
+    ...(typeof secret === "string" ? { clientSecret: secret } : {}),
+  };
+}
+
+/**
+ * Hands the delivery step's ConfirmationToken to the backend (M6 D117,
+ * `POST /store/carts/:id/payment-token`), which reads it from Stripe, refuses one an intent used or
+ * that expired, and keeps it and its preview on the cart. Medusa's refusal comes back as `rejected`.
+ */
+export async function keepPaymentToken(token: string, locale?: string): Promise<PaymentPreview> {
+  const id = await requireCartId();
+  const headers = await headersFor(locale);
+  const { preview } = await medusaRequest((sdk) =>
+    sdk.client.fetch<{ preview: PaymentPreview }>(
+      `/store/carts/${encodeURIComponent(id)}/payment-token`,
+      { method: "POST", body: { token }, headers },
+    ),
+  );
+  return preview;
+}
+
+/** What the payment of the cookie's cart is, whether it is completed or not (`/api/payment-return`). */
+export type CartPayment = {
+  cartId: string;
+  completed: boolean;
+  /** The cart's Stripe PaymentIntent, from its pending or authorised session. */
+  intentId: string | null;
+};
+
+type WireSession = {
+  provider_id?: string | null;
+  status?: string | null;
+  amount?: number | null;
+  data?: { id?: unknown; client_secret?: unknown } | null;
+};
+
+/** The cookie's cart's payment, for the return from Stripe (M6 D117); `null` without a cart. */
+export async function readCartPayment(providerId: string): Promise<CartPayment | null> {
+  const id = await getCartId();
+  if (id === undefined) return null;
+  try {
+    const { cart } = await medusaRequest(async (sdk) =>
+      sdk.store.cart.retrieve(
+        id,
+        { fields: "id,completed_at,*payment_collection.payment_sessions" },
+        await headersFor(),
+      ),
+    );
+    const wire = cart as unknown as {
+      id: string;
+      completed_at?: string | null;
+      payment_collection?: { payment_sessions?: (WireSession | null)[] | null } | null;
+    };
+    const session = (wire.payment_collection?.payment_sessions ?? []).find(
+      (each) => each?.provider_id === providerId && typeof each.data?.id === "string",
+    );
+    return {
+      cartId: wire.id,
+      completed: Boolean(wire.completed_at),
+      intentId: typeof session?.data?.id === "string" ? session.data.id : null,
+    };
+  } catch (error) {
+    if (isMissing(error)) return null;
+    throw error;
+  }
+}
+
+/**
+ * The review's payment (M6 D117): a pending `providerId` session for the cart's current total, with
+ * its client secret. Medusa deletes a cart's sessions whenever a change moves its total
+ * (`refreshPaymentCollectionForCartWorkflow`: a promotion or a quantity changed on the review page,
+ * the cart changed in another tab), which cancels the PaymentIntent, so when there is none for this
+ * total a new one is initiated. Only an action calls it: it may write.
+ */
+export async function ensurePaymentSession(
+  providerId: string,
+  locale?: string,
+): Promise<{ clientSecret: string; intentId: string; amount: number }> {
+  const id = await requireCartId();
+  const headers = await headersFor(locale);
+  const { cart } = await medusaRequest((sdk) =>
+    sdk.store.cart.retrieve(
+      id,
+      { fields: "id,total,*payment_collection,*payment_collection.payment_sessions" },
+      headers,
+    ),
+  );
+  const wire = cart as unknown as {
+    total?: number | null;
+    payment_collection?: {
+      amount?: number | null;
+      payment_sessions?: (WireSession | null)[] | null;
+    } | null;
+  };
+  const total = wire.total ?? 0;
+  const current = (wire.payment_collection?.payment_sessions ?? []).find(
+    (each) =>
+      each?.provider_id === providerId &&
+      each.status === "pending" &&
+      each.amount === total &&
+      typeof each.data?.client_secret === "string" &&
+      typeof each.data.id === "string",
+  );
+  if (current?.data && wire.payment_collection?.amount === total)
+    return {
+      clientSecret: current.data.client_secret as string,
+      intentId: current.data.id as string,
+      amount: total,
+    };
+  const started = await initiatePayment(providerId, locale);
+  const again = await readCartPayment(providerId);
+  if (started.clientSecret === undefined || again?.intentId == null)
+    throw new MedusaRequestError(
+      `Medusa started no ${providerId} session with a secret`,
+      "rejected",
+    );
+  return { clientSecret: started.clientSecret, intentId: again.intentId, amount: total };
 }
 
 /**
@@ -655,6 +788,16 @@ export type CompletedCart =
  * the cart cookie is cleared (a new add starts a new cart) and the order's id comes back for the confirmation page; when Medusa refuses (a payment that needs more,
  * stock gone), the cart and Medusa's reason come back instead.
  */
+/**
+ * What `completeCart` writes first (consent, the e-mails' market), ahead of a payment that may
+ * complete the cart without the shop (M6 D117: Stripe's webhook completes it when the payment is
+ * authorised, before the shopper is back).
+ */
+export async function prepareCompletion(locale?: string, target?: MailTarget): Promise<void> {
+  const id = await requireCartId();
+  await syncConsentOf(id, await headersFor(locale), target);
+}
+
 export async function completeCart(locale?: string, target?: MailTarget): Promise<CompletedCart> {
   const id = await requireCartId();
   const headers = await headersFor(locale);

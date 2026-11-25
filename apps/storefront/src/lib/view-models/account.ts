@@ -12,7 +12,12 @@ import type {
 import type { CustomerAddressDto, CustomerDto } from "../medusa/customer";
 import type { OrderDto, ReturnReasonDto } from "../medusa/orders";
 import { returnableOf } from "../medusa/orders";
-import { toAddressFormState, toContractAddress, toOrderConfirmation } from "./checkout";
+import {
+  toAddressFormState,
+  toContractAddress,
+  toOrderConfirmation,
+  type PaymentNames,
+} from "./checkout";
 import { toMoney, toProductImage, type Hrefs } from "./common";
 
 // The account's view models (T53, D64), from the data layer's DTOs. Pure: the market's URLs and
@@ -109,11 +114,11 @@ export const canReturn = (order: OrderDto) =>
 export function toAccountOrder(
   order: OrderDto,
   hrefs: Pick<Hrefs, "product">,
-  systemName: string,
+  names: PaymentNames,
   backHref: string,
   returnHref: string,
 ): AccountOrderScreen | null {
-  const receipt = toOrderConfirmation(order, hrefs, systemName, backHref);
+  const receipt = toOrderConfirmation(order, hrefs, names, backHref);
   if (receipt === null) return null;
   return {
     kind: "order",

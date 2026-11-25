@@ -377,6 +377,9 @@ importers:
       '@shopblok/ui':
         specifier: workspace:*
         version: link:../../packages/ui
+      '@stripe/stripe-js':
+        specifier: 10.2.1
+        version: 10.2.1
       '@tailwindcss/postcss':
         specifier: 4.3.3
         version: 4.3.3
@@ -4117,14 +4120,8 @@ packages:
   '@posthog/browser-common@0.10.8':
     resolution: {integrity: sha512-TQmqLVNFoKaL4dDV5Q8AScX2dIwdq8By2cj2KU1hMGe88tn7Usbf3U/hv5okhobEojntqJeslPIRBrG79Su+vg==}
 
-  '@posthog/core@1.63.2':
-    resolution: {integrity: sha512-GC03SzHTTDB1tnwT6dvVdSs5tsbNXC+rg7vPLtlFCGtl9tWNzqRcpUes+pe3qgkeOaSEEQ7/pWZMyfvCf6SN3w==}
-
   '@posthog/core@1.67.1':
     resolution: {integrity: sha512-Fq8YySx3G2ggxKV/dLf5nfbQocB3/yU6TNSGIyRvVynizrIW8tZfB2HQ/13cY61PoU+cNzvKch+B7Ac+OUkORw==}
-
-  '@posthog/types@1.420.0':
-    resolution: {integrity: sha512-WrfsR3hynbNOkQor6TrQJrI+7UzStZs2rjFzQ+xK9mRCUH6TLMLfBSR+ibGoKreatb76Uh30b6lSZLWbOgdTsg==}
 
   '@posthog/types@1.424.0':
     resolution: {integrity: sha512-58RE0+Lt4vMLYmty2MlyAyfxFJvlM3Fp0tgRT25Klky7FSQvpznX+W9xKyVESB5oIAEJDxfHKX0cwEBHROZKqw==}
@@ -5596,6 +5593,10 @@ packages:
 
   '@standard-schema/utils@0.3.0':
     resolution: {integrity: sha512-e7Mew686owMaPJVNNLs55PUvgz371nKgwsc4vxE49zsODpJEnxgxRo2y/OKrqueavXgZNMDVj3DdHFlaSAeU8g==}
+
+  '@stripe/stripe-js@10.2.1':
+    resolution: {integrity: sha512-diHeR1/FeWZZzuFXEvkjRMzydgKEpxUTrKEUxSV8NcpeZY3Kl8C4Gerw/JSMK+3oXsBRJtgkG7ckviQJ651moA==}
+    engines: {node: '>=12.16'}
 
   '@swc/core-darwin-arm64@1.16.13':
     resolution: {integrity: sha512-JrMH2h7ohd4mOIneNRx/diqTmCDSdWfp9uOdQ8VJ2V2CA7jOJ1jWb+qp8RoZLqgiVmwDDC7eySKB1kbvZ+jVXQ==}
@@ -15466,15 +15467,9 @@ snapshots:
     transitivePeerDependencies:
       - preact-render-to-string
 
-  '@posthog/core@1.63.2':
-    dependencies:
-      '@posthog/types': 1.420.0
-
   '@posthog/core@1.67.1':
     dependencies:
       '@posthog/types': 1.424.0
-
-  '@posthog/types@1.420.0': {}
 
   '@posthog/types@1.424.0': {}
 
@@ -16862,6 +16857,8 @@ snapshots:
   '@stablelib/base64@1.0.1': {}
 
   '@standard-schema/utils@0.3.0': {}
+
+  '@stripe/stripe-js@10.2.1': {}
 
   '@swc/core-darwin-arm64@1.16.13':
     optional: true
@@ -21665,7 +21662,7 @@ snapshots:
 
   posthog-node@5.61.3(@opentelemetry/api@1.9.1)(rxjs@7.8.2):
     dependencies:
-      '@posthog/core': 1.63.2
+      '@posthog/core': 1.67.1
     optionalDependencies:
       '@opentelemetry/api': 1.9.1
       rxjs: 7.8.2

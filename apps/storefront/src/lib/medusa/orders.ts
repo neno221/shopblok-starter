@@ -1,4 +1,6 @@
 import "server-only";
+import { STRIPE_PAYMENT_PROVIDER } from "./payment";
+import { toPaymentPreview, type PaymentPreview } from "./payment-preview";
 import type { MailTarget } from "../markets/url";
 import type { Money } from "./products";
 import { toAddressDto, type CartAddressDto, type WireAddress } from "./cart";
@@ -48,10 +50,13 @@ export type OrderDto = {
   shippingMethod: { name: string; amount: Money } | null;
   /** The provider of the order's first payment (`pp_system_default` in M3). */
   paymentProviderId: string | null;
+  /** What the order was paid with, from the cart's ConfirmationToken (M6 D117; Stripe only). */
+  paymentPreview: PaymentPreview | null;
 };
 
 type WireOrder = {
   id: string;
+  metadata?: Record<string, unknown> | null;
   display_id?: number | null;
   email?: string | null;
   customer_id?: string | null;
@@ -139,6 +144,8 @@ export function toOrderDto(order: WireOrder): OrderDto {
       order.payment_collections
         ?.flatMap((collection) => collection?.payments ?? [])
         .find((payment) => payment?.provider_id)?.provider_id ?? null,
+    // Medusa's Store API leaves an order's metadata out; `withPreview` reads it from the backend.
+    paymentPreview: toPaymentPreview(order.metadata?.payment_preview),
   };
 }
 
@@ -147,6 +154,23 @@ const ORDER_FIELDS = [
   "item_subtotal,discount_total,shipping_total,tax_total,total,*items,*items.detail",
   "*shipping_address,*shipping_methods,*payment_collections,*payment_collections.payments",
 ].join(",");
+
+/**
+ * The order with what it was paid with (M6 D117): for a Stripe payment, the preview the cart kept,
+ * which Medusa copies to the order's metadata and its Store API leaves out
+ * (`GET /store/orders/:id/payment-preview`, ours). Only for an order the caller may show.
+ */
+async function withPreview(order: OrderDto, headers: Record<string, string>): Promise<OrderDto> {
+  if (order.paymentProviderId !== STRIPE_PAYMENT_PROVIDER || order.paymentPreview !== null)
+    return order;
+  const { preview } = await medusaRequest((sdk) =>
+    sdk.client.fetch<{ preview: unknown }>(
+      `/store/orders/${encodeURIComponent(order.id)}/payment-preview`,
+      { headers },
+    ),
+  );
+  return { ...order, paymentPreview: toPaymentPreview(preview) };
+}
 
 export type OrderPage = { orders: OrderDto[]; page: number; pageCount: number; count: number };
 
@@ -195,7 +219,7 @@ export async function getOrder(id: string, locale?: string): Promise<OrderDto | 
       ),
     );
     const dto = toOrderDto(order as unknown as WireOrder);
-    return dto.customerId === customer.id ? dto : null;
+    return dto.customerId === customer.id ? withPreview(dto, headers) : null;
   } catch (error) {
     if (error instanceof MedusaRequestError && error.status === 404) return null;
     throw error;
@@ -224,8 +248,8 @@ export async function getReceiptOrder(id: string, locale?: string): Promise<Orde
       ),
     );
     const dto = toOrderDto(order as unknown as WireOrder);
-    if (receipt === dto.id) return dto;
-    return customer !== null && dto.customerId === customer.id ? dto : null;
+    const own = receipt === dto.id || (customer !== null && dto.customerId === customer.id);
+    return own ? withPreview(dto, headers ?? {}) : null;
   } catch (error) {
     if (error instanceof MedusaRequestError && error.status === 404) return null;
     throw error;

@@ -166,6 +166,20 @@ describe("PaymentStep: the card details", () => {
     expect(form().querySelector('[data-kind="card"] input[type="radio"]')).not.toBeNull();
   });
 
+  it.each(LOCALES)(
+    "says without the Element that paying online needs scripts (M6 T100), in %s",
+    (locale) => {
+      render(element(locale, "guest"));
+      const box = slot("payment-step-details") as HTMLElement;
+      expect(within(box).getByText(copyOf(locale).step.noScript)).toBeTruthy();
+    },
+  );
+
+  it("draws the Element in place of the notice", () => {
+    render(element("en", "guest", { paymentElement: <div data-testid="stripe">Stripe</div> }));
+    expect(slot("payment-step-no-script")).toBeNull();
+  });
+
   it("starts with the box ticked when the customer asked before", () => {
     render(element("en", "saved", { saveForLater: true }));
     expect((screen.getByRole("checkbox") as HTMLInputElement).checked).toBe(true);
@@ -201,6 +215,20 @@ describe("PaymentStep: errors and sending", () => {
     render(element("en", "saved", { error: "failed" }));
     expect(slot("payment-step-status")?.textContent).toBe(copyOf("en").step.errors.failed);
     expect(screen.getByRole("group", { name: "Payment" }).hasAttribute("aria-invalid")).toBe(false);
+  });
+
+  it("says a refused payment with the provider's reason, under the id the page links to (M6 T100)", () => {
+    render(
+      element("en", "guest", {
+        error: "declined",
+        errorReason: "Your card was declined.",
+        errorId: "main-payment-error",
+      }),
+    );
+    const error = document.getElementById("main-payment-error") as HTMLElement;
+    expect(error.textContent).toBe("Your payment did not go through: Your card was declined.");
+    expect(error.tabIndex).toBe(-1);
+    expect(slot("payment-step-status")?.contains(error)).toBe(true);
   });
 
   it("is a 44 px submit, with the page's words when it has its own", () => {

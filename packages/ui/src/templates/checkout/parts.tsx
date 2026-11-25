@@ -28,7 +28,13 @@ import { CircleAlertIcon } from "lucide-react";
 import NextLink from "next/link";
 import type * as React from "react";
 import { checkoutIds, type CheckoutStepKind } from "./ids";
-import { PaymentLine, ShippingMethodLine } from "./lines";
+import { PaymentLine, ShippingMethodLine, type PaymentLineCopy } from "./lines";
+
+/** The payment line's words from the checkout's: a card's "{brand} ending in {last4}" and the brands. */
+const paymentLineCopy = (copy: CheckoutCopy): PaymentLineCopy => ({
+  card: copy.payment.step.card,
+  brands: copy.payment.brands,
+});
 
 // The hrefs are strings the app built; `next/link` takes whatever the app's typed routes allow.
 type LinkHref = React.ComponentProps<typeof NextLink>["href"];
@@ -76,8 +82,10 @@ type CheckoutErrors = {
   address?: AddressFormErrors;
   /** No shipping option chosen. */
   shipping?: "required";
-  /** No payment chosen, or Medusa refused it. */
-  payment?: "required" | "failed";
+  /** No payment chosen, Medusa refused it, or (M6 T100) Stripe refused the payment. */
+  payment?: "required" | "failed" | "declined" | "unpaid";
+  /** `declined`'s reason: Stripe's own sentence, in the market's language. */
+  paymentReason?: string;
 };
 
 type CheckoutTemplateProps = CheckoutPage & {
@@ -91,10 +99,16 @@ type CheckoutTemplateProps = CheckoutPage & {
   errors?: CheckoutErrors;
   /**
    * The parts a provider fills (D42's per-visitor parts): `express`, the `express-rail` layout's
-   * buttons above the first step (M6's Stripe; none until then, so the shop passes none and the
-   * rail is not drawn).
+   * buttons above the first step (M6's Stripe, T102; none until then, so the rail is not drawn);
+   * `paymentElement`, Stripe's Payment Element in PaymentStep's box on the delivery step (M6 T100);
+   * `placeOrder`, drawn inside the review's form, the island that confirms the payment before the
+   * order is placed (M6 T100). Every layout draws them where its steps are.
    */
-  slots?: { express?: React.ReactNode };
+  slots?: {
+    express?: React.ReactNode;
+    paymentElement?: React.ReactNode;
+    placeOrder?: React.ReactNode;
+  };
   /** next/link's `prefetch` for every link; the design system passes `false`. */
   prefetch?: boolean | null;
   /** The element's id, the skip link's target. `main` unless given. */
@@ -166,6 +180,7 @@ type StepProps<Kind extends CheckoutStepKind> = {
   errors: CheckoutErrors;
   prefetch?: boolean | null;
   ids: ReturnType<typeof checkoutIds>;
+  slots?: CheckoutTemplateProps["slots"];
 };
 
 /** The first step: the email, in the address's form, and AddressForm. */
@@ -233,6 +248,7 @@ function DeliveryStep({
   errors,
   prefetch,
   ids,
+  slots,
 }: StepProps<"delivery">) {
   const words = copy.page;
   if (step.options.length === 0)
@@ -299,13 +315,27 @@ function DeliveryStep({
         now={now}
         action={action}
         error={errors.payment}
+        {...(errors.paymentReason === undefined ? {} : { errorReason: errors.paymentReason })}
+        errorId={ids.paymentError}
+        paymentElement={slots?.paymentElement}
       />
     </div>
   );
 }
 
-/** The form that places the order, with the terms' note above its button. */
-function PlaceOrderForm({ copy, action }: { copy: CheckoutCopy; action?: FormAction }) {
+/**
+ * The form that places the order, with the terms' note above its button, and `island` (the payment's
+ * confirmation, M6 T100) inside it.
+ */
+function PlaceOrderForm({
+  copy,
+  action,
+  island,
+}: {
+  copy: CheckoutCopy;
+  action?: FormAction;
+  island?: React.ReactNode;
+}) {
   const words = copy.page;
   return (
     <form
@@ -315,6 +345,7 @@ function PlaceOrderForm({ copy, action }: { copy: CheckoutCopy; action?: FormAct
       className="flex min-w-0 flex-col gap-3"
     >
       <p className="text-sm leading-snug text-muted-foreground">{words.review.note}</p>
+      {island}
       <Button type="submit" size="lg" className="w-full max-w-full md:w-auto md:self-start">
         {words.review.place}
       </Button>
@@ -323,7 +354,7 @@ function PlaceOrderForm({ copy, action }: { copy: CheckoutCopy; action?: FormAct
 }
 
 /** The last step: each part chosen with its way back, and the form that places the order. */
-function ReviewStep({ step, copy, locale, action, prefetch }: StepProps<"review">) {
+function ReviewStep({ step, copy, locale, action, prefetch, slots }: StepProps<"review">) {
   const words = copy.page;
   const edit = { label: words.review.edit, name: words.review.editLabel };
   return (
@@ -371,9 +402,9 @@ function ReviewStep({ step, copy, locale, action, prefetch }: StepProps<"review"
         locale={locale}
         prefetch={prefetch}
       >
-        <PaymentLine payment={step.payment} />
+        <PaymentLine payment={step.payment} copy={paymentLineCopy(copy)} locale={locale} />
       </ReviewPart>
-      <PlaceOrderForm copy={copy} action={action} />
+      <PlaceOrderForm copy={copy} action={action} island={slots?.placeOrder} />
     </div>
   );
 }
@@ -388,11 +419,12 @@ function CheckoutStepContent({
   errors = {},
   prefetch,
   mainId = "main",
+  slots,
 }: Pick<
   CheckoutTemplateProps,
-  "step" | "copy" | "locale" | "now" | "action" | "errors" | "prefetch" | "mainId"
+  "step" | "copy" | "locale" | "now" | "action" | "errors" | "prefetch" | "mainId" | "slots"
 >) {
-  const props = { copy, locale, now, action, errors, prefetch, ids: checkoutIds(mainId) };
+  const props = { copy, locale, now, action, errors, prefetch, ids: checkoutIds(mainId), slots };
   return (
     <>
       <CheckoutFormError error={errors.form} words={copy.page} />
@@ -474,6 +506,7 @@ export {
   ContactStep,
   DeliveryStep,
   PaymentLine,
+  paymentLineCopy,
   PlaceOrderForm,
   ReviewEditLink,
   ReviewPart,

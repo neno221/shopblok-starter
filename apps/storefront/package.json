@@ -38,6 +38,7 @@
     "@shopblok/integrations": "workspace:*",
     "@shopblok/registry": "workspace:*",
     "@shopblok/ui": "workspace:*",
+    "@stripe/stripe-js": "10.2.1",
     "@tailwindcss/postcss": "4.3.3",
     "graphql": "16.14.2",
     "lucide-react": "1.56.0",

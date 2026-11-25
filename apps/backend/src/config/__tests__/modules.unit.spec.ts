@@ -1,4 +1,4 @@
-import { buildModules, getRedisUrl, has, type Env } from "../modules";
+import { buildModules, getRedisUrl, has, stripeEnabled, type Env } from "../modules";
 
 const TRANSLATION = "@medusajs/medusa/translation";
 const NOTIFICATION = "@medusajs/medusa/notification";
@@ -9,6 +9,7 @@ const LOCKING = "@medusajs/medusa/locking";
 const CACHING = "@medusajs/medusa/caching";
 const PAYLOAD = "./src/modules/payload";
 const SEARCH = "@medusajs/medusa/search";
+const PAYMENT = "@medusajs/medusa/payment";
 
 const REDIS_URL = "redis://localhost:6380";
 
@@ -183,6 +184,40 @@ describe("buildModules", () => {
       expect(
         entry({ POSTHOG_EVENTS_API_KEY: " " }, ANALYTICS).options.providers?.[0]?.id,
       ).toBe("local");
+    });
+  });
+
+  describe("payment (M6 D117, T100)", () => {
+    // A test fixture's stand-ins, not keys (D115).
+    const STRIPE = { STRIPE_API_KEY: " sk_test_fake ", STRIPE_WEBHOOK_SECRET: " stand-in " };
+
+    it("registers Stripe only with both keys, so a half-set Stripe keeps the system payment", () => {
+      expect(resolves(STRIPE)).toContain(PAYMENT);
+      expect(stripeEnabled(STRIPE)).toBe(true);
+      for (const env of [
+        {},
+        { STRIPE_API_KEY: "sk_test_fake" },
+        { STRIPE_WEBHOOK_SECRET: "stand-in" },
+        { STRIPE_API_KEY: " ", STRIPE_WEBHOOK_SECRET: "stand-in" },
+      ]) {
+        expect(resolves(env)).not.toContain(PAYMENT);
+        expect(stripeEnabled(env)).toBe(false);
+      }
+    });
+
+    it("takes the trimmed keys, manual capture and automatic payment methods", () => {
+      expect(entry(STRIPE, PAYMENT).options.providers).toEqual([
+        {
+          resolve: "@medusajs/medusa/payment-stripe",
+          id: "stripe",
+          options: {
+            apiKey: "sk_test_fake",
+            webhookSecret: "stand-in",
+            capture: false,
+            automaticPaymentMethods: true,
+          },
+        },
+      ]);
     });
   });
 

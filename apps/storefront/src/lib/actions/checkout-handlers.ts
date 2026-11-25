@@ -5,9 +5,12 @@ import { z } from "zod";
 import type { MarketContext } from "../market-context";
 import {
   completeCart,
+  ensurePaymentSession,
   getCart,
   initiatePayment,
+  keepPaymentToken,
   moveCart,
+  prepareCompletion,
   setAddresses,
   setEmail,
   setShippingMethod,
@@ -16,7 +19,12 @@ import {
 import { setReceipt } from "../medusa/cookies";
 import { mailTarget } from "../markets";
 import { listShippingOptions } from "../medusa/fulfillment";
-import { listPaymentProviders, SYSTEM_PAYMENT_PROVIDER } from "../medusa/payment";
+import {
+  listPaymentProviders,
+  paysWithStripe,
+  STRIPE_PAYMENT_PROVIDER,
+  SYSTEM_PAYMENT_PROVIDER,
+} from "../medusa/payment";
 import { toAddressInput } from "../view-models/address";
 import { action, ActionError, FieldsError, type FieldError } from "./action";
 import { contextFor, formText as text, marketKey } from "./inputs";
@@ -137,12 +145,23 @@ export const deliverySchema = z.object({
   market: marketKey,
   shippingOption: id,
   paymentMethod: id,
+  // M6 D117: the ConfirmationToken the Payment Element made, when Stripe takes the payment.
+  confirmationToken: z
+    .string()
+    .regex(/^ctoken_[A-Za-z0-9]{1,200}$/)
+    .optional(),
 });
 
-/** Step 2: the shipping option, then a payment session with the chosen provider. */
+/**
+ * Step 2: the shipping option first, then the payment, last, after every change to the total (M6
+ * D117): with Stripe, the ConfirmationToken is handed to the backend (which reads it from Stripe,
+ * refuses one that an intent used, and keeps it and its preview on the cart) and the Stripe session
+ * (the PaymentIntent) is initiated for the total the shipping made; with nothing to pay, or without
+ * Stripe, the system payment ("Pay later").
+ */
 export const deliveryAction = action(
   deliverySchema,
-  async ({ market, shippingOption, paymentMethod }) => {
+  async ({ market, shippingOption, paymentMethod, confirmationToken }) => {
     const context = await contextFor(market);
     const cart = await requireCart(context);
     if (cart.email === null || cart.shippingAddress === null)
@@ -152,18 +171,59 @@ export const deliveryAction = action(
       listShippingOptions(cart.id, cart.currencyCode, medusaLocale),
       listPaymentProviders(context.region.id),
     ]);
-    const errors: Partial<Record<string, FieldError>> = {};
-    if (!options.some((option) => option.id === shippingOption)) errors.shippingOption = "invalid";
-    // M3 offers the system payment only (D65); M6 adds the region's others.
-    if (paymentMethod !== SYSTEM_PAYMENT_PROVIDER || !providers.includes(paymentMethod))
-      errors.paymentMethod = "invalid";
-    if (Object.keys(errors).length > 0) throw new FieldsError(errors);
-    await setShippingMethod(shippingOption, medusaLocale);
-    await initiatePayment(paymentMethod, medusaLocale);
+    const option = options.find((each) => each.id === shippingOption);
+    if (option === undefined) throw new FieldsError({ shippingOption: "invalid" });
+    if (paymentMethod !== SYSTEM_PAYMENT_PROVIDER && paymentMethod !== STRIPE_PAYMENT_PROVIDER)
+      throw new FieldsError({ paymentMethod: "invalid" });
+    if (!providers.includes(paymentMethod)) throw new FieldsError({ paymentMethod: "invalid" });
+    const shipped = await setShippingMethod(shippingOption, medusaLocale);
+    // The total now holds the shipping: what is offered follows it (Stripe takes no zero amount).
+    const wanted = paysWithStripe(providers, shipped.total.amount)
+      ? STRIPE_PAYMENT_PROVIDER
+      : SYSTEM_PAYMENT_PROVIDER;
+    if (paymentMethod !== wanted) throw new FieldsError({ paymentMethod: "invalid" });
+    if (wanted === STRIPE_PAYMENT_PROVIDER) {
+      if (confirmationToken === undefined) throw new FieldsError({ paymentMethod: "required" });
+      await keepPaymentToken(confirmationToken, medusaLocale);
+    }
+    await initiatePayment(wanted, medusaLocale);
     updateTag("cart");
     return { step: "review" as const };
   },
 );
+
+export const preparePaymentSchema = z.object({ market: marketKey });
+
+/**
+ * Step 3's "Place order", before Stripe confirms (M6 D117): the cart's Stripe session for its
+ * current total, and its client secret. Medusa deletes a cart's sessions when its total moves (a
+ * promotion on the review page, the cart changed in another tab), so a new one is initiated when
+ * there is none for this total. Answers the ConfirmationToken the delivery step kept, which the
+ * browser confirms the PaymentIntent with.
+ */
+export const preparePaymentAction = action(preparePaymentSchema, async ({ market }) => {
+  const context = await contextFor(market);
+  const cart = await requireCart(context);
+  if (cart.shippingMethod === null || cart.paymentToken === null)
+    throw new ActionError("incomplete", "the delivery step kept no payment");
+  const providers = await listPaymentProviders(context.region.id);
+  if (!paysWithStripe(providers, cart.total.amount))
+    throw new ActionError("incomplete", "the cart does not pay with Stripe");
+  const locale = context.market.medusaLocale;
+  // Stripe's webhook may place the order before the shopper is back: the order's e-mails and the
+  // consent are on the cart first, as `placeOrderAction` writes them (T99, D124).
+  await prepareCompletion(locale, {
+    ...mailTarget(context.market, context.map),
+    key: context.market.key,
+  });
+  const session = await ensurePaymentSession(STRIPE_PAYMENT_PROVIDER, locale);
+  updateTag("cart");
+  return {
+    clientSecret: session.clientSecret,
+    intentId: session.intentId,
+    confirmationToken: cart.paymentToken,
+  };
+});
 
 export const placeOrderSchema = z.object({ market: marketKey });
 

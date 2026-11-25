@@ -11,7 +11,7 @@ import { getMarketContext, type MarketContext } from "../../../../../../lib/mark
 import { getCustomer } from "../../../../../../lib/medusa/customer";
 import { getReceiptOrder, type OrderDto } from "../../../../../../lib/medusa/orders";
 import { SHELL_PREFETCH } from "../../../../../../lib/site";
-import { toOrderConfirmation } from "../../../../../../lib/view-models/checkout";
+import { paymentNames, toOrderConfirmation } from "../../../../../../lib/view-models/checkout";
 import { getShellData } from "../../../../../../components/shell/shell-data";
 
 // D65 (T52): the receipt. Only for the order's owner: the signed-in customer whose order it is, or
@@ -49,7 +49,7 @@ export default async function OrderConfirmedPage({ params }: Props) {
   const page = toOrderConfirmation(
     order,
     context.hrefs,
-    messages.organisms.paymentStep.systemName,
+    paymentNames(messages),
     context.url("/store"),
   );
   if (page === null) notFound();

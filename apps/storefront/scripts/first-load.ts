@@ -231,6 +231,13 @@ export const keptOut: readonly KeptOut[] = [
     label: "PostHog's loader (T97)",
     onlyWith: "NEXT_PUBLIC_POSTHOG_KEY",
   },
+  // T100 (M6 D117): Stripe.js's loader (`@stripe/stripe-js`) and the Payment Element's code, which
+  // the checkout's islands import when they mount (`src/components/checkout/stripe/`).
+  {
+    module: "src/components/checkout/stripe/stripe-client.ts",
+    marker: "shopblok:stripe-client",
+    label: "Stripe's client (T100)",
+  },
 ];
 
 export type StatsRow = {

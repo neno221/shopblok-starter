@@ -73,6 +73,7 @@ const stateIds = {
     "system",
     "required",
     "failed",
+    "unpaid",
     "pending",
     "long",
   ],
@@ -306,6 +307,10 @@ describe("the states give their components what their descriptions say", () => {
         catalogs[locale].organisms.paymentStep.errors.required.replaceAll("'", "&#x27;"),
       );
       expect(props("failed").error).toBe("failed");
+      expect(props("unpaid").error).toBe("unpaid");
+      expect(html(paymentId, "card-chosen", locale)).toContain(
+        'data-slot="payment-step-no-script"',
+      );
       expect(props("pending").status).toBe("pending");
     },
   );

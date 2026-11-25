@@ -164,8 +164,28 @@ describe("getIntegrationStatus", () => {
     expect(r2.parts.every((p) => p.optionalMissing.join() === "S3_REGION")).toBe(true);
   });
 
-  it("every key set in both apps is configured, and still on the fallback until the code exists", () => {
+  it("Stripe is live with every key in both apps (T100)", () => {
     const status = byId(getIntegrationStatus(stripe), "stripe");
+    expect(status.configured).toBe(true);
+    expect(status.half).toBe(false);
+    expect([status.wired, status.state, status.arrives]).toEqual([true, "live", undefined]);
+  });
+
+  it("every key set in both apps is configured, and still on the fallback until the code exists", () => {
+    const keys = {
+      S3_ENDPOINT: "https://x.r2.cloudflarestorage.com",
+      S3_ACCESS_KEY_ID: "id",
+      S3_SECRET_ACCESS_KEY: "secret",
+      S3_BUCKET: "bucket",
+      S3_PUBLIC_URL: "https://media.example.com",
+    };
+    const status = byId(
+      getIntegrationStatus({
+        backend: { ...keys, S3_PRIVATE_BUCKET: "private" },
+        storefront: keys,
+      }),
+      "r2",
+    );
     expect(status.configured).toBe(true);
     expect(status.half).toBe(false);
     expect(status.wired).toBe(false);
