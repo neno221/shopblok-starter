@@ -270,7 +270,7 @@ const STRIPE_KEYS: readonly { app: keyof AppEnvs; name: string }[] = [
  * and runs every deployment, previews included, with `NODE_ENV=production`, so only
  * `VERCEL_ENV=production` counts there (PR 134 review, item 4). Elsewhere `NODE_ENV` does.
  */
-function productionStage(env: Record<string, string | undefined>): {
+export function productionStage(env: Record<string, string | undefined>): {
   production: boolean;
   said: string;
 } {

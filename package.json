@@ -14,6 +14,8 @@
     "test": "turbo run test",
     "bootstrap": "node scripts/bootstrap.ts",
     "doctor": "node scripts/doctor.ts",
+    "stripe:domains": "node scripts/stripe-domains.ts",
+    "stripe:listen": "stripe listen --forward-to localhost:9000/hooks/payment/stripe_stripe --events payment_intent.amount_capturable_updated,payment_intent.succeeded,payment_intent.payment_failed,payment_intent.partially_funded",
     "infra:up": "docker compose up -d --wait",
     "infra:down": "docker compose down",
     "infra:reset": "docker compose down -v && docker compose up -d --wait",

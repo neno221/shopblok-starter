@@ -35,9 +35,20 @@ import {
   searchFieldOf,
   searchIndexCheck,
   senderDomain,
+  productionStage,
   type Context,
   type SentryDsn,
 } from "./lib/doctor-checks.ts";
+import {
+  siteDomains,
+  STRIPE_API,
+  stripeDomainsCheck,
+  stripeKeyCheck,
+  stripeModesCheck,
+  stripeRegionsCheck,
+  stripeWebhookCheck,
+  type RegionProviders,
+} from "./lib/stripe-checks.ts";
 import { databaseFailed, serverCheck, serviceChecks } from "./lib/doctor-services.ts";
 import { envValue } from "./lib/env-file.ts";
 import { run } from "./lib/exec.ts";
@@ -289,6 +300,8 @@ async function main(): Promise<number> {
     ),
     ...configChecks(envs, statuses, context),
   );
+  const modes = stripeModesCheck(envs.backend.STRIPE_API_KEY, envs.storefront.NEXT_PUBLIC_STRIPE_KEY);
+  if (modes !== undefined) checks.push(modes);
 
   const markets = marketsCheck(read);
   checks.push(markets.check);
@@ -307,6 +320,7 @@ async function main(): Promise<number> {
       ...(await online.posthog).map(({ apps, host, answer }) =>
         posthogFlagsCheck(apps, host, answer),
       ),
+      ...(await online.stripe),
     );
   }
 
@@ -333,6 +347,8 @@ type OnlineRequests = {
   sentry: Promise<{ apps: AppName[]; dsn: SentryDsn; answer: HttpResult }[]>;
   /** PostHog's answer to a feature-flags request, per project key and host (T97). */
   posthog: Promise<{ apps: AppName[]; host: string; answer: HttpResult }[]>;
+  /** Stripe's checks (T100): the key, the regions, and in production the webhook and domains. */
+  stripe: Promise<Check[]>;
 };
 
 /**
@@ -384,7 +400,80 @@ function startOnlineRequests(
     resend: resendDomains(envs, statuses),
     sentry: sentryEnvelopes(envs),
     posthog: posthogFlags(envs),
+    stripe: stripeChecks(envs, medusaUrl, headers),
   };
+}
+
+/**
+ * Stripe (T100, D117): with the backend's secret key, Stripe's `GET /v1/account`; with the
+ * storefront's publishable key, whether every region offers Stripe exactly while its keys are set;
+ * and in production (the backend's `productionStage`), the webhook endpoint at the backend's public
+ * URL and the payment method domains of the storefront's and the markets' hosts. `STRIPE_BASE_URL`
+ * points at a fake.
+ */
+async function stripeChecks(
+  envs: AppEnvs,
+  medusaUrl: string,
+  headers: Record<string, string>,
+): Promise<Check[]> {
+  const base = trimSlash(process.env.STRIPE_BASE_URL?.trim() || STRIPE_API);
+  const secret = (envs.backend.STRIPE_API_KEY ?? "").trim();
+  const stripeOn = secret !== "" && (envs.backend.STRIPE_WEBHOOK_SECRET ?? "").trim() !== "";
+  const auth = { Authorization: `Bearer ${secret}` };
+  const checks: Promise<Check>[] = [];
+  if (secret !== "")
+    checks.push(request(`${base}/v1/account`, { headers: auth, timeoutMs: 15_000 }).then(stripeKeyCheck));
+  if (headers["x-publishable-api-key"] !== "")
+    checks.push(
+      (async () => {
+        const answer = await request(`${medusaUrl}/store/regions?fields=id,name&limit=200`, {
+          headers,
+          timeoutMs: 15_000,
+        });
+        const regions = ((jsonOf(answer) as { regions?: { id: string; name: string }[] })?.regions ??
+          []) as { id: string; name: string }[];
+        const listed: RegionProviders[] = await Promise.all(
+          regions.map(async (region) => {
+            const providers = await request(
+              `${medusaUrl}/store/payment-providers?region_id=${encodeURIComponent(region.id)}`,
+              { headers, timeoutMs: 15_000 },
+            );
+            const body = jsonOf(providers) as { payment_providers?: { id?: unknown }[] } | undefined;
+            return {
+              name: region.name,
+              providers:
+                providers.kind === "response" && providers.status === 200
+                  ? (body?.payment_providers ?? []).flatMap((p) =>
+                      typeof p?.id === "string" ? [p.id] : [],
+                    )
+                  : undefined,
+            };
+          }),
+        );
+        return stripeRegionsCheck(listed, stripeOn);
+      })(),
+    );
+  if (secret !== "" && productionStage(envs.backend).production) {
+    const backendUrl = trimSlash((envs.backend.MEDUSA_BACKEND_URL ?? "").trim());
+    checks.push(
+      request(`${base}/v1/webhook_endpoints?limit=100`, { headers: auth, timeoutMs: 15_000 }).then(
+        (answer) => stripeWebhookCheck(answer, backendUrl),
+      ),
+      (async () => {
+        const markets = await request(`${medusaUrl}/store/markets`, { headers, timeoutMs: 15_000 });
+        const wanted = siteDomains(
+          envs.storefront.NEXT_PUBLIC_BASE_URL,
+          (jsonOf(markets) as { markets?: Parameters<typeof siteDomains>[1] })?.markets,
+        );
+        const answer = await request(`${base}/v1/payment_method_domains?limit=100`, {
+          headers: auth,
+          timeoutMs: 15_000,
+        });
+        return stripeDomainsCheck(wanted, answer);
+      })(),
+    );
+  }
+  return Promise.all(checks);
 }
 
 /**
