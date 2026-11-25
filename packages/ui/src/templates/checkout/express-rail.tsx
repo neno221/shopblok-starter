@@ -3,7 +3,9 @@
 // buttons a provider fills (`slots.express`: M6's Stripe). Until one does, the shop passes nothing
 // and the rail is not drawn, so the page is the default's with this root's `data-variant`; the
 // design system fills it with its fixtures. The rail ends with "Or continue below", so the steps
-// read as the other way to pay. A server component.
+// read as the other way to pay. A provider's buttons that are not ready, or have no wallet to show
+// on the device, say so with `data-express="hidden"` on their root, and the rail is hidden with
+// them (M6 T102: Stripe's island; without scripts it stays hidden). A server component.
 import { CheckoutSteps } from "@shopblok/ui/organisms/checkout-steps";
 import { CheckoutRoot, CheckoutStepContent, type CheckoutTemplateProps } from "./parts";
 
@@ -24,7 +26,7 @@ function CheckoutExpressRail(props: CheckoutTemplateProps) {
           <section
             data-slot="checkout-express"
             aria-labelledby={`${mainId}-express-title`}
-            className="flex min-w-0 flex-col gap-3 rounded-xl border p-4"
+            className="flex min-w-0 flex-col gap-3 rounded-xl border p-4 has-[[data-express=hidden]]:hidden"
           >
             <h3
               id={`${mainId}-express-title`}

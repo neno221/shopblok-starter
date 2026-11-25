@@ -349,3 +349,28 @@ describe("CheckoutTemplate", () => {
     expect(document.getElementById(ids.email)?.getAttribute("form")).toBe(ids.address);
   });
 });
+
+describe("the express-rail layout's rail (T86; M6 T102)", () => {
+  const buttons = <div data-slot="express-checkout" data-express="hidden" />;
+
+  it("draws the rail with the provider's buttons on the contact step only", () => {
+    renderCheckout("en", "contact", { variant: "express-rail", slots: { express: buttons } });
+    const rail = slot("checkout-express") as HTMLElement;
+    expect(within(rail).getByRole("heading").textContent).toBe(
+      catalogs.en.templates.checkout.express.title,
+    );
+    expect(rail.contains(slot("express-checkout"))).toBe(true);
+    // The rail is hidden while the buttons say they have nothing to show (no wallet, no scripts).
+    expect(rail.className).toContain("has-[[data-express=hidden]]:hidden");
+  });
+
+  it("draws no rail on the later steps", () => {
+    renderCheckout("en", "delivery", { variant: "express-rail", slots: { express: buttons } });
+    expect(slot("checkout-express")).toBeNull();
+  });
+
+  it("draws no rail without the provider's buttons", () => {
+    renderCheckout("en", "contact", { variant: "express-rail" });
+    expect(slot("checkout-express")).toBeNull();
+  });
+});

@@ -30,6 +30,7 @@ import {
 } from "../../../../../lib/medusa/payment";
 import { PaymentElementIsland } from "../../../../../components/checkout/stripe/payment-element-island";
 import { PlaceOrderIsland } from "../../../../../components/checkout/stripe/place-order-island";
+import { ExpressCheckoutIsland } from "../../../../../components/checkout/stripe/express";
 import { SHELL_PREFETCH } from "../../../../../lib/site";
 import {
   canOpen,
@@ -42,6 +43,7 @@ import {
   toPaymentStep,
   toReviewStep,
   paymentNames,
+  toExpressRates,
   toShippingOption,
   type CheckoutStepId,
 } from "../../../../../lib/view-models/checkout";
@@ -151,38 +153,68 @@ export default async function CheckoutStepPage({ params, searchParams }: Props) 
   const content = await stepOf(shown, cart, context, messages, flash, stripe !== null);
   if (content === null) notFound();
   const unpaid = messages.organisms.paymentStep.errors.unpaid;
+  const variant = templates.checkout;
+  // M6 T102 (D120): the express rail's wallets, with Stripe on, on the contact step of the
+  // `express-rail` layout, for a cart with a shipping option a wallet can offer.
+  const rates =
+    stripe !== null && variant === "express-rail" && content.kind === "contact"
+      ? toExpressRates(
+          await listShippingOptions(cart.id, cart.currencyCode, market.medusaLocale),
+          cart.shippingMethod?.optionId,
+        )
+      : [];
   const slots =
     stripe === null
       ? undefined
-      : content.kind === "delivery"
-        ? {
-            paymentElement: (
-              <PaymentElementIsland
-                publishableKey={stripe}
-                locale={market.htmlLang}
-                currency={cart.currencyCode}
-                base={cart.total.amount - (cart.shippingMethod?.amount.amount ?? 0)}
-                shipping={Object.fromEntries(
-                  content.options.map((option) => [option.id, option.price.amount]),
-                )}
-                {...(content.selected === undefined ? {} : { selected: content.selected })}
-                words={{ noScript: messages.organisms.paymentStep.noScript, failed: unpaid }}
-              />
-            ),
-          }
-        : content.kind === "review" && cart.paymentToken !== null
-          ? {
-              placeOrder: (
-                <PlaceOrderIsland
+      : content.kind === "contact"
+        ? rates.length === 0
+          ? undefined
+          : {
+              express: (
+                <ExpressCheckoutIsland
                   market={market.key}
                   publishableKey={stripe}
                   locale={market.htmlLang}
-                  words={{ failed: unpaid }}
+                  currency={cart.currencyCode}
+                  amount={cart.total.amount}
+                  countries={[...context.region.countries]}
+                  rates={rates}
+                  words={{
+                    address: words.express.address,
+                    changed: words.express.changed,
+                    failed: words.express.failed,
+                  }}
                 />
               ),
             }
-          : undefined;
-  const variant = templates.checkout;
+        : content.kind === "delivery"
+          ? {
+              paymentElement: (
+                <PaymentElementIsland
+                  publishableKey={stripe}
+                  locale={market.htmlLang}
+                  currency={cart.currencyCode}
+                  base={cart.total.amount - (cart.shippingMethod?.amount.amount ?? 0)}
+                  shipping={Object.fromEntries(
+                    content.options.map((option) => [option.id, option.price.amount]),
+                  )}
+                  {...(content.selected === undefined ? {} : { selected: content.selected })}
+                  words={{ noScript: messages.organisms.paymentStep.noScript, failed: unpaid }}
+                />
+              ),
+            }
+          : content.kind === "review" && cart.paymentToken !== null
+            ? {
+                placeOrder: (
+                  <PlaceOrderIsland
+                    market={market.key}
+                    publishableKey={stripe}
+                    locale={market.htmlLang}
+                    words={{ failed: unpaid }}
+                  />
+                ),
+              }
+            : undefined;
   // T86: `one-page` sums up the steps done, each "Edit" opening its step at its anchor.
   const anchor = (id: CheckoutStepId) => `${stepHref(id)}#${checkoutIds("main").step(id)}`;
   const done =

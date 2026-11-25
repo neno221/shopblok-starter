@@ -894,6 +894,12 @@ export const de: Messages = {
       express: {
         title: "Express-Kasse",
         or: "Oder unten weiter",
+        address:
+          "Die Adresse aus der Wallet können wir hier nicht verwenden. Wählen Sie eine andere oder füllen Sie das Formular unten aus.",
+        changed:
+          "Der Gesamtbetrag hat sich geändert. Prüfen Sie ihn in der Wallet und zahlen Sie erneut.",
+        failed:
+          "Die Express-Zahlung hat nicht geklappt. Versuchen Sie es erneut oder füllen Sie das Formular unten aus.",
       },
     },
     orderConfirmation: {

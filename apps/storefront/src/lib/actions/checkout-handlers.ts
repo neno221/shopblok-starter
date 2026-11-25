@@ -42,7 +42,7 @@ const id = z.string().min(1).max(128);
  * cart from another country moves to this region, one in another language keeps its lines and
  * takes this locale; `moveCart`'s rule). The checkout has nothing to do without one.
  */
-async function requireCart(context: MarketContext): Promise<CartDto> {
+export async function requireCart(context: MarketContext): Promise<CartDto> {
   const existing = await getCart(context.market.medusaLocale);
   if (existing === null || existing.lines.length === 0)
     throw new ActionError("not-found", "the visitor has no cart to check out");
@@ -192,6 +192,16 @@ export const deliveryAction = action(
   },
 );
 
+/**
+ * Stripe takes the payment (M6 D117): the region offers it and there is a total to pay. The review's
+ * "Place order" and the express rail's payment (T102) check it before anything is written.
+ */
+export async function requireStripe(context: MarketContext, total: number): Promise<void> {
+  const providers = await listPaymentProviders(context.region.id);
+  if (!paysWithStripe(providers, total))
+    throw new ActionError("incomplete", "the cart does not pay with Stripe");
+}
+
 export const preparePaymentSchema = z.object({ market: marketKey });
 
 /**
@@ -206,9 +216,7 @@ export const preparePaymentAction = action(preparePaymentSchema, async ({ market
   const cart = await requireCart(context);
   if (cart.shippingMethod === null || cart.paymentToken === null)
     throw new ActionError("incomplete", "the delivery step kept no payment");
-  const providers = await listPaymentProviders(context.region.id);
-  if (!paysWithStripe(providers, cart.total.amount))
-    throw new ActionError("incomplete", "the cart does not pay with Stripe");
+  await requireStripe(context, cart.total.amount);
   const locale = context.market.medusaLocale;
   // Stripe's webhook may place the order before the shopper is back: the order's e-mails and the
   // consent are on the cart first, as `placeOrderAction` writes them (T99, D124).

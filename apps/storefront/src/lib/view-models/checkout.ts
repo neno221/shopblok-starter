@@ -200,6 +200,26 @@ export function toShippingOption(option: ShippingOptionDto, currencyCode: string
   };
 }
 
+/** A shipping option a wallet can offer (M6 T102): one with a price, delivered (not a pickup). */
+export const expressDeliverable = (option: ShippingOptionDto): boolean =>
+  option.price !== null && !option.pickup;
+
+/** A shipping option as the express rail's wallet lists it; the amount in the main unit. */
+export type ExpressRate = { id: string; name: string; amount: number };
+
+/** The cart's shipping options a wallet can offer, `first` (the cart's own, if any) first. */
+export function toExpressRates(
+  options: readonly ShippingOptionDto[],
+  first?: string,
+): ExpressRate[] {
+  const rates = options
+    .filter(expressDeliverable)
+    .map((option) => ({ id: option.id, name: option.name, amount: option.price?.amount ?? 0 }));
+  const index = rates.findIndex((rate) => rate.id === first);
+  if (index <= 0) return rates;
+  return [rates[index] as ExpressRate, ...rates.slice(0, index), ...rates.slice(index + 1)];
+}
+
 /**
  * The payment step: Stripe's Payment Element (M6 D117), chosen, when the checkout pays with it
  * (`paysWithStripe`); the system payment ("Pay later") alone otherwise (D65).
@@ -250,8 +270,9 @@ const WALLETS: Record<string, PaymentBrand> = { apple_pay: "applepay", google_pa
 
 /**
  * How a payment reads (M6 D117): Stripe's preview as a card's brand and last four ("Visa ending in
- * 4242"), Revolut Pay by its name, a wallet with no card shown by the wallet's mark, any other
- * Stripe method by Stripe's name; the system payment's words otherwise.
+ * 4242"), Revolut Pay and Link (the express rail's, T102) by their names, a wallet with no card
+ * shown by the wallet's mark, any other Stripe method by Stripe's name; the system payment's words
+ * otherwise.
  */
 export function paymentOf(
   providerId: string | null,
@@ -265,6 +286,7 @@ export function paymentOf(
   if (preview.type === "card" && brand !== undefined && preview.last4 !== undefined)
     return { brand, last4: preview.last4 };
   if (preview.type === "revolut_pay") return { name: "Revolut Pay", brand: "revolut" };
+  if (preview.type === "link") return { name: "Link" };
   const wallet = preview.wallet === undefined ? undefined : WALLETS[preview.wallet];
   if (wallet !== undefined) return { brand: wallet };
   return { name: names.stripe };

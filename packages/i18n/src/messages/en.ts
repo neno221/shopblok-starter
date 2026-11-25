@@ -1001,6 +1001,10 @@ export const en = {
       express: {
         title: "Express checkout",
         or: "Or continue below",
+        address:
+          "The wallet's address cannot be used here. Choose another one, or fill in the form below.",
+        changed: "The total has changed. Check it in the wallet and pay again.",
+        failed: "The express payment did not go through. Try again, or fill in the form below.",
       },
     },
     orderConfirmation: {
