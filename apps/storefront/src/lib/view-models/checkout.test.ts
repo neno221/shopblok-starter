@@ -10,7 +10,9 @@ import {
   ownsKeptPayment,
   stepsDone,
   toAddressFormState,
+  toExpressRates,
   toOrderConfirmation,
+  paymentOf,
   toPaymentStep,
   toReviewStep,
   toSavedPaymentMethods,
@@ -356,6 +358,40 @@ describe("toReviewStep", () => {
       brand: "visa",
       last4: "4242",
     });
+  });
+});
+
+describe("paymentOf (M6 D117, T102)", () => {
+  it("names a Link payment (the express rail's) by Link", () => {
+    expect(paymentOf("pp_stripe_stripe", { type: "link" }, names)).toEqual({ name: "Link" });
+  });
+});
+
+describe("toExpressRates (M6 T102)", () => {
+  const eur = (amount: number) => ({ amount, currencyCode: "eur" });
+  const options = [
+    { id: "so_pickup", name: "Pickup", price: eur(0), pickup: true },
+    { id: "so_standard", name: "Standard", price: eur(5), pickup: false },
+    { id: "so_courier", name: "Courier", price: null, pickup: false },
+    { id: "so_express", name: "Express", price: eur(12), pickup: false },
+  ];
+
+  it("keeps the options a wallet can offer: priced and delivered", () => {
+    expect(toExpressRates(options)).toEqual([
+      { id: "so_standard", name: "Standard", amount: 5 },
+      { id: "so_express", name: "Express", amount: 12 },
+    ]);
+  });
+
+  it("puts the cart's own option first, the wallet's default", () => {
+    expect(toExpressRates(options, "so_express").map((rate) => rate.id)).toEqual([
+      "so_express",
+      "so_standard",
+    ]);
+    expect(toExpressRates(options, "so_pickup").map((rate) => rate.id)).toEqual([
+      "so_standard",
+      "so_express",
+    ]);
   });
 });
 

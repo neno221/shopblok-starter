@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { preparePayment } from "../../../lib/actions/checkout";
+import { paymentReturnUrl as returnUrl } from "./payment-return-url";
 
 // Ours (M6 T100, SETUP.md "Stripe in the checkout (T100)"; D117). Inside the review's "Place order"
 // form when Stripe takes the payment: the submit is caught, the action makes sure of a session for
@@ -22,21 +23,6 @@ export type PlaceOrderIslandProps = {
   locale: string;
   words: { failed: string };
 };
-
-/** `/api/payment-return` for this market, absolute, as Stripe's `return_url` must be. */
-function returnUrl(
-  market: string,
-  intent?: { id: string; secret: string; reason?: string | undefined },
-): string {
-  const url = new URL("/api/payment-return", window.location.origin);
-  url.searchParams.set("market", market);
-  if (intent !== undefined) {
-    url.searchParams.set("payment_intent", intent.id);
-    url.searchParams.set("payment_intent_client_secret", intent.secret);
-    if (intent.reason) url.searchParams.set("reason", intent.reason.slice(0, 200));
-  }
-  return url.toString();
-}
 
 export function PlaceOrderIsland(props: PlaceOrderIslandProps) {
   const anchor = useRef<HTMLSpanElement>(null);
