@@ -270,6 +270,16 @@ export function paymentOf(
   return { name: names.stripe };
 }
 
+/**
+ * The cart's payment provider as the review shows it: its session's, or Stripe when it has none but
+ * keeps a ConfirmationToken. Medusa deletes a cart's sessions when its total moves (a promotion, a
+ * change in another tab), and "Place order" makes a new Stripe session from the kept token, so the
+ * review still pays with the token's card (PR 140's review, item 2).
+ */
+export function cartPaymentProvider(cart: Pick<CartDto, "paymentProviderId" | "paymentToken">) {
+  return cart.paymentProviderId ?? (cart.paymentToken !== null ? STRIPE_PAYMENT_PROVIDER : null);
+}
+
 /** What a payment is called: the system payment's words, or the provider's id. */
 export function paymentName(providerId: string | null, systemName: string): string {
   return providerId === null || providerId === SYSTEM_PAYMENT_PROVIDER ? systemName : providerId;
@@ -288,7 +298,7 @@ export function toReviewStep(
     email: cart.email,
     shippingAddress: toContractAddress(cart.shippingAddress),
     shippingMethod: { name: cart.shippingMethod.name, price: toMoney(cart.shippingMethod.amount) },
-    payment: paymentOf(cart.paymentProviderId, cart.paymentPreview, names),
+    payment: paymentOf(cartPaymentProvider(cart), cart.paymentPreview, names),
     editHrefs,
   };
 }
@@ -318,7 +328,7 @@ export function toCheckoutDone(
         name: cart.shippingMethod.name,
         price: toMoney(cart.shippingMethod.amount),
       },
-      payment: paymentOf(cart.paymentProviderId, cart.paymentPreview, names),
+      payment: paymentOf(cartPaymentProvider(cart), cart.paymentPreview, names),
       editHref: editHrefs.delivery,
     };
   return done;

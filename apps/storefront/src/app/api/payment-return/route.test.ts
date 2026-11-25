@@ -101,6 +101,27 @@ describe("/api/payment-return", () => {
     });
   });
 
+  it("lets Medusa decide when Stripe cannot be read: a paid intent goes to the receipt", async () => {
+    readIntent.mockResolvedValue(null);
+    const response = await back(intent);
+    expect(response.headers.get("location")).toBe("/de/en/order/order_1/confirmed");
+    expect(completeCart).toHaveBeenCalled();
+    expect(setReceipt).toHaveBeenCalledWith("order_1");
+  });
+
+  it("and one Medusa refuses comes back unpaid to the delivery step", async () => {
+    readIntent.mockResolvedValue(null);
+    completeCart.mockResolvedValue({ kind: "cart", error: "payment not authorized", cart: {} });
+    const response = await back(intent);
+    expect(response.headers.get("location")).toBe(
+      "/de/en/checkout/delivery?f=key1#main-payment-error",
+    );
+    expect(leaveFlash).toHaveBeenCalledWith("/de/en/checkout/delivery", {
+      errors: { paymentMethod: "unpaid" },
+    });
+    expect(setReceipt).not.toHaveBeenCalled();
+  });
+
   it("sends a visitor without a cart to the cart page", async () => {
     readCartPayment.mockResolvedValue(null);
     expect((await back(intent)).headers.get("location")).toBe("/de/en/cart");

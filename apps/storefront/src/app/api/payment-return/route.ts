@@ -45,20 +45,27 @@ export async function GET(request: Request): Promise<Response> {
   if (payment.intentId !== intent) return refused({ paymentMethod: "unpaid" });
 
   const state = await readIntent(key, intent, secret, context.market.htmlLang);
-  if (state === null || !PAID_STATUSES.has(state.status)) {
+  const target = { ...mailTarget(context.market, context.map), key: context.market.key };
+  // Stripe could not be read (unreachable, a timeout, a 5xx): Medusa reads the intent itself with the
+  // secret key when it completes, and refuses one that is not paid, so a paid shopper is not told
+  // otherwise while the webhook places the order (PR 140's review, item 6).
+  if (state === null) {
+    const answer = await completeCart(context.market.medusaLocale, target);
+    if (answer.kind === "cart") return refused({ paymentMethod: "unpaid" });
+    await setReceipt(answer.orderId);
+    return see(context.url(`/order/${encodeURIComponent(answer.orderId)}/confirmed`));
+  }
+  if (!PAID_STATUSES.has(state.status)) {
     // Stripe's API says why in English; Stripe.js said it in the market's language, and the island
     // passes that on (`reason`), shown only for an attempt Stripe says failed.
     const said = (query.get("reason") ?? "").trim().slice(0, 200);
-    const reason = state?.reason ? said || state.reason : null;
+    const reason = state.reason ? said || state.reason : null;
     return reason
       ? refused({ paymentMethod: "declined" }, { paymentReason: reason })
       : refused({ paymentMethod: "unpaid" });
   }
 
-  const answer = await completeCart(context.market.medusaLocale, {
-    ...mailTarget(context.market, context.map),
-    key: context.market.key,
-  });
+  const answer = await completeCart(context.market.medusaLocale, target);
   if (answer.kind === "cart") {
     const review = context.url("/checkout/review");
     const flash = await leaveFlash(review, { form: "rejected", errors: {} });

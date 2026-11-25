@@ -205,6 +205,19 @@ describe("toReviewStep", () => {
       editHrefs,
     });
   });
+
+  it("shows the kept token's card when Medusa deleted the Stripe session (PR 140 review, item 2)", () => {
+    const refreshed: CartDto = {
+      ...deliveryDone,
+      paymentProviderId: null,
+      paymentToken: "ctoken_1",
+      paymentPreview: { type: "card", brand: "visa", last4: "4242" },
+    };
+    expect(toReviewStep(refreshed, names, editHrefs)?.payment).toEqual({
+      brand: "visa",
+      last4: "4242",
+    });
+  });
 });
 
 describe("toOrderConfirmation", () => {

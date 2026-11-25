@@ -10011,6 +10011,15 @@ Each chunk gzipped on its own and summed (`check:first-load`), in bytes, without
 
 The budgeted routes are unchanged, and the key changes nothing: whether the checkout pays with Stripe is decided on the server, and the islands import `stripe-client.ts` (2.6 KB gzipped, with `@stripe/stripe-js`'s loader; Stripe.js itself comes from `js.stripe.com` only when the Element is drawn) after hydration. `first-load.ts` checks it is kept out of every first load (marker `shopblok:stripe-client`).
 
+### Changes from the review of this PR (PR 140)
+
+The review (`reviews/pr-140-code-review.md` in the project's files) found 3 must-fix items, 2 cleanups and 6 optional items. Fixed: 1 to 4, 6; item 5 is a note in T101's prompt; 7 to 11 skipped (optional, neither security nor cleanup).
+1. (Security) A "Pay later" session could get past the session route's guard: one made at a zero total in a race with a change that raised the total (the session route takes no cart lock), or one left from before the shop had Stripe's keys. A `completeCartWorkflow.hooks.validate` handler (`src/workflows/hooks/complete-cart-payment.ts`) refuses completion when a session Medusa would process is the system payment, the total is above zero and Stripe is on. New case in `stripe.spec.ts`: a system session made through the payment module on a positive total, and completion refused.
+2. After a promotion or a change in another tab, Medusa deletes the cart's sessions, and the review read "Pay later" while "Place order" paid with the card. The review's and `one-page`'s payment line now take Stripe when the cart keeps a token and has no session (`cartPaymentProvider`); a unit test, and both live cases check "4242" on the review after the reload.
+3. (Security) `backend-integration` gave the Stripe key to any run not started by Renovate's bot, so a person re-running a Renovate PR's jobs gave it to that branch's packages. The branch decides now (`renovate/` gets none), as in `integrations-live`, and the step registers the key with `::add-mask::`.
+4. The guard on Medusa's update route checked nothing (it takes only `client_data`, which the Stripe provider never reads): the matcher is gone and the guard's comment says so.
+6. When Stripe cannot be read on the return, the route lets Medusa complete the cart (it reads the intent with the secret key and refuses one that is not paid), so a paid shopper is not told "not paid" while the webhook places the order; two unit tests.
+
 ### Turning on Stripe
 
 1. In Stripe's Dashboard, test mode first (Developers → API keys): the secret key (`sk_test_…`) goes into the backend as `STRIPE_API_KEY` (Railway's variables, or `apps/backend/.env`), the publishable key (`pk_test_…`) into the storefront as `NEXT_PUBLIC_STRIPE_KEY` (Vercel's variables, or `apps/storefront/.env`; read at `next build`, so a new key needs a new build). Both from the same mode of the same account: `doctor` says so when they are not.

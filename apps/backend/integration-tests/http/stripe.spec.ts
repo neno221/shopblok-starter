@@ -207,6 +207,28 @@ medusaIntegrationTestRunner({
         expect(refused.data.message).toMatch(/Pay later/);
       });
 
+      it("refuses to complete a positive total with a Pay later session that got past the route (PR 140 review, item 1)", async () => {
+        // A session left from before the shop had Stripe's keys, or one made at a zero total in a race
+        // with a change that raised it: made here through the payment module, past the route's guard.
+        const { id, collection } = await readyCart();
+        expect(collection.amount).toBeGreaterThan(0);
+        const payment = getContainer().resolve(Modules.PAYMENT);
+        await payment.createPaymentSession(collection.id, {
+          provider_id: SYSTEM,
+          currency_code: "eur",
+          amount: collection.amount,
+          data: {},
+        });
+        const completed = await api.post(
+          `/store/carts/${id}/complete`,
+          {},
+          { headers: store, ...anyStatus },
+        );
+        expect(await orderOf(id)).toBeUndefined();
+        expect(completed.data.type).not.toBe("order");
+        expect(JSON.stringify(completed.data)).toMatch(/Pay later/);
+      });
+
       it("completes a zero total (a 100% promotion) with Pay later", async () => {
         const container = getContainer();
         await createPromotionsWorkflow(container).run({

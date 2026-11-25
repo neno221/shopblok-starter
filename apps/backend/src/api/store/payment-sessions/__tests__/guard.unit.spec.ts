@@ -1,4 +1,4 @@
-import { checkSessionData, refusesSystemSession } from "../guard";
+import { checkSessionData, refusesSystemSession, sessionsToProcess } from "../guard";
 
 const STRIPE = "pp_stripe_stripe";
 const SYSTEM = "pp_system_default";
@@ -67,5 +67,19 @@ describe("checkSessionData (M6 D117, D119)", () => {
     expect(checkSessionData(STRIPE, { payment_method: "pm_2" }, owner).ok).toBe(false);
     expect(checkSessionData(STRIPE, { payment_method: "pm_1" }, { owner: "cus_1" }).ok).toBe(false);
     expect(checkSessionData(STRIPE, { payment_method: "" }, owner).ok).toBe(false);
+  });
+});
+
+describe("sessionsToProcess (M6 D117, PR 140 review item 1)", () => {
+  it("lists the providers of the sessions Medusa processes at completion, not canceled or errored ones", () => {
+    expect(
+      sessionsToProcess([
+        { provider_id: SYSTEM, status: "pending" },
+        { provider_id: "pp_stripe_stripe", status: "authorized" },
+        { provider_id: SYSTEM, status: "canceled" },
+        { provider_id: SYSTEM, status: "error" },
+        null,
+      ]),
+    ).toEqual([SYSTEM, "pp_stripe_stripe"]);
   });
 });

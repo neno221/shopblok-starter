@@ -249,6 +249,9 @@ test("a cart changed in another tab on the review page pays the new total", asyn
   await expect(tab.locator('h1 [data-slot="cart-count"]')).toHaveText("2 items");
   await tab.close();
   await page.reload();
+  // Medusa deleted the Stripe session when the total moved; the review still shows the token's card
+  // (PR 140's review, item 2), not "Pay later".
+  await expect(page.locator('[data-slot="checkout-review"]:visible')).toContainText("4242");
   await place(page, US.words);
   const order = await expectAuthorised(await receipt(page, US.words));
   expect(order.items[0]?.quantity).toBe(2);
@@ -291,6 +294,7 @@ test("a promotion applied on the review page's cart is paid at the new total", a
     await expect(summary.locator('[data-slot="promo-code-chip"]')).toContainText(code);
     await tab.close();
     await page.reload();
+    await expect(page.locator('[data-slot="checkout-review"]:visible')).toContainText("4242");
     await place(page, US.words);
     const id = await receipt(page, US.words);
     const { order } = await medusaAdminApi<{ order: { discount_total: number } }>(

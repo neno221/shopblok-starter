@@ -9,9 +9,12 @@ import { ContainerRegistrationKeys, MedusaError, Modules } from "@medusajs/frame
 import { STRIPE_PROVIDER_ID } from "../../../config/modules";
 import { stripeRegistered, SYSTEM_PROVIDER_ID } from "../../../lib/stripe-regions";
 
-// M6 D117 (T100): two checks on Medusa's store routes that create and update a payment session
-// (`POST /store/payment-collections/:id/payment-sessions[/:session_id]`), which anyone with a cart's
-// payment collection id can call, not only the storefront.
+// M6 D117 (T100): two checks on Medusa's store route that creates a payment session
+// (`POST /store/payment-collections/:id/payment-sessions`), which anyone with a cart's payment
+// collection id can call, not only the storefront. (Medusa's update route,
+// `…/payment-sessions/:session_id`, takes only `client_data`, which it keeps as `data.client` and the
+// Stripe provider never reads, so it needs no check.) The first check runs again when the cart is
+// completed (`workflows/hooks/complete-cart-payment.ts`), since a session can outlive it.
 //
 // 1. **"Pay later" only for a zero total while Stripe is on.** The system provider authorises
 //    anything, so a shopper could otherwise call the store API with `pp_system_default` and place an
@@ -68,6 +71,26 @@ export function checkSessionData(
 }
 
 /** The guard, pure: the system provider on a total above zero while Stripe is registered. */
+/** Medusa's statuses of a session it will process at completion (`validateCartPaymentsStep`). */
+const PROCESSABLE = new Set([
+  "pending",
+  "requires_more",
+  "authorized",
+  "captured",
+  "pending_authorization",
+]);
+
+/** The providers of the sessions Medusa would process when the cart is completed. */
+export function sessionsToProcess(
+  sessions: readonly ({ provider_id?: string; status?: string } | null)[],
+): string[] {
+  return sessions.flatMap((session) =>
+    session?.provider_id && session.status && PROCESSABLE.has(session.status)
+      ? [session.provider_id]
+      : [],
+  );
+}
+
 export function refusesSystemSession(providerId: string, amount: number, stripe: boolean): boolean {
   return providerId === SYSTEM_PROVIDER_ID && stripe && amount > 0;
 }
@@ -76,21 +99,13 @@ type CollectionRow = {
   id: string;
   amount: unknown;
   cart?: { id: string; customer_id?: string | null } | null;
-  payment_sessions?: ({ id: string; provider_id: string } | null)[] | null;
 };
 
 async function readCollection(req: MedusaRequest, id: string): Promise<CollectionRow> {
   const query = req.scope.resolve(ContainerRegistrationKeys.QUERY);
   const { data } = (await query.graph({
     entity: "payment_collection",
-    fields: [
-      "id",
-      "amount",
-      "cart.id",
-      "cart.customer_id",
-      "payment_sessions.id",
-      "payment_sessions.provider_id",
-    ],
+    fields: ["id", "amount", "cart.id", "cart.customer_id"],
     filters: { id },
   })) as { data: CollectionRow[] };
   const collection = data[0];
@@ -132,10 +147,7 @@ const amountOf = (value: unknown): number => {
   return Number.isFinite(n) ? n : 0;
 };
 
-/**
- * Before `POST /store/payment-collections/:id/payment-sessions` and
- * `…/payment-sessions/:session_id`: the guard and the `data` check above.
- */
+/** Before `POST /store/payment-collections/:id/payment-sessions`: the guard and the `data` check above. */
 export async function guardPaymentSession(
   req: AuthenticatedMedusaRequest,
   _res: MedusaResponse,
@@ -143,17 +155,9 @@ export async function guardPaymentSession(
 ) {
   const body = (req.body ?? {}) as { provider_id?: unknown; data?: unknown };
   const collection = await readCollection(req, req.params.id);
-  // The update route names a session, not a provider: the session's own provider is the one.
-  const sessionId = req.params.session_id;
-  const providerId =
-    sessionId === undefined
-      ? typeof body.provider_id === "string"
-        ? body.provider_id
-        : ""
-      : ((collection.payment_sessions ?? []).find((s) => s?.id === sessionId)?.provider_id ?? "");
+  const providerId = typeof body.provider_id === "string" ? body.provider_id : "";
 
   if (
-    sessionId === undefined &&
     refusesSystemSession(providerId, amountOf(collection.amount), await stripeRegistered(req.scope))
   )
     throw new MedusaError(

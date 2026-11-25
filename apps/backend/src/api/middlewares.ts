@@ -84,11 +84,6 @@ export default defineMiddlewares({
     },
     {
       method: ['POST'],
-      matcher: '/store/payment-collections/:id/payment-sessions/:session_id',
-      middlewares: [guardPaymentSession],
-    },
-    {
-      method: ['POST'],
       matcher: '/store/carts/:id/payment-token',
       middlewares: [validateAndTransformBody(StorePaymentToken)],
     },
