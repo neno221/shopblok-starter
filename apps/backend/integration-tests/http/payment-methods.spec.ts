@@ -98,7 +98,9 @@ medusaIntegrationTestRunner({
                 { order: { created_at: "DESC" } },
               )) as unknown as Notification[]
             )[0],
-          { what: `${template} to ${to}` },
+          // The seed's events (the demo catalog's indexing, the region sync) go first through the
+          // event bus, so on CI's slower runners the mail can take longer than `until`'s 10 s.
+          { what: `${template} to ${to}`, timeoutMs: 90_000 },
         );
         return value;
       };

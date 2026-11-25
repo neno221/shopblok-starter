@@ -78,6 +78,9 @@ const cart: CartDto = {
   paymentProviderId: null,
   paymentToken: null,
   paymentPreview: null,
+  savedMethod: null,
+  paymentSave: false,
+  customerId: null,
   completed: false,
 };
 /** The cart once an option is set: its price in the total. */
