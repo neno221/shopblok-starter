@@ -377,6 +377,8 @@ async function syncConsentOf(
     };
     for (const [name, value] of Object.entries(wanted))
       if (value !== undefined && metadata[name] !== value) update[name] = value;
+    // The express rail's copy of the cart before a wallet opened (T102) is not the order's.
+    if (metadata[EXPRESS_BEFORE_KEY] !== undefined) update[EXPRESS_BEFORE_KEY] = "";
   }
   if (Object.keys(update).length > 0)
     await medusaRequest((sdk) =>
@@ -613,6 +615,118 @@ export async function setAddresses(
     ),
   );
   return withConsent(cart, headers);
+}
+
+// --- The cart before a wallet opened (M6 T102, D120) -----------------------------------------------
+
+/**
+ * The cart's `metadata` key for what the express rail's wallet replaces: the shipping address (with
+ * or without a name and a street) and the shipping option the cart had when the wallet's sheet
+ * opened. A wallet's address event writes its own (partial) address and an option of its own; the
+ * sheet closed without a payment writes these back (`restoreExpressBefore`). Cleared before an
+ * order (`syncConsentOf`), so it never reaches one.
+ */
+export const EXPRESS_BEFORE_KEY = "express_before";
+
+type ExpressBefore = { address: AddressInput | Record<string, never>; option: string | null };
+
+const ADDRESS_KEYS = [
+  "first_name",
+  "last_name",
+  "company",
+  "address_1",
+  "address_2",
+  "city",
+  "province",
+  "postal_code",
+  "country_code",
+  "phone",
+] as const;
+
+/** An address as a write takes it: the fields it has, or `{}` for none (Medusa's empty address). */
+export function addressInputOf(address: WireAddress | null | undefined): ExpressBefore["address"] {
+  const kept: Record<string, string> = {};
+  for (const key of ADDRESS_KEYS) {
+    const value = address?.[key];
+    if (typeof value === "string" && value !== "") kept[key] = value;
+  }
+  return typeof kept.country_code === "string" ? (kept as AddressInput) : {};
+}
+
+/** What `metadata[EXPRESS_BEFORE_KEY]` holds, or `null` when it holds nothing usable. */
+export function expressBeforeOf(value: unknown): ExpressBefore | null {
+  if (typeof value !== "object" || value === null) return null;
+  const { address, option } = value as Record<string, unknown>;
+  if (typeof address !== "object" || address === null) return null;
+  return {
+    address: addressInputOf(address as WireAddress),
+    option: typeof option === "string" && option !== "" ? option : null,
+  };
+}
+
+/**
+ * Keeps the cart's address and option before a wallet writes its own: always on the sheet's first
+ * address event (`fresh`), else only when nothing is kept (a closed sheet wrote it back).
+ */
+export async function keepExpressBefore(fresh: boolean, locale?: string): Promise<void> {
+  const id = await requireCartId();
+  const headers = await headersFor(locale);
+  const { cart } = await medusaRequest((sdk) =>
+    sdk.store.cart.retrieve(
+      id,
+      { fields: "id,metadata,*shipping_address,*shipping_methods" },
+      headers,
+    ),
+  );
+  const wire = cart as unknown as WireCart;
+  if (!fresh && expressBeforeOf(wire.metadata?.[EXPRESS_BEFORE_KEY]) !== null) return;
+  const before: ExpressBefore = {
+    address: addressInputOf(wire.shipping_address),
+    option: wire.shipping_methods?.at(-1)?.shipping_option_id ?? null,
+  };
+  await medusaRequest((sdk) =>
+    sdk.store.cart.update(
+      id,
+      { metadata: { [EXPRESS_BEFORE_KEY]: before } },
+      { fields: "id" },
+      headers,
+    ),
+  );
+}
+
+/**
+ * Writes back what `keepExpressBefore` kept (the wallet's sheet closed without a payment): the
+ * address as both addresses (M3's rule), the copy removed in the same write, then the option, when
+ * one was kept and the cart can still take it (`canShip`). The cart as it is then; with nothing
+ * kept, the cart unchanged.
+ */
+export async function restoreExpressBefore(
+  canShip: (optionId: string) => Promise<boolean>,
+  locale?: string,
+): Promise<CartDto> {
+  const id = await requireCartId();
+  const headers = await headersFor(locale);
+  const { cart } = await medusaRequest((sdk) =>
+    sdk.store.cart.retrieve(id, { fields: CART_FIELDS }, headers),
+  );
+  const before = expressBeforeOf((cart as unknown as WireCart).metadata?.[EXPRESS_BEFORE_KEY]);
+  if (before === null) return toCartDto(cart as unknown as WireCart);
+  const { cart: restored } = await medusaRequest((sdk) =>
+    sdk.store.cart.update(
+      id,
+      {
+        shipping_address: before.address,
+        billing_address: before.address,
+        metadata: { [EXPRESS_BEFORE_KEY]: "" },
+      },
+      { fields: CART_FIELDS },
+      headers,
+    ),
+  );
+  const dto = await withConsent(restored, headers);
+  if (before.option === null || dto.shippingMethod?.optionId === before.option) return dto;
+  if (!(await canShip(before.option))) return dto;
+  return setShippingMethod(before.option, locale);
 }
 
 export async function setShippingMethod(optionId: string, locale?: string): Promise<CartDto> {

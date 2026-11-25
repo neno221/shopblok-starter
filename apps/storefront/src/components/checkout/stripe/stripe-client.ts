@@ -4,6 +4,7 @@
 // The checkout's islands load this module with `import()` when they mount, so no route's first load
 // holds it (`first-load.ts`'s `keptOut`, by its marker below).
 import { loadStripe, type Stripe, type StripeElements } from "@stripe/stripe-js";
+import type { ExpressRate } from "../../../lib/view-models/checkout";
 import { appearanceFrom, smallestUnit, stripeLocale, type TokenColors } from "./stripe-options";
 
 /** `first-load.ts`'s marker for this module: a literal no other source has. */
@@ -137,9 +138,6 @@ export async function confirmIntent(input: {
   return { redirected: false };
 }
 
-/** A shipping option as the wallet lists it (M6 T102); the amount in the main unit. */
-export type ExpressRate = { id: string; name: string; amount: number };
-
 /** What a wallet shows of the address before the shopper pays: no name, no street. */
 export type ExpressPartialAddress = {
   countryCode: string;
@@ -177,9 +175,13 @@ export type ExpressOptions = {
   rates: ExpressRate[];
   /** The wallets the Element draws, by Stripe's names (`link`, `applePay`…); none: `[]`. */
   onShown(methods: string[]): void;
-  /** The cart's options and total for the wallet's address, or `null` to refuse it. */
+  /**
+   * The cart's options and total for the wallet's address, or `null` to refuse it. `fresh` on the
+   * sheet's first address event, so the shop keeps what the cart had before it.
+   */
   onAddress(
     address: ExpressPartialAddress,
+    fresh: boolean,
   ): Promise<{ rates: ExpressRate[]; total: number } | null>;
   /** The cart's total with the wallet's option, or `null` to refuse it. */
   onRate(id: string): Promise<{ total: number } | null>;
@@ -187,6 +189,8 @@ export type ExpressOptions = {
   onPay(payment: ExpressPayment): Promise<ExpressPrepared>;
   /** The cart's total now, after the shop answered `changed`. */
   onTotal(): Promise<number | null>;
+  /** The sheet closed without a payment: the shop writes back the cart's own and answers its total. */
+  onCancel(): Promise<number | null>;
   /** Where Stripe sends a method that leaves the shop, absolute. */
   returnUrl: string;
   /** Confirmed, or refused by Stripe with its reason: the return route says which. */
@@ -233,7 +237,8 @@ export async function mountExpressCheckout(options: ExpressOptions): Promise<Mou
   if (stripe === null) throw new Error("Stripe.js did not load");
   const currency = options.currency.toLowerCase();
   let amount = smallestUnit(options.amount, currency);
-  const initial = amount;
+  // The next address event is the sheet's first (set by `click`): the shop keeps the cart's own.
+  let fresh = false;
   const elements: StripeElements = stripe.elements({
     mode: "payment",
     amount,
@@ -258,10 +263,15 @@ export async function mountExpressCheckout(options: ExpressOptions): Promise<Mou
       .map(([name]) => name);
     options.onShown(methods);
   });
-  element.on("click", (event) => event.resolve());
+  element.on("click", (event) => {
+    fresh = true;
+    event.resolve();
+  });
   element.on("shippingaddresschange", (event) => {
+    const first = fresh;
+    fresh = false;
     void options
-      .onAddress(partialOf(event.address))
+      .onAddress(partialOf(event.address), first)
       .then((answer) => {
         if (answer === null) return event.reject();
         setAmount(answer.total);
@@ -280,8 +290,13 @@ export async function mountExpressCheckout(options: ExpressOptions): Promise<Mou
       .catch(() => event.reject());
   });
   element.on("cancel", () => {
-    amount = initial;
-    elements.update({ amount });
+    fresh = false;
+    void options
+      .onCancel()
+      .then((total) => {
+        if (total !== null) setAmount(total);
+      })
+      .catch(() => {});
   });
   element.on("confirm", (event) => {
     const fail = (kind: "address" | "changed" | "failed") => {

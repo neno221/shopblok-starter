@@ -5,10 +5,12 @@ import {
   expressAddress,
   expressConfirm,
   expressRate,
+  expressRestore,
   expressTotal,
 } from "../../../lib/actions/checkout";
 import { paymentReturnUrl } from "./payment-return-url";
-import type { ExpressPrepared, ExpressRate } from "./stripe-client";
+import type { ExpressRate } from "../../../lib/view-models/checkout";
+import type { ExpressPrepared } from "./stripe-client";
 
 // Ours (M6 T102, SETUP.md "Express checkout (T102)"; D120). Stripe's Express Checkout Element in the
 // `express-rail` layout's rail (`slots.express`), on the contact step. The rail is hidden until the
@@ -16,7 +18,8 @@ import type { ExpressPrepared, ExpressRate } from "./stripe-client";
 // while this island's root says `hidden`), so without scripts, or on a device with no wallet, the
 // page is the default layout's. The island loads Stripe after hydration (`stripe-client.ts`, by
 // `import()`, in no first load), and each wallet event goes through the cart: the address the
-// wallet shows and the option picked in it (`expressAddress`, `expressRate`), then the payment
+// wallet shows and the option picked in it (`expressAddress`, `expressRate`), the sheet closed
+// without a payment (`expressRestore`: the cart's own address and option back), then the payment
 // (`expressConfirm`: the address, the e-mail, the token, the session), which Stripe confirms; the
 // order is placed by `/api/payment-return`, as for every Stripe payment (D117).
 
@@ -38,6 +41,23 @@ export type ExpressCheckoutIslandProps = {
 };
 
 type State = "hidden" | "shown";
+
+/**
+ * The refused fields that are the wallet's shipping address (its name among them): the wallet is
+ * told the address is the problem. Any other (the e-mail, the token) is a payment that failed.
+ */
+const ADDRESS_FIELDS = new Set([
+  "name",
+  "firstName",
+  "lastName",
+  "phone",
+  "countryCode",
+  "address1",
+  "address2",
+  "city",
+  "province",
+  "postalCode",
+]);
 
 export function ExpressCheckoutIsland(props: ExpressCheckoutIslandProps) {
   const host = useRef<HTMLDivElement>(null);
@@ -73,9 +93,9 @@ export function ExpressCheckoutIsland(props: ExpressCheckoutIslandProps) {
             if (methods.length > 0) setState("shown");
             else mounted?.destroy();
           },
-          onAddress: async (address) => {
+          onAddress: async (address, fresh) => {
             setError(null);
-            const answer = await expressAddress({ market, ...address });
+            const answer = await expressAddress({ market, fresh, ...address });
             return answer.ok ? { rates: answer.data.rates, total: answer.data.total } : null;
           },
           onRate: async (id) => {
@@ -94,11 +114,16 @@ export function ExpressCheckoutIsland(props: ExpressCheckoutIslandProps) {
             if (answer.reason === "changed") return { error: "changed" };
             const fields = Object.keys(answer.errors);
             return {
-              error: fields.some((field) => field !== "shippingOption") ? "address" : "failed",
+              error: fields.some((field) => ADDRESS_FIELDS.has(field)) ? "address" : "failed",
             };
           },
           onTotal: async () => {
             const answer = await expressTotal(market);
+            return answer.ok ? answer.data.total : null;
+          },
+          onCancel: async () => {
+            setError(null);
+            const answer = await expressRestore(market);
             return answer.ok ? answer.data.total : null;
           },
           onConfirmed: ({ intentId, clientSecret, error }) => {

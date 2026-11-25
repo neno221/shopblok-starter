@@ -364,6 +364,127 @@ describe("the analytics consent in the cart's metadata (T97, D124)", () => {
   });
 });
 
+describe("the cart before a wallet opened (T102, D120)", () => {
+  const saved = {
+    id: "caaddr_1",
+    first_name: "Maria",
+    last_name: "Georgiou",
+    company: null,
+    address_1: "Leoforos Makariou 10",
+    address_2: "",
+    city: "Nicosia",
+    province: null,
+    postal_code: "1065",
+    country_code: "cy",
+    phone: null,
+  };
+  const kept = {
+    first_name: "Maria",
+    last_name: "Georgiou",
+    address_1: "Leoforos Makariou 10",
+    city: "Nicosia",
+    postal_code: "1065",
+    country_code: "cy",
+  };
+
+  it("keeps an address's own fields, and `{}` for Medusa's empty one", async () => {
+    const { addressInputOf, expressBeforeOf } = await import("./cart");
+    expect(addressInputOf(saved)).toEqual(kept);
+    expect(addressInputOf({ id: "caaddr_2", city: null, country_code: null })).toEqual({});
+    expect(addressInputOf(null)).toEqual({});
+    expect(expressBeforeOf({ address: kept, option: "so_pickup" })).toEqual({
+      address: kept,
+      option: "so_pickup",
+    });
+    expect(expressBeforeOf("")).toBeNull();
+    expect(expressBeforeOf(undefined)).toBeNull();
+  });
+
+  describe("through the SDK", () => {
+    beforeEach(() => {
+      vi.resetModules();
+      jar.reset({ _medusa_cart_id: "cart_1" });
+      vi.stubEnv("MEDUSA_BACKEND_URL", "http://medusa.test:9000");
+      vi.stubEnv("NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY", PUBLISHABLE_KEY);
+    });
+    afterEach(() => {
+      vi.unstubAllEnvs();
+      vi.unstubAllGlobals();
+    });
+
+    const cartWith = (metadata: Record<string, unknown>) => ({
+      ...wireCart,
+      shipping_address: saved,
+      shipping_methods: [{ id: "casm_1", shipping_option_id: "so_pickup" }],
+      metadata,
+    });
+
+    it("keeps the cart's address and option on the sheet's first address event", async () => {
+      const calls = stubMedusaFetch(() => ({
+        body: { cart: cartWith({ express_before: { address: {}, option: null } }) },
+      }));
+      const { keepExpressBefore } = await import("./cart");
+      await keepExpressBefore(true);
+      expect(calls.at(-1)?.body).toEqual({
+        metadata: { express_before: { address: kept, option: "so_pickup" } },
+      });
+    });
+
+    it("keeps nothing on a later event when a copy is kept already", async () => {
+      const calls = stubMedusaFetch(() => ({
+        body: { cart: cartWith({ express_before: { address: {}, option: null } }) },
+      }));
+      const { keepExpressBefore } = await import("./cart");
+      await keepExpressBefore(false);
+      expect(calls.map((call) => call.method)).toEqual(["GET"]);
+    });
+
+    it("writes the kept address back with the copy removed, then the kept option", async () => {
+      const calls = stubMedusaFetch(() => ({
+        body: {
+          cart: {
+            ...wireCart,
+            metadata: { express_before: { address: kept, option: "so_pickup" } },
+          },
+        },
+      }));
+      const canShip = vi.fn(async () => true);
+      const { restoreExpressBefore } = await import("./cart");
+      await restoreExpressBefore(canShip);
+      expect(calls.map((call) => [call.method, call.url.pathname, call.body])).toEqual([
+        ["GET", "/store/carts/cart_1", undefined],
+        [
+          "POST",
+          "/store/carts/cart_1",
+          { shipping_address: kept, billing_address: kept, metadata: { express_before: "" } },
+        ],
+        ["POST", "/store/carts/cart_1/shipping-methods", { option_id: "so_pickup" }],
+      ]);
+      expect(canShip).toHaveBeenCalledWith("so_pickup");
+    });
+
+    it("writes nothing back when nothing is kept", async () => {
+      const calls = stubMedusaFetch(() => ({ body: { cart: wireCart } }));
+      const { restoreExpressBefore } = await import("./cart");
+      await restoreExpressBefore(async () => true);
+      expect(calls.map((call) => call.method)).toEqual(["GET"]);
+    });
+
+    it("removes the copy before an order, with the e-mails' target", async () => {
+      const calls = stubMedusaFetch((call) =>
+        call.method === "GET"
+          ? { body: { cart: { id: "cart_1", metadata: { express_before: { address: {} } } } } }
+          : { body: { cart: { id: "cart_1" } } },
+      );
+      const { prepareCompletion } = await import("./cart");
+      await prepareCompletion("en-US", { market: "/us", language: "en", key: "en-us" });
+      expect(calls.at(-1)?.body).toEqual({
+        metadata: { market: "/us", language: "en", market_key: "en-us", express_before: "" },
+      });
+    });
+  });
+});
+
 describe("the analytics keys agree with the backend's (D124)", () => {
   it("names the same metadata keys and the same distinct-id pattern as Medusa's subscribers", async () => {
     const { readFileSync } = await import("node:fs");

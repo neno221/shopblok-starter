@@ -16,7 +16,11 @@ const setShippingMethod = vi.fn();
 const keepPaymentToken = vi.fn();
 const ensurePaymentSession = vi.fn();
 const prepareCompletion = vi.fn();
+const keepExpressBefore = vi.fn();
+const restoreExpressBefore = vi.fn();
 vi.mock("../medusa/cart", () => ({
+  keepExpressBefore,
+  restoreExpressBefore,
   getCart,
   moveCart,
   setEmail,
@@ -47,6 +51,7 @@ const {
   expressAddressAction,
   expressConfirmAction,
   expressRateAction,
+  expressRestoreAction,
   expressTotalAction,
   splitName,
 } = await import("./checkout-express");
@@ -115,9 +120,21 @@ describe("expressAddressAction (the wallet's address)", () => {
       ok: false,
       errors: { countryCode: "invalid" },
     });
+    expect(keepExpressBefore).not.toHaveBeenCalled();
     expect(setAddresses).not.toHaveBeenCalled();
     expect(setShippingMethod).not.toHaveBeenCalled();
     expect(updateTag).not.toHaveBeenCalled();
+  });
+
+  it("keeps the cart's own address and option before the wallet's: fresh on the sheet's first event", async () => {
+    const order: string[] = [];
+    keepExpressBefore.mockImplementation(async () => void order.push("keepExpressBefore"));
+    setAddresses.mockImplementation(async () => void order.push("setAddresses"));
+    await expressAddressAction({ ...address, fresh: true });
+    expect(keepExpressBefore).toHaveBeenCalledWith(true, "en-US");
+    expect(order).toEqual(["keepExpressBefore", "setAddresses"]);
+    await expressAddressAction(address);
+    expect(keepExpressBefore).toHaveBeenLastCalledWith(false, "en-US");
   });
 
   it("keeps the partial address without a name or a street, and answers the deliverable options", async () => {
@@ -308,9 +325,12 @@ describe("expressConfirmAction (the wallet's payment)", () => {
     expect(ensurePaymentSession).not.toHaveBeenCalled();
   });
 
-  it("refuses when the region does not offer Stripe", async () => {
+  it("refuses when the region does not offer Stripe, and writes nothing", async () => {
     listPaymentProviders.mockResolvedValue(["pp_system_default"]);
     expect(await expressConfirmAction(payment)).toMatchObject({ ok: false, form: "incomplete" });
+    expect(setEmail).not.toHaveBeenCalled();
+    expect(setAddresses).not.toHaveBeenCalled();
+    expect(setShippingMethod).not.toHaveBeenCalled();
     expect(keepPaymentToken).not.toHaveBeenCalled();
   });
 
@@ -327,5 +347,21 @@ describe("expressTotalAction", () => {
       ok: true,
       data: { total: 20, currency: "eur" },
     });
+  });
+});
+
+describe("expressRestoreAction (the sheet closed without a payment)", () => {
+  it("writes back what the cart had, with only one of its options, and answers the total", async () => {
+    restoreExpressBefore.mockImplementation(async (canShip: (id: string) => Promise<boolean>) => {
+      expect(await canShip("so_pickup")).toBe(true);
+      expect(await canShip("so_other")).toBe(false);
+      return shipped("so_pickup", 0);
+    });
+    expect(await expressRestoreAction({ market: "en-de" })).toEqual({
+      ok: true,
+      data: { total: 20, currency: "eur" },
+    });
+    expect(restoreExpressBefore).toHaveBeenCalledWith(expect.any(Function), "en-US");
+    expect(updateTag).toHaveBeenCalledWith("cart");
   });
 });

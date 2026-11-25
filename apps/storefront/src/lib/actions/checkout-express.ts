@@ -1,21 +1,19 @@
 import "server-only";
 import { updateTag } from "next/cache";
 import { z } from "zod";
-import type { MarketContext } from "../market-context";
 import {
   ensurePaymentSession,
-  getCart,
+  keepExpressBefore,
   keepPaymentToken,
-  moveCart,
   prepareCompletion,
+  restoreExpressBefore,
   setAddresses,
   setEmail,
   setShippingMethod,
-  type CartDto,
 } from "../medusa/cart";
 import { listShippingOptions } from "../medusa/fulfillment";
 import { mailTarget } from "../markets";
-import { listPaymentProviders, paysWithStripe, STRIPE_PAYMENT_PROVIDER } from "../medusa/payment";
+import { STRIPE_PAYMENT_PROVIDER } from "../medusa/payment";
 import { toAddressInput } from "../view-models/address";
 import {
   expressDeliverable as deliverable,
@@ -23,7 +21,7 @@ import {
 } from "../view-models/checkout";
 import { smallestUnit } from "../../components/checkout/stripe/stripe-options";
 import { action, ActionError, FieldsError } from "./action";
-import { addressErrors, keepFormatFields } from "./checkout-handlers";
+import { addressErrors, keepFormatFields, requireCart, requireStripe } from "./checkout-handlers";
 import { contextFor, formText as text, marketKey } from "./inputs";
 
 // Ours (M6 T102, SETUP.md "Express checkout (T102)"; D120). The express rail's actions: Stripe's
@@ -35,6 +33,9 @@ import { contextFor, formText as text, marketKey } from "./inputs";
 //   the cart without a name or a street (so the contact step is not done by it), and answers the
 //   cart's own shipping options for it, the one the cart had first, with the total for it;
 // - a shipping option picked in the wallet is set on the cart, if it is one of the cart's;
+// - the sheet closed without a payment: the cart's address and option from before the sheet
+//   opened are written back (kept in its `metadata` on the first address event, `keepExpressBefore`),
+//   so a shopper who only looked keeps their contact step and their pickup point;
 // - the payment: the whole address and the e-mail, checked as the contact step checks them, the
 //   option, then the ConfirmationToken the wallet made, kept by the backend as the delivery step's
 //   is, and the Stripe session for the cart's total, whose client secret the browser confirms. The
@@ -47,26 +48,10 @@ const country = z
   .toLowerCase()
   .regex(/^[a-z]{2}$/);
 
-/** The visitor's cart with lines in this market's region and language (`requireCart`'s rule). */
-async function requireCart(context: MarketContext): Promise<CartDto> {
-  const existing = await getCart(context.market.medusaLocale);
-  if (existing === null || existing.lines.length === 0)
-    throw new ActionError("not-found", "the visitor has no cart to check out");
-  return moveCart(existing, {
-    regionId: context.region.id,
-    locale: context.market.medusaLocale,
-  });
-}
-
-/** Stripe must take the payment: the region offers it, the storefront has its key, a total. */
-async function requireStripe(context: MarketContext, total: number): Promise<void> {
-  const providers = await listPaymentProviders(context.region.id);
-  if (!paysWithStripe(providers, total))
-    throw new ActionError("incomplete", "the cart does not pay with Stripe");
-}
-
 export const expressAddressSchema = z.object({
   market: marketKey,
+  /** The sheet's first address event: what the cart had is kept before it is replaced. */
+  fresh: z.boolean().optional(),
   countryCode: country,
   postalCode: text(20),
   city: text(100),
@@ -81,12 +66,13 @@ export const expressAddressSchema = z.object({
  */
 export const expressAddressAction = action(
   expressAddressSchema,
-  async ({ market, countryCode, postalCode, city, province }) => {
+  async ({ market, fresh, countryCode, postalCode, city, province }) => {
     const context = await contextFor(market);
     if (!context.region.countries.includes(countryCode))
       throw new FieldsError({ countryCode: "invalid" });
     const cart = await requireCart(context);
     const locale = context.market.medusaLocale;
+    await keepExpressBefore(fresh === true, locale);
     // No name and no street: the wallet shows them only when the shopper pays, and the contact step
     // is done only with them (`toAddressDto`).
     await setAddresses(
@@ -174,6 +160,8 @@ export const expressConfirmAction = action(
   async ({ market, email, name, shippingOption, confirmationToken, amount, ...rest }) => {
     const context = await contextFor(market);
     const cart = await requireCart(context);
+    // A region without Stripe gets nothing written (the page draws no rail there).
+    await requireStripe(context, cart.total.amount);
     const htmlLang = context.market.htmlLang;
     const locale = context.market.medusaLocale;
     const address = { ...rest, ...splitName(name) };
@@ -195,7 +183,8 @@ export const expressConfirmAction = action(
       locale,
     );
     const shipped = await setShippingMethod(shippingOption, locale);
-    await requireStripe(context, shipped.total.amount);
+    if (shipped.total.amount <= 0)
+      throw new ActionError("incomplete", "the cart has no total for Stripe to take");
     if (smallestUnit(shipped.total.amount, shipped.currencyCode) !== amount)
       throw new ActionError("rejected", "the wallet showed another total", "changed");
     await keepPaymentToken(confirmationToken, locale);
@@ -218,4 +207,22 @@ export const expressTotalAction = action(expressTotalSchema, async ({ market }) 
   const context = await contextFor(market);
   const cart = await requireCart(context);
   return { total: cart.total.amount, currency: cart.currencyCode };
+});
+
+export const expressRestoreSchema = z.object({ market: marketKey });
+
+/**
+ * The wallet's sheet closed without a payment (`cancel`): the cart's address and option from before
+ * it opened, written back (`restoreExpressBefore`), and the cart's total then, for the Element.
+ */
+export const expressRestoreAction = action(expressRestoreSchema, async ({ market }) => {
+  const context = await contextFor(market);
+  const cart = await requireCart(context);
+  const locale = context.market.medusaLocale;
+  const restored = await restoreExpressBefore(async (optionId) => {
+    const options = await listShippingOptions(cart.id, cart.currencyCode, locale);
+    return options.some((option) => option.id === optionId);
+  }, locale);
+  updateTag("cart");
+  return { total: restored.total.amount, currency: restored.currencyCode };
 });

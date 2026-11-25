@@ -270,8 +270,9 @@ const WALLETS: Record<string, PaymentBrand> = { apple_pay: "applepay", google_pa
 
 /**
  * How a payment reads (M6 D117): Stripe's preview as a card's brand and last four ("Visa ending in
- * 4242"), Revolut Pay and Link (the express rail's, T102) by their names, a wallet with no card shown by the wallet's mark, any other
- * Stripe method by Stripe's name; the system payment's words otherwise.
+ * 4242"), Revolut Pay and Link (the express rail's, T102) by their names, a wallet with no card
+ * shown by the wallet's mark, any other Stripe method by Stripe's name; the system payment's words
+ * otherwise.
  */
 export function paymentOf(
   providerId: string | null,

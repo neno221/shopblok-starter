@@ -3,7 +3,7 @@ import { catalogs } from "../support/catalogs";
 import { publishGlobal, snapshotGlobal, type GlobalData } from "../support/globals";
 import { skipWithoutKeys } from "../support/integration-keys";
 import { medusaAdminApi, medusaAdminToken, medusaUrl } from "../support/medusa-admin";
-import { add, orderIdOf, withoutScripts } from "../support/purchase";
+import { add, fillContact, orderIdOf, withoutScripts } from "../support/purchase";
 import { adminToken, freshWithinTwo } from "../support/server";
 
 // M6 D120 (T102, SETUP.md "Express checkout (T102)"): Stripe's Express Checkout Element in the
@@ -14,6 +14,8 @@ import { adminToken, freshWithinTwo } from "../support/server";
 // cart's actions (the shipping option and its price come from Medusa), and the payment ends on the
 // receipt through `/api/payment-return`, authorised and not captured (D118). The rail is drawn only
 // with `express-rail` and only once the Element has a wallet to show; without scripts it is hidden.
+// A shopper who only looks (the wallet's address entered, the sheet closed) keeps the contact step
+// they had done: the cart's address is written back (PR 141 review, item 1).
 // `afterAll` publishes the templates global as it was, in every language.
 
 skipWithoutKeys(test, "stripe");
@@ -117,21 +119,17 @@ async function next(modal: FrameLocator) {
   await button.click();
 }
 
-test("a Link payment in / to the receipt: the wallet's address, the cart's option, authorised", async ({
-  page,
-}) => {
-  await add(page, "");
-  await useLayout(page, "express-rail");
-  await page.goto("/checkout/contact");
-  await expect(island(page)).toHaveAttribute("data-express", "shown", { timeout: 60_000 });
-  const email = `express-${Date.now()}@example.com`;
+/**
+ * Opens Link's sheet from the rail and signs a new e-mail up (a test phone, the sandbox passcode),
+ * up to Link's shipping address form: answers the modal.
+ */
+async function openLink(page: Page, email: string): Promise<FrameLocator> {
   await page
     .frameLocator('[data-slot="express-checkout"] iframe')
     .first()
     .getByRole("button")
     .first()
     .click();
-
   const modal = linkModal(page);
   await modal.locator("input").first().fill(email, { timeout: 30_000 });
   await next(modal);
@@ -141,6 +139,84 @@ test("a Link payment in / to the receipt: the wallet's address, the cart's optio
   await modal
     .locator('input[name="search-codeControllingInput"]')
     .fill("000000", { timeout: 30_000 });
+  return modal;
+}
+
+/** Link's shipping address form, filled with a Nicosia address under `name`. */
+async function fillLinkAddress(modal: FrameLocator, name: string, street: string) {
+  const country = modal.locator('select[name="country"]');
+  await expect(country).toBeVisible({ timeout: 30_000 });
+  await modal.locator('input[name="name"]').fill(name);
+  await country.selectOption("CY");
+  await modal.locator('input[name="addressLine1"]').fill(street);
+  await modal.locator('input[name="postalCode"]').fill("1065");
+  await modal.locator('input[name="locality"]').fill("Nicosia");
+}
+
+test("closing Link's sheet without paying keeps the contact step the shopper had done", async ({
+  page,
+}) => {
+  await add(page, "");
+  await useLayout(page, "express-rail");
+  await page.goto("/checkout/contact");
+  await expect(island(page)).toHaveAttribute("data-express", "shown", { timeout: 60_000 });
+  const street = "Odos Lidras 5";
+  await fillContact(page, words, `looker-${Date.now()}@example.com`, {
+    firstName: "Eleni",
+    lastName: "Constantinou",
+    address1: street,
+    postalCode: "1010",
+    city: "Nicosia",
+  });
+  await page.getByRole("button", { name: words.templates.checkout.contact.submit }).click();
+  await expect(page).toHaveURL(/\/checkout\/delivery$/);
+
+  // Back on the contact step ("Edit"), the wallet opened: its address goes through the cart.
+  await page.goto("/checkout/contact");
+  await expect(island(page)).toHaveAttribute("data-express", "shown", { timeout: 60_000 });
+  const modal = await openLink(page, `express-look-${Date.now()}@example.com`);
+  await fillLinkAddress(modal, "Wallet Person", "Leoforos Makariou 10");
+  await next(modal);
+  // The wallet's address is the cart's now (Medusa's shipping in the page's summary)...
+  await expect(page.locator('[data-slot="order-summary"]').first()).toContainText("6,00", {
+    timeout: 30_000,
+  });
+  // ...and closing the sheet (Link's own close button, on its card form) writes the cart's own
+  // back: the Element's `cancel`, one action.
+  await expect(modal.locator('input[name="cardNumber"]')).toBeVisible({ timeout: 30_000 });
+  const restored = page.waitForResponse(
+    (response) =>
+      response.request().method() === "POST" &&
+      new URL(response.url()).pathname === "/checkout/contact",
+    { timeout: 30_000 },
+  );
+  await modal.locator('[data-testid="ulm-header-close-button"]:visible').first().click();
+  expect((await restored).ok()).toBe(true);
+  // The delivery step opens again (a cart without a name or a street draws the contact step).
+  await expect
+    .poll(
+      async () => {
+        await page.goto("/checkout/delivery");
+        return page.locator('[data-slot="checkout-shipping"]:visible').count();
+      },
+      { timeout: 30_000 },
+    )
+    .toBeGreaterThan(0);
+  await page.goto("/checkout/contact");
+  const form = page.locator('[data-slot="address-form"]:visible');
+  await expect(form.locator('input[name="address1"]')).toHaveValue(street);
+  await expect(form.locator('input[name="firstName"]')).toHaveValue("Eleni");
+});
+
+test("a Link payment in / to the receipt: the wallet's address, the cart's option, authorised", async ({
+  page,
+}) => {
+  await add(page, "");
+  await useLayout(page, "express-rail");
+  await page.goto("/checkout/contact");
+  await expect(island(page)).toHaveAttribute("data-express", "shown", { timeout: 60_000 });
+  const email = `express-${Date.now()}@example.com`;
+  const modal = await openLink(page, email);
 
   // The wallet offers only the region's countries (D120: `allowedShippingCountries`).
   const country = modal.locator('select[name="country"]');
@@ -151,11 +227,7 @@ test("a Link payment in / to the receipt: the wallet's address, the cart's optio
       options.map((option) => (option as HTMLOptionElement).value).filter((value) => value !== ""),
     );
   expect(offered.sort()).toEqual(["CY", "DE", "FR"]);
-  await modal.locator('input[name="name"]').fill("Maria Georgiou");
-  await country.selectOption("CY");
-  await modal.locator('input[name="addressLine1"]').fill("Leoforos Makariou 10");
-  await modal.locator('input[name="postalCode"]').fill("1065");
-  await modal.locator('input[name="locality"]').fill("Nicosia");
+  await fillLinkAddress(modal, "Maria Georgiou", "Leoforos Makariou 10");
   await next(modal);
 
   // The wallet's address went through the cart: Medusa's shipping is in the page's summary.
