@@ -31,6 +31,9 @@ const SHELL_KEY = (process.env.STRIPE_API_KEY ?? "").trim();
 const LIVE = /^sk_test_\w{16,}$/.test(SHELL_KEY);
 process.env.STRIPE_API_KEY = LIVE ? SHELL_KEY : "sk_test_fake";
 process.env.STRIPE_WEBHOOK_SECRET = "ci-stand-in-webhook-secret";
+// The verification mail carries a link, and without an http(s) `STOREFRONT_URL` the backend sends
+// none (`storefront-mail.ts`). CI's job sets no `STOREFRONT_URL` (the local `.env` does).
+process.env.STOREFRONT_URL = "http://localhost:8000";
 const live = LIVE ? it : it.skip;
 if (!LIVE)
   // eslint-disable-next-line no-console
@@ -98,9 +101,7 @@ medusaIntegrationTestRunner({
                 { order: { created_at: "DESC" } },
               )) as unknown as Notification[]
             )[0],
-          // The seed's events (the demo catalog's indexing, the region sync) go first through the
-          // event bus, so on CI's slower runners the mail can take longer than `until`'s 10 s.
-          { what: `${template} to ${to}`, timeoutMs: 90_000 },
+          { what: `${template} to ${to}` },
         );
         return value;
       };
