@@ -79,6 +79,8 @@ export const KEY_KINDS: readonly KeyKind[] = [
 export const ALLOWED_FAKE_KEYS: ReadonlySet<string> = new Set<string>([
   // scripts/lib/no-keys.test.ts: the check's own mutation, which proves a real-length key fails.
   "sk_test_FAKEFAKEFAKEFAKE0000",
+  // scripts/lib/s3.test.ts: AWS's own documented example key id (the SigV4 test vectors).
+  "AKIAIOSFODNN7EXAMPLE",
 ]);
 
 export type Finding = {

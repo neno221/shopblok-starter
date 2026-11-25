@@ -10191,3 +10191,79 @@ Review: `reviews/pr-142-code-review.md` in the project library. Fixed: must-fix 
 7. **After PR 141 (T102):** this PR merged `main` after T102 and settled the shared files (the checkout page's slots, `stripe-client.ts`, `checkout-handlers.ts`'s `requireStripe` beside the ownership check, the strings: 803 + T102's 3 + T101's 9 = **815**). An express payment's session never inherits a saved card or saving: the token route clears the kept saved method and saving, and `sessionMatches` no longer reuses a session holding a `payment_method` for a payment that asks for none.
 
 **For M7's security pass (item 9):** whoever has a cart's id can read its sessions' `client_secret` through Medusa's store cart API, and so confirm a PaymentIntent that holds the owner's saved card; the cart id is the bearer secret (only the storefront's httpOnly cookie holds it). A fix could drop `payment_method` from a session when the cart's customer is not the caller.
+
+## R2 (T95)
+
+**Result: with the `S3_*` keys in both apps (and `S3_PRIVATE_BUCKET` in the backend), Payload's media and Medusa's files are on Cloudflare R2: a picture uploaded in Payload's admin goes from the browser straight to the public bucket, gets every image size and is drawn from `S3_PUBLIC_URL`; Medusa Admin's uploads are public there too; Medusa's private files (product exports and imports) go to the private bucket, read only through a presigned link. Without the keys both apps keep their local files, unchanged. No R2 keys are in GitHub or the cloud yet, so the code was checked against a local S3 stand-in (D114) and the live spec (`e2e/integrations/r2.spec.ts`) skips itself, naming the keys, until they are in. The plan's mutation (a private file sent to the public bucket) fails three of the provider's unit tests and the live spec's 404.** D127 (plans/M6.md §5 T95).
+
+| | |
+|---|---|
+| Date | 2026-11-25 |
+| Branch | `claude/project-thread-v12wdy`, from `main` at `f56d137` (PR 142's merge, T101) |
+| PR | this PR, "T95: R2 file storage" |
+| Packages | `@payloadcms/storage-s3` 3.93.0 in the storefront (exact, Payload's version; it brings `@payloadcms/plugin-cloud-storage` 3.93.0 and reuses the `@aws-sdk/client-s3` 3.1162.0 already in the lockfile) |
+| Migration | `apps/storefront/src/migrations/20261125_234610_media_storage_fields` (the two fields below) |
+
+### Medusa: the two-bucket provider
+
+- **`apps/backend/src/modules/r2-file/`** (new, provider id `r2`). Medusa's File Module takes one provider, and `file-s3` serves one bucket, but Medusa reads and deletes a file by its key alone (`retrieveFile(id)` asks the provider for `getPresignedDownloadUrl({ fileKey })`), so the provider holds **two `file-s3` services** (plan step 1: reusable, no calls of our own) and routes by key prefix:
+  - `access: "public"` (Medusa Admin's `/admin/uploads`, product pictures) → `S3_BUCKET`, keys `medusa/…`, URL `S3_PUBLIC_URL/medusa/…`;
+  - anything else (`"private"`, or no `access`, which is Medusa's default: the product export's `getUploadStream`, presigned upload URLs for imports) → `S3_PRIVATE_BUCKET`, keys `private/…`, `Cache-Control: private, no-store`, its `url` on the S3 API (useless without a signature);
+  - reads, presigned download URLs, streams, buffers and deletes go by the key's prefix (`isPrivateKey`), a delete of several keys split per bucket. A public file named `private/x.png` is stored as `medusa/private/x.png` and stays public.
+  - Both buckets: `acl: false` (R2's PutObject takes no `x-amz-acl`), path-style URLs, region `auto` when `S3_REGION` is blank.
+  - `validateOptions` refuses a missing key and the same bucket for both.
+- **`modules.ts`** registers `@medusajs/medusa/file` with this provider only when all six keys (`S3_ENDPOINT`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_BUCKET`, `S3_PRIVATE_BUCKET`, `S3_PUBLIC_URL`) are set; one blank keeps Medusa's `file-local`. Values are trimmed.
+- **Tests:** `src/modules/r2-file/__tests__/r2-file.unit.spec.ts` (10) runs the provider against a fake S3 server on localhost: each upload's bucket, key and headers (no `x-amz-acl`), the export stream, the presigned upload and download URLs' bucket and signature, reads from the private bucket, the split delete, a public `private/…` name, and the refused options; `modules.unit.spec.ts` the registration (all keys, any one blank, trimming and `auto`).
+
+### Payload: media on R2
+
+- **`src/payload/storage.ts`** (new): `mediaStorage(process.env)` in `payload.config.ts`'s plugins, `@payloadcms/storage-s3` on `media` with `prefix: "media"`, `clientUploads: true` (the admin's browser PUTs the file to R2 with a presigned URL from `/api/storage-s3-generate-signed-url`, so Vercel's 4.5 MB body limit does not apply), `disablePayloadAccessControl: true` and `generateFileURL` = `S3_PUBLIC_URL/media/<file>`; `forcePathStyle` and region `auto` as above. It is on with the five storefront keys (`S3_ENDPOINT`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_BUCKET`, `S3_PUBLIC_URL`); without them it is off and `staticDir` is used as before.
+- **Plan step 2: `clientUploads` keeps the sizes.** After the browser's PUT, Payload reads the file back from R2 and makes `thumb`, `card`, `hero` and `og` itself; the live spec checks all four are on `S3_PUBLIC_URL` and served.
+- **`media`'s fields changed** (the plan expected none): the plugin adds `prefix` (default `media`) and `_objectKey`. `alwaysInsertFields: true` adds them with or without keys, so the schema does not depend on the env; hence the migration above (`ALTER TABLE "media" ADD COLUMN "prefix" varchar DEFAULT 'media'`, `ADD COLUMN "_objectkey" varchar`). Local uploads now store `prefix: "media"` and `_objectKey: null`; nothing else changes for them. `payload-types.ts` and `importMap.js` (`S3ClientUploadHandler`, always there) are regenerated.
+- **Files already uploaded are not moved** (plan §9): turning R2 on for a site with local media means uploading them again, or copying `public/media/` into the bucket under `media/`.
+
+### Next
+
+- **`src/lib/media-host.ts`** (new): `mediaRemotePatterns(process.env)` turns `S3_PUBLIC_URL` into `images.remotePatterns` (its protocol, host, port and `path/**`), so `next/image` optimises R2's pictures; blank, none; a value that is not an http(s) URL fails the build. `next.config.ts` also sets `dangerouslyAllowLocalIP` only for `next dev` (a stand-in on localhost; Next 16 refuses local upstreams otherwise).
+- **`mediaSrc`** (`src/lib/cms/shell.ts`) already passed an absolute URL through; the new test shows an R2 URL is drawn whole.
+
+### Doctor and `pnpm r2:cors`
+
+- **Offline** (`r2KeyChecks`, `scripts/lib/r2-checks.ts`, in every `doctor`): an error when the backend's `S3_PRIVATE_BUCKET` is an app's `S3_BUCKET`, when `S3_PUBLIC_URL` or `S3_ENDPOINT` is not a URL, or when `S3_PUBLIC_URL` is the S3 API's host (`*.r2.cloudflarestorage.com`, which serves nothing unsigned); a warning when the two apps' public URLs and buckets do not pair up.
+- **`doctor --online`** (signed with our own SigV4, `scripts/lib/s3.ts`, so the root scripts need no AWS SDK; its tests reproduce AWS's three documented signatures). It only reads:
+  - `r2-bucket-public`, `r2-bucket-private`: a signed `HEAD` on each bucket (403: the token lacks the bucket; 404: no such bucket);
+  - `r2-cors`: the public bucket's CORS rules allow a `PUT` from `NEXT_PUBLIC_BASE_URL`'s origin with the headers the admin sends (an error without one, a warning for `*`);
+  - `r2-private`: one key from the private bucket (`private/`, or a probe key while it is empty) is refused unsigned on the S3 API (400, 401 or 403) and, for a real file, answers 404 on `S3_PUBLIC_URL`.
+- **`pnpm r2:cors`** (`scripts/r2-cors.ts`, new): reads the `S3_*` keys and `NEXT_PUBLIC_BASE_URL` from the shell or `apps/storefront/.env`, reads the public bucket's CORS rules, adds the admin's origin to one rule (`GET`, `HEAD`, `PUT`; headers `*`; exposes `ETag`) and keeps every other rule; a second run changes nothing. `--origin <url>` (repeatable) adds more origins, `--dry-run` prints the rules without writing. It prints no key.
+- `@shopblok/integrations`: R2 is `wired`. Every integration's code is now built; the admin's integrations panel says so.
+
+### The live spec
+
+`e2e/integrations/r2.spec.ts` (skips itself without the keys; in `integrations-live`, whose `S3_*` variables and secrets T93 already passes, and the build gets `S3_PUBLIC_URL`). Serial; `beforeAll` runs `pnpm r2:cors`'s script, `afterAll` deletes every page, media document and Medusa file it made.
+1. `doctor --online`'s R2 checks are ok: both buckets, the CORS rule and the private files refused.
+2. A picture uploaded in Payload's admin: the signed URL answers 200, the browser's own `PUT` to R2 answers 200, the document's URL and its four sizes are on `S3_PUBLIC_URL/media/` and served; a page with a Media with text block draws it through `/_next/image` from there.
+3. A picture uploaded through Medusa Admin's upload route: its key is `medusa/…`, its URL `S3_PUBLIC_URL/<key>`, served unsigned as `image/png`.
+4. A product export (Medusa's `feed` notification carries its presigned link): on `S3_PUBLIC_URL` it answers 404 and unsigned on the S3 API 400, 401 or 403 (checked first, so the mutation fails here); the presigned link downloads it (the CSV's `Product Id` header), from `S3_PRIVATE_BUCKET` on `S3_ENDPOINT`'s host, key `private/…-product-exports-….csv`.
+
+### The stand-in run (D114)
+
+R2 has no local double, MinIO's image is no longer on Docker Hub and quay.io is not reachable from the cloud, so the run used `adobe/s3mock` on port 9090 with the buckets `shopblok-dev` and `shopblok-dev-private`, `medusa develop` and `next dev` on the `S3_*` env:
+- tests 2 and 3 passed, and test 4 up to the unsigned read: s3mock serves unsigned reads and has no CORS (its `PUT ?cors` answers 409), so those two steps (and test 1's `r2-cors` and `r2-private`) are R2's, checked when the keys are in; every object the spec made was deleted;
+- **the mutation** (`storeFor` sending a file without `access: "public"` to the public bucket): three unit tests fail (the private upload, the export stream, the presigned upload) and the live spec fails at "the export on S3_PUBLIC_URL" (200, not 404);
+- **keyless**, `next dev` without the env: a REST upload answers 201 with `/api/media/file/…`, is served as before and deletes; Medusa runs on `file-local`. The keyless fixture already blocks `r2.dev` and `r2.cloudflarestorage.com`.
+
+### Checks (cloud VM)
+
+- Unit tests: backend 328 of 328 (30 files), scripts 506 of 506 (`s3.test.ts`, `r2-checks.test.ts`, `backend-gates.test.ts`), storefront 4,674 of 4,674 (`storage.test.ts`, `media-host.test.ts`, `shell.test.ts`, the integrations panel), `@shopblok/integrations`.
+- Typecheck and lint pass; `pnpm check:keys` passes (AWS's documented example key id, used by `s3.test.ts`'s signatures, is in `ALLOWED_FAKE_KEYS`).
+- The storefront's first load is untouched: the plugin and its upload handler are Payload admin code, and `remotePatterns` is configuration.
+
+### Turning on R2
+
+1. In Cloudflare's dashboard (R2 asks for a payment method first, even within the free tier), make **two buckets**: `shopblok-dev` (public pictures) and `shopblok-dev-private` (exports and imports). On the public bucket only, Settings → Public access: turn on its `r2.dev` URL (development) or connect a custom domain (production; `r2.dev` is rate-limited). Leave the private bucket without public access.
+2. R2 → Manage API tokens → Create: **Object Read & Write**, limited to the two buckets. It gives the access key id and secret, and the account's S3 endpoint `https://<account>.r2.cloudflarestorage.com`.
+3. **Backend** (Railway, or `apps/backend/.env`): `S3_ENDPOINT`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_BUCKET=shopblok-dev`, `S3_PRIVATE_BUCKET=shopblok-dev-private`, `S3_PUBLIC_URL` (the `r2.dev` URL or the domain, never the endpoint); `S3_REGION` may stay blank (`auto`). Restart it.
+4. **Storefront** (Vercel, or `apps/storefront/.env`): the same values without `S3_PRIVATE_BUCKET`. `S3_PUBLIC_URL` is read at `next build`, so a new value needs a new build. The migration above runs with `payload migrate` before the code (it only adds two columns).
+5. **`pnpm r2:cors`** (once per admin origin; it reads `NEXT_PUBLIC_BASE_URL`, `--origin` adds a local one such as `http://localhost:8000`): without it the admin's uploads fail in the browser.
+6. `pnpm doctor --online`: both buckets, the CORS rule and the private files refused.
+7. For CI's live check: the variables `S3_ENDPOINT`, `S3_BUCKET`, `S3_PRIVATE_BUCKET` and `S3_PUBLIC_URL`, and the secrets `S3_ACCESS_KEY_ID` and `S3_SECRET_ACCESS_KEY`, in GitHub's Actions settings and in the cloud environment (G10; a token for dev buckets only).
