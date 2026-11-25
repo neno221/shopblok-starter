@@ -169,7 +169,9 @@ export function stripeWebhookCheck(answer: HttpResult, backendUrl: string): Chec
 export function normalizeDomain(value: string | undefined): string | undefined {
   const text = (value ?? "").trim().toLowerCase();
   if (text === "") return undefined;
-  const host = /^[a-z][a-z0-9+.-]*:\/\//.test(text) ? new URL(text).hostname : text.split(/[/:]/)[0];
+  const host = /^[a-z][a-z0-9+.-]*:\/\//.test(text)
+    ? new URL(text).hostname
+    : text.split(/[/:]/)[0];
   const clean = (host ?? "").replace(/\.$/, "");
   return clean === "" ? undefined : clean;
 }
@@ -214,7 +216,13 @@ export function readStripeDomains(answer: HttpResult): StripeDomain[] | string {
   return (body.data as { id?: unknown; domain_name?: unknown; enabled?: unknown }[]).flatMap(
     (entry) =>
       typeof entry?.id === "string" && typeof entry.domain_name === "string"
-        ? [{ id: entry.id, domain: entry.domain_name.toLowerCase(), enabled: entry.enabled === true }]
+        ? [
+            {
+              id: entry.id,
+              domain: entry.domain_name.toLowerCase(),
+              enabled: entry.enabled === true,
+            },
+          ]
         : [],
   );
 }

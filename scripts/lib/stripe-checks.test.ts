@@ -70,18 +70,29 @@ describe("the regions (D117)", () => {
 describe("the webhook endpoint (production)", () => {
   const url = "https://api.example.com/hooks/payment/stripe_stripe";
   const endpoint = (extra: Record<string, unknown>) =>
-    json(200, { data: [{ url, status: "enabled", enabled_events: [...WEBHOOK_EVENTS], ...extra }] });
+    json(200, {
+      data: [{ url, status: "enabled", enabled_events: [...WEBHOOK_EVENTS], ...extra }],
+    });
 
   it("passes an enabled endpoint at the backend with the four events, or all events", () => {
     expect(stripeWebhookCheck(endpoint({}), "https://api.example.com/").level).toBe("ok");
-    expect(stripeWebhookCheck(endpoint({ enabled_events: ["*"] }), "https://api.example.com").level).toBe("ok");
+    expect(
+      stripeWebhookCheck(endpoint({ enabled_events: ["*"] }), "https://api.example.com").level,
+    ).toBe("ok");
   });
 
   it("fails a missing, disabled or short endpoint", () => {
-    expect(stripeWebhookCheck(json(200, { data: [] }), "https://api.example.com").level).toBe("error");
-    expect(stripeWebhookCheck(endpoint({ status: "disabled" }), "https://api.example.com").level).toBe("error");
+    expect(stripeWebhookCheck(json(200, { data: [] }), "https://api.example.com").level).toBe(
+      "error",
+    );
     expect(
-      stripeWebhookCheck(endpoint({ enabled_events: [WEBHOOK_EVENTS[0]] }), "https://api.example.com").level,
+      stripeWebhookCheck(endpoint({ status: "disabled" }), "https://api.example.com").level,
+    ).toBe("error");
+    expect(
+      stripeWebhookCheck(
+        endpoint({ enabled_events: [WEBHOOK_EVENTS[0]] }),
+        "https://api.example.com",
+      ).level,
     ).toBe("error");
     expect(stripeWebhookCheck(endpoint({}), "https://other.example.com").level).toBe("error");
   });

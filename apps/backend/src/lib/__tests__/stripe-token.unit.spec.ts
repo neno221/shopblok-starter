@@ -58,7 +58,8 @@ describe("sanitizePreview", () => {
   });
 
   it("is null for what is not one", () => {
-    for (const value of [null, "card", { brand: "visa" }, { type: "<b>" }]) expect(sanitizePreview(value)).toBeNull();
+    for (const value of [null, "card", { brand: "visa" }, { type: "<b>" }])
+      expect(sanitizePreview(value)).toBeNull();
     expect(sanitizePreview({ type: "card", last4: "42a2" })).toEqual({ type: "card" });
   });
 });

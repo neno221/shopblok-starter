@@ -600,14 +600,16 @@ export const fr: Messages = {
       details: "Coordonnées de la carte",
       save: "Enregistrer cette carte pour la prochaine fois",
       stripeName: "Payer en ligne",
-      noScript: "Le paiement en ligne nécessite JavaScript. Activez-le dans votre navigateur pour payer ici.",
+      noScript:
+        "Le paiement en ligne nécessite JavaScript. Activez-le dans votre navigateur pour payer ici.",
       systemName: "Payer plus tard",
       systemText: "Passez votre commande maintenant ; la boutique vous indiquera comment payer.",
       submit: "Continuer vers la vérification",
       submitting: "Enregistrement…",
       errors: {
         declined: "Votre paiement n’a pas abouti : {reason}",
-        unpaid: "Votre paiement n’a pas abouti. Veuillez réessayer ou choisir un autre moyen de paiement.",
+        unpaid:
+          "Votre paiement n’a pas abouti. Veuillez réessayer ou choisir un autre moyen de paiement.",
         required: "Choisissez comment vous souhaitez payer.",
         failed: "Nous n’avons pas pu enregistrer votre moyen de paiement. Veuillez réessayer.",
       },

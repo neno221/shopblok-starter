@@ -34,7 +34,9 @@ function toRgb(color: string): string {
   context.fillStyle = color;
   context.fillRect(0, 0, 1, 1);
   const [r, g, b, a] = context.getImageData(0, 0, 1, 1).data;
-  return a === 255 ? `rgb(${r}, ${g}, ${b})` : `rgba(${r}, ${g}, ${b}, ${((a ?? 0) / 255).toFixed(3)})`;
+  return a === 255
+    ? `rgb(${r}, ${g}, ${b})`
+    : `rgba(${r}, ${g}, ${b}, ${((a ?? 0) / 255).toFixed(3)})`;
 }
 
 /** The shop's tokens, as the element they are drawn in resolves them. */

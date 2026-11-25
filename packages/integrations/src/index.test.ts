@@ -180,7 +180,10 @@ describe("getIntegrationStatus", () => {
       S3_PUBLIC_URL: "https://media.example.com",
     };
     const status = byId(
-      getIntegrationStatus({ backend: { ...keys, S3_PRIVATE_BUCKET: "private" }, storefront: keys }),
+      getIntegrationStatus({
+        backend: { ...keys, S3_PRIVATE_BUCKET: "private" },
+        storefront: keys,
+      }),
       "r2",
     );
     expect(status.configured).toBe(true);

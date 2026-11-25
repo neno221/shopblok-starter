@@ -258,7 +258,8 @@ export function paymentOf(
   preview: PaymentPreview | null,
   names: PaymentNames,
 ): { name?: string; brand?: PaymentBrand; last4?: string } {
-  if (providerId !== STRIPE_PAYMENT_PROVIDER) return { name: paymentName(providerId, names.system) };
+  if (providerId !== STRIPE_PAYMENT_PROVIDER)
+    return { name: paymentName(providerId, names.system) };
   if (preview === null) return { name: names.stripe };
   const brand = preview.brand === undefined ? undefined : CARD_BRANDS[preview.brand];
   if (preview.type === "card" && brand !== undefined && preview.last4 !== undefined)

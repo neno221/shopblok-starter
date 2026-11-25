@@ -20,6 +20,9 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   })) as { data: { id: string; metadata?: Record<string, unknown> | null }[] };
   const order = data[0];
   if (order === undefined)
-    throw new MedusaError(MedusaError.Types.NOT_FOUND, `Order with id: ${req.params.id} was not found`);
+    throw new MedusaError(
+      MedusaError.Types.NOT_FOUND,
+      `Order with id: ${req.params.id} was not found`,
+    );
   res.json({ preview: sanitizePreview(order.metadata?.[PREVIEW_KEY]) });
 }

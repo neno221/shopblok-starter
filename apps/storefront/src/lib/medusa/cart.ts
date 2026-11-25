@@ -742,7 +742,10 @@ export async function ensurePaymentSession(
   );
   const wire = cart as unknown as {
     total?: number | null;
-    payment_collection?: { amount?: number | null; payment_sessions?: (WireSession | null)[] | null } | null;
+    payment_collection?: {
+      amount?: number | null;
+      payment_sessions?: (WireSession | null)[] | null;
+    } | null;
   };
   const total = wire.total ?? 0;
   const current = (wire.payment_collection?.payment_sessions ?? []).find(
@@ -762,7 +765,10 @@ export async function ensurePaymentSession(
   const started = await initiatePayment(providerId, locale);
   const again = await readCartPayment(providerId);
   if (started.clientSecret === undefined || again?.intentId == null)
-    throw new MedusaRequestError(`Medusa started no ${providerId} session with a secret`, "rejected");
+    throw new MedusaRequestError(
+      `Medusa started no ${providerId} session with a secret`,
+      "rejected",
+    );
   return { clientSecret: started.clientSecret, intentId: again.intentId, amount: total };
 }
 

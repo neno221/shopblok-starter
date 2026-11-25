@@ -230,7 +230,11 @@ describe("deliveryAction (step 2)", () => {
 
   describe("with Stripe (M6 D117)", () => {
     const owed = { ...contactDone, total: { amount: 25, currencyCode: "eur" } };
-    const stripe = { ...delivery, paymentMethod: "pp_stripe_stripe", confirmationToken: "ctoken_1" };
+    const stripe = {
+      ...delivery,
+      paymentMethod: "pp_stripe_stripe",
+      confirmationToken: "ctoken_1",
+    };
     beforeEach(() => {
       listPaymentProviders.mockResolvedValue(["pp_stripe_stripe", "pp_system_default"]);
       moveCart.mockResolvedValue(owed);
@@ -241,7 +245,8 @@ describe("deliveryAction (step 2)", () => {
       expect(await deliveryAction(stripe)).toEqual({ ok: true, data: { step: "review" } });
       expect(keepPaymentToken).toHaveBeenCalledWith("ctoken_1", "en-US");
       expect(initiatePayment).toHaveBeenCalledWith("pp_stripe_stripe", "en-US");
-      const order = (fn: { mock: { invocationCallOrder: number[] } }) => fn.mock.invocationCallOrder[0] ?? 0;
+      const order = (fn: { mock: { invocationCallOrder: number[] } }) =>
+        fn.mock.invocationCallOrder[0] ?? 0;
       expect(order(setShippingMethod)).toBeLessThan(order(keepPaymentToken));
       expect(order(keepPaymentToken)).toBeLessThan(order(initiatePayment));
     });
@@ -279,7 +284,11 @@ describe("preparePaymentAction (step 3, M6 D117)", () => {
   };
   beforeEach(() => {
     listPaymentProviders.mockResolvedValue(["pp_stripe_stripe", "pp_system_default"]);
-    ensurePaymentSession.mockResolvedValue({ clientSecret: "pi_1_secret_x", intentId: "pi_1", amount: 25 });
+    ensurePaymentSession.mockResolvedValue({
+      clientSecret: "pi_1_secret_x",
+      intentId: "pi_1",
+      amount: 25,
+    });
   });
 
   it("answers the session for the current total and the kept token", async () => {
@@ -294,12 +303,16 @@ describe("preparePaymentAction (step 3, M6 D117)", () => {
       language: "en",
       key: "en-de",
     });
-    const order = (fn: { mock: { invocationCallOrder: number[] } }) => fn.mock.invocationCallOrder[0] ?? 0;
+    const order = (fn: { mock: { invocationCallOrder: number[] } }) =>
+      fn.mock.invocationCallOrder[0] ?? 0;
     expect(order(prepareCompletion)).toBeLessThan(order(ensurePaymentSession));
   });
 
   it("is incomplete without a kept token, or with nothing to pay", async () => {
-    for (const cart of [{ ...ready, paymentToken: null }, { ...ready, total: money }]) {
+    for (const cart of [
+      { ...ready, paymentToken: null },
+      { ...ready, total: money },
+    ]) {
       moveCart.mockResolvedValue(cart);
       expect(await preparePaymentAction({ market: "en-de" })).toEqual({
         ok: false,

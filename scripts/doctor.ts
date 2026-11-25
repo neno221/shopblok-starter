@@ -300,7 +300,10 @@ async function main(): Promise<number> {
     ),
     ...configChecks(envs, statuses, context),
   );
-  const modes = stripeModesCheck(envs.backend.STRIPE_API_KEY, envs.storefront.NEXT_PUBLIC_STRIPE_KEY);
+  const modes = stripeModesCheck(
+    envs.backend.STRIPE_API_KEY,
+    envs.storefront.NEXT_PUBLIC_STRIPE_KEY,
+  );
   if (modes !== undefined) checks.push(modes);
 
   const markets = marketsCheck(read);
@@ -422,7 +425,9 @@ async function stripeChecks(
   const auth = { Authorization: `Bearer ${secret}` };
   const checks: Promise<Check>[] = [];
   if (secret !== "")
-    checks.push(request(`${base}/v1/account`, { headers: auth, timeoutMs: 15_000 }).then(stripeKeyCheck));
+    checks.push(
+      request(`${base}/v1/account`, { headers: auth, timeoutMs: 15_000 }).then(stripeKeyCheck),
+    );
   if (headers["x-publishable-api-key"] !== "")
     checks.push(
       (async () => {
@@ -430,15 +435,16 @@ async function stripeChecks(
           headers,
           timeoutMs: 15_000,
         });
-        const regions = ((jsonOf(answer) as { regions?: { id: string; name: string }[] })?.regions ??
-          []) as { id: string; name: string }[];
+        const regions = ((jsonOf(answer) as { regions?: { id: string; name: string }[] })
+          ?.regions ?? []) as { id: string; name: string }[];
         const listed: RegionProviders[] = await Promise.all(
           regions.map(async (region) => {
             const providers = await request(
               `${medusaUrl}/store/payment-providers?region_id=${encodeURIComponent(region.id)}`,
               { headers, timeoutMs: 15_000 },
             );
-            const body = jsonOf(providers) as { payment_providers?: { id?: unknown }[] } | undefined;
+            const body = jsonOf(providers) as
+              { payment_providers?: { id?: unknown }[] } | undefined;
             return {
               name: region.name,
               providers:

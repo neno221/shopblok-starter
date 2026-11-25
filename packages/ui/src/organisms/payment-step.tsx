@@ -177,7 +177,10 @@ function PaymentStep({
         >
           <p className="text-sm font-medium wrap-anywhere">{words.details}</p>
           {paymentElement ?? (
-            <p data-slot="payment-step-no-script" className="text-sm text-muted-foreground wrap-break-word">
+            <p
+              data-slot="payment-step-no-script"
+              className="text-sm text-muted-foreground wrap-break-word"
+            >
               {words.noScript}
             </p>
           )}

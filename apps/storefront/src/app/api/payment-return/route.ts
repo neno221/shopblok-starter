@@ -26,7 +26,8 @@ export async function GET(request: Request): Promise<Response> {
   const query = new URL(request.url).searchParams;
   const context = await getMarketContext(query.get("market") ?? "");
   const key = stripePublishableKey();
-  if (context === null || key === null) return new Response(null, { status: 404, headers: NO_STORE });
+  if (context === null || key === null)
+    return new Response(null, { status: 404, headers: NO_STORE });
   const delivery = context.url("/checkout/delivery");
   const refused = async (errors: Record<string, string>, values?: Record<string, string>) => {
     const flash = await leaveFlash(delivery, { errors, ...(values ? { values } : {}) });

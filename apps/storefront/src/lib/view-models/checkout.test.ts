@@ -258,8 +258,6 @@ describe("toOrderConfirmation", () => {
   });
 
   it("is null for an order without an address", () => {
-    expect(
-      toOrderConfirmation({ ...order, shippingAddress: null }, hrefs, names, "/"),
-    ).toBeNull();
+    expect(toOrderConfirmation({ ...order, shippingAddress: null }, hrefs, names, "/")).toBeNull();
   });
 });

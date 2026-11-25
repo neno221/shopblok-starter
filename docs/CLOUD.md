@@ -188,6 +188,13 @@ hooks.stripe.com
 pm-redirects.stripe.com
 r.stripe.com
 docs.stripe.com
+merchant-ui-api.stripe.com
+testmode-acs.stripe.com
+m.stripe.com
+payments.stripe.com
+hcaptcha.com
+api.hcaptcha.com
+newassets.hcaptcha.com
 api.resend.com
 resend.com
 eu.i.posthog.com
@@ -198,7 +205,7 @@ developers.cloudflare.com
 react.email
 ```
 
-- **Stripe** (T100 to T102): the API (`api`), Stripe.js and the Elements (`js`, `b.stripecdn.com`, `m.stripe.network`), the test 3-D Secure and redirect pages (`hooks`, `pm-redirects`), Stripe.js's telemetry (`r`), and the docs.
+- **Stripe** (T100 to T102): the API (`api`), Stripe.js and the Elements (`js`, `b.stripecdn.com`, `m.stripe.network`), the test 3-D Secure and redirect pages (`hooks`, `pm-redirects`), Stripe.js's telemetry (`r`), and the docs. T100 added seven, approved on 2026-11-25: the Element's wallet and Link calls (`merchant-ui-api`), the test 3-D Secure challenge (`testmode-acs`, `m.stripe.com`, and hCaptcha's `hcaptcha.com`, `api.hcaptcha.com`, `newassets.hcaptcha.com`, which Stripe's test pages load) and Revolut Pay's test page (`payments.stripe.com`). Still blocked and not needed: `*.w.hcaptcha.com` and `sentry.hcaptcha.com`.
 - **Resend** (T98, T99): the API and the docs (`resend.com/docs`).
 - **PostHog** (T97): the EU ingestion and assets hosts the `/ingest` rewrite forwards to, and the docs.
 - **Sentry** (T96), **R2** (T95), **React Email** (T98): the docs. Their service hosts depend on your accounts: Sentry's ingest is `o<org>.ingest.de.sentry.io`, R2's endpoint `<account>.r2.cloudflarestorage.com` and its public URL `pub-<id>.r2.dev`. The task that needs one asks for that exact host once your key is in (the list takes exact names, not `*.sentry.io`).

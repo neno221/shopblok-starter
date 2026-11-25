@@ -34,38 +34,55 @@ async function main(): Promise<number> {
   const dryRun = args.includes("--dry-run");
   const secret = backend("STRIPE_API_KEY");
   if (secret === "") {
-    console.error("STRIPE_API_KEY is not set (apps/backend/.env or the shell): nothing to register with.");
+    console.error(
+      "STRIPE_API_KEY is not set (apps/backend/.env or the shell): nothing to register with.",
+    );
     return 1;
   }
   const base = (process.env.STRIPE_BASE_URL?.trim() || STRIPE_API).replace(/\/+$/, "");
-  const medusa = (storefront("MEDUSA_BACKEND_URL") || backend("MEDUSA_BACKEND_URL") || "http://localhost:9000").replace(/\/+$/, "");
+  const medusa = (
+    storefront("MEDUSA_BACKEND_URL") ||
+    backend("MEDUSA_BACKEND_URL") ||
+    "http://localhost:9000"
+  ).replace(/\/+$/, "");
   const key = storefront("NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY");
   const markets =
     key === ""
       ? undefined
-      : (jsonOf(
-          await request(`${medusa}/store/markets`, {
-            headers: { "x-publishable-api-key": key },
-            timeoutMs: 15_000,
-          }),
-        ) as { markets?: Parameters<typeof siteDomains>[1] } | undefined)?.markets;
+      : (
+          jsonOf(
+            await request(`${medusa}/store/markets`, {
+              headers: { "x-publishable-api-key": key },
+              timeoutMs: 15_000,
+            }),
+          ) as { markets?: Parameters<typeof siteDomains>[1] } | undefined
+        )?.markets;
   if (markets === undefined)
-    console.warn("The markets' own domains were not read (no backend or publishable key): only NEXT_PUBLIC_BASE_URL's.");
+    console.warn(
+      "The markets' own domains were not read (no backend or publishable key): only NEXT_PUBLIC_BASE_URL's.",
+    );
   const wanted = siteDomains(storefront("NEXT_PUBLIC_BASE_URL"), markets);
   if (wanted.length === 0) {
-    console.log("No domain Stripe can register (localhost and IP addresses cannot be): nothing to do.");
+    console.log(
+      "No domain Stripe can register (localhost and IP addresses cannot be): nothing to do.",
+    );
     return 0;
   }
   const auth = { Authorization: `Bearer ${secret}` };
   const registered = readStripeDomains(
-    await request(`${base}/v1/payment_method_domains?limit=100`, { headers: auth, timeoutMs: 15_000 }),
+    await request(`${base}/v1/payment_method_domains?limit=100`, {
+      headers: auth,
+      timeoutMs: 15_000,
+    }),
   );
   if (typeof registered === "string") {
     console.error(`Stripe's domains could not be read: ${registered}.`);
     return 1;
   }
   const plan = domainPlan(wanted, registered);
-  console.log(`Stripe (${stripeMode(secret) ?? "unknown"} mode): ${plan.ready.length} ready, ${plan.add.length} to register, ${plan.enable.length} to enable.`);
+  console.log(
+    `Stripe (${stripeMode(secret) ?? "unknown"} mode): ${plan.ready.length} ready, ${plan.add.length} to register, ${plan.enable.length} to enable.`,
+  );
   for (const domain of plan.ready) console.log(`  ready     ${domain}`);
   let failed = 0;
   const form = (fields: Record<string, string>) => ({
@@ -79,17 +96,25 @@ async function main(): Promise<number> {
       console.log(`  register  ${domain} (dry run)`);
       continue;
     }
-    const answer = await request(`${base}/v1/payment_method_domains`, form({ domain_name: domain }));
+    const answer = await request(
+      `${base}/v1/payment_method_domains`,
+      form({ domain_name: domain }),
+    );
     const ok = answer.kind === "response" && answer.status === 200;
     if (!ok) failed++;
-    console.log(`  ${ok ? "registered" : "FAILED   "} ${domain}${ok ? "" : ` (${answer.kind === "response" ? `HTTP ${answer.status}` : answer.kind})`}`);
+    console.log(
+      `  ${ok ? "registered" : "FAILED   "} ${domain}${ok ? "" : ` (${answer.kind === "response" ? `HTTP ${answer.status}` : answer.kind})`}`,
+    );
   }
   for (const entry of plan.enable) {
     if (dryRun) {
       console.log(`  enable    ${entry.domain} (dry run)`);
       continue;
     }
-    const answer = await request(`${base}/v1/payment_method_domains/${encodeURIComponent(entry.id)}`, form({ enabled: "true" }));
+    const answer = await request(
+      `${base}/v1/payment_method_domains/${encodeURIComponent(entry.id)}`,
+      form({ enabled: "true" }),
+    );
     const ok = answer.kind === "response" && answer.status === 200;
     if (!ok) failed++;
     console.log(`  ${ok ? "enabled   " : "FAILED    "} ${entry.domain}`);

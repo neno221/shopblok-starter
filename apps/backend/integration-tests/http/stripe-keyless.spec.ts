@@ -88,10 +88,9 @@ medusaIntegrationTestRunner({
 
         // The checkout as at M5's end: the system payment on a positive total, and an order.
         const europe = regions.find((r) => r.currency_code === "eur")!;
-        const { data: products } = await api.get(
-          `/store/products?region_id=${europe.id}&limit=1`,
-          { headers: store },
-        );
+        const { data: products } = await api.get(`/store/products?region_id=${europe.id}&limit=1`, {
+          headers: store,
+        });
         const { data: created } = await api.post(
           "/store/carts",
           { region_id: europe.id, email: "keyless@example.com" },
@@ -136,9 +135,13 @@ medusaIntegrationTestRunner({
           { provider_id: SYSTEM },
           { headers: store },
         );
-        const { data: completed } = await api.post(`/store/carts/${id}/complete`, {}, {
-          headers: store,
-        });
+        const { data: completed } = await api.post(
+          `/store/carts/${id}/complete`,
+          {},
+          {
+            headers: store,
+          },
+        );
         expect(completed.type).toBe("order");
       });
     });

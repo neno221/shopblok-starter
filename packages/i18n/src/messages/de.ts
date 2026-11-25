@@ -591,14 +591,16 @@ export const de: Messages = {
       details: "Kartendaten",
       save: "Diese Karte für das nächste Mal speichern",
       stripeName: "Online bezahlen",
-      noScript: "Online bezahlen erfordert JavaScript. Aktivieren Sie es in Ihrem Browser, um hier zu bezahlen.",
+      noScript:
+        "Online bezahlen erfordert JavaScript. Aktivieren Sie es in Ihrem Browser, um hier zu bezahlen.",
       systemName: "Später bezahlen",
       systemText: "Bestellen Sie jetzt; der Shop teilt Ihnen mit, wie Sie bezahlen.",
       submit: "Weiter zur Überprüfung",
       submitting: "Wird gespeichert…",
       errors: {
         declined: "Ihre Zahlung wurde nicht ausgeführt: {reason}",
-        unpaid: "Ihre Zahlung wurde nicht ausgeführt. Bitte versuchen Sie es erneut oder wählen Sie eine andere Zahlungsart.",
+        unpaid:
+          "Ihre Zahlung wurde nicht ausgeführt. Bitte versuchen Sie es erneut oder wählen Sie eine andere Zahlungsart.",
         required: "Wählen Sie, wie Sie bezahlen möchten.",
         failed: "Ihre Zahlungsart konnte nicht gespeichert werden. Bitte versuchen Sie es erneut.",
       },

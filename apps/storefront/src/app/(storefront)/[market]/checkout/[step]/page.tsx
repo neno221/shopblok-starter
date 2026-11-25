@@ -104,7 +104,8 @@ function errorsOf(flash: Flash | null): CheckoutErrors {
   if (payment !== undefined)
     errors.payment = payment === "declined" || payment === "unpaid" ? payment : "required";
   const reason = flash.values?.paymentReason;
-  if (payment === "declined" && reason !== undefined && reason !== "") errors.paymentReason = reason;
+  if (payment === "declined" && reason !== undefined && reason !== "")
+    errors.paymentReason = reason;
   return errors;
 }
 

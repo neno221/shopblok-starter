@@ -207,7 +207,9 @@ test("Revolut Pay through Stripe's test page and the return route", async ({ pag
     .locator('[data-slot="checkout-shipping"]:visible input[type="radio"]')
     .first()
     .check({ force: true });
-  await element(page).getByRole("tab", { name: /revolut/i }).click({ timeout: 60_000 });
+  await element(page)
+    .getByRole("tab", { name: /revolut/i })
+    .click({ timeout: 60_000 });
   await page.getByRole("button", { name: CY.words.organisms.paymentStep.submit }).click();
   await expect(page).toHaveURL(/\/checkout\/review$/, { timeout: 60_000 });
   await expect(page.locator('[data-slot="checkout-review"]:visible')).toContainText("Revolut Pay");
@@ -269,7 +271,12 @@ test("a promotion applied on the review page's cart is paid at the new total", a
       type: "standard",
       status: "active",
       is_automatic: false,
-      application_method: { type: "percentage", target_type: "order", allocation: "across", value: 10 },
+      application_method: {
+        type: "percentage",
+        target_type: "order",
+        allocation: "across",
+        value: 10,
+      },
     },
   );
   try {

@@ -40,5 +40,7 @@ export function stripePublishableKey(): string | null {
  * 100% promotion completes with the system payment). Otherwise "Pay later".
  */
 export function paysWithStripe(providers: readonly string[], total: number): boolean {
-  return providers.includes(STRIPE_PAYMENT_PROVIDER) && stripePublishableKey() !== null && total > 0;
+  return (
+    providers.includes(STRIPE_PAYMENT_PROVIDER) && stripePublishableKey() !== null && total > 0
+  );
 }

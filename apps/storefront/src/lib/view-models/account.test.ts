@@ -214,7 +214,13 @@ describe("toAccountOrder", () => {
     expect(sent).toMatchObject({ kind: "order", returnHref: "/us/account/returns/order_1" });
     expect(page(sent).error?.issues ?? []).toEqual([]);
 
-    const placed = toAccountOrder(order(), hrefs, { system: "Pay later", stripe: "Pay online" }, "/us/account/orders", "/r");
+    const placed = toAccountOrder(
+      order(),
+      hrefs,
+      { system: "Pay later", stripe: "Pay online" },
+      "/us/account/orders",
+      "/r",
+    );
     expect(placed).not.toBeNull();
     expect(placed).not.toHaveProperty("returnHref");
     expect(page(placed).error?.issues ?? []).toEqual([]);
@@ -239,7 +245,13 @@ describe("toAccountOrder", () => {
 
   it("is null for an order without an address", () => {
     expect(
-      toAccountOrder(order({ shippingAddress: null }), hrefs, { system: "Pay later", stripe: "Pay online" }, "/b", "/r"),
+      toAccountOrder(
+        order({ shippingAddress: null }),
+        hrefs,
+        { system: "Pay later", stripe: "Pay online" },
+        "/b",
+        "/r",
+      ),
     ).toBeNull();
   });
 });

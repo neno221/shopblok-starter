@@ -9918,3 +9918,106 @@ The job's helper lives in `apps/backend/src/lib/search-locale-indexes.ts`, not u
 The first push of these changes (only a seed made a locale's index) failed `e2e-smoke`: `pnpm bootstrap` seeds the demo catalog as live writes into an empty version, so only `en-US` got an index and the Greek prefix test under `/` found nothing until the job's first run. A live write into a version with no documents yet makes each locale's index again (unit test "makes a locale's index in a seed, or in a live write while the version is empty"); the check is made before the write adds any document.
 
 Checks after the changes: `test:integration:http` 9 suites, 92 of 92 (`search-meilisearch.spec.ts` 25 of 25, `search-locale.spec.ts` 18 of 18); backend unit tests 290 of 290; `scripts` 467 of 467; `integrations` 18 of 18; backend lint clean; `check:keys` clean; `tsc` shows only the 5 errors `main` already has (`markets.spec.ts`, `order-emails.spec.ts`).
+
+## Stripe in the checkout (T100)
+
+**Result: with `STRIPE_API_KEY` and `STRIPE_WEBHOOK_SECRET` in the backend and `NEXT_PUBLIC_STRIPE_KEY` in the storefront, the checkout takes cards, Apple Pay and Google Pay (where the device has them) and Revolut Pay through Stripe's Payment Element across its three pages: step 2 (`/delivery`) draws the Element and keeps a ConfirmationToken on the cart, step 3 (`/review`) shows "Visa ending 4242" and its "Place order" confirms the cart's PaymentIntent and places the order, and a method that leaves the shop (Revolut Pay, a 3-D Secure redirect) comes back through `/api/payment-return`. Payments are authorised at the order and captured when the order ships (D118). "Pay later" stays on every region but is offered only without Stripe or for a zero total, and a backend guard refuses it on a positive total while Stripe is on. Without the keys nothing changes: the regions lose Stripe at the backend's next start, the checkout is M3's, and no request goes to Stripe (the keyless fixture). The live spec (6 of 6), the backend's Stripe suite (7 of 7 with the test key) and its keyless test pass locally, and each mutation the plan names fails a test.** D117, D118, D129 (plans/M6.md §5 T100).
+
+| | |
+|---|---|
+| Date | 2026-11-25 |
+| Branch | `claude/project-thread-ao49k1`, from `main` at `075362d` (PR 139's merge, T94) |
+| PR | this PR, "T100: Stripe in the checkout" |
+| Packages | `@stripe/stripe-js` **10.2.1** (the storefront, exact pin); the backend uses Medusa's own `@medusajs/medusa/payment-stripe` 2.22.6 (no new package) |
+
+### Stripe's pages and how they differ from D117
+
+I read Stripe's pages of the plan's §3 (two-step confirmation with a ConfirmationToken, the Payment Element without an intent, place a hold, Revolut Pay, testing) and `payment-stripe` 2.22.6's code. The flow is D117's, with four differences:
+
+1. **The token goes to the backend, not straight into the cart's metadata.** `POST /store/carts/:id/payment-token` (new) reads the token from Stripe with the secret key, refuses one a PaymentIntent or SetupIntent already used or that expired, and keeps its id (`metadata.stripe_confirmation_token`) and its preview (`metadata.payment_preview`: the method's type, a card's brand, last four and wallet) on the cart. The browser's own preview is not trusted, so the delivery form posts only the token's id.
+2. **The receipt's payment line needs a route of its own.** Medusa's store order API drops `metadata`, so `GET /store/orders/:id/payment-preview` (new) answers the order's preview, cleaned by `sanitizePreview` (only the four fields, short strings). The storefront asks it only for an order the caller may read (the receipt cookie's or the account's own) and only for a Stripe order.
+3. **The declined reason comes from Stripe.js.** Stripe's REST API answers in English whatever `Accept-Language` says, while Stripe.js's errors are in the Element's locale. So the review's island passes Stripe.js's message to `/api/payment-return` as `reason`, and the route shows it only when Stripe's own answer says the attempt failed (`last_payment_error` set); otherwise it shows the generic "did not go through", so a hand-written `?reason=` shows nothing.
+4. **`stepsDone`** counts the delivery step as done when the cart has a shipping method and either a payment session or a kept token (with Stripe, the session can be deleted by a change in the total and is made again at "Place order").
+
+### The backend
+
+- **The provider** (`src/config/modules.ts`): `@medusajs/medusa/payment-stripe` with the id `stripe` (so `pp_stripe_stripe`), `capture: false` and `automaticPaymentMethods: true`, registered only with both `STRIPE_API_KEY` and `STRIPE_WEBHOOK_SECRET`; the system payment is always there.
+- **`sync-stripe-regions`** (`src/lib/stripe-regions.ts`, the script `src/scripts/sync-stripe-regions.ts`, `pnpm bootstrap`'s new step and `src/jobs/stripe-regions-on-start.ts` at the backend's start): every region gets `pp_system_default`, and `pp_stripe_stripe` while Stripe is registered; without the keys Stripe is taken off every region. It changes only the regions that differ, so a second run does nothing.
+- **The guard** (`src/api/store/payment-sessions/guard.ts`, on `POST /store/payment-collections/:id/payment-sessions`): while Stripe is on, a system session is refused on a total above zero (anyone with the collection's id could otherwise place an unpaid order through the store API); the session's `data` may hold only what the shop sends (`setup_future_usage: "off_session"` and a saved `payment_method`, each only from the cart's own signed-in customer, for T101), and the system provider takes no `data`.
+- **The webhook:** Medusa's own route, `/hooks/payment/stripe_stripe`, with the four events (`payment_intent.amount_capturable_updated`, `.succeeded`, `.payment_failed`, `.partially_funded`). An authorised intent completes a cart nobody came back to; completing twice returns the same order.
+- **Capture on shipment** (`src/subscribers/capture-on-shipment.ts`, on `shipment.created`): captures the order's authorised Stripe payments in full; "Pay later" and anything already captured or canceled are left alone. Medusa Admin's "Capture" stays for anything else (an order picked up, a partial capture).
+- **The 6-day line** (`src/jobs/uncaptured-payments.ts`, daily): logs each Stripe payment authorised six days ago or more and neither captured nor canceled, with its order's number, since a card's authorisation lapses after about seven.
+- **Tests:** `integration-tests/http/stripe.spec.ts` (the sync and its second run, the guard on a positive total, a zero total from a 100% promotion on the lines and the shipping completed with the system payment, the session `data` refusals, the webhook ignoring an event without Medusa's `session_id` and one with a bad signature; with the test key also a signed `amount_capturable_updated` completing a cart and the shipment capturing it, and the token route keeping a preview and refusing a used token), `stripe-keyless.spec.ts` (the keys emptied: a region that lists Stripe loses it at the sync, a second sync changes nothing, and a checkout with the system payment completes on a positive total), and unit tests for the guard, the token, the sync, the subscriber and the modules. `backend-integration` now gets `STRIPE_API_KEY` from GitHub's secrets (not on Renovate's branches); without it the live cases skip themselves with a line saying so.
+
+### The storefront
+
+- **Step 2** (`/delivery`): when the region offers Stripe, the storefront has its publishable key and the cart's total is above zero (`paysWithStripe`), the payment choice is "Pay online" and PaymentStep's slot holds `PaymentElementIsland` (`src/components/checkout/stripe/`). The island imports `stripe-client.ts` after hydration (Stripe.js is in no first load), mounts the Element in deferred mode (`mode: "payment"`, the cart's amount with the chosen shipping in the currency's smallest unit, `captureMethod: "manual"`, tabs) with the market's language (`stripeLocale`: a language Stripe lacks shows English) and an appearance read from the theme's tokens (the colours through a canvas pixel, so any CSS colour works, the radius and the font). On submit it runs `elements.submit()` and `createConfirmationToken()` before the form's action, puts the token's id into a hidden field and submits again; changing the shipping option changes the Element's amount. Without scripts the box says "Paying online needs JavaScript…" (the new `noScript` string) and nothing can be paid there; the keyless checkout without scripts is unchanged.
+- **The delivery action** sets the shipping method first, then decides from the new total whether Stripe or the system payment is wanted (a choice that does not match is `invalid`), hands the token to the backend, and initiates the session last.
+- **Step 3** (`/review`): the payment line reads the kept preview ("Visa ending 4242", in Greek "Visa με κατάληξη 4242"). With Stripe, "Place order" is wrapped by `PlaceOrderIsland`: it calls `preparePayment` (a server action: the order's e-mail target and consent written on the cart first, as place-order does, since the webhook may place the order before the shopper returns; then a Stripe session for the current total, made again from the kept token when Medusa deleted the old one), confirms with `stripe.confirmPayment({ clientSecret, confirmParams: { confirmation_token, return_url }, redirect: "if_required" })`, and goes to `/api/payment-return` either way, so one route places every order.
+- **`/api/payment-return`** (M3's 404 stub): 404 without a market or a publishable key; reads the PaymentIntent with the publishable key and its client secret (`src/lib/stripe/intent.ts`), and completes the cart only when the secret belongs to the intent, the intent is the cart's own session and Stripe says it is authorised (`requires_capture`, `succeeded` or `processing`). Then the receipt cookie and a 303 to `/order/:id/confirmed`. Otherwise back to `/delivery#main-payment-error` with "declined" and the reason, or "unpaid"; Medusa refusing the order goes to the review with its message; no cart goes to the cart page. Answers are `private, no-store`.
+- **The error on step 2** is PaymentStep's status (`role="status"`) under the id `main-payment-error` (`tabIndex -1`): the return route's redirect ends at `#main-payment-error`, so the reason is announced and takes focus. An error before the payment leaves the page (the token, the session) shows in the island's own status line.
+- **Messages:** four new keys in en, de, fr and el (`stripeName`, `noScript`, `errors.declined`, `errors.unpaid`); Greek's "ending in" now takes the brand and the digits in its own order. `ui-strings` 799 → 803.
+- **`scripts/first-load.ts`** keeps `stripe-client.ts` out of every first load (marker `shopblok:stripe-client`).
+
+### D118's measure: capture per method
+
+- **Manual capture** works for cards and Revolut Pay: both reach `requires_capture` and are captured by the shipment (the live spec checks a card's `captured_at`). In test mode, with manual capture, the Element showed cards, Revolut Pay, Amazon Pay and Satispay in `/` (EUR, Cyprus); Klarna and Bancontact did not show, as D118 said manual capture would hide them.
+- **A per-method capture does not pass through the deferred Elements.** Medusa's provider would pass `payment_method_options` from the session's `data` into the PaymentIntent, but the deferred Element takes one `captureMethod` for all methods, and its `paymentMethodOptions` holds only `setup_future_usage`, so it cannot be told that cards are manual and the rest automatic, and the Element must match the intent it confirms. So cards manual and the rest captured at the order would need the Element created after the intent (D117's alternative). Recorded only, nothing built (this was read from Stripe's reference and the provider's code, not tried in a payment).
+
+### Doctor and the scripts
+
+- **Offline:** "Stripe keys in one mode" is an error when the backend's secret key and the storefront's publishable key are not both test or both live. `@shopblok/integrations` marks Stripe `wired`.
+- **`--online`:** "Stripe accepts the secret key" (`GET /v1/account`: ok with the account's country, an error for a refused key, a warning when Stripe cannot be reached); "Stripe on every region" (each region's providers from `/store/payment-providers`: an error when the keys are set and a region lacks Stripe, or when they are not and a region still has it). **In production only:** "Stripe webhook endpoint" (an enabled endpoint at `<backend>/hooks/payment/stripe_stripe` with the four events or `*`) and "Stripe payment method domains" (each domain the shop is served from, `NEXT_PUBLIC_BASE_URL`'s and each open country's own, registered and enabled). `STRIPE_BASE_URL` points the checks at a fake (the tests'). No key is printed. The checks are pure functions in `scripts/lib/stripe-checks.ts` with 12 tests.
+- **`pnpm stripe:domains`** (`scripts/stripe-domains.ts`, `--dry-run` to only print): registers the shop's domains with Stripe and enables the disabled ones. Stripe cannot register `localhost` or an IP address, so Apple Pay is first tried on M7's staging.
+- **`pnpm stripe:listen`**: the Stripe CLI forwarding the four events to `localhost:9000/hooks/payment/stripe_stripe`; it prints the `whsec_…` secret for `STRIPE_WEBHOOK_SECRET` on a PC.
+
+### The live spec
+
+`e2e/integrations/stripe-checkout.spec.ts` (skips itself without `STRIPE_API_KEY` and `NEXT_PUBLIC_STRIPE_KEY`), 6 tests, all passed against the dev servers:
+1. A card (`4242…`) in `/` (EUR) and in `/us` (USD) to the receipt, with the payment line; the payment is authorised, then captured once the spec ships the order through Medusa's admin API.
+2. The 3-D Secure card through its challenge (completed), and the failing one back on step 2.
+3. A declined card back on step 2 with Stripe's reason, focused, then paid with `4242…`.
+4. Revolut Pay through Stripe's test page and `/api/payment-return`.
+5. The cart changed in another tab between steps 2 and 3 (quantity 2): the order pays the new total.
+6. A promotion (10%, made through the admin API and deleted afterwards) applied in another tab before "Place order": the order has the discount and pays it.
+
+### Hosts
+
+The cloud environment needed four more hosts for the test challenge and Revolut Pay's page, approved on 2026-11-25: `testmode-acs.stripe.com`, `m.stripe.com`, `payments.stripe.com` and `newassets.hcaptcha.com` (with `merchant-ui-api.stripe.com`, `hcaptcha.com` and `api.hcaptcha.com` earlier in this task). CLOUD.md lists them.
+
+### Checks (cloud VM)
+
+- The live spec, 6 of 6; `stripe.spec.ts`, 7 of 7 with the test key; `stripe-keyless.spec.ts`, passed.
+- Checked by hand in a browser in `/` (Greek, Cyprus): a card to the receipt ("Visa με κατάληξη 4242"), a declined card back on step 2 with the reason in Greek and focus on it, 3-D Secure passed and failed, Revolut Pay to the receipt.
+- Unit tests: the storefront's (the actions' order of calls and their refusals, the return route's 8 cases, `stepsDone`, the payment step, the templates, the DS stories), the backend's (the guard, the token and its preview, the sync, the subscriber, the job, the modules), the scripts' (`stripe-checks`, `backend-gates` with Stripe `live`), `@shopblok/integrations`.
+- **The mutations** (each fails a check):
+  1. The guard removed (`guardPaymentSession` calling `next()` at once): a system session completes a positive total, and "refuses Pay later on a total above zero" fails on the unpaid order.
+  2. The return route not comparing the cart's intent with the returned one: "completes nothing for another cart's intent" fails.
+  3. `ensurePaymentSession` not initiating a new session when Medusa deleted the old one: the live spec's other-tab case fails.
+  4. `wantedProviders` only adding Stripe (keeping it when the keys are gone): the keyless test fails on the region still listing Stripe.
+- `check:first-load` on a keyless build and on a build with the publishable key: no route over its budget, Stripe's client kept out.
+
+### The first load (D129)
+
+Each chunk gzipped on its own and summed (`check:first-load`), in bytes, without other keys:
+
+| Route | `main` (T97's figures, unchanged by T94) | This PR, no Stripe key | This PR, with `NEXT_PUBLIC_STRIPE_KEY` | Budget |
+|---|---|---|---|---|
+| `/[market]/products/[handle]` | 344,549 | 344,548 | 344,548 | 339 KB (347,136) |
+| `/[market]/store` (and the other listings) | 345,277 | 345,277 | 345,277 | 340 KB (348,160) |
+| `/[market]` | 329,055 | 329,054 | 329,054 | not budgeted |
+| `/[market]/search` | 331,255 | 331,252 | 331,252 | not budgeted |
+| `/[market]/checkout/[step]` | not measured | 323,157 | 323,157 | not budgeted |
+
+The budgeted routes are unchanged, and the key changes nothing: whether the checkout pays with Stripe is decided on the server, and the islands import `stripe-client.ts` (2.6 KB gzipped, with `@stripe/stripe-js`'s loader; Stripe.js itself comes from `js.stripe.com` only when the Element is drawn) after hydration. `first-load.ts` checks it is kept out of every first load (marker `shopblok:stripe-client`).
+
+### Turning on Stripe
+
+1. In Stripe's Dashboard, test mode first (Developers → API keys): the secret key (`sk_test_…`) goes into the backend as `STRIPE_API_KEY` (Railway's variables, or `apps/backend/.env`), the publishable key (`pk_test_…`) into the storefront as `NEXT_PUBLIC_STRIPE_KEY` (Vercel's variables, or `apps/storefront/.env`; read at `next build`, so a new key needs a new build). Both from the same mode of the same account: `doctor` says so when they are not.
+2. **The webhook secret:** on a PC, `pnpm stripe:listen` (the Stripe CLI, signed in with `stripe login`) prints a `whsec_…` secret for `STRIPE_WEBHOOK_SECRET`. In production, Developers → Webhooks → Add endpoint at `https://<backend>/hooks/payment/stripe_stripe` with the four events (`payment_intent.amount_capturable_updated`, `payment_intent.succeeded`, `payment_intent.payment_failed`, `payment_intent.partially_funded`), and its signing secret. CI and the cloud sessions use the stand-in (D115).
+3. **Restart the backend** (or `pnpm bootstrap`): the start puts Stripe on every region. Removing the keys and restarting takes it off again.
+4. **The methods:** Settings → Payment methods, switch on what the shop offers (Revolut Pay, Apple Pay, Google Pay; cards are on). With manual capture (D118) Stripe hides the methods that cannot wait for the shipment, such as iDEAL, Bancontact and Klarna.
+5. **Apple Pay's domains:** `pnpm stripe:domains` with production's keys registers the storefront's and the markets' own domains.
+6. **Ship within about 7 days:** a card's authorisation lapses then; marking a fulfillment shipped in Medusa Admin captures the payment, and the backend's log names any order left uncaptured for 6 days.
+7. `pnpm doctor --online` (in production also the webhook endpoint and the domains).
+8. For CI's live checks: the secrets `STRIPE_API_KEY` and `NEXT_PUBLIC_STRIPE_KEY` in GitHub's Actions secrets (test keys only, D115).
