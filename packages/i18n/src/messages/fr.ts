@@ -30,6 +30,7 @@ export const fr: Messages = {
       revolut: "Revolut",
       paypal: "PayPal",
       klarna: "Klarna",
+      card: "Carte",
     },
   },
   primitives: { toast: { region: "Notifications", close: "Fermer la notification" } },
@@ -1068,6 +1069,16 @@ export const fr: Messages = {
       paymentMethods: {
         title: "Moyens de paiement",
         note: "Vous pourrez enregistrer vos cartes au paiement dès que les paiements par carte seront disponibles.",
+        added: "Votre moyen de paiement a été enregistré.",
+        removed: "Le moyen de paiement a été supprimé.",
+        back: "Retour aux moyens de paiement",
+        newLead:
+          "Vos informations sont transmises directement à Stripe, notre prestataire de paiement. Nous ne conservons que ce que vous voyez ici : la marque d’une carte, ses quatre derniers chiffres et sa date d’expiration.",
+        submit: "Enregistrer",
+        saving: "Enregistrement…",
+        noScript:
+          "L’ajout d’un moyen de paiement nécessite JavaScript. Activez-le dans votre navigateur pour en ajouter un ici.",
+        failed: "Nous n’avons pas pu enregistrer ce moyen de paiement. Veuillez réessayer.",
       },
       returns: {
         title: "Retours",

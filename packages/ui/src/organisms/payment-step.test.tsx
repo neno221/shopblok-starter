@@ -5,8 +5,9 @@
 // Element's slot and "save for next time" only where a customer may keep a card), the error in a
 // status region that is always there, the pending submit, the arrows through the group, a long German
 // and Greek label, and the four catalogs.
+import { savedMethodName } from "@shopblok/ui/molecules/saved-payment-method-card";
 import { commerceFixtures } from "@shopblok/fixtures";
-import { catalogs, formatMessage, LOCALES, type Locale } from "@shopblok/i18n";
+import { catalogs, LOCALES, type Locale } from "@shopblok/i18n";
 import type { PaymentStep as PaymentStepContent } from "@shopblok/registry/contracts";
 import { render, screen, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
@@ -82,9 +83,9 @@ describe("PaymentStep: the form", () => {
       render(element(locale));
       const copy = copyOf(locale);
       for (const card of paymentOf(locale).saved) {
-        const name = formatMessage(
-          copy.step.card,
-          { brand: copy.brands[card.brand], last4: card.last4 },
+        const { name } = savedMethodName(
+          card,
+          { card: copy.step.card, brands: copy.brands },
           htmlLang[locale],
         );
         expect(screen.getByRole("radio", { name })).toBeTruthy();
@@ -113,6 +114,26 @@ describe("PaymentStep: the form", () => {
     const described = document.getElementById(mastercard.getAttribute("aria-describedby") ?? "");
     expect(described?.textContent).toBe("Expired 12/2027");
     expect(described?.className).toContain("text-destructive");
+  });
+
+  it("offers a saved Revolut Pay account by its name, never expired (M6 D119)", () => {
+    const { saved } = paymentOf("en", "saved");
+    const revolut = { kind: "revolut_pay" as const, id: "pm_revolut_01", isDefault: false };
+    render(
+      element("en", "saved", {
+        saved: [...saved, revolut],
+        selected: revolut.id,
+        now: "2099-01-15T00:00:00.000Z",
+      }),
+    );
+    // The fixture's region offers Revolut Pay as a way to pay too: the saved account is the pm_ one.
+    const radio = screen
+      .getAllByRole("radio", { name: "Revolut Pay" })
+      .find((each) => (each as HTMLInputElement).value === "pm_revolut_01") as HTMLInputElement;
+    expect(radio).toBeDefined();
+    expect(radio.disabled).toBe(false);
+    expect(radio.checked).toBe(true);
+    expect(radio.getAttribute("aria-describedby")).toBeNull();
   });
 
   it("offers the system payment when every saved card has expired and nothing else is on offer", () => {

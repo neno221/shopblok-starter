@@ -8,11 +8,13 @@ import { paymentReturnUrl as returnUrl } from "./payment-return-url";
 // form when Stripe takes the payment: the submit is caught, the action makes sure of a session for
 // the cart's current total (Medusa deleted the old one if the total moved: a promotion here, the
 // cart changed in another tab) and answers its client secret, and Stripe confirms the PaymentIntent
-// with the delivery step's ConfirmationToken. A wallet or a 3-D Secure check may leave for its own
-// page and comes back to `/api/payment-return`; otherwise the island goes there itself, paid or
-// refused, and the route completes the cart or brings the shopper back to the payment with Stripe's
-// reason. Without scripts the form posts to the place-order action, which Medusa refuses (nothing is
-// authorised) and the review says so.
+// with the delivery step's ConfirmationToken (or, M6 D119, the saved method the intent holds). A
+// wallet or a 3-D Secure check may leave for its own page and comes back to `/api/payment-return`;
+// otherwise the island goes there itself, paid or refused, and the route completes the cart or
+// brings the shopper back to the payment with Stripe's reason. When the action finds the payment step
+// not done (a saved card whose customer is no longer signed in, PR 142 review item 2, forgotten on
+// the cart), the page is loaded again and draws the payment step. Without scripts the form posts to
+// the place-order action, which Medusa refuses (nothing is authorised) and the review says so.
 
 export type PlaceOrderIslandProps = {
   /** The market's key, which the actions and the return route take. */
@@ -42,6 +44,10 @@ export function PlaceOrderIsland(props: PlaceOrderIslandProps) {
       setError(null);
       void (async () => {
         const prepared = await preparePayment(props.market);
+        if (!prepared.ok && prepared.form === "incomplete") {
+          window.location.reload();
+          return;
+        }
         if (!prepared.ok) throw new Error(prepared.form ?? "refused");
         const { clientSecret, intentId, confirmationToken } = prepared.data;
         const { confirmIntent } = await import("./stripe-client");

@@ -194,6 +194,9 @@ export const expressConfirmAction = action(
       ...mailTarget(context.market, context.map),
       key: context.market.key,
     });
+    // No session data (M6 D119; PR 142 review, item 7): a wallet's card is never saved, and the
+    // token route cleared any saved method or saving the delivery step kept, so the session asks for
+    // neither, and one that holds a saved method is not reused (`sessionMatches`).
     const session = await ensurePaymentSession(STRIPE_PAYMENT_PROVIDER, locale);
     updateTag("cart");
     return { clientSecret: session.clientSecret, intentId: session.intentId };

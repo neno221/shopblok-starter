@@ -15,12 +15,23 @@ const setShippingMethod = vi.fn();
 const initiatePayment = vi.fn();
 const completeCart = vi.fn();
 const keepPaymentToken = vi.fn();
+const keepSavedMethod = vi.fn();
 const ensurePaymentSession = vi.fn();
 const prepareCompletion = vi.fn();
+const forgetKeptPayment = vi.fn();
 vi.mock("../medusa/cart", () => ({
   prepareCompletion,
+  forgetKeptPayment,
   keepPaymentToken,
+  keepSavedMethod,
   ensurePaymentSession,
+  // The real rule: the kept saved method, or saving, is what the session asks for (D119).
+  sessionDataOf: (cart: CartDto) =>
+    cart.savedMethod !== null
+      ? { payment_method: cart.savedMethod }
+      : cart.paymentSave
+        ? { setup_future_usage: "off_session" }
+        : {},
   getCart,
   moveCart,
   setEmail,
@@ -31,6 +42,9 @@ vi.mock("../medusa/cart", () => ({
 }));
 const setReceipt = vi.fn();
 vi.mock("../medusa/cookies", () => ({ setReceipt }));
+// The signed-in customer, if any (PR 142 review, item 2: a saved method is only theirs to pay with).
+const getCustomer = vi.fn();
+vi.mock("../medusa/customer", () => ({ getCustomer }));
 const listShippingOptions = vi.fn();
 vi.mock("../medusa/fulfillment", () => ({ listShippingOptions }));
 const listPaymentProviders = vi.fn();
@@ -94,6 +108,9 @@ const emptyCart: CartDto = {
   paymentProviderId: null,
   paymentToken: null,
   paymentPreview: null,
+  savedMethod: null,
+  paymentSave: false,
+  customerId: null,
   completed: false,
 };
 const contactDone: CartDto = { ...emptyCart, email: "a@example.com", shippingAddress: address };
@@ -239,16 +256,48 @@ describe("deliveryAction (step 2)", () => {
       listPaymentProviders.mockResolvedValue(["pp_stripe_stripe", "pp_system_default"]);
       moveCart.mockResolvedValue(owed);
       setShippingMethod.mockResolvedValue(owed);
+      keepPaymentToken.mockResolvedValue({ preview: null, save: false });
     });
 
     it("keeps the token, then initiates the Stripe session last, after the shipping", async () => {
       expect(await deliveryAction(stripe)).toEqual({ ok: true, data: { step: "review" } });
       expect(keepPaymentToken).toHaveBeenCalledWith("ctoken_1", "en-US");
-      expect(initiatePayment).toHaveBeenCalledWith("pp_stripe_stripe", "en-US");
+      expect(initiatePayment).toHaveBeenCalledWith("pp_stripe_stripe", "en-US", {});
       const order = (fn: { mock: { invocationCallOrder: number[] } }) =>
         fn.mock.invocationCallOrder[0] ?? 0;
       expect(order(setShippingMethod)).toBeLessThan(order(keepPaymentToken));
       expect(order(keepPaymentToken)).toBeLessThan(order(initiatePayment));
+    });
+
+    it("starts a session that saves the method when the token saves it (D119)", async () => {
+      keepPaymentToken.mockResolvedValue({ preview: null, save: true });
+      expect(await deliveryAction(stripe)).toEqual({ ok: true, data: { step: "review" } });
+      expect(initiatePayment).toHaveBeenCalledWith("pp_stripe_stripe", "en-US", {
+        setup_future_usage: "off_session",
+      });
+    });
+
+    it("keeps a saved method instead of a token, and starts its session with it (D119)", async () => {
+      const saved = { ...delivery, paymentMethod: "pm_card1" };
+      expect(await deliveryAction(saved)).toEqual({ ok: true, data: { step: "review" } });
+      expect(keepSavedMethod).toHaveBeenCalledWith("pm_card1", "en-US");
+      expect(keepPaymentToken).not.toHaveBeenCalled();
+      expect(initiatePayment).toHaveBeenCalledWith("pp_stripe_stripe", "en-US", {
+        payment_method: "pm_card1",
+      });
+    });
+
+    it("refuses a saved method when nothing is left to pay, and one that is not a pm_ id", async () => {
+      setShippingMethod.mockResolvedValue(contactDone);
+      expect(await deliveryAction({ ...delivery, paymentMethod: "pm_card1" })).toEqual({
+        ok: false,
+        errors: { paymentMethod: "invalid" },
+      });
+      expect(await deliveryAction({ ...delivery, paymentMethod: "pm_bad-id" })).toEqual({
+        ok: false,
+        errors: { paymentMethod: "invalid" },
+      });
+      expect(keepSavedMethod).not.toHaveBeenCalled();
     });
 
     it("needs a token, and refuses Pay later on a total to pay", async () => {
@@ -281,8 +330,10 @@ describe("preparePaymentAction (step 3, M6 D117)", () => {
     total: { amount: 25, currencyCode: "eur" },
     paymentProviderId: "pp_stripe_stripe",
     paymentToken: "ctoken_1",
+    customerId: "cus_1",
   };
   beforeEach(() => {
+    getCustomer.mockResolvedValue({ id: "cus_1" });
     listPaymentProviders.mockResolvedValue(["pp_stripe_stripe", "pp_system_default"]);
     ensurePaymentSession.mockResolvedValue({
       clientSecret: "pi_1_secret_x",
@@ -297,7 +348,7 @@ describe("preparePaymentAction (step 3, M6 D117)", () => {
       ok: true,
       data: { clientSecret: "pi_1_secret_x", intentId: "pi_1", confirmationToken: "ctoken_1" },
     });
-    expect(ensurePaymentSession).toHaveBeenCalledWith("pp_stripe_stripe", "en-US");
+    expect(ensurePaymentSession).toHaveBeenCalledWith("pp_stripe_stripe", "en-US", {});
     expect(prepareCompletion).toHaveBeenCalledWith("en-US", {
       market: "/de/en",
       language: "en",
@@ -306,6 +357,58 @@ describe("preparePaymentAction (step 3, M6 D117)", () => {
     const order = (fn: { mock: { invocationCallOrder: number[] } }) =>
       fn.mock.invocationCallOrder[0] ?? 0;
     expect(order(prepareCompletion)).toBeLessThan(order(ensurePaymentSession));
+  });
+
+  it("asks the session for the saved method and answers no token for it (D119)", async () => {
+    moveCart.mockResolvedValue({ ...ready, paymentToken: null, savedMethod: "pm_card1" });
+    expect(await preparePaymentAction({ market: "en-de" })).toEqual({
+      ok: true,
+      data: { clientSecret: "pi_1_secret_x", intentId: "pi_1", confirmationToken: null },
+    });
+    expect(ensurePaymentSession).toHaveBeenCalledWith("pp_stripe_stripe", "en-US", {
+      payment_method: "pm_card1",
+    });
+  });
+
+  it("asks the session to save the method when the kept token saves it (D119)", async () => {
+    moveCart.mockResolvedValue({ ...ready, paymentSave: true });
+    await preparePaymentAction({ market: "en-de" });
+    expect(ensurePaymentSession).toHaveBeenCalledWith("pp_stripe_stripe", "en-US", {
+      setup_future_usage: "off_session",
+    });
+  });
+
+  it.each([
+    ["signed out (the session lapsed)", null],
+    ["another customer", { id: "cus_2" }],
+  ])(
+    "forgets a saved method, or saving, and goes back to the payment when %s (PR 142 review, item 2)",
+    async (_who, customer) => {
+      getCustomer.mockResolvedValue(customer);
+      for (const cart of [
+        { ...ready, paymentToken: null, savedMethod: "pm_card1" },
+        { ...ready, paymentSave: true },
+      ]) {
+        moveCart.mockResolvedValue(cart);
+        expect(await preparePaymentAction({ market: "en-de" })).toEqual({
+          ok: false,
+          errors: {},
+          form: "incomplete",
+        });
+      }
+      expect(forgetKeptPayment).toHaveBeenCalledTimes(2);
+      expect(forgetKeptPayment).toHaveBeenCalledWith("en-US");
+      expect(ensurePaymentSession).not.toHaveBeenCalled();
+      expect(prepareCompletion).not.toHaveBeenCalled();
+    },
+  );
+
+  it("takes a plain token from whoever holds the cart, without asking who is signed in", async () => {
+    getCustomer.mockResolvedValue(null);
+    moveCart.mockResolvedValue({ ...ready, customerId: null });
+    expect(await preparePaymentAction({ market: "en-de" })).toMatchObject({ ok: true });
+    expect(getCustomer).not.toHaveBeenCalled();
+    expect(forgetKeptPayment).not.toHaveBeenCalled();
   });
 
   it("is incomplete without a kept token, or with nothing to pay", async () => {

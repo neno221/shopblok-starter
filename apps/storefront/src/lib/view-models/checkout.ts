@@ -10,6 +10,7 @@ import type {
   OrderSummary,
   PaymentBrand,
   PaymentStep,
+  SavedPaymentMethod,
   ShippingOption,
   SummaryItem,
   SummaryLine,
@@ -21,6 +22,7 @@ import type { CustomerAddressDto, CustomerDto } from "../medusa/customer";
 import type { OrderDto } from "../medusa/orders";
 import { STRIPE_PAYMENT_PROVIDER, SYSTEM_PAYMENT_PROVIDER } from "../medusa/payment";
 import type { PaymentPreview } from "../medusa/payment-preview";
+import type { SavedMethodDto } from "../medusa/payment-methods";
 import { toCurrencyCode, toMoney, toProductImage, type Hrefs } from "./common";
 
 // The cart page's, the checkout's and the receipt's view models (T52, D65), from the data layer's
@@ -33,12 +35,43 @@ export type CheckoutStepId = (typeof CHECKOUT_STEP_IDS)[number];
 export function stepsDone(cart: CartDto): Record<CheckoutStepId, boolean> {
   const contact = cart.email !== null && cart.shippingAddress !== null;
   // M6 D117: a kept ConfirmationToken counts too: Medusa deletes the cart's sessions when its total
-  // moves (a promotion on the review page), and the review's action initiates a new one.
+  // moves (a promotion on the review page), and the review's action initiates a new one; and (D119)
+  // so does a kept saved method.
   const delivery =
     contact &&
     cart.shippingMethod !== null &&
-    (cart.paymentProviderId !== null || cart.paymentToken !== null);
+    (cart.paymentProviderId !== null || cart.paymentToken !== null || cart.savedMethod !== null);
   return { contact, delivery, review: false };
+}
+
+/**
+ * Whether the cart's kept payment is the signed-in customer's own (M6 D119): a saved method, or a
+ * token that saves its method, needs the cart's own customer to be the caller, `customerId` (PR 142
+ * review, item 2: a session that lapsed on a shared computer must not leave the next shopper paying
+ * with the customer's card). Any other payment is anyone's who holds the cart.
+ */
+export function ownsKeptPayment(
+  cart: Pick<CartDto, "savedMethod" | "paymentSave" | "customerId">,
+  customerId: string | null,
+): boolean {
+  if (cart.savedMethod === null && !cart.paymentSave) return true;
+  return customerId !== null && customerId === cart.customerId;
+}
+
+/**
+ * The cart as the checkout shows it to a caller who does not own its kept payment
+ * (`ownsKeptPayment`): as if the delivery step kept none, so the review is not open and the payment
+ * step is drawn again. Only a read: the review's action forgets the payment on the cart itself.
+ */
+export function withoutKeptPayment(cart: CartDto): CartDto {
+  return {
+    ...cart,
+    paymentProviderId: null,
+    paymentToken: null,
+    paymentPreview: null,
+    savedMethod: null,
+    paymentSave: false,
+  };
 }
 
 /** The first step the cart has not done: where `/checkout` sends a shopper. */
@@ -221,13 +254,61 @@ export function toExpressRates(
 }
 
 /**
- * The payment step: Stripe's Payment Element (M6 D117), chosen, when the checkout pays with it
- * (`paysWithStripe`); the system payment ("Pay later") alone otherwise (D65).
+ * A saved method as PaymentStep and PaymentMethodsManager draw it (M6 D119), or `null` for a card
+ * that lacks its digits or expiry. A card of a brand the design system has no mark for (Discover,
+ * JCB, Cartes Bancaires…) is a plain `card` ("Card ending in 1117"), so the customer can still pay
+ * with it and remove it (PR 142 review, item 1). Stripe keeps nothing of a Revolut Pay account to
+ * show, so it is its name alone.
  */
-export function toPaymentStep(stripeName?: string): PaymentStep {
-  if (stripeName !== undefined)
+export function toSavedPaymentMethod(method: SavedMethodDto): SavedPaymentMethod | null {
+  if (method.type === "revolut_pay")
+    return { kind: "revolut_pay", id: method.id, isDefault: false };
+  if (method.last4 === null || method.expiryMonth === null || method.expiryYear === null)
+    return null;
+  return {
+    id: method.id,
+    brand: (method.brand === null ? undefined : CARD_BRANDS[method.brand]) ?? "card",
+    last4: method.last4,
+    expiryMonth: method.expiryMonth,
+    expiryYear: method.expiryYear,
+    isDefault: false,
+  };
+}
+
+/** The saved methods the design system can draw, in Stripe's order (newest first). */
+export function toSavedPaymentMethods(methods: readonly SavedMethodDto[]): SavedPaymentMethod[] {
+  return methods.flatMap((method) => {
+    const saved = toSavedPaymentMethod(method);
+    return saved === null ? [] : [saved];
+  });
+}
+
+/**
+ * What a signed-in customer's payment step adds (M6 D119): their saved methods above the Element,
+ * "Save this card for next time", and which one is chosen. Only for the cart's own customer.
+ */
+export type SavedChoice = {
+  saved: SavedPaymentMethod[];
+  canSave: boolean;
+  saveForLater: boolean;
+  /** The saved method the cart pays with, or a failed submit's choice. */
+  selected?: string;
+};
+
+/**
+ * The payment step: Stripe's Payment Element (M6 D117), chosen, when the checkout pays with it
+ * (`paysWithStripe`), with a signed-in customer's saved methods first and "Save this card for next
+ * time" (D119); the system payment ("Pay later") alone otherwise (D65).
+ */
+export function toPaymentStep(stripeName?: string, own?: SavedChoice): PaymentStep {
+  if (stripeName !== undefined) {
+    const saved = own?.saved ?? [];
+    const selected =
+      own?.selected !== undefined && saved.some((method) => method.id === own.selected)
+        ? own.selected
+        : STRIPE_PAYMENT_PROVIDER;
     return {
-      saved: [],
+      saved,
       methods: [
         {
           id: STRIPE_PAYMENT_PROVIDER,
@@ -236,10 +317,11 @@ export function toPaymentStep(stripeName?: string): PaymentStep {
           brands: ["visa", "mastercard", "americanexpress", "applepay", "googlepay", "revolut"],
         },
       ],
-      selected: STRIPE_PAYMENT_PROVIDER,
-      canSave: false,
-      saveForLater: false,
+      selected,
+      canSave: own?.canSave ?? false,
+      saveForLater: own?.saveForLater ?? false,
     };
+  }
   return {
     saved: [],
     methods: [],
@@ -298,8 +380,13 @@ export function paymentOf(
  * change in another tab), and "Place order" makes a new Stripe session from the kept token, so the
  * review still pays with the token's card (PR 140's review, item 2).
  */
-export function cartPaymentProvider(cart: Pick<CartDto, "paymentProviderId" | "paymentToken">) {
-  return cart.paymentProviderId ?? (cart.paymentToken !== null ? STRIPE_PAYMENT_PROVIDER : null);
+export function cartPaymentProvider(
+  cart: Pick<CartDto, "paymentProviderId" | "paymentToken" | "savedMethod">,
+) {
+  return (
+    cart.paymentProviderId ??
+    (cart.paymentToken !== null || cart.savedMethod !== null ? STRIPE_PAYMENT_PROVIDER : null)
+  );
 }
 
 /** What a payment is called: the system payment's words, or the provider's id. */

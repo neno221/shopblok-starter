@@ -112,21 +112,29 @@ async function expectAuthorised(id: string): Promise<AdminOrder> {
   return order;
 }
 
-/** A frame of Stripe's 3-D Secure test page with `name`'s button, pressed. */
+/**
+ * A frame of Stripe's 3-D Secure test page with `name`'s button, pressed until the page leaves the
+ * review: a press while the test page is still loading does nothing, so it is pressed again
+ * (T101: the case failed one run in two with a single press).
+ */
 async function answerChallenge(page: Page, name: RegExp) {
   await expect
     .poll(
       async () => {
+        if (!/\/checkout\/review$/.test(page.url())) return true;
         for (const frame of page.frames() as Frame[]) {
           const button = frame.getByRole("button", { name });
           if ((await button.count().catch(() => 0)) > 0) {
-            await button.first().click();
-            return true;
+            await button
+              .first()
+              .click({ timeout: 5_000 })
+              .catch(() => undefined);
+            return false;
           }
         }
         return false;
       },
-      { timeout: 60_000 },
+      { timeout: 90_000, intervals: [3_000] },
     )
     .toBe(true);
 }

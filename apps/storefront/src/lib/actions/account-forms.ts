@@ -7,6 +7,7 @@ import {
   claimOrderAction,
   defaultAddressAction,
   removeAddressAction,
+  removePaymentMethodAction,
   requestReturnAction,
   saveAddressAction,
   saveProfileAction,
@@ -76,6 +77,14 @@ export async function defaultAddressForm(market: string, data: FormData): Promis
   const result = await run(defaultAddressAction, market, data);
   if (!result.ok) await failed(path, result);
   go(path);
+}
+
+/** Removes a saved method (M6 D119), from the list's dialog or the page that asks without scripts. */
+export async function removePaymentMethodForm(market: string, data: FormData): Promise<void> {
+  const path = await pageOf(market, "/account/payment-methods");
+  const result = await run(removePaymentMethodAction, market, data);
+  if (!result.ok) await failed(path, result);
+  go(`${path}?removed=1`);
 }
 
 export async function requestReturnForm(market: string, data: FormData): Promise<void> {

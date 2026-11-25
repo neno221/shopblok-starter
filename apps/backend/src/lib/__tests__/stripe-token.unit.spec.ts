@@ -19,6 +19,7 @@ describe("judgeToken (M6 D117)", () => {
     expect(judgeToken(token(), now)).toEqual({
       ok: true,
       preview: { type: "card", brand: "visa", last4: "4242" },
+      save: false,
     });
     expect(
       judgeToken(
@@ -33,11 +34,59 @@ describe("judgeToken (M6 D117)", () => {
     ).toEqual({
       ok: true,
       preview: { type: "card", brand: "visa", last4: "4242", wallet: "apple_pay" },
+      save: false,
     });
     expect(judgeToken(token({ payment_method_preview: { type: "revolut_pay" } }), now)).toEqual({
       ok: true,
       preview: { type: "revolut_pay" },
+      save: false,
     });
+  });
+
+  it("says whether the token saves its method (D119), and refuses any saving but off_session", () => {
+    expect(judgeToken(token({ setup_future_usage: "off_session" }), now)).toMatchObject({
+      ok: true,
+      save: true,
+    });
+    expect(judgeToken(token({ setup_future_usage: null }), now)).toMatchObject({ save: false });
+    expect(judgeToken(token({ setup_future_usage: "on_session" }), now).ok).toBe(false);
+  });
+
+  it("refuses saving an Apple Pay or Google Pay card, or a method the shop does not save (PR 142 review, item 3)", () => {
+    for (const wallet of ["apple_pay", "google_pay"]) {
+      const walletCard = {
+        type: "card",
+        card: { brand: "visa", last4: "4242", wallet: { type: wallet } },
+      };
+      expect(
+        judgeToken(
+          token({ setup_future_usage: "off_session", payment_method_preview: walletCard }),
+          now,
+        ),
+      ).toEqual({ ok: false, reason: "the token saves a method the shop does not save" });
+      // Paying with it without saving stays as it was.
+      expect(
+        judgeToken(token({ setup_future_usage: null, payment_method_preview: walletCard }), now),
+      ).toMatchObject({ ok: true, save: false, preview: { wallet } });
+    }
+    expect(
+      judgeToken(
+        token({
+          setup_future_usage: "off_session",
+          payment_method_preview: { type: "sepa_debit" },
+        }),
+        now,
+      ).ok,
+    ).toBe(false);
+    expect(
+      judgeToken(
+        token({
+          setup_future_usage: "off_session",
+          payment_method_preview: { type: "revolut_pay" },
+        }),
+        now,
+      ),
+    ).toMatchObject({ ok: true, save: true });
   });
 
   it("refuses a token another intent used, an expired one, and anything else", () => {

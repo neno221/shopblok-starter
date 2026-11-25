@@ -42,6 +42,12 @@ vi.mock("../medusa/orders", async () => ({
   acceptOrderTransfer,
   declineOrderTransfer,
 }));
+const listSavedMethods = vi.fn();
+const removeSavedMethod = vi.fn();
+const startSetup = vi.fn();
+vi.mock("../medusa/payment-methods", () => ({ listSavedMethods, removeSavedMethod, startSetup }));
+const regionStripeKey = vi.fn();
+vi.mock("../medusa/payment", () => ({ regionStripeKey }));
 const getMarketContext = vi.fn();
 vi.mock("../market-context", () => ({ getMarketContext }));
 const MAIL = vi.hoisted(() => ({ market: "/de", language: "en" }));
@@ -52,9 +58,11 @@ const {
   claimOrderAction,
   defaultAddressAction,
   removeAddressAction,
+  removePaymentMethodAction,
   requestReturnAction,
   saveAddressAction,
   saveProfileAction,
+  startSetupAction,
   transferAction,
 } = await import("./account-handlers");
 
@@ -135,6 +143,9 @@ beforeEach(() => {
   ]);
   acceptOrderTransfer.mockResolvedValue(true);
   declineOrderTransfer.mockResolvedValue(true);
+  listSavedMethods.mockResolvedValue([{ id: "pm_own", type: "card" }]);
+  startSetup.mockResolvedValue({ clientSecret: "seti_1_secret_x" });
+  regionStripeKey.mockResolvedValue("pk_test_x");
 });
 
 describe("saveProfileAction", () => {
@@ -276,6 +287,48 @@ describe("removeAddressAction and defaultAddressAction (ownership)", () => {
     });
     expect(deleteAddress).not.toHaveBeenCalled();
     expect(updateAddress).not.toHaveBeenCalled();
+  });
+});
+
+describe("the saved payment methods (M6 D119, T101)", () => {
+  it("removes one of the customer's own methods", async () => {
+    expect(await removePaymentMethodAction({ market: "en-de", paymentMethodId: "pm_own" })).toEqual(
+      { ok: true, data: { removed: true } },
+    );
+    expect(removeSavedMethod).toHaveBeenCalledWith("pm_own");
+  });
+
+  it("refuses another's method, an id that is not a method's, and a visitor, removing nothing", async () => {
+    expect(
+      await removePaymentMethodAction({ market: "en-de", paymentMethodId: "pm_other" }),
+    ).toMatchObject({ ok: false, form: "not-found" });
+    expect(
+      await removePaymentMethodAction({ market: "en-de", paymentMethodId: "card_1" }),
+    ).toMatchObject({ ok: false, errors: { paymentMethodId: expect.any(String) } });
+    getCustomer.mockResolvedValue(null);
+    expect(
+      await removePaymentMethodAction({ market: "en-de", paymentMethodId: "pm_own" }),
+    ).toMatchObject({ ok: false, form: "unauthorized" });
+    expect(removeSavedMethod).not.toHaveBeenCalled();
+  });
+
+  it("starts a setup only for a signed-in customer, where the market takes Stripe", async () => {
+    expect(await startSetupAction({ market: "en-de" })).toEqual({
+      ok: true,
+      data: { clientSecret: "seti_1_secret_x" },
+    });
+    expect(regionStripeKey).toHaveBeenCalledWith("reg_eu");
+    regionStripeKey.mockResolvedValue(null);
+    expect(await startSetupAction({ market: "en-de" })).toMatchObject({
+      ok: false,
+      form: "unavailable",
+    });
+    getCustomer.mockResolvedValue(null);
+    expect(await startSetupAction({ market: "en-de" })).toMatchObject({
+      ok: false,
+      form: "unauthorized",
+    });
+    expect(startSetup).toHaveBeenCalledTimes(1);
   });
 });
 

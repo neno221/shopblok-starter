@@ -1036,10 +1036,16 @@ describe.each(designSystemLocales)("the %s fixtures", (locale) => {
       expect(new Set(options.map((option) => option.name)).size).toBe(5);
     });
 
-    it("has the payment samples: an expired card, one that expires this month, the longest holder, no holder and a long method (T34)", () => {
-      const { expiredCard, expiringCard, longHolderCard, anonymousCard, longMethod } =
-        fixture.paymentSamples;
-      const cards = [expiredCard, expiringCard, longHolderCard, anonymousCard];
+    it("has the payment samples: an expired card, one that expires this month, the longest holder, no holder, another brand and a long method (T34, M6)", () => {
+      const {
+        expiredCard,
+        expiringCard,
+        longHolderCard,
+        anonymousCard,
+        otherBrandCard,
+        longMethod,
+      } = fixture.paymentSamples;
+      const cards = [expiredCard, expiringCard, longHolderCard, anonymousCard, otherBrandCard];
       expectAllParse(SavedPaymentMethod, cards, `${locale}.paymentSamples cards`);
       expectParses(PaymentMethod, longMethod, `${locale}.paymentSamples.longMethod`);
       const now = new Date(fixtureNow);
@@ -1051,6 +1057,7 @@ describe.each(designSystemLocales)("the %s fixtures", (locale) => {
       expect(monthOf(expiringCard)).toBe(thisMonth);
       expect(monthOf(longHolderCard)).toBeGreaterThan(thisMonth);
       expect(anonymousCard.holderName).toBeUndefined();
+      expect(otherBrandCard.brand).toBe("card");
       expect(longHolderCard.holderName).toBe(ds.long.personName);
       expect(longMethod.name).toBe(ds.long.optionLabel);
       expect(longMethod.brands.length).toBe(3);

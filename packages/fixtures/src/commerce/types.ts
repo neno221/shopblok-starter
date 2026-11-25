@@ -17,7 +17,7 @@ import type {
   ProductDetail,
   RatingSummary,
   Review,
-  SavedPaymentMethod,
+  SavedCard,
   SearchResult,
   ShippingOption,
 } from "@shopblok/registry/contracts";
@@ -127,7 +127,7 @@ export type CommerceFixture = {
   /** The six seeded countries (markets.ts) with their languages; the DS market is current. */
   markets: MarketOption[];
   paymentMethods: PaymentMethod[];
-  savedPaymentMethods: SavedPaymentMethod[];
+  savedPaymentMethods: SavedCard[];
   shippingOptions: ShippingOption[];
   search: SearchResult;
   facets: FacetGroup[];
@@ -293,13 +293,15 @@ export type CommerceFixture = {
   /** The sample data of SavedPaymentMethodCard and PaymentMethodCard (T34): the states the account's own are not. */
   paymentSamples: {
     /** Expired the month before `fixtureNow`. */
-    expiredCard: SavedPaymentMethod;
+    expiredCard: SavedCard;
     /** Expires in `fixtureNow`'s month: a card works through its last day. */
-    expiringCard: SavedPaymentMethod;
+    expiringCard: SavedCard;
     /** The longest holder's name, on the default card. */
-    longHolderCard: SavedPaymentMethod;
+    longHolderCard: SavedCard;
     /** No holder's name. */
-    anonymousCard: SavedPaymentMethod;
+    anonymousCard: SavedCard;
+    /** A card of a brand with no mark (Discover, JCB…): brand `card` (M6 D119). */
+    otherBrandCard: SavedCard;
     /** A method whose name is the length that breaks a layout, with three marks. */
     longMethod: PaymentMethod;
   };

@@ -70,16 +70,29 @@ export type ElementOptions = {
   amount: number;
   currency: string;
   host: HTMLElement;
+  /** M6 D119: "Save this card for next time" is ticked, so the token saves its method. */
+  saving?: boolean;
   onReady?: () => void;
 };
 
 export type MountedElement = {
   /** The total changed (another shipping option): the Element's amount follows it. */
   setAmount(amount: number): void;
+  /**
+   * M6 D119: "Save this card for next time" changed. The token carries Stripe's
+   * `setup_future_usage`, which must match the PaymentIntent's, so the Element is told before the
+   * token is made (the backend reads it from the token, never from the form). Never for Apple Pay
+   * or Google Pay, which the wallet keeps (D119; PR 142 review, item 3): while one of their tabs is
+   * chosen the Element saves nothing, whatever the box says.
+   */
+  setSaving(saving: boolean): void;
   /** Checks the details and makes the ConfirmationToken, or says why it cannot. */
   confirmationToken(): Promise<{ token: string } | { error: string | null }>;
   destroy(): void;
 };
+
+/** The Payment Element's tabs for a wallet's card (D119: never saved; the wallet keeps it). */
+const WALLET_TYPES = new Set(["apple_pay", "google_pay"]);
 
 /** Mounts the Payment Element in deferred mode (no intent yet: D117) in `host`. */
 export async function mountPaymentElement(options: ElementOptions): Promise<MountedElement> {
@@ -92,15 +105,36 @@ export async function mountPaymentElement(options: ElementOptions): Promise<Moun
     currency,
     // D117: authorised now, captured on shipment (`capture: false` on the backend's provider).
     captureMethod: "manual",
+    ...(options.saving ? { setupFutureUsage: "off_session" as const } : {}),
     appearance: readAppearance(options.host),
   });
   const element = elements.create("payment", { layout: { type: "tabs" } });
   if (options.onReady) element.on("ready", options.onReady);
+  // D119: the box asks for saving, and the chosen tab may be a wallet, which is never saved. Stripe
+  // cannot hide the wallets once the Element is drawn (`wallets` is not among what `update` takes,
+  // and drawing it again loses what was typed), so saving follows the tab instead.
+  let saving = options.saving === true;
+  let wallet = false;
+  let asked = saving;
+  const askSaving = () => {
+    const wanted = saving && !wallet;
+    if (wanted === asked) return;
+    asked = wanted;
+    elements.update({ setupFutureUsage: wanted ? "off_session" : null });
+  };
+  element.on("change", (event) => {
+    wallet = WALLET_TYPES.has(event.value.type);
+    askSaving();
+  });
   options.host.setAttribute("data-stripe", STRIPE_CLIENT_MARKER);
   element.mount(options.host);
   return {
     setAmount(amount) {
       elements.update({ amount: smallestUnit(amount, currency) });
+    },
+    setSaving(next) {
+      saving = next;
+      askSaving();
     },
     async confirmationToken() {
       const submitted = await elements.submit();
@@ -117,25 +151,82 @@ export async function mountPaymentElement(options: ElementOptions): Promise<Moun
 
 /**
  * The review's confirmation (D117): the PaymentIntent of the cart's session confirmed with the
- * delivery step's ConfirmationToken. A wallet or a 3-D Secure check that needs another page leaves
- * for it and comes back to `returnUrl`; otherwise the caller goes there itself.
+ * delivery step's ConfirmationToken, or (D119, `null`) with the saved method the intent holds
+ * already. A wallet or a 3-D Secure check that needs another page leaves for it (a saved Revolut Pay
+ * account is approved there again) and comes back to `returnUrl`; otherwise the caller goes there
+ * itself.
  */
 export async function confirmIntent(input: {
   publishableKey: string;
   locale: string;
   clientSecret: string;
-  confirmationToken: string;
+  confirmationToken: string | null;
   returnUrl: string;
 }): Promise<{ redirected: false; error?: string }> {
   const stripe = await stripeFor(input.publishableKey, input.locale);
   if (stripe === null) throw new Error("Stripe.js did not load");
   const result = await stripe.confirmPayment({
     clientSecret: input.clientSecret,
-    confirmParams: { confirmation_token: input.confirmationToken, return_url: input.returnUrl },
+    confirmParams:
+      input.confirmationToken === null
+        ? { return_url: input.returnUrl }
+        : { confirmation_token: input.confirmationToken, return_url: input.returnUrl },
     redirect: "if_required",
   });
   if (result.error) return { redirected: false, error: result.error.message ?? "" };
   return { redirected: false };
+}
+
+export type MountedSetup = {
+  /**
+   * Checks the details and confirms the SetupIntent (M6 D119). A method that needs another page
+   * (Revolut Pay's approval, a 3-D Secure check) leaves for it and comes back to `returnUrl`;
+   * otherwise the answer says whether it was saved, and the caller goes there itself.
+   */
+  confirm(returnUrl: string): Promise<{ error?: string | null }>;
+  destroy(): void;
+};
+
+/**
+ * "Add a payment method" (M6 D119, T101): the Payment Element for the customer's SetupIntent, which
+ * the backend made with the methods the shop saves (cards and Revolut Pay), so the Element offers
+ * exactly those Stripe can take there.
+ */
+export async function mountSetupElement(options: {
+  publishableKey: string;
+  locale: string;
+  clientSecret: string;
+  host: HTMLElement;
+  onReady?: () => void;
+}): Promise<MountedSetup> {
+  const stripe = await stripeFor(options.publishableKey, options.locale);
+  if (stripe === null) throw new Error("Stripe.js did not load");
+  const elements = stripe.elements({
+    clientSecret: options.clientSecret,
+    appearance: readAppearance(options.host),
+  });
+  const element = elements.create("payment", { layout: { type: "tabs" } });
+  if (options.onReady) element.on("ready", options.onReady);
+  options.host.setAttribute("data-stripe", STRIPE_CLIENT_MARKER);
+  element.mount(options.host);
+  return {
+    async confirm(returnUrl) {
+      const result = await stripe.confirmSetup({
+        elements,
+        confirmParams: { return_url: returnUrl },
+        redirect: "if_required",
+      });
+      if (result.error)
+        // A field's own message is in the Element already.
+        return {
+          error: result.error.type === "validation_error" ? null : (result.error.message ?? ""),
+        };
+      return {};
+    },
+    destroy() {
+      element.destroy();
+    },
+  };
 }
 
 /** What a wallet shows of the address before the shopper pays: no name, no street. */

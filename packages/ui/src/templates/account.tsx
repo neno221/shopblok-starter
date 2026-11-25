@@ -11,7 +11,10 @@
 //   others the receipt's member without the thanks, this screen's heading and ways on in its place.
 // - **Addresses / address:** AddressBook with its remove and default forms; AddressForm with the
 //   "default shipping address" checkbox inside its form.
-// - **Payment methods:** PaymentMethodsManager (its empty state until M6's Stripe).
+// - **Payment methods:** PaymentMethodsManager (its empty state until M6's Stripe); M6 D119 (T101):
+//   what was just done ("saved", "removed"), "Add a payment method" (Stripe's Payment Element in
+//   setup mode in the `setupElement` slot, the notice without it) and, without scripts, the remove
+//   button's question as a page of its own.
 // - **Returns / return:** the orders with something to send back; ReturnRequestForm.
 // - **Profile:** the name and the phone; the e-mail is shown, not changed (it is the sign-in).
 // Every form is plain and posts without scripts; an action's failure comes back as `errors`. A
@@ -30,6 +33,7 @@ import { AddressBook } from "@shopblok/ui/organisms/address-book";
 import { OrderSummary } from "@shopblok/ui/organisms/order-summary";
 import { OrderTable } from "@shopblok/ui/organisms/order-table";
 import { OrderTimeline } from "@shopblok/ui/organisms/order-timeline";
+import { savedMethodName } from "@shopblok/ui/molecules/saved-payment-method-card";
 import { PaymentMethodsManager } from "@shopblok/ui/organisms/payment-methods-manager";
 import {
   ReturnRequestForm,
@@ -111,6 +115,8 @@ type AccountActions = {
   saveAddress?: FormAction;
   saveProfile?: FormAction;
   requestReturn?: FormAction;
+  /** M6 D119: removes a saved payment method (it receives `paymentMethodId`). */
+  removePaymentMethod?: FormAction;
 };
 
 type AccountTemplateProps = AccountPage & {
@@ -123,6 +129,12 @@ type AccountTemplateProps = AccountPage & {
   now: string;
   actions?: AccountActions;
   errors?: AccountErrors;
+  /**
+   * M6 D119: what the page draws in a screen's place for a provider's own part: Stripe's Payment
+   * Element in setup mode on "Add a payment method" (without it, the notice that adding needs
+   * scripts: what a browser without them shows, and what the design system draws).
+   */
+  slots?: { setupElement?: React.ReactNode };
   /** next/link's `prefetch` for every link; the design system passes `false`. */
   prefetch?: boolean | null;
   /** The element's id, the skip link's target. `main` unless given. */
@@ -150,6 +162,7 @@ function AccountTemplate({
   now,
   actions = {},
   errors = {},
+  slots = {},
   prefetch,
   mainId = "main",
   as: Root = "main",
@@ -343,11 +356,19 @@ function AccountTemplate({
         ) : screen.kind === "payment-methods" ? (
           <>
             <h1 className={titleClass}>{words.paymentMethods.title}</h1>
+            {screen.status === undefined ? null : (
+              <FormStatus slot="account-payment-methods-status">
+                {words.paymentMethods[screen.status]}
+              </FormStatus>
+            )}
+            {alert}
             <PaymentMethodsManager
               {...screen.wallet}
               copy={copy.wallet}
               locale={locale}
               now={now}
+              removeAction={actions.removePaymentMethod}
+              {...(screen.removeHref === undefined ? {} : { removeConfirmHref: screen.removeHref })}
               headingLevel={2}
               prefetch={prefetch}
             />
@@ -357,6 +378,38 @@ function AccountTemplate({
               </p>
             ) : null}
           </>
+        ) : screen.kind === "payment-method-new" ? (
+          <>
+            <header className="flex min-w-0 flex-col gap-1">
+              <h1 className={titleClass}>{copy.wallet.manager.add}</h1>
+              <p className="text-muted-foreground wrap-break-word">
+                {words.paymentMethods.newLead}
+              </p>
+            </header>
+            {alert}
+            <div
+              data-slot="account-payment-method-new"
+              className="flex min-w-0 flex-col gap-4 rounded-xl border p-4"
+            >
+              {slots.setupElement ?? (
+                <p
+                  data-slot="account-payment-method-no-script"
+                  className="text-sm text-muted-foreground wrap-break-word"
+                >
+                  {words.paymentMethods.noScript}
+                </p>
+              )}
+            </div>
+            {link(screen.backHref, words.paymentMethods.back, "account-back", "self-start text-sm")}
+          </>
+        ) : screen.kind === "payment-method-remove" ? (
+          <PaymentMethodRemoveScreen
+            screen={screen}
+            copy={copy}
+            locale={locale}
+            action={actions.removePaymentMethod}
+            prefetch={prefetch}
+          />
         ) : screen.kind === "returns" ? (
           <>
             <header className="flex min-w-0 flex-col gap-1">
@@ -421,6 +474,60 @@ function AccountTemplate({
 }
 
 type Screen<Kind> = Extract<AccountPage["screen"], { kind: Kind }>;
+
+/**
+ * M6 D119: the remove button's question as a page, for a browser without scripts (the dialog cannot
+ * open there): the method in words, then a form that posts its id, and the way back.
+ */
+function PaymentMethodRemoveScreen({
+  screen,
+  copy,
+  locale,
+  action,
+  prefetch,
+}: {
+  screen: Screen<"payment-method-remove">;
+  copy: AccountCopy;
+  locale: string;
+  action?: FormAction;
+  prefetch?: boolean | null;
+}) {
+  const words = copy.wallet.card;
+  const { name } = savedMethodName(
+    screen.card,
+    { card: words.card, brands: copy.wallet.brands },
+    locale,
+  );
+  return (
+    <>
+      <header className="flex min-w-0 flex-col gap-1">
+        <h1 className={titleClass}>{words.confirmTitle}</h1>
+        <p className="text-muted-foreground wrap-break-word">
+          {formatMessage(words.confirmText, { card: name }, locale)}
+        </p>
+      </header>
+      <form
+        action={action}
+        method={typeof action === "function" ? undefined : "post"}
+        data-slot="account-payment-method-remove"
+        className="flex min-w-0 flex-wrap items-center gap-3"
+      >
+        <input type="hidden" name="paymentMethodId" value={screen.card.id} />
+        <Button type="submit" variant="destructive" className="max-w-full">
+          <span className="min-w-0 wrap-anywhere">{words.confirm}</span>
+        </Button>
+        <NextLink
+          href={screen.backHref as LinkHref}
+          prefetch={prefetch}
+          data-slot="account-back"
+          className={cn(buttonVariants({ variant: "outline" }), "max-w-full")}
+        >
+          <span className="min-w-0 wrap-anywhere">{words.cancel}</span>
+        </NextLink>
+      </form>
+    </>
+  );
+}
 
 function OrderScreen({
   screen,

@@ -4,11 +4,13 @@ import {
   claimOrderForm,
   defaultAddressForm,
   removeAddressForm,
+  removePaymentMethodForm,
   requestReturnForm,
   saveAddressForm,
   saveProfileForm,
   transferForm,
 } from "./account-forms";
+import { startSetupAction } from "./account-handlers";
 
 // The account's and the order claim's form actions (T53). The bodies are in `account-forms.ts`; a
 // `"use server"` file exports async functions only. Each takes the market's key (bound by the
@@ -28,6 +30,15 @@ export async function removeAddress(market: string, data: FormData) {
 
 export async function makeDefaultAddress(market: string, data: FormData) {
   return defaultAddressForm(market, data);
+}
+
+export async function removePaymentMethod(market: string, data: FormData) {
+  return removePaymentMethodForm(market, data);
+}
+
+/** M6 D119: the SetupIntent "Add a payment method" confirms (an island's call, not a form). */
+export async function startPaymentSetup(market: string) {
+  return startSetupAction({ market });
 }
 
 export async function requestReturn(market: string, data: FormData) {

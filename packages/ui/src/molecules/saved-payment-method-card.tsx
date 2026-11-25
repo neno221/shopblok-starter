@@ -9,9 +9,12 @@
 // icon (not colour alone). The contract is strict (no number, no CVV): `last4` is all there is.
 // This is the server half: it formats every string and hands them to SavedPaymentMethodRemove, the
 // small client part that holds the confirmation dialog (see its header for what Remove does, with and
-// without JavaScript). The holder's name wraps; a long one never widens the card.
+// without JavaScript). The holder's name wraps; a long one never widens the card. M6 D119 (T101): a
+// saved Revolut Pay account is drawn by its name and Revolut's mark, with no expiry and no holder. A
+// card of a brand with no mark (Discover, JCB…: brand `card`, PR 142 review item 1) is drawn with a
+// plain card (lucide's CreditCard) and named "Card ending in 1117" (`atoms.payment.card`).
 import { formatMessage, formatNumber, type Messages } from "@shopblok/i18n";
-import type { SavedPaymentMethod } from "@shopblok/registry/contracts";
+import type { SavedCardBrand, SavedPaymentMethod } from "@shopblok/registry/contracts";
 import { Badge } from "@shopblok/ui/atoms/badge";
 import { PaymentIcon } from "@shopblok/ui/atoms/payment-icon";
 import { cn } from "@shopblok/ui/lib/utils";
@@ -19,7 +22,7 @@ import {
   SavedPaymentMethodRemove,
   type SavedPaymentMethodRemoveProps,
 } from "@shopblok/ui/molecules/saved-payment-method-remove";
-import { CircleAlertIcon } from "lucide-react";
+import { CircleAlertIcon, CreditCardIcon } from "lucide-react";
 import { useId } from "react";
 import type * as React from "react";
 
@@ -47,8 +50,60 @@ type SavedPaymentMethodCardProps = Omit<React.ComponentProps<"article">, "childr
     headingLevel?: HeadingLevel;
   };
 
-/** Month and year as numbers in the locale's digits: `08/2028`. */
+/** A saved Revolut Pay account's name (M6 D119): Revolut's product, never translated. */
+const REVOLUT_PAY = "Revolut Pay";
+
+/**
+ * A saved method's name and mark (M6 D119): a card is "Visa ending in 4242" with its brand's mark; a
+ * Revolut Pay account is "Revolut Pay" with Revolut's.
+ */
+function savedMethodName(
+  card: SavedPaymentMethod,
+  copy: { card: string; brands: Messages["atoms"]["payment"] },
+  locale: string,
+): { name: string; brand: SavedCardBrand; brandName: string } {
+  if (card.kind === "revolut_pay")
+    return { name: REVOLUT_PAY, brand: "revolut", brandName: REVOLUT_PAY };
+  const brandName = copy.brands[card.brand];
+  return {
+    name: formatMessage(copy.card, { brand: brandName, last4: card.last4 }, locale),
+    brand: card.brand,
+    brandName,
+  };
+}
+
+const markSizes = { md: "size-8", lg: "size-10" } as const;
+
+/**
+ * A saved method's mark: its brand's (PaymentIcon), or a plain card for a brand with no mark. Both
+ * are images named by `label`, the same size; callers hide them when the words say the same.
+ */
+function SavedMethodMark({
+  brand,
+  label,
+  size,
+  ...props
+}: Omit<React.ComponentProps<"svg">, "role" | "aria-label" | "children"> & {
+  brand: SavedCardBrand;
+  label: string;
+  size: keyof typeof markSizes;
+}) {
+  if (brand !== "card") return <PaymentIcon brand={brand} label={label} size={size} {...props} />;
+  return (
+    <CreditCardIcon
+      data-slot="payment-icon"
+      data-brand="card"
+      role="img"
+      aria-label={label}
+      className={cn("shrink-0", markSizes[size])}
+      {...props}
+    />
+  );
+}
+
+/** Month and year as numbers in the locale's digits: `08/2028`; empty for Revolut Pay, which has none. */
 function expiryText(card: SavedPaymentMethod, locale: string): string {
+  if (card.kind === "revolut_pay") return "";
   const month = formatNumber(card.expiryMonth, locale, {
     minimumIntegerDigits: 2,
     useGrouping: false,
@@ -59,6 +114,7 @@ function expiryText(card: SavedPaymentMethod, locale: string): string {
 
 /** True from the month after the expiry month (the card works through its last day). */
 function isExpired(card: SavedPaymentMethod, now: string): boolean {
+  if (card.kind === "revolut_pay") return false;
   const at = new Date(now);
   const year = at.getUTCFullYear();
   const month = at.getUTCMonth() + 1;
@@ -82,8 +138,12 @@ function SavedPaymentMethodCard({
 }: SavedPaymentMethodCardProps) {
   const headingId = useId();
   const Heading = `h${headingLevel}` as const;
-  const brandName = copy.brands[card.brand];
-  const inWords = formatMessage(copy.card.card, { brand: brandName, last4: card.last4 }, locale);
+  const {
+    name: inWords,
+    brand,
+    brandName,
+  } = savedMethodName(card, { card: copy.card.card, brands: copy.brands }, locale);
+  const wallet = card.kind === "revolut_pay";
   const expired = isExpired(card, now);
   const date = expiryText(card, locale);
   return (
@@ -104,7 +164,7 @@ function SavedPaymentMethodCard({
       <div className="flex min-w-0 flex-col gap-4 @sm:flex-row @sm:items-start @sm:justify-between">
         <div className="flex min-w-0 flex-1 flex-col items-start gap-3 @min-[10rem]:flex-row">
           {/* The mark says nothing the heading does not: the brand and the digits are in its words. */}
-          <PaymentIcon brand={card.brand} label={brandName} size="lg" aria-hidden="true" />
+          <SavedMethodMark brand={brand} label={brandName} size="lg" aria-hidden="true" />
           <div className="flex min-w-0 flex-1 flex-col gap-1">
             <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
               <Heading
@@ -119,7 +179,7 @@ function SavedPaymentMethodCard({
                 </Badge>
               ) : null}
             </div>
-            {expired ? (
+            {wallet ? null : expired ? (
               <p
                 data-slot="saved-payment-method-expiry"
                 className="flex items-start gap-1.5 text-sm font-medium text-destructive"
@@ -134,7 +194,7 @@ function SavedPaymentMethodCard({
                 {formatMessage(copy.card.expires, { date }, locale)}
               </p>
             )}
-            {card.holderName === undefined ? null : (
+            {wallet || card.holderName === undefined ? null : (
               <p
                 data-slot="saved-payment-method-holder"
                 className="text-sm text-muted-foreground wrap-break-word"
@@ -169,5 +229,5 @@ function SavedPaymentMethodCard({
   );
 }
 
-export { expiryText, isExpired, SavedPaymentMethodCard };
+export { expiryText, isExpired, SavedMethodMark, savedMethodName, SavedPaymentMethodCard };
 export type { SavedPaymentMethodCardProps };

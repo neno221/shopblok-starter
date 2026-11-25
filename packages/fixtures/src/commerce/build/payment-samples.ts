@@ -1,18 +1,20 @@
-import type { PaymentMethod, SavedPaymentMethod } from "@shopblok/registry/contracts";
+import type { PaymentMethod, SavedCard } from "@shopblok/registry/contracts";
 import type { Context } from "../context";
 import { fixtureNow } from "../now";
 
 /**
  * The samples of the payment molecules (T34) that the saved cards and methods of the account cannot
  * be: a card that has expired, one that expires this month (still good), the longest holder's name,
- * a card with no holder, and a method with the length of name that breaks a layout. The expiries are
- * worked out from `fixtureNow` (D50), so they stay a month behind it and in it as the fixed now moves.
+ * a card with no holder, a card of a brand with no mark (M6 D119), and a method with the length of
+ * name that breaks a layout. The expiries are worked out from `fixtureNow` (D50), so they stay a
+ * month behind it and in it as the fixed now moves.
  */
 export function buildPaymentSamples(ctx: Context): {
-  expiredCard: SavedPaymentMethod;
-  expiringCard: SavedPaymentMethod;
-  longHolderCard: SavedPaymentMethod;
-  anonymousCard: SavedPaymentMethod;
+  expiredCard: SavedCard;
+  expiringCard: SavedCard;
+  longHolderCard: SavedCard;
+  anonymousCard: SavedCard;
+  otherBrandCard: SavedCard;
   longMethod: PaymentMethod;
 } {
   const now = new Date(fixtureNow);
@@ -59,6 +61,17 @@ export function buildPaymentSamples(ctx: Context): {
       expiryMonth: 8,
       expiryYear: year + 2,
       isDefault: false,
+    },
+    // A brand the design system has no mark for (Discover, JCB…): a plain card, "Card ending in
+    // 1117" (PR 142 review, item 1).
+    otherBrandCard: {
+      id: "spm_other_brand",
+      brand: "card",
+      last4: "1117",
+      expiryMonth: 11,
+      expiryYear: year + 2,
+      isDefault: false,
+      holderName,
     },
     longMethod: {
       id: "pp_long",

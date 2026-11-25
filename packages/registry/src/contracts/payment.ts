@@ -13,6 +13,14 @@ export const PaymentBrand = z.enum([
   "klarna",
 ]);
 
+/**
+ * A saved card's brand (M6 D119, PR 142 review item 1): one of the marks, or `card` for a brand the
+ * design system has no mark for (Discover, Diners, JCB, UnionPay, Cartes Bancaires…), drawn as a
+ * plain card and named "Card ending in 1117", so that every card a customer saved can be seen,
+ * paid with and removed.
+ */
+export const SavedCardBrand = z.enum([...PaymentBrand.options, "card"]);
+
 /** A way to pay at checkout (PaymentMethodCard): the provider's method and the marks it shows. */
 export const PaymentMethod = z.object({
   id: Id.describe("Medusa's payment provider id (pp_stripe_stripe)"),
@@ -26,11 +34,13 @@ export const PaymentMethod = z.object({
 
 /**
  * A card a customer saved (SavedPaymentMethodCard, PaymentMethodsManager). Strict: a key that is
- * not listed, a card number above all, fails the parse instead of reaching a component.
+ * not listed, a card number above all, fails the parse instead of reaching a component. `kind` is
+ * left out for a card (M3's shape), and is "card" when given.
  */
-export const SavedPaymentMethod = z.strictObject({
+export const SavedCard = z.strictObject({
+  kind: z.literal("card").optional(),
   id: Id,
-  brand: PaymentBrand,
+  brand: SavedCardBrand,
   last4: z.string().regex(/^\d{4}$/, "the last four digits"),
   expiryMonth: z.int().min(1).max(12),
   expiryYear: z.int().min(2000).max(2100),
@@ -38,6 +48,22 @@ export const SavedPaymentMethod = z.strictObject({
   holderName: z.string().min(1).optional(),
 });
 
+/**
+ * M6 D119 (T101): a Revolut Pay account a customer saved. Stripe keeps nothing of it the shop could
+ * show (no digits, no expiry), so it is drawn by its name and mark alone. Strict, as a card is.
+ */
+export const SavedRevolutPay = z.strictObject({
+  kind: z.literal("revolut_pay"),
+  id: Id,
+  isDefault: z.boolean(),
+});
+
+/** A saved payment method: a card, or (M6) a Revolut Pay account. */
+export const SavedPaymentMethod = z.union([SavedCard, SavedRevolutPay]);
+
 export type PaymentBrand = z.infer<typeof PaymentBrand>;
+export type SavedCardBrand = z.infer<typeof SavedCardBrand>;
 export type PaymentMethod = z.infer<typeof PaymentMethod>;
+export type SavedCard = z.infer<typeof SavedCard>;
+export type SavedRevolutPay = z.infer<typeof SavedRevolutPay>;
 export type SavedPaymentMethod = z.infer<typeof SavedPaymentMethod>;

@@ -146,7 +146,8 @@ describe("the page fixtures (T48)", () => {
         expect(AccountPage.parse(page)).toEqual(page);
       for (const page of Object.values(pages.orderLookup))
         expect(OrderLookupPage.parse(page)).toEqual(page);
-      expect(new Set(Object.values(pages.account).map((page) => page.screen.kind)).size).toBe(9);
+      // Nine screens since T53, and T101's add and remove pages of the payment methods (D119).
+      expect(new Set(Object.values(pages.account).map((page) => page.screen.kind)).size).toBe(11);
       expect(
         pages.account.returns.screen.kind === "returns" &&
           pages.account.returns.screen.table.orders,

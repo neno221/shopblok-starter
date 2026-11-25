@@ -90,6 +90,21 @@ const SCREENS = [
     "payment-methods",
     (locale: Locale) => catalogs[locale].templates.account.paymentMethods.title,
   ],
+  [
+    "paymentMethodsSaved",
+    "payment-methods",
+    (locale: Locale) => catalogs[locale].templates.account.paymentMethods.title,
+  ],
+  [
+    "paymentMethodNew",
+    "payment-method-new",
+    (locale: Locale) => catalogs[locale].organisms.paymentMethodsManager.add,
+  ],
+  [
+    "paymentMethodRemove",
+    "payment-method-remove",
+    (locale: Locale) => catalogs[locale].molecules.savedPaymentMethodCard.confirmTitle,
+  ],
   ["returns", "returns", (locale: Locale) => catalogs[locale].templates.account.returns.title],
   ["return", "return", (locale: Locale) => catalogs[locale].templates.account.return.title],
   ["profile", "profile", (locale: Locale) => catalogs[locale].templates.account.profile.title],
@@ -437,6 +452,66 @@ describe("AccountTemplate", () => {
       renderAccount("en", pages.paymentMethods);
       expect(slot("payment-methods-manager")).not.toBeNull();
       expect(screen.getByText(words.paymentMethods.note)).toBeTruthy();
+    });
+
+    // M6 D119 (T101): saved methods, Revolut Pay among them, and the way to add one.
+    it("lists the saved methods with the way to add one and the removal's status, and no note", () => {
+      renderAccount("en", pages.paymentMethodsSaved, {
+        actions: { removePaymentMethod: "/remove" },
+      });
+      const { screen: wallet } = pages.paymentMethodsSaved;
+      if (wallet.kind !== "payment-methods") throw new Error("not the payment methods");
+      expect(document.querySelectorAll('[data-slot="payment-methods-manager-entry"]')).toHaveLength(
+        wallet.wallet.cards.length,
+      );
+      expect(screen.getAllByText("Revolut Pay").length).toBeGreaterThan(0);
+      expect(slot("payment-methods-manager-add")?.getAttribute("href")).toBe(wallet.wallet.addHref);
+      expect(slot("account-payment-methods-status")?.textContent).toBe(
+        words.paymentMethods.removed,
+      );
+      expect(screen.queryByText(words.paymentMethods.note)).toBeNull();
+      // Without scripts each remove button is a GET form to the page that asks.
+      const asks = [
+        ...document.querySelectorAll<HTMLFormElement>(
+          '[data-slot="saved-payment-method-remove-wrapper"]',
+        ),
+      ];
+      expect(asks.map((form) => form.getAttribute("action"))).toEqual(
+        wallet.wallet.cards.map(() => wallet.removeHref),
+      );
+    });
+
+    it("draws the setup slot on the add page, or says adding needs scripts", () => {
+      renderAccount("en", pages.paymentMethodNew);
+      expect(slot("account-payment-method-no-script")?.textContent).toBe(
+        words.paymentMethods.noScript,
+      );
+      expect(screen.getByText(words.paymentMethods.newLead)).toBeTruthy();
+      const { screen: add } = pages.paymentMethodNew;
+      if (add.kind !== "payment-method-new") throw new Error("not the add page");
+      expect(slot("account-back")?.getAttribute("href")).toBe(add.backHref);
+      document.body.innerHTML = "";
+      renderAccount("en", pages.paymentMethodNew, {
+        slots: { setupElement: <div data-slot="setup-stand-in" /> },
+      });
+      expect(slot("setup-stand-in")).not.toBeNull();
+      expect(slot("account-payment-method-no-script")).toBeNull();
+    });
+
+    it("asks before a removal without scripts, posting the method's id", () => {
+      renderAccount("en", pages.paymentMethodRemove, {
+        actions: { removePaymentMethod: "/remove" },
+      });
+      const { screen: remove } = pages.paymentMethodRemove;
+      if (remove.kind !== "payment-method-remove") throw new Error("not the remove page");
+      const form = slot("account-payment-method-remove") as HTMLFormElement;
+      expect(form.getAttribute("action")).toBe("/remove");
+      expect(form.getAttribute("method")).toBe("post");
+      expect(input("paymentMethodId")?.value).toBe(remove.card.id);
+      expect(within(form).getByRole("button").textContent).toBe(
+        catalogs.en.molecules.savedPaymentMethodCard.confirm,
+      );
+      expect(slot("account-back")?.getAttribute("href")).toBe(remove.backHref);
     });
   });
 

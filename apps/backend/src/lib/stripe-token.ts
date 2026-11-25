@@ -14,6 +14,21 @@ export type PaymentPreview = {
 /** The cart metadata keys the token and its preview live under. */
 export const TOKEN_KEY = "stripe_confirmation_token";
 export const PREVIEW_KEY = "payment_preview";
+/**
+ * M6 D119 (T101): `"off_session"` when the kept token saves its method for later (the shopper ticked
+ * "Save this card for next time"), so the session asks for `setup_future_usage` too: Stripe refuses
+ * a token whose `setup_future_usage` differs from its PaymentIntent's.
+ */
+export const SAVE_KEY = "stripe_setup_future_usage";
+/** M6 D119 (T101): the saved method (`pm_…`) a signed-in customer pays with instead of a token. */
+export const METHOD_KEY = "stripe_payment_method";
+
+/**
+ * The methods the shop saves and offers again (M6 D119): cards, and Revolut Pay (§0, 3a; T101 step
+ * 4). Not an Apple Pay or Google Pay card, which the wallet keeps (a card with a `wallet`).
+ */
+export const SAVED_TYPES = ["card", "revolut_pay"] as const;
+export type SavedType = (typeof SAVED_TYPES)[number];
 
 type TokenObject = {
   id?: unknown;
@@ -21,6 +36,7 @@ type TokenObject = {
   expires_at?: unknown;
   payment_intent?: unknown;
   setup_intent?: unknown;
+  setup_future_usage?: unknown;
   payment_method_preview?: {
     type?: unknown;
     card?: { brand?: unknown; last4?: unknown; wallet?: { type?: unknown } | null } | null;
@@ -32,18 +48,25 @@ const text = (value: unknown, pattern: RegExp): string | undefined =>
 
 /**
  * The token's verdict, pure (`now` in seconds): usable when it is a ConfirmationToken that no
- * PaymentIntent or SetupIntent has used yet and that has not expired, with its preview.
+ * PaymentIntent or SetupIntent has used yet and that has not expired, with its preview, and whether
+ * it saves its method for later (`save`: Stripe's `setup_future_usage` is `off_session`; any other
+ * value is refused, since the shop asks for no other, D119). Saving is refused for a method the shop
+ * does not save: an Apple Pay or Google Pay card (D119: the wallet keeps the cards; PR 142 review,
+ * item 3), or a type other than `SAVED_TYPES`.
  */
 export function judgeToken(
   token: TokenObject,
   now: number,
-): { ok: true; preview: PaymentPreview } | { ok: false; reason: string } {
+): { ok: true; preview: PaymentPreview; save: boolean } | { ok: false; reason: string } {
   if (token.object !== "confirmation_token")
     return { ok: false, reason: "not a confirmation token" };
   if (token.payment_intent || token.setup_intent)
     return { ok: false, reason: "the token was used already" };
   if (typeof token.expires_at === "number" && token.expires_at <= now)
     return { ok: false, reason: "the token has expired" };
+  const usage = token.setup_future_usage ?? null;
+  if (usage !== null && usage !== "off_session")
+    return { ok: false, reason: "the token saves its method in a way the shop does not ask for" };
   const raw = token.payment_method_preview;
   const type = text(raw?.type, /^[a-z_]{1,40}$/);
   if (type === undefined) return { ok: false, reason: "the token has no payment method" };
@@ -54,7 +77,10 @@ export function judgeToken(
   if (brand !== undefined) preview.brand = brand;
   if (last4 !== undefined) preview.last4 = last4;
   if (wallet !== undefined) preview.wallet = wallet;
-  return { ok: true, preview };
+  const save = usage === "off_session";
+  if (save && (wallet !== undefined || !(SAVED_TYPES as readonly string[]).includes(type)))
+    return { ok: false, reason: "the token saves a method the shop does not save" };
+  return { ok: true, preview, save };
 }
 
 /** A preview as metadata holds it, checked again (metadata is writable elsewhere); `null` when it is none. */

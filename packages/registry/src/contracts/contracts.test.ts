@@ -325,6 +325,11 @@ describe("the contracts (D41)", () => {
     expect(issues(SavedPaymentMethod, saved)).toEqual([]);
     expect(issues(SavedPaymentMethod, { ...saved, number: "4242424242424242" })).not.toEqual([]);
     expect(issues(SavedPaymentMethod, { ...saved, last4: "42" })).not.toEqual([]);
+    // M6 D119: a saved Revolut Pay account, by its name alone; nothing of a card's goes with it.
+    const revolut = { kind: "revolut_pay", id: "pm_2", isDefault: false };
+    expect(issues(SavedPaymentMethod, revolut)).toEqual([]);
+    expect(issues(SavedPaymentMethod, { ...revolut, last4: "4242" })).not.toEqual([]);
+    expect(issues(SavedPaymentMethod, { ...saved, kind: "card" })).toEqual([]);
   });
 
   it("nest categories to any depth", () => {

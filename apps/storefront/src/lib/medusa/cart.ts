@@ -87,6 +87,16 @@ export type CartDto = {
    */
   paymentToken: string | null;
   paymentPreview: PaymentPreview | null;
+  /**
+   * M6 D119 (T101): the signed-in customer's saved method the cart pays with
+   * (`metadata.stripe_payment_method`), instead of a token; and whether the kept token saves its
+   * method for later (`metadata.stripe_setup_future_usage`). Both are written by the backend's
+   * token route, only for the cart's own signed-in customer.
+   */
+  savedMethod: string | null;
+  paymentSave: boolean;
+  /** The customer the cart belongs to (a signed-in customer's, or the one Medusa found by its e-mail). */
+  customerId: string | null;
   completed: boolean;
 };
 
@@ -110,6 +120,8 @@ export const CART_FIELDS = [
   "*shipping_address",
   "*payment_collection",
   "*payment_collection.payment_sessions",
+  // M6 D119: whose cart it is (only its own signed-in customer saves or uses a saved method).
+  "customer.id",
   // M6 D124: what the cart says about analytics (`withConsent` compares it with the cookies).
   "metadata",
 ].join(",");
@@ -153,6 +165,7 @@ export type WireCart = {
       } | null)[]
     | null;
   shipping_address?: WireAddress | null;
+  customer?: { id?: string | null } | null;
   payment_collection?: {
     payment_sessions?: ({ provider_id?: string | null; status?: string | null } | null)[] | null;
   } | null;
@@ -273,6 +286,13 @@ export function toCartDto(cart: WireCart): CartDto {
         ? cart.metadata.stripe_confirmation_token
         : null,
     paymentPreview: toPaymentPreview(cart.metadata?.payment_preview),
+    savedMethod:
+      typeof cart.metadata?.stripe_payment_method === "string" &&
+      cart.metadata.stripe_payment_method !== ""
+        ? cart.metadata.stripe_payment_method
+        : null,
+    paymentSave: cart.metadata?.stripe_setup_future_usage === "off_session",
+    customerId: cart.customer?.id ?? null,
     completed: Boolean(cart.completed_at),
   };
 }
@@ -739,13 +759,29 @@ export async function setShippingMethod(optionId: string, locale?: string): Prom
 }
 
 /**
+ * What a Stripe session asks for beyond the amount (M6 D119): a saved method to pay with, or that the
+ * kept token's method is saved for later. Medusa's provider passes both into the PaymentIntent, and
+ * the backend's guard takes them only from the cart's own signed-in customer.
+ */
+export type SessionData = { payment_method?: string; setup_future_usage?: "off_session" };
+
+/** The session data a cart's kept payment asks for (M6 D119): its saved method, or saving. */
+export function sessionDataOf(cart: Pick<CartDto, "savedMethod" | "paymentSave">): SessionData {
+  if (cart.savedMethod !== null) return { payment_method: cart.savedMethod };
+  if (cart.paymentSave) return { setup_future_usage: "off_session" };
+  return {};
+}
+
+/**
  * Starts a payment session with `providerId` (`pp_system_default` in M3, D65) and answers with the
  * session the provider made, by provider id: dtc-starter read `payment_sessions[0]`, which is the
- * wrong one once a shopper has switched methods (SPEC §8.2).
+ * wrong one once a shopper has switched methods (SPEC §8.2). `data` (M6 D119) only when it holds
+ * something, so a session without it is the same request as before.
  */
 export async function initiatePayment(
   providerId: string,
   locale?: string,
+  data: SessionData = {},
 ): Promise<{ sessionId: string; providerId: string; status: string; clientSecret?: string }> {
   const id = await requireCartId();
   const headers = await headersFor(locale);
@@ -755,7 +791,12 @@ export async function initiatePayment(
       { fields: "id,*payment_collection" },
       headers,
     );
-    return sdk.store.payment.initiatePaymentSession(cart, { provider_id: providerId }, {}, headers);
+    return sdk.store.payment.initiatePaymentSession(
+      cart,
+      { provider_id: providerId, ...(Object.keys(data).length === 0 ? {} : { data }) },
+      {},
+      headers,
+    );
   });
   const session = (collection.payment_sessions ?? []).find(
     (candidate) => candidate.provider_id === providerId && candidate.status === "pending",
@@ -776,16 +817,63 @@ export async function initiatePayment(
  * `POST /store/carts/:id/payment-token`), which reads it from Stripe, refuses one an intent used or
  * that expired, and keeps it and its preview on the cart. Medusa's refusal comes back as `rejected`.
  */
-export async function keepPaymentToken(token: string, locale?: string): Promise<PaymentPreview> {
+export async function keepPaymentToken(
+  token: string,
+  locale?: string,
+): Promise<{ preview: PaymentPreview; save: boolean }> {
+  const id = await requireCartId();
+  const headers = await headersFor(locale);
+  const { preview, save } = await medusaRequest((sdk) =>
+    sdk.client.fetch<{ preview: PaymentPreview; save?: boolean }>(
+      `/store/carts/${encodeURIComponent(id)}/payment-token`,
+      { method: "POST", body: { token }, headers },
+    ),
+  );
+  return { preview, save: save === true };
+}
+
+/**
+ * M6 D119 (T101): the delivery step's saved method, handed to the same backend route, which takes it
+ * only from the cart's own signed-in customer and only when it is one of their own (another's is a
+ * 404), and keeps it and its preview on the cart in place of a token.
+ */
+export async function keepSavedMethod(methodId: string, locale?: string): Promise<PaymentPreview> {
   const id = await requireCartId();
   const headers = await headersFor(locale);
   const { preview } = await medusaRequest((sdk) =>
     sdk.client.fetch<{ preview: PaymentPreview }>(
       `/store/carts/${encodeURIComponent(id)}/payment-token`,
-      { method: "POST", body: { token }, headers },
+      { method: "POST", body: { payment_method: methodId }, headers },
     ),
   );
   return preview;
+}
+
+/**
+ * Forgets the payment the delivery step kept (PR 142 review, item 2): the token, its preview, a saved
+ * method and saving, each written `""`, which Medusa's metadata merge deletes. For a cart whose kept
+ * payment needs its own signed-in customer (a saved method, or saving) when the caller is not that
+ * customer any more (signed out, or the session lapsed on a shared computer): the shopper goes back
+ * to the payment, and the next session is made without the customer's data.
+ */
+export async function forgetKeptPayment(locale?: string): Promise<void> {
+  const id = await requireCartId();
+  const headers = await headersFor(locale);
+  await medusaRequest((sdk) =>
+    sdk.store.cart.update(
+      id,
+      {
+        metadata: {
+          stripe_confirmation_token: "",
+          payment_preview: "",
+          stripe_payment_method: "",
+          stripe_setup_future_usage: "",
+        },
+      },
+      { fields: "id" },
+      headers,
+    ),
+  );
 }
 
 /** What the payment of the cookie's cart is, whether it is completed or not (`/api/payment-return`). */
@@ -800,8 +888,31 @@ type WireSession = {
   provider_id?: string | null;
   status?: string | null;
   amount?: number | null;
-  data?: { id?: unknown; client_secret?: unknown } | null;
+  data?: {
+    id?: unknown;
+    client_secret?: unknown;
+    setup_future_usage?: unknown;
+    payment_method?: unknown;
+  } | null;
 };
+
+/**
+ * Whether a session's PaymentIntent asks for what `data` asks (a saved method, saving), and no more:
+ * a session that holds a saved method is never reused for a payment that asks for none (the
+ * express rail's, or a new card's; PR 142 review, item 7).
+ */
+export function sessionMatches(session: WireSession, data: SessionData): boolean {
+  const usage = session.data?.setup_future_usage ?? null;
+  if ((data.setup_future_usage ?? null) !== usage) return false;
+  const method = session.data?.payment_method;
+  const id =
+    typeof method === "string"
+      ? method
+      : typeof method === "object" && method !== null && "id" in method
+        ? (method as { id: unknown }).id
+        : null;
+  return id === (data.payment_method ?? null);
+}
 
 /** The cookie's cart's payment, for the return from Stripe (M6 D117); `null` without a cart. */
 export async function readCartPayment(providerId: string): Promise<CartPayment | null> {
@@ -839,11 +950,13 @@ export async function readCartPayment(providerId: string): Promise<CartPayment |
  * its client secret. Medusa deletes a cart's sessions whenever a change moves its total
  * (`refreshPaymentCollectionForCartWorkflow`: a promotion or a quantity changed on the review page,
  * the cart changed in another tab), which cancels the PaymentIntent, so when there is none for this
- * total a new one is initiated. Only an action calls it: it may write.
+ * total a new one is initiated. With `data` (M6 D119: a saved method, or saving), the session must
+ * ask for the same, or a new one is initiated too. Only an action calls it: it may write.
  */
 export async function ensurePaymentSession(
   providerId: string,
   locale?: string,
+  data: SessionData = {},
 ): Promise<{ clientSecret: string; intentId: string; amount: number }> {
   const id = await requireCartId();
   const headers = await headersFor(locale);
@@ -868,7 +981,8 @@ export async function ensurePaymentSession(
       each.status === "pending" &&
       each.amount === total &&
       typeof each.data?.client_secret === "string" &&
-      typeof each.data.id === "string",
+      typeof each.data.id === "string" &&
+      sessionMatches(each, data),
   );
   if (current?.data && wire.payment_collection?.amount === total)
     return {
@@ -876,7 +990,7 @@ export async function ensurePaymentSession(
       intentId: current.data.id as string,
       amount: total,
     };
-  const started = await initiatePayment(providerId, locale);
+  const started = await initiatePayment(providerId, locale, data);
   const again = await readCartPayment(providerId);
   if (started.clientSecret === undefined || again?.intentId == null)
     throw new MedusaRequestError(

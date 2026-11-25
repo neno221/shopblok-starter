@@ -28,6 +28,7 @@ import {
   paysWithStripe,
   stripePublishableKey,
 } from "../../../../../lib/medusa/payment";
+import { listSavedMethods } from "../../../../../lib/medusa/payment-methods";
 import { PaymentElementIsland } from "../../../../../components/checkout/stripe/payment-element-island";
 import { PlaceOrderIsland } from "../../../../../components/checkout/stripe/place-order-island";
 import { ExpressCheckoutIsland } from "../../../../../components/checkout/stripe/express";
@@ -36,15 +37,19 @@ import {
   canOpen,
   firstOpenStep,
   formCountries,
+  ownsKeptPayment,
   savedAddressFor,
   toAddressFormState,
   toCheckoutDone,
   toCheckoutSteps,
   toPaymentStep,
   toReviewStep,
+  toSavedPaymentMethods,
+  type SavedChoice,
   paymentNames,
   toExpressRates,
   toShippingOption,
+  withoutKeptPayment,
   type CheckoutStepId,
 } from "../../../../../lib/view-models/checkout";
 import { TrackOnView } from "../../../../../lib/analytics/track-on-view";
@@ -140,7 +145,13 @@ export default async function CheckoutStepPage({ params, searchParams }: Props) 
         />
       </main>
     );
-  const { cart, view } = read;
+  const { view } = read;
+  // M6 D119: a saved method, or saving, only for the cart's own signed-in customer (PR 142 review,
+  // item 2). For anyone else (signed out, or the session lapsed) the page draws the cart as if no
+  // payment was kept, so the review goes back to the payment; "Place order" forgets it on the cart.
+  const kept = read.cart;
+  const caller = kept.savedMethod === null && !kept.paymentSave ? null : await getCustomer();
+  const cart = ownsKeptPayment(kept, caller?.id ?? null) ? kept : withoutKeptPayment(kept);
   const shown = canOpen(cart, requested) ? requested : firstOpenStep(cart);
   const stepHref = (id: CheckoutStepId) => context.url(`/checkout/${id}`);
   const key = typeof query.f === "string" ? query.f : undefined;
@@ -199,11 +210,12 @@ export default async function CheckoutStepPage({ params, searchParams }: Props) 
                     content.options.map((option) => [option.id, option.price.amount]),
                   )}
                   {...(content.selected === undefined ? {} : { selected: content.selected })}
+                  saving={content.payment.saveForLater}
                   words={{ noScript: messages.organisms.paymentStep.noScript, failed: unpaid }}
                 />
               ),
             }
-          : content.kind === "review" && cart.paymentToken !== null
+          : content.kind === "review" && (cart.paymentToken !== null || cart.savedMethod !== null)
             ? {
                 placeOrder: (
                   <PlaceOrderIsland
@@ -260,6 +272,28 @@ export default async function CheckoutStepPage({ params, searchParams }: Props) 
   );
 }
 
+/**
+ * M6 D119 (T101): a signed-in customer's saved methods and "Save this card for next time", only on
+ * their own cart (a guest's, or a cart that is not theirs, gets neither: the backend refuses both
+ * there too); the method the cart pays with, or a failed submit's choice, chosen.
+ */
+async function savedChoiceFor(
+  cart: CartDto,
+  flash: Flash | null,
+): Promise<SavedChoice | undefined> {
+  if (cart.customerId === null) return undefined;
+  const customer = await getCustomer();
+  if (customer === null || customer.id !== cart.customerId) return undefined;
+  const saved = toSavedPaymentMethods(await listSavedMethods());
+  const chosen = flash?.values?.paymentMethod ?? cart.savedMethod ?? undefined;
+  return {
+    saved,
+    canSave: true,
+    saveForLater: cart.paymentSave,
+    ...(chosen === undefined ? {} : { selected: chosen }),
+  };
+}
+
 /** The step's content from the cart, and what a failed submit typed. */
 async function stepOf(
   step: CheckoutStepId,
@@ -293,7 +327,12 @@ async function stepOf(
       kind: "delivery",
       options: offered,
       ...(offered.some((option) => option.id === chosen) ? { selected: chosen } : {}),
-      payment: stripe ? toPaymentStep(messages.organisms.paymentStep.stripeName) : toPaymentStep(),
+      payment: stripe
+        ? toPaymentStep(
+            messages.organisms.paymentStep.stripeName,
+            await savedChoiceFor(cart, flash),
+          )
+        : toPaymentStep(),
       addressHref: context.url("/checkout/contact"),
     };
   }

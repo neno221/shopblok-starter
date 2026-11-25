@@ -10,7 +10,8 @@ import { wireCart } from "../../test-support/medusa-wire";
 const jar = createCookieJar();
 vi.mock("next/headers", () => ({ cookies: jar.cookies }));
 
-const { consentKeys, consentMetadata, toCartDto } = await import("./cart");
+const { consentKeys, consentMetadata, sessionDataOf, sessionMatches, toCartDto } =
+  await import("./cart");
 
 describe("toCartDto", () => {
   it("keeps the lines, the totals and each code's discount, in major units", () => {
@@ -50,6 +51,62 @@ describe("toCartDto", () => {
     const cart = toCartDto({ ...wireCart, items: [{ ...first!, variant_id: null }, null] });
     expect(cart.lines).toEqual([]);
     expect(cart.itemCount).toBe(0);
+  });
+});
+
+describe("the saved payment method on the cart (M6 D119, T101)", () => {
+  it("reads the kept saved method, the saving and the customer, and none of them by default", () => {
+    expect(toCartDto(wireCart)).toMatchObject({
+      savedMethod: null,
+      paymentSave: false,
+      customerId: null,
+    });
+    const cart = toCartDto({
+      ...wireCart,
+      customer: { id: "cus_1" },
+      metadata: { stripe_payment_method: "pm_card1", stripe_setup_future_usage: "off_session" },
+    });
+    expect(cart).toMatchObject({ savedMethod: "pm_card1", paymentSave: true, customerId: "cus_1" });
+    // Medusa deletes a key written as "": an emptied one reads as none.
+    expect(
+      toCartDto({ ...wireCart, metadata: { stripe_payment_method: "" } }).savedMethod,
+    ).toBeNull();
+  });
+
+  it("asks the session for the saved method first, then for saving, else for nothing", () => {
+    expect(sessionDataOf({ savedMethod: "pm_1", paymentSave: true })).toEqual({
+      payment_method: "pm_1",
+    });
+    expect(sessionDataOf({ savedMethod: null, paymentSave: true })).toEqual({
+      setup_future_usage: "off_session",
+    });
+    expect(sessionDataOf({ savedMethod: null, paymentSave: false })).toEqual({});
+  });
+
+  it("takes an existing session only when it asks for the same saving and method", () => {
+    expect(sessionMatches({ data: {} }, {})).toBe(true);
+    expect(sessionMatches({ data: { setup_future_usage: "off_session" } }, {})).toBe(false);
+    expect(sessionMatches({ data: {} }, { setup_future_usage: "off_session" })).toBe(false);
+    expect(
+      sessionMatches(
+        { data: { setup_future_usage: "off_session" } },
+        { setup_future_usage: "off_session" },
+      ),
+    ).toBe(true);
+    expect(sessionMatches({ data: { payment_method: "pm_1" } }, { payment_method: "pm_1" })).toBe(
+      true,
+    );
+    expect(
+      sessionMatches({ data: { payment_method: { id: "pm_1" } } }, { payment_method: "pm_1" }),
+    ).toBe(true);
+    expect(sessionMatches({ data: { payment_method: "pm_2" } }, { payment_method: "pm_1" })).toBe(
+      false,
+    );
+    // A session that holds a saved method is not one for a payment that asks for none (item 7).
+    expect(sessionMatches({ data: { payment_method: "pm_1" } }, {})).toBe(false);
+    expect(sessionMatches({ data: { payment_method: { id: "pm_1" } } }, {})).toBe(false);
+    expect(sessionMatches({ data: { payment_method: null } }, {})).toBe(true);
+    expect(sessionMatches({ data: {} }, { payment_method: "pm_1" })).toBe(false);
   });
 });
 

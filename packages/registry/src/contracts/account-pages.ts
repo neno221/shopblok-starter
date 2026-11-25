@@ -9,6 +9,7 @@ import {
   ReturnRequest,
 } from "./cart-checkout-account";
 import { VerificationRequest } from "./checkout";
+import { SavedPaymentMethod } from "./payment";
 import { Href, Id } from "./content";
 import { PageState } from "./listing";
 import { Order } from "./order";
@@ -161,10 +162,36 @@ export const AccountAddressScreen = z.object({
   backHref: Href.describe("The address book"),
 });
 
-/** The saved payment methods (the empty state until M6's Stripe). */
+/** The saved payment methods (the empty state until M6's Stripe), and what was just done to them. */
 export const AccountPaymentMethodsScreen = z.object({
   kind: z.literal("payment-methods"),
   wallet: PaymentMethodsManager,
+  status: z
+    .enum(["added", "removed"])
+    .optional()
+    .describe("M6 D119: a method just saved (the return from Stripe) or removed"),
+  removeHref: Href.optional().describe(
+    "M6 D119: the page that asks before a method is removed, without scripts (its `paymentMethodId` in the query)",
+  ),
+});
+
+/**
+ * M6 D119 (T101): "Add a payment method": Stripe's Payment Element in setup mode, which the page
+ * draws in the template's `setupElement` slot (without it, the notice that adding needs scripts).
+ */
+export const AccountPaymentMethodNewScreen = z.object({
+  kind: z.literal("payment-method-new"),
+  backHref: Href.describe("The payment methods"),
+});
+
+/**
+ * M6 D119 (T101): the question before a saved method is removed, as a page: where the remove
+ * button's dialog cannot open (no scripts), the button goes here, and its form posts the same.
+ */
+export const AccountPaymentMethodRemoveScreen = z.object({
+  kind: z.literal("payment-method-remove"),
+  card: SavedPaymentMethod,
+  backHref: Href.describe("The payment methods"),
 });
 
 /** The orders that can be sent back, each linked to its return form. */
@@ -201,6 +228,8 @@ export const ACCOUNT_SECTION = {
   addresses: "addresses",
   address: "addresses",
   "payment-methods": "payment-methods",
+  "payment-method-new": "payment-methods",
+  "payment-method-remove": "payment-methods",
   returns: "returns",
   return: "returns",
   profile: "profile",
@@ -218,6 +247,8 @@ export const AccountPage = z
       AccountAddressesScreen,
       AccountAddressScreen,
       AccountPaymentMethodsScreen,
+      AccountPaymentMethodNewScreen,
+      AccountPaymentMethodRemoveScreen,
       AccountReturnsScreen,
       AccountReturnScreen,
       AccountProfileScreen,

@@ -1292,7 +1292,7 @@ export const templateStories = {
   },
   "templates/account": {
     summary:
-      "The account: AccountNav beside the screen. The overview, the orders and one order, the address book and an address, the payment methods (none until M6), the returns and the profile.",
+      "The account: AccountNav beside the screen. The overview, the orders and one order, the address book and an address, the payment methods with “Add a payment method” and the remove question without scripts (M6), the returns and the profile.",
     a11y: [
       pageNote,
       formsNote,
@@ -1324,6 +1324,28 @@ export const templateStories = {
         label: "An address",
         description: "An address to change, with the default checkbox.",
         render: (ctx) => account(ctx, "template-account-address", "address"),
+      },
+      {
+        id: "payment-methods",
+        label: "Payment methods",
+        description:
+          "M6 D119: two saved cards and a Revolut Pay account, just after a removal, with “Add a payment method”.",
+        render: (ctx) => account(ctx, "template-account-payment-methods", "paymentMethodsSaved"),
+      },
+      {
+        id: "payment-method-new",
+        label: "Add a payment method",
+        description:
+          "Stripe's Payment Element in setup mode goes in the box; without scripts (and here) the box says adding needs JavaScript.",
+        render: (ctx) => account(ctx, "template-account-payment-method-new", "paymentMethodNew"),
+      },
+      {
+        id: "payment-method-remove",
+        label: "Remove, without scripts",
+        description:
+          "Where the remove button's dialog cannot open, the button leads here: the same question, and a form that posts the same.",
+        render: (ctx) =>
+          account(ctx, "template-account-payment-method-remove", "paymentMethodRemove"),
       },
       {
         id: "return",
