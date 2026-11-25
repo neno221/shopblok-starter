@@ -1,177 +1,183 @@
-import * as migration_20261009_115513_initial from './20261009_115513_initial';
-import * as migration_20261026_174226_market_time_zones from './20261026_174226_market_time_zones';
-import * as migration_20261028_154553_localized_parent_id_indexes from './20261028_154553_localized_parent_id_indexes';
-import * as migration_20261028_164715_cms_foundations from './20261028_164715_cms_foundations';
-import * as migration_20261028_194034_sync from './20261028_194034_sync';
-import * as migration_20261028_211336_email_templates from './20261028_211336_email_templates';
-import * as migration_20261028_220728_ui_strings from './20261028_220728_ui_strings';
-import * as migration_20261029_000652_globals from './20261029_000652_globals';
-import * as migration_20261029_020305_blocks from './20261029_020305_blocks';
-import * as migration_20261029_032810_forms from './20261029_032810_forms';
-import * as migration_20261029_045853_commerce_blocks from './20261029_045853_commerce_blocks';
-import * as migration_20261029_074259_pages from './20261029_074259_pages';
-import * as migration_20261029_104144_catalog_content from './20261029_104144_catalog_content';
-import * as migration_20261029_130958_posts from './20261029_130958_posts';
-import * as migration_20261029_142450_seo_redirects from './20261029_142450_seo_redirects';
-import * as migration_20261031_021246_drop_markets_global from './20261031_021246_drop_markets_global';
-import * as migration_20261106_122518_add_persian from './20261106_122518_add_persian';
-import * as migration_20261107_102559_templates_global from './20261107_102559_templates_global';
-import * as migration_20261107_113348_listing_variants from './20261107_113348_listing_variants';
-import * as migration_20261107_130650_hero_variants from './20261107_130650_hero_variants';
-import * as migration_20261107_135645_cart_variants from './20261107_135645_cart_variants';
-import * as migration_20261107_152528_content_variants from './20261107_152528_content_variants';
-import * as migration_20261107_163728_checkout_receipt_variants from './20261107_163728_checkout_receipt_variants';
-import * as migration_20261107_171250_catalog_variants from './20261107_171250_catalog_variants';
-import * as migration_20261107_183640_localized_layout from './20261107_183640_localized_layout';
-import * as migration_20261107_193458_product_page_variants from './20261107_193458_product_page_variants';
-import * as migration_20261107_203523_catalog_sections from './20261107_203523_catalog_sections';
-import * as migration_20261111_090000_renew_layout_copy_ids from './20261111_090000_renew_layout_copy_ids';
-import * as migration_20261112_135006_email_types_newsletter from './20261112_135006_email_types_newsletter';
+import * as migration_20261009_115513_initial from "./20261009_115513_initial";
+import * as migration_20261026_174226_market_time_zones from "./20261026_174226_market_time_zones";
+import * as migration_20261028_154553_localized_parent_id_indexes from "./20261028_154553_localized_parent_id_indexes";
+import * as migration_20261028_164715_cms_foundations from "./20261028_164715_cms_foundations";
+import * as migration_20261028_194034_sync from "./20261028_194034_sync";
+import * as migration_20261028_211336_email_templates from "./20261028_211336_email_templates";
+import * as migration_20261028_220728_ui_strings from "./20261028_220728_ui_strings";
+import * as migration_20261029_000652_globals from "./20261029_000652_globals";
+import * as migration_20261029_020305_blocks from "./20261029_020305_blocks";
+import * as migration_20261029_032810_forms from "./20261029_032810_forms";
+import * as migration_20261029_045853_commerce_blocks from "./20261029_045853_commerce_blocks";
+import * as migration_20261029_074259_pages from "./20261029_074259_pages";
+import * as migration_20261029_104144_catalog_content from "./20261029_104144_catalog_content";
+import * as migration_20261029_130958_posts from "./20261029_130958_posts";
+import * as migration_20261029_142450_seo_redirects from "./20261029_142450_seo_redirects";
+import * as migration_20261031_021246_drop_markets_global from "./20261031_021246_drop_markets_global";
+import * as migration_20261106_122518_add_persian from "./20261106_122518_add_persian";
+import * as migration_20261107_102559_templates_global from "./20261107_102559_templates_global";
+import * as migration_20261107_113348_listing_variants from "./20261107_113348_listing_variants";
+import * as migration_20261107_130650_hero_variants from "./20261107_130650_hero_variants";
+import * as migration_20261107_135645_cart_variants from "./20261107_135645_cart_variants";
+import * as migration_20261107_152528_content_variants from "./20261107_152528_content_variants";
+import * as migration_20261107_163728_checkout_receipt_variants from "./20261107_163728_checkout_receipt_variants";
+import * as migration_20261107_171250_catalog_variants from "./20261107_171250_catalog_variants";
+import * as migration_20261107_183640_localized_layout from "./20261107_183640_localized_layout";
+import * as migration_20261107_193458_product_page_variants from "./20261107_193458_product_page_variants";
+import * as migration_20261107_203523_catalog_sections from "./20261107_203523_catalog_sections";
+import * as migration_20261111_090000_renew_layout_copy_ids from "./20261111_090000_renew_layout_copy_ids";
+import * as migration_20261112_135006_email_types_newsletter from "./20261112_135006_email_types_newsletter";
+import * as migration_20261125_234610_media_storage_fields from "./20261125_234610_media_storage_fields";
 
 export const migrations = [
   {
     up: migration_20261009_115513_initial.up,
     down: migration_20261009_115513_initial.down,
-    name: '20261009_115513_initial',
+    name: "20261009_115513_initial",
   },
   {
     up: migration_20261026_174226_market_time_zones.up,
     down: migration_20261026_174226_market_time_zones.down,
-    name: '20261026_174226_market_time_zones',
+    name: "20261026_174226_market_time_zones",
   },
   {
     up: migration_20261028_154553_localized_parent_id_indexes.up,
     down: migration_20261028_154553_localized_parent_id_indexes.down,
-    name: '20261028_154553_localized_parent_id_indexes',
+    name: "20261028_154553_localized_parent_id_indexes",
   },
   {
     up: migration_20261028_164715_cms_foundations.up,
     down: migration_20261028_164715_cms_foundations.down,
-    name: '20261028_164715_cms_foundations',
+    name: "20261028_164715_cms_foundations",
   },
   {
     up: migration_20261028_194034_sync.up,
     down: migration_20261028_194034_sync.down,
-    name: '20261028_194034_sync',
+    name: "20261028_194034_sync",
   },
   {
     up: migration_20261028_211336_email_templates.up,
     down: migration_20261028_211336_email_templates.down,
-    name: '20261028_211336_email_templates',
+    name: "20261028_211336_email_templates",
   },
   {
     up: migration_20261028_220728_ui_strings.up,
     down: migration_20261028_220728_ui_strings.down,
-    name: '20261028_220728_ui_strings',
+    name: "20261028_220728_ui_strings",
   },
   {
     up: migration_20261029_000652_globals.up,
     down: migration_20261029_000652_globals.down,
-    name: '20261029_000652_globals',
+    name: "20261029_000652_globals",
   },
   {
     up: migration_20261029_020305_blocks.up,
     down: migration_20261029_020305_blocks.down,
-    name: '20261029_020305_blocks',
+    name: "20261029_020305_blocks",
   },
   {
     up: migration_20261029_032810_forms.up,
     down: migration_20261029_032810_forms.down,
-    name: '20261029_032810_forms',
+    name: "20261029_032810_forms",
   },
   {
     up: migration_20261029_045853_commerce_blocks.up,
     down: migration_20261029_045853_commerce_blocks.down,
-    name: '20261029_045853_commerce_blocks',
+    name: "20261029_045853_commerce_blocks",
   },
   {
     up: migration_20261029_074259_pages.up,
     down: migration_20261029_074259_pages.down,
-    name: '20261029_074259_pages',
+    name: "20261029_074259_pages",
   },
   {
     up: migration_20261029_104144_catalog_content.up,
     down: migration_20261029_104144_catalog_content.down,
-    name: '20261029_104144_catalog_content',
+    name: "20261029_104144_catalog_content",
   },
   {
     up: migration_20261029_130958_posts.up,
     down: migration_20261029_130958_posts.down,
-    name: '20261029_130958_posts',
+    name: "20261029_130958_posts",
   },
   {
     up: migration_20261029_142450_seo_redirects.up,
     down: migration_20261029_142450_seo_redirects.down,
-    name: '20261029_142450_seo_redirects',
+    name: "20261029_142450_seo_redirects",
   },
   {
     up: migration_20261031_021246_drop_markets_global.up,
     down: migration_20261031_021246_drop_markets_global.down,
-    name: '20261031_021246_drop_markets_global',
+    name: "20261031_021246_drop_markets_global",
   },
   {
     up: migration_20261106_122518_add_persian.up,
     down: migration_20261106_122518_add_persian.down,
-    name: '20261106_122518_add_persian',
+    name: "20261106_122518_add_persian",
   },
   {
     up: migration_20261107_102559_templates_global.up,
     down: migration_20261107_102559_templates_global.down,
-    name: '20261107_102559_templates_global',
+    name: "20261107_102559_templates_global",
   },
   {
     up: migration_20261107_113348_listing_variants.up,
     down: migration_20261107_113348_listing_variants.down,
-    name: '20261107_113348_listing_variants',
+    name: "20261107_113348_listing_variants",
   },
   {
     up: migration_20261107_130650_hero_variants.up,
     down: migration_20261107_130650_hero_variants.down,
-    name: '20261107_130650_hero_variants',
+    name: "20261107_130650_hero_variants",
   },
   {
     up: migration_20261107_135645_cart_variants.up,
     down: migration_20261107_135645_cart_variants.down,
-    name: '20261107_135645_cart_variants',
+    name: "20261107_135645_cart_variants",
   },
   {
     up: migration_20261107_152528_content_variants.up,
     down: migration_20261107_152528_content_variants.down,
-    name: '20261107_152528_content_variants',
+    name: "20261107_152528_content_variants",
   },
   {
     up: migration_20261107_163728_checkout_receipt_variants.up,
     down: migration_20261107_163728_checkout_receipt_variants.down,
-    name: '20261107_163728_checkout_receipt_variants',
+    name: "20261107_163728_checkout_receipt_variants",
   },
   {
     up: migration_20261107_171250_catalog_variants.up,
     down: migration_20261107_171250_catalog_variants.down,
-    name: '20261107_171250_catalog_variants',
+    name: "20261107_171250_catalog_variants",
   },
   {
     up: migration_20261107_183640_localized_layout.up,
     down: migration_20261107_183640_localized_layout.down,
-    name: '20261107_183640_localized_layout',
+    name: "20261107_183640_localized_layout",
   },
   {
     up: migration_20261107_193458_product_page_variants.up,
     down: migration_20261107_193458_product_page_variants.down,
-    name: '20261107_193458_product_page_variants',
+    name: "20261107_193458_product_page_variants",
   },
   {
     up: migration_20261107_203523_catalog_sections.up,
     down: migration_20261107_203523_catalog_sections.down,
-    name: '20261107_203523_catalog_sections',
+    name: "20261107_203523_catalog_sections",
   },
   {
     up: migration_20261111_090000_renew_layout_copy_ids.up,
     down: migration_20261111_090000_renew_layout_copy_ids.down,
-    name: '20261111_090000_renew_layout_copy_ids',
+    name: "20261111_090000_renew_layout_copy_ids",
   },
   {
     up: migration_20261112_135006_email_types_newsletter.up,
     down: migration_20261112_135006_email_types_newsletter.down,
-    name: '20261112_135006_email_types_newsletter'
+    name: "20261112_135006_email_types_newsletter",
+  },
+  {
+    up: migration_20261125_234610_media_storage_fields.up,
+    down: migration_20261125_234610_media_storage_fields.down,
+    name: "20261125_234610_media_storage_fields",
   },
 ];

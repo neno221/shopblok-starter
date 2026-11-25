@@ -124,7 +124,8 @@ export function mediaImage(value: unknown): Image | undefined {
  * the shop's own origin. Payload writes it absolute, with `serverURL` (`siteOrigin()`), and
  * `next/image` refuses an absolute URL on a host it has not been told of: `next dev` fails the
  * page, and in production `/_next/image` answers 400, a broken picture (PR 98, the seeded hero).
- * A file on another host (a storage adapter's) is left as it is.
+ * A file on another host is left as it is: with R2 (M6 D127, T95) every upload's URL is absolute on
+ * `S3_PUBLIC_URL`'s domain, which `next.config.ts` names in `images.remotePatterns`.
  */
 export function mediaSrc(url: string, origin: string = siteOrigin()): string {
   try {

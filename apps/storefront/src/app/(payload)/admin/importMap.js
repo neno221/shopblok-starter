@@ -53,6 +53,7 @@ import { IntegrationsStatus as IntegrationsStatus_0103e8596891616c9f9b23c5bdf559
 import { AdminFont as AdminFont_443010b22781fad839f6e13003fd32e1 } from '../../../payload/components/admin-font'
 import { ImportExportProvider as ImportExportProvider_cdf7e044479f899a31f804427d568b36 } from '@payloadcms/plugin-import-export/rsc'
 import { CollectionCards as CollectionCards_f9c02e79a4aed9a3924487c0cd4cafb1 } from '@payloadcms/next/rsc'
+import { S3ClientUploadHandler as S3ClientUploadHandler_f97aa6c64367fa259c5bc0567239ef24 } from '@payloadcms/storage-s3/client'
 
 /** @type import('payload').ImportMap */
 export const importMap = {
@@ -110,5 +111,6 @@ export const importMap = {
   "/payload/components/integrations-status#IntegrationsStatus": IntegrationsStatus_0103e8596891616c9f9b23c5bdf5593e,
   "/payload/components/admin-font#AdminFont": AdminFont_443010b22781fad839f6e13003fd32e1,
   "@payloadcms/plugin-import-export/rsc#ImportExportProvider": ImportExportProvider_cdf7e044479f899a31f804427d568b36,
-  "@payloadcms/next/rsc#CollectionCards": CollectionCards_f9c02e79a4aed9a3924487c0cd4cafb1
+  "@payloadcms/next/rsc#CollectionCards": CollectionCards_f9c02e79a4aed9a3924487c0cd4cafb1,
+  "@payloadcms/storage-s3/client#S3ClientUploadHandler": S3ClientUploadHandler_f97aa6c64367fa259c5bc0567239ef24
 }

@@ -171,7 +171,7 @@ describe("getIntegrationStatus", () => {
     expect([status.wired, status.state, status.arrives]).toEqual([true, "live", undefined]);
   });
 
-  it("every key set in both apps is configured, and still on the fallback until the code exists", () => {
+  it("R2 is live with every key in both apps, the backend's private bucket among them (T95)", () => {
     const keys = {
       S3_ENDPOINT: "https://x.r2.cloudflarestorage.com",
       S3_ACCESS_KEY_ID: "id",
@@ -188,8 +188,7 @@ describe("getIntegrationStatus", () => {
     );
     expect(status.configured).toBe(true);
     expect(status.half).toBe(false);
-    expect(status.wired).toBe(false);
-    expect(status.state).toBe("fallback");
+    expect([status.wired, status.state, status.arrives]).toEqual([true, "live", undefined]);
   });
 
   it("Resend is live with its keys in both apps (T98), and its segment is optional", () => {

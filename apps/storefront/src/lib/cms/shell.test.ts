@@ -105,6 +105,16 @@ describe("mediaSrc", () => {
     expect(mediaSrc("https://cdn.example/a.webp", origin)).toBe("https://cdn.example/a.webp");
     expect(mediaSrc("http://shop.example/a.webp", origin)).toBe("http://shop.example/a.webp");
   });
+
+  it("passes an R2 URL through whole (T95: S3_PUBLIC_URL, a picture and one of its sizes)", () => {
+    const origin = "https://shop.example";
+    for (const url of [
+      "https://pub-abc.r2.dev/media/hero.webp",
+      "https://media.shop.example/media/hero-1920x1080.webp",
+      "https://pub-abc.r2.dev/media/a%20b%C3%A9.webp",
+    ])
+      expect(mediaSrc(url, origin)).toBe(url);
+  });
 });
 
 describe("settingsFrom", () => {

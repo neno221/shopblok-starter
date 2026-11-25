@@ -38,6 +38,24 @@ export function stripeEnabled(env: Env): boolean {
   return has(env, "STRIPE_API_KEY", "STRIPE_WEBHOOK_SECRET");
 }
 
+/**
+ * The keys that put Medusa's files on R2 (M6 D127): the S3 API's endpoint and token, the public
+ * bucket and its domain, and the private bucket. `S3_REGION` is optional (`auto`, R2's only region).
+ */
+export const R2_KEYS = [
+  "S3_ENDPOINT",
+  "S3_ACCESS_KEY_ID",
+  "S3_SECRET_ACCESS_KEY",
+  "S3_BUCKET",
+  "S3_PRIVATE_BUCKET",
+  "S3_PUBLIC_URL",
+] as const;
+
+/** True when every R2 key is set (D127): the File Module gets the R2 provider. */
+export function r2Enabled(env: Env): boolean {
+  return has(env, ...R2_KEYS);
+}
+
 /** `REDIS_URL` without surrounding blanks, or `undefined` when it isn't set. */
 export function getRedisUrl(env: Env): string | undefined {
   return has(env, "REDIS_URL") ? env.REDIS_URL?.trim() : undefined;
@@ -104,8 +122,10 @@ export function getIndexPrefix(env: Env): string | undefined {
  *   provider (`pp_system_default`, "Pay later"), which every region keeps (`lib/stripe-regions.ts`).
  *   Without the keys the module keeps Medusa's default: the system provider alone.
  *
- * `file-local` is a Medusa default and stays unregistered here. M6 adds S3/R2 behind a
- * `has(env, ...)` gate in this function.
+ * - File (M6 D127, T95): with every `S3_*` key and `S3_PRIVATE_BUCKET`, the File Module's one
+ *   provider is `src/modules/r2-file`: public files (product pictures) in `S3_BUCKET`, linked from
+ *   `S3_PUBLIC_URL`, private ones (CSV imports and exports) in `S3_PRIVATE_BUCKET`, which has no
+ *   public access. Without them the module keeps Medusa's default, `file-local` (development only).
  */
 export function buildModules(env: Env): InputConfigModules {
   const redisUrl = getRedisUrl(env);
@@ -114,6 +134,7 @@ export function buildModules(env: Env): InputConfigModules {
   const indexPrefix = meilisearch ? getIndexPrefix(env) : undefined;
   const posthog = has(env, "POSTHOG_EVENTS_API_KEY");
   const stripe = stripeEnabled(env);
+  const r2 = r2Enabled(env);
 
   const modules: (ModuleEntry | false)[] = [
     { resolve: "@medusajs/medusa/translation" },
@@ -191,6 +212,27 @@ export function buildModules(env: Env): InputConfigModules {
               webhookSecret: env.STRIPE_WEBHOOK_SECRET?.trim(),
               capture: false,
               automaticPaymentMethods: true,
+            },
+          },
+        ],
+      },
+    },
+
+    r2 && {
+      resolve: "@medusajs/medusa/file",
+      options: {
+        providers: [
+          {
+            resolve: "./src/modules/r2-file",
+            id: "r2",
+            options: {
+              endpoint: env.S3_ENDPOINT?.trim(),
+              region: env.S3_REGION?.trim() || "auto",
+              access_key_id: env.S3_ACCESS_KEY_ID?.trim(),
+              secret_access_key: env.S3_SECRET_ACCESS_KEY?.trim(),
+              bucket: env.S3_BUCKET?.trim(),
+              private_bucket: env.S3_PRIVATE_BUCKET?.trim(),
+              file_url: env.S3_PUBLIC_URL?.trim(),
             },
           },
         ],

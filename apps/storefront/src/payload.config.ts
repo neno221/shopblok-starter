@@ -34,6 +34,7 @@ import { DEFAULT_LOCALE, LOCALES } from "./payload/locales";
 import { emailAdapter } from "./payload/email";
 import { e2eThrowEndpoint } from "./payload/e2e-throw";
 import { reportToSentry } from "./payload/sentry";
+import { mediaStorage } from "./payload/storage";
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -147,7 +148,8 @@ export default buildConfig({
   // D77: CSV export and import of `ui-strings`, admins only (`payload/import-export.ts`). D81: the
   // form builder, hardened (`payload/forms.ts`): submissions only through the shop's server action.
   // D82: the SEO fields on the pages and posts (`payload/seo.ts`; the synced collections have them
-  // as content) and the redirects the proxy answers (`payload/redirects.ts`).
-  plugins: [importExport, formBuilder, seo, redirects],
+  // as content) and the redirects the proxy answers (`payload/redirects.ts`). M6 D127 (T95): `media`
+  // on R2 with the S3_* keys, local disk without them (`payload/storage.ts`).
+  plugins: [importExport, formBuilder, seo, redirects, mediaStorage(process.env)],
   typescript: { autoGenerate: false, outputFile: path.resolve(dirname, "payload-types.ts") },
 });

@@ -7,6 +7,7 @@ import { PHASE_DEVELOPMENT_SERVER, PHASE_PRODUCTION_BUILD } from "next/constants
 import createNextIntlPlugin from "next-intl/plugin";
 import { buildWorkers } from "./src/lib/build-workers";
 import { designSystemBuildFlag } from "./src/lib/env";
+import { mediaRemotePatterns } from "./src/lib/media-host";
 import { POSTHOG_EU } from "./src/lib/site";
 
 // The repo root. The shared packages are linked from `packages/*` and Next compiles their source
@@ -75,7 +76,11 @@ function buildConfig(phase: string): NextConfig {
       fallback: [],
     }),
     // Medusa's image URLs point at localhost in development, which next/image refuses by default.
-    images: { dangerouslyAllowLocalIP: phase === PHASE_DEVELOPMENT_SERVER },
+    // M6 D127 (T95): with R2, pictures come from `S3_PUBLIC_URL`'s host (`src/lib/media-host.ts`).
+    images: {
+      dangerouslyAllowLocalIP: phase === PHASE_DEVELOPMENT_SERVER,
+      remotePatterns: mediaRemotePatterns(process.env),
+    },
   };
 }
 

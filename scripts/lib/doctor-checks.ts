@@ -5,6 +5,7 @@ import type { RunResult } from "./exec.ts";
 import { describeUnreachable, jsonOf, type HttpResult } from "./http.ts";
 import { isSet, type AppEnvs, type AppName, type IntegrationStatus } from "@shopblok/integrations";
 import type { BackendMarkets } from "./markets-check.ts";
+import { r2KeyChecks } from "./r2-checks.ts";
 import type { Check } from "./report.ts";
 
 // What the `--online` checks are called: the table, `--json` and CI key on these.
@@ -334,6 +335,7 @@ export function configChecks(
     ...halfConfigured(statuses),
     ...sentryDsnChecks(envs),
     ...posthogKeyChecks(envs),
+    ...r2KeyChecks(envs),
   ];
 }
 

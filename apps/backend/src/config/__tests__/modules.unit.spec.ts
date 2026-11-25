@@ -1,4 +1,12 @@
-import { buildModules, getRedisUrl, has, stripeEnabled, type Env } from "../modules";
+import {
+  buildModules,
+  getRedisUrl,
+  has,
+  R2_KEYS,
+  r2Enabled,
+  stripeEnabled,
+  type Env,
+} from "../modules";
 
 const TRANSLATION = "@medusajs/medusa/translation";
 const NOTIFICATION = "@medusajs/medusa/notification";
@@ -10,6 +18,7 @@ const CACHING = "@medusajs/medusa/caching";
 const PAYLOAD = "./src/modules/payload";
 const SEARCH = "@medusajs/medusa/search";
 const PAYMENT = "@medusajs/medusa/payment";
+const FILE = "@medusajs/medusa/file";
 
 const REDIS_URL = "redis://localhost:6380";
 
@@ -94,7 +103,11 @@ describe("buildModules", () => {
 
   describe("caching", () => {
     it("stays off without REDIS_URL, so it never registers without a provider", () => {
-      expect(resolves({ MEDUSA_FF_CACHING: "true" })).toEqual([TRANSLATION, NOTIFICATION, ANALYTICS]);
+      expect(resolves({ MEDUSA_FF_CACHING: "true" })).toEqual([
+        TRANSLATION,
+        NOTIFICATION,
+        ANALYTICS,
+      ]);
     });
 
     it("stays off unless MEDUSA_FF_CACHING is the string true, as Medusa reads the flag", () => {
@@ -178,12 +191,14 @@ describe("buildModules", () => {
         },
       ]);
       expect(
-        entry({ POSTHOG_EVENTS_API_KEY: "phc_key", POSTHOG_HOST: " http://127.0.0.1:8971 " }, ANALYTICS)
-          .options.providers?.[0]?.options,
+        entry(
+          { POSTHOG_EVENTS_API_KEY: "phc_key", POSTHOG_HOST: " http://127.0.0.1:8971 " },
+          ANALYTICS,
+        ).options.providers?.[0]?.options,
       ).toEqual({ posthogEventsKey: "phc_key", posthogHost: "http://127.0.0.1:8971" });
-      expect(
-        entry({ POSTHOG_EVENTS_API_KEY: " " }, ANALYTICS).options.providers?.[0]?.id,
-      ).toBe("local");
+      expect(entry({ POSTHOG_EVENTS_API_KEY: " " }, ANALYTICS).options.providers?.[0]?.id).toBe(
+        "local",
+      );
     });
   });
 
@@ -218,6 +233,50 @@ describe("buildModules", () => {
           },
         },
       ]);
+    });
+  });
+
+  describe("file (M6 D127, T95)", () => {
+    // Stand-ins, not keys (D115).
+    const R2 = {
+      S3_ENDPOINT: " https://account.r2.cloudflarestorage.com ",
+      S3_ACCESS_KEY_ID: "id",
+      S3_SECRET_ACCESS_KEY: "secret",
+      S3_BUCKET: "shopblok-dev",
+      S3_PRIVATE_BUCKET: "shopblok-dev-private",
+      S3_PUBLIC_URL: "https://pub-x.r2.dev",
+    };
+
+    it("registers the R2 provider only with every key, the private bucket among them", () => {
+      expect(resolves(R2)).toEqual([TRANSLATION, NOTIFICATION, FILE, ANALYTICS]);
+      expect(r2Enabled(R2)).toBe(true);
+      for (const key of R2_KEYS) {
+        expect(resolves({ ...R2, [key]: " " })).not.toContain(FILE);
+        expect(r2Enabled({ ...R2, [key]: undefined })).toBe(false);
+      }
+      // Without them Medusa keeps its default, file-local.
+      expect(resolves({})).not.toContain(FILE);
+    });
+
+    it("passes the trimmed keys, and `auto` for a blank region", () => {
+      expect(entry(R2, FILE).options.providers).toEqual([
+        {
+          resolve: "./src/modules/r2-file",
+          id: "r2",
+          options: {
+            endpoint: "https://account.r2.cloudflarestorage.com",
+            region: "auto",
+            access_key_id: "id",
+            secret_access_key: "secret",
+            bucket: "shopblok-dev",
+            private_bucket: "shopblok-dev-private",
+            file_url: "https://pub-x.r2.dev",
+          },
+        },
+      ]);
+      expect(
+        entry({ ...R2, S3_REGION: " eu " }, FILE).options.providers?.[0]?.options,
+      ).toMatchObject({ region: "eu" });
     });
   });
 
@@ -273,7 +332,9 @@ describe("buildModules", () => {
     });
 
     it("passes MEILISEARCH_INDEX_PREFIX as the module's index_prefix, trimmed", () => {
-      expect(entry({ ...MEILI, MEILISEARCH_INDEX_PREFIX: " shop_1 " }, SEARCH).options).toMatchObject({
+      expect(
+        entry({ ...MEILI, MEILISEARCH_INDEX_PREFIX: " shop_1 " }, SEARCH).options,
+      ).toMatchObject({
         index_prefix: "shop_1",
       });
       expect(entry({ ...MEILI, MEILISEARCH_INDEX_PREFIX: "" }, SEARCH).options).not.toHaveProperty(
@@ -290,7 +351,11 @@ describe("buildModules", () => {
     });
 
     it("ignores the prefix without the keys", () => {
-      expect(resolves({ MEILISEARCH_INDEX_PREFIX: "Not Valid" })).toEqual([TRANSLATION, NOTIFICATION, ANALYTICS]);
+      expect(resolves({ MEILISEARCH_INDEX_PREFIX: "Not Valid" })).toEqual([
+        TRANSLATION,
+        NOTIFICATION,
+        ANALYTICS,
+      ]);
     });
   });
 
