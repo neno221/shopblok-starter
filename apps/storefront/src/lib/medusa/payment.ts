@@ -44,3 +44,13 @@ export function paysWithStripe(providers: readonly string[], total: number): boo
     providers.includes(STRIPE_PAYMENT_PROVIDER) && stripePublishableKey() !== null && total > 0
   );
 }
+
+/**
+ * M6 D119 (T101): the publishable key when the region's customers can add a payment method in
+ * their account (the region offers Stripe and the storefront has the key), or `null`.
+ */
+export async function regionStripeKey(regionId: string): Promise<string | null> {
+  const key = stripePublishableKey();
+  if (key === null) return null;
+  return (await listPaymentProviders(regionId)).includes(STRIPE_PAYMENT_PROVIDER) ? key : null;
+}

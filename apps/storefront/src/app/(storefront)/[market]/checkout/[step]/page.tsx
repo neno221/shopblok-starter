@@ -28,6 +28,7 @@ import {
   paysWithStripe,
   stripePublishableKey,
 } from "../../../../../lib/medusa/payment";
+import { listSavedMethods } from "../../../../../lib/medusa/payment-methods";
 import { PaymentElementIsland } from "../../../../../components/checkout/stripe/payment-element-island";
 import { PlaceOrderIsland } from "../../../../../components/checkout/stripe/place-order-island";
 import { SHELL_PREFETCH } from "../../../../../lib/site";
@@ -41,6 +42,8 @@ import {
   toCheckoutSteps,
   toPaymentStep,
   toReviewStep,
+  toSavedPaymentMethods,
+  type SavedChoice,
   paymentNames,
   toShippingOption,
   type CheckoutStepId,
@@ -166,11 +169,12 @@ export default async function CheckoutStepPage({ params, searchParams }: Props) 
                   content.options.map((option) => [option.id, option.price.amount]),
                 )}
                 {...(content.selected === undefined ? {} : { selected: content.selected })}
+                saving={content.payment.saveForLater}
                 words={{ noScript: messages.organisms.paymentStep.noScript, failed: unpaid }}
               />
             ),
           }
-        : content.kind === "review" && cart.paymentToken !== null
+        : content.kind === "review" && (cart.paymentToken !== null || cart.savedMethod !== null)
           ? {
               placeOrder: (
                 <PlaceOrderIsland
@@ -228,6 +232,28 @@ export default async function CheckoutStepPage({ params, searchParams }: Props) 
   );
 }
 
+/**
+ * M6 D119 (T101): a signed-in customer's saved methods and "Save this card for next time", only on
+ * their own cart (a guest's, or a cart that is not theirs, gets neither: the backend refuses both
+ * there too); the method the cart pays with, or a failed submit's choice, chosen.
+ */
+async function savedChoiceFor(
+  cart: CartDto,
+  flash: Flash | null,
+): Promise<SavedChoice | undefined> {
+  if (cart.customerId === null) return undefined;
+  const customer = await getCustomer();
+  if (customer === null || customer.id !== cart.customerId) return undefined;
+  const saved = toSavedPaymentMethods(await listSavedMethods());
+  const chosen = flash?.values?.paymentMethod ?? cart.savedMethod ?? undefined;
+  return {
+    saved,
+    canSave: true,
+    saveForLater: cart.paymentSave,
+    ...(chosen === undefined ? {} : { selected: chosen }),
+  };
+}
+
 /** The step's content from the cart, and what a failed submit typed. */
 async function stepOf(
   step: CheckoutStepId,
@@ -261,7 +287,12 @@ async function stepOf(
       kind: "delivery",
       options: offered,
       ...(offered.some((option) => option.id === chosen) ? { selected: chosen } : {}),
-      payment: stripe ? toPaymentStep(messages.organisms.paymentStep.stripeName) : toPaymentStep(),
+      payment: stripe
+        ? toPaymentStep(
+            messages.organisms.paymentStep.stripeName,
+            await savedChoiceFor(cart, flash),
+          )
+        : toPaymentStep(),
       addressHref: context.url("/checkout/contact"),
     };
   }

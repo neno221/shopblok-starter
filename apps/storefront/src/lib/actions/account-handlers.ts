@@ -17,6 +17,8 @@ import {
   listReturnReasons,
   returnableOf,
 } from "../medusa/orders";
+import { regionStripeKey } from "../medusa/payment";
+import { listSavedMethods, removeSavedMethod, startSetup } from "../medusa/payment-methods";
 import { MedusaRequestError } from "../medusa/sdk";
 import { toAddressInput } from "../view-models/address";
 import { action, ActionError, FieldsError } from "./action";
@@ -151,6 +153,48 @@ export const defaultAddressAction = action(
     ownAddress(customer, addressId);
     await updateAddress(addressId, { is_default_shipping: true });
     return { saved: true };
+  },
+  { auth: "customer" },
+);
+
+// --- Saved payment methods (M6 D119, T101) -------------------------------------------------------------
+
+export const paymentMethodSchema = z.object({
+  market: marketKey,
+  paymentMethodId: z.string().regex(/^pm_[A-Za-z0-9]{1,200}$/),
+});
+
+/**
+ * Removes one of the customer's saved methods: it must be one the backend lists for them (another's
+ * id is refused here first; the backend's route checks again and answers 404).
+ */
+export const removePaymentMethodAction = action(
+  paymentMethodSchema,
+  async ({ market, paymentMethodId }) => {
+    await contextFor(market);
+    const own = await listSavedMethods();
+    if (!own.some((method) => method.id === paymentMethodId))
+      throw new ActionError("not-found", "not the customer's payment method");
+    await removeSavedMethod(paymentMethodId);
+    return { removed: true };
+  },
+  { auth: "customer" },
+);
+
+export const setupSchema = z.object({ market: marketKey });
+
+/**
+ * "Add a payment method": a SetupIntent for the customer (the backend makes their Stripe customer
+ * the first time), whose client secret the Payment Element confirms in the browser. Only where the
+ * market can take Stripe.
+ */
+export const startSetupAction = action(
+  setupSchema,
+  async ({ market }) => {
+    const context = await contextFor(market);
+    if ((await regionStripeKey(context.region.id)) === null)
+      throw new ActionError("unavailable", "the market does not take Stripe");
+    return startSetup();
   },
   { auth: "customer" },
 );

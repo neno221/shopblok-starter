@@ -16,7 +16,10 @@ import { Icon } from "@shopblok/ui/atoms/icon";
 import { Spinner } from "@shopblok/ui/atoms/spinner";
 import { cn } from "@shopblok/ui/lib/utils";
 import { EmptyState } from "@shopblok/ui/molecules/empty-state";
-import { SavedPaymentMethodCard } from "@shopblok/ui/molecules/saved-payment-method-card";
+import {
+  SavedPaymentMethodCard,
+  savedMethodName,
+} from "@shopblok/ui/molecules/saved-payment-method-card";
 import { CreditCardIcon, PlusIcon } from "lucide-react";
 import NextLink from "next/link";
 import type * as React from "react";
@@ -105,9 +108,9 @@ function PaymentMethodsManager({
         {cards.map((card) => {
           const removing = pending?.paymentMethodId === card.id && pending.action === "remove";
           const saving = pending?.paymentMethodId === card.id && pending.action === "default";
-          const inWords = formatMessage(
-            copy.card.card,
-            { brand: copy.brands[card.brand], last4: card.last4 },
+          const { name: inWords } = savedMethodName(
+            card,
+            { card: copy.card.card, brands: copy.brands },
             locale,
           );
           return (

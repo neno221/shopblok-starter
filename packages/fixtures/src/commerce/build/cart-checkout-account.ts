@@ -7,7 +7,7 @@ import type {
   PaymentMethod,
   ProductCard,
   ReturnRequest,
-  SavedPaymentMethod,
+  SavedCard,
   ShippingOption,
   StepperState,
   SummaryItem,
@@ -130,7 +130,7 @@ export function buildCartCheckout(
   },
   shippingOptions: ShippingOption[],
   paymentMethods: PaymentMethod[],
-  savedPaymentMethods: SavedPaymentMethod[],
+  savedPaymentMethods: SavedCard[],
   orders: Order[],
   products: readonly ProductCard[],
 ): CommerceFixture["cartCheckout"] {
@@ -204,7 +204,7 @@ export function buildAccount(
   ctx: Context,
   orders: Order[],
   addresses: Address[],
-  savedPaymentMethods: SavedPaymentMethod[],
+  savedPaymentMethods: SavedCard[],
 ): CommerceFixture["account"] {
   const words = ctx.copy.account;
   const [delivered, placed] = orders;

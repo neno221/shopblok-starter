@@ -1061,6 +1061,16 @@ export const de: Messages = {
       paymentMethods: {
         title: "Zahlungsarten",
         note: "Karten können an der Kasse gespeichert werden, sobald Kartenzahlungen verfügbar sind.",
+        added: "Ihre Zahlungsart wurde gespeichert.",
+        removed: "Die Zahlungsart wurde entfernt.",
+        back: "Zurück zu den Zahlungsarten",
+        newLead:
+          "Ihre Angaben gehen direkt an Stripe, unseren Zahlungsdienstleister. Wir speichern nur, was Sie hier sehen: die Marke einer Karte, ihre letzten vier Ziffern und ihr Ablaufdatum.",
+        submit: "Speichern",
+        saving: "Wird gespeichert …",
+        noScript:
+          "Zum Hinzufügen einer Zahlungsart wird JavaScript benötigt. Aktivieren Sie es in Ihrem Browser, um hier eine hinzuzufügen.",
+        failed: "Diese Zahlungsart konnte nicht gespeichert werden. Bitte versuchen Sie es erneut.",
       },
       returns: {
         title: "Rücksendungen",

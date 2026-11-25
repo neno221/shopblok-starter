@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { commerceFixtures, fixtureNow } from "@shopblok/fixtures";
 import { catalogs, LOCALES, type Locale } from "@shopblok/i18n";
-import type { SavedPaymentMethod } from "@shopblok/registry/contracts";
+import type { SavedCard } from "@shopblok/registry/contracts";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import * as React from "react";
@@ -31,11 +31,11 @@ const removeCode = withoutComments(removeSource);
 const plain = (text: string | null | undefined) => (text ?? "").replace(/\s+/g, " ").trim();
 
 const saved = (locale: Locale = "en") => commerceFixtures[locale].savedPaymentMethods;
-const visa = (locale: Locale = "en") => saved(locale)[0] as SavedPaymentMethod;
+const visa = (locale: Locale = "en") => saved(locale)[0] as SavedCard;
 
 function props(
   locale: Locale,
-  card: SavedPaymentMethod,
+  card: SavedCard,
   extra: Partial<SavedPaymentMethodCardProps> = {},
 ): SavedPaymentMethodCardProps {
   return {
@@ -51,7 +51,7 @@ function props(
 }
 
 function setup(
-  card: SavedPaymentMethod = visa(),
+  card: SavedCard = visa(),
   extra: Partial<SavedPaymentMethodCardProps> = {},
   locale: Locale = "en",
 ) {
@@ -59,7 +59,7 @@ function setup(
 }
 
 /** A card with the fields a test is about. */
-const cardOf = (change: Partial<SavedPaymentMethod> = {}): SavedPaymentMethod => ({
+const cardOf = (change: Partial<SavedCard> = {}): SavedCard => ({
   id: "spm_test",
   brand: "visa",
   last4: "4242",
@@ -179,7 +179,7 @@ describe("SavedPaymentMethodCard", () => {
   });
 
   describe("whether it has expired", () => {
-    const expired = (card: SavedPaymentMethod, now: string) => {
+    const expired = (card: SavedCard, now: string) => {
       const { container, unmount } = setup(card, { now });
       const result = article(container).hasAttribute("data-expired");
       const text = container.querySelector("[data-slot=saved-payment-method-expiry]")?.textContent;

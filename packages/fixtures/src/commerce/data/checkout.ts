@@ -4,7 +4,7 @@ import type {
   OrderEvent,
   PaymentBrand,
   PaymentMethod,
-  SavedPaymentMethod,
+  SavedCard,
   Stock,
 } from "@shopblok/registry/contracts";
 import type { ColourKey, Prices, ProductHandle } from "./catalog";
@@ -304,7 +304,7 @@ export const paymentMethodSpecs: PaymentMethodSpec[] = [
 ];
 
 /** Cards of the customer, all expiring after the fixtures' "now" (October 2026). */
-export const savedCards: Omit<SavedPaymentMethod, "holderName">[] = [
+export const savedCards: Omit<SavedCard, "holderName">[] = [
   { id: "spm_01", brand: "visa", last4: "4242", expiryMonth: 8, expiryYear: 2028, isDefault: true },
   {
     id: "spm_02",

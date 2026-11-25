@@ -1,4 +1,4 @@
-import type { PaymentMethod, SavedPaymentMethod } from "@shopblok/registry/contracts";
+import type { PaymentMethod, SavedCard } from "@shopblok/registry/contracts";
 import type { Context } from "../context";
 import { fixtureNow } from "../now";
 
@@ -9,10 +9,10 @@ import { fixtureNow } from "../now";
  * worked out from `fixtureNow` (D50), so they stay a month behind it and in it as the fixed now moves.
  */
 export function buildPaymentSamples(ctx: Context): {
-  expiredCard: SavedPaymentMethod;
-  expiringCard: SavedPaymentMethod;
-  longHolderCard: SavedPaymentMethod;
-  anonymousCard: SavedPaymentMethod;
+  expiredCard: SavedCard;
+  expiringCard: SavedCard;
+  longHolderCard: SavedCard;
+  anonymousCard: SavedCard;
   longMethod: PaymentMethod;
 } {
   const now = new Date(fixtureNow);

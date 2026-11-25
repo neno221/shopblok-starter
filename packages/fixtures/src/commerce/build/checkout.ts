@@ -6,7 +6,7 @@ import type {
   Order,
   OrderLine,
   PaymentMethod,
-  SavedPaymentMethod,
+  SavedCard,
   ShippingOption,
 } from "@shopblok/registry/contracts";
 import { round2, type Context } from "../context";
@@ -164,7 +164,7 @@ export function buildPaymentMethods(ctx: Context): PaymentMethod[] {
   }));
 }
 
-export function buildSavedPaymentMethods(ctx: Context): SavedPaymentMethod[] {
+export function buildSavedPaymentMethods(ctx: Context): SavedCard[] {
   return savedCards.map((card) => ({ ...card, holderName: ctx.ds.ordinary.personName }));
 }
 

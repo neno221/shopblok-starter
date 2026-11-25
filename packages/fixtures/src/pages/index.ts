@@ -102,6 +102,13 @@ export type PageFixtures = {
     addresses: AccountPage;
     address: AccountPage;
     paymentMethods: AccountPage;
+    /**
+     * M6 D119 (T101): the saved cards and a Revolut Pay account, just after a removal; "Add a payment
+     * method" (the Payment Element's notice in its place); the remove question as a page.
+     */
+    paymentMethodsSaved: AccountPage;
+    paymentMethodNew: AccountPage;
+    paymentMethodRemove: AccountPage;
     returns: AccountPage;
     return: AccountPage;
     profile: AccountPage;
@@ -209,6 +216,8 @@ function pagesFor(locale: DesignSystemLocale): PageFixtures {
   ): AccountPage => ({ variant: "default", nav: { ...accountParts.nav, current }, screen });
   const bookAddress = accountParts.addressBook.full.entries[0]?.address;
   if (bookAddress === undefined) throw new Error("the address book is empty");
+  const firstCard = fixtures.savedPaymentMethods[0];
+  if (firstCard === undefined) throw new Error("there is no saved card");
   const deliveryHref = `${home}/checkout/delivery`;
   return {
     notFound: {
@@ -421,6 +430,27 @@ function pagesFor(locale: DesignSystemLocale): PageFixtures {
       paymentMethods: account("payment-methods", {
         kind: "payment-methods",
         wallet: { cards: [] },
+      }),
+      paymentMethodsSaved: account("payment-methods", {
+        kind: "payment-methods",
+        wallet: {
+          cards: [
+            ...fixtures.savedPaymentMethods.slice(0, 2),
+            { kind: "revolut_pay", id: "pm_revolut_01", isDefault: false },
+          ],
+          addHref: `${home}/account/payment-methods/new`,
+        },
+        status: "removed",
+        removeHref: `${home}/account/payment-methods/remove`,
+      }),
+      paymentMethodNew: account("payment-methods", {
+        kind: "payment-method-new",
+        backHref: `${home}/account/payment-methods`,
+      }),
+      paymentMethodRemove: account("payment-methods", {
+        kind: "payment-method-remove",
+        card: firstCard,
+        backHref: `${home}/account/payment-methods`,
       }),
       returns: account("returns", {
         kind: "returns",

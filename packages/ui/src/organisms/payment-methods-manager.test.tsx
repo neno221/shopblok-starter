@@ -4,6 +4,7 @@
 // function, a name that starts with its visible words), the add tile only when the shop can add one,
 // what is in flight (the default button held and said politely, the card's removal held), the empty
 // state, a long German and Greek label, and the four catalogs.
+import { savedMethodName } from "@shopblok/ui/molecules/saved-payment-method-card";
 import { commerceFixtures } from "@shopblok/fixtures";
 import { catalogs, formatMessage, LOCALES, type Locale } from "@shopblok/i18n";
 import type { PaymentMethodsManager as ManagerContent } from "@shopblok/registry/contracts";
@@ -54,11 +55,11 @@ const slots = (name: string, root: ParentNode = document) => [
 const classesIn = (root: Element) =>
   [root, ...root.querySelectorAll("*")].map((each) => each.getAttribute("class") ?? "");
 const cardName = (locale: Locale, card: ManagerContent["cards"][number]) =>
-  formatMessage(
-    copyOf(locale).card.card,
-    { brand: copyOf(locale).brands[card.brand], last4: card.last4 },
+  savedMethodName(
+    card,
+    { card: copyOf(locale).card.card, brands: copyOf(locale).brands },
     htmlLang[locale],
-  );
+  ).name;
 
 describe("PaymentMethodsManager", () => {
   it.each(LOCALES)("is a list named 'Saved payment methods' of every card, in %s", (locale) => {

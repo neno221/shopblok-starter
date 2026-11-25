@@ -10,8 +10,11 @@ import {
   stepsDone,
   toAddressFormState,
   toOrderConfirmation,
+  toPaymentStep,
   toReviewStep,
+  toSavedPaymentMethods,
 } from "./checkout";
+import type { SavedMethodDto } from "../medusa/payment-methods";
 
 const names = { system: "Pay later", stripe: "Pay online" };
 const money = { amount: 0, currencyCode: "eur" };
@@ -49,6 +52,9 @@ const empty: CartDto = {
   paymentProviderId: null,
   paymentToken: null,
   paymentPreview: null,
+  savedMethod: null,
+  paymentSave: false,
+  customerId: null,
   completed: false,
 };
 const contactDone: CartDto = { ...empty, email: "anna@example.com", shippingAddress: address };
@@ -73,6 +79,7 @@ describe("the steps a cart has done", () => {
     const moved = { ...deliveryDone, paymentProviderId: null };
     expect(stepsDone(moved).delivery).toBe(false);
     expect(stepsDone({ ...moved, paymentToken: "ctoken_1" }).delivery).toBe(true);
+    expect(stepsDone({ ...moved, savedMethod: "pm_card1" }).delivery).toBe(true);
   });
 
   it("does not count an e-mail alone, nor a delivery without a contact", () => {
@@ -180,6 +187,90 @@ describe("savedAddressFor (T53)", () => {
   it("is null when no saved address is in the region", () => {
     expect(savedAddressFor(customer([address("de", "de", true)]), ["us"])).toBeNull();
     expect(savedAddressFor(customer([]), ["us"])).toBeNull();
+  });
+});
+
+describe("the saved payment methods (M6 D119, T101)", () => {
+  const card: SavedMethodDto = {
+    id: "pm_visa",
+    type: "card",
+    brand: "visa",
+    last4: "4242",
+    expiryMonth: 12,
+    expiryYear: 2030,
+    wallet: null,
+  };
+  const revolut: SavedMethodDto = {
+    id: "pm_revolut",
+    type: "revolut_pay",
+    brand: null,
+    last4: null,
+    expiryMonth: null,
+    expiryYear: null,
+    wallet: null,
+  };
+
+  it("draws cards of a brand the design system marks, and Revolut Pay by its name", () => {
+    expect(
+      toSavedPaymentMethods([
+        card,
+        { ...card, id: "pm_amex", brand: "amex" },
+        { ...card, id: "pm_jcb", brand: "jcb" },
+        { ...card, id: "pm_nodigits", last4: null },
+        revolut,
+      ]),
+    ).toEqual([
+      {
+        id: "pm_visa",
+        brand: "visa",
+        last4: "4242",
+        expiryMonth: 12,
+        expiryYear: 2030,
+        isDefault: false,
+      },
+      {
+        id: "pm_amex",
+        brand: "americanexpress",
+        last4: "4242",
+        expiryMonth: 12,
+        expiryYear: 2030,
+        isDefault: false,
+      },
+      { kind: "revolut_pay", id: "pm_revolut", isDefault: false },
+    ]);
+  });
+
+  it("offers saved methods and saving only when given, choosing the Element otherwise", () => {
+    expect(toPaymentStep()).toMatchObject({
+      saved: [],
+      methods: [],
+      selected: "pp_system_default",
+      canSave: false,
+    });
+    expect(toPaymentStep("Pay online")).toMatchObject({
+      saved: [],
+      selected: "pp_stripe_stripe",
+      canSave: false,
+      saveForLater: false,
+    });
+    const saved = toSavedPaymentMethods([card]);
+    expect(
+      toPaymentStep("Pay online", {
+        saved,
+        canSave: true,
+        saveForLater: true,
+        selected: "pm_visa",
+      }),
+    ).toMatchObject({ saved, selected: "pm_visa", canSave: true, saveForLater: true });
+    // A choice that is not one of the customer's methods falls back on the Element.
+    expect(
+      toPaymentStep("Pay online", {
+        saved,
+        canSave: true,
+        saveForLater: false,
+        selected: "pm_other",
+      }),
+    ).toMatchObject({ selected: "pp_stripe_stripe" });
   });
 });
 

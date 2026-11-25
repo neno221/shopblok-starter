@@ -9,8 +9,10 @@ import {
   getCart,
   initiatePayment,
   keepPaymentToken,
+  keepSavedMethod,
   moveCart,
   prepareCompletion,
+  sessionDataOf,
   setAddresses,
   setEmail,
   setShippingMethod,
@@ -145,19 +147,30 @@ export const deliverySchema = z.object({
   market: marketKey,
   shippingOption: id,
   paymentMethod: id,
-  // M6 D117: the ConfirmationToken the Payment Element made, when Stripe takes the payment.
-  confirmationToken: z
-    .string()
-    .regex(/^ctoken_[A-Za-z0-9]{1,200}$/)
-    .optional(),
+  // M6 D117: the ConfirmationToken the Payment Element made, when Stripe takes the payment. Empty
+  // when a saved method was chosen (D119): the island leaves its hidden field as it is.
+  confirmationToken: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z
+      .string()
+      .regex(/^ctoken_[A-Za-z0-9]{1,200}$/)
+      .optional(),
+  ),
 });
+
+/** A signed-in customer's saved method, as PaymentStep's radio sends it (M6 D119). */
+const SAVED_METHOD = /^pm_[A-Za-z0-9]{1,200}$/;
 
 /**
  * Step 2: the shipping option first, then the payment, last, after every change to the total (M6
  * D117): with Stripe, the ConfirmationToken is handed to the backend (which reads it from Stripe,
  * refuses one that an intent used, and keeps it and its preview on the cart) and the Stripe session
  * (the PaymentIntent) is initiated for the total the shipping made; with nothing to pay, or without
- * Stripe, the system payment ("Pay later").
+ * Stripe, the system payment ("Pay later"). M6 D119 (T101): a signed-in customer's saved method
+ * (`pm_…`) instead of a token, handed to the same route, which takes it only from the cart's own
+ * customer and only one of theirs; and a token that saves its method ("Save this card for next
+ * time", which the Element puts in the token) makes a session that saves it. The backend's guard
+ * checks both again when the session is made.
  */
 export const deliveryAction = action(
   deliverySchema,
@@ -173,20 +186,29 @@ export const deliveryAction = action(
     ]);
     const option = options.find((each) => each.id === shippingOption);
     if (option === undefined) throw new FieldsError({ shippingOption: "invalid" });
-    if (paymentMethod !== SYSTEM_PAYMENT_PROVIDER && paymentMethod !== STRIPE_PAYMENT_PROVIDER)
+    const saved = SAVED_METHOD.test(paymentMethod);
+    const provider = saved ? STRIPE_PAYMENT_PROVIDER : paymentMethod;
+    if (provider !== SYSTEM_PAYMENT_PROVIDER && provider !== STRIPE_PAYMENT_PROVIDER)
       throw new FieldsError({ paymentMethod: "invalid" });
-    if (!providers.includes(paymentMethod)) throw new FieldsError({ paymentMethod: "invalid" });
+    if (!providers.includes(provider)) throw new FieldsError({ paymentMethod: "invalid" });
     const shipped = await setShippingMethod(shippingOption, medusaLocale);
     // The total now holds the shipping: what is offered follows it (Stripe takes no zero amount).
     const wanted = paysWithStripe(providers, shipped.total.amount)
       ? STRIPE_PAYMENT_PROVIDER
       : SYSTEM_PAYMENT_PROVIDER;
-    if (paymentMethod !== wanted) throw new FieldsError({ paymentMethod: "invalid" });
-    if (wanted === STRIPE_PAYMENT_PROVIDER) {
+    if (provider !== wanted) throw new FieldsError({ paymentMethod: "invalid" });
+    if (saved) {
+      await keepSavedMethod(paymentMethod, medusaLocale);
+      await initiatePayment(wanted, medusaLocale, { payment_method: paymentMethod });
+    } else if (wanted === STRIPE_PAYMENT_PROVIDER) {
       if (confirmationToken === undefined) throw new FieldsError({ paymentMethod: "required" });
-      await keepPaymentToken(confirmationToken, medusaLocale);
-    }
-    await initiatePayment(wanted, medusaLocale);
+      const { save } = await keepPaymentToken(confirmationToken, medusaLocale);
+      await initiatePayment(
+        wanted,
+        medusaLocale,
+        save ? { setup_future_usage: "off_session" } : {},
+      );
+    } else await initiatePayment(wanted, medusaLocale);
     updateTag("cart");
     return { step: "review" as const };
   },
@@ -198,13 +220,14 @@ export const preparePaymentSchema = z.object({ market: marketKey });
  * Step 3's "Place order", before Stripe confirms (M6 D117): the cart's Stripe session for its
  * current total, and its client secret. Medusa deletes a cart's sessions when its total moves (a
  * promotion on the review page, the cart changed in another tab), so a new one is initiated when
- * there is none for this total. Answers the ConfirmationToken the delivery step kept, which the
- * browser confirms the PaymentIntent with.
+ * there is none for this total, asking for what the kept payment asks (D119: its saved method, or
+ * saving). Answers the ConfirmationToken the delivery step kept, which the browser confirms the
+ * PaymentIntent with; `null` for a saved method, which the PaymentIntent holds already.
  */
 export const preparePaymentAction = action(preparePaymentSchema, async ({ market }) => {
   const context = await contextFor(market);
   const cart = await requireCart(context);
-  if (cart.shippingMethod === null || cart.paymentToken === null)
+  if (cart.shippingMethod === null || (cart.paymentToken === null && cart.savedMethod === null))
     throw new ActionError("incomplete", "the delivery step kept no payment");
   const providers = await listPaymentProviders(context.region.id);
   if (!paysWithStripe(providers, cart.total.amount))
@@ -216,12 +239,12 @@ export const preparePaymentAction = action(preparePaymentSchema, async ({ market
     ...mailTarget(context.market, context.map),
     key: context.market.key,
   });
-  const session = await ensurePaymentSession(STRIPE_PAYMENT_PROVIDER, locale);
+  const session = await ensurePaymentSession(STRIPE_PAYMENT_PROVIDER, locale, sessionDataOf(cart));
   updateTag("cart");
   return {
     clientSecret: session.clientSecret,
     intentId: session.intentId,
-    confirmationToken: cart.paymentToken,
+    confirmationToken: cart.savedMethod === null ? cart.paymentToken : null,
   };
 });
 

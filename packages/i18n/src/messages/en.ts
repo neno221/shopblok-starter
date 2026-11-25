@@ -1175,6 +1175,18 @@ export const en = {
       paymentMethods: {
         title: "Payment methods",
         note: "Cards can be saved at checkout once card payments are available.",
+        // M6 D119 (T101): after "Add a payment method" (the return from Stripe) and a removal.
+        added: "Your payment method has been saved.",
+        removed: "The payment method has been removed.",
+        back: "Back to payment methods",
+        // The "Add a payment method" page: Stripe's Payment Element in setup mode.
+        newLead:
+          "Your details go straight to Stripe, our payment provider. We keep only what you see here: a card's brand, its last four digits and its expiry.",
+        submit: "Save",
+        saving: "Saving…",
+        noScript:
+          "Adding a payment method needs JavaScript. Turn it on in your browser to add one here.",
+        failed: "We could not save this payment method. Please try again.",
       },
       returns: {
         title: "Returns",

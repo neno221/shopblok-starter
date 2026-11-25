@@ -25,7 +25,11 @@ import { Spinner } from "@shopblok/ui/atoms/spinner";
 import { cn } from "@shopblok/ui/lib/utils";
 import { PaymentMethodCard } from "@shopblok/ui/molecules/payment-method-card";
 import { RadioCard } from "@shopblok/ui/molecules/radio-card";
-import { expiryText, isExpired } from "@shopblok/ui/molecules/saved-payment-method-card";
+import {
+  expiryText,
+  isExpired,
+  savedMethodName,
+} from "@shopblok/ui/molecules/saved-payment-method-card";
 import { CircleAlertIcon } from "lucide-react";
 import { useId } from "react";
 import type * as React from "react";
@@ -249,8 +253,13 @@ function SavedCardOption({
 }) {
   const id = useId();
   const expired = isExpired(card, now);
-  const brand = copy.brands[card.brand];
+  const {
+    name: inWords,
+    brand,
+    brandName,
+  } = savedMethodName(card, { card: copy.step.card, brands: copy.brands }, locale);
   const date = expiryText(card, locale);
+  const wallet = card.kind === "revolut_pay";
   return (
     <RadioCard
       data-kind="saved"
@@ -261,22 +270,28 @@ function SavedCardOption({
       checked={expired ? false : checked}
       disabled={expired}
       labelledBy={`${id}-name`}
-      describedBy={`${id}-expiry${card.isDefault ? ` ${id}-default` : ""}`}
+      describedBy={
+        [wallet ? null : `${id}-expiry`, card.isDefault ? `${id}-default` : null]
+          .filter(Boolean)
+          .join(" ") || undefined
+      }
     >
       <span className="flex min-w-0 flex-wrap items-center justify-between gap-x-3 gap-y-2">
         <span id={`${id}-name`} className="min-w-0 flex-1 basis-40 font-medium wrap-break-word">
-          {formatMessage(copy.step.card, { brand, last4: card.last4 }, locale)}
+          {inWords}
         </span>
-        <PaymentIcon brand={card.brand} label={brand} size="md" aria-hidden="true" />
+        <PaymentIcon brand={brand} label={brandName} size="md" aria-hidden="true" />
       </span>
-      <span className="flex min-w-0 flex-wrap items-center gap-2 text-sm text-muted-foreground">
-        <span
-          id={`${id}-expiry`}
-          className={cn("flex items-center gap-1.5", expired && "text-destructive")}
-        >
-          {expired ? <CircleAlertIcon aria-hidden="true" className="size-4 shrink-0" /> : null}
-          {formatMessage(expired ? copy.step.expired : copy.step.expires, { date }, locale)}
-        </span>
+      <span className="flex min-w-0 flex-wrap items-center gap-2 text-sm text-muted-foreground empty:hidden">
+        {wallet ? null : (
+          <span
+            id={`${id}-expiry`}
+            className={cn("flex items-center gap-1.5", expired && "text-destructive")}
+          >
+            {expired ? <CircleAlertIcon aria-hidden="true" className="size-4 shrink-0" /> : null}
+            {formatMessage(expired ? copy.step.expired : copy.step.expires, { date }, locale)}
+          </span>
+        )}
         {card.isDefault ? (
           <Badge id={`${id}-default`} variant="secondary">
             {copy.step.default}
