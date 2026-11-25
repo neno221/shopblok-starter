@@ -439,15 +439,6 @@ function paymentCopy(ctx: DsContext, words: Partial<PaymentStepProps["copy"]["st
   } satisfies PaymentStepProps["copy"];
 }
 
-/** Stripe's Payment Element (M6) as the design system draws its place: a box in DS words. */
-function paymentElement(): ReactNode {
-  return (
-    <p lang="en" className="rounded-md border bg-muted p-4 text-sm text-muted-foreground">
-      Stripe’s Payment Element goes here (M6).
-    </p>
-  );
-}
-
 function payment(
   ctx: DsContext,
   content: PaymentStepContent,
@@ -462,7 +453,6 @@ function payment(
         locale={lang(ctx)}
         now={fixtureNow}
         action="#"
-        paymentElement={paymentElement()}
         {...rest}
       />
     </div>
@@ -492,7 +482,7 @@ const paymentStepStates: readonly DsState[] = [
     id: "card-chosen",
     label: "A new card",
     description:
-      "The card method chosen: the box under the group shows the place of Stripe’s Payment Element (M6) and “Save this card for next time”, by CSS, before any script runs.",
+      "The card method chosen: the box under the group shows, by CSS before any script runs, what a browser without scripts sees in place of Stripe’s Payment Element (T100: paying online needs JavaScript; the shop's island mounts the Element there) and “Save this card for next time”.",
     render: (ctx) => {
       const content = samples(ctx).payment.saved;
       const card = content.methods.find((method) => method.kind === "card");
@@ -533,6 +523,13 @@ const paymentStepStates: readonly DsState[] = [
     description:
       "The server could not save the choice: the status region says so, and the choice stays.",
     render: (ctx) => payment(ctx, samples(ctx).payment.saved, { error: "failed" }),
+  },
+  {
+    id: "unpaid",
+    label: "Not paid",
+    description:
+      "T100: back from the review after the payment did not go through: the status region says so (with Stripe's own reason, in the market's language, when Stripe gave one), and the page lands on it (its id is the page's, and focus goes there).",
+    render: (ctx) => payment(ctx, samples(ctx).payment.guest, { error: "unpaid" }),
   },
   {
     id: "pending",
