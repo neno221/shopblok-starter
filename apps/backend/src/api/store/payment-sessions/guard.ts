@@ -4,9 +4,10 @@ import type {
   MedusaRequest,
   MedusaResponse,
 } from "@medusajs/framework/http";
-import { ContainerRegistrationKeys, MedusaError, Modules } from "@medusajs/framework/utils";
+import { ContainerRegistrationKeys, MedusaError } from "@medusajs/framework/utils";
 
 import { STRIPE_PROVIDER_ID } from "../../../config/modules";
+import { listSavedMethods } from "../../../lib/saved-methods";
 import { stripeRegistered, SYSTEM_PROVIDER_ID } from "../../../lib/stripe-regions";
 
 // M6 D117 (T100): two checks on Medusa's store route that creates a payment session
@@ -26,7 +27,11 @@ import { stripeRegistered, SYSTEM_PROVIDER_ID } from "../../../lib/stripe-region
 //    `payment_method_options` and more). Only what the shop sends is taken: `setup_future_usage:
 //    "off_session"` (saving a card, D119) and `payment_method` (a saved one, D119), each only from
 //    the signed-in customer whose cart it is, and a saved method only if it is theirs. Anything else
-//    is refused, and the system provider takes no `data` at all.
+//    is refused, and the system provider takes no `data` at all. The caller is the request's
+//    `auth_context`: Medusa authenticates every `/store` route for a customer's session or bearer
+//    token before the project's middlewares, with `allowUnauthenticated` (its `ApiLoader`), so a
+//    signed-in customer is known here and a guest is not (T101's `payment-methods.spec.ts` checks
+//    both; PR 140's review, item 5).
 
 /** What a session's `data` may hold, and from whom (D117, D119). */
 export type DataVerdict = { ok: true } | { ok: false; reason: string };
@@ -117,28 +122,6 @@ async function readCollection(req: MedusaRequest, id: string): Promise<Collectio
   return collection;
 }
 
-/** The ids of the caller's saved methods with Stripe; none without an account holder there. */
-async function savedMethodsOf(req: MedusaRequest, customerId: string): Promise<string[]> {
-  const query = req.scope.resolve(ContainerRegistrationKeys.QUERY);
-  const { data } = (await query.graph({
-    entity: "customer",
-    fields: ["id", "account_holders.*"],
-    filters: { id: customerId },
-  })) as {
-    data: { account_holders?: (({ provider_id: string } & Record<string, unknown>) | null)[] }[];
-  };
-  const holder = (data[0]?.account_holders ?? []).find(
-    (h) => h?.provider_id === STRIPE_PROVIDER_ID,
-  );
-  if (!holder) return [];
-  const payment = req.scope.resolve(Modules.PAYMENT);
-  const methods = await payment.listPaymentMethods({
-    provider_id: STRIPE_PROVIDER_ID,
-    context: { account_holder: holder as never },
-  });
-  return methods.map((method) => method.id);
-}
-
 const amountOf = (value: unknown): number => {
   const n =
     typeof value === "object" && value !== null && "numeric" in value
@@ -172,7 +155,10 @@ export async function guardPaymentSession(
   const verdict = checkSessionData(providerId, body.data, {
     ...(caller === undefined ? {} : { caller }),
     owner: collection.cart?.customer_id ?? null,
-    savedMethods: wantsSaved && caller !== undefined ? await savedMethodsOf(req, caller) : [],
+    savedMethods:
+      wantsSaved && caller !== undefined
+        ? (await listSavedMethods(req.scope, caller)).map((method) => method.id)
+        : [],
   });
   if (!verdict.ok)
     throw new MedusaError(
