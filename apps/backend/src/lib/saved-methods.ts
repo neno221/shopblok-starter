@@ -3,6 +3,7 @@ import { ContainerRegistrationKeys, MedusaError, Modules } from "@medusajs/frame
 
 import { STRIPE_PROVIDER_ID } from "../config/modules";
 import { stripeRegistered } from "./stripe-regions";
+import { SAVED_TYPES, type SavedType } from "./stripe-token";
 
 // M6 D119 (T101): a customer's saved payment methods with Stripe. Medusa keeps a customer's Stripe
 // customer as an *account holder* (the payment module's), linked to the customer; the methods
@@ -11,9 +12,7 @@ import { stripeRegistered } from "./stripe-regions";
 // four digits, expiry and wallet (`toSavedMethod`), never Stripe's whole object (its fingerprint,
 // the billing details).
 
-/** The methods the shop saves and offers again: cards, and Revolut Pay (§0, 3a; T101 step 4). */
-export const SAVED_TYPES = ["card", "revolut_pay"] as const;
-export type SavedType = (typeof SAVED_TYPES)[number];
+export { SAVED_TYPES, type SavedType };
 
 /** A saved method as the store routes answer it. */
 export type SavedMethod = {
@@ -104,8 +103,18 @@ export async function listSavedMethods(
   customerId: string,
 ): Promise<SavedMethod[]> {
   if (!(await stripeRegistered(scope))) return [];
-  const holder = await stripeHolderOf(scope, customerId);
-  if (holder === null) return [];
+  return savedMethodsOf(scope, await stripeHolderOf(scope, customerId));
+}
+
+/**
+ * The saved methods of an account holder the caller read already (`stripeHolderOf`), so a route
+ * that needs the holder too reads it once (PR 142 review, item 5). None without Stripe or a holder.
+ */
+export async function savedMethodsOf(
+  scope: MedusaContainer,
+  holder: AccountHolder | null,
+): Promise<SavedMethod[]> {
+  if (holder === null || !(await stripeRegistered(scope))) return [];
   const payment = scope.resolve(Modules.PAYMENT);
   const methods = await payment.listPaymentMethods({
     provider_id: STRIPE_PROVIDER_ID,
@@ -120,8 +129,10 @@ export async function listSavedMethods(
 /**
  * The customer's account holder with Stripe, made (a Stripe customer, linked to the customer) when
  * they have none yet: what a checkout session makes for a signed-in customer, for the account's
- * "Add a payment method". Stripe's idempotency key is the customer's id, so two requests at once
- * make one Stripe customer.
+ * "Add a payment method". Stripe's idempotency key is the customer's id, so two first requests at
+ * once get one Stripe customer, but only one of them makes its account holder: the payment module's
+ * `(provider_id, external_id)` index is unique, so the other fails (a 500; trying again works). Each
+ * customer has one form, so this is left as it is (PR 142 review, item 4).
  */
 export async function ensureStripeHolder(
   scope: MedusaContainer,

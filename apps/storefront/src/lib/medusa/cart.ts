@@ -735,6 +735,33 @@ export async function keepSavedMethod(methodId: string, locale?: string): Promis
   return preview;
 }
 
+/**
+ * Forgets the payment the delivery step kept (PR 142 review, item 2): the token, its preview, a saved
+ * method and saving, each written `""`, which Medusa's metadata merge deletes. For a cart whose kept
+ * payment needs its own signed-in customer (a saved method, or saving) when the caller is not that
+ * customer any more (signed out, or the session lapsed on a shared computer): the shopper goes back
+ * to the payment, and the next session is made without the customer's data.
+ */
+export async function forgetKeptPayment(locale?: string): Promise<void> {
+  const id = await requireCartId();
+  const headers = await headersFor(locale);
+  await medusaRequest((sdk) =>
+    sdk.store.cart.update(
+      id,
+      {
+        metadata: {
+          stripe_confirmation_token: "",
+          payment_preview: "",
+          stripe_payment_method: "",
+          stripe_setup_future_usage: "",
+        },
+      },
+      { fields: "id" },
+      headers,
+    ),
+  );
+}
+
 /** What the payment of the cookie's cart is, whether it is completed or not (`/api/payment-return`). */
 export type CartPayment = {
   cartId: string;

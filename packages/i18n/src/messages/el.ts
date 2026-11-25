@@ -30,6 +30,7 @@ export const el: Messages = {
       revolut: "Revolut",
       paypal: "PayPal",
       klarna: "Klarna",
+      card: "Κάρτα",
     },
   },
   primitives: { toast: { region: "Ειδοποιήσεις", close: "Κλείσιμο ειδοποίησης" } },

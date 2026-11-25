@@ -18,8 +18,10 @@ const keepPaymentToken = vi.fn();
 const keepSavedMethod = vi.fn();
 const ensurePaymentSession = vi.fn();
 const prepareCompletion = vi.fn();
+const forgetKeptPayment = vi.fn();
 vi.mock("../medusa/cart", () => ({
   prepareCompletion,
+  forgetKeptPayment,
   keepPaymentToken,
   keepSavedMethod,
   ensurePaymentSession,
@@ -40,6 +42,9 @@ vi.mock("../medusa/cart", () => ({
 }));
 const setReceipt = vi.fn();
 vi.mock("../medusa/cookies", () => ({ setReceipt }));
+// The signed-in customer, if any (PR 142 review, item 2: a saved method is only theirs to pay with).
+const getCustomer = vi.fn();
+vi.mock("../medusa/customer", () => ({ getCustomer }));
 const listShippingOptions = vi.fn();
 vi.mock("../medusa/fulfillment", () => ({ listShippingOptions }));
 const listPaymentProviders = vi.fn();
@@ -325,8 +330,10 @@ describe("preparePaymentAction (step 3, M6 D117)", () => {
     total: { amount: 25, currencyCode: "eur" },
     paymentProviderId: "pp_stripe_stripe",
     paymentToken: "ctoken_1",
+    customerId: "cus_1",
   };
   beforeEach(() => {
+    getCustomer.mockResolvedValue({ id: "cus_1" });
     listPaymentProviders.mockResolvedValue(["pp_stripe_stripe", "pp_system_default"]);
     ensurePaymentSession.mockResolvedValue({
       clientSecret: "pi_1_secret_x",
@@ -369,6 +376,39 @@ describe("preparePaymentAction (step 3, M6 D117)", () => {
     expect(ensurePaymentSession).toHaveBeenCalledWith("pp_stripe_stripe", "en-US", {
       setup_future_usage: "off_session",
     });
+  });
+
+  it.each([
+    ["signed out (the session lapsed)", null],
+    ["another customer", { id: "cus_2" }],
+  ])(
+    "forgets a saved method, or saving, and goes back to the payment when %s (PR 142 review, item 2)",
+    async (_who, customer) => {
+      getCustomer.mockResolvedValue(customer);
+      for (const cart of [
+        { ...ready, paymentToken: null, savedMethod: "pm_card1" },
+        { ...ready, paymentSave: true },
+      ]) {
+        moveCart.mockResolvedValue(cart);
+        expect(await preparePaymentAction({ market: "en-de" })).toEqual({
+          ok: false,
+          errors: {},
+          form: "incomplete",
+        });
+      }
+      expect(forgetKeptPayment).toHaveBeenCalledTimes(2);
+      expect(forgetKeptPayment).toHaveBeenCalledWith("en-US");
+      expect(ensurePaymentSession).not.toHaveBeenCalled();
+      expect(prepareCompletion).not.toHaveBeenCalled();
+    },
+  );
+
+  it("takes a plain token from whoever holds the cart, without asking who is signed in", async () => {
+    getCustomer.mockResolvedValue(null);
+    moveCart.mockResolvedValue({ ...ready, customerId: null });
+    expect(await preparePaymentAction({ market: "en-de" })).toMatchObject({ ok: true });
+    expect(getCustomer).not.toHaveBeenCalled();
+    expect(forgetKeptPayment).not.toHaveBeenCalled();
   });
 
   it("is incomplete without a kept token, or with nothing to pay", async () => {

@@ -300,6 +300,8 @@ export type CommerceFixture = {
     longHolderCard: SavedCard;
     /** No holder's name. */
     anonymousCard: SavedCard;
+    /** A card of a brand with no mark (Discover, JCB…): brand `card` (M6 D119). */
+    otherBrandCard: SavedCard;
     /** A method whose name is the length that breaks a layout, with three marks. */
     longMethod: PaymentMethod;
   };

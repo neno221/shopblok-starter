@@ -7,12 +7,14 @@ import {
   savedAddressFor,
   canOpen,
   firstOpenStep,
+  ownsKeptPayment,
   stepsDone,
   toAddressFormState,
   toOrderConfirmation,
   toPaymentStep,
   toReviewStep,
   toSavedPaymentMethods,
+  withoutKeptPayment,
 } from "./checkout";
 import type { SavedMethodDto } from "../medusa/payment-methods";
 
@@ -80,6 +82,35 @@ describe("the steps a cart has done", () => {
     expect(stepsDone(moved).delivery).toBe(false);
     expect(stepsDone({ ...moved, paymentToken: "ctoken_1" }).delivery).toBe(true);
     expect(stepsDone({ ...moved, savedMethod: "pm_card1" }).delivery).toBe(true);
+  });
+
+  it("keeps a saved method, or saving, for the cart's own signed-in customer only (PR 142 review, item 2)", () => {
+    const saved: CartDto = {
+      ...deliveryDone,
+      paymentProviderId: "pp_stripe_stripe",
+      savedMethod: "pm_card1",
+      customerId: "cus_1",
+    };
+    const saving: CartDto = {
+      ...saved,
+      savedMethod: null,
+      paymentToken: "ctoken_1",
+      paymentSave: true,
+    };
+    for (const cart of [saved, saving]) {
+      expect(ownsKeptPayment(cart, "cus_1")).toBe(true);
+      expect(ownsKeptPayment(cart, "cus_2")).toBe(false);
+      expect(ownsKeptPayment(cart, null)).toBe(false);
+      expect(ownsKeptPayment({ ...cart, customerId: null }, null)).toBe(false);
+      // Drawn as if no payment was kept: the review is closed, the payment step opens.
+      const shown = withoutKeptPayment(cart);
+      expect(firstOpenStep(shown)).toBe("delivery");
+      expect(shown).toMatchObject({ savedMethod: null, paymentSave: false, paymentToken: null });
+    }
+    // A plain token, or the system payment, is whoever holds the cart's.
+    const token: CartDto = { ...saved, savedMethod: null, paymentToken: "ctoken_1" };
+    expect(ownsKeptPayment(token, null)).toBe(true);
+    expect(ownsKeptPayment(deliveryDone, null)).toBe(true);
   });
 
   it("does not count an e-mail alone, nor a delivery without a contact", () => {
@@ -210,12 +241,13 @@ describe("the saved payment methods (M6 D119, T101)", () => {
     wallet: null,
   };
 
-  it("draws cards of a brand the design system marks, and Revolut Pay by its name", () => {
+  it("draws every saved card (another brand as a plain card) and Revolut Pay by its name", () => {
     expect(
       toSavedPaymentMethods([
         card,
         { ...card, id: "pm_amex", brand: "amex" },
-        { ...card, id: "pm_jcb", brand: "jcb" },
+        { ...card, id: "pm_discover", brand: "discover", last4: "1117" },
+        { ...card, id: "pm_nobrand", brand: null },
         { ...card, id: "pm_nodigits", last4: null },
         revolut,
       ]),
@@ -231,6 +263,22 @@ describe("the saved payment methods (M6 D119, T101)", () => {
       {
         id: "pm_amex",
         brand: "americanexpress",
+        last4: "4242",
+        expiryMonth: 12,
+        expiryYear: 2030,
+        isDefault: false,
+      },
+      {
+        id: "pm_discover",
+        brand: "card",
+        last4: "1117",
+        expiryMonth: 12,
+        expiryYear: 2030,
+        isDefault: false,
+      },
+      {
+        id: "pm_nobrand",
+        brand: "card",
         last4: "4242",
         expiryMonth: 12,
         expiryYear: 2030,

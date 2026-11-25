@@ -80,13 +80,18 @@ export type MountedElement = {
   /**
    * M6 D119: "Save this card for next time" changed. The token carries Stripe's
    * `setup_future_usage`, which must match the PaymentIntent's, so the Element is told before the
-   * token is made (the backend reads it from the token, never from the form).
+   * token is made (the backend reads it from the token, never from the form). Never for Apple Pay
+   * or Google Pay, which the wallet keeps (D119; PR 142 review, item 3): while one of their tabs is
+   * chosen the Element saves nothing, whatever the box says.
    */
   setSaving(saving: boolean): void;
   /** Checks the details and makes the ConfirmationToken, or says why it cannot. */
   confirmationToken(): Promise<{ token: string } | { error: string | null }>;
   destroy(): void;
 };
+
+/** The Payment Element's tabs for a wallet's card (D119: never saved; the wallet keeps it). */
+const WALLET_TYPES = new Set(["apple_pay", "google_pay"]);
 
 /** Mounts the Payment Element in deferred mode (no intent yet: D117) in `host`. */
 export async function mountPaymentElement(options: ElementOptions): Promise<MountedElement> {
@@ -104,14 +109,31 @@ export async function mountPaymentElement(options: ElementOptions): Promise<Moun
   });
   const element = elements.create("payment", { layout: { type: "tabs" } });
   if (options.onReady) element.on("ready", options.onReady);
+  // D119: the box asks for saving, and the chosen tab may be a wallet, which is never saved. Stripe
+  // cannot hide the wallets once the Element is drawn (`wallets` is not among what `update` takes,
+  // and drawing it again loses what was typed), so saving follows the tab instead.
+  let saving = options.saving === true;
+  let wallet = false;
+  let asked = saving;
+  const askSaving = () => {
+    const wanted = saving && !wallet;
+    if (wanted === asked) return;
+    asked = wanted;
+    elements.update({ setupFutureUsage: wanted ? "off_session" : null });
+  };
+  element.on("change", (event) => {
+    wallet = WALLET_TYPES.has(event.value.type);
+    askSaving();
+  });
   options.host.setAttribute("data-stripe", STRIPE_CLIENT_MARKER);
   element.mount(options.host);
   return {
     setAmount(amount) {
       elements.update({ amount: smallestUnit(amount, currency) });
     },
-    setSaving(saving) {
-      elements.update({ setupFutureUsage: saving ? "off_session" : null });
+    setSaving(next) {
+      saving = next;
+      askSaving();
     },
     async confirmationToken() {
       const submitted = await elements.submit();

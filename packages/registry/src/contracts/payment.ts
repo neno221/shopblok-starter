@@ -13,6 +13,14 @@ export const PaymentBrand = z.enum([
   "klarna",
 ]);
 
+/**
+ * A saved card's brand (M6 D119, PR 142 review item 1): one of the marks, or `card` for a brand the
+ * design system has no mark for (Discover, Diners, JCB, UnionPay, Cartes Bancaires…), drawn as a
+ * plain card and named "Card ending in 1117", so that every card a customer saved can be seen,
+ * paid with and removed.
+ */
+export const SavedCardBrand = z.enum([...PaymentBrand.options, "card"]);
+
 /** A way to pay at checkout (PaymentMethodCard): the provider's method and the marks it shows. */
 export const PaymentMethod = z.object({
   id: Id.describe("Medusa's payment provider id (pp_stripe_stripe)"),
@@ -32,7 +40,7 @@ export const PaymentMethod = z.object({
 export const SavedCard = z.strictObject({
   kind: z.literal("card").optional(),
   id: Id,
-  brand: PaymentBrand,
+  brand: SavedCardBrand,
   last4: z.string().regex(/^\d{4}$/, "the last four digits"),
   expiryMonth: z.int().min(1).max(12),
   expiryYear: z.int().min(2000).max(2100),
@@ -54,6 +62,7 @@ export const SavedRevolutPay = z.strictObject({
 export const SavedPaymentMethod = z.union([SavedCard, SavedRevolutPay]);
 
 export type PaymentBrand = z.infer<typeof PaymentBrand>;
+export type SavedCardBrand = z.infer<typeof SavedCardBrand>;
 export type PaymentMethod = z.infer<typeof PaymentMethod>;
 export type SavedCard = z.infer<typeof SavedCard>;
 export type SavedRevolutPay = z.infer<typeof SavedRevolutPay>;

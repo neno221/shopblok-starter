@@ -6,6 +6,7 @@ import type { MarketContext } from "../market-context";
 import {
   completeCart,
   ensurePaymentSession,
+  forgetKeptPayment,
   getCart,
   initiatePayment,
   keepPaymentToken,
@@ -19,6 +20,7 @@ import {
   type CartDto,
 } from "../medusa/cart";
 import { setReceipt } from "../medusa/cookies";
+import { getCustomer } from "../medusa/customer";
 import { mailTarget } from "../markets";
 import { listShippingOptions } from "../medusa/fulfillment";
 import {
@@ -28,6 +30,7 @@ import {
   SYSTEM_PAYMENT_PROVIDER,
 } from "../medusa/payment";
 import { toAddressInput } from "../view-models/address";
+import { ownsKeptPayment } from "../view-models/checkout";
 import { action, ActionError, FieldsError, type FieldError } from "./action";
 import { contextFor, formText as text, marketKey } from "./inputs";
 
@@ -222,17 +225,26 @@ export const preparePaymentSchema = z.object({ market: marketKey });
  * promotion on the review page, the cart changed in another tab), so a new one is initiated when
  * there is none for this total, asking for what the kept payment asks (D119: its saved method, or
  * saving). Answers the ConfirmationToken the delivery step kept, which the browser confirms the
- * PaymentIntent with; `null` for a saved method, which the PaymentIntent holds already.
+ * PaymentIntent with; `null` for a saved method, which the PaymentIntent holds already. A saved
+ * method, or saving, only for the cart's own signed-in customer (PR 142 review, item 2): otherwise
+ * (signed out, or the session lapsed on a shared computer) the kept payment is forgotten and the
+ * shopper goes back to the payment, before any session is reused.
  */
 export const preparePaymentAction = action(preparePaymentSchema, async ({ market }) => {
   const context = await contextFor(market);
   const cart = await requireCart(context);
   if (cart.shippingMethod === null || (cart.paymentToken === null && cart.savedMethod === null))
     throw new ActionError("incomplete", "the delivery step kept no payment");
+  const locale = context.market.medusaLocale;
+  const caller = cart.savedMethod === null && !cart.paymentSave ? null : await getCustomer();
+  if (!ownsKeptPayment(cart, caller?.id ?? null)) {
+    await forgetKeptPayment(locale);
+    updateTag("cart");
+    throw new ActionError("incomplete", "the kept payment is not the caller's");
+  }
   const providers = await listPaymentProviders(context.region.id);
   if (!paysWithStripe(providers, cart.total.amount))
     throw new ActionError("incomplete", "the cart does not pay with Stripe");
-  const locale = context.market.medusaLocale;
   // Stripe's webhook may place the order before the shopper is back: the order's e-mails and the
   // consent are on the cart first, as `placeOrderAction` writes them (T99, D124).
   await prepareCompletion(locale, {

@@ -348,6 +348,13 @@ const savedPaymentMethodCardStates: readonly DsState[] = [
     render: (ctx) => savedCard(ctx, fixtures(ctx).paymentSamples.expiredCard),
   },
   {
+    id: "other-brand",
+    label: "Brand with no mark",
+    description:
+      "A card of a brand the design system has no mark for (Discover, JCB…): a plain card, named “Card ending in 1117”, so it can still be seen and removed.",
+    render: (ctx) => savedCard(ctx, fixtures(ctx).paymentSamples.otherBrandCard),
+  },
+  {
     id: "no-holder",
     label: "No holder",
     description: "The holder's name is optional.",

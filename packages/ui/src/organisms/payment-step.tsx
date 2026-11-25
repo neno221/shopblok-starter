@@ -20,7 +20,6 @@ import type {
 } from "@shopblok/registry/contracts";
 import { Badge } from "@shopblok/ui/atoms/badge";
 import { Button } from "@shopblok/ui/atoms/button";
-import { PaymentIcon } from "@shopblok/ui/atoms/payment-icon";
 import { Spinner } from "@shopblok/ui/atoms/spinner";
 import { cn } from "@shopblok/ui/lib/utils";
 import { PaymentMethodCard } from "@shopblok/ui/molecules/payment-method-card";
@@ -28,6 +27,7 @@ import { RadioCard } from "@shopblok/ui/molecules/radio-card";
 import {
   expiryText,
   isExpired,
+  SavedMethodMark,
   savedMethodName,
 } from "@shopblok/ui/molecules/saved-payment-method-card";
 import { CircleAlertIcon } from "lucide-react";
@@ -280,7 +280,7 @@ function SavedCardOption({
         <span id={`${id}-name`} className="min-w-0 flex-1 basis-40 font-medium wrap-break-word">
           {inWords}
         </span>
-        <PaymentIcon brand={brand} label={brandName} size="md" aria-hidden="true" />
+        <SavedMethodMark brand={brand} label={brandName} size="md" aria-hidden="true" />
       </span>
       <span className="flex min-w-0 flex-wrap items-center gap-2 text-sm text-muted-foreground empty:hidden">
         {wallet ? null : (

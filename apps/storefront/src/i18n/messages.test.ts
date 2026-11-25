@@ -262,8 +262,8 @@ describe("uiStringOverrides (D77)", () => {
     expect(warn).toHaveBeenCalledTimes(2);
   });
 
-  it("knows the 811 shop messages of each catalog, without the design-system chrome", () => {
-    for (const locale of LOCALES) expect(codeMessages(locale).size, locale).toBe(811);
+  it("knows the 812 shop messages of each catalog, without the design-system chrome", () => {
+    for (const locale of LOCALES) expect(codeMessages(locale).size, locale).toBe(812);
     expect([...codeMessages("en").keys()].some((key) => key.startsWith("designSystem."))).toBe(
       false,
     );

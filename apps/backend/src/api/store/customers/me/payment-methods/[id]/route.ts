@@ -1,7 +1,7 @@
 import type { AuthenticatedMedusaRequest, MedusaResponse } from "@medusajs/framework/http";
 import { MedusaError } from "@medusajs/framework/utils";
 
-import { listSavedMethods, stripeHolderOf } from "../../../../../../lib/saved-methods";
+import { savedMethodsOf, stripeHolderOf } from "../../../../../../lib/saved-methods";
 import { detachPaymentMethodWorkflow } from "../../../../../../workflows/saved-payment-methods";
 
 /**
@@ -12,8 +12,8 @@ import { detachPaymentMethodWorkflow } from "../../../../../../workflows/saved-p
 export async function DELETE(req: AuthenticatedMedusaRequest, res: MedusaResponse) {
   const id = req.params.id ?? "";
   const customerId = req.auth_context.actor_id;
-  const mine = await listSavedMethods(req.scope, customerId);
   const holder = await stripeHolderOf(req.scope, customerId);
+  const mine = await savedMethodsOf(req.scope, holder);
   if (holder === null || !mine.some((method) => method.id === id))
     throw new MedusaError(
       MedusaError.Types.NOT_FOUND,

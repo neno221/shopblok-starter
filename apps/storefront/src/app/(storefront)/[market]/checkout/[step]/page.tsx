@@ -36,6 +36,7 @@ import {
   canOpen,
   firstOpenStep,
   formCountries,
+  ownsKeptPayment,
   savedAddressFor,
   toAddressFormState,
   toCheckoutDone,
@@ -46,6 +47,7 @@ import {
   type SavedChoice,
   paymentNames,
   toShippingOption,
+  withoutKeptPayment,
   type CheckoutStepId,
 } from "../../../../../lib/view-models/checkout";
 import { TrackOnView } from "../../../../../lib/analytics/track-on-view";
@@ -141,7 +143,13 @@ export default async function CheckoutStepPage({ params, searchParams }: Props) 
         />
       </main>
     );
-  const { cart, view } = read;
+  const { view } = read;
+  // M6 D119: a saved method, or saving, only for the cart's own signed-in customer (PR 142 review,
+  // item 2). For anyone else (signed out, or the session lapsed) the page draws the cart as if no
+  // payment was kept, so the review goes back to the payment; "Place order" forgets it on the cart.
+  const kept = read.cart;
+  const caller = kept.savedMethod === null && !kept.paymentSave ? null : await getCustomer();
+  const cart = ownsKeptPayment(kept, caller?.id ?? null) ? kept : withoutKeptPayment(kept);
   const shown = canOpen(cart, requested) ? requested : firstOpenStep(cart);
   const stepHref = (id: CheckoutStepId) => context.url(`/checkout/${id}`);
   const key = typeof query.f === "string" ? query.f : undefined;

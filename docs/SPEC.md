@@ -1201,14 +1201,15 @@ An integration is **live** when its keys are set *and* the code that uses them e
 | **Revolut Pay** | **UK and EU markets** (GBP, EUR and a few others; not the US) | Wallet. Confirmed in the Revolut app (mobile) or by QR code (desktop), then the shopper returns via `/api/payment-return`. Supports recurring, so it can be saved |
 | Local methods (iDEAL, Bancontact, BLIK, …) | per market | Dashboard toggle |
 
-Apple Pay and Google Pay **don't need saving**: the wallet already stores the shopper's cards.
+Apple Pay and Google Pay **don't need saving**: the wallet already stores the shopper's cards. The shop never saves them (M6, PR 142's review): the Element asks for no saving while a wallet's tab is chosen, and the backend refuses a saving token whose card has a wallet.
 
 **Saved methods**
 - Follows Medusa's official saved-payment-methods tutorial:
   - an account holder per customer;
   - `listPaymentMethods`;
   - `setup_future_usage: "off_session"` when initiating the session.
-- Adapted from the tutorial's legacy Card Element to the **Payment Element**. Saved methods render as selectable cards above it, using the design system's components.
+- Adapted from the tutorial's legacy Card Element to the **Payment Element**. Saved methods render as selectable cards above it, using the design system's components; a card of a brand with no mark (Discover, JCB, …) is drawn as a plain card ("Card ending in 1117").
+- A kept saved method, or saving, is used at "Place order" only while the cart's own customer is signed in; otherwise it is forgotten and the shopper goes back to the payment (a session that lapsed on a shared computer).
 - **Saving Revolut Pay works** (verified in M6, T101): it is saved through the checkout's "Save this card for next time" (`setup_future_usage: "off_session"`) or the account's SetupIntent, listed by its name, and a second order pays with it after Revolut's approval page again (a payment with the shopper present redirects; an off-session charge, which the shop does not make, would not). Kept beside cards (SETUP "Saved payment methods (T101)").
 
 **Webhook:** `{railway}/hooks/payment/stripe_stripe` with `payment_intent.amount_capturable_updated`, `.succeeded`, `.payment_failed`, `.partially_funded`.

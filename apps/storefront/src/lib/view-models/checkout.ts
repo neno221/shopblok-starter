@@ -44,6 +44,36 @@ export function stepsDone(cart: CartDto): Record<CheckoutStepId, boolean> {
   return { contact, delivery, review: false };
 }
 
+/**
+ * Whether the cart's kept payment is the signed-in customer's own (M6 D119): a saved method, or a
+ * token that saves its method, needs the cart's own customer to be the caller, `customerId` (PR 142
+ * review, item 2: a session that lapsed on a shared computer must not leave the next shopper paying
+ * with the customer's card). Any other payment is anyone's who holds the cart.
+ */
+export function ownsKeptPayment(
+  cart: Pick<CartDto, "savedMethod" | "paymentSave" | "customerId">,
+  customerId: string | null,
+): boolean {
+  if (cart.savedMethod === null && !cart.paymentSave) return true;
+  return customerId !== null && customerId === cart.customerId;
+}
+
+/**
+ * The cart as the checkout shows it to a caller who does not own its kept payment
+ * (`ownsKeptPayment`): as if the delivery step kept none, so the review is not open and the payment
+ * step is drawn again. Only a read: the review's action forgets the payment on the cart itself.
+ */
+export function withoutKeptPayment(cart: CartDto): CartDto {
+  return {
+    ...cart,
+    paymentProviderId: null,
+    paymentToken: null,
+    paymentPreview: null,
+    savedMethod: null,
+    paymentSave: false,
+  };
+}
+
 /** The first step the cart has not done: where `/checkout` sends a shopper. */
 export function firstOpenStep(cart: CartDto): CheckoutStepId {
   const done = stepsDone(cart);
@@ -203,32 +233,21 @@ export function toShippingOption(option: ShippingOptionDto, currencyCode: string
   };
 }
 
-/** A saved card's brand as Stripe names it, in the design system's marks (D31). */
-const SAVED_BRANDS: Record<string, PaymentBrand> = {
-  visa: "visa",
-  mastercard: "mastercard",
-  amex: "americanexpress",
-};
-
 /**
- * A saved method as PaymentStep and PaymentMethodsManager draw it (M6 D119), or `null` for one the
- * design system has no mark for (a card of another brand) or that lacks its digits or expiry.
- * Stripe keeps nothing of a Revolut Pay account to show, so it is its name alone.
+ * A saved method as PaymentStep and PaymentMethodsManager draw it (M6 D119), or `null` for a card
+ * that lacks its digits or expiry. A card of a brand the design system has no mark for (Discover,
+ * JCB, Cartes Bancaires…) is a plain `card` ("Card ending in 1117"), so the customer can still pay
+ * with it and remove it (PR 142 review, item 1). Stripe keeps nothing of a Revolut Pay account to
+ * show, so it is its name alone.
  */
 export function toSavedPaymentMethod(method: SavedMethodDto): SavedPaymentMethod | null {
   if (method.type === "revolut_pay")
     return { kind: "revolut_pay", id: method.id, isDefault: false };
-  const brand = method.brand === null ? undefined : SAVED_BRANDS[method.brand];
-  if (
-    brand === undefined ||
-    method.last4 === null ||
-    method.expiryMonth === null ||
-    method.expiryYear === null
-  )
+  if (method.last4 === null || method.expiryMonth === null || method.expiryYear === null)
     return null;
   return {
     id: method.id,
-    brand,
+    brand: (method.brand === null ? undefined : CARD_BRANDS[method.brand]) ?? "card",
     last4: method.last4,
     expiryMonth: method.expiryMonth,
     expiryYear: method.expiryYear,

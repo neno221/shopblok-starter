@@ -26,6 +26,7 @@ export const de: Messages = {
       revolut: "Revolut",
       paypal: "PayPal",
       klarna: "Klarna",
+      card: "Karte",
     },
   },
   primitives: { toast: { region: "Benachrichtigungen", close: "Benachrichtigung schließen" } },

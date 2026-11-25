@@ -31,6 +31,8 @@ export const en = {
       revolut: "Revolut",
       paypal: "PayPal",
       klarna: "Klarna",
+      // A saved card of a brand with no mark (Discover, JCB…): "Card ending in 1117".
+      card: "Card",
     },
   },
   // What the root layouts' Providers draw (D47): the toasts' region and their close button.

@@ -116,6 +116,7 @@ describe("the payment molecules' stories", () => {
       "list",
       "expires-this-month",
       "expired",
+      "other-brand",
       "no-holder",
       "long-holder",
       "confirmation",
@@ -371,6 +372,11 @@ describe("SavedPaymentMethodCard's live render and states", () => {
     expect(text(expired)).toContain(plain(formatMessage(copy.expired, { date: "09/2026" }, lang)));
     expect(expired).toContain("data-expired");
     expect(expired).toContain("text-destructive");
+
+    // A brand with no mark: a plain card, named by the generic word (PR 142 review, item 1).
+    const noMark = html(savedId, "other-brand", locale);
+    expect(noMark).toContain('data-brand="card"');
+    expect(text(noMark)).toContain(words("card", "1117"));
 
     const anonymous = html(savedId, "no-holder", locale);
     expect(anonymous).not.toContain('data-slot="saved-payment-method-holder"');

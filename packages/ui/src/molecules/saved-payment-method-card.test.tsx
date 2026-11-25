@@ -109,6 +109,21 @@ describe("SavedPaymentMethodCard", () => {
       expect(screen.getByRole("article", { name: "Visa ending in 4242" })).toBe(card);
     });
 
+    it.each(LOCALES)(
+      "draws a card of a brand with no mark as a plain card, named in words, in %s",
+      (locale) => {
+        const { container } = setup(cardOf({ brand: "card", last4: "1117" }), {}, locale);
+        const brand = catalogs[locale].atoms.payment.card;
+        const heading = container.querySelector("h3");
+        expect(plain(heading?.textContent)).toContain(brand);
+        expect(plain(heading?.textContent)).toContain("1117");
+        const mark = container.querySelector('[data-slot="payment-icon"]');
+        expect(mark?.getAttribute("data-brand")).toBe("card");
+        expect(mark?.getAttribute("aria-hidden")).toBe("true");
+        expect(mark?.getAttribute("class")).toContain("size-10");
+      },
+    );
+
     it("takes the heading's level from the page's outline", () => {
       setup(visa(), { headingLevel: 2 });
       expect(screen.getByRole("heading", { level: 2 })).toBeTruthy();
