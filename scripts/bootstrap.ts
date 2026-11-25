@@ -375,6 +375,12 @@ async function medusaSeeds(ctx: Context): Promise<StepResult> {
   changed ||= markets.changed;
   parts.push(markets.changed ? "markets seeded" : "markets unchanged");
 
+  // M6 D117 (T100): Stripe on every region while its keys are set, off when they are not; the
+  // system payment stays on every region. The backend repeats it at its start.
+  const stripe = await seed("sync-stripe-regions.ts");
+  changed ||= stripe.changed;
+  parts.push(stripe.changed ? "payment providers synced" : "payment providers unchanged");
+
   // `medusa exec` takes only positional arguments, so the script reads `skip` (T07 item 4).
   const demo = await seed("seed-demo-catalog.ts", ctx.options.demo ? [] : ["skip"]);
   if (demo.skipped) {
