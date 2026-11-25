@@ -30,8 +30,12 @@ import { CircleAlertIcon } from "lucide-react";
 import { useId } from "react";
 import type * as React from "react";
 
-/** What went wrong with the last submit: nothing chosen, or the server could not save it. */
-type PaymentStepError = "required" | "failed";
+/**
+ * What went wrong with the last submit: nothing chosen, or the server could not save it; or (M6
+ * T100) a payment the provider refused on the review page, with its reason (`declined`) or none
+ * (`unpaid`).
+ */
+type PaymentStepError = "required" | "failed" | "declined" | "unpaid";
 
 type PaymentStepProps = Omit<
   React.ComponentProps<"form">,
@@ -50,10 +54,21 @@ type PaymentStepProps = Omit<
     now: string;
     /** What `<form action>` takes: M3's server action, or a URL (the form is then posted). */
     action?: React.ComponentProps<"form">["action"];
-    /** Stripe's Payment Element (M6), drawn while a card is chosen. */
+    /**
+     * Stripe's Payment Element (M6), drawn while a card is chosen. Without it the box says that
+     * paying online needs scripts (`noScript`): what a browser without them shows, and what the
+     * design system draws in the Element's place.
+     */
     paymentElement?: React.ReactNode;
     status?: "idle" | "pending";
     error?: PaymentStepError;
+    /** `declined`'s reason: the provider's own sentence, in the market's language. */
+    errorReason?: string;
+    /**
+     * The error's id, when the page links to it (the return from a refused payment lands on it,
+     * WCAG 2.4.3); one of its own otherwise.
+     */
+    errorId?: string;
     /** The submit's words when the page has its own ("Place order"). */
     submitLabel?: string;
   };
@@ -74,12 +89,14 @@ function PaymentStep({
   paymentElement,
   status = "idle",
   error,
+  errorReason,
+  errorId: givenErrorId,
   submitLabel,
   className,
   ...props
 }: PaymentStepProps) {
   const id = useId();
-  const errorId = `${id}-error`;
+  const errorId = givenErrorId ?? `${id}-error`;
   const savedId = `${id}-saved`;
   const methodsId = `${id}-methods`;
   const words = copy.step;
@@ -159,7 +176,11 @@ function PaymentStep({
           className="hidden min-w-0 flex-col gap-4 rounded-xl border border-dashed p-4 group-has-[[data-kind=card]_input:checked]/payment:flex"
         >
           <p className="text-sm font-medium wrap-anywhere">{words.details}</p>
-          {paymentElement}
+          {paymentElement ?? (
+            <p data-slot="payment-step-no-script" className="text-sm text-muted-foreground wrap-break-word">
+              {words.noScript}
+            </p>
+          )}
           {canSave ? (
             <label className="flex min-h-11 min-w-0 cursor-pointer items-center gap-3 text-sm">
               <input
@@ -176,9 +197,17 @@ function PaymentStep({
       ) : null}
       <div role="status" aria-live="polite" data-slot="payment-step-status">
         {error === undefined ? null : (
-          <p id={errorId} className="flex items-start gap-2 text-sm leading-snug text-destructive">
+          <p
+            id={errorId}
+            tabIndex={-1}
+            className="flex scroll-mt-4 items-start gap-2 text-sm leading-snug text-destructive outline-none"
+          >
             <CircleAlertIcon aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
-            <span className="min-w-0 wrap-break-word">{words.errors[error]}</span>
+            <span className="min-w-0 wrap-break-word">
+              {error === "declined"
+                ? formatMessage(words.errors.declined, { reason: errorReason ?? "" }, locale)
+                : words.errors[error]}
+            </span>
           </p>
         )}
       </div>

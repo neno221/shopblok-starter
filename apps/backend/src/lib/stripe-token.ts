@@ -55,6 +55,22 @@ export function judgeToken(
   return { ok: true, preview };
 }
 
+/** A preview as metadata holds it, checked again (metadata is writable elsewhere); `null` when it is none. */
+export function sanitizePreview(value: unknown): PaymentPreview | null {
+  if (typeof value !== "object" || value === null) return null;
+  const raw = value as Record<string, unknown>;
+  const type = text(raw.type, /^[a-z_]{1,40}$/);
+  if (type === undefined) return null;
+  const preview: PaymentPreview = { type };
+  const brand = text(raw.brand, /^[a-z_]{1,30}$/);
+  const last4 = text(raw.last4, /^\d{4}$/);
+  const wallet = text(raw.wallet, /^[a-z_]{1,30}$/);
+  if (brand !== undefined) preview.brand = brand;
+  if (last4 !== undefined) preview.last4 = last4;
+  if (wallet !== undefined) preview.wallet = wallet;
+  return preview;
+}
+
 /** A ConfirmationToken read with the secret key (`GET /v1/confirmation_tokens/:id`); `null` when Stripe says it does not exist. */
 export async function retrieveToken(apiKey: string, id: string): Promise<TokenObject | null> {
   const response = await fetch(

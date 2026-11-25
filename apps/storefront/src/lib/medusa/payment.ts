@@ -21,3 +21,24 @@ export const listPaymentProviders = cached(fetchPaymentProviders, {
   tags: ["medusa:regions"],
   life: "minutes",
 });
+
+/** Stripe's card-and-wallet provider (M6 D117): Medusa's `payment-stripe` with the id `stripe`. */
+export const STRIPE_PAYMENT_PROVIDER = "pp_stripe_stripe";
+
+/**
+ * The publishable key the Payment Element loads with (`NEXT_PUBLIC_STRIPE_KEY`, inlined at build),
+ * or `null` without one: then the checkout offers the system payment only.
+ */
+export function stripePublishableKey(): string | null {
+  const key = process.env.NEXT_PUBLIC_STRIPE_KEY?.trim();
+  return key ? key : null;
+}
+
+/**
+ * Whether the checkout takes the payment with Stripe (D117): the region offers it, the storefront
+ * has its publishable key, and there is something to pay (Stripe cannot take a zero amount, so a
+ * 100% promotion completes with the system payment). Otherwise "Pay later".
+ */
+export function paysWithStripe(providers: readonly string[], total: number): boolean {
+  return providers.includes(STRIPE_PAYMENT_PROVIDER) && stripePublishableKey() !== null && total > 0;
+}

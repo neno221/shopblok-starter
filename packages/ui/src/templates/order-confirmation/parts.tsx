@@ -16,7 +16,7 @@ import { AddressCard } from "@shopblok/ui/molecules/address-card";
 import { CircleCheckIcon } from "lucide-react";
 import NextLink from "next/link";
 import type * as React from "react";
-import { PaymentLine, ShippingMethodLine } from "../checkout/lines";
+import { PaymentLine, ShippingMethodLine, type PaymentLineCopy } from "../checkout/lines";
 
 // The hrefs are strings the app built; `next/link` takes whatever the app's typed routes allow.
 type LinkHref = React.ComponentProps<typeof NextLink>["href"];
@@ -28,6 +28,8 @@ type OrderConfirmationCopy = {
   rows: Messages["molecules"]["orderSummaryRow"];
   timeline: Messages["organisms"]["orderTimeline"];
   free: string;
+  /** The payment line's words: a card's "{brand} ending in {last4}" and the brands (M6 T100). */
+  payment: PaymentLineCopy;
 };
 
 /** The receipt's words from a whole catalog: its own and its organisms'. */
@@ -40,6 +42,7 @@ function orderConfirmationCopy(messages: Messages): OrderConfirmationCopy {
     rows: molecules.orderSummaryRow,
     timeline: organisms.orderTimeline,
     free: molecules.orderSummaryRow.free,
+    payment: { card: molecules.savedPaymentMethodCard.card, brands: messages.atoms.payment },
   };
 }
 
@@ -200,12 +203,13 @@ function ReceiptDelivery({
 function ReceiptPayment({
   order,
   copy,
+  locale,
   className,
-}: Pick<OrderConfirmationTemplateProps, "order" | "copy"> & { className?: string }) {
+}: Pick<OrderConfirmationTemplateProps, "order" | "copy" | "locale"> & { className?: string }) {
   return (
     <section data-slot="order-confirmation-payment" className={cn(partClass, className)}>
       <h2 className={partHeading}>{copy.page.payment}</h2>
-      <PaymentLine payment={order.payment} />
+      <PaymentLine payment={order.payment} copy={copy.payment} locale={locale} />
     </section>
   );
 }

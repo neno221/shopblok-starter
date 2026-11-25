@@ -23,6 +23,13 @@ import { getMarketContext, type MarketContext } from "../../../../../lib/market-
 import type { CartDto } from "../../../../../lib/medusa/cart";
 import { getCustomer } from "../../../../../lib/medusa/customer";
 import { listShippingOptions } from "../../../../../lib/medusa/fulfillment";
+import {
+  listPaymentProviders,
+  paysWithStripe,
+  stripePublishableKey,
+} from "../../../../../lib/medusa/payment";
+import { PaymentElementIsland } from "../../../../../components/checkout/stripe/payment-element-island";
+import { PlaceOrderIsland } from "../../../../../components/checkout/stripe/place-order-island";
 import { SHELL_PREFETCH } from "../../../../../lib/site";
 import {
   canOpen,
@@ -34,6 +41,7 @@ import {
   toCheckoutSteps,
   toPaymentStep,
   toReviewStep,
+  paymentNames,
   toShippingOption,
   type CheckoutStepId,
 } from "../../../../../lib/view-models/checkout";
@@ -91,7 +99,12 @@ function errorsOf(flash: Flash | null): CheckoutErrors {
         kind === "required" || kind === "pattern" ? kind : "invalid";
   if (Object.keys(address).length > 0) errors.address = address;
   if (fields.shippingOption !== undefined) errors.shipping = "required";
-  if (fields.paymentMethod !== undefined) errors.payment = "required";
+  // M6 D117: the return from a payment Stripe refused (`/api/payment-return`), with its reason.
+  const payment = fields.paymentMethod;
+  if (payment !== undefined)
+    errors.payment = payment === "declined" || payment === "unpaid" ? payment : "required";
+  const reason = flash.values?.paymentReason;
+  if (payment === "declined" && reason !== undefined && reason !== "") errors.paymentReason = reason;
   return errors;
 }
 
@@ -129,14 +142,51 @@ export default async function CheckoutStepPage({ params, searchParams }: Props) 
   const stepHref = (id: CheckoutStepId) => context.url(`/checkout/${id}`);
   const key = typeof query.f === "string" ? query.f : undefined;
   const flash = shown === requested ? await readFlash(stepHref(shown), key) : null;
-  const content = await stepOf(shown, cart, context, messages, flash);
+  // M6 D117: Stripe takes the payment when the region offers it and there is a total to pay.
+  const providers = await listPaymentProviders(context.region.id);
+  const publishableKey = stripePublishableKey();
+  const stripe =
+    publishableKey !== null && paysWithStripe(providers, cart.total.amount) ? publishableKey : null;
+  const content = await stepOf(shown, cart, context, messages, flash, stripe !== null);
   if (content === null) notFound();
+  const unpaid = messages.organisms.paymentStep.errors.unpaid;
+  const slots =
+    stripe === null
+      ? undefined
+      : content.kind === "delivery"
+        ? {
+            paymentElement: (
+              <PaymentElementIsland
+                publishableKey={stripe}
+                locale={market.htmlLang}
+                currency={cart.currencyCode}
+                base={cart.total.amount - (cart.shippingMethod?.amount.amount ?? 0)}
+                shipping={Object.fromEntries(
+                  content.options.map((option) => [option.id, option.price.amount]),
+                )}
+                {...(content.selected === undefined ? {} : { selected: content.selected })}
+                words={{ noScript: messages.organisms.paymentStep.noScript, failed: unpaid }}
+              />
+            ),
+          }
+        : content.kind === "review" && cart.paymentToken !== null
+          ? {
+              placeOrder: (
+                <PlaceOrderIsland
+                  market={market.key}
+                  publishableKey={stripe}
+                  locale={market.htmlLang}
+                  words={{ failed: unpaid }}
+                />
+              ),
+            }
+          : undefined;
   const variant = templates.checkout;
   // T86: `one-page` sums up the steps done, each "Edit" opening its step at its anchor.
   const anchor = (id: CheckoutStepId) => `${stepHref(id)}#${checkoutIds("main").step(id)}`;
   const done =
     variant === "one-page"
-      ? toCheckoutDone(cart, shown, messages.organisms.paymentStep.systemName, {
+      ? toCheckoutDone(cart, shown, paymentNames(messages), {
           contact: anchor("contact"),
           delivery: anchor("delivery"),
         })
@@ -170,6 +220,7 @@ export default async function CheckoutStepPage({ params, searchParams }: Props) 
         now={now}
         action={action.bind(null, market.key)}
         errors={errors}
+        {...(slots === undefined ? {} : { slots })}
         prefetch={SHELL_PREFETCH}
       />
     </>
@@ -183,6 +234,7 @@ async function stepOf(
   context: MarketContext,
   messages: Messages,
   flash: Flash | null,
+  stripe: boolean,
 ): Promise<CheckoutPage["step"] | null> {
   const { market, region } = context;
   if (step === "contact") {
@@ -208,11 +260,11 @@ async function stepOf(
       kind: "delivery",
       options: offered,
       ...(offered.some((option) => option.id === chosen) ? { selected: chosen } : {}),
-      payment: toPaymentStep(),
+      payment: stripe ? toPaymentStep(messages.organisms.paymentStep.stripeName) : toPaymentStep(),
       addressHref: context.url("/checkout/contact"),
     };
   }
-  return toReviewStep(cart, messages.organisms.paymentStep.systemName, {
+  return toReviewStep(cart, paymentNames(messages), {
     contact: context.url("/checkout/contact"),
     delivery: context.url("/checkout/delivery"),
   });

@@ -8,6 +8,7 @@ import type {
   Order,
   OrderConfirmationPage,
   OrderSummary,
+  PaymentBrand,
   PaymentStep,
   ShippingOption,
   SummaryItem,
@@ -18,7 +19,8 @@ import type { CartAddressDto, CartDto } from "../medusa/cart";
 import type { ShippingOptionDto } from "../medusa/fulfillment";
 import type { CustomerAddressDto, CustomerDto } from "../medusa/customer";
 import type { OrderDto } from "../medusa/orders";
-import { SYSTEM_PAYMENT_PROVIDER } from "../medusa/payment";
+import { STRIPE_PAYMENT_PROVIDER, SYSTEM_PAYMENT_PROVIDER } from "../medusa/payment";
+import type { PaymentPreview } from "../medusa/payment-preview";
 import { toCurrencyCode, toMoney, toProductImage, type Hrefs } from "./common";
 
 // The cart page's, the checkout's and the receipt's view models (T52, D65), from the data layer's
@@ -30,7 +32,12 @@ export type CheckoutStepId = (typeof CHECKOUT_STEP_IDS)[number];
 /** How far a cart has come: the steps whose data Medusa holds. */
 export function stepsDone(cart: CartDto): Record<CheckoutStepId, boolean> {
   const contact = cart.email !== null && cart.shippingAddress !== null;
-  const delivery = contact && cart.shippingMethod !== null && cart.paymentProviderId !== null;
+  // M6 D117: a kept ConfirmationToken counts too: Medusa deletes the cart's sessions when its total
+  // moves (a promotion on the review page), and the review's action initiates a new one.
+  const delivery =
+    contact &&
+    cart.shippingMethod !== null &&
+    (cart.paymentProviderId !== null || cart.paymentToken !== null);
   return { contact, delivery, review: false };
 }
 
@@ -193,8 +200,26 @@ export function toShippingOption(option: ShippingOptionDto, currencyCode: string
   };
 }
 
-/** The payment step in M3: the system payment only (D65), chosen. */
-export function toPaymentStep(): PaymentStep {
+/**
+ * The payment step: Stripe's Payment Element (M6 D117), chosen, when the checkout pays with it
+ * (`paysWithStripe`); the system payment ("Pay later") alone otherwise (D65).
+ */
+export function toPaymentStep(stripeName?: string): PaymentStep {
+  if (stripeName !== undefined)
+    return {
+      saved: [],
+      methods: [
+        {
+          id: STRIPE_PAYMENT_PROVIDER,
+          kind: "card",
+          name: stripeName,
+          brands: ["visa", "mastercard", "americanexpress", "applepay", "googlepay", "revolut"],
+        },
+      ],
+      selected: STRIPE_PAYMENT_PROVIDER,
+      canSave: false,
+      saveForLater: false,
+    };
   return {
     saved: [],
     methods: [],
@@ -204,7 +229,47 @@ export function toPaymentStep(): PaymentStep {
   };
 }
 
-/** What a payment is called: the system payment's words, or the provider's id until M6. */
+/** The names a payment line falls back on: the system payment's and Stripe's (M6). */
+export type PaymentNames = { system: string; stripe: string };
+
+/** The payment names from a catalog's PaymentStep words. */
+export const paymentNames = (messages: {
+  organisms: { paymentStep: { systemName: string; stripeName: string } };
+}): PaymentNames => ({
+  system: messages.organisms.paymentStep.systemName,
+  stripe: messages.organisms.paymentStep.stripeName,
+});
+
+const CARD_BRANDS: Record<string, PaymentBrand> = {
+  visa: "visa",
+  mastercard: "mastercard",
+  amex: "americanexpress",
+};
+
+const WALLETS: Record<string, PaymentBrand> = { apple_pay: "applepay", google_pay: "googlepay" };
+
+/**
+ * How a payment reads (M6 D117): Stripe's preview as a card's brand and last four ("Visa ending in
+ * 4242"), Revolut Pay by its name, a wallet with no card shown by the wallet's mark, any other
+ * Stripe method by Stripe's name; the system payment's words otherwise.
+ */
+export function paymentOf(
+  providerId: string | null,
+  preview: PaymentPreview | null,
+  names: PaymentNames,
+): { name?: string; brand?: PaymentBrand; last4?: string } {
+  if (providerId !== STRIPE_PAYMENT_PROVIDER) return { name: paymentName(providerId, names.system) };
+  if (preview === null) return { name: names.stripe };
+  const brand = preview.brand === undefined ? undefined : CARD_BRANDS[preview.brand];
+  if (preview.type === "card" && brand !== undefined && preview.last4 !== undefined)
+    return { brand, last4: preview.last4 };
+  if (preview.type === "revolut_pay") return { name: "Revolut Pay", brand: "revolut" };
+  const wallet = preview.wallet === undefined ? undefined : WALLETS[preview.wallet];
+  if (wallet !== undefined) return { brand: wallet };
+  return { name: names.stripe };
+}
+
+/** What a payment is called: the system payment's words, or the provider's id. */
 export function paymentName(providerId: string | null, systemName: string): string {
   return providerId === null || providerId === SYSTEM_PAYMENT_PROVIDER ? systemName : providerId;
 }
@@ -212,7 +277,7 @@ export function paymentName(providerId: string | null, systemName: string): stri
 /** The review step from a cart whose steps are done. `null` when one is not. */
 export function toReviewStep(
   cart: CartDto,
-  systemName: string,
+  names: PaymentNames,
   editHrefs: { contact: string; delivery: string },
 ): Extract<CheckoutPage["step"], { kind: "review" }> | null {
   if (cart.email === null || cart.shippingAddress === null || cart.shippingMethod === null)
@@ -222,7 +287,7 @@ export function toReviewStep(
     email: cart.email,
     shippingAddress: toContractAddress(cart.shippingAddress),
     shippingMethod: { name: cart.shippingMethod.name, price: toMoney(cart.shippingMethod.amount) },
-    payment: { name: paymentName(cart.paymentProviderId, systemName) },
+    payment: paymentOf(cart.paymentProviderId, cart.paymentPreview, names),
     editHrefs,
   };
 }
@@ -235,7 +300,7 @@ export function toReviewStep(
 export function toCheckoutDone(
   cart: CartDto,
   current: CheckoutStepId,
-  systemName: string,
+  names: PaymentNames,
   editHrefs: { contact: string; delivery: string },
 ): CheckoutDone {
   const before = CHECKOUT_STEP_IDS.slice(0, CHECKOUT_STEP_IDS.indexOf(current));
@@ -252,7 +317,7 @@ export function toCheckoutDone(
         name: cart.shippingMethod.name,
         price: toMoney(cart.shippingMethod.amount),
       },
-      payment: { name: paymentName(cart.paymentProviderId, systemName) },
+      payment: paymentOf(cart.paymentProviderId, cart.paymentPreview, names),
       editHref: editHrefs.delivery,
     };
   return done;
@@ -269,7 +334,7 @@ const orderStatus = (status: string): Order["status"] =>
 export function toOrderConfirmation(
   order: OrderDto,
   hrefs: Pick<Hrefs, "product">,
-  systemName: string,
+  names: PaymentNames,
   continueHref: string,
 ): OrderConfirmationPage | null {
   if (order.shippingAddress === null || order.lines.length === 0) return null;
@@ -301,7 +366,7 @@ export function toOrderConfirmation(
       name: order.shippingMethod?.name || "—",
       price: toMoney(order.shippingMethod?.amount ?? order.shippingTotal),
     },
-    payment: { name: paymentName(order.paymentProviderId, systemName) },
+    payment: paymentOf(order.paymentProviderId, order.paymentPreview, names),
     events: [{ kind: "placed", at: order.createdAt }],
   };
   const summary: OrderSummary = {

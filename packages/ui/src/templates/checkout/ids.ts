@@ -16,6 +16,8 @@ function checkoutIds(mainId: string) {
     emailHint: `${mainId}-email-hint`,
     emailError: `${mainId}-email-error`,
     payment: `${mainId}-payment`,
+    /** PaymentStep's error, where a refused payment's return lands (M6 T100). */
+    paymentError: `${mainId}-payment-error`,
     shippingError: `${mainId}-shipping-error`,
     step: (kind: CheckoutStepKind) => `${mainId}-step-${kind}`,
   };

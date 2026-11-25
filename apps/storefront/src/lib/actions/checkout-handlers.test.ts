@@ -14,7 +14,13 @@ const setAddresses = vi.fn();
 const setShippingMethod = vi.fn();
 const initiatePayment = vi.fn();
 const completeCart = vi.fn();
+const keepPaymentToken = vi.fn();
+const ensurePaymentSession = vi.fn();
+const prepareCompletion = vi.fn();
 vi.mock("../medusa/cart", () => ({
+  prepareCompletion,
+  keepPaymentToken,
+  ensurePaymentSession,
   getCart,
   moveCart,
   setEmail,
@@ -31,6 +37,10 @@ const listPaymentProviders = vi.fn();
 vi.mock("../medusa/payment", () => ({
   listPaymentProviders,
   SYSTEM_PAYMENT_PROVIDER: "pp_system_default",
+  STRIPE_PAYMENT_PROVIDER: "pp_stripe_stripe",
+  // The real rule without the publishable key: the region offers Stripe and there is a total.
+  paysWithStripe: (providers: readonly string[], total: number) =>
+    providers.includes("pp_stripe_stripe") && total > 0,
 }));
 const getMarketContext = vi.fn();
 vi.mock("../market-context", () => ({ getMarketContext }));
@@ -45,6 +55,7 @@ const {
   deliveryAction,
   keepFormatFields,
   placeOrderAction,
+  preparePaymentAction,
 } = await import("./checkout-handlers");
 
 const money = { amount: 0, currencyCode: "eur" };
@@ -81,6 +92,8 @@ const emptyCart: CartDto = {
   shippingAddress: null,
   shippingMethod: null,
   paymentProviderId: null,
+  paymentToken: null,
+  paymentPreview: null,
   completed: false,
 };
 const contactDone: CartDto = { ...emptyCart, email: "a@example.com", shippingAddress: address };
@@ -197,7 +210,7 @@ describe("deliveryAction (step 2)", () => {
       ok: false,
       errors: { shippingOption: "invalid" },
     });
-    expect(await deliveryAction({ ...delivery, paymentMethod: "pp_stripe" })).toEqual({
+    expect(await deliveryAction({ ...delivery, paymentMethod: "pp_stripe_stripe" })).toEqual({
       ok: false,
       errors: { paymentMethod: "invalid" },
     });
@@ -207,10 +220,94 @@ describe("deliveryAction (step 2)", () => {
 
   it("sets the method, starts the payment and updates the cart tag", async () => {
     moveCart.mockResolvedValue(contactDone);
+    setShippingMethod.mockResolvedValue(contactDone);
     expect(await deliveryAction(delivery)).toEqual({ ok: true, data: { step: "review" } });
     expect(setShippingMethod).toHaveBeenCalledWith("so_standard", "en-US");
     expect(initiatePayment).toHaveBeenCalledWith("pp_system_default", "en-US");
+    expect(keepPaymentToken).not.toHaveBeenCalled();
     expect(updateTag).toHaveBeenCalledWith("cart");
+  });
+
+  describe("with Stripe (M6 D117)", () => {
+    const owed = { ...contactDone, total: { amount: 25, currencyCode: "eur" } };
+    const stripe = { ...delivery, paymentMethod: "pp_stripe_stripe", confirmationToken: "ctoken_1" };
+    beforeEach(() => {
+      listPaymentProviders.mockResolvedValue(["pp_stripe_stripe", "pp_system_default"]);
+      moveCart.mockResolvedValue(owed);
+      setShippingMethod.mockResolvedValue(owed);
+    });
+
+    it("keeps the token, then initiates the Stripe session last, after the shipping", async () => {
+      expect(await deliveryAction(stripe)).toEqual({ ok: true, data: { step: "review" } });
+      expect(keepPaymentToken).toHaveBeenCalledWith("ctoken_1", "en-US");
+      expect(initiatePayment).toHaveBeenCalledWith("pp_stripe_stripe", "en-US");
+      const order = (fn: { mock: { invocationCallOrder: number[] } }) => fn.mock.invocationCallOrder[0] ?? 0;
+      expect(order(setShippingMethod)).toBeLessThan(order(keepPaymentToken));
+      expect(order(keepPaymentToken)).toBeLessThan(order(initiatePayment));
+    });
+
+    it("needs a token, and refuses Pay later on a total to pay", async () => {
+      expect(await deliveryAction({ ...stripe, confirmationToken: undefined })).toEqual({
+        ok: false,
+        errors: { paymentMethod: "required" },
+      });
+      expect(await deliveryAction(delivery)).toEqual({
+        ok: false,
+        errors: { paymentMethod: "invalid" },
+      });
+      expect(initiatePayment).not.toHaveBeenCalled();
+    });
+
+    it("takes Pay later when the shipping leaves nothing to pay", async () => {
+      setShippingMethod.mockResolvedValue(contactDone);
+      expect(await deliveryAction(delivery)).toEqual({ ok: true, data: { step: "review" } });
+      expect(initiatePayment).toHaveBeenCalledWith("pp_system_default", "en-US");
+      expect(await deliveryAction(stripe)).toEqual({
+        ok: false,
+        errors: { paymentMethod: "invalid" },
+      });
+    });
+  });
+});
+
+describe("preparePaymentAction (step 3, M6 D117)", () => {
+  const ready: CartDto = {
+    ...deliveryDone,
+    total: { amount: 25, currencyCode: "eur" },
+    paymentProviderId: "pp_stripe_stripe",
+    paymentToken: "ctoken_1",
+  };
+  beforeEach(() => {
+    listPaymentProviders.mockResolvedValue(["pp_stripe_stripe", "pp_system_default"]);
+    ensurePaymentSession.mockResolvedValue({ clientSecret: "pi_1_secret_x", intentId: "pi_1", amount: 25 });
+  });
+
+  it("answers the session for the current total and the kept token", async () => {
+    moveCart.mockResolvedValue(ready);
+    expect(await preparePaymentAction({ market: "en-de" })).toEqual({
+      ok: true,
+      data: { clientSecret: "pi_1_secret_x", intentId: "pi_1", confirmationToken: "ctoken_1" },
+    });
+    expect(ensurePaymentSession).toHaveBeenCalledWith("pp_stripe_stripe", "en-US");
+    expect(prepareCompletion).toHaveBeenCalledWith("en-US", {
+      market: "/de/en",
+      language: "en",
+      key: "en-de",
+    });
+    const order = (fn: { mock: { invocationCallOrder: number[] } }) => fn.mock.invocationCallOrder[0] ?? 0;
+    expect(order(prepareCompletion)).toBeLessThan(order(ensurePaymentSession));
+  });
+
+  it("is incomplete without a kept token, or with nothing to pay", async () => {
+    for (const cart of [{ ...ready, paymentToken: null }, { ...ready, total: money }]) {
+      moveCart.mockResolvedValue(cart);
+      expect(await preparePaymentAction({ market: "en-de" })).toEqual({
+        ok: false,
+        errors: {},
+        form: "incomplete",
+      });
+    }
+    expect(ensurePaymentSession).not.toHaveBeenCalled();
   });
 });
 

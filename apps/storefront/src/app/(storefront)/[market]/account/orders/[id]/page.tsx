@@ -9,6 +9,7 @@ import {
 } from "../../../../../../lib/account-page";
 import { getOrder } from "../../../../../../lib/medusa/orders";
 import { toAccountOrder } from "../../../../../../lib/view-models/account";
+import { paymentNames } from "../../../../../../lib/view-models/checkout";
 import { getShellData } from "../../../../../../components/shell/shell-data";
 
 // D64 (T53): one of the customer's orders, with its history and the way to return it. Only the
@@ -37,7 +38,7 @@ export default async function AccountOrderPage({ params }: Props) {
   const screen = toAccountOrder(
     order,
     context.hrefs,
-    messages.organisms.paymentStep.systemName,
+    paymentNames(messages),
     context.url("/account/orders"),
     context.url(`/account/returns/${encodeURIComponent(order.id)}`),
   );

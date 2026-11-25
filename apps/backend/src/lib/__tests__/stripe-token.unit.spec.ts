@@ -1,4 +1,4 @@
-import { judgeToken } from "../stripe-token";
+import { judgeToken, sanitizePreview } from "../stripe-token";
 
 const now = 1_800_000_000;
 const token = (extra: Record<string, unknown> = {}) => ({
@@ -46,5 +46,19 @@ describe("judgeToken (M6 D117)", () => {
     expect(judgeToken(token({ expires_at: now }), now).ok).toBe(false);
     expect(judgeToken(token({ object: "payment_method" }), now).ok).toBe(false);
     expect(judgeToken(token({ payment_method_preview: null }), now).ok).toBe(false);
+  });
+});
+
+describe("sanitizePreview", () => {
+  it("keeps a preview's known fields and drops anything else", () => {
+    expect(
+      sanitizePreview({ type: "card", brand: "visa", last4: "4242", token: "ctoken_x", wallet: 3 }),
+    ).toEqual({ type: "card", brand: "visa", last4: "4242" });
+    expect(sanitizePreview({ type: "revolut_pay" })).toEqual({ type: "revolut_pay" });
+  });
+
+  it("is null for what is not one", () => {
+    for (const value of [null, "card", { brand: "visa" }, { type: "<b>" }]) expect(sanitizePreview(value)).toBeNull();
+    expect(sanitizePreview({ type: "card", last4: "42a2" })).toEqual({ type: "card" });
   });
 });

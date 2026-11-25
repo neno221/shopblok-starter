@@ -76,6 +76,7 @@ const order = (fields: Partial<OrderDto> = {}): OrderDto => ({
   shippingAddress: address,
   shippingMethod: { name: "Standard", amount: eur(5) },
   paymentProviderId: "pp_system_default",
+  paymentPreview: null,
   ...fields,
 });
 
@@ -206,14 +207,14 @@ describe("toAccountOrder", () => {
     const sent = toAccountOrder(
       doing({ fulfilled: 3, shipped: 3 }),
       hrefs,
-      "Pay later",
+      { system: "Pay later", stripe: "Pay online" },
       "/us/account/orders",
       "/us/account/returns/order_1",
     );
     expect(sent).toMatchObject({ kind: "order", returnHref: "/us/account/returns/order_1" });
     expect(page(sent).error?.issues ?? []).toEqual([]);
 
-    const placed = toAccountOrder(order(), hrefs, "Pay later", "/us/account/orders", "/r");
+    const placed = toAccountOrder(order(), hrefs, { system: "Pay later", stripe: "Pay online" }, "/us/account/orders", "/r");
     expect(placed).not.toBeNull();
     expect(placed).not.toHaveProperty("returnHref");
     expect(page(placed).error?.issues ?? []).toEqual([]);
@@ -226,7 +227,7 @@ describe("toAccountOrder", () => {
         updatedAt: "2026-10-28T10:00:00.000Z",
       },
       hrefs,
-      "Pay later",
+      { system: "Pay later", stripe: "Pay online" },
       "/us/account/orders",
       "/r",
     );
@@ -238,7 +239,7 @@ describe("toAccountOrder", () => {
 
   it("is null for an order without an address", () => {
     expect(
-      toAccountOrder(order({ shippingAddress: null }), hrefs, "Pay later", "/b", "/r"),
+      toAccountOrder(order({ shippingAddress: null }), hrefs, { system: "Pay later", stripe: "Pay online" }, "/b", "/r"),
     ).toBeNull();
   });
 });

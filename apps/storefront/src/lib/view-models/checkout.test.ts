@@ -13,6 +13,7 @@ import {
   toReviewStep,
 } from "./checkout";
 
+const names = { system: "Pay later", stripe: "Pay online" };
 const money = { amount: 0, currencyCode: "eur" };
 const address: CartAddressDto = {
   firstName: "Anna",
@@ -46,6 +47,8 @@ const empty: CartDto = {
   shippingAddress: null,
   shippingMethod: null,
   paymentProviderId: null,
+  paymentToken: null,
+  paymentPreview: null,
   completed: false,
 };
 const contactDone: CartDto = { ...empty, email: "anna@example.com", shippingAddress: address };
@@ -64,6 +67,12 @@ describe("the steps a cart has done", () => {
     expect(stepsDone(empty)).toEqual({ contact: false, delivery: false, review: false });
     expect(stepsDone(contactDone)).toEqual({ contact: true, delivery: false, review: false });
     expect(stepsDone(deliveryDone)).toEqual({ contact: true, delivery: true, review: false });
+  });
+
+  it("counts a kept Stripe token as the payment once Medusa deleted the session (M6 D117)", () => {
+    const moved = { ...deliveryDone, paymentProviderId: null };
+    expect(stepsDone(moved).delivery).toBe(false);
+    expect(stepsDone({ ...moved, paymentToken: "ctoken_1" }).delivery).toBe(true);
   });
 
   it("does not count an e-mail alone, nor a delivery without a contact", () => {
@@ -183,16 +192,16 @@ describe("toReviewStep", () => {
       { ...contactDone },
       { ...empty, shippingMethod: deliveryDone.shippingMethod },
     ])
-      expect(toReviewStep(cart, "Pay later", editHrefs)).toBeNull();
+      expect(toReviewStep(cart, names, editHrefs)).toBeNull();
   });
 
   it("is the review of a cart whose steps are done, with the system payment by its name", () => {
-    expect(toReviewStep(deliveryDone, "Pay later", editHrefs)).toMatchObject({
+    expect(toReviewStep(deliveryDone, names, editHrefs)).toMatchObject({
       kind: "review",
       email: "anna@example.com",
       // The contract writes the currency in upper case.
       shippingMethod: { name: "Standard", price: { amount: 5, currencyCode: "EUR" } },
-      payment: { name: "Pay later" },
+      payment: { name: names.system },
       editHrefs,
     });
   });
@@ -233,14 +242,15 @@ describe("toOrderConfirmation", () => {
     shippingAddress: address,
     shippingMethod: { name: "Standard", amount: { amount: 5, currencyCode: "eur" } },
     paymentProviderId: "pp_system_default",
+    paymentPreview: null,
   };
   const hrefs = { product: (handle: string) => `/products/${handle}` };
 
   it("is the receipt page, which parses with the registry's schema", () => {
-    const page = toOrderConfirmation(order, hrefs, "Pay later", "/");
+    const page = toOrderConfirmation(order, hrefs, names, "/");
     expect(OrderConfirmationPage.safeParse(page).error?.issues ?? []).toEqual([]);
     expect(page).toMatchObject({
-      order: { id: "order_1", payment: { name: "Pay later" } },
+      order: { id: "order_1", payment: { name: names.system } },
       summary: { itemCount: 2 },
       continueHref: "/",
     });
@@ -249,7 +259,7 @@ describe("toOrderConfirmation", () => {
 
   it("is null for an order without an address", () => {
     expect(
-      toOrderConfirmation({ ...order, shippingAddress: null }, hrefs, "Pay later", "/"),
+      toOrderConfirmation({ ...order, shippingAddress: null }, hrefs, names, "/"),
     ).toBeNull();
   });
 });

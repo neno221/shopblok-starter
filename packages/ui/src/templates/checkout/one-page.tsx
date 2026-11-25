@@ -18,6 +18,7 @@ import {
   ContactStep,
   DeliveryStep,
   PaymentLine,
+  paymentLineCopy,
   PlaceOrderForm,
   ReviewEditLink,
   ShippingMethodLine,
@@ -46,7 +47,7 @@ function CheckoutOnePage(props: CheckoutTemplateProps) {
   const words = copy.page;
   const steps = checkout.steps.steps;
   const currentIndex = steps.findIndex((each) => each.id === step.kind);
-  const stepProps = { copy, locale, now, action, errors, prefetch, ids };
+  const stepProps = { copy, locale, now, action, errors, prefetch, ids, slots: props.slots };
   return (
     <CheckoutRoot variant="one-page" step={step.kind} mainId={mainId} as={as} className={className}>
       <CheckoutSteps
@@ -124,7 +125,11 @@ function CheckoutOnePage(props: CheckoutTemplateProps) {
                         <DeliveryStep step={step} {...stepProps} />
                       ) : (
                         <div data-slot="checkout-review" className="flex min-w-0 flex-col gap-4">
-                          <PlaceOrderForm copy={copy} action={action} />
+                          <PlaceOrderForm
+                            copy={copy}
+                            action={action}
+                            island={props.slots?.placeOrder}
+                          />
                         </div>
                       )}
                     </>
@@ -188,7 +193,11 @@ function DoneSummary({ kind, props }: { kind: CheckoutStepKind; props: CheckoutT
         <div className="flex min-w-0 flex-col gap-1">
           <dt className={term}>{words.payment}</dt>
           <dd className={detail}>
-            <PaymentLine payment={done.delivery.payment} />
+            <PaymentLine
+              payment={done.delivery.payment}
+              copy={paymentLineCopy(props.copy)}
+              locale={props.locale}
+            />
           </dd>
         </div>
       </dl>

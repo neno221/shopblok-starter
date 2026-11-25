@@ -151,7 +151,7 @@ describe("OrderConfirmationTemplate", () => {
     const payment = slot("order-confirmation-payment") as HTMLElement;
     expect(within(payment).getByRole("heading", { level: 2 }).textContent).toBe(words.payment);
     const { last4, name } = order.payment;
-    expect(payment.textContent).toContain(last4 === undefined ? (name ?? "") : `•••• ${last4}`);
+    expect(payment.textContent).toContain(last4 === undefined ? (name ?? "") : `ending in ${last4}`);
   });
 
   it("says free delivery in words, not a price", () => {
