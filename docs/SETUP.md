@@ -10011,6 +10011,10 @@ Each chunk gzipped on its own and summed (`check:first-load`), in bytes, without
 
 The budgeted routes are unchanged, and the key changes nothing: whether the checkout pays with Stripe is decided on the server, and the islands import `stripe-client.ts` (2.6 KB gzipped, with `@stripe/stripe-js`'s loader; Stripe.js itself comes from `js.stripe.com` only when the Element is drawn) after hydration. `first-load.ts` checks it is kept out of every first load (marker `shopblok:stripe-client`).
 
+### Baselines
+
+PaymentStep's no-script notice, the "unpaid" state and the payment lines changed PaymentStep's and the checkout and receipt templates' cells. `update-baselines` (run 45602793670, commit `81beb23`) changed **38 PNGs** (with their thumbnails), **9,817,556 bytes** (9.82 MB) added; the set is 681 baselines, 97.0 MB. The baselines' history was 158.0 MB after T97, so about 167.8 MB now, under D51's 200 MB; 38 PNGs are far from half a set.
+
 ### Changes from the review of this PR (PR 140)
 
 The review (`reviews/pr-140-code-review.md` in the project's files) found 3 must-fix items, 2 cleanups and 6 optional items. Fixed: 1 to 4, 6; item 5 is a note in T101's prompt; 7 to 11 skipped (optional, neither security nor cleanup).
