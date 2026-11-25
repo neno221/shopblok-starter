@@ -538,9 +538,10 @@ Pattern: `medusa-config.ts` builds the `modules` array with a `has(...envKeys)` 
 
 **Saved payment methods** (based on Medusa's official tutorial, adapted to the Payment Element, §10.1)
 - `GET /store/customers/me/payment-methods` reads the customer's account holder and calls `listPaymentMethods`. Customer-authenticated, returns only the caller's own methods.
-  - The tutorial's middleware matcher doesn't match its route path. Ours is tested.
-- `DELETE /store/customers/me/payment-methods/:id` detaches a saved method.
-- `initiatePaymentSession` passes `setup_future_usage: "off_session"` when the shopper ticks "Save for next time".
+  - The tutorial's middleware matcher doesn't match its route path. Ours sits under `/store/customers/me`, which Medusa authenticates, and is tested (401 without a session).
+- `POST /store/customers/me/payment-methods` makes the caller's Stripe customer the first time and answers a SetupIntent's client secret, which the account's "Add a payment method" confirms with the Payment Element (T101).
+- `DELETE /store/customers/me/payment-methods/:id` detaches a saved method; one that is not among the caller's own answers 404.
+- `initiatePaymentSession` passes `setup_future_usage: "off_session"` when the shopper ticks "Save for next time", or the chosen saved `payment_method`; both only for the cart's own signed-in customer (the backend checks again). A guest's method is never saved. Cards and Revolut Pay are saved.
 
 **Revalidation subscribers** (built in M3, D58)
 - `subscribers/storefront-revalidate.ts` listens to product, variant, option, option-value, tag, sales-channel, inventory-level, category, collection, `translation.*` and region events and POSTs `{ tags, expire }` to the storefront's `/api/revalidate` with `REVALIDATE_SECRET` as a bearer token. The event-to-tag table is `lib/storefront-revalidate.ts`: content changes send `product:{handle}`, `medusa:products` and `search` with `"max"`; a variant's prices and an inventory level's stock send `expire: 0` for the products the event names only (an inventory level changes on every order, so a `0` on every product would make every page wait) and `"max"` for the rest; and a category or a collection sends its own tag, its list's, `medusa:products`, `search` and, for a category, `navigation`. **The market map (M4b, D94):** `shopblok.markets.updated` sends `medusa:markets` with `expire: 0`, and every `region.*` event sends it too, with `medusa:regions`, `medusa:products` and `search` (a region's countries decide which markets exist), so a saved map reaches the proxy within about 30 s.
@@ -789,7 +790,7 @@ Every plugin is at Payload's exact pin (3.93.0; 3.92.1 in M4) and MIT-licensed, 
 | `{m}/order/[id]/confirmed` | Receipt (`order-confirmation`) | noindex | dynamic, blocking; for the browser that placed the order (an HMAC-signed `_shopblok_receipt` cookie) or the customer who owns it |
 | `{m}/order/lookup` | Guest order claim (`order-lookup`) | noindex | dynamic, blocking; signed-in customers |
 | `{m}/order/[id]/transfer/[token]` | Accept or decline a claim (`order-lookup`) | noindex | dynamic, blocking; the e-mailed link |
-| `{m}/account`, `/account/orders` (`?page=n`), `/account/orders/[id]`, `/account/addresses` (`/new`, `/[id]`), `/account/profile`, `/account/payment-methods`, `/account/returns` (`/[orderId]`) | Account (`account`): dashboard, orders, order detail, addresses, profile, **payment methods** (empty until M6), returns; wishlist hidden until M8 | noindex | dynamic, blocking; a visitor who is not signed in gets the sign-in in the page's place and comes back after |
+| `{m}/account`, `/account/orders` (`?page=n`), `/account/orders/[id]`, `/account/addresses` (`/new`, `/[id]`), `/account/profile`, `/account/payment-methods`, `/account/returns` (`/[orderId]`) | Account (`account`): dashboard, orders, order detail, addresses, profile, **payment methods** (`/new` adds one with Stripe's Payment Element, `/remove?paymentMethodId=` asks before a removal without scripts; M6), returns; wishlist hidden until M8 | noindex | dynamic, blocking; a visitor who is not signed in gets the sign-in in the page's place and comes back after |
 | `{m}/login`, `/register`, `/verify`, `/forgot-password`, `/reset-password` | Auth (`auth`) | noindex | dynamic, blocking |
 | `/api/revalidate` | The backend's tags (§6.2): `{ tags, expire }` with `REVALIDATE_SECRET`; `revalidateTag(tag, { expire: 0 })` or `"max"`; the catalog's tags only | n/a | `POST` |
 | `/api/payment-return` | Stripe's return (M6) | n/a | n/a |
@@ -915,7 +916,7 @@ Things M0 measured about these URLs:
 - Password reset, address book (a default address fills the checkout), paginated orders (ten a page), order detail, profile (name and phone), guest-order claim, returns request. Every account page and form works without JavaScript, and an account action checks that the address or order is the customer's.
 - **Guest-order claim** (`{m}/order/lookup`, signed-in customers, who exist only once verified): the order's number and e-mail go to the shop's own `POST /store/customers/me/order-transfers` (§6.2); the accept link goes to the order's own e-mail, and the order moves when that inbox accepts at `{m}/order/{id}/transfer/{token}`. Because of Medusa's attachment rule above, only a guest order placed before the account existed is one to claim.
 - **Returns** (`/account/returns/{orderId}`): the store's return reasons and the zone's free return option, through the shop's own `POST /store/customers/me/returns`.
-- **Saved payment methods:** list and remove them (M6; the page shows its empty state until then).
+- **Saved payment methods:** list, add (Stripe's Payment Element for a SetupIntent) and remove them, also without scripts (M6, T101); "Add a payment method" only where the market takes Stripe.
 - Wishlist arrives in M8 (hidden in the account until then).
 
 **Search overlay** (every header variant, D66): instant product results, categories and suggestions from `/next/search` as the visitor types, recent queries from `localStorage`, keyboard-navigable; Enter goes to `{m}/search`. On Postgres a word matches whole ("hoodie", not "hoo"); Meilisearch (M6) brings prefix matches.
@@ -1208,7 +1209,7 @@ Apple Pay and Google Pay **don't need saving**: the wallet already stores the sh
   - `listPaymentMethods`;
   - `setup_future_usage: "off_session"` when initiating the session.
 - Adapted from the tutorial's legacy Card Element to the **Payment Element**. Saved methods render as selectable cards above it, using the design system's components.
-- **[Risk]** Saving non-card methods (Revolut Pay) through Medusa's Stripe provider. Verify in M6.
+- **Saving Revolut Pay works** (verified in M6, T101): it is saved through the checkout's "Save this card for next time" (`setup_future_usage: "off_session"`) or the account's SetupIntent, listed by its name, and a second order pays with it after Revolut's approval page again (a payment with the shopper present redirects; an off-session charge, which the shop does not make, would not). Kept beside cards (SETUP "Saved payment methods (T101)").
 
 **Webhook:** `{railway}/hooks/payment/stripe_stripe` with `payment_intent.amount_capturable_updated`, `.succeeded`, `.payment_failed`, `.partially_funded`.
 
@@ -1552,7 +1553,7 @@ Every key is optional at boot. Public (`NEXT_PUBLIC_*`) keys need a Vercel redep
 | Listing filters need scripts on the catalog pages (D59) | The filter form's no-script target is `{m}/search`, which renders every filter and sort on the server; the first page of each listing is in the static shell. Built and tested in M3 |
 | Medusa attaches a guest checkout with a registered e-mail to that account (`findOrCreateCustomerStep`), so a stranger's order (and address) can appear in an account | Recorded in M3, unchanged; a decision for later if the owner wants it changed (a backend hook on order placement) |
 | Email verification enforcement may not be native in Medusa | **Verified in M3 (T44), again on 2.22.4 (2026-11-06):** Medusa 2.21.2 answers an unverified login with `verification_required` and a restricted token, but that token (and the one `/register` gives) still creates the customer through `POST /store/customers`. The backend refuses it with a 403 middleware (`requireVerifiedCustomer`); `auth-verification.spec.ts` asserts both, so a Medusa bump that changes either fails CI |
-| Saving Revolut Pay / non-card methods via Medusa's Stripe provider | Verify in M6; cards-only saving as a fallback |
+| Saving Revolut Pay / non-card methods via Medusa's Stripe provider | **Verified in M6 (T101): Revolut Pay saves and pays a second order** (after Revolut's approval page, on-session); other non-card methods are not saved (the shop saves cards and Revolut Pay only) |
 | R2 public access is per bucket (private Medusa files) | WAF rule on the public domain or a second bucket; verify in M6 |
 | R2 custom domains need Cloudflare DNS | Document in DEPLOY; `r2.dev` for dev only |
 | A Medusa plugin is loaded from its compiled output, and Medusa skips it without an error when `.medusa/server` is missing (M4b) | `pnpm bootstrap`, `pnpm build`, `pnpm dev` and every CI job that starts Medusa build `@shopblok/medusa-markets` first (turbo `^build` and the backend's task dependencies); `doctor`'s `markets` check fails when the module is missing; `markets.spec.ts` fails on a backend without it |

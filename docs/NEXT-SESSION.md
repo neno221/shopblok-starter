@@ -1,4 +1,4 @@
-# T93, T98, T99, T96, T97, T94 and T100 are done; T101 and T102 next
+# T93, T98, T99, T96, T97, T94, T100 and T101 are done; T102 and T95 next
 
 **T93 is built** (PR 134; SETUP.md ["Versions, keys and CI for M6 (T93)"](SETUP.md#versions-keys-and-ci-for-m6-t93)): Medusa 2.22.6 (Next stays 16.4.5), every M6 variable named in both `.env.example` files and in `@shopblok/integrations`, `doctor`'s refusal of a live Stripe key, `pnpm check:keys` in CI's `check` job, the `integrations-live` job (on `main`, nightly, on a dispatch and on this repository's PRs; never on a fork or Renovate's branches) and the keyless check in the shell, catalog, checkout and account suites. The cloud environment has M6's hosts (you approved them on 2026-11-12). **Medusa's Redis caching stays off** (D128): with `MEDUSA_FF_CACHING=true` the module cannot start beside the markets plugin (two copies of `graphql`), so it caches nothing; making it work is a task of its own, which M6 does not need.
 
@@ -16,7 +16,9 @@
 
 **T100 is built** (SETUP.md ["Stripe in the checkout (T100)"](SETUP.md#stripe-in-the-checkout-t100)): with `STRIPE_API_KEY`, `STRIPE_WEBHOOK_SECRET` and `NEXT_PUBLIC_STRIPE_KEY`, the checkout takes cards, Apple Pay and Google Pay (where the device has them) and Revolut Pay through Stripe's Payment Element: step 2 keeps a ConfirmationToken, the review's "Place order" confirms and places the order, a method that leaves the shop comes back through `/api/payment-return`, and the payment is captured when the order ships. "Pay later" is offered only without Stripe or for a zero total, and the backend refuses it on a positive total while Stripe is on. Without the keys the checkout is M3's and nothing is sent to Stripe. For production, SETUP's "Turning on Stripe" lists the webhook endpoint, the Dashboard's switches and `pnpm stripe:domains`. **Next:** T101 (saved payment methods) and T102 (express checkout), each in its own cloud session; they both build on T100's checkout and touch the checkout page, so whichever merges second merges `main` first. T95 (R2) can run beside either; its prompt is still to be written. T103 and T104 last.
 
-## T101 · Saved payment methods (in a cloud session)
+**T101 is built** (SETUP.md ["Saved payment methods (T101)"](SETUP.md#saved-payment-methods-t101)): with Stripe on, a signed-in customer saves a card or a Revolut Pay account at checkout ("Save this card for next time") or in the account ("Add a payment method"), pays a later order with it, and removes it in the account, also without scripts. A guest's method is never saved. Revolut Pay is kept: it saves, and a second order pays with it after Revolut's approval page. Without the keys the account's page lists nothing and offers no "Add". **Next:** T102 (express checkout; if it merges after T101 it merges `main` first and settles the checkout page and islands, SETUP.md, this file and the plan's status line), T95 (R2; its prompt is still to be written), then T103 and T104.
+
+## T101 · Saved payment methods (done)
 
 Start a cloud session in the `shopblok-starter` environment, on `main`, and paste:
 
