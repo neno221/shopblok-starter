@@ -41,8 +41,8 @@ export type StorePaymentTokenType = z.infer<typeof StorePaymentToken>;
  *   shows (`metadata.payment_preview`: the method's type, a card's brand, last four and wallet).
  *   A token that saves its method ("Save this card for next time": Stripe's `setup_future_usage`)
  *   is taken only from the cart's own signed-in customer, and `metadata.stripe_setup_future_usage`
- *   says so, for the session (D119: a guest never saves, not even a guest checkout Medusa attaches
- *   to an account by its e-mail).
+ *   says so, for the session (D119: a guest never saves, not even with an account's e-mail; Medusa
+ *   2.22.6 gives such a cart a guest customer of its own, which is not the caller).
  * - **A saved method** (`payment_method`, D119): only the cart's own signed-in customer's, and only
  *   one of their own (another's answers 404); kept as `metadata.stripe_payment_method` with its
  *   preview, for a session with that `payment_method`.

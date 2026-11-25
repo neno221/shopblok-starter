@@ -76,7 +76,7 @@ export function previewOf(method: SavedMethod) {
   };
 }
 
-type AccountHolder = { id: string; provider_id: string; data?: Record<string, unknown> };
+export type AccountHolder = { id: string; provider_id: string; data?: Record<string, unknown> };
 
 /** The customer's account holder with Stripe, or `null` when they have none yet. */
 export async function stripeHolderOf(

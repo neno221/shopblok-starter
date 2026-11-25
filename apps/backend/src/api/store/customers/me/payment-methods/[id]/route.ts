@@ -1,8 +1,8 @@
 import type { AuthenticatedMedusaRequest, MedusaResponse } from "@medusajs/framework/http";
-import { MedusaError, Modules } from "@medusajs/framework/utils";
+import { MedusaError } from "@medusajs/framework/utils";
 
-import { STRIPE_PROVIDER_ID } from "../../../../../../config/modules";
 import { listSavedMethods, stripeHolderOf } from "../../../../../../lib/saved-methods";
+import { detachPaymentMethodWorkflow } from "../../../../../../workflows/saved-payment-methods";
 
 /**
  * `DELETE /store/customers/me/payment-methods/:id` (M6 D119, T101): detaches one of the caller's
@@ -19,11 +19,6 @@ export async function DELETE(req: AuthenticatedMedusaRequest, res: MedusaRespons
       MedusaError.Types.NOT_FOUND,
       `Payment method with id: ${id} was not found`,
     );
-  const payment = req.scope.resolve(Modules.PAYMENT);
-  await payment.deletePaymentMethods({
-    provider_id: STRIPE_PROVIDER_ID,
-    id,
-    context: { account_holder: holder as never },
-  } as never);
+  await detachPaymentMethodWorkflow(req.scope).run({ input: { id, holder } });
   res.json({ id, object: "payment_method", deleted: true });
 }

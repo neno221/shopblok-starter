@@ -1,13 +1,9 @@
 import type { AuthenticatedMedusaRequest, MedusaResponse } from "@medusajs/framework/http";
-import { MedusaError, Modules } from "@medusajs/framework/utils";
+import { MedusaError } from "@medusajs/framework/utils";
 
-import { STRIPE_PROVIDER_ID } from "../../../../../config/modules";
-import {
-  ensureStripeHolder,
-  listSavedMethods,
-  SAVED_TYPES,
-} from "../../../../../lib/saved-methods";
+import { listSavedMethods } from "../../../../../lib/saved-methods";
 import { stripeRegistered } from "../../../../../lib/stripe-regions";
+import { startPaymentMethodSetupWorkflow } from "../../../../../workflows/saved-payment-methods";
 
 // M6 D119 (T101): the signed-in customer's saved payment methods. `/store/customers/me*` is
 // authenticated by Medusa's own middleware (a customer's session or bearer token; anyone else gets
@@ -31,15 +27,8 @@ export async function GET(req: AuthenticatedMedusaRequest, res: MedusaResponse) 
 export async function POST(req: AuthenticatedMedusaRequest, res: MedusaResponse) {
   if (!(await stripeRegistered(req.scope)))
     throw new MedusaError(MedusaError.Types.NOT_ALLOWED, "Stripe is not on.");
-  const holder = await ensureStripeHolder(req.scope, req.auth_context.actor_id);
-  const payment = req.scope.resolve(Modules.PAYMENT);
-  const created = await payment.createPaymentMethods({
-    provider_id: STRIPE_PROVIDER_ID,
-    context: { account_holder: holder as never },
-    data: { usage: "off_session", payment_method_types: [...SAVED_TYPES] },
+  const { result } = await startPaymentMethodSetupWorkflow(req.scope).run({
+    input: { customerId: req.auth_context.actor_id },
   });
-  const secret = (created.data as { client_secret?: unknown } | undefined)?.client_secret;
-  if (typeof secret !== "string")
-    throw new MedusaError(MedusaError.Types.UNEXPECTED_STATE, "Stripe made no SetupIntent");
-  res.json({ setup_intent: { id: created.id, client_secret: secret } });
+  res.json({ setup_intent: result });
 }
