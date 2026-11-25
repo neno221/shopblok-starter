@@ -1,4 +1,4 @@
-import { expect, test, type FrameLocator, type Page } from "@playwright/test";
+import { expect, test, type FrameLocator, type Locator, type Page } from "@playwright/test";
 import { catalogs } from "../support/catalogs";
 import { publishGlobal, snapshotGlobal, type GlobalData } from "../support/globals";
 import { skipWithoutKeys } from "../support/integration-keys";
@@ -96,6 +96,20 @@ test("the rail draws the Express Checkout Element with express-rail, and nothing
 const linkModal = (page: Page): FrameLocator =>
   page.frameLocator('iframe[src*="universal-link-modal-inner"]');
 
+/**
+ * Types `digits` into one of Link's card fields until it holds them (spaces and the slash aside):
+ * the fields format as they go and move focus on, and a key typed meanwhile can be lost.
+ */
+async function typeInto(field: Locator, digits: string) {
+  await expect(field).toBeVisible({ timeout: 30_000 });
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    await field.fill("");
+    await field.pressSequentially(digits, { delay: 40 });
+    if ((await field.inputValue()).replace(/\D/g, "") === digits) return;
+  }
+  expect((await field.inputValue()).replace(/\D/g, "")).toBe(digits);
+}
+
 /** The modal's last button ("Continue", or "Pay" on its summary), once it can be pressed. */
 async function next(modal: FrameLocator) {
   const button = modal.getByRole("button", { name: /./ }).last();
@@ -148,11 +162,9 @@ test("a Link payment in / to the receipt: the wallet's address, the cart's optio
   await expect(page.locator('[data-slot="order-summary"]').first()).toContainText("6,00", {
     timeout: 30_000,
   });
-  await modal.locator('input[name="cardNumber"]').pressSequentially("4242424242424242", {
-    timeout: 30_000,
-  });
-  await modal.locator('input[name="cardExpiry"]').pressSequentially("1234");
-  await modal.locator('input[name="cardCvc"]').pressSequentially("123");
+  await typeInto(modal.locator('input[name="cardNumber"]'), "4242424242424242");
+  await typeInto(modal.locator('input[name="cardExpiry"]'), "1234");
+  await typeInto(modal.locator('input[name="cardCvc"]'), "123");
   // The card's billing country (Link guesses it from the network), and what Link asks for it.
   await modal.locator('select[name="billingAddress.country"]').selectOption("CY");
   const billingName = modal.locator('input[name="billingAddress.name"]');

@@ -10034,3 +10034,76 @@ The review (`reviews/pr-140-code-review.md` in the project's files) found 3 must
 6. **Ship within about 7 days:** a card's authorisation lapses then; marking a fulfillment shipped in Medusa Admin captures the payment, and the backend's log names any order left uncaptured for 6 days.
 7. `pnpm doctor --online` (in production also the webhook endpoint and the domains).
 8. For CI's live checks: the secrets `STRIPE_API_KEY` and `NEXT_PUBLIC_STRIPE_KEY` in GitHub's Actions secrets (test keys only, D115).
+
+## Express checkout (T102)
+
+**Result: with Stripe on (T100's keys) and the `express-rail` checkout picked in the `templates` global, the contact step's rail holds Stripe's Express Checkout Element: the wallets the device and the Dashboard allow, drawn only once the Element says it has one to show, and never without scripts. The wallet asks for the e-mail and a shipping address in the region's countries only; each address the wallet shows and each shipping option picked in it goes through the visitor's own cart (Medusa's options and prices, the total the wallet shows follows the cart's), and the wallet's payment sets the address and the e-mail on the cart, keeps the ConfirmationToken as the delivery step does, and confirms the cart's PaymentIntent, after which `/api/payment-return` places the order as for every Stripe payment. In test mode, from the cloud's headless Chromium over HTTP, the Element shows Link only; Revolut Pay is not among the Element's methods at all and stays in the Payment Element. The live spec pays with Link's sandbox to the receipt (2 of 2, and 4 of 4 on a repeat), and an address outside the region accepted by the address action fails its test. Without the keys, or with another layout, nothing changes.** D120 (plans/M6.md §5 T102).
+
+| | |
+|---|---|
+| Date | 2026-11-25 |
+| Branch | `claude/project-thread-i3ln46`, from `main` at `833100a` (PR 140's merge, T100) |
+| PR | this PR, "T102: express checkout in the express rail" |
+| Packages | none new (`@stripe/stripe-js` 10.2.1 from T100) |
+
+### Stripe's pages and how they differ from D120
+
+I read Stripe's Express Checkout Element pages (the guide "Accept a payment with the Express Checkout Element", its "Create a ConfirmationToken" part, the `elements.create('expressCheckout')` reference and the `click`, `shippingaddresschange`, `shippingratechange`, `cancel`, `confirm` and `ready` events). The flow is D120's, with three notes:
+
+1. **The wallet's address arrives in two parts.** Before the payment, `shippingaddresschange` carries only the town, the postal code, the state and the country (a browser redacts the rest); the name and the street come only with `confirm`. So the address action keeps that partial address on the cart with an empty name and street (Medusa replaces the whole address, so nothing of an earlier one is mixed in), which `toAddressDto` does not count as an address: the contact step is not done by it. The payment action then writes the whole address, checked as the contact step checks one.
+2. **The payment uses T100's ConfirmationToken path, not `confirmPayment({ elements })`.** In `confirm`, the island runs `elements.submit()` and `stripe.createConfirmationToken({ elements })` (Stripe's documented option for the Express Checkout Element), the action keeps the token through the backend's `POST /store/carts/:id/payment-token` and makes the session for the cart's total, and the island confirms with `confirmPayment({ clientSecret, confirmParams: { confirmation_token, return_url } })`. So the review step is skipped, but the token route, the session guard, `ensurePaymentSession`, the return route and its rules are T100's, unchanged.
+3. **The amount the wallet showed is checked.** The Elements' amount follows the cart's total after every address and option change (`elements.update`), and the payment action refuses (`changed`) when the cart's total in the currency's smallest unit is not what the wallet showed (another tab changed the cart, a tax changed with the full address); the island then reads the cart's total, puts it on the Element and fails the wallet's payment with "The total has changed", so the shopper sees the new total and pays again.
+
+### The storefront
+
+- **The island** (`src/components/checkout/stripe/express.tsx`, `ExpressCheckoutIsland`): drawn by the checkout page in `slots.express` when the region offers Stripe, the storefront has its publishable key, the cart's total is above zero (`paysWithStripe`), the layout is `express-rail`, the step is the contact step, and the cart has a shipping option a wallet can offer (`toExpressRates`: priced and not a pickup point; the cart's own first). After hydration it imports `stripe-client.ts` (in no first load, as T100's islands) and mounts the Element with the Payment Element's options (deferred mode, the cart's amount and currency, `captureMethod: "manual"`, the appearance from the tokens, the market's language) and `emailRequired`, `shippingAddressRequired`, `allowedShippingCountries` (the region's countries) and the cart's rates. Its root says `data-express="hidden"` until the Element's `ready` lists a wallet (`data-methods`, by Stripe's names), and the template hides the rail while it does (`has-[[data-express=hidden]]:hidden` on the rail's section), so without scripts, or with no wallet on the device, the page is the default layout's.
+- **The actions** (`src/lib/actions/checkout-express.ts`, called through `expressAddress`, `expressRate`, `expressConfirm` and `expressTotal` in `lib/actions/checkout.ts`), each on the cookie's cart in the market's region and language:
+  - `expressAddressAction`: a country outside the region is refused before anything is written (the wallet is told it cannot ship there); otherwise the partial address is kept, the cart's options for it are listed, the cart's own option or the first is set, and the rates and the total come back. No option to deliver there is a refusal too.
+  - `expressRateAction`: one of the cart's deliverable options, set on the cart; anything else is refused.
+  - `expressConfirmAction`: the e-mail (lower-cased, as T53 keeps it), the name split into first and last (the last word is the last name; a one-word name is both), the address against the region and its country's format (`addressErrors`, `keepFormatFields`), the option, then the e-mail, the address and the option written in that order, Stripe checked for the new total, the total compared with the wallet's, then the token kept, the order's e-mail target and consent written (`prepareCompletion`, as the review's "Place order" does, since the webhook may place the order first) and the session for the total; its client secret and intent come back.
+- **The return** is T100's: the island goes to `/api/payment-return` with the intent and its secret after Stripe answers, paid or refused, and the route completes the cart only for its own authorised intent. A refused payment lands on the delivery step with Stripe's reason, where the Payment Element can pay.
+- **The payment line** names a Link payment "Link" (`paymentOf`: the token's preview type `link`), on the receipt and in the account.
+- **Messages:** `templates.checkout.express.{address, changed, failed}` in en, de, fr and el, shown under the buttons when the wallet's payment stops before Stripe confirms. `ui-strings` 803 → 806.
+- **`payment-return-url.ts`**: the return route's address, which both T100's review island and this one build.
+
+### Which methods the Element shows (D120's record)
+
+- **Link** shows, in `/` (EUR, Cyprus) and in the spec's runs; the spec records `data-methods` as an annotation.
+- **Apple Pay and Google Pay** do not show in the cloud: Stripe.js says it needs HTTPS for both, a registered domain for Apple Pay, and a wallet on the device. They are W8's, on the PC and M7's staging (`pnpm stripe:domains`).
+- **Amazon Pay** could not be checked here: its script comes from `static-eu.payments-amazon.com`, which the cloud environment does not allow (asked on 2026-11-25), and it did not show.
+- **PayPal and Klarna** did not show: neither is among the test account's payment methods (Stripe.js's console warning names the ones it shows in test mode while inactive: Link, Revolut Pay, Amazon Pay, Satispay), and T100 found manual capture hides Klarna (D118).
+- **Revolut Pay is not among the Express Checkout Element's methods:** Stripe's guide lists Link, Apple Pay, Google Pay, PayPal, Klarna and Amazon Pay, and the Element's `ready` event has no key for anything else. Revolut Pay stays in the Payment Element on step 2 (T100), as D120 said it would.
+
+### The live spec
+
+`e2e/integrations/stripe-express.spec.ts` (skips itself without `STRIPE_API_KEY` and `NEXT_PUBLIC_STRIPE_KEY`), 2 tests, serial, publishing the `templates` global and putting it back afterwards in every language:
+1. With `express-rail`, the contact step in `/` draws the rail with the Element shown and Link among its methods (never Revolut Pay); a copy of the visitor without scripts gets the island's root but the rail hidden; with `default`, no rail and no island.
+2. A Link payment in `/`: a new e-mail each run signs up to Link's sandbox (a test phone, Stripe's passcode `000000`, the `4242…` card with a Cypriot billing country); Link's country list is exactly the region's (CY, DE, FR); its address goes through the cart (the page's summary shows Medusa's shipping, 6.00 €, before the payment); the payment ends on the receipt with the wallet's name, street and e-mail and "Link" as the payment, and Medusa's order has the wallet's address, one shipping method and one Stripe payment for its total, authorised and not captured (D118).
+
+Link's card fields format as they go and move focus on, so the spec types each until it holds the digits (`typeInto`); a run where a key was lost left the CVC at "12" before that.
+
+### Checks (cloud VM)
+
+- The live spec, 2 of 2, and 4 of 4 with `--repeat-each=2`, against `next dev` and `medusa develop` with the test keys and the stand-in webhook secret. T100's `stripe-checkout.spec.ts` beside it: its first five cases passed; its promotion case failed in two of three runs on `next dev` with "Complete the steps before this one first" on the review: the click on "Place order" after the page's reload came before the island had hydrated, so the form posted to the place-order action (whose cart had no session after the promotion). It is T100's test and timing, not this change (the review's island only moved its return address into `payment-return-url.ts`); CI runs it against `next start`, where T100's runs passed.
+- Unit tests: `checkout-express.test.ts` (17: the region check, the partial address with no name or street, the deliverable rates and the cart's option first, no option to deliver, the option check, the name split, the payment's order of writes, the refusals of an address outside the region, one without a street, an option not the cart's, a total the wallet did not show, a region without Stripe, a token that is not a ConfirmationToken's), the view model's (`toExpressRates`, `paymentOf` for Link), the template's (the rail on the contact step only, its hiding class, no rail without buttons). Storefront, `@shopblok/ui` (6133) and `@shopblok/i18n` (111) suites, `pnpm lint` and `pnpm typecheck` for the three, all passing.
+- **The mutation** the plan names: the address action without its region check (the `countryCode` refusal removed) accepts an address outside the region, and "refuses a country outside the region and writes nothing to the cart" fails.
+- No design-system cell changes: the rail's new class hides it only when a provider's root says `hidden`, which the DS's fixture buttons do not, and the new messages are the island's, which no story draws.
+
+### The first load (D129)
+
+`check:first-load` on a build as `e2e-smoke` builds it (`STOREFRONT_PRERENDER_PRODUCTS=4`, `STOREFRONT_LISTING_PAGE_SIZE=3`), each chunk gzipped on its own and summed, in bytes:
+
+| Route | T100 (its SETUP figures) | This PR, no Stripe key | This PR, with `NEXT_PUBLIC_STRIPE_KEY` | Budget |
+|---|---|---|---|---|
+| `/[market]/products/[handle]` | 344,548 | 344,551 | 344,551 | 339 KB (347,136) |
+| `/[market]/store` (and the other listings) | 345,277 | 345,279 | 345,279 | 340 KB (348,160) |
+| `/[market]` | 329,054 | 329,057 | 329,057 | not budgeted |
+| `/[market]/search` | 331,252 | 331,254 | 331,254 | not budgeted |
+| `/[market]/checkout/[step]` | 323,157 | 323,780 | 323,780 | not budgeted |
+
+The budgeted routes move by 2 or 3 bytes (no new client code reaches them; the island and its words are only in the checkout's chunks), and the checkout's pages carry the island (623 bytes). `stripe-client.ts`, now 3.3 KB gzipped with the Express Checkout Element's part, stays out of every first load (`shopblok:stripe-client`).
+
+### Observations
+
+- **A wallet closed after it showed an address leaves that address's town, postal code and country, and its shipping option, on the cart** (no name or street, so the contact step is still to do). The contact form on the page keeps what it showed; sending it writes the shopper's address back. A signed-in customer's saved address is still offered, since the partial address counts as none.
+- `*.w.hcaptcha.com` (a random subdomain per load) is refused by the cloud's proxy; Link's sign-up and payment went through without it.
