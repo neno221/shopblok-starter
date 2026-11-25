@@ -241,8 +241,10 @@ test("a cart changed in another tab on the review page pays the new total", asyn
   await payWithCard(page, US.words, CARDS.visa);
   const tab = await otherTab(context, US.prefix);
   const line = tab.locator('[data-slot="cart-line-item"]:visible');
+  // The stepper sends its form by itself once the page has hydrated.
+  await tab.waitForLoadState("networkidle");
   await line.getByRole("button", { name: /^Increase quantity/ }).click();
-  await expect(line.locator('input[name="quantity"]')).toHaveValue("2");
+  await expect(tab.locator('h1 [data-slot="cart-count"]')).toHaveText("2 items");
   await tab.close();
   await page.reload();
   await place(page, US.words);
