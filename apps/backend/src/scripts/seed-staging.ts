@@ -46,9 +46,12 @@ export default async function seedStaging({ container, args }: ExecArgs) {
   else logger.info("seed-staging: demo catalog skipped (SEED_DEMO is not true).");
 
   const users = container.resolve(Modules.USER);
+  // The module's filter types list exact values only, but its list methods take MikroORM's
+  // operators, `$ilike` among them (checked in the image against Postgres: PR 149's review, 7).
+  const byEmail = emailFilter(email) as unknown as { email: string };
   const [existing, invites] = await Promise.all([
-    users.listUsers(emailFilter(email), { select: ["email"] }),
-    users.listInvites(emailFilter(email), { select: ["id", "email", "accepted", "expires_at"] }),
+    users.listUsers(byEmail, { select: ["email"] }),
+    users.listInvites(byEmail, { select: ["id", "email", "accepted", "expires_at"] }),
   ]);
   const decision = inviteAction({
     email,
