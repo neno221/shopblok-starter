@@ -447,7 +447,7 @@ test("an import's issue details open in Payload's code editor, Monaco from its p
   // network and CI never waits on a CDN; the browser checks the policy on the URL before any
   // answer, so the policy is tested as it is.
   await page.context().route(`${MONACO_CDN}**`, async (route) => {
-    const path = new URL(route.request().url()).pathname.replace("/npm/monaco-editor@0.55.1/", "");
+    const path = new URL(route.request().url()).pathname.replace(new URL(MONACO_CDN).pathname, "");
     const file = join(MONACO_DIR, ...path.split("/"));
     if (!file.startsWith(MONACO_DIR) || !existsSync(file)) return route.fulfill({ status: 404 });
     await route.fulfill({

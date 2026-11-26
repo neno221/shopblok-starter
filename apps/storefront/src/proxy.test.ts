@@ -132,7 +132,7 @@ describe("the nonce policy on the nine routes (M7 D139, T107)", () => {
     const second = await proxy(new NextRequest(`https://example.com${path}`));
     const policy = policyOf(first);
     expect(policy).toContain("'strict-dynamic'");
-    expect(policy).not.toContain("'unsafe-inline' ");
+    expect(policy).not.toMatch(/script-src[^;]*'unsafe-inline'/);
     expect(nonceOf(policy)).toBeDefined();
     expect(nonceOf(policyOf(second))).not.toBe(nonceOf(policy));
     // The page's request carries the same policy, for Next to read the nonce from.

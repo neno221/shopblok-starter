@@ -84,9 +84,13 @@ function recorded(request: Request, site: string): RecordedRequest | undefined {
 }
 
 // The fixture's second argument is Playwright's `use`, named `run` here (React's hooks rule).
-export const test = base.extend<{ noCspViolations: void }>({
+// `expectedCspViolations` (M7 T107, a mutation test's own): each entry is a piece of a violation's
+// description (`describeViolation`) that must be seen, so a test that provokes a block asserts it
+// happened instead of passing on any failure (`test.fail`). Every other violation still fails.
+export const test = base.extend<{ noCspViolations: void; expectedCspViolations: string[] }>({
+  expectedCspViolations: [[], { option: true }],
   noCspViolations: [
-    async ({ context, browser, baseURL }, run, testInfo) => {
+    async ({ context, browser, baseURL, expectedCspViolations }, run, testInfo) => {
       const site = baseURL ?? "http://localhost:8000";
       const violations: Violation[] = [];
       const requests: RecordedRequest[] = [];
@@ -136,8 +140,15 @@ export const test = base.extend<{ noCspViolations: void }>({
           appendFileSync(recordTo, `${lines.join("\n")}\n`);
         }
       }
+      const described = violations.map(describeViolation);
+      for (const expected of expectedCspViolations) {
+        expect(
+          described.some((v) => v.includes(expected)),
+          `the expected violation "${expected}" was not seen (seen: ${JSON.stringify(described)})`,
+        ).toBe(true);
+      }
       expect(
-        violations.map(describeViolation),
+        described.filter((v) => !expectedCspViolations.some((expected) => v.includes(expected))),
         "a page broke the Content Security Policy (M7 D138): add the host to lib/security/csp.ts with its source, or remove what loads it",
       ).toEqual([]);
     },

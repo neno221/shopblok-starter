@@ -11024,7 +11024,7 @@ Skipped: 6 (the spec resends prices without `rules` or quantity limits) is not c
 
 ### The nine routes and the nonce
 
-- **`src/lib/security/nonce-routes.ts`**: `NONCE_ROUTES` (the nine first segments; T110's `robots.ts` reads it for its `Disallow` lines) and `NONCE_PAGES`, every page under them segment by segment (`*` for `[id]`, `[step]`, `[token]`): 23 shapes, the checkout's redirect handler (`checkout/[step]/route.ts`) included. `isNonceRoute(path)` matches a page's path inside its market exactly, so `/cartography`, `/account-help`, `/cart/x` and `/order` keep the static policy. `nonce-routes.test.ts` walks `app/(storefront)/[market]/<route>/` and fails when a `page.tsx` or `route.ts` there is not in `NONCE_PAGES`, or one listed is not there: a page added under the nine gets the nonce or the test says so.
+- **`src/lib/security/nonce-routes.ts`**: `NONCE_ROUTES` (the nine first segments; T110's `robots.ts` reads it for its `Disallow` lines) and `NONCE_PAGES`, every page under them segment by segment (`*` for `[id]`, `[step]`, `[token]`): 23 shapes, the checkout's redirect handler (`checkout/route.ts`, the `["checkout"]` entry) included. `isNonceRoute(path)` matches a page's path inside its market exactly, so `/cartography`, `/account-help`, `/cart/x` and `/order` keep the static policy. `nonce-routes.test.ts` walks `app/(storefront)/[market]/<route>/` and fails when a `page.tsx` or `route.ts` there is not in `NONCE_PAGES`, or one listed is not there: a page added under the nine gets the nonce or the test says so.
 - **The proxy** (`src/proxy.ts`): `respondToMarketRequest` takes a callback that, for the path `resolve` (lib/markets) found after the prefix, returns the request headers for the rewrite, so every market's prefix (`/us/cart`, `/ch/fr/cart`) and an own-domain market's bare path match alike. On a nonce page: `newNonce()` (16 bytes from `crypto.getRandomValues`, base64), both CSP request headers a visitor might send are dropped, and the policy goes on the request (Next reads the nonce there) and on the response, in place of `withStaticCsp`'s, as `Content-Security-Policy` or, under `CSP_MODE=report-only`, the report-only header: one policy per response. A redirect (a market's trailing slash, a locale) has no page, so it keeps the static policy.
 - **`Cache-Control: private, no-store`** on each: a page with a nonce must never be stored. Next would send `private, no-cache, no-store, max-age=0, must-revalidate` on these dynamic pages anyway; the proxy's value is what arrives (`csp-nonce.spec.ts`).
 - **The policy** (`noncePolicy` in `csp.ts`, from the same table and directives as the static one): `script-src 'self' 'nonce-<nonce>' 'strict-dynamic'` (plus `'unsafe-eval'` in `next dev`) and, with Stripe's key, `https://js.stripe.com https://*.js.stripe.com`; every other directive is the static policy's. Under `'strict-dynamic'` a CSP3 browser ignores the hosts and `'self'` in `script-src` and runs what a nonced script inserts (Next's later chunks, Stripe.js, the lazy PostHog and Sentry SDKs); the hosts stay for an older browser. `next.config.ts` computes it once at build with `{{nonce}}` in the nonce's place (`SHOPBLOK_CSP_NONCE_POLICY`), and `withNonce` fills it per request, refusing anything that is not base64.
@@ -11073,14 +11073,14 @@ With `S3_PUBLIC_URL` its origin joins `img-src` and `media-src` (R2's pictures),
 
 ### `csp-nonce.spec.ts`
 
-Against `next start`, in `/` and `/us`, on a page of each nonce route that needs no signed-in customer or order (11 paths × 2 markets): two requests, two nonces; exactly one policy header, with `'nonce-…' 'strict-dynamic'` and no `'unsafe-inline'` or `'unsafe-eval'` in `script-src`; `Cache-Control` private and `no-store`; every `<script>` in a 200's HTML carries that response's nonce. The static routes (`/`, `/us`, the store, a product, search) keep the static policy, and `/us/cart/t107-no-such-page` is a 404 with it. In the browser each page hydrates (`window.next`) with no violation and no inline script without the nonce; a client-side navigation from `/us/login` to `/us/register` stays in one document (its chunks loaded under `'strict-dynamic'`).
+Against `next start`, in `/` and `/us`, on a page of each nonce route that needs no signed-in customer or order (11 paths × 2 markets): two requests, two nonces; exactly one policy header, with `'nonce-…' 'strict-dynamic'` and no `'unsafe-inline'` or `'unsafe-eval'` in `script-src`; `Cache-Control` private and `no-store`; every `<script>` in a 200's HTML carries that response's nonce. The static routes (`/`, `/us`, the store, a product, search) keep the static policy, and `/us/cart/t107-no-such-page` is a 404 with it. In the browser each page hydrates (`window.next`) with no violation and no inline script without the nonce; a client-side navigation from `/us/login` to `/us/register` stays in one document (its chunks loaded under `'strict-dynamic'`); and the injected script of mutation 2 below.
 
 ### Mutations
 
 | Mutation | Result |
 |---|---|
 | 1. A `<script>` without the nonce in the cart page's source (`dangerouslySetInnerHTML`, rebuilt) | `csp-nonce.spec.ts` fails twice: "`/cart`: every script carries this response's nonce", and in the browser "`/cart`: inline scripts" with the fixture's `enforce script-src-elem blocked inline on /cart` |
-| 2. The same, injected into `/us/cart`'s HTML by Playwright's routing, as an injection would arrive | `csp-nonce.spec.ts`'s last test, marked `test.fail`: the fixture fails it on the blocked script |
+| 2. The same, injected into `/us/cart`'s HTML by Playwright's routing, as an injection would arrive | `csp-nonce.spec.ts`'s last test: the fixture sees `enforce script-src-elem blocked inline on /us/cart` (`expectedCspViolations`), the script does not run, and the page still hydrates |
 | 3. `MONACO_CDN` removed from the admin's `script-src` (rebuilt) | `ui-strings.spec.ts`'s Monaco test fails: no editor, and the fixture's `enforce script-src-elem blocked https://cdn.jsdelivr.net/npm/monaco-editor@0.55.1/min/vs/loader.js on /admin/collections/imports/9` |
 
 The plan's second mutation ("the provider removed makes the editor request jsdelivr") has no provider to remove; mutation 3 is its counterpart for the fallback.
@@ -11095,3 +11095,18 @@ The plan's second mutation ("the provider removed makes the editor request jsdel
 
 - **T108 (Turnstile on the sign-in pages):** those pages have the nonce policy, under which `'strict-dynamic'` ignores hosts in `script-src`: Turnstile's script loads because our nonced island inserts it, and `challenges.cloudflare.com` belongs in `frame-src` (its widget is a frame) and in the static policy's `script-src` for the forms outside the nine.
 - **T110 (`robots.ts`):** read `NONCE_ROUTES` from `src/lib/security/nonce-routes.ts` for the `Disallow` lines.
+
+### Changes from the review of this PR (PR 151)
+
+No must-fix finding; the five optional ones, each confirmed, are applied (`reviews/pr-151-code-review.md`):
+1. **`proxy.test.ts`'s "no `'unsafe-inline'`" check could never fail without Stripe's key** (it looked for the keyword followed by a space). It is now `not.toMatch(/script-src[^;]*'unsafe-inline'/)`; with `'unsafe-inline'` added to the nonce policy and no Stripe key, its 7 cases fail.
+2. **The injected-script test passed on any failure** (`test.fail`). The fixture takes a new option, `expectedCspViolations`: each entry is part of a violation's description that must be seen, and every other violation still fails the test. The test now expects `enforce script-src-elem blocked inline on /us/cart`, checks that `window.t107Injected` stayed unset and that the page hydrated.
+3. **The Monaco stand-in stripped a hard-coded version** from the URL; it strips `new URL(MONACO_CDN).pathname`, so a new pinned release still finds its files.
+4. **The checkout's redirect handler** is `checkout/route.ts` (the `["checkout"]` entry), not `checkout/[step]/route.ts`.
+5. **`staticCsp` recomputed all three policies when the nonce template was missing.** It now keeps a build's frozen header and policy and computes only the template, so the proxy and `headers()` cannot disagree on the mode (`static-csp.test.ts`).
+
+Rejected by the review after testing: a percent-encoded path (`/us/c%61rt`) reaches the CMS catch-all under `next start`, never the cart page; and `/admin/…/`'s trailing-slash 308 carries one policy, since the proxy's header replaces `headers()`'s.
+
+### Merged with T112 (PR 150)
+
+T112 merged first, so this PR merged `main` (`df750d8`). Only the docs met: SETUP.md has T112's section, then this one; the plan's status line names both; NEXT-SESSION.md has T108's prompt (this PR) and T111's (T112's), and both tasks marked done.

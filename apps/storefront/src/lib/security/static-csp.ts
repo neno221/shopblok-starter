@@ -21,15 +21,14 @@ export function staticCsp(): ProxyCsp {
   const header = env.SHOPBLOK_CSP_HEADER;
   const policy = env.SHOPBLOK_CSP_POLICY;
   const noncePolicy = env.SHOPBLOK_CSP_NONCE_POLICY;
-  if (
-    header !== undefined &&
-    HEADER_NAMES.includes(header) &&
-    policy &&
-    noncePolicy?.includes(NONCE_PLACEHOLDER)
-  ) {
-    return { header: header as CspHeaderName, policy, noncePolicy };
+  const frozen =
+    header !== undefined && HEADER_NAMES.includes(header) && policy
+      ? { header: header as CspHeaderName, policy }
+      : undefined;
+  if (frozen !== undefined && noncePolicy?.includes(NONCE_PLACEHOLDER)) {
+    return { ...frozen, noncePolicy };
   }
-  return cspSettings(
+  const computed = cspSettings(
     {
       CSP_MODE: env.CSP_MODE,
       NEXT_PUBLIC_BASE_URL: env.NEXT_PUBLIC_BASE_URL,
@@ -38,6 +37,10 @@ export function staticCsp(): ProxyCsp {
     },
     env.NODE_ENV === "development",
   );
+  // A build's frozen header and policy are kept even if its nonce template is missing, so the
+  // proxy and `headers()` never disagree on the mode (PR 151's review, item 5).
+  if (frozen !== undefined) return { ...frozen, noncePolicy: computed.noncePolicy };
+  return { header: computed.header, policy: computed.policy, noncePolicy: computed.noncePolicy };
 }
 
 /** The response with the static policy on it (the proxy's every answer but the nonce routes'). */

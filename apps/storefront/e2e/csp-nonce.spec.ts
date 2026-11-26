@@ -10,7 +10,7 @@ import { expect, test } from "./support/csp";
 // it is never cached (`Cache-Control: private, no-store`); and in the browser the page hydrates
 // with no violation (the CSP fixture), its islands and the chunks Next inserts later loading under
 // `'strict-dynamic'`. The static routes keep the static policy. Then the mutation: a script
-// without the nonce, written into a cart page's HTML, is blocked and fails the fixture.
+// without the nonce, written into a cart page's HTML, is blocked (the fixture sees it) and does not run.
 
 const POLICY_HEADERS = ["content-security-policy", "content-security-policy-report-only"];
 
@@ -155,23 +155,27 @@ test("a client-side navigation between two nonce routes loads its chunks under '
   expect(await page.evaluate(() => (window as { t107Marker?: boolean }).t107Marker)).toBe(true);
 });
 
-test("a script without the nonce written into a cart page is blocked and fails the CSP fixture", async ({
-  page,
-}) => {
+test.describe("a script without the nonce written into a cart page", () => {
   // T107's mutation: an inline script in the HTML the server sends, without the nonce, the way an
-  // injection would arrive. `test.fail` turns the fixture's failure at the end into the outcome.
-  test.fail(true, "the fixture fails this test on the violation it provokes");
-  await page.route("**/us/cart", async (route) => {
-    const response = await route.fetch();
-    const html = (await response.text()).replace(
-      "</body>",
-      "<script>window.t107Injected = true</script></body>",
-    );
-    await route.fulfill({ response, body: html });
+  // injection would arrive. The fixture must see its block (and nothing else), the script must not
+  // have run, and the page must still hydrate: a broken load cannot pass for the block.
+  test.use({ expectedCspViolations: ["enforce script-src-elem blocked inline on /us/cart"] });
+
+  test("is blocked, and the page still hydrates", async ({ page }) => {
+    test.skip(expectedPolicy !== "content-security-policy", "report-only blocks nothing");
+    await page.route("**/us/cart", async (route) => {
+      const response = await route.fetch();
+      const html = await response.text();
+      expect(html).toContain("</body>");
+      await route.fulfill({
+        response,
+        body: html.replace("</body>", "<script>window.t107Injected = true</script></body>"),
+      });
+    });
+    await page.goto("/us/cart");
+    await page.waitForFunction(() => typeof (window as { next?: unknown }).next === "object");
+    expect(
+      await page.evaluate(() => (window as { t107Injected?: boolean }).t107Injected),
+    ).toBeUndefined();
   });
-  // Only the fixture may fail this test: with the nonce policy in place it sees the block; without
-  // it (the static policy's `'unsafe-inline'`) nothing is blocked, the test passes, and `test.fail`
-  // reports that.
-  await page.goto("/us/cart");
-  await page.waitForTimeout(500);
 });
