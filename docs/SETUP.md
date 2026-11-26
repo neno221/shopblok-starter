@@ -6011,18 +6011,20 @@ The pattern of "dompurify 3.4.17 (2026-10-24)": a pnpm override scoped to one `p
 | Package (installed) | Comes through | Fixed in | Why no override |
 |---|---|---|---|
 | ~~`undici` 7.29.0 (13 advisories)~~ | `payload` | 7.30.1 | **Gone in T57** (Payload 3.92.1 pins 7.30.1) |
-| `deepmerge` 4.3.1 (1 low, new since T55) | `payload` | none released | added in T57; no fixed release to move to |
+| ~~`deepmerge` 4.3.1 (1 low, new since T55)~~ | `payload` | none released | **Not listed since T105**: 4.3.1 is still installed, so the change is the advisory's, not the tree's |
 | `qs` 6.16.0 (1 moderate, new since T55) | Medusa's js-sdk and dashboard, express 4, body-parser 1 | 6.16.1 | **Closed in T57** by the override `"qs@6.16.0": "6.16.1"` |
 | `zod` 4.2.0 | `@medusajs/deps`, `@medusajs/admin-sdk`, and the backend's own pin, kept at Medusa's | 4.6.6 | Medusa pins `4.2.0` exactly; wait for Medusa |
 | `lodash` 4.17.23 (2) | `@graphql-codegen/plugin-helpers` (Medusa's `@medusajs/utils`) | 4.18.1 | its range is `~4.17.0` |
 | `@graphql-tools/utils` 10.11.0 (2) | `@graphql-codegen/*` under Medusa | 12.0.2 | a major outside `^10` |
 | `@opentelemetry/instrumentation-pg` 0.52.0 | `@medusajs/deps` | 0.73.0 | outside `^0.52` (a 0.x minor is a major) |
-| `uuid` 9.0.1 | `bullmq` (Medusa's Redis event bus and workflow engine) | 11.1.1 | a major outside `^9` |
-| `happy-dom` 20.14.5 | `@lexical/headless` (Payload's rich text) | 21.0.4 | a major outside `^20.9.0` |
+| ~~`uuid` 9.0.1~~ | `bullmq` (Medusa's Redis event bus and workflow engine) | 11.1.1 | **Gone in T105** (Medusa 2.23.0's bullmq) |
+| `happy-dom` 20.14.6 (2 high; 20.14.5 until T105) | `@lexical/headless` (Payload's rich text) | 21.0.4 | a major outside `^20.9.0` |
 | `ajv` 8.13.0 | `@rushstack/node-core-library`; also listed through `@medusajs/dashboard>@hookform/resolvers`, an optional peer (`^8.12.0`) that nothing loads, since the dashboard imports only the zod resolver | 8.18.0 | `@rushstack/node-core-library`'s range is `~8.13.0` |
 | `esbuild` 0.18.20 | `@esbuild-kit/core-utils` (Payload's drizzle kit) | 0.25.0 | outside `~0.18.20`; and the advisory is about esbuild's dev server, which nothing here starts |
 
 Each waits for its parent's release (Renovate opens it) or goes when the parent drops the package.
+
+**At T105 (2026-11-26), `pnpm audit --prod` lists 5:** `happy-dom` twice, `ajv`, `esbuild`, and `minimatch` 10.2.6 (through `eslint-config-next`'s `@typescript-eslint/typescript-estree`, fixed in 11.0.1, a major outside its range). `csv-parse` 5.6.0 (through Payload 3.93's form builder and import-export) went with Payload 3.94.2. "Versions and names for M7 (T105)" has the run.
 
 ### Monaco
 
@@ -10584,3 +10586,113 @@ Without a key M6 adds about 1.5 KB (the consent cookie and "Cookie settings", `g
 7. (cleanup) NEXT-SESSION.md's T104 heading says "Built as PR 145", not "Merged".
 8. (cleanup) SPEC §17.2's baselines row: Playwright stays on 1.64.1 through M5 and M6.
 9. (cleanup) SPEC §4's jobs line: `stripe-regions-on-start` runs once at start, `uncaptured-payments` daily.
+
+## Versions and names for M7 (T105)
+
+**Result: Medusa moves from 2.22.6 to 2.22.7 and then to 2.23.0 (D152's rule held: everything green, with three small fixes inside the task), Next to 16.4.6, Payload and every `@payloadcms/*` to 3.94.2, React to 19.3.1 in every app (Medusa Admin is on React 19 since 2.23), and Node's floor to 22.23.5 (Payload 3.94 asks for it). `DEPLOY_ENV` (`staging` or `production`) decides the deployment in `doctor`, the seed and both apps, in D133's order; doctor has an accepted-note level below a warning, which `--strict` leaves alone; M0's F6 is closed; every M7 variable is named; CLOUD.md has M7's hosts (approved on a card) and the cloud environment's names. `pnpm audit --prod` goes from 8 to 5.** plans/M7.md §5, T105.
+
+| | |
+|---|---|
+| Date | 2026-11-26 |
+| Branch | `claude/project-thread-bd3joc`, from `main` at `19c97c7` (PR 146's merge, the M7 plan) |
+| PR | this PR, "T105: Versions and M7's names" |
+
+### Medusa 2.22.7
+
+Every `@medusajs/*` in the backend, the markets plugin's peers and dev dependencies and the storefront's `@medusajs/js-sdk` (`@medusajs/ui` 4.2.14). **The Translation Module's feature flag is gone in 2.22.7** (the module is on by default): `MEDUSA_FF_TRANSLATION` left `apps/backend/.env.example`, `featureFlags.translation` left `config.ts` (a unit test says no feature flag is set), and `seed-markets` no longer asks `FeatureFlag.isFeatureEnabled("translation")`; doctor's locales check names the module, not the flag. CI never set the flag. Our zod imports were already from `@medusajs/framework/zod`. **RBAC:** 2.22.7's role checks apply only with the RBAC module registered, which a self-hosted Medusa does not do by default and we do not; `/admin/payload/sync` and the markets plugin's routes keep their own admin checks, and their integration tests pass. On 2.22.7: backend unit 328, `backend-integration` 107 of 107 (12 suites), storefront 4,705, scripts 571.
+
+### Medusa 2.23.0 (D152)
+
+D152's list, item by item:
+
+| Item | Result |
+|---|---|
+| Express 5's path syntax | No matcher or route of ours has a wildcard (`middlewares.ts` in the backend and the plugin list exact paths and `:id` parameters) |
+| `req.query` read-only | Nothing of ours writes it; the one reader (`/e2e/throw`) only reads `marker` |
+| Express 5's `ErrorRequestHandler` type | Returns `unknown` now: the backend's wrapper around Medusa's `errorHandler()` calls it and returns nothing (`middlewares.ts`) |
+| OpenTelemetry SDK 3 (T96's exporter) | `@medusajs/framework/opentelemetry/sdk-trace` replaces `sdk-trace-node`; `BatchSpanProcessor` takes `{ exporter }`, and the exporter is passed only there, not also as `registerOtel`'s `exporter` (that would export every span twice); `@opentelemetry/exporter-trace-otlp-http` 0.220.0 → 0.301.2 (`src/lib/sentry.ts`). Sentry's unit tests pass |
+| Two copies of Medusa | The new exporter wants `@opentelemetry/api` 1.10.0 and the rest of the tree resolved 1.9.1, so pnpm installed `@medusajs/framework` and `@medusajs/medusa` twice and every `backend-integration` suite failed with "Workflow with id refund-payments-workflow and step definition already exists". **Fixed by the override `"@opentelemetry/api": "1.10.0"`** (`pnpm-workspace.yaml`, with a drop rule): the lockfile has one snapshot of each |
+| React 19 in Medusa Admin | The backend and the markets plugin move to React and React DOM 19.3.1, `react-i18next` 18.0.1, `@types/react(-dom)` 19.3.0, `react-router-dom` 7.18.5. The plugin's admin build (Tailwind 4) passes; `check:workspace` expects 19.3.1 in every app (it expected 18.3.1 in these two since T73). `market-panels.spec.ts` and `markets-add.spec.ts` run in `e2e-smoke` |
+| node-redis | We pass no `redisOptions` anywhere (`config.ts` gives `redisUrl` only), so `connect-redis` 11 needs nothing from us |
+| The payment collection's refresh on recalculated taxes (T100) | `checkout-cy` and `checkout-us` in `e2e-smoke`, and Stripe's live specs in this session with the test keys (below) |
+| Replaced account holders (T101) | `payment-methods` in `backend-integration`, and `stripe-saved.spec.ts` live (below) |
+| The i18next advisory | `react-i18next` 18.0.1 with `i18next` 27.1.1 (one copy in the lockfile); `pnpm audit --prod` lists no i18next advisory |
+
+On 2.23.0: backend unit 346, the plugin 57, `backend-integration` 107 of 107, typecheck, lint and the storefront's 4,705 green in the VM; CI's run on the branch below.
+
+### Next 16.4.6, Payload 3.94.2, React 19.3.1, Node 22.23.5
+
+- **Next** 16.4.5 → 16.4.6 and `eslint-config-next` with it: no change in our code. First load of the product page 336.5 KB (budget 339), no route over its budget.
+- **Payload** 3.93.0 → 3.94.2, every `@payloadcms/*` at one version (`check:workspace`). Two of its changes touch us:
+  - **3.94.1 (#19372) shortens long foreign key names** to a hashed form, so `payload migrate:create` found 152 constraints to drop and re-add. The migration `20261126_101550_payload_394_constraint_names` does that and changes no data; `migrate:create --skip-empty` afterwards writes nothing.
+  - **The CSV export now escapes a text a spreadsheet would read as a formula** (`escapeCSVFormulaString`: one starting with `=`, `+`, `-`, `@`, their full-width forms, or a tab or line break gets a leading `'`). The UI strings' `+{count, number}` came back from a round trip as a change, so `ui-strings.spec.ts`'s import updated two rows instead of one (CI run 45801035633). `checkImportedStrings` now takes that `'` off a cell before comparing (`unescapeFormula`, with unit tests), so an untouched export still saves nothing, and the export stays safe to open.
+- **React** 19.3.0 → 19.3.1 in the storefront, `packages/ui` and `packages/emails` (`@types/react` stays 19.3.0); the `packageExtensions` peer range for `@payloadcms/next` admits `^19.3.1`.
+- **Node:** Payload 3.94 declares `^22.23.5 || ^24.22.3`, so `.nvmrc` is v22.23.5, the root's and the plugin's `engines` are `>=22.23.5 <23 || >=24.22.3 <25`, and CLOUD.md's setup step 1 installs 22.23.5. **This differs from D152's "Node 22.23.4 unchanged"**; the laptop's portable Node in `C:\Users\User\.devtools` (22.23.4) needs 22.23.5 before a local run or W9.
+
+### `DEPLOY_ENV` (D133)
+
+One order in three places: `deployEnv()` in `apps/storefront/src/lib/env.ts`, its twin `apps/backend/src/config/deploy-env.ts`, and doctor's `productionStage()`:
+1. `VERCEL_ENV=preview` is staging, whatever `DEPLOY_ENV` says;
+2. then `DEPLOY_ENV`: `staging` or `production`; any other value is an error (the backend refuses to start, `buildConfig` throws; the storefront's module throws; doctor's `deploy-env` check is an error);
+3. then the old rule: `VERCEL_ENV=production` on Vercel, else `NODE_ENV=production`.
+
+What reads it:
+- **doctor:** a new `deploy-env` check says which stage each app runs as and why ("VERCEL_ENV preview, over DEPLOY_ENV production"); the live Stripe key refusal covers staging and previews; Stripe's webhook and domain checks run on staging as on production.
+- **The accepted note** (`report.ts`): a level below a warning, shown as `i` with "(accepted note)", counted in its own column of `--json`'s summary and left alone by `--strict`, like T103's `byHand` warnings. Its first use: Resend's `onboarding@resend.dev` on staging is a note ("Accepted on staging. Before go-live: …"); on production it stays an error.
+- **The seed's demo:** `demoRefusal()` (`plan.ts`) lets `seed-demo-catalog` run on staging only with `SEED_DEMO=true` for that run, refuses it on production (by `DEPLOY_ENV`, `NODE_ENV` or `VERCEL_ENV`) and with any other non-development `NODE_ENV`.
+- **turbo:** `DEPLOY_ENV` and `VERCEL_ENV` are in `build`'s `env` (strict mode would drop them from `next build`, and a staging build must not replay a production one from the cache), and `DEPLOY_ENV` passes through to `dev`. The other M7 names are added to `turbo.json` by the task that first reads them in a build.
+
+### F6: the test-only routes on production
+
+`E2E_TEST_ROUTES=true` (ADR 0001's `/next/e2e`) is now judged by name: doctor's `e2e-test-routes` check is **an error** with `DEPLOY_ENV=production` or `VERCEL_ENV=production`, nothing on a Vercel preview (T116 needs the routes there), and **a warning** with `NODE_ENV=production` anywhere else (CI's servers). The storefront's own gate (`e2eRoutesEnabled`) stays closed on production by name even with the flag set, and opens on a preview.
+
+### M7's names
+
+Each empty with a comment and its task, in `apps/backend/.env.example` and `apps/storefront/.env.example` under "Deployment (M7)", and read through the storefront's `lib/env.ts` (its header names the files that still read `process.env`, which is not this task's to move): `DEPLOY_ENV`, `STOREFRONT_SIGNING_SECRET`, `SHOPBLOK_SECRET_FINGERPRINTS`, `SEED_ADMIN_EMAIL` (both apps); `AUTH_MFA_ENCRYPTION_KEY`, `CRON_SECRET` (backend); `SEED_ON_BUILD`, `CSP_MODE`, `NEXT_PUBLIC_TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY`, `S3_PRIVATE_BUCKET` (storefront). **Turnstile** is the eighth integration in `@shopblok/integrations` (storefront only, `wired: false`, `arrives: "T108"`): the done-when, the backend gates and the integrations panel know it as arriving, so an unwired Turnstile fails nothing until T108. The cloud environment's names (`VERCEL_TOKEN`, `RAILWAY_TOKEN`, the two project ids, `STAGING_S3_*`) are in CLOUD.md's "Hosts and names for M7", never in an `.env.example`.
+
+### The mutations
+
+| Mutation | Caught by | Result |
+|---|---|---|
+| `DEPLOY_ENV=staging` with an `sk_live_`-shaped fake key | `pnpm run doctor` | exit 1: `stripe-live-key` error (and `stripe-modes`) |
+| `E2E_TEST_ROUTES=true`, `DEPLOY_ENV=production` | doctor | exit 1: `e2e-test-routes` error |
+| `E2E_TEST_ROUTES=true`, `VERCEL_ENV=preview` | doctor | exit 0, no `e2e-test-routes` check |
+| `VERCEL_ENV=preview`, `DEPLOY_ENV=production`, the fake live key | doctor | exit 1: `deploy-env` says "staging (VERCEL_ENV preview, over DEPLOY_ENV production)", `stripe-live-key` error |
+| `DEPLOY_ENV=prod` | doctor | exit 1: `deploy-env` error |
+| Resend's `onboarding@resend.dev` with a fake key, `--online --strict --only=resend` | doctor | `DEPLOY_ENV=staging`: exit 0, 1 ok and 1 accepted note; `DEPLOY_ENV=production`: exit 1, the same check an error |
+| `demoRefusal` ignores `NODE_ENV=production` alone | `plan.unit.spec.ts` | 2 failed |
+| `demoRefusal` runs on staging without `SEED_DEMO=true` | `plan.unit.spec.ts` | 2 failed |
+| The backend's `deployEnv` lets `DEPLOY_ENV` win over a preview | `deploy-env.unit.spec.ts` | failed |
+| The storefront's `deployEnv` lets `DEPLOY_ENV` win over a preview | `env.test.ts` | failed |
+| The storefront's gate stays closed on a preview | `env.test.ts` | failed |
+| doctor's `productionStage` lets `DEPLOY_ENV` win over a preview | `doctor-checks.test.ts` | failed |
+| doctor's F6 check without its preview exemption | `doctor-checks.test.ts` | 1 failed |
+
+Each mutation was applied to the file, the test run, and the file restored from a copy.
+
+### `pnpm audit --prod`: 8 → 5
+
+**5** (3 moderate, 2 high, 0 critical), from M6's 8: `uuid` 9.0.1 went with Medusa 2.23's bullmq 6.7.6 and `csv-parse` 5.6.0 with Payload 3.94.2; `deepmerge` 4.3.1 is still installed but no longer listed (the advisory changed, not the tree). None is new. In T55's "What stays" table: `deepmerge`, `uuid` and `csv-parse` out; `happy-dom` now 20.14.6 (both advisories, through `@lexical/headless`); `ajv` 8.13.0, `esbuild` 0.18.20 and `minimatch` 10.2.6 (through `eslint-config-next`'s `@typescript-eslint/typescript-estree`, dev tooling of `packages/config`) unchanged.
+
+### Hosts and the cloud environment
+
+CLOUD.md's new section "Hosts and names for M7" lists six hosts (`docs.railway.com`, `railway.com`, `backboard.railway.com`, `vercel.com`, `api.vercel.com`, `challenges.cloudflare.com`), which you approved on a card on 2026-11-26 with no secret set; staging's own hosts come with T115. Beside them, by name, the secrets and variables M7's sessions read (G11). None of them is set yet; the environment holds Stripe's two test keys. The environment's stored setup script still installs Playwright 1.64.0 and Payload's templates at v3.90.2 (unchanged here; it affects only a fresh VM's warm-up).
+
+### CI times before M7, and the history
+
+"Before M7" is `main` at `19c97c7` (PR 146's merge), run [45796919739](https://github.com/neno221/shopblok-starter/actions/runs/45796919739), all green; `windows-smoke` from T104's dispatched run [45750918578](https://github.com/neno221/shopblok-starter/actions/runs/45750918578).
+
+| Job | Before M7 (`19c97c7`) |
+|---|---|
+| `gate` | 16 s |
+| `check` (Node 22) | 9:46 |
+| `check` (Node 24) | 6:39 (informational) |
+| `backend-integration` | 5:45 |
+| `e2e-smoke` | 26:41 |
+| `integrations-live` | 5:29 |
+| `design-system` | shards 11:22, 13:08, 14:02, the merge 0:48 |
+| `dev-console-ds` | 9:00 |
+| `windows-smoke` | 10:42 |
+| The run's wall clock | 27.0 min (09:58:26 to 10:25:27 UTC), `e2e-smoke`'s |
+
+`e2e-smoke` took 22:01 at `0713755` and 26:41 here on the same suites: the runners' spread (T103's note) is wider than two minutes. The history's `size-pack` on a full clone (`git clone --bare`, `git count-objects -vH`) at `19c97c7`, 896 commits: **160.01 MiB** (159.69 MiB at `0713755`).
