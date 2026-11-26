@@ -5,7 +5,12 @@ import { expect, test, type Page } from "@playwright/test";
 import sharp from "sharp";
 import { signInToAdmin } from "../support/admin-ui";
 import { appEnv } from "../support/app-env";
-import { doctorOnline, skipWithoutKeys } from "../support/integration-keys";
+import {
+  doctorOnline,
+  integration,
+  missingKeys,
+  skipWithoutKeys,
+} from "../support/integration-keys";
 import { medusaAdminApi, medusaAdminToken, medusaUrl } from "../support/medusa-admin";
 import { api } from "../support/payload-rest";
 import { adminToken } from "../support/server";
@@ -49,6 +54,8 @@ test.describe("R2 (T95)", () => {
   };
 
   test.beforeAll(async () => {
+    // `skipWithoutKeys` skips in `beforeEach`, which runs after this: without the keys, nothing here.
+    if (missingKeys(integration("r2")).length > 0) return;
     // The admin's direct uploads need the public bucket's CORS rule for this origin; the script is
     // idempotent, so it adds `NEXT_PUBLIC_BASE_URL`'s origin once and leaves the rule after that.
     const { stdout } = await promisify(execFile)(
