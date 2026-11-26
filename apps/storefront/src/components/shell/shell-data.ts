@@ -23,8 +23,9 @@ import type { MarketMap } from "../../lib/markets/types";
 import { buildPublicUrl } from "../../lib/markets/url";
 import { listCategories, type CategoryNode } from "../../lib/medusa/categories";
 import { currencyForCountry, listRegions, type Region } from "../../lib/medusa/regions";
-import { EnvError, medusaEnv } from "../../lib/env";
+import { env, EnvError, medusaEnv } from "../../lib/env";
 import { MedusaRequestError } from "../../lib/medusa/sdk";
+import { shareImageFor } from "../../lib/seo/og-image";
 import { toMarketChoice } from "../../lib/shell/market-choice";
 import { toCategories } from "../../lib/view-models/category";
 import { cache } from "react";
@@ -125,7 +126,11 @@ export const getShellData = cache(async (): Promise<ShellData> => {
   const choice = toMarketChoice(map, market, currencyForCountry(regions));
   const categories = toCategories(tree, hrefsFor(url));
   const context = { market, map, url, categories, pages };
-  const settings = settingsFrom(siteSettings);
+  const saved = settingsFrom(siteSettings);
+  // M7 D147 (T110): a page with no picture of its own, its template's or the site's names the
+  // market's generated one, with its title (`withSeo`).
+  const share = shareImageFor(url, market.key, saved.storeName, env.STOREFRONT_SIGNING_SECRET);
+  const settings = { ...saved, seo: { ...saved.seo, share } };
   return {
     market,
     map,

@@ -43,8 +43,24 @@ export function hstsEnabled(source: RawEnv): boolean {
   return deployEnv(source) === "production" && (source.DEPLOY_ENV ?? "").trim() === "production";
 }
 
-/** D137's headers, the same on every response; HSTS only on the production deployment. */
-export function securityHeaders(options: { readonly production: boolean }): Header[] {
+/**
+ * `X-Robots-Tag: noindex` on every response of staging (D133, D147): its `robots.txt` is closed
+ * too, and this keeps a page out of an index even when a crawler reached it through a link. Only
+ * on `deployEnv()`'s staging (a Vercel preview, `DEPLOY_ENV=staging`); development and CI have no
+ * address a crawler knows.
+ */
+export function noindexEnabled(source: RawEnv): boolean {
+  return deployEnv(source) === "staging";
+}
+
+/**
+ * D137's headers, the same on every response; HSTS only on the production deployment, and
+ * `X-Robots-Tag` only on staging (`noindex`).
+ */
+export function securityHeaders(options: {
+  readonly production: boolean;
+  readonly noindex?: boolean;
+}): Header[] {
   return [
     { key: "X-Content-Type-Options", value: "nosniff" },
     { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
@@ -53,6 +69,7 @@ export function securityHeaders(options: { readonly production: boolean }): Head
     { key: "Permissions-Policy", value: PERMISSIONS_POLICY },
     { key: "Reporting-Endpoints", value: REPORTING_ENDPOINTS },
     ...(options.production ? [{ key: "Strict-Transport-Security", value: HSTS }] : []),
+    ...(options.noindex === true ? [{ key: "X-Robots-Tag", value: "noindex" }] : []),
   ];
 }
 
@@ -81,6 +98,7 @@ export const ADMIN_POLICY_PATHS: readonly string[] = ["/admin/:path*", "/api/:pa
 /** Everything `headers()` returns besides `withPayload`'s own entry. */
 export function securityHeaderRules(options: {
   readonly production: boolean;
+  readonly noindex?: boolean;
   readonly csp: CspSettings;
 }): HeaderRule[] {
   const policy = { key: options.csp.header, value: options.csp.policy };

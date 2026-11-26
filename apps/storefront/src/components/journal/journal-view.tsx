@@ -11,6 +11,7 @@ import { readPostList } from "../../lib/cms/posts";
 import { getCurrentMarket } from "../../lib/current-market";
 import { listingPageSize } from "../../lib/listing/listing";
 import { hreflangAlternates } from "../../lib/markets/hreflang";
+import { withSeo } from "../../lib/seo/meta";
 import { journalJsonLd } from "../../lib/seo/post";
 import { jsonLdText } from "../../lib/seo/product";
 import { SHELL_PREFETCH } from "../../lib/site";
@@ -53,15 +54,22 @@ export async function journalMetadata(page: number | null): Promise<Metadata> {
           { page: data.page },
           market.htmlLang,
         )}`;
-  return {
-    title,
-    alternates: {
-      // SPEC §12: the journal's pages are self-canonical, each at its own path in every market.
-      canonical: url(path),
-      languages: hreflangAlternates(path, map),
+  const { settings } = await getShellData();
+  // M7 D147 (T110): the site's description and picture under the journal's own, then the market's
+  // generated picture with the journal's title (SPEC §12's fallbacks), as on every other page.
+  return withSeo(
+    {
+      title,
+      alternates: {
+        // SPEC §12: the journal's pages are self-canonical, each at its own path in every market.
+        canonical: url(path),
+        languages: hreflangAlternates(path, map),
+      },
+      openGraph: { type: "website", title, url: url(path) },
     },
-    openGraph: { type: "website", title, url: url(path) },
-  };
+    null,
+    settings.seo,
+  );
 }
 
 export async function JournalView({ page }: { page: number | null }) {
