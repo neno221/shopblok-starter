@@ -11392,6 +11392,7 @@ Then `main` again after PR 154 (the cache-freshness fix, `30dcab7`): it touched 
 
 - **Baselines (D51):** the `update-baselines` dispatch (run 45884146696, commit `65c4eb4`) changed 11 PNGs of 795: the three cells this PR redraws (`sections/form-block`, `templates/auth`, `molecules/newsletter-form`, each at 375, 768 and 1440 px) and `templates/product-detail` at 375 and 768 px, the two that redraw by a few pixels from run to run (T84's and T86's dispatches saw them too). 3,187,828 bytes added; the set is 94.35 MB. 11 of 795 is far from half a set, and the history is about 163 MiB of 200 (T105's 160.01 MiB plus this commit; inferred, not measured on a full clone).
 - **UI strings:** 815 → **824**, the nine new messages (the rate limit's refusal, Turnstile's and the no-script note, three each in `molecules.newsletterForm` and `sections.form`, `templates.auth.register.noScript`, and `too-many` and `challenge` in `templates.auth.formErrors`); `e2e/ui-strings.spec.ts` counts 824 rows in the CSV export.
+- **The boot test** (`apps/backend/docker/boot-test.sh`): `deploy-config` failed once on `39f55c1` with "the worker's log never says \"Jobs registered.\"" although the log it printed had the line. Under `set -o pipefail`, `docker logs | grep -q` fails when `grep` stops at the match while `docker logs` is still writing (SIGPIPE); the worker's debug log is long enough for that. The script now writes the log to a file and greps the file.
 
 ### For T109
 

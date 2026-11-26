@@ -130,15 +130,19 @@ echo "boot-test: /health 200"
 echo "boot-test: waiting for the worker's jobs"
 # Medusa logs each job it registers at the debug level only (the worker runs with LOG_LEVEL=debug
 # here), then "Jobs registered."; every file of the build's jobs folder must be among them.
+# The log goes to a file first: under pipefail, `docker logs | grep -q` fails when grep stops reading
+# at the match while docker logs is still writing (SIGPIPE), which happened on a long debug log.
 for _ in $(seq 1 60); do
-  if docker logs "$WORKER" 2>&1 | grep -q '"Jobs registered."'; then break; fi
+  docker logs "$WORKER" >"$workdir/worker.log" 2>&1 || true
+  if grep -q '"Jobs registered."' "$workdir/worker.log"; then break; fi
   if [ "$(docker inspect -f '{{.State.Running}}' "$WORKER")" != "true" ]; then
     echo "boot-test: the worker stopped" >&2
     exit 1
   fi
   sleep 2
 done
-docker logs "$WORKER" 2>&1 | grep -q '"Jobs registered."' || {
+docker logs "$WORKER" >"$workdir/worker.log" 2>&1 || true
+grep -q '"Jobs registered."' "$workdir/worker.log" || {
   echo "boot-test: the worker's log never says \"Jobs registered.\"" >&2
   exit 1
 }
