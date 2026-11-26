@@ -175,6 +175,11 @@ export function staticPolicy(options: StaticPolicyOptions): string {
         ...hostsFor("img-src", stripe),
       ],
     ],
+    // The video block's uploads and their captions (`<video>`, `<track>`): Payload's media on the
+    // shop's origin or R2's (`S3_PUBLIC_URL`), and `data:` for the design system's video fixture
+    // (packages/fixtures, an empty MP4 and a WebVTT text), which the DS job found blocked under
+    // `default-src` (T106's first CI run). Media cannot run code.
+    ["media-src", ["'self'", "data:", ...(media === undefined ? [] : [media])]],
     ["font-src", ["'self'"]],
     ["connect-src", ["'self'", ...hostsFor("connect-src", stripe)]],
     ["frame-src", ["'self'", ...hostsFor("frame-src", stripe)]],

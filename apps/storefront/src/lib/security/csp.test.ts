@@ -26,6 +26,7 @@ describe("staticPolicy (D138)", () => {
     expect(d.get("script-src")).toEqual(["'self'", "'unsafe-inline'"]);
     expect(d.get("style-src")).toEqual(["'self'", "'unsafe-inline'"]);
     expect(d.get("img-src")).toEqual(["'self'", "data:", "blob:"]);
+    expect(d.get("media-src")).toEqual(["'self'", "data:"]);
     expect(d.get("font-src")).toEqual(["'self'"]);
     expect(d.get("connect-src")).toEqual(["'self'"]);
     expect(d.get("frame-src")).toEqual([
@@ -64,10 +65,11 @@ describe("staticPolicy (D138)", () => {
     expect(staticPolicy(keyless)).not.toContain("stripe");
   });
 
-  it("allows R2's public origin for pictures, and only for pictures", () => {
+  it("allows R2's public origin for pictures and videos, and nothing else", () => {
     const policy = staticPolicy({ ...keyless, media: "https://media.example.com" });
     expect(directives(policy).get("img-src")).toContain("https://media.example.com");
-    expect(policy.match(/media\.example\.com/g)).toHaveLength(1);
+    expect(directives(policy).get("media-src")).toContain("https://media.example.com");
+    expect(policy.match(/media\.example\.com/g)).toHaveLength(2);
   });
 
   it("has 'unsafe-eval' only in next dev (Next's guide, React's debugging)", () => {
