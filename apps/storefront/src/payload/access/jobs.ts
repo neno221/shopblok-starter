@@ -3,7 +3,10 @@ import { secretMatches } from "../../lib/secret";
 import { env } from "../../lib/env";
 import { isAdminRequest } from "./roles";
 
-/** `Authorization: Bearer <CRON_SECRET>`, as Vercel Cron sends it (and the development timer). */
+/**
+ * `Authorization: Bearer <CRON_SECRET>`, as Medusa's worker sends it on a deployment (M7 D148) and
+ * the development timer locally.
+ */
 function bearerMatches(req: PayloadRequest, secret: string | undefined): boolean {
   const header = req.headers.get("authorization") ?? "";
   const match = /^Bearer (.+)$/.exec(header);

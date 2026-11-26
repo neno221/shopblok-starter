@@ -59,7 +59,7 @@ export function securityHeaders(options: { readonly production: boolean }): Head
 /**
  * The paths the proxy's matcher skips that still get the static policy here (D138): the routes
  * under `/next` (the map, status, the report route itself), PostHog's `/ingest`, Sentry's
- * `/monitoring`, and the design-system pages (until T111 puts them behind the proxy). `/admin` and
+ * `/monitoring` (the design-system pages are the proxy's since T111, D148). `/admin` and
  * Payload's `/api` get the admin's policy instead (`ADMIN_POLICY_PATHS`, D141); `_next/` and the
  * files get none, since they are scripts, styles and pictures, not documents.
  */
@@ -67,7 +67,6 @@ export const HEADER_POLICY_PATHS: readonly string[] = [
   "/next/:path*",
   "/ingest/:path*",
   "/monitoring",
-  "/design-system/:path*",
 ];
 
 /**

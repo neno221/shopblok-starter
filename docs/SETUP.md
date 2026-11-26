@@ -1917,7 +1917,8 @@ Items 1 to 7 are applied in this PR (code, plan text); 8 to 10 are notes for the
 | `publishable-key` | warning missing; error if it does not start `pk_` | the `apk_…` id is not the token |
 | `payload-key` | warning | `PAYLOAD_API_KEY` or `PAYLOAD_SERVER_URL` blank in the backend |
 | `email-verification` | warning | sign-up requires verification (SPEC §10.2) and Resend is not on |
-| `vercel-storage` | warning | `VERCEL`, `VERCEL_ENV` or `VERCEL_URL` is set and the storefront has no `S3_*` keys; absent elsewhere |
+| `vercel-storage` | warning; error on a deployment (T111) | `VERCEL`, `VERCEL_ENV` or `VERCEL_URL` is set, or this is a deployment (`DEPLOY_ENV`), and the storefront lacks an `S3_*` key for Payload's media, exports and imports (`S3_PRIVATE_BUCKET` included since T111); absent elsewhere |
+| `payload-jobs-tick` (T111) | note; error on a deployment | the backend's `CRON_SECRET` or `PAYLOAD_SERVER_URL` is blank, so Medusa's worker does not call Payload's jobs endpoint (in development `next dev`'s timer does); with no `--app`, the two apps' `CRON_SECRET` differ (error) |
 | `redis-production` | warning | `NODE_ENV=production` and `REDIS_URL` blank: in-memory event bus, events never leave the process (T06 item 7) |
 | `integration-<id>` | warning | half configured |
 | `markets-global` | warning empty or unusable; error if Payload can't read it | read with `payload run src/scripts/doctor-payload.ts`: `findGlobal` plus `marketMapProblems`, the same test `getMarketMap()` uses |
@@ -11110,3 +11111,87 @@ Rejected by the review after testing: a percent-encoded path (`/us/c%61rt`) reac
 ### Merged with T112 (PR 150)
 
 T112 merged first, so this PR merged `main` (`df750d8`). Only the docs met: SETUP.md has T112's section, then this one; the plan's status line names both; NEXT-SESSION.md has T108's prompt (this PR) and T111's (T112's), and both tasks marked done.
+
+## Payload in production (T111)
+
+**Result: Medusa's worker calls Payload's jobs endpoint every minute, so a scheduled page publishes on a deployment without Vercel Cron; Payload's CSV exports and imports live in the private bucket and download only through a link signed for 5 minutes; a country on its own domain previews on the admin's host at its market key, for staff in Draft Mode only; and on a deployment the design system answers only to Payload's staff, checked in the proxy without Payload. Payload 3.94.2's token lives 2 hours (`tokenExpiration` 7200 s, `users` sets none) and carries a session id (`sid`) that only Payload's session list can check, so a signed-out, demoted or deleted editor keeps the DS until the token expires, as D148 accepts.** D148 (plans/M7.md §5 T111).
+
+| | |
+|---|---|
+| Date | 2026-11-26 |
+| Branch | `claude/project-thread-4efo44`, from `main` at `3b7948b` (PR 151's merge, T107) |
+| PR | this PR, "T111: Payload in production" |
+
+### The spike (§6, "Payload's signing key"): the token without Payload
+
+Read from Payload 3.94.2's source in `node_modules`:
+
+- **The key:** `BasePayload.init` sets `payload.secret = sha256(config.secret).hex.slice(0, 32)`, and `auth/jwt.ts` (signing) and `auth/strategies/jwt.ts` (verifying) use the UTF-8 bytes of those 32 hex characters (`new TextEncoder().encode(payload.secret)`), not the hash's bytes.
+- **The token:** HS256 through `jose`'s `SignJWT`; the protected header carries `authVersion: 1` (`JWT_AUTH_VERSION`), which Payload's verifier requires; `iat`, and `exp` = `iat` + the collection's `tokenExpiration` (7200 s by default; `users` sets none). The claims are `getFieldsToSign`'s: every field with `saveToJWT` (`users.role`), `id`, `collection`, `email` and, with `useSessions` (Payload's default in 3.x), **`sid`**.
+- **The session:** Payload looks `sid` up in the user's `sessions` array (removed on sign-out) and reads the user again on every request. The proxy has no database, so it checks the signature, `exp`, `nbf`, the collection and the role, and nothing else. A token from before a sign-out, a demotion or a deletion passes until `exp`, at most 2 hours after the last sign-in or refresh. The DS holds no customer data, which is why D148 accepts that.
+- **The cookie:** `payload-token` (`${cookiePrefix}-token`, Payload's default prefix).
+
+**`src/lib/security/payload-token.ts`** does exactly that with `node:crypto` (`createHmac`, `timingSafeEqual`): three base64url parts, `alg: HS256` and `authVersion: 1`, the signature, `exp` after now, then `isStaff`: the collection `users` and a role in `admin` or `editor`. An `integrations` user is never staff, whatever its role (and has no JWT anyway: `disableLocalStrategy`, API key only). **`payload-token.test.ts`** builds a real Payload (`BasePayload.init` with our `Users` and `Integrations`, no database connection) and signs with Payload's own `getFieldsToSign` and `jwtSign`, so a change in Payload's derivation or claims fails the test: 9 tests, from "derive the key as we do" to tampered, foreign-key, `alg: none` and wrong-version tokens. **`e2e/ds-gate.spec.ts`** then checks the cookie a real sign-in sets (Payload's REST login, and the admin's own login form in a browser).
+
+### The DS gate (D148, 4)
+
+- **When it is on:** `designSystemGated()` (`lib/env.ts`): not `next dev`, and a deployment by `firstUserClosed`'s rule (`DEPLOY_ENV` or `VERCEL_ENV` set, whatever their value). It fails closed: any deployment gates, staging or production. CI's `next start` (no `DEPLOY_ENV`) and the design-system jobs keep the DS open, so their cells and pixels are unchanged.
+- **The proxy:** the matcher's first entry no longer skips `design-system`, and `proxy()` answers a DS path before it loads the market map (so the DS jobs, which have no Medusa, need none): a trailing slash gets its 308; with the gate off, the page as before (prerendered, `s-maxage=31536000`); with it on and no staff token, a rewrite to `/`'s 404 (`global-not-found`, the same page and status as any unknown path, nothing tells them apart) with `Cache-Control: private, no-cache, no-store, max-age=0, must-revalidate`; with a staff token, the page with that same `Cache-Control`, so no CDN or browser keeps a gated page. Both carry the static CSP and D137's headers from `withStaticCsp`, so `/design-system/:path*` left `HEADER_POLICY_PATHS` (T106) as its section said it would.
+- **The pages are still prerendered** (the build's `prerender-manifest.json` lists `/design-system/en` and `/design-system/el/foundations/colors`; `ds-gate.spec.ts` reads it): the gate decides who gets the stored page, not how it is made.
+
+### Own-domain live preview (D148, 3)
+
+A market on its own domain (Switzerland on `ch.shopblok.test` in the test) is not served on the admin's host, so its preview cannot open there under the visitor's paths. **The preview opens at the market's key** on the admin's host, `/de-ch/<slug>`, which is otherwise the 404 every internal key is:
+
+- **`lib/markets/preview-market.ts`** (in `lib/markets`, since the proxy imports no file of `lib/cms`, `proxy-imports.test.ts`): `ownDomainPreview(path, host, map)` finds a first segment that is the key of a market with a domain other than this host; `ownDomainPreviewPath` lets `/next/preview` take such a path (through `safe-redirect.ts`'s `localPath`, the same checks as any redirect); `ownDomainPreviewTarget` builds it.
+- **`payload/live-preview.ts`** gives a domain market that path, and picks the host's own market before a domain market when both speak the locale.
+- **The proxy** serves `/{key}/…` only with Draft Mode's cookie (`__prerender_bypass`) and a staff token: a rewrite to the market's internal path, `X-Robots-Tag: noindex` and the private `Cache-Control`. Without either cookie, or on the market's own domain, it is the key's 404 as before. The page renders in the market's language and prices (`lang="de-CH"`, CHF on `/de-ch/store`).
+- **Leaving the preview** (`/next/exit-preview?path=/de-ch/<slug>`) answers 303 to the published page on the market's domain (`https://ch.shopblok.test/<slug>`, `buildPublicUrl`); any other path to `/` as before.
+
+### The jobs tick (D148, 1)
+
+- **`apps/backend/src/jobs/payload-jobs-tick.ts`**: a Medusa scheduled job, `* * * * *`, which Medusa runs in `worker` and `shared` mode only, so the `medusa` server on Railway never runs it (D132) and CI's `medusa develop` (shared) does. Its work is `lib/payload-jobs.ts`'s `createPayloadJobsTick`: `GET {PAYLOAD_SERVER_URL}/api/payload-jobs/run` with `Authorization: Bearer <CRON_SECRET>` and a 20 s `AbortSignal.timeout`. **A `GET`, not the plan's `POST`:** Payload's jobs endpoint is registered for `GET` only, and `cronOrAdmin` (`payload/access/jobs.ts`) takes the bearer. Off without either variable (one info line); a failure is logged at most once per ten minutes, without the secret; "answers again" when it recovers; it never throws.
+- **Development:** `next dev`'s timer (`jobs-timer.ts`) still calls the endpoint, and bootstrap leaves the backend's `CRON_SECRET` blank, so only the timer calls there. CI's `e2e-smoke` sets the backend's too, so while its `next dev` step runs both call once a minute; that is harmless, since Payload marks each job it takes as processing (PR 152 review, item 5). `doctor`'s new `payload-jobs-tick` check is a note there and an error on a deployment; `pnpm staging:secrets` already writes `CRON_SECRET` to both apps and fingerprints it (T114).
+- **CI:** `e2e-smoke` copies the storefront's `CRON_SECRET` into the backend's `.env` before Medusa starts, and `cms-preview.spec.ts`'s new test schedules a page against `next start` (no timer) and sees it published by the worker: 43 s on the VM (it allows 80 s after its time: the tick fires on the minute, so up to 60 s late, then the publish). Seen live in Medusa's log: the first tick before the storefront was up logged one `fetch failed` warning, the next "answers again".
+
+### Exports and imports on the private bucket (D148, 2)
+
+- **`privateFileStorage`** (`payload/storage.ts`): a second `storage-s3` for `exports` and `imports` on `S3_PRIVATE_BUCKET`, prefixes `payload-exports` and `payload-imports`, `signedDownloads: { expiresIn: 300 }`, `alwaysInsertFields` (so the schema is the same with and without keys) and its own `clientCacheKey`. On only with every media key plus `S3_PRIVATE_BUCKET`, and only when that bucket is not `S3_BUCKET`; otherwise the local disk as before. **The migration** `20261126_175901_private_file_storage` adds `prefix` and `_objectkey` to both tables.
+- **`@shopblok/integrations`**: the storefront's R2 part needs `S3_PRIVATE_BUCKET` too ("each app"), so `doctor`'s `vercel-storage` (now "Payload's files on a deployment") is an error on any deployment without it; `r2-checks` refuses a public bucket that is either app's private bucket, and `doctor --online` probes the storefront's private bucket under `payload-exports/` when it checks the storefront alone. DEPLOY.md's Vercel table has the row.
+- **On the stand-in** (s3mock on :9090, `next start` with the `S3_*` env): an export made through `POST /api/exports` landed as `payload-exports/<name>-ui-strings.csv` in the private bucket and nothing in the public one; its file URL answered the admin with 302 to a presigned URL (AWS4-HMAC-SHA256; the 300 s are `storage.test.ts`'s), which gave the CSV, and anonymous 403; an import through `POST /api/imports` (815 rows, nothing changed) landed under `payload-imports/`; deleting either document removed its object. s3mock serves unsigned reads, so "only through the signed link" is R2's to enforce (staging, T115). Without the keys, `ui-strings.spec.ts`'s round trip runs on the local disk as before.
+
+### Mutations
+
+1. **The role check removed** (`isStaff` true for any collection and role): 4 unit tests fail (`payload-token.test.ts`: the integration's token, a non-staff role; `proxy.test.ts`: the gate and the own-domain preview), and on a rebuilt deployment `ds-gate.spec.ts` fails at "refuses the integrations user" (200, not 404).
+2. **The tick's bearer removed:** the stand-in answers 401 and 3 of `payload-jobs-tick.unit.spec.ts`'s 5 tests fail.
+
+### Checks (cloud VM)
+
+- Unit tests: every workspace package (`pnpm test`): storefront 4,899 (230 files), backend 370 (34 suites), scripts 665, ui 6,156, integrations 30 and the rest; typecheck and lint pass.
+- `e2e`, against `next start` built as `e2e-smoke` builds it, Medusa with the caching module and the tick on: `cms-preview.spec.ts` (the worker's publish included), `headers.spec.ts`, `csp.spec.ts`, `markets.spec.ts` and `cache-freshness.spec.ts`, 61 of 61; `cms-preview-domain.spec.ts` in `markets-add`, 4 of 4; `payload-admin.spec.ts`, 21 of 21; `ds-gate.spec.ts` on a build with `DESIGN_SYSTEM_ENABLED=true` started with `DEPLOY_ENV=staging`, 8 of 8. The whole default run is CI's (371 tests; the VM runs it at a fifth of a runner's pace).
+- With the DS build started without `DEPLOY_ENV`, `/design-system/en` answers 200 to anyone and `/design-system/en/` 308, as before.
+- Seen, not changed: `next start` logs Next's "encountered the unstable value `new Date()` while prerendering" for `/admin/[[...segments]]` on the admin's pages, with or without `DEPLOY_ENV` (34 times in one `payload-admin.spec.ts` run); the pages answer 200.
+
+### Where the build differs from the plan
+
+- **The tick is a `GET`** (above).
+- **The own-domain preview's e2e is its own file**, `cms-preview-domain.spec.ts`, not a test in `cms-preview.spec.ts`: it gives Switzerland a domain, which every suite reading the map would see, so it runs in the `markets-add` project after the default ones, and its `afterAll` waits (with its own budget) until the proxy no longer serves `/de-ch` to staff in Draft Mode, which happens only once the domain is gone. The map took about 20 s to reach the proxy on the VM.
+- **The proof against Payload's own code** is in two halves: the unit test signs with Payload's `init` and `jwtSign` (no database), and `ds-gate.spec.ts` uses the cookie a real sign-in sets.
+
+### Changes from the review of this PR (PR 152)
+
+Both must-fix findings and the five confirmed optional ones are applied; item 8 is skipped as unconfirmed (`reviews/pr-152-code-review.md`):
+1. **The DS pages' RSC payloads skipped the gate.** Next 16.4.6 appends its transport forms (`.rsc`, `.segments/…segment.rsc`) to every matcher, and the first entry's file rule cancelled them, so `/design-system/en.rsc` (the page's content, which Vercel's minimal mode serves) never reached the proxy. A fourth matcher entry, `/design-system/:path*`, brings them, and `isDesignSystemPath` takes `/design-system.rsc` and `/design-system.segments/…` too. The matcher and gate tests run on five transport paths (each fails without the entry), and `ds-gate.spec.ts` checks two of them signed out (404, `no-store`).
+2. **`deploy-config` was red:** the image's boot test ran doctor as a deployment without `PAYLOAD_SERVER_URL`, which the new `payload-jobs-tick` check calls an error. It sets it now, as `.railway/railway.ts` does; the boot test passes on the VM.
+3. **An own-domain preview of a nonce page had the static policy.** `ownDomainPreviewResponse` now calls the same request-headers callback as `respondToMarketRequest`, so `/de-ch/cart` previewed by staff carries the nonce policy and `private, no-store`, as on Switzerland's own domain (a unit test; `/de-ch/about` keeps the static one).
+4. **The worker-publish test allowed 65 s after the page's time**; the tick fires on the minute, so it allows 80 s now.
+5. **"The two never both call" was not true in CI:** `e2e-smoke` sets the backend's `CRON_SECRET`, and its `next dev` step runs the dev timer beside Medusa's tick. The comments say so; Payload claims each job (`processing`) before it runs it (`runJobs`), so two callers do not run one job twice.
+6. **`previewMarket` took the first own-domain country, not the primary one,** when only countries on their own domains speak the language. It takes the primary first there too (a unit case).
+7. **`playwright.config.ts`'s comment had the files' order backwards:** `cms-preview-domain` runs before `markets-add` (alphabetical), and its `afterAll` restores the map first.
+
+Rejected by the review: the migration's default prefix for old local-disk rows (their files are in no bucket under any prefix; the migration is Payload's generated one).
+
+### For T110 and T115
+
+- **T110 (`robots.ts`, the sitemaps):** `/design-system` belongs in `Disallow`, and no sitemap may list an own-domain market's `/{key}/…` paths on the admin's host: they are the 404 of an internal key to everyone but staff in Draft Mode.
+- **T115 (staging):** `DESIGN_SYSTEM_ENABLED=true` is safe on staging only behind this gate, which is on whenever `DEPLOY_ENV` or `VERCEL_ENV` is set; check once there that `/design-system/en` and `/design-system/en.rsc` (Next's RSC payload of the page, which Vercel's minimal mode serves) are a 404 signed out. `S3_PRIVATE_BUCKET` goes to Vercel too (DEPLOY.md), and the private bucket's refusal of an unsigned read is checked there with R2's keys. The worker's log shows `payload-jobs-tick` failing only while the storefront is not up.

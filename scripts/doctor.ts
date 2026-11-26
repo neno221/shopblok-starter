@@ -57,6 +57,7 @@ import {
 import { databaseFailed, serverCheck, serviceChecks } from "./lib/doctor-services.ts";
 import {
   firstKey,
+  PAYLOAD_EXPORTS_PREFIX,
   PRIVATE_PREFIX,
   r2BucketCheck,
   r2Buckets,
@@ -554,9 +555,13 @@ async function r2Checks(envs: AppEnvs): Promise<Check[]> {
         s3Url(keys.endpoint, target.bucket, "", { "list-type": "2", "max-keys": "1" }),
       ).then((answer) => r2BucketCheck(target, answer)),
     );
+    // Payload's exports and imports reach the private bucket from its server, never the browser,
+    // so only Medusa Admin's product import needs a CORS rule there.
     const uploader =
       target.role === "private"
-        ? originOf(envs.backend.MEDUSA_BACKEND_URL, "http://localhost:9000")
+        ? target.apps.includes("backend")
+          ? originOf(envs.backend.MEDUSA_BACKEND_URL, "http://localhost:9000")
+          : undefined
         : target.apps.includes("storefront")
           ? originOf(envs.storefront.NEXT_PUBLIC_BASE_URL, "http://localhost:8000")
           : undefined;
@@ -569,17 +574,19 @@ async function r2Checks(envs: AppEnvs): Promise<Check[]> {
     if (target.role === "private") {
       checks.push(
         (async () => {
+          // Medusa's private files' prefix, or Payload's exports' for the storefront's bucket alone.
+          const prefix = target.apps.includes("backend") ? PRIVATE_PREFIX : PAYLOAD_EXPORTS_PREFIX;
           const listed = await s3Get(
             keys,
             s3Url(keys.endpoint, target.bucket, "", {
               "list-type": "2",
               "max-keys": "1",
-              prefix: PRIVATE_PREFIX,
+              prefix,
             }),
           );
           const key = firstKey(listed);
-          const probe = key ?? `${PRIVATE_PREFIX}doctor-probe-${Date.now()}.csv`;
-          const publicUrl = trimSlash((envs.backend.S3_PUBLIC_URL ?? "").trim());
+          const probe = key ?? `${prefix}doctor-probe-${Date.now()}.csv`;
+          const publicUrl = trimSlash((envs[app].S3_PUBLIC_URL ?? "").trim());
           const [api, publicDomain] = await Promise.all([
             request(s3Url(keys.endpoint, target.bucket, probe), { timeoutMs: 15_000 }),
             key === undefined || publicUrl === ""
