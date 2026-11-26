@@ -206,8 +206,13 @@ jobs:
       # that branch's packages (PR 140's review, item 3; as `integrations-live` since PR 133's).
       # GitHub masks a secret in the log; the `::add-mask::` line says so for this job too, and the
       # job uploads no files.
+      # M7 D149 (T112): Medusa's caching flag, as `.env.example` and staging set it. This job has no
+      # Redis (`.env.test` keeps the event bus in memory), so `modules.ts` registers no caching
+      # module: the suites check that Medusa's core runs with the flag on and the module absent. The
+      # module itself, on Redis, is e2e-smoke's (`cache-freshness.spec.ts`).
       - name: Backend integration tests
         env:
+          MEDUSA_FF_CACHING: "true"
           STRIPE_API_KEY: ${{ !startsWith(github.head_ref || github.ref_name, 'renovate/') && secrets.STRIPE_API_KEY || '' }}
         run: |
           if [ -n "$STRIPE_API_KEY" ]; then echo "::add-mask::$STRIPE_API_KEY"; fi
@@ -263,6 +268,10 @@ jobs:
     env:
       STOREFRONT_PRERENDER_PRODUCTS: "4"
       STOREFRONT_LISTING_PAGE_SIZE: "3"
+      # M7 D149 (T112): Medusa's caching module on the stack's Redis, as staging runs it, for every
+      # suite; `cache-freshness.spec.ts` checks that it serves no stale answer (`bootstrap --ci`
+      # copies `.env.example`, which has it too).
+      MEDUSA_FF_CACHING: "true"
     steps:
       - uses: actions/checkout@v7.0.1
       - uses: ./.github/actions/setup

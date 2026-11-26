@@ -6471,7 +6471,7 @@ Left as the review says: 8 (a slug's encoding in the preview path, for T65's slu
 - **The markets seed is additive for locales** (`scripts/lib/plan.ts`'s `storeLocales`): the configured locales first, then any the store already has, so a locale added in Medusa Admin survives `pnpm bootstrap`.
 - **The migration:** `20261028_194034_sync` (D88: created last, on `main` at `8d9d37d`; T62 had not merged): the three collections and their indexes, their columns in `payload_locked_documents_rels`, and `markets`' synced part (two columns, `markets_synced_regions`, and `markets_texts` for the lists of codes). `migrate:create --skip-empty` afterwards writes nothing.
 
-**Known limits.** The reconcile reads Medusa's whole catalog in one query (fine for the demo's 8 products; a large catalog needs pages, M7). While Payload is down, Medusa's own writes still succeed and the subscriber logs one warning per event; the reconcile catches up when Payload is back. Seeding Medusa with `medusa exec` while Payload is not running logs those warnings too, and bootstrap's step 10 then does the sync. The integration's API key (`PAYLOAD_API_KEY` in the backend, the `medusa-sync` document in Payload) is created by `pnpm bootstrap`.
+**Known limits.** The reconcile reads Medusa's whole catalog in one query (fine for the demo's 8 products; a large catalog needs pages, M7). *Closed in M7 T112: it reads pages of 200 by id ("Caching and the reconcile (T112)").* While Payload is down, Medusa's own writes still succeed and the subscriber logs one warning per event; the reconcile catches up when Payload is back. Seeding Medusa with `medusa exec` while Payload is not running logs those warnings too, and bootstrap's step 10 then does the sync. The integration's API key (`PAYLOAD_API_KEY` in the backend, the `medusa-sync` document in Payload) is created by `pnpm bootstrap`.
 
 ### Adding a market (D76)
 
@@ -10906,6 +10906,103 @@ T106 merged first, so this PR merged `main` and settled the files both changed:
 - **`turbo.json` (storefront):** `build`'s `env` lists `VERCEL_PROJECT_PRODUCTION_URL`, `VERCEL_BRANCH_URL`, `VERCEL_URL` and `CSP_MODE`.
 - **doctor:** T106's `csp-mode` check is a storefront check, so `doctor --app=backend` leaves it out.
 - **Docs:** SETUP.md has T106's section, then this one. NEXT-SESSION.md keeps T106's T107 and T112 prompts. The plan's status line names both tasks.
+
+## Caching and the reconcile (T112)
+
+**Result: Medusa's caching module is on, in `.env.example`, CI and staging, and the reconcile reads Medusa 200 records at a time.** Medusa 2.23's tree already resolves one `graphql` (17.1.0), so no override was needed; with `MEDUSA_FF_CACHING=true` the module starts beside the markets plugin and caches the Store API's reads in Redis; T93's check, run again as `e2e/cache-freshness.spec.ts` (20 title changes and 20 price changes), found **0 stale answers in 40**, and with the module's invalidation switched off it finds one at the first price change. The spec now runs in every `e2e-smoke`, and first checks that the module caches at all. `doctor` reports the module. The reconcile (`payload-sync.ts`) reads each collection in keyset pages of 200 by id instead of one query, and a test reconciles 450 products. D128, D149 (plans/M7.md §5, T112).
+
+|        |                                                                                 |
+| ------ | ------------------------------------------------------------------------------- |
+| Date   | 2026-11-26                                                                      |
+| Branch | `claude/project-thread-k1jhrk`, from `main` at `47d506d` (PR 149's merge, T114) |
+| PR     | this PR, "T112: Medusa's caching and the reconcile in pages"                    |
+
+### One `graphql` (§6's spike)
+
+`pnpm --filter @shopblok/backend why graphql` prints **"Found 1 version of graphql"**: 17.1.0, brought by `@medusajs/utils` 2.23.0 (directly, and through `@graphql-codegen/*` and `@graphql-tools/*`, all on 17.1.0); the markets plugin's tree is the same. In Medusa 2.23 `@medusajs/utils` is the only Medusa package whose code imports `graphql` (every `@medusajs/*` package's `dist` searched). The workspace's other copy, 16.14.2, is Payload's alone (`payload`, `@payloadcms/graphql` and `@payloadcms/next` ask `^16.8.1`, with `graphql-http` and `graphql-scalars`) plus `railway`'s `@graphql-typed-document-node/core`, and nothing in Medusa's process loads it. **So no override**: Payload's tree is untouched and the lockfile does not change (hence no `windows-smoke` dispatch). What brought the second copy into Medusa's process in T93 (2.22.6) was not found: the lockfile at T93's merge already had `@medusajs/utils` on 17.1.0, so the likeliest cause is a 2.22.6 package that imported `graphql` without declaring it and got the hoisted 16.14.2. If a later Medusa brings it back, the module fails to start without a word in the log (T93's finding), which the spec's first check now catches.
+
+### The caching module on
+
+With `MEDUSA_FF_CACHING=true` and `REDIS_URL` (`modules.ts` registers the module only with both) Medusa logs no error at start, and a Store API read leaves the Redis provider's `mc:` keys (about 900 after a few pages). The module clears what a change makes stale from an event-bus subscription to every event (`DefaultCacheStrategy.onApplicationStart`, `eventBus.subscribe("*")`, clearing `Entity:id` and `Entity:list:*`), so it has no switch to turn invalidation off; the mutation below removes that subscription in `node_modules`. By default Medusa 2.23 caches the cart's reads (regions, promotions, variants and their price sets, shipping options, sales channels, customers) and the Store API's product reads; Query and the Index Module cache only when asked (`cache: { enable: true }`), and nothing in our code asks.
+
+**The check** (`e2e/cache-freshness.spec.ts`, the default `chromium` project, which has one worker, so no other suite reads the product meanwhile): `demo-heritage-hoodie`'s title and the US price of its variant with the lowest id change in turns through Medusa's Admin API, and after each change it reads `/store/products` at once, for a price a new cart's line price, the product page in `/us` until it shows the change (at most 30 s), and `/store/products` again. The prices go a cent below the product's lowest, since the page shows the lowest. The first stale read ends the run and fails the test with the table. `afterAll` puts the title and the price back, also after a timeout (a `finally` inside the test does not run when Playwright times the test out, which left a variant at $63.96 during this task). It skips itself when the backend's `MEDUSA_FF_CACHING` is not `true`. It takes about 21 s. The run on the cloud VM (`medusa develop` on the compose stack's Redis, the storefront on `next start`):
+
+| Round | Title: Store API at once / page / after | Price | Price: Store API at once / cart / page / after |
+|---|---|---|---|
+| 1 | fresh / 582 ms / fresh | $63.99 | fresh / fresh / 186 ms / fresh |
+| 2 | fresh / 280 ms / fresh | $63.98 | fresh / fresh / 173 ms / fresh |
+| 3 | fresh / 281 ms / fresh | $63.97 | fresh / fresh / 219 ms / fresh |
+| 4 | fresh / 286 ms / fresh | $63.96 | fresh / fresh / 211 ms / fresh |
+| 5 | fresh / 283 ms / fresh | $63.95 | fresh / fresh / 180 ms / fresh |
+| 6 | fresh / 282 ms / fresh | $63.94 | fresh / fresh / 180 ms / fresh |
+| 7 | fresh / 284 ms / fresh | $63.93 | fresh / fresh / 189 ms / fresh |
+| 8 | fresh / 281 ms / fresh | $63.92 | fresh / fresh / 181 ms / fresh |
+| 9 | fresh / 279 ms / fresh | $63.91 | fresh / fresh / 171 ms / fresh |
+| 10 | fresh / 271 ms / fresh | $63.90 | fresh / fresh / 140 ms / fresh |
+| 11 | fresh / 272 ms / fresh | $63.89 | fresh / fresh / 145 ms / fresh |
+| 12 | fresh / 272 ms / fresh | $63.88 | fresh / fresh / 136 ms / fresh |
+| 13 | fresh / 271 ms / fresh | $63.87 | fresh / fresh / 139 ms / fresh |
+| 14 | fresh / 272 ms / fresh | $63.86 | fresh / fresh / 146 ms / fresh |
+| 15 | fresh / 281 ms / fresh | $63.85 | fresh / fresh / 169 ms / fresh |
+| 16 | fresh / 283 ms / fresh | $63.84 | fresh / fresh / 179 ms / fresh |
+| 17 | fresh / 286 ms / fresh | $63.83 | fresh / fresh / 183 ms / fresh |
+| 18 | fresh / 273 ms / fresh | $63.82 | fresh / fresh / 191 ms / fresh |
+| 19 | fresh / 281 ms / fresh | $63.81 | fresh / fresh / 148 ms / fresh |
+| 20 | fresh / 279 ms / fresh | $63.80 | fresh / fresh / 148 ms / fresh |
+
+**0 stale answers in 40.** The product page had a title after 271 to 582 ms (median 281) and a price after 136 to 219 ms (median 179). The same check with the flag off also passes (nothing is cached).
+
+**The flag, where it is set:** `apps/backend/.env.example` (`MEDUSA_FF_CACHING=true`, so `pnpm bootstrap` writes it into a new `.env`; an existing `.env` keeps what it has, and doctor says so); `e2e-smoke`'s job `env` (and `bootstrap --ci`'s `.env`); `backend-integration`'s test step, where there is no Redis (`.env.test` keeps the event bus in memory), so the module is not registered and the suites check that Medusa's core runs with the flag on and the module absent: **108 of 108** locally with `MEDUSA_FF_CACHING=true`; staging's server and worker (`.railway/railway.ts`, `scripts/lib/deploy-variables.ts`, DEPLOY.md's table).
+
+**`doctor`** (`medusa-caching`, the backend's checks): ok with the flag and Redis; a warning for the flag without `REDIS_URL` (nothing is cached); with the flag off, an accepted note in development (a `.env` written before T112 lacks it) and a warning on staging or production (so `--strict` fails there). Medusa reads the flag as `isTruthy` does, so `TRUE` counts.
+
+### The reconcile in pages (D149)
+
+`readDocumentPages` reads a collection 200 records at a time (`RECONCILE_PAGE_SIZE`), ordered by id, each page `id > ` the last id of the one before: a keyset, not an offset, so a record deleted while the pages are read cannot shift a live one out of the read (with offsets, that live record would then be marked deleted in Payload). `reconcile` writes each page and keeps only the ids across pages; Payload's list is read first, as before (PR 91 review, item 1). Two consequences of the pages, each with a unit test: a page that cannot be read marks nothing deleted (Medusa's ids are then incomplete), and a category whose parent comes on a later page is written once without the parent and once more after the last page, so the link is there at the end of the run, not at the next one. `exportAll` (bootstrap's file) reads the same pages. `readDocuments` now always takes ids (an event's few).
+
+**Tests:** three unit tests (`payload-reconcile.unit.spec.ts`: 450 products in three reads of 200, 200 and 50 with the right keyset filters; the failed page; the late parent) and one in `payload-sync.spec.ts`: 450 products created in Medusa, the fake Payload emptied but for one document Medusa never had, then `reconcile`: every read at most 200 rows, at least three reads, no id read twice, ids in order, all 450 created in Payload and the extra one marked deleted (28 s, most of it the subscriber's 450 writes it waits for first).
+
+**Memory**, measured once with 2,000 products (`--expose-gc`, the heap after a collection at each page): 295.2 MB before the run, 292.0 MB at the first page, 296.2 MB at the eleventh, 294.9 MB after. The growth across the pages, about 0.4 MB a page, is the fake Payload in the same process keeping its 200 new documents a page and the test's own list of ids; the reconcile itself keeps a set of ids and Payload's list of small rows (id, `medusaId`, `updatedAt`, the flag, the parent).
+
+### Mutations (each fails a check)
+
+| Mutation | Result |
+| --- | --- |
+| The caching module's `eventBus.subscribe("*", handleEvent)` removed in `node_modules` (nothing is ever cleared), Medusa restarted | `cache-freshness.spec.ts` fails at the first price change: "price 1 ($63.99): Store API STALE, cart fresh, page STALE, Store API after STALE" |
+| Medusa started with `MEDUSA_FF_CACHING=false` while the backend's `.env` says `true` | the spec fails at once: "Medusa's caching module wrote nothing to Redis after a Store API read" |
+| The reconcile's page size ignored (`take: 100_000`) | the unit test "reads Medusa in pages of 200" fails |
+| The late parent's second write removed | the unit test "writes a category again after the last page" fails |
+| A failed page no longer skips the deletions | the unit test "marks nothing deleted when a page cannot be read" fails |
+
+After each mutation `node_modules` and the code were put back, the Redis provider's `mc:` keys deleted (a run with invalidation off leaves stale entries for an hour), and the spec passed again.
+
+### Smaller observations
+
+- **The cart's price stayed fresh with invalidation off.** The Store API's product reads went stale, the cart's line price did not, so this path's price read is not served from the cache in 2.23 (observed, not traced). The spec still checks it.
+- **Medusa's Admin API lists a product's variants in no fixed order** (the first variant changed between two restarts), so the spec sorts by id.
+- **Staging splits the server and the worker** (D132). Which process clears the cache there (the subscription is on the event bus, whose consumer is the worker) is not verified; both use the same Redis. T116 can run the spec against staging, except its first check, which reads Redis directly and cannot reach Railway's private Redis: run it there with that check taken out, or read the module's state from the logs.
+- SPEC §10.6 and §17.2 still say the module is off; T117 updates them (plan §8, item 18).
+
+### Checks (cloud VM)
+
+| Check | Result |
+| --- | --- |
+| `typecheck`, `lint`, `check:workspace`, `check:keys`, `medusa build` | Pass |
+| Unit tests | `scripts` 660 (the new `medusa-caching` cases), backend 363 (the three reconcile cases) |
+| `backend-integration` with `MEDUSA_FF_CACHING=true` | 108 of 108 (`payload-sync.spec.ts` 7 of 7 with the 450) |
+| `cache-freshness.spec.ts` with the flag on | passes, several runs, also right after a Medusa restart |
+
+### Changes from the review of this PR (PR 150)
+
+`reviews/pr-150-code-review.md` in the project's files: one must-fix finding, five optional, one rejected. Each was checked before it was fixed; the five fixed ones are confirmed real.
+
+1. **(must-fix) doctor called `" TRUE "` on.** Medusa's `isTruthy` lower-cases and does not trim, and so does `modules.ts`, so a flag with a space (a platform variable pasted with one, or a quoted value) turns the module off while doctor said on. doctor now compares untrimmed, its message says "exactly, spaces included", the details show the raw value (`"true "`), and the test that locked in the wrong answer now expects off.
+2. **A page that could not be read skipped the parents' second writes** for the categories already written. They now get it before the run moves on (the deletions are still skipped), with a unit test.
+3. **A failed second write counted a document twice.** It now moves the document's created or updated count to failed, so the counts add up to the records read, with a unit test.
+4. **The spec's "module really caches" check could pass on an earlier run's keys**, which live an hour in the compose stack's Redis. It clears the `mc:` keys first (`clearKeys`, Redis's `UNLINK`), checks there are none, and then requires some after one read. Checked locally: Medusa started with the flag off, right after a passing run, now fails the check at once.
+5. **`countKeys` could hang** if Redis closed the socket without a reply: a `close` handler rejects. It also refuses a URL with a password, a database or `rediss:` instead of ignoring them (every URL it meets today is `redis://localhost:6380`).
+
+Skipped: 6 (the spec resends prices without `rules` or quantity limits) is not confirmed, and the demo catalog has only plain prices. Rejected by the review itself: 7 (the 450-product test's order assertion: ULID ids sort the same in Postgres and in JS).
 
 ## The nonce CSP and the admin's policy (T107)
 

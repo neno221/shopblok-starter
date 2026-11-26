@@ -97,7 +97,9 @@ export function getIndexPrefix(env: Env): string | undefined {
  * - Event bus, workflow engine and locking: Redis when `REDIS_URL` is set, otherwise
  *   Medusa's in-memory defaults (dev only).
  * - Caching: only with `REDIS_URL` and `MEDUSA_FF_CACHING=true`. There is no in-memory
- *   provider here (`in_memory.enable` stays off), so dev matches production.
+ *   provider here (`in_memory.enable` stays off), so dev matches production. On since M7 T112
+ *   (D149): `.env.example`, CI's e2e-smoke and staging set the flag, after T112's check found no
+ *   stale answer in 40 changes (`e2e/cache-freshness.spec.ts`, which runs in every e2e-smoke).
  *
  * - Payload (D75, T60): the Medusa → Payload sync, only with `PAYLOAD_SERVER_URL` and
  *   `PAYLOAD_API_KEY` (`pnpm bootstrap` writes both). Without it the sync's subscriber, jobs and
