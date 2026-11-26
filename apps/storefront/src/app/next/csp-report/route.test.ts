@@ -1,7 +1,17 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { LEGACY, REPORTING_API } from "../../../lib/security/csp-report.test";
+import { LEGACY, REPORTING_API } from "../../../lib/security/csp-report.fixtures";
 
-vi.mock("next/server", () => ({ connection: vi.fn(async () => undefined) }));
+// `after()` runs its task at once here; `settled()` waits for the forwards it started.
+const pending: Promise<unknown>[] = [];
+vi.mock("next/server", () => ({
+  connection: vi.fn(async () => undefined),
+  after: (task: () => Promise<unknown>) => {
+    pending.push(task());
+  },
+}));
+const settled = async () => {
+  await Promise.all(pending.splice(0));
+};
 
 const DSN = "http://e2esink@127.0.0.1:8970/1";
 
@@ -30,7 +40,8 @@ beforeEach(() => {
   warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
 });
 
-afterEach(() => {
+afterEach(async () => {
+  await settled();
   vi.unstubAllGlobals();
   vi.unstubAllEnvs();
   warn.mockRestore();
@@ -122,6 +133,84 @@ describe("POST /next/csp-report (D140)", () => {
     fetchMock.mockRejectedValueOnce(new TypeError("fetch failed"));
     const { POST } = await load();
     expect((await POST(post(JSON.stringify(LEGACY)))).status).toBe(204);
+    await settled();
     expect(String(warn.mock.calls[0]?.[0])).toContain("could not reach Sentry");
+  });
+
+  it("answers before Sentry does (the forward runs after the response)", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SENTRY_DSN", DSN);
+    let release: (() => void) | undefined;
+    fetchMock.mockImplementationOnce(
+      () =>
+        new Promise<Response>((resolve) => {
+          release = () => resolve(new Response(null, { status: 200 }));
+        }),
+    );
+    const { POST } = await load();
+    expect((await POST(post(JSON.stringify(LEGACY)))).status).toBe(204);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    release?.();
+    await settled();
+  });
+
+  /** A Reporting API entry of about 1 KB, as Chromium sends it (the policy repeated in each). */
+  const entry = (n: number) => ({
+    ...REPORTING_API[0],
+    body: {
+      ...REPORTING_API[0]!.body,
+      blockedURL: `https://evil.example.com/${n}.js`,
+      originalPolicy: `default-src 'self'; ${"script-src 'self' https://js.stripe.com; ".repeat(20)}`,
+    },
+  });
+
+  it("takes a Reporting API batch past 8 KB, each entry held to 8 KB on its own", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SENTRY_DSN", DSN);
+    const { POST } = await load();
+    const batch = Array.from({ length: 10 }, (_, n) => entry(n));
+    const oversized = { ...entry(99), body: { ...entry(99).body, sample: "x".repeat(9 * 1024) } };
+    const text = JSON.stringify([...batch, oversized]);
+    expect(text.length).toBeGreaterThan(8 * 1024);
+    expect((await POST(post(text, "application/reports+json"))).status).toBe(204);
+    await settled();
+    expect(fetchMock).toHaveBeenCalledTimes(10);
+    // Past the batch's 64 KB, a 413.
+    const huge = JSON.stringify(Array.from({ length: 80 }, (_, n) => entry(n)));
+    expect((await POST(post(huge, "application/reports+json"))).status).toBe(413);
+  });
+
+  it("forwards at most 100 violations a minute, and warns once past it", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SENTRY_DSN", DSN);
+    const { POST } = await load();
+    for (let n = 0; n < 101; n += 1) {
+      const report = {
+        "csp-report": {
+          ...LEGACY["csp-report"],
+          "blocked-uri": `https://evil.example.com/${n}.js`,
+        },
+      };
+      expect((await POST(post(JSON.stringify(report)))).status).toBe(204);
+    }
+    await settled();
+    expect(fetchMock).toHaveBeenCalledTimes(100);
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(String(warn.mock.calls[0]?.[0])).toContain("over 100 violations this minute");
+  });
+
+  it("forwards an order transfer page's report without its id or token", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SENTRY_DSN", DSN);
+    const { POST } = await load();
+    const report = {
+      "csp-report": {
+        ...LEGACY["csp-report"],
+        "document-uri": "https://shop.example.com/us/order/order_01ABC/transfer/tr4nsferS3cret",
+      },
+    };
+    expect((await POST(post(JSON.stringify(report)))).status).toBe(204);
+    await settled();
+    const body = String((fetchMock.mock.calls[0] as [string, RequestInit])[1].body);
+    expect(JSON.parse(body)["csp-report"]["document-uri"]).toBe(
+      "https://shop.example.com/us/order/[id]/transfer/[token]",
+    );
+    expect(body).not.toMatch(/tr4nsferS3cret|order_01ABC/);
   });
 });

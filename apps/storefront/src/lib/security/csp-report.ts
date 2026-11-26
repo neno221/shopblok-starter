@@ -6,11 +6,31 @@
 // kebab-case names) and the Reporting API's `application/reports+json` (an array of
 // `{type: "csp-violation", body: {…}}`, camelCase names, batched). Both become one `CspViolation`,
 // with the query string and fragment taken off `document-uri`, `blocked-uri`, `source-file` and the
-// referrer (a visitor's URL can hold a token: a reset link, a preview's secret), and Sentry gets
-// each in the `csp-report` shape its security endpoint documents.
+// referrer (a visitor's URL can hold a token: a reset link, a preview's secret), and the secret
+// segments of a path replaced (`SECRET_PATHS`), and Sentry gets each in the `csp-report` shape its
+// security endpoint documents.
 
-/** The body cap (D140): a real report is well under 2 KB; above this the route answers 413. */
+/** The body cap for one report (`application/csp-report`, D140): a real one is under 2 KB. */
 export const CSP_REPORT_MAX_BYTES = 8 * 1024;
+
+/**
+ * The body cap for a Reporting API batch (`application/reports+json`). Chromium sends every queued
+ * report for the endpoint in one POST, each entry repeating the whole policy (about 1 KB with
+ * Stripe's hosts), so D140's 8 KB would refuse a page's eight violations at once (PR 148's review,
+ * item 2). Each entry is still held to `CSP_REPORT_MAX_BYTES` on its own.
+ */
+export const CSP_REPORT_BATCH_MAX_BYTES = 64 * 1024;
+
+/** At most this many entries of one batch are read; the rest are dropped. */
+export const CSP_REPORT_BATCH_MAX_ENTRIES = 20;
+
+/**
+ * How many violations one server process forwards to Sentry per window; past it they are dropped
+ * with one warning per window. The dedupe is keyed on what the sender writes, so without this a
+ * loop changing `blocked-uri` would spend Sentry's quota (PR 148's review, item 3). T108 adds the
+ * per-address limit (D142).
+ */
+export const CSP_REPORT_FORWARD_BUDGET = 100;
 
 /** How long the same violation is dropped after it was forwarded once (D140). */
 export const CSP_REPORT_DEDUPE_MS = 60_000;
@@ -35,15 +55,29 @@ export type CspViolation = {
 };
 
 /**
- * A URL without its query string and fragment. A value that is no URL (`inline`, `eval`, `self`,
- * `data`, an empty string) stays as it is; a relative one keeps only its path.
+ * Paths that carry a secret in a segment, with what replaces it. The order transfer link
+ * (`[market]/order/[id]/transfer/[token]`) is the shop's only route with a secret in its path
+ * (PR 148's review, item 1); a route added with one belongs here.
+ */
+const SECRET_PATHS: readonly [RegExp, string][] = [
+  [/\/order\/[^/]+\/transfer\/[^/]+/g, "/order/[id]/transfer/[token]"],
+];
+
+/**
+ * A URL without its query string and fragment, and with `SECRET_PATHS`' segments replaced. A value
+ * that is no URL (`inline`, `eval`, `self`, `data`, an empty string) stays as it is; a relative one
+ * keeps only its path.
  */
 export function stripUrl(value: string): string {
   const text = value.trim();
   if (text === "") return "";
   if (!/^[a-z][a-z0-9+.-]*:/i.test(text) && !text.startsWith("/")) return text;
   const cut = text.search(/[?#]/);
-  return cut === -1 ? text : text.slice(0, cut);
+  const bare = cut === -1 ? text : text.slice(0, cut);
+  return SECRET_PATHS.reduce(
+    (url, [pattern, replacement]) => url.replace(pattern, replacement),
+    bare,
+  );
 }
 
 const str = (value: unknown): string => (typeof value === "string" ? value : "");
@@ -138,10 +172,17 @@ export function parseCspReport(type: string, text: string): CspViolation[] | und
     return one === undefined ? undefined : [one];
   }
   if (!Array.isArray(body)) return undefined;
-  return body.flatMap((entry) => {
+  return body.slice(0, CSP_REPORT_BATCH_MAX_ENTRIES).flatMap((entry) => {
+    // An entry over one report's cap on its own is dropped; the rest of the batch is kept.
+    if (JSON.stringify(entry).length > CSP_REPORT_MAX_BYTES) return [];
     const one = fromReportingApi(entry);
     return one === undefined ? [] : [one];
   });
+}
+
+/** The body cap for a report of `type` (one report, or a Reporting API batch). */
+export function capFor(type: string): number {
+  return type === "application/reports+json" ? CSP_REPORT_BATCH_MAX_BYTES : CSP_REPORT_MAX_BYTES;
 }
 
 /** What makes two reports the same violation: where, what and by which directive. */
@@ -185,6 +226,37 @@ export class RecentViolations {
       this.seen.delete(oldest);
     }
     return true;
+  }
+}
+
+/**
+ * Counts the forwards of one server process per window (`CSP_REPORT_FORWARD_BUDGET`).
+ * `take(now)` is `true` while the window has budget left; `exhausted` is `true` once per window,
+ * the first time it says no, so the route warns once.
+ */
+export class ForwardBudget {
+  private windowStart = 0;
+  private used = 0;
+  private warned = false;
+
+  constructor(
+    private readonly budget = CSP_REPORT_FORWARD_BUDGET,
+    private readonly windowMs = CSP_REPORT_DEDUPE_MS,
+  ) {}
+
+  take(now: number): { ok: boolean; firstRefusal: boolean } {
+    if (now - this.windowStart >= this.windowMs) {
+      this.windowStart = now;
+      this.used = 0;
+      this.warned = false;
+    }
+    if (this.used < this.budget) {
+      this.used += 1;
+      return { ok: true, firstRefusal: false };
+    }
+    const firstRefusal = !this.warned;
+    this.warned = true;
+    return { ok: false, firstRefusal };
   }
 }
 

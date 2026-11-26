@@ -10774,11 +10774,12 @@ The fixture `e2e/support/csp.ts` in recording mode (`CSP_RECORD=<file>`) writes 
 
 `src/app/next/csp-report/route.ts` with `src/lib/security/csp-report.ts`:
 - Takes `application/csp-report` (`report-uri`'s format) and `application/reports+json` (the Reporting API's, from `Reporting-Endpoints` and `report-to`); other report types in a batch are dropped. Any other content type answers **415**, a body that is no report **400**.
-- **8 KB cap:** a declared `Content-Length` above it, or a streamed body that passes it, answers **413** before parsing.
-- **Duplicates within a minute are dropped** (per instance; the key is the directive, the blocked URI, the document and the source file; at most 1,000 remembered). T108 adds its rate limit.
-- **The query string and fragment are stripped** from `document-uri`, `blocked-uri` and `source-file` before anything is kept.
+- **The caps:** 8 KB for one `application/csp-report` report, as D140 says; **64 KB for an `application/reports+json` batch**, of which at most 20 entries are read and each entry is held to 8 KB on its own (an oversized entry is dropped, the rest kept). A declared `Content-Length` above the cap, or a streamed body that passes it, answers **413** before parsing. **This departs from D140's single 8 KB:** Chromium follows `report-to` and sends every queued report in one POST, each entry repeating the whole policy (about 1 KB with Stripe's hosts), so 8 KB would refuse a page's eight violations at once, the very reports the report-only week is for (PR 148's review, item 2).
+- **Duplicates within a minute are dropped** (per instance; the key is the directive, the blocked URI, the document and the source file; at most 1,000 remembered).
+- **At most 100 violations a minute go on** per instance, the rest dropped with one warning per minute: the dedupe is keyed on what the sender writes, so a loop changing `blocked-uri` could otherwise spend Sentry's quota (the review's item 3). T108 adds the per-address limit (D142).
+- **The query string and fragment are stripped** from `document-uri`, `blocked-uri`, `source-file` and the referrer before anything is kept, and **the order transfer link's id and token are replaced** (`/order/[id]/transfer/[token]`): it is the shop's only route with a secret in its path (the review's item 1; `SECRET_PATHS` in `csp-report.ts` is where another would go).
 - **With `NEXT_PUBLIC_SENTRY_DSN`:** forwarded as `application/csp-report` to Sentry's security endpoint (`https://<host>/api/<project>/security/?sentry_key=<key>`, plus `sentry_environment` and `sentry_release` from `SENTRY_ENVIRONMENT` and `SENTRY_RELEASE`), with the visitor's User-Agent, a 3 s timeout, and one warning if Sentry cannot be reached. The key never reaches the browser: the header names only our route. **Without a DSN:** one log line (`csp-report: enforce script-src-elem blocked https://… on https://…/us`), and 204 either way.
-- **The answer is 204** for every report taken. The route is under `/next`, so it carries D137's headers and the policy (`headers.spec.ts`).
+- **The answer is 204** for every report taken, sent before the forward: the forward runs in `after()`, so the browser never waits on Sentry. The route is under `/next`, so it carries D137's headers and the policy (`headers.spec.ts`).
 
 ### D137's headers, Payload's and Medusa's
 

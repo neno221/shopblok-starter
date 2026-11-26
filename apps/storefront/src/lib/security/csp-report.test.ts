@@ -1,58 +1,38 @@
 import { describe, expect, it } from "vitest";
 import {
+  CSP_REPORT_BATCH_MAX_ENTRIES,
+  ForwardBudget,
   RecentViolations,
+  capFor,
   logLine,
   parseCspReport,
   sentrySecurityUrl,
   stripUrl,
   violationKey,
 } from "./csp-report";
-
-export const LEGACY = {
-  "csp-report": {
-    "document-uri": "https://shop.example.com/us/account/reset?token=abc#top",
-    referrer: "https://mail.example.com/inbox?id=42",
-    "violated-directive": "script-src-elem",
-    "effective-directive": "script-src-elem",
-    "original-policy": "default-src 'self'; report-uri /next/csp-report",
-    disposition: "enforce",
-    "blocked-uri": "https://evil.example.com/x.js?session=s3cret",
-    "line-number": 12,
-    "column-number": 7,
-    "source-file": "https://shop.example.com/_next/static/chunks/a.js?v=1",
-    "status-code": 200,
-    "script-sample": "",
-  },
-};
-
-export const REPORTING_API = [
-  {
-    type: "csp-violation",
-    age: 10,
-    url: "https://shop.example.com/us?code=123",
-    user_agent: "Mozilla/5.0",
-    body: {
-      documentURL: "https://shop.example.com/us?code=123",
-      referrer: "",
-      blockedURL: "inline",
-      effectiveDirective: "script-src-elem",
-      originalPolicy: "default-src 'self'",
-      sourceFile: "https://shop.example.com/us?code=123",
-      sample: "alert(1)",
-      disposition: "report",
-      statusCode: 200,
-      lineNumber: 3,
-      columnNumber: 1,
-    },
-  },
-  { type: "deprecation", url: "https://shop.example.com/", body: { id: "x" } },
-];
+import { LEGACY, REPORTING_API } from "./csp-report.fixtures";
 
 describe("stripUrl", () => {
   it("drops the query string and the fragment", () => {
     expect(stripUrl("https://a.example.com/p?token=abc#f")).toBe("https://a.example.com/p");
     expect(stripUrl("https://a.example.com/p#f")).toBe("https://a.example.com/p");
     expect(stripUrl("/us/account?token=abc")).toBe("/us/account");
+  });
+
+  it("replaces the order transfer link's id and token, in every market (PR 148's review)", () => {
+    expect(stripUrl("https://shop.example.com/us/order/order_1/transfer/s3cret?x=1")).toBe(
+      "https://shop.example.com/us/order/[id]/transfer/[token]",
+    );
+    expect(stripUrl("https://shop.example.com/order/order_1/transfer/s3cret/")).toBe(
+      "https://shop.example.com/order/[id]/transfer/[token]/",
+    );
+    expect(stripUrl("/ch/fr/order/order_1/transfer/s3cret")).toBe(
+      "/ch/fr/order/[id]/transfer/[token]",
+    );
+    // Only the transfer link is redacted; another order path keeps its id.
+    expect(stripUrl("https://shop.example.com/us/order/order_1/confirmed")).toBe(
+      "https://shop.example.com/us/order/order_1/confirmed",
+    );
   });
 
   it("keeps the keywords browsers send in place of a URL", () => {
@@ -177,5 +157,33 @@ describe("logLine", () => {
     expect(logLine(violation)).toBe(
       "csp-report: enforce script-src-elem blocked https://evil.example.com/x.js on https://shop.example.com/us/account/reset",
     );
+  });
+});
+
+describe("the batch's limits (PR 148's review, item 2)", () => {
+  it("caps a batch at 64 KB and one report at 8 KB", () => {
+    expect(capFor("application/reports+json")).toBe(64 * 1024);
+    expect(capFor("application/csp-report")).toBe(8 * 1024);
+  });
+
+  it("reads at most 20 entries of a batch", () => {
+    const batch = Array.from({ length: 30 }, (_, n) => ({
+      ...REPORTING_API[0],
+      body: { ...REPORTING_API[0]!.body, blockedURL: `https://evil.example.com/${n}.js` },
+    }));
+    expect(parseCspReport("application/reports+json", JSON.stringify(batch))).toHaveLength(
+      CSP_REPORT_BATCH_MAX_ENTRIES,
+    );
+  });
+});
+
+describe("ForwardBudget", () => {
+  it("allows the budget per window, refuses past it, and says so once", () => {
+    const budget = new ForwardBudget(2, 60_000);
+    expect(budget.take(0)).toEqual({ ok: true, firstRefusal: false });
+    expect(budget.take(1)).toEqual({ ok: true, firstRefusal: false });
+    expect(budget.take(2)).toEqual({ ok: false, firstRefusal: true });
+    expect(budget.take(3)).toEqual({ ok: false, firstRefusal: false });
+    expect(budget.take(60_000)).toEqual({ ok: true, firstRefusal: false });
   });
 });

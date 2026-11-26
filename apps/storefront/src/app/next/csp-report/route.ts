@@ -1,8 +1,10 @@
-import { connection } from "next/server";
+import { after, connection } from "next/server";
 import {
-  CSP_REPORT_MAX_BYTES,
+  CSP_REPORT_FORWARD_BUDGET,
   CSP_REPORT_TYPES,
+  ForwardBudget,
   RecentViolations,
+  capFor,
   logLine,
   parseCspReport,
   sentrySecurityUrl,
@@ -11,15 +13,19 @@ import {
 } from "../../../lib/security/csp-report";
 
 // M7 D140 (T106): where the policy's `report-uri` and `report-to` send a violation. Both report
-// formats; a body over 8 KB is a 413; the same violation within a minute is dropped; each URL loses
-// its query string and fragment (`lib/security/csp-report.ts`); then Sentry's security endpoint for
-// `NEXT_PUBLIC_SENTRY_DSN`, so the key stays on the server and no visitor's query string reaches
-// Sentry. Without a DSN, one log line per violation and a 204. Under `/next`, which the proxy's
-// matcher skips. T108 adds its rate limit (D142).
+// formats; a body over its cap is a 413 (8 KB for one report, 64 KB for a Reporting API batch,
+// whose entries are held to 8 KB each); the same violation within a minute is dropped; each URL
+// loses its query string, its fragment and any secret path segment (`lib/security/csp-report.ts`);
+// at most `CSP_REPORT_FORWARD_BUDGET` violations a minute go on; then Sentry's security endpoint for
+// `NEXT_PUBLIC_SENTRY_DSN`, so the key stays on the server and no visitor's token reaches Sentry.
+// Without a DSN, one log line per violation. The 204 goes back first: the forward runs in `after()`,
+// so the browser never waits on Sentry. Under `/next`, which the proxy's matcher skips. T108 adds
+// the per-address rate limit (D142).
 
 const recent = new RecentViolations();
+const budget = new ForwardBudget();
 
-/** How long Sentry gets before the route gives up on a forward (the browser never waits on it). */
+/** How long Sentry gets before the forward gives up. */
 const FORWARD_TIMEOUT_MS = 3_000;
 
 const noContent = () => new Response(null, { status: 204 });
@@ -34,16 +40,26 @@ export async function POST(request: Request): Promise<Response> {
     return plain(415, "Unsupported Media Type");
   }
   const declared = Number(request.headers.get("content-length") ?? "");
-  if (Number.isFinite(declared) && declared > CSP_REPORT_MAX_BYTES) {
+  const cap = capFor(type);
+  if (Number.isFinite(declared) && declared > cap) {
     return plain(413, "Payload Too Large");
   }
-  const text = await readCapped(request, CSP_REPORT_MAX_BYTES);
+  const text = await readCapped(request, cap);
   if (text === undefined) return plain(413, "Payload Too Large");
   const violations = parseCspReport(type, text);
   if (violations === undefined) return plain(400, "Bad Request");
 
   const now = Date.now();
-  const fresh = violations.filter((violation) => recent.admit(violationKey(violation), now));
+  const fresh = violations.filter((violation) => {
+    if (!recent.admit(violationKey(violation), now)) return false;
+    const { ok, firstRefusal } = budget.take(now);
+    if (firstRefusal) {
+      console.warn(
+        `csp-report: over ${CSP_REPORT_FORWARD_BUDGET} violations this minute; the rest are dropped`,
+      );
+    }
+    return ok;
+  });
   if (fresh.length === 0) return noContent();
 
   // The literals, as every Sentry module reads them (T96): `next build` writes the DSN in.
@@ -56,7 +72,9 @@ export async function POST(request: Request): Promise<Response> {
     return noContent();
   }
   const userAgent = request.headers.get("user-agent") ?? "";
-  await Promise.all(fresh.map((violation) => forward(target, violation, userAgent)));
+  after(async () => {
+    await Promise.all(fresh.map((violation) => forward(target, violation, userAgent)));
+  });
   return noContent();
 }
 
