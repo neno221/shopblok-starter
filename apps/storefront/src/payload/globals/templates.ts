@@ -146,10 +146,10 @@ export const Templates = contentGlobal({
             variantField({
               family: "checkout",
               label: "Layout",
-              // T86 (D101): the express rail is M6's; until Stripe fills it, the shop has no button
-              // to put in it.
+              // T86 (D101): the express rail; Stripe's Express Checkout Element fills it (M6 T102),
+              // drawn only once it has a wallet to show.
               description:
-                "Express rail: the rail for express payment buttons fills in M6, with Stripe; until then the checkout looks like the default.",
+                "Express rail: with Stripe on, the rail holds its express payment buttons (Link, and Apple Pay or Google Pay where the device has them); with no wallet to show, the checkout looks like the default.",
             }),
           ],
         },

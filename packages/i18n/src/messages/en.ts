@@ -999,7 +999,7 @@ export const en = {
         text: "Add something to your cart, then come back to check out.",
         continue: "Continue shopping",
       },
-      // T86: the `express-rail` layout's rail above the first step (its buttons are M6's).
+      // T86: the `express-rail` layout's rail above the first step (Stripe's buttons since M6 T102).
       express: {
         title: "Express checkout",
         or: "Or continue below",

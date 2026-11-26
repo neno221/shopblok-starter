@@ -121,7 +121,8 @@ describe("fillVariables", () => {
   });
 
   it("puts a value with markup in as text, and does not fill a value's own braces", () => {
-    // Plain text: the HTML renderer (M6) escapes, once (PR 92 review, item 1).
+    // Plain text: `@shopblok/emails` escapes it once, when it writes the HTML (M6 T98; PR 92
+    // review, item 1).
     expect(
       fillVariables("To {{email}}", ["email", "code"], {
         email: "o'brien+<b>&</b>@example.com {{code}}",

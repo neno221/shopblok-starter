@@ -162,7 +162,7 @@ export const AccountAddressScreen = z.object({
   backHref: Href.describe("The address book"),
 });
 
-/** The saved payment methods (the empty state until M6's Stripe), and what was just done to them. */
+/** The saved payment methods (Stripe's, M6 T101; empty without it), and what was just done to them. */
 export const AccountPaymentMethodsScreen = z.object({
   kind: z.literal("payment-methods"),
   wallet: PaymentMethodsManager,

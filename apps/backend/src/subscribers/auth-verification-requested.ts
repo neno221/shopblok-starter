@@ -15,7 +15,8 @@ type VerificationRequested = {
 /**
  * Required e-mail verification (D64, SPEC §8.4): the code goes out by the Notification Module's
  * `email` channel, as a link to the storefront's `/verify` page in the shopper's market. The local
- * provider prints it in the backend's console in development and M3; Resend sends it from M6.
+ * provider prints it in the backend's console without Resend's keys (development, CI); with them
+ * Resend sends it (M6 T98).
  * The `/verify` page confirms with the code alone (`POST /auth/verification/confirm`).
  *
  * Medusa does not check the request's `entity_id` against the identity, so the e-mail goes only

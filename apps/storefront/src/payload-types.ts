@@ -4017,7 +4017,7 @@ export interface Template {
   };
   checkout: {
     /**
-     * Express rail: the rail for express payment buttons fills in M6, with Stripe; until then the checkout looks like the default.
+     * Express rail: with Stripe on, the rail holds its express payment buttons (Link, and Apple Pay or Google Pay where the device has them); with no wallet to show, the checkout looks like the default.
      */
     variant: "default" | "one-page" | "summary-first" | "focused" | "express-rail";
   };

@@ -13,7 +13,10 @@ import { describeUnreachable, type HttpResult } from "./http.ts";
 import type { IntegrationStatus } from "@shopblok/integrations";
 import type { Check } from "./report.ts";
 
-/** Postgres and Redis must be up for anything to work; the others are not used before M3 and M6. */
+/**
+ * Postgres and Redis must be up for anything to work; Meilisearch only once its keys make it the
+ * search (M6 T94); Mailpit never (Payload's e-mails in development only).
+ */
 export function isRequired(target: Target, statuses: readonly IntegrationStatus[]): boolean {
   if (target.kind === "postgres" || target.kind === "redis") return true;
   if (target.kind === "meilisearch") {

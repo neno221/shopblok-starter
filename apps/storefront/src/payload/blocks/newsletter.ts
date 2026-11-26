@@ -3,8 +3,9 @@ import { headingField, imageField, isVariant, sectionBlock } from "./section-blo
 
 /**
  * `newsletter` (SPEC §7.4, D81): the signup as a band of a page, the editor's heading and line over
- * a form with one email field, posted through the shop's server action. M6 adds Resend Audiences
- * when a key is set; until then the address is a submission of the form. T82 (M5 plan §1a): the
+ * a form with one email field, posted through the shop's server action. Since T99 (M6, D122) the
+ * sign-up e-mails a link to confirm (double opt-in); a confirmed address goes into Resend's segment
+ * with its keys, or into a submission of the form marked confirmed without them. T82 (M5 plan §1a): the
  * `split` design's picture beside the form, shown and required only for it.
  */
 export const NewsletterBlock = sectionBlock({

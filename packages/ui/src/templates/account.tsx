@@ -11,7 +11,7 @@
 //   others the receipt's member without the thanks, this screen's heading and ways on in its place.
 // - **Addresses / address:** AddressBook with its remove and default forms; AddressForm with the
 //   "default shipping address" checkbox inside its form.
-// - **Payment methods:** PaymentMethodsManager (its empty state until M6's Stripe); M6 D119 (T101):
+// - **Payment methods:** PaymentMethodsManager (its empty state without Stripe); M6 D119 (T101):
 //   what was just done ("saved", "removed"), "Add a payment method" (Stripe's Payment Element in
 //   setup mode in the `setupElement` slot, the notice without it) and, without scripts, the remove
 //   button's question as a page of its own.
