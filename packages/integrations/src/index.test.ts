@@ -46,6 +46,18 @@ describe("getIntegrationStatus", () => {
     ]);
   });
 
+  // M6's done-when (SPEC §17.1, T103): every integration's code is built, so each one turns on purely
+  // through its keys. A `wired: false` (or an `arrives`) here would keep an integration on its
+  // fallback with every key set, and `integrations-live`'s done-when spec fails on it too.
+  it.each(getIntegrationStatus(none).map((status) => [status.id, status] as const))(
+    "%s is wired, and says no milestone it arrives in (M6's done-when)",
+    (_id, status) => {
+      expect(status.wired).toBe(true);
+      expect(status.arrives).toBeUndefined();
+      expect("arrives" in status).toBe(false);
+    },
+  );
+
   it("puts every integration on its fallback when nothing is set, and names the fallback", () => {
     const list = getIntegrationStatus(none);
     expect(list.every((s) => s.state === "fallback" && !s.configured && !s.half)).toBe(true);

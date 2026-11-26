@@ -2,7 +2,7 @@
 // `node scripts/doctor.ts` (Node 22.18+ strips the types, so no enums or parameter properties here),
 // on Linux, macOS and Windows. Never `pnpm doctor`: that is pnpm's own command.
 //
-//   pnpm run doctor [--online] [--json] [--strict]
+//   pnpm run doctor [--online] [--json] [--strict] [--only=<ids>]
 //
 // It writes nothing: no file, no row, no migration. The one command it runs that touches the
 // database is `medusa exec src/scripts/doctor-markets.ts` (to read the markets module; M4b D97),
@@ -69,6 +69,7 @@ import {
   type AppEnvs,
   type AppName,
   type EnvLike,
+  type IntegrationId,
   type IntegrationStatus,
 } from "@shopblok/integrations";
 import { loadExports } from "./lib/load-exports.ts";
@@ -93,7 +94,7 @@ import {
 // ---------------------------------------------------------------------------------------------
 // Options and places
 
-const HELP = `pnpm run doctor [--online] [--json] [--strict]
+const HELP = `pnpm run doctor [--online] [--json] [--strict] [--only=<ids>]
 
 Checks the setup and says which integrations are on. Writes nothing. (Run it as \`pnpm run doctor\`:
 \`pnpm doctor\` is pnpm's own command.)
@@ -108,12 +109,32 @@ Checks the setup and says which integrations are on. Writes nothing. (Run it as 
              import upload (where the token may read them), and a private file is refused
              without a signature (reads only)
   --json     print the result as JSON (no secrets in it) and nothing else
-  --strict   a warning fails the run too (the go-live check: SPEC §16, item 8)
+  --strict   a warning fails the run too (the go-live check: SPEC §16, item 8), but for one these
+             keys cannot clear, which says what to check by hand (R2's CORS rules with an Object
+             Read & Write token)
+  --only=stripe,posthog
+             report and judge only these integrations' checks (CI's integrations-live job: the
+             integrations whose keys it holds); the integrations table stays whole
   -h, --help this text
 
-Exit codes: 0 no error (and, with --strict, no warning), 1 an error, 2 a bad option.`;
+Exit codes: 0 no error (and, with --strict, no warning but those to check by hand), 1 an error,
+2 a bad option. With --only, only those integrations' checks count.`;
 
 type Options = ReportOptions & { json: boolean };
+
+/** `--only=stripe,posthog`: integration ids from the table, at least one; or what is wrong. */
+function parseOnly(list: string): IntegrationId[] | string {
+  const known = getIntegrationStatus({ backend: {}, storefront: {} }).map((status) => status.id);
+  const ids = list
+    .split(",")
+    .map((id) => id.trim())
+    .filter((id) => id !== "");
+  const unknown = ids.filter((id) => !(known as string[]).includes(id));
+  if (ids.length === 0) return `--only needs integration ids (${known.join(", ")})`;
+  if (unknown.length > 0)
+    return `--only: no integration ${unknown.join(", ")} (one of ${known.join(", ")})`;
+  return [...new Set(ids)] as IntegrationId[];
+}
 
 function parseArgs(argv: string[]): Options | { error: string } | "help" {
   const options: Options = { online: false, json: false, strict: false };
@@ -121,7 +142,11 @@ function parseArgs(argv: string[]): Options | { error: string } | "help" {
     if (arg === "--online") options.online = true;
     else if (arg === "--json") options.json = true;
     else if (arg === "--strict") options.strict = true;
-    else if (arg === "-h" || arg === "--help") return "help";
+    else if (arg.startsWith("--only=")) {
+      const only = parseOnly(arg.slice("--only=".length));
+      if (typeof only === "string") return { error: only };
+      options.only = only;
+    } else if (arg === "-h" || arg === "--help") return "help";
     else return { error: `Unknown option ${arg}` };
   }
   return options;

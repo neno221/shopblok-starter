@@ -36,9 +36,10 @@ type Spec = {
   live: string;
   fallback: string;
   /**
-   * Whether the code that uses the keys exists. Redis is wired since M0 (T06), Meilisearch since
-   * M6's T94, Stripe since T100 and R2 since T95; the others arrive in M6 (SPEC §17.1), so keys set for them today change nothing. Doctor
-   * says so instead of calling the integration live.
+   * Whether the code that uses the keys exists. Redis is wired since M0 (T06) and the other six since
+   * M6 (T94 to T102, T95): every entry is, which is M6's done-when (SPEC §17.1, T103; its tests hold
+   * every entry to it). An integration added later starts `false`, with `arrives`, until its code is
+   * built: keys set for it change nothing, and doctor says so instead of calling it live.
    */
   wired: boolean;
   arrives?: string;
