@@ -142,3 +142,41 @@ test("doctor --online finds both DSNs accepted", async () => {
   );
   expect(checks.length).toBeGreaterThan(0);
 });
+
+// M7 D140 (T106): a CSP report goes to Sentry's security endpoint through `/next/csp-report`, with
+// the key on the server's side and no query string from the visitor's URLs. With a real DSN the
+// route's 204 is all this spec can see; the report is in Sentry's Issues as a CSP event (W8).
+test("a CSP report reaches Sentry's security endpoint without the page's query string", async () => {
+  const blocked = `https://example.com/${marker}.js`;
+  const answer = await fetch(`${storefront}/next/csp-report`, {
+    method: "POST",
+    headers: { "content-type": "application/csp-report" },
+    body: JSON.stringify({
+      "csp-report": {
+        "document-uri": `${storefront}/us/reset-password?token=t0k-t106&code=c0de-4242`,
+        "effective-directive": "script-src-elem",
+        "violated-directive": "script-src-elem",
+        "blocked-uri": `${blocked}?session=sid-s3cr3t`,
+        "original-policy": "default-src 'self'",
+        disposition: "enforce",
+        "status-code": 200,
+      },
+    }),
+  });
+  expect(answer.status).toBe(204);
+  if (sink === undefined) return;
+  await expect
+    .poll(() => sink!.security.filter((entry) => entry.body.includes(blocked)).length, {
+      timeout: 10_000,
+    })
+    .toBe(1);
+  const entry = sink.security.find((each) => each.body.includes(blocked))!;
+  expect(entry.path).toMatch(/^\/api\/1\/security\/\?sentry_key=e2esink/);
+  expect(entry.type).toBe("application/csp-report");
+  const report = (JSON.parse(entry.body) as { "csp-report": Record<string, unknown> })[
+    "csp-report"
+  ];
+  expect(report["document-uri"]).toBe(`${storefront}/us/reset-password`);
+  expect(report["blocked-uri"]).toBe(blocked);
+  expect(entry.body).not.toMatch(/token=|t0k-t106|c0de|sid-s3cr3t/);
+});

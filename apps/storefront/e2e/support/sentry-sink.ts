@@ -44,6 +44,8 @@ export function eventsOf(envelope: string): SinkEvent[] {
 
 export type Sink = {
   events: SinkEvent[];
+  /** M7 T106: what reached the security endpoint (`/api/<project>/security/`), from `/next/csp-report`. */
+  security: { path: string; type: string; body: string }[];
   /** Every envelope's path, for the count of what came in. */
   paths: string[];
   close: () => Promise<void>;
@@ -52,6 +54,7 @@ export type Sink = {
 export async function startSink(port = Number(new URL(SINK_DSN).port)): Promise<Sink> {
   const events: SinkEvent[] = [];
   const paths: string[] = [];
+  const security: Sink["security"] = [];
   const server: Server = createServer((request, response) => {
     const chunks: Buffer[] = [];
     request.on("data", (chunk: Buffer) => chunks.push(chunk));
@@ -61,6 +64,15 @@ export async function startSink(port = Number(new URL(SINK_DSN).port)): Promise<
       const body =
         encoding === "gzip" ? gunzipSync(raw) : encoding === "deflate" ? inflateSync(raw) : raw;
       paths.push(request.url ?? "");
+      if (/^\/api\/\d+\/security\//.test(request.url ?? "")) {
+        security.push({
+          path: request.url ?? "",
+          type: String(request.headers["content-type"] ?? ""),
+          body: body.toString("utf8"),
+        });
+        response.writeHead(200, { "content-type": "application/json" }).end("{}");
+        return;
+      }
       try {
         events.push(...eventsOf(body.toString("utf8")));
       } catch {
@@ -75,6 +87,7 @@ export async function startSink(port = Number(new URL(SINK_DSN).port)): Promise<
   });
   return {
     events,
+    security,
     paths,
     close: () => new Promise<void>((resolve) => server.close(() => resolve())),
   };
