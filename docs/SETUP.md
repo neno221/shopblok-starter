@@ -11399,3 +11399,82 @@ Then `main` again after PR 154 (the cache-freshness fix, `30dcab7`): it touched 
 - **The consent record:** call `consumeLimit("consent")` from `lib/security/rate-limit.ts` in its action (the rule is in the table, `storefront: true`); a `TooManyError` gives the refusal.
 - **MFA:** `admin-code-check` is in the table; attach it in `api/middlewares.ts` to the routes Medusa's MFA adds, keyed by the user (`rateLimit("admin-code-check", <the user from the request>)` in `lib/rate-limit/middleware.ts`).
 - **Guest carts' sessions on a signed call** (D144): `verifyClientHeader` in `lib/rate-limit/signature.ts` tells a signed call; `req` keeps nothing of it today.
+
+## Payment secrets, the consent record and MFA (T109)
+
+**Result: a cart's Stripe secrets reach only its owner; a customer's cart is written only by that customer; every cookie choice is recorded on the server; Medusa Admin has two-factor sign-in with its code checks rate-limited; Medusa's CORS lists and `trust proxy` are checked against Medusa's own code; and React's taint is wired but off, by its cost.** D144, D145, D146, D136 (5), SPEC §11.1.
+
+### The session-bearing routes (D144)
+
+Every store route whose answer can hold a payment session's or a payment's `data`, as Medusa 2.23 serves it, and ours that answer a cart. `SESSION_ROUTES` in `apps/backend/src/lib/payment-session-filter.ts` holds the list, and `payment-session-filter.spec.ts` reads each one (its route table is keyed by the list, so a route added to one and not the other fails):
+
+`GET /store/carts/:id`, `POST /store/carts`, `POST /store/carts/:id`, `POST /store/carts/:id/line-items`, `POST /store/carts/:id/line-items/:line_id`, `DELETE /store/carts/:id/line-items/:line_id`, `POST /store/carts/:id/promotions`, `DELETE /store/carts/:id/promotions`, `POST /store/carts/:id/shipping-methods`, `POST /store/carts/:id/taxes`, `POST /store/carts/:id/customer`, `POST /store/carts/:id/complete`, `POST /store/carts/:id/payment-token` (ours, T101), `POST /store/payment-collections`, `POST /store/payment-collections/:id/payment-sessions`, `POST /store/payment-collections/:id/payment-sessions/:session_id`, `GET /store/orders/:id`, `GET /store/orders`.
+
+The orders' default fields hold no session; `?fields=*payment_collections.payment_sessions,*payment_collections.payments` does (Medusa ignores `+…` there), so the spec asks for those. The filter takes `client_secret` and `payment_method` out of the `data` of anything under `payment_sessions`, `payment_session`, `payments` or `payment`, at any depth, and never changes Medusa's object in place (its caching module may hand the same one to the next request).
+
+### Who sees what
+
+- **The owner** is the cart's (or order's) customer **with an account** (`has_account`): Medusa gives a guest a guest customer from the e-mail, which owns nothing. Only that customer, signed in (Medusa's `auth_context`, bearer or session), sees the two keys, and every write to the cart (the routes above, the payment collection and its sessions, completion) answers **403** to anyone else.
+- **A guest's cart:** the keys only on a call the shop's server signed (T108's `x-shopblok-client`), since the cart's id is a guest's only secret; its writes are open, as before.
+- **`shopblok_access`** on every answer with a `cart` (`owner`, `guest` or `other`), so the storefront knows, with no second call, that its cookie names a customer's cart it is not signed in as. The owner is read again when the answer is sent, so a transfer to a customer is judged as the cart now is.
+
+### The storefront: a held cart
+
+`readCart()` (`lib/medusa/cart.ts`) treats an `other` cart as no cart and says it is **held**: the cart page and the checkout draw `HeldCart` (`components/checkout/held-cart.tsx`: the title, one sentence, a plain link to the sign-in with `?next=` back to the page), with and without scripts, and neither its lines nor a payment. The cookie stays: signing in as the cart's customer brings it back; as anyone else, `login`'s transfer is refused and the cookie dropped; adding something makes a new cart. Three strings (`templates.checkout.held`) in the four languages. **The header asks for the visitor again after every sign-in, registration and sign-out** (`markVisitorChanged`, `VisitorSource`), with or without a PostHog key since T109: a held cart comes back only at the sign-in, and the header had counted it as none.
+
+T100's, T101's and T102's flows read the session server-side as before: the storefront's server signs every call, and a signed-in customer's calls carry their token.
+
+### The consent record (D145)
+
+- **The collection** `consent-records` (`payload/collections/consent-records.ts`): the consent id (random, `randomUUID`), the kind (`given`, `changed` when nothing was turned off, `withdrawn` when anything was), the two answers, the policy's version, the market key and the language; the time is Payload's `createdAt`. No address, browser or customer. Read by admins only, hidden from editors, and nobody creates, changes or deletes one through the API (`create`, `update` and `delete` are `false`; the action writes through the Local API). Its migration is `20261126_213030_consent_records` (D88; T111's merged before it, so nothing to re-create).
+- **The action** (`lib/consent/record.ts`, `keepConsent`): on every save, change and withdrawal, under T108's `consent` rule; it reads the cookie, keeps its id or makes one, writes the cookie with the id appended (`v1.<a>.<m>.<day>.<id>`; a cookie without one still parses), and adds the record. With scripts the cookie island calls `recordConsent` (a server action) after its own write, then `syncCartConsent`, one after the other so the cart reads the cookie with the id. **Without scripts**, the policy page has a `<noscript>` "Cookie settings" form (`components/visitor/cookie-settings-form.tsx`) whose server action saves, records, and comes back to `#cookie-settings-saved`, a line shown by `:target` (one new string, `organisms.cookieConsent.saved`).
+- **The retention job** `consent-retention` (`payload/jobs/consent-retention.ts`) deletes records older than 13 months, scheduled daily at 03:17 UTC on the default queue: whatever runs Payload's queue queues it when due (Medusa's worker every minute on a deployment, T111; `next dev`'s timer here).
+
+### MFA (D146)
+
+Medusa 2.23 ships TOTP and recovery codes, their routes (`/auth/mfa/…`) and the dashboard's screens; `defineConfig` reads `AUTH_MFA_ENCRYPTION_KEY` into the auth module itself, so the config needs nothing. **Medusa cannot require it for every admin** (its `requireMfa` applies only to an identity that has a factor), and no admin route says whose factors are on, so `doctor` checks only the key: **`mfa-key`**, an error on a deployment, a warning elsewhere; `pnpm bootstrap` fills the key (only while blank). GO-LIVE (T117) asks each admin to enrol.
+
+The three routes that check a code (`POST /auth/mfa/challenges/:id/verify`, the sign-in's, with a TOTP or a recovery code; `POST /auth/mfa/factors/:id/verify`, the enrolment's first code; `DELETE /auth/mfa/factors/:id`, turning a factor off) share **`admin-code-check`, 5 per 15 minutes per auth identity**, whatever the address (`mfaSubject` in `api/middlewares.ts`: Medusa authenticates them before the project's middlewares, so the identity is known, including the challenge's restricted token after the password). A challenge also allows 5 wrong codes of its own (Medusa's), and a sign-in's restricted token reaches no admin route.
+
+### Medusa's address and CORS (D136, 5)
+
+- **`trust proxy`:** Medusa sets it to one hop itself, unconditionally (`express-loader.js`), with no option to change it, which is Railway's one proxy. `src/config/__tests__/trust-proxy.unit.spec.ts` reads Medusa's loader (so an upgrade that changes the line fails) and shows, on Medusa's own Express, that a visitor's own `X-Forwarded-For` entries before the proxy's count for nothing. In development nothing is in front, so a local client could name its address; only the limits on a PC see it.
+- **CORS:** `scripts/lib/cors-check.ts` reads a list as Medusa 2.23 does (`parseCorsOrigins`: split on commas; an entry between `/…/`, or Medusa's rarer delimiters, is a regular expression; anything else an exact string), and its test compares it with Medusa's parser on the same inputs. On a deployment `doctor`'s **`cors`** check fails on a blank list, an entry that is not an `https` origin as a browser sends it, a pattern without `^…$`, a stray comma, or a list that lets in a foreign origin; `railway-config.test.ts` resolves `.railway/railway.ts`'s three lists with G11's shared variables (DEPLOY.md's example pattern) and they pass. DEPLOY.md says the same beside its table.
+
+### `experimental.taint` (SPEC §11.1)
+
+`lib/security/taint.ts`: `taintSecret` taints a secret's exact value for the process (16 characters or more; shorter ones are placeholders), `taintServerSecrets` the storefront's list (`PAYLOAD_SECRET`, `STOREFRONT_SIGNING_SECRET`, `REVALIDATE_SECRET`, `CRON_SECRET`, `PREVIEW_SECRET`, `PAYLOAD_DATABASE_URL`, `TURNSTILE_SECRET_KEY`, `VERCEL_AUTOMATION_BYPASS_SECRET`, `RESEND_API_KEY`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `SENTRY_AUTH_TOKEN`), and `taintObject` one object by reference. `lib/env.ts`'s secret getters taint what they return, `payload.config.ts` taints the list once, and `lib/medusa/customer.ts` taints Medusa's customer and the DTO made from it (their fields still pass one by one; no page passes the whole object). Outside React's experimental server build the functions do nothing.
+
+**Built with `taint: true` beside Cache Components it works:** a page that handed `env.STOREFRONT_SIGNING_SECRET`, or a tainted object, to a Client Component failed with the secret's name (never its value) and the HTML held none of it (a throwaway page, removed). **But it is off:** Next turns it on only with React's experimental build, for the browser too, and every first load grows by **6.5 KB gzipped** (keyless: the product page 344.3 KB against its 339 KB budget, the listings 344.9 against 340). `taint: true` in `next.config.ts` is the whole switch; the decision is the owner's.
+
+### First load
+
+Keyless, against `main`'s T108 numbers: the product page **337.8 KB** (+0.7), the listings **338.5 KB** (+0.7): the consent island's server action and the header's mark read in every build. Both pass `check:first-load`. T113 measures the keyed build.
+
+### Checks (cloud VM)
+
+- `payment-session-filter.spec.ts`: 5 of 5 (the owner's read has both keys and a second customer's neither; 14 writes by the other customer, a signed call and an anonymous one answer 403; the owner completes, the other cannot; a guest cart's unsigned read has neither and its signed read both; every route of the list).
+- `admin-mfa.spec.ts`: 5 of 5 (enrolment with a code the test computes, RFC 6238; a sign-in with a code, the password alone reaching no admin route; a wrong code; the sixth code in 15 minutes refused with 429 and `Retry-After: 900` although right, and passing once the counter is cleared; the enrolment's and the turn-off's codes on the same counter; a recovery code once, the other still good).
+- `consent.spec.ts`: 9 of 9 (T97's five, the cookie compared without its id, and T109's four: one record per choice, change and withdrawal under the cookie's one id, with the market and language; without scripts the policy page's form saves, records and comes back; the table's columns hold no address, browser, customer or user, and an anonymous `GET` or `POST /api/consent-records`, and the admin's `POST`, answer 403; the job deletes a 14-month-old record and keeps a 12-month one). The test-only route `/next/e2e/consent-records` lists the columns, ages a record and runs the job.
+- `auth.spec.ts`: 5 of 5, with the new held-cart test (an expired session's cart on the cart page and the checkout's contact step, with and without scripts; the sign-in comes back to the cart with its line and the header's count).
+- The checkout suites (`checkout-us`, `checkout-cy`, `checkout-variants`) and `ui-strings.spec.ts` (828) green; **Stripe's live specs with the session's test keys** (`stripe-checkout`, `stripe-saved`, `stripe-express`, the webhook's CI stand-in secret): 12 of 12, a guest's card, 3-D Secure, a decline, Revolut Pay, a changed cart and a promotion on the review page, the Express rail and Link, and a signed-in customer's saved card and saved Revolut Pay.
+- Unit: the backend's trust-proxy test; scripts 31 files (the CORS parser against Medusa's, doctor's `mfa-key` and `cors`, the Railway lists); the storefront's 239 files (the taint helpers with and without React's API).
+- Run beside these on the VM, and failing for this VM's setup, not T109: `catalog.spec.ts`'s listing pages (CI runs with `STOREFRONT_LISTING_PAGE_SIZE=3`), a journal check that found an earlier run's post, and one variant's draw that timed out in a full run.
+
+### Mutations (each fails a check)
+
+1. The filter removed (`shapeBody` returns the answer as it is): 3 of `payment-session-filter.spec.ts`'s 5 fail (the owner-only read, the guest's signed read, the route table).
+2. The owner check removed: 3 fail (the 403s, the other customer's completion, the route table).
+3. An `ip` column on `consent_records`: the columns test fails naming it.
+4. The challenge route's limiter removed: `admin-mfa.spec.ts`'s sixth-code test fails.
+
+### Known limits
+
+- The filter reads only sessions' and payments' `data`; anything else a cart answers (its metadata) is as before.
+- A guest cart's secrets reach any call the shop's server signs: the server is trusted with them, as it was.
+- Medusa cannot require two-factor sign-in, nor list who has it on (above).
+
+### For T113 and T115
+
+- **T113:** the keyless first load is 0.7 KB up on both budgets (above); the keyed numbers are T113's to measure. React's taint would cost 6.5 KB if it is ever turned on.
+- **T115:** `AUTH_MFA_ENCRYPTION_KEY` is set by `pnpm staging:secrets` (T114) and checked by `doctor --app=backend` (`mfa-key`); the first admin enrols in Medusa Admin's profile before staging is shared. `doctor`'s `cors` check runs in Railway's predeploy against the real lists. The consent records' retention job runs on the worker's tick.
