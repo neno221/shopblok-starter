@@ -184,7 +184,12 @@ export function e2eRoutesEnabled(source: RawEnv = env): boolean {
   if (source.E2E_TEST_ROUTES !== "true") return false;
   const vercelEnv = (source.VERCEL_ENV ?? "").trim();
   if (vercelEnv === "preview") return true;
-  return vercelEnv !== "production" && (source.DEPLOY_ENV ?? "").trim() !== "production";
+  if (vercelEnv === "production") return false;
+  // Fails closed (PR 147 review, item 3): a `DEPLOY_ENV` other than `staging` (`production`, or a
+  // typo such as `Production`, which `deployEnv()` would refuse) keeps the routes shut. Not
+  // `deployEnv()` itself: CI's `next start` has `NODE_ENV=production` and no `DEPLOY_ENV`.
+  const named = (source.DEPLOY_ENV ?? "").trim();
+  return named === "" || named === "staging";
 }
 
 /**

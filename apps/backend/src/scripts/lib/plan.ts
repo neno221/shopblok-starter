@@ -260,10 +260,16 @@ export function demoRefusal(env: Record<string, string | undefined>): string | u
       ? undefined
       : "seed-demo-catalog runs on staging only with SEED_DEMO=true set for that run (M7 D133).";
   }
-  if (stage === "production")
-    return `seed-demo-catalog is for development and staging only (D7, M7 D133) and won't run on production (${
-      (env.DEPLOY_ENV ?? "").trim() === "production" ? "DEPLOY_ENV" : "NODE_ENV"
-    }=production).`;
+  if (stage === "production") {
+    // The variable that decided, in deployEnv's order (PR 147 review, item 7).
+    const cause =
+      (env.DEPLOY_ENV ?? "").trim() === "production"
+        ? "DEPLOY_ENV"
+        : (env.VERCEL_ENV ?? "").trim() === "production"
+          ? "VERCEL_ENV"
+          : "NODE_ENV";
+    return `seed-demo-catalog is for development and staging only (D7, M7 D133) and won't run on production (${cause}=production).`;
+  }
   if (!isDevelopmentEnv(env.NODE_ENV))
     return `seed-demo-catalog is for development only (D7) and won't run with NODE_ENV=${env.NODE_ENV}; on staging, set DEPLOY_ENV=staging and SEED_DEMO=true (M7 D133).`;
   return undefined;

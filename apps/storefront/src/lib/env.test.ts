@@ -209,6 +209,11 @@ describe("e2eRoutesEnabled (the gate of the test-only routes)", () => {
       false,
     );
     expect(e2eRoutesEnabled({ ...on, VERCEL_ENV: "preview" })).toBe(true);
+    // PR 147 review, item 3: a mistyped DEPLOY_ENV fails closed.
+    for (const DEPLOY_ENV of ["prod", "Production", " production "])
+      expect(e2eRoutesEnabled({ ...on, DEPLOY_ENV }), DEPLOY_ENV).toBe(false);
+    expect(e2eRoutesEnabled({ ...on, DEPLOY_ENV: "staging" })).toBe(true);
+    expect(e2eRoutesEnabled({ ...on, NODE_ENV: "production" })).toBe(true);
     expect(e2eRoutesEnabled({ ...on, VERCEL_ENV: "preview", DEPLOY_ENV: "production" })).toBe(true);
     // CI's servers: a production build with neither name.
     expect(e2eRoutesEnabled(on)).toBe(true);

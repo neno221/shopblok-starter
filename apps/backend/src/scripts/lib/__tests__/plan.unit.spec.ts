@@ -237,7 +237,9 @@ describe("demoRefusal (D7, M7 D133)", () => {
     expect(demoRefusal({ DEPLOY_ENV: "production", SEED_DEMO: "true" })).toMatch(
       /\(DEPLOY_ENV=production\)/,
     );
-    expect(demoRefusal({ VERCEL_ENV: "production", SEED_DEMO: "true" })).toMatch(/production/);
+    expect(demoRefusal({ VERCEL_ENV: "production", SEED_DEMO: "true" })).toMatch(
+      /\(VERCEL_ENV=production\)/,
+    );
   });
 
   it("runs it on staging only with SEED_DEMO=true", () => {

@@ -387,7 +387,7 @@ function e2eRoutesCheck(envs: AppEnvs): Check[] {
       title: "Test-only routes",
       level: named ? "error" : "warn",
       message: named
-        ? `E2E_TEST_ROUTES is true on a production deployment (${said}): anyone could read and revalidate its cache through /next/e2e.`
+        ? `E2E_TEST_ROUTES is true on a production deployment (${said}). The storefront ignores it there and keeps /next/e2e shut, but a flag left on a production deployment is a mistake to remove before it is copied anywhere else.`
         : `E2E_TEST_ROUTES is true with ${said}: /next/e2e answers. Only CI's test servers and Vercel previews should open it.`,
       details: ["apps/storefront: E2E_TEST_ROUTES=true"],
       fix: "Remove E2E_TEST_ROUTES from this environment; it belongs only on CI's servers and on a Vercel preview.",

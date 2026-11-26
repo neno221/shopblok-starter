@@ -10624,7 +10624,7 @@ On 2.23.0: backend unit 346, the plugin 57, `backend-integration` 107 of 107, ty
 
 - **Next** 16.4.5 → 16.4.6 and `eslint-config-next` with it: no change in our code. First load of the product page 336.5 KB (budget 339), no route over its budget.
 - **Payload** 3.93.0 → 3.94.2, every `@payloadcms/*` at one version (`check:workspace`). Two of its changes touch us:
-  - **3.94.1 (#19372) shortens long foreign key names** to a hashed form, so `payload migrate:create` found 152 constraints to drop and re-add. The migration `20261126_101550_payload_394_constraint_names` does that and changes no data; `migrate:create --skip-empty` afterwards writes nothing.
+  - **3.94.1 (#19372) shortens long foreign key names** to a hashed form, so `payload migrate:create` found 76 constraints to drop and re-add. The migration `20261126_101550_payload_394_constraint_names` does that and changes no data; `migrate:create --skip-empty` afterwards writes nothing.
   - **The CSV export now escapes a text a spreadsheet would read as a formula** (`escapeCSVFormulaString`: one starting with `=`, `+`, `-`, `@`, their full-width forms, or a tab or line break gets a leading `'`). The UI strings' `+{count, number}` came back from a round trip as a change, so `ui-strings.spec.ts`'s import updated two rows instead of one (CI run 45801035633). `checkImportedStrings` now takes that `'` off a cell before comparing (`unescapeFormula`, with unit tests), so an untouched export still saves nothing, and the export stays safe to open.
 - **React** 19.3.0 → 19.3.1 in the storefront, `packages/ui` and `packages/emails` (`@types/react` stays 19.3.0); the `packageExtensions` peer range for `@payloadcms/next` admits `^19.3.1`.
 - **Node:** Payload 3.94 declares `^22.23.5 || ^24.22.3`, so `.nvmrc` is v22.23.5, the root's and the plugin's `engines` are `>=22.23.5 <23 || >=24.22.3 <25`, and CLOUD.md's setup step 1 installs 22.23.5. **This differs from D152's "Node 22.23.4 unchanged"**; the laptop's portable Node in `C:\Users\User\.devtools` (22.23.4) needs 22.23.5 before a local run or W9.
@@ -10696,3 +10696,15 @@ CLOUD.md's new section "Hosts and names for M7" lists six hosts (`docs.railway.c
 | The run's wall clock | 27.0 min (09:58:26 to 10:25:27 UTC), `e2e-smoke`'s |
 
 `e2e-smoke` took 22:01 at `0713755` and 26:41 here on the same suites: the runners' spread (T103's note) is wider than two minutes. The history's `size-pack` on a full clone (`git clone --bare`, `git count-objects -vH`) at `19c97c7`, 896 commits: **160.01 MiB** (159.69 MiB at `0713755`).
+
+### Changes from the review of this PR (PR 147)
+
+`reviews/pr-147-code-review.md` in the project's files: two must-fix findings, fixed; of the eight optional, the security finding and the four cleanups fixed, three others skipped by the review rule.
+1. An untouched CSV round trip stripped a real leading `'` (a stored `'- 20 %` is exported unchanged and came back as `- 20 %`): `importedText` takes the `'` off only when the stored text does not start with one, and a cell equal to the stored text in either form is unchanged.
+2. A JSON import lost a leading `'` too: the escape is undone only for `format: "csv"`, the only format Payload escapes. Unit tests for both, and for a JSON row kept as typed.
+3. (security) `e2eRoutesEnabled` failed open on a mistyped `DEPLOY_ENV` (`Production`, `prod`): any `DEPLOY_ENV` other than `staging` now keeps `/next/e2e` shut (not through `deployEnv()`, since CI's `next start` has `NODE_ENV=production` and no `DEPLOY_ENV`).
+4. (cleanup) Doctor's `e2e-test-routes` error no longer says the cache is exposed there: the storefront ignores the flag on production by name, and the message says to remove it.
+5. (cleanup) The Payload migration renames 76 foreign keys, not 152 (that counted both directions): its header and the section above say 76.
+6. (cleanup) `seed-demo-catalog.ts`'s header describes the staging case.
+7. (cleanup) `demoRefusal` names the variable that decided (`DEPLOY_ENV`, `VERCEL_ENV` or `NODE_ENV`).
+8. to 10. Skipped (other): `NODE_ENV` untrimmed in the storefront's last step, doctor's Stripe checks with an invalid `DEPLOY_ENV`, and the seed's advice for `VERCEL_ENV=development`.

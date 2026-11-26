@@ -40,11 +40,11 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
  */
 function cellText(cell: unknown): string | null {
   if (cell === undefined || cell === null || cell === "") return null;
-  return typeof cell === "string" ? unescapeFormula(cell) : String(cell);
+  return typeof cell === "string" ? cell : String(cell);
 }
 
 /**
- * Payload 3.94's export puts a `'` before a text that a spreadsheet would read as a formula (one
+ * Payload 3.94's CSV export puts a `'` before a text that a spreadsheet would read as a formula (one
  * starting with `=`, `+`, `-` or `@`, or a tab or line break: `escapeCSVFormulaString`), so that
  * opening the file runs nothing. The import takes that `'` off again, so a round trip of an
  * untouched export still changes nothing (M7 T105): "- 20 %" stays "- 20 %", not "'- 20 %".
@@ -52,6 +52,25 @@ function cellText(cell: unknown): string | null {
 const ESCAPED_FORMULA = /^'(?:\s*[=+\-@＝＋－＠]|[\t\r\n])/u;
 export const unescapeFormula = (text: string): string =>
   ESCAPED_FORMULA.test(text) ? text.slice(1) : text;
+
+/**
+ * A cell's text against what is stored (PR 147 review, items 1 and 2). Only a CSV file carries the
+ * export's escape, so a JSON file's text is taken as it is. In a CSV file a text that already
+ * started with `'` is exported unchanged (`'- 20 %` stays `'- 20 %`), so the `'` is taken off only
+ * when the stored text does not start with one itself, and a cell equal to the stored text in
+ * either form is unchanged.
+ */
+export function importedText(
+  cell: unknown,
+  stored: string | null,
+  format: string | undefined,
+): string | null {
+  const text = cellText(cell);
+  if (text === null || format !== "csv" || text === stored) return text;
+  const unescaped = unescapeFormula(text);
+  if (unescaped === stored) return stored;
+  return stored?.startsWith("'") ? text : unescaped;
+}
 
 /**
  * What an import of `ui-strings` writes (D77), per batch, before the plugin saves it. The plugin
@@ -77,7 +96,12 @@ export const unescapeFormula = (text: string): string =>
  *   only, `adminOnly("imports")`; a new key comes from the code), so every row number in the
  *   summary is the file's.
  */
-export const checkImportedStrings: ImportBeforeHook = async ({ batchNumber, data, req }) => {
+export const checkImportedStrings: ImportBeforeHook = async ({
+  batchNumber,
+  data,
+  format,
+  req,
+}) => {
   const rows = data as Record<string, unknown>[];
   const keys = rows.flatMap((row) => (typeof row["key"] === "string" ? [row["key"]] : []));
   const { docs } = await req.payload.find({
@@ -118,14 +142,16 @@ export const checkImportedStrings: ImportBeforeHook = async ({ batchNumber, data
     }
     const changed: Record<string, string | null> = {};
     for (const [locale, cell] of Object.entries(cells ?? {})) {
-      const next = cellText(cell);
-      if (next === (doc.value?.[locale] ?? null)) continue;
+      const held = doc.value?.[locale] ?? null;
+      const next = importedText(cell, held, format);
+      if (next === held) continue;
       const problem = next === null ? null : messageProblem(next, doc.source?.message ?? next);
       if (problem === null) changed[locale] = next;
       else
         report(index, `value_${locale}: ${problem}`, { key: doc.key, [`value_${locale}`]: next });
     }
-    const note = "note" in row ? cellText(row["note"]) : (doc.note ?? null);
+    const note =
+      "note" in row ? importedText(row["note"], doc.note ?? null, format) : (doc.note ?? null);
     const update: Record<string, unknown> = {};
     if (Object.keys(changed).length > 0)
       update["value"] = { en: doc.value?.["en"] ?? null, ...changed };

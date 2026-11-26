@@ -1,6 +1,6 @@
 // Payload 3.94.1 (M7 T105): "(drizzle): backport long index and foreign key names to 3.x" (#19372).
 // A foreign key whose generated name is longer than Postgres's 63 bytes now gets a short name with a
-// hash (`…_6c9f2c1e_fk`) instead of the name Postgres truncated. 152 of ours are renamed: each is
+// hash (`…_6c9f2c1e_fk`) instead of the name Postgres truncated. 76 of ours are renamed: each is
 // dropped and added again on the same columns, with the same ON DELETE; no data changes.
 import { MigrateUpArgs, MigrateDownArgs, sql } from "@payloadcms/db-postgres";
 
