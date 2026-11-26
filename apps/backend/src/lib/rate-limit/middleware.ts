@@ -97,3 +97,57 @@ export function rateLimit(name: RuleName, keyOf?: KeyOf) {
     refuse(res, verdict.retryAfterSeconds);
   };
 }
+
+export type AuthStep = "login" | "register" | "reset";
+
+type Limited = ReturnType<typeof rateLimit>;
+
+/**
+ * Which rule guards an e-mail-and-password step, per actor. Medusa serves these routes from
+ * `/auth/[actor_type]/[auth_provider]/…`, and Express matches a path on the raw URL but decodes its
+ * parameters: a fixed matcher such as `/auth/customer/emailpass` misses `/auth/customer/%65mailpass`,
+ * which Medusa still serves as `emailpass` (the review of PR 153). So the limiter sits on Medusa's
+ * own parameterised paths and reads the decoded parameters, as the route does.
+ */
+const AUTH_RULES = new Map<string, Partial<Record<AuthStep, Limited>>>([
+  [
+    "customer",
+    {
+      login: rateLimit("customer-login", emailFrom("email")),
+      register: rateLimit("customer-register"),
+      reset: rateLimit("customer-reset", emailFrom("identifier")),
+    },
+  ],
+  [
+    "user",
+    {
+      login: rateLimit("admin-login", emailFrom("email")),
+      reset: rateLimit("admin-reset", emailFrom("identifier")),
+    },
+  ],
+]);
+
+const lowerParam = (req: MedusaRequest, name: string): string => {
+  const value = (req.params as Record<string, unknown> | undefined)?.[name];
+  return typeof value === "string" ? value.toLowerCase() : "";
+};
+
+/**
+ * The limit for `step` on `POST /auth/:actor_type/:auth_provider[/register|/reset-password]`: the
+ * decoded actor picks the rule (`customer`, Medusa Admin's `user`) for the `emailpass` provider.
+ * Any other actor or provider passes (`/auth/verification/request` has its own rule; Medusa refuses
+ * an actor or provider it does not know).
+ */
+export function authRateLimit(step: AuthStep) {
+  return function authLimited(
+    req: MedusaRequest,
+    res: MedusaResponse,
+    next: MedusaNextFunction,
+  ): void | Promise<void> {
+    if (lowerParam(req, "auth_provider") !== "emailpass") return next();
+    const limited = AUTH_RULES.get(lowerParam(req, "actor_type"))?.[step];
+    if (limited === undefined) return next();
+    return limited(req, res, next);
+  };
+}
+

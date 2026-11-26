@@ -69,7 +69,12 @@ export const RULES = {
   },
   "customer-reset": resetRequest("customer-reset"),
   "verification-request": {
-    counters: [counter("verification-request:email", 5, HOUR, "key")],
+    // 5 an hour per e-mail, and (the review of PR 153) 20 an hour per address, since the caller
+    // picks the e-mail.
+    counters: [
+      counter("verification-request:email", 5, HOUR, "key"),
+      counter("verification-request:address", 20, HOUR, "address"),
+    ],
     storefront: false,
   },
   "verification-confirm": {
@@ -112,7 +117,12 @@ export const RULES = {
     storefront: true,
   },
   "payload-login": {
-    counters: [counter("payload-login:address-email", 10, 15 * MINUTE, "address-key")],
+    // As `signIn()`: 10 per 15 minutes per address and e-mail, and (the review of PR 153) 30 per
+    // address, so one address cannot try 10 passwords on every editor's e-mail.
+    counters: [
+      counter("payload-login:address-email", 10, 15 * MINUTE, "address-key"),
+      counter("payload-login:address", 30, 15 * MINUTE, "address"),
+    ],
     storefront: true,
   },
   "payload-reset": {

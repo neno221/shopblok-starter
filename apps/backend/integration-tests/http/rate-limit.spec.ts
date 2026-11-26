@@ -95,6 +95,71 @@ medusaIntegrationTestRunner({
         expect((await login(visitor().address)).status).toBe(401);
       });
 
+      it.each([
+        ["the customer's sign-in", LOGIN, "/auth/customer/%65mailpass", 401],
+        ["Medusa Admin's sign-in", ADMIN_LOGIN, "/auth/user/%65mailpass", 401],
+        ["the customer's sign-in, with two letters encoded", LOGIN, "/auth/%63ustomer/emailp%61ss", 401],
+      ])(
+        "counts %s on a percent-encoded path on the same counter",
+        async (_name, plain, encoded, status) => {
+          const { address, email } = visitor();
+          const login = (path: string) =>
+            post(path, { email, password: "wrong" }, signed(address, "POST", path));
+
+          expect(await statuses(5, () => login(plain))).toEqual(Array(5).fill(status));
+          expect(await statuses(5, () => login(encoded))).toEqual(Array(5).fill(status));
+          expect((await login(encoded)).status).toBe(429);
+          expect((await login(plain)).status).toBe(429);
+        },
+      );
+
+      it("counts a percent-encoded register and reset on the same counters", async () => {
+        const { address } = visitor();
+        const register = (path: string, n: number) =>
+          post(
+            path,
+            { email: `register${n}@example.com`, password: "secret-password-1" },
+            signed(address, "POST", path),
+          );
+        const paths = ["/auth/customer/emailpass/register", "/auth/customer/%65mailpass/register"];
+        const results: number[] = [];
+        for (let n = 0; n < 5; n += 1) results.push((await register(paths[n % 2]!, n)).status);
+        expect(results).not.toContain(429);
+        expect((await register(paths[1]!, 5)).status).toBe(429);
+
+        const reset = (path: string) =>
+          post(path, { identifier: "nobody@example.com" }, signed(address, "POST", path));
+        const resets = ["/auth/user/emailpass/reset-password", "/auth/user/%65mailpass/reset-password"];
+        const resetResults: number[] = [];
+        for (let n = 0; n < 3; n += 1) resetResults.push((await reset(resets[n % 2]!)).status);
+        expect(resetResults).not.toContain(429);
+        expect((await reset(resets[1]!)).status).toBe(429);
+      });
+
+      it("limits verification requests per address, whatever e-mail each names", async () => {
+        // Medusa answers 401 before the limiter without a registration token, so a caller with one.
+        const registered = await post(
+          "/auth/customer/emailpass/register",
+          { email: visitor().email, password: "secret-password-1" },
+          signed(visitor().address, "POST", "/auth/customer/emailpass/register"),
+        );
+        expect(registered.status).toBe(200);
+        const authorization = `Bearer ${registered.data.token as string}`;
+        const { address } = visitor();
+        const PATH = "/auth/verification/request";
+        const ask = (n: number) =>
+          post(
+            PATH,
+            { entity_id: `someone${n}@example.com`, entity_type: "email" },
+            { authorization, ...signed(address, "POST", PATH) },
+          );
+
+        const results: number[] = [];
+        for (let n = 0; n < 20; n += 1) results.push((await ask(n)).status);
+        expect(results).not.toContain(429);
+        expect((await ask(20)).status).toBe(429);
+      });
+
       it("keys an unsigned call on the caller's own address", async () => {
         const { email } = visitor();
         const unsigned = () => post(LOGIN, { email, password: "wrong" });

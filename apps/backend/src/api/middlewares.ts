@@ -12,7 +12,8 @@ import { MedusaError } from "@medusajs/framework/utils";
 
 import { createHash } from "node:crypto";
 
-import { emailFrom, paramFrom, rateLimit } from "../lib/rate-limit/middleware";
+import { processLimiter } from "../lib/rate-limit/limiter";
+import { authRateLimit, emailFrom, paramFrom, rateLimit } from "../lib/rate-limit/middleware";
 import { reportRequestError } from "../lib/sentry";
 import { securityHeaders } from "./security-headers";
 import { confirmVerificationAgain } from "./auth/verification-again";
@@ -30,6 +31,10 @@ import { localizeStoreSearch } from "./store/search/locale";
 // M6 D125 (T96): Medusa's own error handler answers every error; before it, a 5xx goes to Sentry
 // when `SENTRY_DSN` is set (`lib/sentry.ts`; without it nothing is sent).
 const medusaErrorHandler = errorHandler();
+
+// M7 D142 (T108): the limiter (and its Redis connection) is made as the routes load, so it is
+// connected before the first request (the review of PR 153).
+processLimiter();
 
 export default defineMiddlewares({
   // Express 5's `ErrorRequestHandler` returns `unknown` (Medusa 2.23); Medusa's handler answers
@@ -50,20 +55,23 @@ export default defineMiddlewares({
     // reset, cart completion per cart, and the rest of `/store/*`. Each keys on the address the
     // storefront signed (`x-shopblok-client`), or on the caller's own; an e-mail is hashed first.
     // T109 attaches `admin-code-check` to the routes Medusa's MFA adds.
+    // The sign-ins, the customer's register and the resets sit on Medusa's own parameterised paths
+    // and pick their rule from the decoded `actor_type` (`authRateLimit`), so a percent-encoded path
+    // such as `/auth/customer/%65mailpass` is counted too (the review of PR 153).
     {
       method: ["POST"],
-      matcher: "/auth/customer/emailpass",
-      middlewares: [rateLimit("customer-login", emailFrom("email"))],
+      matcher: "/auth/:actor_type/:auth_provider",
+      middlewares: [authRateLimit("login")],
     },
     {
       method: ["POST"],
-      matcher: "/auth/customer/emailpass/register",
-      middlewares: [rateLimit("customer-register")],
+      matcher: "/auth/:actor_type/:auth_provider/register",
+      middlewares: [authRateLimit("register")],
     },
     {
       method: ["POST"],
-      matcher: "/auth/customer/emailpass/reset-password",
-      middlewares: [rateLimit("customer-reset", emailFrom("identifier"))],
+      matcher: "/auth/:actor_type/:auth_provider/reset-password",
+      middlewares: [authRateLimit("reset")],
     },
     {
       method: ["POST"],
@@ -74,16 +82,6 @@ export default defineMiddlewares({
       method: ["POST"],
       matcher: "/auth/verification/confirm",
       middlewares: [rateLimit("verification-confirm")],
-    },
-    {
-      method: ["POST"],
-      matcher: "/auth/user/emailpass",
-      middlewares: [rateLimit("admin-login", emailFrom("email"))],
-    },
-    {
-      method: ["POST"],
-      matcher: "/auth/user/emailpass/reset-password",
-      middlewares: [rateLimit("admin-reset", emailFrom("identifier"))],
     },
     {
       method: ["POST"],

@@ -20,6 +20,9 @@ export interface CounterStore {
 
 export type Warn = (message: string) => void;
 
+/** How long a fresh process's first hits wait for Redis's first connection (the command timeout). */
+export const FIRST_CONNECT_WAIT_MS = 1_000;
+
 /** How often the "Redis cannot be reached" warning may be logged. */
 export const WARN_EVERY_MS = 60_000;
 
@@ -84,6 +87,13 @@ type HitClient = Redis & {
 export class RedisStore implements CounterStore {
   readonly #client: HitClient;
   readonly #warn: Warn;
+  /**
+   * Settles when the first connection is up or has failed. Until then a hit waits for it (at most
+   * `FIRST_CONNECT_WAIT_MS`), so a fresh process neither lets its first requests through nor logs a
+   * false outage (the review of PR 153). After it, a connection that is not up is an outage.
+   */
+  readonly #firstConnection: Promise<void>;
+  #settled = false;
 
   constructor(url: string, warn: Warn) {
     this.#warn = throttledWarn(warn);
@@ -99,6 +109,32 @@ export class RedisStore implements CounterStore {
     this.#client.defineCommand("shopblokRateLimitHit", { numberOfKeys: 1, lua: HIT_SCRIPT });
     // Without a listener ioredis prints every failed reconnection; the hits below say it once a minute.
     this.#client.on("error", (error: Error) => this.#unreachable(error));
+    this.#firstConnection = new Promise<void>((resolve) => {
+      const settle = () => {
+        this.#settled = true;
+        resolve();
+      };
+      this.#client.once("ready", settle);
+      this.#client.once("error", settle);
+      this.#client.once("end", settle);
+    });
+  }
+
+  #usable(): boolean {
+    return this.#client.status === "ready" || this.#client.status === "connect";
+  }
+
+  /** On a fresh process: waits for the first connection, at most `FIRST_CONNECT_WAIT_MS`. */
+  async #firstConnect(): Promise<void> {
+    if (this.#settled || this.#usable()) return;
+    let timer: NodeJS.Timeout | undefined;
+    await Promise.race([
+      this.#firstConnection,
+      new Promise<void>((resolve) => {
+        timer = setTimeout(resolve, FIRST_CONNECT_WAIT_MS);
+      }),
+    ]);
+    clearTimeout(timer);
   }
 
   #unreachable(error: unknown): undefined {
@@ -108,7 +144,10 @@ export class RedisStore implements CounterStore {
   }
 
   async hit(key: string, windowMs: number): Promise<Hit | undefined> {
-    if (this.#client.status !== "ready" && this.#client.status !== "connect") {
+    await this.#firstConnect();
+    if (!this.#usable()) {
+      // Still on its first try after the wait: not counted, but no outage yet (no warning).
+      if (!this.#settled) return undefined;
       return this.#unreachable(new Error(`connection ${this.#client.status}`));
     }
     try {

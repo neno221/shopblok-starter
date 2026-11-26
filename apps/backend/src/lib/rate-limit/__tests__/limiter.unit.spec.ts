@@ -1,3 +1,5 @@
+import { createServer, type AddressInfo } from "node:net";
+
 import { addressKey } from "../address";
 import { emailKey, Limiter } from "../limiter";
 import { RULES, STOREFRONT_RULES, isStorefrontRule } from "../rules";
@@ -29,6 +31,7 @@ describe("the limits table (D142)", () => {
       "customer-reset:address": [5, 60, "address"],
       "customer-reset:email": [3, 60, "key"],
       "verification-request:email": [5, 60, "key"],
+      "verification-request:address": [20, 60, "address"],
       "verification-confirm:address": [20, 60, "address"],
       "admin-login:address-email": [10, 15, "address-key"],
       "admin-login:address": [30, 15, "address"],
@@ -43,6 +46,7 @@ describe("the limits table (D142)", () => {
       "newsletter:email": [2, 1440, "key"],
       "consent:address": [30, 60, "address"],
       "payload-login:address-email": [10, 15, "address-key"],
+      "payload-login:address": [30, 15, "address"],
       "payload-reset:email": [3, 60, "key"],
       "form-no-script:address": [1, 60, "address"],
     });
@@ -154,6 +158,30 @@ describe("addressKey", () => {
     [undefined, "unknown"],
   ])("%s is %s", (address, key) => {
     expect(addressKey(address)).toBe(key);
+  });
+});
+
+describe("the Redis store, on a fresh process", () => {
+  it("counts the first hit once the connection is up, with no outage warning", async () => {
+    // A stand-in Redis that answers every command with the script's reply: count 1, 60 s left.
+    const server = createServer((socket) => {
+      socket.on("data", (chunk) => {
+        const commands = chunk.toString("latin1").match(/\*\d+\r\n\$/g)?.length ?? 0;
+        for (let i = 0; i < commands; i += 1) socket.write("*2\r\n:1\r\n:60000\r\n");
+      });
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const { port } = server.address() as AddressInfo;
+    const warnings: string[] = [];
+    const store = new RedisStore(`redis://127.0.0.1:${port}`, (message) => warnings.push(message));
+    try {
+      // The first hit comes while ioredis is still connecting.
+      expect(await store.hit("rl:test:key", 60_000)).toEqual({ count: 1, ttlMs: 60_000 });
+      expect(warnings).toEqual([]);
+    } finally {
+      await store.close();
+      await new Promise((resolve) => server.close(resolve));
+    }
   });
 });
 
