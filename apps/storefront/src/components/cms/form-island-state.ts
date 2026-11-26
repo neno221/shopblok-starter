@@ -1,3 +1,4 @@
+import type { FormRefusal } from "@shopblok/ui/lib/refusal";
 import type { FormState } from "../../lib/actions/form-state";
 
 // D81's islands: each draws a form with `useActionState` around the forms' server action
@@ -20,11 +21,27 @@ export type Island = {
   permalink?: string;
 };
 
-/** The section's props for a state: what to mark, what to type back. */
+/**
+ * Why the shop refused a post with no field to blame (M7 D142, D143): a rate limit, with the
+ * seconds to wait, or Turnstile's check; `undefined` for any other answer.
+ */
+export function refusalOf(state: FormState): FormRefusal | undefined {
+  if (state.status !== "error") return undefined;
+  if (state.form === "too-many") return { kind: "too-many", retryAfter: state.retryAfter ?? 60 };
+  if (state.form === "challenge") return { kind: "challenge" };
+  return undefined;
+}
+
+/** The section's props for a state: what to mark, what to type back, why it was refused. */
 export function shown(state: FormState, pending: boolean) {
   if (pending) return { status: "sending" as const };
   if (state.status !== "error") return { status: state.status };
-  return { status: "error" as const, errors: state.errors, values: state.values };
+  return {
+    status: "error" as const,
+    errors: state.errors,
+    values: state.values,
+    refusal: refusalOf(state),
+  };
 }
 
 /** What the address field shows: what was typed after a refusal, else empty. */

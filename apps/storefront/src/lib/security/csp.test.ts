@@ -100,9 +100,28 @@ describe("staticPolicy (D138)", () => {
     for (const host of CSP_HOSTS) {
       expect(host.why.length, host.source).toBeGreaterThan(20);
       expect(host.source).toMatch(/^https:\/\/(\*\.)?[a-z0-9.-]+$/);
-      const policy = staticPolicy({ ...keyless, stripe: true });
+      const policy = staticPolicy({ ...keyless, stripe: true, turnstile: true });
       expect(directives(policy).get(host.directive)).toContain(host.source);
     }
+  });
+
+  // M7 D143 (T108): Cloudflare's host only in a build with both of Turnstile's keys.
+  it("allows Turnstile's script and frame only with both of its keys", () => {
+    const off = directives(staticPolicy(keyless));
+    expect([...off.values()].flat()).not.toContain("https://challenges.cloudflare.com");
+    const on = directives(staticPolicy({ ...keyless, turnstile: true }));
+    expect(on.get("script-src")).toContain("https://challenges.cloudflare.com");
+    expect(on.get("frame-src")).toContain("https://challenges.cloudflare.com");
+    expect(on.get("connect-src")).not.toContain("https://challenges.cloudflare.com");
+    const site = { NEXT_PUBLIC_TURNSTILE_SITE_KEY: "1x00000000000000000000AA" };
+    const secret = { TURNSTILE_SECRET_KEY: "1x0000000000000000000000000000000AA" };
+    expect(cspSettings(site, false).policy).not.toContain("challenges.cloudflare.com");
+    expect(cspSettings({ ...site, ...secret }, false).policy).toContain(
+      "frame-src 'self' https://challenges.cloudflare.com",
+    );
+    expect(cspSettings({ ...site, ...secret }, false).noncePolicy).toContain(
+      "https://challenges.cloudflare.com",
+    );
   });
 });
 

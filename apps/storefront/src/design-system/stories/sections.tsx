@@ -331,6 +331,7 @@ function contactForm(
       {...samples[which]}
       {...state}
       copy={copy(ctx)}
+      locale={lang(ctx)}
       messages={{ note: <p>{note}</p> }}
       confirmation={<p>{confirmation}</p>}
     />

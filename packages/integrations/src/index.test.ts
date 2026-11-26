@@ -47,21 +47,22 @@ describe("getIntegrationStatus", () => {
     ]);
   });
 
-  // M7 T105 (D143): named before its code, so keys set for it change nothing until T108.
-  it("Turnstile is named but not wired: it arrives in T108, and its keys keep it on its fallback", () => {
+  // M7 T108 (D143): wired, so its two keys turn it on; one alone is half set and stays off.
+  it("Turnstile is wired: its keys turn it on, and one alone is half set", () => {
     const keys = { NEXT_PUBLIC_TURNSTILE_SITE_KEY: "site", TURNSTILE_SECRET_KEY: "secret" };
     const off = byId(getIntegrationStatus(none), "turnstile");
     expect([off.wired, off.arrives, off.state, off.using]).toEqual([
-      false,
-      "T108",
+      true,
+      undefined,
       "fallback",
       "the rate limits alone",
     ]);
     const set = byId(getIntegrationStatus({ backend: {}, storefront: keys }), "turnstile");
-    expect([set.configured, set.state]).toEqual([true, "fallback"]);
-    expect(describeIntegration(set).why).toBe(
-      "the keys are set, but the Turnstile code arrives in T108",
-    );
+    expect([set.configured, set.state, set.using]).toEqual([
+      true,
+      "live",
+      "Turnstile and the rate limits",
+    ]);
     expect(
       byId(
         getIntegrationStatus({ backend: {}, storefront: { TURNSTILE_SECRET_KEY: "secret" } }),
@@ -74,9 +75,7 @@ describe("getIntegrationStatus", () => {
   // through its keys. A `wired: false` (or an `arrives`) here would keep an integration on its
   // fallback with every key set, and `integrations-live`'s done-when spec fails on it too.
   it.each(
-    getIntegrationStatus(none)
-      .filter((status) => status.id !== "turnstile")
-      .map((status) => [status.id, status] as const),
+    getIntegrationStatus(none).map((status) => [status.id, status] as const),
   )("%s is wired, and says no milestone it arrives in (M6's done-when)", (_id, status) => {
     expect(status.wired).toBe(true);
     expect(status.arrives).toBeUndefined();

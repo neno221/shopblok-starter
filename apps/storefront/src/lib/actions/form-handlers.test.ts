@@ -2,7 +2,7 @@
 // stores one. The form reads (`readForm`, `isFormPlaced`) and the Local API are stand-ins and the market map is the
 // seeded one, so nothing here touches Payload's database or the network.
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { formFields } from "../forms/fields";
 import { seeded } from "../markets/test-maps";
 
@@ -16,6 +16,11 @@ vi.mock("../cms/forms", () => ({
 }));
 const create = vi.fn();
 vi.mock("../cms/payload", () => ({ getPayloadClient: async () => ({ create }) }));
+// M7 D142 (T108): Medusa's answer for the storefront's limits (the real client is `rate-limit.test.ts`').
+const consumeLimit = vi.fn();
+vi.mock("../security/rate-limit", () => ({
+  consumeLimit: (...args: unknown[]) => consumeLimit(...args),
+}));
 
 const { submitFormAction, formState, postedFieldNames } = await import("./form-handlers");
 const { submitForm } = await import("./form");
@@ -34,6 +39,7 @@ beforeEach(() => {
   readForm.mockReset().mockResolvedValue(contact);
   placed.mockReset().mockResolvedValue([3, 7]);
   create.mockReset().mockResolvedValue({ id: 1 });
+  consumeLimit.mockReset().mockResolvedValue({ allowed: true });
 });
 
 describe("submitFormAction: a post to a form built in the admin (D81)", () => {
@@ -199,6 +205,70 @@ describe("submitForm and formState: the island's state (T67)", () => {
     expect(await submitForm(null, { status: "idle" }, new FormData())).toMatchObject({
       status: "error",
       errors: { market: "required", form: "required" },
+    });
+  });
+});
+
+// M7 D142, D143 (T108): Turnstile's token first, then the form's limit, then everything else.
+describe("submitFormAction: the limit and the challenge", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+  });
+
+  it("counts each post against the form's limit, keyed by the form", async () => {
+    await submitFormAction({ market: "en-us", form: "7", answers });
+    expect(consumeLimit).toHaveBeenCalledWith("form", "7");
+  });
+
+  it("refuses a post over the limit with the wait, before the spam trap or the form is read", async () => {
+    consumeLimit.mockResolvedValue({ allowed: false, retryAfter: 1234 });
+    const result = await submitFormAction({
+      market: "en-us",
+      form: "7",
+      answers: { ...answers, website: "https://spam.example" },
+    });
+    expect(result).toEqual({ ok: false, errors: {}, form: "too-many", retryAfter: 1234 });
+    expect(readForm).not.toHaveBeenCalled();
+    expect(create).not.toHaveBeenCalled();
+    expect(formState(result, answers, ["name"])).toEqual({
+      status: "error",
+      errors: {},
+      values: { name: "Ann" },
+      form: "too-many",
+      retryAfter: 1234,
+    });
+  });
+
+  it("with Turnstile's keys, refuses a token Cloudflare refuses before anything else", async () => {
+    vi.stubEnv("NEXT_PUBLIC_TURNSTILE_SITE_KEY", "2x00000000000000000000AB");
+    vi.stubEnv("TURNSTILE_SECRET_KEY", "2x0000000000000000000000000000000AA");
+    const siteverify = vi.fn(
+      async () => new Response(JSON.stringify({ success: false }), { status: 200 }),
+    );
+    vi.stubGlobal("fetch", siteverify);
+    const result = await submitFormAction({
+      market: "en-us",
+      form: "7",
+      answers: { ...answers, "cf-turnstile-response": "XXXX.DUMMY.TOKEN.XXXX" },
+    });
+    expect(result).toMatchObject({ ok: false, form: "challenge" });
+    expect(siteverify).toHaveBeenCalledTimes(1);
+    expect(consumeLimit).not.toHaveBeenCalled();
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  it("with Turnstile's keys, takes a post without a token under the no-script limit", async () => {
+    vi.stubEnv("NEXT_PUBLIC_TURNSTILE_SITE_KEY", "1x00000000000000000000AA");
+    vi.stubEnv("TURNSTILE_SECRET_KEY", "1x0000000000000000000000000000000AA");
+    expect(await submitFormAction({ market: "en-us", form: "7", answers })).toMatchObject({
+      ok: true,
+    });
+    expect(consumeLimit.mock.calls.map((call) => call[0])).toEqual(["form-no-script", "form"]);
+    consumeLimit.mockResolvedValueOnce({ allowed: false, retryAfter: 3000 });
+    expect(await submitFormAction({ market: "en-us", form: "7", answers })).toMatchObject({
+      form: "too-many",
+      retryAfter: 3000,
     });
   });
 });

@@ -17,8 +17,12 @@
 // the field instead of wrapping it, so the field says so (`data-truncate`, as the Select does). The
 // layout is a container query, so the
 // field and the button sit on one row when the form is wide, wherever it is placed; it needs a width
-// of its own (a block or a flex column, not a shrink-wrapped box). A server component: it only
-// formats, and the sending state is the caller's (`useActionState` in M3's wrapper).
+// of its own (a block or a flex column, not a shrink-wrapped box). When the shop refuses the
+// address with no fault in it (M7, T108: a rate limit, with how many minutes to wait, or a
+// Turnstile check that did not pass), an alert says why (`refusal`, `role="alert"`) and the field
+// is not marked; with Turnstile on, the shop's widget sits under the consent sentence (`challenge`). A
+// server component: it only formats, and the sending state is the caller's (`useActionState` in M3's
+// wrapper).
 import { formatMessage, type Messages } from "@shopblok/i18n";
 import type { NewsletterSignup } from "@shopblok/registry/contracts";
 import { Button } from "@shopblok/ui/atoms/button";
@@ -26,6 +30,7 @@ import { Input } from "@shopblok/ui/atoms/input";
 import { Link } from "@shopblok/ui/atoms/link";
 import { Spinner } from "@shopblok/ui/atoms/spinner";
 import { VisuallyHidden } from "@shopblok/ui/atoms/visually-hidden";
+import { minutesToWait, type FormRefusal } from "@shopblok/ui/lib/refusal";
 import { cn } from "@shopblok/ui/lib/utils";
 import { Field, FieldDescription, FieldLabel } from "@shopblok/ui/primitives/field";
 import { CheckIcon, CircleAlertIcon } from "lucide-react";
@@ -59,6 +64,10 @@ type NewsletterFormProps = Omit<
   fieldName?: string;
   /** Hidden inputs the shop posts with the address (T67: the spam trap), first in the form. */
   hiddenFields?: React.ReactNode;
+  /** With `error`: why the shop refused the address when it is not at fault (M7 D142, D143). */
+  refusal?: FormRefusal;
+  /** The shop's Turnstile widget (M7 D143), under the consent sentence; only when its keys are set. */
+  challenge?: React.ReactNode;
   /**
    * The privacy link's `prefetch` (next/link). Unset, Next prefetches the page's shell in a
    * production build; the design system passes `false` because its pages do not exist before M3.
@@ -82,6 +91,8 @@ function NewsletterForm({
   headingLevel = 3,
   fieldName = "email",
   hiddenFields,
+  refusal,
+  challenge,
   prefetch,
   className,
   ...props
@@ -93,6 +104,8 @@ function NewsletterForm({
   const Heading = `h${headingLevel}` as const;
   const sending = status === "sending";
   const failed = status === "error";
+  // A refusal is not the address's fault: the field is not marked then.
+  const blamed = failed && refusal === undefined;
   const [before = "", after = ""] = formatMessage(
     copy.consent,
     { privacy: LINK_SLOT },
@@ -141,8 +154,8 @@ function NewsletterForm({
             readOnly={sending}
             defaultValue={newsletter.email}
             data-truncate=""
-            aria-invalid={failed ? true : undefined}
-            aria-describedby={failed ? errorId : undefined}
+            aria-invalid={blamed ? true : undefined}
+            aria-describedby={blamed ? errorId : undefined}
             className="@md:flex-1"
           />
           <Button
@@ -166,6 +179,7 @@ function NewsletterForm({
           {after}
         </FieldDescription>
       </Field>
+      {challenge}
       <div role="status" aria-live="polite" data-slot="newsletter-form-status">
         {sending ? <VisuallyHidden>{copy.sending}</VisuallyHidden> : null}
         {status === "done" ? (
@@ -174,13 +188,27 @@ function NewsletterForm({
             <span className="min-w-0 wrap-break-word">{copy.done}</span>
           </p>
         ) : null}
-        {failed ? (
+        {blamed ? (
           <p id={errorId} className="flex items-start gap-2 text-sm leading-snug text-destructive">
             <CircleAlertIcon aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
             <span className="min-w-0 wrap-break-word">{copy.error}</span>
           </p>
         ) : null}
       </div>
+      {failed && refusal !== undefined ? (
+        <p
+          role="alert"
+          data-slot="newsletter-form-refusal"
+          className="flex items-start gap-2 text-sm leading-snug text-destructive"
+        >
+          <CircleAlertIcon aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+          <span className="min-w-0 wrap-break-word">
+            {refusal.kind === "too-many"
+              ? formatMessage(copy.tooMany, { minutes: minutesToWait(refusal.retryAfter) }, locale)
+              : copy.challenge}
+          </span>
+        </p>
+      ) : null}
     </form>
   );
 }

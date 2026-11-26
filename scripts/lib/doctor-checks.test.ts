@@ -43,12 +43,14 @@ const bootstrapped: AppEnvs = {
     MEDUSA_FF_CACHING: "true",
     PAYLOAD_API_KEY: "k",
     PAYLOAD_SERVER_URL: "http://localhost:8000",
+    STOREFRONT_SIGNING_SECRET: "g",
   },
   storefront: {
     PAYLOAD_SECRET: "p",
     PREVIEW_SECRET: "v",
     CRON_SECRET: "r",
     NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY: "pk_0123",
+    STOREFRONT_SIGNING_SECRET: "g",
   },
 };
 

@@ -213,8 +213,8 @@ const SPECS: readonly Spec[] = [
     wired: true,
   },
   {
-    // M7 D143, optional: Cloudflare's challenge on the forms and the sign-in pages, beside the rate
-    // limits (D142), which do the work without it. Named in T105; its code arrives in T108.
+    // M7 D143, optional: Cloudflare's challenge on the forms, the newsletter and registration,
+    // beside the rate limits (D142), which do the work without it (T108).
     id: "turnstile",
     name: "Turnstile",
     kind: "third-party",
@@ -227,8 +227,7 @@ const SPECS: readonly Spec[] = [
     ],
     live: "Turnstile and the rate limits",
     fallback: "the rate limits alone",
-    wired: false,
-    arrives: "T108",
+    wired: true,
   },
 ];
 

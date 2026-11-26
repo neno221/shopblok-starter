@@ -17,6 +17,7 @@
 import { formatMessage, type Messages } from "@shopblok/i18n";
 import type { AuthPage } from "@shopblok/registry/contracts";
 import { Button, buttonVariants } from "@shopblok/ui/atoms/button";
+import { minutesToWait } from "@shopblok/ui/lib/refusal";
 import { cn } from "@shopblok/ui/lib/utils";
 import {
   VerificationNotice,
@@ -134,7 +135,7 @@ function AuthTemplate({
         {errors.form === "too-many"
           ? formatMessage(
               words.formErrors["too-many"],
-              { minutes: Math.max(1, Math.ceil((errors.retryAfter ?? 60) / 60)) },
+              { minutes: minutesToWait(errors.retryAfter) },
               locale,
             )
           : words.formErrors[errors.form]}

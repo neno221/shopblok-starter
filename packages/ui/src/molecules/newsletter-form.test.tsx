@@ -234,12 +234,18 @@ describe("NewsletterForm", () => {
       rerender(<NewsletterForm {...props} status="done" />);
       // The same element, so a screen reader sees its text change rather than a new region.
       expect(statusRegion()).toBe(region);
-      expect(region.textContent).toBe("Thank you. Check your inbox: we sent you a link to confirm your subscription.");
+      expect(region.textContent).toBe(
+        "Thank you. Check your inbox: we sent you a link to confirm your subscription.",
+      );
     });
 
     it("says it is done in the region, in words", () => {
       setup("en", { status: "done" });
-      expect(within(statusRegion()).getByText("Thank you. Check your inbox: we sent you a link to confirm your subscription.")).toBeTruthy();
+      expect(
+        within(statusRegion()).getByText(
+          "Thank you. Check your inbox: we sent you a link to confirm your subscription.",
+        ),
+      ).toBeTruthy();
       expect(field().getAttribute("aria-invalid")).toBeNull();
       // Still a form that can be used again.
       expect((submit() as HTMLButtonElement).type).toBe("submit");
@@ -440,5 +446,37 @@ describe("NewsletterForm", () => {
     expect(onSubmit).not.toHaveBeenCalled();
     fireEvent.submit(container.querySelector("form")!);
     expect(onSubmit).toHaveBeenCalledTimes(1);
+  });
+
+  // M7 D142, D143 (T108): a refusal is an alert of its own, and the address is not blamed.
+  describe("a refusal", () => {
+    it.each(LOCALES)("says how long to wait in %s, without marking the field", (locale) => {
+      setup(locale, { status: "error", refusal: { kind: "too-many", retryAfter: 3600 } });
+      const alert = screen.getByRole("alert");
+      expect(plain(alert.textContent)).toBe(
+        plain(
+          formatMessage(
+            catalogs[locale].molecules.newsletterForm.tooMany,
+            { minutes: 60 },
+            htmlLang[locale],
+          ),
+        ),
+      );
+      expect(alert.getAttribute("data-slot")).toBe("newsletter-form-refusal");
+      expect(screen.getByRole("textbox").getAttribute("aria-invalid")).toBeNull();
+      expect(plain(statusRegion().textContent)).toBe("");
+    });
+
+    it("says Turnstile's refusal, and draws the shop's widget under the consent", () => {
+      setup("en", {
+        status: "error",
+        refusal: { kind: "challenge" },
+        challenge: <div data-testid="widget" />,
+      });
+      expect(screen.getByRole("alert").textContent).toBe(
+        catalogs.en.molecules.newsletterForm.challenge,
+      );
+      expect(screen.getByTestId("widget")).toBeTruthy();
+    });
   });
 });

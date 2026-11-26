@@ -11,7 +11,7 @@ export function FormBlockIsland({
   formId,
   permalink,
   ...section
-}: Island & Omit<FormBlockSectionProps, "action" | "status" | "errors" | "values" | "formId">) {
+}: Island & Omit<FormBlockSectionProps, "action" | "status" | "errors" | "values" | "refusal" | "formId">) {
   const [state, action, pending] = useActionState(submit, IDLE_FORM, permalink ?? `#${formId}`);
   return (
     <FormBlockSection {...section} {...shown(state, pending)} formId={formId} action={action} />

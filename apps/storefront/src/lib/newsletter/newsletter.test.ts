@@ -61,10 +61,17 @@ const payload = {
   logger: { warn: vi.fn(), error: vi.fn() },
 };
 vi.mock("../cms/payload", () => ({ getPayloadClient: async () => payload }));
+// M7 D142 (T108): Medusa's answer for the newsletter's limit.
+const consumeLimit = vi.fn(async (..._args: unknown[]) => ({ allowed: true }) as const);
+vi.mock("../security/rate-limit", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../security/rate-limit")>()),
+  consumeLimit: (...args: unknown[]) => consumeLimit(...args),
+}));
 
 const { readToken, signToken, tokenKey, TOKEN_LIFETIME_MS } = await import("./token");
 const { addToSegment, removeContact, resendContactsConfig } = await import("./resend-contacts");
 const { subscribeAction } = await import("./subscribe");
+const { emailKey } = await import("../security/rate-limit");
 const { confirmSubscription, readConfirmation } = await import("./confirm");
 
 const newsletter = {
@@ -259,6 +266,29 @@ describe("the sign-up: an e-mail with the link, nothing stored (D122)", () => {
     expect(result).toMatchObject({ ok: false, form: "unavailable" });
     expect(JSON.stringify(log.mock.calls)).not.toContain("secret@example.com");
     log.mockRestore();
+  });
+});
+
+// M7 D142 (T108): a sign-up that would send an e-mail is counted, by the address's SHA-256.
+describe("the sign-up's rate limit", () => {
+  it("counts a sign-up that would send, keyed by the address's hash, never the address", async () => {
+    consumeLimit.mockClear();
+    await subscribeAction({ market: "en-us", form: "3", answers: { email: " Ana@Example.com" } });
+    expect(consumeLimit).toHaveBeenCalledWith("newsletter", emailKey("ana@example.com"));
+    expect(JSON.stringify(consumeLimit.mock.calls)).not.toContain("ana@");
+    // A spam trap and a refused address are not counted.
+    consumeLimit.mockClear();
+    await subscribeAction({ market: "en-us", form: "3", answers: { email: "x", website: "y" } });
+    await subscribeAction({ market: "en-us", form: "3", answers: { email: "not-an-address" } });
+    expect(consumeLimit).not.toHaveBeenCalled();
+  });
+
+  it("refuses over the limit with the wait, and sends nothing", async () => {
+    consumeLimit.mockResolvedValueOnce({ allowed: false, retryAfter: 86000 } as never);
+    expect(
+      await subscribeAction({ market: "en-us", form: "3", answers: { email: "a@example.com" } }),
+    ).toEqual({ ok: false, errors: {}, form: "too-many", retryAfter: 86000 });
+    expect(payload.sendEmail).not.toHaveBeenCalled();
   });
 });
 

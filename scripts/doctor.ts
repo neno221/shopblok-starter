@@ -63,6 +63,7 @@ import {
   r2CorsCheck,
   r2PrivateCheck,
 } from "./lib/r2-checks.ts";
+import { SITEVERIFY_URL, turnstileSecretCheck } from "./lib/rate-limit-checks.ts";
 import { s3Url, signS3, type S3Keys } from "./lib/s3.ts";
 import { envValue } from "./lib/env-file.ts";
 import { run } from "./lib/exec.ts";
@@ -420,6 +421,7 @@ async function main(): Promise<number> {
       ),
       ...(await online.stripe),
       ...(await online.r2),
+      ...(await online.turnstile),
     );
   }
 
@@ -450,6 +452,8 @@ type OnlineRequests = {
   stripe: Promise<Check[]>;
   /** R2's checks (T95): each bucket, their CORS rules, the private files refused. */
   r2: Promise<Check[]>;
+  /** Turnstile's secret with Cloudflare's Siteverify (T108), when the storefront holds its keys. */
+  turnstile: Promise<Check[]>;
 };
 
 /**
@@ -504,7 +508,30 @@ function startOnlineRequests(
     posthog: posthogFlags(envs),
     stripe: stripeChecks(envs, medusaUrl, headers, app),
     r2: r2Checks(envs),
+    turnstile: turnstileChecks(envs, statuses, app),
   };
+}
+
+/**
+ * Turnstile (T108, D143): the storefront's secret posted to Siteverify with a token that is not
+ * one, which Cloudflare refuses either way and says why (`turnstileSecretCheck`). Nothing is stored.
+ */
+async function turnstileChecks(
+  envs: AppEnvs,
+  statuses: readonly IntegrationStatus[],
+  app: AppName | undefined,
+): Promise<Check[]> {
+  const live = statuses.find((status) => status.id === "turnstile")?.state === "live";
+  if (app === "backend" || !live) return [];
+  const answer = await request(SITEVERIFY_URL, {
+    method: "POST",
+    body: {
+      secret: (envs.storefront.TURNSTILE_SECRET_KEY ?? "").trim(),
+      response: "doctor-check",
+    },
+    timeoutMs: 15_000,
+  });
+  return [turnstileSecretCheck(answer)];
 }
 
 /** An app's keys for signing R2 requests (doctor's own checks; nothing is written). */

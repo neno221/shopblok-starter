@@ -164,6 +164,23 @@ describe("AuthTemplate", () => {
       expect(screen.queryByRole("alert")).toBeNull();
     });
 
+    // M7 D142 (T108): a rate limit's refusal says the wait in whole minutes, in the market's language.
+    it.each([
+      ["en", 600, "Too many attempts. Try again in 10 minutes."],
+      ["en", 30, "Too many attempts. Try again in 1 minute."],
+      ["el", 61, undefined],
+    ] as const)("says how long to wait in %s (%i s)", (locale, retryAfter, text) => {
+      renderAuth(locale, pageFixtures[locale].auth.login, {
+        errors: { form: "too-many", retryAfter },
+      });
+      const alert = screen.getByRole("alert");
+      if (text !== undefined) expect(alert.textContent).toBe(text);
+      else {
+        expect(alert.textContent).toContain("2");
+        expect(alert.textContent).not.toContain("{");
+      }
+    });
+
     it("links a field's error to its input, and marks the input invalid", () => {
       renderAuth("en", pageFixtures.en.auth.login, {
         errors: { fields: { email: "pattern", password: "required" } },
