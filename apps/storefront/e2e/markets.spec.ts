@@ -1,4 +1,5 @@
-import { expect, test, type APIResponse } from "@playwright/test";
+import type { APIResponse } from "@playwright/test";
+import { expect, test } from "./support/csp";
 import { catalogs } from "./support/catalogs";
 
 // T11: the proxy turns public market URLs into the internal `/{key}/…` routes (SPEC §8.1, §8.5).

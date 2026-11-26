@@ -1,5 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test, type Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
+import { expect, test } from "./support/csp";
 import { adminCredentials } from "./support/admin-credentials";
 import { collectConsole, judgeConsole, type FailedRequest, type Message } from "./support/console";
 import { focusIndicator } from "./support/focus-ring";

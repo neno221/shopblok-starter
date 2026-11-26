@@ -1,5 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test, type Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
+import { expect, test } from "./support/csp";
 import { adminToken, base } from "./support/server";
 
 // T63: a page with every content block, published through Payload's REST API as the bootstrap

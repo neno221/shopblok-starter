@@ -1,4 +1,5 @@
-import { expect, test, type Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
+import { expect, test } from "../support/csp";
 import { doctorOnline, skipWithoutKeys } from "../support/integration-keys";
 import { medusaUrl } from "../support/medusa-admin";
 import { sinkUse, startSink, type Sink, type SinkEvent } from "../support/sentry-sink";
