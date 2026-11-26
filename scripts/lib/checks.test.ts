@@ -94,6 +94,20 @@ describe("targetsFrom", () => {
     ]);
   });
 
+  it("with an app (doctor --app, M7 D135), checks only that app's services, and no Mailpit", () => {
+    expect(targetsFrom(env, "backend").map((t) => [t.kind, t.databases])).toEqual([
+      ["postgres", ["medusa"]],
+      ["redis", undefined],
+      ["meilisearch", undefined],
+    ]);
+    const deployed = {
+      PAYLOAD_DATABASE_URL: "postgres://u:p@shortline.proxy.rlwy.net:41234/railway",
+    };
+    expect(
+      targetsFrom(deployed, "storefront").map((t) => [t.kind, t.host, t.port, t.databases]),
+    ).toEqual([["postgres", "shortline.proxy.rlwy.net", 41234, ["payload"]]]);
+  });
+
   it("checks one Postgres once when both databases are on the same server", () => {
     const targets = targetsFrom(env).filter((t) => t.kind === "postgres");
     expect(targets).toHaveLength(1);

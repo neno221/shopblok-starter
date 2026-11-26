@@ -493,6 +493,69 @@ describe("configChecks: half-configured integrations", () => {
   });
 });
 
+describe("configChecks with an app (doctor --app, M7 D135)", () => {
+  const backendOnly: AppEnvs = { backend: bootstrapped.backend, storefront: {} };
+  const storefrontOnly: AppEnvs = { backend: {}, storefront: bootstrapped.storefront };
+  const scoped = (envs: AppEnvs, app: "backend" | "storefront", context: Partial<Context> = {}) =>
+    configChecks(envs, getIntegrationStatus(envs, { app }), { ...dev, app, ...context });
+  const ids = (checks: ReturnType<typeof run>) => checks.map((check) => check.id);
+
+  it("runs only the backend's checks, from the backend's variables alone", () => {
+    const checks = scoped(backendOnly, "backend");
+    expect(ids(checks)).toContain("payload-key");
+    expect(ids(checks)).not.toContain("publishable-key");
+    expect(ids(checks)).not.toContain("preview-cron-secrets");
+    expect(find(checks, "secrets")).toMatchObject({
+      level: "ok",
+      message: "JWT_SECRET and COOKIE_SECRET are set.",
+    });
+  });
+
+  it("runs only the storefront's checks, and finds no half-set Stripe for the other app's keys", () => {
+    const envs: AppEnvs = {
+      backend: {},
+      storefront: { ...bootstrapped.storefront, NEXT_PUBLIC_STRIPE_KEY: "pk_test_x" },
+    };
+    const checks = scoped(envs, "storefront");
+    expect(ids(checks)).toContain("publishable-key");
+    expect(ids(checks)).not.toContain("payload-key");
+    expect(ids(checks)).not.toContain("email-verification");
+    expect(ids(checks)).not.toContain("integration-stripe");
+    expect(find(checks, "secrets")?.message).toBe("PAYLOAD_SECRET is set.");
+  });
+
+  it("on a deployment, a blank secret is an error whatever NODE_ENV says", () => {
+    const envs: AppEnvs = { backend: { DEPLOY_ENV: "staging" }, storefront: {} };
+    expect(find(scoped(envs, "backend", { deployed: true }), "secrets")?.level).toBe("error");
+    expect(find(scoped(envs, "backend"), "secrets")?.level).toBe("warn");
+  });
+
+  it("on a deployment, checks the fingerprints and (storefront) Payload's TLS", () => {
+    const storefront = { ...bootstrapped.storefront, DEPLOY_ENV: "staging" };
+    const envs: AppEnvs = {
+      backend: {},
+      storefront: {
+        ...storefront,
+        PAYLOAD_DATABASE_URL: "postgres://u:p@h.proxy.rlwy.net:1/railway",
+      },
+    };
+    const checks = scoped(envs, "storefront", { deployed: true });
+    expect(find(checks, "secret-fingerprints")?.level).toBe("error");
+    expect(find(checks, "payload-database-tls")?.level).toBe("error");
+    const backend = scoped({ backend: { DEPLOY_ENV: "staging" }, storefront: {} }, "backend", {
+      deployed: true,
+    });
+    expect(find(backend, "secret-fingerprints")?.level).toBe("error");
+    expect(find(backend, "payload-database-tls")).toBeUndefined();
+  });
+
+  it("without an app, adds neither the fingerprints nor the TLS check in development", () => {
+    const checks = run(bootstrapped);
+    expect(find(checks, "secret-fingerprints")).toBeUndefined();
+    expect(find(checks, "payload-database-tls")).toBeUndefined();
+  });
+});
+
 describe("classifySearchField", () => {
   const stats = (field: string) => ({
     status: 200,
@@ -754,6 +817,16 @@ const timedOut: HttpResult = {
   kind: "unreachable",
   reason: "no answer within 15 s",
 };
+
+describe("payloadAuthCheck from the backend's deploy (M7 D135)", () => {
+  const url = "https://staging.example.vercel.app";
+  it("is an accepted note when Payload does not answer yet, and still an error when it refuses", () => {
+    expect(payloadAuthCheck(url, refused, { fromBackendDeploy: true }).level).toBe("note");
+    expect(payloadAuthCheck(url, json({ user: null }), { fromBackendDeploy: true }).level).toBe(
+      "error",
+    );
+  });
+});
 
 describe("payloadAuthCheck", () => {
   const url = "http://localhost:8000";

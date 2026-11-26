@@ -2,6 +2,7 @@
 # The entry point of Medusa's image (M7 D135, apps/backend/Dockerfile). One image, several jobs:
 #
 #   shopblok start          Medusa as MEDUSA_WORKER_MODE says (server, worker, or shared when unset)
+#   shopblok migrate        the migrations alone (`medusa db:migrate`), as CI's boot test runs them
 #   shopblok predeploy      Railway's pre-deploy command of the server: the migrations, then
 #                           `doctor --app=backend --strict --online`, then, while
 #                           SEED_ON_DEPLOY=medusa is set, the seed's Medusa half
@@ -39,6 +40,10 @@ case "$command" in
     cd "$SERVER_DIR"
     exec "$MEDUSA" start "$@"
     ;;
+  migrate)
+    cd "$SERVER_DIR"
+    exec "$MEDUSA" db:migrate --execute-safe-links --execute-safe-search
+    ;;
   predeploy)
     cd "$SERVER_DIR"
     "$MEDUSA" db:migrate --execute-safe-links --execute-safe-search
@@ -57,7 +62,7 @@ case "$command" in
     exec "$MEDUSA" exec "$@"
     ;;
   *)
-    echo "shopblok: unknown command \"$command\" (start, predeploy, doctor, seed-staging, exec)" >&2
+    echo "shopblok: unknown command \"$command\" (start, migrate, predeploy, doctor, seed-staging, exec)" >&2
     exit 2
     ;;
 esac

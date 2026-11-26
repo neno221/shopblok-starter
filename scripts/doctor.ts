@@ -2,7 +2,11 @@
 // `node scripts/doctor.ts` (Node 22.18+ strips the types, so no enums or parameter properties here),
 // on Linux, macOS and Windows. Never `pnpm doctor`: that is pnpm's own command.
 //
-//   pnpm run doctor [--online] [--json] [--strict] [--only=<ids>]
+//   pnpm run doctor [--online] [--json] [--strict] [--only=<ids>] [--app=backend|storefront]
+//
+// `--app` (M7 D135) is the deploys' mode: Railway's predeploy runs `--app=backend` inside Medusa's
+// image (bundled to /app/doctor/doctor.mjs, `apps/backend/Dockerfile`) and Vercel's build runs
+// `--app=storefront`, each with its own platform's variables only.
 //
 // It writes nothing: no file, no row, no migration. The one command it runs that touches the
 // database is `medusa exec src/scripts/doctor-markets.ts` (to read the markets module; M4b D97),
@@ -13,6 +17,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { inspectTargets, isLocalHost, targetsFrom } from "./lib/checks.ts";
+import { secretsOf } from "./lib/deploy-secrets.ts";
 import {
   configChecks,
   explainMedusaRun,
@@ -94,7 +99,7 @@ import {
 // ---------------------------------------------------------------------------------------------
 // Options and places
 
-const HELP = `pnpm run doctor [--online] [--json] [--strict] [--only=<ids>]
+const HELP = `pnpm run doctor [--online] [--json] [--strict] [--only=<ids>] [--app=backend|storefront]
 
 Checks the setup and says which integrations are on. Writes nothing. (Run it as \`pnpm run doctor\`:
 \`pnpm doctor\` is pnpm's own command.)
@@ -112,6 +117,11 @@ Checks the setup and says which integrations are on. Writes nothing. (Run it as 
   --strict   a warning fails the run too (the go-live check: SPEC §16, item 8), but for one these
              keys cannot clear, which says what to check by hand (R2's CORS rules with an Object
              Read & Write token)
+  --app=backend, --app=storefront
+             one app's checks only, from its own variables (the shell's, else its .env), as each
+             platform's deploy runs them (DEPLOY.md): the checks that compare the two apps are
+             skipped, and each shared secret is compared with SHOPBLOK_SECRET_FINGERPRINTS instead;
+             on a deployment, Payload's database must require TLS
   --only=stripe,posthog
              report and judge only these integrations' checks (CI's integrations-live job: the
              integrations whose keys it holds); the integrations table stays whole
@@ -120,7 +130,7 @@ Checks the setup and says which integrations are on. Writes nothing. (Run it as 
 Exit codes: 0 no error (and, with --strict, no warning but those to check by hand), 1 an error,
 2 a bad option. With --only, only those integrations' checks count.`;
 
-type Options = ReportOptions & { json: boolean };
+type Options = ReportOptions & { json: boolean; app?: AppName };
 
 /** `--only=stripe,posthog`: integration ids from the table, at least one; or what is wrong. */
 function parseOnly(list: string): IntegrationId[] | string {
@@ -146,6 +156,11 @@ function parseArgs(argv: string[]): Options | { error: string } | "help" {
       const only = parseOnly(arg.slice("--only=".length));
       if (typeof only === "string") return { error: only };
       options.only = only;
+    } else if (arg.startsWith("--app=")) {
+      const app = arg.slice("--app=".length);
+      if (app !== "backend" && app !== "storefront")
+        return { error: `--app is backend or storefront (not "${app}")` };
+      options.app = app;
     } else if (arg === "-h" || arg === "--help") return "help";
     else return { error: `Unknown option ${arg}` };
   }
@@ -181,6 +196,10 @@ const EXTRA_KEYS = [
   "PAYLOAD_DATABASE_URL",
   "MAILPIT_SMTP_PORT",
   "MAILPIT_UI_PORT",
+  // M7 D134: the generated secrets, compared with their fingerprints by `--app`.
+  "SHOPBLOK_SECRET_FINGERPRINTS",
+  ...secretsOf("backend").map(({ variable }) => variable),
+  ...secretsOf("storefront").map(({ variable }) => variable),
 ];
 
 function readAppEnv(text: string): EnvLike {
@@ -204,11 +223,26 @@ const trimSlash = (url: string): string => url.replace(/\/+$/, "");
  * database, so no server has to run. It only reads, and Medusa never creates a missing database.
  */
 async function readMarketsExec(): Promise<MarketsRead> {
-  const result = await run(
-    "pnpm",
-    ["--filter", "@shopblok/backend", "exec", "medusa", "exec", "./src/scripts/doctor-markets.ts"],
-    { cwd: root, env: { NO_COLOR: "1" }, timeoutMs: MEDUSA_RUN_TIMEOUT_MS },
-  );
+  // In Medusa's image (M7 D135) there is no workspace: the build's own `medusa`, in its folder.
+  const built = (process.env.DOCTOR_MEDUSA_DIR ?? "").trim();
+  const result = await (built !== ""
+    ? run(
+        path.join(built, "..", "..", "node_modules", ".bin", "medusa"),
+        ["exec", "./src/scripts/doctor-markets.js"],
+        { cwd: built, env: { NO_COLOR: "1" }, timeoutMs: MEDUSA_RUN_TIMEOUT_MS },
+      )
+    : run(
+        "pnpm",
+        [
+          "--filter",
+          "@shopblok/backend",
+          "exec",
+          "medusa",
+          "exec",
+          "./src/scripts/doctor-markets.ts",
+        ],
+        { cwd: root, env: { NO_COLOR: "1" }, timeoutMs: MEDUSA_RUN_TIMEOUT_MS },
+      ));
   const found = extractMarker<unknown>(result.output, "doctorMarkets");
   if (result.code === 0 && found !== undefined) {
     const overview = readMarketsOverview(found);
@@ -269,28 +303,38 @@ async function main(): Promise<number> {
   }
   const options = parsed;
 
-  const backendText = readText(backendEnvFile);
-  const storefrontText = readText(storefrontEnvFile);
+  const { app } = options;
+  const backendText = app === "storefront" ? "" : readText(backendEnvFile);
+  const storefrontText = app === "backend" ? "" : readText(storefrontEnvFile);
+  // `--app` (M7 D135): the other app's environment is not there (each platform holds one app's
+  // variables), so it is empty, never the shell's: the shell is this app's.
   const envs: AppEnvs = {
-    backend: readAppEnv(backendText),
-    storefront: readAppEnv(storefrontText),
+    backend: app === "storefront" ? {} : readAppEnv(backendText),
+    storefront: app === "backend" ? {} : readAppEnv(storefrontText),
   };
-  const statuses = getIntegrationStatus(envs);
+  const statuses = getIntegrationStatus(envs, app === undefined ? {} : { app });
   const context: Context = {
-    nodeEnv: envs.backend.NODE_ENV?.trim() || undefined,
+    nodeEnv: envs[app ?? "backend"].NODE_ENV?.trim() || undefined,
     vercel: ["VERCEL", "VERCEL_ENV", "VERCEL_URL"].some((name) => isSet(envs.storefront, name)),
+    ...(app === undefined ? {} : { app }),
+    deployed: (app === undefined ? (["backend", "storefront"] as const) : [app]).some(
+      (each) => productionStage(envs[each]).stage !== undefined,
+    ),
   };
 
   // Mailpit's ports are Docker Compose's variables: the shell or the root `.env`.
   const composeText = readText(path.join(root, ".env"));
-  const targets = targetsFrom({
-    DATABASE_URL: envs.backend.DATABASE_URL,
-    PAYLOAD_DATABASE_URL: envs.storefront.PAYLOAD_DATABASE_URL,
-    REDIS_URL: envs.backend.REDIS_URL,
-    MEILISEARCH_HOST: envs.backend.MEILISEARCH_HOST,
-    MAILPIT_SMTP_PORT: envValue(process.env, composeText, "MAILPIT_SMTP_PORT"),
-    MAILPIT_UI_PORT: envValue(process.env, composeText, "MAILPIT_UI_PORT"),
-  });
+  const targets = targetsFrom(
+    {
+      DATABASE_URL: envs.backend.DATABASE_URL,
+      PAYLOAD_DATABASE_URL: envs.storefront.PAYLOAD_DATABASE_URL,
+      REDIS_URL: envs.backend.REDIS_URL,
+      MEILISEARCH_HOST: envs.backend.MEILISEARCH_HOST,
+      MAILPIT_SMTP_PORT: envValue(process.env, composeText, "MAILPIT_SMTP_PORT"),
+      MAILPIT_UI_PORT: envValue(process.env, composeText, "MAILPIT_UI_PORT"),
+    },
+    app,
+  );
 
   const medusaUrl = trimSlash(
     (envs.storefront.MEDUSA_BACKEND_URL || envs.backend.MEDUSA_BACKEND_URL || "").trim() ||
@@ -307,7 +351,9 @@ async function main(): Promise<number> {
   const serviceFindings = inspectTargets(targets, root);
   const medusaHealthRequest = request(`${medusaUrl}/health`, { timeoutMs: 5000 });
   const marketsRead = Promise.all([serviceFindings, medusaHealthRequest]).then(
-    async ([findings, health]): Promise<MarketsRead> => {
+    async ([findings, health]): Promise<MarketsRead | undefined> => {
+      // The storefront's deploy has no backend to run `medusa exec` in.
+      if (app === "storefront") return undefined;
       if (databaseFailed(findings, targets, "medusa")) return { skipped: true };
       if (options.online && health.kind === "response" && health.status === 200) {
         const viaApi = await readMarketsApi(medusaUrl, backendText);
@@ -317,42 +363,52 @@ async function main(): Promise<number> {
     },
   );
   // The `--online` requests need only the env, so they go out now, with the rest.
-  const online = options.online ? startOnlineRequests(envs, medusaUrl, statuses) : undefined;
+  const online = options.online ? startOnlineRequests(envs, medusaUrl, statuses, app) : undefined;
   const [findings, medusaHealth, storefrontHome, backendFile, read] = await Promise.all([
     serviceFindings,
     medusaHealthRequest,
-    // The first request to `next dev` compiles the page, which takes several seconds.
-    request(storefrontUrl, { timeoutMs: 30_000 }),
+    // The first request to `next dev` compiles the page, which takes several seconds. A deploy
+    // (`--app`) checks before its own server runs, so it never asks its own app.
+    app === undefined ? request(storefrontUrl, { timeoutMs: 30_000 }) : Promise.resolve(undefined),
     loadExports(backendConfigFile, ["SUPPORTED_CURRENCIES", "MARKET_REGIONS", "SUPPORTED_LOCALES"]),
     marketsRead,
   ]);
 
   const checks = serviceChecks(findings, targets, statuses);
-  checks.push(
-    serverCheck("medusa", "Medusa backend", medusaUrl, medusaHealth, "Start it with `pnpm dev`."),
-    serverCheck(
-      "storefront",
-      "Storefront",
-      storefrontUrl,
-      storefrontHome,
-      "Start it with `pnpm dev`.",
-    ),
-    ...configChecks(envs, statuses, context),
-  );
+  // Railway's predeploy runs before the new backend starts; Vercel's build needs Medusa running.
+  if (app !== "backend")
+    checks.push(
+      serverCheck("medusa", "Medusa backend", medusaUrl, medusaHealth, "Start it with `pnpm dev`."),
+    );
+  if (storefrontHome !== undefined)
+    checks.push(
+      serverCheck(
+        "storefront",
+        "Storefront",
+        storefrontUrl,
+        storefrontHome,
+        "Start it with `pnpm dev`.",
+      ),
+    );
+  checks.push(...configChecks(envs, statuses, context));
   const modes = stripeModesCheck(
     envs.backend.STRIPE_API_KEY,
     envs.storefront.NEXT_PUBLIC_STRIPE_KEY,
   );
   if (modes !== undefined) checks.push(modes);
 
-  const markets = marketsCheck(read);
-  checks.push(markets.check);
+  if (read !== undefined) checks.push(marketsCheck(read).check);
 
   if (online !== undefined) {
     // `config/markets.ts` is the regions' seed input: the leftover-regions check reads it.
     const seeded = "error" in backendFile ? undefined : readBackendMarkets(backendFile.exports);
     checks.push(
-      ...(await onlineChecks(online, medusaUrl, typeof seeded === "object" ? seeded : undefined)),
+      ...(await onlineChecks(
+        online,
+        medusaUrl,
+        typeof seeded === "object" ? seeded : undefined,
+        app,
+      )),
       ...(await online.resend).map(({ apps, from, answer }) =>
         resendDomainCheck(apps, from, answer, envs),
       ),
@@ -404,6 +460,7 @@ function startOnlineRequests(
   envs: AppEnvs,
   medusaUrl: string,
   statuses: readonly IntegrationStatus[],
+  app: AppName | undefined,
 ): OnlineRequests {
   const payloadUrl = trimSlash((envs.backend.PAYLOAD_SERVER_URL ?? "").trim());
   const payloadKey = (envs.backend.PAYLOAD_API_KEY ?? "").trim();
@@ -445,7 +502,7 @@ function startOnlineRequests(
     resend: resendDomains(envs, statuses),
     sentry: sentryEnvelopes(envs),
     posthog: posthogFlags(envs),
-    stripe: stripeChecks(envs, medusaUrl, headers),
+    stripe: stripeChecks(envs, medusaUrl, headers, app),
     r2: r2Checks(envs),
   };
 }
@@ -551,6 +608,7 @@ async function stripeChecks(
   envs: AppEnvs,
   medusaUrl: string,
   headers: Record<string, string>,
+  app: AppName | undefined,
 ): Promise<Check[]> {
   const base = trimSlash(process.env.STRIPE_BASE_URL?.trim() || STRIPE_API);
   const secret = (envs.backend.STRIPE_API_KEY ?? "").trim();
@@ -598,6 +656,12 @@ async function stripeChecks(
       request(`${base}/v1/webhook_endpoints?limit=100`, { headers: auth, timeoutMs: 15_000 }).then(
         (answer) => stripeWebhookCheck(answer, backendUrl),
       ),
+    );
+  }
+  // The payment method domains are the storefront's hosts: only with both apps' variables (the
+  // backend's deploy runs before the storefront has them, and the storefront holds no secret key).
+  if (secret !== "" && app === undefined && productionStage(envs.backend).stage !== undefined) {
+    checks.push(
       (async () => {
         const markets = await request(`${medusaUrl}/store/markets`, { headers, timeoutMs: 15_000 });
         const wanted = siteDomains(
@@ -718,14 +782,24 @@ async function onlineChecks(
   online: OnlineRequests,
   medusaUrl: string,
   config: BackendMarkets | undefined,
+  app: AppName | undefined,
 ): Promise<Check[]> {
   const [payloadAnswer, medusaAnswers, meiliStats] = await Promise.all([
     online.payload,
     online.medusa,
     online.meilisearch?.stats,
   ]);
+  // `--app=backend`: the backend → Payload link only (Medusa's store API needs the storefront's
+  // key, and the search index fills on the new server's first start). `--app=storefront`: Medusa
+  // answers the storefront's key; the backend → Payload link is the backend's.
+  const checks: Check[] = [];
+  if (app !== "storefront")
+    checks.push(
+      payloadAuthCheck(online.payloadUrl, payloadAnswer, { fromBackendDeploy: app === "backend" }),
+    );
+  if (app === "backend") return checks;
   const medusa = medusaMarketsCheck(medusaUrl, medusaAnswers);
-  const checks = [payloadAuthCheck(online.payloadUrl, payloadAnswer), medusa.check];
+  checks.push(medusa.check);
   if (online.meilisearch !== undefined && meiliStats !== undefined) {
     checks.push(
       meilisearchLocalesCheck({
