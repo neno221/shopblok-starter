@@ -26,7 +26,25 @@ export const storefrontPaths = [
 ];
 
 /**
- * Paths the proxy leaves alone: Payload's, the DS pages, `/next`, Sentry's tunnel (`/monitoring`,
+ * The design-system pages (D33): the proxy runs on them since M7's T111, for the staff gate on a
+ * deployment (D148, 4), and passes them on untouched elsewhere.
+ */
+export const designSystemPaths = [
+  "/design-system",
+  "/design-system/en",
+  "/design-system/el/foundations/colors",
+  "/design-system/de/frame/atoms/button",
+  // Next's transport forms of the same pages, which the first matcher entry's file rule would
+  // leave out (PR 152 review, item 1): the RSC payload and a prefetch segment.
+  "/design-system.rsc",
+  "/design-system/en.rsc",
+  "/design-system/de/frame/atoms/button.rsc",
+  "/design-system/en.segments/_tree.segment.rsc",
+  "/design-system.segments/_index.segment.rsc",
+];
+
+/**
+ * Paths the proxy leaves alone: Payload's, `/next`, Sentry's tunnel (`/monitoring`,
  * T96), PostHog's (`/ingest`, T97), Next's and Vercel's, and files.
  */
 export const pathsLeftAlone = [
@@ -37,10 +55,6 @@ export const pathsLeftAlone = [
   "/api/pages",
   "/api/users/login", // a Payload path beside first-register, which the proxy does see (M7 D136)
   "/admin/create-first-user/x",
-  "/design-system",
-  "/design-system/en",
-  "/design-system/el/foundations/colors",
-  "/design-system/de/frame/atoms/button",
   "/next/preview",
   "/next/exit-preview",
   "/monitoring", // Sentry's tunnel (T96)

@@ -1,12 +1,15 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { DRAFT_MODE_COOKIE, ownDomainPreview } from "./lib/markets/preview-market";
 import { COOKIE } from "./lib/cookie-names";
-import { firstUserClosed } from "./lib/env";
+import { designSystemGated, env, firstUserClosed } from "./lib/env";
+import type { MarketMap } from "./lib/markets/types";
 import { getProxyMarketMap } from "./lib/markets/proxy-market-map";
-import { respondToMarketRequest } from "./lib/markets/proxy-response";
+import { NOT_FOUND_PATH, respondToMarketRequest } from "./lib/markets/proxy-response";
 import { compiledFor } from "./lib/redirects/match";
 import { getProxyRedirects } from "./lib/redirects/proxy-redirects";
 import { newNonce } from "./lib/security/csp";
 import { isNonceRoute } from "./lib/security/nonce-routes";
+import { PAYLOAD_TOKEN_COOKIE, verifyStaffToken } from "./lib/security/payload-token";
 import { nonceCsp, withStaticCsp } from "./lib/security/static-csp";
 
 // Public URLs carry no market key (SPEC §8.1): `/us/store` is served from `/en-us/store`, and the
@@ -27,6 +30,12 @@ import { nonceCsp, withStaticCsp } from "./lib/security/static-csp";
 // every script it writes, and the response carries that policy in place of the static one, with
 // `Cache-Control: private, no-store` (a page with a nonce must never be cached).
 //
+// M7 D148 (T111): the design-system pages pass through here too, behind Payload's staff login on a
+// deployment (`designSystemGated`): a request without a valid staff `payload-token` gets the 404
+// any unknown path gets, so the pages stay prerendered and say nothing to anyone else. And a market
+// on its own domain is previewed on this host at `/{key}/…`, for staff in Draft Mode only
+// (`lib/markets/preview-market.ts`).
+//
 // A path with a broken escape (`/us/collections/%ZZ`) is a plain 404 here: Next decodes a dynamic
 // route's params and answers a `URIError` with a 500 before any page runs (PR 78 review, item 2).
 export async function proxy(req: NextRequest) {
@@ -44,6 +53,7 @@ export async function proxy(req: NextRequest) {
         })
       : NextResponse.next();
   }
+  if (isDesignSystemPath(req.nextUrl.pathname)) return withStaticCsp(designSystemResponse(req));
   let nonce: { header: string; policy: string } | undefined;
   const response = await respond(req, (internalPath) => {
     if (!isNonceRoute(internalPath)) return undefined;
@@ -88,6 +98,8 @@ async function respond(
       },
     });
   const [map, redirects] = await Promise.all([getProxyMarketMap(), getProxyRedirects()]);
+  const preview = ownDomainPreviewResponse(req, map, rewriteRequestHeaders);
+  if (preview !== undefined) return preview;
   return respondToMarketRequest(
     req,
     map,
@@ -95,6 +107,84 @@ async function respond(
     compiledFor(redirects, map),
     rewriteRequestHeaders,
   );
+}
+
+/** Whether a staff member is signed in to Payload: a valid `payload-token` (M7 D148, 4). */
+function staffSignedIn(req: NextRequest): boolean {
+  return (
+    verifyStaffToken(req.cookies.get(PAYLOAD_TOKEN_COOKIE)?.value, env.PAYLOAD_SECRET) !== undefined
+  );
+}
+
+/** What never goes into a shared or a browser's cache: a gated or a draft answer. */
+const PRIVATE_CACHE_CONTROL = "private, no-cache, no-store, max-age=0, must-revalidate";
+
+/** The 404 any unknown path gets (Next's `global-not-found`), never stored. */
+function notFound(req: NextRequest): NextResponse {
+  const url = req.nextUrl.clone();
+  url.pathname = NOT_FOUND_PATH;
+  url.search = "";
+  const response = NextResponse.rewrite(url);
+  response.headers.set("Cache-Control", PRIVATE_CACHE_CONTROL);
+  return response;
+}
+
+/**
+ * `/design-system` and everything under it (D33), and Next's transport forms of the same pages
+ * (`/design-system.rsc`, `/design-system.segments/…`; under it, `/design-system/en.rsc` and the
+ * like are inside the prefix already): PR 152 review, item 1. `/design-systems` is a storefront path.
+ */
+export function isDesignSystemPath(pathname: string): boolean {
+  return /^\/design-system(?:$|\/|\.rsc$|\.segments\/)/.test(pathname);
+}
+
+/**
+ * A design-system page (M7 D148, 4): the trailing-slash redirect as everywhere, then, on a
+ * deployment, the 404 unless a staff member is signed in to Payload; otherwise the page as it is
+ * (prerendered, or the 404 a build without the DS gives). A page that passes the gate is never
+ * stored by a cache between, so one staff member's visit cannot serve it to anyone else.
+ */
+function designSystemResponse(req: NextRequest): NextResponse {
+  const slashless = withoutTrailingSlash(req.nextUrl.pathname);
+  if (slashless !== null) {
+    return NextResponse.redirect(
+      new URL(`${slashless}${req.nextUrl.search}`, req.nextUrl.origin),
+      308,
+    );
+  }
+  if (!designSystemGated()) return NextResponse.next();
+  if (!staffSignedIn(req)) return notFound(req);
+  const response = NextResponse.next();
+  response.headers.set("Cache-Control", PRIVATE_CACHE_CONTROL);
+  return response;
+}
+
+/**
+ * An own-domain market's page previewed on this host (M7 D148, 3): `/{key}/…` serves the market's
+ * page only with Draft Mode's cookie and a staff `payload-token` (the page itself then checks the
+ * session again for the draft, as on any market, T59); `noindex`, never stored, and with the policy
+ * the page has on its own domain (the nonce one on the nine routes). `undefined` for every other request, which `resolve` answers as before (the key is a 404).
+ */
+function ownDomainPreviewResponse(
+  req: NextRequest,
+  map: MarketMap,
+  rewriteRequestHeaders: (internalPath: string) => Headers | undefined,
+): NextResponse | undefined {
+  const preview = ownDomainPreview(req.nextUrl.pathname, req.headers.get("host") ?? "", map);
+  if (preview === undefined) return undefined;
+  if (!req.cookies.has(DRAFT_MODE_COOKIE) || !staffSignedIn(req)) return undefined;
+  const url = req.nextUrl.clone();
+  url.pathname = `/${preview.market.key}${preview.internalPath}`;
+  // A nonce page (`/de-ch/checkout`) gets D139's nonce policy as on the market's own domain (PR 152
+  // review, item 3): the same callback `respondToMarketRequest` calls.
+  const headers = rewriteRequestHeaders(preview.internalPath);
+  const response =
+    headers === undefined
+      ? NextResponse.rewrite(url)
+      : NextResponse.rewrite(url, { request: { headers } });
+  response.headers.set("Cache-Control", PRIVATE_CACHE_CONTROL);
+  response.headers.set("X-Robots-Tag", "noindex");
+  return response;
 }
 
 /** Payload's first-user form and the endpoint it posts to (M7 D136, 6). */
@@ -127,7 +217,7 @@ function decodes(path: string): boolean {
 }
 
 export const config = {
-  // Not for Payload (`/admin`, `/api`), the design-system pages (`/design-system`, D33), the
+  // Not for Payload (`/admin`, `/api`), the
   // draft-mode routes and the map route (`/next`), Sentry's tunnel (`/monitoring`, T96), PostHog's (`/ingest`, rewritten by
   // `next.config.ts` before any page, T97), Next's and Vercel's paths, `/.well-known/`, or a
   // file: a last segment ending in `.` and a letter (`logo.png`). A dot before a digit is a slug (`size-8.5`) and stays a storefront path, and
@@ -139,9 +229,14 @@ export const config = {
   //
   // The third (M7 D136, 6): Payload's first-user form and endpoint, which answer 403 on a
   // deployment (`FIRST_USER_PATHS`) and pass through untouched anywhere else.
+  //
+  // The design-system pages (M7 D148, T111) are no longer skipped: the gate above runs on them.
+  // The fourth entry brings their transport forms too (`/design-system/en.rsc`, the prefetch files
+  // under `….segments/`), which the first entry's file rule leaves out (PR 152 review, item 1).
   matcher: [
-    "/((?!(?:admin|api|design-system|ingest|monitoring|next)(?:/|$)|_next/|_vercel/|\\.well-known/|.*\\.[A-Za-z][A-Za-z0-9]*$).*)",
+    "/((?!(?:admin|api|ingest|monitoring|next)(?:/|$)|_next/|_vercel/|\\.well-known/|.*\\.[A-Za-z][A-Za-z0-9]*$).*)",
     "/((?!ingest/).*/)",
     "/(admin/create-first-user|api/users/first-register)",
+    "/design-system/:path*",
   ],
 };

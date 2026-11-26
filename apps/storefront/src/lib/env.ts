@@ -306,10 +306,24 @@ export function e2eRoutesEnabled(source: RawEnv = env): boolean {
  * runtime read there would let a server started with the flag answer 200 for those paths and 404
  * for the prerendered one. Reading it per request (as `e2eRoutesEnabled` does) would also make
  * every page dynamic under Cache Components. When it is false every DS route calls `notFound()`.
- * The Payload-login gate SPEC §9.6 asks for moves to M7.
+ * On a deployment the pages a build has are also behind Payload's staff login (M7 D148, 4; T111):
+ * `designSystemGated` below, checked per request in `proxy.ts`, so the pages stay prerendered.
  */
 export function designSystemEnabled(source: RawEnv = env): boolean {
   return source.NODE_ENV === "development" || source.DESIGN_SYSTEM_ENABLED === "true";
+}
+
+/**
+ * Whether the design-system pages answer only to a signed-in staff member (M7 D148, 4; T111): on
+ * every deployment, as `firstUserClosed` names one (`DEPLOY_ENV` or `VERCEL_ENV` set, whatever
+ * their value, so a typo keeps the gate shut), and never in `next dev`. Read at run time by
+ * `proxy.ts`, which checks Payload's `payload-token` cookie without Payload
+ * (`lib/security/payload-token.ts`) and answers 404 to anyone else. CI's `next start` has neither
+ * variable, so its DS checks run without a sign-in; `e2e/ds-gate.spec.ts` starts one with
+ * `DEPLOY_ENV=staging`.
+ */
+export function designSystemGated(source: RawEnv = env): boolean {
+  return source.NODE_ENV !== "development" && firstUserClosed(source);
 }
 
 /**

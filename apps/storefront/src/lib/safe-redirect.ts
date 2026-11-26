@@ -24,6 +24,21 @@ export function safeRedirect(
   host: string,
   map: MarketMap,
 ): string | null {
+  const url = localPath(target);
+  if (url === null) return null;
+  if (resolve({ pathname: url.pathname, search: url.search }, host, map).kind !== "rewrite") {
+    return null;
+  }
+  return url.pathname + url.search;
+}
+
+/**
+ * `target` parsed as a path on this origin, or `null`: the checks `safeRedirect` makes before it
+ * asks the market map (one leading `/`, no backslash, control character or encoded slash or
+ * backslash, the same origin once parsed, and a first segment that is no route of Payload, the DS
+ * or Next). Shared with the own-domain preview's paths (`lib/markets/preview-market.ts`).
+ */
+export function localPath(target: string | null | undefined): URL | null {
   if (typeof target !== "string" || !target.startsWith("/")) return null;
   // `//evil.example` and `/\evil.example` are other origins to a browser.
   if (target.startsWith("//") || target.includes("\\") || CONTROL.test(target)) return null;
@@ -38,8 +53,5 @@ export function safeRedirect(
   if (url.origin !== "http://origin.invalid") return null;
   const head = url.pathname.split("/")[1] ?? "";
   if (NOT_A_MARKET.has(head.toLowerCase())) return null;
-  if (resolve({ pathname: url.pathname, search: url.search }, host, map).kind !== "rewrite") {
-    return null;
-  }
-  return url.pathname + url.search;
+  return url;
 }

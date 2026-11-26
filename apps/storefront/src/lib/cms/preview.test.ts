@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { seeded } from "../markets/test-maps";
+import { seeded, withDomains } from "../markets/test-maps";
 import { secretMatches } from "../secret";
 import { exitPreviewResponse, previewResponse, type PreviewDeps } from "./preview";
 
@@ -41,6 +41,35 @@ describe("GET /next/preview", () => {
     expect(response.status).toBe(307);
     expect(response.headers.get("location")).toBe("/us/about");
     expect(enable).toHaveBeenCalledOnce();
+  });
+
+  it("sends staff to an own-domain market's page at its key on this host (M7 D148, 3)", async () => {
+    const domains = { ...deps, marketMap: async () => withDomains };
+    for (const path of ["/de-ch/about", "/fr-ch", "/el-cy/store?page=2"]) {
+      const response = await preview(`secret=s3cret&path=${encodeURIComponent(path)}`, domains);
+      expect(response.status, path).toBe(307);
+      expect(response.headers.get("location"), path).toBe(path);
+    }
+    // A market on this host is never at its key, and the key of a market with no domain is no page.
+    for (const path of ["/de-de/about", "/el-cy/about", "//de-ch", "/de-ch/%2F%2Fx"]) {
+      const map = path === "/el-cy/about" ? deps : domains;
+      expect((await preview(`secret=s3cret&path=${encodeURIComponent(path)}`, map)).status, path).toBe(
+        400,
+      );
+    }
+  });
+
+  it("leaves an own-domain market's preview for its published page on its domain (M7 D148, 3)", async () => {
+    const domains = { ...deps, marketMap: async () => withDomains };
+    const response = await exitPreviewResponse(
+      new Request("https://shop.example/next/exit-preview?path=%2Fde-ch%2Fabout%3Fx%3D1", {
+        method: "POST",
+      }),
+      domains,
+    );
+    expect(response.status).toBe(303);
+    expect(response.headers.get("location")).toBe("https://shop.ch/about?x=1");
+    expect(disable).toHaveBeenCalledOnce();
   });
 
   it("answers 401 to a wrong or missing secret, before asking Payload", async () => {

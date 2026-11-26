@@ -186,7 +186,7 @@ describe("getIntegrationStatus", () => {
     expect(describeMissing(r2)).not.toContain("apps/backend");
   });
 
-  it("the backend's R2 part also needs the private bucket (M6 D127); the storefront's does not", () => {
+  it("both R2 parts also need the private bucket (M6 D127; the storefront's since M7 D148, T111)", () => {
     const keys = {
       S3_ENDPOINT: "https://x.r2.cloudflarestorage.com",
       S3_ACCESS_KEY_ID: "id",
@@ -196,9 +196,16 @@ describe("getIntegrationStatus", () => {
     };
     const r2 = byId(getIntegrationStatus({ backend: keys, storefront: keys }), "r2");
     expect(r2.configured).toBe(false);
-    expect(r2.half).toBe(true);
-    expect(describeMissing(r2)).toBe("S3_PRIVATE_BUCKET (apps/backend)");
-    expect(r2.parts.find((p) => p.app === "storefront")?.configured).toBe(true);
+    expect(describeMissing(r2)).toBe("S3_PRIVATE_BUCKET (each app)");
+    const storefrontOnly = byId(
+      getIntegrationStatus({
+        backend: { ...keys, S3_PRIVATE_BUCKET: "private" },
+        storefront: keys,
+      }),
+      "r2",
+    );
+    expect(storefrontOnly.half).toBe(true);
+    expect(describeMissing(storefrontOnly)).toBe("S3_PRIVATE_BUCKET (apps/storefront)");
     expect(r2.parts.every((p) => p.optionalMissing.join() === "S3_REGION")).toBe(true);
   });
 
@@ -209,7 +216,7 @@ describe("getIntegrationStatus", () => {
     expect([status.wired, status.state, status.arrives]).toEqual([true, "live", undefined]);
   });
 
-  it("R2 is live with every key in both apps, the backend's private bucket among them (T95)", () => {
+  it("R2 is live with every key in both apps, the private bucket among them (T95, T111)", () => {
     const keys = {
       S3_ENDPOINT: "https://x.r2.cloudflarestorage.com",
       S3_ACCESS_KEY_ID: "id",
@@ -220,7 +227,7 @@ describe("getIntegrationStatus", () => {
     const status = byId(
       getIntegrationStatus({
         backend: { ...keys, S3_PRIVATE_BUCKET: "private" },
-        storefront: keys,
+        storefront: { ...keys, S3_PRIVATE_BUCKET: "private" },
       }),
       "r2",
     );
@@ -370,10 +377,10 @@ describe("INTEGRATION_KEYS", () => {
 });
 
 describe("describeMissing", () => {
-  it("says R2's shared keys once and the backend's private bucket on its own", () => {
+  it("says R2's keys once, the private bucket among them (both apps since T111)", () => {
     const r2 = getIntegrationStatus({ backend: {}, storefront: {} }).find((s) => s.id === "r2")!;
     expect(describeMissing(r2)).toBe(
-      "S3_ENDPOINT, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY, S3_BUCKET, S3_PUBLIC_URL (each app); S3_PRIVATE_BUCKET (apps/backend)",
+      "S3_ENDPOINT, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY, S3_BUCKET, S3_PUBLIC_URL, S3_PRIVATE_BUCKET (each app)",
     );
   });
 

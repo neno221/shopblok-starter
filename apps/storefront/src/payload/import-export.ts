@@ -256,7 +256,8 @@ export function adminOnly(slug: "exports" | "imports") {
           },
         }
       : {}),
-    // The files, git-ignored beside the media's (T01). A shared disk or bucket in production (M7).
+    // The files, git-ignored beside the media's (T01), without R2's keys; with them (and
+    // `S3_PRIVATE_BUCKET`) R2's private bucket instead (M7 D148, 2: `privateFileStorage`).
     upload: {
       ...(typeof collection.upload === "object" ? collection.upload : {}),
       staticDir: path.resolve(dirname, `../../media/${slug}`),
