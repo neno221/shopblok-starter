@@ -28,6 +28,7 @@ import * as migration_20261107_203523_catalog_sections from "./20261107_203523_c
 import * as migration_20261111_090000_renew_layout_copy_ids from "./20261111_090000_renew_layout_copy_ids";
 import * as migration_20261112_135006_email_types_newsletter from "./20261112_135006_email_types_newsletter";
 import * as migration_20261125_234610_media_storage_fields from "./20261125_234610_media_storage_fields";
+import * as migration_20261126_101550_payload_394_constraint_names from "./20261126_101550_payload_394_constraint_names";
 
 export const migrations = [
   {
@@ -179,5 +180,10 @@ export const migrations = [
     up: migration_20261125_234610_media_storage_fields.up,
     down: migration_20261125_234610_media_storage_fields.down,
     name: "20261125_234610_media_storage_fields",
+  },
+  {
+    up: migration_20261126_101550_payload_394_constraint_names.up,
+    down: migration_20261126_101550_payload_394_constraint_names.down,
+    name: "20261126_101550_payload_394_constraint_names",
   },
 ];
