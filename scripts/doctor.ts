@@ -50,6 +50,15 @@ import {
   type RegionProviders,
 } from "./lib/stripe-checks.ts";
 import { databaseFailed, serverCheck, serviceChecks } from "./lib/doctor-services.ts";
+import {
+  firstKey,
+  PRIVATE_PREFIX,
+  r2BucketCheck,
+  r2Buckets,
+  r2CorsCheck,
+  r2PrivateCheck,
+} from "./lib/r2-checks.ts";
+import { s3Url, signS3, type S3Keys } from "./lib/s3.ts";
 import { envValue } from "./lib/env-file.ts";
 import { run } from "./lib/exec.ts";
 import { jsonOf, request, type HttpResult } from "./lib/http.ts";
@@ -94,7 +103,10 @@ Checks the setup and says which integrations are on. Writes nothing. (Run it as 
              backend running, the markets are read from GET /admin/markets as the bootstrap admin);
              with Resend's keys, RESEND_FROM_EMAIL's domain is verified with Resend; with a
              Sentry DSN, Sentry accepts an empty envelope with it; with a PostHog key, PostHog
-             takes it (a feature-flags request, which records no event)
+             takes it (a feature-flags request, which records no event); with R2's keys,
+             both buckets answer, their CORS rules let Payload's admin and Medusa Admin's
+             import upload (where the token may read them), and a private file is refused
+             without a signature (reads only)
   --json     print the result as JSON (no secrets in it) and nothing else
   --strict   a warning fails the run too (the go-live check: SPEC §16, item 8)
   -h, --help this text
@@ -324,6 +336,7 @@ async function main(): Promise<number> {
         posthogFlagsCheck(apps, host, answer),
       ),
       ...(await online.stripe),
+      ...(await online.r2),
     );
   }
 
@@ -352,6 +365,8 @@ type OnlineRequests = {
   posthog: Promise<{ apps: AppName[]; host: string; answer: HttpResult }[]>;
   /** Stripe's checks (T100): the key, the regions, and in production the webhook and domains. */
   stripe: Promise<Check[]>;
+  /** R2's checks (T95): each bucket, their CORS rules, the private files refused. */
+  r2: Promise<Check[]>;
 };
 
 /**
@@ -404,7 +419,97 @@ function startOnlineRequests(
     sentry: sentryEnvelopes(envs),
     posthog: posthogFlags(envs),
     stripe: stripeChecks(envs, medusaUrl, headers),
+    r2: r2Checks(envs),
   };
+}
+
+/** An app's keys for signing R2 requests (doctor's own checks; nothing is written). */
+function s3KeysOf(env: Readonly<Record<string, string | undefined>>): S3Keys {
+  return {
+    endpoint: trimSlash((env.S3_ENDPOINT ?? "").trim()),
+    region: (env.S3_REGION ?? "").trim() || "auto",
+    accessKeyId: (env.S3_ACCESS_KEY_ID ?? "").trim(),
+    secretAccessKey: (env.S3_SECRET_ACCESS_KEY ?? "").trim(),
+  };
+}
+
+/** A signed `GET` on R2's S3 API (only reads: one listed key, a CORS rule). */
+function s3Get(keys: S3Keys, url: string): Promise<HttpResult> {
+  return request(url, {
+    headers: signS3({ method: "GET", url, keys, now: new Date() }),
+    timeoutMs: 15_000,
+  });
+}
+
+/** An app's URL's origin, or `fallback`'s when the value is blank or not a URL. */
+function originOf(value: string | undefined, fallback: string): string {
+  try {
+    return new URL(value?.trim() || fallback).origin;
+  } catch {
+    return new URL(fallback).origin;
+  }
+}
+
+/**
+ * Cloudflare R2 (T95, D127), for each app whose keys are set: a signed listing of one key in each
+ * bucket (an Object Read & Write token may list, not read bucket settings); each bucket's CORS
+ * rules, which must let the storefront's origin (`NEXT_PUBLIC_BASE_URL`, where Payload's admin runs)
+ * `PUT` to the public bucket and the backend's (`MEDUSA_BACKEND_URL`, Medusa Admin's product import)
+ * to the private one (a 403 for that token is a warning); and in the private bucket, one listed
+ * file (or a key that does not exist) read without a signature on the S3 API and on
+ * `S3_PUBLIC_URL`, which both must refuse. Reads only.
+ */
+async function r2Checks(envs: AppEnvs): Promise<Check[]> {
+  const checks: Promise<Check>[] = [];
+  for (const target of r2Buckets(envs)) {
+    const app = target.apps[0]!;
+    const keys = s3KeysOf(envs[app]);
+    checks.push(
+      s3Get(
+        keys,
+        s3Url(keys.endpoint, target.bucket, "", { "list-type": "2", "max-keys": "1" }),
+      ).then((answer) => r2BucketCheck(target, answer)),
+    );
+    const uploader =
+      target.role === "private"
+        ? originOf(envs.backend.MEDUSA_BACKEND_URL, "http://localhost:9000")
+        : target.apps.includes("storefront")
+          ? originOf(envs.storefront.NEXT_PUBLIC_BASE_URL, "http://localhost:8000")
+          : undefined;
+    if (uploader !== undefined)
+      checks.push(
+        s3Get(keys, s3Url(keys.endpoint, target.bucket, "", { cors: "" })).then((answer) =>
+          r2CorsCheck(target, uploader, answer),
+        ),
+      );
+    if (target.role === "private") {
+      checks.push(
+        (async () => {
+          const listed = await s3Get(
+            keys,
+            s3Url(keys.endpoint, target.bucket, "", {
+              "list-type": "2",
+              "max-keys": "1",
+              prefix: PRIVATE_PREFIX,
+            }),
+          );
+          const key = firstKey(listed);
+          const probe = key ?? `${PRIVATE_PREFIX}doctor-probe-${Date.now()}.csv`;
+          const publicUrl = trimSlash((envs.backend.S3_PUBLIC_URL ?? "").trim());
+          const [api, publicDomain] = await Promise.all([
+            request(s3Url(keys.endpoint, target.bucket, probe), { timeoutMs: 15_000 }),
+            key === undefined || publicUrl === ""
+              ? Promise.resolve(undefined)
+              : request(`${publicUrl}/${probe.split("/").map(encodeURIComponent).join("/")}`, {
+                  timeoutMs: 15_000,
+                }),
+          ]);
+          return r2PrivateCheck({ bucket: target.bucket, key, api, publicDomain });
+        })(),
+      );
+    }
+  }
+  return Promise.all(checks);
 }
 
 /**

@@ -37,7 +37,7 @@ type Spec = {
   fallback: string;
   /**
    * Whether the code that uses the keys exists. Redis is wired since M0 (T06), Meilisearch since
-   * M6's T94 and Stripe since T100; the others arrive in M6 (SPEC §17.1), so keys set for them today change nothing. Doctor
+   * M6's T94, Stripe since T100 and R2 since T95; the others arrive in M6 (SPEC §17.1), so keys set for them today change nothing. Doctor
    * says so instead of calling the integration live.
    */
   wired: boolean;
@@ -208,8 +208,7 @@ const SPECS: readonly Spec[] = [
     ],
     live: "Cloudflare R2 (S3 API)",
     fallback: "local disk (development only; Vercel needs R2)",
-    wired: false,
-    arrives: "M6",
+    wired: true,
   },
 ];
 

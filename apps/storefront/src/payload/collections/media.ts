@@ -61,7 +61,8 @@ export const Media: CollectionConfig = {
     tags: linkedTags,
   }),
   upload: {
-    // `apps/storefront/media`, git-ignored (T01). A shared disk or bucket replaces it in production.
+    // `apps/storefront/media`, git-ignored (T01), without the S3_* keys; with them the files are on
+    // R2 (`payload/storage.ts`, M6 D127), which adds the `prefix` and `_objectKey` fields.
     staticDir: path.resolve(dirname, "../../../media"),
     mimeTypes: [...IMAGE_MIME_TYPES, ...VIDEO_MIME_TYPES],
     imageSizes: IMAGE_SIZES,

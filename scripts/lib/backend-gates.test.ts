@@ -51,6 +51,7 @@ describe("wired", () => {
       "sentry",
       "meilisearch",
       "redis",
+      "r2",
     ]);
     expect(
       JSON.stringify(buildModules({ MEILISEARCH_HOST: "http://x", MEILISEARCH_API_KEY: "x" })),
@@ -66,6 +67,18 @@ describe("wired", () => {
     );
     expect(
       JSON.stringify(buildModules({ STRIPE_API_KEY: "x", STRIPE_WEBHOOK_SECRET: "x" })),
+    ).not.toBe(JSON.stringify(buildModules({})));
+    expect(
+      JSON.stringify(
+        buildModules({
+          S3_ENDPOINT: "https://x.r2.cloudflarestorage.com",
+          S3_ACCESS_KEY_ID: "x",
+          S3_SECRET_ACCESS_KEY: "x",
+          S3_BUCKET: "x",
+          S3_PRIVATE_BUCKET: "y",
+          S3_PUBLIC_URL: "https://media.example.com",
+        }),
+      ),
     ).not.toBe(JSON.stringify(buildModules({})));
   });
 });

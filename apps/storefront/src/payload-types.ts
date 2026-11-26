@@ -450,6 +450,8 @@ export interface Media {
   alt: string;
   caption?: string | null;
   seedKey?: string | null;
+  prefix?: string | null;
+  _objectKey?: string | null;
   updatedAt: string;
   createdAt: string;
   url?: string | null;
@@ -2408,6 +2410,8 @@ export interface MediaSelect<T extends boolean = true> {
   alt?: T;
   caption?: T;
   seedKey?: T;
+  prefix?: T;
+  _objectKey?: T;
   updatedAt?: T;
   createdAt?: T;
   url?: T;

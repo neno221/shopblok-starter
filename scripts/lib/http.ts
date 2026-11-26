@@ -10,7 +10,7 @@ export type HttpResult =
   | { kind: "unreachable"; reason: string };
 
 export type HttpOptions = {
-  method?: "GET" | "POST";
+  method?: "GET" | "HEAD" | "POST" | "PUT";
   headers?: Readonly<Record<string, string>>;
   body?: unknown;
   /** A body sent as it is, in place of `body`'s JSON (T96: a Sentry envelope); set its type in `headers`. */

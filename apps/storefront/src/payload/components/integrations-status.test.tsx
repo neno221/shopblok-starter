@@ -24,7 +24,9 @@ describe("the integrations panel (D85)", () => {
       wired: true,
       storefront: { state: "configured" },
     });
-    expect(rows.find((row) => row.id === "r2")).toMatchObject({ wired: false, arrives: "M6" });
+    // T95: every integration's code is built, R2's last.
+    expect(rows.every((row) => row.wired)).toBe(true);
+    expect(rows.find((row) => row.id === "r2")?.arrives).toBeUndefined();
     expect(rows.find((row) => row.id === "redis")).toMatchObject({
       wired: true,
       storefront: { state: "none" },
