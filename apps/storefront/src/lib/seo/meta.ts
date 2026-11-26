@@ -11,6 +11,13 @@ import { shareableImage, siteBase } from "./product";
 /** A document's SEO fields, or the site settings' defaults, as the pages use them. */
 export type SeoFields = { title?: string; description?: string; image?: Image };
 
+/**
+ * The site's defaults with the last fallback of a page's picture (M7 D147, T110): the market's
+ * generated share picture with the page's title on it (`shareImageFor`), which `getShellData`
+ * adds; without it a page with no picture names none, as before.
+ */
+export type SiteSeo = SeoFields & { share?: (title?: string) => Image };
+
 /** The title template: the site settings' when it has exactly one `%s`, else `%s | {store}`. */
 export function titleTemplateOf(template: string | undefined, storeName: string): string {
   return template !== undefined && template.split("%s").length === 2
@@ -37,12 +44,15 @@ const imageEntry = (image: Image, base: URL) => {
  *   the template already in, `payload/seo.ts`); else the template's title;
  * - the description: `meta.description`, else the template's, else the site's;
  * - the Open Graph title, description and picture follow the same order, and keep everything else
- *   the template set (the type, the URL, a post's date).
+ *   the template set (the type, the URL, a post's date);
+ * - with no picture in any of them, the market's generated one with the page's own title (its
+ *   template's title, not the document's SEO title, which holds the shop's name already), or, for
+ *   a layout's metadata with no title of its own, the market's card (SPEC §12's last fallback).
  */
 export function withSeo(
   metadata: Metadata,
   meta: SeoFields | null | undefined,
-  site: SeoFields,
+  site: SiteSeo,
   base: URL = siteBase(),
 ): Metadata {
   const description =
@@ -50,7 +60,15 @@ export function withSeo(
     (typeof metadata.description === "string" ? metadata.description : undefined) ??
     site.description;
   const openGraph = (metadata.openGraph ?? {}) as OpenGraph;
-  const image = meta?.image ?? (openGraph.images === undefined ? site.image : undefined);
+  const pageTitle =
+    typeof metadata.title === "string"
+      ? metadata.title
+      : typeof openGraph.title === "string"
+        ? openGraph.title
+        : undefined;
+  const image =
+    meta?.image ??
+    (openGraph.images === undefined ? (site.image ?? site.share?.(pageTitle)) : undefined);
   const imageOf = image === undefined ? undefined : imageEntry(image, base);
   const ogTitle = meta?.title ?? openGraph.title;
   const shared = {

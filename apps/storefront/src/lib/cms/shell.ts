@@ -9,7 +9,7 @@ import type {
   SocialLink,
 } from "@shopblok/registry/contracts";
 import { PaymentBrand as PaymentBrands, SocialNetwork } from "@shopblok/registry/contracts";
-import { titleTemplateOf, type SeoFields } from "../seo/meta";
+import { titleTemplateOf, type SiteSeo } from "../seo/meta";
 import { siteOrigin } from "../site-origin";
 import type {
   Footer as FooterGlobal,
@@ -62,8 +62,11 @@ export type ShellSettings = {
   logo?: Image;
   /** A page's `<title>`: `%s` is the page's own title. */
   titleTemplate: string;
-  /** The site's description and picture: a page's when neither it nor its template has one (D82). */
-  seo: SeoFields;
+  /**
+   * The site's description and picture: a page's when neither it nor its template has one (D82);
+   * `getShellData` adds the market's generated picture after them (`share`, M7 D147).
+   */
+  seo: SiteSeo;
   /** The shop as its `Organization` JSON-LD describes it, beside its name and logo (D82). */
   organization: { legalName?: string; email?: string; telephone?: string };
 };

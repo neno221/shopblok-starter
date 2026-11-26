@@ -9,7 +9,12 @@ import { buildWorkers } from "./src/lib/build-workers";
 import { deploymentBaseUrl, designSystemBuildFlag } from "./src/lib/env";
 import { mediaRemotePatterns } from "./src/lib/media-host";
 import { cspSettings } from "./src/lib/security/csp";
-import { hstsEnabled, scopePayloadHeaders, securityHeaderRules } from "./src/lib/security/headers";
+import {
+  hstsEnabled,
+  noindexEnabled,
+  scopePayloadHeaders,
+  securityHeaderRules,
+} from "./src/lib/security/headers";
 import { POSTHOG_EU } from "./src/lib/site";
 
 // The repo root. The shared packages are linked from `packages/*` and Next compiles their source
@@ -69,7 +74,13 @@ function buildConfig(phase: string): NextConfig {
     // (`hstsEnabled`, after `deployEnv()`'s checks, D133), and the static policy on the paths the proxy's matcher skips
     // (`lib/security/headers.ts`). `withPayload` adds its own entry after these, which
     // `scopePayloadHeaders` (below) moves to `/admin`.
-    headers: async () => securityHeaderRules({ production: hstsEnabled(process.env), csp }),
+    // M7 D133 (T110): `X-Robots-Tag: noindex` on every response of staging (`noindexEnabled`).
+    headers: async () =>
+      securityHeaderRules({
+        production: hstsEnabled(process.env),
+        noindex: noindexEnabled(process.env),
+        csp,
+      }),
     turbopack: { root: repoRoot },
     outputFileTracingRoot: repoRoot,
     // `/design-system` has no page of its own; the locale is a path segment (D33). Not permanent: the
@@ -96,7 +107,9 @@ function buildConfig(phase: string): NextConfig {
       afterFiles: [
         {
           source: "/:file([^/]*\\.(?![Rr][Ss][Cc]$)[A-Za-z][A-Za-z0-9]*)",
-          destination: "/next/missing-file",
+          // M7 D147 (T110): the file's name goes along for a host that hands the route the rewritten URL
+          // (`next start` hands it the visitor's own, `missing-file/route.ts`).
+          destination: "/next/missing-file?file=:file",
         },
       ],
       fallback: [],

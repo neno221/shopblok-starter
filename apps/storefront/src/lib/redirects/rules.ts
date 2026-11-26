@@ -59,6 +59,13 @@ const SKIPPED_SEGMENTS = [
 /** The matcher's file rule (D54): a last segment ending in `.` and a letter (`old.html`). */
 const LOOKS_LIKE_FILE = /\.[A-Za-z][A-Za-z0-9]*$/;
 
+/**
+ * The root files the shop serves itself (`app/robots.ts`, `app/favicon.ico`): Next answers them
+ * before `/next/missing-file`, so a redirect from one would never be answered. Compared as written:
+ * the routes are case-sensitive, so `/Robots.txt` reaches `/next/missing-file` (PR 155 review).
+ */
+const SERVED_ROOT_FILES = ["/robots.txt", "/favicon.ico"] as const;
+
 /** What a market's URLs start with (`/us`, `/ch/fr`), for every open market that has one. */
 export function marketPrefixes(map: MarketMap): { key: string; prefix: string }[] {
   return listMarkets(map).flatMap((market) => {
@@ -85,8 +92,16 @@ export function fromProblem(from: string, map: MarketMap): string | undefined {
   const [first = ""] = path.split("/").slice(1);
   if ((SKIPPED_SEGMENTS as readonly string[]).includes(first))
     return `Paths under /${first} never reach the shop's redirects: Payload, the design system or Next answers them first.`;
-  if (LOOKS_LIKE_FILE.test(path))
-    return "This looks like a file (it ends in a dot and letters, like .html): the shop answers such paths as files and never redirects them.";
+  // M7 D147 (T110): a file at the root (`/catalog.pdf`) reaches `/next/missing-file`, which looks
+  // the redirects up before its 404; a file deeper down (`/us/catalog.pdf`) reaches no redirect.
+  if (LOOKS_LIKE_FILE.test(path)) {
+    if (/\.rsc$/i.test(path))
+      return "A path ending in .rsc is a page's data for Next, not a file: it never redirects.";
+    if (path.split("/").length !== 2)
+      return "This looks like a file below the root (it ends in a dot and letters, like .html): only a file at the root, like /catalog.pdf, can redirect.";
+    if ((SERVED_ROOT_FILES as readonly string[]).includes(path))
+      return `The shop serves ${path} itself, so a redirect from it would never be answered.`;
+  }
   if (path === "/" || marketPrefixes(map).some(({ prefix }) => prefix === path))
     return "This is a market's home: a redirect here would take the whole market away.";
   return undefined;

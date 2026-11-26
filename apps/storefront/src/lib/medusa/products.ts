@@ -31,6 +31,11 @@ export type ProductVariantDto = {
   price: Money | null;
   /** The price before a sale (`original_amount`), only when it is higher than `price`. */
   compareAt: Money | null;
+  /**
+   * The sale price list `price` comes from (`calculated_price.price_list_id` of a `sale` list), for
+   * the product page's `priceValidUntil` (M7 D147, `sale-ends.ts`); `null` for a regular price.
+   */
+  saleListId: string | null;
   stock: StockDto;
   /** Can go in the cart: in stock, not tracked, or sold on backorder. */
   available: boolean;
@@ -69,6 +74,8 @@ type WireVariant = {
     calculated_amount?: number | null;
     original_amount?: number | null;
     currency_code?: string | null;
+    is_calculated_price_price_list?: boolean | null;
+    calculated_price?: { price_list_id?: string | null; price_list_type?: string | null } | null;
   } | null;
 };
 
@@ -130,6 +137,11 @@ export function toProductDto(product: WireProduct): ProductDto {
         original > amount &&
         currencyCode
           ? { amount: original, currencyCode }
+          : null,
+      saleListId:
+        price?.is_calculated_price_price_list === true &&
+        price.calculated_price?.price_list_type === "sale"
+          ? (price.calculated_price.price_list_id ?? null)
           : null,
       stock,
       available: stock.status !== "out",

@@ -17,7 +17,7 @@ describe("postJsonLd", () => {
       language: "en-US",
     },
     base,
-  ) as Graph;
+  ) as unknown as Graph;
 
   it("is a BlogPosting with the headline, the date, the author, the summary and the picture", () => {
     expect(graph["@graph"][0]).toEqual({
@@ -45,14 +45,20 @@ describe("postJsonLd", () => {
   });
 
   it("leaves a data-URI picture out (a crawler cannot fetch it)", () => {
-    const fixture = postJsonLd({ post, href: "/journal/x", language: "en-US" }, base) as Graph;
+    const fixture = postJsonLd(
+      { post, href: "/journal/x", language: "en-US" },
+      base,
+    ) as unknown as Graph;
     expect(fixture["@graph"][0]).not.toHaveProperty("image");
   });
 });
 
 describe("journalJsonLd", () => {
   it("is a Blog listing the page's posts, and the page's BreadcrumbList", () => {
-    const graph = journalJsonLd({ journal, href: "/us/journal", language: "en-US" }, base) as Graph;
+    const graph = journalJsonLd(
+      { journal, href: "/us/journal", language: "en-US" },
+      base,
+    ) as unknown as Graph;
     const blog = graph["@graph"][0] as { blogPost: { headline: string; url: string }[] };
     expect(blog["@type" as never]).toBe("Blog");
     expect(blog.blogPost.map((each) => each.headline)).toEqual(

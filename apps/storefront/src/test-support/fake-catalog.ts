@@ -141,6 +141,7 @@ const asDto = (product: FakeProduct, { currency, language }: FakeMarket): Produc
         options: {},
         price: amount === null ? null : { amount, currencyCode: currency },
         compareAt: original === undefined ? null : { amount: original, currencyCode: currency },
+        saleListId: null,
         stock: { status: "in-stock" },
         available: true,
         thumbnail: null,

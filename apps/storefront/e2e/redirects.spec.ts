@@ -10,7 +10,7 @@ import { adminToken, base } from "./support/server";
 //   308 on a POST; a 302 answers a POST with 307. It is answered within 65 s of its save.
 // - One from `/de/…` works in Germany only.
 // - One to a page goes to the page's address in each market's language.
-// - On save, a loop, a `from` taken by another, one like `/old.html` and one under `/api` are refused
+// - On save, a loop, a `from` taken by another, one like `/old/page.html` and one under `/api` are refused
 //   with the reason.
 //
 // Every redirect and page made here is deleted at the end.
@@ -133,7 +133,7 @@ test("a redirect to a page goes to its address in each market's language", async
   expect(await hit(`/de${TO_PAGE}`)).toEqual({ status: 301, location: `/de/${SLUG.en}` });
 });
 
-test("a loop, a taken from, a from like /old.html and one under /api are refused on save, with the reason", async () => {
+test("a loop, a taken from, a from like /old/page.html and one under /api are refused on save, with the reason", async () => {
   const self = await save({
     from: `/e2e-loop-${stamp}`,
     to: { type: "custom", url: `/e2e-loop-${stamp}` },
@@ -171,12 +171,13 @@ test("a loop, a taken from, a from like /old.html and one under /api are refused
   expect(reasons(twin).join(" ")).toMatch(/same address/);
 
   const file = await save({
-    from: `/old-${stamp}.html`,
+    from: `/old-${stamp}/page.html`,
     to: { type: "custom", url: "/store" },
     type: "301",
   });
   expect(file.status).toBe(400);
-  expect(reasons(file).join(" ")).toMatch(/looks like a file/);
+  // A file at the root (`/catalog.pdf`) can redirect since T110 (`seo.spec.ts`); one below it cannot.
+  expect(reasons(file).join(" ")).toMatch(/file below the root/);
 
   const underApi = await save({
     from: `/api/old-${stamp}`,
