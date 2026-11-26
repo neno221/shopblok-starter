@@ -10618,7 +10618,7 @@ D152's list, item by item:
 | Replaced account holders (T101) | `payment-methods` in `backend-integration`, and `stripe-saved.spec.ts` live (below) |
 | The i18next advisory | `react-i18next` 18.0.1 with `i18next` 27.1.1 (one copy in the lockfile); `pnpm audit --prod` lists no i18next advisory |
 
-On 2.23.0: backend unit 346, the plugin 57, `backend-integration` 107 of 107, typecheck, lint and the storefront's 4,705 green in the VM; CI's run on the branch below.
+On 2.23.0: backend unit 346, the plugin 57, `backend-integration` 107 of 107, typecheck, lint and the storefront's 4,705 green in the VM. **Stripe's live specs on 2.23.0 with the session's test keys** (the stack as `integrations-live` starts it: `pnpm bootstrap --ci` without keys, Medusa with `STRIPE_API_KEY` and the CI stand-in webhook secret, a build with `NEXT_PUBLIC_STRIPE_KEY`, `next start`): `stripe-checkout`, `stripe-saved` and `stripe-express`, **12 passed in 4.0 minutes**, so the payment collection's refresh (the purchases in `/` and `/us`, 3-D Secure, the decline, Revolut Pay) and the replaced account holders (saved cards and Revolut Pay, added and removed) hold. CI's run is in the PR.
 
 ### Next 16.4.6, Payload 3.94.2, React 19.3.1, Node 22.23.5
 
