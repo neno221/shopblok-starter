@@ -1,14 +1,16 @@
 import type { APIResponse } from "@playwright/test";
+import { MONACO_CDN } from "../src/lib/security/csp";
 import { appEnv, appEnvOrBlank } from "./support/app-env";
 import { catalogHandles } from "./support/catalog";
 import { expect, test } from "./support/csp";
 
 // M7 D137, D138, D140 (T106): the headers on each route type of a production build (`next start`),
-// as e2e-smoke runs it. Each route answers with D137's headers; the shop's pages, the routes under
-// `/next` and the DS with exactly one policy header (`Content-Security-Policy`, or the report-only
-// one under `CSP_MODE=report-only`), never both, never two; `/admin` and Payload's `/api` with none
-// yet (T107's admin policy); `withPayload`'s client hints on `/admin` only; no HSTS without
-// `DEPLOY_ENV=production`; Medusa without `X-Powered-By`. Then `/next/csp-report`'s answers.
+// as e2e-smoke runs it. Each route answers with D137's headers and exactly one policy header
+// (`Content-Security-Policy`, or the report-only one under `CSP_MODE=report-only`), never both,
+// never two: the shop's pages, the routes under `/next` and the DS the static policy, `/admin` and
+// Payload's `/api` the admin's (D141, T107); `withPayload`'s client hints on `/admin` only; no
+// HSTS without `DEPLOY_ENV=production`; Medusa without `X-Powered-By`. Then `/next/csp-report`'s
+// answers.
 
 const POLICY_HEADERS = ["content-security-policy", "content-security-policy-report-only"];
 
@@ -35,7 +37,10 @@ function all(response: APIResponse): Map<string, string[]> {
   return out;
 }
 
-let routes: { name: string; path: string; policy: boolean }[] = [];
+/** Which policy a route type answers with: the shop's static one (D138) or the admin's (D141). */
+type Kind = "static" | "admin";
+
+let routes: { name: string; path: string; policy: Kind }[] = [];
 
 test.beforeAll(async ({ request }) => {
   const [handle] = await catalogHandles();
@@ -47,23 +52,25 @@ test.beforeAll(async ({ request }) => {
     ? ((await pages.json()) as { docs: { slug?: string }[] }).docs[0]?.slug
     : undefined;
   routes = [
-    { name: "home", path: "/", policy: true },
-    { name: "a market's home", path: "/us", policy: true },
-    { name: "a product page", path: `/us/products/${handle}`, policy: true },
-    { name: "a listing", path: "/us/store", policy: true },
-    { name: "a CMS page", path: slug ? `/us/${slug}` : "/us/journal", policy: true },
-    { name: "search", path: "/us/search?q=shirt", policy: true },
-    { name: "a 404", path: "/us/no-such-page-t106", policy: true },
-    { name: "the DS", path: "/design-system/en", policy: true },
-    { name: "/next/status", path: "/next/status", policy: true },
-    { name: "Payload's /api", path: "/api/pages?limit=1&depth=0", policy: false },
-    { name: "/admin", path: "/admin", policy: false },
+    { name: "home", path: "/", policy: "static" },
+    { name: "a market's home", path: "/us", policy: "static" },
+    { name: "a product page", path: `/us/products/${handle}`, policy: "static" },
+    { name: "a listing", path: "/us/store", policy: "static" },
+    { name: "a CMS page", path: slug ? `/us/${slug}` : "/us/journal", policy: "static" },
+    { name: "search", path: "/us/search?q=shirt", policy: "static" },
+    { name: "a 404", path: "/us/no-such-page-t106", policy: "static" },
+    { name: "the DS", path: "/design-system/en", policy: "static" },
+    { name: "/next/status", path: "/next/status", policy: "static" },
+    { name: "Payload's /api", path: "/api/pages?limit=1&depth=0", policy: "admin" },
+    { name: "/admin", path: "/admin", policy: "admin" },
+    { name: "Payload's sign-in", path: "/admin/login", policy: "admin" },
+    // The first-user form and its endpoint go through the proxy (M7 D136, 6), which leaves them
+    // to `headers()`'s admin policy.
+    { name: "the first-user form", path: "/admin/create-first-user", policy: "admin" },
   ];
 });
 
-test("every route type has D137's headers and exactly one policy header, or none on Payload's", async ({
-  request,
-}) => {
+test("every route type has D137's headers and exactly one policy header", async ({ request }) => {
   for (const route of routes) {
     const response = await request.get(route.path, { maxRedirects: 0 });
     const headers = all(response);
@@ -79,10 +86,6 @@ test("every route type has D137's headers and exactly one policy header, or none
     const policies = POLICY_HEADERS.flatMap((name) =>
       (headers.get(name) ?? []).map((value) => ({ name, value })),
     );
-    if (!route.policy) {
-      expect(policies, `${route.name}: no policy before T107`).toEqual([]);
-      continue;
-    }
     expect(
       policies.map((p) => p.name),
       `${route.name}: exactly one policy header`,
@@ -93,6 +96,25 @@ test("every route type has D137's headers and exactly one policy header, or none
     expect(policy, route.name).toContain("frame-ancestors 'self'");
     expect(policy, route.name).toContain("report-uri /next/csp-report");
     expect(policy, route.name).toContain("report-to csp-endpoint");
+    // The static and the admin's policy keep `'unsafe-inline'`; only the nine routes have a nonce.
+    expect(policy, route.name).toContain("script-src 'self' 'unsafe-inline'");
+    expect(policy, route.name).not.toContain("'nonce-");
+    if (route.policy === "admin") {
+      // Payload's code fields load Monaco from jsdelivr (D141's fallback, csp.ts): the admin's
+      // policy names that one pinned path, nothing wider of the CDN.
+      expect(policy.match(/https:\/\/cdn\.jsdelivr\.net[^\s;]*/g), route.name).toEqual([
+        MONACO_CDN,
+        MONACO_CDN,
+        MONACO_CDN,
+      ]);
+      // Live preview frames the shop's own pages; the account's avatar is Gravatar's (D18).
+      expect(policy, route.name).toContain("frame-src 'self';");
+      expect(policy, route.name).toContain("https://www.gravatar.com");
+      expect(policy, route.name).not.toMatch(/youtube|vimeo|stripe/);
+    } else {
+      expect(policy, route.name).not.toContain("jsdelivr");
+      expect(policy, route.name).not.toContain("gravatar");
+    }
     // A production build: React's eval is for `next dev` only.
     expect(policy, route.name).not.toContain("'unsafe-eval'");
     // On plain http (these suites' localhost) Chromium would upgrade every redirect's target to
@@ -103,26 +125,28 @@ test("every route type has D137's headers and exactly one policy header, or none
   }
 });
 
-test("the policy is the same string wherever it is sent (one table, one build)", async ({
+test("each policy is the same string wherever it is sent (one table, one build)", async ({
   request,
 }) => {
-  const values = new Set<string>();
-  for (const route of routes.filter((r) => r.policy)) {
+  const values: Record<Kind, Set<string>> = { static: new Set(), admin: new Set() };
+  for (const route of routes) {
     const response = await request.get(route.path, { maxRedirects: 0 });
-    values.add(response.headers()[expectedPolicy] ?? "");
+    values[route.policy].add(response.headers()[expectedPolicy] ?? "");
   }
-  expect([...values]).toHaveLength(1);
+  expect([...values.static]).toHaveLength(1);
+  expect([...values.admin]).toHaveLength(1);
+  expect([...values.admin][0]).not.toBe([...values.static][0]);
 });
 
 test("withPayload's client hints are on /admin only", async ({ request }) => {
   for (const route of routes) {
     const headers = all(await request.get(route.path, { maxRedirects: 0 }));
     const vary = (headers.get("vary") ?? []).join(", ").toLowerCase();
-    if (route.path === "/admin") {
-      expect(headers.get("accept-ch"), "/admin: Accept-CH").toEqual([
+    if (route.path.startsWith("/admin")) {
+      expect(headers.get("accept-ch"), `${route.name}: Accept-CH`).toEqual([
         "Sec-CH-Prefers-Color-Scheme",
       ]);
-      expect(headers.get("critical-ch"), "/admin: Critical-CH").toEqual([
+      expect(headers.get("critical-ch"), `${route.name}: Critical-CH`).toEqual([
         "Sec-CH-Prefers-Color-Scheme",
       ]);
       continue;

@@ -10906,3 +10906,95 @@ T106 merged first, so this PR merged `main` and settled the files both changed:
 - **`turbo.json` (storefront):** `build`'s `env` lists `VERCEL_PROJECT_PRODUCTION_URL`, `VERCEL_BRANCH_URL`, `VERCEL_URL` and `CSP_MODE`.
 - **doctor:** T106's `csp-mode` check is a storefront check, so `doctor --app=backend` leaves it out.
 - **Docs:** SETUP.md has T106's section, then this one. NEXT-SESSION.md keeps T106's T107 and T112 prompts. The plan's status line names both tasks.
+
+## The nonce CSP and the admin's policy (T107)
+
+**Result: the nine routes (`/cart`, `/checkout`, `/account`, `/order` and the five sign-in pages, in every market) get the nonce policy: a fresh nonce per request from the proxy, `script-src 'self' 'nonce-…' 'strict-dynamic'` plus Stripe's hosts and no `'unsafe-inline'`, `Cache-Control: private, no-store`, and every `<script>` Next writes carries the nonce, because Next renders these pages whole per request. `/admin` and Payload's `/api` get the admin's own policy. Monaco is not served from the shop: `@payloadcms/ui` bundles its own copy of `@monaco-editor/loader`, which no provider can configure, so D141's fallback holds, jsdelivr's pinned `monaco-editor@0.55.1/` path in the admin's policy only.** D139, D141 (plans/M7.md §5 T107).
+
+| | |
+|---|---|
+| Date | 2026-11-26 |
+| Branch | `claude/project-thread-d3hopo`, from `main` at `47d506d` (PR 149's merge, T114) |
+| PR | this PR, "T107: the nonce CSP and the admin's policy" |
+
+### The spike (§6, step 1): every script carries the nonce
+
+`/us/cart` in `next start` (Next 16.4.6, Cache Components, Turbopack) with the nonce from the proxy: **24 `<script>` tags, every one with the nonce** (the `self.__next_f.push` RSC scripts, the Turbopack bootstrap and every external chunk), and a second request gets another nonce. `/us/order/x/confirmed` (9 scripts), `/ch/fr/cart` and `/cart` (Cyprus, no prefix) the same.
+
+**The code path.** The proxy passes the policy on the request (`NextResponse.rewrite(url, { request: { headers } })`). `route-modules/app-page/parse-request-headers.js` calls `getScriptNonceFromHeaders` (`server/app-render/get-script-nonce-from-header.js`), which reads `content-security-policy`, or `-report-only`, and takes the nonce from `script-src` (`default-src` otherwise). `app-render.js`'s `renderToStream` gives it to `getRequiredScripts` (the chunks), to `createNodeInlinedDataStream` (the RSC scripts) and to `withTurbopackBootstrapScript`. **How Cache Components serves them:** these pages are `instant = false` (blocking, no `Suspense`: they read the cookie and must be whole in the HTML for a browser without scripts), so the shell the build stores is empty (`.next/server/app/en-us/cart.html` is 0 bytes, its `.meta` holds only `x-nextjs-prerender`), and each request renders the page whole, with the request's nonce. The bootstrap is not in a stored shell either ("A Cache Components static shell doesn't include it… so resuming one emits it with the request's nonce", `app-render.js`). So the rule's first branch holds: no narrowed static policy, nothing for SPEC §17.2 beyond the two limits below.
+
+**What does not carry it: a path under the nine that is no page.** `/us/cart/nope` is the CMS catch-all's 404, whose shell Next prerenders at build, without a request: 39 scripts, one of them without the nonce (`<script src="/_next/static/chunks/41-….js" id="_R_" async>`), which `'strict-dynamic'` would block. So the nonce goes to the exact pages, not to every path under the nine (below).
+
+### The nine routes and the nonce
+
+- **`src/lib/security/nonce-routes.ts`**: `NONCE_ROUTES` (the nine first segments; T110's `robots.ts` reads it for its `Disallow` lines) and `NONCE_PAGES`, every page under them segment by segment (`*` for `[id]`, `[step]`, `[token]`): 23 shapes, the checkout's redirect handler (`checkout/[step]/route.ts`) included. `isNonceRoute(path)` matches a page's path inside its market exactly, so `/cartography`, `/account-help`, `/cart/x` and `/order` keep the static policy. `nonce-routes.test.ts` walks `app/(storefront)/[market]/<route>/` and fails when a `page.tsx` or `route.ts` there is not in `NONCE_PAGES`, or one listed is not there: a page added under the nine gets the nonce or the test says so.
+- **The proxy** (`src/proxy.ts`): `respondToMarketRequest` takes a callback that, for the path `resolve` (lib/markets) found after the prefix, returns the request headers for the rewrite, so every market's prefix (`/us/cart`, `/ch/fr/cart`) and an own-domain market's bare path match alike. On a nonce page: `newNonce()` (16 bytes from `crypto.getRandomValues`, base64), both CSP request headers a visitor might send are dropped, and the policy goes on the request (Next reads the nonce there) and on the response, in place of `withStaticCsp`'s, as `Content-Security-Policy` or, under `CSP_MODE=report-only`, the report-only header: one policy per response. A redirect (a market's trailing slash, a locale) has no page, so it keeps the static policy.
+- **`Cache-Control: private, no-store`** on each: a page with a nonce must never be stored. Next would send `private, no-cache, no-store, max-age=0, must-revalidate` on these dynamic pages anyway; the proxy's value is what arrives (`csp-nonce.spec.ts`).
+- **The policy** (`noncePolicy` in `csp.ts`, from the same table and directives as the static one): `script-src 'self' 'nonce-<nonce>' 'strict-dynamic'` (plus `'unsafe-eval'` in `next dev`) and, with Stripe's key, `https://js.stripe.com https://*.js.stripe.com`; every other directive is the static policy's. Under `'strict-dynamic'` a CSP3 browser ignores the hosts and `'self'` in `script-src` and runs what a nonced script inserts (Next's later chunks, Stripe.js, the lazy PostHog and Sentry SDKs); the hosts stay for an older browser. `next.config.ts` computes it once at build with `{{nonce}}` in the nonce's place (`SHOPBLOK_CSP_NONCE_POLICY`), and `withNonce` fills it per request, refusing anything that is not base64.
+- **Measured:** `/us/cart`'s policy keyless is `default-src 'self'; script-src 'self' 'nonce-…' 'strict-dynamic'; style-src 'self' 'unsafe-inline'; …`, the rest as T106's static policy.
+
+**Two limits, both of the way a browser applies a policy:**
+1. **A client-side navigation from a static page into a nonce route keeps the document's policy**, the static one: the policy belongs to the document, and a soft navigation loads no new one. A full load (a sign-in link opened directly, a form's redirect, a reload) gets the nonce policy. Making every link into the nine a full load would cost the shop's speed for little: the static policy still blocks every foreign script host.
+2. **`style-src` keeps `'unsafe-inline'`** in both policies (D138): React and Next write inline styles, and a nonce on styles is not what D139 is about.
+
+### Stripe, PostHog and Sentry under `'strict-dynamic'` (step 3)
+
+With the session's Stripe test keys, Medusa with the CI stand-in webhook secret, and Stripe on the regions (`sync-stripe-regions.ts`): **`stripe-checkout.spec.ts`, `stripe-express.spec.ts` and `stripe-saved.spec.ts`, 12 of 12 passed**, under the CSP fixture: a card in `/` and `/us`, the 3-D Secure challenge, a declined card, Revolut Pay through Stripe's test page and `/api/payment-return`, a cart changed in another tab, a promotion, the Express Checkout Element and Link, a card saved at checkout and in the account, and Revolut Pay saved. Stripe.js, inserted by our nonced island, loads; the Elements' frames are allowed by `frame-src`. PostHog's and Sentry's SDKs are our own chunks, inserted by nonced scripts; `posthog.spec.ts` (checkout, register, account) runs under the nonce policy in CI's `integrations-live` with the sinks.
+
+### The admin's policy (D141, step 4)
+
+`/admin` and Payload's `/api` (the proxy's matcher skips them, so `headers()` sets it: `ADMIN_POLICY_PATHS` in `headers.ts`; the first-user form and its endpoint go through the proxy, which leaves them to the same rule):
+
+```
+default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net/npm/monaco-editor@0.55.1/;
+style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net/npm/monaco-editor@0.55.1/;
+img-src 'self' data: blob: https://www.gravatar.com; media-src 'self'; font-src 'self' data:;
+connect-src 'self'; frame-src 'self';
+worker-src 'self' blob: https://cdn.jsdelivr.net/npm/monaco-editor@0.55.1/;
+object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self';
+report-uri /next/csp-report; report-to csp-endpoint
+```
+
+With `S3_PUBLIC_URL` its origin joins `img-src` and `media-src` (R2's pictures), with `S3_ENDPOINT` its origin joins `connect-src` (the admin's browser `PUT`s uploads there, M6's `clientUploads`); `S3_ENDPOINT` joins turbo's `build` `env`, since `headers()` freezes the policy at build. `'unsafe-eval'` only in `next dev`: no admin spec needed it in `next start`. `upgrade-insecure-requests` follows T106's rule.
+
+- **The inventory:** the admin's specs with the fixture recording (`payload-admin`, `editor-homepage`, `cms-preview`, `localized-layout`, `cms-blocks`): the admin's only foreign origin is `https://www.gravatar.com` (images), and no violation under the admin policy; `ui-strings` (the CSV round trip, the translation status, the code editor) and `payload-locales` pass under it too. Monaco's requests came after, with its test (step 5). Live preview frames the shop's own pages (`frame-src 'self'`; the shop's `frame-ancestors 'self'` lets it), and `cms-preview.spec.ts` passes.
+- **Gravatar is allowed, not turned off:** D18 (2026-10-09) keeps Payload's defaults, the avatar included. The cloud's proxy refuses `www.gravatar.com`, so the picture fails to load there with no violation.
+- **The upload to the stand-in bucket was not run:** s3mock answers no CORS preflight (T95's section), so the browser's direct `PUT` cannot be tried against it; `connect-src`'s R2 origin is unit-tested (`csp.test.ts`) and is checked on staging (T115) with R2's keys.
+- **`headers.spec.ts`**' "no policy before T107" is now the admin's checks: `/admin`, `/admin/login`, `/admin/create-first-user` and `/api` each carry exactly one policy, the admin's (`frame-src 'self'`, Gravatar, jsdelivr only as the pinned path, no Stripe, YouTube or Vimeo), one string on every admin route, and not the shop's.
+
+### Monaco (step 5): D141's fallback
+
+**A provider cannot reach the loader `@payloadcms/ui` uses.** `@payloadcms/ui` 3.94.2 ships pre-bundled by esbuild: `dist/exports/client/chunk-3A2LAGL3.js` inlines `@monaco-editor/react` 4.7.0, `@monaco-editor/loader` 1.7.0 and `state-local`, with the default `paths: { vs: "https://cdn.jsdelivr.net/npm/monaco-editor@0.55.1/min/vs" }` as a string inside it. A provider in `admin.components.providers` calling `loader.config` configures the npm copy of `@monaco-editor/loader`, which Payload's code never imports, and the editor still asked jsdelivr. Tried and given up: the provider (`loader.config({ paths: { vs: "/vendor/monaco/0.55.1/vs" } })`, with `copy-monaco.ts` putting the files under `public/vendor/`), then a Turbopack `resolveAlias` of `@monaco-editor/loader` (relative, root-relative and browser-conditional forms): neither changed the admin's bundle, since there is no import left to alias. A Turbopack loader rule that rewrites the string inside Payload's chunk would work, but patches a dependency's build output on every Payload update; it was not taken.
+
+**So the fallback:** `https://cdn.jsdelivr.net/npm/monaco-editor@0.55.1/` (`MONACO_CDN` in `csp.ts`) in the admin's `script-src`, `style-src` and `worker-src` only, and `data:` in its `font-src` (the codicon font is inlined in Monaco's CSS). The path is the exact release, not the host: jsdelivr's other packages stay blocked. Monaco tries a worker from that URL, which a browser refuses cross-origin and Monaco then runs on the main thread; `worker-src` names the path so that attempt is not a violation. `copy-monaco.ts`, the provider and `public/vendor/` are not in this PR.
+- **A test that the path is Payload's own:** `csp.test.ts` reads every file of `@payloadcms/ui`'s `dist/exports/client/` and expects the only Monaco path there to be `${MONACO_CDN}min/vs`; a Payload update that moves Monaco to another release fails it, and the policy's path changes with it.
+- **`ui-strings.spec.ts`**: a refused CSV import leaves its issue details, a JSON field, on the import's page; signed in, the page opens Payload's code editor (`.monaco-editor` visible), its loader and `editor.main.js` come from the pinned path, and nothing else foreign is asked for but Gravatar. jsdelivr is answered from the storefront's dev dependency `monaco-editor` 0.55.1 (the same release; Playwright's routing), so CI never waits on a CDN and the cloud, whose proxy refuses jsdelivr, can run it; the browser checks the policy before any answer, so the policy is tested as it is. The dev dependency also makes 0.55.1 the peer `@monaco-editor/react` resolves (it was 0.57.0); `pnpm-workspace.yaml`'s `dompurify` override keeps its reason.
+
+### Step 6: `frame-ancestors` and the video block
+
+`frame-ancestors 'self'` is in every policy (shop, nonce, admin; `headers.spec.ts`, `csp-nonce.spec.ts`), so live preview and the DS's frames work and no other site can frame the shop. The video block's `www.youtube-nocookie.com` and `player.vimeo.com` stay in `frame-src` (T106; the nonce policy keeps them), and `cms-blocks.spec.ts`'s click-to-play opens with no violation.
+
+### `csp-nonce.spec.ts`
+
+Against `next start`, in `/` and `/us`, on a page of each nonce route that needs no signed-in customer or order (11 paths × 2 markets): two requests, two nonces; exactly one policy header, with `'nonce-…' 'strict-dynamic'` and no `'unsafe-inline'` or `'unsafe-eval'` in `script-src`; `Cache-Control` private and `no-store`; every `<script>` in a 200's HTML carries that response's nonce. The static routes (`/`, `/us`, the store, a product, search) keep the static policy, and `/us/cart/t107-no-such-page` is a 404 with it. In the browser each page hydrates (`window.next`) with no violation and no inline script without the nonce; a client-side navigation from `/us/login` to `/us/register` stays in one document (its chunks loaded under `'strict-dynamic'`).
+
+### Mutations
+
+| Mutation | Result |
+|---|---|
+| 1. A `<script>` without the nonce in the cart page's source (`dangerouslySetInnerHTML`, rebuilt) | `csp-nonce.spec.ts` fails twice: "`/cart`: every script carries this response's nonce", and in the browser "`/cart`: inline scripts" with the fixture's `enforce script-src-elem blocked inline on /cart` |
+| 2. The same, injected into `/us/cart`'s HTML by Playwright's routing, as an injection would arrive | `csp-nonce.spec.ts`'s last test, marked `test.fail`: the fixture fails it on the blocked script |
+| 3. `MONACO_CDN` removed from the admin's `script-src` (rebuilt) | `ui-strings.spec.ts`'s Monaco test fails: no editor, and the fixture's `enforce script-src-elem blocked https://cdn.jsdelivr.net/npm/monaco-editor@0.55.1/min/vs/loader.js on /admin/collections/imports/9` |
+
+The plan's second mutation ("the provider removed makes the editor request jsdelivr") has no provider to remove; mutation 3 is its counterpart for the fallback.
+
+### Checks
+
+- Unit: the storefront's 4,867 tests in 227 files (T106: 4,781 in 224), among them `lib/security`'s tests (the nonce policy, `withNonce` and `newNonce` against Next's own parser, the admin's policy directive by directive, jsdelivr only as the pinned path, R2's origins, Payload's Monaco path; `nonce-routes.test.ts`; `headers.test.ts` with the admin rules and the proxy's matcher skipping `/admin` and `/api`) and `proxy.test.ts`'s new block (a fresh nonce per request, the request header Next reads, the override header, `private, no-store`, the static routes and the 404s under the nine without a nonce, a visitor's CSP headers replaced, `CSP_MODE=report-only`); `env.test.ts` with `SHOPBLOK_CSP_NONCE_POLICY`. The backend's 360 and the scripts' 30 files pass; `pnpm typecheck` and `pnpm lint` are clean.
+- e2e, keyless as `e2e-smoke` runs it (`STOREFRONT_PRERENDER_PRODUCTS=4`, `STOREFRONT_LISTING_PAGE_SIZE=3`, `E2E_TEST_ROUTES=true`, enforced): **365 tests, all passed**, the admin's and the shop's specs under the fixture: 330 passed in the first run and one failed, `shell.spec.ts`'s "a design published in the admin shows within two requests" (the `/us` header did not change within two requests, with no violation), which passed when run again with the two after it in its serial block; the 32 of `locales`, `markets-add` and `market-panels` then passed.
+- First load: nothing of T107 ships to the browser (the proxy, `csp.ts` and the headers run on the server), so `check:first-load` prints the same bytes as on `main`.
+
+### For T108 and T110
+
+- **T108 (Turnstile on the sign-in pages):** those pages have the nonce policy, under which `'strict-dynamic'` ignores hosts in `script-src`: Turnstile's script loads because our nonced island inserts it, and `challenges.cloudflare.com` belongs in `frame-src` (its widget is a frame) and in the static policy's `script-src` for the forms outside the nine.
+- **T110 (`robots.ts`):** read `NONCE_ROUTES` from `src/lib/security/nonce-routes.ts` for the `Disallow` lines.

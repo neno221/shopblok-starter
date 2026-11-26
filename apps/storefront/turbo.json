@@ -56,10 +56,7 @@
         "SENTRY_AUTH_TOKEN",
         "SENTRY_ORG",
         "SENTRY_PROJECT"
-      ],
-      // M7 D141 (T107): `pnpm build` also writes Monaco's copy for the admin
-      // (`scripts/copy-monaco.ts`), which a build replayed from the cache must bring back with it.
-      "outputs": ["$TURBO_EXTENDS$", "public/vendor/**"]
+      ]
     },
     "test": {
       // `src/lib/markets/medusa-locales.test.ts` reads Medusa's locale list from the backend's

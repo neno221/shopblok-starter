@@ -254,11 +254,23 @@ export type AdminPolicyOptions = {
 };
 
 /**
+ * Monaco for Payload's code and JSON fields, from jsdelivr, pinned to its version (D141's fallback).
+ * `@payloadcms/ui` ships `@monaco-editor/react` and `@monaco-editor/loader` 1.7.0 inside its own
+ * client bundle (`dist/exports/client/chunk-*.js`, made with esbuild), so no module of the shop can
+ * reach that loader to give it another path (T107's spike, SETUP.md), and it loads
+ * `monaco-editor@0.55.1/min/vs` from here. A path with a trailing slash matches every file under it
+ * and nothing else on the host. `csp.test.ts` reads Payload's bundle and fails when a Payload
+ * release asks for another version.
+ */
+export const MONACO_CDN = "https://cdn.jsdelivr.net/npm/monaco-editor@0.55.1/";
+
+/**
  * The admin's policy (D141), for `/admin` and Payload's `/api`, from the admin's specs with the
- * fixture recording (SETUP.md "The nonce CSP and the admin's policy (T107)"). Payload's admin is a
- * Next app of its own, rendered per request but with inline scripts Next writes without a nonce
- * (no proxy runs there), so `'unsafe-inline'` stays, as on the shop's static routes. Monaco comes
- * from the shop's own copy (`/vendor/monaco/…`, `copy-monaco.ts`), so no host is needed for it.
+ * fixture recording (SETUP.md "The nonce CSP and the admin's policy (T107)"). Payload's admin is
+ * rendered per request but no proxy runs there to give it a nonce (and its inline scripts carry
+ * none), so `'unsafe-inline'` stays, as on the shop's static routes. Monaco's loader and editor,
+ * their stylesheet and the web workers they try to start come from `MONACO_CDN`; its codicon font
+ * is a `data:` URL in that stylesheet.
  */
 export function adminPolicy(options: AdminPolicyOptions): string {
   const { dev, media, uploads } = options;
@@ -266,17 +278,17 @@ export function adminPolicy(options: AdminPolicyOptions): string {
     extra.filter((value): value is string => value !== undefined);
   const directives: [string, string[]][] = [
     ["default-src", ["'self'"]],
-    ["script-src", ["'self'", "'unsafe-inline'", ...(dev ? ["'unsafe-eval'"] : [])]],
-    ["style-src", ["'self'", "'unsafe-inline'"]],
+    ["script-src", ["'self'", "'unsafe-inline'", ...(dev ? ["'unsafe-eval'"] : []), MONACO_CDN]],
+    ["style-src", ["'self'", "'unsafe-inline'", MONACO_CDN]],
     // Gravatar: the account's avatar, Payload's default, which D18 keeps (T106's inventory: the
     // admin's only foreign request). `admin.avatar: "default"` in payload.config.ts would drop it.
     ["img-src", ["'self'", "data:", "blob:", GRAVATAR, ...own([media])]],
     ["media-src", ["'self'", ...own([media])]],
-    ["font-src", ["'self'"]],
+    ["font-src", ["'self'", "data:"]],
     ["connect-src", ["'self'", ...own([uploads])]],
     // Live preview frames the shop's own `/next/preview` (D74).
     ["frame-src", ["'self'"]],
-    ["worker-src", ["'self'", "blob:"]],
+    ["worker-src", ["'self'", "blob:", MONACO_CDN]],
     ["object-src", ["'none'"]],
     ["base-uri", ["'self'"]],
     ["form-action", ["'self'"]],

@@ -1,7 +1,12 @@
+import { readdirSync, readFileSync, realpathSync } from "node:fs";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
   CSP_HEADER,
   CSP_HOSTS,
+  GRAVATAR,
+  MONACO_CDN,
   NONCE_PLACEHOLDER,
   REPORTING_ENDPOINTS,
   adminPolicy,
@@ -173,15 +178,47 @@ describe("withNonce and newNonce (D139)", () => {
 describe("adminPolicy (D141)", () => {
   const admin = { dev: false, upgradeInsecureRequests: true } as const;
 
-  it("keeps 'unsafe-inline' (no proxy runs there to nonce), and names no CDN", () => {
+  it("keeps 'unsafe-inline' (no proxy runs there to nonce), and frames only the shop", () => {
     const d = directives(adminPolicy(admin));
-    expect(d.get("script-src")).toEqual(["'self'", "'unsafe-inline'"]);
+    expect(d.get("script-src")).toEqual(["'self'", "'unsafe-inline'", MONACO_CDN]);
+    expect(d.get("style-src")).toEqual(["'self'", "'unsafe-inline'", MONACO_CDN]);
+    expect(d.get("worker-src")).toEqual(["'self'", "blob:", MONACO_CDN]);
+    expect(d.get("font-src")).toEqual(["'self'", "data:"]);
+    expect(d.get("img-src")).toEqual(["'self'", "data:", "blob:", GRAVATAR]);
+    expect(d.get("connect-src")).toEqual(["'self'"]);
     expect(d.get("frame-src")).toEqual(["'self'"]);
     expect(d.get("frame-ancestors")).toEqual(["'self'"]);
     expect(d.get("object-src")).toEqual(["'none'"]);
-    expect(d.get("worker-src")).toEqual(["'self'", "blob:"]);
-    expect(adminPolicy(admin)).not.toContain("jsdelivr");
     expect(adminPolicy(admin)).not.toMatch(/stripe|youtube|vimeo/);
+  });
+
+  it("names jsdelivr only by Monaco's pinned path, never the whole host", () => {
+    expect(MONACO_CDN).toBe("https://cdn.jsdelivr.net/npm/monaco-editor@0.55.1/");
+    const policy = adminPolicy(admin);
+    expect(policy.match(/https:\/\/cdn\.jsdelivr\.net[^\s;]*/g)).toEqual([
+      MONACO_CDN,
+      MONACO_CDN,
+      MONACO_CDN,
+    ]);
+    expect(staticPolicy({ ...keyless, stripe: true })).not.toContain("jsdelivr");
+  });
+
+  it("is the Monaco path Payload's own bundle asks for (fails when a Payload release moves it)", () => {
+    // `@payloadcms/ui` bundles `@monaco-editor/loader` into its client chunks; its default path
+    // is what the editor loads.
+    const ui = realpathSync(
+      fileURLToPath(new URL("../../../node_modules/@payloadcms/ui", import.meta.url)),
+    );
+    const dir = join(ui, "dist", "exports", "client");
+    const paths = new Set<string>();
+    for (const file of readdirSync(dir).filter((name) => name.endsWith(".js"))) {
+      for (const match of readFileSync(join(dir, file), "utf8").matchAll(
+        /https:\/\/cdn\.jsdelivr\.net\/npm\/monaco-editor@[^/"']+\/min\/vs/g,
+      )) {
+        paths.add(match[0]);
+      }
+    }
+    expect([...paths]).toEqual([`${MONACO_CDN}min/vs`]);
   });
 
   it("allows R2's public origin for pictures and its S3 endpoint for the admin's uploads", () => {

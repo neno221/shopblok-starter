@@ -5,8 +5,8 @@
   "description": "Next 16.4 storefront with Payload 3.92 embedded (D6).",
   "type": "module",
   "scripts": {
-    "dev": "node scripts/copy-monaco.ts && next dev -p 8000",
-    "build": "node scripts/copy-monaco.ts && next build",
+    "dev": "next dev -p 8000",
+    "build": "next build",
     "start": "next start -p 8000",
     "typecheck": "next typegen && tsc --noEmit",
     "lint": "eslint .",
@@ -19,7 +19,6 @@
   },
   "dependencies": {
     "@medusajs/js-sdk": "2.23.0",
-    "@monaco-editor/loader": "1.7.0",
     "@payloadcms/db-postgres": "3.94.2",
     "@payloadcms/email-nodemailer": "3.94.2",
     "@payloadcms/email-resend": "3.94.2",

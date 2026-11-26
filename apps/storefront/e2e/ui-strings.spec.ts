@@ -1,6 +1,11 @@
+import { existsSync, readFileSync, realpathSync } from "node:fs";
+import { createRequire } from "node:module";
+import { dirname, join } from "node:path";
 import type { Page } from "@playwright/test";
+import { MONACO_CDN } from "../src/lib/security/csp";
 import { expect, test } from "./support/csp";
 import { adminCredentials } from "./support/admin-credentials";
+import { signInToAdmin } from "./support/admin-ui";
 import { marketsAdmin, type MarketsAdmin, type MarketsOverview } from "./support/markets-admin";
 import { add } from "./support/purchase";
 
@@ -26,6 +31,10 @@ test.describe.configure({ mode: "serial" });
 test.setTimeout(300_000);
 
 const stamp = Date.now().toString(36);
+/** monaco-editor 0.55.1 in node_modules (the storefront's dev dependency), jsdelivr's stand-in. */
+const MONACO_DIR = realpathSync(
+  dirname(createRequire(import.meta.url).resolve("monaco-editor/package.json")),
+);
 const base = () => process.env["E2E_BASE_URL"] ?? "http://localhost:8000";
 
 /** The home page's "New arrivals" heading (T51). */
@@ -421,6 +430,52 @@ test("the CSV export has every language's column and imports back by key; a refu
   ).doc;
   expect(refused).toMatchObject({ status: "failed", summary: { issues: 1 } });
   expect((await stringDoc(HEADING)).value).toEqual({ ...heading.value, de: german, el: greek });
+});
+
+test("an import's issue details open in Payload's code editor, Monaco from its pinned path only (M7 D141)", async ({
+  page,
+}) => {
+  // The admin's JSON fields render `@payloadcms/ui`'s Monaco editor, which loads Monaco from
+  // jsdelivr at the version Payload's bundle names (`MONACO_CDN`, D141's fallback). A refused file
+  // (one `value` column, which would be saved over English) changes nothing and leaves
+  // `issueDetails`, a JSON field, on the import's page.
+  const refused = await importCsv(`key,value\n${HEADING},Monaco ${stamp}\n`, admin());
+  expect(refused.status, await refused.clone().text()).toBe(201);
+  const { doc } = (await refused.json()) as { doc: { id: number; summary: { issues: number } } };
+  expect(doc.summary.issues).toBeGreaterThan(0);
+  // jsdelivr's files are answered from the same release in node_modules, so the test needs no
+  // network and CI never waits on a CDN; the browser checks the policy on the URL before any
+  // answer, so the policy is tested as it is.
+  await page.context().route(`${MONACO_CDN}**`, async (route) => {
+    const path = new URL(route.request().url()).pathname.replace("/npm/monaco-editor@0.55.1/", "");
+    const file = join(MONACO_DIR, ...path.split("/"));
+    if (!file.startsWith(MONACO_DIR) || !existsSync(file)) return route.fulfill({ status: 404 });
+    await route.fulfill({
+      body: readFileSync(file),
+      contentType: file.endsWith(".css") ? "text/css" : "text/javascript",
+      headers: { "access-control-allow-origin": "*" },
+    });
+  });
+  const requests: string[] = [];
+  page.on("request", (request) => {
+    if (!request.url().startsWith(new URL(base()).origin)) requests.push(request.url());
+  });
+  try {
+    await signInToAdmin(page);
+    await page.goto(`/admin/collections/imports/${doc.id}`);
+    await expect(page.locator(".monaco-editor").first()).toBeVisible({ timeout: 30_000 });
+    // The loader and the editor from the pinned path, no other foreign request (the CSP fixture
+    // fails the test on anything the admin's policy blocks, a worker or a font included).
+    expect(requests).toContain(`${MONACO_CDN}min/vs/loader.js`);
+    expect(requests).toContain(`${MONACO_CDN}min/vs/editor/editor.main.js`);
+    expect(
+      requests.filter(
+        (url) => !url.startsWith(MONACO_CDN) && !url.startsWith("https://www.gravatar.com/"),
+      ),
+    ).toEqual([]);
+  } finally {
+    await api("DELETE", `/imports/${doc.id}`, admin());
+  }
 });
 
 test("an edited quick-cart title shows in the quick cart a server action draws after an add", async ({

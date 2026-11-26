@@ -83,11 +83,7 @@ export default buildConfig({
         Logo: "/payload/components/logo#AdminLogo",
         Icon: "/payload/components/icon#AdminIcon",
       },
-      // M7 D141 (T107): the code editor's Monaco from the shop's own copy, not jsdelivr.
-      providers: [
-        "/payload/components/admin-font#AdminFont",
-        "/payload/admin/monaco-provider#MonacoProvider",
-      ],
+      providers: ["/payload/components/admin-font#AdminFont"],
     },
     // D74: the edited language's market in three frames, through `/next/preview`. The globals show
     // the market's home (T61), a post its page in the journal (T66).

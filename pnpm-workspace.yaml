@@ -52,12 +52,12 @@ packageExtensions:
         optional: true
 
 # monaco-editor's own dependency on dompurify (0.57.0 pinned 3.4.15 exactly, with a critical
-# advisory, GHSA-cg2g-xh64-v4q7, fixed in 3.4.17; 0.55.1 pins 3.2.7). Since M7 T107 the storefront
-# depends on monaco-editor 0.55.1 itself (D141: `scripts/copy-monaco.ts` copies its `min/vs` into
-# `public/vendor/`), which is also the peer Payload's admin (@payloadcms/ui > @monaco-editor/react)
-# now resolves. Nothing runs this npm copy of dompurify: monaco's `min/vs` bundles its own (3.2.7 in
-# 0.55.1, outside the advisory's range, the same files jsdelivr served before T107; SETUP.md,
-# "dompurify 3.4.17"). The override only clears the audit. Drop it once
+# advisory, GHSA-cg2g-xh64-v4q7, fixed in 3.4.17; 0.55.1 pins 3.2.7). It comes in through
+# Payload's admin (@payloadcms/ui > @monaco-editor/react) and, since M7 T107, the storefront's dev
+# dependency on monaco-editor 0.55.1: the exact version Payload's code fields load from jsdelivr at
+# runtime (D141), which `e2e/ui-strings.spec.ts` serves in jsdelivr's place. Nothing runs this npm
+# copy of dompurify: monaco's `min/vs` bundles its own (3.2.7 in 0.55.1, outside the advisory's
+# range; SETUP.md, "dompurify 3.4.17"). The override only clears the audit. Drop it once
 # monaco-editor depends on dompurify >=3.4.17. A caret, not an exact pin, so that a later monaco
 # that wants a newer 3.x is not held back to 3.4.17.
 overrides:
