@@ -33,6 +33,7 @@ export function staticCsp(): ProxyCsp {
       CSP_MODE: env.CSP_MODE,
       NEXT_PUBLIC_BASE_URL: env.NEXT_PUBLIC_BASE_URL,
       NEXT_PUBLIC_STRIPE_KEY: process.env.NEXT_PUBLIC_STRIPE_KEY,
+      NEXT_PUBLIC_TURNSTILE_SITE_KEY: process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY,
       S3_PUBLIC_URL: process.env.S3_PUBLIC_URL,
     },
     env.NODE_ENV === "development",

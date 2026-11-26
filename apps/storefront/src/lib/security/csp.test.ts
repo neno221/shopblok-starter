@@ -105,8 +105,9 @@ describe("staticPolicy (D138)", () => {
     }
   });
 
-  // M7 D143 (T108): Cloudflare's host only in a build with both of Turnstile's keys.
-  it("allows Turnstile's script and frame only with both of its keys", () => {
+  // M7 D143 (T108): Cloudflare's host only in a build with Turnstile's site key (the secret is not
+  // the build's: Turborepo's strict mode drops it, PR 153).
+  it("allows Turnstile's script and frame only with its site key", () => {
     const off = directives(staticPolicy(keyless));
     expect([...off.values()].flat()).not.toContain("https://challenges.cloudflare.com");
     const on = directives(staticPolicy({ ...keyless, turnstile: true }));
@@ -115,7 +116,8 @@ describe("staticPolicy (D138)", () => {
     expect(on.get("connect-src")).not.toContain("https://challenges.cloudflare.com");
     const site = { NEXT_PUBLIC_TURNSTILE_SITE_KEY: "1x00000000000000000000AA" };
     const secret = { TURNSTILE_SECRET_KEY: "1x0000000000000000000000000000000AA" };
-    expect(cspSettings(site, false).policy).not.toContain("challenges.cloudflare.com");
+    expect(cspSettings(secret, false).policy).not.toContain("challenges.cloudflare.com");
+    expect(cspSettings(site, false).policy).toContain("challenges.cloudflare.com");
     expect(cspSettings({ ...site, ...secret }, false).policy).toContain(
       "frame-src 'self' https://challenges.cloudflare.com",
     );

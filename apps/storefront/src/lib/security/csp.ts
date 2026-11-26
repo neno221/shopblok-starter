@@ -337,7 +337,7 @@ export type CspSettings = {
 
 /**
  * The header and policies a build sends, from the build's environment: `CSP_MODE`,
- * `NEXT_PUBLIC_STRIPE_KEY`, Turnstile's two keys, `S3_PUBLIC_URL`, `S3_ENDPOINT` (the admin's uploads) and
+ * `NEXT_PUBLIC_STRIPE_KEY`, Turnstile's site key, `S3_PUBLIC_URL`, `S3_ENDPOINT` (the admin's uploads) and
  * `NEXT_PUBLIC_BASE_URL`. A site the base URL puts on plain http (CI's and a PC's
  * `http://localhost:8000`) gets no `upgrade-insecure-requests`: Chromium leaves a request to
  * `http://localhost` alone but upgrades a redirect's target, even on localhost (T106's probe: a
@@ -353,10 +353,12 @@ export function cspSettings(
   const options: StaticPolicyOptions = {
     dev,
     stripe: (source.NEXT_PUBLIC_STRIPE_KEY ?? "").trim() !== "",
-    // As `turnstileKeys` (`turnstile.ts`, server-only) reads them: both, or Turnstile stays off.
-    turnstile:
-      (source.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? "").trim() !== "" &&
-      (source.TURNSTILE_SECRET_KEY ?? "").trim() !== "",
+    // The site key alone: the policy is made when `next build` runs, which needs no secret, and
+    // Turborepo's strict mode hands a build `NEXT_PUBLIC_*` but drops `TURNSTILE_SECRET_KEY`, so a
+    // build with both keys had no Cloudflare host (CI's `integrations-live`, PR 153). The widget
+    // still draws only with both (`turnstileKeys`); a site key without its secret only allows the
+    // host.
+    turnstile: (source.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? "").trim() !== "",
     media: mediaOrigin(source.S3_PUBLIC_URL),
     upgradeInsecureRequests: !base.startsWith("http://"),
   };
