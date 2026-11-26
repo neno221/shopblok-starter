@@ -1,5 +1,6 @@
-// The CI gate (M2 plan, D53; T27): which of `e2e-smoke`, `design-system`, `windows-smoke` and (M6
-// D114, T93) `integrations-live` a run of `.github/workflows/ci.yml` needs. `check` and
+// The CI gate (M2 plan, D53; T27): which of `e2e-smoke`, `design-system`, `windows-smoke`, (M6
+// D114, T93) `integrations-live` and (M7 T114) `deploy-config` a run of `.github/workflows/ci.yml`
+// needs. `check` and
 // `backend-integration` always run, but on the nightly schedule. On a pull request the answer comes
 // from the files it changes; any other event (a push to `main`, the weekly schedule, a dispatch)
 // runs `e2e-smoke`, `design-system` and `integrations-live`, and `windows-smoke` on every event but
@@ -9,8 +10,15 @@
 // workflow. Nothing here reads a file or the network.
 import path from "node:path";
 
-/** The four jobs the gate decides. */
-export type Jobs = { e2e: boolean; designSystem: boolean; windows: boolean; integrations: boolean };
+/** The five jobs the gate decides. */
+export type Jobs = {
+  e2e: boolean;
+  designSystem: boolean;
+  windows: boolean;
+  integrations: boolean;
+  /** M7 D135, T114: `deploy-config`, Medusa's image built and booted as staging runs it. */
+  deployConfig: boolean;
+};
 
 /**
  * The nightly schedule (M6 D114): `integrations-live` alone, so a change at a service (an API
@@ -119,6 +127,38 @@ const toolingOnly: readonly (string | RegExp)[] = [
   "renovate.json",
 ];
 
+/**
+ * What `deploy-config` (M7 T114) checks: Medusa's image (its Dockerfile, its entry point and what
+ * it is built from, `.railway/railway.ts`'s watch patterns), the Railway and Vercel configs, and
+ * the workflow that runs the job. A dependency file runs it too, through `isDependencyFile`.
+ */
+const deployConfigInputs: readonly (string | RegExp)[] = [
+  "apps/backend/",
+  ".dockerignore",
+  ".railway/",
+  "packages/config/",
+  "packages/emails/",
+  "packages/fixtures/",
+  "packages/i18n/",
+  "packages/integrations/",
+  "packages/medusa-markets/",
+  "packages/registry/",
+  "packages/ui/",
+  // doctor's backend half is bundled into the image from the root scripts.
+  /^scripts\/[^/]+\.ts$/,
+  "scripts/lib/",
+  "scripts/tsconfig.json",
+  "apps/storefront/vercel.json",
+  "apps/storefront/scripts/vercel-build.sh",
+  "apps/storefront/scripts/vercel-ignore.sh",
+  ".github/workflows/ci.yml",
+];
+
+/** Whether a changed file can change what `deploy-config` builds or checks. */
+export function isDeployConfigInput(file: string): boolean {
+  return !isDocs(file) && deployConfigInputs.some((area) => within(file, area));
+}
+
 /** Whether only tools read the file (`toolingOnly`). */
 export function isToolingOnly(file: string): boolean {
   return toolingOnly.some((area) => within(file, area));
@@ -211,8 +251,10 @@ export function decideJobs(input: {
       designSystem: false,
       windows: false,
       integrations: false,
+      deployConfig: false,
       reasons: [
         `${event} with update-baselines: e2e-smoke, design-system, windows-smoke and integrations-live are skipped (the update-baselines job runs instead)`,
+        "deploy-config: skipped (update-baselines)",
       ],
     };
   }
@@ -222,8 +264,10 @@ export function decideJobs(input: {
       designSystem: false,
       windows: false,
       integrations: true,
+      deployConfig: false,
       reasons: [
         `schedule ${NIGHTLY_SCHEDULE} (nightly): integrations-live runs alone (e2e-smoke, design-system and windows-smoke are skipped)`,
+        "deploy-config: skipped (the nightly schedule)",
       ],
     };
   }
@@ -237,11 +281,14 @@ export function decideJobs(input: {
       designSystem: true,
       windows,
       integrations: true,
+      // A push to `main` too: Railway deploys `main` only once its checks pass (`checkSuites`).
+      deployConfig: true,
       reasons: [
         `${event}: e2e-smoke, design-system and integrations-live run (only a pull request is gated)`,
         windows
           ? "windows-smoke: runs (every event but a push and a pull request)"
           : "windows-smoke: skipped (a push: the pull request ran it if it changed a dependency file)",
+        `deploy-config: runs (${event})`,
       ],
     };
   }
@@ -253,6 +300,7 @@ export function decideJobs(input: {
       designSystem: true,
       windows: true,
       integrations: true,
+      deployConfig: true,
       reasons: ["pull_request: no changed files were listed, so every job runs"],
     };
   }
@@ -298,11 +346,18 @@ export function decideJobs(input: {
       ? "integrations-live: skipped (as e2e-smoke)"
       : `integrations-live: runs (as e2e-smoke: ${e2eFile})`,
   );
+  const deployFile = dependency ?? files.find(isDeployConfigInput);
+  reasons.push(
+    deployFile === undefined
+      ? "deploy-config: skipped (no file of Medusa's image or the deploy configs)"
+      : `deploy-config: runs (${deployFile})`,
+  );
   return {
     e2e: e2eFile !== undefined,
     designSystem: dsFile !== undefined,
     windows: dependency !== undefined,
     integrations: e2eFile !== undefined,
+    deployConfig: deployFile !== undefined,
     reasons,
   };
 }
@@ -340,5 +395,6 @@ export function outputLines(jobs: Jobs): string[] {
     `design-system=${jobs.designSystem}`,
     `windows=${jobs.windows}`,
     `integrations=${jobs.integrations}`,
+    `deploy-config=${jobs.deployConfig}`,
   ];
 }

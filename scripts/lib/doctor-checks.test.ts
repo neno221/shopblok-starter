@@ -495,7 +495,6 @@ describe("configChecks: half-configured integrations", () => {
 
 describe("configChecks with an app (doctor --app, M7 D135)", () => {
   const backendOnly: AppEnvs = { backend: bootstrapped.backend, storefront: {} };
-  const storefrontOnly: AppEnvs = { backend: {}, storefront: bootstrapped.storefront };
   const scoped = (envs: AppEnvs, app: "backend" | "storefront", context: Partial<Context> = {}) =>
     configChecks(envs, getIntegrationStatus(envs, { app }), { ...dev, app, ...context });
   const ids = (checks: ReturnType<typeof run>) => checks.map((check) => check.id);

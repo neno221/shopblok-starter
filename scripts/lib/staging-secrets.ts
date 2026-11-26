@@ -424,7 +424,9 @@ export class VercelApi {
           entries.map((entry) => ({
             key: entry.key,
             value: entry.value,
+            // Vercel's Secret (write-only, never returned) or Config (readable: the fingerprints).
             type: entry.sensitive ? "sensitive" : "encrypted",
+            visibility: entry.sensitive ? "secret" : "config",
             target: [...VERCEL_TARGETS],
           })),
         ),
@@ -705,9 +707,17 @@ export async function runStagingSecrets(input: RunInput): Promise<number> {
       say(`Vercel: ${toVercel.length} variables set (${VERCEL_TARGETS.join(", ")}).`);
     }
     const rotated = decisions.find((each) => each.action === "rotate");
+    const redeploy = (spec: SecretSpec): string => {
+      const apps = new Set(spec.homes.map((home) => home.app));
+      return [
+        ...(apps.has("meilisearch") ? ["Meilisearch"] : []),
+        ...(apps.has("backend") ? ["Medusa's server and worker"] : []),
+        ...(apps.has("storefront") ? ["Vercel's Production"] : []),
+      ].join(", then ");
+    };
     say(
       rotated !== undefined
-        ? `\nRotated ${rotated.spec.name}: redeploy ${rotated.spec.homes.some((home) => home.app === "storefront") ? "both apps" : "Medusa's server and worker"} now (DEPLOY.md, "Rotating a secret").`
+        ? `\nRotated ${rotated.spec.name}: redeploy ${redeploy(rotated.spec)} now (DEPLOY.md, "Rotating a secret").`
         : "\nDone. Seal the new Railway variables in its dashboard (DEPLOY.md, G11), then deploy.",
     );
     return 0;

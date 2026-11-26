@@ -252,6 +252,9 @@ describe("pnpm staging:secrets (D134)", () => {
       expect(entry.type).toBe(
         entry.key === "SHOPBLOK_SECRET_FINGERPRINTS" ? "encrypted" : "sensitive",
       );
+      expect((entry as { visibility?: string }).visibility).toBe(
+        entry.key === "SHOPBLOK_SECRET_FINGERPRINTS" ? "config" : "secret",
+      );
     }
     // The fingerprints match what was set, the same on both platforms.
     const prints = parseFingerprints(vercelValue("SHOPBLOK_SECRET_FINGERPRINTS")?.value) as Map<
@@ -308,7 +311,7 @@ describe("pnpm staging:secrets (D134)", () => {
     for (const [name, print] of after)
       if (name === "REVALIDATE_SECRET") expect(print).not.toBe(before.get(name));
       else expect(print).toBe(before.get(name));
-    expect(output).toMatch(/redeploy both apps/);
+    expect(output).toMatch(/redeploy Medusa's server and worker, then Vercel's Production/);
     expectNoValue(output, world.state);
   });
 
