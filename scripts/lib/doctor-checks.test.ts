@@ -560,6 +560,40 @@ describe("configChecks: Medusa Admin's two-factor key (T109, D146)", () => {
   });
 });
 
+describe("configChecks: Medusa's CORS on a deployment (T109)", () => {
+  const deployed = (cors: Record<string, string>): AppEnvs => ({
+    backend: { ...bootstrapped.backend, NODE_ENV: "production", DEPLOY_ENV: "staging", ...cors },
+    storefront: {},
+  });
+  const good = {
+    STORE_CORS: "https://shopblok.vercel.app",
+    AUTH_CORS: "https://shopblok.vercel.app,https://shopblok-server.up.railway.app",
+    ADMIN_CORS: "https://shopblok-server.up.railway.app",
+  };
+  const backendOnly: Context = { ...dev, app: "backend", deployed: true };
+
+  it("is not checked in development", () => {
+    expect(find(run(bootstrapped), "cors")).toBeUndefined();
+  });
+
+  it("passes DEPLOY.md's values", () => {
+    expect(find(run(deployed(good), backendOnly), "cors")?.level).toBe("ok");
+  });
+
+  it("is an error naming each wrong list", () => {
+    const check = find(
+      run(deployed({ ...good, STORE_CORS: "http://localhost:8000", ADMIN_CORS: "" }), backendOnly),
+      "cors",
+    );
+    expect(check?.level).toBe("error");
+    expect(check?.details).toEqual([
+      expect.stringContaining("STORE_CORS"),
+      expect.stringContaining("STORE_CORS lets in http://localhost:8000"),
+      expect.stringContaining("ADMIN_CORS is blank"),
+    ]);
+  });
+});
+
 describe("configChecks: the preview and jobs secrets (T59)", () => {
   const blank = { backend: bootstrapped.backend, storefront: { PAYLOAD_SECRET: "p" } };
 

@@ -575,7 +575,7 @@ medusaIntegrationTestRunner({
 
         for (const [route, { owner, other }] of Object.entries(cases)) {
           const mine = await owner();
-          if (!("skipped" in (mine.data.cart ?? mine.data))) {
+          if (!("skipped" in ((mine.data.cart ?? mine.data) as object))) {
             expect([route, mine.status]).toEqual([route, 200]);
             expect([route, secretsIn(mine.data).length > 0]).toEqual([route, true]);
           }

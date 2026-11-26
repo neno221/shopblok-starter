@@ -3,6 +3,7 @@
 // sockets, calls the servers); every decision that can be wrong lives here, with a test.
 import type { RunResult } from "./exec.ts";
 import { describeUnreachable, jsonOf, type HttpResult } from "./http.ts";
+import { corsProblems } from "./cors-check.ts";
 import { isSet, type AppEnvs, type AppName, type IntegrationStatus } from "@shopblok/integrations";
 import type { BackendMarkets } from "./markets-check.ts";
 import { payloadDatabaseTlsCheck, secretFingerprintCheck } from "./deploy-secrets.ts";
@@ -405,6 +406,38 @@ function mfaKey(envs: AppEnvs, context: Context): Check {
 }
 
 /**
+ * Medusa's CORS lists on a deployment (M7 D136 (5), T109): `STORE_CORS`, `AUTH_CORS` and
+ * `ADMIN_CORS` read the way Medusa 2.23 reads them (`cors-check.ts`), each entry an exact `https`
+ * origin or an anchored pattern, none letting in a foreign origin. The browser never calls Medusa
+ * (the storefront's server does), so the lists are a fence: an error when one is wrong. Nothing in
+ * development, where they name `localhost`.
+ */
+function corsCheck(envs: AppEnvs): Check[] {
+  if (productionStage(envs.backend).stage === undefined) return [];
+  const problems = (["STORE_CORS", "AUTH_CORS", "ADMIN_CORS"] as const).flatMap((name) =>
+    corsProblems(name, envs.backend[name]),
+  );
+  return [
+    problems.length === 0
+      ? {
+          id: "cors",
+          title: "Medusa's CORS",
+          level: "ok",
+          message:
+            "STORE_CORS, AUTH_CORS and ADMIN_CORS hold only https origins and anchored patterns.",
+        }
+      : {
+          id: "cors",
+          title: "Medusa's CORS",
+          level: "error",
+          message: "A CORS list on this deployment is not what Medusa needs.",
+          details: problems,
+          fix: "Set them as DEPLOY.md's table says: the storefront's address and its previews' pattern (between slashes, with ^ and $), and Medusa's own address.",
+        },
+  ];
+}
+
+/**
  * Stripe's live keys, by their prefix (M6 D115): a secret key `sk_live_`, a restricted key
  * `rk_live_`, a publishable key `pk_live_`. The test ones start `sk_test_`, `rk_test_`, `pk_test_`.
  */
@@ -648,6 +681,7 @@ export function configChecks(
     ...(storefront ? [publishableKey(envs)] : []),
     ...(backend ? [payloadKey(envs)] : []),
     ...(backend ? [mfaKey(envs, context)] : []),
+    ...(backend ? corsCheck(envs) : []),
     ...(backend ? [emailVerification(statuses)] : []),
     ...(app === undefined ? [] : optional(secretFingerprintCheck(envs[app], app, deployed))),
     ...(storefront ? optional(payloadDatabaseTlsCheck(envs.storefront, deployed)) : []),

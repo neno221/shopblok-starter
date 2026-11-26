@@ -5,6 +5,7 @@ import path from "node:path";
 import { createRailwayContext, project, type ResourceNode, type ServiceNode } from "railway/iac";
 import { describe, expect, it } from "vitest";
 import program, { ENVIRONMENT, REGION, WATCH_PATTERNS } from "../../.railway/railway.ts";
+import { corsProblems } from "./cors-check.ts";
 import { secretsOf } from "./deploy-secrets.ts";
 
 async function graph(environment = ENVIRONMENT) {
@@ -123,5 +124,23 @@ describe(".railway/railway.ts", () => {
     });
     expect(server.variables?.REDIS_URL).toMatchObject({ resource: "database.redis" });
     expect(literal(server, "MEILISEARCH_HOST")).toContain("RAILWAY_PRIVATE_DOMAIN");
+  });
+
+  it("gives Medusa CORS lists that pass doctor's check once G11's shared variables are in (T109)", async () => {
+    const { byName } = await graph();
+    const shared: Record<string, string> = {
+      "${{shared.STOREFRONT_URL}}": "https://shopblok.vercel.app",
+      "${{shared.STOREFRONT_PREVIEW_ORIGINS}}": String.raw`/^https:\/\/(shopblok-ch|shopblok-[a-z0-9-]+-acme)\.vercel\.app$/`,
+    };
+    const resolve = (value: unknown) =>
+      Object.entries(shared)
+        .reduce((text, [ref, to]) => text.split(ref).join(to), String(value))
+        .replace(/\$\{\{(?:[\w-]+\.)?RAILWAY_PUBLIC_DOMAIN\}\}/g, "shopblok-server.up.railway.app");
+    for (const name of ["medusa", "medusa-worker"]) {
+      const node = byName(name);
+      for (const list of ["STORE_CORS", "AUTH_CORS", "ADMIN_CORS"])
+        expect(corsProblems(list, resolve(literal(node, list)))).toEqual([]);
+      expect(resolve(literal(node, "ADMIN_CORS"))).toBe("https://shopblok-server.up.railway.app");
+    }
   });
 });
