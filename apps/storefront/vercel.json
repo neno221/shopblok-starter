@@ -1,0 +1,8 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "nextjs",
+  "regions": ["fra1"],
+  "installCommand": "pnpm install --frozen-lockfile --filter \"@shopblok/storefront...\" --filter \"@shopblok/scripts...\"",
+  "buildCommand": "bash scripts/vercel-build.sh",
+  "ignoreCommand": "bash scripts/vercel-ignore.sh"
+}
