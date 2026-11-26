@@ -282,6 +282,9 @@ function envFiles(): StepResult {
       {
         JWT_SECRET: generateSecret(),
         COOKIE_SECRET: generateSecret(),
+        // D146 (T109): Medusa Admin's two-factor key; filled only while blank, since a new one
+        // locks every admin out of their codes.
+        AUTH_MFA_ENCRYPTION_KEY: generateSecret(),
         REVALIDATE_SECRET: shared,
         STOREFRONT_SIGNING_SECRET: signing,
       },

@@ -1,6 +1,7 @@
 import {
   authenticate,
   configureStoreSearch,
+  type AuthenticatedMedusaRequest,
   defineMiddlewares,
   errorHandler,
   validateAndTransformBody,
@@ -55,7 +56,6 @@ export default defineMiddlewares({
     // they guard. The customer's five auth routes (SETUP T44's list), Medusa Admin's sign-in and
     // reset, cart completion per cart, and the rest of `/store/*`. Each keys on the address the
     // storefront signed (`x-shopblok-client`), or on the caller's own; an e-mail is hashed first.
-    // T109 attaches `admin-code-check` to the routes Medusa's MFA adds.
     // The sign-ins, the customer's register and the resets sit on Medusa's own parameterised paths
     // and pick their rule from the decoded `actor_type` (`authRateLimit`), so a percent-encoded path
     // such as `/auth/customer/%65mailpass` is counted too (the review of PR 153).
@@ -78,6 +78,26 @@ export default defineMiddlewares({
       method: ["POST"],
       matcher: "/auth/verification/request",
       middlewares: [rateLimit("verification-request", verificationSubject)],
+    },
+    // M7 D146 (T109): every route of Medusa's two-factor sign-in that checks a code (a challenge at
+    // sign-in, with a TOTP or a recovery code; the enrolment's first code; the code that turns a
+    // factor off) shares `admin-code-check`, 5 per 15 minutes per auth identity, whatever the
+    // address: a sixth code is refused even when it is right. Medusa authenticates these routes
+    // before the project's middlewares, so the identity is known here (`mfaSubject`).
+    {
+      method: ["POST"],
+      matcher: "/auth/mfa/challenges/:id/verify",
+      middlewares: [rateLimit("admin-code-check", mfaSubject)],
+    },
+    {
+      method: ["POST"],
+      matcher: "/auth/mfa/factors/:id/verify",
+      middlewares: [rateLimit("admin-code-check", mfaSubject)],
+    },
+    {
+      method: ["DELETE"],
+      matcher: "/auth/mfa/factors/:id",
+      middlewares: [rateLimit("admin-code-check", mfaSubject)],
     },
     {
       method: ["POST"],
@@ -170,6 +190,20 @@ export default defineMiddlewares({
 function verificationSubject(req: MedusaRequest): string | undefined {
   const email = emailFrom("entity_id")(req);
   if (email !== undefined) return email;
+  const authorization = req.headers.authorization;
+  return typeof authorization === "string"
+    ? createHash("sha256").update(authorization).digest("hex")
+    : undefined;
+}
+
+/**
+ * Whose code is checked: the auth identity Medusa read from the session or token (the challenge's
+ * restricted token after the password, or the signed-in user's), else a hash of the
+ * `Authorization` header (Medusa answers 401 to a call with neither before this runs).
+ */
+function mfaSubject(req: MedusaRequest): string | undefined {
+  const identity = (req as AuthenticatedMedusaRequest).auth_context?.auth_identity_id;
+  if (typeof identity === "string" && identity !== "") return identity;
   const authorization = req.headers.authorization;
   return typeof authorization === "string"
     ? createHash("sha256").update(authorization).digest("hex")

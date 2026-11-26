@@ -84,7 +84,7 @@ export const RULES = {
   "admin-login": signIn("admin-login"),
   "admin-reset": resetRequest("admin-reset"),
   // D146: Medusa Admin's two-factor code check, 5 per 15 minutes per user. In the table from T108;
-  // T109 attaches it to the routes Medusa's MFA adds (`/auth/mfa/…/verify`).
+  // T109 put it on the routes of Medusa's MFA that check a code (`api/middlewares.ts`).
   "admin-code-check": {
     counters: [counter("admin-code-check:user", 5, 15 * MINUTE, "key")],
     storefront: false,

@@ -375,6 +375,36 @@ function previewAndCronSecrets(envs: AppEnvs, context: Context): Check {
 }
 
 /**
+ * Medusa Admin's two-factor key (M7 D146, T109): `AUTH_MFA_ENCRYPTION_KEY` encrypts the TOTP
+ * secrets, and without it Medusa refuses every TOTP enrolment, so no admin can turn two-factor
+ * sign-in on. An error on a deployment, a warning anywhere else (bootstrap generates it). Medusa
+ * 2.23 can't require two-factor sign-in for every admin, and no admin route says whose is on, so
+ * doctor checks only the key; GO-LIVE asks each admin to enrol.
+ */
+function mfaKey(envs: AppEnvs, context: Context): Check {
+  const title = "Medusa Admin's two-factor key";
+  if (isSet(envs.backend, "AUTH_MFA_ENCRYPTION_KEY"))
+    return {
+      id: "mfa-key",
+      title,
+      level: "ok",
+      message: "AUTH_MFA_ENCRYPTION_KEY is set: admins can turn on two-factor sign-in.",
+    };
+  const deployed = context.deployed === true;
+  return {
+    id: "mfa-key",
+    title,
+    level: deployed ? "error" : "warn",
+    message:
+      "AUTH_MFA_ENCRYPTION_KEY is blank: Medusa refuses every TOTP enrolment, so no admin can turn on two-factor sign-in.",
+    details: ["not set: AUTH_MFA_ENCRYPTION_KEY (apps/backend)"],
+    fix: deployed
+      ? "Set a fresh random value once (`pnpm staging:secrets` does). Changing it later locks every admin out of their codes."
+      : "Run `pnpm bootstrap`, which generates it.",
+  };
+}
+
+/**
  * Stripe's live keys, by their prefix (M6 D115): a secret key `sk_live_`, a restricted key
  * `rk_live_`, a publishable key `pk_live_`. The test ones start `sk_test_`, `rk_test_`, `pk_test_`.
  */
@@ -609,8 +639,7 @@ export function configChecks(
     signingSecretCheck(
       envs,
       app === undefined ? ["backend", "storefront"] : [app],
-      deployed ||
-        (context.nodeEnv !== undefined && !BLANK_SECRET_ENVS.includes(context.nodeEnv)),
+      deployed || (context.nodeEnv !== undefined && !BLANK_SECRET_ENVS.includes(context.nodeEnv)),
     ),
     ...(storefront ? [previewAndCronSecrets(envs, context)] : []),
     ...(storefront
@@ -618,6 +647,7 @@ export function configChecks(
       : []),
     ...(storefront ? [publishableKey(envs)] : []),
     ...(backend ? [payloadKey(envs)] : []),
+    ...(backend ? [mfaKey(envs, context)] : []),
     ...(backend ? [emailVerification(statuses)] : []),
     ...(app === undefined ? [] : optional(secretFingerprintCheck(envs[app], app, deployed))),
     ...(storefront ? optional(payloadDatabaseTlsCheck(envs.storefront, deployed)) : []),

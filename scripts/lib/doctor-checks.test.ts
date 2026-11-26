@@ -39,6 +39,7 @@ const bootstrapped: AppEnvs = {
   backend: {
     JWT_SECRET: "j",
     COOKIE_SECRET: "c",
+    AUTH_MFA_ENCRYPTION_KEY: "m",
     REDIS_URL: "redis://localhost:6380",
     MEDUSA_FF_CACHING: "true",
     PAYLOAD_API_KEY: "k",
@@ -531,6 +532,31 @@ describe("configChecks: secrets", () => {
 
   it.each(["development", "test"])("blank with NODE_ENV=%s is only a warning", (env) => {
     expect(secretsFor(env)?.level).toBe("warn");
+  });
+});
+
+describe("configChecks: Medusa Admin's two-factor key (T109, D146)", () => {
+  const blank: AppEnvs = {
+    backend: { ...bootstrapped.backend, AUTH_MFA_ENCRYPTION_KEY: "" },
+    storefront: bootstrapped.storefront,
+  };
+
+  it("set after bootstrap", () => {
+    expect(find(run(bootstrapped), "mfa-key")?.level).toBe("ok");
+  });
+
+  it("blank in development is a warning that points at bootstrap", () => {
+    const check = find(run(blank), "mfa-key");
+    expect(check?.level).toBe("warn");
+    expect(check?.details).toEqual(["not set: AUTH_MFA_ENCRYPTION_KEY (apps/backend)"]);
+    expect(check?.fix).toContain("pnpm bootstrap");
+  });
+
+  it("blank on a deployment is an error, and only the backend's", () => {
+    const deployed = { ...dev, deployed: true };
+    expect(find(run(blank, deployed), "mfa-key")?.level).toBe("error");
+    expect(find(run(blank, { ...deployed, app: "storefront" }), "mfa-key")).toBeUndefined();
+    expect(find(run(blank, { ...deployed, app: "backend" }), "mfa-key")?.level).toBe("error");
   });
 });
 
