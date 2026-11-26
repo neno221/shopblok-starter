@@ -20,7 +20,7 @@ vi.mock("../consent/record", () => ({ keepConsent }));
 vi.mock("../medusa/cart", () => ({ syncCartConsent: syncCart }));
 vi.mock("../markets/cached-market-map", () => ({ getRenderMarketMap: async () => seeded }));
 
-const { recordConsent, saveCookieSettings } = await import("./consent");
+const { saveCookieSettings, syncCartConsent } = await import("./consent");
 
 const form = (fields: Record<string, string>) => {
   const data = new FormData();
@@ -35,8 +35,8 @@ describe("the consent actions (D145)", () => {
     redirect.mockClear();
   });
 
-  it("records the island's choice as passed, writes no cookie, and answers the id", async () => {
-    expect(await recordConsent("fr-ch", { analytics: false, marketing: true })).toBe(
+  it("records the island's choice as passed, writes no cookie, answers the id, and tells the cart", async () => {
+    expect(await syncCartConsent("fr-ch", { analytics: false, marketing: true })).toBe(
       "0f8fad5b-d9cb-469f-a165-70867728950e",
     );
     expect(keepConsent).toHaveBeenCalledWith(
@@ -44,13 +44,28 @@ describe("the consent actions (D145)", () => {
       { analytics: false, marketing: true },
       { setCookie: false },
     );
+    expect(syncCart).toHaveBeenCalledTimes(1);
   });
 
-  it("records nothing for a market or a choice that is not one", async () => {
-    expect(await recordConsent("fr-cy", { analytics: true, marketing: true })).toBeNull();
-    expect(await recordConsent("fr-ch", { analytics: "yes", marketing: true })).toBeNull();
-    expect(await recordConsent("fr-ch", null)).toBeNull();
+  it("records without the cart when told to (a yes the PostHog gate sends)", async () => {
+    expect(await syncCartConsent("fr-ch", { analytics: true, marketing: false }, false)).toBe(
+      "0f8fad5b-d9cb-469f-a165-70867728950e",
+    );
+    expect(syncCart).not.toHaveBeenCalled();
+  });
+
+  it("only tells the cart without a choice (the gate's call), or for a market or a choice that is not one", async () => {
+    expect(await syncCartConsent()).toBeNull();
+    expect(await syncCartConsent("fr-cy", { analytics: true, marketing: true })).toBeNull();
+    expect(await syncCartConsent("fr-ch", { analytics: "yes", marketing: true })).toBeNull();
+    expect(await syncCartConsent("fr-ch", null)).toBeNull();
     expect(keepConsent).not.toHaveBeenCalled();
+    expect(syncCart).toHaveBeenCalledTimes(4);
+  });
+
+  it("is no error when Medusa is out of reach", async () => {
+    syncCart.mockRejectedValueOnce(new Error("unreachable"));
+    expect(await syncCartConsent()).toBeNull();
   });
 
   it("saves the no-script form's boxes, writing the cookie, and says so at the form", async () => {

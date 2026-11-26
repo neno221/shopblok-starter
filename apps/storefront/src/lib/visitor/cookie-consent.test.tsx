@@ -23,11 +23,12 @@ import { getSnapshot, resetVisitor, setVisitor } from "./store";
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 // The cart's server action (D124): each choice is sent to it.
-const syncCartConsent = vi.hoisted(() => vi.fn(async () => true));
-const recordConsent = vi.hoisted(() =>
-  vi.fn(async (_market: unknown, _choice: unknown): Promise<string | null> => null),
+const syncCartConsent = vi.hoisted(() =>
+  vi.fn(
+    async (_market?: unknown, _choice?: unknown, _cart?: unknown): Promise<string | null> => null,
+  ),
 );
-vi.mock("../actions/consent", () => ({ syncCartConsent, recordConsent }));
+vi.mock("../actions/consent", () => ({ syncCartConsent }));
 
 const { site } = commerceFixtures.en;
 const props: VisitorCookieConsentProps = {
@@ -303,7 +304,6 @@ describe("Cookie settings and the kept choice (M6 D123, T97)", () => {
   afterEach(() => {
     document.cookie = "_shopblok_consent=; Path=/; Max-Age=0";
     syncCartConsent.mockClear();
-    recordConsent.mockClear();
   });
 
   /** A footer's "Cookie settings" link on the page. */
@@ -321,20 +321,21 @@ describe("Cookie settings and the kept choice (M6 D123, T97)", () => {
     await act(async () => setVisitor({ cartCount: 0, consent: null }));
     await click(slot("cookie-consent-accept"));
     expect(readConsentCookie()).toEqual({ analytics: true, marketing: true });
+    // M7 D145: the same action records the choice, for the page's market (and, keyless, tells
+    // the cart).
     expect(syncCartConsent).toHaveBeenCalledTimes(1);
-    // M7 D145: and the choice is recorded on the server, for the page's market.
-    expect(recordConsent).toHaveBeenCalledTimes(1);
-    expect(recordConsent).toHaveBeenCalledWith(expect.any(String), {
-      analytics: true,
-      marketing: true,
-    });
+    expect(syncCartConsent).toHaveBeenCalledWith(
+      expect.any(String),
+      { analytics: true, marketing: true },
+      true,
+    );
   });
 
   it("records two quick choices one after the other, and an earlier answer never puts back the earlier choice (D145, PR 156 review)", async () => {
     const id = "0f8fad5b-d9cb-469f-a165-70867728950e";
     const answers: ((value: string | null) => void)[] = [];
     const sent: unknown[] = [];
-    recordConsent.mockImplementation(async (_market, choice) => {
+    syncCartConsent.mockImplementation(async (_market, choice) => {
       // The id the request would carry: what the cookie holds when the action is sent.
       sent.push([choice, consentRecordFromCookieHeader(document.cookie)?.id]);
       return new Promise<string | null>((resolve) => answers.push(resolve));
@@ -357,8 +358,8 @@ describe("Cookie settings and the kept choice (M6 D123, T97)", () => {
     expect(sent[1]).toEqual([{ analytics: false, marketing: false }, id]);
     await act(async () => answers[1]!(id));
     expect(readConsentCookie()).toEqual({ analytics: false, marketing: false });
-    recordConsent.mockReset();
-    recordConsent.mockImplementation(async () => null);
+    syncCartConsent.mockReset();
+    syncCartConsent.mockImplementation(async () => null);
   });
 
   it('opens the dialog from a "Cookie settings" link, with the switches as chosen', async () => {

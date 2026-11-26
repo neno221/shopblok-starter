@@ -90,26 +90,19 @@ export function consentCookieLine(
 
 /**
  * Keeps the visitor's choice in the browser (`Secure` when the page is on https), with the consent
- * record's id the cookie already has (D145), so a change is recorded under the same id.
+ * record's id the cookie already has (D145), so a change is recorded under the same id. Without a
+ * choice it adds `id` to the cookie as it is now (once the record answers it), and leaves a cookie
+ * that has an id, or none, alone.
  */
-export function writeConsentCookie(choice: ConsentChoice): void {
-  if (typeof document === "undefined") return;
-  const id = consentRecordFromCookieHeader(document.cookie)?.id;
-  document.cookie = consentCookieLine(choice, window.location.protocol === "https:", undefined, id);
-}
-
-/**
- * M7 D145 (T109): adds the server's consent id to the cookie as it is now (the choice in it kept),
- * once the record of a choice answers it; a cookie with an id already, or none, is left alone.
- */
-export function addConsentId(id: string): void {
+export function writeConsentCookie(choice?: ConsentChoice, id?: string): void {
   if (typeof document === "undefined") return;
   const now = consentRecordFromCookieHeader(document.cookie);
-  if (now === null || now.id !== undefined) return;
+  const kept = choice ?? (now?.id === undefined ? now?.choice : undefined);
+  if (kept === undefined) return;
   document.cookie = consentCookieLine(
-    now.choice,
+    kept,
     window.location.protocol === "https:",
     undefined,
-    id,
+    now?.id ?? id,
   );
 }

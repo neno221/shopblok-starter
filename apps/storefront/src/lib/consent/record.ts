@@ -28,7 +28,7 @@ import type { ConsentRecordKind } from "../../payload/collections/consent-record
 // The island's record never writes the cookie (PR 156 review): a request's `Cookie` header is
 // fixed when the action is sent, so an earlier action's `Set-Cookie` could put back a choice the
 // visitor has since changed. It records the choice the island passes and answers the id, which the
-// browser adds to the cookie as it is then (`addConsentId`); the island sends its records one
+// browser adds to the cookie as it is then (`writeConsentCookie`); the island sends its records one
 // after the other, so the next one's request carries the id.
 
 /** A record's kind: the id's first, a change, or a withdrawal (a category that was on is off). */
