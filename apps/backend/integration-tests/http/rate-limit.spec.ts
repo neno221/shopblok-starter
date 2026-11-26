@@ -98,7 +98,12 @@ medusaIntegrationTestRunner({
       it.each([
         ["the customer's sign-in", LOGIN, "/auth/customer/%65mailpass", 401],
         ["Medusa Admin's sign-in", ADMIN_LOGIN, "/auth/user/%65mailpass", 401],
-        ["the customer's sign-in, with two letters encoded", LOGIN, "/auth/%63ustomer/emailp%61ss", 401],
+        [
+          "the customer's sign-in, with two letters encoded",
+          LOGIN,
+          "/auth/%63ustomer/emailp%61ss",
+          401,
+        ],
       ])(
         "counts %s on a percent-encoded path on the same counter",
         async (_name, plain, encoded, status) => {
@@ -129,7 +134,10 @@ medusaIntegrationTestRunner({
 
         const reset = (path: string) =>
           post(path, { identifier: "nobody@example.com" }, signed(address, "POST", path));
-        const resets = ["/auth/user/emailpass/reset-password", "/auth/user/%65mailpass/reset-password"];
+        const resets = [
+          "/auth/user/emailpass/reset-password",
+          "/auth/user/%65mailpass/reset-password",
+        ];
         const resetResults: number[] = [];
         for (let n = 0; n < 3; n += 1) resetResults.push((await reset(resets[n % 2]!)).status);
         expect(resetResults).not.toContain(429);
@@ -169,12 +177,18 @@ medusaIntegrationTestRunner({
         // The caller's address is Express's `req.ip`: Medusa trusts one proxy hop (`trust proxy` 1,
         // Railway's), so a call through a proxy is counted for the address that proxy saw.
         expect(
-          (await post(LOGIN, { email, password: "x" }, { "x-forwarded-for": "198.51.100.9" })).status,
+          (await post(LOGIN, { email, password: "x" }, { "x-forwarded-for": "198.51.100.9" }))
+            .status,
         ).toBe(401);
         // A signed visitor is not in the caller's counter.
         expect(
-          (await post(LOGIN, { email, password: "wrong" }, signed(visitor().address, "POST", LOGIN)))
-            .status,
+          (
+            await post(
+              LOGIN,
+              { email, password: "wrong" },
+              signed(visitor().address, "POST", LOGIN),
+            )
+          ).status,
         ).toBe(401);
       });
 
@@ -183,9 +197,9 @@ medusaIntegrationTestRunner({
         const good = signed(named, "POST", LOGIN)["x-shopblok-client"];
         const forged = { "x-shopblok-client": good.replace(/[0-9a-f]{8}$/, "00000000") };
 
-        expect(
-          await statuses(11, () => post(LOGIN, { email, password: "wrong" }, forged)),
-        ).toEqual([...Array(10).fill(401), 429]);
+        expect(await statuses(11, () => post(LOGIN, { email, password: "wrong" }, forged))).toEqual(
+          [...Array(10).fill(401), 429],
+        );
         // The named address's own counter is untouched.
         expect(
           (await post(LOGIN, { email, password: "wrong" }, signed(named, "POST", LOGIN))).status,
@@ -197,10 +211,14 @@ medusaIntegrationTestRunner({
         const forAdmin = signed(named, "POST", ADMIN_LOGIN);
         const forGet = signed(named, "GET", LOGIN);
 
-        const replays = await statuses(11, (() => {
-          let i = 0;
-          return () => post(LOGIN, { email, password: "wrong" }, i++ % 2 === 0 ? forAdmin : forGet);
-        })());
+        const replays = await statuses(
+          11,
+          (() => {
+            let i = 0;
+            return () =>
+              post(LOGIN, { email, password: "wrong" }, i++ % 2 === 0 ? forAdmin : forGet);
+          })(),
+        );
 
         expect(replays).toEqual([...Array(10).fill(401), 429]);
         expect(
@@ -267,9 +285,10 @@ medusaIntegrationTestRunner({
           const { address, email } = visitor();
           const key = createHash("sha256").update(email).digest("hex");
           const sign = () => signed(address, "POST", ROUTE);
-          const answers = [];
+          const answers: unknown[] = [];
 
-          for (let i = 0; i < 6; i += 1) answers.push((await ask({ rule: "newsletter", key }, sign())).data);
+          for (let i = 0; i < 6; i += 1)
+            answers.push((await ask({ rule: "newsletter", key }, sign())).data);
 
           expect(answers.slice(0, 2)).toEqual([
             { allowed: true, retryAfter: 0 },
