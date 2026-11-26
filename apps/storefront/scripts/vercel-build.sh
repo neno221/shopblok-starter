@@ -5,15 +5,19 @@
 # 1. `doctor --app=storefront --strict`, with `--online` on Production: a half-set key, a stale
 #    shared secret (SHOPBLOK_SECRET_FINGERPRINTS) or a Payload database without TLS fails the
 #    build before anything changes;
-# 2. on Production only (staging's `main`, D132), `payload migrate`, so the schema is ready before
+# 2. the workspace packages the storefront uses, through turbo (`--filter=@shopblok/storefront^...`,
+#    which may replay them from turbo's cache), before anything touches the database: a build that
+#    cannot build them fails with staging's schema unchanged, and the seed reads them built. turbo
+#    is the root's devDependency, which the filtered install in `vercel.json` installs (pnpm puts the
+#    workspace root's dependencies in every filtered install; SETUP.md, T114's review, item 2);
+# 3. on Production only (staging's `main`, D132), `payload migrate`, so the schema is ready before
 #    the new deployment answers (a preview never migrates staging's database, D136, 2);
-# 3. while SEED_ON_BUILD=payload is set, on Production only, the staging seed's Payload half
+# 4. while SEED_ON_BUILD=payload is set, on Production only, the staging seed's Payload half
 #    (`src/scripts/seed-staging.ts`, D148, 5);
-# 4. the workspace packages the storefront uses, through turbo (`--filter=@shopblok/storefront^...`,
-#    which may replay them from turbo's cache), then `next build` itself, outside turbo: turbo's
-#    strict env mode would hand `next build` only the variables the `turbo.json` files list, while
-#    a deployment's prerender reads more (the secrets, the integrations' keys), and a storefront
-#    build replayed from a cache would carry another deployment's prerendered pages.
+# 5. `next build` itself, outside turbo: turbo's strict env mode would hand `next build` only the
+#    variables the `turbo.json` files list, while a deployment's prerender reads more (the
+#    secrets, the integrations' keys), and a storefront build replayed from a cache would carry
+#    another deployment's prerendered pages.
 #
 # It prints no value: doctor masks what it shows, and the seed prints its outcomes only.
 set -euo pipefail
@@ -34,6 +38,9 @@ if [ "$seed" != "" ] && [ "$seed" != "payload" ]; then
   exit 1
 fi
 
+echo "vercel-build: the workspace packages"
+(cd "$ROOT" && pnpm exec turbo run build --filter="@shopblok/storefront^...")
+
 if [ "$production" = true ]; then
   echo "vercel-build: payload migrate"
   (cd "$STOREFRONT" && pnpm exec payload migrate)
@@ -45,6 +52,5 @@ elif [ "$seed" = "payload" ]; then
   echo "vercel-build: SEED_ON_BUILD is for staging's Production build; this ${VERCEL_ENV:-local} build seeds nothing"
 fi
 
-echo "vercel-build: the workspace packages, then next build"
-(cd "$ROOT" && pnpm exec turbo run build --filter="@shopblok/storefront^...")
+echo "vercel-build: next build"
 (cd "$STOREFRONT" && pnpm exec next build)

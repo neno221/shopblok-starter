@@ -1,5 +1,7 @@
 // `.railway/railway.ts` (M7 D132, D135): the graph Railway's CLI would plan, checked without
 // Railway. Evaluated the way the CLI evaluates it, with a context for an environment.
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { createRailwayContext, project, type ResourceNode, type ServiceNode } from "railway/iac";
 import { describe, expect, it } from "vitest";
 import program, { ENVIRONMENT, REGION, WATCH_PATTERNS } from "../../.railway/railway.ts";
@@ -49,6 +51,20 @@ describe(".railway/railway.ts", () => {
       expect(Object.keys(byName(name).deploy?.multiRegionConfig ?? {}), name).toEqual([REGION]);
   });
 
+  it("watches every file the image is built from: each of .dockerignore's entries (PR 149's review, 8)", () => {
+    const dockerignore = readFileSync(
+      path.resolve(import.meta.dirname, "..", "..", ".dockerignore"),
+      "utf8",
+    );
+    const entries = dockerignore
+      .split("\n")
+      .map((line) => line.trim())
+      .filter((line) => line.startsWith("!") && !line.startsWith("!**/"))
+      .map((line) => line.slice(1));
+    expect(entries.length).toBeGreaterThan(10);
+    for (const entry of entries) expect(WATCH_PATTERNS, entry).toContain(entry);
+  });
+
   it("builds one image for both Medusa services from the Dockerfile, on main after CI passes", async () => {
     const { byName } = await graph();
     for (const name of ["medusa", "medusa-worker"]) {
@@ -65,14 +81,14 @@ describe(".railway/railway.ts", () => {
     }
   });
 
-  it("gives the server the predeploy and the health check, the worker neither, and no admin", async () => {
+  it("gives the server the migrating predeploy and the health check, the worker the wait and no admin", async () => {
     const { byName } = await graph();
     const server = byName("medusa");
     const worker = byName("medusa-worker");
     expect(server.deploy?.preDeployCommand).toEqual(["/usr/local/bin/shopblok predeploy"]);
     expect(server.deploy?.healthcheckPath).toBe("/health");
     expect(literal(server, "MEDUSA_WORKER_MODE")).toBe("server");
-    expect(worker.deploy?.preDeployCommand ?? []).toEqual([]);
+    expect(worker.deploy?.preDeployCommand).toEqual(["/usr/local/bin/shopblok predeploy-worker"]);
     expect(worker.deploy?.healthcheckPath).toBeUndefined();
     expect(literal(worker, "MEDUSA_WORKER_MODE")).toBe("worker");
     expect(literal(worker, "DISABLE_MEDUSA_ADMIN")).toBe("true");

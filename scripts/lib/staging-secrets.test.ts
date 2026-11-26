@@ -323,8 +323,38 @@ describe("pnpm staging:secrets (D134)", () => {
     });
     const { code, output } = await run(world.fetch);
     expect(code, output).toBe(0);
-    expect(world.state.writes).toContain("stripe delete");
+    // The new endpoint first, every variable written, the old endpoint removed last.
+    expect(world.state.writes[0]).toBe("stripe create");
+    expect(world.state.writes.at(-1)).toBe("stripe delete");
     expect(world.state.stripe.endpoints.map((each) => each.id)).not.toContain("we_old");
+    expect(world.state.stripe.endpoints).toHaveLength(1);
+    expect(world.state.railway.variables.get("medusa")!.STRIPE_WEBHOOK_SECRET).toBe(
+      world.state.stripe.endpoints[0]!.secret,
+    );
+    expect(output).toMatch(/Redeploy Medusa's server now/);
+  });
+
+  it("keeps the old webhook endpoint when a write after the new one fails (PR 149's review, 4)", async () => {
+    world.state.stripe.endpoints.push({
+      id: "we_old",
+      url: `https://medusa-staging.up.railway.app${STRIPE_WEBHOOK_PATH}`,
+      secret: "whsec_lost_lost_lost_lost",
+    });
+    const failing: Fetch = async (url, init) => {
+      if (String(url).startsWith(VERCEL_API) && init?.method === "POST")
+        return new Response(JSON.stringify({ error: { message: "rate limited" } }), {
+          status: 429,
+        });
+      return world.fetch(url, init);
+    };
+    const failed = await run(failing);
+    expect(failed.code).toBe(1);
+    expect(world.state.stripe.endpoints.map((each) => each.id)).toContain("we_old");
+    expect(world.state.writes).not.toContain("stripe delete");
+    // The next run finds both endpoints at the address, rolls again and removes both old ones.
+    const again = await run(world.fetch);
+    expect(again.code, again.output).toBe(0);
+    expect(world.state.stripe.endpoints).toHaveLength(1);
     expect(world.state.railway.variables.get("medusa")!.STRIPE_WEBHOOK_SECRET).toBe(
       world.state.stripe.endpoints[0]!.secret,
     );

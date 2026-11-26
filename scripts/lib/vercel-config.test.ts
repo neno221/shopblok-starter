@@ -69,15 +69,17 @@ describe("scripts/vercel-build.sh", () => {
     expect(doctor).toBeLessThan(at(/payload migrate/));
   });
 
-  it("migrates and seeds on Production only, then builds", () => {
+  it("builds the packages before the database changes, migrates and seeds on Production only, then builds", () => {
+    const packages = at(/turbo run build --filter="@shopblok\/storefront\^\.\.\."/);
     const production = at(/^if \[ "\$production" = true \]; then$/);
     const migrate = at(/pnpm exec payload migrate/);
     const seed = at(/payload run src\/scripts\/seed-staging\.ts/);
     const close = lines.findIndex((line, index) => index > seed && line === "fi");
+    expect(packages).toBeLessThan(production);
     expect(production).toBeLessThan(migrate);
     expect(migrate).toBeLessThan(seed);
     expect(lines[seed - 2]).toBe('if [ "$seed" = "payload" ]; then');
-    expect(at(/turbo run build --filter="@shopblok\/storefront\^\.\.\."/)).toBeGreaterThan(close);
+    expect(lines.indexOf('(cd "$STOREFRONT" && pnpm exec next build)')).toBeGreaterThan(close);
     expect(lines.at(-1)).toBe('(cd "$STOREFRONT" && pnpm exec next build)');
   });
 

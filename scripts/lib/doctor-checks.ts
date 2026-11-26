@@ -601,8 +601,11 @@ export function classifyPayloadAuth(answer: {
 /**
  * The backend → Payload link. `answer` is `undefined` when there was no URL or key to ask with.
  * `fromBackendDeploy` (`doctor --app=backend`, Railway's predeploy, M7 D135): the backend deploys
- * first, before Vercel's first Production build has a Payload to answer, so a Payload that does not
- * answer is an accepted note there; one that answers and refuses the key is still an error.
+ * first, before Vercel's first Production build has a Payload to answer, so an address that does
+ * not answer, or answers with something other than Payload (Vercel's 404 `DEPLOYMENT_NOT_FOUND`
+ * before the first deployment), is an accepted note there. A Payload that refuses the key (401,
+ * 403, or 200 with `"user": null`) is still an error: the first Production build seeds the
+ * integrations user before it goes live, so a live Payload without it is a wrong key.
  */
 export function payloadAuthCheck(
   payloadUrl: string,
@@ -617,13 +620,22 @@ export function payloadAuthCheck(
       fix: "Run `pnpm bootstrap`.",
     };
   }
+  const verdict =
+    answer.kind === "response"
+      ? classifyPayloadAuth({ status: answer.status, body: jsonOf(answer) })
+      : undefined;
+  if (options.fromBackendDeploy === true && verdict !== "ok" && verdict !== "rejected") {
+    const what =
+      answer.kind === "response"
+        ? `answered HTTP ${answer.status}, not Payload`
+        : describeUnreachable(answer);
+    return {
+      ...PAYLOAD_AUTH,
+      level: "note",
+      message: `not checked: ${payloadUrl} ${what}. The backend deploys before the storefront (DEPLOY.md, the first deployment's order), so the fingerprints stand in: they say PAYLOAD_API_KEY is the storefront's, whose Payload seed gives the integrations user that key.`,
+    };
+  }
   if (answer.kind !== "response") {
-    if (options.fromBackendDeploy === true)
-      return {
-        ...PAYLOAD_AUTH,
-        level: "note",
-        message: `not checked: ${payloadUrl} ${describeUnreachable(answer)}. The backend deploys before the storefront (DEPLOY.md, the first deployment's order), so the fingerprints stand in: they say PAYLOAD_API_KEY is the storefront's, whose Payload seed gives the integrations user that key.`,
-      };
     return {
       ...PAYLOAD_AUTH,
       level: "warn",
@@ -631,7 +643,6 @@ export function payloadAuthCheck(
       fix: "Start the storefront (Payload is embedded in it) with `pnpm dev`.",
     };
   }
-  const verdict = classifyPayloadAuth({ status: answer.status, body: jsonOf(answer) });
   if (verdict === "ok") {
     return {
       ...PAYLOAD_AUTH,

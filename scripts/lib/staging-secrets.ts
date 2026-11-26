@@ -456,10 +456,13 @@ export class StripeApi {
     return record(await json(response, "Stripe"));
   }
 
-  async findEndpoint(url: string): Promise<string | undefined> {
+  /** Every endpoint at `url` (an earlier roll that failed half-way can leave two). */
+  async findEndpoints(url: string): Promise<string[]> {
     const list = (await this.call("/v1/webhook_endpoints?limit=100")).data;
-    const found = (Array.isArray(list) ? list : []).map(record).find((each) => each.url === url);
-    return found === undefined ? undefined : String(found.id);
+    return (Array.isArray(list) ? list : [])
+      .map(record)
+      .filter((each) => each.url === url)
+      .map((each) => String(each.id));
   }
 
   /** A new endpoint; Stripe returns its signing secret this once. */
@@ -637,17 +640,17 @@ export async function runStagingSecrets(input: RunInput): Promise<number> {
       services.get(RAILWAY_SERVICES.server)!,
     );
     let webhook:
-      { url: string; endpoint: string | undefined; action: "kept" | "create" | "roll" } | undefined;
+      { url: string; endpoints: string[]; action: "kept" | "create" | "roll" } | undefined;
     if (stripeKey === undefined)
       say("  missing  STRIPE_WEBHOOK_SECRET: no STRIPE_API_KEY in the session");
     else if (domain === undefined)
       say("  missing  STRIPE_WEBHOOK_SECRET: Medusa's server has no public domain yet (G11)");
     else {
       const url = `https://${domain}${STRIPE_WEBHOOK_PATH}`;
-      const endpoint = await new StripeApi(input.fetch, stripeKey).findEndpoint(url);
+      const endpoints = await new StripeApi(input.fetch, stripeKey).findEndpoints(url);
       const action =
-        endpoint === undefined ? "create" : parsedPrints.has(WEBHOOK_RECORD) ? "kept" : "roll";
-      webhook = { url, endpoint, action };
+        endpoints.length === 0 ? "create" : parsedPrints.has(WEBHOOK_RECORD) ? "kept" : "roll";
+      webhook = { url, endpoints, action };
       say(
         action === "kept"
           ? `  kept     ${WEBHOOK_RECORD} (Stripe's endpoint for Medusa's server exists, its secret is stored)`
@@ -662,12 +665,13 @@ export async function runStagingSecrets(input: RunInput): Promise<number> {
       return 0;
     }
 
-    // 4. The writes. Stripe's first, since its secret joins the Railway writes and the prints.
+    // 4. The writes. Stripe's new endpoint first, since its secret joins the Railway writes and
+    // the prints; a rolled endpoint's old ones go only after every write has landed, so a failed
+    // write leaves the endpoint Medusa's server verifies with (PR 149's review, item 4).
     const writes = [...secrets.writes, ...integrations.writes, ...databaseWrites];
     const prints = secrets.prints;
-    if (webhook !== undefined && webhook.action !== "kept" && stripeKey !== undefined) {
-      const stripe = new StripeApi(input.fetch, stripeKey);
-      if (webhook.endpoint !== undefined) await stripe.remove(webhook.endpoint);
+    const stripe = stripeKey === undefined ? undefined : new StripeApi(input.fetch, stripeKey);
+    if (webhook !== undefined && webhook.action !== "kept" && stripe !== undefined) {
       const created = await stripe.create(webhook.url);
       remember(created.secret);
       if (created.secret === "")
@@ -705,6 +709,12 @@ export async function runStagingSecrets(input: RunInput): Promise<number> {
     if (toVercel.length > 0) {
       await vercelApi.upsert(wantVercel, toVercel);
       say(`Vercel: ${toVercel.length} variables set (${VERCEL_TARGETS.join(", ")}).`);
+    }
+    if (webhook?.action === "roll" && stripe !== undefined) {
+      for (const endpoint of webhook.endpoints) await stripe.remove(endpoint);
+      say(
+        `Stripe: the old webhook endpoint removed. Redeploy Medusa's server now: until it runs with the new ${WEBHOOK_RECORD}, its signature check refuses Stripe's events, which Stripe retries (for up to three days).`,
+      );
     }
     const rotated = decisions.find((each) => each.action === "rotate");
     const redeploy = (spec: SecretSpec): string => {

@@ -819,11 +819,31 @@ const timedOut: HttpResult = {
 
 describe("payloadAuthCheck from the backend's deploy (M7 D135)", () => {
   const url = "https://staging.example.vercel.app";
+  const deploy = { fromBackendDeploy: true };
   it("is an accepted note when Payload does not answer yet, and still an error when it refuses", () => {
-    expect(payloadAuthCheck(url, refused, { fromBackendDeploy: true }).level).toBe("note");
-    expect(payloadAuthCheck(url, json({ user: null }), { fromBackendDeploy: true }).level).toBe(
-      "error",
-    );
+    expect(payloadAuthCheck(url, refused, deploy).level).toBe("note");
+    expect(payloadAuthCheck(url, timedOut, deploy).level).toBe("note");
+    expect(payloadAuthCheck(url, json({ user: null }), deploy).level).toBe("error");
+    expect(payloadAuthCheck(url, json({ errors: [] }, 401), deploy).level).toBe("error");
+    expect(payloadAuthCheck(url, json({ errors: [] }, 403), deploy).level).toBe("error");
+  });
+
+  it("is a note before Vercel's first deployment, whose address answers 404 (PR 149's review, 1)", () => {
+    const notFound: HttpResult = {
+      kind: "response",
+      status: 404,
+      text: "The deployment could not be found on Vercel.\n\nDEPLOYMENT_NOT_FOUND",
+    };
+    const check = payloadAuthCheck(url, notFound, deploy);
+    expect(check.level).toBe("note");
+    expect(check.message).toContain("answered HTTP 404, not Payload");
+    expect(payloadAuthCheck(url, notFound).level).toBe("error");
+  });
+
+  it("is ok once Payload answers as the integrations user", () => {
+    expect(
+      payloadAuthCheck(url, json({ user: { collection: "integrations" } }), deploy).level,
+    ).toBe("ok");
   });
 });
 

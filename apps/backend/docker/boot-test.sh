@@ -4,7 +4,9 @@
 #
 #   apps/backend/docker/boot-test.sh [image]        (default shopblok-backend:dev)
 #
-# 1. a fresh database `medusa_deploy` in the stack's Postgres, and the migrations (`shopblok migrate`);
+# 1. a fresh database `medusa_deploy` in the stack's Postgres; the worker's predeploy
+#    (`shopblok predeploy-worker`) waits and fails, then the migrations (`shopblok migrate`, which
+#    marks the revision) and the worker's predeploy passes;
 # 2. the server (`MEDUSA_WORKER_MODE=server`) and the worker (`worker`, `DISABLE_MEDUSA_ADMIN=true`),
 #    both with `DEPLOY_ENV=staging` and `NODE_ENV=production`, on the stack's network;
 # 3. `/health` answers 200, and the worker's log shows every job of the build registered;
@@ -57,6 +59,7 @@ umask 077
 cat >"$envfile" <<EOF
 NODE_ENV=production
 DEPLOY_ENV=staging
+SHOPBLOK_REVISION=boot-test-$(secret)
 DATABASE_URL=postgres://postgres:postgres@postgres:5432/medusa_deploy?sslmode=disable
 REDIS_URL=redis://redis:6379/9
 MEILISEARCH_HOST=http://meilisearch:7700
@@ -75,9 +78,25 @@ EOF
 
 run() { docker run --rm --network "$NETWORK" --env-file "$envfile" "$@"; }
 
+echo "boot-test: the worker's predeploy waits while the revision is not migrated"
+if run -e SCHEMA_WAIT_SECONDS=6 "$IMAGE" predeploy-worker >"$workdir/wait.log" 2>&1; then
+  echo "boot-test: the worker's predeploy passed before the migrations" >&2
+  exit 1
+fi
+grep -q "has not finished the migrations" "$workdir/wait.log" || {
+  tail -20 "$workdir/wait.log" >&2
+  exit 1
+}
+
 echo "boot-test: shopblok migrate"
 run "$IMAGE" migrate >"$workdir/migrate.log" 2>&1 || {
   tail -40 "$workdir/migrate.log" >&2
+  exit 1
+}
+
+echo "boot-test: the worker's predeploy passes once the server has migrated the revision"
+run -e SCHEMA_WAIT_SECONDS=30 "$IMAGE" predeploy-worker >"$workdir/wait.log" 2>&1 || {
+  tail -20 "$workdir/wait.log" >&2
   exit 1
 }
 
@@ -117,7 +136,7 @@ docker logs "$WORKER" 2>&1 | grep -q '"Jobs registered."' || {
   echo "boot-test: the worker's log never says \"Jobs registered.\"" >&2
   exit 1
 }
-wanted="$(docker run --rm --entrypoint sh "$IMAGE" -c 'ls /app/.medusa/server/src/jobs | grep -c "\.js$"')"
+wanted="$(docker run --rm --entrypoint sh "$IMAGE" -c 'ls /app/.medusa/server/src/jobs | grep -c "\.js$" || true')"
 registered="$(docker logs "$WORKER" 2>&1 | grep -c 'Registering job from /app/.medusa/server/src/jobs/' || true)"
 if [ "$registered" -lt "$wanted" ] || [ "$wanted" -eq 0 ]; then
   echo "boot-test: the worker registered $registered of the build's $wanted jobs" >&2

@@ -221,6 +221,23 @@ export function deploymentBaseUrl(source: RawEnv = env): string | undefined {
 }
 
 /**
+ * The origins one deployment answers on, beyond `siteOrigin()` (PR 149's review, item 6): on a
+ * preview, its own deployment address (`VERCEL_URL`, which Vercel's dashboard links) and its
+ * branch's (`VERCEL_BRANCH_URL`), so Payload's CSRF and CORS lists accept the admin opened at
+ * either. Empty elsewhere: Production answers on its domain.
+ */
+export function previewOrigins(source: RawEnv = env): string[] {
+  if ((source.VERCEL_ENV ?? "").trim() !== "preview") return [];
+  return [source.VERCEL_URL, source.VERCEL_BRANCH_URL].flatMap((value) => {
+    const host = (value ?? "")
+      .trim()
+      .replace(/^https?:\/\//, "")
+      .replace(/\/+$/, "");
+    return host === "" ? [] : [`https://${host}`];
+  });
+}
+
+/**
  * The header that lets the app's own requests to itself past Vercel's Deployment Protection (M7
  * D136): the proxy reads `/next/markets` and `/next/redirects` from its own origin, which a
  * protected preview would otherwise answer with Vercel's login page. Empty without the secret

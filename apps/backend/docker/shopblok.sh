@@ -2,10 +2,13 @@
 # The entry point of Medusa's image (M7 D135, apps/backend/Dockerfile). One image, several jobs:
 #
 #   shopblok start          Medusa as MEDUSA_WORKER_MODE says (server, worker, or shared when unset)
-#   shopblok migrate        the migrations alone (`medusa db:migrate`), as CI's boot test runs them
-#   shopblok predeploy      Railway's pre-deploy command of the server: the migrations, then
+#   shopblok migrate        the migrations (`medusa db:migrate`) and the revision's mark, as CI's
+#                           boot test runs them
+#   shopblok predeploy      Railway's pre-deploy command of the server: the migrations, the
+#                           revision's mark (docker/schema-gate.mjs), then
 #                           `doctor --app=backend --strict --online`, then, while
 #                           SEED_ON_DEPLOY=medusa is set, the seed's Medusa half
+#   shopblok predeploy-worker  the worker's: waits until the server has migrated this revision
 #   shopblok doctor [...]   doctor's backend half (`--app=backend` and the options given)
 #   shopblok seed-staging   the staging seed's Medusa half (D148, 5), once, by hand
 #   shopblok exec <script>  `medusa exec` of a compiled script, such as ./src/scripts/doctor-markets.js
@@ -17,6 +20,7 @@ set -euo pipefail
 SERVER_DIR=/app/.medusa/server
 MEDUSA=/app/node_modules/.bin/medusa
 DOCTOR=/app/doctor/doctor.mjs
+SCHEMA_GATE=/app/docker/schema-gate.mjs
 
 command="${1:-start}"
 if [ "$#" -gt 0 ]; then shift; fi
@@ -42,13 +46,18 @@ case "$command" in
     ;;
   migrate)
     cd "$SERVER_DIR"
-    exec "$MEDUSA" db:migrate --execute-safe-links --execute-safe-search
+    "$MEDUSA" db:migrate --execute-safe-links --execute-safe-search
+    exec node "$SCHEMA_GATE" mark
     ;;
   predeploy)
     cd "$SERVER_DIR"
     "$MEDUSA" db:migrate --execute-safe-links --execute-safe-search
+    node "$SCHEMA_GATE" mark
     node "$DOCTOR" --app=backend --strict --online
     if [ "${SEED_ON_DEPLOY:-}" = "medusa" ]; then run_seed; fi
+    ;;
+  predeploy-worker)
+    exec node "$SCHEMA_GATE" wait
     ;;
   doctor)
     exec node "$DOCTOR" --app=backend "$@"
@@ -62,7 +71,7 @@ case "$command" in
     exec "$MEDUSA" exec "$@"
     ;;
   *)
-    echo "shopblok: unknown command \"$command\" (start, migrate, predeploy, doctor, seed-staging, exec)" >&2
+    echo "shopblok: unknown command \"$command\" (start, migrate, predeploy, predeploy-worker, doctor, seed-staging, exec)" >&2
     exit 2
     ;;
 esac

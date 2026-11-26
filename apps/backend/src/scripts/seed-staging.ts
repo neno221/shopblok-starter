@@ -4,7 +4,13 @@ import { createInvitesWorkflow, refreshInviteTokensWorkflow } from "@medusajs/me
 
 import inviteCreated from "../subscribers/invite-created";
 import { PUBLISHABLE_KEY_TITLE } from "./lib/markets";
-import { adminEmail, inviteAction, resultLine, stagingSeedRefusal } from "./lib/staging-seed";
+import {
+  adminEmail,
+  emailFilter,
+  inviteAction,
+  resultLine,
+  stagingSeedRefusal,
+} from "./lib/staging-seed";
 import seedDemoCatalog from "./seed-demo-catalog";
 import seedMarkets from "./seed-markets";
 import syncStripeRegionsScript from "./sync-stripe-regions";
@@ -41,8 +47,8 @@ export default async function seedStaging({ container, args }: ExecArgs) {
 
   const users = container.resolve(Modules.USER);
   const [existing, invites] = await Promise.all([
-    users.listUsers({ email }, { select: ["email"] }),
-    users.listInvites({ email }, { select: ["id", "email", "accepted", "expires_at"] }),
+    users.listUsers(emailFilter(email), { select: ["email"] }),
+    users.listInvites(emailFilter(email), { select: ["id", "email", "accepted", "expires_at"] }),
   ]);
   const decision = inviteAction({
     email,

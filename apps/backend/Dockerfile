@@ -9,7 +9,7 @@
 # `deploy-config` job builds and boots it against the compose stack, and a PC with Docker builds
 # it the same way. `MEDUSA_WORKER_MODE` picks the role at run time (`server`, `worker`, or
 # `shared` when unset); the entry point (`docker/shopblok.sh`) takes `start` (the default),
-# `predeploy`, `doctor`, `seed-staging` and `exec`. DEPLOY.md says which service runs which.
+# `predeploy`, `predeploy-worker`, `doctor`, `seed-staging` and `exec`. DEPLOY.md says which service runs which.
 #
 # Build stages: the workspace is installed for the backend and the packages it needs, the markets
 # plugin, the e-mails and the backend are built (`medusa build`), `doctor` is bundled into one
@@ -66,6 +66,7 @@ COPY --from=build --chown=node:node /out/app /app
 COPY --from=build --chown=node:node /repo/apps/backend/.medusa/server /app/.medusa/server
 COPY --from=build --chown=node:node /out/doctor /app/doctor
 COPY --chmod=0755 apps/backend/docker/shopblok.sh /usr/local/bin/shopblok
+COPY --chown=node:node apps/backend/docker/schema-gate.mjs /app/docker/schema-gate.mjs
 # Medusa's local file provider (no R2 keys) writes under `static/`, so the app's folder is the
 # `node` user's; nothing runs as root.
 USER node

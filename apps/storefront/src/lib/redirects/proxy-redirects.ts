@@ -14,6 +14,8 @@ const NONE: RedirectList = { redirects: [] };
 type Env = {
   NODE_ENV?: string;
   NEXT_PUBLIC_BASE_URL?: string;
+  VERCEL_ENV?: string;
+  VERCEL_URL?: string;
   VERCEL_AUTOMATION_BYPASS_SECRET?: string;
 };
 

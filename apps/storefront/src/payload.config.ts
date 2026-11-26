@@ -6,7 +6,7 @@ import { lexicalEditor } from "@payloadcms/richtext-lexical";
 import { buildConfig } from "payload";
 import sharp from "sharp";
 import { BUILD_DB_POOL_MAX, isBuildPhase } from "./lib/build-workers";
-import { firstUserClosed } from "./lib/env";
+import { firstUserClosed, previewOrigins } from "./lib/env";
 import { siteOrigin } from "./lib/site-origin";
 import { BLOCKS } from "./payload/blocks";
 import { Categories } from "./payload/collections/categories";
@@ -49,13 +49,15 @@ const DEFAULT_DATABASE_URL = "postgres://postgres:postgres@localhost:15432/paylo
 const DEPLOYED_POOL_MAX = 3;
 
 // The site's own origin. Setting `serverURL` turns on Payload's CSRF check, and `cors` and `csrf`
-// list the same single origin.
+// list that origin, and on a Vercel preview its deployment's and branch's addresses as well
+// (`previewOrigins`), so the admin works at whichever of them it was opened.
 const serverURL = siteOrigin();
+const origins = [...new Set([serverURL, ...previewOrigins()])];
 
 export default buildConfig({
   serverURL,
-  cors: [serverURL],
-  csrf: [serverURL],
+  cors: origins,
+  csrf: origins,
   // M7 D136: on Vercel, the function instance stays alive until the pool's idle connections are
   // closed (Fluid compute's `waitUntil`), so a suspended instance never leaves them open on
   // Railway's Postgres. Off Vercel it does nothing.

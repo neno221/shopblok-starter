@@ -27,6 +27,16 @@ export function adminEmail(env: Record<string, string | undefined>): string | un
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : undefined;
 }
 
+/**
+ * The filter that finds `email` among Medusa's users and invites whatever its case: Medusa stores
+ * an address as it was typed and Postgres compares text case-sensitively, so a user made by hand as
+ * `Owner@Example.com` must still count (PR 149's review, item 7). `%`, `_` and a backslash are escaped, so
+ * the pattern matches the address alone; `inviteAction` compares again exactly.
+ */
+export function emailFilter(email: string): { email: { $ilike: string } } {
+  return { email: { $ilike: email.replace(/[\\%_]/g, (char) => `\\${char}`) } };
+}
+
 export type InviteRow = {
   id: string;
   email: string;

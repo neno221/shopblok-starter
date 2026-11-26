@@ -58,6 +58,8 @@ export const WATCH_PATTERNS = [
   "pnpm-lock.yaml",
   "pnpm-workspace.yaml",
   ".dockerignore",
+  ".npmrc",
+  ".nvmrc",
 ];
 
 /** The image's entry point (`apps/backend/docker/shopblok.sh`); Railway's start command replaces it. */
@@ -202,11 +204,19 @@ export default defineRailway((ctx) => {
     },
   });
 
-  // The worker: subscribers and scheduled jobs, no HTTP traffic and no admin (D132).
+  // The worker: subscribers and scheduled jobs, no HTTP traffic and no admin (D132). It is built
+  // from the same push as the server, and its predeploy waits until the server's has migrated that
+  // revision (`docker/schema-gate.mjs`), so its new code never starts on the old schema.
   const worker = service("medusa-worker", {
     ...shared,
     start: `${SHOPBLOK} start`,
-    deploy: { restartPolicyType: "ON_FAILURE", restartPolicyMaxRetries: 10, drainingSeconds: 60 },
+    preDeploy: `${SHOPBLOK} predeploy-worker`,
+    deploy: {
+      restartPolicyType: "ON_FAILURE",
+      restartPolicyMaxRetries: 10,
+      preDeployTimeoutSeconds: 900,
+      drainingSeconds: 60,
+    },
     env: {
       ...medusaEnv({
         database: medusaDb.env.DATABASE_URL,

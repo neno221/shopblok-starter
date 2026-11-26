@@ -11,6 +11,7 @@ import {
   firstUserClosed,
   isProduction,
   medusaEnv,
+  previewOrigins,
   protectionBypassHeaders,
 } from "./env";
 import { siteOrigin } from "./site-origin";
@@ -341,6 +342,26 @@ describe("deploymentBaseUrl (M7 D136, T114)", () => {
     vi.stubEnv("VERCEL_ENV", "preview");
     vi.stubEnv("VERCEL_BRANCH_URL", "shopblok-git-feature-team.vercel.app");
     expect(siteOrigin()).toBe("https://shopblok-git-feature-team.vercel.app");
+  });
+});
+
+describe("previewOrigins (PR 149's review, 6)", () => {
+  it("on a preview, are its deployment's and its branch's addresses", () => {
+    expect(
+      previewOrigins({
+        VERCEL_ENV: "preview",
+        VERCEL_URL: "shopblok-abc123-team.vercel.app",
+        VERCEL_BRANCH_URL: "shopblok-git-feature-team.vercel.app/",
+      }),
+    ).toEqual([
+      "https://shopblok-abc123-team.vercel.app",
+      "https://shopblok-git-feature-team.vercel.app",
+    ]);
+  });
+
+  it("are none on Production or off Vercel", () => {
+    expect(previewOrigins({ VERCEL_ENV: "production", VERCEL_URL: "x.vercel.app" })).toEqual([]);
+    expect(previewOrigins({})).toEqual([]);
   });
 });
 

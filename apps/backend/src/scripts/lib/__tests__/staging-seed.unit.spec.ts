@@ -1,4 +1,10 @@
-import { adminEmail, inviteAction, resultLine, stagingSeedRefusal } from "../staging-seed";
+import {
+  adminEmail,
+  emailFilter,
+  inviteAction,
+  resultLine,
+  stagingSeedRefusal,
+} from "../staging-seed";
 
 const now = new Date("2026-11-26T12:00:00Z");
 const later = "2026-11-27T12:00:00Z";
@@ -30,6 +36,15 @@ describe("stagingSeedRefusal (M7 D148, 5)", () => {
 
   it("reads the address trimmed and lowercased", () => {
     expect(adminEmail({ SEED_ADMIN_EMAIL: "  Owner@Example.com " })).toBe("owner@example.com");
+  });
+});
+
+describe("emailFilter", () => {
+  it("matches the address in any case, and escapes LIKE's wildcards", () => {
+    expect(emailFilter("owner@example.com")).toEqual({ email: { $ilike: "owner@example.com" } });
+    expect(emailFilter("first_last%1@example.com")).toEqual({
+      email: { $ilike: "first\\_last\\%1@example.com" },
+    });
   });
 });
 

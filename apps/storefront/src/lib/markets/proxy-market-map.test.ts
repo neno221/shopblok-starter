@@ -115,6 +115,23 @@ describe("how long the proxy waits for the route (W2, finding 3)", () => {
 });
 
 describe("where the proxy reads the map", () => {
+  it("reads a preview's own deployment, not its branch's newest (PR 149's review, 6)", () => {
+    const preview = {
+      NEXT_PUBLIC_BASE_URL: "https://shopblok-git-feature-team.vercel.app",
+      VERCEL_ENV: "preview",
+      VERCEL_URL: "shopblok-abc123-team.vercel.app",
+    };
+    expect(marketsRouteUrl(preview).href).toBe(
+      "https://shopblok-abc123-team.vercel.app/next/markets",
+    );
+    expect(marketsRouteUrl({ ...preview, VERCEL_ENV: "production" }).href).toBe(
+      "https://shopblok-git-feature-team.vercel.app/next/markets",
+    );
+    expect(marketsRouteUrl({ ...preview, VERCEL_URL: "" }).href).toBe(
+      "https://shopblok-git-feature-team.vercel.app/next/markets",
+    );
+  });
+
   it("is /next/markets on the configured base URL, or on localhost:8000", () => {
     expect(marketsRouteUrl({}).href).toBe("http://localhost:8000/next/markets");
     expect(marketsRouteUrl({ NEXT_PUBLIC_BASE_URL: "https://shop.example" }).href).toBe(
