@@ -10339,7 +10339,17 @@ Sentry's `wired` set back to `false` (commit `0145ad4`, reverted in the next): l
 
 ### CI's times
 
-**TBD**
+Both jobs green twice on `9a7161b` (run 45736015846, attempts 1 and 2), beside `main`'s run on PR 142's merge (before T103; PR 143 did not run `integrations-live`'s specs with more keys):
+
+| Job | Before (`main`, PR 142) | Attempt 1 | Attempt 2 |
+|---|---|---|---|
+| `integrations-live` | 5 min 51 s | 4 min 56 s | 6 min 0 s |
+| its "Integration specs" step | | 1 min 12 s | 1 min 19 s |
+| its "The integrations whose keys the job holds" step | | 1 s | 1 s |
+| `e2e-smoke` | 26 min 18 s | 23 min 21 s | 23 min 30 s |
+| its "The done-when, keyless" step | | 8 s | 8 s |
+
+So T103 adds about 10 seconds to each job; the rest is the runners' spread. The mutation's run is under "The mutation".
 
 ### Checks (cloud VM)
 
