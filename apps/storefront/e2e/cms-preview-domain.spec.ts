@@ -45,6 +45,23 @@ const get = (target: string, cookie?: string) =>
     ...(cookie === undefined ? {} : { headers: { cookie, "sec-fetch-site": "same-origin" } }),
   });
 
+/** `/next/preview`'s answer for this path, as staff with the secret. */
+const preview = (path: string) =>
+  get(
+    `/next/preview?secret=${encodeURIComponent(appEnv("storefront", "PREVIEW_SECRET"))}&path=${encodeURIComponent(path)}`,
+    staff(),
+  );
+
+/** The Draft Mode cookie a preview's answer sets (`__prerender_bypass`), or "". */
+const bypassCookie = (response: Response) =>
+  response.headers
+    .getSetCookie()
+    .map((value) => value.split(";")[0])
+    .filter((value) => value?.startsWith("__prerender_bypass="))
+    .join("; ");
+
+const draftModeCookie = async (path: string) => bypassCookie(await preview(path));
+
 /** The `/de-ch/…` answer the proxy gives staff in Draft Mode, once it has the new map. */
 const previewStatus = async (target: string) =>
   (await get(target, `${draftCookie}; ${staff()}`)).status;
@@ -83,6 +100,9 @@ test.beforeAll(async () => {
 });
 
 test.afterAll(async () => {
+  // Its own budget: the map can take a minute to reach the proxy (the route's 30 s, then the
+  // proxy's stale-while-revalidate), and the next suites must not start before it has.
+  test.setTimeout(4 * MAP_TIMEOUT);
   if (pageId !== undefined)
     await fetch(`${base()}/api/pages/${pageId}`, { method: "DELETE", headers: jwt() }).catch(
       () => undefined,
@@ -90,32 +110,25 @@ test.afterAll(async () => {
   if (!changed) return;
   await markets.saveCountry("ch", { domain: domainBefore });
   // The next suites read the map: the proxy has Switzerland back on this host before they start.
+  // Only staff in Draft Mode see a difference at `/de-ch` (the own-domain preview, then the 404 of
+  // an internal key once the domain is gone), so the check takes a Draft Mode cookie of its own
+  // when the first test never got one.
+  const cookie = draftCookie !== "" ? draftCookie : await draftModeCookie("/");
   await expect
-    .poll(async () => (await get("/ch")).status, { timeout: MAP_TIMEOUT, intervals: [2_000] })
-    .toBe(200);
-  if (draftCookie !== "")
-    await expect
-      .poll(() => previewStatus("/de-ch"), { timeout: MAP_TIMEOUT, intervals: [2_000] })
-      .toBe(404);
+    .poll(async () => (await get("/de-ch", `${cookie}; ${staff()}`)).status, {
+      timeout: 2 * MAP_TIMEOUT,
+      intervals: [2_000],
+    })
+    .toBe(404);
 });
 
 test("/next/preview sends staff with the secret to the Swiss page at its key", async () => {
-  const secret = appEnv("storefront", "PREVIEW_SECRET");
   const path = `/de-ch/${slug}`;
-  const preview = () =>
-    get(
-      `/next/preview?secret=${encodeURIComponent(secret)}&path=${encodeURIComponent(path)}`,
-      staff(),
-    );
   // The preview route reads the market map itself (30 s at most behind the save).
-  await expect.poll(async () => (await preview()).status, { timeout: MAP_TIMEOUT }).toBe(307);
-  const response = await preview();
+  await expect.poll(async () => (await preview(path)).status, { timeout: MAP_TIMEOUT }).toBe(307);
+  const response = await preview(path);
   expect(response.headers.get("location")).toBe(path);
-  draftCookie = response.headers
-    .getSetCookie()
-    .map((value) => value.split(";")[0])
-    .filter((value) => value?.startsWith("__prerender_bypass="))
-    .join("; ");
+  draftCookie = bypassCookie(response);
   expect(draftCookie).not.toBe("");
 });
 
