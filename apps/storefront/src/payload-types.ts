@@ -13,53 +13,53 @@
  * via the `definition` "supportedTimezones".
  */
 export type SupportedTimezones =
-  | "Pacific/Midway"
-  | "Pacific/Niue"
-  | "Pacific/Honolulu"
-  | "Pacific/Rarotonga"
-  | "America/Anchorage"
-  | "Pacific/Gambier"
-  | "America/Los_Angeles"
-  | "America/Tijuana"
-  | "America/Denver"
-  | "America/Phoenix"
-  | "America/Chicago"
-  | "America/Guatemala"
-  | "America/New_York"
-  | "America/Bogota"
-  | "America/Caracas"
-  | "America/Santiago"
-  | "America/Buenos_Aires"
-  | "America/Sao_Paulo"
-  | "Atlantic/South_Georgia"
-  | "Atlantic/Azores"
-  | "Atlantic/Cape_Verde"
-  | "Europe/London"
-  | "Europe/Berlin"
-  | "Africa/Lagos"
-  | "Europe/Athens"
-  | "Africa/Cairo"
-  | "Europe/Moscow"
-  | "Asia/Riyadh"
-  | "Asia/Dubai"
-  | "Asia/Baku"
-  | "Asia/Karachi"
-  | "Asia/Tashkent"
-  | "Asia/Calcutta"
-  | "Asia/Dhaka"
-  | "Asia/Almaty"
-  | "Asia/Jakarta"
-  | "Asia/Bangkok"
-  | "Asia/Shanghai"
-  | "Asia/Singapore"
-  | "Asia/Tokyo"
-  | "Asia/Seoul"
-  | "Australia/Brisbane"
-  | "Australia/Sydney"
-  | "Pacific/Guam"
-  | "Pacific/Noumea"
-  | "Pacific/Auckland"
-  | "Pacific/Fiji";
+  | 'Pacific/Midway'
+  | 'Pacific/Niue'
+  | 'Pacific/Honolulu'
+  | 'Pacific/Rarotonga'
+  | 'America/Anchorage'
+  | 'Pacific/Gambier'
+  | 'America/Los_Angeles'
+  | 'America/Tijuana'
+  | 'America/Denver'
+  | 'America/Phoenix'
+  | 'America/Chicago'
+  | 'America/Guatemala'
+  | 'America/New_York'
+  | 'America/Bogota'
+  | 'America/Caracas'
+  | 'America/Santiago'
+  | 'America/Buenos_Aires'
+  | 'America/Sao_Paulo'
+  | 'Atlantic/South_Georgia'
+  | 'Atlantic/Azores'
+  | 'Atlantic/Cape_Verde'
+  | 'Europe/London'
+  | 'Europe/Berlin'
+  | 'Africa/Lagos'
+  | 'Europe/Athens'
+  | 'Africa/Cairo'
+  | 'Europe/Moscow'
+  | 'Asia/Riyadh'
+  | 'Asia/Dubai'
+  | 'Asia/Baku'
+  | 'Asia/Karachi'
+  | 'Asia/Tashkent'
+  | 'Asia/Calcutta'
+  | 'Asia/Dhaka'
+  | 'Asia/Almaty'
+  | 'Asia/Jakarta'
+  | 'Asia/Bangkok'
+  | 'Asia/Shanghai'
+  | 'Asia/Singapore'
+  | 'Asia/Tokyo'
+  | 'Asia/Seoul'
+  | 'Australia/Brisbane'
+  | 'Australia/Sydney'
+  | 'Pacific/Guam'
+  | 'Pacific/Noumea'
+  | 'Pacific/Auckland'
+  | 'Pacific/Fiji';
 
 export interface Config {
   auth: {
@@ -97,20 +97,20 @@ export interface Config {
     products: Product;
     categories: Category;
     collections: ProductCollection;
-    "email-templates": EmailTemplate;
-    "ui-strings": UiString;
-    "newsletter-confirmations": NewsletterConfirmation;
-    "consent-records": ConsentRecord;
+    'email-templates': EmailTemplate;
+    'ui-strings': UiString;
+    'newsletter-confirmations': NewsletterConfirmation;
+    'consent-records': ConsentRecord;
     exports: Export;
     imports: Import;
     forms: Form;
-    "form-submissions": FormSubmission;
+    'form-submissions': FormSubmission;
     redirects: Redirect;
-    "payload-kv": PayloadKv;
-    "payload-jobs": PayloadJob;
-    "payload-locked-documents": PayloadLockedDocument;
-    "payload-preferences": PayloadPreference;
-    "payload-migrations": PayloadMigration;
+    'payload-kv': PayloadKv;
+    'payload-jobs': PayloadJob;
+    'payload-locked-documents': PayloadLockedDocument;
+    'payload-preferences': PayloadPreference;
+    'payload-migrations': PayloadMigration;
   };
   collectionsJoins: {};
   collectionsSelect: {
@@ -122,185 +122,183 @@ export interface Config {
     products: ProductsSelect<false> | ProductsSelect<true>;
     categories: CategoriesSelect<false> | CategoriesSelect<true>;
     collections: CollectionsSelect<false> | CollectionsSelect<true>;
-    "email-templates": EmailTemplatesSelect<false> | EmailTemplatesSelect<true>;
-    "ui-strings": UiStringsSelect<false> | UiStringsSelect<true>;
-    "newsletter-confirmations":
-      NewsletterConfirmationsSelect<false> | NewsletterConfirmationsSelect<true>;
-    "consent-records": ConsentRecordsSelect<false> | ConsentRecordsSelect<true>;
+    'email-templates': EmailTemplatesSelect<false> | EmailTemplatesSelect<true>;
+    'ui-strings': UiStringsSelect<false> | UiStringsSelect<true>;
+    'newsletter-confirmations': NewsletterConfirmationsSelect<false> | NewsletterConfirmationsSelect<true>;
+    'consent-records': ConsentRecordsSelect<false> | ConsentRecordsSelect<true>;
     exports: ExportsSelect<false> | ExportsSelect<true>;
     imports: ImportsSelect<false> | ImportsSelect<true>;
     forms: FormsSelect<false> | FormsSelect<true>;
-    "form-submissions": FormSubmissionsSelect<false> | FormSubmissionsSelect<true>;
+    'form-submissions': FormSubmissionsSelect<false> | FormSubmissionsSelect<true>;
     redirects: RedirectsSelect<false> | RedirectsSelect<true>;
-    "payload-kv": PayloadKvSelect<false> | PayloadKvSelect<true>;
-    "payload-jobs": PayloadJobsSelect<false> | PayloadJobsSelect<true>;
-    "payload-locked-documents":
-      PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
-    "payload-preferences": PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
-    "payload-migrations": PayloadMigrationsSelect<false> | PayloadMigrationsSelect<true>;
+    'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
+    'payload-jobs': PayloadJobsSelect<false> | PayloadJobsSelect<true>;
+    'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
+    'payload-preferences': PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
+    'payload-migrations': PayloadMigrationsSelect<false> | PayloadMigrationsSelect<true>;
   };
   db: {
     defaultIDType: number;
   };
   fallbackLocale:
-    | ("false" | "none" | "null")
+    | ('false' | 'none' | 'null')
     | false
     | null
     | (
-        | "en"
-        | "bg"
-        | "hr"
-        | "cs"
-        | "da"
-        | "nl"
-        | "et"
-        | "fi"
-        | "fr"
-        | "de"
-        | "el"
-        | "hu"
-        | "ga"
-        | "it"
-        | "lv"
-        | "lt"
-        | "mt"
-        | "pl"
-        | "pt"
-        | "ro"
-        | "sk"
-        | "sl"
-        | "es"
-        | "sv"
-        | "nb"
-        | "tr"
-        | "ru"
-        | "uk"
-        | "ar"
-        | "he"
-        | "fa"
-        | "hi"
-        | "bn"
-        | "th"
-        | "vi"
-        | "id"
-        | "ms"
-        | "tl"
-        | "zh"
-        | "ja"
-        | "ko"
-        | "ka"
-        | "mn"
+        | 'en'
+        | 'bg'
+        | 'hr'
+        | 'cs'
+        | 'da'
+        | 'nl'
+        | 'et'
+        | 'fi'
+        | 'fr'
+        | 'de'
+        | 'el'
+        | 'hu'
+        | 'ga'
+        | 'it'
+        | 'lv'
+        | 'lt'
+        | 'mt'
+        | 'pl'
+        | 'pt'
+        | 'ro'
+        | 'sk'
+        | 'sl'
+        | 'es'
+        | 'sv'
+        | 'nb'
+        | 'tr'
+        | 'ru'
+        | 'uk'
+        | 'ar'
+        | 'he'
+        | 'fa'
+        | 'hi'
+        | 'bn'
+        | 'th'
+        | 'vi'
+        | 'id'
+        | 'ms'
+        | 'tl'
+        | 'zh'
+        | 'ja'
+        | 'ko'
+        | 'ka'
+        | 'mn'
       )
     | (
-        | "en"
-        | "bg"
-        | "hr"
-        | "cs"
-        | "da"
-        | "nl"
-        | "et"
-        | "fi"
-        | "fr"
-        | "de"
-        | "el"
-        | "hu"
-        | "ga"
-        | "it"
-        | "lv"
-        | "lt"
-        | "mt"
-        | "pl"
-        | "pt"
-        | "ro"
-        | "sk"
-        | "sl"
-        | "es"
-        | "sv"
-        | "nb"
-        | "tr"
-        | "ru"
-        | "uk"
-        | "ar"
-        | "he"
-        | "fa"
-        | "hi"
-        | "bn"
-        | "th"
-        | "vi"
-        | "id"
-        | "ms"
-        | "tl"
-        | "zh"
-        | "ja"
-        | "ko"
-        | "ka"
-        | "mn"
+        | 'en'
+        | 'bg'
+        | 'hr'
+        | 'cs'
+        | 'da'
+        | 'nl'
+        | 'et'
+        | 'fi'
+        | 'fr'
+        | 'de'
+        | 'el'
+        | 'hu'
+        | 'ga'
+        | 'it'
+        | 'lv'
+        | 'lt'
+        | 'mt'
+        | 'pl'
+        | 'pt'
+        | 'ro'
+        | 'sk'
+        | 'sl'
+        | 'es'
+        | 'sv'
+        | 'nb'
+        | 'tr'
+        | 'ru'
+        | 'uk'
+        | 'ar'
+        | 'he'
+        | 'fa'
+        | 'hi'
+        | 'bn'
+        | 'th'
+        | 'vi'
+        | 'id'
+        | 'ms'
+        | 'tl'
+        | 'zh'
+        | 'ja'
+        | 'ko'
+        | 'ka'
+        | 'mn'
       )[];
   globals: {
     header: Header;
     footer: Footer;
-    "site-settings": SiteSetting;
+    'site-settings': SiteSetting;
     templates: Template;
-    "payload-jobs-stats": PayloadJobsStat;
+    'payload-jobs-stats': PayloadJobsStat;
   };
   globalsSelect: {
     header: HeaderSelect<false> | HeaderSelect<true>;
     footer: FooterSelect<false> | FooterSelect<true>;
-    "site-settings": SiteSettingsSelect<false> | SiteSettingsSelect<true>;
+    'site-settings': SiteSettingsSelect<false> | SiteSettingsSelect<true>;
     templates: TemplatesSelect<false> | TemplatesSelect<true>;
-    "payload-jobs-stats": PayloadJobsStatsSelect<false> | PayloadJobsStatsSelect<true>;
+    'payload-jobs-stats': PayloadJobsStatsSelect<false> | PayloadJobsStatsSelect<true>;
   };
   locale:
-    | "en"
-    | "bg"
-    | "hr"
-    | "cs"
-    | "da"
-    | "nl"
-    | "et"
-    | "fi"
-    | "fr"
-    | "de"
-    | "el"
-    | "hu"
-    | "ga"
-    | "it"
-    | "lv"
-    | "lt"
-    | "mt"
-    | "pl"
-    | "pt"
-    | "ro"
-    | "sk"
-    | "sl"
-    | "es"
-    | "sv"
-    | "nb"
-    | "tr"
-    | "ru"
-    | "uk"
-    | "ar"
-    | "he"
-    | "fa"
-    | "hi"
-    | "bn"
-    | "th"
-    | "vi"
-    | "id"
-    | "ms"
-    | "tl"
-    | "zh"
-    | "ja"
-    | "ko"
-    | "ka"
-    | "mn";
+    | 'en'
+    | 'bg'
+    | 'hr'
+    | 'cs'
+    | 'da'
+    | 'nl'
+    | 'et'
+    | 'fi'
+    | 'fr'
+    | 'de'
+    | 'el'
+    | 'hu'
+    | 'ga'
+    | 'it'
+    | 'lv'
+    | 'lt'
+    | 'mt'
+    | 'pl'
+    | 'pt'
+    | 'ro'
+    | 'sk'
+    | 'sl'
+    | 'es'
+    | 'sv'
+    | 'nb'
+    | 'tr'
+    | 'ru'
+    | 'uk'
+    | 'ar'
+    | 'he'
+    | 'fa'
+    | 'hi'
+    | 'bn'
+    | 'th'
+    | 'vi'
+    | 'id'
+    | 'ms'
+    | 'tl'
+    | 'zh'
+    | 'ja'
+    | 'ko'
+    | 'ka'
+    | 'mn';
   widgets: {
     collections: CollectionsWidget;
   };
   user: User | Integration;
   jobs: {
     tasks: {
-      "consent-retention": TaskConsentRetention;
+      'consent-retention': TaskConsentRetention;
       createCollectionExport: TaskCreateCollectionExport;
       createCollectionImport: TaskCreateCollectionImport;
       schedulePublish: TaskSchedulePublish;
@@ -353,7 +351,7 @@ export interface IntegrationAuthOperations {
  * via the `definition` "RichTextBlock".
  */
 export interface RichTextBlock {
-  variant: "standard";
+  variant: 'standard';
   content: {
     root: {
       type: string;
@@ -362,8 +360,8 @@ export interface RichTextBlock {
         version: number;
         [k: string]: unknown;
       }[];
-      direction: ("ltr" | "rtl") | null;
-      format: "left" | "start" | "center" | "right" | "end" | "justify" | "";
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
       indent: number;
       version: number;
     };
@@ -371,26 +369,26 @@ export interface RichTextBlock {
   };
   sectionSettings?: {
     anchor?: string | null;
-    spacing?: ("none" | "small" | "medium" | "large") | null;
-    surface?: ("default" | "muted" | "inverse") | null;
-    container?: ("narrow" | "default" | "wide" | "full") | null;
-    visibility?: ("all" | "mobile" | "desktop") | null;
+    spacing?: ('none' | 'small' | 'medium' | 'large') | null;
+    surface?: ('default' | 'muted' | 'inverse') | null;
+    container?: ('narrow' | 'default' | 'wide' | 'full') | null;
+    visibility?: ('all' | 'mobile' | 'desktop') | null;
   };
   id?: string | null;
   blockName?: string | null;
-  blockType: "richText";
+  blockType: 'richText';
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "MediaWithTextBlock".
  */
 export interface MediaWithTextBlock {
-  variant: "standard" | "overlap" | "full-bleed";
+  variant: 'standard' | 'overlap' | 'full-bleed';
   media: number | Media;
   /**
    * From wide screens up; on a phone the picture is above the text.
    */
-  imageSide: "start" | "end";
+  imageSide: 'start' | 'end';
   heading?: string | null;
   content?: {
     root: {
@@ -400,8 +398,8 @@ export interface MediaWithTextBlock {
         version: number;
         [k: string]: unknown;
       }[];
-      direction: ("ltr" | "rtl") | null;
-      format: "left" | "start" | "center" | "right" | "end" | "justify" | "";
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
       indent: number;
       version: number;
     };
@@ -410,38 +408,38 @@ export interface MediaWithTextBlock {
   links?:
     | {
         link: {
-          type?: ("reference" | "custom") | null;
+          type?: ('reference' | 'custom') | null;
           reference?:
             | ({
-                relationTo: "categories";
+                relationTo: 'categories';
                 value: number | Category;
               } | null)
             | ({
-                relationTo: "collections";
+                relationTo: 'collections';
                 value: number | ProductCollection;
               } | null)
             | ({
-                relationTo: "products";
+                relationTo: 'products';
                 value: number | Product;
               } | null);
           url?: string | null;
           label: string;
           newTab?: boolean | null;
-          appearance?: ("default" | "outline" | "text") | null;
+          appearance?: ('default' | 'outline' | 'text') | null;
         };
         id?: string | null;
       }[]
     | null;
   sectionSettings?: {
     anchor?: string | null;
-    spacing?: ("none" | "small" | "medium" | "large") | null;
-    surface?: ("default" | "muted" | "inverse") | null;
-    container?: ("narrow" | "default" | "wide" | "full") | null;
-    visibility?: ("all" | "mobile" | "desktop") | null;
+    spacing?: ('none' | 'small' | 'medium' | 'large') | null;
+    surface?: ('default' | 'muted' | 'inverse') | null;
+    container?: ('narrow' | 'default' | 'wide' | 'full') | null;
+    visibility?: ('all' | 'mobile' | 'desktop') | null;
   };
   id?: string | null;
   blockName?: string | null;
-  blockType: "mediaWithText";
+  blockType: 'mediaWithText';
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -535,8 +533,8 @@ export interface Category {
         version: number;
         [k: string]: unknown;
       }[];
-      direction: ("ltr" | "rtl") | null;
-      format: "left" | "start" | "center" | "right" | "end" | "justify" | "";
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
       indent: number;
       version: number;
     };
@@ -545,7 +543,7 @@ export interface Category {
   /**
    * Sections shown after the listing's results and their pagination. The default sections are the Templates' (its Listing tab).
    */
-  sectionsMode?: ("default" | "own" | "none") | null;
+  sectionsMode?: ('default' | 'own' | 'none') | null;
   /**
    * Shown after the listing's results and their pagination, in every language; each block's texts are translated.
    */
@@ -592,31 +590,30 @@ export interface Category {
  * via the `definition` "UspBarBlock".
  */
 export interface UspBarBlock {
-  variant: "standard" | "strip";
+  variant: 'standard' | 'strip';
   items: {
-    icon:
-      "delivery" | "returns" | "secure" | "support" | "sustainable" | "gift" | "quality" | "fast";
+    icon: 'delivery' | 'returns' | 'secure' | 'support' | 'sustainable' | 'gift' | 'quality' | 'fast';
     title: string;
     text?: string | null;
     id?: string | null;
   }[];
   sectionSettings?: {
     anchor?: string | null;
-    spacing?: ("none" | "small" | "medium" | "large") | null;
-    surface?: ("default" | "muted" | "inverse") | null;
-    container?: ("narrow" | "default" | "wide" | "full") | null;
-    visibility?: ("all" | "mobile" | "desktop") | null;
+    spacing?: ('none' | 'small' | 'medium' | 'large') | null;
+    surface?: ('default' | 'muted' | 'inverse') | null;
+    container?: ('narrow' | 'default' | 'wide' | 'full') | null;
+    visibility?: ('all' | 'mobile' | 'desktop') | null;
   };
   id?: string | null;
   blockName?: string | null;
-  blockType: "uspBar";
+  blockType: 'uspBar';
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "LogoCloudBlock".
  */
 export interface LogoCloudBlock {
-  variant: "standard" | "grid";
+  variant: 'standard' | 'grid';
   heading?: string | null;
   logos: {
     name: string;
@@ -629,21 +626,21 @@ export interface LogoCloudBlock {
   }[];
   sectionSettings?: {
     anchor?: string | null;
-    spacing?: ("none" | "small" | "medium" | "large") | null;
-    surface?: ("default" | "muted" | "inverse") | null;
-    container?: ("narrow" | "default" | "wide" | "full") | null;
-    visibility?: ("all" | "mobile" | "desktop") | null;
+    spacing?: ('none' | 'small' | 'medium' | 'large') | null;
+    surface?: ('default' | 'muted' | 'inverse') | null;
+    container?: ('narrow' | 'default' | 'wide' | 'full') | null;
+    visibility?: ('all' | 'mobile' | 'desktop') | null;
   };
   id?: string | null;
   blockName?: string | null;
-  blockType: "logoCloud";
+  blockType: 'logoCloud';
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "FaqBlock".
  */
 export interface FaqBlock {
-  variant: "standard" | "side-heading";
+  variant: 'standard' | 'side-heading';
   heading?: string | null;
   items: {
     question: string;
@@ -655,21 +652,21 @@ export interface FaqBlock {
   }[];
   sectionSettings?: {
     anchor?: string | null;
-    spacing?: ("none" | "small" | "medium" | "large") | null;
-    surface?: ("default" | "muted" | "inverse") | null;
-    container?: ("narrow" | "default" | "wide" | "full") | null;
-    visibility?: ("all" | "mobile" | "desktop") | null;
+    spacing?: ('none' | 'small' | 'medium' | 'large') | null;
+    surface?: ('default' | 'muted' | 'inverse') | null;
+    container?: ('narrow' | 'default' | 'wide' | 'full') | null;
+    visibility?: ('all' | 'mobile' | 'desktop') | null;
   };
   id?: string | null;
   blockName?: string | null;
-  blockType: "faq";
+  blockType: 'faq';
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "TestimonialsBlock".
  */
 export interface TestimonialsBlock {
-  variant: "standard" | "single" | "carousel" | "wall";
+  variant: 'standard' | 'single' | 'carousel' | 'wall';
   heading?: string | null;
   quotes: {
     quote: string;
@@ -690,27 +687,27 @@ export interface TestimonialsBlock {
   }[];
   sectionSettings?: {
     anchor?: string | null;
-    spacing?: ("none" | "small" | "medium" | "large") | null;
-    surface?: ("default" | "muted" | "inverse") | null;
-    container?: ("narrow" | "default" | "wide" | "full") | null;
-    visibility?: ("all" | "mobile" | "desktop") | null;
+    spacing?: ('none' | 'small' | 'medium' | 'large') | null;
+    surface?: ('default' | 'muted' | 'inverse') | null;
+    container?: ('narrow' | 'default' | 'wide' | 'full') | null;
+    visibility?: ('all' | 'mobile' | 'desktop') | null;
   };
   id?: string | null;
   blockName?: string | null;
-  blockType: "testimonials";
+  blockType: 'testimonials';
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "VideoBlock".
  */
 export interface VideoBlock {
-  variant: "standard";
+  variant: 'standard';
   heading?: string | null;
   /**
    * What the video is: the player's name for screen readers.
    */
   title: string;
-  source: "embed" | "upload";
+  source: 'embed' | 'upload';
   /**
    * Nothing is loaded from YouTube or Vimeo until the visitor presses play.
    */
@@ -725,49 +722,49 @@ export interface VideoBlock {
   captions?:
     | {
         language:
-          | "en"
-          | "bg"
-          | "hr"
-          | "cs"
-          | "da"
-          | "nl"
-          | "et"
-          | "fi"
-          | "fr"
-          | "de"
-          | "el"
-          | "hu"
-          | "ga"
-          | "it"
-          | "lv"
-          | "lt"
-          | "mt"
-          | "pl"
-          | "pt"
-          | "ro"
-          | "sk"
-          | "sl"
-          | "es"
-          | "sv"
-          | "nb"
-          | "tr"
-          | "ru"
-          | "uk"
-          | "ar"
-          | "he"
-          | "fa"
-          | "hi"
-          | "bn"
-          | "th"
-          | "vi"
-          | "id"
-          | "ms"
-          | "tl"
-          | "zh"
-          | "ja"
-          | "ko"
-          | "ka"
-          | "mn";
+          | 'en'
+          | 'bg'
+          | 'hr'
+          | 'cs'
+          | 'da'
+          | 'nl'
+          | 'et'
+          | 'fi'
+          | 'fr'
+          | 'de'
+          | 'el'
+          | 'hu'
+          | 'ga'
+          | 'it'
+          | 'lv'
+          | 'lt'
+          | 'mt'
+          | 'pl'
+          | 'pt'
+          | 'ro'
+          | 'sk'
+          | 'sl'
+          | 'es'
+          | 'sv'
+          | 'nb'
+          | 'tr'
+          | 'ru'
+          | 'uk'
+          | 'ar'
+          | 'he'
+          | 'fa'
+          | 'hi'
+          | 'bn'
+          | 'th'
+          | 'vi'
+          | 'id'
+          | 'ms'
+          | 'tl'
+          | 'zh'
+          | 'ja'
+          | 'ko'
+          | 'ka'
+          | 'mn';
         file: number | Media;
         id?: string | null;
       }[]
@@ -779,69 +776,69 @@ export interface VideoBlock {
   caption?: string | null;
   sectionSettings?: {
     anchor?: string | null;
-    spacing?: ("none" | "small" | "medium" | "large") | null;
-    surface?: ("default" | "muted" | "inverse") | null;
-    container?: ("narrow" | "default" | "wide" | "full") | null;
-    visibility?: ("all" | "mobile" | "desktop") | null;
+    spacing?: ('none' | 'small' | 'medium' | 'large') | null;
+    surface?: ('default' | 'muted' | 'inverse') | null;
+    container?: ('narrow' | 'default' | 'wide' | 'full') | null;
+    visibility?: ('all' | 'mobile' | 'desktop') | null;
   };
   id?: string | null;
   blockName?: string | null;
-  blockType: "video";
+  blockType: 'video';
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "SpacerBlock".
  */
 export interface SpacerBlock {
-  variant: "standard";
-  size: "small" | "medium" | "large";
+  variant: 'standard';
+  size: 'small' | 'medium' | 'large';
   divider?: boolean | null;
   sectionSettings?: {
     anchor?: string | null;
-    spacing?: ("none" | "small" | "medium" | "large") | null;
-    surface?: ("default" | "muted" | "inverse") | null;
-    container?: ("narrow" | "default" | "wide" | "full") | null;
-    visibility?: ("all" | "mobile" | "desktop") | null;
+    spacing?: ('none' | 'small' | 'medium' | 'large') | null;
+    surface?: ('default' | 'muted' | 'inverse') | null;
+    container?: ('narrow' | 'default' | 'wide' | 'full') | null;
+    visibility?: ('all' | 'mobile' | 'desktop') | null;
   };
   id?: string | null;
   blockName?: string | null;
-  blockType: "spacer";
+  blockType: 'spacer';
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "CategoryShowcaseBlock".
  */
 export interface CategoryShowcaseBlock {
-  variant: "standard" | "circles" | "bento" | "carousel" | "list" | "banner";
+  variant: 'standard' | 'circles' | 'bento' | 'carousel' | 'list' | 'banner';
   heading?: string | null;
   intro?: string | null;
   links?:
     | {
         link: {
-          type?: ("reference" | "custom") | null;
+          type?: ('reference' | 'custom') | null;
           reference?:
             | ({
-                relationTo: "categories";
+                relationTo: 'categories';
                 value: number | Category;
               } | null)
             | ({
-                relationTo: "collections";
+                relationTo: 'collections';
                 value: number | ProductCollection;
               } | null)
             | ({
-                relationTo: "products";
+                relationTo: 'products';
                 value: number | Product;
               } | null);
           url?: string | null;
           label: string;
           newTab?: boolean | null;
-          appearance?: ("text" | "default" | "outline") | null;
+          appearance?: ('text' | 'default' | 'outline') | null;
         };
         id?: string | null;
       }[]
     | null;
   categorySource: {
-    mode: "topLevel" | "childrenOf" | "handpicked";
+    mode: 'topLevel' | 'childrenOf' | 'handpicked';
     parent?: (number | null) | Category;
     /**
      * Handpicked: the categories, in this order. Otherwise: a label or a picture for any of the categories shown.
@@ -864,14 +861,14 @@ export interface CategoryShowcaseBlock {
   };
   sectionSettings?: {
     anchor?: string | null;
-    spacing?: ("none" | "small" | "medium" | "large") | null;
-    surface?: ("default" | "muted" | "inverse") | null;
-    container?: ("narrow" | "default" | "wide" | "full") | null;
-    visibility?: ("all" | "mobile" | "desktop") | null;
+    spacing?: ('none' | 'small' | 'medium' | 'large') | null;
+    surface?: ('default' | 'muted' | 'inverse') | null;
+    container?: ('narrow' | 'default' | 'wide' | 'full') | null;
+    visibility?: ('all' | 'mobile' | 'desktop') | null;
   };
   id?: string | null;
   blockName?: string | null;
-  blockType: "categoryShowcase";
+  blockType: 'categoryShowcase';
 }
 /**
  * Follows Medusa: its name, handle and the other greyed-out fields are edited in Medusa Admin, and the sync writes them here. The fields below them are the shop's own content, and a save shows on the shop at once.
@@ -903,8 +900,8 @@ export interface ProductCollection {
         version: number;
         [k: string]: unknown;
       }[];
-      direction: ("ltr" | "rtl") | null;
-      format: "left" | "start" | "center" | "right" | "end" | "justify" | "";
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
       indent: number;
       version: number;
     };
@@ -913,7 +910,7 @@ export interface ProductCollection {
   /**
    * Sections shown after the listing's results and their pagination. The default sections are the Templates' (its Listing tab).
    */
-  sectionsMode?: ("default" | "own" | "none") | null;
+  sectionsMode?: ('default' | 'own' | 'none') | null;
   /**
    * Shown after the listing's results and their pagination, in every language; each block's texts are translated.
    */
@@ -960,18 +957,10 @@ export interface ProductCollection {
  * via the `definition` "ProductCollectionBlock".
  */
 export interface ProductCollectionBlock {
-  variant:
-    | "standard"
-    | "featured-first"
-    | "editorial"
-    | "tabs"
-    | "ranked"
-    | "with-banner"
-    | "compact"
-    | "lookbook";
+  variant: 'standard' | 'featured-first' | 'editorial' | 'tabs' | 'ranked' | 'with-banner' | 'compact' | 'lookbook';
   heading: string;
   intro?: string | null;
-  display?: ("carousel" | "grid") | null;
+  display?: ('carousel' | 'grid') | null;
   /**
    * The With banner and Lookbook designs draw it beside the products.
    */
@@ -982,30 +971,30 @@ export interface ProductCollectionBlock {
   links?:
     | {
         link: {
-          type?: ("reference" | "custom") | null;
+          type?: ('reference' | 'custom') | null;
           reference?:
             | ({
-                relationTo: "categories";
+                relationTo: 'categories';
                 value: number | Category;
               } | null)
             | ({
-                relationTo: "collections";
+                relationTo: 'collections';
                 value: number | ProductCollection;
               } | null)
             | ({
-                relationTo: "products";
+                relationTo: 'products';
                 value: number | Product;
               } | null);
           url?: string | null;
           label: string;
           newTab?: boolean | null;
-          appearance?: "text" | null;
+          appearance?: 'text' | null;
         };
         id?: string | null;
       }[]
     | null;
   productSource?: {
-    mode: "collection" | "category" | "handpicked" | "newest" | "onSale" | "tag" | "type";
+    mode: 'collection' | 'category' | 'handpicked' | 'newest' | 'onSale' | 'tag' | 'type';
     collection?: (number | null) | ProductCollection;
     category?: (number | null) | Category;
     descendants?: boolean | null;
@@ -1022,11 +1011,11 @@ export interface ProductCollectionBlock {
      */
     type?: string | null;
     limit?: number | null;
-    sort?: ("newest" | "priceAsc" | "priceDesc" | "title") | null;
+    sort?: ('newest' | 'priceAsc' | 'priceDesc' | 'title') | null;
     /**
      * When the source has no product sold in the market.
      */
-    emptyBehavior: "hide" | "message" | "newest";
+    emptyBehavior: 'hide' | 'message' | 'newest';
   };
   /**
    * Two to four tabs, each with its own products. Only the first tab's are in the page; a tab whose products are not sold in a market is left out there.
@@ -1035,7 +1024,7 @@ export interface ProductCollectionBlock {
     | {
         label: string;
         productSource: {
-          mode: "collection" | "category" | "handpicked" | "newest" | "onSale" | "tag" | "type";
+          mode: 'collection' | 'category' | 'handpicked' | 'newest' | 'onSale' | 'tag' | 'type';
           collection?: (number | null) | ProductCollection;
           category?: (number | null) | Category;
           descendants?: boolean | null;
@@ -1052,21 +1041,21 @@ export interface ProductCollectionBlock {
            */
           type?: string | null;
           limit?: number | null;
-          sort?: ("newest" | "priceAsc" | "priceDesc" | "title") | null;
+          sort?: ('newest' | 'priceAsc' | 'priceDesc' | 'title') | null;
         };
         id?: string | null;
       }[]
     | null;
   sectionSettings?: {
     anchor?: string | null;
-    spacing?: ("none" | "small" | "medium" | "large") | null;
-    surface?: ("default" | "muted" | "inverse") | null;
-    container?: ("narrow" | "default" | "wide" | "full") | null;
-    visibility?: ("all" | "mobile" | "desktop") | null;
+    spacing?: ('none' | 'small' | 'medium' | 'large') | null;
+    surface?: ('default' | 'muted' | 'inverse') | null;
+    container?: ('narrow' | 'default' | 'wide' | 'full') | null;
+    visibility?: ('all' | 'mobile' | 'desktop') | null;
   };
   id?: string | null;
   blockName?: string | null;
-  blockType: "productCollection";
+  blockType: 'productCollection';
 }
 /**
  * Follows Medusa: its name, handle and the other greyed-out fields are edited in Medusa Admin, and the sync writes them here. The fields below them are the shop's own content, and a save shows on the shop at once.
@@ -1091,8 +1080,8 @@ export interface Product {
         version: number;
         [k: string]: unknown;
       }[];
-      direction: ("ltr" | "rtl") | null;
-      format: "left" | "start" | "center" | "right" | "end" | "justify" | "";
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
       indent: number;
       version: number;
     };
@@ -1105,7 +1094,7 @@ export interface Product {
   /**
    * Sections shown after the product's information, before the reviews. The default sections are the Templates' (its Product page tab).
    */
-  sectionsMode?: ("default" | "own" | "none") | null;
+  sectionsMode?: ('default' | 'own' | 'none') | null;
   /**
    * Shown after the product's information, before the reviews, in every language; each block's texts are translated.
    */
@@ -1152,7 +1141,7 @@ export interface Product {
  * via the `definition` "FeaturedProductBlock".
  */
 export interface FeaturedProductBlock {
-  variant: "standard" | "overlay" | "gallery";
+  variant: 'standard' | 'overlay' | 'gallery';
   heading?: string | null;
   product: number | Product;
   /**
@@ -1165,21 +1154,21 @@ export interface FeaturedProductBlock {
   media?: (number | null) | Media;
   sectionSettings?: {
     anchor?: string | null;
-    spacing?: ("none" | "small" | "medium" | "large") | null;
-    surface?: ("default" | "muted" | "inverse") | null;
-    container?: ("narrow" | "default" | "wide" | "full") | null;
-    visibility?: ("all" | "mobile" | "desktop") | null;
+    spacing?: ('none' | 'small' | 'medium' | 'large') | null;
+    surface?: ('default' | 'muted' | 'inverse') | null;
+    container?: ('narrow' | 'default' | 'wide' | 'full') | null;
+    visibility?: ('all' | 'mobile' | 'desktop') | null;
   };
   id?: string | null;
   blockName?: string | null;
-  blockType: "featuredProduct";
+  blockType: 'featuredProduct';
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "BundleBlock".
  */
 export interface BundleBlock {
-  variant: "standard" | "list";
+  variant: 'standard' | 'list';
   heading: string;
   /**
    * A blank line starts a new paragraph.
@@ -1191,21 +1180,21 @@ export interface BundleBlock {
   products: (number | Product)[];
   sectionSettings?: {
     anchor?: string | null;
-    spacing?: ("none" | "small" | "medium" | "large") | null;
-    surface?: ("default" | "muted" | "inverse") | null;
-    container?: ("narrow" | "default" | "wide" | "full") | null;
-    visibility?: ("all" | "mobile" | "desktop") | null;
+    spacing?: ('none' | 'small' | 'medium' | 'large') | null;
+    surface?: ('default' | 'muted' | 'inverse') | null;
+    container?: ('narrow' | 'default' | 'wide' | 'full') | null;
+    visibility?: ('all' | 'mobile' | 'desktop') | null;
   };
   id?: string | null;
   blockName?: string | null;
-  blockType: "bundle";
+  blockType: 'bundle';
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "PromoBannerBlock".
  */
 export interface PromoBannerBlock {
-  variant: "standard" | "strip" | "ticket" | "full-bleed" | "countdown" | "popup";
+  variant: 'standard' | 'strip' | 'ticket' | 'full-bleed' | 'countdown' | 'popup';
   heading: string;
   /**
    * A blank line starts a new paragraph.
@@ -1227,45 +1216,45 @@ export interface PromoBannerBlock {
   links?:
     | {
         link: {
-          type?: ("reference" | "custom") | null;
+          type?: ('reference' | 'custom') | null;
           reference?:
             | ({
-                relationTo: "categories";
+                relationTo: 'categories';
                 value: number | Category;
               } | null)
             | ({
-                relationTo: "collections";
+                relationTo: 'collections';
                 value: number | ProductCollection;
               } | null)
             | ({
-                relationTo: "products";
+                relationTo: 'products';
                 value: number | Product;
               } | null);
           url?: string | null;
           label: string;
           newTab?: boolean | null;
-          appearance?: ("default" | "outline" | "text") | null;
+          appearance?: ('default' | 'outline' | 'text') | null;
         };
         id?: string | null;
       }[]
     | null;
   sectionSettings?: {
     anchor?: string | null;
-    spacing?: ("none" | "small" | "medium" | "large") | null;
-    surface?: ("default" | "muted" | "inverse") | null;
-    container?: ("narrow" | "default" | "wide" | "full") | null;
-    visibility?: ("all" | "mobile" | "desktop") | null;
+    spacing?: ('none' | 'small' | 'medium' | 'large') | null;
+    surface?: ('default' | 'muted' | 'inverse') | null;
+    container?: ('narrow' | 'default' | 'wide' | 'full') | null;
+    visibility?: ('all' | 'mobile' | 'desktop') | null;
   };
   id?: string | null;
   blockName?: string | null;
-  blockType: "promoBanner";
+  blockType: 'promoBanner';
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "ComparisonBlock".
  */
 export interface ComparisonBlock {
-  variant: "standard" | "cards" | "highlight";
+  variant: 'standard' | 'cards' | 'highlight';
   heading: string;
   /**
    * A column each, in this order.
@@ -1288,21 +1277,21 @@ export interface ComparisonBlock {
     | null;
   sectionSettings?: {
     anchor?: string | null;
-    spacing?: ("none" | "small" | "medium" | "large") | null;
-    surface?: ("default" | "muted" | "inverse") | null;
-    container?: ("narrow" | "default" | "wide" | "full") | null;
-    visibility?: ("all" | "mobile" | "desktop") | null;
+    spacing?: ('none' | 'small' | 'medium' | 'large') | null;
+    surface?: ('default' | 'muted' | 'inverse') | null;
+    container?: ('narrow' | 'default' | 'wide' | 'full') | null;
+    visibility?: ('all' | 'mobile' | 'desktop') | null;
   };
   id?: string | null;
   blockName?: string | null;
-  blockType: "comparison";
+  blockType: 'comparison';
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "CollectionSpotlightBlock".
  */
 export interface CollectionSpotlightBlock {
-  variant: "standard" | "stacked";
+  variant: 'standard' | 'stacked';
   collection: number | ProductCollection;
   /**
    * The collection's name unless you write one.
@@ -1317,24 +1306,24 @@ export interface CollectionSpotlightBlock {
    * How many of its products; 0 shows none.
    */
   limit: number;
-  sort: "newest" | "priceAsc" | "priceDesc" | "title";
+  sort: 'newest' | 'priceAsc' | 'priceDesc' | 'title';
   sectionSettings?: {
     anchor?: string | null;
-    spacing?: ("none" | "small" | "medium" | "large") | null;
-    surface?: ("default" | "muted" | "inverse") | null;
-    container?: ("narrow" | "default" | "wide" | "full") | null;
-    visibility?: ("all" | "mobile" | "desktop") | null;
+    spacing?: ('none' | 'small' | 'medium' | 'large') | null;
+    surface?: ('default' | 'muted' | 'inverse') | null;
+    container?: ('narrow' | 'default' | 'wide' | 'full') | null;
+    visibility?: ('all' | 'mobile' | 'desktop') | null;
   };
   id?: string | null;
   blockName?: string | null;
-  blockType: "collectionSpotlight";
+  blockType: 'collectionSpotlight';
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "NewsletterBlock".
  */
 export interface NewsletterBlock {
-  variant: "standard" | "split";
+  variant: 'standard' | 'split';
   /**
    * Empty: the shop's “Join our newsletter”, in each language.
    */
@@ -1355,18 +1344,18 @@ export interface NewsletterBlock {
    * Where “privacy policy” in the consent sentence goes.
    */
   privacy?: {
-    type?: ("reference" | "custom") | null;
+    type?: ('reference' | 'custom') | null;
     reference?:
       | ({
-          relationTo: "categories";
+          relationTo: 'categories';
           value: number | Category;
         } | null)
       | ({
-          relationTo: "collections";
+          relationTo: 'collections';
           value: number | ProductCollection;
         } | null)
       | ({
-          relationTo: "products";
+          relationTo: 'products';
           value: number | Product;
         } | null);
     url?: string | null;
@@ -1374,14 +1363,14 @@ export interface NewsletterBlock {
   };
   sectionSettings?: {
     anchor?: string | null;
-    spacing?: ("none" | "small" | "medium" | "large") | null;
-    surface?: ("default" | "muted" | "inverse") | null;
-    container?: ("narrow" | "default" | "wide" | "full") | null;
-    visibility?: ("all" | "mobile" | "desktop") | null;
+    spacing?: ('none' | 'small' | 'medium' | 'large') | null;
+    surface?: ('default' | 'muted' | 'inverse') | null;
+    container?: ('narrow' | 'default' | 'wide' | 'full') | null;
+    visibility?: ('all' | 'mobile' | 'desktop') | null;
   };
   id?: string | null;
   blockName?: string | null;
-  blockType: "newsletter";
+  blockType: 'newsletter';
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -1399,7 +1388,7 @@ export interface Form {
         defaultValue?: boolean | null;
         id?: string | null;
         blockName?: string | null;
-        blockType: "checkbox";
+        blockType: 'checkbox';
       }
     | {
         name: string;
@@ -1408,7 +1397,7 @@ export interface Form {
         required?: boolean | null;
         id?: string | null;
         blockName?: string | null;
-        blockType: "email";
+        blockType: 'email';
       }
     | {
         message?: {
@@ -1419,8 +1408,8 @@ export interface Form {
               version: number;
               [k: string]: unknown;
             }[];
-            direction: ("ltr" | "rtl") | null;
-            format: "left" | "start" | "center" | "right" | "end" | "justify" | "";
+            direction: ('ltr' | 'rtl') | null;
+            format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
             indent: number;
             version: number;
           };
@@ -1428,7 +1417,7 @@ export interface Form {
         } | null;
         id?: string | null;
         blockName?: string | null;
-        blockType: "message";
+        blockType: 'message';
       }
     | {
         name: string;
@@ -1446,7 +1435,7 @@ export interface Form {
         required?: boolean | null;
         id?: string | null;
         blockName?: string | null;
-        blockType: "select";
+        blockType: 'select';
       }
     | {
         name: string;
@@ -1456,7 +1445,7 @@ export interface Form {
         required?: boolean | null;
         id?: string | null;
         blockName?: string | null;
-        blockType: "text";
+        blockType: 'text';
       }
     | {
         name: string;
@@ -1466,7 +1455,7 @@ export interface Form {
         required?: boolean | null;
         id?: string | null;
         blockName?: string | null;
-        blockType: "textarea";
+        blockType: 'textarea';
       }
   )[];
   submitButtonLabel?: string | null;
@@ -1481,8 +1470,8 @@ export interface Form {
         version: number;
         [k: string]: unknown;
       }[];
-      direction: ("ltr" | "rtl") | null;
-      format: "left" | "start" | "center" | "right" | "end" | "justify" | "";
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
       indent: number;
       version: number;
     };
@@ -1518,8 +1507,8 @@ export interface Form {
               version: number;
               [k: string]: unknown;
             }[];
-            direction: ("ltr" | "rtl") | null;
-            format: "left" | "start" | "center" | "right" | "end" | "justify" | "";
+            direction: ('ltr' | 'rtl') | null;
+            format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
             indent: number;
             version: number;
           };
@@ -1537,35 +1526,27 @@ export interface Form {
  * via the `definition` "FormBlockBlock".
  */
 export interface FormBlockBlock {
-  variant: "standard";
+  variant: 'standard';
   heading?: string | null;
   intro?: string | null;
   form: number | Form;
   sectionSettings?: {
     anchor?: string | null;
-    spacing?: ("none" | "small" | "medium" | "large") | null;
-    surface?: ("default" | "muted" | "inverse") | null;
-    container?: ("narrow" | "default" | "wide" | "full") | null;
-    visibility?: ("all" | "mobile" | "desktop") | null;
+    spacing?: ('none' | 'small' | 'medium' | 'large') | null;
+    surface?: ('default' | 'muted' | 'inverse') | null;
+    container?: ('narrow' | 'default' | 'wide' | 'full') | null;
+    visibility?: ('all' | 'mobile' | 'desktop') | null;
   };
   id?: string | null;
   blockName?: string | null;
-  blockType: "formBlock";
+  blockType: 'formBlock';
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "HeroBlock".
  */
 export interface HeroBlock {
-  variant:
-    | "standard"
-    | "overlay"
-    | "centered"
-    | "editorial"
-    | "bento"
-    | "collection-switcher"
-    | "product"
-    | "text";
+  variant: 'standard' | 'overlay' | 'centered' | 'editorial' | 'bento' | 'collection-switcher' | 'product' | 'text';
   eyebrow?: string | null;
   heading: string;
   subheading?: string | null;
@@ -1590,24 +1571,24 @@ export interface HeroBlock {
   links?:
     | {
         link: {
-          type?: ("reference" | "custom") | null;
+          type?: ('reference' | 'custom') | null;
           reference?:
             | ({
-                relationTo: "categories";
+                relationTo: 'categories';
                 value: number | Category;
               } | null)
             | ({
-                relationTo: "collections";
+                relationTo: 'collections';
                 value: number | ProductCollection;
               } | null)
             | ({
-                relationTo: "products";
+                relationTo: 'products';
                 value: number | Product;
               } | null);
           url?: string | null;
           label: string;
           newTab?: boolean | null;
-          appearance?: ("default" | "outline" | "text") | null;
+          appearance?: ('default' | 'outline' | 'text') | null;
         };
         id?: string | null;
       }[]
@@ -1617,7 +1598,7 @@ export interface HeroBlock {
    */
   countdownEnd?: string | null;
   productSource: {
-    mode: "none" | "collection" | "category" | "handpicked" | "newest" | "onSale" | "tag" | "type";
+    mode: 'none' | 'collection' | 'category' | 'handpicked' | 'newest' | 'onSale' | 'tag' | 'type';
     collection?: (number | null) | ProductCollection;
     category?: (number | null) | Category;
     descendants?: boolean | null;
@@ -1634,45 +1615,45 @@ export interface HeroBlock {
      */
     type?: string | null;
     limit?: number | null;
-    sort?: ("newest" | "priceAsc" | "priceDesc" | "title") | null;
+    sort?: ('newest' | 'priceAsc' | 'priceDesc' | 'title') | null;
   };
   sectionSettings?: {
     anchor?: string | null;
-    spacing?: ("none" | "small" | "medium" | "large") | null;
-    surface?: ("default" | "muted" | "inverse") | null;
-    container?: ("narrow" | "default" | "wide" | "full") | null;
-    visibility?: ("all" | "mobile" | "desktop") | null;
+    spacing?: ('none' | 'small' | 'medium' | 'large') | null;
+    surface?: ('default' | 'muted' | 'inverse') | null;
+    container?: ('narrow' | 'default' | 'wide' | 'full') | null;
+    visibility?: ('all' | 'mobile' | 'desktop') | null;
   };
   id?: string | null;
   blockName?: string | null;
-  blockType: "hero";
+  blockType: 'hero';
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "RecentlyViewedBlock".
  */
 export interface RecentlyViewedBlock {
-  variant: "standard";
+  variant: 'standard';
   heading?: string | null;
   sectionSettings?: {
     anchor?: string | null;
-    spacing?: ("none" | "small" | "medium" | "large") | null;
-    surface?: ("default" | "muted" | "inverse") | null;
-    container?: ("narrow" | "default" | "wide" | "full") | null;
-    visibility?: ("all" | "mobile" | "desktop") | null;
+    spacing?: ('none' | 'small' | 'medium' | 'large') | null;
+    surface?: ('default' | 'muted' | 'inverse') | null;
+    container?: ('narrow' | 'default' | 'wide' | 'full') | null;
+    visibility?: ('all' | 'mobile' | 'desktop') | null;
   };
   id?: string | null;
   blockName?: string | null;
-  blockType: "recentlyViewed";
+  blockType: 'recentlyViewed';
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "EditorialListBlock".
  */
 export interface EditorialListBlock {
-  variant: "standard" | "featured";
+  variant: 'standard' | 'featured';
   heading?: string | null;
-  source: "newest" | "handpicked";
+  source: 'newest' | 'handpicked';
   limit?: number | null;
   /**
    * Shown in this order.
@@ -1681,14 +1662,14 @@ export interface EditorialListBlock {
   showLink?: boolean | null;
   sectionSettings?: {
     anchor?: string | null;
-    spacing?: ("none" | "small" | "medium" | "large") | null;
-    surface?: ("default" | "muted" | "inverse") | null;
-    container?: ("narrow" | "default" | "wide" | "full") | null;
-    visibility?: ("all" | "mobile" | "desktop") | null;
+    spacing?: ('none' | 'small' | 'medium' | 'large') | null;
+    surface?: ('default' | 'muted' | 'inverse') | null;
+    container?: ('narrow' | 'default' | 'wide' | 'full') | null;
+    visibility?: ('all' | 'mobile' | 'desktop') | null;
   };
   id?: string | null;
   blockName?: string | null;
-  blockType: "editorialList";
+  blockType: 'editorialList';
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -1725,8 +1706,8 @@ export interface Post {
         version: number;
         [k: string]: unknown;
       }[];
-      direction: ("ltr" | "rtl") | null;
-      format: "left" | "start" | "center" | "right" | "end" | "justify" | "";
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
       indent: number;
       version: number;
     };
@@ -1743,7 +1724,7 @@ export interface Post {
   };
   updatedAt: string;
   createdAt: string;
-  _status?: ("draft" | "published") | null;
+  _status?: ('draft' | 'published') | null;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -1754,7 +1735,7 @@ export interface User {
   /**
    * Admins manage users, integrations and markets; editors manage content. The first account is always an admin, whatever is chosen here.
    */
-  role: "admin" | "editor";
+  role: 'admin' | 'editor';
   updatedAt: string;
   createdAt: string;
   email: string;
@@ -1773,7 +1754,7 @@ export interface User {
       }[]
     | null;
   password?: string | null;
-  collection: "users";
+  collection: 'users';
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -1782,14 +1763,14 @@ export interface User {
 export interface Integration {
   id: number;
   name: string;
-  role: "medusa-sync";
+  role: 'medusa-sync';
   updatedAt: string;
   createdAt: string;
   enableAPIKey?: boolean | null;
   apiKey?: string | null;
   apiKeyIndex?: string | null;
   hasAPIKey?: boolean | null;
-  collection: "integrations";
+  collection: 'integrations';
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -1874,7 +1855,7 @@ export interface Page {
   };
   updatedAt: string;
   createdAt: string;
-  _status?: ("draft" | "published") | null;
+  _status?: ('draft' | 'published') | null;
 }
 /**
  * Variables in double braces are filled in when the e-mail is sent. Verify the e-mail address: {{email}}, {{code}}. Password reset: {{email}}. Order transfer to an account: {{email}}, {{orderNumber}}. Order placed: {{email}}, {{orderNumber}}, {{total}}. Order shipped: {{email}}, {{orderNumber}}. Order canceled: {{email}}, {{orderNumber}}. Return requested: {{email}}, {{orderNumber}}. Refund issued: {{email}}, {{orderNumber}}, {{amount}}. Welcome (after the address is verified): {{email}}. Medusa Admin invite (English): {{email}}. Newsletter: confirm the subscription: {{email}}. A form's e-mail to the shop: {{form}}. Anything else in braces stays as it is.
@@ -1885,18 +1866,18 @@ export interface Page {
 export interface EmailTemplate {
   id: number;
   type:
-    | "verify-email"
-    | "password-reset"
-    | "order-transfer"
-    | "order-placed"
-    | "order-shipped"
-    | "order-canceled"
-    | "return-requested"
-    | "refund-issued"
-    | "welcome"
-    | "admin-invite"
-    | "newsletter-confirm"
-    | "form-message";
+    | 'verify-email'
+    | 'password-reset'
+    | 'order-transfer'
+    | 'order-placed'
+    | 'order-shipped'
+    | 'order-canceled'
+    | 'return-requested'
+    | 'refund-issued'
+    | 'welcome'
+    | 'admin-invite'
+    | 'newsletter-confirm'
+    | 'form-message';
   subject: string;
   /**
    * The line inboxes show after the subject.
@@ -1911,8 +1892,8 @@ export interface EmailTemplate {
         version: number;
         [k: string]: unknown;
       }[];
-      direction: ("ltr" | "rtl") | null;
-      format: "left" | "start" | "center" | "right" | "end" | "justify" | "";
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
       indent: number;
       version: number;
     };
@@ -1965,7 +1946,7 @@ export interface NewsletterConfirmation {
   form?: number | null;
   market: string;
   language: string;
-  destination?: ("resend" | "submission") | null;
+  destination?: ('resend' | 'submission') | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -1978,7 +1959,7 @@ export interface NewsletterConfirmation {
 export interface ConsentRecord {
   id: number;
   consentId: string;
-  kind: "given" | "changed" | "withdrawn";
+  kind: 'given' | 'changed' | 'withdrawn';
   analytics: boolean;
   marketing: boolean;
   policyVersion: number;
@@ -1994,61 +1975,61 @@ export interface ConsentRecord {
 export interface Export {
   id: number;
   name?: string | null;
-  format: "csv" | "json";
+  format: 'csv' | 'json';
   limit?: number | null;
   page?: number | null;
   sort?: string | null;
-  sortOrder?: ("asc" | "desc") | null;
+  sortOrder?: ('asc' | 'desc') | null;
   locale?:
     | (
-        | "all"
-        | "en"
-        | "bg"
-        | "hr"
-        | "cs"
-        | "da"
-        | "nl"
-        | "et"
-        | "fi"
-        | "fr"
-        | "de"
-        | "el"
-        | "hu"
-        | "ga"
-        | "it"
-        | "lv"
-        | "lt"
-        | "mt"
-        | "pl"
-        | "pt"
-        | "ro"
-        | "sk"
-        | "sl"
-        | "es"
-        | "sv"
-        | "nb"
-        | "tr"
-        | "ru"
-        | "uk"
-        | "ar"
-        | "he"
-        | "fa"
-        | "hi"
-        | "bn"
-        | "th"
-        | "vi"
-        | "id"
-        | "ms"
-        | "tl"
-        | "zh"
-        | "ja"
-        | "ko"
-        | "ka"
-        | "mn"
+        | 'all'
+        | 'en'
+        | 'bg'
+        | 'hr'
+        | 'cs'
+        | 'da'
+        | 'nl'
+        | 'et'
+        | 'fi'
+        | 'fr'
+        | 'de'
+        | 'el'
+        | 'hu'
+        | 'ga'
+        | 'it'
+        | 'lv'
+        | 'lt'
+        | 'mt'
+        | 'pl'
+        | 'pt'
+        | 'ro'
+        | 'sk'
+        | 'sl'
+        | 'es'
+        | 'sv'
+        | 'nb'
+        | 'tr'
+        | 'ru'
+        | 'uk'
+        | 'ar'
+        | 'he'
+        | 'fa'
+        | 'hi'
+        | 'bn'
+        | 'th'
+        | 'vi'
+        | 'id'
+        | 'ms'
+        | 'tl'
+        | 'zh'
+        | 'ja'
+        | 'ko'
+        | 'ka'
+        | 'mn'
       )
     | null;
-  drafts?: ("yes" | "no") | null;
-  selectionToUse?: ("currentSelection" | "currentFilters" | "all") | null;
+  drafts?: ('yes' | 'no') | null;
+  selectionToUse?: ('currentSelection' | 'currentFilters' | 'all') | null;
   fields?: string[] | null;
   collectionSlug: string;
   where?:
@@ -2081,9 +2062,9 @@ export interface Export {
 export interface Import {
   id: number;
   collectionSlug: string;
-  importMode?: ("create" | "update" | "upsert") | null;
+  importMode?: ('create' | 'update' | 'upsert') | null;
   matchField?: string | null;
-  status?: ("pending" | "completed" | "partial" | "failed") | null;
+  status?: ('pending' | 'completed' | 'partial' | 'failed') | null;
   summary?: {
     imported?: number | null;
     updated?: number | null;
@@ -2143,14 +2124,14 @@ export interface Redirect {
    */
   from: string;
   to?: {
-    type?: ("reference" | "custom") | null;
+    type?: ('reference' | 'custom') | null;
     reference?:
       | ({
-          relationTo: "pages";
+          relationTo: 'pages';
           value: number | Page;
         } | null)
       | ({
-          relationTo: "posts";
+          relationTo: 'posts';
           value: number | Post;
         } | null);
     /**
@@ -2161,7 +2142,7 @@ export interface Redirect {
   /**
    * 301: moved for good (most redirects). 302: for now, so browsers do not remember it. 308: for good, and a form posted to the old address is posted to the new one.
    */
-  type: "301" | "302" | "308";
+  type: '301' | '302' | '308';
   updatedAt: string;
   createdAt: string;
 }
@@ -2235,11 +2216,7 @@ export interface PayloadJob {
         executedAt: string;
         completedAt: string;
         taskSlug:
-          | "inline"
-          | "consent-retention"
-          | "createCollectionExport"
-          | "createCollectionImport"
-          | "schedulePublish";
+          'inline' | 'consent-retention' | 'createCollectionExport' | 'createCollectionImport' | 'schedulePublish';
         taskID: string;
         input?:
           | {
@@ -2259,7 +2236,7 @@ export interface PayloadJob {
           | number
           | boolean
           | null;
-        state: "failed" | "succeeded";
+        state: 'failed' | 'succeeded';
         error?:
           | {
               [k: string]: unknown;
@@ -2273,14 +2250,7 @@ export interface PayloadJob {
       }[]
     | null;
   taskSlug?:
-    | (
-        | "inline"
-        | "consent-retention"
-        | "createCollectionExport"
-        | "createCollectionImport"
-        | "schedulePublish"
-      )
-    | null;
+    ('inline' | 'consent-retention' | 'createCollectionExport' | 'createCollectionImport' | 'schedulePublish') | null;
   queue?: string | null;
   waitUntil?: string | null;
   processing?: boolean | null;
@@ -2304,73 +2274,73 @@ export interface PayloadLockedDocument {
   id: number;
   document?:
     | ({
-        relationTo: "users";
+        relationTo: 'users';
         value: number | User;
       } | null)
     | ({
-        relationTo: "integrations";
+        relationTo: 'integrations';
         value: number | Integration;
       } | null)
     | ({
-        relationTo: "media";
+        relationTo: 'media';
         value: number | Media;
       } | null)
     | ({
-        relationTo: "pages";
+        relationTo: 'pages';
         value: number | Page;
       } | null)
     | ({
-        relationTo: "posts";
+        relationTo: 'posts';
         value: number | Post;
       } | null)
     | ({
-        relationTo: "products";
+        relationTo: 'products';
         value: number | Product;
       } | null)
     | ({
-        relationTo: "categories";
+        relationTo: 'categories';
         value: number | Category;
       } | null)
     | ({
-        relationTo: "collections";
+        relationTo: 'collections';
         value: number | ProductCollection;
       } | null)
     | ({
-        relationTo: "email-templates";
+        relationTo: 'email-templates';
         value: number | EmailTemplate;
       } | null)
     | ({
-        relationTo: "ui-strings";
+        relationTo: 'ui-strings';
         value: number | UiString;
       } | null)
     | ({
-        relationTo: "newsletter-confirmations";
+        relationTo: 'newsletter-confirmations';
         value: number | NewsletterConfirmation;
       } | null)
     | ({
-        relationTo: "consent-records";
+        relationTo: 'consent-records';
         value: number | ConsentRecord;
       } | null)
     | ({
-        relationTo: "forms";
+        relationTo: 'forms';
         value: number | Form;
       } | null)
     | ({
-        relationTo: "form-submissions";
+        relationTo: 'form-submissions';
         value: number | FormSubmission;
       } | null)
     | ({
-        relationTo: "redirects";
+        relationTo: 'redirects';
         value: number | Redirect;
       } | null);
   globalSlug?: string | null;
   user:
     | {
-        relationTo: "users";
+        relationTo: 'users';
         value: number | User;
       }
     | {
-        relationTo: "integrations";
+        relationTo: 'integrations';
         value: number | Integration;
       };
   updatedAt: string;
@@ -2384,11 +2354,11 @@ export interface PayloadPreference {
   id: number;
   user:
     | {
-        relationTo: "users";
+        relationTo: 'users';
         value: number | User;
       }
     | {
-        relationTo: "integrations";
+        relationTo: 'integrations';
         value: number | Integration;
       };
   key?: string | null;
@@ -3635,25 +3605,25 @@ export interface PayloadMigrationsSelect<T extends boolean = true> {
  */
 export interface Header {
   id: number;
-  design: "classic" | "centered" | "two-tier" | "mega-menu" | "minimal" | "transparent";
+  design: 'classic' | 'centered' | 'two-tier' | 'mega-menu' | 'minimal' | 'transparent';
   /**
    * The bar above the header. Without a message there is no bar.
    */
   announcement?: {
     message?: string | null;
     link?: {
-      type?: ("reference" | "custom") | null;
+      type?: ('reference' | 'custom') | null;
       reference?:
         | ({
-            relationTo: "categories";
+            relationTo: 'categories';
             value: number | Category;
           } | null)
         | ({
-            relationTo: "collections";
+            relationTo: 'collections';
             value: number | ProductCollection;
           } | null)
         | ({
-            relationTo: "products";
+            relationTo: 'products';
             value: number | Product;
           } | null);
       url?: string | null;
@@ -3666,23 +3636,23 @@ export interface Header {
     /**
      * Medusa's categories: the top-level categories, with their children as a mega menu, follow Medusa without a save here.
      */
-    source?: ("categories" | "manual") | null;
+    source?: ('categories' | 'manual') | null;
     items?:
       | {
-          kind: "link" | "dropdown" | "megaMenu";
+          kind: 'link' | 'dropdown' | 'megaMenu';
           link?: {
-            type?: ("reference" | "custom") | null;
+            type?: ('reference' | 'custom') | null;
             reference?:
               | ({
-                  relationTo: "categories";
+                  relationTo: 'categories';
                   value: number | Category;
                 } | null)
               | ({
-                  relationTo: "collections";
+                  relationTo: 'collections';
                   value: number | ProductCollection;
                 } | null)
               | ({
-                  relationTo: "products";
+                  relationTo: 'products';
                   value: number | Product;
                 } | null);
             url?: string | null;
@@ -3693,18 +3663,18 @@ export interface Header {
           links?:
             | {
                 link: {
-                  type?: ("reference" | "custom") | null;
+                  type?: ('reference' | 'custom') | null;
                   reference?:
                     | ({
-                        relationTo: "categories";
+                        relationTo: 'categories';
                         value: number | Category;
                       } | null)
                     | ({
-                        relationTo: "collections";
+                        relationTo: 'collections';
                         value: number | ProductCollection;
                       } | null)
                     | ({
-                        relationTo: "products";
+                        relationTo: 'products';
                         value: number | Product;
                       } | null);
                   url?: string | null;
@@ -3720,18 +3690,18 @@ export interface Header {
                 links?:
                   | {
                       link: {
-                        type?: ("reference" | "custom") | null;
+                        type?: ('reference' | 'custom') | null;
                         reference?:
                           | ({
-                              relationTo: "categories";
+                              relationTo: 'categories';
                               value: number | Category;
                             } | null)
                           | ({
-                              relationTo: "collections";
+                              relationTo: 'collections';
                               value: number | ProductCollection;
                             } | null)
                           | ({
-                              relationTo: "products";
+                              relationTo: 'products';
                               value: number | Product;
                             } | null);
                         url?: string | null;
@@ -3761,7 +3731,7 @@ export interface Header {
    * Empty: the site settings' logo, or the store's name as text.
    */
   logo?: (number | null) | Media;
-  _status?: ("draft" | "published") | null;
+  _status?: ('draft' | 'published') | null;
   updatedAt?: string | null;
   createdAt?: string | null;
 }
@@ -3773,7 +3743,7 @@ export interface Header {
  */
 export interface Footer {
   id: number;
-  design: "multi-column" | "newsletter-first" | "minimal" | "wordmark" | "two-tier";
+  design: 'multi-column' | 'newsletter-first' | 'minimal' | 'wordmark' | 'two-tier';
   columns?:
     | {
         title: string;
@@ -3784,18 +3754,18 @@ export interface Footer {
         links?:
           | {
               link: {
-                type?: ("reference" | "custom") | null;
+                type?: ('reference' | 'custom') | null;
                 reference?:
                   | ({
-                      relationTo: "categories";
+                      relationTo: 'categories';
                       value: number | Category;
                     } | null)
                   | ({
-                      relationTo: "collections";
+                      relationTo: 'collections';
                       value: number | ProductCollection;
                     } | null)
                   | ({
-                      relationTo: "products";
+                      relationTo: 'products';
                       value: number | Product;
                     } | null);
                 url?: string | null;
@@ -3820,18 +3790,18 @@ export interface Footer {
      * Where “privacy policy” in the consent sentence goes.
      */
     privacy?: {
-      type?: ("reference" | "custom") | null;
+      type?: ('reference' | 'custom') | null;
       reference?:
         | ({
-            relationTo: "categories";
+            relationTo: 'categories';
             value: number | Category;
           } | null)
         | ({
-            relationTo: "collections";
+            relationTo: 'collections';
             value: number | ProductCollection;
           } | null)
         | ({
-            relationTo: "products";
+            relationTo: 'products';
             value: number | Product;
           } | null);
       url?: string | null;
@@ -3840,15 +3810,7 @@ export interface Footer {
   };
   social?:
     | {
-        network:
-          | "instagram"
-          | "facebook"
-          | "tiktok"
-          | "youtube"
-          | "pinterest"
-          | "x"
-          | "threads"
-          | "bluesky";
+        network: 'instagram' | 'facebook' | 'tiktok' | 'youtube' | 'pinterest' | 'x' | 'threads' | 'bluesky';
         url: string;
         id?: string | null;
       }[]
@@ -3856,18 +3818,18 @@ export interface Footer {
   legalLinks?:
     | {
         link: {
-          type?: ("reference" | "custom") | null;
+          type?: ('reference' | 'custom') | null;
           reference?:
             | ({
-                relationTo: "categories";
+                relationTo: 'categories';
                 value: number | Category;
               } | null)
             | ({
-                relationTo: "collections";
+                relationTo: 'collections';
                 value: number | ProductCollection;
               } | null)
             | ({
-                relationTo: "products";
+                relationTo: 'products';
                 value: number | Product;
               } | null);
           url?: string | null;
@@ -3881,23 +3843,13 @@ export interface Footer {
    * The marks of the ways to pay, in this order.
    */
   paymentIcons?:
-    | (
-        | "visa"
-        | "mastercard"
-        | "americanexpress"
-        | "applepay"
-        | "googlepay"
-        | "revolut"
-        | "paypal"
-        | "klarna"
-      )[]
-    | null;
+    ('visa' | 'mastercard' | 'americanexpress' | 'applepay' | 'googlepay' | 'revolut' | 'paypal' | 'klarna')[] | null;
   marketSwitcher?: boolean | null;
   /**
    * The last line. {year} becomes the current year. Empty: © {year} and the store's name.
    */
   copyright?: string | null;
-  _status?: ("draft" | "published") | null;
+  _status?: ('draft' | 'published') | null;
   updatedAt?: string | null;
   createdAt?: string | null;
 }
@@ -3959,14 +3911,14 @@ export interface SiteSetting {
         version: number;
         [k: string]: unknown;
       }[];
-      direction: ("ltr" | "rtl") | null;
-      format: "left" | "start" | "center" | "right" | "end" | "justify" | "";
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
       indent: number;
       version: number;
     };
     [k: string]: unknown;
   } | null;
-  _status?: ("draft" | "published") | null;
+  _status?: ('draft' | 'published') | null;
   updatedAt?: string | null;
   createdAt?: string | null;
 }
@@ -3982,7 +3934,7 @@ export interface Template {
     /**
      * Where the pictures, the buy box and the product's information go.
      */
-    variant: "default" | "thumbnails-below" | "grid" | "stacked" | "wide" | "centered";
+    variant: 'default' | 'thumbnails-below' | 'grid' | 'stacked' | 'wide' | 'centered';
     /**
      * Shown on every product page after the product's information, before the reviews, unless a product has its own sections or none (its Sections, in Catalog → Products).
      */
@@ -4012,21 +3964,21 @@ export interface Template {
     /**
      * The category, collection and store pages, and the search page.
      */
-    variant: "default" | "top-bar" | "drawer" | "accordion" | "chips" | "rail" | "inline";
+    variant: 'default' | 'top-bar' | 'drawer' | 'accordion' | 'chips' | 'rail' | 'inline';
     /**
      * The card of every product in the listings' and the search page's grids. Quick add puts a button on it; the Quick view tab says what it does.
      */
     card:
-      | "standard"
-      | "swatches"
-      | "quick-add"
-      | "overlay"
-      | "minimal"
-      | "horizontal"
-      | "compact"
-      | "editorial"
-      | "bordered"
-      | "image-swap";
+      | 'standard'
+      | 'swatches'
+      | 'quick-add'
+      | 'overlay'
+      | 'minimal'
+      | 'horizontal'
+      | 'compact'
+      | 'editorial'
+      | 'bordered'
+      | 'image-swap';
     /**
      * Shown on every category's and collection's listing after its results and their pagination, unless it has its own sections or none (its Sections, in Catalog). Not on the store's page or the search page.
      */
@@ -4056,16 +4008,16 @@ export interface Template {
     /**
      * What the quick-add card's button opens in the listings and the search page: the product's pictures and buy box over the page. Off: the button opens the product page.
      */
-    variant?: ("off" | "default" | "drawer" | "compact") | null;
+    variant?: ('off' | 'default' | 'drawer' | 'compact') | null;
   };
   cart: {
-    variant: "default" | "table" | "sticky-summary" | "focused";
-    miniCart: "drawer" | "drawer-picks" | "page";
+    variant: 'default' | 'table' | 'sticky-summary' | 'focused';
+    miniCart: 'drawer' | 'drawer-picks' | 'page';
     /**
      * Up to four products under the lines of the drawer with picks. A product the cart already holds is left out.
      */
     picks?: {
-      mode: "collection" | "category" | "handpicked" | "newest" | "onSale" | "tag" | "type";
+      mode: 'collection' | 'category' | 'handpicked' | 'newest' | 'onSale' | 'tag' | 'type';
       collection?: (number | null) | ProductCollection;
       category?: (number | null) | Category;
       descendants?: boolean | null;
@@ -4082,23 +4034,23 @@ export interface Template {
        */
       type?: string | null;
       limit?: number | null;
-      sort?: ("newest" | "priceAsc" | "priceDesc" | "title") | null;
+      sort?: ('newest' | 'priceAsc' | 'priceDesc' | 'title') | null;
     };
-    quickCart: "dropdown" | "off";
+    quickCart: 'dropdown' | 'off';
   };
   checkout: {
     /**
      * Express rail: with Stripe on, the rail holds its express payment buttons (Link, and Apple Pay or Google Pay where the device has them); with no wallet to show, the checkout looks like the default.
      */
-    variant: "default" | "one-page" | "summary-first" | "focused" | "express-rail";
+    variant: 'default' | 'one-page' | 'summary-first' | 'focused' | 'express-rail';
   };
   receipt: {
     /**
      * The order confirmation and the order's page in the account.
      */
-    variant: "default" | "statement" | "timeline-first" | "split" | "compact" | "next-steps";
+    variant: 'default' | 'statement' | 'timeline-first' | 'split' | 'compact' | 'next-steps';
   };
-  _status?: ("draft" | "published") | null;
+  _status?: ('draft' | 'published') | null;
   updatedAt?: string | null;
   createdAt?: string | null;
 }
@@ -4391,7 +4343,7 @@ export interface CollectionsWidget {
   data?: {
     [k: string]: unknown;
   };
-  width: "full";
+  width: 'full';
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -4413,24 +4365,24 @@ export interface TaskCreateCollectionExport {
     name: string;
     batchSize?: number | null;
     collectionSlug:
-      | "users"
-      | "integrations"
-      | "media"
-      | "pages"
-      | "posts"
-      | "products"
-      | "categories"
-      | "collections"
-      | "email-templates"
-      | "ui-strings"
-      | "newsletter-confirmations"
-      | "consent-records"
-      | "exports"
-      | "imports";
-    drafts?: ("yes" | "no") | null;
+      | 'users'
+      | 'integrations'
+      | 'media'
+      | 'pages'
+      | 'posts'
+      | 'products'
+      | 'categories'
+      | 'collections'
+      | 'email-templates'
+      | 'ui-strings'
+      | 'newsletter-confirmations'
+      | 'consent-records'
+      | 'exports'
+      | 'imports';
+    drafts?: ('yes' | 'no') | null;
     exportCollection: string;
     fields?: string[] | null;
-    format: "csv" | "json";
+    format: 'csv' | 'json';
     limit?: number | null;
     locale?: string | null;
     maxLimit?: number | null;
@@ -4462,7 +4414,7 @@ export interface TaskCreateCollectionImport {
     userCollection?: string | null;
     batchSize?: number | null;
     debug?: boolean | null;
-    defaultVersionStatus?: ("draft" | "published") | null;
+    defaultVersionStatus?: ('draft' | 'published') | null;
     maxLimit?: number | null;
   };
   output?: unknown;
@@ -4473,25 +4425,25 @@ export interface TaskCreateCollectionImport {
  */
 export interface TaskSchedulePublish {
   input: {
-    type?: ("publish" | "unpublish") | null;
+    type?: ('publish' | 'unpublish') | null;
     locale?: string | null;
     doc?:
       | ({
-          relationTo: "pages";
+          relationTo: 'pages';
           value: number | Page;
         } | null)
       | ({
-          relationTo: "posts";
+          relationTo: 'posts';
           value: number | Post;
         } | null);
     global?: string | null;
     user?:
       | ({
-          relationTo: "users";
+          relationTo: 'users';
           value: number | User;
         } | null)
       | ({
-          relationTo: "integrations";
+          relationTo: 'integrations';
           value: number | Integration;
         } | null);
   };
@@ -4505,6 +4457,7 @@ export interface Auth {
   [k: string]: unknown;
 }
 
-declare module "payload" {
+
+declare module 'payload' {
   export interface GeneratedTypes extends Config {}
 }

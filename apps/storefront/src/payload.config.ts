@@ -39,6 +39,7 @@ import { emailAdapter } from "./payload/email";
 import { e2eThrowEndpoint } from "./payload/e2e-throw";
 import { reportToSentry } from "./payload/sentry";
 import { mediaStorage, privateFileStorage } from "./payload/storage";
+import { taintServerSecrets } from "./lib/security/taint";
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -55,6 +56,10 @@ const DEPLOYED_POOL_MAX = 3;
 // (`previewOrigins`), so the admin works at whichever of them it was opened.
 const serverURL = siteOrigin();
 const origins = [...new Set([serverURL, ...previewOrigins()])];
+
+// M7 T109 (SPEC §11.1): the server's secrets, Payload's and the integrations' among them, may never
+// reach a Client Component; with `experimental.taint` on, rendering one throws (`lib/security/taint.ts`).
+taintServerSecrets(process.env);
 
 export default buildConfig({
   serverURL,
