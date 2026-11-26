@@ -23,6 +23,7 @@ type Options = {
 };
 
 const roots: Root[] = [];
+const listeners: (() => void)[] = [];
 let rendered: Options[] = [];
 const api = {
   render: vi.fn((_box: HTMLElement, options: Options) => {
@@ -57,6 +58,36 @@ async function mount(withApi = true) {
   return { form, button, submit };
 }
 
+/** As `mount`, but the widget's module arrives only when `gate` settles (rejected: it fails to load). */
+async function mountGated(gate: Promise<void>) {
+  vi.resetModules();
+  window.turnstile = api;
+  vi.doMock("./turnstile-widget", async (importOriginal) => {
+    await gate;
+    return importOriginal();
+  });
+  try {
+    const { TurnstileIsland } = await import("./turnstile-island");
+    const form = document.body.appendChild(document.createElement("form"));
+    form.innerHTML = '<input name="email"><button type="submit" name="go" value="1">Send</button>';
+    const holder = form.insertBefore(document.createElement("div"), form.lastChild);
+    const root = createRoot(holder);
+    roots.push(root);
+    await act(async () =>
+      root.render(<TurnstileIsland siteKey="1x00000000000000000000AA" language="el" />),
+    );
+    // As React's own listener, on the root, after the form's.
+    const listener = vi.fn();
+    document.body.addEventListener("submit", listener);
+    listeners.push(listener);
+    const button = form.querySelector("button") as HTMLButtonElement;
+    const submit = vi.spyOn(form, "requestSubmit").mockImplementation(() => undefined);
+    return { form, button, submit, listener };
+  } finally {
+    vi.doUnmock("./turnstile-widget");
+  }
+}
+
 /** Presses the button as a browser does: a `submit` event naming it, cancelable. */
 function press(form: HTMLFormElement, button: HTMLButtonElement): SubmitEvent {
   const event = new SubmitEvent("submit", { bubbles: true, cancelable: true, submitter: button });
@@ -73,6 +104,7 @@ beforeEach(() => {
 
 afterEach(() => {
   for (const root of roots.splice(0)) act(() => root.unmount());
+  for (const listener of listeners.splice(0)) document.body.removeEventListener("submit", listener);
   document.body.innerHTML = "";
   document.head.querySelectorAll("script").forEach((script) => script.remove());
   delete window.turnstile;
@@ -153,6 +185,35 @@ describe("TurnstileIsland", () => {
     await settle();
     expect(submit).toHaveBeenCalledWith(button);
     expect(press(form, button).defaultPrevented).toBe(false);
+  });
+
+  it("holds a press made before the widget's module is here, and hands it over", async () => {
+    let arrive!: () => void;
+    const gate = new Promise<void>((resolve) => (arrive = resolve));
+    const { form, button, submit, listener } = await mountGated(gate);
+    // Hydrated, but the widget's module is still on its way: the press is held, not sent bare.
+    const event = press(form, button);
+    expect(event.defaultPrevented).toBe(true);
+    expect(listener).not.toHaveBeenCalled();
+    await act(async () => arrive());
+    await vi.waitFor(() => expect(api.render).toHaveBeenCalledTimes(1));
+    expect(submit).not.toHaveBeenCalled();
+    act(() => rendered[0]?.callback("token-1"));
+    expect(submit).toHaveBeenCalledWith(button);
+  });
+
+  it("sends a press held before the widget's module when the module cannot load", async () => {
+    let fail!: () => void;
+    const gate = new Promise<void>((_resolve, reject) => (fail = () => reject(new Error("chunk"))));
+    const { form, button, submit, listener } = await mountGated(gate);
+    expect(press(form, button).defaultPrevented).toBe(true);
+    expect(listener).not.toHaveBeenCalled();
+    await act(async () => fail());
+    await vi.waitFor(() => expect(submit).toHaveBeenCalledWith(button));
+    expect(api.render).not.toHaveBeenCalled();
+    // Without the module the form goes as it is.
+    press(form, button);
+    expect(listener).toHaveBeenCalledTimes(1);
   });
 
   it("removes the widget and its listeners when the form goes", async () => {

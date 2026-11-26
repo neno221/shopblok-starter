@@ -244,7 +244,11 @@ describe("submitFormAction: the limit and the challenge", () => {
     vi.stubEnv("NEXT_PUBLIC_TURNSTILE_SITE_KEY", "2x00000000000000000000AB");
     vi.stubEnv("TURNSTILE_SECRET_KEY", "2x0000000000000000000000000000000AA");
     const siteverify = vi.fn(
-      async () => new Response(JSON.stringify({ success: false }), { status: 200 }),
+      async () =>
+        new Response(
+          JSON.stringify({ success: false, "error-codes": ["invalid-input-response"] }),
+          { status: 200 },
+        ),
     );
     vi.stubGlobal("fetch", siteverify);
     const result = await submitFormAction({

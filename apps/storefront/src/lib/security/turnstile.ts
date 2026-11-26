@@ -12,8 +12,9 @@ import { consumeLimit } from "./rate-limit";
 // no token is one sent without scripts (the widget cannot run there): it is taken under its own
 // limit, once an hour per address (`form-no-script`), and the page says so. Without the keys
 // nothing loads, nothing is checked, and the rate limits alone apply. If Cloudflare cannot be
-// reached, the post is taken (with one log line a minute), as the rate limits are when Medusa
-// cannot be: the check can only add to them.
+// reached, or fails on its side, or refuses the secret, the post is taken (with one log line a
+// minute), as the rate limits are when Medusa cannot be: the check can only add to them. Only a
+// token Cloudflare refuses (`TOKEN_ERRORS`) refuses the post.
 
 /** The field Cloudflare's widget adds to its form, holding the token. */
 export const TURNSTILE_FIELD = "cf-turnstile-response";
@@ -34,7 +35,34 @@ export function turnstileKeys(
 
 export type ChallengeOutcome = "off" | "passed" | "failed" | "no-script";
 
-let lastLog = -Infinity;
+/**
+ * Siteverify's error codes that are about the token: only these refuse a post. Cloudflare's own
+ * failure (`internal-error`, a non-2xx answer) lets it through, as an unreachable Siteverify does;
+ * a secret Cloudflare refuses lets it through with its own log line, so a wrong key does not lock
+ * every form (`doctor` cannot test the secret; the log says it). The review of PR 153.
+ */
+const TOKEN_ERRORS = new Set([
+  "invalid-input-response",
+  "timeout-or-duplicate",
+  "missing-input-response",
+  "bad-request",
+]);
+const SECRET_ERRORS = new Set(["invalid-input-secret", "missing-input-secret"]);
+
+const lastLogs = new Map<string, number>();
+
+/** One line a minute per kind of trouble, so an outage does not flood the log. */
+function logOnce(kind: "unreachable" | "secret", message: string): void {
+  const now = performance.now();
+  if (now - (lastLogs.get(kind) ?? -Infinity) < 60_000) return;
+  lastLogs.set(kind, now);
+  console.warn(`turnstile: ${message}; posts are taken under the rate limits alone`);
+}
+
+/** For the tests: the next trouble logs again. */
+export function resetTurnstileLog(): void {
+  lastLogs.clear();
+}
 
 /** What Cloudflare says about `token` (the post's `cf-turnstile-response`). */
 export async function checkChallenge(
@@ -52,6 +80,7 @@ export async function checkChallenge(
   // Cloudflare compares the address it saw the widget from; a local one would only mislead it.
   if (address !== undefined && isIP(address) !== 0 && address !== "127.0.0.1")
     body.set("remoteip", address);
+  let answer: { success?: unknown; "error-codes"?: unknown };
   try {
     const response = await fetcher(SITEVERIFY_URL, {
       method: "POST",
@@ -59,18 +88,33 @@ export async function checkChallenge(
       signal: AbortSignal.timeout(SITEVERIFY_TIMEOUT_MS),
       cache: "no-store",
     });
-    const answer = (await response.json()) as { success?: unknown };
-    return answer.success === true ? "passed" : "failed";
-  } catch (error) {
-    const now = performance.now();
-    if (now - lastLog >= 60_000) {
-      lastLog = now;
-      console.warn(
-        `turnstile: Cloudflare's Siteverify could not be reached (${error instanceof Error ? error.name : "error"}); posts are taken under the rate limits alone`,
-      );
+    if (!response.ok) {
+      await response.body?.cancel();
+      logOnce("unreachable", `Cloudflare's Siteverify answered ${response.status}`);
+      return "passed";
     }
+    answer = (await response.json()) as typeof answer;
+  } catch (error) {
+    logOnce(
+      "unreachable",
+      `Cloudflare's Siteverify could not be reached (${error instanceof Error ? error.name : "error"})`,
+    );
     return "passed";
   }
+  if (answer.success === true) return "passed";
+  const codes = Array.isArray(answer["error-codes"])
+    ? answer["error-codes"].filter((code): code is string => typeof code === "string")
+    : [];
+  if (codes.some((code) => SECRET_ERRORS.has(code))) {
+    logOnce("secret", `Cloudflare refuses TURNSTILE_SECRET_KEY (${codes.join(", ")})`);
+    return "passed";
+  }
+  if (codes.some((code) => TOKEN_ERRORS.has(code))) return "failed";
+  logOnce(
+    "unreachable",
+    `Cloudflare's Siteverify failed on its side (${codes.join(", ") || "no error code"})`,
+  );
+  return "passed";
 }
 
 /**

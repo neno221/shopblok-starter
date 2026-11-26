@@ -45,7 +45,7 @@ export async function POST(request: Request): Promise<Response> {
   if (!(CSP_REPORT_TYPES as readonly string[]).includes(type)) {
     return plain(415, "Unsupported Media Type");
   }
-  if (!perAddress.hit(visitorAddress(request.headers) ?? "unknown")) {
+  if (!perAddress.hit(visitorAddress(request.headers))) {
     return new Response("Too Many Requests", {
       status: 429,
       headers: { "Content-Type": "text/plain; charset=utf-8", "Retry-After": "60" },

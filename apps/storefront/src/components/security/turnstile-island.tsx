@@ -15,14 +15,32 @@ export function TurnstileIsland({ siteKey, language }: TurnstileIslandProps) {
   const box = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const element = box.current;
-    if (element === null) return;
+    const form = element?.closest("form");
+    if (!element || !form) return;
     let undo: (() => void) | undefined;
     let stopped = false;
-    void import("./turnstile-widget").then(({ attachTurnstile }) => {
-      if (!stopped) undo = attachTurnstile(element, { siteKey, language });
-    });
+    // Until the widget's module is here, a press is held (never taken as one without scripts) and
+    // handed over to it (the review of PR 153); if the module cannot load, it goes as it is.
+    let press: { submitter: HTMLElement | null } | undefined;
+    const hold = (event: SubmitEvent) => {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      press = { submitter: event.submitter };
+    };
+    form.addEventListener("submit", hold);
+    void import("./turnstile-widget").then(
+      ({ attachTurnstile }) => {
+        form.removeEventListener("submit", hold);
+        if (!stopped) undo = attachTurnstile(element, { siteKey, language, press });
+      },
+      () => {
+        form.removeEventListener("submit", hold);
+        if (!stopped && press) form.requestSubmit(press.submitter);
+      },
+    );
     return () => {
       stopped = true;
+      form.removeEventListener("submit", hold);
       undo?.();
     };
   }, [siteKey, language]);

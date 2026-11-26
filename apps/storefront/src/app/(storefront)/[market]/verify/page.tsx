@@ -2,7 +2,7 @@ import { AuthTemplate, authCopy } from "@shopblok/ui/templates/auth";
 import type { Metadata } from "next";
 import { connection } from "next/server";
 import { sendVerificationAgain, signIn } from "../../../../lib/actions/auth";
-import { authMetadata, authPageContext, param } from "../../../../lib/auth-page";
+import { authErrorsOf, authMetadata, authPageContext, param } from "../../../../lib/auth-page";
 import { readFlash } from "../../../../lib/flash";
 import { confirmVerification, pendingVerification } from "../../../../lib/medusa/customer";
 import { MedusaRequestError } from "../../../../lib/medusa/sdk";
@@ -93,6 +93,9 @@ export default async function VerifyPage({ searchParams }: Props) {
         {...shared}
       />
     );
+  // M7 D142: over Medusa's limit on new links (5 an hour per e-mail), the screen says how long to
+  // wait, as every refusal does, instead of "could not send" (the review of PR 153).
+  const tooMany = flash?.form === "too-many";
   return (
     <AuthTemplate
       variant="default"
@@ -103,8 +106,15 @@ export default async function VerifyPage({ searchParams }: Props) {
       }}
       resendAction={sendVerificationAgain.bind(null, market.key)}
       verificationStatus={
-        flash?.form !== undefined ? "error" : param(query.resent) === "1" ? "resent" : "sent"
+        tooMany
+          ? "sent"
+          : flash?.form !== undefined
+            ? "error"
+            : param(query.resent) === "1"
+              ? "resent"
+              : "sent"
       }
+      errors={tooMany ? authErrorsOf(flash) : {}}
       {...shared}
     />
   );

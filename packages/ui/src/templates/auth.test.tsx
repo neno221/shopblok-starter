@@ -181,6 +181,18 @@ describe("AuthTemplate", () => {
       }
     });
 
+    // The review of PR 153: the e-mail to check says the wait too when a new link is refused.
+    it("says how long to wait on the e-mail to check, above its resend form", () => {
+      renderAuth("en", pageFixtures.en.auth.checkEmail, {
+        errors: { form: "too-many", retryAfter: 1800 },
+        verificationStatus: "sent",
+      });
+      expect(screen.getByRole("alert").textContent).toBe(
+        "Too many attempts. Try again in 30 minutes.",
+      );
+      expect(slot("verification-notice-status")?.textContent).toBe("");
+    });
+
     it("links a field's error to its input, and marks the input invalid", () => {
       renderAuth("en", pageFixtures.en.auth.login, {
         errors: { fields: { email: "pattern", password: "required" } },

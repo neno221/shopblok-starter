@@ -145,7 +145,13 @@ describe("the auth forms' limits and challenge", () => {
     vi.stubEnv("TURNSTILE_SECRET_KEY", "2x0000000000000000000000000000000AA");
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () => new Response(JSON.stringify({ success: false }), { status: 200 })),
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({ success: false, "error-codes": ["invalid-input-response"] }),
+            { status: 200 },
+          ),
+      ),
     );
     const result = await registerAction({
       market: "en-de",

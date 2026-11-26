@@ -1,6 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { CLIENT_HEADER } from "./client-signature";
-import { consumeLimit, emailKey, memoryLimit, resetRateLimitLog } from "./rate-limit";
+import { CLIENT_HEADER, clientHeader } from "./client-signature";
+import {
+  consumeLimit,
+  emailKey,
+  MEMORY_LIMIT_KEYS,
+  memoryLimit,
+  resetRateLimitLog,
+} from "./rate-limit";
 
 const visitor = new Headers({});
 let warn: ReturnType<typeof vi.spyOn>;
@@ -74,29 +80,74 @@ describe("emailKey", () => {
     expect(emailKey(" Ana@Example.com ")).toBe(emailKey("ana@example.com"));
     expect(emailKey("ana@example.com")).toMatch(/^[0-9a-f]{64}$/);
   });
+
+  it("keeps the base path of Medusa's address, and signs the path Medusa sees", async () => {
+    vi.stubEnv("MEDUSA_BACKEND_URL", "https://api.example.test/medusa/");
+    const fetcher = answer(200, { allowed: true, retryAfter: 0 });
+    await consumeLimit("form", "12", visitor, fetcher);
+    const [url, init] = fetcher.mock.calls[0]!;
+    expect(String(url)).toBe("https://api.example.test/medusa/shopblok/rate-limit");
+    const header = (init?.headers as Record<string, string>)[CLIENT_HEADER]!;
+    const [, address, time] = header.split(";");
+    expect(header).toBe(
+      clientHeader("s", {
+        address: address!,
+        time: Number(time),
+        method: "POST",
+        path: "/medusa/shopblok/rate-limit",
+      }),
+    );
+  });
 });
 
 describe("memoryLimit (/next/csp-report)", () => {
-  it("counts per key in a fixed window", () => {
+  it("counts per address in a fixed window", () => {
     let now = 0;
     const limit = memoryLimit(2, 1000, () => now);
-    expect([limit.hit("a"), limit.hit("a"), limit.hit("a"), limit.hit("b")]).toEqual([
-      true,
-      true,
-      false,
-      true,
-    ]);
+    expect([
+      limit.hit("192.0.2.1"),
+      limit.hit("192.0.2.1"),
+      limit.hit("192.0.2.1"),
+      limit.hit("192.0.2.2"),
+    ]).toEqual([true, true, false, true]);
     now = 1000;
-    expect(limit.hit("a")).toBe(true);
+    expect(limit.hit("192.0.2.1")).toBe(true);
   });
 
   it("sweeps the windows that ended when it holds too many keys", () => {
     let now = 0;
     const limit = memoryLimit(1, 10, () => now);
-    for (let n = 0; n < 5_001; n += 1) limit.hit(`k${n}`);
+    for (let n = 0; n < MEMORY_LIMIT_KEYS + 1; n += 1) limit.hit(`10.0.${n >> 8}.${n & 255}`);
     now = 20;
-    limit.hit("new");
+    limit.hit("192.0.2.1");
     // Swept: an old key starts a new window.
-    expect(limit.hit("k0")).toBe(true);
+    expect(limit.hit("10.0.0.0")).toBe(true);
+  });
+
+  it("counts an IPv6 visitor by its /64, and a mapped IPv4 address as IPv4", () => {
+    const limit = memoryLimit(2, 60_000, () => 0);
+    expect(limit.hit("2001:db8:1:2::a")).toBe(true);
+    expect(limit.hit("2001:db8:1:2:ffff::1")).toBe(true);
+    expect(limit.hit("2001:0db8:0001:0002::9")).toBe(false);
+    expect(limit.hit("2001:db8:1:3::a")).toBe(true);
+    expect([limit.hit("::ffff:203.0.113.7"), limit.hit("203.0.113.7")]).toEqual([true, true]);
+    expect(limit.hit("203.0.113.7")).toBe(false);
+  });
+
+  it("keeps an address that is over its limit through a flood of new ones", () => {
+    let now = 0;
+    const limit = memoryLimit(1, 60_000, () => now);
+    const flood = (from: number, count: number) => {
+      for (let n = from; n < from + count; n += 1)
+        limit.hit(`10.${n >> 16}.${(n >> 8) & 255}.${n & 255}`);
+    };
+    limit.hit("203.0.113.7");
+    expect(limit.hit("203.0.113.7")).toBe(false);
+    flood(0, MEMORY_LIMIT_KEYS - 10);
+    now = 1;
+    expect(limit.hit("203.0.113.7")).toBe(false);
+    // Full of live windows: the ones hit longest ago give way, not the address still posting.
+    flood(MEMORY_LIMIT_KEYS, MEMORY_LIMIT_KEYS - 10);
+    expect(limit.hit("203.0.113.7")).toBe(false);
   });
 });

@@ -1,6 +1,7 @@
 import "server-only";
 import { createHash } from "node:crypto";
 import { medusaEnv } from "../env";
+import { addressKey } from "./address-key";
 import { CLIENT_HEADER, signedClientHeader, visitorHeaders } from "./client-signature";
 
 // M7 D142 (T108): the storefront's own rate limits. Their counters are Medusa's, in its private
@@ -17,12 +18,7 @@ import { CLIENT_HEADER, signedClientHeader, visitorHeaders } from "./client-sign
 
 /** The storefront's rules in Medusa's table (`apps/backend/src/lib/rate-limit/rules.ts`). */
 export type StorefrontRule =
-  | "form"
-  | "newsletter"
-  | "consent"
-  | "payload-login"
-  | "payload-reset"
-  | "form-no-script";
+  "form" | "newsletter" | "consent" | "payload-login" | "payload-reset" | "form-no-script";
 
 export type LimitAnswer = { allowed: true } | { allowed: false; retryAfter: number };
 
@@ -67,13 +63,23 @@ export async function consumeLimit(
     logOnce(`Medusa's address is not set (${error instanceof Error ? error.message : "error"})`);
     return { allowed: true };
   }
-  const signature = signedClientHeader({ method: "POST", path: RATE_LIMIT_PATH }, headers);
+  // Medusa's address may carry a base path, which the route sits under (as `requestPath` in
+  // `lib/medusa/sdk.ts` keeps it); the signature covers the path Medusa sees.
+  let url: URL;
+  try {
+    const base = new URL(backendUrl);
+    url = new URL(`${base.pathname.replace(/\/$/, "")}${RATE_LIMIT_PATH}`, base.origin);
+  } catch {
+    logOnce("Medusa's address is not a URL");
+    return { allowed: true };
+  }
+  const signature = signedClientHeader({ method: "POST", path: url.pathname }, headers);
   if (signature === undefined) {
     logOnce("STOREFRONT_SIGNING_SECRET is not set, so Medusa cannot take the call");
     return { allowed: true };
   }
   try {
-    const response = await fetcher(new URL(RATE_LIMIT_PATH, backendUrl), {
+    const response = await fetcher(url, {
       method: "POST",
       headers: { "content-type": "application/json", [CLIENT_HEADER]: signature },
       body: JSON.stringify(key === undefined ? { rule } : { rule, key }),
@@ -97,28 +103,40 @@ export async function consumeLimit(
   }
 }
 
+/** How many live windows `memoryLimit` keeps before the oldest give way. */
+export const MEMORY_LIMIT_KEYS = 5_000;
+
 /**
- * A fixed-window limit kept in this instance's memory, for `/next/csp-report`: `hit(key)` counts
- * one and answers whether the key is still within `limit` per `windowMs`. The map is swept as it
- * grows, so a flood of addresses cannot hold memory.
+ * A fixed-window limit kept in this instance's memory, for `/next/csp-report`: `hit(address)` counts
+ * one for the address (IPv6 by its /64, as Medusa counts, `addressKey`) and answers whether it is
+ * still within `limit` per `windowMs`. The map is swept as it grows; when every window is still
+ * live, those hit longest ago are dropped, so a flood of addresses cannot hold memory or reset the others.
  */
 export function memoryLimit(limit: number, windowMs: number, now: () => number = Date.now) {
+  // A `Map` keeps insertion order, and each hit moves its window to the end, so the first entries
+  // are the ones hit longest ago: an address that keeps posting keeps its count.
   const windows = new Map<string, { count: number; resetAt: number }>();
   return {
-    hit(key: string): boolean {
+    hit(address: string | undefined): boolean {
+      const key = addressKey(address);
       const at = now();
-      if (windows.size > 5_000) {
-        for (const [name, window] of windows) if (window.resetAt <= at) windows.delete(name);
-        // Still full: every window is live, so the oldest give way.
-        if (windows.size > 5_000) windows.clear();
-      }
       const current = windows.get(key);
-      if (current === undefined || current.resetAt <= at) {
-        windows.set(key, { count: 1, resetAt: at + windowMs });
-        return true;
+      if (current !== undefined && current.resetAt > at) {
+        current.count += 1;
+        windows.delete(key);
+        windows.set(key, current);
+        return current.count <= limit;
       }
-      current.count += 1;
-      return current.count <= limit;
+      windows.delete(key);
+      if (windows.size >= MEMORY_LIMIT_KEYS) {
+        for (const [name, window] of windows) if (window.resetAt <= at) windows.delete(name);
+        for (const name of windows.keys()) {
+          if (windows.size < MEMORY_LIMIT_KEYS) break;
+          windows.delete(name);
+        }
+      }
+      windows.set(key, { count: 1, resetAt: at + windowMs });
+      return true;
     },
   };
 }

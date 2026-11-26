@@ -3,8 +3,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const consumeLimit = vi.fn();
 vi.mock("./rate-limit", () => ({ consumeLimit: (...args: unknown[]) => consumeLimit(...args) }));
 
-const { checkChallenge, requireChallenge, SITEVERIFY_URL, turnstileKeys, turnstileSiteKey } =
-  await import("./turnstile");
+const {
+  checkChallenge,
+  requireChallenge,
+  resetTurnstileLog,
+  SITEVERIFY_URL,
+  turnstileKeys,
+  turnstileSiteKey,
+} = await import("./turnstile");
 
 // Cloudflare's published test keys (always passes; always fails).
 const PASS = {
@@ -19,6 +25,7 @@ let warn: ReturnType<typeof vi.spyOn>;
 beforeEach(() => {
   warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
   consumeLimit.mockReset();
+  resetTurnstileLog();
 });
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -79,13 +86,56 @@ describe("checkChallenge (M7 D143)", () => {
     expect(await checkChallenge("t", PASS, down)).toBe("passed");
     expect(String(warn.mock.calls[0]?.[0])).toContain("Siteverify could not be reached");
   });
+
+  it.each([
+    "invalid-input-response",
+    "timeout-or-duplicate",
+    "missing-input-response",
+    "bad-request",
+  ])("refuses a token Cloudflare refuses (%s)", async (code) => {
+    expect(await checkChallenge("t", PASS, answer({ success: false, "error-codes": [code] }))).toBe(
+      "failed",
+    );
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it("takes the post when Cloudflare fails on its side: a non-2xx answer or internal-error", async () => {
+    const status = (code: number) =>
+      vi.fn<typeof fetch>(
+        async () => new Response(JSON.stringify({ success: false }), { status: code }),
+      );
+    expect(await checkChallenge("t", PASS, status(500))).toBe("passed");
+    expect(String(warn.mock.calls[0]?.[0])).toContain("Siteverify answered 500");
+    resetTurnstileLog();
+    expect(
+      await checkChallenge(
+        "t",
+        PASS,
+        answer({ success: false, "error-codes": ["internal-error"] }),
+      ),
+    ).toBe("passed");
+    expect(String(warn.mock.calls[1]?.[0])).toContain("failed on its side (internal-error)");
+    // Once a minute: a second failure says nothing more.
+    expect(await checkChallenge("t", PASS, status(503))).toBe("passed");
+    expect(warn).toHaveBeenCalledTimes(2);
+  });
+
+  it.each(["invalid-input-secret", "missing-input-secret"])(
+    "takes the post when Cloudflare refuses the secret (%s), with its own log line",
+    async (code) => {
+      expect(
+        await checkChallenge("t", PASS, answer({ success: false, "error-codes": [code] })),
+      ).toBe("passed");
+      expect(String(warn.mock.calls[0]?.[0])).toContain("Cloudflare refuses TURNSTILE_SECRET_KEY");
+    },
+  );
 });
 
 describe("requireChallenge (M7 D143)", () => {
   it("refuses a token Cloudflare refuses as `challenge`", async () => {
     vi.stubEnv("NEXT_PUBLIC_TURNSTILE_SITE_KEY", PASS.NEXT_PUBLIC_TURNSTILE_SITE_KEY);
     vi.stubEnv("TURNSTILE_SECRET_KEY", PASS.TURNSTILE_SECRET_KEY);
-    vi.stubGlobal("fetch", answer({ success: false }));
+    vi.stubGlobal("fetch", answer({ success: false, "error-codes": ["invalid-input-response"] }));
     await expect(requireChallenge("token")).rejects.toMatchObject({ form: "challenge" });
     vi.unstubAllGlobals();
   });

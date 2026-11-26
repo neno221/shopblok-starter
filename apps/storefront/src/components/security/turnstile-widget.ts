@@ -73,6 +73,8 @@ export type TurnstileSettings = {
   siteKey: string;
   /** The market's language (`el`, `de`): the widget's own words. */
   language: string;
+  /** A press the island held before this module loaded: held here too, and the widget starts. */
+  press?: { submitter: HTMLElement | null } | undefined;
 };
 
 /**
@@ -81,7 +83,7 @@ export type TurnstileSettings = {
  */
 export function attachTurnstile(
   element: HTMLElement,
-  { siteKey, language }: TurnstileSettings,
+  { siteKey, language, press }: TurnstileSettings,
 ): () => void {
   const form = element.closest("form");
   if (form === null) return () => undefined;
@@ -156,6 +158,10 @@ export function attachTurnstile(
   form.addEventListener("pointerdown", start);
   form.addEventListener("submit", submitted);
   element.dataset.ready = TURNSTILE_MARKER;
+  if (press !== undefined) {
+    held = press.submitter;
+    start();
+  }
   return () => {
     stopped = true;
     form.removeEventListener("focusin", start);
