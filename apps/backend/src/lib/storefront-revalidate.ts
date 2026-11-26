@@ -376,8 +376,12 @@ export async function postBatch(batch: Batch, options: PostOptions): Promise<boo
  *
  * The tags are the module's own, computed as its subscriber computes them: the entity from the
  * event's name (`product-variant.updated` -> `ProductVariant`, the operation `updated`), one per id
- * in the data. A clear that runs beside the module's own with the same tags joins it (the module
- * dedupes them). Without the module (no `MEDUSA_FF_CACHING`, no Redis) it does nothing. Never
+ * in the data, kept in an array with any repeats as the module keeps them, so that a clear running
+ * beside the module's own has the same request key and joins it (the module dedupes in-flight
+ * clears by their sorted tags; PR 154 review, item 2). It covers what the module's own clear of
+ * this event covers, no more: an entry that the event's entity does not tag (for example a cached
+ * product read after a price list's change, if no tag of it names the list) is not reached by
+ * either. Without the module (no `MEDUSA_FF_CACHING`, no Redis) it does nothing. Never
  * throws: a failed clear is logged and the storefront is still told, since its page would be as
  * old without the POST.
  */
@@ -393,7 +397,7 @@ export async function clearMedusaCache(
     const parts = event.split(".");
     const operation = parts.at(-1);
     const type = upperCaseFirst(toCamelCase(parts.at(-2) ?? ""));
-    const tags = new Set<string>();
+    const tags: string[] = [];
     for (const item of [data].flat()) {
       const value = (item as { id?: unknown } | null | undefined)?.id;
       for (const id of [value ?? []].flat()) {
@@ -402,11 +406,11 @@ export async function clearMedusaCache(
           entities: [{ type, id }],
           operation,
         });
-        for (const tag of computed) tags.add(tag);
+        tags.push(...computed);
       }
     }
-    if (tags.size === 0) return;
-    await caching.clear({ tags: [...tags], options: { autoInvalidate: true } });
+    if (tags.length === 0) return;
+    await caching.clear({ tags, options: { autoInvalidate: true } });
   } catch (error) {
     logger.warn(
       `storefront-revalidate: could not clear Medusa's cache for ${event}: ${error instanceof Error ? error.message : String(error)}`,

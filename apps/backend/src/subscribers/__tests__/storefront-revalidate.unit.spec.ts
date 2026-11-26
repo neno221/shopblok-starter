@@ -132,7 +132,12 @@ describe("storefront-revalidate subscriber", () => {
   });
 
   describe("Medusa's caching module (T112 follow-up, D149)", () => {
-    /** The module's tags as its own `*` subscriber computes them: the entity and its list. */
+    /**
+     * A simplified `computeTags`: the entity and its list for every operation. The real module
+     * adds the list tag only for list-affecting operations (`created`, `updated`, `deleted`,
+     * `restored`, `attached`, `detached`), so not for `prices_added`; the subscriber passes on
+     * whatever it returns, which is what these tests check.
+     */
     const cachingModule = () => ({
       computeTags: jest.fn(
         async (_input: object, options: { entities: { type: string; id: string }[] }) =>
@@ -184,10 +189,13 @@ describe("storefront-revalidate subscriber", () => {
         { entities: [{ type: "PriceList", id: "plist_2" }], operation: "prices_added" },
       ]);
       expect(caching.clear).toHaveBeenCalledTimes(1);
+      // Repeats kept, as the module's own subscriber keeps them, so the two clears' request keys
+      // match and the module joins them (PR 154 review, item 2).
       expect(caching.clear.mock.calls[0][0].tags).toEqual([
         "PriceList:plist_1",
         "PriceList:list:*",
         "PriceList:plist_2",
+        "PriceList:list:*",
       ]);
 
       const quiet = cachingModule();

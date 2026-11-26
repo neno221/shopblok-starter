@@ -15,7 +15,7 @@ import { base } from "./support/server";
 //   entry nobody clears lives an hour),
 // - for a price, a new cart's line price (Medusa caches the cart's reads of variants and prices),
 // - the product page in `/us` until it shows the change (the storefront's revalidation re-renders
-//   it from Medusa, so a stale answer there would stay on the page), at most 30 s,
+//   it from Medusa, so a stale answer there would stay on the page), at most 30 s from the change,
 // - `/store/products` again once the page has it, once: the storefront is told only after the
 //   event's entries are cleared (`clearMedusaCache` in the backend's `lib/storefront-revalidate.ts`).
 //
@@ -155,11 +155,13 @@ test("Medusa's caching serves no stale answer in 40 changes (T112, D149)", async
       currency: region.currency_code.toUpperCase(),
     }).format(amount);
   /**
-   * Milliseconds until the Store API's read passes `fresh` (undefined when it did not in time), and
-   * the number of reads.
+   * Milliseconds from the change (`start`, taken when the Admin API answered) until the Store API's
+   * read passes `fresh` (undefined when it did not in time), and the number of reads.
    */
-  const storeHas = async (fresh: (read: Awaited<ReturnType<typeof storeRead>>) => boolean) => {
-    const start = Date.now();
+  const storeHas = async (
+    start: number,
+    fresh: (read: Awaited<ReturnType<typeof storeRead>>) => boolean,
+  ) => {
     let reads = 0;
     while (Date.now() - start < STORE_WAIT_MS) {
       reads++;
@@ -168,9 +170,12 @@ test("Medusa's caching serves no stale answer in 40 changes (T112, D149)", async
     }
     return { storeMs: undefined, storeReads: reads };
   };
-  /** Milliseconds until the product page shows `text`, or undefined when it did not in time. */
-  const pageShows = async (text: string) => {
-    const start = Date.now();
+  /**
+   * Milliseconds from the change (`start`, as for `storeHas`, so the Store API's wait is not left
+   * out: PR 154 review, item 1) until the product page shows `text`, or undefined when it did not
+   * in time.
+   */
+  const pageShows = async (start: number, text: string) => {
     while (Date.now() - start < PAGE_WAIT_MS) {
       const response = await fetch(`${base()}/${MARKET}/products/${HANDLE}`);
       if (response.ok && (await response.text()).includes(text)) return Date.now() - start;
@@ -205,8 +210,9 @@ test("Medusa's caching serves no stale answer in 40 changes (T112, D149)", async
   for (let i = 1; i <= ROUNDS; i++) {
     const title = `${originalTitle} check ${run}-${String(i).padStart(2, "0")}`;
     await setTitle(title);
-    const store = await storeHas((read) => read.title === title);
-    const pageMs = await pageShows(title);
+    const titleAt = Date.now();
+    const store = await storeHas(titleAt, (read) => read.title === title);
+    const pageMs = await pageShows(titleAt, title);
     const after = await storeRead();
     rows.push({
       change: `title ${i}`,
@@ -220,9 +226,10 @@ test("Medusa's caching serves no stale answer in 40 changes (T112, D149)", async
     // dollar may be).
     const amount = Math.round(lowest * 100 - i) / 100;
     await setAmount(amount);
-    const storePrice = await storeHas((read) => read.amount === amount);
+    const amountAt = Date.now();
+    const storePrice = await storeHas(amountAt, (read) => read.amount === amount);
     const cart = (await cartAmount()) === amount;
-    const pagePriceMs = await pageShows(formatted(amount));
+    const pagePriceMs = await pageShows(amountAt, formatted(amount));
     const afterPrice = await storeRead();
     rows.push({
       change: `price ${i} (${formatted(amount)})`,
