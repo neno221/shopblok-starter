@@ -28,9 +28,11 @@ import { localizeStoreSearch } from './store/search/locale'
 const medusaErrorHandler = errorHandler()
 
 export default defineMiddlewares({
+  // Express 5's `ErrorRequestHandler` returns `unknown` (Medusa 2.23); Medusa's handler answers
+  // synchronously, so nothing is returned.
   errorHandler: (error, req, res, next) => {
     reportRequestError(error, req)
-    return medusaErrorHandler(error, req, res, next)
+    medusaErrorHandler(error, req, res, next)
   },
   routes: [
     {

@@ -16,7 +16,10 @@
       // a cached storefront build. The transit node puts its files in the build's hash.
       "dependsOn": ["^build", "transit"],
       "inputs": ["$TURBO_DEFAULT$", ".env*"],
-      "env": ["MEDUSA_BACKEND_URL", "STOREFRONT_URL"],
+      // M7 T105 (D133): which deployment a build is for. Strict mode would drop both from `next
+      // build` (a prerendered page asks `deployEnv()`), and a staging build must not replay a
+      // production one from the cache.
+      "env": ["MEDUSA_BACKEND_URL", "STOREFRONT_URL", "DEPLOY_ENV", "VERCEL_ENV"],
       "outputs": [".next/**", "!.next/cache/**", ".medusa/server/**", "dist/**"]
     },
     "dev": {
@@ -31,7 +34,7 @@
       // `STOREFRONT_URL` to the backend's `medusa develop`, over its `.env`).
       // (`NEXT_PUBLIC_*` is listed by Turborepo's Next.js inference.) A `.env` file worked already:
       // Next loads it itself.
-      "passThroughEnv": ["PAYLOAD_*", "MEDUSA_BACKEND_URL", "STOREFRONT_*"]
+      "passThroughEnv": ["PAYLOAD_*", "MEDUSA_BACKEND_URL", "STOREFRONT_*", "DEPLOY_ENV"]
     },
     // The plugin's own `dev` (`medusa plugin:develop`) first deletes `.medusa/server` and builds it
     // again, as `plugin:build` does. With only `^build` on `dev` they ran at the same time on the
@@ -42,7 +45,7 @@
       "dependsOn": ["build"],
       "cache": false,
       "persistent": true,
-      "passThroughEnv": ["PAYLOAD_*", "MEDUSA_BACKEND_URL", "STOREFRONT_*"]
+      "passThroughEnv": ["PAYLOAD_*", "MEDUSA_BACKEND_URL", "STOREFRONT_*", "DEPLOY_ENV"]
     },
     // PR 135 review, item 3: the e-mails' `tsup --watch` starts after their own build, so the two
     // never write `dist/` at once (the build cleans it first) while the apps wait on `^build`.
@@ -50,7 +53,7 @@
       "dependsOn": ["build"],
       "cache": false,
       "persistent": true,
-      "passThroughEnv": ["PAYLOAD_*", "MEDUSA_BACKEND_URL", "STOREFRONT_*"]
+      "passThroughEnv": ["PAYLOAD_*", "MEDUSA_BACKEND_URL", "STOREFRONT_*", "DEPLOY_ENV"]
     },
     "transit": {
       "dependsOn": ["^transit"]

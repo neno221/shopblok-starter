@@ -18,7 +18,7 @@
     "generate:importmap": "payload generate:importmap"
   },
   "dependencies": {
-    "@medusajs/js-sdk": "2.22.7",
+    "@medusajs/js-sdk": "2.23.0",
     "@payloadcms/db-postgres": "3.94.2",
     "@payloadcms/email-nodemailer": "3.94.2",
     "@payloadcms/email-resend": "3.94.2",

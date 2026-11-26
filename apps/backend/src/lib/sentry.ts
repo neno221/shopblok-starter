@@ -300,7 +300,8 @@ async function startTracing(dsn: string, rate: number, Sentry: typeof SentryNode
     await Promise.all([
       import("@medusajs/medusa"),
       import("@opentelemetry/exporter-trace-otlp-http"),
-      import("@medusajs/framework/opentelemetry/sdk-trace-node"),
+      // Medusa 2.23 (M7 T105): OpenTelemetry SDK 3, whose `sdk-trace` replaces `sdk-trace-node`.
+      import("@medusajs/framework/opentelemetry/sdk-trace"),
     ])
   const exporter = new OTLPTraceExporter(endpoint)
   type Spans = Parameters<typeof exporter.export>[0]
@@ -312,10 +313,11 @@ async function startTracing(dsn: string, rate: number, Sentry: typeof SentryNode
     shutdown: () => exporter.shutdown(),
     forceFlush: () => exporter.forceFlush(),
   }
+  // SDK 3 takes the exporter inside the span processors only (Medusa 2.23's notes): passing it as
+  // `exporter` too would export every span twice.
   registerOtel({
     serviceName: "medusa",
-    exporter: scrubbing,
-    spanProcessors: [new BatchSpanProcessor(scrubbing)],
+    spanProcessors: [new BatchSpanProcessor({ exporter: scrubbing })],
     sampler: new TraceIdRatioBasedSampler(rate),
     // Medusa's HTTP spans keep only `fields`, `expand`, `limit`, `offset`, `order` and
     // `with_deleted` of a query, and no header that can carry a credential.
