@@ -1,5 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test, type Locator, type Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
+import { expect, test } from "./support/csp";
 import { api, PNG, syncedId, upload } from "./support/payload-rest";
 import { adminToken, base } from "./support/server";
 

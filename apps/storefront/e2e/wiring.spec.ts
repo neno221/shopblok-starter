@@ -1,4 +1,5 @@
-import { expect, test, type Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
+import { expect, test } from "./support/csp";
 import { catalogs } from "./support/catalogs";
 
 // T16, moved to the home by T51 (SETUP.md "Home (T51)"): the facts the M0 wiring page printed, now

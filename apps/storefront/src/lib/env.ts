@@ -45,6 +45,13 @@ export type RawEnv = {
   SEED_ON_BUILD?: string | undefined;
   /** The CSP's mode (M7 D138, T106): `enforce` (the default) or `report-only`. */
   CSP_MODE?: string | undefined;
+  /**
+   * The static policy's header name and value (M7 D138, T106), which `next.config.ts` computes from
+   * `CSP_MODE` and the build's keys and writes into the bundles; the proxy reads them
+   * (`lib/security/static-csp.ts`). Never set by hand.
+   */
+  SHOPBLOK_CSP_HEADER?: string | undefined;
+  SHOPBLOK_CSP_POLICY?: string | undefined;
   /** Turnstile (M7 D143, T108): both or neither. */
   NEXT_PUBLIC_TURNSTILE_SITE_KEY?: string | undefined;
   TURNSTILE_SECRET_KEY?: string | undefined;
@@ -126,6 +133,12 @@ export const env: RawEnv = {
   },
   get CSP_MODE() {
     return process.env.CSP_MODE;
+  },
+  get SHOPBLOK_CSP_HEADER() {
+    return process.env.SHOPBLOK_CSP_HEADER;
+  },
+  get SHOPBLOK_CSP_POLICY() {
+    return process.env.SHOPBLOK_CSP_POLICY;
   },
   get NEXT_PUBLIC_TURNSTILE_SITE_KEY() {
     return process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;

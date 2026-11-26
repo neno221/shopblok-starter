@@ -251,9 +251,7 @@ test.describe("the listing pages and the search (T50)", () => {
     // Both sides in the results: every card the search drew is shown.
     const cards = '[data-slot="search-results-template"] [data-slot="product-card"]';
     await expect(page.locator(cards).first()).toBeVisible();
-    expect(await page.locator(`${cards}:visible`).count()).toBe(
-      await page.locator(cards).count(),
-    );
+    expect(await page.locator(`${cards}:visible`).count()).toBe(await page.locator(cards).count());
     await expect(page.locator("main")).toHaveCount(1);
     await context.close();
   });

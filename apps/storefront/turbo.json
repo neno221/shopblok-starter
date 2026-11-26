@@ -23,6 +23,8 @@
       // `SENTRY_ENVIRONMENT`, `SENTRY_RELEASE` and `SENTRY_TRACES_SAMPLE_RATE` (M6 D125, T96):
       // `next.config.ts` writes them into the bundles, so they are in the hash (the DSN is a
       // `NEXT_PUBLIC_*` name, which Turborepo's Next.js inference hashes already).
+      // `CSP_MODE` (M7 D140, T106): `next.config.ts` computes the static policy when the build runs
+      // and writes it into the bundles and `headers()`, so report-only and enforce are two builds.
       "env": [
         "$TURBO_EXTENDS$",
         "PAYLOAD_*",
@@ -32,7 +34,8 @@
         "S3_PUBLIC_URL",
         "SENTRY_ENVIRONMENT",
         "SENTRY_RELEASE",
-        "SENTRY_TRACES_SAMPLE_RATE"
+        "SENTRY_TRACES_SAMPLE_RATE",
+        "CSP_MODE"
       ],
       // `STOREFRONT_BUILD_WORKERS` (W6 item 7): how many workers prerender, which changes how fast
       // the build is, not what it builds, so it passes through without entering the hash.

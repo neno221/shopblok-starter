@@ -9,9 +9,11 @@
 // the test opens itself (`browser.newContext()`, `browser.newPage()`), records what it sees and
 // fails the test at its end, naming each request by method, origin and path (never its query). It
 // does not block the request, so the page behaves as it would, and the failure says what loaded.
-// The suites under `e2e/integrations/` (the `integrations` project) use `@playwright/test` itself,
-// since there the keys are set and these requests are the point.
-import { expect, test as base, type BrowserContext } from "@playwright/test";
+// The suites under `e2e/integrations/` (the `integrations` project) use `csp.ts` alone, since there
+// the keys are set and these requests are the point. M7 T106: this fixture builds on `csp.ts`'s, so
+// the keyless suites also fail on a CSP violation.
+import type { BrowserContext } from "@playwright/test";
+import { expect, test as base } from "./csp";
 import { describeRequest, thirdPartyReason } from "./third-party-hosts";
 
 export { THIRD_PARTY_DOMAINS, SAME_ORIGIN_TUNNELS, thirdPartyReason } from "./third-party-hosts";

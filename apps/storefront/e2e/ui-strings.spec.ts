@@ -1,4 +1,5 @@
-import { expect, test, type Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
+import { expect, test } from "./support/csp";
 import { adminCredentials } from "./support/admin-credentials";
 import { marketsAdmin, type MarketsAdmin, type MarketsOverview } from "./support/markets-admin";
 import { add } from "./support/purchase";

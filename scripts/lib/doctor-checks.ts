@@ -427,6 +427,44 @@ function stripeLiveKeys(envs: AppEnvs): Check[] {
   ];
 }
 
+/**
+ * `CSP_MODE` (M7 D140, T106): the storefront's policy is enforced when blank. Any other value than
+ * `enforce` or `report-only` is an error (the build refuses it: `lib/security/csp.ts`'s `cspMode`).
+ * `report-only` is staging's first week (T115), so there it is an accepted note; anywhere else a
+ * warning, since the policy then blocks nothing. Read when `next build` runs, so a change needs a
+ * new build.
+ */
+function cspModeCheck(envs: AppEnvs): Check[] {
+  const env = envs.storefront;
+  const mode = trimmed(env.CSP_MODE);
+  if (mode === "" || mode === "enforce") return [];
+  if (mode !== "report-only")
+    return [
+      {
+        id: "csp-mode",
+        title: "Content Security Policy",
+        level: "error",
+        message: `CSP_MODE is "${mode}", which is neither enforce nor report-only: next build refuses it.`,
+        details: [`apps/storefront: CSP_MODE=${mode}`],
+        fix: 'Leave CSP_MODE blank (enforce), or set it to report-only for a deployment\'s first week (SETUP.md, "Headers and the static CSP (T106)").',
+      },
+    ];
+  const stage = productionStage(env).stage;
+  return [
+    {
+      id: "csp-mode",
+      title: "Content Security Policy",
+      level: stage === "staging" ? "note" : "warn",
+      message:
+        stage === "staging"
+          ? "CSP_MODE is report-only: the policy reports to /next/csp-report and blocks nothing. Accepted on staging for its first week (D140)."
+          : `CSP_MODE is report-only${stage === "production" ? " on production" : ""}: the policy reports to /next/csp-report and blocks nothing.`,
+      details: ["apps/storefront: CSP_MODE=report-only"],
+      fix: "Once a week of reports is clean, remove CSP_MODE (enforce) and build again.",
+    },
+  ];
+}
+
 /** Everything the environment alone can tell, in the order the table shows it. */
 export function configChecks(
   envs: AppEnvs,
@@ -437,6 +475,7 @@ export function configChecks(
     ...deployEnvCheck(envs),
     ...stripeLiveKeys(envs),
     ...e2eRoutesCheck(envs),
+    ...cspModeCheck(envs),
     secrets(envs, context),
     previewAndCronSecrets(envs, context),
     publishableKey(envs),

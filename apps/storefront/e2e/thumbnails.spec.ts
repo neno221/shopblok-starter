@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./support/csp";
 import { fixtureNow } from "@shopblok/fixtures";
 import { entries } from "@shopblok/registry";
 import { interactions } from "../src/design-system/interactions";

@@ -1,4 +1,5 @@
-import { expect, test, type Browser, type Page } from "@playwright/test";
+import type { Browser, Page } from "@playwright/test";
+import { expect, test } from "./support/csp";
 import { adminCredentials } from "./support/admin-credentials";
 import { publishGlobal } from "./support/globals";
 import { rest } from "./support/payload-rest";

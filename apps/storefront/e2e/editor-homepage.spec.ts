@@ -1,4 +1,5 @@
-import { expect, test, type Locator, type Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
+import { expect, test } from "./support/csp";
 import { signInToAdmin } from "./support/admin-ui";
 import { collectConsole, judgeConsole, type FailedRequest, type Message } from "./support/console";
 import { rest } from "./support/payload-rest";

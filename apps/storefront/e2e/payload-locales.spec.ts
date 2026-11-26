@@ -1,4 +1,5 @@
-import { expect, test, type APIRequestContext, type Frame, type Page } from "@playwright/test";
+import type { APIRequestContext, Frame, Page } from "@playwright/test";
+import { expect, test } from "./support/csp";
 import { adminCredentials } from "./support/admin-credentials";
 import {
   marketsAdmin,

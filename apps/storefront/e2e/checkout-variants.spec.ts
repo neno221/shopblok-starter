@@ -1,4 +1,5 @@
-import { expect, test, type Browser, type BrowserContext, type Page } from "@playwright/test";
+import type { Browser, BrowserContext, Page } from "@playwright/test";
+import { expect, test } from "./support/csp";
 import { catalogs } from "./support/catalogs";
 import { publishGlobal, snapshotGlobal, type GlobalData } from "./support/globals";
 import {

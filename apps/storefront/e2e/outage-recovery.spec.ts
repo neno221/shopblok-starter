@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./support/csp";
 import { OUTAGE_SUBJECTS } from "./support/catalog";
 
 // T49, O5: run after `ci.yml` has started Medusa again through `start-medusa`, against the same

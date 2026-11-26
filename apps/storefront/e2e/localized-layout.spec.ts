@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./support/csp";
 import { appEnv } from "./support/app-env";
 import { rest } from "./support/payload-rest";
 import { adminToken, base, freshWithinTwo, settled } from "./support/server";

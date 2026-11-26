@@ -1,5 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test, type BrowserContext, type Page } from "@playwright/test";
+import type { BrowserContext, Page } from "@playwright/test";
+import { expect, test } from "./support/csp";
 import { entries } from "@shopblok/registry";
 import { familyRoot, variantsAt } from "../src/payload/blocks/drift";
 import { signInToAdmin } from "./support/admin-ui";
