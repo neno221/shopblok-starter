@@ -904,6 +904,11 @@ export const de: Messages = {
         text: "Legen Sie etwas in den Warenkorb und kommen Sie dann zur Kasse zurück.",
         continue: "Weiter einkaufen",
       },
+      held: {
+        title: "Melden Sie sich an, um mit diesem Warenkorb fortzufahren",
+        text: "Dieser Warenkorb gehört zu einem Kundenkonto. Melden Sie sich bei diesem Konto an, um ihn zu sehen und zu bezahlen, oder beginnen Sie einen neuen Warenkorb.",
+        signIn: "Anmelden",
+      },
       express: {
         title: "Express-Kasse",
         or: "Oder unten weiter",

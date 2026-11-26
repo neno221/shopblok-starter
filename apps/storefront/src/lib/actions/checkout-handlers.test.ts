@@ -111,6 +111,7 @@ const emptyCart: CartDto = {
   savedMethod: null,
   paymentSave: false,
   customerId: null,
+  access: "guest",
   completed: false,
 };
 const contactDone: CartDto = { ...emptyCart, email: "a@example.com", shippingAddress: address };
@@ -331,6 +332,7 @@ describe("preparePaymentAction (step 3, M6 D117)", () => {
     paymentProviderId: "pp_stripe_stripe",
     paymentToken: "ctoken_1",
     customerId: "cus_1",
+    access: "guest",
   };
   beforeEach(() => {
     getCustomer.mockResolvedValue({ id: "cus_1" });

@@ -81,6 +81,7 @@ const cart: CartDto = {
   savedMethod: null,
   paymentSave: false,
   customerId: null,
+  access: "guest",
   completed: false,
 };
 /** The cart once an option is set: its price in the total. */

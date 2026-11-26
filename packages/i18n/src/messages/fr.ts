@@ -907,6 +907,11 @@ export const fr: Messages = {
         text: "Ajoutez un article à votre panier, puis revenez pour commander.",
         continue: "Continuer mes achats",
       },
+      held: {
+        title: "Connectez-vous pour continuer avec ce panier",
+        text: "Ce panier appartient à un compte client. Connectez-vous à ce compte pour le voir et payer, ou commencez un nouveau panier.",
+        signIn: "Se connecter",
+      },
       express: {
         title: "Paiement express",
         or: "Ou continuez ci-dessous",

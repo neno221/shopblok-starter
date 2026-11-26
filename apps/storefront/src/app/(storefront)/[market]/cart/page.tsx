@@ -13,6 +13,7 @@ import { MAX_LINE_QUANTITY } from "../../../../lib/actions/cart-handlers";
 import { TrackOnView } from "../../../../lib/analytics/track-on-view";
 import { emptyCart, promoErrorOf } from "../../../../lib/cart-view";
 import { readCheckoutCart } from "../../../../lib/checkout-cart";
+import { HeldCart } from "../../../../components/checkout/held-cart";
 import { getCurrentMarket } from "../../../../lib/current-market";
 import { readFlash, type Flash } from "../../../../lib/flash";
 import { getMarketContext } from "../../../../lib/market-context";
@@ -77,6 +78,14 @@ export default async function CartPage({ searchParams }: Props) {
   const key = typeof params.f === "string" ? params.f : undefined;
   const flash = await readFlash(cartHref, key);
   const { error, promoError, promoCode } = errorsOf(flash);
+  // M7 D144 (T109): a customer's cart this visitor is not signed in as: sign-in, not its lines.
+  if (read !== null && read.cart === null && read.held === true)
+    return (
+      <HeldCart
+        words={messages.templates.checkout.held}
+        signInHref={`${context.url("/login")}?next=${encodeURIComponent(cartHref)}`}
+      />
+    );
   const cart = read?.view ?? emptyCart(context);
   return (
     <>
