@@ -1,5 +1,6 @@
 import type { LivePreviewConfig, Payload } from "payload";
 import { MAX_PAGE_DEPTH, pageIdOf, pagePath } from "../lib/cms/page-path";
+import { ownDomainPreviewTarget } from "../lib/markets/preview-market";
 import { CMS_PATHS } from "../lib/cms/paths";
 import { env } from "../lib/env";
 import { listMarkets, primaryCountryCode } from "../lib/markets/market";
@@ -17,27 +18,26 @@ export const LIVE_PREVIEW_BREAKPOINTS = [
 
 /**
  * The market an editor previews a language in (D74): the primary country if it speaks it, else
- * the first open country that does, among the countries served on the site's own host.
+ * the first open country that does, the countries served on the site's own host first.
  *
- * **Known limit: a country with its own domain is never previewed.** `/next/preview` needs the
- * editor's Payload session, and that cookie belongs to the admin's host: on the country's domain
- * the request carries none (and the frame is cross-site to the admin, so Payload's CSRF rule
- * would refuse it anyway), so the preview could only answer 401. A language that only such
- * countries speak has no live preview (`null`; Payload says so). Own domains reach production
- * with M7, which decides how to preview them (SETUP.md, "CMS foundations (T59)").
+ * **A country with its own domain** (M7 D148, 3; T111) is previewed too, but on the admin's host:
+ * `/next/preview` needs the editor's Payload session, whose cookie belongs to the admin's host, so
+ * on the country's domain the request would carry none (T59's known limit). It comes after the
+ * countries on the site's host, so a language they speak keeps its preview there.
  */
 export function previewMarket(map: MarketMap, language: string): Market | undefined {
-  const speaking = listMarkets(map).filter(
-    (market) => market.language === language && market.domain === undefined,
-  );
-  const primary = primaryCountryCode(map);
-  return speaking.find((market) => market.country === primary) ?? speaking[0];
+  const speaking = listMarkets(map).filter((market) => market.language === language);
+  const here = speaking.filter((market) => market.domain === undefined);
+  const isPrimary = (market: Market) => market.country === primaryCountryCode(map);
+  // Among countries on their own domains too, the primary one first (PR 152 review, item 6).
+  return here.find(isPrimary) ?? here[0] ?? speaking.find(isPrimary) ?? speaking[0];
 }
 
 /**
  * The live-preview frame's URL: `/next/preview` on the site's origin, with the secret and the
- * page's public path in the market. `null` (no live preview) without a market for the language
- * (`previewMarket`) or without a secret.
+ * page's public path in the market, or for a market on its own domain `/{key}{path}` on the site's
+ * origin (`ownDomainPreviewTarget`; the proxy serves it to staff in Draft Mode only). `null` (no
+ * live preview) without a market for the language (`previewMarket`) or without a secret.
  */
 export function previewUrl(args: {
   map: MarketMap;
@@ -49,7 +49,12 @@ export function previewUrl(args: {
   const { map, language, path, serverURL, secret } = args;
   const market = previewMarket(map, language);
   if (market === undefined || !secret) return null;
-  const target = new URL(buildPublicUrl(market, path, map), serverURL);
+  const target = new URL(
+    market.domain === undefined
+      ? buildPublicUrl(market, path, map)
+      : ownDomainPreviewTarget(market, path),
+    serverURL,
+  );
   const url = new URL("/next/preview", serverURL);
   url.searchParams.set("path", target.pathname + target.search);
   url.searchParams.set("secret", secret);

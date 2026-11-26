@@ -68,10 +68,11 @@ describe("securityHeaderRules (D138: one policy per response)", () => {
     // Each of those paths is one the proxy does not run on, so no response gets the policy twice.
     const [pages] = proxyConfig.matcher;
     const runsOn = new RegExp(`^${pages}$`);
-    for (const sample of ["/next/status", "/ingest/e", "/monitoring", "/design-system/en"]) {
+    for (const sample of ["/next/status", "/ingest/e", "/monitoring"]) {
       expect(runsOn.test(sample), sample).toBe(false);
     }
-    for (const sample of ["/", "/us", "/products/shirt", "/us/store"]) {
+    // The DS pages are the proxy's since T111 (its staff gate, D148), so their policy is its too.
+    for (const sample of ["/", "/us", "/products/shirt", "/us/store", "/design-system/en"]) {
       expect(runsOn.test(sample), sample).toBe(true);
     }
   });

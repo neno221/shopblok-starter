@@ -313,6 +313,22 @@ jobs:
             echo "::error title=Missing migration::The Payload config changes the schema without a saved migration. Create it with \`pnpm --filter @shopblok/storefront payload migrate:create <name>\` on a branch rebased on main (M4 D88) and commit it."
             exit 1
           fi
+      # M7 D148 (1), T111: Medusa's worker calls Payload's jobs endpoint every minute with the
+      # storefront's CRON_SECRET, as on a deployment. bootstrap leaves the backend's blank (next dev
+      # has its own timer), so the job copies it before Medusa starts; `cms-preview.spec.ts` then
+      # sees a scheduled page published by the worker against `next start`, which has no timer.
+      # During the `next dev` step below both call once a minute, which Payload tolerates: it claims
+      # each job (`processing`) before it runs it (PR 152 review, item 5).
+      - name: Medusa's worker runs Payload's jobs (the storefront's CRON_SECRET)
+        run: |
+          secret="$(grep -E '^CRON_SECRET=' apps/storefront/.env | head -n1 | cut -d= -f2-)"
+          if [ -z "$secret" ]; then echo "::error::apps/storefront/.env has no CRON_SECRET after bootstrap."; exit 1; fi
+          echo "::add-mask::$secret"
+          if grep -qE '^CRON_SECRET=' apps/backend/.env; then
+            sed -i "s|^CRON_SECRET=.*|CRON_SECRET=$secret|" apps/backend/.env
+          else
+            echo "CRON_SECRET=$secret" >> apps/backend/.env
+          fi
       # Medusa before the build (T42, D67 item 1; ADR 0004, reading 4): the catalog pages'
       # `generateStaticParams` read the backend while `next build` runs, and with MEDUSA_BACKEND_URL set
       # an unreachable Medusa fails the build. The action is the only thing that starts Medusa: its PID
@@ -462,6 +478,33 @@ jobs:
         run: |
           pid="$(cat "$RUNNER_TEMP/servers/storefront-dev.pid" 2>/dev/null || true)"
           if [ -n "$pid" ]; then bash .github/scripts/stop-tree.sh --port 8000 "$pid"; fi
+      # M7 D148 (4), T111: the design system's staff gate. A build with the DS in it (the flag is
+      # frozen in at build time, D33), served by `next start` as a deployment (`DEPLOY_ENV=staging`,
+      # read at request time), against the Payload and Medusa bootstrap made: anonymous and the
+      # integrations user get the 404 of any unknown path, an editor signed in through Payload gets
+      # the pages (`e2e/ds-gate.spec.ts`). Last, because the build replaces the one the suites read.
+      - name: Build the storefront with the design system on (for the staff gate)
+        run: pnpm --filter @shopblok/storefront build
+        env:
+          DESIGN_SYSTEM_ENABLED: "true"
+      - name: Start the storefront as a deployment
+        uses: ./.github/actions/start-storefront
+        with:
+          command: start
+          url: http://localhost:8000/
+          name: storefront-ds-gate
+        env:
+          DEPLOY_ENV: staging
+      - name: The design system's staff gate
+        run: E2E_DS_GATE=true pnpm --filter @shopblok/storefront test:e2e --project=ds-gate --reporter=list,html --output=test-results-ds-gate
+        env:
+          PLAYWRIGHT_HTML_OPEN: never
+          PLAYWRIGHT_HTML_OUTPUT_DIR: playwright-report-ds-gate
+      - name: Stop the deployment's next start
+        if: always()
+        run: |
+          pid="$(cat "$RUNNER_TEMP/servers/storefront-ds-gate.pid" 2>/dev/null || true)"
+          if [ -n "$pid" ]; then bash .github/scripts/stop-tree.sh --port 8000 "$pid"; fi
       # By the PID file of the last start (T42). A job that never started Medusa has no file and
       # nothing to stop; a file with no number in it fails, because a failed start must not pass for
       # "nothing to stop".
@@ -494,6 +537,8 @@ jobs:
             apps/storefront/test-results-outage
             apps/storefront/test-results-outage-recovery
             apps/storefront/test-results-done-when
+            apps/storefront/test-results-ds-gate
+            apps/storefront/playwright-report-ds-gate
           if-no-files-found: ignore
           retention-days: 14
       - name: Upload the server logs and doctor's JSON

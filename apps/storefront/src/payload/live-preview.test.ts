@@ -22,12 +22,26 @@ describe("previewMarket", () => {
     expect(previewMarket(seeded, "ja")).toBeUndefined();
   });
 
-  it("skips a country with its own domain: the editor's session cannot reach it (known limit)", () => {
-    // Cyprus and Switzerland on domains of their own: Greek is only Cyprus's, so it has no market
-    // to preview in; German and French are previewed in Germany and France, never Switzerland.
-    expect(previewMarket(withDomains, "el")).toBeUndefined();
+  it("prefers a country on the site's host, and takes one on its own domain only after (M7 D148, 3)", () => {
+    // Cyprus and Switzerland on domains of their own: German and French are previewed in Germany
+    // and France, Greek (only Cyprus's) in Cyprus, on the admin's host.
+    expect(previewMarket(withDomains, "el")?.key).toBe("el-cy");
     expect(previewMarket(withDomains, "de")?.key).toBe("de-de");
     expect(previewMarket(withDomains, "fr")?.key).toBe("fr-fr");
+  });
+
+  it("takes the primary country first among countries on their own domains (PR 152 review, item 6)", () => {
+    // Portugal listed first, Brazil primary, both on domains of their own.
+    const map = {
+      countries: [
+        { code: "pt", enabled: true, languages: ["pt"], domain: "loja.pt" },
+        { code: "br", enabled: true, languages: ["pt"], domain: "loja.com.br" },
+      ],
+      languages: [{ code: "pt", medusaLocale: "pt-BR", htmlLang: "pt-BR" }],
+      primaryCountry: "br",
+      fallbackMarket: "pt-br",
+    };
+    expect(previewMarket(map, "pt")?.key).toBe("pt-br");
   });
 });
 
@@ -47,19 +61,29 @@ describe("previewUrl", () => {
     expect(previewUrl({ ...base, map: greeceOnly, language: "de" })).toBeNull();
   });
 
-  it("is off for a language that only countries with their own domain speak", () => {
+  it("previews a country on its own domain on the site's origin, at its key (M7 D148, 3)", () => {
     const map = {
       ...greeceOnly,
       countries: greeceOnly.countries.map((country) => ({ ...country, domain: "shop.gr" })),
     };
-    expect(previewUrl({ ...base, map, language: "el" })).toBeNull();
+    const url = new URL(previewUrl({ ...base, map, language: "el" }) ?? "");
+    expect(url.origin + url.pathname).toBe("https://shop.example/next/preview");
+    expect(url.searchParams.get("path")).toBe("/el-gr/about");
+    const home = new URL(previewUrl({ ...base, path: "/", map, language: "el" }) ?? "");
+    expect(home.searchParams.get("path")).toBe("/el-gr");
+    const query = new URL(
+      previewUrl({ ...base, path: "/store?page=2", map, language: "el" }) ?? "",
+    );
+    expect(query.searchParams.get("path")).toBe("/el-gr/store?page=2");
   });
 
   it("stays on the site's origin when another country has its own domain", () => {
     const url = new URL(previewUrl({ ...base, map: withDomains, language: "de" }) ?? "");
     expect(url.origin).toBe("https://shop.example");
     expect(url.searchParams.get("path")).toBe("/de/about");
-    expect(previewUrl({ ...base, map: withDomains, language: "el" })).toBeNull();
+    const greek = new URL(previewUrl({ ...base, map: withDomains, language: "el" }) ?? "");
+    expect(greek.origin).toBe("https://shop.example");
+    expect(greek.searchParams.get("path")).toBe("/el-cy/about");
   });
 
   it("offers D74's three frames", () => {

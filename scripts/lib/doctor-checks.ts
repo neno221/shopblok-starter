@@ -93,29 +93,37 @@ function emailVerification(statuses: readonly IntegrationStatus[]): Check {
   };
 }
 
-/** Vercel's disk is read-only, so Payload's uploads need R2 there (SPEC §10.7). */
+/**
+ * Payload's files on Vercel (M6 D127) and on any deployment (M7 D148, 2; T111): Vercel's disk is
+ * read-only, so the media, the CSV exports and the imports need R2 (every `S3_*` key of the
+ * storefront's part, `S3_PRIVATE_BUCKET` included). An error on a deployment (staging or
+ * production, `context.deployed`), a warning where the environment only looks like Vercel, silent
+ * anywhere else.
+ */
 function vercelStorage(statuses: readonly IntegrationStatus[], context: Context): Check[] {
-  if (!context.vercel) return [];
+  const deployed = context.deployed === true;
+  if (!context.vercel && !deployed) return [];
   const storefront = statusOf(statuses, "r2")?.parts.find((part) => part.app === "storefront");
   if (storefront?.configured === true) {
     return [
       {
         id: "vercel-storage",
-        title: "Media storage on Vercel",
+        title: "Payload's files on a deployment",
         level: "ok",
-        message: "The S3_* keys for Payload's media are set.",
+        message: "The S3_* keys for Payload's media, exports and imports are set.",
       },
     ];
   }
   return [
     {
       id: "vercel-storage",
-      title: "Media storage on Vercel",
-      level: "warn",
-      message:
-        "This environment looks like Vercel but has no S3_* keys for Payload's media. Vercel's file system is read-only, so uploading an image will fail.",
+      title: "Payload's files on a deployment",
+      level: deployed ? "error" : "warn",
+      message: deployed
+        ? "This deployment has no R2 keys for Payload: Vercel's file system is read-only, so an image upload, a CSV export and an import would all fail."
+        : "This environment looks like Vercel but has no S3_* keys for Payload's media. Vercel's file system is read-only, so uploading an image will fail.",
       details: [`not set: ${storefront?.missing.join(", ") ?? "S3_*"}`],
-      fix: "Set the S3_* keys of a Cloudflare R2 bucket in the Vercel project (SPEC §10.7).",
+      fix: "Set the S3_* keys of a Cloudflare R2 bucket, and S3_PRIVATE_BUCKET (a second bucket with no public access), in the Vercel project (SPEC §10.7, DEPLOY.md).",
     },
   ];
 }
@@ -139,6 +147,54 @@ function redisInProduction(statuses: readonly IntegrationStatus[], context: Cont
       fix: "Set REDIS_URL (SPEC §10.6).",
     },
   ];
+}
+
+/**
+ * Scheduled publishing on a deployment (M7 D148, 1; T111): Medusa's worker calls Payload's
+ * `/api/payload-jobs/run` every minute (`apps/backend/src/jobs/payload-jobs-tick.ts`) with the
+ * backend's `CRON_SECRET`, which must be the storefront's (Payload's access, `cronOrAdmin`). On a
+ * deployment a blank one is an error: nothing scheduled would ever be published; `pnpm
+ * staging:secrets` sets it in both apps, and the fingerprints check it is the same there. In
+ * development it is an accepted note: `next dev`'s own timer calls the endpoint (`jobs-timer.ts`),
+ * and bootstrap leaves the backend's blank so only that timer calls it there. With both apps' files at
+ * hand (no `--app`), two different values are an error: Payload refuses every tick.
+ */
+function payloadJobsTick(envs: AppEnvs, context: Context): Check {
+  const base = { id: "payload-jobs-tick", title: "Scheduled publishing" } as const;
+  const secret = (envs.backend.CRON_SECRET ?? "").trim();
+  const server = (envs.backend.PAYLOAD_SERVER_URL ?? "").trim();
+  const deployed = context.deployed === true;
+  const missing = [
+    ...(secret === "" ? ["CRON_SECRET"] : []),
+    ...(server === "" ? ["PAYLOAD_SERVER_URL"] : []),
+  ];
+  if (missing.length > 0)
+    return {
+      ...base,
+      level: deployed ? "error" : "note",
+      message: deployed
+        ? "Medusa's worker does not call Payload's jobs endpoint, so no scheduled page or post is ever published."
+        : "Medusa's worker does not call Payload's jobs endpoint; in development `next dev` does, every minute (D148).",
+      details: missing.map((name) => `not set: ${name} (apps/backend)`),
+      fix: deployed
+        ? "Run `pnpm staging:secrets`, which sets CRON_SECRET in both apps, and set PAYLOAD_SERVER_URL to the storefront's address (DEPLOY.md)."
+        : "Nothing to do in development. To try the worker's tick, copy the storefront's CRON_SECRET into apps/backend/.env.",
+    };
+  const storefront = (envs.storefront.CRON_SECRET ?? "").trim();
+  if (context.app === undefined && storefront !== "" && storefront !== secret)
+    return {
+      ...base,
+      level: "error",
+      message:
+        "The backend's CRON_SECRET is not the storefront's: Payload refuses every call of Medusa's worker, so nothing scheduled is published.",
+      details: ["CRON_SECRET differs between apps/backend and apps/storefront"],
+      fix: "Use one value in both apps (on a deployment, `pnpm staging:secrets` sets both).",
+    };
+  return {
+    ...base,
+    level: "ok",
+    message: `Medusa's worker calls ${server.replace(/\/+$/, "")}/api/payload-jobs/run every minute with CRON_SECRET.`,
+  };
 }
 
 /**
@@ -290,7 +346,7 @@ function secrets(envs: AppEnvs, context: Context): Check {
  * The preview and jobs secrets (T59, D74). Without `PREVIEW_SECRET` every `/next/preview` answers
  * 401, so editors cannot preview; without `CRON_SECRET` only an admin can run jobs, so nothing
  * scheduled is published. A warning in development and test (bootstrap generates both), an error
- * anywhere else, as for the signing secrets: production needs both for Vercel Cron and live preview.
+ * anywhere else, as for the signing secrets: production needs both for scheduled publishing and live preview.
  */
 function previewAndCronSecrets(envs: AppEnvs, context: Context): Check {
   const missing = ["PREVIEW_SECRET", "CRON_SECRET"].filter((name) => !isSet(envs.storefront, name));
@@ -313,7 +369,7 @@ function previewAndCronSecrets(envs: AppEnvs, context: Context): Check {
       "Blank: without PREVIEW_SECRET nobody can preview a draft, and without CRON_SECRET scheduled publishing never runs (only an admin may run jobs).",
     details: missing.map((name) => `not set: ${name} (apps/storefront)`),
     fix: production
-      ? "Set a fresh random value for each, and the same CRON_SECRET in Vercel Cron's settings."
+      ? "Set a fresh random value for each, and the same CRON_SECRET in the backend, whose worker calls the jobs endpoint (`pnpm staging:secrets` sets both)."
       : "Run `pnpm bootstrap`, which generates them.",
   };
 }
@@ -568,6 +624,7 @@ export function configChecks(
     ...(storefront ? vercelStorage(statuses, context) : []),
     ...(backend ? redisInProduction(statuses, context) : []),
     ...(backend ? [medusaCaching(envs, statuses)] : []),
+    ...(backend ? [payloadJobsTick(envs, context)] : []),
     ...halfConfigured(statuses),
     ...sentryDsnChecks(envs),
     ...posthogKeyChecks(envs),

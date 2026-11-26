@@ -57,6 +57,8 @@ docker compose -f "$ROOT/compose.yaml" exec -T postgres psql -q -U postgres -d p
 # Medusa turns TLS on for any database address that is not localhost unless it says
 # `sslmode=disable` (load-module-database-config.js); the stack's Postgres has no TLS, while
 # Railway's does (DEPLOY.md, "Medusa's database").
+# PAYLOAD_SERVER_URL as staging's config sets it (M7 T111): doctor's `payload-jobs-tick` is an
+# error on a deployment without it. Nothing listens there, so the worker's tick logs one failure.
 umask 077
 cat >"$envfile" <<EOF
 NODE_ENV=production
@@ -74,6 +76,7 @@ STOREFRONT_SIGNING_SECRET=$signing_secret
 SHOPBLOK_SECRET_FINGERPRINTS=CRON_SECRET:$(fingerprint CRON_SECRET "$cron_secret"),MEILI_MASTER_KEY:$(fingerprint MEILI_MASTER_KEY "$meili_key"),STOREFRONT_SIGNING_SECRET:$(fingerprint STOREFRONT_SIGNING_SECRET "$signing_secret")
 MEDUSA_BACKEND_URL=http://localhost:$PORT
 STOREFRONT_URL=http://localhost:8000
+PAYLOAD_SERVER_URL=http://localhost:8000
 STORE_CORS=http://localhost:8000
 ADMIN_CORS=http://localhost:$PORT
 AUTH_CORS=http://localhost:8000,http://localhost:$PORT

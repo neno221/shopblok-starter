@@ -199,14 +199,20 @@ const SPECS: readonly Spec[] = [
     kind: "third-party",
     parts: [
       // Medusa's private files (CSV imports and exports) go to a second bucket with no public access
-      // (M6 D127); Payload's media are all public, so the storefront has no private bucket.
+      // (M6 D127), and so do Payload's CSV exports and imports since M7 (D148, 2; T111), under
+      // their own prefixes; Payload's media are all public, on the first bucket.
       {
         app: "backend",
         what: "Medusa file provider",
         keys: [...S3_KEYS, "S3_PRIVATE_BUCKET"],
         optional: S3_OPTIONAL,
       },
-      { app: "storefront", what: "Payload media storage", keys: S3_KEYS, optional: S3_OPTIONAL },
+      {
+        app: "storefront",
+        what: "Payload media, CSV exports and imports",
+        keys: [...S3_KEYS, "S3_PRIVATE_BUCKET"],
+        optional: S3_OPTIONAL,
+      },
     ],
     live: "Cloudflare R2 (S3 API)",
     fallback: "local disk (development only; Vercel needs R2)",
@@ -327,8 +333,7 @@ const appPath = (app: AppName): string => `apps/${app}`;
 export function describeMissing(status: IntegrationStatus): string {
   const missing = status.parts.filter((part) => part.missing.length > 0);
   const [first] = missing;
-  // Keys missing in every app (Resend's, R2's shared ones): said once, then each app's own extra
-  // ones (R2's `S3_PRIVATE_BUCKET`, the backend's only: M6 D127).
+  // Keys missing in every app (Resend's, R2's): said once, then each app's own extra ones.
   if (first !== undefined && status.parts.length > 1 && missing.length === status.parts.length) {
     const common = first.missing.filter((key) =>
       missing.every((part) => part.missing.includes(key)),

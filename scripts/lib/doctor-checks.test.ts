@@ -62,7 +62,13 @@ describe("configChecks: a keyless setup after bootstrap", () => {
   const checks = run(bootstrapped);
 
   it("warns only about email verification", () => {
-    expect(checks.filter((c) => c.level !== "ok").map((c) => c.id)).toEqual(["email-verification"]);
+    expect(checks.filter((c) => c.level !== "ok" && c.level !== "note").map((c) => c.id)).toEqual([
+      "email-verification",
+    ]);
+    // Bootstrap leaves the backend's CRON_SECRET blank: `next dev`'s timer publishes (T111).
+    expect(checks.filter((c) => c.level === "note").map((c) => c.id)).toEqual([
+      "payload-jobs-tick",
+    ]);
   });
 
   it("the email-verification warning names the missing Resend key", () => {
@@ -414,6 +420,8 @@ describe("configChecks: Vercel without S3", () => {
       S3_SECRET_ACCESS_KEY: "secret",
       S3_BUCKET: "b",
       S3_PUBLIC_URL: "https://media.example.com",
+      // Payload's CSV exports and imports (M7 D148, 2).
+      S3_PRIVATE_BUCKET: "p",
     };
     const checks = run(
       { ...bootstrapped, storefront: { ...bootstrapped.storefront, ...keys } },
@@ -549,7 +557,7 @@ describe("configChecks: the preview and jobs secrets (T59)", () => {
       "preview-cron-secrets",
     );
     expect(check?.level).toBe("error");
-    expect(check?.fix).toContain("Vercel Cron");
+    expect(check?.fix).toContain("whose worker calls the jobs endpoint");
   });
 });
 
@@ -1480,5 +1488,64 @@ describe("PostHog's keys (T97)", () => {
     expect(posthogFlagsCheck(["backend"], POSTHOG_EU, answer(403)).level).toBe("error");
     expect(posthogFlagsCheck(["backend"], POSTHOG_EU, answer(500)).level).toBe("warn");
     expect(posthogFlagsCheck(["backend"], POSTHOG_EU, { kind: "refused" }).level).toBe("warn");
+  });
+});
+
+describe("configChecks: scheduled publishing by Medusa's worker (M7 D148, 1; T111)", () => {
+  const withSecret = (backend: string, storefront = "cron") => ({
+    backend: { ...bootstrapped.backend, CRON_SECRET: backend },
+    storefront: { ...bootstrapped.storefront, CRON_SECRET: storefront },
+  });
+
+  it("is ok with the storefront's CRON_SECRET and PAYLOAD_SERVER_URL in the backend", () => {
+    const check = find(run(withSecret(" cron ")), "payload-jobs-tick");
+    expect(check?.level).toBe("ok");
+    expect(check?.message).toContain("http://localhost:8000/api/payload-jobs/run");
+  });
+
+  it("is an accepted note without it in development, an error on a deployment", () => {
+    expect(find(run(bootstrapped), "payload-jobs-tick")?.level).toBe("note");
+    const deployed = find(run(bootstrapped, { ...dev, deployed: true }), "payload-jobs-tick");
+    expect(deployed?.level).toBe("error");
+    expect(deployed?.details).toEqual(["not set: CRON_SECRET (apps/backend)"]);
+    const noServer = {
+      ...withSecret("cron"),
+      backend: { ...withSecret("cron").backend, PAYLOAD_SERVER_URL: "" },
+    };
+    expect(find(run(noServer, { ...dev, deployed: true }), "payload-jobs-tick")?.details).toEqual([
+      "not set: PAYLOAD_SERVER_URL (apps/backend)",
+    ]);
+  });
+
+  it("is an error when both apps' files differ, and is not compared with --app", () => {
+    expect(find(run(withSecret("other")), "payload-jobs-tick")?.level).toBe("error");
+    const backendOnly = configChecks(
+      withSecret("other"),
+      getIntegrationStatus(withSecret("other"), { app: "backend" }),
+      { ...dev, app: "backend" },
+    );
+    expect(find(backendOnly, "payload-jobs-tick")?.level).toBe("ok");
+  });
+});
+
+describe("configChecks: Payload's files on a deployment (M7 D148, 2; T111)", () => {
+  const r2 = {
+    S3_ENDPOINT: "https://x.r2.cloudflarestorage.com",
+    S3_ACCESS_KEY_ID: "id",
+    S3_SECRET_ACCESS_KEY: "secret",
+    S3_BUCKET: "b",
+    S3_PUBLIC_URL: "https://media.example.com",
+  };
+
+  it("is an error on a deployment without R2's keys, the private bucket included", () => {
+    const media = { ...bootstrapped, storefront: { ...bootstrapped.storefront, ...r2 } };
+    const check = find(run(media, { ...dev, deployed: true }), "vercel-storage");
+    expect(check?.level).toBe("error");
+    expect(check?.details).toEqual(["not set: S3_PRIVATE_BUCKET"]);
+    const all = {
+      ...bootstrapped,
+      storefront: { ...bootstrapped.storefront, ...r2, S3_PRIVATE_BUCKET: "p" },
+    };
+    expect(find(run(all, { ...dev, deployed: true }), "vercel-storage")?.level).toBe("ok");
   });
 });

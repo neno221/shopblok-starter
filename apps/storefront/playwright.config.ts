@@ -29,6 +29,8 @@ import { defineConfig, devices, type Project } from "@playwright/test";
 //                   services, run by CI's `integrations-live` job on a stack started with the test
 //                   keys. Each spec skips itself, naming the missing secret, when its keys are not set.
 //                   The keyless suites are the default projects' (`support/third-party.ts`).
+//   ds-gate         (M7 T111, D148) the DS's staff gate: a build with DESIGN_SYSTEM_ENABLED=true that
+//                   `next start` serves with DEPLOY_ENV=staging, after e2e-smoke's other suites.
 // A browser that is not the one `playwright install` fetched (the cloud VM's, CLOUD.md), for the
 // `design-system` project. Unset in CI.
 const chromiumPath = process.env["PW_CHROMIUM_PATH"];
@@ -78,6 +80,20 @@ const optIns: OptIn[] = [
         retries: 0,
         use: { ...devices["Desktop Chrome"] },
         testMatch: /integrations\/[^/]+\.spec\.ts$/,
+      },
+    ],
+  },
+  {
+    // M7 D148 (4), T111: the DS's staff gate, against a build with DESIGN_SYSTEM_ENABLED=true that
+    // `next start` serves with DEPLOY_ENV=staging (e2e-smoke's last steps).
+    flag: "E2E_DS_GATE",
+    workers: 1,
+    projects: [
+      {
+        name: "ds-gate",
+        retries: 0,
+        use: { ...devices["Desktop Chrome"] },
+        testMatch: /ds-gate\.spec\.ts$/,
       },
     ],
   },
@@ -145,6 +161,7 @@ const defaultProjects: Project[] = [
       /payload-locales\.spec\.ts/,
       /ui-strings\.spec\.ts/,
       /markets-add\.spec\.ts/,
+      /cms-preview-domain\.spec\.ts/,
       /market-panels\.spec\.ts/,
       ...optInSpecs,
     ],
@@ -164,7 +181,10 @@ const defaultProjects: Project[] = [
   {
     name: "markets-add",
     use: { ...devices["Desktop Chrome"], ...launchOptions },
-    testMatch: /markets-add\.spec\.ts/,
+    // M7 T111: the own-domain preview gives Switzerland a domain, so it runs here too, before
+    // markets-add (one worker, files in alphabetical order); its afterAll puts the map back and
+    // waits for the proxy to have it before markets-add starts.
+    testMatch: /(markets-add|cms-preview-domain)\.spec\.ts/,
     dependencies: ["locales"],
   },
   // T74 (M4b D93): the Markets panels on Medusa Admin's Region and Store pages. It talks to Medusa

@@ -36,7 +36,7 @@ import { DEFAULT_LOCALE, LOCALES } from "./payload/locales";
 import { emailAdapter } from "./payload/email";
 import { e2eThrowEndpoint } from "./payload/e2e-throw";
 import { reportToSentry } from "./payload/sentry";
-import { mediaStorage } from "./payload/storage";
+import { mediaStorage, privateFileStorage } from "./payload/storage";
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -157,8 +157,8 @@ export default buildConfig({
   sharp,
   // SPEC §7.1: 10 MiB per upload (Payload answers 413 above it).
   upload: { limits: { fileSize: 10 * 1024 * 1024 } },
-  // D74: scheduled publishing runs on the jobs queue. Only the cron secret (Vercel Cron in
-  // production, `instrumentation.ts`'s timer in development) or an admin may run or queue jobs; no
+  // D74: scheduled publishing runs on the jobs queue. Only the cron secret (Medusa's worker on a
+  // deployment, M7 D148; `instrumentation.ts`'s timer in development) or an admin may run or queue jobs; no
   // `autoRun`, which would publish outside a Next request where `revalidateTag` cannot work. The
   // jobs collection stays Payload's: hidden, every operation denied.
   jobs: {
@@ -172,7 +172,17 @@ export default buildConfig({
   // form builder, hardened (`payload/forms.ts`): submissions only through the shop's server action.
   // D82: the SEO fields on the pages and posts (`payload/seo.ts`; the synced collections have them
   // as content) and the redirects the proxy answers (`payload/redirects.ts`). M6 D127 (T95): `media`
-  // on R2 with the S3_* keys, local disk without them (`payload/storage.ts`).
-  plugins: [importExport, formBuilder, seo, redirects, mediaStorage(process.env)],
+  // on R2 with the S3_* keys, local disk without them (`payload/storage.ts`); M7 D148 (T111): the
+  // CSV exports and imports on R2's private bucket with `S3_PRIVATE_BUCKET` too, downloaded only
+  // through a signed link. The storage plugins come after `importExport`, whose collections they
+  // change.
+  plugins: [
+    importExport,
+    formBuilder,
+    seo,
+    redirects,
+    mediaStorage(process.env),
+    privateFileStorage(process.env),
+  ],
   typescript: { autoGenerate: false, outputFile: path.resolve(dirname, "payload-types.ts") },
 });
