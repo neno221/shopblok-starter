@@ -21,9 +21,14 @@ export default class IntegrationSkipsReporter implements Reporter {
       file: test.location.file,
       title: test.title,
       status: result.status,
-      skipReasons: annotations
-        .filter((annotation) => annotation.type === "skip")
-        .map((annotation) => annotation.description ?? ""),
+      // A runtime skip can be in both lists: each reason once.
+      skipReasons: [
+        ...new Set(
+          annotations
+            .filter((annotation) => annotation.type === "skip")
+            .map((annotation) => annotation.description ?? ""),
+        ),
+      ],
     });
   }
 

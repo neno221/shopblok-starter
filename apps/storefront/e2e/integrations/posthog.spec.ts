@@ -1,7 +1,7 @@
 import { expect, test, type BrowserContext, type Page, type Request } from "@playwright/test";
 import { appEnv } from "../support/app-env";
 import { catalogs } from "../support/catalogs";
-import { doctorOnline, skipWithoutKeys } from "../support/integration-keys";
+import { doctorOnline, integration, skipWithoutKeys } from "../support/integration-keys";
 import {
   decodeBody,
   eventsIn,
@@ -66,6 +66,13 @@ const keyOf = (app: "backend" | "storefront", name: string) => {
 const browserKey = () => keyOf("storefront", "NEXT_PUBLIC_POSTHOG_KEY");
 const sinkMode = () =>
   browserKey() === SINK_KEY && keyOf("backend", "POSTHOG_EVENTS_API_KEY") === SINK_KEY;
+
+/**
+ * T103: with Stripe's keys too (all of them live at once), `checkOut` pays with Stripe's test card,
+ * which takes longer than "Pay later".
+ */
+const stripeLive = () => integration("stripe").state === "live";
+const STRIPE_SLOW = "the checkouts pay through Stripe's Payment Element";
 
 let sink: Sink | undefined;
 test.beforeAll(async () => {
@@ -213,6 +220,7 @@ test("Medusa sends cart_created and order_placed for a consented order, as the v
     sink === undefined,
     "With a real key, the server's events are checked in PostHog (W8).",
   );
+  test.slow(stripeLive(), STRIPE_SLOW);
   await page.goto("/us");
   await consentToAnalytics(page);
   // PostHog has made the visitor's id before the first add, so the new cart carries it.
@@ -257,6 +265,7 @@ test("Medusa sends nothing for an order placed without consent, or withdrawn on 
     sink === undefined,
     "With a real key, the server's events are checked in PostHog (W8).",
   );
+  test.slow(stripeLive(), STRIPE_SLOW);
   const orders: string[] = [];
   // No consent at all: the banner's "Reject all".
   {

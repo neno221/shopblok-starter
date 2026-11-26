@@ -90,6 +90,8 @@ export function judgeSkips(
     if (id === "general") continue;
     seen.add(id);
     const held = expected.includes(id);
+    // The other skips, one notice per reason: `r2.spec.ts: 5 tests skipped (…)`.
+    const quiet = new Map<string, number>();
     for (const test of tests.filter((each) => each.status === "skipped")) {
       const reason = test.skipReasons.join("; ") || "no reason given";
       if (held && test.skipReasons.some((each) => each.includes(NOT_SET))) {
@@ -97,8 +99,11 @@ export function judgeSkips(
           `${name} › ${test.title} was skipped although the job holds ${id}'s keys: ${reason} (a step does not pass them on).`,
         );
       } else {
-        notices.push(`${name} › ${test.title}: skipped (${reason})`);
+        quiet.set(reason, (quiet.get(reason) ?? 0) + 1);
       }
+    }
+    for (const [reason, count] of quiet) {
+      notices.push(`${name}: ${count} test${count === 1 ? "" : "s"} skipped (${reason})`);
     }
     if (held && tests.every((each) => each.status === "skipped")) {
       problems.push(`Every test of ${name} was skipped although the job holds ${id}'s keys.`);

@@ -53,13 +53,17 @@ describe("judgeSkips", () => {
       [
         passed("doctor.spec.ts"),
         passed("sentry.spec.ts"),
-        skipped("stripe-checkout.spec.ts", notSet("Stripe")),
+        skipped("stripe-checkout.spec.ts", notSet("Stripe"), "one"),
+        skipped("stripe-checkout.spec.ts", notSet("Stripe"), "two"),
         skipped("r2.spec.ts", notSet("Cloudflare R2")),
       ],
       ["sentry", "meilisearch", "redis"],
     );
     expect(verdict.problems).toEqual([]);
-    expect(verdict.notices).toHaveLength(2);
+    expect(verdict.notices).toEqual([
+      `stripe-checkout.spec.ts: 2 tests skipped (${notSet("Stripe")})`,
+      `r2.spec.ts: 1 test skipped (${notSet("Cloudflare R2")})`,
+    ]);
   });
 
   it("fails a test skipped for a missing key the job holds (a step that does not pass it on)", () => {
@@ -80,7 +84,7 @@ describe("judgeSkips", () => {
     expect(verdict.problems).toEqual([
       "Every test of r2.spec.ts was skipped although the job holds r2's keys.",
     ]);
-    expect(verdict.notices).toEqual(["r2.spec.ts › a check: skipped (the bucket is not there)"]);
+    expect(verdict.notices).toEqual(["r2.spec.ts: 1 test skipped (the bucket is not there)"]);
   });
 
   it("keeps a skip of one test, for another reason, a notice (a check left for W8, an optional id)", () => {
@@ -93,7 +97,7 @@ describe("judgeSkips", () => {
     );
     expect(verdict.problems).toEqual([]);
     expect(verdict.notices).toEqual([
-      "resend.spec.ts › newsletter: skipped (RESEND_NEWSLETTER_SEGMENT_ID is not set)",
+      "resend.spec.ts: 1 test skipped (RESEND_NEWSLETTER_SEGMENT_ID is not set)",
     ]);
   });
 

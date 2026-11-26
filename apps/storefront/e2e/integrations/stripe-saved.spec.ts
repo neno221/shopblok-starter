@@ -101,11 +101,21 @@ async function newCustomer(page: Page, label: string): Promise<string> {
   return email;
 }
 
+/**
+ * The page has loaded and its requests have settled. T103: with Stripe, PostHog and Sentry on in one
+ * run, a contact page once never reached `networkidle` (1 run in 2; which request kept it busy was
+ * not found) and the test waited out its four minutes there; so at most 15 s, then on.
+ */
+async function hydrated(page: Page) {
+  await page.waitForLoadState("load");
+  await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => undefined);
+}
+
 /** The contact step from the cart (the signed-in customer's e-mail is filled in already). */
 async function contact(page: Page, prefix: string, words: Words, address: AddressInput) {
   await page.goto(`${prefix}/checkout/contact`);
   // Typed once the page has hydrated (the signed-in customer's e-mail fills in on the server).
-  await page.waitForLoadState("networkidle");
+  await hydrated(page);
   await fillContact(page, words, undefined, address);
   await page.getByRole("button", { name: words.templates.checkout.contact.submit }).click();
   await expect(page).toHaveURL(/\/checkout\/delivery$/);
@@ -211,7 +221,7 @@ test("a card saved at checkout pays the second order from its saved radio, and i
 
   // Removed in the account, through the dialog.
   await page.goto(`${prefix}/account/payment-methods`);
-  await page.waitForLoadState("networkidle");
+  await hydrated(page);
   const card = words.molecules.savedPaymentMethodCard;
   await entries(page)
     .getByRole("button", { name: /Visa ending in 4242/ })

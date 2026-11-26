@@ -3,7 +3,7 @@ import { addToSegment, removeContact } from "../../src/lib/newsletter/resend-con
 import { signToken, tokenKey } from "../../src/lib/newsletter/token";
 import { appEnv } from "../support/app-env";
 import { catalogs } from "../support/catalogs";
-import { skipWithoutKeys } from "../support/integration-keys";
+import { integration, skipWithoutKeys } from "../support/integration-keys";
 import { medusaAdminApi, medusaAdminToken, medusaUrl } from "../support/medusa-admin";
 import { addToCart, checkOut } from "../support/purchase";
 
@@ -128,6 +128,8 @@ async function sentNotification(to: string, template: string): Promise<Notificat
 test("Medusa sends the order e-mail through Resend after a purchase in / (T99)", async ({
   page,
 }) => {
+  // T103: with Stripe's keys too, `checkOut` pays with Stripe's test card, which takes longer.
+  test.slow(integration("stripe").state === "live", "the checkout pays through Stripe");
   const email = testAddress("order");
   await addToCart(page);
   await page.goto("/cart");
