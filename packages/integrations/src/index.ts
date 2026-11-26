@@ -160,7 +160,7 @@ const SPECS: readonly Spec[] = [
     fallback: "not initialised",
     // T96 (M6 D125): Medusa's `instrumentation.ts`, the storefront's server and browser SDKs, and
     // Payload's `afterError` hook.
-    wired: false,
+    wired: true,
   },
   {
     id: "meilisearch",

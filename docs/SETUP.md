@@ -10288,3 +10288,60 @@ Review: `reviews/pr-143-code-review.md` in the project library. Fixed: must-fix 
 8. NEXT-SESSION.md has T103's prompt.
 
 **CI on this PR:** `check (Node 22)` failed once in T97's `analytics/storage.test.ts` ("counts storage the browser refuses as none"): its `afterEach` expired the test cookie with `Max-Age=0`, which happy-dom expires at `Date.now()` and still serves within that millisecond, so the next test could see it. The `afterEach` now sets an `Expires` in the past (shown with a fixed clock: `Max-Age=0` leaves `ph_x=`, the past `Expires` leaves nothing).
+
+## The done-when (T103)
+
+**Result: M6's done-when (SPEC §17.1) is in CI. Every `@shopblok/integrations` entry is `wired`, with no `arrives`; one unit case per integration shows its backend keys alone register its module (Sentry: start its SDK) and every key but one does not; `integrations-live` finds each integration whose keys the job holds live in `doctor --json`, runs `doctor --online --strict` for them, and fails when a spec of one of them is skipped; `e2e-smoke` runs the keyless half (the five third-party integrations on their fallback, no request to a third party). Both jobs were green twice on one commit, and the mutation (Sentry's `wired` set back to false) fails the unit tests and `integrations-live`'s assertion. GitHub holds no integration secret yet, so CI's live run has PostHog and Sentry on their stand-ins, Meilisearch and Redis live, and Stripe, Resend and R2 on their fallback; the cloud run below added Stripe's test keys and found two specs that failed only with Stripe on beside them, fixed here.** D114, D131 (plans/M6.md §5 T103).
+
+| | |
+|---|---|
+| Date | 2026-11-26 |
+| Branch | `claude/project-thread-7yqj5h`, from `main` at `34de665` (PR 143's merge, T95) |
+| PR | 144, "T103: the done-when end to end" |
+
+### Which keys were there (names only)
+
+- **GitHub's Actions secrets and variables:** none of the integrations' (read from `integrations-live`'s doctor table on `main`'s run of PR 142 and on this PR's runs: every Stripe, Resend and R2 key "not set"; PostHog and Sentry live only through the job's stand-ins).
+- **This cloud session** (`env | cut -d= -f1`): `STRIPE_API_KEY` and `NEXT_PUBLIC_STRIPE_KEY` (test keys, from the cloud environment), no Resend, R2, Sentry or PostHog key. The platform's `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` are there too (T93's note) and are not R2's.
+
+### The unit tests (step 1)
+
+- `packages/integrations/src/index.test.ts`: one case per integration, "is wired, and says no milestone it arrives in". `index.ts`'s note on `wired` says every entry is now, and that an integration added later starts `false` with `arrives`.
+- `scripts/lib/backend-gates.test.ts`: "each integration turns on through its keys alone", one case per integration. The keys come from the integrations table's backend parts (so a key renamed in one place fails here), with values shaped like the real ones. With them the backend registers the integration's module (Stripe `payment > payment-stripe`, Resend `notification > ./src/modules/resend`, PostHog `analytics > analytics-posthog`, Meilisearch `search > ./src/modules/meilisearch-search`, Redis the event bus, workflow engine and locking, R2 `file > ./src/modules/r2-file`; Sentry has no module: `sentryDsn`, which `instrumentation.ts` asks before it starts the SDK, finds the DSN); with every key but one, and with none, it does not; its keys switch on none of the others; and its entry is `wired`. "holds for every integration" replaces T94 to T95's list of the wired ones.
+
+### Doctor
+
+- **`--only=<ids>`** (new): the report keeps, and the exit code judges, only those integrations' checks; the integrations table stays whole. A check belongs to an integration by its id (`integrationOf`, `scripts/lib/report.ts`: `stripe-*`, `resend*`, `posthog-*`, `sentry-*`, `r2-*`, `search-*`, the `integration-<id>` half-set warning, the containers `redis` and `meilisearch`, and `email-verification` (Resend's) and `vercel-storage` (R2's)); the containers, the servers, the secrets, the markets and Payload's key belong to none. `--json` gives each check its `integration`. An unknown id is a bad option (exit 2).
+- **A warning these keys cannot clear** (`byHand`, new): R2's CORS checks answer 403 with the apps' Object Read & Write token, which may not read bucket settings, and no key the apps hold changes that. That warning is marked `byHand`, and **`--strict` leaves it a warning** (its line says "warning these keys cannot clear: check it by hand; --strict leaves it a warning") instead of failing the go-live check on something only the dashboard shows. Every other warning still fails under `--strict`; a 404 or a rule without the origin is still an error. **So the job handles it** by not failing: the done-when spec lists each such warning as a "check by hand" annotation, and SETUP's "Turning on R2", step 6, already says to check the rules in the dashboard.
+- Why `--only`: in CI's state without Resend's key, `doctor --online --strict` fails on `email-verification` (sign-ups print their link to the console), a warning only Resend's keys clear. Measured in this session with Stripe live and the two stand-ins: the whole run was 20 checks ok and that 1 warning; `--only=stripe,posthog,sentry,meilisearch,redis` was 8 ok, 0 warnings.
+
+### `integrations-live` (step 2)
+
+1. **"The integrations whose keys the job holds"** (new step, after the stand-in webhook secret): `node scripts/done-when.ts` with GitHub's secrets and variables themselves (and the stand-ins: Sentry's and PostHog's sinks, Stripe's webhook secret) in its environment, not what the later steps pass on. It prints which integrations are expected live and which are not (with the names missing), writes `E2E_EXPECT_LIVE` (ids only) to `$GITHUB_ENV`, adds a notice naming those without secrets ("Not live in this run: stripe, resend, r2: their secrets are not set, so they were checked on their fallback"), and **fails when an integration is half set** (some of its secrets and not all), naming the missing names. Meilisearch and Redis are always expected: bootstrap writes their keys.
+2. **`e2e/integrations/done-when.spec.ts`** (new), in the `integrations` project with the other specs: every entry `wired`; each id of `E2E_EXPECT_LIVE` `live` in `doctor --json` (and no third-party one live that was not expected, and none half set), with the table in the log; and `doctor --online --strict --only=<them>` green, starting Sentry's and PostHog's sinks first when they are the stand-ins (they answer only while a spec runs them). Without `E2E_EXPECT_LIVE` (a PC) it holds the run to doctor's configured integrations. Its tests are not serial, so a mutation fails both the `wired` test and the live one.
+3. **The skip reporter** (`e2e/support/integration-skips-reporter.ts`, rules in `integration-skips.ts` with a unit test), beside the list reporter: it fails the run when a test of an integration the job holds keys for was skipped by `skipWithoutKeys` (a step did not pass a key on), when every test of such a spec was skipped (whatever the reason: R2's `beforeAll` of PR 143's review would have been caught), when a third-party integration with keys has no spec in the run, or when a spec is named after no integration (`<id>[-<what>].spec.ts`; `doctor` and `done-when` are the general ones). Other skips (PostHog's server events with a real key, left for W8; the newsletter without `RESEND_NEWSLETTER_SEGMENT_ID`) are listed, one line per spec and reason. It does nothing without `E2E_EXPECT_LIVE`.
+
+### `e2e-smoke` (step 3)
+
+"Doctor, as JSON" now only writes `doctor.json` (kept with the logs), and **"The done-when, keyless"** runs `done-when.spec.ts` with `E2E_DONE_WHEN=keyless`: every entry `wired`; the five third-party integrations on their fallback with none of their keys set, and doctor's `ok`; a walk from the home page through an add to cart to the checkout with the keyless check's fixture (`support/third-party.ts`: a request to Stripe, Resend, Sentry, PostHog or R2 fails it); and `doctor --online --strict --only=meilisearch,redis`. The step it replaces checked the first two only. The keyless suites keep the fixture as before.
+
+### All live at once (this session)
+
+The stack as `integrations-live` starts it (compose, bootstrap, `medusa develop`, a production build with the public keys, `next start`), with Stripe's test keys from the session, the CI stand-in webhook secret, and Sentry's and PostHog's stand-ins: the first time Stripe, PostHog and Sentry were live together. Two specs failed only that way:
+- **PostHog's server events and Resend's order e-mail** check out through `checkOut` (`e2e/support/purchase.ts`), which chose "Pay later", and "Pay later" is not offered with Stripe on (D117). `checkOut` now waits for "Pay later" or the Payment Element and, with the Element, types Stripe's test card (`typeTestCard`, the same as `stripe-checkout.spec.ts`), then places the order with Stripe's longer wait; the keyless suites take "Pay later" as before. PostHog's two server tests and Resend's order test are `test.slow()` with Stripe live (the second has two checkouts and a 15 s wait). So **once you add Stripe's secrets to GitHub, PostHog's spec would have gone red** without this, and Resend's with both.
+- **`stripe-saved.spec.ts`'s Revolut Pay test** waited out its 4 minutes in `waitForLoadState("networkidle")` on the contact page once (1 run in 2, not again alone); which request kept the network busy was not found. Its two waits are now `load`, then `networkidle` for at most 15 s.
+
+Result: the first run had both failures; the second, after the `checkOut` fix, 26 passed with the Revolut Pay wait; **the third, with every fix, 27 passed, 12 skipped, 0 failed in 5.1 minutes**, and the skip reporter found nothing (`E2E_EXPECT_LIVE=stripe,posthog,sentry,meilisearch,redis`). The 12 skips are the done-when's keyless half (3), R2 (5) and Resend (4), whose keys this session does not hold.
+
+### The mutation
+
+Sentry's `wired` set back to `false` (commit `0145ad4`, reverted in the next): locally, `@shopblok/integrations` 2 of 26 tests fail ("sentry is wired…" and the Sentry DSN case), `backend-gates.test.ts` 2 of 17 ("holds for every integration" and the `sentry` case), and `done-when.spec.ts` 2 of 3 live tests ("every integration's code is wired": `sentry (arrives: not said)`; "each integration whose keys the job holds is live": `sentry: keys set, not live`). In CI (run 45735094649 on `0145ad4`): `check` failed on Node 22 and 24 in `@shopblok/integrations` on the same 2 tests (turbo stops there, so `backend-gates.test.ts` did not run in CI), and `integrations-live` failed on the same 2 `done-when.spec.ts` tests (`sentry (arrives: not said)`; `sentry: keys set, not live`), 13 passed, while its expected-live step and the skip reporter were green (`E2E_EXPECT_LIVE=posthog,sentry,meilisearch,redis`; "no spec was skipped for a key the job holds"). The next commit sets it back.
+
+### CI's times
+
+**TBD**
+
+### Checks (cloud VM)
+
+- Unit tests: scripts 546 of 546 before the last two cases (`backend-gates`, `report`, `r2-checks`, `done-when`), `@shopblok/integrations` 26 of 26, the storefront's `integration-skips.test.ts` 17 of 17.
+- Typecheck and lint pass in the three packages; `pnpm check:keys` passes. No key is in a file, a log or the PR: the scripts print names and ids only, and the session's Stripe keys stayed in its environment.
