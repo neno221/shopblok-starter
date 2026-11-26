@@ -1,9 +1,10 @@
 import type { IntegrationId, IntegrationStatus } from "@shopblok/integrations";
 import { doctorOnline, doctorReport, missingKeys } from "../support/integration-keys";
 import { parseExpected } from "../support/integration-skips";
-import { SINK_KEY, startSink as startPosthogSink } from "../support/posthog-sink";
-import { addToCart } from "../support/purchase";
-import { SINK_DSN, startSink as startSentrySink } from "../support/sentry-sink";
+import { sinkUse as posthogSinkUse, startSink as startPosthogSink } from "../support/posthog-sink";
+import { catalogs } from "../support/catalogs";
+import { addToCart, checkOut } from "../support/purchase";
+import { sinkUse as sentrySinkUse, startSink as startSentrySink } from "../support/sentry-sink";
 import { expect, test } from "../support/third-party";
 
 // M6's done-when (SPEC §17.1, D114, T103): each integration turns on purely through its keys, and
@@ -61,13 +62,25 @@ test.describe("keyless (e2e-smoke)", () => {
     expect(report.ok, "doctor's verdict").toBe(true);
   });
 
-  test("the shop sends nothing to a third party, from the home page to the checkout", async ({
+  test("the shop sends nothing to a third party, from the home page to the receipt", async ({
     page,
   }) => {
+    // Every page of the purchase, the payment step among them (where Stripe's Element would load).
     await page.goto("/");
     await addToCart(page);
-    await page.goto("/checkout/contact");
-    await expect(page.locator("main")).toBeVisible();
+    await page.goto("/cart");
+    await page.locator('[data-slot="cart-checkout"]:visible').click();
+    const receipt = await checkOut(page, {
+      words: catalogs.el,
+      email: `done-when-${Date.now()}@example.com`,
+      address: {
+        firstName: "Μαρία",
+        lastName: "Γεωργίου",
+        address1: "Λεωφόρος Μακαρίου 10",
+        city: "Λευκωσία",
+      },
+    });
+    expect(receipt).toMatch(/\/order\/order_[^/]+\/confirmed$/);
   });
 
   test("doctor --online --strict passes for the two local integrations", async () => {
@@ -119,11 +132,11 @@ test.describe("with the keys (integrations-live)", () => {
   test("doctor --online --strict passes for them", async () => {
     const report = doctorReport();
     const expected = expectedLive(report.integrations);
-    // CI's stand-ins for Sentry and PostHog (no secret) answer only while a spec runs them.
-    const env = (name: string) => process.env[name]?.trim() ?? "";
+    // CI's stand-ins for Sentry and PostHog (no secret) answer only while a spec runs them. Doctor
+    // checks both apps' values, so a stand-in starts when either app points at it.
     const sinks = await Promise.all([
-      env("SENTRY_DSN") === SINK_DSN ? startSentrySink() : undefined,
-      env("POSTHOG_EVENTS_API_KEY") === SINK_KEY ? startPosthogSink() : undefined,
+      sentrySinkUse().any ? startSentrySink() : undefined,
+      posthogSinkUse().any ? startPosthogSink() : undefined,
     ]);
     try {
       const online = await doctorOnline(["--strict", `--only=${expected.join(",")}`]);

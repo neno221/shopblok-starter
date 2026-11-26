@@ -8,10 +8,24 @@
 import { createServer, type IncomingHttpHeaders, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { gunzipSync } from "node:zlib";
+import { appEnvOrBlank } from "./app-env";
 
 export const SINK_HOST = "http://127.0.0.1:8971";
 /** The project key CI gives both apps when it has no PostHog secret. */
 export const SINK_KEY = "phc_ShopblokE2eSinkStandIn";
+
+/**
+ * Which apps point at this sink (process env over each app's `.env`): `all` when both keys are
+ * `SINK_KEY` (`posthog.spec.ts` then reads the sink), `any` when one is (doctor checks both, so the
+ * done-when spec starts the sink then).
+ */
+export function sinkUse(): { all: boolean; any: boolean } {
+  const atSink = [
+    appEnvOrBlank("storefront", "NEXT_PUBLIC_POSTHOG_KEY"),
+    appEnvOrBlank("backend", "POSTHOG_EVENTS_API_KEY"),
+  ].map((key) => key === SINK_KEY);
+  return { all: atSink.every(Boolean), any: atSink.some(Boolean) };
+}
 
 export type SinkEvent = {
   event: string;

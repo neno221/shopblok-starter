@@ -10323,7 +10323,7 @@ Review: `reviews/pr-143-code-review.md` in the project library. Fixed: must-fix 
 
 ### `e2e-smoke` (step 3)
 
-"Doctor, as JSON" now only writes `doctor.json` (kept with the logs), and **"The done-when, keyless"** runs `done-when.spec.ts` with `E2E_DONE_WHEN=keyless`: every entry `wired`; the five third-party integrations on their fallback with none of their keys set, and doctor's `ok`; a walk from the home page through an add to cart to the checkout with the keyless check's fixture (`support/third-party.ts`: a request to Stripe, Resend, Sentry, PostHog or R2 fails it); and `doctor --online --strict --only=meilisearch,redis`. The step it replaces checked the first two only. The keyless suites keep the fixture as before.
+"Doctor, as JSON" now only writes `doctor.json` (kept with the logs), and **"The done-when, keyless"** runs `done-when.spec.ts` with `E2E_DONE_WHEN=keyless`: every entry `wired`; the five third-party integrations on their fallback with none of their keys set, and doctor's `ok`; a purchase from the home page through the cart and the three checkout steps ("Pay later") to the receipt, with the keyless check's fixture (`support/third-party.ts`: a request to Stripe, Resend, Sentry, PostHog or R2 fails it); and `doctor --online --strict --only=meilisearch,redis`. The step it replaces checked the first two only. The keyless suites keep the fixture as before.
 
 ### All live at once (this session)
 
@@ -10339,7 +10339,7 @@ Sentry's `wired` set back to `false` (commit `0145ad4`, reverted in the next): l
 
 ### CI's times
 
-Both jobs green twice on `9a7161b` (run 45736015846, attempts 1 and 2), beside `main`'s run on PR 142's merge (before T103; PR 143 did not run `integrations-live`'s specs with more keys):
+Both jobs green twice on `9a7161b` (run 45736015846, attempts 1 and 2), beside `main`'s run on PR 142's merge (before T103):
 
 | Job | Before (`main`, PR 142) | Attempt 1 | Attempt 2 |
 |---|---|---|---|
@@ -10350,6 +10350,16 @@ Both jobs green twice on `9a7161b` (run 45736015846, attempts 1 and 2), beside `
 | its "The done-when, keyless" step | | 8 s | 8 s |
 
 So T103 adds about 10 seconds to each job; the rest is the runners' spread. The mutation's run is under "The mutation".
+
+### PR 144's review
+
+`reviews/pr-144-code-review.md`: no must-fix finding, four cleanups fixed, two optional findings skipped.
+1. **One rule for the stand-ins.** `sinkUse()` in `support/sentry-sink.ts` and `support/posthog-sink.ts` reads both apps' values (`appEnvOrBlank`: the environment over each app's `.env`). `sentry.spec.ts` and `posthog.spec.ts` read their sink when both apps point at it (`all`), as before; the done-when spec starts a stand-in when either does (`any`), since doctor checks both.
+2. **One card typing.** `typeTestCard(page, card, frame)` and `TEST_CARDS` in `support/purchase.ts` are the Payment Element's (and the Setup Element's) fields in one place; `stripe-checkout.spec.ts`, `stripe-saved.spec.ts` and `checkOut` use them.
+3. **`integrationOf` reads the integrations table's ids**, so an integration added later maps its `<id>-…` checks. And an id of `--only` that no check is about is an error of its own (`only-<id>`, "Doctor made no check about …"), not a pass that judged nothing.
+4. **The keyless walk buys:** from the home page through the cart and the three checkout steps ("Pay later") to the receipt, so it passes the payment step, where Stripe's Element would load. The CI comment and the text above say so.
+
+Skipped (optional, neither security nor a cleanup): closing one stand-in when the other fails to start, and a clearer message for an empty expected list (CI always expects Meilisearch and Redis).
 
 ### Checks (cloud VM)
 

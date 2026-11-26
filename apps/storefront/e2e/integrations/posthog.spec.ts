@@ -1,11 +1,11 @@
 import { expect, test, type BrowserContext, type Page, type Request } from "@playwright/test";
-import { appEnv } from "../support/app-env";
+import { appEnvOrBlank } from "../support/app-env";
 import { catalogs } from "../support/catalogs";
 import { doctorOnline, integration, skipWithoutKeys } from "../support/integration-keys";
 import {
   decodeBody,
   eventsIn,
-  SINK_KEY,
+  sinkUse,
   startSink,
   type Sink,
   type SinkEvent,
@@ -56,16 +56,8 @@ const ADDRESS = {
   postalCode: "10118",
 };
 
-const keyOf = (app: "backend" | "storefront", name: string) => {
-  try {
-    return appEnv(app, name).trim();
-  } catch {
-    return "";
-  }
-};
-const browserKey = () => keyOf("storefront", "NEXT_PUBLIC_POSTHOG_KEY");
-const sinkMode = () =>
-  browserKey() === SINK_KEY && keyOf("backend", "POSTHOG_EVENTS_API_KEY") === SINK_KEY;
+const browserKey = () => appEnvOrBlank("storefront", "NEXT_PUBLIC_POSTHOG_KEY");
+const sinkMode = () => sinkUse().all;
 
 /**
  * T103: with Stripe's keys too (all of them live at once), `checkOut` pays with Stripe's test card,

@@ -363,8 +363,8 @@ jobs:
           PLAYWRIGHT_HTML_OUTPUT_DIR: playwright-report-outage-recovery
       # Doctor's JSON, kept with the server logs. T103: the done-when's keyless half replaces the check
       # that was here (every third-party integration on its fallback, `ok` true): `done-when.spec.ts`
-      # with E2E_DONE_WHEN=keyless also holds every `wired` flag true, walks from the home page to the
-      # checkout with the keyless check's fixture (no request to a third party), and runs `doctor
+      # with E2E_DONE_WHEN=keyless also holds every `wired` flag true, buys from the home page to the
+      # receipt with the keyless check's fixture (no request to a third party), and runs `doctor
       # --online --strict` for the two local integrations. (Redis is live, since bootstrap sets
       # REDIS_URL, and Meilisearch is `kind: local`: neither is "third-party".)
       - name: Doctor, as JSON

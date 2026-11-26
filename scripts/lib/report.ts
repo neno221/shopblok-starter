@@ -3,6 +3,7 @@
 // person or CI would. Nothing here knows how a check was made.
 import {
   describeIntegration,
+  getIntegrationStatus,
   type IntegrationId,
   type IntegrationStatus,
 } from "@shopblok/integrations";
@@ -42,6 +43,12 @@ export type ReportOptions = {
   only?: readonly IntegrationId[];
 };
 
+/** The integrations table's ids, so that one added later maps its `<id>-…` checks too. */
+const INTEGRATION_IDS: readonly IntegrationId[] = getIntegrationStatus({
+  backend: {},
+  storefront: {},
+}).map((status) => status.id);
+
 /**
  * The integration a check is about, from its id (T103: `--only`, and the JSON's `integration`), or
  * `undefined` for the setup's own checks (the containers, the servers, the secrets, the markets,
@@ -55,17 +62,31 @@ export function integrationOf(checkId: string): IntegrationId | undefined {
   if (id === "email-verification") return "resend";
   if (id === "vercel-storage") return "r2";
   if (id.startsWith("search-")) return "meilisearch";
-  const prefix = /^(stripe|resend|posthog|sentry|meilisearch|redis|r2)(?:-|$)/.exec(id)?.[1];
-  return prefix as IntegrationId | undefined;
+  return INTEGRATION_IDS.find((each) => id === each || id.startsWith(`${each}-`));
 }
 
-/** The checks `--only` keeps: those about one of `only`'s integrations. */
+/**
+ * The checks `--only` keeps: those about one of `only`'s integrations. An integration of `only`
+ * that no check is about gets an error of its own (`only-<id>`): `--only` would otherwise judge
+ * nothing for it and pass.
+ */
 export function scopeChecks(checks: readonly Check[], only: readonly IntegrationId[] | undefined) {
   if (only === undefined) return [...checks];
-  return checks.filter((check) => {
+  const kept = checks.filter((check) => {
     const integration = integrationOf(check.id);
     return integration !== undefined && only.includes(integration);
   });
+  const unchecked = only.filter((id) => !kept.some((check) => integrationOf(check.id) === id));
+  return [
+    ...kept,
+    ...unchecked.map((id): Check => ({
+      id: `only-${id}`,
+      title: `--only ${id}`,
+      level: "error",
+      message: `Doctor made no check about ${id}, so --only would judge nothing for it.`,
+      fix: "Name its checks <id>-… (scripts/lib/report.ts, integrationOf), or leave it out of --only.",
+    })),
+  ];
 }
 
 /** `--strict` turns a warning into an error, but for one the keys cannot clear (`byHand`). */

@@ -107,11 +107,12 @@ describe("integrationOf and --only (T103)", () => {
     const stripeWarn: Check = { ...warn, id: "stripe-domains" };
     const resendWarn: Check = { ...warn, id: "email-verification" };
     const general: Check = { ...error, id: "medusa" };
-    const all = report(ok, stripeWarn, resendWarn, general);
+    const redisOk: Check = { ...ok, id: "redis" };
+    const all = report(ok, stripeWarn, resendWarn, general, redisOk);
     expect(scopeChecks(all.checks, ["stripe"]).map((check) => check.id)).toEqual([
       "stripe-domains",
     ]);
-    expect(scopeChecks(all.checks, undefined)).toHaveLength(4);
+    expect(scopeChecks(all.checks, undefined)).toHaveLength(5);
     expect(exitCodeOf(all, { ...strict, only: ["redis"] })).toBe(0);
     expect(exitCodeOf(all, { ...strict, only: ["stripe"] })).toBe(1);
     expect(exitCodeOf(all, { ...plain, only: ["stripe", "resend"] })).toBe(0);
@@ -128,6 +129,19 @@ describe("integrationOf and --only (T103)", () => {
     ]);
     expect(json.integrations).toHaveLength(7);
     expect(renderText(all, { ...plain, only: ["stripe"] })).toContain("Checks (--only stripe)");
+  });
+
+  it("fails an integration of --only that no check is about, instead of judging nothing", () => {
+    const all = report({ ...ok, id: "redis" });
+    expect(scopeChecks(all.checks, ["redis", "posthog"]).map((check) => check.id)).toEqual([
+      "redis",
+      "only-posthog",
+    ]);
+    expect(exitCodeOf(all, { ...plain, only: ["posthog"] })).toBe(1);
+    expect(exitCodeOf(all, { ...plain, only: ["redis"] })).toBe(0);
+    expect(renderText(all, { ...plain, only: ["posthog"] })).toContain(
+      "Doctor made no check about posthog",
+    );
   });
 });
 

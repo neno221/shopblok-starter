@@ -1,5 +1,11 @@
 import { readFileSync } from "node:fs";
-import { expect, type Browser, type BrowserContext, type Page } from "@playwright/test";
+import {
+  expect,
+  type Browser,
+  type BrowserContext,
+  type FrameLocator,
+  type Page,
+} from "@playwright/test";
 import type { catalogs } from "./catalogs";
 
 // The purchase's shared steps (T54) for `checkout-cy`, `checkout-us`, `auth` and `markets-switch`,
@@ -158,14 +164,29 @@ export async function checkOut(
   return new URL(page.url()).pathname;
 }
 
+/** Stripe's test card numbers: one without 3-D Secure, one that asks for it, one declined. */
+export const TEST_CARDS = {
+  visa: "4242424242424242",
+  threeDs: "4000002760003184",
+  declined: "4000000000000002",
+} as const;
+
+/** The Payment Element's frame on the payment step, once it has drawn its tabs. */
+export const paymentElement = (page: Page): FrameLocator =>
+  page.frameLocator('[data-slot="payment-element"] iframe').first();
+
 /**
- * Stripe's test card (no 3-D Secure) typed into the Payment Element's card tab, as
- * `stripe-checkout.spec.ts` does: for a live spec that checks out with Stripe on beside its own
- * integration (PostHog's, Resend's), where "Pay later" is not offered.
+ * A Stripe test card typed into an Element's card tab (the payment step's Payment Element unless
+ * `frame` names another, such as the account's Setup Element). The one place that knows the
+ * Element's fields: the Stripe specs use it, and `checkOut` for a live spec that checks out with
+ * Stripe on beside its own integration (PostHog's, Resend's), where "Pay later" is not offered.
  */
-export async function typeTestCard(page: Page): Promise<void> {
-  const frame = page.frameLocator('[data-slot="payment-element"] iframe').first();
-  await frame.locator('input[name="number"]').fill("4242424242424242", { timeout: 60_000 });
+export async function typeTestCard(
+  page: Page,
+  card: string = TEST_CARDS.visa,
+  frame: FrameLocator = paymentElement(page),
+): Promise<void> {
+  await frame.locator('input[name="number"]').fill(card, { timeout: 60_000 });
   await frame.locator('input[name="expiry"]').fill("12 / 34");
   await frame.locator('input[name="cvc"]').fill("123");
   const zip = frame.locator('input[name="postalCode"]');

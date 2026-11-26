@@ -2,7 +2,16 @@ import { expect, test, type BrowserContext, type Frame, type Page } from "@playw
 import { catalogs } from "../support/catalogs";
 import { skipWithoutKeys } from "../support/integration-keys";
 import { medusaAdminApi, medusaAdminToken, medusaUrl } from "../support/medusa-admin";
-import { add, fillContact, orderIdOf, type AddressInput, type Words } from "../support/purchase";
+import {
+  add,
+  fillContact,
+  orderIdOf,
+  paymentElement,
+  TEST_CARDS,
+  typeTestCard,
+  type AddressInput,
+  type Words,
+} from "../support/purchase";
 
 // M6 D117, D118 (T100): Stripe in the checkout, live, with Stripe's test keys (`STRIPE_API_KEY`,
 // `STRIPE_WEBHOOK_SECRET` in the backend, `NEXT_PUBLIC_STRIPE_KEY` in the storefront; skipped,
@@ -34,16 +43,9 @@ const US_ADDRESS: AddressInput = {
   postalCode: "10118",
 };
 
-const CARDS = {
-  visa: "4242424242424242",
-  threeDs: "4000002760003184",
-  declined: "4000000000000002",
-} as const;
+const CARDS = TEST_CARDS;
 
-/** The Payment Element's frame, once it has drawn its tabs. */
-function element(page: Page) {
-  return page.frameLocator('[data-slot="payment-element"] iframe').first();
-}
+const element = paymentElement;
 
 /** The contact step from the cart: the e-mail and the address, then on to the delivery step. */
 async function contact(page: Page, prefix: string, words: Words, address: AddressInput) {
@@ -60,12 +62,7 @@ async function payWithCard(page: Page, words: Words, card: string) {
     .first()
     .check({ force: true });
   await expect(page.getByText(words.organisms.paymentStep.stripeName).first()).toBeVisible();
-  const frame = element(page);
-  await frame.locator('input[name="number"]').fill(card, { timeout: 60_000 });
-  await frame.locator('input[name="expiry"]').fill("12 / 34");
-  await frame.locator('input[name="cvc"]').fill("123");
-  const zip = frame.locator('input[name="postalCode"]');
-  if (await zip.isVisible().catch(() => false)) await zip.fill("10118");
+  await typeTestCard(page, card);
   await page.getByRole("button", { name: words.organisms.paymentStep.submit }).click();
   await expect(page).toHaveURL(/\/checkout\/review$/, { timeout: 60_000 });
 }
