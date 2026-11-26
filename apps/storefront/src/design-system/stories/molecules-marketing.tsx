@@ -5,6 +5,7 @@ import type { Countdown, DiscountCode, NewsletterSignup } from "@shopblok/regist
 import { CopyCodeChip } from "@shopblok/ui/molecules/copy-code-chip";
 import type { CopyStatus } from "@shopblok/ui/molecules/copy-code-control";
 import { CountdownTimer } from "@shopblok/ui/molecules/countdown-timer";
+import type { FormRefusal } from "@shopblok/ui/lib/refusal";
 import { NewsletterForm, type NewsletterStatus } from "@shopblok/ui/molecules/newsletter-form";
 import type { DsContext, DsState, DsStory } from "../types";
 
@@ -28,13 +29,19 @@ const lang = (ctx: DsContext) => ctx.fixture.market.htmlLang;
 
 // `prefetch={false}`: the privacy page does not exist before M3, and each prefetch in a production
 // build would answer 404 and fail the cell's console check (T32's lesson).
-function newsletter(ctx: DsContext, signup: NewsletterSignup, status: NewsletterStatus = "idle") {
+function newsletter(
+  ctx: DsContext,
+  signup: NewsletterSignup,
+  status: NewsletterStatus = "idle",
+  refusal?: FormRefusal,
+) {
   return (
     <NewsletterForm
       newsletter={signup}
       copy={copy(ctx).newsletterForm}
       locale={lang(ctx)}
       status={status}
+      refusal={refusal}
       prefetch={false}
       className="max-w-lg"
     />
@@ -73,6 +80,17 @@ const newsletterFormStates: readonly DsState[] = [
     description:
       "The address is kept; the field is marked invalid and described by the error, which is also the status line.",
     render: (ctx) => newsletter(ctx, marketing(ctx).newsletter.typed, "error"),
+  },
+  {
+    id: "too-many",
+    label: "Too many attempts",
+    description:
+      "M7 D142: over the sign-up's rate limit. The address is kept and not marked; an alert says how many minutes to wait, in the market's language.",
+    render: (ctx) =>
+      newsletter(ctx, marketing(ctx).newsletter.typed, "error", {
+        kind: "too-many",
+        retryAfter: 3600,
+      }),
   },
   {
     id: "long",

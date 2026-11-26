@@ -238,6 +238,13 @@ export const keptOut: readonly KeptOut[] = [
     marker: "shopblok:stripe-client",
     label: "Stripe's client (T100)",
   },
+  // T108 (M7 D143): the Turnstile widget, which `turnstile-island.tsx` imports once it has
+  // mounted; built whatever the keys, drawn only with them.
+  {
+    module: "src/components/security/turnstile-widget.ts",
+    marker: "shopblok:turnstile",
+    label: "the Turnstile widget (T108)",
+  },
 ];
 
 export type StatsRow = {

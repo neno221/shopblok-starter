@@ -1262,6 +1262,14 @@ export const templateStories = {
         render: (ctx) => auth(ctx, "template-auth-login", "login", { form: "credentials" }),
       },
       {
+        id: "too-many",
+        label: "Too many attempts",
+        description:
+          "M7 D142: over the sign-in's rate limit; the alert says how many minutes to wait, in the market's language.",
+        render: (ctx) =>
+          auth(ctx, "template-auth-too-many", "login", { form: "too-many", retryAfter: 900 }),
+      },
+      {
         id: "verified",
         label: "Verified",
         description: "Back from the e-mail's link: the address filled in and “verified, sign in”.",

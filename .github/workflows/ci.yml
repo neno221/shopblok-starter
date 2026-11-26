@@ -384,6 +384,8 @@ jobs:
         env:
           E2E_OUTAGE: "true"
           E2E_MEDUSA_PID: ${{ runner.temp }}/servers/medusa.pid
+          # T108: the form sent with Medusa down reads the rate limit's log line here.
+          E2E_STOREFRONT_LOG: ${{ runner.temp }}/servers/storefront.log
           PLAYWRIGHT_HTML_OPEN: never
           PLAYWRIGHT_HTML_OUTPUT_DIR: playwright-report-outage
       - name: Start Medusa again
@@ -538,6 +540,12 @@ jobs:
       # Next's `/ingest` rewrite). Not a key: the sink takes any, and PostHog would refuse it.
       POSTHOG_SINK_KEY: phc_ShopblokE2eSinkStandIn
       POSTHOG_SINK_HOST: http://127.0.0.1:8971
+      # M7 D143 (T108): Turnstile on, with Cloudflare's published test pair that always passes
+      # (Turnstile's "Testing" page). Public and not secrets, so they are written here: the build
+      # puts `challenges.cloudflare.com` in the CSP, `next start` checks the tokens, and
+      # e2e/integrations/turnstile.spec.ts and done-when expect it live.
+      NEXT_PUBLIC_TURNSTILE_SITE_KEY: 1x00000000000000000000AA
+      TURNSTILE_SECRET_KEY: 1x0000000000000000000000000000000AA
       # The names whose values the log mask replaces (scripts/mask-keys.ts); names only, not values.
       MASK_KEYS_FROM: STRIPE_API_KEY,NEXT_PUBLIC_STRIPE_KEY,RESEND_API_KEY,S3_ACCESS_KEY_ID,S3_SECRET_ACCESS_KEY,SENTRY_DSN,NEXT_PUBLIC_SENTRY_DSN,POSTHOG_EVENTS_API_KEY,NEXT_PUBLIC_POSTHOG_KEY
     steps:
