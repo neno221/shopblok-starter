@@ -5,6 +5,7 @@ import { sendVerificationAgain, signIn } from "../../../../lib/actions/auth";
 import { authMetadata, authPageContext, param } from "../../../../lib/auth-page";
 import { readFlash } from "../../../../lib/flash";
 import { confirmVerification, pendingVerification } from "../../../../lib/medusa/customer";
+import { MedusaRequestError } from "../../../../lib/medusa/sdk";
 import { SHELL_PREFETCH } from "../../../../lib/site";
 
 // D64 (T53): the e-mail's verification. With `?code=` (the link T44's subscriber e-mails) the page
@@ -29,7 +30,28 @@ export default async function VerifyPage({ searchParams }: Props) {
   const shared = { copy: authCopy(messages), locale: market.htmlLang, prefetch: SHELL_PREFETCH };
   const code = param(query.code);
   if (code !== undefined && code !== "" && code.length <= 512) {
-    const email = await confirmVerification(code);
+    let email: string | null;
+    try {
+      email = await confirmVerification(code);
+    } catch (error) {
+      // M7 D142: over Medusa's limit on confirmations, the sign-in says how long to wait; the link
+      // still works after that.
+      if (!(error instanceof MedusaRequestError) || error.status !== 429) throw error;
+      return (
+        <AuthTemplate
+          variant="default"
+          screen={{
+            kind: "login",
+            email: "",
+            registerHref: hrefs.register,
+            forgotHref: hrefs.forgot,
+          }}
+          action={signIn.bind(null, market.key)}
+          errors={{ form: "too-many", retryAfter: error.retryAfter ?? 60 }}
+          {...shared}
+        />
+      );
+    }
     if (email === null)
       return (
         <AuthTemplate

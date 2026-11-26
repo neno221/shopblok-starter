@@ -1,4 +1,5 @@
 import { medusaEnv } from "../env";
+import { CLIENT_HEADER, signedClientHeader } from "../security/client-signature";
 import { withTimeout } from "../with-timeout";
 
 // `/next/status` (D58, ADR 0004 reading 5): an uptime monitor's answer, from S4's variant C
@@ -23,8 +24,15 @@ export type StatusChecks = {
  */
 export async function checkMedusa(): Promise<void> {
   const { backendUrl, publishableKey } = await medusaEnv();
-  const response = await fetch(`${backendUrl}/store/regions?limit=1&fields=id`, {
-    headers: { "x-publishable-api-key": publishableKey },
+  const url = new URL(`${backendUrl}/store/regions?limit=1&fields=id`);
+  // M7 D142 (T108): signed for the visitor asking, as the SDK's calls are, so a monitor's polling
+  // counts against its own address in Medusa's `/store/*` limit, not this server's.
+  const signature = signedClientHeader({ method: "GET", path: url.pathname });
+  const response = await fetch(url, {
+    headers: {
+      "x-publishable-api-key": publishableKey,
+      ...(signature === undefined ? {} : { [CLIENT_HEADER]: signature }),
+    },
     signal: AbortSignal.timeout(STATUS_CHECK_TIMEOUT_MS),
     cache: "no-store",
   });

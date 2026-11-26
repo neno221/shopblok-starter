@@ -14,6 +14,7 @@ import {
 } from "../medusa/customer";
 import { markSignedUp, markVisitorChanged } from "../medusa/cookies";
 import { MedusaRequestError } from "../medusa/sdk";
+import { requireChallenge, TURNSTILE_FIELD } from "../security/turnstile";
 import { action, ActionError, type FormError } from "./action";
 import { contextFor, formText as text, marketKey } from "./inputs";
 
@@ -77,11 +78,15 @@ export const registerSchema = z.object({
   firstName: z.string().trim().min(1).max(100),
   lastName: z.string().trim().min(1).max(100),
   phone: text(40),
+  // M7 D143: Turnstile's token, when its keys are set (the widget puts it in the form).
+  [TURNSTILE_FIELD]: z.string().max(4096).optional(),
 });
 
 export const registerAction = action(
   registerSchema,
-  async ({ market, email, password, firstName, lastName, phone }) => {
+  async ({ market, email, password, firstName, lastName, phone, [TURNSTILE_FIELD]: token }) => {
+    // M7 D143: Turnstile first, before Medusa is asked anything.
+    await requireChallenge(token);
     const context = await contextFor(market);
     const result = await register(
       { email, firstName, lastName, ...(phone === undefined ? {} : { phone }) },
@@ -116,7 +121,12 @@ export const forgotAction = action(forgotSchema, async ({ market, email }) => {
   try {
     await requestPasswordReset(email, mailOf(context));
   } catch (error) {
-    if (error instanceof MedusaRequestError && error.kind === "unreachable") throw error;
+    // An outage is said, and so is Medusa's rate limit (M7 D142): neither tells who has an account.
+    if (
+      error instanceof MedusaRequestError &&
+      (error.kind === "unreachable" || error.status === 429)
+    )
+      throw error;
   }
   return { email };
 });

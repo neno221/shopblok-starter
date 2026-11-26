@@ -141,6 +141,12 @@ export const de: Messages = {
       done: "Vielen Dank. Bitte prüfen Sie Ihr Postfach: Wir haben Ihnen einen Link zur Bestätigung Ihrer Anmeldung geschickt.",
       error:
         "Diese Adresse konnte nicht angemeldet werden. Bitte prüfen Sie die Eingabe und versuchen Sie es erneut.",
+      // M7 D142, D143 (T108): a rate limit's refusal, Turnstile's, and the no-script note.
+      tooMany:
+        "Zu viele Versuche. Versuchen Sie es in {minutes, plural, one {# Minute} other {# Minuten}} erneut.",
+      challenge:
+        "Wir konnten nicht bestätigen, dass Sie kein Roboter sind. Bitte versuchen Sie es erneut.",
+      noScript: "Ohne JavaScript kann dieses Formular einmal pro Stunde gesendet werden.",
     },
     accordionItem: {},
     toast: {
@@ -747,6 +753,12 @@ export const de: Messages = {
         email: "Geben Sie eine E-Mail-Adresse ein, etwa name@example.com.",
         invalid: "Prüfen Sie diese Angabe.",
       },
+      // M7 D142, D143 (T108): a rate limit's refusal, Turnstile's, and the no-script note.
+      tooMany:
+        "Zu viele Versuche. Versuchen Sie es in {minutes, plural, one {# Minute} other {# Minuten}} erneut.",
+      challenge:
+        "Wir konnten nicht bestätigen, dass Sie kein Roboter sind. Bitte versuchen Sie es erneut.",
+      noScript: "Ohne JavaScript kann dieses Formular einmal pro Stunde gesendet werden.",
     },
   },
   templates: {
@@ -978,6 +990,8 @@ export const de: Messages = {
         submit: "Konto erstellen",
         haveAccount: "Sie haben schon ein Konto?",
         login: "Anmelden",
+        // M7 D143 (T108): with Turnstile on, under the form without scripts.
+        noScript: "Ohne JavaScript kann dieses Formular einmal pro Stunde gesendet werden.",
       },
       checkEmail: {
         title: "Bestätigen Sie Ihre E-Mail-Adresse",
@@ -1018,6 +1032,11 @@ export const de: Messages = {
         rejected: "Das hat nicht geklappt. Prüfen Sie Ihre Angaben und versuchen Sie es erneut.",
         unavailable:
           "Der Shop ist gerade nicht erreichbar. Bitte versuchen Sie es gleich noch einmal.",
+        // M7 D142, D143 (T108).
+        "too-many":
+          "Zu viele Versuche. Versuchen Sie es in {minutes, plural, one {# Minute} other {# Minuten}} erneut.",
+        challenge:
+          "Wir konnten nicht bestätigen, dass Sie kein Roboter sind. Bitte versuchen Sie es erneut.",
       },
     },
     account: {

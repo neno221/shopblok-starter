@@ -11,7 +11,9 @@
 //   it), then the new password with the link's token and address in hidden fields.
 // - **Link expired:** what happened and the way to start again.
 // An action's failure comes back as `errors`: a field's kind beside the field, the form's in an
-// alert at the top. A server component.
+// alert at the top; a rate limit's refusal (M7 D142, T108) says how many minutes to wait. With the
+// shop's Turnstile on (D143), the registration form draws the shop's widget (`challenge`) above its
+// button. A server component.
 import { formatMessage, type Messages } from "@shopblok/i18n";
 import type { AuthPage } from "@shopblok/registry/contracts";
 import { Button, buttonVariants } from "@shopblok/ui/atoms/button";
@@ -48,6 +50,8 @@ type AuthField = "email" | "password" | "firstName" | "lastName" | "phone";
 type AuthErrors = {
   form?: keyof Messages["templates"]["auth"]["formErrors"];
   fields?: Partial<Record<AuthField, "required" | "pattern" | "invalid" | "short">>;
+  /** With `too-many` (M7 D142): the seconds to wait, said in whole minutes. */
+  retryAfter?: number;
 };
 
 /** The shortest password the shop takes: Medusa's emailpass has no rule of its own. */
@@ -64,6 +68,11 @@ type AuthTemplateProps = AuthPage & {
   /** Where the resend is (VerificationNotice's states). */
   verificationStatus?: VerificationStatus;
   errors?: AuthErrors;
+  /**
+   * M7 D143: the shop's Turnstile widget, drawn in the registration form above its button (the shop
+   * passes it only when Turnstile's keys are set).
+   */
+  challenge?: React.ReactNode;
   /** next/link's `prefetch` for every link; the design system passes `false`. */
   prefetch?: boolean | null;
   /** The element's id, the skip link's target. `main` unless given. */
@@ -87,6 +96,7 @@ function AuthTemplate({
   resendAction,
   verificationStatus,
   errors = {},
+  challenge,
   prefetch,
   mainId = "main",
   as: Root = "main",
@@ -120,7 +130,15 @@ function AuthTemplate({
   } as const;
   const alert =
     errors.form === undefined ? null : (
-      <FormAlert slot="auth-error">{words.formErrors[errors.form]}</FormAlert>
+      <FormAlert slot="auth-error">
+        {errors.form === "too-many"
+          ? formatMessage(
+              words.formErrors["too-many"],
+              { minutes: Math.max(1, Math.ceil((errors.retryAfter ?? 60) / 60)) },
+              locale,
+            )
+          : words.formErrors[errors.form]}
+      </FormAlert>
     );
   const back = (href: string, label: string) => (
     <NextLink
@@ -281,6 +299,7 @@ function AuthTemplate({
               defaultValue={screen.values.phone}
               error={errorOf("phone")}
             />
+            {challenge}
             <Button type="submit" size="lg" className="max-w-full">
               {words.register.submit}
             </Button>

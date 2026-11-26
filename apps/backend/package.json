@@ -40,6 +40,7 @@
     "@shopblok/fixtures": "workspace:*",
     "@shopblok/medusa-markets": "workspace:*",
     "@tanstack/react-query": "5.107.1",
+    "ioredis": "6.1.0",
     "meilisearch": "0.63.0",
     "react-i18next": "18.0.1",
     "react-router-dom": "7.18.5",

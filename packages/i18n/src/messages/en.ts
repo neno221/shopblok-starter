@@ -158,6 +158,11 @@ export const en = {
       privacyLink: "privacy policy",
       done: "Thank you. Check your inbox: we sent you a link to confirm your subscription.",
       error: "We could not subscribe this address. Check it and try again.",
+      // M7 D142, D143 (T108): a rate limit's refusal, Turnstile's, and the no-script note.
+      tooMany:
+        "Too many attempts. Try again in {minutes, plural, one {# minute} other {# minutes}}.",
+      challenge: "We could not confirm that you are not a robot. Please try again.",
+      noScript: "Without JavaScript, this form can be sent once an hour.",
     },
     accordionItem: {},
     toast: {
@@ -852,6 +857,11 @@ export const en = {
         email: "Enter an email address, like name@example.com.",
         invalid: "Check this answer.",
       },
+      // M7 D142, D143 (T108): a rate limit's refusal, Turnstile's, and the no-script note.
+      tooMany:
+        "Too many attempts. Try again in {minutes, plural, one {# minute} other {# minutes}}.",
+      challenge: "We could not confirm that you are not a robot. Please try again.",
+      noScript: "Without JavaScript, this form can be sent once an hour.",
     },
   },
   templates: {
@@ -1090,6 +1100,8 @@ export const en = {
         submit: "Create account",
         haveAccount: "Already have an account?",
         login: "Sign in",
+        // M7 D143 (T108): with Turnstile on, under the form without scripts.
+        noScript: "Without JavaScript, this form can be sent once an hour.",
       },
       checkEmail: {
         title: "Verify your email address",
@@ -1128,6 +1140,10 @@ export const en = {
         exists: "An account with this email address exists already. Sign in instead.",
         rejected: "That did not work. Check what you entered and try again.",
         unavailable: "The store could not be reached. Please try again in a moment.",
+        // M7 D142, D143 (T108).
+        "too-many":
+          "Too many attempts. Try again in {minutes, plural, one {# minute} other {# minutes}}.",
+        challenge: "We could not confirm that you are not a robot. Please try again.",
       },
     },
     account: {

@@ -370,7 +370,8 @@ export async function requestVerification(
 
 /**
  * Confirms the e-mail with the link's code, and answers the address it verified (`null` for a code
- * Medusa refuses). Needs no session: the link may open on another device.
+ * Medusa refuses; Medusa's rate limit, a 429, is thrown). Needs no session: the link may open on
+ * another device.
  */
 export async function confirmVerification(code: string): Promise<string | null> {
   try {
@@ -378,6 +379,8 @@ export async function confirmVerification(code: string): Promise<string | null> 
     const email = (answer as { entity_id?: unknown } | null)?.entity_id;
     return typeof email === "string" ? email : "";
   } catch (error) {
+    // M7 D142: Medusa's limit (20 an hour per address) is not an expired link; the page says so.
+    if (error instanceof MedusaRequestError && error.status === 429) throw error;
     if (error instanceof MedusaRequestError && error.kind === "rejected") return null;
     throw error;
   }

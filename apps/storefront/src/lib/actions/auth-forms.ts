@@ -38,7 +38,12 @@ async function failed(
   const errors: Record<string, string> = {};
   for (const [name, kind] of Object.entries(result.errors))
     if (kind !== undefined) errors[name] = kind;
-  const key = await leaveFlash(path, { form: authFormError(result), errors, values });
+  const key = await leaveFlash(path, {
+    form: authFormError(result),
+    errors,
+    values,
+    ...(result.retryAfter === undefined ? {} : { retryAfter: result.retryAfter }),
+  });
   return go(`${path}?${query}${query === "" ? "" : "&"}f=${key}`);
 }
 

@@ -27,13 +27,19 @@ export const CSP_REPORT_BATCH_MAX_ENTRIES = 20;
 /**
  * How many violations one server process forwards to Sentry per window; past it they are dropped
  * with one warning per window. The dedupe is keyed on what the sender writes, so without this a
- * loop changing `blocked-uri` would spend Sentry's quota (PR 148's review, item 3). T108 adds the
- * per-address limit (D142).
+ * loop changing `blocked-uri` would spend Sentry's quota (PR 148's review, item 3). Each address
+ * has its own limit too (`CSP_REPORTS_PER_ADDRESS`, T108).
  */
 export const CSP_REPORT_FORWARD_BUDGET = 100;
 
 /** How long the same violation is dropped after it was forwarded once (D140). */
 export const CSP_REPORT_DEDUPE_MS = 60_000;
+
+/**
+ * M7 D142 (T108): the posts one visitor's address may send to one instance in a minute; past it the
+ * route answers 429 before reading the body (`app/next/csp-report/route.ts`).
+ */
+export const CSP_REPORTS_PER_ADDRESS = 30;
 
 /** The media types the route takes; anything else is a 415. */
 export const CSP_REPORT_TYPES = ["application/csp-report", "application/reports+json"] as const;

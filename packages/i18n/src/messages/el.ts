@@ -144,6 +144,11 @@ export const el: Messages = {
       privacyLink: "πολιτική απορρήτου",
       done: "Ευχαριστούμε. Ελέγξτε τα εισερχόμενά σας: σας στείλαμε έναν σύνδεσμο για να επιβεβαιώσετε την εγγραφή σας.",
       error: "Δεν ήταν δυνατή η εγγραφή αυτής της διεύθυνσης. Ελέγξτε την και δοκιμάστε ξανά.",
+      // M7 D142, D143 (T108): a rate limit's refusal, Turnstile's, and the no-script note.
+      tooMany:
+        "Πάρα πολλές προσπάθειες. Δοκιμάστε ξανά σε {minutes, plural, one {# λεπτό} other {# λεπτά}}.",
+      challenge: "Δεν μπορέσαμε να επιβεβαιώσουμε ότι δεν είστε ρομπότ. Δοκιμάστε ξανά.",
+      noScript: "Χωρίς JavaScript, αυτή η φόρμα μπορεί να σταλεί μία φορά την ώρα.",
     },
     accordionItem: {},
     toast: {
@@ -758,6 +763,11 @@ export const el: Messages = {
         email: "Γράψτε μια διεύθυνση email, όπως name@example.com.",
         invalid: "Ελέγξτε αυτή την απάντηση.",
       },
+      // M7 D142, D143 (T108): a rate limit's refusal, Turnstile's, and the no-script note.
+      tooMany:
+        "Πάρα πολλές προσπάθειες. Δοκιμάστε ξανά σε {minutes, plural, one {# λεπτό} other {# λεπτά}}.",
+      challenge: "Δεν μπορέσαμε να επιβεβαιώσουμε ότι δεν είστε ρομπότ. Δοκιμάστε ξανά.",
+      noScript: "Χωρίς JavaScript, αυτή η φόρμα μπορεί να σταλεί μία φορά την ώρα.",
     },
   },
   templates: {
@@ -985,6 +995,8 @@ export const el: Messages = {
         submit: "Δημιουργία λογαριασμού",
         haveAccount: "Έχετε ήδη λογαριασμό;",
         login: "Σύνδεση",
+        // M7 D143 (T108): with Turnstile on, under the form without scripts.
+        noScript: "Χωρίς JavaScript, αυτή η φόρμα μπορεί να σταλεί μία φορά την ώρα.",
       },
       checkEmail: {
         title: "Επαληθεύστε τη διεύθυνση email σας",
@@ -1023,6 +1035,10 @@ export const el: Messages = {
         exists: "Υπάρχει ήδη λογαριασμός με αυτή τη διεύθυνση email. Συνδεθείτε.",
         rejected: "Δεν λειτούργησε. Ελέγξτε τα στοιχεία σας και δοκιμάστε ξανά.",
         unavailable: "Δεν ήταν δυνατή η σύνδεση με το κατάστημα. Δοκιμάστε ξανά σε λίγο.",
+        // M7 D142, D143 (T108).
+        "too-many":
+          "Πάρα πολλές προσπάθειες. Δοκιμάστε ξανά σε {minutes, plural, one {# λεπτό} other {# λεπτά}}.",
+        challenge: "Δεν μπορέσαμε να επιβεβαιώσουμε ότι δεν είστε ρομπότ. Δοκιμάστε ξανά.",
       },
     },
     account: {

@@ -17,7 +17,7 @@ export const EMAIL = "[email]";
 export function sensitiveName(name: string): boolean {
   const lower = name.toLowerCase();
   return (
-    lower === "code" || /token|e-?mail|secret|passw|auth|key|signature|session|cookie/.test(lower)
+    lower === "code" || /token|e-?mail|secret|passw|auth|key|signature|session|cookie|shopblok-client/.test(lower)
   );
 }
 
@@ -26,9 +26,14 @@ const PAIR = /([A-Za-z0-9_.\-[\]]+)=([^&#\s"'<>]*)/g;
 // An e-mail address, raw or percent-encoded (`%40`), as it can sit in a path or a value.
 const ADDRESS = /[A-Za-z0-9._%+-]+(?:@|%40)[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}/gi;
 
+// M7 D142 (T108): the value of the storefront's signed-address header (`x-shopblok-client:
+// v1;<address>;<time>;<HMAC>`), wherever it turns up: it names a visitor's address.
+const CLIENT_SIGNATURE = /v1;[^;\s"'<>]{1,64};\d{1,12};[0-9a-f]{64}/g;
+
 /** A message, a span name or a query string with its sensitive values and e-mail addresses removed. */
 export function scrubText(text: string): string {
   return text
+    .replace(CLIENT_SIGNATURE, FILTERED)
     .replace(PAIR, (pair: string, name: string) =>
       sensitiveName(name.replace(/\[.*$/, "")) ? `${name}=${FILTERED}` : pair,
     )

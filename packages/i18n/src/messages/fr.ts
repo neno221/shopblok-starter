@@ -148,6 +148,11 @@ export const fr: Messages = {
       privacyLink: "politique de confidentialité",
       done: "Merci. Consultez votre boîte de réception : nous vous avons envoyé un lien pour confirmer votre inscription.",
       error: "Nous n’avons pas pu inscrire cette adresse. Vérifiez-la et réessayez.",
+      // M7 D142, D143 (T108): a rate limit's refusal, Turnstile's, and the no-script note.
+      tooMany:
+        "Trop de tentatives. Réessayez dans {minutes, plural, one {# minute} other {# minutes}}.",
+      challenge: "Nous n’avons pas pu confirmer que vous n’êtes pas un robot. Veuillez réessayer.",
+      noScript: "Sans JavaScript, ce formulaire peut être envoyé une fois par heure.",
     },
     accordionItem: {},
     toast: {
@@ -755,6 +760,11 @@ export const fr: Messages = {
         email: "Saisissez une adresse e-mail, comme name@example.com.",
         invalid: "Vérifiez cette réponse.",
       },
+      // M7 D142, D143 (T108): a rate limit's refusal, Turnstile's, and the no-script note.
+      tooMany:
+        "Trop de tentatives. Réessayez dans {minutes, plural, one {# minute} other {# minutes}}.",
+      challenge: "Nous n’avons pas pu confirmer que vous n’êtes pas un robot. Veuillez réessayer.",
+      noScript: "Sans JavaScript, ce formulaire peut être envoyé une fois par heure.",
     },
   },
   templates: {
@@ -982,6 +992,8 @@ export const fr: Messages = {
         submit: "Créer le compte",
         haveAccount: "Vous avez déjà un compte ?",
         login: "Se connecter",
+        // M7 D143 (T108): with Turnstile on, under the form without scripts.
+        noScript: "Sans JavaScript, ce formulaire peut être envoyé une fois par heure.",
       },
       checkEmail: {
         title: "Vérifiez votre adresse e-mail",
@@ -1019,6 +1031,11 @@ export const fr: Messages = {
         exists: "Un compte existe déjà avec cette adresse e-mail. Connectez-vous plutôt.",
         rejected: "Cela n’a pas fonctionné. Vérifiez vos informations et réessayez.",
         unavailable: "La boutique est injoignable pour le moment. Réessayez dans un instant.",
+        // M7 D142, D143 (T108).
+        "too-many":
+          "Trop de tentatives. Réessayez dans {minutes, plural, one {# minute} other {# minutes}}.",
+        challenge:
+          "Nous n’avons pas pu confirmer que vous n’êtes pas un robot. Veuillez réessayer.",
       },
     },
     account: {

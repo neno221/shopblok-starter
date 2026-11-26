@@ -6,14 +6,24 @@ import { getPayloadClient } from "../cms/payload";
 import { answersSchema, HONEYPOT_FIELD, submissionData } from "../forms/fields";
 import { getRenderMarketMap } from "../markets/cached-market-map";
 import { findMarket } from "../markets/market";
-import { action, ActionError, FieldsError, toFieldErrors, type ActionResult } from "./action";
+import { consumeLimit } from "../security/rate-limit";
+import { requireChallenge, TURNSTILE_FIELD } from "../security/turnstile";
+import {
+  action,
+  ActionError,
+  FieldsError,
+  TooManyError,
+  toFieldErrors,
+  type ActionResult,
+} from "./action";
 import type { FormState } from "./form-state";
 
 // The forms' server action (D81, SPEC §7.8 and §11): a post to a form built in the admin is checked
 // against that form's own fields and stored through the Local API, the only way in, since the
-// plugin's REST `create` is closed. In order: the spam trap, the market, the form (one a visitor can
-// reach), the answers' schema built from its fields (each kind, `required`, the size limits), then
-// the submission.
+// plugin's REST `create` is closed. In order: Turnstile's token, when its keys are set (M7 D143),
+// the form's rate limit (M7 D142: 10 an hour per address and form, kept by Medusa), the spam trap,
+// the market, the form (one a visitor can reach), the answers' schema built from its fields (each
+// kind, `required`, the size limits), then the submission.
 
 /** The bound part (the market's key, the form's id) and the answers, as `submitForm` hands them. */
 export const FormPost = z.object({
@@ -51,7 +61,10 @@ async function placedForm(market: string, form: string) {
 }
 
 export const submitFormAction = action(FormPost, async ({ market, form, answers }) => {
-  // The spam trap first: a bot gets the same "thank you" as a person, whatever else it sent.
+  await requireChallenge(answers[TURNSTILE_FIELD]);
+  const limit = await consumeLimit("form", form);
+  if (!limit.allowed) throw new TooManyError(limit.retryAfter, "form: over its rate limit");
+  // The spam trap next: a bot gets the same "thank you" as a person, whatever else it sent.
   if (filled(answers[HONEYPOT_FIELD])) return { stored: false };
   const read = await placedForm(market, form);
   if (read === null) throw new ActionError("not-found", `form: no form ${form} in "${market}"`);
@@ -113,5 +126,6 @@ export function formState(
     errors: result.errors,
     values: typedBack(answers, names),
     ...(result.form === undefined ? {} : { form: result.form }),
+    ...(result.retryAfter === undefined ? {} : { retryAfter: result.retryAfter }),
   };
 }

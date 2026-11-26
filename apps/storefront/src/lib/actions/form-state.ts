@@ -14,6 +14,8 @@ export type FormState =
       values: Record<string, string>;
       /** Why, when no field is to blame. */
       form?: FormError;
+      /** With `too-many` (M7 D142): the seconds to wait. */
+      retryAfter?: number;
     };
 
 export const IDLE_FORM: FormState = { status: "idle" };

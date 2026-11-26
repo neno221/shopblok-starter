@@ -1,7 +1,9 @@
 import "server-only";
 import { renderEmail } from "../../payload/send-email";
-import { ActionError, action, FieldsError, toFieldErrors } from "../actions/action";
+import { ActionError, action, FieldsError, TooManyError, toFieldErrors } from "../actions/action";
 import { filled, FormPost, reachableForm } from "../actions/form-handlers";
+import { consumeLimit, emailKey } from "../security/rate-limit";
+import { requireChallenge, TURNSTILE_FIELD } from "../security/turnstile";
 import { getPayloadClient } from "../cms/payload";
 import { answersSchema, HONEYPOT_FIELD, newsletterField } from "../forms/fields";
 import { buildPublicUrl } from "../markets/url";
@@ -29,6 +31,8 @@ export function confirmUrl(market: Market, map: MarketMap, token: string): strin
 }
 
 export const subscribeAction = action(FormPost, async ({ market, form, answers }) => {
+  // M7 D143: Turnstile's token before anything else.
+  await requireChallenge(answers[TURNSTILE_FIELD]);
   if (filled(answers[HONEYPOT_FIELD])) return { sent: false } satisfies SubscribeAnswer;
   const reachable = await reachableForm(market, form);
   if (reachable === null)
@@ -39,6 +43,10 @@ export const subscribeAction = action(FormPost, async ({ market, form, answers }
   const parsed = answersSchema(reachable.form.fields).safeParse(answers);
   if (!parsed.success) throw new FieldsError(toFieldErrors(parsed.error.issues));
   const email = String(parsed.data[field]).trim();
+  // M7 D142: only a post that would send an e-mail is counted: 5 an hour per address, 2 a day per
+  // e-mail address (its SHA-256 is all Medusa sees).
+  const limit = await consumeLimit("newsletter", emailKey(email));
+  if (!limit.allowed) throw new TooManyError(limit.retryAfter, "newsletter: over its rate limit");
   const language = reachable.market.language;
   try {
     const { token } = signToken(

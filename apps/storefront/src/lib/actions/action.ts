@@ -22,7 +22,11 @@ export type FormError =
   /** Medusa did not answer. */
   | "unavailable"
   /** A step before this one is not done (the checkout's: no address before the delivery). */
-  | "incomplete";
+  | "incomplete"
+  /** M7 D142 (T108): over a rate limit; `retryAfter` says for how long. */
+  | "too-many"
+  /** M7 D143 (T108): Turnstile's check did not pass. */
+  | "challenge";
 
 export type ActionResult<T> =
   | { ok: true; data: T }
@@ -34,6 +38,8 @@ export type ActionResult<T> =
       reason?: string;
       /** Medusa's refusal, for the log and for a message the copy can match (a promo code's). */
       message?: string;
+      /** With `too-many`: the seconds to wait before trying again. */
+      retryAfter?: number;
     };
 
 /**
@@ -46,8 +52,18 @@ export class ActionError extends Error {
     readonly form: FormError,
     message: string = form,
     readonly reason?: string,
+    /** With `too-many`: the seconds to wait. */
+    readonly retryAfter?: number,
   ) {
     super(message);
+  }
+}
+
+/** M7 D142 (T108): a refusal by a rate limit, to wait `retryAfter` seconds. */
+export class TooManyError extends ActionError {
+  override name = "TooManyError";
+  constructor(retryAfter: number, message = "too many attempts") {
+    super("too-many", message, undefined, Math.max(1, Math.ceil(retryAfter)));
   }
 }
 
@@ -104,8 +120,9 @@ type Context<Auth> = Auth extends "customer"
 /**
  * Wraps a handler as a server action's body. The handler gets the parsed input and, with
  * `auth: "customer"`, the customer; what it returns is the `data` of `{ ok: true }`. A zod failure
- * and a `FieldsError` answer `errors`; an `ActionError` answers its `form`; a Medusa refusal `rejected` and a Medusa
- * outage `unavailable`; anything else is thrown on, to the route's error boundary.
+ * and a `FieldsError` answer `errors`; an `ActionError` answers its `form`; a Medusa refusal `rejected`, a Medusa
+ * outage `unavailable` and Medusa's rate limit `too-many` (M7 D142, with its `retryAfter`); anything
+ * else is thrown on, to the route's error boundary.
  */
 export function action<Schema extends z.ZodType, Result, Auth extends "none" | "customer" = "none">(
   schema: Schema,
@@ -130,10 +147,14 @@ export function action<Schema extends z.ZodType, Result, Auth extends "none" | "
           errors: {},
           form: error.form,
           ...(error.reason === undefined ? {} : { reason: error.reason }),
+          ...(error.retryAfter === undefined ? {} : { retryAfter: error.retryAfter }),
         };
       if (error instanceof FieldsError) return { ok: false, errors: error.errors };
       if (error instanceof MedusaRequestError) {
         if (error.kind === "unreachable") return { ok: false, errors: {}, form: "unavailable" };
+        // M7 D142 (T108): Medusa's limiter (a sign-in, a reset, a cart's completion).
+        if (error.status === 429)
+          return { ok: false, errors: {}, form: "too-many", retryAfter: error.retryAfter ?? 60 };
         if (error.status === 404) return { ok: false, errors: {}, form: "not-found" };
         if (error.status === 401) return { ok: false, errors: {}, form: "unauthorized" };
         // Medusa's own words, for the log and for a message the copy can match (a promo code's).
