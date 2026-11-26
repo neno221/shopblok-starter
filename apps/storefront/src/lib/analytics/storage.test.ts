@@ -8,7 +8,9 @@ afterEach(() => {
   vi.restoreAllMocks();
   localStorage.clear();
   sessionStorage.clear();
-  document.cookie = "ph_phc_test_posthog=; Path=/; Max-Age=0";
+  // An `Expires` in the past, not `Max-Age=0`: happy-dom expires a `Max-Age=0` cookie at `Date.now()`
+  // and keeps it within that millisecond, so the next test could still see it.
+  document.cookie = "ph_phc_test_posthog=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT";
 });
 
 describe("PostHog's storage", () => {

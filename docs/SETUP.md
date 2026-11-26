@@ -10286,3 +10286,5 @@ Review: `reviews/pr-143-code-review.md` in the project library. Fixed: must-fix 
 6. The way to move existing files names `apps/storefront/media/`, and the seeded pictures (CI's too) are said to break.
 7. Payload's `exports` and `imports` stay on local disk, said above.
 8. NEXT-SESSION.md has T103's prompt.
+
+**CI on this PR:** `check (Node 22)` failed once in T97's `analytics/storage.test.ts` ("counts storage the browser refuses as none"): its `afterEach` expired the test cookie with `Max-Age=0`, which happy-dom expires at `Date.now()` and still serves within that millisecond, so the next test could see it. The `afterEach` now sets an `Expires` in the past (shown with a fixed clock: `Max-Age=0` leaves `ph_x=`, the past `Expires` leaves nothing).
