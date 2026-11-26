@@ -1,4 +1,5 @@
-import { expect, test, type Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
+import { expect, test } from "./support/csp";
 import { catalogs } from "./support/catalogs";
 import { draftOf, publishGlobal, snapshotGlobal, type GlobalData } from "./support/globals";
 import { adminHeaders } from "./support/payload-rest";

@@ -1,4 +1,5 @@
-import { expect, test, type FrameLocator, type Locator, type Page } from "@playwright/test";
+import type { FrameLocator, Locator, Page } from "@playwright/test";
+import { expect, test } from "../support/csp";
 import { catalogs } from "../support/catalogs";
 import { publishGlobal, snapshotGlobal, type GlobalData } from "../support/globals";
 import { skipWithoutKeys } from "../support/integration-keys";

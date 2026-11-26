@@ -8,6 +8,8 @@ import createNextIntlPlugin from "next-intl/plugin";
 import { buildWorkers } from "./src/lib/build-workers";
 import { deploymentBaseUrl, designSystemBuildFlag } from "./src/lib/env";
 import { mediaRemotePatterns } from "./src/lib/media-host";
+import { cspSettings } from "./src/lib/security/csp";
+import { hstsEnabled, scopePayloadHeaders, securityHeaderRules } from "./src/lib/security/headers";
 import { POSTHOG_EU } from "./src/lib/site";
 
 // The repo root. The shared packages are linked from `packages/*` and Next compiles their source
@@ -16,6 +18,9 @@ import { POSTHOG_EU } from "./src/lib/site";
 const repoRoot = fileURLToPath(new URL("../..", import.meta.url));
 
 function buildConfig(phase: string): NextConfig {
+  // M7 D138 (T106): the static policy, computed once from the build's environment; `headers()`
+  // sends it on the paths the proxy skips, and `env` writes it into the proxy's bundle.
+  const csp = cspSettings(process.env, phase === PHASE_DEVELOPMENT_SERVER);
   return {
     // Both stay on; ADR 0001 says why and what the Payload admin's dev console shows.
     cacheComponents: true,
@@ -48,11 +53,21 @@ function buildConfig(phase: string): NextConfig {
     // (`deploymentBaseUrl`: a preview's branch domain, Production's domain), written in as
     // `NEXT_PUBLIC_BASE_URL` so that Payload's `serverURL` and CSRF list, the canonical URLs and the
     // proxy's own reads all name the address the browser is on.
+    //
+    // M7 D138 (T106): the static policy's header and value, which the proxy sends
+    // (`lib/security/static-csp.ts`); computed above, so the two places cannot differ.
     env: {
       DESIGN_SYSTEM_ENABLED: designSystemBuildFlag(),
       ...sentryBuildEnv(process.env),
       ...baseUrlBuildEnv(),
+      SHOPBLOK_CSP_HEADER: csp.header,
+      SHOPBLOK_CSP_POLICY: csp.policy,
     },
+    // M7 D137 (T106): the headers on every response, HSTS only with `DEPLOY_ENV=production`
+    // (`hstsEnabled`, after `deployEnv()`'s checks, D133), and the static policy on the paths the proxy's matcher skips
+    // (`lib/security/headers.ts`). `withPayload` adds its own entry after these, which
+    // `scopePayloadHeaders` (below) moves to `/admin`.
+    headers: async () => securityHeaderRules({ production: hstsEnabled(process.env), csp }),
     turbopack: { root: repoRoot },
     outputFileTracingRoot: repoRoot,
     // `/design-system` has no page of its own; the locale is a path segment (D33). Not permanent: the
@@ -162,7 +177,9 @@ export function withSentry<C>(nextConfig: C, source: NodeJS.ProcessEnv): C {
 // `withPayload` takes the config object, so it wraps what the function returns for each phase.
 export default function config(phase: string): NextConfig {
   return withSentry(
-    withNextIntl(withPayload(buildConfig(phase), { devBundleServerPackages: false })),
+    withNextIntl(
+      scopePayloadHeaders(withPayload(buildConfig(phase), { devBundleServerPackages: false })),
+    ),
     process.env,
   );
 }

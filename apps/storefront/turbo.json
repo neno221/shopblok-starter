@@ -27,6 +27,8 @@
       // without NEXT_PUBLIC_BASE_URL, `next.config.ts` writes the base address from them into the
       // bundle (`deploymentBaseUrl()`), so another address is another build. (On Vercel, `next
       // build` runs outside turbo, `scripts/vercel-build.sh`; this is for `pnpm build` elsewhere.)
+      // `CSP_MODE` (M7 D140, T106): `next.config.ts` computes the static policy when the build runs
+      // and writes it into the bundles and `headers()`, so report-only and enforce are two builds.
       "env": [
         "$TURBO_EXTENDS$",
         "PAYLOAD_*",
@@ -39,7 +41,8 @@
         "SENTRY_TRACES_SAMPLE_RATE",
         "VERCEL_PROJECT_PRODUCTION_URL",
         "VERCEL_BRANCH_URL",
-        "VERCEL_URL"
+        "VERCEL_URL",
+        "CSP_MODE"
       ],
       // `STOREFRONT_BUILD_WORKERS` (W6 item 7): how many workers prerender, which changes how fast
       // the build is, not what it builds, so it passes through without entering the hash.

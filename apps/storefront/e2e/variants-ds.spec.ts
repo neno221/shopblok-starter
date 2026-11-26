@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
 import path from "node:path";
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./support/csp";
 import { entries } from "@shopblok/registry";
 import { VARIANTS } from "@shopblok/registry/contracts";
 import { catalogs } from "./support/catalogs";

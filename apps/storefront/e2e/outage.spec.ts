@@ -1,6 +1,6 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./support/csp";
 import { catalogHandles, OUTAGE_SUBJECTS, prerenderCap } from "./support/catalog";
 import { stopMedusa } from "./support/medusa-process";
 

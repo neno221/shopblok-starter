@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./support/csp";
 import { linkIn, mailTo } from "./support/mailpit";
 import { appEnv } from "./support/app-env";
 import { catalogs } from "./support/catalogs";

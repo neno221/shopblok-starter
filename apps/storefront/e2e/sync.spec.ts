@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./support/csp";
 import { adminCredentials } from "./support/admin-credentials";
 import { appEnv } from "./support/app-env";
 import { medusaAdminApi, medusaAdminToken, medusaUrl } from "./support/medusa-admin";

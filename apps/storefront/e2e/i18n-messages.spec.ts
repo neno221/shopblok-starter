@@ -1,4 +1,5 @@
-import { expect, test, type Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
+import { expect, test } from "./support/csp";
 import { catalogs } from "./support/catalogs";
 
 // T46 (D62): what the browser receives of the message catalogs. `NextIntlClientProvider` given no

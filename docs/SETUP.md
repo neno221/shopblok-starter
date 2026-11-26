@@ -10710,6 +10710,116 @@ CLOUD.md's new section "Hosts and names for M7" lists six hosts (`docs.railway.c
 7. (cleanup) `demoRefusal` names the variable that decided (`DEPLOY_ENV`, `VERCEL_ENV` or `NODE_ENV`).
 8. to 10. Skipped (other): `NODE_ENV` untrimmed in the storefront's last step, doctor's Stripe checks with an invalid `DEPLOY_ENV`, and the seed's advice for `VERCEL_ENV=development`.
 
+## Headers and the static CSP (T106)
+
+**Result: every response of the shop carries D137's headers and, except `/admin` and Payload's `/api` (T107's admin policy), exactly one Content Security Policy, built from one table (`apps/storefront/src/lib/security/csp.ts`) whose hosts come from a recorded inventory, each with its source. The policy is enforced in CI, every suite runs under it with a fixture that fails a test on any `securitypolicyviolation`, reports go to `/next/csp-report` and from there to Sentry's security endpoint, and the first load is unchanged to the byte. `'unsafe-inline'` stays in `script-src`: the SRI try broke every page's hydration.**
+
+| | |
+|---|---|
+| Date | 2026-11-26 |
+| Branch | `claude/project-thread-7xf8fn`, from `main` at `825618e` (PR 147's merge, T105) |
+| PR | this PR, "T106: Headers and the static CSP" |
+
+### The policy
+
+Keyless, on an https base address:
+
+```
+default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';
+img-src 'self' data: blob:; media-src 'self' data:; font-src 'self'; connect-src 'self';
+frame-src 'self' https://www.youtube-nocookie.com https://player.vimeo.com; worker-src 'self' blob:;
+object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self';
+upgrade-insecure-requests; report-uri /next/csp-report; report-to csp-endpoint
+```
+
+With Stripe's publishable key, `script-src` gains `https://js.stripe.com https://*.js.stripe.com`, `connect-src` `https://api.stripe.com`, and `frame-src` `https://js.stripe.com https://*.js.stripe.com https://hooks.stripe.com`. With `S3_PUBLIC_URL`, its origin joins `img-src` and `media-src`. `next dev` adds `'unsafe-eval'` (React's debugging, Next's guide); a production build never has it (`headers.spec.ts`). PostHog and Sentry need no host: the browser talks to `/ingest` and `/monitoring` (a unit test says no `posthog` or `sentry` appears in any policy).
+
+**The hosts table** (`CSP_HOSTS`): each entry has its directive, its source, when it applies (`always`, or `stripe` for a build with `NEXT_PUBLIC_STRIPE_KEY`) and why, with the line of Stripe's guide (`docs.stripe.com/security/guide`, "Stripe.js") or the file that needs it. A unit test checks each entry is a valid source, has a reason and is used by the builder.
+
+| Directive | Source | When | Evidence |
+|---|---|---|---|
+| `script-src` | `https://js.stripe.com` | Stripe | Recorded on checkout and account (`loadStripe`, `stripe-client.ts`); the guide's Stripe.js line |
+| `script-src` | `https://*.js.stripe.com` | Stripe | The guide ("allows Stripe.js to … start frames on different origins"); not recorded by the test cards |
+| `connect-src` | `https://api.stripe.com` | Stripe | The guide; not recorded from our document (Stripe.js calls from inside its own frames in the test runs) |
+| `frame-src` | `https://js.stripe.com` | Stripe | Recorded: the Payment and Express Checkout Elements' frames |
+| `frame-src` | `https://*.js.stripe.com`, `https://hooks.stripe.com` | Stripe | The guide (3-D Secure and redirect frames on other subdomains); the test cards' 3-D Secure challenge ran inside `js.stripe.com`'s frame |
+| `frame-src` | `https://www.youtube-nocookie.com`, `https://player.vimeo.com` | always | The video block's two hosts (`contracts/sections.ts`); YouTube recorded on the CMS suite's click-to-play; always on, since an editor can add a video at any time |
+
+**Left out, with the reason:** the guide's `img-src https://*.stripe.com` (for Checkout and Connect, which the shop does not use; the Elements draw every picture inside Stripe's own frames), `https://maps.googleapis.com` (the Address Element's autocomplete with your own Google key, which the shop does not use) and Link's `*.link.com` (the keyed run's Link payment in the Express Checkout Element needed nothing outside `js.stripe.com`'s frames). `form-action` stays `'self'`: no method posts a form to Stripe; Revolut Pay and 3-D Secure leave through Stripe.js's own navigation.
+
+### Where each policy comes from: one per response
+
+- **The proxy** (`src/proxy.ts`) sets the policy on every response its matcher covers: `proxy()` now calls the old body (`respond()`) and adds the header with `withStaticCsp` (`src/lib/security/static-csp.ts`). T107 puts the nonce policy in its place on the nine routes.
+- **`next.config.ts`'s `headers()`** sets it only on the paths the matcher skips: `/next/:path*`, `/ingest/:path*`, `/monitoring` and `/design-system/:path*` (`HEADER_POLICY_PATHS`; a unit test runs each against the proxy's real matcher and fails if the proxy also runs there). `/admin` and Payload's `/api` get none until T107.
+- **The value is computed once, at build:** `next.config.ts` calls `cspSettings(process.env, dev)` and passes the header's name and value to the bundles through `env` (`SHOPBLOK_CSP_HEADER`, `SHOPBLOK_CSP_POLICY`, read through `lib/env.ts`), so the proxy and `headers()` send the same string (`headers.spec.ts` checks one value across every route). `CSP_MODE` is in turbo's `build` `env`.
+- **`CSP_MODE`** (D140): `enforce` (blank) or `report-only`, which sends `Content-Security-Policy-Report-Only` instead. Any other value fails the build (`cspMode` throws) and `doctor` (`csp-mode`: an error for an unknown value; a note for `report-only` on staging, its first week; a warning elsewhere, naming production). It is read when `next build` runs; changing it needs a new build.
+
+### Three things the inventory found that the plan did not expect
+
+1. **`upgrade-insecure-requests` breaks redirects on plain http.** Chromium leaves a direct request to `http://localhost` alone, but **upgrades a redirect's target to https even on localhost**: the RSC fetch of `/us/checkout/contact` answered 307 and the browser followed it to `https://localhost:8000/…`, failed, and fell back to a full load (a probe with a bare page confirmed it). So the directive is left out when `NEXT_PUBLIC_BASE_URL` starts with `http://` (CI, local stacks) and is in everywhere else, staging and production included (`csp.test.ts`; `headers.spec.ts` checks its absence on CI's http address).
+2. **`media-src` falls back to `default-src`.** The DS's video fixture is a `data:video/mp4` with WebVTT captions as `data:`; the first CI run blocked both (design-system shard 2, six cells). `media-src 'self' data:` plus R2's origin fixed it.
+3. **Stripe's 3-D Secure page has violations of its own.** On the keyed run the fixture failed the 3-D Secure spec on `testmode-acs.stripe.com` blocking a `data:` image under **Stripe's** policy. A frame on another origin runs under its own server's policy, so the fixture now counts only violations whose page is on the shop's origin.
+
+Two more, found by suites that already check the console: **`bluetooth` in `Permissions-Policy`** makes Chromium warn "Unrecognized feature" on every page (editor-homepage, payload-admin and variants failed on it), so it is left out with a comment; and **HSTS on CI's `next start`**: T105's `deployEnv()` counts `NODE_ENV=production` as production, so `hstsEnabled` asks for `DEPLOY_ENV=production` by name.
+
+### The inventory (step 1)
+
+The fixture `e2e/support/csp.ts` in recording mode (`CSP_RECORD=<file>`) writes one JSON line per request a shop document makes (its route type, the request's origin and resource type, whether it is a frame) and per violation; `node e2e/support/csp-inventory.ts <file>` turns the file into a table per route type (`csp-inventory.test.ts`).
+
+- **Keyless, `e2e-smoke`'s default projects** (359 passed, 16.0 min, CI's env: `STOREFRONT_PRERENDER_PRODUCTS=4`, `STOREFRONT_LISTING_PAGE_SIZE=3`, enforced): **no foreign origin from any shop document** but the CMS suite's YouTube frame (`www.youtube-nocookie.com`) and `headers.spec.ts`'s deliberate `https://example.com/x.js`, the only violation. Every picture, font, script and style is the shop's own. **`/admin` loads `https://www.gravatar.com` images** (Payload's avatar), which T107's admin policy must allow or turn off.
+- **Keyed, `integrations-live`'s specs** with the session's Stripe test keys, Medusa with the CI stand-in webhook secret, Sentry's and PostHog's sinks (as SETUP's T103 section runs them): the only foreign origin is **`https://js.stripe.com`** (the script and the Elements' frames), on checkout and account. Card, 3-D Secure, a declined card, Revolut Pay (to Stripe's test page and back), Link in the Express Checkout Element, a saved card and a saved Revolut Pay account: 27 passed, 12 skipped (Resend and R2, no keys), 1 failed on the 3-D Secure frame's own violation (item 3 above); after the fix every Stripe spec passed (11 of 11, then the Revolut Pay saved spec 2 of 2 after the fix below).
+- **`stripe-saved.spec.ts`'s Revolut Pay test failed 3 runs in 4 on ticking "Save this card for next time"**, with no violation recorded: after the Revolut Pay tab, Stripe resizes its frame, and the box, scrolled into view just before, sat under the sticky header when the forced click landed (the trace's frames show it). The tick is now retried (`toPass`), and passed 2 of 2. Not a CSP effect; CI holds no Stripe key, so CI never ran it.
+
+### `/next/csp-report` (D140)
+
+`src/app/next/csp-report/route.ts` with `src/lib/security/csp-report.ts`:
+- Takes `application/csp-report` (`report-uri`'s format) and `application/reports+json` (the Reporting API's, from `Reporting-Endpoints` and `report-to`); other report types in a batch are dropped. Any other content type answers **415**, a body that is no report **400**.
+- **The caps:** 8 KB for one `application/csp-report` report, as D140 says; **64 KB for an `application/reports+json` batch**, of which at most 20 entries are read and each entry is held to 8 KB on its own (an oversized entry is dropped, the rest kept). A declared `Content-Length` above the cap, or a streamed body that passes it, answers **413** before parsing. **This departs from D140's single 8 KB:** Chromium follows `report-to` and sends every queued report in one POST, each entry repeating the whole policy (about 1 KB with Stripe's hosts), so 8 KB would refuse a page's eight violations at once, the very reports the report-only week is for (PR 148's review, item 2).
+- **Duplicates within a minute are dropped** (per instance; the key is the directive, the blocked URI, the document and the source file; at most 1,000 remembered).
+- **At most 100 violations a minute go on** per instance, the rest dropped with one warning per minute: the dedupe is keyed on what the sender writes, so a loop changing `blocked-uri` could otherwise spend Sentry's quota (the review's item 3). T108 adds the per-address limit (D142).
+- **The query string and fragment are stripped** from `document-uri`, `blocked-uri`, `source-file` and the referrer before anything is kept, and **the order transfer link's id and token are replaced** (`/order/[id]/transfer/[token]`): it is the shop's only route with a secret in its path (the review's item 1; `SECRET_PATHS` in `csp-report.ts` is where another would go).
+- **With `NEXT_PUBLIC_SENTRY_DSN`:** forwarded as `application/csp-report` to Sentry's security endpoint (`https://<host>/api/<project>/security/?sentry_key=<key>`, plus `sentry_environment` and `sentry_release` from `SENTRY_ENVIRONMENT` and `SENTRY_RELEASE`), with the visitor's User-Agent, a 3 s timeout, and one warning if Sentry cannot be reached. The key never reaches the browser: the header names only our route. **Without a DSN:** one log line (`csp-report: enforce script-src-elem blocked https://… on https://…/us`), and 204 either way.
+- **The answer is 204** for every report taken, sent before the forward: the forward runs in `after()`, so the browser never waits on Sentry. The route is under `/next`, so it carries D137's headers and the policy (`headers.spec.ts`).
+
+### D137's headers, Payload's and Medusa's
+
+- **Every response** (`headers()` on `/:path*`, `src/lib/security/headers.ts`): `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `X-Frame-Options: SAMEORIGIN`, `Reporting-Endpoints: csp-endpoint="/next/csp-report"`, and `Permissions-Policy` with accelerometer, camera, display-capture, geolocation, gyroscope, hid, magnetometer, microphone, midi, serial and usb off and `payment=(self "https://js.stripe.com" "https://*.js.stripe.com")` for the wallets.
+- **HSTS** (`max-age=63072000; includeSubDomains`, no `preload` until go-live) only with `DEPLOY_ENV=production`.
+- **`withPayload`'s headers on `/admin/:path*` only:** `scopePayloadHeaders` rewrites the source of Payload's entry that holds `Accept-CH` from `/:path*` to `/admin/:path*` (tested against the real `withPayload`). `headers.spec.ts`: `Accept-CH` and `Critical-CH` on `/admin` only, and no `Vary: Sec-CH-Prefers-Color-Scheme` on any shop route. On `/admin`, `next start` shows Next's own `Vary` values; Payload's `Vary` entry is not visible there in `next start`. `poweredByHeader: false` stays; no route has `X-Powered-By`.
+- **Medusa** (`apps/backend/src/api/security-headers.ts`, the first entry of `middlewares.ts` on `/*`): removes `X-Powered-By` and sets `nosniff`. **Medusa 2.23's loader already calls `app.disable("x-powered-by")`**, so the removal is a guard against a change there; `nosniff` is new (`/store/products` in `headers.spec.ts`, two unit tests).
+- **`x-middleware-rewrite` is still visible on `next start`** (`markets.spec.ts` proves a rewrite by it); D137 checks it on staging (T116).
+
+### SRI (§6, step 5): `'unsafe-inline'` stays
+
+A build with `experimental: { sri: { algorithm: "sha256" } }` and `script-src 'self'` (no `'unsafe-inline'`), keyless, with the shell, catalog, CMS pages and variants suites (`shell`, `catalog`, `cms-pages`, `variants`): **17 failed, 31 passed, the rest not run** (the variants suite is serial). Every page had violations, 1,000 in all, every one `script-src-elem blocked inline`:
+- `/us`'s HTML has **40 inline scripts**: 37 `self.__next_f.push(…)` (the RSC payload, streamed in chunks), one `(self.__next_f=self.__next_f||[]).push(…)` (its start), one Turbopack runtime bootstrap (`globalThis["TURBOPACK"]`) and one JSON-LD block (data, not run). SRI hashes files, not inline scripts, so none of them can carry an `integrity`; only 5 of the 21 external scripts carried one.
+- **The islands did not hydrate:** the search box took no typing (`pressSequentially` timed out), the mini cart and the filters never appeared (`element(s) not found`).
+
+So D138's `'unsafe-inline'` stays and `experimental.sri` is not kept. The static policy still blocks every foreign script host, plugins, `<base>`, framing by other sites and form posts elsewhere (the mutations below).
+
+### Mutations
+
+| Mutation | Result |
+|---|---|
+| 1. `https://js.stripe.com` removed from `script-src` (keyed build) | `stripe-checkout.spec.ts`'s card in `/` (Cyprus, EUR) fails on the fixture: `enforce script-src-elem blocked https://js.stripe.com/endive/stripe.js on /checkout/delivery` (twice), and the card field never appears |
+| 2. A page's script loading `https://example.com/x.js` | `headers.spec.ts`'s last test, marked `test.fail`: the fixture fails it (`enforce script-src-elem blocked https://example.com/x.js on /us`); with `test.fail` removed it fails as a test |
+| 3. A 9 KB report | 413 (`headers.spec.ts` against `next start`; `route.test.ts` both declared and streamed) |
+| 4. `?token=…` in a report's `document-uri` | `sentry.spec.ts`'s new test: the report reaches the Sentry sink at `/api/1/security/?sentry_key=e2esink` with neither `t0k-t106` nor `c0de-4242` anywhere in the body (`route.test.ts` too) |
+
+### Checks
+
+- **First load: unchanged to the byte.** CI's `integrations-live` build (with the public keys) on this branch and on `main` (`825618e`) prints the same table for all 43 routes; nothing of T106 ships to the browser (the fixture is a test file, the rest runs on the server).
+- **Nothing sent to a third party in the keyless run:** the keyless inventory has no foreign origin but the YouTube frame the CMS suite clicks to open and the deliberate `example.com` script (blocked).
+- Unit: the storefront's 4,781 tests in 224 files (T105: 4,705), among them `lib/security`'s 35 (the policy, the table, `cspMode`, `mediaOrigin`, `cspSettings`, `upgrade-insecure-requests`, `REPORTING_ENDPOINTS`, the headers, the paths against the proxy's matcher, `scopePayloadHeaders`, `hstsEnabled`, the report parser, its dedupe and Sentry's URL), the route's tests, `csp-inventory.test.ts`, `env.test.ts`; `doctor-checks.test.ts` (125, with `csp-mode`); the backend's `security-headers.unit.spec.ts` (2).
+- **The fixture is in every suite that renders the shop or the DS:** 40 specs import `test` and `expect` from `./support/csp` (`third-party.ts` builds on it, so M6's suites have both); `doctor.spec.ts` and `resend.spec.ts` open no page. It watches every context a test opens itself (it wraps `browser.newContext`), and catches report-only violations, which some browsers print nothing for.
+- CI on this branch: `check` (Node 22 and 24), `backend-integration`, `integrations-live`, `dev-console-ds` (the DS in `next dev`, with `'unsafe-eval'`), the three DS shards and `e2e-smoke` green under the enforced policy.
+
+### For T107
+
+- The nonce policy goes in `proxy()` in place of `withStaticCsp`'s header on the nine routes; `csp.ts` takes the nonce and admin builders beside `staticPolicy`, from the same table.
+- `/admin` and Payload's `/api` have no policy yet (`headers.spec.ts` says so, "no policy before T107"); the admin loads `www.gravatar.com` images.
+- `headers()` gives `/design-system` the static policy until T111 adds it to the proxy's matcher; `HEADER_POLICY_PATHS` and its test then lose that entry.
+
 ## Deploy configuration (T114)
 
 **Result: everything staging needs is in the repo, and nothing was done on a platform.** Medusa's image (`apps/backend/Dockerfile`, one image for the server, the worker and the one-off commands) boots against the compose stack in CI's new `deploy-config` job; Railway's staging is described in `.railway/railway.ts` (Railway retired `railway.json`, below); the storefront has `apps/storefront/vercel.json` with its build and ignore scripts; `doctor --app=backend|storefront` checks one app, the shared secrets against their fingerprints and Payload's TLS; `pnpm staging:secrets` generates, copies and fingerprints every secret, tested against stand-ins for Vercel's, Railway's and Stripe's APIs; the staging seed has its two halves; `pnpm bootstrap --deployment` prints every variable by name; and `docs/DEPLOY.md` says how it fits together, with the cost (about $9 to $13 a month on Railway's Hobby plan at idle). No token was read and no project was changed: G11 is not done, and T115 is the first task that acts on staging. plans/M7.md §5, T114.
@@ -10787,3 +10897,12 @@ The two script mutations were applied to the file, the test run, and the file re
 After the fixes, the image boots in the boot test with the new steps (memory: server 304.9 MiB, worker 257.9 MiB). Typecheck and lint are clean. Unit tests: scripts 653, backend 358, storefront 4,756.
 
 Also from CI: `windows-smoke` failed on `vercel-config.test.ts`, which read the scripts' executable bit from the file system, and NTFS has none. It now reads git's mode (`100755`), which is what Vercel's clone gets.
+
+### Merged with T106 (PR 148)
+
+T106 merged first, so this PR merged `main` and settled the files both changed:
+- **`proxy.ts`:** T106 wraps every proxy answer in the static policy (`withStaticCsp`). The first-user gate (`/admin/create-first-user`, `/api/users/first-register`) runs before that wrapper and returns without it: those two paths are Payload's admin, which T106 leaves to T107's policy, so they get no shop policy and never two.
+- **`next.config.ts`:** one `env` block with both T114's `NEXT_PUBLIC_BASE_URL` (`baseUrlBuildEnv`) and T106's `SHOPBLOK_CSP_HEADER` and `SHOPBLOK_CSP_POLICY`, then T106's `headers()`.
+- **`turbo.json` (storefront):** `build`'s `env` lists `VERCEL_PROJECT_PRODUCTION_URL`, `VERCEL_BRANCH_URL`, `VERCEL_URL` and `CSP_MODE`.
+- **doctor:** T106's `csp-mode` check is a storefront check, so `doctor --app=backend` leaves it out.
+- **Docs:** SETUP.md has T106's section, then this one. NEXT-SESSION.md keeps T106's T107 and T112 prompts. The plan's status line names both tasks.

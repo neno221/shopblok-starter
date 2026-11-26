@@ -1,4 +1,5 @@
-import { expect, test, type BrowserContext, type Page, type Request } from "@playwright/test";
+import type { BrowserContext, Page, Request } from "@playwright/test";
+import { expect, test } from "../support/csp";
 import { appEnvOrBlank } from "../support/app-env";
 import { catalogs } from "../support/catalogs";
 import { doctorOnline, integration, skipWithoutKeys } from "../support/integration-keys";

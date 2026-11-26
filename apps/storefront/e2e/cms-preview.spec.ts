@@ -1,4 +1,5 @@
-import { expect, test, type Browser } from "@playwright/test";
+import type { Browser } from "@playwright/test";
+import { expect, test } from "./support/csp";
 import { appEnv } from "./support/app-env";
 import { adminToken, base, freshWithinTwo } from "./support/server";
 

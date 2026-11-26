@@ -108,7 +108,7 @@ const STOREFRONT_BY_HAND = [
   ["SENTRY_ENVIRONMENT", "staging"],
   ["MEDUSA_BACKEND_URL", "Medusa's public address on Railway"],
   ["NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY", "from the Medusa seed's result line (public)"],
-  ["CSP_MODE", "report-only on staging (D138)"],
+  ["CSP_MODE", "report-only on staging for its first week (D140)"],
   ["DESIGN_SYSTEM_ENABLED", "true on staging, behind the staff gate (D148, 4)"],
   ["E2E_TEST_ROUTES", "true on Preview only (T116), never on Production"],
 ] as const;

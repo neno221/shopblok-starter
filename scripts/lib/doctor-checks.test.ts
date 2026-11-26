@@ -283,6 +283,34 @@ describe("configChecks: the test-only routes (M0's F6, M7 D133)", () => {
   });
 });
 
+describe("configChecks: CSP_MODE (M7 D140, T106)", () => {
+  const storefront = (env: Record<string, string>) =>
+    find(
+      run({ backend: bootstrapped.backend, storefront: { ...bootstrapped.storefront, ...env } }),
+      "csp-mode",
+    );
+
+  it("says nothing when blank or enforce", () => {
+    expect(storefront({})).toBeUndefined();
+    expect(storefront({ CSP_MODE: "enforce" })).toBeUndefined();
+  });
+
+  it("is an error for any other value", () => {
+    const check = storefront({ CSP_MODE: "off" });
+    expect(check?.level).toBe("error");
+    expect(check?.details).toEqual(["apps/storefront: CSP_MODE=off"]);
+  });
+
+  it("is an accepted note for report-only on staging, and a warning elsewhere", () => {
+    expect(storefront({ CSP_MODE: "report-only", DEPLOY_ENV: "staging" })?.level).toBe("note");
+    expect(storefront({ CSP_MODE: "report-only", VERCEL_ENV: "preview" })?.level).toBe("note");
+    const production = storefront({ CSP_MODE: "report-only", DEPLOY_ENV: "production" });
+    expect(production?.level).toBe("warn");
+    expect(production?.message).toContain("on production");
+    expect(storefront({ CSP_MODE: "report-only" })?.level).toBe("warn");
+  });
+});
+
 describe("configChecks: email verification", () => {
   const resendKeys = { RESEND_API_KEY: "re_x", RESEND_FROM_EMAIL: "shop@example.com" };
 

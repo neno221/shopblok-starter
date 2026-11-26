@@ -1,4 +1,5 @@
-import { expect, test, type BrowserContext, type Frame, type Page } from "@playwright/test";
+import type { BrowserContext, Frame, Page } from "@playwright/test";
+import { expect, test } from "../support/csp";
 import { catalogs } from "../support/catalogs";
 import { skipWithoutKeys } from "../support/integration-keys";
 import { medusaAdminApi, medusaAdminToken, medusaUrl } from "../support/medusa-admin";

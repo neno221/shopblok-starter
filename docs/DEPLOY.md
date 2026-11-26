@@ -179,7 +179,7 @@ By name only, never a value. "generated" and "copied" are `pnpm staging:secrets`
 | `SENTRY_ENVIRONMENT`                 | yours (G11)      | staging                                                                                     |
 | `MEDUSA_BACKEND_URL`                 | yours (G11)      | Medusa's public address on Railway                                                          |
 | `NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY` | yours (G11)      | from the Medusa seed's result line (public)                                                 |
-| `CSP_MODE`                           | yours (G11)      | report-only on staging (D138)                                                               |
+| `CSP_MODE`                           | yours (G11)      | report-only on staging for its first week (D140)                                            |
 | `DESIGN_SYSTEM_ENABLED`              | yours (G11)      | true on staging, behind the staff gate (D148, 4)                                            |
 | `E2E_TEST_ROUTES`                    | yours (G11)      | true on Preview only (T116), never on Production                                            |
 | `PAYLOAD_SECRET`                     | generated        | generated and fingerprinted (`pnpm staging:secrets`)                                        |

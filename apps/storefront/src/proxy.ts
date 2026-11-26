@@ -5,6 +5,7 @@ import { getProxyMarketMap } from "./lib/markets/proxy-market-map";
 import { respondToMarketRequest } from "./lib/markets/proxy-response";
 import { compiledFor } from "./lib/redirects/match";
 import { getProxyRedirects } from "./lib/redirects/proxy-redirects";
+import { withStaticCsp } from "./lib/security/static-csp";
 
 // Public URLs carry no market key (SPEC §8.1): `/us/store` is served from `/en-us/store`, and the
 // internal `/en-us/store` is a 404. `resolve` (lib/markets) decides all of that; this file reads
@@ -12,14 +13,19 @@ import { getProxyRedirects } from "./lib/redirects/proxy-redirects";
 // not from Payload's Local API: loading Payload here cost 550 ms on the first request of a process,
 // and the plan allows 150 ms (T11, SETUP.md). The CMS redirects (D82, T68) come the same way, from
 // `/next/redirects`, and are answered before the rewrite; `proxy-imports.test.ts` fails if anything
-// this file imports reaches Payload. The CSP split (M7) plugs in here later. `/` alone redirects to
-// the market the visitor chose (`_shopblok_market`, D66).
+// this file imports reaches Payload. `/` alone redirects to the market the visitor chose
+// (`_shopblok_market`, D66).
+//
+// M7 D138 (T106): every answer from here carries the static policy (`lib/security/static-csp.ts`),
+// the redirects and the 404 too; `next.config.ts`'s `headers()` sets it only on the paths this
+// matcher skips, so no response has two. T107 puts the nonce policy in its place on the nine routes.
 //
 // A path with a broken escape (`/us/collections/%ZZ`) is a plain 404 here: Next decodes a dynamic
 // route's params and answers a `URIError` with a 500 before any page runs (PR 78 review, item 2).
 export async function proxy(req: NextRequest) {
   // M7 D136 (6): Payload's first-user form and endpoint, closed on every deployment (the matcher's
-  // third entry brings only these two paths here; the staging seed makes the first admin).
+  // third entry brings only these two paths here; the staging seed makes the first admin). They
+  // are Payload's admin, so they keep its headers (T107's policy, not the shop's static one).
   if (FIRST_USER_PATHS.has(req.nextUrl.pathname)) {
     return firstUserClosed()
       ? new NextResponse("Forbidden", {
@@ -31,6 +37,10 @@ export async function proxy(req: NextRequest) {
         })
       : NextResponse.next();
   }
+  return withStaticCsp(await respond(req));
+}
+
+async function respond(req: NextRequest): Promise<NextResponse> {
   const slashless = withoutTrailingSlash(req.nextUrl.pathname);
   if (slashless !== null) {
     // A plain URL: `nextUrl` keeps a trailing slash it was parsed with.

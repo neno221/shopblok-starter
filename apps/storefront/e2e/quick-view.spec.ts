@@ -1,5 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test, type Page, type Response } from "@playwright/test";
+import type { Page, Response } from "@playwright/test";
+import { expect, test } from "./support/csp";
 import { publishGlobal, snapshotGlobal, type GlobalData } from "./support/globals";
 import { HANDLE } from "./support/purchase";
 import { adminToken, base, freshWithinTwo, settled } from "./support/server";
