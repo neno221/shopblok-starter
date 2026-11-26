@@ -140,6 +140,49 @@ function redisInProduction(statuses: readonly IntegrationStatus[], context: Cont
   ];
 }
 
+/**
+ * Medusa's caching module (M7 D149, T112): on with `MEDUSA_FF_CACHING=true` and Redis
+ * (`apps/backend/src/config/modules.ts` registers it only with both). T112's check found no stale
+ * answer in 40 changes, so `.env.example`, CI and staging turn it on. The flag without Redis caches
+ * nothing (a warning); the flag off is a warning on a deployment, where `railway.ts` sets it, and an
+ * accepted note in development, where a `.env` written before T112 lacks it. Medusa reads the flag
+ * as `isTruthy` does: "true" in any case.
+ */
+function medusaCaching(envs: AppEnvs, statuses: readonly IntegrationStatus[]): Check {
+  const on = trimmed(envs.backend.MEDUSA_FF_CACHING).toLowerCase() === "true";
+  const redis = statusOf(statuses, "redis")?.configured === true;
+  const base = { id: "medusa-caching", title: "Medusa's caching" } as const;
+  if (on && redis)
+    return {
+      ...base,
+      level: "ok",
+      message:
+        "on (MEDUSA_FF_CACHING=true, on Redis): Medusa caches the Store API's reads and clears them on every change (D149).",
+    };
+  if (on)
+    return {
+      ...base,
+      level: "warn",
+      message:
+        "MEDUSA_FF_CACHING is true but REDIS_URL is blank: the caching module runs only on Redis here, so nothing is cached.",
+      details: ["apps/backend: MEDUSA_FF_CACHING=true, REDIS_URL blank"],
+      fix: "Set REDIS_URL (the compose stack's is redis://localhost:6380), or remove MEDUSA_FF_CACHING.",
+    };
+  const stage = productionStage(envs.backend).stage;
+  return {
+    ...base,
+    level: stage === undefined ? "note" : "warn",
+    message:
+      stage === undefined
+        ? "off (MEDUSA_FF_CACHING is not true): every Store API read goes to Postgres. CI and staging run with it on (D149)."
+        : `off on ${stage}: every Store API read goes to Postgres, unlike what CI tested (D149).`,
+    details: [
+      `apps/backend: MEDUSA_FF_CACHING is ${envs.backend.MEDUSA_FF_CACHING === undefined ? "not set" : `"${trimmed(envs.backend.MEDUSA_FF_CACHING)}"`}`,
+    ],
+    fix: "Set MEDUSA_FF_CACHING=true in the backend's environment (apps/backend/.env.example has it) and restart Medusa.",
+  };
+}
+
 /** The key the storefront sends to Medusa on every request. It is written into the build. */
 function publishableKey(envs: AppEnvs): Check {
   const key = (envs.storefront.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY ?? "").trim();
@@ -512,6 +555,7 @@ export function configChecks(
     ...(storefront ? optional(payloadDatabaseTlsCheck(envs.storefront, deployed)) : []),
     ...(storefront ? vercelStorage(statuses, context) : []),
     ...(backend ? redisInProduction(statuses, context) : []),
+    ...(backend ? [medusaCaching(envs, statuses)] : []),
     ...halfConfigured(statuses),
     ...sentryDsnChecks(envs),
     ...posthogKeyChecks(envs),

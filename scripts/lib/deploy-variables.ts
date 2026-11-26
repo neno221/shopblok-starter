@@ -63,6 +63,7 @@ const BACKEND_CONFIG = [
   ["PORT", "9000"],
   ["DATABASE_URL", "a reference to Medusa's Postgres, private"],
   ["REDIS_URL", "a reference to Redis, private"],
+  ["MEDUSA_FF_CACHING", "true: Medusa's caching module on that Redis (D149, T112)"],
   ["MEILISEARCH_HOST", "Meilisearch's private address"],
   ["MEDUSA_BACKEND_URL", "the server's public address"],
   ["STOREFRONT_URL", "from the shared variable of the same name"],

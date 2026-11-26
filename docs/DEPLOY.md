@@ -130,6 +130,7 @@ By name only, never a value. "generated" and "copied" are `pnpm staging:secrets`
 | `PORT`                              | config           | 9000                                                                                        |
 | `DATABASE_URL`                      | config           | a reference to Medusa's Postgres, private                                                   |
 | `REDIS_URL`                         | config           | a reference to Redis, private                                                               |
+| `MEDUSA_FF_CACHING`                 | config           | true: Medusa's caching module on that Redis (D149, T112)                                    |
 | `MEILISEARCH_HOST`                  | config           | Meilisearch's private address                                                               |
 | `MEDUSA_BACKEND_URL`                | config           | the server's public address                                                                 |
 | `STOREFRONT_URL`                    | config           | from the shared variable of the same name                                                   |
