@@ -34,6 +34,34 @@ export function corsAllows(entries: readonly CorsEntry[], origin: string): boole
   );
 }
 
+/**
+ * Whether a pattern holds the whole origin: `^` first, an unescaped `$` last, and no `|` outside a
+ * group or a class (`/^a|b$/` is `^a` or `b$`, which match inside other origins).
+ */
+export function anchored(source: string): boolean {
+  if (!source.startsWith("^") || !source.endsWith("$")) return false;
+  let depth = 0;
+  let inClass = false;
+  for (let i = 0; i < source.length; i += 1) {
+    const char = source[i];
+    if (char === "\\") {
+      // An escaped character; an escaped `$` at the end is a literal, not the anchor.
+      if (i === source.length - 2) return false;
+      i += 1;
+      continue;
+    }
+    if (inClass) {
+      if (char === "]") inClass = false;
+      continue;
+    }
+    if (char === "[") inClass = true;
+    else if (char === "(") depth += 1;
+    else if (char === ")") depth -= 1;
+    else if (char === "|" && depth === 0) return false;
+  }
+  return true;
+}
+
 /** Origins no deployment's list may let in, whatever its patterns say. */
 const FOREIGN = [
   "https://example.com",
@@ -45,9 +73,9 @@ const FOREIGN = [
 
 /**
  * What is wrong with one of a deployment's lists: an entry that is not an `https://` origin as a
- * browser sends it (no path, no trailing slash, no wildcard), a pattern without `^…$` (Medusa tests
- * it anywhere in the origin, so `/shop\.vercel\.app/` also lets `https://shop.vercel.app.evil.com`
- * in), a blank entry (a stray comma), or a list that lets in a foreign origin.
+ * browser sends it (no path, no trailing slash, no wildcard), a pattern that does not hold the whole
+ * origin (`anchored`: Medusa tests it anywhere in the origin, so `/shop\.vercel\.app/` also lets
+ * `https://shop.vercel.app.evil.com` in, and `/^a|evil\.com$/` any origin ending in evil.com), a blank entry (a stray comma), or a list that lets in a foreign origin.
  */
 export function corsProblems(name: string, value: string | undefined): string[] {
   const entries = parseCors(value);
@@ -56,9 +84,9 @@ export function corsProblems(name: string, value: string | undefined): string[] 
   for (const entry of entries) {
     if (entry.kind === "pattern") {
       const source = entry.value.source;
-      if (!source.startsWith("^") || !source.endsWith("$"))
+      if (!anchored(source))
         problems.push(
-          `${name}: the pattern /${source}/ needs ^ and $, or it matches inside other origins.`,
+          `${name}: the pattern /${source}/ must hold the whole origin (^ first, $ last, no | outside a group), or it matches inside other origins.`,
         );
       continue;
     }

@@ -3,7 +3,7 @@
 import { createRequire } from "node:module";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { corsAllows, corsProblems, parseCors } from "./cors-check.ts";
+import { anchored, corsAllows, corsProblems, parseCors } from "./cors-check.ts";
 
 const backend = createRequire(path.resolve(import.meta.dirname, "../../apps/backend/package.json"));
 const { parseCorsOrigins } = backend("@medusajs/framework/utils") as {
@@ -74,9 +74,35 @@ describe("corsProblems: a deployment's lists", () => {
   });
 
   it("refuses a pattern without anchors, or one that lets in a foreign origin", () => {
-    expect(corsProblems("STORE_CORS", String.raw`/shopblok\.vercel\.app/`)[0]).toContain("^ and $");
+    expect(corsProblems("STORE_CORS", String.raw`/shopblok\.vercel\.app/`)[0]).toContain(
+      "must hold the whole origin",
+    );
     expect(corsProblems("STORE_CORS", "/^https:\\/\\/.*\\.vercel\\.app$/")).toEqual([
       expect.stringContaining("lets in https://evil.vercel.app"),
     ]);
+  });
+
+  it("refuses a pattern whose | splits the anchors, or whose $ is escaped", () => {
+    // `/^a|evil\.com$/` is `^a` or `evil\.com$`: it lets in https://attacker-evil.com.
+    const split = String.raw`/^https:\/\/shop\.vercel\.app|evil\.com$/`;
+    expect(corsAllows(parseCors(split), "https://attacker-evil.com")).toBe(true);
+    expect(corsProblems("STORE_CORS", split)).toEqual([
+      expect.stringContaining("must hold the whole origin"),
+    ]);
+    expect(corsProblems("STORE_CORS", String.raw`/^https:\/\/shop\.vercel\.app\$/`)).toEqual([
+      expect.stringContaining("must hold the whole origin"),
+    ]);
+  });
+
+  it("takes a | inside a group or a class", () => {
+    expect(anchored(String.raw`^https:\/\/(shop|store)\.vercel\.app$`)).toBe(true);
+    expect(anchored(String.raw`^https:\/\/shop[|-]a\.vercel\.app$`)).toBe(true);
+    expect(anchored(String.raw`^(https:\/\/a\.app)|(https:\/\/b\.app)$`)).toBe(false);
+    expect(
+      corsProblems(
+        "STORE_CORS",
+        String.raw`/^https:\/\/shop-(git-[a-z0-9-]+|[a-z0-9]+)-team\.vercel\.app$/`,
+      ),
+    ).toEqual([]);
   });
 });

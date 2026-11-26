@@ -160,11 +160,16 @@ const decode = (segment: string): string | undefined => {
   }
 };
 
-/** The cart, payment collection or order a store request names, if any (pure). */
+/**
+ * The cart, payment collection or order a store request names, if any (pure). The fixed segments
+ * match in any case, as Medusa's Express router matches its routes (`/store/Carts/:id/line-items`
+ * reaches the same handler); the id is kept as written, as the route's `:id` keeps it.
+ */
 export function targetOf(method: string, path: string, body: unknown): Target | undefined {
-  const match = /^\/store\/(carts|payment-collections|orders)(?:\/([^/]+))?/.exec(path);
+  const match = /^\/store\/(carts|payment-collections|orders)(?:\/([^/]+))?/i.exec(path);
   if (match === null) return undefined;
-  const [, kind, segment] = match;
+  const kind = match[1]!.toLowerCase();
+  const segment = match[2];
   if (segment === undefined) {
     // `POST /store/payment-collections` names its cart in the body.
     if (kind === "payment-collections" && method === "POST" && isRecord(body)) {
@@ -262,18 +267,18 @@ export async function paymentSessionFilter(
     const hasCart = isRecord(body) && isRecord(body.cart);
     if (about === undefined || (!hasCart && !holdsSecrets(body)))
       return send(about === undefined ? filterBody(body) : body);
+    // No owner found (the row is gone, or the lookup failed): the secrets stay out, and the cart
+    // says no access, which the storefront reads as a guest's. `other` would show a guest the
+    // held cart over one failed read, and their next add would start a new cart.
     ownerOf(req.scope, about)
       .then((found) =>
         send(
-          shapeBody(
-            body,
-            found === undefined
-              ? { access: "other", reveal: false }
-              : accessOf({ ...found, caller, signed }),
-          ),
+          found === undefined
+            ? filterBody(body)
+            : shapeBody(body, accessOf({ ...found, caller, signed })),
         ),
       )
-      .catch(() => send(shapeBody(body, { access: "other", reveal: false })));
+      .catch(() => send(filterBody(body)));
     return res;
   }) as typeof res.json;
   next();

@@ -167,6 +167,9 @@ describe("the cart through the SDK", () => {
     expect(await getCart()).toBeNull();
     expect(await readCart()).toEqual({ cart: null, held: true });
     expect(jar.values.get("_medusa_cart_id")).toBe("cart_1");
+    // Its lines count for nothing in the actions' checks: the next add goes to a new cart.
+    const { getCartItems } = await import("./cart");
+    expect(await getCartItems()).toBeNull();
     vi.unstubAllGlobals();
     for (const access of ["owner", "guest", undefined, "nonsense"]) {
       stubMedusaFetch(() => ({ body: { cart: { ...wireCart, shopblok_access: access } } }));

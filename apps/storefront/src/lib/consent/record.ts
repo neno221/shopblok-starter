@@ -24,6 +24,12 @@ import type { ConsentRecordKind } from "../../payload/collections/consent-record
 // the first record and kept at the end of the cookie (`consent-cookie.ts`), so one visitor's
 // records share it. Under T108's `consent` limit (30 an hour per address): over it, the choice
 // still holds in the cookie and no record is written (the visitor is told nothing; one log line).
+//
+// The island's record never writes the cookie (PR 156 review): a request's `Cookie` header is
+// fixed when the action is sent, so an earlier action's `Set-Cookie` could put back a choice the
+// visitor has since changed. It records the choice the island passes and answers the id, which the
+// browser adds to the cookie as it is then (`addConsentId`); the island sends its records one
+// after the other, so the next one's request carries the id.
 
 /** A record's kind: the id's first, a change, or a withdrawal (a category that was on is off). */
 export function kindOf(
@@ -47,22 +53,25 @@ const cookieOptions = () => ({
 
 export type KeptConsent =
   | { kept: true; id: string; kind: ConsentRecordKind }
-  | { kept: false; reason: "no-choice" | "too-many" | "unavailable" };
+  | { kept: false; id: string; reason: "too-many" | "unavailable" };
 
 /**
- * Records `choice` (or, without one, what the request's consent cookie says) for `market`, and
- * writes the cookie with the record's id. Only a server action may call it (it sets the cookie).
+ * Records `choice` for `market` under the request's consent id (a new one on the first), and with
+ * `setCookie` writes the cookie with it (the no-script form, whose action makes the choice). Only
+ * a server action may call it with `setCookie` (it sets the cookie).
  */
-export async function keepConsent(market: Market, choice?: ConsentChoice): Promise<KeptConsent> {
+export async function keepConsent(
+  market: Market,
+  chosen: ConsentChoice,
+  { setCookie }: { setCookie: boolean },
+): Promise<KeptConsent> {
   const jar = await cookies();
   const current: ConsentRecord | null = parseConsent(jar.get(CONSENT_COOKIE)?.value);
-  const chosen = choice ?? current?.choice;
-  if (chosen === undefined) return { kept: false, reason: "no-choice" };
   const id = current?.id ?? randomUUID();
-  jar.set(CONSENT_COOKIE, formatConsent(chosen, new Date(), id), cookieOptions());
+  if (setCookie) jar.set(CONSENT_COOKIE, formatConsent(chosen, new Date(), id), cookieOptions());
 
   const limit = await consumeLimit("consent");
-  if (!limit.allowed) return { kept: false, reason: "too-many" };
+  if (!limit.allowed) return { kept: false, id, reason: "too-many" };
   try {
     const payload = await getPayloadClient();
     const { docs } = await payload.find({
@@ -97,6 +106,6 @@ export async function keepConsent(market: Market, choice?: ConsentChoice): Promi
     console.error(
       `consent: the record could not be kept (${error instanceof Error ? error.message : "error"})`,
     );
-    return { kept: false, reason: "unavailable" };
+    return { kept: false, id, reason: "unavailable" };
   }
 }

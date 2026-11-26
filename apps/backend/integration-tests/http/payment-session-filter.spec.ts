@@ -311,6 +311,16 @@ medusaIntegrationTestRunner({
           ],
           ["POST", `/store/payment-collections/${collectionId}/payment-sessions/${sessionId}`, {}],
           ["POST", `/store/carts/${id}/complete`, {}],
+          // Medusa's router matches a path in any case; the owner check must too.
+          ["POST", `/store/Carts/${id}/line-items`, { variant_id: "variant_x", quantity: 1 }],
+          ["POST", `/STORE/CARTS/${id}`, { email: "eve@example.com" }],
+          ["POST", "/store/Payment-Collections", { cart_id: id }],
+          [
+            "POST",
+            `/store/Payment-Collections/${collectionId}/payment-sessions`,
+            { provider_id: SYSTEM },
+          ],
+          ["POST", `/store/Carts/${id}/Complete`, {}],
         ];
         for (const who of [{ token: bob.token }, { signed: true }, {}]) {
           for (const [method, url, body] of writes) {

@@ -554,7 +554,8 @@ export type CartItemRef = { id: string; variantId: string | null; quantity: numb
 /**
  * The cart's lines by id, variant and quantity only (the actions' ownership and limit checks, one
  * small read), or `null` when the visitor has no open cart. Unlike `getCart` it keeps a line with
- * no variant, so such a line can still be removed (PR 73 review).
+ * no variant, so such a line can still be removed (PR 73 review). A held cart (M7 D144, `readCart`)
+ * is no cart here either: the next add goes to a new cart, so its lines count for nothing.
  */
 export async function getCartItems(): Promise<CartItemRef[] | null> {
   const id = await getCartId();
@@ -568,7 +569,7 @@ export async function getCartItems(): Promise<CartItemRef[] | null> {
       ),
     );
     const wire = cart as unknown as WireCart;
-    if (wire.completed_at) return null;
+    if (wire.completed_at || cartAccessOf(wire.shopblok_access) === "other") return null;
     return (wire.items ?? []).flatMap((line) =>
       line
         ? [{ id: line.id, variantId: line.variant_id ?? null, quantity: line.quantity ?? 0 }]

@@ -2,7 +2,8 @@
 
 import type { Route } from "next";
 import { redirect } from "next/navigation";
-import { keepConsent, type KeptConsent } from "../consent/record";
+import type { ConsentChoice } from "@shopblok/registry/contracts";
+import { keepConsent } from "../consent/record";
 import { getRenderMarketMap } from "../markets/cached-market-map";
 import { findMarket } from "../markets/market";
 import { buildPublicUrl } from "../markets/url";
@@ -32,15 +33,27 @@ async function marketOf(key: unknown) {
   return market === undefined ? undefined : { market, map };
 }
 
+/** A choice as the island sends it, or `undefined` (an action's arguments are the browser's). */
+const choiceOf = (value: unknown): ConsentChoice | undefined => {
+  if (typeof value !== "object" || value === null) return undefined;
+  const { analytics, marketing } = value as Record<string, unknown>;
+  return typeof analytics === "boolean" && typeof marketing === "boolean"
+    ? { analytics, marketing }
+    : undefined;
+};
+
 /**
  * M7 D145 (T109): the record of a choice the consent island made (the banner, the dialog): the
- * island wrote the cookie, and this keeps what it says as a `consent-records` document, with the
- * record's id added to the cookie (`lib/consent/record.ts`). Bound to the page's market.
+ * island wrote the cookie and passes the choice, and this keeps it as a `consent-records` document
+ * (`lib/consent/record.ts`) and answers the consent id, which the island adds to the cookie. It
+ * writes no cookie: an earlier action's answer must not overwrite a later choice. Bound to the
+ * page's market; `null` when the market or the choice is not one.
  */
-export async function recordConsent(market: unknown): Promise<KeptConsent["kept"]> {
+export async function recordConsent(market: unknown, choice: unknown): Promise<string | null> {
   const found = await marketOf(market);
-  if (found === undefined) return false;
-  return (await keepConsent(found.market)).kept;
+  const chosen = choiceOf(choice);
+  if (found === undefined || chosen === undefined) return null;
+  return (await keepConsent(found.market, chosen, { setCookie: false })).id;
 }
 
 /**
@@ -55,10 +68,10 @@ export async function saveCookieSettings(market: unknown, data: FormData): Promi
     analytics: data.get("analytics") === "on",
     marketing: data.get("marketing") === "on",
   };
-  if (found !== undefined) {
-    await keepConsent(found.market, choice);
-    await syncCartConsent();
-  }
-  const path = `${COOKIE_POLICY_PATH}#cookie-settings-saved`;
-  redirect(found === undefined ? (path as Route) : buildPublicUrl(found.market, path, found.map));
+  // A market that no longer resolves (closed or renamed since the page was drawn) saves nothing,
+  // so the form is shown again without its "saved" line.
+  if (found === undefined) redirect(`${COOKIE_POLICY_PATH}#cookie-settings` as Route);
+  await keepConsent(found.market, choice, { setCookie: true });
+  await syncCartConsent();
+  redirect(buildPublicUrl(found.market, `${COOKIE_POLICY_PATH}#cookie-settings-saved`, found.map));
 }

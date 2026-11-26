@@ -40,8 +40,9 @@ export async function down({ db, payload, req }: MigrateDownArgs): Promise<void>
   ALTER TABLE "payload_jobs_stats" DISABLE ROW LEVEL SECURITY;
   DROP TABLE "consent_records" CASCADE;
   DROP TABLE "payload_jobs_stats" CASCADE;
-  ALTER TABLE "payload_locked_documents_rels" DROP CONSTRAINT "payload_locked_documents_rels_consent_records_fk";
-  
+  ALTER TABLE "payload_locked_documents_rels" DROP CONSTRAINT IF EXISTS "payload_locked_documents_rels_consent_records_fk";
+  DELETE FROM "payload_jobs_log" WHERE "task_slug"::text = 'consent-retention';
+  DELETE FROM "payload_jobs" WHERE "task_slug"::text = 'consent-retention';
   ALTER TABLE "payload_jobs_log" ALTER COLUMN "task_slug" SET DATA TYPE text;
   DROP TYPE "public"."enum_payload_jobs_log_task_slug";
   CREATE TYPE "public"."enum_payload_jobs_log_task_slug" AS ENUM('inline', 'createCollectionExport', 'createCollectionImport', 'schedulePublish');

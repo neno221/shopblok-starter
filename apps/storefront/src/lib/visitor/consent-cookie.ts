@@ -97,3 +97,19 @@ export function writeConsentCookie(choice: ConsentChoice): void {
   const id = consentRecordFromCookieHeader(document.cookie)?.id;
   document.cookie = consentCookieLine(choice, window.location.protocol === "https:", undefined, id);
 }
+
+/**
+ * M7 D145 (T109): adds the server's consent id to the cookie as it is now (the choice in it kept),
+ * once the record of a choice answers it; a cookie with an id already, or none, is left alone.
+ */
+export function addConsentId(id: string): void {
+  if (typeof document === "undefined") return;
+  const now = consentRecordFromCookieHeader(document.cookie);
+  if (now === null || now.id !== undefined) return;
+  document.cookie = consentCookieLine(
+    now.choice,
+    window.location.protocol === "https:",
+    undefined,
+    id,
+  );
+}
