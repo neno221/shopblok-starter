@@ -51,6 +51,7 @@ import { AdminIcon as AdminIcon_328b21e5e3e3eb6837a7bb3a2d3d3f1a } from '../../.
 import { AdminLogo as AdminLogo_0a6c7b7819529cfe91b232d038b5c7e3 } from '../../../payload/components/logo'
 import { IntegrationsStatus as IntegrationsStatus_0103e8596891616c9f9b23c5bdf5593e } from '../../../payload/components/integrations-status'
 import { AdminFont as AdminFont_443010b22781fad839f6e13003fd32e1 } from '../../../payload/components/admin-font'
+import { MonacoProvider as MonacoProvider_95b271dfdbbbab321417c67b76463715 } from '../../../payload/admin/monaco-provider'
 import { ImportExportProvider as ImportExportProvider_cdf7e044479f899a31f804427d568b36 } from '@payloadcms/plugin-import-export/rsc'
 import { CollectionCards as CollectionCards_f9c02e79a4aed9a3924487c0cd4cafb1 } from '@payloadcms/next/rsc'
 import { S3ClientUploadHandler as S3ClientUploadHandler_f97aa6c64367fa259c5bc0567239ef24 } from '@payloadcms/storage-s3/client'
@@ -110,6 +111,7 @@ export const importMap = {
   "/payload/components/logo#AdminLogo": AdminLogo_0a6c7b7819529cfe91b232d038b5c7e3,
   "/payload/components/integrations-status#IntegrationsStatus": IntegrationsStatus_0103e8596891616c9f9b23c5bdf5593e,
   "/payload/components/admin-font#AdminFont": AdminFont_443010b22781fad839f6e13003fd32e1,
+  "/payload/admin/monaco-provider#MonacoProvider": MonacoProvider_95b271dfdbbbab321417c67b76463715,
   "@payloadcms/plugin-import-export/rsc#ImportExportProvider": ImportExportProvider_cdf7e044479f899a31f804427d568b36,
   "@payloadcms/next/rsc#CollectionCards": CollectionCards_f9c02e79a4aed9a3924487c0cd4cafb1,
   "@payloadcms/storage-s3/client#S3ClientUploadHandler": S3ClientUploadHandler_f97aa6c64367fa259c5bc0567239ef24

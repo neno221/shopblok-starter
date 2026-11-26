@@ -60,8 +60,8 @@ export function securityHeaders(options: { readonly production: boolean }): Head
  * The paths the proxy's matcher skips that still get the static policy here (D138): the routes
  * under `/next` (the map, status, the report route itself), PostHog's `/ingest`, Sentry's
  * `/monitoring`, and the design-system pages (until T111 puts them behind the proxy). `/admin` and
- * Payload's `/api` get the admin's policy in T107, so neither is here; nor are `_next/` and the
- * files, which are scripts, styles and pictures, not documents.
+ * Payload's `/api` get the admin's policy instead (`ADMIN_POLICY_PATHS`, D141); `_next/` and the
+ * files get none, since they are scripts, styles and pictures, not documents.
  */
 export const HEADER_POLICY_PATHS: readonly string[] = [
   "/next/:path*",
@@ -70,15 +70,26 @@ export const HEADER_POLICY_PATHS: readonly string[] = [
   "/design-system/:path*",
 ];
 
+/**
+ * Payload's admin and its REST and GraphQL API (D141): the admin's policy. The proxy's matcher
+ * skips both (but for the first-user form and its endpoint, which it passes through or answers 403
+ * without a policy of its own), so `headers()` is the only place either gets one. `/api` also holds
+ * the shop's two route handlers (`/api/payment-return`, `/api/revalidate`), which answer redirects
+ * and JSON, never a page of the shop.
+ */
+export const ADMIN_POLICY_PATHS: readonly string[] = ["/admin/:path*", "/api/:path*"];
+
 /** Everything `headers()` returns besides `withPayload`'s own entry. */
 export function securityHeaderRules(options: {
   readonly production: boolean;
   readonly csp: CspSettings;
 }): HeaderRule[] {
   const policy = { key: options.csp.header, value: options.csp.policy };
+  const admin = { key: options.csp.header, value: options.csp.adminPolicy };
   return [
     { source: "/:path*", headers: securityHeaders(options) },
     ...HEADER_POLICY_PATHS.map((source) => ({ source, headers: [policy] })),
+    ...ADMIN_POLICY_PATHS.map((source) => ({ source, headers: [admin] })),
   ];
 }
 

@@ -53,4 +53,5 @@ elif [ "$seed" = "payload" ]; then
 fi
 
 echo "vercel-build: next build"
-(cd "$STOREFRONT" && pnpm exec next build)
+# M7 D141 (T107): Monaco's copy for the admin's code editor, as `pnpm build` makes it.
+(cd "$STOREFRONT" && node scripts/copy-monaco.ts && pnpm exec next build)

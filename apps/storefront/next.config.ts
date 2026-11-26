@@ -55,13 +55,15 @@ function buildConfig(phase: string): NextConfig {
     // proxy's own reads all name the address the browser is on.
     //
     // M7 D138 (T106): the static policy's header and value, which the proxy sends
-    // (`lib/security/static-csp.ts`); computed above, so the two places cannot differ.
+    // (`lib/security/static-csp.ts`); computed above, so the two places cannot differ. M7 D139
+    // (T107): the nonce policy's template beside it, which the proxy fills in per request.
     env: {
       DESIGN_SYSTEM_ENABLED: designSystemBuildFlag(),
       ...sentryBuildEnv(process.env),
       ...baseUrlBuildEnv(),
       SHOPBLOK_CSP_HEADER: csp.header,
       SHOPBLOK_CSP_POLICY: csp.policy,
+      SHOPBLOK_CSP_NONCE_POLICY: csp.noncePolicy,
     },
     // M7 D137 (T106): the headers on every response, HSTS only with `DEPLOY_ENV=production`
     // (`hstsEnabled`, after `deployEnv()`'s checks, D133), and the static policy on the paths the proxy's matcher skips

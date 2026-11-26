@@ -20,6 +20,8 @@ coverage
 
 # Local Payload uploads
 apps/storefront/media/
+# Monaco's copy for the admin (M7 D141, T107): scripts/copy-monaco.ts writes it before each build
+apps/storefront/public/vendor/
 
 # Playwright output
 playwright-report/
