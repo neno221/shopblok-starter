@@ -12,6 +12,7 @@ import { MedusaError } from "@medusajs/framework/utils";
 
 import { createHash } from "node:crypto";
 
+import { paymentSessionFilter } from "../lib/payment-session-filter";
 import { processLimiter } from "../lib/rate-limit/limiter";
 import { authRateLimit, emailFrom, paramFrom, rateLimit } from "../lib/rate-limit/middleware";
 import { reportRequestError } from "../lib/sentry";
@@ -91,6 +92,12 @@ export default defineMiddlewares({
     {
       matcher: "/store/*",
       middlewares: [rateLimit("store")],
+    },
+    // M7 D144 (T109): a cart's payment secrets only for its owner, and a customer's cart changed
+    // only by that customer (`lib/payment-session-filter.ts`), on every store route.
+    {
+      matcher: "/store/*",
+      middlewares: [paymentSessionFilter],
     },
     {
       method: ["POST"],
