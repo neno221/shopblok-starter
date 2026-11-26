@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { appEnv, appEnvOrBlank } from "./support/app-env";
 import { medusaAdminApi, medusaAdminToken, medusaUrl } from "./support/medusa-admin";
-import { countKeys } from "./support/redis";
+import { clearKeys, countKeys } from "./support/redis";
 import { base } from "./support/server";
 
 // T112 (M7 D149, SETUP.md "Caching and the reconcile (T112)"): whether Medusa's caching module
@@ -158,8 +158,12 @@ test("Medusa's caching serves no stale answer in 40 changes (T112, D149)", async
 
   // The module must really cache, or the 40 changes prove nothing (T93 found it caching nothing:
   // a start-up error it swallowed). A Store API read writes the caching-redis provider's `mc:` keys.
-  await storeRead();
+  // They are cleared first: an earlier run's live an hour in the compose stack's Redis, and would
+  // let a Medusa without the module through (PR 150 review, item 4).
   const redisUrl = appEnv("backend", "REDIS_URL");
+  await clearKeys(redisUrl, "mc:*");
+  expect(await countKeys(redisUrl, "mc:*")).toBe(0);
+  await storeRead();
   expect(
     await countKeys(redisUrl, "mc:*"),
     "Medusa's caching module wrote nothing to Redis after a Store API read: it is not running (see the backend's log, or start it with LOG_LEVEL=debug)",

@@ -146,10 +146,12 @@ function redisInProduction(statuses: readonly IntegrationStatus[], context: Cont
  * answer in 40 changes, so `.env.example`, CI and staging turn it on. The flag without Redis caches
  * nothing (a warning); the flag off is a warning on a deployment, where `railway.ts` sets it, and an
  * accepted note in development, where a `.env` written before T112 lacks it. Medusa reads the flag
- * as `isTruthy` does: "true" in any case.
+ * as `isTruthy` does: "true" in any case, and untrimmed, so `true ` (a platform variable pasted with
+ * a space, or a quoted value) is off there and off here (PR 150 review, item 1).
  */
 function medusaCaching(envs: AppEnvs, statuses: readonly IntegrationStatus[]): Check {
-  const on = trimmed(envs.backend.MEDUSA_FF_CACHING).toLowerCase() === "true";
+  const raw = envs.backend.MEDUSA_FF_CACHING;
+  const on = (raw ?? "").toLowerCase() === "true";
   const redis = statusOf(statuses, "redis")?.configured === true;
   const base = { id: "medusa-caching", title: "Medusa's caching" } as const;
   if (on && redis)
@@ -174,10 +176,10 @@ function medusaCaching(envs: AppEnvs, statuses: readonly IntegrationStatus[]): C
     level: stage === undefined ? "note" : "warn",
     message:
       stage === undefined
-        ? "off (MEDUSA_FF_CACHING is not true): every Store API read goes to Postgres. CI and staging run with it on (D149)."
-        : `off on ${stage}: every Store API read goes to Postgres, unlike what CI tested (D149).`,
+        ? "off (MEDUSA_FF_CACHING is not true, exactly, spaces included): every Store API read goes to Postgres. CI and staging run with it on (D149)."
+        : `off on ${stage} (MEDUSA_FF_CACHING is not true, exactly, spaces included): every Store API read goes to Postgres, unlike what CI tested (D149).`,
     details: [
-      `apps/backend: MEDUSA_FF_CACHING is ${envs.backend.MEDUSA_FF_CACHING === undefined ? "not set" : `"${trimmed(envs.backend.MEDUSA_FF_CACHING)}"`}`,
+      `apps/backend: MEDUSA_FF_CACHING is ${raw === undefined ? "not set" : JSON.stringify(raw)}`,
     ],
     fix: "Set MEDUSA_FF_CACHING=true in the backend's environment (apps/backend/.env.example has it) and restart Medusa.",
   };

@@ -218,7 +218,7 @@ export async function reconcile(
     const inMedusa = new Set<string>();
     // A category whose parent is on a later page is written first without it; it is written again
     // after the last page, once every parent exists (one more write, never a missing link).
-    const again: SyncDocument[] = [];
+    const again: { document: SyncDocument; need: "create" | "update" }[] = [];
     /** Writes one document; true when a reference's target was not in Payload yet. */
     const write = async (document: SyncDocument, need: "create" | "update"): Promise<boolean> => {
       try {
@@ -231,6 +231,23 @@ export async function reconcile(
         counts.failed++;
         errors.push(`${collection} ${document.fields.medusaId}: ${message(error)}`);
         return false;
+      }
+    };
+
+    /**
+     * The second write of each document whose parent was not in Payload yet. It was counted once,
+     * as created or updated; a failed relink moves that count to `failed`, so the counts still add
+     * up to the records read (PR 150 review, item 3).
+     */
+    const relink = async () => {
+      for (const { document, need } of again) {
+        try {
+          await syncPayloadDocumentWorkflow(container).run({ input: { collection, document } });
+        } catch (error) {
+          counts[need === "create" ? "created" : "updated"]--;
+          counts.failed++;
+          errors.push(`${collection} ${document.fields.medusaId}: ${message(error)}`);
+        }
       }
     };
 
@@ -247,25 +264,18 @@ export async function reconcile(
             counts.unchanged++;
             continue;
           }
-          if (await write(document, need)) again.push(document);
+          if (await write(document, need)) again.push({ document, need });
         }
       }
     } catch (error) {
       // A page that could not be read leaves Medusa's ids incomplete: nothing is marked deleted.
+      // The pages already written still get their parents' links (PR 150 review, item 2).
       counts.failed++;
       errors.push(`${collection}: ${message(error)}`);
+      await relink();
       continue;
     }
-
-    for (const document of again) {
-      // Counted once already, as created or updated: this write only links the parent.
-      try {
-        await syncPayloadDocumentWorkflow(container).run({ input: { collection, document } });
-      } catch (error) {
-        counts.failed++;
-        errors.push(`${collection} ${document.fields.medusaId}: ${message(error)}`);
-      }
-    }
+    await relink();
 
     for (const document of stored) {
       if (document.deletedInMedusa || inMedusa.has(document.medusaId)) continue;

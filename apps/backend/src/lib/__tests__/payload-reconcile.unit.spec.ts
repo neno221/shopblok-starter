@@ -184,6 +184,78 @@ describe("reconcile", () => {
       failed: 0,
     });
   });
+
+  describe("the late parent's second write (PR 150 review, items 2 and 3)", () => {
+    const category = (id: string, parent: string | null) => ({
+      id,
+      handle: id,
+      name: id,
+      rank: 0,
+      parent_category_id: parent,
+      updated_at: UPDATED_AT,
+      deleted_at: null,
+    });
+    // The child ends page 1; its parent would be on page 2.
+    const pageOne = [
+      ...Array.from({ length: RECONCILE_PAGE_SIZE - 1 }, (_, i) =>
+        category(`pcat_a${String(i).padStart(3, "0")}`, null),
+      ),
+      category("pcat_b_child", "pcat_c_parent"),
+    ];
+    const childWrites = () =>
+      writeDocument.mock.calls.filter(
+        ([input]) =>
+          (input as { document: { fields: { medusaId: string } } }).document.fields.medusaId ===
+          "pcat_b_child",
+      ).length;
+    const missingParent = (fail: (writes: number) => boolean) => {
+      let childWritten = 0;
+      writeDocument.mockImplementation(async (input: unknown) => {
+        const { document } = input as {
+          document: { fields: { medusaId: string }; references: { parent?: string | null } };
+        };
+        if (document.fields.medusaId === "pcat_b_child") {
+          childWritten++;
+          if (fail(childWritten)) throw new Error("payload down");
+        }
+        return {
+          result: {
+            id: 1,
+            created: true,
+            missing: document.references.parent ? [document.references.parent] : [],
+          },
+        };
+      });
+    };
+
+    it("still writes it when a later page cannot be read", async () => {
+      missingParent(() => false);
+      const graph = jest.fn(async (input: Record<string, unknown>) => {
+        if (input["entity"] !== "product_category") return { data: [] };
+        if (input["filters"] !== undefined) throw new Error("connection reset");
+        return { data: pageOne };
+      });
+      await reconcile(containerOf(graph, []) as never, { kind: "reconcile" });
+      expect(childWrites()).toBe(2);
+    });
+
+    it("moves the document's count to failed when it fails, so each record counts once", async () => {
+      missingParent((writes) => writes === 2);
+      const graph = jest.fn(async (input: Record<string, unknown>) => {
+        if (input["entity"] !== "product_category") return { data: [] };
+        const after = (input["filters"] as { id?: { $gt: string } } | undefined)?.id?.$gt;
+        return {
+          data: after === undefined ? pageOne : [category("pcat_c_parent", null)],
+        };
+      });
+      const run = await reconcile(containerOf(graph, []) as never, { kind: "reconcile" });
+      expect(run?.collections.categories).toMatchObject({
+        created: RECONCILE_PAGE_SIZE,
+        failed: 1,
+      });
+      expect(run?.errors).toContain("categories pcat_b_child: payload down");
+    });
+  });
 });
 
 /** A container whose Query answers `graph` and whose Payload lists `stored` as its products. */

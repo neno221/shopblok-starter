@@ -450,7 +450,13 @@ describe("configChecks: Medusa's caching (M7 D149, T112)", () => {
 
   it("is ok with the flag and Redis, in any case of true", () => {
     expect(backend({ MEDUSA_FF_CACHING: "true" })?.level).toBe("ok");
-    expect(backend({ MEDUSA_FF_CACHING: " TRUE " })?.level).toBe("ok");
+    expect(backend({ MEDUSA_FF_CACHING: "TRUE" })?.level).toBe("ok");
+  });
+
+  it("reads a value with spaces as off, as Medusa's isTruthy does (PR 150 review, item 1)", () => {
+    const check = backend({ MEDUSA_FF_CACHING: "true ", DEPLOY_ENV: "staging" });
+    expect(check?.level).toBe("warn");
+    expect(check?.details).toEqual(['apps/backend: MEDUSA_FF_CACHING is "true "']);
   });
 
   it("warns that the flag without Redis caches nothing", () => {

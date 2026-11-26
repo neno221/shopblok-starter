@@ -10991,3 +10991,15 @@ After each mutation `node_modules` and the code were put back, the Redis provide
 | Unit tests | `scripts` 660 (the new `medusa-caching` cases), backend 363 (the three reconcile cases) |
 | `backend-integration` with `MEDUSA_FF_CACHING=true` | 108 of 108 (`payload-sync.spec.ts` 7 of 7 with the 450) |
 | `cache-freshness.spec.ts` with the flag on | passes, several runs, also right after a Medusa restart |
+
+### Changes from the review of this PR (PR 150)
+
+`reviews/pr-150-code-review.md` in the project's files: one must-fix finding, five optional, one rejected. Each was checked before it was fixed; the five fixed ones are confirmed real.
+
+1. **(must-fix) doctor called `" TRUE "` on.** Medusa's `isTruthy` lower-cases and does not trim, and so does `modules.ts`, so a flag with a space (a platform variable pasted with one, or a quoted value) turns the module off while doctor said on. doctor now compares untrimmed, its message says "exactly, spaces included", the details show the raw value (`"true "`), and the test that locked in the wrong answer now expects off.
+2. **A page that could not be read skipped the parents' second writes** for the categories already written. They now get it before the run moves on (the deletions are still skipped), with a unit test.
+3. **A failed second write counted a document twice.** It now moves the document's created or updated count to failed, so the counts add up to the records read, with a unit test.
+4. **The spec's "module really caches" check could pass on an earlier run's keys**, which live an hour in the compose stack's Redis. It clears the `mc:` keys first (`clearKeys`, Redis's `UNLINK`), checks there are none, and then requires some after one read. Checked locally: Medusa started with the flag off, right after a passing run, now fails the check at once.
+5. **`countKeys` could hang** if Redis closed the socket without a reply: a `close` handler rejects. It also refuses a URL with a password, a database or `rediss:` instead of ignoring them (every URL it meets today is `redis://localhost:6380`).
+
+Skipped: 6 (the spec resends prices without `rules` or quantity limits) is not confirmed, and the demo catalog has only plain prices. Rejected by the review itself: 7 (the 450-product test's order assertion: ULID ids sort the same in Postgres and in JS).
