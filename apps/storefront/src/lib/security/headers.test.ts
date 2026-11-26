@@ -2,6 +2,7 @@ import { withPayload } from "@payloadcms/next/withPayload";
 import { describe, expect, it } from "vitest";
 import { cspSettings } from "./csp";
 import {
+  ADMIN_POLICY_PATHS,
   HEADER_POLICY_PATHS,
   HSTS,
   hstsEnabled,
@@ -58,8 +59,8 @@ describe("securityHeaderRules (D138: one policy per response)", () => {
     expect(rules[0]?.headers.some((h) => h.key.startsWith("Content-Security-Policy"))).toBe(false);
   });
 
-  it("sends the policy only on the paths the proxy's matcher skips", () => {
-    const withPolicy = rules.slice(1);
+  it("sends the static policy only on the paths the proxy's matcher skips", () => {
+    const withPolicy = rules.slice(1, 1 + HEADER_POLICY_PATHS.length);
     expect(withPolicy.map((rule) => rule.source)).toEqual([...HEADER_POLICY_PATHS]);
     for (const rule of withPolicy) {
       expect(rule.headers).toEqual([{ key: csp.header, value: csp.policy }]);
@@ -75,10 +76,22 @@ describe("securityHeaderRules (D138: one policy per response)", () => {
     }
   });
 
-  it("never sends the policy to /admin or Payload's /api (T107's admin policy)", () => {
-    for (const rule of rules.slice(1)) {
+  it("sends the admin's policy, and only it, to /admin and Payload's /api (D141)", () => {
+    const admin = rules.slice(1 + HEADER_POLICY_PATHS.length);
+    expect(admin.map((rule) => rule.source)).toEqual([...ADMIN_POLICY_PATHS]);
+    for (const rule of admin) {
+      expect(rule.headers).toEqual([{ key: csp.header, value: csp.adminPolicy }]);
+    }
+    for (const rule of rules.slice(1, 1 + HEADER_POLICY_PATHS.length)) {
       expect(rule.source.startsWith("/admin")).toBe(false);
       expect(rule.source.startsWith("/api")).toBe(false);
+    }
+    // The proxy's first entry skips both, so neither gets a second policy from it; its third entry
+    // (the first-user form, M7 D136) answers without a policy of its own.
+    const [pages] = proxyConfig.matcher;
+    const runsOn = new RegExp(`^${pages}$`);
+    for (const sample of ["/admin", "/admin/collections/pages", "/api/pages", "/api/graphql"]) {
+      expect(runsOn.test(sample), sample).toBe(false);
     }
   });
 });

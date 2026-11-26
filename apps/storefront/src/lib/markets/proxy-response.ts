@@ -98,6 +98,10 @@ export function cmsRedirect(
  *   the rewrite: its type for a GET or HEAD, the code that keeps the method otherwise
  *   (`cmsRedirect`).
  *
+ * `rewriteRequestHeaders` (M7 D139, T107) is asked for the headers the page's request goes on with,
+ * given the path inside the market (`/cart`), only when the answer is a rewrite to a page: the
+ * proxy puts the nonce policy there for Next to read; `undefined` keeps the request as it came.
+ *
  * Pure apart from reading the request: no I/O, so a test feeds it any map and redirects.
  */
 export function respondToMarketRequest(
@@ -105,6 +109,7 @@ export function respondToMarketRequest(
   map: MarketMap,
   chosenMarket?: string,
   redirects?: CompiledRedirects,
+  rewriteRequestHeaders?: (internalPath: string) => Headers | undefined,
 ): NextResponse {
   const { nextUrl } = req;
   const resolution = resolve(nextUrl, req.headers.get("host") ?? "", map);
@@ -119,7 +124,10 @@ export function respondToMarketRequest(
     if (redirect !== undefined) return redirect;
     const url = nextUrl.clone();
     url.pathname = `/${resolution.market.key}${resolution.internalPath}`;
-    return NextResponse.rewrite(url);
+    const headers = rewriteRequestHeaders?.(resolution.internalPath);
+    return headers === undefined
+      ? NextResponse.rewrite(url)
+      : NextResponse.rewrite(url, { request: { headers } });
   }
 
   if (resolution.kind === "redirect") {

@@ -52,6 +52,8 @@ export type RawEnv = {
    */
   SHOPBLOK_CSP_HEADER?: string | undefined;
   SHOPBLOK_CSP_POLICY?: string | undefined;
+  /** The nonce policy's template (M7 D139, T107), written in the same way. Never set by hand. */
+  SHOPBLOK_CSP_NONCE_POLICY?: string | undefined;
   /** Turnstile (M7 D143, T108): both or neither. */
   NEXT_PUBLIC_TURNSTILE_SITE_KEY?: string | undefined;
   TURNSTILE_SECRET_KEY?: string | undefined;
@@ -147,6 +149,9 @@ export const env: RawEnv = {
   },
   get SHOPBLOK_CSP_POLICY() {
     return process.env.SHOPBLOK_CSP_POLICY;
+  },
+  get SHOPBLOK_CSP_NONCE_POLICY() {
+    return process.env.SHOPBLOK_CSP_NONCE_POLICY;
   },
   get NEXT_PUBLIC_TURNSTILE_SITE_KEY() {
     return process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;

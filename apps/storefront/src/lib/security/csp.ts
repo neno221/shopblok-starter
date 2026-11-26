@@ -139,25 +139,25 @@ const hostsFor = (directive: HostDirective, stripe: boolean): string[] =>
     (host) => host.directive === directive && (host.when === "always" || stripe),
   ).map((host) => host.source);
 
-/**
- * The static policy (D138) as one header value. `'unsafe-inline'` stays in `script-src`: Next's
- * prerendered shells inline their RSC payload in scripts that cannot carry a nonce (Next's guide:
- * partial prerendering "is incompatible with nonce-based CSP"), and T106's SRI try (SETUP.md) found
- * the same of `experimental.sri`.
- */
-export function staticPolicy(options: StaticPolicyOptions): string {
-  const { dev, stripe, media } = options;
+/** The `script-src` the static policy (D138) and the nonce policy (D139) each start from. */
+function scriptSources(options: StaticPolicyOptions, nonce: string | undefined): string[] {
+  const { dev, stripe } = options;
+  return [
+    "'self'",
+    // D139: with a nonce, `'strict-dynamic'` lets the nonced scripts load the rest (the chunks Next
+    // inserts, Stripe.js, the lazy SDKs); a CSP3 browser then ignores `'self'` and the hosts, which
+    // stay for a browser that knows only CSP2. No `'unsafe-inline'`.
+    ...(nonce === undefined ? ["'unsafe-inline'"] : [`'nonce-${nonce}'`, "'strict-dynamic'"]),
+    ...(dev ? ["'unsafe-eval'"] : []),
+    ...hostsFor("script-src", stripe),
+  ];
+}
+
+function shopPolicy(options: StaticPolicyOptions, nonce: string | undefined): string {
+  const { stripe, media } = options;
   const directives: [string, string[]][] = [
     ["default-src", ["'self'"]],
-    [
-      "script-src",
-      [
-        "'self'",
-        "'unsafe-inline'",
-        ...(dev ? ["'unsafe-eval'"] : []),
-        ...hostsFor("script-src", stripe),
-      ],
-    ],
+    ["script-src", scriptSources(options, nonce)],
     ["style-src", ["'self'", "'unsafe-inline'"]],
     [
       "img-src",
@@ -183,10 +183,118 @@ export function staticPolicy(options: StaticPolicyOptions): string {
     ["form-action", ["'self'", ...hostsFor("form-action", stripe)]],
     ["frame-ancestors", ["'self'"]],
   ];
+  return finish(directives, options.upgradeInsecureRequests);
+}
+
+function finish(directives: [string, string[]][], upgradeInsecureRequests: boolean): string {
   const parts = directives.map(([name, sources]) => `${name} ${unique(sources).join(" ")}`);
-  if (options.upgradeInsecureRequests) parts.push("upgrade-insecure-requests");
+  if (upgradeInsecureRequests) parts.push("upgrade-insecure-requests");
   parts.push(`report-uri ${CSP_REPORT_PATH}`, `report-to ${CSP_REPORT_GROUP}`);
   return parts.join("; ");
+}
+
+/**
+ * The static policy (D138) as one header value. `'unsafe-inline'` stays in `script-src`: Next's
+ * prerendered shells inline their RSC payload in scripts that cannot carry a nonce (Next's guide:
+ * partial prerendering "is incompatible with nonce-based CSP"), and T106's SRI try (SETUP.md) found
+ * the same of `experimental.sri`.
+ */
+export function staticPolicy(options: StaticPolicyOptions): string {
+  return shopPolicy(options, undefined);
+}
+
+/**
+ * What stands for the nonce in the policy `next.config.ts` writes into the proxy's bundle
+ * (`SHOPBLOK_CSP_NONCE_POLICY`); `withNonce` puts each request's nonce in its place. Not base64, so
+ * it can never be a real nonce.
+ */
+export const NONCE_PLACEHOLDER = "{{nonce}}";
+
+/**
+ * The nonce policy (D139) for the nine routes of `nonce-routes.ts`: the static policy's every
+ * directive and host, with `script-src 'self' 'nonce-…' 'strict-dynamic'` (plus Stripe's hosts in a
+ * build with its key) in place of `'unsafe-inline'`. Next reads the nonce back from the request's
+ * policy header (`getScriptNonceFromHeader`, `script-src` first) and stamps every script it writes.
+ */
+export function noncePolicy(options: StaticPolicyOptions & { readonly nonce: string }): string {
+  return shopPolicy(options, options.nonce);
+}
+
+/** The nonce policy's template with this request's nonce in it. */
+export function withNonce(template: string, nonce: string): string {
+  if (!NONCE.test(nonce)) throw new Error("a CSP nonce is base64");
+  return template.split(NONCE_PLACEHOLDER).join(nonce);
+}
+
+/** Next's own pattern for a nonce it reads back (`get-script-nonce-from-header.js`). */
+const NONCE = /^[A-Za-z0-9+/_-]+={0,2}$/;
+
+/**
+ * A fresh nonce for one response (D139): 16 random bytes from `crypto.getRandomValues`, base64 (24
+ * characters). Next's guide uses the same size; CSP asks for at least 128 bits.
+ */
+export function newNonce(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(16));
+  let text = "";
+  for (const byte of bytes) text += String.fromCharCode(byte);
+  return btoa(text);
+}
+
+/** Payload's account avatar (D18 keeps it on), the admin's one foreign image host. */
+export const GRAVATAR = "https://www.gravatar.com";
+
+export type AdminPolicyOptions = {
+  /** `next dev`: as the shop's, `'unsafe-eval'` for React's debugging. */
+  readonly dev: boolean;
+  /** `S3_PUBLIC_URL`'s origin: the media library's pictures. */
+  readonly media?: string | undefined;
+  /** `S3_ENDPOINT`'s origin: the admin's browser `PUT`s uploads there (M6's `clientUploads`). */
+  readonly uploads?: string | undefined;
+  readonly upgradeInsecureRequests: boolean;
+};
+
+/**
+ * Monaco for Payload's code and JSON fields, from jsdelivr, pinned to its version (D141's fallback).
+ * `@payloadcms/ui` ships `@monaco-editor/react` and `@monaco-editor/loader` 1.7.0 inside its own
+ * client bundle (`dist/exports/client/chunk-*.js`, made with esbuild), so no module of the shop can
+ * reach that loader to give it another path (T107's spike, SETUP.md), and it loads
+ * `monaco-editor@0.55.1/min/vs` from here. A path with a trailing slash matches every file under it
+ * and nothing else on the host. `csp.test.ts` reads Payload's bundle and fails when a Payload
+ * release asks for another version.
+ */
+export const MONACO_CDN = "https://cdn.jsdelivr.net/npm/monaco-editor@0.55.1/";
+
+/**
+ * The admin's policy (D141), for `/admin` and Payload's `/api`, from the admin's specs with the
+ * fixture recording (SETUP.md "The nonce CSP and the admin's policy (T107)"). Payload's admin is
+ * rendered per request but no proxy runs there to give it a nonce (and its inline scripts carry
+ * none), so `'unsafe-inline'` stays, as on the shop's static routes. Monaco's loader and editor,
+ * their stylesheet and the web workers they try to start come from `MONACO_CDN`; its codicon font
+ * is a `data:` URL in that stylesheet.
+ */
+export function adminPolicy(options: AdminPolicyOptions): string {
+  const { dev, media, uploads } = options;
+  const own = (extra: (string | undefined)[]): string[] =>
+    extra.filter((value): value is string => value !== undefined);
+  const directives: [string, string[]][] = [
+    ["default-src", ["'self'"]],
+    ["script-src", ["'self'", "'unsafe-inline'", ...(dev ? ["'unsafe-eval'"] : []), MONACO_CDN]],
+    ["style-src", ["'self'", "'unsafe-inline'", MONACO_CDN]],
+    // Gravatar: the account's avatar, Payload's default, which D18 keeps (T106's inventory: the
+    // admin's only foreign request). `admin.avatar: "default"` in payload.config.ts would drop it.
+    ["img-src", ["'self'", "data:", "blob:", GRAVATAR, ...own([media])]],
+    ["media-src", ["'self'", ...own([media])]],
+    ["font-src", ["'self'", "data:"]],
+    ["connect-src", ["'self'", ...own([uploads])]],
+    // Live preview frames the shop's own `/next/preview` (D74).
+    ["frame-src", ["'self'"]],
+    ["worker-src", ["'self'", "blob:", MONACO_CDN]],
+    ["object-src", ["'none'"]],
+    ["base-uri", ["'self'"]],
+    ["form-action", ["'self'"]],
+    ["frame-ancestors", ["'self'"]],
+  ];
+  return finish(directives, options.upgradeInsecureRequests);
 }
 
 function unique(values: string[]): string[] {
@@ -196,29 +304,46 @@ function unique(values: string[]): string[] {
 /** The `Reporting-Endpoints` header's value, which `report-to` names (D140). */
 export const REPORTING_ENDPOINTS = `${CSP_REPORT_GROUP}="${CSP_REPORT_PATH}"`;
 
-export type CspSettings = { readonly header: CspHeaderName; readonly policy: string };
+export type CspSettings = {
+  readonly header: CspHeaderName;
+  /** The static policy (D138). */
+  readonly policy: string;
+  /** The nonce policy (D139) with `NONCE_PLACEHOLDER` for the nonce; the proxy fills it in. */
+  readonly noncePolicy: string;
+  /** The admin's policy (D141), on `/admin` and Payload's `/api`. */
+  readonly adminPolicy: string;
+};
 
 /**
- * The header and policy a build sends, from the build's environment: `CSP_MODE`,
- * `NEXT_PUBLIC_STRIPE_KEY`, `S3_PUBLIC_URL`, and `NEXT_PUBLIC_BASE_URL`. A site the base URL puts on
- * plain http (CI's and a PC's `http://localhost:8000`) gets no `upgrade-insecure-requests`:
- * Chromium leaves a request to `http://localhost` alone but upgrades a redirect's target, even on
- * localhost (T106's probe: a `fetch` answered 307 went on to `https://localhost/…` and failed), so
- * every client-side redirect there (the cart's to the checkout) fell back to a full page load. A
- * blank base URL (a deployment's) and an https one keep it. `dev` is `next dev`.
+ * The header and policies a build sends, from the build's environment: `CSP_MODE`,
+ * `NEXT_PUBLIC_STRIPE_KEY`, `S3_PUBLIC_URL`, `S3_ENDPOINT` (the admin's uploads) and
+ * `NEXT_PUBLIC_BASE_URL`. A site the base URL puts on plain http (CI's and a PC's
+ * `http://localhost:8000`) gets no `upgrade-insecure-requests`: Chromium leaves a request to
+ * `http://localhost` alone but upgrades a redirect's target, even on localhost (T106's probe: a
+ * `fetch` answered 307 went on to `https://localhost/…` and failed), so every client-side redirect
+ * there (the cart's to the checkout) fell back to a full page load. A blank base URL (a
+ * deployment's) and an https one keep it. `dev` is `next dev`.
  */
 export function cspSettings(
   source: Readonly<Record<string, string | undefined>>,
   dev: boolean,
 ): CspSettings {
   const base = (source.NEXT_PUBLIC_BASE_URL ?? "").trim().toLowerCase();
+  const options: StaticPolicyOptions = {
+    dev,
+    stripe: (source.NEXT_PUBLIC_STRIPE_KEY ?? "").trim() !== "",
+    media: mediaOrigin(source.S3_PUBLIC_URL),
+    upgradeInsecureRequests: !base.startsWith("http://"),
+  };
   return {
     header: CSP_HEADER[cspMode(source.CSP_MODE)],
-    policy: staticPolicy({
+    policy: staticPolicy(options),
+    noncePolicy: noncePolicy({ ...options, nonce: NONCE_PLACEHOLDER }),
+    adminPolicy: adminPolicy({
       dev,
-      stripe: (source.NEXT_PUBLIC_STRIPE_KEY ?? "").trim() !== "",
-      media: mediaOrigin(source.S3_PUBLIC_URL),
-      upgradeInsecureRequests: !base.startsWith("http://"),
+      media: options.media,
+      uploads: mediaOrigin(source.S3_ENDPOINT),
+      upgradeInsecureRequests: options.upgradeInsecureRequests,
     }),
   };
 }

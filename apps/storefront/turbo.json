@@ -29,6 +29,8 @@
       // build` runs outside turbo, `scripts/vercel-build.sh`; this is for `pnpm build` elsewhere.)
       // `CSP_MODE` (M7 D140, T106): `next.config.ts` computes the static policy when the build runs
       // and writes it into the bundles and `headers()`, so report-only and enforce are two builds.
+      // `S3_ENDPOINT` (M7 D141, T107): its origin goes into the admin's `connect-src` (the admin's
+      // direct uploads), which `headers()` freezes at build.
       "env": [
         "$TURBO_EXTENDS$",
         "PAYLOAD_*",
@@ -42,7 +44,8 @@
         "VERCEL_PROJECT_PRODUCTION_URL",
         "VERCEL_BRANCH_URL",
         "VERCEL_URL",
-        "CSP_MODE"
+        "CSP_MODE",
+        "S3_ENDPOINT"
       ],
       // `STOREFRONT_BUILD_WORKERS` (W6 item 7): how many workers prerender, which changes how fast
       // the build is, not what it builds, so it passes through without entering the hash.

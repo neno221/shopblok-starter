@@ -114,3 +114,72 @@ describe("the first-user form and endpoint (M7 D136, 6)", () => {
     }
   });
 });
+
+describe("the nonce policy on the nine routes (M7 D139, T107)", () => {
+  const policyOf = (response: Response) => response.headers.get("content-security-policy") ?? "";
+  const nonceOf = (policy: string) => /'nonce-([^']+)'/.exec(policy)?.[1];
+
+  it.each([
+    "/us/cart",
+    "/cart",
+    "/ch/fr/checkout/delivery",
+    "/us/account/orders/order_01",
+    "/us/order/order_01/confirmed",
+    "/us/login",
+    "/de/verify",
+  ])("sends %s on with a fresh nonce, in its request and in its answer", async (path) => {
+    const first = await proxy(new NextRequest(`https://example.com${path}`));
+    const second = await proxy(new NextRequest(`https://example.com${path}`));
+    const policy = policyOf(first);
+    expect(policy).toContain("'strict-dynamic'");
+    expect(policy).not.toMatch(/script-src[^;]*'unsafe-inline'/);
+    expect(nonceOf(policy)).toBeDefined();
+    expect(nonceOf(policyOf(second))).not.toBe(nonceOf(policy));
+    // The page's request carries the same policy, for Next to read the nonce from.
+    expect(first.headers.get("x-middleware-request-content-security-policy")).toBe(policy);
+    expect(first.headers.get("x-middleware-override-headers")).toContain("content-security-policy");
+    expect(first.headers.get("cache-control")).toBe("private, no-store");
+    expect(getRewrittenUrl(first)).not.toBeNull();
+  });
+
+  it.each(["/us", "/us/store", "/us/products/shirt", "/us/cart/x", "/us/account/x", "/us/order"])(
+    "keeps the static policy on %s",
+    async (path) => {
+      const response = await proxy(new NextRequest(`https://example.com${path}`));
+      expect(policyOf(response)).toContain("script-src 'self' 'unsafe-inline'");
+      expect(policyOf(response)).not.toContain("'nonce-");
+      expect(response.headers.get("x-middleware-request-content-security-policy")).toBeNull();
+      expect(response.headers.get("cache-control")).toBeNull();
+    },
+  );
+
+  it("replaces a policy header the visitor's request brings with its own", async () => {
+    const response = await proxy(
+      new NextRequest("https://example.com/us/cart", {
+        headers: {
+          "content-security-policy": "script-src 'nonce-chosen'",
+          "content-security-policy-report-only": "script-src 'nonce-chosen'",
+        },
+      }),
+    );
+    const sent = response.headers.get("x-middleware-request-content-security-policy") ?? "";
+    expect(sent).not.toContain("chosen");
+    expect(
+      response.headers.get("x-middleware-request-content-security-policy-report-only"),
+    ).toBeNull();
+  });
+
+  it("sends the report-only header in its place under CSP_MODE=report-only", async () => {
+    vi.stubEnv("CSP_MODE", "report-only");
+    try {
+      const response = await proxy(new NextRequest("https://example.com/us/cart"));
+      expect(response.headers.get("content-security-policy")).toBeNull();
+      expect(response.headers.get("content-security-policy-report-only")).toContain("'nonce-");
+      expect(
+        response.headers.get("x-middleware-request-content-security-policy-report-only"),
+      ).toContain("'nonce-");
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+});

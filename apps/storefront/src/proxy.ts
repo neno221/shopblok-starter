@@ -5,7 +5,9 @@ import { getProxyMarketMap } from "./lib/markets/proxy-market-map";
 import { respondToMarketRequest } from "./lib/markets/proxy-response";
 import { compiledFor } from "./lib/redirects/match";
 import { getProxyRedirects } from "./lib/redirects/proxy-redirects";
-import { withStaticCsp } from "./lib/security/static-csp";
+import { newNonce } from "./lib/security/csp";
+import { isNonceRoute } from "./lib/security/nonce-routes";
+import { nonceCsp, withStaticCsp } from "./lib/security/static-csp";
 
 // Public URLs carry no market key (SPEC §8.1): `/us/store` is served from `/en-us/store`, and the
 // internal `/en-us/store` is a 404. `resolve` (lib/markets) decides all of that; this file reads
@@ -18,7 +20,12 @@ import { withStaticCsp } from "./lib/security/static-csp";
 //
 // M7 D138 (T106): every answer from here carries the static policy (`lib/security/static-csp.ts`),
 // the redirects and the 404 too; `next.config.ts`'s `headers()` sets it only on the paths this
-// matcher skips, so no response has two. T107 puts the nonce policy in its place on the nine routes.
+// matcher skips, so no response has two.
+//
+// M7 D139 (T107): on the nine routes of `lib/security/nonce-routes.ts`, in every market, the page's
+// request goes on with the nonce policy (a fresh nonce per request) for Next to read and stamp on
+// every script it writes, and the response carries that policy in place of the static one, with
+// `Cache-Control: private, no-store` (a page with a nonce must never be cached).
 //
 // A path with a broken escape (`/us/collections/%ZZ`) is a plain 404 here: Next decodes a dynamic
 // route's params and answers a `URIError` with a 500 before any page runs (PR 78 review, item 2).
@@ -37,10 +44,33 @@ export async function proxy(req: NextRequest) {
         })
       : NextResponse.next();
   }
-  return withStaticCsp(await respond(req));
+  let nonce: { header: string; policy: string } | undefined;
+  const response = await respond(req, (internalPath) => {
+    if (!isNonceRoute(internalPath)) return undefined;
+    nonce = nonceCsp(newNonce());
+    const headers = new Headers(req.headers);
+    // Next reads the nonce from the request's own policy header (`getScriptNonceFromHeaders`, the
+    // enforced one or the report-only one), and nothing else of it.
+    for (const name of CSP_REQUEST_HEADERS) headers.delete(name);
+    headers.set(nonce.header, nonce.policy);
+    return headers;
+  });
+  if (nonce === undefined) return withStaticCsp(response);
+  response.headers.set(nonce.header, nonce.policy);
+  response.headers.set("Cache-Control", NONCE_CACHE_CONTROL);
+  return response;
 }
 
-async function respond(req: NextRequest): Promise<NextResponse> {
+/** The two policy headers a visitor's request might carry, removed before the proxy sets its own. */
+const CSP_REQUEST_HEADERS = ["content-security-policy", "content-security-policy-report-only"];
+
+/** A nonce response's caching (D139): never stored, by a browser or any cache between. */
+export const NONCE_CACHE_CONTROL = "private, no-store";
+
+async function respond(
+  req: NextRequest,
+  rewriteRequestHeaders: (internalPath: string) => Headers | undefined,
+): Promise<NextResponse> {
   const slashless = withoutTrailingSlash(req.nextUrl.pathname);
   if (slashless !== null) {
     // A plain URL: `nextUrl` keeps a trailing slash it was parsed with.
@@ -63,6 +93,7 @@ async function respond(req: NextRequest): Promise<NextResponse> {
     map,
     req.cookies.get(COOKIE.market)?.value || undefined,
     compiledFor(redirects, map),
+    rewriteRequestHeaders,
   );
 }
 
