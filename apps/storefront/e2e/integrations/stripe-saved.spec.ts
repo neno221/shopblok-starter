@@ -128,9 +128,16 @@ async function contact(page: Page, prefix: string, words: Words, address: Addres
     .check({ force: true });
 }
 
-/** "Save this card for next time", ticked. */
+/**
+ * "Save this card for next time", ticked. Retried: after a tab in the Element, Stripe resizes its
+ * frame, and a box scrolled to just before that can sit under the sticky header when the forced
+ * click lands (T106's keyed runs, the Revolut Pay tab, 3 runs in 4).
+ */
 async function saveForLater(page: Page, words: Words) {
-  await page.getByLabel(words.organisms.paymentStep.save, { exact: true }).check({ force: true });
+  const box = page.getByLabel(words.organisms.paymentStep.save, { exact: true });
+  await expect(async () => {
+    await box.check({ force: true, timeout: 5_000 });
+  }).toPass({ timeout: 20_000 });
 }
 
 /** On to the review, then "Place order". */
