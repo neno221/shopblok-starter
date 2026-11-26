@@ -4,8 +4,10 @@
  * a deleted record is marked and not removed, the workflow's compensation puts a document back
  * when its second write fails, the bulk route answers an admin only, and whether adding a store
  * locale delivers `store.store-locale.created` to a subscriber, and that regions and store locales
- * are no longer written to Payload (T75, D95: the market map is Medusa's). SETUP.md, "The Medusa → Payload
- * sync (T60)", lists a mutation that fails each test.
+ * are no longer written to Payload (T75, D95: the market map is Medusa's), and that the reconcile
+ * reads 450 products in pages of 200 and writes every one (T112, D149). SETUP.md, "The Medusa →
+ * Payload sync (T60)", lists a mutation that fails each test; "Caching and the reconcile (T112)"
+ * has the pages'.
  *
  * Run (the compose stack up, from the repo root):
  *
@@ -23,6 +25,7 @@ import {
 } from "@medusajs/medusa/core-flows";
 import type { MedusaContainer } from "@medusajs/framework/types";
 
+import { RECONCILE_PAGE_SIZE, reconcile } from "../../src/lib/payload-sync";
 import seedMarkets from "../../src/scripts/seed-markets";
 import { syncPayloadDocumentWorkflow } from "../../src/workflows/sync-to-payload";
 import {
@@ -323,6 +326,68 @@ medusaIntegrationTestRunner({
         });
         await new Promise((resolve) => setTimeout(resolve, 1_500));
         expect(fake.requests.slice(before)).toEqual([]);
+      });
+
+      it("reconciles 450 products in pages of 200, none read twice and none left out (T112)", async () => {
+        const container = getContainer();
+        const products = container.resolve(Modules.PRODUCT);
+        const created = await products.createProducts(
+          Array.from({ length: 450 }, (_, i) => ({
+            title: `Reconcile ${i}`,
+            handle: `reconcile-${String(i).padStart(3, "0")}`,
+            status: "published" as const,
+          })),
+        );
+        const ids = new Set(created.map((product) => product.id));
+        // The subscriber writes each one as its event arrives; wait for that, then lose them all
+        // in Payload (and keep one Medusa never had), as a Payload restored from an old backup would.
+        await until(async () => [...ids].every((id) => fake.find("products", id) !== undefined), {
+          what: "the subscriber's 450 writes",
+          timeoutMs: 120_000,
+        });
+        await new Promise((resolve) => setTimeout(resolve, 1_000));
+        fake.collections.products = [
+          { id: 999_999, medusaId: "prod_gone", deletedInMedusa: false, medusaUpdatedAt: null },
+        ];
+
+        const query = container.resolve(ContainerRegistrationKeys.QUERY);
+        const graph = query.graph.bind(query);
+        const reads: { filters: unknown; pagination: unknown; rows: number; ids: string[] }[] = [];
+        const spy = jest.spyOn(query, "graph").mockImplementation(async (input, options) => {
+          const result = await graph(input as never, options as never);
+          if ((input as { entity: string }).entity === "product") {
+            const rows = result.data as { id: string }[];
+            reads.push({
+              filters: (input as { filters?: unknown }).filters,
+              pagination: (input as { pagination?: unknown }).pagination,
+              rows: rows.length,
+              ids: rows.map((row) => row.id),
+            });
+          }
+          return result;
+        });
+        let run: Awaited<ReturnType<typeof reconcile>>;
+        try {
+          run = await reconcile(container, { kind: "reconcile" });
+        } finally {
+          spy.mockRestore();
+        }
+
+        const read = reads.flatMap((each) => each.ids);
+        expect(Math.max(...reads.map((each) => each.rows))).toBeLessThanOrEqual(
+          RECONCILE_PAGE_SIZE,
+        );
+        expect(reads.length).toBeGreaterThanOrEqual(3);
+        expect(new Set(read).size).toBe(read.length);
+        expect([...read].sort()).toEqual(read);
+        for (const id of ids) expect(read).toContain(id);
+        expect(run?.collections.products).toMatchObject({
+          created: read.length,
+          deleted: 1,
+          failed: 0,
+        });
+        for (const id of ids) expect(fake.find("products", id)).toBeDefined();
+        expect(fake.find("products", "prod_gone")).toMatchObject({ deletedInMedusa: true });
       });
 
       it("answers the bulk route for an admin's token only, not a secret key or nobody", async () => {
