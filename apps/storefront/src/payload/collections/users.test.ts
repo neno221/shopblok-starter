@@ -1,6 +1,6 @@
 import type { CollectionBeforeChangeHook, CollectionBeforeDeleteHook } from "payload";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { keepOneAdmin, keepOneAdminOnDelete } from "./users";
+import { closedFirstUser, keepOneAdmin, keepOneAdminOnDelete, SEED_CONTEXT } from "./users";
 
 /** A request whose `users` has `otherAdmins` admins besides the one acted on. */
 function request(otherAdmins: number, existing: { role: string } = { role: "admin" }) {
@@ -91,5 +91,42 @@ describe("the session cookie", () => {
     expect(await cookieSecure()).toBe(false);
     vi.stubEnv("NODE_ENV", "test");
     expect(await cookieSecure()).toBe(false);
+  });
+});
+
+describe("closedFirstUser (M7 D136, 6)", () => {
+  afterEach(() => vi.unstubAllEnvs());
+
+  const create = (users: number, context: Record<string, unknown> = {}) => {
+    const count = vi.fn().mockResolvedValue({ totalDocs: users });
+    return closedFirstUser({
+      operation: "create",
+      data: { email: "a@example.com" },
+      req: { payload: { count }, context },
+    } as unknown as Parameters<CollectionBeforeChangeHook>[0]) as Promise<object>;
+  };
+
+  it.each([
+    ["DEPLOY_ENV", "staging"],
+    ["VERCEL_ENV", "preview"],
+  ])("refuses the first user with %s=%s on an empty users table (403)", async (name, value) => {
+    vi.stubEnv("DEPLOY_ENV", "");
+    vi.stubEnv("VERCEL_ENV", "");
+    vi.stubEnv(name, value);
+    await expect(create(0)).rejects.toMatchObject({ status: 403 });
+  });
+
+  it("lets the staging seed make it, and an admin make the next ones", async () => {
+    vi.stubEnv("DEPLOY_ENV", "staging");
+    await expect(create(0, { [SEED_CONTEXT]: true })).resolves.toMatchObject({
+      email: "a@example.com",
+    });
+    await expect(create(1)).resolves.toMatchObject({ email: "a@example.com" });
+  });
+
+  it("leaves development alone", async () => {
+    vi.stubEnv("DEPLOY_ENV", "");
+    vi.stubEnv("VERCEL_ENV", "");
+    await expect(create(0)).resolves.toMatchObject({ email: "a@example.com" });
   });
 });

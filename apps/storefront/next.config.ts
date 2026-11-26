@@ -6,7 +6,7 @@ import type { NextConfig } from "next";
 import { PHASE_DEVELOPMENT_SERVER, PHASE_PRODUCTION_BUILD } from "next/constants";
 import createNextIntlPlugin from "next-intl/plugin";
 import { buildWorkers } from "./src/lib/build-workers";
-import { designSystemBuildFlag } from "./src/lib/env";
+import { deploymentBaseUrl, designSystemBuildFlag } from "./src/lib/env";
 import { mediaRemotePatterns } from "./src/lib/media-host";
 import { POSTHOG_EU } from "./src/lib/site";
 
@@ -43,7 +43,16 @@ function buildConfig(phase: string): NextConfig {
     //
     // T96 (M6 D125): Sentry's environment, release (the commit) and traces' rate, written into the
     // server's and the browser's bundles alike, so both report the same; blank without them.
-    env: { DESIGN_SYSTEM_ENABLED: designSystemBuildFlag(), ...sentryBuildEnv(process.env) },
+    //
+    // M7 D136 (T114): on Vercel without `NEXT_PUBLIC_BASE_URL`, the deployment's own address
+    // (`deploymentBaseUrl`: a preview's branch domain, Production's domain), written in as
+    // `NEXT_PUBLIC_BASE_URL` so that Payload's `serverURL` and CSRF list, the canonical URLs and the
+    // proxy's own reads all name the address the browser is on.
+    env: {
+      DESIGN_SYSTEM_ENABLED: designSystemBuildFlag(),
+      ...sentryBuildEnv(process.env),
+      ...baseUrlBuildEnv(),
+    },
     turbopack: { root: repoRoot },
     outputFileTracingRoot: repoRoot,
     // `/design-system` has no page of its own; the locale is a path segment (D33). Not permanent: the
@@ -156,4 +165,10 @@ export default function config(phase: string): NextConfig {
     withNextIntl(withPayload(buildConfig(phase), { devBundleServerPackages: false })),
     process.env,
   );
+}
+
+/** `NEXT_PUBLIC_BASE_URL` for the bundle when a deployment's address stands in for it (M7 D136). */
+function baseUrlBuildEnv(): { NEXT_PUBLIC_BASE_URL?: string } {
+  const base = deploymentBaseUrl();
+  return base === undefined ? {} : { NEXT_PUBLIC_BASE_URL: base };
 }

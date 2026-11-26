@@ -5,7 +5,7 @@ import type {
   PayloadRequest,
 } from "payload";
 import { APIError } from "payload";
-import { isProduction } from "../../lib/env";
+import { firstUserClosed, isProduction } from "../../lib/env";
 import { adminOrSelf, isAdmin, isAdminField } from "../access/roles";
 
 /** The very first user (create-first-user) becomes an admin, whatever the form said. */
@@ -18,6 +18,32 @@ const firstUserIsAdmin: CollectionBeforeChangeHook = async ({ data, operation, r
     req,
   });
   return totalDocs === 0 ? { ...data, role: "admin" } : data;
+};
+
+/** What a staging seed passes as `context` to make the first admin on a deployment (M7 D136). */
+export const SEED_CONTEXT = "shopblok-seed";
+
+/**
+ * On a deployment (M7 D136, 6), nobody makes the first user through Payload's first-register
+ * endpoint, which answers anyone while `users` is empty: only the staging seed does
+ * (`src/scripts/seed-staging.ts`, with `context: { [SEED_CONTEXT]: true }`). The proxy already
+ * answers both first-user paths with 403; this is the guard behind it, for any other way in.
+ */
+export const closedFirstUser: CollectionBeforeChangeHook = async ({ data, operation, req }) => {
+  if (operation !== "create" || !firstUserClosed() || req.context[SEED_CONTEXT] === true)
+    return data;
+  const { totalDocs } = await req.payload.count({
+    collection: "users",
+    overrideAccess: true,
+    req,
+  });
+  if (totalDocs === 0)
+    throw new APIError(
+      "The first user of a deployment is made by its seed, not by this form (DEPLOY.md).",
+      403,
+      {},
+    );
+  return data;
 };
 
 /**
@@ -81,7 +107,7 @@ export const Users: CollectionConfig = {
     admin: ({ req }) => req.user?.collection === "users",
   },
   hooks: {
-    beforeChange: [firstUserIsAdmin, keepOneAdmin],
+    beforeChange: [closedFirstUser, firstUserIsAdmin, keepOneAdmin],
     beforeDelete: [keepOneAdminOnDelete],
   },
   fields: [

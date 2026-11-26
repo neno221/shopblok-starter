@@ -35,7 +35,8 @@ export const pathsLeftAlone = [
   "/admin/login",
   "/api",
   "/api/pages",
-  "/api/users/first-register",
+  "/api/users/login", // a Payload path beside first-register, which the proxy does see (M7 D136)
+  "/admin/create-first-user/x",
   "/design-system",
   "/design-system/en",
   "/design-system/el/foundations/colors",
@@ -89,3 +90,6 @@ export const slashRedirects: readonly [string, string][] = [
   ["///evil.example/path/", "/evil.example/path"],
   ["/\\evil.example/", "/evil.example"],
 ];
+
+/** Payload's first-user form and endpoint (M7 D136, 6): the proxy runs on them, and only them. */
+export const firstUserPaths = ["/admin/create-first-user", "/api/users/first-register"];

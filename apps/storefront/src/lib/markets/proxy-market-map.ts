@@ -1,5 +1,5 @@
 import { markets as seededMarkets } from "@shopblok/fixtures";
-import { env as processEnv } from "../env";
+import { env as processEnv, protectionBypassHeaders } from "../env";
 import {
   createMarketSource,
   defaultAllowFallback,
@@ -13,7 +13,10 @@ import type { MarketMap } from "./types";
 /** Where the proxy reads the map: `app/next/markets/route.ts`, which the proxy's matcher skips. */
 export const MARKETS_ROUTE = "/next/markets";
 
-type Env = Parameters<typeof defaultAllowFallback>[0] & { NEXT_PUBLIC_BASE_URL?: string };
+type Env = Parameters<typeof defaultAllowFallback>[0] & {
+  NEXT_PUBLIC_BASE_URL?: string;
+  VERCEL_AUTOMATION_BYPASS_SECRET?: string;
+};
 
 /**
  * The URL of the map route. It comes from the environment and never from the request: a proxy that
@@ -62,6 +65,8 @@ export function createProxyMarketMap(options: ProxyMarketMapOptions = {}) {
       const fail = (what: string) => new Error(`${url.href} ${what}`);
       const response = await fetcher(url, {
         cache: "no-store",
+        // M7 D136: a protected preview answers its own proxy only with the bypass header.
+        headers: protectionBypassHeaders(env),
         signal: AbortSignal.timeout(timeoutMs),
       }).catch((error: unknown) => {
         throw fail(`could not be fetched (${describeError(error)})`);

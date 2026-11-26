@@ -1,4 +1,4 @@
-import { env as processEnv } from "../env";
+import { env as processEnv, protectionBypassHeaders } from "../env";
 import { appRouteUrl } from "../markets/proxy-market-map";
 import { describeError, marketLoadTimeoutMs } from "../markets/source";
 import { REDIRECT_TYPES, type RedirectEntry, type RedirectList } from "./rules";
@@ -11,7 +11,11 @@ export const REDIRECTS_TTL_MS = 30_000;
 
 const NONE: RedirectList = { redirects: [] };
 
-type Env = { NODE_ENV?: string; NEXT_PUBLIC_BASE_URL?: string };
+type Env = {
+  NODE_ENV?: string;
+  NEXT_PUBLIC_BASE_URL?: string;
+  VERCEL_AUTOMATION_BYPASS_SECRET?: string;
+};
 
 type ProxyRedirectsOptions = {
   env?: Env;
@@ -55,6 +59,8 @@ export function createProxyRedirects(options: ProxyRedirectsOptions = {}) {
     const url = appRouteUrl(REDIRECTS_ROUTE, env);
     const response = await fetcher(url, {
       cache: "no-store",
+      // M7 D136: a protected preview answers its own proxy only with the bypass header.
+      headers: protectionBypassHeaders(env),
       signal: AbortSignal.timeout(timeoutMs),
     });
     if (!response.ok) throw new Error(`${url.href} answered ${response.status}`);
