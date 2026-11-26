@@ -1,7 +1,8 @@
 // `apps/storefront/vercel.json` and its two scripts (M7 D135, D136, D148; T114), checked without
 // Vercel: the region, the filtered install, and the build's order (doctor, then on Production
 // only the migrations and the seed, then the packages and `next build`).
-import { readFileSync, statSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -40,7 +41,12 @@ describe("vercel.json", () => {
       [config.ignoreCommand, "vercel-ignore.sh"],
     ] as const) {
       expect(command).toBe(`bash scripts/${file}`);
-      expect(statSync(path.join(storefront, "scripts", file)).mode & 0o111).not.toBe(0);
+      // Git's mode, not the file system's: NTFS has no executable bit (windows-smoke).
+      const stage = execFileSync("git", ["ls-files", "--stage", `scripts/${file}`], {
+        cwd: storefront,
+        encoding: "utf8",
+      });
+      expect(stage).toMatch(/^100755 /);
     }
   });
 });
