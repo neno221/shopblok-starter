@@ -40,8 +40,18 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
  */
 function cellText(cell: unknown): string | null {
   if (cell === undefined || cell === null || cell === "") return null;
-  return typeof cell === "string" ? cell : String(cell);
+  return typeof cell === "string" ? unescapeFormula(cell) : String(cell);
 }
+
+/**
+ * Payload 3.94's export puts a `'` before a text that a spreadsheet would read as a formula (one
+ * starting with `=`, `+`, `-` or `@`, or a tab or line break: `escapeCSVFormulaString`), so that
+ * opening the file runs nothing. The import takes that `'` off again, so a round trip of an
+ * untouched export still changes nothing (M7 T105): "- 20 %" stays "- 20 %", not "'- 20 %".
+ */
+const ESCAPED_FORMULA = /^'(?:\s*[=+\-@＝＋－＠]|[\t\r\n])/u;
+export const unescapeFormula = (text: string): string =>
+  ESCAPED_FORMULA.test(text) ? text.slice(1) : text;
 
 /**
  * What an import of `ui-strings` writes (D77), per batch, before the plugin saves it. The plugin

@@ -5,6 +5,7 @@ import {
   checkImportedStrings,
   IMPORT_BATCH_SIZE,
   reportImportProblems,
+  unescapeFormula,
 } from "./import-export";
 
 const admin = { collection: "users", id: 1, role: "admin" };
@@ -271,5 +272,48 @@ describe("imports update by key only", () => {
   it("reports the refused values after the plugin's own hook", () => {
     expect(imports.hooks?.afterChange?.at(-1)).toBe(reportImportProblems);
     expect(imports.hooks?.afterChange).toHaveLength(2);
+  });
+});
+
+describe("unescapeFormula: Payload 3.94's export escape, undone on import (M7 T105)", () => {
+  it.each([
+    ["'+{count, number}", "+{count, number}"],
+    ["'- 20 %", "- 20 %"],
+    ["'=1+1", "=1+1"],
+    ["'@home", "@home"],
+    ["' -x", " -x"],
+    ["'\tTab", "\tTab"],
+    ["'＋全角", "＋全角"],
+    ["'tis the season", "'tis the season"],
+    ["+{count, number}", "+{count, number}"],
+    ["Only {count} left", "Only {count} left"],
+  ])("%j is read as %j", (cell, text) => {
+    expect(unescapeFormula(cell)).toBe(text);
+  });
+
+  it("so an untouched export of `+{count, number}` changes nothing", async () => {
+    const stored = {
+      key: "atoms.more",
+      value: { en: "+{count, number}", el: "+{count, number}" },
+      source: { message: "+{count, number}" },
+      note: null,
+    };
+    const req = {
+      context: {} as Record<string, unknown>,
+      payload: { find: vi.fn(async () => ({ docs: [stored] })) },
+    };
+    const rows = [
+      { key: "atoms.more", value: { en: "'+{count, number}", el: "'+{count, number}" } },
+    ];
+    const out = await checkImportedStrings({
+      batchNumber: 1,
+      data: rows,
+      format: "csv",
+      originalData: rows,
+      req: req as unknown as PayloadRequest,
+      totalBatches: 1,
+    } as Parameters<typeof checkImportedStrings>[0]);
+    expect(out).toEqual([]);
+    expect(req.context).toEqual({ uiStringsImportProblems: [] });
   });
 });
