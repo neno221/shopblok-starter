@@ -10,15 +10,22 @@ import { execFile, spawnSync } from "node:child_process";
 import path from "node:path";
 import type { TestType } from "@playwright/test";
 import type { IntegrationId, IntegrationStatus } from "@shopblok/integrations";
+import { NOT_SET } from "./integration-skips";
 
 export type DoctorCheck = {
   id: string;
   title: string;
   level: "ok" | "warn" | "error";
   message: string;
+  /** The integration the check is about (T103), absent for the setup's own checks. */
+  integration?: IntegrationId;
+  /** A warning these keys cannot clear, which `--strict` leaves a warning (T103). */
+  byHand?: true;
 };
 export type DoctorReport = {
   ok: boolean;
+  strict?: boolean;
+  only?: IntegrationId[];
   integrations: IntegrationStatus[];
   checks: DoctorCheck[];
 };
@@ -41,9 +48,10 @@ export function doctorReport(): DoctorReport {
  * Doctor's report with `--online` (T96: Sentry's DSN check), run each time it is asked for: the
  * services it calls may have changed since. Asynchronous, unlike `doctorReport`: the service it
  * calls can be this very process (the Sentry spec's local sink), which must keep answering.
+ * `extra` adds options (T103: `--strict`, `--only=…`).
  */
-export function doctorOnline(): Promise<DoctorReport> {
-  const args = ["--json", "--online"];
+export function doctorOnline(extra: readonly string[] = []): Promise<DoctorReport> {
+  const args = ["--json", "--online", ...extra];
   return new Promise((resolve, reject) => {
     execFile(
       process.execPath,
@@ -131,7 +139,7 @@ export function skipWithoutKeys(test: TestType<object, object>, id: IntegrationI
     const missing = missingKeys(status);
     test.skip(
       missing.length > 0,
-      `${status.name}: not checked, because these keys are not set: ${missing.join(", ")}. Add them as GitHub secrets (M6 §4a, G10).`,
+      `${status.name}: ${NOT_SET}: ${missing.join(", ")}. Add them as GitHub secrets (M6 §4a, G10).`,
     );
   });
 }

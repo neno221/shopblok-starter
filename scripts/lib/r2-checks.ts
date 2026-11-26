@@ -191,6 +191,8 @@ export function r2CorsCheck(target: R2Bucket, origin: string, answer: HttpResult
       level: "warn",
       message: `not checked: these keys may not read ${target.bucket}'s CORS rules (HTTP 403; an Object Read & Write token cannot). Check in the dashboard that ${origin} may PUT, for ${kind.what}.`,
       fix,
+      // T103: no key the apps hold can read it, so `--strict` leaves it a warning.
+      byHand: true,
     });
   if (answer.status === 404)
     return check({

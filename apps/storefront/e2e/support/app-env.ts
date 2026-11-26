@@ -11,3 +11,12 @@ export function appEnv(app: "backend" | "storefront", name: string): string {
   if (!value) throw new Error(`${name} is not set in ${file}. Run pnpm bootstrap.`);
   return value;
 }
+
+/** `appEnv`, trimmed, or blank when the app has no such value. */
+export function appEnvOrBlank(app: "backend" | "storefront", name: string): string {
+  try {
+    return appEnv(app, name).trim();
+  } catch {
+    return "";
+  }
+}

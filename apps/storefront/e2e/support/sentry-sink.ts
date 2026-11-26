@@ -4,9 +4,23 @@
 // both apps' DSNs at it (`SENTRY_SINK_DSN`) when the Sentry secrets are not set; the spec starts it.
 import { createServer, type Server } from "node:http";
 import { gunzipSync, inflateSync } from "node:zlib";
+import { appEnvOrBlank } from "./app-env";
 
 /** The DSN CI gives both apps when it has no Sentry secret: this sink, on the runner. */
 export const SINK_DSN = "http://e2esink@127.0.0.1:8970/1";
+
+/**
+ * Which apps point at this sink (process env over each app's `.env`): `all` when both DSNs are
+ * `SINK_DSN` (`sentry.spec.ts` then reads the sink), `any` when one is (doctor checks both, so the
+ * done-when spec starts the sink then).
+ */
+export function sinkUse(): { all: boolean; any: boolean } {
+  const atSink = [
+    appEnvOrBlank("storefront", "NEXT_PUBLIC_SENTRY_DSN"),
+    appEnvOrBlank("backend", "SENTRY_DSN"),
+  ].map((dsn) => dsn === SINK_DSN);
+  return { all: atSink.every(Boolean), any: atSink.some(Boolean) };
+}
 
 export type SinkEvent = Record<string, unknown> & {
   event_id?: string;

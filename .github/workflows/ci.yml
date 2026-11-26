@@ -36,7 +36,9 @@
 #                  M6 (D114, T93): the stack started with the integrations' test keys from GitHub's
 #                  secrets and the `integrations` Playwright project (`e2e/integrations/*.spec.ts`);
 #                  a spec whose keys are not set skips itself and names them. Never on a fork's pull
-#                  request or a Renovate branch, and nightly on its own.
+#                  request or a Renovate branch, and nightly on its own. T103 (M6's done-when): each
+#                  integration whose keys it holds is live and passes `doctor --online --strict`, and
+#                  no spec of one of them is skipped; e2e-smoke runs the done-when's keyless half.
 # Each job but the gate and update-baselines-commit sets up pnpm and Node with .github/actions/setup,
 # and every job that runs a server starts it with .github/actions/start-storefront. e2e-smoke starts and stops Medusa with
 # .github/actions/start-medusa, the only thing that starts it (T42).
@@ -359,23 +361,16 @@ jobs:
           E2E_MEDUSA_PID: ${{ runner.temp }}/servers/medusa.pid
           PLAYWRIGHT_HTML_OPEN: never
           PLAYWRIGHT_HTML_OUTPUT_DIR: playwright-report-outage-recovery
-      # Every third-party integration is on its fallback, because CI sets none of their keys.
-      # (Redis is live, since bootstrap sets REDIS_URL, and Meilisearch is `kind: local`: neither
-      # is "third-party".) `ok` is doctor's own verdict, with both servers answering.
+      # Doctor's JSON, kept with the server logs. T103: the done-when's keyless half replaces the check
+      # that was here (every third-party integration on its fallback, `ok` true): `done-when.spec.ts`
+      # with E2E_DONE_WHEN=keyless also holds every `wired` flag true, buys from the home page to the
+      # receipt with the keyless check's fixture (no request to a third party), and runs `doctor
+      # --online --strict` for the two local integrations. (Redis is live, since bootstrap sets
+      # REDIS_URL, and Meilisearch is `kind: local`: neither is "third-party".)
       - name: Doctor, as JSON
-        run: |
-          pnpm --silent run doctor --json > "$RUNNER_TEMP/doctor.json"
-          node --eval '
-            const report = JSON.parse(require("node:fs").readFileSync(process.argv[1], "utf8"));
-            const thirdParty = report.integrations.filter((i) => i.kind === "third-party");
-            const notFallback = thirdParty.filter((i) => i.state !== "fallback").map((i) => i.id);
-            console.log("third-party integrations:", thirdParty.map((i) => `${i.id}=${i.state}`).join(" "));
-            const problems = [];
-            if (thirdParty.length !== 5) problems.push(`expected 5 third-party integrations, found ${thirdParty.length}`);
-            if (notFallback.length > 0) problems.push(`not on their fallback: ${notFallback.join(", ")}`);
-            if (report.ok !== true) problems.push("doctor says ok is false");
-            if (problems.length > 0) { console.error(problems.join("\n")); process.exit(1); }
-          ' "$RUNNER_TEMP/doctor.json"
+        run: pnpm --silent run doctor --json > "$RUNNER_TEMP/doctor.json"
+      - name: The done-when, keyless
+        run: E2E_INTEGRATIONS=true E2E_DONE_WHEN=keyless pnpm --filter @shopblok/storefront test:e2e --project=integrations --reporter=list --output=test-results-done-when e2e/integrations/done-when.spec.ts
       - name: Doctor, online (Payload accepts the key, Medusa matches the map, the index has the currencies)
         run: pnpm run doctor --online
       # D37, plan T25 (ADR 0001): the storefront's own routes in `next dev`, judged by the console
@@ -455,6 +450,7 @@ jobs:
             apps/storefront/test-results-dev-console
             apps/storefront/test-results-outage
             apps/storefront/test-results-outage-recovery
+            apps/storefront/test-results-done-when
           if-no-files-found: ignore
           retention-days: 14
       - name: Upload the server logs and doctor's JSON
@@ -539,6 +535,28 @@ jobs:
           else
             echo "STRIPE_WEBHOOK_SECRET: not set (no Stripe key)"
           fi
+      # T103 (M6's done-when): which integrations this run must find live, from GitHub's secrets and
+      # variables themselves (and the stand-ins: Sentry's and PostHog's sinks, Stripe's webhook secret),
+      # not from what the later steps pass on. `E2E_EXPECT_LIVE` (ids only) holds the done-when spec
+      # and the skip reporter to it, so a key a step forgets turns into a failure, not a quiet skip. A
+      # notice names the integrations without secrets (checked on their fallback); a half-set one fails here.
+      - name: The integrations whose keys the job holds
+        env:
+          STRIPE_API_KEY: ${{ secrets.STRIPE_API_KEY }}
+          NEXT_PUBLIC_STRIPE_KEY: ${{ secrets.NEXT_PUBLIC_STRIPE_KEY }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          RESEND_FROM_EMAIL: ${{ vars.RESEND_FROM_EMAIL }}
+          POSTHOG_EVENTS_API_KEY: ${{ secrets.POSTHOG_EVENTS_API_KEY || env.POSTHOG_SINK_KEY }}
+          NEXT_PUBLIC_POSTHOG_KEY: ${{ secrets.NEXT_PUBLIC_POSTHOG_KEY || env.POSTHOG_SINK_KEY }}
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN || env.SENTRY_SINK_DSN }}
+          NEXT_PUBLIC_SENTRY_DSN: ${{ secrets.NEXT_PUBLIC_SENTRY_DSN || env.SENTRY_SINK_DSN }}
+          S3_ENDPOINT: ${{ vars.S3_ENDPOINT }}
+          S3_BUCKET: ${{ vars.S3_BUCKET }}
+          S3_PRIVATE_BUCKET: ${{ vars.S3_PRIVATE_BUCKET }}
+          S3_PUBLIC_URL: ${{ vars.S3_PUBLIC_URL }}
+          S3_ACCESS_KEY_ID: ${{ secrets.S3_ACCESS_KEY_ID }}
+          S3_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET_ACCESS_KEY }}
+        run: node scripts/done-when.ts
       - name: Start Medusa (with the backend's keys)
         uses: ./.github/actions/start-medusa
         env:
@@ -600,8 +618,11 @@ jobs:
       # apps' variables from this step's environment over the .env files bootstrap wrote.
       # The list reporter and no traces: an HTML report and a trace pack the pages' text into
       # archives the log mask below cannot read, and a page here may show a key's effects.
+      # T103: `done-when.spec.ts` asserts each integration of `E2E_EXPECT_LIVE` live in doctor and runs
+      # `doctor --online --strict --only=<them>`; the skip reporter fails the run when a spec skipped
+      # for a key the job holds, or when every test of such an integration's spec skipped.
       - name: Integration specs
-        run: E2E_INTEGRATIONS=true pnpm --filter @shopblok/storefront test:e2e --project=integrations --reporter=list --trace=off --output=test-results-integrations
+        run: E2E_INTEGRATIONS=true pnpm --filter @shopblok/storefront test:e2e --project=integrations --reporter=list,./e2e/support/integration-skips-reporter.ts --trace=off --output=test-results-integrations
         env:
           E2E_MEDUSA_LOG: ${{ runner.temp }}/servers/medusa.log
           STRIPE_API_KEY: ${{ secrets.STRIPE_API_KEY }}

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { effectiveLevel } from "./report.ts";
 import type { AppEnvs } from "@shopblok/integrations";
 import type { HttpResult } from "./http.ts";
 import {
@@ -149,6 +150,15 @@ describe("r2CorsCheck", () => {
     expect(check.level).toBe("warn");
     expect(check.message).toMatch(/Object Read & Write/);
     expect(check.fix).toContain("pnpm r2:cors --json");
+    // T103: no key the apps hold clears it, so `--strict` leaves it a warning.
+    expect(check.byHand).toBe(true);
+    expect(effectiveLevel(check, true)).toBe("warn");
+  });
+
+  it("marks only that warning as one to check by hand", () => {
+    for (const status of [404, 500]) {
+      expect(r2CorsCheck(publicBucket, origin, answer(status)).byHand).toBeUndefined();
+    }
   });
 
   it("checks the private bucket for Medusa Admin's import (PUT with the CSV's type)", () => {

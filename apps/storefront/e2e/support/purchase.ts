@@ -1,5 +1,11 @@
 import { readFileSync } from "node:fs";
-import { expect, type Browser, type BrowserContext, type Page } from "@playwright/test";
+import {
+  expect,
+  type Browser,
+  type BrowserContext,
+  type FrameLocator,
+  type Page,
+} from "@playwright/test";
 import type { catalogs } from "./catalogs";
 
 // The purchase's shared steps (T54) for `checkout-cy`, `checkout-us`, `auth` and `markets-switch`,
@@ -104,7 +110,8 @@ export type CheckoutStep = "contact" | "delivery" | "review";
 
 /**
  * The three steps from the contact page (where `page` is) to the receipt: the seeded shipping
- * option, "Pay later", the review with what was typed, and "Place order". Answers the receipt's path.
+ * option, "Pay later" (or, with Stripe's keys, its test card), the review with what was typed, and
+ * "Place order". Answers the receipt's path.
  */
 export async function checkOut(
   page: Page,
@@ -125,7 +132,13 @@ export async function checkOut(
   const shipping = page.locator('[data-slot="checkout-shipping"]:visible input[type="radio"]');
   await expect(shipping).toHaveCount(1);
   await shipping.first().check({ force: true });
-  await expect(page.getByText(words.organisms.paymentStep.systemName).first()).toBeVisible();
+  // "Pay later" without Stripe; with Stripe's keys (the live specs, T103) the Payment Element alone,
+  // which takes Stripe's test card.
+  const system = page.getByText(words.organisms.paymentStep.systemName).first();
+  const element = page.locator('[data-slot="payment-element"] iframe').first();
+  await expect(system.or(element)).toBeVisible({ timeout: 60_000 });
+  const byCard = !(await system.isVisible());
+  if (byCard) await typeTestCard(page);
   await page.getByRole("button", { name: words.organisms.paymentStep.submit }).click();
 
   await expect(page).toHaveURL(at("review"));
@@ -136,17 +149,48 @@ export async function checkOut(
     : page.locator('[data-slot="checkout-review"]:visible');
   if (email !== undefined) await expect(review).toContainText(email);
   if (address?.["address1"] !== undefined) await expect(review).toContainText(address["address1"]);
-  await expect(review).toContainText(words.organisms.paymentStep.systemName);
+  if (!byCard) await expect(review).toContainText(words.organisms.paymentStep.systemName);
   await page.getByRole("button", { name: words.templates.checkout.review.place }).click();
 
   // Without scripts the browser keeps the one-page review's anchor across the action's redirect (a
   // `Location` without a fragment takes the request's): the receipt has no such id.
+  // Stripe confirms the payment before the order is placed (D117), which takes longer.
   await expect(page).toHaveURL(
     onePage
       ? /\/order\/order_[^/]+\/confirmed(#main-step-review)?$/
       : /\/order\/order_[^/]+\/confirmed$/,
+    byCard ? { timeout: 90_000 } : {},
   );
   return new URL(page.url()).pathname;
+}
+
+/** Stripe's test card numbers: one without 3-D Secure, one that asks for it, one declined. */
+export const TEST_CARDS = {
+  visa: "4242424242424242",
+  threeDs: "4000002760003184",
+  declined: "4000000000000002",
+} as const;
+
+/** The Payment Element's frame on the payment step, once it has drawn its tabs. */
+export const paymentElement = (page: Page): FrameLocator =>
+  page.frameLocator('[data-slot="payment-element"] iframe').first();
+
+/**
+ * A Stripe test card typed into an Element's card tab (the payment step's Payment Element unless
+ * `frame` names another, such as the account's Setup Element). The one place that knows the
+ * Element's fields: the Stripe specs use it, and `checkOut` for a live spec that checks out with
+ * Stripe on beside its own integration (PostHog's, Resend's), where "Pay later" is not offered.
+ */
+export async function typeTestCard(
+  page: Page,
+  card: string = TEST_CARDS.visa,
+  frame: FrameLocator = paymentElement(page),
+): Promise<void> {
+  await frame.locator('input[name="number"]').fill(card, { timeout: 60_000 });
+  await frame.locator('input[name="expiry"]').fill("12 / 34");
+  await frame.locator('input[name="cvc"]').fill("123");
+  const zip = frame.locator('input[name="postalCode"]');
+  if (await zip.isVisible().catch(() => false)) await zip.fill("10118");
 }
 
 /** The order's id in a receipt's path. */

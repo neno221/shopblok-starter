@@ -1,8 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
-import { appEnv } from "../support/app-env";
 import { doctorOnline, skipWithoutKeys } from "../support/integration-keys";
 import { medusaUrl } from "../support/medusa-admin";
-import { SINK_DSN, startSink, type Sink, type SinkEvent } from "../support/sentry-sink";
+import { sinkUse, startSink, type Sink, type SinkEvent } from "../support/sentry-sink";
 
 // M6 D125, D131 (T96): Sentry, live. Four errors, one from each place that reports: a storefront
 // route handler (`/next/e2e/throw`, through `onRequestError`), a Medusa route (`/e2e/throw`, through
@@ -25,17 +24,7 @@ const SECRETS = ["s3cr3t-t0ken", "c0de-4242", "ann@example.com", "ann%40example.
 const query = "token=s3cr3t-t0ken&code=c0de-4242&email=ann%40example.com";
 const headers = { cookie: "_shopblok_session=sid-s3cr3t", authorization: "Bearer s3cr3t-t0ken" };
 
-/** An app's DSN, blank when it has none (`appEnv` throws then). */
-const dsnOf = (app: "backend" | "storefront", name: string) => {
-  try {
-    return appEnv(app, name).trim();
-  } catch {
-    return "";
-  }
-};
-const sinkMode = () =>
-  dsnOf("storefront", "NEXT_PUBLIC_SENTRY_DSN") === SINK_DSN &&
-  dsnOf("backend", "SENTRY_DSN") === SINK_DSN;
+const sinkMode = () => sinkUse().all;
 
 let sink: Sink | undefined;
 const marker = `t96-${Date.now().toString(36)}`;

@@ -6,6 +6,9 @@ import {
   add,
   fillContact,
   orderIdOf,
+  paymentElement,
+  TEST_CARDS,
+  typeTestCard,
   withoutScripts,
   type AddressInput,
   type Words,
@@ -45,7 +48,6 @@ const US_ADDRESS: AddressInput = {
   province: "NY",
   postalCode: "10118",
 };
-const VISA = "4242424242424242";
 
 /** Resend's test address with a label: Resend reports it delivered and mails no one. */
 const testAddress = (label: string) =>
@@ -101,11 +103,21 @@ async function newCustomer(page: Page, label: string): Promise<string> {
   return email;
 }
 
+/**
+ * The page has loaded and its requests have settled. T103: with Stripe, PostHog and Sentry on in one
+ * run, a contact page once never reached `networkidle` (1 run in 2; which request kept it busy was
+ * not found) and the test waited out its four minutes there; so at most 15 s, then on.
+ */
+async function hydrated(page: Page) {
+  await page.waitForLoadState("load");
+  await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => undefined);
+}
+
 /** The contact step from the cart (the signed-in customer's e-mail is filled in already). */
 async function contact(page: Page, prefix: string, words: Words, address: AddressInput) {
   await page.goto(`${prefix}/checkout/contact`);
   // Typed once the page has hydrated (the signed-in customer's e-mail fills in on the server).
-  await page.waitForLoadState("networkidle");
+  await hydrated(page);
   await fillContact(page, words, undefined, address);
   await page.getByRole("button", { name: words.templates.checkout.contact.submit }).click();
   await expect(page).toHaveURL(/\/checkout\/delivery$/);
@@ -113,19 +125,6 @@ async function contact(page: Page, prefix: string, words: Words, address: Addres
     .locator('[data-slot="checkout-shipping"]:visible input[type="radio"]')
     .first()
     .check({ force: true });
-}
-
-/** The Payment Element's frame, once it has drawn. */
-const paymentFrame = (page: Page) =>
-  page.frameLocator('[data-slot="payment-element"] iframe').first();
-
-/** Types Stripe's test card into a Payment Element's frame. */
-async function typeCard(frame: ReturnType<Page["frameLocator"]>) {
-  await frame.locator('input[name="number"]').fill(VISA, { timeout: 60_000 });
-  await frame.locator('input[name="expiry"]').fill("12 / 34");
-  await frame.locator('input[name="cvc"]').fill("123");
-  const zip = frame.locator('input[name="postalCode"]');
-  if (await zip.isVisible().catch(() => false)) await zip.fill("10118");
 }
 
 /** "Save this card for next time", ticked. */
@@ -188,7 +187,7 @@ test("a card saved at checkout pays the second order from its saved radio, and i
   await newCustomer(page, "checkout");
   await add(page, prefix);
   await contact(page, prefix, words, US_ADDRESS);
-  await typeCard(paymentFrame(page));
+  await typeTestCard(page);
   await saveForLater(page, words);
   await review(page, words);
   await place(page, words);
@@ -211,7 +210,7 @@ test("a card saved at checkout pays the second order from its saved radio, and i
 
   // Removed in the account, through the dialog.
   await page.goto(`${prefix}/account/payment-methods`);
-  await page.waitForLoadState("networkidle");
+  await hydrated(page);
   const card = words.molecules.savedPaymentMethodCard;
   await entries(page)
     .getByRole("button", { name: /Visa ending in 4242/ })
@@ -236,7 +235,11 @@ test("a card added in the account (setup mode), then removed without scripts", a
   await page.goto(`${prefix}/account/payment-methods`);
   await page.getByRole("link", { name: words.organisms.paymentMethodsManager.add }).click();
   await expect(page).toHaveURL(/\/account\/payment-methods\/new$/);
-  await typeCard(page.frameLocator('[data-slot="setup-element"] iframe').first());
+  await typeTestCard(
+    page,
+    TEST_CARDS.visa,
+    page.frameLocator('[data-slot="setup-element"] iframe').first(),
+  );
   await page.getByRole("button", { name: words.templates.account.paymentMethods.submit }).click();
   await expect(page).toHaveURL(/\/account\/payment-methods\?added=1$/, { timeout: 60_000 });
   await expect(page.locator('[data-slot="account-payment-methods-status"]')).toHaveText(
@@ -272,7 +275,7 @@ test("Revolut Pay saved at checkout in / (EUR) pays a second order after Stripe'
   await newCustomer(page, "revolut");
   await add(page, prefix);
   await contact(page, prefix, words, CY_ADDRESS);
-  await paymentFrame(page)
+  await paymentElement(page)
     .getByRole("tab", { name: /revolut/i })
     .click({ timeout: 60_000 });
   await saveForLater(page, words);
