@@ -96,7 +96,11 @@ export const test = base.extend<{ noCspViolations: void }>({
         if (watched.has(target)) return;
         watched.add(target);
         await target.exposeBinding(BINDING, (_source, violation: Violation) => {
-          violations.push(violation);
+          // Only the shop's own documents: a frame on another origin (Stripe's 3-D Secure page on
+          // `testmode-acs.stripe.com`) runs under its own server's policy, not ours, and its
+          // violations are that server's (T106's keyed run found Stripe's ACS blocking a `data:`
+          // image of its own).
+          if (originOf(violation.page) === new URL(site).origin) violations.push(violation);
         });
         await target.addInitScript({ content: LISTENER });
         if (recordTo !== undefined) {
@@ -140,6 +144,14 @@ export const test = base.extend<{ noCspViolations: void }>({
     { auto: true },
   ],
 });
+
+function originOf(url: string): string | undefined {
+  try {
+    return new URL(url).origin;
+  } catch {
+    return undefined;
+  }
+}
 
 function pathOf(url: string): string {
   try {

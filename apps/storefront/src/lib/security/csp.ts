@@ -71,12 +71,6 @@ export const CSP_HOSTS: readonly CspHost[] = [
     why: `${STRIPE_GUIDE}: "a payment method with redirect functions (for example, cards that might require 3D Secure …)": frame-src https://hooks.stripe.com`,
   },
   {
-    directive: "img-src",
-    source: "https://*.stripe.com",
-    when: "stripe",
-    why: `${STRIPE_GUIDE}, "Checkout" and "Connect embedded components": img-src https://*.stripe.com (the wallets' and the card brands' marks)`,
-  },
-  {
     directive: "frame-src",
     source: "https://www.youtube-nocookie.com",
     when: "always",

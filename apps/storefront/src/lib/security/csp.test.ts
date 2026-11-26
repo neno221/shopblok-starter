@@ -61,7 +61,9 @@ describe("staticPolicy (D138)", () => {
       "https://www.youtube-nocookie.com",
       "https://player.vimeo.com",
     ]);
-    expect(d.get("img-src")).toEqual(["'self'", "data:", "blob:", "https://*.stripe.com"]);
+    // The guide's `img-src https://*.stripe.com` is for Checkout and Connect, which the shop does
+    // not use; the keyed run's Elements drew every picture inside Stripe's own frames.
+    expect(d.get("img-src")).toEqual(["'self'", "data:", "blob:"]);
     expect(staticPolicy(keyless)).not.toContain("stripe");
   });
 
