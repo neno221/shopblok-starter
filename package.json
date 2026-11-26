@@ -27,6 +27,7 @@
   },
   "devDependencies": {
     "prettier": "3.9.9",
+    "railway": "3.17.0",
     "turbo": "2.11.7",
     "typescript": "5.9.3"
   }

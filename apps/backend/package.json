@@ -37,6 +37,7 @@
     "@opentelemetry/exporter-trace-otlp-http": "0.301.2",
     "@sentry/node": "11.12.0",
     "@shopblok/emails": "workspace:*",
+    "@shopblok/fixtures": "workspace:*",
     "@shopblok/medusa-markets": "workspace:*",
     "@tanstack/react-query": "5.107.1",
     "meilisearch": "0.63.0",
@@ -48,7 +49,6 @@
   "devDependencies": {
     "@medusajs/eslint-plugin": "2.23.0",
     "@medusajs/test-utils": "2.23.0",
-    "@shopblok/fixtures": "workspace:*",
     "@swc/core": "1.16.13",
     "@swc/jest": "0.2.39",
     "@types/jest": "29.5.14",
