@@ -11004,6 +11004,57 @@ After each mutation `node_modules` and the code were put back, the Redis provide
 
 Skipped: 6 (the spec resends prices without `rules` or quantity limits) is not confirmed, and the demo catalog has only plain prices. Rejected by the review itself: 7 (the 450-product test's order assertion: ULID ids sort the same in Postgres and in JS).
 
+## Cache freshness: the late clear (T112 follow-up)
+
+**Result: the flaky `cache-freshness.spec.ts` came from Medusa's caching module clearing its entries after the Admin API had answered, and the same order could leave a stale product page in the storefront. The backend now clears the event's entries itself before it tells the storefront (`clearMedusaCache` in `lib/storefront-revalidate.ts`), and the spec gives the Store API up to 5 s to show a change (it prints how long it took and in how many reads).** D149 (plans/M7.md §5 T112).
+
+|        |                                                                                 |
+| ------ | ------------------------------------------------------------------------------- |
+| Date   | 2026-11-26                                                                      |
+| Branch | `claude/project-thread-qkxe25`, from `main` at `3b7948b` (PR 151's merge, T107) |
+| PR     | this PR, "Cache freshness: clear Medusa's cache before the storefront re-renders" |
+
+### Why the first Store API read was stale
+
+The flake ("title 8: Store API STALE" on PR 152's run 45876761997, "price 6" on `main`'s run 45863172798; the page and the later read fresh both times). The caching module clears from an event-bus subscriber on `*` (`DefaultCacheStrategy.onApplicationStart`). The Redis event bus runs that subscriber in its BullMQ worker, so the clear happens whenever the worker takes the job: on the cloud VM that is usually before the Admin API's answer (the event logged about 80 ms before it), but once it came 630 ms after, and on CI's two cores it sometimes misses the test's next read. That read is then served the old entry, and the next one, after the clear, is fresh. Nothing is wrong with Medusa's data: invalidation is asynchronous by design.
+
+**Reproduced**: with the event bus's worker held 1 s for `product*` events (in `node_modules`, put back afterwards), the old spec fails at the first change ("title 1: Store API STALE, cart -, page 551 ms, Store API after STALE"); the new one passes all 40, with the Store API fresh after 570 to 1,140 ms (10 to 18 reads).
+
+### The real risk: the storefront re-rendering before the clear
+
+The same worker runs every subscriber of an event at once (`Promise.all` in `event-bus-redis`'s `worker_`), with no order between them, so `storefront-revalidate` and the module's `*` subscriber race. When the storefront's POST wins, its re-render reads the Store API's old entry and keeps it: the PDP's `medusa:products:one` entry is tagged `product:<handle>`, and nothing tells the storefront again once Medusa has cleared. **Reproduced**: with the module's clear deferred 3 s (`setTimeout` in `strategy.js`, not awaited, so the queue keeps moving) and the backend's own clear taken out, a title change gave a fresh Store API read after 2.9 s and a product page that still showed the old title 5 s later (and kept it through the loop's end).
+
+**The fix**: `storefront-revalidate` first calls `clearMedusaCache`, which computes the module's own tags for the event (the entity from the event's name, `product-variant.updated` → `ProductVariant`, one `Entity:id` and `Entity:list:*` per id, through the module's public `computeTags`) and clears them (`clear` with `autoInvalidate: true`, as the module does); only then does it POST. A clear that runs beside the module's with the same tags joins it (the module dedupes in-flight clears). Without the module (`MEDUSA_FF_CACHING` off, or no Redis) it does nothing; a failed clear is logged and the POST still goes, since the page would be as old without it. With the fix and the same 3 s deferral, the Store API was fresh 33 to 98 ms after the Admin API's answer.
+
+### The spec
+
+The Store API is read until it has the change, every 50 ms for at most 5 s (`STORE_WAIT_MS`); a lasting stale answer still fails it, since an entry nobody clears lives an hour. The read after the page is still a single read: by then the storefront has been told, which happens only after the clear. The table now shows the time and the reads, e.g. "title 1: Store API 57 ms (1 read), cart -, page 284 ms, Store API after fresh".
+
+### Mutations
+
+| Mutation | Result |
+| --- | --- |
+| The event bus's worker held 1 s for `product*` events, old spec | fails at "title 1: Store API STALE" (the flake, every time) |
+| The same, new spec | passes; Store API 570 to 1,140 ms |
+| The module's clear deferred 3 s, `clearMedusaCache` taken out | the page keeps the old title after the Store API is fresh (a probe spec; the full spec's titles recover after about 6 s only because Payload's sync revalidates the page again) |
+| The module's `eventBus.subscribe("*")` removed, `clearMedusaCache` kept | passes: the backend's clear covers `product.updated` and `product-variant.updated` alone |
+| Both removed | fails at "title 1: Store API STALE (82 reads) … Store API after STALE" |
+| `clearMedusaCache`'s call taken out of the subscriber | 3 of 11 unit tests fail (`storefront-revalidate.unit.spec.ts`) |
+
+So T112's mutation ("the `*` subscription removed") now needs `clearMedusaCache` taken out as well. After each, `node_modules` and the code were put back, the `mc:` keys deleted and Medusa restarted.
+
+### Seen, not fixed (storefront side)
+
+A probe that changed the title right after the previous change's revert (about 1 s apart, with three page requests between) left the page on the previous title for 30 s in 1 of 6 runs (2 of 4 in another series), while Medusa answered the storefront's exact query (`PRODUCT_DETAIL_FIELDS`, `x-medusa-locale`) with the new one. That is not Medusa's cache: it fits a `"max"` re-render that began before the second revalidation and finished after it. `cache-freshness.spec.ts` (each change waits for the page) never saw it in 240 changes. Worth its own look.
+
+### Checks (cloud VM)
+
+| Check | Result |
+| --- | --- |
+| `cache-freshness.spec.ts`, the stack as CI runs it (`medusa develop`, `next start`, `MEDUSA_FF_CACHING=true`) | passes, 6 clean runs (240 changes): every Store API answer fresh at the first read (15 to 104 ms), pages 124 to 579 ms |
+| Backend unit tests | 369 of 369 (4 new in `storefront-revalidate.unit.spec.ts`) |
+| Backend `tsc`, `medusa lint`, storefront `tsc`, eslint, prettier | no new errors (backend `tsc` has the same 5 in `integration-tests/` as `main`) |
+
 ## The nonce CSP and the admin's policy (T107)
 
 **Result: the nine routes (`/cart`, `/checkout`, `/account`, `/order` and the five sign-in pages, in every market) get the nonce policy: a fresh nonce per request from the proxy, `script-src 'self' 'nonce-…' 'strict-dynamic'` plus Stripe's hosts and no `'unsafe-inline'`, `Cache-Control: private, no-store`, and every `<script>` Next writes carries the nonce, because Next renders these pages whole per request. `/admin` and Payload's `/api` get the admin's own policy. Monaco is not served from the shop: `@payloadcms/ui` bundles its own copy of `@monaco-editor/loader`, which no provider can configure, so D141's fallback holds, jsdelivr's pinned `monaco-editor@0.55.1/` path in the admin's policy only.** D139, D141 (plans/M7.md §5 T107).

@@ -4,6 +4,7 @@ import { ContainerRegistrationKeys } from "@medusajs/framework/utils";
 import {
   REVALIDATE_EVENTS,
   batchesFor,
+  clearMedusaCache,
   handlesFor,
   idsFor,
   postBatch,
@@ -13,14 +14,17 @@ import {
 /**
  * Tells the storefront which cached catalog reads a change made stale (D58, SPEC §6.2): the event's
  * ids become handles (`query.graph`), the handles and the event become tags
- * (`lib/storefront-revalidate.ts`), and each batch is one POST to `/api/revalidate`. Nothing here
- * throws: a failed read still sends the list tags, and a failed POST is logged.
+ * (`lib/storefront-revalidate.ts`), and each batch is one POST to `/api/revalidate`. Medusa's own
+ * cache of the event's entities is cleared first (`clearMedusaCache`), so the pages the POST
+ * refreshes read the new data. Nothing here throws: a failed read still sends the list tags, and a
+ * failed clear or POST is logged.
  */
 export default async function storefrontRevalidate({
   event: { name, data },
   container,
 }: SubscriberArgs<{ id?: string | string[]; price_set_ids?: string[] }>) {
   const options = postOptions(container);
+  await clearMedusaCache(container, name, data, options.logger);
   const ids = idsFor(name, data);
   let handles: string[] = [];
   try {

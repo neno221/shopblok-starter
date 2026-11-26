@@ -9,23 +9,34 @@ import { base } from "./support/server";
 // answer. T93's check, kept: one product's title and its first variant's US price change in turns
 // through Medusa's Admin API, 20 of each, and after each change the test reads
 //
-// - `/store/products` at once (the Store API reads Medusa caches),
+// - `/store/products` until it has the change, at most 5 s (the Store API reads Medusa caches, and
+//   the module clears them from an event-bus subscriber, after the Admin API has answered: the
+//   first read can come before that clear, which is no stale answer; one that lasts is, since an
+//   entry nobody clears lives an hour),
 // - for a price, a new cart's line price (Medusa caches the cart's reads of variants and prices),
 // - the product page in `/us` until it shows the change (the storefront's revalidation re-renders
 //   it from Medusa, so a stale answer there would stay on the page), at most 30 s,
-// - `/store/products` again once the page has it.
+// - `/store/products` again once the page has it, once: the storefront is told only after the
+//   event's entries are cleared (`clearMedusaCache` in the backend's `lib/storefront-revalidate.ts`).
 //
 // First it checks that the module caches at all: a Store API read leaves the Redis provider's
-// `mc:` keys behind. The first read with the old value ends the run and fails the test, which
+// `mc:` keys behind. The first stale answer ends the run and fails the test, which
 // prints the table as an annotation. The title and the price are put back afterwards (`afterAll`,
 // also after a timeout). The default run has one worker, so no other suite reads the product
 // meanwhile. Mutations (SETUP): the caching module's event subscription removed, so that nothing
-// is ever cleared, fails it; so does Medusa started without the flag while the spec expects it.
+// is ever cleared, with the backend's own clear before the storefront's POST taken out too, fails
+// it; so does Medusa started without the flag while the spec expects it.
 
 const HANDLE = "demo-heritage-hoodie";
 const MARKET = "us";
 const ROUNDS = 20;
 const PAGE_WAIT_MS = 30_000;
+/**
+ * How long the Store API may still answer the old value after the Admin API's answer: the event
+ * bus's worker picks the change's events up and the module clears their entries. Measured in
+ * milliseconds (the table prints it); far below the hour an entry nobody clears lives.
+ */
+const STORE_WAIT_MS = 5_000;
 
 type Price = { id: string; amount: number; currency_code: string; rules?: Record<string, string> };
 type Variant = { id: string; prices: Price[] };
@@ -37,7 +48,10 @@ test.afterAll(async () => {
 
 type Row = {
   change: string;
-  storeNow: boolean;
+  /** Milliseconds until the Store API had the change, or undefined when it did not in time. */
+  storeMs?: number;
+  /** How many Store API reads that took: more than one is the module's clear coming late. */
+  storeReads: number;
   cart?: boolean;
   pageMs?: number;
   storeAfter: boolean;
@@ -140,6 +154,20 @@ test("Medusa's caching serves no stale answer in 40 changes (T112, D149)", async
       style: "currency",
       currency: region.currency_code.toUpperCase(),
     }).format(amount);
+  /**
+   * Milliseconds until the Store API's read passes `fresh` (undefined when it did not in time), and
+   * the number of reads.
+   */
+  const storeHas = async (fresh: (read: Awaited<ReturnType<typeof storeRead>>) => boolean) => {
+    const start = Date.now();
+    let reads = 0;
+    while (Date.now() - start < STORE_WAIT_MS) {
+      reads++;
+      if (fresh(await storeRead())) return { storeMs: Date.now() - start, storeReads: reads };
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+    return { storeMs: undefined, storeReads: reads };
+  };
   /** Milliseconds until the product page shows `text`, or undefined when it did not in time. */
   const pageShows = async (text: string) => {
     const start = Date.now();
@@ -173,16 +201,16 @@ test("Medusa's caching serves no stale answer in 40 changes (T112, D149)", async
   const run = Date.now().toString(36);
   const rows: Row[] = [];
   const isStale = (row: Row) =>
-    !row.storeNow || row.cart === false || row.pageMs === undefined || !row.storeAfter;
+    row.storeMs === undefined || row.cart === false || row.pageMs === undefined || !row.storeAfter;
   for (let i = 1; i <= ROUNDS; i++) {
     const title = `${originalTitle} check ${run}-${String(i).padStart(2, "0")}`;
     await setTitle(title);
-    const now = await storeRead();
+    const store = await storeHas((read) => read.title === title);
     const pageMs = await pageShows(title);
     const after = await storeRead();
     rows.push({
       change: `title ${i}`,
-      storeNow: now.title === title,
+      ...store,
       pageMs,
       storeAfter: after.title === title,
     });
@@ -192,13 +220,13 @@ test("Medusa's caching serves no stale answer in 40 changes (T112, D149)", async
     // dollar may be).
     const amount = Math.round(lowest * 100 - i) / 100;
     await setAmount(amount);
-    const nowPrice = await storeRead();
+    const storePrice = await storeHas((read) => read.amount === amount);
     const cart = (await cartAmount()) === amount;
     const pagePriceMs = await pageShows(formatted(amount));
     const afterPrice = await storeRead();
     rows.push({
       change: `price ${i} (${formatted(amount)})`,
-      storeNow: nowPrice.amount === amount,
+      ...storePrice,
       cart,
       pageMs: pagePriceMs,
       storeAfter: afterPrice.amount === amount,
@@ -209,9 +237,10 @@ test("Medusa's caching serves no stale answer in 40 changes (T112, D149)", async
 
   const mark = (fresh: boolean | undefined) =>
     fresh === undefined ? "-" : fresh ? "fresh" : "STALE";
+  const ms = (value: number | undefined) => (value === undefined ? "STALE" : `${value} ms`);
   const table = rows.map(
     (row) =>
-      `${row.change}: Store API ${mark(row.storeNow)}, cart ${mark(row.cart)}, page ${row.pageMs === undefined ? "STALE" : `${row.pageMs} ms`}, Store API after ${mark(row.storeAfter)}`,
+      `${row.change}: Store API ${ms(row.storeMs)} (${row.storeReads} ${row.storeReads === 1 ? "read" : "reads"}), cart ${mark(row.cart)}, page ${ms(row.pageMs)}, Store API after ${mark(row.storeAfter)}`,
   );
   test.info().annotations.push({ type: "cache-check", description: table.join("\n") });
   const stale = rows.filter(isStale);

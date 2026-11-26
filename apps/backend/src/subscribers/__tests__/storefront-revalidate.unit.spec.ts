@@ -1,12 +1,20 @@
 import storefrontRevalidate, { config } from "../storefront-revalidate";
 
-function containerWith(graph: jest.Mock, log = { warn: jest.fn(), error: jest.fn() }) {
+function containerWith(
+  graph: jest.Mock,
+  log = { warn: jest.fn(), error: jest.fn() },
+  caching?: { computeTags: jest.Mock; clear: jest.Mock },
+) {
   const services: Record<string, unknown> = {
     configModule: { admin: { storefrontUrl: "http://localhost:8000" } },
     logger: log,
     query: { graph },
+    ...(caching && { caching }),
   };
-  return { resolve: (key: string) => services[key] } as never;
+  return {
+    resolve: (key: string) => services[key],
+    hasRegistration: (key: string) => key in services,
+  } as never;
 }
 
 describe("storefront-revalidate subscriber", () => {
@@ -121,5 +129,103 @@ describe("storefront-revalidate subscriber", () => {
       expire: "max",
     });
     expect(log.warn).toHaveBeenCalledTimes(2);
+  });
+
+  describe("Medusa's caching module (T112 follow-up, D149)", () => {
+    /** The module's tags as its own `*` subscriber computes them: the entity and its list. */
+    const cachingModule = () => ({
+      computeTags: jest.fn(
+        async (_input: object, options: { entities: { type: string; id: string }[] }) =>
+          options.entities.flatMap(({ type, id }) => [`${type}:${id}`, `${type}:list:*`]),
+      ),
+      clear: jest.fn(async (_options: { tags: string[]; options?: object }) => undefined),
+    });
+
+    it("clears the event's entities in Medusa's cache before the storefront is told", async () => {
+      // The mutation: a subscriber that posts first (or never clears) fails here, since the
+      // storefront could re-render from the Store API's old answer and keep it.
+      const order: string[] = [];
+      const caching = cachingModule();
+      caching.clear.mockImplementation(async () => {
+        order.push("clear");
+      });
+      fetchMock.mockImplementation(async () => {
+        order.push("post");
+        return new Response("{}");
+      });
+      const graph = jest.fn().mockResolvedValue({ data: [{ product: { handle: "tee" } }] });
+      await storefrontRevalidate({
+        event: { name: "product-variant.updated", data: { id: "variant_1" } },
+        container: containerWith(graph, undefined, caching),
+      } as never);
+      expect(caching.computeTags).toHaveBeenCalledWith(
+        { id: "variant_1" },
+        { entities: [{ type: "ProductVariant", id: "variant_1" }], operation: "updated" },
+      );
+      expect(caching.clear).toHaveBeenCalledWith({
+        tags: ["ProductVariant:variant_1", "ProductVariant:list:*"],
+        options: { autoInvalidate: true },
+      });
+      expect(order).toEqual(["clear", "post", "post"]);
+    });
+
+    it("clears every id of a batch event once, and nothing for an event with no id", async () => {
+      fetchMock.mockResolvedValue(new Response("{}"));
+      const caching = cachingModule();
+      await storefrontRevalidate({
+        event: {
+          name: "price-list.prices_added",
+          data: { id: ["plist_1", "plist_2"], price_set_ids: [] },
+        },
+        container: containerWith(jest.fn().mockResolvedValue({ data: [] }), undefined, caching),
+      } as never);
+      expect(caching.computeTags.mock.calls.map(([, options]) => options)).toEqual([
+        { entities: [{ type: "PriceList", id: "plist_1" }], operation: "prices_added" },
+        { entities: [{ type: "PriceList", id: "plist_2" }], operation: "prices_added" },
+      ]);
+      expect(caching.clear).toHaveBeenCalledTimes(1);
+      expect(caching.clear.mock.calls[0][0].tags).toEqual([
+        "PriceList:plist_1",
+        "PriceList:list:*",
+        "PriceList:plist_2",
+      ]);
+
+      const quiet = cachingModule();
+      await storefrontRevalidate({
+        event: { name: "shopblok.markets.updated", data: { scope: "country", codes: ["at"] } },
+        container: containerWith(jest.fn(), undefined, quiet),
+      } as never);
+      expect(quiet.clear).not.toHaveBeenCalled();
+    });
+
+    it("still tells the storefront when the clear fails, and logs it", async () => {
+      fetchMock.mockResolvedValue(new Response("{}"));
+      const log = { warn: jest.fn(), error: jest.fn() };
+      const caching = cachingModule();
+      caching.clear.mockRejectedValue(new Error("redis down"));
+      await expect(
+        storefrontRevalidate({
+          event: { name: "product.updated", data: { id: "prod_1" } },
+          container: containerWith(
+            jest.fn().mockResolvedValue({ data: [{ handle: "tee" }] }),
+            log,
+            caching,
+          ),
+        } as never),
+      ).resolves.toBeUndefined();
+      expect(log.warn).toHaveBeenCalledWith(expect.stringContaining("redis down"));
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    it("does nothing to a cache that is not there (no MEDUSA_FF_CACHING)", async () => {
+      fetchMock.mockResolvedValue(new Response("{}"));
+      const log = { warn: jest.fn(), error: jest.fn() };
+      await storefrontRevalidate({
+        event: { name: "product.updated", data: { id: "prod_1" } },
+        container: containerWith(jest.fn().mockResolvedValue({ data: [{ handle: "tee" }] }), log),
+      } as never);
+      expect(log.warn).not.toHaveBeenCalled();
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
   });
 });
