@@ -11424,6 +11424,7 @@ Then `main` again after PR 154 (the cache-freshness fix, `30dcab7`): it touched 
 - **"What it sells"** is the product page's own rule (`readMarketProduct`): a product with no variant priced in the region is a 404 there, so it is not in the sitemap (`listSoldProducts`, paged by 100 in handle order with `PRODUCT_DETAIL_FIELDS`).
 - **Cached under the existing tags:** `listSoldProducts` (`medusa:products`), `listCategoryDates` (`medusa:categories`), `listCollectionDates` (`medusa:collections`), and Payload's reads with `pageTags(locale)` and `postTags(locale)` (the paths and slugs through the same `readPagePaths` and `readPostSlugs` the routes use, and the dates by a `select: { updatedAt }` read). The revalidation that refreshes a page refreshes its sitemap, so **Payload's hooks and Medusa's subscriber needed no change** (the plan's Touches named the hooks). A page published in Payload was in the sitemap 1.0 s after its save on `next start`, and gone 1 s after its deletion.
 - **D10's stand-in** (no `MEDUSA_BACKEND_URL`: CI's `check`, the DS builds): the catalog is empty, the rest as above.
+- **50,000 addresses in about a second:** `hreflangAlternates` works out a map's open markets once per map object (a `WeakMap`); before, each address called `listMarkets` (about 0.3 ms), and the generated-catalog test took 14 s here and timed out in CI's `check` (20 s) under the parallel suites.
 
 ### The route inventory (`lib/seo/routes.ts`)
 
