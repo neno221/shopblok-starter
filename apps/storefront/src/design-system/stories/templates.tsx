@@ -443,7 +443,8 @@ function onePageDone(ctx: DsContext, step: "contact" | "delivery" | "review", ma
 
 /**
  * T86: the express payment buttons the design system puts in the `express-rail` checkout's rail,
- * which M6's Stripe fills in the shop. Each is a button named by its mark; they do nothing here.
+ * which Stripe's Express Checkout Element fills in the shop (M6 T102). Each is a button named by
+ * its mark; they do nothing here.
  */
 function ExpressButtons({ ctx }: { ctx: DsContext }) {
   const brands = catalogs[ctx.locale].atoms.payment;
@@ -1177,10 +1178,10 @@ export const templateStories = {
   ),
   "templates/checkout-express-rail": checkoutLayoutStory(
     "express-rail",
-    "The checkout with a rail for express payment buttons above the first step. M6's Stripe fills it; until then the shop has none and draws the default layout. Here the rail holds the design system's buttons.",
+    "The checkout with a rail for express payment buttons above the first step. In the shop Stripe's Express Checkout Element fills it (M6, T102) once it has a wallet to show; without Stripe, or with no wallet on the device, the shop draws the default layout. Here the rail holds the design system's buttons.",
     [
       "The rail is a section named by its heading (“Express checkout”); each button is named by its mark's label, and “Or continue below” leads to the steps.",
-      "With no button to show (the shop until M6) the rail is not drawn at all, so nothing empty is read out.",
+      "With no button to show (no Stripe, or no wallet on the device) the rail is not drawn at all, so nothing empty is read out.",
     ],
   ),
   "templates/order-confirmation": {

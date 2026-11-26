@@ -99,7 +99,7 @@ type CheckoutTemplateProps = CheckoutPage & {
   errors?: CheckoutErrors;
   /**
    * The parts a provider fills (D42's per-visitor parts): `express`, the `express-rail` layout's
-   * buttons above the first step (M6's Stripe, T102; none until then, so the rail is not drawn);
+   * buttons above the first step (M6's Stripe, T102; without Stripe none, so the rail is not drawn);
    * `paymentElement`, Stripe's Payment Element in PaymentStep's box on the delivery step (M6 T100);
    * `placeOrder`, drawn inside the review's form, the island that confirms the payment before the
    * order is placed (M6 T100). Every layout draws them where its steps are.

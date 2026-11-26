@@ -1,6 +1,6 @@
 // Ours (T86, SETUP.md "Checkout and receipt variants (T86)"; M5 plan §1a, D99, D101). The
 // `express-rail` checkout: M3's layout with a rail above the first step for the express payment
-// buttons a provider fills (`slots.express`: M6's Stripe). Until one does, the shop passes nothing
+// buttons a provider fills (`slots.express`: Stripe's, M6 T102). Without one the shop passes nothing
 // and the rail is not drawn, so the page is the default's with this root's `data-variant`; the
 // design system fills it with its fixtures. The rail ends with "Or continue below", so the steps
 // read as the other way to pay. A provider's buttons that are not ready, or have no wallet to show

@@ -4,7 +4,7 @@
 // `simple-icons` (CC0; each mark remains its owner's trademark, packages/ui/NOTICE.md): importing the
 // package's root made Vitest and `next dev` parse its 5.25 MB `index.mjs` on every cold start (PR 43
 // review, item 14; the measurement is in SETUP.md, "Cart, checkout and account molecules (T34)").
-// A provider that requires its own artwork on a payment page gets it with that integration (M6).
+// On the shop's payment pages the wallets' own artwork is drawn by Stripe's Elements (M6), not here.
 import { cn } from "@shopblok/ui/lib/utils";
 import type * as React from "react";
 import { paymentMarks } from "./payment-marks";

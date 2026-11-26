@@ -136,9 +136,9 @@ Threads and Bluesky. The package's data is released under CC0 1.0 Universal (pub
 **Each mark remains the trademark of its owner.** CC0 covers Simple Icons' data, not the brands'
 rights in their logos; the package's `DISCLAIMER.md` asks users to seek the permissions their use
 needs. The payment marks are shown only to say which payment methods the shop accepts, and the social
-marks only to link to the shop's own profiles. A payment provider
-that requires its own artwork on a payment page (Apple Pay's mark guidelines, for one) gets it with
-that integration (M6).
+marks only to link to the shop's own profiles. On the shop's payment
+pages the wallets' own artwork (Apple Pay's and Google Pay's buttons, for one) is drawn by Stripe's
+Elements (M6), not by these marks.
 
 ## country-flag-icons — MIT
 

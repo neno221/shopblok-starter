@@ -1188,7 +1188,7 @@ export const commerceAtomStories = {
     a11y: [
       "An image (role=img) named by `label`, the method's name: the marks carry no text a screen reader could read.",
       "One path in currentColor, so it follows the text's colour; the brands' own colours are not used (monochrome baseline).",
-      "A provider that requires its own artwork on a payment page (Apple Pay's guidelines, for one) gets it with that integration (M6).",
+      "On the shop's payment pages the wallets' own artwork (Apple Pay's and Google Pay's buttons, for one) is drawn by Stripe's Elements (M6), not by this mark.",
     ],
     live: (ctx) => (
       <div className={row}>

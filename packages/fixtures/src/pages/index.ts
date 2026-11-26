@@ -92,7 +92,7 @@ export type PageFixtures = {
   };
   /**
    * The account (T53), one page per screen: the overview with the two orders, the orders, the
-   * placed order, the address book, an address to change, the payment methods (none until M6),
+   * placed order, the address book, an address to change, the payment methods (T101's saved ones),
    * the returns, the delivered order's return form, and the profile.
    */
   account: {

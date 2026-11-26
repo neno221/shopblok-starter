@@ -1,12 +1,12 @@
 # Setup
 
-How to run the starter on your own machine: the quickstart, the ports, the logins, the notes for Windows and for a Claude Code cloud session. Below "The M0 log", "The M1 log", "The M2 log", "The M3 log", "The M4 log" and "The M5 log" are what each task found and measured, one section per task and spike, in the order they ran. The log is the evidence behind [SPEC.md](SPEC.md) v0.12 and the [ADRs](adr/README.md); read the section a number or a decision in the spec points to.
+How to run the starter on your own machine: the quickstart, the ports, the logins, the notes for Windows and for a Claude Code cloud session. Below "The M0 log", "The M1 log", "The M2 log", "The M3 log", "The M4 log", "The M5 log" and "The M6 log" are what each task found and measured, one section per task and spike, in the order they ran. The log is the evidence behind [SPEC.md](SPEC.md) v0.13 and the [ADRs](adr/README.md); read the section a number or a decision in the spec points to.
 
-- [Quickstart](#quickstart-no-keys-no-accounts) · [Prerequisites](#prerequisites-every-os) · [Ports and logins](#ports-urls-and-logins) · [Opening a market](#opening-a-market) · [Adding a market](#adding-a-market) · [The admin: pages, preview, publishing, the sync](#the-admin-build-a-page-preview-publish-and-schedule-m4) · [The admin: designs, templates, sections, languages](#the-admin-designs-templates-sections-and-languages-m5) · [The design-system page, tokens and the Figma export](#the-design-system-page-tokens-and-the-figma-export-m1) · [Adding a molecule or an organism](#how-to-add-a-molecule-or-an-organism-m2) · [Adding a template or a page](#how-to-add-a-template-or-a-page-m3) · [Adding a block](#how-to-add-a-block-m4) · [Adding a content type](#how-to-add-a-content-type-m4) · [Adding a variant](#how-to-add-a-variant-m5) · [Updating the baselines and the thumbnails](#updating-the-baselines-and-the-thumbnails-m2) · [Windows](#windows-notes) · [Cloud](#working-in-a-claude-code-cloud-environment) · [Checking a clean machine](#checking-a-clean-machine) · [If something fails](#if-something-fails) · [Where we differ from the skills](#where-we-deliberately-differ-from-the-medusa-skills)
+- [Quickstart](#quickstart-no-keys-no-accounts) · [Prerequisites](#prerequisites-every-os) · [Ports and logins](#ports-urls-and-logins) · [Opening a market](#opening-a-market) · [Adding a market](#adding-a-market) · [The admin: pages, preview, publishing, the sync](#the-admin-build-a-page-preview-publish-and-schedule-m4) · [The admin: designs, templates, sections, languages](#the-admin-designs-templates-sections-and-languages-m5) · [The design-system page, tokens and the Figma export](#the-design-system-page-tokens-and-the-figma-export-m1) · [Adding a molecule or an organism](#how-to-add-a-molecule-or-an-organism-m2) · [Adding a template or a page](#how-to-add-a-template-or-a-page-m3) · [Adding a block](#how-to-add-a-block-m4) · [Adding a content type](#how-to-add-a-content-type-m4) · [Adding a variant](#how-to-add-a-variant-m5) · [Updating the baselines and the thumbnails](#updating-the-baselines-and-the-thumbnails-m2) · [Turning on an integration](#turning-on-an-integration) · [Windows](#windows-notes) · [Cloud](#working-in-a-claude-code-cloud-environment) · [Checking a clean machine](#checking-a-clean-machine) · [If something fails](#if-something-fails) · [Where we differ from the skills](#where-we-deliberately-differ-from-the-medusa-skills)
 
 ## Quickstart (no keys, no accounts)
 
-Nothing here needs a third-party account: Stripe, Resend, PostHog, Sentry and Cloudflare R2 are on their local fallbacks until their keys are set (SPEC §10).
+Nothing here needs a third-party account: Stripe, Resend, PostHog, Sentry and Cloudflare R2 are on their local fallbacks until their keys are set (SPEC §10); ["Turning on an integration"](#turning-on-an-integration) says where each key goes.
 
 ### Prerequisites (every OS)
 
@@ -25,7 +25,7 @@ Linux has been run end to end (CI on `ubuntu-latest` and the cloud VM). On Windo
 ### The commands
 
 ```bash
-git clone https://github.com/stephanos221/shopblok-starter.git
+git clone https://github.com/neno221/shopblok-starter.git
 cd shopblok-starter
 pnpm install --frozen-lockfile     # 2 s when the pnpm store has everything (a second checkout), 15 to 27 s from a cold store, 18 to 26 s on a CI runner
 docker compose up -d --wait        # the same as `pnpm infra:up`; 4 healthy services in 6 to 24 s once the images are pulled
@@ -49,7 +49,7 @@ The first request to each page in `pnpm dev` compiles it (20 to 40 s for `/` and
 | Payload admin | http://localhost:8000/admin | `admin@example.com`, password in `apps/backend/.env` as `DEV_ADMIN_PASSWORD` |
 | Medusa admin | http://localhost:9000/app | the same login |
 | Medusa health | http://localhost:9000/health | none |
-| Mailpit inbox | http://localhost:8025 | none. Nothing sends to it yet: Payload has no email adapter, and Medusa's emails go to its console until a Resend key is set (below) |
+| Mailpit inbox | http://localhost:8025 | none. Payload's e-mails (the form e-mails, the newsletter's confirmation) arrive here through `SMTP_HOST` until a Resend key is set; Medusa's (verification, password reset, orders) go to its console until then ("Turning on an integration") |
 | Postgres | `localhost:15432`, databases `medusa` and `payload` | `postgres` / `postgres` |
 | Redis | `localhost:6380` | none |
 | Meilisearch | http://localhost:7701 | master key `shopblok-local-dev-master-key` (since T94 `/store/search` runs on Meilisearch with `MEILISEARCH_HOST` and `MEILISEARCH_API_KEY` set, as bootstrap's `.env` has them; on `search-postgres` when either is blank) |
@@ -141,14 +141,14 @@ Medusa Admin only (since M4b); Payload has no part in it. To open Austria in Ger
 
 ### The design-system page, tokens and the Figma export (M1)
 
-**The page.** `http://localhost:8000/design-system/en` (also `/de`, `/fr` and `/el`; `/design-system` redirects to `/design-system/en`) lists 223 entries in seven groups (the order of SPEC §9.6): **Foundations** (the tokens: colours, type, spacing, radius, shadows, motion, icons and credits), **Atoms** (32), **Molecules** (40), **Organisms** (34), **Headers and Footers** (11), **Sections** (60: twenty blocks and their designs, each with a "Payload block" table: the block's fields as the admin has them) and **Templates** (38, each drawn as a page inside the classic header and the multi-column footer). Each entry has its states, a "Props" table when it has a contract, and a live render, in the locale you pick, at 375, 768 and 1440 px; an overlay (a drawer, a dialog, a menu, a toast) is drawn open in a box, and its live render has the real trigger. The list is `@shopblok/registry`, and `/design-system/{locale}/preview/{id}` is an entry's live render alone (the thumbnails are made from it). It is `noindex`, reads no data and needs no stack. In `pnpm dev` it is always on. **A production build serves it only if it was built with `DESIGN_SYSTEM_ENABLED=true`**; otherwise every `/design-system/…` URL is a 404:
+**The page.** `http://localhost:8000/design-system/en` (also `/de`, `/fr` and `/el`; `/design-system` redirects to `/design-system/en`) lists 235 entries in eight groups (the order of SPEC §9.6): **Foundations** (the tokens: colours, type, spacing, radius, shadows, motion, icons and credits), **Atoms** (32), **Molecules** (40), **Organisms** (34), **Headers and Footers** (11), **Sections** (60: twenty blocks and their designs, each with a "Payload block" table: the block's fields as the admin has them) **Templates** (38, each drawn as a page inside the classic header and the multi-column footer) and **E-mails** (12, since M6: the account, order, return and refund e-mails, the admin's invite, a form's message and the newsletter's confirmation, each with the seed's copy). Each entry has its states, a "Props" table when it has a contract, and a live render, in the locale you pick, at 375, 768 and 1440 px; an overlay (a drawer, a dialog, a menu, a toast) is drawn open in a box, and its live render has the real trigger. The list is `@shopblok/registry`, and `/design-system/{locale}/preview/{id}` is an entry's live render alone (the thumbnails are made from it). It is `noindex`, reads no data and needs no stack. In `pnpm dev` it is always on. **A production build serves it only if it was built with `DESIGN_SYSTEM_ENABLED=true`**; otherwise every `/design-system/…` URL is a 404:
 
 ```bash
 DESIGN_SYSTEM_ENABLED=true pnpm --filter @shopblok/storefront build
 pnpm --filter @shopblok/storefront start
 ```
 
-The value is frozen into the build, so setting it only on `start` changes nothing (D33; "DS page shell (T22)", code-review fix 1). The flag is commented out in `apps/storefront/.env.example`. CI's `design-system` job builds this way with no `.env` and no compose, in Playwright's container; to run its checks (the 215 entries outside Foundations at 375, 768 and 1440 px in `en` and `el`: 1,290 cells, with the screenshot compared in `en` only) against that build, in a second terminal: `E2E_DESIGN_SYSTEM=true pnpm --filter @shopblok/storefront test:e2e --project=design-system --ignore-snapshots` (in CI since M5 three shards share them, each about 11 to 15 minutes, "Docs and SPEC v0.12 (T92)"; locally add `--shard=1/3` and so on to split a run; set the variable per command, not exported). On a host (this VM, Windows) keep `--ignore-snapshots`: every cell's pixels differ outside Playwright's image, so the pixel comparison runs only in the image ("Baselines and thumbnails (T40)" has the Docker recipe). The `dev-console` project, which needs `next dev` instead, is described in "The storefront in next dev (T25)". A new entry is a registry object, a story, a component, its copy and tests: ["How to add a molecule or an organism"](#how-to-add-a-molecule-or-an-organism-m2) below, for a template and its page ["How to add a template or a page"](#how-to-add-a-template-or-a-page-m3), for a section and its Payload block ["How to add a block"](#how-to-add-a-block-m4), and for one more look of a block, a template, the quick view or the mini cart ["How to add a variant"](#how-to-add-a-variant-m5). **Pixel baselines and thumbnails** are made only by CI's `update-baselines` dispatch, in Playwright's container (the committed ones are English only, D51), and never on a host or on Windows: ["Updating the baselines and the thumbnails"](#updating-the-baselines-and-the-thumbnails-m2) below.
+The value is frozen into the build, so setting it only on `start` changes nothing (D33; "DS page shell (T22)", code-review fix 1). The flag is commented out in `apps/storefront/.env.example`. CI's `design-system` job builds this way with no `.env` and no compose, in Playwright's container; to run its checks (the 227 entries outside Foundations at 375, 768 and 1440 px in `en` and `el`: 1,362 cells, with the screenshot compared in `en` only) against that build, in a second terminal: `E2E_DESIGN_SYSTEM=true pnpm --filter @shopblok/storefront test:e2e --project=design-system --ignore-snapshots` (in CI since M5 three shards share them, each about 11 to 15 minutes, "Docs and SPEC v0.12 (T92)"; locally add `--shard=1/3` and so on to split a run; set the variable per command, not exported). On a host (this VM, Windows) keep `--ignore-snapshots`: every cell's pixels differ outside Playwright's image, so the pixel comparison runs only in the image ("Baselines and thumbnails (T40)" has the Docker recipe). The `dev-console` project, which needs `next dev` instead, is described in "The storefront in next dev (T25)". A new entry is a registry object, a story, a component, its copy and tests: ["How to add a molecule or an organism"](#how-to-add-a-molecule-or-an-organism-m2) below, for a template and its page ["How to add a template or a page"](#how-to-add-a-template-or-a-page-m3), for a section and its Payload block ["How to add a block"](#how-to-add-a-block-m4), and for one more look of a block, a template, the quick view or the mini cart ["How to add a variant"](#how-to-add-a-variant-m5). **Pixel baselines and thumbnails** are made only by CI's `update-baselines` dispatch, in Playwright's container (the committed ones are English only, D51), and never on a host or on Windows: ["Updating the baselines and the thumbnails"](#updating-the-baselines-and-the-thumbnails-m2) below.
 
 **`pnpm tokens`.** It builds `packages/ui/src/styles/tokens.css` and `packages/ui/src/tokens.ts` from `packages/ui/tokens/figma.tokens.json` (the Figma export) and `packages/ui/tokens/shopblok.tokens.json` (ours), through Style Dictionary, in about half a second. Run it after editing `shopblok.tokens.json` or after a new export, and commit the two files with the change. It stops before writing if a contrast pair, the radius scale or the 4 px spacing step fails, and names the pair and its ratio; `pnpm test` fails with "tokens.css is what the build gives" when the committed files differ from the build. Never edit `figma.tokens.json`, `tokens.css` or `tokens.ts` by hand ([packages/ui/tokens/README.md](../packages/ui/tokens/README.md); "Tokens (T19)").
 
@@ -227,7 +227,7 @@ A variant is **a member of a family** (D99): one more look for a block, a commer
 Short version; "Baselines and thumbnails (T40)" has the mechanism, the numbers and the stop lines.
 
 - **Who makes them:** only Playwright's container (`mcr.microsoft.com/playwright:v1.64.1-noble`), so the fonts and the browser are the same every time. A host's pixels differ (Windows' included), so there the DS checks run with `--ignore-snapshots`, and `pnpm thumbnails` refuses outside the image unless given `--host`.
-- **What exists:** 645 English baselines (215 entries × 375, 768 and 1440 px, in `apps/storefront/e2e/__screenshots__/design-system/`; D51's fallback, chosen on 2026-10-19; the `el` cells keep axe, overflow, size and console) and 114 thumbnails, one per family member (`apps/storefront/public/registry/`, which are also their previews' baselines and Payload's picker and block-drawer pictures); 99.3 MB together at the end of M5 (99,270,648 bytes; 66.8 MB at the end of M4), and the history's `size-pack` 107.4 MiB (about 105 MiB, 111 MB, more than the 1.9 MiB before the first set, of D51's 200 MB). **Not Git LFS.**
+- **What exists:** 681 English baselines (227 entries × 375, 768 and 1440 px, in `apps/storefront/e2e/__screenshots__/design-system/`; D51's fallback, chosen on 2026-10-19; the `el` cells keep axe, overflow, size and console) and 114 thumbnails, one per family member (`apps/storefront/public/registry/`, which are also their previews' baselines and Payload's picker and block-drawer pictures); 98.7 MB together at the end of M6 (98,704,245 bytes; 99.3 MB at the end of M5, 66.8 MB at the end of M4), and the history's `size-pack` 159.7 MiB (107.4 MiB at M5's end); every version of every baseline and thumbnail ever committed sums 169.6 MB of D51's 200 MB ("Docs and SPEC v0.13 (T104)"). **Not Git LFS.**
 - **To update:** dispatch CI on the branch with `update-baselines` on (Actions, "CI", "Run workflow", or the `gh api` call in "Baselines and thumbnails (T40)", "How it works", "Updating"). Jobs of their own (three shards since T77, each writing a third, and one commit job after them) rebuild both sets, run the cells' other checks (axe, overflow, size, console) on the way while no other job runs, and the commit job commits the PNGs that changed to the branch as `github-actions[bot]` and prints how many it changed and how many bytes it added. **A push made with `GITHUB_TOKEN` starts no workflow: dispatch CI again by hand** and let it pass before merging. A set that passes D51's lines (a history 200 MB larger than before the first set, an update of more than half a set; the 60 MB line was the first set's) stops the session, which asks.
 - **Locally, in the image** (a cloud session or a PC with Docker): the recipe in "Baselines and thumbnails (T40)", "Making and checking them locally"; delete what it writes before committing, because the committed set is CI's.
 - **Compressed as they are written (T57, M4 D72):** the update job runs oxipng 10.2.1 (lossless) on each PNG it writes new or changed before committing it, so a changed cell costs about a quarter less; the rest of the set stays as it is. Its version is pinned with the baselines in mind ("Versions and CI for M4 (T57)").
@@ -285,6 +285,120 @@ The three skills (`building-with-medusa`, `building-storefronts`, `storefront-be
 - Medusa commands run as `pnpm --filter @shopblok/backend exec medusa …`.
 - The skill's store-route `curl` example leaves out the `x-publishable-api-key` header; always send it.
 - Seeds run through `medusa exec` scripts and never inside a migration (D7), so demo products cannot reach production.
+
+## Turning on an integration
+
+Every integration is off until its keys are set, and the shop runs the same without them (D114): the checkout takes "Pay later", Medusa's e-mails go to its console and Payload's to Mailpit, there is no analytics and no error reporting, files stay on the local disk, and search runs on Postgres. This section is the one list of what turns each one on, checked against what T93 to T103 built (each task's own section in "The M6 log" has the detail). **Use test keys everywhere but production** (D115: `doctor` refuses a live Stripe key outside it), and **never commit a key**: CI's `pnpm check:keys` fails on one, naming the file and line, never the key.
+
+**How a key reaches an app.** Both apps read their environment over their `.env` file. On a PC, put the key into `apps/backend/.env` or `apps/storefront/.env` (git-ignored; `.env.example` lists every name, empty, with a comment). In production, into the host's variables (Railway for the backend, Vercel for the storefront). For CI and the cloud sessions see "In CI and the cloud" below. A `NEXT_PUBLIC_*` value, and the few others named below, are written into the storefront's build when `next build` runs, so a new value needs a new build. Restart the backend after a change: it reads its keys at start.
+
+**The checks.** `pnpm run doctor` (never `pnpm doctor`, which is pnpm's own command) lists which integrations are live and which are on their fallback, warns about a half-set integration (it stays on its fallback), and fails on a key of the wrong kind; `pnpm run doctor --online` also asks each service whether it takes the keys (`--only=<id>,…` runs only some, `--strict` makes a warning fail). Nothing it prints holds a key. Each integration's live spec is in `apps/storefront/e2e/integrations/` and runs in the `integrations` Playwright project (`E2E_INTEGRATIONS=true`), skipping itself and naming the keys it lacks.
+
+### Stripe (payments)
+
+| Key | App | Where it comes from |
+|---|---|---|
+| `STRIPE_API_KEY` | backend | Dashboard → Developers → API keys: the secret key, `sk_test_…` |
+| `NEXT_PUBLIC_STRIPE_KEY` | storefront (build) | the same page: the publishable key, `pk_test_…`, of the **same account and mode** |
+| `STRIPE_WEBHOOK_SECRET` | backend | on a PC `pnpm stripe:listen` (the Stripe CLI, after `stripe login`) prints a `whsec_…`; in production the endpoint's signing secret (below) |
+
+In the Dashboard:
+1. **The webhook (production):** Developers → Webhooks → Add endpoint, `https://<backend>/hooks/payment/stripe_stripe`, with the four events `payment_intent.amount_capturable_updated`, `payment_intent.succeeded`, `payment_intent.payment_failed` and `payment_intent.partially_funded`. On a PC, `pnpm stripe:listen` forwards the same four to `localhost:9000` while it runs.
+2. **The methods:** Settings → Payment methods. Cards are on; switch on Revolut Pay, Apple Pay, Google Pay and Link as the shop offers them. Payments are captured when an order ships (D118), so Stripe hides the methods that cannot wait for that (iDEAL, Bancontact, Klarna among them).
+3. **Apple Pay's domains (production):** `pnpm stripe:domains` with production's keys registers the storefront's domain and each market's own (`--dry-run` only prints). Stripe cannot register `localhost`, so Apple Pay is first tried on M7's staging.
+
+Then restart the backend (or run `pnpm bootstrap`): its start puts Stripe on every region (`sync-stripe-regions`), and taking the keys out and restarting takes it off again. **Ship within about 7 days:** a card's authorisation lapses then. Marking a fulfillment shipped in Medusa Admin captures the payment, and the backend logs any order left uncaptured for 6 days. The express rail's wallets need the `express-rail` checkout picked in Payload's `templates` global (T102).
+
+**Checks:** `doctor`'s "Stripe keys in one mode"; `--online` "Stripe accepts the secret key" and "Stripe on every region", and in production "Stripe webhook endpoint" and "Stripe payment method domains". The live specs are `stripe-checkout.spec.ts` (6), `stripe-saved.spec.ts` (3) and `stripe-express.spec.ts` (3); with the test key a payment uses Stripe's test cards (`4242 4242 4242 4242`, any future date, any CVC).
+
+### Resend (e-mail)
+
+| Key | App | Where it comes from |
+|---|---|---|
+| `RESEND_API_KEY` | backend and storefront | Resend → API Keys → Create, **Full access** (a sending-only key sends, but `doctor --online` cannot check the domain with it) |
+| `RESEND_FROM_EMAIL` | backend and storefront | the sender, `Shop <shop@your-domain>` or a bare address; `onboarding@resend.dev` until a domain is verified (below) |
+| `RESEND_NEWSLETTER_SEGMENT_ID` | storefront | Resend → Audience → Segments: the segment's id, for the newsletter's confirmed addresses (optional: without it they are kept as form submissions in Payload) |
+
+Set the key and the sender in **both** apps: Medusa sends the account e-mails and the order e-mails, Payload the form e-mails and the newsletter's confirmation. Without them Medusa's go to its console (where `e2e-smoke` reads the links) and Payload's to Mailpit through `SMTP_HOST`.
+
+In the dashboard: **Domains → Add domain**, and add the DNS records it lists (SPF and DKIM) at the domain's DNS host until it says "Verified". `onboarding@resend.dev`, Resend's own test sender, sends only to the account's own address and Resend's test addresses, is a warning in development, and is an **error in production and under `--strict`**: once Resend's secrets are in GitHub, CI's strict go-live check (`doctor --online --strict`) fails until `RESEND_FROM_EMAIL` is an address on a verified domain (SPEC §10.2, §16).
+
+**Checks:** `doctor`'s "Email verification" (ok when Medusa sends through Resend); `--online` "Resend sender domain" for each app's key and sender. The live spec `resend.spec.ts` (4) sends to Resend's test addresses only (`delivered+…@resend.dev`).
+
+### PostHog (analytics)
+
+| Key | App | Where it comes from |
+|---|---|---|
+| `NEXT_PUBLIC_POSTHOG_KEY` | storefront (build) | PostHog → Settings → Project → Project API key, `phc_…` (public: it is in the browser's bundle). **Never** the personal key `phx_…`: doctor and `check:keys` refuse it |
+| `POSTHOG_EVENTS_API_KEY` | backend | the same project key, so Medusa's order events join the visitor's |
+| `NEXT_PUBLIC_POSTHOG_HOST`, `POSTHOG_HOST` | storefront (build), backend | only for the US cloud, `https://us.i.posthog.com`; blank is the EU cloud |
+
+Nothing to switch on in PostHog. Nothing is sent before the visitor's analytics consent ("Cookie settings"), the browser sends through the site's own `/ingest`, and Medusa sends `cart_created`, `order_placed` and `order_canceled` only for a consented cart or order.
+
+**Checks:** `doctor`'s "PostHog keys" (and a warning when the two apps name two projects); `--online` "PostHog accepts the key". PostHog's Activity page shows the events after a consented visit and order. The live spec is `posthog.spec.ts` (6).
+
+### Sentry (errors)
+
+| Key | App | Where it comes from |
+|---|---|---|
+| `SENTRY_DSN` | backend | Sentry → Settings → Projects → the project → Client Keys (DSN); one project for the shop, or one per app |
+| `NEXT_PUBLIC_SENTRY_DSN` | storefront (build) | the same page |
+| `SENTRY_ENVIRONMENT`, `SENTRY_TRACES_SAMPLE_RATE`, `SENTRY_RELEASE` | both (optional) | `production`, `staging`; a rate from 0 to 1 (blank: no tracing); blank release is the commit |
+| `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT` | storefront's build (optional) | Settings → Auth Tokens, an organization token: uploads the source maps for readable stack traces, then removes them from the build |
+
+Nothing to switch on in Sentry: the apps scrub every event before it leaves (no cookie, header, body or e-mail address, no token in a URL), and the browser's events go through the site's own `/monitoring`. Set both DSNs or neither.
+
+**Checks:** `doctor`'s "Sentry DSN" (its shape) and "Sentry traces' sample rate"; `--online` "Sentry accepts the DSN". The events show on Sentry's Issues page. The live spec is `sentry.spec.ts` (5).
+
+### Cloudflare R2 (files)
+
+| Key | App | Where it comes from |
+|---|---|---|
+| `S3_ENDPOINT` | both | `https://<account>.r2.cloudflarestorage.com`, shown with the token |
+| `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` | both | R2 → Manage API tokens → Create: **Object Read & Write**, limited to the two buckets |
+| `S3_BUCKET` | both | the public bucket (product pictures, Payload's media) |
+| `S3_PRIVATE_BUCKET` | backend | the private bucket (Medusa's CSV exports and imports) |
+| `S3_PUBLIC_URL` | both (the storefront's build) | the public bucket's `r2.dev` URL or custom domain, never the endpoint, and the **same** in both apps |
+| `S3_REGION` | both (optional) | blank is `auto` |
+
+In the dashboard (R2 asks for a payment method first, even within the free tier):
+1. **Two buckets**, for example `shopblok-dev` and `shopblok-dev-private`. On the public one only, Settings → Public access: its `r2.dev` URL (development; it is rate-limited) or a custom domain (production). **The private one has no `r2.dev` URL and no custom domain**: doctor cannot see either, and either would make customers' exports public.
+2. **The CORS rules**, once per new admin origin (without them Payload's uploads and Medusa Admin's product import fail in the browser): a second token, **Admin Read & Write**, set in the shell for one command only and then deleted, never in an `.env` file, CI or the cloud environment, `R2_ADMIN_ACCESS_KEY_ID=… R2_ADMIN_SECRET_ACCESS_KEY=… pnpm r2:cors` (`--origin` adds an origin such as `http://localhost:8000`); or `pnpm r2:cors --json` and paste each rule into R2 → the bucket → Settings → CORS policy.
+3. Existing files do not move by themselves: "Payload: media on R2" in T95's section has the way, and the migration Payload runs first.
+
+**Checks:** `doctor`'s R2 keys and URLs (a second public URL is an error); `--online` both buckets, the private files refused, and the CORS rules (a warning with the apps' token: check them in the dashboard). The live spec is `r2.spec.ts` (5).
+
+### Meilisearch (search)
+
+| Key | App | Where it comes from |
+|---|---|---|
+| `MEILISEARCH_HOST` | backend | the server's URL (the compose one locally, a hosted Meilisearch in production) |
+| `MEILISEARCH_API_KEY` | backend | its master key, or an admin key that may create indexes; the browser never talks to Meilisearch |
+| `MEILISEARCH_INDEX_PREFIX` | backend (optional) | lowercase letters, digits and `_`, so several stores or runs share one server |
+
+`pnpm bootstrap` sets the local values, so a PC searches on Meilisearch from the start; blank either key and `/store/search` runs on Postgres. After a switch, `pnpm bootstrap` (its `db:migrate`) plans a new index version and the next start fills it; the `search-locale-indexes` job adds a new language's index within five minutes.
+
+**Checks:** with its keys doctor needs the server to answer; `--online` "Meilisearch index per store locale". Its suite is the backend's `search-meilisearch.spec.ts`.
+
+### Redis
+
+`REDIS_URL` (backend) runs Medusa's event bus, workflow engine and locking on Redis; bootstrap sets the compose one. Without it Medusa runs them in memory, which `doctor` calls an error in production (`redis-production`). Medusa's caching stays off (D128; SETUP "Redis caching (D128): stays off").
+
+### In CI and the cloud
+
+**GitHub** (repository → Settings → Secrets and variables → Actions), for the `integrations-live` job; test keys only:
+
+| Integration | Secrets | Variables |
+|---|---|---|
+| Stripe | `STRIPE_API_KEY`, `NEXT_PUBLIC_STRIPE_KEY` | |
+| Resend | `RESEND_API_KEY` | `RESEND_FROM_EMAIL`, `RESEND_NEWSLETTER_SEGMENT_ID` |
+| PostHog | `POSTHOG_EVENTS_API_KEY`, `NEXT_PUBLIC_POSTHOG_KEY` | `POSTHOG_HOST`, `NEXT_PUBLIC_POSTHOG_HOST` |
+| Sentry | `SENTRY_DSN`, `NEXT_PUBLIC_SENTRY_DSN` | |
+| R2 | `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` | `S3_ENDPOINT`, `S3_BUCKET`, `S3_PRIVATE_BUCKET`, `S3_PUBLIC_URL` |
+
+`STRIPE_WEBHOOK_SECRET` is not one of them: CI and the cloud sessions use a fixed stand-in (D115). Without PostHog's or Sentry's secrets the job checks against local stand-ins; without Stripe's, Resend's or R2's their specs skip, naming the keys. A half-set integration fails the job's first step ("The integrations whose keys the job holds"). At M6's end GitHub holds none of them (T104's section has the run).
+
+**The cloud environment:** the same names as environment variables, in the environment's settings (the gear icon on the environment); [CLOUD.md, "Keys and hosts for M6"](CLOUD.md#keys-and-hosts-for-m6) has why only test keys go there and the hosts each service needs.
 
 ---
 
@@ -9392,6 +9506,8 @@ Also seen: the backend's first reconcile after a start logs `payload-sync: recon
 
 The PR's /code-review (`reviews/pr-132-code-review.md` in the project's files) had three must-fix findings and six optional ones. Fixed: **1**, Home's SEO preview read the id from the form's data, which has none (the plugin sends it beside), so the admin still showed `/us/home`: `generateURL` takes the plugin's `id`, and its test passes the id as the plugin does; **2**, the switch's wait ended only when a copy was applied, so after a switch-on that copied nothing, deleting every row of "Layout (this language)" could bring the blocks back: the first save after the switch ends it; **3**, Payload's `reset` replaced the whole form with a snapshot taken before its server call and marked it unmodified, so text typed meanwhile was lost: only the language's own layout is replaced now, and `payload-admin.spec.ts` types in the title right after ticking; and the cleanup **4**, the homepage rule moved into `pagePreviewPath`, so live preview and the SEO preview agree on Home's address. Skipped as optional and not cleanups: 5 (the logo grid with one logo at `md`), 6 (`expectRoot`'s one fixed pause), 7 (the header scrim's full part under a tall logo), 8 (a note on the publish button's config for Payload upgrades) and 9 (one more read of the site settings per SEO preview). After the fixes, on a new production build: `localized-layout`, `payload-admin` and `editor-homepage` **30 passed**.
 
+# The M6 log
+
 ## Versions, keys and CI for M6 (T93)
 
 **Result: every `@medusajs/*` package moves from 2.22.4 to 2.22.6 (`@medusajs/ui` 4.2.11 to 4.2.13), Next stays on 16.4.5, and M6's keys have their names, their guards and their CI job before any integration is built. Every M6 variable is named in both `.env.example` files and in `@shopblok/integrations`; `doctor` refuses a live Stripe key outside production; `pnpm check:keys` fails CI's `check` job on a key written into any tracked file; the `integrations-live` job runs the new `integrations` Playwright project with the keys from GitHub's secrets and variables, and uploads only masked logs; the keyless suites (shell, catalog, both checkouts, account) fail a test on any request the browser sends to an integration's host or to the shop's own `/monitoring` and `/ingest` tunnels. CLOUD.md's "Keys and hosts for M6" says where the keys go and how a session sees them, and the cloud environment has M6's hosts (you approved the card on 2026-11-12). Medusa's Redis caching (D128) stays off: the module does not start with the markets plugin (below), so it caches nothing.** D114, D115, D116, D128 (plans/M6.md §5 T93).
@@ -9736,7 +9852,7 @@ Without a DSN the 433 bytes are `global-error.tsx`, which Next puts in every fir
 2. The backend: `SENTRY_DSN` (Railway's variables, or `apps/backend/.env`). The storefront: `NEXT_PUBLIC_SENTRY_DSN` (Vercel's variables, or `apps/storefront/.env`); it is read when `next build` runs, so a new DSN needs a new build. Optional in both: `SENTRY_ENVIRONMENT` (`production`, `staging`), `SENTRY_TRACES_SAMPLE_RATE` (blank: no tracing), `SENTRY_RELEASE` (blank: the commit).
 3. For readable stack traces from the browser and the server: `SENTRY_AUTH_TOKEN` (an organization auth token, Settings → Auth Tokens), `SENTRY_ORG` and `SENTRY_PROJECT` in the storefront's build environment; the source maps are uploaded and then removed from the build.
 4. For CI's live check: the secrets `SENTRY_DSN` and `NEXT_PUBLIC_SENTRY_DSN` (both) in GitHub's Actions secrets. Without them `integrations-live` checks against its sink.
-5. `pnpm doctor --online` finds the DSNs accepted.
+5. `pnpm run doctor --online` finds the DSNs accepted.
 
 ### Changes from the review of this PR (PR 137)
 
@@ -9844,7 +9960,7 @@ The review (`reviews/pr-138-code-review.md` in the project's files) found five m
 2. The storefront: `NEXT_PUBLIC_POSTHOG_KEY` (Vercel's variables, or `apps/storefront/.env`), and `NEXT_PUBLIC_POSTHOG_HOST` only for the US cloud (`https://us.i.posthog.com`). Both are read when `next build` runs (the rewrites too), so a new key needs a new build.
 3. The backend: `POSTHOG_EVENTS_API_KEY` with the same key, and `POSTHOG_HOST` only for the US cloud.
 4. For CI's live check: the secrets `NEXT_PUBLIC_POSTHOG_KEY` and `POSTHOG_EVENTS_API_KEY` (both), and the variables for a US host. Without them `integrations-live` checks against its sink.
-5. `pnpm doctor --online` finds the key accepted; PostHog's Activity page shows the events after a consented visit and order.
+5. `pnpm run doctor --online` finds the key accepted; PostHog's Activity page shows the events after a consented visit and order.
 
 ## Meilisearch (T94)
 
@@ -10032,7 +10148,7 @@ The review (`reviews/pr-140-code-review.md` in the project's files) found 3 must
 4. **The methods:** Settings → Payment methods, switch on what the shop offers (Revolut Pay, Apple Pay, Google Pay; cards are on). With manual capture (D118) Stripe hides the methods that cannot wait for the shipment, such as iDEAL, Bancontact and Klarna.
 5. **Apple Pay's domains:** `pnpm stripe:domains` with production's keys registers the storefront's and the markets' own domains.
 6. **Ship within about 7 days:** a card's authorisation lapses then; marking a fulfillment shipped in Medusa Admin captures the payment, and the backend's log names any order left uncaptured for 6 days.
-7. `pnpm doctor --online` (in production also the webhook endpoint and the domains).
+7. `pnpm run doctor --online` (in production also the webhook endpoint and the domains).
 8. For CI's live checks: the secrets `STRIPE_API_KEY` and `NEXT_PUBLIC_STRIPE_KEY` in GitHub's Actions secrets (test keys only, D115).
 
 ## Express checkout (T102)
@@ -10271,7 +10387,7 @@ R2 has no local double, MinIO's image is no longer on Docker Hub and quay.io is 
 3. **Backend** (Railway, or `apps/backend/.env`): `S3_ENDPOINT`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_BUCKET=shopblok-dev`, `S3_PRIVATE_BUCKET=shopblok-dev-private`, `S3_PUBLIC_URL` (the `r2.dev` URL or the domain, never the endpoint); `S3_REGION` may stay blank (`auto`). Restart it.
 4. **Storefront** (Vercel, or `apps/storefront/.env`): the same values without `S3_PRIVATE_BUCKET`. `S3_PUBLIC_URL` is read at `next build`, so a new value needs a new build. The migration above runs with `payload migrate` before the code (it only adds two columns).
 5. **The CORS rules**, once per new admin origin: without them Payload's uploads and Medusa Admin's product import fail in the browser. Either a second token with **Admin Read & Write** (R2 → Manage API tokens), set in the shell for one command only, never in an `.env` file, CI or the cloud environment: `R2_ADMIN_ACCESS_KEY_ID=… R2_ADMIN_SECRET_ACCESS_KEY=… pnpm r2:cors` (it reads `NEXT_PUBLIC_BASE_URL` and `MEDUSA_BACKEND_URL`; `--origin` adds another admin origin such as `http://localhost:8000`), then delete that token; or `pnpm r2:cors --json` and paste each rule into the dashboard (R2 → the bucket → Settings → CORS policy). CI's and the cloud's origins are `http://localhost:8000` and `http://localhost:9000`, the defaults.
-6. `pnpm doctor --online`: both buckets and the private files refused (the CORS checks are a warning with the apps' token: check the rules in the dashboard). Also in the dashboard: **R2 → the private bucket → Settings → Public access has no `r2.dev` URL and no custom domain**; doctor cannot see either, and either would make customers' exports public.
+6. `pnpm run doctor --online`: both buckets and the private files refused (the CORS checks are a warning with the apps' token: check the rules in the dashboard). Also in the dashboard: **R2 → the private bucket → Settings → Public access has no `r2.dev` URL and no custom domain**; doctor cannot see either, and either would make customers' exports public.
 7. For CI's live check: the variables `S3_ENDPOINT`, `S3_BUCKET`, `S3_PRIVATE_BUCKET` and `S3_PUBLIC_URL`, and the secrets `S3_ACCESS_KEY_ID` and `S3_SECRET_ACCESS_KEY`, in GitHub's Actions settings and in the cloud environment (G10; a token for dev buckets only).
 
 ### Changes from the review of this PR (PR 143)
@@ -10365,3 +10481,93 @@ Skipped (optional, neither security nor a cleanup): closing one stand-in when th
 
 - Unit tests: scripts 546 of 546 before the last two cases (`backend-gates`, `report`, `r2-checks`, `done-when`), `@shopblok/integrations` 26 of 26, the storefront's `integration-skips.test.ts` 17 of 17.
 - Typecheck and lint pass in the three packages; `pnpm check:keys` passes. No key is in a file, a log or the PR: the scripts print names and ids only, and the session's Stripe keys stayed in its environment.
+
+## Docs and SPEC v0.13 (T104)
+
+**Result: the docs say what M6 built. SPEC v0.13 applies the plan's decisions (D114 to D131) and its eighteen findings (F1 to F18), with nine new rows in the decisions log and a "Changes in v0.13" table of 26 rows that name each section, the reason and the evidence; where a task went another way than the plan (no `@react-email/components`, Sentry's traces over OTLP, the token kept by a backend route, `media`'s two new fields, the caching module left off), the spec follows the code. This file gains ["Turning on an integration"](#turning-on-an-integration), one section per service with its keys, where each goes, the dashboard's switches and the checks, checked against T93 to T103; the quickstart's links, clone URL and Mailpit row; "The M6 log" heading; and M6's counts below. The README, ADR 0002, the plan's status line and §7, and NEXT-SESSION.md (with W8's prompt) follow. Every §7 item is met in the cloud but two: item 1 is met with PostHog and Sentry on their stand-ins and Stripe, Resend and R2 on their fallback, because GitHub holds none of their secrets yet, and item 14, W8, runs on the owner's PC only when the owner says so.** M6 plan §5 T104; §7, §8.
+
+| | |
+|---|---|
+| Date | 2026-11-26 |
+| Branch | `claude/project-thread-isx4nf`, from `main` at `0713755` (PR 144, T103, merged) |
+| PR | this PR, "T104: docs and SPEC v0.13" |
+
+### What changed
+
+- **SPEC.md v0.13.** §3 (Medusa 2.22.6 and each integration's packages and pins), §4 (the layout as built), §5 (Meilisearch and Mailpit; bootstrap's Stripe step; doctor's checks, `--only` and `byHand`), §6.1 and §6.2 (the modules, the e-mails and subscribers, Meilisearch, saved methods, the analytics events, the Stripe block), §7 (media on R2, the e-mail types, the newsletter, the panel, the plugins), §8 (the routes `/api/payment-return`, `{m}/newsletter/confirm`, `/monitoring`, `/ingest`, the account's payment methods; the payment step, the express rail, consent), §9 (the E-mails group), §10 (every integration as built; Resend's verified-domain rule for `--strict`), §13 (M6's first loads and what stays out), §14 (the suites, `integrations-live`, `check:keys`, the counts and times), §15 and §16 (the names and the go-live list as built), §17 (M6's row as built; M7's and M8's new items; the risks resolved and new), §18 and §19. "Changes in v0.13" has a row for each. The "first write" wording is fixed in §6.2 and §8.5 (NEXT-SESSION's was already right).
+- **ADR 0002:** its M6 consequences marked done (T94).
+- **SETUP.md.** "Turning on an integration" (Stripe, Resend, PostHog, Sentry, R2, Meilisearch, Redis, and CI and the cloud), linked from the top and the quickstart, as `.env.example` already pointed to it; the quickstart's clone URL (`neno221`), its Mailpit row (Payload's e-mails arrive there since T98), the DS paragraph (235 entries in eight groups; 227 checked, 1,362 cells) and the baselines' paragraph; "The M6 log" heading; the four task lists' `pnpm doctor --online` now `pnpm run doctor --online`.
+- **The code's notes that named M6** as still to come: each done, re-pointed to M7 or removed (comments and DS story text only: `email-copy.unit.spec.ts`, `auth-verification-requested.ts`, two DS stories, three Payload configs and `payload-types.ts`'s matching comment, the fixtures, an `en` message comment, `account-pages.ts`, `NOTICE.md`, four `@shopblok/ui` files, `doctor-services.ts`).
+
+### Checks
+
+- `git diff --check` is clean; every relative link and anchor the changed docs hold resolves (the script below).
+- No behaviour changes: the source edits are comments and DS story text that the baselines' frames do not draw; prettier, `typecheck`, `lint` and `test` of the changed packages with no `.env` (CI's state) are below.
+- `pnpm audit --prod` on 2026-11-26: **8** (6 moderate, 2 high, none critical): `esbuild`, `ajv`, `uuid`, `csv-parse`, `happy-dom` twice and `minimatch` as before; `deepmerge`'s low one is no longer listed, and a new moderate one names `i18next` 23.7.11 (`GHSA-6jcc-5g8w-32mx`, `deepExtend`), which Medusa Admin's `react-i18next` brings. Not a dependency of ours; it stays until Medusa Admin updates it.
+- **The counts, read from the repository at `0713755`:**
+
+| | End of M5 (T92) | End of M6 (T104) |
+|---|---|---|
+| Registry entries | 223 (Foundations 8, Atoms 32, Molecules 40, Organisms 34, Headers and Footers 11, Sections 60, Templates 38) | **235** (E-mails 12; the rest the same) |
+| Entries the DS job checks (outside Foundations), cells | 215, 1,290 | **227, 1,362** |
+| Family members (thumbnails) | 114 | **114** (an e-mail is not picked in Payload, so it has none) |
+| `en` baselines + thumbnails | 645 + 114 = 759 PNGs, 99,270,648 bytes (99.3 MB) | **681 + 114 = 795 PNGs, 98,704,245 bytes (98.7 MB)**: baselines 97,186,662 bytes, thumbnails 1,517,583. 566,403 bytes fewer although 36 PNGs more; M6 also redrew 138 PNGs for the footers' "Cookie settings" and 38 for the payment step |
+| Every version of every baseline and thumbnail in the history (the unique blobs) | 119,197,008 bytes at `50bef34` (M6's start) | **169,563,760 bytes (169.6 MB)** of D51's 200 MB: about 30 MB left |
+| The history's `size-pack` (`git count-objects -vH` on a full clone of `main`) | 107.39 MiB at `e050bfd`; 112.08 MiB at `50bef34` (782 commits) | **159.69 MiB** at `0713755` (890 commits), 47.6 MiB more in M6 |
+| UI strings | 787 | **815** |
+| Payload migrations in M6 | | two: T99's `20261112_135006_email_types_newsletter` and T95's `20261125_234610_media_storage_fields` |
+| Live specs (`e2e/integrations/`) | none | **9 files, 39 tests**: `doctor`, `done-when`, `stripe-checkout` (6), `stripe-saved` (3), `stripe-express` (3), `resend` (4), `posthog` (6), `sentry` (5), `r2` (5) |
+
+M6's 12 new entries are the group **E-mails**: `emails/verify-email`, `password-reset`, `order-transfer` (T98), and `order-placed`, `order-shipped`, `order-canceled`, `return-requested`, `refund-issued`, `welcome`, `admin-invite`, `form-message` and `newsletter-confirm` (T99), each with three `en` baselines and no thumbnail.
+
+### CI times before and after M6
+
+Before: `main` at `95b6c7a` (the W7 fixes merged, run [43004859507](https://github.com/neno221/shopblok-starter/actions/runs/43004859507); its `e2e-smoke` time is T92's 22:17, "CI times before M6, and the history"). After: `main` at `0713755` (T103 merged, run [45746416443](https://github.com/neno221/shopblok-starter/actions/runs/45746416443), all green).
+
+| Job | Before M6 | After M6 (`0713755`) | Of which, after |
+|---|---|---|---|
+| `gate` | 8 s | 16 s | |
+| `check` (Node 22) | 7:10 | **9:04** | `check:keys` 3 s, typecheck 59 s, lint 32 s, test 4:46, build 1:46 |
+| `check` (Node 24) | 4:40 (T92) | 7:38 | informational |
+| `backend-integration` | 2:10 | **4:35** | the tests 3:30 (Meilisearch's suite, the order e-mails, the saved methods, Stripe) |
+| `e2e-smoke` | 22:17 | **22:01** | the Playwright suites 14:33, bootstrap 52 s, build 1:18, the done-when keyless 9 s, the console in `next dev` 1:55 |
+| `integrations-live` | none | **5:37** | bootstrap 1:05, build 1:34, the specs 1:13 (15 passed, 24 skipped of 39) |
+| `design-system` | shards 11:04, 13:03, 11:01, the merge 0:44 | shards 12:50, 15:19, 12:26, the merge 1:02 | the checks 9.0, 11.1 and 9.1 min a shard |
+| `dev-console-ds` | 8:36 | 12:04 | the DS pages' console 10:38 |
+| `windows-smoke` | 11:55 (T92) | dispatched on this PR (below) | not run on `main` or on a PR that changes no dependency file |
+| The run's wall clock | 22.3 min (T92) | **22.3 min** (03:03:18 to 03:25:38 UTC) | still `e2e-smoke`'s |
+
+M6 added two jobs' worth of checks without lengthening the run: `integrations-live` runs beside `e2e-smoke` and ends in under 6 minutes, and `e2e-smoke`'s suites grew by the keyless fixture, `consent.spec.ts` and the done-when (T103's runs were 23:21 and 23:30; T95's merge 23:44: the runners' spread is about two minutes). `backend-integration` doubled, all of it in its tests.
+
+### First load at the end of M6
+
+From the tasks' own builds as `e2e-smoke` and `integrations-live` build them (gzipped KB; T96, T97, T100 and T102 have the tables), against the budgets you raised on 2026-11-13:
+
+| Route | End of M5 | End of M6, no keys | End of M6, PostHog's and Sentry's keys | Budget |
+|---|---|---|---|---|
+| The product page | 334.9 | **336.5** (344,551 bytes, 2,585 left) | **338.4** (346,525 bytes, 611 left) | 339 |
+| The five listing routes | 335.7 | **337.2** (345,279 bytes, 2,881 left) | **339.1** (347,230 bytes, 930 left) | 340 |
+
+Without a key M6 adds about 1.5 KB (the consent cookie and "Cookie settings", `global-error.tsx`); with PostHog's and Sentry's keys about 3.5 KB (Sentry's queue, `track()` and the events); a Stripe key adds nothing to them. `check:first-load` keeps Stripe's client (`shopblok:stripe-client`), PostHog's loader (52 KB) and Sentry's browser SDK (56 KB) out of every first load, and lists a module left out of a keyless build as "not built". The other routes were not measured again in this task; both budgeted routes passed in `e2e-smoke` and `integrations-live` on `0713755`.
+
+### M6's exit criteria (plan §7)
+
+| # | Criterion | State | Evidence |
+|---|---|---|---|
+| 1 | The done-when: `e2e-smoke` with no keys and `integrations-live` with the test keys on one commit; every `wired` flag true | **Met in part** | On `0713755` both green: the keyless half ("The done-when, keyless": every entry `wired`, the five third-party integrations on fallback, a purchase to the receipt with "Pay later", no request to a third party) and `integrations-live` with `E2E_EXPECT_LIVE=posthog,sentry,meilisearch,redis` (15 passed, 24 skipped). **GitHub holds no integration secret**, so PostHog and Sentry ran on their stand-ins and Stripe's, Resend's and R2's specs skipped. A cloud run with Stripe's test keys passed ("The done-when (T103)"). Left: the secrets in GitHub (NEXT-SESSION.md) |
+| 2 | Stripe: the three-page purchase in `/` and `/us`, 3-D Secure, a decline, Revolut Pay; the webhook; "Pay later" and the keyless checkout; capture on shipment | Met (cloud, test keys) | `stripe-checkout.spec.ts` 6 of 6 and the backend's `stripe.spec.ts` ("Stripe in the checkout (T100)") |
+| 3 | Saved methods: the routes and ownership, save and pay, the account's list, add and remove, the guest rule, Revolut Pay | Met (cloud, test keys) | `payment-methods.spec.ts`, `stripe-saved.spec.ts` 3 of 3; Revolut Pay saved ("Saved payment methods (T101)") |
+| 4 | The express rail with the Express Checkout Element where a wallet shows | Met (Link in the cloud) | `stripe-express.spec.ts` 3 of 3 ("Express checkout (T102)"); Apple Pay and Google Pay need HTTPS and a wallet: W8 and M7's staging |
+| 5 | E-mails: the types as HTML in four languages, escaped once, Resend or the console and Mailpit; form e-mails; the newsletter's double opt-in; the sender's domain in doctor | Met (against a fake Resend) | "E-mails and Resend (T98)", "Order e-mails and the newsletter (T99)", `order-emails.spec.ts` 9 of 9; `resend.spec.ts` passed against the fake and skips in CI until the key is in |
+| 6 | Consent and PostHog | Met | `consent.spec.ts` in `e2e-smoke`; `posthog.spec.ts` 6 of 6 in `integrations-live` on the stand-in ("Consent and PostHog (T97)") |
+| 7 | Sentry in the three apps, scrubbed; nothing without a DSN | Met | `sentry.spec.ts` 5 of 5 in `integrations-live` on the sink; the keyless fixture ("Sentry (T96)") |
+| 8 | Meilisearch as ADR 0002 decided, its suite, the overlay's prefix matches, `search-postgres` still tested | Met | `search-meilisearch.spec.ts` 25 of 25 and `search-locale.spec.ts` in `backend-integration`; the catalog's prefix case ("Meilisearch (T94)") |
+| 9 | R2 for Medusa's two kinds of files and Payload's media, the CORS script, the doctor checks; local disk without keys | Met (against a local S3 stand-in) | "R2 (T95)"; `r2.spec.ts` skips in CI until the keys are in |
+| 10 | Redis: caching on, or why it is off | Met (off) | "Redis caching (D128): stays off": the module cannot start beside the markets plugin |
+| 11 | The first-load budgets with the SDKs out of every first load | Met | The table above; `check:first-load` in both jobs |
+| 12 | Medusa 2.22.6; `integrations-live` and the keyless check; `check-no-keys`; CI's times; the pictures under D51's lines | Met | "Versions, keys and CI for M6 (T93)"; the tables above (169.6 of 200 MB) |
+| 13 | Green in CI's state, and every CI job on M6's last PR, `windows-smoke` included | Met when this PR merges | This PR's run, with `windows-smoke` dispatched on its branch (it changes no dependency file); it merges only with every job green |
+| 14 | W8 | **Open** | The owner's call; the prompt is in NEXT-SESSION.md |
+| 15 | Docs: a SETUP section per task and "Turning on an integration"; SPEC v0.13 applies §1 and §8 | Met | T93 to T103's sections, "Turning on an integration" and this one; SPEC v0.13's "Changes in v0.13" |
+
+**Left open:** the integration secrets in GitHub (item 1: Stripe's two keys, Resend's key with the sender and segment variables, R2's keys and variables, and Sentry's and PostHog's for real rather than stand-in checks), and W8 (item 14), on the owner's PC only when the owner says so. Once Resend's secrets are in, CI's `doctor --online --strict` fails while `RESEND_FROM_EMAIL` is `onboarding@resend.dev`: the sender must be an address on a verified domain ("Turning on an integration", Resend). Recorded for M7, none blocking M6: the CSP hosts (Monaco on jsdelivr, Stripe's; PostHog and Sentry go through the site's own `/ingest` and `/monitoring`), Apple Pay and Google Pay on staging, the caching module (one `graphql`), the first load's headroom (611 and 930 bytes with the keys), the baselines' room (about 30 MB of D51's 200), and the items SPEC §17.1 lists.
