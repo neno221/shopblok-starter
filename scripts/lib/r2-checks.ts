@@ -4,11 +4,24 @@
 import { isSet, type AppEnvs, type AppName } from "@shopblok/integrations";
 import { describeUnreachable, type HttpResult } from "./http.ts";
 import type { Check } from "./report.ts";
-import { allowsUploadFrom, parseCorsRules } from "./s3.ts";
+import { ADMIN_UPLOAD_RULE, IMPORT_UPLOAD_RULE, allowsUploadFrom, parseCorsRules } from "./s3.ts";
 
 const R2_KEYS_CHECK = { id: "r2-keys", title: "R2 buckets and URLs" } as const;
 const R2_BUCKET = { id: "r2-bucket", title: "R2 bucket answers" } as const;
-const R2_CORS = { id: "r2-cors", title: "R2 CORS rule for the admin's uploads" } as const;
+const R2_CORS = {
+  public: {
+    id: "r2-cors",
+    title: "R2 CORS rule for Payload's admin uploads",
+    upload: ADMIN_UPLOAD_RULE,
+    what: "Payload's direct uploads",
+  },
+  private: {
+    id: "r2-cors-private",
+    title: "R2 CORS rule for Medusa Admin's product import",
+    upload: IMPORT_UPLOAD_RULE,
+    what: "Medusa Admin's product import",
+  },
+} as const;
 const R2_PRIVATE = {
   id: "r2-private",
   title: "R2 private files refused without a signature",
@@ -93,9 +106,15 @@ export function r2KeyChecks(envs: AppEnvs): Check[] {
   }
   const [a, b] = [value(envs.backend, "S3_PUBLIC_URL"), value(envs.storefront, "S3_PUBLIC_URL")];
   const [x, y] = [value(envs.backend, "S3_BUCKET"), value(envs.storefront, "S3_BUCKET")];
-  if (a !== "" && b !== "" && x !== "" && y !== "" && (a === b) !== (x === y))
+  // Medusa's product pictures carry the backend's URL and are drawn through `next/image`, which
+  // takes only the storefront's `S3_PUBLIC_URL` (`images.remotePatterns`, `media-host.ts`).
+  if (a !== "" && b !== "" && !coveredBy(a, b))
+    errors.push(
+      `apps/backend: S3_PUBLIC_URL is not under the storefront's (${b}), so the shop's image optimiser refuses every product picture uploaded in Medusa Admin: use one public bucket and one S3_PUBLIC_URL in both apps`,
+    );
+  else if (a !== "" && a === b && x !== "" && y !== "" && x !== y)
     warnings.push(
-      "the apps name one S3_PUBLIC_URL for two buckets, or two for one: each public bucket has its own URL",
+      "the apps name one S3_PUBLIC_URL for two buckets (S3_BUCKET differs): one app's files would not be on that URL",
     );
   const checks: Check[] = [];
   if (errors.length > 0)
@@ -111,7 +130,19 @@ export function r2KeyChecks(envs: AppEnvs): Check[] {
   return checks;
 }
 
-/** `--online`: R2's answer to a signed `HEAD /<bucket>`. */
+/** True when `url` is at or under `base`: the same origin, and `base`'s path as its path's start. */
+function coveredBy(url: string, base: string): boolean {
+  try {
+    const [inner, outer] = [new URL(url), new URL(base)];
+    const prefix = outer.pathname.replace(/\/+$/, "");
+    const path = inner.pathname.replace(/\/+$/, "");
+    return inner.origin === outer.origin && (path === prefix || path.startsWith(`${prefix}/`));
+  } catch {
+    return true; // Not a URL: reported above.
+  }
+}
+
+/** `--online`: R2's answer to a signed `ListObjectsV2` of one key (what an Object Read & Write token may do). */
 export function r2BucketCheck(target: R2Bucket, answer: HttpResult): Check {
   const check = (c: Omit<Check, "id" | "title">): Check => ({
     id: `${R2_BUCKET.id}-${target.role}`,
@@ -138,30 +169,50 @@ export function r2BucketCheck(target: R2Bucket, answer: HttpResult): Check {
   return check({ level: "warn", message: `not checked: R2 answered HTTP ${answer.status}.` });
 }
 
-/** `--online`: the public bucket's CORS rules (`GET /<bucket>?cors`) let the admin's origin upload. */
+/**
+ * `--online`: a bucket's CORS rules (`GET /<bucket>?cors`) let `origin` upload: on the public
+ * bucket, the storefront's (Payload's admin); on the private one, the backend's (Medusa Admin's
+ * product import). The apps' Object Read & Write token may not read bucket settings, so a 403 is
+ * a warning that says where to look.
+ */
 export function r2CorsCheck(target: R2Bucket, origin: string, answer: HttpResult): Check {
-  const check = (c: Omit<Check, "id" | "title">): Check => ({ ...R2_CORS, ...c });
+  const kind = R2_CORS[target.role];
+  const check = (c: Omit<Check, "id" | "title">): Check => ({
+    id: kind.id,
+    title: kind.title,
+    ...c,
+  });
   const fix =
-    "Run `pnpm r2:cors` (it adds the admin's origin, NEXT_PUBLIC_BASE_URL's, to the rule).";
+    "Run `pnpm r2:cors` with an Admin Read & Write token in the shell (R2_ADMIN_ACCESS_KEY_ID, R2_ADMIN_SECRET_ACCESS_KEY), or paste `pnpm r2:cors --json` into the dashboard (R2 → the bucket → Settings → CORS policy).";
   if (answer.kind !== "response")
     return check({ level: "warn", message: `not checked: R2 ${describeUnreachable(answer)}.` });
+  if (answer.status === 403)
+    return check({
+      level: "warn",
+      message: `not checked: these keys may not read ${target.bucket}'s CORS rules (HTTP 403; an Object Read & Write token cannot). Check in the dashboard that ${origin} may PUT, for ${kind.what}.`,
+      fix,
+    });
   if (answer.status === 404)
     return check({
       level: "error",
-      message: `The public bucket ${target.bucket} has no CORS rule, so the browser refuses Payload's direct uploads from ${origin}.`,
+      message: `The ${target.role} bucket ${target.bucket} has no CORS rule, so the browser refuses ${kind.what} from ${origin}.`,
       fix,
     });
   if (answer.status < 200 || answer.status >= 300)
     return check({ level: "warn", message: `not checked: R2 answered HTTP ${answer.status}.` });
   const rules = parseCorsRules(answer.text);
-  if (!allowsUploadFrom(rules, origin))
+  if (!allowsUploadFrom(rules, origin, kind.upload))
     return check({
       level: "error",
-      message: `No CORS rule of ${target.bucket} lets ${origin} upload (PUT), so the browser refuses Payload's direct uploads.`,
-      details: rules.map(
-        (rule) =>
-          `${rule.allowedMethods.join(", ")} from ${rule.allowedOrigins.join(", ") || "no origin"}`,
-      ),
+      message: `No CORS rule of ${target.bucket} lets ${origin} upload (PUT), so the browser refuses ${kind.what}.`,
+      ...(rules.length > 0
+        ? {
+            details: rules.map(
+              (rule) =>
+                `${rule.allowedMethods.join(", ")} from ${rule.allowedOrigins.join(", ") || "no origin"}`,
+            ),
+          }
+        : {}),
       fix,
     });
   if (
@@ -170,7 +221,7 @@ export function r2CorsCheck(target: R2Bucket, origin: string, answer: HttpResult
     return check({
       level: "warn",
       message: `${target.bucket}'s CORS rule lets any origin upload (*); presigned URLs still guard each upload.`,
-      fix: "List the admin's origins instead (`pnpm r2:cors` adds NEXT_PUBLIC_BASE_URL's).",
+      fix: "List the admins' origins instead (`pnpm r2:cors` writes NEXT_PUBLIC_BASE_URL's and MEDUSA_BACKEND_URL's).",
     });
   return check({ level: "ok", message: `${origin} may upload to ${target.bucket} (PUT).` });
 }
@@ -225,11 +276,16 @@ export function r2PrivateCheck(input: {
   if ([400, 401, 403].includes(api.status))
     return check({
       level: "ok",
-      message: `R2 refuses an unsigned read of ${what} (HTTP ${api.status})${
+      message: `R2's S3 API refuses an unsigned read of ${what} (HTTP ${api.status})${
         publicDomain?.kind === "response"
-          ? `, and S3_PUBLIC_URL does not serve it (HTTP ${publicDomain.status})`
+          ? `, and the file is not under S3_PUBLIC_URL (HTTP ${publicDomain.status})`
           : ""
       }.`,
+      // R2's S3 API refuses every unsigned request, and S3_PUBLIC_URL is the public bucket's: neither
+      // shows whether the private bucket has an r2.dev URL or a custom domain of its own.
+      details: [
+        `Not visible with these keys: check in the dashboard (R2 → ${input.bucket} → Settings → Public access) that it has no r2.dev URL and no custom domain.`,
+      ],
     });
   return check({ level: "warn", message: `not checked: R2 answered HTTP ${api.status}.` });
 }

@@ -10,7 +10,7 @@ import {
   r2PrivateCheck,
   type R2Bucket,
 } from "./r2-checks.ts";
-import { corsXml, withAdminOrigins } from "./s3.ts";
+import { IMPORT_UPLOAD_RULE, corsXml, withAdminOrigins } from "./s3.ts";
 
 // Stand-ins, not keys (D115).
 const shared = {
@@ -79,9 +79,29 @@ describe("r2KeyChecks", () => {
     ]);
   });
 
-  it("warns when the apps' public URLs and buckets do not pair up", () => {
+  it("warns when the apps name one public URL for two buckets", () => {
     const checks = r2KeyChecks({ ...envs, storefront: { ...shared, S3_BUCKET: "other" } });
     expect(checks.map((c) => [c.id, c.level])).toEqual([["r2-urls", "warn"]]);
+  });
+
+  it("refuses a backend public URL that next/image does not take (the storefront's)", () => {
+    const [check] = r2KeyChecks({
+      backend: { ...envs.backend, S3_BUCKET: "other", S3_PUBLIC_URL: "https://pub-2.r2.dev" },
+      storefront: shared,
+    });
+    expect(check?.level).toBe("error");
+    expect(check?.details?.[0]).toMatch(
+      /^apps\/backend: S3_PUBLIC_URL is not under the storefront's/,
+    );
+    expect(check?.details?.[0]).toContain("one S3_PUBLIC_URL in both apps");
+    // Under the storefront's path is fine, a sibling path is not.
+    const under = (backendUrl: string, storefrontUrl: string) =>
+      r2KeyChecks({
+        backend: { ...envs.backend, S3_PUBLIC_URL: backendUrl },
+        storefront: { ...shared, S3_PUBLIC_URL: storefrontUrl },
+      });
+    expect(under("https://cdn.example/shop/", "https://cdn.example/shop")).toEqual([]);
+    expect(under("https://cdn.example/shop2", "https://cdn.example/shop")[0]?.level).toBe("error");
   });
 });
 
@@ -123,6 +143,34 @@ describe("r2CorsCheck", () => {
   it("warns about any origin (*)", () => {
     expect(r2CorsCheck(publicBucket, origin, answer(200, rule(["*"]))).level).toBe("warn");
   });
+
+  it("warns when the token may not read the rules (an Object Read & Write token: 403)", () => {
+    const check = r2CorsCheck(publicBucket, origin, answer(403));
+    expect(check.level).toBe("warn");
+    expect(check.message).toMatch(/Object Read & Write/);
+    expect(check.fix).toContain("pnpm r2:cors --json");
+  });
+
+  it("checks the private bucket for Medusa Admin's import (PUT with the CSV's type)", () => {
+    const privateBucket: R2Bucket = {
+      apps: ["backend"],
+      bucket: "shop-dev-private",
+      role: "private",
+    };
+    const medusa = "https://api.shop.example";
+    const importRule = (origins: string[]) =>
+      corsXml(withAdminOrigins([], origins, IMPORT_UPLOAD_RULE).rules);
+    const ok = r2CorsCheck(privateBucket, medusa, answer(200, importRule([medusa])));
+    expect([ok.id, ok.level]).toEqual(["r2-cors-private", "ok"]);
+    const none = r2CorsCheck(privateBucket, medusa, answer(404));
+    expect([none.level, none.message]).toEqual([
+      "error",
+      expect.stringContaining("Medusa Admin's product import"),
+    ]);
+    expect(r2CorsCheck(privateBucket, medusa, answer(200, importRule([origin]))).level).toBe(
+      "error",
+    );
+  });
 });
 
 describe("r2PrivateCheck", () => {
@@ -131,7 +179,9 @@ describe("r2PrivateCheck", () => {
   it("is ok when R2 refuses the unsigned read and the public URL does not serve the file", () => {
     const check = r2PrivateCheck({ ...base, api: answer(400), publicDomain: answer(404) });
     expect(check.level).toBe("ok");
-    expect(check.message).toContain("does not serve it (HTTP 404)");
+    expect(check.message).toContain("is not under S3_PUBLIC_URL (HTTP 404)");
+    // What the keys cannot see: the private bucket's own public access.
+    expect(check.details?.[0]).toContain("R2 → shop-dev-private → Settings → Public access");
   });
 
   it("is an error when either serves it", () => {

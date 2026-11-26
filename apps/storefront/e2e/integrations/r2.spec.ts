@@ -1,6 +1,3 @@
-import { execFile } from "node:child_process";
-import path from "node:path";
-import { promisify } from "node:util";
 import { expect, test, type Page } from "@playwright/test";
 import sharp from "sharp";
 import { signInToAdmin } from "../support/admin-ui";
@@ -19,14 +16,16 @@ import { adminToken } from "../support/server";
 // S3_PRIVATE_BUCKET in the backend), Payload's media and Medusa's files are on R2: a picture
 // uploaded in Payload's admin goes from the browser straight to the public bucket (`clientUploads`),
 // gets its sizes, and is drawn on a page from `S3_PUBLIC_URL`; a picture uploaded through Medusa
-// Admin's upload route is public there too; a product export lands in the private bucket, its
+// Admin's upload route is public there too; Medusa Admin's product import may PUT its CSV to the
+// private bucket from Medusa Admin's origin; a product export lands in the private bucket, its
 // presigned link downloads it, and neither its plain URL on the public domain nor an unsigned read
 // on the S3 API serves it. Everything it makes is deleted after. Without the keys it is skipped,
-// naming them; it prints no key.
+// naming them; it prints no key. The buckets' CORS rules are set once with `pnpm r2:cors` and an
+// admin token (SETUP "Turning on R2"): the apps' Object Read & Write token cannot set them, so the
+// browser's PUT here is what shows the public bucket's rule.
 
 skipWithoutKeys(test, "r2");
 
-const repoRoot = path.resolve(import.meta.dirname, "..", "..", "..", "..");
 const stamp = Date.now().toString(36);
 const publicUrl = () => appEnv("storefront", "S3_PUBLIC_URL").trim().replace(/\/+$/, "");
 
@@ -56,14 +55,6 @@ test.describe("R2 (T95)", () => {
   test.beforeAll(async () => {
     // `skipWithoutKeys` skips in `beforeEach`, which runs after this: without the keys, nothing here.
     if (missingKeys(integration("r2")).length > 0) return;
-    // The admin's direct uploads need the public bucket's CORS rule for this origin; the script is
-    // idempotent, so it adds `NEXT_PUBLIC_BASE_URL`'s origin once and leaves the rule after that.
-    const { stdout } = await promisify(execFile)(
-      process.execPath,
-      [path.join("scripts", "r2-cors.ts")],
-      { cwd: repoRoot, timeout: 60_000 },
-    );
-    console.log(stdout.trim());
     token = await adminToken();
   });
 
@@ -83,15 +74,17 @@ test.describe("R2 (T95)", () => {
     }
   });
 
-  test("doctor --online finds both buckets, the CORS rule and the private files refused", async () => {
+  test("doctor --online finds both buckets and the private files refused, and no R2 error", async () => {
     const report = await doctorOnline();
     const r2 = report.checks.filter((check) => check.id.startsWith("r2-"));
     expect(
       r2.map((check) => `${check.id}: ${check.level}: ${check.message}`),
       "doctor's R2 checks",
     ).toEqual(expect.arrayContaining([expect.stringMatching(/^r2-bucket-public: ok/)]));
-    for (const id of ["r2-bucket-private", "r2-cors", "r2-private"])
+    for (const id of ["r2-bucket-private", "r2-private"])
       expect(r2.find((check) => check.id === id)?.level, id).toBe("ok");
+    // The CORS checks are a warning with the apps' Object Read & Write token (it may not read bucket
+    // settings), and must never be an error.
     expect(r2.filter((check) => check.level === "error")).toEqual([]);
   });
 
@@ -175,6 +168,44 @@ test.describe("R2 (T95)", () => {
     const served = await fetch(file.url);
     expect(served.status, "served without a signature").toBe(200);
     expect(served.headers.get("content-type")).toBe("image/png");
+  });
+
+  test("Medusa Admin's product import may PUT its CSV to the private bucket from Medusa Admin's origin", async () => {
+    const medusa = medusaUrl();
+    const admin = await medusaAdminToken(medusa);
+    const csv = "Product Handle,Product Title\n";
+    // What `@medusajs/js-sdk`'s `createImport` asks for (the route's default access is private).
+    const presigned = await medusaAdminApi<{ url: string; filename: string }>(
+      medusa,
+      admin,
+      "POST",
+      "/admin/uploads/presigned-urls",
+      { originalname: `r2-import-${stamp}.csv`, mime_type: "text/csv", size: csv.length },
+    );
+    made.medusaFiles.push(presigned.filename);
+    expect(presigned.filename).toMatch(/^private\//);
+    const url = new URL(presigned.url);
+    expect(url.pathname.split("/")[1], "the private bucket").toBe(
+      appEnv("backend", "S3_PRIVATE_BUCKET").trim(),
+    );
+    const origin = new URL(medusa).origin;
+    const preflight = await fetch(url, {
+      method: "OPTIONS",
+      headers: {
+        origin,
+        "access-control-request-method": "PUT",
+        "access-control-request-headers": "content-type",
+      },
+    });
+    expect(preflight.status, "the browser's preflight from Medusa Admin").toBeLessThan(300);
+    expect(preflight.headers.get("access-control-allow-origin")).toBe(origin);
+    const put = await fetch(url, {
+      method: "PUT",
+      headers: { origin, "content-type": "text/csv" },
+      body: csv,
+    });
+    expect(put.status, "the CSV's PUT").toBe(200);
+    expect(put.headers.get("access-control-allow-origin")).toBe(origin);
   });
 
   test("a product export lands in the private bucket: its presigned link downloads it, its plain URLs do not", async () => {

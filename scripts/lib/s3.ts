@@ -167,60 +167,104 @@ export function corsXml(rules: readonly CorsRule[]): string {
 /** `Content-MD5` of a body (S3 asks for it on `PutBucketCors`). */
 export const contentMd5 = (body: string) => createHash("md5").update(body).digest("base64");
 
+/** A rule `pnpm r2:cors` writes, without its origins: what one kind of browser upload needs. */
+export type UploadRule = Omit<CorsRule, "allowedOrigins"> & {
+  /** The request headers the browser sends with the upload, which the rule must allow. */
+  sends: readonly string[];
+};
+
 /**
- * What the admin's uploads need (Payload's `clientUploads`, SPEC §10.7): the browser `PUT`s each
- * file to a presigned URL with its type and `If-None-Match`, and reads `ETag` back. `GET` and
- * `HEAD` let the admin fetch a picture it shows (the focal point, the crop).
+ * Payload's admin on the public bucket (`clientUploads`, SPEC §10.7): the browser `PUT`s each file
+ * to a presigned URL with its type and `If-None-Match`, and reads `ETag` back. `GET` and `HEAD` let
+ * the admin fetch a picture it shows (the focal point, the crop).
  */
-export const ADMIN_UPLOAD_RULE: Omit<CorsRule, "allowedOrigins"> = {
+export const ADMIN_UPLOAD_RULE: UploadRule = {
   allowedMethods: ["GET", "HEAD", "PUT"],
   allowedHeaders: ["*"],
   exposeHeaders: ["ETag"],
   maxAgeSeconds: 3600,
+  sends: ["content-type", "if-none-match"],
 };
+
+/**
+ * Medusa Admin's product import on the private bucket: `@medusajs/js-sdk`'s `createImport` asks
+ * `/admin/uploads/presigned-urls` for a URL (private by default) and `PUT`s the CSV to it from Medusa
+ * Admin's page, with the file's type. Nothing else from a browser.
+ */
+export const IMPORT_UPLOAD_RULE: UploadRule = {
+  allowedMethods: ["PUT"],
+  allowedHeaders: ["content-type"],
+  exposeHeaders: [],
+  maxAgeSeconds: 3600,
+  sends: ["content-type"],
+};
+
+const ruleOf = ({ sends: _sends, ...rule }: UploadRule): Omit<CorsRule, "allowedOrigins"> => rule;
 
 /** The rule `pnpm r2:cors` keeps: the one that allows `PUT` (others, a font's `GET` rule, are left as they are). */
 const isUploadRule = (rule: CorsRule) => rule.allowedMethods.includes("PUT");
 
 /** True when a rule lets `origin` upload: `PUT` from it (or `*`) with any header or the ones the upload sends. */
-export function allowsUploadFrom(rules: readonly CorsRule[], origin: string): boolean {
+export function allowsUploadFrom(
+  rules: readonly CorsRule[],
+  origin: string,
+  upload: UploadRule = ADMIN_UPLOAD_RULE,
+): boolean {
   return rules.some(
     (rule) =>
       isUploadRule(rule) &&
       (rule.allowedOrigins.includes(origin) || rule.allowedOrigins.includes("*")) &&
       (rule.allowedHeaders.includes("*") ||
-        ["content-type", "if-none-match"].every((header) =>
+        upload.sends.every((header) =>
           rule.allowedHeaders.map((each) => each.toLowerCase()).includes(header),
         )),
   );
 }
 
 /**
- * The rules with the admin's origins added (idempotent): one upload rule, holding every origin it
- * held before and `origins`, with `ADMIN_UPLOAD_RULE`'s methods and headers; the other rules kept.
+ * The rules with the uploading origins added (idempotent): one upload rule, holding every origin
+ * it held before and `origins`, with `upload`'s methods and headers; the other rules kept.
  * `changed` is false when the bucket already has exactly this, so nothing needs writing.
  */
 export function withAdminOrigins(
   rules: readonly CorsRule[],
   origins: readonly string[],
+  upload: UploadRule = ADMIN_UPLOAD_RULE,
 ): { rules: CorsRule[]; changed: boolean; origins: string[] } {
-  const upload = rules.filter(isUploadRule);
+  const existing = rules.filter(isUploadRule);
   const others = rules.filter((rule) => !isUploadRule(rule));
-  const merged = [...new Set([...upload.flatMap((rule) => rule.allowedOrigins), ...origins])];
-  const next: CorsRule = { allowedOrigins: merged, ...ADMIN_UPLOAD_RULE };
-  const same = upload.length === 1 && JSON.stringify(upload[0]) === JSON.stringify(next);
+  const merged = [...new Set([...existing.flatMap((rule) => rule.allowedOrigins), ...origins])];
+  const next: CorsRule = { allowedOrigins: merged, ...ruleOf(upload) };
+  const same = existing.length === 1 && JSON.stringify(existing[0]) === JSON.stringify(next);
   return { rules: [...others, next], changed: !same, origins: merged };
 }
 
-/** `pnpm r2:cors`'s arguments: the `--origin` values (as origins) and `--dry-run`, or what is wrong. */
+/** The rules as Cloudflare's dashboard takes them (R2 → the bucket → Settings → CORS policy). */
+export function corsDashboardJson(rules: readonly CorsRule[]): string {
+  return JSON.stringify(
+    rules.map((rule) => ({
+      AllowedOrigins: rule.allowedOrigins,
+      AllowedMethods: rule.allowedMethods,
+      ...(rule.allowedHeaders.length > 0 ? { AllowedHeaders: rule.allowedHeaders } : {}),
+      ...(rule.exposeHeaders.length > 0 ? { ExposeHeaders: rule.exposeHeaders } : {}),
+      ...(rule.maxAgeSeconds === undefined ? {} : { MaxAgeSeconds: rule.maxAgeSeconds }),
+    })),
+    null,
+    2,
+  );
+}
+
+/** `pnpm r2:cors`'s arguments: the `--origin` values (as origins), `--dry-run` and `--json`, or what is wrong. */
 export function parseCorsArgs(
   args: readonly string[],
-): { origins: string[]; dryRun: boolean } | string {
+): { origins: string[]; dryRun: boolean; json: boolean } | string {
   const origins: string[] = [];
   let dryRun = false;
+  let json = false;
   for (let i = 0; i < args.length; i++) {
     const arg = args[i]!;
     if (arg === "--dry-run") dryRun = true;
+    else if (arg === "--json") json = true;
     else if (arg === "--origin" || arg.startsWith("--origin=")) {
       const value = arg === "--origin" ? args[++i] : arg.slice("--origin=".length);
       try {
@@ -230,5 +274,5 @@ export function parseCorsArgs(
       }
     } else return `unknown argument ${arg}`;
   }
-  return { origins, dryRun };
+  return { origins, dryRun, json };
 }

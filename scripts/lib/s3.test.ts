@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  IMPORT_UPLOAD_RULE,
   allowsUploadFrom,
   contentMd5,
+  corsDashboardJson,
   corsXml,
   parseCorsArgs,
   parseCorsRules,
@@ -149,9 +151,36 @@ describe("the CORS rules", () => {
   });
 });
 
+describe("Medusa Admin's import rule and the dashboard's JSON", () => {
+  it("allows a PUT with the CSV's type only, and prints the rule as the dashboard takes it", () => {
+    const { rules } = withAdminOrigins([], ["https://api.shop.example"], IMPORT_UPLOAD_RULE);
+    expect(rules).toEqual([
+      {
+        allowedOrigins: ["https://api.shop.example"],
+        allowedMethods: ["PUT"],
+        allowedHeaders: ["content-type"],
+        exposeHeaders: [],
+        maxAgeSeconds: 3600,
+      },
+    ]);
+    expect(allowsUploadFrom(rules, "https://api.shop.example", IMPORT_UPLOAD_RULE)).toBe(true);
+    // Payload's uploads also send If-None-Match, which this rule does not allow.
+    expect(allowsUploadFrom(rules, "https://api.shop.example")).toBe(false);
+    expect(JSON.parse(corsDashboardJson(rules))).toEqual([
+      {
+        AllowedOrigins: ["https://api.shop.example"],
+        AllowedMethods: ["PUT"],
+        AllowedHeaders: ["content-type"],
+        MaxAgeSeconds: 3600,
+      },
+    ]);
+  });
+});
+
 describe("parseCorsArgs", () => {
   it("takes origins and --dry-run, and refuses anything else", () => {
-    expect(parseCorsArgs([])).toEqual({ origins: [], dryRun: false });
+    expect(parseCorsArgs([])).toEqual({ origins: [], dryRun: false, json: false });
+    expect(parseCorsArgs(["--json"])).toEqual({ origins: [], dryRun: false, json: true });
     expect(
       parseCorsArgs([
         "--origin",
@@ -159,7 +188,11 @@ describe("parseCorsArgs", () => {
         "--origin=https://a.example",
         "--dry-run",
       ]),
-    ).toEqual({ origins: ["http://localhost:8000", "https://a.example"], dryRun: true });
+    ).toEqual({
+      origins: ["http://localhost:8000", "https://a.example"],
+      dryRun: true,
+      json: false,
+    });
     expect(parseCorsArgs(["--origin", "nope"])).toMatch(/needs a URL/);
     expect(parseCorsArgs(["--force"])).toMatch(/unknown argument/);
   });
