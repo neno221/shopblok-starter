@@ -244,8 +244,9 @@ test.describe("the design system is not rewritten", () => {
 test.describe("root files", () => {
   const plainNotFound = "text/plain; charset=utf-8";
 
+  // `/robots.txt` is `app/robots.ts` since T110 (`seo.spec.ts`); `/ads.txt` takes its place here.
   for (const path of [
-    "/robots.txt",
+    "/ads.txt",
     "/sitemap.xml",
     "/apple-touch-icon.png",
     "/manifest.webmanifest",
@@ -264,8 +265,8 @@ test.describe("root files", () => {
     });
   }
 
-  test("HEAD /robots.txt answers 404 as plain text, with no body", async ({ request }) => {
-    const response = await request.head("/robots.txt", { maxRedirects: 0 });
+  test("HEAD /ads.txt answers 404 as plain text, with no body", async ({ request }) => {
+    const response = await request.head("/ads.txt", { maxRedirects: 0 });
     expect(response.status()).toBe(404);
     expect(response.headers()["content-type"]).toBe(plainNotFound);
     expect((await response.body()).length).toBe(0);

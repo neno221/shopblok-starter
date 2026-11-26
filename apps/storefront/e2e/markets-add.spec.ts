@@ -123,6 +123,12 @@ test("Austria added in Medusa's own region form is in the Markets panel, closed"
   });
   // Closed, so the public map and the shop do not have it yet.
   expect((await get(`/${COUNTRY}`)).status).toBe(404);
+  // M7 D147 (T110): nor any sitemap: no sitemap of its own, and no address in Germany's.
+  expect((await get(`/sitemap/de-${COUNTRY}.xml`)).status).toBe(404);
+  const germany = await (await get("/sitemap/de-de.xml")).text();
+  expect(germany).toContain("<loc>");
+  expect(germany).not.toContain(`/${COUNTRY}/`);
+  expect(germany).not.toContain('hreflang="de-AT"');
 });
 
 test("the admin switches Austria on in German and Europe/Vienna in the Markets panel", async () => {
@@ -183,4 +189,14 @@ test("/at answers within 70 s in German with EUR prices, and /de's hreflang list
       intervals: [2_000],
     })
     .toBe(true);
+
+  // M7 D147 (T110): its own sitemap, and its address in Germany's alternates.
+  const austriaSitemap = async () => {
+    const response = await get(`/sitemap/de-${COUNTRY}.xml`);
+    return response.status === 200 ? response.text() : "";
+  };
+  await expect
+    .poll(austriaSitemap, { timeout: ANSWER_TIMEOUT, intervals: [2_000] })
+    .toContain(`<loc>${new URL(base()).origin}/${COUNTRY}/store</loc>`);
+  expect(await (await get("/sitemap/de-de.xml")).text()).toContain('hreflang="de-AT"');
 });

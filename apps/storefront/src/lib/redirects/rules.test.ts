@@ -36,12 +36,22 @@ describe("marketPrefixes", () => {
 });
 
 describe("fromProblem: what the proxy can never see is refused with the reason (D82)", () => {
-  it.each(["/old", "/de/old", "/old-page/2", "/size-8.5", "/σχετικά", "/administrator"])(
-    "accepts %s",
-    (from) => {
-      expect(fromProblem(from, seeded)).toBeUndefined();
-    },
-  );
+  it.each([
+    "/old",
+    "/de/old",
+    "/old-page/2",
+    "/size-8.5",
+    "/σχετικά",
+    "/administrator",
+    "/catalog.pdf",
+    "/old.HTML",
+    // Next's routes and the redirects' matching are case-sensitive: `/Robots.txt` is not the
+    // shop's `robots.txt`, so a redirect from it works (PR 155's review).
+    "/Robots.txt",
+    "/FAVICON.ICO",
+  ])("accepts %s", (from) => {
+    expect(fromProblem(from, seeded)).toBeUndefined();
+  });
 
   it.each([
     ["old", /single \//],
@@ -49,8 +59,11 @@ describe("fromProblem: what the proxy can never see is refused with the reason (
     ["/old?x=1", /without \? or #/],
     ["/old#top", /without \? or #/],
     ["/old page", /spaces/],
-    ["/old.html", /looks like a file/],
-    ["/catalog/old-catalog.PDF", /looks like a file/],
+    ["/catalog/old-catalog.PDF", /below the root/],
+    ["/us/catalog.pdf", /below the root/],
+    ["/us.rsc", /\.rsc/],
+    ["/robots.txt", /serves \/robots\.txt itself/],
+    ["/favicon.ico", /serves \/favicon\.ico itself/],
     ["/api/old", /\/api/],
     ["/admin", /\/admin/],
     ["/design-system/x", /\/design-system/],

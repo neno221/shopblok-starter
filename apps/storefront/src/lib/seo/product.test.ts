@@ -7,7 +7,7 @@ const base = new URL("https://shop.example");
 
 describe("the product page's SEO (T49, SPEC §12)", () => {
   it("is a Product with one Offer per variant, and the breadcrumbs, with absolute URLs", () => {
-    const data = productJsonLd(detail, base) as {
+    const data = productJsonLd(detail, base) as unknown as {
       "@graph": Record<string, unknown>[];
     };
     const [product, trail] = data["@graph"] as [
@@ -29,11 +29,14 @@ describe("the product page's SEO (T49, SPEC §12)", () => {
   });
 
   it("escapes < so a product text cannot close the script element", () => {
-    const text = jsonLdText({ name: "</script><script>alert(1)</script>" });
-    expect(text).not.toContain("<");
-    expect(JSON.parse(text)).toEqual({
+    const data = {
+      "@context": "https://schema.org",
+      "@type": "Product",
       name: "</script><script>alert(1)</script>",
-    });
+    } as const;
+    const text = jsonLdText(data);
+    expect(text).not.toContain("<");
+    expect(JSON.parse(text)).toEqual(data);
   });
 
   it("shares only fetchable pictures, and cuts a long description at a word", () => {

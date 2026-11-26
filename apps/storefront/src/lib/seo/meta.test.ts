@@ -73,6 +73,56 @@ describe("withSeo", () => {
   });
 });
 
+describe("withSeo's last picture: the market's generated one (M7 D147, T110)", () => {
+  const share = (title?: string) => ({
+    src: `https://shop.example/us/share-image${title === undefined ? "" : `?title=${title}`}`,
+    alt: title ?? "Kalimera",
+    width: 1200,
+    height: 630,
+  });
+
+  it("is the market's picture with the page's title, where nothing else has one", () => {
+    const metadata = withSeo(template, null, { share }, base);
+    expect(metadata.openGraph?.images).toEqual([
+      {
+        url: "https://shop.example/us/share-image?title=Linen%20shirt",
+        width: 1200,
+        height: 630,
+        alt: "Linen shirt",
+      },
+    ]);
+  });
+
+  it("takes the Open Graph title for a page whose title is a template's object", () => {
+    const metadata = withSeo(
+      { title: { absolute: "Journal" }, openGraph: { title: "Journal" } },
+      null,
+      { share },
+      base,
+    );
+    expect(metadata.openGraph?.images).toMatchObject([{ alt: "Journal" }]);
+  });
+
+  it("is the market's card for a layout's metadata with no title", () => {
+    const metadata = withSeo({}, null, { share }, base);
+    expect(metadata.openGraph?.images).toMatchObject([
+      { url: "https://shop.example/us/share-image", alt: "Kalimera" },
+    ]);
+  });
+
+  it("comes after the document's picture, the template's and the site's", () => {
+    expect(
+      withSeo(template, { image: picture("shirt.webp") }, { share }, base).openGraph?.images,
+    ).toMatchObject([{ url: "https://shop.example/api/media/file/shirt.webp" }]);
+    expect(
+      withSeo({ openGraph: { images: ["/a.webp"] } }, null, { share }, base).openGraph?.images,
+    ).toEqual(["/a.webp"]);
+    expect(
+      withSeo(template, null, { image: picture("site.webp"), share }, base).openGraph?.images,
+    ).toMatchObject([{ url: "https://shop.example/api/media/file/site.webp" }]);
+  });
+});
+
 describe("the title template", () => {
   it("is the site's when it has exactly one %s, else `%s | {store}`", () => {
     expect(titleTemplateOf("%s · Kalimera", "Kalimera")).toBe("%s · Kalimera");
@@ -100,7 +150,7 @@ describe("a CMS page's JSON-LD (T68)", () => {
         },
       },
       base,
-    ) as { "@graph": [Record<string, unknown>, { itemListElement: unknown[] }] };
+    ) as unknown as { "@graph": [Record<string, unknown>, { itemListElement: unknown[] }] };
     const [page, breadcrumbs] = data["@graph"];
     expect(page).toEqual({
       "@type": "WebPage",

@@ -120,6 +120,7 @@ describe("toPick (T85)", () => {
       options: {},
       price: amount === null ? null : { amount: amount as number, currencyCode: "usd" },
       compareAt: null,
+      saleListId: null,
       stock: { status: "in-stock" as const },
       available: available as boolean,
       thumbnail: null,
