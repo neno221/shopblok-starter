@@ -483,6 +483,8 @@ export const en = {
       marketing: "Marketing",
       marketingDescription: "Show you offers that match your interests, here and on other sites.",
       save: "Save my choices",
+      // M7 D145 (T109): the policy page's "Cookie settings" form without scripts, once saved.
+      saved: "Your cookie choices are saved.",
       close: "Close",
     },
     loadingSkeleton: {

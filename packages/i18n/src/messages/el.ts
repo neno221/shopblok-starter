@@ -433,6 +433,7 @@ export const el: Messages = {
       marketingDescription:
         "Σας δείχνουν προσφορές που ταιριάζουν στα ενδιαφέροντά σας, εδώ και σε άλλους ιστότοπους.",
       save: "Αποθήκευση επιλογών",
+      saved: "Οι επιλογές σας για τα cookies αποθηκεύτηκαν.",
       close: "Κλείσιμο",
     },
     loadingSkeleton: {

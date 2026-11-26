@@ -24,7 +24,8 @@ import { getSnapshot, resetVisitor, setVisitor } from "./store";
 
 // The cart's server action (D124): each choice is sent to it.
 const syncCartConsent = vi.hoisted(() => vi.fn(async () => true));
-vi.mock("../actions/consent", () => ({ syncCartConsent }));
+const recordConsent = vi.hoisted(() => vi.fn(async (_market: unknown) => true));
+vi.mock("../actions/consent", () => ({ syncCartConsent, recordConsent }));
 
 const { site } = commerceFixtures.en;
 const props: VisitorCookieConsentProps = {
@@ -300,6 +301,7 @@ describe("Cookie settings and the kept choice (M6 D123, T97)", () => {
   afterEach(() => {
     document.cookie = "_shopblok_consent=; Path=/; Max-Age=0";
     syncCartConsent.mockClear();
+    recordConsent.mockClear();
   });
 
   /** A footer's "Cookie settings" link on the page. */
@@ -318,6 +320,8 @@ describe("Cookie settings and the kept choice (M6 D123, T97)", () => {
     await click(slot("cookie-consent-accept"));
     expect(readConsentCookie()).toEqual({ analytics: true, marketing: true });
     expect(syncCartConsent).toHaveBeenCalledTimes(1);
+    // M7 D145: and the choice is recorded on the server, for the page's market.
+    expect(recordConsent).toHaveBeenCalledTimes(1);
   });
 
   it('opens the dialog from a "Cookie settings" link, with the switches as chosen', async () => {

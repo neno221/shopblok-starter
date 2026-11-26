@@ -428,6 +428,7 @@ export const fr: Messages = {
       marketingDescription:
         "Vous montrent des offres adaptées à vos centres d’intérêt, ici et sur d’autres sites.",
       save: "Enregistrer mes choix",
+      saved: "Vos choix de cookies sont enregistrés.",
       close: "Fermer",
     },
     loadingSkeleton: {

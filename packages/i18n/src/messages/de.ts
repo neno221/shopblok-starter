@@ -420,6 +420,7 @@ export const de: Messages = {
       marketingDescription:
         "Zeigen Ihnen Angebote, die zu Ihren Interessen passen, hier und auf anderen Websites.",
       save: "Auswahl speichern",
+      saved: "Ihre Cookie-Einstellungen sind gespeichert.",
       close: "Schließen",
     },
     loadingSkeleton: {

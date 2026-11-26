@@ -13,6 +13,9 @@
 //   page's) is this island's control. Without scripts it is a link to the policy page; with them a
 //   click here opens the dialog with the switches as chosen, and focus goes back to the link. A page
 //   opened at `#cookie-settings` (a click before the page hydrated) opens it too. No new island.
+// - M7 D145 (T109): every choice is recorded on the server (`recordConsent`, a server action, which
+//   adds the record's id to the cookie); without scripts the policy page's "Cookie settings" form
+//   does the same (`components/visitor/cookie-settings-form.tsx`).
 // - A choice goes to the cart (`syncCartConsent`, a server action): a withdrawal takes the consent
 //   and PostHog's id out of the cart's metadata, so Medusa sends nothing about its order. With a
 //   PostHog key a "yes" is the gate's to send, once PostHog has made the distinct id.
@@ -26,7 +29,7 @@
 
 import { CookieConsent, type CookieConsentProps } from "@shopblok/ui/organisms/cookie-consent";
 import { useEffect, useState } from "react";
-import { syncCartConsent } from "../actions/consent";
+import { recordConsent, syncCartConsent } from "../actions/consent";
 import { POSTHOG_EU } from "../site";
 import {
   chooseConsent,
@@ -93,13 +96,17 @@ export function VisitorCookieConsent({
 
   // A choice goes to the cart's metadata (D124); the server reads the cookie just written. With a
   // PostHog key, a "yes" waits for the gate, which sends it with PostHog's distinct id.
+  // M7 D145 (T109): and every choice is recorded on the server first (`recordConsent`), which adds
+  // the record's id to the cookie; server actions run one after the other, so the cart's sync
+  // reads the cookie with it.
   useEffect(
     () =>
       onConsentChange((choice) => {
+        void recordConsent(market).catch(() => undefined);
         if (!process.env.NEXT_PUBLIC_POSTHOG_KEY || !choice.analytics)
           void syncCartConsent().catch(() => undefined);
       }),
-    [],
+    [market],
   );
 
   // PostHog, only in a build with its key (D124, D129): the gate's chunk after analytics consent,
