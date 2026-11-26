@@ -10,17 +10,24 @@ import { NONCE_ROUTES } from "../security/nonce-routes";
 // route reads the environment, the host and the map, and this turns them into Next's object.
 
 /**
- * The first segments no crawler is sent to, under every market's prefix (D147): the nine nonce
- * routes (`lib/security/nonce-routes.ts`, so a route added there is closed here too), the search,
- * and the paths of Payload, the API, Next's own routes and the design system.
+ * The first segments no crawler is sent to under every market's prefix (D147): the nine nonce
+ * routes (`lib/security/nonce-routes.ts`, so a route added there is closed here too) and the
+ * search, which every market has at `{prefix}/{segment}`.
  */
+export const MARKET_DISALLOWED_SEGMENTS = [...NONCE_ROUTES, "search"] as const;
+
+/**
+ * The segments that exist only at the host's root, whatever the markets' prefixes (PR 155's
+ * review): Payload's admin and API (`app/(payload)`), Next's own routes (`app/next`) and the
+ * design system (`app/design-system`). Closed once at the root on every host, so a host whose
+ * markets all have a prefix (`/us`, `/de`) still closes `/admin/`.
+ */
+export const ROOT_DISALLOWED_SEGMENTS = ["admin", "api", "next", "design-system"] as const;
+
+/** Every segment `robots.txt` closes, the market ones and the root ones. */
 export const DISALLOWED_SEGMENTS = [
-  ...NONCE_ROUTES,
-  "search",
-  "admin",
-  "api",
-  "next",
-  "design-system",
+  ...MARKET_DISALLOWED_SEGMENTS,
+  ...ROOT_DISALLOWED_SEGMENTS,
 ] as const;
 
 /**
@@ -48,20 +55,22 @@ export function marketsOnHost(map: MarketMap, host: string): Market[] {
 }
 
 /**
- * The `Disallow` lines of the markets on a host: for each prefix (`""`, `/us`, `/ch/fr`), each
- * segment as the page itself (`/us/cart$`), anything under it (`/us/cart/`) and with a query
- * (`/us/search?`). Robots rules match by prefix, so a bare `/cart` would also hide a CMS page at
- * `/cartography`; `$` is the end of the URL for Google and Bing (RFC 9309 leaves it out, and a
- * crawler that ignores it reads `/us/cart$` as a path no page has).
+ * The `Disallow` lines of the markets on a host: the root segments once at the root (`/admin$`),
+ * then for each prefix (`""`, `/us`, `/ch/fr`) each market segment, as the page itself
+ * (`/us/cart$`), anything under it (`/us/cart/`) and with a query (`/us/search?`). Robots rules
+ * match by prefix, so a bare `/cart` would also hide a CMS page at `/cartography`; `$` is the end
+ * of the URL for Google and Bing (RFC 9309 leaves it out, and a crawler that ignores it reads
+ * `/us/cart$` as a path no page has).
  */
 export function disallowedPaths(markets: readonly Market[], map: MarketMap): string[] {
+  const forms = (path: string) => [`${path}$`, `${path}/`, `${path}?`];
   const prefixes = [...new Set(markets.map((market) => marketPrefix(market, map)))];
-  return prefixes.flatMap((prefix) =>
-    DISALLOWED_SEGMENTS.flatMap((segment) => {
-      const path = `${prefix}/${segment}`;
-      return [`${path}$`, `${path}/`, `${path}?`];
-    }),
-  );
+  return [
+    ...ROOT_DISALLOWED_SEGMENTS.flatMap((segment) => forms(`/${segment}`)),
+    ...prefixes.flatMap((prefix) =>
+      MARKET_DISALLOWED_SEGMENTS.flatMap((segment) => forms(`${prefix}/${segment}`)),
+    ),
+  ];
 }
 
 /** Where a sitemap is: `/sitemap/{id}.xml` (`generateSitemaps`), on the market's own origin. */

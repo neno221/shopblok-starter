@@ -17,5 +17,12 @@ export default async function robots(): Promise<MetadataRoute.Robots> {
   const host = (await headers()).get("host") ?? "";
   if (!robotsOpen(env)) return CLOSED_ROBOTS;
   const map = await getRenderMarketMap();
-  return openRobots({ host, map, base: siteBase(), sitemaps: await sitemapIds(map) });
+  // The `Disallow` lines without the sitemaps rather than an error (PR 155 review, item 2).
+  const sitemaps = await sitemapIds(map).catch((error: unknown) => {
+    console.warn(
+      `robots.txt: no sitemaps listed (${error instanceof Error ? error.message : String(error)})`,
+    );
+    return {};
+  });
+  return openRobots({ host, map, base: siteBase(), sitemaps });
 }

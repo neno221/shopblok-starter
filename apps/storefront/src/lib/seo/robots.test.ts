@@ -5,8 +5,10 @@ import {
   CLOSED_ROBOTS,
   DISALLOWED_SEGMENTS,
   disallowedPaths,
+  MARKET_DISALLOWED_SEGMENTS,
   marketsOnHost,
   openRobots,
+  ROOT_DISALLOWED_SEGMENTS,
   robotsOpen,
   sitemapUrl,
 } from "./robots";
@@ -39,10 +41,14 @@ describe("robotsOpen (D133's order, as HSTS's)", () => {
 });
 
 describe("the disallowed segments", () => {
-  it("are the nonce routes, the search, and Payload's, the API's, Next's and the design system's", () => {
-    for (const route of NONCE_ROUTES) expect(DISALLOWED_SEGMENTS).toContain(route);
-    for (const segment of ["search", "admin", "api", "next", "design-system"])
-      expect(DISALLOWED_SEGMENTS).toContain(segment);
+  it("are the nonce routes and the search in each market, Payload's, the API's, Next's and the design system's at the root", () => {
+    for (const route of NONCE_ROUTES) expect(MARKET_DISALLOWED_SEGMENTS).toContain(route);
+    expect(MARKET_DISALLOWED_SEGMENTS).toContain("search");
+    expect(ROOT_DISALLOWED_SEGMENTS).toEqual(["admin", "api", "next", "design-system"]);
+    expect(DISALLOWED_SEGMENTS).toEqual([
+      ...MARKET_DISALLOWED_SEGMENTS,
+      ...ROOT_DISALLOWED_SEGMENTS,
+    ]);
   });
 });
 
@@ -68,12 +74,32 @@ describe("marketsOnHost", () => {
 });
 
 describe("disallowedPaths", () => {
-  it("closes each segment under each prefix, as the page, below it and with a query", () => {
+  it("closes each market segment under each prefix, as the page, below it and with a query", () => {
     const paths = disallowedPaths(listMarkets(seeded), seeded);
     for (const prefix of ["", "/us", "/gb", "/de", "/fr", "/ch", "/ch/fr"])
-      for (const segment of DISALLOWED_SEGMENTS)
+      for (const segment of MARKET_DISALLOWED_SEGMENTS)
         for (const end of ["$", "/", "?"]) expect(paths).toContain(`${prefix}/${segment}${end}`);
-    expect(paths).toHaveLength(7 * DISALLOWED_SEGMENTS.length * 3);
+    expect(paths).toHaveLength(
+      (ROOT_DISALLOWED_SEGMENTS.length + 7 * MARKET_DISALLOWED_SEGMENTS.length) * 3,
+    );
+  });
+
+  it("closes the root segments once at the root, never under a prefix, where no page has them", () => {
+    const paths = disallowedPaths(listMarkets(seeded), seeded);
+    for (const segment of ROOT_DISALLOWED_SEGMENTS)
+      for (const end of ["$", "/", "?"]) {
+        expect(paths.filter((path) => path === `/${segment}${end}`)).toHaveLength(1);
+        expect(paths).not.toContain(`/us/${segment}${end}`);
+      }
+  });
+
+  it("closes the root segments on a host whose markets all have a prefix", () => {
+    // With Cyprus on its own domain, the main host's markets are `/us`, `/gb`, `/de`, `/fr`.
+    const markets = marketsOnHost(withDomains, "shop.example");
+    const paths = disallowedPaths(markets, withDomains);
+    expect(paths).not.toContain("/cart$");
+    for (const segment of ROOT_DISALLOWED_SEGMENTS)
+      for (const end of ["$", "/", "?"]) expect(paths).toContain(`/${segment}${end}`);
   });
 
   it("never closes a bare prefix, which would hide a page that starts the same (`/cartography`)", () => {

@@ -46,23 +46,37 @@ function originalUrl(request: NextRequest): URL | undefined {
   return url;
 }
 
-async function answer(request: NextRequest, body: string | null): Promise<Response> {
+/**
+ * The CMS redirect for the request's file, or `undefined`. A read that fails (Payload down while
+ * the list is cold) is no redirect, as the proxy's reader treats it (`proxy-redirects.ts`), so a
+ * bot's probe still gets the plain 404 and never a 500 (PR 155 review, item 3).
+ */
+async function redirectFor(request: NextRequest): Promise<Response | undefined> {
   const nextUrl = originalUrl(request);
-  if (nextUrl !== undefined) {
+  if (nextUrl === undefined) return undefined;
+  try {
     const map = await getRenderMarketMap();
     const resolution = resolve(nextUrl, request.headers.get("host") ?? "", map);
-    if (resolution.kind === "rewrite") {
-      const list = await readRedirectList();
-      const redirect = cmsRedirect(
-        { method: request.method, nextUrl: nextUrl as NextRequest["nextUrl"] },
-        resolution,
-        map,
-        compiledFor(list, map),
-      );
-      if (redirect !== undefined) return redirect;
-    }
+    if (resolution.kind !== "rewrite") return undefined;
+    const list = await readRedirectList();
+    return cmsRedirect(
+      { method: request.method, nextUrl: nextUrl as NextRequest["nextUrl"] },
+      resolution,
+      map,
+      compiledFor(list, map),
+    );
+  } catch (error) {
+    console.warn(
+      `missing-file: no redirect looked up for ${nextUrl.pathname} (${error instanceof Error ? error.message : String(error)})`,
+    );
+    return undefined;
   }
-  return new Response(body, { status: 404, headers: notFoundHeaders });
+}
+
+async function answer(request: NextRequest, body: string | null): Promise<Response> {
+  return (
+    (await redirectFor(request)) ?? new Response(body, { status: 404, headers: notFoundHeaders })
+  );
 }
 
 export function GET(request: NextRequest): Promise<Response> {

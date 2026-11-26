@@ -61,7 +61,8 @@ const LOOKS_LIKE_FILE = /\.[A-Za-z][A-Za-z0-9]*$/;
 
 /**
  * The root files the shop serves itself (`app/robots.ts`, `app/favicon.ico`): Next answers them
- * before `/next/missing-file`, so a redirect from one would never be answered.
+ * before `/next/missing-file`, so a redirect from one would never be answered. Compared as written:
+ * the routes are case-sensitive, so `/Robots.txt` reaches `/next/missing-file` (PR 155 review).
  */
 const SERVED_ROOT_FILES = ["/robots.txt", "/favicon.ico"] as const;
 
@@ -98,7 +99,7 @@ export function fromProblem(from: string, map: MarketMap): string | undefined {
       return "A path ending in .rsc is a page's data for Next, not a file: it never redirects.";
     if (path.split("/").length !== 2)
       return "This looks like a file below the root (it ends in a dot and letters, like .html): only a file at the root, like /catalog.pdf, can redirect.";
-    if ((SERVED_ROOT_FILES as readonly string[]).includes(path.toLowerCase()))
+    if ((SERVED_ROOT_FILES as readonly string[]).includes(path))
       return `The shop serves ${path} itself, so a redirect from it would never be answered.`;
   }
   if (path === "/" || marketPrefixes(map).some(({ prefix }) => prefix === path))

@@ -44,18 +44,21 @@ export function hstsEnabled(source: RawEnv): boolean {
 }
 
 /**
- * `X-Robots-Tag: noindex` on every response of staging (D133, D147): its `robots.txt` is closed
- * too, and this keeps a page out of an index even when a crawler reached it through a link. Only
- * on `deployEnv()`'s staging (a Vercel preview, `DEPLOY_ENV=staging`); development and CI have no
- * address a crawler knows.
+ * `X-Robots-Tag: noindex` on every response of a hosted deployment whose `robots.txt` is closed
+ * (D133, D147): staging, every Vercel preview, and Vercel's Production before `DEPLOY_ENV` names it
+ * (PR 155's review: robots.txt was closed there, but a page a crawler reached through a link could
+ * still be indexed). The same rule as `robotsOpen`'s (`hstsEnabled`), so the two never disagree.
+ * Hosted means `VERCEL_ENV` or `DEPLOY_ENV` is set: development, CI and a local `next start` have
+ * neither, and no address a crawler knows.
  */
 export function noindexEnabled(source: RawEnv): boolean {
-  return deployEnv(source) === "staging";
+  const hosted = (source.VERCEL_ENV ?? "").trim() !== "" || (source.DEPLOY_ENV ?? "").trim() !== "";
+  return hosted && !hstsEnabled(source);
 }
 
 /**
  * D137's headers, the same on every response; HSTS only on the production deployment, and
- * `X-Robots-Tag` only on staging (`noindex`).
+ * `X-Robots-Tag` (`noindex`) only on a hosted deployment that is not the live shop.
  */
 export function securityHeaders(options: {
   readonly production: boolean;

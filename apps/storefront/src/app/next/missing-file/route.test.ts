@@ -5,13 +5,17 @@ import type { RedirectList } from "../../../lib/redirects/rules";
 
 const reads = vi.hoisted(() => ({
   list: { redirects: [] } as RedirectList,
+  fail: false,
 }));
 
 vi.mock("../../../lib/markets/cached-market-map", () => ({
   getRenderMarketMap: async () => seeded,
 }));
 vi.mock("../../../lib/redirects/read", () => ({
-  readRedirectList: async () => reads.list,
+  readRedirectList: async () => {
+    if (reads.fail) throw new Error("connect ECONNREFUSED 127.0.0.1:5432");
+    return reads.list;
+  },
 }));
 
 const { GET, HEAD } = await import("./route");
@@ -29,6 +33,7 @@ const visitor = (path: string, method = "GET") =>
 
 beforeEach(() => {
   reads.list = { redirects: [] };
+  reads.fail = false;
 });
 
 // D54 (T28): what `next.config.ts`'s root-file rewrite answers. `markets.spec.ts` checks the same
@@ -111,5 +116,22 @@ describe("/next/missing-file looks the CMS redirects up first", () => {
   it("refuses a `file` with a slash, which no rewrite sends", async () => {
     const response = await GET(rewritten("us/price-list.pdf"));
     expect(response.status).toBe(404);
+  });
+});
+
+// PR 155's review: the lookup never turns the plain 404 into a 500.
+describe("/next/missing-file when the redirects cannot be read", () => {
+  it("answers the plain 404, with a warning", async () => {
+    reads.fail = true;
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const response = await GET(rewritten("wp-login.php"));
+    expect(response.status).toBe(404);
+    expect(response.headers.get("content-type")).toBe("text/plain; charset=utf-8");
+    expect(await response.text()).toBe("Not Found");
+    expect((await HEAD(rewritten("wp-login.php", { method: "HEAD" }))).status).toBe(404);
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringMatching(/^missing-file: no redirect looked up/),
+    );
+    warn.mockRestore();
   });
 });

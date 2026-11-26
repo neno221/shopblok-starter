@@ -448,10 +448,18 @@ test("the generated share picture answers 200, 1200 × 630, in English and in Gr
   expect(greek).toMatch(/^[^?]*\/share-image\?title=/);
   await expectShareImage(new URL(greek ?? "", origin).toString());
   await expectShareImage(`${origin}/share-image`);
-  // A title someone else wrote: the card, not their text (`share-title.ts`).
-  await expectShareImage(
-    `${origin}/us/share-image?title=${encodeURIComponent("Free money")}&sig=x`,
-  );
+  // A title someone else wrote, or a parameter more: a 308 to the bare address, never drawn
+  // (`shareImageQuery`), so made-up addresses cost no render and no cache slot.
+  const signed = new URL(image ?? "", origin);
+  const altered = new URL(signed);
+  altered.searchParams.set("title", "Free money");
+  const extra = new URL(signed);
+  extra.searchParams.set("x", "1");
+  for (const address of [altered, extra, new URL(`${origin}/us/share-image?x=1`)]) {
+    const response = await get(`${address.pathname}${address.search}`);
+    expect(response.status, address.search).toBe(308);
+    expect(response.headers.get("location")).toBe(`${origin}/us/share-image`);
+  }
 });
 
 test("a CMS redirect from /catalog.pdf answers its 308", async () => {

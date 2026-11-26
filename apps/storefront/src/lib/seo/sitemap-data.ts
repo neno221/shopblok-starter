@@ -255,15 +255,24 @@ export async function marketAddresses(market: Market, map: MarketMap): Promise<S
 
 /**
  * Every market's sitemap ids (`{key}`, then `{key}_2`… past 50,000 addresses), by the market's key:
- * what `generateSitemaps()` returns and what `robots.txt` lists.
+ * what `generateSitemaps()` returns and what `robots.txt` lists. A market whose reads fail (Payload
+ * or Medusa down while an entry is cold) keeps its first sitemap, with one warning, so `robots.txt`
+ * and the other markets' sitemaps never answer 500 for it (PR 155 review, item 2): a crawler takes a
+ * 5xx `robots.txt` as "crawl nothing".
  */
 export async function sitemapIds(map: MarketMap): Promise<Record<string, string[]>> {
   const markets = listMarkets(map);
   const counts = await Promise.all(
-    markets.map(
-      async (market) =>
-        [market.key, addressCount(market, await marketAddresses(market, map))] as const,
-    ),
+    markets.map(async (market) => {
+      try {
+        return [market.key, addressCount(market, await marketAddresses(market, map))] as const;
+      } catch (error) {
+        console.warn(
+          `sitemap: ${market.key}'s addresses could not be read, so it keeps one sitemap (${error instanceof Error ? error.message : String(error)})`,
+        );
+        return [market.key, 0] as const;
+      }
+    }),
   );
   return sitemapIdsByMarket(Object.fromEntries(counts), map);
 }

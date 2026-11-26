@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { shareImageFor, OG_IMAGE_SIZE } from "./og-image";
 import {
   SHARE_TITLE_MAX,
+  shareImageQuery,
   shareTitleQuery,
   shareTitleText,
   verifiedShareTitle,
@@ -74,5 +75,43 @@ describe("shareImageFor", () => {
       alt: "Kalimera",
       ...OG_IMAGE_SIZE,
     });
+  });
+
+  it("is the card, named after the shop, when no secret signs the title (PR 155's review)", () => {
+    expect(shareImageFor(url, "en-us", "Kalimera", undefined)("Linen shirt")).toEqual({
+      src: "https://shop.example/us/share-image",
+      alt: "Kalimera",
+      ...OG_IMAGE_SIZE,
+    });
+    expect(shareImageFor(url, "en-us", "Kalimera", SECRET)("  ").alt).toBe("Kalimera");
+  });
+});
+
+describe("shareImageQuery (PR 155's review)", () => {
+  const signed = params(shareTitleQuery("en-us", "Linen shirt", SECRET));
+
+  it("draws the card for no query, and the title for exactly a title and its signature", () => {
+    expect(shareImageQuery("en-us", new URLSearchParams(), SECRET)).toEqual({ title: undefined });
+    expect(shareImageQuery("en-us", signed, SECRET)).toEqual({ title: "Linen shirt" });
+  });
+
+  it("redirects anything else: an altered or unsigned title, a parameter more, a name twice", () => {
+    const altered = new URLSearchParams(signed);
+    altered.set("title", "Free money");
+    const extra = new URLSearchParams(signed);
+    extra.set("x", "1");
+    const twice = new URLSearchParams(signed);
+    twice.append("title", "Linen shirt");
+    for (const query of [
+      altered,
+      extra,
+      twice,
+      new URLSearchParams("x=1"),
+      new URLSearchParams("title=Linen+shirt"),
+    ])
+      expect(shareImageQuery("en-us", query, SECRET)).toBe("redirect");
+    // Signed for another market, or with no secret to check it against.
+    expect(shareImageQuery("en-gb", signed, SECRET)).toBe("redirect");
+    expect(shareImageQuery("en-us", signed, undefined)).toBe("redirect");
   });
 });

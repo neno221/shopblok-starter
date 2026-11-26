@@ -25,11 +25,15 @@ export function shareImageFor(
   storeName: string,
   secret: string | undefined,
 ): (title?: string) => Image {
-  return (title) => ({
-    src: `${url(OG_IMAGE_PATH)}${shareTitleQuery(market, title, secret)}`,
-    alt: title === undefined ? storeName : shareTitleText(title),
-    ...OG_IMAGE_SIZE,
-  });
+  return (title) => {
+    const query = shareTitleQuery(market, title, secret);
+    return {
+      src: `${url(OG_IMAGE_PATH)}${query}`,
+      // The picture shows the title only when it is signed; else it is the market's card.
+      alt: query === "" || title === undefined ? storeName : shareTitleText(title),
+      ...OG_IMAGE_SIZE,
+    };
+  };
 }
 
 /**

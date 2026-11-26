@@ -54,3 +54,23 @@ export function verifiedShareTitle(
     ? title
     : undefined;
 }
+
+/**
+ * What the picture's route draws for an address's query (PR 155's review): the market's card for
+ * no query, the title for exactly a `title` and a `sig` this shop signed, and `"redirect"` for
+ * anything else (an altered or unsigned title, a parameter more, a name twice). The CDN keys its
+ * cache by the whole address, so drawing for any query would let `?x=1`, `?x=2`… each cost a render
+ * and a cache slot; the route sends those to the bare address instead, so only the card and the
+ * shop's own titles are ever drawn.
+ */
+export function shareImageQuery(
+  market: string,
+  params: URLSearchParams,
+  secret: string | undefined,
+): { title: string | undefined } | "redirect" {
+  const names = [...params.keys()];
+  if (names.length === 0) return { title: undefined };
+  if (names.length !== 2 || !names.includes("title") || !names.includes("sig")) return "redirect";
+  const title = verifiedShareTitle(market, params, secret);
+  return title === undefined ? "redirect" : { title };
+}

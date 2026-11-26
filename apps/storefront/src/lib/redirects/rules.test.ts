@@ -45,6 +45,10 @@ describe("fromProblem: what the proxy can never see is refused with the reason (
     "/administrator",
     "/catalog.pdf",
     "/old.HTML",
+    // Next's routes and the redirects' matching are case-sensitive: `/Robots.txt` is not the
+    // shop's `robots.txt`, so a redirect from it works (PR 155's review).
+    "/Robots.txt",
+    "/FAVICON.ICO",
   ])("accepts %s", (from) => {
     expect(fromProblem(from, seeded)).toBeUndefined();
   });

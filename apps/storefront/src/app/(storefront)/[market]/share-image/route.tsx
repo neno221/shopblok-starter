@@ -8,16 +8,19 @@ import { readSiteSettings } from "../../../../lib/cms/site";
 import { env } from "../../../../lib/env";
 import { getRenderMarketMap } from "../../../../lib/markets/cached-market-map";
 import { findMarket } from "../../../../lib/markets/market";
-import { OG_FONT_FILE, OG_IMAGE_SIZE } from "../../../../lib/seo/og-image";
-import { verifiedShareTitle } from "../../../../lib/seo/share-title";
+import { buildPublicUrl } from "../../../../lib/markets/url";
+import { OG_FONT_FILE, OG_IMAGE_PATH, OG_IMAGE_SIZE } from "../../../../lib/seo/og-image";
+import { shareImageQuery } from "../../../../lib/seo/share-title";
 
 // M7 D147 (T110): the generated share picture, the last of SPEC §12's fallbacks (after the
 // document's own picture, the product's and the site settings'): the page's title and the shop's
 // name in the market's language and the shop's own font (Inter, Greek included), 1200 × 630. A page
 // names it at its market's public address with its title signed (`shareImageFor`, through
 // `withSeo`): `/us/share-image?title=…&sig=…`, `/share-image…` for the market at `/`, a domain
-// market's on its own host. Without a title, or with one this shop did not sign, it draws the
-// market's card: the shop's name and the site's description.
+// market's on its own host. Without a query it draws the market's card: the shop's name and the
+// site's description. Any other query (a title this shop did not sign, a parameter more) is a 308
+// to the bare address (`shareImageQuery`, PR 155's review), so nobody can make it draw, and the CDN
+// keep, a picture per made-up address.
 //
 // A route handler, not Next's `opengraph-image.tsx` (D147's name for it): under the `(storefront)`
 // group Next serves that file at `/{key}/opengraph-image-{hash}` and writes that address into the
@@ -38,18 +41,28 @@ const CACHE_CONTROL = "public, max-age=86400, s-maxage=86400, stale-while-revali
 
 export async function GET(request: NextRequest, { params }: RouteContext<"/[market]/share-image">) {
   const { market: key } = await params;
-  const market = findMarket(await getRenderMarketMap(), key);
+  const map = await getRenderMarketMap();
+  const market = findMarket(map, key);
   if (market === undefined) return new Response("Not Found", { status: 404 });
+  const query = shareImageQuery(
+    market.key,
+    request.nextUrl.searchParams,
+    env.STOREFRONT_SIGNING_SECRET,
+  );
+  if (query === "redirect")
+    return new Response(null, {
+      status: 308,
+      headers: {
+        Location: new URL(buildPublicUrl(market, OG_IMAGE_PATH, map), request.nextUrl.origin).href,
+        "Cache-Control": CACHE_CONTROL,
+      },
+    });
+  const { title } = query;
   const settings = settingsFrom(
     await cmsOrNull(
       readSiteSettings({ market, draft: false }),
       "share picture: the shop's name from site.ts",
     ),
-  );
-  const title = verifiedShareTitle(
-    market.key,
-    request.nextUrl.searchParams,
-    env.STOREFRONT_SIGNING_SECRET,
   );
   const [heading, line] =
     title === undefined

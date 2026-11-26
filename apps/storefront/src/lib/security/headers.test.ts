@@ -143,12 +143,20 @@ describe("hstsEnabled (D137)", () => {
 });
 
 describe("noindexEnabled and X-Robots-Tag (M7 D147, T110; D133)", () => {
-  it("is on only on staging: a Vercel preview or DEPLOY_ENV=staging", () => {
+  it("is on on every hosted deployment that is not the live shop", () => {
     expect(noindexEnabled({ VERCEL_ENV: "preview" })).toBe(true);
     expect(noindexEnabled({ DEPLOY_ENV: "production", VERCEL_ENV: "preview" })).toBe(true);
     expect(noindexEnabled({ DEPLOY_ENV: "staging", NODE_ENV: "production" })).toBe(true);
+    // Vercel's Production before DEPLOY_ENV is set: robots.txt is closed, so the header is sent.
+    expect(noindexEnabled({ VERCEL_ENV: "production", NODE_ENV: "production" })).toBe(true);
+    expect(noindexEnabled({ DEPLOY_ENV: "staging", VERCEL_ENV: "production" })).toBe(true);
+  });
+
+  it("is off on the live shop, and where nothing is hosted (development, CI, a local next start)", () => {
     expect(noindexEnabled({ DEPLOY_ENV: "production" })).toBe(false);
+    expect(noindexEnabled({ DEPLOY_ENV: "production", VERCEL_ENV: "production" })).toBe(false);
     expect(noindexEnabled({ NODE_ENV: "production" })).toBe(false);
+    expect(noindexEnabled({ VERCEL_ENV: " ", DEPLOY_ENV: "" })).toBe(false);
     expect(noindexEnabled({})).toBe(false);
   });
 
