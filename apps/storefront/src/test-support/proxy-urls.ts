@@ -34,6 +34,13 @@ export const designSystemPaths = [
   "/design-system/en",
   "/design-system/el/foundations/colors",
   "/design-system/de/frame/atoms/button",
+  // Next's transport forms of the same pages, which the first matcher entry's file rule would
+  // leave out (PR 152 review, item 1): the RSC payload and a prefetch segment.
+  "/design-system.rsc",
+  "/design-system/en.rsc",
+  "/design-system/de/frame/atoms/button.rsc",
+  "/design-system/en.segments/_tree.segment.rsc",
+  "/design-system.segments/_index.segment.rsc",
 ];
 
 /**

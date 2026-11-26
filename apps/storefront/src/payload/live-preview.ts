@@ -28,8 +28,9 @@ export const LIVE_PREVIEW_BREAKPOINTS = [
 export function previewMarket(map: MarketMap, language: string): Market | undefined {
   const speaking = listMarkets(map).filter((market) => market.language === language);
   const here = speaking.filter((market) => market.domain === undefined);
-  const primary = primaryCountryCode(map);
-  return here.find((market) => market.country === primary) ?? here[0] ?? speaking[0];
+  const isPrimary = (market: Market) => market.country === primaryCountryCode(map);
+  // Among countries on their own domains too, the primary one first (PR 152 review, item 6).
+  return here.find(isPrimary) ?? here[0] ?? speaking.find(isPrimary) ?? speaking[0];
 }
 
 /**

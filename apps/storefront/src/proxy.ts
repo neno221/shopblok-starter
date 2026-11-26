@@ -98,7 +98,7 @@ async function respond(
       },
     });
   const [map, redirects] = await Promise.all([getProxyMarketMap(), getProxyRedirects()]);
-  const preview = ownDomainPreviewResponse(req, map);
+  const preview = ownDomainPreviewResponse(req, map, rewriteRequestHeaders);
   if (preview !== undefined) return preview;
   return respondToMarketRequest(
     req,
@@ -129,9 +129,13 @@ function notFound(req: NextRequest): NextResponse {
   return response;
 }
 
-/** `/design-system` and everything under it (D33). `/design-systems` is a storefront path. */
+/**
+ * `/design-system` and everything under it (D33), and Next's transport forms of the same pages
+ * (`/design-system.rsc`, `/design-system.segments/…`; under it, `/design-system/en.rsc` and the
+ * like are inside the prefix already): PR 152 review, item 1. `/design-systems` is a storefront path.
+ */
 export function isDesignSystemPath(pathname: string): boolean {
-  return pathname === "/design-system" || pathname.startsWith("/design-system/");
+  return /^\/design-system(?:$|\/|\.rsc$|\.segments\/)/.test(pathname);
 }
 
 /**
@@ -158,16 +162,26 @@ function designSystemResponse(req: NextRequest): NextResponse {
 /**
  * An own-domain market's page previewed on this host (M7 D148, 3): `/{key}/…` serves the market's
  * page only with Draft Mode's cookie and a staff `payload-token` (the page itself then checks the
- * session again for the draft, as on any market, T59); `noindex`, never stored, and with the static
- * policy. `undefined` for every other request, which `resolve` answers as before (the key is a 404).
+ * session again for the draft, as on any market, T59); `noindex`, never stored, and with the policy
+ * the page has on its own domain (the nonce one on the nine routes). `undefined` for every other request, which `resolve` answers as before (the key is a 404).
  */
-function ownDomainPreviewResponse(req: NextRequest, map: MarketMap): NextResponse | undefined {
+function ownDomainPreviewResponse(
+  req: NextRequest,
+  map: MarketMap,
+  rewriteRequestHeaders: (internalPath: string) => Headers | undefined,
+): NextResponse | undefined {
   const preview = ownDomainPreview(req.nextUrl.pathname, req.headers.get("host") ?? "", map);
   if (preview === undefined) return undefined;
   if (!req.cookies.has(DRAFT_MODE_COOKIE) || !staffSignedIn(req)) return undefined;
   const url = req.nextUrl.clone();
   url.pathname = `/${preview.market.key}${preview.internalPath}`;
-  const response = NextResponse.rewrite(url);
+  // A nonce page (`/de-ch/checkout`) gets D139's nonce policy as on the market's own domain (PR 152
+  // review, item 3): the same callback `respondToMarketRequest` calls.
+  const headers = rewriteRequestHeaders(preview.internalPath);
+  const response =
+    headers === undefined
+      ? NextResponse.rewrite(url)
+      : NextResponse.rewrite(url, { request: { headers } });
   response.headers.set("Cache-Control", PRIVATE_CACHE_CONTROL);
   response.headers.set("X-Robots-Tag", "noindex");
   return response;
@@ -217,9 +231,12 @@ export const config = {
   // deployment (`FIRST_USER_PATHS`) and pass through untouched anywhere else.
   //
   // The design-system pages (M7 D148, T111) are no longer skipped: the gate above runs on them.
+  // The fourth entry brings their transport forms too (`/design-system/en.rsc`, the prefetch files
+  // under `….segments/`), which the first entry's file rule leaves out (PR 152 review, item 1).
   matcher: [
     "/((?!(?:admin|api|ingest|monitoring|next)(?:/|$)|_next/|_vercel/|\\.well-known/|.*\\.[A-Za-z][A-Za-z0-9]*$).*)",
     "/((?!ingest/).*/)",
     "/(admin/create-first-user|api/users/first-register)",
+    "/design-system/:path*",
   ],
 };

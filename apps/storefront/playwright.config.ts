@@ -181,8 +181,9 @@ const defaultProjects: Project[] = [
   {
     name: "markets-add",
     use: { ...devices["Desktop Chrome"], ...launchOptions },
-    // M7 T111: the own-domain preview gives Switzerland a domain, so it runs here too, after
-    // markets-add (one worker, files in order), and puts the map back before market-panels.
+    // M7 T111: the own-domain preview gives Switzerland a domain, so it runs here too, before
+    // markets-add (one worker, files in alphabetical order); its afterAll puts the map back and
+    // waits for the proxy to have it before markets-add starts.
     testMatch: /(markets-add|cms-preview-domain)\.spec\.ts/,
     dependencies: ["locales"],
   },

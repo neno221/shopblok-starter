@@ -99,6 +99,11 @@ test("anonymous: the 404 of any unknown path, on every DS page", async () => {
   for (const page of [...PAGES, "/design-system/de/frame/atoms/button"]) {
     await refused(await get(page), page);
   }
+  // The pages' RSC payloads too (PR 152 review, item 1): `next start` has no such route of its own,
+  // so only the gate's `no-store` shows that the proxy answered.
+  for (const page of ["/design-system/en.rsc", "/design-system/en.segments/_tree.segment.rsc"]) {
+    await refused(await get(page, { RSC: "1" }), page);
+  }
   // The same page as a path that never existed: nothing tells the two apart but the status.
   const unknown = await get("/no-such-page-at-all");
   expect(unknown.status).toBe(404);

@@ -155,7 +155,7 @@ function redisInProduction(statuses: readonly IntegrationStatus[], context: Cont
  * deployment a blank one is an error: nothing scheduled would ever be published; `pnpm
  * staging:secrets` sets it in both apps, and the fingerprints check it is the same there. In
  * development it is an accepted note: `next dev`'s own timer calls the endpoint (`jobs-timer.ts`),
- * and bootstrap leaves the backend's blank so the two never both call it. With both apps' files at
+ * and bootstrap leaves the backend's blank so only that timer calls it there. With both apps' files at
  * hand (no `--app`), two different values are an error: Payload refuses every tick.
  */
 function payloadJobsTick(envs: AppEnvs, context: Context): Check {

@@ -29,6 +29,20 @@ describe("previewMarket", () => {
     expect(previewMarket(withDomains, "de")?.key).toBe("de-de");
     expect(previewMarket(withDomains, "fr")?.key).toBe("fr-fr");
   });
+
+  it("takes the primary country first among countries on their own domains (PR 152 review, item 6)", () => {
+    // Portugal listed first, Brazil primary, both on domains of their own.
+    const map = {
+      countries: [
+        { code: "pt", enabled: true, languages: ["pt"], domain: "loja.pt" },
+        { code: "br", enabled: true, languages: ["pt"], domain: "loja.com.br" },
+      ],
+      languages: [{ code: "pt", medusaLocale: "pt-BR", htmlLang: "pt-BR" }],
+      primaryCountry: "br",
+      fallbackMarket: "pt-br",
+    };
+    expect(previewMarket(map, "pt")?.key).toBe("pt-br");
+  });
 });
 
 describe("previewUrl", () => {
@@ -57,7 +71,9 @@ describe("previewUrl", () => {
     expect(url.searchParams.get("path")).toBe("/el-gr/about");
     const home = new URL(previewUrl({ ...base, path: "/", map, language: "el" }) ?? "");
     expect(home.searchParams.get("path")).toBe("/el-gr");
-    const query = new URL(previewUrl({ ...base, path: "/store?page=2", map, language: "el" }) ?? "");
+    const query = new URL(
+      previewUrl({ ...base, path: "/store?page=2", map, language: "el" }) ?? "",
+    );
     expect(query.searchParams.get("path")).toBe("/el-gr/store?page=2");
   });
 

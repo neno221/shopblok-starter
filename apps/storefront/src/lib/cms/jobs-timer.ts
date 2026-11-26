@@ -16,8 +16,10 @@ export type JobsTimerDeps = {
  * only, so a scheduled publish runs inside a Next request and its `revalidateTag` works (Payload's
  * own `autoRun` would publish from a timer outside any request, where `revalidateTag` throws).
  * A deployment has Medusa's worker instead (M7 D148, 1: `apps/backend/src/jobs/payload-jobs-tick.ts`,
- * every minute with the same secret; bootstrap leaves the backend's blank in development, so the two
- * never both call); without a secret there is nothing to send. Returns whether it started.
+ * every minute with the same secret; bootstrap leaves the backend's blank in development, so only
+ * this timer calls there, and CI's `e2e-smoke`, which sets both, has the two call side by side
+ * while its `next dev` step runs, which Payload's queue tolerates); without a secret there is
+ * nothing to send. Returns whether it started.
  */
 export function startJobsTimer({ env, fetch, setInterval, log }: JobsTimerDeps): boolean {
   const secret = env.CRON_SECRET;

@@ -317,6 +317,8 @@ jobs:
       # storefront's CRON_SECRET, as on a deployment. bootstrap leaves the backend's blank (next dev
       # has its own timer), so the job copies it before Medusa starts; `cms-preview.spec.ts` then
       # sees a scheduled page published by the worker against `next start`, which has no timer.
+      # During the `next dev` step below both call once a minute, which Payload tolerates: it claims
+      # each job (`processing`) before it runs it (PR 152 review, item 5).
       - name: Medusa's worker runs Payload's jobs (the storefront's CRON_SECRET)
         run: |
           secret="$(grep -E '^CRON_SECRET=' apps/storefront/.env | head -n1 | cut -d= -f2-)"

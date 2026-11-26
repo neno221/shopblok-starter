@@ -227,7 +227,13 @@ describe("the design-system gate (M7 D148, 4; T111)", () => {
 
   it("knows the DS's paths, and not the storefront's that look like them", () => {
     for (const path of designSystemPaths) expect(isDesignSystemPath(path), path).toBe(true);
-    for (const path of ["/design-systems", "/design-system-2/en", "/us/design-system"])
+    for (const path of [
+      "/design-systems",
+      "/design-system-2/en",
+      "/us/design-system",
+      "/design-system.png",
+      "/design-systems.rsc",
+    ])
       expect(isDesignSystemPath(path), path).toBe(false);
   });
 
@@ -353,6 +359,23 @@ describe("an own-domain market's preview on this host (M7 D148, 3; T111)", () =>
       const response = await proxy(request);
       expect(getRewrittenUrl(response), what).toBe(`https://${host ?? "example.com"}/`);
     }
+  });
+
+  it("gives a nonce page the nonce policy, as on the market's own domain (PR 152 review, item 3)", async () => {
+    vi.stubEnv("PAYLOAD_SECRET", "proxy-test-secret");
+    proxyMap.current = withDomains;
+    const cookie = `${draft}; payload-token=${editor()}`;
+    const response = await proxy(withCookie("/de-ch/cart", cookie));
+    expect(getRewrittenUrl(response)).toBe("https://example.com/de-ch/cart");
+    const policy = response.headers.get("content-security-policy") ?? "";
+    expect(policy).toMatch(/'nonce-[^']+'/);
+    expect(policy).not.toMatch(/script-src[^;]*'unsafe-inline'/);
+    expect(response.headers.get("x-middleware-request-content-security-policy")).toBe(policy);
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
+    expect(response.headers.get("x-robots-tag")).toBe("noindex");
+    // A page outside the nine keeps the static policy.
+    const about = await proxy(withCookie("/de-ch/about", cookie));
+    expect(about.headers.get("content-security-policy") ?? "").not.toContain("'nonce-");
   });
 
   it("never serves a market on this host at its key, even to staff in Draft Mode", async () => {

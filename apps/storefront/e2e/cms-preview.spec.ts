@@ -280,5 +280,7 @@ test("Medusa's worker publishes a scheduled page within a minute of its time (M7
   const read = async () => (await fetch(`${base()}/api/pages/${id}?locale=en`)).status;
   await expect.poll(read, { timeout: 100_000, intervals: [2_000] }).toBe(200);
   const late = Date.now() - due;
-  expect(late, "published by the next minute's tick after its time").toBeLessThan(65_000);
+  // The tick fires on the minute, so up to 60 s after the time, then the publish and the poll's
+  // 2 s (PR 152 review, item 4).
+  expect(late, "published by the next minute's tick after its time").toBeLessThan(80_000);
 });

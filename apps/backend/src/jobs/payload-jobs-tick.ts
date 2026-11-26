@@ -11,8 +11,9 @@ const tick = createPayloadJobsTick();
  * (`lib/payload-jobs.ts`). A scheduled job runs where Medusa's background work runs
  * (`workerMode`: the `medusa-worker` service on staging, D132; `shared` in development and CI), never
  * on the `server` service. Off without `CRON_SECRET` or `PAYLOAD_SERVER_URL`; bootstrap leaves the
- * backend's `CRON_SECRET` blank in development, where `next dev`'s timer calls the endpoint, so the
- * two never both run.
+ * backend's `CRON_SECRET` blank in development, where `next dev`'s timer calls the endpoint. (CI's
+ * `e2e-smoke` sets both while its `next dev` step runs; two calls in a minute are harmless, since
+ * Payload takes each job it runs out of the queue first: PR 152 review, item 5.)
  */
 export default async function payloadJobsTick(container: MedusaContainer) {
   await tick(process.env, container.resolve(ContainerRegistrationKeys.LOGGER));
