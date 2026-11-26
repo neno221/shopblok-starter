@@ -54,10 +54,7 @@ describe("localizeSearchBody", () => {
 
   it("handles every query of a multi-query body, each by its own index", () => {
     const body = {
-      queries: [
-        { entity: "product" },
-        { entity: "meili", search_options: { locales: ["fr-FR"] } },
-      ],
+      queries: [{ entity: "product" }, { entity: "meili", search_options: { locales: ["fr-FR"] } }],
     };
 
     localizeSearchBody(body, "de-DE", (entity) => entity === "meili");
@@ -116,9 +113,9 @@ describe("activeProviders", () => {
     await activeProviders(search, 1_000_000);
     await activeProviders(search, 1_000_000 + ACTIVE_PROVIDERS_TTL_MS - 1);
     expect(listIndexes).toHaveBeenCalledTimes(1);
-    expect((await activeProviders(search, 1_000_000 + ACTIVE_PROVIDERS_TTL_MS)).get("product")).toBe(
-      "meilisearch",
-    );
+    expect(
+      (await activeProviders(search, 1_000_000 + ACTIVE_PROVIDERS_TTL_MS)).get("product"),
+    ).toBe("meilisearch");
     expect(listIndexes).toHaveBeenCalledTimes(2);
   });
 });

@@ -15,7 +15,7 @@ import { NOT_SET } from "./integration-skips";
 export type DoctorCheck = {
   id: string;
   title: string;
-  level: "ok" | "warn" | "error";
+  level: "ok" | "note" | "warn" | "error";
   message: string;
   /** The integration the check is about (T103), absent for the setup's own checks. */
   integration?: IntegrationId;

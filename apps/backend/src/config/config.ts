@@ -1,5 +1,6 @@
 import type { InputConfigWithArrayModules } from "@medusajs/framework/types";
 
+import { deployEnv } from "./deploy-env";
 import { buildModules, getRedisUrl, type Env } from "./modules";
 
 /** `NODE_ENV` values where Medusa may fall back to its default secret (it warns when it does). */
@@ -23,6 +24,8 @@ export function getSecret(env: Env, key: string): string | undefined {
  * reads `process.env`, so a unit test can pass any object.
  */
 export function buildConfig(env: Env): InputConfigWithArrayModules {
+  // M7 D133: an invalid DEPLOY_ENV stops the start here, before anything is loaded.
+  deployEnv(env);
   const redisUrl = getRedisUrl(env);
 
   return {
@@ -51,10 +54,8 @@ export function buildConfig(env: Env): InputConfigWithArrayModules {
     // (`medusa plugin:build`, turbo's `^build`). Medusa registers its `markets` module, routes and
     // workflows from the package's `.medusa/server/src`; it takes no options.
     plugins: [{ resolve: "@shopblok/medusa-markets", options: {} }],
-    // Translation is always registered (buildModules). MEDUSA_FF_TRANSLATION, when set, wins.
-    featureFlags: {
-      translation: true,
-    },
+    // Translation needs no flag since Medusa 2.22.7, which removed it (M7 T105): the module is
+    // registered by default and its routes always answer.
     modules: buildModules(env),
   };
 }

@@ -12,7 +12,7 @@ describe("expectedLive (T103)", () => {
   it("with no secret: the stand-ins and the local ones are expected, the others are not live", () => {
     const result = expectedLive(sinks);
     expect(result.expected).toEqual(["posthog", "sentry", "meilisearch", "redis"]);
-    expect(result.notLive.map((each) => each.id)).toEqual(["stripe", "resend", "r2"]);
+    expect(result.notLive.map((each) => each.id)).toEqual(["stripe", "resend", "r2", "turnstile"]);
     expect(result.problems).toEqual([]);
     expect(result.lines.find((line) => line.startsWith("stripe"))).toContain(
       "not live: checked on its fallback (not set: STRIPE_API_KEY, STRIPE_WEBHOOK_SECRET (apps/backend); NEXT_PUBLIC_STRIPE_KEY (apps/storefront))",
@@ -43,7 +43,21 @@ describe("expectedLive (T103)", () => {
       "redis",
       "r2",
     ]);
-    expect([result.notLive, result.problems]).toEqual([[], []]);
+    expect(result.notLive.map((each) => each.id)).toEqual(["turnstile"]);
+    expect(result.problems).toEqual([]);
+  });
+
+  it("never expects an integration whose code has not arrived, even with its keys (M7's Turnstile)", () => {
+    const result = expectedLive({
+      ...sinks,
+      NEXT_PUBLIC_TURNSTILE_SITE_KEY: "site",
+      TURNSTILE_SECRET_KEY: "secret",
+    });
+    expect(result.expected).not.toContain("turnstile");
+    expect(result.notLive).toContainEqual({ id: "turnstile", missing: "its code arrives in T108" });
+    expect(result.lines.find((line) => line.startsWith("turnstile"))).toContain(
+      "its keys are held, its code arrives in T108",
+    );
   });
 
   it("a half-set integration is a problem that names what is missing, never a value", () => {

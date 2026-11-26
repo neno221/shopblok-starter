@@ -34,6 +34,15 @@ export function expectedLive(env: EnvLike): Expected {
     if (status.kind === "local") {
       result.expected.push(status.id);
       result.lines.push(`${label} expected live (local: bootstrap writes its keys)`);
+    } else if (status.configured && !status.wired) {
+      // Named before its code (M7's Turnstile until T108): its keys change nothing yet.
+      result.notLive.push({
+        id: status.id,
+        missing: `its code arrives in ${status.arrives ?? "a later task"}`,
+      });
+      result.lines.push(
+        `${label} not live: its keys are held, its code arrives in ${status.arrives ?? "a later task"}`,
+      );
     } else if (status.configured) {
       result.expected.push(status.id);
       result.lines.push(`${label} expected live (the job holds its keys)`);

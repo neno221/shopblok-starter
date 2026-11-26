@@ -1,16 +1,18 @@
 /**
  * Seeds a demo catalog (M0 plan, T07 and D7): 8 products with variants priced in
  * EUR, USD, GBP and CHF, 3 categories, 2 collections, and Greek, German and
- * French translations. Development only: `seed-markets.ts` runs everywhere,
- * this one never does.
+ * French translations. Development and staging only: `seed-markets.ts` runs
+ * everywhere, this one never runs on production.
  *
  *   pnpm --filter @shopblok/backend exec medusa exec ./src/scripts/seed-demo-catalog.ts
  *
  * Skip it with `SEED_DEMO=false` in the environment, or by passing `skip` as
  * the script's argument (`medusa exec ./src/scripts/seed-demo-catalog.ts skip`).
- * It runs only when `NODE_ENV` is unset, `development` or `test` (the values
- * where `getSecret` in `src/config/config.ts` accepts a default secret); with
- * `production`, `staging` or anything else it refuses.
+ * It runs when `NODE_ENV` is unset, `development` or `test` (the values where
+ * `getSecret` in `src/config/config.ts` accepts a default secret), and on
+ * staging (`DEPLOY_ENV=staging` or `VERCEL_ENV=preview`, M7 D133) only with
+ * `SEED_DEMO=true` set for that run; on production, or with any other
+ * `NODE_ENV`, it refuses (`demoRefusal` in `lib/plan.ts`).
  *
  * Idempotent: categories, collections and products are found by their
  * deterministic handles, options by title, translations by
@@ -61,8 +63,8 @@ import {
 import {
   type DesiredTranslation,
   type ExistingTranslation,
+  demoRefusal,
   isDemoSkipped,
-  isDevelopmentEnv,
   missingBy,
   planTranslations,
   required,
@@ -110,11 +112,9 @@ export default async function seedDemoCatalog({ container, args }: ExecArgs) {
     return;
   }
 
-  if (!isDevelopmentEnv(process.env.NODE_ENV)) {
-    throw new MedusaError(
-      MedusaError.Types.NOT_ALLOWED,
-      `seed-demo-catalog is for development only (D7) and won't run with NODE_ENV=${process.env.NODE_ENV}.`,
-    );
+  const refusal = demoRefusal(process.env);
+  if (refusal !== undefined) {
+    throw new MedusaError(MedusaError.Types.NOT_ALLOWED, refusal);
   }
 
   // ---- What seed-markets leaves behind ---------------------------------------

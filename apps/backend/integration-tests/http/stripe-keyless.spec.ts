@@ -77,8 +77,20 @@ medusaIntegrationTestRunner({
         expect(await stripeRegistered(container)).toBe(false);
         const { data } = await api.get("/store/regions", { headers: store });
         const regions = data.regions as { id: string; currency_code: string }[];
-        // Before the sync: the regions still offer the provider that cannot take a payment.
-        expect(await providersOf(regions[0]!.id)).toContain(STRIPE);
+        // Before the sync: the regions still offer the provider that cannot take a payment. The
+        // message holds the link rows and the provider row, so a failure says which one is missing
+        // (CI run 45809023209 once saw only the system payment here; the VM never has).
+        const pg = container.resolve(ContainerRegistrationKeys.PG_CONNECTION);
+        const links = await pg.raw(
+          "select region_id, payment_provider_id, deleted_at from region_payment_provider where region_id = ?",
+          [regions[0]!.id],
+        );
+        const provider = await pg.raw("select id, is_enabled, deleted_at from payment_provider");
+        expect({
+          offered: await providersOf(regions[0]!.id),
+          links: links.rows,
+          providers: provider.rows,
+        }).toEqual(expect.objectContaining({ offered: expect.arrayContaining([STRIPE]) }));
 
         const synced = await syncStripeRegions(container);
         expect(synced.stripe).toBe(false);

@@ -266,31 +266,141 @@ const STRIPE_KEYS: readonly { app: keyof AppEnvs; name: string }[] = [
   { app: "storefront", name: "NEXT_PUBLIC_STRIPE_KEY" },
 ];
 
+/** The two deployments `DEPLOY_ENV` names (M7 D133). Unset in development, tests and CI. */
+export const DEPLOY_ENVS = ["staging", "production"] as const;
+export type DeployEnv = (typeof DEPLOY_ENVS)[number];
+
+const trimmed = (value: string | undefined) => (value ?? "").trim();
+
 /**
- * Whether an app runs as production, and what says so. On Vercel `VERCEL_ENV` decides: Vercel builds
- * and runs every deployment, previews included, with `NODE_ENV=production`, so only
- * `VERCEL_ENV=production` counts there (PR 134 review, item 4). Elsewhere `NODE_ENV` does.
+ * Which deployment an app runs as, and what says so (M7 D133). The order is fixed, and the apps'
+ * `deployEnv()` (`apps/storefront/src/lib/env.ts`, `apps/backend/src/config/deploy-env.ts`) follow
+ * the same one:
+ *
+ * 1. `VERCEL_ENV=preview` is always staging, so a `DEPLOY_ENV=production` set for every Vercel
+ *    environment by mistake never makes a preview production;
+ * 2. then `DEPLOY_ENV` (`staging` or `production`; any other value is `invalid`, an error of
+ *    `deployEnvCheck`, and counts as neither, so a live key is still refused);
+ * 3. then the rule before M7: on Vercel `VERCEL_ENV` (only `production` counts: Vercel runs every
+ *    deployment with `NODE_ENV=production`, PR 134 review, item 4), elsewhere `NODE_ENV`.
+ *
+ * Staging runs with `NODE_ENV=production` on Railway and `VERCEL_ENV=production` on Vercel, so only
+ * `DEPLOY_ENV=staging` tells it from the live shop.
  */
 export function productionStage(env: Record<string, string | undefined>): {
+  stage: DeployEnv | undefined;
   production: boolean;
   said: string;
+  invalid?: string;
 } {
-  const vercelEnv = (env.VERCEL_ENV ?? "").trim();
-  if (vercelEnv !== "")
-    return { production: vercelEnv === "production", said: `VERCEL_ENV ${vercelEnv}` };
-  const nodeEnv = (env.NODE_ENV ?? "").trim();
+  const vercelEnv = trimmed(env.VERCEL_ENV);
+  const named = trimmed(env.DEPLOY_ENV);
+  if (vercelEnv === "preview")
+    return {
+      stage: "staging",
+      production: false,
+      said: named === "" ? "VERCEL_ENV preview" : `VERCEL_ENV preview, over DEPLOY_ENV ${named}`,
+    };
+  if (named !== "") {
+    if (named === "staging" || named === "production")
+      return { stage: named, production: named === "production", said: `DEPLOY_ENV ${named}` };
+    return { stage: undefined, production: false, said: `DEPLOY_ENV ${named}`, invalid: named };
+  }
+  if (vercelEnv !== "") {
+    const production = vercelEnv === "production";
+    return {
+      stage: production ? "production" : undefined,
+      production,
+      said: `VERCEL_ENV ${vercelEnv}`,
+    };
+  }
+  const nodeEnv = trimmed(env.NODE_ENV);
   return {
+    stage: nodeEnv === "production" ? "production" : undefined,
     production: nodeEnv === "production",
     said: `NODE_ENV ${nodeEnv === "" ? "not set" : nodeEnv}`,
   };
 }
 
 /**
- * Test mode only, outside production (M6 D115): a live Stripe key in development, in a test run, in a
- * cloud session or in a Vercel preview charges real cards. Each app is judged by its own environment
- * (the shell's, else its `.env`'s; `productionStage`), so a production backend beside a development
- * storefront is still caught. The value is never printed, only the variable's name and the kind of
- * key.
+ * `DEPLOY_ENV` (M7 D133): an error for a value that is neither `staging` nor `production`, and one
+ * line saying which deployment each app runs as once one of them is staging or production by
+ * `DEPLOY_ENV` or `VERCEL_ENV`. Nothing in development, where neither is set.
+ */
+function deployEnvCheck(envs: AppEnvs): Check[] {
+  const apps = (["backend", "storefront"] as const).map((app) => ({
+    app,
+    ...productionStage(envs[app]),
+  }));
+  const invalid = apps.filter((each) => each.invalid !== undefined);
+  if (invalid.length > 0)
+    return [
+      {
+        id: "deploy-env",
+        title: "Deployment",
+        level: "error",
+        message:
+          "DEPLOY_ENV is neither staging nor production, so this deployment cannot be told apart: the backend refuses to start with it, and the storefront's deployEnv() throws.",
+        details: invalid.map(({ app, invalid: value }) => `apps/${app}: DEPLOY_ENV is "${value}"`),
+        fix: "Set DEPLOY_ENV to staging or production, or leave it unset in development (DEPLOY.md).",
+      },
+    ];
+  const named = apps.filter(
+    ({ app }) => trimmed(envs[app].DEPLOY_ENV) !== "" || trimmed(envs[app].VERCEL_ENV) !== "",
+  );
+  if (named.length === 0) return [];
+  return [
+    {
+      id: "deploy-env",
+      title: "Deployment",
+      level: "ok",
+      message: named
+        .map(({ app, stage, said }) => `apps/${app} runs as ${stage ?? "development"} (${said})`)
+        .join("; "),
+    },
+  ];
+}
+
+/**
+ * M0's F6, in M7 D133's terms: the test-only routes under `/next/e2e` (`E2E_TEST_ROUTES=true`, ADR
+ * 0001's checks) are an error where the storefront is production by name (`DEPLOY_ENV=production`
+ * or `VERCEL_ENV=production`, staging's Vercel deployment included), allowed on a Vercel preview
+ * (T116 runs ADR 0001's checks there), and a warning on any other production build
+ * (`NODE_ENV=production`), which only CI's servers should be.
+ */
+function e2eRoutesCheck(envs: AppEnvs): Check[] {
+  const env = envs.storefront;
+  if (trimmed(env.E2E_TEST_ROUTES) !== "true") return [];
+  const vercelEnv = trimmed(env.VERCEL_ENV);
+  if (vercelEnv === "preview") return [];
+  const named = vercelEnv === "production" || trimmed(env.DEPLOY_ENV) === "production";
+  if (!named && trimmed(env.NODE_ENV) !== "production") return [];
+  const said =
+    vercelEnv === "production"
+      ? "VERCEL_ENV production"
+      : named
+        ? "DEPLOY_ENV production"
+        : "NODE_ENV production";
+  return [
+    {
+      id: "e2e-test-routes",
+      title: "Test-only routes",
+      level: named ? "error" : "warn",
+      message: named
+        ? `E2E_TEST_ROUTES is true on a production deployment (${said}). The storefront ignores it there and keeps /next/e2e shut, but a flag left on a production deployment is a mistake to remove before it is copied anywhere else.`
+        : `E2E_TEST_ROUTES is true with ${said}: /next/e2e answers. Only CI's test servers and Vercel previews should open it.`,
+      details: ["apps/storefront: E2E_TEST_ROUTES=true"],
+      fix: "Remove E2E_TEST_ROUTES from this environment; it belongs only on CI's servers and on a Vercel preview.",
+    },
+  ];
+}
+
+/**
+ * Test mode only, outside production (M6 D115, M7 D133): a live Stripe key in development, in a test
+ * run, in a cloud session, on staging or in a Vercel preview charges real cards. Each app is judged
+ * by its own environment (the shell's, else its `.env`'s; `productionStage`), so a production
+ * backend beside a development storefront is still caught. The value is never printed, only the
+ * variable's name and the kind of key.
  */
 function stripeLiveKeys(envs: AppEnvs): Check[] {
   const live = STRIPE_KEYS.filter(({ app, name }) => {
@@ -307,7 +417,7 @@ function stripeLiveKeys(envs: AppEnvs): Check[] {
       title: "Stripe test mode",
       level: "error",
       message:
-        "A live Stripe key is set outside production (NODE_ENV=production, or VERCEL_ENV=production on Vercel). Development, tests, cloud sessions and previews use test keys only, so that no real card is charged.",
+        "A live Stripe key is set outside production (DEPLOY_ENV=production; before M7's names, NODE_ENV=production, or VERCEL_ENV=production on Vercel). Development, tests, cloud sessions, staging and previews use test keys only, so that no real card is charged.",
       details: live.map(
         ({ app, name }) =>
           `apps/${app}: ${name} is a live key (${productionStage(envs[app]).said})`,
@@ -324,7 +434,9 @@ export function configChecks(
   context: Context,
 ): Check[] {
   return [
+    ...deployEnvCheck(envs),
     ...stripeLiveKeys(envs),
+    ...e2eRoutesCheck(envs),
     secrets(envs, context),
     previewAndCronSecrets(envs, context),
     publishableKey(envs),
@@ -554,7 +666,7 @@ export function medusaMarketsCheck(
         level: "warn",
         message: "Medusa's regions answer, but its locales could not be read.",
         details: [
-          `could not read Medusa's locales (${locales}); /store/locales is served by the translation feature (MEDUSA_FF_TRANSLATION must not be false)`,
+          `could not read Medusa's locales (${locales}); /store/locales is served by Medusa's Translation Module`,
         ],
       }),
     };
@@ -829,7 +941,9 @@ export function resendDomainState(
  * `doctor --online`: is `RESEND_FROM_EMAIL`'s domain verified with Resend, so the shop can e-mail its
  * customers (M6 D121)? A warning in development, an error in production (sign-ups need the
  * verification e-mail, SPEC §16 item 2): production as `productionStage` says for any of `apps`, so
- * a Vercel preview is development (PR 135 review, item 6). One check per sender and key: `apps` are
+ * a Vercel preview is not production (PR 135 review, item 6). On staging (M7 D133: `DEPLOY_ENV=staging`
+ * or a Vercel preview) Resend's test sender is one of staging's accepted notes, which `--strict`
+ * leaves alone: staging may run without a domain of yours. One check per sender and key: `apps` are
  * the apps that send with them (both, when their `.env` files agree). `answer` is Resend's
  * `GET /domains` with the key; doctor asks nothing (`undefined`) only for a sender without an
  * address or at Resend's test domain, which this check settles before it reads the answer.
@@ -841,6 +955,8 @@ export function resendDomainCheck(
   envs: Readonly<Partial<Record<AppName, Record<string, string | undefined>>>>,
 ): Check {
   const production = apps.some((app) => productionStage(envs[app] ?? {}).production);
+  const staging =
+    !production && apps.some((app) => productionStage(envs[app] ?? {}).stage === "staging");
   const notReady = production ? "error" : "warn";
   const check = (c: Omit<Check, "id" | "title">): Check => ({
     id: [RESEND_DOMAIN.id, ...apps].join("-"),
@@ -858,9 +974,13 @@ export function resendDomainCheck(
     });
   if (domain === RESEND_TEST_DOMAIN)
     return check({
-      level: notReady,
+      level: staging ? "note" : notReady,
       message: `RESEND_FROM_EMAIL is Resend's test sender (@${RESEND_TEST_DOMAIN}): Resend delivers only to the account's own address and its test addresses, so customers get no e-mail.`,
-      fix: production ? fix : `Fine for development. ${fix}`,
+      fix: production
+        ? fix
+        : staging
+          ? `Accepted on staging (M7 D133). Before go-live: ${fix}`
+          : `Fine for development. ${fix}`,
     });
   if (answer === undefined)
     throw new Error(`resendDomainCheck: doctor did not ask Resend about ${domain}.`);

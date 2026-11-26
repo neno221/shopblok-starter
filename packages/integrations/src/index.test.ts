@@ -34,7 +34,7 @@ const stripe = {
 };
 
 describe("getIntegrationStatus", () => {
-  it("lists the seven integrations of SPEC §10, in its order", () => {
+  it("lists the seven integrations of SPEC §10, in its order, then M7's Turnstile", () => {
     expect(getIntegrationStatus(none).map((s) => s.id)).toEqual([
       "stripe",
       "resend",
@@ -43,20 +43,45 @@ describe("getIntegrationStatus", () => {
       "meilisearch",
       "redis",
       "r2",
+      "turnstile",
     ]);
+  });
+
+  // M7 T105 (D143): named before its code, so keys set for it change nothing until T108.
+  it("Turnstile is named but not wired: it arrives in T108, and its keys keep it on its fallback", () => {
+    const keys = { NEXT_PUBLIC_TURNSTILE_SITE_KEY: "site", TURNSTILE_SECRET_KEY: "secret" };
+    const off = byId(getIntegrationStatus(none), "turnstile");
+    expect([off.wired, off.arrives, off.state, off.using]).toEqual([
+      false,
+      "T108",
+      "fallback",
+      "the rate limits alone",
+    ]);
+    const set = byId(getIntegrationStatus({ backend: {}, storefront: keys }), "turnstile");
+    expect([set.configured, set.state]).toEqual([true, "fallback"]);
+    expect(describeIntegration(set).why).toBe(
+      "the keys are set, but the Turnstile code arrives in T108",
+    );
+    expect(
+      byId(
+        getIntegrationStatus({ backend: {}, storefront: { TURNSTILE_SECRET_KEY: "secret" } }),
+        "turnstile",
+      ).half,
+    ).toBe(true);
   });
 
   // M6's done-when (SPEC §17.1, T103): every integration's code is built, so each one turns on purely
   // through its keys. A `wired: false` (or an `arrives`) here would keep an integration on its
   // fallback with every key set, and `integrations-live`'s done-when spec fails on it too.
-  it.each(getIntegrationStatus(none).map((status) => [status.id, status] as const))(
-    "%s is wired, and says no milestone it arrives in (M6's done-when)",
-    (_id, status) => {
-      expect(status.wired).toBe(true);
-      expect(status.arrives).toBeUndefined();
-      expect("arrives" in status).toBe(false);
-    },
-  );
+  it.each(
+    getIntegrationStatus(none)
+      .filter((status) => status.id !== "turnstile")
+      .map((status) => [status.id, status] as const),
+  )("%s is wired, and says no milestone it arrives in (M6's done-when)", (_id, status) => {
+    expect(status.wired).toBe(true);
+    expect(status.arrives).toBeUndefined();
+    expect("arrives" in status).toBe(false);
+  });
 
   it("puts every integration on its fallback when nothing is set, and names the fallback", () => {
     const list = getIntegrationStatus(none);
@@ -69,6 +94,7 @@ describe("getIntegrationStatus", () => {
       meilisearch: "search-postgres",
       redis: "in-memory modules (development only)",
       r2: "local disk (development only; Vercel needs R2)",
+      turnstile: "the rate limits alone",
     });
   });
 
@@ -306,6 +332,9 @@ describe("INTEGRATION_KEYS", () => {
       "SENTRY_TRACES_SAMPLE_RATE",
       "SENTRY_ORG",
       "SENTRY_PROJECT",
+      // M7's (D143, T105).
+      "NEXT_PUBLIC_TURNSTILE_SITE_KEY",
+      "TURNSTILE_SECRET_KEY",
     ]) {
       expect(INTEGRATION_KEYS).toContain(key);
     }

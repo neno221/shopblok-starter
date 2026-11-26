@@ -87,8 +87,8 @@ export function getIndexPrefix(env: Env): string | undefined {
  * The module registry for `medusa-config.ts` (M0 plan, T06). Entries here replace Medusa's
  * defaults of the same module (the last one wins), so each one is listed in full.
  *
- * - Translation: always on. `featureFlags.translation` and `MEDUSA_FF_TRANSLATION` (which
- *   wins over the config) only decide whether its routes answer.
+ * - Translation: always on. Medusa 2.22.7 removed its feature flag (`MEDUSA_FF_TRANSLATION`),
+ *   so its routes always answer (M7 T105).
  * - Notification: the local provider logs to the console. It serves `feed`, because Medusa's
  *   own product import/export workflows notify on `feed` and fail without a provider for it,
  *   and `email` (verification links since M3) unless Resend has it: with `RESEND_API_KEY` and

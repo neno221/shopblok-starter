@@ -1,7 +1,7 @@
 // Workspace checks (T03). Run with plain `node scripts/check-workspace.ts [repo-root]`.
 // pnpm's isolated layout (D6) and source-only shared packages (D3) rely on three things:
-//   1. each app resolves its own React: 19.3.0 for the storefront and packages/ui, 18.3.1 for the
-//      backend, and the storefront's Payload packages resolve its `@types/react` (19) too;
+//   1. each app resolves its own React (19.3.1 everywhere since Medusa 2.23, M7 T105), and the
+//      storefront's Payload packages resolve its `@types/react` (19) too;
 //   2. exactly one installed version of `payload` and of each `@payloadcms/*` package;
 //   3. every `@shopblok/*` dependency links to its folder under `packages/`, so edits are live.
 // A check with nothing to look at yet (no storefront, no Payload) is skipped. Exit code 1 if any fails.
@@ -52,7 +52,7 @@ function resolveVersion(fromDir: string, name: string): string | undefined {
 // `@payloadcms/next` declares no `react` peer, and it and the two other Payload packages declare
 // no `@types/react`, so they only get the app's through the `packageExtensions` entries in
 // pnpm-workspace.yaml (T09); without them, pnpm resolves both from its shared hoist folder, which
-// holds the backend's React 18.3.1 and `@types/react` 18. `types` is the `@types/react` major
+// held the backend's React 18 until Medusa 2.23 (T105) and may hold another copy again. `types` is the `@types/react` major
 // that the app and the dependencies marked `types` must see (`next` takes no types from there).
 const reactTargets: {
   app: string;
@@ -62,7 +62,7 @@ const reactTargets: {
 }[] = [
   {
     app: "apps/storefront",
-    version: "19.3.0",
+    version: "19.3.1",
     types: "19",
     via: [
       { name: "next" },
@@ -71,12 +71,13 @@ const reactTargets: {
       { name: "@payloadcms/richtext-lexical", types: true },
     ],
   },
-  { app: "apps/backend", version: "18.3.1", via: [] },
-  // The markets plugin's admin extensions bundle into Medusa Admin, which has React 18 (T73).
-  { app: "packages/medusa-markets", version: "18.3.1", via: [] },
+  // Medusa 2.23 moved its Admin to React 19 (T105; React 18 from T73 until then).
+  { app: "apps/backend", version: "19.3.1", via: [] },
+  // The markets plugin's admin extensions bundle into Medusa Admin, so they have its React.
+  { app: "packages/medusa-markets", version: "19.3.1", via: [] },
   // packages/ui renders and tests components (D30): React and its types are peers and dev
   // dependencies there, so its own copy must be the storefront's.
-  { app: "packages/ui", version: "19.3.0", types: "19", via: [{ name: "@base-ui/react" }] },
+  { app: "packages/ui", version: "19.3.1", types: "19", via: [{ name: "@base-ui/react" }] },
 ];
 
 function checkReact(): Result {

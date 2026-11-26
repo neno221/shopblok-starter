@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   DEFAULT_MEDUSA_BACKEND_URL,
+  deployEnv,
   designSystemBuildFlag,
   designSystemEnabled,
   e2eRoutesEnabled,
@@ -116,20 +117,30 @@ describe("env", () => {
   it("exposes exactly the variables the app reads", () => {
     expect(Object.keys(env).sort()).toEqual([
       "CRON_SECRET",
+      "CSP_MODE",
+      "DEPLOY_ENV",
       "DESIGN_SYSTEM_ENABLED",
       "E2E_TEST_ROUTES",
       "MEDUSA_BACKEND_URL",
       "NEXT_PHASE",
       "NEXT_PUBLIC_BASE_URL",
       "NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY",
+      "NEXT_PUBLIC_TURNSTILE_SITE_KEY",
       "NODE_ENV",
       "PAYLOAD_DATABASE_URL",
       "PAYLOAD_SECRET",
       "PREVIEW_SECRET",
       "REVALIDATE_SECRET",
+      "S3_PRIVATE_BUCKET",
+      "SEED_ADMIN_EMAIL",
+      "SEED_ON_BUILD",
+      "SHOPBLOK_SECRET_FINGERPRINTS",
       "STOREFRONT_BUILD_WORKERS",
       "STOREFRONT_LISTING_PAGE_SIZE",
       "STOREFRONT_PRERENDER_PRODUCTS",
+      "STOREFRONT_SIGNING_SECRET",
+      "TURNSTILE_SECRET_KEY",
+      "VERCEL_ENV",
     ]);
   });
 });
@@ -140,6 +151,38 @@ describe("isProduction", () => {
     for (const NODE_ENV of [undefined, "development", "test", "staging"]) {
       expect(isProduction({ NODE_ENV })).toBe(false);
     }
+  });
+});
+
+describe("deployEnv (M7 D133's order)", () => {
+  it.each([
+    [{}, undefined],
+    [{ NODE_ENV: "development" }, undefined],
+    [{ NODE_ENV: "production" }, "production"],
+    [{ VERCEL_ENV: "development", NODE_ENV: "production" }, undefined],
+    [{ VERCEL_ENV: "production", NODE_ENV: "production" }, "production"],
+    [{ VERCEL_ENV: "preview", NODE_ENV: "production" }, "staging"],
+    [{ DEPLOY_ENV: "staging", NODE_ENV: "production" }, "staging"],
+    [{ DEPLOY_ENV: "staging", VERCEL_ENV: "production" }, "staging"],
+    [{ DEPLOY_ENV: " production " }, "production"],
+    [{ DEPLOY_ENV: "", NODE_ENV: "production" }, "production"],
+    // A preview is staging even with DEPLOY_ENV=production set for every Vercel environment.
+    [{ DEPLOY_ENV: "production", VERCEL_ENV: "preview", NODE_ENV: "production" }, "staging"],
+  ] as const)("%o is %s", (source, expected) => {
+    expect(deployEnv(source)).toBe(expected);
+  });
+
+  it("throws for any other DEPLOY_ENV, naming it", () => {
+    for (const DEPLOY_ENV of ["prod", "Staging", "preview", "development"]) {
+      expect(() => deployEnv({ DEPLOY_ENV, NODE_ENV: "production" })).toThrow(EnvError);
+    }
+    expect(() => deployEnv({ DEPLOY_ENV: "prod" })).toThrow('(it is "prod")');
+  });
+
+  it("reads the real environment by default", () => {
+    vi.stubEnv("VERCEL_ENV", "preview");
+    vi.stubEnv("DEPLOY_ENV", "production");
+    expect(deployEnv()).toBe("staging");
   });
 });
 
@@ -156,6 +199,25 @@ describe("e2eRoutesEnabled (the gate of the test-only routes)", () => {
     expect(e2eRoutesEnabled()).toBe(false);
     vi.stubEnv("E2E_TEST_ROUTES", "true");
     expect(e2eRoutesEnabled()).toBe(true);
+  });
+
+  it("stays off on a production deployment by name, and opens on a preview (M0's F6, M7 D133)", () => {
+    const on = { E2E_TEST_ROUTES: "true", NODE_ENV: "production" };
+    expect(e2eRoutesEnabled({ ...on, DEPLOY_ENV: "production" })).toBe(false);
+    expect(e2eRoutesEnabled({ ...on, VERCEL_ENV: "production" })).toBe(false);
+    expect(e2eRoutesEnabled({ ...on, VERCEL_ENV: "production", DEPLOY_ENV: "staging" })).toBe(
+      false,
+    );
+    expect(e2eRoutesEnabled({ ...on, VERCEL_ENV: "preview" })).toBe(true);
+    // PR 147 review, item 3: a mistyped DEPLOY_ENV fails closed.
+    for (const DEPLOY_ENV of ["prod", "Production", " production "])
+      expect(e2eRoutesEnabled({ ...on, DEPLOY_ENV }), DEPLOY_ENV).toBe(false);
+    expect(e2eRoutesEnabled({ ...on, DEPLOY_ENV: "staging" })).toBe(true);
+    expect(e2eRoutesEnabled({ ...on, NODE_ENV: "production" })).toBe(true);
+    expect(e2eRoutesEnabled({ ...on, VERCEL_ENV: "preview", DEPLOY_ENV: "production" })).toBe(true);
+    // CI's servers: a production build with neither name.
+    expect(e2eRoutesEnabled(on)).toBe(true);
+    expect(e2eRoutesEnabled({ ...on, DEPLOY_ENV: "staging" })).toBe(true);
   });
 });
 

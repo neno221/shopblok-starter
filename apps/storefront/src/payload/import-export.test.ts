@@ -4,7 +4,9 @@ import {
   adminOnly,
   checkImportedStrings,
   IMPORT_BATCH_SIZE,
+  importedText,
   reportImportProblems,
+  unescapeFormula,
 } from "./import-export";
 
 const admin = { collection: "users", id: 1, role: "admin" };
@@ -271,5 +273,96 @@ describe("imports update by key only", () => {
   it("reports the refused values after the plugin's own hook", () => {
     expect(imports.hooks?.afterChange?.at(-1)).toBe(reportImportProblems);
     expect(imports.hooks?.afterChange).toHaveLength(2);
+  });
+});
+
+describe("unescapeFormula: Payload 3.94's export escape, undone on import (M7 T105)", () => {
+  it.each([
+    ["'+{count, number}", "+{count, number}"],
+    ["'- 20 %", "- 20 %"],
+    ["'=1+1", "=1+1"],
+    ["'@home", "@home"],
+    ["' -x", " -x"],
+    ["'\tTab", "\tTab"],
+    ["'＋全角", "＋全角"],
+    ["'tis the season", "'tis the season"],
+    ["+{count, number}", "+{count, number}"],
+    ["Only {count} left", "Only {count} left"],
+  ])("%j is read as %j", (cell, text) => {
+    expect(unescapeFormula(cell)).toBe(text);
+  });
+
+  it("so an untouched export of `+{count, number}` changes nothing", async () => {
+    const stored = {
+      key: "atoms.more",
+      value: { en: "+{count, number}", el: "+{count, number}" },
+      source: { message: "+{count, number}" },
+      note: null,
+    };
+    const req = {
+      context: {} as Record<string, unknown>,
+      payload: { find: vi.fn(async () => ({ docs: [stored] })) },
+    };
+    const rows = [
+      { key: "atoms.more", value: { en: "'+{count, number}", el: "'+{count, number}" } },
+    ];
+    const out = await checkImportedStrings({
+      batchNumber: 1,
+      data: rows,
+      format: "csv",
+      originalData: rows,
+      req: req as unknown as PayloadRequest,
+      totalBatches: 1,
+    } as Parameters<typeof checkImportedStrings>[0]);
+    expect(out).toEqual([]);
+    expect(req.context).toEqual({ uiStringsImportProblems: [] });
+  });
+});
+
+describe("importedText: the escape only in CSV, and a real leading ' kept (PR 147 review, items 1 and 2)", () => {
+  it.each([
+    // [cell, stored, format, read as]
+    ["'+{count, number}", "+{count, number}", "csv", "+{count, number}"],
+    ["'- 20 %", "'- 20 %", "csv", "'- 20 %"],
+    ["'- 30 %", "'- 20 %", "csv", "'- 30 %"],
+    ["'- 30 %", "- 20 %", "csv", "- 30 %"],
+    ["'@home", null, "csv", "@home"],
+    ["'+1 more", "+1 more", "json", "'+1 more"],
+    ["'+1 more", null, "json", "'+1 more"],
+    ["", "x", "csv", null],
+    [10, null, "csv", "10"],
+  ] as const)("%j against %j in %s is %j", (cell, stored, format, text) => {
+    expect(importedText(cell, stored, format)).toBe(text);
+  });
+
+  const stored = {
+    key: "atoms.discount",
+    value: { en: "'- 20 %", el: "'- 20 %" },
+    source: { message: "'- 20 %" },
+    note: null,
+  };
+  const run = (rows: Record<string, unknown>[], format: "csv" | "json") =>
+    checkImportedStrings({
+      batchNumber: 1,
+      data: rows,
+      format,
+      originalData: rows,
+      req: {
+        context: {},
+        payload: { find: vi.fn(async () => ({ docs: [stored] })) },
+      } as unknown as PayloadRequest,
+      totalBatches: 1,
+    } as Parameters<typeof checkImportedStrings>[0]);
+
+  it("leaves a stored '- 20 % alone on an untouched CSV round trip", async () => {
+    expect(
+      await run([{ key: "atoms.discount", value: { en: "'- 20 %", el: "'- 20 %" } }], "csv"),
+    ).toEqual([]);
+  });
+
+  it("keeps a JSON file's leading ' as typed", async () => {
+    expect(
+      await run([{ key: "atoms.discount", value: { en: "'- 20 %", el: "'+1 more" } }], "json"),
+    ).toEqual([{ key: "atoms.discount", value: { en: "'- 20 %", el: "'+1 more" } }]);
   });
 });

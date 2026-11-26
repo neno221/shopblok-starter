@@ -56,21 +56,63 @@ describe("exit code", () => {
 
 describe("summarize and effectiveLevel", () => {
   it("counts the levels, and a warning as an error under --strict", () => {
-    expect(summarize([ok, warn, warn, error], false)).toEqual({ ok: 1, warn: 2, error: 1 });
-    expect(summarize([ok, warn, warn, error], true)).toEqual({ ok: 1, warn: 0, error: 3 });
+    expect(summarize([ok, warn, warn, error], false)).toEqual({
+      ok: 1,
+      note: 0,
+      warn: 2,
+      error: 1,
+    });
+    expect(summarize([ok, warn, warn, error], true)).toEqual({
+      ok: 1,
+      note: 0,
+      warn: 0,
+      error: 3,
+    });
     expect(effectiveLevel(ok, true)).toBe("ok");
   });
 
   it("leaves a warning the keys cannot clear (byHand) a warning under --strict (T103)", () => {
     const byHand: Check = { ...warn, id: "r2-cors", byHand: true };
     expect(effectiveLevel(byHand, true)).toBe("warn");
-    expect(summarize([ok, byHand, warn], true)).toEqual({ ok: 1, warn: 1, error: 1 });
+    expect(summarize([ok, byHand, warn], true)).toEqual({ ok: 1, note: 0, warn: 1, error: 1 });
     expect(exitCodeOf(report(ok, byHand), strict)).toBe(0);
     expect(renderText(report(byHand), strict)).toContain(
       "warning these keys cannot clear: check it by hand",
     );
     // A byHand error is still an error.
     expect(exitCodeOf(report({ ...byHand, level: "error" }), strict)).toBe(1);
+  });
+});
+
+describe("the accepted-note level (M7 D133)", () => {
+  const note: Check = {
+    id: "resend-domain-backend",
+    title: "Resend sender domain (apps/backend)",
+    level: "note",
+    message: "RESEND_FROM_EMAIL is Resend's test sender.",
+    fix: "Accepted on staging.",
+  };
+
+  it("is counted on its own, below a warning, and --strict leaves it alone", () => {
+    expect(effectiveLevel(note, true)).toBe("note");
+    expect(summarize([ok, note, warn], true)).toEqual({ ok: 1, note: 1, warn: 0, error: 1 });
+    expect(exitCodeOf(report(ok, note), strict)).toBe(0);
+    expect(exitCodeOf(report(note), plain)).toBe(0);
+  });
+
+  it("is said in the table and in the summary line, and in the JSON", () => {
+    const text = renderText(report(ok, note), strict);
+    expect(text).toContain("  i Resend sender domain (apps/backend) (accepted note)");
+    expect(text).toContain("1 check ok, 1 accepted note, 0 warnings, 0 errors (--strict).");
+    expect(renderText(report(ok), plain)).toContain("1 check ok, 0 warnings, 0 errors.");
+    const json = JSON.parse(renderJson(report(note), strict)) as {
+      ok: boolean;
+      summary: Record<string, number>;
+      checks: { level: string }[];
+    };
+    expect(json.ok).toBe(true);
+    expect(json.summary.note).toBe(1);
+    expect(json.checks[0]?.level).toBe("note");
   });
 });
 
@@ -127,7 +169,7 @@ describe("integrationOf and --only (T103)", () => {
       ["stripe"],
       [expect.objectContaining({ id: "stripe-domains", integration: "stripe" })],
     ]);
-    expect(json.integrations).toHaveLength(7);
+    expect(json.integrations).toHaveLength(8);
     expect(renderText(all, { ...plain, only: ["stripe"] })).toContain("Checks (--only stripe)");
   });
 
@@ -177,14 +219,14 @@ describe("renderJson", () => {
     const body = JSON.parse(renderJson(report(ok, warn), { strict: false, online: true })) as {
       ok: boolean;
       online: boolean;
-      summary: { ok: number; warn: number; error: number };
+      summary: { ok: number; note: number; warn: number; error: number };
       integrations: { id: string; state: string }[];
       checks: { id: string; level: string }[];
     };
     expect(body.ok).toBe(true);
     expect(body.online).toBe(true);
-    expect(body.summary).toEqual({ ok: 1, warn: 1, error: 0 });
-    expect(body.integrations.map((i) => i.id)).toHaveLength(7);
+    expect(body.summary).toEqual({ ok: 1, note: 0, warn: 1, error: 0 });
+    expect(body.integrations.map((i) => i.id)).toHaveLength(8);
     expect(body.checks.map((c) => [c.id, c.level])).toEqual([
       ["a", "ok"],
       ["b", "warn"],

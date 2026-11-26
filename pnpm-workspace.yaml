@@ -23,8 +23,8 @@ allowBuilds:
 packageExtensions:
   "@payloadcms/next":
     peerDependencies:
-      react: "^19.0.1 || ^19.1.2 || ^19.2.1"
-      react-dom: "^19.0.1 || ^19.1.2 || ^19.2.1"
+      react: "~19.0.9 || ~19.1.10 || ~19.2.9 || ^19.3.1"
+      react-dom: "~19.0.9 || ~19.1.10 || ~19.2.9 || ^19.3.1"
       "@types/react": "^19.0.0"
       "@types/react-dom": "^19.0.0"
     peerDependenciesMeta:
@@ -60,6 +60,11 @@ packageExtensions:
 # monaco that wants a newer 3.x is not held back to 3.4.17.
 overrides:
   "monaco-editor>dompurify": "^3.4.17"
+  # M7 T105 (Medusa 2.23): one OpenTelemetry API for the whole tree. `@medusajs/framework` takes it
+  # as a peer, and with 1.10.0 in the backend (the OTLP exporter for SDK 3) and 1.9.1 elsewhere pnpm
+  # installed two copies of Medusa, whose core-flows then registered every workflow twice ("Workflow
+  # with id … already exists"). Drop it once the tree resolves one version by itself.
+  "@opentelemetry/api": "1.10.0"
   # T55 (SETUP.md, "Hardening (T55)"): each a fixed release inside the dependant's own range, on that
   # edge only. Drop one once the dependant's declared range itself starts at the fixed release or
   # later (its package.json, not the lockfile, which the override keeps fixed).

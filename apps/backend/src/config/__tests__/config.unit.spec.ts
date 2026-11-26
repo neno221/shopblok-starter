@@ -94,8 +94,14 @@ describe("buildConfig", () => {
     }
   });
 
-  it("turns the translation flag on", () => {
-    expect(buildConfig({}).featureFlags).toEqual({ translation: true });
+  it("refuses an invalid DEPLOY_ENV, and takes staging and production (M7 D133)", () => {
+    expect(() => buildConfig({ DEPLOY_ENV: "prod" })).toThrow('(it is "prod")');
+    expect(() => buildConfig({ DEPLOY_ENV: "staging" })).not.toThrow();
+    expect(() => buildConfig({ DEPLOY_ENV: "production" })).not.toThrow();
+  });
+
+  it("sets no feature flag (Medusa 2.22.7 removed the translation flag)", () => {
+    expect(buildConfig({})).not.toHaveProperty("featureFlags");
   });
 
   it("uses the module list buildModules gives for the same env", () => {

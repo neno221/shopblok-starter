@@ -6,10 +6,21 @@
 // must not import it for a secret. Nothing is parsed when this file is imported, so `next build`
 // works with no `.env` (CI has none); a value is checked where it is first needed. zod is loaded
 // by the check, not by this file (see `medusaEnv`).
+//
+// M7's names (T105) are read here too, before the tasks that use them exist: `DEPLOY_ENV` (D133,
+// `deployEnv()`), `STOREFRONT_SIGNING_SECRET` (D142), `SHOPBLOK_SECRET_FINGERPRINTS` (D134),
+// `SEED_ADMIN_EMAIL` and `SEED_ON_BUILD` (D136), `CSP_MODE` (D138), Turnstile's two keys (D143) and
+// `S3_PRIVATE_BUCKET` (D146). The files that read `process.env` themselves today keep doing so:
+// `payload.config.ts` and `src/payload/` (Payload's own config, R2 and the e-mails),
+// `src/scripts/`, Sentry's literals (above) and `next.config.ts`; moving them is not T105's.
 
 /** The variables the app reads. All optional here; `medusaEnv()` says which ones a caller needs. */
 export type RawEnv = {
   NODE_ENV?: string | undefined;
+  /** `staging` or `production` on a deployment, unset elsewhere (M7 D133; `deployEnv()`). */
+  DEPLOY_ENV?: string | undefined;
+  /** Vercel's own: `production`, `preview` or `development` on Vercel, unset elsewhere. */
+  VERCEL_ENV?: string | undefined;
   NEXT_PHASE?: string | undefined;
   NEXT_PUBLIC_BASE_URL?: string | undefined;
   NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY?: string | undefined;
@@ -24,6 +35,21 @@ export type RawEnv = {
   STOREFRONT_PRERENDER_PRODUCTS?: string | undefined;
   STOREFRONT_LISTING_PAGE_SIZE?: string | undefined;
   STOREFRONT_BUILD_WORKERS?: string | undefined;
+  /** Signs the calls to Medusa's rate-limit route and the visitor's address (M7 D142, T108). */
+  STOREFRONT_SIGNING_SECRET?: string | undefined;
+  /** Written only by `pnpm staging:secrets` (M7 D134, T114): the secrets' fingerprints. */
+  SHOPBLOK_SECRET_FINGERPRINTS?: string | undefined;
+  /** Staging's first deployment only (M7 D136, T111): the staff account the seed invites. */
+  SEED_ADMIN_EMAIL?: string | undefined;
+  /** Staging's first deployment only (M7 D136, T111): `payload` seeds Payload during the build. */
+  SEED_ON_BUILD?: string | undefined;
+  /** The CSP's mode (M7 D138, T106): `enforce` (the default) or `report-only`. */
+  CSP_MODE?: string | undefined;
+  /** Turnstile (M7 D143, T108): both or neither. */
+  NEXT_PUBLIC_TURNSTILE_SITE_KEY?: string | undefined;
+  TURNSTILE_SECRET_KEY?: string | undefined;
+  /** R2's private bucket, for Payload's CSV exports and imports (M7 D146, T111). */
+  S3_PRIVATE_BUCKET?: string | undefined;
 };
 
 /**
@@ -37,6 +63,12 @@ export type RawEnv = {
 export const env: RawEnv = {
   get NODE_ENV() {
     return process.env.NODE_ENV;
+  },
+  get DEPLOY_ENV() {
+    return process.env.DEPLOY_ENV;
+  },
+  get VERCEL_ENV() {
+    return process.env.VERCEL_ENV;
   },
   get NEXT_PHASE() {
     return process.env.NEXT_PHASE;
@@ -80,19 +112,84 @@ export const env: RawEnv = {
   get STOREFRONT_BUILD_WORKERS() {
     return process.env.STOREFRONT_BUILD_WORKERS;
   },
+  get STOREFRONT_SIGNING_SECRET() {
+    return process.env.STOREFRONT_SIGNING_SECRET;
+  },
+  get SHOPBLOK_SECRET_FINGERPRINTS() {
+    return process.env.SHOPBLOK_SECRET_FINGERPRINTS;
+  },
+  get SEED_ADMIN_EMAIL() {
+    return process.env.SEED_ADMIN_EMAIL;
+  },
+  get SEED_ON_BUILD() {
+    return process.env.SEED_ON_BUILD;
+  },
+  get CSP_MODE() {
+    return process.env.CSP_MODE;
+  },
+  get NEXT_PUBLIC_TURNSTILE_SITE_KEY() {
+    return process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
+  },
+  get TURNSTILE_SECRET_KEY() {
+    return process.env.TURNSTILE_SECRET_KEY;
+  },
+  get S3_PRIVATE_BUCKET() {
+    return process.env.S3_PRIVATE_BUCKET;
+  },
 };
 
 export function isProduction(source: RawEnv = env): boolean {
   return source.NODE_ENV === "production";
 }
 
+/** The two deployments `DEPLOY_ENV` names (M7 D133). */
+export type DeployEnv = "staging" | "production";
+
+/**
+ * Which deployment this is (M7 D133), or `undefined` for none (development, tests, CI). The order
+ * is fixed, and `doctor` (`productionStage`) and the backend (`src/config/deploy-env.ts`) follow
+ * the same one:
+ *
+ * 1. `VERCEL_ENV=preview` is always staging: a `DEPLOY_ENV=production` set for every Vercel
+ *    environment by mistake never makes a preview production;
+ * 2. then `DEPLOY_ENV`, `staging` or `production`; any other value throws an `EnvError` (a typo
+ *    must not open robots or let a live key through), which `doctor` reports first;
+ * 3. then the rule before M7: `VERCEL_ENV=production` on Vercel, else `NODE_ENV=production`.
+ *
+ * Staging runs as Vercel's Production deployment of `main` (D132), so without `DEPLOY_ENV=staging`
+ * it would count as production here.
+ */
+export function deployEnv(source: RawEnv = env): DeployEnv | undefined {
+  const vercelEnv = (source.VERCEL_ENV ?? "").trim();
+  if (vercelEnv === "preview") return "staging";
+  const named = (source.DEPLOY_ENV ?? "").trim();
+  if (named === "staging" || named === "production") return named;
+  if (named !== "")
+    throw new EnvError(
+      `DEPLOY_ENV must be staging or production, or unset outside a deployment (it is "${named}")`,
+    );
+  if (vercelEnv !== "") return vercelEnv === "production" ? "production" : undefined;
+  return isProduction(source) ? "production" : undefined;
+}
+
 /**
  * The test-only routes under `/next/e2e` (ADR 0001's checks, plan T17 step 4) answer only when
  * this is exactly `true`. CI's `e2e-smoke` sets it on the server it starts; a deployment never
  * does, and both run a production build, so the gate is read at run time (see `lib/e2e/gate.ts`).
+ * Never on a production deployment by name (M0's F6, M7 D133: `DEPLOY_ENV=production` or
+ * `VERCEL_ENV=production`, staging's Vercel deployment included, unless it is a preview), whatever
+ * `E2E_TEST_ROUTES` says; `doctor` calls that an error. A Vercel preview may open them (T116).
  */
 export function e2eRoutesEnabled(source: RawEnv = env): boolean {
-  return source.E2E_TEST_ROUTES === "true";
+  if (source.E2E_TEST_ROUTES !== "true") return false;
+  const vercelEnv = (source.VERCEL_ENV ?? "").trim();
+  if (vercelEnv === "preview") return true;
+  if (vercelEnv === "production") return false;
+  // Fails closed (PR 147 review, item 3): a `DEPLOY_ENV` other than `staging` (`production`, or a
+  // typo such as `Production`, which `deployEnv()` would refuse) keeps the routes shut. Not
+  // `deployEnv()` itself: CI's `next start` has `NODE_ENV=production` and no `DEPLOY_ENV`.
+  const named = (source.DEPLOY_ENV ?? "").trim();
+  return named === "" || named === "staging";
 }
 
 /**

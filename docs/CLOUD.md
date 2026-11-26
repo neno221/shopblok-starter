@@ -86,10 +86,10 @@ exec > >(tee -a /var/log/shopblok-setup.log) 2>&1
 echo "setup start $(date -u +%FT%TZ)"
 set -x
 
-# 1. Node 22.23.4 or newer on the 22 line (.nvmrc, engines; Payload 3.92 needs it, M4 D71).
+# 1. Node 22.23.5 or newer on the 22 line (.nvmrc, engines; Payload 3.94 needs it, M7 T105).
 #    Upgrade /opt/node22 only if it's older.
 #    Remove the old npm and Corepack first: unpacking over them leaves stale files that break npm.
-if ! /opt/node22/bin/node -e 'const [a,b,c]=process.versions.node.split(".").map(Number);process.exit(a===22&&(b>23||(b===23&&c>=4))?0:1)'; then
+if ! /opt/node22/bin/node -e 'const [a,b,c]=process.versions.node.split(".").map(Number);process.exit(a===22&&(b>23||(b===23&&c>=5))?0:1)'; then
   mkdir -p /opt/node22
   rm -rf /opt/node22/lib/node_modules/npm /opt/node22/lib/node_modules/corepack
   tarball=$(curl -fsSL https://nodejs.org/dist/latest-v22.x/SHASUMS256.txt | grep -o 'node-v22\.[0-9.]*-linux-x64\.tar\.xz' | head -n1)
@@ -213,11 +213,45 @@ react.email
 
 CI has internet access and needs none of this.
 
+## Hosts and names for M7
+
+M7 (plan §4a, G11; D132 to D136) is the first milestone that deploys. The same rules as M6's: **you enter every key and token yourself, test keys only**, and no session sets or prints one (it can read names, never values).
+
+**Hosts.** T105 asked for these on a card (`update_environment`) and you approved it (2026-11-26), with no secret set; they are on the `shopblok-starter` environment's list now:
+
+```text
+docs.railway.com
+railway.com
+backboard.railway.com
+vercel.com
+api.vercel.com
+challenges.cloudflare.com
+```
+
+- **Railway** (T114, T115): its docs (`docs.railway.com`; the plan could not read them, so T114 checks environments, config as code, the TCP proxy and volumes there), its pricing page (`railway.com/pricing`, for `DEPLOY.md`'s estimate) and its public API (`backboard.railway.com`, GraphQL, which the Railway CLI also calls).
+- **Vercel** (T114 to T116): its docs (`vercel.com/docs`) and its REST API (`api.vercel.com`), for `pnpm staging:secrets` and the deployments' logs. The Vercel connector reaches the same API without this list; the scripts use the token.
+- **Turnstile** (T108): Cloudflare's server-side check (`challenges.cloudflare.com/turnstile/v0/siteverify`), only once its keys are in.
+- **Sentry's docs** (`docs.sentry.io`, the CSP's report endpoint, T106) are on the list since M6.
+- **Not on the list yet, on purpose:** staging's own addresses. The list takes exact names only, and they exist only after G11: the Vercel project's `<project>.vercel.app` (and the Swiss alias, D132), Medusa's `<service>.up.railway.app`, and Payload's Postgres through Railway's TCP proxy (`<name>.proxy.rlwy.net`, its port in the URL). T115 asks for those exact hosts on a card once you have made them.
+
+**The cloud environment's names** (G11; [Project settings](#project-settings/environment), the environment's gear). Names only here, never a value, and never in an `.env.example`:
+
+| Kind | Name | What reads it |
+|---|---|---|
+| Secret | `VERCEL_TOKEN` | An account token scoped to your team, with an expiry date. `pnpm staging:secrets` (T114) and T115/T116 act with it on `STAGING_VERCEL_PROJECT_ID` only and refuse any other project (D134), since the token also reaches `shopbloks-next`. |
+| Secret | `RAILWAY_TOKEN` | A project token for the `staging` environment (T114 to T116). |
+| Variable | `STAGING_VERCEL_PROJECT_ID` | The staging project's id (`prj_…`), the only project the scripts touch. |
+| Variable | `STAGING_RAILWAY_PROJECT_ID` | The Railway project's id, the only one the scripts touch. |
+| Secret | `STAGING_S3_ACCESS_KEY_ID`, `STAGING_S3_SECRET_ACCESS_KEY` | The Object Read & Write token for staging's two R2 buckets (G11). |
+| Variable | `STAGING_S3_ENDPOINT`, `STAGING_S3_BUCKET`, `STAGING_S3_PRIVATE_BUCKET`, `STAGING_S3_PUBLIC_URL` | Staging's buckets (`shopblok-staging`, `shopblok-staging-private`) and the public bucket's `r2.dev` URL. |
+
+`pnpm staging:secrets` (T114) copies the `STAGING_S3_*` values into staging's own variables under the apps' names (`S3_*`); the session never sees them. In GitHub (repository → Settings → Secrets and variables → Actions) M7 adds one secret, `VERCEL_AUTOMATION_BYPASS_SECRET` (D136). **As at T105 (2026-11-26) none of these is set**: this environment has `STRIPE_API_KEY` and `NEXT_PUBLIC_STRIPE_KEY` (test keys) beside the telemetry and timeout values, and nothing of M7's.
+
 ## What every cloud session does first
 
 Each prompt in NEXT-SESSION.md says this, and C0 checks that it works.
 
-1. `node -v` prints `.nvmrc`'s version (22.23.4 since T57) or newer on the 22 line, and `pnpm -v` prints `12.10.1`. **If Node is older** (the image has 22.22.0, and the setup script upgraded only below 22.22 until you pasted T57's version), install `.nvmrc`'s version into `/opt/node22` the setup script's way, about ten seconds, before `pnpm install`; pnpm 12.10.1 stays, since it lives beside npm:
+1. `node -v` prints `.nvmrc`'s version (22.23.5 since M7's T105; 22.23.4 from T57) or newer on the 22 line, and `pnpm -v` prints `12.10.1`. **If Node is older** (the image has 22.22.0, and the setup script upgraded only below 22.22 until you pasted T57's version), install `.nvmrc`'s version into `/opt/node22` the setup script's way, about ten seconds, before `pnpm install`; pnpm 12.10.1 stays, since it lives beside npm:
    ```bash
    want=$(sed 's/^v//' .nvmrc)
    if [ "$(node -v)" != "v$want" ] && node -e "const p=v=>v.replace(/^v/,'').split('.').map(Number);const [a,b]=[p(process.version),p('$want')];process.exit(a[0]===b[0]&&(a[1]<b[1]||(a[1]===b[1]&&a[2]<b[2]))?0:1)"; then

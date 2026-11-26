@@ -1,5 +1,6 @@
 import {
   countryDrift,
+  demoRefusal,
   findRegion,
   isDemoSkipped,
   isDevelopmentEnv,
@@ -220,6 +221,48 @@ describe("required", () => {
       /The value "Navy" of "Color" is missing/,
     );
     expect(() => required(null, "Category")).toThrow(/Category is missing/);
+  });
+});
+
+describe("demoRefusal (D7, M7 D133)", () => {
+  it("lets the demo run in development and tests", () => {
+    for (const NODE_ENV of [undefined, "", "development", "test"]) {
+      expect(demoRefusal({ NODE_ENV })).toBeUndefined();
+    }
+  });
+
+  it("refuses it with NODE_ENV=production alone, and on production by name", () => {
+    expect(demoRefusal({ NODE_ENV: "production" })).toMatch(/won't run on production \(NODE_ENV/);
+    expect(demoRefusal({ NODE_ENV: "production", SEED_DEMO: "true" })).toMatch(/production/);
+    expect(demoRefusal({ DEPLOY_ENV: "production", SEED_DEMO: "true" })).toMatch(
+      /\(DEPLOY_ENV=production\)/,
+    );
+    expect(demoRefusal({ VERCEL_ENV: "production", SEED_DEMO: "true" })).toMatch(
+      /\(VERCEL_ENV=production\)/,
+    );
+  });
+
+  it("runs it on staging only with SEED_DEMO=true", () => {
+    expect(
+      demoRefusal({ NODE_ENV: "production", DEPLOY_ENV: "staging", SEED_DEMO: "true" }),
+    ).toBeUndefined();
+    expect(demoRefusal({ NODE_ENV: "production", DEPLOY_ENV: "staging" })).toMatch(
+      /SEED_DEMO=true/,
+    );
+    expect(
+      demoRefusal({ NODE_ENV: "production", DEPLOY_ENV: "staging", SEED_DEMO: "false" }),
+    ).toMatch(/SEED_DEMO=true/);
+    // A preview counts as staging, even with DEPLOY_ENV=production.
+    expect(
+      demoRefusal({ VERCEL_ENV: "preview", DEPLOY_ENV: "production", SEED_DEMO: "true" }),
+    ).toBeUndefined();
+  });
+
+  it("refuses any other NODE_ENV, and throws for an invalid DEPLOY_ENV", () => {
+    expect(demoRefusal({ NODE_ENV: "staging", SEED_DEMO: "true" })).toMatch(/NODE_ENV=staging/);
+    expect(() => demoRefusal({ DEPLOY_ENV: "stage", SEED_DEMO: "true" })).toThrow(
+      '(it is "stage")',
+    );
   });
 });
 
