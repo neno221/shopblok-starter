@@ -95,6 +95,11 @@ test("every route type has D137's headers and exactly one policy header, or none
     expect(policy, route.name).toContain("report-to csp-endpoint");
     // A production build: React's eval is for `next dev` only.
     expect(policy, route.name).not.toContain("'unsafe-eval'");
+    // On plain http (these suites' localhost) Chromium would upgrade every redirect's target to
+    // https, so the policy leaves the directive out there; on https it is in (csp.test.ts).
+    if (appEnvOrBlank("storefront", "NEXT_PUBLIC_BASE_URL").startsWith("http://")) {
+      expect(policy, route.name).not.toContain("upgrade-insecure-requests");
+    }
   }
 });
 

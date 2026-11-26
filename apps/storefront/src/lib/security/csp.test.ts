@@ -17,7 +17,7 @@ const directives = (policy: string): Map<string, string[]> =>
     }),
   );
 
-const keyless = { dev: false, stripe: false } as const;
+const keyless = { dev: false, stripe: false, upgradeInsecureRequests: true } as const;
 
 describe("staticPolicy (D138)", () => {
   it("is D138's policy for a keyless build", () => {
@@ -132,6 +132,18 @@ describe("cspSettings", () => {
     );
     expect(policy).toContain("https://js.stripe.com");
     expect(policy).toContain("https://m.example.com");
+  });
+});
+
+describe("upgrade-insecure-requests", () => {
+  it("is off only for a site on plain http (Chromium upgrades a redirect's target on localhost)", () => {
+    expect(cspSettings({}, false).policy).toContain("upgrade-insecure-requests");
+    expect(
+      cspSettings({ NEXT_PUBLIC_BASE_URL: "https://shop.example.com" }, false).policy,
+    ).toContain("upgrade-insecure-requests");
+    expect(
+      cspSettings({ NEXT_PUBLIC_BASE_URL: "http://localhost:8000" }, false).policy,
+    ).not.toContain("upgrade-insecure-requests");
   });
 });
 

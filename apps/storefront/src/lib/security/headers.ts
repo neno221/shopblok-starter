@@ -15,11 +15,11 @@ export const HSTS = "max-age=63072000; includeSubDomains";
 /**
  * Off for every feature the shop never uses; `payment` for the shop itself and Stripe's frames,
  * which the wallets (Apple Pay, Google Pay) need (D137). Every name is one Chromium knows, since
- * an unknown one prints a console error on every page, which the DS and dev-console checks fail on.
+ * an unknown one prints a console warning on every page, which the suites' console checks fail on
+ * (T106's first run: `bluetooth` is not one, "Unrecognized feature: 'bluetooth'").
  */
 export const PERMISSIONS_POLICY = [
   "accelerometer=()",
-  "bluetooth=()",
   "camera=()",
   "display-capture=()",
   "geolocation=()",

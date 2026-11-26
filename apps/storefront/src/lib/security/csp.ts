@@ -136,6 +136,8 @@ export type StaticPolicyOptions = {
   readonly stripe: boolean;
   /** `S3_PUBLIC_URL`'s origin, when R2 holds the pictures. */
   readonly media?: string | undefined;
+  /** D138's `upgrade-insecure-requests`: off only for a site served over plain http (`cspSettings`). */
+  readonly upgradeInsecureRequests: boolean;
 };
 
 const hostsFor = (directive: HostDirective, stripe: boolean): string[] =>
@@ -183,9 +185,7 @@ export function staticPolicy(options: StaticPolicyOptions): string {
     ["frame-ancestors", ["'self'"]],
   ];
   const parts = directives.map(([name, sources]) => `${name} ${unique(sources).join(" ")}`);
-  // Browsers leave `http://localhost` alone (a potentially trustworthy origin; checked in Chromium
-  // with T106's probe), so CI's and a PC's `next start` on plain http run with it as staging does.
-  parts.push("upgrade-insecure-requests");
+  if (options.upgradeInsecureRequests) parts.push("upgrade-insecure-requests");
   parts.push(`report-uri ${CSP_REPORT_PATH}`, `report-to ${CSP_REPORT_GROUP}`);
   return parts.join("; ");
 }
@@ -201,18 +201,25 @@ export type CspSettings = { readonly header: CspHeaderName; readonly policy: str
 
 /**
  * The header and policy a build sends, from the build's environment: `CSP_MODE`,
- * `NEXT_PUBLIC_STRIPE_KEY` and `S3_PUBLIC_URL`. `dev` is `next dev`.
+ * `NEXT_PUBLIC_STRIPE_KEY`, `S3_PUBLIC_URL`, and `NEXT_PUBLIC_BASE_URL`. A site the base URL puts on
+ * plain http (CI's and a PC's `http://localhost:8000`) gets no `upgrade-insecure-requests`:
+ * Chromium leaves a request to `http://localhost` alone but upgrades a redirect's target, even on
+ * localhost (T106's probe: a `fetch` answered 307 went on to `https://localhost/…` and failed), so
+ * every client-side redirect there (the cart's to the checkout) fell back to a full page load. A
+ * blank base URL (a deployment's) and an https one keep it. `dev` is `next dev`.
  */
 export function cspSettings(
   source: Readonly<Record<string, string | undefined>>,
   dev: boolean,
 ): CspSettings {
+  const base = (source.NEXT_PUBLIC_BASE_URL ?? "").trim().toLowerCase();
   return {
     header: CSP_HEADER[cspMode(source.CSP_MODE)],
     policy: staticPolicy({
       dev,
       stripe: (source.NEXT_PUBLIC_STRIPE_KEY ?? "").trim() !== "",
       media: mediaOrigin(source.S3_PUBLIC_URL),
+      upgradeInsecureRequests: !base.startsWith("http://"),
     }),
   };
 }

@@ -42,6 +42,8 @@ describe("securityHeaders (D137)", () => {
     expect(PERMISSIONS_POLICY).toContain(
       'payment=(self "https://js.stripe.com" "https://*.js.stripe.com")',
     );
+    // Chromium warns "Unrecognized feature" on every page for a name it does not know.
+    expect(PERMISSIONS_POLICY).not.toContain("bluetooth");
   });
 });
 
