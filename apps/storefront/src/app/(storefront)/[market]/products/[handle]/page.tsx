@@ -31,7 +31,11 @@ import { hreflangAlternates } from "../../../../../lib/markets/hreflang";
 import { listProductHandles, listProductsByIds } from "../../../../../lib/medusa/products";
 import { searchProducts } from "../../../../../lib/medusa/search";
 import { PLACEHOLDER_HANDLE, productHandlesToPrerender } from "../../../../../lib/prerender";
-import { readMarketProduct, type MarketProduct } from "../../../../../lib/product-read";
+import {
+  priceValidUntil,
+  readMarketProduct,
+  type MarketProduct,
+} from "../../../../../lib/product-read";
 import {
   jsonLdText,
   metaDescription,
@@ -168,7 +172,7 @@ export default async function ProductPage({ params }: Props) {
   if (page === null) notFound();
   const { context, messages, product, detail, draft } = page;
   const { market } = context;
-  const [related, settings, { categories, pages, templates }, sections] = await Promise.all([
+  const [related, settings, { categories, pages, templates }, sections, validUntil] = await Promise.all([
     readRelated(page),
     cmsOrNull(readSiteSettings({ market, draft }), "product page: site.ts's notes"),
     getShellData(),
@@ -179,6 +183,8 @@ export default async function ProductPage({ params }: Props) {
       messages,
       draft,
     }),
+    // M7 D147 (T110): the day each sale price ends, the offers' `priceValidUntil`.
+    priceValidUntil(product),
   ]);
   const shop = productPageShopText(settings, market.language);
   const description = page.content?.description ?? null;
@@ -252,7 +258,9 @@ export default async function ProductPage({ params }: Props) {
       <script
         type="application/ld+json"
         // A product's own texts, escaped by `jsonLdText` so they cannot close the element.
-        dangerouslySetInnerHTML={{ __html: jsonLdText(productJsonLd(detail)) }}
+        dangerouslySetInnerHTML={{
+          __html: jsonLdText(productJsonLd(detail, siteBase(), validUntil)),
+        }}
       />
       <ProductDetailTemplate
         {...content}

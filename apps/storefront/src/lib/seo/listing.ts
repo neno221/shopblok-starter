@@ -1,4 +1,5 @@
 import type { Breadcrumbs, ProductCard } from "@shopblok/registry/contracts";
+import type { CollectionPage, Graph } from "schema-dts";
 import { absolute, breadcrumbList, siteBase } from "./product";
 
 // A listing page's structured data (SPEC §12, T50): `CollectionPage` with the page's products as an
@@ -17,32 +18,27 @@ export type ListingJsonLdInput = {
   total: number;
 };
 
-export function listingJsonLd(input: ListingJsonLdInput, base: URL = siteBase()): object {
+export function listingJsonLd(input: ListingJsonLdInput, base: URL = siteBase()): Graph {
   const url = absolute(input.href, base);
   const trail = [
     ...input.breadcrumbs.trail,
     { label: input.breadcrumbs.current, href: input.href },
   ];
-  return {
-    "@context": "https://schema.org",
-    "@graph": [
-      {
-        "@type": "CollectionPage",
-        "@id": `${url}#page`,
-        name: input.name,
-        url,
-        mainEntity: {
-          "@type": "ItemList",
-          numberOfItems: input.total,
-          itemListElement: input.products.map((product, index) => ({
-            "@type": "ListItem",
-            position: input.firstPosition + index,
-            name: product.title,
-            url: absolute(product.href, base),
-          })),
-        },
-      },
-      breadcrumbList(trail, base),
-    ],
+  const page: CollectionPage = {
+    "@type": "CollectionPage",
+    "@id": `${url}#page`,
+    name: input.name,
+    url,
+    mainEntity: {
+      "@type": "ItemList",
+      numberOfItems: input.total,
+      itemListElement: input.products.map((product, index) => ({
+        "@type": "ListItem",
+        position: input.firstPosition + index,
+        name: product.title,
+        url: absolute(product.href, base),
+      })),
+    },
   };
+  return { "@context": "https://schema.org", "@graph": [page, breadcrumbList(trail, base)] };
 }

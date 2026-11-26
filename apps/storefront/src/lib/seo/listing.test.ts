@@ -45,7 +45,7 @@ const build = (firstPosition: number, items = products, total = 30) =>
       total,
     },
     base,
-  ) as Graph;
+  ) as unknown as Graph;
 
 describe("listingJsonLd", () => {
   it("is a CollectionPage and a BreadcrumbList in one graph, at an absolute self-URL", () => {
@@ -110,7 +110,7 @@ describe("listingJsonLd", () => {
       products: [],
       firstPosition: 1,
       total: 0,
-    }) as Graph;
+    }) as unknown as Graph;
     expect(data["@graph"][0].url).toMatch(/^https?:\/\/.+\/store$/);
   });
 });

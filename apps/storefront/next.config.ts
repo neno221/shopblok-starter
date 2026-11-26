@@ -107,7 +107,8 @@ function buildConfig(phase: string): NextConfig {
       afterFiles: [
         {
           source: "/:file([^/]*\\.(?![Rr][Ss][Cc]$)[A-Za-z][A-Za-z0-9]*)",
-          destination: "/next/missing-file",
+          // M7 D147 (T110): the file's name goes along, for the CMS redirects looked up first.
+          destination: "/next/missing-file?file=:file",
         },
       ],
       fallback: [],

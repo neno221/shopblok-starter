@@ -58,8 +58,14 @@ async function rewriteOf(url: string): Promise<string | undefined> {
     nextConfig: config(PHASE_PRODUCTION_BUILD),
   });
   const rewritten = getRewrittenUrl(response);
-  return rewritten === null ? undefined : new URL(rewritten).pathname;
+  if (rewritten === null) return undefined;
+  const { pathname, searchParams } = new URL(rewritten);
+  return searchParams.size === 0 ? pathname : `${pathname}?${searchParams}`;
 }
+
+/** Where a root file is rewritten: the route, with the file's name (T110's redirect lookup). */
+const missing = (url: string) =>
+  `/next/missing-file?${new URLSearchParams({ file: url.slice(1).split("?")[0] ?? "" })}`;
 
 // D54 (T28): the rewrite takes a root path the proxy's matcher skips as a file, and nothing else.
 // The helper checks the config's patterns only, not the files: `/favicon.ico` is rewritten here, but
@@ -74,7 +80,7 @@ describe("next.config.ts sends a root file that nothing serves to /next/missing-
     "/api.json", // the matcher skips both by its file rule, not as Payload's or `/next`'s
     "/next.js",
   ])("rewrites %s", async (url) => {
-    expect(await rewriteOf(url)).toBe("/next/missing-file");
+    expect(await rewriteOf(url)).toBe(missing(url));
   });
 
   // A dynamic page's RSC payload, as a deployment adapter can address it (PR 50 review).
@@ -91,7 +97,7 @@ describe("next.config.ts sends a root file that nothing serves to /next/missing-
     async (url) => {
       // The file rule itself, on one segment: a last segment ending in `.` and a letter.
       const rootFile = /^\/[^/?]*\.[A-Za-z][A-Za-z0-9]*$/.test(url) && !/\.rsc$/i.test(url);
-      expect(await rewriteOf(url)).toBe(rootFile ? "/next/missing-file" : undefined);
+      expect(await rewriteOf(url)).toBe(rootFile ? missing(url) : undefined);
     },
   );
 });

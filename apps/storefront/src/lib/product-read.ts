@@ -5,6 +5,7 @@ import type { ProductContent } from "./cms/catalog-content";
 import { cmsOrNull } from "./cms/read";
 import type { MarketContext } from "./market-context";
 import { getProduct } from "./medusa/products";
+import { getSaleEnds } from "./medusa/sale-ends";
 import { PLACEHOLDER_HANDLE } from "./prerender";
 import { toProductDetail } from "./view-models/product";
 import { withShopPictures } from "./view-models/product-pictures";
@@ -44,4 +45,32 @@ export async function readMarketProduct(
   });
   if (detail === null) return null;
   return { product, detail: withShopPictures(detail, content?.gallery ?? []), content };
+}
+
+/**
+ * The day each variant's sale price ends, by the variant's id (M7 D147, T110): the JSON-LD's
+ * `priceValidUntil` (`productJsonLd`), as Google's ISO 8601 date (`2027-01-31`, the end's UTC day).
+ * A regular price, a sale without an end, or a Medusa that does not answer gives none: the offer
+ * is still valid structured data without it, and the page must not fail for it.
+ */
+export async function priceValidUntil(
+  product: MarketProduct["product"],
+): Promise<Record<string, string>> {
+  const lists = [...new Set(product.variants.flatMap((v) => v.saleListId ?? []))].sort();
+  if (lists.length === 0) return {};
+  let ends: Record<string, string>;
+  try {
+    ends = await getSaleEnds(lists);
+  } catch (error) {
+    console.warn(
+      `product page: no priceValidUntil for ${product.handle} (${error instanceof Error ? error.message : String(error)})`,
+    );
+    return {};
+  }
+  return Object.fromEntries(
+    product.variants.flatMap((variant) => {
+      const end = variant.saleListId === null ? undefined : ends[variant.saleListId];
+      return end === undefined ? [] : [[variant.id, end.slice(0, 10)]];
+    }),
+  );
 }

@@ -1,4 +1,5 @@
 import type { Breadcrumbs } from "@shopblok/registry/contracts";
+import type { Graph, WebPage } from "schema-dts";
 import { absolute, pageBreadcrumbs, siteBase } from "./product";
 
 // A CMS page's structured data (SPEC §12, D82, T68): a `WebPage` (its title, its SEO description
@@ -16,20 +17,18 @@ export type CmsPageJsonLdInput = {
   description?: string;
 };
 
-export function cmsPageJsonLd(input: CmsPageJsonLdInput, base: URL = siteBase()): object {
+export function cmsPageJsonLd(input: CmsPageJsonLdInput, base: URL = siteBase()): Graph {
   const url = absolute(input.href, base);
+  const page: WebPage = {
+    "@type": "WebPage",
+    "@id": `${url}#page`,
+    name: input.title,
+    url,
+    inLanguage: input.language,
+    ...(input.description === undefined ? {} : { description: input.description }),
+  };
   return {
     "@context": "https://schema.org",
-    "@graph": [
-      {
-        "@type": "WebPage",
-        "@id": `${url}#page`,
-        name: input.title,
-        url,
-        inLanguage: input.language,
-        ...(input.description === undefined ? {} : { description: input.description }),
-      },
-      pageBreadcrumbs(input.breadcrumbs, input.href, base),
-    ],
+    "@graph": [page, pageBreadcrumbs(input.breadcrumbs, input.href, base)],
   };
 }

@@ -29,6 +29,9 @@ checkRoutesInDev([
   { path: "/next/markets", status: 200 },
   // Root files (T28, D54): the plain-text 404 of `/next/missing-file`, not `[market]`, which logged
   // `Could not validate` to the server log for each (`e2e-smoke` greps that log after this run).
-  { path: "/robots.txt", status: 404 },
+  { path: "/ads.txt", status: 404 },
   { path: "/apple-touch-icon.png", status: 404 },
+  // M7 D147 (T110): `app/robots.ts` and one market's sitemap, in the dev server too.
+  { path: "/robots.txt", status: 200 },
+  { path: "/sitemap/en-us.xml", status: 200 },
 ]);

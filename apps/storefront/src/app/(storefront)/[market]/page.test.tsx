@@ -129,6 +129,7 @@ function product(id: string, amount: number, image: string | null): ProductDto {
         options: {},
         price: { amount, currencyCode: "eur" },
         compareAt: null,
+        saleListId: null,
         stock: { status: "in-stock" },
         available: true,
         thumbnail: null,

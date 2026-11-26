@@ -112,7 +112,7 @@ describe("validateFrom", () => {
   });
 
   it("refuses a path the proxy never sees, with the reason", async () => {
-    expect(await validateFrom("/old.html", options({ to: custom("/new") }))).toMatch(/file/);
+    expect(await validateFrom("/old/page.html", options({ to: custom("/new") }))).toMatch(/file/);
     expect(await validateFrom("/api/old", options({ to: custom("/new") }))).toMatch(/\/api/);
     expect(await validateFrom("/us", options({ to: custom("/new") }))).toMatch(/home/);
   });

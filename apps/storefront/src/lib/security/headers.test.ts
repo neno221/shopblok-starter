@@ -6,6 +6,7 @@ import {
   HEADER_POLICY_PATHS,
   HSTS,
   hstsEnabled,
+  noindexEnabled,
   PAYLOAD_HEADERS_SOURCE,
   PERMISSIONS_POLICY,
   scopePayloadHeaders,
@@ -138,5 +139,24 @@ describe("hstsEnabled (D137)", () => {
 
   it("fails on a mistyped DEPLOY_ENV, as the rest of the app does", () => {
     expect(() => hstsEnabled({ DEPLOY_ENV: "Production" })).toThrow(/DEPLOY_ENV/);
+  });
+});
+
+describe("noindexEnabled and X-Robots-Tag (M7 D147, T110; D133)", () => {
+  it("is on only on staging: a Vercel preview or DEPLOY_ENV=staging", () => {
+    expect(noindexEnabled({ VERCEL_ENV: "preview" })).toBe(true);
+    expect(noindexEnabled({ DEPLOY_ENV: "production", VERCEL_ENV: "preview" })).toBe(true);
+    expect(noindexEnabled({ DEPLOY_ENV: "staging", NODE_ENV: "production" })).toBe(true);
+    expect(noindexEnabled({ DEPLOY_ENV: "production" })).toBe(false);
+    expect(noindexEnabled({ NODE_ENV: "production" })).toBe(false);
+    expect(noindexEnabled({})).toBe(false);
+  });
+
+  it("sends `X-Robots-Tag: noindex` only when asked", () => {
+    const tag = (headers: { key: string; value: string }[]) =>
+      headers.find((header) => header.key === "X-Robots-Tag")?.value;
+    expect(tag(securityHeaders({ production: true, noindex: true }))).toBe("noindex");
+    expect(tag(securityHeaders({ production: true }))).toBeUndefined();
+    expect(tag(securityHeaders({ production: false, noindex: false }))).toBeUndefined();
   });
 });
