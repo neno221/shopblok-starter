@@ -3,6 +3,7 @@
 // types, so no enums or parameter properties here), on Linux, macOS and Windows.
 //
 //   pnpm bootstrap [--ci] [--no-demo] [--verbose]
+//   pnpm bootstrap --deployment        (M7 D148, 5: names only, nothing written)
 //
 // Every step ends as `✓ done`, `= unchanged` or `↷ skipped`. A second run on a finished setup has no
 // `✓ done` in it. The decisions (what counts as unchanged, which port is whose) are in scripts/lib/
@@ -20,6 +21,7 @@ import {
   targetsFrom,
   type Finding,
 } from "./lib/checks.ts";
+import { deploymentRefusal, formatDeploymentPlan } from "./lib/deploy-variables.ts";
 import {
   changedAnything,
   generatePassword,
@@ -44,6 +46,7 @@ import {
 // Options and places
 
 const HELP = `pnpm bootstrap [--ci] [--no-demo] [--verbose]
+pnpm bootstrap --deployment
 
 Sets up a fresh clone: .env files, migrations, seeds (the markets module among them), the admin
 users and the publishable key. Needs the compose stack (\`pnpm infra:up\`). Safe to run again.
@@ -51,16 +54,19 @@ users and the publishable key. Needs the compose stack (\`pnpm infra:up\`). Safe
   --ci         never prompt: commands get no stdin and CI=true, no live status line
   --no-demo    skip the demo catalog (development only anyway, D7)
   --verbose    show each command's output as it runs
+  --deployment print a deployment's variables by name and the first deployment's order; writes
+               nothing (D148). Plain bootstrap refuses when DEPLOY_ENV or VERCEL_ENV is set.
   -h, --help   this text`;
 
-type Options = { ci: boolean; demo: boolean; verbose: boolean };
+type Options = { ci: boolean; demo: boolean; verbose: boolean; deployment: boolean };
 
 function parseArgs(argv: string[]): Options | { error: string } | "help" {
-  const options: Options = { ci: false, demo: true, verbose: false };
+  const options: Options = { ci: false, demo: true, verbose: false, deployment: false };
   for (const arg of argv) {
     if (arg === "--ci") options.ci = true;
     else if (arg === "--no-demo") options.demo = false;
     else if (arg === "--verbose") options.verbose = true;
+    else if (arg === "--deployment") options.deployment = true;
     else if (arg === "-h" || arg === "--help") return "help";
     else return { error: `Unknown option ${arg}` };
   }
@@ -726,6 +732,16 @@ async function main(): Promise<number> {
     return 2;
   }
   const options = parsed;
+  // M7 D148, 5: a deployment's values live on its platform, never in a file here.
+  if (options.deployment) {
+    console.log(formatDeploymentPlan());
+    return 0;
+  }
+  const refusal = deploymentRefusal(process.env);
+  if (refusal !== undefined) {
+    console.error(refusal);
+    return 2;
+  }
   const ctx: Context = {
     options,
     state: {

@@ -1,10 +1,12 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { postgresAdapter } from "@payloadcms/db-postgres";
+import { attachDatabasePool } from "@vercel/functions";
 import { lexicalEditor } from "@payloadcms/richtext-lexical";
 import { buildConfig } from "payload";
 import sharp from "sharp";
 import { BUILD_DB_POOL_MAX, isBuildPhase } from "./lib/build-workers";
+import { firstUserClosed, previewOrigins } from "./lib/env";
 import { siteOrigin } from "./lib/site-origin";
 import { BLOCKS } from "./payload/blocks";
 import { Categories } from "./payload/collections/categories";
@@ -43,14 +45,27 @@ const dirname = path.dirname(fileURLToPath(import.meta.url));
 // doesn't: a deploy that forgot the URL fails on connect instead.
 const DEFAULT_DATABASE_URL = "postgres://postgres:postgres@localhost:15432/payload";
 
+/** Connections per Vercel function instance on a deployment (M7 D136). */
+const DEPLOYED_POOL_MAX = 3;
+
 // The site's own origin. Setting `serverURL` turns on Payload's CSRF check, and `cors` and `csrf`
-// list the same single origin.
+// list that origin, and on a Vercel preview its deployment's and branch's addresses as well
+// (`previewOrigins`), so the admin works at whichever of them it was opened.
 const serverURL = siteOrigin();
+const origins = [...new Set([serverURL, ...previewOrigins()])];
 
 export default buildConfig({
   serverURL,
-  cors: [serverURL],
-  csrf: [serverURL],
+  cors: origins,
+  csrf: origins,
+  // M7 D136: on Vercel, the function instance stays alive until the pool's idle connections are
+  // closed (Fluid compute's `waitUntil`), so a suspended instance never leaves them open on
+  // Railway's Postgres. Off Vercel it does nothing.
+  onInit: (payload) => {
+    if ((process.env.VERCEL ?? "").trim() === "") return;
+    const { pool } = payload.db as unknown as { pool?: Parameters<typeof attachDatabasePool>[0] };
+    if (pool !== undefined) attachDatabasePool(pool);
+  },
   // Empty on purpose when unset: Payload stops at start ("missing secret key") and `next build`,
   // which never starts Payload, still works with no .env.
   secret: process.env.PAYLOAD_SECRET ?? "",
@@ -123,8 +138,16 @@ export default buildConfig({
       // every templates save and read). Payload's queries are short, so JIT never pays off here.
       options: "-c jit=off",
       // W6 item 7: each `next build` worker has its own pool, so the build keeps it small (pg's
-      // default, 10, otherwise); src/lib/build-workers.ts says why.
-      ...(isBuildPhase() ? { max: BUILD_DB_POOL_MAX } : {}),
+      // default, 10, otherwise); src/lib/build-workers.ts says why. On a deployment (M7 D136),
+      // each Vercel function instance holds its own pool against Railway's Postgres, so it keeps
+      // 3 connections, and lets idle ones go after 5 s (`attachDatabasePool` below keeps the
+      // instance alive that long, so they are closed instead of leaked). TLS comes from the
+      // connection string (`sslmode`), which `doctor --app=storefront` checks on a deployment.
+      ...(isBuildPhase()
+        ? { max: BUILD_DB_POOL_MAX }
+        : firstUserClosed()
+          ? { max: DEPLOYED_POOL_MAX, idleTimeoutMillis: 5_000 }
+          : {}),
     },
     // D9: schema changes are saved migrations. Dev push is for experiments only.
     push: process.env.PAYLOAD_DB_PUSH === "true",

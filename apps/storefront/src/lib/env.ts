@@ -57,6 +57,14 @@ export type RawEnv = {
   TURNSTILE_SECRET_KEY?: string | undefined;
   /** R2's private bucket, for Payload's CSV exports and imports (M7 D146, T111). */
   S3_PRIVATE_BUCKET?: string | undefined;
+  /** Vercel's own (M7 D136, T114): the shortest Production domain, without a scheme. */
+  VERCEL_PROJECT_PRODUCTION_URL?: string | undefined;
+  /** Vercel's own: a preview's branch domain (stable across its commits), without a scheme. */
+  VERCEL_BRANCH_URL?: string | undefined;
+  /** Vercel's own: this deployment's own domain, without a scheme. */
+  VERCEL_URL?: string | undefined;
+  /** Vercel's own, with "Protection Bypass for Automation" on: lets a request past protection. */
+  VERCEL_AUTOMATION_BYPASS_SECRET?: string | undefined;
 };
 
 /**
@@ -149,6 +157,18 @@ export const env: RawEnv = {
   get S3_PRIVATE_BUCKET() {
     return process.env.S3_PRIVATE_BUCKET;
   },
+  get VERCEL_PROJECT_PRODUCTION_URL() {
+    return process.env.VERCEL_PROJECT_PRODUCTION_URL;
+  },
+  get VERCEL_BRANCH_URL() {
+    return process.env.VERCEL_BRANCH_URL;
+  },
+  get VERCEL_URL() {
+    return process.env.VERCEL_URL;
+  },
+  get VERCEL_AUTOMATION_BYPASS_SECRET() {
+    return process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
+  },
 };
 
 export function isProduction(source: RawEnv = env): boolean {
@@ -183,6 +203,72 @@ export function deployEnv(source: RawEnv = env): DeployEnv | undefined {
     );
   if (vercelEnv !== "") return vercelEnv === "production" ? "production" : undefined;
   return isProduction(source) ? "production" : undefined;
+}
+
+/**
+ * The site's address on a deployment (M7 D136, T114): `NEXT_PUBLIC_BASE_URL` when it is set, and on
+ * Vercel without it, the address Vercel gives the deployment: a preview's branch domain
+ * (`VERCEL_BRANCH_URL`, which stays the same across a branch's commits, else the deployment's own
+ * `VERCEL_URL`), and Production's shortest domain (`VERCEL_PROJECT_PRODUCTION_URL`). `undefined`
+ * elsewhere, where `siteOrigin()` falls back to the local one. `next.config.ts` writes the answer
+ * into the bundle as `NEXT_PUBLIC_BASE_URL` (the canonical URLs, Payload's `serverURL` and its CSRF
+ * list), and `payload migrate` and `payload run` outside Next read it from here.
+ *
+ * Set `NEXT_PUBLIC_BASE_URL` on Production once the shop has a domain of its own: Vercel's
+ * shortest domain may be another one than the shop's.
+ */
+export function deploymentBaseUrl(source: RawEnv = env): string | undefined {
+  const explicit = (source.NEXT_PUBLIC_BASE_URL ?? "").trim();
+  if (explicit !== "") return explicit;
+  const vercelEnv = (source.VERCEL_ENV ?? "").trim();
+  const host = (value: string | undefined) => {
+    const trimmed = (value ?? "")
+      .trim()
+      .replace(/^https?:\/\//, "")
+      .replace(/\/+$/, "");
+    return trimmed === "" ? undefined : `https://${trimmed}`;
+  };
+  if (vercelEnv === "production") return host(source.VERCEL_PROJECT_PRODUCTION_URL);
+  if (vercelEnv === "preview") return host(source.VERCEL_BRANCH_URL) ?? host(source.VERCEL_URL);
+  return undefined;
+}
+
+/**
+ * The origins one deployment answers on, beyond `siteOrigin()` (PR 149's review, item 6): on a
+ * preview, its own deployment address (`VERCEL_URL`, which Vercel's dashboard links) and its
+ * branch's (`VERCEL_BRANCH_URL`), so Payload's CSRF and CORS lists accept the admin opened at
+ * either. Empty elsewhere: Production answers on its domain.
+ */
+export function previewOrigins(source: RawEnv = env): string[] {
+  if ((source.VERCEL_ENV ?? "").trim() !== "preview") return [];
+  return [source.VERCEL_URL, source.VERCEL_BRANCH_URL].flatMap((value) => {
+    const host = (value ?? "")
+      .trim()
+      .replace(/^https?:\/\//, "")
+      .replace(/\/+$/, "");
+    return host === "" ? [] : [`https://${host}`];
+  });
+}
+
+/**
+ * The header that lets the app's own requests to itself past Vercel's Deployment Protection (M7
+ * D136): the proxy reads `/next/markets` and `/next/redirects` from its own origin, which a
+ * protected preview would otherwise answer with Vercel's login page. Empty without the secret
+ * (development, CI, an unprotected deployment). Never sent anywhere but this app's own origin.
+ */
+export function protectionBypassHeaders(source: RawEnv = env): Record<string, string> {
+  const secret = (source.VERCEL_AUTOMATION_BYPASS_SECRET ?? "").trim();
+  return secret === "" ? {} : { "x-vercel-protection-bypass": secret };
+}
+
+/**
+ * Payload's first-user form (`/admin/create-first-user`) and its endpoint
+ * (`/api/users/first-register`) are closed on every deployment (M7 D136, 6): with `DEPLOY_ENV` or
+ * `VERCEL_ENV` set, an empty `users` table must not let the first visitor become an admin. The
+ * staging seed makes the first admin instead (`src/scripts/seed-staging.ts`).
+ */
+export function firstUserClosed(source: RawEnv = env): boolean {
+  return (source.DEPLOY_ENV ?? "").trim() !== "" || (source.VERCEL_ENV ?? "").trim() !== "";
 }
 
 /**

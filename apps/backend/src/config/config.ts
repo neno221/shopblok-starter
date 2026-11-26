@@ -19,6 +19,25 @@ export function getSecret(env: Env, key: string): string | undefined {
   return DEFAULT_SECRET_ENVS.includes(env.NODE_ENV ?? "") ? value || undefined : value;
 }
 
+/** The three ways Medusa runs (M7 D135): one image, `MEDUSA_WORKER_MODE` per Railway service. */
+const WORKER_MODES = ["shared", "worker", "server"] as const;
+export type WorkerMode = (typeof WORKER_MODES)[number];
+
+/**
+ * `MEDUSA_WORKER_MODE` (Medusa's deployment guide): `server` answers HTTP and runs no jobs or
+ * subscribers, `worker` runs them and answers only `/health`, `shared` (the default, development
+ * and CI) does both. Any other value stops the start, so a typo never leaves staging with two
+ * servers and no worker.
+ */
+export function workerMode(env: Env): WorkerMode {
+  const value = (env.MEDUSA_WORKER_MODE ?? "").trim();
+  if (value === "") return "shared";
+  if ((WORKER_MODES as readonly string[]).includes(value)) return value as WorkerMode;
+  throw new Error(
+    `MEDUSA_WORKER_MODE must be shared, worker or server, or unset (it is "${value}").`,
+  );
+}
+
 /**
  * Everything `medusa-config.ts` passes to `defineConfig`. Pure, like `buildModules`: it never
  * reads `process.env`, so a unit test can pass any object.
@@ -31,6 +50,7 @@ export function buildConfig(env: Env): InputConfigWithArrayModules {
   return {
     projectConfig: {
       databaseUrl: env.DATABASE_URL,
+      workerMode: workerMode(env),
       // Sessions use Redis when REDIS_URL is set, otherwise Medusa's in-memory store.
       ...(redisUrl ? { redisUrl } : {}),
       http: {
@@ -47,8 +67,11 @@ export function buildConfig(env: Env): InputConfigWithArrayModules {
       },
     },
     // Baked into the admin bundle at build time, so turbo.json's `build` task lists it.
+    // `DISABLE_MEDUSA_ADMIN=true` on the worker (M7 D135): the image is built with the admin, and
+    // the worker, which answers no browser, does not serve it.
     admin: {
       storefrontUrl: env.STOREFRONT_URL,
+      ...((env.DISABLE_MEDUSA_ADMIN ?? "").trim() === "true" ? { disable: true } : {}),
     },
     // The markets plugin (M4b, D89): `packages/medusa-markets`, built before the backend loads it
     // (`medusa plugin:build`, turbo's `^build`). Medusa registers its `markets` module, routes and

@@ -1,0 +1,49 @@
+# The build context of Medusa's image (apps/backend/Dockerfile, M7 D135): the repo root, because the
+# backend uses workspace packages. Only what that image builds from goes in: the workspace's own
+# files, the backend, the packages it depends on (and their build-time dependencies), and the
+# scripts package, whose `doctor` the image bundles. Everything else stays out, so a change to the
+# storefront never invalidates the image's layers and no local file (an `.env`, a build) gets in.
+**
+
+!package.json
+!pnpm-lock.yaml
+!pnpm-workspace.yaml
+!.npmrc
+!.nvmrc
+
+# pnpm checks every workspace project against the lockfile, so each one's package.json comes in,
+# and only the projects the image builds bring their sources.
+!apps/*/package.json
+!packages/*/package.json
+!scripts/package.json
+
+!apps/backend/**
+!packages/config/**
+!packages/emails/**
+!packages/fixtures/**
+!packages/i18n/**
+!packages/integrations/**
+!packages/medusa-markets/**
+!packages/registry/**
+!packages/ui/**
+!scripts/*.ts
+!scripts/lib/**
+!scripts/tsconfig.json
+
+# Never into an image: local settings, builds and dependencies, whatever the folder.
+**/.env
+**/.env.*
+!**/.env.example
+**/node_modules
+**/.medusa
+**/.next
+**/.turbo
+**/dist
+**/coverage
+**/*.tsbuildinfo
+**/uploads
+apps/backend/integration-tests
+**/__tests__
+**/*.test.ts
+**/*.spec.ts
+**/__screenshots__

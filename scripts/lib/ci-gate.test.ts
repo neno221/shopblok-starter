@@ -213,18 +213,21 @@ describe("decideJobs on a pull request", () => {
       "design-system: runs (apps/storefront/src/lib/env.ts)",
       "windows-smoke: skipped (no dependency file)",
       "integrations-live: runs (as e2e-smoke: apps/storefront/src/lib/env.ts)",
+      "deploy-config: skipped (no file of Medusa's image or the deploy configs)",
     ]);
     expect(pr(["packages/registry/package.json"]).reasons).toEqual([
       "e2e-smoke: runs (packages/registry/package.json, a dependency file)",
       "design-system: runs (packages/registry/package.json)",
       "windows-smoke: runs (packages/registry/package.json)",
       "integrations-live: runs (as e2e-smoke: packages/registry/package.json)",
+      "deploy-config: runs (packages/registry/package.json)",
     ]);
     expect(pr(["docs/SETUP.md"]).reasons).toEqual([
       "e2e-smoke: skipped (every file is docs, tooling or the design system's own)",
       "design-system: skipped (every file is docs, tooling or one the DS pages cannot reach)",
       "windows-smoke: skipped (no dependency file)",
       "integrations-live: skipped (as e2e-smoke)",
+      "deploy-config: skipped (no file of Medusa's image or the deploy configs)",
     ]);
   });
 
@@ -427,6 +430,44 @@ describe("decideJobs and the importers of the DS-only folders", () => {
   });
 });
 
+describe("deploy-config (M7 T114)", () => {
+  it.each([
+    "apps/backend/Dockerfile",
+    "apps/backend/docker/shopblok.sh",
+    "apps/backend/src/config/config.ts",
+    ".dockerignore",
+    ".railway/railway.ts",
+    "packages/integrations/src/index.ts",
+    "packages/medusa-markets/src/index.ts",
+    "scripts/doctor.ts",
+    "scripts/lib/doctor-checks.ts",
+    "apps/storefront/vercel.json",
+    "apps/storefront/scripts/vercel-build.sh",
+    "apps/storefront/package.json",
+    "pnpm-lock.yaml",
+    ".github/workflows/ci.yml",
+  ])("runs for %s", (file) => {
+    expect(pr([file]).deployConfig, file).toBe(true);
+  });
+
+  it.each([
+    "apps/storefront/src/lib/env.ts",
+    "apps/storefront/src/payload/collections/users.ts",
+    "apps/backend/README.md",
+    "docs/DEPLOY.md",
+    "packages/ui/src/atoms/button.md",
+  ])("skips for %s", (file) => {
+    expect(pr([file]).deployConfig, file).toBe(false);
+  });
+
+  it("runs on a push to main (Railway deploys after the checks) and not on the nightly", () => {
+    expect(decideJobs({ event: "push", files: [] }).deployConfig).toBe(true);
+    expect(
+      decideJobs({ event: "schedule", files: [], schedule: NIGHTLY_SCHEDULE }).deployConfig,
+    ).toBe(false);
+  });
+});
+
 describe("decideJobs on other events", () => {
   it.each(["schedule", "workflow_dispatch"])("%s runs every job", (event) => {
     const decision = decideJobs({ event, files: ["docs/SETUP.md"] });
@@ -439,6 +480,7 @@ describe("decideJobs on other events", () => {
     expect(decision.reasons).toEqual([
       `${event}: e2e-smoke, design-system and integrations-live run (only a pull request is gated)`,
       "windows-smoke: runs (every event but a push and a pull request)",
+      `deploy-config: runs (${event})`,
     ]);
   });
 
@@ -486,6 +528,7 @@ describe("decideJobs on other events", () => {
     expect(decision.integrations).toBe(false);
     expect(decision.reasons).toEqual([
       "workflow_dispatch with update-baselines: e2e-smoke, design-system, windows-smoke and integrations-live are skipped (the update-baselines job runs instead)",
+      "deploy-config: skipped (update-baselines)",
     ]);
   });
 
@@ -596,7 +639,19 @@ describe("the path helpers", () => {
 
   it("outputLines: the names ci.yml reads", () => {
     expect(
-      outputLines({ e2e: false, designSystem: true, windows: false, integrations: true }),
-    ).toEqual(["e2e=false", "design-system=true", "windows=false", "integrations=true"]);
+      outputLines({
+        e2e: false,
+        designSystem: true,
+        windows: false,
+        integrations: true,
+        deployConfig: false,
+      }),
+    ).toEqual([
+      "e2e=false",
+      "design-system=true",
+      "windows=false",
+      "integrations=true",
+      "deploy-config=false",
+    ]);
   });
 });

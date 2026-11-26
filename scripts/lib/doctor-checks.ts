@@ -5,6 +5,7 @@ import type { RunResult } from "./exec.ts";
 import { describeUnreachable, jsonOf, type HttpResult } from "./http.ts";
 import { isSet, type AppEnvs, type AppName, type IntegrationStatus } from "@shopblok/integrations";
 import type { BackendMarkets } from "./markets-check.ts";
+import { payloadDatabaseTlsCheck, secretFingerprintCheck } from "./deploy-secrets.ts";
 import { r2KeyChecks } from "./r2-checks.ts";
 import type { Check } from "./report.ts";
 
@@ -34,6 +35,16 @@ export type Context = {
   nodeEnv: string | undefined;
   /** Any of `VERCEL`, `VERCEL_ENV` or `VERCEL_URL` is set: the storefront is (or is built for) Vercel. */
   vercel: boolean;
+  /**
+   * `doctor --app=backend|storefront` (M7 D135): only this app's checks, from its own environment
+   * (each platform's deploy holds one app's variables, never the other's). Unset: both apps.
+   */
+  app?: AppName;
+  /**
+   * The app (with `app`) or either app runs as staging or production (`productionStage`): a blank
+   * secret is an error whatever `NODE_ENV` says, and the fingerprints and Payload's TLS are checked.
+   */
+  deployed?: boolean;
 };
 
 const statusOf = (statuses: readonly IntegrationStatus[], id: IntegrationStatus["id"]) =>
@@ -195,23 +206,26 @@ const BLANK_SECRET_ENVS = ["development", "test"];
  * when they are blank.
  */
 function secrets(envs: AppEnvs, context: Context): Check {
-  const missing = [
-    ...["JWT_SECRET", "COOKIE_SECRET"]
-      .filter((name) => !isSet(envs.backend, name))
-      .map((name) => `${name} (apps/backend)`),
-    ...["PAYLOAD_SECRET"]
-      .filter((name) => !isSet(envs.storefront, name))
-      .map((name) => `${name} (apps/storefront)`),
-  ];
+  const own = {
+    backend: ["JWT_SECRET", "COOKIE_SECRET"],
+    storefront: ["PAYLOAD_SECRET"],
+  } as const;
+  const apps = context.app === undefined ? (["backend", "storefront"] as const) : [context.app];
+  const named = apps.flatMap((app) => own[app]);
+  const missing = apps.flatMap((app) =>
+    own[app].filter((name) => !isSet(envs[app], name)).map((name) => `${name} (apps/${app})`),
+  );
   if (missing.length === 0) {
     return {
       id: "secrets",
       title: "Signing secrets",
       level: "ok",
-      message: "JWT_SECRET, COOKIE_SECRET and PAYLOAD_SECRET are set.",
+      message: `${named.length === 1 ? named[0] : `${named.slice(0, -1).join(", ")} and ${named.at(-1)}`} ${named.length === 1 ? "is" : "are"} set.`,
     };
   }
-  const refuses = context.nodeEnv !== undefined && !BLANK_SECRET_ENVS.includes(context.nodeEnv);
+  const refuses =
+    context.deployed === true ||
+    (context.nodeEnv !== undefined && !BLANK_SECRET_ENVS.includes(context.nodeEnv));
   return {
     id: "secrets",
     title: "Signing secrets",
@@ -242,7 +256,9 @@ function previewAndCronSecrets(envs: AppEnvs, context: Context): Check {
       message: "PREVIEW_SECRET and CRON_SECRET are set.",
     };
   }
-  const production = context.nodeEnv !== undefined && !BLANK_SECRET_ENVS.includes(context.nodeEnv);
+  const production =
+    context.deployed === true ||
+    (context.nodeEnv !== undefined && !BLANK_SECRET_ENVS.includes(context.nodeEnv));
   return {
     id: "preview-cron-secrets",
     title: "Preview and jobs secrets",
@@ -327,8 +343,8 @@ export function productionStage(env: Record<string, string | undefined>): {
  * line saying which deployment each app runs as once one of them is staging or production by
  * `DEPLOY_ENV` or `VERCEL_ENV`. Nothing in development, where neither is set.
  */
-function deployEnvCheck(envs: AppEnvs): Check[] {
-  const apps = (["backend", "storefront"] as const).map((app) => ({
+function deployEnvCheck(envs: AppEnvs, only?: AppName): Check[] {
+  const apps = (only === undefined ? (["backend", "storefront"] as const) : [only]).map((app) => ({
     app,
     ...productionStage(envs[app]),
   }));
@@ -402,8 +418,9 @@ function e2eRoutesCheck(envs: AppEnvs): Check[] {
  * backend beside a development storefront is still caught. The value is never printed, only the
  * variable's name and the kind of key.
  */
-function stripeLiveKeys(envs: AppEnvs): Check[] {
+function stripeLiveKeys(envs: AppEnvs, only?: AppName): Check[] {
   const live = STRIPE_KEYS.filter(({ app, name }) => {
+    if (only !== undefined && app !== only) return false;
     const value = (envs[app][name] ?? "").trim();
     return (
       !productionStage(envs[app]).production &&
@@ -465,24 +482,36 @@ function cspModeCheck(envs: AppEnvs): Check[] {
   ];
 }
 
-/** Everything the environment alone can tell, in the order the table shows it. */
+/**
+ * Everything the environment alone can tell, in the order the table shows it. With `context.app`
+ * (M7 D135), only that app's checks: the other app's environment is empty there, so the checks
+ * that compare the two apps (PostHog's one project, R2's one public URL, Stripe's two modes) find
+ * nothing to compare, and the fingerprints (D134) stand in for them; `statuses` are that app's.
+ */
 export function configChecks(
   envs: AppEnvs,
   statuses: readonly IntegrationStatus[],
   context: Context,
 ): Check[] {
+  const { app } = context;
+  const backend = app !== "storefront";
+  const storefront = app !== "backend";
+  const deployed = context.deployed === true;
+  const optional = (check: Check | undefined): Check[] => (check === undefined ? [] : [check]);
   return [
-    ...deployEnvCheck(envs),
-    ...stripeLiveKeys(envs),
-    ...e2eRoutesCheck(envs),
-    ...cspModeCheck(envs),
+    ...deployEnvCheck(envs, app),
+    ...stripeLiveKeys(envs, app),
+    ...(storefront ? e2eRoutesCheck(envs) : []),
+    ...(storefront ? cspModeCheck(envs) : []),
     secrets(envs, context),
-    previewAndCronSecrets(envs, context),
-    publishableKey(envs),
-    payloadKey(envs),
-    emailVerification(statuses),
-    ...vercelStorage(statuses, context),
-    ...redisInProduction(statuses, context),
+    ...(storefront ? [previewAndCronSecrets(envs, context)] : []),
+    ...(storefront ? [publishableKey(envs)] : []),
+    ...(backend ? [payloadKey(envs)] : []),
+    ...(backend ? [emailVerification(statuses)] : []),
+    ...(app === undefined ? [] : optional(secretFingerprintCheck(envs[app], app, deployed))),
+    ...(storefront ? optional(payloadDatabaseTlsCheck(envs.storefront, deployed)) : []),
+    ...(storefront ? vercelStorage(statuses, context) : []),
+    ...(backend ? redisInProduction(statuses, context) : []),
     ...halfConfigured(statuses),
     ...sentryDsnChecks(envs),
     ...posthogKeyChecks(envs),
@@ -608,14 +637,41 @@ export function classifyPayloadAuth(answer: {
 // ---------------------------------------------------------------------------------------------
 // --online: the checks, from the answers
 
-/** The backend → Payload link. `answer` is `undefined` when there was no URL or key to ask with. */
-export function payloadAuthCheck(payloadUrl: string, answer: HttpResult | undefined): Check {
+/**
+ * The backend → Payload link. `answer` is `undefined` when there was no URL or key to ask with.
+ * `fromBackendDeploy` (`doctor --app=backend`, Railway's predeploy, M7 D135): the backend deploys
+ * first, before Vercel's first Production build has a Payload to answer, so an address that does
+ * not answer, or answers with something other than Payload (Vercel's 404 `DEPLOYMENT_NOT_FOUND`
+ * before the first deployment), is an accepted note there. A Payload that refuses the key (401,
+ * 403, or 200 with `"user": null`) is still an error: the first Production build seeds the
+ * integrations user before it goes live, so a live Payload without it is a wrong key.
+ */
+export function payloadAuthCheck(
+  payloadUrl: string,
+  answer: HttpResult | undefined,
+  options: { fromBackendDeploy?: boolean } = {},
+): Check {
   if (answer === undefined) {
     return {
       ...PAYLOAD_AUTH,
       level: "warn",
       message: "not checked: PAYLOAD_SERVER_URL or PAYLOAD_API_KEY is not set in the backend.",
       fix: "Run `pnpm bootstrap`.",
+    };
+  }
+  const verdict =
+    answer.kind === "response"
+      ? classifyPayloadAuth({ status: answer.status, body: jsonOf(answer) })
+      : undefined;
+  if (options.fromBackendDeploy === true && verdict !== "ok" && verdict !== "rejected") {
+    const what =
+      answer.kind === "response"
+        ? `answered HTTP ${answer.status}, not Payload`
+        : describeUnreachable(answer);
+    return {
+      ...PAYLOAD_AUTH,
+      level: "note",
+      message: `not checked: ${payloadUrl} ${what}. The backend deploys before the storefront (DEPLOY.md, the first deployment's order), so the fingerprints stand in: they say PAYLOAD_API_KEY is the storefront's, whose Payload seed gives the integrations user that key.`,
     };
   }
   if (answer.kind !== "response") {
@@ -626,7 +682,6 @@ export function payloadAuthCheck(payloadUrl: string, answer: HttpResult | undefi
       fix: "Start the storefront (Payload is embedded in it) with `pnpm dev`.",
     };
   }
-  const verdict = classifyPayloadAuth({ status: answer.status, body: jsonOf(answer) });
   if (verdict === "ok") {
     return {
       ...PAYLOAD_AUTH,

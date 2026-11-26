@@ -1,15 +1,20 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   DEFAULT_MEDUSA_BACKEND_URL,
+  deploymentBaseUrl,
   deployEnv,
   designSystemBuildFlag,
   designSystemEnabled,
   e2eRoutesEnabled,
   env,
   EnvError,
+  firstUserClosed,
   isProduction,
   medusaEnv,
+  previewOrigins,
+  protectionBypassHeaders,
 } from "./env";
+import { siteOrigin } from "./site-origin";
 
 const KEY = "pk_3c101e19ff02cb898eb71f6e20ccca7c4f824b84522d9a36b2ba9e19b6ffba30";
 
@@ -142,7 +147,11 @@ describe("env", () => {
       "STOREFRONT_PRERENDER_PRODUCTS",
       "STOREFRONT_SIGNING_SECRET",
       "TURNSTILE_SECRET_KEY",
+      "VERCEL_AUTOMATION_BYPASS_SECRET",
+      "VERCEL_BRANCH_URL",
       "VERCEL_ENV",
+      "VERCEL_PROJECT_PRODUCTION_URL",
+      "VERCEL_URL",
     ]);
   });
 });
@@ -288,5 +297,90 @@ describe("designSystemBuildFlag (what next.config.ts freezes into the bundle, D3
     expect(designSystemBuildFlag()).toBe("true");
     vi.stubEnv("DESIGN_SYSTEM_ENABLED", "");
     expect(designSystemBuildFlag()).toBe("false");
+  });
+});
+
+describe("deploymentBaseUrl (M7 D136, T114)", () => {
+  it("keeps NEXT_PUBLIC_BASE_URL when it is set", () => {
+    expect(
+      deploymentBaseUrl({
+        NEXT_PUBLIC_BASE_URL: "https://shop.example",
+        VERCEL_ENV: "preview",
+        VERCEL_BRANCH_URL: "x.vercel.app",
+      }),
+    ).toBe("https://shop.example");
+  });
+
+  it("on a preview, is its branch domain, else its own", () => {
+    expect(
+      deploymentBaseUrl({
+        VERCEL_ENV: "preview",
+        VERCEL_BRANCH_URL: "shopblok-git-feature-team.vercel.app",
+        VERCEL_URL: "shopblok-abc123-team.vercel.app",
+      }),
+    ).toBe("https://shopblok-git-feature-team.vercel.app");
+    expect(
+      deploymentBaseUrl({ VERCEL_ENV: "preview", VERCEL_URL: "shopblok-abc123-team.vercel.app" }),
+    ).toBe("https://shopblok-abc123-team.vercel.app");
+  });
+
+  it("on Production, is the project's Production domain", () => {
+    expect(
+      deploymentBaseUrl({
+        VERCEL_ENV: "production",
+        VERCEL_PROJECT_PRODUCTION_URL: "shopblok-starter.vercel.app",
+        VERCEL_BRANCH_URL: "shopblok-git-main-team.vercel.app",
+      }),
+    ).toBe("https://shopblok-starter.vercel.app");
+  });
+
+  it("is undefined off Vercel, so siteOrigin falls back to the local one", () => {
+    expect(deploymentBaseUrl({})).toBeUndefined();
+    expect(deploymentBaseUrl({ VERCEL_ENV: "development", VERCEL_URL: "x" })).toBeUndefined();
+  });
+
+  it("is what Payload's serverURL becomes on a preview build (siteOrigin's default)", () => {
+    vi.stubEnv("NEXT_PUBLIC_BASE_URL", "");
+    vi.stubEnv("VERCEL_ENV", "preview");
+    vi.stubEnv("VERCEL_BRANCH_URL", "shopblok-git-feature-team.vercel.app");
+    expect(siteOrigin()).toBe("https://shopblok-git-feature-team.vercel.app");
+  });
+});
+
+describe("previewOrigins (PR 149's review, 6)", () => {
+  it("on a preview, are its deployment's and its branch's addresses", () => {
+    expect(
+      previewOrigins({
+        VERCEL_ENV: "preview",
+        VERCEL_URL: "shopblok-abc123-team.vercel.app",
+        VERCEL_BRANCH_URL: "shopblok-git-feature-team.vercel.app/",
+      }),
+    ).toEqual([
+      "https://shopblok-abc123-team.vercel.app",
+      "https://shopblok-git-feature-team.vercel.app",
+    ]);
+  });
+
+  it("are none on Production or off Vercel", () => {
+    expect(previewOrigins({ VERCEL_ENV: "production", VERCEL_URL: "x.vercel.app" })).toEqual([]);
+    expect(previewOrigins({})).toEqual([]);
+  });
+});
+
+describe("protectionBypassHeaders (M7 D136)", () => {
+  it("sends Vercel's bypass header only with the secret", () => {
+    expect(protectionBypassHeaders({})).toEqual({});
+    expect(protectionBypassHeaders({ VERCEL_AUTOMATION_BYPASS_SECRET: "s3cr3t" })).toEqual({
+      "x-vercel-protection-bypass": "s3cr3t",
+    });
+  });
+});
+
+describe("firstUserClosed (M7 D136, 6)", () => {
+  it("is closed whenever DEPLOY_ENV or VERCEL_ENV is set", () => {
+    expect(firstUserClosed({})).toBe(false);
+    expect(firstUserClosed({ NODE_ENV: "production" })).toBe(false);
+    expect(firstUserClosed({ DEPLOY_ENV: "staging" })).toBe(true);
+    expect(firstUserClosed({ VERCEL_ENV: "development" })).toBe(true);
   });
 });

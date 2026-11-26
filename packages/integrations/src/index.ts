@@ -266,19 +266,21 @@ export type IntegrationStatus = {
 /** Whether `key` is set to something other than blank: the rule `has()` in the backend's `modules.ts` uses. */
 export const isSet = (env: EnvLike, key: string): boolean => (env[key] ?? "").trim() !== "";
 
-function statusOf(spec: Spec, envs: AppEnvs): IntegrationStatus {
-  const parts = spec.parts.map((part): PartStatus => {
-    const env = envs[part.app];
-    const set = part.keys.filter((key) => isSet(env, key));
-    return {
-      app: part.app,
-      what: part.what,
-      configured: set.length === part.keys.length,
-      set,
-      missing: part.keys.filter((key) => !isSet(env, key)),
-      optionalMissing: (part.optional ?? []).filter((key) => !isSet(env, key)),
-    };
-  });
+function statusOf(spec: Spec, envs: AppEnvs, app?: AppName): IntegrationStatus {
+  const parts = spec.parts
+    .filter((part) => app === undefined || part.app === app)
+    .map((part): PartStatus => {
+      const env = envs[part.app];
+      const set = part.keys.filter((key) => isSet(env, key));
+      return {
+        app: part.app,
+        what: part.what,
+        configured: set.length === part.keys.length,
+        set,
+        missing: part.keys.filter((key) => !isSet(env, key)),
+        optionalMissing: (part.optional ?? []).filter((key) => !isSet(env, key)),
+      };
+    });
   const configured = parts.every((part) => part.configured);
   const anySet = parts.some((part) => part.set.length > 0);
   const state = configured && spec.wired ? "live" : "fallback";
@@ -297,9 +299,20 @@ function statusOf(spec: Spec, envs: AppEnvs): IntegrationStatus {
   };
 }
 
-/** The status of every integration in SPEC §10, in the table's order . */
-export function getIntegrationStatus(envs: AppEnvs): IntegrationStatus[] {
-  return SPECS.map((spec) => statusOf(spec, envs));
+/**
+ * The status of every integration in SPEC §10, in the table's order. With `app` (doctor's
+ * `--app=backend|storefront`, M7 D135), only that app's parts count, and an integration with no part
+ * in it is left out: each platform's deploy checks its own app, and the other app's keys are not
+ * there to judge.
+ */
+export function getIntegrationStatus(
+  envs: AppEnvs,
+  options: { app?: AppName } = {},
+): IntegrationStatus[] {
+  const { app } = options;
+  return SPECS.filter(
+    (spec) => app === undefined || spec.parts.some((part) => part.app === app),
+  ).map((spec) => statusOf(spec, envs, app));
 }
 
 /** Every variable name `getIntegrationStatus` looks at, so a caller reads just those from a file. */

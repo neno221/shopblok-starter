@@ -6,7 +6,7 @@ import type { NextConfig } from "next";
 import { PHASE_DEVELOPMENT_SERVER, PHASE_PRODUCTION_BUILD } from "next/constants";
 import createNextIntlPlugin from "next-intl/plugin";
 import { buildWorkers } from "./src/lib/build-workers";
-import { designSystemBuildFlag } from "./src/lib/env";
+import { deploymentBaseUrl, designSystemBuildFlag } from "./src/lib/env";
 import { mediaRemotePatterns } from "./src/lib/media-host";
 import { cspSettings } from "./src/lib/security/csp";
 import { hstsEnabled, scopePayloadHeaders, securityHeaderRules } from "./src/lib/security/headers";
@@ -49,11 +49,17 @@ function buildConfig(phase: string): NextConfig {
     // T96 (M6 D125): Sentry's environment, release (the commit) and traces' rate, written into the
     // server's and the browser's bundles alike, so both report the same; blank without them.
     //
+    // M7 D136 (T114): on Vercel without `NEXT_PUBLIC_BASE_URL`, the deployment's own address
+    // (`deploymentBaseUrl`: a preview's branch domain, Production's domain), written in as
+    // `NEXT_PUBLIC_BASE_URL` so that Payload's `serverURL` and CSRF list, the canonical URLs and the
+    // proxy's own reads all name the address the browser is on.
+    //
     // M7 D138 (T106): the static policy's header and value, which the proxy sends
     // (`lib/security/static-csp.ts`); computed above, so the two places cannot differ.
     env: {
       DESIGN_SYSTEM_ENABLED: designSystemBuildFlag(),
       ...sentryBuildEnv(process.env),
+      ...baseUrlBuildEnv(),
       SHOPBLOK_CSP_HEADER: csp.header,
       SHOPBLOK_CSP_POLICY: csp.policy,
     },
@@ -176,4 +182,10 @@ export default function config(phase: string): NextConfig {
     ),
     process.env,
   );
+}
+
+/** `NEXT_PUBLIC_BASE_URL` for the bundle when a deployment's address stands in for it (M7 D136). */
+function baseUrlBuildEnv(): { NEXT_PUBLIC_BASE_URL?: string } {
+  const base = deploymentBaseUrl();
+  return base === undefined ? {} : { NEXT_PUBLIC_BASE_URL: base };
 }

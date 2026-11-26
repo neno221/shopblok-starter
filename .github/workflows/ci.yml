@@ -103,6 +103,7 @@ jobs:
       design-system: ${{ steps.decide.outputs.design-system }}
       windows: ${{ steps.decide.outputs.windows }}
       integrations: ${{ steps.decide.outputs.integrations }}
+      deploy-config: ${{ steps.decide.outputs.deploy-config }}
     steps:
       - uses: actions/checkout@v7.0.1
       # Node from .nvmrc: 22.18 and newer run TypeScript files as they are.
@@ -216,6 +217,37 @@ jobs:
         run: |
           docker compose ps --all || true
           docker compose logs --no-color postgres meilisearch | tail -n 120 || true
+
+  # M7 D135 (T114): Medusa's image, built as Railway builds it and booted as staging runs it, against
+  # the compose stack: a fresh database and the migrations, the server and the worker with
+  # DEPLOY_ENV=staging and NODE_ENV=production, /health 200, every job of the build registered in
+  # the worker, and the one-off `doctor` (the backend half) green, and red on a stale shared secret
+  # (`apps/backend/docker/boot-test.sh`, whose secrets are random for the run and never printed).
+  # Railway deploys `main` only after its checks pass, this one among them.
+  deploy-config:
+    needs: gate
+    if: needs.gate.outputs.deploy-config == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - name: Start Postgres, Redis and Meilisearch
+        run: docker compose up -d --wait postgres redis meilisearch
+      - name: Build Medusa's image
+        run: |
+          docker build -f apps/backend/Dockerfile -t shopblok-backend:ci .
+          docker image ls shopblok-backend:ci --format 'image size on disk: {{.Size}}'
+      - name: Boot the server, the worker and doctor
+        env:
+          COMPOSE_PROJECT_NAME: ${{ github.event.repository.name }}
+        run: apps/backend/docker/boot-test.sh shopblok-backend:ci
+      - name: Diagnostics (on failure)
+        if: failure()
+        run: |
+          docker compose ps --all || true
+          docker compose logs --no-color postgres redis meilisearch | tail -n 120 || true
 
   e2e-smoke:
     needs: gate

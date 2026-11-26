@@ -158,7 +158,8 @@ export const COMPOSE_DEFAULTS = {
  * back to the compose defaults (D15), because the stack is what bootstrap expects to find. A blank
  * `REDIS_URL` means the backend runs on its in-memory modules (T06), so there is no Redis to check.
  */
-export function targetsFrom(env: ConfiguredEnv): Target[] {
+export function targetsFrom(env: ConfiguredEnv, app?: "backend" | "storefront"): Target[] {
+  if (app !== undefined) return appTargets(targetsFrom(env), env, app);
   const database = (name: "medusa" | "payload"): Omit<Target, "host" | "port"> => ({
     kind: "postgres",
     service: "postgres",
@@ -233,6 +234,33 @@ export function targetsFrom(env: ConfiguredEnv): Target[] {
   );
 
   return list;
+}
+
+/**
+ * `doctor --app` (M7 D135): the services one app's deploy reaches. The backend's are its Postgres,
+ * Redis and Meilisearch; the storefront's is Payload's Postgres. Neither deploy has Mailpit (a
+ * deployment sends through Resend), and each database is its own server there (D132).
+ */
+function appTargets(all: Target[], env: ConfiguredEnv, app: "backend" | "storefront"): Target[] {
+  const own = app === "backend" ? "medusa" : "payload";
+  const url = app === "backend" ? env.DATABASE_URL : env.PAYLOAD_DATABASE_URL;
+  const database: Target = urlTarget(url, 5432, {
+    kind: "postgres",
+    service: "postgres",
+    containerPort: 5432,
+    label: `Postgres (${own} database)`,
+    databases: [own],
+  }) ?? {
+    kind: "postgres",
+    service: "postgres",
+    containerPort: 5432,
+    label: `Postgres (${own} database)`,
+    databases: [own],
+    host: "localhost",
+    port: COMPOSE_DEFAULTS.postgresPort,
+  };
+  if (app === "storefront") return [database];
+  return [database, ...all.filter((t) => t.kind === "redis" || t.kind === "meilisearch")];
 }
 
 function portOf(value: string | undefined, fallback: number): number {

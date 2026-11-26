@@ -14,25 +14,7 @@
  */
 import config from "@payload-config";
 import { getPayload } from "payload";
-import { SEED_GLOBALS, SEED_MODULES } from "../payload/seed";
-import { seedForms } from "../payload/seed/forms";
-import { runGlobalSeeds, runSeeds } from "../payload/seed/run";
-import { seedUiStrings } from "../payload/seed/ui-strings";
+import { seedAllContent } from "../payload/seed/content";
 
 const payload = await getPayload({ config });
-const documents = await runSeeds(payload, SEED_MODULES);
-// T67: the forms, before the footer's seed looks up the newsletter's.
-const forms = await seedForms(payload);
-// T61: the globals, counted with the documents (a global is one document here).
-const globals = await runGlobalSeeds(payload, SEED_GLOBALS);
-const runs = [documents, forms, globals];
-const counts = {
-  created: runs.reduce((sum, run) => sum + run.created, 0),
-  updated: runs.reduce((sum, run) => sum + run.updated, 0),
-  unchanged: runs.reduce((sum, run) => sum + run.unchanged, 0),
-  kept: runs.flatMap((run) => run.kept),
-};
-const started = performance.now();
-const uiStrings = await seedUiStrings(payload);
-const seconds = Number(((performance.now() - started) / 1000).toFixed(1));
-console.log(JSON.stringify({ seedContent: { ...counts, uiStrings: { ...uiStrings, seconds } } }));
+console.log(JSON.stringify({ seedContent: await seedAllContent(payload) }));

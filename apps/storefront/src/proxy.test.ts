@@ -4,9 +4,14 @@ import {
   getRewrittenUrl,
   unstable_doesMiddlewareMatch,
 } from "next/experimental/testing/server";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { seeded } from "./lib/markets/test-maps";
-import { pathsLeftAlone, slashRedirects, storefrontPaths } from "./test-support/proxy-urls";
+import {
+  firstUserPaths,
+  pathsLeftAlone,
+  slashRedirects,
+  storefrontPaths,
+} from "./test-support/proxy-urls";
 import { config, proxy, withoutTrailingSlash } from "./proxy";
 
 // The map comes from `/next/markets` (a fetch); the glue test below gives it directly.
@@ -71,5 +76,41 @@ describe("the proxy", () => {
       new NextRequest("https://example.com/", { headers: { cookie: "_shopblok_market=en-us" } }),
     );
     expect([response.status, getRedirectUrl(response)]).toEqual([307, "https://example.com/us"]);
+  });
+});
+
+describe("the first-user form and endpoint (M7 D136, 6)", () => {
+  afterEach(() => vi.unstubAllEnvs());
+
+  it.each(firstUserPaths)("runs on %s", (url) => {
+    expect(runsOn(url)).toBe(true);
+  });
+
+  it.each([
+    ["DEPLOY_ENV", "staging"],
+    ["VERCEL_ENV", "preview"],
+    ["VERCEL_ENV", "production"],
+  ])("answers 403 with %s=%s", async (name, value) => {
+    vi.stubEnv("DEPLOY_ENV", "");
+    vi.stubEnv("VERCEL_ENV", "");
+    vi.stubEnv(name, value);
+    for (const path of firstUserPaths) {
+      const response = await proxy(
+        new NextRequest(`https://example.com${path}`, { method: "GET" }),
+      );
+      expect(response.status, path).toBe(403);
+      const posted = await proxy(new NextRequest(`https://example.com${path}`, { method: "POST" }));
+      expect(posted.status, path).toBe(403);
+    }
+  });
+
+  it("passes them through untouched in development", async () => {
+    vi.stubEnv("DEPLOY_ENV", "");
+    vi.stubEnv("VERCEL_ENV", "");
+    for (const path of firstUserPaths) {
+      const response = await proxy(new NextRequest(`https://example.com${path}`));
+      expect(response.headers.get("x-middleware-next"), path).toBe("1");
+      expect(getRewrittenUrl(response)).toBeNull();
+    }
   });
 });

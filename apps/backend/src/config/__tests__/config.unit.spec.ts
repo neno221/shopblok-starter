@@ -65,6 +65,14 @@ describe("buildConfig", () => {
       });
     });
 
+    it("runs shared by default, and as the server or the worker by MEDUSA_WORKER_MODE (M7 D135)", () => {
+      expect(buildConfig({}).projectConfig?.workerMode).toBe("shared");
+      for (const mode of ["shared", "worker", "server"] as const) {
+        expect(buildConfig({ MEDUSA_WORKER_MODE: ` ${mode}` }).projectConfig?.workerMode).toBe(mode);
+      }
+      expect(() => buildConfig({ MEDUSA_WORKER_MODE: "workers" })).toThrow(/MEDUSA_WORKER_MODE/);
+    });
+
     it("sets redisUrl for sessions only when REDIS_URL is set, trimmed", () => {
       expect(buildConfig({}).projectConfig).not.toHaveProperty("redisUrl");
       expect(buildConfig({ REDIS_URL: ` ${REDIS_URL}\n` }).projectConfig?.redisUrl).toBe(REDIS_URL);
@@ -77,6 +85,12 @@ describe("buildConfig", () => {
         customer: [{ entity_type: "email", auth_provider: "emailpass" }],
       });
     }
+  });
+
+  it("keeps the admin on unless DISABLE_MEDUSA_ADMIN is exactly true (the worker, M7 D135)", () => {
+    expect(buildConfig({}).admin).not.toHaveProperty("disable");
+    expect(buildConfig({ DISABLE_MEDUSA_ADMIN: "false" }).admin).not.toHaveProperty("disable");
+    expect(buildConfig({ DISABLE_MEDUSA_ADMIN: "true" }).admin?.disable).toBe(true);
   });
 
   it("takes the admin's storefront URL from STOREFRONT_URL", () => {

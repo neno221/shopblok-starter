@@ -311,6 +311,34 @@ describe("getIntegrationStatus", () => {
   });
 });
 
+describe("getIntegrationStatus with an app (doctor --app, M7 D135)", () => {
+  it("counts only that app's parts: the backend's Stripe keys alone are live for the backend", () => {
+    const backendOnly = { backend: stripe.backend, storefront: {} };
+    const whole = byId(getIntegrationStatus(backendOnly), "stripe");
+    expect([whole.state, whole.half]).toEqual(["fallback", true]);
+    const own = byId(getIntegrationStatus(backendOnly, { app: "backend" }), "stripe");
+    expect([own.state, own.half, own.parts.map((part) => part.app)]).toEqual([
+      "live",
+      false,
+      ["backend"],
+    ]);
+  });
+
+  it("leaves out an integration with no part in that app", () => {
+    const backend = getIntegrationStatus(none, { app: "backend" }).map((s) => s.id);
+    const storefront = getIntegrationStatus(none, { app: "storefront" }).map((s) => s.id);
+    expect(backend).toContain("redis");
+    expect(storefront).not.toContain("redis");
+    expect(storefront).not.toContain("meilisearch");
+    expect(storefront).toContain("stripe");
+  });
+
+  it("still says half when that app has some of its own keys and not all", () => {
+    const half = { backend: { STRIPE_API_KEY: "sk_test_x" }, storefront: {} };
+    expect(byId(getIntegrationStatus(half, { app: "backend" }), "stripe").half).toBe(true);
+  });
+});
+
 describe("INTEGRATION_KEYS", () => {
   it("is every key the table looks at, once", () => {
     expect(new Set(INTEGRATION_KEYS).size).toBe(INTEGRATION_KEYS.length);

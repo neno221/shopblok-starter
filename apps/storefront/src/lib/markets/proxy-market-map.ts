@@ -1,5 +1,5 @@
 import { markets as seededMarkets } from "@shopblok/fixtures";
-import { env as processEnv } from "../env";
+import { env as processEnv, protectionBypassHeaders } from "../env";
 import {
   createMarketSource,
   defaultAllowFallback,
@@ -13,7 +13,12 @@ import type { MarketMap } from "./types";
 /** Where the proxy reads the map: `app/next/markets/route.ts`, which the proxy's matcher skips. */
 export const MARKETS_ROUTE = "/next/markets";
 
-type Env = Parameters<typeof defaultAllowFallback>[0] & { NEXT_PUBLIC_BASE_URL?: string };
+type Env = Parameters<typeof defaultAllowFallback>[0] & {
+  NEXT_PUBLIC_BASE_URL?: string;
+  VERCEL_ENV?: string;
+  VERCEL_URL?: string;
+  VERCEL_AUTOMATION_BYPASS_SECRET?: string;
+};
 
 /**
  * The URL of the map route. It comes from the environment and never from the request: a proxy that
@@ -24,9 +29,23 @@ export function marketsRouteUrl(env: Env): URL {
   return appRouteUrl(MARKETS_ROUTE, env);
 }
 
-/** The URL of one of the app's own routes, from the environment (`marketsRouteUrl` says why). */
-export function appRouteUrl(route: string, env: { NEXT_PUBLIC_BASE_URL?: string }): URL {
-  const base = env.NEXT_PUBLIC_BASE_URL || "http://localhost:8000";
+/**
+ * The URL of one of the app's own routes, from the environment (`marketsRouteUrl` says why). On a
+ * Vercel preview, the deployment's own address (`VERCEL_URL`): the branch's address, which
+ * `NEXT_PUBLIC_BASE_URL` holds there, serves the branch's newest deployment, so an older one would
+ * read another commit's routes (PR 149's review, item 6). The bypass header gets past the preview's
+ * protection on either address.
+ */
+export function appRouteUrl(
+  route: string,
+  env: { NEXT_PUBLIC_BASE_URL?: string; VERCEL_ENV?: string; VERCEL_URL?: string },
+): URL {
+  const own = (env.VERCEL_URL ?? "")
+    .trim()
+    .replace(/^https?:\/\//, "")
+    .replace(/\/+$/, "");
+  const preview = (env.VERCEL_ENV ?? "").trim() === "preview" && own !== "";
+  const base = preview ? `https://${own}` : env.NEXT_PUBLIC_BASE_URL || "http://localhost:8000";
   try {
     return new URL(route, base);
   } catch {
@@ -62,6 +81,8 @@ export function createProxyMarketMap(options: ProxyMarketMapOptions = {}) {
       const fail = (what: string) => new Error(`${url.href} ${what}`);
       const response = await fetcher(url, {
         cache: "no-store",
+        // M7 D136: a protected preview answers its own proxy only with the bypass header.
+        headers: protectionBypassHeaders(env),
         signal: AbortSignal.timeout(timeoutMs),
       }).catch((error: unknown) => {
         throw fail(`could not be fetched (${describeError(error)})`);

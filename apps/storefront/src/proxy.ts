@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { COOKIE } from "./lib/cookie-names";
+import { firstUserClosed } from "./lib/env";
 import { getProxyMarketMap } from "./lib/markets/proxy-market-map";
 import { respondToMarketRequest } from "./lib/markets/proxy-response";
 import { compiledFor } from "./lib/redirects/match";
@@ -22,6 +23,20 @@ import { withStaticCsp } from "./lib/security/static-csp";
 // A path with a broken escape (`/us/collections/%ZZ`) is a plain 404 here: Next decodes a dynamic
 // route's params and answers a `URIError` with a 500 before any page runs (PR 78 review, item 2).
 export async function proxy(req: NextRequest) {
+  // M7 D136 (6): Payload's first-user form and endpoint, closed on every deployment (the matcher's
+  // third entry brings only these two paths here; the staging seed makes the first admin). They
+  // are Payload's admin, so they keep its headers (T107's policy, not the shop's static one).
+  if (FIRST_USER_PATHS.has(req.nextUrl.pathname)) {
+    return firstUserClosed()
+      ? new NextResponse("Forbidden", {
+          status: 403,
+          headers: {
+            "Content-Type": "text/plain; charset=utf-8",
+            "Cache-Control": "private, no-cache, no-store, max-age=0, must-revalidate",
+          },
+        })
+      : NextResponse.next();
+  }
   return withStaticCsp(await respond(req));
 }
 
@@ -50,6 +65,12 @@ async function respond(req: NextRequest): Promise<NextResponse> {
     compiledFor(redirects, map),
   );
 }
+
+/** Payload's first-user form and the endpoint it posts to (M7 D136, 6). */
+export const FIRST_USER_PATHS: ReadonlySet<string> = new Set([
+  "/admin/create-first-user",
+  "/api/users/first-register",
+]);
 
 /**
  * T97 (M6 D124): the redirect Next makes when `skipTrailingSlashRedirect` is off, made here instead,
@@ -84,8 +105,12 @@ export const config = {
   //
   // The second entry (T97): every path that ends in a slash, but PostHog's `/ingest/…`, for the
   // trailing-slash redirect Next no longer makes (`skipTrailingSlashRedirect`, next.config.ts).
+  //
+  // The third (M7 D136, 6): Payload's first-user form and endpoint, which answer 403 on a
+  // deployment (`FIRST_USER_PATHS`) and pass through untouched anywhere else.
   matcher: [
     "/((?!(?:admin|api|design-system|ingest|monitoring|next)(?:/|$)|_next/|_vercel/|\\.well-known/|.*\\.[A-Za-z][A-Za-z0-9]*$).*)",
     "/((?!ingest/).*/)",
+    "/(admin/create-first-user|api/users/first-register)",
   ],
 };
