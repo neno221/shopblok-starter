@@ -46,6 +46,8 @@ secret() { od -An -tx1 -N32 /dev/urandom | tr -d ' \n'; }
 # `fingerprint` in scripts/lib/deploy-secrets.ts, which `pnpm staging:secrets` sets (D134).
 fingerprint() { printf 'shopblok:%s:%s' "$1" "$2" | sha256sum | cut -c1-16; }
 cron_secret="$(secret)"
+# T108 (D142): the storefront signs its calls with it; doctor errors on a deployment without it.
+signing_secret="$(secret)"
 meili_key=shopblok-local-dev-master-key
 
 echo "boot-test: a fresh database medusa_deploy"
@@ -68,7 +70,8 @@ MEILISEARCH_INDEX_PREFIX=deploy
 JWT_SECRET=$(secret)
 COOKIE_SECRET=$(secret)
 CRON_SECRET=$cron_secret
-SHOPBLOK_SECRET_FINGERPRINTS=CRON_SECRET:$(fingerprint CRON_SECRET "$cron_secret"),MEILI_MASTER_KEY:$(fingerprint MEILI_MASTER_KEY "$meili_key")
+STOREFRONT_SIGNING_SECRET=$signing_secret
+SHOPBLOK_SECRET_FINGERPRINTS=CRON_SECRET:$(fingerprint CRON_SECRET "$cron_secret"),MEILI_MASTER_KEY:$(fingerprint MEILI_MASTER_KEY "$meili_key"),STOREFRONT_SIGNING_SECRET:$(fingerprint STOREFRONT_SIGNING_SECRET "$signing_secret")
 MEDUSA_BACKEND_URL=http://localhost:$PORT
 STOREFRONT_URL=http://localhost:8000
 STORE_CORS=http://localhost:8000
