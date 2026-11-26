@@ -35,11 +35,13 @@ function buildConfig(phase: string): NextConfig {
     experimental: {
       // The app has one root layout per market, so there is no single layout for a 404 page.
       globalNotFound: true,
-      // M7 T109 (SPEC §11.1): React's taint API, on the server's secrets and the customer object
-      // (`lib/security/taint.ts`). Next then renders with its React experimental build, the only
-      // one with the API; SETUP.md "Payment secrets, the consent record and MFA (T109)" says what
-      // that changed.
-      taint: true,
+      // M7 T109 (SPEC §11.1): React's taint API, wired to the server's secrets and the customer
+      // object (`lib/security/taint.ts`), and off. Next turns it on only with its React
+      // experimental build, for the server and the browser alike: checked here, it throws on a
+      // leaked secret or customer and sends nothing, but every first load grows by 6.5 KB gzipped,
+      // over the product page's and the listings' budgets. SETUP.md "Payment secrets, the consent
+      // record and MFA (T109)" has the numbers; `true` here is the whole switch.
+      taint: false,
       // W6 item 7: at most `BUILD_WORKERS_CAP` (3) static-generation workers (or
       // `STOREFRONT_BUILD_WORKERS`), so a PC with many threads builds against a running stack
       // without running Postgres out of connections or Medusa out of time (src/lib/build-workers.ts).
