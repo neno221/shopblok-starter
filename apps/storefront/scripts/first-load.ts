@@ -245,6 +245,13 @@ export const keptOut: readonly KeptOut[] = [
     marker: "shopblok:turnstile",
     label: "the Turnstile widget (T108)",
   },
+  // T113 (M7 D150): the search dialog's content (Base UI's Autocomplete and the results), which
+  // `search-overlay-island.tsx` fetches when the visitor reaches for the header's search button.
+  {
+    module: "../../packages/ui/src/organisms/search-overlay-panel.tsx",
+    marker: "shopblok:search-overlay-panel",
+    label: "the search dialog's content (T113)",
+  },
 ];
 
 export type StatsRow = {

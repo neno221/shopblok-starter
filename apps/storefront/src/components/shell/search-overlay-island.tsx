@@ -5,12 +5,18 @@
 // request the network refused is the same. The recent queries are the browser's (`recent-searches.ts`).
 // Enter with nothing highlighted submits the overlay's GET form to `{m}/search`, with or without
 // this island.
+// T113 (D150): the island draws SearchOverlay's frame (the button and the dialog) and fetches the
+// dialog's content, `SearchOverlayPanel` (Base UI's Autocomplete and the results, about 12 KB
+// gzipped), when the visitor reaches for the button (the pointer over it, a press, the focus), so
+// it is in no first load (`first-load.ts`' `keptOut` checks it). The
+// frame opens the dialog once the panel is in; a failed fetch is asked again at the next reach.
 "use client";
 
 import type { Messages } from "@shopblok/i18n";
 import type { SearchResult } from "@shopblok/registry/contracts";
-import { SearchOverlay } from "@shopblok/ui/organisms/search-overlay";
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { SearchOverlayFrame } from "@shopblok/ui/organisms/search-overlay-frame";
+import type { SearchOverlayPanelProps } from "@shopblok/ui/organisms/search-overlay-panel";
+import { useEffect, useRef, useState, useSyncExternalStore, type ComponentType } from "react";
 import {
   clearRecentSearches,
   getRecentSearches,
@@ -34,6 +40,24 @@ export type SearchOverlayIslandProps = {
   prefetch?: boolean | null;
   fetcher?: typeof fetch;
 };
+
+type Panel = ComponentType<SearchOverlayPanelProps>;
+
+/** The panel once fetched, so a header drawn again (another page) has it at once. */
+let loadedPanel: Panel | undefined;
+let panelOnItsWay: Promise<Panel> | undefined;
+
+/** Fetches the panel's module once; a failed fetch is forgotten, so the next reach asks again. */
+export function loadSearchPanel(): Promise<Panel> {
+  panelOnItsWay ??= import("@shopblok/ui/organisms/search-overlay-panel").then(
+    (module) => (loadedPanel = module.SearchOverlayPanel),
+    (error: unknown) => {
+      panelOnItsWay = undefined;
+      throw error;
+    },
+  );
+  return panelOnItsWay;
+}
 
 const nothingFor = (query: string): SearchResult => ({
   query,
@@ -69,6 +93,7 @@ export function SearchOverlayIsland({
     getRecentSearches,
     getServerRecentSearches,
   );
+  const [panel, setPanel] = useState<Panel | undefined>(() => loadedPanel);
   const [result, setResult] = useState<SearchResult | undefined>(undefined);
   const [loading, setLoading] = useState(false);
   const pending = useRef<{ timer: ReturnType<typeof setTimeout>; abort: AbortController }>(
@@ -124,7 +149,14 @@ export function SearchOverlayIsland({
   }
 
   return (
-    <SearchOverlay
+    <SearchOverlayFrame
+      panel={panel}
+      onWantPanel={() => {
+        loadSearchPanel().then(
+          (loaded) => setPanel(() => loaded),
+          () => undefined,
+        );
+      }}
       search={{ action, query: "" }}
       recent={[...recent]}
       result={result}
