@@ -11,7 +11,10 @@ import type { SectionsCopy } from "@shopblok/ui/sections/section-copy";
 import { SectionFrame } from "@shopblok/ui/sections/section-frame";
 
 type NewsletterSectionProps = NewsletterSectionData &
-  Pick<NewsletterFormProps, "action" | "status" | "fieldName" | "hiddenFields" | "prefetch"> & {
+  Pick<
+    NewsletterFormProps,
+    "action" | "status" | "fieldName" | "hiddenFields" | "refusal" | "challenge" | "prefetch"
+  > & {
     copy: Pick<SectionsCopy, "newsletter">;
     /** A BCP 47 tag such as `el-CY`: the market's `<html lang>`. */
     locale: string;

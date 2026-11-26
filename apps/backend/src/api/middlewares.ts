@@ -10,6 +10,10 @@ import {
 } from "@medusajs/framework/http";
 import { MedusaError } from "@medusajs/framework/utils";
 
+import { createHash } from "node:crypto";
+
+import { processLimiter } from "../lib/rate-limit/limiter";
+import { authRateLimit, emailFrom, paramFrom, rateLimit } from "../lib/rate-limit/middleware";
 import { reportRequestError } from "../lib/sentry";
 import { securityHeaders } from "./security-headers";
 import { confirmVerificationAgain } from "./auth/verification-again";
@@ -28,6 +32,10 @@ import { localizeStoreSearch } from "./store/search/locale";
 // when `SENTRY_DSN` is set (`lib/sentry.ts`; without it nothing is sent).
 const medusaErrorHandler = errorHandler();
 
+// M7 D142 (T108): the limiter (and its Redis connection) is made as the routes load, so it is
+// connected before the first request (the review of PR 153).
+processLimiter();
+
 export default defineMiddlewares({
   // Express 5's `ErrorRequestHandler` returns `unknown` (Medusa 2.23); Medusa's handler answers
   // synchronously, so nothing is returned.
@@ -41,6 +49,48 @@ export default defineMiddlewares({
     {
       matcher: "/*",
       middlewares: [securityHeaders],
+    },
+    // M7 D142 (T108): the rate limits (`lib/rate-limit/rules.ts` has the numbers), before the routes
+    // they guard. The customer's five auth routes (SETUP T44's list), Medusa Admin's sign-in and
+    // reset, cart completion per cart, and the rest of `/store/*`. Each keys on the address the
+    // storefront signed (`x-shopblok-client`), or on the caller's own; an e-mail is hashed first.
+    // T109 attaches `admin-code-check` to the routes Medusa's MFA adds.
+    // The sign-ins, the customer's register and the resets sit on Medusa's own parameterised paths
+    // and pick their rule from the decoded `actor_type` (`authRateLimit`), so a percent-encoded path
+    // such as `/auth/customer/%65mailpass` is counted too (the review of PR 153).
+    {
+      method: ["POST"],
+      matcher: "/auth/:actor_type/:auth_provider",
+      middlewares: [authRateLimit("login")],
+    },
+    {
+      method: ["POST"],
+      matcher: "/auth/:actor_type/:auth_provider/register",
+      middlewares: [authRateLimit("register")],
+    },
+    {
+      method: ["POST"],
+      matcher: "/auth/:actor_type/:auth_provider/reset-password",
+      middlewares: [authRateLimit("reset")],
+    },
+    {
+      method: ["POST"],
+      matcher: "/auth/verification/request",
+      middlewares: [rateLimit("verification-request", verificationSubject)],
+    },
+    {
+      method: ["POST"],
+      matcher: "/auth/verification/confirm",
+      middlewares: [rateLimit("verification-confirm")],
+    },
+    {
+      method: ["POST"],
+      matcher: "/store/carts/:id/complete",
+      middlewares: [rateLimit("cart-complete", paramFrom("id"))],
+    },
+    {
+      matcher: "/store/*",
+      middlewares: [rateLimit("store")],
     },
     {
       method: ["POST"],
@@ -105,6 +155,19 @@ export default defineMiddlewares({
     },
   ],
 });
+
+/**
+ * Whose verification is asked for: the body's `entity_id` (the e-mail) when it names one, else the
+ * identity the restricted token belongs to (a hash of the `Authorization` header), never nobody's.
+ */
+function verificationSubject(req: MedusaRequest): string | undefined {
+  const email = emailFrom("entity_id")(req);
+  if (email !== undefined) return email;
+  const authorization = req.headers.authorization;
+  return typeof authorization === "string"
+    ? createHash("sha256").update(authorization).digest("hex")
+    : undefined;
+}
 
 function closedRoute(_req: MedusaRequest, _res: MedusaResponse, _next: MedusaNextFunction) {
   throw new MedusaError(

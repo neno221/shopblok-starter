@@ -25,10 +25,8 @@ describe("the integrations panel (D85)", () => {
       wired: true,
       storefront: { state: "configured" },
     });
-    // T95: every M6 integration's code is built, R2's last; M7's Turnstile arrives in T108.
-    expect(rows.filter((row) => !row.wired).map((row) => [row.id, row.arrives])).toEqual([
-      ["turnstile", "T108"],
-    ]);
+    // T95: every M6 integration's code is built, R2's last; M7's Turnstile in T108.
+    expect(rows.filter((row) => !row.wired).map((row) => [row.id, row.arrives])).toEqual([]);
     expect(rows.find((row) => row.id === "r2")?.arrives).toBeUndefined();
     expect(rows.find((row) => row.id === "turnstile")?.storefront).toEqual({
       state: "missing",

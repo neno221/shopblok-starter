@@ -4,11 +4,13 @@ import { signUp } from "../../../../lib/actions/auth";
 import { authErrorsOf, authMetadata, authPageContext, param } from "../../../../lib/auth-page";
 import { readFlash } from "../../../../lib/flash";
 import { SHELL_PREFETCH } from "../../../../lib/site";
+import { challengeFor } from "../../../../components/security/challenge";
 
 // D64 (T53): create an account. The form posts to `signUp`, which registers the identity, keeps the
 // name for the account in the pending cookie and has Medusa e-mail the verification link (in the
 // market's prefix), then goes on to `/verify` (the e-mail to check); a refusal comes back here in a
-// flash, with what was typed but the password. Dynamic and blocking; `noindex`.
+// flash, with what was typed but the password. With Turnstile's keys (M7 D143) the form draws
+// Cloudflare's widget, whose token `registerAction` checks first. Dynamic and blocking; `noindex`.
 
 export const instant = false;
 
@@ -40,6 +42,7 @@ export default async function RegisterPage({ searchParams }: Props) {
       locale={market.htmlLang}
       action={signUp.bind(null, market.key)}
       errors={authErrorsOf(flash)}
+      challenge={challengeFor(market.htmlLang, messages.templates.auth.register.noScript)}
       prefetch={SHELL_PREFETCH}
     />
   );

@@ -1,6 +1,7 @@
 import Medusa from "@medusajs/js-sdk";
 import "server-only";
 import { medusaEnv, type MedusaEnv } from "../env";
+import { CLIENT_HEADER, signedClientHeader } from "../security/client-signature";
 import { withTimeout } from "../with-timeout";
 
 /** Give up on a call Medusa has not answered after this long. */
@@ -15,12 +16,28 @@ export class MedusaRequestError extends Error {
    */
   readonly kind: "unreachable" | "rejected";
   readonly status: number | undefined;
+  /**
+   * M7 D142 (T108): on a 429 from Medusa's limiter, how many seconds to wait (read from its
+   * message's end, `retry after <seconds> s.`, since the SDK keeps an error's message and status
+   * only); `undefined` otherwise.
+   */
+  readonly retryAfter: number | undefined;
 
   constructor(message: string, kind: "unreachable" | "rejected", status?: number, cause?: unknown) {
     super(message, { cause });
     this.kind = kind;
     this.status = status;
+    this.retryAfter = status === 429 ? retryAfterOf(message) : undefined;
   }
+}
+
+/** The wait Medusa's limiter names (`apps/backend/src/lib/rate-limit/middleware.ts`). */
+export const RETRY_AFTER = /retry after (\d{1,7}) s\.?$/;
+
+/** The seconds a refusal's message names; a minute when it names none. */
+export function retryAfterOf(message: string): number {
+  const match = RETRY_AFTER.exec(message);
+  return match?.[1] === undefined ? 60 : Number(match[1]);
 }
 
 /** The SDK's `FetchError` has `status` and `statusText`; a network failure is a bare `TypeError`. */
@@ -59,7 +76,39 @@ function toRequestError(error: unknown, backendUrl: string): MedusaRequestError 
 }
 
 export function createSdk({ backendUrl, publishableKey }: MedusaEnv): Medusa {
-  return new Medusa({ baseUrl: backendUrl, publishableKey });
+  const client = new Medusa({ baseUrl: backendUrl, publishableKey });
+  signCalls(client, backendUrl);
+  return client;
+}
+
+type ClientFetch = Medusa["client"]["fetch"];
+
+/** The path the SDK requests for `input` (it joins the base URL's path and `input`, as here). */
+export function requestPath(input: Parameters<ClientFetch>[0], backendUrl: string): string {
+  if (input instanceof URL) return input.pathname;
+  if (typeof input !== "string") return new URL(input.url).pathname;
+  const base = new URL(backendUrl);
+  return new URL(`${base.pathname.replace(/\/$/, "")}/${input.replace(/^\//, "")}`, base.origin)
+    .pathname;
+}
+
+/**
+ * M7 D142 (T108): every call the SDK makes carries `x-shopblok-client`, the visitor's address (or
+ * `server`) signed for its method and path (`security/client-signature.ts`), so Medusa's limits
+ * count per visitor. The SDK has no hook for a request's headers, so its client's `fetch` is
+ * wrapped; the shared instance stays free of per-request state, since the header is made per call
+ * from the request that call is made for. Without `STOREFRONT_SIGNING_SECRET` nothing is added.
+ */
+function signCalls(client: Medusa, backendUrl: string): void {
+  const inner: ClientFetch = client.client.fetch.bind(client.client);
+  client.client.fetch = ((input, init) => {
+    const header = signedClientHeader({
+      method: init?.method ?? "GET",
+      path: requestPath(input, backendUrl),
+    });
+    if (header === undefined) return inner(input, init);
+    return inner(input, { ...init, headers: { ...init?.headers, [CLIENT_HEADER]: header } });
+  }) as ClientFetch;
 }
 
 type SdkState = { client: Medusa; backendUrl: string };

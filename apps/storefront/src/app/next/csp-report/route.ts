@@ -2,6 +2,7 @@ import { after, connection } from "next/server";
 import {
   CSP_REPORT_FORWARD_BUDGET,
   CSP_REPORT_TYPES,
+  CSP_REPORTS_PER_ADDRESS,
   ForwardBudget,
   RecentViolations,
   capFor,
@@ -11,6 +12,8 @@ import {
   violationKey,
   type CspViolation,
 } from "../../../lib/security/csp-report";
+import { visitorAddress } from "../../../lib/security/client-signature";
+import { memoryLimit } from "../../../lib/security/rate-limit";
 
 // M7 D140 (T106): where the policy's `report-uri` and `report-to` send a violation. Both report
 // formats; a body over its cap is a 413 (8 KB for one report, 64 KB for a Reporting API batch,
@@ -19,11 +22,14 @@ import {
 // at most `CSP_REPORT_FORWARD_BUDGET` violations a minute go on; then Sentry's security endpoint for
 // `NEXT_PUBLIC_SENTRY_DSN`, so the key stays on the server and no visitor's token reaches Sentry.
 // Without a DSN, one log line per violation. The 204 goes back first: the forward runs in `after()`,
-// so the browser never waits on Sentry. Under `/next`, which the proxy's matcher skips. T108 adds
-// the per-address rate limit (D142).
+// so the browser never waits on Sentry. Under `/next`, which the proxy's matcher skips. M7 D142
+// (T108): before any of that, at most `CSP_REPORTS_PER_ADDRESS` posts a minute per visitor's
+// address, counted in this instance's memory (a 429 past it); it never asks Medusa.
 
 const recent = new RecentViolations();
 const budget = new ForwardBudget();
+
+const perAddress = memoryLimit(CSP_REPORTS_PER_ADDRESS, 60_000);
 
 /** How long Sentry gets before the forward gives up. */
 const FORWARD_TIMEOUT_MS = 3_000;
@@ -38,6 +44,12 @@ export async function POST(request: Request): Promise<Response> {
     (request.headers.get("content-type") ?? "").split(";")[0]?.trim().toLowerCase() ?? "";
   if (!(CSP_REPORT_TYPES as readonly string[]).includes(type)) {
     return plain(415, "Unsupported Media Type");
+  }
+  if (!perAddress.hit(visitorAddress(request.headers))) {
+    return new Response("Too Many Requests", {
+      status: 429,
+      headers: { "Content-Type": "text/plain; charset=utf-8", "Retry-After": "60" },
+    });
   }
   const declared = Number(request.headers.get("content-length") ?? "");
   const cap = capFor(type);

@@ -7,6 +7,7 @@ import { isSet, type AppEnvs, type AppName, type IntegrationStatus } from "@shop
 import type { BackendMarkets } from "./markets-check.ts";
 import { payloadDatabaseTlsCheck, secretFingerprintCheck } from "./deploy-secrets.ts";
 import { r2KeyChecks } from "./r2-checks.ts";
+import { signingSecretCheck, turnstileKeyChecks } from "./rate-limit-checks.ts";
 import type { Check } from "./report.ts";
 
 // What the `--online` checks are called: the table, `--json` and CI key on these.
@@ -605,7 +606,16 @@ export function configChecks(
     ...(storefront ? e2eRoutesCheck(envs) : []),
     ...(storefront ? cspModeCheck(envs) : []),
     secrets(envs, context),
+    signingSecretCheck(
+      envs,
+      app === undefined ? ["backend", "storefront"] : [app],
+      deployed ||
+        (context.nodeEnv !== undefined && !BLANK_SECRET_ENVS.includes(context.nodeEnv)),
+    ),
     ...(storefront ? [previewAndCronSecrets(envs, context)] : []),
+    ...(storefront
+      ? turnstileKeyChecks(envs.storefront, productionStage(envs.storefront).production)
+      : []),
     ...(storefront ? [publishableKey(envs)] : []),
     ...(backend ? [payloadKey(envs)] : []),
     ...(backend ? [emailVerification(statuses)] : []),

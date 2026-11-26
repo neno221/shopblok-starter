@@ -2,7 +2,7 @@
 // market's prefix) and what the form is told for each answer of `medusa/customer.ts`. That module
 // is a set of `vi.fn()` stand-ins and the market a fixed context; the cookies never come into it.
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { MarketContext } from "../market-context";
 
 const updateTag = vi.fn();
@@ -31,7 +31,8 @@ const MAIL = vi.hoisted(() => ({ market: "/de", language: "en" }));
 vi.mock("../markets", () => ({ mailTarget: () => MAIL }));
 
 const { MedusaRequestError } = await import("../medusa/sdk");
-const { authFormError, forgotAction, loginAction, resetAction } = await import("./auth-handlers");
+const { authFormError, forgotAction, loginAction, registerAction, resetAction } =
+  await import("./auth-handlers");
 
 const context = { market: { key: "en-de" }, map: {} } as unknown as MarketContext;
 
@@ -108,6 +109,60 @@ describe("forgotAction", () => {
   it("is unavailable when Medusa does not answer", async () => {
     requestPasswordReset.mockRejectedValue(new MedusaRequestError("down", "unreachable"));
     expect(await forgotAction(forgot)).toEqual({ ok: false, errors: {}, form: "unavailable" });
+  });
+});
+
+// M7 D142, D143 (T108): Medusa's limiter and Turnstile, as the auth forms are told.
+describe("the auth forms' limits and challenge", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+  });
+  const limited = () =>
+    new MedusaRequestError(
+      "Medusa at x answered 429: Too many requests: retry after 600 s.",
+      "rejected",
+      429,
+    );
+
+  it("says how long to wait when Medusa's limiter refuses a sign-in or a reset request", async () => {
+    login.mockRejectedValue(limited());
+    const result = await loginAction({ market: "en-de", email: "a@example.com", password: "x" });
+    expect(result).toEqual({ ok: false, errors: {}, form: "too-many", retryAfter: 600 });
+    if (result.ok) throw new Error("expected a failure");
+    expect(authFormError(result)).toBe("too-many");
+    requestPasswordReset.mockRejectedValue(limited());
+    expect(await forgotAction({ market: "en-de", email: "a@example.com" })).toEqual({
+      ok: false,
+      errors: {},
+      form: "too-many",
+      retryAfter: 600,
+    });
+  });
+
+  it("checks Turnstile's token before registering, when its keys are set", async () => {
+    vi.stubEnv("NEXT_PUBLIC_TURNSTILE_SITE_KEY", "2x00000000000000000000AB");
+    vi.stubEnv("TURNSTILE_SECRET_KEY", "2x0000000000000000000000000000000AA");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({ success: false, "error-codes": ["invalid-input-response"] }),
+            { status: 200 },
+          ),
+      ),
+    );
+    const result = await registerAction({
+      market: "en-de",
+      email: "a@example.com",
+      password: "a-long-password",
+      firstName: "A",
+      lastName: "B",
+      "cf-turnstile-response": "XXXX.DUMMY.TOKEN.XXXX",
+    });
+    expect(result).toMatchObject({ ok: false, form: "challenge" });
+    expect(register).not.toHaveBeenCalled();
   });
 });
 

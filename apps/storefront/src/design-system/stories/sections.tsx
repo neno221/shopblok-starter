@@ -323,7 +323,7 @@ function newsletter(
 function contactForm(
   ctx: DsContext,
   which: "section" | "long",
-  state: Pick<FormBlockSectionProps, "status" | "errors" | "values" | "settings"> = {},
+  state: Pick<FormBlockSectionProps, "status" | "errors" | "values" | "refusal" | "settings"> = {},
 ) {
   const { note, confirmation, ...samples } = fixtures(ctx).formBlock;
   return (
@@ -331,6 +331,7 @@ function contactForm(
       {...samples[which]}
       {...state}
       copy={copy(ctx)}
+      locale={lang(ctx)}
       messages={{ note: <p>{note}</p> }}
       confirmation={<p>{confirmation}</p>}
     />
@@ -1462,7 +1463,7 @@ export const sectionStories = {
     a11y: [
       "Each control is native and labelled; an optional field says so, a required one is `required`, so the browser checks it first.",
       "A refused field is marked `aria-invalid`, its error tied to it by `aria-describedby`, and what was typed is kept (WCAG 3.3.1).",
-      "The answer is text in a polite status region that is always in the page (WCAG 4.1.3).",
+      "The answer is text in a polite status region that is always in the page (WCAG 4.1.3); a rate limit's refusal is an alert, announced at once.",
       "Without scripts the form posts and the page comes back scrolled to it, with the answer.",
     ],
     live: (ctx) => contactForm(ctx, "section"),
@@ -1483,6 +1484,18 @@ export const sectionStories = {
               topic: "returns",
               message: fixtures(ctx).richText.body.paragraphs[0] ?? "",
             },
+          }),
+      },
+      {
+        id: "too-many",
+        label: "Too many attempts",
+        description:
+          "M7 D142: over the form's rate limit; an alert says how many minutes to wait, in the market's language, and the answers are kept.",
+        render: (ctx) =>
+          contactForm(ctx, "section", {
+            status: "error",
+            refusal: { kind: "too-many", retryAfter: 1800 },
+            values: { name: "Alex Doe", email: "alex@example.com", topic: "returns" },
           }),
       },
       {

@@ -13,6 +13,7 @@ function setup(
     <FormBlockSection
       {...section}
       copy={{ form: catalogs[locale].sections.form }}
+      locale={locale}
       messages={{ note: <p>{note}</p> }}
       {...props}
     />,
@@ -182,5 +183,37 @@ describe("FormBlockSection", () => {
       values: { email: "a@" },
     });
     expect((container.querySelector("[name=consent]") as HTMLInputElement).checked).toBe(false);
+  });
+
+  // M7 D142, D143 (T108): a refusal no field is to blame for is an alert of its own.
+  describe("a refusal", () => {
+    it.each(LOCALES)("says how long to wait in %s, as an alert", (locale) => {
+      setup({ status: "error", refusal: { kind: "too-many", retryAfter: 90 } }, locale);
+      const alert = screen.getByRole("alert");
+      expect(alert.getAttribute("data-slot")).toBe("form-block-refusal");
+      expect(alert.textContent).toContain("2");
+      expect(alert.textContent).not.toContain("{");
+      expect(screen.getByRole("status").textContent).toBe("");
+    });
+
+    it("says Turnstile's refusal, and draws the shop's widget above the button", () => {
+      setup({
+        status: "error",
+        refusal: { kind: "challenge" },
+        challenge: <div data-testid="widget" />,
+      });
+      expect(screen.getByRole("alert").textContent).toBe(words.challenge);
+      const widget = screen.getByTestId("widget");
+      const button = document.querySelector("button[type=submit]")!;
+      expect(
+        widget.compareDocumentPosition(button) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+    });
+
+    it("draws no alert for any other failure", () => {
+      setup({ status: "error" });
+      expect(screen.queryByRole("alert")).toBeNull();
+      expect(screen.getByRole("status").textContent).toBe(words.unavailable);
+    });
   });
 });

@@ -288,7 +288,7 @@ The three skills (`building-with-medusa`, `building-storefronts`, `storefront-be
 
 ## Turning on an integration
 
-Every integration is off until its keys are set, and the shop runs the same without them (D114): the checkout takes "Pay later", Medusa's e-mails go to its console and Payload's to Mailpit, there is no analytics and no error reporting, files stay on the local disk, and search runs on Postgres. This section is the one list of what turns each one on, checked against what T93 to T103 built (each task's own section in "The M6 log" has the detail). **Use test keys everywhere but production** (D115: `doctor` refuses a live Stripe key outside it), and **never commit a key**: CI's `pnpm check:keys` fails on one, naming the file and line, never the key.
+Every integration is off until its keys are set, and the shop runs the same without them (D114): the checkout takes "Pay later", Medusa's e-mails go to its console and Payload's to Mailpit, there is no analytics and no error reporting, files stay on the local disk, search runs on Postgres, and the forms have the rate limits but no Turnstile. This section is the one list of what turns each one on, checked against what T93 to T103 built (each task's own section in "The M6 log" has the detail). **Use test keys everywhere but production** (D115: `doctor` refuses a live Stripe key outside it), and **never commit a key**: CI's `pnpm check:keys` fails on one, naming the file and line, never the key.
 
 **How a key reaches an app.** Both apps read their environment over their `.env` file. On a PC, put the key into `apps/backend/.env` or `apps/storefront/.env` (git-ignored; `.env.example` lists every name, empty, with a comment). In production, into the host's variables (Railway for the backend, Vercel for the storefront). For CI and the cloud sessions see "In CI and the cloud" below. A `NEXT_PUBLIC_*` value, and the few others named below, are written into the storefront's build when `next build` runs, so a new value needs a new build. Restart the backend after a change: it reads its keys at start.
 
@@ -380,9 +380,20 @@ In the dashboard (R2 asks for a payment method first, even within the free tier)
 
 **Checks:** with its keys doctor needs the server to answer; `--online` "Meilisearch index per store locale". Its suite is the backend's `search-meilisearch.spec.ts`.
 
+### Turnstile (forms)
+
+| Key | App | Where it comes from |
+|---|---|---|
+| `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | storefront (written into the build) | Cloudflare's dashboard → Turnstile → Add widget: the shop's domains (and staging's), **Managed** mode; its site key |
+| `TURNSTILE_SECRET_KEY` | storefront | the same widget's secret key |
+
+With both, the forms, the newsletter sign-up and registration carry Cloudflare's widget (shown only when Cloudflare asks the visitor to act), the server checks its token first, a post without scripts is taken once an hour per address, and `challenges.cloudflare.com` joins the CSP. Without them nothing of Cloudflare's loads and the rate limits alone apply. **Cloudflare's published test keys** (site `1x00000000000000000000AA` with secret `1x0000000000000000000000000000000AA` always pass; `2x…AB` and `2x0000000000000000000000000000000AA` always fail) are for development, CI and staging; `doctor` refuses them in production. A new site key needs a new build.
+
+**Checks:** doctor's `turnstile-keys` (a test key in production is an error); `--online` "Cloudflare accepts Turnstile's secret". Its suite is `e2e/integrations/turnstile.spec.ts`, which `integrations-live` runs with the always-pass pair (SETUP "Rate limits and Turnstile (T108)").
+
 ### Redis
 
-`REDIS_URL` (backend) runs Medusa's event bus, workflow engine and locking on Redis; bootstrap sets the compose one. Without it Medusa runs them in memory, which `doctor` calls an error in production (`redis-production`). Medusa's caching stays off (D128; SETUP "Redis caching (D128): stays off").
+`REDIS_URL` (backend) runs Medusa's event bus, workflow engine and locking on Redis, and since T108 holds the rate limits' counters (D142); bootstrap sets the compose one. Without it Medusa runs them in memory, which `doctor` calls an error in production (`redis-production`). Medusa's caching stays off (D128; SETUP "Redis caching (D128): stays off").
 
 ### In CI and the cloud
 
@@ -396,7 +407,7 @@ In the dashboard (R2 asks for a payment method first, even within the free tier)
 | Sentry | `SENTRY_DSN`, `NEXT_PUBLIC_SENTRY_DSN` | |
 | R2 | `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` | `S3_ENDPOINT`, `S3_BUCKET`, `S3_PRIVATE_BUCKET`, `S3_PUBLIC_URL` |
 
-`STRIPE_WEBHOOK_SECRET` is not one of them: CI and the cloud sessions use a fixed stand-in (D115). Without PostHog's or Sentry's secrets the job checks against local stand-ins; without Stripe's, Resend's or R2's their specs skip, naming the keys. A half-set integration fails the job's first step ("The integrations whose keys the job holds"). At M6's end GitHub holds none of them (T104's section has the run).
+`STRIPE_WEBHOOK_SECRET` is not one of them: CI and the cloud sessions use a fixed stand-in (D115). Turnstile is not either: `integrations-live` sets Cloudflare's always-pass test pair in `ci.yml` (public keys, T108). Without PostHog's or Sentry's secrets the job checks against local stand-ins; without Stripe's, Resend's or R2's their specs skip, naming the keys. A half-set integration fails the job's first step ("The integrations whose keys the job holds"). At M6's end GitHub holds none of them (T104's section has the run).
 
 **The cloud environment:** the same names as environment variables, in the environment's settings (the gear icon on the environment); [CLOUD.md, "Keys and hosts for M6"](CLOUD.md#keys-and-hosts-for-m6) has why only test keys go there and the hosts each service needs.
 
@@ -11248,3 +11259,143 @@ Rejected by the review: the migration's default prefix for old local-disk rows (
 
 - **T110 (`robots.ts`, the sitemaps):** `/design-system` belongs in `Disallow`, and no sitemap may list an own-domain market's `/{key}/…` paths on the admin's host: they are the 404 of an internal key to everyone but staff in Draft Mode.
 - **T115 (staging):** `DESIGN_SYSTEM_ENABLED=true` is safe on staging only behind this gate, which is on whenever `DEPLOY_ENV` or `VERCEL_ENV` is set; check once there that `/design-system/en` and `/design-system/en.rsc` (Next's RSC payload of the page, which Vercel's minimal mode serves) are a 404 signed out. `S3_PRIVATE_BUCKET` goes to Vercel too (DEPLOY.md), and the private bucket's refusal of an unsigned read is checked there with R2's keys. The worker's log shows `payload-jobs-tick` failing only while the storefront is not up.
+
+## Rate limits and Turnstile (T108)
+
+**Result: one limiter, Medusa's, with its counters in Medusa's Redis, in front of the customer's five auth routes, Medusa Admin's sign-in and reset, cart completion and the rest of `/store/*`, and, through `POST /shopblok/rate-limit` (signed calls only), the storefront's forms, newsletter, consent record (T109 calls it) and Payload's sign-in and reset. Every server-side call the storefront makes to Medusa carries the visitor's address, signed and bound to its method and path. A refusal says "Too many attempts. Try again in N minutes." in the market's language, announced, with and without scripts. Turnstile is an optional integration: with its two keys the forms, the newsletter and registration carry Cloudflare's widget, whose code is in no first load, and the server checks its token before anything else; a post without scripts is taken once an hour per address.** D142, D143 (plans/M7.md §5 T108).
+
+| | |
+|---|---|
+| Date | 2026-11-26 |
+| Branch | `claude/project-thread-t2sshw`, from `main` at `3b7948b` (PR 151's merge, T107) |
+| PR | this PR, "T108: rate limits and Turnstile" |
+
+### The limits table (`apps/backend/src/lib/rate-limit/rules.ts`)
+
+One table holds every counter, Medusa's and the storefront's. The customer's and Medusa Admin's routes are matched as Medusa serves them, `POST /auth/:actor_type/:auth_provider[/register|/reset-password]`, and the rule is picked from the decoded actor (`authRateLimit`), so a percent-encoded path is counted too (the review's must-fix). Each counter is a fixed window; a rule is refused when any of its counters is over. A counter counts per address (the signed one, or the request's own; IPv6 by its /64), per address and key, or per key alone (an e-mail's SHA-256, a cart, a user), whoever asks.
+
+| Rule | Where | Counters |
+|---|---|---|
+| `customer-login` | `POST /auth/customer/emailpass` | 10 per 15 min per address and e-mail; 30 per 15 min per address |
+| `customer-register` | `…/emailpass/register` | 5 per hour per address |
+| `customer-reset` | `…/emailpass/reset-password` | 5 per hour per address; 3 per hour per e-mail |
+| `verification-request` | `/auth/verification/request` | 5 per hour per e-mail; 20 per hour per address (the review) |
+| `verification-confirm` | `/auth/verification/confirm` | 20 per hour per address |
+| `admin-login`, `admin-reset` | `/auth/user/emailpass`, `…/reset-password` | as the customer's |
+| `admin-code-check` | none yet: T109 attaches it to Medusa's MFA routes (D146) | 5 per 15 min per user |
+| `cart-complete` | `/store/carts/:id/complete` | 10 per 10 min per cart; 30 per 10 min per address |
+| `store` | the rest of `/store/*` | 600 per minute per address |
+| `form` | the storefront's forms | 10 per hour per address and form |
+| `newsletter` | the footer's and the block's sign-up | 5 per hour per address; 2 per day per e-mail |
+| `consent` | the consent record (T109) | 30 per hour per address |
+| `payload-login` | Payload's `login` | 10 per 15 min per address and e-mail; 30 per 15 min per address (the review) |
+| `payload-reset` | Payload's `forgot-password` | 3 per hour per e-mail |
+| `form-no-script` | a form posted without a Turnstile token, with Turnstile on | 1 per hour per address |
+
+### Medusa's limiter
+
+- **The store** (`store.ts`): Redis with one Lua script per hit (`INCR`, `PEXPIRE` on the first, `PTTL`), keys `rl:<counter>:<sha256(scope)>`, through `ioredis` 6.1.0 (a new dependency of the backend, so the lockfile changed and `windows-smoke` ran on the branch). The in-memory store only without `REDIS_URL`. **With Redis unreachable, requests pass** and the limiter logs one warning a minute: a Redis outage must not stop sign-ins (the backend's spec stops it and counts the warning).
+- **The middleware** (`middleware.ts`, in `api/middlewares.ts` before the routes it guards): a refusal is `429` with `Retry-After` (whole seconds) and `{ type: "too_many_requests", message }`. An e-mail key is read from the body Medusa's global parser already read; the cart's id from the path.
+- **`POST /shopblok/rate-limit`** (`api/shopblok/rate-limit/route.ts`): `{ rule, key }` for the storefront's rules only, and only on a signed call (403 otherwise, a forged or replayed one included); it consumes the rule for the signed address and the key and answers `{ allowed, retryAfter }`. A key is up to 128 letters, digits, `_` or `-` (an e-mail is sent as its SHA-256).
+
+### The signed address
+
+`x-shopblok-client: v1;<address|server>;<unix seconds>;<HMAC-SHA256 hex>`, the HMAC with `STOREFRONT_SIGNING_SECRET` over the version, the address, the time, the method (upper case) and the path without its query, one per line (`apps/storefront/src/lib/security/client-signature.ts`; the backend's copy is `apps/backend/src/lib/rate-limit/signature.ts`, and both test the same vector). Medusa recomputes it for the request it received, compares in constant time, allows 60 s of skew, and keys on the signed address when it holds and on the request's own address otherwise. Medusa sets Express's `trust proxy` to 1, so "the request's own address" is the last `X-Forwarded-For` hop.
+
+- **The visitor's address.** On Vercel, `@vercel/functions`' `ipAddress` (its `x-real-ip`), else the first hop of the `x-forwarded-for` Vercel writes; elsewhere `127.0.0.1`. The storefront finds the visitor's request through Next's work-unit store (a page or route rendered for a request, a server action, `"use cache: private"`); with no request (the build's prerendering, revalidation, the proxy's map, jobs) the call is signed as `server`, which skips the per-address counters and `/store/*`'s, never a per-key one. The time comes from `performance`, since `Date.now()` inside a prerender aborts it.
+- **`sdk.ts` signs every server-side call**, and the SDK's errors keep `retryAfter`. Nothing signs a browser's request: the module is `server-only`. The header's name is in both apps' Sentry scrubbers.
+- **`STOREFRONT_SIGNING_SECRET`** in both apps' `.env.example`; `pnpm bootstrap` writes one random value into both (and `REVALIDATE_SECRET`'s shared value the same way, through one helper). `doctor`'s `storefront-signing` is a warning on a PC and an error on a deployment when it is blank: Medusa would then count every visitor on the storefront's address, and refuse the storefront's route, so the forms', the newsletter's and Payload's limits would let everything through. The fingerprints check (D134) compares the two apps' values on a deployment.
+
+### The storefront's limits
+
+- **The forms** (`form-handlers.ts`): after the spam trap and validation, `form` per address and form id; **the newsletter** (`subscribe.ts`): `newsletter` per address and per e-mail; **registration** (Medusa's `customer-register`) through its 429.
+- **Payload's `login` and `forgot-password`** (`payload/collections/users.ts`, `limitSignIn`, a `beforeOperation` hook): it consumes `payload-login` or `payload-reset` before Payload reads the user or checks the password, so **one address can neither keep guessing an admin's password nor lock the account**: the 11th sign-in in 15 minutes is a 429 with "Too many attempts. Try again in N minutes." whatever the password, Payload's lockout never counts it, and another address signs in (`rate-limit.spec.ts`). The hook skips the Local API (seed, bootstrap, jobs). **Payload's own lockout stays** (`maxLoginAttempts` 5, `lockTime` 10 min): five wrong passwords for one account from any number of addresses still lock it for 10 minutes, below D142's 10 per address; it is the guard against many addresses guessing one account, which a per-address limit cannot be.
+- **When Medusa does not answer** within 2 s (or answers anything but its JSON), the request is let through, with one log line a minute (`rate-limit: Medusa did not answer for "<rule>"`). `outage.spec.ts` sends the form twice with Medusa stopped: both are stored and the log has one new line.
+- **`/next/csp-report`** keeps its own limit, in memory per instance: 30 reports a minute per address, then 429 with `Retry-After: 60` (beside T106's per-instance caps).
+- **The refusal** is `ActionError("too-many")` with `retryAfter` (Medusa's 429 becomes one in `action.ts`; the limiter's answer in the handlers through `TooManyError`). With scripts the island shows it; without, the page drawn after the post does (a page prerendered whole answers in place, as SETUP "Forms (T67)" says). The message is ICU (`{minutes, plural, …}`) in the four catalogs, 9 new keys each (824 messages): the refusal for the forms, the newsletter and the auth templates, Turnstile's "could not confirm" line, and the no-script line. In the form block and the newsletter it is a `role="alert"` paragraph of its own (`data-slot="form-block-refusal"`, `"newsletter-form-refusal"`), and no field is marked; what was typed is kept.
+
+### Turnstile (D143)
+
+- **The integration**: `NEXT_PUBLIC_TURNSTILE_SITE_KEY` and `TURNSTILE_SECRET_KEY`, both or neither (`@shopblok/integrations`: `wired`, half set is a warning and stays off). `doctor` errors on one of Cloudflare's published test keys in production (`turnstile-keys`), and `--online` posts the secret to Siteverify with a token that is not one: `invalid-input-secret` is an error, `invalid-input-response` means the secret is good (`turnstile-secret`).
+- **The server** (`lib/security/turnstile.ts`): the token (`cf-turnstile-response`) is checked with Siteverify (5 s timeout) **before anything else** in the form, newsletter and registration actions; a failed check is the refusal "We could not confirm that you are not a robot. Please try again." A post with no token is one without scripts: it is taken under `form-no-script`, 1 per hour per address. **Only a token Cloudflare refuses refuses the post** (`invalid-input-response`, `timeout-or-duplicate`, `missing-input-response`, `bad-request`). Cloudflare not answering, a non-2xx answer or its own `internal-error` lets the post through under the rate limits alone, with one log line a minute, as the limiter does when Medusa does not answer; a secret Cloudflare refuses (`invalid-input-secret`, `missing-input-secret`) does too, with its own line, so a wrong key does not lock every form.
+- **The page** (`components/security/challenge.tsx`, server): the widget's box and a `<noscript>` line ("Without JavaScript, this form can be sent once an hour."), only with both keys. **The island** (`turnstile-island.tsx`) is a box and an effect that imports `turnstile-widget.ts` once it has mounted; the widget's module loads Cloudflare's script on the form's first focus or press, renders `appearance: "interaction-only"` in the market's language (compact under 300 px), and puts its token into the form. **A press before the token is held**, from hydration on (the island holds a press made before the widget's module has loaded and hands it over, or sends it as it is if the module cannot load), and sent again with its button once the token comes; a widget error, an unsupported browser or a script that does not load releases it without a token (the server's limits decide then). After each sending the widget starts again (a token is good once). The box says `data-ready` once it holds the form's presses.
+- **The CSP**: `challenges.cloudflare.com` in `script-src` and `frame-src` of the static policy, with the site key only (the policy is made by `next build`, and Turborepo's strict mode drops `TURNSTILE_SECRET_KEY` from it: with both keys required, CI's `integrations-live` build had no Cloudflare host and `turnstile.spec.ts` and PostHog's registration test failed on the CSP; the widget still needs both keys) (`csp.ts`'s hosts table, `when: "turnstile"`, with Cloudflare's CSP page as its source). The sign-in pages have T107's nonce policy, where `'strict-dynamic'` lets the nonced island's inserted script run; the frame needs `frame-src` there too, which the shared directives give it.
+- **CI**: `integrations-live` builds and runs with Cloudflare's always-pass pair (`1x00000000000000000000AA`, `1x0000000000000000000000000000000AA`; public, not secrets, in `ci.yml`), so `turnstile.spec.ts` runs there under the CSP fixture. SETUP "Turning on an integration" has the steps for a real widget.
+
+### The first load
+
+The widget's code is out of every first load: `first-load.ts` keeps `turnstile-widget.ts` out (marker `shopblok:turnstile`, 0.8 KB gzipped, built whatever the keys). What T108 adds to the shell is the box island and its import stub (Turbopack's loader for the import, a 201-byte chunk) and the refusal's paragraph in the footer's newsletter. Measured against `main` at `3b7948b`, built here the same way:
+
+| Route | `main`, keyless | this PR, keyless | `main`, keyed | this PR, keyed (left of the budget) |
+|---|---|---|---|---|
+| The product page | 344,521 | 345,083 (+562) | 346,505 | 346,876 (+371; 260 left of 339 KB) |
+| The listings | 345,239 | 345,800 (+561) | 347,202 | 347,569 (+367; 591 left of 340 KB) |
+
+After the review's fixes (item 4 holds a press in the island), keyed: the product page 346,962 (+457 over `main`, 174 bytes left of 339 KB), the listings 347,655 (+453, 505 left); keyless both about 86 bytes more than above (337.1 KB and 337.8 KB in `first-load.ts`'s table). The first-load check passes both builds.
+
+"Keyed" is PostHog's and Sentry's stand-in keys, as `integrations-live` builds (a key changes how Turbopack splits the shared chunks, so the two columns grow differently). The widget first sat in the shell, 905 bytes over `main`; a `lazyIsland` loader made it 1,047, since importing `lazy-island.ts` from the shell split a shared chunk in two. So the plan's "adds no byte to a first load" holds for the widget, not for the box and the refusal: about 0.4 to 0.6 KB, inside both budgets, which T113's savings (D150) cover.
+
+### Tests keep their own visitors
+
+The storefront takes the visitor's address from `x-e2e-client-ip` only with `E2E_TEST_ROUTES=true` and neither `DEPLOY_ENV` nor `VERCEL_ENV` (`client-signature.test.ts` covers `DEPLOY_ENV=staging`; CI's build has none). `e2e/support/visitor.ts` gives every test context a fresh `10.x.y.z` (the CSP fixture's `extraHTTPHeaders`, and `browser.newContext` unless the options name one), and the suites' own API calls do the same (`adminToken`, Payload's locales spec), so the existing suites stay under the real limits. Medusa Admin's token in the e2e helpers is signed per call with a fresh address (`signedForMedusa`). The backend's integration suite gets a fresh limiter per test (`fresh-limits.js`).
+
+### Checks (cloud VM)
+
+- **Unit:** the storefront's Vitest (233 files), `@shopblok/ui`'s (187 files, 6,170 tests), the backend's unit suite, the scripts' tests, typecheck and lint green.
+- **Backend** `integration-tests/http/rate-limit.spec.ts`, 17 tests (12, and 5 from the review below): the 11th customer login in 15 minutes for one signed address and e-mail refused and another address passing; Medusa Admin's the same; an unsigned call keyed on the caller; a forged signature keyed on the caller, never on the address it names; **a header replayed on another path or method keyed on the caller**; a `server` call past `/store/*`'s limit but not a cart's; the 601st `/store/*` call in a minute refused; cart completion per cart; `POST /shopblok/rate-limit` 403 unsigned or forged, consuming a rule for the signed address and key, refusing a Medusa rule or a malformed key; Redis stopped: requests pass, one warning.
+- **Storefront** `e2e/rate-limit.spec.ts`, 6 tests against `next start` with `E2E_TEST_ROUTES=true`: a form's 11th sending in an hour refused with scripts in `en` (what was typed kept; another visitor passes) and without scripts in `el`; the newsletter's 6th with scripts in `el` and without in `en`; a third sign-up of one e-mail in a day refused whoever sends it; Payload's 11th sign-in from one address refused before the password, a wrong password refused the same, the account not locked.
+- **`e2e/integrations/turnstile.spec.ts`**, 5 tests with Cloudflare's always-pass pair, against Cloudflare itself from the cloud VM: nothing of Cloudflare's before the form is focused (nor once the widget's code is in), then the token and the sending; a press before the token waits for it; the registration form gets its token; without scripts the note is there and a second post in the hour is refused; `doctor --online` finds the secret accepted.
+- **Existing suites** with the limits on and the visitor fixture: `auth`, `forms`, `checkout-us`, `payload-admin`, `payload-locales`, `consent`, `csp-nonce`, `headers` (56 tests) green locally; CI runs every suite.
+- **The build** logs no 429 from Medusa (its prerendering is signed as `server`).
+
+### Mutations (each fails a check)
+
+| Mutation | What fails |
+|---|---|
+| Every limit in the table set to 0 | the shop's own suites: `checkout-us.spec.ts`'s three purchases fail at once (Medusa refuses the store's calls) |
+| The signature check removed (any well-formed header accepted) | the backend's spec, 3 tests: the forged signature (two visitors share the forged address's bucket), the replay, and the route's 403 |
+| The method and path left out of the HMAC | the backend's spec, 2 tests: the replay on another path or method, and the route's 403 for a header from another call |
+| Turnstile's always-fail secret (`2x0000000000000000000000000000000AA`) | `turnstile.spec.ts`'s first test: the form answers "We could not confirm that you are not a robot. Please try again." instead of the thanks |
+
+### Known limits
+
+- **The checkout's completion:** a 429 on `cart-complete` shows as the checkout's "rejected" message, not the refusal with its minutes (the checkout page's form errors are a closed set). It takes 10 completions of one cart in 10 minutes.
+- **A day's wait reads "1,440 minutes"** (the newsletter's per-e-mail counter): the message has minutes only, as D142 words it.
+- **A storefront hosted off Vercel** counts every visitor as `127.0.0.1`, one bucket: the address comes from Vercel's headers only, since nothing else in front of the shop is trusted (D132 puts it on Vercel).
+- **`x-e2e-client-ip` ignored on staging** is a unit test only (`client-signature.test.ts`); CI's builds have no `DEPLOY_ENV`.
+- **Payload's lockout** is below D142's per-address limit, as above.
+
+### Changes from the review of this PR (PR 153)
+
+The review (`reviews/pr-153-code-review.md`, at `00a5a7e`): 1 must-fix and 8 optional, all fixed; 1 skipped as unconfirmed; 1 rejected.
+
+| # | Finding | Fix | Test |
+|---|---|---|---|
+| 1 (must-fix) | `/auth/customer/%65mailpass` (and register, reset, `/auth/user/…`) missed the fixed-string matchers; Express decodes the route's parameters, so Medusa still served `emailpass` | the limiter sits on `POST /auth/:actor_type/:auth_provider`, `…/register`, `…/reset-password` and picks the rule from the decoded, lower-cased parameters (`authRateLimit` in `middleware.ts`); any other actor or provider passes | `rate-limit.spec.ts`: plain and encoded sign-ins share one counter (customer, Medusa Admin, two letters encoded), and register and reset the same; all four fail with the old matchers |
+| 2 | `/auth/verification/request` had no per-address counter (the caller picks the e-mail) | `verification-request:address`, 20 per hour (D142's line updated) | `rate-limit.spec.ts`: 20 requests for 20 e-mails from one address, the 21st refused. Medusa answers 401 before the limiter without a registration token, so the test signs up first (the review expected the limiter first) |
+| 3 | `/next/csp-report`'s limit keyed IPv6 by the whole address and cleared every counter when full | `addressKey` (a copy of the backend's, same table in `address-key.test.ts`); when full of live windows, the ones hit longest ago give way | `rate-limit.test.ts`: the /64 grouping, a mapped IPv4, and an address over its limit kept through a flood |
+| 4 | a press between hydration and the widget's module counted as "no scripts" | the island holds the press at once and hands it to `attachTurnstile` (`press`); if the module cannot load, it sends it as it is | `turnstile-island.test.tsx`: the early press is held and sent with its button once the token comes; with the module failing, it is sent |
+| 5 | Cloudflare's own failure refused the form | only token codes refuse; non-2xx, `internal-error` and unknown codes pass with one line a minute; a refused secret passes with its own line | `turnstile.test.ts`, a test per class; Siteverify checked live: the always-fail secret still answers `invalid-input-response` |
+| 6 | `consumeLimit` dropped a base path in `MEDUSA_BACKEND_URL` | the base path is kept, and the signature covers the path Medusa sees | `rate-limit.test.ts` |
+| 7 | the verify page's "send again" showed "could not send" on Medusa's 429 | a `too-many` flash gives the check-email screen the refusal with its minutes (with and without scripts: the resend posts a server action that redirects in both) | `auth.test.tsx`: the check-email screen's alert with the minutes. No e2e line: a sixth resend needs five 60 s cooldowns |
+| 8 | a fresh process let its first requests through and logged a false Redis outage | the limiter is made as the routes load, and until the first connection is up or has failed a hit waits for it (at most 1 s), without the warning | `limiter.unit.spec.ts`: the first hit on a fresh store is counted with no warning (fails on the old store); the stopped-Redis tests still see one warning |
+| 9 | Payload's sign-in had no per-address cap | `payload-login:address`, 30 per 15 min (D142's line updated) | the table's test |
+| 10 (skipped) | the signature's clock (`performance.timeOrigin + now()`) could drift from Medusa's after a clock step or snapshot restore | not confirmed (needs Vercel's runtime) | **T115/T116:** check on staging that Medusa accepts the signed header after an instance has been idle a while |
+
+### Merged with T111 (PR 152)
+
+T111 merged first, so this PR merged `main` (`2401493`). Only the docs met: SETUP.md has T111's section, then this one; the plan's status line names both; NEXT-SESSION.md keeps T110's prompt (T111's) and T109's (this PR's), with T108 and T111 marked done.
+
+Then `main` again after PR 154 (the cache-freshness fix, `30dcab7`): it touched none of this PR's files.
+
+### Baselines and strings
+
+- **Baselines (D51):** the `update-baselines` dispatch (run 45884146696, commit `65c4eb4`) changed 11 PNGs of 795: the three cells this PR redraws (`sections/form-block`, `templates/auth`, `molecules/newsletter-form`, each at 375, 768 and 1440 px) and `templates/product-detail` at 375 and 768 px, the two that redraw by a few pixels from run to run (T84's and T86's dispatches saw them too). 3,187,828 bytes added; the set is 94.35 MB. 11 of 795 is far from half a set, and the history is about 163 MiB of 200 (T105's 160.01 MiB plus this commit; inferred, not measured on a full clone).
+- **UI strings:** 815 → **824**, the nine new messages (the rate limit's refusal, Turnstile's and the no-script note, three each in `molecules.newsletterForm` and `sections.form`, `templates.auth.register.noScript`, and `too-many` and `challenge` in `templates.auth.formErrors`); `e2e/ui-strings.spec.ts` counts 824 rows in the CSV export.
+- **The boot test** (`apps/backend/docker/boot-test.sh`): `deploy-config` failed once on `39f55c1` with "the worker's log never says \"Jobs registered.\"" although the log it printed had the line. Under `set -o pipefail`, `docker logs | grep -q` fails when `grep` stops at the match while `docker logs` is still writing (SIGPIPE); the worker's debug log is long enough for that. The script now writes the log to a file and greps the file.
+
+### For T109
+
+- **The consent record:** call `consumeLimit("consent")` from `lib/security/rate-limit.ts` in its action (the rule is in the table, `storefront: true`); a `TooManyError` gives the refusal.
+- **MFA:** `admin-code-check` is in the table; attach it in `api/middlewares.ts` to the routes Medusa's MFA adds, keyed by the user (`rateLimit("admin-code-check", <the user from the request>)` in `lib/rate-limit/middleware.ts`).
+- **Guest carts' sessions on a signed call** (D144): `verifyClientHeader` in `lib/rate-limit/signature.ts` tells a signed call; `req` keeps nothing of it today.

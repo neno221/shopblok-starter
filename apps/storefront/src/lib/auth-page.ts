@@ -53,7 +53,15 @@ export async function noindexMetadata(
 export const authMetadata = (title: (auth: Messages["templates"]["auth"]) => string) =>
   noindexMetadata((templates) => title(templates.auth));
 
-const FORM_ERRORS = new Set(["credentials", "not-verified", "exists", "rejected", "unavailable"]);
+const FORM_ERRORS = new Set([
+  "credentials",
+  "not-verified",
+  "exists",
+  "rejected",
+  "unavailable",
+  "too-many",
+  "challenge",
+]);
 const FIELDS = new Set<AuthField>(["email", "password", "firstName", "lastName", "phone"]);
 
 /**
@@ -68,6 +76,7 @@ export function authErrorsOf(flash: Flash | null): AuthErrors {
     errors.form = (FORM_ERRORS.has(flash.form) ? flash.form : "rejected") as NonNullable<
       AuthErrors["form"]
     >;
+  if (errors.form === "too-many") errors.retryAfter = flash.retryAfter ?? 60;
   const fields: NonNullable<AuthErrors["fields"]> = {};
   for (const [name, kind] of Object.entries(flash.errors ?? {})) {
     if (!FIELDS.has(name as AuthField)) continue;

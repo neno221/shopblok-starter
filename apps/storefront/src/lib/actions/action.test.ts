@@ -5,7 +5,8 @@ import { createCookieJar } from "../../test-support/cookie-jar";
 const jar = createCookieJar();
 vi.mock("next/headers", () => ({ cookies: jar.cookies }));
 
-const { action, ActionError, formDataToObject, toFieldErrors } = await import("./action");
+const { action, ActionError, formDataToObject, toFieldErrors, TooManyError } =
+  await import("./action");
 const { MedusaRequestError } = await import("../medusa/sdk");
 
 const schema = z.object({
@@ -73,6 +74,22 @@ describe("action(): the actions' one shape (D60, SPEC §11.1)", () => {
     ).toEqual({ ok: false, errors: {}, form: "rejected", message: "The code is invalid" });
     expect(await failing(new MedusaRequestError("x", "rejected", 404))).toMatchObject({
       form: "not-found",
+    });
+    // M7 D142 (T108): Medusa's limiter, with the wait its message names.
+    expect(
+      await failing(
+        new MedusaRequestError(
+          "answered 429: Too many requests: retry after 90 s.",
+          "rejected",
+          429,
+        ),
+      ),
+    ).toEqual({ ok: false, errors: {}, form: "too-many", retryAfter: 90 });
+    expect(await failing(new TooManyError(12.4))).toEqual({
+      ok: false,
+      errors: {},
+      form: "too-many",
+      retryAfter: 13,
     });
   });
 

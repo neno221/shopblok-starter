@@ -46,6 +46,8 @@ secret() { od -An -tx1 -N32 /dev/urandom | tr -d ' \n'; }
 # `fingerprint` in scripts/lib/deploy-secrets.ts, which `pnpm staging:secrets` sets (D134).
 fingerprint() { printf 'shopblok:%s:%s' "$1" "$2" | sha256sum | cut -c1-16; }
 cron_secret="$(secret)"
+# T108 (D142): the storefront signs its calls with it; doctor errors on a deployment without it.
+signing_secret="$(secret)"
 meili_key=shopblok-local-dev-master-key
 
 echo "boot-test: a fresh database medusa_deploy"
@@ -70,7 +72,8 @@ MEILISEARCH_INDEX_PREFIX=deploy
 JWT_SECRET=$(secret)
 COOKIE_SECRET=$(secret)
 CRON_SECRET=$cron_secret
-SHOPBLOK_SECRET_FINGERPRINTS=CRON_SECRET:$(fingerprint CRON_SECRET "$cron_secret"),MEILI_MASTER_KEY:$(fingerprint MEILI_MASTER_KEY "$meili_key")
+STOREFRONT_SIGNING_SECRET=$signing_secret
+SHOPBLOK_SECRET_FINGERPRINTS=CRON_SECRET:$(fingerprint CRON_SECRET "$cron_secret"),MEILI_MASTER_KEY:$(fingerprint MEILI_MASTER_KEY "$meili_key"),STOREFRONT_SIGNING_SECRET:$(fingerprint STOREFRONT_SIGNING_SECRET "$signing_secret")
 MEDUSA_BACKEND_URL=http://localhost:$PORT
 STOREFRONT_URL=http://localhost:8000
 PAYLOAD_SERVER_URL=http://localhost:8000
@@ -127,15 +130,19 @@ echo "boot-test: /health 200"
 echo "boot-test: waiting for the worker's jobs"
 # Medusa logs each job it registers at the debug level only (the worker runs with LOG_LEVEL=debug
 # here), then "Jobs registered."; every file of the build's jobs folder must be among them.
+# The log goes to a file first: under pipefail, `docker logs | grep -q` fails when grep stops reading
+# at the match while docker logs is still writing (SIGPIPE), which happened on a long debug log.
 for _ in $(seq 1 60); do
-  if docker logs "$WORKER" 2>&1 | grep -q '"Jobs registered."'; then break; fi
+  docker logs "$WORKER" >"$workdir/worker.log" 2>&1 || true
+  if grep -q '"Jobs registered."' "$workdir/worker.log"; then break; fi
   if [ "$(docker inspect -f '{{.State.Running}}' "$WORKER")" != "true" ]; then
     echo "boot-test: the worker stopped" >&2
     exit 1
   fi
   sleep 2
 done
-docker logs "$WORKER" 2>&1 | grep -q '"Jobs registered."' || {
+docker logs "$WORKER" >"$workdir/worker.log" 2>&1 || true
+grep -q '"Jobs registered."' "$workdir/worker.log" || {
   echo "boot-test: the worker's log never says \"Jobs registered.\"" >&2
   exit 1
 }

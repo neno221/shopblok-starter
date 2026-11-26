@@ -11,12 +11,15 @@
 // 28rem wide (a container query: the form decides, not the viewport). `sending` keeps the button in
 // place and named but makes it `type="button"` and `aria-disabled`, with a disabled submit button
 // first in the form, which stops Enter, as NewsletterForm does. The spam trap and other hidden inputs
-// are the shop's (`hiddenFields`). A server component; the shop draws it from an island that keeps the
-// action's answer.
+// are the shop's (`hiddenFields`). When the shop refuses the post with no field to blame (M7, T108:
+// a rate limit, with how many minutes to wait, or a Turnstile check that did not pass), an alert
+// says why (`refusal`, `role="alert"`); with Turnstile on, the shop's widget sits above the button
+// (`challenge`). A server component; the shop draws it from an island that keeps the action's answer.
 import type {
   FormBlockSection as FormBlockSectionData,
   FormField,
 } from "@shopblok/registry/contracts";
+import { formatMessage } from "@shopblok/i18n";
 import { FORM_LIMITS } from "@shopblok/registry/form-limits";
 import { Button } from "@shopblok/ui/atoms/button";
 import { Input } from "@shopblok/ui/atoms/input";
@@ -24,6 +27,7 @@ import { NativeSelect, NativeSelectOption } from "@shopblok/ui/atoms/native-sele
 import { Spinner } from "@shopblok/ui/atoms/spinner";
 import { Textarea } from "@shopblok/ui/atoms/textarea";
 import { VisuallyHidden } from "@shopblok/ui/atoms/visually-hidden";
+import { minutesToWait, type FormRefusal } from "@shopblok/ui/lib/refusal";
 import { cn } from "@shopblok/ui/lib/utils";
 import { Field, FieldLabel } from "@shopblok/ui/primitives/field";
 import { Prose } from "@shopblok/ui/sections/prose";
@@ -40,6 +44,8 @@ type FormFieldError = "required" | "pattern" | "invalid";
 
 type FormBlockSectionProps = FormBlockSectionData & {
   copy: Pick<SectionsCopy, "form">;
+  /** A BCP 47 tag such as `el-CY`: the market's `<html lang>` (the wait's minutes are plural). */
+  locale: string;
   /** What `<form action>` takes: the shop's server action. */
   action?: React.ComponentProps<"form">["action"];
   /** Where the form is. `error` with no field to blame says the form could not be sent. */
@@ -59,6 +65,10 @@ type FormBlockSectionProps = FormBlockSectionData & {
   hiddenFields?: React.ReactNode;
   /** The `<form>`'s `id`, for a link to it (the no-script answer scrolls back to it). */
   formId?: string;
+  /** With `error`: why the shop refused the post when no field is to blame (M7 D142, D143). */
+  refusal?: FormRefusal;
+  /** The shop's Turnstile widget (M7 D143), above the button; only when its keys are set. */
+  challenge?: React.ReactNode;
   className?: string;
 };
 
@@ -156,6 +166,7 @@ function FormBlockStandard({
   intro,
   form,
   copy,
+  locale,
   action,
   status = "idle",
   errors = {},
@@ -164,6 +175,8 @@ function FormBlockStandard({
   messages = {},
   hiddenFields,
   formId,
+  refusal,
+  challenge,
   className,
 }: FormBlockSectionProps) {
   const id = useId();
@@ -171,6 +184,14 @@ function FormBlockStandard({
   const sending = status === "sending";
   const refused = Object.keys(errors).length > 0;
   const headingId = heading === undefined ? undefined : `${id}-heading`;
+  // A refusal (M7 D142, D143) is an alert of its own (step 6: announced at once); any other
+  // failure is the status line's.
+  const refusalText =
+    status !== "error" || refusal === undefined
+      ? undefined
+      : refusal.kind === "too-many"
+        ? formatMessage(words.tooMany, { minutes: minutesToWait(refusal.retryAfter) }, locale)
+        : words.challenge;
   return (
     <SectionFrame
       data-variant="standard"
@@ -292,7 +313,7 @@ function FormBlockStandard({
               <div className="min-w-0 wrap-break-word">{confirmation ?? <p>{words.done}</p>}</div>
             </div>
           ) : null}
-          {status === "error" ? (
+          {status === "error" && refusalText === undefined ? (
             <p className="flex items-start gap-2 text-sm leading-snug text-destructive">
               <CircleAlertIcon aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
               <span className="min-w-0 wrap-break-word">
@@ -301,6 +322,17 @@ function FormBlockStandard({
             </p>
           ) : null}
         </div>
+        {refusalText === undefined ? null : (
+          <p
+            role="alert"
+            data-slot="form-block-refusal"
+            className="flex items-start gap-2 text-sm leading-snug text-destructive"
+          >
+            <CircleAlertIcon aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+            <span className="min-w-0 wrap-break-word">{refusalText}</span>
+          </p>
+        )}
+        {challenge}
         <Button
           type={sending ? "button" : "submit"}
           disabled={sending}

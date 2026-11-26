@@ -1,4 +1,5 @@
 import { adminCredentials } from "./admin-credentials";
+import { visitorHeaders } from "./visitor";
 
 // What the specs that talk to the server from Node share (PR 94 review, item 9): its address, a
 // token for the bootstrap admin, and the wait for a revalidated read.
@@ -14,7 +15,8 @@ export async function adminToken(): Promise<string> {
   const { email, password } = adminCredentials();
   const response = await fetch(`${base()}/api/users/login`, {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    // A visitor of its own each time (M7 D142: Payload's sign-in limit, `visitor.ts`).
+    headers: { "content-type": "application/json", ...visitorHeaders() },
     body: JSON.stringify({ email, password }),
   });
   const token = ((await response.json()) as { token?: string }).token ?? "";

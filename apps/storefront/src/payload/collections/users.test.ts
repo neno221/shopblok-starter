@@ -1,6 +1,20 @@
 import type { CollectionBeforeChangeHook, CollectionBeforeDeleteHook } from "payload";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { closedFirstUser, keepOneAdmin, keepOneAdminOnDelete, SEED_CONTEXT } from "./users";
+import {
+  closedFirstUser,
+  keepOneAdmin,
+  keepOneAdminOnDelete,
+  limitSignIn,
+  SEED_CONTEXT,
+  tooManyMessage,
+} from "./users";
+import type * as RateLimitModule from "../../lib/security/rate-limit";
+
+const consumeLimit = vi.fn();
+vi.mock("../../lib/security/rate-limit", async (importOriginal) => ({
+  ...(await importOriginal<typeof RateLimitModule>()),
+  consumeLimit: (...args: unknown[]) => consumeLimit(...args),
+}));
 
 /** A request whose `users` has `otherAdmins` admins besides the one acted on. */
 function request(otherAdmins: number, existing: { role: string } = { role: "admin" }) {
@@ -128,5 +142,43 @@ describe("closedFirstUser (M7 D136, 6)", () => {
     vi.stubEnv("DEPLOY_ENV", "");
     vi.stubEnv("VERCEL_ENV", "");
     await expect(create(0)).resolves.toMatchObject({ email: "a@example.com" });
+  });
+});
+
+// M7 D142 (T108): Payload's sign-in and reset, limited before Payload reads the user.
+describe("limitSignIn", () => {
+  const headers = new Headers({ "x-e2e-client-ip": "203.0.113.7" });
+  const run = (operation: string, payloadAPI: string, email = "Admin@Example.com") =>
+    limitSignIn({
+      operation,
+      args: { data: { email, password: "guess" } },
+      req: { payloadAPI, headers },
+    } as unknown as Parameters<typeof limitSignIn>[0]);
+
+  it("counts a REST sign-in per address and e-mail, and a reset per e-mail", async () => {
+    const { emailKey } = await import("../../lib/security/rate-limit");
+    consumeLimit.mockReset().mockResolvedValue({ allowed: true });
+    await run("login", "REST");
+    await run("forgotPassword", "REST");
+    expect(consumeLimit.mock.calls).toEqual([
+      ["payload-login", emailKey("admin@example.com"), headers],
+      ["payload-reset", emailKey("admin@example.com"), headers],
+    ]);
+  });
+
+  it("refuses with a 429 and the minutes to wait, before the password is checked", async () => {
+    consumeLimit.mockReset().mockResolvedValue({ allowed: false, retryAfter: 61 });
+    await expect(run("login", "REST")).rejects.toMatchObject({
+      status: 429,
+      message: "Too many attempts. Try again in 2 minutes.",
+    });
+    expect(tooManyMessage(30)).toBe("Too many attempts. Try again in 1 minute.");
+  });
+
+  it("leaves the Local API and every other operation alone", async () => {
+    consumeLimit.mockReset();
+    await run("login", "local");
+    await run("update", "REST");
+    expect(consumeLimit).not.toHaveBeenCalled();
   });
 });

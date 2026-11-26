@@ -261,16 +261,20 @@ function envFiles(): StepResult {
     }
   }
 
-  // REVALIDATE_SECRET is one secret shared by both apps (SPEC §15): take the one that exists.
-  const backendShared = getEnvValue(texts.get(backendEnv) ?? "", "REVALIDATE_SECRET") || undefined;
-  const storefrontShared =
-    getEnvValue(texts.get(storefrontEnv) ?? "", "REVALIDATE_SECRET") || undefined;
-  if (backendShared && storefrontShared && backendShared !== storefrontShared) {
-    notes.push(
-      "REVALIDATE_SECRET differs between apps/backend/.env and apps/storefront/.env; Medusa's revalidation calls will be refused until they match. Not changed.",
-    );
-  }
-  const shared = backendShared ?? storefrontShared ?? generateSecret();
+  // REVALIDATE_SECRET (SPEC §15) and STOREFRONT_SIGNING_SECRET (M7 D142: the storefront signs the
+  // visitor's address for Medusa) are each one secret shared by both apps: take the one that exists.
+  const sharedSecret = (name: string): string => {
+    const inBackend = getEnvValue(texts.get(backendEnv) ?? "", name) || undefined;
+    const inStorefront = getEnvValue(texts.get(storefrontEnv) ?? "", name) || undefined;
+    if (inBackend && inStorefront && inBackend !== inStorefront) {
+      notes.push(
+        `${name} differs between apps/backend/.env and apps/storefront/.env; the calls between the two apps that use it are refused until they match. Not changed.`,
+      );
+    }
+    return inBackend ?? inStorefront ?? generateSecret();
+  };
+  const shared = sharedSecret("REVALIDATE_SECRET");
+  const signing = sharedSecret("STOREFRONT_SIGNING_SECRET");
 
   const wanted: [EnvFile, Record<string, string>][] = [
     [
@@ -279,6 +283,7 @@ function envFiles(): StepResult {
         JWT_SECRET: generateSecret(),
         COOKIE_SECRET: generateSecret(),
         REVALIDATE_SECRET: shared,
+        STOREFRONT_SIGNING_SECRET: signing,
       },
     ],
     [
@@ -288,6 +293,7 @@ function envFiles(): StepResult {
         PREVIEW_SECRET: generateSecret(),
         CRON_SECRET: generateSecret(),
         REVALIDATE_SECRET: shared,
+        STOREFRONT_SIGNING_SECRET: signing,
       },
     ],
   ];

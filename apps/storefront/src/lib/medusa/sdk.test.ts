@@ -169,3 +169,57 @@ describe("localeHeaders", () => {
     ]);
   });
 });
+
+// M7 D142 (T108): the signed visitor on every call, and the limiter's wait read back.
+describe("the signed address", () => {
+  it("signs each call for its method and path, as `server` with no visitor", async () => {
+    vi.stubEnv("STOREFRONT_SIGNING_SECRET", "s");
+    const calls = stubMedusaFetch(() => ({ body: { cart: { id: "cart_1" } } }));
+    const { medusaRequest } = await loadSdk();
+    const { clientSignature } = await import("../security/client-signature");
+    await medusaRequest((sdk) => sdk.store.cart.retrieve("cart_1", { fields: "id" }));
+    const [version, address, time, signature] = calls[0]!.headers
+      .get("x-shopblok-client")!
+      .split(";");
+    expect([version, address]).toEqual(["v1", "server"]);
+    expect(signature).toBe(
+      clientSignature("s", {
+        address: "server",
+        time: Number(time),
+        method: "GET",
+        path: "/store/carts/cart_1",
+      }),
+    );
+    // The query is not signed: Medusa's check reads the path alone.
+    expect(calls[0]!.url.search).toContain("fields=id");
+  });
+
+  it("adds nothing without STOREFRONT_SIGNING_SECRET", async () => {
+    const calls = stubMedusaFetch(() => ({ body: { regions: [] } }));
+    const { medusaRequest } = await loadSdk();
+    await medusaRequest((sdk) => sdk.store.region.list());
+    expect(calls[0]!.headers.has("x-shopblok-client")).toBe(false);
+  });
+
+  it("reads the limiter's wait from a 429's message, a minute when it names none", async () => {
+    stubMedusaFetch(() => ({
+      status: 429,
+      body: { type: "too_many_requests", message: "Too many requests: retry after 312 s." },
+    }));
+    const { medusaRequest, retryAfterOf } = await loadSdk();
+    await expect(medusaRequest((sdk) => sdk.store.region.list())).rejects.toMatchObject({
+      status: 429,
+      retryAfter: 312,
+    });
+    expect(retryAfterOf("Too many")).toBe(60);
+  });
+
+  it("joins a base URL's own path as the SDK does", async () => {
+    const { requestPath } = await loadSdk();
+    expect(requestPath("/store/carts", "http://medusa.test:9000")).toBe("/store/carts");
+    expect(requestPath("store/carts?x=1", "http://medusa.test:9000/api/")).toBe("/api/store/carts");
+    expect(requestPath(new URL("http://medusa.test:9000/auth/session"), "http://x")).toBe(
+      "/auth/session",
+    );
+  });
+});

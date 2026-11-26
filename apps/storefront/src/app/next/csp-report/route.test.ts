@@ -180,6 +180,8 @@ describe("POST /next/csp-report (D140)", () => {
 
   it("forwards at most 100 violations a minute, and warns once past it", async () => {
     vi.stubEnv("NEXT_PUBLIC_SENTRY_DSN", DSN);
+    // Many visitors (CI's test header), so the per-address limit (T108) stays out of the way.
+    vi.stubEnv("E2E_TEST_ROUTES", "true");
     const { POST } = await load();
     for (let n = 0; n < 101; n += 1) {
       const report = {
@@ -188,12 +190,25 @@ describe("POST /next/csp-report (D140)", () => {
           "blocked-uri": `https://evil.example.com/${n}.js`,
         },
       };
-      expect((await POST(post(JSON.stringify(report)))).status).toBe(204);
+      const visitor = { "x-e2e-client-ip": `203.0.113.${n}` };
+      expect((await POST(post(JSON.stringify(report), undefined, visitor))).status).toBe(204);
     }
     await settled();
     expect(fetchMock).toHaveBeenCalledTimes(100);
     expect(warn).toHaveBeenCalledTimes(1);
     expect(String(warn.mock.calls[0]?.[0])).toContain("over 100 violations this minute");
+  });
+
+  // M7 D142 (T108): per visitor's address, in this instance's memory, before anything is read.
+  it("takes 30 posts a minute from one address, then answers 429 with Retry-After", async () => {
+    vi.stubEnv("E2E_TEST_ROUTES", "true");
+    const { POST } = await load();
+    const from = (address: string) =>
+      post(JSON.stringify(LEGACY), undefined, { "x-e2e-client-ip": address });
+    for (let n = 0; n < 30; n += 1) expect((await POST(from("198.51.100.7"))).status).toBe(204);
+    const refused = await POST(from("198.51.100.7"));
+    expect([refused.status, refused.headers.get("retry-after")]).toEqual([429, "60"]);
+    expect((await POST(from("198.51.100.8"))).status).toBe(204);
   });
 
   it("forwards an order transfer page's report without its id or token", async () => {

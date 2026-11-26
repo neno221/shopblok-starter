@@ -17,6 +17,7 @@ import {
   type FooterVariant,
 } from "../../lib/site";
 import { FormHoneypot } from "../cms/form-honeypot";
+import { challengeFor } from "../security/challenge";
 import { NewsletterFormIsland } from "../cms/newsletter-form-island";
 import { ShellLogo } from "./logo";
 import { getShellData } from "./shell-data";
@@ -60,6 +61,7 @@ function newsletterProps(
         prefetch={SHELL_PREFETCH}
         fieldName={signup.fieldName}
         hiddenFields={<FormHoneypot label={messages.sections.form.honeypot} />}
+        challenge={challengeFor(market.htmlLang, messages.molecules.newsletterForm.noScript)}
         submit={subscribeNewsletter.bind(null, { market: market.key, form: signup.formId })}
         formId="footer-newsletter"
         permalink={`${homeHref}#footer-newsletter`}

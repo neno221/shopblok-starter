@@ -35,7 +35,7 @@ export function expectedLive(env: EnvLike): Expected {
       result.expected.push(status.id);
       result.lines.push(`${label} expected live (local: bootstrap writes its keys)`);
     } else if (status.configured && !status.wired) {
-      // Named before its code (M7's Turnstile until T108): its keys change nothing yet.
+      // Named before its code (as M7's Turnstile was until T108): its keys change nothing yet.
       result.notLive.push({
         id: status.id,
         missing: `its code arrives in ${status.arrives ?? "a later task"}`,

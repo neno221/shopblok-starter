@@ -29,6 +29,14 @@
     ],
     ["No customer for ann@example.com", "No customer for [email]"],
     ["Expected code=42 to be a number", "Expected code=[Filtered] to be a number"],
+    [
+      "x-shopblok-client: v1;203.0.113.7;1764170000;aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "x-shopblok-client: [Filtered]"
+    ],
+    [
+      "headers x-shopblok-client=v1;2001:db8::1;1764170000;aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa sent",
+      "headers x-shopblok-client=[Filtered] sent"
+    ],
     ["Plain message", "Plain message"]
   ]
 }

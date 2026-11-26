@@ -47,17 +47,15 @@ describe("expectedLive (T103)", () => {
     expect(result.problems).toEqual([]);
   });
 
-  it("never expects an integration whose code has not arrived, even with its keys (M7's Turnstile)", () => {
+  // M7 T108 (D143): Turnstile's code is built, so its keys (Cloudflare's test keys in CI) turn it on.
+  it("expects Turnstile when the job holds its two keys", () => {
     const result = expectedLive({
       ...sinks,
-      NEXT_PUBLIC_TURNSTILE_SITE_KEY: "site",
-      TURNSTILE_SECRET_KEY: "secret",
+      NEXT_PUBLIC_TURNSTILE_SITE_KEY: "1x00000000000000000000AA",
+      TURNSTILE_SECRET_KEY: "1x0000000000000000000000000000000AA",
     });
-    expect(result.expected).not.toContain("turnstile");
-    expect(result.notLive).toContainEqual({ id: "turnstile", missing: "its code arrives in T108" });
-    expect(result.lines.find((line) => line.startsWith("turnstile"))).toContain(
-      "its keys are held, its code arrives in T108",
-    );
+    expect(result.expected).toContain("turnstile");
+    expect(result.notLive.map((each) => each.id)).not.toContain("turnstile");
   });
 
   it("a half-set integration is a problem that names what is missing, never a value", () => {

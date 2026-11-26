@@ -1,6 +1,7 @@
 import { expect } from "@playwright/test";
 import { adminCredentials } from "./admin-credentials";
 import { appEnv } from "./app-env";
+import { signedForMedusa } from "./visitor";
 
 // Medusa's Admin API from Node as the bootstrap admin (T60's sync.spec.ts, T71's markets-add): its
 // origin, a login, and a JSON call that fails the test unless it is a 2xx.
@@ -19,7 +20,11 @@ export async function medusaAdminToken(medusa: string = medusaUrl()): Promise<st
   const { email, password } = adminCredentials();
   const response = await fetch(`${medusa}/auth/user/emailpass`, {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    // Signed for a visitor of its own each time (M7 D142: Medusa Admin's sign-in limit, `visitor.ts`).
+    headers: {
+      "content-type": "application/json",
+      ...signedForMedusa("POST", "/auth/user/emailpass"),
+    },
     body: JSON.stringify({ email, password }),
   });
   expect(response.status, `Medusa's admin login: ${await response.clone().text()}`).toBe(200);

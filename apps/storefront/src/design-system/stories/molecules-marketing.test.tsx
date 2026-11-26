@@ -57,6 +57,8 @@ describe("the marketing molecules' stories", () => {
       "sending",
       "done",
       "error",
+      // M7 T108: the rate limit's refusal.
+      "too-many",
       "long",
     ]);
     expect(ids("molecules/copy-code-chip")).toEqual([

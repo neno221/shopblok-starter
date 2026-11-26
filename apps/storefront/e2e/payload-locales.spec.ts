@@ -1,6 +1,7 @@
 import type { APIRequestContext, Frame, Page } from "@playwright/test";
 import { expect, test } from "./support/csp";
 import { adminCredentials } from "./support/admin-credentials";
+import { visitorHeaders } from "./support/visitor";
 import {
   marketsAdmin,
   waitForServedCountries,
@@ -119,7 +120,7 @@ test.beforeAll(async ({ browser, request, baseURL }) => {
   const base = baseURL ?? "http://localhost:8000";
   appOrigin = new URL(base).origin;
   const login = await request.post("/api/users/login", {
-    headers: { Origin: appOrigin },
+    headers: { Origin: appOrigin, ...visitorHeaders() },
     data: { email, password },
   });
   expect(login.status(), "bootstrap's admin logs in").toBe(200);

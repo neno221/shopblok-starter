@@ -1,6 +1,7 @@
 import type {
   CollectionBeforeChangeHook,
   CollectionBeforeDeleteHook,
+  CollectionBeforeOperationHook,
   CollectionConfig,
   PayloadRequest,
 } from "payload";
@@ -88,6 +89,37 @@ export const keepOneAdminOnDelete: CollectionBeforeDeleteHook = async ({ id, req
   if (user.role === "admin") await requireAnotherAdmin(req, id);
 };
 
+/** The refusal's words in the admin, which is in English (Payload's own messages are). */
+export const tooManyMessage = (retryAfter: number): string => {
+  const minutes = Math.max(1, Math.ceil(retryAfter / 60));
+  return `Too many attempts. Try again in ${minutes} ${minutes === 1 ? "minute" : "minutes"}.`;
+};
+
+/**
+ * M7 D142 (T108): Payload's sign-in (10 per 15 minutes per address and e-mail) and its reset
+ * request (3 an hour per e-mail), kept by Medusa's limiter through the signed route
+ * (`lib/security/rate-limit.ts`). `beforeOperation` runs before Payload reads the user or checks the
+ * password, so a refused attempt never reaches Payload's own lockout (`maxLoginAttempts`): one
+ * address can neither keep guessing an admin's password nor lock the account. The Local API
+ * (`payloadAPI: "local"`, the shop's own code, seeds and scripts) is not a visitor and is not
+ * counted. Medusa down: the attempt goes on, and Payload's lockout still holds. The limiter's
+ * module is imported when a sign-in comes, never with the config: it is `server-only`, which throws
+ * in the Payload CLI's plain Node (D95, `config-outside-next.test.ts`).
+ */
+export const limitSignIn: CollectionBeforeOperationHook = async ({ args, operation, req }) => {
+  if (operation !== "login" && operation !== "forgotPassword") return args;
+  if (req.payloadAPI === "local") return args;
+  const { consumeLimit, emailKey } = await import("../../lib/security/rate-limit");
+  const data = (args as { data?: { email?: unknown } }).data;
+  const email = typeof data?.email === "string" ? data.email : "";
+  const limit =
+    operation === "login"
+      ? await consumeLimit("payload-login", emailKey(email), req.headers)
+      : await consumeLimit("payload-reset", emailKey(email), req.headers);
+  if (!limit.allowed) throw new APIError(tooManyMessage(limit.retryAfter), 429, {}, true);
+  return args;
+};
+
 export const Users: CollectionConfig = {
   slug: "users",
   admin: { useAsTitle: "email", defaultColumns: ["email", "role", "updatedAt"] },
@@ -107,6 +139,7 @@ export const Users: CollectionConfig = {
     admin: ({ req }) => req.user?.collection === "users",
   },
   hooks: {
+    beforeOperation: [limitSignIn],
     beforeChange: [closedFirstUser, firstUserIsAdmin, keepOneAdmin],
     beforeDelete: [keepOneAdminOnDelete],
   },

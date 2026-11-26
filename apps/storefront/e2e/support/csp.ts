@@ -13,6 +13,7 @@
 import { appendFileSync } from "node:fs";
 import { expect, test as base, type BrowserContext, type Request } from "@playwright/test";
 import { routeType, type RecordedRequest, type Violation } from "./csp-inventory";
+import { freshVisitor, VISITOR_HEADER } from "./visitor";
 
 export { routeType } from "./csp-inventory";
 
@@ -87,7 +88,14 @@ function recorded(request: Request, site: string): RecordedRequest | undefined {
 // `expectedCspViolations` (M7 T107, a mutation test's own): each entry is a piece of a violation's
 // description (`describeViolation`) that must be seen, so a test that provokes a block asserts it
 // happened instead of passing on any failure (`test.fail`). Every other violation still fails.
+//
+// M7 D142 (T108): every test is a visitor of its own (`visitor.ts`): its context and its `request`
+// send `x-e2e-client-ip` with a fresh address, and so does every context the test opens itself,
+// unless it names one. A test that sets the header itself (`test.use`) keeps its own.
 export const test = base.extend<{ noCspViolations: void; expectedCspViolations: string[] }>({
+  extraHTTPHeaders: async ({ extraHTTPHeaders }, run) => {
+    await run({ [VISITOR_HEADER]: freshVisitor(), ...extraHTTPHeaders });
+  },
   expectedCspViolations: [[], { option: true }],
   noCspViolations: [
     async ({ context, browser, baseURL, expectedCspViolations }, run, testInfo) => {
@@ -117,7 +125,11 @@ export const test = base.extend<{ noCspViolations: void; expectedCspViolations: 
       await watch(context);
       const newContext = browser.newContext.bind(browser);
       browser.newContext = async (...args: Parameters<typeof browser.newContext>) => {
-        const opened = await newContext(...args);
+        const [options = {}] = args;
+        const opened = await newContext({
+          ...options,
+          extraHTTPHeaders: { [VISITOR_HEADER]: freshVisitor(), ...options.extraHTTPHeaders },
+        });
         await watch(opened);
         return opened;
       };

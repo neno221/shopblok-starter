@@ -23,6 +23,7 @@ import { jsonLdText } from "../../lib/seo/product";
 import { SHELL_PREFETCH } from "../../lib/site";
 import { submitForm } from "../../lib/actions/form";
 import { subscribeNewsletter } from "../../lib/actions/newsletter";
+import { challengeFor } from "../security/challenge";
 import { FormHoneypot } from "./form-honeypot";
 // T87 (D102): the islands load with the blocks that draw them (`lazy-islands.tsx`).
 import { FormBlockIsland, NewsletterSectionIsland, OfferEnd, PromoPopup } from "./lazy-islands";
@@ -197,6 +198,7 @@ export function sectionBlock(
           locale={locale}
           fieldName={block.form.fieldName}
           hiddenFields={<FormHoneypot label={copy.form.honeypot} />}
+          challenge={challengeFor(locale, copy.newsletter.noScript)}
           submit={subscribeNewsletter.bind(null, {
             market: context.market.key,
             form: block.form.id,
@@ -210,6 +212,7 @@ export function sectionBlock(
           key={block.key}
           {...block.section}
           copy={copy}
+          locale={locale}
           messages={Object.fromEntries(
             Object.entries(block.messages).map(([id, message]) => [
               id,
@@ -222,6 +225,7 @@ export function sectionBlock(
             )
           }
           hiddenFields={<FormHoneypot label={copy.form.honeypot} />}
+          challenge={challengeFor(locale, copy.form.noScript)}
           submit={submitForm.bind(null, {
             market: context.market.key,
             form: block.section.form.id,

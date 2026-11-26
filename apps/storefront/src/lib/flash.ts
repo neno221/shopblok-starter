@@ -15,6 +15,8 @@ export type Flash = {
   errors?: Record<string, string>;
   /** What was typed, to fill the form in again (strings only, each cut to 200 characters). */
   values?: Record<string, string>;
+  /** With `too-many` (M7 D142): the seconds to wait before trying again. */
+  retryAfter?: number;
 };
 
 /**
@@ -56,10 +58,14 @@ export async function readFlash(path: string, key: string | undefined): Promise<
     if (typeof parsed !== "object" || parsed === null) return null;
     const record = parsed as Record<string, unknown>;
     if (record.key !== key || record.path !== path) return null;
+    const wait = record.retryAfter;
     return {
       ...(typeof record.form === "string" ? { form: record.form } : {}),
       errors: strings(record.errors),
       values: strings(record.values),
+      ...(typeof wait === "number" && Number.isFinite(wait) && wait > 0
+        ? { retryAfter: Math.min(Math.ceil(wait), 86_400) }
+        : {}),
     };
   } catch {
     return null;

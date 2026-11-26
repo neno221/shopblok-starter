@@ -15,7 +15,7 @@
 export type HostDirective = "script-src" | "connect-src" | "frame-src" | "img-src" | "form-action";
 
 /** What a host is for: `always`, or only in a build with that integration's key. */
-export type HostCondition = "always" | "stripe";
+export type HostCondition = "always" | "stripe" | "turnstile";
 
 export type CspHost = {
   readonly directive: HostDirective;
@@ -27,11 +27,14 @@ export type CspHost = {
 };
 
 const STRIPE_GUIDE = "docs.stripe.com/security/guide, Content Security Policy";
+const TURNSTILE_GUIDE =
+  "developers.cloudflare.com/turnstile/reference/content-security-policy (M7 D143, T108)";
 
 /**
  * Every foreign host the static policy allows. Stripe's only in a build with
  * `NEXT_PUBLIC_STRIPE_KEY` (D114: without its key the shop runs as before M6, and loads nothing of
- * Stripe's); the video block's two always, since an editor can add one at any time.
+ * Stripe's); Cloudflare's Turnstile only in a build with both of its keys (D143); the video block's
+ * two always, since an editor can add one at any time.
  */
 export const CSP_HOSTS: readonly CspHost[] = [
   {
@@ -69,6 +72,18 @@ export const CSP_HOSTS: readonly CspHost[] = [
     source: "https://hooks.stripe.com",
     when: "stripe",
     why: `${STRIPE_GUIDE}: "a payment method with redirect functions (for example, cards that might require 3D Secure …)": frame-src https://hooks.stripe.com`,
+  },
+  {
+    directive: "script-src",
+    source: "https://challenges.cloudflare.com",
+    when: "turnstile",
+    why: `${TURNSTILE_GUIDE}: script-src https://challenges.cloudflare.com (components/security/turnstile-widget.ts loads api.js)`,
+  },
+  {
+    directive: "frame-src",
+    source: "https://challenges.cloudflare.com",
+    when: "turnstile",
+    why: `${TURNSTILE_GUIDE}: frame-src https://challenges.cloudflare.com (the widget's challenge frame)`,
   },
   {
     directive: "frame-src",
@@ -128,20 +143,26 @@ export type StaticPolicyOptions = {
   readonly dev: boolean;
   /** A build with `NEXT_PUBLIC_STRIPE_KEY`. */
   readonly stripe: boolean;
+  /** A build with both of Turnstile's keys (D143). */
+  readonly turnstile?: boolean;
   /** `S3_PUBLIC_URL`'s origin, when R2 holds the pictures. */
   readonly media?: string | undefined;
   /** D138's `upgrade-insecure-requests`: off only for a site served over plain http (`cspSettings`). */
   readonly upgradeInsecureRequests: boolean;
 };
 
-const hostsFor = (directive: HostDirective, stripe: boolean): string[] =>
+const hostsFor = (directive: HostDirective, options: StaticPolicyOptions): string[] =>
   CSP_HOSTS.filter(
-    (host) => host.directive === directive && (host.when === "always" || stripe),
+    (host) =>
+      host.directive === directive &&
+      (host.when === "always" ||
+        (host.when === "stripe" && options.stripe) ||
+        (host.when === "turnstile" && options.turnstile === true)),
   ).map((host) => host.source);
 
 /** The `script-src` the static policy (D138) and the nonce policy (D139) each start from. */
 function scriptSources(options: StaticPolicyOptions, nonce: string | undefined): string[] {
-  const { dev, stripe } = options;
+  const { dev } = options;
   return [
     "'self'",
     // D139: with a nonce, `'strict-dynamic'` lets the nonced scripts load the rest (the chunks Next
@@ -149,12 +170,12 @@ function scriptSources(options: StaticPolicyOptions, nonce: string | undefined):
     // stay for a browser that knows only CSP2. No `'unsafe-inline'`.
     ...(nonce === undefined ? ["'unsafe-inline'"] : [`'nonce-${nonce}'`, "'strict-dynamic'"]),
     ...(dev ? ["'unsafe-eval'"] : []),
-    ...hostsFor("script-src", stripe),
+    ...hostsFor("script-src", options),
   ];
 }
 
 function shopPolicy(options: StaticPolicyOptions, nonce: string | undefined): string {
-  const { stripe, media } = options;
+  const { media } = options;
   const directives: [string, string[]][] = [
     ["default-src", ["'self'"]],
     ["script-src", scriptSources(options, nonce)],
@@ -166,7 +187,7 @@ function shopPolicy(options: StaticPolicyOptions, nonce: string | undefined): st
         "data:",
         "blob:",
         ...(media === undefined ? [] : [media]),
-        ...hostsFor("img-src", stripe),
+        ...hostsFor("img-src", options),
       ],
     ],
     // The video block's uploads and their captions (`<video>`, `<track>`): Payload's media on the
@@ -175,12 +196,12 @@ function shopPolicy(options: StaticPolicyOptions, nonce: string | undefined): st
     // `default-src` (T106's first CI run). Media cannot run code.
     ["media-src", ["'self'", "data:", ...(media === undefined ? [] : [media])]],
     ["font-src", ["'self'"]],
-    ["connect-src", ["'self'", ...hostsFor("connect-src", stripe)]],
-    ["frame-src", ["'self'", ...hostsFor("frame-src", stripe)]],
+    ["connect-src", ["'self'", ...hostsFor("connect-src", options)]],
+    ["frame-src", ["'self'", ...hostsFor("frame-src", options)]],
     ["worker-src", ["'self'", "blob:"]],
     ["object-src", ["'none'"]],
     ["base-uri", ["'self'"]],
-    ["form-action", ["'self'", ...hostsFor("form-action", stripe)]],
+    ["form-action", ["'self'", ...hostsFor("form-action", options)]],
     ["frame-ancestors", ["'self'"]],
   ];
   return finish(directives, options.upgradeInsecureRequests);
@@ -316,7 +337,7 @@ export type CspSettings = {
 
 /**
  * The header and policies a build sends, from the build's environment: `CSP_MODE`,
- * `NEXT_PUBLIC_STRIPE_KEY`, `S3_PUBLIC_URL`, `S3_ENDPOINT` (the admin's uploads) and
+ * `NEXT_PUBLIC_STRIPE_KEY`, Turnstile's site key, `S3_PUBLIC_URL`, `S3_ENDPOINT` (the admin's uploads) and
  * `NEXT_PUBLIC_BASE_URL`. A site the base URL puts on plain http (CI's and a PC's
  * `http://localhost:8000`) gets no `upgrade-insecure-requests`: Chromium leaves a request to
  * `http://localhost` alone but upgrades a redirect's target, even on localhost (T106's probe: a
@@ -332,6 +353,12 @@ export function cspSettings(
   const options: StaticPolicyOptions = {
     dev,
     stripe: (source.NEXT_PUBLIC_STRIPE_KEY ?? "").trim() !== "",
+    // The site key alone: the policy is made when `next build` runs, which needs no secret, and
+    // Turborepo's strict mode hands a build `NEXT_PUBLIC_*` but drops `TURNSTILE_SECRET_KEY`, so a
+    // build with both keys had no Cloudflare host (CI's `integrations-live`, PR 153). The widget
+    // still draws only with both (`turnstileKeys`); a site key without its secret only allows the
+    // host.
+    turnstile: (source.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? "").trim() !== "",
     media: mediaOrigin(source.S3_PUBLIC_URL),
     upgradeInsecureRequests: !base.startsWith("http://"),
   };
