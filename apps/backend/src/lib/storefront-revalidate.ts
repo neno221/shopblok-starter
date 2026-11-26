@@ -1,5 +1,10 @@
-import type { MedusaContainer } from "@medusajs/framework/types";
-import { ContainerRegistrationKeys } from "@medusajs/framework/utils";
+import type { ICachingModuleService, MedusaContainer } from "@medusajs/framework/types";
+import {
+  ContainerRegistrationKeys,
+  Modules,
+  toCamelCase,
+  upperCaseFirst,
+} from "@medusajs/framework/utils";
 
 /**
  * The storefront's cache refresh (D58, SPEC §6.2): a catalog event becomes a POST of `{ tags,
@@ -358,6 +363,58 @@ export async function postBatch(batch: Batch, options: PostOptions): Promise<boo
       `storefront-revalidate: ${url} failed for ${batch.tags.join(", ")}: ${error instanceof Error ? error.message : String(error)}`,
     );
     return false;
+  }
+}
+
+/**
+ * Clears what Medusa's caching module holds for the event's entities before the storefront is told
+ * (M7 D149; the T112 follow-up). The module clears them itself, from an event-bus subscriber on
+ * `*` (`@medusajs/caching`'s `DefaultCacheStrategy`), but the Redis event bus runs every subscriber
+ * of an event at once (`Promise.all`), with no order between them. Without this, the storefront
+ * could re-render a page from the Store API before that clear and keep the old answer for its
+ * whole life: `"max"` entries an hour, the PDP's `0` until the next change.
+ *
+ * The tags are the module's own, computed as its subscriber computes them: the entity from the
+ * event's name (`product-variant.updated` -> `ProductVariant`, the operation `updated`), one per id
+ * in the data, kept in an array with any repeats as the module keeps them, so that a clear running
+ * beside the module's own has the same request key and joins it (the module dedupes in-flight
+ * clears by their sorted tags; PR 154 review, item 2). It covers what the module's own clear of
+ * this event covers, no more: an entry that the event's entity does not tag (for example a cached
+ * product read after a price list's change, if no tag of it names the list) is not reached by
+ * either. Without the module (no `MEDUSA_FF_CACHING`, no Redis) it does nothing. Never
+ * throws: a failed clear is logged and the storefront is still told, since its page would be as
+ * old without the POST.
+ */
+export async function clearMedusaCache(
+  container: MedusaContainer,
+  event: string,
+  data: unknown,
+  logger: Logger,
+): Promise<void> {
+  if (!container.hasRegistration(Modules.CACHING)) return;
+  try {
+    const caching = container.resolve<ICachingModuleService>(Modules.CACHING);
+    const parts = event.split(".");
+    const operation = parts.at(-1);
+    const type = upperCaseFirst(toCamelCase(parts.at(-2) ?? ""));
+    const tags: string[] = [];
+    for (const item of [data].flat()) {
+      const value = (item as { id?: unknown } | null | undefined)?.id;
+      for (const id of [value ?? []].flat()) {
+        if (typeof id !== "string" || id === "") continue;
+        const computed = await caching.computeTags(item as object, {
+          entities: [{ type, id }],
+          operation,
+        });
+        tags.push(...computed);
+      }
+    }
+    if (tags.length === 0) return;
+    await caching.clear({ tags, options: { autoInvalidate: true } });
+  } catch (error) {
+    logger.warn(
+      `storefront-revalidate: could not clear Medusa's cache for ${event}: ${error instanceof Error ? error.message : String(error)}`,
+    );
   }
 }
 
