@@ -17,7 +17,8 @@ function pageRoutes(): string[] {
     for (const entry of readdirSync(current, { withFileTypes: true })) {
       const path = join(current, entry.name);
       if (entry.isDirectory()) walk(path);
-      else if (entry.name === "page.tsx") out.push(relative(MARKET_DIR, current).split(sep).join("/"));
+      else if (entry.name === "page.tsx")
+        out.push(relative(MARKET_DIR, current).split(sep).join("/"));
     }
   };
   walk(MARKET_DIR);
@@ -42,9 +43,8 @@ describe("the routes under [market]", () => {
       const text = source(route);
       const own = /index: false|noindex/.test(text);
       // The account's pages and the sign-in pages take theirs from the shared helpers.
-      const shared = /accountPageMetadata|authPageMetadata|from "[./]*lib\/(account|auth)-page"/.test(
-        text,
-      );
+      const shared =
+        /accountPageMetadata|authPageMetadata|from "[./]*lib\/(account|auth)-page"/.test(text);
       expect(own || shared, route).toBe(true);
     }
   });

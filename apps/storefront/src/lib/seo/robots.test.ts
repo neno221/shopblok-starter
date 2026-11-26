@@ -17,8 +17,7 @@ import { listMarkets } from "../markets/market";
 
 const base = new URL("https://shop.example");
 const keys = (map: typeof seeded) => listMarkets(map).map((market) => market.key);
-const sitemapsOf = (map: typeof seeded) =>
-  Object.fromEntries(keys(map).map((key) => [key, [key]]));
+const sitemapsOf = (map: typeof seeded) => Object.fromEntries(keys(map).map((key) => [key, [key]]));
 
 describe("robotsOpen (D133's order, as HSTS's)", () => {
   it("is open only with DEPLOY_ENV=production", () => {
@@ -59,10 +58,7 @@ describe("marketsOnHost", () => {
   });
 
   it("is a domain's own markets on that domain, whatever its case or port", () => {
-    expect(marketsOnHost(withDomains, "SHOP.ch:443").map((m) => m.key)).toEqual([
-      "de-ch",
-      "fr-ch",
-    ]);
+    expect(marketsOnHost(withDomains, "SHOP.ch:443").map((m) => m.key)).toEqual(["de-ch", "fr-ch"]);
     expect(marketsOnHost(withDomains, "shop.com.cy").map((m) => m.key)).toEqual(["el-cy"]);
   });
 

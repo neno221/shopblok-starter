@@ -71,9 +71,7 @@ describe("the share picture's font", () => {
 
   it("has every Greek letter, with its accents and diaeresis", () => {
     expect(
-      missing(
-        "ΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡΣΤΥΦΧΨΩ αβγδεζηθικλμνξοπρσςτυφχψω άέήίόύώ ΆΈΉΊΌΎΏ ϊϋΐΰ Ϊ Ϋ",
-      ),
+      missing("ΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡΣΤΥΦΧΨΩ αβγδεζηθικλμνξοπρσςτυφχψω άέήίόύώ ΆΈΉΊΌΎΏ ϊϋΐΰ Ϊ Ϋ"),
     ).toEqual([]);
   });
 

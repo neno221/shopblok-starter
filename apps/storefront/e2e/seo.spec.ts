@@ -141,7 +141,10 @@ function expectBreadcrumbs(node: Record<string, unknown> | undefined) {
 }
 
 /** A PNG's width and height, from its IHDR chunk. */
-const pngSize = (bytes: Buffer) => ({ width: bytes.readUInt32BE(16), height: bytes.readUInt32BE(20) });
+const pngSize = (bytes: Buffer) => ({
+  width: bytes.readUInt32BE(16),
+  height: bytes.readUInt32BE(20),
+});
 
 async function expectShareImage(url: string) {
   const response = await fetch(url);
@@ -155,7 +158,9 @@ async function expectShareImage(url: string) {
 /** The Store API from Node with the storefront's publishable key. */
 async function store<T>(path: string): Promise<T> {
   const response = await fetch(`${medusaUrl()}${path}`, {
-    headers: { "x-publishable-api-key": appEnv("storefront", "NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY") },
+    headers: {
+      "x-publishable-api-key": appEnv("storefront", "NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY"),
+    },
   });
   expect(response.status, `${path}: ${await response.clone().text()}`).toBe(200);
   return (await response.json()) as T;
@@ -200,7 +205,8 @@ test.beforeAll(async () => {
 test.afterAll(async () => {
   for (const id of made.redirects)
     await rest(token, "DELETE", `/api/redirects/${id}`).catch(() => undefined);
-  for (const id of made.pages) await rest(token, "DELETE", `/api/pages/${id}`).catch(() => undefined);
+  for (const id of made.pages)
+    await rest(token, "DELETE", `/api/pages/${id}`).catch(() => undefined);
   if (made.priceLists.length > 0) {
     const medusa = medusaUrl();
     const admin = await medusaAdminToken(medusa);
@@ -275,7 +281,9 @@ test("a page published in Payload is in the sitemaps after its revalidation, and
     (await sitemapOf(us.key)).some((entry) => entry.loc === publicUrl(us, `/${slug}`));
   const started = Date.now();
   await expect.poll(listed, { timeout: 60_000, intervals: [1_000] }).toBe(true);
-  console.log(`seo: the published page was in the sitemap after ${(Date.now() - started) / 1000} s`);
+  console.log(
+    `seo: the published page was in the sitemap after ${(Date.now() - started) / 1000} s`,
+  );
   // English only: the Greek market (no Greek slug) does not list it.
   const greek = await sitemapOf("el-cy");
   expect(greek.some((entry) => entry.loc.includes(slug))).toBe(false);
@@ -298,8 +306,7 @@ test("every indexable route has hreflang for every open market and a share pictu
     // A CMS page: an address of none of the other kinds, and not a fixed one.
     return paths.find(
       (path) =>
-        !kinds.some((kind) => path.startsWith(kind)) &&
-        !["/", "/store", "/journal"].includes(path),
+        !kinds.some((kind) => path.startsWith(kind)) && !["/", "/store", "/journal"].includes(path),
     );
   };
   const checked: string[] = [];
@@ -311,7 +318,9 @@ test("every indexable route has hreflang for every open market and a share pictu
     const html = await text(page);
     const alternates = hreflangOf(html);
     for (const each of markets)
-      expect(Object.keys(alternates), `${page}: hreflang ${each.htmlLang}`).toContain(each.htmlLang);
+      expect(Object.keys(alternates), `${page}: hreflang ${each.htmlLang}`).toContain(
+        each.htmlLang,
+      );
     expect(alternates["x-default"], `${page}: x-default`).toBeDefined();
     expect(alternates[us.htmlLang]).toBe(publicUrl(us, path ?? "/"));
     expect(metaContent(html, "name", "robots") ?? "", page).not.toMatch(/noindex/);
@@ -332,9 +341,10 @@ test("every other route is noindex", async () => {
     const page = buildPublicUrl(market("en-us"), path, map);
     const response = await get(page, { redirect: "follow" });
     const html = await response.text();
-    expect(metaContent(html, "name", "robots") ?? "", `${route} (${page}, ${response.status})`).toMatch(
-      /noindex/,
-    );
+    expect(
+      metaContent(html, "name", "robots") ?? "",
+      `${route} (${page}, ${response.status})`,
+    ).toMatch(/noindex/);
   }
 });
 
@@ -348,8 +358,14 @@ test("the JSON-LD parses, with Google's required properties", async () => {
   };
 
   const home = jsonLdOf(await text("/us"));
-  expect(nodesOfType(home, "Organization")[0]).toMatchObject({ name: expect.any(String), url: expect.any(String) });
-  expect(nodesOfType(home, "WebSite")[0]).toMatchObject({ name: expect.any(String), url: expect.any(String) });
+  expect(nodesOfType(home, "Organization")[0]).toMatchObject({
+    name: expect.any(String),
+    url: expect.any(String),
+  });
+  expect(nodesOfType(home, "WebSite")[0]).toMatchObject({
+    name: expect.any(String),
+    url: expect.any(String),
+  });
 
   const product = jsonLdOf(await text(first("/products/")));
   const [item] = nodesOfType(product, "Product");
@@ -417,9 +433,9 @@ test("a sale with an end gives the product's offers priceValidUntil", async () =
     const offers = nodesOfType(nodes, "Product")[0]?.["offers"];
     return JSON.stringify(offers ?? null);
   };
-  await expect.poll(validUntil, { timeout: 60_000, intervals: [2_000] }).toContain(
-    `"priceValidUntil":"${day}"`,
-  );
+  await expect
+    .poll(validUntil, { timeout: 60_000, intervals: [2_000] })
+    .toContain(`"priceValidUntil":"${day}"`);
 });
 
 test("the generated share picture answers 200, 1200 × 630, in English and in Greek", async () => {
@@ -433,7 +449,9 @@ test("the generated share picture answers 200, 1200 × 630, in English and in Gr
   await expectShareImage(new URL(greek ?? "", origin).toString());
   await expectShareImage(`${origin}/share-image`);
   // A title someone else wrote: the card, not their text (`share-title.ts`).
-  await expectShareImage(`${origin}/us/share-image?title=${encodeURIComponent("Free money")}&sig=x`);
+  await expectShareImage(
+    `${origin}/us/share-image?title=${encodeURIComponent("Free money")}&sig=x`,
+  );
 });
 
 test("a CMS redirect from /catalog.pdf answers its 308", async () => {

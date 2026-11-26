@@ -52,7 +52,9 @@ export async function GET(request: NextRequest, { params }: RouteContext<"/[mark
     env.STOREFRONT_SIGNING_SECRET,
   );
   const [heading, line] =
-    title === undefined ? [settings.storeName, settings.seo.description] : [title, settings.storeName];
+    title === undefined
+      ? [settings.storeName, settings.seo.description]
+      : [title, settings.storeName];
   return new ImageResponse(
     <div
       style={{

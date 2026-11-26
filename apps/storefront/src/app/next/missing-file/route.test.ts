@@ -16,12 +16,16 @@ vi.mock("../../../lib/redirects/read", () => ({
 
 const { GET, HEAD } = await import("./route");
 
-/** The request as `next.config.ts`'s rewrite hands it on: the file's name in `?file=`. */
+/** The request as a host that hands on the rewritten URL has it: the file's name in `?file=`. */
 const rewritten = (file: string, { method = "GET", query = "", host = "localhost:8000" } = {}) =>
   new NextRequest(
     `http://${host}/next/missing-file?file=${encodeURIComponent(file)}${query === "" ? "" : `&${query}`}`,
     { method, headers: { host } },
   );
+
+/** The request as `next start` hands it to the route: the visitor's own URL. */
+const visitor = (path: string, method = "GET") =>
+  new NextRequest(`http://localhost:8000${path}`, { method, headers: { host: "localhost:8000" } });
 
 beforeEach(() => {
   reads.list = { redirects: [] };
@@ -75,9 +79,16 @@ describe("/next/missing-file looks the CMS redirects up first", () => {
 
   it("keeps the visitor's query, without the rewrite's `file`", async () => {
     const response = await GET(rewritten("catalog.pdf", { query: "utm_source=print" }));
+    expect(response.headers.get("location")).toBe("http://localhost:8000/store?utm_source=print");
+  });
+
+  it("reads the visitor's own URL, as `next start` hands it on, with its whole query", async () => {
+    const response = await GET(visitor("/catalog.pdf?utm_source=print&file=x"));
+    expect(response.status).toBe(308);
     expect(response.headers.get("location")).toBe(
-      "http://localhost:8000/store?utm_source=print",
+      "http://localhost:8000/store?utm_source=print&file=x",
     );
+    expect((await GET(visitor("/other.pdf"))).status).toBe(404);
   });
 
   it("answers HEAD the same way", async () => {

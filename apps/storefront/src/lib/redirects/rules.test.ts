@@ -36,12 +36,18 @@ describe("marketPrefixes", () => {
 });
 
 describe("fromProblem: what the proxy can never see is refused with the reason (D82)", () => {
-  it.each(["/old", "/de/old", "/old-page/2", "/size-8.5", "/σχετικά", "/administrator", "/catalog.pdf", "/old.HTML"])(
-    "accepts %s",
-    (from) => {
-      expect(fromProblem(from, seeded)).toBeUndefined();
-    },
-  );
+  it.each([
+    "/old",
+    "/de/old",
+    "/old-page/2",
+    "/size-8.5",
+    "/σχετικά",
+    "/administrator",
+    "/catalog.pdf",
+    "/old.HTML",
+  ])("accepts %s", (from) => {
+    expect(fromProblem(from, seeded)).toBeUndefined();
+  });
 
   it.each([
     ["old", /single \//],

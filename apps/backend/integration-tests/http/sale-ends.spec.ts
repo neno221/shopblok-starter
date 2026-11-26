@@ -27,7 +27,13 @@ medusaIntegrationTestRunner({
         const pricing = container.resolve(Modules.PRICING);
         const ends = "2027-01-31T22:00:00.000Z";
         const [sale, endless, draft, override] = await pricing.createPriceLists([
-          { title: "Winter sale", description: "e2e", type: "sale", status: "active", ends_at: ends },
+          {
+            title: "Winter sale",
+            description: "e2e",
+            type: "sale",
+            status: "active",
+            ends_at: ends,
+          },
           { title: "Always on", description: "e2e", type: "sale", status: "active" },
           { title: "Draft", description: "e2e", type: "sale", status: "draft", ends_at: ends },
           {

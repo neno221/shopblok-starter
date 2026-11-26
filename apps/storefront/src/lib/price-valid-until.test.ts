@@ -102,14 +102,18 @@ describe("priceValidUntil", () => {
   });
 
   it("gives none for a sale without an end", async () => {
-    const product = toProductDto(hoodieWith({ variant_black_m: { id: "plist_open", type: "sale" } }));
+    const product = toProductDto(
+      hoodieWith({ variant_black_m: { id: "plist_open", type: "sale" } }),
+    );
     expect(await priceValidUntil(product)).toEqual({});
   });
 
   it("gives none, and does not fail the page, when Medusa does not answer", async () => {
     saleEnds.fail = true;
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
-    const product = toProductDto(hoodieWith({ variant_black_m: { id: "plist_summer", type: "sale" } }));
+    const product = toProductDto(
+      hoodieWith({ variant_black_m: { id: "plist_summer", type: "sale" } }),
+    );
     expect(await priceValidUntil(product)).toEqual({});
     expect(warn).toHaveBeenCalledWith(expect.stringMatching(/no priceValidUntil/));
     warn.mockRestore();

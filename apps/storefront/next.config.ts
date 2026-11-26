@@ -107,7 +107,8 @@ function buildConfig(phase: string): NextConfig {
       afterFiles: [
         {
           source: "/:file([^/]*\\.(?![Rr][Ss][Cc]$)[A-Za-z][A-Za-z0-9]*)",
-          // M7 D147 (T110): the file's name goes along, for the CMS redirects looked up first.
+          // M7 D147 (T110): the file's name goes along for a host that hands the route the rewritten URL
+          // (`next start` hands it the visitor's own, `missing-file/route.ts`).
           destination: "/next/missing-file?file=:file",
         },
       ],

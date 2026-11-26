@@ -1,5 +1,13 @@
 import type { Breadcrumbs, ProductDetail } from "@shopblok/registry/contracts";
-import type { BreadcrumbList, Graph, ItemAvailability, Offer, Product, Thing, WithContext } from "schema-dts";
+import type {
+  BreadcrumbList,
+  Graph,
+  ItemAvailability,
+  Offer,
+  Product,
+  Thing,
+  WithContext,
+} from "schema-dts";
 import { env, type RawEnv } from "../env";
 
 // The product page's structured data and texts for crawlers (SPEC §12, T49): JSON-LD `Product` with

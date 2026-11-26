@@ -260,7 +260,10 @@ export async function marketAddresses(market: Market, map: MarketMap): Promise<S
 export async function sitemapIds(map: MarketMap): Promise<Record<string, string[]>> {
   const markets = listMarkets(map);
   const counts = await Promise.all(
-    markets.map(async (market) => [market.key, addressCount(market, await marketAddresses(market, map))] as const),
+    markets.map(
+      async (market) =>
+        [market.key, addressCount(market, await marketAddresses(market, map))] as const,
+    ),
   );
   return sitemapIdsByMarket(Object.fromEntries(counts), map);
 }

@@ -51,15 +51,13 @@ export function journalJsonLd(
     name: journal.title,
     url,
     inLanguage: input.language,
-    blogPost: journal.posts.map(
-      (post): BlogPosting => ({
-        "@type": "BlogPosting",
-        headline: post.title,
-        url: absolute(post.href, base),
-        datePublished: post.publishedAt,
-        ...(post.author === undefined ? {} : { author: { "@type": "Person", name: post.author } }),
-      }),
-    ),
+    blogPost: journal.posts.map((post): BlogPosting => ({
+      "@type": "BlogPosting",
+      headline: post.title,
+      url: absolute(post.href, base),
+      datePublished: post.publishedAt,
+      ...(post.author === undefined ? {} : { author: { "@type": "Person", name: post.author } }),
+    })),
   };
   return {
     "@context": "https://schema.org",

@@ -172,20 +172,21 @@ export default async function ProductPage({ params }: Props) {
   if (page === null) notFound();
   const { context, messages, product, detail, draft } = page;
   const { market } = context;
-  const [related, settings, { categories, pages, templates }, sections, validUntil] = await Promise.all([
-    readRelated(page),
-    cmsOrNull(readSiteSettings({ market, draft }), "product page: site.ts's notes"),
-    getShellData(),
-    // T87 (D104): the product's own sections, the `templates` global's or none.
-    catalogSections({
-      owner: { kind: "products", handle: detail.handle },
-      context,
-      messages,
-      draft,
-    }),
-    // M7 D147 (T110): the day each sale price ends, the offers' `priceValidUntil`.
-    priceValidUntil(product),
-  ]);
+  const [related, settings, { categories, pages, templates }, sections, validUntil] =
+    await Promise.all([
+      readRelated(page),
+      cmsOrNull(readSiteSettings({ market, draft }), "product page: site.ts's notes"),
+      getShellData(),
+      // T87 (D104): the product's own sections, the `templates` global's or none.
+      catalogSections({
+        owner: { kind: "products", handle: detail.handle },
+        context,
+        messages,
+        draft,
+      }),
+      // M7 D147 (T110): the day each sale price ends, the offers' `priceValidUntil`.
+      priceValidUntil(product),
+    ]);
   const shop = productPageShopText(settings, market.language);
   const description = page.content?.description ?? null;
   const headings = messages.templates.productDetail;

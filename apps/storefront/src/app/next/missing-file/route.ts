@@ -26,14 +26,23 @@ const notFoundHeaders = {
   "Cache-Control": "private, no-cache, no-store, max-age=0, must-revalidate",
 };
 
-/** The request as the visitor sent it: the file's own path, the query without the rewrite's `file`. */
+const OWN_PATH = "/next/missing-file";
+
+/**
+ * The request as the visitor sent it: the file's own path and query. `next start` hands a
+ * rewritten route the visitor's URL (`/catalog.pdf?utm_source=print`, measured: the rewrite's
+ * query is not in it); a host that hands it the rewritten one (`/next/missing-file?file=…`) has
+ * the file's name in `?file=`, which the rewrite adds for that case, and the query without it.
+ */
 function originalUrl(request: NextRequest): URL | undefined {
-  const file = request.nextUrl.searchParams.get("file");
+  const { pathname, searchParams, origin } = request.nextUrl;
+  const rewritten = pathname === OWN_PATH;
+  const file = rewritten ? searchParams.get("file") : pathname.slice(1);
   if (file === null || file === "" || file.includes("/")) return undefined;
-  const url = new URL(request.nextUrl.origin);
+  const url = new URL(origin);
   url.pathname = `/${file}`;
-  for (const [name, value] of request.nextUrl.searchParams)
-    if (name !== "file") url.searchParams.append(name, value);
+  for (const [name, value] of searchParams)
+    if (!rewritten || name !== "file") url.searchParams.append(name, value);
   return url;
 }
 

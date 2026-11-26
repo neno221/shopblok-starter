@@ -23,7 +23,11 @@ export const INDEXABLE_ROUTES: readonly IndexableRoute[] = [
   { route: "store/page/[n]", samePageAs: "store", metadata: "listingMetadata" },
   { route: "categories/[...handle]", sitemap: "/categories/" },
   { route: "collections/[handle]", sitemap: "/collections/" },
-  { route: "collections/[handle]/page/[n]", samePageAs: "collections/[handle]", metadata: "listingMetadata" },
+  {
+    route: "collections/[handle]/page/[n]",
+    samePageAs: "collections/[handle]",
+    metadata: "listingMetadata",
+  },
   { route: "products/[handle]", sitemap: "/products/" },
   { route: "journal", fixed: "/journal" },
   { route: "journal/page/[n]", samePageAs: "journal", metadata: "journalMetadata" },
