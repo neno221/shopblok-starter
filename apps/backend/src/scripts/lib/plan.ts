@@ -1,5 +1,7 @@
 import { MedusaError } from "@medusajs/framework/utils";
 
+import { deployEnv } from "../../config/deploy-env";
+
 /**
  * The decisions the seeds make before they write anything: what is missing,
  * what has drifted. Pure functions over plain data, so "a second run makes no
@@ -243,6 +245,28 @@ const DEVELOPMENT_ENVS = ["", "development", "test"];
 
 export function isDevelopmentEnv(nodeEnv: string | undefined): boolean {
   return DEVELOPMENT_ENVS.includes(nodeEnv ?? "");
+}
+
+/**
+ * Whether the demo catalog may run here (D7, M7 D133), and why not when it may not: in development
+ * and tests (`isDevelopmentEnv`), and on staging (`DEPLOY_ENV=staging`) only when `SEED_DEMO=true`
+ * is set for that one run. Never on production, by name or by `NODE_ENV` alone, nor with any other
+ * `NODE_ENV`; an invalid `DEPLOY_ENV` throws (`deployEnv`).
+ */
+export function demoRefusal(env: Record<string, string | undefined>): string | undefined {
+  const stage = deployEnv(env);
+  if (stage === "staging") {
+    return env.SEED_DEMO?.trim().toLowerCase() === "true"
+      ? undefined
+      : "seed-demo-catalog runs on staging only with SEED_DEMO=true set for that run (M7 D133).";
+  }
+  if (stage === "production")
+    return `seed-demo-catalog is for development and staging only (D7, M7 D133) and won't run on production (${
+      (env.DEPLOY_ENV ?? "").trim() === "production" ? "DEPLOY_ENV" : "NODE_ENV"
+    }=production).`;
+  if (!isDevelopmentEnv(env.NODE_ENV))
+    return `seed-demo-catalog is for development only (D7) and won't run with NODE_ENV=${env.NODE_ENV}; on staging, set DEPLOY_ENV=staging and SEED_DEMO=true (M7 D133).`;
+  return undefined;
 }
 
 /**

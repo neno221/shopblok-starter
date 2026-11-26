@@ -25,13 +25,23 @@ const keyless = process.env["E2E_DONE_WHEN"] === "keyless";
 function expectedLive(statuses: readonly IntegrationStatus[]): IntegrationId[] {
   return (
     parseExpected(process.env["E2E_EXPECT_LIVE"]) ??
-    statuses.filter((status) => status.configured).map((status) => status.id)
+    statuses.filter((status) => status.configured && status.wired).map((status) => status.id)
   );
 }
 
+/**
+ * The integrations named before their code, and the task that builds each (M7 T105). The task
+ * removes its line when it marks the integration wired; any other `wired: false` fails below.
+ */
+const ARRIVING: Readonly<Partial<Record<IntegrationId, string>>> = { turnstile: "T108" };
+
 test("every integration's code is wired, and none waits for a later milestone", () => {
   const unwired = doctorReport()
-    .integrations.filter((status) => !status.wired || status.arrives !== undefined)
+    .integrations.filter(
+      (status) =>
+        (!status.wired || status.arrives !== undefined) &&
+        !(status.arrives !== undefined && ARRIVING[status.id] === status.arrives),
+    )
     .map((status) => `${status.id} (arrives: ${status.arrives ?? "not said"})`);
   expect(unwired, "wired: false in @shopblok/integrations").toEqual([]);
 });
@@ -42,7 +52,7 @@ test.describe("keyless (e2e-smoke)", () => {
     "integrations-live has keys: this is e2e-smoke's half (E2E_DONE_WHEN=keyless)",
   );
 
-  test("the five third-party integrations are on their fallback, with none of their keys set", () => {
+  test("the six third-party integrations are on their fallback, with none of their keys set", () => {
     const report = doctorReport();
     const thirdParty = report.integrations.filter((status) => status.kind === "third-party");
     expect(thirdParty.map((status) => status.id)).toEqual([
@@ -51,6 +61,7 @@ test.describe("keyless (e2e-smoke)", () => {
       "posthog",
       "sentry",
       "r2",
+      "turnstile",
     ]);
     for (const status of thirdParty) {
       expect([status.id, status.state, status.parts.flatMap((part) => part.set)]).toEqual([

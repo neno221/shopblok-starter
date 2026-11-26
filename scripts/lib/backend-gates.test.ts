@@ -45,8 +45,14 @@ describe("wired", () => {
     }
   });
 
-  it("holds for every integration: M6's done-when (SPEC §17.1, T103)", () => {
-    expect(getIntegrationStatus(none).filter((status) => !status.wired)).toEqual([]);
+  it("holds for every integration: M6's done-when (SPEC §17.1, T103), but those named before their code", () => {
+    // M7 T105: Turnstile is named now and built in T108, which removes it from this list.
+    const arriving: Partial<Record<IntegrationId, string>> = { turnstile: "T108" };
+    expect(
+      getIntegrationStatus(none).filter(
+        (status) => !status.wired && arriving[status.id] !== status.arrives,
+      ),
+    ).toEqual([]);
   });
 });
 
@@ -122,10 +128,17 @@ const REGISTERS: Record<IntegrationId, (env: Env) => boolean> = {
   },
   r2: (env) =>
     resolves(buildModules(env)).includes("@medusajs/medusa/file > ./src/modules/r2-file"),
+  // M7 D143: the storefront's alone (T108); the backend registers nothing for it.
+  turnstile: () => false,
 };
 
+/** The integrations with a part in the backend: the cases below are about Medusa's modules. */
+const inBackend = getIntegrationStatus(none)
+  .filter((status) => status.parts.some((part) => part.app === "backend"))
+  .map((status) => status.id);
+
 describe("each integration turns on through its keys alone (T103)", () => {
-  it.each(getIntegrationStatus(none).map((status) => status.id))("%s", (id) => {
+  it.each(inBackend)("%s", (id) => {
     const keys = backendKeys(id);
     const names = Object.keys(keys);
     expect(names.length, `${id} has backend keys`).toBeGreaterThan(0);

@@ -9,6 +9,7 @@ import {
   meilisearchLocalesCheck,
   orphanRegions,
   orphanRegionsCheck,
+  productionStage,
   payloadAuthCheck,
   readLocales,
   readMeilisearchStats,
@@ -138,6 +139,147 @@ describe("configChecks: Stripe's live keys outside production (M6 D115)", () => 
       { NEXT_PUBLIC_STRIPE_KEY: "pk_live_fake", NODE_ENV: "production", VERCEL_ENV: "production" },
     );
     expect(find(production, "stripe-live-key")).toBeUndefined();
+  });
+
+  it("refuses live keys on staging, which runs as production on both platforms (M7 D133)", () => {
+    const staging = withStripe(
+      { STRIPE_API_KEY: "sk_live_fake", NODE_ENV: "production", DEPLOY_ENV: "staging" },
+      { NEXT_PUBLIC_STRIPE_KEY: "pk_live_fake", VERCEL_ENV: "production", DEPLOY_ENV: "staging" },
+    );
+    expect(find(staging, "stripe-live-key")?.details).toEqual([
+      "apps/backend: STRIPE_API_KEY is a live key (DEPLOY_ENV staging)",
+      "apps/storefront: NEXT_PUBLIC_STRIPE_KEY is a live key (DEPLOY_ENV staging)",
+    ]);
+  });
+
+  it("refuses them on a preview even with DEPLOY_ENV=production set for every environment", () => {
+    const preview = withStripe(
+      {},
+      { NEXT_PUBLIC_STRIPE_KEY: "pk_live_fake", VERCEL_ENV: "preview", DEPLOY_ENV: "production" },
+    );
+    expect(find(preview, "stripe-live-key")?.details).toEqual([
+      "apps/storefront: NEXT_PUBLIC_STRIPE_KEY is a live key (VERCEL_ENV preview, over DEPLOY_ENV production)",
+    ]);
+  });
+
+  it("allows them with DEPLOY_ENV=production, and refuses them with an invalid DEPLOY_ENV", () => {
+    expect(
+      find(
+        withStripe({ STRIPE_API_KEY: "sk_live_fake", DEPLOY_ENV: "production" }, {}),
+        "stripe-live-key",
+      ),
+    ).toBeUndefined();
+    expect(
+      find(
+        withStripe(
+          { STRIPE_API_KEY: "sk_live_fake", DEPLOY_ENV: "prod", NODE_ENV: "production" },
+          {},
+        ),
+        "stripe-live-key",
+      )?.level,
+    ).toBe("error");
+  });
+});
+
+describe("productionStage: D133's order (M7)", () => {
+  it.each([
+    // [env, stage, production, said]
+    [{}, undefined, false, "NODE_ENV not set"],
+    [{ NODE_ENV: "development" }, undefined, false, "NODE_ENV development"],
+    [{ NODE_ENV: "production" }, "production", true, "NODE_ENV production"],
+    [{ VERCEL_ENV: "development" }, undefined, false, "VERCEL_ENV development"],
+    [
+      { VERCEL_ENV: "production", NODE_ENV: "production" },
+      "production",
+      true,
+      "VERCEL_ENV production",
+    ],
+    [{ VERCEL_ENV: "preview", NODE_ENV: "production" }, "staging", false, "VERCEL_ENV preview"],
+    [{ DEPLOY_ENV: "staging", NODE_ENV: "production" }, "staging", false, "DEPLOY_ENV staging"],
+    [{ DEPLOY_ENV: " production " }, "production", true, "DEPLOY_ENV production"],
+    // Staging's Vercel deployment is Vercel's Production one: DEPLOY_ENV wins over VERCEL_ENV.
+    [{ DEPLOY_ENV: "staging", VERCEL_ENV: "production" }, "staging", false, "DEPLOY_ENV staging"],
+    // A preview is staging even when DEPLOY_ENV=production was set for every environment.
+    [
+      { DEPLOY_ENV: "production", VERCEL_ENV: "preview", NODE_ENV: "production" },
+      "staging",
+      false,
+      "VERCEL_ENV preview, over DEPLOY_ENV production",
+    ],
+  ] as const)("%o is %s", (env, stage, production, said) => {
+    expect(productionStage(env)).toEqual({ stage, production, said });
+  });
+
+  it("calls any other DEPLOY_ENV invalid, and never production", () => {
+    expect(productionStage({ DEPLOY_ENV: "prod", NODE_ENV: "production" })).toEqual({
+      stage: undefined,
+      production: false,
+      said: "DEPLOY_ENV prod",
+      invalid: "prod",
+    });
+  });
+});
+
+describe("configChecks: DEPLOY_ENV (M7 D133)", () => {
+  const withEnv = (backend: Record<string, string>, storefront: Record<string, string>) =>
+    run({
+      backend: { ...bootstrapped.backend, ...backend },
+      storefront: { ...bootstrapped.storefront, ...storefront },
+    });
+
+  it("says nothing in development", () => {
+    expect(find(withEnv({}, {}), "deploy-env")).toBeUndefined();
+  });
+
+  it("says which deployment each app runs as once one is named", () => {
+    const check = find(
+      withEnv({ DEPLOY_ENV: "staging" }, { DEPLOY_ENV: "staging", VERCEL_ENV: "production" }),
+      "deploy-env",
+    );
+    expect(check?.level).toBe("ok");
+    expect(check?.message).toBe(
+      "apps/backend runs as staging (DEPLOY_ENV staging); apps/storefront runs as staging (DEPLOY_ENV staging)",
+    );
+  });
+
+  it("is an error for a value that is neither staging nor production", () => {
+    const check = find(withEnv({ DEPLOY_ENV: "Staging" }, {}), "deploy-env");
+    expect(check?.level).toBe("error");
+    expect(check?.details).toEqual(['apps/backend: DEPLOY_ENV is "Staging"']);
+  });
+});
+
+describe("configChecks: the test-only routes (M0's F6, M7 D133)", () => {
+  const storefront = (env: Record<string, string>) =>
+    find(
+      run({
+        backend: bootstrapped.backend,
+        storefront: { ...bootstrapped.storefront, E2E_TEST_ROUTES: "true", ...env },
+      }),
+      "e2e-test-routes",
+    );
+
+  it("is an error on a production deployment by name", () => {
+    for (const env of [
+      { DEPLOY_ENV: "production" },
+      { VERCEL_ENV: "production" },
+      { VERCEL_ENV: "production", DEPLOY_ENV: "staging" },
+      { DEPLOY_ENV: "production", NODE_ENV: "production" },
+    ] as Record<string, string>[]) {
+      expect(storefront(env)?.level, JSON.stringify(env)).toBe("error");
+    }
+  });
+
+  it("is allowed on a Vercel preview, whatever DEPLOY_ENV says", () => {
+    expect(storefront({ VERCEL_ENV: "preview", NODE_ENV: "production" })).toBeUndefined();
+    expect(storefront({ VERCEL_ENV: "preview", DEPLOY_ENV: "production" })).toBeUndefined();
+  });
+
+  it("warns on any other production build, and says nothing in development or when off", () => {
+    expect(storefront({ NODE_ENV: "production" })?.level).toBe("warn");
+    expect(storefront({ NODE_ENV: "production", DEPLOY_ENV: "staging" })?.level).toBe("warn");
+    expect(storefront({})).toBeUndefined();
+    expect(storefront({ E2E_TEST_ROUTES: "false", DEPLOY_ENV: "production" })).toBeUndefined();
   });
 });
 
@@ -958,6 +1100,36 @@ describe("--online: Resend's sender domain (T98)", () => {
     const mixed = { backend: { NODE_ENV: "production" }, storefront: { NODE_ENV: "development" } };
     expect(
       resendDomainCheck(["backend", "storefront"], "onboarding@resend.dev", undefined, mixed).level,
+    ).toBe("error");
+  });
+
+  it("makes Resend's test sender an accepted note on staging, which --strict leaves alone (M7 D133)", () => {
+    for (const staging of [
+      { backend: { NODE_ENV: "production", DEPLOY_ENV: "staging" } },
+      { backend: { VERCEL_ENV: "preview", DEPLOY_ENV: "production" } },
+    ]) {
+      const check = resendDomainCheck(["backend"], "onboarding@resend.dev", undefined, staging);
+      expect(check.level).toBe("note");
+      expect(check.fix).toMatch(/^Accepted on staging/);
+    }
+    // Production by name: an error, as before.
+    expect(
+      resendDomainCheck(["backend"], "onboarding@resend.dev", undefined, {
+        backend: { NODE_ENV: "production", DEPLOY_ENV: "production" },
+      }).level,
+    ).toBe("error");
+    // An unverified domain of your own stays a warning on staging: only the test sender is accepted.
+    expect(
+      resendDomainCheck(["backend"], "o@news.example", domains, {
+        backend: { DEPLOY_ENV: "staging" },
+      }).level,
+    ).toBe("warn");
+    // Staging beside production (one app each): production wins.
+    expect(
+      resendDomainCheck(["backend", "storefront"], "onboarding@resend.dev", undefined, {
+        backend: { DEPLOY_ENV: "staging" },
+        storefront: { DEPLOY_ENV: "production" },
+      }).level,
     ).toBe("error");
   });
 

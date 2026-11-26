@@ -61,8 +61,8 @@ import {
 import {
   type DesiredTranslation,
   type ExistingTranslation,
+  demoRefusal,
   isDemoSkipped,
-  isDevelopmentEnv,
   missingBy,
   planTranslations,
   required,
@@ -110,11 +110,9 @@ export default async function seedDemoCatalog({ container, args }: ExecArgs) {
     return;
   }
 
-  if (!isDevelopmentEnv(process.env.NODE_ENV)) {
-    throw new MedusaError(
-      MedusaError.Types.NOT_ALLOWED,
-      `seed-demo-catalog is for development only (D7) and won't run with NODE_ENV=${process.env.NODE_ENV}.`,
-    );
+  const refusal = demoRefusal(process.env);
+  if (refusal !== undefined) {
+    throw new MedusaError(MedusaError.Types.NOT_ALLOWED, refusal);
   }
 
   // ---- What seed-markets leaves behind ---------------------------------------

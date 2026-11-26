@@ -162,6 +162,8 @@ const readText = (file: string): string => (existsSync(file) ? readFileSync(file
 /** Every variable doctor reads, for one app: the shell wins over the `.env` file, as in dotenv. */
 const EXTRA_KEYS = [
   "NODE_ENV",
+  "DEPLOY_ENV",
+  "E2E_TEST_ROUTES",
   "VERCEL",
   "VERCEL_ENV",
   "VERCEL_URL",
@@ -540,7 +542,8 @@ async function r2Checks(envs: AppEnvs): Promise<Check[]> {
 /**
  * Stripe (T100, D117): with the backend's secret key, Stripe's `GET /v1/account`; with the
  * storefront's publishable key, whether every region offers Stripe exactly while its keys are set;
- * and in production (the backend's `productionStage`), the webhook endpoint at the backend's public
+ * and on a deployment (staging or production, the backend's `productionStage`, M7 D133: staging takes
+ * Stripe's test webhooks and wallets too, D117), the webhook endpoint at the backend's public
  * URL and the payment method domains of the storefront's and the markets' hosts. `STRIPE_BASE_URL`
  * points at a fake.
  */
@@ -589,7 +592,7 @@ async function stripeChecks(
         return stripeRegionsCheck(listed, stripeOn);
       })(),
     );
-  if (secret !== "" && productionStage(envs.backend).production) {
+  if (secret !== "" && productionStage(envs.backend).stage !== undefined) {
     const backendUrl = trimSlash((envs.backend.MEDUSA_BACKEND_URL ?? "").trim());
     checks.push(
       request(`${base}/v1/webhook_endpoints?limit=100`, { headers: auth, timeoutMs: 15_000 }).then(

@@ -9,7 +9,12 @@ import {
 } from "@shopblok/integrations";
 import { redact } from "./output.ts";
 
-export type Level = "ok" | "warn" | "error";
+/**
+ * `note` (M7 D133): an accepted note, below a warning. Something a deployment knowingly runs with
+ * (staging's Resend test sender), said in the table and the JSON, never failing a run: `--strict`
+ * leaves it a note.
+ */
+export type Level = "ok" | "note" | "warn" | "error";
 
 export type Check = {
   /** Stable, for `--json` and for CI to key on. */
@@ -97,8 +102,8 @@ export function effectiveLevel(check: Pick<Check, "level" | "byHand">, strict: b
 export function summarize(
   checks: readonly Pick<Check, "level" | "byHand">[],
   strict: boolean,
-): { ok: number; warn: number; error: number } {
-  const count = { ok: 0, warn: 0, error: 0 };
+): { ok: number; note: number; warn: number; error: number } {
+  const count = { ok: 0, note: 0, warn: 0, error: 0 };
   for (const check of checks) count[effectiveLevel(check, strict)]++;
   return count;
 }
@@ -108,7 +113,7 @@ export function exitCodeOf(report: Report, options: ReportOptions): 0 | 1 {
   return summarize(scopeChecks(report.checks, options.only), options.strict).error > 0 ? 1 : 0;
 }
 
-const ICON: Record<Level, string> = { ok: "✓", warn: "!", error: "✗" };
+const ICON: Record<Level, string> = { ok: "✓", note: "i", warn: "!", error: "✗" };
 
 const clean = (text: string): string => redact(text);
 
@@ -143,7 +148,9 @@ export function renderText(report: Report, options: ReportOptions): string {
         ? " (warning, fails under --strict)"
         : options.strict && check.byHand === true
           ? " (warning these keys cannot clear: check it by hand; --strict leaves it a warning)"
-          : "";
+          : check.level === "note"
+            ? " (accepted note)"
+            : "";
     lines.push(`  ${icon} ${check.title}${suffix}`);
     lines.push(`      ${clean(check.message)}`);
     for (const detail of check.details ?? []) lines.push(`      - ${clean(detail)}`);
@@ -153,8 +160,9 @@ export function renderText(report: Report, options: ReportOptions): string {
 
   const count = summarize(checks, options.strict);
   const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
+  const notes = count.note === 0 ? "" : `${plural(count.note, "accepted note")}, `;
   lines.push(
-    `${plural(count.ok, "check")} ok, ${plural(count.warn, "warning")}, ${plural(count.error, "error")}${options.strict ? " (--strict)" : ""}.`,
+    `${plural(count.ok, "check")} ok, ${notes}${plural(count.warn, "warning")}, ${plural(count.error, "error")}${options.strict ? " (--strict)" : ""}.`,
   );
   return lines.join("\n");
 }

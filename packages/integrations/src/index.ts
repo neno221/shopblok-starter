@@ -14,7 +14,7 @@ export type EnvLike = Readonly<Record<string, string | undefined>>;
 export type AppEnvs = Readonly<Record<AppName, EnvLike>>;
 
 export type IntegrationId =
-  "stripe" | "resend" | "posthog" | "sentry" | "meilisearch" | "redis" | "r2";
+  "stripe" | "resend" | "posthog" | "sentry" | "meilisearch" | "redis" | "r2" | "turnstile";
 
 type PartSpec = {
   app: AppName;
@@ -37,9 +37,10 @@ type Spec = {
   fallback: string;
   /**
    * Whether the code that uses the keys exists. Redis is wired since M0 (T06) and the other six since
-   * M6 (T94 to T102, T95): every entry is, which is M6's done-when (SPEC §17.1, T103; its tests hold
-   * every entry to it). An integration added later starts `false`, with `arrives`, until its code is
-   * built: keys set for it change nothing, and doctor says so instead of calling it live.
+   * M6 (T94 to T102, T95), which is M6's done-when (SPEC §17.1, T103; its tests hold those seven to
+   * it). An integration added later starts `false`, with `arrives`, until its code is built (M7's
+   * Turnstile, until T108): keys set for it change nothing, and doctor says so instead of calling it
+   * live.
    */
   wired: boolean;
   arrives?: string;
@@ -210,6 +211,24 @@ const SPECS: readonly Spec[] = [
     live: "Cloudflare R2 (S3 API)",
     fallback: "local disk (development only; Vercel needs R2)",
     wired: true,
+  },
+  {
+    // M7 D143, optional: Cloudflare's challenge on the forms and the sign-in pages, beside the rate
+    // limits (D142), which do the work without it. Named in T105; its code arrives in T108.
+    id: "turnstile",
+    name: "Turnstile",
+    kind: "third-party",
+    parts: [
+      {
+        app: "storefront",
+        what: "the forms' challenge",
+        keys: ["NEXT_PUBLIC_TURNSTILE_SITE_KEY", "TURNSTILE_SECRET_KEY"],
+      },
+    ],
+    live: "Turnstile and the rate limits",
+    fallback: "the rate limits alone",
+    wired: false,
+    arrives: "T108",
   },
 ];
 

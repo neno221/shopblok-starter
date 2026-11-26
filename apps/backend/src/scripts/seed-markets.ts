@@ -28,12 +28,7 @@
  * through the plugin's `saveMarketSettingsWorkflow`.
  */
 import type { ExecArgs, MedusaContainer } from "@medusajs/framework/types";
-import {
-  ContainerRegistrationKeys,
-  FeatureFlag,
-  MedusaError,
-  Modules,
-} from "@medusajs/framework/utils";
+import { ContainerRegistrationKeys, MedusaError, Modules } from "@medusajs/framework/utils";
 import {
   createApiKeysWorkflow,
   createLinksWorkflow,
@@ -92,16 +87,6 @@ type KeyRow = { id: string; sales_channels?: ({ id: string } | null)[] | null };
 export default async function seedMarkets({ container }: ExecArgs) {
   const logger = container.resolve(ContainerRegistrationKeys.LOGGER);
   const query = container.resolve(ContainerRegistrationKeys.QUERY);
-
-  // `supported_locales` exists only while the Translation Module is on, and the
-  // store query below asks for it.
-  if (!FeatureFlag.isFeatureEnabled("translation")) {
-    throw new MedusaError(
-      MedusaError.Types.NOT_ALLOWED,
-      "The translation feature flag is off, so the store's locales can't be set. " +
-        "Remove MEDUSA_FF_TRANSLATION=false from the environment (a blank value counts as off too).",
-    );
-  }
 
   // ---- Store: Medusa's default one, completed -------------------------------
 
