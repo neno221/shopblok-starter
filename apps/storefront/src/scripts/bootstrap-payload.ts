@@ -20,8 +20,7 @@
  */
 import config from "@payload-config";
 import { getPayload } from "payload";
-
-const INTEGRATION_NAME = "Medusa sync";
+import { ensureIntegrationsUser } from "../payload/seed/integrations-user";
 
 type Outcome = {
   admin: "created" | "exists";
@@ -61,37 +60,8 @@ if (users === 0) {
   if (generated) outcome.generatedAdminPassword = password;
 }
 
-// 2. The machine user. Authenticating is the real test of "this key works", through the same
-// strategy a request would use.
-const { user: keyOwner } = await payload.auth({
-  headers: new Headers({ Authorization: `integrations API-Key ${apiKey}` }),
-});
-if (keyOwner?.collection !== "integrations") {
-  const { docs } = await payload.find({
-    collection: "integrations",
-    where: { name: { equals: INTEGRATION_NAME } },
-    limit: 1,
-    pagination: false,
-    depth: 0,
-    overrideAccess: true,
-  });
-  const existing = docs[0];
-  if (existing) {
-    await payload.update({
-      collection: "integrations",
-      id: existing.id,
-      data: { enableAPIKey: true, apiKey },
-      overrideAccess: true,
-    });
-    outcome.integration = "rekeyed";
-  } else {
-    await payload.create({
-      collection: "integrations",
-      data: { name: INTEGRATION_NAME, role: "medusa-sync", enableAPIKey: true, apiKey },
-      overrideAccess: true,
-    });
-    outcome.integration = "created";
-  }
-}
+// 2. The machine user (`ensureIntegrationsUser`: authenticating is the real test of "this key
+// works").
+outcome.integration = await ensureIntegrationsUser(payload, apiKey);
 
 console.log(JSON.stringify({ bootstrapPayload: outcome }));
