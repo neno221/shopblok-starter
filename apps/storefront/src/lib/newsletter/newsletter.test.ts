@@ -7,6 +7,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { formFields } from "../forms/fields";
 import { seeded } from "../markets/test-maps";
+import type * as RateLimitModule from "../security/rate-limit";
 
 const SECRET = "a-test-secret-of-the-payload-kind";
 vi.stubEnv("PAYLOAD_SECRET", SECRET);
@@ -64,7 +65,7 @@ vi.mock("../cms/payload", () => ({ getPayloadClient: async () => payload }));
 // M7 D142 (T108): Medusa's answer for the newsletter's limit.
 const consumeLimit = vi.fn(async (..._args: unknown[]) => ({ allowed: true }) as const);
 vi.mock("../security/rate-limit", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../security/rate-limit")>()),
+  ...(await importOriginal<typeof RateLimitModule>()),
   consumeLimit: (...args: unknown[]) => consumeLimit(...args),
 }));
 

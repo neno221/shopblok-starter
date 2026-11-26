@@ -17,12 +17,15 @@ import { freshVisitor, visitorHeaders } from "./support/visitor";
 const stamp = Date.now().toString(36);
 const { en, el } = catalogs;
 
-/** "Too many attempts. Try again in N minutes." as a pattern, for any N, in `message`'s language. */
+/**
+ * "Too many attempts. Try again in N minutes." as a pattern, for any N (grouped as the language
+ * groups thousands: a day's wait is "1,440"), in `message`'s language.
+ */
 function waitPattern(message: string): RegExp {
   const at = message.indexOf("{minutes, plural");
   const escape = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   return new RegExp(
-    `^${escape(message.slice(0, at))}\\d+ \\S+${escape(message.slice(message.lastIndexOf("}}") + 2))}$`,
+    `^${escape(message.slice(0, at))}\\d[\\d.,\\u00a0\\u202f]* \\S+${escape(message.slice(message.lastIndexOf("}}") + 2))}$`,
   );
 }
 
@@ -112,11 +115,14 @@ test.describe("the storefront's rate limits (T108)", () => {
       await form.locator("button[type=submit]").click();
       if (n <= 10) await expect(form.locator("[data-slot=form-block-status]")).not.toBeEmpty();
     }
-    const alert = page.getByRole("alert");
+    // Scoped to the form: Next's route announcer is an `alert` too.
+    const alert = page.locator("[data-slot=form-block]").getByRole("alert");
     await expect(alert).toHaveAttribute("data-slot", "form-block-refusal");
     await expect(alert).toHaveText(waitPattern(en.sections.form.tooMany));
     // What was typed is kept.
-    await expect(page.locator("input[name=email]")).toHaveValue(`limit-js-11-${stamp}@example.com`);
+    await expect(page.locator("[data-slot=form-block] input[name=email]")).toHaveValue(
+      `limit-js-11-${stamp}@example.com`,
+    );
     // Another visitor is not this one.
     const second = await visitor(browser);
     const other = await second.newPage();
@@ -124,7 +130,7 @@ test.describe("the storefront's rate limits (T108)", () => {
     const form = await fillContact(other, `limit-other-${stamp}@example.com`);
     await form.locator("button[type=submit]").click();
     await expect(form.locator("[data-slot=form-block-status]")).not.toBeEmpty();
-    await expect(other.getByRole("alert")).toHaveCount(0);
+    await expect(form.getByRole("alert")).toHaveCount(0);
     await second.close();
     await context.close();
   });
@@ -139,7 +145,8 @@ test.describe("the storefront's rate limits (T108)", () => {
       const form = await fillContact(page, `limit-nojs-${n}-${stamp}@example.com`);
       await form.locator("button[type=submit]").click();
       await page.waitForLoadState("load");
-      if (n <= 10) await expect(page.getByRole("alert")).toHaveCount(0);
+      if (n <= 10)
+        await expect(page.locator("[data-slot=form-block]").getByRole("alert")).toHaveCount(0);
     }
     await expect(page.locator("[data-slot=form-block-refusal]")).toHaveText(
       waitPattern(el.sections.form.tooMany),

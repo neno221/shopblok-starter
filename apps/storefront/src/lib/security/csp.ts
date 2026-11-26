@@ -77,7 +77,7 @@ export const CSP_HOSTS: readonly CspHost[] = [
     directive: "script-src",
     source: "https://challenges.cloudflare.com",
     when: "turnstile",
-    why: `${TURNSTILE_GUIDE}: script-src https://challenges.cloudflare.com (components/security/turnstile.tsx loads api.js)`,
+    why: `${TURNSTILE_GUIDE}: script-src https://challenges.cloudflare.com (components/security/turnstile-widget.ts loads api.js)`,
   },
   {
     directive: "frame-src",

@@ -7,7 +7,7 @@ import { consumeLimit } from "./rate-limit";
 
 // M7 D143 (T108): Cloudflare's Turnstile, optional, by M6's integration rule. With both
 // `NEXT_PUBLIC_TURNSTILE_SITE_KEY` and `TURNSTILE_SECRET_KEY` set, the forms, the newsletter
-// sign-up and registration carry Cloudflare's widget (`components/security/turnstile.tsx`), and
+// sign-up and registration carry Cloudflare's widget (`components/security/challenge.tsx`), and
 // their actions check its token with Cloudflare's Siteverify **before anything else**. A post with
 // no token is one sent without scripts (the widget cannot run there): it is taken under its own
 // limit, once an hour per address (`form-no-script`), and the page says so. Without the keys

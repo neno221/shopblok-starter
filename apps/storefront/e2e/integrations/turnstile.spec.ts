@@ -60,7 +60,7 @@ test("sends when the button is pressed before the token is there: the press wait
     en.molecules.newsletterForm.done,
     { timeout: 30_000 },
   );
-  await expect(page.getByRole("alert")).toHaveCount(0);
+  await expect(footer.getByRole("alert")).toHaveCount(0);
 });
 
 test("draws the widget in the registration form, above its button", async ({ page }) => {
@@ -84,7 +84,10 @@ test("without scripts, says the form can be sent once an hour, and refuses a sec
   const footer = page.locator("footer [data-slot=newsletter-form]");
   for (let n = 1; n <= 2; n += 1) {
     await page.goto("/us");
-    await expect(footer).toContainText(en.molecules.newsletterForm.noScript);
+    // Playwright's text leaves `<noscript>` out, so its markup is read.
+    expect(await footer.locator("[data-slot=turnstile] noscript").innerHTML()).toContain(
+      en.molecules.newsletterForm.noScript,
+    );
     await footer.locator("input[type=email]").fill(`turnstile-nojs-${n}-${stamp}@example.com`);
     await footer.locator("button[type=submit]").click();
     await page.waitForLoadState("load");

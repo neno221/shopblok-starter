@@ -8,10 +8,11 @@ import {
   SEED_CONTEXT,
   tooManyMessage,
 } from "./users";
+import type * as RateLimitModule from "../../lib/security/rate-limit";
 
 const consumeLimit = vi.fn();
 vi.mock("../../lib/security/rate-limit", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../../lib/security/rate-limit")>()),
+  ...(await importOriginal<typeof RateLimitModule>()),
   consumeLimit: (...args: unknown[]) => consumeLimit(...args),
 }));
 
