@@ -17,8 +17,8 @@ import { expect, test } from "../support/third-party";
 //   (`support/integration-skips-reporter.ts`) fails the run when another spec skipped one of them.
 // Without `E2E_EXPECT_LIVE` (a run on a PC) it is held to the integrations doctor finds configured.
 
+// Not serial: a mutation (one `wired: false`) fails the first test and the live one below both.
 const keyless = process.env["E2E_DONE_WHEN"] === "keyless";
-test.describe.configure({ mode: "serial" });
 
 /** The integrations the run must find live: the job's list, or doctor's configured ones on a PC. */
 function expectedLive(statuses: readonly IntegrationStatus[]): IntegrationId[] {

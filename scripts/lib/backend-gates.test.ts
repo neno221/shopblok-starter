@@ -130,6 +130,11 @@ describe("each integration turns on through its keys alone (T103)", () => {
     const names = Object.keys(keys);
     expect(names.length, `${id} has backend keys`).toBeGreaterThan(0);
     expect(REGISTERS[id](keys), `${id} with ${names.join(", ")}`).toBe(true);
+    // So its entry must say it is wired, or doctor would call a live provider a fallback.
+    expect(
+      getIntegrationStatus(none).find((status) => status.id === id)?.wired,
+      `${id} wired`,
+    ).toBe(true);
     expect(REGISTERS[id]({}), `${id} without its keys`).toBe(false);
     for (const left of names) {
       const half = Object.fromEntries(Object.entries(keys).filter(([key]) => key !== left));
