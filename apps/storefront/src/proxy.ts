@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { DRAFT_MODE_COOKIE, ownDomainPreview } from "./lib/cms/preview-market";
+import { DRAFT_MODE_COOKIE, ownDomainPreview } from "./lib/markets/preview-market";
 import { COOKIE } from "./lib/cookie-names";
 import { designSystemGated, env, firstUserClosed } from "./lib/env";
 import type { MarketMap } from "./lib/markets/types";
@@ -34,7 +34,7 @@ import { nonceCsp, withStaticCsp } from "./lib/security/static-csp";
 // deployment (`designSystemGated`): a request without a valid staff `payload-token` gets the 404
 // any unknown path gets, so the pages stay prerendered and say nothing to anyone else. And a market
 // on its own domain is previewed on this host at `/{key}/…`, for staff in Draft Mode only
-// (`lib/cms/preview-market.ts`).
+// (`lib/markets/preview-market.ts`).
 //
 // A path with a broken escape (`/us/collections/%ZZ`) is a plain 404 here: Next decodes a dynamic
 // route's params and answers a `URIError` with a 500 before any page runs (PR 78 review, item 2).
@@ -111,7 +111,9 @@ async function respond(
 
 /** Whether a staff member is signed in to Payload: a valid `payload-token` (M7 D148, 4). */
 function staffSignedIn(req: NextRequest): boolean {
-  return verifyStaffToken(req.cookies.get(PAYLOAD_TOKEN_COOKIE)?.value, env.PAYLOAD_SECRET) !== undefined;
+  return (
+    verifyStaffToken(req.cookies.get(PAYLOAD_TOKEN_COOKIE)?.value, env.PAYLOAD_SECRET) !== undefined
+  );
 }
 
 /** What never goes into a shared or a browser's cache: a gated or a draft answer. */

@@ -2,7 +2,7 @@ import type { MarketMap } from "../markets/types";
 import { safeRedirect } from "../safe-redirect";
 import { secretMatches } from "../secret";
 import { buildPublicUrl } from "../markets/url";
-import { ownDomainPreview, ownDomainPreviewPath } from "./preview-market";
+import { ownDomainPreview, ownDomainPreviewPath } from "../markets/preview-market";
 
 /** What the preview routes need from the request's world, so a test can hand in fakes. */
 export type PreviewDeps = {
@@ -25,7 +25,7 @@ const refuse = (status: 400 | 401, message: string) =>
  * In this order: the secret (401), a Payload session of a `users` document (401: an integration's
  * key or no session; the secret alone is not enough, so a leaked link shows nothing), the path
  * (400 unless `safeRedirect` accepts it, or it is an own-domain market's `/{key}/…` on this host,
- * M7 D148, 3: `lib/cms/preview-market.ts`), and only then `enable()`.
+ * M7 D148, 3: `lib/markets/preview-market.ts`), and only then `enable()`.
  */
 export async function previewResponse(request: Request, deps: PreviewDeps): Promise<Response> {
   const url = new URL(request.url);

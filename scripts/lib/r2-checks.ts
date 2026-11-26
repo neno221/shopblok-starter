@@ -30,11 +30,14 @@ const R2_PRIVATE = {
 /** Medusa's private files' keys start here (`apps/backend/src/modules/r2-file/service.ts`). */
 export const PRIVATE_PREFIX = "private/";
 
+/** Payload's CSV exports' keys start here (`apps/storefront/src/payload/storage.ts`, M7 D148). */
+export const PAYLOAD_EXPORTS_PREFIX = "payload-exports/";
+
 /** What each app's R2 part is, for the checks' titles. */
 export type R2Bucket = {
   apps: AppName[];
   bucket: string;
-  /** `public`: pictures, served from `S3_PUBLIC_URL`; `private`: Medusa's CSV files. */
+  /** `public`: pictures, served from `S3_PUBLIC_URL`; `private`: Medusa's and Payload's CSV files. */
   role: "public" | "private";
 };
 
@@ -60,15 +63,15 @@ export function r2Buckets(envs: AppEnvs): R2Bucket[] {
     if (same) same.apps.push(app);
     else buckets.push({ apps: [app], bucket, role: "public" });
   }
-  if (
-    isSet(envs.backend, "S3_PRIVATE_BUCKET") &&
-    SIGNED_KEYS.every((key) => isSet(envs.backend, key))
-  )
-    buckets.push({
-      apps: ["backend"],
-      bucket: value(envs.backend, "S3_PRIVATE_BUCKET"),
-      role: "private",
-    });
+  // Each app's private bucket: Medusa's CSV files, and Payload's exports and imports (M7 D148, 2).
+  for (const app of ["backend", "storefront"] as const) {
+    const env = envs[app];
+    if (!isSet(env, "S3_PRIVATE_BUCKET") || !SIGNED_KEYS.every((key) => isSet(env, key))) continue;
+    const bucket = value(env, "S3_PRIVATE_BUCKET");
+    const same = buckets.find((each) => each.role === "private" && each.bucket === bucket);
+    if (same) same.apps.push(app);
+    else buckets.push({ apps: [app], bucket, role: "private" });
+  }
   return buckets;
 }
 
@@ -81,13 +84,17 @@ export function r2Buckets(envs: AppEnvs): R2Bucket[] {
 export function r2KeyChecks(envs: AppEnvs): Check[] {
   const errors: string[] = [];
   const warnings: string[] = [];
-  const privateBucket = value(envs.backend, "S3_PRIVATE_BUCKET");
+  const privateOf = (app: AppName) => value(envs[app], "S3_PRIVATE_BUCKET");
   for (const app of ["backend", "storefront"] as const) {
     const env = envs[app];
     const bucket = value(env, "S3_BUCKET");
-    if (privateBucket !== "" && bucket === privateBucket)
+    // Either app's private bucket (Medusa's CSV files; Payload's exports and imports, M7 D148).
+    const owner = (["backend", "storefront"] as const).find(
+      (other) => privateOf(other) !== "" && privateOf(other) === bucket,
+    );
+    if (owner !== undefined)
       errors.push(
-        `apps/${app}: S3_BUCKET is the backend's S3_PRIVATE_BUCKET (${privateBucket}), so private and public files would share one bucket`,
+        `apps/${app}: S3_BUCKET is the ${owner}'s S3_PRIVATE_BUCKET (${bucket}), so private and public files would share one bucket`,
       );
     for (const key of ["S3_ENDPOINT", "S3_PUBLIC_URL"]) {
       const url = value(env, key);

@@ -201,6 +201,7 @@ By name only, never a value. "generated" and "copied" are `pnpm staging:secrets`
 | `S3_SECRET_ACCESS_KEY`               | copied           | staging's R2 buckets, from the session's `STAGING_S3_*`                                     |
 | `S3_BUCKET`                          | copied           | staging's R2 buckets, from the session's `STAGING_S3_*`                                     |
 | `S3_PUBLIC_URL`                      | copied           | staging's R2 buckets, from the session's `STAGING_S3_*`                                     |
+| `S3_PRIVATE_BUCKET`                  | copied           | staging's R2 buckets, from the session's `STAGING_S3_*` (Payload's CSV files, D148)         |
 | `NEXT_PUBLIC_TURNSTILE_SITE_KEY`     | copied           | the integration's test key, from the session                                                |
 | `TURNSTILE_SECRET_KEY`               | copied           | the integration's test key, from the session                                                |
 | `SEED_ON_BUILD`                      | first deployment | `payload` on Production for the first deployment, then removed                              |

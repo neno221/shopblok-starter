@@ -1,6 +1,6 @@
 import type { LivePreviewConfig, Payload } from "payload";
 import { MAX_PAGE_DEPTH, pageIdOf, pagePath } from "../lib/cms/page-path";
-import { ownDomainPreviewTarget } from "../lib/cms/preview-market";
+import { ownDomainPreviewTarget } from "../lib/markets/preview-market";
 import { CMS_PATHS } from "../lib/cms/paths";
 import { env } from "../lib/env";
 import { listMarkets, primaryCountryCode } from "../lib/markets/market";

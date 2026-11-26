@@ -36,7 +36,7 @@ export function safeRedirect(
  * `target` parsed as a path on this origin, or `null`: the checks `safeRedirect` makes before it
  * asks the market map (one leading `/`, no backslash, control character or encoded slash or
  * backslash, the same origin once parsed, and a first segment that is no route of Payload, the DS
- * or Next). Shared with the own-domain preview's paths (`lib/cms/preview-market.ts`).
+ * or Next). Shared with the own-domain preview's paths (`lib/markets/preview-market.ts`).
  */
 export function localPath(target: string | null | undefined): URL | null {
   if (typeof target !== "string" || !target.startsWith("/")) return null;

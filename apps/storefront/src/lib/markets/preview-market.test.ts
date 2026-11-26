@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { findMarket } from "../markets/market";
-import { seeded, withDomains } from "../markets/test-maps";
+import { findMarket } from "./market";
+import { seeded, withDomains } from "./test-maps";
 import { ownDomainPreview, ownDomainPreviewPath, ownDomainPreviewTarget } from "./preview-market";
 
 // M7 D148 (3), T111: an own-domain market's preview on the admin's host, at its internal key.

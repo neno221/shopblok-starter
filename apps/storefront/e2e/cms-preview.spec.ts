@@ -1,6 +1,6 @@
 import type { Browser } from "@playwright/test";
 import { expect, test } from "./support/csp";
-import { appEnv } from "./support/app-env";
+import { appEnv, appEnvOrBlank } from "./support/app-env";
 import { adminToken, base, freshWithinTwo } from "./support/server";
 
 // T59 (D73, D74): preview and scheduled publishing, end to end, against a production build.
@@ -11,6 +11,9 @@ import { adminToken, base, freshWithinTwo } from "./support/server";
 //   exit route turns it off and never redirects off-site.
 // - A scheduled publish happens when `/api/payload-jobs/run` is called with the cron secret, and
 //   the endpoint refuses a call without it, and the integration's API key too.
+// - M7 D148 (1), T111: with the backend's CRON_SECRET (e2e-smoke copies the storefront's), Medusa's
+//   worker calls that endpoint every minute, so a scheduled page publishes within a minute of its
+//   time with nobody calling it here (`next start` runs no development timer).
 //
 // The page is read at its own address, `{m}/[...slug]` (T65). Requests go from Node with the
 // cookies set by hand,
@@ -258,4 +261,24 @@ test("a scheduled publish runs when the jobs endpoint is called with the cron se
     return response.status === 200 && (await response.text()).includes(`${title}</h1>`);
   };
   expect(await freshWithinTwo(shows, 1_500), "the page at /us/…").toBeGreaterThan(0);
+});
+
+test("Medusa's worker publishes a scheduled page within a minute of its time (M7 D148, 1)", async () => {
+  test.skip(
+    appEnvOrBlank("backend", "CRON_SECRET") === "",
+    "the backend has no CRON_SECRET, so Medusa's tick is off (bootstrap leaves it so in development)",
+  );
+  test.setTimeout(150_000);
+  const title = `TICKED-${stamp}`;
+  const id = await createPage(title, `e2e-ticked-${stamp}`, "draft", "en");
+  const queued = await fetch(`${base()}/next/e2e/schedule-publish?id=${id}&in=5`, {
+    method: "POST",
+  });
+  expect(queued.status, await queued.clone().text()).toBe(200);
+  const due = Date.parse(((await queued.json()) as { waitUntil: string }).waitUntil);
+  // Nobody calls the endpoint from here: only Medusa's tick can publish it.
+  const read = async () => (await fetch(`${base()}/api/pages/${id}?locale=en`)).status;
+  await expect.poll(read, { timeout: 100_000, intervals: [2_000] }).toBe(200);
+  const late = Date.now() - due;
+  expect(late, "published by the next minute's tick after its time").toBeLessThan(65_000);
 });

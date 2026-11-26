@@ -1,4 +1,4 @@
-import { NextRequest } from "next/server";
+import { NextRequest, type NextResponse } from "next/server";
 import {
   getRedirectUrl,
   getRewrittenUrl,
@@ -221,9 +221,9 @@ describe("the design-system gate (M7 D148, 4; T111)", () => {
     vi.stubEnv("DEPLOY_ENV", "staging");
     vi.stubEnv("PAYLOAD_SECRET", "proxy-test-secret");
   };
-  const passes = (response: Response) =>
+  const passes = (response: NextResponse) =>
     response.headers.get("x-middleware-next") === "1" && getRewrittenUrl(response) === null;
-  const notFound = (response: Response) => getRewrittenUrl(response) === "https://example.com/";
+  const notFound = (response: NextResponse) => getRewrittenUrl(response) === "https://example.com/";
 
   it("knows the DS's paths, and not the storefront's that look like them", () => {
     for (const path of designSystemPaths) expect(isDesignSystemPath(path), path).toBe(true);
@@ -252,17 +252,20 @@ describe("the design-system gate (M7 D148, 4; T111)", () => {
     ["DEPLOY_ENV", "production"],
     ["DEPLOY_ENV", "Staging"],
     ["VERCEL_ENV", "preview"],
-  ])("answers the 404 of any unknown path without a staff sign-in, with %s=%s", async (name, value) => {
-    deployment();
-    vi.stubEnv("DEPLOY_ENV", "");
-    vi.stubEnv(name, value);
-    for (const path of designSystemPaths) {
-      const response = await proxy(withCookie(path));
-      expect(notFound(response), path).toBe(true);
-      expect(response.headers.get("cache-control"), path).toContain("no-store");
-      expect(response.headers.get("content-security-policy"), path).toContain("default-src");
-    }
-  });
+  ])(
+    "answers the 404 of any unknown path without a staff sign-in, with %s=%s",
+    async (name, value) => {
+      deployment();
+      vi.stubEnv("DEPLOY_ENV", "");
+      vi.stubEnv(name, value);
+      for (const path of designSystemPaths) {
+        const response = await proxy(withCookie(path));
+        expect(notFound(response), path).toBe(true);
+        expect(response.headers.get("cache-control"), path).toContain("no-store");
+        expect(response.headers.get("content-security-policy"), path).toContain("default-src");
+      }
+    },
+  );
 
   it("lets an admin and an editor in, never stored by a cache", async () => {
     deployment();
@@ -293,9 +296,9 @@ describe("the design-system gate (M7 D148, 4; T111)", () => {
   it("refuses everyone when the deployment has no PAYLOAD_SECRET", async () => {
     deployment();
     vi.stubEnv("PAYLOAD_SECRET", "");
-    expect(notFound(await proxy(withCookie("/design-system/en", `payload-token=${editor()}`)))).toBe(
-      true,
-    );
+    expect(
+      notFound(await proxy(withCookie("/design-system/en", `payload-token=${editor()}`))),
+    ).toBe(true);
   });
 
   it("still drops a trailing slash first, for anyone", async () => {

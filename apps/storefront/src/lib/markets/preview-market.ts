@@ -1,5 +1,5 @@
-import { findMarket, normalizeHost } from "../markets/market";
-import type { Market, MarketMap } from "../markets/types";
+import { findMarket, normalizeHost } from "./market";
+import type { Market, MarketMap } from "./types";
 import { localPath } from "../safe-redirect";
 
 // M7 D148 (3), T111: live preview for a country on its own domain. The editor's Payload cookie and
