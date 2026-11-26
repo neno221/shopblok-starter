@@ -40,6 +40,7 @@ const bootstrapped: AppEnvs = {
     JWT_SECRET: "j",
     COOKIE_SECRET: "c",
     REDIS_URL: "redis://localhost:6380",
+    MEDUSA_FF_CACHING: "true",
     PAYLOAD_API_KEY: "k",
     PAYLOAD_SERVER_URL: "http://localhost:8000",
   },
@@ -440,6 +441,51 @@ describe("configChecks: Redis in production", () => {
   it("is silent with REDIS_URL set, and in development", () => {
     expect(find(run(bootstrapped, production), "redis-production")).toBeUndefined();
     expect(find(run({ backend: {}, storefront: {} }, dev), "redis-production")).toBeUndefined();
+  });
+});
+
+describe("configChecks: Medusa's caching (M7 D149, T112)", () => {
+  const backend = (env: Record<string, string>) =>
+    find(run({ ...bootstrapped, backend: { ...bootstrapped.backend, ...env } }), "medusa-caching");
+
+  it("is ok with the flag and Redis, in any case of true", () => {
+    expect(backend({ MEDUSA_FF_CACHING: "true" })?.level).toBe("ok");
+    expect(backend({ MEDUSA_FF_CACHING: "TRUE" })?.level).toBe("ok");
+  });
+
+  it("reads a value with spaces as off, as Medusa's isTruthy does (PR 150 review, item 1)", () => {
+    const check = backend({ MEDUSA_FF_CACHING: "true ", DEPLOY_ENV: "staging" });
+    expect(check?.level).toBe("warn");
+    expect(check?.details).toEqual(['apps/backend: MEDUSA_FF_CACHING is "true "']);
+  });
+
+  it("warns that the flag without Redis caches nothing", () => {
+    const check = backend({ MEDUSA_FF_CACHING: "true", REDIS_URL: "" });
+    expect(check?.level).toBe("warn");
+    expect(check?.message).toContain("nothing is cached");
+  });
+
+  it("is an accepted note off in development, and a warning off on a deployment", () => {
+    expect(backend({ MEDUSA_FF_CACHING: "" })?.level).toBe("note");
+    expect(backend({ MEDUSA_FF_CACHING: "false" })?.details).toEqual([
+      'apps/backend: MEDUSA_FF_CACHING is "false"',
+    ]);
+    const staging = backend({ MEDUSA_FF_CACHING: "", DEPLOY_ENV: "staging" });
+    expect(staging?.level).toBe("warn");
+    expect(staging?.message).toContain("off on staging");
+    expect(backend({ MEDUSA_FF_CACHING: "", DEPLOY_ENV: "production" })?.level).toBe("warn");
+  });
+
+  it("is the backend's alone", () => {
+    const storefrontOnly = configChecks(
+      { backend: {}, storefront: bootstrapped.storefront },
+      getIntegrationStatus(
+        { backend: {}, storefront: bootstrapped.storefront },
+        { app: "storefront" },
+      ),
+      { ...dev, app: "storefront" },
+    );
+    expect(find(storefrontOnly, "medusa-caching")).toBeUndefined();
   });
 });
 

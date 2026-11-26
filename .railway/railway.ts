@@ -85,6 +85,8 @@ function medusaEnv(refs: {
     PORT: "9000",
     DATABASE_URL: refs.database,
     REDIS_URL: refs.redis,
+    // Medusa's caching module on the same Redis (D149, T112).
+    MEDUSA_FF_CACHING: "true",
     MEILISEARCH_HOST: refs.meilisearchHost,
     MEDUSA_BACKEND_URL: refs.backendUrl,
     STOREFRONT_URL: "${{shared.STOREFRONT_URL}}",

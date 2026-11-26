@@ -52,18 +52,52 @@ export function payloadModule(container: MedusaContainer): PayloadModuleService 
   return undefined;
 }
 
-/** Medusa's records of a collection as sync documents; with `ids`, those (deleted ones too). */
+/** The records `ids` names as sync documents, deleted ones too (an event's few ids). */
 export async function readDocuments(
   query: Query,
   collection: SyncCollection,
-  ids?: string[],
+  ids: string[],
 ): Promise<SyncDocument[]> {
   const { data } = await query.graph({
     entity: ENTITY[collection],
     fields: QUERY_FIELDS[collection],
-    ...(ids === undefined ? {} : { filters: { id: ids }, withDeleted: true }),
+    filters: { id: ids },
+    withDeleted: true,
   });
   return data.map((record) => documentOf(collection, record));
+}
+
+/**
+ * The reconcile's page (D149): Medusa's records are read 200 at a time, so a large catalog is
+ * never one query or one array (SETUP T60's known limit, closed in T112).
+ */
+export const RECONCILE_PAGE_SIZE = 200;
+
+/**
+ * Medusa's live records of a collection as sync documents, one page at a time, ordered by id.
+ * Each page starts after the last id of the one before (a keyset, not an offset), so a record
+ * deleted while the pages are read never shifts a live one out of the read: a live record missing
+ * from the reconcile's read would be marked deleted in Payload.
+ */
+export async function* readDocumentPages(
+  query: Query,
+  collection: SyncCollection,
+  pageSize: number = RECONCILE_PAGE_SIZE,
+): AsyncGenerator<SyncDocument[]> {
+  let after: string | undefined;
+  for (;;) {
+    const { data } = await query.graph({
+      entity: ENTITY[collection],
+      fields: QUERY_FIELDS[collection],
+      ...(after === undefined ? {} : { filters: { id: { $gt: after } } }),
+      pagination: { take: pageSize, order: { id: "ASC" } },
+    });
+    if (data.length === 0) return;
+    const page = data.map((record) => documentOf(collection, record));
+    yield page;
+    if (data.length < pageSize) return;
+    after = page[page.length - 1]!.fields.medusaId;
+  }
 }
 
 /** A workflow throws its step's error serialized, `{ message, name, stack }`, not an `Error`. */
@@ -165,14 +199,12 @@ export async function reconcile(
   for (const collection of SYNC_COLLECTIONS) {
     const counts = emptyCounts();
     collections[collection] = counts;
-    let documents: SyncDocument[];
     let stored: Listed[];
     try {
       // Payload first, then Medusa, one after the other (PR 91 review, item 1): a record created
       // in between is then in Medusa's read, never only in Payload's list, where the loop below
       // would mark it deleted; one deleted in between is missing from Medusa's read, as it should be.
       stored = await payload.listDocuments(collection);
-      documents = parentsFirst(await readDocuments(query, collection));
     } catch (error) {
       counts.failed++;
       errors.push(`${collection}: ${message(error)}`);
@@ -182,27 +214,69 @@ export async function reconcile(
     const medusaIdOfPayloadId = new Map(
       stored.map((document) => [String(document.id), document.medusaId]),
     );
-
-    for (const document of documents) {
-      const need = force
-        ? byMedusaId.has(document.fields.medusaId)
-          ? "update"
-          : "create"
-        : needsWrite(document, byMedusaId.get(document.fields.medusaId), medusaIdOfPayloadId);
-      if (need === null) {
-        counts.unchanged++;
-        continue;
-      }
+    // Only the ids are kept across pages (D149): the documents of a page are written and dropped.
+    const inMedusa = new Set<string>();
+    // A category whose parent is on a later page is written first without it; it is written again
+    // after the last page, once every parent exists (one more write, never a missing link).
+    const again: { document: SyncDocument; need: "create" | "update" }[] = [];
+    /** Writes one document; true when a reference's target was not in Payload yet. */
+    const write = async (document: SyncDocument, need: "create" | "update"): Promise<boolean> => {
       try {
-        await syncPayloadDocumentWorkflow(container).run({ input: { collection, document } });
+        const { result } = await syncPayloadDocumentWorkflow(container).run({
+          input: { collection, document },
+        });
         counts[need === "create" ? "created" : "updated"]++;
+        return result.missing.length > 0;
       } catch (error) {
         counts.failed++;
         errors.push(`${collection} ${document.fields.medusaId}: ${message(error)}`);
+        return false;
       }
-    }
+    };
 
-    const inMedusa = new Set(documents.map((document) => document.fields.medusaId));
+    /**
+     * The second write of each document whose parent was not in Payload yet. It was counted once,
+     * as created or updated; a failed relink moves that count to `failed`, so the counts still add
+     * up to the records read (PR 150 review, item 3).
+     */
+    const relink = async () => {
+      for (const { document, need } of again) {
+        try {
+          await syncPayloadDocumentWorkflow(container).run({ input: { collection, document } });
+        } catch (error) {
+          counts[need === "create" ? "created" : "updated"]--;
+          counts.failed++;
+          errors.push(`${collection} ${document.fields.medusaId}: ${message(error)}`);
+        }
+      }
+    };
+
+    try {
+      for await (const page of readDocumentPages(query, collection)) {
+        for (const document of parentsFirst(page)) {
+          inMedusa.add(document.fields.medusaId);
+          const need = force
+            ? byMedusaId.has(document.fields.medusaId)
+              ? "update"
+              : "create"
+            : needsWrite(document, byMedusaId.get(document.fields.medusaId), medusaIdOfPayloadId);
+          if (need === null) {
+            counts.unchanged++;
+            continue;
+          }
+          if (await write(document, need)) again.push({ document, need });
+        }
+      }
+    } catch (error) {
+      // A page that could not be read leaves Medusa's ids incomplete: nothing is marked deleted.
+      // The pages already written still get their parents' links (PR 150 review, item 2).
+      counts.failed++;
+      errors.push(`${collection}: ${message(error)}`);
+      await relink();
+      continue;
+    }
+    await relink();
+
     for (const document of stored) {
       if (document.deletedInMedusa || inMedusa.has(document.medusaId)) continue;
       try {
@@ -235,7 +309,9 @@ export async function exportAll(container: MedusaContainer): Promise<SyncExport>
   const query = queryOf(container);
   const documents = {} as Record<SyncCollection, SyncDocument[]>;
   for (const collection of SYNC_COLLECTIONS) {
-    const read = await readDocuments(query, collection);
+    // The file holds everything anyway; the pages keep each query to 200 records.
+    const read: SyncDocument[] = [];
+    for await (const page of readDocumentPages(query, collection)) read.push(...page);
     documents[collection] = collection === "categories" ? parentsFirst(read) : read;
   }
   return { exportedAt: isoTime(new Date()), documents };
