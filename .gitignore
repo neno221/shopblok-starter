@@ -10,6 +10,8 @@ next-env.d.ts
 dist
 *.tsbuildinfo
 coverage
+# Lighthouse CI reports (T113): kept as a CI run's artifact, never committed
+.lighthouseci
 
 # Environment files (the examples are committed)
 .env
