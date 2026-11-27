@@ -14,6 +14,8 @@ import { Collections } from "./payload/collections/collections";
 import { Integrations } from "./payload/collections/integrations";
 import { Media } from "./payload/collections/media";
 import { NewsletterConfirmations } from "./payload/collections/newsletter-confirmations";
+import { ConsentRecords } from "./payload/collections/consent-records";
+import { consentRetentionTask } from "./payload/jobs/consent-retention";
 import { EmailTemplates } from "./payload/collections/email-templates";
 import { Pages } from "./payload/collections/pages";
 import { Posts } from "./payload/collections/posts";
@@ -37,6 +39,7 @@ import { emailAdapter } from "./payload/email";
 import { e2eThrowEndpoint } from "./payload/e2e-throw";
 import { reportToSentry } from "./payload/sentry";
 import { mediaStorage, privateFileStorage } from "./payload/storage";
+import { taintServerSecrets } from "./lib/security/taint";
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -53,6 +56,10 @@ const DEPLOYED_POOL_MAX = 3;
 // (`previewOrigins`), so the admin works at whichever of them it was opened.
 const serverURL = siteOrigin();
 const origins = [...new Set([serverURL, ...previewOrigins()])];
+
+// M7 T109 (SPEC §11.1): the server's secrets, Payload's and the integrations' among them, may never
+// reach a Client Component; with `experimental.taint` on, rendering one throws (`lib/security/taint.ts`).
+taintServerSecrets(process.env);
 
 export default buildConfig({
   serverURL,
@@ -106,6 +113,7 @@ export default buildConfig({
     EmailTemplates,
     UiStrings,
     NewsletterConfirmations,
+    ConsentRecords,
   ],
   globals: [Header, Footer, SiteSettings, Templates],
   // D70, D79: SPEC §7.4's blocks, defined once here; `pages.layout` names them (`blockReferences`).
@@ -161,9 +169,11 @@ export default buildConfig({
   // deployment, M7 D148; `instrumentation.ts`'s timer in development) or an admin may run or queue jobs; no
   // `autoRun`, which would publish outside a Next request where `revalidateTag` cannot work. The
   // jobs collection stays Payload's: hidden, every operation denied.
+  // M7 D145 (T109): the consent records' retention runs on the same queue, once a day.
   jobs: {
     access: { run: cronOrAdmin(), queue: cronOrAdmin(), cancel: cronOrAdmin() },
     deleteJobOnComplete: true,
+    tasks: [consentRetentionTask],
   },
   // T57 (M4 D86 item 3): no type generation when Payload starts in development. It wrote the file
   // unformatted, so `next dev` left a 283-line diff (W5); `generate:types` writes and formats it,

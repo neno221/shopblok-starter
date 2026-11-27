@@ -53,6 +53,7 @@ import {
   type CheckoutStepId,
 } from "../../../../../lib/view-models/checkout";
 import { TrackOnView } from "../../../../../lib/analytics/track-on-view";
+import { HeldCart } from "../../../../../components/checkout/held-cart";
 
 // D65 (T52): one checkout step per page (`contact`, `delivery`, `review`), each a plain form that
 // posts to a server action bound to the market (`lib/actions/forms.ts`), which goes on to the next
@@ -129,6 +130,14 @@ export default async function CheckoutStepPage({ params, searchParams }: Props) 
   if (context === null) notFound();
   const read = await readCheckoutCart(market.key);
   const words = messages.templates.checkout;
+  // M7 D144 (T109): a customer's cart this visitor is not signed in as: no payment, sign-in.
+  if (read !== null && read.cart === null && read.held === true)
+    return (
+      <HeldCart
+        words={words.held}
+        signInHref={`${context.url("/login")}?next=${encodeURIComponent(context.url(`/checkout/${requested}`))}`}
+      />
+    );
   if (read === null || read.cart === null || read.cart.lines.length === 0)
     return (
       <main

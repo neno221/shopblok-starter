@@ -100,6 +100,7 @@ export interface Config {
     "email-templates": EmailTemplate;
     "ui-strings": UiString;
     "newsletter-confirmations": NewsletterConfirmation;
+    "consent-records": ConsentRecord;
     exports: Export;
     imports: Import;
     forms: Form;
@@ -125,6 +126,7 @@ export interface Config {
     "ui-strings": UiStringsSelect<false> | UiStringsSelect<true>;
     "newsletter-confirmations":
       NewsletterConfirmationsSelect<false> | NewsletterConfirmationsSelect<true>;
+    "consent-records": ConsentRecordsSelect<false> | ConsentRecordsSelect<true>;
     exports: ExportsSelect<false> | ExportsSelect<true>;
     imports: ImportsSelect<false> | ImportsSelect<true>;
     forms: FormsSelect<false> | FormsSelect<true>;
@@ -239,12 +241,14 @@ export interface Config {
     footer: Footer;
     "site-settings": SiteSetting;
     templates: Template;
+    "payload-jobs-stats": PayloadJobsStat;
   };
   globalsSelect: {
     header: HeaderSelect<false> | HeaderSelect<true>;
     footer: FooterSelect<false> | FooterSelect<true>;
     "site-settings": SiteSettingsSelect<false> | SiteSettingsSelect<true>;
     templates: TemplatesSelect<false> | TemplatesSelect<true>;
+    "payload-jobs-stats": PayloadJobsStatsSelect<false> | PayloadJobsStatsSelect<true>;
   };
   locale:
     | "en"
@@ -296,6 +300,7 @@ export interface Config {
   user: User | Integration;
   jobs: {
     tasks: {
+      "consent-retention": TaskConsentRetention;
       createCollectionExport: TaskCreateCollectionExport;
       createCollectionImport: TaskCreateCollectionImport;
       schedulePublish: TaskSchedulePublish;
@@ -1965,6 +1970,24 @@ export interface NewsletterConfirmation {
   createdAt: string;
 }
 /**
+ * Each cookie choice a visitor made, kept for 13 months as proof of consent. A record holds a random id (the same in the visitor's cookie), the answers, the policy's version, the market and the language: no address, browser or customer.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "consent-records".
+ */
+export interface ConsentRecord {
+  id: number;
+  consentId: string;
+  kind: "given" | "changed" | "withdrawn";
+  analytics: boolean;
+  marketing: boolean;
+  policyVersion: number;
+  market: string;
+  language: string;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "exports".
  */
@@ -2212,7 +2235,11 @@ export interface PayloadJob {
         executedAt: string;
         completedAt: string;
         taskSlug:
-          "inline" | "createCollectionExport" | "createCollectionImport" | "schedulePublish";
+          | "inline"
+          | "consent-retention"
+          | "createCollectionExport"
+          | "createCollectionImport"
+          | "schedulePublish";
         taskID: string;
         input?:
           | {
@@ -2246,10 +2273,26 @@ export interface PayloadJob {
       }[]
     | null;
   taskSlug?:
-    ("inline" | "createCollectionExport" | "createCollectionImport" | "schedulePublish") | null;
+    | (
+        | "inline"
+        | "consent-retention"
+        | "createCollectionExport"
+        | "createCollectionImport"
+        | "schedulePublish"
+      )
+    | null;
   queue?: string | null;
   waitUntil?: string | null;
   processing?: boolean | null;
+  meta?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -2303,6 +2346,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: "newsletter-confirmations";
         value: number | NewsletterConfirmation;
+      } | null)
+    | ({
+        relationTo: "consent-records";
+        value: number | ConsentRecord;
       } | null)
     | ({
         relationTo: "forms";
@@ -3303,6 +3350,21 @@ export interface NewsletterConfirmationsSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "consent-records_select".
+ */
+export interface ConsentRecordsSelect<T extends boolean = true> {
+  consentId?: T;
+  kind?: T;
+  analytics?: T;
+  marketing?: T;
+  policyVersion?: T;
+  market?: T;
+  language?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "exports_select".
  */
 export interface ExportsSelect<T extends boolean = true> {
@@ -3529,6 +3591,7 @@ export interface PayloadJobsSelect<T extends boolean = true> {
   queue?: T;
   waitUntil?: T;
   processing?: T;
+  meta?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -4041,6 +4104,24 @@ export interface Template {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "payload-jobs-stats".
+ */
+export interface PayloadJobsStat {
+  id: number;
+  stats?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  updatedAt?: string | null;
+  createdAt?: string | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "header_select".
  */
 export interface HeaderSelect<T extends boolean = true> {
@@ -4294,6 +4375,16 @@ export interface TemplatesSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "payload-jobs-stats_select".
+ */
+export interface PayloadJobsStatsSelect<T extends boolean = true> {
+  stats?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  globalType?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "collections_widget".
  */
 export interface CollectionsWidget {
@@ -4301,6 +4392,16 @@ export interface CollectionsWidget {
     [k: string]: unknown;
   };
   width: "full";
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "TaskConsent-retention".
+ */
+export interface TaskConsentRetention {
+  input?: unknown;
+  output: {
+    deleted: number;
+  };
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -4323,6 +4424,7 @@ export interface TaskCreateCollectionExport {
       | "email-templates"
       | "ui-strings"
       | "newsletter-confirmations"
+      | "consent-records"
       | "exports"
       | "imports";
     drafts?: ("yes" | "no") | null;

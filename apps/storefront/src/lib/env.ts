@@ -14,6 +14,10 @@
 // `payload.config.ts` and `src/payload/` (Payload's own config, R2 and the e-mails),
 // `src/scripts/`, Sentry's literals (above) and `next.config.ts`; moving them is not T105's.
 
+// M7 T109 (SPEC §11.1): each server-only secret is tainted where it is read, so rendering it into a
+// Client Component throws (`lib/security/taint.ts`; nothing happens outside React's server).
+import { taintSecret } from "./security/taint";
+
 /** The variables the app reads. All optional here; `medusaEnv()` says which ones a caller needs. */
 export type RawEnv = {
   NODE_ENV?: string | undefined;
@@ -100,7 +104,7 @@ export const env: RawEnv = {
     return process.env.MEDUSA_BACKEND_URL;
   },
   get PAYLOAD_DATABASE_URL() {
-    return process.env.PAYLOAD_DATABASE_URL;
+    return taintSecret("PAYLOAD_DATABASE_URL", process.env.PAYLOAD_DATABASE_URL);
   },
   get E2E_TEST_ROUTES() {
     return process.env.E2E_TEST_ROUTES;
@@ -109,16 +113,16 @@ export const env: RawEnv = {
     return process.env.DESIGN_SYSTEM_ENABLED;
   },
   get REVALIDATE_SECRET() {
-    return process.env.REVALIDATE_SECRET;
+    return taintSecret("REVALIDATE_SECRET", process.env.REVALIDATE_SECRET);
   },
   get PAYLOAD_SECRET() {
-    return process.env.PAYLOAD_SECRET;
+    return taintSecret("PAYLOAD_SECRET", process.env.PAYLOAD_SECRET);
   },
   get PREVIEW_SECRET() {
-    return process.env.PREVIEW_SECRET;
+    return taintSecret("PREVIEW_SECRET", process.env.PREVIEW_SECRET);
   },
   get CRON_SECRET() {
-    return process.env.CRON_SECRET;
+    return taintSecret("CRON_SECRET", process.env.CRON_SECRET);
   },
   get STOREFRONT_PRERENDER_PRODUCTS() {
     return process.env.STOREFRONT_PRERENDER_PRODUCTS;
@@ -130,7 +134,7 @@ export const env: RawEnv = {
     return process.env.STOREFRONT_BUILD_WORKERS;
   },
   get STOREFRONT_SIGNING_SECRET() {
-    return process.env.STOREFRONT_SIGNING_SECRET;
+    return taintSecret("STOREFRONT_SIGNING_SECRET", process.env.STOREFRONT_SIGNING_SECRET);
   },
   get SHOPBLOK_SECRET_FINGERPRINTS() {
     return process.env.SHOPBLOK_SECRET_FINGERPRINTS;
@@ -157,7 +161,7 @@ export const env: RawEnv = {
     return process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
   },
   get TURNSTILE_SECRET_KEY() {
-    return process.env.TURNSTILE_SECRET_KEY;
+    return taintSecret("TURNSTILE_SECRET_KEY", process.env.TURNSTILE_SECRET_KEY);
   },
   get S3_PRIVATE_BUCKET() {
     return process.env.S3_PRIVATE_BUCKET;
@@ -172,7 +176,10 @@ export const env: RawEnv = {
     return process.env.VERCEL_URL;
   },
   get VERCEL_AUTOMATION_BYPASS_SECRET() {
-    return process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
+    return taintSecret(
+      "VERCEL_AUTOMATION_BYPASS_SECRET",
+      process.env.VERCEL_AUTOMATION_BYPASS_SECRET,
+    );
   },
 };
 

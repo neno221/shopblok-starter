@@ -251,11 +251,12 @@ async function markForTheBrowser(name: string): Promise<void> {
 }
 
 /**
- * After a sign-in, a registration or a sign-out (D124): the next page asks for the visitor again,
- * so PostHog follows the customer (`VISITOR_CHANGED_COOKIE`). Only with a PostHog key in the build.
+ * After a sign-in, a registration or a sign-out (D124): the next page asks for the visitor again
+ * (`VISITOR_CHANGED_COOKIE`), so the header learns the customer and their cart, and PostHog follows
+ * them. M7 T109: with or without a PostHog key, since a cart held back for its customer (D144)
+ * comes back only at the sign-in, and the header had counted it as none.
  */
 export async function markVisitorChanged(): Promise<void> {
-  if (!process.env.NEXT_PUBLIC_POSTHOG_KEY?.trim()) return;
   await markForTheBrowser(VISITOR_CHANGED_COOKIE);
 }
 

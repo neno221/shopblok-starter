@@ -21,6 +21,8 @@ import { PLACEHOLDER_HANDLE, prerenderCap } from "../../../../lib/prerender";
 import { withSeo } from "../../../../lib/seo/meta";
 import { cmsPageJsonLd } from "../../../../lib/seo/page";
 import { jsonLdText } from "../../../../lib/seo/product";
+import { CookieSettingsForm } from "../../../../components/visitor/cookie-settings-form";
+import { COOKIE_POLICY_PATH } from "../../../../lib/site";
 
 // D80 (T65): an editor's page at its address in the market's language (`/about/team`, the
 // parents' slugs and its own), in the static shell. Every read is a `cached()` entry (the pages'
@@ -145,6 +147,10 @@ export default async function CmsPageRoute({ params }: Props) {
         }}
       />
       <CmsPageView page={page} content={content} market={market} paths={paths} draft={draft} />
+      {/* M7 D145 (T109): the cookie policy's "Cookie settings" form for a visitor without scripts. */}
+      {href === url(COOKIE_POLICY_PATH) ? (
+        <CookieSettingsForm market={market.key} words={messages.organisms.cookieConsent} />
+      ) : null}
     </>
   );
 }

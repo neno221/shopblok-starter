@@ -118,6 +118,7 @@ const order = {
   id: "order_1",
   displayId: 7,
   customerId: "cus_1",
+  access: "guest",
   status: "completed",
   lines: [line("item_1"), line("item_2")],
 } as unknown as OrderDto;

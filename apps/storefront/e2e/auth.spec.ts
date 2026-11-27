@@ -8,6 +8,7 @@ import {
   mailedData,
   mailedLink,
   orderIdOf,
+  withoutScripts,
   type Words,
 } from "./support/purchase";
 // M6 D114 (T93): fails a test on any request to a third party an integration talks to.
@@ -287,4 +288,48 @@ test("without scripts: the account asks to sign in, the sign-in goes back to it,
   await expect(page).toHaveURL(new RegExp(`${PREFIX}/login\\?notice=signed-out$`));
   expect(await hasSession(context)).toBe(false);
   await context.close();
+});
+
+// M7 D144 (T109): a customer's cart whose session has gone (it expired, or another shopper uses the
+// computer). Medusa keeps its payment secrets back and refuses its writes, so the cart page and the
+// checkout show neither its lines nor a payment, only the sign-in, which comes back; with and
+// without scripts. Signing in as its customer brings the cart back.
+test("a customer's cart without its session offers sign-in, and the sign-in brings it back", async ({
+  browser,
+  context,
+  page,
+}) => {
+  const third = { email: `t109-held-${stamp}@example.com`, password: "third-pass-3" };
+  await newCustomer(page, third.email, third.password, "Hedy");
+  await addToCart(page, PREFIX);
+  // The session goes; the cart cookie stays.
+  await context.clearCookies({ name: JWT_COOKIE });
+  const held = page.locator('[data-slot="held-cart"]');
+  const words = en.templates.checkout.held;
+
+  for (const path of ["/cart", "/checkout/contact"]) {
+    await page.goto(`${PREFIX}${path}`);
+    await expect(held).toBeVisible();
+    await expect(held.getByRole("heading", { level: 2 })).toHaveText(words.title);
+    await expect(held.getByRole("link", { name: words.signIn })).toHaveAttribute(
+      "href",
+      `${PREFIX}/login?next=${encodeURIComponent(`${PREFIX}${path}`)}`,
+    );
+    await expect(page.locator('[data-slot="cart-template"]')).toHaveCount(0);
+    await expect(page.locator('[data-slot="checkout-template"]')).toHaveCount(0);
+  }
+
+  const noScripts = await withoutScripts(browser, context);
+  const plain = await noScripts.newPage();
+  await plain.goto(`${PREFIX}/cart`);
+  await expect(plain.locator('[data-slot="held-cart"]')).toBeVisible();
+  await expect(plain.locator('[data-slot="cart-template"]')).toHaveCount(0);
+  await noScripts.close();
+
+  await page.goto(`${PREFIX}/cart`);
+  await held.getByRole("link", { name: words.signIn }).click();
+  await signIn(page, third.email, third.password);
+  await expect(page).toHaveURL(new RegExp(`${PREFIX}/cart$`));
+  await expect(page.locator('[data-slot="cart-template"]')).toBeVisible();
+  await expect(page.locator('header [data-slot="cart-badge"]')).toHaveText("1");
 });

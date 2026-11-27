@@ -29,6 +29,10 @@ const getMarketContext = vi.fn();
 vi.mock("../market-context", () => ({ getMarketContext }));
 const MAIL = vi.hoisted(() => ({ market: "/de", language: "en" }));
 vi.mock("../markets", () => ({ mailTarget: () => MAIL }));
+// The marks for the next page (the visitor changed, D124; a registration's `signed_up`) are cookies
+// of the request, which these tests have none of.
+const markVisitorChanged = vi.fn();
+vi.mock("../medusa/cookies", () => ({ markVisitorChanged, markSignedUp: vi.fn() }));
 
 const { MedusaRequestError } = await import("../medusa/sdk");
 const { authFormError, forgotAction, loginAction, registerAction, resetAction } =

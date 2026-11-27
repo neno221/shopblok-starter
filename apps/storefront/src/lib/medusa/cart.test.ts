@@ -60,6 +60,7 @@ describe("the saved payment method on the cart (M6 D119, T101)", () => {
       savedMethod: null,
       paymentSave: false,
       customerId: null,
+      access: "guest",
     });
     const cart = toCartDto({
       ...wireCart,
@@ -157,6 +158,29 @@ describe("the cart through the SDK", () => {
       body: { cart: { ...wireCart, completed_at: "2026-10-26T10:00:00Z" } },
     }));
     expect(await getCart()).toBeNull();
+  });
+
+  it("holds back a customer's cart this visitor is not signed in as (M7 D144), keeping the cookie", async () => {
+    jar.reset({ _medusa_cart_id: "cart_1" });
+    stubMedusaFetch(() => ({ body: { cart: { ...wireCart, shopblok_access: "other" } } }));
+    const { getCart, readCart } = await import("./cart");
+    expect(await getCart()).toBeNull();
+    expect(await readCart()).toEqual({ cart: null, held: true });
+    expect(jar.values.get("_medusa_cart_id")).toBe("cart_1");
+    // Its lines count for nothing in the actions' checks: the next add goes to a new cart.
+    const { getCartItems } = await import("./cart");
+    expect(await getCartItems()).toBeNull();
+    vi.unstubAllGlobals();
+    for (const access of ["owner", "guest", undefined, "nonsense"]) {
+      stubMedusaFetch(() => ({ body: { cart: { ...wireCart, shopblok_access: access } } }));
+      const read = await readCart();
+      expect([access, read.held, read.cart?.access]).toEqual([
+        access,
+        false,
+        access === "owner" ? "owner" : "guest",
+      ]);
+      vi.unstubAllGlobals();
+    }
   });
 
   it("passes an outage on", async () => {

@@ -12,6 +12,7 @@ import {
 } from "./cookies";
 import type { MailTarget } from "../markets/url";
 import type { AddressInput } from "./cart";
+import { taintObject } from "../security/taint";
 import { medusaRequest, MedusaRequestError } from "./sdk";
 
 // The customer and the auth flow (D64), ported from dtc-starter's `lib/data/customer.ts`. T53 wires
@@ -108,6 +109,19 @@ export function toCustomerDto(customer: WireCustomer): CustomerDto {
 
 const CUSTOMER_FIELDS = "id,email,first_name,last_name,phone,*addresses";
 
+const CUSTOMER_TAINT =
+  "The customer object stays on the server: pass the fields a Client Component needs, one by one.";
+
+/**
+ * M7 T109 (SPEC §11.1): Medusa's customer and the DTO made from it, both tainted by reference, so
+ * neither can be handed whole to a Client Component or a server action's closure (the e-mail, the
+ * phone, every address). Their fields can still be passed one by one.
+ */
+function customerOf(wire: unknown): CustomerDto {
+  if (typeof wire === "object" && wire !== null) taintObject(CUSTOMER_TAINT, wire);
+  return taintObject(CUSTOMER_TAINT, toCustomerDto(wire as WireCustomer));
+}
+
 /**
  * The signed-in customer, or `null`: no token, or a token Medusa no longer takes (expired, or one
  * with no customer yet). Never cached across requests.
@@ -119,7 +133,7 @@ export async function getCustomer(): Promise<CustomerDto | null> {
     const { customer } = await medusaRequest((sdk) =>
       sdk.store.customer.retrieve({ fields: CUSTOMER_FIELDS }, headers),
     );
-    return toCustomerDto(customer as unknown as WireCustomer);
+    return customerOf(customer);
   } catch (error) {
     if (error instanceof MedusaRequestError && error.kind === "rejected" && error.status === 401)
       return null;
@@ -143,7 +157,7 @@ export async function updateCustomer(fields: {
   const { customer } = await medusaRequest((sdk) =>
     sdk.store.customer.update(fields, { fields: CUSTOMER_FIELDS }, headers),
   );
-  return toCustomerDto(customer as unknown as WireCustomer);
+  return customerOf(customer);
 }
 
 export async function addAddress(
@@ -153,7 +167,7 @@ export async function addAddress(
   const { customer } = await medusaRequest((sdk) =>
     sdk.store.customer.createAddress(address, { fields: CUSTOMER_FIELDS }, headers),
   );
-  return toCustomerDto(customer as unknown as WireCustomer);
+  return customerOf(customer);
 }
 
 /**
@@ -169,7 +183,7 @@ export async function updateAddress(
   const { customer } = await medusaRequest((sdk) =>
     sdk.store.customer.updateAddress(addressId, address, { fields: CUSTOMER_FIELDS }, headers),
   );
-  return toCustomerDto(customer as unknown as WireCustomer);
+  return customerOf(customer);
 }
 
 export async function deleteAddress(addressId: string): Promise<void> {

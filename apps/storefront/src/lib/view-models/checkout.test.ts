@@ -59,6 +59,7 @@ const empty: CartDto = {
   savedMethod: null,
   paymentSave: false,
   customerId: null,
+  access: "guest",
   completed: false,
 };
 const contactDone: CartDto = { ...empty, email: "anna@example.com", shippingAddress: address };
@@ -92,6 +93,7 @@ describe("the steps a cart has done", () => {
       paymentProviderId: "pp_stripe_stripe",
       savedMethod: "pm_card1",
       customerId: "cus_1",
+      access: "guest",
     };
     const saving: CartDto = {
       ...saved,
