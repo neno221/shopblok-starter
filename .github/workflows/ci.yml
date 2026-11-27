@@ -260,7 +260,7 @@ jobs:
     runs-on: ubuntu-latest
     # 30 until M3 (about 5 minutes of work at M2's end). D67: the commerce suites (T48 to T54) and
     # the outage test add to it, and 45 leaves room for them.
-    timeout-minutes: 60
+    timeout-minutes: 45
     # D58, D67 item 2: the build prerenders four of the demo catalog's eight products, and the outage
     # spec takes its subjects from past the same cap, so both read it from here. T50: three products
     # a listing page, for the build and for `next start` alike (the first pages are built, the
@@ -367,21 +367,6 @@ jobs:
         # Only this server gets it; the build above has no say in it.
         env:
           E2E_TEST_ROUTES: "true"
-      # T113's proof run against `next start` (not kept: the lighthouse job runs on deployments).
-      - name: Lighthouse CI against next start (T113 proof)
-        continue-on-error: true
-        working-directory: apps/storefront
-        env:
-          LHCI_BASE_URL: http://localhost:8000
-        run: CHROME_PATH="$(command -v google-chrome)" pnpm exec lhci autorun --config=lighthouserc.cjs
-      - name: Upload the Lighthouse reports (T113 proof)
-        if: always()
-        uses: actions/upload-artifact@v7.0.2
-        with:
-          name: lighthouse-proof
-          path: apps/storefront/.lighthouseci
-          include-hidden-files: true
-          if-no-files-found: ignore
       # markets (T11), wiring (T12; the home since T51), payload-admin, payload-cache (ADR 0001's
       # cache, tag and draft checks), editor-homepage (T71: an editor builds the home in the admin)
       # and payload-locales (S3: it opens and closes markets through Medusa's markets API and puts
