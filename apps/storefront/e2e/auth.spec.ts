@@ -333,3 +333,21 @@ test("a customer's cart without its session offers sign-in, and the sign-in brin
   await expect(page.locator('[data-slot="cart-template"]')).toBeVisible();
   await expect(page.locator('header [data-slot="cart-badge"]')).toHaveText("1");
 });
+
+// M7 (SPEC §11.1): with React's taint guard on, the signed-in customer, as `lib/medusa/customer.ts`
+// reads it, cannot be handed whole to a Client Component: the test page (`/[market]/e2e-taint`,
+// `E2E_TEST_ROUTES=true`) fails on the server, and the answer holds neither the e-mail nor the
+// customer's id. One field passes. `taint.spec.ts` has the secrets.
+test("the signed-in customer is refused whole by a Client Component, and one field passes", async ({
+  page,
+}) => {
+  const fourth = { email: `taint-${stamp}@example.com`, password: "fourth-pass-4" };
+  await newCustomer(page, fourth.email, fourth.password, "Grace");
+  const whole = await page.goto(`${PREFIX}/e2e-taint?leak=customer`);
+  expect(await whole?.text()).not.toContain(fourth.email);
+  await expect(page.locator('[data-slot="error-template"]')).toBeVisible();
+  await expect(page.getByTestId("taint-probe")).toHaveCount(0);
+
+  await page.goto(`${PREFIX}/e2e-taint?leak=email`);
+  await expect(page.getByTestId("taint-probe")).toHaveText(fourth.email);
+});
