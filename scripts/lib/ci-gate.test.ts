@@ -510,6 +510,19 @@ describe("decideJobs on other events", () => {
     expect(workflow.split(`github.event.schedule != '${NIGHTLY_SCHEDULE}'`).length - 1).toBe(2);
   });
 
+  it("a Lighthouse run (T113) skips the gate, check, backend-integration and update-baselines", () => {
+    const workflow = readFileSync(
+      path.join(import.meta.dirname, "..", "..", ".github", "workflows", "ci.yml"),
+      "utf8",
+    );
+    // The gate, check and backend-integration: every other job waits for the gate.
+    const skip = "github.event_name != 'deployment_status' && !inputs.lighthouse-url";
+    expect(workflow.split(skip).length - 1).toBe(3);
+    expect(workflow).toContain("inputs.update-baselines && !inputs.lighthouse-url }}");
+    expect(workflow).toMatch(/^ {2}deployment_status:$/m);
+    expect(workflow).toMatch(/^ {2}lighthouse:$/m);
+  });
+
   it("a push to main runs e2e-smoke and design-system, and not windows-smoke (T16's rule)", () => {
     const decision = decideJobs({ event: "push", files: ["pnpm-lock.yaml"] });
     expect(jobs(decision)).toEqual({
