@@ -892,6 +892,32 @@ describe("SearchOverlayFrame: a panel that comes later (T113)", () => {
     await waitFor(() => expect(document.activeElement).toBe(field()));
   });
 
+  it("forgets a press whose fetch failed: a later fetch does not open the dialog (PR 157 review)", async () => {
+    let fail: (error: Error) => void = () => undefined;
+    const want = vi
+      .fn<() => Promise<unknown>>()
+      .mockImplementationOnce(
+        () =>
+          new Promise((_, reject) => {
+            fail = reject;
+          }),
+      )
+      .mockResolvedValue(undefined);
+    const view = render(frame(undefined, want));
+    const user = userEvent.setup();
+    await user.click(trigger());
+    await act(async () => fail(new Error("chunk refused")));
+    // The next reach (the pointer passing over) fetches it, and the panel arrives.
+    await user.hover(trigger());
+    view.rerender(frame(SearchOverlayPanel, want));
+    await new Promise((settled) => setTimeout(settled, 50));
+    expect(dialog()).toBeNull();
+    expect(trigger().getAttribute("aria-expanded")).toBe("false");
+    // A press now opens it.
+    await user.click(trigger());
+    await waitFor(() => expect(dialog()).not.toBeNull());
+  });
+
   it("asks nothing once it has the panel", async () => {
     const want = vi.fn();
     render(frame(SearchOverlayPanel, want));

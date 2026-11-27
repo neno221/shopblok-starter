@@ -1,6 +1,6 @@
 // M7 D150 (T113): Lighthouse CI on a deployment (staging, a preview) or on any address a dispatch
-// names: CI's `lighthouse` job runs `lhci autorun` here with `LHCI_BASE_URL` (the deployment's
-// address, no trailing slash). Lighthouse's default profile, which is mobile (a mid-range phone,
+// names: `.github/workflows/lighthouse.yml` runs `lhci autorun` here with `LHCI_BASE_URL` (the
+// deployment's origin). Lighthouse's default profile, which is mobile (a mid-range phone,
 // simulated 4G), three runs per page, on D150's pages in two markets (`/` and `/us`): the home, a
 // listing, a product page, a CMS page, the cart and the journal. The reports stay on the runner
 // (`.lighthouseci/`, uploaded as the run's artifact), never on a public store.
@@ -9,20 +9,32 @@
 //   stand-in for INP's 200 ms), each on the median of the three runs. `is-crawlable` is skipped:
 //   staging answers `X-Robots-Tag: noindex` on purpose (T110), and so does every preview.
 // - **A protected deployment** (a preview; a production deployment's own `*.vercel.app` address):
-//   `lighthouse-bypass.cjs` runs before each page as Lighthouse CI's `puppeteerScript`, makes one
-//   request to the deployment itself with Vercel's automation bypass and keeps the cookie Vercel
-//   answers with, and Lighthouse then runs with `disableStorageReset`, so the cookie stays and the
-//   secret never goes to another origin (D136, 3). Without the secret (staging's production
-//   address, `next start`) there is no script and Lighthouse clears the storage before each run, as
-//   it does by default (a cold cache each time).
+//   `lighthouse-bypass.cjs` runs before each page as Lighthouse CI's `puppeteerScript` and makes one
+//   request to the deployment itself with Vercel's automation bypass, which answers with a cookie,
+//   so the secret never goes to another origin (D136, 3). Lighthouse's own reset before each run
+//   empties the browser's cache and its file systems, service workers and cache storage, never its
+//   cookies (Lighthouse 13.6's `clearStorageTypes`), so every run is a first visit with a cold
+//   cache and still carries the cookie (PR 157 review, item 1). Without the secret (staging's own
+//   address, `next start`) there is no script.
 // - `CHROME_PATH` names the browser (GitHub's runners have Google Chrome; the cloud VM Playwright's
 //   Chromium); Lighthouse CI drives it with `puppeteer-core`, a dev dependency beside `@lhci/cli`.
 "use strict";
 
 const base = (process.env.LHCI_BASE_URL ?? "").replace(/\/+$/, "");
-if (!/^https?:\/\/[^/]+$/.test(base)) {
+/** Whether `value` is an origin and nothing more: no path, query, fragment or user name. */
+function isOrigin(value) {
+  try {
+    const parsed = new URL(value);
+    return /^https?:$/.test(parsed.protocol) && parsed.origin === value;
+  } catch {
+    return false;
+  }
+}
+// An address with `?` or `#` would put every page after it, and Lighthouse would audit the home
+// twelve times (PR 157 review, item 6).
+if (!isOrigin(base)) {
   throw new Error(
-    "lighthouserc.cjs: set LHCI_BASE_URL to the deployment's origin, such as https://shopblok-abc.vercel.app (no path).",
+    "lighthouserc.cjs: set LHCI_BASE_URL to the deployment's origin, such as https://shopblok-abc.vercel.app (no path, query or fragment).",
   );
 }
 
@@ -51,7 +63,6 @@ module.exports = {
       settings: {
         chromeFlags: "--no-sandbox --headless=new",
         skipAudits: ["is-crawlable"],
-        ...(bypass ? { disableStorageReset: true } : {}),
       },
     },
     assert: {

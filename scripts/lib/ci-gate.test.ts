@@ -510,17 +510,15 @@ describe("decideJobs on other events", () => {
     expect(workflow.split(`github.event.schedule != '${NIGHTLY_SCHEDULE}'`).length - 1).toBe(2);
   });
 
-  it("a Lighthouse run (T113) skips the gate, check, backend-integration and update-baselines", () => {
-    const workflow = readFileSync(
-      path.join(import.meta.dirname, "..", "..", ".github", "workflows", "ci.yml"),
-      "utf8",
-    );
-    // The gate, check and backend-integration: every other job waits for the gate.
-    const skip = "github.event_name != 'deployment_status' && !inputs.lighthouse-url";
-    expect(workflow.split(skip).length - 1).toBe(3);
-    expect(workflow).toContain("inputs.update-baselines && !inputs.lighthouse-url }}");
-    expect(workflow).toMatch(/^ {2}deployment_status:$/m);
-    expect(workflow).toMatch(/^ {2}lighthouse:$/m);
+  it("ci.yml takes no deployment status: Lighthouse's own workflow does (T113, PR 157 review)", () => {
+    const workflows = path.join(import.meta.dirname, "..", "..", ".github", "workflows");
+    // On an event it does not know the gate runs everything, and each deployment would add a run
+    // of CI's checks to the deployed commit.
+    expect(readFileSync(path.join(workflows, "ci.yml"), "utf8")).not.toContain("deployment_status");
+    const lighthouse = readFileSync(path.join(workflows, "lighthouse.yml"), "utf8");
+    expect(lighthouse).toMatch(/^ {2}deployment_status:$/m);
+    expect(lighthouse).toContain("github.event.deployment_status.creator.login == 'vercel[bot]'");
+    expect(lighthouse).toMatch(/^ {4}environment: lighthouse$/m);
   });
 
   it("a push to main runs e2e-smoke and design-system, and not windows-smoke (T16's rule)", () => {

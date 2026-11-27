@@ -152,12 +152,13 @@ export function SearchOverlayIsland({
   return (
     <SearchOverlayFrame
       panel={panel}
-      onWantPanel={() => {
-        loadSearchPanel().then(
-          (loaded) => setPanel(() => loaded),
-          () => undefined,
-        );
-      }}
+      // The frame is given the fetch, so a press that waited for a fetch that failed is forgotten
+      // (PR 157 review, item 5).
+      onWantPanel={() =>
+        loadSearchPanel().then((loaded) => {
+          setPanel(() => loaded);
+        })
+      }
       search={{ action, query: "" }}
       recent={[...recent]}
       result={result}

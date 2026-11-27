@@ -1,24 +1,29 @@
 // M7 D136 (3), D150 (T113): Lighthouse CI's `puppeteerScript` for a protected Vercel deployment.
 // Before Lighthouse opens a page, this makes ONE request to that page's own origin with
 // `x-vercel-protection-bypass` (the project's automation bypass secret) and
-// `x-vercel-set-bypass-cookie: true`, so Vercel answers with its bypass cookie, and Lighthouse
-// (`disableStorageReset` in `lighthouserc.cjs`) then loads the page with that cookie. The secret
-// is in no other request: the request is for `/robots.txt` (text, nothing else to load), every
-// other request the tab would make is refused, and the secret goes only to a `*.vercel.app` origin
-// (or one named in `LHCI_BYPASS_HOSTS`, comma-separated), so a dispatch with another address
-// sends it nowhere. The cookie is set once per origin for the whole run.
+// `x-vercel-set-bypass-cookie: true`, so Vercel answers with its bypass cookie, which Lighthouse's
+// own reset between runs keeps (it clears the cache, never cookies). The secret is in no other
+// request: the request is for `/robots.txt` (text, nothing else to load) and every other request
+// the tab would make is refused. It goes only to this project's own deployments (PR 157 review,
+// item 4): a host named in `LHCI_BYPASS_HOSTS` (comma-separated; CI names the host of the
+// deployment Vercel reported) or one that matches `LHCI_BYPASS_PATTERN` whole (a regular
+// expression, such as this project's preview addresses); any other host, another Vercel
+// customer's `*.vercel.app` included, is sent nothing. The cookie is set once per origin for the
+// whole run.
 "use strict";
 
 const done = new Set();
 
-/** Whether the secret may go to `hostname`: a Vercel deployment, or a host named for it. */
+/** Whether the secret may go to `hostname`: a host named for it, or one its pattern matches whole. */
 function trusted(hostname) {
+  const host = hostname.toLowerCase();
   const named = (process.env.LHCI_BYPASS_HOSTS ?? "")
     .split(",")
     .map((each) => each.trim().toLowerCase())
     .filter((each) => each !== "");
-  const host = hostname.toLowerCase();
-  return host.endsWith(".vercel.app") || named.includes(host);
+  if (named.includes(host)) return true;
+  const pattern = (process.env.LHCI_BYPASS_PATTERN ?? "").trim();
+  return pattern !== "" && new RegExp(`^(?:${pattern})$`, "i").test(host);
 }
 
 /** @param {import('puppeteer-core').Browser} browser @param {{ url: string }} context */
@@ -27,7 +32,9 @@ module.exports = async (browser, context) => {
   const { origin, hostname } = new URL(context.url);
   if (secret === "" || done.has(origin)) return;
   if (!trusted(hostname)) {
-    console.log(`lighthouse-bypass: ${hostname} is not a Vercel deployment; no bypass sent.`);
+    console.log(
+      `lighthouse-bypass: ${hostname} is not named in LHCI_BYPASS_HOSTS or LHCI_BYPASS_PATTERN; no bypass sent.`,
+    );
     done.add(origin);
     return;
   }

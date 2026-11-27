@@ -39,10 +39,6 @@
 #                  request or a Renovate branch, and nightly on its own. T103 (M6's done-when): each
 #                  integration whose keys it holds is live and passes `doctor --online --strict`, and
 #                  no spec of one of them is skipped; e2e-smoke runs the done-when's keyless half.
-#   lighthouse     M7 D150 (T113): Lighthouse CI (`apps/storefront/lighthouserc.cjs`) on a deployment,
-#                  alone: on Vercel's `deployment_status` (a deployment that succeeded) and on a
-#                  dispatch with `lighthouse-url`. The reports are the run's artifact. On either
-#                  event the gate, check and backend-integration are skipped, so nothing else runs.
 # Each job but the gate and update-baselines-commit sets up pnpm and Node with .github/actions/setup,
 # and every job that runs a server starts it with .github/actions/start-storefront. e2e-smoke starts and stops Medusa with
 # .github/actions/start-medusa, the only thing that starts it (T42).
@@ -73,20 +69,9 @@ on:
           no workflow: run CI again by hand afterwards.
         type: boolean
         default: false
-      lighthouse-url:
-        description: >-
-          Run Lighthouse CI (the lighthouse job, alone) on this deployment's origin, such as
-          https://shopblok-abc.vercel.app (no path). Leave empty for a normal run.
-        type: string
-        default: ""
-  # M7 D150 (T113): Vercel reports each deployment to GitHub; one that succeeded runs the lighthouse
-  # job on its address, and nothing else.
-  deployment_status:
 
-# A Lighthouse run has a group of its own: in a branch's group it would wait for (or, pending,
-# replace) that branch's own run.
 concurrency:
-  group: ci-${{ (github.event_name == 'deployment_status' || inputs.lighthouse-url) && format('lighthouse-{0}', github.run_id) || github.event.pull_request.number || github.ref }}
+  group: ci-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
@@ -108,9 +93,6 @@ jobs:
   # install: the two jobs behind it wait seconds, not a minute. If it fails, the jobs behind it are
   # skipped and the run is red.
   gate:
-    # A Lighthouse run (T113) runs the lighthouse job alone; every job behind the gate is skipped
-    # with it. (The gate would run everything on an event it does not know.)
-    if: ${{ github.event_name != 'deployment_status' && !inputs.lighthouse-url }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -144,7 +126,7 @@ jobs:
     name: check (${{ matrix.label }})
     # A baseline update runs its own job only; the dispatch after it runs this (PR 63 review). The
     # nightly schedule runs integrations-live alone (M6 D114).
-    if: ${{ !inputs.update-baselines && github.event.schedule != '29 2 * * *' && github.event_name != 'deployment_status' && !inputs.lighthouse-url }}
+    if: ${{ !inputs.update-baselines && github.event.schedule != '29 2 * * *' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     # Node 24 is informational (Payload v4 readiness): a failure there shows as a red check and
@@ -205,7 +187,7 @@ jobs:
   # prefix of its own; every other suite leaves the keys blank and runs on Postgres. It needs no
   # `.env` and no bootstrap.
   backend-integration:
-    if: ${{ !inputs.update-baselines && github.event.schedule != '29 2 * * *' && github.event_name != 'deployment_status' && !inputs.lighthouse-url }}
+    if: ${{ !inputs.update-baselines && github.event.schedule != '29 2 * * *' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -1027,7 +1009,7 @@ jobs:
   # it wrote; `update-baselines-commit` puts the three sets together, compresses and commits once.
   update-baselines:
     name: update-baselines (shard ${{ matrix.shard }}/3)
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.update-baselines && !inputs.lighthouse-url }}
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.update-baselines }}
     runs-on: ubuntu-latest
     strategy:
       # One shard's failure stops the others: nothing will be committed.
@@ -1297,41 +1279,3 @@ jobs:
       - name: One Ctrl-C stops pnpm dev
         shell: pwsh
         run: ./.github/scripts/dev-ctrl-c.ps1
-
-  # M7 D150 (T113): Lighthouse CI on a deployment, alone (the gate, check and backend-integration
-  # skip both events). The address is the deployment's (`environment_url`, which Vercel sets to the
-  # deployment's own `*.vercel.app` one) or the dispatch's `lighthouse-url`; it reaches the shell
-  # only as an environment variable, and `lighthouserc.cjs` refuses anything but an origin. With
-  # `VERCEL_AUTOMATION_BYPASS_SECRET` (a repository secret: the Vercel project's "Protection Bypass
-  # for Automation"), `lighthouse-bypass.cjs` sends it once, to that deployment's own origin, and
-  # only when it is a `*.vercel.app` one (D136, 3). The reports and the assertions' results are the
-  # run's artifact (`.lighthouseci/`), never a public store.
-  # The workflow and the config come from the deployed commit, as for any event: a deployment of
-  # a fork's pull request needs Vercel's fork protection, which asks a member to authorize it
-  # (SETUP.md "First load, axe and Lighthouse (T113)").
-  lighthouse:
-    if: >-
-      ${{ (github.event_name == 'deployment_status' && github.event.deployment_status.state == 'success')
-      || (github.event_name == 'workflow_dispatch' && inputs.lighthouse-url != '') }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v7.0.1
-      - uses: ./.github/actions/setup
-      - run: pnpm install --frozen-lockfile
-      - name: Lighthouse CI
-        working-directory: apps/storefront
-        env:
-          LHCI_BASE_URL: ${{ github.event.deployment_status.environment_url || inputs.lighthouse-url }}
-          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
-        run: |
-          echo "Lighthouse on $LHCI_BASE_URL"
-          CHROME_PATH="$(command -v google-chrome)" pnpm exec lhci autorun --config=lighthouserc.cjs
-      - name: Upload the Lighthouse reports
-        if: always()
-        uses: actions/upload-artifact@v7.0.2
-        with:
-          name: lighthouse
-          path: apps/storefront/.lighthouseci
-          include-hidden-files: true
-          if-no-files-found: ignore

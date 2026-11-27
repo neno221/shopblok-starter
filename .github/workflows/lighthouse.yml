@@ -1,0 +1,85 @@
+# M7 D150 (T113): Lighthouse CI (`apps/storefront/lighthouserc.cjs`) on a deployment, in a workflow
+# of its own, so a deployment's status makes no run of CI's checks on the deployed commit (PR 157
+# review, item 2). Two events start it:
+#   deployment_status  a deployment that Vercel's GitHub app (`vercel[bot]`) reports as succeeded,
+#                      at its `environment_url` (staging, a preview). Deployments anything else
+#                      reports (Railway's, GitHub's own environments) start nothing (item 7).
+#   workflow_dispatch  with `url`, the origin of a deployment, such as staging's:
+#                        gh api -X POST repos/neno221/shopblok-starter/actions/workflows/lighthouse.yml/dispatches -f ref=main -f 'inputs[url]=https://…'
+# The address reaches the shell only as an environment variable, and `lighthouserc.cjs` refuses
+# anything but an origin. With `VERCEL_AUTOMATION_BYPASS_SECRET` (the Vercel project's "Protection
+# Bypass for Automation", a secret of the `lighthouse` environment), `lighthouse-bypass.cjs` sends it
+# once, to the deployment's own origin, and only to a host this project names: on a deployment's
+# status the host Vercel reported, on a dispatch the repository variables `LHCI_BYPASS_HOSTS`
+# (comma-separated) and `LHCI_BYPASS_PATTERN` (a regular expression a host must match whole), and
+# never another Vercel customer's `*.vercel.app` (item 4). The reports and the assertions' results
+# are the run's `lighthouse` artifact (`.lighthouseci/`), never a public store.
+# The `lighthouse` environment (G11, SETUP.md "First load, axe and Lighthouse (T113)") holds the
+# secret behind a required reviewer: on `deployment_status` GitHub runs the deployed commit's
+# workflow files with the repository's secrets, and a fork's pull request writes those (item 3).
+name: Lighthouse
+
+on:
+  deployment_status:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: The deployment's origin, such as https://shopblok-abc.vercel.app (no path).
+        type: string
+        required: true
+
+# One run per deployment (or dispatch); a deployment's pending and success statuses never cancel
+# each other's run, and nothing else shares the group.
+concurrency:
+  group: lighthouse-${{ github.event.deployment.id || github.run_id }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  NEXT_TELEMETRY_DISABLED: "1"
+  TURBO_TELEMETRY_DISABLED: "1"
+
+jobs:
+  lighthouse:
+    if: >-
+      ${{ github.event_name == 'workflow_dispatch'
+      || (github.event.deployment_status.state == 'success'
+      && github.event.deployment_status.creator.login == 'vercel[bot]') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # A job with an environment makes a deployment of its own, as `github-actions[bot]` with the
+    # run's token, which starts no workflow (and the `if` above would refuse it).
+    environment: lighthouse
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: ./.github/actions/setup
+      - run: pnpm install --frozen-lockfile
+      - name: Lighthouse CI
+        working-directory: apps/storefront
+        env:
+          LHCI_BASE_URL: ${{ github.event.deployment_status.environment_url || inputs.url }}
+          DEPLOYED: ${{ github.event_name == 'deployment_status' }}
+          NAMED_HOSTS: ${{ vars.LHCI_BYPASS_HOSTS }}
+          LHCI_BYPASS_PATTERN: ${{ vars.LHCI_BYPASS_PATTERN }}
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+        run: |
+          echo "Lighthouse on $LHCI_BASE_URL"
+          # The deployment Vercel reported is this project's own: its host is trusted for the
+          # bypass. A dispatch's address is trusted only by the repository's variables.
+          if [ "$DEPLOYED" = "true" ]; then
+            host="$(node -p 'new URL(process.env.LHCI_BASE_URL).hostname')"
+            export LHCI_BYPASS_HOSTS="${NAMED_HOSTS:+$NAMED_HOSTS,}$host"
+          else
+            export LHCI_BYPASS_HOSTS="$NAMED_HOSTS"
+          fi
+          CHROME_PATH="$(command -v google-chrome)" pnpm exec lhci autorun --config=lighthouserc.cjs
+      - name: Upload the Lighthouse reports
+        if: always()
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: lighthouse
+          path: apps/storefront/.lighthouseci
+          include-hidden-files: true
+          if-no-files-found: ignore

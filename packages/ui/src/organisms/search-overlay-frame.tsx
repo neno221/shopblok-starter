@@ -6,7 +6,9 @@
 //   there asks for it (`onWantPanel`) and the dialog opens once it arrives, so the field gets the
 //   focus as it always did and nothing is typed into a box that is not there yet. The visitor's
 //   pointer over the button, a press starting on it, or the focus reaching it ask too, so in
-//   practice the module is in before the click ends. A press while a fetch failed asks again.
+//   practice the module is in before the click ends. A press while a fetch failed asks again, and a
+//   press whose fetch fails is forgotten, so a later fetch (the pointer passing over the button)
+//   never opens the dialog by itself (PR 157 review, item 5).
 // - The field's text lives here, not in the panel, so it survives the dialog closing (the panel is
 //   unmounted with the popup) as SearchOverlay's comment says.
 // - Without scripts nothing changes: the server draws the button only (a closed dialog has no
@@ -47,8 +49,11 @@ type SearchOverlayFrameProps = SearchOverlayContent & {
   popupClassName?: string;
   /** The dialog's content; until it is given, a press of the button waits for it. */
   panel: ComponentType<SearchOverlayPanelProps> | undefined;
-  /** Asked when the visitor reaches for the search and `panel` is not there yet. */
-  onWantPanel?: () => void;
+  /**
+   * Asked when the visitor reaches for the search and `panel` is not there yet. When it returns the
+   * fetch, a press waiting for it is dropped if it fails.
+   */
+  onWantPanel?: () => Promise<unknown> | void;
 };
 
 function SearchOverlayFrame({
@@ -71,7 +76,13 @@ function SearchOverlayFrame({
 }: SearchOverlayFrameProps) {
   const [open, setOpen] = useState(defaultOpen === true);
   const [query, setQuery] = useState(search.query);
-  const want = Panel === undefined ? onWantPanel : undefined;
+  const want =
+    Panel === undefined && onWantPanel !== undefined
+      ? () => {
+          // A rejection closes what a press asked for, whichever reach started the fetch.
+          onWantPanel()?.catch(() => setOpen(false));
+        }
+      : undefined;
 
   return (
     <Dialog
