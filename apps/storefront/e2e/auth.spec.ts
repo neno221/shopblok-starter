@@ -337,17 +337,26 @@ test("a customer's cart without its session offers sign-in, and the sign-in brin
 // M7 (SPEC §11.1): with React's taint guard on, the signed-in customer, as `lib/medusa/customer.ts`
 // reads it, cannot be handed whole to a Client Component: the test page (`/[market]/e2e-taint`,
 // `E2E_TEST_ROUTES=true`) fails on the server, and the answer holds neither the e-mail nor the
-// customer's id. One field passes. `taint.spec.ts` has the secrets.
+// customer's id. One field passes (which is how the test reads the id). `taint.spec.ts` has the
+// secrets.
 test("the signed-in customer is refused whole by a Client Component, and one field passes", async ({
   page,
 }) => {
   const fourth = { email: `taint-${stamp}@example.com`, password: "fourth-pass-4" };
   await newCustomer(page, fourth.email, fourth.password, "Grace");
-  const whole = await page.goto(`${PREFIX}/e2e-taint?leak=customer`);
-  expect(await whole?.text()).not.toContain(fourth.email);
-  await expect(page.locator('[data-slot="error-template"]')).toBeVisible();
-  await expect(page.getByTestId("taint-probe")).toHaveCount(0);
+  const probe = page.getByTestId("taint-probe");
 
+  await page.goto(`${PREFIX}/e2e-taint?leak=id`);
+  await expect(probe).toHaveText(/^cus_/);
+  const id = (await probe.textContent()) ?? "";
+  expect(id).toMatch(/^cus_\w+$/);
   await page.goto(`${PREFIX}/e2e-taint?leak=email`);
-  await expect(page.getByTestId("taint-probe")).toHaveText(fourth.email);
+  await expect(probe).toHaveText(fourth.email);
+
+  const whole = await page.goto(`${PREFIX}/e2e-taint?leak=customer`);
+  const answer = (await whole?.text()) ?? "";
+  expect(answer).not.toContain(fourth.email);
+  expect(answer).not.toContain(id);
+  await expect(page.locator('[data-slot="error-template"]')).toBeVisible();
+  await expect(probe).toHaveCount(0);
 });

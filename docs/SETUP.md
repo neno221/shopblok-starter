@@ -11446,7 +11446,7 @@ The three routes that check a code (`POST /auth/mfa/challenges/:id/verify`, the 
 
 `lib/security/taint.ts`: `taintSecret` taints a secret's exact value for the process (16 characters or more; shorter ones are placeholders), `taintServerSecrets` the storefront's list (`PAYLOAD_SECRET`, `STOREFRONT_SIGNING_SECRET`, `REVALIDATE_SECRET`, `CRON_SECRET`, `PREVIEW_SECRET`, `PAYLOAD_DATABASE_URL`, `TURNSTILE_SECRET_KEY`, `VERCEL_AUTOMATION_BYPASS_SECRET`, `RESEND_API_KEY`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `SENTRY_AUTH_TOKEN`), and `taintObject` one object by reference. `lib/env.ts`'s secret getters taint what they return, `payload.config.ts` taints the list once, and `lib/medusa/customer.ts` taints Medusa's customer and the DTO made from it (their fields still pass one by one; no page passes the whole object). Outside React's experimental server build the functions do nothing.
 
-**Built with `taint: true` beside Cache Components it works:** a page that handed `env.STOREFRONT_SIGNING_SECRET`, or a tainted object, to a Client Component failed with the secret's name (never its value) and the HTML held none of it (a throwaway page, removed). **But it is off:** Next turns it on only with React's experimental build, for the browser too, and every first load grows by **6.5 KB gzipped** (keyless: the product page 344.3 KB against its 339 KB budget, the listings 344.9 against 340). `taint: true` in `next.config.ts` is the whole switch; the decision is the owner's. **It was turned on on 2026-11-27** (below, "React's taint guard on").
+**Built with `taint: true` beside Cache Components it works:** a page that handed `env.STOREFRONT_SIGNING_SECRET`, or a tainted object, to a Client Component failed with the secret's name (never its value) and the HTML held none of it (a throwaway page, removed). **It was off until 2026-11-27:** Next turns it on only with React's experimental build, for the browser too, and every first load grew by **6.5 KB gzipped** (before T113's savings, keyless: the product page 344.3 KB against its 339 KB budget, the listings 344.9 against 340). `taint: true` in `next.config.ts` is the whole switch, and the decision was the owner's. **It is now on**, inside both budgets (below, "React's taint guard on").
 
 ### First load
 
@@ -11726,8 +11726,16 @@ The budgets are unchanged. T113's phone-profile performance (0.82 to 0.91 locall
 
 ### The checks
 
-- **`/[market]/e2e-taint`** (new, test-only: 404 unless `E2E_TEST_ROUTES=true`, listed in `lib/seo/routes.ts`'s `TEST_ROUTES`): hands `?leak=` to a Client Component (`probe.tsx`): `secret` is `env.STOREFRONT_SIGNING_SECRET` as `lib/env.ts` reads it, `customer` the signed-in customer from `getCustomer()`, `email` that customer's e-mail alone, anything else a plain string.
-- **`e2e/taint.spec.ts`** (new): the secret gives the market's error page, and neither the answer nor the page holds the secret (the server's log names it: "STOREFRONT_SIGNING_SECRET is a server-only secret…", never its value); a plain string renders.
-- **`e2e/auth.spec.ts`**, one test added: a new, verified, signed-in customer handed whole gives the error page, and the answer holds not the e-mail; the e-mail alone renders.
+- **`/[market]/e2e-taint`** (new, test-only: 404 unless `E2E_TEST_ROUTES=true`, listed in `lib/seo/routes.ts`'s `TEST_ROUTES`): hands `?leak=` to a Client Component (`probe.tsx`): `secret` is a value tainted with `taintSecret`, as `lib/env.ts` taints the server's secrets, but made for the probe (`lib/e2e/taint-probe.ts`), so no real secret is ever handed over, whatever the guard does; `customer` is the signed-in customer from `getCustomer()`; `id` and `email` one of its fields alone; anything else a plain string.
+- **`e2e/taint.spec.ts`** (new): the tainted value gives the market's error page, and neither the answer nor the page holds it (the server's log names it: "E2E_TAINT_PROBE is a server-only secret…", never its value); a plain string renders.
+- **`e2e/auth.spec.ts`**, one test added: a new, verified, signed-in customer's id and e-mail each render alone (which is how the test reads the id); handed whole, the customer gives the error page, and the answer holds neither the e-mail nor the id.
 - Cloud VM, `next start` built with `E2E_TEST_ROUTES=true`: `taint.spec.ts` and `auth.spec.ts` 8/8; the storefront's type check and lint clean; `lib/seo` and the taint helpers' unit tests 78/78.
-- **Mutation:** `taint: false`, built again: the secret's test and the customer's test both fail (`expect(received).not.toContain(expected)`: the secret and the e-mail are in the answer). Reverted.
+- **Mutation:** `taint: false`, built again: the secret's test and the customer's test both fail (`expect(received).not.toContain(expected)`: the probe's value and the e-mail are in the answer). Reverted.
+
+### The code review (PR 158)
+
+`reviews/pr-158-code-review.md`: one must-fix and two optional findings, all three fixed; two it could not confirm were skipped.
+
+1. **The test page handed the real `STOREFRONT_SIGNING_SECRET` over** (must fix): with the guard off, or React's API gone, a preview with the test routes on would have printed staging's signing secret. It now taints a value made for the probe (`lib/e2e/taint-probe.ts`) the same way, so a failing guard fails the spec and leaks nothing.
+2. **The customer's test checked the e-mail only:** it now reads the customer's id through `?leak=id` and checks the whole customer's answer holds neither.
+3. **The T109 paragraph above said the guard was off:** now in the past tense, pointing here.
