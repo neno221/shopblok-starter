@@ -70,4 +70,4 @@ export const NOINDEX_ROUTES: Readonly<Record<string, string>> = {
 };
 
 /** Pages that exist for the end-to-end suites only (404 unless `E2E_TEST_ROUTES=true`, T59). */
-export const TEST_ROUTES: readonly string[] = ["e2e-cms/[slug]"];
+export const TEST_ROUTES: readonly string[] = ["e2e-cms/[slug]", "e2e-taint"];
