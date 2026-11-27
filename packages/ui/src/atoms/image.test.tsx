@@ -44,6 +44,16 @@ describe("Image", () => {
     expect(frame.getAttribute("data-loaded")).toBe("");
   });
 
+  it("draws the picture while it loads, over the skeleton, and hides only a failed one (T113)", async () => {
+    // Hidden until `onLoad`, a page's largest picture waited for the page's scripts (LCP), and
+    // stayed hidden without them.
+    render(<Image src={sampleImage.src} sizes="320px" alt="A folded hoodie" />);
+    const picture = screen.getByRole("img", { name: "A folded hoodie" });
+    expect(picture.className).not.toMatch(/opacity-0|invisible|hidden/);
+    fireEvent.error(picture);
+    await waitFor(() => expect(picture.className).toContain("opacity-0"));
+  });
+
   it("drops the skeleton and marks the frame when the picture fails to load", async () => {
     // A data URI that does not decode, so nothing loads after the error.
     const { container } = render(

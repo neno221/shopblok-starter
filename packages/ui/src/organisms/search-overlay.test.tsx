@@ -17,6 +17,8 @@ import { renderToString } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CLIPPING_CLASSES, longLabels } from "../test-support/long-labels";
 import { SearchOverlay, type SearchOverlayProps } from "./search-overlay";
+import { SearchOverlayFrame } from "./search-overlay-frame";
+import { SearchOverlayPanel } from "./search-overlay-panel";
 
 // next/link needs no router here; the stand-in is an anchor that shows the `prefetch` it was given.
 vi.mock("next/link", async () =>
@@ -721,7 +723,9 @@ describe("SearchOverlay: a query with no results", () => {
     await user.clear(field() as HTMLInputElement);
     await user.type(field() as HTMLInputElement, "  zzz  ");
     const { result } = samples("en").empty;
-    view.rerender(element("en", "empty", { result: { ...(result as SearchResult), query: "zzz" } }));
+    view.rerender(
+      element("en", "empty", { result: { ...(result as SearchResult), query: "zzz" } }),
+    );
     expect(plain(slot("search-overlay-empty")?.textContent)).toContain("“zzz”");
   });
 });
@@ -812,35 +816,127 @@ describe("SearchOverlay: the files (D49)", () => {
       (match) => match[1] ?? "",
     );
 
-  it.each(["search-overlay.tsx", "search-overlay-results.tsx"])(
-    "keeps %s a client component that imports no catalog and no flag",
-    (name) => {
-      const source = read(name);
-      expect(source).toMatch(/^"use client";?$/m);
-      const imported = runtimeImports(source);
-      expect(imported.filter((each) => each === "@shopblok/i18n")).toEqual([]);
-      expect(
-        imported.filter((each) =>
-          /@shopblok\/(?:registry|fixtures)|atoms\/flag|country-flag/.test(each),
-        ),
-      ).toEqual([]);
-      expect(imported.filter((each) => /atoms\/price$|molecules\/price-block/.test(each))).toEqual(
-        [],
-      );
-    },
-  );
+  it.each([
+    "search-overlay.tsx",
+    "search-overlay-frame.tsx",
+    "search-overlay-panel.tsx",
+    "search-overlay-results.tsx",
+  ])("keeps %s a client component that imports no catalog and no flag", (name) => {
+    const source = read(name);
+    expect(source).toMatch(/^"use client";?$/m);
+    const imported = runtimeImports(source);
+    expect(imported.filter((each) => each === "@shopblok/i18n")).toEqual([]);
+    expect(
+      imported.filter((each) =>
+        /@shopblok\/(?:registry|fixtures)|atoms\/flag|country-flag/.test(each),
+      ),
+    ).toEqual([]);
+    expect(imported.filter((each) => /atoms\/price$|molecules\/price-block/.test(each))).toEqual(
+      [],
+    );
+  });
 
   it("formats with the formatters alone", () => {
-    expect(runtimeImports(read("search-overlay.tsx"))).toContain("@shopblok/i18n/format");
+    // T113: the formatting moved with the dialog's content into the panel.
+    expect(runtimeImports(read("search-overlay-panel.tsx"))).toContain("@shopblok/i18n/format");
     expect(runtimeImports(read("search-overlay-results.tsx"))).toContain("@shopblok/i18n/format");
   });
 
   it("puts the list inline in the dialog, the one thing that makes one Escape enough", () => {
-    const source = read("search-overlay.tsx");
+    const source = read("search-overlay-panel.tsx");
     expect(source).toMatch(/<Autocomplete\.Root[^>]*\binline\b/s);
     expect(source).not.toMatch(/Autocomplete\.(?:Portal|Positioner|Popup)/);
     expect(read("search-overlay-results.tsx")).not.toMatch(
       /Autocomplete\.(?:Portal|Positioner|Popup)/,
     );
+  });
+});
+
+// T113 (D150): the shop draws the frame and gives it the panel once the panel's module is in.
+describe("SearchOverlayFrame: a panel that comes later (T113)", () => {
+  function frame(panel: typeof SearchOverlayPanel | undefined, onWantPanel = vi.fn()) {
+    return (
+      <SearchOverlayFrame
+        {...samples("en").idle}
+        copy={copyOf("en")}
+        priceCopy={priceCopyOf("en")}
+        locale={htmlLang.en}
+        prefetch={false}
+        panel={panel}
+        onWantPanel={onWantPanel}
+      />
+    );
+  }
+
+  it("asks for the panel when the pointer reaches the button, a press starts or the focus comes", async () => {
+    const want = vi.fn();
+    render(frame(undefined, want));
+    const user = userEvent.setup();
+    await user.hover(trigger());
+    expect(want).toHaveBeenCalled();
+    want.mockClear();
+    act(() => trigger().focus());
+    expect(want).toHaveBeenCalled();
+  });
+
+  it("opens only once the panel is there, with the focus in its field", async () => {
+    const want = vi.fn();
+    const view = render(frame(undefined, want));
+    const user = userEvent.setup();
+    await user.click(trigger());
+    expect(want).toHaveBeenCalled();
+    expect(dialog()).toBeNull();
+    expect(trigger().getAttribute("aria-expanded")).toBe("false");
+    view.rerender(frame(SearchOverlayPanel, want));
+    await waitFor(() => expect(dialog()).not.toBeNull());
+    await waitFor(() => expect(document.activeElement).toBe(field()));
+  });
+
+  it("forgets a press whose fetch failed: a later fetch does not open the dialog (PR 157 review)", async () => {
+    let fail: (error: Error) => void = () => undefined;
+    const want = vi
+      .fn<() => Promise<unknown>>()
+      .mockImplementationOnce(
+        () =>
+          new Promise((_, reject) => {
+            fail = reject;
+          }),
+      )
+      .mockResolvedValue(undefined);
+    const view = render(frame(undefined, want));
+    const user = userEvent.setup();
+    await user.click(trigger());
+    await act(async () => fail(new Error("chunk refused")));
+    // The next reach (the pointer passing over) fetches it, and the panel arrives.
+    await user.hover(trigger());
+    view.rerender(frame(SearchOverlayPanel, want));
+    await new Promise((settled) => setTimeout(settled, 50));
+    expect(dialog()).toBeNull();
+    expect(trigger().getAttribute("aria-expanded")).toBe("false");
+    // A press now opens it.
+    await user.click(trigger());
+    await waitFor(() => expect(dialog()).not.toBeNull());
+  });
+
+  it("asks nothing once it has the panel", async () => {
+    const want = vi.fn();
+    render(frame(SearchOverlayPanel, want));
+    const user = userEvent.setup();
+    await user.hover(trigger());
+    await user.click(trigger());
+    await waitFor(() => expect(dialog()).not.toBeNull());
+    expect(want).not.toHaveBeenCalled();
+  });
+
+  it("keeps the field's text while the dialog is closed", async () => {
+    render(frame(SearchOverlayPanel));
+    const user = userEvent.setup();
+    await user.click(trigger());
+    await waitFor(() => expect(field()).not.toBeNull());
+    await user.type(field() as HTMLInputElement, "boots");
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(dialog()).toBeNull());
+    await user.click(trigger());
+    await waitFor(() => expect(field()?.value).toBe("boots"));
   });
 });

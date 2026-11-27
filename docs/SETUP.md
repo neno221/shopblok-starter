@@ -11586,3 +11586,123 @@ The review (`reviews/pr-155-code-review.md` in the project files) had 2 must-fix
 
 - **T113:** `lib/seo/routes.ts` lists every route type, indexable or not, with an address each: the axe spec can walk it. Staging's `X-Robots-Tag: noindex` is why Lighthouse's `is-crawlable` is skipped (D150).
 - **T115:** staging's `robots.txt` is closed and every response `noindex`; `seo.spec.ts` against staging expects that and the sitemaps at staging's address (`NEXT_PUBLIC_BASE_URL`).
+
+## First load, axe and Lighthouse (T113)
+
+**Result: the search dialog's content loads on demand, which takes 15.4 KB off every first load, so the keyed product page is 323.2 KB (15.8 KB under its 339 KB budget) and the keyed listings 323.9 KB (16.1 KB under 340 KB); axe finds no WCAG 2.2 AA violation on any route type in four markets, with scripts and without; Lighthouse CI runs on a deployment in a workflow of its own, with D150's pages and budgets, every run a cold first visit, and Vercel's bypass sent only to this project's own deployments.** D150, D129, D136 (3), SPEC §13.
+
+| | |
+|---|---|
+| Date | 2026-11-27 |
+| Branch | `claude/project-thread-g86qxc`, from `main` at `8699b09` (PR 155's merge, T110), with `main` merged at `2e1b6f5` (PR 156, T109) |
+| PR | this PR, "T113: first load, axe and Lighthouse" |
+
+### The first load (D150, D129)
+
+**Measured** (`.next/diagnostics/route-bundle-stats.json` and the chunks' source maps, a keyed build as `integrations-live` builds it: PostHog's and Sentry's stand-in keys and Turnstile's test site key): the shell (the layout's islands) is almost all of each budgeted route, and its largest parts a first page does not need were Base UI's Combobox/Autocomplete (about 10 KB gzipped, only the search dialog's), the search's results list (1.8 KB), the cart drawer (about 14 KB, opened by the header's cart), and the toasts (7.9 KB). The search is the one move: its dialog is opened only by a visitor's click, and the button can fetch it before the click.
+
+- **`SearchOverlayPanel`** (`packages/ui/src/organisms/search-overlay-panel.tsx`, new): the dialog's content (the GET form, Base UI's Autocomplete, the status region, the results and "See all N results"). **`SearchOverlayFrame`** (`search-overlay-frame.tsx`, new): the button and the dialog, which takes the panel as a prop and keeps the field's text while the dialog is closed. `SearchOverlay` is the frame with the panel imported, so the DS, the registry and its tests draw it as before.
+- **The shop's header** (`components/shell/search-overlay-island.tsx`) draws the frame and fetches the panel with `import()` when the visitor reaches for the button (the pointer over it, a press, the focus): one fetch per page, forgotten on a failure so the next reach asks again. The dialog opens once the panel is in, so a click on a cold page waits for the chunk (16.1 KB gzipped), and Enter on the GET form needs no script at all.
+- `first-load.ts`'s `keptOut` gains the panel (marker `shopblok:search-overlay-panel`, on the form's `data-panel`), so a static import of it anywhere in the shell fails the check.
+
+| Build | Product page | Listings (`/store`) |
+|---|---|---|
+| Keyed, `main` at `8699b09` (before T109) | 346,963 bytes, 338.8 KB (173 bytes left) | 347,658 bytes, 339.5 KB (502 bytes left) |
+| Keyed, `main` at `2e1b6f5` (T109 merged) | 339.0 KB (under 0.05 KB left, T109's numbers) | |
+| **Keyed, this branch** | **330,907 bytes, 323.2 KB (16,229 bytes, 15.8 KB left)** | **331,665 bytes, 323.9 KB (16,495 bytes, 16.1 KB left)** |
+| Keyless, this branch (CI's `e2e-smoke`) | 329,726 bytes, 322.0 KB (17,410 left) | 330,505 bytes, 322.8 KB (17,655 left) |
+
+The panel's chunk is 16.1 KB gzipped (the move saves 15.4 KB: some of it, React's and Base UI's shared parts, stays in the shell for the frame's Dialog). The other routes moved by the same amount (the shell is everyone's).
+
+### `e2e/routes-a11y.spec.ts` (D150)
+
+One test per market (`/` Greek, `/us` English, `/de` German, `/fr` French), each one visitor: the catalog, the CMS, the journal, the search and the sign-in pages signed out; registering in that market (the e-mailed verification link from `E2E_MEDUSA_LOG`); the product in the cart, the checkout's three steps, the receipt; every page of the account with the order and an address it saved; T109's held cart; the not-found page. The route types are T110's inventory (`lib/seo/routes.ts`), every indexable one but the later pages of a listing (`samePageAs`) and every `noindex` one, so a route the inventory gains and the spec does not open fails it: 33 route types a market, 132 in all, each **with scripts** and **without**.
+
+- **Without scripts:** axe is a script and Chromium runs none with JavaScript off, so the same visitor's context opens each address in a second page whose documents come with every `<script>` taken out and every `<noscript>` opened (the server's HTML, its styles and pictures, React's hidden streaming chunks still hidden), and axe runs there as Playwright's own script.
+- **Tags:** `wcag2a`, `wcag2aa`, `wcag21a`, `wcag21aa`, `wcag22aa` (the prompt's four, and `wcag21a`, which WCAG 2.1's level-A rules are tagged with). Every violation of every page is listed before the test fails.
+- **Found and fixed:** the filters' checkboxes and switches (`filter-group.tsx`) had no name without scripts (Base UI ties the label only in the browser): each now has `aria-labelledby` on its label's id. T109's no-script cookie form (`cookie-settings-form.tsx`) had its "necessary" box outside a label: it is a label now, as the other two rows.
+- **Result:** 4 of 4, 0 violations, about 3.8 minutes (with `consent.spec.ts`, 13 of 13).
+- **Known limit:** without scripts, a market's not-found states are Next's empty error shell (`html#__next_error__`, as T08/T11 found): the 404 page, a transfer link with a bad token, and, with no Stripe keys, the saved-card pages (`payment-methods/new` and `remove`). axe has nothing to check there; the spec checks those pages do show their not-found state with scripts, and lists them in its summary line.
+
+### Lighthouse CI (D150, D136 3)
+
+- **`apps/storefront/lighthouserc.cjs`:** `LHCI_BASE_URL` (an origin, nothing else, or it refuses), D150's pages in `/` and `/us` (the home, `/store`, the hoodie's product page, `/privacy`, the cart, the journal: 12 addresses), Lighthouse's default mobile profile, three runs each, `is-crawlable` skipped (staging and every preview answer `noindex` on purpose, T110). Assertions on the median run: performance ≥ 0.9, accessibility 1, best practices ≥ 0.95, SEO 1, LCP ≤ 2,500 ms, CLS ≤ 0.1, TBT ≤ 200 ms (the lab's stand-in for INP). Lighthouse's own reset before each run stays on: it empties the cache, file systems, service workers and cache storage but never the cookies (Lighthouse 13.6's `clearStorageTypes`), so every run is a first visit with a cold cache that still carries Vercel's cookie (the PR's first version turned the reset off, which kept the caches warm: PR 157 review, item 1). The address must be an origin and nothing more (`new URL(base).origin === base`): one with `?` or `#` would have put every page after it (item 6). Reports to `.lighthouseci/` (git-ignored), never to a public store. `@lhci/cli` 0.16.1 (Lighthouse 13.6) and `puppeteer-core` 25.19.0, which Lighthouse CI needs beside it for a `puppeteerScript`, are dev dependencies.
+- **`apps/storefront/lighthouse-bypass.cjs`**, the `puppeteerScript` when `VERCEL_AUTOMATION_BYPASS_SECRET` is set: before the first page of an origin it opens one tab, refuses every request but `{origin}/robots.txt`, sends that one with `x-vercel-protection-bypass` and `x-vercel-set-bypass-cookie: true`, and fails the run unless Vercel answered below 400 and set a cookie for the host; no request of the audit carries the secret. The secret goes only to a host named in `LHCI_BYPASS_HOSTS` or matching `LHCI_BYPASS_PATTERN` whole, never to any other `*.vercel.app` (item 4). Checked against a local stand-in for Vercel: the secret on `/robots.txt` alone, one request per origin, a host not named sent nothing, a wrong secret failed with the message; and a whole `lhci collect` of the 12 addresses against the stand-in with Lighthouse's own reset: the secret in 1 request of 217, the cookie on every page load of all 36 runs.
+- **The Lighthouse workflow** (`.github/workflows/lighthouse.yml`, its own, so a deployment's status makes no run of CI's checks on the deployed commit, which would show as skipped and so passing: item 2): on `deployment_status` when Vercel's app (`vercel[bot]`) reports a deployment as succeeded, at its `environment_url` (no other app's deployments, such as Railway's: item 7), and on a dispatch with `url`. The address reaches the shell only as an environment variable. On a deployment's status the bypass trusts the host Vercel reported; on a dispatch only the repository variables `LHCI_BYPASS_HOSTS` and `LHCI_BYPASS_PATTERN`. Each run has its own concurrency group, and the reports are the run's `lighthouse` artifact. Until staging exists (T115) nothing sends a deployment status, and a dispatch needs the workflow on `main`, so it first runs after this PR merges:
+  `gh api -X POST repos/neno221/shopblok-starter/actions/workflows/lighthouse.yml/dispatches -f ref=main -f 'inputs[url]=https://…vercel.app'`
+- **The secret and a fork's pull request** (item 3): on `deployment_status` GitHub runs the deployed commit's workflow files with the repository's secrets, and no "approve workflows from forks" step applies. Vercel's fork protection asks a member to authorize a fork's deployment, and that authorization is what starts the fork's workflows with the secrets. So: before authorizing a fork's deployment in Vercel, check that it changes nothing under `.github/` and neither `lighthouserc.cjs` nor `lighthouse-bypass.cjs`; and the bypass secret lives in a GitHub environment, `lighthouse`, with Steven as its required reviewer (G11; DEPLOY.md step 2), which the job names (`environment: lighthouse`). A fork that drops the key gets no secret, and every run waits for the reviewer's click. This holds for every repository secret once Vercel is connected, not only this one.
+
+**Local run** (`next start` on this VM, keyless, 2026-11-27, medians of three):
+
+| Page | Perf. | A11y | Best pr. | SEO | LCP ms | CLS | TBT ms |
+|---|---|---|---|---|---|---|---|
+| `/` | 0.88 | 1 | 1 | 1 | 3,628 | 0 | 157 |
+| `/store` | 0.83 | 1 | 1 | 1 | 4,151 | 0 | 198 |
+| `/products/demo-heritage-hoodie` | 0.82 | 1 | 1 | 1 | 4,106 | 0 | 230 |
+| `/privacy` | 0.98 | 1 | 1 | 1 | 1,217 | 0 | 177 |
+| `/cart` | 0.84 | 1 | 1 | 1 | 4,004 | 0 | 189 |
+| `/journal` | 0.88 | 1 | 1 | 1 | 3,574 | 0 | 161 |
+| `/us` | 0.89 | 1 | 1 | 1 | 3,339 | 0 | 182 |
+| `/us/store` | 0.85 | 1 | 1 | 1 | 3,948 | 0 | 188 |
+| `/us/products/demo-heritage-hoodie` | 0.85 | 1 | 1 | 1 | 3,919 | 0 | 205 |
+| `/us/privacy` | 0.98 | 1 | 1 | 1 | 1,209 | 0 | 166 |
+| `/us/cart` | 0.85 | 1 | 1 | 1 | 3,919 | 0 | 201 |
+| `/us/journal` | 0.91 | 1 | 1 | 1 | 3,336 | 0 | 134 |
+
+Accessibility, best practices, SEO and CLS pass everywhere; performance (LCP, and TBT on three pages) does not, so the run fails its assertions, as it should with these numbers. The first run found two things, fixed here:
+
+1. **Every picture was hidden until the page's scripts ran** (the Image atom kept `opacity-0` until its `onLoad` state, T23), so a page's largest picture waited for hydration, and without scripts no picture ever showed. The picture is now drawn above its skeleton from the start (the skeleton shows through until it paints), and only a failed one is see-through (`image.test.tsx`).
+2. **No meta description** on the listings, the CMS pages, the journal and the cart (SEO 0.86 to 0.89): D82's fallback, the site settings' description, was never seeded. The seed now writes the home's line there in four languages (`seed/globals.ts`), and those pages have SEO 1.
+
+**What still holds LCP back** (for T116, which judges the job on staging): on 10 of the 12 pages the LCP element is **the cookie banner's message** (`cookie-consent-message`), which the consent island draws after hydration (D44: the visitor's islands draw nothing on the server), and every Lighthouse run is a first visit with no cookie. Lighthouse's simulated phone puts it at 3.3 to 4.2 s, while the browser saw it at 0.3 to 0.7 s. The home's hero picture is its LCP (3.6 s simulated, 0.17 s seen). Drawing the banner in the static shell (shown by default and hidden by the stored choice before paint) is the change that would move it; it touches D44 and T97's consent, so it is T116's to measure on staging first and to bring to Steven if the budget fails there.
+
+**The proof run in CI** (not kept; reverted before the merge): one `e2e-smoke` run on this branch (run 45920225816, on the review's fixes) with a step that ran `lhci autorun` with this config against its own `next start`, keyless, on GitHub's runner and Google Chrome: 12 addresses, 36 runs in 7.5 minutes, the reports in the run's `lighthouse-proof` artifact, and the assertions' table:
+
+| Page | Failed assertions (median run) |
+|---|---|
+| `/` | performance 0.86, LCP 4,086 ms |
+| `/store` | performance 0.85, LCP 4,238 ms |
+| `/products/demo-heritage-hoodie` | performance 0.86, LCP 4,124 ms |
+| `/privacy` | none |
+| `/cart` | performance 0.86, LCP 4,081 ms |
+| `/journal` | LCP 3,546 ms |
+| `/us` | performance 0.88, LCP 3,786 ms |
+| `/us/store` | performance 0.86, LCP 4,069 ms |
+| `/us/products/demo-heritage-hoodie` | performance 0.87, LCP 3,923 ms |
+| `/us/privacy` | CLS 0.168 |
+| `/us/cart` | performance 0.87, LCP 3,835 ms |
+| `/us/journal` | performance 0.88, LCP 3,789 ms |
+
+Accessibility, best practices, SEO and TBT passed on every page. The run failed its assertions, as the VM's did, on LCP (the cookie banner, above). One thing the VM's runs did not show: **CLS 0.168 on `/us/privacy`** (0 here, in six runs). The artifact's host is not reachable from the cloud VM, so its report was not opened: T116 opens it, or the same page's report on staging, before deciding.
+
+### Mutations (each fails a check)
+
+| Mutation | What fails |
+|---|---|
+| The newsletter field's label removed (`newsletter-form.tsx`'s `FieldLabel`) | `routes-a11y.spec.ts` in `/us`: `label` on the footer's e-mail field on every route type, with and without scripts (68 violations; the privacy page's no-script one also named T109's cookie box, which this run found and is fixed above) |
+| A 5 KB import added to the shell (`market-choice-island.tsx` importing 5 KB of random text, used) | The product page grows by 6,004 bytes (322.0 to 327.9 KB keyless). With 17 KB of headroom the budgets let 5 KB through, so `check:first-load` was run with the budget at the size before the import plus 3 KB (D150's headroom: `--budget "/[market]/products/[handle]=326"`), and fails: "327.9 KB gzipped, over its 326 KB budget by 1.9 KB." Any import larger than a route's headroom fails the real budgets the same way |
+
+### Checks (cloud VM)
+
+- `routes-a11y.spec.ts` 4 of 4 and `consent.spec.ts` 9 of 9; `catalog.spec.ts`'s overlay tests (results as the visitor types, the hoodie by a prefix in `/` and `/us`) green with the panel loaded on demand (its four listing tests need CI's `STOREFRONT_LISTING_PAGE_SIZE=3`).
+- Unit: the overlay's 89 (five new: a press whose fetch failed is forgotten, so a later fetch does not open the dialog; the panel asked for on the pointer, a press or the focus; the dialog opening only once the panel is there, with the focus in its field; nothing asked once it is there; the field's text kept while closed), the island's 10 (two new: the frame drawn without the panel, which it fetches once when the visitor reaches for it; a header drawn again has the panel at once), the Image atom's 13 (one new), the filters' 107, the gate's 63 (one new: `ci.yml` takes no deployment status, `lighthouse.yml` does, for Vercel's app only, with its environment), the seed's 50.
+- CI (run 45920225816, the review's fixes and the proof step): every job green, `windows-smoke` among them (the gate runs it for the lockfile, so it was not dispatched separately), `e2e-smoke` with `routes-a11y.spec.ts` in its Playwright suites (21 minutes for all of them) and 38 minutes in all with the proof step's 7.5.
+
+### The code review (PR 157)
+
+`reviews/pr-157-code-review.md` (in the project's files): one must-fix and six optional findings, all fixed; one rejected (a picture failing before hydration: next/image sets its `src` again once it hydrates, so `onError` still fires).
+
+1. **Warm caches** (must-fix): the first version turned Lighthouse's reset off to keep Vercel's cookie, which also kept the cache warm on every run after the first. The reset never clears cookies, so it is on again (above).
+2. **A deployment's status made a run of CI's checks**, all skipped, on the deployed commit: Lighthouse has its own workflow.
+3. **The secret and a fork:** SETUP.md said the opposite of what authorizing a fork's deployment does; the secret is in the `lighthouse` environment with a required reviewer.
+4. **Any `*.vercel.app` was trusted:** only named hosts or the project's pattern.
+5. **A failed fetch of the search panel left a press waiting,** so a later hover that fetched it opened the dialog by itself: the frame is given the fetch and drops the press when it fails (a test).
+6. **An address with `?` or `#`** passed the origin check: `new URL(base).origin === base`.
+7. **Other apps' deployments** (Railway's) would have started Lighthouse: Vercel's app only.
+
+### For T116
+
+- Dispatch `lighthouse.yml` with staging's address (`url`) and read the assertions from its artifact; a preview runs it from Vercel's deployment status, through the bypass script, once the `lighthouse` environment holds `VERCEL_AUTOMATION_BYPASS_SECRET` (each run waits for Steven's click).
+- LCP is the cookie banner's message on a first visit (above): measure it on staging before deciding.
+- CLS 0.168 on `/us/privacy` in CI's proof run, not on the VM (above): read that report (`lighthouse-proof`, run 45920225816, kept until 2027-02-25) or staging's.
+- `routes-a11y.spec.ts` against staging needs the remote mode (T116's `E2E_BASE_URL`) and an `E2E_MEDUSA_LOG` stand-in for the verification e-mail (Resend's test inbox, or a customer made beforehand).

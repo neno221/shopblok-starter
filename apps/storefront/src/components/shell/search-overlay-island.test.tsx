@@ -6,15 +6,27 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { rememberSearch, resetRecentSearches } from "../../lib/visitor/recent-searches";
 
-// D66: what the island gives SearchOverlay and asks `/next/search`. The overlay is a stand-in that
-// keeps its last props, because what it draws from them is the ui package's test.
-const overlay = vi.hoisted(() => ({ props: undefined as Record<string, unknown> | undefined }));
-vi.mock("@shopblok/ui/organisms/search-overlay", () => ({
-  SearchOverlay: (props: Record<string, unknown>) => {
+// D66: what the island gives SearchOverlay's frame and asks `/next/search`. The frame is a stand-in
+// that keeps its last props, because what it draws from them is the ui package's test. T113: the
+// panel's module is a stand-in too, counted, so the test sees when the island fetches it.
+const overlay = vi.hoisted(() => ({
+  props: undefined as Record<string, unknown> | undefined,
+  panelLoads: 0,
+}));
+vi.mock("@shopblok/ui/organisms/search-overlay-frame", () => ({
+  SearchOverlayFrame: (props: Record<string, unknown>) => {
     overlay.props = props;
     return null;
   },
 }));
+vi.mock("@shopblok/ui/organisms/search-overlay-panel", () => {
+  overlay.panelLoads += 1;
+  return {
+    SearchOverlayPanel: function PanelStandIn() {
+      return null;
+    },
+  };
+});
 
 import { SEARCH_DELAY, SearchOverlayIsland } from "./search-overlay-island";
 
@@ -66,6 +78,24 @@ afterEach(async () => {
   await act(async () => root.unmount());
   container.remove();
   vi.useRealTimers();
+});
+
+describe("SearchOverlayIsland's panel (T113)", () => {
+  // First in the file: the island keeps the fetched panel for the page's life.
+  it("draws the frame without the panel and fetches it, once, when the visitor reaches for it", async () => {
+    await mount(vi.fn() as unknown as typeof fetch);
+    expect(props()["panel"]).toBeUndefined();
+    expect(overlay.panelLoads).toBe(0);
+    await act(async () => (props()["onWantPanel"] as () => void)());
+    expect((props()["panel"] as { name: string } | undefined)?.name).toBe("PanelStandIn");
+    await act(async () => (props()["onWantPanel"] as () => void)());
+    expect(overlay.panelLoads).toBe(1);
+  });
+
+  it("has the panel at once in a header drawn again", async () => {
+    await mount(vi.fn() as unknown as typeof fetch);
+    expect((props()["panel"] as { name: string } | undefined)?.name).toBe("PanelStandIn");
+  });
 });
 
 describe("SearchOverlayIsland (D66)", () => {

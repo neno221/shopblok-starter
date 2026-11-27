@@ -38,191 +38,20 @@
 //   motion (D50). A popup drawn open at first render (`defaultOpen`, the design system's states)
 //   takes no focus until a reader opens it again, because several open states on one page would
 //   take it from each other.
+// - T113 (D150): the dialog's content is `SearchOverlayPanel` (`search-overlay-panel.tsx`) and the
+//   button with the dialog is `SearchOverlayFrame` (`search-overlay-frame.tsx`). This component is
+//   the frame with the panel imported, for the design system, the registry and the tests; the
+//   shop's header draws the frame and fetches the panel when the visitor reaches for the search
+//   (`search-overlay-island.tsx`), so Base UI's Autocomplete is in no first load.
 "use client";
 
-import { Autocomplete } from "@base-ui/react/autocomplete";
-import type { Messages } from "@shopblok/i18n";
-import { formatMessage } from "@shopblok/i18n/format";
-import type { SearchOverlay as SearchOverlayContent } from "@shopblok/registry/contracts";
-import { Button } from "@shopblok/ui/atoms/button";
-import { Icon } from "@shopblok/ui/atoms/icon";
-import { takesFocusWhenOpenedByAReader } from "@shopblok/ui/lib/reader-focus";
-import { cn } from "@shopblok/ui/lib/utils";
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogTitle,
-  DialogTrigger,
-} from "@shopblok/ui/primitives/dialog";
-import { InputGroup, InputGroupAddon, InputGroupInput } from "@shopblok/ui/primitives/input-group";
-import { SearchIcon, XIcon } from "lucide-react";
-import { useRef, useState } from "react";
-import { answers, modeOf, SearchOverlayResults } from "./search-overlay-results";
+import { SearchOverlayFrame, type SearchOverlayFrameProps } from "./search-overlay-frame";
+import { SearchOverlayPanel } from "./search-overlay-panel";
 
-type SearchOverlayProps = SearchOverlayContent & {
-  /** The wording, from the catalog's `organisms.searchOverlay`. */
-  copy: Messages["organisms"]["searchOverlay"];
-  /** The words around a price ("From {price}", "Sale price"), from `molecules.priceBlock`. */
-  priceCopy: Messages["molecules"]["priceBlock"];
-  /** A BCP 47 tag such as `el-CY`: the market's `<html lang>`. */
-  locale: string;
-  /** next/link's `prefetch` for every link; the design system passes `false` (the pages 404 until M3). */
-  prefetch?: boolean | null;
-  /** Asked at every change of the field's text (and when a recent query or a suggestion fills it). */
-  onQueryChange?: (query: string) => void;
-  /** Forgets the recent queries; without it the list has no "Clear recent searches" button. */
-  onClearRecent?: () => void;
-  /** Drawn open at first render (the design system's states); takes no focus until a reader opens it again. */
-  defaultOpen?: boolean;
-  /** `false` leaves the page behind reachable (the design system's open states, D45). */
-  modal?: boolean;
-  /** Classes for the button (a header decides where it is shown). */
-  triggerClassName?: string;
-  /** Classes for the popup (the design system's states cap it to their box and stop its animation). */
-  popupClassName?: string;
-};
+type SearchOverlayProps = Omit<SearchOverlayFrameProps, "panel" | "onWantPanel">;
 
-function SearchOverlay({
-  search,
-  recent,
-  result,
-  loading,
-  copy,
-  priceCopy,
-  locale,
-  prefetch,
-  onQueryChange,
-  onClearRecent,
-  defaultOpen,
-  modal,
-  triggerClassName,
-  popupClassName,
-}: SearchOverlayProps) {
-  const [open, setOpen] = useState(defaultOpen === true);
-  const [query, setQuery] = useState(search.query);
-  const field = useRef<HTMLInputElement>(null);
-  const mode = modeOf(query, result);
-  // A question on its way matters to a reader only when there is a question: an empty field asks none.
-  const waiting = loading && mode !== "recent";
-  // The count is said, and sent with "See all", only for an answer to the text in the field now.
-  const answered =
-    (mode === "results" || mode === "empty") && !waiting && answers(query, result) ? result : undefined;
-  const status = waiting
-    ? copy.loading
-    : answered
-      ? formatMessage(copy.status, { count: answered.total }, locale)
-      : "";
-  // Matches for an earlier text keep the foot (Enter still submits through it), named without a count.
-  const seeAll =
-    answered !== undefined
-      ? answered.total > 0
-        ? formatMessage(copy.seeAll, { count: answered.total }, locale)
-        : undefined
-      : mode === "results"
-        ? copy.open
-        : undefined;
-
-  /** Puts the text of a recent query or a suggestion in the field, and asks for its results. */
-  function pickQuery(text: string) {
-    setQuery(text);
-    onQueryChange?.(text);
-    field.current?.focus();
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={setOpen} modal={modal ?? true}>
-      <DialogTrigger
-        data-slot="search-overlay-trigger"
-        render={<Button variant="ghost" size="icon" className={triggerClassName} />}
-      >
-        <Icon icon={SearchIcon} size="md" />
-        <span className="sr-only">{copy.open}</span>
-      </DialogTrigger>
-      <DialogContent
-        data-slot="search-overlay"
-        showCloseButton={false}
-        initialFocus={defaultOpen === true ? takesFocusWhenOpenedByAReader : undefined}
-        className={cn(
-          "top-4 flex max-h-[calc(100dvh-2rem)] translate-y-0 flex-col gap-0 overflow-hidden p-0 motion-reduce:duration-0 sm:top-12 sm:max-h-[calc(100dvh-4rem)] sm:max-w-xl",
-          popupClassName,
-        )}
-      >
-        <DialogTitle className="sr-only">{copy.title}</DialogTitle>
-        <form action={search.action} method="get" className="flex min-h-0 flex-1 flex-col">
-          <Autocomplete.Root
-            inline
-            open
-            mode="none"
-            filter={null}
-            name="q"
-            value={query}
-            onValueChange={(next) => {
-              if (next === query) return;
-              setQuery(next);
-              onQueryChange?.(next);
-            }}
-          >
-            <div className="flex shrink-0 items-center gap-2 border-b p-3">
-              <InputGroup className="flex-1">
-                <InputGroupAddon align="inline-start">
-                  <SearchIcon aria-hidden="true" />
-                </InputGroupAddon>
-                <Autocomplete.Input
-                  ref={field}
-                  render={
-                    <InputGroupInput
-                      type="search"
-                      aria-label={copy.label}
-                      placeholder={copy.placeholder}
-                      enterKeyHint="search"
-                      autoCapitalize="off"
-                      spellCheck={false}
-                      // A query longer than the box scrolls inside it, which the field says (the DS clip check, D34).
-                      data-truncate=""
-                      // The browser's own clear mark and magnifier would sit beside ours.
-                      className="[&::-webkit-search-cancel-button]:appearance-none [&::-webkit-search-decoration]:appearance-none"
-                    />
-                  }
-                />
-              </InputGroup>
-              <DialogClose
-                data-slot="search-overlay-close"
-                render={<Button variant="ghost" size="icon" className="shrink-0" />}
-              >
-                <Icon icon={XIcon} />
-                <span className="sr-only">{copy.close}</span>
-              </DialogClose>
-            </div>
-            <Autocomplete.Status data-slot="search-overlay-status" className="sr-only">
-              {status}
-            </Autocomplete.Status>
-            <SearchOverlayResults
-              query={query}
-              recent={recent}
-              result={result}
-              loading={waiting}
-              copy={copy}
-              priceCopy={priceCopy}
-              locale={locale}
-              prefetch={prefetch}
-              onNavigate={() => setOpen(false)}
-              onPickQuery={pickQuery}
-              onClearRecent={onClearRecent}
-              focusField={() => field.current?.focus()}
-            />
-            {seeAll === undefined ? null : (
-              <div data-slot="search-overlay-foot" className="shrink-0 border-t p-3">
-                <Button type="submit" data-slot="search-overlay-submit" className="w-full">
-                  {seeAll}
-                </Button>
-              </div>
-            )}
-          </Autocomplete.Root>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
+function SearchOverlay(props: SearchOverlayProps) {
+  return <SearchOverlayFrame {...props} panel={SearchOverlayPanel} />;
 }
 
 export { SearchOverlay };
