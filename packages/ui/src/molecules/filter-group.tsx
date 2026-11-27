@@ -33,6 +33,7 @@ import { VisuallyHidden } from "@shopblok/ui/atoms/visually-hidden";
 import { cn } from "@shopblok/ui/lib/utils";
 import { FieldLegend, FieldSet } from "@shopblok/ui/primitives/field";
 import { ChevronDownIcon } from "lucide-react";
+import { useId } from "react";
 import type * as React from "react";
 import { PriceRange } from "./filter-group-price-range";
 import { FilterSwatchOption } from "./filter-group-swatch-option";
@@ -95,10 +96,15 @@ function CheckboxOption({
   copy: FilterGroupCopy;
   locale: string;
 }) {
+  // The name is the label's, given in the server's HTML (T113): Base UI ties the control to the
+  // label it sits in only once scripts run, and without them axe found it nameless
+  // (`aria-toggle-field-name`). The label's text is the option and its count, as before.
+  const labelId = `${useId()}-label`;
   return (
     <li>
-      <Label className={optionRow}>
+      <Label id={labelId} className={optionRow}>
         <Checkbox
+          aria-labelledby={labelId}
           name={facet.id}
           value={option.value}
           defaultChecked={option.selected}
@@ -213,11 +219,14 @@ function ToggleRow({
   copy: FilterGroupCopy;
   locale: string;
 }) {
+  // The name from the label in the server's HTML, as CheckboxOption's (T113).
+  const labelId = `${useId()}-label`;
   return (
-    <Label className={cn(optionRow, "justify-between")}>
+    <Label id={labelId} className={cn(optionRow, "justify-between")}>
       <span className="min-w-0 flex-1 wrap-anywhere">{facet.label}</span>
       <Count count={facet.count} copy={copy} locale={locale} />
       <Switch
+        aria-labelledby={labelId}
         name={facet.id}
         value={TOGGLE_VALUE}
         defaultChecked={facet.selected}
