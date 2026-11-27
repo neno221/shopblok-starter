@@ -483,6 +483,8 @@ export const en = {
       marketing: "Marketing",
       marketingDescription: "Show you offers that match your interests, here and on other sites.",
       save: "Save my choices",
+      // M7 D145 (T109): the policy page's "Cookie settings" form without scripts, once saved.
+      saved: "Your cookie choices are saved.",
       close: "Close",
     },
     loadingSkeleton: {
@@ -1008,6 +1010,13 @@ export const en = {
         title: "Your cart is empty",
         text: "Add something to your cart, then come back to check out.",
         continue: "Continue shopping",
+      },
+      // M7 D144 (T109): the cart the cookie names is a customer's, and this visitor is not signed in
+      // as them (a session that expired, or another shopper on this computer).
+      held: {
+        title: "Sign in to continue with this cart",
+        text: "This cart belongs to a customer account. Sign in to that account to see it and pay, or start a new cart.",
+        signIn: "Sign in",
       },
       // T86: the `express-rail` layout's rail above the first step (Stripe's buttons since M6 T102).
       express: {

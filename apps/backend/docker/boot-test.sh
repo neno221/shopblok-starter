@@ -59,6 +59,8 @@ docker compose -f "$ROOT/compose.yaml" exec -T postgres psql -q -U postgres -d p
 # Railway's does (DEPLOY.md, "Medusa's database").
 # PAYLOAD_SERVER_URL as staging's config sets it (M7 T111): doctor's `payload-jobs-tick` is an
 # error on a deployment without it. Nothing listens there, so the worker's tick logs one failure.
+# T109 (D146, D136 (5)): doctor errors on a deployment without AUTH_MFA_ENCRYPTION_KEY, and on a CORS
+# list that is not https origins; the browser never calls this boot, so the lists name no real host.
 umask 077
 cat >"$envfile" <<EOF
 NODE_ENV=production
@@ -77,9 +79,10 @@ SHOPBLOK_SECRET_FINGERPRINTS=CRON_SECRET:$(fingerprint CRON_SECRET "$cron_secret
 MEDUSA_BACKEND_URL=http://localhost:$PORT
 STOREFRONT_URL=http://localhost:8000
 PAYLOAD_SERVER_URL=http://localhost:8000
-STORE_CORS=http://localhost:8000
-ADMIN_CORS=http://localhost:$PORT
-AUTH_CORS=http://localhost:8000,http://localhost:$PORT
+AUTH_MFA_ENCRYPTION_KEY=$(secret)
+STORE_CORS=https://store.boot-test.invalid
+ADMIN_CORS=https://admin.boot-test.invalid
+AUTH_CORS=https://store.boot-test.invalid,https://admin.boot-test.invalid
 EOF
 
 run() { docker run --rm --network "$NETWORK" --env-file "$envfile" "$@"; }

@@ -155,7 +155,15 @@ test("after analytics consent, page views and the shop's events go through /inge
 }) => {
   const ingest = watchIngest(context);
   await page.goto("/us");
+  // The home page's first batch is answered before the test leaves the page: a batch still in
+  // flight when `page.goto` navigates is cut off and never answered, which the check of every
+  // request below would wait on (T109: the consent record's action moved PostHog's first flush
+  // a few milliseconds later, onto the navigation).
+  const firstBatch = page.waitForResponse(
+    (response) => new URL(response.url()).pathname === "/ingest/e/",
+  );
   await consentToAnalytics(page);
+  await firstBatch;
   await addToCart(page, "/us");
   await expect
     .poll(() => named(ingest.events, "product_added_to_cart").length, { timeout: 20_000 })

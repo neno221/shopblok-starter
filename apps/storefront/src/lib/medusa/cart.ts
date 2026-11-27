@@ -97,8 +97,23 @@ export type CartDto = {
   paymentSave: boolean;
   /** The customer the cart belongs to (a signed-in customer's, or the one Medusa found by its e-mail). */
   customerId: string | null;
+  /**
+   * M7 D144 (T109): what this visitor is to the cart, as Medusa says (`shopblok_access`): its
+   * customer (`owner`), anyone on a guest's cart (`guest`), or not the customer whose cart it is
+   * (`other`: a session that expired, or another shopper on a shared computer). Medusa then keeps
+   * the cart's payment secrets back and refuses its writes, so the shop treats it as no cart and
+   * offers sign-in. Absent from an answer without it (`guest`).
+   */
+  access: CartAccess;
   completed: boolean;
 };
+
+/** What a visitor is to a cart (D144): its customer, anyone on a guest's cart, or someone else. */
+export type CartAccess = "owner" | "guest" | "other";
+
+/** `shopblok_access` as the DTO's `access`: anything Medusa did not say is a guest's cart. */
+export const cartAccessOf = (value: unknown): CartAccess =>
+  value === "owner" || value === "other" ? value : "guest";
 
 /** The fields every read and write asks for, so a write answers with the whole cart. */
 export const CART_FIELDS = [
@@ -166,6 +181,8 @@ export type WireCart = {
     | null;
   shipping_address?: WireAddress | null;
   customer?: { id?: string | null } | null;
+  /** M7 D144: added by Medusa's filter (`apps/backend/src/lib/payment-session-filter.ts`). */
+  shopblok_access?: string | null;
   payment_collection?: {
     payment_sessions?: ({ provider_id?: string | null; status?: string | null } | null)[] | null;
   } | null;
@@ -293,6 +310,7 @@ export function toCartDto(cart: WireCart): CartDto {
         : null,
     paymentSave: cart.metadata?.stripe_setup_future_usage === "off_session",
     customerId: cart.customer?.id ?? null,
+    access: cartAccessOf(cart.shopblok_access),
     completed: Boolean(cart.completed_at),
   };
 }
@@ -416,16 +434,29 @@ const isMissing = (error: unknown) =>
  * the texts Medusa translates on the way.
  */
 export async function getCart(locale?: string): Promise<CartDto | null> {
+  return (await readCart(locale)).cart;
+}
+
+/**
+ * The cart the cookie names, as `getCart` reads it, and whether it is held back (M7 D144): a
+ * customer's cart this visitor is not signed in as (`access: "other"`) is no cart here, so its
+ * lines, its total and its payment are not shown and the next add starts a new cart (which
+ * replaces the cookie); the cart page and the checkout offer sign-in instead (`held: true`). The
+ * cookie stays until then, so signing in as that customer goes on with the cart, and signing in as
+ * someone else drops it (`login`'s transfer is refused).
+ */
+export async function readCart(locale?: string): Promise<{ cart: CartDto | null; held: boolean }> {
   const id = await getCartId();
-  if (id === undefined) return null;
+  if (id === undefined) return { cart: null, held: false };
   try {
     const { cart } = await medusaRequest(async (sdk) =>
       sdk.store.cart.retrieve(id, { fields: CART_FIELDS }, await headersFor(locale)),
     );
     const dto = toCartDto(cart as unknown as WireCart);
-    return dto.completed ? null : dto;
+    if (dto.completed) return { cart: null, held: false };
+    return dto.access === "other" ? { cart: null, held: true } : { cart: dto, held: false };
   } catch (error) {
-    if (isMissing(error)) return null;
+    if (isMissing(error)) return { cart: null, held: false };
     throw error;
   }
 }
@@ -523,7 +554,8 @@ export type CartItemRef = { id: string; variantId: string | null; quantity: numb
 /**
  * The cart's lines by id, variant and quantity only (the actions' ownership and limit checks, one
  * small read), or `null` when the visitor has no open cart. Unlike `getCart` it keeps a line with
- * no variant, so such a line can still be removed (PR 73 review).
+ * no variant, so such a line can still be removed (PR 73 review). A held cart (M7 D144, `readCart`)
+ * is no cart here either: the next add goes to a new cart, so its lines count for nothing.
  */
 export async function getCartItems(): Promise<CartItemRef[] | null> {
   const id = await getCartId();
@@ -537,7 +569,7 @@ export async function getCartItems(): Promise<CartItemRef[] | null> {
       ),
     );
     const wire = cart as unknown as WireCart;
-    if (wire.completed_at) return null;
+    if (wire.completed_at || cartAccessOf(wire.shopblok_access) === "other") return null;
     return (wire.items ?? []).flatMap((line) =>
       line
         ? [{ id: line.id, variantId: line.variant_id ?? null, quantity: line.quantity ?? 0 }]

@@ -13,6 +13,9 @@
 //   page's) is this island's control. Without scripts it is a link to the policy page; with them a
 //   click here opens the dialog with the switches as chosen, and focus goes back to the link. A page
 //   opened at `#cookie-settings` (a click before the page hydrated) opens it too. No new island.
+// - M7 D145 (T109): every choice is recorded on the server (by `syncCartConsent`, below, which
+//   answers the record's id; the island adds it to the cookie); without scripts the policy page's "Cookie settings" form
+//   does the same (`components/visitor/cookie-settings-form.tsx`).
 // - A choice goes to the cart (`syncCartConsent`, a server action): a withdrawal takes the consent
 //   and PostHog's id out of the cart's metadata, so Medusa sends nothing about its order. With a
 //   PostHog key a "yes" is the gate's to send, once PostHog has made the distinct id.
@@ -34,7 +37,7 @@ import {
   isCookieSettingsLink,
   onConsentChange,
 } from "./consent";
-import { readConsentCookie } from "./consent-cookie";
+import { readConsentCookie, writeConsentCookie } from "./consent-cookie";
 import { useVisitor } from "./use-visitor";
 
 export type VisitorCookieConsentProps = Omit<
@@ -93,14 +96,26 @@ export function VisitorCookieConsent({
 
   // A choice goes to the cart's metadata (D124); the server reads the cookie just written. With a
   // PostHog key, a "yes" waits for the gate, which sends it with PostHog's distinct id.
-  useEffect(
-    () =>
-      onConsentChange((choice) => {
-        if (!process.env.NEXT_PUBLIC_POSTHOG_KEY || !choice.analytics)
-          void syncCartConsent().catch(() => undefined);
-      }),
-    [],
-  );
+  // M7 D145 (T109): the same action records the choice (passed itself) and answers the consent
+  // id, which the browser adds to the cookie as it is then. The calls go one after the other, each
+  // once the last answered, so a second choice's request carries the id the first one made (one id
+  // per visitor), and no answer rewrites the cookie.
+  useEffect(() => {
+    let calls: Promise<unknown> = Promise.resolve();
+    return onConsentChange((choice) => {
+      calls = calls
+        .then(() =>
+          // The choice as `chooseConsent` hands it (a copy); the action reads its two answers.
+          syncCartConsent(
+            market,
+            choice,
+            !process.env.NEXT_PUBLIC_POSTHOG_KEY || !choice.analytics,
+          ),
+        )
+        .then((id) => id && writeConsentCookie(undefined, id))
+        .catch(() => undefined);
+    });
+  }, [market]);
 
   // PostHog, only in a build with its key (D124, D129): the gate's chunk after analytics consent,
   // given on this page or before, or to clear PostHog's cookies left after a withdrawal elsewhere.

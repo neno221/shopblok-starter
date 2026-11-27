@@ -39,6 +39,7 @@ const bootstrapped: AppEnvs = {
   backend: {
     JWT_SECRET: "j",
     COOKIE_SECRET: "c",
+    AUTH_MFA_ENCRYPTION_KEY: "m",
     REDIS_URL: "redis://localhost:6380",
     MEDUSA_FF_CACHING: "true",
     PAYLOAD_API_KEY: "k",
@@ -531,6 +532,65 @@ describe("configChecks: secrets", () => {
 
   it.each(["development", "test"])("blank with NODE_ENV=%s is only a warning", (env) => {
     expect(secretsFor(env)?.level).toBe("warn");
+  });
+});
+
+describe("configChecks: Medusa Admin's two-factor key (T109, D146)", () => {
+  const blank: AppEnvs = {
+    backend: { ...bootstrapped.backend, AUTH_MFA_ENCRYPTION_KEY: "" },
+    storefront: bootstrapped.storefront,
+  };
+
+  it("set after bootstrap", () => {
+    expect(find(run(bootstrapped), "mfa-key")?.level).toBe("ok");
+  });
+
+  it("blank in development is a warning that points at bootstrap", () => {
+    const check = find(run(blank), "mfa-key");
+    expect(check?.level).toBe("warn");
+    expect(check?.details).toEqual(["not set: AUTH_MFA_ENCRYPTION_KEY (apps/backend)"]);
+    expect(check?.fix).toContain("pnpm bootstrap");
+  });
+
+  it("blank on a deployment is an error, and only the backend's", () => {
+    const deployed = { ...dev, deployed: true };
+    expect(find(run(blank, deployed), "mfa-key")?.level).toBe("error");
+    expect(find(run(blank, { ...deployed, app: "storefront" }), "mfa-key")).toBeUndefined();
+    expect(find(run(blank, { ...deployed, app: "backend" }), "mfa-key")?.level).toBe("error");
+  });
+});
+
+describe("configChecks: Medusa's CORS on a deployment (T109)", () => {
+  const deployed = (cors: Record<string, string>): AppEnvs => ({
+    backend: { ...bootstrapped.backend, NODE_ENV: "production", DEPLOY_ENV: "staging", ...cors },
+    storefront: {},
+  });
+  const good = {
+    STORE_CORS: "https://shopblok.vercel.app",
+    AUTH_CORS: "https://shopblok.vercel.app,https://shopblok-server.up.railway.app",
+    ADMIN_CORS: "https://shopblok-server.up.railway.app",
+  };
+  const backendOnly: Context = { ...dev, app: "backend", deployed: true };
+
+  it("is not checked in development", () => {
+    expect(find(run(bootstrapped), "cors")).toBeUndefined();
+  });
+
+  it("passes DEPLOY.md's values", () => {
+    expect(find(run(deployed(good), backendOnly), "cors")?.level).toBe("ok");
+  });
+
+  it("is an error naming each wrong list", () => {
+    const check = find(
+      run(deployed({ ...good, STORE_CORS: "http://localhost:8000", ADMIN_CORS: "" }), backendOnly),
+      "cors",
+    );
+    expect(check?.level).toBe("error");
+    expect(check?.details).toEqual([
+      expect.stringContaining("STORE_CORS"),
+      expect.stringContaining("STORE_CORS lets in http://localhost:8000"),
+      expect.stringContaining("ADMIN_CORS is blank"),
+    ]);
   });
 });
 

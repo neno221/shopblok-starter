@@ -30,6 +30,7 @@ import * as migration_20261112_135006_email_types_newsletter from "./20261112_13
 import * as migration_20261125_234610_media_storage_fields from "./20261125_234610_media_storage_fields";
 import * as migration_20261126_101550_payload_394_constraint_names from "./20261126_101550_payload_394_constraint_names";
 import * as migration_20261126_175901_private_file_storage from "./20261126_175901_private_file_storage";
+import * as migration_20261126_213030_consent_records from "./20261126_213030_consent_records";
 
 export const migrations = [
   {
@@ -191,5 +192,10 @@ export const migrations = [
     up: migration_20261126_175901_private_file_storage.up,
     down: migration_20261126_175901_private_file_storage.down,
     name: "20261126_175901_private_file_storage",
+  },
+  {
+    up: migration_20261126_213030_consent_records.up,
+    down: migration_20261126_213030_consent_records.down,
+    name: "20261126_213030_consent_records",
   },
 ];

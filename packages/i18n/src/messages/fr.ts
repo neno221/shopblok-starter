@@ -428,6 +428,7 @@ export const fr: Messages = {
       marketingDescription:
         "Vous montrent des offres adaptées à vos centres d’intérêt, ici et sur d’autres sites.",
       save: "Enregistrer mes choix",
+      saved: "Vos choix de cookies sont enregistrés.",
       close: "Fermer",
     },
     loadingSkeleton: {
@@ -906,6 +907,11 @@ export const fr: Messages = {
         title: "Votre panier est vide",
         text: "Ajoutez un article à votre panier, puis revenez pour commander.",
         continue: "Continuer mes achats",
+      },
+      held: {
+        title: "Connectez-vous pour continuer avec ce panier",
+        text: "Ce panier appartient à un compte client. Connectez-vous à ce compte pour le voir et payer, ou commencez un nouveau panier.",
+        signIn: "Se connecter",
       },
       express: {
         title: "Paiement express",

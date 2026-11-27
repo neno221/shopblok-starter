@@ -37,9 +37,9 @@ const stored = (overrides: Partial<StoredString> = {}): StoredString => {
 };
 
 describe("codeStrings", () => {
-  it("has every message of the code catalogs, 824, in the four languages, and no design-system chrome", () => {
+  it("has every message of the code catalogs, 828, in the four languages, and no design-system chrome", () => {
     const strings = codeStrings();
-    expect(strings).toHaveLength(824);
+    expect(strings).toHaveLength(828);
     expect(strings.some((string) => string.key.startsWith("designSystem."))).toBe(false);
     const low = strings.find((string) => string.key === "atoms.stock.low");
     expect(low).toEqual({
@@ -137,25 +137,25 @@ describe("seedUiStrings", () => {
     const { payload, docs } = fakePayload();
     const strings = codeStrings();
     expect(await seedUiStrings(payload, strings)).toEqual({
-      created: 824,
+      created: 828,
       updated: 0,
       unchanged: 0,
       deleted: 0,
     });
-    expect(payload.create).toHaveBeenCalledTimes(824);
+    expect(payload.create).toHaveBeenCalledTimes(828);
     const call = payload.create.mock.calls[0]?.[0] as unknown as Record<string, unknown>;
     expect(call).toMatchObject({ locale: "all", overrideAccess: true });
     expect(call["context"]).toEqual({ disableRevalidate: true });
     expect(payload.find).toHaveBeenCalledWith(
       expect.objectContaining({ locale: "all", pagination: false, overrideAccess: true }),
     );
-    expect(docs.size).toBe(824);
+    expect(docs.size).toBe(828);
 
     payload.create.mockClear();
     expect(await seedUiStrings(payload, strings)).toEqual({
       created: 0,
       updated: 0,
-      unchanged: 824,
+      unchanged: 828,
       deleted: 0,
     });
     expect(payload.create).not.toHaveBeenCalled();

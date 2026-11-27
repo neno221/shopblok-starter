@@ -420,6 +420,7 @@ export const de: Messages = {
       marketingDescription:
         "Zeigen Ihnen Angebote, die zu Ihren Interessen passen, hier und auf anderen Websites.",
       save: "Auswahl speichern",
+      saved: "Ihre Cookie-Einstellungen sind gespeichert.",
       close: "Schließen",
     },
     loadingSkeleton: {
@@ -903,6 +904,11 @@ export const de: Messages = {
         title: "Ihr Warenkorb ist leer",
         text: "Legen Sie etwas in den Warenkorb und kommen Sie dann zur Kasse zurück.",
         continue: "Weiter einkaufen",
+      },
+      held: {
+        title: "Melden Sie sich an, um mit diesem Warenkorb fortzufahren",
+        text: "Dieser Warenkorb gehört zu einem Kundenkonto. Melden Sie sich bei diesem Konto an, um ihn zu sehen und zu bezahlen, oder beginnen Sie einen neuen Warenkorb.",
+        signIn: "Anmelden",
       },
       express: {
         title: "Express-Kasse",
