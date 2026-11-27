@@ -96,7 +96,8 @@ async function seededHomeId(payload: Payload): Promise<number | undefined> {
 
 /**
  * The site settings: the store's name and the product page's texts from `site.ts` in four
- * languages (T69 reads them), and since T65 the seeded Home as the homepage (D80).
+ * languages (T69 reads them), since T65 the seeded Home as the homepage (D80), and since T113 the
+ * shop's description (the home's line) for the pages that set none.
  */
 export const siteSettingsSeed: SeedGlobal = {
   global: "site-settings",
@@ -106,6 +107,9 @@ export const siteSettingsSeed: SeedGlobal = {
       storeName: seeded("Shopblok"),
       productNotes: seeded(localized((text) => text.productNotes.map((note) => ({ note })))),
       deliveryAndReturns: seeded(localized((text) => lexicalParagraphs(text.delivery))),
+      // T113: the description of every page that has none of its own (D82: the listings, the CMS
+      // pages, the journal, the cart); Lighthouse's SEO audit asks each page for one.
+      "seo.description": seeded(localized((text) => text.hero.text)),
       ...(home === undefined ? {} : { homepage: seeded(home) }),
     };
   },
